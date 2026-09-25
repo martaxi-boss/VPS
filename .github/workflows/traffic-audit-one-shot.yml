@@ -1,0 +1,218 @@
+name: One-shot Lowcost Traffic Audit
+
+on:
+  push:
+    branches:
+      - 'ops/traffic-audit-*'
+    paths:
+      - '.github/workflows/traffic-audit-one-shot.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Read traffic logs from VPS
+        env:
+          VPS_SSH_PASSWORD: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${VPS_SSH_PASSWORD:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          export SSHPASS="$VPS_SSH_PASSWORD"
+
+          cat > /tmp/traffic_audit.py <<'PY'
+          import re, glob, gzip, datetime, collections
+          from urllib.parse import urlsplit
+          from zoneinfo import ZoneInfo
+
+          UTC = datetime.timezone.utc
+          LISBON = ZoneInfo("Europe/Lisbon")
+          start = datetime.datetime(2026, 9, 23, 17, 5, 17, tzinfo=UTC)
+          end = datetime.datetime.now(UTC)
+
+          known_owner_ips = {
+              "89.214.112.247","89.214.113.61","89.214.116.217","89.214.116.15",
+              "89.214.112.225","85.247.222.132","95.177.101.141","89.214.118.145","85.244.90.90",
+          }
+          owner_markers = ("2201116SC",)
+          meta_prefixes = ("157.240.","173.252.","31.13.","69.63.","66.220.","129.134.")
+          bot_re = re.compile(
+              r"bot|crawler|spider|slurp|measurement|scan|curl|wget|python|go-http|headless|"
+              r"facebookexternalhit|meta-external|preview|monitor|zgrab|censys|masscan|nmap|"
+              r"httpx|semrush|ahrefs|mj12|petalbot|duckassist|perplexity|claude|chatgpt|"
+              r"amazonbot|applebot|googlebot|bingbot|yandex|baiduspider|bytespider|hunyuan|"
+              r"deepseek|yibot|domain-harvester|internetmeasurement|google-read-aloud",
+              re.I,
+          )
+          pat = re.compile(
+              r'^(\S+) \S+ \S+ \[([^\]]+)\] "(\S+) ([^ ]+) [^"]+" (\d{3}) (\S+) "([^"]*)" "([^"]*)"'
+          )
+
+          rows = []
+          for f in glob.glob("/var/log/nginx/access.log*"):
+              try:
+                  fh = gzip.open(f, "rt", errors="ignore") if f.endswith(".gz") else open(f, errors="ignore")
+              except OSError:
+                  continue
+              with fh:
+                  for line in fh:
+                      m = pat.match(line)
+                      if not m:
+                          continue
+                      ip, ts, method, path, status, bytes_, ref, ua = m.groups()
+                      try:
+                          dt = datetime.datetime.strptime(ts, "%d/%b/%Y:%H:%M:%S %z")
+                      except Exception:
+                          continue
+                      if start <= dt <= end:
+                          rows.append({
+                              "ip": ip, "dt": dt, "method": method, "path": path,
+                              "status": int(status), "ref": ref, "ua": ua
+                          })
+
+          for x in rows:
+              s = (x["path"] + " " + x["ref"]).lower()
+              if any(mark in x["ua"] for mark in owner_markers) or "gestao=" in s or "/admin/" in s:
+                  known_owner_ips.add(x["ip"])
+
+          def path_only(x):
+              return urlsplit(x["path"]).path
+
+          def is_owner(x):
+              return x["ip"] in known_owner_ips
+
+          def is_bot(x):
+              return bool(bot_re.search(x["ua"]))
+
+          def is_meta_net(x):
+              return x["ip"].startswith(meta_prefixes)
+
+          public_exact = {"/", "/contacto/", "/como-funciona/", "/afiliados/", "/privacidade/", "/termos/"}
+
+          def is_page(x):
+              p = path_only(x)
+              return x["method"] == "GET" and x["status"] == 200 and (p in public_exact or p.startswith("/products/"))
+
+          def is_go(x):
+              return (
+                  x["method"] == "GET"
+                  and x["status"] in (301,302,303,307,308)
+                  and re.fullmatch(r"/go/\d+/?", path_only(x))
+              )
+
+          def paid_fb(x):
+              s = (x["path"] + " " + x["ref"] + " " + x["ua"]).lower()
+              return (
+                  ("utm_source=fb" in s and "utm_medium=paid" in s)
+                  or ("fbclid=" in s and ("facebook.com" in s or "fb.com" in s or "fb_iab" in s or "fbav/" in s))
+              )
+
+          eligible = [x for x in rows if not is_owner(x) and not is_bot(x)]
+          meta_tech = [x for x in eligible if is_meta_net(x) and (is_page(x) or is_go(x))]
+          humanish = [x for x in eligible if not is_meta_net(x)]
+          events = [x for x in humanish if is_page(x) or is_go(x)]
+          pages = [x for x in events if is_page(x)]
+          gos = [x for x in events if is_go(x)]
+
+          # Sessionize by IP + UA, 45-minute inactivity break.
+          grouped = collections.defaultdict(list)
+          for x in events:
+              grouped[(x["ip"], x["ua"])].append(x)
+          sessions = []
+          gap = datetime.timedelta(minutes=45)
+          for key, evs in grouped.items():
+              evs.sort(key=lambda e: e["dt"])
+              cur = []
+              prev = None
+              for e in evs:
+                  if prev is not None and e["dt"] - prev > gap:
+                      sessions.append(cur)
+                      cur = []
+                  cur.append(e)
+                  prev = e["dt"]
+              if cur:
+                  sessions.append(cur)
+
+          paid_sessions = [s for s in sessions if any(paid_fb(e) for e in s)]
+          paid_events = [e for s in paid_sessions for e in s]
+          paid_pages = [e for e in paid_events if is_page(e)]
+          paid_gos = [e for e in paid_events if is_go(e)]
+
+          home = [x for x in pages if path_only(x) == "/"]
+          family = [x for x in pages if path_only(x).startswith("/products/")]
+          contact = [x for x in pages if path_only(x) == "/contacto/"]
+          family_sessions = [s for s in sessions if any(is_page(e) and path_only(e).startswith("/products/") for e in s)]
+          go_sessions = [s for s in sessions if any(is_go(e) for e in s)]
+
+          def device_of(session):
+              ua = session[0]["ua"].lower()
+              if "iphone" in ua or "ipad" in ua:
+                  return "iPhone/iPad"
+              if "android" in ua:
+                  return "Android"
+              return "Desktop/other"
+
+          print("AUDIT_START_LOCAL=" + start.astimezone(LISBON).isoformat())
+          print("AUDIT_END_LOCAL=" + end.astimezone(LISBON).isoformat())
+          print("RAW_LOG_ROWS=" + str(len(rows)))
+          print("OWNER_IPS_FILTERED=" + str(len(known_owner_ips)))
+          print("META_TECHNICAL_EVENTS=" + str(len(meta_tech)))
+          print("PUBLIC_PAGEVIEWS=" + str(len(pages)))
+          print("UNIQUE_IPS=" + str(len({x['ip'] for x in pages})))
+          print("SESSIONS=" + str(len(sessions)))
+          print("HOME_PAGEVIEWS=" + str(len(home)))
+          print("FAMILY_PAGEVIEWS=" + str(len(family)))
+          print("FAMILY_SESSIONS=" + str(len(family_sessions)))
+          print("CONTACT_PAGEVIEWS=" + str(len(contact)))
+          print("GO_CLICKS=" + str(len(gos)))
+          print("GO_SESSIONS=" + str(len(go_sessions)))
+          print("GO_UNIQUE_IPS=" + str(len({x['ip'] for x in gos})))
+          print("PAID_FB_SESSIONS=" + str(len(paid_sessions)))
+          print("PAID_FB_PAGEVIEWS=" + str(len(paid_pages)))
+          print("PAID_FB_UNIQUE_IPS=" + str(len({e['ip'] for e in paid_pages})))
+          print("PAID_FB_FAMILY_PAGEVIEWS=" + str(sum(is_page(e) and path_only(e).startswith('/products/') for e in paid_events)))
+          print("PAID_FB_GO_CLICKS=" + str(len(paid_gos)))
+
+          print("DAILY_BREAKDOWN_BEGIN")
+          days = sorted({x["dt"].astimezone(LISBON).strftime("%Y-%m-%d") for x in pages + gos})
+          for day in days:
+              pp = [x for x in pages if x["dt"].astimezone(LISBON).strftime("%Y-%m-%d") == day]
+              gg = [x for x in gos if x["dt"].astimezone(LISBON).strftime("%Y-%m-%d") == day]
+              day_sessions = [s for s in sessions if s[0]["dt"].astimezone(LISBON).strftime("%Y-%m-%d") == day]
+              day_paid = [s for s in paid_sessions if s[0]["dt"].astimezone(LISBON).strftime("%Y-%m-%d") == day]
+              print(
+                  f"{day} PV={len(pp)} UNIQUE={len({x['ip'] for x in pp})} "
+                  f"SESSIONS={len(day_sessions)} HOME={sum(path_only(x)=='/' for x in pp)} "
+                  f"FAMILY={sum(path_only(x).startswith('/products/') for x in pp)} "
+                  f"GO={len(gg)} PAID_FB_SESSIONS={len(day_paid)}"
+              )
+          print("DAILY_BREAKDOWN_END")
+
+          print("FAMILY_BREAKDOWN_BEGIN")
+          for k, v in collections.Counter(path_only(x) for x in family).most_common():
+              print(f"{v} {k}")
+          print("FAMILY_BREAKDOWN_END")
+
+          print("GO_BREAKDOWN_BEGIN")
+          for k, v in collections.Counter(path_only(x) for x in gos).most_common():
+              print(f"{v} {k}")
+          print("GO_BREAKDOWN_END")
+
+          print("DEVICE_SESSIONS_BEGIN")
+          for k, v in collections.Counter(device_of(s) for s in sessions).most_common():
+              print(f"{k}={v}")
+          print("DEVICE_SESSIONS_END")
+
+          print("HOURLY_LOCAL_BEGIN")
+          for k, v in sorted(collections.Counter(x["dt"].astimezone(LISBON).strftime("%Y-%m-%d %H:00") for x in pages).items()):
+              print(f"{k} PV={v}")
+          print("HOURLY_LOCAL_END")
+          PY
+
+          sshpass -e ssh             -o PreferredAuthentications=password             -o PubkeyAuthentication=no             -o StrictHostKeyChecking=accept-new             -o ConnectTimeout=10             ubuntu@146.59.145.3             'sudo -n python3 -' < /tmp/traffic_audit.py
