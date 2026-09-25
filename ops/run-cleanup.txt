@@ -1,1 +1,1 @@
-Run authorized final VPS cleanup: remove Desktop Commander and safe caches; verify prior runner/MCP residue is absent.
+Run authorized final VPS cleanup now: remove Desktop Commander and safe caches; verify prior runner/MCP residue is absent.
