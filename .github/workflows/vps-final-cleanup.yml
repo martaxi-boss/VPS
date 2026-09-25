@@ -1,0 +1,106 @@
+name: VPS Final Cleanup
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "ops/run-cleanup.txt"
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Remove Desktop Commander and clean safe caches
+        env:
+          VPS_SSH_PASSWORD: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          HOST="146.59.145.3"
+          USER="ubuntu"
+
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+
+          sshpass -p "$VPS_SSH_PASSWORD" ssh             -o PreferredAuthentications=password             -o PubkeyAuthentication=no             -o StrictHostKeyChecking=accept-new             -o ConnectTimeout=10             "$USER@$HOST" '
+              set -euo pipefail
+
+              echo "== BEFORE =="
+              df -h /
+              echo "DC_ACTIVE=$(systemctl is-active desktop-commander-remote.service 2>/dev/null || true)"
+              npm list -g --depth=0 @wonderwhy-er/desktop-commander 2>/dev/null || true
+              sudo -n du -sh /var/cache/apt/archives 2>/dev/null || true
+
+              echo "== REMOVE DESKTOP COMMANDER =="
+              sudo -n systemctl disable --now desktop-commander-remote.service >/dev/null 2>&1 || true
+              sudo -n npm uninstall -g @wonderwhy-er/desktop-commander >/dev/null 2>&1 || true
+              sudo -n rm -f /etc/systemd/system/desktop-commander-remote.service
+              sudo -n rm -f /lib/systemd/system/desktop-commander-remote.service
+              sudo -n rm -f /usr/lib/systemd/system/desktop-commander-remote.service
+              sudo -n rm -rf /usr/lib/node_modules/@wonderwhy-er/desktop-commander
+              sudo -n rm -rf /usr/local/lib/node_modules/@wonderwhy-er/desktop-commander
+              sudo -n rm -rf /root/.config/desktop-commander /root/.desktop-commander /root/.cache/desktop-commander
+              sudo -n rm -rf /home/ubuntu/.config/desktop-commander /home/ubuntu/.desktop-commander /home/ubuntu/.cache/desktop-commander
+              sudo -n systemctl daemon-reload
+              sudo -n systemctl reset-failed >/dev/null 2>&1 || true
+
+              echo "== SAFE CACHE CLEANUP =="
+              sudo -n apt-get clean
+              sudo -n apt-get autoclean -y >/dev/null
+              sudo -n rm -rf /root/.cache/pip /home/ubuntu/.cache/pip
+              sudo -n rm -rf /root/.npm/_cacache /home/ubuntu/.npm/_cacache
+
+              echo "== VERIFY RESIDUES =="
+              if systemctl list-unit-files desktop-commander-remote.service --no-legend 2>/dev/null | grep -q .; then
+                echo "ERROR: Desktop Commander service unit remains"
+                exit 1
+              fi
+              if [ -d /usr/lib/node_modules/@wonderwhy-er/desktop-commander ] || [ -d /usr/local/lib/node_modules/@wonderwhy-er/desktop-commander ]; then
+                echo "ERROR: Desktop Commander package remains"
+                exit 1
+              fi
+              if systemctl list-unit-files "actions.runner.*.service" --no-legend 2>/dev/null | grep -q .; then
+                echo "ERROR: self-hosted runner unit remains"
+                exit 1
+              fi
+              if find /home /opt -maxdepth 4 -type f -name .runner -print -quit 2>/dev/null | grep -q .; then
+                echo "ERROR: self-hosted runner registration remains"
+                exit 1
+              fi
+              if systemctl list-unit-files "martaxi-commander*.service" --no-legend 2>/dev/null | grep -q .; then
+                echo "ERROR: Martaxi Commander service remains"
+                exit 1
+              fi
+              for p in /opt/martaxi-commander /etc/martaxi-commander /usr/local/bin/martaxi-commander-mcp /usr/local/bin/tunnel-client /etc/nginx/openai-mtls /etc/nginx/sites-enabled/martaxi-commander.conf /etc/nginx/sites-available/martaxi-commander.conf; do
+                if [ -e "$p" ]; then
+                  echo "ERROR: Martaxi Commander residue remains: $p"
+                  exit 1
+                fi
+              done
+
+              echo "== HEALTH =="
+              sudo -n nginx -t
+              test "$(systemctl is-active ssh)" = "active"
+              test "$(systemctl is-active nginx)" = "active"
+              test "$(systemctl is-active lowcost-europa.service)" = "active"
+              test "$(systemctl is-active postgresql)" = "active"
+
+              LOWCOST_HOST="lowcost-europa.146-59-145-3.sslip.io"
+              CODE="$(curl --noproxy "*" --resolve "$LOWCOST_HOST:443:127.0.0.1" --max-time 10 -sS -o /tmp/vps-cleanup-health.out -w "%{http_code}" "https://$LOWCOST_HOST/")"
+              rm -f /tmp/vps-cleanup-health.out
+              echo "LOWCOST_HTTP_CODE=$CODE"
+              test "$CODE" = "200"
+
+              echo "== AFTER =="
+              df -h /
+              sudo -n du -sh /var/cache/apt/archives 2>/dev/null || true
+              echo "DESKTOP_COMMANDER_REMOVED=PASS"
+              echo "SELF_HOSTED_RUNNER_RESIDUE=NONE"
+              echo "MARTAXI_COMMANDER_RESIDUE=NONE"
+              echo "CACHE_CLEANUP=PASS"
+              echo "VPS_HEALTH=PASS"
+            '
