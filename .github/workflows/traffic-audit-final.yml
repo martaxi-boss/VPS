@@ -1,0 +1,216 @@
+name: One-shot Lowcost Traffic Audit Final
+
+on:
+  push:
+    branches:
+      - 'ops/traffic-audit-*'
+    paths:
+      - '.github/workflows/traffic-audit-final.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Read traffic and order status from VPS
+        env:
+          VPS_SSH_PASSWORD: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${VPS_SSH_PASSWORD:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          export SSHPASS="$VPS_SSH_PASSWORD"
+
+          cat > /tmp/traffic_audit.py <<'PY'
+          import re, glob, gzip, datetime, collections
+          from urllib.parse import urlsplit
+          from zoneinfo import ZoneInfo
+
+          UTC = datetime.timezone.utc
+          LISBON = ZoneInfo("Europe/Lisbon")
+          start = datetime.datetime(2026, 9, 23, 17, 5, 17, tzinfo=UTC)
+          end = datetime.datetime.now(UTC)
+
+          owner_ips = {
+              "89.214.112.247","89.214.113.61","89.214.116.217","89.214.116.15",
+              "89.214.112.225","85.247.222.132","95.177.101.141","89.214.118.145","85.244.90.90",
+          }
+          meta_prefixes = ("157.240.","173.252.","31.13.","69.63.","66.220.","129.134.")
+          bot_re = re.compile(
+              r"bot|crawler|spider|slurp|measurement|scan|curl|wget|python|go-http|headless|"
+              r"facebookexternalhit|meta-external|preview|monitor|zgrab|censys|masscan|nmap|"
+              r"httpx|semrush|ahrefs|mj12|petalbot|duckassist|perplexity|claude|chatgpt|"
+              r"amazonbot|applebot|googlebot|bingbot|yandex|baiduspider|bytespider|hunyuan|"
+              r"deepseek|yibot|domain-harvester|internetmeasurement|google-read-aloud",
+              re.I,
+          )
+          pat = re.compile(r'^(\S+) \S+ \S+ \[([^\]]+)\] "(\S+) ([^ ]+) [^"]+" (\d{3}) (\S+) "([^"]*)" "([^"]*)"')
+
+          rows = []
+          for f in glob.glob("/var/log/nginx/access.log*"):
+              try:
+                  fh = gzip.open(f, "rt", errors="ignore") if f.endswith(".gz") else open(f, errors="ignore")
+              except OSError:
+                  continue
+              with fh:
+                  for line in fh:
+                      m = pat.match(line)
+                      if not m:
+                          continue
+                      ip, ts, method, path, status, bytes_, ref, ua = m.groups()
+                      try:
+                          dt = datetime.datetime.strptime(ts, "%d/%b/%Y:%H:%M:%S %z")
+                      except Exception:
+                          continue
+                      if start <= dt <= end:
+                          rows.append(dict(ip=ip, dt=dt, method=method, path=path, status=int(status), ref=ref, ua=ua))
+
+          # Any address using owner-only management URLs in the period is owner/admin traffic.
+          for x in rows:
+              s = (x["path"] + " " + x["ref"]).lower()
+              if "2201116sc" in x["ua"].lower() or "gestao=" in s or "/admin/" in s:
+                  owner_ips.add(x["ip"])
+
+          def p(x): return urlsplit(x["path"]).path
+          public_exact = {"/", "/contacto/", "/como-funciona/", "/afiliados/", "/privacidade/", "/termos/"}
+          def page(x): return x["method"]=="GET" and x["status"]==200 and (p(x) in public_exact or p(x).startswith("/products/"))
+          def go(x): return x["method"]=="GET" and x["status"] in (301,302,303,307,308) and re.fullmatch(r"/go/\d+/?", p(x))
+          def paid(x):
+              s=(x["path"]+" "+x["ref"]+" "+x["ua"]).lower()
+              return ("utm_source=fb" in s and "utm_medium=paid" in s) or ("fbclid=" in s and ("facebook.com" in s or "fb.com" in s or "fb_iab" in s or "fbav/" in s))
+          def known_bot(x): return bool(bot_re.search(x["ua"]))
+          def meta(x): return x["ip"].startswith(meta_prefixes)
+
+          base=[x for x in rows if x["ip"] not in owner_ips and not known_bot(x) and not meta(x) and (page(x) or go(x))]
+
+          grouped=collections.defaultdict(list)
+          for x in base:
+              grouped[(x["ip"],x["ua"])].append(x)
+          sessions=[]
+          gap=datetime.timedelta(minutes=45)
+          for _,evs in grouped.items():
+              evs.sort(key=lambda e:e["dt"])
+              cur=[]; prev=None
+              for e in evs:
+                  if prev is not None and e["dt"]-prev > gap:
+                      sessions.append(cur); cur=[]
+                  cur.append(e); prev=e["dt"]
+              if cur: sessions.append(cur)
+
+          def suspicious(s):
+              gc=sum(go(e) for e in s)
+              if gc >= 10:
+                  return True
+              if len(s) >= 30:
+                  duration=(s[-1]["dt"]-s[0]["dt"]).total_seconds()
+                  if duration <= 600:
+                      return True
+              return False
+
+          suspicious_sessions=[s for s in sessions if suspicious(s)]
+          sessions=[s for s in sessions if not suspicious(s)]
+          events=[e for s in sessions for e in s]
+          pages=[e for e in events if page(e)]
+          gos=[e for e in events if go(e)]
+          paid_sessions=[s for s in sessions if any(paid(e) for e in s)]
+          paid_events=[e for s in paid_sessions for e in s]
+          families=[e for e in pages if p(e).startswith("/products/")]
+
+          # Stricter likely-human subset. Single anonymous desktop homepage hits are retained
+          # in external counts but not promoted to "likely human" unless there is stronger evidence.
+          def likely_human(s):
+              if any(paid(e) for e in s): return True
+              if any(p(e).startswith("/products/") or p(e)=="/contacto/" or go(e) for e in s): return True
+              if len([e for e in s if page(e)]) >= 2: return True
+              ua=s[0]["ua"].lower()
+              return "iphone" in ua or "ipad" in ua or "android" in ua
+
+          likely=[s for s in sessions if likely_human(s)]
+          likely_pages=[e for s in likely for e in s if page(e)]
+
+          print("AUDIT_START_LOCAL="+start.astimezone(LISBON).isoformat())
+          print("AUDIT_END_LOCAL="+end.astimezone(LISBON).isoformat())
+          print("OWNER_IPS_FILTERED="+str(len(owner_ips)))
+          print("SUSPICIOUS_AUTOMATED_SESSIONS="+str(len(suspicious_sessions)))
+          print("SUSPICIOUS_AUTOMATED_GO_EVENTS="+str(sum(go(e) for s in suspicious_sessions for e in s)))
+          print("CLEAN_EXTERNAL_PAGEVIEWS="+str(len(pages)))
+          print("CLEAN_EXTERNAL_UNIQUE_IPS="+str(len({e['ip'] for e in pages})))
+          print("CLEAN_EXTERNAL_SESSIONS="+str(len(sessions)))
+          print("LIKELY_HUMAN_SESSIONS="+str(len(likely)))
+          print("LIKELY_HUMAN_PAGEVIEWS="+str(len(likely_pages)))
+          print("HOME_PAGEVIEWS="+str(sum(p(e)=="/" for e in pages)))
+          print("FAMILY_PAGEVIEWS="+str(len(families)))
+          print("FAMILY_SESSIONS="+str(sum(any(page(e) and p(e).startswith('/products/') for e in s) for s in sessions)))
+          print("CONTACT_PAGEVIEWS="+str(sum(p(e)=="/contacto/" for e in pages)))
+          print("REALISTIC_GO_CLICKS="+str(len(gos)))
+          print("REALISTIC_GO_SESSIONS="+str(sum(any(go(e) for e in s) for s in sessions)))
+          print("PAID_FB_SESSIONS="+str(len(paid_sessions)))
+          print("PAID_FB_PAGEVIEWS="+str(sum(page(e) for e in paid_events)))
+          print("PAID_FB_UNIQUE_IPS="+str(len({e['ip'] for e in paid_events if page(e)})))
+          print("PAID_FB_FAMILY_PAGEVIEWS="+str(sum(page(e) and p(e).startswith('/products/') for e in paid_events)))
+          print("PAID_FB_GO_CLICKS="+str(sum(go(e) for e in paid_events)))
+
+          print("DAILY_BEGIN")
+          for day in sorted({e["dt"].astimezone(LISBON).strftime("%Y-%m-%d") for e in pages}):
+              pp=[e for e in pages if e["dt"].astimezone(LISBON).strftime("%Y-%m-%d")==day]
+              ss=[s for s in sessions if s[0]["dt"].astimezone(LISBON).strftime("%Y-%m-%d")==day]
+              ps=[s for s in paid_sessions if s[0]["dt"].astimezone(LISBON).strftime("%Y-%m-%d")==day]
+              gg=[e for e in gos if e["dt"].astimezone(LISBON).strftime("%Y-%m-%d")==day]
+              print(f"{day} PV={len(pp)} UNIQUE={len({e['ip'] for e in pp})} SESSIONS={len(ss)} HOME={sum(p(e)=='/' for e in pp)} FAMILY={sum(p(e).startswith('/products/') for e in pp)} GO={len(gg)} PAID_FB_SESSIONS={len(ps)}")
+          print("DAILY_END")
+
+          print("FAMILIES_BEGIN")
+          for k,v in collections.Counter(p(e) for e in families).most_common():
+              print(f"{v} {k}")
+          print("FAMILIES_END")
+          PY
+
+          sshpass -e ssh             -o PreferredAuthentications=password             -o PubkeyAuthentication=no             -o StrictHostKeyChecking=accept-new             -o ConnectTimeout=10             ubuntu@146.59.145.3             'sudo -n python3 -' < /tmp/traffic_audit.py
+
+          cat > /tmp/order_check.sh <<'SH'
+          set -eu
+          if [ ! -x /srv/lowcost-europa/.venv/bin/python ] || [ ! -f /etc/lowcost-europa/lowcost-europa.env ]; then
+            echo "ALIEXPRESS_ORDER_CHECK=UNAVAILABLE_PATH"
+            exit 0
+          fi
+          set -a
+          . /etc/lowcost-europa/lowcost-europa.env
+          set +a
+          cd /srv/lowcost-europa
+          .venv/bin/python - <<'PY'
+          try:
+              from apps.integrations.aliexpress.client import AliExpressClient
+              c=AliExpressClient()
+              total=0
+              for day in ("2026-09-23","2026-09-24","2026-09-25"):
+                  for status in ("Payment Completed","Buyer Confirmed Receipt"):
+                      try:
+                          data=c._call("aliexpress.affiliate.order.list",{
+                              "start_time":day+" 00:00:00",
+                              "end_time":day+" 23:59:59",
+                              "status":status,
+                              "page_no":1,
+                              "page_size":50,
+                              "fields":"order_id,tracking_id,product_id,created_time,paid_time,paid_amount,estimated_paid_commission,effect_detail_status",
+                              "app_signature":c.config.tracking_id,
+                          })
+                          root=data.get("aliexpress_affiliate_order_list_response",data)
+                          rr=root.get("resp_result",{}) if isinstance(root,dict) else {}
+                          result=rr.get("result",{}) if isinstance(rr,dict) else {}
+                          n=int(result.get("total_record_count",0) or 0)
+                          total += n
+                          print(f"ALIEXPRESS {day} {status} TOTAL={n}")
+                      except Exception as e:
+                          print(f"ALIEXPRESS {day} {status} ERROR={type(e).__name__}")
+              print(f"ALIEXPRESS_TOTAL_MATCHED={total}")
+          except Exception as e:
+              print("ALIEXPRESS_ORDER_CHECK=ERROR_"+type(e).__name__)
+          PY
+          SH
+
+          sshpass -e ssh             -o PreferredAuthentications=password             -o PubkeyAuthentication=no             -o StrictHostKeyChecking=accept-new             -o ConnectTimeout=10             ubuntu@146.59.145.3             'sudo -n bash -s' < /tmp/order_check.sh
