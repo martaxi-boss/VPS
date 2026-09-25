@@ -1,0 +1,55 @@
+name: VPS Residue Audit
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "ops/audit-vps.txt"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Audit VPS
+        env:
+          VPS_SSH_PASSWORD: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          HOST="146.59.145.3"
+          USER="ubuntu"
+
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+
+          sshpass -p "$VPS_SSH_PASSWORD" ssh             -o PreferredAuthentications=password             -o PubkeyAuthentication=no             -o StrictHostKeyChecking=accept-new             -o ConnectTimeout=10             "$USER@$HOST" '
+              set -eu
+              echo "HOST=$(hostname)"
+              echo "USER=$(id -un)"
+              if sudo -n true 2>/dev/null; then echo "SUDO_N=PASS"; else echo "SUDO_N=FAIL"; fi
+              echo "DISK"; df -h /
+              echo "MEMORY"; free -h
+              echo "DC_UNIT"; systemctl list-unit-files desktop-commander-remote.service --no-legend 2>/dev/null || true
+              echo "DC_ACTIVE=$(systemctl is-active desktop-commander-remote.service 2>/dev/null || true)"
+              echo "DC_PACKAGE"; npm list -g --depth=0 @wonderwhy-er/desktop-commander 2>/dev/null || true
+              echo "RUNNER_UNITS"; systemctl list-unit-files "actions.runner.*.service" --no-legend 2>/dev/null || true
+              echo "RUNNER_PATHS"; find /home /opt -maxdepth 4 -type f -name .runner -print 2>/dev/null || true
+              echo "COMMANDER_UNITS"; systemctl list-unit-files "martaxi-commander*.service" --no-legend 2>/dev/null || true
+              echo "COMMANDER_PATHS"
+              for p in /opt/martaxi-commander /etc/martaxi-commander /usr/local/bin/martaxi-commander-mcp /usr/local/bin/tunnel-client /etc/nginx/openai-mtls /etc/nginx/sites-enabled/martaxi-commander.conf /etc/nginx/sites-available/martaxi-commander.conf; do
+                [ -e "$p" ] && echo "$p"
+              done
+              echo "CACHE_SIZES"
+              sudo -n du -sh /var/cache/apt/archives 2>/dev/null || true
+              du -sh ~/.cache/pip 2>/dev/null || true
+              du -sh ~/.npm 2>/dev/null || true
+              echo "SERVICES"
+              echo "SSH=$(systemctl is-active ssh 2>/dev/null || systemctl is-active sshd 2>/dev/null || true)"
+              echo "NGINX=$(systemctl is-active nginx 2>/dev/null || true)"
+              echo "APP=$(systemctl is-active lowcost-europa.service 2>/dev/null || true)"
+              echo "POSTGRES=$(systemctl is-active postgresql 2>/dev/null || true)"
+            '
