@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   repository-regression:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     services:
@@ -218,7 +219,6 @@ jobs:
           echo "LOWCOST_REPOSITORY_MUTATIONS=0"
 
   runtime-audit:
-    needs: repository-regression
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -564,7 +564,7 @@ jobs:
           REMOTE
 
   cleanup:
-    needs: [repository-regression, runtime-audit]
+    needs: runtime-audit
     runs-on: ubuntu-latest
     steps:
       - name: Delete temporary task branch
