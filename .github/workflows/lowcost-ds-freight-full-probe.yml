@@ -1,0 +1,128 @@
+name: Lowcost DS Freight Full Probe
+
+on:
+  push:
+    paths:
+      - ".github/workflows/lowcost-ds-freight-full-probe.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Retest authenticated DS freight end to end
+        env:
+          VPS_SSH_PASSWORD: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          export SSHPASS="$VPS_SSH_PASSWORD"
+
+          cat >/tmp/probe.sh <<'SH'
+          set -euo pipefail
+          APP="/srv/lowcost-europa"
+          APP_USER="le001_1789265592"
+          set -a
+          . /etc/lowcost-europa/lowcost-europa.env
+          set +a
+          cd "$APP"
+
+          sudo -u "$APP_USER" -E .venv/bin/python manage.py shell <<'PY'
+          import json, os, tempfile
+          from apps.integrations.aliexpress.client import AliExpressClient
+
+          token=os.environ.get("ALIEXPRESS_ACCESS_TOKEN")
+          td=tempfile.mkdtemp(prefix="le-ds-full-")
+          c=AliExpressClient(lock_path=os.path.join(td,"lock"), cadence_path=os.path.join(td,"cadence"))
+
+          product_id="1005013211231892"
+
+          def state_for(exc):
+              msg=" ".join(str(exc).split())
+              low=msg.lower()
+              if "insufficientpermission" in low or "does not have permission" in low:
+                  return "INSUFFICIENT_PERMISSION", msg
+              if "missingparameter" in low or "missing parameter" in low:
+                  return "MISSING_PARAMETER", msg
+              if "authentication" in low or "expired" in low or "token" in low:
+                  return "TOKEN_OR_AUTH_ERROR", msg
+              return "ERROR_"+exc.__class__.__name__, msg
+
+          try:
+              detail=c._call("aliexpress.ds.product.get",{
+                  "access_token":token,
+                  "ship_to_country":"PT",
+                  "product_id":product_id,
+                  "target_currency":"EUR",
+                  "target_language":"EN",
+              })
+          except Exception as exc:
+              st,msg=state_for(exc)
+              print(f"DS_PRODUCT_GET_STATE={st}")
+              print(f"DS_PRODUCT_GET_MSG={msg[:220]}")
+              raise SystemExit(0)
+
+          print("DS_PRODUCT_GET_STATE=AUTHORIZED_RESPONSE")
+
+          sku_ids=[]
+          prices=[]
+          def walk(x):
+              if isinstance(x,dict):
+                  for k,v in x.items():
+                      lk=k.lower()
+                      if lk in {"sku_id","skuid"} and v not in (None,""):
+                          sku_ids.append(str(v))
+                      if lk in {"offer_sale_price","sku_price","price"} and v not in (None,""):
+                          prices.append(str(v))
+                      walk(v)
+              elif isinstance(x,list):
+                  for v in x: walk(v)
+          walk(detail)
+          sku=next((s for s in sku_ids if s.isdigit()), sku_ids[0] if sku_ids else None)
+          price=prices[0] if prices else "1.00"
+          print("DS_PRODUCT_SKU_FOUND=" + ("YES" if sku else "NO"))
+
+          if not sku:
+              raise SystemExit(0)
+
+          req={
+              "productId": int(product_id),
+              "productNum": 1,
+              "shipToCountry": "PT",
+              "sendGoodsCountryCode": "ES",
+              "price": str(price),
+              "skuId": str(sku),
+              "locale": "en_US",
+              "currency": "EUR",
+              "language": "en",
+              "selectedSkuId": str(sku),
+              "quantity": 1,
+          }
+          try:
+              freight=c._call("aliexpress.ds.freight.query",{
+                  "access_token":token,
+                  "queryDeliveryReq":json.dumps(req,separators=(",",":")),
+              })
+          except Exception as exc:
+              st,msg=state_for(exc)
+              print(f"DS_FREIGHT_FULL_STATE={st}")
+              print(f"DS_FREIGHT_FULL_MSG={msg[:300]}")
+          else:
+              print("DS_FREIGHT_FULL_STATE=AUTHORIZED_RESPONSE")
+              text=json.dumps(freight,ensure_ascii=False).lower()
+              print("DS_FREIGHT_HAS_DELIVERY_OPTIONS=" + ("YES" if "delivery" in text else "NO"))
+          PY
+          SH
+
+          sshpass -e ssh \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=10 \
+            ubuntu@146.59.145.3 \
+            'sudo -n bash -s' < /tmp/probe.sh
