@@ -1,0 +1,98 @@
+name: Lowcost Lock Permission Audit
+
+on:
+  push:
+    paths:
+      - ".github/workflows/lowcost-lock-permission-audit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Inspect runtime coordination and retest AliExpress permission
+        env:
+          VPS_SSH_PASSWORD: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          export SSHPASS="$VPS_SSH_PASSWORD"
+
+          cat >/tmp/remote.sh <<'SH'
+          set -euo pipefail
+          APP_USER="le001_1789265592"
+          APP="/srv/lowcost-europa"
+
+          echo "=== UNIT ==="
+          systemctl show lowcost-europa-catalog-maintenance.service -p User -p Group -p ExecStart -p RuntimeDirectory -p RuntimeDirectoryMode 2>/dev/null || true
+          echo "=== RUNTIME_PATHS ==="
+          namei -l /run/lowcost-europa/aliexpress.lock 2>/dev/null || true
+          stat -c 'DIR %n uid=%u gid=%g mode=%a type=%F' /run/lowcost-europa 2>/dev/null || true
+          stat -c 'FILE %n uid=%u gid=%g mode=%a type=%F' /run/lowcost-europa/aliexpress.lock /run/lowcost-europa/aliexpress.last-start 2>/dev/null || true
+          echo "APP_USER_ID=$(id -u "$APP_USER")"
+          echo "APP_USER_GROUPS=$(id -Gn "$APP_USER")"
+
+          set -a
+          . /etc/lowcost-europa/lowcost-europa.env
+          set +a
+          cd "$APP"
+
+          echo "=== TEMP_LOCK_API_RETEST ==="
+          sudo -u "$APP_USER" -E .venv/bin/python manage.py shell <<'PY'
+          import os, tempfile
+          from apps.integrations.aliexpress.client import AliExpressClient
+
+          td=tempfile.mkdtemp(prefix="le-ae-audit-")
+          lock=os.path.join(td,"lock")
+          cadence=os.path.join(td,"cadence")
+          c=AliExpressClient(lock_path=lock,cadence_path=cadence)
+
+          tests=[
+              ("aliexpress.affiliate.category.get",{}),
+              ("aliexpress.social.product.freight.query",{
+                  "product_id":"1005013211231892",
+                  "quantity":1,
+                  "ship_to_country":"PT",
+                  "ship_from_country":"ES",
+                  "currency":"EUR",
+              }),
+              ("aliexpress.ds.freight.query",{
+                  "product_id":"1005013211231892",
+                  "quantity":1,
+                  "ship_to_country":"PT",
+                  "ship_from_country":"ES",
+                  "currency":"EUR",
+              }),
+          ]
+          for method,args in tests:
+              try:
+                  data=c._call(method,args)
+              except Exception as exc:
+                  msg=" ".join(str(exc).split())
+                  low=msg.lower()
+                  if "insufficientpermission" in low or "does not have permission" in low:
+                      state="INSUFFICIENT_PERMISSION"
+                  elif "missingparameter" in low or "missing parameter" in low:
+                      state="METHOD_AUTHORIZED_BUT_PARAMETERS_INCOMPLETE"
+                  elif "authentication" in low or "appkey" in low or "signature" in low:
+                      state="AUTHENTICATION_ERROR"
+                  else:
+                      state="ERROR_"+exc.__class__.__name__
+                  print(f"{method} STATE={state} MSG={msg[:240]}")
+              else:
+                  print(f"{method} STATE=AUTHORIZED_RESPONSE TYPE={type(data).__name__}")
+          PY
+          SH
+
+          sshpass -e ssh \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=10 \
+            ubuntu@146.59.145.3 \
+            'sudo -n bash -s' < /tmp/remote.sh
