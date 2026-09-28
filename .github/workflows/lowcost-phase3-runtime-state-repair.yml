@@ -101,16 +101,16 @@ jobs:
           inspect_state_file() {
             label="$1"
             path="$2"
-            if [ -e "$path" ] || [ -L "$path" ]; then
+            if sudo -n test -e "$path" || sudo -n test -L "$path"; then
               echo "${label}_PRE_EXISTS=YES"
-              if [ -L "$path" ]; then
+              if sudo -n test -L "$path"; then
                 echo "${label}_PRE_SYMLINK=YES"
                 exit 13
               fi
-              type="$(stat -c '%F' "$path")"
-              owner="$(stat -c '%U' "$path")"
-              group="$(stat -c '%G' "$path")"
-              mode="$(stat -c '%a' "$path")"
+              type="$(sudo -n stat -c '%F' "$path")"
+              owner="$(sudo -n stat -c '%U' "$path")"
+              group="$(sudo -n stat -c '%G' "$path")"
+              mode="$(sudo -n stat -c '%a' "$path")"
               echo "${label}_PRE_TYPE=$type"
               echo "${label}_PRE_OWNER=$owner"
               echo "${label}_PRE_GROUP=$group"
@@ -247,12 +247,14 @@ jobs:
           for spec in "LOCK:$LOCK" "CADENCE:$CADENCE"; do
             label="${spec%%:*}"
             path="${spec#*:}"
-            test -e "$path"
-            test ! -L "$path"
-            type="$(stat -c '%F' "$path")"
-            owner="$(stat -c '%U' "$path")"
-            group="$(stat -c '%G' "$path")"
-            mode="$(stat -c '%a' "$path")"
+            sudo -n test -e "$path"
+            if sudo -n test -L "$path"; then
+              exit 18
+            fi
+            type="$(sudo -n stat -c '%F' "$path")"
+            owner="$(sudo -n stat -c '%U' "$path")"
+            group="$(sudo -n stat -c '%G' "$path")"
+            mode="$(sudo -n stat -c '%a' "$path")"
             echo "${label}_EXISTS=YES"
             echo "${label}_TYPE=$type"
             echo "${label}_OWNER=$owner"
