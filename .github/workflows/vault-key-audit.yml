@@ -1,0 +1,53 @@
+name: VPS Vault Key Audit
+
+on:
+  push:
+    branches:
+      - "ops/vault-audit-20260928"
+    paths:
+      - ".github/workflows/vault-key-audit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: List lowcost secret key names only
+        env:
+          VPS_SSH_PASSWORD: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          export SSHPASS="$VPS_SSH_PASSWORD"
+
+          sshpass -e ssh \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=10 \
+            ubuntu@146.59.145.3 '
+              set -euo pipefail
+              for f in \
+                /root/project-secrets/lowcost-europa/.env \
+                /root/project-secrets/lowcost-europa/runtime/lowcost-europa.env \
+                /root/project-secrets/lowcost-europa/runtime/r2.env \
+                /etc/lowcost-europa/lowcost-europa.env \
+                /etc/lowcost-europa/r2.env
+              do
+                echo "FILE=$f"
+                if sudo -n test -f "$f"; then
+                  sudo -n awk -F= '"'"'
+                    /^[[:space:]]*#/ {next}
+                    /^[[:space:]]*$/ {next}
+                    /^[A-Za-z_][A-Za-z0-9_]*=/ {print $1}
+                  '"'"' "$f" | sort -u
+                else
+                  echo "MISSING"
+                fi
+              done
+            '
