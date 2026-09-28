@@ -1,0 +1,83 @@
+name: Lowcost Final Readonly Probe
+
+on:
+  push:
+    paths:
+      - ".github/workflows/lowcost-final-probe.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Probe tmpfiles and DS freight auth
+        env:
+          VPS_SSH_PASSWORD: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          export SSHPASS="$VPS_SSH_PASSWORD"
+
+          cat >/tmp/probe.sh <<'SH'
+          set -euo pipefail
+          APP="/srv/lowcost-europa"
+          APP_USER="le001_1789265592"
+
+          echo "=== TMPFILES_INSTALLATION ==="
+          for f in /etc/tmpfiles.d/lowcost-europa.conf /usr/lib/tmpfiles.d/lowcost-europa.conf /lib/tmpfiles.d/lowcost-europa.conf; do
+            if [ -f "$f" ]; then
+              echo "FOUND=$f"
+              cat "$f"
+            fi
+          done
+          if [ ! -e /run/lowcost-europa ]; then echo "RUNTIME_DIR_PRESENT=NO"; else echo "RUNTIME_DIR_PRESENT=YES"; fi
+
+          set -a
+          . /etc/lowcost-europa/lowcost-europa.env
+          set +a
+          cd "$APP"
+
+          sudo -u "$APP_USER" -E .venv/bin/python manage.py shell <<'PY'
+          import os, tempfile
+          from apps.integrations.aliexpress.client import AliExpressClient
+
+          print("ACCESS_TOKEN_PRESENT=" + ("YES" if os.environ.get("ALIEXPRESS_ACCESS_TOKEN") else "NO"))
+          print("REFRESH_TOKEN_PRESENT=" + ("YES" if os.environ.get("ALIEXPRESS_REFRESH_TOKEN") else "NO"))
+
+          td=tempfile.mkdtemp(prefix="le-ds-probe-")
+          c=AliExpressClient(lock_path=os.path.join(td,"lock"), cadence_path=os.path.join(td,"cadence"))
+
+          token=os.environ.get("ALIEXPRESS_ACCESS_TOKEN")
+          args={"access_token":token} if token else {}
+          try:
+              c._call("aliexpress.ds.freight.query",args)
+          except Exception as exc:
+              msg=" ".join(str(exc).split())
+              low=msg.lower()
+              if "insufficientpermission" in low or "does not have permission" in low:
+                  state="INSUFFICIENT_PERMISSION"
+              elif "missingparameter" in low or "missing parameter" in low:
+                  state="METHOD_AUTHORIZED_BUT_PARAMETERS_INCOMPLETE"
+              elif "authentication" in low or "expired" in low or "token" in low:
+                  state="TOKEN_OR_AUTH_ERROR"
+              else:
+                  state="ERROR_"+exc.__class__.__name__
+              print(f"DS_WITH_ACCESS_TOKEN_STATE={state}")
+              print(f"DS_WITH_ACCESS_TOKEN_MSG={msg[:220]}")
+          else:
+              print("DS_WITH_ACCESS_TOKEN_STATE=AUTHORIZED_RESPONSE")
+          PY
+          SH
+
+          sshpass -e ssh \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=10 \
+            ubuntu@146.59.145.3 \
+            'sudo -n bash -s' < /tmp/probe.sh
