@@ -1,0 +1,91 @@
+name: Lowcost Phase 7 UX Validation 003
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/lowcost-phase7-ux-validation-003.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Validate deployed runtime and UX only
+        env:
+          VPS_SSH_PASSWORD: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${VPS_SSH_PASSWORD:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+
+          sshpass -p "$VPS_SSH_PASSWORD" ssh             -o PreferredAuthentications=password             -o PubkeyAuthentication=no             -o StrictHostKeyChecking=accept-new             -o ConnectTimeout=10             ubuntu@146.59.145.3 'bash -s' <<'REMOTE'
+          set -euo pipefail
+
+          APP="/srv/lowcost-europa"
+          APP_USER="le001_1789265592"
+          EXPECTED="fd9af286b5268b935b76bcead7739ecf31463d9d"
+          HOST="lowcost-europa.duckdns.org"
+
+          git_app() {
+            sudo -u "$APP_USER" git -C "$APP" "$@"
+          }
+
+          echo "== PREFLIGHT =="
+          HEAD_NOW="$(git_app rev-parse HEAD)"
+          BRANCH_NOW="$(git_app branch --show-current)"
+          STATUS_NOW="$(git_app status --short)"
+          echo "HEAD=$HEAD_NOW"
+          echo "BRANCH=$BRANCH_NOW"
+          test "$HEAD_NOW" = "$EXPECTED"
+          test "$BRANCH_NOW" = "main"
+          test -z "$STATUS_NOW"
+          echo "WORKTREE=CLEAN"
+          test "$(systemctl is-active lowcost-europa.service)" = "active"
+          test "$(systemctl is-active nginx)" = "active"
+          test "$(systemctl is-active postgresql)" = "active"
+          echo "SERVICES=PASS"
+
+          curl --noproxy "*" --resolve "$HOST:443:127.0.0.1"             --max-time 12 -fsS "https://$HOST/" -o /tmp/le-home.html
+          curl --noproxy "*" --resolve "$HOST:443:127.0.0.1"             --max-time 12 -fsS "https://$HOST/contacto/" -o /tmp/le-contact.html
+          curl --noproxy "*" --resolve "$HOST:443:127.0.0.1"             --max-time 12 -fsS "https://$HOST/static/storefront/storefront.css" -o /tmp/le-storefront.css
+          curl --noproxy "*" --resolve "$HOST:443:127.0.0.1"             --max-time 12 -sSI "https://$HOST/" -o /tmp/le-headers.txt
+
+          echo "== UX =="
+          grep -Fq '351965471236' /tmp/le-home.html
+          grep -Fq '+351 965 471 236' /tmp/le-contact.html
+          if grep -Fq '351961726755' /tmp/le-home.html /tmp/le-contact.html; then
+            echo "WHATSAPP_OLD_ABSENT=FAIL"
+            exit 20
+          fi
+          echo "WHATSAPP_NEW=PASS"
+          echo "WHATSAPP_OLD_ABSENT=PASS"
+
+          grep -Fq '.family-index a' /tmp/le-storefront.css
+          echo "FAMILY_BUTTON_CSS=PASS"
+
+          if grep -Eqi 'src="https?://[^"]+"' /tmp/le-home.html; then
+            echo "THIRD_PARTY_JS=FAIL"
+            exit 21
+          fi
+          echo "THIRD_PARTY_JS=NONE"
+
+          grep -Eqi '^X-Robots-Tag:[[:space:]]*noindex, nofollow' /tmp/le-headers.txt
+          echo "INDEXING_STATE=PASS"
+
+          for slug in             cavitacao-rf-vacuum-corpo             hydrodermoabrasao-aqua-facial-multifuncoes             pressoterapia-vacuum-drenagem             hifu             diodo-laser-remocao-tatuagens-pigmentacao
+          do
+            code="$(curl --noproxy "*" --resolve "$HOST:443:127.0.0.1"               --max-time 12 -sS -o /dev/null -w "%{http_code}"               "https://$HOST/products/$slug/")"
+            echo "FAMILY_$slug=$code"
+            test "$code" = "200"
+          done
+          echo "FIVE_FAMILY_PAGES=PASS"
+
+          rm -f /tmp/le-home.html /tmp/le-contact.html /tmp/le-storefront.css /tmp/le-headers.txt
+          echo "PHASE7_UX_VALIDATION=PASS"
+          REMOTE
