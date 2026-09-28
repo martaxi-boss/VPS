@@ -437,7 +437,7 @@ jobs:
           grep -q '\.family-index a' <<< "$CSS_BODY"
           echo "FAMILY_BUTTON_CSS=PASS"
 
-          THIRD_PARTY_JS="$(printf '%s' "$HOME_BODY" | grep -Eo 'src="https?://[^"]+"' || true)"
+          THIRD_PARTY_JS="$(printf '%s' "$HOME_BODY" | grep -Eio '<script[^>]+src="https?://[^"]+"' || true)"
           if [ -n "$THIRD_PARTY_JS" ]; then
             echo "THIRD_PARTY_JS=FAIL"
             printf '%s\n' "$THIRD_PARTY_JS"
