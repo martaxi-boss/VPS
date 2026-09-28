@@ -1,4 +1,4 @@
-name: Lowcost Europa Phase 7 Main Deploy Runtime Alignment
+name: Lowcost Europa Phase 7 Git Credential Audit
 
 on:
   pull_request:
@@ -7,14 +7,14 @@ on:
       - ".github/workflows/lowcost-phase7-main-deploy-runtime-alignment.yml"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  deploy:
+  audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 12
     steps:
-      - name: Deploy exact main and validate OVH runtime
+      - name: Audit existing GitHub credential path on OVH
         env:
           VPS_SSH_PASSWORD: ${{ secrets.VPS_SSH_PASSWORD }}
         shell: bash
@@ -22,761 +22,93 @@ jobs:
           set -euo pipefail
           HOST="146.59.145.3"
           USER="ubuntu"
-
-          test -n "${VPS_SSH_PASSWORD:-}" || { echo "VPS_SSH_PASSWORD secret missing"; exit 2; }
-
+          test -n "${VPS_SSH_PASSWORD:-}"
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass >/dev/null
 
           sshpass -p "$VPS_SSH_PASSWORD" ssh             -o PreferredAuthentications=password             -o PubkeyAuthentication=no             -o StrictHostKeyChecking=accept-new             -o ConnectTimeout=10             "$USER@$HOST" 'bash -s' <<'REMOTE'
           set -euo pipefail
-
           APP="/srv/lowcost-europa"
           APP_USER="le001_1789265592"
-          EXPECTED_PRE_HEAD="d568c0bc77698b593b862b0a2e5a5b4305cfde26"
-          EXPECTED_PRE_BRANCH="ops/ovh-cutover-001"
-          EXPECTED_MAIN="fd9af286b5268b935b76bcead7739ecf31463d9d"
-          TMP_SOURCE="$APP/deploy/tmpfiles.d/lowcost-europa.conf"
-          TMP_TARGET="/etc/tmpfiles.d/lowcost-europa.conf"
-          EXPECTED_TMP_RULE="d /run/lowcost-europa 0750 le001_1789265592 le001_1789265592 -"
-          RUNTIME_DIR="/run/lowcost-europa"
-          LOCK="$RUNTIME_DIR/aliexpress.lock"
-          CADENCE="$RUNTIME_DIR/aliexpress.last-start"
-          DUCK_HOST="lowcost-europa.duckdns.org"
-          OVH_HOST="lowcost-europa.146-59-145-3.sslip.io"
+          EXPECTED_HEAD="d568c0bc77698b593b862b0a2e5a5b4305cfde26"
+          EXPECTED_BRANCH="ops/ovh-cutover-001"
 
-          git_app() {
-            sudo -u "$APP_USER" git -C "$APP" "$@"
-          }
+          HEAD_NOW="$(sudo -u "$APP_USER" git -C "$APP" rev-parse HEAD)"
+          BRANCH_NOW="$(sudo -u "$APP_USER" git -C "$APP" branch --show-current)"
+          STATUS_NOW="$(sudo -u "$APP_USER" git -C "$APP" status --short)"
+          echo "HEAD=$HEAD_NOW"
+          echo "BRANCH=$BRANCH_NOW"
+          [ -z "$STATUS_NOW" ] && echo "WORKTREE=CLEAN" || { echo "WORKTREE=DIRTY"; exit 20; }
+          [ "$HEAD_NOW" = "$EXPECTED_HEAD" ]
+          [ "$BRANCH_NOW" = "$EXPECTED_BRANCH" ]
 
-          run_manage() {
-            sudo -n bash -c '
-              set -a
-              . /etc/lowcost-europa/lowcost-europa.env
-              set +a
-              cd /srv/lowcost-europa
-              exec sudo -u le001_1789265592 -E /srv/lowcost-europa/.venv/bin/python manage.py "$@"
-            ' _ "$@"
-          }
+          ORIGIN="$(sudo -u "$APP_USER" git -C "$APP" remote get-url origin)"
+          case "$ORIGIN" in
+            https://github.com/*) echo "ORIGIN_KIND=GITHUB_HTTPS" ;;
+            git@github.com:*) echo "ORIGIN_KIND=GITHUB_SSH" ;;
+            *) echo "ORIGIN_KIND=OTHER" ;;
+          esac
+          echo "ORIGIN_REPO_MATCH=$([ "$ORIGIN" = "https://github.com/martaxi-boss/lowcost-europa.git" ] || [ "$ORIGIN" = "git@github.com:martaxi-boss/lowcost-europa.git" ] && echo YES || echo NO)"
 
-          http_code() {
-            host="$1"
-            path="$2"
-            curl --noproxy "*" --resolve "$host:443:127.0.0.1"               --max-time 12 -sS -o /dev/null -w "%{http_code}"               "https://$host$path"
-          }
+          APP_HOME="$(getent passwd "$APP_USER" | cut -d: -f6)"
+          echo "APP_HOME_PRESENT=$([ -d "$APP_HOME" ] && echo YES || echo NO)"
 
-          fetch_body() {
-            host="$1"
-            path="$2"
-            curl --noproxy "*" --resolve "$host:443:127.0.0.1"               --max-time 12 -fsS "https://$host$path"
-          }
+          LOCAL_HELPER="$(sudo -u "$APP_USER" git -C "$APP" config --local --get credential.helper || true)"
+          GLOBAL_HELPER="$(sudo -u "$APP_USER" git config --global --get credential.helper || true)"
+          echo "LOCAL_CREDENTIAL_HELPER_PRESENT=$([ -n "$LOCAL_HELPER" ] && echo YES || echo NO)"
+          echo "GLOBAL_CREDENTIAL_HELPER_PRESENT=$([ -n "$GLOBAL_HELPER" ] && echo YES || echo NO)"
 
-          db_snapshot() {
-            sudo -n bash -s <<'ROOT'
-          set -euo pipefail
-          set -a
-          . /etc/lowcost-europa/lowcost-europa.env
-          set +a
-          cd /srv/lowcost-europa
-          exec sudo -u le001_1789265592 -E /srv/lowcost-europa/.venv/bin/python - <<'PY'
-          import json
-          from django.utils import timezone
-          import os
-
-          os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.production")
-          import django
-          django.setup()
-
-          from apps.catalog.models import (
-              CandidateDecision,
-              Offer,
-              OfferCandidate,
-              OfferClick,
-              OfferObservation,
-              ProductFamily,
-          )
-          from apps.catalog.services.public_eligibility import public_eligibility_q
-
-          offers = Offer.objects.all()
-          candidates = OfferCandidate.objects.all()
-          observations = OfferObservation.objects.all()
-          clicks = OfferClick.objects.all()
-          decisions = CandidateDecision.objects.all()
-
-          data = {
-              "counts": {
-                  "offers_total": offers.count(),
-                  "offers_active": offers.filter(is_active=True).count(),
-                  "offers_inactive": offers.filter(is_active=False).count(),
-                  "owner_visible": offers.filter(owner_hidden=False).count(),
-                  "owner_hidden": offers.filter(owner_hidden=True).count(),
-                  "public_eligible": offers.filter(public_eligibility_q()).distinct().count(),
-                  "promo_eligible": offers.filter(
-                      affiliate_promotion_status=Offer.AffiliatePromotionStatus.ELIGIBLE
-                  ).count(),
-                  "promo_ineligible": offers.filter(
-                      affiliate_promotion_status=Offer.AffiliatePromotionStatus.INELIGIBLE
-                  ).count(),
-                  "promo_unknown": offers.filter(
-                      affiliate_promotion_status=Offer.AffiliatePromotionStatus.UNKNOWN
-                  ).count(),
-                  "candidates_total": candidates.count(),
-                  "candidates_pending": candidates.filter(
-                      status=OfferCandidate.Status.PENDING
-                  ).count(),
-                  "candidates_approved": candidates.filter(
-                      status=OfferCandidate.Status.APPROVED
-                  ).count(),
-                  "candidates_rejected": candidates.filter(
-                      status=OfferCandidate.Status.REJECTED
-                  ).count(),
-                  "observations": observations.count(),
-                  "offer_clicks": clicks.count(),
-                  "decisions": decisions.count(),
-              },
-              "pending_by_family": [
-                  [family.slug, family.candidates.filter(status=OfferCandidate.Status.PENDING).count()]
-                  for family in ProductFamily.objects.exclude(
-                      status=ProductFamily.Status.RETIRED
-                  ).order_by("display_order", "slug")
-              ],
-              "ids": {
-                  "offers": list(offers.values_list("pk", flat=True)),
-                  "candidates": list(candidates.values_list("pk", flat=True)),
-                  "observations": list(observations.values_list("pk", flat=True)),
-                  "clicks": list(clicks.values_list("pk", flat=True)),
-                  "decisions": list(decisions.values_list("pk", flat=True)),
-              },
-              "offer_state": {
-                  str(pk): [is_active, promo]
-                  for pk, is_active, promo in offers.values_list(
-                      "pk", "is_active", "affiliate_promotion_status"
-                  )
-              },
-              "observation_state": {
-                  str(pk): [offer_id, availability]
-                  for pk, offer_id, availability in observations.values_list(
-                      "pk", "offer_id", "availability"
-                  )
-              },
-              "captured_at": timezone.now().isoformat(),
-          }
-          print(json.dumps(data, separators=(",", ":")))
-          PY
-          ROOT
-          }
-
-          print_snapshot() {
-            prefix="$1"
-            printf '%s' "$2" | python3 -c '
-          import json, sys
-          prefix=sys.argv[1]
-          d=json.load(sys.stdin)
-          for key, value in d["counts"].items():
-              print(f"{prefix}_{key.upper()}={value}")
-          for slug, count in d["pending_by_family"]:
-              print(f"{prefix}_PENDING_FAMILY_{slug}={count}")
-          print(f"{prefix}_OPERATIONAL_FAMILY_COUNT={len(d['"'"'pending_by_family'"'"'])}")
-          ' "$prefix"
-          }
-
-          state_file_proof() {
-            label="$1"
-            path="$2"
-            sudo -n test -f "$path"
-            if sudo -n test -L "$path"; then
-              echo "${label}=FAIL_SYMLINK"
-              return 1
-            fi
-            owner="$(sudo -n stat -c '%U' "$path")"
-            group="$(sudo -n stat -c '%G' "$path")"
-            mode="$(sudo -n stat -c '%a' "$path")"
-            echo "${label}_TYPE=REGULAR_FILE"
-            echo "${label}_OWNER=$owner"
-            echo "${label}_GROUP=$group"
-            echo "${label}_MODE=$mode"
-            [ "$owner" = "$APP_USER" ]
-            [ "$mode" = "600" ]
-          }
-
-          echo "== PRE DEPLOY =="
-          PRE_HEAD="$(git_app rev-parse HEAD)"
-          PRE_BRANCH="$(git_app branch --show-current)"
-          PRE_STATUS="$(git_app status --short)"
-          echo "PRE_HEAD=$PRE_HEAD"
-          echo "PRE_BRANCH=$PRE_BRANCH"
-          if [ -n "$PRE_STATUS" ]; then
-            echo "PRE_WORKTREE=DIRTY"
-            printf '%s\n' "$PRE_STATUS"
-          else
-            echo "PRE_WORKTREE=CLEAN"
-          fi
-
-          if [ "$PRE_HEAD" != "$EXPECTED_PRE_HEAD" ] ||              [ "$PRE_BRANCH" != "$EXPECTED_PRE_BRANCH" ] ||              [ -n "$PRE_STATUS" ]; then
-            echo "PRE_DEPLOY_STATE_MATCH=NO"
-            exit 20
-          fi
-          echo "PRE_DEPLOY_STATE_MATCH=YES"
-
-          PRE_APP="$(systemctl is-active lowcost-europa.service || true)"
-          PRE_NGINX="$(systemctl is-active nginx || true)"
-          PRE_POSTGRES="$(systemctl is-active postgresql || true)"
-          PRE_HOME="$(http_code "$DUCK_HOST" / || true)"
-          PRE_LIVE="$(http_code "$DUCK_HOST" /health/live/ || true)"
-          PRE_READY="$(http_code "$DUCK_HOST" /health/ready/ || true)"
-          echo "PRE_APPLICATION=$PRE_APP"
-          echo "PRE_NGINX=$PRE_NGINX"
-          echo "PRE_POSTGRES=$PRE_POSTGRES"
-          echo "PRE_HOMEPAGE=$PRE_HOME"
-          echo "PRE_LIVE=$PRE_LIVE"
-          echo "PRE_READY=$PRE_READY"
-
-          DB_PRE="$(db_snapshot)"
-          print_snapshot "PRE" "$DB_PRE"
-
-          echo "== UPDATE REPOSITORY TO MAIN =="
-          git_app fetch origin
-          git_app checkout main
-          git_app pull --ff-only origin main
-
-          POST_GIT_HEAD="$(git_app rev-parse HEAD)"
-          POST_GIT_BRANCH="$(git_app branch --show-current)"
-          POST_GIT_STATUS="$(git_app status --short)"
-          echo "CHECKOUT_HEAD=$POST_GIT_HEAD"
-          echo "CHECKOUT_BRANCH=$POST_GIT_BRANCH"
-          [ "$POST_GIT_HEAD" = "$EXPECTED_MAIN" ]
-          [ "$POST_GIT_BRANCH" = "main" ]
-          [ -z "$POST_GIT_STATUS" ]
-          echo "MAIN_CHECKOUT=PASS"
-
-          echo "== TMPFILES PRESERVATION =="
-          [ "$(cat "$TMP_SOURCE")" = "$EXPECTED_TMP_RULE" ]
-          if sudo -n test -L "$TMP_TARGET"; then
-            echo "TMPFILES_TARGET=UNSAFE_SYMLINK"
-            exit 21
-          fi
-          TMPFILES_CHANGED=NO
-          if ! sudo -n test -f "$TMP_TARGET" || ! sudo -n cmp -s "$TMP_SOURCE" "$TMP_TARGET"; then
-            sudo -n install -D -o root -g root -m 0644 "$TMP_SOURCE" "$TMP_TARGET"
-            TMPFILES_CHANGED=YES
-          fi
-          sudo -n systemd-tmpfiles --create "$TMP_TARGET"
-          sudo -n cmp -s "$TMP_SOURCE" "$TMP_TARGET"
-          echo "TMPFILES=PASS"
-          echo "TMPFILES_CHANGED=$TMPFILES_CHANGED"
-
-          test -d "$RUNTIME_DIR"
-          test ! -L "$RUNTIME_DIR"
-          [ "$(stat -c '%U' "$RUNTIME_DIR")" = "$APP_USER" ]
-          [ "$(stat -c '%G' "$RUNTIME_DIR")" = "$APP_USER" ]
-          [ "$(stat -c '%a' "$RUNTIME_DIR")" = "750" ]
-          echo "RUN_DIRECTORY=PASS"
-          state_file_proof "LOCK" "$LOCK"
-          state_file_proof "CADENCE" "$CADENCE"
-          sudo -n bash -c "python3 - <<'PY'
-          float(open('$CADENCE', encoding='utf-8').read().strip())
-          print('CADENCE_PARSEABLE=YES')
-          PY"
-
-          echo "== APPLICATION CHECKS =="
-          run_manage check
-          echo "DJANGO_CHECK=PASS"
-          run_manage check --deploy
-          echo "DEPLOY_CHECK=PASS"
-          run_manage makemigrations --check --dry-run
-          echo "MIGRATION_DRIFT=PASS"
-
-          PLAN="$(run_manage migrate --plan)"
-          printf '%s\n' "$PLAN"
-          printf '%s\n' "$PLAN" | grep -q "No planned migration operations"
-          echo "MIGRATION_PLAN=PASS"
-
-          MIGRATE_OUT="$(run_manage migrate --noinput)"
-          printf '%s\n' "$MIGRATE_OUT"
-          printf '%s\n' "$MIGRATE_OUT" | grep -q "No migrations to apply"
-          echo "MIGRATIONS_APPLIED=0"
-
-          run_manage collectstatic --noinput
-          echo "COLLECTSTATIC=PASS"
-
-          sudo -n systemctl restart lowcost-europa.service
-          [ "$(systemctl is-active lowcost-europa.service)" = "active" ]
-          echo "APPLICATION_RESTART=PASS"
-
-          echo "== NGINX CUTOVER CONFIG =="
-          NGINX_DUMP="$(sudo -n nginx -T 2>&1)"
-          mapfile -t NGINX_CONFIG_FILES < <(
-            printf '%s\n' "$NGINX_DUMP" |
-            awk '/^# configuration file / {sub(/^# configuration file /,""); sub(/:$/,""); print}' |
-            sort -u
-          )
-          matches=()
-          for f in "${NGINX_CONFIG_FILES[@]}"; do
-            if sudo -n test -f "$f" && sudo -n grep -Eq               'lowcost-europa\.duckdns\.org|lowcost-europa\.(146-59-145-3|165-22-114-67)\.sslip\.io' "$f"; then
-              matches+=("$f")
+          for p in "$APP_HOME/.git-credentials" "$APP_HOME/.netrc"; do
+            label="$(basename "$p" | tr '.-' '__' | tr '[:lower:]' '[:upper:]')"
+            if sudo -u "$APP_USER" test -f "$p" && ! sudo -u "$APP_USER" test -L "$p"; then
+              echo "${label}_PRESENT=YES"
+              echo "${label}_MODE=$(stat -c '%a' "$p")"
+              echo "${label}_OWNER=$(stat -c '%U' "$p")"
+            else
+              echo "${label}_PRESENT=NO"
             fi
           done
-          mapfile -t matches < <(printf '%s\n' "${matches[@]}" | sort -u)
-          if [ "${#matches[@]}" -ne 1 ]; then
-            echo "ACTIVE_NGINX_MATCH_COUNT=${#matches[@]}"
-            printf 'ACTIVE_NGINX_CANDIDATE=%s\n' "${matches[@]:-}"
-            exit 22
-          fi
-          ACTIVE_NGINX_INCLUDE="${matches[0]}"
-          ACTIVE_NGINX_TARGET="$(readlink -f "$ACTIVE_NGINX_INCLUDE")"
-          echo "ACTIVE_NGINX_INCLUDE=$ACTIVE_NGINX_INCLUDE"
-          echo "ACTIVE_NGINX_TARGET=$ACTIVE_NGINX_TARGET"
-          sudo -n test -f "$ACTIVE_NGINX_TARGET"
 
-          NGINX_CHANGED=NO
-          if ! sudo -n cmp -s "$APP/deploy/nginx/lowcost-europa.conf" "$ACTIVE_NGINX_TARGET"; then
-            N_OWNER="$(sudo -n stat -c '%U' "$ACTIVE_NGINX_TARGET")"
-            N_GROUP="$(sudo -n stat -c '%G' "$ACTIVE_NGINX_TARGET")"
-            N_MODE="$(sudo -n stat -c '%a' "$ACTIVE_NGINX_TARGET")"
-            sudo -n install -o "$N_OWNER" -g "$N_GROUP" -m "$N_MODE"               "$APP/deploy/nginx/lowcost-europa.conf" "$ACTIVE_NGINX_TARGET"
-            NGINX_CHANGED=YES
-          fi
-          sudo -n cmp -s "$APP/deploy/nginx/lowcost-europa.conf" "$ACTIVE_NGINX_TARGET"
-          echo "NGINX_VERSIONED_CONFIG=PASS"
-          echo "NGINX_CHANGED=$NGINX_CHANGED"
-
-          sudo -n nginx -t
-          echo "NGINX_T=PASS"
-          if [ "$NGINX_CHANGED" = "YES" ]; then
-            sudo -n systemctl reload nginx
-            echo "NGINX_RELOAD=PASS"
+          if command -v gh >/dev/null 2>&1; then
+            echo "GH_CLI_PRESENT=YES"
+            if sudo -u "$APP_USER" gh auth status -h github.com >/dev/null 2>&1; then
+              echo "GH_AUTH_PRESENT=YES"
+            else
+              echo "GH_AUTH_PRESENT=NO"
+            fi
           else
-            echo "NGINX_RELOAD=NOT_REQUIRED"
+            echo "GH_CLI_PRESENT=NO"
+            echo "GH_AUTH_PRESENT=NO"
           fi
 
-          ACTIVE_DUMP="$(sudo -n nginx -T 2>&1)"
-          printf '%s\n' "$ACTIVE_DUMP" | grep -q 'lowcost-europa.146-59-145-3.sslip.io'
-          printf '%s\n' "$ACTIVE_DUMP" | grep -q 'lowcost-europa.duckdns.org'
-          ! printf '%s\n' "$ACTIVE_DUMP" | grep -q 'lowcost-europa.165-22-114-67.sslip.io'
-          printf '%s\n' "$ACTIVE_DUMP" | grep -q 'X-Robots-Tag "noindex, nofollow"'
-          ACME_COUNT="$(printf '%s\n' "$ACTIVE_DUMP" | grep -c 'location ^~ /.well-known/acme-challenge/' || true)"
-          [ "$ACME_COUNT" -ge 2 ]
-          echo "OVH_SSLIP=PASS"
-          echo "DUCKDNS=PASS"
-          echo "OLD_DO_SSLIP_ACTIVE=0"
-          echo "NOINDEX=PASS"
-          echo "ACME_CHALLENGE=PASS"
-
-          echo "== BACKUP SCRIPT IDENTITY =="
-          install_script_if_needed() {
-            unit="$1"
-            source="$2"
-            target="$3"
-            label="$4"
-
-            UNIT_TEXT="$(systemctl cat "$unit")"
-            printf '%s\n' "$UNIT_TEXT" | grep -q "ExecStart=$target"
-            if sudo -n test -L "$target" || ! sudo -n test -f "$target"; then
-              echo "${label}_TARGET_UNSAFE_OR_MISSING=YES"
-              exit 23
-            fi
-
-            changed=NO
-            if ! sudo -n cmp -s "$source" "$target"; then
-              owner="$(sudo -n stat -c '%U' "$target")"
-              group="$(sudo -n stat -c '%G' "$target")"
-              mode="$(sudo -n stat -c '%a' "$target")"
-              sudo -n install -o "$owner" -g "$group" -m "$mode" "$source" "$target"
-              changed=YES
-            fi
-            sudo -n cmp -s "$source" "$target"
-            sudo -n grep -q -- '--host lowcost-europa-ovh' "$target"
-            if sudo -n grep -q -- '--host lowcost-europa-droplet' "$target"; then
-              echo "${label}_OLD_HOST_ACTIVE=YES"
-              exit 24
-            fi
-            echo "${label}=PASS"
-            echo "${label}_CHANGED=$changed"
-          }
-
-          install_script_if_needed             lowcost-europa-offsite-backup.service             "$APP/deploy/scripts/offsite-backup.sh"             /usr/local/sbin/lowcost-europa-offsite-backup             OFFSITE_BACKUP_SCRIPT
-
-          install_script_if_needed             lowcost-europa-offsite-backup-health.service             "$APP/deploy/scripts/check-offsite-backup-health.sh"             /usr/local/sbin/lowcost-europa-offsite-backup-health             OFFSITE_BACKUP_HEALTH_SCRIPT
-
-          echo "RESTIC_HOST_ACTIVE=lowcost-europa-ovh"
-          echo "OLD_RESTIC_HOST_ACTIVE=0"
-
-          echo "== POST DEPLOY CODE HEALTH =="
-          POST_HEAD="$(git_app rev-parse HEAD)"
-          POST_BRANCH="$(git_app branch --show-current)"
-          POST_STATUS="$(git_app status --short)"
-          echo "POST_HEAD=$POST_HEAD"
-          echo "POST_BRANCH=$POST_BRANCH"
-          if [ -n "$POST_STATUS" ]; then
-            echo "POST_WORKTREE=DIRTY"
-            printf '%s\n' "$POST_STATUS"
-            exit 25
-          fi
-          echo "POST_WORKTREE=CLEAN"
-          [ "$POST_HEAD" = "$EXPECTED_MAIN" ]
-          [ "$POST_BRANCH" = "main" ]
-          echo "MAIN_RUNTIME_ALIGNMENT=PASS"
-
-          APP_STATE="$(systemctl is-active lowcost-europa.service || true)"
-          NGINX_STATE="$(systemctl is-active nginx || true)"
-          POSTGRES_STATE="$(systemctl is-active postgresql || true)"
-          echo "APPLICATION=$APP_STATE"
-          echo "NGINX=$NGINX_STATE"
-          echo "POSTGRES=$POSTGRES_STATE"
-          [ "$APP_STATE" = "active" ]
-          [ "$NGINX_STATE" = "active" ]
-          [ "$POSTGRES_STATE" = "active" ]
-
-          HOME_CODE="$(http_code "$DUCK_HOST" /)"
-          LIVE_CODE="$(http_code "$DUCK_HOST" /health/live/)"
-          READY_CODE="$(http_code "$DUCK_HOST" /health/ready/)"
-          OVH_HOME_CODE="$(http_code "$OVH_HOST" /)"
-          echo "HOMEPAGE=$HOME_CODE"
-          echo "LIVE=$LIVE_CODE"
-          echo "READY=$READY_CODE"
-          echo "OVH_SSLIP_HOMEPAGE=$OVH_HOME_CODE"
-          [ "$HOME_CODE" = "200" ]
-          [ "$LIVE_CODE" = "200" ]
-          [ "$READY_CODE" = "200" ]
-          [ "$OVH_HOME_CODE" = "200" ]
-
-          FAMILY_FAIL=0
-          for slug in             cavitacao-rf-vacuum-corpo             hydrodermoabrasao-aqua-facial-multifuncoes             pressoterapia-vacuum-drenagem             hifu             diodo-laser-remocao-tatuagens-pigmentacao
-          do
-            code="$(http_code "$DUCK_HOST" "/products/$slug/")"
-            echo "FAMILY_PAGE_$slug=$code"
-            if [ "$code" != "200" ]; then
-              FAMILY_FAIL=1
-            fi
-          done
-          [ "$FAMILY_FAIL" = "0" ]
-          echo "FIVE_FAMILY_PAGES=PASS"
-
-          DB_POST_DEPLOY="$(db_snapshot)"
-          print_snapshot "POST_DEPLOY" "$DB_POST_DEPLOY"
-
-          printf '%s\n%s\n' "$DB_PRE" "$DB_POST_DEPLOY" | python3 -c '
-          import json, sys
-          before=json.loads(sys.stdin.readline())
-          after=json.loads(sys.stdin.readline())
-          for table in ("offers","candidates","observations","clicks","decisions"):
-              if set(before["ids"][table]) != set(after["ids"][table]):
-                  raise SystemExit(f"Deploy mutated DB table {table}")
-          if before["offer_state"] != after["offer_state"]:
-              raise SystemExit("Deploy changed offer state")
-          print("DEPLOY_DB_MUTATIONS=0")
-          '
-
-          sudo -n bash -s <<'ROOT'
-          set -euo pipefail
-          set -a
-          . /etc/lowcost-europa/lowcost-europa.env
-          set +a
-          cd /srv/lowcost-europa
-          exec sudo -u le001_1789265592 -E /srv/lowcost-europa/.venv/bin/python - <<'PY'
-          from datetime import timedelta
-          import os
-          os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.production")
-          import django
-          django.setup()
-          from django.utils import timezone
-          from apps.catalog.models import Offer
-          from apps.catalog.services.public_eligibility import (
-              ALLOWED_SHIP_FROM_COUNTRIES,
-              public_eligibility_q,
-          )
-
-          now=timezone.now()
-          cutoff=now-timedelta(days=7)
-          old_otherwise_eligible=Offer.objects.filter(
-              is_active=True,
-              owner_hidden=False,
-              affiliate_url__gt="",
-              affiliate_promotion_status=Offer.AffiliatePromotionStatus.ELIGIBLE,
-              affiliate_promotion_verified_at__isnull=False,
-              protocol_verified_at__isnull=False,
-              protocol_verified_at__lte=now,
-              protocol_verified_at__lt=cutoff,
-              ship_from_country__in=ALLOWED_SHIP_FROM_COUNTRIES,
-              ship_from_verified_at__isnull=False,
-              ship_from_verified_at__lte=now,
-          )
-          public_ids=Offer.objects.filter(public_eligibility_q(as_of=now)).values("pk")
-          removed_due_age=old_otherwise_eligible.exclude(pk__in=public_ids).count()
-          missing_shipping_active=Offer.objects.filter(is_active=True).filter(
-              ship_from_country__isnull=True
-          ).count() + Offer.objects.filter(
-              is_active=True,
-              ship_from_verified_at__isnull=True
-          ).exclude(ship_from_country__isnull=True).count()
-          print(f"OFFERS_REMOVED_DUE_ONLY_TO_AGE={removed_due_age}")
-          print(f"ACTIVE_OFFERS_MISSING_SHIPPING_EVIDENCE={missing_shipping_active}")
-          if removed_due_age != 0:
-              raise SystemExit("Age-only public removal detected")
-          PY
-          ROOT
-
-          echo "== UX CONTACT REGRESSION =="
-          HOME_BODY="$(fetch_body "$DUCK_HOST" /)"
-          CONTACT_BODY="$(fetch_body "$DUCK_HOST" /contacto/)"
-          CSS_BODY="$(fetch_body "$DUCK_HOST" /static/storefront/storefront.css)"
-          printf '%s' "$HOME_BODY$CONTACT_BODY" | grep -q '351965471236'
-          printf '%s' "$HOME_BODY$CONTACT_BODY" | grep -q '+351 965 471 236'
-          ! printf '%s' "$HOME_BODY$CONTACT_BODY" | grep -q '351961726755'
-          printf '%s' "$CSS_BODY" | grep -q '\.family-index a'
-          THIRD_PARTY_JS="$(printf '%s' "$HOME_BODY" | grep -Eo 'src="https?://[^"]+"' || true)"
-          [ -z "$THIRD_PARTY_JS" ]
-          HEADERS="$(curl --noproxy "*" --resolve "$DUCK_HOST:443:127.0.0.1" --max-time 12 -sSI "https://$DUCK_HOST/")"
-          printf '%s' "$HEADERS" | grep -iq '^X-Robots-Tag: noindex, nofollow'
-          ROBOTS="$(fetch_body "$DUCK_HOST" /robots.txt)"
-          printf '%s' "$ROBOTS" | grep -q 'Disallow: /'
-          echo "WHATSAPP_NEW=PASS"
-          echo "WHATSAPP_OLD_ABSENT=PASS"
-          echo "FAMILY_BUTTON_CSS=PASS"
-          echo "THIRD_PARTY_JS=NONE"
-          echo "INDEXING_STATE=PASS"
-
-          echo "== FALSE GREEN LIVE ACCEPTANCE =="
-          grep -q 'except AliExpressRuntimeStateError'             "$APP/apps/catalog/management/commands/maintain_catalog_offers.py"
-          echo "RUNTIME_STATE_HANDLER_DEPLOYED=YES"
-
-          sudo -n bash -s <<'ROOT'
-          set -euo pipefail
-          cd /srv/lowcost-europa
-          sudo -u le001_1789265592 /srv/lowcost-europa/.venv/bin/python - <<'PY'
-          from apps.integrations.aliexpress.client import DEFAULT_CADENCE_PATH, DEFAULT_LOCK_PATH
-          print(f"MAINTENANCE_LOCK_PATH={DEFAULT_LOCK_PATH}")
-          print(f"MAINTENANCE_CADENCE_PATH={DEFAULT_CADENCE_PATH}")
-          if DEFAULT_LOCK_PATH != "/run/lowcost-europa/aliexpress.lock":
-              raise SystemExit("Unexpected lock path")
-          if DEFAULT_CADENCE_PATH != "/run/lowcost-europa/aliexpress.last-start":
-              raise SystemExit("Unexpected cadence path")
-          PY
-          ROOT
-
-          state_file_proof "LOCK_PRE_MAINT" "$LOCK"
-          state_file_proof "CADENCE_PRE_MAINT" "$CADENCE"
-          CADENCE_MTIME_BEFORE="$(sudo -n stat -c '%Y' "$CADENCE")"
-          DB_BEFORE_MAINT="$DB_POST_DEPLOY"
-
-          MAINT_PRE_STATE="$(systemctl is-active lowcost-europa-catalog-maintenance.service || true)"
-          echo "MAINTENANCE_PRE_STATE=$MAINT_PRE_STATE"
-          if [ "$MAINT_PRE_STATE" = "active" ] || [ "$MAINT_PRE_STATE" = "activating" ]; then
-            echo "MAINTENANCE_ALREADY_RUNNING=YES"
-            exit 26
+          SSH_DIR="$APP_HOME/.ssh"
+          if [ -d "$SSH_DIR" ]; then
+            echo "SSH_DIR_PRESENT=YES"
+            KEY_COUNT="$(find "$SSH_DIR" -maxdepth 1 -type f \( -name 'id_*' ! -name '*.pub' \) | wc -l)"
+            echo "SSH_PRIVATE_KEY_FILE_COUNT=$KEY_COUNT"
+          else
+            echo "SSH_DIR_PRESENT=NO"
+            echo "SSH_PRIVATE_KEY_FILE_COUNT=0"
           fi
 
-          MAINT_START_TS="$(date --iso-8601=seconds)"
           set +e
-          sudo -n systemctl start lowcost-europa-catalog-maintenance.service
-          MAINT_START_RC=$?
+          sudo -u "$APP_USER" env GIT_TERMINAL_PROMPT=0 git -C "$APP" ls-remote origin HEAD >/dev/null 2>&1
+          HTTPS_RC=$?
+          sudo -u "$APP_USER" env GIT_SSH_COMMAND='ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=8'             git ls-remote git@github.com:martaxi-boss/lowcost-europa.git HEAD >/dev/null 2>&1
+          SSH_RC=$?
           set -e
-          MAINT_RESULT="$(systemctl show lowcost-europa-catalog-maintenance.service -p Result --value)"
-          MAINT_STATUS="$(systemctl show lowcost-europa-catalog-maintenance.service -p ExecMainStatus --value)"
-          MAINT_INVOCATION="$(systemctl show lowcost-europa-catalog-maintenance.service -p InvocationID --value)"
-          echo "MAINTENANCE_START_RC=$MAINT_START_RC"
-          echo "MAINTENANCE_RESULT=$MAINT_RESULT"
-          echo "MAINTENANCE_EXEC_MAIN_STATUS=$MAINT_STATUS"
-          echo "MAINTENANCE_INVOCATION_ID_PRESENT=$([ -n "$MAINT_INVOCATION" ] && echo YES || echo NO)"
+          echo "EXISTING_ORIGIN_AUTH_WORKS=$([ "$HTTPS_RC" -eq 0 ] && echo YES || echo NO)"
+          echo "EXISTING_SSH_GITHUB_AUTH_WORKS=$([ "$SSH_RC" -eq 0 ] && echo YES || echo NO)"
 
-          if [ -n "$MAINT_INVOCATION" ]; then
-            MAINT_JOURNAL="$(sudo -n journalctl "_SYSTEMD_INVOCATION_ID=$MAINT_INVOCATION" -o cat --no-pager)"
-          else
-            MAINT_JOURNAL="$(sudo -n journalctl -u lowcost-europa-catalog-maintenance.service --since "$MAINT_START_TS" -o cat --no-pager)"
+          if sudo -n test -f /etc/lowcost-europa/lowcost-europa.env; then
+            for key in GITHUB_TOKEN GH_TOKEN GITHUB_PAT GIT_TOKEN; do
+              if sudo -n grep -qE "^$key=" /etc/lowcost-europa/lowcost-europa.env; then
+                echo "APP_ENV_${key}_PRESENT=YES"
+              else
+                echo "APP_ENV_${key}_PRESENT=NO"
+              fi
+            done
           fi
 
-          echo "MAINTENANCE_JOURNAL_BEGIN"
-          printf '%s\n' "$MAINT_JOURNAL"
-          echo "MAINTENANCE_JOURNAL_END"
-
-          metric() {
-            label="$1"
-            value="$(printf '%s\n' "$MAINT_JOURNAL" | sed -n "s/^$label: //p" | tail -1)"
-            if [ -z "$value" ]; then
-              value="NA"
-            fi
-            printf '%s' "$value"
-          }
-
-          OFFERS_SELECTED="$(metric "Offers selected")"
-          DETAIL_ATTEMPTS="$(metric "Detail attempts")"
-          AVAILABLE_CONFIRMED="$(metric "Available confirmed")"
-          UNAVAILABLE_CONFIRMED="$(metric "Unavailable confirmed")"
-          TRANSIENT_FAILURES="$(metric "Transient failures")"
-          OFFERS_DEACTIVATED_METRIC="$(metric "Offers deactivated")"
-          PROMOTION_ATTEMPTS="$(metric "Promotion attempts")"
-          PROMOTION_ELIGIBLE="$(metric "Promotion eligible")"
-          PROMOTION_INELIGIBLE="$(metric "Promotion ineligible")"
-          PROMOTION_TRANSIENT="$(metric "Promotion transient failures")"
-          LOGICAL_OPERATIONS="$(metric "Logical operations")"
-          HTTP_ATTEMPTS="$(metric "HTTP attempts")"
-          SUCCESSFUL_OPERATIONS="$(metric "Successful operations")"
-          HTTP_429="$(metric "429 responses")"
-          HTTP_5XX="$(metric "5xx responses")"
-          TRANSPORT_FAILURES="$(metric "Transport failures")"
-          RATE_LIMIT_ABORT="$(metric "Rate-limit abort")"
-
-          echo "OFFERS_SELECTED=$OFFERS_SELECTED"
-          echo "DETAIL_ATTEMPTS=$DETAIL_ATTEMPTS"
-          echo "AVAILABLE_CONFIRMED=$AVAILABLE_CONFIRMED"
-          echo "UNAVAILABLE_CONFIRMED=$UNAVAILABLE_CONFIRMED"
-          echo "TRANSIENT_FAILURES=$TRANSIENT_FAILURES"
-          echo "OFFERS_DEACTIVATED_METRIC=$OFFERS_DEACTIVATED_METRIC"
-          echo "PROMOTION_ATTEMPTS=$PROMOTION_ATTEMPTS"
-          echo "PROMOTION_ELIGIBLE=$PROMOTION_ELIGIBLE"
-          echo "PROMOTION_INELIGIBLE=$PROMOTION_INELIGIBLE"
-          echo "PROMOTION_TRANSIENT_FAILURES=$PROMOTION_TRANSIENT"
-          echo "LOGICAL_OPERATIONS=$LOGICAL_OPERATIONS"
-          echo "HTTP_ATTEMPTS=$HTTP_ATTEMPTS"
-          echo "SUCCESSFUL_HTTP_OPERATIONS=$SUCCESSFUL_OPERATIONS"
-          echo "HTTP_429=$HTTP_429"
-          echo "HTTP_5XX=$HTTP_5XX"
-          echo "TRANSPORT_FAILURES=$TRANSPORT_FAILURES"
-          echo "RATE_LIMIT_ABORT=$RATE_LIMIT_ABORT"
-
-          state_file_proof "LOCK_POST_MAINT" "$LOCK"
-          state_file_proof "CADENCE_POST_MAINT" "$CADENCE"
-          CADENCE_MTIME_AFTER="$(sudo -n stat -c '%Y' "$CADENCE")"
-          echo "CADENCE_MTIME_BEFORE=$CADENCE_MTIME_BEFORE"
-          echo "CADENCE_MTIME_AFTER=$CADENCE_MTIME_AFTER"
-
-          DB_AFTER_MAINT="$(db_snapshot)"
-          print_snapshot "POST_MAINT" "$DB_AFTER_MAINT"
-
-          printf '%s\n%s\n' "$DB_BEFORE_MAINT" "$DB_AFTER_MAINT" | python3 -c '
-          import json, sys
-          before=json.loads(sys.stdin.readline())
-          after=json.loads(sys.stdin.readline())
-
-          table_names=("offers","candidates","observations","clicks","decisions")
-          total_deleted=0
-          for table in table_names:
-              deleted=set(before["ids"][table]) - set(after["ids"][table])
-              print(f"PHYSICAL_DELETIONS_{table.upper()}={len(deleted)}")
-              total_deleted += len(deleted)
-
-          new_obs=set(after["ids"]["observations"]) - set(before["ids"]["observations"])
-          print(f"OBSERVATIONS_CREATED={len(new_obs)}")
-
-          deactivated=[]
-          promo_changes=[]
-          for pk, old_state in before["offer_state"].items():
-              new_state=after["offer_state"].get(pk)
-              if new_state is None:
-                  continue
-              if old_state[0] and not new_state[0]:
-                  deactivated.append(int(pk))
-              if old_state[1] != new_state[1]:
-                  promo_changes.append((int(pk), old_state[1], new_state[1]))
-
-          new_unavailable_offer_ids={
-              after["observation_state"][str(obs_id)][0]
-              for obs_id in new_obs
-              if after["observation_state"][str(obs_id)][1] == "UNAVAILABLE"
-          }
-          factual_deactivated=[
-              pk for pk in deactivated if pk in new_unavailable_offer_ids
-          ]
-
-          print(f"OFFERS_DEACTIVATED_DB={len(deactivated)}")
-          print(f"OFFERS_DEACTIVATED_DUE_FACTUAL_UNAVAILABLE={len(factual_deactivated)}")
-          print(f"PROMOTION_STATE_CHANGES={len(promo_changes)}")
-          print(f"PHYSICAL_RECORD_DELETIONS={total_deleted}")
-
-          if total_deleted:
-              raise SystemExit("Physical record deletion detected")
-          if len(factual_deactivated) != len(deactivated):
-              raise SystemExit("Offer deactivated without new factual UNAVAILABLE evidence")
-          '
-
-          MAINT_PASS=YES
-          if [ "$MAINT_START_RC" -ne 0 ] || [ "$MAINT_RESULT" != "success" ] || [ "$MAINT_STATUS" != "0" ]; then
-            MAINT_PASS=NO
-          fi
-          if ! [[ "$HTTP_ATTEMPTS" =~ ^[0-9]+$ ]] || [ "$HTTP_ATTEMPTS" -le 0 ]; then
-            MAINT_PASS=NO
-          fi
-          if ! [[ "$LOGICAL_OPERATIONS" =~ ^[0-9]+$ ]] || [ "$LOGICAL_OPERATIONS" -le 0 ]; then
-            MAINT_PASS=NO
-          fi
-          if [ "$RATE_LIMIT_ABORT" = "YES" ]; then
-            MAINT_PASS=NO
-          fi
-          if printf '%s\n' "$MAINT_JOURNAL" | grep -qiE             'AliExpress runtime state failure|operation lock timeout|runtime state ownership mismatch'; then
-            MAINT_PASS=NO
-          fi
-          echo "MAINTENANCE_GATE=$MAINT_PASS"
-
-          echo "== TIMERS AND FAILED UNITS =="
-          CATALOG_ACTIVE="$(systemctl is-active lowcost-europa-catalog-maintenance.timer || true)"
-          CATALOG_ENABLED="$(systemctl is-enabled lowcost-europa-catalog-maintenance.timer || true)"
-          echo "CATALOG_TIMER_ACTIVE=$CATALOG_ACTIVE"
-          echo "CATALOG_TIMER_ENABLED=$CATALOG_ENABLED"
-
-          for timer in             lowcost-europa-backup.timer             lowcost-europa-offsite-backup.timer             lowcost-europa-offsite-backup-health.timer
-          do
-            active="$(systemctl is-active "$timer" || true)"
-            enabled="$(systemctl is-enabled "$timer" || true)"
-            echo "BACKUP_TIMER=$timer ACTIVE=$active ENABLED=$enabled"
-          done
-
-          FAILED_UNITS="$(systemctl --failed --no-legend --plain | awk 'NF {print $1}')"
-          if [ -z "$FAILED_UNITS" ]; then
-            echo "FAILED_SYSTEMD_UNIT=NONE"
-          else
-            while IFS= read -r unit; do
-              [ -n "$unit" ] && echo "FAILED_SYSTEMD_UNIT=$unit"
-            done <<< "$FAILED_UNITS"
-          fi
-
-          if printf '%s\n' "$FAILED_UNITS" | grep -q '^lowcost-europa'; then
-            echo "LOWCOST_FAILED_SYSTEMD_UNIT=YES"
-          else
-            echo "LOWCOST_FAILED_SYSTEMD_UNIT=NO"
-          fi
-
-          FINAL_HEAD="$(git_app rev-parse HEAD)"
-          FINAL_BRANCH="$(git_app branch --show-current)"
-          FINAL_STATUS="$(git_app status --short)"
-          echo "FINAL_HEAD=$FINAL_HEAD"
-          echo "FINAL_BRANCH=$FINAL_BRANCH"
-          if [ -n "$FINAL_STATUS" ]; then
-            echo "FINAL_WORKTREE=DIRTY"
-            printf '%s\n' "$FINAL_STATUS"
-            exit 27
-          fi
-          echo "FINAL_WORKTREE=CLEAN"
-          [ "$FINAL_HEAD" = "$EXPECTED_MAIN" ]
-          [ "$FINAL_BRANCH" = "main" ]
-
-          echo "SECRETS_EXPOSED=NO"
-          echo "FREIGHT_PROBED=NO"
-          echo "DISCOVERY=NO"
-          echo "FIVE_FAMILY_PUSH=NO"
-
-          if [ "$MAINT_PASS" != "YES" ]; then
-            echo "PHASE7_VERDICT=FAIL"
-            exit 28
-          fi
-
-          echo "PHASE7_VERDICT=PASS"
+          echo "SECRETS_PRINTED=NO"
           REMOTE
-
-      - name: Delete temporary task branch
-        if: success()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          HEAD_REF: ${{ github.head_ref }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY' > /tmp/delete-ref-url.txt
-          import os
-          from urllib.parse import quote
-          repo = os.environ["GITHUB_REPOSITORY"]
-          ref = "heads/" + os.environ["HEAD_REF"]
-          print(f"https://api.github.com/repos/{repo}/git/refs/{quote(ref, safe='')}")
-          PY
-          URL="$(cat /tmp/delete-ref-url.txt)"
-          curl -fsS -X DELETE             -H "Authorization: Bearer $GH_TOKEN"             -H "Accept: application/vnd.github+json"             -H "X-GitHub-Api-Version: 2022-11-28"             "$URL"
-          echo "TEMP_BRANCH_DELETED=PASS"
