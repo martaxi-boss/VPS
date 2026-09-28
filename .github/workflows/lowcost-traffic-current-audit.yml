@@ -1,0 +1,146 @@
+name: Lowcost Traffic Current Audit
+
+on:
+  push:
+    paths:
+      - ".github/workflows/lowcost-traffic-current-audit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Read current traffic
+        env:
+          VPS_SSH_PASSWORD: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          export SSHPASS="$VPS_SSH_PASSWORD"
+
+          cat >/tmp/traffic.py <<'PY'
+          import re,glob,gzip,datetime,collections
+          from urllib.parse import urlsplit
+          from zoneinfo import ZoneInfo
+
+          UTC=datetime.timezone.utc
+          LIS=ZoneInfo("Europe/Lisbon")
+          campaign_start=datetime.datetime(2026,9,23,0,12,0,tzinfo=UTC)
+          last_checkpoint=datetime.datetime(2026,9,25,3,15,38,tzinfo=UTC)
+          now=datetime.datetime.now(UTC)
+
+          known_owner={
+              "89.214.112.247","89.214.113.61","89.214.116.217","89.214.116.15",
+              "89.214.112.225","85.247.222.132","95.177.101.141","89.214.118.145","85.244.90.90",
+          }
+          meta_prefix=("157.240.","173.252.","31.13.","69.63.","66.220.","129.134.")
+          bot=re.compile(r"bot|crawler|spider|slurp|measurement|scan|curl|wget|python|go-http|headless|facebookexternalhit|meta-external|preview|monitor|zgrab|censys|masscan|nmap|httpx|semrush|ahrefs|mj12|petalbot|duckassist|perplexity|claude|chatgpt|amazonbot|applebot|googlebot|bingbot|yandex|baiduspider|bytespider|hunyuan|deepseek|yibot|domain-harvester|internetmeasurement|google-read-aloud",re.I)
+          pat=re.compile(r'^(\\S+) \\S+ \\S+ \\[([^\\]]+)\\] "(\\S+) ([^ ]+) [^"]+" (\\d{3}) (\\S+) "([^"]*)" "([^"]*)"')
+
+          rows=[]
+          for f in glob.glob("/var/log/nginx/access.log*"):
+              try: fh=gzip.open(f,"rt",errors="ignore") if f.endswith(".gz") else open(f,errors="ignore")
+              except OSError: continue
+              with fh:
+                  for line in fh:
+                      m=pat.match(line)
+                      if not m: continue
+                      ip,ts,method,path,status,_,ref,ua=m.groups()
+                      try: dt=datetime.datetime.strptime(ts,"%d/%b/%Y:%H:%M:%S %z")
+                      except: continue
+                      if campaign_start<=dt<=now:
+                          rows.append({"ip":ip,"dt":dt,"method":method,"path":path,"status":int(status),"ref":ref,"ua":ua})
+
+          for x in rows:
+              s=(x["path"]+" "+x["ref"]).lower()
+              if "2201116sc" in x["ua"].lower() or "gestao=" in s or "/painel/" in s or "/admin/" in s:
+                  known_owner.add(x["ip"])
+
+          exact={"/","/contacto/","/como-funciona/","/afiliados/","/privacidade/","/termos/"}
+          def p(x): return urlsplit(x["path"]).path
+          def page(x): return x["method"]=="GET" and x["status"]==200 and (p(x) in exact or p(x).startswith("/products/"))
+          def go(x): return x["method"]=="GET" and x["status"] in (301,302,303,307,308) and bool(re.fullmatch(r"/go/\\d+/?",p(x)))
+          def paid(x):
+              s=(x["path"]+" "+x["ref"]+" "+x["ua"]).lower()
+              return ("utm_source=fb" in s and "utm_medium=paid" in s) or ("fbclid=" in s and ("facebook.com" in s or "fb.com" in s or "fb_iab" in s or "fbav/" in s))
+
+          base=[x for x in rows if x["ip"] not in known_owner and not bot.search(x["ua"]) and not x["ip"].startswith(meta_prefix) and (page(x) or go(x))]
+
+          def sessionize(events):
+              groups=collections.defaultdict(list)
+              for x in events: groups[(x["ip"],x["ua"])].append(x)
+              out=[]; gap=datetime.timedelta(minutes=45)
+              for evs in groups.values():
+                  evs.sort(key=lambda e:e["dt"]); cur=[]; prev=None
+                  for e in evs:
+                      if prev is not None and e["dt"]-prev>gap:
+                          out.append(cur); cur=[]
+                      cur.append(e); prev=e["dt"]
+                  if cur: out.append(cur)
+              return out
+
+          def suspicious(s):
+              g=sum(1 for e in s if go(e))
+              if g>=10: return True
+              return len(s)>=30 and (s[-1]["dt"]-s[0]["dt"]).total_seconds()<=600
+
+          def report(start,label):
+              ev=[x for x in base if x["dt"]>=start]
+              ss=[s for s in sessionize(ev) if not suspicious(s)]
+              events=[e for s in ss for e in s]
+              pages=[e for e in events if page(e)]
+              gos=[e for e in events if go(e)]
+              paid_ss=[s for s in ss if any(paid(e) for e in s)]
+              paid_ev=[e for s in paid_ss for e in s]
+
+              def likely(s):
+                  if any(paid(e) for e in s): return True
+                  if any(p(e).startswith("/products/") or p(e)=="/contacto/" or go(e) for e in s): return True
+                  if sum(page(e) for e in s)>=2: return True
+                  u=s[0]["ua"].lower()
+                  return "iphone" in u or "ipad" in u or "android" in u
+
+              lh=[s for s in ss if likely(s)]
+              print("=== "+label+" ===")
+              print("START_LOCAL="+start.astimezone(LIS).isoformat())
+              print("END_LOCAL="+now.astimezone(LIS).isoformat())
+              print("EXTERNAL_PAGEVIEWS="+str(len(pages)))
+              print("EXTERNAL_UNIQUE_IPS="+str(len({e["ip"] for e in pages})))
+              print("EXTERNAL_SESSIONS="+str(len(ss)))
+              print("LIKELY_HUMAN_SESSIONS="+str(len(lh)))
+              print("LIKELY_HUMAN_PAGEVIEWS="+str(sum(1 for s in lh for e in s if page(e))))
+              print("HOME="+str(sum(p(e)=="/" for e in pages)))
+              print("FAMILY="+str(sum(p(e).startswith("/products/") for e in pages)))
+              print("CONTACT="+str(sum(p(e)=="/contacto/" for e in pages)))
+              print("GO="+str(len(gos)))
+              print("GO_SESSIONS="+str(sum(any(go(e) for e in s) for s in ss)))
+              print("PAID_FB_SESSIONS="+str(len(paid_ss)))
+              print("PAID_FB_PAGEVIEWS="+str(sum(page(e) for e in paid_ev)))
+              print("PAID_FB_FAMILY="+str(sum(page(e) and p(e).startswith("/products/") for e in paid_ev)))
+              print("PAID_FB_GO="+str(sum(go(e) for e in paid_ev)))
+              print("FAMILIES")
+              fam=[e for e in pages if p(e).startswith("/products/")]
+              for k,v in collections.Counter(p(e) for e in fam).most_common(): print(v,k)
+              print("DAILY")
+              for d in sorted({e["dt"].astimezone(LIS).strftime("%Y-%m-%d") for e in pages}):
+                  pp=[e for e in pages if e["dt"].astimezone(LIS).strftime("%Y-%m-%d")==d]
+                  gg=[e for e in gos if e["dt"].astimezone(LIS).strftime("%Y-%m-%d")==d]
+                  pss=[s for s in paid_ss if s[0]["dt"].astimezone(LIS).strftime("%Y-%m-%d")==d]
+                  print(f"{d} PV={len(pp)} UNIQUE={len({e['ip'] for e in pp})} FAMILY={sum(p(e).startswith('/products/') for e in pp)} GO={len(gg)} PAID_FB={len(pss)}")
+
+          report(last_checkpoint,"SINCE_LAST_CHECKPOINT")
+          report(campaign_start,"CAMPAIGN_TOTAL")
+          PY
+
+          sshpass -e ssh \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=10 \
+            ubuntu@146.59.145.3 \
+            'sudo -n python3 -' < /tmp/traffic.py
