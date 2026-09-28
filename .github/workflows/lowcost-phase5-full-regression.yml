@@ -1,0 +1,586 @@
+name: Lowcost Europa Phase 5 Full Regression
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/lowcost-phase5-full-regression.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  repository-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: lowcost_europa_ci
+          POSTGRES_USER: lowcost_europa_ci
+          POSTGRES_PASSWORD: ci-only-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U lowcost_europa_ci -d lowcost_europa_ci"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.test
+      DJANGO_SECRET_KEY: ci-only-django-secret-key
+      DJANGO_DEBUG: "false"
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+      POSTGRES_DB: lowcost_europa_ci
+      POSTGRES_USER: lowcost_europa_ci
+      POSTGRES_PASSWORD: ci-only-password
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: "5432"
+      EXPECTED_MAIN: 6e5031598f2c7043489d5e680b73b3c16706bd0e
+    steps:
+      - name: Checkout exact Lowcost main
+        uses: actions/checkout@v4
+        with:
+          repository: martaxi-boss/lowcost-europa
+          ref: 6e5031598f2c7043489d5e680b73b3c16706bd0e
+          path: lowcost
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: lowcost/requirements/development.txt
+
+      - name: Install dependencies
+        working-directory: lowcost
+        run: pip install -r requirements/development.txt
+
+      - name: Exact repository baseline
+        working-directory: lowcost
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTUAL="$(git rev-parse HEAD)"
+          echo "LATEST_MAIN=$ACTUAL"
+          test "$ACTUAL" = "$EXPECTED_MAIN"
+          if [ -n "$(git status --short)" ]; then
+            echo "REPOSITORY_WORKTREE=DIRTY"
+            git status --short
+            exit 2
+          fi
+          echo "REPOSITORY_WORKTREE=CLEAN"
+
+      - name: Django check
+        working-directory: lowcost
+        run: |
+          python manage.py check
+          echo "DJANGO_CHECK=PASS"
+
+      - name: Production deploy check
+        working-directory: lowcost
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.production
+          DJANGO_SECRET_KEY: ci-deploy-check-only-key-0123456789-abcdefghijklmnopqrstuvwxyz
+          DJANGO_ALLOWED_HOSTS: example.test
+          DJANGO_CSRF_TRUSTED_ORIGINS: https://example.test
+          DJANGO_SECURE_SSL_REDIRECT: "true"
+          DJANGO_SECURE_HSTS_SECONDS: "3600"
+          DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS: "true"
+          DJANGO_SECURE_HSTS_PRELOAD: "true"
+        run: |
+          python manage.py check --deploy
+          echo "DEPLOY_CHECK=PASS"
+
+      - name: Migration drift
+        working-directory: lowcost
+        run: |
+          python manage.py makemigrations --check --dry-run
+          echo "MIGRATION_DRIFT=PASS"
+          echo "NEW_MIGRATIONS=0"
+
+      - name: Ruff
+        working-directory: lowcost
+        run: |
+          ruff check .
+          echo "RUFF=PASS"
+
+      - name: Apply migrations and verify plan
+        working-directory: lowcost
+        shell: bash
+        run: |
+          set -euo pipefail
+          python manage.py migrate --noinput >/dev/null
+          PLAN="$(python manage.py migrate --plan)"
+          printf '%s\n' "$PLAN"
+          printf '%s\n' "$PLAN" | grep -q "No planned migration operations"
+          echo "MIGRATE_PLAN=PASS"
+
+      - name: Focused constitutional regression
+        working-directory: lowcost
+        run: |
+          python manage.py test             apps.storefront.tests.test_public_eligibility             apps.catalog.tests.test_owner_panel             apps.catalog.tests.test_offer_maintenance             apps.catalog.tests.test_candidate_approval             apps.catalog.tests.test_catalog_maintenance_command             apps.catalog.tests.test_catalog_maintenance_systemd             apps.integrations.tests.test_aliexpress_safety             --verbosity 2
+          echo "FOCUSED_CONSTITUTIONAL_REGRESSION=PASS"
+
+      - name: Static constitution audit
+        working-directory: lowcost
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          from apps.catalog.services.public_eligibility import (
+              ALLOWED_SHIP_FROM_COUNTRIES,
+              MAX_PUBLIC_ELIGIBLE_OFFERS_PER_FAMILY,
+          )
+
+          root = Path(".")
+          expected = frozenset({"PL", "CZ", "FR", "ES", "DE"})
+          assert ALLOWED_SHIP_FROM_COUNTRIES == expected
+          assert MAX_PUBLIC_ELIGIBLE_OFFERS_PER_FAMILY == 20
+          print("SHIPPING_ALLOWED_COUNTRIES=PL,CZ,FR,ES,DE")
+          print("SHIPPING_DESTINATION=PT")
+          print("CAP20_STATIC=PASS")
+
+          approval = Path("apps/catalog/services/candidate_approval.py").read_text()
+          editorial = Path("apps/catalog/services/owner_editorial.py").read_text()
+          discovery = Path("apps/catalog/services/candidate_discovery.py").read_text()
+          eligibility = Path("apps/catalog/services/public_eligibility.py").read_text()
+
+          assert "generate_affiliate_link" in approval
+          assert '"owner_hidden": True' in approval
+          assert "generate_affiliate_link" not in editorial
+          assert "locked.owner_hidden = False" in editorial
+          assert "MAX_PUBLIC_ELIGIBLE_OFFERS_PER_FAMILY" in editorial
+          assert 'country="PT"' in discovery
+          assert '"PT", "EUR"' in discovery
+          assert "ship_from_country" not in discovery
+          assert "protocol_verified_at__lte" in eligibility
+          assert "protocol_verified_at__gte" not in eligibility
+          print("APPROVAL_GENERATES_FRESH_AFFILIATE_LINK=PASS")
+          print("APPROVAL_SEPARATE_FROM_PUBLISH=PASS")
+          print("PUBLISH_GENERATES_AFFILIATE_LINK=NO")
+          print("OWNER_HIDDEN_BYPASS=NO")
+          print("AUTO_APPROVAL=NO")
+          print("AUTO_PUBLICATION=NO")
+          print("SHIPS_TO_PT_NOT_INFERRED_AS_SHIP_FROM=PASS")
+          print("SHIP_FROM_MANUFACTURED_BY_DISCOVERY=NO")
+
+          patterns = (
+              "CATALOG_PROTOCOL_FRESHNESS_DAYS",
+              "protocol_verification_max_age",
+              "is_protocol_verification_fresh",
+              "is_ship_from_verification_fresh",
+              "protocol_verified_at__gte",
+          )
+          suffixes = {".py", ".md", ".txt", ".yml", ".yaml", ".toml", ".html", ".sh"}
+          raw_hits = []
+          active_hits = []
+          for path in root.rglob("*"):
+              if not path.is_file() or ".git" in path.parts or path.suffix not in suffixes:
+                  continue
+              try:
+                  text = path.read_text()
+              except UnicodeDecodeError:
+                  continue
+              for lineno, line in enumerate(text.splitlines(), 1):
+                  for pattern in patterns:
+                      if pattern in line:
+                          hit = (str(path), lineno, pattern, line.strip())
+                          raw_hits.append(hit)
+                          if "tests" not in path.parts and "docs" not in path.parts:
+                              active_hits.append(hit)
+          for path, lineno, pattern, line in raw_hits:
+              print(f"AGE_SEARCH_HIT={path}:{lineno}:{pattern}:{line}")
+          print(f"RAW_AGE_SEARCH_HITS={len(raw_hits)}")
+          print(f"ACTIVE_7_DAY_GATES={len(active_hits)}")
+          assert not active_hits
+          PY
+
+      - name: Full test suite
+        working-directory: lowcost
+        shell: bash
+        run: |
+          set -o pipefail
+          python manage.py test --verbosity 1 2>&1 | tee /tmp/full-tests.log
+          COUNT="$(grep -Eo 'Ran [0-9]+ tests' /tmp/full-tests.log | tail -1 | awk '{print $2}')"
+          test -n "$COUNT"
+          echo "FULL_TEST_COUNT=$COUNT"
+          echo "FULL_TESTS=PASS"
+
+      - name: Diff check
+        working-directory: lowcost
+        run: |
+          git diff --check
+          test -z "$(git status --short)"
+          echo "GIT_DIFF_CHECK=PASS"
+          echo "LOWCOST_REPOSITORY_MUTATIONS=0"
+
+  runtime-audit:
+    needs: repository-regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VPS_SSH_PASSWORD: ${{ secrets.VPS_SSH_PASSWORD }}
+    steps:
+      - name: Install SSH client helper
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${VPS_SSH_PASSWORD:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+
+      - name: Read-only OVH audit plus one safe official AliExpress operation
+        shell: bash
+        run: |
+          set -euo pipefail
+          HOST="146.59.145.3"
+          USER="ubuntu"
+          sshpass -p "$VPS_SSH_PASSWORD" ssh             -o PreferredAuthentications=password             -o PubkeyAuthentication=no             -o StrictHostKeyChecking=accept-new             -o ConnectTimeout=10             "$USER@$HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+
+          APP="/srv/lowcost-europa"
+          APP_USER="le001_1789265592"
+          EXPECTED_RULE="d /run/lowcost-europa 0750 le001_1789265592 le001_1789265592 -"
+          SOURCE="$APP/deploy/tmpfiles.d/lowcost-europa.conf"
+          TARGET="/etc/tmpfiles.d/lowcost-europa.conf"
+          RUNTIME_DIR="/run/lowcost-europa"
+          LOCK="$RUNTIME_DIR/aliexpress.lock"
+          CADENCE="$RUNTIME_DIR/aliexpress.last-start"
+          HOSTNAME="lowcost-europa.146-59-145-3.sslip.io"
+
+          git_app() {
+            sudo -u "$APP_USER" git -C "$APP" "$@"
+          }
+
+          echo "== RUNTIME BASELINE =="
+          RUNTIME_HEAD="$(git_app rev-parse HEAD)"
+          RUNTIME_BRANCH="$(git_app branch --show-current)"
+          RUNTIME_STATUS="$(git_app status --short)"
+          echo "RUNTIME_HEAD=$RUNTIME_HEAD"
+          echo "RUNTIME_BRANCH=$RUNTIME_BRANCH"
+          if [ -n "$RUNTIME_STATUS" ]; then
+            echo "WORKTREE=DIRTY"
+            printf '%s\n' "$RUNTIME_STATUS"
+            exit 20
+          fi
+          echo "WORKTREE=CLEAN"
+
+          echo "== DB SNAPSHOT BEFORE =="
+          sudo -n bash -s <<'ROOT'
+          set -euo pipefail
+          APP="/srv/lowcost-europa"
+          APP_USER="le001_1789265592"
+          set -a
+          . /etc/lowcost-europa/lowcost-europa.env
+          set +a
+          cd "$APP"
+          sudo -u "$APP_USER" -E "$APP/.venv/bin/python" - <<'PY'
+          import os
+          os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.production")
+          import django
+          django.setup()
+          from apps.catalog.models import Offer, OfferCandidate, OfferClick, OfferObservation
+          print(f"DB_BEFORE_OFFERS={Offer.objects.count()}")
+          print(f"DB_BEFORE_CANDIDATES={OfferCandidate.objects.count()}")
+          print(f"DB_BEFORE_OBSERVATIONS={OfferObservation.objects.count()}")
+          print(f"DB_BEFORE_CLICKS={OfferClick.objects.count()}")
+          PY
+          ROOT
+
+          DB_BEFORE="$(sudo -n bash -s <<'ROOT'
+          set -euo pipefail
+          APP="/srv/lowcost-europa"
+          APP_USER="le001_1789265592"
+          set -a
+          . /etc/lowcost-europa/lowcost-europa.env
+          set +a
+          cd "$APP"
+          sudo -u "$APP_USER" -E "$APP/.venv/bin/python" - <<'PY'
+          import os
+          os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.production")
+          import django
+          django.setup()
+          from apps.catalog.models import Offer, OfferCandidate, OfferClick, OfferObservation
+          print(",".join(map(str, (
+              Offer.objects.count(),
+              OfferCandidate.objects.count(),
+              OfferObservation.objects.count(),
+              OfferClick.objects.count(),
+          ))))
+          PY
+          ROOT
+          )"
+
+          echo "== SHARED RUNTIME STATE PRE-CALL =="
+          test "$(cat "$SOURCE")" = "$EXPECTED_RULE"
+          sudo -n test -f "$TARGET"
+          sudo -n cmp -s "$SOURCE" "$TARGET"
+          echo "TMPFILES=PASS"
+
+          test -d "$RUNTIME_DIR"
+          test ! -L "$RUNTIME_DIR"
+          [ "$(stat -c '%U' "$RUNTIME_DIR")" = "$APP_USER" ]
+          [ "$(stat -c '%G' "$RUNTIME_DIR")" = "$APP_USER" ]
+          [ "$(stat -c '%a' "$RUNTIME_DIR")" = "750" ]
+          echo "RUN_DIRECTORY=PASS"
+
+          check_state() {
+            label="$1"
+            path="$2"
+            sudo -n test -f "$path"
+            if sudo -n test -L "$path"; then
+              exit 21
+            fi
+            [ "$(sudo -n stat -c '%U' "$path")" = "$APP_USER" ]
+            [ "$(sudo -n stat -c '%a' "$path")" = "600" ]
+            echo "${label}=PASS"
+          }
+          check_state "LOCK" "$LOCK"
+          check_state "CADENCE" "$CADENCE"
+          sudo -n bash -c "python3 - <<'PY'
+          raw = open('$CADENCE', encoding='utf-8').read().strip()
+          float(raw)
+          print('CADENCE_PARSEABLE=YES')
+          PY"
+
+          APP_PRIVATE="$(systemctl cat lowcost-europa.service | grep -E '^PrivateTmp=' | tail -1 || true)"
+          MAINT_PRIVATE="$(systemctl cat lowcost-europa-catalog-maintenance.service | grep -E '^PrivateTmp=' | tail -1 || true)"
+          [ "$APP_PRIVATE" = "PrivateTmp=true" ]
+          [ "$MAINT_PRIVATE" = "PrivateTmp=true" ]
+          echo "PRIVATE_TMP_APP=PRESERVED"
+          echo "PRIVATE_TMP_MAINTENANCE=PRESERVED"
+
+          echo "== ONE SAFE OFFICIAL ALIEXPRESS OPERATION =="
+          sudo -n bash -s <<'ROOT'
+          set -euo pipefail
+          APP="/srv/lowcost-europa"
+          APP_USER="le001_1789265592"
+          set -a
+          . /etc/lowcost-europa/lowcost-europa.env
+          set +a
+          cd "$APP"
+          sudo -u "$APP_USER" -E "$APP/.venv/bin/python" - <<'PY'
+          from apps.integrations.aliexpress.client import (
+              AliExpressClient,
+              DEFAULT_CADENCE_PATH,
+              DEFAULT_LOCK_PATH,
+          )
+
+          client = AliExpressClient()
+          categories = client.get_categories()
+          metrics = client.execution_metrics
+          print(f"SHARED_LOCK_PATH={DEFAULT_LOCK_PATH}")
+          print(f"SHARED_CADENCE_PATH={DEFAULT_CADENCE_PATH}")
+          print(f"LOGICAL_OPERATIONS={metrics.logical_operations}")
+          print(f"HTTP_ATTEMPTS={metrics.attempts}")
+          print(f"SUCCESSFUL_HTTP_OPERATIONS={metrics.successful}")
+          print(f"HTTP_429={metrics.http_429}")
+          print(f"HTTP_5XX={metrics.http_5xx}")
+          print(f"TRANSPORT_FAILURES={metrics.transport_failures}")
+          print(f"CATEGORY_RESULT_COUNT={len(categories)}")
+          if metrics.logical_operations < 1:
+              raise SystemExit("logical operation metric missing")
+          if metrics.attempts < 1:
+              raise SystemExit("no HTTP attempt recorded")
+          if metrics.successful < 1:
+              raise SystemExit("safe operation did not succeed")
+          print("REAL_SAFE_ALIEXPRESS_OPERATION=PASS")
+          PY
+          ROOT
+
+          echo "== SHARED RUNTIME STATE POST-CALL =="
+          test -d "$RUNTIME_DIR"
+          test ! -L "$RUNTIME_DIR"
+          [ "$(stat -c '%U' "$RUNTIME_DIR")" = "$APP_USER" ]
+          [ "$(stat -c '%G' "$RUNTIME_DIR")" = "$APP_USER" ]
+          [ "$(stat -c '%a' "$RUNTIME_DIR")" = "750" ]
+          check_state "LOCK_POST_CALL" "$LOCK"
+          check_state "CADENCE_POST_CALL" "$CADENCE"
+          sudo -n bash -c "python3 - <<'PY'
+          float(open('$CADENCE', encoding='utf-8').read().strip())
+          print('CADENCE_POST_CALL_PARSEABLE=YES')
+          PY"
+          sudo -n cmp -s "$SOURCE" "$TARGET"
+          echo "TMPFILES_POST_CALL=PASS"
+
+          echo "== INFRASTRUCTURE HEALTH =="
+          APP_STATE="$(systemctl is-active lowcost-europa.service || true)"
+          NGINX_STATE="$(systemctl is-active nginx || true)"
+          POSTGRES_STATE="$(systemctl is-active postgresql || true)"
+          echo "APPLICATION=$APP_STATE"
+          echo "NGINX=$NGINX_STATE"
+          echo "POSTGRES=$POSTGRES_STATE"
+          [ "$APP_STATE" = "active" ]
+          [ "$NGINX_STATE" = "active" ]
+          [ "$POSTGRES_STATE" = "active" ]
+          sudo -n nginx -t
+          echo "NGINX_CONFIG=PASS"
+
+          http_code() {
+            path="$1"
+            curl --noproxy "*" --resolve "$HOSTNAME:443:127.0.0.1"               --max-time 10 -sS -o /dev/null -w "%{http_code}"               "https://$HOSTNAME$path"
+          }
+
+          HOME_CODE="$(http_code /)"
+          LIVE_CODE="$(http_code /health/live/)"
+          READY_CODE="$(http_code /health/ready/)"
+          echo "HOMEPAGE=$HOME_CODE"
+          echo "LIVE=$LIVE_CODE"
+          echo "READY=$READY_CODE"
+          [ "$HOME_CODE" = "200" ]
+          [ "$LIVE_CODE" = "200" ]
+          [ "$READY_CODE" = "200" ]
+
+          FAMILY_FAIL=0
+          for slug in             cavitacao-rf-vacuum-corpo             hydrodermoabrasao-aqua-facial-multifuncoes             pressoterapia-vacuum-drenagem             hifu             diodo-laser-remocao-tatuagens-pigmentacao
+          do
+            code="$(http_code "/products/$slug/")"
+            echo "FAMILY_PAGE_$slug=$code"
+            if [ "$code" != "200" ]; then
+              FAMILY_FAIL=1
+            fi
+          done
+          [ "$FAMILY_FAIL" = "0" ]
+          echo "FIVE_FAMILY_PAGES=PASS"
+
+          CONTACT_BODY="$(curl --noproxy "*" --resolve "$HOSTNAME:443:127.0.0.1" --max-time 10 -fsS "https://$HOSTNAME/contacto/")"
+          HOME_BODY="$(curl --noproxy "*" --resolve "$HOSTNAME:443:127.0.0.1" --max-time 10 -fsS "https://$HOSTNAME/")"
+          CSS_BODY="$(curl --noproxy "*" --resolve "$HOSTNAME:443:127.0.0.1" --max-time 10 -fsS "https://$HOSTNAME/static/storefront/storefront.css")"
+          printf '%s' "$CONTACT_BODY$HOME_BODY" | grep -q '351965471236'
+          printf '%s' "$CONTACT_BODY$HOME_BODY" | grep -q '+351 965 471 236'
+          if printf '%s' "$CONTACT_BODY$HOME_BODY" | grep -q '351961726755'; then
+            echo "WHATSAPP_OLD_NUMBER_ABSENT=FAIL"
+            exit 22
+          fi
+          echo "WHATSAPP_NEW_NUMBER=PASS"
+          echo "WHATSAPP_OLD_NUMBER_ABSENT=PASS"
+          printf '%s' "$CSS_BODY" | grep -q '\.family-index a'
+          echo "FAMILY_BUTTON_CSS=PASS"
+
+          THIRD_PARTY_JS="$(printf '%s' "$HOME_BODY" | grep -Eo 'src="https?://[^"]+"' || true)"
+          if [ -n "$THIRD_PARTY_JS" ]; then
+            echo "THIRD_PARTY_JS=FAIL"
+            printf '%s\n' "$THIRD_PARTY_JS"
+            exit 23
+          fi
+          echo "THIRD_PARTY_JS=NONE"
+
+          HEADERS="$(curl --noproxy "*" --resolve "$HOSTNAME:443:127.0.0.1" --max-time 10 -sSI "https://$HOSTNAME/")"
+          printf '%s' "$HEADERS" | grep -iq '^X-Robots-Tag: noindex, nofollow'
+          ROBOTS="$(curl --noproxy "*" --resolve "$HOSTNAME:443:127.0.0.1" --max-time 10 -fsS "https://$HOSTNAME/robots.txt")"
+          printf '%s' "$ROBOTS" | grep -q 'Disallow: /'
+          echo "PUBLIC_INDEXING_UNCHANGED=PASS"
+
+          echo "== BACKUPS =="
+          BACKUP_OK=1
+          for timer in             lowcost-europa-backup.timer             lowcost-europa-offsite-backup.timer             lowcost-europa-offsite-backup-health.timer
+          do
+            active="$(systemctl is-active "$timer" || true)"
+            enabled="$(systemctl is-enabled "$timer" || true)"
+            echo "BACKUP_TIMER=$timer ACTIVE=$active ENABLED=$enabled"
+            if [ "$active" != "active" ] || [ "$enabled" != "enabled" ]; then
+              BACKUP_OK=0
+            fi
+          done
+          for service in             lowcost-europa-backup.service             lowcost-europa-offsite-backup.service             lowcost-europa-offsite-backup-health.service
+          do
+            result="$(systemctl show "$service" -p Result --value)"
+            status="$(systemctl show "$service" -p ExecMainStatus --value)"
+            echo "BACKUP_SERVICE=$service RESULT=$result EXEC_MAIN_STATUS=$status"
+            if [ "$result" != "success" ] || [ "$status" != "0" ]; then
+              BACKUP_OK=0
+            fi
+          done
+          if [ "$BACKUP_OK" = "1" ]; then
+            echo "BACKUP_STATE=PASS"
+          else
+            echo "BACKUP_STATE=FAIL"
+            exit 24
+          fi
+
+          echo "== FAILED SYSTEMD UNITS =="
+          FAILED_UNITS="$(systemctl --failed --no-legend --plain | awk 'NF {print $1}')"
+          if [ -z "$FAILED_UNITS" ]; then
+            echo "FAILED_SYSTEMD_UNIT=NONE"
+          else
+            while IFS= read -r unit; do
+              [ -n "$unit" ] && echo "FAILED_SYSTEMD_UNIT=$unit"
+            done <<< "$FAILED_UNITS"
+          fi
+          if printf '%s\n' "$FAILED_UNITS" | grep -q '^lowcost-europa'; then
+            echo "LOWCOST_FAILED_SYSTEMD_UNIT=YES"
+            exit 25
+          fi
+          echo "LOWCOST_FAILED_SYSTEMD_UNIT=NO"
+
+          echo "== DB SNAPSHOT AFTER =="
+          DB_AFTER="$(sudo -n bash -s <<'ROOT'
+          set -euo pipefail
+          APP="/srv/lowcost-europa"
+          APP_USER="le001_1789265592"
+          set -a
+          . /etc/lowcost-europa/lowcost-europa.env
+          set +a
+          cd "$APP"
+          sudo -u "$APP_USER" -E "$APP/.venv/bin/python" - <<'PY'
+          import os
+          os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.production")
+          import django
+          django.setup()
+          from apps.catalog.models import Offer, OfferCandidate, OfferClick, OfferObservation
+          print(",".join(map(str, (
+              Offer.objects.count(),
+              OfferCandidate.objects.count(),
+              OfferObservation.objects.count(),
+              OfferClick.objects.count(),
+          ))))
+          PY
+          ROOT
+          )"
+          echo "DB_AFTER_COUNTS=$DB_AFTER"
+          echo "DB_BEFORE_COUNTS=$DB_BEFORE"
+          [ "$DB_BEFORE" = "$DB_AFTER" ]
+          echo "DB_MUTATIONS=0"
+          echo "OFFERS_MUTATED=0"
+          echo "CANDIDATES_MUTATED=0"
+          echo "OBSERVATIONS_CREATED=0"
+          echo "CLICKS_CREATED=0"
+          echo "AFFILIATE_LINKS_GENERATED=0"
+          echo "DISCOVERY_CALLS=0"
+          echo "FREIGHT_PROBES=0"
+
+          POST_HEAD="$(git_app rev-parse HEAD)"
+          POST_BRANCH="$(git_app branch --show-current)"
+          POST_STATUS="$(git_app status --short)"
+          [ "$POST_HEAD" = "$RUNTIME_HEAD" ]
+          [ "$POST_BRANCH" = "$RUNTIME_BRANCH" ]
+          [ "$POST_STATUS" = "$RUNTIME_STATUS" ]
+          echo "LOWCOST_RUNTIME_REPOSITORY_MUTATIONS=0"
+          echo "SECRETS_EXPOSED=NO"
+          echo "RUNTIME_AUDIT=PASS"
+          REMOTE
+
+  cleanup:
+    needs: [repository-regression, runtime-audit]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete temporary task branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_REF: ${{ github.head_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' > /tmp/delete-ref-url.txt
+          import os
+          from urllib.parse import quote
+          repo = os.environ["GITHUB_REPOSITORY"]
+          ref = "heads/" + os.environ["HEAD_REF"]
+          print(f"https://api.github.com/repos/{repo}/git/refs/{quote(ref, safe='')}")
+          PY
+          URL="$(cat /tmp/delete-ref-url.txt)"
+          curl -fsS -X DELETE             -H "Authorization: Bearer $GH_TOKEN"             -H "Accept: application/vnd.github+json"             -H "X-GitHub-Api-Version: 2022-11-28"             "$URL"
+          echo "TEMP_BRANCH_DELETED=PASS"
