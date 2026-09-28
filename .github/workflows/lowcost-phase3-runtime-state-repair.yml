@@ -115,7 +115,7 @@ jobs:
               echo "${label}_PRE_OWNER=$owner"
               echo "${label}_PRE_GROUP=$group"
               echo "${label}_PRE_MODE=$mode"
-              if [ "$type" != "regular file" ]; then
+              if ! sudo -n test -f "$path"; then
                 exit 14
               fi
               if [ "$owner" != "$APP_USER" ]; then
@@ -256,11 +256,12 @@ jobs:
             group="$(sudo -n stat -c '%G' "$path")"
             mode="$(sudo -n stat -c '%a' "$path")"
             echo "${label}_EXISTS=YES"
-            echo "${label}_TYPE=$type"
+            echo "${label}_TYPE=REGULAR_FILE"
+            echo "${label}_TYPE_RAW=$type"
             echo "${label}_OWNER=$owner"
             echo "${label}_GROUP=$group"
             echo "${label}_MODE=$mode"
-            [ "$type" = "regular file" ]
+            sudo -n test -f "$path"
             [ "$owner" = "$APP_USER" ]
             [ "$mode" = "600" ]
           done
