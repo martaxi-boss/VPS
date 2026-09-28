@@ -1,0 +1,44 @@
+name: Infra Gap Audit
+on:
+  push:
+    paths:
+      - ".github/workflows/infra-gap-audit.yml"
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Inspect remaining migration gaps
+        env:
+          VPS_SSH_PASSWORD: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          export SSHPASS="$VPS_SSH_PASSWORD"
+          sshpass -e ssh \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=10 \
+            ubuntu@146.59.145.3 '
+              set -e
+              echo "FAILED_UNITS_BEGIN"
+              sudo -n systemctl --failed --no-legend --plain || true
+              echo "FAILED_UNITS_END"
+              echo "REPO_HEAD=$(sudo -n git -C /srv/lowcost-europa rev-parse HEAD 2>/dev/null || true)"
+              echo "REPO_BRANCH=$(sudo -n git -C /srv/lowcost-europa branch --show-current 2>/dev/null || true)"
+              WT="$(sudo -n git -C /srv/lowcost-europa status --short 2>/dev/null || true)"
+              if [ -z "$WT" ]; then echo "REPO_WORKTREE=CLEAN"; else echo "REPO_WORKTREE=DIRTY"; echo "$WT"; fi
+              echo "DNS_BEGIN"
+              getent ahostsv4 lowcost-europa.duckdns.org | head -n 3 || true
+              echo "DNS_END"
+              echo "TMPFILES_RULE_BEGIN"
+              for f in /etc/tmpfiles.d/lowcost-europa.conf /usr/lib/tmpfiles.d/lowcost-europa.conf /lib/tmpfiles.d/lowcost-europa.conf; do
+                if [ -f "$f" ]; then echo "FOUND=$f"; cat "$f"; fi
+              done
+              echo "TMPFILES_RULE_END"
+            '
