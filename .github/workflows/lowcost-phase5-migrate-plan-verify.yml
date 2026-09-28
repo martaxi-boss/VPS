@@ -1,0 +1,54 @@
+name: Lowcost Europa Phase 5 Migrate Plan Verify
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/lowcost-phase5-migrate-plan-verify.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      VPS_SSH_PASSWORD: ${{ secrets.VPS_SSH_PASSWORD }}
+    steps:
+      - name: Verify production migrate plan read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${VPS_SSH_PASSWORD:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -p "$VPS_SSH_PASSWORD" ssh             -o PreferredAuthentications=password             -o PubkeyAuthentication=no             -o StrictHostKeyChecking=accept-new             -o ConnectTimeout=10             ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -euo pipefail
+          APP=/srv/lowcost-europa
+          APP_USER=le001_1789265592
+          set -a
+          . /etc/lowcost-europa/lowcost-europa.env
+          set +a
+          cd "$APP"
+          BEFORE="$(sudo -u "$APP_USER" git -C "$APP" status --short)"
+          PLAN="$(sudo -u "$APP_USER" -E "$APP/.venv/bin/python" manage.py migrate --plan --settings=config.settings.production)"
+          printf '%s\n' "$PLAN"
+          printf '%s\n' "$PLAN" | grep -q "No planned migration operations"
+          AFTER="$(sudo -u "$APP_USER" git -C "$APP" status --short)"
+          [ "$BEFORE" = "$AFTER" ]
+          echo "MIGRATE_PLAN=PASS"
+          echo "RUNTIME_REPOSITORY_MUTATIONS=0"
+          echo "SECRETS_EXPOSED=NO"
+          REMOTE
+
+      - name: Delete temporary branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_REF: ${{ github.head_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://api.github.com/repos/$GITHUB_REPOSITORY/git/refs/$(python3 -c 'import os,urllib.parse; print(urllib.parse.quote("heads/"+os.environ["HEAD_REF"], safe=""))')"
+          curl -fsS -X DELETE             -H "Authorization: Bearer $GH_TOKEN"             -H "Accept: application/vnd.github+json"             -H "X-GitHub-Api-Version: 2022-11-28"             "$URL"
+          echo "TEMP_BRANCH_DELETED=PASS"
