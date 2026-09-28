@@ -1,0 +1,172 @@
+name: Lowcost Strong Audit C
+
+on:
+  push:
+    paths:
+      - ".github/workflows/lowcost-strong-audit-c.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Read-only production audit
+        env:
+          VPS_SSH_PASSWORD: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "\${VPS_SSH_PASSWORD:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          export SSHPASS="$VPS_SSH_PASSWORD"
+
+          cat >/tmp/audit.sh <<'SH'
+          set -euo pipefail
+          APP_USER="le001_1789265592"
+          APP="/srv/lowcost-europa"
+
+          echo "=== RUNTIME ==="
+          echo "NOW_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "APP_ACTIVE=$(systemctl is-active lowcost-europa.service 2>/dev/null || true)"
+          echo "NGINX_ACTIVE=$(systemctl is-active nginx 2>/dev/null || true)"
+          echo "POSTGRES_ACTIVE=$(systemctl is-active postgresql 2>/dev/null || true)"
+          echo "HEAD=$(git -C "$APP" rev-parse HEAD)"
+          echo "BRANCH=$(git -C "$APP" branch --show-current)"
+          if [ -z "$(git -C "$APP" status --short)" ]; then echo "WORKTREE=CLEAN"; else echo "WORKTREE=DIRTY"; fi
+          echo "HOME_HTTP=$(curl -L -sS -o /dev/null -w '%{http_code}' --max-time 15 https://lowcost-europa.duckdns.org/ || true)"
+          echo "READY_HTTP=$(curl -L -sS -o /dev/null -w '%{http_code}' --max-time 15 https://lowcost-europa.duckdns.org/health/ready/ || true)"
+
+          echo "=== MAINTENANCE ==="
+          systemctl show lowcost-europa-catalog-maintenance.service -p Result -p ExecMainStatus -p ExecMainStartTimestamp -p ExecMainExitTimestamp 2>/dev/null || true
+          echo "NEXT_TIMER:"
+          systemctl list-timers --all --no-pager | grep 'lowcost-europa-catalog-maintenance.timer' || true
+          echo "LAST_RUN_LOG:"
+          journalctl -u lowcost-europa-catalog-maintenance.service --since '2026-09-28 14:30:00' --until '2026-09-28 14:33:00' --no-pager 2>/dev/null || true
+
+          set -a
+          . /etc/lowcost-europa/lowcost-europa.env
+          set +a
+          cd "$APP"
+
+          echo "=== DB_AUDIT ==="
+          sudo -u "$APP_USER" -E .venv/bin/python manage.py shell <<'PY'
+          from collections import Counter
+          from datetime import timedelta, datetime, timezone as dt_timezone
+          from django.utils import timezone
+          from apps.catalog.models import ProductFamily, Offer, OfferObservation, OfferCandidate, OfferFamilyPlacement, CandidateDecision, OfferClick
+          from apps.catalog.services.public_eligibility import public_eligibility_q
+
+          now=timezone.now()
+          cutoff=now-timedelta(days=7)
+          since=datetime(2026,9,23,17,5,17,tzinfo=dt_timezone.utc)
+          families=list(ProductFamily.objects.exclude(status=ProductFamily.Status.RETIRED).order_by("display_order","pk"))
+          pub=public_eligibility_q(as_of=now)
+
+          print(f"NOW={now.isoformat()}")
+          print(f"FAMILIES_ACTIVE={len(families)}")
+          print(f"OFFERS_TOTAL={Offer.objects.count()}")
+          print(f"OFFERS_ACTIVE={Offer.objects.filter(is_active=True).count()}")
+          print(f"OFFERS_INACTIVE={Offer.objects.filter(is_active=False).count()}")
+          print(f"OWNER_VISIBLE={Offer.objects.filter(owner_hidden=False).count()}")
+          print(f"OWNER_HIDDEN={Offer.objects.filter(owner_hidden=True).count()}")
+          print(f"PUBLIC_ELIGIBLE={Offer.objects.filter(pub).distinct().count()}")
+          print(f"PROMO_ELIGIBLE={Offer.objects.filter(affiliate_promotion_status='ELIGIBLE').count()}")
+          print(f"PROMO_INELIGIBLE={Offer.objects.filter(affiliate_promotion_status='INELIGIBLE').count()}")
+          print(f"PROMO_UNKNOWN={Offer.objects.filter(affiliate_promotion_status='UNKNOWN').count()}")
+          print(f"PROTOCOL_MISSING={Offer.objects.filter(protocol_verified_at__isnull=True).count()}")
+          print(f"PROTOCOL_STALE={Offer.objects.filter(protocol_verified_at__lt=cutoff).count()}")
+          print(f"CANDIDATES_TOTAL={OfferCandidate.objects.count()}")
+          print(f"CANDIDATES_PENDING={OfferCandidate.objects.filter(status='PENDING').count()}")
+          print(f"CANDIDATES_APPROVED={OfferCandidate.objects.filter(status='APPROVED').count()}")
+          print(f"CANDIDATES_REJECTED={OfferCandidate.objects.filter(status='REJECTED').count()}")
+          print(f"DECISIONS={CandidateDecision.objects.count()}")
+          print(f"OBSERVATIONS={OfferObservation.objects.count()}")
+          print(f"CLICKS_RAW={OfferClick.objects.count()}")
+
+          print("FAMILY_BEGIN")
+          for f in families:
+              ids=OfferFamilyPlacement.objects.filter(product_family=f).values_list("offer_id",flat=True)
+              qs=Offer.objects.filter(id__in=ids)
+              print(
+                  f"{f.slug} placed={qs.count()} active={qs.filter(is_active=True).count()} "
+                  f"public={qs.filter(pub).distinct().count()} "
+                  f"pending={OfferCandidate.objects.filter(product_family=f,status='PENDING').count()}"
+              )
+          print("FAMILY_END")
+
+          print("NONPUBLIC_REASONS_BEGIN")
+          placed_ids=OfferFamilyPlacement.objects.filter(product_family__in=families).values_list("offer_id",flat=True).distinct()
+          c=Counter()
+          for o in Offer.objects.filter(id__in=placed_ids):
+              if not o.is_active: c["inactive"]+=1
+              if o.owner_hidden: c["owner_hidden"]+=1
+              if not o.affiliate_url: c["missing_affiliate_url"]+=1
+              if o.affiliate_promotion_status!="ELIGIBLE": c["promo_"+o.affiliate_promotion_status.lower()]+=1
+              if o.affiliate_promotion_verified_at is None: c["promo_verified_missing"]+=1
+              if o.protocol_verified_at is None: c["protocol_missing"]+=1
+              elif o.protocol_verified_at < cutoff: c["protocol_stale"]+=1
+          for k,v in sorted(c.items()): print(f"{k}={v}")
+          print("NONPUBLIC_REASONS_END")
+
+          ru=(OfferObservation.objects.filter(availability='UNAVAILABLE',observed_at__gte=since)
+              .select_related("offer").order_by("observed_at"))
+          print(f"RECENT_UNAVAILABLE_COUNT={ru.count()}")
+          print("RECENT_UNAVAILABLE_BEGIN")
+          for x in ru[:100]:
+              fams=",".join(x.offer.family_placements.values_list("product_family__slug",flat=True))
+              print(f"{x.observed_at.isoformat()} offer={x.offer_id} product={x.offer.external_product_id} active={x.offer.is_active} family={fams}")
+          print("RECENT_UNAVAILABLE_END")
+
+          ri=Offer.objects.filter(affiliate_promotion_status='INELIGIBLE',affiliate_promotion_verified_at__gte=since).order_by("affiliate_promotion_verified_at")
+          print(f"RECENT_PROMO_INELIGIBLE_COUNT={ri.count()}")
+          print("RECENT_PROMO_INELIGIBLE_BEGIN")
+          for o in ri[:100]:
+              fams=",".join(o.family_placements.values_list("product_family__slug",flat=True))
+              print(f"{o.affiliate_promotion_verified_at.isoformat()} offer={o.pk} product={o.external_product_id} active={o.is_active} hidden={o.owner_hidden} family={fams}")
+          print("RECENT_PROMO_INELIGIBLE_END")
+
+          print("PENDING_TOP5_PER_FAMILY_BEGIN")
+          for f in families:
+              for c in OfferCandidate.objects.filter(product_family=f,status='PENDING').order_by("-last_observed_at","pk")[:5]:
+                  print(f"family={f.slug} candidate={c.pk} product={c.external_product_id} price={c.price or '-'} currency={c.currency or '-'} search_days={c.search_delivery_days or '-'} detail_days={c.detail_delivery_days or '-'}")
+          print("PENDING_TOP5_PER_FAMILY_END")
+          PY
+
+          echo "=== FREIGHT_PERMISSION ==="
+          sudo -u "$APP_USER" -E .venv/bin/python manage.py shell <<'PY'
+          from apps.integrations.aliexpress.client import AliExpressClient
+          c=AliExpressClient()
+          product_id="1005013211231892"
+          tests=[
+              ("aliexpress.social.product.freight.query",{"product_id":product_id,"quantity":1,"ship_to_country":"PT","ship_from_country":"ES","currency":"EUR"}),
+              ("aliexpress.ds.freight.query",{"product_id":product_id,"quantity":1,"ship_to_country":"PT","ship_from_country":"ES","currency":"EUR"}),
+          ]
+          for method,args in tests:
+              try:
+                  data=c._call(method,args)
+              except Exception as exc:
+                  msg=" ".join(str(exc).split())
+                  low=msg.lower()
+                  if "insufficientpermission" in low or "does not have permission" in low:
+                      state="INSUFFICIENT_PERMISSION"
+                  elif "missingparameter" in low:
+                      state="METHOD_REACHED_MISSING_PARAMETER"
+                  else:
+                      state="ERROR_"+exc.__class__.__name__
+                  print(f"{method} STATE={state} MSG={msg[:220]}")
+              else:
+                  print(f"{method} STATE=AUTHORIZED_RESPONSE TYPE={type(data).__name__}")
+          PY
+          SH
+
+          sshpass -e ssh \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=10 \
+            ubuntu@146.59.145.3 \
+            'sudo -n bash -s' < /tmp/audit.sh
