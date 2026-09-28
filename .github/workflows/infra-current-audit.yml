@@ -1,0 +1,55 @@
+name: Infra Current Audit
+
+on:
+  push:
+    paths:
+      - ".github/workflows/infra-current-audit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Read-only infrastructure audit
+        env:
+          VPS_SSH_PASSWORD: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          export SSHPASS="$VPS_SSH_PASSWORD"
+
+          sshpass -e ssh \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=10 \
+            ubuntu@146.59.145.3 '
+              set -e
+              echo "HOSTNAME=$(hostname)"
+              echo "USER=$(id -un)"
+              echo "SSH=$(systemctl is-active ssh 2>/dev/null || systemctl is-active sshd 2>/dev/null || true)"
+              echo "NGINX=$(systemctl is-active nginx 2>/dev/null || true)"
+              echo "APP=$(systemctl is-active lowcost-europa.service 2>/dev/null || true)"
+              echo "POSTGRES=$(systemctl is-active postgresql 2>/dev/null || true)"
+              echo "DC_ACTIVE=$(systemctl is-active desktop-commander-remote.service 2>/dev/null || true)"
+              if systemctl list-unit-files desktop-commander-remote.service --no-legend 2>/dev/null | grep -q .; then echo "DC_UNIT_PRESENT=YES"; else echo "DC_UNIT_PRESENT=NO"; fi
+              if npm list -g --depth=0 @wonderwhy-er/desktop-commander >/dev/null 2>&1; then echo "DC_PACKAGE_PRESENT=YES"; else echo "DC_PACKAGE_PRESENT=NO"; fi
+              if systemctl list-unit-files "actions.runner.*.service" --no-legend 2>/dev/null | grep -q .; then echo "SELF_HOSTED_RUNNER_UNIT=YES"; else echo "SELF_HOSTED_RUNNER_UNIT=NO"; fi
+              if find /home /opt -maxdepth 4 -type f -name .runner -print -quit 2>/dev/null | grep -q .; then echo "SELF_HOSTED_RUNNER_REGISTRATION=YES"; else echo "SELF_HOSTED_RUNNER_REGISTRATION=NO"; fi
+              echo "BACKUP_LOCAL_RESULT=$(systemctl show lowcost-europa-backup.service -p Result --value 2>/dev/null || true)"
+              echo "BACKUP_LOCAL_STATUS=$(systemctl show lowcost-europa-backup.service -p ExecMainStatus --value 2>/dev/null || true)"
+              echo "BACKUP_OFFSITE_RESULT=$(systemctl show lowcost-europa-offsite-backup.service -p Result --value 2>/dev/null || true)"
+              echo "BACKUP_OFFSITE_STATUS=$(systemctl show lowcost-europa-offsite-backup.service -p ExecMainStatus --value 2>/dev/null || true)"
+              echo "BACKUP_HEALTH_RESULT=$(systemctl show lowcost-europa-offsite-backup-health.service -p Result --value 2>/dev/null || true)"
+              echo "BACKUP_HEALTH_STATUS=$(systemctl show lowcost-europa-offsite-backup-health.service -p ExecMainStatus --value 2>/dev/null || true)"
+              echo "FAILED_UNITS=$(systemctl --failed --no-legend --plain 2>/dev/null | wc -l)"
+              echo "HEAD=$(git -C /srv/lowcost-europa rev-parse HEAD)"
+              echo "BRANCH=$(git -C /srv/lowcost-europa branch --show-current)"
+              if [ -z "$(git -C /srv/lowcost-europa status --short)" ]; then echo "WORKTREE=CLEAN"; else echo "WORKTREE=DIRTY"; fi
+              echo "RUNTIME_DIR_PRESENT=$([ -d /run/lowcost-europa ] && echo YES || echo NO)"
+            '
