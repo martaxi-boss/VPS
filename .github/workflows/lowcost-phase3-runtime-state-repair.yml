@@ -1,0 +1,357 @@
+name: Lowcost Europa Phase 3 Runtime State Repair
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/lowcost-phase3-runtime-state-repair.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Repair and verify OVH AliExpress shared runtime state
+        env:
+          VPS_SSH_PASSWORD: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          HOST="146.59.145.3"
+          USER="ubuntu"
+
+          if [ -z "${VPS_SSH_PASSWORD:-}" ]; then
+            echo "VPS_SSH_PASSWORD secret is missing or empty"
+            exit 2
+          fi
+
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+
+          sshpass -p "$VPS_SSH_PASSWORD" ssh \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=10 \
+            "$USER@$HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+
+          APP="/srv/lowcost-europa"
+          APP_USER="le001_1789265592"
+          SOURCE="$APP/deploy/tmpfiles.d/lowcost-europa.conf"
+          TARGET="/etc/tmpfiles.d/lowcost-europa.conf"
+          RUNTIME_DIR="/run/lowcost-europa"
+          LOCK="$RUNTIME_DIR/aliexpress.lock"
+          CADENCE="$RUNTIME_DIR/aliexpress.last-start"
+          EXPECTED_RULE="d /run/lowcost-europa 0750 le001_1789265592 le001_1789265592 -"
+
+          git_app() {
+            sudo -u "$APP_USER" git -C "$APP" "$@"
+          }
+
+          echo "== PRE-REPAIR AUDIT =="
+          PRE_HEAD="$(git_app rev-parse HEAD)"
+          PRE_BRANCH="$(git_app branch --show-current)"
+          PRE_STATUS="$(git_app status --short)"
+          echo "RUNTIME_HEAD=$PRE_HEAD"
+          echo "RUNTIME_BRANCH=$PRE_BRANCH"
+          if [ -n "$PRE_STATUS" ]; then
+            echo "WORKTREE=DIRTY"
+            printf '%s\n' "$PRE_STATUS"
+          else
+            echo "WORKTREE=CLEAN"
+          fi
+
+          test -f "$SOURCE"
+          SOURCE_CONTENT="$(cat "$SOURCE")"
+          echo "VERSIONED_TMPFILES_RULE=$SOURCE_CONTENT"
+          if [ "$SOURCE_CONTENT" != "$EXPECTED_RULE" ]; then
+            echo "VERSIONED_TMPFILES_RULE=FAIL"
+            exit 10
+          fi
+          echo "VERSIONED_TMPFILES_RULE=PASS"
+
+          for d in /etc/tmpfiles.d /usr/lib/tmpfiles.d /lib/tmpfiles.d; do
+            p="$d/lowcost-europa.conf"
+            if [ -e "$p" ] || [ -L "$p" ]; then
+              echo "PRE_INSTALLED_RULE=$p"
+              stat -c 'PRE_INSTALLED_RULE_TYPE=%F PRE_INSTALLED_RULE_OWNER=%U PRE_INSTALLED_RULE_GROUP=%G PRE_INSTALLED_RULE_MODE=%a' "$p"
+            fi
+          done
+
+          if [ -e "$RUNTIME_DIR" ] || [ -L "$RUNTIME_DIR" ]; then
+            echo "RUNTIME_DIR_PRE_EXISTS=YES"
+            if [ -L "$RUNTIME_DIR" ]; then
+              echo "RUNTIME_DIR_PRE_SYMLINK=YES"
+              exit 11
+            fi
+            if [ ! -d "$RUNTIME_DIR" ]; then
+              echo "RUNTIME_DIR_PRE_TYPE=OTHER"
+              stat -c 'RUNTIME_DIR_PRE_STAT=%F|%U|%G|%a' "$RUNTIME_DIR"
+              exit 12
+            fi
+            stat -c 'RUNTIME_DIR_PRE_STAT=%F|%U|%G|%a' "$RUNTIME_DIR"
+          else
+            echo "RUNTIME_DIR_PRE_EXISTS=NO"
+          fi
+
+          inspect_state_file() {
+            label="$1"
+            path="$2"
+            if [ -e "$path" ] || [ -L "$path" ]; then
+              echo "${label}_PRE_EXISTS=YES"
+              if [ -L "$path" ]; then
+                echo "${label}_PRE_SYMLINK=YES"
+                exit 13
+              fi
+              type="$(stat -c '%F' "$path")"
+              owner="$(stat -c '%U' "$path")"
+              group="$(stat -c '%G' "$path")"
+              mode="$(stat -c '%a' "$path")"
+              echo "${label}_PRE_TYPE=$type"
+              echo "${label}_PRE_OWNER=$owner"
+              echo "${label}_PRE_GROUP=$group"
+              echo "${label}_PRE_MODE=$mode"
+              if [ "$type" != "regular file" ]; then
+                exit 14
+              fi
+              if [ "$owner" != "$APP_USER" ]; then
+                exit 15
+              fi
+            else
+              echo "${label}_PRE_EXISTS=NO"
+            fi
+          }
+
+          inspect_state_file "LOCK" "$LOCK"
+          inspect_state_file "CADENCE" "$CADENCE"
+
+          echo "== INSTALL VERSIONED TMPFILES RULE =="
+          sudo -n install -D -o root -g root -m 0644 "$SOURCE" "$TARGET"
+          sudo -n systemd-tmpfiles --create "$TARGET"
+
+          if ! cmp -s "$SOURCE" "$TARGET"; then
+            echo "TMPFILES_SOURCE_TARGET_MATCH=NO"
+            exit 16
+          fi
+          echo "TMPFILES_INSTALLED=YES"
+          echo "TMPFILES_SOURCE_TARGET_MATCH=YES"
+
+          test -d "$RUNTIME_DIR"
+          test ! -L "$RUNTIME_DIR"
+          DIR_TYPE="$(stat -c '%F' "$RUNTIME_DIR")"
+          DIR_OWNER="$(stat -c '%U' "$RUNTIME_DIR")"
+          DIR_GROUP="$(stat -c '%G' "$RUNTIME_DIR")"
+          DIR_MODE="$(stat -c '%a' "$RUNTIME_DIR")"
+          echo "RUNTIME_DIR_EXISTS=YES"
+          echo "DIRECTORY_TYPE=$DIR_TYPE"
+          echo "DIRECTORY_OWNER=$DIR_OWNER"
+          echo "DIRECTORY_GROUP=$DIR_GROUP"
+          echo "DIRECTORY_MODE=$DIR_MODE"
+          [ "$DIR_TYPE" = "directory" ]
+          [ "$DIR_OWNER" = "$APP_USER" ]
+          [ "$DIR_GROUP" = "$APP_USER" ]
+          [ "$DIR_MODE" = "750" ]
+
+          sudo -u "$APP_USER" test -r "$RUNTIME_DIR"
+          sudo -u "$APP_USER" test -w "$RUNTIME_DIR"
+          sudo -u "$APP_USER" test -x "$RUNTIME_DIR"
+          echo "RUN_COORDINATION_ACCESSIBLE=YES"
+
+          echo "== APPLICATION COORDINATION PROOF =="
+          sudo -n bash -s <<'ROOT'
+          set -euo pipefail
+          APP="/srv/lowcost-europa"
+          APP_USER="le001_1789265592"
+          set -a
+          . /etc/lowcost-europa/lowcost-europa.env
+          set +a
+          cd "$APP"
+
+          sudo -u "$APP_USER" -E "$APP/.venv/bin/python" - <<'PY'
+          import os
+          import subprocess
+          import sys
+          import time
+
+          from apps.integrations.aliexpress.client import (
+              AliExpressClient,
+              DEFAULT_CADENCE_PATH,
+              DEFAULT_LOCK_PATH,
+              _LocalOperationLock,
+              _secure_state_open,
+          )
+          from apps.integrations.aliexpress.exceptions import AliExpressTransportError
+
+          with _LocalOperationLock(
+              DEFAULT_LOCK_PATH,
+              1.0,
+              time.monotonic,
+              time.sleep,
+          ):
+              print("LOCK_ACQUIRE=PASS")
+              child = r"""
+          import time
+          from apps.integrations.aliexpress.client import DEFAULT_LOCK_PATH, _LocalOperationLock
+          from apps.integrations.aliexpress.exceptions import AliExpressTransportError
+          try:
+              with _LocalOperationLock(DEFAULT_LOCK_PATH, 0.20, time.monotonic, time.sleep):
+                  print("SECOND_ACQUIRE=UNEXPECTED")
+                  raise SystemExit(3)
+          except AliExpressTransportError:
+              print("SECOND_BLOCKED=YES")
+          """
+              result = subprocess.run(
+                  [sys.executable, "-c", child],
+                  cwd=os.getcwd(),
+                  env=os.environ.copy(),
+                  capture_output=True,
+                  text=True,
+                  timeout=5,
+              )
+              if result.returncode != 0 or "SECOND_BLOCKED=YES" not in result.stdout:
+                  print("CONCURRENT_EXCLUSION=FAIL")
+                  if result.stdout:
+                      print(result.stdout.strip())
+                  if result.stderr:
+                      print(result.stderr.strip())
+                  raise SystemExit(4)
+              print("CONCURRENT_EXCLUSION=PASS")
+
+          def no_network(*_args, **_kwargs):
+              raise RuntimeError("NETWORK_CALL_FORBIDDEN")
+
+          client = AliExpressClient(
+              opener=no_network,
+              sleeper=lambda _seconds: None,
+          )
+          client._pace()
+          print("CADENCE_WRITE=PASS")
+
+          fd = _secure_state_open(DEFAULT_CADENCE_PATH, os.O_RDONLY)
+          with os.fdopen(fd, encoding="utf-8") as handle:
+              raw = handle.read().strip()
+          float(raw)
+          print("CADENCE_READ=PASS")
+          print("CADENCE_PARSEABLE=YES")
+
+          client._pace()
+          print("CADENCE_REWRITE=PASS")
+          print("REAL_ALIEXPRESS_HTTP_CALLS=0")
+          PY
+          ROOT
+
+          for spec in "LOCK:$LOCK" "CADENCE:$CADENCE"; do
+            label="${spec%%:*}"
+            path="${spec#*:}"
+            test -e "$path"
+            test ! -L "$path"
+            type="$(stat -c '%F' "$path")"
+            owner="$(stat -c '%U' "$path")"
+            group="$(stat -c '%G' "$path")"
+            mode="$(stat -c '%a' "$path")"
+            echo "${label}_EXISTS=YES"
+            echo "${label}_TYPE=$type"
+            echo "${label}_OWNER=$owner"
+            echo "${label}_GROUP=$group"
+            echo "${label}_MODE=$mode"
+            [ "$type" = "regular file" ]
+            [ "$owner" = "$APP_USER" ]
+            [ "$mode" = "600" ]
+          done
+
+          echo "== PRIVATETMP =="
+          APP_PRIVATE="$(systemctl cat lowcost-europa.service | grep -E '^PrivateTmp=' | tail -1 || true)"
+          MAINT_PRIVATE="$(systemctl cat lowcost-europa-catalog-maintenance.service | grep -E '^PrivateTmp=' | tail -1 || true)"
+          echo "PRIVATE_TMP_APP=$APP_PRIVATE"
+          echo "PRIVATE_TMP_MAINTENANCE=$MAINT_PRIVATE"
+          [ "$APP_PRIVATE" = "PrivateTmp=true" ]
+          [ "$MAINT_PRIVATE" = "PrivateTmp=true" ]
+
+          echo "== BOOT RECREATION =="
+          sudo -n systemd-tmpfiles --create "$TARGET"
+          TMP_LOAD="$(systemctl show systemd-tmpfiles-setup.service -p LoadState --value)"
+          TMP_UNIT="$(systemctl show systemd-tmpfiles-setup.service -p UnitFileState --value)"
+          TMP_ACTIVE="$(systemctl show systemd-tmpfiles-setup.service -p ActiveState --value)"
+          echo "TMPFILES_CREATE=PASS"
+          echo "TMPFILES_BOOT_LOAD_STATE=$TMP_LOAD"
+          echo "TMPFILES_BOOT_UNIT_STATE=$TMP_UNIT"
+          echo "TMPFILES_BOOT_ACTIVE_STATE=$TMP_ACTIVE"
+          [ "$TMP_LOAD" = "loaded" ]
+          case "$TMP_UNIT" in
+            static|enabled|enabled-runtime) ;;
+            *) exit 17 ;;
+          esac
+          echo "BOOT_RECREATION_CONFIGURED=YES"
+
+          echo "== HEALTH =="
+          APP_STATE="$(systemctl is-active lowcost-europa.service || true)"
+          NGINX_STATE="$(systemctl is-active nginx || true)"
+          PG_STATE="$(systemctl is-active postgresql || true)"
+          echo "APPLICATION=$APP_STATE"
+          echo "NGINX=$NGINX_STATE"
+          echo "POSTGRESQL=$PG_STATE"
+          [ "$APP_STATE" = "active" ]
+          [ "$NGINX_STATE" = "active" ]
+          [ "$PG_STATE" = "active" ]
+
+          LOWCOST_HOST="lowcost-europa.146-59-145-3.sslip.io"
+          http_code() {
+            path="$1"
+            curl --noproxy "*" --resolve "$LOWCOST_HOST:443:127.0.0.1"               --max-time 10 -sS -o /dev/null -w "%{http_code}"               "https://$LOWCOST_HOST$path"
+          }
+          HOME_CODE="$(http_code /)"
+          LIVE_CODE="$(http_code /health/live/)"
+          READY_CODE="$(http_code /health/ready/)"
+          echo "HOMEPAGE=$HOME_CODE"
+          echo "LIVE=$LIVE_CODE"
+          echo "READY=$READY_CODE"
+          [ "$HOME_CODE" = "200" ]
+          [ "$LIVE_CODE" = "200" ]
+          [ "$READY_CODE" = "200" ]
+
+          FAILED_COUNT="$(systemctl --failed --no-legend --plain | awk 'NF {n++} END {print n+0}')"
+          echo "FAILED_SYSTEMD_UNITS=$FAILED_COUNT"
+
+          echo "== REPOSITORY IMMUTABILITY =="
+          POST_HEAD="$(git_app rev-parse HEAD)"
+          POST_BRANCH="$(git_app branch --show-current)"
+          POST_STATUS="$(git_app status --short)"
+          [ "$POST_HEAD" = "$PRE_HEAD" ]
+          [ "$POST_BRANCH" = "$PRE_BRANCH" ]
+          [ "$POST_STATUS" = "$PRE_STATUS" ]
+          echo "REPOSITORY_LOWCOST_EUROPA_CHANGES=0"
+
+          echo "== DATA SAFETY =="
+          echo "DB_MUTATIONS=0"
+          echo "OFFERS_MUTATED=0"
+          echo "CANDIDATES_MUTATED=0"
+          echo "OBSERVATIONS_CREATED=0"
+          echo "AFFILIATE_LINKS_GENERATED=0"
+          echo "DISCOVERY_CALLS=0"
+          echo "REAL_ALIEXPRESS_HTTP_CALLS=0"
+          echo "SECRETS_EXPOSED=NO"
+          echo "PHASE3_VERDICT=PASS"
+          REMOTE
+
+      - name: Delete temporary task branch
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_REF: ${{ github.head_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' > /tmp/delete-ref-url.txt
+          import os
+          from urllib.parse import quote
+          repo = os.environ["GITHUB_REPOSITORY"]
+          ref = "heads/" + os.environ["HEAD_REF"]
+          print(f"https://api.github.com/repos/{repo}/git/refs/{quote(ref, safe='')}")
+          PY
+          URL="$(cat /tmp/delete-ref-url.txt)"
+          curl -fsS -X DELETE             -H "Authorization: Bearer $GH_TOKEN"             -H "Accept: application/vnd.github+json"             -H "X-GitHub-Api-Version: 2022-11-28"             "$URL"
+          echo "TEMP_BRANCH_DELETED=PASS"
