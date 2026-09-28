@@ -69,7 +69,7 @@ jobs:
           grep -Fq '.family-index a' /tmp/le-storefront.css
           echo "FAMILY_BUTTON_CSS=PASS"
 
-          if grep -Eqi 'src="https?://[^"]+"' /tmp/le-home.html; then
+          if grep -Eqi '<script[^>]+src="https?://[^"]+"' /tmp/le-home.html; then
             echo "THIRD_PARTY_JS=FAIL"
             exit 21
           fi
