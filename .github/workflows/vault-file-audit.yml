@@ -1,0 +1,43 @@
+name: VPS Vault File Audit
+
+on:
+  push:
+    branches:
+      - "ops/vault-audit-20260928"
+    paths:
+      - ".github/workflows/vault-file-audit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: List vault file names only
+        env:
+          VPS_SSH_PASSWORD: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          export SSHPASS="$VPS_SSH_PASSWORD"
+
+          sshpass -e ssh \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=10 \
+            ubuntu@146.59.145.3 '
+              set -euo pipefail
+              echo "PROJECT_VAULT_PRESENT=$(sudo -n test -d /root/project-secrets && echo YES || echo NO)"
+              echo "LOWCOST_SECRET_DIR_PRESENT=$(sudo -n test -d /etc/lowcost-europa && echo YES || echo NO)"
+              echo "PROJECT_VAULT_FILES_BEGIN"
+              sudo -n find /root/project-secrets -maxdepth 3 -type f -printf "%p\n" 2>/dev/null | sort | head -200 || true
+              echo "PROJECT_VAULT_FILES_END"
+              echo "LOWCOST_SECRET_FILES_BEGIN"
+              sudo -n find /etc/lowcost-europa -maxdepth 2 -type f -printf "%p\n" 2>/dev/null | sort | head -100 || true
+              echo "LOWCOST_SECRET_FILES_END"
+            '
