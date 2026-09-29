@@ -342,10 +342,10 @@ jobs:
           print("ALIEXPRESS_CADENCE_PATH=" + DEFAULT_CADENCE_PATH)
           PY
           ROOT
-          test -f /run/lowcost-europa/catalog-maintenance.lock
-          test ! -L /run/lowcost-europa/catalog-maintenance.lock
+          sudo -u "$APP_USER" test -f /run/lowcost-europa/catalog-maintenance.lock
+          sudo -u "$APP_USER" test ! -L /run/lowcost-europa/catalog-maintenance.lock
           APP_GROUP="$(id -gn "$APP_USER")"
-          LOCK_STAT="$(stat -c '%U:%G:%a' /run/lowcost-europa/catalog-maintenance.lock)"
+          LOCK_STAT="$(sudo -u "$APP_USER" stat -c '%U:%G:%a' /run/lowcost-europa/catalog-maintenance.lock)"
           echo "MAINTENANCE_LOCK_STAT=$LOCK_STAT"
           test "$LOCK_STAT" = "$APP_USER:$APP_GROUP:600"
           echo "NO_ACTIVE_TMP_MAINTENANCE_COORDINATION=PASS"
