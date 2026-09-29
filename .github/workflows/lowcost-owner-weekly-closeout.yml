@@ -356,9 +356,19 @@ jobs:
           test "$(systemctl is-active nginx)" = active
           test "$(systemctl is-active postgresql)" = active
 
-          HOME="$(http_code /)"
-          LIVE="$(http_code /health/live/)"
-          READY="$(http_code /health/ready/)"
+          HOME=000
+          LIVE=000
+          READY=000
+          for attempt in $(seq 1 15); do
+            HOME="$(http_code /)"
+            LIVE="$(http_code /health/live/)"
+            READY="$(http_code /health/ready/)"
+            echo "LIVE_ACCEPTANCE_ATTEMPT=$attempt HOME=$HOME LIVE=$LIVE READY=$READY"
+            if [ "$HOME" = 200 ] && [ "$LIVE" = 200 ] && [ "$READY" = 200 ]; then
+              break
+            fi
+            sleep 2
+          done
           echo "HOME=$HOME"
           echo "LIVE=$LIVE"
           echo "READY=$READY"
