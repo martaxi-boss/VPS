@@ -1,0 +1,521 @@
+name: Lowcost Europa Owner Workflow Weekly Closeout
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/lowcost-owner-weekly-closeout.yml"
+
+jobs:
+  deploy-and-initial-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout exact authoritative Lowcost main on runner
+        uses: actions/checkout@v4
+        with:
+          repository: martaxi-boss/lowcost-europa
+          ref: 3c83587e1d573ec8bfb777f9c26f16aa8f986d1f
+          fetch-depth: 0
+          token: ${{ secrets.LOWCOST_GITHUB_READ_TOKEN }}
+          persist-credentials: false
+          path: lowcost-src
+
+      - name: Verify exact checkout and create bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXPECTED="3c83587e1d573ec8bfb777f9c26f16aa8f986d1f"
+          ACTUAL="$(git -C lowcost-src rev-parse HEAD)"
+          echo "RUNNER_CHECKOUT_SHA=$ACTUAL"
+          test "$ACTUAL" = "$EXPECTED"
+          if git -C lowcost-src config --local --get-regexp '^http\..*\.extraheader$' >/dev/null 2>&1; then
+            echo "PERSISTED_CHECKOUT_CREDENTIAL=YES"
+            exit 10
+          fi
+          echo "PERSISTED_CHECKOUT_CREDENTIAL=NO"
+          git -C lowcost-src update-ref refs/heads/main "$EXPECTED"
+          git -C lowcost-src bundle create "$GITHUB_WORKSPACE/lowcost-europa-main.bundle" refs/heads/main
+          git -C lowcost-src bundle verify "$GITHUB_WORKSPACE/lowcost-europa-main.bundle"
+          git -C lowcost-src bundle list-heads "$GITHUB_WORKSPACE/lowcost-europa-main.bundle" | grep -Fx "$EXPECTED refs/heads/main"
+          chmod 600 "$GITHUB_WORKSPACE/lowcost-europa-main.bundle"
+          echo "BUNDLE_VERIFY=PASS"
+
+      - name: Install SSH transport dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+
+      - name: OVH read-only preflight
+        env:
+          VPS_SSH_PASSWORD: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          HOST="146.59.145.3"
+          USER="ubuntu"
+          test -n "${VPS_SSH_PASSWORD:-}"
+          sshpass -p "$VPS_SSH_PASSWORD" ssh \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=10 \
+            "$USER@$HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          APP=/srv/lowcost-europa
+          APP_USER=le001_1789265592
+          EXPECTED_PRE=fd9af286b5268b935b76bcead7739ecf31463d9d
+          HEAD_NOW="$(sudo -u "$APP_USER" git -C "$APP" rev-parse HEAD)"
+          BRANCH_NOW="$(sudo -u "$APP_USER" git -C "$APP" branch --show-current)"
+          STATUS_NOW="$(sudo -u "$APP_USER" git -C "$APP" status --short)"
+          echo "PRE_HEAD=$HEAD_NOW"
+          echo "PRE_BRANCH=$BRANCH_NOW"
+          test "$HEAD_NOW" = "$EXPECTED_PRE"
+          test "$BRANCH_NOW" = main
+          test -z "$STATUS_NOW"
+          echo "PRE_WORKTREE=CLEAN"
+          test "$(systemctl is-active lowcost-europa.service)" = active
+          test "$(systemctl is-active nginx)" = active
+          test "$(systemctl is-active postgresql)" = active
+          echo "PRE_SERVICES=PASS"
+          REMOTE
+
+      - name: Transport bundle only
+        env:
+          VPS_SSH_PASSWORD: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          HOST="146.59.145.3"
+          USER="ubuntu"
+          LOCAL="$GITHUB_WORKSPACE/lowcost-europa-main.bundle"
+          UPLOAD="/tmp/lowcost-owner-weekly-closeout.bundle.upload"
+          REMOTE_BUNDLE="/tmp/lowcost-owner-weekly-closeout.bundle"
+          sshpass -p "$VPS_SSH_PASSWORD" scp \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=10 \
+            "$LOCAL" "$USER@$HOST:$UPLOAD"
+          sshpass -p "$VPS_SSH_PASSWORD" ssh \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=10 \
+            "$USER@$HOST" \
+            "sudo -n mv '$UPLOAD' '$REMOTE_BUNDLE' && sudo -n chown le001_1789265592:le001_1789265592 '$REMOTE_BUNDLE' && sudo -n chmod 600 '$REMOTE_BUNDLE'"
+          echo "BUNDLE_TRANSPORT=PASS"
+          echo "GITHUB_TOKEN_TRANSMITTED_TO_OVH=NO"
+
+      - name: Deploy install timer validate and run initial controlled push
+        env:
+          VPS_SSH_PASSWORD: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          HOST="146.59.145.3"
+          USER="ubuntu"
+          sshpass -p "$VPS_SSH_PASSWORD" ssh \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=10 \
+            "$USER@$HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+
+          APP=/srv/lowcost-europa
+          APP_USER=le001_1789265592
+          EXPECTED_PRE=fd9af286b5268b935b76bcead7739ecf31463d9d
+          EXPECTED_MAIN=3c83587e1d573ec8bfb777f9c26f16aa8f986d1f
+          BUNDLE=/tmp/lowcost-owner-weekly-closeout.bundle
+          DUCK=lowcost-europa.duckdns.org
+          WEEKLY_SERVICE=lowcost-europa-weekly-discovery.service
+          WEEKLY_TIMER=lowcost-europa-weekly-discovery.timer
+
+          cleanup() {
+            sudo -n rm -f "$BUNDLE" /tmp/lowcost-owner-weekly-closeout.bundle.upload || true
+          }
+          trap cleanup EXIT
+
+          git_app() {
+            sudo -u "$APP_USER" git -C "$APP" "$@"
+          }
+
+          run_manage() {
+            sudo -n bash -c '
+              set -a
+              . /etc/lowcost-europa/lowcost-europa.env
+              set +a
+              cd /srv/lowcost-europa
+              exec sudo -u le001_1789265592 -E /srv/lowcost-europa/.venv/bin/python manage.py "$@"
+            ' _ "$@"
+          }
+
+          http_code() {
+            path="$1"
+            curl --noproxy "*" --resolve "$DUCK:443:127.0.0.1" \
+              --max-time 15 -sS -o /dev/null -w "%{http_code}" "https://$DUCK$path"
+          }
+
+          db_snapshot() {
+            sudo -n bash -s <<'ROOT'
+          set -euo pipefail
+          set -a
+          . /etc/lowcost-europa/lowcost-europa.env
+          set +a
+          cd /srv/lowcost-europa
+          exec sudo -u le001_1789265592 -E /srv/lowcost-europa/.venv/bin/python - <<'PY'
+          import json, os
+          os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.production")
+          import django
+          django.setup()
+          from apps.catalog.models import CandidateDecision, Offer, OfferCandidate, OfferObservation, ProductFamily
+
+          slugs = (
+              "cavitacao-rf-vacuum-corpo",
+              "hydrodermoabrasao-aqua-facial-multifuncoes",
+              "pressoterapia-vacuum-drenagem",
+              "hifu",
+              "diodo-laser-remocao-tatuagens-pigmentacao",
+          )
+          offers = Offer.objects.order_by("pk")
+          candidates = OfferCandidate.objects.order_by("pk")
+          observations = OfferObservation.objects.order_by("pk")
+          decisions = CandidateDecision.objects.order_by("pk")
+          data = {
+              "offers": list(offers.values_list("pk", flat=True)),
+              "candidates": list(candidates.values_list("pk", flat=True)),
+              "observations": list(observations.values_list("pk", flat=True)),
+              "decisions": list(decisions.values_list("pk", flat=True)),
+              "candidate_status": {str(pk): status for pk, status in candidates.values_list("pk", "status")},
+              "offer_state": {
+                  str(row[0]): list(row[1:])
+                  for row in offers.values_list(
+                      "pk", "is_active", "owner_hidden", "affiliate_url",
+                      "affiliate_promotion_status", "protocol_verified_at",
+                      "ship_from_country", "ship_from_verified_at",
+                  )
+              },
+              "pending_by_family": {
+                  slug: OfferCandidate.objects.filter(
+                      product_family__slug=slug,
+                      status=OfferCandidate.Status.PENDING,
+                  ).count()
+                  for slug in slugs
+              },
+              "approved": candidates.filter(status=OfferCandidate.Status.APPROVED).count(),
+              "rejected": candidates.filter(status=OfferCandidate.Status.REJECTED).count(),
+          }
+          print(json.dumps(data, default=str, separators=(",", ":")))
+          PY
+          ROOT
+          }
+
+          print_snapshot() {
+            prefix="$1"
+            printf '%s' "$2" | python3 -c '
+          import json, sys
+          p=sys.argv[1]
+          d=json.load(sys.stdin)
+          print(f"{p}_OFFERS={len(d['offers'])}")
+          print(f"{p}_CANDIDATES={len(d['candidates'])}")
+          print(f"{p}_APPROVED={d['approved']}")
+          print(f"{p}_REJECTED={d['rejected']}")
+          print(f"{p}_DECISIONS={len(d['decisions'])}")
+          for slug,count in d["pending_by_family"].items():
+              print(f"{p}_PENDING_{slug}={count}")
+          ' "$prefix"
+          }
+
+          echo "== RECHECK PRE-MUTATION =="
+          PRE_HEAD="$(git_app rev-parse HEAD)"
+          PRE_BRANCH="$(git_app branch --show-current)"
+          PRE_STATUS="$(git_app status --short)"
+          echo "PRE_HEAD=$PRE_HEAD"
+          echo "PRE_BRANCH=$PRE_BRANCH"
+          test "$PRE_HEAD" = "$EXPECTED_PRE"
+          test "$PRE_BRANCH" = main
+          test -z "$PRE_STATUS"
+          echo "PRE_WORKTREE=CLEAN"
+          DB_PRE="$(db_snapshot)"
+          print_snapshot PRE "$DB_PRE"
+
+          echo "== IMPORT BUNDLE =="
+          sudo -u "$APP_USER" git -C "$APP" bundle verify "$BUNDLE"
+          git_app fetch "$BUNDLE" refs/heads/main:refs/remotes/bundle/main
+          git_app cat-file -e "$EXPECTED_MAIN^{commit}"
+          git_app merge-base --is-ancestor "$EXPECTED_PRE" "$EXPECTED_MAIN"
+          echo "BUNDLE_IMPORT=PASS"
+          echo "PREVIOUS_RUNTIME_SHA_ANCESTOR_OF_MAIN=PASS"
+
+          git_app checkout main
+          git_app merge --ff-only "$EXPECTED_MAIN"
+          test "$(git_app rev-parse HEAD)" = "$EXPECTED_MAIN"
+          test "$(git_app branch --show-current)" = main
+          test -z "$(git_app status --short)"
+          echo "RUNTIME_FAST_FORWARD=PASS"
+
+          cleanup
+          trap - EXIT
+          echo "TEMP_BUNDLE_REMOVED=YES"
+
+          APP_HOME="$(getent passwd "$APP_USER" | cut -d: -f6)"
+          test ! -e "$APP_HOME/.git-credentials"
+          test ! -e "$APP_HOME/.netrc"
+          test -z "$(git_app config --local --get credential.helper || true)"
+          test -z "$(sudo -u "$APP_USER" git config --global --get credential.helper || true)"
+          if sudo -n grep -qE '^(LOWCOST_GITHUB_READ_TOKEN|GITHUB_TOKEN|GH_TOKEN|GITHUB_PAT|GIT_TOKEN)=' /etc/lowcost-europa/lowcost-europa.env; then
+            echo "GITHUB_CREDENTIAL_STORED_ON_OVH=YES"
+            exit 31
+          fi
+          echo "GITHUB_CREDENTIAL_STORED_ON_OVH=NO"
+
+          echo "== DJANGO VALIDATION =="
+          run_manage check
+          echo "DJANGO_CHECK=PASS"
+          run_manage check --deploy
+          echo "DEPLOY_CHECK=PASS"
+          run_manage makemigrations --check --dry-run
+          echo "MAKEMIGRATIONS_CHECK=PASS"
+          PLAN="$(run_manage migrate --plan)"
+          printf '%s\n' "$PLAN"
+          printf '%s\n' "$PLAN" | grep -q "No planned migration operations"
+          echo "MIGRATION_PLAN=PASS"
+          run_manage migrate --noinput
+          run_manage collectstatic --noinput
+          echo "MIGRATIONS_APPLIED=0_EXPECTED"
+          echo "COLLECTSTATIC=PASS"
+
+          echo "== INSTALL PERMANENT WEEKLY AUTOMATION =="
+          sudo -n install -o root -g root -m 0644 \
+            "$APP/deploy/systemd/lowcost-europa-weekly-discovery.service" \
+            "/etc/systemd/system/$WEEKLY_SERVICE"
+          sudo -n install -o root -g root -m 0644 \
+            "$APP/deploy/systemd/lowcost-europa-weekly-discovery.timer" \
+            "/etc/systemd/system/$WEEKLY_TIMER"
+          sudo -n systemctl daemon-reload
+          sudo -n systemctl enable --now "$WEEKLY_TIMER"
+          test "$(systemctl is-active "$WEEKLY_TIMER")" = active
+          test "$(systemctl is-enabled "$WEEKLY_TIMER")" = enabled
+          sudo -n cmp -s "$APP/deploy/systemd/lowcost-europa-weekly-discovery.service" "/etc/systemd/system/$WEEKLY_SERVICE"
+          sudo -n cmp -s "$APP/deploy/systemd/lowcost-europa-weekly-discovery.timer" "/etc/systemd/system/$WEEKLY_TIMER"
+          grep -q '^User=le001_1789265592$' "$APP/deploy/systemd/lowcost-europa-weekly-discovery.service"
+          grep -q '^OnCalendar=Mon \*-\*-\* 23:40:00 UTC$' "$APP/deploy/systemd/lowcost-europa-weekly-discovery.timer"
+          grep -q '^Persistent=true$' "$APP/deploy/systemd/lowcost-europa-weekly-discovery.timer"
+          NEXT_RUN="$(systemctl show "$WEEKLY_TIMER" -p NextElapseUSecRealtime --value)"
+          echo "WEEKLY_TIMER_ACTIVE=YES"
+          echo "WEEKLY_TIMER_ENABLED=YES"
+          echo "WEEKLY_SCHEDULE=Mon *-*-* 23:40:00 UTC"
+          echo "WEEKLY_NEXT_RUN=$NEXT_RUN"
+
+          echo "== SHARED RUNTIME STATE =="
+          sudo -n bash -s <<'ROOT'
+          set -euo pipefail
+          set -a
+          . /etc/lowcost-europa/lowcost-europa.env
+          set +a
+          cd /srv/lowcost-europa
+          exec sudo -u le001_1789265592 -E /srv/lowcost-europa/.venv/bin/python - <<'PY'
+          import os
+          os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.production")
+          import django
+          django.setup()
+          from apps.catalog.services.offer_maintenance import MAINTENANCE_LOCK_PATH, maintenance_run_lock
+          from apps.integrations.aliexpress.client import DEFAULT_CADENCE_PATH, DEFAULT_LOCK_PATH
+          assert MAINTENANCE_LOCK_PATH == "/run/lowcost-europa/catalog-maintenance.lock"
+          assert DEFAULT_LOCK_PATH == "/run/lowcost-europa/aliexpress.lock"
+          assert DEFAULT_CADENCE_PATH == "/run/lowcost-europa/aliexpress.last-start"
+          with maintenance_run_lock():
+              pass
+          print("MAINTENANCE_LOCK_PATH=" + MAINTENANCE_LOCK_PATH)
+          print("ALIEXPRESS_LOCK_PATH=" + DEFAULT_LOCK_PATH)
+          print("ALIEXPRESS_CADENCE_PATH=" + DEFAULT_CADENCE_PATH)
+          PY
+          ROOT
+          test -f /run/lowcost-europa/catalog-maintenance.lock
+          test ! -L /run/lowcost-europa/catalog-maintenance.lock
+          test "$(stat -c '%U:%G:%a' /run/lowcost-europa/catalog-maintenance.lock)" = "$APP_USER:$APP_USER:600"
+          echo "NO_ACTIVE_TMP_MAINTENANCE_COORDINATION=PASS"
+
+          echo "== RESTART APPLICATION AND LIVE ACCEPTANCE =="
+          sudo -n systemctl restart lowcost-europa.service
+          test "$(systemctl is-active lowcost-europa.service)" = active
+          test "$(systemctl is-active nginx)" = active
+          test "$(systemctl is-active postgresql)" = active
+
+          HOME="$(http_code /)"
+          LIVE="$(http_code /health/live/)"
+          READY="$(http_code /health/ready/)"
+          echo "HOME=$HOME"
+          echo "LIVE=$LIVE"
+          echo "READY=$READY"
+          test "$HOME" = 200
+          test "$LIVE" = 200
+          test "$READY" = 200
+          for slug in \
+            cavitacao-rf-vacuum-corpo \
+            hydrodermoabrasao-aqua-facial-multifuncoes \
+            pressoterapia-vacuum-drenagem \
+            hifu \
+            diodo-laser-remocao-tatuagens-pigmentacao
+          do
+            code="$(http_code "/products/$slug/")"
+            echo "FAMILY_PAGE_$slug=$code"
+            test "$code" = 200
+          done
+          echo "FIVE_FAMILY_PAGES=PASS"
+
+          grep -q '>APROVAR<' "$APP/apps/catalog/templates/catalog/owner_panel/family.html"
+          grep -q 'MOTIVO DA REJEIÇÃO' "$APP/apps/catalog/templates/catalog/owner_panel/family.html"
+          ! grep -q 'name="ship_from_country"' "$APP/apps/catalog/templates/catalog/owner_panel/family.html"
+          ! grep -q 'name="review_signals"' "$APP/apps/catalog/templates/catalog/owner_panel/family.html"
+          grep -q '>APROVAR<' "$APP/apps/storefront/templates/storefront/components/owner_family_tools.html"
+          grep -q 'MOTIVO DA REJEIÇÃO' "$APP/apps/storefront/templates/storefront/components/owner_family_tools.html"
+          ! grep -q 'name="ship_from_country"' "$APP/apps/storefront/templates/storefront/components/owner_family_tools.html"
+          ! grep -q 'name="review_signals"' "$APP/apps/storefront/templates/storefront/components/owner_family_tools.html"
+          echo "OWNER_WORKFLOW_DEPLOYED=PASS"
+
+          DB_POST_DEPLOY="$(db_snapshot)"
+          print_snapshot POST_DEPLOY "$DB_POST_DEPLOY"
+          printf '%s\n%s\n' "$DB_PRE" "$DB_POST_DEPLOY" | python3 -c '
+          import json, sys
+          before=json.loads(sys.stdin.readline())
+          after=json.loads(sys.stdin.readline())
+          for key in ("offers","candidates","observations","decisions"):
+              if before[key] != after[key]:
+                  raise SystemExit(f"Deploy mutated {key}")
+          if before["candidate_status"] != after["candidate_status"]:
+              raise SystemExit("Deploy changed candidate status")
+          if before["offer_state"] != after["offer_state"]:
+              raise SystemExit("Deploy changed Offer state")
+          print("DEPLOY_DB_MUTATIONS=0")
+          '
+
+          echo "== INITIAL CONTROLLED WEEKLY-STYLE PUSH =="
+          PRE_PUSH="$DB_POST_DEPLOY"
+          PUSH_START="$(date --iso-8601=seconds)"
+          set +e
+          sudo -n systemctl start "$WEEKLY_SERVICE"
+          PUSH_RC=$?
+          set -e
+          INV="$(systemctl show "$WEEKLY_SERVICE" -p InvocationID --value)"
+          RESULT="$(systemctl show "$WEEKLY_SERVICE" -p Result --value)"
+          STATUS="$(systemctl show "$WEEKLY_SERVICE" -p ExecMainStatus --value)"
+          echo "INITIAL_PUSH_RC=$PUSH_RC"
+          echo "INITIAL_PUSH_RESULT=$RESULT"
+          echo "INITIAL_PUSH_EXEC_STATUS=$STATUS"
+          if [ -n "$INV" ]; then
+            JOURNAL="$(sudo -n journalctl "_SYSTEMD_INVOCATION_ID=$INV" -o cat --no-pager)"
+          else
+            JOURNAL="$(sudo -n journalctl -u "$WEEKLY_SERVICE" --since "$PUSH_START" -o cat --no-pager)"
+          fi
+          echo "INITIAL_PUSH_REPORT_BEGIN"
+          printf '%s\n' "$JOURNAL"
+          echo "INITIAL_PUSH_REPORT_END"
+          test "$PUSH_RC" -eq 0
+          test "$RESULT" = success
+          test "$STATUS" = 0
+
+          POST_PUSH="$(db_snapshot)"
+          print_snapshot POST_PUSH "$POST_PUSH"
+          printf '%s\n%s\n' "$PRE_PUSH" "$POST_PUSH" | python3 -c '
+          import json, sys
+          before=json.loads(sys.stdin.readline())
+          after=json.loads(sys.stdin.readline())
+          new_ids=sorted(set(after["candidates"])-set(before["candidates"]))
+          deleted_candidates=set(before["candidates"])-set(after["candidates"])
+          deleted_offers=set(before["offers"])-set(after["offers"])
+          deleted_obs=set(before["observations"])-set(after["observations"])
+          deleted_decisions=set(before["decisions"])-set(after["decisions"])
+          if deleted_candidates or deleted_offers or deleted_obs or deleted_decisions:
+              raise SystemExit("Physical deletion detected")
+          if before["offers"] != after["offers"]:
+              raise SystemExit("Discovery created/deleted Offer rows")
+          if before["observations"] != after["observations"]:
+              raise SystemExit("Discovery mutated Offer observations")
+          if before["decisions"] != after["decisions"]:
+              raise SystemExit("Discovery created Owner decisions")
+          if before["offer_state"] != after["offer_state"]:
+              raise SystemExit("Discovery changed Offer state")
+          for pk,status in before["candidate_status"].items():
+              if after["candidate_status"].get(pk) != status:
+                  raise SystemExit(f"Existing candidate status changed: {pk}")
+          for pk in new_ids:
+              if after["candidate_status"].get(str(pk)) != "PENDING":
+                  raise SystemExit(f"New candidate not PENDING: {pk}")
+          for slug,before_count in before["pending_by_family"].items():
+              after_count=after["pending_by_family"][slug]
+              if before_count < 20 and after_count > 20:
+                  raise SystemExit(f"Queue cap exceeded for {slug}")
+          print("NEW_CANDIDATE_IDS=" + ",".join(map(str,new_ids)))
+          print(f"NEW_CANDIDATES={len(new_ids)}")
+          print("AUTO_APPROVED=0")
+          print("AUTO_PUBLISHED=0")
+          print("OWNER_DECISIONS_CREATED_BY_DISCOVERY=0")
+          print("AFFILIATE_LINKS_GENERATED_BY_DISCOVERY=0")
+          print("PHYSICAL_DELETIONS=0")
+          '
+          grep -q '^AUTO APROVADOS=0$' <<<"$JOURNAL"
+          grep -q '^AUTO PUBLICADOS=0$' <<<"$JOURNAL"
+          grep -q '^LINKS AFILIADOS GERADOS PELA DESCOBERTA=0$' <<<"$JOURNAL"
+          for slug in \
+            cavitacao-rf-vacuum-corpo \
+            hydrodermoabrasao-aqua-facial-multifuncoes \
+            pressoterapia-vacuum-drenagem \
+            hifu \
+            diodo-laser-remocao-tatuagens-pigmentacao
+          do
+            grep -q "^FAMÍLIA=$slug$" <<<"$JOURNAL"
+          done
+          echo "INITIAL_PUSH_EXECUTED=PASS"
+
+          echo "== FINAL RUNTIME =="
+          test "$(git_app rev-parse HEAD)" = "$EXPECTED_MAIN"
+          test "$(git_app branch --show-current)" = main
+          test -z "$(git_app status --short)"
+          test "$(systemctl is-active lowcost-europa.service)" = active
+          test "$(systemctl is-active nginx)" = active
+          test "$(systemctl is-active postgresql)" = active
+          test "$(systemctl is-active "$WEEKLY_TIMER")" = active
+          FINAL_NEXT="$(systemctl show "$WEEKLY_TIMER" -p NextElapseUSecRealtime --value)"
+          echo "FINAL_HEAD=$EXPECTED_MAIN"
+          echo "FINAL_BRANCH=main"
+          echo "FINAL_WORKTREE=CLEAN"
+          echo "FINAL_NEXT_WEEKLY_RUN=$FINAL_NEXT"
+          echo "SECRETS_EXPOSED=NO"
+          echo "GITHUB_TOKEN_ON_OVH=NO"
+          echo "PHASE7_CLOSEOUT=PASS"
+          REMOTE
+
+  cleanup-branch:
+    needs: deploy-and-initial-push
+    if: success()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Delete temporary operations branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_REF: ${{ github.head_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$HEAD_REF"
+          encoded="$(python3 - <<'PY'
+          import os
+          from urllib.parse import quote
+          print(quote("heads/" + os.environ["HEAD_REF"], safe=""))
+          PY
+          )"
+          curl -fsS -X DELETE \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/git/refs/$encoded"
+          echo "TEMP_BRANCH_DELETED=PASS"
