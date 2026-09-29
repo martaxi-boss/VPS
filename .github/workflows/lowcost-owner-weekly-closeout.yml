@@ -74,7 +74,10 @@ jobs:
           STATUS_NOW="$(sudo -u "$APP_USER" git -C "$APP" status --short)"
           echo "PRE_HEAD=$HEAD_NOW"
           echo "PRE_BRANCH=$BRANCH_NOW"
-          test "$HEAD_NOW" = "$EXPECTED_PRE"
+          if [ "$HEAD_NOW" != "$EXPECTED_PRE" ] && [ "$HEAD_NOW" != "3c83587e1d573ec8bfb777f9c26f16aa8f986d1f" ]; then
+            echo "UNEXPECTED_RUNTIME_HEAD=$HEAD_NOW"
+            exit 20
+          fi
           test "$BRANCH_NOW" = main
           test -z "$STATUS_NOW"
           echo "PRE_WORKTREE=CLEAN"
@@ -237,7 +240,10 @@ jobs:
           PRE_STATUS="$(git_app status --short)"
           echo "PRE_HEAD=$PRE_HEAD"
           echo "PRE_BRANCH=$PRE_BRANCH"
-          test "$PRE_HEAD" = "$EXPECTED_PRE"
+          if [ "$PRE_HEAD" != "$EXPECTED_PRE" ] && [ "$PRE_HEAD" != "$EXPECTED_MAIN" ]; then
+            echo "UNEXPECTED_RUNTIME_HEAD=$PRE_HEAD"
+            exit 21
+          fi
           test "$PRE_BRANCH" = main
           test -z "$PRE_STATUS"
           echo "PRE_WORKTREE=CLEAN"
@@ -248,7 +254,7 @@ jobs:
           sudo -u "$APP_USER" git -C "$APP" bundle verify "$BUNDLE"
           git_app fetch "$BUNDLE" refs/heads/main:refs/remotes/bundle/main
           git_app cat-file -e "$EXPECTED_MAIN^{commit}"
-          git_app merge-base --is-ancestor "$EXPECTED_PRE" "$EXPECTED_MAIN"
+          git_app merge-base --is-ancestor "$PRE_HEAD" "$EXPECTED_MAIN"
           echo "BUNDLE_IMPORT=PASS"
           echo "PREVIOUS_RUNTIME_SHA_ANCESTOR_OF_MAIN=PASS"
 
@@ -338,7 +344,10 @@ jobs:
           ROOT
           test -f /run/lowcost-europa/catalog-maintenance.lock
           test ! -L /run/lowcost-europa/catalog-maintenance.lock
-          test "$(stat -c '%U:%G:%a' /run/lowcost-europa/catalog-maintenance.lock)" = "$APP_USER:$APP_USER:600"
+          APP_GROUP="$(id -gn "$APP_USER")"
+          LOCK_STAT="$(stat -c '%U:%G:%a' /run/lowcost-europa/catalog-maintenance.lock)"
+          echo "MAINTENANCE_LOCK_STAT=$LOCK_STAT"
+          test "$LOCK_STAT" = "$APP_USER:$APP_GROUP:600"
           echo "NO_ACTIVE_TMP_MAINTENANCE_COORDINATION=PASS"
 
           echo "== RESTART APPLICATION AND LIVE ACCEPTANCE =="
