@@ -221,13 +221,13 @@ jobs:
           import json, sys
           p=sys.argv[1]
           d=json.load(sys.stdin)
-          print(f"{p}_OFFERS={len(d['offers'])}")
-          print(f"{p}_CANDIDATES={len(d['candidates'])}")
-          print(f"{p}_APPROVED={d['approved']}")
-          print(f"{p}_REJECTED={d['rejected']}")
-          print(f"{p}_DECISIONS={len(d['decisions'])}")
+          print(p+"_OFFERS="+str(len(d["offers"])))
+          print(p+"_CANDIDATES="+str(len(d["candidates"])))
+          print(p+"_APPROVED="+str(d["approved"]))
+          print(p+"_REJECTED="+str(d["rejected"]))
+          print(p+"_DECISIONS="+str(len(d["decisions"])))
           for slug,count in d["pending_by_family"].items():
-              print(f"{p}_PENDING_{slug}={count}")
+              print(p+"_PENDING_"+slug+"="+str(count))
           ' "$prefix"
           }
 
