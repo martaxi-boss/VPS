@@ -1,0 +1,37 @@
+name: Cleanup superseded Lowcost ops branches
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/cleanup-superseded-lowcost-ops-001.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Delete superseded temporary branches and self
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_REF: ${{ github.head_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$HEAD_REF"
+          for ref in             ops/lowcost-phase7-bundle-deploy-002             ops/phase7-ux-003             "$HEAD_REF"
+          do
+            encoded="$(python3 - "$ref" <<'PY'
+          import sys
+          from urllib.parse import quote
+          print(quote("heads/" + sys.argv[1], safe=""))
+          PY
+          )"
+            code="$(curl -sS -o /tmp/delete-ref.json -w "%{http_code}" -X DELETE               -H "Authorization: Bearer $GH_TOKEN"               -H "Accept: application/vnd.github+json"               -H "X-GitHub-Api-Version: 2022-11-28"               "https://api.github.com/repos/$GITHUB_REPOSITORY/git/refs/$encoded")"
+            echo "DELETE_REF=$ref HTTP=$code"
+            test "$code" = 204
+          done
+          echo "SUPERSEDED_TEMP_BRANCHES_DELETED=PASS"
