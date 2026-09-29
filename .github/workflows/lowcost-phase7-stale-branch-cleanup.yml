@@ -1,0 +1,45 @@
+name: Lowcost Phase 7 Stale Branch Cleanup
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/lowcost-phase7-stale-branch-cleanup.yml"
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Delete superseded Phase 7 operations branches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SELF_REF: ${{ github.head_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          delete_ref() {
+            ref="$1"
+            encoded="$(python3 - "$ref" <<'PY'
+import sys
+from urllib.parse import quote
+print(quote("heads/" + sys.argv[1], safe=""))
+PY
+)"
+            code="$(curl -sS -o /tmp/delete.out -w "%{http_code}" -X DELETE \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/git/refs/$encoded")"
+            if [ "$code" != 204 ] && [ "$code" != 422 ]; then
+              cat /tmp/delete.out
+              exit 1
+            fi
+            echo "DELETED_OR_ALREADY_ABSENT=$ref"
+          }
+          delete_ref "ops/lowcost-phase7-bundle-deploy-002"
+          delete_ref "ops/phase7-ux-003"
+          delete_ref "$SELF_REF"
+          echo "STALE_BRANCH_CLEANUP=PASS"
