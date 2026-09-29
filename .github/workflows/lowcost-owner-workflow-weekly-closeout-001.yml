@@ -59,7 +59,7 @@ jobs:
           HOST="146.59.145.3"
           USER="ubuntu"
           test -n "${VPS_SSH_PASSWORD:-}"
-          sshpass -p "$VPS_SSH_PASSWORD" ssh             -o PreferredAuthentications=password             -o PubkeyAuthentication=no             -o StrictHostKeyChecking=accept-new             -o ConnectTimeout=10             "$USER$HOST" 'bash -s' <<'REMOTE'
+          sshpass -p "$VPS_SSH_PASSWORD" ssh             -o PreferredAuthentications=password             -o PubkeyAuthentication=no             -o StrictHostKeyChecking=accept-new             -o ConnectTimeout=10             "$USER@$HOST" 'bash -s' <<'REMOTE'
           set -euo pipefail
           APP="/srv/lowcost-europa"
           APP_USER="le001_1789265592"
@@ -67,7 +67,7 @@ jobs:
           EXPECTED_BRANCH="main"
           DUCK_HOST="lowcost-europa.duckdns.org"
 
-          git_app() { sudo -u "$APP_USER" git -C "$APP" "$$@"; }
+          git_app() { sudo -u "$APP_USER" git -C "$APP" "$@"; }
           http_code() {
             host="$1"; path="$2"
             curl --noproxy "*" --resolve "$host:443:127.0.0.1" --max-time 12               -sS -o /dev/null -w "%{http_code}" "https://$host$path"
@@ -116,8 +116,8 @@ jobs:
           LOCAL_BUNDLE="$GITHUB_WORKSPACE/lowcost-europa-main.bundle"
           UPLOAD="/tmp/lowcost-europa-main-3c83587e.bundle.upload"
           BUNDLE="/tmp/lowcost-europa-main-3c83587e.bundle"
-          sshpass -p "$VPS_SSH_PASSWORD" scp             -o PreferredAuthentications=password             -o PubkeyAuthentication=no             -o StrictHostKeyChecking=accept-new             -o ConnectTimeout=10             "$LOCAL_BUNDLE" "$USER$HOST:$UPLOAD"
-          sshpass -p "$VPS_SSH_PASSWORD" ssh             -o PreferredAuthentications=password             -o PubkeyAuthentication=no             -o StrictHostKeyChecking=accept-new             -o ConnectTimeout=10             "$USER$HOST"             "sudo -n mv '$UPLOAD' '$BUNDLE' && sudo -n chown le001_1789265592:le001_1789265592 '$BUNDLE' && sudo -n chmod 600 '$BUNDLE'"
+          sshpass -p "$VPS_SSH_PASSWORD" scp             -o PreferredAuthentications=password             -o PubkeyAuthentication=no             -o StrictHostKeyChecking=accept-new             -o ConnectTimeout=10             "$LOCAL_BUNDLE" "$USER@$HOST:$UPLOAD"
+          sshpass -p "$VPS_SSH_PASSWORD" ssh             -o PreferredAuthentications=password             -o PubkeyAuthentication=no             -o StrictHostKeyChecking=accept-new             -o ConnectTimeout=10             "$USER@$HOST"             "sudo -n mv '$UPLOAD' '$BUNDLE' && sudo -n chown le001_1789265592:le001_1789265592 '$BUNDLE' && sudo -n chmod 600 '$BUNDLE'"
           echo "BUNDLE_TRANSPORT=PASS"
           echo "GITHUB_READ_TOKEN_TRANSMITTED_TO_OVH=NO"
 
@@ -129,7 +129,7 @@ jobs:
           set -euo pipefail
           HOST="146.59.145.3"
           USER="ubuntu"
-          sshpass -p "$VPS_SSH_PASSWORD" ssh             -o PreferredAuthentications=password             -o PubkeyAuthentication=no             -o StrictHostKeyChecking=accept-new             -o ConnectTimeout=10             "$USER$HOST" 'bash -s' <<'REMOTE'
+          sshpass -p "$VPS_SSH_PASSWORD" ssh             -o PreferredAuthentications=password             -o PubkeyAuthentication=no             -o StrictHostKeyChecking=accept-new             -o ConnectTimeout=10             "$USER@$HOST" 'bash -s' <<'REMOTE'
           set -euo pipefail
           APP="/srv/lowcost-europa"
           APP_USER="le001_1789265592"
@@ -146,7 +146,7 @@ jobs:
           }
           trap cleanup EXIT
 
-          git_app() { sudo -u "$APP_USER" git -C "$APP" "$$@"; }
+          git_app() { sudo -u "$APP_USER" git -C "$APP" "$@"; }
           run_manage() {
             sudo -n bash -c '
               set -a
@@ -154,7 +154,7 @@ jobs:
               set +a
               cd /srv/lowcost-europa
               exec sudo -u le001_1789265592 -E /srv/lowcost-europa/.venv/bin/python manage.py "$@"
-            ' _ "$$@"
+            ' _ "$@"
           }
           run_python() {
             sudo -n bash -c '
@@ -163,7 +163,7 @@ jobs:
               set +a
               cd /srv/lowcost-europa
               exec sudo -u le001_1789265592 -E /srv/lowcost-europa/.venv/bin/python "$@"
-            ' _ "$$@"
+            ' _ "$@"
           }
           http_code() {
             host="$1"; path="$2"
