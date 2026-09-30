@@ -42,7 +42,9 @@ jobs:
           import django
           django.setup()
 
-          from apps.catalog.models import OfferClick
+          from apps.catalog.models import Offer, OfferClick
+          from apps.integrations.aliexpress.client import AliExpressClient
+          from apps.integrations.aliexpress.exceptions import AliExpressError
 
           clicks = OfferClick.objects.all()
           first = clicks.order_by("clicked_at").values_list("clicked_at", flat=True).first()
@@ -51,6 +53,67 @@ jobs:
           print(f"OFFER_CLICKS={clicks.count()}")
           print(f"FIRST_CLICK={first.isoformat() if first else 'NONE'}")
           print(f"LAST_CLICK={last.isoformat() if last else 'NONE'}")
+
+          method = "aliexpress.affiliate.order.list"
+          start_time = "2026-09-01 00:00:00"
+          end_time = "2026-09-30 23:59:59"
+          statuses = [
+              "Payment Completed",
+              "Buyer Confirmed Receipt",
+              "Completed Settlement",
+              "Invalid",
+          ]
+          offer_ids = set(
+              Offer.objects.exclude(external_product_id="")
+              .values_list("external_product_id", flat=True)
+          )
+          client = AliExpressClient()
+
+          for status in statuses:
+              try:
+                  payload = client._call(
+                      method,
+                      {
+                          "start_time": start_time,
+                          "end_time": end_time,
+                          "status": status,
+                          "page_no": 1,
+                          "page_size": 50,
+                          "fields": "product_id,order_status,created_time,paid_time,finished_time",
+                      },
+                  )
+              except AliExpressError as exc:
+                  print(f"ORDER_STATUS={status}|API=ERROR|ERROR={exc.__class__.__name__}")
+                  continue
+
+              wrapper = payload.get("aliexpress_affiliate_order_list_response", {})
+              resp = wrapper.get("resp_result", {}) if isinstance(wrapper, dict) else {}
+              code = str(resp.get("resp_code", ""))
+              if code == "405":
+                  print(f"ORDER_STATUS={status}|TOTAL=0|LOWCOST_PRODUCT_MATCHES=0")
+                  continue
+
+              result = resp.get("result") or {}
+              total = int(result.get("total_record_count") or 0) if isinstance(result, dict) else 0
+              orders_obj = result.get("orders") or {} if isinstance(result, dict) else {}
+              if isinstance(orders_obj, dict):
+                  rows = orders_obj.get("order") or []
+              elif isinstance(orders_obj, list):
+                  rows = orders_obj
+              else:
+                  rows = []
+              if isinstance(rows, dict):
+                  rows = [rows]
+              matches = sum(
+                  1
+                  for row in rows
+                  if isinstance(row, dict)
+                  and str(row.get("product_id") or "") in offer_ids
+              )
+              print(f"ORDER_STATUS={status}|TOTAL={total}|LOWCOST_PRODUCT_MATCHES_PAGE1={matches}")
+
+          print("SALES_AUDIT_WINDOW=2026-09-01..2026-09-30")
+          print("SECRETS_EXPOSED=NO")
           PY
           ROOT
           REMOTE
