@@ -1,0 +1,96 @@
+name: Lowcost Europa Storefront Conversion 001
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/lowcost-storefront-conversion-001.yml"
+
+jobs:
+  runtime-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Install SSH transport dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+
+      - name: Verify canonical OVH runtime read-only
+        env:
+          VPS_SSH_PASSWORD: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          HOST="146.59.145.3"
+          USER="ubuntu"
+          test -n "${VPS_SSH_PASSWORD:-}"
+          sshpass -p "$VPS_SSH_PASSWORD" ssh \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=10 \
+            "$USER@$HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          APP=/srv/lowcost-europa
+          APP_USER=le001_1789265592
+          EXPECTED=3c83587e1d573ec8bfb777f9c26f16aa8f986d1f
+
+          HEAD_NOW="$(sudo -u "$APP_USER" git -C "$APP" rev-parse HEAD)"
+          BRANCH_NOW="$(sudo -u "$APP_USER" git -C "$APP" branch --show-current)"
+          STATUS_NOW="$(sudo -u "$APP_USER" git -C "$APP" status --short)"
+          echo "RUNTIME_HEAD=$HEAD_NOW"
+          echo "RUNTIME_BRANCH=$BRANCH_NOW"
+          test "$HEAD_NOW" = "$EXPECTED"
+          test "$BRANCH_NOW" = main
+          test -z "$STATUS_NOW"
+          echo "RUNTIME_WORKTREE=CLEAN"
+
+          test "$(systemctl is-active lowcost-europa.service)" = active
+          test "$(systemctl is-active nginx)" = active
+          test "$(systemctl is-active postgresql)" = active
+          echo "SERVICES=PASS"
+
+          echo "WEEKLY_TIMER_ACTIVE=$(systemctl is-active lowcost-europa-weekly-discovery.timer)"
+          echo "WEEKLY_TIMER_ENABLED=$(systemctl is-enabled lowcost-europa-weekly-discovery.timer)"
+
+          sudo -n bash -s <<'ROOT'
+          set -euo pipefail
+          set -a
+          . /etc/lowcost-europa/lowcost-europa.env
+          set +a
+          cd /srv/lowcost-europa
+          exec sudo -u le001_1789265592 -E /srv/lowcost-europa/.venv/bin/python - <<'PY'
+          import hashlib
+          import json
+          import os
+          os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.production")
+          import django
+          django.setup()
+          from apps.catalog.models import CandidateDecision, Offer, OfferCandidate
+
+          def model_hash(model):
+              fields = [f.attname for f in model._meta.concrete_fields]
+              rows = list(model.objects.order_by("pk").values(*fields))
+              payload = json.dumps(rows, default=str, sort_keys=True, separators=(",", ":"))
+              return hashlib.sha256(payload.encode()).hexdigest()
+
+          print("OFFERS=" + str(Offer.objects.count()))
+          print("CANDIDATES=" + str(OfferCandidate.objects.count()))
+          print("CANDIDATES_PENDING=" + str(OfferCandidate.objects.filter(status=OfferCandidate.Status.PENDING).count()))
+          print("CANDIDATES_APPROVED=" + str(OfferCandidate.objects.filter(status=OfferCandidate.Status.APPROVED).count()))
+          print("CANDIDATES_REJECTED=" + str(OfferCandidate.objects.filter(status=OfferCandidate.Status.REJECTED).count()))
+          print("DECISIONS=" + str(CandidateDecision.objects.count()))
+          print("OFFERS_HASH=" + model_hash(Offer))
+          print("CANDIDATES_HASH=" + model_hash(OfferCandidate))
+          print("DECISIONS_HASH=" + model_hash(CandidateDecision))
+          PY
+          ROOT
+
+          echo "GITHUB_TOKEN_ON_OVH=NO_ASSUMED_FROM_NO_TOKEN_TRANSFER"
+          echo "PREFLIGHT=PASS"
+          REMOTE
