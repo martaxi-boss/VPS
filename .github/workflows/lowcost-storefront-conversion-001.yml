@@ -69,11 +69,11 @@ jobs:
             -o PubkeyAuthentication=no \
             -o StrictHostKeyChecking=accept-new \
             -o ConnectTimeout=10 \
-            "$USER@$HOST" 'bash -s' <<REMOTE
+            "$USER@$HOST" 'bash -s' <<'REMOTE'
           set -euo pipefail
           APP=/srv/lowcost-europa
-          APP_USER=$APP_USER
-          EXPECTED_PRE=$OLD_SHA
+          APP_USER=le001_1789265592
+          EXPECTED_PRE=3c83587e1d573ec8bfb777f9c26f16aa8f986d1f
           HEAD_NOW="$(sudo -u "$APP_USER" git -C "$APP" rev-parse HEAD)"
           BRANCH_NOW="$(sudo -u "$APP_USER" git -C "$APP" branch --show-current)"
           STATUS_NOW="$(sudo -u "$APP_USER" git -C "$APP" status --short)"
@@ -247,10 +247,8 @@ jobs:
           run_manage makemigrations --check --dry-run
           echo "MAKEMIGRATIONS_CHECK=PASS"
           PLAN="$(run_manage migrate --plan)"
-          printf '%s
-' "$PLAN"
-          printf '%s
-' "$PLAN" | grep -q "No planned migration operations"
+          printf '%s\n' "$PLAN"
+          printf '%s\n' "$PLAN" | grep -q "No planned migration operations"
           echo "MIGRATION_PLAN=NO_OPERATIONS"
           echo "MIGRATIONS_APPLIED=0"
           run_manage collectstatic --noinput
@@ -333,12 +331,12 @@ jobs:
           HEADER_FILE="$(mktemp)"
           STATUS="$(curl --noproxy "*" --resolve "$DUCK:443:127.0.0.1" --max-time 15 -sS -D "$HEADER_FILE" -o /dev/null -w "%{http_code}" "https://$DUCK/contactar/whatsapp/")"
           test "$STATUS" = 302
-          LOCATION="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/$/,""); sub(/^[^:]*:[[:space:]]*/,""); print; exit}' "$HEADER_FILE")"
+          LOCATION="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/\r$/,""); sub(/^[^:]*:[[:space:]]*/,""); print; exit}' "$HEADER_FILE")"
           rm -f "$HEADER_FILE"
           test "$LOCATION" = "https://wa.me/351965471236?text=Ol%C3%A1%2C%20vi%20um%20equipamento%20no%20Lowcost%20Europa%20e%20gostava%20de%20esclarecer%20uma%20d%C3%BAvida."
           echo "WHATSAPP_REDIRECT=PASS"
 
-          if grep -R -n -E '351961726755|+351 961 726 755' "$APP/apps/storefront" --include='*.py' --include='*.html' --include='*.css' --include='*.js'; then
+          if grep -R -n -F -e '351961726755' -e '+351 961 726 755' "$APP/apps/storefront" --include='*.py' --include='*.html' --include='*.css' --include='*.js'; then
             echo "WHATSAPP_OLD_NUMBER_ABSENT=FAIL"
             exit 42
           fi
