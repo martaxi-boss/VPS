@@ -232,6 +232,128 @@ jobs:
               print(
                   f"DAY={day}|PAGEVIEWS={daily[day]}|FAMILY_VIEWS={daily_family[day]}|GO={daily_go[day]}"
               )
+
+          # Conservative funnel: only known public routes, and remove mass /go/ sessions.
+          institutional_paths = {
+              "/como-funciona/", "/afiliados/", "/privacidade/", "/termos/", "/contacto/"
+          }
+          def known_public_route(r):
+              return (
+                  is_home(r)
+                  or is_family(r)
+                  or is_go(r)
+                  or (r["path"] in institutional_paths and r["status"] == 200)
+              )
+
+          route_rows = [r for r in public if known_public_route(r)]
+          route_rows.sort(key=lambda r: r["ts"])
+          route_sessions = []
+          route_state = {}
+          for r in route_rows:
+              key = (r["ip"], r["ua"])
+              prev = route_state.get(key)
+              if prev is None or (r["ts"] - prev["last"]).total_seconds() > 1800:
+                  s = {"id": len(route_sessions)+1, "key": key, "start": r["ts"], "last": r["ts"], "rows": []}
+                  route_sessions.append(s)
+                  route_state[key] = s
+              else:
+                  s = prev
+                  s["last"] = r["ts"]
+              s["rows"].append(r)
+
+          suspicious_ids = set()
+          for s in route_sessions:
+              gos = [r for r in s["rows"] if is_go(r)]
+              go_targets = {r["path"] for r in gos}
+              fams = [r for r in s["rows"] if is_family(r)]
+              if len(gos) >= 5 or len(go_targets) >= 5 or (len(gos) >= 3 and not fams):
+                  suspicious_ids.add(s["id"])
+
+          clean_sessions = [s for s in route_sessions if s["id"] not in suspicious_ids]
+          clean_home = [s for s in clean_sessions if any(is_home(r) for r in s["rows"])]
+          clean_family = [s for s in clean_sessions if any(is_family(r) for r in s["rows"])]
+          clean_go = [s for s in clean_sessions if any(is_go(r) for r in s["rows"])]
+          clean_contact = [s for s in clean_sessions if any(is_contact(r) for r in s["rows"])]
+          clean_meta = [s for s in clean_sessions if any(r["meta"] for r in s["rows"])]
+          clean_meta_family = [s for s in clean_meta if any(is_family(r) for r in s["rows"])]
+          clean_meta_go = [s for s in clean_meta if any(is_go(r) for r in s["rows"])]
+          clean_meta_contact = [s for s in clean_meta if any(is_contact(r) for r in s["rows"])]
+          go_with_family = [
+              s for s in clean_go
+              if any(is_family(r) for r in s["rows"])
+          ]
+          go_without_family = [
+              s for s in clean_go
+              if not any(is_family(r) for r in s["rows"])
+          ]
+          meta_go_with_family = [
+              s for s in clean_meta_go
+              if any(is_family(r) for r in s["rows"])
+          ]
+
+          suspicious_go_hits = sum(
+              sum(is_go(r) for r in s["rows"])
+              for s in route_sessions
+              if s["id"] in suspicious_ids
+          )
+          clean_go_hits = sum(
+              sum(is_go(r) for r in s["rows"])
+              for s in clean_sessions
+          )
+          clean_family_views = sum(
+              sum(is_family(r) for r in s["rows"])
+              for s in clean_sessions
+          )
+          clean_home_views = sum(
+              sum(is_home(r) for r in s["rows"])
+              for s in clean_sessions
+          )
+
+          print(f"CONSERVATIVE_ROUTE_SESSIONS={len(route_sessions)}")
+          print(f"SUSPICIOUS_MASS_GO_SESSIONS={len(suspicious_ids)}")
+          print(f"SUSPICIOUS_MASS_GO_HITS={suspicious_go_hits}")
+          print(f"CLEAN_ROUTE_SESSIONS={len(clean_sessions)}")
+          print(f"CLEAN_HOME_VIEWS={clean_home_views}")
+          print(f"CLEAN_HOME_SESSIONS={len(clean_home)}")
+          print(f"CLEAN_FAMILY_VIEWS={clean_family_views}")
+          print(f"CLEAN_FAMILY_SESSIONS={len(clean_family)}")
+          print(f"CLEAN_GO_HITS={clean_go_hits}")
+          print(f"CLEAN_GO_SESSIONS={len(clean_go)}")
+          print(f"GO_WITH_FAMILY_SESSIONS={len(go_with_family)}")
+          print(f"GO_WITHOUT_FAMILY_SESSIONS={len(go_without_family)}")
+          print(f"CLEAN_CONTACT_SESSIONS={len(clean_contact)}")
+          print(f"CLEAN_META_SESSIONS={len(clean_meta)}")
+          print(f"CLEAN_META_FAMILY_SESSIONS={len(clean_meta_family)}")
+          print(f"CLEAN_META_GO_SESSIONS={len(clean_meta_go)}")
+          print(f"CLEAN_META_GO_WITH_FAMILY_SESSIONS={len(meta_go_with_family)}")
+          print(f"CLEAN_META_CONTACT_SESSIONS={len(clean_meta_contact)}")
+          if clean_sessions:
+              print(f"CLEAN_SESSION_TO_FAMILY_RATE={len(clean_family)/len(clean_sessions)*100:.1f}")
+              print(f"CLEAN_SESSION_TO_GO_RATE={len(clean_go)/len(clean_sessions)*100:.1f}")
+          if clean_home:
+              print(f"CLEAN_HOME_TO_FAMILY_RATE={len(clean_family)/len(clean_home)*100:.1f}")
+          if clean_family:
+              print(f"CLEAN_FAMILY_TO_GO_RATE={len(go_with_family)/len(clean_family)*100:.1f}")
+          if clean_meta:
+              print(f"META_TO_FAMILY_RATE={len(clean_meta_family)/len(clean_meta)*100:.1f}")
+              print(f"META_TO_GO_RATE={len(clean_meta_go)/len(clean_meta)*100:.1f}")
+
+          clean_daily = collections.Counter()
+          clean_daily_family = collections.Counter()
+          clean_daily_go = collections.Counter()
+          for s in clean_sessions:
+              for r in s["rows"]:
+                  day = r["ts"].date().isoformat()
+                  if is_home(r) or is_family(r) or (r["path"] in institutional_paths and r["status"] == 200):
+                      clean_daily[day] += 1
+                  if is_family(r):
+                      clean_daily_family[day] += 1
+                  if is_go(r):
+                      clean_daily_go[day] += 1
+          for day in sorted(clean_daily):
+              print(
+                  f"CLEAN_DAY={day}|PAGEVIEWS={clean_daily[day]}|FAMILY_VIEWS={clean_daily_family[day]}|GO={clean_daily_go[day]}"
+              )
           PY
 
           echo "== DATABASE FUNNEL =="
