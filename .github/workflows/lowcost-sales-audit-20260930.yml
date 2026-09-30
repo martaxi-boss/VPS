@@ -1,0 +1,40 @@
+name: Lowcost Sales Audit
+
+on:
+  push:
+    branches:
+      - "ops/lowcost-sales-audit-20260930"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Read live sales indicators
+        env:
+          VPS_SSH_PASSWORD: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -p "$VPS_SSH_PASSWORD" ssh             -o PreferredAuthentications=password             -o PubkeyAuthentication=no             -o StrictHostKeyChecking=accept-new             ubuntu@146.59.145.3 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          echo "RUNTIME_HEAD=$(sudo -u le001_1789265592 git -C /srv/lowcost-europa rev-parse HEAD)"
+          echo "RUNTIME_BRANCH=$(sudo -u le001_1789265592 git -C /srv/lowcost-europa branch --show-current)"
+          sudo -n bash -c '
+            set -a
+            . /etc/lowcost-europa/lowcost-europa.env
+            set +a
+            cd /srv/lowcost-europa
+            exec sudo -u le001_1789265592 -E /srv/lowcost-europa/.venv/bin/python manage.py shell -c "
+from apps.catalog.models import OfferClick
+print(f\"OFFER_CLICKS={OfferClick.objects.count()}\")
+print(f\"FIRST_CLICK={OfferClick.objects.order_by('clicked_at').values_list('clicked_at', flat=True).first()}\")
+print(f\"LAST_CLICK={OfferClick.objects.order_by('-clicked_at').values_list('clicked_at', flat=True).first()}\")
+"
+          '
+          REMOTE
