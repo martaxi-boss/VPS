@@ -1,0 +1,281 @@
+name: Lowcost Funnel Audit 20260930
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/lowcost-funnel-audit-20260930.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Audit live traffic funnel and storefront state
+        env:
+          VPS_SSH_PASSWORD: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${VPS_SSH_PASSWORD:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+
+          sshpass -p "$VPS_SSH_PASSWORD" ssh             -o PreferredAuthentications=password             -o PubkeyAuthentication=no             -o StrictHostKeyChecking=accept-new             -o ConnectTimeout=10             ubuntu@146.59.145.3 'bash -s' <<'REMOTE'
+          set -euo pipefail
+
+          echo "== RUNTIME =="
+          echo "HEAD=$(sudo -u le001_1789265592 git -C /srv/lowcost-europa rev-parse HEAD)"
+          echo "BRANCH=$(sudo -u le001_1789265592 git -C /srv/lowcost-europa branch --show-current)"
+
+          echo "== NGINX FUNNEL =="
+          sudo -n python3 - <<'PY'
+          import collections
+          import datetime as dt
+          import glob
+          import gzip
+          import os
+          import re
+          from urllib.parse import parse_qs, urlsplit
+
+          start = dt.datetime(2026, 9, 23, 0, 0, tzinfo=dt.timezone.utc)
+          end = dt.datetime.now(dt.timezone.utc)
+
+          log_re = re.compile(
+              r'^(\S+) \S+ \S+ \[([^\]]+)\] "(\S+) ([^ ]+) HTTP/[0-9.]+" '
+              r'(\d{3}) (\S+) "([^"]*)" "([^"]*)"'
+          )
+
+          bot_tokens = (
+              "bot", "crawler", "spider", "slurp", "curl/", "wget/",
+              "python-requests", "python/", "go-http-client", "headless",
+              "facebookexternalhit", "meta-externalagent", "meta-externalfetcher",
+              "google-read-aloud", "googlebot", "bingbot", "yandex", "baiduspider",
+              "ahrefsbot", "semrushbot", "petalbot", "bytespider", "claudebot",
+              "gptbot", "amazonbot", "uptimerobot", "statuscake", "zgrab",
+          )
+          scanner_tokens = (
+              "/wp-", "/wordpress", "/xmlrpc", "/phpmyadmin", "/.env", "/.git",
+              "/cgi-bin", "/actuator", "/vendor/phpunit", "/boaform", "/hnap",
+              "/server-status", "/config.", "/shell", "/login.action",
+              "/solr/", "/geoserver", "/manager/html",
+          )
+          static_prefixes = ("/static/", "/favicon", "/robots.txt", "/sitemap.xml", "/.well-known/")
+          internal_prefixes = ("/health", "/admin", "/owner", "/aliexpress/callback")
+
+          rows = []
+          parsed_total = 0
+          earliest = None
+          latest = None
+          files = sorted(glob.glob("/var/log/nginx/access.log*"))
+          for path in files:
+              opener = gzip.open if path.endswith(".gz") else open
+              try:
+                  with opener(path, "rt", encoding="utf-8", errors="replace") as fh:
+                      for line in fh:
+                          m = log_re.match(line.rstrip("\n"))
+                          if not m:
+                              continue
+                          parsed_total += 1
+                          ip, ts_raw, method, target, status_raw, _size, ref, ua = m.groups()
+                          try:
+                              ts = dt.datetime.strptime(ts_raw, "%d/%b/%Y:%H:%M:%S %z").astimezone(dt.timezone.utc)
+                          except ValueError:
+                              continue
+                          earliest = ts if earliest is None or ts < earliest else earliest
+                          latest = ts if latest is None or ts > latest else latest
+                          if not (start <= ts <= end):
+                              continue
+                          status = int(status_raw)
+                          parts = urlsplit(target)
+                          path_only = parts.path
+                          query = parse_qs(parts.query)
+                          ua_l = ua.lower()
+                          ref_l = ref.lower()
+                          path_l = path_only.lower()
+                          is_bot = any(tok in ua_l for tok in bot_tokens)
+                          is_scanner = any(tok in path_l for tok in scanner_tokens)
+                          is_static = path_l.startswith(static_prefixes)
+                          is_internal = path_l.startswith(internal_prefixes) or "gestao" in query or "owner_preview" in query
+                          is_owner = "2201116sc" in ua_l
+                          is_meta = (
+                              any(tok in ref_l for tok in ("facebook.com", "instagram.com", "fb.com"))
+                              or "fbclid" in query
+                              or any(
+                                  any(v.lower() in ("facebook", "instagram", "meta") for v in vals)
+                                  for key, vals in query.items()
+                                  if key.lower() in ("utm_source", "utm_medium")
+                              )
+                          )
+                          rows.append({
+                              "ip": ip, "ts": ts, "method": method, "target": target,
+                              "path": path_only, "status": status, "ref": ref, "ua": ua,
+                              "bot": is_bot, "scanner": is_scanner, "static": is_static,
+                              "internal": is_internal, "owner": is_owner, "meta": is_meta,
+                          })
+              except (OSError, EOFError):
+                  continue
+
+          print(f"LOG_FILES={len(files)}")
+          print(f"LOG_PARSED_TOTAL={parsed_total}")
+          print(f"LOG_EARLIEST={earliest.isoformat() if earliest else 'NONE'}")
+          print(f"LOG_LATEST={latest.isoformat() if latest else 'NONE'}")
+
+          public = [
+              r for r in rows
+              if r["method"] in ("GET", "HEAD")
+              and r["status"] < 500
+              and not r["bot"]
+              and not r["scanner"]
+              and not r["static"]
+              and not r["internal"]
+              and not r["owner"]
+          ]
+
+          # Sessionize by IP + UA with a 30-minute inactivity break.
+          public.sort(key=lambda r: r["ts"])
+          sessions = []
+          state = {}
+          for r in public:
+              key = (r["ip"], r["ua"])
+              prev = state.get(key)
+              if prev is None or (r["ts"] - prev["last"]).total_seconds() > 1800:
+                  s = {
+                      "id": len(sessions) + 1,
+                      "key": key,
+                      "start": r["ts"],
+                      "last": r["ts"],
+                      "rows": [],
+                  }
+                  sessions.append(s)
+                  state[key] = s
+              else:
+                  s = prev
+                  s["last"] = r["ts"]
+              s["rows"].append(r)
+
+          def is_home(r):
+              return r["path"] == "/" and r["status"] == 200
+          def is_family(r):
+              return r["path"].startswith("/products/") and r["status"] == 200
+          def is_go(r):
+              return r["path"].startswith("/go/") and r["status"] in (301, 302, 303, 307, 308)
+          def is_contact(r):
+              return r["path"] == "/contacto/" and r["status"] == 200
+
+          home_sessions = [s for s in sessions if any(is_home(r) for r in s["rows"])]
+          family_sessions = [s for s in sessions if any(is_family(r) for r in s["rows"])]
+          go_sessions = [s for s in sessions if any(is_go(r) for r in s["rows"])]
+          contact_sessions = [s for s in sessions if any(is_contact(r) for r in s["rows"])]
+          meta_sessions = [s for s in sessions if any(r["meta"] for r in s["rows"])]
+
+          pageviews = sum(r["status"] == 200 for r in public)
+          home_views = sum(is_home(r) for r in public)
+          family_views = sum(is_family(r) for r in public)
+          go_hits = sum(is_go(r) for r in public)
+          contact_views = sum(is_contact(r) for r in public)
+          unique_ips = len({r["ip"] for r in public})
+
+          print(f"HUMANISH_PAGEVIEWS={pageviews}")
+          print(f"HUMANISH_UNIQUE_IPS={unique_ips}")
+          print(f"HUMANISH_SESSIONS={len(sessions)}")
+          print(f"HOME_VIEWS={home_views}")
+          print(f"HOME_SESSIONS={len(home_sessions)}")
+          print(f"FAMILY_VIEWS={family_views}")
+          print(f"FAMILY_SESSIONS={len(family_sessions)}")
+          print(f"GO_REDIRECTS={go_hits}")
+          print(f"GO_SESSIONS={len(go_sessions)}")
+          print(f"CONTACT_VIEWS={contact_views}")
+          print(f"CONTACT_SESSIONS={len(contact_sessions)}")
+          print(f"META_ATTRIBUTED_SESSIONS={len(meta_sessions)}")
+          print(f"BOT_OR_SCANNER_REQUESTS={sum(r['bot'] or r['scanner'] for r in rows)}")
+
+          if sessions:
+              print(f"SESSION_TO_FAMILY_RATE={len(family_sessions)/len(sessions)*100:.1f}")
+              print(f"SESSION_TO_GO_RATE={len(go_sessions)/len(sessions)*100:.1f}")
+          if family_sessions:
+              print(f"FAMILY_TO_GO_RATE={len(go_sessions)/len(family_sessions)*100:.1f}")
+
+          fam_counts = collections.Counter()
+          fam_session_counts = collections.Counter()
+          for r in public:
+              if is_family(r):
+                  slug = r["path"].strip("/").split("/", 1)[1]
+                  fam_counts[slug] += 1
+          for s in sessions:
+              seen = set()
+              for r in s["rows"]:
+                  if is_family(r):
+                      seen.add(r["path"].strip("/").split("/", 1)[1])
+              for slug in seen:
+                  fam_session_counts[slug] += 1
+          for slug in sorted(fam_counts):
+              print(
+                  f"FAMILY_TRAFFIC={slug}|VIEWS={fam_counts[slug]}|SESSIONS={fam_session_counts[slug]}"
+              )
+
+          daily = collections.Counter()
+          daily_go = collections.Counter()
+          daily_family = collections.Counter()
+          for r in public:
+              day = r["ts"].date().isoformat()
+              if r["status"] == 200:
+                  daily[day] += 1
+              if is_family(r):
+                  daily_family[day] += 1
+              if is_go(r):
+                  daily_go[day] += 1
+          for day in sorted(daily):
+              print(
+                  f"DAY={day}|PAGEVIEWS={daily[day]}|FAMILY_VIEWS={daily_family[day]}|GO={daily_go[day]}"
+              )
+          PY
+
+          echo "== DATABASE FUNNEL =="
+          sudo -n bash -s <<'ROOT'
+          set -euo pipefail
+          set -a
+          . /etc/lowcost-europa/lowcost-europa.env
+          set +a
+          cd /srv/lowcost-europa
+
+          exec sudo -u le001_1789265592 -E /srv/lowcost-europa/.venv/bin/python - <<'PY'
+          import os
+          from datetime import datetime, timezone
+          os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.production")
+          import django
+          django.setup()
+
+          from django.db.models import Count
+          from apps.catalog.models import OfferCandidate, OfferClick, OfferFamilyPlacement, ProductFamily
+          from apps.catalog.services.public_eligibility import public_eligibility_q
+
+          start = datetime(2026, 9, 23, 0, 0, tzinfo=timezone.utc)
+          clicks = OfferClick.objects.filter(clicked_at__gte=start)
+          print(f"DB_GO_CLICKS_SINCE_2026_09_23={clicks.count()}")
+          print(f"DB_GO_DISTINCT_OFFERS_SINCE_2026_09_23={clicks.values('offer_id').distinct().count()}")
+
+          top = (
+              clicks.values("offer_id", "offer__title")
+              .annotate(n=Count("id"))
+              .order_by("-n", "offer_id")[:10]
+          )
+          for item in top:
+              title = (item["offer__title"] or "").replace("|", " ")[:80]
+              print(f"TOP_CLICKED_OFFER=ID:{item['offer_id']}|CLICKS:{item['n']}|TITLE:{title}")
+
+          for family in ProductFamily.objects.exclude(status=ProductFamily.Status.RETIRED).order_by("display_order", "slug"):
+              public_count = OfferFamilyPlacement.objects.filter(
+                  product_family=family
+              ).filter(public_eligibility_q(prefix="offer__")).count()
+              pending = OfferCandidate.objects.filter(
+                  product_family=family,
+                  status=OfferCandidate.Status.PENDING,
+              ).count()
+              print(f"STOREFRONT_FAMILY={family.slug}|PUBLIC_OFFERS={public_count}|PENDING={pending}")
+          PY
+          ROOT
+          REMOTE
