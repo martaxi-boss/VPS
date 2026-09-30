@@ -1,4 +1,4 @@
-name: Lowcost Europa Storefront Conversion 001
+name: Lowcost Europa Storefront Conversion Cleanup 001
 
 on:
   pull_request:
@@ -6,459 +6,48 @@ on:
     paths:
       - ".github/workflows/lowcost-storefront-conversion-001.yml"
 
+permissions:
+  contents: write
+
 jobs:
-  deploy-and-accept:
+  cleanup:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
-    permissions:
-      contents: read
+    timeout-minutes: 5
     steps:
-      - name: Checkout exact authoritative Lowcost main on runner
-        uses: actions/checkout@v4
-        with:
-          repository: martaxi-boss/lowcost-europa
-          ref: 82ff2d68835bf083de3b4da6ce674ae24631b3c5
-          fetch-depth: 0
-          token: ${{ secrets.LOWCOST_GITHUB_READ_TOKEN }}
-          persist-credentials: false
-          path: lowcost-src
-
-      - name: Verify exact checkout and create bundle
-        shell: bash
-        run: |
-          set -euo pipefail
-          EXPECTED="82ff2d68835bf083de3b4da6ce674ae24631b3c5"
-          ACTUAL="$(git -C lowcost-src rev-parse HEAD)"
-          echo "RUNNER_CHECKOUT_SHA=$ACTUAL"
-          test "$ACTUAL" = "$EXPECTED"
-          if git -C lowcost-src config --local --get-regexp '^http\..*\.extraheader$' >/dev/null 2>&1; then
-            echo "PERSISTED_CHECKOUT_CREDENTIAL=YES"
-            exit 10
-          fi
-          echo "PERSISTED_CHECKOUT_CREDENTIAL=NO"
-          git -C lowcost-src update-ref refs/heads/main "$EXPECTED"
-          git -C lowcost-src bundle create "$GITHUB_WORKSPACE/lowcost-europa-main.bundle" refs/heads/main
-          git -C lowcost-src bundle verify "$GITHUB_WORKSPACE/lowcost-europa-main.bundle"
-          git -C lowcost-src bundle list-heads "$GITHUB_WORKSPACE/lowcost-europa-main.bundle" | grep -Fx "$EXPECTED refs/heads/main"
-          chmod 600 "$GITHUB_WORKSPACE/lowcost-europa-main.bundle"
-          echo "BUNDLE_VERIFY=PASS"
-
-      - name: Install SSH transport dependency
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq sshpass >/dev/null
-
-      - name: OVH preflight and bundle transport
+      - name: Remove superseded VPS temp branch
         env:
-          VPS_SSH_PASSWORD: ${{ secrets.VPS_SSH_PASSWORD }}
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          HOST="146.59.145.3"
-          USER="ubuntu"
-          APP_USER="le001_1789265592"
-          OLD_SHA="82ff2d68835bf083de3b4da6ce674ae24631b3c5"
-          UPLOAD="/tmp/lowcost-storefront-conversion-001.bundle.upload"
-          REMOTE_BUNDLE="/tmp/lowcost-storefront-conversion-001.bundle"
-          test -n "${VPS_SSH_PASSWORD:-}"
+          gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/ops/lowcost-storefront-conversion-001"
+          echo "OLD_VPS_TEMP_BRANCH_DELETED=YES"
 
-          sshpass -p "$VPS_SSH_PASSWORD" ssh \
-            -o PreferredAuthentications=password \
-            -o PubkeyAuthentication=no \
-            -o StrictHostKeyChecking=accept-new \
-            -o ConnectTimeout=10 \
-            "$USER@$HOST" 'bash -s' <<'REMOTE'
-          set -euo pipefail
-          APP=/srv/lowcost-europa
-          APP_USER=le001_1789265592
-          EXPECTED_PRE=82ff2d68835bf083de3b4da6ce674ae24631b3c5
-          HEAD_NOW="$(sudo -u "$APP_USER" git -C "$APP" rev-parse HEAD)"
-          BRANCH_NOW="$(sudo -u "$APP_USER" git -C "$APP" branch --show-current)"
-          STATUS_NOW="$(sudo -u "$APP_USER" git -C "$APP" status --short)"
-          echo "PRE_HEAD=$HEAD_NOW"
-          echo "PRE_BRANCH=$BRANCH_NOW"
-          test "$HEAD_NOW" = "$EXPECTED_PRE"
-          test "$BRANCH_NOW" = main
-          test -z "$STATUS_NOW"
-          echo "PRE_WORKTREE=CLEAN"
-          test "$(systemctl is-active lowcost-europa.service)" = active
-          test "$(systemctl is-active nginx)" = active
-          test "$(systemctl is-active postgresql)" = active
-          test "$(systemctl is-active lowcost-europa-weekly-discovery.timer)" = active
-          test "$(systemctl is-enabled lowcost-europa-weekly-discovery.timer)" = enabled
-          echo "PRE_SERVICES=PASS"
-          echo "PRE_WEEKLY_TIMER=UNCHANGED_ACTIVE_ENABLED"
-          REMOTE
-
-          sshpass -p "$VPS_SSH_PASSWORD" scp \
-            -o PreferredAuthentications=password \
-            -o PubkeyAuthentication=no \
-            -o StrictHostKeyChecking=accept-new \
-            -o ConnectTimeout=10 \
-            "$GITHUB_WORKSPACE/lowcost-europa-main.bundle" "$USER@$HOST:$UPLOAD"
-
-          sshpass -p "$VPS_SSH_PASSWORD" ssh \
-            -o PreferredAuthentications=password \
-            -o PubkeyAuthentication=no \
-            -o StrictHostKeyChecking=accept-new \
-            -o ConnectTimeout=10 \
-            "$USER@$HOST" \
-            "sudo -n mv '$UPLOAD' '$REMOTE_BUNDLE' && sudo -n chown $APP_USER:$APP_USER '$REMOTE_BUNDLE' && sudo -n chmod 600 '$REMOTE_BUNDLE'"
-          echo "BUNDLE_TRANSPORT=PASS"
-          echo "GITHUB_TOKEN_TRANSMITTED_TO_OVH=NO"
-
-      - name: Deploy exact merged SHA and verify public contract
+      - name: Remove merged Lowcost builder branch
         env:
-          VPS_SSH_PASSWORD: ${{ secrets.VPS_SSH_PASSWORD }}
+          LOWCOST_TOKEN: ${{ secrets.LOWCOST_GITHUB_READ_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
-          HOST="146.59.145.3"
-          USER="ubuntu"
-          sshpass -p "$VPS_SSH_PASSWORD" ssh \
-            -o PreferredAuthentications=password \
-            -o PubkeyAuthentication=no \
-            -o StrictHostKeyChecking=accept-new \
-            -o ConnectTimeout=10 \
-            "$USER@$HOST" 'bash -s' <<'REMOTE'
-          set -euo pipefail
-
-          APP=/srv/lowcost-europa
-          APP_USER=le001_1789265592
-          EXPECTED_PRE=82ff2d68835bf083de3b4da6ce674ae24631b3c5
-          EXPECTED_MAIN=82ff2d68835bf083de3b4da6ce674ae24631b3c5
-          BUNDLE=/tmp/lowcost-storefront-conversion-001.bundle
-          DUCK=lowcost-europa.duckdns.org
-
-          cleanup() {
-            sudo -n rm -f "$BUNDLE" /tmp/lowcost-storefront-conversion-001.bundle.upload || true
-          }
-          trap cleanup EXIT
-
-          git_app() {
-            sudo -u "$APP_USER" git -C "$APP" "$@"
-          }
-
-          run_manage() {
-            sudo -n bash -c '
-              set -a
-              . /etc/lowcost-europa/lowcost-europa.env
-              set +a
-              cd /srv/lowcost-europa
-              exec sudo -u le001_1789265592 -E /srv/lowcost-europa/.venv/bin/python manage.py "$@"
-            ' _ "$@"
-          }
-
-          http_code() {
-            path="$1"
-            curl --noproxy "*" --resolve "$DUCK:443:127.0.0.1" \
-              --max-time 15 -sS -o /dev/null -w "%{http_code}" "https://$DUCK$path"
-          }
-
-          http_body() {
-            path="$1"
-            curl --noproxy "*" --resolve "$DUCK:443:127.0.0.1" \
-              --max-time 15 -fsS "https://$DUCK$path"
-          }
-
-          db_snapshot() {
-            sudo -n bash -s <<'ROOT'
-          set -euo pipefail
-          set -a
-          . /etc/lowcost-europa/lowcost-europa.env
-          set +a
-          cd /srv/lowcost-europa
-          exec sudo -u le001_1789265592 -E /srv/lowcost-europa/.venv/bin/python - <<'PY'
-          import hashlib
-          import json
-          import os
-          os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.production")
-          import django
-          django.setup()
-          from apps.catalog.models import CandidateDecision, Offer, OfferCandidate, OfferFamilyPlacement, ProductFamily
-
-          def model_state(model):
-              fields = [f.attname for f in model._meta.concrete_fields]
-              rows = list(model.objects.order_by("pk").values(*fields))
-              payload = json.dumps(rows, default=str, sort_keys=True, separators=(",", ":"))
-              return {
-                  "count": len(rows),
-                  "hash": hashlib.sha256(payload.encode()).hexdigest(),
-              }
-
-          data = {
-              "Offer": model_state(Offer),
-              "OfferCandidate": model_state(OfferCandidate),
-              "CandidateDecision": model_state(CandidateDecision),
-              "OfferFamilyPlacement": model_state(OfferFamilyPlacement),
-              "ProductFamily": model_state(ProductFamily),
-          }
-          print(json.dumps(data, sort_keys=True, separators=(",", ":")))
-          PY
-          ROOT
-          }
-
-          echo "== RECHECK BEFORE MUTATION =="
-          PRE_HEAD="$(git_app rev-parse HEAD)"
-          PRE_BRANCH="$(git_app branch --show-current)"
-          PRE_STATUS="$(git_app status --short)"
-          echo "PRE_HEAD=$PRE_HEAD"
-          echo "PRE_BRANCH=$PRE_BRANCH"
-          test "$PRE_HEAD" = "$EXPECTED_PRE"
-          test "$PRE_BRANCH" = main
-          test -z "$PRE_STATUS"
-          DB_PRE="$(db_snapshot)"
-          DB_PRE_DIGEST="$(printf '%s' "$DB_PRE" | sha256sum | cut -d' ' -f1)"
-          echo "DB_PRE_SHA256=$DB_PRE_DIGEST"
-          test "$DB_PRE_DIGEST" = "0f57e6ba13be0ee2ccce16f6c5dd5b226b0f6fe3b0c52d8940103acf5c686972"
-          echo "DATABASE_BASELINE_CONTINUITY=PASS"
-
-          echo "== IMPORT EXACT BUNDLE =="
-          sudo -u "$APP_USER" git -C "$APP" bundle verify "$BUNDLE"
-          git_app fetch "$BUNDLE" refs/heads/main:refs/remotes/bundle/main
-          git_app cat-file -e "$EXPECTED_MAIN^{commit}"
-          git_app merge-base --is-ancestor "$PRE_HEAD" "$EXPECTED_MAIN"
-          git_app checkout main
-          git_app merge --ff-only "$EXPECTED_MAIN"
-          test "$(git_app rev-parse HEAD)" = "$EXPECTED_MAIN"
-          test "$(git_app branch --show-current)" = main
-          test -z "$(git_app status --short)"
-          echo "RUNTIME_FAST_FORWARD=PASS"
-          cleanup
-          trap - EXIT
-          echo "TEMP_BUNDLE_REMOVED=YES"
-
-          echo "== CREDENTIAL BOUNDARY =="
-          APP_HOME="$(getent passwd "$APP_USER" | cut -d: -f6)"
-          test ! -e "$APP_HOME/.git-credentials"
-          test ! -e "$APP_HOME/.netrc"
-          test -z "$(git_app config --local --get credential.helper || true)"
-          test -z "$(sudo -u "$APP_USER" git config --global --get credential.helper || true)"
-          if sudo -n grep -qE '^(LOWCOST_GITHUB_READ_TOKEN|GITHUB_TOKEN|GH_TOKEN|GITHUB_PAT|GIT_TOKEN)=' /etc/lowcost-europa/lowcost-europa.env; then
-            echo "GITHUB_CREDENTIAL_STORED_ON_OVH=YES"
-            exit 31
+          test -n "${LOWCOST_TOKEN:-}"
+          code="$(curl -sS -o /tmp/lowcost-delete-body -w "%{http_code}" \
+            -X DELETE \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $LOWCOST_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/martaxi-boss/lowcost-europa/git/refs/heads/builder/storefront-conversion-001")"
+          echo "LOWCOST_BRANCH_DELETE_HTTP=$code"
+          if [ "$code" != 204 ] && [ "$code" != 422 ]; then
+            cat /tmp/lowcost-delete-body | sed -E 's/"documentation_url":"[^"]+"/"documentation_url":"omitted"/g'
+            exit 1
           fi
-          echo "GITHUB_CREDENTIAL_STORED_ON_OVH=NO"
+          echo "LOWCOST_BUILDER_BRANCH_DELETED=YES"
 
-          echo "== DJANGO VALIDATION =="
-          run_manage check
-          echo "DJANGO_CHECK=PASS"
-          run_manage check --deploy
-          echo "DEPLOY_CHECK=PASS"
-          run_manage makemigrations --check --dry-run
-          echo "MAKEMIGRATIONS_CHECK=PASS"
-          PLAN="$(run_manage migrate --plan)"
-          printf '%s\n' "$PLAN"
-          printf '%s\n' "$PLAN" | grep -q "No planned migration operations"
-          echo "MIGRATION_PLAN=NO_OPERATIONS"
-          echo "MIGRATIONS_APPLIED=0"
-          run_manage collectstatic --noinput
-          echo "COLLECTSTATIC=PASS"
-
-          echo "== RESTART APP ONLY =="
-          sudo -n systemctl restart lowcost-europa.service
-          test "$(systemctl is-active lowcost-europa.service)" = active
-          test "$(systemctl is-active nginx)" = active
-          test "$(systemctl is-active postgresql)" = active
-          test "$(systemctl is-active lowcost-europa-weekly-discovery.timer)" = active
-          test "$(systemctl is-enabled lowcost-europa-weekly-discovery.timer)" = enabled
-          echo "WEEKLY_PUSH_CHANGED=NO"
-
-          HOME=000
-          LIVE=000
-          READY=000
-          for attempt in $(seq 1 15); do
-            HOME="$(http_code /)"
-            LIVE="$(http_code /health/live/)"
-            READY="$(http_code /health/ready/)"
-            echo "HEALTH_ATTEMPT=$attempt HOME=$HOME LIVE=$LIVE READY=$READY"
-            if [ "$HOME" = 200 ] && [ "$LIVE" = 200 ] && [ "$READY" = 200 ]; then
-              break
-            fi
-            sleep 2
-          done
-          test "$HOME" = 200
-          test "$LIVE" = 200
-          test "$READY" = 200
-          echo "HOME_HTTP=$HOME"
-          echo "LIVE_HTTP=$LIVE"
-          echo "READY_HTTP=$READY"
-
-          CONTACT="$(http_code /contacto/)"
-          test "$CONTACT" = 200
-          echo "CONTACT_HTTP=$CONTACT"
-
-          HOME_BODY="$(http_body /)"
-          grep -Fq "VER EQUIPAMENTOS E PREÇOS" <<<"$HOME_BODY"
-          grep -Fq 'href="#familias"' <<<"$HOME_BODY"
-          grep -Fq 'id="familias"' <<<"$HOME_BODY"
-          echo "HERO_CTA=PASS"
-
-          FAMILY_COUNT=0
-          for slug in \
-            cavitacao-rf-vacuum-corpo \
-            hydrodermoabrasao-aqua-facial-multifuncoes \
-            pressoterapia-vacuum-drenagem \
-            hifu \
-            diodo-laser-remocao-tatuagens-pigmentacao
-          do
-            path="/products/$slug/"
-            grep -Fq "$path" <<<"$HOME_BODY"
-            code="$(http_code "$path")"
-            body="$(http_body "$path")"
-            test "$code" = 200
-            grep -Fq "VER PREÇO E COMPRAR NO ALIEXPRESS" <<<"$body"
-            grep -Eq 'href="/go/[0-9]+/"' <<<"$body"
-            grep -Fq "Compra externa." <<<"$body"
-            grep -Fq "A compra acontece fora do Lowcost Europa." <<<"$body"
-            ! grep -Eiq '<script[^>]+src=' <<<"$body"
-            ! grep -Fq "Gestão ativa" <<<"$body"
-            ! grep -Fq ">APROVAR<" <<<"$body"
-            ! grep -Fq ">REJEITAR<" <<<"$body"
-            FAMILY_COUNT=$((FAMILY_COUNT+1))
-            echo "FAMILY_PAGE_$slug=$code"
-          done
-          test "$FAMILY_COUNT" -eq 5
-          echo "FIVE_FAMILY_HTTP=200x5"
-          echo "CATEGORY_NAVIGATION=PASS"
-          echo "ALIEXPRESS_CTA=PASS"
-          echo "GO_LIVE_CLICK_PERFORMED=NO"
-
-          CONTACT_BODY="$(http_body /contacto/)"
-          grep -Fq "+351 965 471 236" <<<"$CONTACT_BODY"
-          grep -Fq 'href="/contactar/whatsapp/"' <<<"$CONTACT_BODY"
-          grep -Fq 'href="/contactar/whatsapp/"' <<<"$HOME_BODY"
-          echo "WHATSAPP_NEW_NUMBER=PASS"
-
-          HEADER_FILE="$(mktemp)"
-          STATUS="$(curl --noproxy "*" --resolve "$DUCK:443:127.0.0.1" --max-time 15 -sS -D "$HEADER_FILE" -o /dev/null -w "%{http_code}" "https://$DUCK/contactar/whatsapp/")"
-          test "$STATUS" = 302
-          LOCATION="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/\r$/,""); sub(/^[^:]*:[[:space:]]*/,""); print; exit}' "$HEADER_FILE")"
-          rm -f "$HEADER_FILE"
-          test "$LOCATION" = "https://wa.me/351965471236?text=Ol%C3%A1%2C%20vi%20um%20equipamento%20no%20Lowcost%20Europa%20e%20gostava%20de%20esclarecer%20uma%20d%C3%BAvida."
-          echo "WHATSAPP_REDIRECT=PASS"
-
-          if grep -R -n -F -e '351961726755' -e '+351 961 726 755' "$APP/apps/storefront" --exclude-dir=tests --include='*.py' --include='*.html' --include='*.css' --include='*.js'; then
-            echo "WHATSAPP_OLD_NUMBER_ABSENT=FAIL"
-            exit 42
-          fi
-          echo "WHATSAPP_OLD_NUMBER_ABSENT=PASS"
-
-          for body_name in HOME_BODY CONTACT_BODY; do
-            value="${!body_name}"
-            if grep -Eiq '<script[^>]+src=' <<<"$value"; then
-              echo "THIRD_PARTY_JS=FOUND"
-              exit 43
-            fi
-          done
-          echo "THIRD_PARTY_JS=NONE"
-
-          DB_POST="$(db_snapshot)"
-          echo "DB_POST_SHA256=$(printf '%s' "$DB_POST" | sha256sum | cut -d' ' -f1)"
-          test "$DB_PRE" = "$DB_POST"
-          echo "DATABASE_MUTATION=0"
-
-          test "$(git_app rev-parse HEAD)" = "$EXPECTED_MAIN"
-          test "$(git_app branch --show-current)" = main
-          test -z "$(git_app status --short)"
-          echo "FINAL_HEAD=$EXPECTED_MAIN"
-          echo "FINAL_BRANCH=main"
-          echo "FINAL_WORKTREE=CLEAN"
-          echo "FINAL_SERVICES=PASS"
-          REMOTE
-
-      - name: Mobile and desktop browser sanity
+      - name: Remove current VPS temp branch
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          BROWSER="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
-          test -n "$BROWSER"
-          python -m pip install --quiet playwright
-          BROWSER_PATH="$BROWSER" python - <<'PY'
-          import os
-          from playwright.sync_api import sync_playwright
-
-          base = "https://lowcost-europa.duckdns.org"
-          families = [
-              "/products/cavitacao-rf-vacuum-corpo/",
-              "/products/hydrodermoabrasao-aqua-facial-multifuncoes/",
-              "/products/pressoterapia-vacuum-drenagem/",
-              "/products/hifu/",
-              "/products/diodo-laser-remocao-tatuagens-pigmentacao/",
-          ]
-          pages = ["/", *families, "/contacto/"]
-          viewports = [
-              ("mobile", 390, 844),
-              ("desktop", 1440, 900),
-          ]
-
-          def intersects(a, b):
-              return not (
-                  a["x"] + a["width"] <= b["x"]
-                  or b["x"] + b["width"] <= a["x"]
-                  or a["y"] + a["height"] <= b["y"]
-                  or b["y"] + b["height"] <= a["y"]
-              )
-
-          with sync_playwright() as p:
-              browser = p.chromium.launch(headless=True, executable_path=os.environ["BROWSER_PATH"])
-              for label, width, height in viewports:
-                  page = browser.new_page(viewport={"width": width, "height": height})
-                  for path in pages:
-                      response = page.goto(base + path, wait_until="networkidle")
-                      assert response is not None and response.status == 200, (label, path, response.status if response else None)
-                      overflow = page.evaluate("document.documentElement.scrollWidth > window.innerWidth")
-                      assert not overflow, (label, path, "horizontal overflow")
-
-                      wa = page.locator(".whatsapp-float")
-                      assert wa.is_visible(), (label, path, "WhatsApp not visible")
-
-                      if path == "/":
-                          hero = page.get_by_role("link", name="VER EQUIPAMENTOS E PREÇOS")
-                          assert hero.is_visible()
-                          assert hero.get_attribute("href") == "#familias"
-                          box = hero.bounding_box()
-                          assert box and box["height"] >= 44 and box["x"] >= 0 and box["x"] + box["width"] <= width + 1
-                          links = page.locator(".family-index a")
-                          assert links.count() == 5
-                          for i in range(links.count()):
-                              family_link = links.nth(i)
-                              assert family_link.is_visible()
-                              family_box = family_link.bounding_box()
-                              assert family_box and family_box["height"] >= 44
-
-                      if path in families:
-                          ctas = page.get_by_role("link", name="VER PREÇO E COMPRAR NO ALIEXPRESS")
-                          assert ctas.count() >= 1, (label, path, "AliExpress CTA missing")
-                          for i in range(ctas.count()):
-                              cta = ctas.nth(i)
-                              cta.evaluate("(el) => el.scrollIntoView({block: 'center'})")
-                              page.wait_for_timeout(50)
-                              cta_box = cta.bounding_box()
-                              wa_box = wa.bounding_box()
-                              assert cta_box and wa_box
-                              assert cta_box["x"] >= 0 and cta_box["x"] + cta_box["width"] <= width + 1
-                              assert not intersects(cta_box, wa_box), (label, path, "WhatsApp overlaps CTA")
-
-                      footer = page.locator(".site-footer")
-                      footer.scroll_into_view_if_needed()
-                      page.wait_for_timeout(50)
-                      wa_box = wa.bounding_box()
-                      assert wa_box
-                      footer_items = page.locator(".site-footer a, .site-footer p")
-                      for i in range(footer_items.count()):
-                          item = footer_items.nth(i)
-                          box = item.bounding_box()
-                          if box:
-                              assert not intersects(box, wa_box), (label, path, "WhatsApp overlaps footer content")
-                  page.close()
-              browser.close()
-          print("VISUAL_SANITY_DESKTOP=PASS")
-          print("VISUAL_SANITY_MOBILE=PASS")
-          print("NO_HORIZONTAL_OVERFLOW=PASS")
-          print("WHATSAPP_NO_CTA_OVERLAP=PASS")
-          print("WHATSAPP_NO_FOOTER_CONTENT_OVERLAP=PASS")
-          PY
-# deployment trigger 002
+          gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/ops/lowcost-storefront-conversion-deploy-001"
+          echo "CURRENT_VPS_TEMP_BRANCH_DELETED=YES"
