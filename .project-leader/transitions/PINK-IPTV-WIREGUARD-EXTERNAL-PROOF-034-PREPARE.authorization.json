@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-WIREGUARD-EXTERNAL-PROOF-034-PREPARE",
+  "task_id": "PINK-IPTV-WIREGUARD-EXTERNAL-PROOF-034",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-04T15:06:11.003Z",
+  "action": "prepare_fixed_external_wireguard_proof_workflow",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "binding_mode": "EXACT_REVISION_BOUND",
+    "summary": "Canonical Phase4 one-peer staging proof follows certified033 inverse/root baseline. Fixed minimal protocol test, no persistent server, controlled single target HTTPS egress, source-bound ingress, exact inverse, host watchdog and protected keys; reviewed syntax/policy before execution."
+  },
+  "target": {
+    "kind": "bounded_operations_workflow",
+    "identifier": "builder/pink-wg-external-proof-034",
+    "revision": "23fb4ac25de002b37eab78b92915da0bcced26ba",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "Authorized OVH staging and one ephemeral GitHub-hosted peer"
+  }
+}
