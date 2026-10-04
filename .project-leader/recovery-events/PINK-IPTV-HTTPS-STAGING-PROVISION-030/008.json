@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-HTTPS-STAGING-PROVISION-030",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 8,
+  "recorded_at": "2026-10-04T09:05:17.689Z",
+  "event": "RETRY_AUTHORIZED",
+  "strategy_generation": 4,
+  "action_fingerprint": "030-existing-account-show-compatibility-provision",
+  "attempt_count": 1,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "032bc40a3a1729a77d58764f5206816b5372026fd28f7bbf96962c66f39992a7",
+  "detail": "Authorize fresh descendant HTTPS execution after precise synthetic-file permission correction; no oldSHA rerun, broadened access/credentials/ACMEterms/firewall changes."
+}
