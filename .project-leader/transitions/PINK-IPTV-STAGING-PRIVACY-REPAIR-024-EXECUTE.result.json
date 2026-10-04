@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-STAGING-PRIVACY-REPAIR-024-EXECUTE",
+  "task_id": "PINK-IPTV-STAGING-PRIVACY-REPAIR-024",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-STAGING-PRIVACY-REPAIR-024-EXECUTE.authorization.json",
+  "action": "execute_exact_staging_privacy_repair",
+  "target": {
+    "kind": "repository_branch",
+    "identifier": "builder/pink-staging-privacy-024",
+    "revision": "9dc6405e93aeb07037e48ec3412a30705415d474",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "OVH development/staging"
+  },
+  "observed_at": "2026-10-04T03:56:52.426Z",
+  "final_state": {
+    "status": "OBSERVED",
+    "revision": "9dc6405e93aeb07037e48ec3412a30705415d474"
+  },
+  "evidence": [
+    "ExactSHA run37175467182/job111357052999 SUCCESS; single approved source file, restricted original backup and atomic inverse audited.",
+    "REPAIR_BEGIN=024\nOBSERVED_AT_UTC=2026-10-04T03:55:39Z\nRESTRICTED_ORIGINAL_BACKUP=VERIFIED\nFILE_INVERSE_REHEARSAL=HASH_VERIFIED\nSYNTHETIC_INVALID_HTTP=422\nSYNTHETIC_INPUT_ECHO=NO\nSYNTHETIC_CACHE_NOSTORE=YES\nPINK_OPENAPI_HTTP=200\nDEPLOYED_BACKEND_MAIN_SHA256=3e060d0bb583c56515a9074eece55f16ad3ec2b8e8b6e82d8de40c462954ca44\nBASE_RUNTIME_GIT_REVISION=ccccaf1eb25ca80936763f7d6a17e4dd00347e8a\nEXISTING_SERVICES=ACTIVE\nPOSTGRES_READY=YES\nSOURCE_OVERLAY=APPROVED_MAIN_PRIVACY_FIX_ONLY\nREPAIR_END=024"
+  ],
+  "residual_blockers": []
+}

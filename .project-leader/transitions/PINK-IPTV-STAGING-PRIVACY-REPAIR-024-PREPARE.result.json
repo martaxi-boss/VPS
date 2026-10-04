@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-STAGING-PRIVACY-REPAIR-024-PREPARE",
+  "task_id": "PINK-IPTV-STAGING-PRIVACY-REPAIR-024",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-STAGING-PRIVACY-REPAIR-024-PREPARE.authorization.json",
+  "action": "add_fixed_staging_repair_workflow",
+  "target": {
+    "kind": "repository_branch",
+    "identifier": "builder/pink-staging-privacy-024",
+    "revision": "5c0b96525cc1ac3d0d0288edabb2be82b150c061",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "OVH development/staging"
+  },
+  "observed_at": "2026-10-04T03:56:52.426Z",
+  "final_state": {
+    "status": "OBSERVED",
+    "revision": "9dc6405e93aeb07037e48ec3412a30705415d474"
+  },
+  "evidence": [
+    "ExactSHA run37175467182/job111357052999 SUCCESS; single approved source file, restricted original backup and atomic inverse audited.",
+    "Preparation dd720ec6d980c09df9e75495e10d280dc2f9f6bd precedes implementation; execution authority 0bee674f150dea135f7338230158406ea6bed8b2 persisted before push."
+  ],
+  "residual_blockers": []
+}
