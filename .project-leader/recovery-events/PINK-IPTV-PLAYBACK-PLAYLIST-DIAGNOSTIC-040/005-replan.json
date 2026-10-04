@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-PLAYBACK-PLAYLIST-DIAGNOSTIC-040",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 5,
+  "recorded_at": "2026-10-04T20:26:32.837Z",
+  "event": "REPLAN",
+  "strategy_generation": 3,
+  "action_fingerprint": "040-provider-first-source-exact",
+  "attempt_count": 0,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "10e21b377c6aabd910d512b37633012bf41f4b0234982ba8428ec0fece584a61",
+  "detail": "Last bounded source check: provider first URL is legacy3segments with identical credentials and origin; .ts-only diagnostic restriction still skipped it. Accept provider-supplied numericid with noextension or bounded alphanum extension, no new constructed URL, no userinfo/query or redirects. Emit only extension enum/query flag; at most4096 bytes. Stop automatic source-shape refinements after this closed observation."
+}
