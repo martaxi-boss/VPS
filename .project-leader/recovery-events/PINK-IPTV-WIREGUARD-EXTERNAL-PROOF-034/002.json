@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-WIREGUARD-EXTERNAL-PROOF-034",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 2,
+  "recorded_at": "2026-10-04T15:10:12.211Z",
+  "event": "RETRY_AUTHORIZED",
+  "strategy_generation": 1,
+  "action_fingerprint": "external-wg-proof034-route-install",
+  "attempt_count": 2,
+  "identical_failure_count": 1,
+  "no_progress_iterations": 1,
+  "previous_event_sha256": "c2e6101e85da2b9b25168faaa9468c03eb8afd012aa5b80736580187d6fb0f77",
+  "detail": "Supervisor authorizes one fresh descendant execution: reuse address-created connected route after asserting dev binding, use separate r2 protected baseline/watchdog, assert prior manifest ROLLED_BACK/private key absent/timer inactive plus unchanged033 live firewall and zero forwarding/interfaces before any effect. No old-SHA rerun; scope remains one ephemeral peer and exact inverse."
+}
