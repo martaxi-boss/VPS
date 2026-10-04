@@ -169,12 +169,17 @@ jobs:
                               legacy=len(pieces)==3 and pieces[0]==line.username and pieces[1]==password
                               credentials_match=canonical or legacy
                               numeric_ts=bool(pieces and pieces[-1].endswith('.ts') and pieces[-1][:-3].isdigit())
+                              import re
+                              safe_media_id=bool(pieces and re.fullmatch(r'[0-9]+(?:\.[A-Za-z0-9]{1,12})?',pieces[-1]))
+                              extension=pieces[-1].rsplit('.',1)[-1] if pieces and '.' in pieces[-1] else None
+                              print('PLAYLIST_EXTENSION='+('NONE' if extension is None else 'TS' if extension=='ts' else 'HLS' if extension=='m3u8' else 'OTHER'),flush=True)
+                              print('PLAYLIST_QUERY_PRESENT='+('YES' if parsed.query else 'NO'),flush=True)
                               print('PLAYLIST_PATH_SEGMENTS='+str(len(pieces)),flush=True)
                               print('PLAYLIST_PATH_SHAPE='+('CANONICAL' if canonical else 'LEGACY' if legacy else 'OTHER'),flush=True)
                               print('PLAYLIST_ORIGIN_MATCH='+('YES' if same_origin else 'NO'),flush=True)
                               print('PLAYLIST_CREDENTIALS_MATCH='+('YES' if credentials_match else 'NO'),flush=True)
                               print('PLAYLIST_CANONICAL_TS_PATH='+('YES' if canonical and numeric_ts else 'NO'),flush=True)
-                              if same_origin and credentials_match and numeric_ts and not parsed.username and not parsed.password and not parsed.query:
+                              if same_origin and credentials_match and safe_media_id and not parsed.username and not parsed.password and not parsed.query:
                                   with upstream.stream('GET',first,headers={'Accept':'*/*'}) as media:
                                       print('PLAYLIST_SOURCE_HTTP='+str(media.status_code),flush=True)
                                       print('PLAYLIST_SOURCE_REDIRECT='+('YES' if media.headers.get('location') else 'NO'),flush=True)
