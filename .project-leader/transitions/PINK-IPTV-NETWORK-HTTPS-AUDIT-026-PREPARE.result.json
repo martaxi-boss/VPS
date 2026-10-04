@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-NETWORK-HTTPS-AUDIT-026-PREPARE",
+  "task_id": "PINK-IPTV-NETWORK-HTTPS-AUDIT-026",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-NETWORK-HTTPS-AUDIT-026-PREPARE.authorization.json",
+  "action": "add_fixed_privileged_observation_workflow",
+  "target": {
+    "kind": "repository_branch",
+    "identifier": "builder/pink-network-https-026",
+    "revision": "897589b5e4a70810e3830d3383bce5c56be26fc9",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "OVH development/staging"
+  },
+  "observed_at": "2026-10-04T04:09:23.653Z",
+  "final_state": {
+    "status": "OBSERVED",
+    "revision": "612ffb628d1d3ffb266c482b77cce2cfd72e5835"
+  },
+  "evidence": [
+    "ExactSHA run37176105887 SUCCESS; fixed PINK8010 literal/upstream-only metadata parser; no raw configs/keys/other project hostnames.",
+    "Preparation fd27c91cde8e2cada96af25d3f4fa1a30121351f precedes implementation; execution authority c4d05c39606a178be4e3ccb247cce78933f30c97 persisted before push."
+  ],
+  "residual_blockers": []
+}
