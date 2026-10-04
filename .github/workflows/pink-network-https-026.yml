@@ -1,0 +1,70 @@
+name: PINK Network HTTPS Audit 026
+on:
+  push:
+    branches: [builder/pink-network-https-026]
+    paths:
+      - '.github/workflows/pink-network-https-026.yml'
+permissions:
+  contents: read
+concurrency:
+  group: pink-network-https-026
+  cancel-in-progress: false
+jobs:
+  observe:
+    if: github.event.head_commit.message == 'Execute readonly network HTTPS audit 026'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Fixed read-only observation on authorized OVH host
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ubuntu@146.59.145.3 'bash -s' <<'READ_ONLY_OBSERVATION'
+          set -euo pipefail
+          test "$(hostname)" = vps-32bea5b6
+          echo EXPOSURE_BEGIN=026
+          date -u '+OBSERVED_AT_UTC=%Y-%m-%dT%H:%M:%SZ'
+          for tool in iptables ip6tables; do
+            "$tool" --version
+            sudo -n "$tool" -S | awk -v t="$tool" '$1=="-N" && $2~/^ufw6?-/{n++} END{print "UFW_OR_UFW6_CHAIN_COUNT[" t "]=" n+0}'
+          done
+          sudo -n awk -F= '$1=="IPV6" && ($2=="yes"||$2=="no"){print "UFW_CONFIG_IPV6=" $2}' /etc/default/ufw
+          sudo -n python3 - <<'PY'
+          import subprocess,re
+          r=subprocess.run(['nginx','-T'],capture_output=True,text=True,timeout=10)
+          print('NGINX_CONFIG_TEST='+('PASS' if r.returncode==0 else 'FAIL'))
+          if r.returncode:raise SystemExit(1)
+          text=re.sub(r'(?m)#.*$','',r.stdout)
+          blocks=[]
+          aliases=[]
+          for u in re.finditer(r'\bupstream\s+([A-Za-z0-9_-]+)\s*\{([^{}]*)\}',text):
+           if re.search(r'\bserver\s+(?:127\.0\.0\.1|localhost):8010(?:\s|;)',u.group(2)):aliases.append(u.group(1))
+          print('PINK_BACKEND_UPSTREAM_ALIAS_COUNT='+str(len(aliases)))
+          for m in re.finditer(r'\bserver\s*\{',text):
+           depth=1;i=m.end()
+           while i<len(text) and depth:
+            if text[i]=='{':depth+=1
+            elif text[i]=='}':depth-=1
+            i+=1
+           b=text[m.end():i-1]
+           direct=re.search(r'\bproxy_pass\s+http://(?:127\.0\.0\.1|localhost):8010(?:/|;)',b)
+           alias=any(re.search(r'\bproxy_pass\s+http://'+re.escape(a)+r'(?:/|;)',b) for a in aliases)
+           if direct or alias:blocks.append(b)
+          print('PINK_BACKEND_PROXY_BLOCK_COUNT='+str(len(blocks)))
+          for i,b in enumerate(blocks,1):
+           listeners=re.findall(r'\blisten\s+([^;]+);',b)
+           tls=any(re.search(r'\bssl\b',x) for x in listeners)
+           print('PINK_PROXY_TLS_LISTENER['+str(i)+']='+('YES' if tls else 'NO'))
+           names=re.findall(r'\bserver_name\s+([^;]+);',b)
+           safe=sorted(set(n for group in names for n in group.split() if re.fullmatch(r'[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?',n)))
+           print('PINK_PROXY_HOSTNAME_COUNT['+str(i)+']='+str(len(safe)))
+           for n in safe:print('PINK_BACKEND_HOSTNAME='+n)
+           print('PINK_PROXY_CERTIFICATE_DECLARED['+str(i)+']='+('YES' if re.search(r'\bssl_certificate\s+',b) else 'NO'))
+          PY
+          echo EXPOSURE_END=026
+          READ_ONLY_OBSERVATION
