@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-WIREGUARD-ISOLATED-REHEARSAL-025-EXECUTE",
+  "task_id": "PINK-IPTV-WIREGUARD-ISOLATED-REHEARSAL-025",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-04T04:01:55.351Z",
+  "action": "execute_exact_isolated_wireguard_rehearsal",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "binding_mode": "EXACT_REVISION_BOUND",
+    "summary": "Covered Phase4 inverse rehearsal using only new isolated namespaces and ephemeral local test keys; no external peer or host network policy change."
+  },
+  "target": {
+    "kind": "repository_branch",
+    "identifier": "builder/pink-wg-isolated-025",
+    "revision": "374ef9254758400ee6db191d5d180afb2fdbb2eb",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "OVH development/staging"
+  }
+}
