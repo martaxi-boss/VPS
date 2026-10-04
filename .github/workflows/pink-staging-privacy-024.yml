@@ -1,0 +1,113 @@
+name: PINK Staging Privacy Repair 024
+on:
+  push:
+    branches: [builder/pink-staging-privacy-024]
+    paths:
+      - '.github/workflows/pink-staging-privacy-024.yml'
+permissions:
+  contents: read
+concurrency:
+  group: pink-staging-privacy-024
+  cancel-in-progress: false
+jobs:
+  observe:
+    if: github.event.head_commit.message == 'Execute bounded staging privacy repair 024'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Bounded existing staging privacy repair with protected rollback
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ubuntu@146.59.145.3 'bash -s' <<'READ_ONLY_OBSERVATION'
+          set -euo pipefail
+          test "$(hostname)" = vps-32bea5b6
+          sudo -n bash -s <<'PINK_REPAIR'
+          set -euo pipefail
+          umask 077
+          test "$(id -u)" = 0
+          test "$(hostname)" = vps-32bea5b6
+          target=/srv/pink-iptv/backend/app/main.py
+          backup=/var/backups/pink-iptv/task024-privacy
+          stage=/srv/pink-iptv/backend/app/.main.py.task024
+          old=db106b81703c681fbdc6f8ee030ce9a4d122945dbc8355702059450ead3aa09d
+          new=3e060d0bb583c56515a9074eece55f16ad3ec2b8e8b6e82d8de40c462954ca44
+          echo REPAIR_BEGIN=024
+          date -u '+OBSERVED_AT_UTC=%Y-%m-%dT%H:%M:%SZ'
+          test -f "$target" && test ! -L "$target"
+          test ! -e "$stage" && test ! -e "$backup"
+          test "$(sha256sum "$target" | cut -d' ' -f1)" = "$old"
+          test "$(git -c safe.directory=/srv/pink-iptv -C /srv/pink-iptv rev-parse HEAD)" = ccccaf1eb25ca80936763f7d6a17e4dd00347e8a
+          test "$(systemctl show pink-iptv-backend.service -p WorkingDirectory --value)" = /srv/pink-iptv/backend
+          systemctl is-active --quiet ssh.service nginx.service postgresql.service pink-iptv-backend.service
+          test "$(curl -sS --max-time 5 -o /dev/null -w '%{http_code}' http://127.0.0.1:8010/openapi.json)" = 200
+          pg_isready -h 127.0.0.1 -p 5432 -t 3 >/dev/null
+          install -d -m 700 "$backup"
+          cp -p -- "$target" "$backup/original-main.py"
+          test "$(sha256sum "$backup/original-main.py" | cut -d' ' -f1)" = "$old"
+          curl -fsS --max-time 30 https://raw.githubusercontent.com/martaxi-boss/pink-iptv/0bc2b751c77da5702d8cfb24996d046e5f1829fc/backend/app/main.py -o "$backup/candidate-main.py"
+          test "$(sha256sum "$backup/candidate-main.py" | cut -d' ' -f1)" = "$new"
+          python3 -c 'import ast,pathlib;ast.parse(pathlib.Path("/var/backups/pink-iptv/task024-privacy/candidate-main.py").read_text())'
+          cp -p -- "$backup/original-main.py" "$backup/restore-rehearsal.py"
+          test "$(sha256sum "$backup/restore-rehearsal.py" | cut -d' ' -f1)" = "$old"
+          echo RESTRICTED_ORIGINAL_BACKUP=VERIFIED
+          echo FILE_INVERSE_REHEARSAL=HASH_VERIFIED
+          changed=0
+          complete=0
+          finish() {
+           result=$?
+           if test "$changed" = 1 && test "$complete" = 0; then
+             echo ROLLBACK_BEGIN=024
+             cp -p -- "$backup/original-main.py" "$stage" && mv -f -- "$stage" "$target" && systemctl restart pink-iptv-backend.service
+             if test "$(sha256sum "$target" | cut -d' ' -f1)" = "$old" && systemctl is-active --quiet pink-iptv-backend.service; then echo ROLLBACK_SOURCE_AND_UNIT=RESTORED; else echo ROLLBACK_SOURCE_AND_UNIT=UNVERIFIED; fi
+           fi
+           exit "$result"
+          }
+          trap finish EXIT
+          cp -p -- "$target" "$stage"
+          cat "$backup/candidate-main.py" > "$stage"
+          test "$(sha256sum "$stage" | cut -d' ' -f1)" = "$new"
+          changed=1
+          mv -f -- "$stage" "$target"
+          systemctl restart pink-iptv-backend.service
+          python3 - <<'PY'
+          import urllib.request,urllib.error,json,time
+          for attempt in range(10):
+           try:
+            with urllib.request.urlopen('http://127.0.0.1:8010/openapi.json',timeout=3) as r: assert r.status==200
+            break
+           except Exception:
+            if attempt==9:raise
+            time.sleep(1)
+          marker='pink_diagnostic_marker_024'
+          req=urllib.request.Request('http://127.0.0.1:8010/v1/session/resolve',data=json.dumps({'username':[marker],'password':marker}).encode(),headers={'Content-Type':'application/json'},method='POST')
+          try:
+           with urllib.request.urlopen(req,timeout=5) as r:status=r.status;body=r.read(32768);headers=r.headers
+          except urllib.error.HTTPError as e:status=e.code;body=e.read(32768);headers=e.headers
+          assert status==422
+          assert json.loads(body)=={'detail':'Invalid request'}
+          assert marker.encode() not in body
+          assert 'no-store' in headers.get('Cache-Control','')
+          print('SYNTHETIC_INVALID_HTTP=422')
+          print('SYNTHETIC_INPUT_ECHO=NO')
+          print('SYNTHETIC_CACHE_NOSTORE=YES')
+          print('PINK_OPENAPI_HTTP=200')
+          PY
+          systemctl is-active --quiet ssh.service nginx.service postgresql.service pink-iptv-backend.service
+          pg_isready -h 127.0.0.1 -p 5432 -t 3 >/dev/null
+          test "$(sha256sum "$target" | cut -d' ' -f1)" = "$new"
+          printf 'DEPLOYED_BACKEND_MAIN_SHA256=%s\n' "$new"
+          printf 'BASE_RUNTIME_GIT_REVISION=%s\n' "$(git -c safe.directory=/srv/pink-iptv -C /srv/pink-iptv rev-parse HEAD)"
+          echo EXISTING_SERVICES=ACTIVE
+          echo POSTGRES_READY=YES
+          echo SOURCE_OVERLAY=APPROVED_MAIN_PRIVACY_FIX_ONLY
+          complete=1
+          printf 'source_commit=0bc2b751c77da5702d8cfb24996d046e5f1829fc\noriginal_sha256=%s\ndeployed_sha256=%s\n' "$old" "$new" > "$backup/receipt.txt"
+          echo REPAIR_END=024
+          PINK_REPAIR
+          READ_ONLY_OBSERVATION
