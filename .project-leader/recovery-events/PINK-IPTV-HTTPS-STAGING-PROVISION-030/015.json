@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-HTTPS-STAGING-PROVISION-030",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 15,
+  "recorded_at": "2026-10-04T09:11:11.045Z",
+  "event": "REPLAN",
+  "strategy_generation": 7,
+  "action_fingerprint": "030-existing-account-show-compatibility-provision",
+  "attempt_count": 0,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "653e0a0b4837e2163055f9ef6b613f2c209232ff38f8be08004673c9693ee970",
+  "detail": "Replace firewall configuration hash with stable iptables/ip6tables -S for filter/nat/mangle/raw, matching prior successful isolated rehearsal025. Add explicit nginx inverse PASS before firewall inverse PASS; preserve prior backup-r3, new absent-r4. No networking changes."
+}

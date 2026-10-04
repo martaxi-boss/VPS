@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-HTTPS-STAGING-PROVISION-030",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 14,
+  "recorded_at": "2026-10-04T09:11:11.045Z",
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 6,
+  "action_fingerprint": "030-existing-account-show-compatibility-provision",
+  "attempt_count": 1,
+  "identical_failure_count": 1,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "16b40d834add283c12a278b912b922ddb41707e1e52797499f1b981dfd860021",
+  "detail": "Run37191241879 proved tasksite effectively included and bounded HTTP challenge readiness PASS, then failed inverse hash checks beforecert issuance. Trap removed tasksite/webroot/hook. iptables-save hashes include time/counters, unsuitable for configuration invariant."
+}
