@@ -1,0 +1,132 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-WIREGUARD-EXTERNAL-PROOF-034",
+  "project": "VPS operations for PINK IPTV",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-04T15:02:00.025Z",
+  "authority": {
+    "kind": "TRANSACTIONAL_GRANT",
+    "source": "CURRENT_OWNER_INSTRUCTION",
+    "binding_mode": "OBJECTIVE_SCOPE_BOUND",
+    "summary": "Continue authorized Phase4 staging server/one-test-peer prerequisites after certified rollback033. One temporary CI-owned WireGuard peer and host interface, minimum source/destination-bound UDP ingress/NAT/forwarding, automated inverse/watchdog and existing-service checks. Device keys remain only on their owner host/runner; no Android activation, persistent gateway, production onboarding or paid effect."
+  },
+  "starting_state": {
+    "default_branch": "main",
+    "base_sha": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "task_branch": "builder/pink-wg-external-proof-034"
+  },
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "mutation_scope": [
+    ".github/workflows/pink-wg-external-proof-034.yml",
+    ".project-leader/tasks/PINK-IPTV-WIREGUARD-EXTERNAL-PROOF-034.json",
+    ".project-leader/results/PINK-IPTV-WIREGUARD-EXTERNAL-PROOF-034.json",
+    ".project-leader/transitions/PINK-IPTV-WIREGUARD-EXTERNAL-PROOF-034-*",
+    ".project-leader/recovery-events/PINK-IPTV-WIREGUARD-EXTERNAL-PROOF-034/**"
+  ],
+  "allowed_actions": [
+    "create_branch",
+    "edit_project_files",
+    "create_commits",
+    "run_ci",
+    "change_project_governance",
+    "change_infrastructure"
+  ],
+  "prohibited_actions": [
+    "merge_to_main",
+    "branch_protection_or_ruleset_change",
+    "release_or_publish",
+    "production_deploy",
+    "destructive_data_change",
+    "repository_or_history_deletion",
+    "production_secret_change",
+    "irreversible_infrastructure_change",
+    "paid_service_activation",
+    "change_existing_workflows",
+    "service_stop_restart_delete",
+    "secret_value_disclosure_or_rotation",
+    "arbitrary_remote_commands",
+    "third_project_mutation",
+    "force_push",
+    "persistent_gateway_configuration",
+    "android_tunnel_activation",
+    "more_than_one_test_peer",
+    "unbounded_internet_routing",
+    "firewall_flush_or_snapshot_replay"
+  ],
+  "transition_controls": [
+    {
+      "action": "merge_to_main",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "branch_protection_or_ruleset_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "release_or_publish",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_deploy",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "destructive_data_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "repository_or_history_deletion",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_secret_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "irreversible_infrastructure_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "paid_service_activation",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "prepare_fixed_external_wireguard_proof_workflow",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "execute_temporary_external_wireguard_proof_and_inverse",
+      "requires_authority_resolution": true
+    }
+  ],
+  "required_validation": [
+    "Project architecture scope audit",
+    "Mutation scope audit",
+    "GitHub evidence verification",
+    "Consequential transition readiness audit",
+    "Real external WireGuard handshake and bounded NAT egress",
+    "Exact live additive inverse and autonomous cleanup",
+    "Existing services and live networking restored",
+    "Operational access discovery closure"
+  ],
+  "required_ci": [
+    "PINK External WireGuard Proof 034"
+  ],
+  "policy": {
+    "profile": "generic-project-v1",
+    "path": "control/generic-project-policy.json",
+    "sha256": "147fb55338267ba2e9727c4a85e468e342300a69557d80781edeba4b6fa8d0f9",
+    "binding_mode": "CENTRAL_CONTROL_V1",
+    "repository": "martaxi-boss/Project-leader",
+    "revision": "17301664dd53eb4f9c8d7b08d240180153782e1b"
+  },
+  "recovery": {
+    "mode": "APPEND_ONLY_V1"
+  },
+  "integrity_mode": "IMMUTABLE_AUTHORIZATION_V1",
+  "terminal_condition": "One CI-owned external peer handshakes over authorized OVH UDP51820, pings fixed gateway and proves HTTPS NAT egress to one selected GitHub IPv4. All local/host interface/key/owned rules removed, original forwarding/firewall restored, services/API/PG preserved. 15-minute independent rollback watchdog armed before live effects; no persistent gateway or Android/production claim.",
+  "privacy": {
+    "contains_secrets": false,
+    "contains_private_conversation_text": false
+  }
+}
