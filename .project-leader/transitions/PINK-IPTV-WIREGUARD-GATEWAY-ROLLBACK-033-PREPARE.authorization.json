@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-WIREGUARD-GATEWAY-ROLLBACK-033-PREPARE",
+  "task_id": "PINK-IPTV-WIREGUARD-GATEWAY-ROLLBACK-033",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-04T14:55:30.912Z",
+  "action": "prepare_fixed_gateway_rehearsal_workflow",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "binding_mode": "EXACT_REVISION_BOUND",
+    "summary": "Canonical Phase4 snapshot/rollback-first prerequisites cover a scoped isolated rehearsal and root-only structural baseline. Fixed host/password secret name and sanitized repository-return path already executed successfully; no live forwarding/firewall/tunnel/service write."
+  },
+  "target": {
+    "kind": "bounded_operations_workflow",
+    "identifier": "builder/pink-wg-gateway-rollback-033",
+    "revision": "140f4d5acc32359943d644932c77670a21781331",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "Authorized OVH staging, isolated network namespaces only"
+  }
+}
