@@ -33,7 +33,7 @@ jobs:
           site=/etc/nginx/sites-available/pink-iptv-https
           link=/etc/nginx/sites-enabled/pink-iptv-https
           webroot=/var/lib/pink-iptv-acme030
-          backup=/var/backups/pink-iptv/task030-https
+          backup=/var/backups/pink-iptv/task030-https-r2
           hook=/etc/letsencrypt/renewal-hooks/deploy/pink-iptv-https030.sh
           test ! -e "$site"; test ! -L "$site"; test ! -e "$link"; test ! -L "$link"
           test ! -e "$webroot"; test ! -e "$backup"; test ! -e "$hook"
@@ -106,6 +106,7 @@ jobs:
           nginx -t >/dev/null 2>&1
           systemctl reload nginx
           printf 'pink-https-task030\n' >"$webroot/.well-known/acme-challenge/pink-preflight030"
+          chmod 644 "$webroot/.well-known/acme-challenge/pink-preflight030"
           test "$(curl -fsS --max-time 10 -H 'Host: pink-iptv.duckdns.org' http://127.0.0.1/.well-known/acme-challenge/pink-preflight030)" = pink-https-task030
           cp "$site" "$backup/http-candidate.conf"
           rm "$link" "$site"
