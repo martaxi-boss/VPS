@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-HTTPS-STAGING-PROVISION-030-DIAGNOSE-NGINX",
+  "task_id": "PINK-IPTV-HTTPS-STAGING-PROVISION-030",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-HTTPS-STAGING-PROVISION-030-DIAGNOSE-NGINX.authorization.json",
+  "action": "execute_exact_https_staging_provision",
+  "target": {
+    "kind": "bounded_operations_task",
+    "identifier": "builder/pink-https-staging-030",
+    "revision": "e0f0bd3b2f8e05d5078f170311ab0704cd8ca969",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "OVH development/staging"
+  },
+  "observed_at": "2026-10-04T09:13:30.490Z",
+  "final_state": {
+    "status": "READONLY_NGINX_DIAGNOSIS_COMPLETE",
+    "revision": "e0f0bd3b2f8e05d5078f170311ab0704cd8ca969"
+  },
+  "evidence": [
+    "Run37191126068 SUCCESS bounded include/account/taskpath diagnostics, exact controlrefbeforeexecution."
+  ],
+  "residual_blockers": []
+}

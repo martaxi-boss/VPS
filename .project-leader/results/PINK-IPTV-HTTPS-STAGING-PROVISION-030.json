@@ -1,0 +1,63 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-HTTPS-STAGING-PROVISION-030",
+  "terminal_status": "TERMINAL_SUCCESS",
+  "repository": "martaxi-boss/VPS",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authorization_record": ".project-leader/tasks/PINK-IPTV-HTTPS-STAGING-PROVISION-030.json",
+  "authorization_commit_sha": "bed52425569a1bef24ad203927cb27727bf64c61",
+  "authorization_sha256": "6b89d47347d58cedcc7e38d22b643f33d9686f54b0e41de477cc98e5e191d9b4",
+  "implementation_head_sha": "b28b5930280a37d09d2474c83b6772b4ed933dd7",
+  "branch": "builder/pink-https-staging-030",
+  "recorded_at": "2026-10-04T09:13:29.981Z",
+  "changes": [
+    "Scoped Nginx site /etc/nginx/sites-{available,enabled}/pink-iptv-https.conf, task webroot /var/lib/pink-iptv-acme030, selected-host trusted certificate, lineage-specific renewal deploy hook. Existing certbot timer active; protected task-only inverse and backups."
+  ],
+  "validation": [
+    {
+      "name": "Project architecture scope audit",
+      "status": "PASS",
+      "evidence": "Exact scope/policy/script audit; run37191347129 verifies nginx effective site, HTTP/readiness exact inverse, configured firewall invariant, existing-account reuse, trusted HTTPS from host and external runner, generic422/no-store marker non-echo and existing services/PG readiness. Canonical verifier independently audits actual run/immutable auth/recovery ancestry."
+    },
+    {
+      "name": "Mutation scope audit",
+      "status": "PASS",
+      "evidence": "Exact scope/policy/script audit; run37191347129 verifies nginx effective site, HTTP/readiness exact inverse, configured firewall invariant, existing-account reuse, trusted HTTPS from host and external runner, generic422/no-store marker non-echo and existing services/PG readiness. Canonical verifier independently audits actual run/immutable auth/recovery ancestry."
+    },
+    {
+      "name": "GitHub evidence verification",
+      "status": "PASS",
+      "evidence": "Exact scope/policy/script audit; run37191347129 verifies nginx effective site, HTTP/readiness exact inverse, configured firewall invariant, existing-account reuse, trusted HTTPS from host and external runner, generic422/no-store marker non-echo and existing services/PG readiness. Canonical verifier independently audits actual run/immutable auth/recovery ancestry."
+    },
+    {
+      "name": "Consequential transition readiness audit",
+      "status": "PASS",
+      "evidence": "Exact scope/policy/script audit; run37191347129 verifies nginx effective site, HTTP/readiness exact inverse, configured firewall invariant, existing-account reuse, trusted HTTPS from host and external runner, generic422/no-store marker non-echo and existing services/PG readiness. Canonical verifier independently audits actual run/immutable auth/recovery ancestry."
+    },
+    {
+      "name": "Bounded HTTPS exact inverse and privacy readiness",
+      "status": "PASS",
+      "evidence": "Exact scope/policy/script audit; run37191347129 verifies nginx effective site, HTTP/readiness exact inverse, configured firewall invariant, existing-account reuse, trusted HTTPS from host and external runner, generic422/no-store marker non-echo and existing services/PG readiness. Canonical verifier independently audits actual run/immutable auth/recovery ancestry."
+    },
+    {
+      "name": "Operational access discovery closure",
+      "status": "PASS",
+      "evidence": "Exact scope/policy/script audit; run37191347129 verifies nginx effective site, HTTP/readiness exact inverse, configured firewall invariant, existing-account reuse, trusted HTTPS from host and external runner, generic422/no-store marker non-echo and existing services/PG readiness. Canonical verifier independently audits actual run/immutable auth/recovery ancestry."
+    }
+  ],
+  "ci": [
+    {
+      "name": "PINK HTTPS Staging Provision 030",
+      "status": "SUCCESS",
+      "run_id": 37191347129
+    }
+  ],
+  "artifacts": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37191347129"
+  ],
+  "material_non_effects": [
+    "No DNS/new ACME account/newterms/keydisclosure/paidservice/sharedsite/globalconfig/firewall/backendsource/customerdata/peer/tunnel/release/publiclaunch changes.",
+    "Earlier readonly diagnostic control ref rejected422; authored intent preserved separately with late ref, not retrospectively certified. Final material execution exact authorization persisted before execution on builder/canonical-execute-stable-030."
+  ],
+  "residual_blockers": []
+}

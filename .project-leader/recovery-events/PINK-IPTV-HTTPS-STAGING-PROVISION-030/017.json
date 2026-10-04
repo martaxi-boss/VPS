@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-HTTPS-STAGING-PROVISION-030",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 17,
+  "recorded_at": "2026-10-04T09:13:29.091Z",
+  "event": "RECOVERED",
+  "strategy_generation": 7,
+  "action_fingerprint": "030-existing-account-show-compatibility-provision",
+  "attempt_count": 1,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "4ad03d8ba0761dd1479b369c46cea83cb1578379b34f87000d11d28759d3d8c9",
+  "detail": "Fresh descendant run37191347129 SUCCESS: account reused, effectively loaded scoped site, HTTPready/inverse nginx+stablefirewall PASS, certificate issued, host and external trustedHTTPS/API200/generic422/no-store/privacy PASS; services/PG/firewall preserved. No new account/terms or realcredential used."
+}

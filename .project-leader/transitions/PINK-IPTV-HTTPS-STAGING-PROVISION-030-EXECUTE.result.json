@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-HTTPS-STAGING-PROVISION-030-EXECUTE",
+  "task_id": "PINK-IPTV-HTTPS-STAGING-PROVISION-030",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-HTTPS-STAGING-PROVISION-030-EXECUTE.authorization.json",
+  "action": "execute_exact_https_staging_provision",
+  "target": {
+    "kind": "bounded_operations_task",
+    "identifier": "builder/pink-https-staging-030",
+    "revision": "85452baa12447cdeae12d7327da52d1dc4eaaa48",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "OVH development/staging"
+  },
+  "observed_at": "2026-10-04T09:13:30.490Z",
+  "final_state": {
+    "status": "PREWRITE_ACCOUNT_CHECK_FAILED",
+    "revision": "85452baa12447cdeae12d7327da52d1dc4eaaa48"
+  },
+  "evidence": [
+    "Run37190707197 failed before any hostwrite, strict optional registrationstatus incompatible."
+  ],
+  "residual_blockers": [
+    "Historical attempt superseded; preserve result without claiming transition success."
+  ]
+}

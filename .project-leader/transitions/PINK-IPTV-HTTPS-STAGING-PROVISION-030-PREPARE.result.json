@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-HTTPS-STAGING-PROVISION-030-PREPARE",
+  "task_id": "PINK-IPTV-HTTPS-STAGING-PROVISION-030",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-HTTPS-STAGING-PROVISION-030-PREPARE.authorization.json",
+  "action": "add_fixed_https_staging_workflow",
+  "target": {
+    "kind": "bounded_operations_task",
+    "identifier": "builder/pink-https-staging-030",
+    "revision": "bed52425569a1bef24ad203927cb27727bf64c61",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "OVH development/staging"
+  },
+  "observed_at": "2026-10-04T09:13:30.490Z",
+  "final_state": {
+    "status": "FIXED_WORKFLOW_CREATED",
+    "revision": "bed52425569a1bef24ad203927cb27727bf64c61"
+  },
+  "evidence": [
+    "Bounded workflow created after immutableauthorization."
+  ],
+  "residual_blockers": []
+}
