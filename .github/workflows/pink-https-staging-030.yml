@@ -33,7 +33,7 @@ jobs:
           site=/etc/nginx/sites-available/pink-iptv-https.conf
           link=/etc/nginx/sites-enabled/pink-iptv-https.conf
           webroot=/var/lib/pink-iptv-acme030
-          backup=/var/backups/pink-iptv/task030-https-r3
+          backup=/var/backups/pink-iptv/task030-https-r4
           hook=/etc/letsencrypt/renewal-hooks/deploy/pink-iptv-https030.sh
           test ! -e "$site"; test ! -L "$site"; test ! -e "$link"; test ! -L "$link"
           test ! -e "$webroot"; test ! -e "$backup"; test ! -e "$hook"
@@ -70,7 +70,7 @@ jobs:
           install -d -m 700 "$backup"
           install -d -m 755 "$webroot" "$webroot/.well-known" "$webroot/.well-known/acme-challenge"
           baseline="$(nginx -T 2>/dev/null | sha256sum | cut -d' ' -f1)"
-          firewall_hash() { { iptables-save; ip6tables-save; } | sha256sum | cut -d' ' -f1; }
+          firewall_hash() { { for tool in iptables ip6tables; do for table in filter nat mangle raw; do "$tool" -t "$table" -S; done; done; } | sha256sum | cut -d' ' -f1; }
           fw_before="$(firewall_hash)"
           printf '%s\n' "$baseline" >"$backup/nginx-baseline.sha256"
           printf '%s\n' "$fw_before" >"$backup/firewall-baseline.sha256"
@@ -126,7 +126,9 @@ jobs:
           nginx -t >/dev/null 2>&1
           systemctl reload nginx
           test "$(nginx -T 2>/dev/null | sha256sum | cut -d' ' -f1)" = "$baseline"
+          echo NGINX_SITE_EXACT_INVERSE=PASS
           test "$(firewall_hash)" = "$fw_before"
+          echo FIREWALL_CONFIG_EXACT_INVERSE=PASS
           echo HTTP_SITE_EXACT_INVERSE_REHEARSAL=PASS
           install -m 644 "$backup/http-candidate.conf" "$site"
           ln -s "$site" "$link"
