@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-WIREGUARD-GATEWAY-ROLLBACK-033-WAIT",
+  "task_id": "PINK-IPTV-WIREGUARD-GATEWAY-ROLLBACK-033",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "WAITING_EXTERNAL_CI",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-WIREGUARD-GATEWAY-ROLLBACK-033-EXECUTE.authorization.json",
+  "action": "execute_isolated_gateway_inverse_rehearsal",
+  "target": {
+    "kind": "exact_fixed_operations_workflow",
+    "identifier": "builder/pink-wg-gateway-rollback-033",
+    "revision": "ecc1cd952ecab42ee5c1dbb271a1d878557414b3",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "OVH 146.59.145.3, disconnected namespaces and protected structural backup only"
+  },
+  "observed_at": "2026-10-04T14:56:58.781Z",
+  "final_state": {
+    "status": "WAITING_EXTERNAL_CI",
+    "revision": "ecc1cd952ecab42ee5c1dbb271a1d878557414b3"
+  },
+  "evidence": [
+    "Exact push workflow PINK Gateway Rollback 033 run37211121862 active. Re-read at bounded cadence; no rerun/redispatch."
+  ],
+  "residual_blockers": []
+}
