@@ -1,0 +1,67 @@
+name: PINK IPTV Runtime Safety 022
+on:
+  push:
+    branches: [builder/pink-runtime-safety-022]
+    paths:
+      - '.github/workflows/pink-runtime-safety-022.yml'
+permissions:
+  contents: read
+concurrency:
+  group: pink-runtime-safety-022
+  cancel-in-progress: false
+jobs:
+  observe:
+    if: github.event.head_commit.message == 'Execute bounded runtime safety 022'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Fixed read-only observation on authorized OVH host
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ubuntu@146.59.145.3 'bash -s' <<'READ_ONLY_OBSERVATION'
+          set -euo pipefail
+          test "$(hostname)" = vps-32bea5b6
+          echo SAFETY_BEGIN=022
+          date -u '+OBSERVED_AT_UTC=%Y-%m-%dT%H:%M:%SZ'
+          sudo -n git -c safe.directory=/srv/pink-iptv -C /srv/pink-iptv rev-parse HEAD | sed 's/^/RUNTIME_REVISION=/'
+          if sudo -n git -c safe.directory=/srv/pink-iptv -C /srv/pink-iptv diff --quiet HEAD -- backend; then echo TRACKED_BACKEND_CLEAN=YES; else echo TRACKED_BACKEND_CLEAN=NO; fi
+          sudo -n sha256sum /srv/pink-iptv/backend/app/main.py | awk '{print "BACKEND_MAIN_SHA256=" $1}'
+          python3 - <<'PY'
+          import urllib.request,urllib.error,json,subprocess,ipaddress
+          marker='pink_diagnostic_marker_022'
+          req=urllib.request.Request('http://127.0.0.1:8010/v1/session/resolve',data=json.dumps({'username':[marker],'password':marker}).encode(),headers={'Content-Type':'application/json'},method='POST')
+          try:
+           with urllib.request.urlopen(req,timeout=5) as r: status=r.status;body=r.read(32768);headers=r.headers
+          except urllib.error.HTTPError as e:status=e.code;body=e.read(32768);headers=e.headers
+          print('SYNTHETIC_INVALID_HTTP='+str(status))
+          print('SYNTHETIC_INPUT_ECHO='+('YES' if marker.encode() in body else 'NO'))
+          print('SYNTHETIC_CACHE_NOSTORE='+('YES' if 'no-store' in headers.get('Cache-Control','') else 'NO'))
+          candidate=ipaddress.ip_network('10.66.0.0/24');nets=[]
+          for a in json.loads(subprocess.check_output(['ip','-j','address','show'])):
+           for x in a.get('addr_info',[]):
+            if x.get('family')=='inet':nets.append(ipaddress.ip_network(str(x['local'])+'/'+str(x['prefixlen']),strict=False))
+          routes=json.loads(subprocess.check_output(['ip','-j','-4','route','show','table','all']))
+          for x in routes:
+           dst=x.get('dst','default')
+           if dst!='default':
+            try:nets.append(ipaddress.ip_network(dst,strict=False))
+            except ValueError:pass
+          print('CANDIDATE_RANGE=10.66.0.0/24')
+          print('CANDIDATE_RANGE_OVERLAP='+('YES' if any(candidate.overlaps(n) for n in nets) else 'NO'))
+          print('IPV4_ADDRESS_ROUTE_COUNT='+str(len(nets)))
+          PY
+          for tool in iptables ip6tables; do
+            rules="$(sudo -n "$tool" -S)"
+            printf '%s\n' "$rules" | awk -v t="$tool" '$1=="-N" && $2~/^ufw-/{n++} END{print "UFW_CHAIN_COUNT[" t "]=" n+0}'
+          done
+          sudo -n nft -j list ruleset | python3 -c 'import json,sys; a=json.load(sys.stdin)["nftables"]; print("NFT_TABLE_COUNT="+str(sum("table" in x for x in a))); print("NFT_CHAIN_COUNT="+str(sum("chain" in x for x in a))); print("NFT_RULE_COUNT="+str(sum("rule" in x for x in a)))'
+          if test -e /etc/wireguard/wg-pink.conf; then echo PINK_CONFIG_EXISTS=YES; else echo PINK_CONFIG_EXISTS=NO; fi
+          ss -H -lun 'sport = :51820' | awk 'END{print "CANDIDATE_UDP_LISTENER_COUNT=" NR}'
+          echo SAFETY_END=022
+          READ_ONLY_OBSERVATION
