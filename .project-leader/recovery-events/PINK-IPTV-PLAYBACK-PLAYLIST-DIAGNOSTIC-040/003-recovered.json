@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-PLAYBACK-PLAYLIST-DIAGNOSTIC-040",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 3,
+  "recorded_at": "2026-10-04T20:23:34.437Z",
+  "event": "RECOVERED",
+  "strategy_generation": 1,
+  "action_fingerprint": "040-provider-playlist-read-timeout",
+  "attempt_count": 2,
+  "identical_failure_count": 1,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "944dfaaa0d3bdcfded7a32eed8cbdc2bb9015c9d096149e24c6a8f9a5fb71522",
+  "detail": "Fresh descendant21278f3/run37231787028 terminal success: playlistHTTP200 firstsource found, authoritative originmatchesYES; timeout recovered. Credentials flag currently also required canonical4segment structure, so NO is not proof that returned credential values differ. Actualsource remained unrequested. No data/network/service/providerwrites."
+}
