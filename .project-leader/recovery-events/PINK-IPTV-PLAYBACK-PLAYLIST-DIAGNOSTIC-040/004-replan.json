@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-PLAYBACK-PLAYLIST-DIAGNOSTIC-040",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 4,
+  "recorded_at": "2026-10-04T20:24:09.250Z",
+  "event": "REPLAN",
+  "strategy_generation": 2,
+  "action_fingerprint": "040-provider-first-playlist-source-shape",
+  "attempt_count": 0,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "6971d94bd6b143a4e3daa0f295c062afd5129e4c7cd3d4f661d9a8c449e08abc",
+  "detail": "Supervisor narrows unresolved in-scope playlist comparison: distinguish canonical4segment and legacy3segment credential-identical TS forms; emit only shape enum/count and matchflags. Permit one firstproviderURL probe only for same origin, identical approved creds, TS numeric media id, no userinfo/query/redirect. No guessed credentials or origin changes."
+}
