@@ -1,0 +1,70 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-WIREGUARD-GATEWAY-ROLLBACK-033",
+  "terminal_status": "TERMINAL_SUCCESS",
+  "repository": "martaxi-boss/VPS",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authorization_record": ".project-leader/tasks/PINK-IPTV-WIREGUARD-GATEWAY-ROLLBACK-033.json",
+  "authorization_commit_sha": "140f4d5acc32359943d644932c77670a21781331",
+  "authorization_sha256": "f6773ec2de6adb2df297464f5c54cd94a3c3d5a7ea081cc34135cdb452392fe1",
+  "implementation_head_sha": "ecc1cd952ecab42ee5c1dbb271a1d878557414b3",
+  "branch": "builder/pink-wg-gateway-rollback-033",
+  "recorded_at": "2026-10-04T14:57:50.544Z",
+  "state_observed_at": "2026-10-04T14:56:42Z",
+  "changes": [
+    "Added a fixed isolated gateway inverse rehearsal workflow; protected structural baseline /var/backups/pink-iptv/task033-gateway created root0700/files0600 on authorized staging host."
+  ],
+  "validation": [
+    {
+      "name": "Project architecture scope audit",
+      "status": "PASS",
+      "evidence": "Exact run37211121862/job111462362742 passed structural root permissions, namespace forwarded NAT echo, DROP defaults/IPv6 preservation, exact additive inverse, namespace cleanup, live host firewall/forwarding/UFW byte equality and existing services/OpenAPI200/PG readiness. Baseline firewall SHA256 c066b03fab24e8cf5a5fffa2a85a558edfe145e5c158f7cd349f7049b2fef100; no snapshot replay."
+    },
+    {
+      "name": "Mutation scope audit",
+      "status": "PASS",
+      "evidence": "Exact authorization...implementation compare contains only authorized workflow and PREPARE transition; task remains unchanged. Final certification uses canonical 17301664 control verifier."
+    },
+    {
+      "name": "GitHub evidence verification",
+      "status": "PASS",
+      "evidence": "Exact run37211121862/job111462362742 passed structural root permissions, namespace forwarded NAT echo, DROP defaults/IPv6 preservation, exact additive inverse, namespace cleanup, live host firewall/forwarding/UFW byte equality and existing services/OpenAPI200/PG readiness. Baseline firewall SHA256 c066b03fab24e8cf5a5fffa2a85a558edfe145e5c158f7cd349f7049b2fef100; no snapshot replay."
+    },
+    {
+      "name": "Consequential transition readiness audit",
+      "status": "PASS",
+      "evidence": "Exact run37211121862/job111462362742 passed structural root permissions, namespace forwarded NAT echo, DROP defaults/IPv6 preservation, exact additive inverse, namespace cleanup, live host firewall/forwarding/UFW byte equality and existing services/OpenAPI200/PG readiness. Baseline firewall SHA256 c066b03fab24e8cf5a5fffa2a85a558edfe145e5c158f7cd349f7049b2fef100; no snapshot replay."
+    },
+    {
+      "name": "Protected structural baseline and exact namespace inverse",
+      "status": "PASS",
+      "evidence": "Exact run37211121862/job111462362742 passed structural root permissions, namespace forwarded NAT echo, DROP defaults/IPv6 preservation, exact additive inverse, namespace cleanup, live host firewall/forwarding/UFW byte equality and existing services/OpenAPI200/PG readiness. Baseline firewall SHA256 c066b03fab24e8cf5a5fffa2a85a558edfe145e5c158f7cd349f7049b2fef100; no snapshot replay."
+    },
+    {
+      "name": "Existing services and live networking preserved",
+      "status": "PASS",
+      "evidence": "Exact run37211121862/job111462362742 passed structural root permissions, namespace forwarded NAT echo, DROP defaults/IPv6 preservation, exact additive inverse, namespace cleanup, live host firewall/forwarding/UFW byte equality and existing services/OpenAPI200/PG readiness. Baseline firewall SHA256 c066b03fab24e8cf5a5fffa2a85a558edfe145e5c158f7cd349f7049b2fef100; no snapshot replay."
+    },
+    {
+      "name": "Operational access discovery closure",
+      "status": "PASS",
+      "evidence": "Native GitHub run/jobs/logs and existing fixed Actions SSH path returned sanitized evidence; no Owner terminal/browser/manual-tool routing."
+    }
+  ],
+  "ci": [
+    {
+      "name": "PINK Gateway Rollback 033",
+      "status": "SUCCESS",
+      "run_id": 37211121862
+    }
+  ],
+  "artifacts": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37211121862",
+    "Restricted host baseline /var/backups/pink-iptv/task033-gateway; configuration/secret values not returned"
+  ],
+  "material_non_effects": [
+    "No live host firewall/forwarding/route changes; namespace-only test.",
+    "No real peer/gateway/tunnel, client config, provider/customer credential, service restart, database write, main merge, public launch or paid snapshot."
+  ],
+  "residual_blockers": []
+}

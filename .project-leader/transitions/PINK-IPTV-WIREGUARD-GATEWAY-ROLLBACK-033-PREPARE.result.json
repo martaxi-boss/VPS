@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-WIREGUARD-GATEWAY-ROLLBACK-033-PREPARE",
+  "task_id": "PINK-IPTV-WIREGUARD-GATEWAY-ROLLBACK-033",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-WIREGUARD-GATEWAY-ROLLBACK-033-PREPARE.authorization.json",
+  "action": "prepare_fixed_gateway_rehearsal_workflow",
+  "target": {
+    "kind": "bounded_operations_workflow",
+    "identifier": "builder/pink-wg-gateway-rollback-033",
+    "revision": "140f4d5acc32359943d644932c77670a21781331",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "Authorized OVH staging, isolated network namespaces only"
+  },
+  "observed_at": "2026-10-04T14:56:42Z",
+  "final_state": {
+    "status": "ISOLATED_GATEWAY_INVERSE_VERIFIED_HOST_PRESERVED",
+    "revision": "ecc1cd952ecab42ee5c1dbb271a1d878557414b3"
+  },
+  "evidence": [
+    "Exact run37211121862/job111462362742 terminalSUCCESS, sanitized baseline/traffic/inverse/cleanup/host service invariants independently read."
+  ],
+  "residual_blockers": []
+}
