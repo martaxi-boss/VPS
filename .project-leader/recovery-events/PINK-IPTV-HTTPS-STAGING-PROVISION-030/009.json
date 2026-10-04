@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-HTTPS-STAGING-PROVISION-030",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 9,
+  "recorded_at": "2026-10-04T09:07:05.757Z",
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 4,
+  "action_fingerprint": "030-existing-account-show-compatibility-provision",
+  "attempt_count": 1,
+  "identical_failure_count": 1,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "79efaeae2ca4a046789e2950aaefa8ad32ebd676f2205c76f12dfece04be1752",
+  "detail": "Run37191025976 reached existing account then immediate synthetic HTTPprobe404; task site/webroot/hook inverse ran before certificate issuance. Existing configuration preserved; protected-r2 backup retained. Need actual nginx include/reload metadata diagnosis rather than blind provisioning retry."
+}

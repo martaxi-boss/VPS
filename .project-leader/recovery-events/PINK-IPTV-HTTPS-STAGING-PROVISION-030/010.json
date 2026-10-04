@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-HTTPS-STAGING-PROVISION-030",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 10,
+  "recorded_at": "2026-10-04T09:07:05.757Z",
+  "event": "REPLAN",
+  "strategy_generation": 5,
+  "action_fingerprint": "030-existing-account-show-compatibility-provision",
+  "attempt_count": 0,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "89cac24543a1b9a9ef5f55309bfac0eb77150091bf2a9d8c8a4511b1a3990d59",
+  "detail": "Switch to readonly sanitized nginx sites-enabled include patterns and task-specific error classification; inspect effective config path readiness and account metadata, no site writes or certificate request."
+}

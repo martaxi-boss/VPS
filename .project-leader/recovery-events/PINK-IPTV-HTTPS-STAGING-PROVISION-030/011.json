@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-HTTPS-STAGING-PROVISION-030",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 11,
+  "recorded_at": "2026-10-04T09:07:05.757Z",
+  "event": "RETRY_AUTHORIZED",
+  "strategy_generation": 5,
+  "action_fingerprint": "030-existing-account-show-compatibility-provision",
+  "attempt_count": 1,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "4f0bff2b3b55c461625024b4c436da3903ef97990edc2741ffbbcac98aa3f491",
+  "detail": "Authorize descendantSHA fixed readonly nginx diagnostic; no old rerun, arbitrary config output, other-project hostname or secret exposure."
+}
