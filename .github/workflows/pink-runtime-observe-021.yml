@@ -1,0 +1,65 @@
+name: PINK IPTV Runtime Observation 021
+on:
+  push:
+    branches: [builder/pink-runtime-observe-021]
+    paths:
+      - '.github/workflows/pink-runtime-observe-021.yml'
+permissions:
+  contents: read
+concurrency:
+  group: pink-runtime-observe-021
+  cancel-in-progress: false
+jobs:
+  observe:
+    if: github.event.head_commit.message == 'Execute bounded runtime observation 021'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Fixed read-only observation on authorized OVH host
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ubuntu@146.59.145.3 'bash -s' <<'READ_ONLY_OBSERVATION'
+          set -euo pipefail
+          test "$(hostname)" = vps-32bea5b6
+          printf 'OBSERVATION_BEGIN=021\n'
+          date -u '+OBSERVED_AT_UTC=%Y-%m-%dT%H:%M:%SZ'
+          printf 'HOSTNAME=%s\n' "$(hostname)"
+          for unit in ssh nginx postgresql pink-iptv-backend pink-tv-proof-final-isolated; do
+            printf 'SERVICE=%s\n' "$unit"
+            systemctl show "$unit.service" -p ActiveState -p SubState -p UnitFileState -p ActiveEnterTimestamp -p MainPID -p MemoryCurrent -p WorkingDirectory --no-pager
+          done
+          if rev="$(sudo -n git -c safe.directory=/srv/pink-iptv -C /srv/pink-iptv rev-parse HEAD 2>/dev/null)"; then
+            if [[ "$rev" =~ ^[0-9a-f]{40}$ ]]; then printf 'RUNTIME_REVISION=%s\n' "$rev"; else echo RUNTIME_REVISION=UNKNOWN; fi
+          else echo RUNTIME_REVISION=UNKNOWN; fi
+          curl -sS --max-time 5 -o /dev/null -w 'PINK_OPENAPI_HTTP=%{http_code}\n' http://127.0.0.1:8010/openapi.json
+          pg_isready -h 127.0.0.1 -p 5432 -t 3
+          pid="$(systemctl show pink-tv-proof-final-isolated.service -p MainPID --value)"
+          if [[ "$pid" =~ ^[1-9][0-9]*$ ]]; then
+            ps -p "$pid" -o pid=,ppid=,comm=,etime=,rss=
+            printf 'PROOF_EXE=%s\n' "$(sudo -n readlink "/proc/$pid/exe" || true)"
+            printf 'PROOF_CWD=%s\n' "$(sudo -n readlink "/proc/$pid/cwd" || true)"
+            ps --ppid "$pid" -o pid=,ppid=,comm=,etime=,rss= || true
+          fi
+          if interfaces="$(sudo -n wg show interfaces)"; then
+            printf '%s\n' "$interfaces" | awk '{print "WG_INTERFACE_COUNT=" NF; for(i=1;i<=NF;i++) print "WG_INTERFACE=" $i}'
+          else echo WG_INTERFACES=UNAVAILABLE; fi
+          printf 'IPV4_FORWARDING=%s\n' "$(cat /proc/sys/net/ipv4/ip_forward)"
+          printf 'IPV6_FORWARDING=%s\n' "$(cat /proc/sys/net/ipv6/conf/all/forwarding)"
+          ip -o route show default | awk '{for(i=1;i<=NF;i++) if($i=="dev") print "DEFAULT_INTERFACE=" $(i+1)}'
+          for tool in iptables ip6tables; do
+           for table in filter nat; do
+            printf 'FIREWALL_TOOL=%s TABLE=%s\n' "$tool" "$table"
+            if rules="$(sudo -n "$tool" -t "$table" -S 2>/dev/null)"; then
+              printf '%s\n' "$rules" | awk '$1=="-P"{print "POLICY=" $2 ":" $3} $1=="-A"{n++} END{print "RULE_COUNT=" n+0}'
+            else echo FIREWALL_READ=UNAVAILABLE; fi
+           done
+          done
+          sudo -n ufw status 2>/dev/null | awk '/^Status:/{print "UFW_" $0}' || true
+          printf 'OBSERVATION_END=021\n'
+          READ_ONLY_OBSERVATION
