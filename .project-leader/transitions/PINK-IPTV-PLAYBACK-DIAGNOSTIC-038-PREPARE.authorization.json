@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-PLAYBACK-DIAGNOSTIC-038-PREPARE",
+  "task_id": "PINK-IPTV-PLAYBACK-DIAGNOSTIC-038",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-04T17:54:11.972Z",
+  "action": "prepare_fixed_provider_readiness_workflow",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "binding_mode": "EXACT_REVISION_BOUND",
+    "summary": "Owner requests repair of failed channel playback. Existing staging test-line diagnostics cover bounded GET source probes through existing SSH bridge, no redirected requests, credentials/raw URLs excluded. Authorize fixed workflow bytes and one execution."
+  },
+  "target": {
+    "kind": "bounded_readonly_workflow",
+    "identifier": ".github/workflows/pink-playback-diagnostic-038.yml",
+    "revision": "d44f57c82488a4d1c4f14c7c349bab8310c8df58132976acb5facb78f8070886",
+    "base_revision": "7d5eb7b871fcedd9b45492bb59e1cb382737f5e9",
+    "environment": "Existing OVH staging known line; no runtime writes"
+  }
+}
