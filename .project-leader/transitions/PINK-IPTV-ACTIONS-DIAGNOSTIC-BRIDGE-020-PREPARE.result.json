@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTIONS-DIAGNOSTIC-BRIDGE-020-PREPARE",
+  "task_id": "PINK-IPTV-ACTIONS-DIAGNOSTIC-BRIDGE-020",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-ACTIONS-DIAGNOSTIC-BRIDGE-020-PREPARE.authorization.json",
+  "action": "prepare_read_only_diagnostic_workflow",
+  "target": {
+    "kind": "repository_branch",
+    "identifier": "builder/pink-actions-diagnostic-020",
+    "revision": "df29545ce614ae51fdd2b7bd642fcdf16b77bf72",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": null
+  },
+  "observed_at": "2026-10-04T03:23:25.474Z",
+  "final_state": {
+    "status": "TEMPORARY_DIAGNOSTIC_PREPARED",
+    "revision": "022d94a092cf1bbb9843a99a5cc28c3302eb86d0"
+  },
+  "evidence": [
+    "Preparation authorization c49c0cc8567b6f5191a447bcdab65d79a171b3b1 preceded exact implementation 022d94a092cf1bbb9843a99a5cc28c3302eb86d0. Fixed Python AST, YAML, least-permission and canonical policy/scope validation passed."
+  ],
+  "residual_blockers": []
+}
