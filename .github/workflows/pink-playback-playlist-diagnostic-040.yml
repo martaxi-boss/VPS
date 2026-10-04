@@ -165,11 +165,16 @@ jobs:
                               parsed=urlsplit(first)
                               same_origin=parsed.scheme==origin.scheme and parsed.hostname==origin.hostname and (parsed.port or (443 if parsed.scheme=='https' else 80))==port
                               pieces=[unquote(p) for p in parsed.path.split('/') if p]
-                              credentials_match=len(pieces)>=4 and pieces[0]=='live' and pieces[1]==line.username and pieces[2]==password
+                              canonical=len(pieces)==4 and pieces[0]=='live' and pieces[1]==line.username and pieces[2]==password
+                              legacy=len(pieces)==3 and pieces[0]==line.username and pieces[1]==password
+                              credentials_match=canonical or legacy
+                              numeric_ts=bool(pieces and pieces[-1].endswith('.ts') and pieces[-1][:-3].isdigit())
+                              print('PLAYLIST_PATH_SEGMENTS='+str(len(pieces)),flush=True)
+                              print('PLAYLIST_PATH_SHAPE='+('CANONICAL' if canonical else 'LEGACY' if legacy else 'OTHER'),flush=True)
                               print('PLAYLIST_ORIGIN_MATCH='+('YES' if same_origin else 'NO'),flush=True)
                               print('PLAYLIST_CREDENTIALS_MATCH='+('YES' if credentials_match else 'NO'),flush=True)
-                              print('PLAYLIST_CANONICAL_TS_PATH='+('YES' if credentials_match and pieces[-1].endswith('.ts') else 'NO'),flush=True)
-                              if same_origin and credentials_match and not parsed.username and not parsed.password and not parsed.query:
+                              print('PLAYLIST_CANONICAL_TS_PATH='+('YES' if canonical and numeric_ts else 'NO'),flush=True)
+                              if same_origin and credentials_match and numeric_ts and not parsed.username and not parsed.password and not parsed.query:
                                   with upstream.stream('GET',first,headers={'Accept':'*/*'}) as media:
                                       print('PLAYLIST_SOURCE_HTTP='+str(media.status_code),flush=True)
                                       print('PLAYLIST_SOURCE_REDIRECT='+('YES' if media.headers.get('location') else 'NO'),flush=True)
