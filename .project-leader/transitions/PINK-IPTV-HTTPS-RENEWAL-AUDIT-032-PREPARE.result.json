@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-HTTPS-RENEWAL-AUDIT-032-PREPARE",
+  "task_id": "PINK-IPTV-HTTPS-RENEWAL-AUDIT-032",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-HTTPS-RENEWAL-AUDIT-032-PREPARE.authorization.json",
+  "action": "add_fixed_privileged_observation_workflow",
+  "target": {
+    "kind": "bounded_operations_task",
+    "identifier": "builder/pink-https-renewal-audit-032",
+    "revision": "c307d08b6c5f846d4057bb57a445faa07dff4f4b",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "OVH development/staging"
+  },
+  "observed_at": "2026-10-04T09:36:19.540Z",
+  "final_state": {
+    "status": "READONLY_RENEWAL_CONFIG_READINESS_PASS",
+    "revision": "6a66e83bc1c58d38a5e4cfe12d69c5449bfb7275"
+  },
+  "evidence": [
+    "Exact run37192564587 SUCCESS; selected certificate expiry2027-01-02T08:13:13Z and sanitized readiness PASS; no secret values or writes."
+  ],
+  "residual_blockers": []
+}

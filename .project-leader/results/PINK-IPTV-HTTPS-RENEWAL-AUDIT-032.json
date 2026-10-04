@@ -1,0 +1,62 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-HTTPS-RENEWAL-AUDIT-032",
+  "terminal_status": "TERMINAL_SUCCESS",
+  "repository": "martaxi-boss/VPS",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authorization_record": ".project-leader/tasks/PINK-IPTV-HTTPS-RENEWAL-AUDIT-032.json",
+  "authorization_commit_sha": "c307d08b6c5f846d4057bb57a445faa07dff4f4b",
+  "authorization_sha256": "e045524ce061a4ff87fef5251ab32923dce9d215695ac1233916db226cd47554",
+  "implementation_head_sha": "6a66e83bc1c58d38a5e4cfe12d69c5449bfb7275",
+  "branch": "builder/pink-https-renewal-audit-032",
+  "recorded_at": "2026-10-04T09:36:19.030Z",
+  "changes": [
+    "Added fixed readonly selected certificate/renewal metadata audit only."
+  ],
+  "validation": [
+    {
+      "name": "Project architecture scope audit",
+      "status": "PASS",
+      "evidence": "Run37192564587 SUCCESS: existing webroot authenticator, no disabling directoryhooks flag, lineage-specific hook syntax/mode/commands valid, root private key non-group/non-world-readable, correct selected-host SAN/expiry, accepted site bytes/symlink match, Certbot timer/nginx config/services active. Scope/policy and canonical GitHub verifier required independently."
+    },
+    {
+      "name": "Mutation scope audit",
+      "status": "PASS",
+      "evidence": "Run37192564587 SUCCESS: existing webroot authenticator, no disabling directoryhooks flag, lineage-specific hook syntax/mode/commands valid, root private key non-group/non-world-readable, correct selected-host SAN/expiry, accepted site bytes/symlink match, Certbot timer/nginx config/services active. Scope/policy and canonical GitHub verifier required independently."
+    },
+    {
+      "name": "GitHub evidence verification",
+      "status": "PASS",
+      "evidence": "Run37192564587 SUCCESS: existing webroot authenticator, no disabling directoryhooks flag, lineage-specific hook syntax/mode/commands valid, root private key non-group/non-world-readable, correct selected-host SAN/expiry, accepted site bytes/symlink match, Certbot timer/nginx config/services active. Scope/policy and canonical GitHub verifier required independently."
+    },
+    {
+      "name": "Consequential transition readiness audit",
+      "status": "PASS",
+      "evidence": "Run37192564587 SUCCESS: existing webroot authenticator, no disabling directoryhooks flag, lineage-specific hook syntax/mode/commands valid, root private key non-group/non-world-readable, correct selected-host SAN/expiry, accepted site bytes/symlink match, Certbot timer/nginx config/services active. Scope/policy and canonical GitHub verifier required independently."
+    },
+    {
+      "name": "Selected certificate renewal metadata and permission safety",
+      "status": "PASS",
+      "evidence": "Run37192564587 SUCCESS: existing webroot authenticator, no disabling directoryhooks flag, lineage-specific hook syntax/mode/commands valid, root private key non-group/non-world-readable, correct selected-host SAN/expiry, accepted site bytes/symlink match, Certbot timer/nginx config/services active. Scope/policy and canonical GitHub verifier required independently."
+    },
+    {
+      "name": "Operational access discovery closure",
+      "status": "PASS",
+      "evidence": "Run37192564587 SUCCESS: existing webroot authenticator, no disabling directoryhooks flag, lineage-specific hook syntax/mode/commands valid, root private key non-group/non-world-readable, correct selected-host SAN/expiry, accepted site bytes/symlink match, Certbot timer/nginx config/services active. Scope/policy and canonical GitHub verifier required independently."
+    }
+  ],
+  "ci": [
+    {
+      "name": "PINK HTTPS Renewal Audit 032",
+      "status": "SUCCESS",
+      "run_id": 37192564587
+    }
+  ],
+  "artifacts": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37192564587"
+  ],
+  "material_non_effects": [
+    "No certificate/key/config/renewal/service/network/credential/provider/data changes; this is renewal configuration readiness, not an actual future-renewal proof."
+  ],
+  "residual_blockers": []
+}
