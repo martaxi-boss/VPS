@@ -1,0 +1,225 @@
+name: PINK External WireGuard Proof 034
+on:
+  push:
+    branches: [builder/pink-wg-external-proof-034]
+    paths: ['.github/workflows/pink-wg-external-proof-034.yml']
+permissions:
+  contents: read
+concurrency:
+  group: pink-external-wireguard-proof-034
+  cancel-in-progress: false
+jobs:
+  proof:
+    if: github.event.head_commit.message == 'Execute one temporary external WireGuard proof 034'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: One temporary external peer and exact host inverse
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass wireguard-tools >/dev/null
+          umask 077
+          workdir="$(mktemp -d)"
+          remote_started=0
+          cleanup() {
+            outcome=$?
+            trap - EXIT
+            sudo ip link delete pink034ci 2>/dev/null || true
+            if [ "$remote_started" = 1 ]; then
+              if sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ubuntu@146.59.145.3 'sudo -n python3 /var/backups/pink-iptv/task034-external-proof/rollback.py cleanup'; then
+                sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ubuntu@146.59.145.3 'sudo -n systemctl stop pink034-rollback.timer'
+                echo ROLLBACK_WATCHDOG_DISARMED_AFTER_VERIFIED_INVERSE=PASS
+              else
+                echo HOST_INVERSE_PENDING_INDEPENDENT_WATCHDOG=YES
+                outcome=1
+              fi
+            fi
+            rm -f "$workdir/peer.key" "$workdir/peer.pub" "$workdir/client.conf" "$workdir/setup.sh" "$workdir/setup.log"
+            rmdir "$workdir"
+            echo RUNNER_PRIVATE_KEY_INTERFACE_REMOVED=PASS
+            exit "$outcome"
+          }
+          trap cleanup EXIT
+          test -z "$(sudo wg show interfaces)"
+          ! ip link show pink034ci >/dev/null 2>&1
+          wg genkey > "$workdir/peer.key"
+          wg pubkey < "$workdir/peer.key" > "$workdir/peer.pub"
+          target_ip="$(getent ahostsv4 api.github.com | awk '$2=="STREAM"{print $1;exit}')"
+          test -n "$target_ip"
+          cat > "$workdir/setup.sh" <<'SETUP'
+          import os,sys,json,hashlib,subprocess,time,stat,ipaddress,base64
+          from pathlib import Path
+          
+          ROOT=Path('/var/backups/pink-iptv/task034-external-proof')
+          IFACE='pink034'
+          UNIT='pink034-rollback'
+          CHAINS=[('filter','INPUT','PINK034_IN'),('filter','FORWARD','PINK034_FWD'),('nat','POSTROUTING','PINK034_NAT')]
+          
+          def run(*args,check=True):
+              p=subprocess.run(args,check=check,capture_output=True,text=True,timeout=20)
+              return p.stdout
+          
+          def fw():
+              return ''.join(t+' '+table+'\n'+run(t,'-w','5','-t',table,'-S')
+                             for t in ('iptables','ip6tables') for table in ('filter','nat','mangle','raw'))
+          
+          def readiness():
+              for service in ('ssh','nginx','postgresql','pink-iptv-backend','pink-tv-proof-final-isolated'):
+                  run('systemctl','is-active','--quiet',service)
+              assert run('curl','-sS','--max-time','5','-o','/dev/null','-w','%{http_code}',
+                         'http://127.0.0.1:8010/openapi.json')=='200'
+              run('pg_isready','-h','127.0.0.1','-p','5432','-t','3')
+          
+          def ipt(table,*args,check=True):return run('iptables','-w','5','-t',table,*args,check=check)
+          
+          def cleanup():
+              if not (ROOT/'state.json').exists():return
+              st=json.loads((ROOT/'state.json').read_text())
+              # Every invocation is fixed to this task's interface, own chains and exact additions.
+              links=json.loads(run('ip','-j','link','show'))
+              present=any(x['ifname']==IFACE for x in links)
+              if present:
+                  actual=run('wg','show',IFACE,'public-key').strip()
+                  expected=st.get('server_public_key')
+                  index=next(x['ifindex'] for x in links if x['ifname']==IFACE)
+                  assert index==st.get('ifindex') and expected is not None and actual in (expected,'(none)'), 'interface ownership changed'
+                  run('ip','link','del',IFACE)
+              for table,hook,chain in CHAINS:
+                  rules=ipt(table,'-S').splitlines()
+                  hookrule='-A '+hook+' -j '+chain
+                  if hookrule in rules:ipt(table,'-D',hook,'-j',chain)
+                  for entry in st['rules']:
+                      if entry['table']==table and entry['args'][0]==chain:
+                          test=subprocess.run(['iptables','-w','5','-t',table,'-C',*entry['args']],capture_output=True)
+                          if test.returncode==0:ipt(table,'-D',*entry['args'])
+                  if any(line.startswith('-N '+chain) for line in ipt(table,'-S').splitlines()):
+                      assert not any(line.startswith('-A '+chain+' ') for line in ipt(table,'-S').splitlines()), 'unexpected owned-chain drift'
+                      ipt(table,'-X',chain)
+              # Restore this bounded test's value only with its manifest and no remaining VPN interface.
+              assert not run('wg','show','interfaces').strip()
+              if Path('/proc/sys/net/ipv4/ip_forward').read_text().strip()!='0':
+                  run('sysctl','-qw','net.ipv4.ip_forward=0')
+              assert Path('/proc/sys/net/ipv6/conf/all/forwarding').read_text().strip()=='0'
+              assert fw()==(ROOT/'baseline-firewall.txt').read_text()
+              readiness()
+              for filename in ('server-private.key','setup-state.tmp'):
+                  p=ROOT/filename
+                  if p.exists():p.unlink()
+              assert not (ROOT/'server-private.key').exists()
+              st['status']='ROLLED_BACK';st['completed_at_utc']=time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime())
+              (ROOT/'state.json').write_text(json.dumps(st,sort_keys=True))
+              print('LIVE_EXACT_ADDITIVE_INVERSE=PASS',flush=True)
+              print('HOST_INTERFACE_PRIVATE_KEY_REMOVED=PASS',flush=True)
+              print('HOST_FIREWALL_FORWARDING_RESTORED=PASS',flush=True)
+              print('EXISTING_SERVICES_API_DATABASE=PASS',flush=True)
+              print('OBSERVED_AT_UTC='+st['completed_at_utc'],flush=True)
+          
+          assert os.geteuid()==0 and run('hostname').strip()=='vps-32bea5b6'
+          os.umask(0o077)
+          mode=sys.argv[1]
+          if mode=='cleanup':
+              cleanup();sys.exit(0)
+          assert mode=='start'
+          peer_key=os.environ['PINK034_PEER_KEY']
+          assert len(base64.b64decode(peer_key,validate=True))==32
+          target=str(ipaddress.IPv4Address(os.environ['PINK034_TARGET_IP']))
+          assert ipaddress.IPv4Address(target).is_global
+          runner=str(ipaddress.IPv4Address(os.environ['PINK034_RUNNER_IP']))
+          assert ipaddress.IPv4Address(runner).is_global
+          assert not ROOT.exists(), 'existing task state must be reconstructed before retry'
+          readiness()
+          assert Path('/proc/sys/net/ipv4/ip_forward').read_text().strip()=='0'
+          assert Path('/proc/sys/net/ipv6/conf/all/forwarding').read_text().strip()=='0'
+          assert not run('wg','show','interfaces').strip()
+          assert not run('ss','-H','-lun','sport = :51820').strip()
+          assert json.loads(run('ip','-j','route','show','default'))[0]['dev']=='ens3'
+          assert fw()==Path('/var/backups/pink-iptv/task033-gateway/firewall-config.txt').read_text()
+          for table,_,chain in CHAINS:assert chain not in ipt(table,'-S')
+          assert IFACE not in {x['ifname'] for x in json.loads(run('ip','-j','link','show'))}
+          ROOT.mkdir(parents=True,mode=0o700)
+          (ROOT/'baseline-firewall.txt').write_text(fw())
+          rules=[
+              {'table':'filter','args':['PINK034_IN','-i','ens3','-s',runner+'/32','-p','udp','--dport','51820','-j','ACCEPT']},
+              {'table':'filter','args':['PINK034_IN','-i',IFACE,'-s','10.66.0.2/32','-d','10.66.0.1/32','-p','icmp','-j','ACCEPT']},
+              {'table':'filter','args':['PINK034_FWD','-i',IFACE,'-o','ens3','-s','10.66.0.2/32','-d',target+'/32','-p','tcp','--dport','443','-j','ACCEPT']},
+              {'table':'filter','args':['PINK034_FWD','-i','ens3','-o',IFACE,'-d','10.66.0.2/32','-s',target+'/32','-m','conntrack','--ctstate','ESTABLISHED,RELATED','-j','ACCEPT']},
+              {'table':'filter','args':['PINK034_FWD','-i',IFACE,'-j','DROP']},
+              {'table':'nat','args':['PINK034_NAT','-s','10.66.0.2/32','-d',target+'/32','-o','ens3','-p','tcp','--dport','443','-j','MASQUERADE']},
+          ]
+          state={'status':'PREPARED','runner_ip':runner,'target_ip':target,'interface':IFACE,'server_public_key':None,'rules':rules}
+          (ROOT/'state.json').write_text(json.dumps(state,sort_keys=True))
+          # The fixed script is installed by the caller before starting the timed inverse.
+          script=base64.b64decode(os.environ['PINK034_SCRIPT_B64'],validate=True)
+          (ROOT/'rollback.py').write_bytes(script)
+          run('python3','-m','py_compile',str(ROOT/'rollback.py'))
+          run('systemd-run','--unit='+UNIT,'--on-active=15m','--timer-property=AccuracySec=1s',
+              '--property=Type=oneshot','/usr/bin/python3',str(ROOT/'rollback.py'),'cleanup')
+          run('systemctl','is-active','--quiet',UNIT+'.timer')
+          print('INDEPENDENT_15_MINUTE_ROLLBACK=ARMED',flush=True)
+          try:
+              key=run('wg','genkey').strip();key_path=ROOT/'server-private.key';key_path.write_text(key+'\n')
+              pub=subprocess.run(['wg','pubkey'],input=key+'\n',text=True,check=True,capture_output=True).stdout.strip()
+              state['server_public_key']=pub;(ROOT/'state.json').write_text(json.dumps(state,sort_keys=True))
+              run('ip','link','add',IFACE,'type','wireguard')
+              state['ifindex']=next(x['ifindex'] for x in json.loads(run('ip','-j','link','show')) if x['ifname']==IFACE)
+              (ROOT/'state.json').write_text(json.dumps(state,sort_keys=True))
+              run('wg','set',IFACE,'private-key',str(key_path),'listen-port','51820',
+                  'peer',peer_key,'allowed-ips','10.66.0.2/32')
+              run('ip','address','add','10.66.0.1/24','dev',IFACE)
+              run('ip','link','set','dev',IFACE,'mtu','1380','up')
+              ipt('filter','-N','PINK034_IN')
+              ipt('filter','-A','PINK034_IN','-i','ens3','-s',runner+'/32','-p','udp','--dport','51820','-j','ACCEPT')
+              ipt('filter','-A','PINK034_IN','-i',IFACE,'-s','10.66.0.2/32','-d','10.66.0.1/32','-p','icmp','-j','ACCEPT')
+              ipt('filter','-I','INPUT','1','-j','PINK034_IN')
+              ipt('filter','-N','PINK034_FWD')
+              ipt('filter','-A','PINK034_FWD','-i',IFACE,'-o','ens3','-s','10.66.0.2/32','-d',target+'/32',
+                  '-p','tcp','--dport','443','-j','ACCEPT')
+              ipt('filter','-A','PINK034_FWD','-i','ens3','-o',IFACE,'-d','10.66.0.2/32','-s',target+'/32',
+                  '-m','conntrack','--ctstate','ESTABLISHED,RELATED','-j','ACCEPT')
+              ipt('filter','-A','PINK034_FWD','-i',IFACE,'-j','DROP')
+              ipt('filter','-I','FORWARD','1','-j','PINK034_FWD')
+              ipt('nat','-N','PINK034_NAT')
+              ipt('nat','-A','PINK034_NAT','-s','10.66.0.2/32','-d',target+'/32','-o','ens3','-p','tcp','--dport','443','-j','MASQUERADE')
+              ipt('nat','-A','POSTROUTING','-j','PINK034_NAT')
+              run('sysctl','-qw','net.ipv4.ip_forward=1')
+              assert '-P INPUT DROP' in ipt('filter','-S') and '-P FORWARD DROP' in ipt('filter','-S')
+              assert len(run('wg','show',IFACE,'peers').splitlines())==1
+              assert stat.S_IMODE(key_path.stat().st_mode)==0o600
+              readiness()
+              state['status']='ACTIVE';(ROOT/'state.json').write_text(json.dumps(state,sort_keys=True))
+              print('ONE_TEMPORARY_PEER_READY=PASS',flush=True)
+              print('SERVER_PUBLIC_KEY='+pub,flush=True)
+          except BaseException:
+              cleanup();raise
+          SETUP
+          remote_started=1
+          { cat "$workdir/peer.pub"; printf '%s\n' "$target_ip"; cat "$workdir/setup.sh"; } | sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ubuntu@146.59.145.3 'read -r peer; read -r target; runner="${SSH_CONNECTION%% *}"; sudo -n env PINK034_PEER_KEY="$peer" PINK034_TARGET_IP="$target" PINK034_RUNNER_IP="$runner" PINK034_SCRIPT_B64=aW1wb3J0IG9zLHN5cyxqc29uLGhhc2hsaWIsc3VicHJvY2Vzcyx0aW1lLHN0YXQsaXBhZGRyZXNzLGJhc2U2NApmcm9tIHBhdGhsaWIgaW1wb3J0IFBhdGgKClJPT1Q9UGF0aCgnL3Zhci9iYWNrdXBzL3BpbmstaXB0di90YXNrMDM0LWV4dGVybmFsLXByb29mJykKSUZBQ0U9J3BpbmswMzQnClVOSVQ9J3BpbmswMzQtcm9sbGJhY2snCkNIQUlOUz1bKCdmaWx0ZXInLCdJTlBVVCcsJ1BJTkswMzRfSU4nKSwoJ2ZpbHRlcicsJ0ZPUldBUkQnLCdQSU5LMDM0X0ZXRCcpLCgnbmF0JywnUE9TVFJPVVRJTkcnLCdQSU5LMDM0X05BVCcpXQoKZGVmIHJ1bigqYXJncyxjaGVjaz1UcnVlKToKICAgIHA9c3VicHJvY2Vzcy5ydW4oYXJncyxjaGVjaz1jaGVjayxjYXB0dXJlX291dHB1dD1UcnVlLHRleHQ9VHJ1ZSx0aW1lb3V0PTIwKQogICAgcmV0dXJuIHAuc3Rkb3V0CgpkZWYgZncoKToKICAgIHJldHVybiAnJy5qb2luKHQrJyAnK3RhYmxlKydcbicrcnVuKHQsJy13JywnNScsJy10Jyx0YWJsZSwnLVMnKQogICAgICAgICAgICAgICAgICAgZm9yIHQgaW4gKCdpcHRhYmxlcycsJ2lwNnRhYmxlcycpIGZvciB0YWJsZSBpbiAoJ2ZpbHRlcicsJ25hdCcsJ21hbmdsZScsJ3JhdycpKQoKZGVmIHJlYWRpbmVzcygpOgogICAgZm9yIHNlcnZpY2UgaW4gKCdzc2gnLCduZ2lueCcsJ3Bvc3RncmVzcWwnLCdwaW5rLWlwdHYtYmFja2VuZCcsJ3BpbmstdHYtcHJvb2YtZmluYWwtaXNvbGF0ZWQnKToKICAgICAgICBydW4oJ3N5c3RlbWN0bCcsJ2lzLWFjdGl2ZScsJy0tcXVpZXQnLHNlcnZpY2UpCiAgICBhc3NlcnQgcnVuKCdjdXJsJywnLXNTJywnLS1tYXgtdGltZScsJzUnLCctbycsJy9kZXYvbnVsbCcsJy13JywnJXtodHRwX2NvZGV9JywKICAgICAgICAgICAgICAgJ2h0dHA6Ly8xMjcuMC4wLjE6ODAxMC9vcGVuYXBpLmpzb24nKT09JzIwMCcKICAgIHJ1bigncGdfaXNyZWFkeScsJy1oJywnMTI3LjAuMC4xJywnLXAnLCc1NDMyJywnLXQnLCczJykKCmRlZiBpcHQodGFibGUsKmFyZ3MsY2hlY2s9VHJ1ZSk6cmV0dXJuIHJ1bignaXB0YWJsZXMnLCctdycsJzUnLCctdCcsdGFibGUsKmFyZ3MsY2hlY2s9Y2hlY2spCgpkZWYgY2xlYW51cCgpOgogICAgaWYgbm90IChST09ULydzdGF0ZS5qc29uJykuZXhpc3RzKCk6cmV0dXJuCiAgICBzdD1qc29uLmxvYWRzKChST09ULydzdGF0ZS5qc29uJykucmVhZF90ZXh0KCkpCiAgICAjIEV2ZXJ5IGludm9jYXRpb24gaXMgZml4ZWQgdG8gdGhpcyB0YXNrJ3MgaW50ZXJmYWNlLCBvd24gY2hhaW5zIGFuZCBleGFjdCBhZGRpdGlvbnMuCiAgICBsaW5rcz1qc29uLmxvYWRzKHJ1bignaXAnLCctaicsJ2xpbmsnLCdzaG93JykpCiAgICBwcmVzZW50PWFueSh4WydpZm5hbWUnXT09SUZBQ0UgZm9yIHggaW4gbGlua3MpCiAgICBpZiBwcmVzZW50OgogICAgICAgIGFjdHVhbD1ydW4oJ3dnJywnc2hvdycsSUZBQ0UsJ3B1YmxpYy1rZXknKS5zdHJpcCgpCiAgICAgICAgZXhwZWN0ZWQ9c3QuZ2V0KCdzZXJ2ZXJfcHVibGljX2tleScpCiAgICAgICAgaW5kZXg9bmV4dCh4WydpZmluZGV4J10gZm9yIHggaW4gbGlua3MgaWYgeFsnaWZuYW1lJ109PUlGQUNFKQogICAgICAgIGFzc2VydCBpbmRleD09c3QuZ2V0KCdpZmluZGV4JykgYW5kIGV4cGVjdGVkIGlzIG5vdCBOb25lIGFuZCBhY3R1YWwgaW4gKGV4cGVjdGVkLCcobm9uZSknKSwgJ2ludGVyZmFjZSBvd25lcnNoaXAgY2hhbmdlZCcKICAgICAgICBydW4oJ2lwJywnbGluaycsJ2RlbCcsSUZBQ0UpCiAgICBmb3IgdGFibGUsaG9vayxjaGFpbiBpbiBDSEFJTlM6CiAgICAgICAgcnVsZXM9aXB0KHRhYmxlLCctUycpLnNwbGl0bGluZXMoKQogICAgICAgIGhvb2tydWxlPSctQSAnK2hvb2srJyAtaiAnK2NoYWluCiAgICAgICAgaWYgaG9va3J1bGUgaW4gcnVsZXM6aXB0KHRhYmxlLCctRCcsaG9vaywnLWonLGNoYWluKQogICAgICAgIGZvciBlbnRyeSBpbiBzdFsncnVsZXMnXToKICAgICAgICAgICAgaWYgZW50cnlbJ3RhYmxlJ109PXRhYmxlIGFuZCBlbnRyeVsnYXJncyddWzBdPT1jaGFpbjoKICAgICAgICAgICAgICAgIHRlc3Q9c3VicHJvY2Vzcy5ydW4oWydpcHRhYmxlcycsJy13JywnNScsJy10Jyx0YWJsZSwnLUMnLCplbnRyeVsnYXJncyddXSxjYXB0dXJlX291dHB1dD1UcnVlKQogICAgICAgICAgICAgICAgaWYgdGVzdC5yZXR1cm5jb2RlPT0wOmlwdCh0YWJsZSwnLUQnLCplbnRyeVsnYXJncyddKQogICAgICAgIGlmIGFueShsaW5lLnN0YXJ0c3dpdGgoJy1OICcrY2hhaW4pIGZvciBsaW5lIGluIGlwdCh0YWJsZSwnLVMnKS5zcGxpdGxpbmVzKCkpOgogICAgICAgICAgICBhc3NlcnQgbm90IGFueShsaW5lLnN0YXJ0c3dpdGgoJy1BICcrY2hhaW4rJyAnKSBmb3IgbGluZSBpbiBpcHQodGFibGUsJy1TJykuc3BsaXRsaW5lcygpKSwgJ3VuZXhwZWN0ZWQgb3duZWQtY2hhaW4gZHJpZnQnCiAgICAgICAgICAgIGlwdCh0YWJsZSwnLVgnLGNoYWluKQogICAgIyBSZXN0b3JlIHRoaXMgYm91bmRlZCB0ZXN0J3MgdmFsdWUgb25seSB3aXRoIGl0cyBtYW5pZmVzdCBhbmQgbm8gcmVtYWluaW5nIFZQTiBpbnRlcmZhY2UuCiAgICBhc3NlcnQgbm90IHJ1bignd2cnLCdzaG93JywnaW50ZXJmYWNlcycpLnN0cmlwKCkKICAgIGlmIFBhdGgoJy9wcm9jL3N5cy9uZXQvaXB2NC9pcF9mb3J3YXJkJykucmVhZF90ZXh0KCkuc3RyaXAoKSE9JzAnOgogICAgICAgIHJ1bignc3lzY3RsJywnLXF3JywnbmV0LmlwdjQuaXBfZm9yd2FyZD0wJykKICAgIGFzc2VydCBQYXRoKCcvcHJvYy9zeXMvbmV0L2lwdjYvY29uZi9hbGwvZm9yd2FyZGluZycpLnJlYWRfdGV4dCgpLnN0cmlwKCk9PScwJwogICAgYXNzZXJ0IGZ3KCk9PShST09ULydiYXNlbGluZS1maXJld2FsbC50eHQnKS5yZWFkX3RleHQoKQogICAgcmVhZGluZXNzKCkKICAgIGZvciBmaWxlbmFtZSBpbiAoJ3NlcnZlci1wcml2YXRlLmtleScsJ3NldHVwLXN0YXRlLnRtcCcpOgogICAgICAgIHA9Uk9PVC9maWxlbmFtZQogICAgICAgIGlmIHAuZXhpc3RzKCk6cC51bmxpbmsoKQogICAgYXNzZXJ0IG5vdCAoUk9PVC8nc2VydmVyLXByaXZhdGUua2V5JykuZXhpc3RzKCkKICAgIHN0WydzdGF0dXMnXT0nUk9MTEVEX0JBQ0snO3N0Wydjb21wbGV0ZWRfYXRfdXRjJ109dGltZS5zdHJmdGltZSgnJVktJW0tJWRUJUg6JU06JVNaJyx0aW1lLmdtdGltZSgpKQogICAgKFJPT1QvJ3N0YXRlLmpzb24nKS53cml0ZV90ZXh0KGpzb24uZHVtcHMoc3Qsc29ydF9rZXlzPVRydWUpKQogICAgcHJpbnQoJ0xJVkVfRVhBQ1RfQURESVRJVkVfSU5WRVJTRT1QQVNTJyxmbHVzaD1UcnVlKQogICAgcHJpbnQoJ0hPU1RfSU5URVJGQUNFX1BSSVZBVEVfS0VZX1JFTU9WRUQ9UEFTUycsZmx1c2g9VHJ1ZSkKICAgIHByaW50KCdIT1NUX0ZJUkVXQUxMX0ZPUldBUkRJTkdfUkVTVE9SRUQ9UEFTUycsZmx1c2g9VHJ1ZSkKICAgIHByaW50KCdFWElTVElOR19TRVJWSUNFU19BUElfREFUQUJBU0U9UEFTUycsZmx1c2g9VHJ1ZSkKICAgIHByaW50KCdPQlNFUlZFRF9BVF9VVEM9JytzdFsnY29tcGxldGVkX2F0X3V0YyddLGZsdXNoPVRydWUpCgphc3NlcnQgb3MuZ2V0ZXVpZCgpPT0wIGFuZCBydW4oJ2hvc3RuYW1lJykuc3RyaXAoKT09J3Zwcy0zMmJlYTViNicKb3MudW1hc2soMG8wNzcpCm1vZGU9c3lzLmFyZ3ZbMV0KaWYgbW9kZT09J2NsZWFudXAnOgogICAgY2xlYW51cCgpO3N5cy5leGl0KDApCmFzc2VydCBtb2RlPT0nc3RhcnQnCnBlZXJfa2V5PW9zLmVudmlyb25bJ1BJTkswMzRfUEVFUl9LRVknXQphc3NlcnQgbGVuKGJhc2U2NC5iNjRkZWNvZGUocGVlcl9rZXksdmFsaWRhdGU9VHJ1ZSkpPT0zMgp0YXJnZXQ9c3RyKGlwYWRkcmVzcy5JUHY0QWRkcmVzcyhvcy5lbnZpcm9uWydQSU5LMDM0X1RBUkdFVF9JUCddKSkKYXNzZXJ0IGlwYWRkcmVzcy5JUHY0QWRkcmVzcyh0YXJnZXQpLmlzX2dsb2JhbApydW5uZXI9c3RyKGlwYWRkcmVzcy5JUHY0QWRkcmVzcyhvcy5lbnZpcm9uWydQSU5LMDM0X1JVTk5FUl9JUCddKSkKYXNzZXJ0IGlwYWRkcmVzcy5JUHY0QWRkcmVzcyhydW5uZXIpLmlzX2dsb2JhbAphc3NlcnQgbm90IFJPT1QuZXhpc3RzKCksICdleGlzdGluZyB0YXNrIHN0YXRlIG11c3QgYmUgcmVjb25zdHJ1Y3RlZCBiZWZvcmUgcmV0cnknCnJlYWRpbmVzcygpCmFzc2VydCBQYXRoKCcvcHJvYy9zeXMvbmV0L2lwdjQvaXBfZm9yd2FyZCcpLnJlYWRfdGV4dCgpLnN0cmlwKCk9PScwJwphc3NlcnQgUGF0aCgnL3Byb2Mvc3lzL25ldC9pcHY2L2NvbmYvYWxsL2ZvcndhcmRpbmcnKS5yZWFkX3RleHQoKS5zdHJpcCgpPT0nMCcKYXNzZXJ0IG5vdCBydW4oJ3dnJywnc2hvdycsJ2ludGVyZmFjZXMnKS5zdHJpcCgpCmFzc2VydCBub3QgcnVuKCdzcycsJy1IJywnLWx1bicsJ3Nwb3J0ID0gOjUxODIwJykuc3RyaXAoKQphc3NlcnQganNvbi5sb2FkcyhydW4oJ2lwJywnLWonLCdyb3V0ZScsJ3Nob3cnLCdkZWZhdWx0JykpWzBdWydkZXYnXT09J2VuczMnCmFzc2VydCBmdygpPT1QYXRoKCcvdmFyL2JhY2t1cHMvcGluay1pcHR2L3Rhc2swMzMtZ2F0ZXdheS9maXJld2FsbC1jb25maWcudHh0JykucmVhZF90ZXh0KCkKZm9yIHRhYmxlLF8sY2hhaW4gaW4gQ0hBSU5TOmFzc2VydCBjaGFpbiBub3QgaW4gaXB0KHRhYmxlLCctUycpCmFzc2VydCBJRkFDRSBub3QgaW4ge3hbJ2lmbmFtZSddIGZvciB4IGluIGpzb24ubG9hZHMocnVuKCdpcCcsJy1qJywnbGluaycsJ3Nob3cnKSl9ClJPT1QubWtkaXIocGFyZW50cz1UcnVlLG1vZGU9MG83MDApCihST09ULydiYXNlbGluZS1maXJld2FsbC50eHQnKS53cml0ZV90ZXh0KGZ3KCkpCnJ1bGVzPVsKICAgIHsndGFibGUnOidmaWx0ZXInLCdhcmdzJzpbJ1BJTkswMzRfSU4nLCctaScsJ2VuczMnLCctcycscnVubmVyKycvMzInLCctcCcsJ3VkcCcsJy0tZHBvcnQnLCc1MTgyMCcsJy1qJywnQUNDRVBUJ119LAogICAgeyd0YWJsZSc6J2ZpbHRlcicsJ2FyZ3MnOlsnUElOSzAzNF9JTicsJy1pJyxJRkFDRSwnLXMnLCcxMC42Ni4wLjIvMzInLCctZCcsJzEwLjY2LjAuMS8zMicsJy1wJywnaWNtcCcsJy1qJywnQUNDRVBUJ119LAogICAgeyd0YWJsZSc6J2ZpbHRlcicsJ2FyZ3MnOlsnUElOSzAzNF9GV0QnLCctaScsSUZBQ0UsJy1vJywnZW5zMycsJy1zJywnMTAuNjYuMC4yLzMyJywnLWQnLHRhcmdldCsnLzMyJywnLXAnLCd0Y3AnLCctLWRwb3J0JywnNDQzJywnLWonLCdBQ0NFUFQnXX0sCiAgICB7J3RhYmxlJzonZmlsdGVyJywnYXJncyc6WydQSU5LMDM0X0ZXRCcsJy1pJywnZW5zMycsJy1vJyxJRkFDRSwnLWQnLCcxMC42Ni4wLjIvMzInLCctcycsdGFyZ2V0KycvMzInLCctbScsJ2Nvbm50cmFjaycsJy0tY3RzdGF0ZScsJ0VTVEFCTElTSEVELFJFTEFURUQnLCctaicsJ0FDQ0VQVCddfSwKICAgIHsndGFibGUnOidmaWx0ZXInLCdhcmdzJzpbJ1BJTkswMzRfRldEJywnLWknLElGQUNFLCctaicsJ0RST1AnXX0sCiAgICB7J3RhYmxlJzonbmF0JywnYXJncyc6WydQSU5LMDM0X05BVCcsJy1zJywnMTAuNjYuMC4yLzMyJywnLWQnLHRhcmdldCsnLzMyJywnLW8nLCdlbnMzJywnLXAnLCd0Y3AnLCctLWRwb3J0JywnNDQzJywnLWonLCdNQVNRVUVSQURFJ119LApdCnN0YXRlPXsnc3RhdHVzJzonUFJFUEFSRUQnLCdydW5uZXJfaXAnOnJ1bm5lciwndGFyZ2V0X2lwJzp0YXJnZXQsJ2ludGVyZmFjZSc6SUZBQ0UsJ3NlcnZlcl9wdWJsaWNfa2V5JzpOb25lLCdydWxlcyc6cnVsZXN9CihST09ULydzdGF0ZS5qc29uJykud3JpdGVfdGV4dChqc29uLmR1bXBzKHN0YXRlLHNvcnRfa2V5cz1UcnVlKSkKIyBUaGUgZml4ZWQgc2NyaXB0IGlzIGluc3RhbGxlZCBieSB0aGUgY2FsbGVyIGJlZm9yZSBzdGFydGluZyB0aGUgdGltZWQgaW52ZXJzZS4Kc2NyaXB0PWJhc2U2NC5iNjRkZWNvZGUob3MuZW52aXJvblsnUElOSzAzNF9TQ1JJUFRfQjY0J10sdmFsaWRhdGU9VHJ1ZSkKKFJPT1QvJ3JvbGxiYWNrLnB5Jykud3JpdGVfYnl0ZXMoc2NyaXB0KQpydW4oJ3B5dGhvbjMnLCctbScsJ3B5X2NvbXBpbGUnLHN0cihST09ULydyb2xsYmFjay5weScpKQpydW4oJ3N5c3RlbWQtcnVuJywnLS11bml0PScrVU5JVCwnLS1vbi1hY3RpdmU9MTVtJywnLS10aW1lci1wcm9wZXJ0eT1BY2N1cmFjeVNlYz0xcycsCiAgICAnLS1wcm9wZXJ0eT1UeXBlPW9uZXNob3QnLCcvdXNyL2Jpbi9weXRob24zJyxzdHIoUk9PVC8ncm9sbGJhY2sucHknKSwnY2xlYW51cCcpCnJ1bignc3lzdGVtY3RsJywnaXMtYWN0aXZlJywnLS1xdWlldCcsVU5JVCsnLnRpbWVyJykKcHJpbnQoJ0lOREVQRU5ERU5UXzE1X01JTlVURV9ST0xMQkFDSz1BUk1FRCcsZmx1c2g9VHJ1ZSkKdHJ5OgogICAga2V5PXJ1bignd2cnLCdnZW5rZXknKS5zdHJpcCgpO2tleV9wYXRoPVJPT1QvJ3NlcnZlci1wcml2YXRlLmtleSc7a2V5X3BhdGgud3JpdGVfdGV4dChrZXkrJ1xuJykKICAgIHB1Yj1zdWJwcm9jZXNzLnJ1bihbJ3dnJywncHVia2V5J10saW5wdXQ9a2V5KydcbicsdGV4dD1UcnVlLGNoZWNrPVRydWUsY2FwdHVyZV9vdXRwdXQ9VHJ1ZSkuc3Rkb3V0LnN0cmlwKCkKICAgIHN0YXRlWydzZXJ2ZXJfcHVibGljX2tleSddPXB1YjsoUk9PVC8nc3RhdGUuanNvbicpLndyaXRlX3RleHQoanNvbi5kdW1wcyhzdGF0ZSxzb3J0X2tleXM9VHJ1ZSkpCiAgICBydW4oJ2lwJywnbGluaycsJ2FkZCcsSUZBQ0UsJ3R5cGUnLCd3aXJlZ3VhcmQnKQogICAgc3RhdGVbJ2lmaW5kZXgnXT1uZXh0KHhbJ2lmaW5kZXgnXSBmb3IgeCBpbiBqc29uLmxvYWRzKHJ1bignaXAnLCctaicsJ2xpbmsnLCdzaG93JykpIGlmIHhbJ2lmbmFtZSddPT1JRkFDRSkKICAgIChST09ULydzdGF0ZS5qc29uJykud3JpdGVfdGV4dChqc29uLmR1bXBzKHN0YXRlLHNvcnRfa2V5cz1UcnVlKSkKICAgIHJ1bignd2cnLCdzZXQnLElGQUNFLCdwcml2YXRlLWtleScsc3RyKGtleV9wYXRoKSwnbGlzdGVuLXBvcnQnLCc1MTgyMCcsCiAgICAgICAgJ3BlZXInLHBlZXJfa2V5LCdhbGxvd2VkLWlwcycsJzEwLjY2LjAuMi8zMicpCiAgICBydW4oJ2lwJywnYWRkcmVzcycsJ2FkZCcsJzEwLjY2LjAuMS8yNCcsJ2RldicsSUZBQ0UpCiAgICBydW4oJ2lwJywnbGluaycsJ3NldCcsJ2RldicsSUZBQ0UsJ210dScsJzEzODAnLCd1cCcpCiAgICBpcHQoJ2ZpbHRlcicsJy1OJywnUElOSzAzNF9JTicpCiAgICBpcHQoJ2ZpbHRlcicsJy1BJywnUElOSzAzNF9JTicsJy1pJywnZW5zMycsJy1zJyxydW5uZXIrJy8zMicsJy1wJywndWRwJywnLS1kcG9ydCcsJzUxODIwJywnLWonLCdBQ0NFUFQnKQogICAgaXB0KCdmaWx0ZXInLCctQScsJ1BJTkswMzRfSU4nLCctaScsSUZBQ0UsJy1zJywnMTAuNjYuMC4yLzMyJywnLWQnLCcxMC42Ni4wLjEvMzInLCctcCcsJ2ljbXAnLCctaicsJ0FDQ0VQVCcpCiAgICBpcHQoJ2ZpbHRlcicsJy1JJywnSU5QVVQnLCcxJywnLWonLCdQSU5LMDM0X0lOJykKICAgIGlwdCgnZmlsdGVyJywnLU4nLCdQSU5LMDM0X0ZXRCcpCiAgICBpcHQoJ2ZpbHRlcicsJy1BJywnUElOSzAzNF9GV0QnLCctaScsSUZBQ0UsJy1vJywnZW5zMycsJy1zJywnMTAuNjYuMC4yLzMyJywnLWQnLHRhcmdldCsnLzMyJywKICAgICAgICAnLXAnLCd0Y3AnLCctLWRwb3J0JywnNDQzJywnLWonLCdBQ0NFUFQnKQogICAgaXB0KCdmaWx0ZXInLCctQScsJ1BJTkswMzRfRldEJywnLWknLCdlbnMzJywnLW8nLElGQUNFLCctZCcsJzEwLjY2LjAuMi8zMicsJy1zJyx0YXJnZXQrJy8zMicsCiAgICAgICAgJy1tJywnY29ubnRyYWNrJywnLS1jdHN0YXRlJywnRVNUQUJMSVNIRUQsUkVMQVRFRCcsJy1qJywnQUNDRVBUJykKICAgIGlwdCgnZmlsdGVyJywnLUEnLCdQSU5LMDM0X0ZXRCcsJy1pJyxJRkFDRSwnLWonLCdEUk9QJykKICAgIGlwdCgnZmlsdGVyJywnLUknLCdGT1JXQVJEJywnMScsJy1qJywnUElOSzAzNF9GV0QnKQogICAgaXB0KCduYXQnLCctTicsJ1BJTkswMzRfTkFUJykKICAgIGlwdCgnbmF0JywnLUEnLCdQSU5LMDM0X05BVCcsJy1zJywnMTAuNjYuMC4yLzMyJywnLWQnLHRhcmdldCsnLzMyJywnLW8nLCdlbnMzJywnLXAnLCd0Y3AnLCctLWRwb3J0JywnNDQzJywnLWonLCdNQVNRVUVSQURFJykKICAgIGlwdCgnbmF0JywnLUEnLCdQT1NUUk9VVElORycsJy1qJywnUElOSzAzNF9OQVQnKQogICAgcnVuKCdzeXNjdGwnLCctcXcnLCduZXQuaXB2NC5pcF9mb3J3YXJkPTEnKQogICAgYXNzZXJ0ICctUCBJTlBVVCBEUk9QJyBpbiBpcHQoJ2ZpbHRlcicsJy1TJykgYW5kICctUCBGT1JXQVJEIERST1AnIGluIGlwdCgnZmlsdGVyJywnLVMnKQogICAgYXNzZXJ0IGxlbihydW4oJ3dnJywnc2hvdycsSUZBQ0UsJ3BlZXJzJykuc3BsaXRsaW5lcygpKT09MQogICAgYXNzZXJ0IHN0YXQuU19JTU9ERShrZXlfcGF0aC5zdGF0KCkuc3RfbW9kZSk9PTBvNjAwCiAgICByZWFkaW5lc3MoKQogICAgc3RhdGVbJ3N0YXR1cyddPSdBQ1RJVkUnOyhST09ULydzdGF0ZS5qc29uJykud3JpdGVfdGV4dChqc29uLmR1bXBzKHN0YXRlLHNvcnRfa2V5cz1UcnVlKSkKICAgIHByaW50KCdPTkVfVEVNUE9SQVJZX1BFRVJfUkVBRFk9UEFTUycsZmx1c2g9VHJ1ZSkKICAgIHByaW50KCdTRVJWRVJfUFVCTElDX0tFWT0nK3B1YixmbHVzaD1UcnVlKQpleGNlcHQgQmFzZUV4Y2VwdGlvbjoKICAgIGNsZWFudXAoKTtyYWlzZQo= python3 - start' > "$workdir/setup.log"
+          sed -n '/INDEPENDENT_15_MINUTE_ROLLBACK=/p;/ONE_TEMPORARY_PEER_READY=/p' "$workdir/setup.log"
+          server_pub="$(sed -n 's/^SERVER_PUBLIC_KEY=//p' "$workdir/setup.log")"
+          test -n "$server_pub"
+          {
+            printf '[Interface]\nPrivateKey = '
+            cat "$workdir/peer.key"
+            printf '\n[Peer]\nPublicKey = %s\nEndpoint = 146.59.145.3:51820\nAllowedIPs = 10.66.0.0/24, %s/32\nPersistentKeepalive = 5\n' "$server_pub" "$target_ip"
+          } > "$workdir/client.conf"
+          sudo ip link add pink034ci type wireguard
+          sudo wg setconf pink034ci "$workdir/client.conf"
+          sudo ip address add 10.66.0.2/24 dev pink034ci
+          sudo ip link set pink034ci mtu 1380 up
+          sudo ip route add 10.66.0.0/24 dev pink034ci
+          sudo ip route add "$target_ip/32" dev pink034ci
+          ping -n -c 3 -W 5 10.66.0.1 >/dev/null
+          echo EXTERNAL_WIREGUARD_GATEWAY_PING=PASS
+          handshake="$(sudo wg show pink034ci latest-handshakes | awk '{print $2}')"
+          test "${handshake:-0}" -gt 0
+          echo REAL_EXTERNAL_HANDSHAKE=PASS
+          curl --interface pink034ci --resolve "api.github.com:443:$target_ip" --max-time 20 -fsS https://api.github.com/ -o /dev/null
+          echo BOUNDED_HTTPS_NAT_EGRESS=PASS
+          test "$(sudo wg show pink034ci peers | wc -l)" -eq 1
+          echo EXACTLY_ONE_DEVICE_OWNED_TEST_PEER=PASS
+          date -u '+PROOF_OBSERVED_AT_UTC=%Y-%m-%dT%H:%M:%SZ'
