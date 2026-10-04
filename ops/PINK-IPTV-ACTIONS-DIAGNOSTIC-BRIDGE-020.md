@@ -1,0 +1,9 @@
+# Self-provisioned Actions diagnostic020
+
+Control: martaxi-boss/Project-leader@05225695684b54ce5becbb89cf0e5b6dc88dcafa, loaded Project Leader0.6.2. Task019 exhaustion is superseded for the next diagnostic action by the universal self-provisioning rule; original task019 evidence is preserved.
+
+Create a temporary same-repository GitHub Actions reader for the annotation URLs of check111338340325 and111338340381 from failed task018. Automatic repository-scoped github.token has only checks:read. No checkout, additional dependencies, user input, SSH secret, SSH execution, runtime/customer mutation, billing/visibility changes or paid resource activation. Hosted runner uses existing Actions infrastructure with a two-minute ceiling. No new provider resources or paid service are enabled.
+
+All requests are fixed GETs. Only check IDs, HTTP code, annotation count, reason codes, pagination completeness and observed implementation SHA return to logs/step summary. Raw message/title/path/body/URL content and credential values are never emitted. Billing/runner/workflow/permission labels are classifications of observed annotations, not guesses. Unknown classification remains explicit.
+
+Push trigger is restricted to exact task branch AND workflow-file changes; job also requires exact implementation commit message. Evidence-only pushes do not invoke the probe. No PR, inherited SSH workflow or main promotion. Separate exact execution authorization must be durable before task ref advances to implementation. Never certify a failed pre-step run. If the runner cannot start, record the attempt as BLOCKED and complete self-provisioning exhaustion honestly; a public project token cannot read private VPS annotations without a separately authorized cross-repository credential, so do not transfer secrets or change repository visibility.

@@ -1,0 +1,67 @@
+name: PINK Actions Diagnostic 020
+on:
+  push:
+    branches: ['builder/pink-actions-diagnostic-020']
+    paths: ['.github/workflows/pink-actions-diagnostic-020.yml']
+permissions:
+  checks: read
+concurrency:
+  group: pink-actions-diagnostic-020
+  cancel-in-progress: false
+jobs:
+  diagnose:
+    if: github.event.head_commit.message == 'Execute bounded Actions diagnostic 020'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Read fixed failed-check annotations without SSH
+        env:
+          DIAGNOSTIC_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY_DIAGNOSTIC'
+          import json, os, re, urllib.request, urllib.error
+          token = os.environ["DIAGNOSTIC_TOKEN"]
+          checks = (111338340325, 111338340381)
+          def classify(message):
+              value = message.casefold()
+              if any(x in value for x in ("recent account payments have failed", "spending limit", "billing", "payment failed")):
+                  return "BILLING_PAYMENT_OR_SPENDING_LIMIT"
+              if any(x in value for x in ("actions is disabled", "actions are disabled", "workflow is disabled")):
+                  return "ACTIONS_DISABLED"
+              if any(x in value for x in ("no runner", "runner unavailable", "runner capacity")):
+                  return "RUNNER_AVAILABILITY"
+              if any(x in value for x in ("invalid workflow", "workflow is not valid", "yaml syntax")):
+                  return "WORKFLOW_VALIDATION"
+              if any(x in value for x in ("permission", "not authorized", "access denied")):
+                  return "PERMISSION"
+              return "UNCLASSIFIED_REQUIRES_FURTHER_EVIDENCE"
+          rows = []
+          all_ok = True
+          for check in checks:
+              req = urllib.request.Request(
+                  "https://api.github.com/repos/martaxi-boss/VPS/check-runs/" + str(check) + "/annotations?per_page=100",
+                  headers={"Authorization": "Bearer " + token, "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"})
+              try:
+                  with urllib.request.urlopen(req, timeout=20) as response:
+                      data = json.load(response)
+                  if not isinstance(data, list):
+                      raise ValueError("Unexpected annotation format")
+                  if len(data) == 100:
+                      all_ok = False
+                  codes = sorted(set(classify(str(x.get("message", ""))) for x in data))
+                  rows.append({"check_id": check, "http_status": 200, "annotation_count": len(data), "reason_codes": codes, "pagination_complete": len(data) < 100})
+              except urllib.error.HTTPError as exc:
+                  all_ok = False
+                  rows.append({"check_id": check, "http_status": exc.code, "reason_codes": ["ANNOTATIONS_READ_DENIED_OR_UNAVAILABLE"]})
+              except Exception:
+                  all_ok = False
+                  rows.append({"check_id": check, "reason_codes": ["ANNOTATIONS_READ_FAILED"]})
+          payload = {"diagnostic_schema": 1, "probe": "020", "observed_head": os.environ["GITHUB_SHA"], "raw_messages_disclosed": False, "annotations": rows}
+          output = json.dumps(payload, sort_keys=True)
+          print("DIAGNOSTIC_RESULT=" + output)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write("Fixed read-only annotation diagnostic020\n\n" + output + "\n")
+          raise SystemExit(0 if all_ok else 1)
+          PY_DIAGNOSTIC
