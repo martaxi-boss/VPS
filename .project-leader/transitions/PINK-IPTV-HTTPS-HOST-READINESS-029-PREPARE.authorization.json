@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-HTTPS-HOST-READINESS-029-PREPARE",
+  "task_id": "PINK-IPTV-HTTPS-HOST-READINESS-029",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-04T08:53:48.165Z",
+  "action": "add_fixed_privileged_observation_workflow",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "binding_mode": "EXACT_REVISION_BOUND",
+    "summary": "Existing native repository-return channel and selected hostname readiness are covered; only fixed readonly diagnostics."
+  },
+  "target": {
+    "kind": "bounded_operations_task",
+    "identifier": "builder/pink-https-host-readiness-029",
+    "revision": "e47f292c38674dfce54c54bb20fa9f363b51c17c",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "OVH development/staging"
+  }
+}
