@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-PLAYBACK-DIAGNOSTIC-038-PREPARE",
+  "task_id": "PINK-IPTV-PLAYBACK-DIAGNOSTIC-038",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-PLAYBACK-DIAGNOSTIC-038-PREPARE.authorization.json",
+  "action": "prepare_fixed_provider_readiness_workflow",
+  "target": {
+    "kind": "bounded_readonly_workflow",
+    "identifier": ".github/workflows/pink-playback-diagnostic-038.yml",
+    "revision": "d44f57c82488a4d1c4f14c7c349bab8310c8df58132976acb5facb78f8070886",
+    "base_revision": "7d5eb7b871fcedd9b45492bb59e1cb382737f5e9",
+    "environment": "Existing OVH staging known line; no runtime writes"
+  },
+  "observed_at": "2026-10-04T20:20:42.343Z",
+  "final_state": {
+    "status": "READONLY_SOURCE_DIAGNOSTIC_OBSERVED",
+    "revision": "ebfd0af791bd48499b9ff267a2a118f9efd277f6"
+  },
+  "evidence": [
+    "Run37222285591 executed fixed authorized probe successfully; source401 explicitly remains unresolved. No runtime/provider/database writes."
+  ],
+  "residual_blockers": []
+}
