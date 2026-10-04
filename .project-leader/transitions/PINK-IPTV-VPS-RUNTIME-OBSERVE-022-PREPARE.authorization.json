@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-VPS-RUNTIME-OBSERVE-022-PREPARE",
+  "task_id": "PINK-IPTV-VPS-RUNTIME-OBSERVE-022",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-04T03:50:02.218Z",
+  "action": "add_fixed_privileged_observation_workflow",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "binding_mode": "EXACT_REVISION_BOUND",
+    "summary": "Existing Owner-authorized fixed read-only OVH observation; isolated task with public Actions repair, no server writes."
+  },
+  "target": {
+    "kind": "repository_branch",
+    "identifier": "builder/pink-runtime-safety-022",
+    "revision": "a6cbebf473c6c141170fe24da17080c8c7695fa0",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "OVH development/staging"
+  }
+}
