@@ -1,0 +1,181 @@
+name: PINK Gateway Rollback 033
+on:
+  push:
+    branches: [builder/pink-wg-gateway-rollback-033]
+    paths: ['.github/workflows/pink-wg-gateway-rollback-033.yml']
+permissions:
+  contents: read
+concurrency:
+  group: pink-gateway-rollback-033
+  cancel-in-progress: false
+jobs:
+  rehearsal:
+    if: github.event.head_commit.message == 'Execute isolated gateway rollback rehearsal 033'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Restricted baseline and isolated forwarding NAT inverse
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ubuntu@146.59.145.3 'bash -s' <<'REMOTE_SCRIPT'
+          set -euo pipefail
+          sudo -n python3 - <<'PY'
+          import os,sys,json,hashlib,subprocess,time,stat,ipaddress,shutil
+          from pathlib import Path
+          
+          def run(*args):
+              return subprocess.run(args,check=True,capture_output=True,text=True,timeout=20).stdout
+          
+          def host_firewall():
+              return ''.join(tool+' '+table+'\n'+run(tool,'-w','5','-t',table,'-S')
+                             for tool in ('iptables','ip6tables') for table in ('filter','nat','mangle','raw'))
+          
+          def forwards():
+              return {k:Path('/proc/sys/'+k.replace('.','/')).read_text().strip()
+                      for k in ('net.ipv4.ip_forward','net.ipv6.conf.all.forwarding')}
+          
+          def readiness():
+              for service in ('ssh','nginx','postgresql','pink-iptv-backend','pink-tv-proof-final-isolated'):
+                  run('systemctl','is-active','--quiet',service)
+              assert run('curl','-sS','--max-time','5','-o','/dev/null','-w','%{http_code}',
+                         'http://127.0.0.1:8010/openapi.json')=='200'
+              run('pg_isready','-h','127.0.0.1','-p','5432','-t','3')
+          
+          assert os.geteuid()==0
+          assert run('hostname').strip()=='vps-32bea5b6'
+          readiness()
+          fw=host_firewall(); fw_hash=hashlib.sha256(fw.encode()).hexdigest()
+          fwds=forwards()
+          assert fwds=={'net.ipv4.ip_forward':'0','net.ipv6.conf.all.forwarding':'0'}
+          assert not run('wg','show','interfaces').strip()
+          assert run('ip','-j','route','show','default').find('ens3')>=0
+          listeners=json.loads(run('ip','-j','address','show'))
+          routes=json.loads(run('ip','-j','-4','route','show','table','all'))
+          candidate=ipaddress.ip_network('10.66.0.0/24')
+          for record in listeners:
+              for a in record.get('addr_info',[]):
+                  if a.get('family')=='inet':
+                      assert not candidate.overlaps(ipaddress.ip_network(a['local']+'/'+str(a['prefixlen']),strict=False))
+          for record in routes:
+              dst=record.get('dst','default')
+              if dst!='default':
+                  assert not candidate.overlaps(ipaddress.ip_network(dst,strict=False))
+          assert not run('ss','-H','-lun','sport = :51820').strip()
+          assert not Path('/etc/wireguard/pink.conf').exists()
+          
+          os.umask(0o077)
+          baseline=Path('/var/backups/pink-iptv/task033-gateway')
+          assert not baseline.exists(), 'baseline path already exists; reconstruct before any retry'
+          baseline.mkdir(mode=0o700,parents=True)
+          (baseline/'firewall-config.txt').write_text(fw)
+          (baseline/'forwarding.json').write_text(json.dumps(fwds,sort_keys=True))
+          # Only structural network configuration. No WireGuard keys, service environments or customer data.
+          files={}
+          for filename in ('before.rules','after.rules','user.rules','before6.rules','after6.rules','user6.rules','sysctl.conf'):
+              p=Path('/etc/ufw')/filename
+              if p.is_file():
+                  raw=p.read_bytes(); (baseline/filename).write_bytes(raw)
+                  files[str(p)]=hashlib.sha256(raw).hexdigest()
+          meta={'observed_at_utc':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),
+                'firewall_sha256':fw_hash,'forwarding':fwds,'egress':'ens3',
+                'candidate_port':51820,'candidate_subnet':'10.66.0.0/24','files':files,
+                'restore_policy':'Only exact PINK-owned future additions; never flush/replay whole host firewall snapshots.'}
+          (baseline/'manifest.json').write_text(json.dumps(meta,sort_keys=True,indent=2))
+          assert baseline.stat().st_uid==0 and stat.S_IMODE(baseline.stat().st_mode)==0o700
+          for p in baseline.iterdir():
+              assert p.stat().st_uid==0 and stat.S_IMODE(p.stat().st_mode)==0o600
+          print('STRUCTURAL_BASELINE_RESTRICTED=PASS',flush=True)
+          print('BASELINE_FIREWALL_SHA256='+fw_hash,flush=True)
+          
+          names=['pink033-client','pink033-gateway','pink033-egress']
+          existing={line.split()[0] for line in run('ip','netns','list').splitlines() if line.strip()}
+          assert not existing.intersection(names)
+          links=['p33ci','p33gi','p33go','p33eo']
+          assert not {x['ifname'] for x in json.loads(run('ip','-j','link','show'))}.intersection(links)
+          owned=[]; host_links=[]; proc=None
+          
+          def ns(name,*args):return run('ip','netns','exec',name,*args)
+          g=names[1]; c=names[0]; e=names[2]
+          def ipt(*args):return ns(g,'iptables','-w','5',*args)
+          def ns_snapshot():
+              return ipt('-t','filter','-S')+ipt('-t','nat','-S')+ns(g,'ip6tables','-w','5','-S')
+          
+          try:
+              for name in names:
+                  run('ip','netns','add',name); owned.append(name)
+                  ns(name,'ip','link','set','lo','up')
+              for a,b,na,nb in [('p33ci','p33gi',c,g),('p33go','p33eo',g,e)]:
+                  run('ip','link','add',a,'type','veth','peer','name',b);host_links.extend([a,b])
+                  run('ip','link','set',a,'netns',na);host_links.remove(a)
+                  run('ip','link','set',b,'netns',nb);host_links.remove(b)
+              for n,dev,addr in [(c,'p33ci','10.66.0.2/24'),(g,'p33gi','10.66.0.1/24'),
+                                  (g,'p33go','198.18.33.1/30'),(e,'p33eo','198.18.33.2/30')]:
+                  ns(n,'ip','addr','add',addr,'dev',dev);ns(n,'ip','link','set',dev,'up')
+              ns(c,'ip','route','add','default','via','10.66.0.1')
+              ipt('-P','FORWARD','DROP')
+              ipt('-A','FORWARD','-s','192.0.2.99/32','-j','DROP')
+              ns(g,'ip6tables','-w','5','-P','FORWARD','DROP')
+              ns(g,'sysctl','-qw','net.ipv4.ip_forward=0')
+              ns(g,'sysctl','-qw','net.ipv6.conf.all.forwarding=0')
+              before=ns_snapshot()
+              ipt('-N','PINK033_FWD')
+              ipt('-A','PINK033_FWD','-i','p33gi','-o','p33go','-s','10.66.0.0/24','-j','ACCEPT')
+              ipt('-A','PINK033_FWD','-i','p33go','-o','p33gi','-d','10.66.0.0/24',
+                  '-m','conntrack','--ctstate','ESTABLISHED,RELATED','-j','ACCEPT')
+              ipt('-I','FORWARD','1','-j','PINK033_FWD')
+              ipt('-t','nat','-N','PINK033_NAT')
+              ipt('-t','nat','-A','PINK033_NAT','-s','10.66.0.0/24','-o','p33go','-j','MASQUERADE')
+              ipt('-t','nat','-A','POSTROUTING','-j','PINK033_NAT')
+              ns(g,'sysctl','-qw','net.ipv4.ip_forward=1')
+              server="import socket;s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM);s.settimeout(15);s.bind(('198.18.33.2',30333));d,a=s.recvfrom(128);assert d==b'pink033';s.sendto(a[0].encode(),a)"
+              proc=subprocess.Popen(['ip','netns','exec',e,'python3','-c',server],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+              for _ in range(25):
+                  if '30333' in ns(e,'ss','-H','-lun'):break
+                  if proc.poll() is not None:raise RuntimeError('echo process exited')
+                  time.sleep(0.1)
+              else:raise RuntimeError('echo readiness timeout')
+              client="import socket;s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM);s.settimeout(5);s.sendto(b'pink033',('198.18.33.2',30333));d,a=s.recvfrom(128);assert d==b'198.18.33.1'"
+              ns(c,'python3','-c',client);assert proc.wait(timeout=5)==0
+              print('ISOLATED_FORWARDED_NAT_TRAFFIC=PASS',flush=True)
+              assert '-P FORWARD DROP' in ipt('-S')
+              assert '-P FORWARD DROP' in ns(g,'ip6tables','-S')
+              assert ns(g,'sysctl','-n','net.ipv6.conf.all.forwarding').strip()=='0'
+              print('ISOLATED_DROP_POLICY_IPV6_PRESERVED=PASS',flush=True)
+              # Exact additive inverse: detach our hooks, delete our exact entries/owned chains; no flush/reset.
+              ipt('-D','FORWARD','-j','PINK033_FWD')
+              ipt('-D','PINK033_FWD','-i','p33gi','-o','p33go','-s','10.66.0.0/24','-j','ACCEPT')
+              ipt('-D','PINK033_FWD','-i','p33go','-o','p33gi','-d','10.66.0.0/24',
+                  '-m','conntrack','--ctstate','ESTABLISHED,RELATED','-j','ACCEPT')
+              ipt('-X','PINK033_FWD')
+              ipt('-t','nat','-D','POSTROUTING','-j','PINK033_NAT')
+              ipt('-t','nat','-D','PINK033_NAT','-s','10.66.0.0/24','-o','p33go','-j','MASQUERADE')
+              ipt('-t','nat','-X','PINK033_NAT')
+              ns(g,'sysctl','-qw','net.ipv4.ip_forward=0')
+              assert ns_snapshot()==before
+              assert ns(g,'sysctl','-n','net.ipv4.ip_forward').strip()=='0'
+              print('EXACT_ADDITIVE_NAMESPACE_INVERSE=PASS',flush=True)
+          finally:
+              if proc is not None and proc.poll() is None:
+                  proc.terminate();proc.wait(timeout=5)
+              for dev in host_links:
+                  subprocess.run(['ip','link','del',dev],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+              for name in reversed(owned):run('ip','netns','del',name)
+              remain={line.split()[0] for line in run('ip','netns','list').splitlines() if line.strip()}
+              assert not remain.intersection(names)
+              assert not {x['ifname'] for x in json.loads(run('ip','-j','link','show'))}.intersection(links)
+              assert host_firewall()==fw and forwards()==fwds
+              for p,h in files.items():assert hashlib.sha256(Path(p).read_bytes()).hexdigest()==h
+              assert not run('wg','show','interfaces').strip()
+              readiness()
+              print('OWNED_NAMESPACE_CLEANUP=PASS',flush=True)
+              print('HOST_NETWORK_AND_UFW_CONFIG_UNCHANGED=PASS',flush=True)
+              print('EXISTING_SERVICES_API_DATABASE=PASS',flush=True)
+          print('OBSERVED_AT_UTC='+time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),flush=True)
+          PY
+          REMOTE_SCRIPT
