@@ -1,0 +1,69 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-PLAYBACK-COMPATIBILITY-PROOF-041",
+  "terminal_status": "TERMINAL_SUCCESS",
+  "repository": "martaxi-boss/VPS",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authorization_record": ".project-leader/tasks/PINK-IPTV-PLAYBACK-COMPATIBILITY-PROOF-041.json",
+  "authorization_commit_sha": "2e3f9c9c7b8d6d2db50b36d736d4275e597392bf",
+  "authorization_sha256": "72128101489e156d38f3c294a28ee3c0b4a1db675b57d04b55ecb40a0fce79da",
+  "implementation_head_sha": "6aab969827e030fa4192c8ba884fac9fc259824c",
+  "branch": "builder/pink-playback-compatibility-proof-041",
+  "recorded_at": "2026-10-04T20:36:28.309Z",
+  "state_observed_at": "2026-10-04T20:34:28Z",
+  "changes": [
+    "Independent one-shot bounded known-line source A/B proof, without inherited certification/retry claims."
+  ],
+  "validation": [
+    {
+      "name": "Project architecture scope audit",
+      "status": "PASS",
+      "evidence": "Run37232584851 at20:34:28Z: known-line HTTPS authentication/catalog active; first provider source sameorigin/identicalcredentials legacy3segments/noextension/noquery. Samefirststream canonical and providerlegacy eachHTTP200/nonredirecting with3 aligned188byte TS sync positions, no HTML/HLS prefix. This certifies bounded transport/signature only, not full AVdecode; reported SIC/RTP401 remains unresolved. Existing runtime/db/provider unchanged. Original039 scope mismatch and040 multistage recovery-verifier limitation remain unverified historical records."
+    },
+    {
+      "name": "Mutation scope audit",
+      "status": "PASS",
+      "evidence": "Run37232584851 at20:34:28Z: known-line HTTPS authentication/catalog active; first provider source sameorigin/identicalcredentials legacy3segments/noextension/noquery. Samefirststream canonical and providerlegacy eachHTTP200/nonredirecting with3 aligned188byte TS sync positions, no HTML/HLS prefix. This certifies bounded transport/signature only, not full AVdecode; reported SIC/RTP401 remains unresolved. Existing runtime/db/provider unchanged. Original039 scope mismatch and040 multistage recovery-verifier limitation remain unverified historical records."
+    },
+    {
+      "name": "GitHub evidence verification",
+      "status": "PASS",
+      "evidence": "Run37232584851 at20:34:28Z: known-line HTTPS authentication/catalog active; first provider source sameorigin/identicalcredentials legacy3segments/noextension/noquery. Samefirststream canonical and providerlegacy eachHTTP200/nonredirecting with3 aligned188byte TS sync positions, no HTML/HLS prefix. This certifies bounded transport/signature only, not full AVdecode; reported SIC/RTP401 remains unresolved. Existing runtime/db/provider unchanged. Original039 scope mismatch and040 multistage recovery-verifier limitation remain unverified historical records."
+    },
+    {
+      "name": "Consequential transition readiness audit",
+      "status": "PASS",
+      "evidence": "Run37232584851 at20:34:28Z: known-line HTTPS authentication/catalog active; first provider source sameorigin/identicalcredentials legacy3segments/noextension/noquery. Samefirststream canonical and providerlegacy eachHTTP200/nonredirecting with3 aligned188byte TS sync positions, no HTML/HLS prefix. This certifies bounded transport/signature only, not full AVdecode; reported SIC/RTP401 remains unresolved. Existing runtime/db/provider unchanged. Original039 scope mismatch and040 multistage recovery-verifier limitation remain unverified historical records."
+    },
+    {
+      "name": "Known-line-only sanitized provider readiness",
+      "status": "PASS",
+      "evidence": "Run37232584851 at20:34:28Z: known-line HTTPS authentication/catalog active; first provider source sameorigin/identicalcredentials legacy3segments/noextension/noquery. Samefirststream canonical and providerlegacy eachHTTP200/nonredirecting with3 aligned188byte TS sync positions, no HTML/HLS prefix. This certifies bounded transport/signature only, not full AVdecode; reported SIC/RTP401 remains unresolved. Existing runtime/db/provider unchanged. Original039 scope mismatch and040 multistage recovery-verifier limitation remain unverified historical records."
+    },
+    {
+      "name": "Runtime credentials and database preservation",
+      "status": "PASS",
+      "evidence": "Run37232584851 at20:34:28Z: known-line HTTPS authentication/catalog active; first provider source sameorigin/identicalcredentials legacy3segments/noextension/noquery. Samefirststream canonical and providerlegacy eachHTTP200/nonredirecting with3 aligned188byte TS sync positions, no HTML/HLS prefix. This certifies bounded transport/signature only, not full AVdecode; reported SIC/RTP401 remains unresolved. Existing runtime/db/provider unchanged. Original039 scope mismatch and040 multistage recovery-verifier limitation remain unverified historical records."
+    },
+    {
+      "name": "Operational access discovery closure",
+      "status": "PASS",
+      "evidence": "Run37232584851 at20:34:28Z: known-line HTTPS authentication/catalog active; first provider source sameorigin/identicalcredentials legacy3segments/noextension/noquery. Samefirststream canonical and providerlegacy eachHTTP200/nonredirecting with3 aligned188byte TS sync positions, no HTML/HLS prefix. This certifies bounded transport/signature only, not full AVdecode; reported SIC/RTP401 remains unresolved. Existing runtime/db/provider unchanged. Original039 scope mismatch and040 multistage recovery-verifier limitation remain unverified historical records."
+    }
+  ],
+  "ci": [
+    {
+      "name": "PINK Playback Compatibility Proof 041",
+      "status": "SUCCESS",
+      "run_id": 37232584851
+    }
+  ],
+  "artifacts": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37232584851"
+  ],
+  "material_non_effects": [
+    "No runtime/provider/database/network mutations, credential/rawpayload persistence/output or AVdecode/physicalplayback success.",
+    "Both paths work for firstsource; do not infer that legacy path fixes401 for SIC/RTP. No retrospective authorization of039 or certification of040."
+  ],
+  "residual_blockers": []
+}

@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-PLAYBACK-COMPATIBILITY-PROOF-041-PREPARE",
+  "task_id": "PINK-IPTV-PLAYBACK-COMPATIBILITY-PROOF-041",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-PLAYBACK-COMPATIBILITY-PROOF-041-PREPARE.authorization.json",
+  "action": "prepare_fixed_provider_readiness_workflow",
+  "target": {
+    "kind": "fixed_readonly_diagnostic_workflow",
+    "identifier": "builder/pink-playback-compatibility-proof-041",
+    "revision": "2e3f9c9c7b8d6d2db50b36d736d4275e597392bf",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "OVH PINK staging readonly known line"
+  },
+  "observed_at": "2026-10-04T20:36:28.309Z",
+  "final_state": {
+    "status": "READONLY_SOURCE_COMPATIBILITY_TRANSPORT_OBSERVED",
+    "revision": "6aab969827e030fa4192c8ba884fac9fc259824c"
+  },
+  "evidence": [
+    "Run37232584851 at20:34:28Z: known-line HTTPS authentication/catalog active; first provider source sameorigin/identicalcredentials legacy3segments/noextension/noquery. Samefirststream canonical and providerlegacy eachHTTP200/nonredirecting with3 aligned188byte TS sync positions, no HTML/HLS prefix. This certifies bounded transport/signature only, not full AVdecode; reported SIC/RTP401 remains unresolved. Existing runtime/db/provider unchanged. Original039 scope mismatch and040 multistage recovery-verifier limitation remain unverified historical records."
+  ],
+  "residual_blockers": []
+}
