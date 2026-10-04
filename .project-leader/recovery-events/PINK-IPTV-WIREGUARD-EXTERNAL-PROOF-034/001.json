@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-WIREGUARD-EXTERNAL-PROOF-034",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 1,
+  "recorded_at": "2026-10-04T15:09:26.441Z",
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 1,
+  "action_fingerprint": "external-wg-proof034-route-install",
+  "attempt_count": 1,
+  "identical_failure_count": 1,
+  "no_progress_iterations": 1,
+  "previous_event_sha256": null,
+  "detail": "Run37211873389/job111464533069 failed RTNETLINK File exists after adding runner address which already creates connected subnet route. Host setup had armed watchdog and one peer; no handshake/NAT PASS claimed. EXIT inverse logs proved exact host firewall/forwarding/IPv4conf restoration, interface/private key deletion, services/API/PG preserved, timer disarmed; runner key/interface deleted. Reconstruct before new descendant proof."
+}
