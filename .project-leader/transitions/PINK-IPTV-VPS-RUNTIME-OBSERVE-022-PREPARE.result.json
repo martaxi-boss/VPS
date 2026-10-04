@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-VPS-RUNTIME-OBSERVE-022-PREPARE",
+  "task_id": "PINK-IPTV-VPS-RUNTIME-OBSERVE-022",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-VPS-RUNTIME-OBSERVE-022-PREPARE.authorization.json",
+  "action": "add_fixed_privileged_observation_workflow",
+  "target": {
+    "kind": "repository_branch",
+    "identifier": "builder/pink-runtime-safety-022",
+    "revision": "a6cbebf473c6c141170fe24da17080c8c7695fa0",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "OVH development/staging"
+  },
+  "observed_at": "2026-10-04T03:52:31.969Z",
+  "final_state": {
+    "status": "OBSERVED",
+    "revision": "b8a577e48dc495769f847592897aec4db6bec45b"
+  },
+  "evidence": [
+    "ExactSHA run37175238583/job111356388399 SUCCESS; isolated readonly script syntax/scope audited.",
+    "Preparation authorization dc2aa135f24719cb9a845fbb86b49cee7586b771 precedes fixed workflow; execute authorization d6ce9f7b883840ed456d2633dd1b308826500e0d persisted before push."
+  ],
+  "residual_blockers": []
+}

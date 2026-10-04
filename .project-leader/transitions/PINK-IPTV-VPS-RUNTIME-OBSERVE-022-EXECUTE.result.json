@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-VPS-RUNTIME-OBSERVE-022-EXECUTE",
+  "task_id": "PINK-IPTV-VPS-RUNTIME-OBSERVE-022",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-VPS-RUNTIME-OBSERVE-022-EXECUTE.authorization.json",
+  "action": "execute_exact_read_only_vps_observation",
+  "target": {
+    "kind": "repository_branch",
+    "identifier": "builder/pink-runtime-safety-022",
+    "revision": "b8a577e48dc495769f847592897aec4db6bec45b",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "OVH development/staging"
+  },
+  "observed_at": "2026-10-04T03:52:31.969Z",
+  "final_state": {
+    "status": "OBSERVED",
+    "revision": "b8a577e48dc495769f847592897aec4db6bec45b"
+  },
+  "evidence": [
+    "ExactSHA run37175238583/job111356388399 SUCCESS; isolated readonly script syntax/scope audited.",
+    "SAFETY_BEGIN=022\nOBSERVED_AT_UTC=2026-10-04T03:51:09Z\nRUNTIME_REVISION=ccccaf1eb25ca80936763f7d6a17e4dd00347e8a\nTRACKED_BACKEND_CLEAN=YES\nBACKEND_MAIN_SHA256=db106b81703c681fbdc6f8ee030ce9a4d122945dbc8355702059450ead3aa09d\nSYNTHETIC_INVALID_HTTP=422\nSYNTHETIC_INPUT_ECHO=YES\nSYNTHETIC_CACHE_NOSTORE=NO\nCANDIDATE_RANGE=10.66.0.0/24\nCANDIDATE_RANGE_OVERLAP=NO\nIPV4_ADDRESS_ROUTE_COUNT=8\nUFW_CHAIN_COUNT[iptables]=32\nUFW_CHAIN_COUNT[ip6tables]=0\nNFT_TABLE_COUNT=3\nNFT_CHAIN_COUNT=70\nNFT_RULE_COUNT=175\nPINK_CONFIG_EXISTS=NO\nCANDIDATE_UDP_LISTENER_COUNT=0\nSAFETY_END=022"
+  ],
+  "residual_blockers": []
+}
