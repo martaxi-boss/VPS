@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-WIREGUARD-EXTERNAL-PROOF-034",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 3,
+  "recorded_at": "2026-10-04T15:12:01.642Z",
+  "event": "RECOVERED",
+  "strategy_generation": 1,
+  "action_fingerprint": "external-wg-proof034-route-install",
+  "attempt_count": 2,
+  "identical_failure_count": 1,
+  "no_progress_iterations": 1,
+  "previous_event_sha256": "877739103e80c9d66223198125bf7c706f7c76d5e85a1c67add58b13864d26e6",
+  "detail": "Fresh descendant5df1b409d5a7fb1d375a725304c7a892a0f3fbf9 run37212023509/job111464971334 terminalSUCCESS. Actual external peer ping/handshake/target-bound HTTPSNAT PASS; live exact firewall/forwarding/IPv4conf inverse, interface/privatekey cleanup, existingservices/API/PG and watchdogdisarm PASS. First failure retained; no old-SHA rerun, no persistent gateway/Android/production proof."
+}

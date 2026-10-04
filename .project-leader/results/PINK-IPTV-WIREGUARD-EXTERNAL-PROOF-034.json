@@ -1,0 +1,75 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-WIREGUARD-EXTERNAL-PROOF-034",
+  "terminal_status": "TERMINAL_SUCCESS",
+  "repository": "martaxi-boss/VPS",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authorization_record": ".project-leader/tasks/PINK-IPTV-WIREGUARD-EXTERNAL-PROOF-034.json",
+  "authorization_commit_sha": "23fb4ac25de002b37eab78b92915da0bcced26ba",
+  "authorization_sha256": "478fbffc07ae7ea7f7346a8f367b8cddd1fe47d9b4dc157175b3d5d383b9bf8d",
+  "implementation_head_sha": "5df1b409d5a7fb1d375a725304c7a892a0f3fbf9",
+  "branch": "builder/pink-wg-external-proof-034",
+  "recorded_at": "2026-10-04T15:12:33.205Z",
+  "state_observed_at": "2026-10-04T15:11:14Z",
+  "changes": [
+    "Added fixed one-peer external WireGuard test and exact inverse. First route duplication corrected under pre-retry append-only authority. Protected baselines/watchdog keep all keys local and remove all transient live effects."
+  ],
+  "validation": [
+    {
+      "name": "Project architecture scope audit",
+      "status": "PASS",
+      "evidence": "Exact descendant run37212023509/job111464971334 terminalSUCCESS: one CI-owned peer externally handshakes/pings10.66.0.1 and completes target-bound TLS443 NAT request. Host interface/privatekey removed; filter/nat/mangle/raw IPv4/IPv6 config equals prior033 baseline, IPv4 forwarding/interfaceconf restored, IPv6forwarding0, services/API/PG preserved, localkey/interface cleanup and independent timer disarm PASS. Live GitHub canonical control verifier separately enforces immutable task, pre-retry ancestry and evidence-only final head."
+    },
+    {
+      "name": "Mutation scope audit",
+      "status": "PASS",
+      "evidence": "Exact descendant run37212023509/job111464971334 terminalSUCCESS: one CI-owned peer externally handshakes/pings10.66.0.1 and completes target-bound TLS443 NAT request. Host interface/privatekey removed; filter/nat/mangle/raw IPv4/IPv6 config equals prior033 baseline, IPv4 forwarding/interfaceconf restored, IPv6forwarding0, services/API/PG preserved, localkey/interface cleanup and independent timer disarm PASS. Live GitHub canonical control verifier separately enforces immutable task, pre-retry ancestry and evidence-only final head."
+    },
+    {
+      "name": "GitHub evidence verification",
+      "status": "PASS",
+      "evidence": "Exact descendant run37212023509/job111464971334 terminalSUCCESS: one CI-owned peer externally handshakes/pings10.66.0.1 and completes target-bound TLS443 NAT request. Host interface/privatekey removed; filter/nat/mangle/raw IPv4/IPv6 config equals prior033 baseline, IPv4 forwarding/interfaceconf restored, IPv6forwarding0, services/API/PG preserved, localkey/interface cleanup and independent timer disarm PASS. Live GitHub canonical control verifier separately enforces immutable task, pre-retry ancestry and evidence-only final head."
+    },
+    {
+      "name": "Consequential transition readiness audit",
+      "status": "PASS",
+      "evidence": "Exact descendant run37212023509/job111464971334 terminalSUCCESS: one CI-owned peer externally handshakes/pings10.66.0.1 and completes target-bound TLS443 NAT request. Host interface/privatekey removed; filter/nat/mangle/raw IPv4/IPv6 config equals prior033 baseline, IPv4 forwarding/interfaceconf restored, IPv6forwarding0, services/API/PG preserved, localkey/interface cleanup and independent timer disarm PASS. Live GitHub canonical control verifier separately enforces immutable task, pre-retry ancestry and evidence-only final head."
+    },
+    {
+      "name": "Real external WireGuard handshake and bounded NAT egress",
+      "status": "PASS",
+      "evidence": "Exact descendant run37212023509/job111464971334 terminalSUCCESS: one CI-owned peer externally handshakes/pings10.66.0.1 and completes target-bound TLS443 NAT request. Host interface/privatekey removed; filter/nat/mangle/raw IPv4/IPv6 config equals prior033 baseline, IPv4 forwarding/interfaceconf restored, IPv6forwarding0, services/API/PG preserved, localkey/interface cleanup and independent timer disarm PASS. Live GitHub canonical control verifier separately enforces immutable task, pre-retry ancestry and evidence-only final head."
+    },
+    {
+      "name": "Exact live additive inverse and autonomous cleanup",
+      "status": "PASS",
+      "evidence": "Exact descendant run37212023509/job111464971334 terminalSUCCESS: one CI-owned peer externally handshakes/pings10.66.0.1 and completes target-bound TLS443 NAT request. Host interface/privatekey removed; filter/nat/mangle/raw IPv4/IPv6 config equals prior033 baseline, IPv4 forwarding/interfaceconf restored, IPv6forwarding0, services/API/PG preserved, localkey/interface cleanup and independent timer disarm PASS. Live GitHub canonical control verifier separately enforces immutable task, pre-retry ancestry and evidence-only final head."
+    },
+    {
+      "name": "Existing services and live networking restored",
+      "status": "PASS",
+      "evidence": "Exact descendant run37212023509/job111464971334 terminalSUCCESS: one CI-owned peer externally handshakes/pings10.66.0.1 and completes target-bound TLS443 NAT request. Host interface/privatekey removed; filter/nat/mangle/raw IPv4/IPv6 config equals prior033 baseline, IPv4 forwarding/interfaceconf restored, IPv6forwarding0, services/API/PG preserved, localkey/interface cleanup and independent timer disarm PASS. Live GitHub canonical control verifier separately enforces immutable task, pre-retry ancestry and evidence-only final head."
+    },
+    {
+      "name": "Operational access discovery closure",
+      "status": "PASS",
+      "evidence": "Exact descendant run37212023509/job111464971334 terminalSUCCESS: one CI-owned peer externally handshakes/pings10.66.0.1 and completes target-bound TLS443 NAT request. Host interface/privatekey removed; filter/nat/mangle/raw IPv4/IPv6 config equals prior033 baseline, IPv4 forwarding/interfaceconf restored, IPv6forwarding0, services/API/PG preserved, localkey/interface cleanup and independent timer disarm PASS. Live GitHub canonical control verifier separately enforces immutable task, pre-retry ancestry and evidence-only final head."
+    }
+  ],
+  "ci": [
+    {
+      "name": "PINK External WireGuard Proof 034",
+      "status": "SUCCESS",
+      "run_id": 37212023509
+    }
+  ],
+  "artifacts": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37212023509",
+    "Root-only task034-external-proof and task034-external-proof-r2 structural baselines/receipts; privatekey files removed"
+  ],
+  "material_non_effects": [
+    "No persistent gateway/service/serverprivatekey/peer remains active; cleanup complete.",
+    "No Android actual tunnel, appconfig/enrollment, provider playback, production capacity, database/customer credential change, release/main merge/publiclaunch or paid backup."
+  ],
+  "residual_blockers": []
+}

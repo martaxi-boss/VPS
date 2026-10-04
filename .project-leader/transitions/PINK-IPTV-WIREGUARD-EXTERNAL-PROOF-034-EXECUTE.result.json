@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-WIREGUARD-EXTERNAL-PROOF-034-EXECUTE",
+  "task_id": "PINK-IPTV-WIREGUARD-EXTERNAL-PROOF-034",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-WIREGUARD-EXTERNAL-PROOF-034-EXECUTE.authorization.json",
+  "action": "execute_temporary_external_wireguard_proof_and_inverse",
+  "target": {
+    "kind": "exact_bounded_wireguard_runtime_proof",
+    "identifier": "builder/pink-wg-external-proof-034",
+    "revision": "c66768d3cf0141294effdf35b4039d0fed9165dc",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "OVH staging 146.59.145.3 and one GitHub-hosted ephemeral peer; 15minute watchdog"
+  },
+  "observed_at": "2026-10-04T15:08:35Z",
+  "final_state": {
+    "status": "FAILED_PROOF_HOST_RESTORED",
+    "revision": "c66768d3cf0141294effdf35b4039d0fed9165dc"
+  },
+  "evidence": [
+    "Run37211873389 failed redundant connected route; inverse verified host restoration. Superseded by fresh authorized descendant proof, never certified as handshake."
+  ],
+  "residual_blockers": [
+    "Historical initial route failure superseded by EXECUTE-R2; no current residual blocker."
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-WIREGUARD-EXTERNAL-PROOF-034-PREPARE",
+  "task_id": "PINK-IPTV-WIREGUARD-EXTERNAL-PROOF-034",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-WIREGUARD-EXTERNAL-PROOF-034-PREPARE.authorization.json",
+  "action": "prepare_fixed_external_wireguard_proof_workflow",
+  "target": {
+    "kind": "bounded_operations_workflow",
+    "identifier": "builder/pink-wg-external-proof-034",
+    "revision": "23fb4ac25de002b37eab78b92915da0bcced26ba",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "Authorized OVH staging and one ephemeral GitHub-hosted peer"
+  },
+  "observed_at": "2026-10-04T15:11:14Z",
+  "final_state": {
+    "status": "EXTERNAL_PEER_PROOF_AND_LIVE_INVERSE_VERIFIED",
+    "revision": "5df1b409d5a7fb1d375a725304c7a892a0f3fbf9"
+  },
+  "evidence": [
+    "Fixed one-peer workflow created and corrected within immutable scope; exact fresh retry certified."
+  ],
+  "residual_blockers": []
+}

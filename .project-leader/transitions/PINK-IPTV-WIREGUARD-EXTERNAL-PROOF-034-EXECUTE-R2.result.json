@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-WIREGUARD-EXTERNAL-PROOF-034-EXECUTE-R2",
+  "task_id": "PINK-IPTV-WIREGUARD-EXTERNAL-PROOF-034",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-WIREGUARD-EXTERNAL-PROOF-034-EXECUTE-R2.authorization.json",
+  "action": "execute_temporary_external_wireguard_proof_and_inverse",
+  "target": {
+    "kind": "exact_bounded_wireguard_runtime_proof",
+    "identifier": "builder/pink-wg-external-proof-034",
+    "revision": "5df1b409d5a7fb1d375a725304c7a892a0f3fbf9",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "OVH staging 146.59.145.3 and one GitHub-hosted ephemeral peer; 15minute watchdog"
+  },
+  "observed_at": "2026-10-04T15:11:14Z",
+  "final_state": {
+    "status": "EXTERNAL_PEER_PROOF_AND_LIVE_INVERSE_VERIFIED",
+    "revision": "5df1b409d5a7fb1d375a725304c7a892a0f3fbf9"
+  },
+  "evidence": [
+    "Run37212023509 externally handshakes, pings, performs boundedHTTPSNAT, then exactinverse/privatekeycleanup/watchdogdisarm and serviceschecks allPASS."
+  ],
+  "residual_blockers": []
+}
