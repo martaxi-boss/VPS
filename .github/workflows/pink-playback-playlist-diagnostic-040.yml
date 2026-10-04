@@ -1,0 +1,200 @@
+name: PINK Playback Playlist Diagnostic 040
+on:
+  push:
+    branches: [builder/pink-playback-playlist-diagnostic-040]
+    paths: ['.github/workflows/pink-playback-playlist-diagnostic-040.yml']
+permissions:
+  contents: read
+concurrency:
+  group: pink-playback-playlist-diagnostic-040
+  cancel-in-progress: false
+jobs:
+  observe:
+    if: github.event.head_commit.message == 'Execute bounded playback playlist diagnostic 040'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Known line readiness with closed sanitized return
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ubuntu@146.59.145.3 'sudo -n python3 -' <<'PY'
+          import os,sys,subprocess,json,logging,time
+          from pathlib import Path
+          
+          logging.disable(logging.CRITICAL)
+          def run(*args):return subprocess.run(args,check=True,capture_output=True,text=True,timeout=10).stdout.strip()
+          assert os.geteuid()==0 and run('hostname')=='vps-32bea5b6'
+          assert run('systemctl','show','pink-iptv-backend','-p','WorkingDirectory','--value')=='/srv/pink-iptv/backend'
+          pid=int(run('systemctl','show','pink-iptv-backend','-p','MainPID','--value'));assert pid>1
+          runtime={}
+          allowed={'APP_ENV','DATABASE_URL','SESSION_SIGNING_KEY','SESSION_TTL_SECONDS','MEGA_OTT_API_BASE','MEGA_OTT_API_TOKEN'}
+          for item in Path('/proc/'+str(pid)+'/environ').read_bytes().split(b'\0'):
+              if b'=' in item:
+                  k,v=item.split(b'=',1)
+                  if k.decode() in allowed:runtime[k.decode()]=v.decode()
+          print('AUTHORIZED_RUNTIME_MEGA_TOKEN_PRESENT='+('YES' if runtime.get('MEGA_OTT_API_TOKEN') else 'NO'),flush=True)
+          python_path=next((p for p in ('/srv/pink-iptv/backend/.venv/bin/python','/srv/pink-iptv/backend/venv/bin/python') if Path(p).is_file()),None)
+          if python_path is None:
+              # Read executable metadata only, never return runtime argv or environment.
+              first=Path('/proc/'+str(pid)+'/cmdline').read_bytes().split(b'\0')[0].decode()
+              if first.startswith('/srv/pink-iptv/') and Path(first).is_file() and 'python' in Path(first).name:python_path=first
+          print('RUNTIME_PYTHON_FOUND='+('YES' if python_path else 'NO'),flush=True)
+          if python_path and runtime.get('MEGA_OTT_API_TOKEN'):
+              child=r'''
+          import logging,time,json
+          logging.disable(logging.CRITICAL)
+          phase='settings'
+          try:
+              from datetime import datetime,UTC
+              import httpx
+              from sqlalchemy import select,text
+              from app.config import get_settings
+              from app.clients.mega import MegaOTTClient
+              from app.clients.xtream import XtreamClient
+              from app.db import build_session_factory
+              from app.models import SubscriptionMapping
+              from app.outbound_transport import PinnedHTTPTransport
+              from app.url_safety import resolve_dns_link_target,player_api_url
+              settings=get_settings()
+              phase='known_mega_id_retrieve'
+              with MegaOTTClient(base_url=settings.mega_ott_api_base,token=settings.require_mega_token()) as mega:
+                  line=mega.get_subscription(10291720)
+              assert line.id==10291720
+              print('KNOWN_ID_RETRIEVE=PASS',flush=True)
+              expiry=line.expiring_at
+              expired=expiry is not None and expiry<=datetime.now(UTC)
+              print('KNOWN_LINE_MEGA_EXPIRED='+('YES' if expired else 'NO'),flush=True)
+              phase='readonly_mapping'
+              with build_session_factory(settings.database_url)() as session:
+                  session.execute(text('SET TRANSACTION READ ONLY'))
+                  mapping=session.scalar(select(SubscriptionMapping).where(SubscriptionMapping.mega_subscription_id==10291720))
+                  matched=bool(mapping and mapping.username==line.username and mapping.dns_link==line.dns_link)
+                  mapping_expired=bool(mapping and mapping.expiring_at and mapping.expiring_at.replace(tzinfo=UTC) <=datetime.now(UTC))
+                  session.rollback()
+              print('KNOWN_LINE_MAPPING_MATCH='+('YES' if matched else 'NO'),flush=True)
+              print('KNOWN_LINE_MAPPING_EXPIRED='+('YES' if mapping_expired else 'NO'),flush=True)
+              password=line.password.get_secret_value() if line.password else None
+              print('TRANSIENT_TEST_PASSWORD_AVAILABLE='+('YES' if password else 'NO'),flush=True)
+              if expired or not password or not matched:
+                  print('LIVE_READINESS='+('EXPIRED' if expired else 'TEST_PASSWORD_UNAVAILABLE' if not password else 'MAPPING_MISMATCH'),flush=True)
+              else:
+                  phase='xtream_authentication'
+                  auth=XtreamClient().authenticate(dns_link=line.dns_link,username=line.username,password=password)
+                  assert auth.code in ('SUCCESS','EXPIRED','DISABLED','INVALID_CREDENTIALS','DNS_UNREACHABLE','UPSTREAM_ERROR')
+                  print('XTREAM_AUTH_CODE='+auth.code,flush=True)
+                  if auth.code=='SUCCESS':
+                      phase='https_backend_session'
+                      with httpx.Client(timeout=15,trust_env=False,follow_redirects=False) as local:
+                          response=local.post('https://pink-iptv.duckdns.org/v1/session/resolve',json={'username':line.username,'password':password})
+                      print('HTTPS_BACKEND_LOGIN_HTTP='+str(response.status_code),flush=True)
+                      # Response tokens/origin remain process memory; no body is ever emitted.
+                      if response.status_code==200:
+                          code=response.json().get('code','UNRECOGNIZED')
+                          assert code in ('SUCCESS','EXPIRED','DISABLED','INVALID_CREDENTIALS','DNS_UNREACHABLE','UPSTREAM_ERROR')
+                          print('HTTPS_BACKEND_LOGIN_CODE='+code,flush=True)
+                      target=resolve_dns_link_target(line.dns_link)
+                      with httpx.Client(transport=PinnedHTTPTransport(target),headers={'User-Agent':'PINK-IPTV/0.1','Accept':'application/json'},timeout=10,trust_env=False,follow_redirects=False) as upstream:
+                          def api(action,extra=None):
+                              params={'username':line.username,'password':password,'action':action}
+                              if extra:params.update(extra)
+                              r=upstream.get(player_api_url(target.origin),params=params)
+                              assert r.status_code==200 and len(r.content)<=16*1024*1024
+                              return r.json()
+                          phase='live_catalog';live=api('get_live_streams');assert isinstance(live,list)
+                          print('LIVE_CATALOG_COUNT='+str(len(live)),flush=True)
+                          from urllib.parse import quote,urlsplit,urljoin
+                          phase='account_flags'
+                          response=upstream.get(player_api_url(target.origin),params={'username':line.username,'password':password})
+                          assert response.status_code==200
+                          obj=response.json();user=obj.get('user_info',{});server=obj.get('server_info',{})
+                          print('AUTH_FLAG='+str(int(user.get('auth',0))),flush=True)
+                          status=user.get('status');print('ACCOUNT_ACTIVE='+('YES' if str(status).lower()=='active' else 'NO'),flush=True)
+                          for field in ('active_cons','max_connections'):
+                              value=str(user.get(field,''));print('ACCOUNT_'+field.upper()+'='+(value if value.isdigit() else 'UNKNOWN'),flush=True)
+                          allowed_formats=user.get('allowed_output_formats',[])
+                          print('FORMAT_TS_ALLOWED='+('YES' if 'ts' in allowed_formats else 'NO'),flush=True)
+                          print('FORMAT_HLS_ALLOWED='+('YES' if 'm3u8' in allowed_formats else 'NO'),flush=True)
+                          item=next((x for x in live if 'SIC FHD' in str(x.get('name',''))),None)
+                          assert item
+                          sid=str(item.get('stream_id',''));assert sid.isdigit()
+                          creds=quote(line.username,safe='')+'/'+quote(password,safe='')+'/'+sid
+                          cases=[('CANONICAL_PINK','/live/'+creds+'.ts','PINK-IPTV/0.1'),
+                                 ('LEGACY_PINK','/'+creds,'PINK-IPTV/0.1'),
+                                 ('CANONICAL_NEUTRAL','/live/'+creds+'.ts','ExoPlayer'),
+                                 ('LEGACY_NEUTRAL','/'+creds,'ExoPlayer')]
+                          for label,path,ua in cases:
+                              phase='stream_auth_probe'
+                              url=str(target.origin).rstrip('/')+path
+                              with upstream.stream('GET',url,headers={'Accept':'*/*','User-Agent':ua}) as media:
+                                  prefix='STREAM_'+label+'_'
+                                  print(prefix+'HTTP='+str(media.status_code),flush=True)
+                                  print(prefix+'REDIRECT='+('YES' if media.headers.get('location') else 'NO'),flush=True)
+                                  if media.status_code==200:
+                                      chunk=next(media.iter_bytes(chunk_size=4096),b'')
+                                      print(prefix+'HAS_BYTES='+('YES' if chunk else 'NO'),flush=True)
+                                      print(prefix+'TS_SYNC='+('YES' if len(chunk)>188 and chunk[0]==71 and chunk[188]==71 else 'NO'),flush=True)
+                          phase='playlist_metadata'
+                          origin=urlsplit(str(target.origin))
+                          print('SERVER_HOST_MATCH='+('YES' if str(server.get('url','')).lower()==str(origin.hostname).lower() else 'NO'),flush=True)
+                          field='https_port' if origin.scheme=='https' else 'port'
+                          port=origin.port or (443 if origin.scheme=='https' else 80)
+                          print('SERVER_PORT_MATCH='+('YES' if str(server.get(field,''))==str(port) else 'NO'),flush=True)
+                          first=None;buf=b'';total=0
+                          with upstream.stream('GET',str(target.origin).rstrip('/')+'/get.php',params={'username':line.username,'password':password,'type':'m3u_plus','output':'ts'}) as listing:
+                              print('PLAYLIST_HTTP='+str(listing.status_code),flush=True)
+                              if listing.status_code==200:
+                                  for chunk in listing.iter_bytes(chunk_size=4096):
+                                      total+=len(chunk)
+                                      if total>512*1024:break
+                                      buf+=chunk
+                                      while b'\n' in buf:
+                                          raw,buf=buf.split(b'\n',1)
+                                          candidate=raw.decode('utf-8',errors='replace').strip()
+                                          if candidate.startswith(('https://','http://')):
+                                              first=candidate;break
+                                      if first:break
+                          print('PLAYLIST_FIRST_SOURCE_FOUND='+('YES' if first else 'NO'),flush=True)
+                          if first:
+                              from urllib.parse import unquote
+                              parsed=urlsplit(first)
+                              same_origin=parsed.scheme==origin.scheme and parsed.hostname==origin.hostname and (parsed.port or (443 if parsed.scheme=='https' else 80))==port
+                              pieces=[unquote(p) for p in parsed.path.split('/') if p]
+                              credentials_match=len(pieces)>=4 and pieces[0]=='live' and pieces[1]==line.username and pieces[2]==password
+                              print('PLAYLIST_ORIGIN_MATCH='+('YES' if same_origin else 'NO'),flush=True)
+                              print('PLAYLIST_CREDENTIALS_MATCH='+('YES' if credentials_match else 'NO'),flush=True)
+                              print('PLAYLIST_CANONICAL_TS_PATH='+('YES' if credentials_match and pieces[-1].endswith('.ts') else 'NO'),flush=True)
+                              if same_origin and credentials_match and not parsed.username and not parsed.password and not parsed.query:
+                                  with upstream.stream('GET',first,headers={'Accept':'*/*'}) as media:
+                                      print('PLAYLIST_SOURCE_HTTP='+str(media.status_code),flush=True)
+                                      print('PLAYLIST_SOURCE_REDIRECT='+('YES' if media.headers.get('location') else 'NO'),flush=True)
+                                      if media.status_code==200:
+                                          chunk=next(media.iter_bytes(chunk_size=4096),b'')
+                                          print('PLAYLIST_SOURCE_HAS_BYTES='+('YES' if chunk else 'NO'),flush=True)
+                              else:print('PLAYLIST_SOURCE_PROBE=SKIPPED_TRUST_BOUNDARY',flush=True)
+                          print('LIVE_READINESS=AUTHENTICATION_CATALOG_METADATA_OBSERVED',flush=True)
+                          print('PLAYBACK_AV_DECODE_CERTIFIED=NO',flush=True)
+                  else:print('LIVE_READINESS='+auth.code,flush=True)
+          except BaseException as exc:
+              # Exception messages/URLs/payloads may contain credentials: emit only fixed phase and class.
+              print('DIAGNOSTIC_PHASE='+phase,flush=True)
+              print('DIAGNOSTIC_ERROR_CLASS='+type(exc).__name__,flush=True)
+              print('LIVE_READINESS=NOT_CERTIFIED',flush=True)
+          print('PROVIDER_OR_DATABASE_WRITES=NO',flush=True)
+          '''
+              env={'PATH':'/usr/bin:/bin','PYTHONDONTWRITEBYTECODE':'1',**runtime}
+              p=subprocess.run([python_path,'-c',child],env=env,cwd='/srv/pink-iptv/backend',capture_output=True,text=True,timeout=180)
+              assert p.returncode==0
+              # The child is controlled, but keep a closed return whitelist for all stdout lines.
+              approved=('SERVER_','PLAYLIST_','AUTH_FLAG=','ACCOUNT_','FORMAT_','STREAM_','KNOWN_','TRANSIENT_TEST_PASSWORD_AVAILABLE=','XTREAM_AUTH_CODE=','HTTPS_BACKEND_LOGIN_','LIVE_CATALOG_COUNT=','VOD_CATALOG_COUNT=','SERIES_CATALOG_COUNT=','SERIES_INFO_SCHEMA=','SHORT_EPG_SCHEMA=','LIVE_READINESS=','PLAYBACK_AV_DECODE_CERTIFIED=','DIAGNOSTIC_PHASE=','DIAGNOSTIC_ERROR_CLASS=','PROVIDER_OR_DATABASE_WRITES=')
+              for line in p.stdout.splitlines():
+                  assert line.startswith(approved)
+                  print(line,flush=True)
+          else:print('LIVE_READINESS=RUNTIME_CAPABILITY_UNAVAILABLE',flush=True)
+          print('OBSERVED_AT_UTC='+time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),flush=True)
+          PY
