@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTIONS-DIAGNOSTIC-BRIDGE-020",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 1,
+  "recorded_at": "2026-10-04T03:22:16.790Z",
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 1,
+  "action_fingerprint": "020-fixed-annotations-probe:022d94a092cf1bbb9843a99a5cc28c3302eb86d0:pre-step-failure",
+  "attempt_count": 1,
+  "identical_failure_count": 1,
+  "no_progress_iterations": 1,
+  "previous_event_sha256": null,
+  "detail": "Self-provisioned diagnostic workflow executed by authorized exact task-ref push. Run37173816436 job111352143185 terminal failure with no steps; logs BlobNotFound, artifacts empty, check output text/summary null and two unsupported annotations. Thus reader did not produce any diagnostic cause. No SSH/token value disclosure/runtime mutation. No transient retry justified; native and self-provisioned repository-return path cannot provide cause before runner steps."
+}
