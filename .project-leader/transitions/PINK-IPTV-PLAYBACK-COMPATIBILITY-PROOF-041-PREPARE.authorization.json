@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-PLAYBACK-COMPATIBILITY-PROOF-041-PREPARE",
+  "task_id": "PINK-IPTV-PLAYBACK-COMPATIBILITY-PROOF-041",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-04T20:33:50.789Z",
+  "action": "prepare_fixed_provider_readiness_workflow",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "binding_mode": "EXACT_REVISION_BOUND",
+    "summary": "Authorize fixed one-execution readonly same-line source A/B compatibility proof using existing closed Actions SSH bridge. Same authoritative origin and identical credentials verified before sources; response capped4096B, no redirects/rawpayload/disclosure/writes. Independent scope and immutableTask validated; original039/040 limitations remain explicit."
+  },
+  "target": {
+    "kind": "fixed_readonly_diagnostic_workflow",
+    "identifier": "builder/pink-playback-compatibility-proof-041",
+    "revision": "2e3f9c9c7b8d6d2db50b36d736d4275e597392bf",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "OVH PINK staging readonly known line"
+  }
+}
