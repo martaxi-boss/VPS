@@ -1,0 +1,71 @@
+name: PINK HTTPS Renewal Audit 032
+on:
+  push:
+    branches: [builder/pink-https-renewal-audit-032]
+    paths: ['.github/workflows/pink-https-renewal-audit-032.yml']
+permissions:
+  contents: read
+concurrency:
+  group: pink-https-renewal-audit-032
+  cancel-in-progress: false
+jobs:
+  observe:
+    if: github.event.head_commit.message == 'Execute readonly selected HTTPS renewal audit 032'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Selected certificate renewal metadata only
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ubuntu@146.59.145.3 'bash -s' <<'REMOTE_SCRIPT'
+          set -euo pipefail
+          test "$(hostname)" = vps-32bea5b6
+          sudo -n python3 - <<'PY'
+          import os,stat,subprocess,hashlib,re
+          host='pink-iptv.duckdns.org'
+          renewal='/etc/letsencrypt/renewal/'+host+'.conf'
+          raw=open(renewal).read()
+          values={}
+          for line in raw.splitlines():
+              if '=' in line and not line.lstrip().startswith('#'):
+                  k,v=line.split('=',1);values[k.strip()]=v.strip()
+          print('RENEWAL_AUTHENTICATOR='+values.get('authenticator','UNSET'))
+          print('RENEWAL_NO_DIRECTORY_HOOKS='+values.get('no_directory_hooks','UNSET'))
+          assert values.get('authenticator')=='webroot'
+          assert values.get('no_directory_hooks','false').lower() not in ['true','1','yes']
+          assert '/var/lib/pink-iptv-acme030' in raw
+          print('RENEWAL_CONFIG_READINESS=PASS')
+          hook='/etc/letsencrypt/renewal-hooks/deploy/pink-iptv-https030.sh'
+          info=os.stat(hook)
+          assert info.st_uid==0 and stat.S_IMODE(info.st_mode)==0o700
+          subprocess.run(['sh','-n',hook],check=True)
+          body=open(hook).read()
+          assert '/etc/letsencrypt/live/pink-iptv.duckdns.org' in body and '/usr/sbin/nginx -t' in body and 'systemctl reload nginx' in body
+          print('SELECTED_LINEAGE_HOOK_READINESS=PASS')
+          key='/etc/letsencrypt/live/'+host+'/privkey.pem'
+          st=os.stat(key)
+          assert st.st_uid==0 and stat.S_IMODE(st.st_mode)&0o077==0
+          print('PRIVATE_KEY_RESTRICTED=PASS')
+          cert='/etc/letsencrypt/live/'+host+'/fullchain.pem'
+          subprocess.run(['openssl','x509','-in',cert,'-noout','-checkhost',host],stdout=subprocess.DEVNULL,check=True)
+          subprocess.run(['openssl','x509','-in',cert,'-noout','-checkend','604800'],stdout=subprocess.DEVNULL,check=True)
+          p=subprocess.run(['openssl','x509','-in',cert,'-noout','-enddate'],capture_output=True,text=True,check=True)
+          print('SELECTED_CERTIFICATE_'+p.stdout.strip())
+          selected='/etc/nginx/sites-available/pink-iptv-https.conf'
+          accepted='/var/backups/pink-iptv/task030-https-r4/https-accepted.conf'
+          assert hashlib.sha256(open(selected,'rb').read()).digest()==hashlib.sha256(open(accepted,'rb').read()).digest()
+          assert os.path.realpath('/etc/nginx/sites-enabled/pink-iptv-https.conf')==selected
+          print('ACCEPTED_SITE_BYTES_AND_LINK=PASS')
+          PY
+          systemctl is-active --quiet certbot.timer && echo RENEWAL_TIMER=ACTIVE
+          sudo -n nginx -t >/dev/null 2>&1 && echo NGINX_CONFIG=PASS
+          for service in ssh nginx postgresql pink-iptv-backend; do systemctl is-active --quiet "$service"; done
+          echo EXISTING_SERVICES=PASS
+          date -u '+OBSERVED_AT_UTC=%Y-%m-%dT%H:%M:%SZ'
+          REMOTE_SCRIPT
