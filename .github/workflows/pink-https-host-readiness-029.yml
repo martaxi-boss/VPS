@@ -1,0 +1,77 @@
+name: PINK HTTPS Host Readiness 029
+on:
+  push:
+    branches: [builder/pink-https-host-readiness-029]
+    paths: ['.github/workflows/pink-https-host-readiness-029.yml']
+permissions:
+  contents: read
+concurrency:
+  group: pink-https-host-readiness-029
+  cancel-in-progress: false
+jobs:
+  observe:
+    if: github.event.head_commit.message == 'Execute PINK selected hostname readiness 029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Readonly selected hostname readiness
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          python3 - <<'PY'
+          import socket
+          host='pink-iptv.duckdns.org'
+          for name,family in [('A',socket.AF_INET),('AAAA',socket.AF_INET6)]:
+              try: ips=sorted(set(x[4][0] for x in socket.getaddrinfo(host,None,family)))
+              except socket.gaierror: ips=[]
+              print('RUNNER_DNS_'+name+'='+','.join(ips))
+          PY
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ubuntu@146.59.145.3 'bash -s' <<'REMOTE_SCRIPT'
+          set -euo pipefail
+          test "$(hostname)" = vps-32bea5b6
+          date -u '+OBSERVED_AT_UTC=%Y-%m-%dT%H:%M:%SZ'
+          python3 - <<'PY'
+          import socket,shutil,os
+          host='pink-iptv.duckdns.org'
+          for name,family in [('A',socket.AF_INET),('AAAA',socket.AF_INET6)]:
+              try: ips=sorted(set(x[4][0] for x in socket.getaddrinfo(host,None,family)))
+              except socket.gaierror: ips=[]
+              print('VPS_DNS_'+name+'='+','.join(ips))
+              if name=='A': print('DNS_MATCH_EXPECTED_VPS='+('YES' if ips==['146.59.145.3'] else 'NO'))
+          for b in ['certbot','nginx','openssl','curl']:
+              print('TOOL_'+b+'='+('PRESENT' if shutil.which(b) else 'ABSENT'))
+          PY
+          for service in ssh nginx postgresql pink-iptv-backend; do
+            printf 'SERVICE[%s]=' "$service"
+            systemctl is-active "$service" || true
+          done
+          curl -sS --max-time 5 -o /dev/null -w 'PINK_OPENAPI_HTTP=%{http_code}\n' http://127.0.0.1:8010/openapi.json
+          pg_isready -h 127.0.0.1 -p 5432 -t 3
+          sudo -n nginx -t >/dev/null 2>&1 && echo NGINX_CONFIG=PASS
+          sudo -n bash -s <<'ROOT_SCRIPT'
+          set -euo pipefail
+          for path in /etc/letsencrypt/live/pink-iptv.duckdns.org/fullchain.pem /etc/letsencrypt/live/pink-iptv.duckdns.org/privkey.pem /etc/nginx/sites-available/pink-iptv-https /etc/nginx/sites-enabled/pink-iptv-https; do
+            if test -e "$path" || test -L "$path"; then printf 'SELECTED_PATH[%s]=PRESENT\n' "$path"; else printf 'SELECTED_PATH[%s]=ABSENT\n' "$path"; fi
+          done
+          if command -v certbot >/dev/null; then certbot --version; fi
+          python3 - <<'PY'
+          import subprocess,socket,ssl
+          host='pink-iptv.duckdns.org'
+          for port in [80,443]:
+              p=subprocess.run(['ss','-H','-ltn','sport = :'+str(port)],capture_output=True,text=True)
+              print('TCP_LISTENER_'+str(port)+'_COUNT='+str(len(p.stdout.splitlines())))
+          try:
+              with socket.create_connection((host,443),timeout=5) as s:
+                  with ssl.create_default_context().wrap_socket(s,server_hostname=host) as tls:
+                      print('SELECTED_HOST_TRUSTED_TLS=YES')
+          except Exception as e:
+              print('SELECTED_HOST_TRUSTED_TLS=NO')
+              print('TLS_FAILURE_CLASS='+type(e).__name__)
+          PY
+          ROOT_SCRIPT
+          REMOTE_SCRIPT
