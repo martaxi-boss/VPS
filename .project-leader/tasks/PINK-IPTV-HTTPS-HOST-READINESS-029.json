@@ -1,0 +1,126 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-HTTPS-HOST-READINESS-029",
+  "project": "VPS operations for PINK IPTV",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-04T08:52:27.261Z",
+  "authority": {
+    "kind": "TRANSACTIONAL_GRANT",
+    "source": "CURRENT_OWNER_INSTRUCTION",
+    "binding_mode": "OBJECTIVE_SCOPE_BOUND",
+    "summary": "Owner selected pink-iptv.duckdns.org as PINK backend HTTPS identity. Verify public DNS IPv4/IPv6 against existing authorized OVH146.59.145.3 and inspect sanitized existing host readiness/certificate/client/challenge paths through fixed Actions SSH diagnostics. No DNS credential values, config writes, certificate issuance, service reload/restart, firewall changes or other-project data."
+  },
+  "starting_state": {
+    "default_branch": "main",
+    "base_sha": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "task_branch": "builder/pink-https-host-readiness-029"
+  },
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "mutation_scope": [
+    ".github/workflows/pink-https-host-readiness-029.yml",
+    ".project-leader/tasks/PINK-IPTV-HTTPS-HOST-READINESS-029.json",
+    ".project-leader/results/PINK-IPTV-HTTPS-HOST-READINESS-029.json",
+    ".project-leader/transitions/PINK-IPTV-HTTPS-HOST-READINESS-029-*",
+    ".project-leader/recovery-events/PINK-IPTV-HTTPS-HOST-READINESS-029/**"
+  ],
+  "allowed_actions": [
+    "create_branch",
+    "edit_project_files",
+    "create_commits",
+    "run_ci",
+    "change_project_governance"
+  ],
+  "prohibited_actions": [
+    "merge_to_main",
+    "branch_protection_or_ruleset_change",
+    "release_or_publish",
+    "production_deploy",
+    "destructive_data_change",
+    "repository_or_history_deletion",
+    "production_secret_change",
+    "irreversible_infrastructure_change",
+    "paid_service_activation",
+    "change_existing_workflows",
+    "server_config_write",
+    "service_stop_restart_delete",
+    "network_firewall_routing_write",
+    "secret_value_disclosure_or_rotation",
+    "arbitrary_remote_commands",
+    "third_project_mutation",
+    "force_push"
+  ],
+  "transition_controls": [
+    {
+      "action": "merge_to_main",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "branch_protection_or_ruleset_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "release_or_publish",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_deploy",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "destructive_data_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "repository_or_history_deletion",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_secret_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "irreversible_infrastructure_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "paid_service_activation",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "add_fixed_privileged_observation_workflow",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "execute_exact_read_only_vps_observation",
+      "requires_authority_resolution": true
+    }
+  ],
+  "required_validation": [
+    "Project architecture scope audit",
+    "Mutation scope audit",
+    "GitHub evidence verification",
+    "Consequential transition readiness audit",
+    "Fixed readonly hostname DNS TLS readiness safety",
+    "Operational access discovery closure"
+  ],
+  "required_ci": [
+    "PINK HTTPS Host Readiness 029"
+  ],
+  "policy": {
+    "profile": "generic-project-v1",
+    "path": "control/generic-project-policy.json",
+    "sha256": "147fb55338267ba2e9727c4a85e468e342300a69557d80781edeba4b6fa8d0f9",
+    "binding_mode": "CENTRAL_CONTROL_V1",
+    "repository": "martaxi-boss/Project-leader",
+    "revision": "05225695684b54ce5becbb89cf0e5b6dc88dcafa"
+  },
+  "recovery": {
+    "mode": "APPEND_ONLY_V1"
+  },
+  "integrity_mode": "IMMUTABLE_AUTHORIZATION_V1",
+  "terminal_condition": "Certify exactSHA sanitized selected-host DNS and VPS readiness diagnostics; continue covered HTTPS provisioning when prerequisites pass; return concrete unresolved identity-control prerequisite only if irreducible.",
+  "privacy": {
+    "contains_secrets": false,
+    "contains_private_conversation_text": false
+  }
+}
