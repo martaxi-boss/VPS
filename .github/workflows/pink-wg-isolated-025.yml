@@ -1,0 +1,111 @@
+name: PINK WireGuard Isolated Rehearsal 025
+on:
+  push:
+    branches: [builder/pink-wg-isolated-025]
+    paths:
+      - '.github/workflows/pink-wg-isolated-025.yml'
+permissions:
+  contents: read
+concurrency:
+  group: pink-wg-isolated-025
+  cancel-in-progress: false
+jobs:
+  observe:
+    if: github.event.head_commit.message == 'Execute isolated WireGuard rehearsal 025'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Isolated WireGuard handshake and exact inverse rehearsal
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ubuntu@146.59.145.3 'bash -s' <<'READ_ONLY_OBSERVATION'
+          set -euo pipefail
+          test "$(hostname)" = vps-32bea5b6
+          sudo -n bash -s <<'ISOLATED_WG'
+          set -euo pipefail
+          umask 077
+          test "$(id -u)" = 0
+          left=pink025a
+          right=pink025b
+          temp=/run/pink-wg-rehearsal-025
+          test ! -e "$temp"
+          test ! -e /run/netns/"$left" && test ! -e /run/netns/"$right"
+          ! ip link show pink025va >/dev/null 2>&1
+          ! ip link show pink025vb >/dev/null 2>&1
+          echo WG_REHEARSAL_BEGIN=025
+          date -u '+OBSERVED_AT_UTC=%Y-%m-%dT%H:%M:%SZ'
+          systemctl is-active --quiet ssh.service nginx.service postgresql.service pink-iptv-backend.service
+          v4="$(cat /proc/sys/net/ipv4/ip_forward)"
+          v6="$(cat /proc/sys/net/ipv6/conf/all/forwarding)"
+          rules_hash() { for tool in iptables ip6tables; do for table in filter nat mangle raw; do "$tool" -t "$table" -S; done; done | sha256sum | cut -d' ' -f1; }
+          baseline="$(rules_hash)"
+          install -d -m 700 "$temp"
+          made_left=0
+          made_right=0
+          made_veth=0
+          cleanup() {
+           if test "$made_left" = 1; then ip netns delete "$left"; made_left=0; fi
+           if test "$made_right" = 1; then ip netns delete "$right"; made_right=0; fi
+           if test "$made_veth" = 1; then ip link delete pink025va >/dev/null 2>&1 || true; ip link delete pink025vb >/dev/null 2>&1 || true; made_veth=0; fi
+           rm -f -- "$temp/left.key" "$temp/right.key" "$temp/left.pub" "$temp/right.pub"
+           rmdir -- "$temp"
+          }
+          trap cleanup EXIT
+          wg genkey > "$temp/left.key"
+          wg genkey > "$temp/right.key"
+          wg pubkey < "$temp/left.key" > "$temp/left.pub"
+          wg pubkey < "$temp/right.key" > "$temp/right.pub"
+          ip netns add "$left"; made_left=1
+          ip netns add "$right"; made_right=1
+          ip link add pink025va type veth peer name pink025vb; made_veth=1
+          ip link set pink025va netns "$left"
+          ip link set pink025vb netns "$right"
+          ip -n "$left" addr add 169.254.25.1/30 dev pink025va
+          ip -n "$right" addr add 169.254.25.2/30 dev pink025vb
+          ip -n "$left" link set lo up
+          ip -n "$right" link set lo up
+          ip -n "$left" link set pink025va up
+          ip -n "$right" link set pink025vb up
+          ip -n "$left" link add wg025 type wireguard
+          ip -n "$right" link add wg025 type wireguard
+          ip netns exec "$left" wg set wg025 private-key "$temp/left.key" listen-port 51820 peer "$(cat "$temp/right.pub")" allowed-ips 10.66.0.2/32 endpoint 169.254.25.2:51820
+          ip netns exec "$right" wg set wg025 private-key "$temp/right.key" listen-port 51820 peer "$(cat "$temp/left.pub")" allowed-ips 10.66.0.1/32 endpoint 169.254.25.1:51820
+          ip -n "$left" addr add 10.66.0.1/30 dev wg025
+          ip -n "$right" addr add 10.66.0.2/30 dev wg025
+          ip -n "$left" link set wg025 up
+          ip -n "$right" link set wg025 up
+          ip netns exec "$left" ping -n -c 3 -W 3 10.66.0.2 >/dev/null
+          ip netns exec "$right" ping -n -c 3 -W 3 10.66.0.1 >/dev/null
+          for ns in "$left" "$right"; do
+           ip netns exec "$ns" wg show wg025 latest-handshakes | awk '{if($2>0)n++} END{exit n!=1}'
+           ip netns exec "$ns" wg show wg025 transfer | awk '{if($2>0&&$3>0)n++} END{exit n!=1}'
+          done
+          echo NAMESPACE_HANDSHAKE=PASS
+          echo NAMESPACE_TUNNEL_BIDIRECTIONAL_PING=PASS
+          echo NAMESPACE_TRANSFER=NONZERO_BOTH_DIRECTIONS
+          cleanup
+          trap - EXIT
+          test ! -e /run/netns/"$left" && test ! -e /run/netns/"$right"
+          test ! -e "$temp"
+          ! ip link show pink025va >/dev/null 2>&1
+          ! ip link show pink025vb >/dev/null 2>&1
+          test "$(rules_hash)" = "$baseline"
+          test "$(cat /proc/sys/net/ipv4/ip_forward)" = "$v4"
+          test "$(cat /proc/sys/net/ipv6/conf/all/forwarding)" = "$v6"
+          systemctl is-active --quiet ssh.service nginx.service postgresql.service pink-iptv-backend.service
+          test "$(curl -sS --max-time 5 -o /dev/null -w '%{http_code}' http://127.0.0.1:8010/openapi.json)" = 200
+          pg_isready -h 127.0.0.1 -p 5432 -t 3 >/dev/null
+          echo TASK_NAMESPACES_INTERFACES_KEYS_REMOVED=YES
+          echo HOST_FIREWALL_FORWARDING=UNCHANGED
+          echo EXISTING_SERVICES=ACTIVE
+          echo PINK_OPENAPI_HTTP=200
+          echo POSTGRES_READY=YES
+          echo WG_REHEARSAL_END=025
+          ISOLATED_WG
+          READ_ONLY_OBSERVATION
