@@ -1,0 +1,108 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-NONINTERACTIVE-ACCESS-AUDIT-019",
+  "project": "PINK IPTV operations access diagnosis",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-04T02:51:56.027Z",
+  "authority": {
+    "kind": "TRANSACTIONAL_GRANT",
+    "source": "CURRENT_OWNER_INSTRUCTION",
+    "binding_mode": "OBJECTIVE_SCOPE_BOUND",
+    "summary": "Continue existing PINK work within standing authority. Isolated E1 operations evidence task: reconstruct task018 and exhaust native non-interactive diagnostic surfaces under Project Leader0.6.1. Preserve audit and route only irreducible platform consent. No workflow dispatch/retry, secret discovery, host mutation, browser use, main merge or other repository mutation."
+  },
+  "starting_state": {
+    "default_branch": "main",
+    "base_sha": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "task_branch": "builder/pink-native-access-audit-019"
+  },
+  "effect_class": "E1_RECOVERABLE_PROJECT_LOCAL",
+  "mutation_scope": [
+    ".project-leader/tasks/PINK-IPTV-NONINTERACTIVE-ACCESS-AUDIT-019.json",
+    ".project-leader/results/PINK-IPTV-NONINTERACTIVE-ACCESS-AUDIT-019.json",
+    "ops/PINK-IPTV-NONINTERACTIVE-ACCESS-AUDIT-019.md"
+  ],
+  "allowed_actions": [
+    "create_branch",
+    "edit_project_files",
+    "create_commits"
+  ],
+  "prohibited_actions": [
+    "merge_to_main",
+    "branch_protection_or_ruleset_change",
+    "release_or_publish",
+    "production_deploy",
+    "destructive_data_change",
+    "repository_or_history_deletion",
+    "production_secret_change",
+    "irreversible_infrastructure_change",
+    "paid_service_activation",
+    "workflow_change",
+    "workflow_dispatch_or_rerun",
+    "server_config_write",
+    "secret_disclosure",
+    "third_repository_mutation"
+  ],
+  "transition_controls": [
+    {
+      "action": "merge_to_main",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "branch_protection_or_ruleset_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "release_or_publish",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_deploy",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "destructive_data_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "repository_or_history_deletion",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_secret_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "irreversible_infrastructure_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "paid_service_activation",
+      "requires_authority_resolution": true
+    }
+  ],
+  "required_validation": [
+    "Project architecture scope audit",
+    "Mutation scope audit",
+    "GitHub evidence verification",
+    "Non-interactive fallback exhaustion audit",
+    "Standing-authority Human Gate closure"
+  ],
+  "required_ci": [],
+  "policy": {
+    "profile": "generic-project-v1",
+    "path": "control/generic-project-policy.json",
+    "sha256": "147fb55338267ba2e9727c4a85e468e342300a69557d80781edeba4b6fa8d0f9",
+    "binding_mode": "CENTRAL_CONTROL_V1",
+    "repository": "martaxi-boss/Project-leader",
+    "revision": "166d8a2d867e0d8e3b67082069679b0cd3b9242d"
+  },
+  "recovery": {
+    "mode": "APPEND_ONLY_V1"
+  },
+  "integrity_mode": "IMMUTABLE_AUTHORIZATION_V1",
+  "terminal_condition": "Native evidence and access discovery fully recorded and independently audited; preserve task018 closure and distinguish diagnostic access from VPS reachability. Route platform-required browser consent only after exhaustion; no runtime fact or success certificate inferred.",
+  "privacy": {
+    "contains_secrets": false,
+    "contains_private_conversation_text": false
+  }
+}
