@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-HTTPS-STAGING-PROVISION-030",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 1,
+  "recorded_at": "2026-10-04T09:00:45.972Z",
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 1,
+  "action_fingerprint": "030-existing-acme-account-readiness",
+  "attempt_count": 1,
+  "identical_failure_count": 1,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": null,
+  "detail": "Run37190707197 failed before any host writes, account Python validator required body.status valid and returned EXISTING_ACME_ACCOUNT_UNRESOLVED. Exact step logs verified. Diagnose only account metadata/compatibility, no secret values or registration."
+}
