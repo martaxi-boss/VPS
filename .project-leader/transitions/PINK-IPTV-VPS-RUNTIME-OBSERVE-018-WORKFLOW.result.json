@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-VPS-RUNTIME-OBSERVE-018-WORKFLOW",
+  "task_id": "PINK-IPTV-VPS-RUNTIME-OBSERVE-018",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-VPS-RUNTIME-OBSERVE-018-WORKFLOW.authorization.json",
+  "action": "add_fixed_privileged_observation_workflow",
+  "target": {
+    "kind": "repository_branch",
+    "identifier": "builder/pink-runtime-observe-018",
+    "revision": "40b3ce08a411679fd7aa7d89d4197bab9ec8b3c5",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": null
+  },
+  "observed_at": "2026-10-04T01:50:56.305Z",
+  "final_state": {
+    "status": "WORKFLOW_PREPARED_ISOLATED_UNMERGED",
+    "revision": "6d64ccf3bf8a4f9a4700a7b63ee7ab810d8883dd"
+  },
+  "evidence": [
+    "Workflow preparation authorization committed at edd237977d666f516236e87fd6dbd39e1bdfc63d before implementation 6d64ccf3bf8a4f9a4700a7b63ee7ab810d8883dd. Scope/policy validator PASS, bash syntax and YAML valid. Existing workflows untouched."
+  ],
+  "residual_blockers": []
+}

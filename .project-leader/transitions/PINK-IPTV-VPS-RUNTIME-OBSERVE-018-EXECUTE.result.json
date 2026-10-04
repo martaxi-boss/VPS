@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-VPS-RUNTIME-OBSERVE-018-EXECUTE",
+  "task_id": "PINK-IPTV-VPS-RUNTIME-OBSERVE-018",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-VPS-RUNTIME-OBSERVE-018-EXECUTE.authorization.json",
+  "action": "execute_exact_read_only_vps_observation",
+  "target": {
+    "kind": "repository_branch",
+    "identifier": "builder/pink-runtime-observe-018",
+    "revision": "6d64ccf3bf8a4f9a4700a7b63ee7ab810d8883dd",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "OVH development/staging"
+  },
+  "observed_at": "2026-10-04T01:50:56.305Z",
+  "final_state": {
+    "status": "CI_FAILED_BEFORE_STEPS_NO_REMOTE_OBSERVATION",
+    "revision": "6d64ccf3bf8a4f9a4700a7b63ee7ab810d8883dd"
+  },
+  "evidence": [
+    "Exact execution authorization 44002fb163bbf570aec73081032380831bfd286a existed before PR18 creation. Required runs37169142873 and37169142924 failed on 6d64ccf3bf8a4f9a4700a7b63ee7ab810d8883dd before any job steps. No observation stdout. Root cause annotations unavailable through connector."
+  ],
+  "residual_blockers": [
+    "Current execution channel not verified. Diagnose GitHub job annotations; do not assume SSH/password/network failure or certify runtime facts."
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-VPS-RUNTIME-OBSERVE-018",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 1,
+  "recorded_at": "2026-10-04T01:50:56.305Z",
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 1,
+  "action_fingerprint": "018-exact-PR-CI:6d64ccf3bf8a4f9a4700a7b63ee7ab810d8883dd:pre-step-failure",
+  "attempt_count": 1,
+  "identical_failure_count": 1,
+  "no_progress_iterations": 1,
+  "previous_event_sha256": null,
+  "detail": "PR18 triggered both required exact-SHA workflows. Run37169142873 observe job111338340325 and run37169142924 check job111338340381 failed with no steps. Job logs returned BlobNotFound; check-runs show two annotations each, but connector rejects the annotation endpoint. Root cause unknown; no remote observation output and no evidence of remote script starting. Existing historical SSH successes prove an established bridge, not current reachability. No rerun or server mutation."
+}
