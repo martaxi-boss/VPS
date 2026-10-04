@@ -1,0 +1,131 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-PLAYBACK-COMPATIBILITY-PROOF-041",
+  "project": "VPS operations for PINK IPTV",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-04T20:33:07.094Z",
+  "authority": {
+    "kind": "TRANSACTIONAL_GRANT",
+    "source": "CURRENT_OWNER_INSTRUCTION",
+    "binding_mode": "OBJECTIVE_SCOPE_BOUND",
+    "summary": "Close source-format uncertainty for Owner-requested playback repair. Known approved line only, authoritative sameorigin+identicalcreds only, readonly existing runtime. Retrieve capped provider playlist firstsource, compare canonical live.ts and provider-returned legacy source for same numericstreamid, inspect sanitized HTTP/ContentType enum and TS/HLS signatures from max4096 bytes only. No raw payload/URL/host/credential output, redirects, provider/database/service/network mutation or AV decode claim. One execution, no automatic retries. Historical039 scope and040 multistage recovery-verifier limitations are not retrospectively certified."
+  },
+  "starting_state": {
+    "default_branch": "main",
+    "base_sha": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "task_branch": "builder/pink-playback-compatibility-proof-041"
+  },
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "mutation_scope": [
+    ".github/workflows/pink-playback-compatibility-proof-041.yml",
+    ".project-leader/tasks/PINK-IPTV-PLAYBACK-COMPATIBILITY-PROOF-041.json",
+    ".project-leader/results/PINK-IPTV-PLAYBACK-COMPATIBILITY-PROOF-041.json",
+    ".project-leader/transitions/PINK-IPTV-PLAYBACK-COMPATIBILITY-PROOF-041-*",
+    ".project-leader/recovery-events/PINK-IPTV-PLAYBACK-COMPATIBILITY-PROOF-041/**"
+  ],
+  "allowed_actions": [
+    "create_branch",
+    "edit_project_files",
+    "create_commits",
+    "run_ci",
+    "change_project_governance"
+  ],
+  "prohibited_actions": [
+    "merge_to_main",
+    "branch_protection_or_ruleset_change",
+    "release_or_publish",
+    "production_deploy",
+    "destructive_data_change",
+    "repository_or_history_deletion",
+    "production_secret_change",
+    "irreversible_infrastructure_change",
+    "paid_service_activation",
+    "change_existing_workflows",
+    "live_host_firewall_or_forwarding_write",
+    "real_peer_or_gateway_activation",
+    "service_stop_restart_delete",
+    "secret_value_disclosure_or_rotation",
+    "arbitrary_remote_commands",
+    "third_project_mutation",
+    "force_push",
+    "provider_subscription_create_extend_activate",
+    "mapping_or_database_write",
+    "credential_value_return_or_persistence",
+    "alternative_customer_or_line_discovery"
+  ],
+  "transition_controls": [
+    {
+      "action": "merge_to_main",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "branch_protection_or_ruleset_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "release_or_publish",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_deploy",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "destructive_data_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "repository_or_history_deletion",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_secret_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "irreversible_infrastructure_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "paid_service_activation",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "prepare_fixed_provider_readiness_workflow",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "execute_known_test_line_readonly_diagnostics",
+      "requires_authority_resolution": true
+    }
+  ],
+  "required_validation": [
+    "Project architecture scope audit",
+    "Mutation scope audit",
+    "GitHub evidence verification",
+    "Consequential transition readiness audit",
+    "Known-line-only sanitized provider readiness",
+    "Runtime credentials and database preservation",
+    "Operational access discovery closure"
+  ],
+  "required_ci": [
+    "PINK Playback Compatibility Proof 041"
+  ],
+  "policy": {
+    "profile": "generic-project-v1",
+    "path": "control/generic-project-policy.json",
+    "sha256": "147fb55338267ba2e9727c4a85e468e342300a69557d80781edeba4b6fa8d0f9",
+    "binding_mode": "CENTRAL_CONTROL_V1",
+    "repository": "martaxi-boss/Project-leader",
+    "revision": "c42ed27cc6c520bfd63015097c8c60ee42392ba5"
+  },
+  "recovery": {
+    "mode": "APPEND_ONLY_V1"
+  },
+  "integrity_mode": "IMMUTABLE_AUTHORIZATION_V1",
+  "terminal_condition": "ExactSHA bounded known-line source compatibility observation returns sanitized canonical/legacy HTTP and container signature, independently verified immutableTask/scope/GitHub evidence. No physicalAV or unsupported historical certification.",
+  "privacy": {
+    "contains_secrets": false,
+    "contains_private_conversation_text": false
+  }
+}
