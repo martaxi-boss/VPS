@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-VPS-RUNTIME-OBSERVE-018",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 2,
+  "recorded_at": "2026-10-04T01:52:03.721Z",
+  "event": "BLOCKED",
+  "strategy_generation": 1,
+  "action_fingerprint": "018-annotations-connector-unavailable",
+  "attempt_count": 0,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 1,
+  "previous_event_sha256": "62e63f2b9d3c6c05f4939de2fe894c6e01f6e55447631e7c89633206cbb38600",
+  "detail": "Original runs failed before steps. Evidence descendant auto-triggered non-certifying runs37169252647/37169252642, also failed before steps. No retry authorization or remote output. PR18 now closed unmerged; main unchanged. Current connector cannot fetch job annotations, logs absent. Root cause unknown. No safe remediation can be selected without diagnosis; browser fallback requires explicit approval under browser tool instructions. Preserve scope/records; fresh recovery task must precede any retry, with guard against evidence-only triggers."
+}

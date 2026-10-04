@@ -1,0 +1,83 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-VPS-RUNTIME-OBSERVE-018",
+  "terminal_status": "BLOCKED",
+  "repository": "martaxi-boss/VPS",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authorization_record": ".project-leader/tasks/PINK-IPTV-VPS-RUNTIME-OBSERVE-018.json",
+  "authorization_commit_sha": "40b3ce08a411679fd7aa7d89d4197bab9ec8b3c5",
+  "implementation_head_sha": "6d64ccf3bf8a4f9a4700a7b63ee7ab810d8883dd",
+  "branch": "builder/pink-runtime-observe-018",
+  "pr_number": 18,
+  "recorded_at": "2026-10-04T01:52:03.721Z",
+  "changes": [
+    "Created isolated fixed read-only observation workflow and scope documentation using existing SSH bridge.",
+    "PR18 created after exact privileged execution authorization; subsequently closed unmerged after pre-step CI failure."
+  ],
+  "validation": [
+    {
+      "name": "Project architecture scope audit",
+      "status": "PASS",
+      "evidence": "Generic central policy digest/exact revision, task v2 and full GitHub base-to-implementation changed scope verified PASS; existing workflows unchanged."
+    },
+    {
+      "name": "Mutation scope audit",
+      "status": "PASS",
+      "evidence": "Generic central policy digest/exact revision, task v2 and full GitHub base-to-implementation changed scope verified PASS; existing workflows unchanged."
+    },
+    {
+      "name": "GitHub evidence verification",
+      "status": "FAIL",
+      "evidence": "Exact implementation required runs37169142873 and37169142924 both failed before any steps. Required success controls unsatisfied; no terminal-success certification."
+    },
+    {
+      "name": "Consequential transition readiness audit",
+      "status": "PASS",
+      "evidence": "Preparation authorization edd237977d666f516236e87fd6dbd39e1bdfc63d preceded implementation; exact execute authorization 44002fb163bbf570aec73081032380831bfd286a preceded PR creation. No main merge or host write authorized/executed."
+    },
+    {
+      "name": "Forced operational access discovery",
+      "status": "PASS",
+      "evidence": "Established adjacent operations repo VPS contains SSH workflows with historical successful jobs. Separate bounded task018 created. Direct SSH absence not a stop condition; current bridge execution failed before steps, root cause pending unavailable check annotations."
+    },
+    {
+      "name": "Fixed read-only remote command safety",
+      "status": "PASS",
+      "evidence": "bash syntax and YAML parse PASS; fixed hostname/ubuntu target, no arbitrary inputs/checkout, no remote writes, no process arguments/environment/peer/key/config dumps. Established host key trust remains accept-new TOFU."
+    },
+    {
+      "name": "Existing services and observation provenance",
+      "status": "SKIPPED",
+      "evidence": "No runtime observation stdout. Prior Owner screenshots remain historical only; revision/process identity/WireGuard count remain unknown."
+    }
+  ],
+  "ci": [
+    {
+      "name": "PINK IPTV Runtime Observation 018",
+      "status": "FAILURE",
+      "run_id": 37169142873
+    },
+    {
+      "name": "VPS SSH Access PR Check",
+      "status": "FAILURE",
+      "run_id": 37169142924
+    }
+  ],
+  "artifacts": [
+    "https://github.com/martaxi-boss/VPS/pull/18",
+    ".project-leader/transitions/PINK-IPTV-VPS-RUNTIME-OBSERVE-018-WORKFLOW.result.json",
+    ".project-leader/transitions/PINK-IPTV-VPS-RUNTIME-OBSERVE-018-EXECUTE.result.json"
+  ],
+  "material_non_effects": [
+    "VPS main unchanged at b8557b5425ea4633e5011356dcf6957bb354d9c4; PR18 closed unmerged.",
+    "No evidence of remote script starting: both initial and evidence-descendant jobs have no steps or logs. No runtime mutation requested.",
+    "No provider/tunnel/peer/playback/physical-TV/capacity/rollback proof; HTTP200 and prior screenshots do not establish these.",
+    "Evidence push automatically caused additional non-certifying runs37169252647/37169252642; both failed before steps. Not an authorized retry, not certifying evidence. PR closed to stop further triggers."
+  ],
+  "residual_blockers": [
+    "GitHub job annotations (two per failed job) cannot be read through current connector; job log retrieval returns BlobNotFound. Failure cause unknown, not proven SSH or billing issue.",
+    "Browser fallback requires explicit user approval under browser tool instructions before substituting for insufficient connector. No new Owner technical commands requested.",
+    "Before retry: diagnose actual failure, append causal recovery/authorization before execution, bind new exact SHA, and guard workflow against evidence-only synchronization execution. Preserve original immutable Task Authorization."
+  ],
+  "authorization_sha256": "3fbc7a7ddb1065c0c5c0b8268d16968ff57111042f9b9088299028a98b1b6982"
+}
