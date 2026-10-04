@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-VPS-RUNTIME-OBSERVE-021",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 3,
+  "recorded_at": "2026-10-04T03:43:36.782562+00:00",
+  "event": "RETRY_AUTHORIZED",
+  "strategy_generation": 2,
+  "action_fingerprint": "fixed-readonly-ovh-runtime-observation",
+  "attempt_count": 2,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "385f1c89d0723e8053f19301610a5653215c98c8a440c2b92dff4139ec66cae7",
+  "detail": "Fresh candidate execution authorized under standing grant after exact task and transition records. One bounded attempt on repaired public repository; no old-SHA rerun or browser required."
+}

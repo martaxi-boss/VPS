@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-VPS-RUNTIME-OBSERVE-021",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 1,
+  "recorded_at": "2026-10-04T03:43:36.782522+00:00",
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 1,
+  "action_fingerprint": "fixed-readonly-ovh-runtime-observation",
+  "attempt_count": 1,
+  "identical_failure_count": 1,
+  "no_progress_iterations": 1,
+  "previous_event_sha256": null,
+  "detail": "Historical task018 run37169142873 check111338340325 failed before steps. Public GitHub annotation explicitly reports failed recent account payments or spending limit. No SSH attempt or remote mutation occurred."
+}

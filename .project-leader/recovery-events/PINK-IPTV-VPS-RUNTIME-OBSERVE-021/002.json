@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-VPS-RUNTIME-OBSERVE-021",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 2,
+  "recorded_at": "2026-10-04T03:43:36.782537+00:00",
+  "event": "REPLAN",
+  "strategy_generation": 2,
+  "action_fingerprint": "fixed-readonly-ovh-runtime-observation",
+  "attempt_count": 2,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "e7ff89f69071d9e19105c744f9c8a338a7e69621d7fab8fe8ed1471af219acb9",
+  "detail": "Owner made VPS repository public; live API private=false. Public native annotation read now succeeds. Use a new push-only fixed readonly workflow on isolated task021; preserve terminal records018/019/020. No paid activation or account change."
+}
