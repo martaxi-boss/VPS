@@ -1,0 +1,129 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-HTTPS-STAGING-PROVISION-030",
+  "project": "VPS operations for PINK IPTV",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-04T08:56:58.803Z",
+  "authority": {
+    "kind": "TRANSACTIONAL_GRANT",
+    "source": "CURRENT_OWNER_INSTRUCTION",
+    "binding_mode": "OBJECTIVE_SCOPE_BOUND",
+    "summary": "Provision selected Owner PINK backend HTTPS on existing OVH development/staging host only, using existing registered ACME account, new isolated Nginx site and webroot, selected-host certificate and exact inverse. Preserve other sites, credentials, firewall, backend source/data and services. No new account/terms acceptance, DNS changes, paid resources or production launch."
+  },
+  "starting_state": {
+    "default_branch": "main",
+    "base_sha": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "task_branch": "builder/pink-https-staging-030"
+  },
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "mutation_scope": [
+    ".github/workflows/pink-https-staging-030.yml",
+    ".project-leader/tasks/PINK-IPTV-HTTPS-STAGING-PROVISION-030.json",
+    ".project-leader/results/PINK-IPTV-HTTPS-STAGING-PROVISION-030.json",
+    ".project-leader/transitions/PINK-IPTV-HTTPS-STAGING-PROVISION-030-*",
+    ".project-leader/recovery-events/PINK-IPTV-HTTPS-STAGING-PROVISION-030/**"
+  ],
+  "allowed_actions": [
+    "create_branch",
+    "edit_project_files",
+    "create_commits",
+    "run_ci",
+    "change_project_governance",
+    "change_infrastructure",
+    "prepare_deploy"
+  ],
+  "prohibited_actions": [
+    "merge_to_main",
+    "branch_protection_or_ruleset_change",
+    "release_or_publish",
+    "production_deploy",
+    "destructive_data_change",
+    "repository_or_history_deletion",
+    "production_secret_change",
+    "irreversible_infrastructure_change",
+    "paid_service_activation",
+    "change_existing_workflows",
+    "network_firewall_routing_write",
+    "secret_value_disclosure_or_rotation",
+    "arbitrary_remote_commands",
+    "third_project_mutation",
+    "force_push",
+    "stop_restart_existing_services",
+    "change_existing_nginx_sites",
+    "new_acme_account_or_terms_acceptance"
+  ],
+  "transition_controls": [
+    {
+      "action": "merge_to_main",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "branch_protection_or_ruleset_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "release_or_publish",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_deploy",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "destructive_data_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "repository_or_history_deletion",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_secret_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "irreversible_infrastructure_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "paid_service_activation",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "add_fixed_https_staging_workflow",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "execute_exact_https_staging_provision",
+      "requires_authority_resolution": true
+    }
+  ],
+  "required_validation": [
+    "Project architecture scope audit",
+    "Mutation scope audit",
+    "GitHub evidence verification",
+    "Consequential transition readiness audit",
+    "Bounded HTTPS exact inverse and privacy readiness",
+    "Operational access discovery closure"
+  ],
+  "required_ci": [
+    "PINK HTTPS Staging Provision 030"
+  ],
+  "policy": {
+    "profile": "generic-project-v1",
+    "path": "control/generic-project-policy.json",
+    "sha256": "147fb55338267ba2e9727c4a85e468e342300a69557d80781edeba4b6fa8d0f9",
+    "binding_mode": "CENTRAL_CONTROL_V1",
+    "repository": "martaxi-boss/Project-leader",
+    "revision": "05225695684b54ce5becbb89cf0e5b6dc88dcafa"
+  },
+  "recovery": {
+    "mode": "APPEND_ONLY_V1"
+  },
+  "integrity_mode": "IMMUTABLE_AUTHORIZATION_V1",
+  "terminal_condition": "ExactSHA constrained workflow provisions and verifies trusted TLS and synthetic generic422/no-store public HTTPS using selected hostname; preserves baseline existing service/firewall/other-site state, captures exact task-owned rollback and existing-account renewal configuration. Stop before writes if existing account/ownership/preconditions unresolved; no public launch.",
+  "privacy": {
+    "contains_secrets": false,
+    "contains_private_conversation_text": false
+  }
+}
