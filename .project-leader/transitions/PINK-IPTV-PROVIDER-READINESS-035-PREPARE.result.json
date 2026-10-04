@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-PROVIDER-READINESS-035-PREPARE",
+  "task_id": "PINK-IPTV-PROVIDER-READINESS-035",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-PROVIDER-READINESS-035-PREPARE.authorization.json",
+  "action": "prepare_fixed_provider_readiness_workflow",
+  "target": {
+    "kind": "bounded_operations_workflow",
+    "identifier": "builder/pink-provider-readiness-035",
+    "revision": "128cf70c19703514232d53413b7b72403e649d55",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "Authorized PINK runtime on OVH staging"
+  },
+  "observed_at": "2026-10-04T15:20:10Z",
+  "final_state": {
+    "status": "KNOWN_TEST_LINE_LOGIN_CATALOG_METADATA_READY",
+    "revision": "1cc9ee08e24b1c1f895dc2b961a70b8daeab60d1"
+  },
+  "evidence": [
+    "Exact run37212581823 terminalSUCCESS with approved line valid/matched, upstreamandHTTPSloginSUCCESS, sanitizedcatalogcounts/SeriesInfo/EPG schema, no provider/databasewrites or credentialoutput."
+  ],
+  "residual_blockers": []
+}
