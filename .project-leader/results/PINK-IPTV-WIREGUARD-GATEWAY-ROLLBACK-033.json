@@ -6,7 +6,7 @@
   "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
   "authorization_record": ".project-leader/tasks/PINK-IPTV-WIREGUARD-GATEWAY-ROLLBACK-033.json",
   "authorization_commit_sha": "140f4d5acc32359943d644932c77670a21781331",
-  "authorization_sha256": "f6773ec2de6adb2df297464f5c54cd94a3c3d5a7ea081cc34135cdb452392fe1",
+  "authorization_sha256": "3c3c785c41cd8fc7bfbd75994b805b2560826d18ef30ef4a939cdf1f980fbd87",
   "implementation_head_sha": "ecc1cd952ecab42ee5c1dbb271a1d878557414b3",
   "branch": "builder/pink-wg-gateway-rollback-033",
   "recorded_at": "2026-10-04T14:57:50.544Z",
