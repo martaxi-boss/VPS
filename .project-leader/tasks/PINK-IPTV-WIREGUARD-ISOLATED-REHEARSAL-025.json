@@ -1,0 +1,134 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-WIREGUARD-ISOLATED-REHEARSAL-025",
+  "project": "VPS operations for PINK IPTV",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-04T04:01:01.218Z",
+  "authority": {
+    "kind": "TRANSACTIONAL_GRANT",
+    "source": "CURRENT_OWNER_INSTRUCTION",
+    "binding_mode": "OBJECTIVE_SCOPE_BOUND",
+    "summary": "Continue approved Phase4 rollback prerequisites with ephemeral isolated Linux namespace WireGuard handshake and exact task-owned cleanup rehearsal on established OVH staging host. Two fixed new namespaces/veth endpoints, temporary root-only generated test keys, no external routes/clients/production peer or real Android tunnel. Preserve host forwarding/firewall, existing services and configs, delete only freshly created task objects and temporary keys. Existing SSH secret name only, no paid services/main change."
+  },
+  "starting_state": {
+    "default_branch": "main",
+    "base_sha": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "task_branch": "builder/pink-wg-isolated-025"
+  },
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "mutation_scope": [
+    ".github/workflows/pink-wg-isolated-025.yml",
+    ".project-leader/tasks/PINK-IPTV-WIREGUARD-ISOLATED-REHEARSAL-025.json",
+    ".project-leader/results/PINK-IPTV-WIREGUARD-ISOLATED-REHEARSAL-025.json",
+    ".project-leader/transitions/PINK-IPTV-WIREGUARD-ISOLATED-REHEARSAL-025-*",
+    ".project-leader/recovery-events/PINK-IPTV-WIREGUARD-ISOLATED-REHEARSAL-025/**"
+  ],
+  "allowed_actions": [
+    "create_branch",
+    "edit_project_files",
+    "create_commits",
+    "run_ci",
+    "change_project_governance"
+  ],
+  "prohibited_actions": [
+    "merge_to_main",
+    "branch_protection_or_ruleset_change",
+    "release_or_publish",
+    "production_deploy",
+    "destructive_data_change",
+    "repository_or_history_deletion",
+    "production_secret_change",
+    "irreversible_infrastructure_change",
+    "paid_service_activation",
+    "change_existing_workflows",
+    "network_firewall_routing_write",
+    "secret_value_disclosure_or_rotation",
+    "arbitrary_remote_commands",
+    "third_project_mutation",
+    "force_push",
+    "change_runtime_configuration",
+    "restart_other_services",
+    "change_database_or_credentials",
+    "deploy_full_repository",
+    "change_host_firewall_routing_forwarding",
+    "change_existing_interfaces",
+    "activate_external_or_production_peer",
+    "restart_any_existing_service",
+    "persist_wireguard_keys"
+  ],
+  "transition_controls": [
+    {
+      "action": "merge_to_main",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "branch_protection_or_ruleset_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "release_or_publish",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_deploy",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "destructive_data_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "repository_or_history_deletion",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_secret_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "irreversible_infrastructure_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "paid_service_activation",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "add_fixed_isolated_rehearsal_workflow",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "execute_exact_isolated_wireguard_rehearsal",
+      "requires_authority_resolution": true
+    }
+  ],
+  "required_validation": [
+    "Project architecture scope audit",
+    "Mutation scope audit",
+    "GitHub evidence verification",
+    "Consequential transition readiness audit",
+    "Isolated namespace and ephemeral-key safety",
+    "Exact cleanup and host baseline preservation",
+    "WireGuard handshake and tunnel reachability"
+  ],
+  "required_ci": [
+    "PINK WireGuard Isolated Rehearsal 025"
+  ],
+  "policy": {
+    "profile": "generic-project-v1",
+    "path": "control/generic-project-policy.json",
+    "sha256": "147fb55338267ba2e9727c4a85e468e342300a69557d80781edeba4b6fa8d0f9",
+    "binding_mode": "CENTRAL_CONTROL_V1",
+    "repository": "martaxi-boss/Project-leader",
+    "revision": "05225695684b54ce5becbb89cf0e5b6dc88dcafa"
+  },
+  "recovery": {
+    "mode": "APPEND_ONLY_V1"
+  },
+  "integrity_mode": "IMMUTABLE_AUTHORIZATION_V1",
+  "terminal_condition": "One fixed namespace-only handshake/ping proof completes, exact task objects and root-only keys are removed, unchanged host firewall/forwarding and active services verified at exactSHA CI; no external ingress, Android tunnel, live host network rollback or production capacity claims.",
+  "privacy": {
+    "contains_secrets": false,
+    "contains_private_conversation_text": false
+  }
+}
