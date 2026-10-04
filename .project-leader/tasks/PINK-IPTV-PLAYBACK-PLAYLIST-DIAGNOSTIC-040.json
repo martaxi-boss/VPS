@@ -1,0 +1,132 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-PLAYBACK-PLAYLIST-DIAGNOSTIC-040",
+  "project": "VPS operations for PINK IPTV",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-04T20:17:39.707Z",
+  "authority": {
+    "kind": "TRANSACTIONAL_GRANT",
+    "source": "CURRENT_OWNER_INSTRUCTION",
+    "binding_mode": "OBJECTIVE_SCOPE_BOUND",
+    "summary": "Owner requested playback repair and concurrent hygiene. Readonly known approved line diagnosis on authoritative origin only. Repeat authenticated account/canonical stream facts and retrieve max512KiB of provider-generated Xtream playlist; compare first media URL origin/path/credentials without emitting any raw URL or payload. Probe max4096 bytes only if provider-generated URL is same authoritative origin and identical credentials. Observe server-info origin/port match flags, never follow redirects or use another origin. Record original039 immutable scope-template mismatch as historical/unverified; no retrospective certification or widening."
+  },
+  "starting_state": {
+    "default_branch": "main",
+    "base_sha": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "task_branch": "builder/pink-playback-playlist-diagnostic-040"
+  },
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "mutation_scope": [
+    ".github/workflows/pink-playback-playlist-diagnostic-040.yml",
+    ".project-leader/tasks/PINK-IPTV-PLAYBACK-PLAYLIST-DIAGNOSTIC-040.json",
+    ".project-leader/results/PINK-IPTV-PLAYBACK-PLAYLIST-DIAGNOSTIC-040.json",
+    ".project-leader/transitions/PINK-IPTV-PLAYBACK-PLAYLIST-DIAGNOSTIC-040-*",
+    ".project-leader/recovery-events/PINK-IPTV-PLAYBACK-PLAYLIST-DIAGNOSTIC-040/**",
+    "docs/PINK_DIAGNOSTIC_039_AUDIT.md"
+  ],
+  "allowed_actions": [
+    "create_branch",
+    "edit_project_files",
+    "create_commits",
+    "run_ci",
+    "change_project_governance"
+  ],
+  "prohibited_actions": [
+    "merge_to_main",
+    "branch_protection_or_ruleset_change",
+    "release_or_publish",
+    "production_deploy",
+    "destructive_data_change",
+    "repository_or_history_deletion",
+    "production_secret_change",
+    "irreversible_infrastructure_change",
+    "paid_service_activation",
+    "change_existing_workflows",
+    "live_host_firewall_or_forwarding_write",
+    "real_peer_or_gateway_activation",
+    "service_stop_restart_delete",
+    "secret_value_disclosure_or_rotation",
+    "arbitrary_remote_commands",
+    "third_project_mutation",
+    "force_push",
+    "provider_subscription_create_extend_activate",
+    "mapping_or_database_write",
+    "credential_value_return_or_persistence",
+    "alternative_customer_or_line_discovery"
+  ],
+  "transition_controls": [
+    {
+      "action": "merge_to_main",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "branch_protection_or_ruleset_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "release_or_publish",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_deploy",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "destructive_data_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "repository_or_history_deletion",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_secret_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "irreversible_infrastructure_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "paid_service_activation",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "prepare_fixed_provider_readiness_workflow",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "execute_known_test_line_readonly_diagnostics",
+      "requires_authority_resolution": true
+    }
+  ],
+  "required_validation": [
+    "Project architecture scope audit",
+    "Mutation scope audit",
+    "GitHub evidence verification",
+    "Consequential transition readiness audit",
+    "Known-line-only sanitized provider readiness",
+    "Runtime credentials and database preservation",
+    "Operational access discovery closure"
+  ],
+  "required_ci": [
+    "PINK Playback Playlist Diagnostic 040"
+  ],
+  "policy": {
+    "profile": "generic-project-v1",
+    "path": "control/generic-project-policy.json",
+    "sha256": "147fb55338267ba2e9727c4a85e468e342300a69557d80781edeba4b6fa8d0f9",
+    "binding_mode": "CENTRAL_CONTROL_V1",
+    "repository": "martaxi-boss/Project-leader",
+    "revision": "c42ed27cc6c520bfd63015097c8c60ee42392ba5"
+  },
+  "recovery": {
+    "mode": "APPEND_ONLY_V1"
+  },
+  "integrity_mode": "IMMUTABLE_AUTHORIZATION_V1",
+  "terminal_condition": "ExactSHA readonly diagnostic returns factual readiness for already approved test subscription without secrets/provider hostname/token/rawresponse; account expiry/unavailability is a fact requiring subsequent route, never inferred PASS for unavailable playback or mutated to make proof pass.",
+  "privacy": {
+    "contains_secrets": false,
+    "contains_private_conversation_text": false
+  }
+}
