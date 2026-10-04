@@ -9,12 +9,12 @@ concurrency:
   group: pink-https-staging-030
   cancel-in-progress: false
 jobs:
-  diagnose:
-    if: github.event.head_commit.message == 'Diagnose effective nginx readiness 030'
+  provision:
+    if: github.event.head_commit.message == 'Execute bounded PINK HTTPS staging 030'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
-      - name: Fixed readonly existing account compatibility
+      - name: Bounded HTTPS staging with exact inverse
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         shell: bash
@@ -26,28 +26,206 @@ jobs:
           sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ubuntu@146.59.145.3 'bash -s' <<'REMOTE_SCRIPT'
           set -euo pipefail
           test "$(hostname)" = vps-32bea5b6
-          sudo -n python3 - <<'PY'
-          import glob,json,os,subprocess,re
-          config=open('/etc/nginx/nginx.conf').read()
-          patterns=re.findall(r'(?m)^\\s*include\\s+(/etc/nginx/sites-enabled/[^;]+);',config)
-          print('SITES_ENABLED_INCLUDE_PATTERNS='+','.join(patterns))
-          raw=subprocess.run(['nginx','-T'],capture_output=True,text=True,check=True).stdout
-          print('SITES_ENABLED_EFFECTIVE_INCLUDE_COUNT='+str(raw.count('# configuration file /etc/nginx/sites-enabled/')))
-          for p in ['/var/backups/pink-iptv/task030-https','/var/backups/pink-iptv/task030-https-r2']:
-              print('PROTECTED_ATTEMPT_BACKUP_PRESENT='+str(os.path.isdir(p)))
-          paths=glob.glob('/etc/letsencrypt/accounts/acme-v02.api.letsencrypt.org/directory/*/regr.json')
-          print('EXISTING_ACCOUNT_COUNT='+str(len(paths)))
-          for n,path in enumerate(paths):
+          sudo -n bash -s <<'ROOT_SCRIPT'
+          set -euo pipefail
+          umask 077
+          host=pink-iptv.duckdns.org
+          site=/etc/nginx/sites-available/pink-iptv-https.conf
+          link=/etc/nginx/sites-enabled/pink-iptv-https.conf
+          webroot=/var/lib/pink-iptv-acme030
+          backup=/var/backups/pink-iptv/task030-https-r3
+          hook=/etc/letsencrypt/renewal-hooks/deploy/pink-iptv-https030.sh
+          test ! -e "$site"; test ! -L "$site"; test ! -e "$link"; test ! -L "$link"
+          test ! -e "$webroot"; test ! -e "$backup"; test ! -e "$hook"
+          for path in /etc/letsencrypt/live/pink-iptv.duckdns.org /etc/letsencrypt/archive/pink-iptv.duckdns.org /etc/letsencrypt/renewal/pink-iptv.duckdns.org.conf; do test ! -e "$path"; done
+          for service in ssh nginx postgresql pink-iptv-backend; do systemctl is-active --quiet "$service"; done
+          systemctl is-active --quiet certbot.timer
+          pg_isready -h 127.0.0.1 -p 5432 -t 3 >/dev/null
+          test "$(curl -sS --max-time 5 -o /dev/null -w '%{http_code}' http://127.0.0.1:8010/openapi.json)" = 200
+          nginx -t >/dev/null 2>&1
+          account="$(python3 - <<'PY'
+          import glob,json,os,socket,subprocess,re
+          host='pink-iptv.duckdns.org'
+          ips=set(x[4][0] for x in socket.getaddrinfo(host,None,socket.AF_INET))
+          assert ips=={'146.59.145.3'},'DNS_TARGET_CHANGED'
+          try: v6=socket.getaddrinfo(host,None,socket.AF_INET6)
+          except socket.gaierror: v6=[]
+          assert not v6,'UNVALIDATED_IPV6'
+          p=subprocess.run(['nginx','-T'],capture_output=True,text=True,check=True)
+          assert not re.search(r'(?m)^\s*server_name\s+[^;]*\bpink-iptv\.duckdns\.org\b',p.stdout),'EXISTING_HOSTNAME_CONFLICT'
+          accounts=glob.glob('/etc/letsencrypt/accounts/acme-v02.api.letsencrypt.org/directory/*/regr.json')
+          valid=[]
+          for path in accounts:
               data=json.load(open(path))
-              print('ACCOUNT_METADATA_KEYS='+','.join(sorted(data)))
-              print('ACCOUNT_BODY_KEYS='+','.join(sorted(data.get('body',{}))))
-              print('ACCOUNT_STATUS_PRESENT='+str('status' in data.get('body',{})))
-              print('ACCOUNT_PRIVATE_FILE_PRESENT='+str(os.path.isfile(os.path.join(os.path.dirname(path),'private_key.json'))))
-              account=os.path.basename(os.path.dirname(path))
-              p=subprocess.run(['certbot','show_account','--config','/dev/null','--non-interactive','--server','https://acme-v02.api.letsencrypt.org/directory','--account',account],capture_output=True,text=True,timeout=30)
-              print('ACCOUNT_SHOW_EXIT='+str(p.returncode))
-          for path in ['/var/backups/pink-iptv/task030-https','/var/lib/pink-iptv-acme030','/etc/nginx/sites-available/pink-iptv-https','/etc/nginx/sites-enabled/pink-iptv-https']:
-              print('TASK_PATH_PRESENT='+path+':'+str(os.path.lexists(path)))
+              folder=os.path.dirname(path)
+              if data.get('uri','').startswith('https://acme-v02.api.letsencrypt.org/') and os.path.isfile(folder+'/private_key.json'):
+                  valid.append(os.path.basename(folder))
+          assert len(valid)==1,'EXISTING_ACME_ACCOUNT_UNRESOLVED'
+          check=subprocess.run(['certbot','show_account','--config','/dev/null','--non-interactive','--server','https://acme-v02.api.letsencrypt.org/directory','--account',valid[0]],capture_output=True,text=True,timeout=30)
+          assert check.returncode==0,'EXISTING_ACCOUNT_COMPATIBILITY_FAILED'
+          print(valid[0])
           PY
-          for service in ssh nginx postgresql pink-iptv-backend; do printf 'SERVICE[%s]=' "$service"; systemctl is-active "$service"; done
+          )"
+          echo EXISTING_ACME_ACCOUNT=REUSED_WITHOUT_NEW_REGISTRATION
+          install -d -m 700 "$backup"
+          install -d -m 755 "$webroot" "$webroot/.well-known" "$webroot/.well-known/acme-challenge"
+          baseline="$(nginx -T 2>/dev/null | sha256sum | cut -d' ' -f1)"
+          firewall_hash() { { iptables-save; ip6tables-save; } | sha256sum | cut -d' ' -f1; }
+          fw_before="$(firewall_hash)"
+          printf '%s\n' "$baseline" >"$backup/nginx-baseline.sha256"
+          printf '%s\n' "$fw_before" >"$backup/firewall-baseline.sha256"
+          printf 'BASELINE_SITE=ABSENT\nBASELINE_LINK=ABSENT\nHOST=pink-iptv.duckdns.org\n' >"$backup/receipt.txt"
+          created=0
+          complete=0
+          rollback() {
+            code=$?
+            if test "$complete" != 1; then
+              if test "$created" = 1; then rm -f "$link" "$site" "$hook"; nginx -t >/dev/null 2>&1 && systemctl reload nginx; fi
+              if test -d "$webroot"; then rm -rf "$webroot"; fi
+              echo HTTPS_TASK_ROLLED_BACK_SITE_AND_HOOK=YES
+              echo ISSUED_CERTIFICATE_IF_ANY=RETAINED_RESTRICTED
+            fi
+            exit "$code"
+          }
+          trap rollback EXIT
+          created=1
+          cat >"$site" <<'NGINX_HTTP'
+          server {
+              listen 80;
+              server_name pink-iptv.duckdns.org;
+              access_log off;
+              location /.well-known/acme-challenge/ {
+                  root /var/lib/pink-iptv-acme030;
+                  default_type text/plain;
+              }
+              location / { return 404; }
+          }
+          NGINX_HTTP
+          chmod 644 "$site"
+          ln -s "$site" "$link"
+          nginx -t >/dev/null 2>&1
+          systemctl reload nginx
+          printf 'pink-https-task030\n' >"$webroot/.well-known/acme-challenge/pink-preflight030"
+          chmod 644 "$webroot/.well-known/acme-challenge/pink-preflight030"
+          python3 - <<'PY'
+          import subprocess
+          raw=subprocess.run(['nginx','-T'],capture_output=True,text=True,check=True).stdout
+          assert '# configuration file /etc/nginx/sites-enabled/pink-iptv-https.conf:' in raw,'TASK_SITE_NOT_EFFECTIVELY_INCLUDED'
+          print('TASK_SITE_EFFECTIVELY_INCLUDED=YES')
+          PY
+          ready=0
+          for check in $(seq 1 10); do
+            response="$(curl -sS --max-time 5 -H 'Host: pink-iptv.duckdns.org' http://127.0.0.1/.well-known/acme-challenge/pink-preflight030 2>/dev/null || true)"
+            if test "$response" = pink-https-task030; then ready=1; break; fi
+            sleep 1
+          done
+          test "$ready" = 1
+          echo HTTP_CHALLENGE_READINESS=PASS
+          cp "$site" "$backup/http-candidate.conf"
+          rm "$link" "$site"
+          nginx -t >/dev/null 2>&1
+          systemctl reload nginx
+          test "$(nginx -T 2>/dev/null | sha256sum | cut -d' ' -f1)" = "$baseline"
+          test "$(firewall_hash)" = "$fw_before"
+          echo HTTP_SITE_EXACT_INVERSE_REHEARSAL=PASS
+          install -m 644 "$backup/http-candidate.conf" "$site"
+          ln -s "$site" "$link"
+          nginx -t >/dev/null 2>&1
+          systemctl reload nginx
+          if certbot certonly --config /dev/null --non-interactive --webroot -w "$webroot" --preferred-challenges http --server https://acme-v02.api.letsencrypt.org/directory --account "$account" --cert-name "$host" -d "$host" --no-directory-hooks >"$backup/certbot.log" 2>&1; then
+            echo SELECTED_HOST_CERTIFICATE_ISSUED=YES
+          else
+            echo SELECTED_HOST_CERTIFICATE_ISSUED=NO
+            echo CERTBOT_DETAILS=RESTRICTED_HOST_LOG
+            exit 1
+          fi
+          openssl x509 -in /etc/letsencrypt/live/pink-iptv.duckdns.org/fullchain.pem -noout -checkhost "$host" >/dev/null
+          openssl x509 -in /etc/letsencrypt/live/pink-iptv.duckdns.org/fullchain.pem -noout -checkend 604800 >/dev/null
+          cat >"$site" <<'NGINX_HTTPS'
+          server {
+              listen 80;
+              server_name pink-iptv.duckdns.org;
+              access_log off;
+              location /.well-known/acme-challenge/ {
+                  root /var/lib/pink-iptv-acme030;
+                  default_type text/plain;
+              }
+              location / { return 301 https://pink-iptv.duckdns.org$request_uri; }
+          }
+          server {
+              listen 443 ssl;
+              server_name pink-iptv.duckdns.org;
+              ssl_certificate /etc/letsencrypt/live/pink-iptv.duckdns.org/fullchain.pem;
+              ssl_certificate_key /etc/letsencrypt/live/pink-iptv.duckdns.org/privkey.pem;
+              ssl_protocols TLSv1.2 TLSv1.3;
+              client_max_body_size 16k;
+              access_log off;
+              location / {
+                  proxy_pass http://127.0.0.1:8010;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Forwarded-Proto https;
+                  proxy_connect_timeout 5s;
+                  proxy_read_timeout 30s;
+                  proxy_redirect off;
+              }
+          }
+          NGINX_HTTPS
+          chmod 644 "$site"
+          cat >"$hook" <<'RENEW_HOOK'
+          #!/bin/sh
+          set -eu
+          if [ "${RENEWED_LINEAGE:-}" = /etc/letsencrypt/live/pink-iptv.duckdns.org ]; then
+              /usr/sbin/nginx -t >/dev/null 2>&1
+              /usr/bin/systemctl reload nginx
+          fi
+          RENEW_HOOK
+          chmod 700 "$hook"
+          nginx -t >/dev/null 2>&1
+          systemctl reload nginx
+          python3 - <<'PY'
+          import urllib.request,urllib.error,json
+          base='https://pink-iptv.duckdns.org'
+          with urllib.request.urlopen(base+'/openapi.json',timeout=15) as r:
+              assert r.status==200
+          marker='pink_synthetic030'
+          req=urllib.request.Request(base+'/v1/session/resolve',data=json.dumps({'username':[marker],'password':marker}).encode(),headers={'Content-Type':'application/json'},method='POST')
+          try: urllib.request.urlopen(req,timeout=15);raise AssertionError('EXPECTED_422')
+          except urllib.error.HTTPError as e:
+              body=e.read()
+              assert e.code==422
+              assert marker.encode() not in body
+              assert e.headers.get('Cache-Control')=='no-store'
+          print('HOST_TRUSTED_HTTPS_OPENAPI=PASS')
+          print('HOST_HTTPS_VALIDATION_PRIVACY=PASS')
+          PY
+          for service in ssh nginx postgresql pink-iptv-backend; do systemctl is-active --quiet "$service"; done
+          pg_isready -h 127.0.0.1 -p 5432 -t 3 >/dev/null
+          test "$(firewall_hash)" = "$fw_before"
+          rm "$webroot/.well-known/acme-challenge/pink-preflight030"
+          cp "$site" "$backup/https-accepted.conf"
+          echo 'HTTPS_STAGING=ACTIVE;FIREWALL=UNCHANGED;PUBLIC_LAUNCH=NO' >>"$backup/receipt.txt"
+          complete=1
+          date -u '+OBSERVED_AT_UTC=%Y-%m-%dT%H:%M:%SZ'
+          echo EXISTING_SERVICES_AND_FIREWALL=PASS
+          echo EXISTING_CERTBOT_TIMER=ACTIVE
+          echo HTTPS_STAGING=READY
+          ROOT_SCRIPT
           REMOTE_SCRIPT
+      - name: External runner trusted HTTPS proof
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import urllib.request,urllib.error,json
+          base='https://pink-iptv.duckdns.org'
+          with urllib.request.urlopen(base+'/openapi.json',timeout=20) as r: assert r.status==200
+          marker='pink_external_synthetic030'
+          req=urllib.request.Request(base+'/v1/session/resolve',data=json.dumps({'username':[marker],'password':marker}).encode(),headers={'Content-Type':'application/json'},method='POST')
+          try: urllib.request.urlopen(req,timeout=20);raise AssertionError('EXPECTED_422')
+          except urllib.error.HTTPError as e:
+              body=e.read()
+              assert e.code==422 and marker.encode() not in body
+              assert e.headers.get('Cache-Control')=='no-store'
+          print('EXTERNAL_TRUSTED_HTTPS_OPENAPI=PASS')
+          print('EXTERNAL_HTTPS_VALIDATION_PRIVACY=PASS')
+          print('CUSTOMER_OR_PROVIDER_CREDENTIAL_USED=NO')
+          PY
