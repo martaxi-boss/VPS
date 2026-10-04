@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-HTTPS-HOST-READINESS-029-PREPARE",
+  "task_id": "PINK-IPTV-HTTPS-HOST-READINESS-029",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-HTTPS-HOST-READINESS-029-PREPARE.authorization.json",
+  "action": "add_fixed_privileged_observation_workflow",
+  "target": {
+    "kind": "bounded_operations_task",
+    "identifier": "builder/pink-https-host-readiness-029",
+    "revision": "e47f292c38674dfce54c54bb20fa9f363b51c17c",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "OVH development/staging"
+  },
+  "observed_at": "2026-10-04T08:56:25.924Z",
+  "final_state": {
+    "status": "FIXED_READONLY_WORKFLOW_CREATED",
+    "revision": "99cd1b36a610995441284cdebb58af10d1fd0bff"
+  },
+  "evidence": [
+    "Exact readonly execution run37190404920 SUCCESS; DNS A146.59.145.3, noAAAA; services/API/PG/config healthy; selected hostname trusted TLS absent; certbot present.",
+    "Canonical task policy/scope/pair and native GitHub verifier PASS."
+  ],
+  "residual_blockers": []
+}
