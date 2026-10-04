@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-HTTPS-STAGING-PROVISION-030",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 2,
+  "recorded_at": "2026-10-04T09:01:39.172Z",
+  "event": "REPLAN",
+  "strategy_generation": 2,
+  "action_fingerprint": "030-readonly-account-compatibility",
+  "attempt_count": 0,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "b817d771f21463abcd3ebb2e330f61008f67640fa4dbeabca2c0bd454e05ab41",
+  "detail": "Change to fixed readonly sanitized account readiness diagnostics on the same task workflow path; inspect registration metadata keys/counts and show_account exit status without printing email/account IDs/keys. No HTTPS attempt."
+}
