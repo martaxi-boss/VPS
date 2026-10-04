@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-HTTPS-STAGING-PROVISION-030",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 4,
+  "recorded_at": "2026-10-04T09:03:28.644Z",
+  "event": "REPLAN",
+  "strategy_generation": 3,
+  "action_fingerprint": "030-existing-account-show-compatibility-provision",
+  "attempt_count": 0,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "0b915b7421fe1315b32c437fa17370f7c6a438d5f2500c402de501ab5ead0ede",
+  "detail": "Readonly run37190825019 found exactly one existing account with private file and show_account exit0 but empty persisted body/status absent. Validator was incompatible, not missing authority/account. No host writes confirmed. Use existing-account show verification instead of optional body.status. Control sibling ref update422 was not forced; diagnostic intent preserved separately, subtransition not retrospectively certified."
+}

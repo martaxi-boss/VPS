@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-HTTPS-STAGING-PROVISION-030",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 5,
+  "recorded_at": "2026-10-04T09:03:29.512Z",
+  "event": "RETRY_AUTHORIZED",
+  "strategy_generation": 3,
+  "action_fingerprint": "030-existing-account-show-compatibility-provision",
+  "attempt_count": 1,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "f9cef47dba9987b11b775d2cfe5c6e19799516be3b5ad14c5f19a8bf0cbbf1e2",
+  "detail": "Authorize fresh descendant implementation for fixed HTTPS provisioning, using exactly one pre-existing account validated by certbot show_account; no creation/newterms/DNS/firewall changes. Persist separate exact control branch successfully before executing task ref."
+}
