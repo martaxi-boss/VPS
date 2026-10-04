@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-HTTPS-STAGING-PROVISION-030",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 12,
+  "recorded_at": "2026-10-04T09:09:19.684Z",
+  "event": "REPLAN",
+  "strategy_generation": 6,
+  "action_fingerprint": "030-existing-account-show-compatibility-provision",
+  "attempt_count": 0,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "25c4f247987e0df6d28134d8977f601cd24136b4410e23f45fa6f8906e1281f5",
+  "detail": "Readonly nginx diagnostic confirmed two effective sites-enabled configs and absent task site/webroot; include regex had overescaped whitespace and was inconclusive. Make task-owned site suffix.conf compatible with both * and *.conf, assert nginx-T loads exact task file before reload, and bound synthetic readiness polling because graceful reload is asynchronous. Preserve backups using new absent-r3 path. No shared include/site edits."
+}
