@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-VPS-RUNTIME-OBSERVE-021-EXECUTE",
+  "task_id": "PINK-IPTV-VPS-RUNTIME-OBSERVE-021",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-VPS-RUNTIME-OBSERVE-021-EXECUTE.authorization.json",
+  "action": "execute_exact_read_only_vps_observation",
+  "target": {
+    "kind": "repository_branch",
+    "identifier": "builder/pink-runtime-observe-021",
+    "revision": "de6b6bd2545bab7407497d86b6894367eac6a68c",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "OVH development/staging"
+  },
+  "observed_at": "2026-10-04T03:46:06.126Z",
+  "final_state": {
+    "status": "OBSERVED",
+    "revision": "de6b6bd2545bab7407497d86b6894367eac6a68c"
+  },
+  "evidence": [
+    "Exact SHA push run37174951897 / job111355541793 completed success; SSH read-only observation markers observed.",
+    "Execution authorization durably persisted before task branch update at 4ebfc1ddecdd0655f359e59ed8afe96ee6b9fb18",
+    "OBSERVATION_BEGIN=021\nOBSERVED_AT_UTC=2026-10-04T03:45:16Z\nHOSTNAME=vps-32bea5b6\nSERVICE=ssh\nMainPID=422000\nMemoryCurrent=10129408\nWorkingDirectory=\nActiveState=active\nSubState=running\nUnitFileState=disabled\nActiveEnterTimestamp=Thu 2026-10-01 06:56:50 UTC\nSERVICE=nginx\nMainPID=422005\nMemoryCurrent=8826880\nWorkingDirectory=\nActiveState=active\nSubState=running\nUnitFileState=enabled\nActiveEnterTimestamp=Thu 2026-10-01 06:56:49 UTC\nSERVICE=postgresql\nMainPID=0\nMemoryCurrent=[not set]\nWorkingDirectory=\nActiveState=active\nSubState=exited\nUnitFileState=enabled\nActiveEnterTimestamp=Wed 2026-09-23 21:22:10 UTC\nSERVICE=pink-iptv-backend\nMainPID=422012\nMemoryCurrent=58814464\nWorkingDirectory=/srv/pink-iptv/backend\nActiveState=active\nSubState=running\nUnitFileState=enabled\nActiveEnterTimestamp=Thu 2026-10-01 06:56:49 UTC\nSERVICE=pink-tv-proof-final-isolated\nMainPID=251169\nMemoryCurrent=6020632576\nWorkingDirectory=\nActiveState=active\nSubState=running\nUnitFileState=transient\nActiveEnterTimestamp=Fri 2026-09-25 00:53:19 UTC\nRUNTIME_REVISION=ccccaf1eb25ca80936763f7d6a17e4dd00347e8a\nPINK_OPENAPI_HTTP=200\n127.0.0.1:5432 - accepting connections\n 251169       1 qemu-system-x86  9-02:51:57 2932636\nPROOF_EXE=/opt/android-sdk/emulator/qemu/linux-x86_64/qemu-system-x86_64-headless\nPROOF_CWD=/\n 251226  251169 netsimd          9-02:51:56 18732\nWG_INTERFACE_COUNT=0\nIPV4_FORWARDING=0\nIPV6_FORWARDING=0\nDEFAULT_INTERFACE=ens3\nFIREWALL_TOOL=iptables TABLE=filter\nPOLICY=INPUT:DROP\nPOLICY=FORWARD:DROP\nPOLICY=OUTPUT:ACCEPT\nRULE_COUNT=67\nFIREWALL_TOOL=iptables TABLE=nat\nPOLICY=PREROUTING:ACCEPT\nPOLICY=INPUT:ACCEPT\nPOLICY=OUTPUT:ACCEPT\nPOLICY=POSTROUTING:ACCEPT\nRULE_COUNT=0\nFIREWALL_TOOL=ip6tables TABLE=filter\nPOLICY=INPUT:DROP\nPOLICY=FORWARD:DROP\nPOLICY=OUTPUT:ACCEPT\nRULE_COUNT=107\nFIREWALL_TOOL=ip6tables TABLE=nat\nPOLICY=PREROUTING:ACCEPT\nPOLICY=INPUT:ACCEPT\nPOLICY=OUTPUT:ACCEPT\nPOLICY=POSTROUTING:ACCEPT\nRULE_COUNT=0\nUFW_Status: active\nOBSERVATION_END=021"
+  ],
+  "residual_blockers": []
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-VPS-RUNTIME-OBSERVE-021",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 4,
+  "recorded_at": "2026-10-04T03:46:41.107614+00:00",
+  "event": "RECOVERED",
+  "strategy_generation": 2,
+  "action_fingerprint": "fixed-readonly-ovh-runtime-observation",
+  "attempt_count": 2,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "35007bc8a4335e1c544828b52404438653562c4b32d7a6d32416fa4fecf0403d",
+  "detail": "Fresh implementation de6b6bd2545bab7407497d86b6894367eac6a68c run37174951897 succeeded; SSH bridge recovered after public repository change; observed host/services/runtime/process/WireGuard facts."
+}
