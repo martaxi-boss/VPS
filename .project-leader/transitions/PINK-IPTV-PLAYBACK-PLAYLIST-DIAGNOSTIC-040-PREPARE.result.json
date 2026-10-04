@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-PLAYBACK-PLAYLIST-DIAGNOSTIC-040-PREPARE",
+  "task_id": "PINK-IPTV-PLAYBACK-PLAYLIST-DIAGNOSTIC-040",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-PLAYBACK-PLAYLIST-DIAGNOSTIC-040-PREPARE.authorization.json",
+  "action": "prepare_fixed_provider_readiness_workflow",
+  "target": {
+    "kind": "fixed_readonly_diagnostic_workflow",
+    "identifier": "builder/pink-playback-playlist-diagnostic-040",
+    "revision": "91292de66df6c3a0e7df63fba13f72651d283a42",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "OVH vps-32bea5b6 / PINK staging readonly"
+  },
+  "observed_at": "2026-10-04T20:38:43.242Z",
+  "final_state": {
+    "status": "READONLY_DIAGNOSTIC_EXECUTED_WORKER_CERTIFICATION_BLOCKED",
+    "revision": "6ca4f7f8c8f27198a1f6262b7b1d0cfba1fd360a"
+  },
+  "evidence": [
+    "Bounded workflow executed within Owner readonly scope, no runtime/provider/database/network writes. Worker040 is BLOCKED due multistage verifier limitation, independently replaced by verified one-shot041; this transition receipt does not claim Worker040 acceptance."
+  ],
+  "residual_blockers": []
+}
