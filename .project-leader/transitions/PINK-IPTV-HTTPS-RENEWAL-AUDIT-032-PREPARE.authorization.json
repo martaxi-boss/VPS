@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-HTTPS-RENEWAL-AUDIT-032-PREPARE",
+  "task_id": "PINK-IPTV-HTTPS-RENEWAL-AUDIT-032",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-04T09:33:46.447Z",
+  "action": "add_fixed_privileged_observation_workflow",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "binding_mode": "EXACT_REVISION_BOUND",
+    "summary": "Readonly followup of selected-host certificate/renewal configuration using existing channel; no new secrets/rawconfig/host changes."
+  },
+  "target": {
+    "kind": "bounded_operations_task",
+    "identifier": "builder/pink-https-renewal-audit-032",
+    "revision": "c307d08b6c5f846d4057bb57a445faa07dff4f4b",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "OVH development/staging"
+  }
+}
