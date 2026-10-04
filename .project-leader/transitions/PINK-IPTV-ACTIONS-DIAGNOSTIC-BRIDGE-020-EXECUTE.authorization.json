@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTIONS-DIAGNOSTIC-BRIDGE-020-EXECUTE",
+  "task_id": "PINK-IPTV-ACTIONS-DIAGNOSTIC-BRIDGE-020",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-04T03:20:50.802Z",
+  "action": "execute_exact_github_diagnostic_probe",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "binding_mode": "EXACT_REVISION_BOUND",
+    "summary": "Execute one fixed read-only same-repository annotation diagnostic on exact reviewed implementation via task-branch push. Only checks:read automatic github.token, no SSH/provider/runtime writes or paid activation. Preserve result and do not retry before diagnosis/causal recovery. Exact branch/path/message guard prevents evidence-only execution."
+  },
+  "target": {
+    "kind": "repository_branch",
+    "identifier": "builder/pink-actions-diagnostic-020",
+    "revision": "022d94a092cf1bbb9843a99a5cc28c3302eb86d0",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "GitHub Actions diagnostic-only"
+  }
+}
