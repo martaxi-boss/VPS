@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-PLAYBACK-PLAYLIST-DIAGNOSTIC-040",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 2,
+  "recorded_at": "2026-10-04T20:21:06.446Z",
+  "event": "RETRY_AUTHORIZED",
+  "strategy_generation": 1,
+  "action_fingerprint": "040-provider-playlist-read-timeout",
+  "attempt_count": 2,
+  "identical_failure_count": 1,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "9778be98de0501af696c0a7074a431b75d91daded8025d3be46bd93dba09e2a3",
+  "detail": "Supervisor authorizes exactly one fresh implementation descendant with only playlist read timeout30s;512KiB cap, no redirect/alternateorigin/credentials/output changes. Do not replay oldSHA workflow. If still unavailable, preserve bounded observation; avoid endless probes."
+}
