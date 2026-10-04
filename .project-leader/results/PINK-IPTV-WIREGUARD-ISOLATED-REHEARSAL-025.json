@@ -1,0 +1,70 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-WIREGUARD-ISOLATED-REHEARSAL-025",
+  "terminal_status": "TERMINAL_SUCCESS",
+  "repository": "martaxi-boss/VPS",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authorization_record": ".project-leader/tasks/PINK-IPTV-WIREGUARD-ISOLATED-REHEARSAL-025.json",
+  "authorization_commit_sha": "99b50f195fde04766a8924b1549634d089ab54be",
+  "authorization_sha256": "f00f5381b2fa7f10a819ad25d92289e52f68bef5d8fc1b3296fad6e14eae081a",
+  "implementation_head_sha": "374ef9254758400ee6db191d5d180afb2fdbb2eb",
+  "branch": "builder/pink-wg-isolated-025",
+  "recorded_at": "2026-10-04T04:04:21.156895+00:00",
+  "changes": [
+    "Proved WireGuard handshake, bidirectional tunnel ping and transfer inside two isolated temporary namespaces.",
+    "Removed exact task namespaces/interfaces/root-only temporary keys; verified unchanged host firewall/forwarding and active services/API/PG."
+  ],
+  "validation": [
+    {
+      "name": "Project architecture scope audit",
+      "status": "PASS",
+      "evidence": "ExactSHA run37175796253; fixed namespace-only safety/inverse audit; observed sanitized proof in EXECUTE result."
+    },
+    {
+      "name": "Mutation scope audit",
+      "status": "PASS",
+      "evidence": "ExactSHA run37175796253; fixed namespace-only safety/inverse audit; observed sanitized proof in EXECUTE result."
+    },
+    {
+      "name": "GitHub evidence verification",
+      "status": "PASS",
+      "evidence": "ExactSHA run37175796253; fixed namespace-only safety/inverse audit; observed sanitized proof in EXECUTE result."
+    },
+    {
+      "name": "Consequential transition readiness audit",
+      "status": "PASS",
+      "evidence": "ExactSHA run37175796253; fixed namespace-only safety/inverse audit; observed sanitized proof in EXECUTE result."
+    },
+    {
+      "name": "Isolated namespace and ephemeral-key safety",
+      "status": "PASS",
+      "evidence": "ExactSHA run37175796253; fixed namespace-only safety/inverse audit; observed sanitized proof in EXECUTE result."
+    },
+    {
+      "name": "Exact cleanup and host baseline preservation",
+      "status": "PASS",
+      "evidence": "ExactSHA run37175796253; fixed namespace-only safety/inverse audit; observed sanitized proof in EXECUTE result."
+    },
+    {
+      "name": "WireGuard handshake and tunnel reachability",
+      "status": "PASS",
+      "evidence": "ExactSHA run37175796253; fixed namespace-only safety/inverse audit; observed sanitized proof in EXECUTE result."
+    }
+  ],
+  "ci": [
+    {
+      "name": "PINK WireGuard Isolated Rehearsal 025",
+      "status": "SUCCESS",
+      "run_id": 37175796253
+    }
+  ],
+  "artifacts": [
+    ".project-leader/transitions/PINK-IPTV-WIREGUARD-ISOLATED-REHEARSAL-025-EXECUTE.result.json"
+  ],
+  "material_non_effects": [
+    "No host firewall/routing/forwarding/configuration/service lifecycle changes.",
+    "No external ingress, real Android/TV tunnel, production peer/provider proof or capacity certification.",
+    "Ephemeral namespaces are task-owned inverse rehearsal, not live host network or database restoration."
+  ],
+  "residual_blockers": []
+}

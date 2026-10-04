@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-WIREGUARD-ISOLATED-REHEARSAL-025-EXECUTE",
+  "task_id": "PINK-IPTV-WIREGUARD-ISOLATED-REHEARSAL-025",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-WIREGUARD-ISOLATED-REHEARSAL-025-EXECUTE.authorization.json",
+  "action": "execute_exact_isolated_wireguard_rehearsal",
+  "target": {
+    "kind": "repository_branch",
+    "identifier": "builder/pink-wg-isolated-025",
+    "revision": "374ef9254758400ee6db191d5d180afb2fdbb2eb",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "OVH development/staging"
+  },
+  "observed_at": "2026-10-04T04:04:20.294Z",
+  "final_state": {
+    "status": "OBSERVED",
+    "revision": "374ef9254758400ee6db191d5d180afb2fdbb2eb"
+  },
+  "evidence": [
+    "ExactSHA run37175796253/job111358015743 SUCCESS; isolated topology/ephemeral-key/cleanup and host preservation audited.",
+    "WG_REHEARSAL_BEGIN=025\nOBSERVED_AT_UTC=2026-10-04T04:02:16Z\nNAMESPACE_HANDSHAKE=PASS\nNAMESPACE_TUNNEL_BIDIRECTIONAL_PING=PASS\nNAMESPACE_TRANSFER=NONZERO_BOTH_DIRECTIONS\nTASK_NAMESPACES_INTERFACES_KEYS_REMOVED=YES\nHOST_FIREWALL_FORWARDING=UNCHANGED\nEXISTING_SERVICES=ACTIVE\nPINK_OPENAPI_HTTP=200\nPOSTGRES_READY=YES\nWG_REHEARSAL_END=025"
+  ],
+  "residual_blockers": []
+}

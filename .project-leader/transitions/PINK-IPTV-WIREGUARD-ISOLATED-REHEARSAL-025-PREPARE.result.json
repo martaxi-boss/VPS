@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-WIREGUARD-ISOLATED-REHEARSAL-025-PREPARE",
+  "task_id": "PINK-IPTV-WIREGUARD-ISOLATED-REHEARSAL-025",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-WIREGUARD-ISOLATED-REHEARSAL-025-PREPARE.authorization.json",
+  "action": "add_fixed_isolated_rehearsal_workflow",
+  "target": {
+    "kind": "repository_branch",
+    "identifier": "builder/pink-wg-isolated-025",
+    "revision": "99b50f195fde04766a8924b1549634d089ab54be",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "OVH development/staging"
+  },
+  "observed_at": "2026-10-04T04:04:20.294Z",
+  "final_state": {
+    "status": "OBSERVED",
+    "revision": "374ef9254758400ee6db191d5d180afb2fdbb2eb"
+  },
+  "evidence": [
+    "ExactSHA run37175796253/job111358015743 SUCCESS; isolated topology/ephemeral-key/cleanup and host preservation audited.",
+    "Preparation c47256fe0bf32d9b5d713d55502c787b8067c61a precedes implementation; execution authority 0e7060690fd919cc3805a48160b0edf10eba7787 persisted before push."
+  ],
+  "residual_blockers": []
+}
