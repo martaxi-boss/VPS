@@ -146,7 +146,7 @@ jobs:
                           port=origin.port or (443 if origin.scheme=='https' else 80)
                           print('SERVER_PORT_MATCH='+('YES' if str(server.get(field,''))==str(port) else 'NO'),flush=True)
                           first=None;buf=b'';total=0
-                          with upstream.stream('GET',str(target.origin).rstrip('/')+'/get.php',params={'username':line.username,'password':password,'type':'m3u_plus','output':'ts'}) as listing:
+                          with upstream.stream('GET',str(target.origin).rstrip('/')+'/get.php',params={'username':line.username,'password':password,'type':'m3u_plus','output':'ts'},timeout=30) as listing:
                               print('PLAYLIST_HTTP='+str(listing.status_code),flush=True)
                               if listing.status_code==200:
                                   for chunk in listing.iter_bytes(chunk_size=4096):
