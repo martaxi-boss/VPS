@@ -1,0 +1,129 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-VPS-RUNTIME-OBSERVE-022",
+  "project": "VPS operations for PINK IPTV",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-04T03:49:12.117Z",
+  "authority": {
+    "kind": "TRANSACTIONAL_GRANT",
+    "source": "CURRENT_OWNER_INSTRUCTION",
+    "binding_mode": "OBJECTIVE_SCOPE_BOUND",
+    "summary": "Continue readonly staging audit using successfully established GitHub Actions SSH bridge. Observe tracked runtime dirty status, hashes of selected public backend source, harmless malformed synthetic request privacy, structural network address/route overlap and firewall ownership. Fixed host and existing secret name only. No provider/customer credential reads, source/config edits, server writes, service lifecycle, peer/tunnel/backup creation or main merge."
+  },
+  "starting_state": {
+    "default_branch": "main",
+    "base_sha": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "task_branch": "builder/pink-runtime-safety-022"
+  },
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "mutation_scope": [
+    ".github/workflows/pink-runtime-safety-022.yml",
+    ".project-leader/tasks/PINK-IPTV-VPS-RUNTIME-OBSERVE-022.json",
+    ".project-leader/results/PINK-IPTV-VPS-RUNTIME-OBSERVE-022.json",
+    ".project-leader/recovery-events/PINK-IPTV-VPS-RUNTIME-OBSERVE-022/**",
+    ".project-leader/transitions/PINK-IPTV-VPS-RUNTIME-OBSERVE-022-*",
+    "ops/PINK-IPTV-VPS-RUNTIME-OBSERVE-022.md"
+  ],
+  "allowed_actions": [
+    "create_branch",
+    "edit_project_files",
+    "create_commits",
+    "run_ci",
+    "change_project_governance"
+  ],
+  "prohibited_actions": [
+    "merge_to_main",
+    "branch_protection_or_ruleset_change",
+    "release_or_publish",
+    "production_deploy",
+    "destructive_data_change",
+    "repository_or_history_deletion",
+    "production_secret_change",
+    "irreversible_infrastructure_change",
+    "paid_service_activation",
+    "change_existing_workflows",
+    "server_config_write",
+    "service_stop_restart_delete",
+    "network_firewall_routing_write",
+    "secret_value_disclosure_or_rotation",
+    "arbitrary_remote_commands",
+    "third_project_mutation",
+    "force_push"
+  ],
+  "transition_controls": [
+    {
+      "action": "merge_to_main",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "branch_protection_or_ruleset_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "release_or_publish",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_deploy",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "destructive_data_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "repository_or_history_deletion",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_secret_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "irreversible_infrastructure_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "paid_service_activation",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "add_fixed_privileged_observation_workflow",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "execute_exact_read_only_vps_observation",
+      "requires_authority_resolution": true
+    }
+  ],
+  "required_validation": [
+    "Project architecture scope audit",
+    "Mutation scope audit",
+    "GitHub evidence verification",
+    "Consequential transition readiness audit",
+    "Forced operational access discovery",
+    "Fixed read-only remote command safety",
+    "Synthetic validation privacy and source provenance",
+    "Network ownership and candidate range audit"
+  ],
+  "required_ci": [
+    "PINK IPTV Runtime Safety 022"
+  ],
+  "policy": {
+    "profile": "generic-project-v1",
+    "path": "control/generic-project-policy.json",
+    "sha256": "147fb55338267ba2e9727c4a85e468e342300a69557d80781edeba4b6fa8d0f9",
+    "binding_mode": "CENTRAL_CONTROL_V1",
+    "repository": "martaxi-boss/Project-leader",
+    "revision": "05225695684b54ce5becbb89cf0e5b6dc88dcafa"
+  },
+  "recovery": {
+    "mode": "APPEND_ONLY_V1"
+  },
+  "integrity_mode": "IMMUTABLE_AUTHORIZATION_V1",
+  "terminal_condition": "ExactSHA fixed readonly safety observation and canonical evidence verification pass, durable facts route into bounded PINK remediation; unknowns stay explicit.",
+  "privacy": {
+    "contains_secrets": false,
+    "contains_private_conversation_text": false
+  }
+}
