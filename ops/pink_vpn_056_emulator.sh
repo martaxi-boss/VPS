@@ -58,8 +58,14 @@ import os
 from pathlib import Path
 Path(os.environ['RUNNER_TEMP'],'pink056-account.json').unlink()
 PY
-adb shell am instrument -w -r -e class com.pinkiptv.extreme.PinkVpnLiveTest com.pinkiptv.extreme.test/androidx.test.runner.AndroidJUnitRunner > "$RUNNER_TEMP/pink056-live.txt"
+adb shell am instrument -w -r -e pinkRetainGrant true -e class com.pinkiptv.extreme.PinkVpnLiveTest com.pinkiptv.extreme.test/androidx.test.runner.AndroidJUnitRunner > "$RUNNER_TEMP/pink056-live.txt"
 # Instrumentation failures contain generic messages only; never dump logcat.
 cat "$RUNNER_TEMP/pink056-live.txt"
 grep -q 'OK (1 test)' "$RUNNER_TEMP/pink056-live.txt"
+# A new application process receives no account fixture or technical input.
+# The EXIT trap still owns cleanup of this exact disposable installation.
+adb shell am force-stop com.pinkiptv.extreme
+adb shell am instrument -w -r -e class com.pinkiptv.extreme.PinkVpnRestoreTest com.pinkiptv.extreme.test/androidx.test.runner.AndroidJUnitRunner > "$RUNNER_TEMP/pink056-restore.txt"
+cat "$RUNNER_TEMP/pink056-restore.txt"
+grep -q 'OK (1 test)' "$RUNNER_TEMP/pink056-restore.txt"
 sshpass -e ssh "${ssh_args[@]}" ubuntu@146.59.145.3 'sudo -n python3 -' < "$RUNNER_TEMP/pink056-observe.py"

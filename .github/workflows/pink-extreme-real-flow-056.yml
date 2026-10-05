@@ -11,38 +11,8 @@ concurrency:
   group: pink-extreme-real-flow-056
   cancel-in-progress: false
 jobs:
-  control_validation:
-    if: github.event.head_commit.message == 'Validate bounded hosted recovery records 056'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          persist-credentials: false
-      - name: Validate proposed records before their durable publication
-        run: |
-          set -euo pipefail
-          git clone -q --no-checkout https://github.com/martaxi-boss/Project-leader.git "$RUNNER_TEMP/pink056-canonical"
-          git -C "$RUNNER_TEMP/pink056-canonical" checkout -q --detach c42ed27cc6c520bfd63015097c8c60ee42392ba5
-          python - <<'PY'
-          import json,os,sys
-          from pathlib import Path
-          sys.path.insert(0,str(Path(os.environ['RUNNER_TEMP'])/'pink056-canonical'))
-          from control.validate_records import validate_recovery_journal,canonical_sha256
-          base=Path('.project-leader/recovery-events/PINK-IPTV-EXTREME-REAL-FLOW-056')
-          records=[json.loads((base/f'{i:03d}.json').read_text()) for i in range(1,1)]
-          pending=json.loads(r'''[{"schema_version":"1.0","task_id":"PINK-IPTV-EXTREME-REAL-FLOW-056","repository":"martaxi-boss/VPS","recorded_at":"2026-10-05T16:33:55.206Z","previous_event_sha256":null,"sequence":1,"event":"FAILURE_OBSERVED","strategy_generation":1,"action_fingerprint":"056-prepared-offline-numeric-ip-capture","attempt_count":2,"identical_failure_count":2,"no_progress_iterations":1,"detail":"Prepared builds8ec2e7d andbf815d3 both used exact PINKc5b36c9d; runs37336925191 and37337046651 failed the same strict startup numeric IPv4 socket-blocking assertion after all APK compilation/JVM and actual Keystore tests passed. No private fixture retrieval, SSH proof or runtime mutation executed; privileged proof remained skipped. Existing gateway054 stays accepted. Preserve both runs; do not rerun the unchanged source."},{"schema_version":"1.0","task_id":"PINK-IPTV-EXTREME-REAL-FLOW-056","repository":"martaxi-boss/VPS","recorded_at":"2026-10-05T16:33:55.206Z","previous_event_sha256":null,"sequence":2,"event":"REPLAN","strategy_generation":2,"action_fingerprint":"056-await-measured-native-route-correction","attempt_count":1,"identical_failure_count":0,"no_progress_iterations":0,"detail":"Suspend prepared real-flow builds until Task055 completes live offline route diagnostics and corrects the demonstrated cause with strict negative checks preserved. Then pin056 to the exact corrected, audited PINK source; include normal system consent, public phase statuses and lint. Validate records with pinned canonical validator in hosted Actions because local shell is nonresponsive. Private account retrieval and real peer proof still require prepared CI success plus separate exact operational transition; no fixture or infrastructure mutation is authorized by this replan."}]''')
-          for record in pending:
-              record['previous_event_sha256']=canonical_sha256(records[-1]) if records else None
-              records.append(record)
-          validate_recovery_journal(records)
-          for record in pending:
-              print('VALIDATED_RECORD_'+str(record['sequence'])+'='+json.dumps(record,separators=(',',':')))
-              print('VALIDATED_SHA_'+str(record['sequence'])+'='+canonical_sha256(record))
-          print('CANONICAL_BOUNDED_HOSTED_RECOVERY_VALIDATION=PASS')
-          PY
   prepare:
-    if: github.event.head_commit.message != 'Authorize exact real Android flow 056' && github.event.head_commit.message != 'Validate bounded hosted recovery records 056'
+    if: github.event.head_commit.message != 'Authorize exact real Android flow 056'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
@@ -54,7 +24,7 @@ jobs:
       - name: Checkout exact audited PINK source
         run: |
           git clone --no-checkout https://github.com/martaxi-boss/pink-iptv.git "$RUNNER_TEMP/pink055-source"
-          git -C "$RUNNER_TEMP/pink055-source" checkout --detach c5b36c9d4d9f69b97289ce4709faf8510a8e36e4
+          git -C "$RUNNER_TEMP/pink055-source" checkout --detach 47506d8db5621d7ab7a380d17e17bef6097e7af4
           cp -r "$RUNNER_TEMP/pink055-source/clients" .
           mkdir -p .github/scripts
           cp "$RUNNER_TEMP/pink055-source/.github/scripts/filter_scan_findings.py" .github/scripts/
@@ -84,11 +54,12 @@ jobs:
         with:
           workspaces: "${{ runner.temp }}/pink-extreme/src-tauri -> target"
           key: pink-extreme-056
+          cache-on-failure: "true"
       - name: Install and verify login contract
         working-directory: ${{ runner.temp }}/pink-extreme
         run: |
           pnpm install --frozen-lockfile
-          pnpm exec vitest run tests/pink-session.test.ts tests/pink-storage.test.ts tests/pink-network.test.ts tests/stall-watchdog.test.ts tests/vod-remux-memory.test.ts
+          pnpm exec vitest run tests/pink-session.test.ts tests/pink-storage.test.ts tests/pink-network.test.ts tests/pink-bridge.test.ts tests/stall-watchdog.test.ts tests/vod-remux-memory.test.ts
           pnpm run build
       - name: Generate PINK launcher resources
         working-directory: ${{ runner.temp }}/pink-extreme
@@ -135,9 +106,20 @@ jobs:
           adb shell am instrument -w -r -e class com.pinkiptv.extreme.PinkVpnIdentityTest com.pinkiptv.extreme.test/androidx.test.runner.AndroidJUnitRunner > "$RUNNER_TEMP/pink053-identity.txt"
           cat "$RUNNER_TEMP/pink053-identity.txt"
           grep -q 'OK (2 tests)' "$RUNNER_TEMP/pink053-identity.txt"
+          adb shell am instrument -w -r -e class com.pinkiptv.extreme.PinkWebBridgeTest com.pinkiptv.extreme.test/androidx.test.runner.AndroidJUnitRunner > "$RUNNER_TEMP/pink055-origin.txt"
+          cat "$RUNNER_TEMP/pink055-origin.txt"
+          grep -q 'OK (1 test)' "$RUNNER_TEMP/pink055-origin.txt"
           adb shell am instrument -w -r -e class com.pinkiptv.extreme.PinkVpnStartupTest com.pinkiptv.extreme.test/androidx.test.runner.AndroidJUnitRunner > "$RUNNER_TEMP/pink053-startup.txt"
           cat "$RUNNER_TEMP/pink053-startup.txt"
+          if ! grep -q 'OK (1 test)' "$RUNNER_TEMP/pink053-startup.txt"; then
+            adb logcat -b crash -d -t 100
+            adb shell ip -4 rule
+            adb shell ip -6 rule
+            adb shell ip -4 route show table all
+            adb shell ip -6 route show table all
+          fi
           grep -q 'OK (1 test)' "$RUNNER_TEMP/pink053-startup.txt"
+          adb shell am force-stop com.pinkiptv.extreme
           echo KEYSTORE_NORMAL_CONSENT_OFFLINE_FAIL_CLOSED_RECREATION=PASS
           SCRIPT
       - name: Real Android Keystore, normal VPN consent and startup capture
@@ -161,6 +143,24 @@ jobs:
           python -m pip install --disable-pip-version-check detect-secrets==1.5.0
           detect-secrets scan --all-files --exclude-files '(^|/)(\.git|\.pytest_cache|\.ruff_cache|.*egg-info)/' > /tmp/pink-extreme-scan.json
           python .github/scripts/filter_scan_findings.py /tmp/pink-extreme-scan.json
+      - name: Audit complete Android lint report
+        if: ${{ always() && !cancelled() }}
+        working-directory: ${{ runner.temp }}/pink-extreme/src-tauri/gen/android
+        run: |
+          set +e
+          ./gradlew --no-daemon app:lintUniversalDebug -x app:rustBuildUniversalDebug
+          pink_lint_status=$?
+          report="app/build/intermediates/lint_intermediate_text_report/universalDebug/lintReportUniversalDebug/lint-results-universalDebug.txt"
+          if [ -f "$report" ]; then cat "$report"; fi
+          exit "$pink_lint_status"
+      - name: Preserve full public-source lint reports for review
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: PINK-Android-lint-056
+          path: ${{ runner.temp }}/pink-extreme/src-tauri/gen/android/app/build/reports/lint-results-universalDebug.*
+          if-no-files-found: ignore
+          retention-days: 30
       - name: Package exact source, APK and integrity hashes
         run: |
           set -euo pipefail
@@ -176,7 +176,7 @@ jobs:
           cp -r clients/extreme "$RUNNER_TEMP/pink-deliverable/rebuild-recipe"
           find "$RUNNER_TEMP/pink-deliverable/rebuild-recipe" -type d -name __pycache__ -prune -exec rm -rf {} +
           cd "$RUNNER_TEMP/pink-deliverable"
-          printf '{"implementation_sha":"%s","upstream_sha":"1efcc1b4ab3468db04aedd1c466228c52ef001b7"}\n' "c5b36c9d4d9f69b97289ce4709faf8510a8e36e4" > provenance.json
+          printf '{"implementation_sha":"%s","upstream_sha":"1efcc1b4ab3468db04aedd1c466228c52ef001b7"}\n' "47506d8db5621d7ab7a380d17e17bef6097e7af4" > provenance.json
           sha256sum *.apk *.tar.gz > SHA256SUMS
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -209,13 +209,16 @@ jobs:
           source=auth['target']['revision']
           subprocess.run(['git','merge-base','--is-ancestor',source,'HEAD'],check=True)
           assert not subprocess.check_output(['git','diff','--name-only',source,'HEAD','--','ops/pink_vpn_056_runtime.py','ops/pink_vpn_056_emulator.sh','.github/workflows/pink-extreme-real-flow-056.yml'],text=True)
-          prefix='OVH:vps-32bea5b6;PINK:c5b36c9d4d9f69b97289ce4709faf8510a8e36e4;artifact-run:'
+          prefix='OVH:vps-32bea5b6;PINK:47506d8db5621d7ab7a380d17e17bef6097e7af4;artifact-run:'
           assert auth['target']['identifier'].startswith(prefix)
           run_id=auth['target']['identifier'][len(prefix):]
           assert run_id.isdigit()
           request=urllib.request.Request('https://api.github.com/repos/martaxi-boss/VPS/actions/runs/'+run_id,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
           run=json.load(urllib.request.urlopen(request,timeout=15))
           assert run['head_sha']==source and run['conclusion']=='success' and run['name']=='PINK Extreme Real Flow 056'
+          product_request=urllib.request.Request('https://api.github.com/repos/martaxi-boss/pink-iptv/actions/runs/37361016202',headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+          product_run=json.load(urllib.request.urlopen(product_request,timeout=15))
+          assert product_run['head_sha']=='47506d8db5621d7ab7a380d17e17bef6097e7af4' and product_run['status']=='completed' and product_run['conclusion']=='success'
           with open(os.environ['GITHUB_ENV'],'a') as env:
               env.write('PINK056_ARTIFACT_RUN='+run_id+'\n')
           print('EXACT_AUTHORITY_AND_PREPARED_APK=PASS')
@@ -234,7 +237,7 @@ jobs:
           python - <<'PYCODE'
           import json
           from pathlib import Path
-          assert json.loads(Path('provenance.json').read_text())['implementation_sha']=='c5b36c9d4d9f69b97289ce4709faf8510a8e36e4'
+          assert json.loads(Path('provenance.json').read_text())['implementation_sha']=='47506d8db5621d7ab7a380d17e17bef6097e7af4'
           PYCODE
           test -e /dev/kvm
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
