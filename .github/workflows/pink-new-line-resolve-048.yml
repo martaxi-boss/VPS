@@ -1,0 +1,189 @@
+name: PINK New Line Resolve 048
+on:
+  push:
+    branches: ["builder/pink-new-line-resolve-048"]
+    paths: [".github/workflows/pink-new-line-resolve-048.yml"]
+permissions:
+  contents: read
+concurrency:
+  group: pink-new-line-resolve-048
+  cancel-in-progress: false
+jobs:
+  observe:
+    if: github.event.head_commit.message == 'Discover supplied test line via Mega API capability 048'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Discover exact supplied line without credential disclosure
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ubuntu@146.59.145.3 'sudo -n python3 -' <<'PY'
+          import os,sys,subprocess,logging
+          from pathlib import Path
+
+          logging.disable(logging.CRITICAL)
+          def run(*args):
+              return subprocess.run(args,check=True,capture_output=True,text=True,timeout=10).stdout.strip()
+
+          assert os.geteuid()==0 and run("hostname")=="vps-32bea5b6"
+          assert run("systemctl","show","pink-iptv-backend","-p","WorkingDirectory","--value")=="/srv/pink-iptv/backend"
+          pid=int(run("systemctl","show","pink-iptv-backend","-p","MainPID","--value")); assert pid>1
+
+          runtime={}
+          allowed={"APP_ENV","DATABASE_URL","SESSION_SIGNING_KEY","SESSION_TTL_SECONDS","MEGA_OTT_API_BASE","MEGA_OTT_API_TOKEN"}
+          for item in Path("/proc/"+str(pid)+"/environ").read_bytes().split(b"\0"):
+              if b"=" in item:
+                  k,v=item.split(b"=",1)
+                  if k.decode() in allowed:
+                      runtime[k.decode()]=v.decode()
+
+          python_path=next((p for p in ("/srv/pink-iptv/backend/.venv/bin/python","/srv/pink-iptv/backend/venv/bin/python") if Path(p).is_file()),None)
+          assert python_path and runtime.get("MEGA_OTT_API_BASE") and runtime.get("MEGA_OTT_API_TOKEN")
+
+          child=r'''
+          import hashlib,logging
+          from urllib.parse import urlsplit
+          import httpx
+          from app.config import get_settings
+
+          logging.disable(logging.CRITICAL)
+          TARGET="325a5df019165e41992baaa59133987d"
+          EXPECTED_HOST="gccthmgw.zvpnm.com"
+          settings=get_settings()
+          base=settings.mega_ott_api_base.rstrip("/")
+          token=settings.require_mega_token()
+          headers={"Accept":"application/json","Authorization":"Bearer "+token}
+
+          def digest(value):
+              return hashlib.md5(str(value).encode()).hexdigest()
+
+          def extract_items(payload):
+              if isinstance(payload,list):
+                  return payload
+              if isinstance(payload,dict):
+                  for key in ("data","items","subscriptions","results"):
+                      value=payload.get(key)
+                      if isinstance(value,list):
+                          return value
+              return None
+
+          collection="/v1/subscriptions"
+          openapi_seen=False
+          documented_collection=False
+          try:
+              with httpx.Client(headers=headers,timeout=12,follow_redirects=False,trust_env=False) as client:
+                  try:
+                      r=client.get(base+"/openapi.json")
+                      if r.status_code==200:
+                          spec=r.json()
+                          if isinstance(spec,dict):
+                              openapi_seen=True
+                              paths=spec.get("paths",{})
+                              if isinstance(paths,dict):
+                                  documented_collection=collection in paths and isinstance(paths.get(collection),dict) and "get" in paths.get(collection,{})
+                  except Exception:
+                      pass
+
+                  print("MEGA_OPENAPI_AVAILABLE="+("YES" if openapi_seen else "NO"),flush=True)
+                  print("MEGA_COLLECTION_DOCUMENTED="+("YES" if documented_collection else "NO"),flush=True)
+
+                  seen_ids=set()
+                  matches=[]
+                  list_supported=False
+                  pages_scanned=0
+                  for page in range(1,51):
+                      params={"page":str(page),"per_page":"100"}
+                      r=client.get(base+collection,params=params)
+                      if r.status_code in (404,405):
+                          break
+                      if r.status_code>=400:
+                          print("MEGA_COLLECTION_HTTP_CLASS="+str(r.status_code//100)+"XX",flush=True)
+                          break
+                      list_supported=True
+                      try:
+                          payload=r.json()
+                      except ValueError:
+                          print("MEGA_COLLECTION_JSON=NO",flush=True)
+                          break
+                      items=extract_items(payload)
+                      if items is None:
+                          print("MEGA_COLLECTION_SHAPE=UNSUPPORTED",flush=True)
+                          break
+                      pages_scanned+=1
+                      new_count=0
+                      for item in items:
+                          if not isinstance(item,dict):
+                              continue
+                          ident=item.get("id")
+                          username=item.get("username")
+                          if ident is None or username is None:
+                              continue
+                          marker=str(ident)
+                          if marker in seen_ids:
+                              continue
+                          seen_ids.add(marker); new_count+=1
+                          if digest(username)==TARGET:
+                              matches.append((ident,item.get("dns_link"),item.get("password") not in (None,"")))
+                      if matches:
+                          break
+                      if not items or new_count==0 or len(items)<100:
+                          break
+
+                  print("MEGA_COLLECTION_AVAILABLE="+("YES" if list_supported else "NO"),flush=True)
+                  print("MEGA_PAGES_SCANNED="+str(pages_scanned),flush=True)
+                  print("EXACT_ACCOUNT_MATCH_COUNT="+str(len(matches)),flush=True)
+
+                  if len(matches)==1:
+                      ident,listed_dns,password_available=matches[0]
+                      print("EXACT_ACCOUNT_MATCH=YES",flush=True)
+                      print("EXACT_SUBSCRIPTION_ID="+str(ident),flush=True)
+                      r=client.get(base+collection+"/"+str(ident))
+                      if r.status_code!=200:
+                          print("EXACT_ID_RETRIEVE=NO",flush=True)
+                      else:
+                          item=r.json()
+                          exact_user=isinstance(item,dict) and digest(item.get("username",""))==TARGET
+                          u=urlsplit(item.get("dns_link","")) if isinstance(item,dict) else None
+                          exact_origin=bool(u and u.scheme=="http" and u.hostname==EXPECTED_HOST and (u.port or 80)==80 and u.path in ("","/") and not u.query and not u.fragment)
+                          print("EXACT_ID_RETRIEVE=YES",flush=True)
+                          print("AUTHORITATIVE_USERNAME_MATCH="+("YES" if exact_user else "NO"),flush=True)
+                          print("AUTHORITATIVE_SUBDOMAIN_MATCH="+("YES" if exact_origin else "NO"),flush=True)
+                          print("TRANSIENT_PROVIDER_PASSWORD_AVAILABLE="+("YES" if isinstance(item,dict) and item.get("password") not in (None,"") else "NO"),flush=True)
+                  elif len(matches)==0:
+                      print("EXACT_ACCOUNT_MATCH=NO",flush=True)
+                  else:
+                      print("EXACT_ACCOUNT_MATCH=AMBIGUOUS",flush=True)
+
+                  print("CREDENTIAL_VALUES_EMITTED=NO",flush=True)
+                  print("UNRELATED_CUSTOMER_DATA_EMITTED=NO",flush=True)
+                  print("DATABASE_WRITES=NO",flush=True)
+                  print("DISCOVERY_COMPLETE=YES",flush=True)
+          except Exception as exc:
+              print("DISCOVERY_FAILURE_TYPE="+type(exc).__name__,flush=True)
+              print("CREDENTIAL_VALUES_EMITTED=NO",flush=True)
+              print("UNRELATED_CUSTOMER_DATA_EMITTED=NO",flush=True)
+              print("DATABASE_WRITES=NO",flush=True)
+              raise SystemExit(1)
+          '''
+          env={"PATH":"/usr/bin:/bin","PYTHONDONTWRITEBYTECODE":"1",**runtime}
+          p=subprocess.run([python_path,"-c",child],cwd="/srv/pink-iptv/backend",env=env,capture_output=True,text=True,timeout=180)
+          allowed_prefixes=(
+            "MEGA_OPENAPI_AVAILABLE=","MEGA_COLLECTION_DOCUMENTED=","MEGA_COLLECTION_HTTP_CLASS=",
+            "MEGA_COLLECTION_JSON=","MEGA_COLLECTION_SHAPE=","MEGA_COLLECTION_AVAILABLE=",
+            "MEGA_PAGES_SCANNED=","EXACT_ACCOUNT_MATCH_COUNT=","EXACT_ACCOUNT_MATCH=",
+            "EXACT_SUBSCRIPTION_ID=","EXACT_ID_RETRIEVE=","AUTHORITATIVE_USERNAME_MATCH=",
+            "AUTHORITATIVE_SUBDOMAIN_MATCH=","TRANSIENT_PROVIDER_PASSWORD_AVAILABLE=",
+            "CREDENTIAL_VALUES_EMITTED=","UNRELATED_CUSTOMER_DATA_EMITTED=","DATABASE_WRITES=",
+            "DISCOVERY_COMPLETE=","DISCOVERY_FAILURE_TYPE="
+          )
+          for line in p.stdout.splitlines():
+              if line.startswith(allowed_prefixes):
+                  print(line,flush=True)
+          sys.exit(p.returncode)
+          PY
