@@ -1,0 +1,128 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-PERSISTENT-GATEWAY-052",
+  "project": "PINK IPTV staging gateway",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-05T14:11:09.777Z",
+  "authority": {
+    "kind": "TRANSACTIONAL_GRANT",
+    "source": "CURRENT_OWNER_INSTRUCTION",
+    "binding_mode": "OBJECTIVE_SCOPE_BOUND",
+    "summary": "Owner authorizes an isolated persistent staging WireGuard gateway on existing OVH through native GitHub Actions SSH, with preflight, explicit additive rollback before network mutation, preservation of SSH/Nginx/PostgreSQL/PINK/other services, fresh server identity, restricted local public-key peer control and independent handshake/routing/reconnect checks. Deploy only exact audited PINK enrollment backend revisions under separate durable transitions."
+  },
+  "starting_state": {
+    "default_branch": "main",
+    "base_sha": "b2c74f53f011c22e4d9043b00568d8a9ef598f85",
+    "task_branch": "builder/pink-persistent-gateway-052"
+  },
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "mutation_scope": [
+    "ops/pink_vpn_052*",
+    ".github/workflows/pink-persistent-gateway-052.yml",
+    ".project-leader/tasks/PINK-IPTV-PERSISTENT-GATEWAY-052.json",
+    ".project-leader/results/PINK-IPTV-PERSISTENT-GATEWAY-052.json",
+    ".project-leader/transitions/PINK-IPTV-PERSISTENT-GATEWAY-052-*",
+    ".project-leader/recovery-events/PINK-IPTV-PERSISTENT-GATEWAY-052/**"
+  ],
+  "allowed_actions": [
+    "create_branch",
+    "edit_project_files",
+    "create_commits",
+    "run_ci",
+    "open_or_update_pull_request",
+    "change_infrastructure",
+    "prepare_deploy"
+  ],
+  "prohibited_actions": [
+    "merge_to_main",
+    "branch_protection_or_ruleset_change",
+    "release_or_publish",
+    "production_deploy",
+    "destructive_data_change",
+    "repository_or_history_deletion",
+    "production_secret_change",
+    "irreversible_infrastructure_change",
+    "paid_service_activation",
+    "client_dns_input",
+    "provider_hostname_guessing",
+    "password_persistence",
+    "mega_token_exposure",
+    "third_project_mutation",
+    "force_push",
+    "device_private_key_persistence",
+    "global_apk_secret",
+    "whole_firewall_flush",
+    "temporary_proof_private_key_reuse",
+    "unrelated_service_mutation",
+    "public_launch"
+  ],
+  "transition_controls": [
+    {
+      "action": "merge_to_main",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "branch_protection_or_ruleset_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "release_or_publish",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_deploy",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "destructive_data_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "repository_or_history_deletion",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_secret_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "irreversible_infrastructure_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "paid_service_activation",
+      "requires_authority_resolution": true
+    }
+  ],
+  "required_validation": [
+    "Project architecture scope audit",
+    "Mutation scope audit",
+    "GitHub evidence verification",
+    "Consequential transition readiness audit",
+    "Existing services preserved",
+    "Exact additive rollback armed before mutation",
+    "Fresh protected server identity",
+    "Authenticated peer control and lease expiry",
+    "Real external handshake and NAT proof"
+  ],
+  "required_ci": [
+    "PINK Persistent Gateway 052"
+  ],
+  "policy": {
+    "profile": "generic-project-v1",
+    "path": "control/generic-project-policy.json",
+    "sha256": "147fb55338267ba2e9727c4a85e468e342300a69557d80781edeba4b6fa8d0f9",
+    "binding_mode": "CENTRAL_CONTROL_V1",
+    "repository": "martaxi-boss/Project-leader",
+    "revision": "c42ed27cc6c520bfd63015097c8c60ee42392ba5"
+  },
+  "recovery": {
+    "mode": "APPEND_ONLY_V1"
+  },
+  "integrity_mode": "IMMUTABLE_AUTHORIZATION_V1",
+  "terminal_condition": "Fresh persistent staging gateway with restricted root-owned control socket, exact backend enrollment revision deployment and additive inverse, independently checked through real bounded peers, reconnect/NAT/expiry and existing service health. No production/public launch or unrelated device-wide routing.",
+  "privacy": {
+    "contains_secrets": false,
+    "contains_private_conversation_text": false
+  }
+}
