@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-PERSISTENT-GATEWAY-052-DEPLOY",
+  "task_id": "PINK-IPTV-PERSISTENT-GATEWAY-052",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-PERSISTENT-GATEWAY-052-DEPLOY.authorization.json",
+  "action": "staging_deploy",
+  "target": {
+    "kind": "staging_gateway",
+    "identifier": "OVH:vps-32bea5b6;PINK:2f228c6800cddee8944e1a2eedd7e8ae3a78d879",
+    "revision": "3c0f0901877a7e8e027ba39ad68827f791a99911",
+    "base_revision": "b2c74f53f011c22e4d9043b00568d8a9ef598f85",
+    "environment": "staging"
+  },
+  "observed_at": "2026-10-05T15:03:53.383Z",
+  "final_state": {
+    "status": "ROLLED_BACK_EXACT_FIREWALL_IPV4_CONFIG_PROTECTED_SERVICES",
+    "revision": "9f66ab8c1d03473d28ec1c2d47e14ee095c021b7"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37329078434",
+    "Job111827294309: fresh protected server/public-only enrollment deployment; isolated backend UID API auth/socket tests pass",
+    "Real external handshake, HTTPS NAT, expiration no-egress and same-identity refresh pass",
+    "Restart immediate probe failed; accept skipped; exact additive rollback PASS restores firewall/config and protected services",
+    "Additive vpn_installations schema migration remains, with no customer row mutations. Protected Task052 server identity retained at rest with unit disabled, no active interface or owned firewall additions."
+  ],
+  "residual_blockers": [
+    "Bounded restart rekey recovery must pass on a separately exact-authorized replacement revision"
+  ]
+}
