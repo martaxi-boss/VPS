@@ -1,0 +1,72 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-SUBDOMAIN-PROBE-047",
+  "terminal_status": "TERMINAL_SUCCESS",
+  "repository": "martaxi-boss/VPS",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authorization_record": ".project-leader/tasks/PINK-IPTV-SUBDOMAIN-PROBE-047.json",
+  "authorization_commit_sha": "0a53668e0e3978ad1fd3879c582b3f9387030b92",
+  "authorization_sha256": "414d7c8ca178beebc2e2aa6876caed270c3d015b3becad52e5c104067c0270f9",
+  "implementation_head_sha": "b1a08d7b99cae6171291055b263e7f05c46892b2",
+  "branch": "builder/pink-subdomain-probe-047",
+  "pr_number": null,
+  "recorded_at": "2026-10-05T11:43:03.117193+00:00",
+  "state_observed_at": "2026-10-05T11:43:03.117202+00:00",
+  "changes": [
+    "Add a bounded credential-free DNS and player API probe from existing VPS using existing validated pinned outbound transport.",
+    "Separate root-domain reachability, exact subdomain readiness and account authentication; preserve full HTTP origin."
+  ],
+  "validation": [
+    {
+      "name": "Project architecture scope audit",
+      "status": "PASS",
+      "evidence": "Uses existing backend DNS safety and pinned HTTP transport; no mapping import, schema change, Mega query, origin fallback or app change."
+    },
+    {
+      "name": "Mutation scope audit",
+      "status": "PASS",
+      "evidence": "Only dedicated workflow and immutable task authorization changed. Central policy and exact scope validation PASS."
+    },
+    {
+      "name": "GitHub evidence verification",
+      "status": "PASS",
+      "evidence": "Run 37304592850 on implementation b1a08d7b99cae6171291055b263e7f05c46892b2 completed SUCCESS; job 111745115289 closed logs corroborate results. Canonical evidence verifier runs against native connector state."
+    },
+    {
+      "name": "Consequential transition readiness audit",
+      "status": "PASS",
+      "evidence": "No consequential runtime transition: no DB/environment/files/service changes on VPS, no provider mutation, no merge/deploy/release."
+    },
+    {
+      "name": "Credential-free DNS and HTTP probe",
+      "status": "PASS",
+      "evidence": "VPS: ROOT_DNS=FAILED (DNSResolutionFailure); SUBDOMAIN_DNS=RESOLVED; public address count 1; CREDENTIAL_FREE_HTTP=200; PLAYER_API_JSON=YES; UNAUTHENTICATED_AUTH=0; redirects not followed. Diagnostic complete, not authenticated login or playback success."
+    },
+    {
+      "name": "Exact subdomain origin preservation",
+      "status": "PASS",
+      "evidence": "Live existing outbound policy resolves and preserves exactly http://gccthmgw.zvpnm.com and port 80, without replacing it with root zvpnm.com. EXACT_ORIGIN_PRESERVED=YES and PUBLIC_DESTINATION_VALIDATED=YES."
+    },
+    {
+      "name": "Credential-safe diagnostics",
+      "status": "PASS",
+      "evidence": "No test username/password sent, written, committed or emitted. Existing SSH secret name only. Response body and exception text discarded; closed diagnostic codes only. CREDENTIALS_SENT=NO; DATABASE_WRITES=NO."
+    }
+  ],
+  "ci": [
+    {
+      "name": "PINK Subdomain Probe 047",
+      "status": "SUCCESS",
+      "run_id": 37304592850
+    }
+  ],
+  "artifacts": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37304592850"
+  ],
+  "material_non_effects": [
+    "DNS and credential-free endpoint readiness verified only; no claim of account login or video playback success.",
+    "No registration, database write, credential persistence, runtime deploy, service restart, main merge or provider account activation.",
+    "Probe has fixed branch/path/message trigger; evidence-only result commits do not execute it. No temporary remote test files were created."
+  ],
+  "residual_blockers": []
+}
