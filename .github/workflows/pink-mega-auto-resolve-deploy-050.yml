@@ -1,0 +1,65 @@
+name: PINK Mega Auto Resolve Deploy 050
+on:
+  push:
+    branches: ["builder/pink-mega-auto-resolve-deploy-050"]
+    paths:
+      - ".github/workflows/pink-mega-auto-resolve-deploy-050.yml"
+      - ".project-leader/transitions/PINK-IPTV-MEGA-AUTO-RESOLVE-050-DEPLOY.authorization.json"
+permissions:
+  contents: read
+concurrency:
+  group: pink-mega-auto-resolve-deploy-050
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.event.head_commit.message == 'Authorize Task050 staging deployment transition'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Prepare exact backend files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone -q https://github.com/martaxi-boss/pink-iptv.git "$RUNNER_TEMP/pink"
+          git -C "$RUNNER_TEMP/pink" checkout -q --detach 9f66ab8c1d03473d28ec1c2d47e14ee095c021b7
+          test "$(git -C "$RUNNER_TEMP/pink" rev-parse HEAD)" = "9f66ab8c1d03473d28ec1c2d47e14ee095c021b7"
+          tar -czf "$RUNNER_TEMP/task050.tgz" -C "$RUNNER_TEMP/pink/backend"             app/clients/mega.py app/main.py app/services/mappings.py app/services/session.py
+      - name: Deploy with local rollback copy
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e scp -q -o StrictHostKeyChecking=accept-new "$RUNNER_TEMP/task050.tgz" ubuntu@146.59.145.3:/tmp/pink-task050.tgz
+          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -euo pipefail
+          root=/srv/pink-iptv/backend
+          backup=/var/backups/pink-iptv/task050-backend-before
+          test "$(hostname)" = "vps-32bea5b6"
+          test "$(systemctl show pink-iptv-backend -p WorkingDirectory --value)" = "$root"
+          test ! -e "$backup"
+          install -d -m 700 "$backup/app/clients" "$backup/app/services"
+          cp -a "$root/app/clients/mega.py" "$backup/app/clients/mega.py"
+          cp -a "$root/app/main.py" "$backup/app/main.py"
+          cp -a "$root/app/services/mappings.py" "$backup/app/services/mappings.py"
+          cp -a "$root/app/services/session.py" "$backup/app/services/session.py"
+          work="$(mktemp -d)"
+          trap 'rm -rf "$work" /tmp/pink-task050.tgz' EXIT
+          tar -xzf /tmp/pink-task050.tgz -C "$work"
+          "$root/.venv/bin/python" -m py_compile             "$work/app/clients/mega.py" "$work/app/main.py"             "$work/app/services/mappings.py" "$work/app/services/session.py"
+          cp -a "$work/app/clients/mega.py" "$root/app/clients/mega.py"
+          cp -a "$work/app/main.py" "$root/app/main.py"
+          cp -a "$work/app/services/mappings.py" "$root/app/services/mappings.py"
+          cp -a "$work/app/services/session.py" "$root/app/services/session.py"
+          systemctl restart pink-iptv-backend
+          systemctl is-active --quiet pink-iptv-backend
+          test "$(curl -sS --max-time 8 -o /dev/null -w '%{http_code}' http://127.0.0.1:8010/openapi.json)" = "200"
+          echo SOURCE_REVISION=9f66ab8c1d03473d28ec1c2d47e14ee095c021b7
+          echo BACKUP_READY=YES
+          echo SERVICE_ACTIVE=YES
+          echo OPENAPI_HTTP=200
+          echo DATABASE_SCHEMA_CHANGE=NO
+          echo VPN_NETWORK_MUTATION=NO
+          REMOTE
