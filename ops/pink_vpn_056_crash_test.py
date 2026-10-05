@@ -2,6 +2,12 @@ import unittest
 from pink_vpn_056_crash import public_crash, public_exit, public_system
 
 class CrashPrivacyTests(unittest.TestCase):
+    def test_cold_restore_excludes_stopped_process_and_keeps_new_process_frames(self):
+        lines = ['10-05 01:00:00.000 123 123 F libc: FORTIFY: pthread_mutex_lock called on a destroyed mutex (PRIVATE_VALUE)',
+                 '10-05 01:00:01.000 456 456 F libc: Fatal signal 6 (SIGABRT), code -1 in tid 456 (PRIVATE_VALUE)',
+                 '10-05 01:00:02.000 789 789 F DEBUG: pid: 456, tid: 456, name: PRIVATE_VALUE',
+                 '10-05 01:00:02.000 789 789 F DEBUG: #00 pc abc /system/lib64/libapp_lib.so (PRIVATE_VALUE)']
+        self.assertEqual(public_crash(lines,456), ['NATIVE_SIGNAL=6:SIGABRT', 'NATIVE_FRAME=00:libapp_lib.so'])
     def test_java_exception_and_source_position_omit_secret_message(self):
         lines = ['10-05 01:00:00.000 123 456 E AndroidRuntime: java.lang.IllegalStateException: PRIVATE_VALUE https://private.example/u/p',
                  '10-05 01:00:00.000 123 456 E AndroidRuntime: \tat com.pinkiptv.extreme.VideoActivity.onCreate(VideoActivity.kt:164)']
