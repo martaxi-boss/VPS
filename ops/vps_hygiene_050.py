@@ -115,10 +115,36 @@ def package_busy():
             comm = (p / "comm").read_text().strip()
         except OSError:
             continue
-        if comm in ("apt", "apt-get", "dpkg", "unattended-upgr") or comm.startswith(("pip", "npm")):
+        # unattended-upgrades has an idle resident daemon; its presence alone
+        # is not proof of an active package write. Check the package locks below.
+        if comm in ("apt", "apt-get", "dpkg") or comm.startswith(("pip", "npm")):
             return True
     locks = ["/var/lib/dpkg/lock", "/var/lib/dpkg/lock-frontend", "/var/cache/apt/archives/lock"]
     return any(command(["fuser", p], timeout=3)[0] == 0 for p in locks if Path(p).exists())
+
+
+def bounded_directory_breakdown():
+    result = {}
+    for root in ("/opt", "/tmp", "/var/cache"):
+        code, text = command(["du", "-x", "-B1", "--max-depth=1", root], timeout=30)
+        entries = []
+        for line in text.splitlines():
+            size, separator, path = line.partition("\t")
+            if separator and size.isdigit() and path != root:
+                entries.append({"path": path, "bytes": int(size)})
+        result[root] = {"complete": code == 0, "largest_children": sorted(entries, key=lambda x: x["bytes"], reverse=True)[:15]}
+    # Report only metadata, never temporary-file contents or command arguments.
+    temporary = []
+    for child in Path("/tmp").iterdir():
+        s = child.lstat()
+        if stat.S_ISREG(s.st_mode) and s.st_nlink == 1:
+            temporary.append({"path": str(child), "bytes": s.st_size, "mtime_epoch": s.st_mtime,
+                              "age_days": round((time.time() - s.st_mtime) / 86400, 2)})
+    result["temporary_regular_files"] = sorted(temporary, key=lambda x: x["bytes"], reverse=True)[:30]
+    _, runner_paths = command(["find", "/home", "/opt", "-xdev", "-maxdepth", "4", "-type", "f", "-name", ".runner", "-print"], timeout=30)
+    result["runner_registration_paths"] = runner_paths.splitlines()[:30]
+    result["active_emulator_preserved"] = command(["systemctl", "is-active", "pink-tv-proof-final-isolated.service"])[1]
+    return result
 
 
 def snapshot(cutoff_ns):
@@ -154,7 +180,7 @@ def snapshot(cutoff_ns):
             "disk": {"total": d.total, "used": d.used, "free": d.free}, "critical_services": critical,
             "running_services": sorted(running), "checks": checks, "package_manager_busy": package_busy(),
             "firewall": {"readable": ufw_rc == 0, "active": ufw.startswith("Status: active"), "sha256": hashlib.sha256(ufw.encode()).hexdigest()},
-            "directory_bytes": directories, "caches": cache,
+            "directory_bytes": directories, "caches": cache, "directory_breakdown": bounded_directory_breakdown(),
             "legacy_tooling": {"existing_paths": [p for p in residue_paths if os.path.lexists(p)],
                                "runner_unit_names": [x.split()[0] for x in runner_units.splitlines() if x.split()],
                                "desktop_commander_unit_names": [x.split()[0] for x in dc_units.splitlines() if x.split()],
