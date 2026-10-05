@@ -24,7 +24,7 @@ jobs:
       - name: Checkout exact audited PINK source
         run: |
           git clone --no-checkout https://github.com/martaxi-boss/pink-iptv.git "$RUNNER_TEMP/pink055-source"
-          git -C "$RUNNER_TEMP/pink055-source" checkout --detach 47506d8db5621d7ab7a380d17e17bef6097e7af4
+          git -C "$RUNNER_TEMP/pink055-source" checkout --detach b2aec9f877af7654b55de5697e827fc9f55b9cef
           cp -r "$RUNNER_TEMP/pink055-source/clients" .
           mkdir -p .github/scripts
           cp "$RUNNER_TEMP/pink055-source/.github/scripts/filter_scan_findings.py" .github/scripts/
@@ -59,7 +59,7 @@ jobs:
         working-directory: ${{ runner.temp }}/pink-extreme
         run: |
           pnpm install --frozen-lockfile
-          pnpm exec vitest run tests/pink-session.test.ts tests/pink-storage.test.ts tests/pink-network.test.ts tests/pink-bridge.test.ts tests/stall-watchdog.test.ts tests/vod-remux-memory.test.ts
+          pnpm exec vitest run tests/pink-session.test.ts tests/pink-storage.test.ts tests/pink-network.test.ts tests/pink-bridge.test.ts tests/pink-presentation.test.ts tests/stall-watchdog.test.ts tests/vod-remux-memory.test.ts
           pnpm run build
       - name: Generate PINK launcher resources
         working-directory: ${{ runner.temp }}/pink-extreme
@@ -92,6 +92,7 @@ jobs:
       - name: Prepare real Android emulator verification
         run: |
           set -euo pipefail
+          (cd "$RUNNER_TEMP/pink-extreme/src-tauri/gen/android" && ./gradlew --stop)
           test -e /dev/kvm
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
@@ -129,8 +130,8 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_5
-          cores: 2
-          ram-size: 2048M
+          cores: 4
+          ram-size: 4096M
           disk-size: 4096M
           disable-linux-hw-accel: false
           emulator-boot-timeout: 900
@@ -176,7 +177,7 @@ jobs:
           cp -r clients/extreme "$RUNNER_TEMP/pink-deliverable/rebuild-recipe"
           find "$RUNNER_TEMP/pink-deliverable/rebuild-recipe" -type d -name __pycache__ -prune -exec rm -rf {} +
           cd "$RUNNER_TEMP/pink-deliverable"
-          printf '{"implementation_sha":"%s","upstream_sha":"1efcc1b4ab3468db04aedd1c466228c52ef001b7"}\n' "47506d8db5621d7ab7a380d17e17bef6097e7af4" > provenance.json
+          printf '{"implementation_sha":"%s","upstream_sha":"1efcc1b4ab3468db04aedd1c466228c52ef001b7"}\n' "b2aec9f877af7654b55de5697e827fc9f55b9cef" > provenance.json
           sha256sum *.apk *.tar.gz > SHA256SUMS
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -209,16 +210,16 @@ jobs:
           source=auth['target']['revision']
           subprocess.run(['git','merge-base','--is-ancestor',source,'HEAD'],check=True)
           assert not subprocess.check_output(['git','diff','--name-only',source,'HEAD','--','ops/pink_vpn_056_runtime.py','ops/pink_vpn_056_emulator.sh','.github/workflows/pink-extreme-real-flow-056.yml'],text=True)
-          prefix='OVH:vps-32bea5b6;PINK:47506d8db5621d7ab7a380d17e17bef6097e7af4;artifact-run:'
+          prefix='OVH:vps-32bea5b6;PINK:b2aec9f877af7654b55de5697e827fc9f55b9cef;artifact-run:'
           assert auth['target']['identifier'].startswith(prefix)
           run_id=auth['target']['identifier'][len(prefix):]
           assert run_id.isdigit()
           request=urllib.request.Request('https://api.github.com/repos/martaxi-boss/VPS/actions/runs/'+run_id,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
           run=json.load(urllib.request.urlopen(request,timeout=15))
           assert run['head_sha']==source and run['conclusion']=='success' and run['name']=='PINK Extreme Real Flow 056'
-          product_request=urllib.request.Request('https://api.github.com/repos/martaxi-boss/pink-iptv/actions/runs/37361016202',headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+          product_request=urllib.request.Request('https://api.github.com/repos/martaxi-boss/pink-iptv/actions/runs/37371327886',headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
           product_run=json.load(urllib.request.urlopen(product_request,timeout=15))
-          assert product_run['head_sha']=='47506d8db5621d7ab7a380d17e17bef6097e7af4' and product_run['status']=='completed' and product_run['conclusion']=='success'
+          assert product_run['head_sha']=='b2aec9f877af7654b55de5697e827fc9f55b9cef' and product_run['status']=='completed' and product_run['conclusion']=='success'
           with open(os.environ['GITHUB_ENV'],'a') as env:
               env.write('PINK056_ARTIFACT_RUN='+run_id+'\n')
           print('EXACT_AUTHORITY_AND_PREPARED_APK=PASS')
@@ -237,7 +238,7 @@ jobs:
           python - <<'PYCODE'
           import json
           from pathlib import Path
-          assert json.loads(Path('provenance.json').read_text())['implementation_sha']=='47506d8db5621d7ab7a380d17e17bef6097e7af4'
+          assert json.loads(Path('provenance.json').read_text())['implementation_sha']=='b2aec9f877af7654b55de5697e827fc9f55b9cef'
           PYCODE
           test -e /dev/kvm
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -255,8 +256,8 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_5
-          cores: 2
-          ram-size: 2048M
+          cores: 4
+          ram-size: 4096M
           disk-size: 4096M
           disable-linux-hw-accel: false
           emulator-boot-timeout: 900
