@@ -7,7 +7,9 @@ cleanup() {
   result=$?
   trap - EXIT
   set +e
-  adb shell run-as com.pinkiptv.extreme cat files/pink055-peer-public.txt > "$RUNNER_TEMP/pink056-public.txt" 2>/dev/null
+  if ! adb shell run-as com.pinkiptv.extreme cat files/pink055-peer-public.txt > "$RUNNER_TEMP/pink056-public.txt" 2>/dev/null; then
+    : > "$RUNNER_TEMP/pink056-public.txt"
+  fi
   if test -s "$RUNNER_TEMP/pink056-public.txt"; then
     python - <<'PY'
 import base64,os

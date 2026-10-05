@@ -20,7 +20,7 @@ logging.disable(logging.CRITICAL)
 settings=get_settings()
 with MegaOTTClient(base_url=settings.mega_ott_api_base,token=settings.require_mega_token()) as mega:
     line=mega.get_subscription(9040240)
-    assert hashlib.md5(line.username.encode()).hexdigest()=='325a5df019165e41992baaa59133987d'
+    assert hashlib.md5(line.username.encode()).hexdigest()=='325a5df019165e41992baaa59133987d'  # pragma: allowlist secret -- prior authorized account fingerprint, not a credential
     assert line.expiring_at is None or line.expiring_at>datetime.now(UTC)
     with build_session_factory(settings.database_url)() as db:
         row=db.scalar(select(SubscriptionMapping).where(SubscriptionMapping.mega_subscription_id==9040240))

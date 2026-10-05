@@ -126,6 +126,7 @@ jobs:
           working-directory: ${{ runner.temp }}/pink-extreme/src-tauri/gen/android
           script: bash "$RUNNER_TEMP/pink053-emulator.sh"
       - name: PINK source privacy scan
+        working-directory: ${{ runner.temp }}/pink055-source
         run: | # pragma: allowlist secret -- scan tool invocation, no credential value
           python -m pip install --disable-pip-version-check detect-secrets==1.5.0
           detect-secrets scan --all-files --exclude-files '(^|/)(\.git|\.pytest_cache|\.ruff_cache|.*egg-info)/' > /tmp/pink-extreme-scan.json
