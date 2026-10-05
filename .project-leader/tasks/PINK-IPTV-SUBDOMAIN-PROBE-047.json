@@ -1,0 +1,123 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-SUBDOMAIN-PROBE-047",
+  "project": "VPS operations for PINK IPTV",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-05T11:41:13.933492+00:00",
+  "authority": {
+    "kind": "TRANSACTIONAL_GRANT",
+    "source": "CURRENT_OWNER_INSTRUCTION",
+    "binding_mode": "OBJECTIVE_SCOPE_BOUND",
+    "summary": "Owner authorizes autonomous temporary test-line DNS and exact subdomain verification. Execute credential-free root/subdomain public DNS and bounded HTTP player API probe from existing VPS using existing outbound safety/pinned transport. Preserve supplied HTTP scheme, full host and port. No mapping/DB write, no supplied password transfer or persistence, no subscription search, no production activation. Account registration and login are separate from DNS readiness."
+  },
+  "starting_state": {
+    "default_branch": "main",
+    "base_sha": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "task_branch": "builder/pink-subdomain-probe-047"
+  },
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "mutation_scope": [
+    ".github/workflows/pink-subdomain-probe-047.yml",
+    ".project-leader/tasks/PINK-IPTV-SUBDOMAIN-PROBE-047.json",
+    ".project-leader/results/PINK-IPTV-SUBDOMAIN-PROBE-047.json",
+    ".project-leader/transitions/PINK-IPTV-SUBDOMAIN-PROBE-047-*",
+    ".project-leader/recovery-events/PINK-IPTV-SUBDOMAIN-PROBE-047/**"
+  ],
+  "allowed_actions": [
+    "create_branch",
+    "edit_project_files",
+    "create_commits",
+    "run_ci",
+    "change_project_governance"
+  ],
+  "prohibited_actions": [
+    "merge_to_main",
+    "branch_protection_or_ruleset_change",
+    "release_or_publish",
+    "production_deploy",
+    "destructive_data_change",
+    "repository_or_history_deletion",
+    "production_secret_change",
+    "irreversible_infrastructure_change",
+    "paid_service_activation",
+    "change_existing_workflows",
+    "live_host_firewall_or_forwarding_write",
+    "real_peer_or_gateway_activation",
+    "service_stop_restart_delete",
+    "secret_value_disclosure_or_rotation",
+    "arbitrary_remote_commands",
+    "third_project_mutation",
+    "force_push",
+    "provider_subscription_create_extend_activate",
+    "mapping_or_database_write",
+    "credential_value_return_or_persistence",
+    "alternative_customer_or_line_discovery"
+  ],
+  "transition_controls": [
+    {
+      "action": "merge_to_main",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "branch_protection_or_ruleset_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "release_or_publish",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_deploy",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "destructive_data_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "repository_or_history_deletion",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_secret_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "irreversible_infrastructure_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "paid_service_activation",
+      "requires_authority_resolution": true
+    }
+  ],
+  "required_validation": [
+    "Project architecture scope audit",
+    "Mutation scope audit",
+    "GitHub evidence verification",
+    "Consequential transition readiness audit",
+    "Credential-free DNS and HTTP probe",
+    "Exact subdomain origin preservation",
+    "Credential-safe diagnostics"
+  ],
+  "required_ci": [
+    "PINK Subdomain Probe 047"
+  ],
+  "policy": {
+    "profile": "generic-project-v1",
+    "path": "control/generic-project-policy.json",
+    "sha256": "147fb55338267ba2e9727c4a85e468e342300a69557d80781edeba4b6fa8d0f9",
+    "binding_mode": "CENTRAL_CONTROL_V1",
+    "repository": "martaxi-boss/Project-leader",
+    "revision": "c42ed27cc6c520bfd63015097c8c60ee42392ba5"
+  },
+  "recovery": {
+    "mode": "APPEND_ONLY_V1"
+  },
+  "integrity_mode": "IMMUTABLE_AUTHORIZATION_V1",
+  "terminal_condition": "Credential-free DNS and HTTP probe completed from existing VPS with exact full origin preserved and closed sanitized evidence; report DNS reachability separately from account authentication. No runtime writes or secrets.",
+  "privacy": {
+    "contains_secrets": false,
+    "contains_private_conversation_text": false
+  }
+}
