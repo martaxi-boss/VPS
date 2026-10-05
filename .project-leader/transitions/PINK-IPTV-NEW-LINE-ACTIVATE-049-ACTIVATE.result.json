@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-NEW-LINE-ACTIVATE-049-ACTIVATE",
+  "task_id": "PINK-IPTV-NEW-LINE-ACTIVATE-049",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-NEW-LINE-ACTIVATE-049-ACTIVATE.authorization.json",
+  "action": "activate_known_test_line_mapping",
+  "target": {
+    "kind": "staging_database_mapping",
+    "identifier": "Mega subscription 9040240 / exact supplied account fingerprint",
+    "revision": "af7313d010bc3409be5ea6084747115d199af2d3",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "PINK IPTV staging backend on existing OVH runtime"
+  },
+  "observed_at": "2026-10-05T12:13:21Z",
+  "final_state": {
+    "status": "MAPPING_ACTIVE_AND_LOGIN_VERIFIED",
+    "revision": "af7313d010bc3409be5ea6084747115d199af2d3"
+  },
+  "evidence": [
+    "GitHub Actions run 37307989909 completed SUCCESS on exact transition head af7313d010bc3409be5ea6084747115d199af2d3.",
+    "Exact known subscription 9040240 matched the supplied account fingerprint and authoritative per-line HTTP subdomain.",
+    "Runtime import and independent database readback both returned SUCCESS; subscription_mappings has no password column.",
+    "Provider Xtream authentication returned SUCCESS.",
+    "PINK HTTPS /v1/session/resolve returned HTTP 200 / SUCCESS and returned the exact authoritative origin.",
+    "No service restart, provider subscription mutation, old mapping deletion, or credential value output occurred."
+  ],
+  "residual_blockers": []
+}
