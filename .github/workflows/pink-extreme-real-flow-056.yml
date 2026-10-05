@@ -2,7 +2,7 @@ name: PINK Extreme Real Flow 056
 on:
   push:
     branches: ["builder/pink-extreme-real-flow-056"]
-    paths: ["ops/pink_vpn_056*", ".github/workflows/pink-extreme-real-flow-056.yml", ".project-leader/transitions/PINK-IPTV-EXTREME-REAL-FLOW-056-EXECUTE*.authorization.json"]
+    paths: ["ops/pink_vpn_056*", ".github/workflows/pink-extreme-real-flow-056.yml", ".project-leader/transitions/PINK-IPTV-EXTREME-REAL-FLOW-056-EXECUTE*.authorization.json", ".project-leader/transitions/PINK-IPTV-EXTREME-REAL-FLOW-056-DIAGNOSE*.authorization.json"]
   workflow_dispatch:
 permissions:
   contents: read
@@ -266,7 +266,11 @@ jobs:
           python - <<'PY'
           import json,os,subprocess,urllib.request
           from pathlib import Path
-          auth=json.loads(Path('.project-leader/transitions/PINK-IPTV-EXTREME-REAL-FLOW-056-DIAGNOSE-CONTROL.authorization.json').read_text())
+          added=subprocess.check_output(['git','diff','--name-only','--diff-filter=A','HEAD^','HEAD'],text=True).splitlines()
+          paths=[p for p in added if p.startswith('.project-leader/transitions/PINK-IPTV-EXTREME-REAL-FLOW-056-DIAGNOSE') and p.endswith('.authorization.json')]
+          assert len(paths)==1
+          auth=json.loads(Path(paths[0]).read_text())
+          assert paths[0]=='.project-leader/transitions/'+auth['transition_id']+'.authorization.json'
           assert auth['repository']=='martaxi-boss/VPS' and auth['task_id']=='PINK-IPTV-EXTREME-REAL-FLOW-056'
           assert auth['action']=='read_only_control_diagnostic' and auth['target']['environment']=='accepted-staging-vps'
           assert auth['target']['identifier'].startswith('OVH:vps-32bea5b6;known-subscription:9040240;diagnostic-preparation:')
