@@ -1,0 +1,84 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-NEW-LINE-ACTIVATE-049",
+  "terminal_status": "TERMINAL_SUCCESS",
+  "repository": "martaxi-boss/VPS",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authorization_record": ".project-leader/tasks/PINK-IPTV-NEW-LINE-ACTIVATE-049.json",
+  "authorization_commit_sha": "7bcb0d0558fe11dca362a58ed6af6a61f5ce12bd",
+  "implementation_head_sha": "af7313d010bc3409be5ea6084747115d199af2d3",
+  "branch": "builder/pink-new-line-activate-049",
+  "pr_number": null,
+  "recorded_at": "2026-10-05T12:14:00Z",
+  "state_observed_at": "2026-10-05T12:13:21Z",
+  "post_transition_record": ".project-leader/transitions/PINK-IPTV-NEW-LINE-ACTIVATE-049-ACTIVATE.result.json",
+  "changes": [
+    "Imported the exact discovered Mega subscription 9040240 into the existing PINK staging subscription mapping.",
+    "Preserved the authoritative per-line HTTP subdomain and verified the exact supplied account fingerprint.",
+    "Verified provider authentication and the public PINK HTTPS session-resolve path both return SUCCESS without exposing credentials."
+  ],
+  "validation": [
+    {
+      "name": "Project architecture scope audit",
+      "status": "PASS",
+      "evidence": "Used the existing known-ID Mega import and backend session architecture only. No client/source architecture change, DNS guessing, provider mutation or alternate customer-line selection."
+    },
+    {
+      "name": "Mutation scope audit",
+      "status": "PASS",
+      "evidence": "Git compare from VPS main b8557b5425ea4633e5011356dcf6957bb354d9c4 to evidence head ae6ef194065cc040de9c4ae050273ffbddbcef1b contains only the dedicated workflow, immutable task record and exact transition authorization/result paths allowed by the task."
+    },
+    {
+      "name": "GitHub evidence verification",
+      "status": "PASS",
+      "evidence": "Native GitHub Actions run 37307989909 on exact transition head af7313d010bc3409be5ea6084747115d199af2d3 completed SUCCESS; job 111756216630 completed SUCCESS and closed sanitized logs confirm all acceptance observations."
+    },
+    {
+      "name": "Consequential transition readiness audit",
+      "status": "PASS",
+      "evidence": "Exact transition authorization existed before execution and was bound to workflow revision e5e40f037e052d4b851b67bca95a35c1ee0faab4 and known subscription 9040240 under the Owner's current instruction."
+    },
+    {
+      "name": "Exact known test-line mapping import",
+      "status": "PASS",
+      "evidence": "Run 37307989909 reports MAPPING_IMPORT=SUCCESS and MAPPING_VERIFY=SUCCESS for known subscription 9040240."
+    },
+    {
+      "name": "Authoritative per-line subdomain preservation",
+      "status": "PASS",
+      "evidence": "Run 37307989909 reports AUTHORITATIVE_USERNAME_MATCH=YES, AUTHORITATIVE_SUBDOMAIN_MATCH=YES and RETURNED_ORIGIN_MATCH=YES."
+    },
+    {
+      "name": "Provider authentication success",
+      "status": "PASS",
+      "evidence": "Run 37307989909 reports PROVIDER_AUTH=SUCCESS."
+    },
+    {
+      "name": "PINK backend session success",
+      "status": "PASS",
+      "evidence": "Run 37307989909 reports PINK_BACKEND_HTTP=200 and PINK_BACKEND_CODE=SUCCESS through https://pink-iptv.duckdns.org/v1/session/resolve."
+    },
+    {
+      "name": "Credential-safe activation",
+      "status": "PASS",
+      "evidence": "Run 37307989909 reports PASSWORD_COLUMN_PRESENT=NO and CREDENTIAL_VALUES_EMITTED=NO. No service restart, provider subscription mutation or old mapping deletion occurred."
+    }
+  ],
+  "ci": [
+    {
+      "name": "PINK New Line Activate 049",
+      "status": "SUCCESS",
+      "run_id": 37307989909
+    }
+  ],
+  "artifacts": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37307989909"
+  ],
+  "material_non_effects": [
+    "No customer password persisted or emitted.",
+    "No provider subscription create/extend/activate operation occurred.",
+    "No service restart, firewall/network/VPN change, public release or deployment occurred.",
+    "The previous disabled line mapping was not deleted."
+  ],
+  "residual_blockers": []
+}
