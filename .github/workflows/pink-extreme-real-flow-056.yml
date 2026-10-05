@@ -13,7 +13,7 @@ concurrency:
 jobs:
   prepare:
     if: github.event.head_commit.message != 'Authorize exact real Android flow 056'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 60
     env:
       XT_SKIP_FFMPEG_SIDECAR: "1"
@@ -187,7 +187,7 @@ jobs:
 
   proof:
     if: github.event.head_commit.message == 'Authorize exact real Android flow 056'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683

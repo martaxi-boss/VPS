@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-EXTREME-REAL-FLOW-056",
+  "repository": "martaxi-boss/VPS",
+  "recorded_at": "2026-10-05T20:22:37.320865+00:00",
+  "previous_event_sha256": "9d45aabd1d6094e9dad35939fb24d86429d3a6155b2df7576b99162ff3718252",
+  "sequence": 6,
+  "event": "REPLAN",
+  "strategy_generation": 3,
+  "action_fingerprint": "056-pinned-ubuntu22-hosted-allocation",
+  "attempt_count": 1,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "detail": "Switch both056 jobs from moving ubuntu-latest to documented supported standard free public x64 ubuntu-22.04 image with Android KVM support; retain every source47506/product CI, frontend, Keystore, normal consent, routing, lint, privacy, artifact integrity and exact operational authority gate. This is an infrastructure-only bounded alternative, not a guaranteed cure for the global incident. No paid resources, self-hosted runners or live gateway changes. Use one new material-source run, deduplicate, inspect allocation and suspend repeated unchanged strategy if provider still unavailable."
+}
