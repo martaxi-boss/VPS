@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-PERSISTENT-GATEWAY-052",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 2,
+  "recorded_at": "2026-10-05T15:03:55.159Z",
+  "event": "RETRY_AUTHORIZED",
+  "strategy_generation": 1,
+  "action_fingerprint": "052-gateway-restart-session-rekey-window",
+  "attempt_count": 1,
+  "identical_failure_count": 1,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "Traceback (most recent call last):\n  File \"<stdin>\", line 4, in <module>\nNameError: name 'null' is not defined",
+  "detail": "Supervisor authorizes changed bounded proof: retain the TUN routes and allow at most210seconds for natural WireGuard session rekey after server restart, refreshing only the authenticated test peer every30seconds. Verify exact rolled-back host state, archive prior inverse evidence, retain only this task's fresh protected server identity, rearm independent inverse before network mutation, certify fresh prepared source and issue a new exact staging transition. No old-SHA rerun or unrelated network/service change."
+}
