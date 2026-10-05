@@ -1,0 +1,71 @@
+{
+  "schema_version": "2.0",
+  "task_id": "VPS-SAFE-HYGIENE-050",
+  "terminal_status": "TERMINAL_SUCCESS",
+  "repository": "martaxi-boss/VPS",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authorization_record": ".project-leader/tasks/VPS-SAFE-HYGIENE-050.json",
+  "authorization_commit_sha": "c880be558c0f84442044bc2dd62928c5ef3a8a8a",
+  "authorization_sha256": "9fa248a78bad3765f170bd18dddd0518b6a27225a05d654c85d9bbb45bc2a3b7",
+  "implementation_head_sha": "772dda3aa52e489d710cc13c690cb7938fc6d280",
+  "branch": "builder/vps-hygiene-050",
+  "pr_number": 19,
+  "changes": [
+    "Performed live OVH service/resource/residue audit using the existing authorized GitHub-hosted SSH bridge.",
+    "Removed only 1095 independently audited stale Node compile cache files, recovering exactly 5259264 allocated bytes and the same root-filesystem free-space delta.",
+    "Added a fixed-scope cache executor with exact manifest authorization, signature/identity/health/activity checks and nine safety tests; durable v2 authority and effect records preserve recovery evidence."
+  ],
+  "validation": [
+    {
+      "name": "Project architecture scope audit",
+      "status": "PASS",
+      "evidence": "Only martaxi-boss/VPS is mutable. Existing OVH host 146.59.145.3, ubuntu SSH bridge and existing VPS_SSH_PASSWORD secret name reused. No managed application repository or project architecture is changed; Project Leader 0.6.6 canonical revision c42ed27cc6c520bfd63015097c8c60ee42392ba5 is read-only control."
+    },
+    {
+      "name": "Mutation scope audit",
+      "status": "PASS",
+      "evidence": "Native exact-base compare lists only the immutable task, named maintenance workflow/script/safety tests and three task-local pre-effect manifest/authority files. Final descendant contains only this Worker Result and task-local transition-result evidence. CENTRAL_CONTROL_V1 generic-policy scope/actions/minima pass."
+    },
+    {
+      "name": "GitHub evidence verification",
+      "status": "PASS",
+      "evidence": "Task authorization-only commit c880be558c0f84442044bc2dd62928c5ef3a8a8a and digest 9fa248a78bad3765f170bd18dddd0518b6a27225a05d654c85d9bbb45bc2a3b7 bind unchanged v2 authorization. VPS Hygiene 050 run 37312767983 / job 111771981400 completed SUCCESS on exact implementation 772dda3aa52e489d710cc13c690cb7938fc6d280, attempt 1; all nine safety tests and remote operation passed. No manual rerun or ambiguous deletion retry. Final external canonical verifier reconciles live run and ancestry payloads before integration."
+    },
+    {
+      "name": "Consequential transition readiness audit",
+      "status": "PASS",
+      "evidence": "Separate current-Owner exact CLEANUP authorization precedes actual effect. Canonical manifest digest, host/source revision and every candidate signature revalidated before any deletion; operation proven successful after effect. No local trusted authorization gate exists on VPS main; canonical external Supervisor audit enforces the centrally bound policy. Main integration uses a separate exact standing-grant transition after final PR checks."
+    },
+    {
+      "name": "Protected service and data invariants",
+      "status": "PASS",
+      "evidence": "Lowcost HTTPS and PINK OpenAPI remain 200, SSH/Nginx/PostgreSQL/Lowcost/PINK active; pg_isready and nginx -t pass; active UFW fingerprint unchanged. Recent APT metadata, Android SDK, active emulator, backups, database dumps, credentials, application code/data, network and log-retention remain untouched."
+    },
+    {
+      "name": "Cache deletion safety",
+      "status": "PASS",
+      "evidence": "Nine tests pass: old versus recent files, symlink files/directories/root, absolute/relative traversal, changed file preservation, parent-directory replacement, hard links, partial APT downloads/locks and missing authority. Runtime deletion uses no-follow anchored directory FDs and immediate exact metadata checks. No package activity/open cache references; only 1095 old Node cache files qualified, no unsafe/changed skips."
+    },
+    {
+      "name": "Before/after resource audit",
+      "status": "PASS",
+      "evidence": "Exact report proves 5259264 allocated bytes recovered (5.015625 MiB), zero remaining Node cache files, and 5259264 bytes gained in root free space. Post-operation root total 76887154688, used 30663131136, free 46207246336 bytes. Large /opt/android-sdk is active tooling, not obsolete residue; Desktop Commander/runner residue is absent. Full sanitized remote before/after report is preserved in the matching transition result evidence."
+    }
+  ],
+  "ci": [
+    {
+      "name": "VPS Hygiene 050",
+      "status": "SUCCESS",
+      "run_id": 37312767983
+    }
+  ],
+  "artifacts": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37312767983",
+    "https://github.com/martaxi-boss/VPS/pull/19"
+  ],
+  "material_non_effects": [
+    "No application source/data, database, backup, vault, credential, firewall, DNS, WireGuard, SDK, active-emulator or service state change.",
+    "No production deploy, package/system upgrade, local/self-hosted runner, paid service, other mutable repository, broad temp purge, log vacuum, force push or history deletion."
+  ],
+  "residual_blockers": []
+}

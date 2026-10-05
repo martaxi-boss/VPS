@@ -1,0 +1,130 @@
+{
+  "schema_version": "2.0",
+  "task_id": "VPS-SAFE-HYGIENE-050",
+  "project": "OVH VPS MAINTENANCE",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-05T12:38:09.725Z",
+  "authority": {
+    "kind": "STANDING_DELEGATION",
+    "source": "CURRENT_OWNER_INSTRUCTION",
+    "binding_mode": "OBJECTIVE_SCOPE_BOUND",
+    "summary": "Owner requests VPS hygiene under Project Leader 0.6.6. Existing operations repository and live Actions evidence identify OVH 146.59.145.3 via authorized GitHub-hosted SSH as ubuntu with existing VPS_SSH_PASSWORD. Audit first, then delete only verified regenerable inactive cache files at explicit known cache roots and audited obsolete inactive tooling residues if proven safe. Preserve every application, database, configuration, credential, backup, firewall/network state and active/emulator workload. Use exact audited transition before cleanup; no new service/provider or architecture."
+  },
+  "starting_state": {
+    "default_branch": "main",
+    "base_sha": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "task_branch": "builder/vps-hygiene-050",
+    "pr_number": null
+  },
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "mutation_scope": [
+    ".github/workflows/vps-hygiene-050.yml",
+    "ops/vps_hygiene_050.py",
+    "ops/test_vps_hygiene_050.py",
+    ".project-leader/tasks/VPS-SAFE-HYGIENE-050.json",
+    ".project-leader/results/VPS-SAFE-HYGIENE-050.json",
+    ".project-leader/recovery-events/VPS-SAFE-HYGIENE-050/**",
+    ".project-leader/transitions/VPS-SAFE-HYGIENE-050-*",
+    ".project-leader/evidence/VPS-SAFE-HYGIENE-050/**"
+  ],
+  "allowed_actions": [
+    "create_branch",
+    "edit_project_files",
+    "create_commits",
+    "run_ci",
+    "open_or_update_pull_request",
+    "change_infrastructure",
+    "change_data"
+  ],
+  "prohibited_actions": [
+    "merge_to_main",
+    "branch_protection_or_ruleset_change",
+    "release_or_publish",
+    "production_deploy",
+    "destructive_data_change",
+    "repository_or_history_deletion",
+    "production_secret_change",
+    "irreversible_infrastructure_change",
+    "paid_service_activation",
+    "application_source_or_database_change",
+    "service_stop_restart_or_disable",
+    "firewall_dns_or_wireguard_change",
+    "backup_or_vault_deletion",
+    "credential_disclosure",
+    "cross_repository_mutation",
+    "broad_unverified_path_deletion",
+    "package_or_system_upgrade",
+    "force_push"
+  ],
+  "required_validation": [
+    "Project architecture scope audit",
+    "Mutation scope audit",
+    "GitHub evidence verification",
+    "Consequential transition readiness audit",
+    "Protected service and data invariants",
+    "Cache deletion safety",
+    "Before/after resource audit"
+  ],
+  "required_ci": [
+    "VPS Hygiene 050"
+  ],
+  "policy": {
+    "profile": "generic-project-v1",
+    "path": "control/generic-project-policy.json",
+    "sha256": "147fb55338267ba2e9727c4a85e468e342300a69557d80781edeba4b6fa8d0f9",
+    "binding_mode": "CENTRAL_CONTROL_V1",
+    "repository": "martaxi-boss/Project-leader",
+    "revision": "c42ed27cc6c520bfd63015097c8c60ee42392ba5"
+  },
+  "recovery": {
+    "mode": "APPEND_ONLY_V1"
+  },
+  "terminal_condition": "Read-only audit identifies live VPS resource state, existing services and safe disposable candidates. After independent audit and exact pre-effect authority, bounded cleanup removes only verified inactive regenerable cache/residue candidates, validates critical service/HTTP/database/firewall invariants, quantifies actual bytes freed and preserves backups/credentials/application data. Durable result/transition evidence and required exact-SHA workflow CI pass; no unreviewed deletion or architecture/network/service change.",
+  "transition_controls": [
+    {
+      "action": "merge_to_main",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "branch_protection_or_ruleset_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "release_or_publish",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_deploy",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "destructive_data_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "repository_or_history_deletion",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_secret_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "irreversible_infrastructure_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "paid_service_activation",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "change_data",
+      "requires_authority_resolution": true
+    }
+  ],
+  "integrity_mode": "IMMUTABLE_AUTHORIZATION_V1",
+  "privacy": {
+    "contains_secrets": false,
+    "contains_private_conversation_text": false
+  }
+}
