@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-EXTREME-REAL-FLOW-056-EXECUTE-R4",
+  "task_id": "PINK-IPTV-EXTREME-REAL-FLOW-056",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-05T22:27:25.581667+00:00",
+  "action": "staging_operational_proof",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "summary": "Standing grant covers bounded continuation after terminal R3 and verified cleanup/post-host audit. Source audit found AndroidX ActivityScenario adds NEW_TASK|CLEAR_TASK, destroying Tauri root before native playback. Corrected PINK6d766914 starts player from existing MainActivity and asserts root survives. Supervisor verifies Android37381060672 and Backend37381060663 SUCCESS; full-native preparation37381174693 exactaf91c7d SUCCESS, compiled corrected instrumentation, 48 frontend tests, actual Keystore/origin/normal-consent/dual-family closure/recreation, lint0, privacy clean and artifact11374987525 provenance. Execute once with exact source/artifact guards; certify decoded audio/video, cold-process same-key restore and reconnect only from positive evidence. Preserve immutable prior records, private transient fixture, own-peer cleanup and protected host audit on every exit. No persistent host/network/service/mapping mutation or public launch.",
+    "binding_mode": "EXACT_REVISION_BOUND"
+  },
+  "target": {
+    "kind": "staging_android_emulator",
+    "identifier": "OVH:vps-32bea5b6;PINK:6d766914a8634f641b5eabc6c18a0dbf13a37d99;artifact-run:37381174693",
+    "revision": "af91c7d9f61cf91a94a71aa3be231f103a91816c",
+    "base_revision": "100492c47116b7ffe690d8544c2ce62c4ce5f9a8",
+    "environment": "staging-disposable-emulator"
+  }
+}
