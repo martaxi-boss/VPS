@@ -1,0 +1,22 @@
+{
+  "/etc/pink-vpn/pink_vpn_052_install.py": "d23b93ba10467bb8b0d7190b3b5aeb4b695f4f6cc911448accb9d90d2825264a",
+  "/etc/pink-vpn/pink_vpn_052_gateway.py": "d0ce55714cd03c01c2f15c83db3db83c9e3cd231839fec3c85571a7c0d499876",
+  "/etc/pink-vpn/pink_vpn_052_peer.py": "48d1c39b0b91b845b36b85d8983ce240cfadac72ee3afb789a4529d73c689f7e",
+  "/etc/pink-vpn/pink_vpn_052_enrollment.py": "bcddddc154b57fbbd093fd89ca0c9ecb48e74883f56a953b1dfc5d3d29975dd6",
+  "/srv/pink-iptv/backend/app/config.py": "5401ca27960b09525e3ef47a52754625f8f33a02423314e915cb38d4c9f4e4fc",
+  "/srv/pink-iptv/backend/app/models.py": "a93010dc1cdef00eeac77c69d163639c7e93924b5da630d125fb7a170c502e64",
+  "/srv/pink-iptv/backend/app/main.py": "81e16690fb5116c53b2070bca68fc0803c677af1e45899e6daa322e66a7b2ca6",
+  "/srv/pink-iptv/backend/app/url_safety.py": "644b84a1f8878758939247a95f3879176fb638676e2ae4faa4e55e5a32f0f965",
+  "/srv/pink-iptv/backend/app/cli.py": "edcb9133f66af75b1758d74e80addc51775d154487eadfadb39cff5bf04201eb",
+  "/srv/pink-iptv/backend/app/db.py": "461f0daa40bfd618377dc30273326f194b318ee56217c0d1921c98d5ecdcb5c6",
+  "/srv/pink-iptv/backend/app/logging_config.py": "3bd5105bf745295102db9a4cfcc50d610fd6e6ad63cdb924b566060c4a3f4ebe",
+  "/srv/pink-iptv/backend/app/outbound_transport.py": "85131d29b83867f266c16d30e36aac68b4fbf15638ebf173cf59b380c3599b72",
+  "/srv/pink-iptv/backend/app/security.py": "8c6b62007412f63425d9975ff4ba1435546f292eb0fe9f664365c47ed917d2a1",
+  "/srv/pink-iptv/backend/app/vpn.py": "d2e73d88a65602fbbb51a5460dc4d3edab3b8f8da0d3e271e07fad12c775065a",
+  "/srv/pink-iptv/backend/app/schemas.py": "ffe8aecc4d3212cc73031417495d22ff1efcfdd59a926a78edc81c2ace4ccf6c",
+  "/srv/pink-iptv/backend/app/__init__.py": "8406dc4912ffe98647204ed5db01052ead83ee842f894b075a2489f2f3928eb5",
+  "/srv/pink-iptv/backend/app/services/mappings.py": "831dbe09f201b91a003a144ff67ba96e9654b4cddc680e93ecf94ee490271a83",
+  "/srv/pink-iptv/backend/app/services/session.py": "74ac1a3e1117bce3827fc6bb4db93e98dd1e5ca6e4c4c78133fa7789d6dcf3ac",
+  "/srv/pink-iptv/backend/app/clients/mega.py": "7fef3fc23ae904aebb22d0d046e8148923d806a6c91468666bdbe17e2da07955",
+  "/srv/pink-iptv/backend/app/clients/xtream.py": "e1e1e366850d8ba97f9f71c2ade55ebb3687322ac8d0a00a9a03cd1827246cf8"
+}

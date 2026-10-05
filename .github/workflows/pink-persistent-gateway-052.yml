@@ -1,0 +1,129 @@
+name: PINK Persistent Gateway 052
+on:
+  push:
+    branches: [builder/pink-persistent-gateway-052]
+    paths: ['ops/pink_vpn_052*', '.github/workflows/pink-persistent-gateway-052.yml', '.project-leader/transitions/PINK-IPTV-PERSISTENT-GATEWAY-052-*']
+permissions:
+  contents: read
+concurrency:
+  group: pink-persistent-gateway-052
+  cancel-in-progress: false
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Validate isolated controller, lease bounds and additive inverse
+        run: |
+          python -m py_compile ops/pink_vpn_052*.py
+          python ops/pink_vpn_052_test.py
+  audit:
+    if: github.event.head_commit.message != 'Authorize Task052 exact persistent staging gateway deployment'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Validate bounded read-only source
+        run: python -m py_compile ops/pink_vpn_052_audit.py
+      - name: Native SSH structural gateway preflight
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=3 ubuntu@146.59.145.3 'sudo -n python3 -' \
+            < ops/pink_vpn_052_audit.py
+  deploy:
+    if: github.event.head_commit.message == 'Authorize Task052 exact persistent staging gateway deployment'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Verify exact prior transition authorization and prepare pinned backend
+        run: |
+          python - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+          directory = Path('.project-leader/transitions')
+          retry = directory/'PINK-IPTV-PERSISTENT-GATEWAY-052-DEPLOY-R2.authorization.json'
+          record = json.loads((retry if retry.exists() else directory/'PINK-IPTV-PERSISTENT-GATEWAY-052-DEPLOY.authorization.json').read_text())
+          assert record['repository'] == 'martaxi-boss/VPS'
+          assert record['task_id'] == 'PINK-IPTV-PERSISTENT-GATEWAY-052'
+          assert record['action'] == 'staging_deploy'
+          assert record['target']['identifier'] == 'OVH:vps-32bea5b6;PINK:2f228c6800cddee8944e1a2eedd7e8ae3a78d879'
+          assert record['target']['environment'] == 'staging'
+          revision = record['target']['revision']
+          subprocess.run(['git','merge-base','--is-ancestor',revision,'HEAD'],check=True)
+          changes = subprocess.check_output(['git','diff','--name-only',revision,'HEAD','--','ops','.github/workflows/pink-persistent-gateway-052.yml'],text=True)
+          assert not changes
+          print('EXACT_AUTHORIZED_CODE_REVISION='+revision)
+          PY
+          git clone -q https://github.com/martaxi-boss/pink-iptv.git "$RUNNER_TEMP/pink"
+          git -C "$RUNNER_TEMP/pink" checkout -q --detach 2f228c6800cddee8944e1a2eedd7e8ae3a78d879
+          test "$(git -C "$RUNNER_TEMP/pink" rev-parse HEAD)" = 2f228c6800cddee8944e1a2eedd7e8ae3a78d879
+          mkdir -p "$RUNNER_TEMP/pink052/ops" "$RUNNER_TEMP/pink052/backend/alembic/versions"
+          cp ops/pink_vpn_052*.py "$RUNNER_TEMP/pink052/ops/"
+          cp -r "$RUNNER_TEMP/pink/backend/app" "$RUNNER_TEMP/pink052/backend/app"
+          cp "$RUNNER_TEMP/pink/backend/alembic/versions/20261005_0002_vpn_installations.py" "$RUNNER_TEMP/pink052/backend/alembic/versions/"
+          tar -czf "$RUNNER_TEMP/pink052.tgz" -C "$RUNNER_TEMP/pink052" ops backend
+      - name: Exact isolated staging installation with independent rollback
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass wireguard-tools >/dev/null
+          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ubuntu@146.59.145.3 'sudo -n python3 -' < ops/pink_vpn_052_audit.py
+          sshpass -e scp -q -o StrictHostKeyChecking=accept-new "$RUNNER_TEMP/pink052.tgz" ubuntu@146.59.145.3:/tmp/pink052-${{ github.run_id }}.tgz
+          echo PINK052_STARTED=true >> "$GITHUB_ENV"
+          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -euo pipefail
+          archive=/tmp/pink052-${{ github.run_id }}.tgz
+          source=$(mktemp -d /var/tmp/pink052.XXXXXXXX)
+          chmod 700 "$source"
+          tar -xzf "$archive" -C "$source"
+          python3 -m py_compile "$source"/ops/pink_vpn_052*.py
+          python3 "$source/ops/pink_vpn_052_install.py" install "$source"
+          REMOTE
+      - name: Real isolated backend UID and protected socket enrollment
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -euo pipefail
+          public=$(wg show pinkvpn public-key)
+          cd /srv/pink-iptv/backend
+          sudo -u pink-iptv env PINK052_SERVER_PUBLIC_KEY="$public" .venv/bin/python - < /etc/pink-vpn/pink_vpn_052_enrollment.py
+          REMOTE
+      - name: Independent real handshake, HTTPS NAT, expiry and restart proof
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: python ops/pink_vpn_052_proof.py
+      - name: Accept only after independent successful proofs
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ubuntu@146.59.145.3 'sudo -n python3 /etc/pink-vpn/pink_vpn_052_install.py accept'
+      - name: Exact network and backend inverse on any failed deployment/proof
+        if: failure() && env.PINK052_STARTED == 'true'
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ubuntu@146.59.145.3 'sudo -n test ! -f /var/backups/pink-iptv/task052/rollback.py || sudo -n python3 /var/backups/pink-iptv/task052/rollback.py rollback'

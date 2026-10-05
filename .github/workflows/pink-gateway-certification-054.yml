@@ -1,0 +1,33 @@
+name: PINK Gateway Runtime Certification 054
+on:
+  push:
+    branches: [builder/pink-gateway-certification-054]
+    paths: ['ops/pink_vpn_054*', '.github/workflows/pink-gateway-certification-054.yml']
+permissions:
+  contents: read
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Prepare read-only exact public source audit
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          expected = json.loads(Path('ops/pink_vpn_054_manifest.json').read_text())
+          script = 'EXPECTED_PUBLIC_SOURCE = '+repr(expected)+'\n'+Path('ops/pink_vpn_054_observe.py').read_text()
+          compile(script,'readonly-054','exec')
+          Path('/tmp/pink054-observe.py').write_text(script)
+          PY
+      - name: Read-only accepted host and backend verification
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ubuntu@146.59.145.3 'sudo -n python3 -' < /tmp/pink054-observe.py

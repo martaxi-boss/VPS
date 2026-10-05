@@ -1,0 +1,128 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-GATEWAY-RUNTIME-CERTIFICATION-054",
+  "project": "PINK IPTV accepted staging gateway",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-05T15:20:08.402Z",
+  "authority": {
+    "kind": "TRANSACTIONAL_GRANT",
+    "source": "CURRENT_OWNER_INSTRUCTION",
+    "binding_mode": "OBJECTIVE_SCOPE_BOUND",
+    "summary": "Owner autonomous completion covers independent read-only certification of the already accepted persistent staging gateway after detecting an unusable Task052 recovery hash. Preserve every historical record and live server identity; do not retry/repeat any network/backend mutation. Bind current source/runtime and prior real proof evidence, explicitly supersede Task052 control certification, and prepare durable audited source for subsequent covered transitions."
+  },
+  "starting_state": {
+    "default_branch": "main",
+    "base_sha": "b9efea87e6b966c6e7a903d0a80cc4a108eebdde",
+    "task_branch": "builder/pink-gateway-certification-054"
+  },
+  "effect_class": "E1_RECOVERABLE_PROJECT_LOCAL",
+  "mutation_scope": [
+    "ops/pink_vpn_054*",
+    ".github/workflows/pink-gateway-certification-054.yml",
+    ".project-leader/tasks/PINK-IPTV-GATEWAY-RUNTIME-CERTIFICATION-054.json",
+    ".project-leader/results/PINK-IPTV-GATEWAY-RUNTIME-CERTIFICATION-054.json",
+    ".project-leader/transitions/PINK-IPTV-GATEWAY-RUNTIME-CERTIFICATION-054-*",
+    ".project-leader/recovery-events/PINK-IPTV-GATEWAY-RUNTIME-CERTIFICATION-054/**"
+  ],
+  "allowed_actions": [
+    "create_branch",
+    "edit_project_files",
+    "create_commits",
+    "run_ci",
+    "open_or_update_pull_request"
+  ],
+  "prohibited_actions": [
+    "merge_to_main",
+    "branch_protection_or_ruleset_change",
+    "release_or_publish",
+    "production_deploy",
+    "destructive_data_change",
+    "repository_or_history_deletion",
+    "production_secret_change",
+    "irreversible_infrastructure_change",
+    "paid_service_activation",
+    "client_dns_input",
+    "provider_hostname_guessing",
+    "password_persistence",
+    "mega_token_exposure",
+    "third_project_mutation",
+    "force_push",
+    "device_private_key_persistence",
+    "global_apk_secret",
+    "whole_firewall_flush",
+    "temporary_proof_private_key_reuse",
+    "unrelated_service_mutation",
+    "public_launch",
+    "runtime_or_network_mutation",
+    "rewrite_prior_authority_or_recovery_record",
+    "duplicate_Task052_deployment"
+  ],
+  "transition_controls": [
+    {
+      "action": "merge_to_main",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "branch_protection_or_ruleset_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "release_or_publish",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_deploy",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "destructive_data_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "repository_or_history_deletion",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_secret_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "irreversible_infrastructure_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "paid_service_activation",
+      "requires_authority_resolution": true
+    }
+  ],
+  "required_validation": [
+    "Project architecture scope audit",
+    "Mutation scope audit",
+    "GitHub evidence verification",
+    "Accepted runtime source and identity protection",
+    "Protected services and owned routing rules",
+    "Backend HTTPS enrollment auth surface",
+    "Independent prior real gateway proof binding",
+    "Prior unusable control journal preserved and superseded"
+  ],
+  "required_ci": [
+    "PINK Gateway Runtime Certification 054"
+  ],
+  "policy": {
+    "profile": "generic-project-v1",
+    "path": "control/generic-project-policy.json",
+    "sha256": "147fb55338267ba2e9727c4a85e468e342300a69557d80781edeba4b6fa8d0f9",
+    "binding_mode": "CENTRAL_CONTROL_V1",
+    "repository": "martaxi-boss/Project-leader",
+    "revision": "c42ed27cc6c520bfd63015097c8c60ee42392ba5"
+  },
+  "recovery": {
+    "mode": "APPEND_ONLY_V1"
+  },
+  "integrity_mode": "IMMUTABLE_AUTHORIZATION_V1",
+  "terminal_condition": "Read-only exact-source/current-runtime audit and independently verified real wireguard test evidence certify accepted staging without re-executing Task052 effects. Task052 malformed immutable recovery record remains preserved and its terminal certificate is not accepted.",
+  "privacy": {
+    "contains_secrets": false,
+    "contains_private_conversation_text": false
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-PERSISTENT-GATEWAY-052",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 1,
+  "recorded_at": "2026-10-05T15:03:52.043Z",
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 1,
+  "action_fingerprint": "052-gateway-restart-session-rekey-window",
+  "attempt_count": 1,
+  "identical_failure_count": 1,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": null,
+  "detail": "Exact authorized deploy905af2f4 run37329078434 job111827294309 installed fresh protected gateway and exact backend, passed real backend UID/socket enrollment-refresh-revoke, external handshake, HTTPS NAT, peer expiry closure and same-key refresh. Restart proof failed at its immediate5-second probe after server transport sessions were discarded. No acceptance occurred; independent failure inverse succeeded at15:00:23UTC with exact firewall/IPv4 configuration restoration and protected service health. Reconstruct retained protected Task052 server identity and rolled-back state before retry; do not reuse proof033/034 keys or alter unrelated services."
+}
