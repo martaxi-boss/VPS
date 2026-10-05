@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-EXTREME-REAL-FLOW-056",
+  "repository": "martaxi-boss/VPS",
+  "recorded_at": "2026-10-05T21:34:38.189440+00:00",
+  "previous_event_sha256": "4fe83329098aec45c2871e7186d11e535e71621dd7d7f2059ec266edfbc89fbf",
+  "sequence": 8,
+  "event": "REPLAN",
+  "strategy_generation": 4,
+  "action_fingerprint": "056-sanitized-native-player-crash",
+  "attempt_count": 1,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "detail": "Add a tested strict allowlist for crash exception classes/source frames/native signal/library names only; omit all messages, URLs, paths, addresses and symbols. Reproduce native playback through a newly prepared exact source/artifact and a new immutable EXECUTE-R2 authorization; never rewrite EXECUTE or rerun the old private effect blindly. Always verify accepted protected host state after cleanup, including failed proof paths. PINK source62b55e4 and successful product CI remain unchanged; operational source drift stays prohibited."
+}

@@ -27,11 +27,16 @@ PY
       if test "$cleaned" != 0; then result=1; fi
     else result=1; fi
   fi
+  if test -f "$RUNNER_TEMP/pink056-observe.py"; then
+    sshpass -e ssh "${ssh_args[@]}" ubuntu@146.59.145.3 'sudo -n python3 -' < "$RUNNER_TEMP/pink056-observe.py"
+    observed=$?
+    if test "$observed" != 0; then result=1; fi
+  fi
   adb shell pm clear com.pinkiptv.extreme >/dev/null 2>&1
   python - <<'PY'
 import os
 from pathlib import Path
-for name in ('pink056-account.json','pink056-public.txt','pink056-clean.py'):
+for name in ('pink056-account.json','pink056-public.txt','pink056-clean.py','pink056-observe.py','pink056-fetch.py'):
     Path(os.environ['RUNNER_TEMP'],name).unlink(missing_ok=True)
 PY
   if test "$result" = 0; then echo REAL_ANDROID_PROOF_AND_BOUNDED_PEER_CLEANUP=PASS; fi
@@ -61,11 +66,18 @@ PY
 adb shell am instrument -w -r -e pinkRetainGrant true -e class com.pinkiptv.extreme.PinkVpnLiveTest com.pinkiptv.extreme.test/androidx.test.runner.AndroidJUnitRunner > "$RUNNER_TEMP/pink056-live.txt"
 # Instrumentation failures contain generic messages only; never dump logcat.
 cat "$RUNNER_TEMP/pink056-live.txt"
-grep -q 'OK (1 test)' "$RUNNER_TEMP/pink056-live.txt"
+if ! grep -q 'OK (1 test)' "$RUNNER_TEMP/pink056-live.txt"; then
+  # Never print/store raw crash logs: emit only tested allowlisted class/frames.
+  adb logcat -b crash -d 2>/dev/null | python ops/pink_vpn_056_crash.py
+  exit 1
+fi
 # A new application process receives no account fixture or technical input.
 # The EXIT trap still owns cleanup of this exact disposable installation.
 adb shell am force-stop com.pinkiptv.extreme
 adb shell am instrument -w -r -e class com.pinkiptv.extreme.PinkVpnRestoreTest com.pinkiptv.extreme.test/androidx.test.runner.AndroidJUnitRunner > "$RUNNER_TEMP/pink056-restore.txt"
 cat "$RUNNER_TEMP/pink056-restore.txt"
-grep -q 'OK (1 test)' "$RUNNER_TEMP/pink056-restore.txt"
+if ! grep -q 'OK (1 test)' "$RUNNER_TEMP/pink056-restore.txt"; then
+  adb logcat -b crash -d 2>/dev/null | python ops/pink_vpn_056_crash.py
+  exit 1
+fi
 sshpass -e ssh "${ssh_args[@]}" ubuntu@146.59.145.3 'sudo -n python3 -' < "$RUNNER_TEMP/pink056-observe.py"
