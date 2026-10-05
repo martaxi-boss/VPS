@@ -1,0 +1,88 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-PERSISTENT-GATEWAY-052",
+  "terminal_status": "BLOCKED",
+  "repository": "martaxi-boss/VPS",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authorization_record": ".project-leader/tasks/PINK-IPTV-PERSISTENT-GATEWAY-052.json",
+  "authorization_commit_sha": "d97e5d853af33f0b207be78bb7fce623bab3a3b5",
+  "authorization_sha256": "b3204f6abcc52bd1d97f80cca166460effc72535ca78db535599ed5ce92a44dd",
+  "implementation_head_sha": "b9efea87e6b966c6e7a903d0a80cc4a108eebdde",
+  "branch": "builder/pink-persistent-gateway-052",
+  "pr_number": null,
+  "recorded_at": "2026-10-05T15:20:10.959Z",
+  "state_observed_at": "2026-10-05T15:20:10.959Z",
+  "changes": [
+    "Install an isolated persistent staging official WireGuard gateway with a fresh protected server identity and restricted Unix public-key peer controller.",
+    "Enable exact merged PINK backend2f228c6 enrollment behind existing HTTPS, preserving Task050 and other host services.",
+    "Arm an independent exact network/backend inverse before mutation; certify real external routing, expiry and bounded reconnect, then accept staging."
+  ],
+  "validation": [
+    {
+      "name": "Project architecture scope audit",
+      "status": "PASS",
+      "evidence": "Only staged VPN gateway/native Extreme architecture; no old Compose or unrelated service changes."
+    },
+    {
+      "name": "Mutation scope audit",
+      "status": "PASS",
+      "evidence": "Canonical external Supervisor validates exact scope and authorization; no project-local trusted gate exists."
+    },
+    {
+      "name": "GitHub evidence verification",
+      "status": "FAIL",
+      "evidence": "Real proof CI37330387235 passed and staging was accepted, but append-only retry002 contains a malformed previous_event_sha256. Terminal Task052 certificate is invalid and is not claimed. Preserve the journal; separately authorized read-only Task054 certifies current runtime without retrying the network effect."
+    },
+    {
+      "name": "Consequential transition readiness audit",
+      "status": "PASS",
+      "evidence": "Prior exact DEPLOY-R2 authorization, standing resolver CONTINUE_AUTONOMOUSLY; source identical to prepared09a7fa7a successful CI37329773040."
+    },
+    {
+      "name": "Existing services preserved",
+      "status": "PASS",
+      "evidence": "Live SSH/Nginx/PostgreSQL/PINK/lowcost health passes before/after, backend source pin2f228c6. No unrelated firewall/table flush."
+    },
+    {
+      "name": "Exact additive rollback armed before mutation",
+      "status": "PASS",
+      "evidence": "First transition's failure proved exact firewall and all captured IPv4 settings restoration. Replacement independently arms15-minute inverse before network mutation; accepts only after proofs."
+    },
+    {
+      "name": "Fresh protected server identity",
+      "status": "PASS",
+      "evidence": "Task052-generated server key is root-owned600 under root700 directory; no proof033/034 key reuse. Identity retained across its rollback/retry and gateway restart."
+    },
+    {
+      "name": "Authenticated peer control and lease expiry",
+      "status": "PASS",
+      "evidence": "Real backend UID/socket API enroll/refresh/revoke with isolated in-memory account data; missing/invalid authority rejected. Independent live peer expires with no egress and same-key refresh recovers."
+    },
+    {
+      "name": "Real external handshake and NAT proof",
+      "status": "PASS",
+      "evidence": "Run37330387235 proves real external handshake, bounded HTTPS NAT, expiry closure, gateway restart/new authorization/same server identity, and removal of temporary client key/peer."
+    }
+  ],
+  "ci": [
+    {
+      "name": "PINK Persistent Gateway 052",
+      "status": "SUCCESS",
+      "run_id": 37330387235
+    }
+  ],
+  "artifacts": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37330387235",
+    "https://github.com/martaxi-boss/VPS/actions/runs/37329773040",
+    "https://github.com/martaxi-boss/VPS/actions/runs/37329078434"
+  ],
+  "material_non_effects": [
+    "No public launch or production capacity certification.",
+    "No client device private keys, customer password persistence or customer mapping changes.",
+    "Only this task's gateway interface/chains/unit and exact PINK enrollment backend source were changed."
+  ],
+  "residual_blockers": [
+    "Task052 control integrity cannot certify terminal success; superseded by read-only Task054"
+  ],
+  "superseded_by": "PINK-IPTV-GATEWAY-RUNTIME-CERTIFICATION-054"
+}
