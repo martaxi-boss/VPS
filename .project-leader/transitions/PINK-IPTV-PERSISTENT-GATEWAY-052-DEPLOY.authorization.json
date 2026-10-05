@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-PERSISTENT-GATEWAY-052-DEPLOY",
+  "task_id": "PINK-IPTV-PERSISTENT-GATEWAY-052",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-05T14:58:34.890Z",
+  "action": "staging_deploy",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "summary": "Owner requires the real persistent staging gateway using existing operational access, exact additive rollback before network change and isolated VPS task. Supervisor verifies immutable Task052, source scope, four controller/inverse tests and exact prep CI37328486228: live host audit confirms free interface/subnet/port, unchanged firewall hash and healthy protected services. Resolver returns CONTINUE_AUTONOMOUSLY. Execute only the identical prepared scripts and PINK merged backend2f228c6; arm independent inverse before network mutation, use fresh protected server identity, then require real socket enrollment/handshake/NAT/expiry/restart proofs before acceptance. Any failure invokes exact inverse. No production/public launch.",
+    "binding_mode": "EXACT_REVISION_BOUND"
+  },
+  "target": {
+    "kind": "staging_gateway",
+    "identifier": "OVH:vps-32bea5b6;PINK:2f228c6800cddee8944e1a2eedd7e8ae3a78d879",
+    "revision": "3c0f0901877a7e8e027ba39ad68827f791a99911",
+    "base_revision": "b2c74f53f011c22e4d9043b00568d8a9ef598f85",
+    "environment": "staging"
+  }
+}
