@@ -1,0 +1,58 @@
+name: VPS Hygiene 050
+
+on:
+  push:
+    branches: [builder/vps-hygiene-050]
+    paths:
+      - .github/workflows/vps-hygiene-050.yml
+      - ops/vps_hygiene_050.py
+      - ops/test_vps_hygiene_050.py
+      - .project-leader/transitions/VPS-SAFE-HYGIENE-050-CLEANUP.authorization.json
+      - .project-leader/evidence/VPS-SAFE-HYGIENE-050/cleanup-manifest.json
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vps-safe-hygiene-050
+  cancel-in-progress: false
+
+jobs:
+  hygiene:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Verify cache deletion boundaries
+        run: PYTHONDONTWRITEBYTECODE=1 python3 ops/test_vps_hygiene_050.py
+      - name: Install SSH client helper on disposable runner
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+      - name: Audit or execute exact authorized cache hygiene
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          python3 - <<'PY'
+          import json, pathlib
+          task = pathlib.Path('.project-leader/tasks/VPS-SAFE-HYGIENE-050.json')
+          assert json.loads(task.read_text())['repository'] == 'martaxi-boss/VPS'
+          auth = pathlib.Path('.project-leader/transitions/VPS-SAFE-HYGIENE-050-CLEANUP.authorization.json')
+          payload = None
+          if auth.exists():
+              manifest = pathlib.Path('.project-leader/evidence/VPS-SAFE-HYGIENE-050/cleanup-manifest.json')
+              payload = {'authorization': json.loads(auth.read_text()), 'manifest': json.loads(manifest.read_text())}
+          source = pathlib.Path('ops/vps_hygiene_050.py').read_text()
+          pathlib.Path('/tmp/vps-hygiene-050-payload.py').write_text('CONTROL_PAYLOAD = ' + repr(payload) + '\n' + source)
+          pathlib.Path('/tmp/vps-hygiene-050-mode').write_text('cleanup' if payload else 'audit')
+          PY
+          mode="$(cat /tmp/vps-hygiene-050-mode)"
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=3 ubuntu@146.59.145.3 "sudo -n python3 - $mode" \
+            < /tmp/vps-hygiene-050-payload.py
