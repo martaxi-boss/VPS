@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-MEGA-AUTO-RESOLVE-050-DEPLOY",
+  "task_id": "PINK-IPTV-MEGA-AUTO-RESOLVE-050-DEPLOY",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-MEGA-AUTO-RESOLVE-050-DEPLOY.authorization.json",
+  "action": "deploy_pink_staging_backend_task050",
+  "target": {
+    "kind": "staging_backend_service",
+    "identifier": "pink-iptv-backend",
+    "revision": "9f66ab8c1d03473d28ec1c2d47e14ee095c021b7",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "OVH vps-32bea5b6 /srv/pink-iptv/backend"
+  },
+  "observed_at": "2026-10-05T13:05:38Z",
+  "final_state": {
+    "status": "STAGING_BACKEND_TASK050_ACTIVE_AND_VERIFIED",
+    "revision": "9f66ab8c1d03473d28ec1c2d47e14ee095c021b7"
+  },
+  "evidence": [
+    "Initial deployment run 37313756123 copied the four exact Task050 backend files and restarted pink-iptv-backend; its immediate OpenAPI probe raced service readiness and failed.",
+    "Recovery diagnostic run 37314022038 independently confirmed protected backup present, Task050 Mega/session discovery code present, service active, port 8010 listening and OpenAPI HTTP 200 without repeating the deployment write.",
+    "Credential-safe known-line validation run 37307989909 attempt 2, executed after the deployment, confirmed authoritative username/subdomain match, mapping verification, provider auth SUCCESS, PINK backend HTTP 200/SUCCESS and exact returned origin.",
+    "No database schema, provider subscription, secret, firewall, routing, VPN/network or unrelated service mutation was performed."
+  ],
+  "residual_blockers": []
+}
