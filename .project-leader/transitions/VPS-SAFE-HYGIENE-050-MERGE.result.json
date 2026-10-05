@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "VPS-SAFE-HYGIENE-050-MERGE",
+  "task_id": "VPS-SAFE-HYGIENE-050",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/VPS-SAFE-HYGIENE-050-MERGE.authorization.json",
+  "action": "merge_to_main",
+  "target": {
+    "kind": "pull_request",
+    "identifier": "https://github.com/martaxi-boss/VPS/pull/19",
+    "revision": "995762e0d264b7438fa47c156e78635c05c0e748",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": null
+  },
+  "observed_at": "2026-10-05T13:05:44.672Z",
+  "final_state": {
+    "status": "MERGED",
+    "revision": "b2c74f53f011c22e4d9043b00568d8a9ef598f85"
+  },
+  "evidence": [
+    "Exact standing-grant authorization was durably committed as 4b2c70745bab16bc9c65c628bf6150d04f2cd566 before native expected-head regular merge of PR 19. Independent PR and main reads prove merged/closed at b2c74f53f011c22e4d9043b00568d8a9ef598f85.",
+    "Canonical main source/Worker Result/cleanup transition-result bytes match the independently audited implementation/evidence exactly. Nine safety tests and exact implementation run 37312767983 succeeded; independent post-effect final-head SSH run 37313314672 passed. No new VPS command or cleanup replay accompanied evidence-only integration.",
+    "Physical cleanup verified only 1095 stale Node cache files removed, 5259264 allocated bytes recovered with identical free-space delta; all protected services and both HTTP 200 probes remained healthy; active UFW fingerprint unchanged; Android SDK/emulator, recent APT metadata, backups, application/data and credentials preserved. Main has no local trusted gate; canonical 0.6.6 external Supervisor verification passed."
+  ],
+  "residual_blockers": []
+}
