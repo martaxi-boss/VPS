@@ -51,5 +51,7 @@ class CrashPrivacyTests(unittest.TestCase):
         self.assertEqual(public_system(lines,123), ['SYSTEM_KILL=LOW_MEMORY_KILLER'])
     def test_other_system_process_or_url_is_dropped(self):
         self.assertEqual(public_system(['I ActivityManager: Killing 999:com.pinkiptv.extreme/u0a1 (adj 900): low memory PRIVATE_VALUE', 'https://private.example/Killing 123:com.pinkiptv.extreme/u0a1'],123), [])
+    def test_aosp_lowmemorykiller_log_tag_is_supported(self):
+        self.assertEqual(public_system(["I lowmemorykiller: Kill 'com.pinkiptv.extreme' (123), PRIVATE_VALUE"],123), ['SYSTEM_KILL=LOW_MEMORY_KILLER'])
 
 if __name__=='__main__': unittest.main()

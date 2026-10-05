@@ -64,7 +64,7 @@ def public_exit(lines, target_pid=None):
 def public_system(lines, target_pid):
     records=[]
     for line in lines:
-        if re.search(r"\blmkd\s*:.*Kill 'com\.pinkiptv\.extreme' \("+str(target_pid)+r'\)',line):
+        if re.search(r"\b(?:lmkd|lowmemorykiller)\s*:.*Kill 'com\.pinkiptv\.extreme' \("+str(target_pid)+r'\)',line):
             records.append('SYSTEM_KILL=LOW_MEMORY_KILLER')
         killed=re.search(r'\bActivityManager\s*: Killing '+str(target_pid)+r':com\.pinkiptv\.extreme/[^ :]+.*?: (.*)$',line)
         if killed:
