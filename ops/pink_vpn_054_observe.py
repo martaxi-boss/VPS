@@ -22,7 +22,8 @@ def observe(expected):
     for service in ('ssh','nginx','postgresql','pink-iptv-backend','lowcost-europa','pink-vpn'):
         run('systemctl','is-active','--quiet',service)
     assert Path('/var/backups/pink-iptv/task052/accepted').is_file()
-    assert not run('systemctl','is-active','pink-vpn-052-rollback.timer') == 'active'
+    assert subprocess.run(['systemctl','is-active','--quiet','pink-vpn-052-rollback.timer'],
+                          capture_output=True,timeout=5).returncode != 0
     assert run('wg','show','interfaces') == 'pinkvpn'
     private = Path('/etc/pink-vpn/server.key')
     assert stat.S_IMODE(private.stat().st_mode) == 0o600 and private.stat().st_uid == 0
