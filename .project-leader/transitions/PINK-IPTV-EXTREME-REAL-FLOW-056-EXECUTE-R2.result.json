@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-EXTREME-REAL-FLOW-056-EXECUTE-R2",
+  "task_id": "PINK-IPTV-EXTREME-REAL-FLOW-056",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-EXTREME-REAL-FLOW-056-EXECUTE-R2.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "staging_android_emulator",
+    "identifier": "OVH:vps-32bea5b6;PINK:62b55e400acfb26590b038c328d0df15e06a6e88;artifact-run:37376828834",
+    "revision": "ac1639e1db94c181b836271b68c9640531f33b94",
+    "base_revision": "100492c47116b7ffe690d8544c2ce62c4ce5f9a8",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-05T22:06:03.763319+00:00",
+  "final_state": {
+    "status": "NATIVE_DESTROYED_MUTEX_PLAYBACK_NOT_CERTIFIED_DISPOSABLE_PEER_REMOVED_POST_AUDIT_PASSED",
+    "revision": "94f2ab036a6e373d53c76c9eca23ca81011b7cf0"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37378421151",
+    "Exact operational authorization/artifact and normal system consent passed; authoritative username/password login/catalog via WireGuard passed.",
+    "Privacy-filtered crash structure reported NATIVE_DESTROYED_MUTEX; responsible native library not identified.",
+    "Exact disposable installation peer removal passed; accepted gateway/backend source, persistent identity, routing/NAT and protected services passed after cleanup."
+  ],
+  "residual_blockers": [
+    "Native playback cause unresolved; decoded audio/video, cold-process restore and roaming are not certified."
+  ]
+}

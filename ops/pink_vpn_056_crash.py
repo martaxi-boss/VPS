@@ -3,15 +3,26 @@ import re
 import sys
 
 PREFIXES = ('java.', 'android.', 'androidx.', 'com.pinkiptv.extreme.', 'com.wireguard.', 'kotlin.', 'org.json.')
-LIBRARIES = {'libc.so', 'libart.so', 'libandroid.so', 'libmonochrome.so', 'libwebviewchromium.so', 'libwg-go.so', 'libapp.so', 'libpink_iptv.so'}
+LIBRARIES = {'libc.so', 'libart.so', 'libandroid.so', 'libmonochrome.so', 'libwebviewchromium.so', 'libwg-go.so', 'libapp.so', 'libapp_lib.so', 'libdatastore_shared_counter.so', 'libpink_iptv.so', 'libxtream.so', 'libhwui.so', 'libandroid_runtime.so', 'libgui.so', 'libnativewindow.so', 'libEGL.so', 'libGLESv2.so', 'libcodec2_soft_avcdec.so', 'libmediandk.so', 'libbinder.so', 'libutils.so', 'libc++.so'}
 
-def public_crash(lines):
+def public_crash(lines, target_pid=None):
     records = []
+    native_target = False
     for line in lines:
         match = re.search(r'(?:^|\s)[EF]\s+(?:AndroidRuntime|DEBUG|libc)\s*:\s*(.*)$', line)
         if not match:
             continue
         message = match.group(1).strip()
+        if target_pid is not None:
+            log_pid = re.match(r'^\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+\s+([0-9]+)\s+[0-9]+\s+[EF]\s', line)
+            if message.startswith('*** ***'):
+                native_target = False
+            native_pid = re.match(r'^pid: ([0-9]+),', message)
+            if native_pid:
+                native_target = int(native_pid[1]) == target_pid
+            own = log_pid is not None and int(log_pid[1]) == target_pid
+            if not own and not (native_target and re.search(r'(?:^|\s)[EF]\s+DEBUG\s*:', line)):
+                continue
         exception = re.match(r'^(?:Caused by: )?([A-Za-z_$][\w.$]*(?:Exception|Error))(?::|$)', message)
         if exception and exception[1].startswith(PREFIXES):
             records.append('EXCEPTION_CLASS=' + exception[1])
@@ -28,7 +39,23 @@ def public_crash(lines):
             records.append('NATIVE_FRAME=' + native[1] + ':' + native[2].rsplit('/', 1)[-1])
     return list(dict.fromkeys(records))[:80]
 
+def public_exit(lines):
+    reasons={1:'EXIT_SELF',2:'SIGNALED',3:'LOW_MEMORY',4:'CRASH',5:'CRASH_NATIVE',6:'ANR',7:'INITIALIZATION_FAILURE',8:'PERMISSION_CHANGE',9:'EXCESSIVE_RESOURCE_USAGE',10:'USER_REQUESTED',11:'USER_STOPPED',12:'DEPENDENCY_DIED',13:'OTHER',14:'FREEZER',15:'PACKAGE_STATE_CHANGE',16:'PACKAGE_UPDATED'}
+    records=[]
+    for line in lines:
+        reason=re.search(r'(?:^|\s)reason=([0-9]+)\s+\(',line)
+        if reason and int(reason[1]) in reasons:
+            records.append('EXIT_REASON='+reasons[int(reason[1])])
+    return list(dict.fromkeys(records))[:16]
+
 if __name__ == '__main__':
-    records = public_crash(sys.stdin)
+    if sys.argv[1:] == ['--exit-info']:
+        records = public_exit(sys.stdin)
+    elif len(sys.argv) == 3 and sys.argv[1] == '--pid' and sys.argv[2].isdigit():
+        records = public_crash(sys.stdin, int(sys.argv[2]))
+    elif len(sys.argv) == 1:
+        records = public_crash(sys.stdin)
+    else:
+        raise SystemExit('PUBLIC_CRASH_DIAGNOSTIC=INVALID_ARGUMENTS')
     print('PUBLIC_CRASH_DIAGNOSTIC=' + ('STRUCTURE_ONLY' if records else 'NO_ALLOWED_RECORDS'))
     print('\n'.join(records))

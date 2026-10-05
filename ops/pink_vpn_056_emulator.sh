@@ -3,6 +3,16 @@ set -euo pipefail
 umask 077
 ssh_args=(-T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=3)
 fixture="$RUNNER_TEMP/pink056-account.json"
+native_crash_diagnostics() {
+  # Wait only for debuggerd's asynchronous trace publication, never publish raw data.
+  sleep 3
+  pink_crash_pid=$(adb shell run-as com.pinkiptv.extreme cat files/pink055-process-public.txt 2>/dev/null | tr -d '\r\n')
+  case "$pink_crash_pid" in
+    ''|*[!0-9]*) echo PUBLIC_CRASH_DIAGNOSTIC=NO_TARGET_PID ;;
+    *) adb logcat -b crash -d 2>/dev/null | python ops/pink_vpn_056_crash.py --pid "$pink_crash_pid" ;;
+  esac
+  adb shell dumpsys activity exit-info com.pinkiptv.extreme 2>/dev/null | python ops/pink_vpn_056_crash.py --exit-info
+}
 cleanup() {
   result=$?
   trap - EXIT
@@ -68,7 +78,7 @@ adb shell am instrument -w -r -e pinkRetainGrant true -e class com.pinkiptv.extr
 cat "$RUNNER_TEMP/pink056-live.txt"
 if ! grep -q 'OK (1 test)' "$RUNNER_TEMP/pink056-live.txt"; then
   # Never print/store raw crash logs: emit only tested allowlisted class/frames.
-  adb logcat -b crash -d 2>/dev/null | python ops/pink_vpn_056_crash.py
+  native_crash_diagnostics
   exit 1
 fi
 # A new application process receives no account fixture or technical input.
@@ -77,7 +87,7 @@ adb shell am force-stop com.pinkiptv.extreme
 adb shell am instrument -w -r -e class com.pinkiptv.extreme.PinkVpnRestoreTest com.pinkiptv.extreme.test/androidx.test.runner.AndroidJUnitRunner > "$RUNNER_TEMP/pink056-restore.txt"
 cat "$RUNNER_TEMP/pink056-restore.txt"
 if ! grep -q 'OK (1 test)' "$RUNNER_TEMP/pink056-restore.txt"; then
-  adb logcat -b crash -d 2>/dev/null | python ops/pink_vpn_056_crash.py
+  native_crash_diagnostics
   exit 1
 fi
 sshpass -e ssh "${ssh_args[@]}" ubuntu@146.59.145.3 'sudo -n python3 -' < "$RUNNER_TEMP/pink056-observe.py"
