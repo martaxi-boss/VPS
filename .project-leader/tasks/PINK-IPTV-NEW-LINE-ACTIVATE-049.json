@@ -1,0 +1,100 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-NEW-LINE-ACTIVATE-049",
+  "project": "VPS operations for PINK IPTV",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-05T12:12:00Z",
+  "authority": {
+    "kind": "TRANSACTIONAL_GRANT",
+    "source": "CURRENT_OWNER_INSTRUCTION",
+    "binding_mode": "OBJECTIVE_SCOPE_BOUND",
+    "summary": "Owner confirms the previous test line is disabled and the newly supplied account is the active test line. Project Leader is instructed to resolve activation autonomously and only interrupt at a genuine Human Gate. Task048 securely discovered Mega subscription 9040240 for the exact supplied account fingerprint and exact verified per-line HTTP subdomain. Import only this known subscription into the existing PINK staging mapping, preserve its authoritative subdomain, verify provider authentication and PINK backend session success, and do not expose or persist customer password values."
+  },
+  "starting_state": {
+    "default_branch": "main",
+    "base_sha": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "task_branch": "builder/pink-new-line-activate-049"
+  },
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "mutation_scope": [
+    ".github/workflows/pink-new-line-activate-049.yml",
+    ".project-leader/tasks/PINK-IPTV-NEW-LINE-ACTIVATE-049.json",
+    ".project-leader/results/PINK-IPTV-NEW-LINE-ACTIVATE-049.json",
+    ".project-leader/transitions/PINK-IPTV-NEW-LINE-ACTIVATE-049-*",
+    ".project-leader/recovery-events/PINK-IPTV-NEW-LINE-ACTIVATE-049/**"
+  ],
+  "allowed_actions": [
+    "create_branch",
+    "edit_project_files",
+    "create_commits",
+    "run_ci",
+    "change_project_governance",
+    "change_data"
+  ],
+  "prohibited_actions": [
+    "merge_to_main",
+    "branch_protection_or_ruleset_change",
+    "release_or_publish",
+    "production_deploy",
+    "destructive_data_change",
+    "repository_or_history_deletion",
+    "production_secret_change",
+    "irreversible_infrastructure_change",
+    "paid_service_activation",
+    "change_existing_workflows",
+    "live_host_firewall_or_forwarding_write",
+    "real_peer_or_gateway_activation",
+    "service_stop_restart_delete",
+    "secret_value_disclosure_or_rotation",
+    "arbitrary_remote_commands",
+    "third_project_mutation",
+    "force_push",
+    "provider_subscription_create_extend_activate",
+    "credential_value_return_or_persistence",
+    "unrelated_customer_data_output",
+    "old_mapping_delete"
+  ],
+  "transition_controls": [
+    {"action":"merge_to_main","requires_authority_resolution":true},
+    {"action":"branch_protection_or_ruleset_change","requires_authority_resolution":true},
+    {"action":"release_or_publish","requires_authority_resolution":true},
+    {"action":"production_deploy","requires_authority_resolution":true},
+    {"action":"destructive_data_change","requires_authority_resolution":true},
+    {"action":"repository_or_history_deletion","requires_authority_resolution":true},
+    {"action":"production_secret_change","requires_authority_resolution":true},
+    {"action":"irreversible_infrastructure_change","requires_authority_resolution":true},
+    {"action":"paid_service_activation","requires_authority_resolution":true},
+    {"action":"activate_known_test_line_mapping","requires_authority_resolution":true}
+  ],
+  "required_validation": [
+    "Project architecture scope audit",
+    "Mutation scope audit",
+    "GitHub evidence verification",
+    "Consequential transition readiness audit",
+    "Exact known test-line mapping import",
+    "Authoritative per-line subdomain preservation",
+    "Provider authentication success",
+    "PINK backend session success",
+    "Credential-safe activation"
+  ],
+  "required_ci": [
+    "PINK New Line Activate 049"
+  ],
+  "policy": {
+    "profile": "generic-project-v1",
+    "path": "control/generic-project-policy.json",
+    "sha256": "147fb55338267ba2e9727c4a85e468e342300a69557d80781edeba4b6fa8d0f9",
+    "binding_mode": "CENTRAL_CONTROL_V1",
+    "repository": "martaxi-boss/Project-leader",
+    "revision": "c42ed27cc6c520bfd63015097c8c60ee42392ba5"
+  },
+  "recovery": {
+    "mode": "APPEND_ONLY_V1"
+  },
+  "integrity_mode": "IMMUTABLE_AUTHORIZATION_V1",
+  "terminal_condition": "Known Mega subscription 9040240 is imported into the existing staging mapping with the exact supplied account fingerprint and exact authoritative HTTP subdomain; provider authentication and https://pink-iptv.duckdns.org/v1/session/resolve both return SUCCESS; no customer password is persisted or emitted, no service restart/provider mutation occurs, and the old disabled mapping is not deleted.",
+  "privacy": {
+    "contains_secrets": false,
+    "contains_private_conversation_text": false
+  }
+}
