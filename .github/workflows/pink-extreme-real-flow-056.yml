@@ -11,8 +11,38 @@ concurrency:
   group: pink-extreme-real-flow-056
   cancel-in-progress: false
 jobs:
+  control_validation:
+    if: github.event.head_commit.message == 'Validate bounded hosted recovery records 056'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Validate proposed records before their durable publication
+        run: |
+          set -euo pipefail
+          git clone -q --no-checkout https://github.com/martaxi-boss/Project-leader.git "$RUNNER_TEMP/pink056-canonical"
+          git -C "$RUNNER_TEMP/pink056-canonical" checkout -q --detach c42ed27cc6c520bfd63015097c8c60ee42392ba5
+          python - <<'PY'
+          import json,os,sys
+          from pathlib import Path
+          sys.path.insert(0,str(Path(os.environ['RUNNER_TEMP'])/'pink056-canonical'))
+          from control.validate_records import validate_recovery_journal,canonical_sha256
+          base=Path('.project-leader/recovery-events/PINK-IPTV-EXTREME-REAL-FLOW-056')
+          records=[json.loads((base/f'{i:03d}.json').read_text()) for i in range(1,1)]
+          pending=json.loads(r'''[{"schema_version":"1.0","task_id":"PINK-IPTV-EXTREME-REAL-FLOW-056","repository":"martaxi-boss/VPS","recorded_at":"2026-10-05T16:33:55.206Z","previous_event_sha256":null,"sequence":1,"event":"FAILURE_OBSERVED","strategy_generation":1,"action_fingerprint":"056-prepared-offline-numeric-ip-capture","attempt_count":2,"identical_failure_count":2,"no_progress_iterations":1,"detail":"Prepared builds8ec2e7d andbf815d3 both used exact PINKc5b36c9d; runs37336925191 and37337046651 failed the same strict startup numeric IPv4 socket-blocking assertion after all APK compilation/JVM and actual Keystore tests passed. No private fixture retrieval, SSH proof or runtime mutation executed; privileged proof remained skipped. Existing gateway054 stays accepted. Preserve both runs; do not rerun the unchanged source."},{"schema_version":"1.0","task_id":"PINK-IPTV-EXTREME-REAL-FLOW-056","repository":"martaxi-boss/VPS","recorded_at":"2026-10-05T16:33:55.206Z","previous_event_sha256":null,"sequence":2,"event":"REPLAN","strategy_generation":2,"action_fingerprint":"056-await-measured-native-route-correction","attempt_count":1,"identical_failure_count":0,"no_progress_iterations":0,"detail":"Suspend prepared real-flow builds until Task055 completes live offline route diagnostics and corrects the demonstrated cause with strict negative checks preserved. Then pin056 to the exact corrected, audited PINK source; include normal system consent, public phase statuses and lint. Validate records with pinned canonical validator in hosted Actions because local shell is nonresponsive. Private account retrieval and real peer proof still require prepared CI success plus separate exact operational transition; no fixture or infrastructure mutation is authorized by this replan."}]''')
+          for record in pending:
+              record['previous_event_sha256']=canonical_sha256(records[-1]) if records else None
+              records.append(record)
+          validate_recovery_journal(records)
+          for record in pending:
+              print('VALIDATED_RECORD_'+str(record['sequence'])+'='+json.dumps(record,separators=(',',':')))
+              print('VALIDATED_SHA_'+str(record['sequence'])+'='+canonical_sha256(record))
+          print('CANONICAL_BOUNDED_HOSTED_RECOVERY_VALIDATION=PASS')
+          PY
   prepare:
-    if: github.event.head_commit.message != 'Authorize exact real Android flow 056'
+    if: github.event.head_commit.message != 'Authorize exact real Android flow 056' && github.event.head_commit.message != 'Validate bounded hosted recovery records 056'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
