@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-EXTREME-REAL-FLOW-056-DIAGNOSE-CONTROL-R2",
+  "task_id": "PINK-IPTV-EXTREME-REAL-FLOW-056",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-EXTREME-REAL-FLOW-056-DIAGNOSE-CONTROL-R2.authorization.json",
+  "action": "read_only_control_diagnostic",
+  "target": {
+    "kind": "accepted_runtime_host",
+    "identifier": "OVH:vps-32bea5b6;known-subscription:9040240;diagnostic-preparation:37389334625",
+    "revision": "8cf2ba56db2f4e406580f8bac335f9e480f154f4",
+    "base_revision": "100492c47116b7ffe690d8544c2ce62c4ce5f9a8",
+    "environment": "accepted-staging-vps"
+  },
+  "observed_at": "2026-10-05T23:39:03.853Z",
+  "final_state": {
+    "status": "Read-only control diagnostic PASS; exact R7 resolve/enroll both HTTP200; current authoritative origin match HTTP200 in0.523 seconds. Protected host pre/post audits PASS.",
+    "revision": "e92246f726ad22dd3acfa96d1ecbd5fde3e65c7d"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37389403851/job/112030620844",
+    "R7 SESSION_RESOLVE_HTTP_200 count1;VPN_ENROLL_HTTP_200 count1. Audit unauthenticated VPN_ENROLL_HTTP_401 count2 expected."
+  ],
+  "residual_blockers": [
+    "Real056 still uncertified: R7 Android activation failed after successful service responses. Fixed Android activation diagnostics/new source preparation required."
+  ]
+}
