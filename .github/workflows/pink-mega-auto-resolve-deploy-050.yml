@@ -63,3 +63,30 @@ jobs:
           echo DATABASE_SCHEMA_CHANGE=NO
           echo VPN_NETWORK_MUTATION=NO
           REMOTE
+
+  diagnose:
+    if: github.event.head_commit.message == 'Diagnose Task050 staging deployment failure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Reconstruct live backend state
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -euo pipefail
+          root=/srv/pink-iptv/backend
+          test "$(hostname)" = "vps-32bea5b6"
+          echo BACKUP_PRESENT=$(test -d /var/backups/pink-iptv/task050-backend-before && echo YES || echo NO)
+          echo NEW_MEGA_DISCOVERY_PRESENT=$(grep -q 'find_subscription_id_by_username' "$root/app/clients/mega.py" && echo YES || echo NO)
+          echo NEW_SESSION_DISCOVERY_PRESENT=$(grep -q 'discover_and_import_subscription' "$root/app/services/session.py" && echo YES || echo NO)
+          echo SERVICE_ACTIVE=$(systemctl is-active --quiet pink-iptv-backend && echo YES || echo NO)
+          echo MAIN_PID=$(systemctl show pink-iptv-backend -p MainPID --value)
+          echo PORT_8010_LISTENING=$(ss -H -ltn 'sport = :8010' | grep -q . && echo YES || echo NO)
+          code=$(curl -sS --max-time 8 -o /dev/null -w '%{http_code}' http://127.0.0.1:8010/openapi.json || true)
+          echo OPENAPI_HTTP=${code:-000}
+          REMOTE
