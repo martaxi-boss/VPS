@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-GATEWAY-RUNTIME-CERTIFICATION-054",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 2,
+  "recorded_at": "2026-10-05T15:27:01.673Z",
+  "event": "RETRY_AUTHORIZED",
+  "strategy_generation": 1,
+  "action_fingerprint": "054-inactive-timer-readonly-exit-status",
+  "attempt_count": 1,
+  "identical_failure_count": 1,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "b8f4664f09bc1ecf53184da5cdacd22db632067799d3676a9ed320133d3db85a",
+  "detail": "Supervisor authorizes only a read-only returncode correction for the expected inactive rollback timer, then a fresh exact source/runtime audit. Prior run is terminal failure; no service/network/peer mutation or old-SHA rerun. Keep valid journal counters within canonical ceiling3."
+}
