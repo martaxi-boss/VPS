@@ -1,0 +1,40 @@
+name: PINK Subdomain Probe 047
+on:
+  push:
+    branches: [builder/pink-subdomain-probe-047]
+    paths: ['.github/workflows/pink-subdomain-probe-047.yml']
+permissions:
+  contents: read
+concurrency:
+  group: pink-subdomain-probe-047
+  cancel-in-progress: false
+jobs:
+  observe:
+    if: github.event.head_commit.message == 'Execute credential-free PINK subdomain probe 047'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Credential-free exact subdomain probe with safe return
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ubuntu@146.59.145.3 'sudo -n python3 -' <<'PY'
+          import os,sys,subprocess
+          from pathlib import Path
+          assert subprocess.run(['hostname'],capture_output=True,text=True,check=True).stdout.strip()=='vps-32bea5b6'
+          assert Path('/srv/pink-iptv/backend/app/url_safety.py').is_file()
+          python_path=next(p for p in ('/srv/pink-iptv/backend/.venv/bin/python','/srv/pink-iptv/backend/venv/bin/python') if Path(p).is_file())
+          child="import socket,logging,json\nlogging.disable(logging.CRITICAL)\nfrom app.url_safety import system_resolver,resolve_dns_link_target,player_api_url\nfrom app.outbound_transport import PinnedHTTPTransport\nimport httpx\nfor label,host in [('ROOT','zvpnm.com'),('SUBDOMAIN','gccthmgw.zvpnm.com')]:\n    try:\n        addresses=system_resolver(host,80)\n        print(label+'_DNS=RESOLVED',flush=True)\n        print(label+'_ADDRESS_COUNT='+str(len(addresses)),flush=True)\n    except Exception as e:\n        print(label+'_DNS=FAILED',flush=True)\n        print(label+'_DNS_FAILURE_TYPE='+type(e).__name__,flush=True)\ntry:\n    origin='http://gccthmgw.zvpnm.com'\n    target=resolve_dns_link_target(origin)\n    assert target.origin==origin and target.hostname=='gccthmgw.zvpnm.com' and target.port==80\n    print('EXACT_ORIGIN_PRESERVED=YES',flush=True)\n    print('PUBLIC_DESTINATION_VALIDATED=YES',flush=True)\n    with httpx.Client(transport=PinnedHTTPTransport(target),timeout=12,trust_env=False,follow_redirects=False) as client:\n        response=client.get(player_api_url(target.origin),headers={'User-Agent':'PINK-IPTV/0.1','Accept':'application/json'})\n    print('CREDENTIAL_FREE_HTTP='+str(response.status_code),flush=True)\n    print('REDIRECT_FOLLOWED=NO',flush=True)\n    try:\n        value=response.json()\n        print('PLAYER_API_JSON='+('YES' if isinstance(value,dict) else 'NO'),flush=True)\n        if isinstance(value,dict):\n            user=value.get('user_info',{})\n            auth=user.get('auth') if isinstance(user,dict) else None\n            print('UNAUTHENTICATED_AUTH='+str(auth if auth in (0,1,'0','1') else 'UNKNOWN'),flush=True)\n    except (ValueError,TypeError):\n        print('PLAYER_API_JSON=NO',flush=True)\nexcept Exception as e:\n    print('SUBDOMAIN_PROBE_FAILURE_TYPE='+type(e).__name__,flush=True)\nprint('CREDENTIALS_SENT=NO',flush=True)\nprint('DATABASE_WRITES=NO',flush=True)\nprint('READ_ONLY_PROBE=COMPLETE',flush=True)\n"
+          r=subprocess.run([python_path,'-c',child],cwd='/srv/pink-iptv/backend',capture_output=True,text=True,timeout=50)
+          prefixes=('ROOT_','SUBDOMAIN_','EXACT_ORIGIN_','PUBLIC_DESTINATION_','CREDENTIAL_FREE_','REDIRECT_','PLAYER_API_','UNAUTHENTICATED_','CREDENTIALS_','DATABASE_','READ_ONLY_')
+          for line in r.stdout.splitlines():
+              if line.startswith(prefixes): print(line,flush=True)
+          if r.returncode:
+              print('PROBE_PROCESS=FAILED',flush=True)
+          sys.exit(r.returncode)
+          PY
