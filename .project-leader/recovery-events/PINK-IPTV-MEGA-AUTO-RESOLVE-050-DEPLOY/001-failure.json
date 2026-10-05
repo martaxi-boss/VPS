@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-MEGA-AUTO-RESOLVE-050-DEPLOY",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 1,
+  "recorded_at": "2026-10-05T13:03:00Z",
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 1,
+  "action_fingerprint": "050-staging-deploy-restart-health",
+  "attempt_count": 1,
+  "identical_failure_count": 1,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": null,
+  "detail": "Deployment run 37313756123 copied exactly four Task050 backend files and issued the authorized service restart, but the post-restart loopback OpenAPI check could not connect to port 8010. The write outcome is therefore partial/ambiguous: backup path was created and source copy likely occurred, while service health is unverified. Recovery must inspect exact live service/files before any retry or rollback."
+}
