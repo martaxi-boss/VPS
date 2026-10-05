@@ -1,0 +1,153 @@
+name: PINK New Line Activate 049
+on:
+  push:
+    branches: ["builder/pink-new-line-activate-049"]
+    paths:
+      - ".github/workflows/pink-new-line-activate-049.yml"
+      - ".project-leader/transitions/PINK-IPTV-NEW-LINE-ACTIVATE-049-ACTIVATE.authorization.json"
+permissions:
+  contents: read
+concurrency:
+  group: pink-new-line-activate-049
+  cancel-in-progress: false
+jobs:
+  activate:
+    if: github.event.head_commit.message == 'Authorize exact new test line activation 049'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Import exact known line and validate login safely
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ubuntu@146.59.145.3 'sudo -n python3 -' <<'PY'
+          import os,sys,subprocess,logging
+          from pathlib import Path
+
+          logging.disable(logging.CRITICAL)
+          def run(*args):
+              return subprocess.run(args,check=True,capture_output=True,text=True,timeout=10).stdout.strip()
+
+          assert os.geteuid()==0 and run("hostname")=="vps-32bea5b6"
+          assert run("systemctl","show","pink-iptv-backend","-p","WorkingDirectory","--value")=="/srv/pink-iptv/backend"
+          pid=int(run("systemctl","show","pink-iptv-backend","-p","MainPID","--value")); assert pid>1
+
+          runtime={}
+          allowed={"APP_ENV","DATABASE_URL","SESSION_SIGNING_KEY","SESSION_TTL_SECONDS","MEGA_OTT_API_BASE","MEGA_OTT_API_TOKEN"}
+          for item in Path("/proc/"+str(pid)+"/environ").read_bytes().split(b"\0"):
+              if b"=" in item:
+                  k,v=item.split(b"=",1)
+                  if k.decode() in allowed:
+                      runtime[k.decode()]=v.decode()
+
+          python_path=next((p for p in ("/srv/pink-iptv/backend/.venv/bin/python","/srv/pink-iptv/backend/venv/bin/python") if Path(p).is_file()),None)
+          assert python_path and runtime.get("DATABASE_URL") and runtime.get("MEGA_OTT_API_TOKEN")
+
+          child=r'''
+          import hashlib,logging
+          from datetime import datetime,UTC
+          from urllib.parse import urlsplit
+          import httpx
+          from sqlalchemy import inspect,select
+
+          from app.config import get_settings
+          from app.clients.mega import MegaOTTClient
+          from app.clients.xtream import XtreamClient
+          from app.db import build_session_factory
+          from app.models import SubscriptionMapping
+          from app.services.mappings import import_subscription
+
+          logging.disable(logging.CRITICAL)
+          SUBSCRIPTION_ID=9040240
+          TARGET="325a5df019165e41992baaa59133987d"
+          EXPECTED_HOST="gccthmgw.zvpnm.com"
+
+          def digest(value):
+              return hashlib.md5(str(value).encode()).hexdigest()
+
+          def exact_origin(value):
+              u=urlsplit(value)
+              return bool(u.scheme=="http" and u.hostname==EXPECTED_HOST and (u.port or 80)==80 and u.path in ("","/") and not u.query and not u.fragment)
+
+          settings=get_settings()
+          phase="authoritative_line"
+          try:
+              with MegaOTTClient(base_url=settings.mega_ott_api_base,token=settings.require_mega_token()) as mega:
+                  line=mega.get_subscription(SUBSCRIPTION_ID)
+                  assert digest(line.username)==TARGET
+                  assert exact_origin(line.dns_link)
+                  expired=line.expiring_at is not None and line.expiring_at<=datetime.now(UTC)
+                  assert not expired
+                  password=line.password.get_secret_value() if line.password else None
+                  assert password
+
+                  phase="mapping_import"
+                  with build_session_factory(settings.database_url)() as session:
+                      mapping=import_subscription(session,mega,SUBSCRIPTION_ID)
+                      assert mapping.mega_subscription_id==SUBSCRIPTION_ID
+                      assert digest(mapping.username)==TARGET
+                      assert mapping.dns_link==line.dns_link
+                      assert exact_origin(mapping.dns_link)
+
+                  phase="mapping_verify"
+                  factory=build_session_factory(settings.database_url)
+                  with factory() as session:
+                      row=session.scalar(select(SubscriptionMapping).where(SubscriptionMapping.mega_subscription_id==SUBSCRIPTION_ID))
+                      assert row is not None
+                      assert digest(row.username)==TARGET
+                      assert row.dns_link==line.dns_link
+                      cols={c["name"] for c in inspect(session.bind).get_columns("subscription_mappings")}
+                      assert "password" not in cols
+
+                  phase="provider_auth"
+                  auth=XtreamClient().authenticate(dns_link=line.dns_link,username=line.username,password=password)
+                  assert auth.code=="SUCCESS"
+
+                  phase="pink_backend_login"
+                  with httpx.Client(timeout=15,trust_env=False,follow_redirects=False) as client:
+                      response=client.post("https://pink-iptv.duckdns.org/v1/session/resolve",json={"username":line.username,"password":password})
+                  assert response.status_code==200
+                  obj=response.json()
+                  assert obj.get("code")=="SUCCESS"
+                  assert obj.get("xtream_base_url")==line.dns_link
+
+              print("KNOWN_SUBSCRIPTION_ID=9040240",flush=True)
+              print("AUTHORITATIVE_USERNAME_MATCH=YES",flush=True)
+              print("AUTHORITATIVE_SUBDOMAIN_MATCH=YES",flush=True)
+              print("MAPPING_IMPORT=SUCCESS",flush=True)
+              print("MAPPING_VERIFY=SUCCESS",flush=True)
+              print("PASSWORD_COLUMN_PRESENT=NO",flush=True)
+              print("PROVIDER_AUTH=SUCCESS",flush=True)
+              print("PINK_BACKEND_HTTP=200",flush=True)
+              print("PINK_BACKEND_CODE=SUCCESS",flush=True)
+              print("RETURNED_ORIGIN_MATCH=YES",flush=True)
+              print("SERVICE_RESTART=NO",flush=True)
+              print("PROVIDER_SUBSCRIPTION_MUTATION=NO",flush=True)
+              print("OLD_MAPPING_DELETE=NO",flush=True)
+              print("CREDENTIAL_VALUES_EMITTED=NO",flush=True)
+              print("ACTIVATION_COMPLETE=YES",flush=True)
+          except BaseException as exc:
+              print("ACTIVATION_FAILURE_PHASE="+phase,flush=True)
+              print("ACTIVATION_FAILURE_TYPE="+type(exc).__name__,flush=True)
+              print("CREDENTIAL_VALUES_EMITTED=NO",flush=True)
+              raise SystemExit(1)
+          '''
+          env={"PATH":"/usr/bin:/bin","PYTHONDONTWRITEBYTECODE":"1",**runtime}
+          p=subprocess.run([python_path,"-c",child],cwd="/srv/pink-iptv/backend",env=env,capture_output=True,text=True,timeout=180)
+          allowed_prefixes=(
+            "KNOWN_SUBSCRIPTION_ID=","AUTHORITATIVE_USERNAME_MATCH=","AUTHORITATIVE_SUBDOMAIN_MATCH=",
+            "MAPPING_IMPORT=","MAPPING_VERIFY=","PASSWORD_COLUMN_PRESENT=","PROVIDER_AUTH=",
+            "PINK_BACKEND_HTTP=","PINK_BACKEND_CODE=","RETURNED_ORIGIN_MATCH=","SERVICE_RESTART=",
+            "PROVIDER_SUBSCRIPTION_MUTATION=","OLD_MAPPING_DELETE=","CREDENTIAL_VALUES_EMITTED=",
+            "ACTIVATION_COMPLETE=","ACTIVATION_FAILURE_PHASE=","ACTIVATION_FAILURE_TYPE="
+          )
+          for line in p.stdout.splitlines():
+              if line.startswith(allowed_prefixes):
+                  print(line,flush=True)
+          sys.exit(p.returncode)
+          PY
