@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   prepare:
-    if: github.event.head_commit.message != 'Authorize exact real Android flow 056'
+    if: github.event.head_commit.message != 'Authorize exact real Android flow 056' && github.event.head_commit.message != 'Prepare bounded protected control diagnostics 056' && github.event.head_commit.message != 'Authorize protected control diagnostic 056'
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     env:
@@ -190,6 +190,137 @@ jobs:
           path: ${{ runner.temp }}/pink-deliverable
           if-no-files-found: error
           retention-days: 30
+
+  diagnostic_prepare:
+    if: github.event.head_commit.message == 'Prepare bounded protected control diagnostics 056'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Validate bounded diagnostics and unchanged protected fixture
+        run: |
+          bash -n ops/pink_vpn_056_emulator.sh
+          python ops/pink_vpn_056_crash_test.py
+          python ops/pink_vpn_056_recovery_test.py
+          python ops/pink_vpn_056_control_test.py
+          git diff --exit-code 5881141dd69d94494b21402042aee9ec33859a4c HEAD -- ops/pink_vpn_056_runtime.py
+      - name: Verify exact full native/source certification
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json,os,urllib.request
+          def get(repo,path):
+              request=urllib.request.Request('https://api.github.com/repos/martaxi-boss/'+repo+'/'+path,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+              return json.load(urllib.request.urlopen(request,timeout=20))
+          for repo,run_id,sha,name in [('pink-iptv',37386050410,'af0852deeebf882ca82404a29d0389ccd9473eed','PINK Extreme Android 042'),('pink-iptv',37386050462,'af0852deeebf882ca82404a29d0389ccd9473eed','Backend CI'),('VPS',37386262997,'5881141dd69d94494b21402042aee9ec33859a4c','PINK Extreme Real Flow 056')]:
+              run=get(repo,'actions/runs/'+str(run_id))
+              assert run['head_sha']==sha and run['name']==name and run['status']=='completed' and run['conclusion']=='success'
+          jobs=get('VPS','actions/runs/37386262997/jobs')['jobs']
+          steps={step['name']:step['conclusion'] for job in jobs if job['name']=='prepare' for step in job['steps']}
+          for name in ['Compile instrumentation and verify Android native payload','Real Android Keystore, normal VPN consent and startup capture','PINK source privacy scan','Audit complete Android lint report','Package exact source, APK and integrity hashes']:
+              assert steps.get(name)=='success'
+          print('EXACT_FULL_NATIVE_SOURCE_CERTIFICATION=PASS')
+          PY
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: PINK-IPTV-Extreme-056
+          run-id: 37386262997
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/pink-deliverable
+      - name: Verify unchanged APK bytes and bind diagnostic lineage
+        run: |
+          cd "$RUNNER_TEMP/pink-deliverable"
+          sha256sum -c SHA256SUMS
+          python - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          root=Path('.')
+          assert json.loads((root/'provenance.json').read_text())['implementation_sha']=='af0852deeebf882ca82404a29d0389ccd9473eed'
+          (root/'artifact-lineage.json').write_text(json.dumps({'full_native_preparation_run':37386262997,'full_native_preparation_source':'5881141dd69d94494b21402042aee9ec33859a4c','pink_source':'af0852deeebf882ca82404a29d0389ccd9473eed','apk_sha256':hashlib.sha256((root/'PINK-IPTV-Extreme-1.9.0-debug.apk').read_bytes()).hexdigest(),'operational_source':os.environ['GITHUB_SHA']})+'\n')
+          print('UNCHANGED_APK_WITH_TESTED_CONTROL_DIAGNOSTICS=PASS')
+          PY
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: PINK-IPTV-Extreme-056
+          path: ${{ runner.temp }}/pink-deliverable
+          if-no-files-found: error
+          retention-days: 30
+
+  control_diagnose:
+    if: github.event.head_commit.message == 'Authorize protected control diagnostic 056'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Revalidate exact read-only operational authorization
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json,os,subprocess,urllib.request
+          from pathlib import Path
+          auth=json.loads(Path('.project-leader/transitions/PINK-IPTV-EXTREME-REAL-FLOW-056-DIAGNOSE-CONTROL.authorization.json').read_text())
+          assert auth['repository']=='martaxi-boss/VPS' and auth['task_id']=='PINK-IPTV-EXTREME-REAL-FLOW-056'
+          assert auth['action']=='read_only_control_diagnostic' and auth['target']['environment']=='accepted-staging-vps'
+          assert auth['target']['identifier'].startswith('OVH:vps-32bea5b6;known-subscription:9040240;diagnostic-preparation:')
+          run_id=auth['target']['identifier'].split(':')[-1]
+          assert run_id.isdigit()
+          source=auth['target']['revision']
+          subprocess.run(['git','merge-base','--is-ancestor',source,'HEAD'],check=True)
+          assert not subprocess.check_output(['git','diff','--name-only',source,'HEAD','--','ops/pink_vpn_056_control.py','ops/pink_vpn_056_control_test.py','ops/pink_vpn_056_runtime.py','.github/workflows/pink-extreme-real-flow-056.yml'],text=True)
+          request=urllib.request.Request('https://api.github.com/repos/martaxi-boss/VPS/actions/runs/'+run_id,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+          run=json.load(urllib.request.urlopen(request,timeout=20))
+          assert run['head_sha']==source and run['status']=='completed' and run['conclusion']=='success'
+          print('EXACT_READ_ONLY_CONTROL_DIAGNOSTIC_AUTHORITY=PASS')
+          PY
+      - name: Read accepted host request statuses and fresh known-account resolution
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          umask 077
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          python - <<'PY'
+          import importlib.util,inspect,json,os
+          from pathlib import Path
+          def module(path,name):
+              spec=importlib.util.spec_from_file_location(name,path)
+              result=importlib.util.module_from_spec(spec)
+              spec.loader.exec_module(result)
+              return result
+          fixture=module('ops/pink_vpn_056_runtime.py','fixture')
+          control=module('ops/pink_vpn_056_control.py','control')
+          root=Path(os.environ['RUNNER_TEMP'])
+          expected=json.loads(Path('ops/pink_vpn_054_manifest.json').read_text())
+          (root/'pink056-control-observe.py').write_text('EXPECTED_PUBLIC_SOURCE='+repr(expected)+'\n'+Path('ops/pink_vpn_054_observe.py').read_text())
+          (root/'pink056-control-diagnose.py').write_text('EXACT_FIXTURE_CODE='+repr(fixture.FETCH)+'\nRESOLUTION_SOURCE='+repr(inspect.getsource(control.resolution_category))+'\n'+Path('ops/pink_vpn_056_control.py').read_text())
+          PY
+          ssh_args=(-T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=3)
+          cleanup() {
+            code=$?
+            trap - EXIT
+            set +e
+            sshpass -e ssh "${ssh_args[@]}" ubuntu@146.59.145.3 'sudo -n python3 -' < "$RUNNER_TEMP/pink056-control-observe.py"
+            if test "$?" != 0; then code=1; fi
+            python - <<'PY'
+          import os
+          from pathlib import Path
+          for name in ('pink056-control-observe.py','pink056-control-diagnose.py'):
+              Path(os.environ['RUNNER_TEMP'],name).unlink(missing_ok=True)
+          PY
+            exit "$code"
+          }
+          trap cleanup EXIT
+          sshpass -e ssh "${ssh_args[@]}" ubuntu@146.59.145.3 'sudo -n python3 -' < "$RUNNER_TEMP/pink056-control-observe.py"
+          sshpass -e ssh "${ssh_args[@]}" ubuntu@146.59.145.3 'sudo -n python3 -' < "$RUNNER_TEMP/pink056-control-diagnose.py"
 
   proof:
     if: github.event.head_commit.message == 'Authorize exact real Android flow 056'
