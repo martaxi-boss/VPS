@@ -84,6 +84,26 @@ class CacheSafetyTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             hygiene.cache_inventory(str(self.root), self.cutoff)
 
+    def test_hard_links_are_preserved(self):
+        outside = self.old_file(self.base / "outside-data")
+        os.link(outside, self.root / "cache-link")
+        _, entries = hygiene.cache_inventory(str(self.root), self.cutoff)
+        self.assertEqual(entries, [])
+        self.assertTrue(outside.exists())
+
+    def test_apt_partial_downloads_and_lock_files_are_preserved(self):
+        apt = Path(self.roots[0])
+        apt.mkdir()
+        package = self.old_file(apt / "old.deb")
+        lock = self.old_file(apt / "lock")
+        partial = self.old_file(apt / "partial" / "current.deb")
+        _, entries = hygiene.cache_inventory(str(apt), self.cutoff)
+        self.assertEqual([x[0] for x in entries], ["old.deb"])
+        hygiene.remove_candidates(str(apt), entries)
+        self.assertFalse(package.exists())
+        self.assertTrue(lock.exists())
+        self.assertTrue(partial.exists())
+
 
 if __name__ == "__main__":
     unittest.main()

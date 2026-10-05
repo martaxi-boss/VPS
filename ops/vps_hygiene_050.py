@@ -15,6 +15,7 @@ TASK_ID = "VPS-SAFE-HYGIENE-050"
 CACHE_ROOTS = (
     "/var/cache/apt/archives", "/root/.cache/pip", "/home/ubuntu/.cache/pip",
     "/root/.npm/_cacache", "/home/ubuntu/.npm/_cacache",
+    "/var/cache/apt", "/tmp/node-compile-cache",
 )
 CRITICAL = ("ssh", "nginx", "postgresql", "lowcost-europa.service", "pink-iptv-backend.service")
 MAX_ENTRIES = 100000
@@ -54,6 +55,10 @@ def cache_inventory(root, cutoff_ns):
         dirs[:] = sorted(d for d in dirs if not (Path(current) / d).is_symlink()
                          and (Path(current) / d).stat().st_dev == device
                          and not (root == CACHE_ROOTS[0] and d == "partial"))
+        if root == "/var/cache/apt":
+            # Only regenerable top-level binary indexes, never package lists,
+            # lock files, configuration or downloaded partial archives.
+            dirs[:] = []
         for name in sorted(files):
             p = Path(current) / name
             s = p.lstat()
@@ -64,6 +69,8 @@ def cache_inventory(root, cutoff_ns):
                 continue
             total += s.st_size
             if root == CACHE_ROOTS[0] and not name.endswith(".deb"):
+                continue
+            if root == "/var/cache/apt" and name not in ("pkgcache.bin", "srcpkgcache.bin"):
                 continue
             if s.st_mtime_ns >= cutoff_ns:
                 continue
@@ -123,6 +130,26 @@ def package_busy():
     return any(command(["fuser", p], timeout=3)[0] == 0 for p in locks if Path(p).exists())
 
 
+def cache_open_references():
+    counts = {root: 0 for root in CACHE_ROOTS}
+    for process in Path("/proc").iterdir():
+        if not process.name.isdecimal():
+            continue
+        try:
+            descriptors = list((process / "fd").iterdir())
+        except OSError:
+            continue
+        for descriptor in descriptors:
+            try:
+                target = os.readlink(descriptor).removesuffix(" (deleted)")
+            except OSError:
+                continue
+            for root in CACHE_ROOTS:
+                if target == root or target.startswith(root + "/"):
+                    counts[root] += 1
+    return counts
+
+
 def bounded_directory_breakdown():
     result = {}
     for root in ("/opt", "/tmp", "/var/cache"):
@@ -180,7 +207,8 @@ def snapshot(cutoff_ns):
             "disk": {"total": d.total, "used": d.used, "free": d.free}, "critical_services": critical,
             "running_services": sorted(running), "checks": checks, "package_manager_busy": package_busy(),
             "firewall": {"readable": ufw_rc == 0, "active": ufw.startswith("Status: active"), "sha256": hashlib.sha256(ufw.encode()).hexdigest()},
-            "directory_bytes": directories, "caches": cache, "directory_breakdown": bounded_directory_breakdown(),
+            "directory_bytes": directories, "caches": cache, "cache_open_references": cache_open_references(),
+            "directory_breakdown": bounded_directory_breakdown(),
             "legacy_tooling": {"existing_paths": [p for p in residue_paths if os.path.lexists(p)],
                                "runner_unit_names": [x.split()[0] for x in runner_units.splitlines() if x.split()],
                                "desktop_commander_unit_names": [x.split()[0] for x in dc_units.splitlines() if x.split()],
@@ -221,6 +249,8 @@ def cleanup(payload):
             raise ValueError("VPS identity or health changed; no cleanup performed")
         if before["package_manager_busy"]:
             raise ValueError("Package operation active; no cleanup performed")
+        if any(before["cache_open_references"].values()):
+            raise ValueError("Cache has open references; no cleanup performed")
         if before["critical_services"] != audit["critical_services"] or before["firewall"] != audit["firewall"]:
             raise ValueError("Protected baseline changed; no cleanup performed")
         # Validate every root before deleting the first file.
