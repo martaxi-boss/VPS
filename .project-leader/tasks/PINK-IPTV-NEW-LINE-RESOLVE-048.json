@@ -1,0 +1,96 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-NEW-LINE-RESOLVE-048",
+  "project": "VPS operations for PINK IPTV",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-05T11:52:00Z",
+  "authority": {
+    "kind": "TRANSACTIONAL_GRANT",
+    "source": "CURRENT_OWNER_INSTRUCTION",
+    "binding_mode": "OBJECTIVE_SCOPE_BOUND",
+    "summary": "Owner directs Project Leader to resolve the already supplied new PINK test line autonomously and only interrupt at a genuine Human Gate. Prior test line is disabled. Reuse the exact account fingerprint already verified in task046 and the exact per-line HTTP subdomain verified in task047. Discover the corresponding Mega subscription ID through existing authorized runtime/API capabilities without exposing credentials or unrelated customer data. No source/client architecture change and no mapping/database write in this discovery task."
+  },
+  "starting_state": {
+    "default_branch": "main",
+    "base_sha": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "task_branch": "builder/pink-new-line-resolve-048"
+  },
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "mutation_scope": [
+    ".github/workflows/pink-new-line-resolve-048.yml",
+    ".project-leader/tasks/PINK-IPTV-NEW-LINE-RESOLVE-048.json",
+    ".project-leader/results/PINK-IPTV-NEW-LINE-RESOLVE-048.json",
+    ".project-leader/transitions/PINK-IPTV-NEW-LINE-RESOLVE-048-*",
+    ".project-leader/recovery-events/PINK-IPTV-NEW-LINE-RESOLVE-048/**"
+  ],
+  "allowed_actions": [
+    "create_branch",
+    "edit_project_files",
+    "create_commits",
+    "run_ci",
+    "change_project_governance"
+  ],
+  "prohibited_actions": [
+    "merge_to_main",
+    "branch_protection_or_ruleset_change",
+    "release_or_publish",
+    "production_deploy",
+    "destructive_data_change",
+    "repository_or_history_deletion",
+    "production_secret_change",
+    "irreversible_infrastructure_change",
+    "paid_service_activation",
+    "change_existing_workflows",
+    "live_host_firewall_or_forwarding_write",
+    "real_peer_or_gateway_activation",
+    "service_stop_restart_delete",
+    "secret_value_disclosure_or_rotation",
+    "arbitrary_remote_commands",
+    "third_project_mutation",
+    "force_push",
+    "provider_subscription_create_extend_activate",
+    "mapping_or_database_write",
+    "credential_value_return_or_persistence",
+    "unrelated_customer_data_output"
+  ],
+  "transition_controls": [
+    {"action":"merge_to_main","requires_authority_resolution":true},
+    {"action":"branch_protection_or_ruleset_change","requires_authority_resolution":true},
+    {"action":"release_or_publish","requires_authority_resolution":true},
+    {"action":"production_deploy","requires_authority_resolution":true},
+    {"action":"destructive_data_change","requires_authority_resolution":true},
+    {"action":"repository_or_history_deletion","requires_authority_resolution":true},
+    {"action":"production_secret_change","requires_authority_resolution":true},
+    {"action":"irreversible_infrastructure_change","requires_authority_resolution":true},
+    {"action":"paid_service_activation","requires_authority_resolution":true}
+  ],
+  "required_validation": [
+    "Project architecture scope audit",
+    "Mutation scope audit",
+    "GitHub evidence verification",
+    "Consequential transition readiness audit",
+    "Exact supplied account discovery",
+    "Credential-safe Mega capability discovery",
+    "No unrelated customer data output"
+  ],
+  "required_ci": [
+    "PINK New Line Resolve 048"
+  ],
+  "policy": {
+    "profile": "generic-project-v1",
+    "path": "control/generic-project-policy.json",
+    "sha256": "147fb55338267ba2e9727c4a85e468e342300a69557d80781edeba4b6fa8d0f9",
+    "binding_mode": "CENTRAL_CONTROL_V1",
+    "repository": "martaxi-boss/Project-leader",
+    "revision": "c42ed27cc6c520bfd63015097c8c60ee42392ba5"
+  },
+  "recovery": {
+    "mode": "APPEND_ONLY_V1"
+  },
+  "integrity_mode": "IMMUTABLE_AUTHORIZATION_V1",
+  "terminal_condition": "Bounded provider capability discovery either identifies the exact supplied test line subscription ID with fingerprint and exact-origin confirmation, or produces a closed sanitized proof that the authorized provider API exposes no executable lookup path. No credentials, provider tokens or unrelated customer data are emitted. If the ID is found, Project Leader continues automatically with a separately bounded mapping/import transition.",
+  "privacy": {
+    "contains_secrets": false,
+    "contains_private_conversation_text": false
+  }
+}
