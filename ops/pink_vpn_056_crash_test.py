@@ -1,5 +1,5 @@
 import unittest
-from pink_vpn_056_crash import public_crash, public_exit
+from pink_vpn_056_crash import public_crash, public_exit, public_system
 
 class CrashPrivacyTests(unittest.TestCase):
     def test_java_exception_and_source_position_omit_secret_message(self):
@@ -38,5 +38,18 @@ class CrashPrivacyTests(unittest.TestCase):
         self.assertEqual(public_crash(lines,123), [])
     def test_duplicate_records_are_bounded(self):
         self.assertEqual(public_crash(['E AndroidRuntime: java.lang.RuntimeException: PRIVATE_VALUE']*200), ['EXCEPTION_CLASS=java.lang.RuntimeException'])
+    def test_exit_status_is_scoped_to_exact_pid(self):
+        lines=['ApplicationExitInfo #0:', ' timestamp=2026-10-05 01:00:00.000 pid=999 realUid=1 packageUid=1 definingUid=0 user=0', ' process=com.pinkiptv.extreme reason=1 (EXIT_SELF) subreason=0 (UNKNOWN) status=0', 'ApplicationExitInfo #1:', ' timestamp=2026-10-05 01:00:00.000 pid=123 realUid=1 packageUid=1 definingUid=0 user=0', ' process=com.pinkiptv.extreme reason=2 (SIGNALED) subreason=0 (UNKNOWN) status=9', ' description=PRIVATE_VALUE reason=5 (CRASH_NATIVE) status=6']
+        self.assertEqual(public_exit(lines,123), ['EXIT_REASON=SIGNALED','EXIT_STATUS=9'])
+    def test_unknown_exit_pid_publishes_nothing(self):
+        self.assertEqual(public_exit(['reason=2 (SIGNALED) status=9'],123), [])
+    def test_system_kill_omits_private_reason_suffix(self):
+        lines=['I ActivityManager: Killing 123:com.pinkiptv.extreme/u0a1 (adj 900): cached PRIVATE_VALUE https://private.example']
+        self.assertEqual(public_system(lines,123), ['SYSTEM_KILL=ACTIVITY_MANAGER'])
+    def test_low_memory_killer_is_pid_scoped_and_structural(self):
+        lines=["I lmkd: Kill 'com.pinkiptv.extreme' (123), uid 1, PRIVATE_VALUE", "I lmkd: Kill 'com.pinkiptv.extreme' (999), PRIVATE_VALUE"]
+        self.assertEqual(public_system(lines,123), ['SYSTEM_KILL=LOW_MEMORY_KILLER'])
+    def test_other_system_process_or_url_is_dropped(self):
+        self.assertEqual(public_system(['I ActivityManager: Killing 999:com.pinkiptv.extreme/u0a1 (adj 900): low memory PRIVATE_VALUE', 'https://private.example/Killing 123:com.pinkiptv.extreme/u0a1'],123), [])
 
 if __name__=='__main__': unittest.main()

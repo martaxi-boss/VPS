@@ -9,9 +9,12 @@ native_crash_diagnostics() {
   pink_crash_pid=$(adb shell run-as com.pinkiptv.extreme cat files/pink055-process-public.txt 2>/dev/null | tr -d '\r\n')
   case "$pink_crash_pid" in
     ''|*[!0-9]*) echo PUBLIC_CRASH_DIAGNOSTIC=NO_TARGET_PID ;;
-    *) adb logcat -b crash -d 2>/dev/null | python ops/pink_vpn_056_crash.py --pid "$pink_crash_pid" ;;
+    *) adb logcat -b all -d 2>/dev/null | python ops/pink_vpn_056_crash.py --pid "$pink_crash_pid" ;;
   esac
-  adb shell dumpsys activity exit-info com.pinkiptv.extreme 2>/dev/null | python ops/pink_vpn_056_crash.py --exit-info
+  if [[ "$pink_crash_pid" =~ ^[0-9]+$ ]]; then
+    adb shell dumpsys activity exit-info com.pinkiptv.extreme 2>/dev/null | python ops/pink_vpn_056_crash.py --exit-pid "$pink_crash_pid"
+    adb logcat -b all -d 2>/dev/null | python ops/pink_vpn_056_crash.py --system-pid "$pink_crash_pid"
+  fi
 }
 cleanup() {
   result=$?

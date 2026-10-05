@@ -39,17 +39,49 @@ def public_crash(lines, target_pid=None):
             records.append('NATIVE_FRAME=' + native[1] + ':' + native[2].rsplit('/', 1)[-1])
     return list(dict.fromkeys(records))[:80]
 
-def public_exit(lines):
+def public_exit(lines, target_pid=None):
     reasons={1:'EXIT_SELF',2:'SIGNALED',3:'LOW_MEMORY',4:'CRASH',5:'CRASH_NATIVE',6:'ANR',7:'INITIALIZATION_FAILURE',8:'PERMISSION_CHANGE',9:'EXCESSIVE_RESOURCE_USAGE',10:'USER_REQUESTED',11:'USER_STOPPED',12:'DEPENDENCY_DIED',13:'OTHER',14:'FREEZER',15:'PACKAGE_STATE_CHANGE',16:'PACKAGE_UPDATED'}
     records=[]
+    selected = target_pid is None
     for line in lines:
+        if 'ApplicationExitInfo ' in line:
+            selected = target_pid is None
+        metadata = re.fullmatch(r'\s*timestamp=[0-9: .-]+ pid=([0-9]+) realUid=[0-9]+ packageUid=[0-9]+ definingUid=[0-9]+ user=[0-9]+\s*', line.rstrip('\n'))
+        if metadata and target_pid is not None:
+            selected = int(metadata[1]) == target_pid
+        if not selected:
+            continue
+        if target_pid is not None and not re.fullmatch(r'\s*process=com\.pinkiptv\.extreme reason=[0-9]+ \([^)]*\) subreason=[0-9]+ \([^)]*\) status=[0-9]+\s*', line.rstrip('\n')):
+            continue
         reason=re.search(r'(?:^|\s)reason=([0-9]+)\s+\(',line)
         if reason and int(reason[1]) in reasons:
             records.append('EXIT_REASON='+reasons[int(reason[1])])
+            status=re.search(r'\sstatus=([0-9]+)(?:\s|$)',line)
+            if status and 0 <= int(status[1]) <= 255:
+                records.append('EXIT_STATUS='+status[1])
+    return list(dict.fromkeys(records))[:16]
+
+def public_system(lines, target_pid):
+    records=[]
+    for line in lines:
+        if re.search(r"\blmkd\s*:.*Kill 'com\.pinkiptv\.extreme' \("+str(target_pid)+r'\)',line):
+            records.append('SYSTEM_KILL=LOW_MEMORY_KILLER')
+        killed=re.search(r'\bActivityManager\s*: Killing '+str(target_pid)+r':com\.pinkiptv\.extreme/[^ :]+.*?: (.*)$',line)
+        if killed:
+            records.append('SYSTEM_KILL=ACTIVITY_MANAGER')
+            reason=killed[1].lower()
+            for prefix,label in [('too many cached','CACHED_LIMIT'),('empty','EMPTY_PROCESS'),('anr','ANR'),('excessive cpu','EXCESSIVE_CPU'),('low memory','LOW_MEMORY'),('remove task','REMOVE_TASK'),('stop','STOP'),('crash','CRASH')]:
+                if reason.startswith(prefix):
+                    records.append('SYSTEM_KILL_CATEGORY='+label)
+                    break
     return list(dict.fromkeys(records))[:16]
 
 if __name__ == '__main__':
-    if sys.argv[1:] == ['--exit-info']:
+    if len(sys.argv) == 3 and sys.argv[1] == '--exit-pid' and sys.argv[2].isdigit():
+        records = public_exit(sys.stdin,int(sys.argv[2]))
+    elif len(sys.argv) == 3 and sys.argv[1] == '--system-pid' and sys.argv[2].isdigit():
+        records = public_system(sys.stdin,int(sys.argv[2]))
+    elif sys.argv[1:] == ['--exit-info']:
         records = public_exit(sys.stdin)
     elif len(sys.argv) == 3 and sys.argv[1] == '--pid' and sys.argv[2].isdigit():
         records = public_crash(sys.stdin, int(sys.argv[2]))

@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-EXTREME-REAL-FLOW-056",
+  "repository": "martaxi-boss/VPS",
+  "recorded_at": "2026-10-05T22:35:37.129485+00:00",
+  "previous_event_sha256": "22f4c19033a428220b5c7f93e28852c6e51710d881a94a1652a62770e316097d",
+  "sequence": 14,
+  "event": "REPLAN",
+  "strategy_generation": 7,
+  "action_fingerprint": "056-exact-pid-exit-status-system-kill-diagnostic",
+  "attempt_count": 1,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "detail": "Material diagnosis now scopes Android ApplicationExitInfo reason/status to exact recorded PINK PID using actual AOSP dump structure; scans all buffers through strict crash allowlist and emits only fixed LMKD/ActivityManager kill categories. Seventeen privacy/attribution tests. Preserve corrected PINK6d766914 and reuse exact fully certified37381174693/af91c7d APK with strict byte/source/run lineage; no native/environment guess or product mutation. A new exact execution authorization is mandatory."
+}
