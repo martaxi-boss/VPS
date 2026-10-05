@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-GATEWAY-RUNTIME-CERTIFICATION-054-MERGE",
+  "task_id": "PINK-IPTV-GATEWAY-RUNTIME-CERTIFICATION-054",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-GATEWAY-RUNTIME-CERTIFICATION-054-MERGE.authorization.json",
+  "action": "merge_to_main",
+  "target": {
+    "kind": "github_pull_request",
+    "identifier": "martaxi-boss/VPS#20",
+    "revision": "4fc75cb413da86a1e0fe0a5f2428445b2b8f3cab",
+    "base_revision": "b2c74f53f011c22e4d9043b00568d8a9ef598f85",
+    "environment": "staging-source"
+  },
+  "observed_at": "2026-10-05T15:50:04.819Z",
+  "final_state": {
+    "status": "PR20 merged; exact post-write main and merged head independently observed",
+    "revision": "100492c47116b7ffe690d8544c2ce62c4ce5f9a8"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/pull/20",
+    "https://github.com/martaxi-boss/VPS/actions/runs/37332937438",
+    "https://github.com/martaxi-boss/VPS/actions/runs/37330387235"
+  ],
+  "residual_blockers": []
+}
