@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "VPS-SAFE-HYGIENE-050-MERGE",
+  "task_id": "VPS-SAFE-HYGIENE-050",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-05T13:04:19.328Z",
+  "action": "merge_to_main",
+  "effect_class": "E2_CONSEQUENTIAL_TRANSITION",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "binding_mode": "EXACT_REVISION_BOUND",
+    "summary": "Owner standing autonomous audited-merge authority covers only operational PR 19 head 995762e0d264b7438fa47c156e78635c05c0e748, base b8557b5425ea4633e5011356dcf6957bb354d9c4. Exact cleanup implementation 772dda3aa52e489d710cc13c690cb7938fc6d280 and run 37312767983 succeeded, nine safety tests passed, independently verified cache cleanup recovered exactly 5259264 bytes and all protected health/network/data invariants passed. Canonical 0.6.6 central-policy, immutable authorization, SHA/CI/scope and evidence-only ancestry audit passed; final-head SSH check 37313314672 passed. Authorize regular history-preserving integration of maintenance code and durable evidence only after immediate PR/main revalidation; no additional VPS command or deployment."
+  },
+  "target": {
+    "kind": "pull_request",
+    "identifier": "https://github.com/martaxi-boss/VPS/pull/19",
+    "revision": "995762e0d264b7438fa47c156e78635c05c0e748",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": null
+  }
+}
