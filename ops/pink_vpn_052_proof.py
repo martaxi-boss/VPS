@@ -30,6 +30,23 @@ def health(ok=True):
     assert (result.returncode == 0 and result.stdout == 'PINK_VPN_READY') == ok
 
 
+def wait_rekey(public):
+    # A server restart discards transport sessions. WireGuard naturally rekeys
+    # established sessions on its bounded protocol timer; preserve the TUN route.
+    deadline = time.monotonic()+210
+    next_refresh = 0
+    while time.monotonic() < deadline:
+        if time.monotonic() >= next_refresh:
+            peer(public)
+            next_refresh = time.monotonic()+30
+        try:
+            health()
+            return
+        except AssertionError:
+            time.sleep(5)
+    raise RuntimeError('Bounded restart recovery unavailable')
+
+
 def proof():
     os.umask(0o077)
     public = None
@@ -70,7 +87,7 @@ def proof():
             time.sleep(3)
             health(False)
             assert peer(public) == server
-            health()
+            wait_rekey(public)
             print('GATEWAY_RESTART_FRESH_AUTH_SAME_SERVER_IDENTITY=PASS',flush=True)
         finally:
             run('sudo','ip','link','delete',IFACE,check=False)

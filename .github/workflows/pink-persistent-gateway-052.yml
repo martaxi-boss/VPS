@@ -60,7 +60,9 @@ jobs:
           python - <<'PY'
           import json, subprocess
           from pathlib import Path
-          record = json.loads(Path('.project-leader/transitions/PINK-IPTV-PERSISTENT-GATEWAY-052-DEPLOY.authorization.json').read_text())
+          directory = Path('.project-leader/transitions')
+          retry = directory/'PINK-IPTV-PERSISTENT-GATEWAY-052-DEPLOY-R2.authorization.json'
+          record = json.loads((retry if retry.exists() else directory/'PINK-IPTV-PERSISTENT-GATEWAY-052-DEPLOY.authorization.json').read_text())
           assert record['repository'] == 'martaxi-boss/VPS'
           assert record['task_id'] == 'PINK-IPTV-PERSISTENT-GATEWAY-052'
           assert record['action'] == 'staging_deploy'

@@ -131,6 +131,14 @@ def network_up():
 def install(source):
     from pink_vpn_052_audit import audit
     audit()
+    retained = ROOT.exists()
+    if retained:
+        # Independently reconstructed exact inverse; archive evidence rather than erase it.
+        assert (BACKUP/'rolled-back').is_file() and not (BACKUP/'accepted').exists()
+        run('systemctl','stop','pink-vpn-052-rollback.timer',check=False)
+        run('systemctl','stop','pink-vpn-052-rollback.service',check=False)
+        archive = BACKUP.with_name('task052-rolled-back-'+str(time.time_ns()))
+        BACKUP.rename(archive)
     assert not BACKUP.exists() and not DROP.exists() and not SYSCTL.exists() and not UNIT.exists()
     os.umask(0o077)
     BACKUP.mkdir(mode=0o700,parents=True)
@@ -147,12 +155,13 @@ def install(source):
     assert run('systemctl','is-active','pink-vpn-052-rollback.timer') == 'active'
     print('INDEPENDENT_ROLLBACK_ARMED=PASS')
     try:
-        ROOT.mkdir(mode=0o700)
-        Path('/var/lib/pink-vpn').mkdir(mode=0o700)
-        key = run('wg','genkey')
-        (ROOT/'server.key').write_text(key+'\n')
-        os.chmod(ROOT/'server.key',0o600)
-        del key
+        ROOT.mkdir(mode=0o700,exist_ok=retained)
+        Path('/var/lib/pink-vpn').mkdir(mode=0o700,exist_ok=retained)
+        if not retained:
+            key = run('wg','genkey')
+            (ROOT/'server.key').write_text(key+'\n')
+            os.chmod(ROOT/'server.key',0o600)
+            del key
         public = subprocess.run(['wg','pubkey'],input=(ROOT/'server.key').read_text(),
                                 capture_output=True,text=True,check=True).stdout.strip()
         for filename in ('pink_vpn_052_install.py','pink_vpn_052_gateway.py','pink_vpn_052_peer.py',
