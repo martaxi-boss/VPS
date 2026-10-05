@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   prepare:
-    if: github.event.head_commit.message != 'Authorize exact real Android flow 056' && github.event.head_commit.message != 'Prepare bounded native crash diagnostics 056'
+    if: github.event.head_commit.message != 'Authorize exact real Android flow 056'
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     env:
@@ -28,7 +28,7 @@ jobs:
       - name: Checkout exact audited PINK source
         run: |
           git clone --no-checkout https://github.com/martaxi-boss/pink-iptv.git "$RUNNER_TEMP/pink055-source"
-          git -C "$RUNNER_TEMP/pink055-source" checkout --detach 62b55e400acfb26590b038c328d0df15e06a6e88
+          git -C "$RUNNER_TEMP/pink055-source" checkout --detach 6d766914a8634f641b5eabc6c18a0dbf13a37d99
           cp -r "$RUNNER_TEMP/pink055-source/clients" .
           mkdir -p .github/scripts
           cp "$RUNNER_TEMP/pink055-source/.github/scripts/filter_scan_findings.py" .github/scripts/
@@ -181,70 +181,8 @@ jobs:
           cp -r clients/extreme "$RUNNER_TEMP/pink-deliverable/rebuild-recipe"
           find "$RUNNER_TEMP/pink-deliverable/rebuild-recipe" -type d -name __pycache__ -prune -exec rm -rf {} +
           cd "$RUNNER_TEMP/pink-deliverable"
-          printf '{"implementation_sha":"%s","upstream_sha":"1efcc1b4ab3468db04aedd1c466228c52ef001b7"}\n' "62b55e400acfb26590b038c328d0df15e06a6e88" > provenance.json
+          printf '{"implementation_sha":"%s","upstream_sha":"1efcc1b4ab3468db04aedd1c466228c52ef001b7"}\n' "6d766914a8634f641b5eabc6c18a0dbf13a37d99" > provenance.json
           sha256sum *.apk *.tar.gz > SHA256SUMS
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: PINK-IPTV-Extreme-056
-          path: ${{ runner.temp }}/pink-deliverable
-          if-no-files-found: error
-          retention-days: 30
-
-  diagnostic_prepare:
-    # Only unchanged APK bytes from a full successful native preparation may be reused.
-    if: github.event.head_commit.message == 'Prepare bounded native crash diagnostics 056'
-    runs-on: ubuntu-22.04
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - name: Validate bounded diagnostics and unchanged protected fixture helper
-        run: |
-          bash -n ops/pink_vpn_056_emulator.sh
-          python ops/pink_vpn_056_crash_test.py
-          git diff --exit-code ac1639e1db94c181b836271b68c9640531f33b94 HEAD -- ops/pink_vpn_056_runtime.py
-      - name: Verify full native APK certification and exact product source
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          python - <<'PYCODE'
-          import json,os,urllib.request
-          def get(repo,path):
-              request=urllib.request.Request('https://api.github.com/repos/martaxi-boss/'+repo+'/'+path,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
-              return json.load(urllib.request.urlopen(request,timeout=20))
-          for repo,run_id,sha,name in [('pink-iptv',37373758477,'62b55e400acfb26590b038c328d0df15e06a6e88','PINK Extreme Android 042'),('pink-iptv',37373758375,'62b55e400acfb26590b038c328d0df15e06a6e88','Backend CI'),('VPS',37376828834,'ac1639e1db94c181b836271b68c9640531f33b94','PINK Extreme Real Flow 056')]:
-              run=get(repo,'actions/runs/'+str(run_id))
-              assert run['head_sha']==sha and run['name']==name and run['status']=='completed' and run['conclusion']=='success'
-          jobs=get('VPS','actions/runs/37376828834/jobs')['jobs']
-          steps={step['name']:step['conclusion'] for job in jobs if job['name']=='prepare' for step in job['steps']}
-          for name in ['Compile instrumentation and verify Android native payload','Real Android Keystore, normal VPN consent and startup capture','PINK source privacy scan','Audit complete Android lint report','Package exact source, APK and integrity hashes']:
-              assert steps.get(name)=='success'
-          print('UNCHANGED_EXACT_APK_FULL_NATIVE_CERTIFICATION=PASS')
-          PYCODE
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-        with:
-          name: PINK-IPTV-Extreme-056
-          run-id: 37376828834
-          github-token: ${{ github.token }}
-          path: ${{ runner.temp }}/pink-deliverable
-      - name: Verify byte-identical certified APK and preserve artifact lineage
-        env:
-          PINK_DELIVERY: ${{ runner.temp }}/pink-deliverable
-        run: |
-          cd "$PINK_DELIVERY"
-          sha256sum -c SHA256SUMS
-          python - <<'PYCODE'
-          import hashlib,json,os
-          from pathlib import Path
-          root=Path(os.environ['PINK_DELIVERY'])
-          assert json.loads((root/'provenance.json').read_text())['implementation_sha']=='62b55e400acfb26590b038c328d0df15e06a6e88'
-          expected='6e803ea45a40099d42536b9b2f4a858d628ea8baff66523a1546f054611eccd2'
-          assert hashlib.sha256((root/'PINK-IPTV-Extreme-1.9.0-debug.apk').read_bytes()).hexdigest()==expected
-          (root/'artifact-lineage.json').write_text(json.dumps({'full_native_preparation_run':37376828834,'full_native_preparation_source':'ac1639e1db94c181b836271b68c9640531f33b94','pink_source':'62b55e400acfb26590b038c328d0df15e06a6e88','apk_sha256':expected,'operational_source':os.environ['GITHUB_SHA']})+'\n')
-          print('BYTE_IDENTICAL_APK_WITH_TESTED_DIAGNOSTICS=PASS')
-          PYCODE
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: PINK-IPTV-Extreme-056
@@ -280,16 +218,16 @@ jobs:
           source=auth['target']['revision']
           subprocess.run(['git','merge-base','--is-ancestor',source,'HEAD'],check=True)
           assert not subprocess.check_output(['git','diff','--name-only',source,'HEAD','--','ops/pink_vpn_056_runtime.py','ops/pink_vpn_056_emulator.sh','ops/pink_vpn_056_crash.py','ops/pink_vpn_056_crash_test.py','.github/workflows/pink-extreme-real-flow-056.yml'],text=True)
-          prefix='OVH:vps-32bea5b6;PINK:62b55e400acfb26590b038c328d0df15e06a6e88;artifact-run:'
+          prefix='OVH:vps-32bea5b6;PINK:6d766914a8634f641b5eabc6c18a0dbf13a37d99;artifact-run:'
           assert auth['target']['identifier'].startswith(prefix)
           run_id=auth['target']['identifier'][len(prefix):]
           assert run_id.isdigit()
           request=urllib.request.Request('https://api.github.com/repos/martaxi-boss/VPS/actions/runs/'+run_id,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
           run=json.load(urllib.request.urlopen(request,timeout=15))
           assert run['head_sha']==source and run['conclusion']=='success' and run['name']=='PINK Extreme Real Flow 056'
-          product_request=urllib.request.Request('https://api.github.com/repos/martaxi-boss/pink-iptv/actions/runs/37373758477',headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+          product_request=urllib.request.Request('https://api.github.com/repos/martaxi-boss/pink-iptv/actions/runs/37381060672',headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
           product_run=json.load(urllib.request.urlopen(product_request,timeout=15))
-          assert product_run['head_sha']=='62b55e400acfb26590b038c328d0df15e06a6e88' and product_run['status']=='completed' and product_run['conclusion']=='success'
+          assert product_run['head_sha']=='6d766914a8634f641b5eabc6c18a0dbf13a37d99' and product_run['status']=='completed' and product_run['conclusion']=='success'
           with open(os.environ['GITHUB_ENV'],'a') as env:
               env.write('PINK056_ARTIFACT_RUN='+run_id+'\n')
           print('EXACT_AUTHORITY_AND_PREPARED_APK=PASS')
@@ -308,7 +246,7 @@ jobs:
           python - <<'PYCODE'
           import json
           from pathlib import Path
-          assert json.loads(Path('provenance.json').read_text())['implementation_sha']=='62b55e400acfb26590b038c328d0df15e06a6e88'
+          assert json.loads(Path('provenance.json').read_text())['implementation_sha']=='6d766914a8634f641b5eabc6c18a0dbf13a37d99'
           PYCODE
           test -e /dev/kvm
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules

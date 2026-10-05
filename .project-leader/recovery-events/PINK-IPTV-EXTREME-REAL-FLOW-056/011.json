@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-EXTREME-REAL-FLOW-056",
+  "repository": "martaxi-boss/VPS",
+  "recorded_at": "2026-10-05T22:14:23.955914+00:00",
+  "previous_event_sha256": "908d9c61a6fcc860acf50e44844eeaba542084f6e33127d7399ac48b198a484a",
+  "sequence": 11,
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 5,
+  "action_fingerprint": "056-delayed-pid-scoped-native-library-diagnostic",
+  "attempt_count": 1,
+  "identical_failure_count": 1,
+  "no_progress_iterations": 1,
+  "detail": "R3 run37380458572 exact08a2ef4 failed native playback with same-PID destroyed mutex, but no debuggerd native frames. Own peer cleanup and accepted gateway/protected services after cleanup passed. Do not repeat. Source audit identifies nested AndroidX ActivityScenario.launch unconditionally adding NEW_TASK|CLEAR_TASK and destroying the Tauri root on native-player transition."
+}

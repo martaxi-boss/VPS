@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-EXTREME-REAL-FLOW-056",
+  "repository": "martaxi-boss/VPS",
+  "recorded_at": "2026-10-05T22:14:23.955914+00:00",
+  "previous_event_sha256": "7bbde9953fbd7e2513a5be8c8615bb4ebfa3dc81f5c8032e21334d7684b93aa0",
+  "sequence": 12,
+  "event": "REPLAN",
+  "strategy_generation": 6,
+  "action_fingerprint": "056-preserve-tauri-root-native-player-transition",
+  "attempt_count": 1,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "detail": "Fix the incorrect real-flow instrumentation under separate PINK055 scope: start VideoActivity from existing MainActivity without CLEAR_TASK, monitor native player and preserve root explicitly. Fresh PINK6d766914 Android/Backend CI and full056 preparation required. Retire temporary diagnostic-only artifact reuse job; pin corrected source and real-flow artifact before any new exact execution authorization. Product base/native player/VPN unchanged; runtime proof must validate causal correction."
+}
