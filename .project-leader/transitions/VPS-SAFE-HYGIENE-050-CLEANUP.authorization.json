@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "VPS-SAFE-HYGIENE-050-CLEANUP",
+  "task_id": "VPS-SAFE-HYGIENE-050",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-05T12:54:08.155Z",
+  "action": "destructive_data_change",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authority": {
+    "source": "CURRENT_OWNER_INSTRUCTION",
+    "binding_mode": "EXACT_REVISION_BOUND",
+    "summary": "Owner's VPS hygiene request covers only the independently audited regenerable cache manifest. manifest_sha256=263d4d9143f1b77793a0941203a67f46cfd8c009a3e4d37cf929e0f1fe547af0; code eec16ed67dbfe12d3769a54bc6f4558b156829ed and audit run 37312392124 are successful, 9 cache-boundary tests passed. Target OVH vps-32bea5b6 has all five critical services active, both HTTP probes 200, stable active UFW, no package write or open cache references. Only 1095 old Node compile cache files (5259264 allocated bytes) are eligible; APT metadata is recent and other caches are empty. Revalidate every signature, host, health, firewall and activity condition before the first unlink. No app, DB, backup, credential, log-retention, Android SDK, emulator, service or network change."
+  },
+  "target": {
+    "kind": "vps_cache_manifest",
+    "identifier": "146.59.145.3",
+    "revision": "eec16ed67dbfe12d3769a54bc6f4558b156829ed",
+    "base_revision": "b8557b5425ea4633e5011356dcf6957bb354d9c4",
+    "environment": "OVH"
+  }
+}
