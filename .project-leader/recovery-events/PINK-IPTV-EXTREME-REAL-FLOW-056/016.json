@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-EXTREME-REAL-FLOW-056",
+  "repository": "martaxi-boss/VPS",
+  "recorded_at": "2026-10-05T23:03:23.896Z",
+  "previous_event_sha256": "71ee2863157f5b802667cb7a66ca20862618d52f32ccbfbaf9fa77d6f7b0bd89",
+  "sequence": 16,
+  "event": "REPLAN",
+  "strategy_generation": 9,
+  "action_fingerprint": "056-pid-scoped-fail-closure-and-same-key-network-restart",
+  "attempt_count": 1,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "detail": "R6 proof37385506766 certified real login/catalog/native audio-video/recreation and cold same-key authorization without credentials. Distinct restore PID then exited SIGNALED9 in network-change section; no native crash records. Material PINKaf0852de adds unset-by-default test observer for exact fail-closure category and fixed network phase. New source-bound full APK preparation; old byte-reuse diagnostic job removed because product source changed. Host recognizes only exact PID, owned network phase, fixed VPN_LOST/RECOVERY_EXHAUSTED and exit SIGNALED9; unknown/expired/crash-native exits fail. Recognized safe process closure requires a new no-credential same-key authorized tunnel test after Wi-Fi returns. Preserve normal routing/termination, fixture, peer cleanup and host protection. Exact Android/Backend CI and new staging authorization required. No blind equivalent rerun."
+}

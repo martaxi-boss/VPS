@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-EXTREME-REAL-FLOW-056-EXECUTE-R6",
+  "task_id": "PINK-IPTV-EXTREME-REAL-FLOW-056",
+  "repository": "martaxi-boss/VPS",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "staging_android_emulator",
+    "identifier": "OVH:vps-32bea5b6;PINK:6d766914a8634f641b5eabc6c18a0dbf13a37d99;artifact-run:37385381470",
+    "revision": "aef9f6c988154d294a14baeb492c55d89a9e62df",
+    "base_revision": "100492c47116b7ffe690d8544c2ce62c4ce5f9a8",
+    "environment": "staging-disposable-emulator"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37385506766",
+    "Real login/catalog/native audio-video/root/recreation PASS. Distinct cold restore PID captured and same-key no-credentials authorized tunnel PASS. That process then exited SIGNALED9 in network-change section. Disposable peer cleanup and protected host audit PASS."
+  ],
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-EXTREME-REAL-FLOW-056-EXECUTE-R6.authorization.json",
+  "observed_at": "2026-10-05T23:03:06.042Z",
+  "final_state": {
+    "status": "COLD_RESTORE_PASS_NETWORK_SECTION_SIGKILL_UNATTRIBUTED",
+    "revision": "fc3dd31ac0b23b16147ff1b4fd9f44c08f284b73"
+  },
+  "residual_blockers": [
+    "Network-section process exit needs exact fail-closure cause and subsequent same-key recovery certification; no native crash diagnosis is supported."
+  ]
+}

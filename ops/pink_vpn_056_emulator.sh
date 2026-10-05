@@ -24,6 +24,8 @@ cleanup() {
   result=$?
   trap - EXIT
   set +e
+  # Only the disposable emulator's network is changed by the outage proof.
+  adb shell svc wifi enable >/dev/null 2>&1
   if ! adb shell run-as com.pinkiptv.extreme cat files/pink055-peer-public.txt > "$RUNNER_TEMP/pink056-public.txt" 2>/dev/null; then
     : > "$RUNNER_TEMP/pink056-public.txt"
   fi
@@ -53,7 +55,7 @@ PY
   python - <<'PY'
 import os
 from pathlib import Path
-for name in ('pink056-account.json','pink056-public.txt','pink056-clean.py','pink056-observe.py','pink056-fetch.py','pink056-current-pid.txt'):
+for name in ('pink056-account.json','pink056-public.txt','pink056-clean.py','pink056-observe.py','pink056-fetch.py','pink056-current-pid.txt','pink056-exit-boundary.txt','pink056-network-phase.txt'):
     Path(os.environ['RUNNER_TEMP'],name).unlink(missing_ok=True)
 PY
   if test "$result" = 0; then echo REAL_ANDROID_PROOF_AND_BOUNDED_PEER_CLEANUP=PASS; fi
@@ -95,7 +97,10 @@ adb shell am force-stop com.pinkiptv.extreme
 # This new process cannot inherit the old test's PID diagnostic. Capture it
 # concurrently with instrumentation, before launching its root activity.
 : > "$RUNNER_TEMP/pink056-current-pid.txt"
-adb shell am instrument -w -r -e class com.pinkiptv.extreme.PinkVpnRestoreTest com.pinkiptv.extreme.test/androidx.test.runner.AndroidJUnitRunner > "$RUNNER_TEMP/pink056-restore.txt" &
+run_restore() {
+  restore_output="$2"
+  : > "$RUNNER_TEMP/pink056-current-pid.txt"
+  adb shell am instrument -w -r -e pinkNetworkChange "$1" -e class com.pinkiptv.extreme.PinkVpnRestoreTest com.pinkiptv.extreme.test/androidx.test.runner.AndroidJUnitRunner > "$restore_output" &
 restore_command=$!
 while kill -0 "$restore_command" 2>/dev/null; do
   current_pid=$(adb shell pidof com.pinkiptv.extreme 2>/dev/null | tr -d '\r\n') || current_pid=''
@@ -111,9 +116,24 @@ if test -s "$RUNNER_TEMP/pink056-current-pid.txt"; then
 else
   echo COLD_RESTORE_DISTINCT_PROCESS_PID=UNAVAILABLE
 fi
+}
+run_restore true "$RUNNER_TEMP/pink056-restore.txt"
 cat "$RUNNER_TEMP/pink056-restore.txt"
 if ! grep -q 'OK (1 test)' "$RUNNER_TEMP/pink056-restore.txt"; then
   native_crash_diagnostics
-  exit 1
+  # A lost admitted VPN intentionally kills all app networking. Accept only
+  # an exact fixed cause at the owned network phase, with exact PID/SIGKILL.
+  # Every other crash remains a failure; no generic retry can certify it.
+  adb shell run-as com.pinkiptv.extreme cat files/pink055-fail-closure-public.txt > "$RUNNER_TEMP/pink056-exit-boundary.txt"
+  adb shell run-as com.pinkiptv.extreme cat files/pink055-restore-phase-public.txt > "$RUNNER_TEMP/pink056-network-phase.txt"
+  adb shell dumpsys activity exit-info com.pinkiptv.extreme | python ops/pink_vpn_056_recovery.py "$RUNNER_TEMP/pink056-exit-boundary.txt" "$RUNNER_TEMP/pink056-network-phase.txt" "$(cat "$RUNNER_TEMP/pink056-current-pid.txt")"
+  adb shell svc wifi enable
+  run_restore false "$RUNNER_TEMP/pink056-reconnected.txt"
+  cat "$RUNNER_TEMP/pink056-reconnected.txt"
+  if ! grep -q 'OK (1 test)' "$RUNNER_TEMP/pink056-reconnected.txt" || ! grep -q 'POST_NETWORK_RESTART_SAME_KEY_AUTHORIZED_TUNNEL=PASS' "$RUNNER_TEMP/pink056-reconnected.txt"; then
+    native_crash_diagnostics
+    exit 1
+  fi
+  echo FAIL_CLOSED_PROCESS_RESTART_AND_NETWORK_RECOVERY=PASS
 fi
 sshpass -e ssh "${ssh_args[@]}" ubuntu@146.59.145.3 'sudo -n python3 -' < "$RUNNER_TEMP/pink056-observe.py"
