@@ -1,0 +1,72 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-NEW-LINE-DISCOVERY-046",
+  "terminal_status": "TERMINAL_SUCCESS",
+  "repository": "martaxi-boss/VPS",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authorization_record": ".project-leader/tasks/PINK-IPTV-NEW-LINE-DISCOVERY-046.json",
+  "authorization_commit_sha": "47fa0b6e402867e61a6408227d71efc850dec826",
+  "authorization_sha256": "4fdc059c80bb2ba11f54e91386f305e3ebbd3d94b5f1f8e7cd1e65a195f86379",
+  "implementation_head_sha": "c4d763f4d077cb36ca7cc99465d770e004439e8e",
+  "branch": "builder/pink-new-line-discovery-046",
+  "pr_number": null,
+  "recorded_at": "2026-10-05T11:20:30.162Z",
+  "state_observed_at": "2026-10-05T11:20:30.162Z",
+  "changes": [
+    "Create isolated read-only exact new-line runtime diagnostic using existing SSH operations path; no customer credential literals.",
+    "Determine missing local mapping without guessing a subscription ID or querying unrelated customer lines."
+  ],
+  "validation": [
+    {
+      "name": "Project architecture scope audit",
+      "status": "PASS",
+      "evidence": "Exact known-account local lookup only; existing backend remains known-ID Mega retrieval, never searches Mega by username. No arbitrary ID/domain guesses, backend/client/network/provider mutations."
+    },
+    {
+      "name": "Mutation scope audit",
+      "status": "PASS",
+      "evidence": "Only fresh task authorization and dedicated one-shot workflow are material changed paths in VPS target; immutable authorization and central policy scope validation PASS."
+    },
+    {
+      "name": "GitHub evidence verification",
+      "status": "PASS",
+      "evidence": "Exact workflow37302077699 at c4d763f4d077cb36ca7cc99465d770e004439e8e terminalSUCCESS; native jobs/logs corroborate safe lookup result. Canonical exact authority/run/scope verifier required on evidence descendant."
+    },
+    {
+      "name": "Consequential transition readiness audit",
+      "status": "PASS",
+      "evidence": "No mapping/database or production transition occurred; first required registration input is actual Owner-held Mega subscription ID. No ID fabricated or alternative line searched."
+    },
+    {
+      "name": "Exact supplied account lookup",
+      "status": "PASS",
+      "evidence": "Runtime read-only PostgreSQL exact supplied username fingerprint query returned TEST_LINE_MAPPING_FOUND=NO, REQUIRES_KNOWN_SUBSCRIPTION_ID=YES, READ_ONLY_DISCOVERY=PASS."
+    },
+    {
+      "name": "Per-line authoritative subdomain preservation",
+      "status": "PASS",
+      "evidence": "Probe binds the exact Owner-supplied HTTP subdomain and only accepts matching authoritative known-ID origin if mapped. Existing source resolver returns mapping.dns_link unchanged. No association or root-domain substitution performed; live origin readiness not claimed."
+    },
+    {
+      "name": "Credential-safe diagnostics",
+      "status": "PASS",
+      "evidence": "No supplied password in workflow/source/output; no credential persistence. Existing SSH secret name only, runtime environment in memory, no stderr/raw URL/token/customer output; SQL read-only rollback."
+    }
+  ],
+  "ci": [
+    {
+      "name": "PINK New Test Line Discovery 046",
+      "status": "SUCCESS",
+      "run_id": 37302077699
+    }
+  ],
+  "artifacts": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37302077699",
+    "Native job111736916969 sanitized evidence: TEST_LINE_MAPPING_FOUND=NO; REQUIRES_KNOWN_SUBSCRIPTION_ID=YES; READ_ONLY_DISCOVERY=PASS."
+  ],
+  "material_non_effects": [
+    "This is discovery success, not registration/login/playback success. No database write, provider account change, runtime deploy, service restart, VPN or main merge.",
+    "Exact Mega subscription ID remains Owner-held input needed to import authoritative line. Supplied password is not stored or committed."
+  ],
+  "residual_blockers": []
+}
