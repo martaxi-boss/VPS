@@ -1,0 +1,50 @@
+name: PINK New Test Line Discovery 046
+on:
+  push:
+    branches: [builder/pink-new-line-discovery-046]
+    paths: ['.github/workflows/pink-new-line-discovery-046.yml']
+permissions:
+  contents: read
+concurrency:
+  group: pink-new-line-discovery-046
+  cancel-in-progress: false
+jobs:
+  observe:
+    if: github.event.head_commit.message == 'Execute exact PINK test-line discovery 046'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Exact supplied line lookup with safe return
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ubuntu@146.59.145.3 'sudo -n python3 -' <<'PY'
+          import os,sys,subprocess,logging
+          from pathlib import Path
+          logging.disable(logging.CRITICAL)
+          def run(*args):
+              return subprocess.run(args,check=True,capture_output=True,text=True,timeout=10).stdout.strip()
+          assert os.geteuid()==0 and run("hostname")=="vps-32bea5b6"
+          assert run("systemctl","show","pink-iptv-backend","-p","WorkingDirectory","--value")=="/srv/pink-iptv/backend"
+          pid=int(run("systemctl","show","pink-iptv-backend","-p","MainPID","--value"));assert pid>1
+          runtime={}
+          allowed={"APP_ENV","DATABASE_URL","SESSION_SIGNING_KEY","SESSION_TTL_SECONDS","MEGA_OTT_API_BASE","MEGA_OTT_API_TOKEN"}
+          for item in Path("/proc/"+str(pid)+"/environ").read_bytes().split(b"\0"):
+              if b"=" in item:
+                  k,v=item.split(b"=",1)
+                  if k.decode() in allowed:runtime[k.decode()]=v.decode()
+          python_path=next((p for p in ("/srv/pink-iptv/backend/.venv/bin/python","/srv/pink-iptv/backend/venv/bin/python") if Path(p).is_file()),None)
+          assert python_path and runtime.get("DATABASE_URL")
+          child="import json,logging,hashlib\nlogging.disable(logging.CRITICAL)\nphase=\"settings\"\ntry:\n    from datetime import datetime,UTC\n    import httpx\n    from sqlalchemy import select,text,func\n    from app.config import get_settings\n    from app.models import SubscriptionMapping\n    from app.db import build_session_factory\n    from app.clients.mega import MegaOTTClient\n    settings=get_settings()\n    phase=\"exact_supplied_lookup\"\n    snapshot=None\n    with build_session_factory(settings.database_url)() as session:\n        session.execute(text(\"SET TRANSACTION READ ONLY\"))\n        row=session.scalar(select(SubscriptionMapping).where(func.md5(SubscriptionMapping.username)==\"325a5df019165e41992baaa59133987d\"))\n        if row:\n            snapshot=(row.mega_subscription_id,row.dns_link,hashlib.md5(row.username.encode()).hexdigest())\n        session.rollback()\n    print(\"TEST_LINE_MAPPING_FOUND=\"+(\"YES\" if snapshot else \"NO\"),flush=True)\n    if not snapshot:\n        print(\"REQUIRES_KNOWN_SUBSCRIPTION_ID=YES\",flush=True)\n    else:\n        ident,mapped_dns,digest=snapshot\n        assert digest==\"325a5df019165e41992baaa59133987d\"\n        print(\"KNOWN_TEST_SUBSCRIPTION_ID=\"+str(ident),flush=True)\n        phase=\"authoritative_known_id\"\n        with MegaOTTClient(base_url=settings.mega_ott_api_base,token=settings.require_mega_token()) as mega:\n            line=mega.get_subscription(ident)\n        assert hashlib.md5(line.username.encode()).hexdigest()==digest\n        print(\"AUTHORITATIVE_USERNAME_MATCH=YES\",flush=True)\n        from urllib.parse import urlsplit\n        u=urlsplit(line.dns_link)\n        expected=(u.scheme==\"http\" and u.hostname==\"gccthmgw.zvpnm.com\" and (u.port or 80)==80 and u.path in (\"\",\"/\") and not u.query and not u.fragment)\n        print(\"AUTHORITATIVE_SUBDOMAIN_MATCH=\"+(\"YES\" if expected else \"NO\"),flush=True)\n        print(\"LOCAL_MAPPING_ORIGIN_MATCH=\"+(\"YES\" if mapped_dns==line.dns_link else \"NO\"),flush=True)\n        expired=line.expiring_at is not None and line.expiring_at<=datetime.now(UTC)\n        print(\"AUTHORITATIVE_TEST_EXPIRED=\"+(\"YES\" if expired else \"NO\"),flush=True)\n        password=line.password.get_secret_value() if line.password else None\n        print(\"TRANSIENT_PASSWORD_AVAILABLE=\"+(\"YES\" if password else \"NO\"),flush=True)\n        if expected and mapped_dns==line.dns_link and not expired and password:\n            phase=\"backend_login\"\n            with httpx.Client(timeout=15,trust_env=False,follow_redirects=False) as client:\n                response=client.post(\"https://pink-iptv.duckdns.org/v1/session/resolve\",json={\"username\":line.username,\"password\":password})\n            print(\"BACKEND_HTTP=\"+str(response.status_code),flush=True)\n            if response.status_code==200:\n                obj=response.json();code=obj.get(\"code\")\n                assert code in (\"SUCCESS\",\"EXPIRED\",\"DISABLED\",\"INVALID_CREDENTIALS\",\"DNS_UNREACHABLE\",\"UPSTREAM_ERROR\")\n                print(\"BACKEND_CODE=\"+code,flush=True)\n                if code==\"SUCCESS\":\n                    print(\"RETURNED_ORIGIN_MATCH=\"+(\"YES\" if obj.get(\"xtream_base_url\")==line.dns_link else \"NO\"),flush=True)\n    print(\"READ_ONLY_DISCOVERY=PASS\",flush=True)\nexcept Exception as exc:\n    print(\"DISCOVERY_FAILURE_PHASE=\"+phase,flush=True)\n    print(\"DISCOVERY_FAILURE_TYPE=\"+type(exc).__name__,flush=True)\n    raise SystemExit(1)\n"
+          r=subprocess.run([python_path,"-c",child],cwd="/srv/pink-iptv/backend",env={**os.environ,**runtime},capture_output=True,text=True,timeout=70)
+          # Return only closed diagnostic keys; stderr and exception messages are discarded.
+          allowed_prefixes=("TEST_LINE_MAPPING_FOUND=","REQUIRES_KNOWN_SUBSCRIPTION_ID=","KNOWN_TEST_SUBSCRIPTION_ID=","AUTHORITATIVE_USERNAME_MATCH=","AUTHORITATIVE_SUBDOMAIN_MATCH=","LOCAL_MAPPING_ORIGIN_MATCH=","AUTHORITATIVE_TEST_EXPIRED=","TRANSIENT_PASSWORD_AVAILABLE=","BACKEND_HTTP=","BACKEND_CODE=","RETURNED_ORIGIN_MATCH=","READ_ONLY_DISCOVERY=","DISCOVERY_FAILURE_PHASE=","DISCOVERY_FAILURE_TYPE=")
+          for line in r.stdout.splitlines():
+              if line.startswith(allowed_prefixes):print(line,flush=True)
+          sys.exit(r.returncode)
+          PY
