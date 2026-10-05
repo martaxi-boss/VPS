@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-EXTREME-REAL-FLOW-056",
+  "repository": "martaxi-boss/VPS",
+  "recorded_at": "2026-10-05T16:33:55.206Z",
+  "previous_event_sha256": null,
+  "sequence": 1,
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 1,
+  "action_fingerprint": "056-prepared-offline-numeric-ip-capture",
+  "attempt_count": 2,
+  "identical_failure_count": 2,
+  "no_progress_iterations": 1,
+  "detail": "Prepared builds8ec2e7d andbf815d3 both used exact PINKc5b36c9d; runs37336925191 and37337046651 failed the same strict startup numeric IPv4 socket-blocking assertion after all APK compilation/JVM and actual Keystore tests passed. No private fixture retrieval, SSH proof or runtime mutation executed; privileged proof remained skipped. Existing gateway054 stays accepted. Preserve both runs; do not rerun the unchanged source."
+}
