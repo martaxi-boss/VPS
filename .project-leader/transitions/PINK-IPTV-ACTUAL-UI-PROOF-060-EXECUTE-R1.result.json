@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R1",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R1.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:b9e87cf06c9ae7b1cc76f98156016e8cfa3815e2;artifact-run:37428487439",
+    "revision": "a88c49543339ce85a78e0223831147a4c6c46ba0",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-06T07:51:57.125Z",
+  "final_state": {
+    "status": "ANDROID13_PRE_UI_CONTROL_DNS_FAILED_AND_OWN_PEER_CLEANED",
+    "revision": "3e8496e8ec1b8bbcc67d5efa23426f072de77d18"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37431211411",
+    "PROTECTED_FLOW_FAILURE_PHASE=protected-login-enrollment; PROTECTED_ACTIVATION_DIAGNOSTIC=stage=session_resolve;failure=UnknownHostException;admitted=false;saved=false.",
+    "ONLY_DISPOSABLE_EMULATOR_INSTALLATION_REMOVED=PASS; EXACT_ACCEPTED_GATEWAY_AND_BACKEND_SOURCE, PROTECTED_PERSISTENT_TASK052_IDENTITY, OWNED_ROUTING_NAT_AND_PROTECTED_SERVICES and REAL_HTTPS_ENROLLMENT_REQUIRES_AUTHORITY passed before/after."
+  ],
+  "residual_blockers": [
+    "Actual UI checkpoints not reached. Diagnose/remediate emulator physical DNS before repeating real proof; this does not explain physical post-login UI failure."
+  ]
+}
