@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R13",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "NOT_EXECUTED",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R13.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:97394947b71bf8744c29050d428a49eccc120797;artifact-run:37499360468",
+    "revision": "f66fd203535c60c70d59bacf8a85c3fdaf1ea84e",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-06T17:00:43.762Z",
+  "final_state": {
+    "status": "SCHEMA_REJECTED_1001_CHARACTER_AUTHORITY_SUMMARY_NO_HOST_EFFECT",
+    "revision": "b1f0336eea9da992edf4b5179f470a11d758bbae"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37499890244",
+    "control_audit failed: authority.summary1001 exceeds canonical1000 maximum. Preparation and privileged proof SKIPPED; no emulator/host effect. Source97394947 exact Android/Backend CI remains green."
+  ],
+  "residual_blockers": [
+    "Use canonical-schema-validated bounded draft generator and require successful validation exit before Git publication; fresh preparation and distinct auth-only authorization. Actual UI/native proof remains pending."
+  ]
+}
