@@ -16,6 +16,7 @@ jobs:
     timeout-minutes: 15
     env:
       GH_TOKEN: ${{ github.token }}
+      PINK056_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
       PINK056_AUDIT_MODE: ${{ github.event.head_commit.message == 'Record verified real056 recovery' && 'post' || 'pre' }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
