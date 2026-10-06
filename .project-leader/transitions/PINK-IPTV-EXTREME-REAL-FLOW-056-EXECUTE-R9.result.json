@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-EXTREME-REAL-FLOW-056-EXECUTE-R9",
+  "task_id": "PINK-IPTV-EXTREME-REAL-FLOW-056",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-EXTREME-REAL-FLOW-056-EXECUTE-R9.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "staging_android_emulator",
+    "identifier": "OVH:vps-32bea5b6;PINK:9e1fc82c9c964a079d876671990a41a73689955e;artifact-run:37393882520",
+    "revision": "97cdb724d7892a71460ee1cda046e99012bd60b7",
+    "base_revision": "100492c47116b7ffe690d8544c2ce62c4ce5f9a8",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-06T00:44:24.490Z",
+  "final_state": {
+    "status": "Real056 certified: normal system consent; authoritative username/password login/catalog via WireGuard; native decoded live AV with preserved Tauri root/activity recreation; distinct same-key no-credential cold restore; same-process Wi-Fi/cellular roam and reconnect health; disposable peer cleanup and protected host audits PASS.",
+    "revision": "8835c74a66aa21b1956e632c76f1acd389de6928"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37395113639/job/112049200278",
+    "https://github.com/martaxi-boss/VPS/actions/runs/37395113639/job/112049122806",
+    "NORMAL_SYSTEM_CONSENT;AUTHORITATIVE_USERNAME_PASSWORD_LOGIN_AND_CATALOG_VIA_WIREGUARD;NATIVE_LIVE_AUDIO_VIDEO_DECODE_AND_SAME_INSTALLATION_RECREATION;COLD_PROCESS_SAME_KEY_NO_CREDENTIALS_AUTHORIZED_TUNNEL;SAME_PROCESS_WIFI_TO_CELLULAR_WIREGUARD_ROAM;WIFI_RECONNECT_CAPTURE_AND_DEFAULT_TUNNEL_HEALTH;REAL_ANDROID_PROOF_AND_BOUNDED_PEER_CLEANUP:PASS"
+  ],
+  "residual_blockers": []
+}
