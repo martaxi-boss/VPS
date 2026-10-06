@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-EXTREME-REAL-FLOW-056-EXECUTE",
+  "task_id": "PINK-IPTV-EXTREME-REAL-FLOW-056",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-EXTREME-REAL-FLOW-056-EXECUTE.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "staging_android_emulator",
+    "identifier": "OVH:vps-32bea5b6;PINK:62b55e400acfb26590b038c328d0df15e06a6e88;artifact-run:37373837929",
+    "revision": "89e8c889f562aaf40260ca623f2254fc2f1b7392",
+    "base_revision": "100492c47116b7ffe690d8544c2ce62c4ce5f9a8",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-05T21:34:38.189440+00:00",
+  "final_state": {
+    "status": "CATALOG_PASSED_NATIVE_PLAYBACK_PROCESS_CRASH_DISPOSABLE_PEER_REMOVED",
+    "revision": "9d0008ea4545318d2f53332bff0736c24a88c9a3"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37375865074",
+    "Exact authority/artifact hashes passed; accepted gateway/backend source and protected routing/services passed before execution.",
+    "Normal Android system consent passed; authoritative username/password login and catalog via WireGuard passed.",
+    "Native playback process crashed before decode certification; no raw private logcat was published.",
+    "EXIT cleanup positively reported ONLY_DISPOSABLE_EMULATOR_INSTALLATION_REMOVED=PASS; fixture and own emulator data cleared."
+  ],
+  "residual_blockers": [
+    "Native playback crash requires privacy-safe source/exception diagnostics; decoded playback and cold-process/roaming checks not certified."
+  ]
+}

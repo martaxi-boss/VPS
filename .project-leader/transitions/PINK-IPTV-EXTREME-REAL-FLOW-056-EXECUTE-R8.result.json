@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-EXTREME-REAL-FLOW-056-EXECUTE-R8",
+  "task_id": "PINK-IPTV-EXTREME-REAL-FLOW-056",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-EXTREME-REAL-FLOW-056-EXECUTE-R8.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "staging_android_emulator",
+    "identifier": "OVH:vps-32bea5b6;PINK:551316ef494d9f6510c45d3f021bd82ad037aad2;artifact-run:37390839583",
+    "revision": "b293cdda099ac83220720c208be3745ef5ce000c",
+    "base_revision": "100492c47116b7ffe690d8544c2ce62c4ce5f9a8",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-06T00:20:01.048Z",
+  "final_state": {
+    "status": "R8 failed: instrumentation native cleanup masked primary phase; enrolled branch entered, SIGNALED9, no allowed native crash. External disposable-peer cleanup and protected host post-audit passed.",
+    "revision": "182a25fe75dbd003d5229ac7ef86bedd24bca491"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37392109317/job/112039363099",
+    "Temporary peer cleanup requires recovery at PinkVpnLiveTest.kt203; own-peer cleanup and host invariant PASS."
+  ],
+  "residual_blockers": [
+    "Real056 uncertified. Material test cleanup ownership correction and fixed all-phase PID-bound evidence require fresh compiled source proof."
+  ]
+}

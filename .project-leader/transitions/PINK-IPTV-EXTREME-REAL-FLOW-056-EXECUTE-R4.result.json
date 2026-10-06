@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-EXTREME-REAL-FLOW-056-EXECUTE-R4",
+  "task_id": "PINK-IPTV-EXTREME-REAL-FLOW-056",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-EXTREME-REAL-FLOW-056-EXECUTE-R4.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "staging_android_emulator",
+    "identifier": "OVH:vps-32bea5b6;PINK:6d766914a8634f641b5eabc6c18a0dbf13a37d99;artifact-run:37381174693",
+    "revision": "af91c7d9f61cf91a94a71aa3be231f103a91816c",
+    "base_revision": "100492c47116b7ffe690d8544c2ce62c4ce5f9a8",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-05T22:35:37.129485+00:00",
+  "final_state": {
+    "status": "EARLIER_SIGNALED_EXIT_BEFORE_CATALOG_DISPOSABLE_PEER_REMOVED_POST_AUDIT_PASSED",
+    "revision": "446dc4e5af59afb1d70310e878557df690e15222"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37382599777",
+    "Exact source/artifact and normal consent passed; process terminated before catalog confirmation. No allowed same-PID crash-buffer record.",
+    "Unscoped historical exit records include SIGNALED; signal number and correct process attribution remain unresolved.",
+    "Own disposable peer removal and post-cleanup accepted gateway/backend/routing/protected services passed."
+  ],
+  "residual_blockers": [
+    "Earlier signaled process death requires exact-PID status/system-kill diagnosis. Corrected player transition, decoded playback, restore and roaming remain uncertified."
+  ]
+}

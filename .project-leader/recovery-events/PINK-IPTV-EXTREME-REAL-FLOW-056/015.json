@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-EXTREME-REAL-FLOW-056",
+  "repository": "martaxi-boss/VPS",
+  "recorded_at": "2026-10-05T22:53:42.075Z",
+  "previous_event_sha256": "d4a56dad66f0d7ec5b756a9379f3e511567e6432e2b43abca823a21279233aaa",
+  "sequence": 15,
+  "event": "REPLAN",
+  "strategy_generation": 8,
+  "action_fingerprint": "056-cold-restore-current-process-pid-attribution",
+  "attempt_count": 1,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "detail": "LIVENESS_RECONCILE_REQUIRED from live PR21/head50a43412 and terminal proof37383745616. R5 positively certified normal consent, real username/password login/catalog via WireGuard, native decoded audio/video, preserved Tauri root and same-installation recreation. Cold restore crashed. Previous diagnostic incorrectly selected earlier live-test PID; USER_REQUESTED/STOP belongs to intentional force-stop and destroyed-mutex attribution is not sufficient to diagnose restore. Material diagnostic captures a distinct current restore PID concurrently, uses explicit threadtime and never falls back to stale PID. Nineteen strict privacy/attribution tests pass. Preserve unchanged certified APK and existing fixture/cleanup/protected host contracts. New exact staging execution authorization remains required; no equivalent blind rerun or product/environment guess."
+}

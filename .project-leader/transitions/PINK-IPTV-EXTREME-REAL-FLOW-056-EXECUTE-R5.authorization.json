@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-EXTREME-REAL-FLOW-056-EXECUTE-R5",
+  "task_id": "PINK-IPTV-EXTREME-REAL-FLOW-056",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-05T22:38:16.854867+00:00",
+  "action": "staging_operational_proof",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "summary": "Standing grant covers bounded process-exit diagnosis after terminal R4 normal-consent then earlier SIGNALED death and verified own-peer cleanup/post-host audit. Supervisor verifies diagnostic preparation37383584338 exact2e1265b SUCCESS, 18 privacy/attribution tests, APK0cca06dc byte/source lineage to full-native37381174693/af91c7d, and PINK6d766914 Android37381060672/Backend37381060663 SUCCESS. Corrected player harness remains intact. Material diagnosis now reads all buffers only through strict structure allowlist, exact-PID Android exit reason/status and fixed ActivityManager/LMKD kill categories. Execute once with exact scripts/artifact guard, transient private fixture, own-peer cleanup and protected host audit on every exit. Playback/root-transition/restore remain uncertified until positive proof. No environment guess, persistent host/network/service/mapping mutation or public launch.",
+    "binding_mode": "EXACT_REVISION_BOUND"
+  },
+  "target": {
+    "kind": "staging_android_emulator",
+    "identifier": "OVH:vps-32bea5b6;PINK:6d766914a8634f641b5eabc6c18a0dbf13a37d99;artifact-run:37383584338",
+    "revision": "2e1265b6d7276c531d76e6f49b3467d1d4d082ee",
+    "base_revision": "100492c47116b7ffe690d8544c2ce62c4ce5f9a8",
+    "environment": "staging-disposable-emulator"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-EXTREME-REAL-FLOW-056-EXECUTE",
+  "task_id": "PINK-IPTV-EXTREME-REAL-FLOW-056",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-05T21:26:19.837Z",
+  "action": "staging_operational_proof",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "summary": "Owner authorizes automatic staging real Android login/catalog/playback certification using existing operational access and the previously authorized account. Supervisor verifies PINK62b55e4 Android37373758477 and Backend37373758375 success, VPS89e8c88 preparation37373837929 success, normal consent, strict app-only IPv4/IPv6 capture, protected identity, lint0 and privacy. Retrieve only the protected known-account fixture transiently; enroll the disposable emulator, verify gateway observers before/after, decoded audio/video, same-key cold-process restoration and reconnect. EXIT cleanup revokes/deletes only its recorded public identity and destroys fixture. No persistent gateway/network/service/mapping/credential change, private-key retrieval or public release. Exact bounded standing authority applies.",
+    "binding_mode": "EXACT_REVISION_BOUND"
+  },
+  "target": {
+    "kind": "staging_android_emulator",
+    "identifier": "OVH:vps-32bea5b6;PINK:62b55e400acfb26590b038c328d0df15e06a6e88;artifact-run:37373837929",
+    "revision": "89e8c889f562aaf40260ca623f2254fc2f1b7392",
+    "base_revision": "100492c47116b7ffe690d8544c2ce62c4ce5f9a8",
+    "environment": "staging-disposable-emulator"
+  }
+}

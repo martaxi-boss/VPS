@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-EXTREME-REAL-FLOW-056-EXECUTE-R3",
+  "task_id": "PINK-IPTV-EXTREME-REAL-FLOW-056",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-EXTREME-REAL-FLOW-056-EXECUTE-R3.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "staging_android_emulator",
+    "identifier": "OVH:vps-32bea5b6;PINK:62b55e400acfb26590b038c328d0df15e06a6e88;artifact-run:37380319996",
+    "revision": "64d472c099d42a972e207baa1e5f4a0b2a58d0ec",
+    "base_revision": "100492c47116b7ffe690d8544c2ce62c4ce5f9a8",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-05T22:14:23.955914+00:00",
+  "final_state": {
+    "status": "SAME_PID_NATIVE_DESTROYED_MUTEX_NO_NATIVE_FRAMES_DISPOSABLE_PEER_REMOVED_POST_AUDIT_PASSED",
+    "revision": "08a2ef4b3f06e59f1de2a49bf447bfd2381f67a4"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37380458572",
+    "Exact authorization/prepared APK, normal consent and authoritative username/password login/catalog via WireGuard passed.",
+    "PID-scoped delayed crash filter reports NATIVE_DESTROYED_MUTEX; no native frames. Fixed exit enums do not establish a specific abort library.",
+    "Exact disposable peer cleanup and post-cleanup accepted gateway/backend source/routing/protected services passed."
+  ],
+  "residual_blockers": [
+    "Incorrect nested ActivityScenario destroys Tauri root; corrected harness requires new compilation and real proof. Playback/restore/roaming not yet certified."
+  ]
+}

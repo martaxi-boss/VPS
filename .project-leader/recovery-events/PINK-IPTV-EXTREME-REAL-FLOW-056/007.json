@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-EXTREME-REAL-FLOW-056",
+  "repository": "martaxi-boss/VPS",
+  "recorded_at": "2026-10-05T21:34:38.189440+00:00",
+  "previous_event_sha256": "c76f4e982013baa28d8680599a0bf9e5de9f0755985441f32dbb89c63e11c1a1",
+  "sequence": 7,
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 3,
+  "action_fingerprint": "056-pinned-ubuntu22-hosted-allocation",
+  "attempt_count": 1,
+  "identical_failure_count": 1,
+  "no_progress_iterations": 1,
+  "detail": "Exact operational run37375865074 on9d0008e passed normal consent, real authoritative login and catalog through WireGuard, then Android reported Process crashed at native playback. Own public-identity peer cleanup positively passed. No decoder/cold-process certification or raw private crash logs. Preserve original exact execution authorization/result."
+}

@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-EXTREME-REAL-FLOW-056-EXECUTE-R5",
+  "task_id": "PINK-IPTV-EXTREME-REAL-FLOW-056",
+  "repository": "martaxi-boss/VPS",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "staging_android_emulator",
+    "identifier": "OVH:vps-32bea5b6;PINK:6d766914a8634f641b5eabc6c18a0dbf13a37d99;artifact-run:37383584338",
+    "revision": "2e1265b6d7276c531d76e6f49b3467d1d4d082ee",
+    "base_revision": "100492c47116b7ffe690d8544c2ce62c4ce5f9a8",
+    "environment": "staging-disposable-emulator"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37383745616",
+    "Real login/catalog, native audio/video and root/recreation PASS; disposable peer cleanup and protected host audit PASS."
+  ],
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-EXTREME-REAL-FLOW-056-EXECUTE-R5.authorization.json",
+  "observed_at": "2026-10-05T22:54:02.386Z",
+  "final_state": {
+    "status": "REAL_PLAYBACK_PASS_COLD_RESTORE_CRASH_UNATTRIBUTED",
+    "revision": "50a434121e8abe518f77aedccb8049b91a88ccee"
+  },
+  "residual_blockers": [
+    "Cold process restore crashed; stale previous PID diagnostic does not certify cause."
+  ]
+}

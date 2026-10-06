@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-EXTREME-REAL-FLOW-056",
+  "repository": "martaxi-boss/VPS",
+  "recorded_at": "2026-10-05T22:06:03.763319+00:00",
+  "previous_event_sha256": "2abf8fedff15a3cdde4917c2574050ff634372c28306b4a68f81f7f4faa24354",
+  "sequence": 9,
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 4,
+  "action_fingerprint": "056-sanitized-native-player-crash",
+  "attempt_count": 1,
+  "identical_failure_count": 1,
+  "no_progress_iterations": 1,
+  "detail": "LIVENESS_RECONCILE_REQUIRED: live run37378421151 exact94f2ab0 is terminal FAILURE; no active runs. Consent and authoritative login/catalog via WireGuard passed. Native playback abort reports NATIVE_DESTROYED_MUTEX without component frames. Exact own-peer cleanup and accepted gateway/backend/protected services after cleanup passed. Do not replay unchanged proof or certify playback/restore."
+}

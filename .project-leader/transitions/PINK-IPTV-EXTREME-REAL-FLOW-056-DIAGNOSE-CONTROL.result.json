@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-EXTREME-REAL-FLOW-056-DIAGNOSE-CONTROL",
+  "task_id": "PINK-IPTV-EXTREME-REAL-FLOW-056",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "NOT_EXECUTED",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-EXTREME-REAL-FLOW-056-DIAGNOSE-CONTROL.authorization.json",
+  "action": "read_only_control_diagnostic",
+  "target": {
+    "kind": "accepted_runtime_host",
+    "identifier": "OVH:vps-32bea5b6;known-subscription:9040240;diagnostic-preparation:37388667148",
+    "revision": "133c62c0811078aeb8ae6ffb74581aab7a592c59",
+    "base_revision": "100492c47116b7ffe690d8544c2ce62c4ce5f9a8",
+    "environment": "accepted-staging-vps"
+  },
+  "observed_at": "2026-10-05T23:35:10.316Z",
+  "final_state": {
+    "status": "Diagnostic did not start: authorization path excluded by workflow push filter; no host effect.",
+    "revision": "dfa46e871f40d3d000ecbbc2198bd6822faff895"
+  },
+  "evidence": [
+    "Live actions/runs head dfa46e871f40d3d000ecbbc2198bd6822faff895 contains only VPS SSH check37388836016 SUCCESS.",
+    "Workflow push paths matched EXECUTE authorization only; DIAGNOSE authorization excluded."
+  ],
+  "residual_blockers": [
+    "Read-only protected control diagnostic requires corrected dispatch path and new exact authorization."
+  ]
+}

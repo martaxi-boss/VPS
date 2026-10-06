@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-EXTREME-REAL-FLOW-056",
+  "repository": "martaxi-boss/VPS",
+  "recorded_at": "2026-10-05T20:05:59.337480+00:00",
+  "previous_event_sha256": "a1852380dda8d3ac1e93284670ce41761b2bd4e3283a6b41faaefc7e50c75c5d",
+  "sequence": 4,
+  "event": "RETRY_AUTHORIZED",
+  "strategy_generation": 2,
+  "action_fingerprint": "056-e3b-hosted-runner-allocation",
+  "attempt_count": 2,
+  "identical_failure_count": 1,
+  "no_progress_iterations": 0,
+  "detail": "Authorize one same-source failed-jobs rerun of37363305266 at e3bde074 under valid existing056 scope and derived completion authority; append-only durability required for true run_attempt2. No active/successful exact056 prepare exists. Preserve all tests and separate exact operational authorization before private proof. If allocation fails again, change bounded runner strategy instead of repeated unchanged retries."
+}
