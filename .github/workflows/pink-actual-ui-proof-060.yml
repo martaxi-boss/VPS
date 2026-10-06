@@ -98,7 +98,7 @@ jobs:
           python - <<'PYCODE'
           import json
           from pathlib import Path
-          assert json.loads(Path('provenance.json').read_text())['implementation_sha']=='ea468ff303af4166c58adcd01731b716adf48c02'
+          assert json.loads(Path('provenance.json').read_text())['implementation_sha']=='8825d975a7d08a0bcef4f1147bdf01e9452cb60c'
           PYCODE
           test -e /dev/kvm
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
