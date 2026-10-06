@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R16",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R16.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:77793b084704876b3b616b8286107c3d3639a28d;artifact-run:37522334730",
+    "revision": "8ee221a3ab75406d60f2fc87720584d83eb7bd97",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-06T20:00:43.588086Z",
+  "final_state": {
+    "status": "ACTUAL_WEBVIEW_LOGIN_LIVE_ROWS_NATIVE_DECODE_COLD_ROAMING_AND_OWN_PEER_CLEANUP_PASS",
+    "revision": "1212cabc24999637909342e6973f3f7d814221c6"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37522553721",
+    "Exact source77793/run37519751982/artifact11441126225/digestb3a3bf738449a43b65a93da110537d6f35dd670ecda6bf930b4a4c634044ff2f; relayed artifact11440907909/run37522334730/digest0fc2fb42211da8def608ea70a4f0156249879743edf2e373e10757de6b6afec0 independently verified.",
+    "Normal consent, protected username/password/catalog, actual WebView login and Live rows/category roundtrip, authoritative fixed control reauthentication, admitted tunnel preservation, decoded native video/audio with root preservation, same installation recreation, credential-free cold process, WiFi/cellular/reconnect and mandatory disposable peer cleanup PASS. Protected before/after audits PASS. No physical-device PASS inferred."
+  ],
+  "residual_blockers": [
+    "Real row-click playback is now explicitly added in sourcef1f827ef5468831b6e697fe281be66021d615bd1; prior native decoded AV used an instrumentation-started production activity, so do not infer that separate UI click gate yet. R16 succeeded without reproducing prior channels stall; diagnostic timing is not proof of its causal fix. Physical device proof remains unperformed."
+  ]
+}

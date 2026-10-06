@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 31,
+  "recorded_at": "2026-10-06T20:20:40.832487+00:00",
+  "event": "RETRY_AUTHORIZED",
+  "strategy_generation": 17,
+  "action_fingerprint": "060;632a805;actual-row-click-presented-video-audio;artifact11442635716",
+  "attempt_count": 1,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "4af9356edeb1a39ec17da43c9a648b47af7a091bcc3fb3536a6809c8f9fd126f",
+  "detail": "Covered bounded staging completion with material actual row-click player validation, no fixture media URL or forced player preference, presented video plus decoded audio and privacy-safe media failure flags. Exact source632a805 Android37523839126 and Backend37523839151 SUCCESS; original artifact11442635716 digest8c7ff54eda7250c18d8bbba74f391358862a6640200b4517111463448863cf17. R16 actual WebView rows/native decoded AV/cold/roaming/own-peer cleanup PASS retained in matching transition result. This is not an equivalent failed-source retry or GitHub rerun. One future proof only after exact prepared provenance/checksums and separately bound transition authorization. Preserve strict WireGuard data plane, fixed physical HTTPS control, protected host/identity and mandatory disposable installation cleanup. Compact causal checkpoint bundled with technical artifact pin update; historical journal untouched."
+}
