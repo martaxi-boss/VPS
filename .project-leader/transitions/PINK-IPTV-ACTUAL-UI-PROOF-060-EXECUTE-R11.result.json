@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R11",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R11.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:ea468ff303af4166c58adcd01731b716adf48c02;artifact-run:37492484959",
+    "revision": "ecfdf603fea9b4ab9675750f812739e38d1cd768",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-06T16:18:05.213500+00:00",
+  "final_state": {
+    "status": "ACTUAL_UI_LOGIN_PASS_LIVE_ROWS_CALLBACK_UNVERIFIED_OWN_PEER_CLEANED",
+    "revision": "cca3d590e173ea7f6c30f57c1a155b05e6a9348f"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37492834153",
+    "Actual UI username/password login PASS; account cache VALID/encrypted true; live_rows failure with JS callback missing. Native protected runtime ready/bound/admitted/saved. Before/after source/Task052 identity/routing/services/HTTPS protected audits PASS; disposable installation removed. Native AV/cold/roaming not reached."
+  ],
+  "residual_blockers": [
+    "Live rows and callback loss cause unverified. Successor source061 adds bounded fixed live-stage/native route/progress observations; require new exact source CI and independent operational authorization before next attempt."
+  ]
+}

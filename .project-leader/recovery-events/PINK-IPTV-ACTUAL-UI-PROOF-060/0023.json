@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 23,
+  "recorded_at": "2026-10-06T16:18:05.213837+00:00",
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 13,
+  "action_fingerprint": "060;ea468ff3;authenticated-metadata-relays-exact-source-run-and-artifact-IDs",
+  "attempt_count": 1,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 1,
+  "previous_event_sha256": "be92cfd5349af46e4e6dd90f7bda98581e1c2355289b21cfe01d89917674f834",
+  "detail": "R11 run37492834153 actual UI login PASS; next live_rows checkpoint JS callback missing while native runtime ready and protected account valid/encrypted. Protected before/after audits and own-peer cleanup PASS. Mark operational FAILURE, no equivalently repeated dispatch. Source061 bounded diagnostic strategy will distinguish disposal/load stage before new exact authorization; AV/cold/roaming not reached."
+}
