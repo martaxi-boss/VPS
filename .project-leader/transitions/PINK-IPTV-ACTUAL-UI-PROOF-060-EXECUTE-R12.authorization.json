@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R12",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-06T16:32:33.671Z",
+  "action": "staging_operational_proof",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "binding_mode": "EXACT_REVISION_BOUND",
+    "summary": "Covered task060 staging Recovery under owner-standing-autonomy-v1. Actual UI login advanced to PASS in R11; live_rows callback cause remains unverified. Source8825d975 adds bounded fixed live-stage/native route/progress diagnostics, preserves strict UI/native AV/recovery checks and does not extend timeout. Exact Android37494649038 and Backend37494649065 SUCCESS,67 tests and native vault/origin/consent/startup checks PASS. Preparation37496217541 on82b994418 SUCCESS; original source artifact11427916191 provenance/checksums/native payload and relay11426914886 verified. Authorize one Android13 actual UI catalog/native AV/cold/roaming diagnostic proof using protected fixture9040240 and disposable own peer only. Mandatory external own-peer cleanup and protected before/after audits. No equivalent R11 retry, persistent host changes, credential output, route/architecture bypass or physical-device claim."
+  },
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:8825d975a7d08a0bcef4f1147bdf01e9452cb60c;artifact-run:37496217541",
+    "revision": "82b9944182cb6fcb0223e9d02a1091fad33cfb9f",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  }
+}
