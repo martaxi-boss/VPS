@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 30,
+  "recorded_at": "2026-10-06T17:24:12.326Z",
+  "event": "REPLAN",
+  "strategy_generation": 17,
+  "action_fingerprint": "060;7815d97e;native100-complete-DOM-null-pending-destination-barrier",
+  "attempt_count": 0,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "fba8bfab23cadf933a0ae757c3cf182e12f3a86b371c97cfd1bd32f5fef271bb",
+  "detail": "R14 confirms corrected protected control DNS/native login/catalog, and fixed native progress60 identifies premature UI destination observation. Material completion advances permit no-progress reset. Source7815d97e gates native WebView progress100, requires DOM complete and treats replaced-document null as pending under original deadline. Actual old observation accepts loading; new rejects loading/interactive. Exact Android37501492757 and Backend37501492767 SUCCESS;68 frontend and native4 selection regressions plus actual vault/origin/consent/startup checks PASS. Pin original artifact11430756735 digest5eb98763; fresh preparation and separately schema-validated bounded auth-only draft required. Preserve actual UI/native AV/recovery gates, protected audits and disposable own-peer cleanup."
+}
