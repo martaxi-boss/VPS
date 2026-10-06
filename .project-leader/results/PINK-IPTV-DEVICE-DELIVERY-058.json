@@ -1,0 +1,67 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-DEVICE-DELIVERY-058",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "TERMINAL_SUCCESS",
+  "effect_class": "E1_RECOVERABLE_PROJECT_LOCAL",
+  "recorded_at": "2026-10-06T04:19:52.637Z",
+  "authorization_record": ".project-leader/tasks/PINK-IPTV-DEVICE-DELIVERY-058.json",
+  "authorization_commit_sha": "37ba40317e7d98f5be41c04d634eb37a19352872",
+  "authorization_sha256": "39d074efe06916c1d883a68b4f7bbf57dc498067aefb23367264bfa6aeae335d",
+  "implementation_head_sha": "7a1b575b1c9262df584eb0e6aa6f2fb1d8aa7e3e",
+  "branch": "builder/pink-device-delivery-058",
+  "pr_number": 22,
+  "changes": [
+    "Copy certified PINK9e APK unchanged from artifact11382109825; verify original archive digest and all successful source/native/live proof evidence.",
+    "Bound transfers to24MiB; verify every part and full roundtrip. Strip GitHub authentication from signed-storage redirects.",
+    "Reconstruct exact77289966-byte APK and independently verify SHA256814811ff628f5971ac3db4adb88bb05479990bb2abc7b2a2a9e00f76e5e16b12; save concrete physical handoff."
+  ],
+  "validation": [
+    {
+      "name": "Project architecture scope audit",
+      "status": "PASS",
+      "evidence": "Delivery CI https://github.com/martaxi-boss/VPS/actions/runs/37412984669/job/112105335421: canonical immutable authority/scoped diff/policy, exact successful provenance and upstream digest, copy/roundtrip and no host/fixture PASS. External Supervisor re-read exact run/SHA contexts and original/current immutable task."
+    },
+    {
+      "name": "Mutation scope audit",
+      "status": "PASS",
+      "evidence": "Delivery CI https://github.com/martaxi-boss/VPS/actions/runs/37412984669/job/112105335421: canonical immutable authority/scoped diff/policy, exact successful provenance and upstream digest, copy/roundtrip and no host/fixture PASS. External Supervisor re-read exact run/SHA contexts and original/current immutable task."
+    },
+    {
+      "name": "GitHub evidence verification",
+      "status": "PASS",
+      "evidence": "Delivery CI https://github.com/martaxi-boss/VPS/actions/runs/37412984669/job/112105335421: canonical immutable authority/scoped diff/policy, exact successful provenance and upstream digest, copy/roundtrip and no host/fixture PASS. External Supervisor re-read exact run/SHA contexts and original/current immutable task."
+    },
+    {
+      "name": "Exact successful source APK provenance and upstream artifact digest",
+      "status": "PASS",
+      "evidence": "Delivery CI https://github.com/martaxi-boss/VPS/actions/runs/37412984669/job/112105335421: canonical immutable authority/scoped diff/policy, exact successful provenance and upstream digest, copy/roundtrip and no host/fixture PASS. External Supervisor re-read exact run/SHA contexts and original/current immutable task."
+    },
+    {
+      "name": "Every transfer and reconstructed APK integrity",
+      "status": "PASS",
+      "evidence": "Independent local reconstruction: all four part hashes/lengths and full77289966-byte APK digest match manifest and original SHA256SUMS; concrete handoff saved."
+    },
+    {
+      "name": "No host access or secret fixture",
+      "status": "PASS",
+      "evidence": "Delivery CI https://github.com/martaxi-boss/VPS/actions/runs/37412984669/job/112105335421: canonical immutable authority/scoped diff/policy, exact successful provenance and upstream digest, copy/roundtrip and no host/fixture PASS. External Supervisor re-read exact run/SHA contexts and original/current immutable task."
+    }
+  ],
+  "ci": [
+    {
+      "name": "PINK device delivery 058",
+      "status": "SUCCESS",
+      "run_id": 37412984669
+    }
+  ],
+  "artifacts": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37412984669",
+    "APK SHA256814811ff628f5971ac3db4adb88bb05479990bb2abc7b2a2a9e00f76e5e16b12;77289966 bytes; exact source9e1fc82c and real05637395113639"
+  ],
+  "material_non_effects": [
+    "No APK recompilation, new live proof, host/network/account mutation, credentials or private key fixture.",
+    "No public release or physical-device certification. Existing055/056 integration and immutable evidence preserved."
+  ],
+  "residual_blockers": []
+}
