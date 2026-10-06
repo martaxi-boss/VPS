@@ -1,21 +1,20 @@
-"""Reuse exact current APK/instrumentation after authorization-metadata Recovery."""
+"""Reuse only the exact source-CI artifact; no host effects or private inputs."""
+import hashlib
 import json
 import os
 from pathlib import Path
-import socket
 import sys
 import urllib.request
 import zipfile
 
-SOURCE = "6e0537634a40619f331268c4c7f7bdefd15231ce"
-PREP = "2e26eb0ceca31026be7d8001638066046a84f3a3"
-RUN = 37441906746
-ARTIFACT = 11401693691
-DIGEST = "sha256:660c8b887eb6704b825b80634e67b9fb4f3c02a5e92ba11494f291238989225f"
+SOURCE = "2332c037a1970b22686d7486090b04aa04bf663b"
+RUN = 37481509471
+ARTIFACT = 11421867262
+DIGEST = "sha256:0db3033fca8cd81583fc66e8dae30b0f00e34bb3bb3ede08dd198fafbbd97ae8"
 
 
-def api(repo, path):
-    request = urllib.request.Request("https://api.github.com/repos/" + repo + "/" + path,
+def api(path):
+    request = urllib.request.Request("https://api.github.com/repos/martaxi-boss/pink-iptv/" + path,
         headers={"Authorization": "Bearer " + os.environ["GH_TOKEN"],
                  "Accept": "application/vnd.github+json"})
     with urllib.request.urlopen(request, timeout=30) as response:
@@ -24,24 +23,32 @@ def api(repo, path):
 
 def main():
     if sys.argv[1] == "metadata":
-        run = api("martaxi-boss/VPS", "actions/runs/" + str(RUN))
-        assert run["head_sha"] == PREP and run["conclusion"] == "success"
-        assert run["name"] == "PINK actual UI proof 060"
-        artifact = api("martaxi-boss/VPS", "actions/artifacts/" + str(ARTIFACT))
-        assert artifact["name"] == "PINK-IPTV-Extreme-060" and not artifact["expired"]
-        assert artifact["digest"] == DIGEST and artifact["workflow_run"]["id"] == RUN
-        assert artifact["workflow_run"]["head_sha"] == PREP
-        assert api("martaxi-boss/pink-iptv", "git/ref/heads/builder/physical-ui-recovery-059")["object"]["sha"] == SOURCE
-        runs = api("martaxi-boss/pink-iptv", "actions/runs?head_sha=" + SOURCE + "&per_page=100")["workflow_runs"]
+        run = api("actions/runs/" + str(RUN))
+        assert run["head_sha"] == SOURCE and run["conclusion"] == "success"
+        assert run["name"] == "PINK Extreme Android 042"
+        assert api("git/ref/heads/builder/physical-ui-recovery-059")["object"]["sha"] == SOURCE
+        runs = api("actions/runs?head_sha=" + SOURCE + "&per_page=100")["workflow_runs"]
         for name in ("PINK Extreme Android 042", "Backend CI"):
             relevant = [r for r in runs if r["name"] == name]
-            assert relevant and all(r["head_sha"] == SOURCE and r["status"] == "completed"
-                                    and r["conclusion"] == "success" for r in relevant)
-        print("EXACT_INITIAL_APK_ARTIFACT_SOURCE_CI_REUSE_AUTHENTICATED=PASS")
+            assert relevant and all(r["status"] == "completed" and r["conclusion"] == "success" for r in relevant)
+        artifact = api("actions/artifacts/" + str(ARTIFACT))
+        assert artifact["name"] == "PINK-IPTV-Extreme-042" and not artifact["expired"]
+        assert artifact["digest"] == DIGEST and artifact["workflow_run"]["id"] == RUN
+        assert artifact["workflow_run"]["head_sha"] == SOURCE
+        print("EXACT_SOURCE_CI_ARTIFACT_METADATA=PASS")
         return
     assert sys.argv[1] == "files"
-    root = Path(os.environ["RUNNER_TEMP"]) / "pink056-artifact"
+    root = Path(os.environ["RUNNER_TEMP"]) / "pink-deliverable"
     assert json.loads((root / "provenance.json").read_text())["implementation_sha"] == SOURCE
+    expected = {"PINK-IPTV-Extreme-1.9.0-debug.apk", "PINK-IPTV-Extreme-instrumentation.apk", "PINK-IPTV-Extreme-source.tar.gz"}
+    seen = set()
+    for line in (root / "SHA256SUMS").read_text().splitlines():
+        digest, name = line.split(maxsplit=1)
+        name = name.removeprefix("*")
+        assert name in expected and name not in seen
+        assert hashlib.sha256((root / name).read_bytes()).hexdigest() == digest
+        seen.add(name)
+    assert seen == expected
     with zipfile.ZipFile(root / "PINK-IPTV-Extreme-1.9.0-debug.apk") as apk:
         names = apk.namelist()
         for abi in ("arm64-v8a", "armeabi-v7a", "x86_64"):
@@ -49,10 +56,7 @@ def main():
         assert not any(n.endswith("/libwg.so") or n.endswith("/libwg-quick.so") for n in names)
     with zipfile.ZipFile(root / "PINK-IPTV-Extreme-instrumentation.apk") as apk:
         assert "classes.dex" in apk.namelist()
-    addresses = socket.getaddrinfo("pink-iptv.duckdns.org", 443, family=socket.AF_INET)
-    assert any(item[4][0] == "146.59.145.3" for item in addresses)
-    print("RUNNER_FIXED_CONTROL_DNS_EXPECTED_TARGET=PASS")
-    print("EXACT_INITIAL_APK_SOURCE_INSTRUMENTATION_UNCHANGED=PASS")
+    print("EXACT_SOURCE_CI_APK_INSTRUMENTATION_CHECKSUMS_AND_PAYLOAD=PASS")
 
 
 if __name__ == "__main__":
