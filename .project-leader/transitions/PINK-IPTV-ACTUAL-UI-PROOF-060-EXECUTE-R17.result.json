@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R17",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R17.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:632a805591e0df5f9e950ac748cea2658193301f;artifact-run:37525880782",
+    "revision": "506bc8d5a2b3c0424d93a08bd460788aa439ea3b",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-06T20:25:48.095859Z",
+  "final_state": {
+    "status": "SDK_EMULATOR_ARCHIVE_NOT_ZIP_BEFORE_BOOT_OR_HOST_EFFECT",
+    "revision": "bf99329d54691048d0cd619a7ddfcec951b31e9a"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37526226809",
+    "Exact relayed source632a805 APK/instrumentation/source checksums passed. sdkmanager --install emulator failed: Android Emulator archive was not a ZIP archive. No emulator boot, operational script, account fixture, VPS host effect, UI observation or app failure occurred. Prior R16 positive app/host-cleanup evidence retained."
+  ],
+  "residual_blockers": [
+    "Repair mutable SDK emulator acquisition using the official pinned runner and the exact emulator build16428233/37.2.12.0 that passed R16. SDK installer currently downloads latest before applying emulator-build, so setting only that input would not repair this frontier. Fresh bounded preparation/proof follows material acquisition correction; APK remains CI-certified632a805."
+  ]
+}
