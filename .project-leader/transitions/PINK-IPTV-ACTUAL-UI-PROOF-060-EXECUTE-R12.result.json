@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R12",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R12.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:8825d975a7d08a0bcef4f1147bdf01e9452cb60c;artifact-run:37496217541",
+    "revision": "82b9944182cb6fcb0223e9d02a1091fad33cfb9f",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-06T16:39:44.619Z",
+  "final_state": {
+    "status": "PROTECTED_CONTROL_NETWORK_DNS_FAILURE_BEFORE_UI_OWN_PEER_CLEANED",
+    "revision": "a50c0322e595ccd3bc652d215d378b36f49ed7c9"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37496528060",
+    "Native activation failed in session_resolve: UnknownHostException on validated CELLULAR nondefault candidate despite global fixed control DNS readiness PASS. Real UI/native AV/recovery not reached. Protected before/after source/Task052 identity/routing/services audits PASS; disposable own peer cleanup completed."
+  ],
+  "residual_blockers": [
+    "Source061 selects eligible physical control network by actual fixed-host DNS resolution before one pinned HTTPS POST; fresh sourceCI and distinct exact proof required. Live rows callback cause remains unverified from R11."
+  ]
+}
