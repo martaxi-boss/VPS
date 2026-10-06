@@ -9,7 +9,7 @@ import sys
 import urllib.request
 
 BASE = "a8af395df2c2b83b627f5a71337b67d209daf5f3"
-SOURCE = "7815d97e47cd112c386c80e3677025e717aab633"
+SOURCE = "77793b084704876b3b616b8286107c3d3639a28d"
 TASK = "PINK-IPTV-ACTUAL-UI-PROOF-060"
 AUTH_COMMIT = "046d95ca0311401d744d5917f1e523c03304976a"
 
@@ -35,7 +35,7 @@ def main():
     task = json.loads(Path(own).read_text())
     policy = Path("_canonical/control/generic-project-policy.json").read_bytes()
     assert hashlib.sha256(policy).hexdigest() == task["policy"]["sha256"]
-    assert api("martaxi-boss/Project-leader", "commits/main")["sha"] == task["policy"]["revision"]
+    assert subprocess.check_output(["git", "-C", "_canonical", "rev-parse", "HEAD"], text=True).strip() == task["policy"]["revision"]
     assert not git("diff", "--name-only", BASE, "HEAD", "--", "ops/pink_vpn_056_runtime.py",
                    "ops/pink_vpn_054_manifest.json", "ops/pink_vpn_054_observe.py")
     events = sorted(Path(f".project-leader/recovery-events/{TASK}").glob("*.json"))

@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R15",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R15.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:7815d97e47cd112c386c80e3677025e717aab633;artifact-run:37503282700",
+    "revision": "97a007a08076f53cd699e35a32d1ca2b06d615ca",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-06T19:33:27.491367+00:00",
+  "final_state": {
+    "status": "PROTECTED_LOGIN_AND_NATIVE_CATALOG_PASS_LIVE_UI_CALLBACK_STALL_OWN_PEER_CLEANED",
+    "revision": "d0e7faf5ed81c2ba7c721af427cff5a156613061"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37503522899",
+    "Normal consent, retirement, protected native catalog and actual WebView login PASS. Complete document route=/livetv progress100; final observed livePhase=channels, JS callback STATE failure. Account cache VALID/encrypted; ready/live/bound/admitted. Own disposable installation cleanup and protected before/after audits PASS."
+  ],
+  "residual_blockers": [
+    "Actual Live rows and native AV/cold/roaming remain uncertified. New source77793b084704876b3b616b8286107c3d3639a28d separates response/reading/body and one-way fixed native phase diagnostics; no equivalent unchanged proof retry."
+  ]
+}
