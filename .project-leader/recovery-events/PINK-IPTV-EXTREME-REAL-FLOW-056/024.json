@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-EXTREME-REAL-FLOW-056",
+  "repository": "martaxi-boss/VPS",
+  "recorded_at": "2026-10-06T00:21:44.170Z",
+  "previous_event_sha256": "2ff7c60d08bab49e0bfe91213bfe89ec25b296ec4f6a0c746301a23459105dd9",
+  "sequence": 24,
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 13,
+  "action_fingerprint": "056-primary-live-phase-and-external-cleanup-owner-proof",
+  "attempt_count": 1,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 1,
+  "detail": "Immediate live GitHub comparison finds6e2ffe3d candidate emulator script selected an older cached driver, losing R8 exact-restore-PID/strict network-boundary recovery. Detected before any new privileged authorization/effect; prepare37393447330 is build-only on correct new PINK9e1fc82c. Preserve current immutable R8 driver fetched directly at182a25fe and apply only fixed live-phase diagnostic/temporary-file hygiene delta. Do not use6e2ffe3d operational script. Native APK from its build-only job may be reused solely with exact full-native/source lineage and byte-hash guards."
+}

@@ -31,7 +31,7 @@ jobs:
         run: python ops/pink_vpn_056_control_audit.py
   prepare:
     needs: control_audit
-    if: github.event.head_commit.message != 'Authorize exact real Android flow 056' && github.event.head_commit.message != 'Record verified real056 recovery'
+    if: github.event.head_commit.message != 'Authorize exact real Android flow 056' && github.event.head_commit.message != 'Record verified real056 recovery' && github.event.head_commit.message != 'Prepare corrected live driver against immutable R8 baseline'
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     env:
@@ -204,6 +204,71 @@ jobs:
           cd "$RUNNER_TEMP/pink-deliverable"
           printf '{"implementation_sha":"%s","upstream_sha":"1efcc1b4ab3468db04aedd1c466228c52ef001b7"}\n' "9e1fc82c9c964a079d876671990a41a73689955e" > provenance.json
           sha256sum *.apk *.tar.gz > SHA256SUMS
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: PINK-IPTV-Extreme-056
+          path: ${{ runner.temp }}/pink-deliverable
+          if-no-files-found: error
+          retention-days: 30
+
+  driver_prepare:
+    if: github.event.head_commit.message == 'Prepare corrected live driver against immutable R8 baseline'
+    needs: control_audit
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Validate corrected driver and all fixed-category privacy classifiers
+        run: |
+          bash -n ops/pink_vpn_056_emulator.sh
+          python ops/pink_vpn_056_crash_test.py
+          python ops/pink_vpn_056_recovery_test.py
+          python ops/pink_vpn_056_live_test.py
+          git diff --exit-code 6e2ffe3d9d0ffcdd8f43bd7cd80ba38d44c74231 HEAD -- ops/pink_vpn_056_runtime.py
+          grep -q 'run_restore true' ops/pink_vpn_056_emulator.sh
+          grep -q 'FAIL_CLOSED_PROCESS_RESTART_AND_NETWORK_RECOVERY=PASS' ops/pink_vpn_056_emulator.sh
+      - name: Verify exact full native source certification and unchanged APK lineage
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json,os,urllib.request
+          def get(repo,path):
+              req=urllib.request.Request('https://api.github.com/repos/martaxi-boss/'+repo+'/'+path,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+              return json.load(urllib.request.urlopen(req,timeout=30))
+          run=get('VPS','actions/runs/37393447330')
+          assert run['head_sha']=='6e2ffe3d9d0ffcdd8f43bd7cd80ba38d44c74231' and run['status']=='completed' and run['conclusion']=='success'
+          jobs=get('VPS','actions/runs/37393447330/jobs')['jobs']
+          assert next(j for j in jobs if j['name']=='control_audit')['conclusion']=='success'
+          steps={s['name']:s['conclusion'] for j in jobs if j['name']=='prepare' for s in j['steps']}
+          for name in ['Build installable Android APK','Compile instrumentation and verify Android native payload','Real Android Keystore, normal VPN consent and startup capture','PINK source privacy scan','Audit complete Android lint report','Package exact source, APK and integrity hashes']:
+              assert steps.get(name)=='success'
+          runs=get('pink-iptv','actions/runs?head_sha=9e1fc82c9c964a079d876671990a41a73689955e&per_page=100')['workflow_runs']
+          for name in ['PINK Extreme Android 042','Backend CI']:
+              matching=[r for r in runs if r['name']==name]
+              assert matching and all(r['status']=='completed' and r['conclusion']=='success' for r in matching)
+          print('EXACT_FULL_NATIVE_SOURCE_AND_BYTE_REUSE_LINEAGE=PASS')
+          PY
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: PINK-IPTV-Extreme-056
+          run-id: 37393447330
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/pink-deliverable
+      - name: Verify APK/source integrity without rebuilding bytes
+        working-directory: ${{ runner.temp }}/pink-deliverable
+        run: |
+          sha256sum -c SHA256SUMS
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          assert json.loads(Path('provenance.json').read_text())['implementation_sha']=='9e1fc82c9c964a079d876671990a41a73689955e'
+          Path('artifact-lineage.json').write_text(json.dumps({'full_native_run':37393447330,'full_native_revision':'6e2ffe3d9d0ffcdd8f43bd7cd80ba38d44c74231','pink_source':'9e1fc82c9c964a079d876671990a41a73689955e','apk_bytes_rebuilt':False})+'\n')
+          print('BYTE_IDENTICAL_NEW_SOURCE_APK_REUSE=PASS')
+          PY
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: PINK-IPTV-Extreme-056
