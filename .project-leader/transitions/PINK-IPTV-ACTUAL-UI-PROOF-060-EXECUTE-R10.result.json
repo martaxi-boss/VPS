@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R10",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R10.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:2332c037a1970b22686d7486090b04aa04bf663b;artifact-run:37483556491",
+    "revision": "5bc591809b979fb2184e2950a6192e5e8fa73c9b",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-06T15:11:57.270411+00:00",
+  "final_state": {
+    "status": "NATIVE_CATALOG_PASS_IDLE_REPLACEMENT_LOGIN_DOCUMENT_OWN_PEER_CLEANED",
+    "revision": "b9133dd904d4af5d824feb378df0aa87ae302b1e"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37483877077",
+    "Authoritative VPN login/catalog PASS; actual login_home failed. Fixed flags route=/login, loginPhase=idle, failure=none, submit enabled; runtime ready/no failure/live bound admitted saved true. Only disposable installation removed and protected audits before/after PASS; native AV/cold/roaming not reached."
+  ],
+  "residual_blockers": [
+    "Concrete harness race: pending same-route navigation can accept and submit the outgoing form. Sourceea1770a9 adds replacement-document marker/barrier; prior harness fails2 new regressions and corrected65 tests PASS. Fresh exact sourceCI/artifact/UI/native proof still required."
+  ]
+}

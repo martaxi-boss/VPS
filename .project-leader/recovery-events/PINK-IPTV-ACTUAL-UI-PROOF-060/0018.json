@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 18,
+  "recorded_at": "2026-10-06T15:11:57.270411+00:00",
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 10,
+  "action_fingerprint": "060;2332c037;reuse-certified-source-artifact11421867262",
+  "attempt_count": 1,
+  "identical_failure_count": 1,
+  "no_progress_iterations": 1,
+  "previous_event_sha256": "37ac93276cb3f659ac07e95f747ca60f6c6663baf1a24f8c5eae34afe275da06",
+  "detail": "R10 run37483877077 failed login_home but new diagnostic improved boundary: final login form idle/no failure/submit enabled on /login; native ready/failure none and authoritative VPN catalog PASS. No credentials/status/errors returned. Own-peer cleanup and protected audits PASS. Persist exact transitionR10 FAILURE; independently reconcile historicalR8 run37452129608 control summary-length rejection as NOT_EXECUTED, prepare/proof skipped."
+}

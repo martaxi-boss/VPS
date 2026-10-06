@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R8",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "NOT_EXECUTED",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R8.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:9ee70d06e3c7d61ed2c5853b489882820890f7c7;artifact-run:37450769525",
+    "revision": "f5be82715cce33f1106205b4e6cfbcf0c84722e5",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-06T15:11:57.270411+00:00",
+  "final_state": {
+    "status": "AUTHORIZATION_REJECTED_NO_HOST_EFFECT",
+    "revision": "80fa74ca51f0612cc2028eaeabcaf979b4e1b1f0"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37452129608",
+    "Control audit rejected authorization summary maxLength; prepare and proof SKIPPED, no host effect."
+  ],
+  "residual_blockers": [
+    "Historical authorization was rejected; subsequent separately authorized proofs supersede this attempt."
+  ]
+}
