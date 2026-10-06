@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 1,
+  "recorded_at": "2026-10-06T08:11:38.509Z",
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 1,
+  "action_fingerprint": "060;Android13;b9e87;real-ui-proof;pre-ui-network-checkpoints",
+  "attempt_count": 2,
+  "identical_failure_count": 1,
+  "no_progress_iterations": 2,
+  "previous_event_sha256": null,
+  "detail": "Preserve anti-loop continuity before changing readiness strategy. R1 run37431211411 failed native session_resolve UnknownHostException; bounded owned-peer cleanup/protected audit passed. R2 run37433283645 failed instant public DNS assertion immediately after emulator boot and before APK/VPS host effects. Failure points differ; neither tested actual UI. No GitHub rerun occurred. Exact durable transition results cover both attempts. Stop instant startup-DNS sampling; next materially classified/bounded readiness strategy must precede real UI proof. No Owner gate exists."
+}

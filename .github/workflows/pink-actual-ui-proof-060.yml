@@ -46,6 +46,7 @@ jobs:
           python ops/pink_vpn_056_crash_test.py
           python ops/pink_vpn_056_recovery_test.py
           python ops/pink_vpn_056_live_test.py
+          python -m py_compile ops/pink_ui_060_dns_ready.py
           python ops/pink_ui_060_artifact.py metadata
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:

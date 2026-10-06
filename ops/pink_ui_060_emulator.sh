@@ -55,23 +55,15 @@ PY
   python - <<'PY'
 import os
 from pathlib import Path
-for name in ('pink060-fixed-dns.txt','pink056-account.json','pink056-public.txt','pink056-clean.py','pink056-observe.py','pink056-fetch.py','pink056-current-pid.txt','pink056-live-phase.txt','pink056-exit-boundary.txt','pink056-network-phase.txt'):
+for name in ('pink056-account.json','pink056-public.txt','pink056-clean.py','pink056-observe.py','pink056-fetch.py','pink056-current-pid.txt','pink056-live-phase.txt','pink056-exit-boundary.txt','pink056-network-phase.txt'):
     Path(os.environ['RUNNER_TEMP'],name).unlink(missing_ok=True)
 PY
   if test "$result" = 0; then echo REAL_ANDROID_PROOF_AND_BOUNDED_PEER_CLEANUP=PASS; fi
   exit "$result"
 }
 trap cleanup EXIT
-# Establish only the fixed public control DNS baseline before host effects.
-adb shell ping -c 1 -W 3 pink-iptv.duckdns.org > "$RUNNER_TEMP/pink060-fixed-dns.txt" 2>&1 || true
-python - <<'PY'
-import os,re
-from pathlib import Path
-output=Path(os.environ['RUNNER_TEMP'],'pink060-fixed-dns.txt').read_text()
-assert re.search(r'^PING [^\n]*\(146\.59\.145\.3\)',output,re.M)
-print('ANDROID13_FIXED_CONTROL_DNS_EXPECTED_TARGET=PASS')
-Path(os.environ['RUNNER_TEMP'],'pink060-fixed-dns.txt').unlink()
-PY
+# Await fixed public control DNS readiness before every host effect.
+python ops/pink_ui_060_dns_ready.py
 python - <<'PY'
 import json,os
 from pathlib import Path
