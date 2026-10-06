@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 21,
+  "recorded_at": "2026-10-06T16:02:09.674731+00:00",
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 12,
+  "action_fingerprint": "060;Android13;ea468ff303af4166c58adcd01731b716adf48c02;replacement-document-and-real-submit-phase-check",
+  "attempt_count": 1,
+  "identical_failure_count": 1,
+  "no_progress_iterations": 1,
+  "previous_event_sha256": "e684ba3fdd35a39f70af386b73dc6ca5a71bce2ad76b0c16b6f20d66a644568c",
+  "detail": "Preparation37491226285 control and exact new source/artifact metadata PASS, but workflow still downloaded old artifact11421867262 from37481509471. File provenance check rejected old2332 bytes against newea468 source; prepare failed/proof skipped/no host effect. Correct duplicated download references; no integrity check weakened or same preparation rerun."
+}

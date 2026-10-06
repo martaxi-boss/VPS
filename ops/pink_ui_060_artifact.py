@@ -35,6 +35,9 @@ def main():
         assert artifact["name"] == "PINK-IPTV-Extreme-042" and not artifact["expired"]
         assert artifact["digest"] == DIGEST and artifact["workflow_run"]["id"] == RUN
         assert artifact["workflow_run"]["head_sha"] == SOURCE
+        with open(os.environ["GITHUB_ENV"], "a") as env:
+            env.write("PINK060_SOURCE_RUN=" + str(RUN) + "\n")
+            env.write("PINK060_SOURCE_ARTIFACT=" + str(ARTIFACT) + "\n")
         print("EXACT_SOURCE_CI_ARTIFACT_METADATA=PASS")
         return
     assert sys.argv[1] == "files"

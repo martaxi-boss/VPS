@@ -46,9 +46,9 @@ jobs:
           python ops/pink_ui_060_artifact.py metadata
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          artifact-ids: 11421867262
+          artifact-ids: ${{ env.PINK060_SOURCE_ARTIFACT }}
           repository: martaxi-boss/pink-iptv
-          run-id: 37481509471
+          run-id: ${{ env.PINK060_SOURCE_RUN }}
           github-token: ${{ github.token }}
           merge-multiple: true
           path: ${{ runner.temp }}/pink-deliverable
