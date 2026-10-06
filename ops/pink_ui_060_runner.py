@@ -6,6 +6,7 @@ import subprocess
 
 RUNNER_REVISION = "1dcd0090116d15e7c562f8db72807de5e036a4ed"
 INSTALLER_SHA256 = "6dcdca7083c61ac812f023d6e7e99d3599c52ceb18cccc79850411beaf095538"
+PATCHED_INSTALLER_SHA256 = "1b0e1368ba49990e9a1a56cbe58a8716ca4aabfd5d8dc6317a97571f96af4a0b"
 EMULATOR_BUILD = "16428233"  # Exact37.2.12.0 binary in successful R16.
 
 
@@ -27,7 +28,10 @@ def pinned_installer(original):
     assert "sdkmanager --install emulator --channel=" not in result
     assert "https://dl.google.com/android/repository/emulator-" in result
     assert "unzip -o -q emulator.zip" in result
-    return result.encode("utf-8")
+    patched = result.encode("utf-8")
+    if hashlib.sha256(patched).hexdigest() != PATCHED_INSTALLER_SHA256:
+        raise ValueError("Certified acquisition patch drift")
+    return patched
 
 
 def main():
@@ -39,7 +43,8 @@ def main():
         raise ValueError("Official emulator runner revision mismatch")
     installer = args.runner / "lib/sdk-installer.js"
     installer.write_bytes(pinned_installer(installer.read_bytes()))
-    print("EXACT_CERTIFIED_EMULATOR_ACQUISITION_PATCH=PASS;build=" + EMULATOR_BUILD)
+    print("EXACT_CERTIFIED_EMULATOR_ACQUISITION_PATCH=PASS;build=" + EMULATOR_BUILD
+          + ";sha256=" + PATCHED_INSTALLER_SHA256)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 33,
+  "recorded_at": "2026-10-06T20:36:56.045786+00:00",
+  "event": "REPLAN",
+  "strategy_generation": 18,
+  "action_fingerprint": "060;632a805;official-emulator16428233;actual-row-click-av",
+  "attempt_count": 0,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "0dea6db3773def9b361413348659f4c4d584b658e4e5ad336556036902904e9c",
+  "detail": "Replace preceding mutable sdkmanager emulator acquisition using verified official action1dcd009 compiled installer hash6dcdca70. Retain official fixed HTTPS build16428233 from successful R16, curl/ZIP failures, all other SDK/AVD gates and existing proof. Verify exact patched bytes1b0e1368 before runner execution; source632 and artifact11442635716 unchanged."
+}
