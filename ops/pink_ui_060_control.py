@@ -1,4 +1,5 @@
-"""Canonical exact-scope audit; no host effects or private inputs."""\n# R8 transition record was rejected before proof execution; preserve exact preparation binding.
+"""Canonical exact-scope audit; no host effects or private inputs."""
+# R8 transition record was rejected before proof execution; preserve exact preparation binding.
 import hashlib
 import json
 import os
