@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R18",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R18.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:632a805591e0df5f9e950ac748cea2658193301f;artifact-run:37527823863",
+    "revision": "a3422513ded3559ea3a936e5d1bbf2ea92fe214f",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-06T20:49:02.212Z",
+  "final_state": {
+    "status": "ACTUAL_UI_LIVE_ROWS_CALLBACK_MISSING_AT_READING",
+    "revision": "5912ae508253e5aa458c2bf76e52ef81f000ae06"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37527941041",
+    "Exact official emulator16428233/patched installer1b0e1368, original/relay APK integrity, DNS readiness/target, normal consent, offline-service retirement, protected native username/password login/catalog, actual WebView login PASS. route/livetv progress100, callback missing at10s; independent nativephase reading. Runtime ready/failure none/bound/admitted/saved; account VALID/encrypted. No actual rows or real channel-click PASS. Disposable own peer cleanup and before/after source/identity/routing/service audits PASS."
+  ],
+  "residual_blockers": [
+    "Source56d82cc distinguishes first body bytes from renderer liveness during callback wait, retaining existing deadlines and production transport. New exact source CI/artifact/preparation/revision-bound proof required before acceptance; not an unchanged source rerun."
+  ]
+}

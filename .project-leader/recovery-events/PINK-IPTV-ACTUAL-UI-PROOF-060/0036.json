@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 36,
+  "recorded_at": "2026-10-06T20:58:46.755705+00:00",
+  "event": "REPLAN",
+  "strategy_generation": 19,
+  "action_fingerprint": "060;56d82cc;body-first-byte-vs-renderer-pulse;artifact11443259269",
+  "attempt_count": 0,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "e4b673fcc5065d1d3273fda3c5195f20a9ca5a11b2a833de1c71754943c0fea0",
+  "detail": "Source56d82cc materially distinguishes first body chunk from renderer liveness via independently origin-restricted one-way pulse. Preserve split UTF-8/reader release and existing deadlines/transport; no guessed provider URL, timeout increase or login/DNS/cache reopening. Pulse retired at paint/fail/pagehide. Source061 canonical journal now prospective before implementation; all append-only events have live GitHub persistence/ancestry. Reuse fixed emulator16428233/verified compiled runner."
+}
