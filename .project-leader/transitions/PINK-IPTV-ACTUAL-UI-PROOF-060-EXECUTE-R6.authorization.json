@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R6",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-06T09:30:32.377Z",
+  "action": "staging_operational_proof",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "binding_mode": "EXACT_REVISION_BOUND",
+    "summary": "Covered autonomous Recovery under owner-standing-autonomy-v1; exact source6e053763, current canonical8efecacc, immutable scopes and eight-event journal audited. R4 service-retirement/protected-catalog/WebView-login PASS; later UI failure unclassified, cleanup/protection PASS. R5 schema rejection before all host effects preserved NOT_EXECUTED. Material navigation/diagnostic source and all exact source CI pass. Reauthenticated unchanged APK/instrumentation from full prep37441906746/artifact11401693691; fresh API33 anonymous readiness/startup prep must pass. Bounded actual form/catalog/UI/native AV/cold/roaming proof only, protected fixture9040240, disposable own peer, external cleanup and protected before/after audits. Preserve architecture, authoritative DNS, privacy and fail closure."
+  },
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:6e0537634a40619f331268c4c7f7bdefd15231ce;artifact-run:37443364134",
+    "revision": "cf4efc9dae22803323c9932614dc099cdcda4bde",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  }
+}
