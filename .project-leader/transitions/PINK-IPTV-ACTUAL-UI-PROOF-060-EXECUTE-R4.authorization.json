@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R4",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-06T09:07:38.444Z",
+  "action": "staging_operational_proof",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "binding_mode": "EXACT_REVISION_BOUND",
+    "summary": "Covered autonomous Recovery under owner-standing-autonomy-v1. Canonical8efecacc current, immutable059/060 tasks/scopes and append-only six-event recovery journal independently validated. R3 distinct initial service activation failure preserved and own-peer cleanup/protected audits passed. Material source b029969 waits for exact official GoBackend old-service retirement before authorized UP; all exact source Android042/Backend CI and fresh full-build preparation37439404043 pass. APK/source/instrumentation artifact11401266028 digest b8ec72e846b8c7e695b00bb64314e027a3915cfd5a9d45d66e074c0dcb1bbe9a. Bounded Android13 actual WebView username/password login/catalog/main-thread roundtrip plus native decoded AV/cold/roaming proof only, protected fixture9040240 and disposable own peer, mandatory external cleanup/protected before/after audits. No architecture, privacy, authoritative DNS or fail-closed bypass."
+  },
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:b02996998c3af3ebb36ed20cf6113c70c4e19074;artifact-run:37439404043",
+    "revision": "39779b965184fe7abe7dab99907a1b95855977b1",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  }
+}
