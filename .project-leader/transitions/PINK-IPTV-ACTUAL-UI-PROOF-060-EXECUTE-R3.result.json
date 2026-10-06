@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R3",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R3.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:b9e87cf06c9ae7b1cc76f98156016e8cfa3815e2;artifact-run:37435441461",
+    "revision": "b50320a7c98026d990b0b02ef4d94fd67200e1f1",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-06T08:54:26.410Z",
+  "final_state": {
+    "status": "ANDROID13_INITIAL_AUTHORIZED_TUNNEL_LOST_BEFORE_UI_AND_OWN_PEER_CLEANED",
+    "revision": "fe02517028b49590e2c23684091fecd526d0e6e4"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37436483182",
+    "PUBLIC_CONTROL_DNS_READY=attempt3; NORMAL_SYSTEM_CONSENT=PASS; PROTECTED_ACTIVATION_DIAGNOSTIC=stage=activate_tunnel;activation=bind_authorized_route;failure=IllegalStateException;live=false;bound=false;admitted=false;saved=true.",
+    "ONLY_DISPOSABLE_EMULATOR_INSTALLATION_REMOVED=PASS. Exact accepted gateway/backend source, persistent Task052 identity, routing/NAT/protected services and HTTPS authority audits passed before and after.",
+    "Exact pinned WireGuard GoBackend1.0.20260102 stops old service asynchronously; onDestroy clears the current tunnel then resets its completion future. Source059 material remediation b02996998c3af3ebb36ed20cf6113c70c4e19074 awaits old-service retirement before new authorized UP; this remains unverified until fresh CI and real UI proof."
+  ],
+  "residual_blockers": [
+    "Actual WebView login/catalog checkpoints not reached. R3 is a new native activation failure after DNS/session/enrollment progress, not the former DNS failure. No equivalent retry; build corrected source and authorize its exact prepared artifact."
+  ]
+}

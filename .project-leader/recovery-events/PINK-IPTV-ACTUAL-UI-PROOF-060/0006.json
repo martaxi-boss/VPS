@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 6,
+  "recorded_at": "2026-10-06T08:55:01.977Z",
+  "event": "REPLAN",
+  "strategy_generation": 4,
+  "action_fingerprint": "060;Android13;b02996998c3af3ebb36ed20cf6113c70c4e19074;acknowledged-offline-service-retirement",
+  "attempt_count": 0,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "a22c2c1e45fed7c7ab4e42bfd6c641ecc0621046a25e52f624fe11eac33344e0",
+  "detail": "Switch from public-DNS remediation to the independently read native GoBackend1.0.20260102 lifecycle race: DOWN invokes asynchronous stopSelf; old onDestroy can clear a new UP attached to the retiring service. Source059 b029969 waits for SDK service-retirement acknowledgment before authorized UP, preserving capture until initial non-admitted binding change. Source test asserts retirement acknowledgment and no tunnel cycling during actual UI reauthentication. Full build from this new source replaces old-APK reuse. All source CI and new prepared artifact must pass before a separate exact R4 authorization. If activation still fails, diagnose its new bounded stage rather than rerun equivalently; if UI is reached, diagnose actual UI evidence. No physical certification claimed."
+}

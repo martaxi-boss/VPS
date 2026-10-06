@@ -8,7 +8,7 @@ import sys
 import urllib.request
 
 BASE = "a8af395df2c2b83b627f5a71337b67d209daf5f3"
-SOURCE = "b9e87cf06c9ae7b1cc76f98156016e8cfa3815e2"
+SOURCE = "b02996998c3af3ebb36ed20cf6113c70c4e19074"
 TASK = "PINK-IPTV-ACTUAL-UI-PROOF-060"
 AUTH_COMMIT = "046d95ca0311401d744d5917f1e523c03304976a"
 
@@ -37,6 +37,11 @@ def main():
     assert api("martaxi-boss/Project-leader", "commits/main")["sha"] == task["policy"]["revision"]
     assert not git("diff", "--name-only", BASE, "HEAD", "--", "ops/pink_vpn_056_runtime.py",
                    "ops/pink_vpn_054_manifest.json", "ops/pink_vpn_054_observe.py")
+    events = sorted(Path(f".project-leader/recovery-events/{TASK}").glob("*.json"))
+    assert events
+    subprocess.run([sys.executable, "_canonical/control/validate_records.py", "recovery-journal", *map(str, events)], check=True)
+    for result in sorted(Path(".project-leader/transitions").glob(f"{TASK}-*.result.json")):
+        subprocess.run([sys.executable, "_canonical/control/validate_records.py", "transition-result", str(result)], check=True)
     print("CANONICAL_060_IMMUTABLE_TASK_SCOPE_POLICY_AND_REUSED_PROTECTION=PASS")
     if os.environ.get("PINK060_MESSAGE") != "Authorize exact actual UI proof060":
         return
