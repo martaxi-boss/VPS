@@ -1,5 +1,5 @@
 """Canonical exact-scope audit; no host effects or private inputs."""
-# R8 transition record was rejected before proof execution; preserve exact preparation binding.
+# Reuse only the exact CI-certified source APK/instrumentation after immutable061 takeover.
 import hashlib
 import json
 import os
@@ -9,7 +9,7 @@ import sys
 import urllib.request
 
 BASE = "a8af395df2c2b83b627f5a71337b67d209daf5f3"
-SOURCE = "2332c037a1970b22686d7486090b04aa04bf663b"
+SOURCE = "ea468ff303af4166c58adcd01731b716adf48c02"
 TASK = "PINK-IPTV-ACTUAL-UI-PROOF-060"
 AUTH_COMMIT = "046d95ca0311401d744d5917f1e523c03304976a"
 
