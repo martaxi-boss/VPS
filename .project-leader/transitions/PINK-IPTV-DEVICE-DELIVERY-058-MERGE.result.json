@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-DEVICE-DELIVERY-058-MERGE",
+  "task_id": "PINK-IPTV-DEVICE-DELIVERY-058",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-DEVICE-DELIVERY-058-MERGE.authorization.json",
+  "action": "merge_to_main",
+  "target": {
+    "kind": "pull_request",
+    "identifier": "https://github.com/martaxi-boss/VPS/pull/22",
+    "revision": "781024355d569d2b0a0525c158c337cca963f4b2",
+    "base_revision": "5c2a8a5f6b8a3b3dafbd9236a516ddc62aca0d21",
+    "environment": "main"
+  },
+  "observed_at": "2026-10-06T04:21:27.811Z",
+  "final_state": {
+    "status": "PR22_MERGED_EXACT_AUTHORIZED_HEAD",
+    "revision": "ec787ff26d424d87a82fb50892869066c0fe3f12"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/pull/22",
+    "Prior exact authorization commit 6ebc1e2b9827770cdca0b8a57aa4e125e4882473",
+    "GitHub merged=true; parents exactly 5c2a8a5f6b8a3b3dafbd9236a516ddc62aca0d21 and 781024355d569d2b0a0525c158c337cca963f4b2",
+    "Canonical8efecacc verifier over fresh native GitHub observations PASS; exact CI37412984669 and finalhead SSH37413200956 SUCCESS; independently reconstructed exact APK saved."
+  ],
+  "residual_blockers": []
+}
