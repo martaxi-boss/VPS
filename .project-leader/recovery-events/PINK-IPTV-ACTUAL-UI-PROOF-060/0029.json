@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 29,
+  "recorded_at": "2026-10-06T17:10:28.010Z",
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 16,
+  "action_fingerprint": "060;canonical-validated-bounded-authorization-draft-generation",
+  "attempt_count": 1,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 2,
+  "previous_event_sha256": "ba6b5e46712d729517de61d6d3d7aae9627da1b32af958d858bee6a12216c2e2",
+  "detail": "R14 run37500471657 reached protected login/native catalog successfully with DNS correction; actual UI account saved/valid. Observer failed JSON at login_home while native route=/progress60; it sampled a partial replacement document. Old observation falsely accepts readyState loading; corrected7815d97e47cd112c386c80e3677025e717aab633 rejects loading/interactive, gates native100 and treats document-replacement null as pending under original deadline. Protected audits/own-peer cleanup PASS. No same-source repeat; fresh sourceCI/prepared artifact/exact authorization next."
+}
