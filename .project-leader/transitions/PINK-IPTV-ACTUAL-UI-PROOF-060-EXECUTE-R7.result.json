@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R7",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R7.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:46362b11667fb604edd61bf8c5a2eac61a0f15ac;artifact-run:37446307769",
+    "revision": "d401409421e2b1be2037121baa408c3ea7763488",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-06T10:32:01.944Z",
+  "final_state": {
+    "status": "ADMITTED_VPN_CATALOG_PASS_UI_REAUTH_PHYSICAL_CELLULAR_DNS_FAILED_OWN_PEER_CLEANED",
+    "revision": "2b8bb19fa2b4d8f9ee5ddf08b8d2bf63d4577340"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37448232878",
+    "NORMAL_SYSTEM_CONSENT, INITIAL_OFFLINE_SERVICE_RETIRED_BEFORE_AUTHORIZED_TUNNEL and AUTHORITATIVE_USERNAME_PASSWORD_LOGIN_AND_CATALOG_VIA_WIREGUARD=PASS; responsive WebView online=true/login=true.",
+    "ACTUAL_UI_FAILURE_CHECKPOINT=login_home;js=decode;category=ASSERTION. Protected runtime live=true/bound=true/admitted=true/saved=true;serviceStopAck=true;initialReplacements=1.",
+    "Exact new cause: stage=session_resolve;failure=UnknownHostException;control=SESSION:connect_write:DNS;errno=0;status=-1;transport=CELLULAR;validated=true;physicalDefault=false;v4=true;v6=false. Do not label this the former R6 SocketException.",
+    "ONLY_DISPOSABLE_EMULATOR_INSTALLATION_REMOVED=PASS; protected source/Task052 identity/routing/NAT/services/HTTPS authority audits PASS before/after."
+  ],
+  "residual_blockers": [
+    "Admitted control still used explicit physical network rather than captured VPN/DNS. Source9ee70d06 routes admitted control through captured VPN with live/binding/transport checks and no physical fallback, retaining physical bootstrap/restore only. Fresh full source CI/preparation/real UI/native AV/recovery proof required."
+  ]
+}

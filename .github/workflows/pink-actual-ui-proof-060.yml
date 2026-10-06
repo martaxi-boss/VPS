@@ -51,7 +51,7 @@ jobs:
       - name: Checkout exact audited PINK source
         run: |
           git clone --no-checkout https://github.com/martaxi-boss/pink-iptv.git "$RUNNER_TEMP/pink055-source"
-          git -C "$RUNNER_TEMP/pink055-source" checkout --detach 46362b11667fb604edd61bf8c5a2eac61a0f15ac
+          git -C "$RUNNER_TEMP/pink055-source" checkout --detach 9ee70d06e3c7d61ed2c5853b489882820890f7c7
           cp -r "$RUNNER_TEMP/pink055-source/clients" .
           mkdir -p .github/scripts
           cp "$RUNNER_TEMP/pink055-source/.github/scripts/filter_scan_findings.py" .github/scripts/
@@ -204,7 +204,7 @@ jobs:
           cp -r clients/extreme "$RUNNER_TEMP/pink-deliverable/rebuild-recipe"
           find "$RUNNER_TEMP/pink-deliverable/rebuild-recipe" -type d -name __pycache__ -prune -exec rm -rf {} +
           cd "$RUNNER_TEMP/pink-deliverable"
-          printf '{"implementation_sha":"%s","upstream_sha":"1efcc1b4ab3468db04aedd1c466228c52ef001b7"}\n' "46362b11667fb604edd61bf8c5a2eac61a0f15ac" > provenance.json
+          printf '{"implementation_sha":"%s","upstream_sha":"1efcc1b4ab3468db04aedd1c466228c52ef001b7"}\n' "9ee70d06e3c7d61ed2c5853b489882820890f7c7" > provenance.json
           sha256sum *.apk *.tar.gz > SHA256SUMS
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -250,7 +250,7 @@ jobs:
           python - <<'PYCODE'
           import json
           from pathlib import Path
-          assert json.loads(Path('provenance.json').read_text())['implementation_sha']=='46362b11667fb604edd61bf8c5a2eac61a0f15ac'
+          assert json.loads(Path('provenance.json').read_text())['implementation_sha']=='9ee70d06e3c7d61ed2c5853b489882820890f7c7'
           PYCODE
           test -e /dev/kvm
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules

@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 12,
+  "recorded_at": "2026-10-06T10:34:15.356Z",
+  "event": "REPLAN",
+  "strategy_generation": 7,
+  "action_fingerprint": "060;Android13;9ee70d06e3c7d61ed2c5853b489882820890f7c7;captured-admitted-control-with-physical-bootstrap-only",
+  "attempt_count": 0,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 2,
+  "previous_event_sha256": "f7e75e9d741149389706b5d188d7c63ef71ab3acc5f4f4e01f4687166d4295cb",
+  "detail": "Material source9ee70d06 remediation: SESSION/ENROLL/REFRESH after admission use the captured VPN Network and DNS, with live/default-binding/VPN-transport checks; never fall back to physical network. Physical native HTTPS exception remains only for admission/restore bootstrap. No hostname/IP guessing, TLS bypass, new permissions, provider-direct route, UID/config/architecture change or admitted tunnel cycling. Source instrumentation requires captured-control requests during actual WebView reauth. Preserve no-progress2 until real technical completion improves; fresh full source CI/build and separate exact short authorization required before UI/native AV/cold/roaming proof. If this fails, use the new route/operation/errno/HTTP/network flags and replan at limit; no equivalent rerun."
+}

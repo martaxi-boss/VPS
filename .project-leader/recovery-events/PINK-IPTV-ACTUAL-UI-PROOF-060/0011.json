@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 11,
+  "recorded_at": "2026-10-06T10:33:27.018Z",
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 6,
+  "action_fingerprint": "060;Android13;46362b11667fb604edd61bf8c5a2eac61a0f15ac;fixed-control-operation-errno-and-physical-network-diagnostics",
+  "attempt_count": 1,
+  "identical_failure_count": 1,
+  "no_progress_iterations": 2,
+  "previous_event_sha256": "b472adeca4f70ca538d2cb9ede9eae94e634c30a2a4a05badcb5716f0a5df48f",
+  "detail": "R7 run37448232878 established new exact cause: SESSION/connect_write/DNS UnknownHostException on selected CELLULAR network, validated=true,v4=true,v6=false, after admission. Initial retirement/protected catalog PASS; tunnel live/bound/admitted=true, WebView online/responsive but form remains. This is not the former R6 SocketException. Own-peer cleanup/protected audits PASS. Persist exact FAILURE and change route boundary; stop admitted control using explicit physical network. Preserve no-progress continuity2 until actual UI completion improves."
+}
