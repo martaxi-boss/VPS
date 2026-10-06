@@ -22,6 +22,15 @@ def request(path):
     )
 
 
+class ArtifactRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
+        # The storage redirect uses its own signed URL, never the GitHub token.
+        redirected.remove_header("Authorization")
+        redirected.remove_header("Accept")
+        return redirected
+
+
 def get(path):
     with urllib.request.urlopen(request(path), timeout=60) as response:
         return json.load(response)
@@ -42,8 +51,8 @@ def main():
     assert artifact["name"] == "PINK-IPTV-Extreme-056" and not artifact["expired"]
     assert artifact["workflow_run"]["id"] == PREP
     assert artifact["digest"] == "sha256:" + ARCHIVE_DIGEST
-    with urllib.request.urlopen(request(f"VPS/actions/artifacts/{ARTIFACT}/zip"),
-                                timeout=120) as response:
+    with urllib.request.build_opener(ArtifactRedirect()).open(
+            request(f"VPS/actions/artifacts/{ARTIFACT}/zip"), timeout=120) as response:
         archive_bytes = response.read()
     assert hashlib.sha256(archive_bytes).hexdigest() == ARCHIVE_DIGEST
     with zipfile.ZipFile(io.BytesIO(archive_bytes)) as archive:
