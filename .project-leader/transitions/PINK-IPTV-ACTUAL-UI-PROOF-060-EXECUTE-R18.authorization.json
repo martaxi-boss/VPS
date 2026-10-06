@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R18",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-06T20:38:00.809Z",
+  "action": "staging_operational_proof",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "binding_mode": "EXACT_REVISION_BOUND",
+    "summary": "Covered task060 staging Recovery under owner-standing-autonomy-v1. Exact source CI and original/relayed APK provenance, checksums and payload independently verified. One Android13 actual UI login/catalog/native AV/cold/roaming proof using fixture9040240 and disposable own peer only. Preserve captured VPN data plane, fixed TLS control, identity, strict UI/player gates and fixed diagnostic enums. Mandatory own-peer cleanup and protected before/after audits. No equivalent failed retry, persistent host change, credential output, routing/architecture bypass or physical-device claim. SDK recovery replaces the mutable preceding emulator download with exact official build16428233 and verifies original/patch hashes. R17 stopped before emulator/app/host effects; this materially repaired acquisition is not an equivalent rerun. Prospective recovery journal0032-0034 persisted before proof."
+  },
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:632a805591e0df5f9e950ac748cea2658193301f;artifact-run:37527823863",
+    "revision": "a3422513ded3559ea3a936e5d1bbf2ea92fe214f",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  }
+}
