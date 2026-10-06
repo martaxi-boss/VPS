@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 10,
+  "recorded_at": "2026-10-06T09:55:28.812Z",
+  "event": "REPLAN",
+  "strategy_generation": 6,
+  "action_fingerprint": "060;Android13;46362b11667fb604edd61bf8c5a2eac61a0f15ac;fixed-control-operation-errno-and-physical-network-diagnostics",
+  "attempt_count": 0,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 1,
+  "previous_event_sha256": "66705be07160d147d9689cda6a1eeb5ae7b05adbde8abe0a59750c6d65a46fe6",
+  "detail": "Switch to native fixed-control request diagnostics. Source46362b11 records only allowlisted operation/socket category, OS errno, HTTP status and physical transport/validation/default/address-family booleans for SESSION/ENROLL failure. Never output original message, URLs or account data. Routing/TLS/auth/fail closure unchanged. Retain no-progress continuity1; diagnostic change alone is not UI completion. Restore full fresh build because native code changed; never reuse6e APK. All source CI/preparation and separate short schema-valid exact authorization required before proof. Use resulting fixed cause for remediation; no class-only/equivalent rerun or routine Owner authorization."
+}

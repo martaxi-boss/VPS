@@ -33,40 +33,127 @@ jobs:
     needs: control_audit
     if: github.event.head_commit.message != 'Authorize exact actual UI proof060'
     runs-on: ubuntu-22.04
-    timeout-minutes: 20
+    timeout-minutes: 60
     env:
-      GH_TOKEN: ${{ github.token }}
+      XT_SKIP_FFMPEG_SIDECAR: "1"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      ASTRO_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          persist-credentials: false
-      - name: Validate exact reused artifact and public diagnostics
+      - name: Validate bounded operational scripts and diagnostic privacy
         run: |
-          bash -n ops/pink_ui_060_emulator.sh ops/pink_ui_060_dns_prepare.sh
+          bash -n ops/pink_vpn_056_emulator.sh
+          bash -n ops/pink_ui_060_emulator.sh
+          python -m py_compile ops/pink_ui_060_dns_ready.py
           python ops/pink_vpn_056_crash_test.py
           python ops/pink_vpn_056_recovery_test.py
           python ops/pink_vpn_056_live_test.py
-          python -m py_compile ops/pink_ui_060_dns_ready.py
-          python ops/pink_ui_060_artifact.py metadata
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-        with:
-          name: PINK-IPTV-Extreme-060
-          run-id: 37441906746
-          github-token: ${{ github.token }}
-          path: ${{ runner.temp }}/pink056-artifact
-      - name: Verify unchanged APK/source and prepare emulator
+      - name: Checkout exact audited PINK source
         run: |
-          (cd "$RUNNER_TEMP/pink056-artifact" && sha256sum -c SHA256SUMS)
-          python ops/pink_ui_060_artifact.py files
+          git clone --no-checkout https://github.com/martaxi-boss/pink-iptv.git "$RUNNER_TEMP/pink055-source"
+          git -C "$RUNNER_TEMP/pink055-source" checkout --detach 46362b11667fb604edd61bf8c5a2eac61a0f15ac
+          cp -r "$RUNNER_TEMP/pink055-source/clients" .
+          mkdir -p .github/scripts
+          cp "$RUNNER_TEMP/pink055-source/.github/scripts/filter_scan_findings.py" .github/scripts/
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        with:
+          version: 10.31.0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407
+        with:
+          packages: "platforms;android-36 build-tools;36.0.0 ndk;29.0.13846066"
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+      - name: Prepare complete pinned upstream application
+        run: |
+          set -euo pipefail
+          git clone --no-checkout https://github.com/infinitel8p/Extreme-InfiniTV.git "$RUNNER_TEMP/pink-extreme"
+          git -C "$RUNNER_TEMP/pink-extreme" checkout --detach 1efcc1b4ab3468db04aedd1c466228c52ef001b7
+          python clients/extreme/prepare.py "$RUNNER_TEMP/pink-extreme"
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32
+        with:
+          workspaces: "${{ runner.temp }}/pink-extreme/src-tauri -> target"
+          key: pink-extreme-056
+          cache-on-failure: "true"
+      - name: Install and verify login contract
+        working-directory: ${{ runner.temp }}/pink-extreme
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec vitest run tests/pink-session.test.ts tests/pink-storage.test.ts tests/pink-network.test.ts tests/pink-bridge.test.ts tests/pink-presentation.test.ts tests/stall-watchdog.test.ts tests/vod-remux-memory.test.ts
+          pnpm run build
+      - name: Generate PINK launcher resources
+        working-directory: ${{ runner.temp }}/pink-extreme
+        run: |
+          pnpm tauri icon "$GITHUB_WORKSPACE/clients/extreme/assets/pink-icon.png"
+      - name: Build installable Android APK
+        working-directory: ${{ runner.temp }}/pink-extreme
+        env:
+          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/29.0.13846066
+        run: pnpm tauri android build --debug --apk --target aarch64 --target armv7 --target x86_64
+      - name: Compile instrumentation and verify Android native payload
+        working-directory: ${{ runner.temp }}/pink-extreme/src-tauri/gen/android
+        env:
+          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/29.0.13846066
+        run: |
+          ./gradlew --no-daemon app:assembleUniversalDebugAndroidTest app:testUniversalDebugUnitTest -x app:rustBuildUniversalDebug
+          python - <<'PY'
+          from pathlib import Path
+          import zipfile
+          apks = list(Path('app/build/outputs/apk').rglob('*debug*.apk'))
+          candidates = [p for p in apks if 'androidTest' not in str(p)]
+          assert candidates
+          for path in candidates:
+              with zipfile.ZipFile(path) as apk:
+                  names = apk.namelist()
+                  assert any(n.endswith('/libwg-go.so') for n in names)
+                  assert not any(n.endswith('/libwg.so') or n.endswith('/libwg-quick.so') for n in names)
+          print('OFFICIAL_NON_ROOT_PAYLOAD=PASS')
+          PY
+      - name: Prepare real Android emulator verification
+        run: |
+          set -euo pipefail
+          (cd "$RUNNER_TEMP/pink-extreme/src-tauri/gen/android" && ./gradlew --stop)
           test -e /dev/kvm
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
           sudo udevadm settle --timeout=10
-      - name: Android13 physical DNS and unchanged strict startup
+          test -r /dev/kvm
+          test -w /dev/kvm
+          cat > "$RUNNER_TEMP/pink053-emulator.sh" <<'SCRIPT'
+          set -euo pipefail
+          adb install -r app/build/outputs/apk/universal/debug/app-universal-debug.apk
+          adb install -r app/build/outputs/apk/androidTest/universal/debug/app-universal-debug-androidTest.apk
+          adb shell am instrument -w -r -e class com.pinkiptv.extreme.PinkVpnIdentityTest com.pinkiptv.extreme.test/androidx.test.runner.AndroidJUnitRunner > "$RUNNER_TEMP/pink053-identity.txt"
+          cat "$RUNNER_TEMP/pink053-identity.txt"
+          grep -q 'OK (2 tests)' "$RUNNER_TEMP/pink053-identity.txt"
+          adb shell am instrument -w -r -e class com.pinkiptv.extreme.PinkWebBridgeTest com.pinkiptv.extreme.test/androidx.test.runner.AndroidJUnitRunner > "$RUNNER_TEMP/pink055-origin.txt"
+          cat "$RUNNER_TEMP/pink055-origin.txt"
+          grep -q 'OK (1 test)' "$RUNNER_TEMP/pink055-origin.txt"
+          adb shell am instrument -w -r -e class com.pinkiptv.extreme.PinkVpnStartupTest com.pinkiptv.extreme.test/androidx.test.runner.AndroidJUnitRunner > "$RUNNER_TEMP/pink053-startup.txt"
+          cat "$RUNNER_TEMP/pink053-startup.txt"
+          if ! grep -q 'OK (1 test)' "$RUNNER_TEMP/pink053-startup.txt"; then
+            adb logcat -b crash -d -t 100
+            adb shell ip -4 rule
+            adb shell ip -6 rule
+            adb shell ip -4 route show table all
+            adb shell ip -6 route show table all
+          fi
+          grep -q 'OK (1 test)' "$RUNNER_TEMP/pink053-startup.txt"
+          adb shell am force-stop com.pinkiptv.extreme
+          echo KEYSTORE_NORMAL_CONSENT_OFFLINE_FAIL_CLOSED_RECREATION=PASS
+          SCRIPT
+      - name: Real Android Keystore, normal VPN consent and startup capture
         uses: reactivecircus/android-emulator-runner@1dcd0090116d15e7c562f8db72807de5e036a4ed
         with:
-          api-level: 33
+          api-level: 35
           target: google_apis
           arch: x86_64
           profile: pixel_5
@@ -76,11 +163,53 @@ jobs:
           disable-linux-hw-accel: false
           emulator-boot-timeout: 900
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -dns-server 1.1.1.1
-          script: bash ops/pink_ui_060_dns_prepare.sh
+          working-directory: ${{ runner.temp }}/pink-extreme/src-tauri/gen/android
+          script: bash "$RUNNER_TEMP/pink053-emulator.sh"
+      - name: PINK source privacy scan
+        working-directory: ${{ runner.temp }}/pink055-source
+        run: | # pragma: allowlist secret -- scan tool invocation, no credential value
+          python -m pip install --disable-pip-version-check detect-secrets==1.5.0
+          detect-secrets scan --all-files --exclude-files '(^|/)(\.git|\.pytest_cache|\.ruff_cache|.*egg-info)/' > /tmp/pink-extreme-scan.json
+          python .github/scripts/filter_scan_findings.py /tmp/pink-extreme-scan.json
+      - name: Audit complete Android lint report
+        if: ${{ always() && !cancelled() }}
+        working-directory: ${{ runner.temp }}/pink-extreme/src-tauri/gen/android
+        run: |
+          set +e
+          ./gradlew --no-daemon app:lintUniversalDebug -x app:rustBuildUniversalDebug
+          pink_lint_status=$?
+          report="app/build/intermediates/lint_intermediate_text_report/universalDebug/lintReportUniversalDebug/lint-results-universalDebug.txt"
+          if [ -f "$report" ]; then cat "$report"; fi
+          exit "$pink_lint_status"
+      - name: Preserve full public-source lint reports for review
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: PINK-Android-lint-056
+          path: ${{ runner.temp }}/pink-extreme/src-tauri/gen/android/app/build/reports/lint-results-universalDebug.*
+          if-no-files-found: ignore
+          retention-days: 30
+      - name: Package exact source, APK and integrity hashes
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/pink-deliverable"
+          APK="$RUNNER_TEMP/pink-extreme/src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk"
+          if [ -z "$APK" ]; then
+            APK=$(find "$RUNNER_TEMP/pink-extreme/src-tauri/gen/android/app/build/outputs/apk" -name '*debug*.apk' -print -quit)
+          fi
+          test -n "$APK"
+          cp "$APK" "$RUNNER_TEMP/pink-deliverable/PINK-IPTV-Extreme-1.9.0-debug.apk"
+          cp "$RUNNER_TEMP/pink-extreme/src-tauri/gen/android/app/build/outputs/apk/androidTest/universal/debug/app-universal-debug-androidTest.apk" "$RUNNER_TEMP/pink-deliverable/PINK-IPTV-Extreme-instrumentation.apk"
+          tar --exclude='.git' --exclude='node_modules' --exclude='target' --exclude='build' --exclude='.gradle' --exclude='dist' --exclude='__pycache__' -czf "$RUNNER_TEMP/pink-deliverable/PINK-IPTV-Extreme-source.tar.gz" -C "$RUNNER_TEMP" pink-extreme
+          cp -r clients/extreme "$RUNNER_TEMP/pink-deliverable/rebuild-recipe"
+          find "$RUNNER_TEMP/pink-deliverable/rebuild-recipe" -type d -name __pycache__ -prune -exec rm -rf {} +
+          cd "$RUNNER_TEMP/pink-deliverable"
+          printf '{"implementation_sha":"%s","upstream_sha":"1efcc1b4ab3468db04aedd1c466228c52ef001b7"}\n' "46362b11667fb604edd61bf8c5a2eac61a0f15ac" > provenance.json
+          sha256sum *.apk *.tar.gz > SHA256SUMS
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: PINK-IPTV-Extreme-060
-          path: ${{ runner.temp }}/pink056-artifact
+          path: ${{ runner.temp }}/pink-deliverable
           if-no-files-found: error
           retention-days: 30
 
@@ -121,7 +250,7 @@ jobs:
           python - <<'PYCODE'
           import json
           from pathlib import Path
-          assert json.loads(Path('provenance.json').read_text())['implementation_sha']=='6e0537634a40619f331268c4c7f7bdefd15231ce'
+          assert json.loads(Path('provenance.json').read_text())['implementation_sha']=='46362b11667fb604edd61bf8c5a2eac61a0f15ac'
           PYCODE
           test -e /dev/kvm
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
