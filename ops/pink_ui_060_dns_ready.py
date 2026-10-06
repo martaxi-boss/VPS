@@ -7,7 +7,7 @@ TARGET = "pink-iptv.duckdns.org"
 
 
 def classify(output):
-    match = re.search(r"^PING [^\n]*\(([^)]+)\)", output, re.M)
+    match = re.search(r"^PING\s+\S+\s+\(([^)]+)\)", output, re.M)
     if match:
         return "READY" if match.group(1) == "146.59.145.3" else "UNEXPECTED_TARGET"
     if "unknown host" in output.lower() or "bad address" in output.lower():

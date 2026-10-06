@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 3,
+  "recorded_at": "2026-10-06T08:19:16.684Z",
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 2,
+  "action_fingerprint": "060;Android13;b9e87;bounded-classified-fixed-control-dns-readiness",
+  "attempt_count": 1,
+  "identical_failure_count": 1,
+  "no_progress_iterations": 3,
+  "previous_event_sha256": "44f3d0712e8444907d35efd018e8bca4ebfbe78d38b86149f616029ef36a5770",
+  "detail": "Preparation37434753583 on22ffb4af failed before any real UI/host effect. Readiness sample1 QUERY_TIMEOUT, sample2 UNEXPECTED_TARGET. A deterministic local reproduction proves the greedy parser rejects valid PING domain (146.59.145.3)56(84)bytes by capturing packet-size84. Original positive test covered only the colon-form header. Stop this flawed classification strategy at overall no-progress limit; correct first-address extraction and verify both actual ping header formats plus wrong-target rejection before any new preparation. No operational rerun is authorized by this record."
+}

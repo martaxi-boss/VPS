@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 4,
+  "recorded_at": "2026-10-06T08:20:06.299Z",
+  "event": "REPLAN",
+  "strategy_generation": 3,
+  "action_fingerprint": "060;Android13;b9e87;verified-first-address-dns-parser",
+  "attempt_count": 0,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "87b8519f07027699fc9477e8ce79602b4d637d1c3866e550736fa58b0a45352e",
+  "detail": "Verified material technical progress: replace greedy parenthesis capture with anchored first address after PING hostname. Both valid colon-format and56(84)-byte headers now classify READY; wrong public address still aborts, unresolved/empty remain non-ready. Keep60second/12sample cap and exact unchanged APK/source/protection. Start a new classified-parser strategy only after these positive/negative tests pass; do not reuse prior failed classification. If a correctly parsed unexpected target or bounded readiness failure persists, change to DNS address-family/native-network diagnostics instead of repeating. New operational UI proof still requires successful prepared run and separate exact prior authorization."
+}
