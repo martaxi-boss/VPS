@@ -1,4 +1,4 @@
-"""Reuse the exact already-built APK for environment-only DNS remediation."""
+"""Reuse exact current APK/instrumentation after authorization-metadata Recovery."""
 import json
 import os
 from pathlib import Path
@@ -7,11 +7,11 @@ import sys
 import urllib.request
 import zipfile
 
-SOURCE = "b9e87cf06c9ae7b1cc76f98156016e8cfa3815e2"
-PREP = "a88c49543339ce85a78e0223831147a4c6c46ba0"
-RUN = 37428487439
-ARTIFACT = 11396692971
-DIGEST = "sha256:2c34797d58ae66fb8e2d96a04ea416ed3e450e73faef32adc7946720aa8462a6"
+SOURCE = "6e0537634a40619f331268c4c7f7bdefd15231ce"
+PREP = "2e26eb0ceca31026be7d8001638066046a84f3a3"
+RUN = 37441906746
+ARTIFACT = 11401693691
+DIGEST = "sha256:660c8b887eb6704b825b80634e67b9fb4f3c02a5e92ba11494f291238989225f"
 
 
 def api(repo, path):
