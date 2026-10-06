@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-EXTREME-REAL-FLOW-056-MERGE",
+  "task_id": "PINK-IPTV-EXTREME-REAL-FLOW-056",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-EXTREME-REAL-FLOW-056-MERGE.authorization.json",
+  "action": "merge_to_main",
+  "target": {
+    "kind": "pull_request",
+    "identifier": "https://github.com/martaxi-boss/VPS/pull/21",
+    "revision": "cda18ad29c80caadf9a07d45f8036d0f9f49de22",
+    "base_revision": "100492c47116b7ffe690d8544c2ce62c4ce5f9a8",
+    "environment": "main"
+  },
+  "observed_at": "2026-10-06T04:14:48.223Z",
+  "final_state": {
+    "status": "PR21_MERGED_EXACT_AUTHORIZED_HEAD",
+    "revision": "ad008421ad70bff0a70b114f3dc994df7c30787b"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/pull/21",
+    "Prior exact authorization commit 6a5d3f2481d50670470936607efe2d59be77b3e4",
+    "GitHub merged=true; parents exactly 100492c47116b7ffe690d8544c2ce62c4ce5f9a8 and cda18ad29c80caadf9a07d45f8036d0f9f49de22",
+    "Real R9 https://github.com/martaxi-boss/VPS/actions/runs/37395113639 and independent canonical audit37395786647 SUCCESS; no new runtime execution."
+  ],
+  "residual_blockers": []
+}
