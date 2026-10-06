@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-EXTREME-REAL-FLOW-056-EXECUTE-R8",
+  "task_id": "PINK-IPTV-EXTREME-REAL-FLOW-056",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-06T00:05:16.827Z",
+  "action": "staging_operational_proof",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "binding_mode": "EXACT_REVISION_BOUND",
+    "summary": "Standing grant covers exact staging real056 after new protected-activation diagnostics and corrected Kotlin syntax. Supervisor verified PINK551316ef Android37390835536/Backend37390835710 SUCCESS with same-SHA consistency, full native preparation37390839583/VPSb293cdda SUCCESS,19 privacy and4 boundary tests, native Keystore/consent/startup/lint/package PASS, immutable task and hash-linked journals/scope. Read-only diagnostic37389403851 proves R7 session/enroll200 and fresh authoritative origin match; R8 must locate any Android activation failure using fixed categories only. Strict exact-PID/network-phase/fail-closure/SIGKILL recognition and subsequent no-credential same-key recovery required; unknown crashes fail. Transient authorized9040240 fixture, own-peer cleanup and protected host pre/post audits mandatory. No persistent host/network/service/account/mapping change or public launch."
+  },
+  "target": {
+    "kind": "staging_android_emulator",
+    "identifier": "OVH:vps-32bea5b6;PINK:551316ef494d9f6510c45d3f021bd82ad037aad2;artifact-run:37390839583",
+    "revision": "b293cdda099ac83220720c208be3745ef5ce000c",
+    "base_revision": "100492c47116b7ffe690d8544c2ce62c4ce5f9a8",
+    "environment": "staging-disposable-emulator"
+  }
+}
