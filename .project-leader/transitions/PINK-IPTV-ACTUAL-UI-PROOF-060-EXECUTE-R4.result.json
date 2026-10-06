@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R4",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R4.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:b02996998c3af3ebb36ed20cf6113c70c4e19074;artifact-run:37439404043",
+    "revision": "39779b965184fe7abe7dab99907a1b95855977b1",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-06T09:16:47.125Z",
+  "final_state": {
+    "status": "NATIVE_RETIREMENT_LOGIN_CATALOG_AND_ACTUAL_FORM_PASS_LATER_UI_CHECK_FAILED_OWN_PEER_CLEANED",
+    "revision": "6d80d88f393eff0169621f93915f4e7035d40a37"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37440856219",
+    "INITIAL_OFFLINE_SERVICE_RETIRED_BEFORE_AUTHORIZED_TUNNEL=PASS; AUTHORITATIVE_USERNAME_PASSWORD_LOGIN_AND_CATALOG_VIA_WIREGUARD=PASS; ACTUAL_WEBVIEW_USERNAME_PASSWORD_LOGIN=PASS.",
+    "PROTECTED_FLOW_FAILURE_PHASE=webview-login-catalog. No ACTUAL_WEBVIEW_FIXED_FLAGS marker or more precise checkpoint was produced; operation and catalog-render outcome remain unverified.",
+    "ONLY_DISPOSABLE_EMULATOR_INSTALLATION_REMOVED=PASS; accepted gateway/backend source, persistentTask052 identity, routing/NAT/protected services and HTTPS authority audits passed before/after."
+  ],
+  "residual_blockers": [
+    "Do not infer physical catalog cause from phase-only failure. New source6e053763 removes awaited navigation callback and adds privacy-safe exact UI/JS checkpoint/native runtime classification; fresh exact build/proof required. Native AV/cold/roaming not reached in R4."
+  ]
+}

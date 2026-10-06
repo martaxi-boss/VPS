@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 8,
+  "recorded_at": "2026-10-06T09:16:49.423Z",
+  "event": "REPLAN",
+  "strategy_generation": 5,
+  "action_fingerprint": "060;Android13;6e0537634a40619f331268c4c7f7bdefd15231ce;destination-navigation-and-classified-ui-js-boundaries",
+  "attempt_count": 0,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "5c8c4e05fe2826273327cc3eeb237507f5c7d71f22fd1854e313a01d0d2df716",
+  "detail": "Source6e053763 removes synchronous callback waits for documents being navigated away; destination DOM checks remain bounded and mandatory. Add exact fixed UI checkpoint, JS host/WebView/callback/decode boundary, exception-category allowlist and native activation fixed state for every UI-phase exception, without message/URL/credential output. Full rebuild pins this source and new instrumentation; preserve production service-retirement fix and all security contracts. Fresh all-context source CI/preparation plus separate exact authorization required. If render or callback still fails, diagnose the now classified operation; do not retry unchanged or claim the physical issue repaired from phase-only evidence."
+}
