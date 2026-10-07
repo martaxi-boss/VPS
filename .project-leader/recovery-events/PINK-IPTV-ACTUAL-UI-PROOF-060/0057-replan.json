@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 57,
+  "recorded_at": "2026-10-07T05:10:31.452Z",
+  "event": "REPLAN",
+  "strategy_generation": 26,
+  "action_fingerprint": "060;b5172ba;owned-native-bridge-postfailure-backtrace;artifact11460975825",
+  "attempt_count": 0,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "dd0ffc5f136562d0a375fc08e45a8ae9e3962705d320c26b5ff622e69fa6cffb",
+  "detail": "Fixed CPU setup-stage enum identifies unavailable boundary. On failed Profiler.stop only, after proof stopfile, invoke bounded debuggerd-backtrace via same owned debuggable UID with run-as and remote2s/outer3s limits, no root/arbitrary PID. In-memory privacy parser retains only JavaBridge static library basename/relativePC and fixed MUTEX/IPC/OTHER classes; all raw trace/threadIDs/symbols/paths discarded. Observer cleanup12s covers existing three bounded3s transport/diagnostic/forward cleanup operations; app90s/callback10s/media60s unchanged. Two new privacy/owned-UID command tests; ten tests must pass preparation CI. Local execution workspace unavailable, reconstruct source bytes from exact GitHub and use CI compiler/tests; no local pass claim."
+}

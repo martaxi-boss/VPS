@@ -103,6 +103,39 @@ def summarize_interval(profile):
     return result
 
 
+def native_bridge_summary(raw):
+    """Retain only static library/code positions in the owned Java bridge."""
+    active = False
+    frames = []
+    for line in raw.splitlines():
+        if re.match(r'^\s*"[^"\n]+"\s+sysTid', line):
+            active = bool(re.match(r'^\s*"JavaBridge"\s+sysTid', line))
+        if not active:
+            continue
+        match = re.match(r'^\s*#[0-9]+\s+pc\s+([0-9a-fA-F]{1,16})\s+(\S+)', line)
+        if match:
+            library = match[2].rsplit('/', 1)[-1]
+            if re.fullmatch(r'lib[A-Za-z0-9_.+-]+\.so', library) and len(frames) < 40:
+                kind = 'MUTEX' if re.search(r'lock_contended|Mutex|pthread_mutex|futex', line) else 'IPC' if re.search(r'::ipc\b|handle_ipc|Rust_ipc', line) else 'OTHER'
+                frames.append({'library': library, 'pc': match[1], 'kind': kind})
+    return {'java_bridge_frames': frames}
+
+
+def capture_native_bridge(pid):
+    # Only the owned debug UID after assertions finish. No root or saved dump.
+    assert re.fullmatch(r'[1-9][0-9]{0,9}', pid)
+    try:
+        result = subprocess.run(['adb','shell','run-as',PACKAGE,'/system/bin/timeout','2',
+                                 '/system/bin/debuggerd','-b',pid],
+                                stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,timeout=3)
+        raw = result.stdout
+    except subprocess.TimeoutExpired as failure:
+        raw = failure.stdout or b''
+    summary = native_bridge_summary(raw.decode('utf-8',errors='replace'))
+    print('ACTUAL_UI_NATIVE_BRIDGE_FIXED_BACKTRACE='+json.dumps(summary,separators=(',',':')),flush=True)
+    print('ACTUAL_UI_NATIVE_BRIDGE_BACKTRACE_STATUS='+('CAPTURED' if summary['java_bridge_frames'] else 'UNAVAILABLE'),flush=True)
+
+
 class CDP:
     def __init__(self, url, port):
         parsed = urllib.parse.urlsplit(url)
@@ -205,6 +238,8 @@ def main():
     stop = Path(sys.argv[1])
     port = None
     cdp = None
+    pid = None
+    stage = 'WAIT_PHASE'
     status = 'UNAVAILABLE'
     try:
         signal.signal(signal.SIGTERM, interrupted)
@@ -220,13 +255,17 @@ def main():
             status = 'NO_UI_PHASE'
             return
         pid = match.group(1)
+        stage = 'FORWARD'
         forwarded = adb('forward','--no-rebind','tcp:0',f'localabstract:webview_devtools_remote_{pid}')
         assert forwarded.isdigit() and 1024 <= int(forwarded) <= 65535
         port = int(forwarded)
+        stage = 'TARGET'
         with urllib.request.urlopen(f'http://127.0.0.1:{port}/json', timeout=3) as reply:
             pages = json.loads(reply.read(1024*1024))
         page = next(page for page in pages if page.get('type') == 'page' and urllib.parse.urlsplit(page.get('url','')).hostname == 'tauri.localhost')
+        stage = 'HANDSHAKE'
         cdp = CDP(page['webSocketDebuggerUrl'], port)
+        stage = 'PROFILER_START'
         cdp.call('Profiler.enable')
         cdp.call('Profiler.setSamplingInterval', {'interval':1000})
         cdp.call('Profiler.start')
@@ -235,6 +274,7 @@ def main():
         sample_end = time.monotonic()+60
         while time.monotonic()<sample_end and not stop.exists():
             time.sleep(.1)
+        stage = 'PROFILER_STOP'
         profile = cdp.call('Profiler.stop').get('profile', {})
         summary = summarize_interval(profile)
         print('ACTUAL_UI_RENDERER_CPU_FIXED_PROFILE='+json.dumps(summary,separators=(',',':')), flush=True)
@@ -243,6 +283,16 @@ def main():
         # Never emit transport/profile exceptions, targets, command arguments or data.
         pass
     finally:
+        print('ACTUAL_UI_RENDERER_CPU_PROFILE_STAGE='+stage,flush=True)
+        if pid and status == 'UNAVAILABLE' and stage == 'PROFILER_STOP':
+            # Do not suspend the app for a diagnostic while assertions run.
+            while not stop.exists() and time.monotonic() < deadline:
+                time.sleep(.1)
+            if stop.exists():
+                try:
+                    capture_native_bridge(pid)
+                except Exception:
+                    print('ACTUAL_UI_NATIVE_BRIDGE_BACKTRACE_STATUS=UNAVAILABLE',flush=True)
         if cdp:
             cdp.close()
         if port:

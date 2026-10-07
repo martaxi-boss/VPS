@@ -7,7 +7,7 @@ pink_renderer_observer=''
 stop_renderer_sampling() {
   if test -n "$pink_renderer_observer"; then
     touch "$RUNNER_TEMP/pink060-renderer.stop"
-    for pink_stop_i in {1..30}; do
+    for pink_stop_i in {1..60}; do
       if ! kill -0 "$pink_renderer_observer" 2>/dev/null; then break; fi
       sleep .2
     done

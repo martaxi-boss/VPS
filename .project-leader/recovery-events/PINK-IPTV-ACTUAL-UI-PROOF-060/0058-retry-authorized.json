@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 58,
+  "recorded_at": "2026-10-07T05:10:31.453Z",
+  "event": "RETRY_AUTHORIZED",
+  "strategy_generation": 26,
+  "action_fingerprint": "060;b5172ba;owned-native-bridge-postfailure-backtrace;artifact11460975825",
+  "attempt_count": 1,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "5638bc9b619f25642e1a66ad7b735bfcc01798132e95afabea82fd719f30df44",
+  "detail": "Prospective covered specific diagnostic: identify observer unavailable stage and owned JavaBridge JNI/mutex/code boundary after failed evaluator. Same green sourceb517 and originalartifact11460975825; fresh canonical audit/ten selftests/integrity preparation mandatory before valid short exact parent-bound authorization. No profiler/native output claimed in advance, equivalent UI retry forbidden without this material instrumentation. Provider/WG/control plane, strict actualUIclick AV/native AV/cold/roam/protected before-after audits/disposable peer cleanup unchanged; no credential/raw trace output or physical claim."
+}

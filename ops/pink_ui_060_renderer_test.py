@@ -3,7 +3,7 @@ import json
 import struct
 import unittest
 from unittest.mock import patch
-from pink_ui_060_renderer import CDP, MAX_FRAME, summarize, summarize_interval
+from pink_ui_060_renderer import CDP, MAX_FRAME, summarize, summarize_interval, native_bridge_summary, capture_native_bridge
 
 
 class SocketStub:
@@ -105,6 +105,35 @@ class RendererTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             cdp.call('Profiler.stop')
 
+    def test_native_dump_retains_only_owned_bridge_static_locations(self):
+        raw='''Cmdline: fixture_password
+"main" sysTid=12
+  #00 pc 000abc /apex/lib/libart.so (fixture_private)
+"JavaBridge" sysTid=15
+  #00 pc 000def /apex/lib/libc.so (syscall+28)
+  #01 pc 000123 /data/app/fixture_password/lib/libpink_iptv.so (std::sys::Mutex::lock_contended+8)
+  #02 pc 000456 /data/app/private/lib/libpink_iptv.so (wry::android::binding::ipc+12)
+"fixture_user" sysTid=16
+  #00 pc 000999 /data/private/lib/libsecret.so (private)
+'''
+        result=native_bridge_summary(raw)
+        self.assertEqual(result['java_bridge_frames'],[
+            {'library':'libc.so','pc':'000def','kind':'OTHER'},
+            {'library':'libpink_iptv.so','pc':'000123','kind':'MUTEX'},
+            {'library':'libpink_iptv.so','pc':'000456','kind':'IPC'}])
+        for private in ('fixture','password','private','secret','sysTid'):
+            self.assertNotIn(private,json.dumps(result))
+
+
+    def test_native_capture_uses_only_owned_nonroot_uid_and_bounded_command(self):
+        with patch('pink_ui_060_renderer.subprocess.run') as run, patch('builtins.print'):
+            run.return_value.stdout=b''
+            capture_native_bridge('123')
+            self.assertEqual(run.call_args.args[0],['adb','shell','run-as','com.pinkiptv.extreme','/system/bin/timeout','2','/system/bin/debuggerd','-b','123'])
+            self.assertEqual(run.call_args.kwargs['timeout'],3)
+            with self.assertRaises(AssertionError):
+                capture_native_bridge('123;private')
+            self.assertEqual(run.call_count,1)
 
 if __name__ == '__main__':
     unittest.main()

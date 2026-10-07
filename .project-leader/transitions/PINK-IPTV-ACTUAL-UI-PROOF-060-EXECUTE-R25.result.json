@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R25",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R25.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:b5172baddf26f108238d002c28155ebfc786614c;artifact-run:37574014754",
+    "revision": "5b7e1a6f7cd13a01a6bf1f5fd7e9c4889f3d17de",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-07T05:10:31.450Z",
+  "final_state": {
+    "status": "FIRST_DECODE_RETURNED_SUBSEQUENT_IPC_BODY_DRAIN_INCOMPLETE_LONG_PROFILE_UNAVAILABLE",
+    "revision": "4ceeb8da2d5d5970bdc8727f1956f921799618ea"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37574103437",
+    "Normal consent/offline service retirement/protected native username-passwordlogin+catalog/actual WebViewlogin/DNS PASS. live_rows callback10s misses, /livetv progress100, native phase pulling_next, renderer pulse QUIET, Androidmain RESPONSiVE, renderer PRESENT/attached/shown/windowVisible/focused true. Runtime ready/failure none/accountVALID encrypted. 60s observer reports UNAVAILABLE, no profile/subframes; no setup-stage field in prior observer, so do not infer profiler-stop cause. Protected before-after audits/disposable own-peer cleanup PASS. No actual rows/UIclick AV certification."
+  ],
+  "residual_blockers": [
+    "Add fixed observer-stage to identify UNAVAILABLE boundary. If profile stop fails, after assertions exit, capture bounded owned-UID JavaBridge native backtrace; emit only library basenames/relativePC/fixed MUTEX or IPC kinds, never raw trace/symbols/paths/page values. Causal hypothesis unconfirmed until new evidence."
+  ]
+}
