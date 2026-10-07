@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R20",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R20.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:f44f06cea2a55be0788e1f49c473be7772dd551d;artifact-run:37568779141",
+    "revision": "f6a4bc27ce70f8bc51c97c2e1a1bb0b080389f0f",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-07T03:55:05.227Z",
+  "final_state": {
+    "status": "PRE_EMULATOR_CONTROL_REJECTED_STALE_DUPLICATED_SOURCE_PIN",
+    "revision": "aaa36577fa2da5a894663e7924cc5cccb5648aa6"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37568860137",
+    "Canonical control step rejects identifier prefix: control.py retained56d82cc duplicate while manifest and exact authorization correctly bindf44f06c. Emulator and privileged proof skipped; no Android/VPS effects or app result. Exact source CI and original/relay APK integrity PASS in prep37568779141."
+  ],
+  "residual_blockers": [
+    "Import SOURCE from canonical artifact manifest in control.py, validated full control flow with mocked external reads accepts current exact source and rejects stale identifier. New technical preparation/authorization needed; source APK unchanged because no app proof occurred."
+  ]
+}

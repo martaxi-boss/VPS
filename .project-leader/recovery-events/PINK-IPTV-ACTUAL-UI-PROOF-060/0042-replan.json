@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 42,
+  "recorded_at": "2026-10-07T03:55:05.760546+00:00",
+  "event": "REPLAN",
+  "strategy_generation": 21,
+  "action_fingerprint": "060;f44f06c;canonical-source-control-import;artifact11444209271",
+  "attempt_count": 0,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "295697636a3a45a77c35c96535594e41436da113145bb427b7bce698ea2c8842",
+  "detail": "Control.py now imports SOURCE from the canonical artifact manifest, matching workflow and provenance verifier. Full control main executed with mocked external Git/API reads accepts current exact authorization, checks current source CI/head and rejects stale source identifier. Read-only controls unchanged; no authority weakening, source APK unchanged since R20 never reached app."
+}

@@ -9,7 +9,7 @@ import sys
 import urllib.request
 
 BASE = "a8af395df2c2b83b627f5a71337b67d209daf5f3"
-SOURCE = "56d82ccb3199bdf2fe19e3dbf3e2a77edf6134fa"
+from pink_ui_060_artifact import SOURCE
 TASK = "PINK-IPTV-ACTUAL-UI-PROOF-060"
 AUTH_COMMIT = "046d95ca0311401d744d5917f1e523c03304976a"
 
