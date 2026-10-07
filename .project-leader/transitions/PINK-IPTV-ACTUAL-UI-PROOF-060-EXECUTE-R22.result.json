@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R22",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R22.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:b5172baddf26f108238d002c28155ebfc786614c;artifact-run:37571506636",
+    "revision": "7933a1857db161bb1fe572bfcfd3e86dcccecc6f",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-07T04:44:05.533Z",
+  "final_state": {
+    "status": "FIRST_UTF8_DECODE_COMPLETED_SUBSEQUENT_BODY_DRAIN_INCOMPLETE_RENDERER_FOREGROUND",
+    "revision": "107202d1c40c0b3ea3964bec6d38230fa76f7a29"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37571648095",
+    "Normal consent/offline retirement/native protected login+catalog/actual WebView login/DNS PASS. /livetv progress100; native phase pulling_next proves first chunk UTF8 decoding returned, subsequent body drain has not completed. live_rows evaluate callback misses10s; renderer pulse QUIET; Android main queue RESPONSIVE. Native renderer PRESENT, attached/shown/windowVisible/focused all true. Runtime ready/failure none/account VALID encrypted. No rows or realclick PASS. Protected before/after audits and disposable own-peer cleanup PASS."
+  ],
+  "residual_blockers": [
+    "Read-only bounded CPU sampler of existing debug APK's local WebView, concurrent with unchanged actual UI deadlines, distinguishes active JavaScript/static callsite from idle/pending IPC. Only fixed kinds and public compiled asset positions emitted; no raw profile, function names, URLs or page data persisted. New preparation/exact authorized diagnostic proof required; source APK unchanged."
+  ]
+}

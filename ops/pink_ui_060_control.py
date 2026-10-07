@@ -43,6 +43,7 @@ def main():
     subprocess.run([sys.executable, "_canonical/control/validate_records.py", "recovery-journal", *map(str, events)], check=True)
     for result in sorted(Path(".project-leader/transitions").glob(f"{TASK}-*.result.json")):
         subprocess.run([sys.executable, "_canonical/control/validate_records.py", "transition-result", str(result)], check=True)
+    subprocess.run([sys.executable, "ops/pink_ui_060_renderer_test.py"], check=True)
     print("CANONICAL_060_IMMUTABLE_TASK_SCOPE_POLICY_AND_REUSED_PROTECTION=PASS")
     if os.environ.get("PINK060_MESSAGE") != "Authorize exact actual UI proof060":
         return

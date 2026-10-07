@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 47,
+  "recorded_at": "2026-10-07T04:44:06.150373+00:00",
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 22,
+  "action_fingerprint": "060;b5172ba;bounded-local-renderer-cpu-sample;artifact11460975825",
+  "attempt_count": 1,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "2a59b0776ab312ac3ecc14a8e8ccdad44b81b578b97d628319111c2bb02475c4",
+  "detail": "R22run37571648095/sourceb517: WebView/native protected login/catalog/DNS/normal consent PASS. Nativephase pulling_next proves first UTF8 decode completed; later drain incomplete. Callback misses10s with renderer pulse QUIET and Android main queue RESPONSIVE. Renderer PRESENT, attached/shown/windowVisible/focused all true; no app-background or first-decoder evidence. No actual rows/realclick success; protected before/after audits/disposable cleanup PASS. Need identify busy JS/static callsite versus idle native-IPC wait, not guessed transport replacement."
+}
