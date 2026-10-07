@@ -10,7 +10,52 @@ concurrency:
   group: pink-actual-ui-proof-060
   cancel-in-progress: false
 jobs:
+  control:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Check current real account control result without exposing credentials
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          python - <<'PYCODE'
+          import os
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])
+          source=Path('ops/pink_vpn_056_runtime.py').read_text().split("if __name__=='__main__':")[0]
+          source += '''
+          import contextlib,io,time,urllib.request
+          private=io.StringIO()
+          with contextlib.redirect_stdout(private):
+              execute('fetch')
+          account=json.loads(private.getvalue())
+          private.close()
+          request=urllib.request.Request('https://pink-iptv.duckdns.org/v1/session/resolve',data=json.dumps({'username':account['username'],'password':account['password']}).encode(),headers={'Content-Type':'application/json'},method='POST')
+          start=time.monotonic()
+          try:
+              with urllib.request.urlopen(request,timeout=40) as reply:
+                  result=json.load(reply)
+              code=result.get('code')
+              if code not in ('SUCCESS','INVALID_CREDENTIALS','EXPIRED','DISABLED','DNS_UNREACHABLE','UPSTREAM_ERROR'):
+                  code='UNRECOGNIZED'
+              print('CURRENT_ACCOUNT_CONTROL_RESULT='+code+';seconds='+str(round(time.monotonic()-start,1)))
+              raise SystemExit(0 if code=='SUCCESS' else 1)
+          except Exception as failure:
+              print('CURRENT_ACCOUNT_CONTROL_TRANSPORT='+failure.__class__.__name__)
+              raise SystemExit(1)
+          '''
+          root.joinpath('pink-direct-control.py').write_text(source)
+          PYCODE
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ubuntu@146.59.145.3 'sudo -n python3 -' < "$RUNNER_TEMP/pink-direct-control.py"
+          rm -f "$RUNNER_TEMP/pink-direct-control.py"
   proof:
+    needs: control
     runs-on: ubuntu-22.04
     timeout-minutes: 45
     outputs:
