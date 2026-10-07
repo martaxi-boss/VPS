@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 59,
+  "recorded_at": "2026-10-07T05:53:12.202Z",
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 26,
+  "action_fingerprint": "060;b5172ba;owned-native-bridge-postfailure-backtrace;artifact11460975825",
+  "attempt_count": 1,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "5e32632afe2ee9e54d1abb06deb6eba962476487101a56645cb22d391742377e",
+  "detail": "R26run37575192868 authb665c3d FAILED before UI: protected-login-enrollment / activation protected_health / live+bound true / admitted false / saved true / serviceStopAck true / initialReplacement1 / control none requests2, normal consent and DNS PASS. Time12.606s. Observer WAIT_PHASE/NO_UI_PHASE, so no CPU/native data and no equivalent UI diagnostic executed. Protected before-after audits/disposable own cleanup PASS. Sourceb517 health probe concealed exact failure cause; reopen only this objectively new protected admission gate."
+}
