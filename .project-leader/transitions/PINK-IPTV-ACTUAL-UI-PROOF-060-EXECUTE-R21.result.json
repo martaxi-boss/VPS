@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R21",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R21.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:f44f06cea2a55be0788e1f49c473be7772dd551d;artifact-run:37568985113",
+    "revision": "d1f0ddd99cc4a029d3933d6c97ab26f1dbee727f",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-07T04:07:15.743Z",
+  "final_state": {
+    "status": "STREAMING_RENDERER_QUIET_WITH_RESPONSIVE_ANDROID_MAIN_QUEUE",
+    "revision": "dbc18549e1a92483b41da2d1674ca082d207a778"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37569173425",
+    "Normal consent, offline-service retirement, native protected username/password login/catalog, actual WebView login, DNS readiness/target PASS. Actual live_rows misses10s evaluate callback; /livetv progress100/nativephase streaming/renderer pulse QUIET/Android main queue RESPONSIVE. Runtime ready/failure none, account VALID encrypted. No rows or realclick success. Protected audits before/after and only disposable installation removed PASS."
+  ],
+  "residual_blockers": [
+    "Fair task yielding during body drain did not fix actual renderer silence. Source4cd7067 removes ineffective task delay and instruments fixed first-chunk decode buckets/completed-decode/next-pull states plus native renderer/window flags;75 frontend tests/build PASS, new source CI and exact APK/proof required."
+  ]
+}

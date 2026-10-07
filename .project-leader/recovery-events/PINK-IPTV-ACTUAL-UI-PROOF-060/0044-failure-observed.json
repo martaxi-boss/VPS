@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 44,
+  "recorded_at": "2026-10-07T04:26:42.928985+00:00",
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 21,
+  "action_fingerprint": "060;b5172ba;first-decode-vs-next-native-pull;artifact11460975825",
+  "attempt_count": 1,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "e0f734312da6aa682a9f08e48914ab2dcb95d1f18fccd605d77702024a9a1f4c",
+  "detail": "R21run37569173425/sourcef44: exact control binding/SDK/integrity PASS, WebView login/native protected login/catalog/DNS/normal consent PASS. Live_rows callback misses10s at /livetv progress100, nativephase streaming, renderer pulse QUIET, Android main queue RESPONSIVE. Runtime ready/failure none/account VALID encrypted. No actual rows or realclick success. Protected before/after audits/disposable cleanup PASS. Material task fairness failed to restore renderer; no unchanged proof."
+}
