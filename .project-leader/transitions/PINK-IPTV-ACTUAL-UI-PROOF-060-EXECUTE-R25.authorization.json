@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R25",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-07T04:59:16.652Z",
+  "action": "staging_operational_proof",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "binding_mode": "EXACT_REVISION_BOUND",
+    "summary": "Covered task060 standing-owner autonomy. Sourceb517 Backend37570756771/Android37570756822 SUCCESS; originalartifact11460975825 digest71082827b; fresh relay11461793790 digest42fdcda7; original APK/instrumentation/source hashes and payload verified. Journal0053-0055. R24 blocked before effects; new binding schema validated before publication. Observer identifies synchronous IPC subframes and tail-half below static core callsite; fixed enums/numeric positions only, no raw profile/names/URLs/page data. Concurrent up-to60s stops at proof exit. Eight selftests and canonical control PASS. UI90s/callback10s/media60s unchanged. Strict real rows/UIclick video+audio/nativeAV/cold/roam, fixedSDK16428233, fixture9040240/own peer, protected before-after audits/observer-forward-peer cleanup mandatory. Physical HTTPS control/protected provider plane, no direct fallback/credentials/persistent host effects/physical claim."
+  },
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:b5172baddf26f108238d002c28155ebfc786614c;artifact-run:37574014754",
+    "revision": "5b7e1a6f7cd13a01a6bf1f5fd7e9c4889f3d17de",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  }
+}
