@@ -58,6 +58,19 @@ class RendererTests(unittest.TestCase):
                     CDP(url,9222)
             connect.assert_not_called()
 
+    def test_core_ipc_stack_emits_only_fixed_names_and_numeric_positions(self):
+        profile={'nodes':[
+            {'id':1,'children':[2],'callFrame':{'url':'http://tauri.localhost/_astro/core.Abc.js','lineNumber':0,'columnNumber':2407}},
+            {'id':2,'children':[3],'callFrame':{'url':'','functionName':'action','lineNumber':88,'columnNumber':19}},
+            {'id':3,'children':[4],'callFrame':{'url':'','functionName':'fixture_password','lineNumber':40,'columnNumber':7}},
+            {'id':4,'callFrame':{'url':'','functionName':'postMessage','lineNumber':-1,'columnNumber':-1}}], 'samples':[4,4]}
+        result=summarize(profile)
+        self.assertEqual(result['ipc_stacks'], [{'frames':[
+            {'kind':'POST_MESSAGE','line':-1,'column':-1},
+            {'kind':'OTHER','line':40,'column':7},
+            {'kind':'ACTION','line':88,'column':19}], 'samples':2}])
+        self.assertNotIn('fixture',json.dumps(result))
+
     def test_client_frames_are_masked_and_commands_do_not_change_ui(self):
         cdp=client(frame({'method':'Profiler.consoleProfileFinished'})+frame({'id':1,'result':{}}))
         self.assertEqual(cdp.call('Profiler.start'), {})

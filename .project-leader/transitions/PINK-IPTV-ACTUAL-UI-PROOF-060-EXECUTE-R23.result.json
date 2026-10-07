@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R23",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R23.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:b5172baddf26f108238d002c28155ebfc786614c;artifact-run:37572907880",
+    "revision": "d4d6fae43d94b6793ce67a9c1dcc71063f8f585b",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-07T04:54:49.460Z",
+  "final_state": {
+    "status": "FIRST_DECODE_COMPLETED_CORE_INVOKE_NATIVE_DESCENDANT_CPU_HOTSPOT",
+    "revision": "7b94d74cb17e9b66ab7edfca78b9f679daee8f33"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37573053127",
+    "Sampler SAMPLED: core.KmQ6fTrd.js line0 column2407 invoke ancestry3955samples. CPU owned ancestor3987/idle4981/program1110/ownedJS127/GC25. First decode completed; subsequent catalog body drain still pulling_next. Renderer pulse QUIET, main RESPONSIVE, renderer PRESENT/attached/shown/windowVisible/focused true. Normal consent/offline retirement/protected native login+catalog/actual WebViewlogin/DNS PASS. Runtime ready/failure none/account VALID encrypted. Protected before/after audits/disposable own-peer removal PASS. No rows/actual UIclick AV success."
+  ],
+  "residual_blockers": [
+    "Aggregated nearest-owned ancestor cannot distinguish synchronous uid/callback registration/serialization/native postMessage. Extend existing read-only CPU observer to fixed internal frame enums and numeric source positions below static core callsites, covering failed callback interval with concurrent up-to60s sampling stopped at proof exit. App deadlines and provider transport unchanged."
+  ]
+}

@@ -22,6 +22,13 @@ import urllib.request
 
 PACKAGE = 'com.pinkiptv.extreme'
 MAX_FRAME = 8 * 1024 * 1024
+IPC_FUNCTIONS = {name: label for name, label in (
+    ('uid', 'UID'), ('getRandomValues', 'RANDOM'),
+    ('registerCallback', 'REGISTER'), ('invoke', 'INVOKE'),
+    ('action', 'ACTION'), ('sendIpcMessage', 'SEND'),
+    ('processIpcMessage', 'SERIALIZE'), ('stringify', 'JSON'),
+    ('postMessage', 'POST_MESSAGE'), ('Promise', 'PROMISE'),
+    ('value', 'VALUE'), ('ipc', 'IPC'))}
 
 
 def owned_frame(frame):
@@ -39,6 +46,7 @@ def summarize(profile):
     parents = {child:node['id'] for node in profile.get('nodes', []) for child in node.get('children', [])}
     counts = Counter()
     kinds = Counter()
+    ipc_stacks = Counter()
     for sample in profile.get('samples', []):
         frame = nodes.get(sample, {})
         owned = owned_frame(frame)
@@ -58,10 +66,29 @@ def summarize(profile):
         if owned:
             counts[owned] += 1
             kinds[kind] += 1
+            if owned[0].startswith('core.') and kind == 'OWNED_ANCESTOR':
+                # Inspect only descendants of a static core callsite. Empty
+                # source URLs identify injected/native IPC frames; fixed names
+                # are mapped to enums and every other name is discarded.
+                stack, current = [], sample
+                for _ in range(12):
+                    inner = nodes.get(current, {})
+                    if owned_frame(inner):
+                        break
+                    if not inner.get('url'):
+                        line = int(inner.get('lineNumber', -1))
+                        column = int(inner.get('columnNumber', -1))
+                        stack.append((IPC_FUNCTIONS.get(inner.get('functionName'), 'OTHER'), line, column))
+                    current = parents.get(current)
+                    if current is None:
+                        break
+                ipc_stacks[tuple(stack)] += 1
         else:
             name = frame.get('functionName', '')
             kinds[{'(idle)': 'IDLE', '(garbage collector)': 'GC', '(program)': 'PROGRAM'}.get(name, 'OTHER')] += 1
-    return {'kind_samples': dict(kinds), 'owned_hotspots': [
+    return {'kind_samples': dict(kinds), 'ipc_stacks': [
+        {'frames': [{'kind': kind, 'line': line, 'column': column} for kind,line,column in stack], 'samples': count}
+        for stack,count in ipc_stacks.most_common(5)], 'owned_hotspots': [
         {'asset': key[0], 'line': key[1], 'column': key[2], 'samples': count}
         for key, count in counts.most_common(5)]}
 
@@ -193,7 +220,9 @@ def main():
         cdp.call('Profiler.enable')
         cdp.call('Profiler.setSamplingInterval', {'interval':1000})
         cdp.call('Profiler.start')
-        sample_end = time.monotonic()+20
+        # Cover the failed evaluator interval too; app deadlines are unchanged.
+        # The proof stopfile ends sampling immediately when the app test exits.
+        sample_end = time.monotonic()+60
         while time.monotonic()<sample_end and not stop.exists():
             time.sleep(.1)
         profile = cdp.call('Profiler.stop').get('profile', {})
