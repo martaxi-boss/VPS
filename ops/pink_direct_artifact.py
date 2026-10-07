@@ -7,7 +7,7 @@ import sys
 import urllib.request
 import zipfile
 
-SOURCE = "bb6b33fd296496a3006b4c2b8e6bc5475c14fd9d"
+SOURCE = "c69c5616f2cdbd20b08151d01433814a15eba19d"
 
 
 def api(path):
@@ -23,6 +23,7 @@ def main():
         import time
         deadline = time.monotonic() + 1200
         while True:
+            assert api("git/ref/heads/builder/physical-ui-recovery-059")["object"]["sha"] == SOURCE
             runs = api("actions/runs?head_sha=" + SOURCE + "&per_page=100")["workflow_runs"]
             exact = {}
             for name in ("PINK Extreme Android 042", "Backend CI"):
