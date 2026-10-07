@@ -93,6 +93,16 @@ def summarize(profile):
         for key, count in counts.most_common(5)]}
 
 
+def summarize_interval(profile):
+    result = summarize(profile)
+    # A 20s aggregate previously mixed normal login/idle with the start of the
+    # freeze. Compare the final half using the same privacy-safe classifier.
+    samples = profile.get('samples', [])
+    result['tail_half'] = summarize({'nodes': profile.get('nodes', []),
+                                   'samples': samples[len(samples)//2:]})
+    return result
+
+
 class CDP:
     def __init__(self, url, port):
         parsed = urllib.parse.urlsplit(url)
@@ -226,7 +236,7 @@ def main():
         while time.monotonic()<sample_end and not stop.exists():
             time.sleep(.1)
         profile = cdp.call('Profiler.stop').get('profile', {})
-        summary = summarize(profile)
+        summary = summarize_interval(profile)
         print('ACTUAL_UI_RENDERER_CPU_FIXED_PROFILE='+json.dumps(summary,separators=(',',':')), flush=True)
         status = 'SAMPLED' if profile.get('samples') else 'NO_SAMPLES'
     except (Exception, KeyboardInterrupt):

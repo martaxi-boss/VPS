@@ -3,7 +3,7 @@ import json
 import struct
 import unittest
 from unittest.mock import patch
-from pink_ui_060_renderer import CDP, MAX_FRAME, summarize
+from pink_ui_060_renderer import CDP, MAX_FRAME, summarize, summarize_interval
 
 
 class SocketStub:
@@ -70,6 +70,16 @@ class RendererTests(unittest.TestCase):
             {'kind':'OTHER','line':40,'column':7},
             {'kind':'ACTION','line':88,'column':19}], 'samples':2}])
         self.assertNotIn('fixture',json.dumps(result))
+
+    def test_tail_separates_initial_idle_from_later_ipc_wait(self):
+        profile={'nodes':[
+            {'id':1,'callFrame':{'url':'','functionName':'(idle)'}},
+            {'id':2,'children':[3],'callFrame':{'url':'http://tauri.localhost/_astro/core.Abc.js','lineNumber':0,'columnNumber':2407}},
+            {'id':3,'callFrame':{'url':'','functionName':'postMessage','lineNumber':-1,'columnNumber':-1}}], 'samples':[1,1,3,3]}
+        result=summarize_interval(profile)
+        self.assertEqual(result['kind_samples'], {'IDLE':2,'OWNED_ANCESTOR':2})
+        self.assertEqual(result['tail_half']['kind_samples'], {'OWNED_ANCESTOR':2})
+        self.assertEqual(result['tail_half']['ipc_stacks'][0]['frames'][0]['kind'],'POST_MESSAGE')
 
     def test_client_frames_are_masked_and_commands_do_not_change_ui(self):
         cdp=client(frame({'method':'Profiler.consoleProfileFinished'})+frame({'id':1,'result':{}}))
