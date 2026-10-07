@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R20",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-07T03:53:23.536Z",
+  "action": "staging_operational_proof",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "binding_mode": "EXACT_REVISION_BOUND",
+    "summary": "Covered task060 under owner-standing-autonomy-v1. Sourcef44f06c Backend37531737209/Android37531737074 SUCCESS; original artifact11444209271 digest64281008b and relay11460165840 digest04cba823 verified with APK/instrumentation/source checksums and payload. Material browser-task fairness during catalog drain; counterfactual regression and Android main-queue probe, unchanged deadlines/transport. Real UI rowclick presented video/audio, native AV, cold/roaming required. Fixed official emulator16428233/verified installer hashes. Fixture9040240/disposable own peer only. Physical TLS control/protected provider plane, no direct fallback. Protected before/after audits and own-peer cleanup mandatory. Prospective journal0038-0040; no blind retry, credential output, persistent host change or physical claim."
+  },
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:f44f06cea2a55be0788e1f49c473be7772dd551d;artifact-run:37568779141",
+    "revision": "f6a4bc27ce70f8bc51c97c2e1a1bb0b080389f0f",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  }
+}
