@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R27",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R27.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:cf8a6638f6af49a119cf3cd7773c3ba4b90e54ac;artifact-run:37578600774",
+    "revision": "4f67807ac246c991323003470c3ebbefc9b05c82",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-07T06:17:44.833Z",
+  "final_state": {
+    "status": "LIVE_BODY_PULL_AFTER_FIRST_DECODE_RENDERER_QUIET_IPC_OBSERVERS_UNAVAILABLE",
+    "revision": "b209400d95260164c0a8ec33398676586f7524ce"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37578902130",
+    "Exact CF source: protected native username/password/catalog PASS, actual WebView login PASS, normal Android consent/offline retirement PASS. /livetv progress100, native pulling_next, renderer QUIET, Android main queue RESPONSIVE, view present/attached/shown/focused/visible; authoritative ready/admitted/cacheVALID encrypted. CPU PROFILER_STOP unavailable; bounded own-UID JavaBridge backtrace unavailable. Fixed DNS READY/target PASS, exact protected before-after audits and own disposable installation/peer cleanup PASS."
+  ],
+  "residual_blockers": [
+    "Strict actual UI rows/categories/production row-click decoded video+audio and subsequent native AV/cold/roam remain unproven. Current frontier later live body read; prior login/DNS/document gates passed. Exact HTTP2.5.9 pull returns promise, so unawaited-pull hypothesis rejected. New source 03cdfdd3266ec39a77ab473c8bf4be78b7fb90f9 Backend37580058744/Android37580058646 SUCCESS, 81frontend+5realnative cases; originalartifact11465110241 sha256:60af50914c4ea7817770cd920fd6023401715076ffdc6c2042adb603c50f1d74. Single existing body IPC fixed call/return/resolve observer preserves invocation/promise/error. Retire unavailable CPU/native sampler in same bounded technical prep. Fresh source-bound proof required; no blind retry/timeout/direct fallback/physical claim."
+  ]
+}

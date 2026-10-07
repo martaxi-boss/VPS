@@ -7,10 +7,10 @@ import sys
 import urllib.request
 import zipfile
 
-SOURCE = "cf8a6638f6af49a119cf3cd7773c3ba4b90e54ac"
-RUN = 37577307342
-ARTIFACT = 11463567054
-DIGEST = "sha256:b13ac3524a320c3b5b131ae83c7f5e5018980a23631b1b1e952680fc1a18ccc0"
+SOURCE = "03cdfdd3266ec39a77ab473c8bf4be78b7fb90f9"
+RUN = 37580058646
+ARTIFACT = 11465110241
+DIGEST = "sha256:60af50914c4ea7817770cd920fd6023401715076ffdc6c2042adb603c50f1d74"
 
 
 def api(path):
@@ -51,6 +51,7 @@ def main():
         assert name in expected and name not in seen
         assert hashlib.sha256((root / name).read_bytes()).hexdigest() == digest
         seen.add(name)
+        print("EXACT_SOURCE_FILE_SHA256=" + name + ":" + digest)
     assert seen == expected
     with zipfile.ZipFile(root / "PINK-IPTV-Extreme-1.9.0-debug.apk") as apk:
         names = apk.namelist()

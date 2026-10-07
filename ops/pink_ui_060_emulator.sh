@@ -3,21 +3,6 @@ set -euo pipefail
 umask 077
 ssh_args=(-T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=3)
 fixture="$RUNNER_TEMP/pink056-account.json"
-pink_renderer_observer=''
-stop_renderer_sampling() {
-  if test -n "$pink_renderer_observer"; then
-    touch "$RUNNER_TEMP/pink060-renderer.stop"
-    for pink_stop_i in {1..60}; do
-      if ! kill -0 "$pink_renderer_observer" 2>/dev/null; then break; fi
-      sleep .2
-    done
-    if kill -0 "$pink_renderer_observer" 2>/dev/null; then kill "$pink_renderer_observer" 2>/dev/null || true; fi
-    wait "$pink_renderer_observer" 2>/dev/null || true
-    pink_renderer_observer=''
-    cat "$RUNNER_TEMP/pink060-renderer.txt" 2>/dev/null || true
-    rm -f "$RUNNER_TEMP/pink060-renderer.stop" "$RUNNER_TEMP/pink060-renderer.txt"
-  fi
-}
 native_crash_diagnostics() {
   # Wait only for debuggerd's asynchronous trace publication, never publish raw data.
   sleep 3
@@ -39,7 +24,6 @@ cleanup() {
   result=$?
   trap - EXIT
   set +e
-  stop_renderer_sampling
   # Only the disposable emulator's network is changed by the outage proof.
   adb shell svc wifi enable >/dev/null 2>&1
   if ! adb shell run-as com.pinkiptv.extreme cat files/pink055-peer-public.txt > "$RUNNER_TEMP/pink056-public.txt" 2>/dev/null; then
@@ -100,12 +84,7 @@ import os
 from pathlib import Path
 Path(os.environ['RUNNER_TEMP'],'pink056-account.json').unlink()
 PY
-# Read-only CPU sampling runs concurrently; never changes an app/UI deadline.
-rm -f "$RUNNER_TEMP/pink060-renderer.stop" "$RUNNER_TEMP/pink060-renderer.txt"
-python ops/pink_ui_060_renderer.py "$RUNNER_TEMP/pink060-renderer.stop" > "$RUNNER_TEMP/pink060-renderer.txt" &
-pink_renderer_observer=$!
 adb shell am instrument -w -r -e pinkRetainGrant true -e class com.pinkiptv.extreme.PinkVpnLiveTest com.pinkiptv.extreme.test/androidx.test.runner.AndroidJUnitRunner > "$RUNNER_TEMP/pink056-live.txt"
-stop_renderer_sampling
 # Instrumentation failures contain generic messages only; never dump logcat.
 cat "$RUNNER_TEMP/pink056-live.txt"
 if ! grep -q 'OK (1 test)' "$RUNNER_TEMP/pink056-live.txt"; then
