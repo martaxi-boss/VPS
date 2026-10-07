@@ -43,6 +43,9 @@ def main():
         with open(os.environ["GITHUB_ENV"], "a") as env:
             env.write("PINK_DIRECT_RUN=" + str(run["id"]) + "\n")
             env.write("PINK_DIRECT_ARTIFACT=" + str(artifact["id"]) + "\n")
+        with open(os.environ["GITHUB_OUTPUT"], "a") as state:
+            state.write("artifact_id=" + str(artifact["id"]) + "\n")
+            state.write("source_run=" + str(run["id"]) + "\n")
         print("EXACT_SOURCE_CI_ARTIFACT_METADATA=PASS;source="+SOURCE+";run="+str(run["id"])+";artifact="+str(artifact["id"])+";digest="+artifact["digest"])
         return
     assert sys.argv[1] == "files"

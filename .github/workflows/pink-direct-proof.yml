@@ -13,12 +13,16 @@ jobs:
   proof:
     runs-on: ubuntu-22.04
     timeout-minutes: 45
+    outputs:
+      artifact_id: ${{ steps.source.outputs.artifact_id }}
+      source_run: ${{ steps.source.outputs.source_run }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
           fetch-depth: 0
       - name: Require exact green source CI and artifact
+        id: source
         env:
           GH_TOKEN: ${{ github.token }}
         run: python ops/pink_direct_artifact.py metadata
@@ -75,3 +79,150 @@ jobs:
           emulator-boot-timeout: 900
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -dns-server 1.1.1.1
           script: bash ops/pink_ui_060_emulator.sh
+
+  delivery:
+    needs: proof
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          artifact-ids: ${{ needs.proof.outputs.artifact_id }}
+          repository: martaxi-boss/pink-iptv
+          run-id: ${{ needs.proof.outputs.source_run }}
+          github-token: ${{ github.token }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/pink-deliverable
+      - name: Verify exact tested APK and prepare delivery bytes
+        id: package
+        env:
+          PINK_DIRECT_ARTIFACT: ${{ needs.proof.outputs.artifact_id }}
+          PINK_DIRECT_RUN: ${{ needs.proof.outputs.source_run }}
+        run: python ops/pink_direct_delivery.py
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: PINK-direct-APK-manifest
+          path: ${{ runner.temp }}/pink-direct-delivery/manifest.json
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: PINK-direct-tested-APK
+          path: ${{ runner.temp }}/pink-direct-delivery/*.apk
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: ${{ fromJSON(steps.package.outputs.part_count) > 0 }}
+        with:
+          name: PINK-direct-APK-part-00
+          path: ${{ runner.temp }}/pink-direct-delivery/part-00
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: ${{ fromJSON(steps.package.outputs.part_count) > 1 }}
+        with:
+          name: PINK-direct-APK-part-01
+          path: ${{ runner.temp }}/pink-direct-delivery/part-01
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: ${{ fromJSON(steps.package.outputs.part_count) > 2 }}
+        with:
+          name: PINK-direct-APK-part-02
+          path: ${{ runner.temp }}/pink-direct-delivery/part-02
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: ${{ fromJSON(steps.package.outputs.part_count) > 3 }}
+        with:
+          name: PINK-direct-APK-part-03
+          path: ${{ runner.temp }}/pink-direct-delivery/part-03
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: ${{ fromJSON(steps.package.outputs.part_count) > 4 }}
+        with:
+          name: PINK-direct-APK-part-04
+          path: ${{ runner.temp }}/pink-direct-delivery/part-04
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: ${{ fromJSON(steps.package.outputs.part_count) > 5 }}
+        with:
+          name: PINK-direct-APK-part-05
+          path: ${{ runner.temp }}/pink-direct-delivery/part-05
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: ${{ fromJSON(steps.package.outputs.part_count) > 6 }}
+        with:
+          name: PINK-direct-APK-part-06
+          path: ${{ runner.temp }}/pink-direct-delivery/part-06
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: ${{ fromJSON(steps.package.outputs.part_count) > 7 }}
+        with:
+          name: PINK-direct-APK-part-07
+          path: ${{ runner.temp }}/pink-direct-delivery/part-07
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: ${{ fromJSON(steps.package.outputs.part_count) > 8 }}
+        with:
+          name: PINK-direct-APK-part-08
+          path: ${{ runner.temp }}/pink-direct-delivery/part-08
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: ${{ fromJSON(steps.package.outputs.part_count) > 9 }}
+        with:
+          name: PINK-direct-APK-part-09
+          path: ${{ runner.temp }}/pink-direct-delivery/part-09
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: ${{ fromJSON(steps.package.outputs.part_count) > 10 }}
+        with:
+          name: PINK-direct-APK-part-10
+          path: ${{ runner.temp }}/pink-direct-delivery/part-10
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: ${{ fromJSON(steps.package.outputs.part_count) > 11 }}
+        with:
+          name: PINK-direct-APK-part-11
+          path: ${{ runner.temp }}/pink-direct-delivery/part-11
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: ${{ fromJSON(steps.package.outputs.part_count) > 12 }}
+        with:
+          name: PINK-direct-APK-part-12
+          path: ${{ runner.temp }}/pink-direct-delivery/part-12
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: ${{ fromJSON(steps.package.outputs.part_count) > 13 }}
+        with:
+          name: PINK-direct-APK-part-13
+          path: ${{ runner.temp }}/pink-direct-delivery/part-13
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: ${{ fromJSON(steps.package.outputs.part_count) > 14 }}
+        with:
+          name: PINK-direct-APK-part-14
+          path: ${{ runner.temp }}/pink-direct-delivery/part-14
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: ${{ fromJSON(steps.package.outputs.part_count) > 15 }}
+        with:
+          name: PINK-direct-APK-part-15
+          path: ${{ runner.temp }}/pink-direct-delivery/part-15
+          if-no-files-found: error
+          retention-days: 30
