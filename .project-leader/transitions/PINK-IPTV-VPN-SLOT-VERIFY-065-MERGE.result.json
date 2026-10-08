@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-VPN-SLOT-VERIFY-065-MERGE",
+  "task_id": "PINK-IPTV-VPN-SLOT-VERIFY-065",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-VPN-SLOT-VERIFY-065-MERGE.authorization.json",
+  "action": "merge_to_main",
+  "target": {
+    "kind": "pull_request",
+    "identifier": "https://github.com/martaxi-boss/VPS/pull/26",
+    "revision": "315200a0a673ab2a49eb005e366f5104a4a39486",
+    "base_revision": "bbf4f6542f023c50fe52567713a6d5cb2d80c92a",
+    "environment": "main"
+  },
+  "observed_at": "2026-10-08T18:47:40.917Z",
+  "final_state": {
+    "status": "PR26_MERGED_NON_MUTATING_NATURAL_SLOT_RECOVERY_PROOF",
+    "revision": "d60e25c39a15d97bd16327d372c2e9cce62ad803"
+  },
+  "evidence": [
+    "PR26 exact source f52aec1971bb8f84a00ed24e67029a023612810b CI success https://github.com/martaxi-boss/VPS/actions/runs/37826376443",
+    "PR26 same source SSH PR check https://github.com/martaxi-boss/VPS/actions/runs/37826785692",
+    "Prior E2 authorization on main c38d6f6272cfe69b13598e44c22d4ee68bccbb6c before merge",
+    "GitHub merged=true merge commit d60e25c39a15d97bd16327d372c2e9cce62ad803",
+    "VPS 2026-10-08 18:43 UTC showed 4/5 account leases with zero current WireGuard peers, after prior 5/5; no account credential or peer mutation."
+  ]
+}
