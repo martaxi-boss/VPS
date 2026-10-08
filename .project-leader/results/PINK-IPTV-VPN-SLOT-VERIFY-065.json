@@ -1,0 +1,52 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-VPN-SLOT-VERIFY-065",
+  "terminal_status": "TERMINAL_SUCCESS",
+  "repository": "martaxi-boss/VPS",
+  "effect_class": "E1_RECOVERABLE_PROJECT_LOCAL",
+  "authorization_record": ".project-leader/tasks/PINK-IPTV-VPN-SLOT-VERIFY-065.json",
+  "implementation_head_sha": "f52aec1971bb8f84a00ed24e67029a023612810b",
+  "branch": "builder/pink-vpn-slot-verify-065",
+  "pr_number": 26,
+  "authorization_commit_sha": "77d76c97cfba484adb13f3f4ed1ed0d28614df90",
+  "authorization_sha256": "9cb2f4708e0d61888ddb8044c821ac11b9383f148ac9d90cc30c124888bb891a",
+  "recorded_at": "2026-10-08T18:46:25.952Z",
+  "changes": [
+    "Created one-time post-expiry VPS read-only workflow using byte-identical previously audited Task064 PostgreSQL/peer observation and pinned Project Leader E1 controls."
+  ],
+  "validation": [
+    {
+      "name": "Exact immutable Task065 v2 source, scope and unchanged observer",
+      "status": "PASS",
+      "evidence": "VPS run 37826376443: PINK065_IMMUTABLE_AUTHORITY_UNCHANGED_PRIVACY_PROBE=PASS."
+    },
+    {
+      "name": "Repeated anonymous SQL and peer privacy",
+      "status": "PASS",
+      "evidence": "Run 37826376443: PINK064_AGGREGATE_PRIVACY_NO_DB_SECRETS=PASS, PINK064_ANONYMOUS_LOCAL_DATABASE_READ_ONLY=PASS."
+    },
+    {
+      "name": "Production slot released by natural expiry",
+      "status": "PASS",
+      "evidence": "At 2026-10-08T18:43:00Z VPS run 37826376443: accounts_at_five_or_more=0, max_installations_account=4, total_active_installs=4, gateway_peers_present=0, handshakes_last15m=0. Prior run 37825179081 had five active leases, all full."
+    }
+  ],
+  "ci": [
+    {
+      "name": "PINK VPN Slot Verification 065",
+      "status": "SUCCESS",
+      "run_id": 37826376443
+    }
+  ],
+  "artifacts": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37826376443",
+    "https://github.com/martaxi-boss/VPS/pull/26"
+  ],
+  "material_non_effects": [
+    "No credential, account mapping, WireGuard key, peer route, database record or production daemon modified.",
+    "No production new peer allocation occurred during this proof; client physical login remains to be performed by owner."
+  ],
+  "residual_blockers": [
+    "Owner must press Entrar on currently installed PINK IPTV APK 062; CI cannot establish whether the physical handset will successfully authenticate and play content without this action. Do not reinstall, to preserve install key and newly available account slot."
+  ]
+}
