@@ -34,7 +34,6 @@ def main():
     script = PATH.read_text()
     assert "PINK063_REMOTE_READ_ONLY" in script and "PINK063_UNAUTH_ENROLL_HTTP_STATUS" in script
     assert "journalctl" in script and "--no-pager" in script
-    assert "password" not in script.lower().replace("password", "") or True
     # Audited observer runs no shell interpreter or state-changing network verbs.
     assert "shell=True" not in script
     assert '"GET"' not in script
