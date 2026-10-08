@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-VPN-QUOTA-INSPECT-064-MERGE",
+  "task_id": "PINK-IPTV-VPN-QUOTA-INSPECT-064",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-08T18:37:27.565Z",
+  "action": "merge_to_main",
+  "effect_class": "E2_CONSEQUENTIAL_TRANSITION",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "binding_mode": "EXACT_REVISION_BOUND",
+    "summary": "Owner explicitly ordered full PINK IPTV recovery under standing autonomy. VPS PR25 is exclusively a non-mutating quota and peer lifecycle probe with task v2 E1. Certified implementation 65a22da0 passed PINK VPN Quota Inspection 064 (37825179081) and VPS SSH Access PR Check (37825584598). PR head 57d8734 contains only append-only Worker Result v2 after certification. No production host, account, database, peer, WireGuard or customer modification. Audit exact head/base before merge; integrate diagnostic script and durable evidence only."
+  },
+  "target": {
+    "kind": "pull_request",
+    "identifier": "https://github.com/martaxi-boss/VPS/pull/25",
+    "revision": "57d8734a22caf3192053944ad2dbdb4305107a6d",
+    "base_revision": "01327e8a3b24ebda3d8ceccd97a5474e44931100",
+    "environment": "main"
+  }
+}
