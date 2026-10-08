@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-VPN-QUOTA-INSPECT-064-MERGE",
+  "task_id": "PINK-IPTV-VPN-QUOTA-INSPECT-064",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-VPN-QUOTA-INSPECT-064-MERGE.authorization.json",
+  "action": "merge_to_main",
+  "target": {
+    "kind": "pull_request",
+    "identifier": "https://github.com/martaxi-boss/VPS/pull/25",
+    "revision": "57d8734a22caf3192053944ad2dbdb4305107a6d",
+    "base_revision": "01327e8a3b24ebda3d8ceccd97a5474e44931100",
+    "environment": "main"
+  },
+  "observed_at": "2026-10-08T18:38:00.215Z",
+  "final_state": {
+    "status": "PR25_MERGED_READONLY_SANITIZED_QUOTA_INSPECTION",
+    "revision": "7bbf17b5aed487cf22fce7541255f02a179af8bd"
+  },
+  "evidence": [
+    "Prior exact standing authorization c5c0563402d6fd710658f6d59e27d796baa13d59 on main before merge.",
+    "https://github.com/martaxi-boss/VPS/pull/25",
+    "https://github.com/martaxi-boss/VPS/actions/runs/37825179081 — exact source terminal SUCCESS",
+    "https://github.com/martaxi-boss/VPS/actions/runs/37825584598 — exact PR checks SUCCESS",
+    "GitHub merge API returned merged=true and merge SHA7bbf17b5aed487cf22fce7541255f02a179af8bd; production host changes none."
+  ]
+}
