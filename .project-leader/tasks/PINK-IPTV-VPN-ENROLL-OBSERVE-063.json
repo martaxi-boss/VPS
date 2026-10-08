@@ -1,0 +1,117 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-VPN-ENROLL-OBSERVE-063",
+  "project": "PINK IPTV owner-device VPN_ENROLL read-only causal diagnosis",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-08T18:10:40.636Z",
+  "authority": {
+    "kind": "DERIVED_COMPLETION_AUTHORITY",
+    "source": "STANDING_OWNER_GRANT",
+    "binding_mode": "OBJECTIVE_SCOPE_BOUND",
+    "summary": "Owner's screenshot of corrected Android candidate identifies PINK VPN_ENROLL failure. Autonomous bounded project recovery requires a privacy-safe, read-only VPS probe of backend and WireGuard runtime service health and aggregated endpoint HTTP status for the requested time window. Reuse existing authorized VPS SSH connection with existing GitHub secret names, never output credentials, client identifiers/IPs, peer keys, journals or records. No production state mutation, customer data access, release or deployment. Preserve task isolation: VPS read-only operation is a separate scoped task."
+  },
+  "starting_state": {
+    "default_branch": "main",
+    "base_sha": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "task_branch": "builder/pink-vpn-enroll-observe-063"
+  },
+  "effect_class": "E1_RECOVERABLE_PROJECT_LOCAL",
+  "mutation_scope": [
+    ".project-leader/tasks/PINK-IPTV-VPN-ENROLL-OBSERVE-063.json",
+    "ops/pink_vpn_063_observe.py",
+    "ops/pink_vpn_063_test.py",
+    ".github/workflows/pink-vpn-enroll-observe-063.yml",
+    ".project-leader/results/PINK-IPTV-VPN-ENROLL-OBSERVE-063.json",
+    ".project-leader/recovery-events/PINK-IPTV-VPN-ENROLL-OBSERVE-063/**"
+  ],
+  "allowed_actions": [
+    "create_branch",
+    "edit_project_files",
+    "create_commits",
+    "run_ci",
+    "open_or_update_pull_request"
+  ],
+  "prohibited_actions": [
+    "merge_to_main",
+    "branch_protection_or_ruleset_change",
+    "release_or_publish",
+    "production_deploy",
+    "destructive_data_change",
+    "repository_or_history_deletion",
+    "production_secret_change",
+    "irreversible_infrastructure_change",
+    "paid_service_activation",
+    "production_host_mutation",
+    "configuration_or_secret_access_in_log",
+    "customer_or_device_identifiers_in_artifacts",
+    "client_peer_key_disclosure",
+    "force_push",
+    "cross_project_mutation"
+  ],
+  "transition_controls": [
+    {
+      "action": "merge_to_main",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "branch_protection_or_ruleset_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "release_or_publish",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_deploy",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "destructive_data_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "repository_or_history_deletion",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_secret_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "irreversible_infrastructure_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "paid_service_activation",
+      "requires_authority_resolution": true
+    }
+  ],
+  "required_validation": [
+    "Project architecture scope audit",
+    "Mutation scope audit",
+    "GitHub evidence verification",
+    "Read-only VPS operations; no runtime, service, network or customer data changes",
+    "Aggregate HTTP statuses and service booleans only",
+    "Runner security and sanitized log proof"
+  ],
+  "required_ci": [
+    "PINK VPN Enroll Observation 063"
+  ],
+  "policy": {
+    "profile": "generic-project-v1",
+    "path": "control/generic-project-policy.json",
+    "sha256": "5b58a29526295b2827b619630a392ab8d7531502cf245458d9cf82e3c1d6b357",
+    "binding_mode": "CENTRAL_CONTROL_V1",
+    "repository": "martaxi-boss/Project-leader",
+    "revision": "7f3706f96a43071d797f19774b9eca25ab464e56"
+  },
+  "recovery": {
+    "mode": "APPEND_ONLY_V1"
+  },
+  "integrity_mode": "IMMUTABLE_AUTHORIZATION_V1",
+  "terminal_condition": "Audited read-only VPS observation with sanitized service status and aggregate HTTP status evidence for relevant owner-device window, independently reviewed for no secret/customer exposure; no production mutations.",
+  "privacy": {
+    "contains_secrets": false,
+    "contains_private_conversation_text": false
+  }
+}
