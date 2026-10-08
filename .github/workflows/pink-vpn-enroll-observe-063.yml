@@ -1,0 +1,65 @@
+name: PINK VPN Enroll Observation 063
+on:
+  push:
+    branches: ["builder/pink-vpn-enroll-observe-063"]
+    paths:
+      - "ops/pink_vpn_063_*"
+      - ".github/workflows/pink-vpn-enroll-observe-063.yml"
+      - ".project-leader/tasks/PINK-IPTV-VPN-ENROLL-OBSERVE-063.json"
+permissions:
+  contents: read
+jobs:
+  observe:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/Project-leader
+          ref: 7f3706f96a43071d797f19774b9eca25ab464e56
+          path: _canonical
+          persist-credentials: false
+      - name: Verify pinned task authority, scope, policy and isolated diagnostics
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ops/pink_vpn_063_observe.py ops/pink_vpn_063_test.py
+          python3 ops/pink_vpn_063_test.py
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, json, subprocess
+          p='.project-leader/tasks/PINK-IPTV-VPN-ENROLL-OBSERVE-063.json'
+          auth='215c2dff3bffc568e62fe89bc35208567acfa5c5' # pragma: allowlist secret -- immutable public Git commit SHA
+          task=json.loads(Path(p).read_text())
+          assert Path(p).read_bytes()==subprocess.check_output(['git','show',auth+':'+p])
+          assert subprocess.check_output(['git','diff','--name-only',auth+'^',auth],text=True).splitlines()==[p]
+          subprocess.run(['git','merge-base','--is-ancestor',auth,'HEAD'],check=True)
+          names=set(subprocess.check_output(['git','diff','--name-only',task['starting_state']['base_sha'],'HEAD'],text=True).splitlines())
+          assert names<=set(task['mutation_scope']),names-set(task['mutation_scope'])
+          assert task['integrity_mode']=='IMMUTABLE_AUTHORIZATION_V1'
+          assert task['recovery']['mode']=='APPEND_ONLY_V1'
+          assert task['policy']['binding_mode']=='CENTRAL_CONTROL_V1'
+          assert task['policy']['revision']=='7f3706f96a43071d797f19774b9eca25ab464e56'
+          digest=hashlib.sha256(Path('_canonical/control/generic-project-policy.json').read_bytes()).hexdigest()
+          assert digest==task['policy']['sha256']
+          print('PINK063_IMMUTABLE_TASK_SCOPE_CANONICAL_POLICY=PASS')
+          PY
+      - name: Read-only VPS backend VPN enrollment status observation
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${SSHPASS:-}" ]; then
+            echo PINK063_EXISTING_SSH_SECRET_UNAVAILABLE
+            exit 2
+          fi
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 \
+            -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
+            ubuntu@146.59.145.3 'sudo -n python3 -' < ops/pink_vpn_063_observe.py

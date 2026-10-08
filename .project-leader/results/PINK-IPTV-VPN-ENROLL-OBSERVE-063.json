@@ -1,0 +1,71 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-VPN-ENROLL-OBSERVE-063",
+  "terminal_status": "TERMINAL_SUCCESS",
+  "repository": "martaxi-boss/VPS",
+  "effect_class": "E1_RECOVERABLE_PROJECT_LOCAL",
+  "authorization_record": ".project-leader/tasks/PINK-IPTV-VPN-ENROLL-OBSERVE-063.json",
+  "authorization_commit_sha": "215c2dff3bffc568e62fe89bc35208567acfa5c5",
+  "authorization_sha256": "c68ad3fc0081dce22a6a99a14f77bbb52f05c5968181e653b134cd19dd6450e5",
+  "implementation_head_sha": "9a4e527893dc6685597ec3b0c746dbf76a62b2ec",
+  "branch": "builder/pink-vpn-enroll-observe-063",
+  "pr_number": 24,
+  "recorded_at": "2026-10-08T18:18:18.770Z",
+  "changes": [
+    "ops/pink_vpn_063_observe.py: read-only root service and sanitized enrollment/session HTTP status diagnostic for two owner test windows.",
+    "ops/pink_vpn_063_test.py: source/parser regression tests without user IDs or log content.",
+    "GitHub Actions PINK VPN Enroll Observation 063: immutable Task v2, current canonical policy digest, permitted scope, SSH read-only probe returning fixed statuses only."
+  ],
+  "validation": [
+    {
+      "name": "Bounded immutable authority and canonical control",
+      "status": "PASS",
+      "evidence": "CI 37822637078 PINK063_IMMUTABLE_TASK_SCOPE_CANONICAL_POLICY=PASS"
+    },
+    {
+      "name": "Safe aggregate-only parser",
+      "status": "PASS",
+      "evidence": "CI 37822637078 PINK063_LOCAL_PARSER_PRIVACY_READONLY=PASS"
+    },
+    {
+      "name": "Non-mutating VPN/backend/Nginx/PostgreSQL/socket health",
+      "status": "PASS",
+      "evidence": "CI 37822637078 PINK063_REMOTE_READ_ONLY=PASS and four services ACTIVE, Unix gateway socket PRESENT, backend directory EXPECTED."
+    },
+    {
+      "name": "Physical owner login window 18:04 local",
+      "status": "PASS",
+      "evidence": "CI 37822637078 FIRST_DEVICE_1804 SESSION_200=3; ENROLL_429=3 (no client details)."
+    },
+    {
+      "name": "Physical owner login window 19:05 local",
+      "status": "PASS",
+      "evidence": "CI 37822637078 SECOND_DEVICE_1905 SESSION_200=3; ENROLL_429=3 (no client details)."
+    },
+    {
+      "name": "Unauthenticated HTTPS VPN enrollment remains closed",
+      "status": "PASS",
+      "evidence": "CI 37822637078 PINK063_UNAUTH_ENROLL_HTTP_STATUS=401"
+    }
+  ],
+  "ci": [
+    {
+      "name": "PINK VPN Enroll Observation 063",
+      "status": "SUCCESS",
+      "run_id": 37822637078
+    }
+  ],
+  "artifacts": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37822637078",
+    "https://github.com/martaxi-boss/VPS/pull/24"
+  ],
+  "material_non_effects": [
+    "No production VPS/service/firewall/gateway/process/database mutations or restarts.",
+    "No owner username/password, account record, bearer session, peer key, network address, public access-log line, client device identifier or secret printed, queried from customer tables or persisted.",
+    "Unauthenticated probe POST used a newly generated ephemeral 32-byte public key; server returned 401 and did not create a device lease."
+  ],
+  "residual_blockers": [
+    "Owner-device VPN_ENROLL failed because the backend enforced HTTP 429 active per-account VPN installation cap; current default is 5 active leases, 24h lifetime. Existing active peers must not be automatically revoked without the account holder's explicit informed selection or a defined safe reclamation policy.",
+    "Task063 is read-only diagnosis only; PINK client capacity recovery and final device acceptance remain separate tasks."
+  ]
+}
