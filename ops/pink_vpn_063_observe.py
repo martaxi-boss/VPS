@@ -5,7 +5,6 @@ journal lines, service configuration, account data, device identities or IPs.
 Only fixed service booleans and endpoint/status aggregate counts are emitted.
 """
 from collections import Counter
-from datetime import UTC, datetime
 from pathlib import Path
 import base64
 import json
