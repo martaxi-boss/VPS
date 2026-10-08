@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-VPN-ENROLL-OBSERVE-063-MERGE",
+  "task_id": "PINK-IPTV-VPN-ENROLL-OBSERVE-063",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-VPN-ENROLL-OBSERVE-063-MERGE.authorization.json",
+  "action": "merge_to_main",
+  "target": {
+    "kind": "pull_request",
+    "identifier": "https://github.com/martaxi-boss/VPS/pull/24",
+    "revision": "3f6eba18f19d080b02789e7b9124677b93eadb39",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "main"
+  },
+  "observed_at": "2026-10-08T18:19:21.905Z",
+  "final_state": {
+    "status": "PR24_MERGED_SANITIZED_READ_ONLY_DIAGNOSTIC",
+    "revision": "1d7b9e43d85d62e0823fc3cbee16aa4c908e5640"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/pull/24",
+    "https://github.com/martaxi-boss/VPS/actions/runs/37822637078",
+    "https://github.com/martaxi-boss/VPS/actions/runs/37823154089",
+    "Exact standing owner authorization 1527a7db239a377e399ec2821817a7e9ec66c27a on main prior to merge; GitHub returned merged=true and merge SHA 1d7b9e43d85d62e0823fc3cbee16aa4c908e5640.",
+    "Production observation SESSION_200=3, ENROLL_429=3 in each owner physical device test window; 4 services active, socket present, unauth enroll HTTP401."
+  ],
+  "residual_blockers": [
+    "The device already has a full VPN installation quota (429) for its authenticated account; remediation requires non-destructive account-level device management or explicit safe revocation consent.",
+    "No production state modified or peer revoked; user device successful login remains unverified."
+  ]
+}
