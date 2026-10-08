@@ -1,0 +1,56 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-VPN-QUOTA-INSPECT-064",
+  "terminal_status": "TERMINAL_SUCCESS",
+  "repository": "martaxi-boss/VPS",
+  "effect_class": "E1_RECOVERABLE_PROJECT_LOCAL",
+  "authorization_record": ".project-leader/tasks/PINK-IPTV-VPN-QUOTA-INSPECT-064.json",
+  "implementation_head_sha": "65a22da0f73ce5bd07b925b7bf50e85d90f353fb",
+  "branch": "builder/pink-vpn-quota-recovery-064",
+  "pr_number": 25,
+  "authorization_commit_sha": "5d6717de27aacf0c2cdf0eaae53046cfc06a6b04",
+  "authorization_sha256": "918de8d60977e7c5d21d1c17bf5079f71a8255ca695ae1e7e134d703e8d3932d",
+  "recorded_at": "2026-10-08T18:37:00.421Z",
+  "changes": [
+    "Read-only PostgreSQL local peer-auth SQL aggregate of unexpired/unrevoked VPN installation leases; read-only count of current WireGuard peers and recent handshakes, with no customer or peer identifiers output.",
+    "Tested aggregate-only redaction and immutable E1 task scope and pinned canonical policy.",
+    "Added CI proof workflow for VPS host metadata-only observation."
+  ],
+  "validation": [
+    {
+      "name": "Immutable E1 authority, canonical policy and bounded real diff",
+      "status": "PASS",
+      "evidence": "GitHub Actions VPS run 37825179081: PINK064_IMMUTABLE_E1_CONTROL_AND_SCOPE=PASS."
+    },
+    {
+      "name": "No secrets, identifiers or database names leave the host",
+      "status": "PASS",
+      "evidence": "Run 37825179081 PINK064_AGGREGATE_PRIVACY_NO_DB_SECRETS=PASS and PINK064_ANONYMOUS_LOCAL_DATABASE_READ_ONLY=PASS."
+    },
+    {
+      "name": "Real production VPN enrollment quota snapshot",
+      "status": "PASS",
+      "evidence": "Run 37825179081: one account active and saturated at five leases (all current active); no current VPN peers or recent handshakes; earliest expiry 6 min, latest 1265 min, one lease expires within hour."
+    }
+  ],
+  "ci": [
+    {
+      "name": "PINK VPN Quota Inspection 064",
+      "status": "SUCCESS",
+      "run_id": 37825179081
+    }
+  ],
+  "artifacts": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37825179081",
+    "https://github.com/martaxi-boss/VPS/pull/25"
+  ],
+  "material_non_effects": [
+    "No host, WireGuard peers, production database, application/server configurations, credentials or live services modified.",
+    "No account names, mapping identifiers, WireGuard public/private keys, SQL database names, service environment or raw database rows emitted.",
+    "No expired lease revoked; available slots naturally recover when unexpired lease window passes."
+  ],
+  "residual_blockers": [
+    "Device login must be rechecked after the nearest naturally expiring lease releases a slot, without reinstalling the current APK.",
+    "Long-term product-quality improvement: native client should classify 429 quota accurately and offer account-authorized device replacement rather than masquerading as generic VPN enrollment failure."
+  ]
+}

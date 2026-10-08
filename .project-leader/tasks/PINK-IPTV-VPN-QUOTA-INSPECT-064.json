@@ -1,0 +1,116 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-VPN-QUOTA-INSPECT-064",
+  "project": "PINK IPTV safe account-scoped stale VPN installation diagnosis before repair",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-08T18:30:15.506Z",
+  "authority": {
+    "kind": "DERIVED_COMPLETION_AUTHORITY",
+    "source": "CURRENT_OWNER_INSTRUCTION",
+    "binding_mode": "OBJECTIVE_SCOPE_BOUND",
+    "summary": "Owner ordered Project Leader to autonomously repair physical device PINK VPN_ENROLL=429 quickly and safely while protecting all legitimate peers, accounts, secrets and production. Task064 isolates the VPS read-only evidence needed for a bounded, later authorized recovery. Inspect only aggregate lease utilization, remaining TTL, and independently verified WireGuard peer handshake recency; no per-user identifiers, account names, keys, IPs, database connection details or raw logs leave the host. No production modifications or revocations in this task."
+  },
+  "starting_state": {
+    "default_branch": "main",
+    "base_sha": "01327e8a3b24ebda3d8ceccd97a5474e44931100",
+    "task_branch": "builder/pink-vpn-quota-recovery-064"
+  },
+  "effect_class": "E1_RECOVERABLE_PROJECT_LOCAL",
+  "mutation_scope": [
+    ".project-leader/tasks/PINK-IPTV-VPN-QUOTA-INSPECT-064.json",
+    "ops/pink_vpn_064_inspect.py",
+    "ops/pink_vpn_064_test.py",
+    ".github/workflows/pink-vpn-quota-inspect-064.yml",
+    ".project-leader/results/PINK-IPTV-VPN-QUOTA-INSPECT-064.json",
+    ".project-leader/recovery-events/PINK-IPTV-VPN-QUOTA-INSPECT-064/**"
+  ],
+  "allowed_actions": [
+    "create_branch",
+    "edit_project_files",
+    "create_commits",
+    "run_ci",
+    "open_or_update_pull_request"
+  ],
+  "prohibited_actions": [
+    "merge_to_main",
+    "branch_protection_or_ruleset_change",
+    "release_or_publish",
+    "production_deploy",
+    "destructive_data_change",
+    "repository_or_history_deletion",
+    "production_secret_change",
+    "irreversible_infrastructure_change",
+    "paid_service_activation",
+    "host_runtime_mutation",
+    "peer_revocation",
+    "read_or_print_individual_account_identifiers",
+    "disclose_backend_database_credentials",
+    "force_push",
+    "cross_repo_mutation"
+  ],
+  "transition_controls": [
+    {
+      "action": "merge_to_main",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "branch_protection_or_ruleset_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "release_or_publish",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_deploy",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "destructive_data_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "repository_or_history_deletion",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_secret_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "irreversible_infrastructure_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "paid_service_activation",
+      "requires_authority_resolution": true
+    }
+  ],
+  "required_validation": [
+    "Project architecture scope audit",
+    "Mutation scope audit",
+    "GitHub evidence verification",
+    "Per-account counts and current WireGuard handshakes calculated only in VPS memory; sanitized aggregate output only",
+    "No database writes or host service mutation, privacy audit"
+  ],
+  "required_ci": [
+    "PINK VPN Quota Inspection 064"
+  ],
+  "policy": {
+    "profile": "generic-project-v1",
+    "path": "control/generic-project-policy.json",
+    "sha256": "5b58a29526295b2827b619630a392ab8d7531502cf245458d9cf82e3c1d6b357",
+    "binding_mode": "CENTRAL_CONTROL_V1",
+    "repository": "martaxi-boss/Project-leader",
+    "revision": "7f3706f96a43071d797f19774b9eca25ab464e56"
+  },
+  "recovery": {
+    "mode": "APPEND_ONLY_V1"
+  },
+  "integrity_mode": "IMMUTABLE_AUTHORIZATION_V1",
+  "terminal_condition": "Exact-source successful independent quota/peer observation revealing if one unambiguously saturated account has reclaimable inactive leases, with no production effects; scope-safe recovery decision based on evidence.",
+  "privacy": {
+    "contains_secrets": false,
+    "contains_private_conversation_text": false
+  }
+}
