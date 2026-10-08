@@ -1,0 +1,77 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "terminal_status": "TERMINAL_SUCCESS",
+  "repository": "martaxi-boss/VPS",
+  "effect_class": "E1_RECOVERABLE_PROJECT_LOCAL",
+  "authorization_record": ".project-leader/tasks/PINK-IPTV-ACTUAL-UI-PROOF-060.json",
+  "implementation_head_sha": "9efb25695cf7012de8f9b31c1103059622c1e990",
+  "branch": "builder/pink-actual-ui-proof-060",
+  "recorded_at": "2026-10-08T16:31:33.903Z",
+  "changes": [
+    "Rebound existing Task060 bounded disposable Android13 staging proof to exact source 882df9a4aa302a9875d8d19eabdf80fd68cac33e, successful PINK source CI37805248042/37805248131 and intact source/APK/instrumentation artifact11562399564.",
+    "Prepared and integrity-verified exact relay artifact at VPS run37808034777, artifact11563846784; exact R29 privilege authorization preserved in prior commit 9efb25695cf7012de8f9b31c1103059622c1e990.",
+    "R29 actual authenticated Android13 UI + native playback + VPN cold/roaming staging proof SUCCESS on attempt2 (first failed before emulator on transient corrupted hosted Android33 SDK download).",
+    "Durable E3 transition authorization/result preserved; no stage replay, host persistent modifications or historical record edits."
+  ],
+  "validation": [
+    {
+      "name": "Project architecture scope audit",
+      "status": "PASS",
+      "evidence": "Exact canonical Task060 control audit job113418979220 SUCCESS in GitHub Actions37808275533; existing VPN and backend contracts preserved."
+    },
+    {
+      "name": "Mutation scope audit",
+      "status": "PASS",
+      "evidence": "VPS Task060 local change only ops/pink_ui_060_artifact.py and task-local transitions; CI control_audit PASS."
+    },
+    {
+      "name": "GitHub evidence verification",
+      "status": "PASS",
+      "evidence": "VPS workflow37808275533 attempt2 terminal-success exact source/authorized revision9efb25695cf7012de8f9b31c1103059622c1e990; original PINK CI37805248042 Android / 37805248131 Backend SUCCESS; relay preparation37808034777 SUCCESS."
+    },
+    {
+      "name": "Exact successful source059 APK and instrumentation integrity",
+      "status": "PASS",
+      "evidence": "Preparation run37808034777 reverified source hash, APK/instrumentation SHA256SUMS, official WireGuard non-root payload; verified relay artifact11563846784 reused, not rebuilt."
+    },
+    {
+      "name": "Actual WebView login and Tauri Live TV rows on Android13",
+      "status": "PASS",
+      "evidence": "R29 run37808275533 job113418978101: AUTHORITATIVE_USERNAME_PASSWORD_LOGIN_AND_CATALOG_VIA_WIREGUARD, ACTUAL_WEBVIEW_USERNAME_PASSWORD_LOGIN, ACTUAL_WEBVIEW_TAURI_LIVE_CATALOG_AND_UI_ROUNDTRIP=PASS."
+    },
+    {
+      "name": "Native decoded audio/video and required connection recovery",
+      "status": "PASS",
+      "evidence": "R29 job113418978101: ACTUAL_UI_CHANNEL_CLICK_VIDEO_AUDIO_DECODE=PASS;player=webview; NATIVE_LIVE_AUDIO_VIDEO_DECODE_AND_SAME_INSTALLATION_RECREATION; COLD_PROCESS_SAME_KEY_NO_CREDENTIALS_AUTHORIZED_TUNNEL; SAME_PROCESS_WIFI_TO_CELLULAR_WIREGUARD_ROAM; WIFI_RECONNECT_CAPTURE_AND_DEFAULT_TUNNEL_HEALTH=PASS."
+    },
+    {
+      "name": "Only disposable installation cleanup and protected runtime unchanged",
+      "status": "PASS",
+      "evidence": "R29 before/after EXACT_ACCEPTED_GATEWAY_AND_BACKEND_SOURCE, PROTECTED_PERSISTENT_TASK052_IDENTITY and OWNED_ROUTING_NAT_AND_PROTECTED_SERVICES PASS; REAL_ANDROID_PROOF_AND_BOUNDED_PEER_CLEANUP=PASS."
+    },
+    {
+      "name": "No credentials or provider origin in diagnostic output",
+      "status": "PASS",
+      "evidence": "Existing audited staging harness redirects owned credentials to disposable emulator fixture only; CI observed allowlisted fixed markers and protected host audit without reporting password/provider-origin values. No credential values persisted in task/transition records."
+    }
+  ],
+  "ci": [
+    {
+      "name": "PINK actual UI proof 060",
+      "status": "SUCCESS",
+      "run_id": 37808275533
+    }
+  ],
+  "artifacts": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37808034777/artifacts/11563846784",
+    "https://github.com/martaxi-boss/pink-iptv/actions/runs/37805248042/artifacts/11562399564"
+  ],
+  "material_non_effects": [
+    "No persistent infrastructure mutation, production deployment, credential/secret change, firewall/routing policy change, or persistent peer retained.",
+    "No public release or Owner-device/TV acceptance claim. Unchanged PINK source/production app during bounded VPS Task060."
+  ],
+  "residual_blockers": [
+    "Owner physical Android/TV validation and actual external provider Movies/Series/EPG/track switching remain separate from this exact scoped Live UI/staging proof."
+  ]
+}
