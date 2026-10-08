@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-VPN-ENROLL-OBSERVE-063-MERGE",
+  "task_id": "PINK-IPTV-VPN-ENROLL-OBSERVE-063",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-08T18:18:52.135Z",
+  "action": "merge_to_main",
+  "effect_class": "E2_CONSEQUENTIAL_TRANSITION",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "summary": "Owner instructed continuous PINK recovery. Task063's separate VPS repository read-only diagnostic exact implementation head 9a4e527893dc6685597ec3b0c746dbf76a62b2ec passed PINK VPN Enroll Observation 063 run 37822637078 and VPS SSH Access PR Check 37823154089. PR24 successor 3f6eba18 contains only append-only Worker Result v2. No runtime/deployment/network/DB mutations; preserves privacy and existing services. Exact PR head and base must be revalidated. No device peer revocation, public release or owner-phone success claimed.",
+    "binding_mode": "EXACT_REVISION_BOUND"
+  },
+  "target": {
+    "kind": "pull_request",
+    "identifier": "https://github.com/martaxi-boss/VPS/pull/24",
+    "revision": "3f6eba18f19d080b02789e7b9124677b93eadb39",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "main"
+  }
+}
