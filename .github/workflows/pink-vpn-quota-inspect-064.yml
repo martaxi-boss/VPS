@@ -1,0 +1,58 @@
+name: PINK VPN Quota Inspection 064
+on:
+  push:
+    branches: ["builder/pink-vpn-quota-recovery-064"]
+    paths:
+      - "ops/pink_vpn_064_*"
+      - ".github/workflows/pink-vpn-quota-inspect-064.yml"
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/Project-leader
+          ref: 7f3706f96a43071d797f19774b9eca25ab464e56
+          path: _canonical
+          persist-credentials: false
+      - name: Verify immutable E1 source policy and safe anonymization
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ops/pink_vpn_064_inspect.py ops/pink_vpn_064_test.py
+          python3 ops/pink_vpn_064_test.py
+          python3 - <<'PY'
+          import hashlib,json,subprocess
+          from pathlib import Path
+          path='.project-leader/tasks/PINK-IPTV-VPN-QUOTA-INSPECT-064.json'
+          source_sha='5d6717de27aacf0c2cdf0eaae53046cfc06a6b04' # pragma: allowlist secret -- immutable public source SHA
+          data=json.loads(Path(path).read_text())
+          assert Path(path).read_bytes()==subprocess.check_output(['git','show',source_sha+':'+path])
+          assert subprocess.check_output(['git','diff','--name-only',source_sha+'^',source_sha],text=True).splitlines()==[path]
+          subprocess.run(['git','merge-base','--is-ancestor',source_sha,'HEAD'],check=True)
+          paths=set(subprocess.check_output(['git','diff','--name-only',data['starting_state']['base_sha'],'HEAD'],text=True).splitlines())
+          assert paths<=set(data['mutation_scope']),paths-set(data['mutation_scope'])
+          assert data['integrity_mode']=='IMMUTABLE_AUTHORIZATION_V1'
+          assert data['policy']['revision']=='7f3706f96a43071d797f19774b9eca25ab464e56'
+          assert hashlib.sha256(Path('_canonical/control/generic-project-policy.json').read_bytes()).hexdigest()==data['policy']['sha256']
+          print('PINK064_IMMUTABLE_E1_CONTROL_AND_SCOPE=PASS')
+          PY
+      - name: Local-root read-only anonymous VPS lease and handshake summary
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 \
+            -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
+            ubuntu@146.59.145.3 'sudo -n python3 -' < ops/pink_vpn_064_inspect.py
