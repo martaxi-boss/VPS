@@ -1,0 +1,112 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-VPN-SLOT-VERIFY-065",
+  "project": "PINK IPTV post-expiry autonomous read-only check for owner VPN_ENROLL 429",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-08T18:42:08.658Z",
+  "authority": {
+    "kind": "DERIVED_COMPLETION_AUTHORITY",
+    "source": "CURRENT_OWNER_INSTRUCTION",
+    "binding_mode": "OBJECTIVE_SCOPE_BOUND",
+    "summary": "Owner instructed autonomous effective PINK login repair. Task064 proved a single saturated account with five VPN leases, one expiring within approx six minutes, no live WireGuard peers. This bounded independent E1 operation reobserves per-account aggregate quota after expected natural expiration through already audited read-only Task064 probe. Do not read individual accounts or keys, change SQL/leases, restart services, revoke peers or claim owner physical login. Existing workflow SSH secret name only and sanitized counts."
+  },
+  "starting_state": {
+    "default_branch": "main",
+    "base_sha": "bbf4f6542f023c50fe52567713a6d5cb2d80c92a",
+    "task_branch": "builder/pink-vpn-slot-verify-065"
+  },
+  "effect_class": "E1_RECOVERABLE_PROJECT_LOCAL",
+  "mutation_scope": [
+    ".project-leader/tasks/PINK-IPTV-VPN-SLOT-VERIFY-065.json",
+    ".github/workflows/pink-vpn-slot-verify-065.yml",
+    ".project-leader/results/PINK-IPTV-VPN-SLOT-VERIFY-065.json",
+    ".project-leader/recovery-events/PINK-IPTV-VPN-SLOT-VERIFY-065/**"
+  ],
+  "allowed_actions": [
+    "create_branch",
+    "edit_project_files",
+    "create_commits",
+    "run_ci",
+    "open_or_update_pull_request"
+  ],
+  "prohibited_actions": [
+    "merge_to_main",
+    "branch_protection_or_ruleset_change",
+    "release_or_publish",
+    "production_deploy",
+    "destructive_data_change",
+    "repository_or_history_deletion",
+    "production_secret_change",
+    "irreversible_infrastructure_change",
+    "paid_service_activation",
+    "production_peer_or_database_mutation",
+    "expose_customer_records_or_secrets",
+    "force_push",
+    "third_project_mutation"
+  ],
+  "transition_controls": [
+    {
+      "action": "merge_to_main",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "branch_protection_or_ruleset_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "release_or_publish",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_deploy",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "destructive_data_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "repository_or_history_deletion",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_secret_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "irreversible_infrastructure_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "paid_service_activation",
+      "requires_authority_resolution": true
+    }
+  ],
+  "required_validation": [
+    "Project architecture scope audit",
+    "Mutation scope audit",
+    "GitHub evidence verification",
+    "Read-only post-expiry second snapshot from previously audited Task064 probe",
+    "No customer details, WireGuard keys or credentials in logs"
+  ],
+  "required_ci": [
+    "PINK VPN Slot Verification 065"
+  ],
+  "policy": {
+    "profile": "generic-project-v1",
+    "path": "control/generic-project-policy.json",
+    "sha256": "5b58a29526295b2827b619630a392ab8d7531502cf245458d9cf82e3c1d6b357",
+    "binding_mode": "CENTRAL_CONTROL_V1",
+    "repository": "martaxi-boss/Project-leader",
+    "revision": "7f3706f96a43071d797f19774b9eca25ab464e56"
+  },
+  "recovery": {
+    "mode": "APPEND_ONLY_V1"
+  },
+  "integrity_mode": "IMMUTABLE_AUTHORIZATION_V1",
+  "terminal_condition": "A second read-only aggregate quota observation shows whether a formerly occupied slot was naturally freed; exact-SHA CI proof and privacy checks; leave physical phone login for owner.",
+  "privacy": {
+    "contains_secrets": false,
+    "contains_private_conversation_text": false
+  }
+}

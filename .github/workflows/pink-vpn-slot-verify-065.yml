@@ -1,0 +1,55 @@
+name: PINK VPN Slot Verification 065
+on:
+  push:
+    branches: ["builder/pink-vpn-slot-verify-065"]
+    paths:
+      - ".github/workflows/pink-vpn-slot-verify-065.yml"
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/Project-leader
+          ref: 7f3706f96a43071d797f19774b9eca25ab464e56
+          path: _canonical
+          persist-credentials: false
+      - name: Verify immutable authorization and identical audited Task064 observer
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, hashlib, subprocess
+          from pathlib import Path
+          p=".project-leader/tasks/PINK-IPTV-VPN-SLOT-VERIFY-065.json"
+          auth="77d76c97cfba484adb13f3f4ed1ed0d28614df90" # pragma: allowlist secret -- public Git authorization commit
+          task=json.loads(Path(p).read_text())
+          assert Path(p).read_bytes()==subprocess.check_output(["git","show",auth+":"+p])
+          assert subprocess.check_output(["git","diff","--name-only",auth+"^",auth],text=True).splitlines()==[p]
+          paths=set(subprocess.check_output(["git","diff","--name-only",task["starting_state"]["base_sha"],"HEAD"],text=True).splitlines())
+          assert paths<=set(task["mutation_scope"])
+          assert task["integrity_mode"]=="IMMUTABLE_AUTHORIZATION_V1"
+          assert hashlib.sha256(Path("_canonical/control/generic-project-policy.json").read_bytes()).hexdigest()==task["policy"]["sha256"]
+          assert Path("ops/pink_vpn_064_inspect.py").read_bytes()==subprocess.check_output(["git","show",task["starting_state"]["base_sha"]+":ops/pink_vpn_064_inspect.py"])
+          print("PINK065_IMMUTABLE_AUTHORITY_UNCHANGED_PRIVACY_PROBE=PASS")
+          PY
+          python3 -m py_compile ops/pink_vpn_064_inspect.py
+          python3 ops/pink_vpn_064_test.py
+      - name: Confirm natural expiration without database or WireGuard changes
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 \
+            -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
+            ubuntu@146.59.145.3 'sudo -n python3 -' < ops/pink_vpn_064_inspect.py
