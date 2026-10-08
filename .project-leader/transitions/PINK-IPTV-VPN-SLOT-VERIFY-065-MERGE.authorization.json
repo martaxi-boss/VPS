@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-VPN-SLOT-VERIFY-065-MERGE",
+  "task_id": "PINK-IPTV-VPN-SLOT-VERIFY-065",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-08T18:46:53.960Z",
+  "action": "merge_to_main",
+  "effect_class": "E2_CONSEQUENTIAL_TRANSITION",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "binding_mode": "EXACT_REVISION_BOUND",
+    "summary": "Owner's current PINK IPTV quality and speed instruction authorizes covered read-only diagnosis completion. Exact Task065 source f52aec1971 passed PINK VPN Slot Verification 065 37826376443 and VPS SSH Access PR Check 37826785692. Final PR26 head 315200a contains only Worker Result v2. Change isolated to VPS repository; no host, account, peer or DB mutation; a naturally expired lease freed one slot. Exact PR ref and base must be revalidated; not a production change or physical login certification."
+  },
+  "target": {
+    "kind": "pull_request",
+    "identifier": "https://github.com/martaxi-boss/VPS/pull/26",
+    "revision": "315200a0a673ab2a49eb005e366f5104a4a39486",
+    "base_revision": "bbf4f6542f023c50fe52567713a6d5cb2d80c92a",
+    "environment": "main"
+  }
+}
