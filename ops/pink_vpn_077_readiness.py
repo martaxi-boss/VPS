@@ -137,7 +137,7 @@ def inspect() -> None:
               "_TIMER_STATE=" + (timer if timer in ("active", "inactive", "failed", "unknown") else "UNCLASSIFIED"))
     pid = int(capture("systemctl", "show", "pink-iptv-backend", "-p", "MainPID", "--value"))
     assert pid > 0
-    process_env = Path(f"/proc/{pid}/environ").read_bytes().split(b"\\x00")
+    process_env = Path(f"/proc/{pid}/environ").read_bytes().split(b"\x00")
     print("PINK077_TASK078_PROCESS_HAS_QUOTA10=" +
           str(b"VPN_MAX_INSTALLATIONS_PER_ACCOUNT=10" in process_env))
     if (possible_backup / "accepted").is_file():
