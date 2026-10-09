@@ -120,7 +120,7 @@ def inspect() -> None:
     if possible_backup.is_dir():
         quota_script = possible_backup / "quota.py"
         print("PINK077_TASK078_BACKUP_SCRIPT_PYCOMPILE=" + str(
-            subprocess.run(["python3", "-m", "py_compile", str(quota_script)],
+            subprocess.run(["python3", "-c", "import sys; compile(open(sys.argv[1]).read(), sys.argv[1], 'exec')", str(quota_script)],
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                            timeout=10).returncode == 0
         ) if quota_script.is_file() else "MISSING")
