@@ -40,10 +40,11 @@ def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def app_tree_sha() -> str:
+def app_tree_sha(root: Path | None = None) -> str:
+    root = APP / "app" if root is None else root
     data = hashlib.sha256()
-    for path in sorted((APP / "app").rglob("*.py")):
-        data.update(str(path.relative_to(APP)).encode() + b"\x00")
+    for path in sorted(root.rglob("*.py")):
+        data.update(str(Path("app") / path.relative_to(root)).encode() + b"\x00")
         data.update(hashlib.sha256(path.read_bytes()).digest())
     return data.hexdigest()
 
@@ -178,9 +179,48 @@ def safe_archive(archive: Path, sha256: str, destination: Path) -> Path:
     return destination / "backend"
 
 
+def verify_prior_failed_attempt() -> None:
+    """Permit an R2 retry only after the previous rollback is proven complete."""
+    if not BACKUP.exists():
+        return
+    assert BACKUP.is_dir() and not BACKUP.is_symlink()
+    assert (BACKUP / "rolled-back").is_file()
+    assert not (BACKUP / "accepted").exists()
+    state = json.loads((BACKUP / "state.json").read_text())
+    assert state["database"] == database_name()
+    assert state["old_tree_sha"] == OLD_TREE_SHA
+    assert len(state["source_sha"]) == 40
+    assert app_tree_sha(BACKUP / "old_app") == OLD_TREE_SHA
+    assert revision(state["database"]) == OLD_REV
+    old_timer = subprocess.run(
+        ["systemctl", "is-active", TIMER + ".timer"],
+        capture_output=True, text=True, timeout=10,
+    ).stdout.strip()
+    assert old_timer in {"inactive", "unknown"}
+    prior_source = BACKUP.with_name("task081-source-" + state["source_sha"][:10])
+    assert prior_source.is_dir() and not prior_source.is_symlink()
+    assert digest((prior_source / "backend/app/vpn.py").read_bytes()) == state["new_vpn_sha"]
+    print("PINK081_PRIOR_ATTEMPT_RECOVERED_AND_ROLLBACK_TIMER_INACTIVE=PASS")
+
+
+def preserve_previous_attempt() -> None:
+    if not BACKUP.exists():
+        return
+    verify_prior_failed_attempt()
+    label = str(time.time_ns())
+    state = json.loads((BACKUP / "state.json").read_text())
+    prior_source = BACKUP.with_name("task081-source-" + state["source_sha"][:10])
+    saved_source = BACKUP.with_name("task081-source-aborted-" + label)
+    saved_backup = BACKUP.with_name("task081-aborted-" + label)
+    assert not saved_source.exists() and not saved_backup.exists()
+    prior_source.rename(saved_source)
+    BACKUP.rename(saved_backup)
+    print("PINK081_ABORTED_BACKUP_AND_SOURCE_ARCHIVED_UNCHANGED=PASS")
+
+
 def check() -> None:
     assert os.geteuid() == 0 and run("hostname") == "vps-32bea5b6"
-    assert not BACKUP.exists()
+    verify_prior_failed_attempt()
     assert APP.is_dir() and not APP.is_symlink()
     assert run("systemctl", "is-active", "pink-vpn") == "active"
     assert run("systemctl", "is-active", "pink-iptv-backend") == "active"
@@ -228,8 +268,8 @@ def backup_original(db: str) -> None:
 def install_source(source: Path) -> None:
     uid = pwd.getpwnam("pink-iptv").pw_uid
     gid = pwd.getpwnam("pink-iptv").pw_gid
-    for file in (source / "app").rglob("*"):
-        assert file.is_file() and file.suffix == ".py"
+    for file in (source / "app").rglob("*.py"):
+        assert file.is_file() and not file.is_symlink() and file.suffix == ".py"
         relative = file.relative_to(source / "app")
         target = APP / "app" / relative
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -245,6 +285,7 @@ def install_source(source: Path) -> None:
 
 def apply(archive: Path, sha256: str, new_vpn_sha: str, source_sha: str) -> None:
     check()
+    preserve_previous_attempt()
     assert len(new_vpn_sha) == 64 and all(c in "0123456789abcdef" for c in new_vpn_sha)
     assert len(source_sha) == 40 and all(c in "0123456789abcdef" for c in source_sha)
     staging = safe_archive(archive, sha256, BACKUP.with_name("task081-source-" + source_sha[:10]))
@@ -271,8 +312,11 @@ def apply(archive: Path, sha256: str, new_vpn_sha: str, source_sha: str) -> None
     assert run("systemctl", "is-active", TIMER + ".timer") == "active"
     print("PINK081_ROLLBACK_TIMER_ARMED=PASS")
     run("systemctl", "stop", "pink-iptv-backend")
+    print("PINK081_PHASE=OLD_BACKEND_STOPPED")
     assert run("systemctl", "is-active", "pink-vpn") == "active"
+    print("PINK081_PHASE=GATEWAY_PRESERVED_ACTIVE")
     install_source(staging)
+    print("PINK081_PHASE=SOURCE_FILE_COPIES_COMPLETED")
     assert digest((APP / "app/vpn.py").read_bytes()) == new_vpn_sha
     print("PINK081_STAGED_NEW_CODE_INSTALLED=PASS")
     migration("upgrade", NEW_REV)
