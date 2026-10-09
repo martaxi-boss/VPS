@@ -1,0 +1,43 @@
+name: PINK VPN Read-only Readiness 077
+on:
+  pull_request:
+    branches: ["main"]
+    paths: ["ops/pink_vpn_077_readiness.py", ".github/workflows/pink-vpn-readiness-077.yml"]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    if: github.event.pull_request.number == 27 && github.event.pull_request.head.repo.full_name == 'martaxi-boss/VPS'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Enforce bounded source scope and compile readonly inspector
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ops/pink_vpn_077_readiness.py
+          python3 - <<'PY'
+          import subprocess
+          base='f7a310c87bf0bb700e26406cb02d89e8e0e34aef'
+          subprocess.run(['git','merge-base','--is-ancestor',base,'HEAD'],check=True)
+          changed=set(subprocess.check_output(
+              ['git','diff','--name-only',base,'HEAD'],text=True).splitlines())
+          allowed={'ops/pink_vpn_077_readiness.py','.github/workflows/pink-vpn-readiness-077.yml'}
+          assert changed and changed<=allowed,changed-allowed
+          print('PINK077_READONLY_SOURCE_SCOPE=PASS')
+          PY
+      - name: Capture sanitized non-mutating live VPS readiness
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 \
+            -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
+            ubuntu@146.59.145.3 'sudo -n python3 -' < ops/pink_vpn_077_readiness.py
