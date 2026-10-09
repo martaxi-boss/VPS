@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-QUOTA-078-APPLY",
+  "task_id": "PINK-IPTV-VPN-QUOTA-078",
+  "repository": "martaxi-boss/VPS",
+  "action": "production_config_update",
+  "effect_class": "E2_CONSEQUENTIAL_TRANSITION",
+  "terminal_status": "FAILED_RECOVERED_TO_ORIGINAL",
+  "initial_authorization_head": "6aafe2d84a39f85b813c5f66642a3c4b1e33e73b",
+  "certified_candidate": "a3a05bfdf62e1e7c46008d2e8bdcc46d5310c170",
+  "workflow_run": "https://github.com/martaxi-boss/VPS/actions/runs/37948737858",
+  "diagnosis": "After remote preflight PASS the quota apply returned redacted failure and the attempted rollback also exited nonzero. The exact root cause is not proven: bounded backend readiness race is a candidate, not an asserted finding.",
+  "verified_read_only": "https://github.com/martaxi-boss/VPS/actions/runs/37950516679",
+  "live_effects_observed": {
+    "current_env_state": "ORIGINAL",
+    "runtime_default": 5,
+    "runtime_env_override": "UNSET",
+    "process_quota10": false,
+    "rollback_timer_active": false,
+    "previous_backup_present": true,
+    "accepted_marker": false,
+    "rolled_back_marker": false,
+    "active_installation_count": 4,
+    "service_read_only_inspection": "PASS",
+    "production_schema_revision": "20261005_0002"
+  },
+  "recovery_plan": "Preserve prior backup and transition evidence, guard for unchanged original environment/inactive timer, repair bounded backend-startup health verification and instrument safe phase markers before separately authorized R2 retry. No blind replay."
+}
