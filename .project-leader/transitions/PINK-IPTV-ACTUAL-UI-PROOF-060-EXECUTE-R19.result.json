@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R19",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R19.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:56d82ccb3199bdf2fe19e3dbf3e2a77edf6134fa;artifact-run:37530555994",
+    "revision": "77eb4c3fdea1e7ca01b408059f5e90a0e7c87b34",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-06T21:08:51.429Z",
+  "final_state": {
+    "status": "CATALOG_STREAMING_WITH_RENDERER_PULSE_QUIET_AT_CALLBACK_WAIT",
+    "revision": "1b54817d09a76d8f170aeb146ff8630de2ddb398"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37530780239",
+    "First real catalog bytes arrived: native live phase streaming. route/livetv progress100; actual live_rows evaluate callback misses10s and independent renderer1Hz pulse is QUIET. Normal consent, offline-service retirement, native protected username/password login/catalog, actual WebView login, DNS readiness/target PASS. Runtime ready/failure none/account VALID encrypted. No actual rows or realclick PASS. Only disposable peer removed; protected source/identity/routing/service audits PASS before/after."
+  ],
+  "residual_blockers": [
+    "Material sourcef44f06c yields browser tasks between native body pulls without extending deadlines/changing transport. Counterfactual generated-reader test shows queued browser task starved by prior immediately-ready drain and serviced before new drain completes. New exact source CI/APK/preparation and060 proof required; bounded Android main-queue diagnostic if silence persists."
+  ]
+}

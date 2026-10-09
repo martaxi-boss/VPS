@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 28,
+  "recorded_at": "2026-10-06T17:00:43.762Z",
+  "event": "REPLAN",
+  "strategy_generation": 16,
+  "action_fingerprint": "060;canonical-validated-bounded-authorization-draft-generation",
+  "attempt_count": 0,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 2,
+  "previous_event_sha256": "593f62ab17be7ce0a11a1722d28f9c061ab0b5de759ae4b9fc6869d759bd6aa4",
+  "detail": "Add bounded exact-target draft generator that invokes canonical transition schema before emitting JSON. Test valid factory draft and explicit1001/1024-character rejection. All dependent local validation shell commands use set-e and publication must explicitly check tool exit_code0. Preserve rejected R13 record, require fresh prepared-run evidence and separate auth-only R14. Same green source97394947 reused without source CI redispatch; no host effect until independent exact CI controls PASS."
+}

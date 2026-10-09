@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 26,
+  "recorded_at": "2026-10-06T16:54:14.118Z",
+  "event": "REPLAN",
+  "strategy_generation": 15,
+  "action_fingerprint": "060;97394947;fixed-control-host-DNS-eligibility-on-physical-Network-before-POST",
+  "attempt_count": 0,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 1,
+  "previous_event_sha256": "8086b44c7edb0d2e7c86c96ed49d21da14655276b7aa0db1a4184882e2da0f56",
+  "detail": "Material native fix for R12: only existing eligible physical control candidates, prefer eligible default and probe fixed control hostname on that Network before one unchanged pinned HTTPS POST; reject DNS-unavailable candidates, fail closed on exhaustion. Process/provider/media stay captured-VPN bound; TLS/redirect/identity/recovery preserved. Four native network policy regressions and67 frontend tests, actual origin/vault/consent/startup checks PASS in exact Android37497528085 and Backend37497528105 SUCCESS on97394947. Pin original source artifact11429126772 digestb56a23ba; distinct fresh preparation/authorization required. Actual Live rows/native AV/recovery remain unverified; protected audits and own-peer cleanup retained."
+}

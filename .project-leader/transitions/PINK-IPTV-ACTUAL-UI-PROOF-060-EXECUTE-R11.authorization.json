@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R11",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-06T16:04:44.285Z",
+  "action": "staging_operational_proof",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "binding_mode": "EXACT_REVISION_BOUND",
+    "summary": "Covered task060 staging Recovery under owner-standing-autonomy-v1. Sourceea468ff3 corrects the old-document submission race and asserts actual form authenticating/busy; fixed cache diagnostics expose no values. Immutable source061 preserves invalid059 history separately. Exact Android37489086301 and Backend37489086561 SUCCESS; preparation37492484959 on ecfdf603 SUCCESS verifies original source-CI APK/instrumentation provenance, SHA256 and native payload after authenticated ID relay. Authorize one Android13 actual UI login/catalog/native AV/cold/roaming proof, protected fixture9040240 and disposable own peer only. Mandatory external own-peer cleanup and protected before/after audits. No equivalent R10 rerun, persistent host changes, credential output, architecture/routing bypass or physical-device certification."
+  },
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:ea468ff303af4166c58adcd01731b716adf48c02;artifact-run:37492484959",
+    "revision": "ecfdf603fea9b4ab9675750f812739e38d1cd768",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  }
+}

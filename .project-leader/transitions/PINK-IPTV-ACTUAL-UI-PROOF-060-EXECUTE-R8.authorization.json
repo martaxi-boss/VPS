@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R8",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-06T10:48:00Z",
+  "action": "staging_operational_proof",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "binding_mode": "EXACT_REVISION_BOUND",
+    "summary": "Covered autonomous Recovery under owner-standing-autonomy-v1. R7 run37448232878 established admitted SESSION/connect_write DNS UnknownHostException on explicit physical CELLULAR while the WireGuard tunnel and authoritative native catalog remained healthy; own peer cleanup and protected audits passed. Exact source9ee70d06e3c7d61ed2c5853b489882820890f7c7 materially corrects the boundary so admitted SESSION/ENROLL/REFRESH use the captured VPN Network/DNS with live/binding/VPN-transport checks and no physical fallback, while physical HTTPS remains only for pre-admission/restore bootstrap. Exact source Backend CI37450142139 and Android CI37450142204 are SUCCESS. Full preparation37450769525 on revisionf5be82715cce33f1106205b4e6cfbcf0c84722e5 is SUCCESS and produced the exact artifact. Authorize one bounded Android13 actual UI/native AV/cold/roaming proof only, using the protected fixture9040240, disposable own peer, mandatory external cleanup and protected before/after audits. No equivalent rerun, no DNS/TLS bypass, no architecture change and no physical certification claim."
+  },
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:9ee70d06e3c7d61ed2c5853b489882820890f7c7;artifact-run:37450769525",
+    "revision": "f5be82715cce33f1106205b4e6cfbcf0c84722e5",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R26",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R26.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:b5172baddf26f108238d002c28155ebfc786614c;artifact-run:37575040261",
+    "revision": "42be1001435a4c849c4ba67308073a4b430efead",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-07T05:53:11.798Z",
+  "final_state": {
+    "status": "NEW_PRE_UI_PROTECTED_HEALTH_ADMISSION_FAILURE_OBSERVER_NOT_STARTED",
+    "revision": "b665c3d4b6e380a358479b8907c5ba07dbbb1813"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37575192868",
+    "Sourceb517 normal consent PASS; failure protected-login-enrollment, activation protected_health, IllegalStateException, live/bound true/admitted false/saved true/serviceStopAck true/initialReplacement1/control none/requests2. Time12.606s. CPU observer WAIT_PHASE/NO_UI_PHASE; no profile or native backtrace, actual UI diagnostic was never reached. Fixed DNS READY/expected target PASS. Protected before-after audits and disposable own-peer cleanup PASS."
+  ],
+  "residual_blockers": [
+    "New objectively failed protected admission precedes existing UI body frontier. Sourcecf8a663 material owned-address selection fix and fixed health diagnostics independently green Backend37577307299/Android37577307342, originalartifact11463567054 digestb13ac352. Owned-address gap confirmed in old code; not retrospectively claimed as R26cause. New exact artifact preparation/proof required. Retain previously unexecuted fixed-stage/native IPC observer at UI; strict rows/UIclick video+audio/nativeAV/cold/roam remain uncertified."
+  ]
+}

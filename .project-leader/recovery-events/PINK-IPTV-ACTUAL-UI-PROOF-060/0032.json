@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 32,
+  "recorded_at": "2026-10-06T20:36:56.045476+00:00",
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 17,
+  "action_fingerprint": "060;632a805;official-emulator16428233;actual-row-click-av",
+  "attempt_count": 1,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "af0f350593278ab729c71ae6b71dac604612c4ee834442b89b00e244a7681888",
+  "detail": "R17 run37526226809 on bf99329 failed at SDK emulator acquisition: Archive is not a ZIP archive. APK/source hashes passed. No emulator boot, app/VPS effect, fixture or actual UI observation occurred; prior R16 success retained. Same acquisition will not be retried."
+}

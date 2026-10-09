@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R9",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R9.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:7e8ad3aa3132077526fcadac673f91336da66988;artifact-run:37477012915",
+    "revision": "6a257494418faa0f35742342b52d66e48d687946",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-06T14:45:05.860Z",
+  "final_state": {
+    "status": "NATIVE_CATALOG_PASS_ACTUAL_LOGIN_HOME_FAILED_OWN_PEER_CLEANED",
+    "revision": "06abd224b600355a0b3209c0d204d263bc71b432"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37479264378",
+    "Authoritative username/password login and catalog via WireGuard PASS; actual WebView login_home/js=decode/ASSERTION with login=true, online=true, nativeReady=true.",
+    "Native runtime stage=ready, failure=none, live/bound/admitted/saved=true. Exact frontend transaction phase was not captured; no DNS or native crash cause inferred.",
+    "Only disposable emulator installation removed and protected host/source/routing/services audits before/after PASS."
+  ],
+  "residual_blockers": [
+    "Actual WebView remains at login; native decoded AV/cold/roaming were not reached. Source2332c037 adds privacy-safe transaction phase and fixed route diagnostics; new exact CI, prepared artifact and separate authorization required."
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R2",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "NOT_EXECUTED",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R2.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:b9e87cf06c9ae7b1cc76f98156016e8cfa3815e2;artifact-run:37432533580",
+    "revision": "621a0ec48f9f122c00361329a5ce99762fd4bc78",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-06T08:11:38.509Z",
+  "final_state": {
+    "status": "INSTANT_PUBLIC_DNS_PREFLIGHT_FAILED_BEFORE_APK_AND_VPS_HOST_EFFECTS",
+    "revision": "a75cb29bad631b33ce037207675691587821330d"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37433283645",
+    "Independent authorization and exact reused artifact integrity passed. Emulator booted08:03:30; public fixed-DNS assertion failed08:03:32 before APK install, fixture fetch or protected host observer.",
+    "No native enrollment, provider request or VPS host effect occurred. Distinct from R1 native session_resolve UnknownHostException. Instant DNS assertion did not record resolution category."
+  ],
+  "residual_blockers": [
+    "No actual UI checkpoint reached. Replan with bounded/classified emulator physical DNS readiness before host effects; preserve accepted APK and app contracts."
+  ]
+}

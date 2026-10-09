@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R27",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-07T05:57:14.799Z",
+  "action": "staging_operational_proof",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "binding_mode": "EXACT_REVISION_BOUND",
+    "summary": "Standing-owner covered task060. Sourcecf8a663 Backend37577307299/Android37577307342 SUCCESS; originalartifact11463567054 digestb13ac352; relay11463452938 digest194d83dd; APK/instrumentation/source hashes verified. Journal0059-0061. Material owned-grant capture selection and fixed protected-health diagnostics; native stale/other/empty/current/private-message cases and real consent/offline/recreation PASS. Original health4s/UI90s/callback10s/media60s unchanged. Retain fixed CPU-stage and postfailure owned-UID JavaBridge trace, only fixed library/PC/kinds, no raw data. Ten observer tests/canonical scope/protection audit PASS. Strict actual login/home/real rows/UIclick presentedvideo+audio/nativeAV/cold/roam, fixedSDK16428233, fixture9040240/own peer, protected before-after/observer-peer cleanup mandatory. No provider direct fallback/credentials/persistent host effects/physical claim."
+  },
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:cf8a6638f6af49a119cf3cd7773c3ba4b90e54ac;artifact-run:37578600774",
+    "revision": "4f67807ac246c991323003470c3ebbefc9b05c82",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  }
+}

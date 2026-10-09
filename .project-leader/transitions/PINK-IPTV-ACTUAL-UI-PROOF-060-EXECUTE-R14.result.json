@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R14",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R14.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:97394947b71bf8744c29050d428a49eccc120797;artifact-run:37500258063",
+    "revision": "f52fdc7e6ae60d1594d1c92732315501de8db376",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-06T17:10:28.010Z",
+  "final_state": {
+    "status": "NATIVE_PROTECTED_LOGIN_CATALOG_PASS_PARTIAL_HOME_DOCUMENT_UI_OBSERVER_FAILURE_OWN_PEER_CLEANED",
+    "revision": "ea24495303b3ab29b429dfde07c16fa29e37baaa"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37500471657",
+    "Protected login/native catalog PASS, runtime ready/admitted/bound and account cacheVALID/encrypted. UI failure login_home JSdecode JSON; native route=/progress60/phaseabsent. Old observer can accept partial replacement document or parse WebView null. Protected before/after audits and own-peer cleanup PASS; Live UI/native AV/cold/roaming not reached."
+  ],
+  "residual_blockers": [
+    "Source7815d97e47cd112c386c80e3677025e717aab633 adds native progress100/DOM complete barriers and bounded null-as-pending observation. Old actual generated checkpoint accepts loading document; new rejects it. Fresh exact CI and separate proof required; callback loss/catalog still uncertified."
+  ]
+}

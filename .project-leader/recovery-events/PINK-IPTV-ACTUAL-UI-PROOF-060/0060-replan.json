@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 60,
+  "recorded_at": "2026-10-07T05:53:12.203Z",
+  "event": "REPLAN",
+  "strategy_generation": 27,
+  "action_fingerprint": "060;cf8a663;owned-capture-health-and-retained-native-ipc-observer;artifact11463567054",
+  "attempt_count": 0,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "91aaee4fe68e969e4b2110cb4c6d941983e7f4b4f4ef48bda44a8160d9af7895",
+  "detail": "Adopt new exact green sourcecf8a663 after material owned-address selection repair and fixed health phase/category/status/bodyMatch/captureMatch diagnostics, original4s deadlines. Native null/empty/stale/offline/other/current address/private-message regression cases and real consent/offline/recreation PASS. Backend37577307299/Android37577307342 SUCCESS; originalartifact11463567054 digestb13ac3524 size202395658. Source1bc compile-test failure fixed through public SDK and never certified/used. Replace sole operational source/run/artifact/digest pins, control/workflow consumers derive same SOURCE. Preserve fixed-stage CPU plus postfailure own-UID/native IPC observer previously unexecuted at UI. Owned-address gap is independently corrected, not assumed R26cause; new proof/evidence decides."
+}

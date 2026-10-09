@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 2,
+  "recorded_at": "2026-10-06T08:13:05.102Z",
+  "event": "REPLAN",
+  "strategy_generation": 2,
+  "action_fingerprint": "060;Android13;b9e87;bounded-classified-fixed-control-dns-readiness",
+  "attempt_count": 0,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 2,
+  "previous_event_sha256": "9dab1130f6aadd2aeffe7b476d42117d9b2576df53ced53f6953b26eb2fcbc9d",
+  "detail": "Replace instant DNS sampling with classified readiness: maximum60seconds/12samples, fixed accepted public control target only, before every VPS host effect. DNS_UNRESOLVED, QUERY_TIMEOUT and NO_RESOLVED_TARGET wait boundedly; unexpected target aborts immediately. Reuse exact already-validated unchanged APK and separately test Android13 strict startup. Persist this replan before preparation/proof effects. Next real UI attempt requires successful new readiness evidence and fresh exact operational authorization. If readiness exhausts or pre-UI failure recurs, stop this strategy and switch to independently evidenced emulator/native-physical-network diagnostics; no equivalent GitHub rerun or Owner gate."
+}

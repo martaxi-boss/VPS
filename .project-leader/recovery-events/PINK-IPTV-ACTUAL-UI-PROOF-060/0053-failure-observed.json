@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 53,
+  "recorded_at": "2026-10-07T04:58:04.901389+00:00",
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 24,
+  "action_fingerprint": "060;b5172ba;fixed-ipc-subframes-full-failure-interval;artifact11460975825",
+  "attempt_count": 1,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "0e424e83f1ffa1037f25b2e9c1687608b509f482c7a208596955f0bfe900cd89",
+  "detail": "R24run37573889960 exactauthb8a80f9 control FAILURE summary exceeds schema1000 limit; local validation error was mistakenly followed by publication. Proof/prepare SKIPPED and zero runtime/VPS effects. External control correctly blocked. This is controller publication defect, no app regression/equivalent UI proof executed."
+}

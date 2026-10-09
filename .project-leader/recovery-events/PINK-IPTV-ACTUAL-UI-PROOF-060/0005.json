@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 5,
+  "recorded_at": "2026-10-06T08:54:41.914Z",
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 3,
+  "action_fingerprint": "060;Android13;b9e87;verified-first-address-dns-parser",
+  "attempt_count": 1,
+  "identical_failure_count": 1,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "95b25ed93678e938176571e5fa48a9bf2bf79f4cb9898c3342cd0394ad2a9f99",
+  "detail": "R3 run37436483182 reached DNS READY on sample3, resolved actual session and saved enrolled grant. New failure at activate_tunnel/bind_authorized_route with live=false,bound=false,admitted=false,saved=true. UI never reached. Only own disposable peer cleaned; all protected before/after audits pass. This is material progress past DNS and a distinct native initial-activation failure. Preserve R3 exact FAILURE result; no equivalent operational rerun."
+}

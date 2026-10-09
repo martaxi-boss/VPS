@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 9,
+  "recorded_at": "2026-10-06T09:55:28.432Z",
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 5,
+  "action_fingerprint": "060;Android13;6e0537634a40619f331268c4c7f7bdefd15231ce;destination-navigation-and-classified-ui-js-boundaries",
+  "attempt_count": 1,
+  "identical_failure_count": 1,
+  "no_progress_iterations": 1,
+  "previous_event_sha256": "958e06f9d3bd1c28ccc0f2df1380800db1aee79757efe49550ad86aa3235733b",
+  "detail": "R6 run37444313085 failed login_home after90second form wait; responsive WebView online=true and native live/bound/admitted alltrue. New exact evidence identifies second session_resolve SocketException after initial authorized catalog PASS. R5 did not execute proof because schema control rejected summary; NOT_EXECUTED result durable. No equivalent operational rerun. UI completion has no progress this iteration despite improved classification. Own-peer cleanup/protected audits PASS. Stop UI/navigation-only inference; diagnose native fixed-control socket operation, OS errno and selected physical-network state."
+}

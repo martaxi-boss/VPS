@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 27,
+  "recorded_at": "2026-10-06T17:00:43.762Z",
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 15,
+  "action_fingerprint": "060;97394947;R13-prepublish-validation-exit-not-enforced",
+  "attempt_count": 1,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 2,
+  "previous_event_sha256": "7e21e7445909e153d910e418ba24fc62b5165787b252b15351705d91e38adcf6",
+  "detail": "R13 run37499890244 rejected authority.summary1001 >1000. Local schema validator failed but shell continued and publication did not inspect exit; independent CI control stopped proof. Preparation/proof SKIPPED, no host effect. Preserve rejected auth unchanged and close NOT_EXECUTED. Source exact CI green; UI/native proof not reached."
+}

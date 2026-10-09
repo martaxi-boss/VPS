@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R29",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R29.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:882df9a4aa302a9875d8d19eabdf80fd68cac33e;artifact-run:37808034777",
+    "revision": "ce8c0230a720dd1af1ef31f1c96bdcde7424e463",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-08T16:30:40.094Z",
+  "final_state": {
+    "status": "ACTUAL_AUTHENTICATED_WEBVIEW_CATALOG_LIVE_VIDEO_AUDIO_NATIVE_VPN_COLD_ROAM_AND_OWN_PEER_CLEANUP_PASS",
+    "revision": "9efb25695cf7012de8f9b31c1103059622c1e990"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37808275533 (attempt 2, terminal-success; first attempt failed SDK33 archive before app/host interaction)",
+    "GitHub proof job 113418978101 PASS; real Android13 installed exact source 882df9a4 PINK APK/instrumentation from validated prepared artifact11563846784; original Android CI37805248042 and Backend CI37805248131 SUCCESS; no source rebuild.",
+    "PUBLIC Android test markers: AUTHORITATIVE_USERNAME_PASSWORD_LOGIN_AND_CATALOG_VIA_WIREGUARD, ACTUAL_WEBVIEW_USERNAME_PASSWORD_LOGIN, ACTUAL_WEBVIEW_TAURI_LIVE_CATALOG_AND_UI_ROUNDTRIP, ACTUAL_UI_CHANNEL_CLICK_VIDEO_AUDIO_DECODE (player=webview), NATIVE_LIVE_AUDIO_VIDEO_DECODE_AND_SAME_INSTALLATION_RECREATION, COLD_PROCESS_SAME_KEY_NO_CREDENTIALS_AUTHORIZED_TUNNEL, SAME_PROCESS_WIFI_TO_CELLULAR_WIREGUARD_ROAM, WIFI_RECONNECT_CAPTURE_AND_DEFAULT_TUNNEL_HEALTH: PASS.",
+    "VPS protected pre/post EXACT_ACCEPTED_GATEWAY_AND_BACKEND_SOURCE, PROTECTED_PERSISTENT_TASK052_IDENTITY and OWNED_ROUTING_NAT_AND_PROTECTED_SERVICES: PASS. Real run ended REAL_ANDROID_PROOF_AND_BOUNDED_PEER_CLEANUP=PASS; own peer revoked; no persistent host mutation, secret echo or public release.",
+    "The distinct Task060 Worker Result records Owner-device/TV and external-provider VOD/EPG acceptance as residual project work; those separate requirements are not unresolved effects of this completed scoped temporary staging transition."
+  ],
+  "residual_blockers": []
+}

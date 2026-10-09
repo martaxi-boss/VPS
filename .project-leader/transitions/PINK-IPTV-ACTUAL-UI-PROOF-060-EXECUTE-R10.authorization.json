@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R10",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-06T15:01:11.688Z",
+  "action": "staging_operational_proof",
+  "effect_class": "E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "binding_mode": "EXACT_REVISION_BOUND",
+    "summary": "Covered bounded task060 staging Recovery under owner-standing-autonomy-v1. Source2332c037 adds fixed login transaction/route diagnostics after R9 native catalog PASS but actual login_home failure; no same-source rerun. Source Android37481509471 and Backend37481509314 are SUCCESS. Preparation37483556491 on5bc59180 reuses those exact source-CI APK/instrumentation bytes with original provenance, checksum and native payload verification PASS. Authorize one Android13 actual WebView login/catalog/native AV/cold/roaming proof using only existing protected fixture9040240 and disposable peer. Mandatory external own-peer cleanup and protected before/after audits. No persistent host changes, credentials output, architecture/routing bypass or physical certification."
+  },
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:2332c037a1970b22686d7486090b04aa04bf663b;artifact-run:37483556491",
+    "revision": "5bc591809b979fb2184e2950a6192e5e8fa73c9b",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  }
+}

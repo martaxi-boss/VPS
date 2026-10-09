@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R6",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILURE",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R6.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:6e0537634a40619f331268c4c7f7bdefd15231ce;artifact-run:37443364134",
+    "revision": "cf4efc9dae22803323c9932614dc099cdcda4bde",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-06T09:53:11.614Z",
+  "final_state": {
+    "status": "ADMITTED_VPN_CATALOG_PASS_ACTUAL_UI_REAUTH_CONTROL_SOCKET_FAILED_OWN_PEER_CLEANED",
+    "revision": "d6f5f45edefffee7de184228613fb41a6f6c6075"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37444313085",
+    "NORMAL_SYSTEM_CONSENT, INITIAL_OFFLINE_SERVICE_RETIRED_BEFORE_AUTHORIZED_TUNNEL and AUTHORITATIVE_USERNAME_PASSWORD_LOGIN_AND_CATALOG_VIA_WIREGUARD=PASS.",
+    "ACTUAL_WEBVIEW_FIXED_FLAGS: online=true,login=true,live=false,skeletons=0,rows=0,nativeBridge=true,nativeReady=true. ACTUAL_UI_FAILURE_CHECKPOINT=login_home;js=decode;category=ASSERTION.",
+    "ACTUAL_UI_RUNTIME_FIXED_STATE=stage=session_resolve;activation=ready;failure=SocketException;live=true;bound=true;admitted=true;saved=true;serviceStopAck=true;initialReplacements=1. This attempt failed the second native control request from the form; not a lost VPN or established catalog-render/main-thread stall.",
+    "ONLY_DISPOSABLE_EMULATOR_INSTALLATION_REMOVED=PASS; accepted source, persistentTask052 identity, routing/NAT/services and HTTPS authority audits passed before/after."
+  ],
+  "residual_blockers": [
+    "Exact socket cause not exposed by prior class-only diagnostic. Source46362b11 adds fixed control operation/errno/HTTP status/physical-network flags without routing/security changes or raw error data. Fresh source CI/full build and exact diagnostic real proof required; no equivalent rerun or physical certification."
+  ]
+}

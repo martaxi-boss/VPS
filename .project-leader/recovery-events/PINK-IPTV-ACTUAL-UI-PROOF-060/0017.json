@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 17,
+  "recorded_at": "2026-10-06T14:58:32.808906+00:00",
+  "event": "REPLAN",
+  "strategy_generation": 10,
+  "action_fingerprint": "060;2332c037;reuse-certified-source-artifact11421867262",
+  "attempt_count": 0,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 1,
+  "previous_event_sha256": "966b47565b20957f00a53b6a1ba8a2d71a2589ff8bb6a26d93185a6f0a1e7596",
+  "detail": "Replace duplicate source/SDK/emulator preparation with exact original source-CI APK/instrumentation reuse. Authenticate run/source/all-context green/artifact ID and ZIP digest via GitHub; downloaded artifact SHA256SUMS/provenance/native ABI payload verified, then relay same bytes to task060 artifact. No native/source controls removed: their exact successful sourceCI remains prerequisite, with fresh actual Android13 UI/native AV/cold/roaming and protected cleanup still required. Removes stale inactive artifact helper pins and duplicate preparation surface. Separate exact prepared-run authorization remains mandatory."
+}

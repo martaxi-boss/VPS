@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 51,
+  "recorded_at": "2026-10-07T04:54:50.203860+00:00",
+  "event": "REPLAN",
+  "strategy_generation": 24,
+  "action_fingerprint": "060;b5172ba;fixed-ipc-subframes-full-failure-interval;artifact11460975825",
+  "attempt_count": 0,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "22d930ffc47d499aba444846d4faee8ce9d9d941895bd5913e0e39f3780acd69",
+  "detail": "Refine read-only CPU observer: only descendants of static core callsite, exact known IPC function names converted to fixed enums, all other names discarded, numeric line/column only. Top5 stack counts expose UID/random/callback registration/serialization/native postMessage boundary. Concurrent sampling up to60s with immediate proof-exit stop includes actual evaluator failure interval. Seven privacy/loopback/frame tests PASS. App90s/callback10s/media60s deadlines unchanged; no page evaluation or provider transport change."
+}

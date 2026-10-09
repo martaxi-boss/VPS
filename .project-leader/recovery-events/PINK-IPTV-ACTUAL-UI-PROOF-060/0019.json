@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 19,
+  "recorded_at": "2026-10-06T15:11:57.270411+00:00",
+  "event": "REPLAN",
+  "strategy_generation": 11,
+  "action_fingerprint": "060;Android13;ea1770a905843defe0f7b409fd81a623fd3614ce;replacement-document-before-form-submission",
+  "attempt_count": 0,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 1,
+  "previous_event_sha256": "015eee182f9060e452a6591b677432076f0ba60c362b0195d80636304d58c4c1",
+  "detail": "Correct the proven harness same-route race: mark outgoing document then require intended route and absent marker in replacement document before reading/submitting form. Prior harness fails2 new script regressions; corrected65 tests PASS. Sourceea1770a9 published for fresh exact source CI; do not reuse old2332 artifact or run an equivalent proof. Wait for this source CI then prepare/reverify its exact artifact and separate fresh authorization before operational proof. UI/AV/recovery/host protection remain required; no app authority or routing changes."
+}

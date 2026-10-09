@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 56,
+  "recorded_at": "2026-10-07T05:10:31.450Z",
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 25,
+  "action_fingerprint": "060;b5172ba;fixed-ipc-tail-profile-validated-binding;artifact11460975825",
+  "attempt_count": 1,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "a2fb74f4eb84c27f54418e5d80d0279a17ee983492fd5b743e94c458b48337bf",
+  "detail": "R25run37574103437 auth4ceeb8d actual UI FAILURE pulling_next, renderer QUIET/main responsive/foreground view. Protected native login/catalog and actual WebViewlogin PASS. Long CPU observer UNAVAILABLE; no subframes and old observer lacks setup-stage field, so profiler-stop or native bridge cause not yet proved. Audits/own cleanup PASS. Short20s R23 profile previously identified core invoke ancestry; longer sampling cannot yet close causal gap."
+}

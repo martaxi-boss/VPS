@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 63,
+  "recorded_at": "2026-10-07T06:23:29.491Z",
+  "event": "REPLAN",
+  "strategy_generation": 28,
+  "action_fingerprint": "060;03cdfdd;pinned-http-body-call-return-resolution;artifact11465110241;retired-profiler",
+  "attempt_count": 0,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "079a79b61b51f9f4e0c63b0382549015ba55ea8baac3fe34084a1f094fca70cb",
+  "detail": "Adopt new exact green source03cdfdd3266ec39a77ab473c8bf4be78b7fb90f9, Backend37580058744/Android37580058646 SUCCESS; 81frontend/5realnative cases, fullbuild/3ABI payload/consent/offline/recreation/lint/privacy. Originalartifact11465110241, digestsha256:60af50914c4ea7817770cd920fd6023401715076ffdc6c2042adb603c50f1d74, size202414989. Material single installed HTTP body IPC synchronouscalling/returned versus promise resolved/rejected/threw observer; preserves exact invocation/args/promise/error, fixed native enum only restricted local main document. Retire ineffective CPU/native sampler implementation/tests/launch/cleanup/control runner entirely in same technical commit; historic audit references inert. Replace sole source/artifact pins; print only already integrity-verified static public APK/instrumentation/source SHA256 names/hashes for exact deliverable audit. No data/URLs/privateerrors, corealias, transport, SDK or appdeadline changes."
+}

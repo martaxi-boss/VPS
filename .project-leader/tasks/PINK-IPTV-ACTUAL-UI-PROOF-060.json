@@ -1,0 +1,122 @@
+{
+  "schema_version": "2.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "project": "PINK IPTV bounded actual Android13 UI proof",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-06T07:11:27.170Z",
+  "authority": {
+    "kind": "TRANSACTIONAL_GRANT",
+    "source": "CURRENT_OWNER_INSTRUCTION",
+    "binding_mode": "OBJECTIVE_SCOPE_BOUND",
+    "summary": "Separate bounded VPS Actions task under existing autonomous Recovery/operational staging authority. Reuse exact059 source-CI APK/instrumentation, existing protected known-subscription9040240 fixture and disposable emulator peer only. Exercise real username/password WebView login, rendered Tauri Live TV catalog and existing native AV/cold/roaming proof on Android13. Existing source/runtime protection audits and external own-peer cleanup mandatory. No persistent host/network/account/mapping or other-installation changes, no credential/log disclosure. Exact prepared-artifact authorization before privileged operational execution."
+  },
+  "starting_state": {
+    "default_branch": "main",
+    "base_sha": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "task_branch": "builder/pink-actual-ui-proof-060"
+  },
+  "effect_class": "E1_RECOVERABLE_PROJECT_LOCAL",
+  "mutation_scope": [
+    "ops/pink_ui_060*",
+    ".github/workflows/pink-actual-ui-proof-060.yml",
+    ".project-leader/tasks/PINK-IPTV-ACTUAL-UI-PROOF-060.json",
+    ".project-leader/results/PINK-IPTV-ACTUAL-UI-PROOF-060.json",
+    ".project-leader/transitions/PINK-IPTV-ACTUAL-UI-PROOF-060-*",
+    ".project-leader/recovery-events/PINK-IPTV-ACTUAL-UI-PROOF-060/**"
+  ],
+  "allowed_actions": [
+    "create_branch",
+    "edit_project_files",
+    "create_commits",
+    "run_ci",
+    "open_or_update_pull_request"
+  ],
+  "prohibited_actions": [
+    "merge_to_main",
+    "branch_protection_or_ruleset_change",
+    "release_or_publish",
+    "production_deploy",
+    "destructive_data_change",
+    "repository_or_history_deletion",
+    "production_secret_change",
+    "irreversible_infrastructure_change",
+    "paid_service_activation",
+    "third_project_mutation",
+    "force_push",
+    "host_access",
+    "credentials_or_private_keys_in_artifacts",
+    "physical_device_certification_claim",
+    "fail_closed_bypass",
+    "provider_origin_guessing",
+    "credential_persistence_outside_keystore",
+    "architecture_change"
+  ],
+  "transition_controls": [
+    {
+      "action": "merge_to_main",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "branch_protection_or_ruleset_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "release_or_publish",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_deploy",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "destructive_data_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "repository_or_history_deletion",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "production_secret_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "irreversible_infrastructure_change",
+      "requires_authority_resolution": true
+    },
+    {
+      "action": "paid_service_activation",
+      "requires_authority_resolution": true
+    }
+  ],
+  "required_validation": [
+    "Project architecture scope audit",
+    "Mutation scope audit",
+    "GitHub evidence verification",
+    "Exact successful source059 APK and instrumentation integrity",
+    "Actual WebView login and Tauri Live TV rows on Android13",
+    "Native decoded audio/video and required connection recovery",
+    "Only disposable installation cleanup and protected runtime unchanged",
+    "No credentials or provider origin in diagnostic output"
+  ],
+  "required_ci": [
+    "PINK actual UI proof 060"
+  ],
+  "policy": {
+    "profile": "generic-project-v1",
+    "path": "control/generic-project-policy.json",
+    "sha256": "147fb55338267ba2e9727c4a85e468e342300a69557d80781edeba4b6fa8d0f9",
+    "binding_mode": "CENTRAL_CONTROL_V1",
+    "repository": "martaxi-boss/Project-leader",
+    "revision": "8efecaccfb5708d3689f9fcd0ad3bb77ec8e40db"
+  },
+  "recovery": {
+    "mode": "APPEND_ONLY_V1"
+  },
+  "integrity_mode": "IMMUTABLE_AUTHORIZATION_V1",
+  "terminal_condition": "Exact authorized Android13 real UI proof certifies local WebView login, live catalog render and UI roundtrip plus native playback/recovery under accepted WireGuard; own temporary peer cleaned and protected host unchanged. Preserve055/056 history and all architectural contracts.",
+  "privacy": {
+    "contains_secrets": false,
+    "contains_private_conversation_text": false
+  }
+}

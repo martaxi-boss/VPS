@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 64,
+  "recorded_at": "2026-10-07T06:23:29.493Z",
+  "event": "RETRY_AUTHORIZED",
+  "strategy_generation": 28,
+  "action_fingerprint": "060;03cdfdd;pinned-http-body-call-return-resolution;artifact11465110241;retired-profiler",
+  "attempt_count": 1,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "5b553b07eba3a71a1bdf0697e76c05075c2dc4abd56ad64a0b3a0e6b51c111e1",
+  "detail": "Prospective bounded materially new question-specific proof, under existing task060/standing owner grant. Require exact canonical task/scope/policy/recovery/result audit, originalsource metadata/sourcebranch+bothCI/artifactdigest, all APK/instrumentation/source hash/payload verification and fresh relay prep before short schema-valid exactparent/run auth. App90s/callback10s/media60s/health4s unchanged; fixedSDK16428233 retained. Actualusernamepassword/home/realcategories+rows/productionrowclick decodedvideo+audio/nativeAV/cold/roam/before-after audits and ownpeer+fixturecleanup remain strict. No privileged host persistent change/providerfallback/blindretry/physicalclaim. Sampler retired, current fixed body IPC stage determines next real boundary."
+}

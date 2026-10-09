@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 16,
+  "recorded_at": "2026-10-06T14:58:32.808906+00:00",
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 9,
+  "action_fingerprint": "060;Android13;2332c037a1970b22686d7486090b04aa04bf663b;fixed-login-transaction-phase-diagnostic",
+  "attempt_count": 1,
+  "identical_failure_count": 1,
+  "no_progress_iterations": 1,
+  "previous_event_sha256": "40a599d21a13e6b296b86809e00d5dde14720e4465f56984e1f43beade3c78af",
+  "detail": "Preparation37481656063 built APK/native payload but emulator SDK download failed: Archive is not a ZIP archive. Emulator never launched; proof skipped and no host effect. Exact source Android37481509471 succeeded with normal consent/Keystore/startup, two identity tests and two origin/vault tests; Backend37481509314 succeeded. No blind failed-job rerun."
+}

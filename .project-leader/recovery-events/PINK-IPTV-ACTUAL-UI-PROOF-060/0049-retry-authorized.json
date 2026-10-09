@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 49,
+  "recorded_at": "2026-10-07T04:44:06.150681+00:00",
+  "event": "RETRY_AUTHORIZED",
+  "strategy_generation": 23,
+  "action_fingerprint": "060;b5172ba;bounded-local-renderer-cpu-sample;artifact11460975825",
+  "attempt_count": 1,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "5287d6aa6338e880ecd479bd0b0a6e865fe7d99290268dd594ef93c48b1a08f6",
+  "detail": "Prospective covered diagnostic proof answers active renderer JS/static callsite versus idle/pending IPC after first decode. Same exact sourceb517 Backend37570756771/Android37570756822 SUCCESS and original artifact11460975825 digest71082827b, integrity must be independently reverified by fresh preparation before exact authorization. This is materially new concurrent read-only instrumentation, not an unchanged functional rerun. Retain actual rowclick presented video/audio, native AV, cold/roam, fixed SDK and all protected before/after audits/own-peer cleanup. No UI timeout increase, provider bypass, host changes, credential output or physical claim; discard observer after cause is resolved."
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 13,
+  "recorded_at": "2026-10-06T14:20:00Z",
+  "event": "REPLAN",
+  "strategy_generation": 8,
+  "action_fingerprint": "060;Android13;7e8ad3aa3132077526fcadac673f91336da66988;protected-home-reconciliation-without-hidden-redirect",
+  "attempt_count": 0,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "2c58c0e0aaab9106fbbeb57ba409296f6d80d49bc91715db65d9ef25dde7ddd8",
+  "detail": "Owner video and generated-page regression reproduce authenticated Home returning to login. Source7e8ad3aa removes the unconditional inline redirect from the hidden welcome component and redirects only after protected account reconciliation returns empty. New regression failed on prior source and all57 local tests plus27-page build pass after remediation. Prepare this exact source with current two-test origin/vault gate; source CI and separate exact prepared-run authorization remain mandatory before any operational proof. Preserve existing host protection, disposable peer cleanup, cold/roaming/native AV evidence, encrypted storage and fail closure. No equivalent rerun, hostname/TLS changes, architecture change, or physical certification claim."
+}

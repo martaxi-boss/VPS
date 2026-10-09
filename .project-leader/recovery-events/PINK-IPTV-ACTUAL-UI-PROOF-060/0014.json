@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 14,
+  "recorded_at": "2026-10-06T14:45:06.052234+00:00",
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 8,
+  "action_fingerprint": "060;Android13;7e8ad3aa3132077526fcadac673f91336da66988;protected-home-reconciliation-without-hidden-redirect",
+  "attempt_count": 1,
+  "identical_failure_count": 1,
+  "no_progress_iterations": 1,
+  "previous_event_sha256": "510d7b5eff6e3517c9e97e51557d50fb8d5f26858bd1e23141810ee023b09ca7",
+  "detail": "Run37479264378 failed actual WebView login_home/js=decode/ASSERTION after native authoritative VPN login/catalog PASS; runtime ready/failure none/live bound admitted saved true. Own disposable peer cleanup and protected before/after audits PASS. No same-source rerun. Frontend transaction step unknown; native AV/cold/roaming not reached. Record exact transitionR9 FAILURE. Event13 recorded_at was mistakenly ahead of its commit timestamp; preserve immutable event as history and use actual UTC observation timestamps now."
+}

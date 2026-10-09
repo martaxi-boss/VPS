@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 15,
+  "recorded_at": "2026-10-06T14:45:06.052234+00:00",
+  "event": "REPLAN",
+  "strategy_generation": 9,
+  "action_fingerprint": "060;Android13;2332c037a1970b22686d7486090b04aa04bf663b;fixed-login-transaction-phase-diagnostic",
+  "attempt_count": 0,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 1,
+  "previous_event_sha256": "58003aaf9f0d53d811e32391e4fad10c6f01ddbd53003c6c65ba7b1f0ea2b49a",
+  "detail": "Material diagnostic source2332c037 exposes fixed phase/failure/route enums only, never values/status/error text/URLs/blob. Local63tests and27-page build PASS. Preserve90second checkpoint and all native AV/recovery/host identity/own peer cleanup gates. Fresh exact source CI and preparation plus separate exact authorization mandatory. Preserve no-progress1 until new runtime evidence explains failed boundary."
+}

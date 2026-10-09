@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 50,
+  "recorded_at": "2026-10-07T04:54:50.203603+00:00",
+  "event": "FAILURE_OBSERVED",
+  "strategy_generation": 23,
+  "action_fingerprint": "060;b5172ba;bounded-local-renderer-cpu-sample;artifact11460975825",
+  "attempt_count": 1,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "c48fae9fba937f8310cba1c53b02a6fc9c7ca71117d0eaaaf3024ccd04ffd054",
+  "detail": "R23run37573053127 exactauth7b94 FAILURE; sampler SAMPLED and dominant static core invoke line0col2407 ancestry3955samples, first UTF8decode completed/subsequent body drain pulling_next. Renderer QUIET/main responsive/foreground present; login and protected before-after audits/own-peer cleanup PASS. Aggregate early20s profile cannot identify specific injected/native IPC subframe or whole failed callback interval."
+}

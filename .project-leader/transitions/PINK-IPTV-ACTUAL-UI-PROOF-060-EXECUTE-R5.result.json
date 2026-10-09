@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R5",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "NOT_EXECUTED",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE-R5.authorization.json",
+  "action": "staging_operational_proof",
+  "target": {
+    "kind": "bounded_android_operational_proof",
+    "identifier": "OVH:vps-32bea5b6;PINK:6e0537634a40619f331268c4c7f7bdefd15231ce;artifact-run:37441906746",
+    "revision": "2e26eb0ceca31026be7d8001638066046a84f3a3",
+    "base_revision": "a8af395df2c2b83b627f5a71337b67d209daf5f3",
+    "environment": "staging-disposable-emulator"
+  },
+  "observed_at": "2026-10-06T09:29:51.527Z",
+  "final_state": {
+    "status": "AUTHORIZATION_SUMMARY_SCHEMA_LENGTH_REJECTED_PROOF_SKIPPED_NO_HOST_EFFECT",
+    "revision": "6f7b5014678f8b526c936d79992b1a892a123d5b"
+  },
+  "evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37443186385",
+    "control_audit FAILURE: $.authority.summary longer than maxLength1000. Both prepare and proof SKIPPED; no APK installation, private fixture, peer enrollment or VPS host effect.",
+    "Local schema failure was not made a hard publication guard in this attempt. Correct subsequent authorization only after successful explicit validator exit; preserve this invalid authorization and NOT_EXECUTED result append-only."
+  ],
+  "residual_blockers": [
+    "Source6e053763 and full prepared artifact11401693691 remain successful/unchanged. Reauthenticate and reuse exactly those bytes in a new bounded API33 anonymous preparation, then validate shorter exact fresh authorization before publication. No equivalent privileged proof was executed."
+  ]
+}

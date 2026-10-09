@@ -1,0 +1,137 @@
+name: PINK actual UI proof 060
+on:
+  push:
+    branches: ["builder/pink-actual-ui-proof-060"]
+    paths: ["ops/pink_ui_060*", ".github/workflows/pink-actual-ui-proof-060.yml", ".project-leader/transitions/PINK-IPTV-ACTUAL-UI-PROOF-060-EXECUTE*.authorization.json"]
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: pink-actual-ui-proof-060
+  cancel-in-progress: false
+jobs:
+  control_audit:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PINK060_MESSAGE: ${{ github.event.head_commit.message }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/Project-leader
+          ref: 8efecaccfb5708d3689f9fcd0ad3bb77ec8e40db
+          path: _canonical
+          persist-credentials: false
+      - run: python ops/pink_ui_060_control.py
+
+  prepare:
+    needs: control_audit
+    if: github.event.head_commit.message != 'Authorize exact actual UI proof060'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Validate exact successful source CI and artifact identity
+        run: |
+          bash -n ops/pink_ui_060_emulator.sh
+          python ops/pink_ui_060_artifact.py metadata
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          artifact-ids: ${{ env.PINK060_SOURCE_ARTIFACT }}
+          repository: martaxi-boss/pink-iptv
+          run-id: ${{ env.PINK060_SOURCE_RUN }}
+          github-token: ${{ github.token }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/pink-deliverable
+      - name: Verify original source APK, instrumentation and integrity hashes
+        run: python ops/pink_ui_060_artifact.py files
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: PINK-IPTV-Extreme-060
+          path: ${{ runner.temp }}/pink-deliverable
+          if-no-files-found: error
+          retention-days: 30
+
+  proof:
+    needs: control_audit
+    if: github.event.head_commit.message == 'Authorize exact actual UI proof060'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Read exact prepared run after independent authorization audit
+        run: |
+          python - <<'PY'
+          import json,os,subprocess
+          from pathlib import Path
+          added=subprocess.check_output(['git','diff','--name-only','--diff-filter=A','HEAD^','HEAD'],text=True).splitlines()
+          assert len(added)==1
+          auth=json.loads(Path(added[0]).read_text())
+          run_id=auth['target']['identifier'].rsplit('artifact-run:',1)[1]
+          assert run_id.isdigit()
+          with open(os.environ['GITHUB_ENV'],'a') as env: env.write('PINK060_ARTIFACT_RUN='+run_id+'\n')
+          print('AUDITED_PREPARED_RUN_RELAY=PASS')
+          PY
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: PINK-IPTV-Extreme-060
+          run-id: ${{ env.PINK060_ARTIFACT_RUN }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/pink056-artifact
+      - name: Verify exact APK/source integrity and prepare bounded emulator
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/pink056-artifact"
+          sha256sum -c SHA256SUMS
+          python - <<'PYCODE'
+          import json
+          from pathlib import Path
+          import os,sys
+          sys.path.insert(0,os.environ['GITHUB_WORKSPACE'])
+          from ops.pink_ui_060_artifact import SOURCE
+          assert json.loads(Path('provenance.json').read_text())['implementation_sha']==SOURCE
+          PYCODE
+          test -e /dev/kvm
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sudo udevadm settle --timeout=10
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: reactivecircus/android-emulator-runner
+          ref: 1dcd0090116d15e7c562f8db72807de5e036a4ed
+          path: _pink060_emulator_runner
+          persist-credentials: false
+      - name: Verify and pin certified emulator acquisition
+        run: python ops/pink_ui_060_runner.py _pink060_emulator_runner
+      - name: Real authorized account, Android enrollment, catalog and decoded playback
+        uses: ./_pink060_emulator_runner
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        with:
+          emulator-build: 16428233
+          api-level: 33
+          target: google_apis
+          arch: x86_64
+          profile: pixel_5
+          cores: 4
+          ram-size: 4096M
+          disk-size: 4096M
+          disable-linux-hw-accel: false
+          emulator-boot-timeout: 900
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -dns-server 1.1.1.1
+          script: bash ops/pink_ui_060_emulator.sh

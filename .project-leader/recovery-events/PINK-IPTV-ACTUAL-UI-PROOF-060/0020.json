@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 20,
+  "recorded_at": "2026-10-06T15:52:18.975602+00:00",
+  "event": "REPLAN",
+  "strategy_generation": 12,
+  "action_fingerprint": "060;Android13;ea468ff303af4166c58adcd01731b716adf48c02;replacement-document-and-real-submit-phase-check",
+  "attempt_count": 0,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 1,
+  "previous_event_sha256": "b940f346d9bc295e713be5225482b6ba4816642ad72ae13a3678453a1548e348",
+  "detail": "Prepare sourceea468ff3 after immutable061 takeover preserves invalid059 recovery as stale history. Current source has replacement-document barrier plus immediate authenticating/busy assertion and fixed native cache-category diagnostics only. Exact Android37489086301 and Backend37489086561 succeeded;65 tests, identity2/origin-vault2/startup1 and normal consent/Keystore/fail closure PASS. Reuse source artifact11425771241 ZIP digest7a9de514 with original provenance/file checksums. Same app architecture/physical control/provider VPN capture, protected fixture, own-peer cleanup and before/after audits. Preserve no-progress1; no equivalent R10 rerun. New exact prepared-run authorization mandatory before actual UI/native AV/cold/roaming."
+}

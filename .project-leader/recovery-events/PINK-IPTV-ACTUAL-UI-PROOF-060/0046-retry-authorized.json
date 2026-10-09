@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PINK-IPTV-ACTUAL-UI-PROOF-060",
+  "repository": "martaxi-boss/VPS",
+  "sequence": 46,
+  "recorded_at": "2026-10-07T04:26:42.929404+00:00",
+  "event": "RETRY_AUTHORIZED",
+  "strategy_generation": 22,
+  "action_fingerprint": "060;b5172ba;first-decode-vs-next-native-pull;artifact11460975825",
+  "attempt_count": 1,
+  "identical_failure_count": 0,
+  "no_progress_iterations": 0,
+  "previous_event_sha256": "a0b5482dbe113d75249063898348be5908bded22aeec1cccf4f05e14ad11b92f",
+  "detail": "Prospective covered bounded staging probe answers whether first decode completed before renderer silence versus subsequent native IPC pull. Exact Backend37570756771/Android37570756822 SUCCESS onb5172ba;75 required frontend tests/build, native instrumentation/fixed origin-phase/Keystore/consent/startup/payload/lint/privacy PASS. Original artifact11460975825 digest71082827bdbe3aa10ada3e05d3b2448a3a28ba2ff20d9fec1e21514a988df066. Require exact successful preparation/hash relay before exact authorization. Fixed official emulator16428233/installer unchanged; physical TLS control/protected data plane, before/after audits and disposable cleanup required. No blind retries, timeout increases, host change, credentials or physical claim."
+}
