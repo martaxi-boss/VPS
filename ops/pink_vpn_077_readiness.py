@@ -97,6 +97,32 @@ def inspect() -> None:
         existing[table] = count_table == "1"
     files = [p.name for p in ROOT.joinpath("alembic/versions").glob("*.py")]
     assert len(files) < 100
+
+    # Task078 ambiguous-write recovery: inspect state without touching anything.
+    possible_backup = Path("/var/backups/pink-iptv/task078")
+    print("PINK077_TASK078_BACKUP_PRESENT=" + str(possible_backup.is_dir()))
+    if possible_backup.is_dir():
+        for entry in ("baseline", "state.json", "quota.py", "accepted", "rolled-back"):
+            print("PINK077_TASK078_" + entry.replace(".", "_").upper() +
+                  "_PRESENT=" + str((possible_backup / entry).is_file()))
+        state = possible_backup / "state.json"
+        if state.is_file():
+            metadata = __import__("json").loads(state.read_text())
+            current_hash = hashlib.sha256(VPN_ENV.read_bytes()).hexdigest()
+            kind = "NEW" if current_hash == metadata.get("new_sha256") else (
+                "ORIGINAL" if current_hash == metadata.get("original_sha256") else "OTHER"
+            )
+            print("PINK077_TASK078_ENV_CONTENT_STATUS=" + kind)
+    status = subprocess.run(
+        ["systemctl", "is-active", "pink-vpn-quota-078-rollback.timer"],
+        capture_output=True, text=True, timeout=10,
+    ).stdout.strip()
+    print("PINK077_TASK078_TIMER_ACTIVE=" + str(status == "active"))
+    pid = int(capture("systemctl", "show", "pink-iptv-backend", "-p", "MainPID", "--value"))
+    assert pid > 0
+    process_env = Path(f"/proc/{pid}/environ").read_bytes().split(b"\\x00")
+    print("PINK077_TASK078_PROCESS_HAS_QUOTA10=" +
+          str(b"VPN_MAX_INSTALLATIONS_PER_ACCOUNT=10" in process_env))
     print("PINK077_READ_ONLY_NO_CUSTOMER_IDENTIFIERS=PASS")
     print("PINK077_RUNTIME_DEFAULT_SLOTS=" + str(effective_default))
     print("PINK077_RUNTIME_ENV_OVERRIDE=" + (str(override) if override else "UNSET"))
