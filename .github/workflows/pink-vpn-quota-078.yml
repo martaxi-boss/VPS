@@ -9,6 +9,8 @@ on:
       - ".project-leader/transitions/PINK-IPTV-QUOTA-078-APPLY.result.json"
       - ".project-leader/transitions/PINK-IPTV-QUOTA-078-R2.authorization.json"
       - ".project-leader/transitions/PINK-IPTV-QUOTA-078-R2.result.json"
+      - ".project-leader/transitions/PINK-IPTV-QUOTA-078-R3.authorization.json"
+      - ".project-leader/transitions/PINK-IPTV-QUOTA-078-R3.result.json"
 permissions:
   contents: read
 concurrency:
@@ -45,6 +47,8 @@ jobs:
               ".project-leader/transitions/PINK-IPTV-QUOTA-078-APPLY.result.json",
               ".project-leader/transitions/PINK-IPTV-QUOTA-078-R2.authorization.json",
               ".project-leader/transitions/PINK-IPTV-QUOTA-078-R2.result.json",
+              ".project-leader/transitions/PINK-IPTV-QUOTA-078-R3.authorization.json",
+              ".project-leader/transitions/PINK-IPTV-QUOTA-078-R3.result.json",
           }
           assert changes and changes<=allowed, changes-allowed
           print("PINK078_EXACT_BOUNDED_PROJECT_LOCAL_SCOPE=PASS")
@@ -53,7 +57,7 @@ jobs:
         id: authorization
         run: |
           set -euo pipefail
-          export AUTH=".project-leader/transitions/PINK-IPTV-QUOTA-078-R2.authorization.json"
+          export AUTH=".project-leader/transitions/PINK-IPTV-QUOTA-078-R3.authorization.json"
           if [ ! -f "$AUTH" ]; then
             echo 'authorized=false' >> "$GITHUB_OUTPUT"
             echo 'PINK078_VALIDATED_E1_ONLY_NO_PRODUCTION_EFFECT=PASS'
@@ -67,7 +71,10 @@ jobs:
           assert changed==[os.environ["AUTH"]],changed
           assert auth["schema_version"]=="1.0"
           assert auth["repository"]=="martaxi-boss/VPS"
-          assert auth["transition_id"]=="PINK-IPTV-QUOTA-078-R2"
+          assert auth["transition_id"]=="PINK-IPTV-QUOTA-078-R3"
+          r2=json.load(open(".project-leader/transitions/PINK-IPTV-QUOTA-078-R2.result.json"))
+          assert r2["terminal_status"]=="FAILED_SAFE_PRECHECK_NO_CHANGE"
+          assert r2["recovered_baseline"]["quota_config"]=="5"
           prior=json.load(open(".project-leader/transitions/PINK-IPTV-QUOTA-078-APPLY.result.json"))
           assert prior["terminal_status"]=="FAILED_RECOVERED_TO_ORIGINAL"
           assert prior["live_effects_observed"]["runtime_env_override"]=="UNSET"
