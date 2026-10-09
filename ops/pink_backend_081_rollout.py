@@ -217,6 +217,11 @@ def backup_original(db: str) -> None:
     os.chmod(BACKUP / "database.pgdump", 0o600)
     assert (BACKUP / "database.pgdump").stat().st_size > 1000
     run("pg_restore", "--list", str(BACKUP / "database.pgdump"), timeout=30)
+    # Read/decompress every data object from the private backup without
+    # restoring into or changing any live database. The TOC alone is not a
+    # sufficient integrity test for a corrupted data payload.
+    run("pg_restore", "--file=/dev/null", str(BACKUP / "database.pgdump"), timeout=100)
+    print("PINK081_COMPLETE_PGDUMP_STREAM_RESTORABILITY_CHECK=PASS")
     print("PINK081_DURABLE_CODE_AND_DB_BACKUP=PASS")
 
 
@@ -248,6 +253,18 @@ def apply(archive: Path, sha256: str, new_vpn_sha: str, source_sha: str) -> None
     state = json.loads((BACKUP / "state.json").read_text())
     state["source_sha"] = source_sha
     state["new_vpn_sha"] = new_vpn_sha
+    old_files = {
+        str(p.relative_to(BACKUP / "old_app"))
+        for p in (BACKUP / "old_app").rglob("*.py")
+    }
+    incoming_files = {
+        str(p.relative_to(staging / "app"))
+        for p in (staging / "app").rglob("*.py")
+    }
+    assert old_files and incoming_files
+    # Record exactly which new Python modules this update adds, for a
+    # non-destructive and repeatable selective rollback.
+    state["added_app_py"] = sorted(incoming_files - old_files)
     (BACKUP / "state.json").write_text(json.dumps(state))
     run("systemd-run", "--unit=" + TIMER, "--on-active=15m",
         "/usr/bin/python3", str(BACKUP / "rollback.py"), "rollback")
@@ -304,17 +321,33 @@ def rollback() -> None:
     if current != OLD_REV:
         migration("downgrade", OLD_REV)
     assert revision(db) == OLD_REV
-    shutil.rmtree(APP / "app")
-    shutil.copytree(BACKUP / "old_app", APP / "app")
-    shutil.rmtree(APP / "alembic/versions")
-    shutil.copytree(BACKUP / "old_versions", APP / "alembic/versions")
+    # Selective in-place restore is retryable even after a partial rollback.
+    # Do not remove the entire live app/versions directory, which could leave
+    # the server unbootable when a copy operation encounters an IO failure.
     uid = pwd.getpwnam("pink-iptv").pw_uid
     gid = pwd.getpwnam("pink-iptv").pw_gid
-    for base in (APP / "app", APP / "alembic/versions"):
-        for node in base.rglob("*"):
-            if node.is_file() or node.is_dir():
-                os.chown(node, uid, gid)
-        os.chown(base, uid, gid)
+    saved = BACKUP / "old_app"
+    assert saved.is_dir() and not saved.is_symlink()
+    for path in sorted(saved.rglob("*.py")):
+        relative = path.relative_to(saved)
+        target = APP / "app" / relative
+        assert target.is_file() and not target.is_symlink()
+        shutil.copy2(path, target)
+        os.chown(target, uid, gid)
+    for item in state["added_app_py"]:
+        relative = Path(item)
+        assert not relative.is_absolute() and ".." not in relative.parts
+        assert relative.suffix == ".py"
+        assert not (saved / relative).exists()
+        target = APP / "app" / relative
+        if target.exists():
+            assert target.is_file() and not target.is_symlink()
+            target.unlink()
+    for name in MIGRATIONS:
+        candidate = APP / "alembic/versions" / name
+        if candidate.exists():
+            assert candidate.is_file() and not candidate.is_symlink()
+            candidate.unlink()
     assert app_tree_sha() == OLD_TREE_SHA
     run("systemctl", "start", "pink-iptv-backend")
     healthy()
