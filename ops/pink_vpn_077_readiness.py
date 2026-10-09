@@ -39,6 +39,11 @@ def inspect() -> None:
     assert capture("hostname") == "vps-32bea5b6"
     assert service("pink-iptv-backend") and service("pink-vpn")
     assert ROOT.joinpath("app/vpn.py").is_file()
+    unit_files = capture(
+        "systemctl", "show", "pink-iptv-backend", "-p", "EnvironmentFiles", "--value"
+    )
+    assert str(VPN_ENV) in unit_files and VPN_ENV.is_file()
+    print("PINK077_EXPECTED_VPN_ENVFILE_IS_UNIT_BOUND=PASS")
     source = ROOT.joinpath("app/config.py").read_text()
     version = re.search(
         r"vpn_max_installations_per_account\s*:\s*int\s*=\s*Field\(default=(\d+)",
