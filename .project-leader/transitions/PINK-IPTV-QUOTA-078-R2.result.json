@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-QUOTA-078-R2",
+  "task_id": "PINK-IPTV-VPN-QUOTA-078",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "FAILED_SAFE_PRECHECK_NO_CHANGE",
+  "action": "production_config_update",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-QUOTA-078-R2.authorization.json",
+  "workflow_run": "https://github.com/martaxi-boss/VPS/actions/runs/37951759846",
+  "observed": "Existing verified failed-attempt backup remained on disk, so check() aborted at its stale assertion before apply() could preserve/archive it. Workflow step 'Prepare bounded native SSH transport' failed; Apply was skipped. Rollback handler reported PINK078_ROLLBACK_ALREADY_APPLIED=PASS. Thus no quota update was attempted by R2 and original protected config remained.",
+  "recovered_baseline": {
+    "quota_config": "5",
+    "env_override": "UNSET",
+    "live_peer_mutation": false,
+    "backend_binary_mutation": false,
+    "db_mutation": false
+  },
+  "remediation": "R3 preflight accepts only strictly proven original config, inactive old/new timers and retained exact backup, first verifies read-only, then archives the old aborted backup under /var/backups/pink-iptv; adds CI regression. Code changes remain limited to quota-only Python/test and gate."
+}
