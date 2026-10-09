@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-BACKEND-081-DEPLOY",
+  "task_id": "PINK-IPTV-BACKEND-081",
+  "repository": "martaxi-boss/VPS",
+  "action": "production_backend_upgrade",
+  "effect_class": "E2_CONSEQUENTIAL_TRANSITION",
+  "terminal_status": "FAILED_RECOVERED_OLD_STACK",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-BACKEND-081-DEPLOY.authorization.json",
+  "workflow_run": "https://github.com/martaxi-boss/VPS/actions/runs/37962668923",
+  "observed": {
+    "phase": "after durable complete pg_dump+stream verification and systemd rollback timer armed; before PINK081_STAGED_NEW_CODE_INSTALLED",
+    "after_failure": "Immediate workflow rollback emitted PINK081_OLD_APP_AND_SCHEMA_EXACTLY_RESTORED=PASS",
+    "installed_new_backend_certified": false,
+    "old_pg_dump_preserved_on_host": true,
+    "old_app_sources_preserved_on_host": true,
+    "no_apk_change": true,
+    "no_gateway_mutation_reported": true
+  },
+  "recovery": {
+    "schema": "20261005_0002",
+    "old_app": "restored by bounded exact rollback",
+    "quota": "10 from prior accepted transition",
+    "verification": "Post-failure on-host read-only R2 diagnose required before replay"
+  },
+  "probable_cause": "Old install_source used rglob('*') and asserted every entry was a Python file, which fails when the pinned source has nested Python package directories. Corrected by rglob('*.py') with positive nested-package execution test; exact cause needs corroborating stage-specific R2 diagnostic evidence, not assumed.",
+  "next_action": "Preserve failed R1 code/db backups and source artifact, observe live recovery state and old timer, then R2 exact-head CI plus separate standing authority. Never replay R1 blindly."
+}
