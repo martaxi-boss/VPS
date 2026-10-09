@@ -73,6 +73,10 @@ jobs:
               "20261009_0006_vpn_rate_windows.py",
           ]
           assert len(paths)>=8
+          # Distinguish a real nested-package install error from speculation:
+          # the former installer rejected directories returned by rglob("*").
+          package_directories=sum(p.is_dir() for p in (root/"app").rglob("*"))
+          print("PINK081_PINNED_SOURCE_NESTED_PACKAGE_DIRECTORIES="+str(package_directories))
           paths.extend(root/"alembic/versions"/name for name in versions)
           assert all(p.is_file() and not p.is_symlink() for p in paths)
           with tarfile.open(os.environ["BUNDLE"],"w:gz") as tar:
