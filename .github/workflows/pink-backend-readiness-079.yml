@@ -1,0 +1,43 @@
+name: PINK Backend Migration Read-only 079
+on:
+  pull_request:
+    branches: ["main"]
+    paths: ["ops/pink_backend_079_inspect.py", ".github/workflows/pink-backend-readiness-079.yml"]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    if: github.event.pull_request.number == 29 && github.event.pull_request.head.repo.full_name == 'martaxi-boss/VPS'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify exact source and Python syntax before remote read-only probe
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ops/pink_backend_079_inspect.py
+          python3 - <<'PY'
+          import subprocess
+          base="66b8612e04798cb55341dd025a4d85d366111178"
+          subprocess.run(["git","merge-base","--is-ancestor",base,"HEAD"],check=True)
+          changed=set(subprocess.check_output(
+            ["git","diff","--name-only",base,"HEAD"],text=True).splitlines())
+          allowed={"ops/pink_backend_079_inspect.py", ".github/workflows/pink-backend-readiness-079.yml"}
+          assert changed and changed<=allowed,changed-allowed
+          print("PINK079_BOUND_READ_ONLY_SCOPE=PASS")
+          PY
+      - name: Independently inspect pinned production baseline without mutations
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 \
+            -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
+            ubuntu@146.59.145.3 'sudo -n python3 -' < ops/pink_backend_079_inspect.py
