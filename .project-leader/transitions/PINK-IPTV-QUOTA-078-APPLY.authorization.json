@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-QUOTA-078-APPLY",
+  "task_id": "PINK-IPTV-VPN-QUOTA-078",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-09T15:02:34.007Z",
+  "action": "production_config_update",
+  "effect_class": "E2_CONSEQUENTIAL_TRANSITION",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "binding_mode": "EXACT_REVISION_BOUND",
+    "summary": "Owner directed Project Leader to finish the PINK VPN autonomy work without routine permission gates. Supervisor independently verified live read-only 077/PR27 (runtime default5, no override, env file bound, four valid leases, one WireGuard peer, Alembic 0002), exact current backend SHA256 d2e73d88a65602fbbb51a5460dc4d3edab3b8f8da0d3e271e07fad12c775065a and current VPS main f7a310c87bf0bb700e26406cb02d89e8e0e34aef. Local non-mutating 078 code/scope CI 37948581427 terminal SUCCESS on exact implementation a3a05bfdf62e1e7c46008d2e8bdcc46d5310c170. Authority is limited to atomically adding numeric VPN_MAX_INSTALLATIONS_PER_ACCOUNT=10 to existing root-only /etc/pink-iptv/vpn.env with prearmed 8-minute systemd rollback, one pink-iptv-backend restart, independent live process/health verification and acceptance. Preserve all account rows, WireGuard peers, Python runtime code, signing identity, customer APKs and unrelated services. No DB migration, gateway operation, backend software deployment or public release is authorized."
+  },
+  "target": {
+    "kind": "vps_service",
+    "identifier": "OVH:vps-32bea5b6/pink-iptv-backend/quota-only",
+    "revision": "a3a05bfdf62e1e7c46008d2e8bdcc46d5310c170",
+    "base_revision": "f7a310c87bf0bb700e26406cb02d89e8e0e34aef",
+    "environment": "production"
+  }
+}
