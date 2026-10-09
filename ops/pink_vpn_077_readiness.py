@@ -113,6 +113,17 @@ def inspect() -> None:
                 "ORIGINAL" if current_hash == metadata.get("original_sha256") else "OTHER"
             )
             print("PINK077_TASK078_ENV_CONTENT_STATUS=" + kind)
+    temp = VPN_ENV.with_name("vpn.env.task078.next")
+    print("PINK077_TASK078_TEMP_FILE_PRESENT=" + str(temp.exists()))
+    if temp.exists():
+        print("PINK077_TASK078_TEMP_MODE=" + oct(temp.stat().st_mode & 0o777))
+    if possible_backup.is_dir():
+        quota_script = possible_backup / "quota.py"
+        print("PINK077_TASK078_BACKUP_SCRIPT_PYCOMPILE=" + str(
+            subprocess.run(["python3", "-m", "py_compile", str(quota_script)],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                           timeout=10).returncode == 0
+        ) if quota_script.is_file() else "MISSING")
     status = subprocess.run(
         ["systemctl", "is-active", "pink-vpn-quota-078-rollback.timer"],
         capture_output=True, text=True, timeout=10,
