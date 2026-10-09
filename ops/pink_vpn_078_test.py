@@ -96,6 +96,9 @@ def test() -> None:
         q.healthy = lambda: None
         q.subprocess.run = lambda _args, **_kwargs: SimpleNamespace(stdout="inactive")
         try:
+            q.archive_aborted_attempt(preserve_only=True)
+            assert q.BACKUP.exists()
+            assert q.ENV.read_bytes() == b"VPN_ENABLED=true\\n"
             q.archive_aborted_attempt()
         finally:
             q.subprocess.run = original_run
