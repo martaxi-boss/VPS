@@ -159,8 +159,8 @@ def rollback() -> None:
 
 def accept() -> None:
     verify()
-    run("systemctl", "stop", TIMER + ".timer")
     (BACKUP / "accepted").write_text("accepted exact verified configuration\n")
+    run("systemctl", "stop", TIMER + ".timer")
     print("PINK078_QUOTA10_ACCEPTED=PASS")
 
 
