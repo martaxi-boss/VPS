@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-BACKEND-081-R2",
+  "task_id": "PINK-IPTV-BACKEND-081",
+  "repository": "martaxi-boss/VPS",
+  "action": "production_backend_upgrade",
+  "effect_class": "E2_CONSEQUENTIAL_TRANSITION",
+  "terminal_status": "SUCCESS",
+  "authority_record": ".project-leader/transitions/PINK-IPTV-BACKEND-081-R2.authorization.json",
+  "source_revision": "558f8aa49f1611532ca2b4417b42086b81ca50b9",
+  "exact_authorized_implementation": "6154f8669ae2b746dda357727826ac17ce754568",
+  "authorization_commit": "f41c350205e036ef022727e33ae3f3037f2b8b32",
+  "live_certification": "https://github.com/martaxi-boss/VPS/actions/runs/37963674417",
+  "full_lease_migration_regression": "https://github.com/martaxi-boss/pink-iptv/actions/runs/37955485476",
+  "rollout_evidence": [
+    "PINK081_PRIOR_ATTEMPT_EXACT_OLD_STATE=PASS",
+    "PINK081_FINISHED_OLD_ROLLBACK_TIMER_RETIRED=PASS",
+    "PINK081_ABORTED_BACKUP_AND_SOURCE_ARCHIVED_UNCHANGED=PASS",
+    "PINK081_COMPLETE_PGDUMP_STREAM_RESTORABILITY_CHECK=PASS",
+    "PINK081_DURABLE_CODE_AND_DB_BACKUP=PASS",
+    "PINK081_ROLLBACK_TIMER_ARMED=PASS",
+    "PINK081_PHASE=SOURCE_FILE_COPIES_COMPLETED",
+    "PINK081_STAGED_NEW_CODE_INSTALLED=PASS",
+    "PINK081_EXISTING_LEASE_OWNERSHIP_EXACTLY_PRESERVED=PASS",
+    "PINK081_ADDITIVE_MIGRATION_COMPLETE=PASS",
+    "PINK081_BACKEND_0006_AND_OWNER_RECOVERY_ENDPOINTS_VERIFIED=PASS",
+    "PINK081_NEW_BACKEND_READY_NO_GATEWAY_MUTATION=PASS",
+    "PINK081_BACKEND_0006_ACCEPTED=PASS"
+  ],
+  "final_live_state": {
+    "source_endpoint": "/v1/vpn/installations",
+    "source_release": "/v1/vpn/installations/release",
+    "database_revision": "20261009_0006",
+    "active_quota_per_account": 10,
+    "old_lease_ownership_fingerprint": "EXACT_MATCH_VERIFIED_ON_HOST_NO_CUSTOMER_DATA_EXPOSED",
+    "gateway_peer_mutation": false,
+    "no_android_apk_replacement": true,
+    "old_backup_preserved": true,
+    "live_backend": "running and local API healthy"
+  },
+  "repository_integration": {
+    "pr_number": 30,
+    "main_merge_sha": "fc87afa5acf5841862a1a5d9727780131f5a94dc"
+  },
+  "remaining_boundaries": [
+    "Independent external postflight is planned before production acceptance closes",
+    "Physical Owner Android install and signed stable release remain separately gated; no in-place APK upgrade was performed"
+  ]
+}
