@@ -110,15 +110,16 @@ def inspect() -> None:
     old, _status = guarded_environment()
     assert KEY + b"10" not in old.splitlines()
     assert not any(line.startswith(KEY) for line in old.splitlines())
-    assert not BACKUP.exists()
+    if BACKUP.exists():
+        archive_aborted_attempt(preserve_only=True)
     assert re.search(r"vpn_max_installations_per_account\s*:\s*int\s*=\s*Field\(default=5",
                      (ROOT / "app/config.py").read_text())
     healthy()
     print("PINK078_READINESS_QUOTA_CHANGE_ONLY=PASS")
 
 
-def archive_aborted_attempt() -> None:
-    """Preserve prior failed transition evidence, only from proven original state."""
+def archive_aborted_attempt(*, preserve_only: bool = False) -> None:
+    """Verify failed transition is original; archive only when explicitly requested."""
     if not BACKUP.exists():
         return
     assert BACKUP.is_dir() and not BACKUP.is_symlink()
@@ -136,6 +137,9 @@ def archive_aborted_attempt() -> None:
         ).stdout.strip()
         assert current_timer == "inactive"
     healthy()
+    if preserve_only:
+        print("PINK078_OLD_ATTEMPT_ORIGINAL_AND_INACTIVE=PASS")
+        return
     parent = BACKUP.parent
     archived = parent / ("task078-aborted-" + str(time.time_ns()))
     assert not archived.exists()
