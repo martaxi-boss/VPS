@@ -139,12 +139,23 @@ def safe_archive(archive: Path, sha256: str, destination: Path) -> Path:
     with tarfile.open(archive, "r:gz") as bundle:
         members = bundle.getmembers()
         assert 12 <= len(members) <= 120
+        total_size = 0
         for member in members:
             assert member.isfile() and not member.issym() and not member.islnk()
             assert ".." not in Path(member.name).parts and not Path(member.name).is_absolute()
             assert any(member.name.startswith(prefix) for prefix in allowed)
-            assert len(member.name) < 240
-        bundle.extractall(destination, members=members, filter="data")
+            assert member.name.endswith(".py") and len(member.name) < 240
+            assert 0 < member.size <= 3_000_000
+            total_size += member.size
+        assert total_size <= 20_000_000
+        # Manually extract validated regular files. No tarfile filter API
+        # version dependency and no symlink/hardlink/owner materialization.
+        for member in members:
+            target = destination / member.name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with bundle.extractfile(member) as source_file, target.open("xb") as output:
+                assert source_file is not None
+                shutil.copyfileobj(source_file, output)
     sources = list((destination / "backend/app").rglob("*.py"))
     assert len(sources) >= 8
     migrations = {p.name for p in (destination / "backend/alembic/versions").glob("*.py")}
