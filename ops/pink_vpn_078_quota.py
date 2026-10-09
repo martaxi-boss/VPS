@@ -9,6 +9,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import time
 
 ENV = Path("/etc/pink-iptv/vpn.env")
 ROOT = Path("/srv/pink-iptv/backend")
@@ -80,11 +81,28 @@ def process_has_expected_quota() -> bool:
 
 
 def healthy() -> None:
-    assert run("systemctl", "is-active", UNIT) == "active"
-    assert run("systemctl", "is-active", "pink-vpn") == "active"
-    assert run("curl", "--silent", "--show-error", "--output", "/dev/null",
-               "--write-out", "%{http_code}", "--max-time", "8",
-               "http://127.0.0.1:8010/openapi.json") == "200"
+    # Systemd Type=simple may consider a process started before its API binds.
+    # Check actual health for a short bounded readiness window after restart,
+    # without hiding an eventual failure or changing service timeouts.
+    for attempt in range(18):
+        backend = subprocess.run(
+            ["systemctl", "is-active", UNIT],
+            capture_output=True, text=True, timeout=5,
+        ).stdout.strip()
+        wireguard = subprocess.run(
+            ["systemctl", "is-active", "pink-vpn"],
+            capture_output=True, text=True, timeout=5,
+        ).stdout.strip()
+        api = subprocess.run([
+            "curl", "--silent", "--show-error", "--output", "/dev/null",
+            "--write-out", "%{http_code}", "--max-time", "2",
+            "http://127.0.0.1:8010/openapi.json"
+        ], capture_output=True, text=True, timeout=5)
+        if backend == "active" and wireguard == "active" and api.returncode == 0 and api.stdout == "200":
+            return
+        if attempt != 17:
+            time.sleep(1)
+    raise RuntimeError("Quota transition backend readiness failed")
 
 
 def inspect() -> None:
@@ -98,8 +116,35 @@ def inspect() -> None:
     print("PINK078_READINESS_QUOTA_CHANGE_ONLY=PASS")
 
 
+def archive_aborted_attempt() -> None:
+    """Preserve prior failed transition evidence, only from proven original state."""
+    if not BACKUP.exists():
+        return
+    assert BACKUP.is_dir() and not BACKUP.is_symlink()
+    assert not (BACKUP / "accepted").exists()
+    state = json.loads((BACKUP / "state.json").read_text())
+    current = ENV.read_bytes()
+    baseline = (BACKUP / "baseline").read_bytes()
+    assert digest(baseline) == state["original_sha256"]
+    assert digest(current) == state["original_sha256"]
+    assert not ENV.with_name("vpn.env.task078.next").exists()
+    current_timer = subprocess.run(
+        ["systemctl", "is-active", TIMER + ".timer"],
+        capture_output=True, text=True, timeout=10
+    ).stdout.strip()
+    assert current_timer != "active"
+    healthy()
+    parent = BACKUP.parent
+    archived = parent / ("task078-aborted-" + str(time.time_ns()))
+    assert not archived.exists()
+    BACKUP.rename(archived)
+    print("PINK078_PREVIOUS_FAILED_ATTEMPT_SAFELY_ARCHIVED=PASS")
+
+
 def apply() -> None:
-    # No remote action begins without a precisely inspected baseline.
+    # Old config + inactive rollback timer were independently read-only verified.
+    # Do not silently replace or delete the failed attempt evidence.
+    archive_aborted_attempt()
     inspect()
     old, status = guarded_environment()
     new = desired(old)
@@ -117,13 +162,18 @@ def apply() -> None:
     os.chmod(BACKUP / "state.json", 0o600)
     shutil.copy2(__file__, BACKUP / "quota.py")
     os.chmod(BACKUP / "quota.py", 0o600)
+    print("PINK078_PHASE=BACKUP_DURABLE")
     # The rollback timer is armed BEFORE the change; it acts even if Actions dies.
     run("systemd-run", "--unit=" + TIMER, "--on-active=8m",
         "/usr/bin/python3", str(BACKUP / "quota.py"), "rollback")
     assert run("systemctl", "is-active", TIMER + ".timer") == "active"
+    print("PINK078_PHASE=ROLLBACK_TIMER_ARMED")
     write_atomic(new, status.st_uid, status.st_gid, metadata["mode"])
+    print("PINK078_PHASE=ENV_WRITTEN")
     run("systemctl", "restart", UNIT)
+    print("PINK078_PHASE=BACKEND_RESTART_RETURNED")
     healthy()
+    print("PINK078_PHASE=BACKEND_API_HEALTHY")
     assert process_has_expected_quota()
     print("PINK078_TEMP_QUOTA10_AND_AUTO_ROLLBACK_ARMED=PASS")
 
@@ -144,6 +194,7 @@ def rollback() -> None:
     state = json.loads((BACKUP / "state.json").read_text())
     current = ENV.read_bytes()
     if digest(current) == state["original_sha256"]:
+        (BACKUP / "rolled-back").write_text("original configuration intact\\n")
         print("PINK078_ROLLBACK_ALREADY_APPLIED=PASS")
         return
     assert digest(current) == state["new_sha256"]
