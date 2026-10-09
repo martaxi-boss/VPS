@@ -179,7 +179,7 @@ def safe_archive(archive: Path, sha256: str, destination: Path) -> Path:
     return destination / "backend"
 
 
-def verify_prior_failed_attempt() -> None:
+def verify_prior_failed_attempt(*, require_inactive: bool = True) -> None:
     """Permit an R2 retry only after the previous rollback is proven complete."""
     if not BACKUP.exists():
         return
@@ -196,11 +196,42 @@ def verify_prior_failed_attempt() -> None:
         ["systemctl", "is-active", TIMER + ".timer"],
         capture_output=True, text=True, timeout=10,
     ).stdout.strip()
-    assert old_timer in {"inactive", "unknown"}
+    assert old_timer in {"active", "inactive", "unknown"}
+    if require_inactive:
+        assert old_timer in {"inactive", "unknown"}
     prior_source = BACKUP.with_name("task081-source-" + state["source_sha"][:10])
     assert prior_source.is_dir() and not prior_source.is_symlink()
     assert digest((prior_source / "backend/app/vpn.py").read_bytes()) == state["new_vpn_sha"]
-    print("PINK081_PRIOR_ATTEMPT_RECOVERED_AND_ROLLBACK_TIMER_INACTIVE=PASS")
+    print("PINK081_PRIOR_ATTEMPT_EXACT_OLD_STATE=PASS")
+    print("PINK081_PRIOR_ROLLBACK_TIMER_ACTIVE=" + str(old_timer == "active"))
+
+
+def diagnose() -> None:
+    if BACKUP.exists():
+        verify_prior_failed_attempt(require_inactive=False)
+        assert digest((APP / "app/vpn.py").read_bytes()) == OLD_VPN_SHA
+        assert app_tree_sha() == OLD_TREE_SHA
+        assert process_quota_ten()
+        healthy()
+    else:
+        check()
+    print("PINK081_READ_ONLY_POST_FAILURE_DIAGNOSIS=PASS")
+
+
+def retire_prior_timer() -> None:
+    # Production effect limited to disarming an already completed rollback,
+    # only after proving the old binary, SQL schema, quota and backup survived.
+    diagnose()
+    if BACKUP.exists():
+        prior_timer = subprocess.run(
+            ["systemctl", "is-active", TIMER + ".timer"],
+            capture_output=True, text=True, timeout=10
+        ).stdout.strip()
+        if prior_timer == "active":
+            run("systemctl", "stop", TIMER + ".timer")
+            print("PINK081_FINISHED_OLD_ROLLBACK_TIMER_RETIRED=PASS")
+    check()
+    print("PINK081_RECOVERED_OLD_BACKEND_AND_TIMERS_READY=PASS")
 
 
 def preserve_previous_attempt() -> None:
@@ -412,6 +443,10 @@ if __name__ == "__main__":
         action = sys.argv[1] if len(sys.argv) > 1 else ""
         if action == "check":
             check()
+        elif action == "diagnose":
+            diagnose()
+        elif action == "retire":
+            retire_prior_timer()
         elif action == "apply" and len(sys.argv) == 6:
             apply(Path(sys.argv[2]), sys.argv[3], sys.argv[4], sys.argv[5])
         elif action in ("verify", "rollback", "accept") and len(sys.argv) == 2:
