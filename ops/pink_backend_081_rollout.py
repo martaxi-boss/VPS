@@ -72,6 +72,21 @@ def revision(db: str) -> str:
     return value
 
 
+def installation_fingerprint(db: str) -> str:
+    """Digest preexisting lease ownership and token hashes without emitting PII."""
+    value = pg(db, """
+        SELECT md5(COALESCE(string_agg(
+            id::text || ':' || mapping_id::text || ':' || public_key || ':' ||
+            COALESCE(address, 'NULL') || ':' || token_sha256 || ':' ||
+            expires_at::text || ':' || COALESCE(revoked_at::text, 'NULL'),
+            '|' ORDER BY id
+        ), ''))
+        FROM vpn_installations
+    """)
+    assert len(value) == 32 and all(c in "0123456789abcdef" for c in value)
+    return value
+
+
 def process_quota_ten() -> bool:
     pid = int(run("systemctl", "show", "pink-iptv-backend", "-p", "MainPID", "--value"))
     assert pid > 0
@@ -187,6 +202,7 @@ def backup_original(db: str) -> None:
     os.chmod(BACKUP / "rollback.py", 0o600)
     state = {"database": db,
              "installation_rows": int(pg(db, "SELECT COUNT(*) FROM vpn_installations")),
+             "installation_digest_before": installation_fingerprint(db),
              "old_tree_sha": OLD_TREE_SHA,
              "source_sha": "",
              "new_vpn_sha": ""}
@@ -244,6 +260,10 @@ def apply(archive: Path, sha256: str, new_vpn_sha: str, source_sha: str) -> None
     print("PINK081_STAGED_NEW_CODE_INSTALLED=PASS")
     migration("upgrade", NEW_REV)
     assert revision(db) == NEW_REV
+    # The API is still stopped. Verify each legacy lease's key, token, owner,
+    # address, expiry and revocation survived the schema upgrade exactly.
+    assert installation_fingerprint(db) == state["installation_digest_before"]
+    print("PINK081_EXISTING_LEASE_OWNERSHIP_EXACTLY_PRESERVED=PASS")
     print("PINK081_ADDITIVE_MIGRATION_COMPLETE=PASS")
     run("systemctl", "start", "pink-iptv-backend")
     verify()
@@ -288,6 +308,13 @@ def rollback() -> None:
     shutil.copytree(BACKUP / "old_app", APP / "app")
     shutil.rmtree(APP / "alembic/versions")
     shutil.copytree(BACKUP / "old_versions", APP / "alembic/versions")
+    uid = pwd.getpwnam("pink-iptv").pw_uid
+    gid = pwd.getpwnam("pink-iptv").pw_gid
+    for base in (APP / "app", APP / "alembic/versions"):
+        for node in base.rglob("*"):
+            if node.is_file() or node.is_dir():
+                os.chown(node, uid, gid)
+        os.chown(base, uid, gid)
     assert app_tree_sha() == OLD_TREE_SHA
     run("systemctl", "start", "pink-iptv-backend")
     healthy()
