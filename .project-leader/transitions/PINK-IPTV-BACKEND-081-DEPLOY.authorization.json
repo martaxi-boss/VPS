@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-BACKEND-081-DEPLOY",
+  "task_id": "PINK-IPTV-BACKEND-081",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-09T16:56:05.768Z",
+  "action": "production_backend_upgrade",
+  "effect_class": "E2_CONSEQUENTIAL_TRANSITION",
+  "source_revision": "558f8aa49f1611532ca2b4417b42086b81ca50b9",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "binding_mode": "EXACT_REVISION_BOUND",
+    "summary": "Owner explicitly directed Project Leader to finish all covered PINK VPN autonomy phases, including ten reusable installations, without routine Human Gates. Existing VPS quota10 independently confirmed in read-only CI 37952585868; full old backend/db readiness and copy capacity verified in CI 37953321259, initial old backend fingerprint ac766478e977d4f381472ab3da8d2076cb0770b59fe2145db7096b5eebdc4a61, old Alembic 20261005_0002, 14 historic installations and 3 then active. PINK IPTV migration-on-existing-lease PR62 integrated as 697893fe7ca1697c3638e436b167c51fb3c74e4c after Backend CI 37955485476 success; source comparison from pinned 558f8aa49f1611532ca2b4417b42086b81ca50b9 to 697893fe7ca1697c3638e436b167c51fb3c74e4c affects only test/secret-scanner code, not production app/migrations. Rollout081 exact source 22df5842db1ada31a7a8b799b03fb1b8d15facbd passed local archive integrity/rollback tests and bounded workflow CI 37962499919, plus SSH CI 37962499294. Scope restricted to previously installed /srv/pink-iptv/backend app/*.py and additive Alembic 0003..0006, preserving existing user, wireguard peer gateway, all IPTV accounts, live quota10, credentials, firewall, OS units, Apple/Android signing and installed APKs. Prearm on-host timer 15m; root-only full PostgreSQL pg_dump and data decompression verification; selective code rollback with no directory deletion; reject rollback if address release has been acknowledged. Current live source/revision/health are checked again before any mutation, and independent follow-up checks must certify final state. No public APK release or permission/key changes authorized."
+  },
+  "target": {
+    "kind": "vps_service",
+    "identifier": "OVH:vps-32bea5b6/pink-iptv-backend/code-and-alembic",
+    "revision": "22df5842db1ada31a7a8b799b03fb1b8d15facbd",
+    "base_revision": "2af3a483d158d82aec9a6b1b765829ee17c89d91",
+    "environment": "production"
+  }
+}
