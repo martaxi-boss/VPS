@@ -129,6 +129,12 @@ def inspect() -> None:
         capture_output=True, text=True, timeout=10,
     ).stdout.strip()
     print("PINK077_TASK078_TIMER_ACTIVE=" + str(status == "active"))
+    for name in ("pink-vpn-quota-078-rollback.timer", "pink-vpn-quota-078-r2-rollback.timer"):
+        timer = subprocess.run(
+            ["systemctl", "is-active", name], capture_output=True, text=True, timeout=8
+        ).stdout.strip()
+        print("PINK077_TASK078_" + ("R2" if "-r2-" in name else "R1") +
+              "_TIMER_STATE=" + (timer if timer in ("active", "inactive", "failed", "unknown") else "UNCLASSIFIED"))
     pid = int(capture("systemctl", "show", "pink-iptv-backend", "-p", "MainPID", "--value"))
     assert pid > 0
     process_env = Path(f"/proc/{pid}/environ").read_bytes().split(b"\\x00")
