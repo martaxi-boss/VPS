@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-BACKEND-082-INDEPENDENT",
+  "task_id": "PINK-IPTV-VPN-AUTONOMY-056",
+  "repository": "martaxi-boss/VPS",
+  "action": "read_only_production_certification",
+  "effect_class": "E1_RECOVERABLE_PROJECT_LOCAL",
+  "terminal_status": "SUCCESS",
+  "proof": "https://github.com/martaxi-boss/VPS/actions/runs/37964132192",
+  "source_commit": "15ba66b3ffd2c5eb9895518fafa3352c468d501a",
+  "main_merge_commit": "3b4bf1f750b158c3028728feec0e46085a59e6f8",
+  "confirmed": {
+    "running_backend_sha256": "5955756b5bf3ae32b23beeeaacfa3ab7b815b844c7c676cd65601e90e827bc1c",
+    "database_revision": "20261009_0006",
+    "effective_quota_per_account": 10,
+    "total_installations_preserved": 14,
+    "active_leases_at_inspection": 3,
+    "allocated_vpn_addresses_unique": true,
+    "named_recovery_api_routes_present": true,
+    "vpn_gateway_socket_alive": true,
+    "backup_accepted_protected": true,
+    "rollback_timer_inactive": true,
+    "destructive_customer_changes": false
+  },
+  "warnings": [
+    "APK currently installed on Owner's physical Android was not replaced or signed by this task",
+    "The new self-service quota recovery UI is present in the GitHub Android source but requires a safe compatible signed physical distribution",
+    "No production customer credentials or keys were read, returned or used to generate live VPN peer traffic"
+  ]
+}
