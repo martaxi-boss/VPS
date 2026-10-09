@@ -140,6 +140,13 @@ def inspect() -> None:
     process_env = Path(f"/proc/{pid}/environ").read_bytes().split(b"\\x00")
     print("PINK077_TASK078_PROCESS_HAS_QUOTA10=" +
           str(b"VPN_MAX_INSTALLATIONS_PER_ACCOUNT=10" in process_env))
+    if (possible_backup / "accepted").is_file():
+        metadata = __import__("json").loads((possible_backup / "state.json").read_text())
+        assert hashlib.sha256(VPN_ENV.read_bytes()).hexdigest() == metadata["new_sha256"]
+        assert b"VPN_MAX_INSTALLATIONS_PER_ACCOUNT=10" in process_env
+        assert override == 10 and status != "active"
+        assert revisions[0] == "20261005_0002"
+        print("PINK077_POST_R3_LIVE_TEN_SLOTS_NO_MIGRATIONS=PASS")
     print("PINK077_READ_ONLY_NO_CUSTOMER_IDENTIFIERS=PASS")
     print("PINK077_RUNTIME_DEFAULT_SLOTS=" + str(effective_default))
     print("PINK077_RUNTIME_ENV_OVERRIDE=" + (str(override) if override else "UNSET"))
