@@ -1,0 +1,209 @@
+name: PINK VPN Backend Guarded Rollout 081
+on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "ops/pink_backend_081_*"
+      - ".github/workflows/pink-backend-rollout-081.yml"
+      - ".project-leader/transitions/PINK-IPTV-BACKEND-081-DEPLOY.authorization.json"
+      - ".project-leader/transitions/PINK-IPTV-BACKEND-081-DEPLOY.result.json"
+permissions:
+  contents: read
+concurrency:
+  group: pink-vpn-backend-081
+  cancel-in-progress: false
+env:
+  PINK_SOURCE_SHA: "558f8aa49f1611532ca2b4417b42086b81ca50b9"
+jobs:
+  validate:
+    if: github.event.pull_request.number == 30 && github.event.pull_request.head.repo.full_name == 'martaxi-boss/VPS'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    outputs:
+      authorized: ${{ steps.authorization.outputs.authorized }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Test packaging, safe reversible recovery, source boundaries
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ops/pink_backend_081_rollout.py ops/pink_backend_081_test.py
+          python3 ops/pink_backend_081_test.py
+          python3 - <<'PY'
+          import subprocess
+          base="2af3a483d158d82aec9a6b1b765829ee17c89d91"
+          subprocess.run(["git","merge-base","--is-ancestor",base,"HEAD"],check=True)
+          changed=set(subprocess.check_output(
+              ["git","diff","--name-only",base,"HEAD"],text=True).splitlines())
+          allowed={
+              "ops/pink_backend_081_rollout.py",
+              "ops/pink_backend_081_test.py",
+              ".github/workflows/pink-backend-rollout-081.yml",
+              ".project-leader/transitions/PINK-IPTV-BACKEND-081-DEPLOY.authorization.json",
+              ".project-leader/transitions/PINK-IPTV-BACKEND-081-DEPLOY.result.json",
+          }
+          assert changed and changed<=allowed,changed-allowed
+          print("PINK081_BOUNDED_NO_GATEWAY_OR_APK_SCOPE=PASS")
+          PY
+      - name: Prove exact external PINK source bundle contains only code and additive migrations
+        env:
+          BUNDLE: ${{ runner.temp }}/pink081-source.tgz
+          PINK_CHECKOUT: ${{ runner.temp }}/pink081-source
+        run: |
+          set -euo pipefail
+          git clone -q https://github.com/martaxi-boss/pink-iptv.git "$PINK_CHECKOUT"
+          git -C "$PINK_CHECKOUT" checkout -q --detach "$PINK_SOURCE_SHA"
+          test "$(git -C "$PINK_CHECKOUT" rev-parse HEAD)" = "$PINK_SOURCE_SHA"
+          python3 - <<'PY'
+          import hashlib, io, os, tarfile
+          from pathlib import Path
+          root=Path(os.environ["PINK_CHECKOUT"]) / "backend"
+          paths=sorted((root/"app").rglob("*.py"))
+          versions=[
+              "20261008_0003_auth_rate_windows.py",
+              "20261009_0004_vpn_address_releases.py",
+              "20261009_0005_vpn_device_timestamps.py",
+              "20261009_0006_vpn_rate_windows.py",
+          ]
+          assert len(paths)>=8
+          paths.extend(root/"alembic/versions"/name for name in versions)
+          assert all(p.is_file() and not p.is_symlink() for p in paths)
+          with tarfile.open(os.environ["BUNDLE"],"w:gz") as tar:
+              for item in paths:
+                  raw=item.read_bytes()
+                  relative="backend/"+str(item.relative_to(root))
+                  info=tarfile.TarInfo(relative)
+                  info.size=len(raw)
+                  info.mode=0o644
+                  tar.addfile(info,io.BytesIO(raw))
+          with tarfile.open(os.environ["BUNDLE"],"r:gz") as tar:
+              assert len(tar.getmembers())==len(paths)
+          print("PINK081_PINNED_PYTHON_CODE_ONLY_ARCHIVE=PASS")
+          print("PINK081_SOURCE_COMMIT="+os.environ["PINK_SOURCE_SHA"])
+          print("PINK081_ARCHIVE_SHA256="+hashlib.sha256(Path(os.environ["BUNDLE"]).read_bytes()).hexdigest())
+          PY
+      - name: Validate exact standing authority or intentionally skip live deployment
+        id: authorization
+        run: |
+          set -euo pipefail
+          export AUTH=".project-leader/transitions/PINK-IPTV-BACKEND-081-DEPLOY.authorization.json"
+          if [ ! -f "$AUTH" ]; then
+            echo 'authorized=false' >> "$GITHUB_OUTPUT"
+            echo 'PINK081_REPOSITORY_ONLY_VALIDATED_NO_LIVE_EFFECT=PASS'
+            exit 0
+          fi
+          python3 - <<'PY'
+          import json,os,subprocess
+          auth=json.load(open(os.environ["AUTH"]))
+          expected=subprocess.check_output(["git","rev-parse","HEAD^"],text=True).strip()
+          changed=subprocess.check_output(["git","diff","--name-only","HEAD^","HEAD"],text=True).splitlines()
+          assert changed==[os.environ["AUTH"]],changed
+          assert auth["schema_version"]=="1.0"
+          assert auth["repository"]=="martaxi-boss/VPS"
+          assert auth["transition_id"]=="PINK-IPTV-BACKEND-081-DEPLOY"
+          assert auth["task_id"]=="PINK-IPTV-BACKEND-081"
+          assert auth["action"]=="production_backend_upgrade"
+          assert auth["effect_class"]=="E2_CONSEQUENTIAL_TRANSITION"
+          assert auth["authority"]["source"]=="STANDING_OWNER_GRANT"
+          assert auth["source_revision"]==os.environ["PINK_SOURCE_SHA"]
+          assert auth["target"]=={
+             "kind":"vps_service",
+             "identifier":"OVH:vps-32bea5b6/pink-iptv-backend/code-and-alembic",
+             "revision":expected,
+             "base_revision":"2af3a483d158d82aec9a6b1b765829ee17c89d91",
+             "environment":"production"
+          }
+          print("PINK081_EXACT_OWNER_BOUND_BACKEND_AUTHORITY=PASS")
+          PY
+          echo 'authorized=true' >> "$GITHUB_OUTPUT"
+  deploy:
+    if: needs.validate.outputs.authorized == 'true'
+    needs: validate
+    runs-on: ubuntu-22.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Package pinned PINK backend code only
+        run: |
+          set -euo pipefail
+          git clone -q https://github.com/martaxi-boss/pink-iptv.git "$RUNNER_TEMP/pink081"
+          git -C "$RUNNER_TEMP/pink081" checkout -q --detach "$PINK_SOURCE_SHA"
+          test "$(git -C "$RUNNER_TEMP/pink081" rev-parse HEAD)" = "$PINK_SOURCE_SHA"
+          python3 - <<'PY'
+          import hashlib, io, tarfile, os
+          from pathlib import Path
+          root=Path(os.environ["RUNNER_TEMP"])/"pink081/backend"
+          versions=[
+              "20261008_0003_auth_rate_windows.py",
+              "20261009_0004_vpn_address_releases.py",
+              "20261009_0005_vpn_device_timestamps.py",
+              "20261009_0006_vpn_rate_windows.py",
+          ]
+          files=sorted((root/"app").rglob("*.py"))
+          files += [root/"alembic/versions"/name for name in versions]
+          with tarfile.open(Path(os.environ["RUNNER_TEMP"])/"pink081.tgz","w:gz") as t:
+              for f in files:
+                  raw=f.read_bytes()
+                  member=tarfile.TarInfo("backend/"+str(f.relative_to(root)))
+                  member.mode=0o644
+                  member.size=len(raw)
+                  t.addfile(member,io.BytesIO(raw))
+          print("PINK081_READY_PUBLIC_SOURCE_SHA="+hashlib.sha256((root/"app/vpn.py").read_bytes()).hexdigest())
+          PY
+      - name: Prepare protected SSH delivery
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 \
+            ubuntu@146.59.145.3 'sudo -n python3 - check' < ops/pink_backend_081_rollout.py
+      - name: Exact artifact transfer and guarded additive backend upgrade
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/pink081.tgz"
+          actual_archive_sha="$(sha256sum "$archive" | cut -d' ' -f1)"
+          vpn_sha="$(sha256sum "$RUNNER_TEMP/pink081/backend/app/vpn.py" | cut -d' ' -f1)"
+          remote_code="/tmp/pink081-${{ github.run_id }}.py"
+          remote_archive="/tmp/pink081-${{ github.run_id }}.tgz"
+          expected_code_sha="$(sha256sum ops/pink_backend_081_rollout.py | cut -d' ' -f1)"
+          sshpass -e scp -q -o StrictHostKeyChecking=accept-new \
+            ops/pink_backend_081_rollout.py "ubuntu@146.59.145.3:$remote_code"
+          sshpass -e scp -q -o StrictHostKeyChecking=accept-new \
+            "$archive" "ubuntu@146.59.145.3:$remote_archive"
+          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 \
+            ubuntu@146.59.145.3 \
+            "test \"\$(sha256sum '$remote_code' | cut -d' ' -f1)\" = '$expected_code_sha' && \
+             test \"\$(sha256sum '$remote_archive' | cut -d' ' -f1)\" = '$actual_archive_sha' && \
+             sudo -n python3 '$remote_code' apply '$remote_archive' '$actual_archive_sha' '$vpn_sha' '$PINK_SOURCE_SHA'"
+      - name: Independent verification of 0006 migration, old leases and native recovery endpoint
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 \
+            ubuntu@146.59.145.3 'sudo -n python3 /var/backups/pink-iptv/task081/rollback.py verify'
+      - name: Accept verified backend only after safe rollback assessment
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 \
+            ubuntu@146.59.145.3 'sudo -n python3 /var/backups/pink-iptv/task081/rollback.py accept'
+      - name: Bounded exact rollback only on failure (no unsafe address resurrection)
+        if: ${{ failure() }}
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 \
+            ubuntu@146.59.145.3 \
+            'sudo -n test ! -f /var/backups/pink-iptv/task081/rollback.py || sudo -n python3 /var/backups/pink-iptv/task081/rollback.py rollback'
