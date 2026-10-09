@@ -7,6 +7,8 @@ on:
       - ".github/workflows/pink-backend-rollout-081.yml"
       - ".project-leader/transitions/PINK-IPTV-BACKEND-081-DEPLOY.authorization.json"
       - ".project-leader/transitions/PINK-IPTV-BACKEND-081-DEPLOY.result.json"
+      - ".project-leader/transitions/PINK-IPTV-BACKEND-081-R2.authorization.json"
+      - ".project-leader/transitions/PINK-IPTV-BACKEND-081-R2.result.json"
 permissions:
   contents: read
 concurrency:
@@ -44,6 +46,8 @@ jobs:
               ".github/workflows/pink-backend-rollout-081.yml",
               ".project-leader/transitions/PINK-IPTV-BACKEND-081-DEPLOY.authorization.json",
               ".project-leader/transitions/PINK-IPTV-BACKEND-081-DEPLOY.result.json",
+              ".project-leader/transitions/PINK-IPTV-BACKEND-081-R2.authorization.json",
+              ".project-leader/transitions/PINK-IPTV-BACKEND-081-R2.result.json",
           }
           assert changed and changed<=allowed,changed-allowed
           print("PINK081_BOUNDED_NO_GATEWAY_OR_APK_SCOPE=PASS")
@@ -85,11 +89,22 @@ jobs:
           print("PINK081_SOURCE_COMMIT="+os.environ["PINK_SOURCE_SHA"])
           print("PINK081_ARCHIVE_SHA256="+hashlib.sha256(Path(os.environ["BUNDLE"]).read_bytes()).hexdigest())
           PY
+      - name: Inspect previous failed backend rollout without changing production
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 \
+            ubuntu@146.59.145.3 'sudo -n python3 - diagnose' < ops/pink_backend_081_rollout.py
       - name: Validate exact standing authority or intentionally skip live deployment
         id: authorization
         run: |
           set -euo pipefail
-          export AUTH=".project-leader/transitions/PINK-IPTV-BACKEND-081-DEPLOY.authorization.json"
+          export AUTH=".project-leader/transitions/PINK-IPTV-BACKEND-081-R2.authorization.json"
           if [ ! -f "$AUTH" ]; then
             echo 'authorized=false' >> "$GITHUB_OUTPUT"
             echo 'PINK081_REPOSITORY_ONLY_VALIDATED_NO_LIVE_EFFECT=PASS'
@@ -103,7 +118,10 @@ jobs:
           assert changed==[os.environ["AUTH"]],changed
           assert auth["schema_version"]=="1.0"
           assert auth["repository"]=="martaxi-boss/VPS"
-          assert auth["transition_id"]=="PINK-IPTV-BACKEND-081-DEPLOY"
+          assert auth["transition_id"]=="PINK-IPTV-BACKEND-081-R2"
+          prior=json.load(open(".project-leader/transitions/PINK-IPTV-BACKEND-081-DEPLOY.result.json"))
+          assert prior["terminal_status"]=="FAILED_RECOVERED_OLD_STACK"
+          assert prior["recovery"]["schema"]=="20261005_0002"
           assert auth["task_id"]=="PINK-IPTV-BACKEND-081"
           assert auth["action"]=="production_backend_upgrade"
           assert auth["effect_class"]=="E2_CONSEQUENTIAL_TRANSITION"
@@ -166,7 +184,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass >/dev/null
           sshpass -e ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 \
-            ubuntu@146.59.145.3 'sudo -n python3 - check' < ops/pink_backend_081_rollout.py
+            ubuntu@146.59.145.3 'sudo -n python3 - retire' < ops/pink_backend_081_rollout.py
       - name: Exact artifact transfer and guarded additive backend upgrade
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
