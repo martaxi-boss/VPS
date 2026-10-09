@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-QUOTA-078-R3",
+  "task_id": "PINK-IPTV-VPN-QUOTA-078",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-09T15:30:05.208Z",
+  "action": "production_config_update",
+  "effect_class": "E2_CONSEQUENTIAL_TRANSITION",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "binding_mode": "EXACT_REVISION_BOUND",
+    "summary": "Owner directed Project Leader to complete technical VPN autonomy phases. A narrowly scoped quota-only config change 5->10 is authorized after local R3 code/scope validation CI37952131786 SUCCESS on exact source f76079faae90178b5c7bde17577c4983437eb480. R1 failed and live env was recovered to ORIGINAL; read-only 077 confirmed intact original, four valid installations, unchanged old backend source, inactive rollback timers and no temporary file. R2 failed solely in read-only preflight because it rejected preserved aborted backup, rollback handler confirmed ORIGINAL. R3 now permits read-only verification of exact stale-original backup followed by safe archive preserving history, then one root-only atomic numeric VPN_MAX_INSTALLATIONS_PER_ACCOUNT=10 change to bound EnvironmentFile, independently armed R2 timer, one backend-only restart, bounded API readiness, observed MainPID env, full health, and acceptance. No migration/DML, peer changes, app code deploy, live VPN restart, APK/signing/install or public rollout."
+  },
+  "target": {
+    "kind": "vps_service",
+    "identifier": "OVH:vps-32bea5b6/pink-iptv-backend/quota-only",
+    "revision": "f76079faae90178b5c7bde17577c4983437eb480",
+    "base_revision": "f7a310c87bf0bb700e26406cb02d89e8e0e34aef",
+    "environment": "production"
+  }
+}

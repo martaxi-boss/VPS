@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-QUOTA-078-R2",
+  "task_id": "PINK-IPTV-VPN-QUOTA-078",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-09T15:26:24.823Z",
+  "action": "production_config_update",
+  "effect_class": "E2_CONSEQUENTIAL_TRANSITION",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "binding_mode": "EXACT_REVISION_BOUND",
+    "summary": "Owner explicitly ordered Project Leader to execute all technical VPN autonomy phases, including a change from five to ten account installations, with no routine Human Gate. This narrowly authorized R2 follows FAILED_RECOVERED_TO_ORIGINAL R1 (run 37948737858), with zero active quota override and root backup/timer retained, read-only run 37951450793 confirming current original env, no temp file, inactive R1/R2 rollback timers, intact four installation records and unchanged backend source. Code 31b08eb53f8c0110da8b34bc6c59dec58707f69d passed no-effect unit/scope CI 37951360996, fixes a bounded backend readiness probe, instruments phase diagnostics, preserves the failed attempt backup before a verified restart and uses fresh R2 rollback timer. The only permitted production effect is root-only numeric VPN_MAX_INSTALLATIONS_PER_ACCOUNT=10 atomically in /etc/pink-iptv/vpn.env, one pink-iptv-backend restart, local health/observed process env validation, auto inverse and acceptance. No peer operations, WireGuard restart, customer DB DML, software deployment, key/signing change, APK replacement or public launch."
+  },
+  "target": {
+    "kind": "vps_service",
+    "identifier": "OVH:vps-32bea5b6/pink-iptv-backend/quota-only",
+    "revision": "31b08eb53f8c0110da8b34bc6c59dec58707f69d",
+    "base_revision": "f7a310c87bf0bb700e26406cb02d89e8e0e34aef",
+    "environment": "production"
+  }
+}
