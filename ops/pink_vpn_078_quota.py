@@ -15,7 +15,8 @@ ENV = Path("/etc/pink-iptv/vpn.env")
 ROOT = Path("/srv/pink-iptv/backend")
 BACKUP = Path("/var/backups/pink-iptv/task078")
 UNIT = "pink-iptv-backend"
-TIMER = "pink-vpn-quota-078-rollback"
+PREVIOUS_TIMER = "pink-vpn-quota-078-rollback"
+TIMER = "pink-vpn-quota-078-r2-rollback"
 EXPECTED_BACKEND_VPN_SHA256 = "d2e73d88a65602fbbb51a5460dc4d3edab3b8f8da0d3e271e07fad12c775065a"  # pragma: allowlist secret - public code fingerprint
 KEY = b"VPN_MAX_INSTALLATIONS_PER_ACCOUNT="
 
@@ -128,11 +129,12 @@ def archive_aborted_attempt() -> None:
     assert digest(baseline) == state["original_sha256"]
     assert digest(current) == state["original_sha256"]
     assert not ENV.with_name("vpn.env.task078.next").exists()
-    current_timer = subprocess.run(
-        ["systemctl", "is-active", TIMER + ".timer"],
-        capture_output=True, text=True, timeout=10
-    ).stdout.strip()
-    assert current_timer != "active"
+    for old_unit in (PREVIOUS_TIMER, TIMER):
+        current_timer = subprocess.run(
+            ["systemctl", "is-active", old_unit + ".timer"],
+            capture_output=True, text=True, timeout=10
+        ).stdout.strip()
+        assert current_timer == "inactive"
     healthy()
     parent = BACKUP.parent
     archived = parent / ("task078-aborted-" + str(time.time_ns()))
