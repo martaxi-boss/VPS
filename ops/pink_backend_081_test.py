@@ -71,8 +71,75 @@ def test():
     assert "process_quota_ten()" in source
     assert "Cannot" not in source or "rollback" in source
     assert "wg set" not in source and "iptables -F" not in source
-    assert "shutil.copytree(BACKUP" in source
-    print("PINK081_SOURCE_PACKAGING_ROLLBACK_AND_MIGRATION_LOCAL_TEST=PASS")
+    assert 'run("pg_restore", "--file=/dev/null"' in source
+    assert "shutil.rmtree(APP" not in source
+    assert 'state["added_app_py"]' in source
+    assert "candidate.unlink()" in source
+
+    # Prove a partial upgrade can be inverted without deleting the existing
+    # app tree, old Alembic files or unrelated local resources.
+    import json
+    import os
+    from types import SimpleNamespace
+
+    with TemporaryDirectory() as directory:
+        root = Path(directory)
+        app = root / "backend"
+        backup = root / "backup"
+        (app / "app").mkdir(parents=True)
+        (app / "alembic/versions").mkdir(parents=True)
+        (backup / "old_app").mkdir(parents=True)
+        (backup / "old_versions").mkdir(parents=True)
+        (backup / "old_app/__init__.py").write_text("original = True\\n")
+        (backup / "old_app/existing.py").write_text("ORIGINAL = 1\\n")
+        (app / "app/__init__.py").write_text("original = False\\n")
+        (app / "app/existing.py").write_text("UPDATED = 2\\n")
+        (app / "app/new_module.py").write_text("NEW = True\\n")
+        (app / "app/unrelated-resource.dat").write_bytes(b"preserved")
+        (app / "alembic/versions/original.py").write_text("ORIGINAL = 1\\n")
+        (backup / "old_versions/original.py").write_text("ORIGINAL = 1\\n")
+        for name in q.MIGRATIONS:
+            (app / "alembic/versions" / name).write_text("new migration\\n")
+        (backup / "state.json").write_text(json.dumps({
+            "database": "pink_fixture",
+            "added_app_py": ["new_module.py"],
+        }))
+        original = {
+            "APP": q.APP, "BACKUP": q.BACKUP, "OLD_TREE_SHA": q.OLD_TREE_SHA,
+            "revision": q.revision, "healthy": q.healthy, "process_quota_ten": q.process_quota_ten,
+            "run": q.run, "chown": q.os.chown, "getpwnam": q.pwd.getpwnam,
+        }
+        try:
+            q.APP, q.BACKUP = app, backup
+            (app / "app/__init__.py").write_text("original = True\\n")
+            (app / "app/existing.py").write_text("ORIGINAL = 1\\n")
+            (app / "app/new_module.py").unlink()
+            q.OLD_TREE_SHA = q.app_tree_sha()
+            (app / "app/existing.py").write_text("UPDATED = 2\\n")
+            (app / "app/new_module.py").write_text("NEW = True\\n")
+            q.revision = lambda _db: q.OLD_REV
+            q.healthy = lambda: None
+            q.process_quota_ten = lambda: True
+            q.run = lambda *args, **kwargs: "OK"
+            q.os.chown = lambda *_args: None
+            q.pwd.getpwnam = lambda _name: SimpleNamespace(pw_uid=os.getuid(), pw_gid=os.getgid())
+            q.rollback()
+            assert (app / "app/existing.py").read_text() == "ORIGINAL = 1\\n"
+            assert not (app / "app/new_module.py").exists()
+            assert (app / "app/unrelated-resource.dat").read_bytes() == b"preserved"
+            assert (app / "alembic/versions/original.py").is_file()
+            assert all(not (app / "alembic/versions" / n).exists() for n in q.MIGRATIONS)
+            assert (backup / "rolled-back").is_file()
+        finally:
+            for k, v in original.items():
+                if k == "chown":
+                    q.os.chown = v
+                elif k == "getpwnam":
+                    q.pwd.getpwnam = v
+                else:
+                    setattr(q, k, v)
+
+    print("PINK081_BACKUP_STREAM_AND_SELECTIVE_INVERSE_TEST=PASS")
 
 
 if __name__ == "__main__":
