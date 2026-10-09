@@ -1,0 +1,136 @@
+name: PINK VPN Bounded Quota 078
+on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "ops/pink_vpn_078_*"
+      - ".github/workflows/pink-vpn-quota-078.yml"
+      - ".project-leader/transitions/PINK-IPTV-QUOTA-078-APPLY.authorization.json"
+      - ".project-leader/transitions/PINK-IPTV-QUOTA-078-APPLY.result.json"
+permissions:
+  contents: read
+concurrency:
+  group: pink-vpn-quota-078
+  cancel-in-progress: false
+jobs:
+  validate:
+    if: github.event.pull_request.number == 28 && github.event.pull_request.head.repo.full_name == 'martaxi-boss/VPS'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      authorized: ${{ steps.authorization.outputs.authorized }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Compile quota-only rollback source and prove safe env operations
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ops/pink_vpn_078_quota.py ops/pink_vpn_078_test.py
+          python3 ops/pink_vpn_078_test.py
+          python3 - <<'PY'
+          import subprocess
+          base="f7a310c87bf0bb700e26406cb02d89e8e0e34aef"
+          subprocess.run(["git","merge-base","--is-ancestor",base,"HEAD"],check=True)
+          changes=set(subprocess.check_output(
+              ["git","diff","--name-only",base,"HEAD"],text=True).splitlines())
+          allowed={
+              "ops/pink_vpn_078_quota.py","ops/pink_vpn_078_test.py",
+              ".github/workflows/pink-vpn-quota-078.yml",
+              ".project-leader/transitions/PINK-IPTV-QUOTA-078-APPLY.authorization.json",
+              ".project-leader/transitions/PINK-IPTV-QUOTA-078-APPLY.result.json",
+          }
+          assert changes and changes<=allowed, changes-allowed
+          print("PINK078_EXACT_BOUNDED_PROJECT_LOCAL_SCOPE=PASS")
+          PY
+      - name: Validate prior exact-revision standing authority for live quota effect
+        id: authorization
+        run: |
+          set -euo pipefail
+          export AUTH=".project-leader/transitions/PINK-IPTV-QUOTA-078-APPLY.authorization.json"
+          if [ ! -f "$AUTH" ]; then
+            echo 'authorized=false' >> "$GITHUB_OUTPUT"
+            echo 'PINK078_VALIDATED_E1_ONLY_NO_PRODUCTION_EFFECT=PASS'
+            exit 0
+          fi
+          python3 - <<'PY'
+          import json, os, subprocess
+          auth=json.load(open(os.environ["AUTH"]))
+          last=subprocess.check_output(["git","rev-parse","HEAD^"],text=True).strip()
+          changed=subprocess.check_output(["git","diff","--name-only","HEAD^","HEAD"],text=True).splitlines()
+          assert changed==[os.environ["AUTH"]],changed
+          assert auth["schema_version"]=="1.0"
+          assert auth["repository"]=="martaxi-boss/VPS"
+          assert auth["transition_id"]=="PINK-IPTV-QUOTA-078-APPLY"
+          assert auth["task_id"]=="PINK-IPTV-VPN-QUOTA-078"
+          assert auth["action"]=="production_config_update"
+          assert auth["effect_class"]=="E2_CONSEQUENTIAL_TRANSITION"
+          assert auth["authority"]["source"]=="STANDING_OWNER_GRANT"
+          assert auth["target"]=={
+              "kind":"vps_service",
+              "identifier":"OVH:vps-32bea5b6/pink-iptv-backend/quota-only",
+              "revision":last,
+              "base_revision":"f7a310c87bf0bb700e26406cb02d89e8e0e34aef",
+              "environment":"production"
+          }
+          print("PINK078_VERIFIED_EXACT_STANDING_AUTHORITY=PASS")
+          PY
+          echo 'authorized=true' >> "$GITHUB_OUTPUT"
+  deploy:
+    if: needs.validate.outputs.authorized == 'true'
+    needs: validate
+    runs-on: ubuntu-22.04
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prepare bounded native SSH transport
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 \
+            ubuntu@146.59.145.3 'sudo -n python3 - check' < ops/pink_vpn_078_quota.py
+      - name: Apply root-only quota override with armed inverse and one backend restart
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          file="/tmp/pink078-${{ github.run_id }}.py"
+          expected="$(sha256sum ops/pink_vpn_078_quota.py | cut -d' ' -f1)"
+          sshpass -e scp -q -o StrictHostKeyChecking=accept-new \
+            ops/pink_vpn_078_quota.py "ubuntu@146.59.145.3:$file"
+          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=15 ubuntu@146.59.145.3 \
+            "test \"\$(sha256sum '$file' | cut -d' ' -f1)\" = '$expected' && sudo -n python3 '$file' apply"
+      - name: Independently recheck process quota and exact host rollback timer
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=15 ubuntu@146.59.145.3 \
+            'sudo -n python3 /var/backups/pink-iptv/task078/quota.py verify'
+      - name: Accept verified quota without altering VPN peers or database
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=15 ubuntu@146.59.145.3 \
+            'sudo -n python3 /var/backups/pink-iptv/task078/quota.py accept'
+      - name: Attempt exact rollback if bounded acceptance failed
+        if: ${{ failure() }}
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=15 ubuntu@146.59.145.3 \
+            'sudo -n test ! -f /var/backups/pink-iptv/task078/quota.py || sudo -n python3 /var/backups/pink-iptv/task078/quota.py rollback'
