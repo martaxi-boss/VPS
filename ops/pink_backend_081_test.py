@@ -19,6 +19,7 @@ def load():
 def fixture_archive(path, q, *, bad=None):
     files = {
         **{f"backend/app/module_{n}.py": b"pass\n" for n in range(8)},
+        "backend/app/nested/feature.py": b"nested = True\n",
         **{f"backend/alembic/versions/{name}": b"pass\n" for name in q.MIGRATIONS},
     }
     with tarfile.open(path, "w:gz") as bundle:
@@ -46,7 +47,26 @@ def test():
         sha = fixture_archive(good, q)
         source = q.safe_archive(good, sha, root / "unpacked")
         assert len(list((source / "app").glob("*.py"))) == 8
+        assert (source / "app/nested/feature.py").read_text() == "nested = True\n"
         assert {p.name for p in (source / "alembic/versions").glob("*.py")} == q.MIGRATIONS
+
+        # A tar containing nested Python packages must be installable:
+        # previous rglob("*") iteration incorrectly rejected directories.
+        imported_os = __import__("os")
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        old_app = q.APP
+        try:
+            q.APP = root / "installed-backend"
+            (q.APP / "app").mkdir(parents=True)
+            (q.APP / "alembic/versions").mkdir(parents=True)
+            with patch.object(q.pwd, "getpwnam", return_value=SimpleNamespace(
+                pw_uid=imported_os.getuid(), pw_gid=imported_os.getgid()
+            )), patch.object(q.os, "chown", return_value=None):
+                q.install_source(source)
+            assert (q.APP / "app/nested/feature.py").read_text() == "nested = True\n"
+        finally:
+            q.APP = old_app
 
         for index, name in enumerate(("../escape.py", "backend/app/badlink.py")):
             bad = root / f"malicious_{index}.tgz"
