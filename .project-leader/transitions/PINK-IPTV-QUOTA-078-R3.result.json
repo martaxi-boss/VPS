@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "PINK-IPTV-QUOTA-078-R3",
+  "task_id": "PINK-IPTV-VPN-QUOTA-078",
+  "repository": "martaxi-boss/VPS",
+  "action": "production_config_update",
+  "effect_class": "E2_CONSEQUENTIAL_TRANSITION",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/PINK-IPTV-QUOTA-078-R3.authorization.json",
+  "implementation_revision": "f76079faae90178b5c7bde17577c4983437eb480",
+  "authorization_commit": "169aa5b597acc29ef4f32b6473ecb425c2c20ce5",
+  "production_evidence": [
+    "https://github.com/martaxi-boss/VPS/actions/runs/37952215164",
+    "https://github.com/martaxi-boss/VPS/actions/runs/37952585868"
+  ],
+  "validated_live_state": {
+    "VPN_MAX_INSTALLATIONS_PER_ACCOUNT": 10,
+    "actual_process_env_quota10": true,
+    "service_status": "active and health 200",
+    "old_failed_backup": "archived and retained",
+    "r3_rollback": "accepted and timer inactive",
+    "migrated_schema": "20261005_0002 (unchanged)",
+    "customer_installations_unchanged": 4,
+    "new_backend_code_deployed": false,
+    "gateway_peer_mutations": false
+  },
+  "repository_integration": {
+    "pr": 28,
+    "merge_sha": "86b32e34d9787c6ca9258caf0cff54cb25bacfdc",
+    "source_branch": "builder/pink-vpn-quota-078"
+  },
+  "remaining_work": "Production backend code/migrations 0003..0006, Android PR61 repository merge, stable APK signing and physically safe install are separate bounded tasks; this record must not be mistaken for their acceptance."
+}
