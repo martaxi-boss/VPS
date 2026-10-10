@@ -5,6 +5,16 @@ name: Codex autonomous execution (Owner-authorized)
 on:
   issues:
     types: [opened]
+  workflow_call:
+    inputs:
+      task_b64:
+        description: Validated owner task, encoded to avoid multiline output injection
+        required: true
+        type: string
+      issue_number:
+        description: Original Owner issue that stores this job and receives reports
+        required: true
+        type: number
 
 permissions: {}
 
@@ -16,7 +26,10 @@ jobs:
   execute:
     if: >-
       github.event.issue.user.login == github.repository_owner &&
-      startsWith(github.event.issue.title, '[codex run]')
+      (startsWith(github.event.issue.title, '[codex run]') ||
+       (startsWith(github.event.issue.title, '[agents run]') &&
+        inputs.task_b64 != '' &&
+        inputs.issue_number == github.event.issue.number))
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
@@ -32,14 +45,21 @@ jobs:
       - name: Validate Owner task and publication credential BEFORE consuming Codex quota
         env:
           OWNER_TASK: ${{ github.event.issue.body }}
+          ROUTED_TASK_B64: ${{ inputs.task_b64 }}
           CODEX_GITHUB_TOKEN: ${{ secrets.CODEX_GITHUB_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import os
+          import os, base64, binascii
           from pathlib import Path
           task = os.environ.get('OWNER_TASK', '').strip()
+          routed = os.environ.get('ROUTED_TASK_B64', '')
+          if routed:
+              try:
+                  task = base64.b64decode(routed, validate=True).decode('utf-8').strip()
+              except (binascii.Error, UnicodeDecodeError) as exc:
+                  raise SystemExit('Malformed validated task encoding') from exc
           lines = task.splitlines()
           if not 1 <= len(task) <= 7000 or not lines:
               raise SystemExit('Task length must be 1-7000 characters')
