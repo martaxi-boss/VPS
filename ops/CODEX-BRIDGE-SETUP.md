@@ -1,44 +1,71 @@
-# Codex Business - ponte ChatGPT/GitHub
+# Codex CLI: ChatGPT -> GitHub Issues -> GitHub Actions -> VPS
 
-Estado: **preparado, mas nao ativado**. Este ficheiro descreve a primeira integracao Codex do repositorio `martaxi-boss/VPS`.
+## Estado da integracao
 
-## O que ja funciona nesta fase
+O Codex CLI v0.162.1 ja foi instalado no VPS Ubuntu em
+`/home/ubuntu/codex-agent/node_modules/.bin/codex` e autenticado pelo
+proprietario atraves de `codex login --device-auth`.
 
-- O ChatGPT ja pode criar GitHub Issues com a conta `martaxi-boss` (autoria verificada na issue #32, posteriormente fechada).
-- O workflow `.github/workflows/codex-chatgpt-bridge.yml` aceita ordens do proprietario por Issue ou por execucao manual.
-- O Codex usa um executor temporario do GitHub Actions e analisa os ficheiros do repositorio VPS, **nao** a maquina de producao.
-- Auditorias nao alteram ficheiros. Correcoes sao propostas numa branch/PR; nao ha merge nem deploy automatico.
-- Os resultados ficam no comentario da Issue e nos artefactos da execucao.
+A autenticacao fica no perfil do utilizador `ubuntu` no VPS.
+**Nao criar nem copiar um token ChatGPT para o GitHub Actions.**
 
-## O unico passo de autenticacao que falta
+Este fluxo usa o segredo SSH `VPS_SSH_PASSWORD` que o repositorio ja utiliza
+noutras automacoes para ligar ao VPS. Nao guarda a senha nem a credencial Codex
+no codigo-fonte, nos artefactos ou nas mensagens.
 
-1. No ChatGPT Business, abre **Admin > Access tokens**. O administrador pode ter de ativar o direito a criar Codex access tokens e o acesso local ao Codex.
-2. Cria um token com o scope **Codex**, nome `codex-vps-bridge` e uma validade curta (por exemplo, 30 dias).
-3. No GitHub, abre **martaxi-boss/VPS > Settings > Secrets and variables > Actions > New repository secret**.
-4. Cria o secret **`CODEX_ACCESS_TOKEN`** e coloca la o token. Nao coloques o token no codigo, na Issue ou no ChatGPT.
-5. Rever e integrar a PR que contem este workflow. So depois passa a responder a novas Issues.
+## Como enviar tarefas pelo ChatGPT
 
-Documentacao oficial: https://developers.openai.com/docs/enterprise/access-tokens
+Criar uma nova Issue no repositorio `martaxi-boss/VPS` com titulo comecado
+exatamente por `[codex audit]` (letras minusculas) e colocar as instrucoes
+em linguagem natural no corpo da Issue. Exemplo:
 
-Se o GitHub impedir a criacao automatica de pull requests, em **Settings > Actions > General** confirma a opcao para permitir GitHub Actions criar PRs. Se nao estiver disponivel, o workflow deixara uma branch para revisao.
+> Titulo: [codex audit] Verificar seguranca e regressao dos scripts VPS
+>
+> Corpo: Analisa estaticamente o repositorio VPS, identifica riscos e testes
+> que faltam. Nao executes scripts, nao modifiques ficheiros nem facas deploy.
 
-## Como dar ordens pelo ChatGPT apos a ativacao
+So Issues **abertas pelo proprietario do repositorio** desencadeiam uma tarefa.
+Tambem e possivel iniciar manualmente em Actions / Codex - ChatGPT bridge,
+atraves de `Run workflow`, com uma instrucao propria.
 
-Pedido de auditoria:
+O GitHub Actions:
+1. Guarda o prompt como um ficheiro de dados (nao comando shell).
+2. Usa SSH para criar uma pasta temporaria privada em
+   `/home/ubuntu/codex-bridge/jobs/<run>-<attempt>`.
+3. Transfere o runner confiado do repositorio e o ficheiro do prompt.
+4. No VPS, verifica `codex login status`, clona uma copia nova do repositorio
+   GitHub e executa `codex exec --sandbox read-only`.
+5. Obtem o relatorio e publica-o como comentario na Issue e artefacto Actions.
+6. Elimina a pasta temporaria apos sucesso. Falhas deixam a pasta para diagnostico.
 
-> Cria uma Issue no repositorio martaxi-boss/VPS com titulo `[codex audit] Rever o repositorio VPS` e no corpo: `Verifica o codigo e indica problemas de seguranca, regressao e testes em falta. Nao alteres ficheiros.`
+## Limites / precaucoes
 
-Pedido de correcao:
+- **Apenas auditoria estaticamente e sem alteracoes nesta primeira fase.**
+  Pedidos `[codex fix]` nao ativam este workflow.
+- **O VPS de producao e a conta Ubuntu sao partilhados com outros servicos.**
+  O Codex trabalha numa copia separada de codigo e usa sandbox read-only,
+  mas esta configuracao NAO substitui um ambiente SO isolado/dedicado.
+  Nao colocar instrucoes nao confiaveis no prompt nem dar permissao para
+  corrigir/instalar/deploy antes de preparar um executor isolado.
+- O repositorio VPS e publico: **Issues, comentarios e resultados podem ser
+  publicamente visiveis**. Nunca incluir credenciais, dados privados ou segredos.
+- O GitHub Actions nao copia os ficheiros de autenticacao do Codex; o CLI
+  usa o login ChatGPT Business ja configurado no VPS.
+- Os limites de quotas Codex continuam a aplicar-se. Falhas ficam registadas;
+  nao ha passagem automatica para Cursor sem a integracao especifica.
+- Dependencia SSH usa `StrictHostKeyChecking=accept-new` como workflows
+  existentes. Endurecer com host key SSH previamente validada numa fase futura.
+- Nenhuma tarefa deste fluxo faz deploy, edita codigo ou gera PR com correcoes.
+- Se a autenticacao ChatGPT expirar no VPS, executar de novo
+  `"$HOME/codex-agent/node_modules/.bin/codex" login --device-auth`
+  na sessao segura do utilizador ubuntu.
 
-> Cria uma Issue no repositorio martaxi-boss/VPS com titulo `[codex fix] Corrigir problemas identificados` e descreve no corpo as correcoes exatas. Quero uma PR para aprovar, nunca um deploy.
+## Como validar
 
-Apenas Issues criadas pelo **proprietario do repositorio** e com os prefixos definidos desencadeiam Codex. As tarefas noutras Issues ou de outros utilizadores sao ignoradas.
+1. Confirmar que a autenticao Codex aparece como
+   `Logged in using ChatGPT` no terminal VPS.
+2. Abrir Issue do proprietario com titulo
+   `[codex audit] Teste de ligacao` e corpo nao sensivel.
+3. Confirmar a execucao em Actions e o comentario final da Issue.
 
-## Limites e seguranca
-
-- A quota e a disponibilidade de Codex continuam a depender do ChatGPT Business e das permissoes da conta.
-- Se o token estiver ausente, expirado ou sem quota, a tarefa falha e fica registada no GitHub.
-- O Codex nunca recebe a palavra-passe SSH do VPS neste workflow.
-- Esta primeira fase trabalha **apenas neste repositorio**; mais repositorios e Cursor ficam para ligacoes independentes.
-- Nao usar fork PRs ou codigo externo nao fiavel como fonte automatica de execucao privilegiada.
-- Rever sempre o codigo proposto antes de integrar; nenhuma alteracao entra em producao automaticamente.
+A integracao Cursor e a gestao dinamica de quotas ficam para fases seguintes.
