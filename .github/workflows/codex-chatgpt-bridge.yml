@@ -257,6 +257,19 @@ jobs:
           CODEX_REPORT_PATH: ${{ runner.temp }}/codex-report.md
         run: python3 ops/telegram_gateway.py notify
 
+      - name: Purge private screenshot from VPS regardless of outcome
+        if: always() && inputs.image_file_id != ''
+        continue-on-error: true
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+            ubuntu@146.59.145.3 \
+            "rm -f -- /home/ubuntu/codex-bridge/jobs/$job/codex-input.jpg /home/ubuntu/codex-bridge/jobs/$job/codex-input.png /home/ubuntu/codex-bridge/jobs/$job/codex-input.webp"
+
       - name: Clean completed temporary VPS directory
         if: always() && steps.execute.outcome == 'success' && steps.collect.outcome == 'success'
         env:
