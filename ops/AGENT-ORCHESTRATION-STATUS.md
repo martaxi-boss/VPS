@@ -24,13 +24,25 @@ valores comprovados pelo adaptador. IDs como `codex-1` e `codex-2` identificam
 instancias distintas sem tornar o contrato exclusivo de Codex. A forma legada
 `tasks: {"codex": "..."}` continua valida para pedidos de um Codex.
 
-O planeador produz internamente um plano versionado, com identidade, fornecedor,
-modo, dependencias derivadas e politica que proibe substituicao implicita. Isto e
-somente planeamento: o workflow atual consegue encaminhar **exatamente uma** tarefa
-Codex. Um plano com varias tarefas e bloqueado integralmente antes de qualquer
-modelo arrancar; nao e encaminhada apenas a primeira parte. Execucao serial ou
-paralela real exige uma segunda integracao explicita do backend e do workflow,
-com autenticacao, testes e autorizacao independentes.
+O planeador produz um plano versionado, com identidade, fornecedor, modo,
+dependencias derivadas e politica que proibe substituicao implicita.
+O encaminhador GitHub suporta o caminho legado de **um Codex** sem criar
+outros agentes, e tem agora um backend delimitado para **dois Codex** quando
+a ordem do Owner pede explicitamente `serial` ou `parallel`.
+Em modo serial, a segunda execucao so inicia se a primeira acabar com
+sucesso; uma PR nao integrada interrompe a sequencia. Em paralelo, os dois
+trabalhadores usam workspaces/branches distintos e publicam **PRs separadas
+sem auto-merge**, para evitar fusoes concorrentes. O acesso Codex partilhado
+fica limitado por dois slots de execucao; continua a partilhar a quota da
+mesma conta.
+
+O planeador generico suporta planos de ate oito tarefas, mas o backend real
+esta deliberadamente limitado a um ou dois Codex. Mais de dois, ou qualquer
+fornecedor desligado, falha antes de executar modelos — nunca corre so metade
+da ordem. CI de PR verifica a infraestrutura, mas a execucao ao vivo de dois
+Codex em serie/paralelo ainda esta **NAO_OBSERVADA** ate prova end-to-end.
+A selecao de modelos alternativos e otimizacao dinamica de quota permanecem
+por integrar: o executor validado continua em `gpt-5.6-sol` Medium.
 
 O registo de adaptadores deixa Codex disponivel. Gemini, Composer e Claude estao
 registados mas indisponiveis ate existir um adaptador autenticado, testado e
@@ -57,4 +69,4 @@ Cada etapa deve deixar o codigo numa branch e devolver metadados para a proxima.
 - No repositorio VPS publico, prompts, comments e PRs tambem podem ser publicos. Nao enviar dados privados ou segredos.
 - Nunca colocar token do Codex ChatGPT Business nos GitHub Secrets para esta integracao: Codex ja tem login por codigo de dispositivo no VPS.
 - `[codex audit]` continua read-only. `[codex run]` executa alteracoes num clone isolado, cria PR automaticamente e so faz merge no VPS documental se os controlos passarem; a `main` do Project Leader permanece sujeita ao gate E2. Nao assumir que Cursor, Gemini, Sonnet ou Telegram fazem correcoes automaticas: essa fase ainda nao esta comprovada.
-- A ligacao Cursor e a orquestracao multiagente ainda nao estao ativas.
+- Gemini/Antigravity, Cursor/Composer e Claude ainda nao tem adaptadores ligados; o backend dual Codex permanece pendente de prova real end-to-end.
