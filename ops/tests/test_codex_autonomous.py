@@ -241,5 +241,41 @@ class SharedCodexAccountSlotsTests(unittest.TestCase):
 
 
 
+class NoChangeAndQueueSafetyTests(unittest.TestCase):
+    """Loss, false-success and failure-cleanup regressions are fail-closed."""
+
+    def test_empty_patch_without_owner_consent_never_passes(self):
+        result = publisher.no_change_result("martaxi-boss/VPS", allowed=False)
+        self.assertEqual("NO_CHANGE_UNVERIFIED", result["status"])
+        self.assertIn("NOT_VERIFIED", result["reason"])
+
+    def test_explicit_read_only_no_change_is_truthfully_scoped(self):
+        result = publisher.no_change_result("martaxi-boss/VPS", allowed=True)
+        self.assertEqual("NO_CHANGE", result["status"])
+        self.assertIn("not independently verified", result["reason"])
+
+    def test_github_queue_does_not_replace_earlier_pending_codex_order(self):
+        workflow = (OPS.parent / ".github/workflows/codex-autonomous.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("  queue: max", workflow)
+        self.assertIn("  cancel-in-progress: false", workflow)
+
+    def test_serial_dependent_skip_has_durable_owner_notice(self):
+        workflow = (OPS.parent / ".github/workflows/agent-switch.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("codex_serial_blocked:", workflow)
+        self.assertIn("CODEX_2_NOT_STARTED:", workflow)
+
+    def test_failed_codex_runs_attempt_workspace_cleanup(self):
+        workflow = (OPS.parent / ".github/workflows/codex-autonomous.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("if: always() && steps.stage.outcome != 'skipped'", workflow)
+        self.assertIn("CODEX_ALLOW_NO_CHANGE:", workflow)
+
+
+
 if __name__ == '__main__':
     unittest.main()
