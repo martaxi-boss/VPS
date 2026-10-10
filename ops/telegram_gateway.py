@@ -84,8 +84,8 @@ def download_image():
     if not content or len(content) > MAX_IMAGE_BYTES:
         raise RuntimeError("Telegram image size is invalid")
     magic_ok = {
-        "jpg": content.startswith(b"\\xff\\xd8\\xff"),
-        "png": content.startswith(b"\\x89PNG\\r\\n\\x1a\\n"),
+        "jpg": content.startswith(b"\xff\xd8\xff"),
+        "png": content.startswith(b"\x89PNG\r\n\x1a\n"),
         "webp": content.startswith(b"RIFF") and content[8:12] == b"WEBP",
     }
     if not magic_ok[ext]:
