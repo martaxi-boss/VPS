@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "CODEX-DUAL-105-MERGE",
+  "task_id": "CODEX-DUAL-105",
+  "repository": "martaxi-boss/VPS",
+  "created_at": "2026-10-10T20:57:53.659Z",
+  "action": "merge_to_main",
+  "effect_class": "E2_CONSEQUENTIAL_TRANSITION",
+  "authority": {
+    "source": "STANDING_OWNER_GRANT",
+    "binding_mode": "EXACT_REVISION_BOUND",
+    "summary": "Owner expressly authorized Project Leader and one ChatGPT-authenticated Codex account to operate TWO bounded Codex instances in parallel, with adaptive reasoning effort and shared token economy, to accelerate ongoing PINK IPTV-related engineering. Existing VPS agent-switch bridge already passed genuine two Codex read-only parallel/serial tests in Issues #102/#103; this change preserves account sharing, pairwise isolated clones and independent PRs without auto-merging parallel work. New exact code head 9a0947e45f201a05f8f3bed8b88bc335c6067dd9 adds per-task automatic low/medium/high for proven gpt-5.6-sol and local private rolling 24-hour SOFT ledger, not fictitious account quota percentages. CI 38085700314, 38085700082, 38085700088, 38085700078, 38085700069 all terminal SUCCESS. Only repository main code promotion is permitted; no live Codex run, production service restart, customer database, token copy, signing, app deploy or new external vendor enabled by the merge. Following main integration, test with an Owner-authored two-agent read-only task before claiming live Low/High accepted."
+  },
+  "target": {
+    "kind": "pull_request",
+    "identifier": "108",
+    "revision": "9a0947e45f201a05f8f3bed8b88bc335c6067dd9",
+    "base_revision": "211809b61348b560473aed7d84f19773d90ae071",
+    "environment": "repository_main"
+  }
+}
