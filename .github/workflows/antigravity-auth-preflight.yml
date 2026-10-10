@@ -1,0 +1,73 @@
+name: Antigravity OAuth readiness (read-only)
+
+on:
+  issues:
+    types: [opened]
+  pull_request:
+    paths:
+      - '.github/workflows/antigravity-auth-preflight.yml'
+
+permissions: {}
+
+jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - run: echo 'OAUTH_PREFLIGHT_WORKFLOW_VALID'
+
+  ssh-check:
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.issue.user.login == github.repository_owner &&
+      github.event.issue.title == '[agent setup] antigravity oauth preflight'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Establish limited SSH
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+      - name: Check installed Antigravity auth commands and keyring support
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+            ubuntu@146.59.145.3 'bash -s' <<'REMOTE'
+          set -eu
+          agy="$HOME/.local/bin/agy"
+          test -x "$agy" || { echo 'AGY_BINARY=missing'; exit 2; }
+          "$agy" --version
+          echo 'AGY_HELP_BEGIN'
+          timeout 10s "$agy" help 2>&1 | head -n 65 || true
+          echo 'AGY_HELP_END'
+          for item in dbus-run-session gnome-keyring-daemon secret-tool script tmux screen python3; do
+            if command -v "$item" >/dev/null 2>&1; then
+              echo "VPS_TOOL_$item=present"
+            else
+              echo "VPS_TOOL_$item=missing"
+            fi
+          done
+          REMOTE
+      - name: Report safe result in the Owner Issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          RESULT: ${{ job.status }}
+        run: |
+          if test "$RESULT" = success; then
+            gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body 'Antigravity auth preflight: OK. See workflow for available CLI commands. No model, OAuth link, code or token was created.'
+          else
+            gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body 'Antigravity auth preflight: NOT COMPLETE. Check workflow error; no model or account code was used.'
+          fi
