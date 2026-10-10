@@ -38,6 +38,19 @@ O GitHub Actions:
 5. Obtem o relatorio e publica-o como comentario na Issue e artefacto Actions.
 6. Elimina a pasta temporaria apos sucesso. Falhas deixam a pasta para diagnostico.
 
+## Modelo Standard para as auditorias Codex
+
+O runner `ops/codex-vps-remote.sh` fixa o modelo `gpt-5.6-terra` com
+raciocinio `medium` em cada execucao automatica (GitHub ou Telegram).
+A opcao `--model` so se aplica a este bridge; nao altera o seletor do ChatGPT,
+as definicoes globais do Codex nem os modelos do Cursor.
+O workflow mostra `CODEX_MODEL` e `CODEX_REASONING_EFFORT` nos logs.
+Se a conta/CLI nao aceitar este modelo, a auditoria falha explicitamente;
+nao ha fallback silencioso para um modelo mais caro. A disponibilidade real
+deve ser confirmada com uma primeira execucao autorizada.
+Para mudar a configuracao, editar `codex_model` e `model_reasoning_effort`
+no mesmo script, numa branch e com revisao/testes.
+
 ## Limites / precaucoes
 
 - **Apenas auditoria estaticamente e sem alteracoes nesta primeira fase.**
