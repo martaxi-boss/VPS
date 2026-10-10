@@ -88,7 +88,7 @@ jobs:
                           log_header = fh.read(110000).decode("utf-8", "replace")
                   except OSError:
                       continue
-                  match = re.search(r"(?m)^model:\\s*([A-Za-z0-9_.-]{1,96})\\s*$", log_header)
+                  match = re.search(r"(?m)^[ \t]*model:[ \t]*([A-Za-z0-9_.-]{1,96})[ \t]*$", log_header)
                   if match:
                       observed = match.group(1)
                       break
