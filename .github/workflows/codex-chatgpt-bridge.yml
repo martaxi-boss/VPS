@@ -1,0 +1,225 @@
+name: Codex - ChatGPT bridge
+
+# Owner-created issues are a simple prompt entrypoint from ChatGPT:
+# [codex audit] Review ...
+# [codex fix] Fix ...
+# Manual workflow_dispatch is also available.
+on:
+  issues:
+    types: [opened]
+  workflow_dispatch:
+    inputs:
+      task:
+        description: Task for Codex in the VPS repository
+        required: true
+        type: string
+      mode:
+        description: Audit without edits or prepare a PR with fixes
+        required: true
+        type: choice
+        default: audit
+        options: [audit, fix]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codex-bridge-${{ github.event.issue.number || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  codex:
+    name: Run Codex in isolated runner
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner) ||
+      (github.event_name == 'issues' && github.event.issue.user.login == github.repository_owner &&
+      (startsWith(github.event.issue.title, '[codex audit]') || startsWith(github.event.issue.title, '[codex fix]')))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      issues: write
+    outputs:
+      mode: ${{ steps.prepare.outputs.mode }}
+      changed: ${{ steps.patch.outputs.changed }}
+    steps:
+      - name: Checkout trusted default branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Prepare prompt safely
+        id: prepare
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          DISPATCH_TASK: ${{ inputs.task }}
+          DISPATCH_MODE: ${{ inputs.mode }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          mode = os.environ.get('DISPATCH_MODE') or 'audit'
+          if os.environ.get('GITHUB_EVENT_NAME') == 'issues':
+              mode = 'fix' if os.environ.get('ISSUE_TITLE', '').lower().startswith('[codex fix]') else 'audit'
+          if mode not in ('audit', 'fix'):
+              raise SystemExit('Invalid mode')
+          task = (os.environ.get('ISSUE_BODY') if os.environ.get('GITHUB_EVENT_NAME') == 'issues'
+                  else os.environ.get('DISPATCH_TASK')) or ''
+          if not task.strip():
+              raise SystemExit('Task is empty')
+          safety = ('Work only in this checked-out repository. Never deploy, access production, '
+                    'change CI workflows, read secrets, or use other repositories. '
+                    'Use project instructions and report test outcomes honestly. ')
+          if mode == 'audit':
+              safety += 'Review only: do not modify files. Provide a concise audit in Portuguese. '
+          else:
+              safety += ('Make focused corrections and run safe tests. '
+                         'Do not modify .github/ or credential files. '
+                         'Changes will be proposed as a pull request, not merged. '
+                         'Provide a summary and test results in Portuguese. ')
+          path = Path(os.environ['RUNNER_TEMP']) / 'codex-task.txt'
+          path.write_text(safety + '\n\nUSER REQUEST:\n' + task + '\n', encoding='utf-8')
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
+              out.write('mode=' + mode + '\n')
+          PY
+
+      - name: Check Business authentication
+        env:
+          CODEX_ACCESS_TOKEN: ${{ secrets.CODEX_ACCESS_TOKEN }}
+        run: |
+          if [ -z "${CODEX_ACCESS_TOKEN:-}" ]; then
+            echo '::error::Missing CODEX_ACCESS_TOKEN (ChatGPT Business, Codex scope).'
+            exit 1
+          fi
+
+      - name: Install Codex CLI
+        run: npm install --global @openai/codex
+
+      - name: Execute Codex
+        env:
+          CODEX_ACCESS_TOKEN: ${{ secrets.CODEX_ACCESS_TOKEN }}
+          MODE: ${{ steps.prepare.outputs.mode }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sandbox=read-only
+          if [ "$MODE" = 'fix' ]; then sandbox=workspace-write; fi
+          codex exec --sandbox "$sandbox" --ask-for-approval never \
+            --output-last-message "$RUNNER_TEMP/codex-result.md" - \
+            < "$RUNNER_TEMP/codex-task.txt"
+
+      - name: Capture proposed corrections
+        if: steps.prepare.outputs.mode == 'fix'
+        id: patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -N .
+          python3 - <<'PY'
+          import subprocess
+          from pathlib import PurePosixPath
+          paths = subprocess.check_output(['git', 'diff', '--name-only', '-z']).split(b'\0')
+          for raw in paths:
+              if not raw: continue
+              path = raw.decode('utf-8', 'replace')
+              if path.startswith(('.github/', '.git/')) or \
+                 PurePosixPath(path).name in ('.env', 'auth.json') or \
+                 path.endswith(('.pem', '.key')):
+                  raise SystemExit('Codex changed a protected path: ' + path)
+          PY
+          git diff --binary > "$RUNNER_TEMP/codex-changes.patch"
+          if [ -s "$RUNNER_TEMP/codex-changes.patch" ]; then
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload report and patch
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-result-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/codex-result.md
+            ${{ runner.temp }}/codex-changes.patch
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Report back to GitHub issue
+        if: always() && github.event_name == 'issues'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          JOB_STATUS: ${{ job.status }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          p = Path(os.environ['RUNNER_TEMP']) / 'codex-result.md'
+          report = p.read_text(encoding='utf-8', errors='replace') if p.exists() else 'Codex did not return a report. Check the job logs.'
+          message = (f"**Codex: {os.environ['JOB_STATUS']}**\n\n" + report[:12000] +
+                     f"\n\n[Execution and artifacts]({os.environ['RUN_URL']})\n")
+          (p.parent / 'issue-comment.md').write_text(message, encoding='utf-8')
+          PY
+          gh issue comment "$ISSUE_NUMBER" --repo "$REPO" --body-file "$RUNNER_TEMP/issue-comment.md"
+
+  propose:
+    name: Open PR with Codex fixes
+    needs: codex
+    if: needs.codex.outputs.mode == 'fix' && needs.codex.outputs.changed == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: codex-result-${{ github.run_id }}
+          path: ${{ runner.temp }}/codex-output
+      - name: Create branch and PR without merging or deploying
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BASE: ${{ github.event.repository.default_branch }}
+          RUN_ID: ${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch="codex/run-$RUN_ID"
+          patch="$RUNNER_TEMP/codex-output/codex-changes.patch"
+          test -s "$patch"
+          git checkout -b "$branch"
+          git apply --index --check "$patch"
+          git apply --index "$patch"
+          git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -m "chore: Codex proposed corrections ($RUN_ID)"
+          git push origin "$branch"
+          report="$RUNNER_TEMP/codex-output/codex-result.md"
+          [ -s "$report" ] || printf 'Codex proposed corrections.\n' > "$report"
+          body="$RUNNER_TEMP/pr-body.md"
+          { printf 'Automated Codex proposal. Review before merging.\n\n'; cat "$report"; } > "$body"
+          if gh pr create --repo "$REPO" --head "$branch" --base "$BASE" \
+                 --title "Codex suggested fixes (run $RUN_ID)" --body-file "$body"; then
+            echo 'PR created successfully.'
+          else
+            echo "::warning::Branch pushed ($branch), but automatic PR creation may be disabled."
+          fi
