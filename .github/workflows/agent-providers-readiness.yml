@@ -1,0 +1,64 @@
+name: Check named agent connectivity (no model calls)
+
+# This probe is read-only. It does NOT install tools, log in, or spend tokens.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/agent-providers-readiness.yml'
+      - 'ops/agent_switch.py'
+      - 'ops/tests/test_agent_switch.py'
+
+permissions: {}
+
+jobs:
+  readiness:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Report configured integration presence only
+        shell: bash
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+        run: |
+          set -euo pipefail
+          if test -n "$GEMINI_API_KEY"; then echo 'GEMINI_CREDENTIAL=configured'; else echo 'GEMINI_CREDENTIAL=missing'; fi
+          if test -n "$CURSOR_API_KEY"; then echo 'CURSOR_CREDENTIAL=configured'; else echo 'CURSOR_CREDENTIAL=missing'; fi
+      - name: Prepare bounded SSH probe
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS" || { echo 'VPS_SSH_ACCESS=missing'; exit 2; }
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+      - name: Check only installed agent executors on existing VPS
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+            -o BatchMode=no ubuntu@146.59.145.3 'bash -s' <<'REMOTE'
+          set -eu
+          if test -x "$HOME/codex-agent/node_modules/.bin/codex"; then
+            printf 'VPS_CODEX=installed\n'
+          else
+            printf 'VPS_CODEX=missing\n'
+          fi
+          if command -v gemini >/dev/null 2>&1 || test -x "$HOME/gemini-agent/node_modules/.bin/gemini"; then
+            printf 'VPS_GEMINI=installed\n'
+          else
+            printf 'VPS_GEMINI=missing\n'
+          fi
+          if command -v cursor-agent >/dev/null 2>&1 || test -x "$HOME/.local/bin/cursor-agent"; then
+            printf 'VPS_CURSOR_AGENT=installed\n'
+          else
+            printf 'VPS_CURSOR_AGENT=missing\n'
+          fi
+          REMOTE

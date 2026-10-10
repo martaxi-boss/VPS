@@ -1,0 +1,82 @@
+name: Install Antigravity CLI on VPS (Owner authorized)
+
+# One Owner Issue triggers a bounded installer, never a model invocation.
+# OAuth is an independent Owner login; never send codes or tokens to GitHub.
+on:
+  issues:
+    types: [opened]
+  pull_request:
+    paths:
+      - '.github/workflows/install-antigravity-vps.yml'
+
+permissions: {}
+
+jobs:
+  static-check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Confirm installer job cannot run from a PR
+        run: echo 'AGY_INSTALL=PR_NON_EXECUTION_OK'
+
+  install:
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.issue.user.login == github.repository_owner &&
+      github.event.issue.title == '[agent setup] antigravity-cli install'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Verify existing SSH secret before touching VPS
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS" || { echo 'VPS_SSH_ACCESS=NOT_CONFIGURED'; exit 2; }
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+      - name: Install official Antigravity CLI for ubuntu only
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=20 -o ServerAliveInterval=20 -o ServerAliveCountMax=5 \
+            ubuntu@146.59.145.3 'bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          install -d -m 700 "$HOME/.local/bin"
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          # Only the official Antigravity installer; do not curl any tokens.
+          curl --proto '=https' --tlsv1.2 --location --fail --silent --show-error \
+            --connect-timeout 15 --max-time 75 \
+            'https://antigravity.google/cli/install.sh' -o "$tmp/agy-install.sh"
+          test -s "$tmp/agy-install.sh"
+          # Do not modify PATH/profile or unrelated existing aliases.
+          timeout 450s bash "$tmp/agy-install.sh" --skip-aliases --skip-path
+          test -x "$HOME/.local/bin/agy"
+          "$HOME/.local/bin/agy" --version
+          echo 'ANTIGRAVITY_CLI=INSTALLED_AUTH_NOT_CHECKED'
+          REMOTE
+      - name: Publish installation result on Owner Issue
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NO: ${{ github.event.issue.number }}
+          INSTALL_RESULT: ${{ job.status }}
+        run: |
+          if test "$INSTALL_RESULT" = success; then
+            body='Antigravity CLI: instalado na VPS para ubuntu. Login Google OAuth ainda NÃO verificado; nenhum modelo foi invocado. Documentação oficial: https://antigravity.google/docs/cli/install/'
+          else
+            body='Antigravity CLI: instalação NÃO CONCLUÍDA; consultar os passos e erros do workflow. Nenhum modelo foi invocado.'
+          fi
+          gh issue comment "$ISSUE_NO" --repo "$GITHUB_REPOSITORY" --body "$body"
