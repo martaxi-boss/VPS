@@ -35,40 +35,52 @@ def private_message(update):
             not sender.get('is_bot'))
 
 
-def classify(text, voice=False, image=False):
-    """Return (kind, payload). No user-provided text becomes a shell command."""
+def classify(text, voice=False, image=False, active_agent=None):
+    """Classify using explicit addressee before persistent conversational context.
+
+    Gemini/other agents are never routed through the Codex-only audit executor.
+    Plain speech can use the selected Codex agent, but never guesses a switch.
+    """
     text = text.strip()
+    addressee, addressed_task = gate.parse_agent_address(text)
     if gate.is_presence_message(text):
-        return 'presence', ''
+        return 'presence', addressee or active_agent
     if re.fullmatch(r'/(?:start|help)(?:@\w+)?', text, re.I):
         return 'help', ''
     if re.fullmatch(r'/status(?:@\w+)?\s+#?(\d+)', text, re.I):
         return 'status', re.search(r'\d+$', text).group()
     if re.match(r'^/(?:fix|cursor|sonnet|composer)(?:\b|@)', text, re.I):
         return 'blocked', 'Os modos de correção e outros agentes não estão ativados.'
+    if addressee and addressee != 'Codex':
+        return 'blocked', gate.agent_unavailable_reply(addressee)
+    if active_agent and active_agent != 'Codex' and not addressee:
+        return 'blocked', gate.agent_unavailable_reply(active_agent)
     if voice and (SECRET_WORDS.search(text) or SECRET_VALUES.search(text)):
         return 'blocked', 'Por segurança, não processei um áudio que pode conter informação privada.'
     if EDIT_WORDS.search(text):
         return 'blocked', 'Por segurança, só auditorias de leitura estão ativadas.'
     task = gate.parse_audit(text)
-    if task is None and re.match(r'^project leader[,:;\-\s]+', text, re.I):
-        task = re.sub(r'^project leader[,:;\-\s]+', '', text, flags=re.I)
-    if task is None and (voice or image):
+    if task is None and addressee == 'Codex' and addressed_task:
+        task = addressed_task
+    if task is None and (voice or image or
+                         (active_agent == 'Codex' and gate.is_voice_audit_request(text))):
         task = text or (gate.DEFAULT_IMAGE_TASK if image else '')
     if not task:
-        return 'blocked', 'Não percebi uma ordem. Envia um áudio como «Verifica o estado da VPS».'
+        return 'blocked', 'Não percebi uma ordem de auditoria. Envia um áudio como «Verifica o estado da VPS».'
     if len(task) < 8 or len(task) > 3800 or SECRET_VALUES.search(task):
         return 'blocked', 'Pedido rejeitado por tamanho ou possível informação sensível.'
-    if voice and not gate.is_voice_audit_request(task):
-        return 'blocked', 'Não percebi uma auditoria clara; não utilizei o Codex.'
+    if (voice or addressee == 'Codex' or active_agent == 'Codex') and not image:
+        if not gate.is_voice_audit_request(task):
+            return 'blocked', 'Não percebi uma auditoria clara; não utilizei o Codex.'
     return 'audit', task
-
 
 def safe_send(text):
     try:
         gate.say(text)
+        return True
     except RuntimeError:
         print('TELEGRAM_SEND=RETRY_LATER', flush=True)
+        return False
 
 
 def atomic_write(path, payload):
@@ -161,10 +173,31 @@ class Listener:
         self.lock = (self.data / 'process.lock').open('a+')
         fcntl.flock(self.lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         self.offset = self.data / 'offset.json'
+        self.session_file = self.data / 'active-agent.json'
         # An interrupted task is NOT retried automatically: avoid paid duplicate Codex calls.
         for path in (self.data / 'inflight').glob('*.json'):
             atomic_write(self.data / 'done' / path.name, {'state': 'interrupted'})
             path.unlink()
+
+    def current_agent(self):
+        try:
+            info = json.loads(self.session_file.read_text(encoding='utf-8'))
+            agent = info.get('agent')
+            return agent if agent in ('Codex', 'Gemini', 'Project Leader', 'Cursor', 'Claude') else None
+        except (OSError, ValueError, TypeError):
+            return None
+
+    def remember_agent(self, agent, update_id):
+        """Persist an explicit selection, never let an older voice queue override it."""
+        if agent not in ('Codex', 'Gemini', 'Project Leader', 'Cursor', 'Claude'):
+            return
+        try:
+            info = json.loads(self.session_file.read_text(encoding='utf-8'))
+            prior = int(info.get('update_id', -1))
+        except (OSError, ValueError, TypeError):
+            prior = -1
+        if int(update_id) > prior:
+            atomic_write(self.session_file, {'agent': agent, 'update_id': int(update_id)})
 
     def receive(self, update):
         uid = int(update['update_id'])
@@ -178,9 +211,13 @@ class Listener:
         if any(p.exists() for p in (done, pending, inflight)):
             return
         if text and not message.get('voice') and not message.get('photo') and not message.get('document'):
-            kind, detail = classify(text)
+            kind, detail = classify(text, active_agent=self.current_agent())
             if kind == 'presence':
-                safe_send('🤖 Estou aqui. Podes enviar uma ordem por voz, sem escrever nem dizer Codex.')
+                explicit_agent, _ = gate.parse_agent_address(text)
+                if not safe_send(gate.agent_presence_reply(detail)):
+                    raise RuntimeError('Reply delivery failed')
+                if explicit_agent:
+                    self.remember_agent(explicit_agent, uid)
                 atomic_write(done, {'state': 'presence'})
                 return
             if kind == 'help':
@@ -194,13 +231,20 @@ class Listener:
                 atomic_write(done, {'state': 'status'})
                 return
             if kind == 'blocked':
-                safe_send(detail)
+                if not safe_send(detail):
+                    raise RuntimeError('Reply delivery failed')
                 atomic_write(done, {'state': 'rejected'})
                 return
         if len(list((self.data / 'pending').glob('*.json'))) >= 10:
             safe_send('Há demasiados pedidos em espera. Tenta mais tarde.')
             atomic_write(done, {'state': 'queue_full'})
             return
+        explicit_agent, _ = gate.parse_agent_address(text)
+        if explicit_agent == 'Codex':
+            self.remember_agent(explicit_agent, uid)
+        # Snapshot the selected agent when the update is received. A later
+        # greeting must not change the destination of already queued audio.
+        update['_routing_agent'] = self.current_agent()
         atomic_write(pending, update)
         safe_send(f'📨 Recebi o pedido {uid}. ' +
                   ('Vou transcrever o áudio e analisar.' if message.get('voice') else
@@ -239,14 +283,22 @@ class Listener:
             if voice:
                 text = gate.transcribe_voice(voice)
                 safe_send('🎙️ Transcrição recebida: ' + text[:1200])
-            kind, detail = classify(text, voice=voice is not None, image=image is not None)
+            kind, detail = classify(text, voice=voice is not None,
+                                    image=image is not None,
+                                    active_agent=update.get('_routing_agent'))
             if kind == 'presence':
-                safe_send('🤖 Estou aqui. Podes dar uma ordem por voz.')
+                explicit_agent, _ = gate.parse_agent_address(text)
+                safe_send(gate.agent_presence_reply(detail))
+                if explicit_agent:
+                    self.remember_agent(explicit_agent, int(uid))
                 state = 'presença confirmada'
             elif kind != 'audit':
                 safe_send(detail if kind == 'blocked' else 'Não identifiquei uma auditoria clara.')
                 state = 'rejeitado'
             else:
+                explicit_agent, _ = gate.parse_agent_address(text)
+                if explicit_agent == 'Codex':
+                    self.remember_agent('Codex', int(uid))
                 target = ('martaxi-boss/Project-leader' if re.search('project[ -]?leader', detail, re.I)
                           else 'martaxi-boss/VPS')
                 task = f'TARGET_REPOSITORY={target}\n' + detail

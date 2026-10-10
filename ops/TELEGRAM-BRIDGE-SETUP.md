@@ -57,3 +57,12 @@ Os dois segredos Telegram devem permanecer apenas nos GitHub Actions secrets. N�
 A arquitetura usa GitHub como fila e histórico e Telegram como interface. Pode ser estendida para Cursor/Composer/Sonnet quando existir uma autenticação/integração válida, sem mudar a maneira como o utilizador dá ordens.
 
 **Estado atual:** Codex `audit` pronto; Codex `fix` e Cursor ainda não ativos. Não sugerir que trabalho de correção está a acontecer automaticamente antes de o validar.
+
+
+## Separação de agentes e estado do serviço residente (proposta #84)
+
+- «Boa tarde Codex» seleciona apenas Codex; uma saudação não dispara trabalho pago.
+- «Boa tarde Gemini» identifica Gemini, mas não o executa enquanto a integração Gemini não existir. Nunca reenviar ao Codex pedidos dirigidos a Gemini.
+- No serviço residente, a seleção é persistida e cada ordem recebida conserva o destinatário da receção, mesmo com áudios em fila.
+- A implementação ainda depende de instalação e confirmação na VPS; enquanto isso, o workflow GitHub continua best-effort, sem garantia de resposta imediata.
+- O serviço residente e o poller GitHub não podem consumir simultaneamente `getUpdates` do mesmo bot; a migração requer troca coordenada e prova em produção.

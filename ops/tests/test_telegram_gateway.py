@@ -25,6 +25,67 @@ class TelegramGatewayTests(unittest.TestCase):
                          "faz uma auditoria")
         self.assertIsNone(gateway.parse_audit("Ola, tudo bem?"))
 
+    def test_named_agent_greetings_do_not_start_codex(self):
+        for text, expected in (
+            ("Boa tarde Codex", "Codex"),
+            ("Codex, estás aí?", "Codex"),
+            ("Boa tarde Gemini", "Gemini"),
+            ("Gemini, boa tarde", "Gemini"),
+            ("Boa tarde Geminai", "Gemini"),
+            ("Olá Project Leader", "Project Leader"),
+        ):
+            with self.subTest(text=text):
+                self.assertTrue(gateway.is_presence_message(text))
+                agent, _ = gateway.parse_agent_address(text)
+                self.assertEqual(agent, expected)
+                update = {
+                    'update_id': 991,
+                    'message': {'chat': {'id': 123456, 'type': 'private'},
+                                'from': {'id': 123456, 'is_bot': False},
+                                'text': text},
+                }
+                with (patch.object(gateway, 'CHAT_ID', '123456'),
+                      patch.object(gateway, 'create_audit') as create,
+                      patch.object(gateway, 'say') as reply):
+                    gateway.handle_update(update)
+                    create.assert_not_called()
+                    reply.assert_called_once()
+                    self.assertIn(expected, reply.call_args.args[0])
+
+    def test_gemini_command_cannot_trigger_codex(self):
+        for text in ('Gemini, verifica o estado da VPS',
+                     'Boa tarde Gemini, verifica os ficheiros'):
+            with self.subTest(text=text):
+                update = {'update_id': 992,
+                          'message': {'chat': {'id': 123456, 'type': 'private'},
+                                      'from': {'id': 123456, 'is_bot': False},
+                                      'text': text}}
+                with (patch.object(gateway, 'CHAT_ID', '123456'),
+                      patch.object(gateway, 'create_audit') as create,
+                      patch.object(gateway, 'say') as reply):
+                    gateway.handle_update(update)
+                    create.assert_not_called()
+                    self.assertIn('não está ligado', reply.call_args.args[0])
+
+    def test_codex_social_question_not_paid_and_explicit_audit_still_routes(self):
+        non_task = {'update_id': 993,
+                    'message': {'chat': {'id': 123456, 'type': 'private'},
+                                'from': {'id': 123456, 'is_bot': False},
+                                'text': 'Codex, como estás hoje?'}}
+        with (patch.object(gateway, 'CHAT_ID', '123456'),
+              patch.object(gateway, 'create_audit') as create,
+              patch.object(gateway, 'say') as reply):
+            gateway.handle_update(non_task)
+            create.assert_not_called()
+            self.assertIn('não percebi', reply.call_args.args[0].lower())
+
+        non_task['message']['text'] = 'Boa tarde Codex, verifica o estado da VPS'
+        with (patch.object(gateway, 'CHAT_ID', '123456'),
+              patch.object(gateway, 'create_audit', return_value=100) as create,
+              patch.object(gateway, 'say')):
+            gateway.handle_update(non_task)
+            self.assertEqual(create.call_args.args[1], 'verifica o estado da VPS')
+
     def test_unauthorized_chat_does_not_trigger_actions(self):
         with (patch.object(gateway, "CHAT_ID", "123456"),
               patch.object(gateway, "github") as gh,

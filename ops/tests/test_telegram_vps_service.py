@@ -37,6 +37,66 @@ class TelegramVPSServiceTests(unittest.TestCase):
         self.assertEqual(service.classify('Codex, verifica o README.md')[0], 'audit')
         self.assertEqual(service.classify('/fix código')[0], 'blocked')
 
+    def test_agent_names_are_explicitly_routed(self):
+        self.assertEqual(service.classify('Boa tarde Codex'), ('presence', 'Codex'))
+        self.assertEqual(service.classify('Boa tarde Gemini'), ('presence', 'Gemini'))
+        self.assertEqual(service.classify('Boa tarde Geminai'), ('presence', 'Gemini'))
+        self.assertEqual(service.classify('Gemini, verifica a VPS')[0], 'blocked')
+        self.assertEqual(service.classify('Gemini, verifica a VPS',
+                                          active_agent='Codex')[0], 'blocked')
+        self.assertEqual(service.classify('Verifica a VPS', voice=True,
+                                          active_agent='Gemini')[0], 'blocked')
+        self.assertEqual(service.classify('Verifica a VPS', voice=True,
+                                          active_agent='Codex')[0], 'audit')
+        self.assertEqual(service.classify('Verifica a VPS',
+                                          active_agent='Codex')[0], 'audit')
+        self.assertEqual(service.classify('Olá Codex, verifica o estado da VPS')[0], 'audit')
+        self.assertEqual(service.classify('Codex, como estás hoje?')[0], 'blocked')
+
+    def test_selection_persists_and_late_audio_cannot_switch_newer_agent(self):
+        with tempfile.TemporaryDirectory() as path, patch.object(service.gate, 'CHAT_ID', '123456'):
+            bridge = service.Listener(Path(path))
+            def update(uid, text=None, voice=None):
+                msg = {'chat': {'id': 123456, 'type': 'private'},
+                       'from': {'id': 123456, 'is_bot': False}}
+                if text is not None:
+                    msg['text'] = text
+                if voice is not None:
+                    msg['voice'] = voice
+                return {'update_id': uid, 'message': msg}
+            with patch.object(service, 'safe_send', return_value=True), patch.object(service, 'run_audit') as paid:
+                bridge.receive(update(10, 'Boa tarde Codex'))
+                self.assertEqual(bridge.current_agent(), 'Codex')
+                bridge.receive(update(11, voice={'file_id': 'AwACAgQAAAAAAAABBBBB',
+                                                  'duration': 3}))
+                queued = __import__('json').loads(
+                    (Path(path) / 'pending' / '11.json').read_text())
+                self.assertEqual(queued['_routing_agent'], 'Codex')
+                bridge.receive(update(12, 'Boa tarde Gemini'))
+                self.assertEqual(bridge.current_agent(), 'Gemini')
+                bridge.remember_agent('Codex', 11)
+                self.assertEqual(bridge.current_agent(), 'Gemini')
+                bridge.receive(update(13, 'Verifica a VPS'))
+                self.assertEqual(bridge.status('13'), 'rejected')
+                paid.assert_not_called()
+            bridge.lock.close()
+            resumed = service.Listener(Path(path))
+            self.assertEqual(resumed.current_agent(), 'Gemini')
+            resumed.lock.close()
+
+    def test_failed_greeting_reply_is_not_marked_delivered(self):
+        with tempfile.TemporaryDirectory() as path, patch.object(service.gate, 'CHAT_ID', '123456'):
+            bridge = service.Listener(Path(path))
+            update = {'update_id': 8,
+                      'message': {'chat': {'id': 123456, 'type': 'private'},
+                                  'from': {'id': 123456, 'is_bot': False},
+                                  'text': 'Boa tarde Codex'}}
+            with patch.object(service, 'safe_send', return_value=False):
+                with self.assertRaisesRegex(RuntimeError, 'Reply delivery failed'):
+                    bridge.receive(update)
+            self.assertFalse((Path(path) / 'done' / '8.json').exists())
+            bridge.lock.close()
+
     def test_update_persisted_only_once(self):
         with tempfile.TemporaryDirectory() as path, patch.object(service.gate, 'CHAT_ID', '123456'):
             bridge = service.Listener(Path(path))
