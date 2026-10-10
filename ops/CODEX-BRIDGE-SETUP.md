@@ -52,6 +52,15 @@ rejeita alvos desconhecidos, clona o `main` publico numa pasta descartavel,
 e regista o SHA efetivamente auditado. Sem esta linha, mantem a auditoria
 do VPS. Nenhuma permissao de escrita, deploy ou acesso a producao e adicionada.
 
+## Regras canónicas do Project Leader nas auditorias
+
+Cada tarefa `[codex audit]`, incluindo a entrada de auditoria do Telegram,
+carrega primeiro a mesma Skill canónica do Project Leader usada por `[codex run]`,
+fixada a um SHA exato de `martaxi-boss/Project-leader/main` e validada
+contra o manifesto e a autoridade. O SHA e a versão entram no relatório.
+Falha de carregamento impede o Codex de arrancar; a auditoria mantém-se
+estritamente **read-only**, sem escrever código nem limpar a VPS.
+
 ## Modelo Standard para as auditorias Codex
 
 O runner `ops/codex-vps-remote.sh` fixa o modelo `gpt-5.6-terra` com
