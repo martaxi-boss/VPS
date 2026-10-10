@@ -101,6 +101,23 @@ class AdaptiveCodexResourceTests(unittest.TestCase):
             rows = json.loads((root / "usage-budget.json").read_text())["records"]
             self.assertEqual(len(rows), 1)
 
+    def test_legacy_shared_parent_can_remain_unmodified_and_ledger_stays_private(self):
+        # Deployed bridge parent predates the 0700 rule. Do not change its
+        # existing 0755 permissions, as the legacy Codex entrypoints share it.
+        with tempfile.TemporaryDirectory() as location:
+            parent = Path(location) / "codex-bridge"
+            parent.mkdir(mode=0o755)
+            os.chmod(parent, 0o755)
+            root = parent / ".account-budget"
+            policy.reserve(root, "106-1-1", "low", limit=100000)
+            self.assertEqual(stat.S_IMODE(parent.stat().st_mode), 0o755)
+            self.assertEqual(stat.S_IMODE(root.stat().st_mode), 0o700)
+            self.assertEqual(stat.S_IMODE((root / "usage-budget.json").stat().st_mode), 0o600)
+            self.assertEqual(policy.settle(root, "106-1-1", {"observed": False})["accounted_tokens"], 12000)
+            remote = (Path(__file__).resolve().parents[1] / "codex-autonomous-remote.sh").read_text()
+            self.assertIn('budget_root="$HOME/codex-bridge/.account-budget"', remote)
+            self.assertNotIn('chmod 700 "$HOME/codex-bridge"', remote)
+
     def test_bad_usage_and_bad_identifiers_fail_closed(self):
         with tempfile.TemporaryDirectory() as location:
             root = Path(location) / "account"
