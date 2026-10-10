@@ -69,6 +69,7 @@ jobs:
           set -euo pipefail
           export HF_HOME="$RUNNER_TEMP/voice-model-cache"
           export HF_HUB_DISABLE_TELEMETRY=1
+          export VOICE_SMOKE_DIAGNOSTICS=1
           python3 -m venv "$RUNNER_TEMP/voice-smoke-venv"
           "$RUNNER_TEMP/voice-smoke-venv/bin/python" -m pip install \
             --only-binary=:all: --quiet faster-whisper==1.2.1
