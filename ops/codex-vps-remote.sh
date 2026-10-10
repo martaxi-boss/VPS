@@ -85,9 +85,15 @@ printf '\n' >> "$prompt"
 cd "$repo_dir"
 # Always use the read-only Codex sandbox. The project is a disposable clone.
 timeout --signal=TERM --kill-after=15s 35m \
-  "$codex" --enable use_legacy_landlock exec --sandbox read-only \
+  "$codex" exec --sandbox read-only \
     --output-last-message "$report" - \
     < "$prompt" > "$base/cli.log" 2>&1
 
 test -s "$report"
+# Codex may return exit code 0 after failing to read the repo due to the host sandbox.
+# Treat an access-blocked audit as failure instead of publishing a false PASS.
+if grep -Eiq 'Operation not permitted|filesystem-restricted execution requires bubblewrap|sandbox rejecting|cannot access repository|Nao consegui ler|Não consegui ler' "$report"; then
+  echo 'Codex audit blocked by Linux sandbox; review host bwrap/AppArmor setup.' >&2
+  exit 12
+fi
 printf 'CODEX_VPS_AUDIT=PASS\n'
