@@ -1,0 +1,3 @@
+# VPS hygiene read-only diagnostic request
+
+Owner requested an inspection of the actual VPS, before any deletion or operational cleanup. This inert file only triggers the already-reviewed `VPS Residue Audit` pull_request workflow on GitHub Actions. Do not merge this trigger file into main or run destructive cleanup under this diagnostic PR.
