@@ -321,7 +321,7 @@ def handle_update(update):
     number = (create_audit(update["update_id"], task, image=image) if image
               else create_audit(update["update_id"], task))
     say(("📸 Imagem enviada ao Codex.\n" if image
-         else "📨 Auditoria enviada ao Codex.\n")
+         else "📨 Auditoria enviada ao Codex.\n") +
         "Tarefa #" + str(number) + "\n"
         "O relatório completo vai chegar aqui quando terminar.\n"
         "https://github.com/" + REPO + "/issues/" + str(number))
