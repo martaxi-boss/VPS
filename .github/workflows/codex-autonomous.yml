@@ -174,7 +174,7 @@ jobs:
           fi
           test -f "$RUNNER_TEMP/patch.diff" || test '${{ steps.codex.outcome }}' != 'success'
 
-      - name: Publish reviewed patch and merge only with exact trusted CI
+      - name: Publish guarded PR, validate exact CI, merge only if explicitly permitted
         id: publish
         if: steps.codex.outcome == 'success' && steps.collect.outcome == 'success'
         env:
