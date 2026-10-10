@@ -21,9 +21,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pinned v4
         with:
           persist-credentials: false
-      - name: Compile and reject whitespace errors
-        run: |
-          python3 -m py_compile ops/vps_hygiene_050.py ops/test_vps_hygiene_050.py
-          git diff --check HEAD^ HEAD || true
+      - name: Compile current hygiene executor and tests
+        run: python3 -m py_compile ops/vps_hygiene_050.py ops/test_vps_hygiene_050.py
       - name: Independent tested cache and symlink boundaries
         run: PYTHONDONTWRITEBYTECODE=1 python3 ops/test_vps_hygiene_050.py -v
