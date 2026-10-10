@@ -42,10 +42,15 @@ def cache_inventory(root, cutoff_ns):
     if root not in CACHE_ROOTS:
         raise ValueError("Root is outside the fixed cache allowlist")
     path = Path(root)
+    # exists() is false for a dangling symlink.  Reject every symlink before
+    # treating the root as absent so an unsafe cache root never becomes an
+    # apparently empty, authorized inventory.
+    if path.is_symlink():
+        raise ValueError("Cache root has a symlink or unsupported type")
     if not path.exists():
         return {"root": root, "present": False, "files": 0, "bytes": 0, "eligible_bytes": 0,
                 "eligible_allocated_bytes": 0, "eligible_files": 0, "signature": canonical_hash([])}, []
-    if path.is_symlink() or str(path.resolve()) != root or not path.is_dir():
+    if str(path.resolve()) != root or not path.is_dir():
         raise ValueError("Cache root has a symlink or unsupported type")
     device = path.stat().st_dev
     eligible, count, total = [], 0, 0

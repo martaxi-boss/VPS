@@ -84,6 +84,12 @@ class CacheSafetyTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             hygiene.cache_inventory(str(self.root), self.cutoff)
 
+    def test_dangling_symlink_root_is_rejected(self):
+        self.root.rmdir()
+        self.root.symlink_to(self.base / "missing-cache", target_is_directory=True)
+        with self.assertRaises(ValueError):
+            hygiene.cache_inventory(str(self.root), self.cutoff)
+
     def test_hard_links_are_preserved(self):
         outside = self.old_file(self.base / "outside-data")
         os.link(outside, self.root / "cache-link")
