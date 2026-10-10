@@ -15,6 +15,8 @@ repo_dir="$base/repository"
 report="$base/report.md"
 prompt="$base/prompt.md"
 codex="$HOME/codex-agent/node_modules/.bin/codex"
+# Standard tier for ChatGPT Business: explicit model, no automatic expensive fallback.
+codex_model="gpt-5.6-terra"
 
 finish() {
   local status=$?
@@ -83,6 +85,8 @@ RULES
 cat "$base/codex-task.txt" >> "$prompt"
 printf '\n' >> "$prompt"
 
+printf 'CODEX_MODEL=%s\nCODEX_REASONING_EFFORT=medium\n' "$codex_model"
+
 cd "$repo_dir"
 # Attach only a privately staged Telegram screenshot (not a public URL).
 image_args=()
@@ -105,7 +109,8 @@ fi
 # Leave the stdin prompt after the output option so older Codex CLI parsers
 # do not consume it as a second image path.
 timeout --signal=TERM --kill-after=15s 35m \
-  "$codex" exec --sandbox read-only "${image_args[@]}" \
+  "$codex" exec --model "$codex_model" -c model_reasoning_effort=medium \
+    --sandbox read-only "${image_args[@]}" \
     --output-last-message "$report" - \
     < "$prompt" > "$base/cli.log" 2>&1
 test -s "$report"
