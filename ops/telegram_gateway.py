@@ -193,15 +193,21 @@ def has_dispatch_marker(number, update_id):
     return any(marker in (c.get("body") or "") for c in comments)
 
 
-def create_audit(update_id, task):
+def create_audit(update_id, task, image=None):
     title = "[codex audit] Telegram " + str(update_id)
     number = existing_issue(update_id)
     if number is None:
+        image_marker = ""
+        if image is not None:
+            image_hash = hashlib.sha256(image["file_id"].encode("ascii")).hexdigest()
+            image_marker = ("<!-- telegram-image-sha256:" + image_hash +
+                            ":" + image["ext"] + " -->\n\n")
         body = (
             "Origem: Telegram privado autorizado.\n\n"
             "Aviso: este repositório e as Issues são públicos. "
             "Não enviar segredos, dados privados ou credenciais.\n\n"
-            "<!-- telegram-update:" + str(update_id) + " -->\n\n"
+            "<!-- telegram-update:" + str(update_id) + " -->\n\n" +
+            image_marker +
             "## Pedido ao Codex (auditoria, sem alterações)\n\n" + task
         )
         issue = github("POST", "issues", {"title": title, "body": body})
@@ -209,14 +215,18 @@ def create_audit(update_id, task):
     if not has_dispatch_marker(number, update_id):
         # Workflow dispatch is permitted for GITHUB_TOKEN triggered events.
         # The recipient workflow checks source=telegram and actor=github-actions[bot].
+        inputs = {
+            "task": task,
+            "mode": "audit",
+            "source": "telegram",
+            "issue_number": str(number),
+        }
+        if image is not None:
+            inputs["image_file_id"] = image["file_id"]
+            inputs["image_ext"] = image["ext"]
         github("POST", "actions/workflows/codex-chatgpt-bridge.yml/dispatches", {
             "ref": "main",
-            "inputs": {
-                "task": task,
-                "mode": "audit",
-                "source": "telegram",
-                "issue_number": str(number),
-            },
+            "inputs": inputs,
         })
         github("POST", "issues/" + str(number) + "/comments", {
             "body": "Tarefa encaminhada para o Codex. <!-- telegram-dispatched:" +
