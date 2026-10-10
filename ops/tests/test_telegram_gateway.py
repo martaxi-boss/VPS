@@ -357,6 +357,9 @@ class TelegramGatewayTests(unittest.TestCase):
                     "Codex, faz uma auditoria à VPS",
                 )
             self.assertEqual(len(commands), 3)
+            # PyAV 19 removed the metadata_errors argument still used by
+            # faster-whisper 1.2.1, so the local installer must constrain it.
+            self.assertIn("av>=11,<19", commands[1][0])
             self.assertEqual(list(Path(directory).iterdir()), [])
 
     def test_invalid_ogg_is_rejected_before_running_a_model(self):
