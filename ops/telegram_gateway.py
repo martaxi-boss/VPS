@@ -5,6 +5,7 @@ No Telegram credential is ever checked into GitHub, copied to the VPS,
 or included in a ChatGPT message. Only a configured private chat can
 issue audit tasks. Nothing in this bridge executes user text as shell.
 """
+import hashlib
 import json
 import os
 import re
@@ -19,6 +20,81 @@ REPO = os.environ.get("GITHUB_REPOSITORY", "martaxi-boss/VPS")
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 GH_TOKEN = os.environ.get("GH_TOKEN", "").strip()
+
+MAX_IMAGE_BYTES = 10 * 1024 * 1024
+DEFAULT_IMAGE_TASK = (
+    "Analisa a captura de ecra anexa e identifica os erros ou problemas "
+    "visiveis, com diagnostico e passos recomendados. Nao alteres ficheiros."
+)
+
+
+def select_image(message):
+    """Select exactly one supported Telegram photo or image document."""
+    images = message.get("photo") or []
+    if images:
+        entry = images[-1]  # Telegram photo sizes are ascending.
+        ext = "jpg"
+    elif message.get("document"):
+        entry = message["document"]
+        mime = entry.get("mime_type", "").lower()
+        ext = {"image/jpeg": "jpg", "image/png": "png",
+               "image/webp": "webp"}.get(mime)
+        if ext is None:
+            return None
+    else:
+        return None
+
+    file_id = str(entry.get("file_id", ""))
+    if not re.fullmatch(r"[A-Za-z0-9_-]{8,256}", file_id):
+        raise RuntimeError("Unsupported Telegram file identifier")
+    if int(entry.get("file_size", 0)) > MAX_IMAGE_BYTES:
+        raise RuntimeError("Imagem demasiado grande (limite 10 MB)")
+    return {"file_id": file_id, "ext": ext}
+
+
+def download_image():
+    """Retrieve a private Telegram image directly onto an ephemeral Actions runner."""
+    if not BOT_TOKEN:
+        raise RuntimeError("Telegram bot is not configured")
+    file_id = os.environ.get("CODEX_IMAGE_FILE_ID", "")
+    ext = os.environ.get("CODEX_IMAGE_EXT", "")
+    output = Path(os.environ.get("CODEX_IMAGE_OUTPUT", ""))
+    if (not re.fullmatch(r"[A-Za-z0-9_-]{8,256}", file_id) or
+            ext not in ("jpg", "png", "webp") or
+            not output.is_absolute() or output.suffix != "." + ext):
+        raise RuntimeError("Invalid Telegram image input")
+    meta = telegram("getFile", {"file_id": file_id})
+    size = int(meta.get("file_size", 0))
+    if size > MAX_IMAGE_BYTES:
+        raise RuntimeError("Telegram image exceeds private transport limit")
+    file_path = str(meta.get("file_path", ""))
+    if (not re.fullmatch(r"[A-Za-z0-9_./-]{1,512}", file_path) or
+            ".." in file_path.split("/")):
+        raise RuntimeError("Invalid Telegram file path")
+
+    # No file bytes go through a public GitHub Issue, commit or artifact.
+    url = "https://api.telegram.org/file/bot" + BOT_TOKEN + "/" + file_path
+    try:
+        with urlopen(Request(url, method="GET"), timeout=45) as response:
+            content = response.read(MAX_IMAGE_BYTES + 1)
+    except HTTPError as exc:
+        raise RuntimeError("Telegram image HTTP " + str(exc.code)) from None
+    except (URLError, TimeoutError):
+        raise RuntimeError("Telegram image network error") from None
+    if not content or len(content) > MAX_IMAGE_BYTES:
+        raise RuntimeError("Telegram image size is invalid")
+    magic_ok = {
+        "jpg": content.startswith(b"\\xff\\xd8\\xff"),
+        "png": content.startswith(b"\\x89PNG\\r\\n\\x1a\\n"),
+        "webp": content.startswith(b"RIFF") and content[8:12] == b"WEBP",
+    }
+    if not magic_ok[ext]:
+        raise RuntimeError("Telegram image bytes do not match the declared format")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(str(output), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "wb") as target:
+        target.write(content)
+    print("TELEGRAM_IMAGE_READY=yes; bytes=" + str(len(content)))
 
 
 def telegram(method, data=None, *, document=None):
