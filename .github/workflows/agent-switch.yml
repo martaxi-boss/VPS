@@ -11,6 +11,8 @@ on:
       - '.github/workflows/codex-autonomous.yml'
       - 'ops/agent_switch.py'
       - 'ops/tests/test_agent_switch.py'
+      - 'ops/codex_resource_policy.py'
+      - 'ops/tests/test_codex_resource_policy.py'
 
 permissions: {}
 
@@ -25,6 +27,7 @@ jobs:
       - run: |
           python3 -m py_compile ops/agent_switch.py
           python3 -m unittest discover -s ops/tests -p test_agent_switch.py -v
+          python3 -m unittest discover -s ops/tests -p test_codex_resource_policy.py -v
 
   preflight:
     if: >-
@@ -44,6 +47,8 @@ jobs:
       codex_2_task_b64: ${{ steps.validate.outputs.codex_2_task_b64 }}
       allow_no_change_1: ${{ steps.validate.outputs.allow_no_change_1 }}
       allow_no_change_2: ${{ steps.validate.outputs.allow_no_change_2 }}
+      codex_1_reasoning_effort: ${{ steps.validate.outputs.codex_1_reasoning_effort }}
+      codex_2_reasoning_effort: ${{ steps.validate.outputs.codex_2_reasoning_effort }}
     steps:
       - name: Read only reviewed router from default branch
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pinned v4
@@ -115,6 +120,7 @@ jobs:
       task_b64: ${{ needs.preflight.outputs.codex_task_b64 }}
       issue_number: ${{ github.event.issue.number }}
       allow_no_change: ${{ fromJSON(needs.preflight.outputs.allow_no_change_1) }}
+      reasoning_effort: ${{ needs.preflight.outputs.codex_1_reasoning_effort }}
     secrets: inherit
 
   # Two independent workers are launched only by an explicit, fully validated
@@ -133,6 +139,7 @@ jobs:
       instance_id: '1'
       no_auto_merge: true
       allow_no_change: ${{ fromJSON(needs.preflight.outputs.allow_no_change_1) }}
+      reasoning_effort: ${{ needs.preflight.outputs.codex_1_reasoning_effort }}
     secrets: inherit
 
   codex_parallel_2:
@@ -148,6 +155,7 @@ jobs:
       instance_id: '2'
       no_auto_merge: true
       allow_no_change: ${{ fromJSON(needs.preflight.outputs.allow_no_change_2) }}
+      reasoning_effort: ${{ needs.preflight.outputs.codex_2_reasoning_effort }}
     secrets: inherit
 
   # Serial work waits for successful completion of stage 1. The second worker
@@ -165,6 +173,7 @@ jobs:
       instance_id: '1'
       no_auto_merge: false
       allow_no_change: ${{ fromJSON(needs.preflight.outputs.allow_no_change_1) }}
+      reasoning_effort: ${{ needs.preflight.outputs.codex_1_reasoning_effort }}
     secrets: inherit
 
   codex_serial_2:
@@ -180,6 +189,7 @@ jobs:
       instance_id: '2'
       no_auto_merge: false
       allow_no_change: ${{ fromJSON(needs.preflight.outputs.allow_no_change_2) }}
+      reasoning_effort: ${{ needs.preflight.outputs.codex_2_reasoning_effort }}
     secrets: inherit
 
   # Every unstarted serial step must be recorded in the Owner Issue.
