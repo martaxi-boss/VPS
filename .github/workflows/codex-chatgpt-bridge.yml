@@ -81,7 +81,7 @@ jobs:
               issue = json.load(f)
           title = issue.get('title','')
           body = issue.get('body') or ''
-          prefix = '## Pedido ao Codex (auditoria, sem alterações)\\n\\n'
+          prefix = '## Pedido ao Codex (auditoria, sem alterações)\n\n'
           task = os.environ.get('TASK','').strip()
           if (issue.get('user',{}).get('login') != 'github-actions[bot]' or
                   not title.startswith('[codex audit] Telegram ') or
