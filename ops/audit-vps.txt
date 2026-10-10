@@ -1,0 +1,1 @@
+Owner-requested current VPS hygiene baseline. Trigger only the already-reviewed, read-only VPS Residue Audit over SSH. No cleanup, package removal, service mutation or deployment in this diagnostic PR. Never merge this inert trigger into main.
