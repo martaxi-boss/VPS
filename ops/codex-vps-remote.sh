@@ -30,15 +30,15 @@ errors = [line.strip() for line in raw.splitlines()
           if re.search(r'error|failed|fatal|denied|unsupported|quota|rate limit|network|auth|panic|sandbox|not found|timed out', line, re.I)]
 def redact(line):
     line = re.sub(r'(?i)sk-[a-z0-9_-]{12,}', '[redacted]', line)
-    line = re.sub(r'(?i)bearer\\s+\\S+', '[redacted]', line)
+    line = re.sub(r'(?i)bearer\s+\S+', '[redacted]', line)
     line = re.sub(r'(?i)gh[opsru]_[a-z0-9_]{12,}', '[redacted]', line)
-    line = re.sub(r'(?i)(api[_-]?key\\s*[=:]\\s*)\\S+', r'\\1[redacted]', line)
+    line = re.sub(r'(?i)(api[_-]?key\s*[=:]\s*)\S+', r'\1[redacted]', line)
     return line[:220]
-excerpt = '\\n'.join('- ' + redact(line) for line in errors[-6:])
-message = ('Auditoria Codex falhou (codigo ' + status + ').\\n'
-           'Resumo de diagnostico sem registo completo:\\n' +
+excerpt = '\n'.join('- ' + redact(line) for line in errors[-6:])
+message = ('Auditoria Codex falhou (codigo ' + status + ').\n'
+           'Resumo de diagnostico sem registo completo:\n' +
            (excerpt or '- Sem erro textual identificado. Consultar o registo local protegido no VPS.') +
-           '\\nNao houve deploy nem alteracao dos ficheiros de producao.\\n')
+           '\nNao houve deploy nem alteracao dos ficheiros de producao.\n')
 Path(report_path).write_text(message, encoding='utf-8')
 PY
   fi
