@@ -14,7 +14,7 @@ Exemplos:
 - "Codex, audita a seguranca dos scripts VPS e relata os riscos."
 - "Composer, implementa X; depois Sonnet audita e corrige."
 - "Codex, revê Y. Se estiver sem quota, passa ao Composer."
-As duas ultimas ordens sao planos para fases futuras: ainda **nao executam** Composer/Sonnet nem correcoes Codex neste workflow.
+As duas ultimas ordens continuam exemplos de fornecedores ainda desligados: nao executam Composer/Sonnet. As ordens Codex suportadas continuam reais atraves de `[codex run]` e do encaminhador Codex validado.
 
 ## Nucleo generico do planeador
 `ops/agent_switch.py` aceita um manifesto JSON com `target_repository`, `mode`
