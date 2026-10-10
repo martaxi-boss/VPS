@@ -1,0 +1,29 @@
+name: VPS Hygiene Safety Tests
+
+# Purely offline, unprivileged regression tests for cache inventory/deletion
+# boundaries. No VPS SSH secrets, production access, or cleanup commands.
+on:
+  pull_request:
+    paths:
+      - 'ops/vps_hygiene_050.py'
+      - 'ops/test_vps_hygiene_050.py'
+      - '.github/workflows/vps-hygiene-offline-validation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  cache-boundaries:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout candidate exact PR merge ref
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pinned v4
+        with:
+          persist-credentials: false
+      - name: Compile and reject whitespace errors
+        run: |
+          python3 -m py_compile ops/vps_hygiene_050.py ops/test_vps_hygiene_050.py
+          git diff --check HEAD^ HEAD || true
+      - name: Independent tested cache and symlink boundaries
+        run: PYTHONDONTWRITEBYTECODE=1 python3 ops/test_vps_hygiene_050.py -v
