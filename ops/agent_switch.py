@@ -1,31 +1,139 @@
 #!/usr/bin/env python3
-"""Small Owner-Issue -> named executor switch. No credentials or model calls.
+"""Validate generic agent plans without starting an agent or spending tokens.
 
-The GitHub Issue is the durable instruction; this module validates its JSON
-body and derives each executor's immutable task. Publication stays in the
-existing trusted Codex GitHub Actions workflow. Other providers fail closed
-until their independent authenticated runners are integrated and tested.
+The current GitHub workflow can execute exactly one Codex task. This module
+also defines the versioned, provider-neutral dispatch contract that a future
+executor can consume once it has authenticated and tested adapters.
 """
 import base64
 import json
 import re
 import sys
+from dataclasses import dataclass
+from typing import FrozenSet, Optional
 
 ALLOWED_REPOSITORIES = {"martaxi-boss/VPS", "martaxi-boss/Project-leader"}
-AGENT_NAMES = {"codex", "gemini", "composer"}
-MODES = {"parallel"}
+MODES = {"serial", "parallel"}
+MAX_TASKS = 8
+PLAN_VERSION = 1
+TASK_FIELDS = {"id", "provider", "task", "model", "reasoning_effort"}
+REQUIRED_TASK_FIELDS = {"id", "provider", "task"}
+ID_PATTERN = re.compile(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*\Z")
 SUSPICIOUS = re.compile(
     r"(?i)(?:-----BEGIN [A-Z ]*PRIVATE KEY-----|"
     r"(?:api[_-]?key|access[_-]?token|secret|password|senha)\s*[:=]\s*\S+|"
-    r"gh[pousr]_[a-zA-Z0-9]{12,})"
+    r"gh[pousr]_[a-zA-Z0-9]{12,}|"
+    r"\$\{\{|::(?:set-output|add-mask|stop-commands)\b|<script\b)"
 )
+CONTROL_CHARACTERS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
 
 class OrderError(ValueError):
     pass
 
 
+@dataclass(frozen=True)
+class ProviderAdapter:
+    """Static capabilities of a reviewed provider adapter."""
+
+    available: bool
+    models: FrozenSet[str]
+    reasoning_efforts: FrozenSet[str]
+    unavailable_reason: str = "adapter is not authenticated, tested and authorized"
+
+
+# Registration alone never enables execution. ``available`` may only become
+# true after the corresponding authenticated executor is integrated and tested.
+PROVIDER_REGISTRY = {
+    "codex": ProviderAdapter(
+        available=True,
+        models=frozenset({"gpt-5.6-sol"}),
+        reasoning_efforts=frozenset({"medium"}),
+    ),
+    "gemini": ProviderAdapter(False, frozenset(), frozenset()),
+    "composer": ProviderAdapter(False, frozenset(), frozenset()),
+    "claude": ProviderAdapter(False, frozenset(), frozenset()),
+}
+
+
+def _safe_text(value: object, label: str, minimum: int, maximum: int) -> str:
+    if type(value) is not str or not minimum <= len(value) <= maximum:
+        raise OrderError(f"Invalid {label} length")
+    if CONTROL_CHARACTERS.search(value) or SUSPICIOUS.search(value):
+        raise OrderError(f"Unsafe content in {label}; do not include secrets or control syntax")
+    return value
+
+
+def _validate_optional_choice(
+    source: dict, target: dict, field: str, allowed: FrozenSet[str], task_id: str
+) -> None:
+    if field not in source:
+        return
+    value = source[field]
+    if type(value) is not str or value not in allowed:
+        raise OrderError(f"Unauthorized {field} for task {task_id}")
+    target[field] = value
+
+
+def _normalise_tasks(tasks: object) -> list:
+    # Legacy form: {"codex": "task"}. Preserve insertion order and give each
+    # task a stable identity. The form cannot express repeated providers.
+    if isinstance(tasks, dict):
+        if not tasks:
+            raise OrderError("At least one task is required")
+        converted = []
+        for provider, task in tasks.items():
+            if type(provider) is not str:
+                raise OrderError("Legacy task provider names must be strings")
+            converted.append({"id": provider, "provider": provider, "task": task})
+        tasks = converted
+
+    if not isinstance(tasks, list) or not 1 <= len(tasks) <= MAX_TASKS:
+        raise OrderError(f"Tasks must be an ordered list of 1-{MAX_TASKS} objects")
+
+    normalised = []
+    seen_ids = set()
+    for position, task in enumerate(tasks, start=1):
+        if not isinstance(task, dict):
+            raise OrderError(f"Task {position} must be an object")
+        fields = set(task)
+        if not REQUIRED_TASK_FIELDS.issubset(fields) or not fields.issubset(TASK_FIELDS):
+            raise OrderError(
+                f"Task {position} requires id, provider and task; optional fields are "
+                "model and reasoning_effort"
+            )
+
+        task_id = task["id"]
+        if type(task_id) is not str or not 1 <= len(task_id) <= 64 or not ID_PATTERN.fullmatch(task_id):
+            raise OrderError(f"Invalid task id at position {position}")
+        if task_id in seen_ids:
+            raise OrderError(f"Duplicate task id: {task_id}")
+        seen_ids.add(task_id)
+
+        provider = task["provider"]
+        if type(provider) is not str or provider not in PROVIDER_REGISTRY:
+            raise OrderError(f"Unknown provider for task {task_id}")
+        adapter = PROVIDER_REGISTRY[provider]
+        if not adapter.available:
+            raise OrderError(
+                f"Provider {provider} is unavailable: {adapter.unavailable_reason}. No agent started"
+            )
+
+        clean = {
+            "id": task_id,
+            "provider": provider,
+            "task": _safe_text(task["task"], f"task {task_id}", 12, 2200),
+        }
+        _validate_optional_choice(task, clean, "model", adapter.models, task_id)
+        _validate_optional_choice(
+            task, clean, "reasoning_effort", adapter.reasoning_efforts, task_id
+        )
+        normalised.append(clean)
+    return normalised
+
+
 def parse_order(raw: str) -> dict:
+    """Parse and validate an order, returning the canonical ordered form."""
     if not isinstance(raw, str) or not 10 <= len(raw.encode("utf-8")) <= 6800:
         raise OrderError("Order must be 10-6800 bytes")
     try:
@@ -37,39 +145,75 @@ def parse_order(raw: str) -> dict:
     target = order["target_repository"]
     if type(target) is not str or target not in ALLOWED_REPOSITORIES:
         raise OrderError("Target repository is not yet authorized")
-    if not isinstance(order["mode"], str) or order["mode"] not in MODES:
-        raise OrderError("Only parallel independent tasks are supported")
+    mode = order["mode"]
+    if type(mode) is not str or mode not in MODES:
+        raise OrderError("Mode must be serial or parallel")
+    return {
+        "target_repository": target,
+        "mode": mode,
+        "tasks": _normalise_tasks(order["tasks"]),
+    }
+
+
+def dispatch_plan(order: dict) -> dict:
+    """Build the provider-neutral plan; this function performs no execution."""
+    tasks = []
+    previous_id: Optional[str] = None
+    for task in order["tasks"]:
+        item = dict(task)
+        item["depends_on"] = [previous_id] if order["mode"] == "serial" and previous_id else []
+        tasks.append(item)
+        previous_id = task["id"]
+    return {
+        "version": PLAN_VERSION,
+        "target_repository": order["target_repository"],
+        "mode": order["mode"],
+        "execution_policy": {
+            "explicit_tasks_only": True,
+            "allow_provider_substitution": False,
+            "parallel_tasks_declared_independent": order["mode"] == "parallel",
+        },
+        "tasks": tasks,
+    }
+
+
+def dispatch_plan_b64(order: dict) -> str:
+    """Encode a validated plan as one injection-safe output value."""
+    plan_json = json.dumps(dispatch_plan(order), separators=(",", ":"), sort_keys=True)
+    return base64.b64encode(plan_json.encode("utf-8")).decode("ascii")
+
+
+def _workflow_task(order: dict) -> dict:
     tasks = order["tasks"]
-    if not isinstance(tasks, dict) or not tasks or not set(tasks).issubset(AGENT_NAMES):
-        raise OrderError("Tasks must name codex, gemini and/or composer")
-    for agent, task in tasks.items():
-        if not isinstance(task, str) or not 12 <= len(task) <= 2200:
-            raise OrderError(f"Invalid {agent} task length")
-        if "\x00" in task or SUSPICIOUS.search(task):
-            raise OrderError("Do not put credentials into public GitHub Issues")
-    return order
+    if len(tasks) != 1 or tasks[0]["provider"] != "codex":
+        raise OrderError(
+            "Current workflow can execute exactly one Codex task; the complete multi-agent "
+            "dispatch backend must be integrated before this plan can run. No agent started"
+        )
+    return tasks[0]
 
 
 def codex_task(order: dict) -> str:
-    if "codex" not in order["tasks"]:
-        raise OrderError("No Codex task selected")
+    task = _workflow_task(order)
     return (
         f"TARGET_REPOSITORY={order['target_repository']}\n"
-        "Parallel independent agent job; work in your own branch and do not "
-        "depend on unfinished sibling tasks. Do not merge another agent's changes.\n"
-        + order["tasks"]["codex"]
+        "Single explicit Codex job; do not create or substitute another agent.\n"
+        + task["task"]
     )
 
 
 def output_values(order: dict) -> dict:
-    # One straight b64 output line avoids GitHub Actions multiline-output injection.
-    result = {name: "true" if name in order["tasks"] else "false"
-              for name in sorted(AGENT_NAMES)}
-    result["codex_task_b64"] = (
-        base64.b64encode(codex_task(order).encode("utf-8")).decode("ascii")
-        if "codex" in order["tasks"] else ""
-    )
-    return result
+    """Return safe Actions outputs for the existing one-Codex workflow only."""
+    _workflow_task(order)  # Fail closed before returning any partial dispatch.
+    return {
+        # Keep the legacy outputs consumed by agent-switch.yml.
+        "codex": "true",
+        "gemini": "false",
+        "composer": "false",
+        "codex_task_b64": base64.b64encode(codex_task(order).encode("utf-8")).decode("ascii"),
+        # Future executors can decode this after the workflow is explicitly upgraded.
+        "dispatch_plan_b64": dispatch_plan_b64(order),
+    }
 
 
 def main() -> int:
@@ -80,9 +224,8 @@ def main() -> int:
     except OrderError as exc:
         print(f"AGENT_SWITCH_BLOCKED: {exc}", file=sys.stderr)
         return 2
-    # Do not claim that named agents have functional connections.
-    for k, v in output.items():
-        print(k + "=" + v)
+    for key, value in output.items():
+        print(key + "=" + value)
     return 0
 
 
