@@ -10,6 +10,7 @@ on:
   pull_request:
     paths:
       - 'ops/telegram_gateway.py'
+      - 'ops/telegram_voice_transcribe.py'
       - 'ops/tests/test_telegram_gateway.py'
       - '.github/workflows/telegram-codex-gateway.yml'
 
@@ -37,6 +38,53 @@ jobs:
         run: |
           python3 -m py_compile ops/telegram_gateway.py ops/telegram_voice_transcribe.py
           python3 -m unittest discover -s ops/tests -p 'test_telegram_gateway.py' -v
+
+
+  voice-smoke:
+    name: Real offline Portuguese voice ASR smoke test
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Prepare synthetic Portuguese OGG voice (no personal audio or secrets)
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq espeak-ng ffmpeg > /dev/null
+          espeak-ng -v pt -s 135 -w "$RUNNER_TEMP/voice-sample.wav" \
+            "Codex faz uma auditoria ao estado da VPS"
+          ffmpeg -nostdin -hide_banner -loglevel error \
+            -i "$RUNNER_TEMP/voice-sample.wav" -c:a libopus \
+            "$RUNNER_TEMP/voice-sample.ogg"
+          test -s "$RUNNER_TEMP/voice-sample.ogg"
+      - name: Install exact local ASR engine and transcribe synthetic OGG
+        shell: bash
+        run: |
+          set -euo pipefail
+          export HF_HOME="$RUNNER_TEMP/voice-model-cache"
+          export HF_HUB_DISABLE_TELEMETRY=1
+          python3 -m venv "$RUNNER_TEMP/voice-smoke-venv"
+          "$RUNNER_TEMP/voice-smoke-venv/bin/python" -m pip install \
+            --only-binary=:all: --quiet faster-whisper==1.2.1
+          "$RUNNER_TEMP/voice-smoke-venv/bin/python" \
+            ops/telegram_voice_transcribe.py \
+            "$RUNNER_TEMP/voice-sample.ogg" > "$RUNNER_TEMP/voice-output.txt"
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          path = Path(os.environ["RUNNER_TEMP"]) / "voice-output.txt"
+          value = path.read_text(encoding="utf-8").strip()
+          if len(value) < 8 or len(value) > 3800:
+              raise SystemExit("VOICE_SMOKE=FAIL: no bounded transcript")
+          print("VOICE_SMOKE=PASS")
+          PY
+
 
   telegram:
     if: github.event_name != 'pull_request'
