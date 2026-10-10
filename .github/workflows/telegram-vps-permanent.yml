@@ -1,0 +1,27 @@
+name: Telegram VPS permanent service validation
+
+on:
+  pull_request:
+    paths:
+      - 'ops/telegram_vps_service.py'
+      - 'ops/project-leader-telegram.service'
+      - 'ops/install_telegram_vps_service.sh'
+      - 'ops/tests/test_telegram_vps_service.py'
+      - '.github/workflows/telegram-vps-permanent.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Offline safety and syntax tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: |
+          set -euo pipefail
+          python3 -m py_compile ops/telegram_vps_service.py ops/telegram_gateway.py
+          python3 -m unittest discover -s ops/tests -p 'test_telegram_vps_service.py' -v
+          bash -n ops/install_telegram_vps_service.sh
