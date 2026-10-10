@@ -47,6 +47,7 @@ IFS= read -r header < "$base/codex-task.txt" || :
 case "$header" in
   TARGET_REPOSITORY=martaxi-boss/VPS) slug='martaxi-boss/VPS' ;;
   TARGET_REPOSITORY=martaxi-boss/Project-leader) slug='martaxi-boss/Project-leader' ;;
+  TARGET_REPOSITORY=martaxi-boss/pink-iptv) slug='martaxi-boss/pink-iptv' ;;
   *) echo 'Unsupported target; fail closed' >&2; exit 4 ;;
 esac
 

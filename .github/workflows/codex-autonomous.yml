@@ -89,7 +89,8 @@ jobs:
           if not 1 <= len(task) <= 7000 or not lines:
               raise SystemExit('Task length must be 1-7000 characters')
           allowed = ('TARGET_REPOSITORY=martaxi-boss/Project-leader',
-                     'TARGET_REPOSITORY=martaxi-boss/VPS')
+                     'TARGET_REPOSITORY=martaxi-boss/VPS',
+                     'TARGET_REPOSITORY=martaxi-boss/pink-iptv')
           if lines[0] not in allowed:
               raise SystemExit('First line must be an allowlisted TARGET_REPOSITORY')
           if not os.environ.get('CODEX_GITHUB_TOKEN'):

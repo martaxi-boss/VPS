@@ -97,6 +97,20 @@ class AgentSwitchTests(unittest.TestCase):
         }])
         self.assertEqual(router.output_values(order)["codex"], "true")
 
+    def test_owner_can_route_two_independent_codex_to_pink_without_auto_merge(self):
+        manifest = self.order(
+            [self.task("codex-pink-1"), self.task("codex-pink-2")],
+            target="martaxi-boss/pink-iptv", mode="parallel")
+        order = router.parse_order(manifest)
+        outputs = router.workflow_values(order)
+        self.assertEqual(outputs["task_count"], "2")
+        self.assertEqual(outputs["mode"], "parallel")
+        self.assertNotEqual(outputs["codex_1_task_b64"], outputs["codex_2_task_b64"])
+        for index in (1, 2):
+            task = base64.b64decode(outputs[f"codex_{index}_task_b64"]).decode()
+            self.assertEqual(task.splitlines()[0], "TARGET_REPOSITORY=martaxi-boss/pink-iptv")
+        self.assertTrue(router.dispatch_plan(order)["execution_policy"]["parallel_tasks_declared_independent"])
+
     def test_validated_model_and_reasoning_effort(self):
         task = self.task("codex-1", model="gpt-5.6-sol", reasoning_effort="medium")
         parsed = router.parse_order(self.order([task]))
@@ -143,7 +157,7 @@ class AgentSwitchTests(unittest.TestCase):
 
     def test_malformed_and_malicious_inputs_fail_closed(self):
         bad_orders = (
-            self.order(target="martaxi-boss/pink-iptv"),
+            self.order(target="martaxi-boss/untrusted"),
             self.order(mode="sequential"),
             self.order([self.task("cloud-1", "cloud")]),
             self.order([self.task("codex-1"), self.task("codex-1")]),

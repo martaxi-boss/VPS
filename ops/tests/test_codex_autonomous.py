@@ -76,6 +76,27 @@ class CheckGateTests(unittest.TestCase):
         self.assertIn('test gate', publisher.premerge_policy_gate(
             'martaxi-boss/VPS', ['ops/telegram_gateway.py']))
 
+    def test_pink_target_requires_independent_validation_and_never_auto_merges(self):
+        repo = "martaxi-boss/pink-iptv"
+        self.assertIn(repo, publisher.ALLOWED)
+        self.assertEqual(publisher.ALLOWED[repo], set())
+        state, reason = publisher.classify_runs([], publisher.ALLOWED[repo], SHA, BRANCH)
+        self.assertEqual(state, "BLOCKED")
+        self.assertIn("independent", reason.lower())
+        policy = publisher.premerge_policy_gate(repo, ["backend/app/vpn.py"])
+        self.assertIn("NEVER auto-merge", policy)
+        self.assertIn("PINK IPTV", policy)
+        result = publisher.staged_pr_result(
+            repo, "https://github.com/martaxi-boss/pink-iptv/pull/200",
+            SHA, policy, state, reason)
+        self.assertEqual(result["status"], "PR_NEEDS_ATTENTION")
+        self.assertNotIn("merge_sha", result)
+        self.assertIn("independent", result["reason"].lower())
+        # Even documentation-only PINK changes cannot use the VPS docs
+        # shortcut that permits unattended main merges.
+        self.assertIn("NEVER auto-merge", publisher.premerge_policy_gate(
+            repo, ["README.md"]))
+
     def test_vps_docs_may_progress_to_ci(self):
         self.assertIsNone(publisher.premerge_policy_gate(
             'martaxi-boss/VPS', ['README.md']))
