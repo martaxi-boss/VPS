@@ -16,7 +16,7 @@ report="$base/report.md"
 prompt="$base/prompt.md"
 codex="$HOME/codex-agent/node_modules/.bin/codex"
 # Standard tier for ChatGPT Business: explicit model, no automatic expensive fallback.
-codex_model="gpt-5.6-terra"
+codex_model="gpt-5.6-sol"
 
 finish() {
   local status=$?
