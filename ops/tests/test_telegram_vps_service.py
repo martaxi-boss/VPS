@@ -97,6 +97,42 @@ class TelegramVPSServiceTests(unittest.TestCase):
             self.assertFalse((Path(path) / 'done' / '8.json').exists())
             bridge.lock.close()
 
+    def test_named_multiagent_handoff_fails_closed(self):
+        request = ('Oh Codex executa o projeto e quando acabares os tokens '
+                   'passa para o Composer acabar')
+        for voice in (False, True):
+            kind, reply = service.classify(request, voice=voice,
+                                           active_agent='Codex')
+            self.assertEqual(kind, 'blocked')
+            self.assertIn('Composer', reply)
+        self.assertEqual(service.classify('Boa tarde Composer'),
+                         ('presence', 'Composer'))
+        self.assertEqual(service.classify('Oh Codex'), ('presence', 'Codex'))
+        self.assertEqual(service.classify('Composer, continua o projeto',
+                                          active_agent='Codex')[0], 'blocked')
+        self.assertEqual(service.classify('/agentes')[0], 'agents')
+
+    def test_composer_selected_not_alternative_codex(self):
+        with tempfile.TemporaryDirectory() as path, patch.object(service.gate, 'CHAT_ID', '123456'):
+            bridge = service.Listener(Path(path))
+            def update(uid, text):
+                return {'update_id': uid,
+                        'message': {'chat': {'id': 123456, 'type': 'private'},
+                                    'from': {'id': 123456, 'is_bot': False},
+                                    'text': text}}
+            with patch.object(service, 'safe_send', return_value=True), \
+                 patch.object(service, 'run_audit') as run:
+                bridge.receive(update(20, 'Boa tarde Composer'))
+                self.assertEqual(bridge.current_agent(), 'Composer')
+                bridge.receive(update(21, 'Executa o projeto'))
+                self.assertEqual(bridge.status('21'), 'rejected')
+                bridge.receive(update(22, 'Oh Codex'))
+                self.assertEqual(bridge.current_agent(), 'Codex')
+                bridge.receive(update(23, '/agentes'))
+                self.assertEqual(bridge.status('23'), 'agents')
+                run.assert_not_called()
+            bridge.lock.close()
+
     def test_update_persisted_only_once(self):
         with tempfile.TemporaryDirectory() as path, patch.object(service.gate, 'CHAT_ID', '123456'):
             bridge = service.Listener(Path(path))

@@ -358,10 +358,12 @@ _AGENT_LABELS = {
     "gemini": "Gemini",
     "geminai": "Gemini",
     "cursor": "Cursor",
+    "composer": "Composer",
+    "sonnet": "Sonnet",
     "claude": "Claude",
 }
-_AGENT_PATTERN = r"(?:project[\s-]+(?:leader|lider|líder)|codex|gemini|geminai|cursor|claude)"
-_GREETING_PATTERN = r"(?:ol[aá]|oi|al[oô]|bom dia|boa tarde|boa noite)"
+_AGENT_PATTERN = r"(?:project[\s-]+(?:leader|lider|líder)|codex|gemini|geminai|cursor|composer|sonnet|claude)"
+_GREETING_PATTERN = r"(?:ol[aá]|oi|al[oô]|oh|[óô]|ei|bom dia|boa tarde|boa noite)"
 
 
 def _fold_agent_text(text):
@@ -392,7 +394,7 @@ def parse_agent_address(text):
     plain = _fold_agent_text(value)
     match = re.fullmatch(
         r"(?:estas ai|estas por ai|ta ai|tas ai)\s+"
-        r"(?P<agent>codex|project leader|project lider|gemini|geminai|cursor|claude)",
+        r"(?P<agent>codex|project leader|project lider|gemini|geminai|cursor|composer|sonnet|claude)",
         plain,
     )
     if match:
@@ -403,9 +405,9 @@ def parse_agent_address(text):
 def is_presence_message(text):
     """Social greetings and presence checks never start paid Codex work."""
     plain = _fold_agent_text(text)
-    agents = r"(?:codex|project leader|project lider|gemini|geminai|cursor|claude)"
+    agents = r"(?:codex|project leader|project lider|gemini|geminai|cursor|composer|sonnet|claude)"
     greetings = (
-        r"(?:estas ai|estas por ai|ta ai|tas ai|ola|oi|alo|"
+        r"(?:estas ai|estas por ai|ta ai|tas ai|ola|oi|alo|oh|o|ei|"
         r"bom dia|boa tarde|boa noite)"
     )
     return bool(re.fullmatch(
@@ -434,6 +436,75 @@ def agent_presence_reply(agent):
             "O Codex está disponível apenas para auditorias de leitura."
         )
     return agent_unavailable_reply(agent)
+
+
+
+_OTHER_EXECUTORS = r"(?:composer|sonnet|gemini|geminai|cursor|claude)"
+
+
+def requests_agent_handoff(text):
+    """Recognize a planned provider transition, not a plain Codex audit."""
+    plain = _fold_agent_text(text)
+    if not re.search(rf"\b{_OTHER_EXECUTORS}\b", plain):
+        return False
+    transferring = re.search(
+        r"\b(?:passa|passar|passes|transfere|transferir|encaminha|"
+        r"entrega|entregar)\b", plain
+    )
+    quota = re.search(r"\b(?:tokens?|quota|limite|esgotar|esgotarem)\b", plain)
+    continuation = re.search(
+        r"\b(?:continua|continuar|termina|terminar|conclui|concluir|"
+        r"acaba|acabar)\b", plain
+    )
+    return bool(transferring or (quota and continuation))
+
+
+def requests_implementation(text):
+    """A Telegram audit-only bridge cannot silently become a build executor."""
+    plain = _fold_agent_text(text)
+    return bool(re.search(
+        r"\b(?:executa|executar|implementa|implementar|desenvolve|"
+        r"desenvolver|constroi|construir|programa|programar|"
+        r"modifica|modificar|corrige|corrigir|instala|instalar|"
+        r"edita|editar|deploy|reinicia|reiniciar|apaga|apagar|"
+        r"remove|remover)\b", plain
+    ) or re.search(
+        r"\b(?:termina|terminar|acaba|acabar|finaliza|finalizar|"
+        r"conclui|concluir)\s+(?:o|este|esse|meu)?\s*"
+        r"(?:projeto|projecto|codigo|programa|aplicacao)\b", plain
+    ))
+
+
+def agent_capability_reply():
+    return (
+        "🧭 Project Leader: identifica agentes e encaminha mensagens. "
+        "A rapidez depende de um leitor Telegram sempre ligado.\n"
+        "🤖 Codex: auditorias de leitura via ponte GitHub; "
+        "conversa livre e implementação por Telegram ainda não comprovadas.\n"
+        "🟠 Composer (Cursor): executor não ligado.\n"
+        "🟠 Gemini, Sonnet, Claude e Cursor: sem ligação de execução neste bot.\n"
+        "O nome do agente não constitui ligação nem autorização."
+    )
+
+
+def unsupported_handoff_reply():
+    return (
+        "🧭 Project Leader: percebi que queres executar um projeto com o Codex "
+        "e continuar noutro agente, por exemplo o Composer quando acabar a quota. "
+        "A ligação Composer e a transferência automática ainda não existem. "
+        "Este Telegram só ativa auditorias de leitura do Codex. "
+        "Não iniciei o projeto nem consumi quota Codex. "
+        "Para passar trabalho é preciso um checkpoint verificável e "
+        "um sinal real de esgotamento, não uma quota imaginada."
+    )
+
+
+def unsupported_implementation_reply():
+    return (
+        "🧭 Project Leader: reconheci que pediste para executar ou modificar "
+        "um projeto. O Telegram continua limitado a auditorias de leitura, "
+        "pelo que não iniciei implementação nem alterações."
+    )
 
 
 def is_voice_audit_request(task):
@@ -497,6 +568,21 @@ def handle_update(update):
     addressed_agent, addressed_task = parse_agent_address(text)
     if is_presence_message(text):
         say(agent_presence_reply(addressed_agent))
+        return
+    if re.fullmatch(r"/(?:agentes|agents)(?:@\w+)?", text, re.I):
+        say(agent_capability_reply())
+        return
+    if requests_agent_handoff(text):
+        say(unsupported_handoff_reply())
+        return
+    if requests_implementation(text):
+        if voice is not None and re.search(
+                r"\b(corrige|corrigir|altera|alterar|apaga|apagar|remove|remover|"
+                r"reinicia|reiniciar|instala|instalar|deploy)\b", text, re.I):
+            say("Por segurança, correções e mudanças na VPS ainda não estão ativas por voz. "
+                "Pede apenas uma auditoria ou uma análise.")
+        else:
+            say(unsupported_implementation_reply())
         return
     if addressed_agent and addressed_agent != "Codex":
         say(agent_unavailable_reply(addressed_agent))

@@ -47,10 +47,16 @@ def classify(text, voice=False, image=False, active_agent=None):
         return 'presence', addressee or active_agent
     if re.fullmatch(r'/(?:start|help)(?:@\w+)?', text, re.I):
         return 'help', ''
+    if re.fullmatch(r'/(?:agentes|agents)(?:@\w+)?', text, re.I):
+        return 'agents', ''
     if re.fullmatch(r'/status(?:@\w+)?\s+#?(\d+)', text, re.I):
         return 'status', re.search(r'\d+$', text).group()
     if re.match(r'^/(?:fix|cursor|sonnet|composer)(?:\b|@)', text, re.I):
         return 'blocked', 'Os modos de correção e outros agentes não estão ativados.'
+    if gate.requests_agent_handoff(text):
+        return 'blocked', gate.unsupported_handoff_reply()
+    if gate.requests_implementation(text):
+        return 'blocked', gate.unsupported_implementation_reply()
     if addressee and addressee != 'Codex':
         return 'blocked', gate.agent_unavailable_reply(addressee)
     if active_agent and active_agent != 'Codex' and not addressee:
@@ -183,13 +189,13 @@ class Listener:
         try:
             info = json.loads(self.session_file.read_text(encoding='utf-8'))
             agent = info.get('agent')
-            return agent if agent in ('Codex', 'Gemini', 'Project Leader', 'Cursor', 'Claude') else None
+            return agent if agent in ('Codex', 'Composer', 'Sonnet', 'Gemini', 'Project Leader', 'Cursor', 'Claude') else None
         except (OSError, ValueError, TypeError):
             return None
 
     def remember_agent(self, agent, update_id):
         """Persist an explicit selection, never let an older voice queue override it."""
-        if agent not in ('Codex', 'Gemini', 'Project Leader', 'Cursor', 'Claude'):
+        if agent not in ('Codex', 'Composer', 'Sonnet', 'Gemini', 'Project Leader', 'Cursor', 'Claude'):
             return
         try:
             info = json.loads(self.session_file.read_text(encoding='utf-8'))
@@ -224,6 +230,11 @@ class Listener:
                 safe_send('🎙️ Envia um áudio, por exemplo: «Verifica o estado da VPS».\n'
                           'Só estão disponíveis auditorias de leitura. /status <número> consulta um pedido local.')
                 atomic_write(done, {'state': 'help'})
+                return
+            if kind == 'agents':
+                if not safe_send(gate.agent_capability_reply()):
+                    raise RuntimeError('Reply delivery failed')
+                atomic_write(done, {'state': 'agents'})
                 return
             if kind == 'status':
                 found = self.status(detail)
