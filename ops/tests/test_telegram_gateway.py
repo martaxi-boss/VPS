@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Offline safety tests for the Telegram gateway (no bot or GitHub tokens)."""
 import importlib.util
+import hashlib
+import io
 import os
 import tempfile
 import unittest
@@ -125,6 +127,78 @@ class TelegramGatewayTests(unittest.TestCase):
                 gateway.notify()
                 self.assertIn("ficheiro", send.call_args[0][0])
                 self.assertEqual(tg.call_args.kwargs["document"][1], b"X" * 4200)
+
+
+    def test_photo_attachment_with_or_without_caption(self):
+        with (patch.object(gateway, "CHAT_ID", "123456"),
+              patch.object(gateway, "create_audit", return_value=54) as create,
+              patch.object(gateway, "say") as send):
+            message = {
+                "update_id": 333,
+                "message": {
+                    "chat": {"type": "private", "id": 123456},
+                    "from": {"id": 123456, "is_bot": False},
+                    "photo": [
+                        {"file_id": "AgACAgQAAAAAAAABBBBB", "file_size": 15424},
+                    ],
+                },
+            }
+            gateway.handle_update(message)
+            create.assert_called_once()
+            self.assertIn("Analisa a captura", create.call_args.args[1])
+            self.assertEqual(create.call_args.kwargs["image"]["ext"], "jpg")
+            self.assertIn("Imagem enviada", send.call_args.args[0])
+
+    def test_image_document_rejects_nonimage_and_excessive_size(self):
+        allowed = {
+            "document": {"file_id": "AgACAgQAAAAAAAABBBBB", "mime_type": "image/png",
+                         "file_size": 123}
+        }
+        self.assertEqual(gateway.select_image(allowed)["ext"], "png")
+        self.assertIsNone(gateway.select_image({
+            "document": {"file_id": "AgACAgQAAAAAAAABBBBB",
+                         "mime_type": "application/pdf"}
+        }))
+        with self.assertRaises(RuntimeError):
+            gateway.select_image({
+                "photo": [{"file_id": "AgACAgQAAAAAAAABBBBB",
+                           "file_size": 12 * 1024 * 1024}]
+            })
+
+    def test_photo_task_stores_hash_not_file_id_in_public_issue(self):
+        image = {"file_id": "AgACAgQAAAAAAAABBBBB", "ext": "jpg"}
+        hashed = hashlib.sha256(image["file_id"].encode("ascii")).hexdigest()
+        with (patch.object(gateway, "existing_issue", return_value=None),
+              patch.object(gateway, "has_dispatch_marker", return_value=False),
+              patch.object(gateway, "github") as gh):
+            gh.side_effect = [{"number": 888}, {}, {}]
+            self.assertEqual(gateway.create_audit(
+                666, "Ler o erro nesta imagem", image=image), 888)
+            issue_body = gh.call_args_list[0].args[2]["body"]
+            self.assertNotIn(image["file_id"], issue_body)
+            self.assertIn(hashed, issue_body)
+            payload = gh.call_args_list[1].args[2]["inputs"]
+            self.assertEqual(payload["image_file_id"], image["file_id"])
+            self.assertEqual(payload["image_ext"], "jpg")
+
+    def test_download_private_png_from_telegram_to_ephemeral_path(self):
+        png = b"\x89PNG\r\n\x1a\n" + b"temporary-private-image"
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "codex-input.png"
+            env = {
+                "CODEX_IMAGE_FILE_ID": "AgACAgQAAAAAAAABBBBB",
+                "CODEX_IMAGE_EXT": "png",
+                "CODEX_IMAGE_OUTPUT": str(path),
+            }
+            with (patch.dict(os.environ, env),
+                  patch.object(gateway, "BOT_TOKEN", "example-bot-token"),
+                  patch.object(gateway, "telegram",
+                               return_value={"file_path": "photos/photo.png",
+                                             "file_size": len(png)}),
+                  patch.object(gateway, "urlopen", return_value=io.BytesIO(png))):
+                gateway.download_image()
+            self.assertEqual(path.read_bytes(), png)
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
 
 
 if __name__ == "__main__":

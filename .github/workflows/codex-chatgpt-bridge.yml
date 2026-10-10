@@ -28,6 +28,16 @@ on:
         required: false
         default: ''
         type: string
+      image_file_id:
+        description: Telegram image reference for a private authorized screenshot
+        required: false
+        default: ''
+        type: string
+      image_ext:
+        description: Image file type jpg, png, or webp
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
@@ -64,13 +74,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ inputs.issue_number }}
           TASK: ${{ inputs.task }}
+          TELEGRAM_IMAGE_ID: ${{ inputs.image_file_id }}
+          TELEGRAM_IMAGE_EXT: ${{ inputs.image_ext }}
           REPO: ${{ github.repository }}
         shell: bash
         run: |
           set -euo pipefail
           [[ "$ISSUE_NUMBER" =~ ^[0-9]+$ ]] || exit 1
           python3 - <<'PY'
-          import json, os, urllib.request
+          import hashlib, json, os, re, urllib.request
           issue_no = os.environ['ISSUE_NUMBER']
           repo = os.environ['REPO']
           req = urllib.request.Request(
@@ -89,6 +101,19 @@ jobs:
                   prefix not in body or
                   body.split(prefix,1)[1].strip() != task):
               raise SystemExit('Telegram request failed authorization checks')
+          image_id = os.environ.get('TELEGRAM_IMAGE_ID', '')
+          image_ext = os.environ.get('TELEGRAM_IMAGE_EXT', '')
+          if image_id:
+              if (not re.fullmatch(r'[A-Za-z0-9_-]{8,256}', image_id) or
+                      image_ext not in ('jpg', 'png', 'webp')):
+                  raise SystemExit('Invalid image metadata')
+              hashed = hashlib.sha256(image_id.encode('ascii')).hexdigest()
+              expected = ('<!-- telegram-image-sha256:' + hashed +
+                          ':' + image_ext + ' -->')
+              if expected not in body:
+                  raise SystemExit('Telegram image does not match authorized issue')
+          elif image_ext or '<!-- telegram-image-sha256:' in body:
+              raise SystemExit('Telegram image metadata mismatch')
           PY
 
       - name: Prepare task as a data file, not a shell command
@@ -109,6 +134,20 @@ jobs:
               task.strip() + '\n', encoding='utf-8')
           PY
 
+      - name: Privately download Telegram screenshot to temporary runner
+        if: github.event_name == 'workflow_dispatch' && inputs.source == 'telegram' && inputs.image_file_id != ''
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CODEX_IMAGE_FILE_ID: ${{ inputs.image_file_id }}
+          CODEX_IMAGE_EXT: ${{ inputs.image_ext }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ext="$CODEX_IMAGE_EXT"
+          case "$ext" in jpg|png|webp) ;; *) echo "Unsupported image extension"; exit 1;; esac
+          export CODEX_IMAGE_OUTPUT="$RUNNER_TEMP/codex-input.$ext"
+          python3 ops/telegram_gateway.py download
+
       - name: Check existing VPS credential and install sshpass
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
@@ -122,6 +161,7 @@ jobs:
       - name: Stage private work directory on VPS
         id: stage
         env:
+          CODEX_IMAGE_EXT: ${{ inputs.image_ext }}
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         shell: bash
         run: |
@@ -133,6 +173,14 @@ jobs:
             "$remote" "install -d -m 700 '$dest'"
           sshpass -e scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
             "$RUNNER_TEMP/codex-task.txt" ops/codex-vps-remote.sh "$remote:$dest/"
+          ext="$CODEX_IMAGE_EXT"
+          if [ -n "$ext" ]; then
+            case "$ext" in jpg|png|webp) ;; *) exit 1;; esac
+            test -s "$RUNNER_TEMP/codex-input.$ext"
+            # Only temporary runner -> private VPS job dir. Never upload to GitHub.
+            sshpass -e scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+              "$RUNNER_TEMP/codex-input.$ext" "$remote:$dest/"
+          fi
 
       - name: Run signed-in Codex CLI on disposable repository clone
         id: execute
@@ -161,7 +209,7 @@ jobs:
             "$RUNNER_TEMP/codex-report.md"
 
       - name: Upload report
-        if: always()
+        if: always() && inputs.image_file_id == ''
         uses: actions/upload-artifact@v4
         with:
           name: codex-vps-audit-${{ github.run_id }}
@@ -177,6 +225,7 @@ jobs:
           ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           JOB_STATUS: ${{ job.status }}
+          HAS_PRIVATE_IMAGE: ${{ inputs.image_file_id != '' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -186,6 +235,10 @@ jobs:
           p = Path(os.environ['RUNNER_TEMP']) / 'codex-report.md'
           report = (p.read_text(encoding='utf-8', errors='replace') if p.exists()
                     else 'No report was generated. Check the workflow log.')
+          if os.environ.get('HAS_PRIVATE_IMAGE') == 'true':
+              report = ('Auditoria com captura de ecrã privada. O relatório completo '
+                        'não é publicado neste GitHub público; consulta o Telegram. '
+                        'Se não chegar, verifica a etapa de envio da execução.')
           msg = (f"**Codex VPS: {os.environ['JOB_STATUS']}**\n\n" + report[:18000] +
                  f"\n\n[Details]({os.environ['RUN_URL']})\n")
           (p.parent / 'issue-comment.md').write_text(msg, encoding='utf-8')
@@ -203,6 +256,19 @@ jobs:
           CODEX_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           CODEX_REPORT_PATH: ${{ runner.temp }}/codex-report.md
         run: python3 ops/telegram_gateway.py notify
+
+      - name: Purge private screenshot from VPS regardless of outcome
+        if: always() && inputs.image_file_id != ''
+        continue-on-error: true
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+            ubuntu@146.59.145.3 \
+            "rm -f -- /home/ubuntu/codex-bridge/jobs/$job/codex-input.jpg /home/ubuntu/codex-bridge/jobs/$job/codex-input.png /home/ubuntu/codex-bridge/jobs/$job/codex-input.webp"
 
       - name: Clean completed temporary VPS directory
         if: always() && steps.execute.outcome == 'success' && steps.collect.outcome == 'success'

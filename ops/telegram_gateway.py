@@ -5,6 +5,7 @@ No Telegram credential is ever checked into GitHub, copied to the VPS,
 or included in a ChatGPT message. Only a configured private chat can
 issue audit tasks. Nothing in this bridge executes user text as shell.
 """
+import hashlib
 import json
 import os
 import re
@@ -19,6 +20,81 @@ REPO = os.environ.get("GITHUB_REPOSITORY", "martaxi-boss/VPS")
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 GH_TOKEN = os.environ.get("GH_TOKEN", "").strip()
+
+MAX_IMAGE_BYTES = 10 * 1024 * 1024
+DEFAULT_IMAGE_TASK = (
+    "Analisa a captura de ecra anexa e identifica os erros ou problemas "
+    "visiveis, com diagnostico e passos recomendados. Nao alteres ficheiros."
+)
+
+
+def select_image(message):
+    """Select exactly one supported Telegram photo or image document."""
+    images = message.get("photo") or []
+    if images:
+        entry = images[-1]  # Telegram photo sizes are ascending.
+        ext = "jpg"
+    elif message.get("document"):
+        entry = message["document"]
+        mime = entry.get("mime_type", "").lower()
+        ext = {"image/jpeg": "jpg", "image/png": "png",
+               "image/webp": "webp"}.get(mime)
+        if ext is None:
+            return None
+    else:
+        return None
+
+    file_id = str(entry.get("file_id", ""))
+    if not re.fullmatch(r"[A-Za-z0-9_-]{8,256}", file_id):
+        raise RuntimeError("Unsupported Telegram file identifier")
+    if int(entry.get("file_size", 0)) > MAX_IMAGE_BYTES:
+        raise RuntimeError("Imagem demasiado grande (limite 10 MB)")
+    return {"file_id": file_id, "ext": ext}
+
+
+def download_image():
+    """Retrieve a private Telegram image directly onto an ephemeral Actions runner."""
+    if not BOT_TOKEN:
+        raise RuntimeError("Telegram bot is not configured")
+    file_id = os.environ.get("CODEX_IMAGE_FILE_ID", "")
+    ext = os.environ.get("CODEX_IMAGE_EXT", "")
+    output = Path(os.environ.get("CODEX_IMAGE_OUTPUT", ""))
+    if (not re.fullmatch(r"[A-Za-z0-9_-]{8,256}", file_id) or
+            ext not in ("jpg", "png", "webp") or
+            not output.is_absolute() or output.suffix != "." + ext):
+        raise RuntimeError("Invalid Telegram image input")
+    meta = telegram("getFile", {"file_id": file_id})
+    size = int(meta.get("file_size", 0))
+    if size > MAX_IMAGE_BYTES:
+        raise RuntimeError("Telegram image exceeds private transport limit")
+    file_path = str(meta.get("file_path", ""))
+    if (not re.fullmatch(r"[A-Za-z0-9_./-]{1,512}", file_path) or
+            ".." in file_path.split("/")):
+        raise RuntimeError("Invalid Telegram file path")
+
+    # No file bytes go through a public GitHub Issue, commit or artifact.
+    url = "https://api.telegram.org/file/bot" + BOT_TOKEN + "/" + file_path
+    try:
+        with urlopen(Request(url, method="GET"), timeout=45) as response:
+            content = response.read(MAX_IMAGE_BYTES + 1)
+    except HTTPError as exc:
+        raise RuntimeError("Telegram image HTTP " + str(exc.code)) from None
+    except (URLError, TimeoutError):
+        raise RuntimeError("Telegram image network error") from None
+    if not content or len(content) > MAX_IMAGE_BYTES:
+        raise RuntimeError("Telegram image size is invalid")
+    magic_ok = {
+        "jpg": content.startswith(b"\xff\xd8\xff"),
+        "png": content.startswith(b"\x89PNG\r\n\x1a\n"),
+        "webp": content.startswith(b"RIFF") and content[8:12] == b"WEBP",
+    }
+    if not magic_ok[ext]:
+        raise RuntimeError("Telegram image bytes do not match the declared format")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(str(output), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "wb") as target:
+        target.write(content)
+    print("TELEGRAM_IMAGE_READY=yes; bytes=" + str(len(content)))
 
 
 def telegram(method, data=None, *, document=None):
@@ -117,15 +193,21 @@ def has_dispatch_marker(number, update_id):
     return any(marker in (c.get("body") or "") for c in comments)
 
 
-def create_audit(update_id, task):
+def create_audit(update_id, task, image=None):
     title = "[codex audit] Telegram " + str(update_id)
     number = existing_issue(update_id)
     if number is None:
+        image_marker = ""
+        if image is not None:
+            image_hash = hashlib.sha256(image["file_id"].encode("ascii")).hexdigest()
+            image_marker = ("<!-- telegram-image-sha256:" + image_hash +
+                            ":" + image["ext"] + " -->\n\n")
         body = (
             "Origem: Telegram privado autorizado.\n\n"
             "Aviso: este repositório e as Issues são públicos. "
             "Não enviar segredos, dados privados ou credenciais.\n\n"
-            "<!-- telegram-update:" + str(update_id) + " -->\n\n"
+            "<!-- telegram-update:" + str(update_id) + " -->\n\n" +
+            image_marker +
             "## Pedido ao Codex (auditoria, sem alterações)\n\n" + task
         )
         issue = github("POST", "issues", {"title": title, "body": body})
@@ -133,14 +215,18 @@ def create_audit(update_id, task):
     if not has_dispatch_marker(number, update_id):
         # Workflow dispatch is permitted for GITHUB_TOKEN triggered events.
         # The recipient workflow checks source=telegram and actor=github-actions[bot].
+        inputs = {
+            "task": task,
+            "mode": "audit",
+            "source": "telegram",
+            "issue_number": str(number),
+        }
+        if image is not None:
+            inputs["image_file_id"] = image["file_id"]
+            inputs["image_ext"] = image["ext"]
         github("POST", "actions/workflows/codex-chatgpt-bridge.yml/dispatches", {
             "ref": "main",
-            "inputs": {
-                "task": task,
-                "mode": "audit",
-                "source": "telegram",
-                "issue_number": str(number),
-            },
+            "inputs": inputs,
         })
         github("POST", "issues/" + str(number) + "/comments", {
             "body": "Tarefa encaminhada para o Codex. <!-- telegram-dispatched:" +
@@ -187,12 +273,17 @@ def handle_update(update):
         sender.get("is_bot")):
         return
 
-    text = str(message.get("text") or "").strip()
-    if not text:
+    image = select_image(message)
+    text = str(message.get("text") or message.get("caption") or "").strip()
+    if not text and image is None:
+        if message.get("document"):
+            say("Aceito fotografias e imagens PNG, JPG ou WEBP até 10 MB. "
+                "Envia a imagem como foto ou ficheiro de imagem.")
         return
     if re.match(r"^/(?:start|help)(?:@\w+)?$", text, re.I):
         say("🤖 Ponte Codex ligada ao GitHub.\n\n"
             "Envia /audit seguido do pedido, ou 'Codex, faz uma auditoria...'.\n"
+            "Podes enviar uma fotografia do erro com ou sem legenda.\n"
             "Consulta o resultado com /status 123.\n\n"
             "Por segurança, só auditorias de leitura estão ativas. "
             "As correções e Cursor ainda não estão ativados.\n"
@@ -208,7 +299,13 @@ def handle_update(update):
         say(status)
         return
     task = parse_audit(text)
-    if task is None:
+    if image is not None:
+        # A plain-language photo caption is a task; no caption is also valid.
+        if task is None:
+            task = text or DEFAULT_IMAGE_TASK
+        elif not task:
+            task = DEFAULT_IMAGE_TASK
+    elif task is None:
         say("Não reconheci essa ordem. Usa /audit <pedido>, "
             "'Codex, <pedido>', /status <número> ou /help.")
         return
@@ -221,8 +318,10 @@ def handle_update(update):
         say("Não vou publicar uma ordem que parece conter credenciais. "
             "Retira passwords/tokens e volta a enviar.")
         return
-    number = create_audit(update["update_id"], task)
-    say("📨 Auditoria enviada ao Codex.\n"
+    number = (create_audit(update["update_id"], task, image=image) if image
+              else create_audit(update["update_id"], task))
+    say(("📸 Imagem enviada ao Codex.\n" if image
+         else "📨 Auditoria enviada ao Codex.\n") +
         "Tarefa #" + str(number) + "\n"
         "O relatório completo vai chegar aqui quando terminar.\n"
         "https://github.com/" + REPO + "/issues/" + str(number))
@@ -235,27 +334,29 @@ def poll():
     if not re.fullmatch(r"[1-9]\d{3,17}", CHAT_ID):
         raise RuntimeError("TELEGRAM_CHAT_ID must be a positive private chat ID")
     print("TELEGRAM_BRIDGE=ACTIVE")
-    # Telegram confirms updates only after the next getUpdates call with offset.
-    # Confirm each successfully handled update to avoid silently losing commands.
+    # Never discard the next incoming photo while acknowledging the previous one.
+    offset = None
     for _ in range(8):
-        updates = telegram("getUpdates", {
-            "limit": 25, "timeout": 0,
-            "allowed_updates": json.dumps(["message"]),
-        })
+        args = {"limit": 25, "timeout": 0,
+                "allowed_updates": json.dumps(["message"])}
+        if offset is not None:
+            args["offset"] = offset
+        updates = telegram("getUpdates", args)
         if not updates:
             break
         for update in updates:
             try:
                 handle_update(update)
             except RuntimeError as exc:
-                # Leave the update unacknowledged so it can be retried.
+                # Retry this same update during the next polling run.
                 print("TELEGRAM_COMMAND=RETRY_REQUIRED " + str(exc))
                 return
-            telegram("getUpdates", {
-                "offset": int(update["update_id"]) + 1,
-                "limit": 1, "timeout": 0,
-                "allowed_updates": json.dumps(["message"]),
-            })
+            offset = int(update["update_id"]) + 1
+    # Acknowledge successfully handled messages. Any fresh message returned
+    # by this final call stays pending; it is processed next time.
+    if offset is not None:
+        telegram("getUpdates", {"offset": offset, "limit": 1, "timeout": 0,
+                                "allowed_updates": json.dumps(["message"])})
     print("TELEGRAM_POLL=COMPLETE")
 
 
@@ -297,8 +398,10 @@ if __name__ == "__main__":
             poll()
         elif len(sys.argv) == 2 and sys.argv[1] == "notify":
             notify()
+        elif len(sys.argv) == 2 and sys.argv[1] == "download":
+            download_image()
         else:
-            raise RuntimeError("Usage: telegram_gateway.py poll|notify")
+            raise RuntimeError("Usage: telegram_gateway.py poll|notify|download")
     except RuntimeError as exc:
         print("TELEGRAM_BRIDGE_ERROR=" + str(exc), file=sys.stderr)
         sys.exit(1)

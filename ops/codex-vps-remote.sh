@@ -18,6 +18,7 @@ codex="$HOME/codex-agent/node_modules/.bin/codex"
 
 finish() {
   local status=$?
+  rm -f -- "$base/codex-input.jpg" "$base/codex-input.png" "$base/codex-input.webp"
   if [ "$status" -ne 0 ] && [ ! -s "$report" ]; then
     # Only provide a sanitized, short error excerpt. Never upload the raw CLI log.
     python3 - "$base/cli.log" "$report" "$status" <<'PY'
@@ -83,12 +84,30 @@ cat "$base/codex-task.txt" >> "$prompt"
 printf '\n' >> "$prompt"
 
 cd "$repo_dir"
-# Always use the read-only Codex sandbox. The project is a disposable clone.
+# Attach only a privately staged Telegram screenshot (not a public URL).
+image_args=()
+image_count=0
+for ext in jpg png webp; do
+  img="$base/codex-input.$ext"
+  if [ -f "$img" ]; then
+    test -s "$img"
+    image_count=$((image_count + 1))
+    image_args=(--image "$img")
+  fi
+done
+if [ "$image_count" -gt 1 ]; then
+  echo "Multiple screenshots are not supported in this audit" >&2
+  exit 13
+fi
+if [ "$image_count" -eq 1 ]; then
+  printf '\nThe user attached a screenshot of an application error. Analyse it visually; propose a diagnosis without inventing source-code fixes when the application code is unavailable.\n' >> "$prompt"
+fi
+# Leave the stdin prompt after the output option so older Codex CLI parsers
+# do not consume it as a second image path.
 timeout --signal=TERM --kill-after=15s 35m \
-  "$codex" exec --sandbox read-only \
+  "$codex" exec --sandbox read-only "${image_args[@]}" \
     --output-last-message "$report" - \
     < "$prompt" > "$base/cli.log" 2>&1
-
 test -s "$report"
 # Codex may return exit code 0 after failing to read the repo due to the host sandbox.
 # Treat an access-blocked audit as failure instead of publishing a false PASS.
