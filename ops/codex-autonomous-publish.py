@@ -193,6 +193,26 @@ def premerge_policy_gate(repo, paths):
     return None
 
 
+def worker_branch_name(issue, run_id, attempt, instance_id=""):
+    """Keep old branch identities unchanged and separate explicit workers."""
+    if instance_id not in ("", "1", "2"):
+        raise ValueError("Invalid trusted Codex worker identity")
+    suffix = "-" + instance_id if instance_id else ""
+    return f"codex/issue-{issue}-{run_id}-{attempt}{suffix}"
+
+
+def staged_pr_result(repo, url, sha, blocking_policy, state, evidence):
+    """A PR-only parallel worker can certify staging, never merging."""
+    if state != "PASS":
+        return {"status": "PR_NEEDS_ATTENTION", "repository": repo,
+                "pull_request": url, "commit_sha": sha, "reason": evidence}
+    detail = (blocking_policy + "; " if blocking_policy else "") + (
+        "PR-only parallel task: exact-head CI passed, no merge attempted. "
+        "Project Leader must review and integrate this PR independently.")
+    return {"status": "PR_STAGED", "repository": repo,
+            "pull_request": url, "commit_sha": sha, "reason": detail}
+
+
 def perform(source, issue, run_id, attempt, instance_id="", pr_only=False):
     repo, base_sha, patch = validate_metadata(source)
     if patch.stat().st_size == 0:
@@ -201,7 +221,7 @@ def perform(source, issue, run_id, attempt, instance_id="", pr_only=False):
     if current_main(repo) != base_sha:
         raise RuntimeError("STALE_BASE: main advanced after Codex cloned; require a fresh run")
 
-    branch = f"codex/issue-{issue}-{run_id}-{attempt}" + (f"-{instance_id}" if instance_id else "")
+    branch = worker_branch_name(issue, run_id, attempt, instance_id)
     with tempfile.TemporaryDirectory(prefix="codex-publish-") as temp:
         root = Path(temp)
         work = root / "target"
@@ -243,14 +263,7 @@ def perform(source, issue, run_id, attempt, instance_id="", pr_only=False):
         blocking_policy = premerge_policy_gate(repo, paths)
         if pr_only:
             state, evidence = wait_for_checks(repo, sha, branch, ALLOWED[repo])
-            if state != "PASS":
-                return {"status": "PR_NEEDS_ATTENTION", "repository": repo,
-                        "pull_request": url, "commit_sha": sha, "reason": evidence}
-            detail = (blocking_policy + "; " if blocking_policy else "") + (
-                "PR-only parallel task: exact-head CI passed, no merge attempted. "
-                "Project Leader must review and integrate this PR independently.")
-            return {"status": "PR_STAGED", "repository": repo,
-                    "pull_request": url, "commit_sha": sha, "reason": detail}
+            return staged_pr_result(repo, url, sha, blocking_policy, state, evidence)
         if blocking_policy:
             return {"status": "PR_NEEDS_ATTENTION", "repository": repo,
                     "pull_request": url, "commit_sha": sha,
