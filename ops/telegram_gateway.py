@@ -479,8 +479,9 @@ def agent_capability_reply():
     return (
         "🧭 Project Leader: identifica agentes e encaminha mensagens. "
         "A rapidez depende de um leitor Telegram sempre ligado.\n"
-        "🤖 Codex: auditorias de leitura via ponte GitHub; "
-        "conversa livre e implementação por Telegram ainda não comprovadas.\n"
+        "🤖 Codex: auditoria de leitura via Telegram/GitHub. "
+        "O Project Leader também suporta execução e Recovery no circuito "
+        "GitHub [codex run] autorizado, mas ainda não é acionado pelo Telegram.\n"
         "🟠 Composer (Cursor): executor não ligado.\n"
         "🟠 Gemini, Sonnet, Claude e Cursor: sem ligação de execução neste bot.\n"
         "O nome do agente não constitui ligação nem autorização."
@@ -492,7 +493,8 @@ def unsupported_handoff_reply():
         "🧭 Project Leader: percebi que queres executar um projeto com o Codex "
         "e continuar noutro agente, por exemplo o Composer quando acabar a quota. "
         "A ligação Composer e a transferência automática ainda não existem. "
-        "Este Telegram só ativa auditorias de leitura do Codex. "
+        "O Project Leader tem execução via [codex run] no GitHub, "
+        "mas não através desta entrada do Telegram, que só encaminha auditorias. "
         "Não iniciei o projeto nem consumi quota Codex. "
         "Para passar trabalho é preciso um checkpoint verificável e "
         "um sinal real de esgotamento, não uma quota imaginada."
@@ -502,8 +504,10 @@ def unsupported_handoff_reply():
 def unsupported_implementation_reply():
     return (
         "🧭 Project Leader: reconheci que pediste para executar ou modificar "
-        "um projeto. O Telegram continua limitado a auditorias de leitura, "
-        "pelo que não iniciei implementação nem alterações."
+        "um projeto. O Project Leader suporta execução, Builder, Recovery "
+        "Guardian e higienização no circuito [codex run] do GitHub. "
+        "A entrada Telegram ainda só encaminha auditorias de leitura, "
+        "por isso não iniciei implementação nem alterações."
     )
 
 

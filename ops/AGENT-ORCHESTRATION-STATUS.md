@@ -46,3 +46,10 @@ Cada etapa deve deixar o codigo numa branch e devolver metadados para a proxima.
 - Para executar a passagem real é preciso ligar os dois executores com autenticação e âmbitos próprios, um sinal verificável de quota/rate-limit sem inventar percentagem, um ponto de continuação privado com repositório, branch e SHA, testes de não duplicação e autorização de alteração/publicação.
 - O Telegram ainda não oferece conversa livre equivalente ao ChatGPT; esta mudança prepara identificação e segurança, mas não liga por si só um modelo de chat ou o Composer.
 - A preparação está numa PR não integrada; o serviço residente também não está confirmado como instalado na VPS.
+
+
+## Diferença entre o Project Leader e a entrada Telegram
+
+**Project Leader 0.7.0 não está limitado a auditoria.** As capacidades canónicas incluem Consultant, Supervisor, Builder (execução), Recovery Guardian e higienização, sob limites e autorização proporcional. O workflow GitHub de implementação Owner-autorizada `[codex run]` carrega a Skill canónica antes de invocar o Codex, executa num clone descartável com sandbox workspace-write e submete alterações a controles/CI/publicação independentes. Não equivale a uma invocação direta do plugin no ChatGPT e não autoriza produção sem gates aplicáveis.
+
+O bot **Telegram** existente encaminha `[codex audit]`, não `[codex run]`. Esta fronteira é da autenticação e da entrada de mensagens (que ainda não satisfaz a validação Owner para tarefas de escrita), não uma falta de execução na Skill. A migração correta tem de ligar Telegram autenticado ao circuito já existente sem contornar a verificação do proprietário, scoped token, privacidade, ponto de continuação e limites de confiança. Não declarar o bot capaz de executar ou passar ao Composer sem uma prova real ponta-a-ponta.

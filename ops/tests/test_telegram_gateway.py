@@ -128,7 +128,9 @@ class TelegramGatewayTests(unittest.TestCase):
         reply = gateway.agent_capability_reply()
         self.assertIn('Composer', reply)
         self.assertIn('não ligado', reply)
-        self.assertIn('auditorias de leitura', reply)
+        self.assertIn('auditoria de leitura', reply)
+        self.assertIn('Project Leader também suporta execução', reply)
+        self.assertIn('[codex run]', reply)
 
     def test_unauthorized_chat_does_not_trigger_actions(self):
         with (patch.object(gateway, "CHAT_ID", "123456"),
