@@ -143,6 +143,24 @@ def validate_metadata(source):
         raise ValueError("Untrusted or unsupported repository")
     if len(sha) != 40 or any(x not in "0123456789abcdef" for x in sha):
         raise ValueError("Invalid clone/base revision")
+    # Fail closed: no PR/publication without verified pinned Project Leader loading.
+    runtime_file = source / "project-leader-runtime.json"
+    try:
+        runtime = json.loads(runtime_file.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise ValueError("Missing or invalid canonical Project Leader runtime") from exc
+    canonical_sha = runtime.get("canonical_revision")
+    if (runtime.get("loader_version") != 1 or
+            runtime.get("source_repository") != "martaxi-boss/Project-leader" or
+            runtime.get("mode") != "PINNED_CANONICAL_SKILL" or
+            runtime.get("target_repository") != repo or
+            runtime.get("target_revision") != sha or
+            not isinstance(runtime.get("plugin_version"), str) or
+            not isinstance(canonical_sha, str) or
+            len(canonical_sha) != 40 or
+            any(x not in "0123456789abcdef" for x in canonical_sha) or
+            (repo == "martaxi-boss/Project-leader" and canonical_sha != sha)):
+        raise ValueError("Canonical Project Leader runtime binding mismatch")
     patch = source / "patch.diff"
     if not patch.exists() or patch.stat().st_size > MAX_PATCH_BYTES:
         raise ValueError("Missing or oversized patch")
