@@ -156,6 +156,19 @@ def wait_for_checks(repo, sha, branch, expected):
     return "BLOCKED", "Timed out awaiting exact-SHA CI: " + detail
 
 
+def premerge_policy_gate(repo, paths):
+    """Respect target-specific control law even after all technical checks pass."""
+    if repo == "martaxi-boss/Project-leader":
+        return ("Project Leader main merge is an E2 consequential transition; "
+                "separate exact-SHA authorization and independent Supervisor acceptance "
+                "are required before merging")
+    if repo == "martaxi-boss/VPS" and any(
+        not name.lower().endswith((".md", ".txt")) for name in paths
+    ):
+        return "VPS operational code needs an independent project-specific test gate"
+    return None
+
+
 def perform(source, issue, run_id, attempt):
     repo, base_sha, patch = validate_metadata(source)
     if patch.stat().st_size == 0:
@@ -200,14 +213,12 @@ def perform(source, issue, run_id, attempt):
         number = pr["number"]
         url = pr["html_url"]
         print("CODEX_PR_CREATED=" + url, flush=True)
-        # VPS is an operations repo without broad application regression CI.
-        # Safe docs may auto-merge; code changes remain a PR for independent review.
-        if repo == "martaxi-boss/VPS" and any(
-            not name.lower().endswith((".md", ".txt")) for name in paths
-        ):
+        # In-scope patches are not themselves authority for a consequential merge.
+        blocking_policy = premerge_policy_gate(repo, paths)
+        if blocking_policy:
             return {"status": "PR_NEEDS_ATTENTION", "repository": repo,
                     "pull_request": url, "commit_sha": sha,
-                    "reason": "VPS operational code needs an independent project-specific test gate"}
+                    "reason": blocking_policy}
         state, evidence = wait_for_checks(repo, sha, branch, ALLOWED[repo])
         if state != "PASS":
             return {"status": "PR_NEEDS_ATTENTION", "repository": repo,
