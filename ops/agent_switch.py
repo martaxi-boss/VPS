@@ -13,6 +13,8 @@ import sys
 from dataclasses import dataclass
 from typing import FrozenSet, Optional
 
+from ops.codex_resource_policy import choose_effort
+
 ALLOWED_REPOSITORIES = {"martaxi-boss/VPS", "martaxi-boss/Project-leader"}
 MODES = {"serial", "parallel"}
 MAX_TASKS = 8
@@ -49,7 +51,7 @@ PROVIDER_REGISTRY = {
     "codex": ProviderAdapter(
         available=True,
         models=frozenset({"gpt-5.6-sol"}),
-        reasoning_efforts=frozenset({"medium"}),
+        reasoning_efforts=frozenset({"auto", "low", "medium", "high"}),
     ),
     "gemini": ProviderAdapter(False, frozenset(), frozenset()),
     "composer": ProviderAdapter(False, frozenset(), frozenset()),
@@ -168,6 +170,8 @@ def dispatch_plan(order: dict) -> dict:
     previous_id: Optional[str] = None
     for task in order["tasks"]:
         item = dict(task)
+        item["selected_reasoning_effort"] = choose_effort(task)
+        item["effort_selection"] = "explicit" if task.get("reasoning_effort", "auto") != "auto" else "adaptive_task_boundary"
         item["depends_on"] = [previous_id] if order["mode"] == "serial" and previous_id else []
         tasks.append(item)
         previous_id = task["id"]
@@ -247,6 +251,8 @@ def workflow_values(order: dict) -> dict:
             "codex_2_task_b64": "",
             "allow_no_change_1": str(tasks[0].get("allow_no_change", False)).lower(),
             "allow_no_change_2": "false",
+            "codex_1_reasoning_effort": choose_effort(tasks[0]),
+            "codex_2_reasoning_effort": "",
         }
 
     encoded = []
@@ -278,6 +284,8 @@ def workflow_values(order: dict) -> dict:
         "codex_2_task_b64": encoded[1],
         "allow_no_change_1": str(tasks[0].get("allow_no_change", False)).lower(),
         "allow_no_change_2": str(tasks[1].get("allow_no_change", False)).lower(),
+        "codex_1_reasoning_effort": choose_effort(tasks[0]),
+        "codex_2_reasoning_effort": choose_effort(tasks[1]),
     }
 
 
