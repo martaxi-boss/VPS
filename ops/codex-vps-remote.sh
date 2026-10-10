@@ -18,6 +18,7 @@ codex="$HOME/codex-agent/node_modules/.bin/codex"
 
 finish() {
   local status=$?
+  rm -f -- "$base/codex-input.jpg" "$base/codex-input.png" "$base/codex-input.webp"
   if [ "$status" -ne 0 ] && [ ! -s "$report" ]; then
     # Only provide a sanitized, short error excerpt. Never upload the raw CLI log.
     python3 - "$base/cli.log" "$report" "$status" <<'PY'
