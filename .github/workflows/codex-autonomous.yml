@@ -48,6 +48,8 @@ jobs:
           if lines[0] not in allowed:
               raise SystemExit('First line must be an allowlisted TARGET_REPOSITORY')
           if not os.environ.get('CODEX_GITHUB_TOKEN'):
+              (Path(os.environ['RUNNER_TEMP']) / 'codex-preflight-status.txt').write_text(
+                  'Missing GitHub Actions secret CODEX_GITHUB_TOKEN in martaxi-boss/VPS. Codex was NOT started.', encoding='utf-8')
               raise SystemExit('CODEX_GITHUB_TOKEN missing: publication cannot work; Codex not started')
           (Path(os.environ['RUNNER_TEMP']) / 'codex-task.txt').write_text(
               task + '\n', encoding='utf-8')
@@ -63,8 +65,12 @@ jobs:
               with urllib.request.urlopen(request, timeout=20) as response:
                   info = json.load(response)
           except urllib.error.HTTPError as exc:
+              (Path(os.environ['RUNNER_TEMP']) / 'codex-preflight-status.txt').write_text(
+                  'GitHub token could not access the selected repository (HTTP ' + str(exc.code) + '). Codex was NOT started.', encoding='utf-8')
               raise SystemExit('CODEX_GITHUB_TOKEN failed GitHub preflight HTTP ' + str(exc.code))
           if info.get('permissions', {}).get('push') is not True:
+              (Path(os.environ['RUNNER_TEMP']) / 'codex-preflight-status.txt').write_text(
+                  'GitHub token does not have Contents write on the selected repository. Codex was NOT started.', encoding='utf-8')
               raise SystemExit('CODEX_GITHUB_TOKEN lacks target repository Contents write permission')
           print('Owner task/target/GitHub write access verified. No token printed.')
           PY
@@ -175,7 +181,11 @@ jobs:
               else:
                   lines.append('Codex token count: NOT_OBSERVED.')
           else:
+              preflight_path = Path(os.environ['RUNNER_TEMP']) / 'codex-preflight-status.txt'
+              preflight = (preflight_path.read_text(encoding='utf-8') if preflight_path.exists()
+                           else 'No verified preflight diagnosis available')
               lines = ['## Codex execution: NOT_COMPLETED',
+                       'Preflight: ' + preflight,
                        'The pipeline stopped before trusted publication.',
                        'Stage: ' + os.environ['STAGE_OUTCOME'],
                        'Codex: ' + os.environ['CODEX_OUTCOME'],

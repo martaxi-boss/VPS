@@ -79,6 +79,12 @@ def classify_runs(runs, expected, commit_sha, branch):
     for key, item in latest.items():
         if item.get("status") == "completed" and item.get("conclusion") in TERMINAL_FAILURES:
             return "BLOCKED", f"Required or related CI failed: {key[0]}"
+    # Also wait for every other PR-context workflow on this exact head. A
+    # mandatory failure cannot arrive after an early merge while still running.
+    other_pending = [key[0] for key, item in latest.items()
+                     if item.get("status") != "completed"]
+    if other_pending:
+        return "WAIT", "Other CI still running: " + ", ".join(sorted(other_pending))
     missing = expected.difference(latest)
     if missing:
         return "WAIT", "Missing checks: " + ", ".join(sorted(n for n, _ in missing))
