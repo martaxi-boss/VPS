@@ -34,8 +34,12 @@ def redact(line):
     line = re.sub(r'(?i)gh[opsru]_[a-z0-9_]{12,}', '[redacted]', line)
     line = re.sub(r'(?i)(api[_-]?key\s*[=:]\s*)\S+', r'\1[redacted]', line)
     return line[:220]
-excerpt = '\n'.join('- ' + redact(line) for line in errors[-6:])
-message = ('Auditoria Codex falhou (codigo ' + status + ').\n'
+safe_tail = [line.strip() for line in raw.splitlines()[-16:]
+             if line.strip() and not re.search(
+                 r'token|secret|auth|password|bearer|credential|cookie|session', line, re.I)]
+shown = errors[-6:] if errors else safe_tail[-6:]
+excerpt = '\n'.join('- ' + redact(line) for line in shown)
+message = ('Auditoria Codex falhou (codigo ' + status + '). CLI log bytes: ' + str(len(raw)) + '.\n'
            'Resumo de diagnostico sem registo completo:\n' +
            (excerpt or '- Sem erro textual identificado. Consultar o registo local protegido no VPS.') +
            '\nNao houve deploy nem alteracao dos ficheiros de producao.\n')
