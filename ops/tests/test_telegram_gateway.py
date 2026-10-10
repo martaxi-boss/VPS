@@ -425,5 +425,29 @@ class TelegramGatewayTests(unittest.TestCase):
 
 
 
+    def test_private_codex_status_distinguishes_staged_pr(self):
+        self.assertIn('PR pronta para revisão', gateway.private_report_status('PR_STAGED'))
+        self.assertIn('NÃO certificado', gateway.private_report_status('NO_CHANGE_UNVERIFIED'))
+        self.assertIn('Execução concluída', gateway.private_report_status('MERGED'))
+
+    def test_private_notification_names_parallel_worker(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            report = Path(tmp) / 'report.md'
+            report.write_text('Resultado privado do segundo Codex.', encoding='utf-8')
+            env = {'CODEX_JOB_STATUS': 'PR_STAGED', 'CODEX_ISSUE_NUMBER': '123',
+                   'CODEX_INSTANCE_ID': '2', 'CODEX_REPORT_PATH': str(report)}
+            with (patch.object(gateway, 'BOT_TOKEN', 'test-only'),
+                  patch.object(gateway, 'CHAT_ID', '123456'),
+                  patch.object(gateway, 'telegram') as send,
+                  patch.dict(os.environ, env)):
+                gateway.notify()
+            send.assert_called_once()
+            self.assertEqual(send.call_args.args[0], 'sendMessage')
+            msg = send.call_args.args[1]['text']
+            self.assertIn('Codex 2', msg)
+            self.assertIn('PR pronta para revisão', msg)
+            self.assertIn('Resultado privado do segundo Codex.', msg)
+
+
 if __name__ == "__main__":
     unittest.main()
