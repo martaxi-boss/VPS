@@ -16,6 +16,27 @@ Exemplos:
 - "Codex, revê Y. Se estiver sem quota, passa ao Composer."
 As duas ultimas ordens sao planos para fases futuras: ainda **nao executam** Composer/Sonnet nem correcoes Codex neste workflow.
 
+## Nucleo generico do planeador
+`ops/agent_switch.py` aceita um manifesto JSON com `target_repository`, `mode`
+(`serial` ou `parallel`) e uma lista ordenada `tasks`. Cada tarefa tem `id`,
+`provider` e `task`; `model` e `reasoning_effort` sao opcionais e limitados aos
+valores comprovados pelo adaptador. IDs como `codex-1` e `codex-2` identificam
+instancias distintas sem tornar o contrato exclusivo de Codex. A forma legada
+`tasks: {"codex": "..."}` continua valida para pedidos de um Codex.
+
+O planeador produz internamente um plano versionado, com identidade, fornecedor,
+modo, dependencias derivadas e politica que proibe substituicao implicita. Isto e
+somente planeamento: o workflow atual consegue encaminhar **exatamente uma** tarefa
+Codex. Um plano com varias tarefas e bloqueado integralmente antes de qualquer
+modelo arrancar; nao e encaminhada apenas a primeira parte. Execucao serial ou
+paralela real exige uma segunda integracao explicita do backend e do workflow,
+com autenticacao, testes e autorizacao independentes.
+
+O registo de adaptadores deixa Codex disponivel. Gemini, Composer e Claude estao
+registados mas indisponiveis ate existir um adaptador autenticado, testado e
+autorizado. Nao ha fallback nem troca de fornecedor sem ordem expressa. O estado
+do planeador nao constitui evidencia de quotas ou disponibilidade semanal.
+
 ## Preparacao para o Cursor (ligacao pendente)
 Implementar Cloud Agents da conta Cursor quando a conta ficar ativa. O contrato de cada etapa e:
 - `provider`: `codex` | `cursor`
