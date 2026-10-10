@@ -20,7 +20,7 @@ As duas ultimas ordens continuam exemplos de fornecedores ainda desligados: nao 
 
 - Por defeito, uma ordem ChatGPT **"trabalha comigo e um Codex"** produz **uma** tarefa e usa apenas **um Codex**. O ChatGPT interpreta a linguagem natural e prepara o manifesto JSON; o workflow GitHub nao infere agentes a partir de texto livre.
 - Duas instancias so se ativam quando o Owner pede **dois** agentes, declarando `tasks` com dois IDs e `mode: serial` ou `mode: parallel`. Nao ha segundo trabalhador automatico por existir capacidade para dois.
-- A escolha automatica de modelo ou do saldo de quota **nao esta ligada**. A conta Codex disponibilizada permanece `gpt-5.6-sol` Medium neste executor, com contagem observada por tarefa mas percentagem de quota desconhecida.
+- Modelo autenticado gpt-5.6-sol; a escolha de raciocinio Low/Medium/High por tarefa esta ligada e comprovada na Issue #111. Percentagem da quota semanal da conta permanece desconhecida; o limite local de tokens e soft e nao pode garantir interromper uma chamada a meio.
 - Nao interpretar uma recomendacao inteligente do ChatGPT como permissao implicita para duplicar consumo. Sem ordem explicita para dois, manter uma instancia.
 
 ## Nucleo generico do planeador
@@ -53,15 +53,17 @@ da ordem. A execucao de **duas tarefas de leitura sem patch** foi comprovada ao 
 (run 38081707953); ambos os modos tiveram dois executores concluidos com
 Skill Project Leader v0.7.0 pinada. Isto NAO certifica duas alteracoes reais
 de codigo nem o merge/reconciliacao de PRs concorrentes.
-A selecao de modelos alternativos e otimizacao dinamica de quota permanecem
-por integrar: o executor validado continua em `gpt-5.6-sol` Medium.
+Nao ha troca de modelo nem fornecedor: o executor validado continua em gpt-5.6-sol,
+com esforco adaptativo por tarefa. A quota semanal real nao e exposta. O controlo
+local bloqueia novos trabalhos ao atingir o limite mas nao e um limite rigido
+de tokens ja gastos no interior de uma chamada.
 
 O registo de adaptadores deixa Codex disponivel. Gemini, Composer e Claude estao
 registados mas indisponiveis ate existir um adaptador autenticado, testado e
 autorizado. Nao ha fallback nem troca de fornecedor sem ordem expressa. O estado
 do planeador nao constitui evidencia de quotas ou disponibilidade semanal.
 
-## Politica semi-automatica Codex em teste (PR de adaptive thinking)
+## Politica semi-automatica Codex operacional (PR #108 e prova real #111)
 
 - Os **dois Codex** continuam a ser **duas execucoes isoladas da mesma conta** na VPS. O limite de duas chamadas simultaneas usa os bloqueios ja existentes; nenhuma segunda conta ou nova chave de Codex e criada.
 - O plano do Owner seleciona **uma ou duas tarefas** com `mode: serial` ou `mode: parallel`; so executa duas se o manifesto tiver dois IDs distintos. A versao atual nao cria um segundo trabalhador por adivinhacao.
@@ -71,6 +73,39 @@ do planeador nao constitui evidencia de quotas ou disponibilidade semanal.
 - O registo de consumo fica **privado na VPS**, nao contem prompt, identidade do cliente, chave ou credencial. Esta orcamentacao cobre os executores `[codex run]`/`[agents run]` por esta via; outras ferramentas/consultas Codex podem gastar a mesma quota fora deste ledger.
 - O **limite de tokens e flexivel, nao garante travar uma geracao em curso**, e a percentagem de quota semanal real da conta continua **UNKNOWN**. Assim, nunca se confunde o nosso orçamento local com os limites contratuais da OpenAI.
 - Este caminho permanece submetido a revisao de patches, PR/CI, protecao de codigo e sem auto-merge de trabalhos paralelos. Gemini, Cursor, Composer e Sonnet continuam desligados. A prova de comportamento real com Low/High sera registada separadamente; testes locais/CI nao sao apresentados como consumo real Codex.
+
+
+## PINK IPTV como terceiro repositorio alvo (integracao PR-only)
+
+O Owner autorizou explicitamente dois Codex para reforcar a PINK IPTV. Alem dos
+repositorios martaxi-boss/VPS e martaxi-boss/Project-leader, o adaptador
+permite apontar tarefas independentes para martaxi-boss/pink-iptv em clone
+privado/temporario com a Skill Project Leader canonicamente pinada.
+
+**Seguranca fail-closed:** o modelo nao possui credenciais GitHub de escrita.
+O runner valida que CODEX_GITHUB_TOKEN ja possui Contents write no exato
+repositorio PINK antes de gastar tokens. O token atual pode estar limitado
+a VPS e Project-leader; nao presumir que foi alargado. Nunca pedir ao Owner
+que cole tokens no chat, Telegram ou issues publicas.
+Se nao houver esta permissao, registar NOT_STARTED ate o consentimento
+apropriado ser concedido, sem fallback para uma conta nao autorizada.
+
+**Publicacao:** PR isolada por trabalhador, sem merge automatizado na PINK
+IPTV, incluindo simples README. Como a CI Android/backend da PINK tem triggers
+por paths e nao existe um perfil universal obrigatorio, nenhuma PR pode alegar
+CI completa a partir da ausencia de runs: PR_NEEDS_ATTENTION requer auditoria,
+testes apropriados e integracao independente do Project Leader. Sem acesso
+a producao, segredos de clientes ou deploy.
+
+**Prova:** Issue #111 https://github.com/martaxi-boss/VPS/issues/111
+(run 38086086361) terminou com dois Codex reais no mesmo login, slots 1 e 2,
+um Low (34 803 input, 23 936 cached, 343 output), outro High
+(312 280 input, 282 624 cached, 4 998 output). Ambos devolveram
+NO_CHANGE autorizado e relatorios privados ao Telegram; isto nao comprova
+qualidade funcional nem modificacoes no repositorio PINK. O High ultrapassou
+a reserva inicial de 75k. O orcamento conjunto de 300k/24h e soft e nao
+impede gastos numa chamada ja iniciada. O ledger bloqueia novas tarefas
+quando nao existe saldo estimado, sem inventar quotas semanais.
 
 ## Preparacao para o Cursor (ligacao pendente)
 Implementar Cloud Agents da conta Cursor quando a conta ficar ativa. O contrato de cada etapa e:
