@@ -28,6 +28,16 @@ on:
         required: false
         default: ''
         type: string
+      image_file_id:
+        description: Telegram image reference for a private authorized screenshot
+        required: false
+        default: ''
+        type: string
+      image_ext:
+        description: Image file type jpg, png, or webp
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
@@ -64,13 +74,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ inputs.issue_number }}
           TASK: ${{ inputs.task }}
+          TELEGRAM_IMAGE_ID: ${{ inputs.image_file_id }}
+          TELEGRAM_IMAGE_EXT: ${{ inputs.image_ext }}
           REPO: ${{ github.repository }}
         shell: bash
         run: |
           set -euo pipefail
           [[ "$ISSUE_NUMBER" =~ ^[0-9]+$ ]] || exit 1
           python3 - <<'PY'
-          import json, os, urllib.request
+          import hashlib, json, os, re, urllib.request
           issue_no = os.environ['ISSUE_NUMBER']
           repo = os.environ['REPO']
           req = urllib.request.Request(
@@ -89,6 +101,19 @@ jobs:
                   prefix not in body or
                   body.split(prefix,1)[1].strip() != task):
               raise SystemExit('Telegram request failed authorization checks')
+          image_id = os.environ.get('TELEGRAM_IMAGE_ID', '')
+          image_ext = os.environ.get('TELEGRAM_IMAGE_EXT', '')
+          if image_id:
+              if (not re.fullmatch(r'[A-Za-z0-9_-]{8,256}', image_id) or
+                      image_ext not in ('jpg', 'png', 'webp')):
+                  raise SystemExit('Invalid image metadata')
+              hashed = hashlib.sha256(image_id.encode('ascii')).hexdigest()
+              expected = ('<!-- telegram-image-sha256:' + hashed +
+                          ':' + image_ext + ' -->')
+              if expected not in body:
+                  raise SystemExit('Telegram image does not match authorized issue')
+          elif image_ext or '<!-- telegram-image-sha256:' in body:
+              raise SystemExit('Telegram image metadata mismatch')
           PY
 
       - name: Prepare task as a data file, not a shell command
