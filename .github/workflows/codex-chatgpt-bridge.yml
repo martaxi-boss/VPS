@@ -134,6 +134,20 @@ jobs:
               task.strip() + '\n', encoding='utf-8')
           PY
 
+      - name: Privately download Telegram screenshot to temporary runner
+        if: github.event_name == 'workflow_dispatch' && inputs.source == 'telegram' && inputs.image_file_id != ''
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CODEX_IMAGE_FILE_ID: ${{ inputs.image_file_id }}
+          CODEX_IMAGE_EXT: ${{ inputs.image_ext }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ext="$CODEX_IMAGE_EXT"
+          case "$ext" in jpg|png|webp) ;; *) echo "Unsupported image extension"; exit 1;; esac
+          export CODEX_IMAGE_OUTPUT="$RUNNER_TEMP/codex-input.$ext"
+          python3 ops/telegram_gateway.py download
+
       - name: Check existing VPS credential and install sshpass
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
@@ -147,6 +161,7 @@ jobs:
       - name: Stage private work directory on VPS
         id: stage
         env:
+          CODEX_IMAGE_EXT: ${{ inputs.image_ext }}
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         shell: bash
         run: |
@@ -158,6 +173,14 @@ jobs:
             "$remote" "install -d -m 700 '$dest'"
           sshpass -e scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
             "$RUNNER_TEMP/codex-task.txt" ops/codex-vps-remote.sh "$remote:$dest/"
+          ext="$CODEX_IMAGE_EXT"
+          if [ -n "$ext" ]; then
+            case "$ext" in jpg|png|webp) ;; *) exit 1;; esac
+            test -s "$RUNNER_TEMP/codex-input.$ext"
+            # Only temporary runner -> private VPS job dir. Never upload to GitHub.
+            sshpass -e scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+              "$RUNNER_TEMP/codex-input.$ext" "$remote:$dest/"
+          fi
 
       - name: Run signed-in Codex CLI on disposable repository clone
         id: execute
