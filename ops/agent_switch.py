@@ -17,7 +17,7 @@ ALLOWED_REPOSITORIES = {"martaxi-boss/VPS", "martaxi-boss/Project-leader"}
 MODES = {"serial", "parallel"}
 MAX_TASKS = 8
 PLAN_VERSION = 1
-TASK_FIELDS = {"id", "provider", "task", "model", "reasoning_effort"}
+TASK_FIELDS = {"id", "provider", "task", "model", "reasoning_effort", "allow_no_change"}
 REQUIRED_TASK_FIELDS = {"id", "provider", "task"}
 ID_PATTERN = re.compile(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*\Z")
 SUSPICIOUS = re.compile(
@@ -101,7 +101,7 @@ def _normalise_tasks(tasks: object) -> list:
         if not REQUIRED_TASK_FIELDS.issubset(fields) or not fields.issubset(TASK_FIELDS):
             raise OrderError(
                 f"Task {position} requires id, provider and task; optional fields are "
-                "model and reasoning_effort"
+                "model, reasoning_effort and allow_no_change"
             )
 
         task_id = task["id"]
@@ -129,6 +129,12 @@ def _normalise_tasks(tasks: object) -> list:
         _validate_optional_choice(
             task, clean, "reasoning_effort", adapter.reasoning_efforts, task_id
         )
+        # Explicit permission for no-diff read-only work; implementation tasks
+        # must not be marked successful merely because the model returned 0.
+        if "allow_no_change" in task:
+            if type(task["allow_no_change"]) is not bool:
+                raise OrderError(f"allow_no_change must be a boolean for task {task_id}")
+            clean["allow_no_change"] = task["allow_no_change"]
         normalised.append(clean)
     return normalised
 
@@ -239,6 +245,8 @@ def workflow_values(order: dict) -> dict:
             "mode": order["mode"],
             "codex_1_task_b64": legacy["codex_task_b64"],
             "codex_2_task_b64": "",
+            "allow_no_change_1": str(tasks[0].get("allow_no_change", False)).lower(),
+            "allow_no_change_2": "false",
         }
 
     encoded = []
@@ -268,6 +276,8 @@ def workflow_values(order: dict) -> dict:
         "mode": order["mode"],
         "codex_1_task_b64": encoded[0],
         "codex_2_task_b64": encoded[1],
+        "allow_no_change_1": str(tasks[0].get("allow_no_change", False)).lower(),
+        "allow_no_change_2": str(tasks[1].get("allow_no_change", False)).lower(),
     }
 
 
