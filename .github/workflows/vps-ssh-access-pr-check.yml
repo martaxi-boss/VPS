@@ -38,3 +38,73 @@ jobs:
 
           echo "SSH_ACCESS=FAIL"
           exit 1
+
+      - name: Read configured Codex model without making an AI request
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sshpass -e ssh -T -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=15 ubuntu@146.59.145.3 'python3 -' <<'PY'
+          import pathlib, re, subprocess
+          home = pathlib.Path.home()
+          config_path = home / ".codex" / "config.toml"
+          def safe(value):
+              if isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9_.-]{1,96}", value):
+                  return value
+              return "UNSET_OR_UNKNOWN"
+          configured = None
+          try:
+              import tomllib
+              if config_path.is_file():
+                  cfg = tomllib.loads(config_path.read_text(encoding="utf-8"))
+                  profile = cfg.get("profile")
+                  profiles = cfg.get("profiles", {})
+                  configured = cfg.get("model")
+                  if isinstance(profile, str) and isinstance(profiles, dict):
+                      p = profiles.get(profile, {})
+                      if isinstance(p, dict):
+                          configured = p.get("model") or configured
+          except Exception:
+              pass
+          print("CODEX_CONFIG_MODEL=" + safe(configured))
+          # Read only the model header from recent already existing local job logs.
+          # Do not send task texts, credentials, config content, or raw logs to GitHub.
+          jobs = home / "codex-bridge" / "jobs"
+          observed = None
+          if jobs.is_dir():
+              log_paths = []
+              for p in jobs.glob("*/cli.log"):
+                  try:
+                      log_paths.append((p.stat().st_mtime, p))
+                  except OSError:
+                      pass
+              for _, p in sorted(log_paths, reverse=True)[:25]:
+                  try:
+                      with p.open("rb") as fh:
+                          log_header = fh.read(110000).decode("utf-8", "replace")
+                  except OSError:
+                      continue
+                  match = re.search(r"(?m)^model:\\s*([A-Za-z0-9_.-]{1,96})\\s*$", log_header)
+                  if match:
+                      observed = match.group(1)
+                      break
+          print("CODEX_LAST_OBSERVED_MODEL=" + safe(observed))
+          cli = home / "codex-agent" / "node_modules" / ".bin" / "codex"
+          if cli.is_file():
+              try:
+                  proc = subprocess.run([str(cli), "--version"], text=True,
+                                        capture_output=True, timeout=12)
+                  version = (proc.stdout or "").strip()
+                  if re.fullmatch(r"[A-Za-z0-9_. -]{1,90}", version):
+                      print("CODEX_CLI_VERSION=" + version)
+                  else:
+                      print("CODEX_CLI_VERSION=UNAVAILABLE")
+              except (OSError, subprocess.SubprocessError):
+                  print("CODEX_CLI_VERSION=UNAVAILABLE")
+          else:
+              print("CODEX_CLI_VERSION=NOT_FOUND")
+          PY
