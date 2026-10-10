@@ -95,6 +95,20 @@ class InputTests(unittest.TestCase):
         (self.root / 'codex-task.txt').write_text(
             'TARGET_REPOSITORY=martaxi-boss/Project-leader\nFix one doc.\n')
         (self.root / 'patch.diff').write_bytes(b'')
+        self.runtime = {
+            'loader_version': 1,
+            'source_repository': 'martaxi-boss/Project-leader',
+            'canonical_revision': SHA,
+            'plugin_version': '0.7.0',
+            'target_repository': 'martaxi-boss/Project-leader',
+            'target_revision': SHA,
+            'mode': 'PINNED_CANONICAL_SKILL',
+        }
+        self.save_runtime()
+
+    def save_runtime(self):
+        (self.root / 'project-leader-runtime.json').write_text(
+            json.dumps(self.runtime) + '\n')
 
     def test_allowlisted_target(self):
         self.assertEqual('martaxi-boss/Project-leader', publisher.validate_metadata(self.root)[0])
@@ -119,6 +133,33 @@ class InputTests(unittest.TestCase):
             f.truncate(publisher.MAX_PATCH_BYTES + 1)
         with self.assertRaises(ValueError):
             publisher.validate_metadata(self.root)
+
+    def test_missing_project_leader_runtime_blocks_publication(self):
+        (self.root / 'project-leader-runtime.json').unlink()
+        with self.assertRaises(ValueError):
+            publisher.validate_metadata(self.root)
+
+    def test_wrong_project_leader_runtime_sha_blocks_publication(self):
+        self.runtime['canonical_revision'] = 'b' * 40
+        self.save_runtime()
+        with self.assertRaises(ValueError):
+            publisher.validate_metadata(self.root)
+
+    def test_wrong_project_leader_runtime_source_blocks_publication(self):
+        self.runtime['source_repository'] = 'untrusted/project-leader'
+        self.save_runtime()
+        with self.assertRaises(ValueError):
+            publisher.validate_metadata(self.root)
+
+    def test_vps_target_accepts_distinct_canonical_runtime_revision(self):
+        (self.root / 'target.txt').write_text('martaxi-boss/VPS\n')
+        (self.root / 'codex-task.txt').write_text(
+            'TARGET_REPOSITORY=martaxi-boss/VPS\nFix a doc.\n')
+        self.runtime['target_repository'] = 'martaxi-boss/VPS'
+        self.runtime['canonical_revision'] = 'b' * 40
+        self.save_runtime()
+        self.assertEqual('martaxi-boss/VPS',
+                         publisher.validate_metadata(self.root)[0])
 
 
 if __name__ == '__main__':

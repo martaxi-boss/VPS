@@ -38,6 +38,19 @@ head="$(git -C "$repo" rev-parse HEAD)"
 printf '%s\n' "$slug" > "$base/target.txt"
 printf '%s\n' "$head" > "$base/base-sha.txt"
 
+# Reconstruct the canonical Project Leader Skill at one immutable revision.
+# This is a separate read-only clone; only the task target is mutable.
+canonical="$repo"
+if [ "$slug" != "martaxi-boss/Project-leader" ]; then
+  canonical="$base/project-leader-canonical"
+  test ! -e "$canonical" || { echo "Canonical workspace already exists" >&2; exit 5; }
+  git clone --quiet --depth 1 --branch main -- \
+    "https://github.com/martaxi-boss/Project-leader.git" "$canonical"
+fi
+python3 "$base/codex-project-leader-bootstrap.py" \
+  "$canonical" "$slug" "$head" "$base/project-leader-rules.md" \
+  "$base/project-leader-runtime.json"
+
 cat > "$base/prompt.md" <<'RULES'
 You are the IMPLEMENTER, not an auditor-only agent. Execute the bounded Owner task in this disposable checkout.
 Edit the actual repository files needed for the request, then run ONLY safe local tests relevant to the edit.
@@ -50,8 +63,10 @@ Do not claim PASS without evidence. Stop on a genuine Human Gate and explain wha
 Keep the edit minimal; preserve tests, functionality, safety and historical evidence.
 Use European Portuguese in your final report. Never print credentials or authentication data.
 
-OWNER TASK:
+PROJECT LEADER CANONICAL RULES:
 RULES
+cat "$base/project-leader-rules.md" >> "$base/prompt.md"
+printf '\nOWNER TASK:\n' >> "$base/prompt.md"
 cat "$base/codex-task.txt" >> "$base/prompt.md"
 
 cd "$repo"

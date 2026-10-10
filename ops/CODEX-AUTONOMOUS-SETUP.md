@@ -48,6 +48,26 @@ Then describe the concrete authorized implementation goal and acceptance criteri
 4. Wait for named target-repository CI workflows **on the exact candidate SHA**. Required failure, missing check, moving main, ambiguous PR state or GitHub rejection means **NO MERGE**, with a truthful Issue status and PR link.
 5. For safe completed changes, integrate without bypassing protected branch rules. The Project Leader target requires an exact-SHA E2 transition authorization and independent Supervisor acceptance: this first bridge publishes a PR and stops rather than silently bypassing its control plane. VPS operational code also requires additional project-specific tests and stays as a PR; only ordinary VPS documentation changes can auto-merge initially. Post-merge hygiene runs from target repository's canonical workflows.
 
+## Project Leader como controlador canónico de cada ordem Codex
+
+O token GitHub permite publicar código, mas **não ativa por si só a Skill**.
+Para todas as novas Issues de implementação `[codex run]`, o runner faz
+obrigatoriamente um bootstrap de leitura **antes de consumir tokens Codex**:
+
+1. Clona a `main` canónica de `martaxi-boss/Project-leader` para um local privado e separado (ou reutiliza o clone do alvo quando esse repositório é o próprio Project Leader).
+2. Fixa uma única revisão Git SHA, verifica o manifesto, a Skill e o âmbito de autoridade, e injeta o conteúdo **exato** da Skill nesse pedido Codex. Nunca usa uma cópia de regras colada à mão.
+3. Regista no resultado a revisão `RUNTIME_CANONICAL_REVISION` e a versão da Skill. Se não conseguir ler ou validar a versão, **não arranca o modelo nem publica correções**.
+4. O Codex segue o ciclo de implementação, testes, higiene proporcional, recuperação e resultados verdadeiros, mas trabalha apenas num clone isolado do repositório-alvo. A publicação permanece entregue ao runner independente.
+
+Este carregamento é a aplicação das regras canónicas ao **workflow de Codex**;
+não é uma invocação automática do plugin instalado no ChatGPT, nem demonstra
+que um Supervisor externo tenha sido lançado. O Supervisor é uma capacidade
+interna de decisão para E1 e os controlos independentes de CI continuam
+obrigatórios. Para efeitos materiais E2/E3, incluindo merges em `main`
+do Project Leader, o circuito recusa a promoção sem autorização de transição
+exata e prova independente de Supervisor. Não se pode inferir autorização de
+produção nem das permissões do token GitHub.
+
 ## Boundaries and limitations
 
 - This route handles normal **E1-compatible modifications**. Changes to `.github`, `.project-leader`, security credentials and Codex bridge control scripts are protected by a patch guard; E2/E3 governance or new authority requirements are real Human Gates unless separately authorized via the established Project Leader control plane.
