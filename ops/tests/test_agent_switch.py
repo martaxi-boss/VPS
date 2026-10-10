@@ -105,6 +105,42 @@ class AgentSwitchTests(unittest.TestCase):
             with self.subTest(field=field), self.assertRaisesRegex(router.OrderError, "Unauthorized"):
                 router.parse_order(self.order([self.task("codex-1", **{field: value})]))
 
+    def test_adaptive_effort_is_independent_for_two_parallel_codex_workers(self):
+        tasks = [
+            self.task("codex-doc", text="Corrige um typo na documentação da VPN",
+                      reasoning_effort="auto"),
+            self.task("codex-race", text="Investigate a race condition in concurrent VPN leases",
+                      reasoning_effort="auto"),
+        ]
+        order = router.parse_order(self.order(tasks, mode="parallel"))
+        values = router.workflow_values(order)
+        self.assertEqual(values["codex_1_reasoning_effort"], "low")
+        self.assertEqual(values["codex_2_reasoning_effort"], "high")
+        plan = json.loads(base64.b64decode(values["dispatch_plan_b64"]))
+        self.assertEqual(
+            [t["selected_reasoning_effort"] for t in plan["tasks"]],
+            ["low", "high"],
+        )
+        self.assertTrue(all(t["effort_selection"] == "adaptive_task_boundary"
+                            for t in plan["tasks"]))
+        # One account, two worker slots; two distinct task prompts, never
+        # a second implicit instance for a one-task Owner order.
+        self.assertEqual(values["task_count"], "2")
+        self.assertNotEqual(values["codex_1_task_b64"], values["codex_2_task_b64"])
+
+    def test_explicit_reasoning_level_overrides_auto_and_single_stays_single(self):
+        one = router.parse_order(self.order(
+            [self.task("codex-only", text="Fix typo in the docs", reasoning_effort="high")],
+            mode="serial"))
+        selected = router.workflow_values(one)
+        self.assertEqual(selected["task_count"], "1")
+        self.assertEqual(selected["codex_1_reasoning_effort"], "high")
+        self.assertEqual(selected["codex_2_reasoning_effort"], "")
+        with self.assertRaisesRegex(router.OrderError, "Unauthorized reasoning_effort"):
+            router.parse_order(self.order([
+                self.task("codex-only", reasoning_effort="xhigh")
+            ]))
+
     def test_malformed_and_malicious_inputs_fail_closed(self):
         bad_orders = (
             self.order(target="martaxi-boss/pink-iptv"),

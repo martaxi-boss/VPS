@@ -61,6 +61,17 @@ registados mas indisponiveis ate existir um adaptador autenticado, testado e
 autorizado. Nao ha fallback nem troca de fornecedor sem ordem expressa. O estado
 do planeador nao constitui evidencia de quotas ou disponibilidade semanal.
 
+## Politica semi-automatica Codex em teste (PR de adaptive thinking)
+
+- Os **dois Codex** continuam a ser **duas execucoes isoladas da mesma conta** na VPS. O limite de duas chamadas simultaneas usa os bloqueios ja existentes; nenhuma segunda conta ou nova chave de Codex e criada.
+- O plano do Owner seleciona **uma ou duas tarefas** com `mode: serial` ou `mode: parallel`; so executa duas se o manifesto tiver dois IDs distintos. A versao atual nao cria um segundo trabalhador por adivinhacao.
+- Em cada tarefa o Project Leader pode enviar `reasoning_effort: "auto"` (ou omitir o campo): tarefas simples e delimitadas usam `low`, tarefas normais `medium`, problemas com indicios objetivos de elevada complexidade `high`. `low`, `medium` e `high` tambem podem ser fixados manualmente. O modelo autenticado continua a ser `gpt-5.6-sol`; nao ha troca automatica de fornecedor nem promessa de nivel Pro.
+- A escolha e **por tarefa/turno Codex**, nao uma mudanca invisivel a meio do mesmo pedido. Na etapa seguinte, o Project Leader pode subir ou descer o nivel mediante CI/falha, contexto e objetivo. Nunca aumenta o nivel para repetir cegamente uma falha.
+- O executor reserva, sob bloqueio atomico, um **orcamento flexivel conjunto de 24 horas** de 300 000 tokens contabilizados; o operador pode definir `CODEX_SOFT_24H_TOKEN_LIMIT` entre 100 000 e 2 000 000. Reservas: Low=12k, Medium=35k, High=75k. Se faltarem reservas, bloqueia **antes** da chamada. Ao terminar, usa os tokens realmente observados em JSONL; se a medicao falhar, contabiliza conservadoramente a reserva. Input em cache faz parte do input e nao e contado duas vezes.
+- O registo de consumo fica **privado na VPS**, nao contem prompt, identidade do cliente, chave ou credencial. Esta orcamentacao cobre os executores `[codex run]`/`[agents run]` por esta via; outras ferramentas/consultas Codex podem gastar a mesma quota fora deste ledger.
+- O **limite de tokens e flexivel, nao garante travar uma geracao em curso**, e a percentagem de quota semanal real da conta continua **UNKNOWN**. Assim, nunca se confunde o nosso orçamento local com os limites contratuais da OpenAI.
+- Este caminho permanece submetido a revisao de patches, PR/CI, protecao de codigo e sem auto-merge de trabalhos paralelos. Gemini, Cursor, Composer e Sonnet continuam desligados. A prova de comportamento real com Low/High sera registada separadamente; testes locais/CI nao sao apresentados como consumo real Codex.
+
 ## Preparacao para o Cursor (ligacao pendente)
 Implementar Cloud Agents da conta Cursor quando a conta ficar ativa. O contrato de cada etapa e:
 - `provider`: `codex` | `cursor`

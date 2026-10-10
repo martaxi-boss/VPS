@@ -11,17 +11,32 @@ report="$base/report.md"
 patch="$base/patch.diff"
 usage="$base/usage.json"
 cli="$HOME/codex-agent/node_modules/.bin/codex"
+budget_root="$HOME/codex-bridge"
 
 on_exit() {
   code=$?
+  trap - EXIT
+  # Reserve before a model call and count every completed/failed Codex turn.
+  # Unknown usage is conservatively charged the full reservation.
+  if [ -s "$base/budget-reservation.json" ]; then
+    if ! python3 "$base/codex_resource_policy.py" settle "$budget_root" "$job" "$usage"       > "$base/budget-settlement.json"; then
+      echo 'Shared Codex token-ledger settlement failed' >&2
+      code=16
+    fi
+  fi
   if [ "$code" -ne 0 ]; then
     printf 'CODEX_EXECUTION_FAILED=%s\n' "$code" > "$base/outcome.txt"
   fi
+  exit "$code"
 }
 trap on_exit EXIT
 
 test -s "$base/codex-task.txt"
 test -f "$base/codex_patch_guard.py"
+test -f "$base/codex_resource_policy.py"
+test -s "$base/codex-reasoning.txt"
+effort="$(cat "$base/codex-reasoning.txt")"
+case "$effort" in low|medium|high) ;; *) echo 'Invalid trusted Codex thinking level' >&2; exit 10 ;; esac
 test -x "$cli"
 "$cli" login status > /dev/null 2>&1 || { echo 'Codex login unavailable' >&2; exit 3; }
 
@@ -85,12 +100,15 @@ for _ in $(seq 1 90); do
 done
 [ "$slot" -ne 0 ] || { echo "No Codex execution slot available; no tokens spent" >&2; exit 11; }
 printf 'CODEX_EXECUTION_SLOT=%s\n' "$slot"
+python3 "$base/codex_resource_policy.py" reserve "$budget_root" "$job" "$effort"   > "$base/budget-reservation.json"
+test -s "$base/budget-reservation.json" || { echo 'Codex token reservation missing' >&2; exit 17; }
+printf 'CODEX_SHARED_SOFT_TOKEN_RESERVATION=ACCEPTED\n'
 # JSONL output gives direct per-run token counts when Codex emits turn.completed.usage.
 # It does NOT prove any percentage of the account's weekly quota.
-printf 'CODEX_MODEL=gpt-5.6-sol\nCODEX_REASONING_EFFORT=medium\nCODEX_TARGET_SHA=%s\n' "$head"
+printf 'CODEX_MODEL=gpt-5.6-sol\nCODEX_REASONING_EFFORT=%s\nCODEX_TARGET_SHA=%s\n' "$effort" "$head"
 set +e
 timeout --signal=TERM --kill-after=15s 35m \
-  "$cli" exec --model gpt-5.6-sol -c model_reasoning_effort=medium \
+  "$cli" exec --model gpt-5.6-sol -c "model_reasoning_effort=$effort" \
     --sandbox workspace-write --json --output-last-message "$report" - \
     < "$base/prompt.md" > "$base/cli.jsonl" 2> "$base/cli.stderr"
 code=$?

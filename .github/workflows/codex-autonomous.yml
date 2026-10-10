@@ -30,6 +30,11 @@ on:
         required: false
         type: boolean
         default: false
+      reasoning_effort:
+        description: Offline validated reasoning for this exact Codex worker
+        required: false
+        type: string
+        default: medium
 
 permissions: {}
 
@@ -54,6 +59,7 @@ jobs:
       issues: write
     env:
       CODEX_INSTANCE_ID: ${{ inputs.instance_id }}
+      CODEX_REASONING_EFFORT: ${{ inputs.reasoning_effort || 'medium' }}
     steps:
       - name: Load reviewed VPS executor only
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pinned v4
@@ -134,6 +140,8 @@ jobs:
         run: |
           set -euo pipefail
           case "$CODEX_INSTANCE_ID" in ''|1|2) ;; *) echo 'Invalid Codex worker identity' >&2; exit 12;; esac
+          case "$CODEX_REASONING_EFFORT" in low|medium|high) ;; *) echo 'Invalid Codex reasoning level; no model started' >&2; exit 12;; esac
+          printf '%s\n' "$CODEX_REASONING_EFFORT" > "$RUNNER_TEMP/codex-reasoning.txt"
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT${CODEX_INSTANCE_ID:+-$CODEX_INSTANCE_ID}"
           [[ "$job" =~ ^[0-9]+-[0-9]+(-[12])?$ ]]
           remote='ubuntu@146.59.145.3'
@@ -141,7 +149,8 @@ jobs:
           sshpass -e ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
             "$remote" "install -d -m 700 '$dest'"
           sshpass -e scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
-            "$RUNNER_TEMP/codex-task.txt" ops/codex-autonomous-remote.sh \
+            "$RUNNER_TEMP/codex-task.txt" "$RUNNER_TEMP/codex-reasoning.txt" \
+            ops/codex-autonomous-remote.sh ops/codex_resource_policy.py \
             ops/codex_patch_guard.py ops/codex-project-leader-bootstrap.py "$remote:$dest/"
 
       - name: Run signed-in Codex CLI with workspace-write sandbox
@@ -277,6 +286,11 @@ jobs:
                        'Result: ' + data.get('reason', 'See trusted runner checks')]
               if os.environ.get('CODEX_INSTANCE_ID'):
                   lines.append('Worker: Codex ' + os.environ['CODEX_INSTANCE_ID'])
+              effort = os.environ.get('CODEX_REASONING_EFFORT', '')
+              if effort in {'low', 'medium', 'high'}:
+                  lines.append('Chosen reasoning effort: ' + effort + ' (per task)')
+              else:
+                  lines.append('Reasoning effort: NOT_VERIFIED')
               if data.get('pull_request'):
                   lines.append('PR: ' + data['pull_request'])
               if data.get('merge_sha'):
