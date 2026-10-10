@@ -172,7 +172,8 @@ jobs:
           sshpass -e ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
             "$remote" "install -d -m 700 '$dest'"
           sshpass -e scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
-            "$RUNNER_TEMP/codex-task.txt" ops/codex-vps-remote.sh "$remote:$dest/"
+            "$RUNNER_TEMP/codex-task.txt" ops/codex-vps-remote.sh \
+            ops/codex-project-leader-bootstrap.py "$remote:$dest/"
           ext="$CODEX_IMAGE_EXT"
           if [ -n "$ext" ]; then
             case "$ext" in jpg|png|webp) ;; *) exit 1;; esac
