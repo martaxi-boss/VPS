@@ -142,6 +142,22 @@ if [ "$image_count" -eq 1 ]; then
 fi
 # Leave the stdin prompt after the output option so older Codex CLI parsers
 # do not consume it as a second image path.
+# All Codex entrypoints on this signed-in account share the SAME two slots.
+# The parent shell holds the file descriptor until the model call finishes.
+command -v flock >/dev/null || { echo 'Codex slot control unavailable; no model started' >&2; exit 14; }
+slotdir="$HOME/codex-bridge"
+install -d -m 700 "$slotdir"
+exec 8>"$slotdir/.codex-slot-1.lock"
+exec 9>"$slotdir/.codex-slot-2.lock"
+slot=0
+for _ in $(seq 1 90); do
+  if flock -n 8; then slot=1; break; fi
+  if flock -n 9; then slot=2; break; fi
+  sleep 5
+done
+[ "$slot" -ne 0 ] || { echo 'Both Codex account slots busy; no model started' >&2; exit 14; }
+printf 'CODEX_EXECUTION_SLOT=%s\n' "$slot"
+
 timeout --signal=TERM --kill-after=15s 35m \
   "$codex" exec --model "$codex_model" -c model_reasoning_effort=medium \
     --sandbox read-only "${image_args[@]}" \

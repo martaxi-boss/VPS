@@ -203,5 +203,27 @@ class AgentSwitchTests(unittest.TestCase):
 
 
 
+    def test_no_change_permission_requires_exact_boolean(self):
+        read_only = self.task("codex-read", allow_no_change=True)
+        order = router.parse_order(self.order([read_only], mode="serial"))
+        self.assertIs(order["tasks"][0]["allow_no_change"], True)
+        values = router.workflow_values(order)
+        self.assertEqual(values["allow_no_change_1"], "true")
+        self.assertEqual(values["allow_no_change_2"], "false")
+        plan = router.dispatch_plan(order)
+        self.assertTrue(plan["tasks"][0]["allow_no_change"])
+        for invalid in ("true", 1, None, [], {}):
+            with self.subTest(invalid=invalid), self.assertRaises(router.OrderError):
+                router.parse_order(self.order([self.task("codex-read", allow_no_change=invalid)]))
+
+    def test_no_change_permission_per_worker_not_inherited(self):
+        tasks = [self.task("codex-first", allow_no_change=True), self.task("codex-second")]
+        order = router.parse_order(self.order(tasks, mode="serial"))
+        values = router.workflow_values(order)
+        self.assertEqual(values["allow_no_change_1"], "true")
+        self.assertEqual(values["allow_no_change_2"], "false")
+        self.assertNotIn("allow_no_change", order["tasks"][1])
+
+
 if __name__ == "__main__":
     unittest.main()

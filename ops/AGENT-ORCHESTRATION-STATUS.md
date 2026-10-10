@@ -33,14 +33,19 @@ Em modo serial, a segunda execucao so inicia se a primeira acabar com
 sucesso; uma PR nao integrada interrompe a sequencia. Em paralelo, os dois
 trabalhadores usam workspaces/branches distintos e publicam **PRs separadas
 sem auto-merge**, para evitar fusoes concorrentes. O acesso Codex partilhado
-fica limitado por dois slots de execucao; continua a partilhar a quota da
-mesma conta.
+fica limitado por dois slots de execucao partilhados com os caminhos de
+auditoria e proposta Codex; continua a partilhar a quota da mesma conta.
 
 O planeador generico suporta planos de ate oito tarefas, mas o backend real
 esta deliberadamente limitado a um ou dois Codex. Mais de dois, ou qualquer
 fornecedor desligado, falha antes de executar modelos — nunca corre so metade
-da ordem. CI de PR verifica a infraestrutura, mas a execucao ao vivo de dois
-Codex em serie/paralelo ainda esta **NAO_OBSERVADA** ate prova end-to-end.
+da ordem. A execucao de **duas tarefas de leitura sem patch** foi comprovada ao vivo:
+[paralelo #102](https://github.com/martaxi-boss/VPS/issues/102)
+(run 38081330336) e
+[serie #103](https://github.com/martaxi-boss/VPS/issues/103)
+(run 38081707953); ambos os modos tiveram dois executores concluidos com
+Skill Project Leader v0.7.0 pinada. Isto NAO certifica duas alteracoes reais
+de codigo nem o merge/reconciliacao de PRs concorrentes.
 A selecao de modelos alternativos e otimizacao dinamica de quota permanecem
 por integrar: o executor validado continua em `gpt-5.6-sol` Medium.
 
@@ -69,4 +74,10 @@ Cada etapa deve deixar o codigo numa branch e devolver metadados para a proxima.
 - No repositorio VPS publico, prompts, comments e PRs tambem podem ser publicos. Nao enviar dados privados ou segredos.
 - Nunca colocar token do Codex ChatGPT Business nos GitHub Secrets para esta integracao: Codex ja tem login por codigo de dispositivo no VPS.
 - `[codex audit]` continua read-only. `[codex run]` executa alteracoes num clone isolado, cria PR automaticamente e so faz merge no VPS documental se os controlos passarem; a `main` do Project Leader permanece sujeita ao gate E2. Nao assumir que Cursor, Gemini, Sonnet ou Telegram fazem correcoes automaticas: essa fase ainda nao esta comprovada.
-- Gemini/Antigravity, Cursor/Composer e Claude ainda nao tem adaptadores ligados; o backend dual Codex permanece pendente de prova real end-to-end.
+- Gemini/Antigravity, Cursor/Composer e Claude ainda nao tem adaptadores ligados.
+- As duas provas reais com Codex foram tarefas sem alteracoes; o pipeline multiagente ainda nao foi certificado para reconciliar multiplas PRs com codigo modificado.
+- O manifesto `[agents run]` pode declarar `"allow_no_change": true` **apenas para tarefas de leitura sem alteracoes esperadas**, individualmente por agente. Sem essa permissao, um patch vazio produz `NO_CHANGE_UNVERIFIED`, falha o workflow e bloqueia a etapa seguinte da serie em vez de alegar cumprimento do objetivo. Com permissao, `NO_CHANGE` certifica apenas ausencia de diff, nao a qualidade da resposta.
+- O GitHub Actions usa fila `queue: max` para nao substituir ordens pendentes normais (limite da plataforma: ate 100 pendentes por grupo). Se a etapa 1 falhar, o Owner recebe uma anotacao `CODEX_2_NOT_STARTED`.
+- Os workspaces de executor passam a ter remocao tentada tambem quando houve falha, apos recolher o resultado. A tentativa pode falhar se a VPS estiver inacessivel; nao se afirma limpeza perfeita.
+- O relatorio textual detalhado do Codex **continua sem publicacao automatica** em `[agents run]`: os comentarios registam apenas estado mecanico, links e tokens observados. O repositorio e publico, pelo que o retorno de texto arbitrario requer primeiro um canal privado ou consentimento explicito.
+- O repositorio e publico: qualquer futuro retorno de relatorios tem de preservar privacidade e impedir divulgacao de segredos, nao publicar texto arbitrario do modelo por defeito.

@@ -42,6 +42,8 @@ jobs:
       mode: ${{ steps.validate.outputs.mode }}
       codex_1_task_b64: ${{ steps.validate.outputs.codex_1_task_b64 }}
       codex_2_task_b64: ${{ steps.validate.outputs.codex_2_task_b64 }}
+      allow_no_change_1: ${{ steps.validate.outputs.allow_no_change_1 }}
+      allow_no_change_2: ${{ steps.validate.outputs.allow_no_change_2 }}
     steps:
       - name: Read only reviewed router from default branch
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pinned v4
@@ -112,6 +114,7 @@ jobs:
     with:
       task_b64: ${{ needs.preflight.outputs.codex_task_b64 }}
       issue_number: ${{ github.event.issue.number }}
+      allow_no_change: ${{ fromJSON(needs.preflight.outputs.allow_no_change_1) }}
     secrets: inherit
 
   # Two independent workers are launched only by an explicit, fully validated
@@ -129,6 +132,7 @@ jobs:
       issue_number: ${{ github.event.issue.number }}
       instance_id: '1'
       no_auto_merge: true
+      allow_no_change: ${{ fromJSON(needs.preflight.outputs.allow_no_change_1) }}
     secrets: inherit
 
   codex_parallel_2:
@@ -143,6 +147,7 @@ jobs:
       issue_number: ${{ github.event.issue.number }}
       instance_id: '2'
       no_auto_merge: true
+      allow_no_change: ${{ fromJSON(needs.preflight.outputs.allow_no_change_2) }}
     secrets: inherit
 
   # Serial work waits for successful completion of stage 1. The second worker
@@ -159,6 +164,7 @@ jobs:
       issue_number: ${{ github.event.issue.number }}
       instance_id: '1'
       no_auto_merge: false
+      allow_no_change: ${{ fromJSON(needs.preflight.outputs.allow_no_change_1) }}
     secrets: inherit
 
   codex_serial_2:
@@ -173,4 +179,26 @@ jobs:
       issue_number: ${{ github.event.issue.number }}
       instance_id: '2'
       no_auto_merge: false
+      allow_no_change: ${{ fromJSON(needs.preflight.outputs.allow_no_change_2) }}
     secrets: inherit
+
+  # Every unstarted serial step must be recorded in the Owner Issue.
+  codex_serial_blocked:
+    needs: [preflight, codex_serial_1]
+    if: >-
+      always() && needs.preflight.result == 'success' &&
+      needs.preflight.outputs.task_count == '2' &&
+      needs.preflight.outputs.mode == 'serial' &&
+      needs.codex_serial_1.result != 'success'
+    runs-on: ubuntu-24.04
+    permissions:
+      issues: write
+    steps:
+      - name: Notify Owner of the unstarted dependent task
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          FIRST_RESULT: ${{ needs.codex_serial_1.result }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
+            --body "CODEX_2_NOT_STARTED: serial stage 1 outcome was $FIRST_RESULT; stage 2 was skipped to preserve order and safety."

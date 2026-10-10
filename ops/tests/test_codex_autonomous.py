@@ -2,6 +2,7 @@
 import importlib.util
 import json
 import sys
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -212,6 +213,67 @@ class TwoWorkerPublicationTests(unittest.TestCase):
         )
         self.assertEqual(result["status"], "PR_NEEDS_ATTENTION")
         self.assertEqual(result["reason"], "Named CI failed")
+
+
+
+class SharedCodexAccountSlotsTests(unittest.TestCase):
+    """All active Codex entrypoints must obey the same VPS account budget."""
+
+    def test_every_entrypoint_has_two_identical_lock_names_before_model(self):
+        paths = [
+            "codex-autonomous-remote.sh",
+            "codex-vps-remote.sh",
+            "codex-project-leader-remote.sh",
+        ]
+        for name in paths:
+            with self.subTest(name=name):
+                script = (OPS / name).read_text(encoding="utf-8")
+                self.assertIn('.codex-slot-1.lock', script)
+                self.assertIn('.codex-slot-2.lock', script)
+                self.assertNotIn('.codex-slot-3.lock', script)
+                self.assertIn('flock -n 8', script)
+                self.assertIn('flock -n 9', script)
+                self.assertIn('slot=0', script)
+                self.assertIn('[ "$slot" -ne 0 ]', script)
+                exec_call = '"$cli" exec' if name == 'codex-autonomous-remote.sh' else '"$codex" exec'
+                self.assertLess(script.index('flock -n 8'), script.index(exec_call))
+                subprocess.run(['bash', '-n', str(OPS / name)], check=True)
+
+
+
+class NoChangeAndQueueSafetyTests(unittest.TestCase):
+    """Loss, false-success and failure-cleanup regressions are fail-closed."""
+
+    def test_empty_patch_without_owner_consent_never_passes(self):
+        result = publisher.no_change_result("martaxi-boss/VPS", allowed=False)
+        self.assertEqual("NO_CHANGE_UNVERIFIED", result["status"])
+        self.assertIn("NOT_VERIFIED", result["reason"])
+
+    def test_explicit_read_only_no_change_is_truthfully_scoped(self):
+        result = publisher.no_change_result("martaxi-boss/VPS", allowed=True)
+        self.assertEqual("NO_CHANGE", result["status"])
+        self.assertIn("not independently verified", result["reason"])
+
+    def test_github_queue_does_not_replace_earlier_pending_codex_order(self):
+        workflow = (OPS.parent / ".github/workflows/codex-autonomous.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("  queue: max", workflow)
+        self.assertIn("  cancel-in-progress: false", workflow)
+
+    def test_serial_dependent_skip_has_durable_owner_notice(self):
+        workflow = (OPS.parent / ".github/workflows/agent-switch.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("codex_serial_blocked:", workflow)
+        self.assertIn("CODEX_2_NOT_STARTED:", workflow)
+
+    def test_failed_codex_runs_attempt_workspace_cleanup(self):
+        workflow = (OPS.parent / ".github/workflows/codex-autonomous.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("if: always() && steps.stage.outcome != 'skipped'", workflow)
+        self.assertIn("CODEX_ALLOW_NO_CHANGE:", workflow)
 
 
 

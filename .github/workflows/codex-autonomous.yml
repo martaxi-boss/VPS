@@ -25,12 +25,19 @@ on:
         required: false
         type: boolean
         default: false
+      allow_no_change:
+        description: Owner explicitly permits a read-only, no-diff task result
+        required: false
+        type: boolean
+        default: false
 
 permissions: {}
 
 concurrency:
   group: codex-autonomous-${{ github.repository }}-${{ inputs.instance_id || 'single' }}
   cancel-in-progress: false
+  # GitHub defaults to replacing an older pending run. Keep up to 100 queued.
+  queue: max
 
 jobs:
   execute:
@@ -183,6 +190,7 @@ jobs:
           CODEX_RESULT_PATH: ${{ runner.temp }}/codex-result.json
           CODEX_ISSUE_NUMBER: ${{ github.event.issue.number }}
           CODEX_PR_ONLY: ${{ inputs.no_auto_merge }}
+          CODEX_ALLOW_NO_CHANGE: ${{ inputs.allow_no_change }}
         run: python3 ops/codex-autonomous-publish.py
 
       - name: Publish truthful execution result to Owner Issue
@@ -247,7 +255,7 @@ jobs:
             --body-file "$RUNNER_TEMP/owner-result.md"
 
       - name: Remove completed disposable VPS workspace
-        if: always() && steps.codex.outcome == 'success' && steps.collect.outcome == 'success'
+        if: always() && steps.stage.outcome != 'skipped'
         continue-on-error: true
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
