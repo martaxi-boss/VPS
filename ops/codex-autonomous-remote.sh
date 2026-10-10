@@ -72,10 +72,10 @@ cat "$base/codex-task.txt" >> "$base/prompt.md"
 cd "$repo"
 # JSONL output gives direct per-run token counts when Codex emits turn.completed.usage.
 # It does NOT prove any percentage of the account's weekly quota.
-printf 'CODEX_MODEL=gpt-5.6-terra\nCODEX_REASONING_EFFORT=medium\nCODEX_TARGET_SHA=%s\n' "$head"
+printf 'CODEX_MODEL=gpt-5.6-sol\nCODEX_REASONING_EFFORT=medium\nCODEX_TARGET_SHA=%s\n' "$head"
 set +e
 timeout --signal=TERM --kill-after=15s 35m \
-  "$cli" exec --model gpt-5.6-terra -c model_reasoning_effort=medium \
+  "$cli" exec --model gpt-5.6-sol -c model_reasoning_effort=medium \
     --sandbox workspace-write --json --output-last-message "$report" - \
     < "$base/prompt.md" > "$base/cli.jsonl" 2> "$base/cli.stderr"
 code=$?
