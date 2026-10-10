@@ -65,6 +65,14 @@ class BootstrapTests(unittest.TestCase):
         self.assertIn("MINIMAL_COORDINATION_BUDGET", text)
         self.assertIn("trusted publisher independently enforces scope", text)
 
+    def test_pink_target_accepts_pinned_canonical_skill_without_extra_privilege(self):
+        text, meta = bootstrap.load_runtime(self.repo, "martaxi-boss/pink-iptv", SHA)
+        self.assertEqual(meta["target_repository"], "martaxi-boss/pink-iptv")
+        self.assertEqual(meta["canonical_revision"], self.head)
+        self.assertIn("RUNTIME_CANONICAL_REVISION=" + self.head, text)
+        self.assertIn("trusted publisher independently enforces scope", text)
+        self.assertNotEqual(meta["canonical_revision"], meta["target_revision"])
+
     def test_runtime_reads_exact_git_object_not_dirty_worktree(self):
         self.put("plugins/project-leader/skills/project-leader/SKILL.md",
                  "MALICIOUS_UNCOMMITTED_WORKTREE_CONTENT")
