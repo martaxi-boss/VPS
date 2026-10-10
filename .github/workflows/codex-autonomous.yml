@@ -230,6 +230,20 @@ jobs:
             exit 1
           fi
           echo "NOT_DELIVERED" > "$state"
+          # The private message must distinguish 'PR_STAGED' from 'MERGED'.
+          if test -s "$RUNNER_TEMP/codex-result.json"; then
+            CODEX_JOB_STATUS="$(python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          data = json.loads((Path(os.environ["RUNNER_TEMP"]) / "codex-result.json").read_text(encoding="utf-8"))
+          status = data.get("status")
+          allowed = {"MERGED", "NO_CHANGE", "PR_STAGED", "PR_NEEDS_ATTENTION", "NO_CHANGE_UNVERIFIED", "FAILED"}
+          print(status if status in allowed else "unknown")
+          PY
+            )"
+            export CODEX_JOB_STATUS
+          fi
           # The Telegram gateway masks bot HTTP details and does not print
           # the report or credentials to public GitHub Actions logs.
           if python3 ops/telegram_gateway.py notify; then
