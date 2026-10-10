@@ -193,7 +193,7 @@ def premerge_policy_gate(repo, paths):
     return None
 
 
-def perform(source, issue, run_id, attempt):
+def perform(source, issue, run_id, attempt, instance_id="", pr_only=False):
     repo, base_sha, patch = validate_metadata(source)
     if patch.stat().st_size == 0:
         return {"status": "NO_CHANGE", "repository": repo,
@@ -201,7 +201,7 @@ def perform(source, issue, run_id, attempt):
     if current_main(repo) != base_sha:
         raise RuntimeError("STALE_BASE: main advanced after Codex cloned; require a fresh run")
 
-    branch = f"codex/issue-{issue}-{run_id}-{attempt}"
+    branch = f"codex/issue-{issue}-{run_id}-{attempt}" + (f"-{instance_id}" if instance_id else "")
     with tempfile.TemporaryDirectory(prefix="codex-publish-") as temp:
         root = Path(temp)
         work = root / "target"
@@ -238,7 +238,19 @@ def perform(source, issue, run_id, attempt):
         url = pr["html_url"]
         print("CODEX_PR_CREATED=" + url, flush=True)
         # In-scope patches are not themselves authority for a consequential merge.
+        # Parallel workers must publish distinct PRs without a racing automatic merge.
+        # Required exact-head CI still runs; PR_STAGED never claims the task was merged.
         blocking_policy = premerge_policy_gate(repo, paths)
+        if pr_only:
+            state, evidence = wait_for_checks(repo, sha, branch, ALLOWED[repo])
+            if state != "PASS":
+                return {"status": "PR_NEEDS_ATTENTION", "repository": repo,
+                        "pull_request": url, "commit_sha": sha, "reason": evidence}
+            detail = (blocking_policy + "; " if blocking_policy else "") + (
+                "PR-only parallel task: exact-head CI passed, no merge attempted. "
+                "Project Leader must review and integrate this PR independently.")
+            return {"status": "PR_STAGED", "repository": repo,
+                    "pull_request": url, "commit_sha": sha, "reason": detail}
         if blocking_policy:
             return {"status": "PR_NEEDS_ATTENTION", "repository": repo,
                     "pull_request": url, "commit_sha": sha,
@@ -288,12 +300,17 @@ def main():
     issue = os.environ["CODEX_ISSUE_NUMBER"]
     run_id = os.environ["GITHUB_RUN_ID"]
     attempt = os.environ["GITHUB_RUN_ATTEMPT"]
+    instance_id = os.environ.get("CODEX_INSTANCE_ID", "")
+    pr_only_value = os.environ.get("CODEX_PR_ONLY", "false").lower()
+    if instance_id not in ("", "1", "2") or pr_only_value not in ("true", "false"):
+        raise ValueError("Invalid trusted Codex instance or publication mode")
+    pr_only = pr_only_value == "true"
     if not all(x.isdecimal() for x in (issue, run_id, attempt)):
         raise ValueError("Invalid issue/run identity")
     if not os.environ.get("CODEX_GITHUB_TOKEN"):
         raise RuntimeError("Missing CODEX_GITHUB_TOKEN secret; no model run should be started")
     try:
-        result = perform(source, issue, run_id, attempt)
+        result = perform(source, issue, run_id, attempt, instance_id, pr_only)
     except Exception as exc:
         # Never publish exception details containing raw user task or credentials.
         result = {"status": "FAILED", "reason": str(exc)[:300]}
@@ -305,7 +322,7 @@ def main():
         result["usage"] = {"observed": False}
     dest.write_text(json.dumps(result, ensure_ascii=False) + "\n", encoding="utf-8")
     print("CODEX_TRUSTED_RESULT=" + result["status"], flush=True)
-    if result["status"] not in ("MERGED", "NO_CHANGE"):
+    if result["status"] not in ("MERGED", "NO_CHANGE", "PR_STAGED"):
         return 1
     return 0
 
