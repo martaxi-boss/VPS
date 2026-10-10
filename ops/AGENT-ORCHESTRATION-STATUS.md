@@ -37,3 +37,19 @@ Cada etapa deve deixar o codigo numa branch e devolver metadados para a proxima.
 - Nunca colocar token do Codex ChatGPT Business nos GitHub Secrets para esta integracao: Codex ja tem login por codigo de dispositivo no VPS.
 - `[codex audit]` continua read-only. `[codex run]` executa alteracoes num clone isolado, cria PR automaticamente e so faz merge no VPS documental se os controlos passarem; a `main` do Project Leader permanece sujeita ao gate E2. Nao assumir que Cursor, Gemini, Sonnet ou Telegram fazem correcoes automaticas: essa fase ainda nao esta comprovada.
 - A ligacao Cursor e a orquestracao multiagente ainda nao estao ativas.
+
+
+## Nomes e cadeia de execução por voz no Telegram (proposta)
+
+- Endereçamento: «Oh Codex», «Boa tarde Composer» e «Olá Sonnet» identificam agentes distintos, sem criar tarefas pagas. O comando /agentes apresenta o estado conhecido.
+- «Oh Codex, executa o projeto e quando acabares os tokens passa para o Composer acabar» é reconhecido como uma cadeia de implementação, não como uma auditoria. Enquanto o Composer não estiver ligado, a cadeia é recusada antes de consumir tokens Codex.
+- Para executar a passagem real é preciso ligar os dois executores com autenticação e âmbitos próprios, um sinal verificável de quota/rate-limit sem inventar percentagem, um ponto de continuação privado com repositório, branch e SHA, testes de não duplicação e autorização de alteração/publicação.
+- O Telegram ainda não oferece conversa livre equivalente ao ChatGPT; esta mudança prepara identificação e segurança, mas não liga por si só um modelo de chat ou o Composer.
+- A preparação está numa PR não integrada; o serviço residente também não está confirmado como instalado na VPS.
+
+
+## Diferença entre o Project Leader e a entrada Telegram
+
+**Project Leader 0.7.0 não está limitado a auditoria.** As capacidades canónicas incluem Consultant, Supervisor, Builder (execução), Recovery Guardian e higienização, sob limites e autorização proporcional. O workflow GitHub de implementação Owner-autorizada `[codex run]` carrega a Skill canónica antes de invocar o Codex, executa num clone descartável com sandbox workspace-write e submete alterações a controles/CI/publicação independentes. Não equivale a uma invocação direta do plugin no ChatGPT e não autoriza produção sem gates aplicáveis.
+
+O bot **Telegram** existente encaminha `[codex audit]`, não `[codex run]`. Esta fronteira é da autenticação e da entrada de mensagens (que ainda não satisfaz a validação Owner para tarefas de escrita), não uma falta de execução na Skill. A migração correta tem de ligar Telegram autenticado ao circuito já existente sem contornar a verificação do proprietário, scoped token, privacidade, ponto de continuação e limites de confiança. Não declarar o bot capaz de executar ou passar ao Composer sem uma prova real ponta-a-ponta.

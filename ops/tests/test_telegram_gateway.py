@@ -25,6 +25,113 @@ class TelegramGatewayTests(unittest.TestCase):
                          "faz uma auditoria")
         self.assertIsNone(gateway.parse_audit("Ola, tudo bem?"))
 
+    def test_named_agent_greetings_do_not_start_codex(self):
+        for text, expected in (
+            ("Boa tarde Codex", "Codex"),
+            ("Codex, estás aí?", "Codex"),
+            ("Boa tarde Gemini", "Gemini"),
+            ("Gemini, boa tarde", "Gemini"),
+            ("Boa tarde Geminai", "Gemini"),
+            ("Olá Project Leader", "Project Leader"),
+        ):
+            with self.subTest(text=text):
+                self.assertTrue(gateway.is_presence_message(text))
+                agent, _ = gateway.parse_agent_address(text)
+                self.assertEqual(agent, expected)
+                update = {
+                    'update_id': 991,
+                    'message': {'chat': {'id': 123456, 'type': 'private'},
+                                'from': {'id': 123456, 'is_bot': False},
+                                'text': text},
+                }
+                with (patch.object(gateway, 'CHAT_ID', '123456'),
+                      patch.object(gateway, 'create_audit') as create,
+                      patch.object(gateway, 'say') as reply):
+                    gateway.handle_update(update)
+                    create.assert_not_called()
+                    reply.assert_called_once()
+                    self.assertIn(expected, reply.call_args.args[0])
+
+    def test_gemini_command_cannot_trigger_codex(self):
+        for text in ('Gemini, verifica o estado da VPS',
+                     'Boa tarde Gemini, verifica os ficheiros'):
+            with self.subTest(text=text):
+                update = {'update_id': 992,
+                          'message': {'chat': {'id': 123456, 'type': 'private'},
+                                      'from': {'id': 123456, 'is_bot': False},
+                                      'text': text}}
+                with (patch.object(gateway, 'CHAT_ID', '123456'),
+                      patch.object(gateway, 'create_audit') as create,
+                      patch.object(gateway, 'say') as reply):
+                    gateway.handle_update(update)
+                    create.assert_not_called()
+                    self.assertIn('não está ligado', reply.call_args.args[0])
+
+    def test_codex_social_question_not_paid_and_explicit_audit_still_routes(self):
+        non_task = {'update_id': 993,
+                    'message': {'chat': {'id': 123456, 'type': 'private'},
+                                'from': {'id': 123456, 'is_bot': False},
+                                'text': 'Codex, como estás hoje?'}}
+        with (patch.object(gateway, 'CHAT_ID', '123456'),
+              patch.object(gateway, 'create_audit') as create,
+              patch.object(gateway, 'say') as reply):
+            gateway.handle_update(non_task)
+            create.assert_not_called()
+            self.assertIn('não percebi', reply.call_args.args[0].lower())
+
+        non_task['message']['text'] = 'Boa tarde Codex, verifica o estado da VPS'
+        with (patch.object(gateway, 'CHAT_ID', '123456'),
+              patch.object(gateway, 'create_audit', return_value=100) as create,
+              patch.object(gateway, 'say')):
+            gateway.handle_update(non_task)
+            self.assertEqual(create.call_args.args[1], 'verifica o estado da VPS')
+
+    def test_composer_sonnet_and_vocative_names(self):
+        for words, expected in (
+            ('Boa tarde Composer', 'Composer'),
+            ('Oh Composer', 'Composer'),
+            ('Olá Sonnet', 'Sonnet'),
+            ('Oh Codex', 'Codex'),
+            ('Ó Codex, estás aí?', 'Codex'),
+        ):
+            with self.subTest(words=words):
+                self.assertEqual(gateway.parse_agent_address(words)[0], expected)
+        self.assertTrue(gateway.is_presence_message('Boa tarde Composer'))
+        self.assertTrue(gateway.is_presence_message('Oh Codex'))
+
+    def test_agent_handoff_and_build_never_start_read_only_codex(self):
+        request = ('Oh Codex executa o projeto e quando acabares os tokens '
+                   'passa para o Composer acabar')
+        self.assertEqual(gateway.parse_agent_address(request)[0], 'Codex')
+        self.assertTrue(gateway.requests_agent_handoff(request))
+        self.assertTrue(gateway.requests_implementation(request))
+        for words in (request, 'Codex, passa a tarefa ao Composer',
+                      'Codex, implementa a aplicação'):
+            for as_voice in (False, True):
+                with self.subTest(words=words, voice=as_voice):
+                    msg = {'chat': {'id': 123456, 'type': 'private'},
+                           'from': {'id': 123456, 'is_bot': False}}
+                    if as_voice:
+                        msg['voice'] = {'file_id': 'AwACAgQAAAAAAAABBBBB', 'duration': 12}
+                    else:
+                        msg['text'] = words
+                    with (patch.object(gateway, 'CHAT_ID', '123456'),
+                          patch.object(gateway, 'transcribe_voice', return_value=words),
+                          patch.object(gateway, 'create_audit') as paid,
+                          patch.object(gateway, 'say') as say):
+                        gateway.handle_update({'update_id': 700, 'message': msg})
+                        paid.assert_not_called()
+                        self.assertIn('Project Leader', say.call_args.args[0])
+                        self.assertIn('não', say.call_args.args[0].lower())
+
+    def test_agentes_displays_real_not_aspirational_capabilities(self):
+        reply = gateway.agent_capability_reply()
+        self.assertIn('Composer', reply)
+        self.assertIn('não ligado', reply)
+        self.assertIn('auditoria de leitura', reply)
+        self.assertIn('Project Leader também suporta execução', reply)
+        self.assertIn('[codex run]', reply)
+
     def test_unauthorized_chat_does_not_trigger_actions(self):
         with (patch.object(gateway, "CHAT_ID", "123456"),
               patch.object(gateway, "github") as gh,

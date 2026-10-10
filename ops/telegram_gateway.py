@@ -351,20 +351,164 @@ def parse_audit(text):
     return None
 
 
-def is_presence_message(text):
-    """Greetings and presence checks must never start paid Codex work."""
+_AGENT_LABELS = {
+    "project leader": "Project Leader",
+    "project lider": "Project Leader",
+    "codex": "Codex",
+    "gemini": "Gemini",
+    "geminai": "Gemini",
+    "cursor": "Cursor",
+    "composer": "Composer",
+    "sonnet": "Sonnet",
+    "claude": "Claude",
+}
+_AGENT_PATTERN = r"(?:project[\s-]+(?:leader|lider|líder)|codex|gemini|geminai|cursor|composer|sonnet|claude)"
+_GREETING_PATTERN = r"(?:ol[aá]|oi|al[oô]|oh|[óô]|ei|bom dia|boa tarde|boa noite)"
+
+
+def _fold_agent_text(text):
     plain = "".join(
         ch for ch in unicodedata.normalize("NFKD", text.lower())
         if not unicodedata.combining(ch)
     )
-    plain = " ".join(re.sub(r"[?!.,:;]+", " ", plain).split())
-    return bool(re.fullmatch(
-        r"(?:(?:codex|project leader)\s+)?"
-        r"(?:estas ai|estas por ai|ta ai|tas ai|ola|oi|alo|"
-        r"bom dia|boa tarde|boa noite)"
-        r"(?:\s+(?:codex|project leader))?",
+    return " ".join(re.sub(r"[-?!.,:;]+", " ", plain).split())
+
+
+def parse_agent_address(text):
+    """Return the explicitly named agent and remaining request, if any.
+
+    Matching is restricted to an address at the start (possibly following a
+    greeting), never an agent name merely mentioned inside another request.
+    """
+    value = text.strip()
+    match = re.match(
+        rf"^(?:(?:{_GREETING_PATTERN})\s*[,!.]?\s+)?"
+        rf"(?P<agent>{_AGENT_PATTERN})(?=\b|$)"
+        rf"(?:\s*[,!?:;.\-]\s*|\s+)?(?P<rest>.*)$",
+        value, re.I | re.S,
+    )
+    if match:
+        agent = _AGENT_LABELS.get(_fold_agent_text(match.group("agent")))
+        if agent:
+            return agent, match.group("rest").strip()
+    plain = _fold_agent_text(value)
+    match = re.fullmatch(
+        r"(?:estas ai|estas por ai|ta ai|tas ai)\s+"
+        r"(?P<agent>codex|project leader|project lider|gemini|geminai|cursor|composer|sonnet|claude)",
         plain,
-    )) or plain in ("codex", "project leader")
+    )
+    if match:
+        return _AGENT_LABELS[match.group("agent")], ""
+    return None, None
+
+
+def is_presence_message(text):
+    """Social greetings and presence checks never start paid Codex work."""
+    plain = _fold_agent_text(text)
+    agents = r"(?:codex|project leader|project lider|gemini|geminai|cursor|composer|sonnet|claude)"
+    greetings = (
+        r"(?:estas ai|estas por ai|ta ai|tas ai|ola|oi|alo|oh|o|ei|"
+        r"bom dia|boa tarde|boa noite)"
+    )
+    return bool(re.fullmatch(
+        rf"(?:{agents}\s+)?{greetings}(?:\s+{agents})?", plain
+    )) or plain in _AGENT_LABELS
+
+
+def agent_unavailable_reply(agent):
+    return (
+        f"🧭 Project Leader: percebi que te diriges ao {agent}, "
+        "mas esse agente ainda não está ligado a este bot. "
+        "Não encaminhei a mensagem ao Codex."
+    )
+
+
+def agent_presence_reply(agent):
+    if agent == "Codex" or agent is None:
+        return (
+            "🤖 Codex: Estou aqui! Podes enviar uma auditoria por voz, "
+            "por exemplo: 'Verifica o estado da VPS'. "
+            "Não precisas de escrever nem de repetir o meu nome."
+        )
+    if agent == "Project Leader":
+        return (
+            "🧭 Project Leader: Estou aqui! Reconheci o teu cumprimento. "
+            "O Codex está disponível apenas para auditorias de leitura."
+        )
+    return agent_unavailable_reply(agent)
+
+
+
+_OTHER_EXECUTORS = r"(?:composer|sonnet|gemini|geminai|cursor|claude)"
+
+
+def requests_agent_handoff(text):
+    """Recognize a planned provider transition, not a plain Codex audit."""
+    plain = _fold_agent_text(text)
+    if not re.search(rf"\b{_OTHER_EXECUTORS}\b", plain):
+        return False
+    transferring = re.search(
+        r"\b(?:passa|passar|passes|transfere|transferir|encaminha|"
+        r"entrega|entregar)\b", plain
+    )
+    quota = re.search(r"\b(?:tokens?|quota|limite|esgotar|esgotarem)\b", plain)
+    continuation = re.search(
+        r"\b(?:continua|continuar|termina|terminar|conclui|concluir|"
+        r"acaba|acabar)\b", plain
+    )
+    return bool(transferring or (quota and continuation))
+
+
+def requests_implementation(text):
+    """A Telegram audit-only bridge cannot silently become a build executor."""
+    plain = _fold_agent_text(text)
+    return bool(re.search(
+        r"\b(?:executa|executar|implementa|implementar|desenvolve|"
+        r"desenvolver|constroi|construir|programa|programar|"
+        r"modifica|modificar|corrige|corrigir|instala|instalar|"
+        r"edita|editar|deploy|reinicia|reiniciar|apaga|apagar|"
+        r"remove|remover)\b", plain
+    ) or re.search(
+        r"\b(?:termina|terminar|acaba|acabar|finaliza|finalizar|"
+        r"conclui|concluir)\s+(?:o|este|esse|meu)?\s*"
+        r"(?:projeto|projecto|codigo|programa|aplicacao)\b", plain
+    ))
+
+
+def agent_capability_reply():
+    return (
+        "🧭 Project Leader: identifica agentes e encaminha mensagens. "
+        "A rapidez depende de um leitor Telegram sempre ligado.\n"
+        "🤖 Codex: auditoria de leitura via Telegram/GitHub. "
+        "O Project Leader também suporta execução e Recovery no circuito "
+        "GitHub [codex run] autorizado, mas ainda não é acionado pelo Telegram.\n"
+        "🟠 Composer (Cursor): executor não ligado.\n"
+        "🟠 Gemini, Sonnet, Claude e Cursor: sem ligação de execução neste bot.\n"
+        "O nome do agente não constitui ligação nem autorização."
+    )
+
+
+def unsupported_handoff_reply():
+    return (
+        "🧭 Project Leader: percebi que queres executar um projeto com o Codex "
+        "e continuar noutro agente, por exemplo o Composer quando acabar a quota. "
+        "A ligação Composer e a transferência automática ainda não existem. "
+        "O Project Leader tem execução via [codex run] no GitHub, "
+        "mas não através desta entrada do Telegram, que só encaminha auditorias. "
+        "Não iniciei o projeto nem consumi quota Codex. "
+        "Para passar trabalho é preciso um checkpoint verificável e "
+        "um sinal real de esgotamento, não uma quota imaginada."
+    )
+
+
+def unsupported_implementation_reply():
+    return (
+        "🧭 Project Leader: reconheci que pediste para executar ou modificar "
+        "um projeto. O Project Leader suporta execução, Builder, Recovery "
+        "Guardian e higienização no circuito [codex run] do GitHub. "
+        "A entrada Telegram ainda só encaminha auditorias de leitura, "
+        "por isso não iniciei implementação nem alterações."
+    )
 
 
 def is_voice_audit_request(task):
@@ -425,10 +569,27 @@ def handle_update(update):
             say("Aceito fotografias e imagens PNG, JPG ou WEBP até 10 MB. "
                 "Envia a imagem como foto ou ficheiro de imagem.")
         return
+    addressed_agent, addressed_task = parse_agent_address(text)
     if is_presence_message(text):
-        say("🤖 Estou aqui! Envia um áudio com uma ordem de auditoria, "
-            "por exemplo: 'Verifica o estado da VPS'. "
-            "Não precisas de escrever nem dizer Codex.")
+        say(agent_presence_reply(addressed_agent))
+        return
+    if re.fullmatch(r"/(?:agentes|agents)(?:@\w+)?", text, re.I):
+        say(agent_capability_reply())
+        return
+    if requests_agent_handoff(text):
+        say(unsupported_handoff_reply())
+        return
+    if requests_implementation(text):
+        if voice is not None and re.search(
+                r"\b(corrige|corrigir|altera|alterar|apaga|apagar|remove|remover|"
+                r"reinicia|reiniciar|instala|instalar|deploy)\b", text, re.I):
+            say("Por segurança, correções e mudanças na VPS ainda não estão ativas por voz. "
+                "Pede apenas uma auditoria ou uma análise.")
+        else:
+            say(unsupported_implementation_reply())
+        return
+    if addressed_agent and addressed_agent != "Codex":
+        say(agent_unavailable_reply(addressed_agent))
         return
     if re.match(r"^/(?:start|help)(?:@\w+)?$", text, re.I):
         say("🤖 Ponte Codex ligada ao GitHub.\n\n"
@@ -450,6 +611,8 @@ def handle_update(update):
         say(status)
         return
     task = parse_audit(text)
+    if task is None and addressed_agent == "Codex" and addressed_task:
+        task = addressed_task
     if image is not None:
         # A plain-language photo caption is a task; no caption is also valid.
         if task is None:
@@ -485,7 +648,8 @@ def handle_update(update):
         say("Não vou publicar uma ordem que parece conter credenciais. "
             "Retira passwords/tokens e volta a enviar.")
         return
-    if voice is not None and not is_voice_audit_request(task):
+    if (voice is not None or
+            (addressed_agent == "Codex" and image is None)) and not is_voice_audit_request(task):
         say("🎙️ Ouvi o áudio, mas não percebi uma ordem de auditoria clara. "
             "Tenta dizer, por exemplo: 'Verifica se a VPS tem erros'. "
             "Não foi enviada nenhuma tarefa ao Codex.")
