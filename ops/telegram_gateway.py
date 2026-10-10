@@ -9,7 +9,9 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
+import tempfile
 import uuid
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -22,6 +24,8 @@ CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 GH_TOKEN = os.environ.get("GH_TOKEN", "").strip()
 
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
+MAX_VOICE_BYTES = 8 * 1024 * 1024
+MAX_VOICE_SECONDS = 90
 DEFAULT_IMAGE_TASK = (
     "Analisa a captura de ecra anexa e identifica os erros ou problemas "
     "visiveis, com diagnostico e passos recomendados. Nao alteres ficheiros."
@@ -50,6 +54,106 @@ def select_image(message):
     if int(entry.get("file_size", 0)) > MAX_IMAGE_BYTES:
         raise RuntimeError("Imagem demasiado grande (limite 10 MB)")
     return {"file_id": file_id, "ext": ext}
+
+
+
+def select_voice(message):
+    """Only private Telegram voice notes (OGG/Opus), bounded before downloading."""
+    entry = message.get("voice")
+    if not entry:
+        return None
+    mime = str(entry.get("mime_type") or "").lower()
+    if mime not in ("", "audio/ogg", "audio/opus"):
+        raise RuntimeError("Formato de voz Telegram não suportado")
+    file_id = str(entry.get("file_id", ""))
+    if not re.fullmatch(r"[A-Za-z0-9_-]{8,256}", file_id):
+        raise RuntimeError("Invalid Telegram voice identifier")
+    duration = int(entry.get("duration", 0))
+    if duration <= 0 or duration > MAX_VOICE_SECONDS:
+        raise RuntimeError("Áudio demasiado longo (limite 90 segundos)")
+    if int(entry.get("file_size", 0)) > MAX_VOICE_BYTES:
+        raise RuntimeError("Áudio demasiado grande (limite 8 MB)")
+    return {"file_id": file_id}
+
+
+def _voice_env(tmp):
+    """Transcription worker and PyPI installer never inherit bot/GitHub secrets."""
+    allow = (
+        "PATH", "LANG", "LC_ALL", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY",
+        "http_proxy", "https_proxy", "no_proxy", "SSL_CERT_FILE",
+        "REQUESTS_CA_BUNDLE",
+    )
+    env = {key: os.environ[key] for key in allow if os.environ.get(key)}
+    env.update({
+        "HOME": str(tmp), "HF_HOME": str(tmp / "models"),
+        "PIP_CONFIG_FILE": os.devnull, "PIP_NO_INPUT": "1",
+        "PIP_DISABLE_PIP_VERSION_CHECK": "1", "PYTHONDONTWRITEBYTECODE": "1",
+    })
+    return env
+
+
+def _voice_run(command, env, timeout, failure):
+    """Never forward dependency/model stdout or stderr into public Actions logs."""
+    try:
+        result = subprocess.run(
+            command, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            timeout=timeout, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        raise RuntimeError(failure) from None
+    if result.returncode:
+        raise RuntimeError(failure)
+    return result.stdout.decode("utf-8", errors="replace").strip()
+
+
+def transcribe_voice(voice):
+    """Fetch voice privately and transcribe in an isolated, disposable CPU worker."""
+    meta = telegram("getFile", {"file_id": voice["file_id"]})
+    if int(meta.get("file_size", 0)) > MAX_VOICE_BYTES:
+        raise RuntimeError("Telegram voice exceeds size limit")
+    file_path = str(meta.get("file_path", ""))
+    if (not re.fullmatch(r"[A-Za-z0-9_./-]{1,512}", file_path) or
+            ".." in file_path.split("/")):
+        raise RuntimeError("Invalid Telegram voice file path")
+    url = "https://api.telegram.org/file/bot" + BOT_TOKEN + "/" + file_path
+    try:
+        with urlopen(Request(url, method="GET"), timeout=45) as response:
+            content = response.read(MAX_VOICE_BYTES + 1)
+    except HTTPError as exc:
+        raise RuntimeError("Telegram voice HTTP " + str(exc.code)) from None
+    except (URLError, TimeoutError):
+        raise RuntimeError("Telegram voice download failed") from None
+    if not content.startswith(b"OggS") or len(content) > MAX_VOICE_BYTES:
+        raise RuntimeError("Telegram voice is not valid OGG audio")
+    base_dir = os.environ.get("RUNNER_TEMP")
+    if base_dir and not Path(base_dir).is_dir():
+        raise RuntimeError("Invalid temporary runner directory")
+    with tempfile.TemporaryDirectory(
+            prefix="telegram-voice-", dir=base_dir or None) as name:
+        tmp = Path(name)
+        audio = tmp / "voice.ogg"
+        fd = os.open(str(audio), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "wb") as target:
+            target.write(content)
+        env = _voice_env(tmp)
+        venv = tmp / "venv"
+        python = str(venv / "bin" / "python")
+        _voice_run([sys.executable, "-m", "venv", str(venv)], env, 45,
+                   "Não foi possível iniciar o reconhecimento de voz")
+        _voice_run(
+            [python, "-m", "pip", "install", "--only-binary=:all:", "--quiet",
+             "faster-whisper==1.2.1", "av>=11,<19"],
+            env, 240, "Motor local de voz indisponível",
+        )
+        transcript = _voice_run(
+            [python, str(Path(__file__).with_name("telegram_voice_transcribe.py")),
+             str(audio)],
+            env, 240, "Não foi possível transcrever o áudio",
+        )
+    if len(transcript) < 8 or len(transcript) > 3800:
+        raise RuntimeError("A transcrição ficou vazia ou demasiado longa")
+    print("TELEGRAM_VOICE=TRANSCRIBED")
+    return transcript
 
 
 def download_image():
@@ -274,7 +378,19 @@ def handle_update(update):
         return
 
     image = select_image(message)
+    try:
+        voice = select_voice(message)
+    except (RuntimeError, ValueError, TypeError):
+        say("🎙️ Aceito áudios Telegram em OGG com até 90 segundos e 8 MB.")
+        return
     text = str(message.get("text") or message.get("caption") or "").strip()
+    if voice is not None:
+        say("🎙️ Áudio recebido. Estou a transcrever localmente; pode demorar alguns minutos.")
+        try:
+            text = transcribe_voice(voice)
+        except RuntimeError:
+            say("⚠️ Não consegui transcrever este áudio. Tenta reenviá-lo mais tarde.")
+            return
     if not text and image is None:
         if message.get("document"):
             say("Aceito fotografias e imagens PNG, JPG ou WEBP até 10 MB. "
@@ -283,7 +399,8 @@ def handle_update(update):
     if re.match(r"^/(?:start|help)(?:@\w+)?$", text, re.I):
         say("🤖 Ponte Codex ligada ao GitHub.\n\n"
             "Envia /audit seguido do pedido, ou 'Codex, faz uma auditoria...'.\n"
-            "Podes enviar uma fotografia do erro com ou sem legenda.\n"
+            "Podes enviar uma fotografia ou uma mensagem de voz até 90 segundos.\n"
+            "As mensagens de voz são transcritas localmente e encaminhadas como auditorias.\n"
             "Consulta o resultado com /status 123.\n\n"
             "Por segurança, só auditorias de leitura estão ativas. "
             "As correções e Cursor ainda não estão ativados.\n"
@@ -305,12 +422,28 @@ def handle_update(update):
             task = text or DEFAULT_IMAGE_TASK
         elif not task:
             task = DEFAULT_IMAGE_TASK
+    elif voice is not None and task is None:
+        # Voice commands do not require speaking a wake word; still audit-only.
+        task = text
     elif task is None:
         say("Não reconheci essa ordem. Usa /audit <pedido>, "
             "'Codex, <pedido>', /status <número> ou /help.")
         return
+    if voice is not None and re.search(
+            r"\b(corrige|corrigir|altera|alterar|apaga|apagar|remove|remover|"
+            r"reinicia|reiniciar|instala|instalar|deploy)\b", text, re.I):
+        say("Por segurança, correções e mudanças na VPS ainda não estão ativas por voz. "
+            "Pede apenas uma auditoria ou uma análise.")
+        return
     if len(task) < 8 or len(task) > 3800:
         say("A tarefa tem de ter entre 8 e 3800 caracteres.")
+        return
+    # A voice transcript is also a public GitHub Issue: be extra conservative.
+    if voice is not None and re.search(
+            r"(?i)\b(password|senha|token|api.key|pin|iban|chave privada|"
+            r"código de recuperação)\b", text):
+        say("⚠️ Não publiquei esta ordem: pode conter dados privados. "
+            "O repositório GitHub é público.")
         return
     # Prevent accidental publishing of obvious access credentials in a public Issue.
     if re.search(r"(?i)(sk-[a-z0-9_-]{12,}|gh[opsru]_[a-z0-9_]{15,}|"
@@ -320,6 +453,8 @@ def handle_update(update):
         return
     number = (create_audit(update["update_id"], task, image=image) if image
               else create_audit(update["update_id"], task))
+    if voice is not None:
+        say("🎙️ Ouvi: " + text[:1700])
     say(("📸 Imagem enviada ao Codex.\n" if image
          else "📨 Auditoria enviada ao Codex.\n") +
         "Tarefa #" + str(number) + "\n"

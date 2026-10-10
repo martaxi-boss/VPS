@@ -201,5 +201,179 @@ class TelegramGatewayTests(unittest.TestCase):
             self.assertEqual(path.stat().st_mode & 0o777, 0o600)
 
 
+    def test_private_voice_auto_dispatches_as_read_only_audit(self):
+        voice_update = {
+            "update_id": 777,
+            "message": {
+                "chat": {"type": "private", "id": 123456},
+                "from": {"id": 123456, "is_bot": False},
+                "voice": {
+                    "file_id": "AwACAgQAAAAAAAABBBBB",
+                    "mime_type": "audio/ogg", "duration": 13, "file_size": 12000
+                },
+            },
+        }
+        with (patch.object(gateway, "CHAT_ID", "123456"),
+              patch.object(gateway, "transcribe_voice",
+                           return_value="Codex, verifica o estado da VPS") as stt,
+              patch.object(gateway, "create_audit", return_value=80) as create,
+              patch.object(gateway, "say") as send):
+            gateway.handle_update(voice_update)
+            stt.assert_called_once_with({"file_id": "AwACAgQAAAAAAAABBBBB"})
+            create.assert_called_once_with(777, "verifica o estado da VPS")
+            self.assertTrue(any("Áudio recebido" in c.args[0]
+                                for c in send.call_args_list))
+            self.assertTrue(any("Ouvi:" in c.args[0]
+                                for c in send.call_args_list))
+            self.assertIn("Tarefa #80", send.call_args.args[0])
+
+    def test_voice_without_codex_wake_word_is_audit_only(self):
+        update = {
+            "update_id": 778,
+            "message": {
+                "chat": {"type": "private", "id": 123456},
+                "from": {"id": 123456, "is_bot": False},
+                "voice": {"file_id": "AwACAgQAAAAAAAABBBBB", "duration": 12},
+            },
+        }
+        with (patch.object(gateway, "CHAT_ID", "123456"),
+              patch.object(gateway, "transcribe_voice",
+                           return_value="Verifica se a VPS está a funcionar corretamente"),
+              patch.object(gateway, "create_audit", return_value=81) as create,
+              patch.object(gateway, "say")):
+            gateway.handle_update(update)
+            create.assert_called_once_with(
+                778, "Verifica se a VPS está a funcionar corretamente")
+
+    def test_unauthorized_voice_is_never_downloaded_or_transcribed(self):
+        update = {
+            "update_id": 779,
+            "message": {
+                "chat": {"type": "private", "id": 888888},
+                "from": {"id": 888888, "is_bot": False},
+                "voice": {"file_id": "AwACAgQAAAAAAAABBBBB", "duration": 13},
+            },
+        }
+        with (patch.object(gateway, "CHAT_ID", "123456"),
+              patch.object(gateway, "transcribe_voice") as stt,
+              patch.object(gateway, "say") as send,
+              patch.object(gateway, "create_audit") as create):
+            gateway.handle_update(update)
+            stt.assert_not_called()
+            send.assert_not_called()
+            create.assert_not_called()
+
+    def test_voice_rejects_oversized_unsupported_and_long_audio(self):
+        valid = {"voice": {"file_id": "AwACAgQAAAAAAAABBBBB",
+                           "mime_type": "audio/ogg", "duration": 13}}
+        self.assertEqual(gateway.select_voice(valid)["file_id"],
+                         "AwACAgQAAAAAAAABBBBB")
+        for attrs in ({"duration": 91}, {"file_size": 9 * 1024 * 1024},
+                      {"mime_type": "audio/mp3"}, {"file_id": "../../bad"}):
+            update = {"voice": {**valid["voice"], **attrs}}
+            with self.assertRaises(RuntimeError):
+                gateway.select_voice(update)
+
+    def test_private_voice_transcript_blocks_secrets_and_edits(self):
+        update = {
+            "update_id": 780,
+            "message": {
+                "chat": {"type": "private", "id": 123456},
+                "from": {"id": 123456, "is_bot": False},
+                "voice": {"file_id": "AwACAgQAAAAAAAABBBBB", "duration": 11},
+            },
+        }
+        with (patch.object(gateway, "CHAT_ID", "123456"),
+              patch.object(gateway, "transcribe_voice",
+                           return_value="Codex, vê a senha da minha conta"),
+              patch.object(gateway, "create_audit") as create,
+              patch.object(gateway, "say") as send):
+            gateway.handle_update(update)
+            create.assert_not_called()
+            self.assertIn("não publiquei", send.call_args.args[0].lower())
+        with (patch.object(gateway, "CHAT_ID", "123456"),
+              patch.object(gateway, "transcribe_voice",
+                           return_value="Codex, apaga os ficheiros antigos"),
+              patch.object(gateway, "create_audit") as create,
+              patch.object(gateway, "say") as send):
+            gateway.handle_update(update)
+            create.assert_not_called()
+            self.assertIn("correções e mudanças", send.call_args.args[0].lower())
+
+    def test_transcription_error_is_explicit_and_no_audit_runs(self):
+        update = {
+            "update_id": 781,
+            "message": {
+                "chat": {"type": "private", "id": 123456},
+                "from": {"id": 123456, "is_bot": False},
+                "voice": {"file_id": "AwACAgQAAAAAAAABBBBB", "duration": 13},
+            },
+        }
+        with (patch.object(gateway, "CHAT_ID", "123456"),
+              patch.object(gateway, "transcribe_voice",
+                           side_effect=RuntimeError("Model unavailable")),
+              patch.object(gateway, "create_audit") as create,
+              patch.object(gateway, "say") as send):
+            gateway.handle_update(update)
+            create.assert_not_called()
+            self.assertIn("Não consegui transcrever", send.call_args.args[0])
+
+    def test_voice_subprocess_env_never_receives_github_or_bot_credentials(self):
+        with patch.dict(os.environ, {
+            "GH_TOKEN": "never-expose-github-token",
+            "TELEGRAM_BOT_TOKEN": "never-expose-telegram-token",
+            "VPS_SSH_PASSWORD": "never-expose-ssh-password",
+            "GITHUB_TOKEN": "never-expose-token",
+        }):
+            env = gateway._voice_env(Path("/tmp/voice-test"))
+            self.assertNotIn("GH_TOKEN", env)
+            self.assertNotIn("GITHUB_TOKEN", env)
+            self.assertNotIn("TELEGRAM_BOT_TOKEN", env)
+            self.assertNotIn("VPS_SSH_PASSWORD", env)
+            self.assertEqual(env["HF_HOME"], "/tmp/voice-test/models")
+
+    def test_private_audio_download_and_disposable_transcription(self):
+        with tempfile.TemporaryDirectory() as directory:
+            commands = []
+            def fake_process(args, env, timeout, failure):
+                commands.append((args, env))
+                if any(x.endswith("telegram_voice_transcribe.py") for x in args):
+                    self.assertEqual(
+                        Path(args[-1]).read_bytes(), b"OggS" + b"private voice")
+                    self.assertEqual(Path(args[-1]).stat().st_mode & 0o777, 0o600)
+                    self.assertNotIn("GH_TOKEN", env)
+                    return "Codex, faz uma auditoria à VPS"
+                return ""
+            with (patch.dict(os.environ, {"RUNNER_TEMP": directory}),
+                  patch.object(gateway, "BOT_TOKEN", "masked"),
+                  patch.object(gateway, "telegram", return_value={
+                      "file_path": "voice/file_1.oga", "file_size": 18,
+                  }),
+                  patch.object(gateway, "urlopen",
+                               return_value=io.BytesIO(b"OggS" + b"private voice")),
+                  patch.object(gateway, "_voice_run", side_effect=fake_process)):
+                self.assertEqual(
+                    gateway.transcribe_voice({"file_id": "AwACAgQAAAAAAAABBBBB"}),
+                    "Codex, faz uma auditoria à VPS",
+                )
+            self.assertEqual(len(commands), 3)
+            # PyAV 19 removed the metadata_errors argument still used by
+            # faster-whisper 1.2.1, so the local installer must constrain it.
+            self.assertIn("av>=11,<19", commands[1][0])
+            self.assertEqual(list(Path(directory).iterdir()), [])
+
+    def test_invalid_ogg_is_rejected_before_running_a_model(self):
+        with (patch.object(gateway, "BOT_TOKEN", "masked"),
+              patch.object(gateway, "telegram", return_value={
+                  "file_path": "voice/entry.oga", "file_size": 5,
+              }),
+              patch.object(gateway, "urlopen", return_value=io.BytesIO(b"plain")),
+              patch.object(gateway, "_voice_run") as work):
+            with self.assertRaisesRegex(RuntimeError, "not valid OGG"):
+                gateway.transcribe_voice({"file_id": "AwACAgQAAAAAAAABBBBB"})
+            work.assert_not_called()
+
+
+
 if __name__ == "__main__":
     unittest.main()
