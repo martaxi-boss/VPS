@@ -124,8 +124,10 @@ class AgentSwitchTests(unittest.TestCase):
             with self.subTest(raw=raw[:100]), self.assertRaises(router.OrderError):
                 router.parse_order(raw)
 
-    def test_cli_block_has_no_dispatch_outputs(self):
-        raw = self.order([self.task("codex-1"), self.task("codex-2")])
+    def test_cli_unsupported_plan_has_no_dispatch_outputs(self):
+        raw = self.order([
+            self.task("codex-1"), self.task("codex-2"), self.task("codex-3")
+        ])
         result = subprocess.run(
             [sys.executable, str(SOURCE)], input=raw, text=True,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
@@ -134,6 +136,19 @@ class AgentSwitchTests(unittest.TestCase):
         self.assertEqual(result.stdout, "")
         self.assertIn("No agent started", result.stderr)
         self.assertNotIn("codex_task_b64=", result.stderr)
+
+    def test_cli_two_workers_emits_only_validated_encoded_outputs(self):
+        raw = self.order([self.task("codex-1"), self.task("codex-2")])
+        result = subprocess.run(
+            [sys.executable, str(SOURCE)], input=raw, text=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("task_count=2", result.stdout)
+        self.assertIn("mode=parallel", result.stdout)
+        self.assertIn("codex_1_task_b64=", result.stdout)
+        self.assertIn("codex_2_task_b64=", result.stdout)
+        self.assertNotIn("TARGET_REPOSITORY=", result.stdout)
 
 
     def test_workflow_one_codex_preserves_legacy_dispatch(self):
