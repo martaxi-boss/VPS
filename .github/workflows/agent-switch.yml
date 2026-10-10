@@ -38,6 +38,10 @@ jobs:
     outputs:
       codex: ${{ steps.validate.outputs.codex }}
       codex_task_b64: ${{ steps.validate.outputs.codex_task_b64 }}
+      task_count: ${{ steps.validate.outputs.task_count }}
+      mode: ${{ steps.validate.outputs.mode }}
+      codex_1_task_b64: ${{ steps.validate.outputs.codex_1_task_b64 }}
+      codex_2_task_b64: ${{ steps.validate.outputs.codex_2_task_b64 }}
     steps:
       - name: Read only reviewed router from default branch
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pinned v4
@@ -61,7 +65,7 @@ jobs:
           state = Path(os.environ['RUNNER_TEMP']) / 'agent-switch-preflight.txt'
           try:
               order = switch.parse_order(os.environ.get('ORDER_BODY', ''))
-              values = switch.output_values(order)
+              values = switch.workflow_values(order)
               # Do not quietly substitute Codex for Gemini or Composer.
               # A future adapter must prove authentication, isolated execution,
               # Project Leader rules and independent GitHub publication first.
@@ -75,8 +79,8 @@ jobs:
               with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
                   for key, value in values.items():
                       out.write(f'{key}={value}\n')
-              state.write_text('Codex order validated; delegated to the existing '
-                               'VPS Codex workflow. Final status comes from its own result.',
+              state.write_text('Bounded Codex order validated; only the explicitly named '
+                               'workers will run. Final status comes from each worker result.',
                                encoding='utf-8')
           except switch.OrderError as exc:
               state.write_text('BLOCKED BEFORE EXECUTION: ' + str(exc), encoding='utf-8')
@@ -100,7 +104,7 @@ jobs:
 
   codex:
     needs: preflight
-    if: needs.preflight.result == 'success' && needs.preflight.outputs.codex == 'true'
+    if: needs.preflight.result == 'success' && needs.preflight.outputs.codex == 'true' && needs.preflight.outputs.task_count == '1'
     permissions:
       contents: read
       issues: write
@@ -108,4 +112,65 @@ jobs:
     with:
       task_b64: ${{ needs.preflight.outputs.codex_task_b64 }}
       issue_number: ${{ github.event.issue.number }}
+    secrets: inherit
+
+  # Two independent workers are launched only by an explicit, fully validated
+  # parallel request. Both use PR-only publication to prevent stale-base or
+  # concurrent merges from silently clobbering sibling changes.
+  codex_parallel_1:
+    needs: preflight
+    if: needs.preflight.result == 'success' && needs.preflight.outputs.task_count == '2' && needs.preflight.outputs.mode == 'parallel'
+    permissions:
+      contents: read
+      issues: write
+    uses: ./.github/workflows/codex-autonomous.yml
+    with:
+      task_b64: ${{ needs.preflight.outputs.codex_1_task_b64 }}
+      issue_number: ${{ github.event.issue.number }}
+      instance_id: '1'
+      no_auto_merge: true
+    secrets: inherit
+
+  codex_parallel_2:
+    needs: preflight
+    if: needs.preflight.result == 'success' && needs.preflight.outputs.task_count == '2' && needs.preflight.outputs.mode == 'parallel'
+    permissions:
+      contents: read
+      issues: write
+    uses: ./.github/workflows/codex-autonomous.yml
+    with:
+      task_b64: ${{ needs.preflight.outputs.codex_2_task_b64 }}
+      issue_number: ${{ github.event.issue.number }}
+      instance_id: '2'
+      no_auto_merge: true
+    secrets: inherit
+
+  # Serial work waits for successful completion of stage 1. The second worker
+  # uses a fresh main checkout, so it never invents access to unmerged changes.
+  codex_serial_1:
+    needs: preflight
+    if: needs.preflight.result == 'success' && needs.preflight.outputs.task_count == '2' && needs.preflight.outputs.mode == 'serial'
+    permissions:
+      contents: read
+      issues: write
+    uses: ./.github/workflows/codex-autonomous.yml
+    with:
+      task_b64: ${{ needs.preflight.outputs.codex_1_task_b64 }}
+      issue_number: ${{ github.event.issue.number }}
+      instance_id: '1'
+      no_auto_merge: false
+    secrets: inherit
+
+  codex_serial_2:
+    needs: [preflight, codex_serial_1]
+    if: needs.preflight.result == 'success' && needs.codex_serial_1.result == 'success' && needs.preflight.outputs.task_count == '2' && needs.preflight.outputs.mode == 'serial'
+    permissions:
+      contents: read
+      issues: write
+    uses: ./.github/workflows/codex-autonomous.yml
+    with:
+      task_b64: ${{ needs.preflight.outputs.codex_2_task_b64 }}
+      issue_number: ${{ github.event.issue.number }}
+      instance_id: '2'
+      no_auto_merge: false
     secrets: inherit
