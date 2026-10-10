@@ -11,7 +11,10 @@ report="$base/report.md"
 patch="$base/patch.diff"
 usage="$base/usage.json"
 cli="$HOME/codex-agent/node_modules/.bin/codex"
-budget_root="$HOME/codex-bridge"
+# The legacy bridge directory may predate private-0700 rules. Never
+# chmod that shared directory (other existing Codex entrypoints use it);
+# reserve tokens in a new private per-account child instead.
+budget_root="$HOME/codex-bridge/.account-budget"
 
 on_exit() {
   code=$?
