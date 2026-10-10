@@ -128,7 +128,7 @@ jobs:
           set -euo pipefail
           case "$CODEX_INSTANCE_ID" in ''|1|2) ;; *) echo 'Invalid Codex worker identity' >&2; exit 12;; esac
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT${CODEX_INSTANCE_ID:+-$CODEX_INSTANCE_ID}"
-          [[ "$job" =~ ^[0-9]+-[0-9]+$ ]]
+          [[ "$job" =~ ^[0-9]+-[0-9]+(-[12])?$ ]]
           remote='ubuntu@146.59.145.3'
           dest="/home/ubuntu/codex-bridge/jobs/$job"
           sshpass -e ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
@@ -255,7 +255,7 @@ jobs:
         run: |
           case "$CODEX_INSTANCE_ID" in ''|1|2) ;; *) echo 'Invalid Codex worker identity' >&2; exit 12;; esac
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT${CODEX_INSTANCE_ID:+-$CODEX_INSTANCE_ID}"
-          [[ "$job" =~ ^[0-9]+-[0-9]+$ ]] || exit 2
+          [[ "$job" =~ ^[0-9]+-[0-9]+(-[12])?$ ]] || exit 2
           sshpass -e ssh -T -o StrictHostKeyChecking=accept-new \
             -o ConnectTimeout=20 ubuntu@146.59.145.3 \
             "rm -rf -- '/home/ubuntu/codex-bridge/jobs/$job'"
