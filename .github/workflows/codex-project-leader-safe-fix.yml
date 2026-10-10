@@ -1,0 +1,153 @@
+name: Codex Project Leader scoped proposal
+
+# Explicit owner Issue is the only trigger. Codex edits a disposable clone on VPS,
+# then returns a small diff for independent review; it has NO GitHub write token.
+on:
+  issues:
+    types: [opened]
+
+permissions: {}
+
+concurrency:
+  group: codex-vps-proposal-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  propose:
+    if: >-
+      github.event.issue.user.login == github.repository_owner &&
+      startsWith(github.event.issue.title, '[codex fix project-leader]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Prepare owner instruction as a data file
+        env:
+          OWNER_TASK: ${{ github.event.issue.body }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          task = os.environ.get('OWNER_TASK', '').strip()
+          if not task or len(task) > 4000:
+              raise SystemExit('Issue task must have 1-4000 characters')
+          (Path(os.environ['RUNNER_TEMP']) / 'codex-task.txt').write_text(
+              task + '\n', encoding='utf-8')
+          PY
+
+      - name: Prepare SSH client
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS" || { echo 'VPS credential unavailable'; exit 2; }
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+
+      - name: Stage disposable Codex proposal
+        id: stage
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          [[ "$job" =~ ^[0-9]+-[0-9]+$ ]]
+          remote="ubuntu@146.59.145.3"
+          dest="/home/ubuntu/codex-bridge/jobs/$job"
+          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+            "$remote" "install -d -m 700 '$dest'"
+          sshpass -e scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+            "$RUNNER_TEMP/codex-task.txt" ops/codex-project-leader-remote.sh \
+            "$remote:$dest/"
+
+      - name: Run Codex in isolated Project Leader clone
+        id: codex
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=5 \
+            ubuntu@146.59.145.3 \
+            "bash /home/ubuntu/codex-bridge/jobs/$job/codex-project-leader-remote.sh '$job'"
+
+      - name: Collect proposal and report
+        id: collect
+        if: always() && steps.stage.outcome == 'success'
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          base="ubuntu@146.59.145.3:/home/ubuntu/codex-bridge/jobs/$job"
+          sshpass -e scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+            "$base/report.md" "$RUNNER_TEMP/codex-report.md"
+          if [ "${{ steps.codex.outcome }}" = 'success' ]; then
+            sshpass -e scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+              "$base/patch.diff" "$RUNNER_TEMP/codex-patch.diff"
+          fi
+
+      - name: Return Codex evidence and bounded patch to owner Issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          CODEX_OUTCOME: ${{ steps.codex.outcome }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          temp = Path(os.environ['RUNNER_TEMP'])
+          report_path = temp / 'codex-report.md'
+          patch_path = temp / 'codex-patch.diff'
+          report = (report_path.read_text(encoding='utf-8', errors='replace')
+                    if report_path.exists() else
+                    'No report collected; check workflow status. No change was applied.')
+          good = os.environ['CODEX_OUTCOME'] == 'success'
+          status = 'PASS: bounded Codex proposal only' if good and patch_path.is_file() else 'FAIL: no accepted Codex patch'
+          body = ('## Codex Project Leader proposal\n\n' + status + '\n\n' +
+                  'No push, commit, deploy, or Project Leader repository modification was performed by this workflow.\n\n' +
+                  '### Codex report\n\n' + report[:7000] + '\n\n')
+          if good and patch_path.is_file():
+              patch = patch_path.read_text(encoding='utf-8', errors='replace')
+              if len(patch) <= 16000:
+                  ticks = chr(96) * 3
+                  body += '### PATCH_VALIDATED_SCOPE_AND_SIZE\n\n' + ticks + 'diff\n' + patch + '\n' + ticks + '\n\n'
+              else:
+                  body += 'Patch output unexpectedly large; rejected.\n\n'
+          body += '[Workflow evidence](' + os.environ['RUN_URL'] + ')\n'
+          (temp / 'codex-issue-comment.md').write_text(body, encoding='utf-8')
+          PY
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
+            --body-file "$RUNNER_TEMP/codex-issue-comment.md"
+
+      - name: Clean up successful temporary job
+        if: always() && steps.codex.outcome == 'success' && steps.collect.outcome == 'success'
+        continue-on-error: true
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          [[ "$job" =~ ^[0-9]+-[0-9]+$ ]]
+          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+            ubuntu@146.59.145.3 \
+            "rm -rf -- '/home/ubuntu/codex-bridge/jobs/$job'"
