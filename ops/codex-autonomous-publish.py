@@ -70,7 +70,7 @@ def classify_runs(runs, expected, commit_sha, branch):
     """Return (state, detail) from independently observed exact SHA checks."""
     if not expected:
         return ("BLOCKED", "No universally required named CI is configured for "
-                "this target; manual Project Leader exact-PR validation is mandatory")
+                "this target; independent Project Leader exact-PR validation is mandatory")
     latest = {}
     for item in runs:
         if item.get("head_sha") != commit_sha:
