@@ -38,6 +38,20 @@ O GitHub Actions:
 5. Obtem o relatorio e publica-o como comentario na Issue e artefacto Actions.
 6. Elimina a pasta temporaria apos sucesso. Falhas deixam a pasta para diagnostico.
 
+## Auditoria pontual ao Project Leader
+
+O Codex continua limitado a auditorias de leitura. Para auditar as regras
+canonicas do Project Leader, com uma Issue de auditoria criada pelo Owner,
+colocar **na primeira linha do corpo**:
+
+`TARGET_REPOSITORY=martaxi-boss/Project-leader`
+
+O texto seguinte descreve a auditoria desejada. O runner aceita apenas
+`martaxi-boss/Project-leader` ou `martaxi-boss/VPS` como alvos explicitos,
+rejeita alvos desconhecidos, clona o `main` publico numa pasta descartavel,
+e regista o SHA efetivamente auditado. Sem esta linha, mantem a auditoria
+do VPS. Nenhuma permissao de escrita, deploy ou acesso a producao e adicionada.
+
 ## Modelo Standard para as auditorias Codex
 
 O runner `ops/codex-vps-remote.sh` fixa o modelo `gpt-5.6-terra` com
