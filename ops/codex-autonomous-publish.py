@@ -318,6 +318,15 @@ def task_title(source, issue):
     return title[:70]
 
 
+def parse_workflow_boolean(value, label):
+    """Missing input in a direct [codex run] issues event defaults to false."""
+    if value is None or value == "":
+        return False
+    if type(value) is not str or value.lower() not in ("true", "false"):
+        raise ValueError("Invalid trusted workflow boolean: " + label)
+    return value.lower() == "true"
+
+
 def main():
     source = Path(os.environ["CODEX_JOB_DIR"]).resolve()
     dest = Path(os.environ["CODEX_RESULT_PATH"]).resolve()
@@ -325,14 +334,12 @@ def main():
     run_id = os.environ["GITHUB_RUN_ID"]
     attempt = os.environ["GITHUB_RUN_ATTEMPT"]
     instance_id = os.environ.get("CODEX_INSTANCE_ID", "")
-    pr_only_value = os.environ.get("CODEX_PR_ONLY", "false").lower()
-    allow_value = os.environ.get("CODEX_ALLOW_NO_CHANGE", "false").lower()
-    if (instance_id not in ("", "1", "2") or
-            pr_only_value not in ("true", "false") or
-            allow_value not in ("true", "false")):
-        raise ValueError("Invalid trusted Codex instance or outcome policy")
-    pr_only = pr_only_value == "true"
-    allow_no_change = allow_value == "true"
+    if instance_id not in ("", "1", "2"):
+        raise ValueError("Invalid trusted Codex instance identity")
+    pr_only = parse_workflow_boolean(os.environ.get("CODEX_PR_ONLY"), "CODEX_PR_ONLY")
+    allow_no_change = parse_workflow_boolean(
+        os.environ.get("CODEX_ALLOW_NO_CHANGE"), "CODEX_ALLOW_NO_CHANGE"
+    )
     if not all(x.isdecimal() for x in (issue, run_id, attempt)):
         raise ValueError("Invalid issue/run identity")
     if not os.environ.get("CODEX_GITHUB_TOKEN"):
