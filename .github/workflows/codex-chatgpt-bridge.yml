@@ -11,6 +11,23 @@ on:
         description: Read-only audit prompt for the VPS repository
         required: true
         type: string
+      mode:
+        description: Read-only audit (fix is not enabled)
+        required: false
+        default: audit
+        type: choice
+        options: [audit]
+      source:
+        description: Task source, default manual
+        required: false
+        default: manual
+        type: choice
+        options: [manual, telegram]
+      issue_number:
+        description: Telegram-created GitHub issue for result reporting
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
@@ -26,7 +43,10 @@ jobs:
        github.event.issue.user.login == github.repository_owner &&
        startsWith(github.event.issue.title, '[codex audit]')) ||
       (github.event_name == 'workflow_dispatch' &&
-       github.actor == github.repository_owner)
+       (github.actor == github.repository_owner ||
+        (github.actor == 'github-actions[bot]' &&
+         inputs.source == 'telegram' && inputs.mode == 'audit' &&
+         inputs.issue_number != '')))
     runs-on: ubuntu-24.04
     timeout-minutes: 50
     permissions:
@@ -37,6 +57,39 @@ jobs:
         with:
           ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
+
+      - name: Verify issue and prompt for Telegram-issued requests
+        if: github.event_name == 'workflow_dispatch' && github.actor == 'github-actions[bot]'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+          TASK: ${{ inputs.task }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$ISSUE_NUMBER" =~ ^[0-9]+$ ]] || exit 1
+          python3 - <<'PY'
+          import json, os, urllib.request
+          issue_no = os.environ['ISSUE_NUMBER']
+          repo = os.environ['REPO']
+          req = urllib.request.Request(
+              f"https://api.github.com/repos/{repo}/issues/{issue_no}",
+              headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+                       'Accept':'application/vnd.github+json'})
+          with urllib.request.urlopen(req, timeout=20) as f:
+              issue = json.load(f)
+          title = issue.get('title','')
+          body = issue.get('body') or ''
+          prefix = '## Pedido ao Codex (auditoria, sem alterações)\\n\\n'
+          task = os.environ.get('TASK','').strip()
+          if (issue.get('user',{}).get('login') != 'github-actions[bot]' or
+                  not title.startswith('[codex audit] Telegram ') or
+                  '<!-- telegram-update:' not in body or
+                  prefix not in body or
+                  body.split(prefix,1)[1].strip() != task):
+              raise SystemExit('Telegram request failed authorization checks')
+          PY
 
       - name: Prepare task as a data file, not a shell command
         env:
@@ -117,11 +170,11 @@ jobs:
           retention-days: 14
 
       - name: Return result to ChatGPT-visible GitHub Issue
-        if: always() && github.event_name == 'issues'
+        if: always() && (github.event_name == 'issues' || inputs.issue_number != '')
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           JOB_STATUS: ${{ job.status }}
         shell: bash
@@ -138,6 +191,18 @@ jobs:
           (p.parent / 'issue-comment.md').write_text(msg, encoding='utf-8')
           PY
           gh issue comment "$ISSUE_NUMBER" --repo "$REPO" --body-file "$RUNNER_TEMP/issue-comment.md"
+
+      - name: Deliver complete Codex result to private Telegram chat
+        if: always()
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          CODEX_JOB_STATUS: ${{ job.status }}
+          CODEX_ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
+          CODEX_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          CODEX_REPORT_PATH: ${{ runner.temp }}/codex-report.md
+        run: python3 ops/telegram_gateway.py notify
 
       - name: Clean completed temporary VPS directory
         if: always() && steps.execute.outcome == 'success' && steps.collect.outcome == 'success'
