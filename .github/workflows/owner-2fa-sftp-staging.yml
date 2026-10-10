@@ -1,0 +1,41 @@
+name: VPS Owner 2FA SFTP Staging
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/owner-2fa-sftp-staging.yml'
+permissions:
+  contents: read
+jobs:
+  prepare:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Prepare existing vault and private SFTP landing folder
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 \
+            ubuntu@146.59.145.3 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          test -d /root 2>/dev/null || sudo -n test -d /root
+          sudo -n test -d /root/project-secrets
+          sudo -n test ! -L /root/project-secrets
+          test ! -L /home/ubuntu/github-2fa-upload
+          install -d -m 700 /home/ubuntu/github-2fa-upload
+          sudo -n test ! -L /root/project-secrets/github-2fa
+          sudo -n install -d -o root -g root -m 700 /root/project-secrets/github-2fa
+          printf 'SFTP_INBOX_READY=YES\n'
+          printf 'INBOX_PERMISSIONS='
+          stat -c '%a %U:%G' /home/ubuntu/github-2fa-upload
+          printf 'VAULT_DIRECTORY_READY=YES\n'
+          printf 'VAULT_PERMISSIONS='
+          sudo -n stat -c '%a %U:%G' /root/project-secrets/github-2fa
+          REMOTE
