@@ -277,5 +277,23 @@ class NoChangeAndQueueSafetyTests(unittest.TestCase):
 
 
 
+class DirectIssueInputDefaultsTests(unittest.TestCase):
+    """Original [codex run] Issue route does not set workflow_call inputs."""
+
+    def test_missing_or_empty_boolean_inputs_are_false(self):
+        for raw in (None, "", "false", "FALSE"):
+            with self.subTest(raw=raw):
+                self.assertIs(False, publisher.parse_workflow_boolean(raw, "test"))
+
+    def test_true_remains_explicit_and_enabled(self):
+        self.assertIs(True, publisher.parse_workflow_boolean("true", "test"))
+
+    def test_invalid_policy_values_fail_closed(self):
+        for raw in ("yes", "0", " false ", 0, True, [], {}):
+            with self.subTest(raw=raw), self.assertRaises(ValueError):
+                publisher.parse_workflow_boolean(raw, "test")
+
+
+
 if __name__ == '__main__':
     unittest.main()
