@@ -62,6 +62,18 @@ class CheckGateTests(unittest.TestCase):
     def test_no_workflow_reports_no_green(self):
         self.assertEqual('WAIT', publisher.classify_runs([], REQUIRED, SHA, BRANCH)[0])
 
+    def test_project_leader_material_merge_needs_e2_record(self):
+        self.assertIn('E2', publisher.premerge_policy_gate(
+            'martaxi-boss/Project-leader', ['SOURCES.md']))
+
+    def test_vps_operational_code_not_silently_merged(self):
+        self.assertIn('test gate', publisher.premerge_policy_gate(
+            'martaxi-boss/VPS', ['ops/telegram_gateway.py']))
+
+    def test_vps_docs_may_progress_to_ci(self):
+        self.assertIsNone(publisher.premerge_policy_gate(
+            'martaxi-boss/VPS', ['README.md']))
+
     def test_vps_its_own_independent_gate(self):
         required = publisher.ALLOWED['martaxi-boss/VPS']
         self.assertEqual('PASS', publisher.classify_runs(
