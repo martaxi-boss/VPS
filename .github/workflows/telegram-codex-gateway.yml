@@ -6,6 +6,11 @@ on:
   schedule:
     - cron: '3-58/5 * * * *'
   workflow_dispatch:
+  pull_request:
+    paths:
+      - 'ops/telegram_gateway.py'
+      - 'ops/tests/test_telegram_gateway.py'
+      - '.github/workflows/telegram-codex-gateway.yml'
 
 concurrency:
   group: telegram-codex-polling
@@ -17,7 +22,23 @@ permissions:
   issues: write
 
 jobs:
+  gateway-tests:
+    name: Offline Telegram gateway tests
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Validate syntax and restricted routing
+        run: |
+          python3 -m py_compile ops/telegram_gateway.py
+          python3 -m unittest discover -s ops/tests -p 'test_telegram_gateway.py' -v
+
   telegram:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
