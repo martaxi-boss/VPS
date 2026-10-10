@@ -12,6 +12,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import unicodedata
 import uuid
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -350,6 +351,34 @@ def parse_audit(text):
     return None
 
 
+def is_presence_message(text):
+    """Greetings and presence checks must never start paid Codex work."""
+    plain = "".join(
+        ch for ch in unicodedata.normalize("NFKD", text.lower())
+        if not unicodedata.combining(ch)
+    )
+    plain = " ".join(re.sub(r"[?!.,:;]+", " ", plain).split())
+    return bool(re.fullmatch(
+        r"(?:(?:codex|project leader)\s+)?"
+        r"(?:estas ai|estas por ai|ta ai|tas ai|ola|oi|alo|"
+        r"bom dia|boa tarde|boa noite)"
+        r"(?:\s+(?:codex|project leader))?",
+        plain,
+    )) or plain in ("codex", "project leader")
+
+
+def is_voice_audit_request(task):
+    """Recognizable read-only intent required; reject noisy ASR strings."""
+    return bool(re.search(
+        r"\b(?:audit(?:a|ar|oria)|auditoria|verific(?:a|ar|acao|ação)|"
+        r"analis(?:a|ar|e)|inspecion(?:a|ar|e)|diagnostic(?:a|ar|o)|"
+        r"investig(?:a|ar|ue)|examin(?:a|ar|e)|consult(?:a|ar|e)|"
+        r"relat[oó]rio|erros?|problemas?|estado|confirma|confirmar|"
+        r"testa|testar|rev[êe]|rever|v[êe]|olha|procura|procurar)\b",
+        task, re.I,
+    ))
+
+
 def issue_status(text):
     match = re.fullmatch(r"/status(?:@\w+)?\s+#?(\d+)\s*", text, re.I)
     if not match:
@@ -395,6 +424,11 @@ def handle_update(update):
         if message.get("document"):
             say("Aceito fotografias e imagens PNG, JPG ou WEBP até 10 MB. "
                 "Envia a imagem como foto ou ficheiro de imagem.")
+        return
+    if is_presence_message(text):
+        say("🤖 Estou aqui! Envia um áudio com uma ordem de auditoria, "
+            "por exemplo: 'Verifica o estado da VPS'. "
+            "Não precisas de escrever nem dizer Codex.")
         return
     if re.match(r"^/(?:start|help)(?:@\w+)?$", text, re.I):
         say("🤖 Ponte Codex ligada ao GitHub.\n\n"
@@ -450,6 +484,11 @@ def handle_update(update):
                  r"(?:(?:password|senha|token|api[_-]?key)\s*[:=]\s*\S{8,}))", task):
         say("Não vou publicar uma ordem que parece conter credenciais. "
             "Retira passwords/tokens e volta a enviar.")
+        return
+    if voice is not None and not is_voice_audit_request(task):
+        say("🎙️ Ouvi o áudio, mas não percebi uma ordem de auditoria clara. "
+            "Tenta dizer, por exemplo: 'Verifica se a VPS tem erros'. "
+            "Não foi enviada nenhuma tarefa ao Codex.")
         return
     number = (create_audit(update["update_id"], task, image=image) if image
               else create_audit(update["update_id"], task))
