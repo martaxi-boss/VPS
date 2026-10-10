@@ -35,5 +35,5 @@ Cada etapa deve deixar o codigo numa branch e devolver metadados para a proxima.
 ## Protecoes
 - No repositorio VPS publico, prompts, comments e PRs tambem podem ser publicos. Nao enviar dados privados ou segredos.
 - Nunca colocar token do Codex ChatGPT Business nos GitHub Secrets para esta integracao: Codex ja tem login por codigo de dispositivo no VPS.
-- O Codex CLI esta limitado na implementacao atual a auditorias sem alteracoes. Correcoes automaticas, testes com escrita e PR automaticas carecem de circuito separado testado e aprovado; nao assumir que estao ligadas.
+- `[codex audit]` continua read-only. `[codex run]` executa alteracoes num clone isolado, cria PR automaticamente e so faz merge no VPS documental se os controlos passarem; a `main` do Project Leader permanece sujeita ao gate E2. Nao assumir que Cursor, Gemini, Sonnet ou Telegram fazem correcoes automaticas: essa fase ainda nao esta comprovada.
 - A ligacao Cursor e a orquestracao multiagente ainda nao estao ativas.
