@@ -108,7 +108,7 @@ class AgentSwitchTests(unittest.TestCase):
         self.assertNotEqual(outputs["codex_1_task_b64"], outputs["codex_2_task_b64"])
         for index in (1, 2):
             task = base64.b64decode(outputs[f"codex_{index}_task_b64"]).decode()
-            self.assertTrue(task.startswith("TARGET_REPOSITORY=martaxi-boss/pink-iptv\\n"))
+            self.assertEqual(task.splitlines()[0], "TARGET_REPOSITORY=martaxi-boss/pink-iptv")
         self.assertTrue(router.dispatch_plan(order)["execution_policy"]["parallel_tasks_declared_independent"])
 
     def test_validated_model_and_reasoning_effort(self):
