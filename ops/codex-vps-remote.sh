@@ -57,6 +57,20 @@ test -d "$base"
 test -s "$base/codex-task.txt"
 test -x "$codex"
 
+# A trusted task may select one additional public repository for a static audit.
+# First line only; unknown targets fail closed rather than silently auditing VPS.
+repo_slug="martaxi-boss/VPS"
+IFS= read -r task_header < "$base/codex-task.txt" || :
+case "$task_header" in
+  "TARGET_REPOSITORY=martaxi-boss/Project-leader")
+    repo_slug="martaxi-boss/Project-leader" ;;
+  "TARGET_REPOSITORY=martaxi-boss/VPS")
+    repo_slug="martaxi-boss/VPS" ;;
+  TARGET_REPOSITORY=*)
+    echo "Unsupported audit repository" >&2
+    exit 14 ;;
+esac
+
 # The signed-in account is stored only on this VPS; no auth file is copied to CI.
 "$codex" login status > /dev/null 2>&1 || {
   echo "Codex is not signed in on the VPS" >&2
@@ -69,7 +83,9 @@ if [ -e "$repo_dir" ]; then
   exit 4
 fi
 git clone --quiet --depth 1 --branch main -- \
-  https://github.com/martaxi-boss/VPS.git "$repo_dir"
+  "https://github.com/$repo_slug.git" "$repo_dir"
+target_sha="$(git -C "$repo_dir" rev-parse HEAD)"
+printf 'CODEX_TARGET_REPOSITORY=%s\nCODEX_TARGET_SHA=%s\n' "$repo_slug" "$target_sha"
 
 cat > "$prompt" <<'RULES'
 Please audit only the checked-out GitHub repository in your current working directory.
@@ -120,4 +136,5 @@ if grep -Eiq 'Operation not permitted|filesystem-restricted execution requires b
   echo 'Codex audit blocked by Linux sandbox; review host bwrap/AppArmor setup.' >&2
   exit 12
 fi
+printf '\n\nRepositorio auditado: %s\nRevisao auditada: %s\n' "$repo_slug" "$target_sha" >> "$report"
 printf 'CODEX_VPS_AUDIT=PASS\n'
