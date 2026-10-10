@@ -2,6 +2,7 @@
 import importlib.util
 import json
 import sys
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -212,6 +213,31 @@ class TwoWorkerPublicationTests(unittest.TestCase):
         )
         self.assertEqual(result["status"], "PR_NEEDS_ATTENTION")
         self.assertEqual(result["reason"], "Named CI failed")
+
+
+
+class SharedCodexAccountSlotsTests(unittest.TestCase):
+    """All active Codex entrypoints must obey the same VPS account budget."""
+
+    def test_every_entrypoint_has_two_identical_lock_names_before_model(self):
+        paths = [
+            "codex-autonomous-remote.sh",
+            "codex-vps-remote.sh",
+            "codex-project-leader-remote.sh",
+        ]
+        for name in paths:
+            with self.subTest(name=name):
+                script = (OPS / name).read_text(encoding="utf-8")
+                self.assertIn('.codex-slot-1.lock', script)
+                self.assertIn('.codex-slot-2.lock', script)
+                self.assertNotIn('.codex-slot-3.lock', script)
+                self.assertIn('flock -n 8', script)
+                self.assertIn('flock -n 9', script)
+                self.assertIn('slot=0', script)
+                self.assertIn('[ "$slot" -ne 0 ]', script)
+                exec_call = '"$cli" exec' if name == 'codex-autonomous-remote.sh' else '"$codex" exec'
+                self.assertLess(script.index('flock -n 8'), script.index(exec_call))
+                subprocess.run(['bash', '-n', str(OPS / name)], check=True)
 
 
 
