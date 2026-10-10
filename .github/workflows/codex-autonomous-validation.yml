@@ -1,0 +1,21 @@
+name: Codex autonomous validation
+
+# Every VPS PR created by a real Codex run receives at least one independent
+# candidate SHA check; no implicit green status from an agent report.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pinned v4
+      - name: Verify trusted bridge syntax
+        run: |
+          bash -n ops/codex-autonomous-remote.sh
+          python3 -m py_compile ops/codex-autonomous-publish.py ops/codex_patch_guard.py
+      - name: Exercise mandatory offline path and CI evidence gates
+        run: python3 -m unittest discover -s ops/tests -p test_codex_autonomous.py -v
