@@ -101,6 +101,9 @@ jobs:
   codex:
     needs: preflight
     if: needs.preflight.result == 'success' && needs.preflight.outputs.codex == 'true'
+    permissions:
+      contents: read
+      issues: write
     uses: ./.github/workflows/codex-autonomous.yml
     with:
       task_b64: ${{ needs.preflight.outputs.codex_task_b64 }}
