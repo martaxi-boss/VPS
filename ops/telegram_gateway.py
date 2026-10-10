@@ -273,12 +273,17 @@ def handle_update(update):
         sender.get("is_bot")):
         return
 
-    text = str(message.get("text") or "").strip()
-    if not text:
+    image = select_image(message)
+    text = str(message.get("text") or message.get("caption") or "").strip()
+    if not text and image is None:
+        if message.get("document"):
+            say("Aceito fotografias e imagens PNG, JPG ou WEBP até 10 MB. "
+                "Envia a imagem como foto ou ficheiro de imagem.")
         return
     if re.match(r"^/(?:start|help)(?:@\w+)?$", text, re.I):
         say("🤖 Ponte Codex ligada ao GitHub.\n\n"
             "Envia /audit seguido do pedido, ou 'Codex, faz uma auditoria...'.\n"
+            "Podes enviar uma fotografia do erro com ou sem legenda.\n"
             "Consulta o resultado com /status 123.\n\n"
             "Por segurança, só auditorias de leitura estão ativas. "
             "As correções e Cursor ainda não estão ativados.\n"
@@ -294,7 +299,13 @@ def handle_update(update):
         say(status)
         return
     task = parse_audit(text)
-    if task is None:
+    if image is not None:
+        # A plain-language photo caption is a task; no caption is also valid.
+        if task is None:
+            task = text or DEFAULT_IMAGE_TASK
+        elif not task:
+            task = DEFAULT_IMAGE_TASK
+    elif task is None:
         say("Não reconheci essa ordem. Usa /audit <pedido>, "
             "'Codex, <pedido>', /status <número> ou /help.")
         return
@@ -307,8 +318,10 @@ def handle_update(update):
         say("Não vou publicar uma ordem que parece conter credenciais. "
             "Retira passwords/tokens e volta a enviar.")
         return
-    number = create_audit(update["update_id"], task)
-    say("📨 Auditoria enviada ao Codex.\n"
+    number = (create_audit(update["update_id"], task, image=image) if image
+              else create_audit(update["update_id"], task))
+    say(("📸 Imagem enviada ao Codex.\n" if image
+         else "📨 Auditoria enviada ao Codex.\n")
         "Tarefa #" + str(number) + "\n"
         "O relatório completo vai chegar aqui quando terminar.\n"
         "https://github.com/" + REPO + "/issues/" + str(number))
