@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Validate generic agent plans without starting an agent or spending tokens.
 
-The current GitHub workflow can execute exactly one Codex task. This module
-also defines the versioned, provider-neutral dispatch contract that a future
-executor can consume once it has authenticated and tested adapters.
+The historical single-Codex dispatch remains intact. The bounded live
+workflow additionally supports two explicit Codex workers in serial/parallel.
+The versioned provider-neutral plan allows future authenticated adapters,
+but unsupported providers or more than two jobs fail before any model call.
 """
 import base64
 import json
@@ -274,7 +275,7 @@ def main() -> int:
     raw = sys.stdin.read(7500)
     try:
         order = parse_order(raw)
-        output = output_values(order)
+        output = workflow_values(order)
     except OrderError as exc:
         print(f"AGENT_SWITCH_BLOCKED: {exc}", file=sys.stderr)
         return 2
