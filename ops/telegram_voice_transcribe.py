@@ -4,6 +4,7 @@
 Faster-Whisper decodes Telegram OGG/Opus using PyAV, on CPU, without a paid
 speech API. The caller captures stdout privately and never prints it in CI.
 """
+import os
 import sys
 from pathlib import Path
 
@@ -29,6 +30,10 @@ if __name__ == "__main__":
         raise SystemExit(2)
     try:
         print(transcribe(Path(sys.argv[1])))
-    except Exception:
-        # Do not expose audio bytes, transcription, paths or model diagnostics.
+    except Exception as exc:
+        # Diagnostic mode is used only with synthetic speech and no credentials.
+        if os.environ.get("VOICE_SMOKE_DIAGNOSTICS") == "1":
+            print("VOICE_SMOKE_ERROR_CLASS=" + type(exc).__name__, file=sys.stderr)
+            print("VOICE_SMOKE_ERROR_DETAIL=" + str(exc)[:500], file=sys.stderr)
+        # Do not expose audio bytes, transcription or sensitive diagnostics on real jobs.
         raise SystemExit(3) from None
