@@ -5,6 +5,9 @@ on:
     paths:
       - 'ops/codex_patch_guard.py'
       - 'ops/codex-vps-remote.sh'
+      - 'ops/codex-project-leader-bootstrap.py'
+      - 'ops/tests/test_codex_project_leader_bootstrap.py'
+      - '.github/workflows/codex-chatgpt-bridge.yml'
       - 'ops/test_codex_patch_guard.py'
       - 'ops/AGENT-ORCHESTRATION-STATUS.md'
       - 'ops/CODEX-BRIDGE-SETUP.md'
@@ -25,6 +28,8 @@ jobs:
       - name: Validate read-only Codex runner syntax
         run: bash -n ops/codex-vps-remote.sh
       - name: Validate Python syntax
-        run: python3 -m py_compile ops/codex_patch_guard.py ops/test_codex_patch_guard.py
+        run: python3 -m py_compile ops/codex_patch_guard.py ops/test_codex_patch_guard.py ops/codex-project-leader-bootstrap.py
       - name: Test Codex patch guard
-        run: python3 ops/test_codex_patch_guard.py -v
+        run: |
+          python3 ops/test_codex_patch_guard.py -v
+          python3 -m unittest discover -s ops/tests -p test_codex_project_leader_bootstrap.py -v
