@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 SOURCE = "martaxi-boss/Project-leader"
-TARGETS = {"martaxi-boss/VPS", SOURCE}
+TARGETS = {"martaxi-boss/VPS", "martaxi-boss/pink-iptv", SOURCE}
 REQUIRED_CONTROLS = {
     "exact_target_and_revision_revalidated_before_consequential_transition",
     "required_ci_validation_and_evidence_must_pass",
