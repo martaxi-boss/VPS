@@ -1,0 +1,27 @@
+name: Codex bridge safe validation
+
+on:
+  pull_request:
+    paths:
+      - 'ops/codex_patch_guard.py'
+      - 'ops/test_codex_patch_guard.py'
+      - 'ops/AGENT-ORCHESTRATION-STATUS.md'
+      - 'ops/CODEX-BRIDGE-SETUP.md'
+      - '.github/workflows/codex-bridge-validate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Validate Python syntax
+        run: python3 -m py_compile ops/codex_patch_guard.py ops/test_codex_patch_guard.py
+      - name: Test Codex patch guard
+        run: python3 ops/test_codex_patch_guard.py -v

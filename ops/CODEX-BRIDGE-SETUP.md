@@ -69,3 +69,16 @@ O GitHub Actions:
 3. Confirmar a execucao em Actions e o comentario final da Issue.
 
 A integracao Cursor e a gestao dinamica de quotas ficam para fases seguintes.
+
+## Notificacoes automaticas
+
+O GitHub Actions devolve os resultados a Issue criada pelo ChatGPT. O ChatGPT
+agora tem uma tarefa de monitorizacao horaria dos resultados, que pode enviar
+uma notificacao no telemovel se estiverem ativas as notificacoes das tarefas.
+Para avisos mais rapidos, ativar notificacoes do GitHub Mobile para Issues em
+que o utilizador participa. Isto nao altera o metodo de autenticar o Codex.
+
+## Preparacao para outros agentes
+
+Ver `ops/AGENT-ORCHESTRATION-STATUS.md` para o contrato de tarefas de Cursor
+Composer/Sonnet. Este documento nao implica que o Cursor esteja ligado.
