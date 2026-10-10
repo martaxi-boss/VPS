@@ -396,8 +396,10 @@ if __name__ == "__main__":
             poll()
         elif len(sys.argv) == 2 and sys.argv[1] == "notify":
             notify()
+        elif len(sys.argv) == 2 and sys.argv[1] == "download":
+            download_image()
         else:
-            raise RuntimeError("Usage: telegram_gateway.py poll|notify")
+            raise RuntimeError("Usage: telegram_gateway.py poll|notify|download")
     except RuntimeError as exc:
         print("TELEGRAM_BRIDGE_ERROR=" + str(exc), file=sys.stderr)
         sys.exit(1)
