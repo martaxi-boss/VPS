@@ -1,0 +1,67 @@
+name: VPS Credential Vault Location (read only)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/vps-vault-inventory.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Install SSH transport on ephemeral runner
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+      - name: Locate vault paths and service names only (no secret values)
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}" || { echo 'SSH_PASSWORD_UNAVAILABLE'; exit 2; }
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 \
+            ubuntu@146.59.145.3 'bash -s' <<'REMOTE'
+          set -eu
+          echo 'VAULT_LOCATION_AUDIT_BEGIN'
+          printf 'REMOTE_USER=%s\n' "$(id -un)"
+          printf 'SUDO_NONINTERACTIVE='
+          if sudo -n true 2>/dev/null; then echo YES; else echo NO; fi
+          echo 'VAULT_SERVICE_NAMES'
+          systemctl list-unit-files --type=service --no-pager --no-legend 2>/dev/null | \
+            grep -Ei 'vault|warden|passbolt|cofre|credential|secret|filebrowser|nextcloud' | head -n 30 || true
+          echo 'VAULT_DOCKER_CONTAINERS'
+          if command -v docker >/dev/null 2>&1; then
+            sudo -n docker ps -a --format '{{.Names}} | {{.Image}}' 2>/dev/null | \
+              grep -Ei 'vault|warden|passbolt|cofre|credential|secret|filebrowser|nextcloud' | head -n 25 || true
+          else
+            echo 'DOCKER_NOT_INSTALLED'
+          fi
+          echo 'VAULT_PROCESSES'
+          ps -eo comm= 2>/dev/null | grep -Ei 'vault|warden|passbolt|cofre|keepass|filebrowser' | sort -u | head -n 25 || true
+          echo 'VAULT_NAMED_PATHS'
+          if sudo -n true 2>/dev/null; then
+            sudo -n find /home /root /opt /srv /etc /var/lib -xdev -maxdepth 6 \
+              \( -name '.git' -o -name node_modules -o -name '.cache' -o -name '.npm' \
+              -o -name '.cargo' -o -name '.rustup' -o -name codex-agent -o -name codex-bridge \) -prune -o \
+              \( -type d -o -type f \) \
+              \( -iname '*cofre*' -o -iname '*vault*' -o -iname '*credential*' \
+              -o -iname '*keyring*' -o -iname '*warden*' -o -iname '*passbolt*' \
+              -o -iname '*password*' -o -iname '*secret*' \) -print 2>/dev/null | head -n 100 || true
+          else
+            find /home/ubuntu /opt /srv -xdev -maxdepth 6 \
+              \( -name '.git' -o -name node_modules -o -name '.cache' -o -name '.npm' \
+              -o -name '.cargo' -o -name '.rustup' -o -name codex-agent -o -name codex-bridge \) -prune -o \
+              \( -type d -o -type f \) \
+              \( -iname '*cofre*' -o -iname '*vault*' -o -iname '*credential*' \
+              -o -iname '*keyring*' -o -iname '*warden*' -o -iname '*passbolt*' \
+              -o -iname '*password*' -o -iname '*secret*' \) -print 2>/dev/null | head -n 100 || true
+          fi
+          echo 'VAULT_LOCATION_AUDIT_END'
+          REMOTE
