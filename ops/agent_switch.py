@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Validate generic agent plans without starting an agent or spending tokens.
 
-The current GitHub workflow can execute exactly one Codex task. This module
-also defines the versioned, provider-neutral dispatch contract that a future
-executor can consume once it has authenticated and tested adapters.
+The historical single-Codex dispatch remains intact. The bounded live
+workflow additionally supports two explicit Codex workers in serial/parallel.
+The versioned provider-neutral plan allows future authenticated adapters,
+but unsupported providers or more than two jobs fail before any model call.
 """
 import base64
 import json
@@ -216,11 +217,65 @@ def output_values(order: dict) -> dict:
     }
 
 
+
+def workflow_values(order: dict) -> dict:
+    """Bounded trusted router for one or two verified Codex workers.
+
+    The versioned dispatch_plan remains provider-neutral; the active backend
+    supports only verified Codex, at most two jobs. Any other plan is rejected
+    as a whole before GitHub starts a model.
+    """
+    tasks = order["tasks"]
+    if not 1 <= len(tasks) <= 2 or any(t["provider"] != "codex" for t in tasks):
+        raise OrderError(
+            "Active workflow supports one or two Codex workers only; "
+            "the whole unsupported plan is blocked. No agent started"
+        )
+    if len(tasks) == 1:
+        legacy = output_values(order)
+        return {
+            **legacy,
+            "task_count": "1",
+            "mode": order["mode"],
+            "codex_1_task_b64": legacy["codex_task_b64"],
+            "codex_2_task_b64": "",
+        }
+
+    encoded = []
+    for task in tasks:
+        extra = (
+            "Parallel independent Codex worker; use only this private checkout. "
+            "Do not depend on sibling results or merge a sibling change."
+            if order["mode"] == "parallel"
+            else "Serial Codex worker; the previous stage must complete "
+            "and become visible on the fresh target main before this step."
+        )
+        prompt = (
+            f"TARGET_REPOSITORY={order['target_repository']}\n"
+            f"Explicit worker {task['id']} of 2 in {order['mode']} mode. "
+            "Do not create or substitute extra agents.\n"
+            f"{extra}\n"
+            + task["task"]
+        )
+        encoded.append(base64.b64encode(prompt.encode("utf-8")).decode("ascii"))
+    return {
+        "codex": "true",
+        "gemini": "false",
+        "composer": "false",
+        "codex_task_b64": "",
+        "dispatch_plan_b64": dispatch_plan_b64(order),
+        "task_count": "2",
+        "mode": order["mode"],
+        "codex_1_task_b64": encoded[0],
+        "codex_2_task_b64": encoded[1],
+    }
+
+
 def main() -> int:
     raw = sys.stdin.read(7500)
     try:
         order = parse_order(raw)
-        output = output_values(order)
+        output = workflow_values(order)
     except OrderError as exc:
         print(f"AGENT_SWITCH_BLOCKED: {exc}", file=sys.stderr)
         return 2

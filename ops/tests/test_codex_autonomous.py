@@ -162,5 +162,58 @@ class InputTests(unittest.TestCase):
                          publisher.validate_metadata(self.root)[0])
 
 
+class TwoWorkerPublicationTests(unittest.TestCase):
+    """Parallel workers get distinct PR names and can never claim auto-merge."""
+
+    def test_single_codex_branch_is_unchanged(self):
+        self.assertEqual(
+            publisher.worker_branch_name("99", "456", "1"),
+            "codex/issue-99-456-1",
+        )
+
+    def test_two_workers_have_different_branches(self):
+        self.assertEqual(
+            publisher.worker_branch_name("99", "456", "1", "1"),
+            "codex/issue-99-456-1-1",
+        )
+        self.assertEqual(
+            publisher.worker_branch_name("99", "456", "1", "2"),
+            "codex/issue-99-456-1-2",
+        )
+
+    def test_untrusted_worker_identity_fails_closed(self):
+        with self.assertRaises(ValueError):
+            publisher.worker_branch_name("99", "456", "1", "../secrets")
+
+    def test_parallel_ready_pr_never_claims_a_merge(self):
+        result = publisher.staged_pr_result(
+            "martaxi-boss/VPS", "https://github.com/martaxi-boss/VPS/pull/100",
+            SHA, None, "PASS", "Exact SHA checks passed",
+        )
+        self.assertEqual(result["status"], "PR_STAGED")
+        self.assertNotIn("merge_sha", result)
+        self.assertIn("no merge attempted", result["reason"])
+
+    def test_operational_code_keeps_independent_test_gate(self):
+        policy = publisher.premerge_policy_gate(
+            "martaxi-boss/VPS", ["ops/agent_switch.py"]
+        )
+        result = publisher.staged_pr_result(
+            "martaxi-boss/VPS", "https://github.com/martaxi-boss/VPS/pull/100",
+            SHA, policy, "PASS", "Exact SHA checks passed",
+        )
+        self.assertEqual(result["status"], "PR_STAGED")
+        self.assertIn("independent project-specific test gate", result["reason"])
+
+    def test_failed_ci_never_becomes_ready(self):
+        result = publisher.staged_pr_result(
+            "martaxi-boss/VPS", "https://github.com/martaxi-boss/VPS/pull/100",
+            SHA, None, "BLOCKED", "Named CI failed",
+        )
+        self.assertEqual(result["status"], "PR_NEEDS_ATTENTION")
+        self.assertEqual(result["reason"], "Named CI failed")
+
+
+
 if __name__ == '__main__':
     unittest.main()
