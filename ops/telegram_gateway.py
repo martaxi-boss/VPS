@@ -142,7 +142,7 @@ def transcribe_voice(voice):
                    "Não foi possível iniciar o reconhecimento de voz")
         _voice_run(
             [python, "-m", "pip", "install", "--only-binary=:all:", "--quiet",
-             "faster-whisper==1.2.1"],
+             "faster-whisper==1.2.1", "av>=11,<19"],
             env, 240, "Motor local de voz indisponível",
         )
         transcript = _voice_run(
