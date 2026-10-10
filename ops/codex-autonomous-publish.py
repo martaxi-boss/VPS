@@ -20,6 +20,10 @@ from codex_patch_guard import MAX_FILES, MAX_PATCH_BYTES, guard_path
 
 ALLOWED = {
     "martaxi-boss/VPS": {( "Codex autonomous validation", "pull_request")},
+    # PINK's CI is path-filtered, not a mandatory universal PR workflow.
+    # Never invent a named CI pass: stage an isolated PR and return it for
+    # independent Project Leader validation. Nothing may auto-merge.
+    "martaxi-boss/pink-iptv": set(),
     "martaxi-boss/Project-leader": {
         ("Control contract tests", "pull_request"),
         ("Validate control plane", "pull_request"),
@@ -64,6 +68,9 @@ def current_main(repo):
 
 def classify_runs(runs, expected, commit_sha, branch):
     """Return (state, detail) from independently observed exact SHA checks."""
+    if not expected:
+        return ("BLOCKED", "No universally required named CI is configured for "
+                "this target; manual Project Leader exact-PR validation is mandatory")
     latest = {}
     for item in runs:
         if item.get("head_sha") != commit_sha:
@@ -182,6 +189,10 @@ def wait_for_checks(repo, sha, branch, expected):
 
 def premerge_policy_gate(repo, paths):
     """Respect target-specific control law even after all technical checks pass."""
+    if repo == "martaxi-boss/pink-iptv":
+        return ("PINK IPTV target is PR-ONLY: Project Leader must independently "
+                "validate player, VPN, Android/backend regressions and review "
+                "the exact-head merge authority; NEVER auto-merge or deploy")
     if repo == "martaxi-boss/Project-leader":
         return ("Project Leader main merge is an E2 consequential transition; "
                 "separate exact-SHA authorization and independent Supervisor acceptance "
