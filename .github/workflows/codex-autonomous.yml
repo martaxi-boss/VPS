@@ -75,7 +75,7 @@ jobs:
           print('Owner task/target/GitHub write access verified. No token printed.')
           PY
           bash -n ops/codex-autonomous-remote.sh
-          python3 -m py_compile ops/codex-autonomous-publish.py ops/codex_patch_guard.py
+          python3 -m py_compile ops/codex-autonomous-publish.py ops/codex_patch_guard.py ops/codex-project-leader-bootstrap.py
 
       - name: Prepare isolated SSH client
         env:
@@ -102,7 +102,7 @@ jobs:
             "$remote" "install -d -m 700 '$dest'"
           sshpass -e scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
             "$RUNNER_TEMP/codex-task.txt" ops/codex-autonomous-remote.sh \
-            ops/codex_patch_guard.py "$remote:$dest/"
+            ops/codex_patch_guard.py ops/codex-project-leader-bootstrap.py "$remote:$dest/"
 
       - name: Run signed-in Codex CLI with workspace-write sandbox
         id: codex
@@ -127,13 +127,16 @@ jobs:
           set -euo pipefail
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           remote="ubuntu@146.59.145.3:/home/ubuntu/codex-bridge/jobs/$job"
-          for file in patch.diff target.txt base-sha.txt codex-task.txt usage.json; do
+          for file in patch.diff target.txt base-sha.txt codex-task.txt usage.json project-leader-runtime.json; do
             sshpass -e scp -q -o StrictHostKeyChecking=accept-new \
               -o ConnectTimeout=20 "$remote/$file" "$RUNNER_TEMP/$file" || true
           done
           test -s "$RUNNER_TEMP/target.txt"
           test -s "$RUNNER_TEMP/base-sha.txt"
           test -s "$RUNNER_TEMP/codex-task.txt"
+          if [ '${{ steps.codex.outcome }}' = 'success' ]; then
+            test -s "$RUNNER_TEMP/project-leader-runtime.json" || { echo 'Missing pinned Project Leader runtime'; exit 13; }
+          fi
           test -f "$RUNNER_TEMP/patch.diff" || test '${{ steps.codex.outcome }}' != 'success'
 
       - name: Publish reviewed patch and merge only with exact trusted CI
@@ -190,6 +193,14 @@ jobs:
                        'Stage: ' + os.environ['STAGE_OUTCOME'],
                        'Codex: ' + os.environ['CODEX_OUTCOME'],
                        'Publisher: ' + os.environ['PUBLISH_OUTCOME']]
+          runtime_path = Path(os.environ['RUNNER_TEMP']) / 'project-leader-runtime.json'
+          if runtime_path.exists():
+              runtime = json.loads(runtime_path.read_text(encoding='utf-8'))
+              lines.append('Project Leader: canonical Skill v' +
+                           runtime['plugin_version'] + ' at `' +
+                           runtime['canonical_revision'] + '` (pinned).')
+          else:
+              lines.append('Project Leader Skill: NOT_OBSERVED (execution not certified).')
           lines.extend(['Weekly Codex quota percentage: UNKNOWN (not provided by the CLI).',
                         'Actions evidence: ' + os.environ['RUN_URL']])
           dest.write_text('\n\n'.join(lines) + '\n', encoding='utf-8')
