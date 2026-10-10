@@ -87,6 +87,20 @@ git clone --quiet --depth 1 --branch main -- \
 target_sha="$(git -C "$repo_dir" rev-parse HEAD)"
 printf 'CODEX_TARGET_REPOSITORY=%s\nCODEX_TARGET_SHA=%s\n' "$repo_slug" "$target_sha"
 
+# Use the same exact-revision canonical Project Leader Skill as [codex run].
+# This audit remains read-only even though the canonical Skill also describes
+# mutation-capable work for other explicitly authorized task modes.
+canonical="$repo_dir"
+if [ "$repo_slug" != "martaxi-boss/Project-leader" ]; then
+  canonical="$base/project-leader-canonical"
+  test ! -e "$canonical" || { echo "Canonical workspace already exists" >&2; exit 5; }
+  git clone --quiet --depth 1 --branch main -- \
+    "https://github.com/martaxi-boss/Project-leader.git" "$canonical"
+fi
+python3 "$base/codex-project-leader-bootstrap.py" \
+  "$canonical" "$repo_slug" "$target_sha" \
+  "$base/project-leader-rules.md" "$base/project-leader-runtime.json"
+
 cat > "$prompt" <<'RULES'
 Please audit only the checked-out GitHub repository in your current working directory.
 Operate only inside this repository. Never use sudo, SSH, deployments, cloud APIs,
@@ -95,9 +109,13 @@ You must not modify any files. Do not execute project scripts or tests that coul
 change data or contact services; static inspection only.
 Report your findings in European Portuguese, including filenames, severity,
 uncertainties, and a concise final conclusion. Never print tokens or secrets.
+An explicitly read-only audit is report-only under the canonical Project Leader
+Skill: never turn it into a repair, commit, PR, deploy or production operation.
 
-USER REQUEST:
+PROJECT LEADER CANONICAL RULES:
 RULES
+cat "$base/project-leader-rules.md" >> "$prompt"
+printf '\nUSER REQUEST:\n' >> "$prompt"
 cat "$base/codex-task.txt" >> "$prompt"
 printf '\n' >> "$prompt"
 
@@ -137,4 +155,14 @@ if grep -Eiq 'Operation not permitted|filesystem-restricted execution requires b
   exit 12
 fi
 printf '\n\nRepositorio auditado: %s\nRevisao auditada: %s\n' "$repo_slug" "$target_sha" >> "$report"
+python3 - "$base/project-leader-runtime.json" "$report" <<'PY'
+import json
+import sys
+from pathlib import Path
+runtime = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+with Path(sys.argv[2]).open("a", encoding="utf-8") as stream:
+    stream.write("\nProject Leader: canonical Skill v" +
+                 runtime["plugin_version"] + " (pinned SHA " +
+                 runtime["canonical_revision"] + ").\n")
+PY
 printf 'CODEX_VPS_AUDIT=PASS\n'
