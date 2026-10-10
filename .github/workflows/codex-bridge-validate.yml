@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'ops/codex_patch_guard.py'
+      - 'ops/codex-vps-remote.sh'
       - 'ops/test_codex_patch_guard.py'
       - 'ops/AGENT-ORCHESTRATION-STATUS.md'
       - 'ops/CODEX-BRIDGE-SETUP.md'
@@ -21,6 +22,8 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
+      - name: Validate read-only Codex runner syntax
+        run: bash -n ops/codex-vps-remote.sh
       - name: Validate Python syntax
         run: python3 -m py_compile ops/codex_patch_guard.py ops/test_codex_patch_guard.py
       - name: Test Codex patch guard
