@@ -1,0 +1,85 @@
+name: Diagnose Antigravity login screen (safe classification)
+
+# Owner-only, read-only terminal snapshot. Never output OAuth links or
+# credentials into publicly accessible GitHub Actions logs or Issues.
+on:
+  issues:
+    types: [opened]
+  pull_request:
+    paths:
+      - '.github/workflows/antigravity-tui-diagnose.yml'
+      - 'ops/agy_screen_state.py'
+      - 'ops/tests/test_agy_screen_state.py'
+
+permissions: {}
+
+jobs:
+  tests:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: |
+          python3 -m py_compile ops/agy_screen_state.py
+          python3 -m unittest discover -s ops/tests -p test_agy_screen_state.py -v
+
+  inspect:
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.issue.user.login == github.repository_owner &&
+      github.event.issue.title == '[agent setup] antigravity screen diagnose'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Establish bounded SSH
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+      - name: Read screen with no secret output
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+            ubuntu@146.59.145.3 'bash -se' <<'REMOTE' | python3 ops/agy_screen_state.py | tee "$RUNNER_TEMP/agy-diagnostic.txt"
+          set -euo pipefail
+          umask 077
+          if tmux -L agy-oauth has-session -t login 2>/dev/null; then
+            tmux -L agy-oauth capture-pane -J -p -t login -S -150
+          else
+            test -x "$HOME/.local/bin/agy"
+            tmux -L agy-inspect new-session -d -s diagnostic -x 180 -y 45 \
+              "cd \"$HOME\" && env SSH_CONNECTION='127.0.0.1 40000 127.0.0.1 22' TERM=xterm-256color timeout 120s \"$HOME/.local/bin/agy\""
+            sleep 8
+            tmux -L agy-inspect capture-pane -J -p -t diagnostic -S -150
+            tmux -L agy-inspect kill-session -t diagnostic >/dev/null 2>&1 || true
+          fi
+          REMOTE
+      - name: Share only sanitized state in Owner Issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NO: ${{ github.event.issue.number }}
+        run: |
+          if test -s "$RUNNER_TEMP/agy-diagnostic.txt"; then
+            gh issue comment "$ISSUE_NO" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/agy-diagnostic.txt"
+          else
+            gh issue comment "$ISSUE_NO" --repo "$GITHUB_REPOSITORY" \
+              --body 'AGY_SCREEN=DIAGNOSTIC_NOT_AVAILABLE'
+          fi
