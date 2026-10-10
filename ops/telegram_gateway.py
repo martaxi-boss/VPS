@@ -334,27 +334,29 @@ def poll():
     if not re.fullmatch(r"[1-9]\d{3,17}", CHAT_ID):
         raise RuntimeError("TELEGRAM_CHAT_ID must be a positive private chat ID")
     print("TELEGRAM_BRIDGE=ACTIVE")
-    # Telegram confirms updates only after the next getUpdates call with offset.
-    # Confirm each successfully handled update to avoid silently losing commands.
+    # Never discard the next incoming photo while acknowledging the previous one.
+    offset = None
     for _ in range(8):
-        updates = telegram("getUpdates", {
-            "limit": 25, "timeout": 0,
-            "allowed_updates": json.dumps(["message"]),
-        })
+        args = {"limit": 25, "timeout": 0,
+                "allowed_updates": json.dumps(["message"])}
+        if offset is not None:
+            args["offset"] = offset
+        updates = telegram("getUpdates", args)
         if not updates:
             break
         for update in updates:
             try:
                 handle_update(update)
             except RuntimeError as exc:
-                # Leave the update unacknowledged so it can be retried.
+                # Retry this same update during the next polling run.
                 print("TELEGRAM_COMMAND=RETRY_REQUIRED " + str(exc))
                 return
-            telegram("getUpdates", {
-                "offset": int(update["update_id"]) + 1,
-                "limit": 1, "timeout": 0,
-                "allowed_updates": json.dumps(["message"]),
-            })
+            offset = int(update["update_id"]) + 1
+    # Acknowledge successfully handled messages. Any fresh message returned
+    # by this final call stays pending; it is processed next time.
+    if offset is not None:
+        telegram("getUpdates", {"offset": offset, "limit": 1, "timeout": 0,
+                                "allowed_updates": json.dumps(["message"])})
     print("TELEGRAM_POLL=COMPLETE")
 
 
