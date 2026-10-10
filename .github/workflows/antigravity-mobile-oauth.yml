@@ -83,6 +83,33 @@ jobs:
           echo 'OAUTH_SESSION_STARTED'
           REMOTE
 
+          # Verified from the live VPS diagnostic: agy initially shows a
+          # "Sign in with Google" menu. Choose it before polling for OAuth URL.
+          # Never print the TUI screen, OAuth URL, or account identifiers.
+          for i in $(seq 1 10); do
+            state="$(sshpass -e ssh -T -o StrictHostKeyChecking=accept-new \
+                      -o ConnectTimeout=12 "$remote" \
+                      'tmux -L agy-oauth capture-pane -J -p -t login -S -150' 2>/dev/null \
+                      | python3 ops/agy_screen_state.py)"
+            case "$state" in
+              AGY_SCREEN=GOOGLE_SIGNIN_MENU)
+                sshpass -e ssh -T -o StrictHostKeyChecking=accept-new \
+                  -o ConnectTimeout=12 "$remote" \
+                  'tmux -L agy-oauth send-keys -t login Enter' >/dev/null
+                echo 'OAUTH_GOOGLE_LOGIN_SELECTED'
+                break
+                ;;
+              AGY_SCREEN=GOOGLE_AUTH_URL_PRESENT|AGY_SCREEN=CODE_ENTRY_PROMPT)
+                break
+                ;;
+              AGY_SCREEN=KEYRING_ERROR)
+                echo 'OAUTH_KEYRING_BLOCKED; no codes requested'
+                exit 10
+                ;;
+            esac
+            sleep 1
+          done
+
           url=''
           for i in $(seq 1 40); do
             if url="$(sshpass -e ssh -T -o StrictHostKeyChecking=accept-new \
