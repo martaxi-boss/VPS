@@ -351,20 +351,89 @@ def parse_audit(text):
     return None
 
 
-def is_presence_message(text):
-    """Greetings and presence checks must never start paid Codex work."""
+_AGENT_LABELS = {
+    "project leader": "Project Leader",
+    "project lider": "Project Leader",
+    "codex": "Codex",
+    "gemini": "Gemini",
+    "geminai": "Gemini",
+    "cursor": "Cursor",
+    "claude": "Claude",
+}
+_AGENT_PATTERN = r"(?:project[\s-]+(?:leader|lider|líder)|codex|gemini|geminai|cursor|claude)"
+_GREETING_PATTERN = r"(?:ol[aá]|oi|al[oô]|bom dia|boa tarde|boa noite)"
+
+
+def _fold_agent_text(text):
     plain = "".join(
         ch for ch in unicodedata.normalize("NFKD", text.lower())
         if not unicodedata.combining(ch)
     )
-    plain = " ".join(re.sub(r"[?!.,:;]+", " ", plain).split())
-    return bool(re.fullmatch(
-        r"(?:(?:codex|project leader)\s+)?"
+    return " ".join(re.sub(r"[-?!.,:;]+", " ", plain).split())
+
+
+def parse_agent_address(text):
+    """Return the explicitly named agent and remaining request, if any.
+
+    Matching is restricted to an address at the start (possibly following a
+    greeting), never an agent name merely mentioned inside another request.
+    """
+    value = text.strip()
+    match = re.match(
+        rf"^(?:(?:{_GREETING_PATTERN})\s*[,!.]?\s+)?"
+        rf"(?P<agent>{_AGENT_PATTERN})(?=\b|$)"
+        rf"(?:\s*[,!?:;.\-]\s*|\s+)?(?P<rest>.*)$",
+        value, re.I | re.S,
+    )
+    if match:
+        agent = _AGENT_LABELS.get(_fold_agent_text(match.group("agent")))
+        if agent:
+            return agent, match.group("rest").strip()
+    plain = _fold_agent_text(value)
+    match = re.fullmatch(
+        r"(?:estas ai|estas por ai|ta ai|tas ai)\s+"
+        r"(?P<agent>codex|project leader|project lider|gemini|geminai|cursor|claude)",
+        plain,
+    )
+    if match:
+        return _AGENT_LABELS[match.group("agent")], ""
+    return None, None
+
+
+def is_presence_message(text):
+    """Social greetings and presence checks never start paid Codex work."""
+    plain = _fold_agent_text(text)
+    agents = r"(?:codex|project leader|project lider|gemini|geminai|cursor|claude)"
+    greetings = (
         r"(?:estas ai|estas por ai|ta ai|tas ai|ola|oi|alo|"
         r"bom dia|boa tarde|boa noite)"
-        r"(?:\s+(?:codex|project leader))?",
-        plain,
-    )) or plain in ("codex", "project leader")
+    )
+    return bool(re.fullmatch(
+        rf"(?:{agents}\s+)?{greetings}(?:\s+{agents})?", plain
+    )) or plain in _AGENT_LABELS
+
+
+def agent_unavailable_reply(agent):
+    return (
+        f"🧭 Project Leader: percebi que te diriges ao {agent}, "
+        "mas esse agente ainda não está ligado a este bot. "
+        "Não encaminhei a mensagem ao Codex."
+    )
+
+
+def agent_presence_reply(agent):
+    if agent == "Codex" or agent is None:
+        return (
+            "🤖 Codex: Estou aqui! Podes enviar uma auditoria por voz, "
+            "por exemplo: 'Verifica o estado da VPS'. "
+            "Não precisas de escrever nem de repetir o meu nome."
+        )
+    if agent == "Project Leader":
+        return (
+            "🧭 Project Leader: Estou aqui! Reconheci o teu cumprimento. "
+            "O Codex está disponível apenas para auditorias de leitura."
+        )
+    return agent_unavailable_reply(agent)
 
 
 def is_voice_audit_request(task):
@@ -425,10 +494,12 @@ def handle_update(update):
             say("Aceito fotografias e imagens PNG, JPG ou WEBP até 10 MB. "
                 "Envia a imagem como foto ou ficheiro de imagem.")
         return
+    addressed_agent, addressed_task = parse_agent_address(text)
     if is_presence_message(text):
-        say("🤖 Estou aqui! Envia um áudio com uma ordem de auditoria, "
-            "por exemplo: 'Verifica o estado da VPS'. "
-            "Não precisas de escrever nem dizer Codex.")
+        say(agent_presence_reply(addressed_agent))
+        return
+    if addressed_agent and addressed_agent != "Codex":
+        say(agent_unavailable_reply(addressed_agent))
         return
     if re.match(r"^/(?:start|help)(?:@\w+)?$", text, re.I):
         say("🤖 Ponte Codex ligada ao GitHub.\n\n"
@@ -450,6 +521,8 @@ def handle_update(update):
         say(status)
         return
     task = parse_audit(text)
+    if task is None and addressed_agent == "Codex" and addressed_task:
+        task = addressed_task
     if image is not None:
         # A plain-language photo caption is a task; no caption is also valid.
         if task is None:
@@ -485,7 +558,8 @@ def handle_update(update):
         say("Não vou publicar uma ordem que parece conter credenciais. "
             "Retira passwords/tokens e volta a enviar.")
         return
-    if voice is not None and not is_voice_audit_request(task):
+    if (voice is not None or
+            (addressed_agent == "Codex" and image is None)) and not is_voice_audit_request(task):
         say("🎙️ Ouvi o áudio, mas não percebi uma ordem de auditoria clara. "
             "Tenta dizer, por exemplo: 'Verifica se a VPS tem erros'. "
             "Não foi enviada nenhuma tarefa ao Codex.")
