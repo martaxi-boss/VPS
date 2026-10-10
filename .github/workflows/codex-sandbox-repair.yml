@@ -1,0 +1,104 @@
+name: Codex VPS sandbox repair (controlled)
+
+# Only the repo owner can trigger an exact, audited command by GitHub Issue.
+# [codex sandbox] inspect = read-only
+# [codex sandbox] apply = install Ubuntu bubblewrap and, if required, its AppArmor profile
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codex-vps-sandbox-maintenance
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    name: Inspect or repair Ubuntu Codex sandbox
+    if: >-
+      github.event.issue.user.login == github.repository_owner &&
+      (github.event.issue.title == '[codex sandbox] inspect' ||
+       github.event.issue.title == '[codex sandbox] apply')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout trusted default branch (without persisted GitHub credentials)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Validate and select strictly allowed maintenance mode
+        id: mode
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n ops/codex_sandbox_repair_ubuntu.sh
+          case "$ISSUE_TITLE" in
+            '[codex sandbox] inspect') echo "mode=inspect" >> "$GITHUB_OUTPUT" ;;
+            '[codex sandbox] apply') echo "mode=apply" >> "$GITHUB_OUTPUT" ;;
+            *) echo 'Unsupported command'; exit 1 ;;
+          esac
+
+      - name: Install SSH helper on temporary GitHub runner
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$SSHPASS" ]; then echo '::error::Missing existing VPS SSH secret'; exit 1; fi
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass > /dev/null
+
+      - name: Inspect or apply official Ubuntu sandbox prerequisites on VPS
+        id: remote
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+          RUN_MODE: ${{ steps.mode.outputs.mode }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The maintenance script is read from reviewed repository content.
+          # No prompt, issue body, token, or remote shell fragment is injected.
+          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=5 \
+            ubuntu@146.59.145.3 "bash -s -- $RUN_MODE" \
+            < ops/codex_sandbox_repair_ubuntu.sh \
+            > "$RUNNER_TEMP/codex-sandbox-repair.txt" 2>&1
+
+      - name: Publish controlled diagnostics to GitHub issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+          STATUS: ${{ steps.remote.outcome }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          log = Path(os.environ['RUNNER_TEMP']) / 'codex-sandbox-repair.txt'
+          raw = log.read_text(encoding='utf-8', errors='replace') if log.exists() else 'No VPS result captured.'
+          # This maintenance script prints only non-sensitive OS/configuration flags.
+          # Never publish an arbitrary full server log.
+          clean_lines = [line[:220] for line in raw.splitlines()
+                         if line.startswith(('UBUNTU_VERSION=', 'APPARMOR_USERNS_RESTRICTION=',
+                                            'APPARMOR_USERNS_RESTRICTION_UNCHANGED=',
+                                            'CODEX_INSTALLED=', 'BWRAP_', 'APPARMOR_PROFILE_PRESENT=',
+                                            'BWRAP_PROFILE_SOURCE_PRESENT=', 'ACTION=', 'RESULT='))]
+          msg = (f"**Codex VPS sandbox: {os.environ['STATUS']}**\n\n" +
+                 '\n'.join('- ' + s for s in clean_lines[:30]) +
+                 f"\n\n[GitHub Actions]({os.environ['RUN_URL']})\n")
+          (log.parent / 'sandbox-comment.md').write_text(msg, encoding='utf-8')
+          PY
+          gh issue comment "$ISSUE_NUMBER" --repo "$REPO" --body-file "$RUNNER_TEMP/sandbox-comment.md"
