@@ -93,6 +93,40 @@ jobs:
                       observed = match.group(1)
                       break
           print("CODEX_LAST_OBSERVED_MODEL=" + safe(observed))
+          # Codex session metadata may retain the actual resolved model even when
+          # config.toml and bridge logs do not; read metadata only, never log text.
+          import json
+          sessions = home / ".codex" / "sessions"
+          session_model = None
+          if sessions.is_dir():
+              candidates = []
+              for p in sessions.rglob("*.jsonl"):
+                  try:
+                      candidates.append((p.stat().st_mtime, p))
+                  except OSError:
+                      pass
+              for _, p in sorted(candidates, reverse=True)[:30]:
+                  try:
+                      with p.open("r", encoding="utf-8", errors="replace") as fh:
+                          for line in fh:
+                              if len(line) > 500000:
+                                  continue
+                              try:
+                                  record = json.loads(line)
+                              except (ValueError, TypeError):
+                                  continue
+                              if record.get("type") == "turn_context":
+                                  payload = record.get("payload")
+                                  if isinstance(payload, dict):
+                                      candidate = payload.get("model")
+                                      if safe(candidate) != "UNSET_OR_UNKNOWN":
+                                          session_model = candidate
+                                          break
+                  except OSError:
+                      pass
+                  if session_model:
+                      break
+          print("CODEX_SESSION_MODEL=" + safe(session_model))
           cli = home / "codex-agent" / "node_modules" / ".bin" / "codex"
           if cli.is_file():
               try:
