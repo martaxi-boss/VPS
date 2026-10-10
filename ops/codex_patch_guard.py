@@ -17,6 +17,8 @@ PROTECTED_PARTS = {".git", ".github", ".codex", ".ssh", ".project-leader", "__py
 PROTECTED_NAMES = {
     ".env", ".npmrc", ".pypirc", "auth.json", "config.toml",
     "codex-vps-remote.sh", "codex_patch_guard.py", "codex_sandbox_repair_ubuntu.sh",
+    "codex-autonomous-remote.sh", "codex-autonomous-publish.py",
+    "test_codex_autonomous.py", "telegram_gateway.py", "codex-project-leader-remote.sh",
 }
 PROTECTED_SUFFIXES = {".pem", ".key", ".p12", ".pfx", ".jks", ".keystore"}
 
