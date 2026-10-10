@@ -13,7 +13,11 @@ import sys
 from dataclasses import dataclass
 from typing import FrozenSet, Optional
 
-from ops.codex_resource_policy import choose_effort
+try:
+    from ops.codex_resource_policy import choose_effort
+except ModuleNotFoundError:
+    # Direct 'python3 ops/agent_switch.py' starts with ops/ on sys.path.
+    from codex_resource_policy import choose_effort
 
 ALLOWED_REPOSITORIES = {"martaxi-boss/VPS", "martaxi-boss/Project-leader"}
 MODES = {"serial", "parallel"}
