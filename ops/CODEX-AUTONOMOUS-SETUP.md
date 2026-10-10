@@ -46,7 +46,7 @@ Then describe the concrete authorized implementation goal and acceptance criteri
 2. Execute Codex inside disposable VPS clone with workspace-write sandbox, **without write credentials**; emit a guarded patch and any observed JSONL token counts.
 3. An independent GitHub Actions runner checks exact source SHA, changed paths, patch size, symlinks and trust-sensitive paths. It publishes a short-lived branch and PR using the scoped token.
 4. Wait for named target-repository CI workflows **on the exact candidate SHA**. Required failure, missing check, moving main, ambiguous PR state or GitHub rejection means **NO MERGE**, with a truthful Issue status and PR link.
-5. For safe completed changes, integrate without bypassing protected branch rules. VPS operational code requires additional project-specific tests and stays as a PR; only ordinary VPS documentation changes can auto-merge in this first profile. Post-merge hygiene runs from target repository's canonical workflows.
+5. For safe completed changes, integrate without bypassing protected branch rules. The Project Leader target requires an exact-SHA E2 transition authorization and independent Supervisor acceptance: this first bridge publishes a PR and stops rather than silently bypassing its control plane. VPS operational code also requires additional project-specific tests and stays as a PR; only ordinary VPS documentation changes can auto-merge initially. Post-merge hygiene runs from target repository's canonical workflows.
 
 ## Boundaries and limitations
 
