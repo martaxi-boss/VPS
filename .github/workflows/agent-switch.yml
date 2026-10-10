@@ -1,0 +1,108 @@
+name: Agent switch (Owner GitHub order)
+
+# Names select the executor; an authenticated Owner Issue is the durable task.
+# Unsupported providers fail BEFORE any Codex tokens are consumed.
+on:
+  issues:
+    types: [opened]
+  pull_request:
+    paths:
+      - '.github/workflows/agent-switch.yml'
+      - '.github/workflows/codex-autonomous.yml'
+      - 'ops/agent_switch.py'
+      - 'ops/tests/test_agent_switch.py'
+
+permissions: {}
+
+jobs:
+  offline-tests:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pinned v4
+      - run: |
+          python3 -m py_compile ops/agent_switch.py
+          python3 -m unittest discover -s ops/tests -p test_agent_switch.py -v
+
+  preflight:
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.issue.user.login == github.repository_owner &&
+      startsWith(github.event.issue.title, '[agents run]')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      issues: write
+    outputs:
+      codex: ${{ steps.validate.outputs.codex }}
+      codex_task_b64: ${{ steps.validate.outputs.codex_task_b64 }}
+    steps:
+      - name: Read only reviewed router from default branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pinned v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Validate bounded Owner order and agent availability
+        id: validate
+        env:
+          ORDER_BODY: ${{ github.event.issue.body }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os, sys
+          from pathlib import Path
+          import importlib.util
+
+          spec = importlib.util.spec_from_file_location('switch', 'ops/agent_switch.py')
+          switch = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(switch)
+          state = Path(os.environ['RUNNER_TEMP']) / 'agent-switch-preflight.txt'
+          try:
+              order = switch.parse_order(os.environ.get('ORDER_BODY', ''))
+              values = switch.output_values(order)
+              # Do not quietly substitute Codex for Gemini or Composer.
+              # A future adapter must prove authentication, isolated execution,
+              # Project Leader rules and independent GitHub publication first.
+              missing = [name for name in ('gemini', 'composer') if values[name] == 'true']
+              if missing:
+                  raise switch.OrderError(
+                      'Provider execution not connected/verified: ' + ', '.join(missing) +
+                      '. No agent started. Codex remains available via a separate one-agent order.')
+              if values['codex'] != 'true':
+                  raise switch.OrderError('No connected executor selected')
+              with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
+                  for key, value in values.items():
+                      out.write(f'{key}={value}\n')
+              state.write_text('Codex order validated; delegated to the existing '
+                               'VPS Codex workflow. Final status comes from its own result.',
+                               encoding='utf-8')
+          except switch.OrderError as exc:
+              state.write_text('BLOCKED BEFORE EXECUTION: ' + str(exc), encoding='utf-8')
+              print('Safe preflight refused the task: ' + str(exc), file=sys.stderr)
+              raise SystemExit(2)
+          PY
+      - name: Record verified preflight in the Owner Issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        shell: bash
+        run: |
+          status="$RUNNER_TEMP/agent-switch-preflight.txt"
+          if test -s "$status"; then
+            gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file "$status"
+          else
+            gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
+              --body 'BLOCKED: router could not produce a verified preflight result.'
+          fi
+
+  codex:
+    needs: preflight
+    if: needs.preflight.result == 'success' && needs.preflight.outputs.codex == 'true'
+    uses: ./.github/workflows/codex-autonomous.yml
+    with:
+      task_b64: ${{ needs.preflight.outputs.codex_task_b64 }}
+      issue_number: ${{ github.event.issue.number }}
+    secrets: inherit
