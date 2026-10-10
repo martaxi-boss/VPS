@@ -534,6 +534,17 @@ def poll():
     print("TELEGRAM_POLL=COMPLETE")
 
 
+def private_report_status(status):
+    """Distinguish staged PRs and unverified results from completed work."""
+    if status in ("success", "MERGED", "NO_CHANGE"):
+        return "✅ Execução concluída (verificar o resultado)"
+    if status == "PR_STAGED":
+        return "📝 PR pronta para revisão; alterações NÃO integradas"
+    if status in ("NO_CHANGE_UNVERIFIED", "PR_NEEDS_ATTENTION"):
+        return "⚠️ Revisão necessária; objetivo NÃO certificado"
+    return "⚠️ Não concluído ou não verificado"
+
+
 def notify():
     if not BOT_TOKEN or not CHAT_ID:
         print("TELEGRAM_NOTIFY=NOT_CONFIGURED")
@@ -544,8 +555,11 @@ def notify():
     report_path = Path(os.environ.get("CODEX_REPORT_PATH", "/nonexistent"))
     report = (report_path.read_text(encoding="utf-8", errors="replace")
               if report_path.is_file() else "Sem relatório disponível; consultar o GitHub.")
-    outcome = "✅ Concluído" if status == "success" else "⚠️ Falhou"
-    top = "🤖 Codex — " + outcome + "\n"
+    worker = os.environ.get("CODEX_INSTANCE_ID", "")
+    if worker not in ("", "1", "2"):
+        raise RuntimeError("Invalid trusted Codex worker identity")
+    outcome = private_report_status(status)
+    top = "🤖 Codex" + (f" {worker}" if worker else "") + " — " + outcome + "\n"
     if issue:
         top += "Tarefa #" + issue + "\n"
     top += "Repositório: " + REPO + "\n"
@@ -558,7 +572,9 @@ def notify():
     else:
         say(top + "\nRESUMO:\n" + report[:1700] +
             "\n\nO relatório completo segue como ficheiro.")
-        name = "codex-relatorio-" + (issue or "execucao") + ".txt"
+        name = "codex-relatorio-" + (issue or "execucao") + (
+            "-worker-" + worker if worker else ""
+        ) + ".txt"
         telegram("sendDocument", {
             "chat_id": CHAT_ID,
             "caption": "Relatório completo do Codex",
