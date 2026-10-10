@@ -213,11 +213,22 @@ def staged_pr_result(repo, url, sha, blocking_policy, state, evidence):
             "pull_request": url, "commit_sha": sha, "reason": detail}
 
 
-def perform(source, issue, run_id, attempt, instance_id="", pr_only=False):
+def no_change_result(repo, allowed):
+    """An empty patch is never implicit proof of completing a write task."""
+    if allowed:
+        return {"status": "NO_CHANGE", "repository": repo,
+                "reason": "Owner explicitly allowed a no-diff task; "
+                          "functional correctness of the model's answer is not independently verified"}
+    return {"status": "NO_CHANGE_UNVERIFIED", "repository": repo,
+            "reason": "Codex generated no patch. The Owner did not authorize "
+                      "a no-change result, so task completion is NOT_VERIFIED "
+                      "and dependent serial workers must NOT start"}
+
+
+def perform(source, issue, run_id, attempt, instance_id="", pr_only=False, allow_no_change=False):
     repo, base_sha, patch = validate_metadata(source)
     if patch.stat().st_size == 0:
-        return {"status": "NO_CHANGE", "repository": repo,
-                "reason": "Codex finished but did not alter any project files"}
+        return no_change_result(repo, allow_no_change)
     if current_main(repo) != base_sha:
         raise RuntimeError("STALE_BASE: main advanced after Codex cloned; require a fresh run")
 
@@ -315,15 +326,19 @@ def main():
     attempt = os.environ["GITHUB_RUN_ATTEMPT"]
     instance_id = os.environ.get("CODEX_INSTANCE_ID", "")
     pr_only_value = os.environ.get("CODEX_PR_ONLY", "false").lower()
-    if instance_id not in ("", "1", "2") or pr_only_value not in ("true", "false"):
-        raise ValueError("Invalid trusted Codex instance or publication mode")
+    allow_value = os.environ.get("CODEX_ALLOW_NO_CHANGE", "false").lower()
+    if (instance_id not in ("", "1", "2") or
+            pr_only_value not in ("true", "false") or
+            allow_value not in ("true", "false")):
+        raise ValueError("Invalid trusted Codex instance or outcome policy")
     pr_only = pr_only_value == "true"
+    allow_no_change = allow_value == "true"
     if not all(x.isdecimal() for x in (issue, run_id, attempt)):
         raise ValueError("Invalid issue/run identity")
     if not os.environ.get("CODEX_GITHUB_TOKEN"):
         raise RuntimeError("Missing CODEX_GITHUB_TOKEN secret; no model run should be started")
     try:
-        result = perform(source, issue, run_id, attempt, instance_id, pr_only)
+        result = perform(source, issue, run_id, attempt, instance_id, pr_only, allow_no_change)
     except Exception as exc:
         # Never publish exception details containing raw user task or credentials.
         result = {"status": "FAILED", "reason": str(exc)[:300]}
