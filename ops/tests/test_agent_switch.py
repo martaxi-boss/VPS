@@ -136,5 +136,57 @@ class AgentSwitchTests(unittest.TestCase):
         self.assertNotIn("codex_task_b64=", result.stderr)
 
 
+    def test_workflow_one_codex_preserves_legacy_dispatch(self):
+        order = router.parse_order(self.order(mode="serial"))
+        old = router.output_values(order)
+        new = router.workflow_values(order)
+        for key, value in old.items():
+            self.assertEqual(new[key], value)
+        self.assertEqual(new["task_count"], "1")
+        self.assertEqual(new["codex_1_task_b64"], old["codex_task_b64"])
+        self.assertEqual(new["codex_2_task_b64"], "")
+
+    def test_workflow_parallel_two_codex_have_isolated_prompts(self):
+        order = router.parse_order(self.order([
+            self.task("codex-one"), self.task("codex-two")
+        ], mode="parallel"))
+        values = router.workflow_values(order)
+        self.assertEqual(values["task_count"], "2")
+        self.assertEqual(values["mode"], "parallel")
+        self.assertEqual(values["codex_task_b64"], "")
+        prompts = [
+            base64.b64decode(values[f"codex_{i}_task_b64"]).decode("utf-8")
+            for i in (1, 2)
+        ]
+        self.assertIn("worker codex-one of 2", prompts[0])
+        self.assertIn("worker codex-two of 2", prompts[1])
+        for prompt in prompts:
+            self.assertTrue(prompt.startswith("TARGET_REPOSITORY=martaxi-boss/VPS\n"))
+            self.assertIn("Do not depend on sibling results", prompt)
+        self.assertNotEqual(prompts[0], prompts[1])
+
+    def test_workflow_serial_two_codex_preserve_owner_order(self):
+        order = router.parse_order(self.order([
+            self.task("codex-second"), self.task("codex-first")
+        ], mode="serial"))
+        values = router.workflow_values(order)
+        self.assertEqual(values["mode"], "serial")
+        prompts = [
+            base64.b64decode(values[f"codex_{i}_task_b64"]).decode("utf-8")
+            for i in (1, 2)
+        ]
+        self.assertIn("worker codex-second of 2", prompts[0])
+        self.assertIn("worker codex-first of 2", prompts[1])
+        self.assertIn("previous stage must complete", prompts[1])
+
+    def test_workflow_rejects_three_workers_instead_of_partial_run(self):
+        order = router.parse_order(self.order([
+            self.task("codex-one"), self.task("codex-two"), self.task("codex-three")
+        ], mode="parallel"))
+        with self.assertRaisesRegex(router.OrderError, "whole unsupported plan"):
+            router.workflow_values(order)
+
+
+
 if __name__ == "__main__":
     unittest.main()
