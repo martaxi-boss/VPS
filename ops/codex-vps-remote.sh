@@ -85,7 +85,7 @@ printf '\n' >> "$prompt"
 cd "$repo_dir"
 # Always use the read-only Codex sandbox. The project is a disposable clone.
 timeout --signal=TERM --kill-after=15s 35m \
-  "$codex" exec --sandbox read-only \
+  "$codex" --enable use_legacy_landlock exec --sandbox read-only \
     --output-last-message "$report" - \
     < "$prompt" > "$base/cli.log" 2>&1
 
