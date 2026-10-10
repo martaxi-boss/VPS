@@ -53,6 +53,11 @@ class CheckGateTests(unittest.TestCase):
         runs[0]['conclusion'] = 'failure'
         self.assertEqual('BLOCKED', publisher.classify_runs(runs, REQUIRED, SHA, BRANCH)[0])
 
+    def test_unrelated_active_ci_still_blocks_early_merge(self):
+        runs = self.runs() + [dict(success('VPS SSH Access PR Check'),
+                                  status='in_progress', conclusion=None)]
+        self.assertEqual('WAIT', publisher.classify_runs(runs, REQUIRED, SHA, BRANCH)[0])
+
     def test_pending_ci_never_counts_as_pass(self):
         runs = self.runs()
         runs[0]['status'] = 'in_progress'
