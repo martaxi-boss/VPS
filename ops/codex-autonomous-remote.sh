@@ -4,7 +4,7 @@ set -Eeuo pipefail
 umask 077
 
 job="${1:-}"
-[[ "$job" =~ ^[0-9]+-[0-9]+$ ]] || { echo 'Invalid job key' >&2; exit 2; }
+[[ "$job" =~ ^[0-9]+-[0-9]+(-[12])?$ ]] || { echo 'Invalid job key' >&2; exit 2; }
 base="$HOME/codex-bridge/jobs/$job"
 repo="$base/repository"
 report="$base/report.md"
@@ -70,6 +70,21 @@ printf '\nOWNER TASK:\n' >> "$base/prompt.md"
 cat "$base/codex-task.txt" >> "$base/prompt.md"
 
 cd "$repo"
+# Bound total concurrent model calls on this single signed-in account across
+# all normal and explicit parallel tasks. This lock is held until CLI exits.
+command -v flock >/dev/null || { echo "Missing flock; Codex was not started" >&2; exit 10; }
+lockdir="$HOME/codex-bridge"
+mkdir -p -m 700 "$lockdir"
+exec 8>"$lockdir/.codex-slot-1.lock"
+exec 9>"$lockdir/.codex-slot-2.lock"
+slot=0
+for _ in $(seq 1 90); do
+  if flock -n 8; then slot=1; break; fi
+  if flock -n 9; then slot=2; break; fi
+  sleep 5
+done
+[ "$slot" -ne 0 ] || { echo "No Codex execution slot available; no tokens spent" >&2; exit 11; }
+printf 'CODEX_EXECUTION_SLOT=%s\n' "$slot"
 # JSONL output gives direct per-run token counts when Codex emits turn.completed.usage.
 # It does NOT prove any percentage of the account's weekly quota.
 printf 'CODEX_MODEL=gpt-5.6-sol\nCODEX_REASONING_EFFORT=medium\nCODEX_TARGET_SHA=%s\n' "$head"
