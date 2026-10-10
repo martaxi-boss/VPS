@@ -72,7 +72,7 @@ jobs:
           export VOICE_SMOKE_DIAGNOSTICS=1
           python3 -m venv "$RUNNER_TEMP/voice-smoke-venv"
           "$RUNNER_TEMP/voice-smoke-venv/bin/python" -m pip install \
-            --only-binary=:all: --quiet faster-whisper==1.2.1
+            --only-binary=:all: --quiet faster-whisper==1.2.1 'av>=11,<19'
           "$RUNNER_TEMP/voice-smoke-venv/bin/python" \
             ops/telegram_voice_transcribe.py \
             "$RUNNER_TEMP/voice-sample.ogg" > "$RUNNER_TEMP/voice-output.txt"
