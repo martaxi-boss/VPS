@@ -31,6 +31,8 @@ permissions: {}
 concurrency:
   group: codex-autonomous-${{ github.repository }}-${{ inputs.instance_id || 'single' }}
   cancel-in-progress: false
+  # GitHub defaults to replacing an older pending run. Keep up to 100 queued.
+  queue: max
 
 jobs:
   execute:
