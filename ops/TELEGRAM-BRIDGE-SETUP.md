@@ -1,0 +1,55 @@
+# ChatGPT + Telegram + Codex: ordens e relatórios
+
+## Objetivo
+
+Duas entradas para tarefas e um destino de notificação:
+
+- **ChatGPT:** o proprietário pede uma auditoria e o assistente cria uma GitHub Issue do tipo `[codex audit]` no repositorio `martaxi-boss/VPS`.
+- **Telegram:** o proprietário envia uma mensagem privada ao bot `/audit <tarefa>`, ou escreve `Codex, ...`; o bot cria uma Issue e inicia a auditoria com `workflow_dispatch`.
+- **Codex:** usa a conta ChatGPT já autenticada **no VPS**. Não é necessário copiar credenciais Codex para o GitHub nem usar uma API paga à parte.
+- **Resposta:** o GitHub Actions comenta a Issue com o relatório e envia o resultado completo ao Telegram. Se for longo, o Telegram recebe um resumo e um ficheiro de texto com o relatório completo.
+- **Consulta pelo ChatGPT:** o utilizador pode pedir a qualquer momento para consultar o resultado da Issue no GitHub.
+
+O GitHub é a fonte de verdade para os relatórios. Não se tenta inserir mensagens diretamente numa conversa existente do ChatGPT.
+
+## Como ativar (exige uma ação do proprietário)
+
+1. No Telegram, abrir [@BotFather](https://t.me/BotFather), enviar `/newbot` e escolher o nome e o username do bot. **Não colocar o token em nenhuma mensagem do ChatGPT, Telegram do projeto ou GitHub Issue.**
+2. Abrir o bot recém-criado e enviar `/start` para permitir que ele te escreva.
+3. Identificar o ID numérico do teu chat privado Telegram. O ID pode ser consultado por uma ferramenta de identificação de Telegram ID à tua escolha, por exemplo `@userinfobot` (um bot de terceiros); não partilhar segredos.
+4. Nas definições do GitHub do repositório VPS, em [Actions secrets](https://github.com/martaxi-boss/VPS/settings/secrets/actions), criar **dois secrets**:
+   - `TELEGRAM_BOT_TOKEN`: token obtido no BotFather;
+   - `TELEGRAM_CHAT_ID`: número do teu chat privado Telegram (apenas algarismos positivos).
+5. Em GitHub → Actions → **Telegram commands to Codex**, executar uma vez **Run workflow** ou esperar até ao próximo disparo agendado. Enviar `/help` ao bot. Confirmar que o bot responde.
+6. Teste real: `/audit Lê o README do repositório VPS e resume os objetivos sem alterar ficheiros.`. Deverás receber uma mensagem de tarefa aceite e, quando o Codex acabar, o relatório.
+
+Não é necessário instalar software nem configurar serviços novos no VPS; a receção do Telegram é feita por GitHub Actions.
+
+## Comandos do Telegram
+
+- `/help` ou `/start`: instruções do bot.
+- `/audit <pedido>` ou `/codex <pedido>`: nova auditoria Codex.
+- `Codex, analisa ...`: forma em linguagem natural para uma auditoria.
+- `/status 123`: lê a última resposta Codex da Issue #123 no GitHub.
+- `/fix`, `/cursor`, `/composer`, `/sonnet`: devolvem aviso de indisponibilidade, pois estes modos ainda não foram ativados.
+
+O bot aceita ordens **apenas do ID numérico explicitamente autorizado**, em conversa privada, sem aceitar mensagens de grupos, outros utilizadores ou outros bots. As tarefas continuam em sandbox de leitura, sem deploy nem edição.
+
+## Tempo e recursos
+
+- A recolha de mensagens usa o `schedule` do GitHub Actions em intervalos de aproximadamente **cinco minutos**. O GitHub pode atrasar ou, em circunstâncias excecionais, não executar uma ocorrência; por isso não é resposta instantânea garantida.
+- Os resultados são enviados ao Telegram no próprio fim do trabalho Codex, sem esperar pelo ciclo seguinte.
+- O poller não usa tokens do ChatGPT Work nem da conta Codex; apenas as auditorias de facto executadas pelo Codex consomem a utilização correspondente.
+- A monitorização horária anteriormente configurada no ChatGPT deve ser desligada quando o Telegram estiver confirmado como principal canal, para não haver avisos duplicados.
+
+## Privacidade
+
+**O repositório `VPS` é público.** O texto das Issues, os relatórios de auditoria e os logs públicos do GitHub podem ser consultados por terceiros. Só colocar instruções apropriadas para um repositório público. Nunca enviar passwords, dados pessoais, tokens, chaves, segredos ou conteúdo confidencial. O bot rejeita alguns padrões evidentes de credenciais, mas esta proteção não é infalível.
+
+Os dois segredos Telegram devem permanecer apenas nos GitHub Actions secrets. Não os colocar em ficheiros, commits, screenshots ou mensagens ao ChatGPT. A execução avisa no log se faltar a configuração e, nesse caso, não envia mensagens.
+
+## Preparação para Cursor
+
+A arquitetura usa GitHub como fila e histórico e Telegram como interface. Pode ser estendida para Cursor/Composer/Sonnet quando existir uma autenticação/integração válida, sem mudar a maneira como o utilizador dá ordens.
+
+**Estado atual:** Codex `audit` pronto; Codex `fix` e Cursor ainda não ativos. Não sugerir que trabalho de correção está a acontecer automaticamente antes de o validar.
