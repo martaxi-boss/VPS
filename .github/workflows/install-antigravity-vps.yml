@@ -61,7 +61,7 @@ jobs:
             'https://antigravity.google/cli/install.sh' -o "$tmp/agy-install.sh"
           test -s "$tmp/agy-install.sh"
           # Do not modify PATH/profile or unrelated existing aliases.
-          timeout 450s bash "$tmp/agy-install.sh" --skip-aliases --skip-path
+          timeout 450s bash "$tmp/agy-install.sh" --dir "$HOME/.local/bin"
           test -x "$HOME/.local/bin/agy"
           "$HOME/.local/bin/agy" --version
           echo 'ANTIGRAVITY_CLI=INSTALLED_AUTH_NOT_CHECKED'
