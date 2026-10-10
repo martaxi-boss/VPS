@@ -51,7 +51,7 @@ PY
 trap finish EXIT
 
 test -d "$base"
-test -s "$base/task.txt"
+test -s "$base/codex-task.txt"
 test -x "$codex"
 
 # The signed-in account is stored only on this VPS; no auth file is copied to CI.
@@ -79,7 +79,7 @@ uncertainties, and a concise final conclusion. Never print tokens or secrets.
 
 USER REQUEST:
 RULES
-cat "$base/task.txt" >> "$prompt"
+cat "$base/codex-task.txt" >> "$prompt"
 printf '\n' >> "$prompt"
 
 cd "$repo_dir"
