@@ -201,6 +201,56 @@ class TelegramGatewayTests(unittest.TestCase):
             self.assertEqual(path.stat().st_mode & 0o777, 0o600)
 
 
+    def test_presence_check_text_and_voice_do_not_invoke_codex(self):
+        for words in ("Estás aí codex", "Codex, estás aí?",
+                      "Project Leader estás aí?", "Olá", "Codex?"):
+            with self.subTest(words=words):
+                update = {
+                    "update_id": 882,
+                    "message": {
+                        "chat": {"type": "private", "id": 123456},
+                        "from": {"id": 123456, "is_bot": False},
+                        "text": words,
+                    },
+                }
+                with (patch.object(gateway, "CHAT_ID", "123456"),
+                      patch.object(gateway, "create_audit") as create,
+                      patch.object(gateway, "say") as send):
+                    gateway.handle_update(update)
+                    create.assert_not_called()
+                    self.assertIn("Estou aqui", send.call_args.args[0])
+        update["message"].pop("text")
+        update["message"]["voice"] = {
+            "file_id": "AwACAgQAAAAAAAABBBBB", "duration": 3,
+        }
+        with (patch.object(gateway, "CHAT_ID", "123456"),
+              patch.object(gateway, "transcribe_voice",
+                           return_value="Codex, estás aí?"),
+              patch.object(gateway, "create_audit") as create,
+              patch.object(gateway, "say") as send):
+            gateway.handle_update(update)
+            create.assert_not_called()
+            self.assertIn("Estou aqui", send.call_args.args[0])
+
+    def test_garbled_voice_transcript_does_not_start_paid_codex(self):
+        update = {
+            "update_id": 883,
+            "message": {
+                "chat": {"type": "private", "id": 123456},
+                "from": {"id": 123456, "is_bot": False},
+                "voice": {"file_id": "AwACAgQAAAAAAAABBBBB", "duration": 3},
+            },
+        }
+        with (patch.object(gateway, "CHAT_ID", "123456"),
+              patch.object(gateway, "transcribe_voice",
+                           return_value="termofil, codex, codex."),
+              patch.object(gateway, "create_audit") as create,
+              patch.object(gateway, "say") as send):
+            gateway.handle_update(update)
+            create.assert_not_called()
+            self.assertIn("Não foi enviada nenhuma tarefa",
+                          send.call_args.args[0])
+
     def test_private_voice_auto_dispatches_as_read_only_audit(self):
         voice_update = {
             "update_id": 777,
