@@ -16,6 +16,13 @@ Exemplos:
 - "Codex, revê Y. Se estiver sem quota, passa ao Composer."
 As duas ultimas ordens continuam exemplos de fornecedores ainda desligados: nao executam Composer/Sonnet. As ordens Codex suportadas continuam reais atraves de `[codex run]` e do encaminhador Codex validado.
 
+## Regra de ativacao por ordem do Owner
+
+- Por defeito, uma ordem ChatGPT **"trabalha comigo e um Codex"** produz **uma** tarefa e usa apenas **um Codex**. O ChatGPT interpreta a linguagem natural e prepara o manifesto JSON; o workflow GitHub nao infere agentes a partir de texto livre.
+- Duas instancias so se ativam quando o Owner pede **dois** agentes, declarando `tasks` com dois IDs e `mode: serial` ou `mode: parallel`. Nao ha segundo trabalhador automatico por existir capacidade para dois.
+- A escolha automatica de modelo ou do saldo de quota **nao esta ligada**. A conta Codex disponibilizada permanece `gpt-5.6-sol` Medium neste executor, com contagem observada por tarefa mas percentagem de quota desconhecida.
+- Nao interpretar uma recomendacao inteligente do ChatGPT como permissao implicita para duplicar consumo. Sem ordem explicita para dois, manter uma instancia.
+
 ## Nucleo generico do planeador
 `ops/agent_switch.py` aceita um manifesto JSON com `target_repository`, `mode`
 (`serial` ou `parallel`) e uma lista ordenada `tasks`. Cada tarefa tem `id`,
@@ -79,5 +86,5 @@ Cada etapa deve deixar o codigo numa branch e devolver metadados para a proxima.
 - O manifesto `[agents run]` pode declarar `"allow_no_change": true` **apenas para tarefas de leitura sem alteracoes esperadas**, individualmente por agente. Sem essa permissao, um patch vazio produz `NO_CHANGE_UNVERIFIED`, falha o workflow e bloqueia a etapa seguinte da serie em vez de alegar cumprimento do objetivo. Com permissao, `NO_CHANGE` certifica apenas ausencia de diff, nao a qualidade da resposta.
 - O GitHub Actions usa fila `queue: max` para nao substituir ordens pendentes normais (limite da plataforma: ate 100 pendentes por grupo). Se a etapa 1 falhar, o Owner recebe uma anotacao `CODEX_2_NOT_STARTED`.
 - Os workspaces de executor passam a ter remocao tentada tambem quando houve falha, apos recolher o resultado. A tentativa pode falhar se a VPS estiver inacessivel; nao se afirma limpeza perfeita.
-- O relatorio textual detalhado do Codex **continua sem publicacao automatica** em `[agents run]`: os comentarios registam apenas estado mecanico, links e tokens observados. O repositorio e publico, pelo que o retorno de texto arbitrario requer primeiro um canal privado ou consentimento explicito.
+- O relatorio textual detalhado do Codex em `[agents run]` e `[codex run]` e recolhido num runner temporario e enviado **apenas ao chat privado Telegram do Owner ja configurado** com `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID`, sem texto do modelo nas Issues publicas. Se nao existirem estes segredos, se a entrega falhar ou se o relatorio exceder o limite, a Issue indica `NOT_CONFIGURED`, `NOT_DELIVERED`, `OVERSIZED_REPORT_NOT_SENT` ou `NOT_OBSERVED`, sem alegar entrega. Esta nova via so tem validacao de codigo ate haver teste real com Telegram; nao implica publicacao automatica no ChatGPT.
 - O repositorio e publico: qualquer futuro retorno de relatorios tem de preservar privacidade e impedir divulgacao de segredos, nao publicar texto arbitrario do modelo por defeito.

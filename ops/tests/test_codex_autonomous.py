@@ -295,5 +295,34 @@ class DirectIssueInputDefaultsTests(unittest.TestCase):
 
 
 
+class PrivateOwnerReportDeliveryTests(unittest.TestCase):
+    def test_private_report_is_fetched_and_delivered_using_existing_gateway(self):
+        flow = (OPS.parent / '.github/workflows/codex-autonomous.yml').read_text(encoding='utf-8')
+        self.assertIn('project-leader-runtime.json report.md; do', flow)
+        self.assertIn('python3 ops/telegram_gateway.py notify', flow)
+        self.assertIn('secrets.TELEGRAM_BOT_TOKEN', flow)
+        self.assertIn('secrets.TELEGRAM_CHAT_ID', flow)
+        self.assertIn('SENT_TO_PRIVATE_TELEGRAM', flow)
+        self.assertIn('NOT_CONFIGURED', flow)
+        self.assertIn('INVALID_PRIVATE_DESTINATION', flow)
+        self.assertIn('OVERSIZED_REPORT_NOT_SENT', flow)
+
+    def test_public_issue_comment_never_loads_raw_agent_report(self):
+        flow = (OPS.parent / '.github/workflows/codex-autonomous.yml').read_text(encoding='utf-8')
+        a = flow.index('      - name: Publish truthful execution result to Owner Issue')
+        b = flow.index('      - name: Remove completed disposable VPS workspace')
+        public = flow[a:b]
+        self.assertIn('Full model report (not published publicly):', public)
+        self.assertIn('codex-private-status.txt', public)
+        self.assertNotIn('report.md', public)
+        self.assertNotIn('sendDocument', public)
+
+    def test_unconfigured_telegram_keeps_public_status(self):
+        flow = (OPS.parent / '.github/workflows/codex-autonomous.yml').read_text(encoding='utf-8')
+        self.assertIn('continue-on-error: true', flow)
+        self.assertIn('if test -z "$TELEGRAM_BOT_TOKEN"', flow)
+        self.assertIn('Weekly Codex quota percentage: UNKNOWN', flow)
+
+
 if __name__ == '__main__':
     unittest.main()
