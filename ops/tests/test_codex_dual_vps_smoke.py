@@ -54,6 +54,8 @@ class CodexDualVPSSmokeContractTests(unittest.TestCase):
         self.assertIn('worker.get("ref_changes") == []', SCRIPT)
         self.assertIn('worker.get("commit_detected") is False', SCRIPT)
         self.assertIn('proof["source_checkout_unchanged"]', SCRIPT)
+        self.assertIn('git_sha = dual._git(base, "rev-parse", "HEAD")', SCRIPT)
+        self.assertIn('cleanliness = dual._git(base, "status", "--porcelain")', SCRIPT)
         self.assertIn('proof["status"] = "PASS" if (', SCRIPT)
 
     def test_owner_only_dispatch_and_no_ssh_on_pull_request(self) -> None:

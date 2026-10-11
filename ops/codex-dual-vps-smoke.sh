@@ -116,8 +116,8 @@ fi
 python3 - "$base/runner.json" "$CODEX_SMOKE_EVENTS" "$runs" "$source" "$expected" "$proof" <<'CHECK'
 import json
 from pathlib import Path
-import subprocess
 import sys
+from codex import dual
 
 raw_path, events_path, runs_path, source_path, expected_sha, report_path = sys.argv[1:]
 expected = {
@@ -178,14 +178,10 @@ try:
         finish = min(events[("END", "worker-1")], events[("END", "worker-2")])
         proof["simultaneous_processes"] = start < finish
     base = Path(source_path)
-    git_sha = subprocess.run(
-        ["git", "-C", str(base), "rev-parse", "HEAD"],
-        capture_output=True, text=True, check=True,
-    ).stdout.strip()
-    cleanliness = subprocess.run(
-        ["git", "-C", str(base), "status", "--porcelain"],
-        capture_output=True, text=True, check=True,
-    ).stdout.strip()
+    # Auditing after untrusted model execution must never inherit host Git
+    # environment or invoke worker-controlled fsmonitor/hooks/diff helpers.
+    git_sha = dual._git(base, "rev-parse", "HEAD")
+    cleanliness = dual._git(base, "status", "--porcelain")
     proof["source_checkout_unchanged"] = git_sha == expected_sha and not cleanliness
     proof["status"] = "PASS" if (
         len(proof["workers"]) == 2
@@ -193,7 +189,7 @@ try:
         and proof["simultaneous_processes"]
         and proof["source_checkout_unchanged"]
     ) else "FAIL"
-except (ValueError, KeyError, TypeError, OSError, subprocess.CalledProcessError) as exc:
+except (ValueError, KeyError, TypeError, OSError, dual.PlanError) as exc:
     proof["reason"] = str(exc)[:100].replace("\n", " ")
 Path(report_path).write_text(
     json.dumps(proof, sort_keys=True, ensure_ascii=False) + "\n",
