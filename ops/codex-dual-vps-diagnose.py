@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """One-shot read-only, fixed-path diagnosis; output is allowlisted metadata only."""
-import hashlib
 import json
 from pathlib import Path
 
@@ -48,7 +47,7 @@ def classify_events(path: Path) -> int:
 def main() -> None:
     result = {"status": "NOT_FOUND", "target_run": "38184905580",
               "origin_project": "Project-leader-codex", "workers": [],
-              "runner_stderr_class": "none", "runner_stderr_hash": "",
+              "runner_stderr_class": "none",
               "runner_json_present": False, "start_events": 0, "end_events": 0,
               "shared_budget_reservations": 0, "shared_budget_settlements": 0}
     if BASE.is_symlink() or not BASE.is_dir():
@@ -57,8 +56,6 @@ def main() -> None:
     result["status"] = "FOUND"
     stderr = safe_read(BASE / "runner.stderr")
     result["runner_stderr_class"] = classify(stderr)
-    if stderr:
-        result["runner_stderr_hash"] = hashlib.sha256(stderr.encode()).hexdigest()[:16]
     report = safe_read(BASE / "runner.json")
     result["runner_json_present"] = bool(report)
     if report:

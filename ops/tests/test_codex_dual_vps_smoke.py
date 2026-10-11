@@ -101,6 +101,8 @@ class CodexDualVPSSmokeContractTests(unittest.TestCase):
         self.assertNotIn("subprocess", diagnose)
         self.assertNotIn("os.system", diagnose)
         self.assertNotIn("sshpass", diagnose)
+        self.assertNotIn("runner_stderr_hash", diagnose)
+        self.assertNotIn("hashlib", diagnose)
 
     def test_public_report_is_allowlisted_without_model_output(self) -> None:
         self.assertIn('len(proof.get("workers", []))', WORKFLOW)
