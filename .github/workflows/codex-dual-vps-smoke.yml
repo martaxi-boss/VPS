@@ -53,6 +53,7 @@ jobs:
             { echo 'VPS SSH fingerprint probe unavailable'; exit 2; }
           chmod 600 "$known_hosts"
           observed="$(ssh-keygen -lf "$known_hosts" -E sha256 | awk '{print $2}')"
+          echo "Observed public VPS Ed25519 fingerprint: $observed"
           test "$observed" = "$expected" ||
             { echo 'VPS SSH host fingerprint mismatch; refusing password connection'; exit 2; }
           ssh-keygen -F 146.59.145.3 -f "$known_hosts" >/dev/null ||
@@ -86,6 +87,7 @@ jobs:
             { echo 'VPS SSH fingerprint probe unavailable'; exit 2; }
           chmod 600 "$known_hosts"
           observed="$(ssh-keygen -lf "$known_hosts" -E sha256 | awk '{print $2}')"
+          echo "Observed public VPS Ed25519 fingerprint: $observed"
           test "$observed" = "$expected" ||
             { echo 'VPS SSH host fingerprint mismatch; refusing password connection'; exit 2; }
           ssh-keygen -F 146.59.145.3 -f "$known_hosts" >/dev/null ||
