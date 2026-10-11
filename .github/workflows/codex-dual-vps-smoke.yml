@@ -1,0 +1,190 @@
+name: Codex specialized dual-agent live smoke
+
+# Only an exact Owner-authored Issue can consume the two existing Codex
+# account slots. PRs run offline validation and never receive SSH secrets.
+on:
+  issues:
+    types: [opened]
+  pull_request:
+    paths:
+      - ".github/workflows/codex-dual-vps-smoke.yml"
+      - "ops/codex-dual-vps-smoke.sh"
+      - "ops/tests/test_codex_dual_vps_smoke.py"
+
+permissions: {}
+
+concurrency:
+  group: codex-specialized-dual-vps-smoke
+  cancel-in-progress: false
+
+jobs:
+  offline-tests:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Validate fixed-scope smoke contract without model tokens
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n ops/codex-dual-vps-smoke.sh
+          python3 -m unittest discover -s ops/tests -p test_codex_dual_vps_smoke.py -v
+
+  smoke:
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.issue.user.login == github.repository_owner &&
+      github.event.issue.title == '[codex dual smoke] Test two isolated Codex agents'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Verify existing SSH channel on disposable GitHub runner
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS" || { echo 'Configured VPS SSH access unavailable'; exit 2; }
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+
+      - name: Stage read-only sourced smoke harness in private VPS job directory
+        id: stage
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-dual"
+          destination="/home/ubuntu/codex-bridge/jobs/$job"
+          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=20 ubuntu@146.59.145.3 \
+            "install -d -m 700 '$destination'"
+          sshpass -e scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+            ops/codex-dual-vps-smoke.sh \
+            "ubuntu@146.59.145.3:$destination/"
+
+      - name: Execute real two-worker Codex smoke on a disposable pinned clone
+        id: execute
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-dual"
+          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=5 \
+            ubuntu@146.59.145.3 \
+            "bash '/home/ubuntu/codex-bridge/jobs/$job/codex-dual-vps-smoke.sh' '$job'"
+
+      - name: Collect strictly sanitized machine-readable proof
+        id: collect
+        if: always() && steps.stage.outcome == 'success'
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-dual"
+          sshpass -e scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+            "ubuntu@146.59.145.3:/home/ubuntu/codex-bridge/jobs/$job/proof.json" \
+            "$RUNNER_TEMP/codex-dual-smoke-proof.json"
+
+      - name: Report bounded PASS or blocker to Owner Issue
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          path = Path(os.environ["RUNNER_TEMP"]) / "codex-dual-smoke-proof.json"
+          if path.is_file():
+              try:
+                  proof = json.loads(path.read_text(encoding="utf-8"))
+                  state = proof.get("status", "UNKNOWN")
+                  if state not in ("PASS", "FAIL", "FAILED", "BLOCKED", "PREPARING", "RUNNING"):
+                      state = "UNKNOWN"
+                  lines = [
+                      "**Dois Codex na VPS: " + state + "**",
+                      "",
+                      "Execução sem publicação, merge ou alteração de produção.",
+                  ]
+                  if state in ("PASS", "FAIL"):
+                      lines.extend([
+                          "Dois trabalhadores: " + str(len(proof.get("workers", []))),
+                          "Processos simultâneos observados: " +
+                              ("SIM" if proof.get("simultaneous_processes") is True else "NÃO COMPROVADO"),
+                          "Repositório original intacto: " +
+                              ("SIM" if proof.get("source_checkout_unchanged") is True else "NÃO COMPROVADO"),
+                      ])
+                      for worker in proof.get("workers", [])[:2]:
+                          if not isinstance(worker, dict):
+                              continue
+                          name = worker.get("id", "")
+                          status = worker.get("status", "")
+                          scoped = worker.get("scope_verified") is True
+                          if name in ("smoke-alpha", "smoke-beta") and status in (
+                              "completed", "scope_violation", "failed", "no_change",
+                              "timeout", "cancelled", "unverified_result",
+                              "git_metadata_violation", "unauthorized_ref_change",
+                          ):
+                              lines.append(name + ": " + status + "; escopo: " +
+                                           ("OK" if scoped else "NÃO VERIFICADO"))
+                  else:
+                      reason = proof.get("reason", "no_diagnostic")
+                      if reason not in (
+                          "installed_cli_missing", "codex_authentication_unavailable",
+                          "flock_unavailable", "timeout_unavailable", "python_unavailable",
+                          "first_codex_slot_busy", "second_codex_slot_busy",
+                          "source_workspace_reuse", "repository_checkout_failed",
+                          "source_sha_unavailable", "unexpected_specialization_revision",
+                          "dual_executor_nonzero", "two_codex_workers_invoked",
+                          "preflight_pending",
+                      ):
+                          reason = "internal_sanitized_diagnostic"
+                      lines.append("Diagnóstico: " + reason)
+              except (OSError, ValueError, TypeError):
+                  lines = ["**Dois Codex na VPS: INCONCLUSIVO**", "",
+                           "Relatório inválido; não declarar sucesso."]
+          else:
+              lines = ["**Dois Codex na VPS: INCONCLUSIVO**", "",
+                       "Nenhum relatório recebido; consultar os passos do GitHub Actions."]
+          lines.extend(["", "Evidência da execução: https://github.com/" +
+                        os.environ["GITHUB_REPOSITORY"] + "/actions/runs/" +
+                        os.environ["GITHUB_RUN_ID"]])
+          (Path(os.environ["RUNNER_TEMP"]) / "public-proof.md").write_text(
+              "\n".join(lines) + "\n", encoding="utf-8",
+          )
+          PY
+          gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" \
+            --body-file "$RUNNER_TEMP/public-proof.md"
+
+      - name: Remove private temporary job only after successful collection
+        if: always() && steps.execute.outcome == 'success' && steps.collect.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-dual"
+          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=20 ubuntu@146.59.145.3 \
+            "rm -rf -- '/home/ubuntu/codex-bridge/jobs/$job'"
