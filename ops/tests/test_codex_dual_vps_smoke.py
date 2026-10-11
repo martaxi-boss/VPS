@@ -90,6 +90,18 @@ class CodexDualVPSSmokeContractTests(unittest.TestCase):
         self.assertIn('trap finish_smoke EXIT', SCRIPT)
         self.assertIn('shared_soft_budget_unavailable', SCRIPT)
 
+    def test_readonly_failure_diagnosis_is_strictly_owner_gated(self) -> None:
+        diagnose = (ROOT / "ops/codex-dual-vps-diagnose.py").read_text(encoding="utf-8")
+        self.assertIn("codex dual diagnose] Inspect failed run 38184905580", WORKFLOW)
+        self.assertIn("github.event.issue.user.login == github.repository_owner", WORKFLOW)
+        self.assertIn("StrictHostKeyChecking=yes", WORKFLOW)
+        self.assertIn("python3 -m py_compile ops/codex-dual-vps-diagnose.py", WORKFLOW)
+        self.assertIn("38184905580-1-dual", diagnose)
+        self.assertIn("read_text", diagnose)
+        self.assertNotIn("subprocess", diagnose)
+        self.assertNotIn("os.system", diagnose)
+        self.assertNotIn("sshpass", diagnose)
+
     def test_public_report_is_allowlisted_without_model_output(self) -> None:
         self.assertIn('len(proof.get("workers", []))', WORKFLOW)
         self.assertIn('state not in ("PASS", "FAIL", "FAILED"', WORKFLOW)

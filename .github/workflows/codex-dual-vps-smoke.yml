@@ -10,6 +10,7 @@ on:
       - ".github/workflows/codex-dual-vps-smoke.yml"
       - "ops/codex-dual-vps-smoke.sh"
       - "ops/tests/test_codex_dual_vps_smoke.py"
+      - "ops/codex-dual-vps-diagnose.py"
 
 permissions: {}
 
@@ -18,6 +19,119 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  diagnose:
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.issue.user.login == github.repository_owner &&
+      github.event.issue.title == '[codex dual diagnose] Inspect failed run 38184905580'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Pin Owner-provided SSH host key before using any VPS credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Public fingerprint supplied from Owner's prior Android SSH session.
+          # This pins the GitHub runner; separate provider attestation remains pending.
+          expected="SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
+          known_hosts="$RUNNER_TEMP/vps_smoke_known_hosts"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known_hosts" ||
+            { echo 'VPS SSH fingerprint probe unavailable'; exit 2; }
+          chmod 600 "$known_hosts"
+          observed="$(ssh-keygen -lf "$known_hosts" -E sha256 | awk '{print $2}')"
+          echo "Observed public VPS Ed25519 fingerprint: $observed"
+          test "$observed" = "$expected" ||
+            { echo 'VPS SSH host fingerprint mismatch; refusing password connection'; exit 2; }
+          ssh-keygen -F 146.59.145.3 -f "$known_hosts" >/dev/null ||
+            { echo 'Pinned VPS SSH host missing'; exit 2; }
+
+      - name: Prepare existing SSH access only after host pin
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS" || exit 2
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+      - name: Read retained failure metadata without exposing private model logs
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sshpass -e ssh -T -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 ubuntu@146.59.145.3 'python3 -' \
+            < ops/codex-dual-vps-diagnose.py > "$RUNNER_TEMP/codex-dual-diagnosis.json"
+          python3 -m json.tool "$RUNNER_TEMP/codex-dual-diagnosis.json" >/dev/null
+      - name: Publish only allowlisted diagnostic classes
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          root = Path(os.environ["RUNNER_TEMP"])
+          path = root / "codex-dual-diagnosis.json"
+          result = {"status": "INCONCLUSIVE"}
+          if path.exists() and path.stat().st_size < 8000:
+              try:
+                  parsed = json.loads(path.read_text(encoding="utf-8"))
+                  status = parsed.get("status")
+                  status = status if status in ("FOUND", "NOT_FOUND") else "INVALID"
+                  result = {"status": status, "target_run": "38184905580"}
+                  allowed = {"quota_or_rate_limit", "authentication", "cli_argument",
+                             "model_unavailable", "permission_or_sandbox", "invalid_manifest",
+                             "git_checkout", "runtime_setup", "unknown", "none"}
+                  for field in ("runner_stderr_class",):
+                      value = parsed.get(field)
+                      result[field] = value if value in allowed else "unknown"
+                  for field in ("runner_json_present",):
+                      result[field] = parsed.get(field) is True
+                  for field in ("start_events", "end_events",
+                                "shared_budget_reservations", "shared_budget_settlements"):
+                      value = parsed.get(field)
+                      result[field] = value if type(value) is int and 0 <= value <= 100 else None
+                  result["workers"] = []
+                  for worker in parsed.get("workers", [])[:2]:
+                      if not isinstance(worker, dict):
+                          continue
+                      name, state, reason = worker.get("id"), worker.get("status"), worker.get("stderr_class")
+                      if name not in ("smoke-alpha", "smoke-beta"):
+                          continue
+                      states = {"completed", "failed", "no_change", "timeout", "cancelled",
+                                "unverified_result", "scope_violation", "git_metadata_violation",
+                                "unauthorized_commit", "unauthorized_ref_change",
+                                "not_reported", "unknown"}
+                      val = worker.get("completed_turns")
+                      result["workers"].append({"id": name,
+                          "status": state if state in states else "unknown",
+                          "reason": reason if reason in allowed else "unknown",
+                          "completed_turns": val if type(val) is int and 0 <= val <= 100 else None})
+              except (OSError, ValueError, TypeError, AttributeError):
+                  result = {"status": "INCONCLUSIVE"}
+          message = ("**Diagnóstico filtrado do teste real #38184905580**\n\n"
+                     "```json\n" + json.dumps(result, ensure_ascii=False, indent=2)
+                     + "\n```\n\nSem novas chamadas aos modelos, alterações de produção "
+                       "ou publicação de logs privados.\n")
+          (root / "public-diagnosis.md").write_text(message, encoding="utf-8")
+          PY
+          gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" \
+            --body-file "$RUNNER_TEMP/public-diagnosis.md"
+
   offline-tests:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
@@ -33,6 +147,7 @@ jobs:
         run: |
           set -euo pipefail
           bash -n ops/codex-dual-vps-smoke.sh
+          python3 -m py_compile ops/codex-dual-vps-diagnose.py
           python3 -m unittest discover -s ops/tests -p test_codex_dual_vps_smoke.py -v
 
   host-key-probe:
