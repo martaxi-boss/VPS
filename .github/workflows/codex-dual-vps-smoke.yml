@@ -99,6 +99,15 @@ jobs:
                   for field in ("runner_stderr_class",):
                       value = parsed.get(field)
                       result[field] = value if value in allowed else "unknown"
+                  detail = parsed.get("runner_git_detail")
+                  allowed_git = {
+                      "none", "source_git_root", "source_git_origin_missing",
+                      "source_git_origin_mismatch", "source_git_dirty",
+                      "source_git_head_missing", "source_refs_unavailable",
+                      "worker_clone_setup", "worker_git_metadata", "source_changed",
+                      "git_other",
+                  }
+                  result["runner_git_detail"] = detail if detail in allowed_git else "git_other"
                   for field in ("runner_json_present",):
                       result[field] = parsed.get(field) is True
                   for field in ("start_events", "end_events",
