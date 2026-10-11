@@ -56,6 +56,26 @@ def main() -> None:
     result["status"] = "FOUND"
     stderr = safe_read(BASE / "runner.stderr")
     result["runner_stderr_class"] = classify(stderr)
+    detail = "none"
+    if stderr:
+        classes = (
+            ("source_git_root", ("Git preflight failed: rev-parse --show-toplevel",)),
+            ("source_git_origin_missing", ("Git preflight failed: remote get-url origin",)),
+            ("source_git_origin_mismatch", ("Git origin does not match target_repository",)),
+            ("source_git_dirty", ("Source checkout is dirty",)),
+            ("source_git_head_missing", ("Git preflight failed: rev-parse HEAD",)),
+            ("source_refs_unavailable", ("Malformed Git reference listing", "Cannot audit Git references")),
+            ("worker_clone_setup", ("Could not create independent Git clone",)),
+            ("worker_git_metadata", ("Worker Git directory is not private",)),
+            ("source_changed", ("Original Git repository changed during workers",)),
+        )
+        for item, needles in classes:
+            if any(needle.casefold() in stderr.casefold() for needle in needles):
+                detail = item
+                break
+        if detail == "none":
+            detail = "git_other"
+    result["runner_git_detail"] = detail
     report = safe_read(BASE / "runner.json")
     result["runner_json_present"] = bool(report)
     if report:
