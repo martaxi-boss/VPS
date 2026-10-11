@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "transition_id": "VPS-RESTORE-CANONICAL-LOADER-115-MERGE",
+  "task_id": "VPS-RESTORE-CANONICAL-LOADER-115",
+  "repository": "martaxi-boss/VPS",
+  "terminal_status": "SUCCESS",
+  "authorization_record": ".project-leader/transitions/VPS-RESTORE-CANONICAL-LOADER-115-MERGE.authorization.json",
+  "action": "merge_to_main",
+  "target": {
+    "kind": "pull_request",
+    "identifier": "115",
+    "revision": "926bc20d7d03679158169319f885a46dea2c893d",
+    "base_revision": "bd921b38fdeac285904d226834c43e9a1fec1c23",
+    "environment": "repository_main"
+  },
+  "observed_at": "2026-10-11T12:43:47.423Z",
+  "final_state": {
+    "status": "MERGED",
+    "revision": "802ee7b21d4df26aab2323d28844fc8aeaba169c"
+  },
+  "evidence": [
+    "Owner asked to preserve Project Leader as provider-neutral rules/control only and remove Codex-derived rule adaptations. Canonical Project Leader PR105 removed the PR104-only CAPABILITY_AND_RESULT_TRUTH and MINIMAL_COORDINATION_BUDGET anchors; this VPS executor bridge had incorrectly required both obsolete strings, a concrete bootstrap incompatibility.",
+    "Authorized exact PR115 revision 926bc20d7d03679158169319f885a46dea2c893d at current VPS base bd921b38fdeac285904d226834c43e9a1fec1c23 in separate control branch commit a2a767061c0f3c465acd4c8165b260c62dd51c96 before merge. PR changed exactly ops/codex-project-leader-bootstrap.py and ops/tests/test_codex_project_leader_bootstrap.py.",
+    "Required independent exact-PR-head GitHub Actions succeeded: Codex autonomous validation 38140261630, Codex bridge safe validation 38140261629, VPS SSH Access PR Check 38140261608.",
+    "GitHub merge with expected exact PR head succeeded on 2026-10-11 to VPS main 802ee7b21d4df26aab2323d28844fc8aeaba169c. Verified new VPS main file blob bde0fa2d05deafd7e143ccabfa1c747cec53ecb4 checks canonical EXECUTION_FIRST_WITHIN_BOUNDS and CONTINUOUS_HYGIENE_ACTIVE while no longer requiring two removed Codex-audit-only Skill anchors.",
+    "Independent regression test file blob 3d0a0ce8aa4bf66f5150aac2cfc5458c72f765a7 includes test_pre_codex_audit_rules_are_not_required; exact-head PR CI validated it.",
+    "No Project Leader GitHub repository mutation, no new Codex agent, no change to serial/parallel scheduling or token ledger, no VPS runtime service restart/deployment, no secrets, permissions or other managed project mutations. Historical PR and audit records retained. VPS GitHub Actions CI was observed only for PR head, not post-main push; no live executor end-to-end PASS claimed."
+  ],
+  "residual_blockers": []
+}
