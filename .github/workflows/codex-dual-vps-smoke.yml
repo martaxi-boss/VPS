@@ -47,7 +47,7 @@ jobs:
           set -euo pipefail
           # Public fingerprint supplied from Owner's prior Android SSH session.
           # This pins the GitHub runner; separate provider attestation remains pending.
-          expected="SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hwINLvdxc"
+          expected="SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
           known_hosts="$RUNNER_TEMP/vps_smoke_known_hosts"
           ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known_hosts" ||
             { echo 'VPS SSH fingerprint probe unavailable'; exit 2; }
@@ -81,7 +81,7 @@ jobs:
           set -euo pipefail
           # Public fingerprint supplied from Owner's prior Android SSH session.
           # This pins the GitHub runner; separate provider attestation remains pending.
-          expected="SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hwINLvdxc"
+          expected="SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
           known_hosts="$RUNNER_TEMP/vps_smoke_known_hosts"
           ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known_hosts" ||
             { echo 'VPS SSH fingerprint probe unavailable'; exit 2; }

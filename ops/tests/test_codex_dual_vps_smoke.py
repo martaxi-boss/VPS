@@ -72,7 +72,7 @@ class CodexDualVPSSmokeContractTests(unittest.TestCase):
         self.assertIn("steps.execute.outcome == 'success'", WORKFLOW)
 
     def test_ssh_identity_must_be_pinned_before_secret_access(self) -> None:
-        self.assertIn("SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hwINLvdxc", WORKFLOW)
+        self.assertIn("SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc", WORKFLOW)
         self.assertIn("ssh-keygen -lf", WORKFLOW)
         self.assertIn("HostKeyAlgorithms=ssh-ed25519", WORKFLOW)
         self.assertIn("StrictHostKeyChecking=yes", WORKFLOW)
