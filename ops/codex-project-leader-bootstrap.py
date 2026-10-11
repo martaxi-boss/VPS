@@ -68,8 +68,8 @@ def load_runtime(repo, target, target_sha):
         raise BootstrapError("Incompatible Project Leader plugin manifest")
     if not skill.startswith("---\n") or "\nname: project-leader\n" not in skill[:500]:
         raise BootstrapError("Incorrect canonical Project Leader Skill")
-    for anchor in ("CANONICAL_RUNTIME_BOOTSTRAP", "CAPABILITY_AND_RESULT_TRUTH",
-                   "MINIMAL_COORDINATION_BUDGET", "Supervisor", "Human Gate"):
+    for anchor in ("CANONICAL_RUNTIME_BOOTSTRAP", "EXECUTION_FIRST_WITHIN_BOUNDS",
+                   "CONTINUOUS_HYGIENE_ACTIVE", "Supervisor", "Human Gate"):
         if anchor not in skill:
             raise BootstrapError("Incomplete Project Leader Skill: " + anchor)
 
