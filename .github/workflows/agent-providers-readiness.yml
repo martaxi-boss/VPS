@@ -37,6 +37,16 @@ jobs:
           test -n "$SSHPASS" || { echo 'VPS_SSH_ACCESS=missing'; exit 2; }
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass >/dev/null
+      - name: Require independently verified SSH host key
+        shell: bash
+        env:
+          VPS_SSH_KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$VPS_SSH_KNOWN_HOSTS" || { echo 'Verified SSH host key missing; refusing connection'; exit 2; }
+          printf '%s\\n' "$VPS_SSH_KNOWN_HOSTS" > "$RUNNER_TEMP/vps_known_hosts"
+          chmod 600 "$RUNNER_TEMP/vps_known_hosts"
+          ssh-keygen -F 146.59.145.3 -f "$RUNNER_TEMP/vps_known_hosts" >/dev/null || { echo 'No pinned key for VPS address'; exit 2; }
       - name: Check only installed agent executors on existing VPS
         shell: bash
         env:
