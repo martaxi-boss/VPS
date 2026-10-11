@@ -18,8 +18,8 @@ SKILL = """---
 name: project-leader
 ---
 CANONICAL_RUNTIME_BOOTSTRAP
-CAPABILITY_AND_RESULT_TRUTH
-MINIMAL_COORDINATION_BUDGET
+EXECUTION_FIRST_WITHIN_BOUNDS
+CONTINUOUS_HYGIENE_ACTIVE
 Supervisor
 Human Gate
 """
@@ -61,8 +61,8 @@ class BootstrapTests(unittest.TestCase):
         self.assertEqual(1, data["loader_version"])
         self.assertEqual("0.7.0", data["plugin_version"])
         self.assertIn("RUNTIME_CANONICAL_REVISION=" + self.head, text)
-        self.assertIn("CAPABILITY_AND_RESULT_TRUTH", text)
-        self.assertIn("MINIMAL_COORDINATION_BUDGET", text)
+        self.assertIn("EXECUTION_FIRST_WITHIN_BOUNDS", text)
+        self.assertIn("CONTINUOUS_HYGIENE_ACTIVE", text)
         self.assertIn("trusted publisher independently enforces scope", text)
 
     def test_pink_target_accepts_pinned_canonical_skill_without_extra_privilege(self):
@@ -77,7 +77,7 @@ class BootstrapTests(unittest.TestCase):
         self.put("plugins/project-leader/skills/project-leader/SKILL.md",
                  "MALICIOUS_UNCOMMITTED_WORKTREE_CONTENT")
         text, _ = bootstrap.load_runtime(self.repo, "martaxi-boss/VPS", SHA)
-        self.assertIn("CAPABILITY_AND_RESULT_TRUTH", text)
+        self.assertIn("EXECUTION_FIRST_WITHIN_BOUNDS", text)
         self.assertNotIn("MALICIOUS_UNCOMMITTED", text)
 
     def test_project_leader_target_requires_same_exact_sha(self):
@@ -97,11 +97,18 @@ class BootstrapTests(unittest.TestCase):
 
     def test_missing_required_skill_rule_rejected(self):
         self.put("plugins/project-leader/skills/project-leader/SKILL.md",
-                 SKILL.replace("MINIMAL_COORDINATION_BUDGET", ""))
+                 SKILL.replace("CONTINUOUS_HYGIENE_ACTIVE", ""))
         self.git("add", ".")
         self.git("commit", "-qm", "remove rule")
         with self.assertRaises(bootstrap.BootstrapError):
             bootstrap.load_runtime(self.repo, "martaxi-boss/VPS", SHA)
+
+    def test_pre_codex_audit_rules_are_not_required(self):
+        text, _ = bootstrap.load_runtime(self.repo, "martaxi-boss/VPS", SHA)
+        self.assertIn("EXECUTION_FIRST_WITHIN_BOUNDS", text)
+        self.assertIn("CONTINUOUS_HYGIENE_ACTIVE", text)
+        self.assertNotIn("CAPABILITY_AND_RESULT_TRUTH", text)
+        self.assertNotIn("MINIMAL_COORDINATION_BUDGET", text)
 
     def test_missing_standing_control_rejected(self):
         path = "projects/standing-authority.json"
