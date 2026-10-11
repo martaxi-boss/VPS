@@ -16,6 +16,9 @@ expected="364ade7ca0e5bca1e788d04cad8bbe071cd22f88"
 source="$base/source"
 runs="$base/runs"
 codex_cli="$HOME/codex-agent/node_modules/.bin/codex"
+budget_root="$HOME/codex-bridge/.account-budget"
+budget_policy="$base/codex_resource_policy.py"
+budget_job_base="${job%-dual}"
 
 test -d "$base" || exit 2
 printf '{"status":"PREPARING","reason":"preflight_pending"}\n' > "$proof"
@@ -27,6 +30,70 @@ blocked() {
   exit 3
 }
 
+
+# Share the existing signed-in account's 24h soft-token ledger; never bypass it.
+# Unknown/missing model usage is charged conservatively, including failed runs.
+finish_smoke() {
+  status=$?
+  trap - EXIT
+  if [ -s "$base/budget-reservation-1.json" ] ||
+     [ -s "$base/budget-reservation-2.json" ]; then
+    if ! python3 - "$runs" "$base" <<'BUDGET_USAGE'
+import json
+from pathlib import Path
+import sys
+runs, base = map(Path, sys.argv[1:])
+for idx, name in enumerate(("smoke-alpha", "smoke-beta"), start=1):
+    logs = list(runs.glob("run-*/" + name + ".jsonl")) if runs.exists() else []
+    usage = {"observed": False}
+    if len(logs) == 1 and logs[0].stat().st_size <= 2000000:
+        values = {"input_tokens": 0, "output_tokens": 0, "cached_input_tokens": 0}
+        count = 0
+        try:
+            for line in logs[0].read_text(encoding="utf-8").splitlines():
+                event = json.loads(line)
+                if event.get("type") != "turn.completed":
+                    continue
+                part = event.get("usage")
+                if not isinstance(part, dict) or any(
+                    type(part.get(k)) is not int or part[k] < 0 for k in values
+                ) or part["cached_input_tokens"] > part["input_tokens"]:
+                    count = 0
+                    break
+                for key in values:
+                    values[key] += part[key]
+                count += 1
+        except (OSError, ValueError, TypeError):
+            count = 0
+        if count:
+            usage = {"observed": True, **values}
+    (base / ("budget-usage-" + str(idx) + ".json")).write_text(
+        json.dumps(usage) + "\n", encoding="utf-8"
+    )
+BUDGET_USAGE
+    then
+      echo 'Could not parse private usage evidence; conservative budget settlement required' >&2
+    fi
+    for idx in 1 2; do
+      if [ -s "$base/budget-reservation-$idx.json" ]; then
+        [ -s "$base/budget-usage-$idx.json" ] ||
+          printf '{"observed":false}\n' > "$base/budget-usage-$idx.json"
+        if ! python3 "$budget_policy" settle "$budget_root" "$budget_job_base-$idx" \
+             "$base/budget-usage-$idx.json" > "$base/budget-settlement-$idx.json"; then
+          echo 'Shared Codex token-ledger settlement failed' >&2
+          status=5
+        fi
+      fi
+    done
+  fi
+  if [ "$status" -eq 5 ]; then
+    printf '{"status":"FAILED","reason":"shared_budget_settlement_failed"}\n' > "$proof"
+  fi
+  exit "$status"
+}
+trap finish_smoke EXIT
+
+test -f "$budget_policy" || blocked "shared_budget_policy_missing"
 test -x "$codex_cli" || blocked "installed_cli_missing"
 "$codex_cli" login status > /dev/null 2>&1 || blocked "codex_authentication_unavailable"
 command -v flock > /dev/null || blocked "flock_unavailable"
@@ -46,6 +113,15 @@ git clone --quiet --depth 1 --branch main -- \
   blocked "repository_checkout_failed"
 source_head="$(git -C "$source" rev-parse HEAD)" || blocked "source_sha_unavailable"
 [ "$source_head" = "$expected" ] || blocked "unexpected_specialization_revision"
+
+# Reserve two low-effort turns using the very same central ledger as all
+# existing VPS Codex jobs. Each reservation is conservatively settled on exit.
+python3 "$budget_policy" reserve "$budget_root" "$budget_job_base-1" low \
+  > "$base/budget-reservation-1.json" || blocked "shared_soft_budget_unavailable"
+python3 "$budget_policy" reserve "$budget_root" "$budget_job_base-2" low \
+  > "$base/budget-reservation-2.json" || blocked "shared_soft_budget_unavailable"
+test -s "$base/budget-reservation-1.json" || blocked "shared_soft_budget_unavailable"
+test -s "$base/budget-reservation-2.json" || blocked "shared_soft_budget_unavailable"
 
 mkdir -m 700 "$base/bin" "$runs"
 cat > "$base/bin/codex" <<'WRAPPER'

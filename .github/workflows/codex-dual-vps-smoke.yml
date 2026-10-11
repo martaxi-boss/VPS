@@ -35,6 +35,29 @@ jobs:
           bash -n ops/codex-dual-vps-smoke.sh
           python3 -m unittest discover -s ops/tests -p test_codex_dual_vps_smoke.py -v
 
+  host-key-probe:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    permissions: {}
+    steps:
+      - name: Check Owner-provided VPS host key over a separate network path, without credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Public fingerprint supplied from Owner's prior Android SSH session.
+          # This pins the GitHub runner; separate provider attestation remains pending.
+          expected="SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hwINLvdxc"
+          known_hosts="$RUNNER_TEMP/vps_smoke_known_hosts"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known_hosts" ||
+            { echo 'VPS SSH fingerprint probe unavailable'; exit 2; }
+          chmod 600 "$known_hosts"
+          observed="$(ssh-keygen -lf "$known_hosts" -E sha256 | awk '{print $2}')"
+          test "$observed" = "$expected" ||
+            { echo 'VPS SSH host fingerprint mismatch; refusing password connection'; exit 2; }
+          ssh-keygen -F 146.59.145.3 -f "$known_hosts" >/dev/null ||
+            { echo 'Pinned VPS SSH host missing'; exit 2; }
+
   smoke:
     if: >-
       github.event_name == 'issues' &&
@@ -50,6 +73,23 @@ jobs:
         with:
           ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
+
+      - name: Pin Owner-provided SSH host key before using any VPS credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Public fingerprint supplied from Owner's prior Android SSH session.
+          # This pins the GitHub runner; separate provider attestation remains pending.
+          expected="SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hwINLvdxc"
+          known_hosts="$RUNNER_TEMP/vps_smoke_known_hosts"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known_hosts" ||
+            { echo 'VPS SSH fingerprint probe unavailable'; exit 2; }
+          chmod 600 "$known_hosts"
+          observed="$(ssh-keygen -lf "$known_hosts" -E sha256 | awk '{print $2}')"
+          test "$observed" = "$expected" ||
+            { echo 'VPS SSH host fingerprint mismatch; refusing password connection'; exit 2; }
+          ssh-keygen -F 146.59.145.3 -f "$known_hosts" >/dev/null ||
+            { echo 'Pinned VPS SSH host missing'; exit 2; }
 
       - name: Verify existing SSH channel on disposable GitHub runner
         shell: bash
@@ -70,11 +110,11 @@ jobs:
           set -euo pipefail
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-dual"
           destination="/home/ubuntu/codex-bridge/jobs/$job"
-          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new \
+          sshpass -e ssh -T -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=20 ubuntu@146.59.145.3 \
             "install -d -m 700 '$destination'"
-          sshpass -e scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
-            ops/codex-dual-vps-smoke.sh \
+          sshpass -e scp -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
+            ops/codex-dual-vps-smoke.sh ops/codex_resource_policy.py \
             "ubuntu@146.59.145.3:$destination/"
 
       - name: Execute real two-worker Codex smoke on a disposable pinned clone
@@ -85,7 +125,7 @@ jobs:
         run: |
           set -euo pipefail
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-dual"
-          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new \
+          sshpass -e ssh -T -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=5 \
             ubuntu@146.59.145.3 \
             "bash '/home/ubuntu/codex-bridge/jobs/$job/codex-dual-vps-smoke.sh' '$job'"
@@ -99,7 +139,7 @@ jobs:
         run: |
           set -euo pipefail
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-dual"
-          sshpass -e scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+          sshpass -e scp -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
             "ubuntu@146.59.145.3:/home/ubuntu/codex-bridge/jobs/$job/proof.json" \
             "$RUNNER_TEMP/codex-dual-smoke-proof.json"
 
@@ -156,7 +196,8 @@ jobs:
                           "source_workspace_reuse", "repository_checkout_failed",
                           "source_sha_unavailable", "unexpected_specialization_revision",
                           "dual_executor_nonzero", "two_codex_workers_invoked",
-                          "preflight_pending",
+                          "preflight_pending", "shared_budget_policy_missing",
+                          "shared_soft_budget_unavailable", "shared_budget_settlement_failed",
                       ):
                           reason = "internal_sanitized_diagnostic"
                       lines.append("Diagnóstico: " + reason)
@@ -185,6 +226,6 @@ jobs:
         run: |
           set -euo pipefail
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-dual"
-          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new \
+          sshpass -e ssh -T -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=20 ubuntu@146.59.145.3 \
             "rm -rf -- '/home/ubuntu/codex-bridge/jobs/$job'"

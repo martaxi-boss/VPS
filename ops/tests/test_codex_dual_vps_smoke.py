@@ -71,6 +71,25 @@ class CodexDualVPSSmokeContractTests(unittest.TestCase):
         self.assertIn("secrets.VPS_SSH_PASSWORD", WORKFLOW)
         self.assertIn("steps.execute.outcome == 'success'", WORKFLOW)
 
+    def test_ssh_identity_must_be_pinned_before_secret_access(self) -> None:
+        self.assertIn("SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hwINLvdxc", WORKFLOW)
+        self.assertIn("ssh-keygen -lf", WORKFLOW)
+        self.assertIn("HostKeyAlgorithms=ssh-ed25519", WORKFLOW)
+        self.assertIn("StrictHostKeyChecking=yes", WORKFLOW)
+        self.assertIn("UserKnownHostsFile=", WORKFLOW)
+        self.assertNotIn("StrictHostKeyChecking=accept-new", WORKFLOW)
+        self.assertIn("host-key-probe:", WORKFLOW)
+        self.assertIn("ops/codex_resource_policy.py", WORKFLOW)
+
+    def test_live_smoke_never_bypasses_shared_account_budget(self) -> None:
+        self.assertIn("$HOME/codex-bridge/.account-budget", SCRIPT)
+        self.assertIn('reserve "$budget_root" "$budget_job_base-1" low', SCRIPT)
+        self.assertIn('reserve "$budget_root" "$budget_job_base-2" low', SCRIPT)
+        self.assertIn('settle "$budget_root" "$budget_job_base-$idx"', SCRIPT)
+        self.assertIn('"observed": False', SCRIPT)
+        self.assertIn('trap finish_smoke EXIT', SCRIPT)
+        self.assertIn('shared_soft_budget_unavailable', SCRIPT)
+
     def test_public_report_is_allowlisted_without_model_output(self) -> None:
         self.assertIn('len(proof.get("workers", []))', WORKFLOW)
         self.assertIn('state not in ("PASS", "FAIL", "FAILED"', WORKFLOW)
