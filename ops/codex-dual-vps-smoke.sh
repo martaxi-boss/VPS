@@ -3,6 +3,9 @@
 # executor in a disposable VPS checkout. No installation, push or deployment.
 set -Eeuo pipefail
 umask 077
+# Python imports must not create untracked __pycache__ in the clean pinned
+# specialization checkout: codex.dual checks Git cleanliness before launch.
+export PYTHONDONTWRITEBYTECODE=1
 
 if [ "$#" -ne 1 ] || ! [[ "$1" =~ ^[0-9]+-[0-9]+-dual$ ]]; then
   echo "Invalid trusted smoke job identifier" >&2
