@@ -32,6 +32,16 @@ class CodexDualVPSSmokeContractTests(unittest.TestCase):
         self.assertNotIn("git commit", SCRIPT)
         self.assertNotIn("sshpass", SCRIPT)
 
+    def test_python_import_does_not_dirty_pinned_source_checkout(self) -> None:
+        # Runtime diagnosis #124 proved a dirty checkout before model launch.
+        # Importing codex.dual can create untracked __pycache__; prevent it.
+        self.assertIn("export PYTHONDONTWRITEBYTECODE=1", SCRIPT)
+        self.assertLess(
+            SCRIPT.index("export PYTHONDONTWRITEBYTECODE=1"),
+            SCRIPT.index('cd "$source"'),
+        )
+        self.assertIn("python3 -m codex.dual run", SCRIPT)
+
     def test_order_uses_two_disjoint_minimal_low_jobs(self) -> None:
         manifest = json.loads(SCRIPT.split("<<'ORDER'\n", 1)[1].split("\nORDER", 1)[0])
         self.assertEqual(manifest["target_repository"],
