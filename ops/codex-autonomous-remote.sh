@@ -133,6 +133,9 @@ printf 'CODEX_MODEL=gpt-5.6-sol\nCODEX_REASONING_EFFORT=%s\nCODEX_TARGET_SHA=%s\
 set +e
 timeout --signal=TERM --kill-after=15s 35m \
   "$cli" exec --model gpt-5.6-sol -c "model_reasoning_effort=$effort" \
+    -c 'model_provider="openai"' \
+    -c 'openai_base_url=""' \
+    -c 'chatgpt_base_url="https://chatgpt.com/backend-api/"' \
     --sandbox workspace-write --json --output-last-message "$report" - \
     < "$base/prompt.md" > "$base/cli.jsonl" 2> "$base/cli.stderr"
 code=$?

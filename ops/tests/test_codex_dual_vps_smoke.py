@@ -91,6 +91,14 @@ class CodexDualVPSSmokeContractTests(unittest.TestCase):
         self.assertIn("host-key-probe:", WORKFLOW)
         self.assertIn("ops/codex_resource_policy.py", WORKFLOW)
 
+    def test_smoke_wrapper_forces_builtin_chatgpt_provider(self) -> None:
+        self.assertIn("""-c 'model_provider="openai"'""", SCRIPT)
+        self.assertIn("""-c 'openai_base_url=""'""", SCRIPT)
+        self.assertIn("""-c 'chatgpt_base_url="https://chatgpt.com/backend-api/"'""",
+                      SCRIPT)
+        self.assertLess(SCRIPT.index("model_provider="),
+                        SCRIPT.index('"$@"'))
+
     def test_live_smoke_uses_private_no_replay_ledger_not_artificial_budget(self) -> None:
         self.assertIn("$HOME/codex-bridge/.account-budget", SCRIPT)
         self.assertIn('reserve "$budget_root" "$budget_job_base-1" low', SCRIPT)

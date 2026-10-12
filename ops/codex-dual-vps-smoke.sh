@@ -147,7 +147,13 @@ if [ "$name" != "unmatched" ]; then
   printf 'START\t%s\t%s\n' "$name" "$(date +%s%N)" >> "$CODEX_SMOKE_EVENTS"
 fi
 set +e
-"$HOME/codex-agent/node_modules/.bin/codex" "$@"
+# Force the built-in OpenAI provider and the official ChatGPT backend.
+# The login check alone does not prevent a custom config.toml provider.
+"$HOME/codex-agent/node_modules/.bin/codex" \
+  -c 'model_provider="openai"' \
+  -c 'openai_base_url=""' \
+  -c 'chatgpt_base_url="https://chatgpt.com/backend-api/"' \
+  "$@"
 status=$?
 set -e
 if [ "$name" != "unmatched" ]; then

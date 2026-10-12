@@ -393,6 +393,18 @@ class NoChangeAndQueueSafetyTests(unittest.TestCase):
         self.assertNotIn("cli.stderr", flow)
         self.assertNotIn("usage-budget.json", flow)
 
+    def test_actual_executor_pins_builtin_openai_chatgpt_provider(self):
+        remote = (OPS / "codex-autonomous-remote.sh").read_text(
+            encoding="utf-8")
+        call = remote.split('timeout --signal=TERM', 1)[1]
+        self.assertIn("""-c 'model_provider="openai"'""", call)
+        self.assertIn("""-c 'openai_base_url=""'""", call)
+        self.assertIn("""-c 'chatgpt_base_url="https://chatgpt.com/backend-api/"'""",
+                      call)
+        self.assertIn('"$cli" exec --model gpt-5.6-sol', call)
+        self.assertLess(call.index("model_provider="),
+                        call.index("--sandbox workspace-write"))
+
     def test_chatgpt_login_status_from_stderr_and_api_denial(self):
         # Official Codex CLI v0.162.1 prints "Logged in using ChatGPT"
         # through eprintln!, not stdout. Verify the actual shell preflight

@@ -76,6 +76,12 @@ O Codex CLI na VPS deve apresentar `Logged in using ChatGPT` em `codex login sta
 Se estiver em modo API key (ou houver variáveis de API billing), o executor pára
 **antes do modelo**, pois esse modo tem custos e limites diferentes da conta
 ChatGPT do Owner. Nunca imprimir ficheiros de autenticação nem credenciais.
+Além de validar o login, ambos os executores fixam o fornecedor nativo
+`openai`, anulam qualquer `openai_base_url` personalizado e fixam a URL
+`https://chatgpt.com/backend-api/` através de opções explícitas da CLI.
+Assim, um `model_provider` personalizado em `config.toml` não pode
+encaminhar o trabalho para um serviço API faturado; o modelo só corre
+se o fornecedor efetivo aceitar a autenticação ChatGPT.
 
 Foi removido o limite interno artificial de 300 000 tokens / 24 h, que não
 correspondia aos limites reais mostrados no ChatGPT. O registo privado continua
