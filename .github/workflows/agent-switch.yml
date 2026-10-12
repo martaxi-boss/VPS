@@ -5,6 +5,8 @@ name: Agent switch (Owner GitHub order)
 on:
   issues:
     types: [opened]
+  repository_dispatch:
+    types: [codex_quota_resume]
   pull_request:
     paths:
       - '.github/workflows/agent-switch.yml'
@@ -13,6 +15,8 @@ on:
       - 'ops/tests/test_agent_switch.py'
       - 'ops/codex_resource_policy.py'
       - 'ops/tests/test_codex_resource_policy.py'
+      - 'ops/codex_quota_resume.py'
+      - 'ops/tests/test_codex_quota_resume.py'
 
 permissions: {}
 
@@ -28,17 +32,23 @@ jobs:
           python3 -m py_compile ops/agent_switch.py
           python3 -m unittest discover -s ops/tests -p test_agent_switch.py -v
           python3 -m unittest discover -s ops/tests -p test_codex_resource_policy.py -v
+          python3 -m unittest discover -s ops/tests -p test_codex_quota_resume.py -v
 
   preflight:
     if: >-
-      github.event_name == 'issues' &&
-      github.event.issue.user.login == github.repository_owner &&
-      startsWith(github.event.issue.title, '[agents run]')
+      (github.event_name == 'issues' &&
+       github.event.issue.user.login == github.repository_owner &&
+       startsWith(github.event.issue.title, '[agents run]')) ||
+      (github.event_name == 'repository_dispatch' &&
+       github.event.action == 'codex_quota_resume')
     runs-on: ubuntu-24.04
     permissions:
       contents: read
       issues: write
+      actions: read
     outputs:
+      issue_number: ${{ steps.validate.outputs.issue_number }}
+      resume_stage: ${{ steps.validate.outputs.resume_stage }}
       codex: ${{ steps.validate.outputs.codex }}
       codex_task_b64: ${{ steps.validate.outputs.codex_task_b64 }}
       task_count: ${{ steps.validate.outputs.task_count }}
@@ -60,10 +70,14 @@ jobs:
         id: validate
         env:
           ORDER_BODY: ${{ github.event.issue.body }}
+          EVENT_NAME: ${{ github.event_name }}
+          RESUME_PAYLOAD: ${{ toJSON(github.event.client_payload) }}
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_SOURCE: ${{ github.event.issue.number || '0' }}
         shell: bash
         run: |
           python3 - <<'PY'
-          import os, sys
+          import os, sys, json
           from pathlib import Path
           import importlib.util
 
@@ -72,8 +86,18 @@ jobs:
           spec.loader.exec_module(switch)
           state = Path(os.environ['RUNNER_TEMP']) / 'agent-switch-preflight.txt'
           try:
-              order = switch.parse_order(os.environ.get('ORDER_BODY', ''))
+              if os.environ.get('EVENT_NAME') == 'repository_dispatch':
+                  from ops import codex_quota_resume as quota
+                  payload = json.loads(os.environ.get('RESUME_PAYLOAD', '{}'))
+                  order, issue_number = quota.verify_resume(payload)
+                  resume_stage = payload['stage']
+              else:
+                  order = switch.parse_order(os.environ.get('ORDER_BODY', ''))
+                  issue_number = int(os.environ['ISSUE_SOURCE'])
+                  resume_stage = ''
               values = switch.workflow_values(order)
+              values['issue_number'] = str(issue_number)
+              values['resume_stage'] = str(resume_stage)
               # Do not quietly substitute Codex for Gemini or Composer.
               # A future adapter must prove authentication, isolated execution,
               # Project Leader rules and independent GitHub publication first.
@@ -99,9 +123,13 @@ jobs:
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_NUMBER: ${{ steps.validate.outputs.issue_number || github.event.issue.number }}
         shell: bash
         run: |
+          if ! [[ "$ISSUE_NUMBER" =~ ^[1-9][0-9]*$ ]]; then
+            echo "NO_AUTHORIZED_OWNER_ISSUE_FOR_REPORT"
+            exit 0
+          fi
           status="$RUNNER_TEMP/agent-switch-preflight.txt"
           if test -s "$status"; then
             gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file "$status"
@@ -119,7 +147,9 @@ jobs:
     uses: ./.github/workflows/codex-autonomous.yml
     with:
       task_b64: ${{ needs.preflight.outputs.codex_task_b64 }}
-      issue_number: ${{ github.event.issue.number }}
+      issue_number: ${{ fromJSON(needs.preflight.outputs.issue_number) }}
+      instance_id: ${{ needs.preflight.outputs.resume_stage }}
+      no_auto_merge: ${{ github.event_name == 'repository_dispatch' }}
       allow_no_change: ${{ fromJSON(needs.preflight.outputs.allow_no_change_1) }}
       reasoning_effort: ${{ needs.preflight.outputs.codex_1_reasoning_effort }}
     secrets: inherit
