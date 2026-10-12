@@ -46,7 +46,7 @@ def diagnose():
     result = {"status": "NOT_COMPLETED",
               "repo": REPO,
               "probe_branch": BRANCH,
-              "permission_flag": "unknown",
+              "permission_flag": "unknown", "api_check": "unknown",
               "normal": "not_attempted", "no_helper": "not_attempted",
               "models_called": False, "git_writes": False}
     if not os.environ.get("CODEX_GITHUB_TOKEN"):
@@ -55,16 +55,24 @@ def diagnose():
     publisher = publisher_module()
     try:
         info = publisher.api("GET", f"repos/{REPO}")
+        result["api_check"] = "ok"
         result["permission_flag"] = (
             "push_true" if info.get("permissions", {}).get("push") is True
             else "push_not_confirmed"
         )
-    except (KeyError, RuntimeError):
-        result["status"] = "PERMISSION_QUERY_FAILED"
-        return result
-    if result["permission_flag"] != "push_true":
-        result["status"] = "PERMISSION_DENIED"
-        return result
+    except RuntimeError as error:
+        # Only an exact, bounded HTTP class leaves this process. The raw
+        # exception / API payload must never reach an issue comment or log.
+        code = str(error).rsplit(" HTTP ", 1)[-1]
+        result["api_check"] = {
+            "401": "http_401", "403": "http_403", "404": "http_404",
+            "429": "http_429", "500": "http_5xx", "502": "http_5xx",
+            "503": "http_5xx", "504": "http_5xx",
+        }.get(code, "other_api_error")
+    except (KeyError, TypeError, ValueError, OSError):
+        result["api_check"] = "other_api_error"
+    # A REST permission query is NOT proof of Git push rights and may fail
+    # independently. Always test the actual Git publisher before deciding.
     with tempfile.TemporaryDirectory(prefix="codex-publish-dry-run-") as temporary:
         root = Path(temporary)
         checkout = root / "target"
@@ -96,7 +104,14 @@ def diagnose():
                               cwd=checkout, env=env)
                 result["no_helper"] = classify(
                     forced.stdout + forced.stderr, forced.returncode)
-            result["status"] = "DRY_RUN_ACCEPTED" if normal.returncode == 0 else "DRY_RUN_REFUSED"
+            if normal.returncode:
+                result["status"] = "DRY_RUN_REFUSED"
+            elif result["api_check"] != "ok":
+                result["status"] = "PERMISSION_QUERY_FAILED"
+            elif result["permission_flag"] != "push_true":
+                result["status"] = "PERMISSION_DENIED"
+            else:
+                result["status"] = "DRY_RUN_ACCEPTED"
         except (OSError, subprocess.TimeoutExpired, ValueError):
             result["status"] = "PROBE_ERROR"
     return result

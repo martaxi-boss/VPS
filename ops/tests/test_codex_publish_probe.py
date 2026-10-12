@@ -2,6 +2,9 @@
 import importlib.util
 from pathlib import Path
 import unittest
+from unittest import mock
+import os
+import subprocess
 
 SCRIPT = Path(__file__).resolve().parents[1] / "codex-publish-probe.py"
 spec = importlib.util.spec_from_file_location("codex_publish_probe", SCRIPT)
@@ -39,6 +42,50 @@ class PublicationProbeTests(unittest.TestCase):
         self.assertNotIn("codex exec", source)
         self.assertNotIn("git commit", source)
         self.assertNotIn("git branch -D", source)
+
+    def test_rest_failure_still_probes_git_without_authorizing_models(self):
+        publisher = mock.Mock()
+        publisher.api.side_effect = RuntimeError(
+            "GitHub GET repos/martaxi-boss/Project-leader-codex HTTP 403")
+        publisher.git_push_environment.return_value = {}
+        ok = subprocess.CompletedProcess([], 0, "", "")
+        with mock.patch.dict(os.environ, {"CODEX_GITHUB_TOKEN": "unit-test-only"}):
+            with mock.patch.object(probe, "publisher_module", return_value=publisher):
+                with mock.patch.object(probe, "call", side_effect=[ok, ok, ok]) as git:
+                    result = probe.diagnose()
+        self.assertEqual(result["api_check"], "http_403")
+        self.assertEqual(result["status"], "PERMISSION_QUERY_FAILED")
+        self.assertEqual(result["normal"], "accepted_dry_run")
+        self.assertEqual(git.call_count, 3)
+        self.assertFalse(result["git_writes"])
+        self.assertFalse(result["models_called"])
+
+    def test_rest_success_and_git_success_are_both_required(self):
+        publisher = mock.Mock()
+        publisher.api.return_value = {"permissions": {"push": True}}
+        publisher.git_push_environment.return_value = {}
+        ok = subprocess.CompletedProcess([], 0, "", "")
+        with mock.patch.dict(os.environ, {"CODEX_GITHUB_TOKEN": "unit-test-only"}):
+            with mock.patch.object(probe, "publisher_module", return_value=publisher):
+                with mock.patch.object(probe, "call", side_effect=[ok, ok, ok]):
+                    result = probe.diagnose()
+        self.assertEqual(result["api_check"], "ok")
+        self.assertEqual(result["status"], "DRY_RUN_ACCEPTED")
+
+    def test_git_dry_run_refusal_is_not_masked_by_rest_success(self):
+        publisher = mock.Mock()
+        publisher.api.return_value = {"permissions": {"push": True}}
+        publisher.git_push_environment.return_value = {}
+        ok = subprocess.CompletedProcess([], 0, "", "")
+        denied = subprocess.CompletedProcess([], 128, "", "remote: Permission to repo denied")
+        with mock.patch.dict(os.environ, {"CODEX_GITHUB_TOKEN": "unit-test-only"}):
+            with mock.patch.object(probe, "publisher_module", return_value=publisher):
+                with mock.patch.object(probe, "call",
+                                       side_effect=[ok, ok, denied, denied]):
+                    result = probe.diagnose()
+        self.assertEqual(result["status"], "DRY_RUN_REFUSED")
+        self.assertEqual(result["normal"], "permission_denied")
+        self.assertEqual(result["no_helper"], "permission_denied")
 
 if __name__ == "__main__":
     unittest.main()
