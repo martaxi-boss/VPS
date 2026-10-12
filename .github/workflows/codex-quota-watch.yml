@@ -1,0 +1,61 @@
+name: Codex quota continuation (Owner checkpoints only)
+
+on:
+  schedule:
+    # Hourly metadata scan uses no Codex models; retries obey 2h-24h backoff.
+    - cron: '17 * * * *'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/codex-quota-watch.yml'
+      - '.github/workflows/agent-switch.yml'
+      - '.github/workflows/codex-autonomous.yml'
+      - 'ops/codex_quota_resume.py'
+      - 'ops/tests/test_codex_quota_resume.py'
+
+permissions: {}
+
+concurrency:
+  group: owner-codex-quota-resume
+  cancel-in-progress: false
+
+jobs:
+  offline-regression:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Validate quota state machine without external writes or models
+        run: |
+          python3 -m py_compile ops/codex_quota_resume.py
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
+            -s ops/tests -p test_codex_quota_resume.py -v
+          bash -n ops/codex-autonomous-remote.sh
+
+  quota-watch:
+    if: >-
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
+      github.repository == 'martaxi-boss/VPS'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    permissions:
+      contents: write
+      issues: write
+      actions: read
+    steps:
+      - name: Use only the trusted default branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: \${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Dispatch at most three attested due stages; never guess quota
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 ops/codex_quota_resume.py scan
