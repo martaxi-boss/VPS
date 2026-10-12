@@ -204,7 +204,7 @@ jobs:
           case "$CODEX_INSTANCE_ID" in ''|1|2) ;; *) echo 'Invalid Codex worker identity' >&2; exit 12;; esac
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT${CODEX_INSTANCE_ID:+-$CODEX_INSTANCE_ID}"
           remote="ubuntu@146.59.145.3:/home/ubuntu/codex-bridge/jobs/$job"
-          for file in patch.diff target.txt base-sha.txt codex-task.txt usage.json project-leader-runtime.json report.md; do
+          for file in patch.diff target.txt base-sha.txt codex-task.txt usage.json project-leader-runtime.json report.md codex-preflight-signal.txt; do
             sshpass -e scp -q -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
               -o ConnectTimeout=20 "$remote/$file" "$RUNNER_TEMP/$file" || true
           done
@@ -342,10 +342,22 @@ jobs:
               else:
                   lines.append('Codex token count: NOT_OBSERVED.')
           else:
+              signal_path = Path(os.environ['RUNNER_TEMP']) / 'codex-preflight-signal.txt'
+              # Never publish any remote file contents. Only a fixed trusted
+              # enum can distinguish a pre-model policy denial from a crash.
+              denied = (
+                  signal_path.is_file() and not signal_path.is_symlink()
+                  and signal_path.stat().st_size <= 64
+                  and signal_path.read_text(encoding='utf-8').strip() == 'SOFT_BUDGET_POLICY_BLOCKED'
+              )
               preflight_path = Path(os.environ['RUNNER_TEMP']) / 'codex-preflight-status.txt'
-              preflight = (preflight_path.read_text(encoding='utf-8') if preflight_path.exists()
-                           else 'No verified preflight diagnosis available')
-              lines = ['## Codex execution: NOT_COMPLETED',
+              preflight = (
+                  'The shared VPS Codex token policy refused the reservation; no model started.'
+                  if denied
+                  else (preflight_path.read_text(encoding='utf-8') if preflight_path.exists()
+                        else 'No verified preflight diagnosis available')
+              )
+              lines = ['## Codex execution: ' + ('NOT_STARTED' if denied else 'NOT_COMPLETED'),
                        'Preflight: ' + preflight,
                        'The pipeline stopped before trusted publication.',
                        'Stage: ' + os.environ['STAGE_OUTCOME'],
