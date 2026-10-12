@@ -96,8 +96,10 @@ class CodexDualVPSSmokeContractTests(unittest.TestCase):
         self.assertIn("""-c 'openai_base_url=""'""", SCRIPT)
         self.assertIn("""-c 'chatgpt_base_url="https://chatgpt.com/backend-api/"'""",
                       SCRIPT)
-        self.assertLess(SCRIPT.index("model_provider="),
-                        SCRIPT.index('"$@"'))
+        wrapper = SCRIPT.split('cat > "$base/bin/codex" <<\'WRAPPER\'\\n', 1)[1].split("\\nWRAPPER", 1)[0]
+        invocation = wrapper.split('"$HOME/codex-agent/node_modules/.bin/codex"', 1)[1]
+        self.assertLess(invocation.index("model_provider="),
+                        invocation.index('"$@"'))
 
     def test_live_smoke_uses_private_no_replay_ledger_not_artificial_budget(self) -> None:
         self.assertIn("$HOME/codex-bridge/.account-budget", SCRIPT)
