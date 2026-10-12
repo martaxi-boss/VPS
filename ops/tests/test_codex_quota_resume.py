@@ -270,6 +270,45 @@ class QuotaLifecycleTests(unittest.TestCase):
         self.assertEqual(len(posted), 1)
         self.assertTrue(posted[0].startswith(q.STARTED + "\n"))
 
+    def test_workflow_calls_real_cli_scan_entrypoint_and_interpolates_token(self):
+        with patch.object(q, "schedule_due", return_value=0) as scheduler:
+            self.assertEqual(q.main(["ops/codex_quota_resume.py", "scan"]), 0)
+            scheduler.assert_called_once()
+        workflow = (Path(__file__).resolve().parents[2] /
+                    ".github/workflows/codex-quota-watch.yml").read_text()
+        self.assertIn("python3 ops/codex_quota_resume.py scan", workflow)
+        self.assertIn("GH_TOKEN: ${{ github.token }}", workflow)
+        self.assertIn("ref: ${{ github.event.repository.default_branch }}", workflow)
+        self.assertNotIn(r"\${{", workflow)
+
+    def test_scheduler_paginates_past_historical_label_backlog(self):
+        rows = [self.comment(q.PAUSE, self.pause, 77)]
+        posted = []
+        background = [{"pull_request": {"url": "example"}, "user": {"login": q.OWNER}}
+                      for _ in range(100)]
+        def api(method, path, payload=None):
+            if method == "GET" and path.startswith("/issues?"):
+                if "page=1" in path or "page=2" in path or "page=3" in path:
+                    return background
+                return [self.owner_issue]
+            if path == "/issues/154":
+                return self.owner_issue
+            if path.startswith("/issues/154/comments?"):
+                return rows
+            if path == "/actions/runs/42":
+                return {"id": 42, "name": "Agent switch (Owner GitHub order)",
+                        "status": "completed", "conclusion": "failure"}
+            if method == "POST" and path == "/issues/154/comments":
+                posted.append(path)
+                return {"id": 78}
+            if method == "POST" and path == "/dispatches":
+                posted.append(path)
+                return {}
+            raise AssertionError((method, path))
+        with patch.object(q, "_api", side_effect=api):
+            self.assertEqual(q.schedule_due(now=self.clock), 1)
+        self.assertEqual(posted, ["/issues/154/comments", "/dispatches"])
+
     def test_scheduler_claims_before_dispatch_and_never_duplicates(self):
         rows = [self.comment(q.PAUSE, self.pause, 77)]
         dispatched = []
