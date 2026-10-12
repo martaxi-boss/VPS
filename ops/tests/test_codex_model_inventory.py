@@ -1,0 +1,144 @@
+"""Zero-inference tests for filtered VPS Codex catalog diagnostics."""
+import importlib.util
+import json
+import subprocess
+import tempfile
+import unittest
+from pathlib import Path
+from unittest import mock
+
+OPS = Path(__file__).resolve().parents[1]
+spec = importlib.util.spec_from_file_location(
+    "codex_model_inventory", OPS / "codex-model-inventory.py")
+inventory = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(inventory)
+
+
+class CatalogContractTests(unittest.TestCase):
+    def test_visible_model_names_and_efforts_only(self):
+        raw = json.dumps({"models": [
+            {"slug": "gpt-5.6-sol", "visibility": "list",
+             "supported_reasoning_levels": [{"effort": "low"}, {"effort": "high"}],
+             "model_messages": {"instructions_template": "DO_NOT_PUBLISH"}},
+            {"slug": "gpt-6-sol", "visibility": "list",
+             "supported_reasoning_levels": [{"effort": "low"}, {"effort": "medium"}]},
+            {"slug": "gpt-6-hidden", "visibility": "hidden",
+             "base_instructions": "DO_NOT_PUBLISH"},
+            {"slug": "../../secrets", "visibility": "list"},
+            {"slug": "gpt-5.6-sol", "visibility": "list",
+             "supported_reasoning_levels": [{"effort": "high"}]},
+        ]})
+        got = inventory._parse_catalog(raw)
+        self.assertEqual([m["slug"] for m in got], ["gpt-5.6-sol", "gpt-6-sol"])
+        self.assertNotIn("DO_NOT_PUBLISH", json.dumps(got))
+        self.assertNotIn("../../secrets", json.dumps(got))
+        self.assertEqual(got[1]["efforts"], ["low", "medium"])
+
+    def test_untrusted_unparseable_or_oversized_payload_not_emitted(self):
+        self.assertEqual(inventory._parse_catalog("SYSTEM MESSAGE"), [])
+        self.assertEqual(inventory._parse_catalog(json.dumps({"models": [{}] * 200})), [])
+
+    def test_auth_rejected_before_catalog_query(self):
+        with mock.patch.object(inventory, "CLI") as fake_cli:
+            fake_cli.is_file.return_value = True
+            with mock.patch.object(inventory.os, "access", return_value=True):
+                with mock.patch.object(inventory, "_execute", side_effect=[
+                    ("ok", "codex-cli 0.148.0"), ("ok", "Logged in using API key")]) as run:
+                    result = inventory.inspect()
+        self.assertEqual(result["status"], "AUTH_UNVERIFIED")
+        self.assertEqual(run.call_count, 2)
+        self.assertEqual(result["models"], [])
+
+    def test_confirmed_login_reads_existing_cache_without_debug(self):
+        raw = json.dumps({"models": [{"slug": "gpt-5.6-sol",
+                                        "visibility": "list",
+                                        "supported_reasoning_levels": [{"effort": "low"},
+                                                                     {"effort": "high"}]}]})
+        with mock.patch.object(inventory, "CLI") as fake_cli:
+            fake_cli.is_file.return_value = True
+            with mock.patch.object(inventory.os, "access", return_value=True):
+                with mock.patch.object(inventory, "_execute", side_effect=[
+                    ("ok", "codex-cli 0.148.0"),
+                    ("ok", "Logged in using ChatGPT")]) as run:
+                    with mock.patch.object(inventory, "_read_cache", return_value=("ok", raw)) as cache:
+                        result = inventory.inspect()
+                        cache.assert_called_once_with()
+        self.assertEqual(result["status"], "CACHE_READ")
+        self.assertEqual(result["auth_mode"], "chatgpt")
+        self.assertEqual(result["cli_version"], "0.148.0")
+        self.assertEqual([m["slug"] for m in result["models"]], ["gpt-5.6-sol"])
+        self.assertEqual(run.call_count, 2)
+
+
+    def test_workflow_owner_title_is_case_sensitive_before_ssh_secret(self):
+        workflow = (OPS.parent / ".github/workflows/codex-model-inventory.yml").read_text(
+            encoding="utf-8")
+        self.assertIn("REQUEST_TITLE: ${{ github.event.issue.title }}", workflow)
+        self.assertIn('test "$REQUEST_TITLE" = "$expected"', workflow)
+        self.assertLess(
+            workflow.index("Require case-sensitive Owner issue title"),
+            workflow.index("Prepare existing SSH client only after host identity confirmation"),
+        )
+        self.assertNotIn("StrictHostKeyChecking=accept-new", workflow)
+        self.assertIn("StrictHostKeyChecking=yes", workflow)
+
+    def test_workflow_catalog_unknown_cannot_pass_successfully(self):
+        workflow = (OPS.parent / ".github/workflows/codex-model-inventory.yml").read_text(
+            encoding="utf-8")
+        self.assertIn("result['status'] == 'CACHE_READ'", workflow)
+        self.assertIn("result['auth_mode'] == 'chatgpt'", workflow)
+        self.assertIn("result['catalog_source'] == 'local_cache'", workflow)
+        self.assertIn("len(result['models']) > 0", workflow)
+        self.assertIn("CATALOG_UNVERIFIED_FAIL_CLOSED", workflow)
+        self.assertIn("exit 3", workflow)
+        self.assertLess(workflow.index("gh issue comment"), workflow.index("CATALOG_UNVERIFIED_FAIL_CLOSED"))
+
+
+
+    def test_cli_login_status_is_read_from_private_stderr_not_logged(self):
+        # The real CLI uses eprintln! for even a successful ChatGPT login.
+        completed = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=b"", stderr=b"Logged in using ChatGPT\n")
+        with mock.patch.object(inventory.subprocess, "run", return_value=completed) as execute:
+            state, output = inventory._execute(["login", "status"])
+        self.assertEqual(state, "ok")
+        self.assertEqual(output.strip(), "Logged in using ChatGPT")
+        self.assertEqual(execute.call_args.kwargs["stderr"], subprocess.PIPE)
+
+        completed = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=b'{"models":[]}', stderr=b"INTERNAL_PRIVATE")
+        with mock.patch.object(inventory.subprocess, "run", return_value=completed) as execute:
+            state, output = inventory._execute(["--version"])
+        self.assertEqual(state, "ok")
+        self.assertNotIn("INTERNAL_PRIVATE", output)
+        self.assertEqual(execute.call_args.kwargs["stderr"], subprocess.DEVNULL)
+
+
+
+    def test_existing_cache_read_only_and_extended_reasoning_metadata(self):
+        with tempfile.TemporaryDirectory() as home:
+            path = Path(home) / ".codex" / "models_cache.json"
+            path.parent.mkdir(mode=0o700)
+            raw = json.dumps({"models": [{
+                "slug": "gpt-5.6-sol", "visibility": "list",
+                "supported_reasoning_levels": [
+                    {"effort": "low"}, {"effort": "high"},
+                    {"effort": "max"}, {"effort": "ultra"}]}]})
+            path.write_text(raw, encoding="utf-8")
+            before = path.read_bytes()
+            with mock.patch.object(inventory.Path, "home", return_value=Path(home)):
+                with mock.patch.object(inventory, "_execute") as cli:
+                    status, content = inventory._read_cache()
+                    cli.assert_not_called()
+            self.assertEqual(status, "ok")
+            self.assertEqual(content, raw)
+            self.assertEqual(path.read_bytes(), before)
+            self.assertEqual(
+                inventory._parse_catalog(content)[0]["efforts"],
+                ["low", "high", "max", "ultra"],
+            )
+
+
+
+if __name__ == "__main__":
+    unittest.main()
