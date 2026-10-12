@@ -132,6 +132,57 @@ class QuotaLifecycleTests(unittest.TestCase):
             with self.assertRaises(q.QuotaResumeError):
                 q.verify_resume(dispatch, now=self.clock)
 
+    def test_verified_ready_second_serial_stage_not_confused_with_quota_failure(self):
+        marker = {**self.pause, "attempt": 0, "preceding_status": "PR_STAGED"}
+        rows = [self.comment(q.READY, marker, 77),
+                self.comment(q.CLAIM, self.claim, 78)]
+        def api(method, path, payload=None):
+            if path == "/issues/154":
+                return self.owner_issue
+            if path.startswith("/issues/154/comments?"):
+                return rows
+            if path == "/actions/runs/42":
+                return {"id": 42, "name": "Agent switch (Owner GitHub order)",
+                        "status": "completed", "conclusion": "success"}
+            raise AssertionError(path)
+        with patch.object(q, "_api", side_effect=api):
+            order, source = q.verify_resume({
+                "source_issue": 154, "stage": 2, "paused_run": 42,
+                "attempt": 1, "claim_comment": 78}, now=self.clock)
+        self.assertEqual(source, 154)
+        self.assertEqual(order["tasks"][0]["id"], "second")
+        self.assertEqual(len(order["tasks"]), 1)
+
+    def test_unmerged_dependent_first_pr_never_enables_next_stage(self):
+        blocked = json.loads(self.manifest)
+        blocked.pop("serial_independent")
+        self.owner_issue["body"] = json.dumps(blocked)
+        report = Path(self.tmp.name) / "result.json"
+        report.write_text(json.dumps({
+            "repository": "martaxi-boss/Project-leader-codex",
+            "status": "PR_STAGED"}))
+        with patch.object(q, "_api", return_value=self.owner_issue) as api:
+            self.assertFalse(q.ready_after_first_serial_stage(154, 99, report))
+            self.assertEqual(api.call_count, 1)
+        report.write_text(json.dumps({
+            "repository": "martaxi-boss/Project-leader-codex",
+            "status": "MERGED"}))
+        writes = []
+        def api(method, path, payload=None):
+            if method == "GET" and path == "/issues/154":
+                return self.owner_issue
+            if method == "GET" and path.startswith("/issues/154/comments?"):
+                return []
+            if method == "POST":
+                writes.append((path, payload))
+                return {"id": 88}
+            raise AssertionError(path)
+        with patch.object(q, "_api", side_effect=api):
+            self.assertTrue(q.ready_after_first_serial_stage(
+                154, 99, report, now=self.clock))
+        self.assertTrue(any(p == "/issues/154/comments" for p, _ in writes))
+        self.assertTrue(any(p == "/issues/154/labels" for p, _ in writes))
+
     def test_scheduler_claims_before_dispatch_and_never_duplicates(self):
         rows = [self.comment(q.PAUSE, self.pause, 77)]
         dispatched = []
