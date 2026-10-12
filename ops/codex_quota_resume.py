@@ -224,11 +224,17 @@ def verify_resume(payload: dict, *, now: int | None = None) -> tuple[dict, int]:
             (now if now is not None else int(time.time())) < pause["retry_at"]):
         raise QuotaResumeError("Checkpoint no longer matches Owner order or retry interval")
     claims = parsed_comments(all_comments, CLAIM)
-    claim = [c for c in claims if c.get("_comment_id") == claim_id
-             and c.get("run_id") == run_id and c.get("stage") == stage
-             and c.get("attempt") == attempt]
-    if len(claim) != 1:
-        raise QuotaResumeError("No matching durable dispatch claim")
+    relevant = [c for c in claims if c.get("run_id") == run_id
+                and c.get("stage") == stage]
+    if (not relevant or
+            max(relevant, key=lambda c: c.get("_comment_id", 0)).get("_comment_id") != claim_id or
+            len([c for c in relevant if c.get("_comment_id") == claim_id
+                 and c.get("attempt") == attempt]) != 1):
+        raise QuotaResumeError("Dispatch claim is not the newest attested lease")
+    started = parsed_comments(all_comments, STARTED)
+    if any(z.get("claim_comment") == claim_id and z.get("run_id") == run_id
+           and z.get("stage") == stage for z in started):
+        raise QuotaResumeError("Dispatch already started; no replay")
     # Verify the failed run belongs to the actual trusted Actions workflow;
     # a claimant cannot synthesize quota evidence in a plain Owner issue.
     run = _api("GET", "/actions/runs/" + str(run_id))
@@ -247,6 +253,21 @@ def verify_resume(payload: dict, *, now: int | None = None) -> tuple[dict, int]:
               "mode": "serial",
               "tasks": [order["tasks"][stage - 1]]}
     return _order(json.dumps(single)), source
+
+
+def record_start(payload: dict) -> None:
+    """Durably prove dispatch reached the trusted gate, before any model call."""
+    _, source = verify_resume(payload)
+    marker = {"source_issue": source, "stage": payload["stage"],
+              "run_id": payload["paused_run"],
+              "attempt": payload["attempt"],
+              "claim_comment": payload["claim_comment"]}
+    response = _api(
+        "POST", f"/issues/{source}/comments",
+        {"body": STARTED + "\n" + json.dumps(marker, sort_keys=True, separators=(",", ":"))},
+    )
+    if type(response.get("id")) is not int:
+        raise QuotaResumeError("Unconfirmed start checkpoint; no model allowed")
 
 
 def pause_owner_issue(source: int, stage: int, run_id: int,
@@ -320,6 +341,7 @@ def due_pauses(rows: list, *, now: int) -> list[dict]:
     pauses = ([{**p, "_source_kind": "quota"} for p in parsed_comments(rows, PAUSE)]
               + [{**p, "_source_kind": "ready"} for p in parsed_comments(rows, READY)])
     claims = parsed_comments(rows, CLAIM)
+    starts = parsed_comments(rows, STARTED)
     newest = {}
     for pause in pauses:
         key = pause.get("stage")
@@ -334,8 +356,19 @@ def due_pauses(rows: list, *, now: int) -> list[dict]:
         if (type(run_id) is not int or type(attempt) is not int or attempt < 0
                 or attempt > 1000):
             continue
-        if any(c.get("run_id") == run_id and c.get("stage") == stage for c in claims):
-            continue
+        relevant_claims = [c for c in claims if c.get("run_id") == run_id
+                           and c.get("stage") == stage]
+        if relevant_claims:
+            latest = max(relevant_claims, key=lambda c: c.get("_comment_id", 0))
+            if any(z.get("claim_comment") == latest.get("_comment_id")
+                   for z in starts):
+                # An execution already reached the trusted preflight gate.
+                continue
+            stamped = latest.get("claimed_at")
+            if type(stamped) is not int or now - stamped < 5400:
+                # Reconcile ambiguous dispatch only after 90 min. An old
+                # event arriving later must fail the newest-claim check.
+                continue
         due.append(p)
     return sorted(due, key=lambda p: p["retry_at"])
 
@@ -374,7 +407,8 @@ def schedule_due(*, now: int | None = None) -> int:
                     continue
                 claim = {"version": 1, "source_issue": number,
                          "stage": paused["stage"], "run_id": run_id,
-                         "attempt": paused["attempt"] + 1}
+                         "attempt": paused["attempt"] + 1,
+                         "claimed_at": clock}
                 result = _api("POST", f"/issues/{number}/comments",
                               {"body": CLAIM + "\n" + json.dumps(claim, sort_keys=True, separators=(",", ":"))})
                 comment_id = result.get("id")
