@@ -96,8 +96,7 @@ class CodexDualVPSSmokeContractTests(unittest.TestCase):
         self.assertIn("""-c 'openai_base_url=""'""", SCRIPT)
         self.assertIn("""-c 'chatgpt_base_url="https://chatgpt.com/backend-api/"'""",
                       SCRIPT)
-        wrapper = SCRIPT.split('cat > "$base/bin/codex" <<\'WRAPPER\'\\n', 1)[1].split("\\nWRAPPER", 1)[0]
-        invocation = wrapper.split('"$HOME/codex-agent/node_modules/.bin/codex"', 1)[1]
+        invocation = SCRIPT.rsplit('"$HOME/codex-agent/node_modules/.bin/codex"', 1)[1]
         self.assertLess(invocation.index("model_provider="),
                         invocation.index('"$@"'))
 
