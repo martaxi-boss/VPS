@@ -70,6 +70,16 @@ do Project Leader, o circuito recusa a promoção sem autorização de transiç�
 exata e prova independente de Supervisor. Não se pode inferir autorização de
 produção nem das permissões do token GitHub.
 
+## Publicacao independente antes de gastar tokens
+
+O token `CODEX_GITHUB_TOKEN` so e aceite como apto a publicar depois de
+`git push --dry-run` para um ramo temporario com o **mesmo caminho Git e
+a mesma autenticacao que o publicador real**. O teste nao cria refs nem
+gasta tokens Codex. Se o token nao puder criar esse ramo, os agentes ficam
+`NOT_STARTED` antes de chamar o modelo; nao confundir `permissions.push`
+da API (papel da conta) com permissao efetiva do token. Corrigir a autorizacao
+do proprio token no GitHub; nao desligar a verificacao para forcar um PASS.
+
 ## Utilização real da conta Codex e acompanhamento de tokens
 
 O Codex CLI na VPS deve apresentar `Logged in using ChatGPT` em `codex login status`.

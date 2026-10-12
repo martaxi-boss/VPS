@@ -149,6 +149,48 @@ def git_push_environment(temporary):
     return {**os.environ, "GIT_ASKPASS": str(askpass), "GIT_TERMINAL_PROMPT": "0"}
 
 
+def verify_git_publication_dry_run(repo: str, issue: str, run_id: str,
+                                   attempt: str, instance_id: str = "") -> str:
+    """Fail before model calls if the ACTUAL publisher credential cannot push.
+
+    Read-only and credential-safe: no Git refs, patches, commits, or model calls
+    are created; use exactly the same askpass method and branch ref as publish.
+    """
+    if repo not in ALLOWED:
+        return "TARGET_NOT_ALLOWED"
+    if not all(type(item) is str and item.isdecimal()
+               for item in (issue, run_id, attempt)):
+        return "INVALID_JOB_IDENTITY"
+    try:
+        branch = worker_branch_name(issue, run_id, attempt, instance_id)
+    except ValueError:
+        return "INVALID_JOB_IDENTITY"
+    if not os.environ.get("CODEX_GITHUB_TOKEN"):
+        return "MISSING_TOKEN"
+    with tempfile.TemporaryDirectory(prefix="codex-push-preflight-") as temporary:
+        root = Path(temporary)
+        checkout = root / "target"
+        try:
+            run("git", "clone", "--quiet", "--depth", "1", "--branch", "main",
+                "--", "https://github.com/" + repo + ".git", str(checkout))
+            existing = run("git", "ls-remote", "--heads", "origin",
+                           "refs/heads/" + branch, cwd=checkout)
+            if existing.stdout.strip():
+                return "BRANCH_EXISTS"
+            env = git_push_environment(root)
+            verified = subprocess.run(
+                ["git", "push", "--dry-run", "--porcelain", "origin",
+                 "HEAD:refs/heads/" + branch],
+                cwd=checkout, env=env, capture_output=True,
+                text=True, check=False, timeout=60,
+            )
+        except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            return "PREFLIGHT_TECHNICAL_FAILURE"
+    # No stderr/stdout ever cross this boundary. An available GitHub REST
+    # permissions.push flag is NOT proof of actual Git write permission.
+    return "PASS" if verified.returncode == 0 else "GIT_PUSH_DRY_RUN_DENIED"
+
+
 def validate_metadata(source):
     repo = (source / "target.txt").read_text(encoding="utf-8").strip()
     sha = (source / "base-sha.txt").read_text(encoding="utf-8").strip()
