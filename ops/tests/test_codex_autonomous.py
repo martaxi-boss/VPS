@@ -182,6 +182,8 @@ class SerialResultHandshakeTests(unittest.TestCase):
                       second)
         self.assertIn("needs.codex_serial_1.outputs.publication_status == 'NO_CHANGE'",
                       second)
+        self.assertIn("needs.preflight.outputs.serial_independent == 'true'", second)
+        self.assertIn("needs.codex_serial_1.outputs.publication_status == 'PR_STAGED'", second)
         self.assertIn("PR_STAGED", flow.split("  codex_serial_blocked:", 1)[1])
         self.assertIn("CODEX_2_NOT_STARTED:", flow)
 
