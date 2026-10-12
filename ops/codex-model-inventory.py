@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Read only visible Codex model metadata from VPS; never emit raw CLI output.
 
-No Codex inference, auth data, agent instructions or full model templates leave
+No Codex inference, cache refresh, auth data or private instruction templates leave
 this process. Runs as the existing non-root account via pinned GitHub Actions SSH.
 """
 from __future__ import annotations
@@ -15,7 +15,7 @@ import subprocess
 CLI = Path.home() / "codex-agent/node_modules/.bin/codex"
 SLUG = re.compile(r"gpt-[a-zA-Z0-9._-]{1,55}\Z")
 VERSION = re.compile(r"codex-cli\s+v?(\d+\.\d+\.\d+(?:[-.][a-zA-Z0-9.]+)?)\Z")
-EFFORTS = {"minimal", "low", "medium", "high", "xhigh"}
+EFFORTS = {"minimal", "low", "medium", "high", "xhigh", "max", "ultra"}
 ALLOWED_VISIBILITY = {"list", "hidden", "hide", "none", "unknown"}
 MAX_CATALOG_BYTES = 6_000_000
 
@@ -46,6 +46,25 @@ def _execute(args: list[str], timeout: int = 30) -> tuple[str, str]:
     return "ok", private_output.decode("utf-8", errors="replace")
 
 
+def _read_cache() -> tuple[str, str]:
+    """Inspect only the exact existing models cache; never invoke catalog refresh."""
+    directory = Path.home() / ".codex"
+    if directory.is_symlink():
+        return "unavailable", ""
+    cache = directory / "models_cache.json"
+    try:
+        descriptor = os.open(cache, os.O_RDONLY | os.O_NOFOLLOW)
+        with os.fdopen(descriptor, "rb") as stream:
+            data = stream.read(MAX_CATALOG_BYTES + 1)
+    except FileNotFoundError:
+        return "missing", ""
+    except (OSError, ValueError):
+        return "unavailable", ""
+    if len(data) > MAX_CATALOG_BYTES:
+        return "oversized", ""
+    return "ok", data.decode("utf-8", errors="replace")
+
+
 def _efforts(item: object) -> list[str]:
     if not isinstance(item, dict):
         return []
@@ -66,7 +85,7 @@ def _efforts(item: object) -> list[str]:
             continue
         if isinstance(name, str) and name in EFFORTS:
             found.add(name)
-    return sorted(found, key=lambda z: ("minimal", "low", "medium", "high", "xhigh").index(z))
+    return sorted(found, key=lambda z: ("minimal", "low", "medium", "high", "xhigh", "max", "ultra").index(z))
 
 
 def _parse_catalog(text: str) -> list[dict]:
@@ -113,15 +132,17 @@ def inspect() -> dict:
     else:
         outcome["status"] = "AUTH_UNVERIFIED"
         return outcome
-    status, catalog = _execute(["debug", "models"], timeout=40)
+    # The official debug models command may refresh and WRITE models_cache.json.
+    # Read only the existing cache, therefore do not claim real-time entitlement.
+    status, catalog = _read_cache()
     if status != "ok":
-        outcome["status"] = "CATALOG_" + status.upper()
+        outcome["status"] = "CACHE_" + status.upper()
         return outcome
     models = _parse_catalog(catalog)
     if not models:
-        outcome["status"] = "CATALOG_UNPARSEABLE"
+        outcome["status"] = "CACHE_UNPARSEABLE"
         return outcome
-    outcome.update({"status": "CATALOG_READ", "catalog_source": "cli_resolved",
+    outcome.update({"status": "CACHE_READ", "catalog_source": "local_cache",
                     "models": models})
     return outcome
 
