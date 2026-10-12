@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Lease-safe VPS *repository* branch hygiene on a disposable GitHub runner.
 
-Only fully integrated, older-than-48h refs with no open PR, current trusted
+Only refs corroborated by an exact historical merged PR (>48h ago), no open PR, trusted
 workflow mention or protected-purpose prefix are eligible for deletion. Never
 rewrites Git history, repository main or branches that carry unique commits.
 """
@@ -29,7 +29,7 @@ def command(args: list[str], timeout: int = 35) -> tuple[int, str]:
     return completed.returncode, completed.stdout.strip()
 
 
-def eligible(name: str, commit_sha: str, main_sha: str, age_seconds: int,
+def eligible(name: str, commit_sha: str, main_sha: str, verified_merge_age: int,
              open_pr_heads: set[str], referenced_in_workflows: bool,
              is_ancestor: bool, protected: bool = False) -> bool:
     return (name not in open_pr_heads
@@ -39,10 +39,46 @@ def eligible(name: str, commit_sha: str, main_sha: str, age_seconds: int,
             and not name.startswith(("control/", "security/", "recovery/", "ops/"))
             and bool(re.fullmatch(r"[0-9a-f]{40}", commit_sha))
             and bool(re.fullmatch(r"[0-9a-f]{40}", main_sha))
-            and age_seconds >= MIN_AGE_SECONDS
+            and verified_merge_age >= MIN_AGE_SECONDS
             and not referenced_in_workflows
             and not protected
             and is_ancestor)
+
+
+def merged_pr_age_evidence(repo: str, now: int) -> dict[tuple[str, str], int]:
+    """Only PRs merged with this exact branch NAME and commit SHA prove old work.
+
+    Tip commit timestamps do NOT establish the age of the branch name.
+    An uncorroborated branch, including a new ref to an old commit, is retained.
+    """
+    code, raw = command([
+        "gh", "api", "--paginate", "repos/" + repo + "/pulls?state=closed&per_page=100",
+        "--jq", '.[] | select(.merged_at != null) | [.head.ref, .head.sha, .merged_at, (.head.repo.full_name // "")] | @tsv',
+    ], timeout=80)
+    if code != 0:
+        raise RuntimeError("Merged PR provenance unavailable; preserving all branches")
+    result: dict[tuple[str, str], int] = {}
+    lines = raw.splitlines()
+    if len(lines) > 1000:
+        raise RuntimeError("Unbounded history; no pruning permitted")
+    from datetime import datetime
+    for line in lines:
+        parts = line.split("\t")
+        if len(parts) != 4:
+            continue
+        name, sha, merged_at, owner_repo = parts
+        if owner_repo != repo or not re.fullmatch(r"[0-9a-f]{40}", sha):
+            continue
+        try:
+            dt = datetime.fromisoformat(merged_at.replace("Z", "+00:00"))
+            age = now - int(dt.timestamp())
+        except (ValueError, OverflowError):
+            continue
+        if age < MIN_AGE_SECONDS:
+            continue
+        key = (name, sha)
+        result[key] = max(age, result.get(key, 0))
+    return result
 
 
 def remote_branch_sha(name: str) -> str | None:
@@ -78,8 +114,10 @@ def inspect(mode: str) -> dict:
         raise RuntimeError("Open PR list unbounded")
     pr_heads = {p["headRefName"] for p in pulls
                 if isinstance(p, dict) and isinstance(p.get("headRefName"), str)}
+    now = int(time.time())
+    merged_ages = merged_pr_age_evidence(repo, now)
     code, refs = command(["git", "for-each-ref",
-                          "--format=%(refname:strip=3) %(objectname) %(committerdate:unix)",
+                          "--format=%(refname:strip=3) %(objectname)",
                           "refs/remotes/origin"], timeout=20)
     if code != 0:
         raise RuntimeError("Local remote refs unavailable")
@@ -88,26 +126,22 @@ def inspect(mode: str) -> dict:
         raise RuntimeError("Too many branches; no sweeping permitted")
     workflows = "\n".join(
         p.read_text(encoding="utf-8", errors="replace")
-        for p in sorted(Path(".github/workflows").glob("*.yml"))
-        if p.is_file()
+        for p in sorted(Path(".github/workflows").iterdir())
+        if p.is_file() and p.suffix in (".yml", ".yaml")
     )
     checked = 0
     candidates = []
     kept = 0
-    now = int(time.time())
     for row in lines:
         parts = row.split(" ")
-        if len(parts) != 3:
+        if len(parts) != 2:
             kept += 1
             continue
-        name, tip, time_str = parts
+        name, tip = parts
         if name == "main" or name == "HEAD":
             continue
         checked += 1
-        if not time_str.isdecimal():
-            kept += 1
-            continue
-        age = now - int(time_str)
+        age = merged_ages.get((name, tip), -1)
         if age < MIN_AGE_SECONDS:
             kept += 1
             continue
