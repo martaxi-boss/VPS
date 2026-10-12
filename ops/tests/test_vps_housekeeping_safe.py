@@ -88,5 +88,76 @@ class BoundedHousekeepingTests(unittest.TestCase):
         self.assertEqual(self.outside.read_text(), "preserve")
 
 
+    def test_atomic_swap_of_cache_final_name_never_deletes_new_file(self):
+        # Simulate a writer replacing an old cache file after its metadata
+        # check but immediately before the atomic move to quarantine.
+        original_rename = os.rename
+        saved = self.base / "writer_saved_old_cache"
+        fresh = b"fresh cache written by a concurrent producer"
+
+        def race(src, dst, *, src_dir_fd=None, dst_dir_fd=None):
+            if src == "old.bin" and src_dir_fd is not None:
+                original_rename(self.old, saved)
+                self.old.write_bytes(fresh)
+            return original_rename(src, dst, src_dir_fd=src_dir_fd,
+                                   dst_dir_fd=dst_dir_fd)
+
+        with patch.object(house.os, "rename", side_effect=race):
+            result = house.run("clean")
+        self.assertEqual(result["status"], "CLEANED")
+        self.assertEqual(result["removed_file_bytes"], 0)
+        self.assertEqual(result["changed_or_unsafe_preserved"], 1)
+        self.assertEqual(self.old.read_bytes(), fresh)
+        self.assertTrue(saved.exists())
+        self.assertEqual(self.outside.read_text(), "preserve")
+
+    def test_new_cache_created_after_staging_survives_private_unlink(self):
+        original_rename = os.rename
+        fresh = b"new cache written after the old name was staged"
+        called = []
+
+        def race(src, dst, *, src_dir_fd=None, dst_dir_fd=None):
+            result = original_rename(src, dst, src_dir_fd=src_dir_fd,
+                                     dst_dir_fd=dst_dir_fd)
+            if src == "old.bin" and src_dir_fd is not None:
+                called.append(True)
+                self.old.write_bytes(fresh)
+            return result
+
+        with patch.object(house.os, "rename", side_effect=race):
+            result = house.run("clean")
+        self.assertTrue(called)
+        self.assertEqual(result["status"], "CLEANED")
+        self.assertGreater(result["removed_file_bytes"], 0)
+        self.assertEqual(self.old.read_bytes(), fresh)
+        self.assertEqual(self.outside.read_text(), "preserve")
+
+    def test_quarantine_retains_changed_file_when_name_reoccupied(self):
+        original_rename = os.rename
+        saved = self.base / "writer_saved_old_cache"
+
+        def race(src, dst, *, src_dir_fd=None, dst_dir_fd=None):
+            if src == "old.bin" and src_dir_fd is not None:
+                original_rename(self.old, saved)
+                self.old.write_bytes(b"new cache candidate")
+            outcome = original_rename(src, dst, src_dir_fd=src_dir_fd,
+                                      dst_dir_fd=dst_dir_fd)
+            if src == "old.bin" and src_dir_fd is not None:
+                # Producer replaces the published cache slot again.
+                self.old.write_bytes(b"replacement after quarantine")
+            return outcome
+
+        with patch.object(house.os, "rename", side_effect=race):
+            result = house.run("clean")
+        self.assertEqual(result["status"], "BLOCKED_QUARANTINE_RECOVERY")
+        self.assertGreater(result["quarantined_for_recovery"], 0)
+        self.assertEqual(self.old.read_bytes(), b"replacement after quarantine")
+        self.assertEqual(self.outside.read_text(), "preserve")
+        self.assertTrue(list(self.root.glob(".vps-hygiene-*")))
+        # Subsequent attempts must stop without deleting preserved residue.
+        self.assertEqual(house.run("clean")["status"], "BLOCKED_QUARANTINE_RECOVERY")
+
+
+
 if __name__ == "__main__":
     unittest.main()
