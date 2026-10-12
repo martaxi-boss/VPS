@@ -151,7 +151,7 @@ set +e
 # The login check alone does not prevent a custom config.toml provider.
 "$HOME/codex-agent/node_modules/.bin/codex" \
   -c 'model_provider="openai"' \
-  -c 'openai_base_url=""' \
+  -c 'openai_base_url="https://chatgpt.com/backend-api/codex"' \
   -c 'chatgpt_base_url="https://chatgpt.com/backend-api/"' \
   "$@"
 status=$?

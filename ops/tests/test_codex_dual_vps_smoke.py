@@ -93,7 +93,7 @@ class CodexDualVPSSmokeContractTests(unittest.TestCase):
 
     def test_smoke_wrapper_forces_builtin_chatgpt_provider(self) -> None:
         self.assertIn("""-c 'model_provider="openai"'""", SCRIPT)
-        self.assertIn("""-c 'openai_base_url=""'""", SCRIPT)
+        self.assertIn("""-c 'openai_base_url="https://chatgpt.com/backend-api/codex"'""", SCRIPT)
         self.assertIn("""-c 'chatgpt_base_url="https://chatgpt.com/backend-api/"'""",
                       SCRIPT)
         invocation = SCRIPT.rsplit('"$HOME/codex-agent/node_modules/.bin/codex"', 1)[1]

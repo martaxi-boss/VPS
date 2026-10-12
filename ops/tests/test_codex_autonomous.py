@@ -398,7 +398,7 @@ class NoChangeAndQueueSafetyTests(unittest.TestCase):
             encoding="utf-8")
         call = remote.split('timeout --signal=TERM', 1)[1]
         self.assertIn("""-c 'model_provider="openai"'""", call)
-        self.assertIn("""-c 'openai_base_url=""'""", call)
+        self.assertIn("""-c 'openai_base_url="https://chatgpt.com/backend-api/codex"'""", call)
         self.assertIn("""-c 'chatgpt_base_url="https://chatgpt.com/backend-api/"'""",
                       call)
         self.assertIn('"$cli" exec --model gpt-5.6-sol', call)
