@@ -224,6 +224,41 @@ class SerialResultHandshakeTests(unittest.TestCase):
                         "martaxi-boss/Project-leader-codex", "135",
                         "38235356662", "1", "1"), "PASS")
 
+    def test_publication_preflight_times_out_before_any_model_or_push(self):
+        from unittest import mock
+        target = "martaxi-boss/Project-leader-codex"
+        with mock.patch.dict("os.environ", {"CODEX_GITHUB_TOKEN": "synthetic-test-token"}):
+            with mock.patch.object(publisher, "run") as git:
+                with mock.patch.object(publisher.subprocess, "run") as push:
+                    git.side_effect = subprocess.TimeoutExpired(["git", "clone"], 45)
+                    self.assertEqual(publisher.verify_git_publication_dry_run(
+                        target, "134", "38235356661", "1", "1"),
+                        "PREFLIGHT_TECHNICAL_FAILURE")
+                    self.assertEqual(git.call_count, 1)
+                    self.assertEqual(git.call_args.kwargs["timeout"], 45)
+                    push.assert_not_called()
+
+                    git.reset_mock()
+                    git.side_effect = [
+                        mock.Mock(stdout=""),
+                        subprocess.TimeoutExpired(["git", "ls-remote"], 45),
+                    ]
+                    self.assertEqual(publisher.verify_git_publication_dry_run(
+                        target, "134", "38235356661", "1", "2"),
+                        "PREFLIGHT_TECHNICAL_FAILURE")
+                    self.assertEqual(git.call_count, 2)
+                    for call in git.call_args_list:
+                        self.assertEqual(call.kwargs["timeout"], 45)
+                    push.assert_not_called()
+
+                    git.reset_mock()
+                    git.side_effect = None
+                    git.return_value.stdout = ""
+                    push.return_value.returncode = 0
+                    self.assertEqual(publisher.verify_git_publication_dry_run(
+                        target, "135", "38235356662", "1", "1"), "PASS")
+                    self.assertEqual(push.call_args.kwargs["timeout"], 60)
+
     def test_publication_preflight_rejects_unknown_target_without_a_network_call(self):
         self.assertEqual(publisher.verify_git_publication_dry_run(
             "martaxi-boss/not-a-target", "1", "2", "1"),
