@@ -252,9 +252,9 @@ class BoundedHousekeepingTests(unittest.TestCase):
     def test_unreadable_proc_never_grants_permission_to_unlink(self):
         original = self.patches[-2]
         # Exercise the real scanning implementation, not the fixture stub.
-        scanner = house._staged_inode_has_open_descriptor
         original.stop()
         try:
+            scanner = house._staged_inode_has_open_descriptor
             with patch.object(house.os, "scandir", side_effect=PermissionError):
                 self.assertTrue(scanner(self.old.stat()))
         finally:
