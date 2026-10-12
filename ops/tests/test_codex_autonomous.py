@@ -120,6 +120,15 @@ class CheckGateTests(unittest.TestCase):
         self.assertEqual(result["status"], "PR_STAGED")
         self.assertNotIn("merge_sha", result)
 
+    def test_specialization_direct_publisher_waits_ci_without_auto_merge(self):
+        source = (OPS / "codex-autonomous-publish.py").read_text(encoding="utf-8")
+        self.assertIn('if pr_only or repo == "martaxi-boss/Project-leader-codex":',
+                      source)
+        self.assertIn("state, evidence = wait_for_checks(repo, sha, branch, ALLOWED[repo])",
+                      source)
+        self.assertIn("return staged_pr_result(repo, url, sha, blocking_policy, state, evidence)",
+                      source)
+
     def test_vps_docs_may_progress_to_ci(self):
         self.assertIsNone(publisher.premerge_policy_gate(
             'martaxi-boss/VPS', ['README.md']))
@@ -152,6 +161,28 @@ class SpecializationRouteTests(unittest.TestCase):
         self.assertLess(flow.index("Pin Owner-provided SSH host key"),
                         flow.index("Prepare isolated SSH client"))
 
+
+class SerialResultHandshakeTests(unittest.TestCase):
+    def test_reusable_executor_exposes_verified_publication_outcome(self):
+        flow = (OPS.parent / ".github/workflows/codex-autonomous.yml").read_text(
+            encoding="utf-8")
+        self.assertIn("value: ${{ jobs.execute.outputs.publication_status }}", flow)
+        self.assertIn("publication_status: ${{ steps.publish.outputs.publication_status }}",
+                      flow)
+        self.assertIn('"publication_status=" + status +', flow)
+        self.assertIn('{"MERGED", "NO_CHANGE", "PR_STAGED"}', flow)
+
+    def test_serial_second_worker_requires_merged_or_allowed_no_change(self):
+        flow = (OPS.parent / ".github/workflows/agent-switch.yml").read_text(
+            encoding="utf-8")
+        second = flow.split("  codex_serial_2:", 1)[1].split(
+            "  codex_serial_blocked:", 1)[0]
+        self.assertIn("needs.codex_serial_1.outputs.publication_status == 'MERGED'",
+                      second)
+        self.assertIn("needs.codex_serial_1.outputs.publication_status == 'NO_CHANGE'",
+                      second)
+        self.assertIn("PR_STAGED", flow.split("  codex_serial_blocked:", 1)[1])
+        self.assertIn("CODEX_2_NOT_STARTED:", flow)
 
 class InputTests(unittest.TestCase):
     def setUp(self):
