@@ -1,0 +1,184 @@
+name: VPS Safe Hygiene (Owner, audited caches only)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/vps-safe-housekeeping.yml'
+      - 'ops/vps_housekeeping_safe.py'
+      - 'ops/tests/test_vps_housekeeping_safe.py'
+      - 'ops/vps_hygiene_050.py'
+  issues:
+    types: [opened]
+
+permissions: {}
+
+concurrency:
+  group: vps-owner-cache-hygiene
+  cancel-in-progress: false
+
+jobs:
+  offline-tests:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Check trusted cache boundary and housekeeping regression
+        run: |
+          python3 -m py_compile ops/vps_hygiene_050.py ops/vps_housekeeping_safe.py
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s ops -p test_vps_hygiene_050.py -v
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=ops python3 -m unittest discover -s ops/tests -p test_vps_housekeeping_safe.py -v
+
+  cache-hygiene:
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.issue.user.login == github.repository_owner &&
+      contains(github.event.issue.title, '[vps hygiene]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout trusted VPS main only
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Case-sensitive Owner request gate before VPS secret access
+        shell: bash
+        env:
+          REQUEST_TITLE: ${{ github.event.issue.title }}
+        run: |
+          set -euo pipefail
+          if [ "$REQUEST_TITLE" = '[vps hygiene] audit safe caches' ]; then
+            echo 'HYG_MODE=audit' >> "$GITHUB_ENV"
+          elif [ "$REQUEST_TITLE" = '[vps hygiene] clean verified caches' ]; then
+            echo 'HYG_MODE=clean' >> "$GITHUB_ENV"
+          else
+            echo "REQUEST_NOT_EXACTLY_AUTHORIZED"
+            exit 2
+          fi
+
+      - name: Verify pinned Owner-attested SSH identity before loading secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          known_hosts="$RUNNER_TEMP/vps_hygiene_known_hosts"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known_hosts" || exit 2
+          chmod 600 "$known_hosts"
+          observed="$(ssh-keygen -lf "$known_hosts" -E sha256 | awk '{print $2}')"
+          test "$observed" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc" || exit 2
+          ssh-keygen -F 146.59.145.3 -f "$known_hosts" >/dev/null || exit 2
+          echo 'SSH_HOST_KEY_PIN=PASS'
+
+      - name: Install disposable runner SSH helper only after host verification
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+
+      - name: Audit or clean exact allowlisted stale cache files on live VPS
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test "$HYG_MODE" = "audit" || test "$HYG_MODE" = "clean"
+          # Build an ephemeral, trusted in-memory Python module bundle.
+          # The VPS receives Python source via stdin and writes no Python code to disk.
+          python3 - <<'PY' > "$RUNNER_TEMP/vps_hygiene_remote.py"
+          from pathlib import Path
+          source = Path('ops/vps_hygiene_050.py').read_text(encoding='utf-8')
+          wrapper = Path('ops/vps_housekeeping_safe.py').read_text(encoding='utf-8')
+          print("import types, sys")
+          print("module = types.ModuleType('vps_hygiene_050')")
+          print("sys.modules['vps_hygiene_050'] = module")
+          print("exec(compile(" + repr(source) + ", '<trusted-cache-operations>', 'exec'), module.__dict__)")
+          print("exec(compile(" + repr(wrapper) + ", '<trusted-vps-housekeeping>', 'exec'))")
+          PY
+          sshpass -e ssh -T -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/vps_hygiene_known_hosts" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=10 \
+            ubuntu@146.59.145.3 "sudo -n python3 - $HYG_MODE" \
+            < "$RUNNER_TEMP/vps_hygiene_remote.py" \
+            > "$RUNNER_TEMP/vps_hygiene_result.json" 2>/dev/null
+          test -s "$RUNNER_TEMP/vps_hygiene_result.json"
+          echo 'VPS_HYGIENE_REMOTE_RETURNED=YES'
+
+      - name: Publish only sanitized before-after numbers
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ["RUNNER_TEMP"])
+          path = root / "vps_hygiene_result.json"
+          report = {"status": "NO_TRUSTED_VPS_REPORT"}
+          statuses = {"AUDIT_ONLY", "CLEANED", "NO_ELIGIBLE_CACHE",
+                      "BLOCKED_CRITICAL_HEALTH", "BLOCKED_PACKAGE_MANAGER",
+                      "BLOCKED_OPEN_CACHE_REFERENCES", "BLOCKED_CACHE_CHANGED",
+                      "BLOCKED_QUARANTINE_RECOVERY",
+                      "POSTCHECK_HEALTH_CHANGED", "SAFE_HYGIENE_FAILED"}
+          fields = ("disk_total", "disk_free_before", "disk_free_after",
+                    "disk_free_delta", "memory_available_before",
+                    "memory_available_after", "cache_roots_checked",
+                    "eligible_files", "eligible_allocated_bytes",
+                    "removed_file_bytes", "removed_allocated_bytes",
+                    "changed_or_unsafe_preserved", "quarantined_for_recovery",
+                    "runtime_sessions_deleted",
+                    "app_or_database_data_deleted", "cache_open_reference_count")
+          if path.is_file() and not path.is_symlink() and path.stat().st_size < 10000:
+              try:
+                  data = json.loads(path.read_text(encoding='utf-8'))
+                  if not isinstance(data, dict):
+                      raise ValueError('Not an object')
+                  status = data.get('status')
+                  if status not in statuses:
+                      raise ValueError('Not a known hygiene outcome')
+                  report = {"status": status}
+                  for field in fields:
+                      value = data.get(field)
+                      if type(value) is int and abs(value) < 100_000_000_000_000:
+                          report[field] = value
+                  mode = data.get('mode')
+                  if mode in ("audit", "clean"):
+                      report["mode"] = mode
+                  report["protected_services_unchanged"] = (
+                      data.get("protected_services_unchanged") is True)
+                  report["health_after"] = data.get("health_after") is True
+              except (ValueError, OSError, AttributeError, TypeError):
+                  report = {"status": "NO_TRUSTED_VPS_REPORT"}
+          (root / "vps_hygiene_report.md").write_text(
+              "## VPS hygiene - live before/after\n\n"
+              + "~~~json\n" + json.dumps(report, sort_keys=True, indent=2)
+              + "\n~~~\n\n"
+              + "Only caches older than 24 hours under the pre-existing seven-root allowlist "
+                "are eligible. No log, credential, Codex session, user file, "
+                "database, Docker image or process was deleted. No forced RAM flush.\n\n"
+              + "Evidence: " + os.environ["RUN_URL"] + "\n", encoding="utf-8")
+          (root / "vps_hygiene_status.txt").write_text(report["status"], encoding="ascii")
+          PY
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
+            --body-file "$RUNNER_TEMP/vps_hygiene_report.md"
+          result="$(cat "$RUNNER_TEMP/vps_hygiene_status.txt")"
+          case "$result" in
+            AUDIT_ONLY|CLEANED|NO_ELIGIBLE_CACHE) echo "VPS_HYGIENE=$result" ;;
+            *) echo "VPS_HYGIENE_UNVERIFIED_OR_BLOCKED"; exit 3 ;;
+          esac
