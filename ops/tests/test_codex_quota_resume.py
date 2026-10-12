@@ -37,10 +37,12 @@ class QuotaLifecycleTests(unittest.TestCase):
             "version": 1, "source_issue": 154, "stage": 2,
             "run_id": 42, "attempt": 0, "retry_at": self.clock - 1,
             "quota": "provider_error_not_local_ledger",
+            "order_digest": q.order_digest(q._order(self.manifest)),
         }
         self.claim = {
             "version": 1, "source_issue": 154, "stage": 2,
             "run_id": 42, "attempt": 1,
+            "claimed_at": self.clock - 5,
         }
 
     @staticmethod
@@ -182,6 +184,90 @@ class QuotaLifecycleTests(unittest.TestCase):
                 154, 99, report, now=self.clock))
         self.assertTrue(any(p == "/issues/154/comments" for p, _ in writes))
         self.assertTrue(any(p == "/issues/154/labels" for p, _ in writes))
+
+    def test_editing_original_owner_manifest_blocks_prior_quota_checkpoint(self):
+        rows = [self.comment(q.PAUSE, self.pause),
+                self.comment(q.CLAIM, self.claim, 78)]
+        changed = json.loads(self.manifest)
+        changed["tasks"][1]["task"] = "Implement a different task after the edit"
+        self.owner_issue["body"] = json.dumps(changed)
+        def api(method, path, payload=None):
+            if path == "/issues/154":
+                return self.owner_issue
+            if path.startswith("/issues/154/comments?"):
+                return rows
+            raise AssertionError(path)
+        payload = {"source_issue": 154, "stage": 2, "paused_run": 42,
+                   "attempt": 1, "claim_comment": 78}
+        with patch.object(q, "_api", side_effect=api):
+            with self.assertRaises(q.QuotaResumeError):
+                q.verify_resume(payload, now=self.clock)
+
+    def test_ambiguous_dispatch_expires_without_replaying_started_claim(self):
+        old = {**self.claim, "claimed_at": self.clock - 5401}
+        rows = [self.comment(q.PAUSE, self.pause),
+                self.comment(q.CLAIM, old, 78)]
+        self.assertEqual(len(q.due_pauses(rows, now=self.clock)), 1)
+        rows.append(self.comment(q.STARTED, {
+            "source_issue": 154, "stage": 2, "run_id": 42,
+            "attempt": 1, "claim_comment": 78}, 79))
+        self.assertEqual(q.due_pauses(rows, now=self.clock), [])
+        rows.pop()
+        rows.append(self.comment(q.CLAIM, {**old, "attempt": 1,
+                                           "claimed_at": self.clock}, 80))
+        self.assertEqual(q.due_pauses(rows, now=self.clock), [])
+        def api(method, path, payload=None):
+            if path == "/issues/154":
+                return self.owner_issue
+            if path.startswith("/issues/154/comments?"):
+                return rows
+            raise AssertionError(path)
+        with patch.object(q, "_api", side_effect=api):
+            with self.assertRaises(q.QuotaResumeError):
+                q.verify_resume({"source_issue": 154, "stage": 2,
+                                 "paused_run": 42, "attempt": 1,
+                                 "claim_comment": 78}, now=self.clock)
+
+    def test_replay_of_persisted_checkpoint_repairs_missing_label(self):
+        previous = self.comment(q.PAUSE, self.pause)
+        calls = []
+        def api(method, path, payload=None):
+            calls.append((method, path))
+            if path == "/issues/154":
+                return self.owner_issue
+            if path.startswith("/issues/154/comments?"):
+                return [previous]
+            if method == "POST" and path in ("/labels", "/issues/154/labels"):
+                return {}
+            raise AssertionError((method, path))
+        with patch.object(q, "_api", side_effect=api):
+            report = q.pause_owner_issue(154, 2, 42, 0, now=self.clock - 7201)
+        self.assertEqual(report["order_digest"], self.pause["order_digest"])
+        self.assertNotIn(("POST", "/issues/154/comments"), calls)
+        self.assertIn(("POST", "/issues/154/labels"), calls)
+
+    def test_verified_dispatch_records_pre_model_start_lease(self):
+        rows = [self.comment(q.PAUSE, self.pause, 77),
+                self.comment(q.CLAIM, self.claim, 78)]
+        posted = []
+        def api(method, path, payload=None):
+            if path == "/issues/154":
+                return self.owner_issue
+            if path.startswith("/issues/154/comments?"):
+                return rows
+            if path == "/actions/runs/42":
+                return {"id": 42, "name": "Agent switch (Owner GitHub order)",
+                        "status": "completed", "conclusion": "failure"}
+            if method == "POST" and path == "/issues/154/comments":
+                posted.append(payload["body"])
+                return {"id": 79}
+            raise AssertionError((method, path))
+        payload = {"source_issue": 154, "stage": 2, "paused_run": 42,
+                   "attempt": 1, "claim_comment": 78}
+        with patch.object(q, "_api", side_effect=api):
+            q.record_start(payload)
+        self.assertEqual(len(posted), 1)
+        self.assertTrue(posted[0].startswith(q.STARTED + "\n"))
 
     def test_scheduler_claims_before_dispatch_and_never_duplicates(self):
         rows = [self.comment(q.PAUSE, self.pause, 77)]
