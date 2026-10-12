@@ -52,6 +52,44 @@ def _restore_no_replace(private_fd: int, stage: str,
     raise OSError(error, "atomic recovery rename failed")
 
 
+
+def _staged_inode_has_open_references(moved: os.stat_result) -> bool:
+    """Fail closed if a process can still write the inode moved to quarantine.
+
+    After the atomic rename the public pathname is gone and our quarantine
+    directory is root-only. Scan process file descriptors by device and inode
+    (not by stale pathname), including descriptors opened after the initial
+    cache-wide probe. An uninspectable live process is treated as in-use.
+    """
+    proc = Path("/proc")
+    if not proc.is_dir():
+        return True
+    try:
+        processes = list(proc.iterdir())
+    except OSError:
+        return True
+    for process in processes:
+        if not process.name.isdecimal():
+            continue
+        try:
+            handles = list((process / "fd").iterdir())
+        except OSError as exc:
+            if exc.errno in (errno.ENOENT, errno.ESRCH):
+                continue  # Process already exited; no open handles remain.
+            return True
+        for handle in handles:
+            try:
+                opened = handle.stat()
+            except OSError as exc:
+                if exc.errno in (errno.ENOENT, errno.ESRCH, errno.EBADF):
+                    continue  # Descriptor closed while scanning.
+                return True  # Permission denied or unknown: keep candidate.
+            if opened.st_dev == moved.st_dev and opened.st_ino == moved.st_ino:
+                return True
+    return False
+
+
+
 def _quarantined_verified_removal(root: str, entries: list) -> dict:
     """Move only a prescanned cache candidate into a private same-FS area.
 
@@ -62,7 +100,7 @@ def _quarantined_verified_removal(root: str, entries: list) -> dict:
     """
     if root not in h.CACHE_ROOTS or str(Path(root).resolve()) != root:
         raise ValueError("Untrusted cache root")
-    total_removed, allocated_removed, skipped, stranded = 0, 0, 0, 0
+    total_removed, allocated_removed, skipped, stranded, active_references = 0, 0, 0, 0, 0
     root_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
     quarantine = ".vps-hygiene-" + secrets.token_hex(12)
     quarantine_fd = None
@@ -120,8 +158,18 @@ def _quarantined_verified_removal(root: str, entries: list) -> dict:
                                                parent_fd, name):
                         stranded += 1
                     continue
-                # Final deletion acts on a path in the private, root-owned
-                # quarantine directory, never on the shared cache final name.
+                # The public cache name is gone. Still, a writer may hold a
+                # handle opened after the first cache-wide FD snapshot.
+                # Check this exact moved inode before unlinking anything.
+                if _staged_inode_has_open_references(moved):
+                    active_references += 1
+                    skipped += 1
+                    if not _restore_no_replace(quarantine_fd, stage,
+                                               parent_fd, name):
+                        stranded += 1
+                    continue
+                # Only unlink the proven, unreferenced inode from the private,
+                # root-owned quarantine directory, never a shared filename.
                 os.unlink(stage, dir_fd=quarantine_fd)
                 total_removed += moved.st_size
                 allocated_removed += moved.st_blocks * 512
@@ -135,13 +183,14 @@ def _quarantined_verified_removal(root: str, entries: list) -> dict:
         except OSError:
             # A mismatched active object stays in private quarantine to
             # prevent deletion; the outer post-check fails closed.
-            stranded += 1
+            stranded = max(stranded, 1)
         os.close(root_fd)
     return {
         "bytes_removed": total_removed,
         "allocated_bytes_removed": allocated_removed,
         "changed_or_unsafe_files_preserved": skipped,
         "quarantined_for_recovery": stranded,
+        "open_references_preserved": active_references,
     }
 
 
@@ -183,6 +232,7 @@ def run(mode: str) -> dict:
         summaries, candidates = [], []
         preexisting_quarantine = False
         quarantine_count = 0
+        late_open_refs = 0
         # Build a complete bounded snapshot before the first possible unlink.
         for root in h.CACHE_ROOTS:
             stats, items = h.cache_inventory(root, cutoff)
@@ -229,11 +279,15 @@ def run(mode: str) -> dict:
                         continue
                     effect = _quarantined_verified_removal(root, items)
                     quarantine_count += effect["quarantined_for_recovery"]
+                    late_open_refs += effect["open_references_preserved"]
                     removed_files += effect["bytes_removed"]
                     removed_allocated += effect["allocated_bytes_removed"]
                     changed_preserved += effect["changed_or_unsafe_files_preserved"]
                     if effect["quarantined_for_recovery"]:
                         status = "BLOCKED_QUARANTINE_RECOVERY"
+                        break
+                    if effect["open_references_preserved"]:
+                        status = "BLOCKED_OPEN_CACHE_REFERENCES"
                         break
 
         after_disk = shutil.disk_usage("/")
@@ -259,6 +313,7 @@ def run(mode: str) -> dict:
             "removed_allocated_bytes": removed_allocated,
             "changed_or_unsafe_preserved": changed_preserved,
             "quarantined_for_recovery": quarantine_count,
+            "late_open_references_preserved": late_open_refs,
             "root_candidates": summaries,
             "protected_services_before": before_services,
             "protected_services_after": after_services,
