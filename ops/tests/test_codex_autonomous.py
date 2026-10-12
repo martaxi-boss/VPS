@@ -97,6 +97,38 @@ class CheckGateTests(unittest.TestCase):
         self.assertIn("NEVER auto-merge", publisher.premerge_policy_gate(
             repo, ["README.md"]))
 
+    def test_specialization_never_auto_merges_or_touches_original_project_leader(self):
+        repo = "martaxi-boss/Project-leader-codex"
+        required = {
+            ("Codex specialization tests", "pull_request"),
+            ("Control contract tests", "pull_request"),
+            ("Validate control plane", "pull_request"),
+            ("Package ChatGPT plugins", "pull_request"),
+        }
+        self.assertEqual(publisher.ALLOWED[repo], required)
+        self.assertEqual("PASS", publisher.classify_runs(
+            [success(name, event=event) for name, event in required],
+            required, SHA, BRANCH)[0])
+        policy = publisher.premerge_policy_gate(repo, ["README.md"])
+        self.assertIn("PR-ONLY", policy)
+        self.assertIn("NEVER auto-merge", policy)
+        self.assertIn("NEVER auto-merge", publisher.premerge_policy_gate(
+            repo, ["codex/dual.py"]))
+        result = publisher.staged_pr_result(
+            repo, "https://github.com/martaxi-boss/Project-leader-codex/pull/9",
+            SHA, policy, "PASS", "Exact head CI passed")
+        self.assertEqual(result["status"], "PR_STAGED")
+        self.assertNotIn("merge_sha", result)
+
+    def test_specialization_direct_publisher_waits_ci_without_auto_merge(self):
+        source = (OPS / "codex-autonomous-publish.py").read_text(encoding="utf-8")
+        self.assertIn('if pr_only or repo == "martaxi-boss/Project-leader-codex":',
+                      source)
+        self.assertIn("state, evidence = wait_for_checks(repo, sha, branch, ALLOWED[repo])",
+                      source)
+        self.assertIn("return staged_pr_result(repo, url, sha, blocking_policy, state, evidence)",
+                      source)
+
     def test_vps_docs_may_progress_to_ci(self):
         self.assertIsNone(publisher.premerge_policy_gate(
             'martaxi-boss/VPS', ['README.md']))
@@ -106,6 +138,51 @@ class CheckGateTests(unittest.TestCase):
         self.assertEqual('PASS', publisher.classify_runs(
             [success('Codex autonomous validation')], required, SHA, BRANCH)[0])
 
+
+class SpecializationRouteTests(unittest.TestCase):
+    def test_normal_authorization_stages_match_target_slug(self):
+        flow = (OPS.parent / ".github/workflows/codex-autonomous.yml").read_text(
+            encoding="utf-8")
+        remote = (OPS / "codex-autonomous-remote.sh").read_text(encoding="utf-8")
+        loader = (OPS / "codex-project-leader-bootstrap.py").read_text(
+            encoding="utf-8")
+        self.assertIn("'TARGET_REPOSITORY=martaxi-boss/Project-leader-codex'", flow)
+        self.assertIn("TARGET_REPOSITORY=martaxi-boss/Project-leader-codex)", remote)
+        self.assertIn('"martaxi-boss/Project-leader-codex"', loader)
+
+    def test_normal_executor_pins_ssh_before_any_password_is_used(self):
+        flow = (OPS.parent / ".github/workflows/codex-autonomous.yml").read_text(
+            encoding="utf-8")
+        self.assertIn("Pin Owner-provided SSH host key before using any VPS credential", flow)
+        self.assertIn("ssh-keyscan -T 15 -t ed25519", flow)
+        self.assertIn("SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc", flow)
+        self.assertEqual(flow.count("StrictHostKeyChecking=yes"), 5)
+        self.assertNotIn("StrictHostKeyChecking=accept-new", flow)
+        self.assertLess(flow.index("Pin Owner-provided SSH host key"),
+                        flow.index("Prepare isolated SSH client"))
+
+
+class SerialResultHandshakeTests(unittest.TestCase):
+    def test_reusable_executor_exposes_verified_publication_outcome(self):
+        flow = (OPS.parent / ".github/workflows/codex-autonomous.yml").read_text(
+            encoding="utf-8")
+        self.assertIn("value: ${{ jobs.execute.outputs.publication_status }}", flow)
+        self.assertIn("publication_status: ${{ steps.publish.outputs.publication_status }}",
+                      flow)
+        self.assertIn('"publication_status=" + status +', flow)
+        self.assertIn('{"MERGED", "NO_CHANGE", "PR_STAGED"}', flow)
+
+    def test_serial_second_worker_requires_merged_or_allowed_no_change(self):
+        flow = (OPS.parent / ".github/workflows/agent-switch.yml").read_text(
+            encoding="utf-8")
+        second = flow.split("  codex_serial_2:", 1)[1].split(
+            "  codex_serial_blocked:", 1)[0]
+        self.assertIn("needs.codex_serial_1.outputs.publication_status == 'MERGED'",
+                      second)
+        self.assertIn("needs.codex_serial_1.outputs.publication_status == 'NO_CHANGE'",
+                      second)
+        self.assertIn("PR_STAGED", flow.split("  codex_serial_blocked:", 1)[1])
+        self.assertIn("CODEX_2_NOT_STARTED:", flow)
 
 class InputTests(unittest.TestCase):
     def setUp(self):

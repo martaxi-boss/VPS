@@ -6,6 +6,10 @@ on:
   issues:
     types: [opened]
   workflow_call:
+    outputs:
+      publication_status:
+        description: Trusted first worker publication result for dependent serial tasks
+        value: ${{ jobs.execute.outputs.publication_status }}
     inputs:
       task_b64:
         description: Validated owner task, encoded to avoid multiline output injection
@@ -57,6 +61,8 @@ jobs:
     permissions:
       contents: read
       issues: write
+    outputs:
+      publication_status: ${{ steps.publish.outputs.publication_status }}
     env:
       CODEX_INSTANCE_ID: ${{ inputs.instance_id }}
       CODEX_REASONING_EFFORT: ${{ inputs.reasoning_effort || 'medium' }}
@@ -89,6 +95,7 @@ jobs:
           if not 1 <= len(task) <= 7000 or not lines:
               raise SystemExit('Task length must be 1-7000 characters')
           allowed = ('TARGET_REPOSITORY=martaxi-boss/Project-leader',
+                     'TARGET_REPOSITORY=martaxi-boss/Project-leader-codex',
                      'TARGET_REPOSITORY=martaxi-boss/VPS',
                      'TARGET_REPOSITORY=martaxi-boss/pink-iptv')
           if lines[0] not in allowed:
@@ -123,6 +130,24 @@ jobs:
           bash -n ops/codex-autonomous-remote.sh
           python3 -m py_compile ops/codex-autonomous-publish.py ops/codex_patch_guard.py ops/codex-project-leader-bootstrap.py
 
+      - name: Pin Owner-provided SSH host key before using any VPS credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Owner-observed Ed25519 identity also validated in the successful dual smoke.
+          # This pins the GitHub runner; separate provider attestation remains pending.
+          expected="SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
+          known_hosts="$RUNNER_TEMP/vps_smoke_known_hosts"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known_hosts" ||
+            { echo 'VPS SSH fingerprint probe unavailable'; exit 2; }
+          chmod 600 "$known_hosts"
+          observed="$(ssh-keygen -lf "$known_hosts" -E sha256 | awk '{print $2}')"
+          echo "Observed public VPS Ed25519 fingerprint: $observed"
+          test "$observed" = "$expected" ||
+            { echo 'VPS SSH host fingerprint mismatch; refusing password connection'; exit 2; }
+          ssh-keygen -F 146.59.145.3 -f "$known_hosts" >/dev/null ||
+            { echo 'Pinned VPS SSH host missing'; exit 2; }
+
       - name: Prepare isolated SSH client
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
@@ -147,9 +172,9 @@ jobs:
           [[ "$job" =~ ^[0-9]+-[0-9]+(-[12])?$ ]]
           remote='ubuntu@146.59.145.3'
           dest="/home/ubuntu/codex-bridge/jobs/$job"
-          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+          sshpass -e ssh -T -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
             "$remote" "install -d -m 700 '$dest'"
-          sshpass -e scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+          sshpass -e scp -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
             "$RUNNER_TEMP/codex-task.txt" "$RUNNER_TEMP/codex-reasoning.txt" \
             ops/codex-autonomous-remote.sh ops/codex_resource_policy.py \
             ops/codex_patch_guard.py ops/codex-project-leader-bootstrap.py "$remote:$dest/"
@@ -163,7 +188,7 @@ jobs:
           set -euo pipefail
           case "$CODEX_INSTANCE_ID" in ''|1|2) ;; *) echo 'Invalid Codex worker identity' >&2; exit 12;; esac
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT${CODEX_INSTANCE_ID:+-$CODEX_INSTANCE_ID}"
-          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new \
+          sshpass -e ssh -T -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=5 \
             ubuntu@146.59.145.3 \
             "bash /home/ubuntu/codex-bridge/jobs/$job/codex-autonomous-remote.sh '$job'"
@@ -180,7 +205,7 @@ jobs:
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT${CODEX_INSTANCE_ID:+-$CODEX_INSTANCE_ID}"
           remote="ubuntu@146.59.145.3:/home/ubuntu/codex-bridge/jobs/$job"
           for file in patch.diff target.txt base-sha.txt codex-task.txt usage.json project-leader-runtime.json report.md; do
-            sshpass -e scp -q -o StrictHostKeyChecking=accept-new \
+            sshpass -e scp -q -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
               -o ConnectTimeout=20 "$remote/$file" "$RUNNER_TEMP/$file" || true
           done
           test -s "$RUNNER_TEMP/target.txt"
@@ -202,7 +227,20 @@ jobs:
           CODEX_ISSUE_NUMBER: ${{ github.event.issue.number }}
           CODEX_PR_ONLY: ${{ inputs.no_auto_merge }}
           CODEX_ALLOW_NO_CHANGE: ${{ inputs.allow_no_change }}
-        run: python3 ops/codex-autonomous-publish.py
+        run: |
+          set -euo pipefail
+          python3 ops/codex-autonomous-publish.py
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          path = Path(os.environ["CODEX_RESULT_PATH"])
+          result = json.loads(path.read_text(encoding="utf-8"))
+          status = result.get("status")
+          if status not in {"MERGED", "NO_CHANGE", "PR_STAGED"}:
+              raise SystemExit("Unverified publication; dependent worker blocked")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write("publication_status=" + status + "\n")
+          PY
 
       # A public GitHub Issue must NEVER contain untrusted model report text.
       # The existing Telegram bot can deliver it to the Owner's private chat
@@ -347,6 +385,6 @@ jobs:
           case "$CODEX_INSTANCE_ID" in ''|1|2) ;; *) echo 'Invalid Codex worker identity' >&2; exit 12;; esac
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT${CODEX_INSTANCE_ID:+-$CODEX_INSTANCE_ID}"
           [[ "$job" =~ ^[0-9]+-[0-9]+(-[12])?$ ]] || exit 2
-          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new \
+          sshpass -e ssh -T -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=20 ubuntu@146.59.145.3 \
             "rm -rf -- '/home/ubuntu/codex-bridge/jobs/$job'"

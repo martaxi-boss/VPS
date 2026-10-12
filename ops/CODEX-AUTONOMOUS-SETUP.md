@@ -9,7 +9,7 @@
 
 ## Exactly one credential still required from the Owner
 
-Create a **fine-grained GitHub personal access token** owned by `martaxi-boss`, scoped only to **`martaxi-boss/VPS`** and **`martaxi-boss/Project-leader`**, with:
+Create a **fine-grained GitHub personal access token** owned by `martaxi-boss`, scoped only to explicitly authorized target repositories. For **Project Leader + Codex**, select **`martaxi-boss/Project-leader-codex`** and the bridge **`martaxi-boss/VPS`**. Add the different original **`martaxi-boss/Project-leader`** only for a separately authorized task; reading its public canonical rules needs no write token. Grant:
 
 - `Contents: Read and write` — publish branches and guarded merges;
 - `Pull requests: Read and write` — open and inspect PRs;
@@ -30,11 +30,13 @@ For a larger set of repositories, a GitHub App installation token can replace th
 
 Create one Owner-authored Issue in `martaxi-boss/VPS`:
 
-**Title**: `[codex run] Fix the exact problem`
+**Title**: `[codex run] Fix the exact problem`, or `[agents run] ...` with a validated JSON task manifest for up to two Codex workers in serial/parallel.
 
 **Body**: first line is one of
 
-`TARGET_REPOSITORY=martaxi-boss/Project-leader`
+`TARGET_REPOSITORY=martaxi-boss/Project-leader-codex` (o projeto em que estamos a trabalhar)
+
+`TARGET_REPOSITORY=martaxi-boss/Project-leader` (o projeto original, apenas com ordem separada)
 
 `TARGET_REPOSITORY=martaxi-boss/VPS`
 
@@ -46,7 +48,7 @@ Then describe the concrete authorized implementation goal and acceptance criteri
 2. Execute Codex inside disposable VPS clone with workspace-write sandbox, **without write credentials**; emit a guarded patch and any observed JSONL token counts.
 3. An independent GitHub Actions runner checks exact source SHA, changed paths, patch size, symlinks and trust-sensitive paths. It publishes a short-lived branch and PR using the scoped token.
 4. Wait for named target-repository CI workflows **on the exact candidate SHA**. Required failure, missing check, moving main, ambiguous PR state or GitHub rejection means **NO MERGE**, with a truthful Issue status and PR link.
-5. For safe completed changes, integrate without bypassing protected branch rules. The Project Leader target requires an exact-SHA E2 transition authorization and independent Supervisor acceptance: this first bridge publishes a PR and stops rather than silently bypassing its control plane. VPS operational code also requires additional project-specific tests and stays as a PR; only ordinary VPS documentation changes can auto-merge initially. Post-merge hygiene runs from target repository's canonical workflows.
+5. For `Project-leader-codex`, create **PR-only** changes with exact-head CI and independent review; do not auto-merge. In a serial plan, an unmerged PR from worker 1 **blocks worker 2**; a fresh main cannot see the unmerged predecessor's changes. For other safe changes, integrate without bypassing protected branch rules. The Project Leader target requires an exact-SHA E2 transition authorization and independent Supervisor acceptance: this first bridge publishes a PR and stops rather than silently bypassing its control plane. VPS operational code also requires additional project-specific tests and stays as a PR; only ordinary VPS documentation changes can auto-merge initially. Post-merge hygiene runs from target repository's canonical workflows.
 
 ## Project Leader como controlador canónico de cada ordem Codex
 

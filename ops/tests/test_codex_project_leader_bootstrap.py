@@ -73,6 +73,16 @@ class BootstrapTests(unittest.TestCase):
         self.assertIn("trusted publisher independently enforces scope", text)
         self.assertNotEqual(meta["canonical_revision"], meta["target_revision"])
 
+    def test_specialization_target_reads_original_rules_without_modifying_them(self):
+        text, meta = bootstrap.load_runtime(
+            self.repo, "martaxi-boss/Project-leader-codex", SHA)
+        self.assertEqual(meta["source_repository"], "martaxi-boss/Project-leader")
+        self.assertEqual(meta["target_repository"], "martaxi-boss/Project-leader-codex")
+        self.assertEqual(meta["target_revision"], SHA)
+        self.assertEqual(meta["canonical_revision"], self.head)
+        self.assertNotEqual(meta["target_revision"], meta["canonical_revision"])
+        self.assertIn("PINNED AND VERIFIED", text)
+
     def test_runtime_reads_exact_git_object_not_dirty_worktree(self):
         self.put("plugins/project-leader/skills/project-leader/SKILL.md",
                  "MALICIOUS_UNCOMMITTED_WORKTREE_CONTENT")

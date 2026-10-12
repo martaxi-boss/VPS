@@ -178,7 +178,15 @@ jobs:
 
   codex_serial_2:
     needs: [preflight, codex_serial_1]
-    if: needs.preflight.result == 'success' && needs.codex_serial_1.result == 'success' && needs.preflight.outputs.task_count == '2' && needs.preflight.outputs.mode == 'serial'
+    # A successful PR_STAGED first worker is NOT merged: stage 2 must not run
+    # on a fresh main without seeing its required predecessor's changes.
+    if: >-
+      needs.preflight.result == 'success' &&
+      needs.codex_serial_1.result == 'success' &&
+      needs.preflight.outputs.task_count == '2' &&
+      needs.preflight.outputs.mode == 'serial' &&
+      (needs.codex_serial_1.outputs.publication_status == 'MERGED' ||
+       needs.codex_serial_1.outputs.publication_status == 'NO_CHANGE')
     permissions:
       contents: read
       issues: write
@@ -199,7 +207,9 @@ jobs:
       always() && needs.preflight.result == 'success' &&
       needs.preflight.outputs.task_count == '2' &&
       needs.preflight.outputs.mode == 'serial' &&
-      needs.codex_serial_1.result != 'success'
+      (needs.codex_serial_1.result != 'success' ||
+       (needs.codex_serial_1.outputs.publication_status != 'MERGED' &&
+        needs.codex_serial_1.outputs.publication_status != 'NO_CHANGE'))
     runs-on: ubuntu-24.04
     permissions:
       issues: write
@@ -209,6 +219,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           FIRST_RESULT: ${{ needs.codex_serial_1.result }}
+          FIRST_PUBLICATION: ${{ needs.codex_serial_1.outputs.publication_status }}
         run: |
+          set -euo pipefail
+          case "$FIRST_PUBLICATION" in
+            MERGED|NO_CHANGE|PR_STAGED|PR_NEEDS_ATTENTION|NO_CHANGE_UNVERIFIED|FAILED) ;;
+            *) FIRST_PUBLICATION='NOT_VERIFIED' ;;
+          esac
           gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
-            --body "CODEX_2_NOT_STARTED: serial stage 1 outcome was $FIRST_RESULT; stage 2 was skipped to preserve order and safety."
+            --body "CODEX_2_NOT_STARTED: serial stage 1 outcome=$FIRST_RESULT, publication=$FIRST_PUBLICATION. Worker 2 requires stage 1 MERGED or owner-approved NO_CHANGE on fresh main; unmerged PR never counts as dependency completion."
