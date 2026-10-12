@@ -74,7 +74,7 @@ jobs:
           test -n "$SSHPASS" || exit 2
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass >/dev/null
-      - name: Query resolved local Codex model catalog without starting models
+      - name: Read existing private Codex model cache without refresh or model calls
         shell: bash
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
@@ -105,10 +105,9 @@ jobs:
           root = Path(os.environ['RUNNER_TEMP'])
           path = root / 'codex-model-inventory.json'
           allowed_status = {
-              'CATALOG_READ', 'CLI_MISSING', 'AUTH_UNVERIFIED',
-              'CATALOG_TIMEOUT', 'CATALOG_UNAVAILABLE',
-              'CATALOG_COMMAND_FAILED', 'CATALOG_OVERSIZED',
-              'CATALOG_UNPARSEABLE', 'INCONCLUSIVE',
+              'CACHE_READ', 'CLI_MISSING', 'AUTH_UNVERIFIED',
+              'CACHE_MISSING', 'CACHE_UNAVAILABLE', 'CACHE_OVERSIZED',
+              'CACHE_UNPARSEABLE', 'INCONCLUSIVE',
           }
           result = {'status': 'INCONCLUSIVE', 'auth_mode': 'unknown',
                     'cli_version': 'unknown', 'catalog_source': 'none', 'models': []}
@@ -124,9 +123,9 @@ jobs:
                   version = raw.get('cli_version')
                   if isinstance(version, str) and re.fullmatch(r'[0-9][a-zA-Z0-9.-]{1,34}', version):
                       result['cli_version'] = version
-                  if result['status'] == 'CATALOG_READ' and result['auth_mode'] == 'chatgpt' \
-                          and raw.get('catalog_source') == 'cli_resolved':
-                      result['catalog_source'] = 'cli_resolved'
+                  if result['status'] == 'CACHE_READ' and result['auth_mode'] == 'chatgpt' \
+                          and raw.get('catalog_source') == 'local_cache':
+                      result['catalog_source'] = 'local_cache'
                       for model in raw.get('models', [])[:35]:
                           if not isinstance(model, dict):
                               continue
@@ -139,7 +138,7 @@ jobs:
                           if not isinstance(effort, list):
                               continue
                           levels = [e for e in effort if type(e) is str
-                                    and e in ('minimal', 'low', 'medium', 'high', 'xhigh')]
+                                    and e in ('minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra')]
                           result['models'].append({'slug': slug, 'efforts': sorted(set(levels))})
                   else:
                       result['models'] = []
@@ -150,14 +149,14 @@ jobs:
           msg = ('## Codex model inventory (metadata only; NO inference)\n\n'
                  + '~~~json\n' + json.dumps(result, indent=2, sort_keys=True)
                  + '\n~~~\n\n'
-                 + 'This reads CLI-resolved metadata, NOT proof of executable entitlement '
+                 + 'This reads only existing Codex local cache, which may be stale; it is NOT proof of current model access '
                    'for every listed model. No model prompt, model usage, deployment, Git '
                    'write, local auth text or private instruction templates were emitted.\n\n'
                  + 'Evidence: ' + os.environ['RUN_URL'] + '\n')
           (root / 'codex-model-inventory-comment.md').write_text(msg, encoding='utf-8')
-          verified = (result['status'] == 'CATALOG_READ'
+          verified = (result['status'] == 'CACHE_READ'
                       and result['auth_mode'] == 'chatgpt'
-                      and result['catalog_source'] == 'cli_resolved'
+                      and result['catalog_source'] == 'local_cache'
                       and len(result['models']) > 0)
           (root / 'codex-model-inventory-verified.txt').write_text(
               'PASS' if verified else 'FAIL', encoding='ascii')
@@ -168,4 +167,4 @@ jobs:
             echo "CATALOG_UNVERIFIED_FAIL_CLOSED"
             exit 3
           fi
-          echo "VPS_CATALOG_METADATA_VERIFIED"
+          echo "VPS_CACHE_READ_ONLY=PASS"
