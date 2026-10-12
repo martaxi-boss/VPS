@@ -41,7 +41,20 @@ test -s "$base/codex-reasoning.txt"
 effort="$(cat "$base/codex-reasoning.txt")"
 case "$effort" in low|medium|high) ;; *) echo 'Invalid trusted Codex thinking level' >&2; exit 10 ;; esac
 test -x "$cli"
-"$cli" login status > /dev/null 2>&1 || { echo 'Codex login unavailable' >&2; exit 3; }
+# ChatGPT subscription usage and API-key billing have different limits.
+# Verify the auth mode without printing any tokens or login response to logs.
+auth_status="$("$cli" login status 2>/dev/null)" || {
+  printf 'CHATGPT_AUTH_REQUIRED\n' > "$base/codex-preflight-signal.txt"
+  echo 'ChatGPT Codex login unavailable; no model started' >&2
+  exit 3
+}
+if [ "$auth_status" != 'Logged in using ChatGPT' ] ||
+   [ -n "${OPENAI_API_KEY:-}" ] || [ -n "${CODEX_API_KEY:-}" ]; then
+  printf 'CHATGPT_AUTH_REQUIRED\n' > "$base/codex-preflight-signal.txt"
+  echo 'ChatGPT subscription login required; API-key billing was refused; no model started' >&2
+  exit 3
+fi
+printf 'CODEX_AUTH_MODE=CHATGPT\n'
 
 IFS= read -r header < "$base/codex-task.txt" || :
 case "$header" in
@@ -105,14 +118,15 @@ for _ in $(seq 1 90); do
 done
 [ "$slot" -ne 0 ] || { echo "No Codex execution slot available; no tokens spent" >&2; exit 11; }
 printf 'CODEX_EXECUTION_SLOT=%s\n' "$slot"
-# The trusted runner may publish only this fixed, non-sensitive state:
-# policy denied a reservation before Codex CLI could start.
+# Keep the private locked usage ledger and no-replay guard; the provider's
+# actual ChatGPT usage limits (not an arbitrary VPS token counter) decide quota.
 if ! python3 "$base/codex_resource_policy.py" reserve "$budget_root" "$job" "$effort" > "$base/budget-reservation.json"; then
-  printf 'SOFT_BUDGET_POLICY_BLOCKED\n' > "$base/codex-preflight-signal.txt"
+  printf 'LOCAL_LEDGER_PREFLIGHT_FAILED\n' > "$base/codex-preflight-signal.txt"
+  echo 'Private usage ledger or duplicate job failed validation; no model started' >&2
   exit 4
 fi
-test -s "$base/budget-reservation.json" || { echo 'Codex token reservation missing' >&2; exit 17; }
-printf 'CODEX_SHARED_SOFT_TOKEN_RESERVATION=ACCEPTED\n'
+test -s "$base/budget-reservation.json" || { echo 'Codex usage ledger record missing' >&2; exit 17; }
+printf 'CODEX_USAGE_LEDGER=RECORDED\n'
 # JSONL output gives direct per-run token counts when Codex emits turn.completed.usage.
 # It does NOT prove any percentage of the account's weekly quota.
 printf 'CODEX_MODEL=gpt-5.6-sol\nCODEX_REASONING_EFFORT=%s\nCODEX_TARGET_SHA=%s\n' "$effort" "$head"

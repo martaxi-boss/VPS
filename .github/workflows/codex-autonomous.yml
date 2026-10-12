@@ -345,19 +345,25 @@ jobs:
               signal_path = Path(os.environ['RUNNER_TEMP']) / 'codex-preflight-signal.txt'
               # Never publish any remote file contents. Only a fixed trusted
               # enum can distinguish a pre-model policy denial from a crash.
-              denied = (
-                  signal_path.is_file() and not signal_path.is_symlink()
-                  and signal_path.stat().st_size <= 64
-                  and signal_path.read_bytes() == b'SOFT_BUDGET_POLICY_BLOCKED\n'
-              )
+              signal = None
+              if (signal_path.is_file() and not signal_path.is_symlink()
+                      and signal_path.stat().st_size <= 64):
+                  allowed_signals = {
+                      b'LOCAL_LEDGER_PREFLIGHT_FAILED\n':
+                          'The private usage ledger or duplicate job failed validation; no model started.',
+                      b'CHATGPT_AUTH_REQUIRED\n':
+                          'The VPS Codex login is not verified as ChatGPT subscription; no model started.',
+                  }
+                  candidate = signal_path.read_bytes()
+                  if candidate in allowed_signals:
+                      signal = candidate
               preflight_path = Path(os.environ['RUNNER_TEMP']) / 'codex-preflight-status.txt'
               preflight = (
-                  'The shared VPS Codex token policy refused the reservation; no model started.'
-                  if denied
+                  allowed_signals[signal] if signal is not None
                   else (preflight_path.read_text(encoding='utf-8') if preflight_path.exists()
                         else 'No verified preflight diagnosis available')
               )
-              lines = ['## Codex execution: ' + ('NOT_STARTED' if denied else 'NOT_COMPLETED'),
+              lines = ['## Codex execution: ' + ('NOT_STARTED' if signal is not None else 'NOT_COMPLETED'),
                        'Preflight: ' + preflight,
                        'The pipeline stopped before trusted publication.',
                        'Stage: ' + os.environ['STAGE_OUTCOME'],

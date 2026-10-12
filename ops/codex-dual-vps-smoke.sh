@@ -34,8 +34,8 @@ blocked() {
 }
 
 
-# Share the existing signed-in account's 24h soft-token ledger; never bypass it.
-# Unknown/missing model usage is charged conservatively, including failed runs.
+# Share the existing private usage ledger: no duplicate job replay, no
+# artificial 24h admission limit. Unknown/failed usage is accounted conservatively.
 finish_smoke() {
   status=$?
   trap - EXIT
@@ -98,7 +98,12 @@ trap finish_smoke EXIT
 
 test -f "$budget_policy" || blocked "shared_budget_policy_missing"
 test -x "$codex_cli" || blocked "installed_cli_missing"
-"$codex_cli" login status > /dev/null 2>&1 || blocked "codex_authentication_unavailable"
+auth_status="$("$codex_cli" login status 2>/dev/null)" ||
+  blocked "codex_authentication_unavailable"
+[ "$auth_status" = 'Logged in using ChatGPT' ] ||
+  blocked "chatgpt_subscription_auth_required"
+[ -z "${OPENAI_API_KEY:-}" ] && [ -z "${CODEX_API_KEY:-}" ] ||
+  blocked "chatgpt_subscription_auth_required"
 command -v flock > /dev/null || blocked "flock_unavailable"
 command -v timeout > /dev/null || blocked "timeout_unavailable"
 python3 --version > /dev/null 2>&1 || blocked "python_unavailable"
@@ -117,14 +122,14 @@ git clone --quiet --depth 1 --branch main -- \
 source_head="$(git -C "$source" rev-parse HEAD)" || blocked "source_sha_unavailable"
 [ "$source_head" = "$expected" ] || blocked "unexpected_specialization_revision"
 
-# Reserve two low-effort turns using the very same central ledger as all
-# existing VPS Codex jobs. Each reservation is conservatively settled on exit.
+# Atomically register two low-effort turns in the shared no-replay usage ledger.
+# This does not constrain the official ChatGPT account token quota.
 python3 "$budget_policy" reserve "$budget_root" "$budget_job_base-1" low \
-  > "$base/budget-reservation-1.json" || blocked "shared_soft_budget_unavailable"
+  > "$base/budget-reservation-1.json" || blocked "shared_account_ledger_unavailable"
 python3 "$budget_policy" reserve "$budget_root" "$budget_job_base-2" low \
-  > "$base/budget-reservation-2.json" || blocked "shared_soft_budget_unavailable"
-test -s "$base/budget-reservation-1.json" || blocked "shared_soft_budget_unavailable"
-test -s "$base/budget-reservation-2.json" || blocked "shared_soft_budget_unavailable"
+  > "$base/budget-reservation-2.json" || blocked "shared_account_ledger_unavailable"
+test -s "$base/budget-reservation-1.json" || blocked "shared_account_ledger_unavailable"
+test -s "$base/budget-reservation-2.json" || blocked "shared_account_ledger_unavailable"
 
 mkdir -m 700 "$base/bin" "$runs"
 cat > "$base/bin/codex" <<'WRAPPER'

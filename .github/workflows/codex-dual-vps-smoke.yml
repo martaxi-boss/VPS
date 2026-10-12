@@ -317,13 +317,14 @@ jobs:
                       reason = proof.get("reason", "no_diagnostic")
                       if reason not in (
                           "installed_cli_missing", "codex_authentication_unavailable",
+                          "chatgpt_subscription_auth_required",
                           "flock_unavailable", "timeout_unavailable", "python_unavailable",
                           "first_codex_slot_busy", "second_codex_slot_busy",
                           "source_workspace_reuse", "repository_checkout_failed",
                           "source_sha_unavailable", "unexpected_specialization_revision",
                           "dual_executor_nonzero", "two_codex_workers_invoked",
                           "preflight_pending", "shared_budget_policy_missing",
-                          "shared_soft_budget_unavailable", "shared_budget_settlement_failed",
+                          "shared_account_ledger_unavailable", "shared_budget_settlement_failed",
                       ):
                           reason = "internal_sanitized_diagnostic"
                       lines.append("Diagnóstico: " + reason)
