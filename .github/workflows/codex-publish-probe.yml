@@ -1,0 +1,94 @@
+name: Codex publish dry-run diagnosis (Owner only, no models)
+on:
+  issues:
+    types: [opened]
+  pull_request:
+    paths:
+      - ".github/workflows/codex-publish-probe.yml"
+      - "ops/codex-publish-probe.py"
+      - "ops/tests/test_codex_publish_probe.py"
+
+permissions: {}
+
+jobs:
+  offline-tests:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify fixed no-write probe and classifications
+        run: |
+          python3 -m py_compile ops/codex-publish-probe.py
+          python3 -m unittest discover -s ops/tests -p 'test_codex_publish_probe.py' -v
+
+  publisher-credential-probe:
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.issue.user.login == github.repository_owner &&
+      github.event.issue.title == '[codex publish probe] Check Project-leader-codex branch push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Dry-run exactly the trusted branch publisher without a model or ref mutation
+        shell: bash
+        env:
+          CODEX_GITHUB_TOKEN: ${{ secrets.CODEX_GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          python3 ops/codex-publish-probe.py > "$RUNNER_TEMP/publish-probe.json"
+      - name: Publish only fixed diagnostic categories
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          src = Path(os.environ["RUNNER_TEMP"]) / "publish-probe.json"
+          report = {"status": "NOT_COMPLETED"}
+          statuses = {"NOT_COMPLETED", "MISSING_SECRET", "PERMISSION_QUERY_FAILED",
+                      "PERMISSION_DENIED", "CLONE_FAILED", "BRANCH_NOT_AVAILABLE_FOR_SAFE_PROBE",
+                      "DRY_RUN_ACCEPTED", "DRY_RUN_REFUSED", "PROBE_ERROR"}
+          classifications = {"unknown", "not_attempted", "accepted_dry_run", "authentication",
+                             "permission_denied", "branch_rules", "remote_not_found",
+                             "network_failure", "other_git_failure"}
+          if src.is_file() and not src.is_symlink() and src.stat().st_size <= 2048:
+              try:
+                  data = json.loads(src.read_text(encoding="utf-8"))
+                  report = {
+                      "status": data["status"] if data.get("status") in statuses else "NOT_COMPLETED",
+                      "permission_flag": data.get("permission_flag")
+                          if data.get("permission_flag") in {"push_true", "push_not_confirmed"}
+                          else "unknown",
+                      "normal": data.get("normal") if data.get("normal") in classifications
+                          else "unknown",
+                      "no_helper": data.get("no_helper")
+                          if data.get("no_helper") in classifications else "unknown",
+                      "models_called": False,
+                      "git_writes": False,
+                  }
+              except (OSError, ValueError, KeyError, TypeError):
+                  pass
+          output = Path(os.environ["RUNNER_TEMP"]) / "public-probe.md"
+          output.write_text(
+              "## Codex publisher diagnostic (no model calls, no Git writes)\n\n"
+              + "\u0060\u0060\u0060json\n" + json.dumps(report, indent=2, sort_keys=True)
+              + "\n\u0060\u0060\u0060\n\nThis is a dry-run only, not proof of a real branch push.\n",
+              encoding="utf-8")
+          PY
+          gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" \
+            --body-file "$RUNNER_TEMP/public-probe.md"
