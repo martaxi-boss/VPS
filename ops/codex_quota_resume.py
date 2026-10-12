@@ -22,6 +22,7 @@ REPO = OWNER + "/VPS"
 API_ROOT = "https://api.github.com/repos/" + REPO
 BOT = "github-actions[bot]"
 PAUSE = "<!-- CODEX_QUOTA_PAUSED_V1 -->"
+READY = "<!-- CODEX_STAGE_READY_V1 -->"
 CLAIM = "<!-- CODEX_QUOTA_CLAIM_V1 -->"
 LABEL = "codex-quota-paused"
 MAX_COMMENTS = 500
@@ -164,9 +165,10 @@ def _valid_stage(order: dict, stage: int) -> bool:
     return type(stage) is int and 1 <= stage <= len(order["tasks"]) <= 2
 
 
-def _validated_pause(rows: list, run_id: int, stage: int, attempt: int) -> dict:
-    checkpoints = parsed_comments(rows, PAUSE)
-    matches = [p for p in checkpoints if p.get("run_id") == run_id
+def _validated_checkpoint(rows: list, run_id: int, stage: int, attempt: int) -> dict:
+    checkpoints = ({**p, "_source_kind": "quota"} for p in parsed_comments(rows, PAUSE))
+    ready = ({**p, "_source_kind": "ready"} for p in parsed_comments(rows, READY))
+    matches = [p for p in [*checkpoints, *ready] if p.get("run_id") == run_id
                and p.get("stage") == stage and p.get("attempt") == attempt]
     if len(matches) != 1:
         raise QuotaResumeError("Missing unambiguous quota checkpoint")
@@ -195,8 +197,8 @@ def verify_resume(payload: dict, *, now: int | None = None) -> tuple[dict, int]:
     if not _valid_stage(order, stage):
         raise QuotaResumeError("Unrecognized or out-of-range stage")
     all_comments = comments(source)
-    pause = _validated_pause(all_comments, run_id, stage, attempt - 1)
-    if pause["source_issue"] != source or (now or int(time.time())) < pause["retry_at"]:
+    pause = _validated_checkpoint(all_comments, run_id, stage, attempt - 1)
+    if pause["source_issue"] != source or (now if now is not None else int(time.time())) < pause["retry_at"]:
         raise QuotaResumeError("Quota has not reached retry interval")
     claims = parsed_comments(all_comments, CLAIM)
     claim = [c for c in claims if c.get("_comment_id") == claim_id
@@ -207,10 +209,15 @@ def verify_resume(payload: dict, *, now: int | None = None) -> tuple[dict, int]:
     # Verify the failed run belongs to the actual trusted Actions workflow;
     # a claimant cannot synthesize quota evidence in a plain Owner issue.
     run = _api("GET", "/actions/runs/" + str(run_id))
+    expected_conclusion = "success" if pause["_source_kind"] == "ready" else "failure"
     if (not isinstance(run, dict) or run.get("id") != run_id or
             run.get("name") != "Agent switch (Owner GitHub order)" or
-            run.get("status") != "completed" or run.get("conclusion") != "failure"):
-        raise QuotaResumeError("Provider quota checkpoint run not verified failed")
+            run.get("status") != "completed" or
+            run.get("conclusion") != expected_conclusion):
+        raise QuotaResumeError("Trusted predecessor workflow outcome not verified")
+    if pause["_source_kind"] == "ready" and (
+            stage != 2 or order["mode"] != "serial" or len(order["tasks"]) != 2):
+        raise QuotaResumeError("Invalid serial phase readiness")
     # Only the *uncompleted* bounded task is replayed. Never repeat stage 1
     # when the second of two workers failed; never substitute a vendor.
     single = {"target_repository": order["target_repository"],
@@ -253,8 +260,9 @@ def pause_owner_issue(source: int, stage: int, run_id: int,
 
 
 def due_pauses(rows: list, *, now: int) -> list[dict]:
-    """Select only the latest as-yet-unclaimed block for each worker stage."""
-    pauses = parsed_comments(rows, PAUSE)
+    """Select latest paused or safe-ready unclaimed task for each stage."""
+    pauses = ([{**p, "_source_kind": "quota"} for p in parsed_comments(rows, PAUSE)]
+              + [{**p, "_source_kind": "ready"} for p in parsed_comments(rows, READY)])
     claims = parsed_comments(rows, CLAIM)
     newest = {}
     for pause in pauses:
@@ -302,7 +310,8 @@ def schedule_due(*, now: int | None = None) -> int:
                     continue
                 run_id = paused["run_id"]
                 run = _api("GET", "/actions/runs/" + str(run_id))
-                if (run.get("status") != "completed" or run.get("conclusion") != "failure" or
+                expected = "success" if paused["_source_kind"] == "ready" else "failure"
+                if (run.get("status") != "completed" or run.get("conclusion") != expected or
                         run.get("name") != "Agent switch (Owner GitHub order)"):
                     continue
                 claim = {"version": 1, "source_issue": number,
