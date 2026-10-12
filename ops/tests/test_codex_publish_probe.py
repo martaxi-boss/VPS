@@ -77,7 +77,7 @@ class PublicationProbeTests(unittest.TestCase):
         publisher.api.return_value = {"permissions": {"push": True}}
         publisher.git_push_environment.return_value = {}
         ok = subprocess.CompletedProcess([], 0, "", "")
-        denied = subprocess.CompletedProcess([], 128, "", "permission denied")
+        denied = subprocess.CompletedProcess([], 128, "", "remote: Permission to repo denied")
         with mock.patch.dict(os.environ, {"CODEX_GITHUB_TOKEN": "unit-test-only"}):
             with mock.patch.object(probe, "publisher_module", return_value=publisher):
                 with mock.patch.object(probe, "call",
