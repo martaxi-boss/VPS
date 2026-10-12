@@ -142,6 +142,7 @@ jobs:
                     "eligible_files", "eligible_allocated_bytes",
                     "removed_file_bytes", "removed_allocated_bytes",
                     "changed_or_unsafe_preserved", "quarantined_for_recovery",
+                    "late_open_references_preserved",
                     "runtime_sessions_deleted",
                     "app_or_database_data_deleted", "cache_open_reference_count")
           if path.is_file() and not path.is_symlink() and path.stat().st_size < 10000:
