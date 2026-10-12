@@ -1,6 +1,7 @@
 """Tests for trusted Codex publisher: no green result by assertion alone."""
 import importlib.util
 import json
+import os
 import sys
 import subprocess
 import tempfile
@@ -391,6 +392,52 @@ class NoChangeAndQueueSafetyTests(unittest.TestCase):
         self.assertIn("no model started.", flow)
         self.assertNotIn("cli.stderr", flow)
         self.assertNotIn("usage-budget.json", flow)
+
+    def test_chatgpt_login_status_from_stderr_and_api_denial(self):
+        # Official Codex CLI v0.162.1 prints "Logged in using ChatGPT"
+        # through eprintln!, not stdout. Verify the actual shell preflight
+        # against a fake CLI: this test never contacts Codex or the VPS.
+        remote = (OPS / "codex-autonomous-remote.sh").read_text(
+            encoding="utf-8")
+        begin = remote.index('auth_status="$("$cli" login status')
+        end = remote.index("\nIFS= read -r header", begin)
+        snippet = remote[begin:end]
+        self.assertIn('login status 2>&1', snippet)
+        self.assertNotIn('login status 2>/dev/null', snippet)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fake = root / "fake-codex"
+            script = ('set -Eeuo pipefail\n'
+                      'cli="$FAKE_CLI"\nbase="$FAKE_BASE"\n' + snippet + '\n')
+            env = dict(os.environ)
+            env.pop("OPENAI_API_KEY", None)
+            env.pop("CODEX_API_KEY", None)
+            env.update(FAKE_CLI=str(fake), FAKE_BASE=str(root))
+            fake.write_text("#!/bin/sh\nprintf 'Logged in using ChatGPT\\n' >&2\n",
+                            encoding="utf-8")
+            fake.chmod(0o700)
+            good = subprocess.run(["bash", "-c", script], text=True,
+                                  capture_output=True, env=env, check=False)
+            self.assertEqual(good.returncode, 0, good.stderr)
+            self.assertIn("CODEX_AUTH_MODE=CHATGPT", good.stdout)
+            self.assertNotIn("Logged in using ChatGPT", good.stdout)
+            fake.write_text("#!/bin/sh\nprintf 'Logged in using an API key - abc123\\n' >&2\n",
+                            encoding="utf-8")
+            denied = subprocess.run(["bash", "-c", script], text=True,
+                                    capture_output=True, env=env, check=False)
+            self.assertEqual(denied.returncode, 3)
+            self.assertNotIn("abc123", denied.stdout + denied.stderr)
+            self.assertEqual((root / "codex-preflight-signal.txt").read_bytes(),
+                             b"CHATGPT_AUTH_REQUIRED\n")
+            fake.write_text("#!/bin/sh\nprintf 'Logged in using ChatGPT\\n' >&2\n",
+                            encoding="utf-8")
+            env["OPENAI_API_KEY"] = "test-must-not-leak"
+            environment_denied = subprocess.run(
+                ["bash", "-c", script], text=True, capture_output=True,
+                env=env, check=False)
+            self.assertEqual(environment_denied.returncode, 3)
+            self.assertNotIn("test-must-not-leak",
+                             environment_denied.stdout + environment_denied.stderr)
 
     def test_failed_codex_runs_attempt_workspace_cleanup(self):
         workflow = (OPS.parent / ".github/workflows/codex-autonomous.yml").read_text(

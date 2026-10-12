@@ -101,6 +101,8 @@ class CodexDualVPSSmokeContractTests(unittest.TestCase):
         self.assertIn('shared_account_ledger_unavailable', SCRIPT)
         self.assertNotIn('shared_soft_budget_unavailable', SCRIPT)
         self.assertIn("Logged in using ChatGPT", SCRIPT)
+        self.assertIn('"$codex_cli" login status 2>&1', SCRIPT)
+        self.assertNotIn('"$codex_cli" login status 2>/dev/null', SCRIPT)
         self.assertIn("chatgpt_subscription_auth_required", SCRIPT)
 
     def test_readonly_failure_diagnosis_is_strictly_owner_gated(self) -> None:

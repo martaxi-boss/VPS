@@ -43,7 +43,7 @@ case "$effort" in low|medium|high) ;; *) echo 'Invalid trusted Codex thinking le
 test -x "$cli"
 # ChatGPT subscription usage and API-key billing have different limits.
 # Verify the auth mode without printing any tokens or login response to logs.
-auth_status="$("$cli" login status 2>/dev/null)" || {
+auth_status="$("$cli" login status 2>&1)" || {
   printf 'CHATGPT_AUTH_REQUIRED\n' > "$base/codex-preflight-signal.txt"
   echo 'ChatGPT Codex login unavailable; no model started' >&2
   exit 3

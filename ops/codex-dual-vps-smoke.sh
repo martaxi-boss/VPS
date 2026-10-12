@@ -98,7 +98,7 @@ trap finish_smoke EXIT
 
 test -f "$budget_policy" || blocked "shared_budget_policy_missing"
 test -x "$codex_cli" || blocked "installed_cli_missing"
-auth_status="$("$codex_cli" login status 2>/dev/null)" ||
+auth_status="$("$codex_cli" login status 2>&1)" ||
   blocked "codex_authentication_unavailable"
 [ "$auth_status" = 'Logged in using ChatGPT' ] ||
   blocked "chatgpt_subscription_auth_required"
