@@ -131,7 +131,7 @@ jobs:
           print('Owner task/target/GitHub write access verified. No token printed.')
           PY
           bash -n ops/codex-autonomous-remote.sh
-          python3 -m py_compile ops/codex-autonomous-publish.py ops/codex_patch_guard.py ops/codex-project-leader-bootstrap.py
+          python3 -m py_compile ops/codex-autonomous-publish.py ops/codex_patch_guard.py ops/codex-project-leader-bootstrap.py ops/codex_quota_resume.py
 
       - name: Verify actual Git branch publication permission without model calls
         shell: bash
@@ -401,7 +401,11 @@ jobs:
                   else (preflight_path.read_text(encoding='utf-8') if preflight_path.exists()
                         else 'No verified preflight diagnosis available')
               )
-              lines = ['## Codex execution: ' + ('NOT_STARTED' if signal is not None else 'NOT_COMPLETED'),
+              classification = (
+                  'PAUSED_QUOTA' if signal == b'CODEX_QUOTA_BLOCKED\n'
+                  else 'NOT_STARTED' if signal is not None else 'NOT_COMPLETED'
+              )
+              lines = ['## Codex execution: ' + classification,
                        'Preflight: ' + preflight,
                        'The pipeline stopped before trusted publication.',
                        'Stage: ' + os.environ['STAGE_OUTCOME'],
