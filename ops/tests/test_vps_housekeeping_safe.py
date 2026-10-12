@@ -31,6 +31,9 @@ class BoundedHousekeepingTests(unittest.TestCase):
             patch.object(hygiene, "CACHE_ROOTS", (str(self.base / "absent"), str(self.root))),
             patch.object(hygiene, "package_busy", return_value=False),
             patch.object(hygiene, "cache_open_references", return_value={str(self.root): 0}),
+            # Runner tests cannot inspect other users' /proc entries. Model
+            # the no-descriptor case explicitly; test the positive case below.
+            patch.object(house, "_staged_inode_has_open_descriptor", return_value=False),
             patch.object(hygiene, "command", side_effect=self.command),
         ]
         for item in self.patches:
@@ -226,9 +229,18 @@ class BoundedHousekeepingTests(unittest.TestCase):
             return original_rename(src, dst, src_dir_fd=src_dir_fd,
                                    dst_dir_fd=dst_dir_fd)
 
+        def verify_held_moved_inode(moved):
+            self.assertIsNotNone(held[0])
+            held_stat = os.fstat(held[0])
+            self.assertEqual((moved.st_dev, moved.st_ino),
+                             (held_stat.st_dev, held_stat.st_ino))
+            return True
+
         try:
             with patch.object(house.os, "rename", side_effect=open_then_move):
-                report = house.run("clean")
+                with patch.object(house, "_staged_inode_has_open_descriptor",
+                                  side_effect=verify_held_moved_inode):
+                    report = house.run("clean")
             self.assertEqual(report["status"], "CLEANED")
             self.assertEqual(report["removed_file_bytes"], 0)
             self.assertGreaterEqual(report["changed_or_unsafe_preserved"], 1)
@@ -238,9 +250,15 @@ class BoundedHousekeepingTests(unittest.TestCase):
                 os.close(held[0])
 
     def test_unreadable_proc_never_grants_permission_to_unlink(self):
-        with patch.object(house.os, "scandir", side_effect=PermissionError):
-            self.assertTrue(
-                house._staged_inode_has_open_descriptor(self.old.stat()))
+        original = self.patches[-2]
+        # Exercise the real scanning implementation, not the fixture stub.
+        scanner = house._staged_inode_has_open_descriptor
+        original.stop()
+        try:
+            with patch.object(house.os, "scandir", side_effect=PermissionError):
+                self.assertTrue(scanner(self.old.stat()))
+        finally:
+            original.start()
 
 
 
