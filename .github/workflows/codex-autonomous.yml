@@ -130,6 +130,33 @@ jobs:
           bash -n ops/codex-autonomous-remote.sh
           python3 -m py_compile ops/codex-autonomous-publish.py ops/codex_patch_guard.py ops/codex-project-leader-bootstrap.py
 
+      - name: Verify actual Git branch publication permission without model calls
+        shell: bash
+        env:
+          CODEX_GITHUB_TOKEN: ${{ secrets.CODEX_GITHUB_TOKEN }}
+          CODEX_ORDER_ISSUE: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import importlib.util, os
+          from pathlib import Path
+          f = Path('ops/codex-autonomous-publish.py')
+          spec = importlib.util.spec_from_file_location('trusted_publisher', f)
+          publisher = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(publisher)
+          task = (Path(os.environ['RUNNER_TEMP']) / 'codex-task.txt').read_text(encoding='utf-8')
+          target = task.splitlines()[0].partition('=')[2]
+          status = publisher.verify_git_publication_dry_run(
+              target, os.environ['CODEX_ORDER_ISSUE'],
+              os.environ['GITHUB_RUN_ID'], os.environ['GITHUB_RUN_ATTEMPT'],
+              os.environ.get('CODEX_INSTANCE_ID', ''))
+          if status != 'PASS':
+              (Path(os.environ['RUNNER_TEMP']) / 'codex-preflight-signal.txt').write_bytes(
+                  b'GITHUB_PUBLISH_PERMISSION_MISSING\n')
+              raise SystemExit('CODEX_PUBLISH_PREFLIGHT_DENIED: ' + status + '; no model started')
+          print('CODEX_PUBLISH_GIT_DRY_RUN=PASS (no branch created)')
+          PY
+
       - name: Pin Owner-provided SSH host key before using any VPS credential
         shell: bash
         run: |
@@ -353,6 +380,8 @@ jobs:
                           'The private usage ledger or duplicate job failed validation; no model started.',
                       b'CHATGPT_AUTH_REQUIRED\n':
                           'The VPS Codex login is not verified as ChatGPT subscription; no model started.',
+                      b'GITHUB_PUBLISH_PERMISSION_MISSING\n':
+                          'GitHub publisher cannot create an authorized target branch; no model started.',
                   }
                   candidate = signal_path.read_bytes()
                   if candidate in allowed_signals:
