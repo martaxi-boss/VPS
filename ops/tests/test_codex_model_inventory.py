@@ -1,6 +1,7 @@
 """Zero-inference tests for filtered VPS Codex catalog diagnostics."""
 import importlib.util
 import json
+import subprocess
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -89,6 +90,26 @@ class CatalogContractTests(unittest.TestCase):
         self.assertIn("CATALOG_UNVERIFIED_FAIL_CLOSED", workflow)
         self.assertIn("exit 3", workflow)
         self.assertLess(workflow.index("gh issue comment"), workflow.index("CATALOG_UNVERIFIED_FAIL_CLOSED"))
+
+
+
+    def test_cli_login_status_is_read_from_private_stderr_not_logged(self):
+        # The real CLI uses eprintln! for even a successful ChatGPT login.
+        completed = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=b"", stderr=b"Logged in using ChatGPT\n")
+        with mock.patch.object(inventory.subprocess, "run", return_value=completed) as execute:
+            state, output = inventory._execute(["login", "status"])
+        self.assertEqual(state, "ok")
+        self.assertEqual(output.strip(), "Logged in using ChatGPT")
+        self.assertEqual(execute.call_args.kwargs["stderr"], subprocess.PIPE)
+
+        completed = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=b'{"models":[]}', stderr=b"INTERNAL_PRIVATE")
+        with mock.patch.object(inventory.subprocess, "run", return_value=completed) as execute:
+            state, output = inventory._execute(["debug", "models"])
+        self.assertEqual(state, "ok")
+        self.assertNotIn("INTERNAL_PRIVATE", output)
+        self.assertEqual(execute.call_args.kwargs["stderr"], subprocess.DEVNULL)
 
 
 
