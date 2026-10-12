@@ -134,13 +134,15 @@ jobs:
           statuses = {"AUDIT_ONLY", "CLEANED", "NO_ELIGIBLE_CACHE",
                       "BLOCKED_CRITICAL_HEALTH", "BLOCKED_PACKAGE_MANAGER",
                       "BLOCKED_OPEN_CACHE_REFERENCES", "BLOCKED_CACHE_CHANGED",
+                      "BLOCKED_QUARANTINE_RECOVERY",
                       "POSTCHECK_HEALTH_CHANGED", "SAFE_HYGIENE_FAILED"}
           fields = ("disk_total", "disk_free_before", "disk_free_after",
                     "disk_free_delta", "memory_available_before",
                     "memory_available_after", "cache_roots_checked",
                     "eligible_files", "eligible_allocated_bytes",
                     "removed_file_bytes", "removed_allocated_bytes",
-                    "changed_or_unsafe_preserved", "runtime_sessions_deleted",
+                    "changed_or_unsafe_preserved", "quarantined_for_recovery",
+                    "runtime_sessions_deleted",
                     "app_or_database_data_deleted", "cache_open_reference_count")
           if path.is_file() and not path.is_symlink() and path.stat().st_size < 10000:
               try:
