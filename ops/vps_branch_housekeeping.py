@@ -14,6 +14,7 @@ import re
 import subprocess
 import sys
 import time
+from urllib.parse import quote
 
 
 PREFIXES = ("builder/", "codex/", "config/", "diagnostic/",
@@ -126,6 +127,14 @@ def inspect(mode: str) -> dict:
             actual = remote_branch_sha(name)
             if actual != tip:
                 skipped_changed += 1
+                continue
+            code, protected_text = command([
+                "gh", "api", "repos/" + repo + "/branches/" + quote(name, safe=""),
+                "--jq", ".protected"], timeout=15)
+            if code != 0 or protected_text not in ("true", "false"):
+                raise RuntimeError("Unable to verify branch protection")
+            if protected_text == "true":
+                skipped_refused += 1
                 continue
             code, live_pr = command(["gh", "pr", "list", "--repo", repo,
                                      "--state", "open", "--head", name,
