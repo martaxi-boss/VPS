@@ -25,9 +25,13 @@ def _execute(args: list[str], timeout: int = 30) -> tuple[str, str]:
     env = os.environ.copy()
     for key in ("OPENAI_API_KEY", "CODEX_API_KEY"):
         env.pop(key, None)
+    # The Codex CLI prints successful 'login status' on stderr (eprintln!).
+    # Capture it only in memory for that exact command; never publish it.
+    login_probe = args == ["login", "status"]
     try:
         result = subprocess.run(
-            [str(CLI), *args], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            [str(CLI), *args], stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE if login_probe else subprocess.DEVNULL,
             env=env, check=False, timeout=timeout,
         )
     except subprocess.TimeoutExpired:
@@ -36,9 +40,10 @@ def _execute(args: list[str], timeout: int = 30) -> tuple[str, str]:
         return "unavailable", ""
     if result.returncode:
         return "command_failed", ""
-    if len(result.stdout) > MAX_CATALOG_BYTES:
+    private_output = result.stdout + ((result.stderr or b"") if login_probe else b"")
+    if len(private_output) > MAX_CATALOG_BYTES:
         return "oversized", ""
-    return "ok", result.stdout.decode("utf-8", errors="replace")
+    return "ok", private_output.decode("utf-8", errors="replace")
 
 
 def _efforts(item: object) -> list[str]:
