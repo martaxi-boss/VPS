@@ -348,7 +348,7 @@ jobs:
               denied = (
                   signal_path.is_file() and not signal_path.is_symlink()
                   and signal_path.stat().st_size <= 64
-                  and signal_path.read_text(encoding='utf-8').strip() == 'SOFT_BUDGET_POLICY_BLOCKED'
+                  and signal_path.read_bytes() == b'SOFT_BUDGET_POLICY_BLOCKED\n'
               )
               preflight_path = Path(os.environ['RUNNER_TEMP']) / 'codex-preflight-status.txt'
               preflight = (
