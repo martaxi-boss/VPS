@@ -366,6 +366,25 @@ class NoChangeAndQueueSafetyTests(unittest.TestCase):
         self.assertIn("codex_serial_blocked:", workflow)
         self.assertIn("CODEX_2_NOT_STARTED:", workflow)
 
+    def test_shared_soft_budget_failure_is_reported_without_raw_private_logs(self):
+        remote = (OPS / "codex-autonomous-remote.sh").read_text(encoding="utf-8")
+        flow = (OPS.parent / ".github/workflows/codex-autonomous.yml").read_text(
+            encoding="utf-8")
+        self.assertIn("SOFT_BUDGET_POLICY_BLOCKED", remote)
+        self.assertIn('> "$base/codex-preflight-signal.txt"', remote)
+        self.assertLess(remote.index('codex-preflight-signal.txt'),
+                        remote.index('"$cli" exec'))
+        self.assertIn('project-leader-runtime.json report.md codex-preflight-signal.txt; do', flow)
+        self.assertIn("signal_path.stat().st_size <= 64", flow)
+        self.assertIn("signal_path.is_symlink()", flow)
+        self.assertIn("read_bytes() == b'SOFT_BUDGET_POLICY_BLOCKED", flow)
+        self.assertNotIn("signal_path.read_text", flow)
+        # Invalid UTF-8 signal content must not crash conservative fallback.
+        self.assertIn("('NOT_STARTED' if denied else 'NOT_COMPLETED')", flow)
+        self.assertIn("no model started.", flow)
+        self.assertNotIn("cli.stderr", flow)
+        self.assertNotIn("usage-budget.json", flow)
+
     def test_failed_codex_runs_attempt_workspace_cleanup(self):
         workflow = (OPS.parent / ".github/workflows/codex-autonomous.yml").read_text(
             encoding="utf-8"
@@ -396,7 +415,7 @@ class DirectIssueInputDefaultsTests(unittest.TestCase):
 class PrivateOwnerReportDeliveryTests(unittest.TestCase):
     def test_private_report_is_fetched_and_delivered_using_existing_gateway(self):
         flow = (OPS.parent / '.github/workflows/codex-autonomous.yml').read_text(encoding='utf-8')
-        self.assertIn('project-leader-runtime.json report.md; do', flow)
+        self.assertIn('project-leader-runtime.json report.md codex-preflight-signal.txt; do', flow)
         self.assertIn('python3 ops/telegram_gateway.py notify', flow)
         self.assertIn('secrets.TELEGRAM_BOT_TOKEN', flow)
         self.assertIn('secrets.TELEGRAM_CHAT_ID', flow)

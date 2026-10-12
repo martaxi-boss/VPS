@@ -105,7 +105,12 @@ for _ in $(seq 1 90); do
 done
 [ "$slot" -ne 0 ] || { echo "No Codex execution slot available; no tokens spent" >&2; exit 11; }
 printf 'CODEX_EXECUTION_SLOT=%s\n' "$slot"
-python3 "$base/codex_resource_policy.py" reserve "$budget_root" "$job" "$effort"   > "$base/budget-reservation.json"
+# The trusted runner may publish only this fixed, non-sensitive state:
+# policy denied a reservation before Codex CLI could start.
+if ! python3 "$base/codex_resource_policy.py" reserve "$budget_root" "$job" "$effort" > "$base/budget-reservation.json"; then
+  printf 'SOFT_BUDGET_POLICY_BLOCKED\n' > "$base/codex-preflight-signal.txt"
+  exit 4
+fi
 test -s "$base/budget-reservation.json" || { echo 'Codex token reservation missing' >&2; exit 17; }
 printf 'CODEX_SHARED_SOFT_TOKEN_RESERVATION=ACCEPTED\n'
 # JSONL output gives direct per-run token counts when Codex emits turn.completed.usage.
