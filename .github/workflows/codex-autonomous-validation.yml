@@ -20,4 +20,5 @@ jobs:
       - name: Exercise mandatory offline path and CI evidence gates
         run: |
           python3 -m unittest discover -s ops/tests -p test_codex_autonomous.py -v
+          python3 -m unittest discover -s ops/tests -p test_codex_publisher_preflight_import.py -v
           python3 -m unittest discover -s ops/tests -p test_codex_project_leader_bootstrap.py -v

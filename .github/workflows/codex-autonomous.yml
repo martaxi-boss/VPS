@@ -138,9 +138,12 @@ jobs:
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import importlib.util, os
+          import importlib.util, os, sys
           from pathlib import Path
           f = Path('ops/codex-autonomous-publish.py')
+          # Inline Python runs from repo root, unlike the standalone publisher.
+          # Allow only the trusted checked-out ops/ sibling import.
+          sys.path.insert(0, str(f.parent.resolve()))
           spec = importlib.util.spec_from_file_location('trusted_publisher', f)
           publisher = importlib.util.module_from_spec(spec)
           spec.loader.exec_module(publisher)
