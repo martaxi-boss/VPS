@@ -153,7 +153,9 @@ def parse_order(raw: str) -> dict:
         order = json.loads(raw)
     except json.JSONDecodeError as exc:
         raise OrderError("Use one JSON task manifest") from exc
-    if not isinstance(order, dict) or set(order) != {"target_repository", "mode", "tasks"}:
+    required = {"target_repository", "mode", "tasks"}
+    allowed = required | {"serial_independent"}
+    if not isinstance(order, dict) or not required.issubset(order) or not set(order).issubset(allowed):
         raise OrderError("Required fields: target_repository, mode, tasks")
     target = order["target_repository"]
     if type(target) is not str or target not in ALLOWED_REPOSITORIES:
@@ -161,11 +163,20 @@ def parse_order(raw: str) -> dict:
     mode = order["mode"]
     if type(mode) is not str or mode not in MODES:
         raise OrderError("Mode must be serial or parallel")
-    return {
+    tasks = _normalise_tasks(order["tasks"])
+    independent = order.get("serial_independent", False)
+    if "serial_independent" in order and (
+        type(independent) is not bool or mode != "serial" or len(tasks) != 2
+    ):
+        raise OrderError("serial_independent requires a boolean and exactly two serial tasks")
+    validated = {
         "target_repository": target,
         "mode": mode,
-        "tasks": _normalise_tasks(order["tasks"]),
+        "tasks": tasks,
     }
+    if independent:
+        validated["serial_independent"] = True
+    return validated
 
 
 def dispatch_plan(order: dict) -> dict:
@@ -176,7 +187,12 @@ def dispatch_plan(order: dict) -> dict:
         item = dict(task)
         item["selected_reasoning_effort"] = choose_effort(task)
         item["effort_selection"] = "explicit" if task.get("reasoning_effort", "auto") != "auto" else "adaptive_task_boundary"
-        item["depends_on"] = [previous_id] if order["mode"] == "serial" and previous_id else []
+        item["depends_on"] = (
+            [previous_id]
+            if order["mode"] == "serial" and previous_id
+            and not order.get("serial_independent", False)
+            else []
+        )
         tasks.append(item)
         previous_id = task["id"]
     return {
@@ -187,6 +203,7 @@ def dispatch_plan(order: dict) -> dict:
             "explicit_tasks_only": True,
             "allow_provider_substitution": False,
             "parallel_tasks_declared_independent": order["mode"] == "parallel",
+            "serial_independent_pr_only": bool(order.get("serial_independent", False)),
         },
         "tasks": tasks,
     }
@@ -251,6 +268,7 @@ def workflow_values(order: dict) -> dict:
             **legacy,
             "task_count": "1",
             "mode": order["mode"],
+            "serial_independent": "false",
             "codex_1_task_b64": legacy["codex_task_b64"],
             "codex_2_task_b64": "",
             "allow_no_change_1": str(tasks[0].get("allow_no_change", False)).lower(),
@@ -261,13 +279,16 @@ def workflow_values(order: dict) -> dict:
 
     encoded = []
     for task in tasks:
-        extra = (
-            "Parallel independent Codex worker; use only this private checkout. "
-            "Do not depend on sibling results or merge a sibling change."
-            if order["mode"] == "parallel"
-            else "Serial Codex worker; the previous stage must complete "
-            "and become visible on the fresh target main before this step."
-        )
+        if order["mode"] == "parallel":
+            extra = ("Parallel independent Codex worker; use only this private checkout. "
+                     "Do not depend on sibling results or merge a sibling change.")
+        elif order.get("serial_independent", False):
+            extra = ("Serial independent Codex worker; wait until the previous worker "
+                     "has a verified, CI-passing PR or NO_CHANGE. Work from fresh main; "
+                     "do not depend on or merge the previous worker's unmerged changes.")
+        else:
+            extra = ("Serial Codex worker; the previous stage must complete "
+                     "and become visible on the fresh target main before this step.")
         prompt = (
             f"TARGET_REPOSITORY={order['target_repository']}\n"
             f"Explicit worker {task['id']} of 2 in {order['mode']} mode. "
@@ -284,6 +305,7 @@ def workflow_values(order: dict) -> dict:
         "dispatch_plan_b64": dispatch_plan_b64(order),
         "task_count": "2",
         "mode": order["mode"],
+        "serial_independent": str(order.get("serial_independent", False)).lower(),
         "codex_1_task_b64": encoded[0],
         "codex_2_task_b64": encoded[1],
         "allow_no_change_1": str(tasks[0].get("allow_no_change", False)).lower(),
