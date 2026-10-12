@@ -279,7 +279,11 @@ class AgentSwitchTests(unittest.TestCase):
             "  codex_serial_blocked:", 1)[0]
         self.assertIn("publication_status == 'MERGED'", serial)
         self.assertIn("publication_status == 'NO_CHANGE'", serial)
-        self.assertNotIn("publication_status == 'PR_STAGED'", serial)
+        self.assertIn("publication_status == 'PR_STAGED'", serial)
+        self.assertIn("serial_independent == 'true'", serial)
+        self.assertIn("serial_independent != 'true'", workflow)
+        self.assertEqual(workflow.count(
+            "no_auto_merge: ${{ fromJSON(needs.preflight.outputs.serial_independent) }}"), 2)
         self.assertIn("FIRST_PUBLICATION:", workflow)
         self.assertIn("CODEX_2_NOT_STARTED", workflow)
 
@@ -304,6 +308,37 @@ class AgentSwitchTests(unittest.TestCase):
         self.assertEqual(values["allow_no_change_2"], "false")
         self.assertNotIn("allow_no_change", order["tasks"][1])
 
+
+    def test_explicit_independent_serial_stages_have_distinct_pr_only_tasks(self):
+        tasks = [self.task("codex-config", reasoning_effort="low"),
+                 self.task("codex-upstream", reasoning_effort="low")]
+        order = router.parse_order(self.order(tasks, mode="serial", serial_independent=True))
+        plan = router.dispatch_plan(order)
+        self.assertEqual([t["depends_on"] for t in plan["tasks"]], [[], []])
+        self.assertTrue(plan["execution_policy"]["serial_independent_pr_only"])
+        values = router.workflow_values(order)
+        self.assertEqual(values["serial_independent"], "true")
+        self.assertEqual(values["task_count"], "2")
+        self.assertEqual(values["mode"], "serial")
+        for i in (1, 2):
+            prompt = base64.b64decode(values[f"codex_{i}_task_b64"]).decode("utf-8")
+            self.assertIn("do not depend on or merge", prompt)
+            self.assertIn("fresh main", prompt)
+
+    def test_independent_serial_opt_in_is_strict_and_defaults_to_dependent(self):
+        tasks = [self.task("codex-config"), self.task("codex-upstream")]
+        default = router.parse_order(self.order(tasks, mode="serial"))
+        self.assertEqual(router.workflow_values(default)["serial_independent"], "false")
+        self.assertEqual(router.dispatch_plan(default)["tasks"][1]["depends_on"],
+                         ["codex-config"])
+        for bad in ("true", 1, None, {}, []):
+            with self.subTest(value=bad), self.assertRaises(router.OrderError):
+                router.parse_order(self.order(
+                    tasks, mode="serial", serial_independent=bad))
+        with self.assertRaises(router.OrderError):
+            router.parse_order(self.order(tasks, mode="parallel", serial_independent=True))
+        with self.assertRaises(router.OrderError):
+            router.parse_order(self.order([tasks[0]], mode="serial", serial_independent=True))
 
 if __name__ == "__main__":
     unittest.main()
