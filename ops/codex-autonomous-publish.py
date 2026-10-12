@@ -21,13 +21,15 @@ from codex_patch_guard import MAX_FILES, MAX_PATCH_BYTES, guard_path
 ALLOWED = {
     "martaxi-boss/VPS": {( "Codex autonomous validation", "pull_request")},
     # Project Leader + Codex is a separate mutable repository.
-    # Its CI is independently checked; completion never authorizes auto-merge.
+    # Exact-head PR CI is checked; auto-merge is never authorized.
+    # The trusted pull_request_target gate runs with base-branch authority,
+    # and may not be reliably indexed by the PR head SHA. It must be checked
+    # independently at integration time. This executor only stages a PR.
     "martaxi-boss/Project-leader-codex": {
         ("Codex specialization tests", "pull_request"),
         ("Control contract tests", "pull_request"),
         ("Validate control plane", "pull_request"),
         ("Package ChatGPT plugins", "pull_request"),
-        ("Trusted authorization gate", "pull_request_target"),
     },
     # PINK's CI is path-filtered, not a mandatory universal PR workflow.
     # Never invent a named CI pass: stage an isolated PR and return it for
@@ -203,9 +205,10 @@ def premerge_policy_gate(repo, paths):
                 "validate player, VPN, Android/backend regressions and review "
                 "the exact-head merge authority; NEVER auto-merge or deploy")
     if repo == "martaxi-boss/Project-leader-codex":
-        return ("Project Leader + Codex target is PR-ONLY: independent exact-head "
-                "review and explicit integration control are required; "
-                "NEVER auto-merge. The original Project Leader remains unchanged.")
+        return ("Project Leader + Codex target is PR-ONLY: four exact-head PR "
+                "workflows and an independently reviewed trusted-authorization "
+                "gate are required before integrating; NEVER auto-merge. "
+                "The original Project Leader remains unchanged.")
     if repo == "martaxi-boss/Project-leader":
         return ("Project Leader main merge is an E2 consequential transition; "
                 "separate exact-SHA authorization and independent Supervisor acceptance "
@@ -223,6 +226,11 @@ def worker_branch_name(issue, run_id, attempt, instance_id=""):
         raise ValueError("Invalid trusted Codex worker identity")
     suffix = "-" + instance_id if instance_id else ""
     return f"codex/issue-{issue}-{run_id}-{attempt}{suffix}"
+
+
+def requires_pr_only_ci(repo, pr_only):
+    """No target-specific PR-only worker may skip its exact-head CI."""
+    return bool(pr_only) or repo == "martaxi-boss/Project-leader-codex"
 
 
 def staged_pr_result(repo, url, sha, blocking_policy, state, evidence):
@@ -296,7 +304,7 @@ def perform(source, issue, run_id, attempt, instance_id="", pr_only=False, allow
         # Parallel workers must publish distinct PRs without a racing automatic merge.
         # Required exact-head CI still runs; PR_STAGED never claims the task was merged.
         blocking_policy = premerge_policy_gate(repo, paths)
-        if pr_only:
+        if requires_pr_only_ci(repo, pr_only):
             state, evidence = wait_for_checks(repo, sha, branch, ALLOWED[repo])
             return staged_pr_result(repo, url, sha, blocking_policy, state, evidence)
         if blocking_policy:

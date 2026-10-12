@@ -77,6 +77,20 @@ class AgentSwitchTests(unittest.TestCase):
         self.assertEqual(order["target_repository"], repo)
         self.assertNotEqual(repo, "martaxi-boss/Project-leader")
 
+    def test_specialized_pr_only_dependent_serial_is_rejected_before_models(self):
+        repo = "martaxi-boss/Project-leader-codex"
+        tasks = [self.task("codex-first"), self.task("codex-second")]
+        with self.assertRaisesRegex(router.OrderError, "no agent started"):
+            router.parse_order(self.order(tasks, target=repo, mode="serial"))
+        # A single worker in serial mode does not have an unmerged dependency.
+        one = router.parse_order(
+            self.order([self.task("codex-alone")], target=repo, mode="serial"))
+        self.assertEqual(one["target_repository"], repo)
+        # The same two workers remain permitted in explicitly parallel mode.
+        independent = router.parse_order(
+            self.order(tasks, target=repo, mode="parallel"))
+        self.assertEqual(len(independent["tasks"]), 2)
+
     def test_two_codex_serial_preserve_order_and_dependencies(self):
         order = router.parse_order(self.order([
             self.task("codex-2"), self.task("codex-1")

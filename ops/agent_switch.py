@@ -161,10 +161,19 @@ def parse_order(raw: str) -> dict:
     mode = order["mode"]
     if type(mode) is not str or mode not in MODES:
         raise OrderError("Mode must be serial or parallel")
+    tasks = _normalise_tasks(order["tasks"])
+    # In a PR-only target, serial stage two cannot safely use unmerged stage
+    # one changes. Reject the dependent plan before either model is started.
+    if (target == "martaxi-boss/Project-leader-codex" and
+            mode == "serial" and len(tasks) > 1):
+        raise OrderError(
+            "Project Leader + Codex dependent serial tasks require independent "
+            "integration of stage one before stage two; no agent started"
+        )
     return {
         "target_repository": target,
         "mode": mode,
-        "tasks": _normalise_tasks(order["tasks"]),
+        "tasks": tasks,
     }
 
 

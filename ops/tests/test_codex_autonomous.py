@@ -80,17 +80,24 @@ class CheckGateTests(unittest.TestCase):
         repo = "martaxi-boss/Project-leader-codex"
         expected = publisher.ALLOWED[repo]
         self.assertIn(("Codex specialization tests", "pull_request"), expected)
-        self.assertIn(("Trusted authorization gate", "pull_request_target"), expected)
-        self.assertEqual(len(expected), 5)
+        self.assertNotIn(("Trusted authorization gate", "pull_request_target"), expected)
+        self.assertEqual(len(expected), 4)
+        # The trusted pull_request_target gate cannot always be tied to the PR
+        # head via workflow_runs?head_sha; manual gate remains mandatory at merge.
         runs = [success(name, event) for name, event in expected]
         self.assertEqual("PASS",
                          publisher.classify_runs(runs, expected, SHA, BRANCH)[0])
         policy = publisher.premerge_policy_gate(repo, ["README.md"])
         self.assertIn("PR-ONLY", policy)
         self.assertIn("NEVER auto-merge", policy)
+        self.assertIn("independently reviewed trusted-authorization", policy)
+        self.assertTrue(publisher.requires_pr_only_ci(repo, False))
+        self.assertTrue(publisher.requires_pr_only_ci(repo, True))
+        self.assertTrue(publisher.requires_pr_only_ci("martaxi-boss/VPS", True))
+        self.assertFalse(publisher.requires_pr_only_ci("martaxi-boss/VPS", False))
         result = publisher.staged_pr_result(
             repo, "https://github.com/martaxi-boss/Project-leader-codex/pull/10",
-            SHA, policy, "PASS", "Exact-head CI passed")
+            SHA, policy, "PASS", "Four exact-head PR checks passed")
         self.assertEqual(result["status"], "PR_STAGED")
         self.assertNotIn("merge_sha", result)
 
