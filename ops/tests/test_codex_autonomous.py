@@ -76,6 +76,40 @@ class CheckGateTests(unittest.TestCase):
         self.assertIn('test gate', publisher.premerge_policy_gate(
             'martaxi-boss/VPS', ['ops/telegram_gateway.py']))
 
+    def test_specialized_project_ci_checks_and_pr_only_policy(self):
+        repo = "martaxi-boss/Project-leader-codex"
+        expected = publisher.ALLOWED[repo]
+        self.assertIn(("Codex specialization tests", "pull_request"), expected)
+        self.assertIn(("Trusted authorization gate", "pull_request_target"), expected)
+        self.assertEqual(len(expected), 5)
+        runs = [success(name, event) for name, event in expected]
+        self.assertEqual("PASS",
+                         publisher.classify_runs(runs, expected, SHA, BRANCH)[0])
+        policy = publisher.premerge_policy_gate(repo, ["README.md"])
+        self.assertIn("PR-ONLY", policy)
+        self.assertIn("NEVER auto-merge", policy)
+        result = publisher.staged_pr_result(
+            repo, "https://github.com/martaxi-boss/Project-leader-codex/pull/10",
+            SHA, policy, "PASS", "Exact-head CI passed")
+        self.assertEqual(result["status"], "PR_STAGED")
+        self.assertNotIn("merge_sha", result)
+
+    def test_owner_pinned_ssh_is_used_by_every_autonomous_connection(self):
+        flow = (OPS.parent / ".github/workflows/codex-autonomous.yml").read_text(
+            encoding="utf-8")
+        self.assertIn("SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc",
+                      flow)
+        self.assertNotIn("StrictHostKeyChecking=accept-new", flow)
+        self.assertEqual(flow.count("StrictHostKeyChecking=yes"), 5)
+        self.assertEqual(flow.count("UserKnownHostsFile="), 5)
+        self.assertLess(flow.index("Verify pinned VPS SSH host key"),
+                        flow.index("Prepare isolated SSH client"))
+        self.assertIn("TARGET_REPOSITORY=martaxi-boss/Project-leader-codex",
+                      flow)
+        remote = (OPS / "codex-autonomous-remote.sh").read_text(encoding="utf-8")
+        self.assertIn("TARGET_REPOSITORY=martaxi-boss/Project-leader-codex)",
+                      remote)
+
     def test_pink_target_requires_independent_validation_and_never_auto_merges(self):
         repo = "martaxi-boss/pink-iptv"
         self.assertIn(repo, publisher.ALLOWED)
@@ -172,6 +206,16 @@ class InputTests(unittest.TestCase):
         self.save_runtime()
         with self.assertRaises(ValueError):
             publisher.validate_metadata(self.root)
+
+    def test_specialized_target_has_distinct_canonical_project_leader_rules(self):
+        repo = "martaxi-boss/Project-leader-codex"
+        (self.root / "target.txt").write_text(repo + "\n")
+        (self.root / "codex-task.txt").write_text(
+            "TARGET_REPOSITORY=" + repo + "\nCorrige apenas uma linha de teste.\n")
+        self.runtime["target_repository"] = repo
+        self.runtime["canonical_revision"] = "b" * 40
+        self.save_runtime()
+        self.assertEqual(repo, publisher.validate_metadata(self.root)[0])
 
     def test_vps_target_accepts_distinct_canonical_runtime_revision(self):
         (self.root / 'target.txt').write_text('martaxi-boss/VPS\n')

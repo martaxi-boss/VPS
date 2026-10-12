@@ -19,7 +19,7 @@ except ModuleNotFoundError:
     # Direct 'python3 ops/agent_switch.py' starts with ops/ on sys.path.
     from codex_resource_policy import choose_effort
 
-ALLOWED_REPOSITORIES = {"martaxi-boss/VPS", "martaxi-boss/Project-leader", "martaxi-boss/pink-iptv"}
+ALLOWED_REPOSITORIES = {"martaxi-boss/VPS", "martaxi-boss/Project-leader", "martaxi-boss/Project-leader-codex", "martaxi-boss/pink-iptv"}
 MODES = {"serial", "parallel"}
 MAX_TASKS = 8
 PLAN_VERSION = 1

@@ -59,6 +59,24 @@ class AgentSwitchTests(unittest.TestCase):
         encoded = router.dispatch_plan_b64(order)
         self.assertEqual(json.loads(base64.b64decode(encoded)), plan)
 
+    def test_project_leader_codex_is_independently_routable_with_two_low_workers(self):
+        repo = "martaxi-boss/Project-leader-codex"
+        tasks = [
+            self.task("codex-first", reasoning_effort="low"),
+            self.task("codex-second", reasoning_effort="low"),
+        ]
+        order = router.parse_order(self.order(tasks, target=repo, mode="parallel"))
+        outputs = router.workflow_values(order)
+        self.assertEqual(outputs["task_count"], "2")
+        self.assertEqual(outputs["mode"], "parallel")
+        for i in (1, 2):
+            decoded = base64.b64decode(outputs[f"codex_{i}_task_b64"]).decode()
+            self.assertTrue(decoded.startswith("TARGET_REPOSITORY=" + repo + "\n"))
+            self.assertEqual(outputs[f"codex_{i}_reasoning_effort"], "low")
+        self.assertNotEqual(outputs["codex_1_task_b64"], outputs["codex_2_task_b64"])
+        self.assertEqual(order["target_repository"], repo)
+        self.assertNotEqual(repo, "martaxi-boss/Project-leader")
+
     def test_two_codex_serial_preserve_order_and_dependencies(self):
         order = router.parse_order(self.order([
             self.task("codex-2"), self.task("codex-1")
