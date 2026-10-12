@@ -288,7 +288,9 @@ class QuotaLifecycleTests(unittest.TestCase):
                       for _ in range(100)]
         def api(method, path, payload=None):
             if method == "GET" and path.startswith("/issues?"):
-                if "page=1" in path or "page=2" in path or "page=3" in path:
+                from urllib.parse import parse_qs, urlparse
+                page = int(parse_qs(urlparse(path).query)["page"][0])
+                if page in (1, 2, 3):
                     return background
                 return [self.owner_issue]
             if path == "/issues/154":
