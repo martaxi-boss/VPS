@@ -435,6 +435,22 @@ jobs:
           gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
             --body-file "$RUNNER_TEMP/owner-result.md"
 
+      - name: Continue authorized serial phase two after accepted resumed phase one
+        if: >-
+          github.event_name == 'repository_dispatch' &&
+          inputs.instance_id == '1' &&
+          steps.publish.outcome == 'success'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ORIGINAL_ISSUE: ${{ inputs.issue_number }}
+        run: |
+          set -euo pipefail
+          [[ "$ORIGINAL_ISSUE" =~ ^[1-9][0-9]*$ ]] || exit 3
+          test -s "$RUNNER_TEMP/codex-result.json"
+          python3 ops/codex_quota_resume.py ready "$ORIGINAL_ISSUE" \
+            "$GITHUB_RUN_ID" "$RUNNER_TEMP/codex-result.json"
+
       - name: Persist provider quota checkpoint (Owner Issue)
         if: always() && steps.codex.outcome == 'failure' && steps.collect.outcome == 'success'
         shell: bash
