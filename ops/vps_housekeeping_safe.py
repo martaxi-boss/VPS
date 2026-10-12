@@ -52,6 +52,46 @@ def _restore_no_replace(private_fd: int, stage: str,
     raise OSError(error, "atomic recovery rename failed")
 
 
+def _staged_inode_has_open_descriptor(moved: os.stat_result) -> bool:
+    """Find refs by inode after the shared name disappears; fail closed.
+
+    The staged inode is in a root-only private directory. No other user can
+    newly open it there. An existing process descriptor opened before the
+    rename is still visible through /proc/*/fd and blocks deletion.
+    Unknown /proc errors are conservative: preserve the staged file.
+    """
+    try:
+        with os.scandir("/proc") as processes:
+            for process in processes:
+                if not process.name.isdecimal():
+                    continue
+                try:
+                    descriptors = os.scandir("/proc/" + process.name + "/fd")
+                except FileNotFoundError:
+                    continue
+                except OSError:
+                    return True
+                try:
+                    with descriptors as opened:
+                        for fd in opened:
+                            try:
+                                actual = os.stat(fd.path)
+                            except FileNotFoundError:
+                                continue
+                            except OSError:
+                                return True
+                            if (actual.st_dev == moved.st_dev
+                                    and actual.st_ino == moved.st_ino):
+                                return True
+                except FileNotFoundError:
+                    continue
+                except OSError:
+                    return True
+    except OSError:
+        return True
+    return False
+
+
 def _quarantined_verified_removal(root: str, entries: list) -> dict:
     """Move only a prescanned cache candidate into a private same-FS area.
 
@@ -114,7 +154,9 @@ def _quarantined_verified_removal(root: str, entries: list) -> dict:
                     and moved.st_mtime_ns < (
                         time.time_ns() - h.MIN_AGE_SECONDS * 1_000_000_000)
                 )
-                if not matches:
+                # A producer may have opened the shared original after our
+                # first /proc snapshot. Check the exact moved inode now.
+                if not matches or _staged_inode_has_open_descriptor(moved):
                     skipped += 1
                     if not _restore_no_replace(quarantine_fd, stage,
                                                parent_fd, name):
@@ -135,7 +177,8 @@ def _quarantined_verified_removal(root: str, entries: list) -> dict:
         except OSError:
             # A mismatched active object stays in private quarantine to
             # prevent deletion; the outer post-check fails closed.
-            stranded += 1
+            if stranded == 0:
+                stranded = 1
         os.close(root_fd)
     return {
         "bytes_removed": total_removed,

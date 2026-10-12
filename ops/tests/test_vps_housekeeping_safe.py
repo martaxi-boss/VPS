@@ -31,6 +31,9 @@ class BoundedHousekeepingTests(unittest.TestCase):
             patch.object(hygiene, "CACHE_ROOTS", (str(self.base / "absent"), str(self.root))),
             patch.object(hygiene, "package_busy", return_value=False),
             patch.object(hygiene, "cache_open_references", return_value={str(self.root): 0}),
+            # Runner tests cannot inspect other users' /proc entries. Model
+            # the no-descriptor case explicitly; test the positive case below.
+            patch.object(house, "_staged_inode_has_open_descriptor", return_value=False),
             patch.object(hygiene, "command", side_effect=self.command),
         ]
         for item in self.patches:
@@ -150,7 +153,7 @@ class BoundedHousekeepingTests(unittest.TestCase):
         with patch.object(house.os, "rename", side_effect=race):
             result = house.run("clean")
         self.assertEqual(result["status"], "BLOCKED_QUARANTINE_RECOVERY")
-        self.assertGreater(result["quarantined_for_recovery"], 0)
+        self.assertEqual(result["quarantined_for_recovery"], 1)
         self.assertEqual(self.old.read_bytes(), b"replacement after quarantine")
         self.assertEqual(self.outside.read_text(), "preserve")
         self.assertTrue(list(self.root.glob(".vps-hygiene-*")))
@@ -200,7 +203,7 @@ class BoundedHousekeepingTests(unittest.TestCase):
         self.assertTrue(replaced[0])
         self.assertEqual(result["status"], "BLOCKED_QUARANTINE_RECOVERY")
         self.assertEqual(result["removed_file_bytes"], 0)
-        self.assertGreater(result["quarantined_for_recovery"], 0)
+        self.assertEqual(result["quarantined_for_recovery"], 1)
         self.assertEqual(self.old.read_bytes(), b"second writer active data")
         self.assertEqual((self.root / "preserved-original.bin").read_bytes(),
                          b"regenerable")
@@ -213,6 +216,49 @@ class BoundedHousekeepingTests(unittest.TestCase):
         self.assertEqual(result["status"], "BLOCKED_QUARANTINE_RECOVERY")
         self.assertTrue(self.old.exists())
         self.assertEqual((saved / "candidate").read_bytes(), b"preserved for recovery")
+
+
+
+    def test_file_opened_just_before_stage_is_not_unlinked(self):
+        original_rename = os.rename
+        held = [None]
+
+        def open_then_move(src, dst, *, src_dir_fd=None, dst_dir_fd=None):
+            if src == "old.bin" and held[0] is None:
+                held[0] = os.open(self.old, os.O_RDONLY)
+            return original_rename(src, dst, src_dir_fd=src_dir_fd,
+                                   dst_dir_fd=dst_dir_fd)
+
+        def verify_held_moved_inode(moved):
+            self.assertIsNotNone(held[0])
+            held_stat = os.fstat(held[0])
+            self.assertEqual((moved.st_dev, moved.st_ino),
+                             (held_stat.st_dev, held_stat.st_ino))
+            return True
+
+        try:
+            with patch.object(house.os, "rename", side_effect=open_then_move):
+                with patch.object(house, "_staged_inode_has_open_descriptor",
+                                  side_effect=verify_held_moved_inode):
+                    report = house.run("clean")
+            self.assertEqual(report["status"], "CLEANED")
+            self.assertEqual(report["removed_file_bytes"], 0)
+            self.assertGreaterEqual(report["changed_or_unsafe_preserved"], 1)
+            self.assertEqual(self.old.read_bytes(), b"regenerable")
+        finally:
+            if held[0] is not None:
+                os.close(held[0])
+
+    def test_unreadable_proc_never_grants_permission_to_unlink(self):
+        original = self.patches[-2]
+        # Exercise the real scanning implementation, not the fixture stub.
+        original.stop()
+        try:
+            scanner = house._staged_inode_has_open_descriptor
+            with patch.object(house.os, "scandir", side_effect=PermissionError):
+                self.assertTrue(scanner(self.old.stat()))
+        finally:
+            original.start()
 
 
 
