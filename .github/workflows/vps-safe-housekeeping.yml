@@ -31,7 +31,7 @@ jobs:
         run: |
           python3 -m py_compile ops/vps_hygiene_050.py ops/vps_housekeeping_safe.py
           PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s ops -p test_vps_hygiene_050.py -v
-          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s ops/tests -p test_vps_housekeeping_safe.py -v
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=ops python3 -m unittest discover -s ops/tests -p test_vps_housekeeping_safe.py -v
 
   cache-hygiene:
     if: >-
