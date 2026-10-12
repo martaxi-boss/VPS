@@ -259,6 +259,49 @@ def pause_owner_issue(source: int, stage: int, run_id: int,
     return marker
 
 
+def ready_after_first_serial_stage(source: int, run_id: int, result_path: Path,
+                                   *, now: int | None = None) -> bool:
+    """Advance only a fully verified serial predecessor; never merge a Codex PR."""
+    owner = issue(source)
+    order = _order(owner.get("body", ""))
+    if order["mode"] != "serial" or len(order["tasks"]) != 2:
+        return False
+    if (not result_path.is_file() or result_path.is_symlink()
+            or result_path.stat().st_size > 16_000):
+        raise QuotaResumeError("Missing bounded publication evidence")
+    try:
+        result = json.loads(result_path.read_text(encoding="utf-8"))
+    except (ValueError, OSError):
+        raise QuotaResumeError("Invalid publisher result")
+    if not isinstance(result, dict) or result.get("repository") != order["target_repository"]:
+        raise QuotaResumeError("Publication target does not match Owner order")
+    state = result.get("status")
+    if state not in ("MERGED", "NO_CHANGE") and not (
+            state == "PR_STAGED" and order.get("serial_independent") is True):
+        # A PR from a dependent serial phase is not yet on main.
+        return False
+    if type(run_id) is not int or run_id <= 0:
+        raise QuotaResumeError("Invalid first stage run")
+    if any(p.get("run_id") == run_id for p in parsed_comments(comments(source), READY)):
+        return True
+    ready = {"version": 1, "source_issue": source, "stage": 2,
+             "run_id": run_id, "attempt": 0,
+             "retry_at": int(time.time()) if now is None else now,
+             "preceding_status": state}
+    _api("POST", f"/issues/{source}/comments",
+         {"body": READY + "\n" + json.dumps(ready, sort_keys=True, separators=(",", ":"))})
+    try:
+        _api("POST", "/labels",
+             {"name": LABEL, "color": "737373",
+              "description": "Await Codex subscription quota renewal"})
+    except QuotaResumeError:
+        label = _api("GET", "/labels/" + urllib.parse.quote(LABEL, safe=""))
+        if not isinstance(label, dict) or label.get("name") != LABEL:
+            raise
+    _api("POST", f"/issues/{source}/labels", {"labels": [LABEL]})
+    return True
+
+
 def due_pauses(rows: list, *, now: int) -> list[dict]:
     """Select latest paused or safe-ready unclaimed task for each stage."""
     pauses = ([{**p, "_source_kind": "quota"} for p in parsed_comments(rows, PAUSE)]
@@ -345,6 +388,11 @@ def main(argv: list[str]) -> int:
             value = pause_owner_issue(int(argv[2]), int(argv[3]),
                                       int(argv[4]), int(argv[5]))
             print("QUOTA_CHECKPOINT_SAVED_" + str(value["attempt"]))
+            return 0
+        if len(argv) == 5 and argv[1] == "ready":
+            advanced = ready_after_first_serial_stage(
+                int(argv[2]), int(argv[3]), Path(argv[4]))
+            print("SERIAL_NEXT_STAGE_READY=" + ("YES" if advanced else "NO"))
             return 0
         if argv == ["quota", "scan"]:
             print("QUOTA_RESUMES_DISPATCHED=" + str(schedule_due()))
