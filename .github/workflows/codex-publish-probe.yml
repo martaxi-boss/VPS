@@ -43,7 +43,7 @@ jobs:
       - name: Dry-run exactly the trusted branch publisher without a model or ref mutation
         shell: bash
         env:
-          CODEX_GITHUB_TOKEN: \${{ secrets.CODEX_GITHUB_TOKEN }}
+          CODEX_GITHUB_TOKEN: ${{ secrets.CODEX_GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           python3 ops/codex-publish-probe.py > "$RUNNER_TEMP/publish-probe.json"
@@ -51,8 +51,8 @@ jobs:
         if: always()
         shell: bash
         env:
-          GH_TOKEN: \${{ github.token }}
-          ISSUE: \${{ github.event.issue.number }}
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
         run: |
           set -euo pipefail
           python3 - <<'PY'

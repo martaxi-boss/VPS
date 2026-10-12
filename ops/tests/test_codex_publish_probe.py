@@ -20,6 +20,15 @@ class PublicationProbeTests(unittest.TestCase):
                          "other_git_failure")
         self.assertEqual(probe.classify("", 0), "accepted_dry_run")
 
+    def test_owner_trigger_uses_real_github_expression_without_backslash(self):
+        workflow = (SCRIPT.parents[1] / ".github/workflows/codex-publish-probe.yml").read_text(
+            encoding="utf-8")
+        self.assertNotIn("\\${{", workflow)
+        self.assertIn("${{ secrets.CODEX_GITHUB_TOKEN }}", workflow)
+        self.assertIn("${{ github.token }}", workflow)
+        self.assertIn("${{ github.event.issue.number }}", workflow)
+        self.assertIn("github.event.issue.user.login == github.repository_owner", workflow)
+
     def test_probe_has_fixed_repo_and_is_dry_run_only(self):
         source = SCRIPT.read_text(encoding="utf-8")
         self.assertEqual(probe.REPO, "martaxi-boss/Project-leader-codex")
