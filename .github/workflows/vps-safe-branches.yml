@@ -29,7 +29,7 @@ jobs:
       - name: Validate conservative PR and ancestry filters without network writes
         run: |
           python3 -m py_compile ops/vps_branch_housekeeping.py
-          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=ops python3 -m unittest discover \
             -s ops/tests -p test_vps_branch_housekeeping.py -v
 
   owner-ref-hygiene:
