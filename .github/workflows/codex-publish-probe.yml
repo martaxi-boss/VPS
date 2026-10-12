@@ -71,6 +71,10 @@ jobs:
                   data = json.loads(src.read_text(encoding="utf-8"))
                   report = {
                       "status": data["status"] if data.get("status") in statuses else "NOT_COMPLETED",
+                      "api_check": data.get("api_check")
+                          if data.get("api_check") in {"ok", "http_401", "http_403", "http_404",
+                                                      "http_429", "http_5xx", "other_api_error"}
+                          else "unknown",
                       "permission_flag": data.get("permission_flag")
                           if data.get("permission_flag") in {"push_true", "push_not_confirmed"}
                           else "unknown",
