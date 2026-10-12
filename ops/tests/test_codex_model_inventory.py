@@ -67,5 +67,30 @@ class CatalogContractTests(unittest.TestCase):
         self.assertEqual(run.call_count, 3)
 
 
+    def test_workflow_owner_title_is_case_sensitive_before_ssh_secret(self):
+        workflow = (OPS.parent / ".github/workflows/codex-model-inventory.yml").read_text(
+            encoding="utf-8")
+        self.assertIn("REQUEST_TITLE: ${{ github.event.issue.title }}", workflow)
+        self.assertIn('test "$REQUEST_TITLE" = "$expected"', workflow)
+        self.assertLess(
+            workflow.index("Require case-sensitive Owner issue title"),
+            workflow.index("Prepare existing SSH client only after host identity confirmation"),
+        )
+        self.assertNotIn("StrictHostKeyChecking=accept-new", workflow)
+        self.assertIn("StrictHostKeyChecking=yes", workflow)
+
+    def test_workflow_catalog_unknown_cannot_pass_successfully(self):
+        workflow = (OPS.parent / ".github/workflows/codex-model-inventory.yml").read_text(
+            encoding="utf-8")
+        self.assertIn("result['status'] == 'CATALOG_READ'", workflow)
+        self.assertIn("result['auth_mode'] == 'chatgpt'", workflow)
+        self.assertIn("result['catalog_source'] == 'cli_resolved'", workflow)
+        self.assertIn("len(result['models']) > 0", workflow)
+        self.assertIn("CATALOG_UNVERIFIED_FAIL_CLOSED", workflow)
+        self.assertIn("exit 3", workflow)
+        self.assertLess(workflow.index("gh issue comment"), workflow.index("CATALOG_UNVERIFIED_FAIL_CLOSED"))
+
+
+
 if __name__ == "__main__":
     unittest.main()
