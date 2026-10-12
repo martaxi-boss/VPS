@@ -28,7 +28,7 @@ CLAIM = "<!-- CODEX_QUOTA_CLAIM_V1 -->"
 STARTED = "<!-- CODEX_QUOTA_STARTED_V1 -->"
 LABEL = "codex-quota-paused"
 MAX_COMMENTS = 500
-MAX_ISSUES = 300
+MAX_ISSUES = 10_000  # Fail closed rather than silently losing any older paused issue
 ERROR_CODES = {"insufficient_quota", "usage_limit_reached",
                "quota_exceeded", "usage_limit_exceeded",
                "codex_usage_limit_reached"}
@@ -377,7 +377,7 @@ def due_pauses(rows: list, *, now: int) -> list[dict]:
 def schedule_due(*, now: int | None = None) -> int:
     clock = int(time.time()) if now is None else now
     sent = 0
-    for page in range(1, 4):
+    for page in range(1, MAX_ISSUES // 100 + 1):
         records = _api("GET", f"/issues?state=open&labels={LABEL}&per_page=100&page={page}")
         if not isinstance(records, list):
             raise QuotaResumeError("Invalid paused issue listing")
@@ -426,6 +426,8 @@ def schedule_due(*, now: int | None = None) -> int:
                 sent += 1
         if len(records) < 100:
             break
+        if page == MAX_ISSUES // 100:
+            raise QuotaResumeError("Unbounded quota backlog; no silent truncation")
     return sent
 
 
@@ -444,7 +446,7 @@ def main(argv: list[str]) -> int:
                 int(argv[2]), int(argv[3]), Path(argv[4]))
             print("SERIAL_NEXT_STAGE_READY=" + ("YES" if advanced else "NO"))
             return 0
-        if argv == ["quota", "scan"]:
+        if len(argv) == 2 and argv[1] == "scan":
             print("QUOTA_RESUMES_DISPATCHED=" + str(schedule_due()))
             return 0
     except (QuotaResumeError, ValueError, OSError):
