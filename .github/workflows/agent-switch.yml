@@ -43,6 +43,7 @@ jobs:
       codex_task_b64: ${{ steps.validate.outputs.codex_task_b64 }}
       task_count: ${{ steps.validate.outputs.task_count }}
       mode: ${{ steps.validate.outputs.mode }}
+      serial_independent: ${{ steps.validate.outputs.serial_independent }}
       codex_1_task_b64: ${{ steps.validate.outputs.codex_1_task_b64 }}
       codex_2_task_b64: ${{ steps.validate.outputs.codex_2_task_b64 }}
       allow_no_change_1: ${{ steps.validate.outputs.allow_no_change_1 }}
@@ -171,22 +172,25 @@ jobs:
       task_b64: ${{ needs.preflight.outputs.codex_1_task_b64 }}
       issue_number: ${{ github.event.issue.number }}
       instance_id: '1'
-      no_auto_merge: false
+      no_auto_merge: ${{ fromJSON(needs.preflight.outputs.serial_independent) }}
       allow_no_change: ${{ fromJSON(needs.preflight.outputs.allow_no_change_1) }}
       reasoning_effort: ${{ needs.preflight.outputs.codex_1_reasoning_effort }}
     secrets: inherit
 
   codex_serial_2:
     needs: [preflight, codex_serial_1]
-    # A successful PR_STAGED first worker is NOT merged: stage 2 must not run
-    # on a fresh main without seeing its required predecessor's changes.
+    # PR_STAGED can release stage 2 ONLY for Owner-declared independent serial
+    # tasks. Otherwise the first worker must be MERGED or verified NO_CHANGE;
+    # stage 2 never assumes access to an unmerged predecessor on fresh main.
     if: >-
       needs.preflight.result == 'success' &&
       needs.codex_serial_1.result == 'success' &&
       needs.preflight.outputs.task_count == '2' &&
       needs.preflight.outputs.mode == 'serial' &&
       (needs.codex_serial_1.outputs.publication_status == 'MERGED' ||
-       needs.codex_serial_1.outputs.publication_status == 'NO_CHANGE')
+       needs.codex_serial_1.outputs.publication_status == 'NO_CHANGE' ||
+       (needs.preflight.outputs.serial_independent == 'true' &&
+        needs.codex_serial_1.outputs.publication_status == 'PR_STAGED'))
     permissions:
       contents: read
       issues: write
@@ -195,7 +199,7 @@ jobs:
       task_b64: ${{ needs.preflight.outputs.codex_2_task_b64 }}
       issue_number: ${{ github.event.issue.number }}
       instance_id: '2'
-      no_auto_merge: false
+      no_auto_merge: ${{ fromJSON(needs.preflight.outputs.serial_independent) }}
       allow_no_change: ${{ fromJSON(needs.preflight.outputs.allow_no_change_2) }}
       reasoning_effort: ${{ needs.preflight.outputs.codex_2_reasoning_effort }}
     secrets: inherit
@@ -209,7 +213,9 @@ jobs:
       needs.preflight.outputs.mode == 'serial' &&
       (needs.codex_serial_1.result != 'success' ||
        (needs.codex_serial_1.outputs.publication_status != 'MERGED' &&
-        needs.codex_serial_1.outputs.publication_status != 'NO_CHANGE'))
+        needs.codex_serial_1.outputs.publication_status != 'NO_CHANGE' &&
+        (needs.preflight.outputs.serial_independent != 'true' ||
+         needs.codex_serial_1.outputs.publication_status != 'PR_STAGED')))
     runs-on: ubuntu-24.04
     permissions:
       issues: write
@@ -227,4 +233,4 @@ jobs:
             *) FIRST_PUBLICATION='NOT_VERIFIED' ;;
           esac
           gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
-            --body "CODEX_2_NOT_STARTED: serial stage 1 outcome=$FIRST_RESULT, publication=$FIRST_PUBLICATION. Worker 2 requires stage 1 MERGED or owner-approved NO_CHANGE on fresh main; unmerged PR never counts as dependency completion."
+            --body "CODEX_2_NOT_STARTED: serial stage 1 outcome=$FIRST_RESULT, publication=$FIRST_PUBLICATION. Dependent worker 2 requires MERGED or owner-approved NO_CHANGE; only an explicitly independent serial order may proceed after CI-verified PR_STAGED on fresh main."
