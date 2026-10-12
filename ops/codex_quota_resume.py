@@ -360,9 +360,10 @@ def due_pauses(rows: list, *, now: int) -> list[dict]:
                            and c.get("stage") == stage]
         if relevant_claims:
             latest = max(relevant_claims, key=lambda c: c.get("_comment_id", 0))
-            if any(z.get("claim_comment") == latest.get("_comment_id")
+            if any(z.get("run_id") == run_id and z.get("stage") == stage
                    for z in starts):
-                # An execution already reached the trusted preflight gate.
+                # Once ANY claim started this immutable stage, do not replay
+                # it even if a later dispatch request became ambiguous.
                 continue
             stamped = latest.get("claimed_at")
             if type(stamped) is not int or now - stamped < 5400:
