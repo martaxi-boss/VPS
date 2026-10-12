@@ -469,7 +469,9 @@ class NoChangeAndQueueSafetyTests(unittest.TestCase):
         self.assertIn("signal_path.read_bytes()", flow)
         self.assertNotIn("signal_path.read_text", flow)
         # Invalid UTF-8 signal content must not crash conservative fallback.
-        self.assertIn("('NOT_STARTED' if signal is not None else 'NOT_COMPLETED')", flow)
+        self.assertIn("'PAUSED_QUOTA' if signal == b'CODEX_QUOTA_BLOCKED", flow)
+        self.assertIn("'NOT_STARTED' if signal is not None else 'NOT_COMPLETED'", flow)
+        self.assertIn("Provider-reported Codex quota exhausted", flow)
         self.assertIn("no model started.", flow)
         self.assertNotIn("cli.stderr", flow)
         self.assertNotIn("usage-budget.json", flow)
