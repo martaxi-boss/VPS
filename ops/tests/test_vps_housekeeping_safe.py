@@ -7,6 +7,7 @@ import unittest
 from unittest.mock import patch
 
 import vps_housekeeping_safe as house
+from vps_housekeeping_safe import _staged_inode_has_open_references as actual_inode_check
 import vps_hygiene_050 as hygiene
 
 
@@ -32,6 +33,9 @@ class BoundedHousekeepingTests(unittest.TestCase):
             patch.object(hygiene, "package_busy", return_value=False),
             patch.object(hygiene, "cache_open_references", return_value={str(self.root): 0}),
             patch.object(hygiene, "command", side_effect=self.command),
+            # The audit machinery itself is tested below with a live FD.
+            # Other regressions must not depend on runner /proc permission.
+            patch.object(house, "_staged_inode_has_open_references", return_value=False),
         ]
         for item in self.patches:
             item.start()
@@ -213,6 +217,53 @@ class BoundedHousekeepingTests(unittest.TestCase):
         self.assertEqual(result["status"], "BLOCKED_QUARANTINE_RECOVERY")
         self.assertTrue(self.old.exists())
         self.assertEqual((saved / "candidate").read_bytes(), b"preserved for recovery")
+
+
+
+    def test_late_open_fd_blocks_unlink_and_restores_shared_entry(self):
+        # Simulates a producer opening a file after the first /proc snapshot:
+        # even a staged, matching old inode must not be unlinked.
+        with patch.object(house, "_staged_inode_has_open_references", return_value=True):
+            result = house.run("clean")
+        self.assertEqual(result["status"], "BLOCKED_OPEN_CACHE_REFERENCES")
+        self.assertEqual(result["removed_file_bytes"], 0)
+        self.assertEqual(result["late_open_references_preserved"], 1)
+        self.assertEqual(result["quarantined_for_recovery"], 0)
+        self.assertTrue(self.old.exists())
+        self.assertEqual(self.old.read_bytes(), b"regenerable")
+
+    def test_inode_fd_checker_identifies_active_moved_inode(self):
+        # An existing FD remains attached to the same inode after rename,
+        # despite the original name no longer identifying that file.
+        staged = self.root / "isolated-stage"
+        with self.old.open("rb") as hold:
+            inode = os.fstat(hold.fileno())
+            self.old.rename(staged)
+            self.assertTrue(actual_inode_check(inode))
+        self.assertTrue(staged.exists())
+        self.assertEqual(staged.read_bytes(), b"regenerable")
+
+    def test_quarantine_counter_is_not_double_counted(self):
+        original_rename = os.rename
+        moved = self.base / "old-before-race"
+        fired = [False]
+
+        def injected_rename(src, dst, *, src_dir_fd=None, dst_dir_fd=None):
+            if src == "old.bin" and not fired[0]:
+                fired[0] = True
+                original_rename(self.old, moved)
+                self.old.write_bytes(b"fresh first writer")
+                result = original_rename(src, dst, src_dir_fd=src_dir_fd,
+                                         dst_dir_fd=dst_dir_fd)
+                self.old.write_bytes(b"fresh second writer")
+                return result
+            return original_rename(src, dst, src_dir_fd=src_dir_fd,
+                                   dst_dir_fd=dst_dir_fd)
+        with patch.object(house.os, "rename", side_effect=injected_rename):
+            report = house.run("clean")
+        self.assertEqual(report["status"], "BLOCKED_QUARANTINE_RECOVERY")
+        self.assertEqual(report["quarantined_for_recovery"], 1)
+        self.assertEqual(self.old.read_bytes(), b"fresh second writer")
 
 
 
