@@ -45,6 +45,17 @@ def eligible(name: str, commit_sha: str, main_sha: str, verified_merge_age: int,
             and is_ancestor)
 
 
+def workflow_text(workflows_dir: Path = Path(".github/workflows")) -> str:
+    """Both GitHub Actions workflow filename extensions protect pinned refs."""
+    if not workflows_dir.is_dir():
+        raise RuntimeError("Missing trusted workflow reference directory")
+    return "\n".join(
+        p.read_text(encoding="utf-8", errors="replace")
+        for p in sorted(workflows_dir.iterdir())
+        if p.is_file() and p.suffix in (".yml", ".yaml")
+    )
+
+
 def merged_pr_age_evidence(repo: str, now: int) -> dict[tuple[str, str], int]:
     """Only PRs merged with this exact branch NAME and commit SHA prove old work.
 
@@ -124,11 +135,7 @@ def inspect(mode: str) -> dict:
     lines = refs.splitlines()
     if len(lines) > MAX_BRANCHES:
         raise RuntimeError("Too many branches; no sweeping permitted")
-    workflows = "\n".join(
-        p.read_text(encoding="utf-8", errors="replace")
-        for p in sorted(Path(".github/workflows").iterdir())
-        if p.is_file() and p.suffix in (".yml", ".yaml")
-    )
+    workflows = workflow_text()
     checked = 0
     candidates = []
     kept = 0
