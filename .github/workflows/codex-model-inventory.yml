@@ -57,6 +57,14 @@ jobs:
           test "$observed" = "$expected" || exit 2
           ssh-keygen -F 146.59.145.3 -f "$known_hosts" >/dev/null || exit 2
           echo 'SSH_HOST_KEY_PIN=PASS'
+      - name: Require case-sensitive Owner issue title before accessing SSH secret
+        shell: bash
+        env:
+          REQUEST_TITLE: ${{ github.event.issue.title }}
+        run: |
+          set -euo pipefail
+          expected='[codex model inventory] Read-only VPS catalog'
+          test "$REQUEST_TITLE" = "$expected" || { echo "OWNER_TITLE_CASE_MISMATCH"; exit 2; }
       - name: Prepare existing SSH client only after host identity confirmation
         shell: bash
         env:
@@ -147,6 +155,17 @@ jobs:
                    'write, local auth text or private instruction templates were emitted.\n\n'
                  + 'Evidence: ' + os.environ['RUN_URL'] + '\n')
           (root / 'codex-model-inventory-comment.md').write_text(msg, encoding='utf-8')
+          verified = (result['status'] == 'CATALOG_READ'
+                      and result['auth_mode'] == 'chatgpt'
+                      and result['catalog_source'] == 'cli_resolved'
+                      and len(result['models']) > 0)
+          (root / 'codex-model-inventory-verified.txt').write_text(
+              'PASS' if verified else 'FAIL', encoding='ascii')
           PY
           gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
             --body-file "$RUNNER_TEMP/codex-model-inventory-comment.md"
+          if [ "$(cat "$RUNNER_TEMP/codex-model-inventory-verified.txt")" != "PASS" ]; then
+            echo "CATALOG_UNVERIFIED_FAIL_CLOSED"
+            exit 3
+          fi
+          echo "VPS_CATALOG_METADATA_VERIFIED"
