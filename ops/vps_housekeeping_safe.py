@@ -181,9 +181,15 @@ def run(mode: str) -> dict:
         busy = h.package_busy()
         refs = h.cache_open_references()
         summaries, candidates = [], []
+        preexisting_quarantine = False
+        quarantine_count = 0
         # Build a complete bounded snapshot before the first possible unlink.
         for root in h.CACHE_ROOTS:
             stats, items = h.cache_inventory(root, cutoff)
+            if Path(root).is_dir():
+                preexisting_quarantine = preexisting_quarantine or any(
+                    item.name.startswith(".vps-hygiene-")
+                    for item in Path(root).iterdir())
             summaries.append({"root": root, "files": stats["files"],
                               "eligible_files": stats["eligible_files"],
                               "eligible_allocated_bytes": stats["eligible_allocated_bytes"]})
@@ -192,7 +198,9 @@ def run(mode: str) -> dict:
         eligible_allocated = sum(x["eligible_allocated_bytes"] for x in summaries)
 
         # Failed/no-op preconditions remain explicit, never pretend "cleaned".
-        if not ready:
+        if preexisting_quarantine:
+            status = "BLOCKED_QUARANTINE_RECOVERY"
+        elif not ready:
             status = "BLOCKED_CRITICAL_HEALTH"
         elif busy:
             status = "BLOCKED_PACKAGE_MANAGER"
@@ -220,11 +228,13 @@ def run(mode: str) -> dict:
                     if not items:
                         continue
                     effect = _quarantined_verified_removal(root, items)
-                    if effect["quarantined_for_recovery"]:
-                        status = "BLOCKED_QUARANTINE_RECOVERY"
+                    quarantine_count += effect["quarantined_for_recovery"]
                     removed_files += effect["bytes_removed"]
                     removed_allocated += effect["allocated_bytes_removed"]
                     changed_preserved += effect["changed_or_unsafe_files_preserved"]
+                    if effect["quarantined_for_recovery"]:
+                        status = "BLOCKED_QUARANTINE_RECOVERY"
+                        break
 
         after_disk = shutil.disk_usage("/")
         after_mem = _mem_available_bytes()
@@ -248,6 +258,7 @@ def run(mode: str) -> dict:
             "removed_file_bytes": removed_files,
             "removed_allocated_bytes": removed_allocated,
             "changed_or_unsafe_preserved": changed_preserved,
+            "quarantined_for_recovery": quarantine_count,
             "root_candidates": summaries,
             "protected_services_before": before_services,
             "protected_services_after": after_services,
