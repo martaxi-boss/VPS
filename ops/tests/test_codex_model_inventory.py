@@ -2,6 +2,7 @@
 import importlib.util
 import json
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -48,7 +49,7 @@ class CatalogContractTests(unittest.TestCase):
         self.assertEqual(run.call_count, 2)
         self.assertEqual(result["models"], [])
 
-    def test_confirmed_login_uses_resolved_catalog_only(self):
+    def test_confirmed_login_reads_existing_cache_without_debug(self):
         raw = json.dumps({"models": [{"slug": "gpt-5.6-sol",
                                         "visibility": "list",
                                         "supported_reasoning_levels": [{"effort": "low"},
@@ -58,14 +59,15 @@ class CatalogContractTests(unittest.TestCase):
             with mock.patch.object(inventory.os, "access", return_value=True):
                 with mock.patch.object(inventory, "_execute", side_effect=[
                     ("ok", "codex-cli 0.148.0"),
-                    ("ok", "Logged in using ChatGPT"),
-                    ("ok", raw)]) as run:
-                    result = inventory.inspect()
-        self.assertEqual(result["status"], "CATALOG_READ")
+                    ("ok", "Logged in using ChatGPT")]) as run:
+                    with mock.patch.object(inventory, "_read_cache", return_value=("ok", raw)) as cache:
+                        result = inventory.inspect()
+                        cache.assert_called_once_with()
+        self.assertEqual(result["status"], "CACHE_READ")
         self.assertEqual(result["auth_mode"], "chatgpt")
         self.assertEqual(result["cli_version"], "0.148.0")
         self.assertEqual([m["slug"] for m in result["models"]], ["gpt-5.6-sol"])
-        self.assertEqual(run.call_count, 3)
+        self.assertEqual(run.call_count, 2)
 
 
     def test_workflow_owner_title_is_case_sensitive_before_ssh_secret(self):
@@ -83,9 +85,9 @@ class CatalogContractTests(unittest.TestCase):
     def test_workflow_catalog_unknown_cannot_pass_successfully(self):
         workflow = (OPS.parent / ".github/workflows/codex-model-inventory.yml").read_text(
             encoding="utf-8")
-        self.assertIn("result['status'] == 'CATALOG_READ'", workflow)
+        self.assertIn("result['status'] == 'CACHE_READ'", workflow)
         self.assertIn("result['auth_mode'] == 'chatgpt'", workflow)
-        self.assertIn("result['catalog_source'] == 'cli_resolved'", workflow)
+        self.assertIn("result['catalog_source'] == 'local_cache'", workflow)
         self.assertIn("len(result['models']) > 0", workflow)
         self.assertIn("CATALOG_UNVERIFIED_FAIL_CLOSED", workflow)
         self.assertIn("exit 3", workflow)
@@ -106,10 +108,35 @@ class CatalogContractTests(unittest.TestCase):
         completed = subprocess.CompletedProcess(
             args=[], returncode=0, stdout=b'{"models":[]}', stderr=b"INTERNAL_PRIVATE")
         with mock.patch.object(inventory.subprocess, "run", return_value=completed) as execute:
-            state, output = inventory._execute(["debug", "models"])
+            state, output = inventory._execute(["--version"])
         self.assertEqual(state, "ok")
         self.assertNotIn("INTERNAL_PRIVATE", output)
         self.assertEqual(execute.call_args.kwargs["stderr"], subprocess.DEVNULL)
+
+
+
+    def test_existing_cache_read_only_and_extended_reasoning_metadata(self):
+        with tempfile.TemporaryDirectory() as home:
+            path = Path(home) / ".codex" / "models_cache.json"
+            path.parent.mkdir(mode=0o700)
+            raw = json.dumps({"models": [{
+                "slug": "gpt-5.6-sol", "visibility": "list",
+                "supported_reasoning_levels": [
+                    {"effort": "low"}, {"effort": "high"},
+                    {"effort": "max"}, {"effort": "ultra"}]}]})
+            path.write_text(raw, encoding="utf-8")
+            before = path.read_bytes()
+            with mock.patch.object(inventory.Path, "home", return_value=Path(home)):
+                with mock.patch.object(inventory, "_execute") as cli:
+                    status, content = inventory._read_cache()
+                    cli.assert_not_called()
+            self.assertEqual(status, "ok")
+            self.assertEqual(content, raw)
+            self.assertEqual(path.read_bytes(), before)
+            self.assertEqual(
+                inventory._parse_catalog(content)[0]["efforts"],
+                ["low", "high", "max", "ultra"],
+            )
 
 
 
