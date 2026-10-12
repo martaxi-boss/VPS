@@ -20,6 +20,12 @@ on:
 
 permissions: {}
 
+# Only one actual retry at a time for each original Owner stage.
+concurrency:
+  group: ${{ github.event_name == 'repository_dispatch' && format('codex-quota-{0}-{1}-{2}', github.event.client_payload.source_issue, github.event.client_payload.paused_run, github.event.client_payload.stage) || format('agent-switch-{0}', github.run_id) }}
+  cancel-in-progress: false
+  queue: max
+
 jobs:
   offline-tests:
     if: github.event_name == 'pull_request'
@@ -108,13 +114,16 @@ jobs:
                       '. No agent started. Codex remains available via a separate one-agent order.')
               if values['codex'] != 'true':
                   raise switch.OrderError('No connected executor selected')
+              if os.environ.get('EVENT_NAME') == 'repository_dispatch':
+                  # Durable stage lease before any model execution.
+                  quota.record_start(payload)
               with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
                   for key, value in values.items():
                       out.write(f'{key}={value}\n')
               state.write_text('Bounded Codex order validated; only the explicitly named '
                                'workers will run. Final status comes from each worker result.',
                                encoding='utf-8')
-          except switch.OrderError as exc:
+          except (switch.OrderError, ValueError) as exc:
               state.write_text('BLOCKED BEFORE EXECUTION: ' + str(exc), encoding='utf-8')
               print('Safe preflight refused the task: ' + str(exc), file=sys.stderr)
               raise SystemExit(2)
