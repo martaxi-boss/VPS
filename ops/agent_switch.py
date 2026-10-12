@@ -278,14 +278,19 @@ def workflow_values(order: dict) -> dict:
         }
 
     encoded = []
-    for task in tasks:
+    for position, task in enumerate(tasks, start=1):
         if order["mode"] == "parallel":
             extra = ("Parallel independent Codex worker; use only this private checkout. "
                      "Do not depend on sibling results or merge a sibling change.")
         elif order.get("serial_independent", False):
-            extra = ("Serial independent Codex worker; wait until the previous worker "
-                     "has a verified, CI-passing PR or NO_CHANGE. Work from fresh main; "
-                     "do not depend on or merge the previous worker's unmerged changes.")
+            if position == 1:
+                extra = ("Serial independent Codex worker 1; start immediately on fresh main; "
+                         "do not depend on or merge a sibling's unmerged changes. "
+                         "Publish only your own isolated PR.")
+            else:
+                extra = ("Serial independent Codex worker 2; wait until the previous worker "
+                         "has a verified, CI-passing PR or NO_CHANGE. Work from fresh main; "
+                         "do not depend on or merge the previous worker's unmerged changes.")
         else:
             extra = ("Serial Codex worker; the previous stage must complete "
                      "and become visible on the fresh target main before this step.")
