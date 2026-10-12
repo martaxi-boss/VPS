@@ -159,5 +159,62 @@ class BoundedHousekeepingTests(unittest.TestCase):
 
 
 
+    def test_new_cache_entry_swapped_before_move_is_preserved(self):
+        original_rename = os.rename
+        replaced = [False]
+
+        def swapping_rename(src, dst, *, src_dir_fd=None, dst_dir_fd=None):
+            if src == "old.bin" and not replaced[0]:
+                replaced[0] = True
+                original_rename(self.old, self.root / "preserved-original.bin")
+                self.old.write_bytes(b"recent cache writer content")
+            return original_rename(src, dst, src_dir_fd=src_dir_fd, dst_dir_fd=dst_dir_fd)
+
+        with patch.object(house.os, "rename", side_effect=swapping_rename):
+            result = house.run("clean")
+        self.assertTrue(replaced[0])
+        self.assertEqual(result["status"], "CLEANED")
+        self.assertEqual(result["removed_file_bytes"], 0)
+        self.assertGreaterEqual(result["changed_or_unsafe_preserved"], 1)
+        self.assertEqual(self.old.read_bytes(), b"recent cache writer content")
+        self.assertEqual((self.root / "preserved-original.bin").read_bytes(),
+                         b"regenerable")
+
+    def test_recreated_entry_during_restore_is_preserved_and_blocks(self):
+        original_rename = os.rename
+        replaced = [False]
+
+        def simultaneous_writer(src, dst, *, src_dir_fd=None, dst_dir_fd=None):
+            if src == "old.bin" and not replaced[0]:
+                replaced[0] = True
+                original_rename(self.old, self.root / "preserved-original.bin")
+                self.old.write_bytes(b"first writer active data")
+                result = original_rename(src, dst, src_dir_fd=src_dir_fd,
+                                         dst_dir_fd=dst_dir_fd)
+                self.old.write_bytes(b"second writer active data")
+                return result
+            return original_rename(src, dst, src_dir_fd=src_dir_fd, dst_dir_fd=dst_dir_fd)
+
+        with patch.object(house.os, "rename", side_effect=simultaneous_writer):
+            result = house.run("clean")
+        self.assertTrue(replaced[0])
+        self.assertEqual(result["status"], "BLOCKED_QUARANTINE_RECOVERY")
+        self.assertEqual(result["removed_file_bytes"], 0)
+        self.assertGreater(result["quarantined_for_recovery"], 0)
+        self.assertEqual(self.old.read_bytes(), b"second writer active data")
+        self.assertEqual((self.root / "preserved-original.bin").read_bytes(),
+                         b"regenerable")
+
+    def test_existing_quarantine_blocks_new_cleanup(self):
+        saved = self.root / ".vps-hygiene-recovery-required"
+        saved.mkdir()
+        (saved / "candidate").write_bytes(b"preserved for recovery")
+        result = house.run("clean")
+        self.assertEqual(result["status"], "BLOCKED_QUARANTINE_RECOVERY")
+        self.assertTrue(self.old.exists())
+        self.assertEqual((saved / "candidate").read_bytes(), b"preserved for recovery")
+
+
+
 if __name__ == "__main__":
     unittest.main()
