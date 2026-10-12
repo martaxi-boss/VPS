@@ -265,7 +265,8 @@ class QuotaLifecycleTests(unittest.TestCase):
         payload = {"source_issue": 154, "stage": 2, "paused_run": 42,
                    "attempt": 1, "claim_comment": 78}
         with patch.object(q, "_api", side_effect=api):
-            q.record_start(payload)
+            with patch.object(q.time, "time", return_value=self.clock):
+                q.record_start(payload)
         self.assertEqual(len(posted), 1)
         self.assertTrue(posted[0].startswith(q.STARTED + "\n"))
 
