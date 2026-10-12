@@ -97,6 +97,25 @@ class AgentSwitchTests(unittest.TestCase):
         }])
         self.assertEqual(router.output_values(order)["codex"], "true")
 
+    def test_specialization_is_separate_target_for_parallel_low_workers(self):
+        raw = self.order(
+            [self.task("smoke-alpha", reasoning_effort="low"),
+             self.task("smoke-beta", reasoning_effort="low")],
+            target="martaxi-boss/Project-leader-codex", mode="parallel")
+        manifest = router.parse_order(raw)
+        values = router.workflow_values(manifest)
+        self.assertEqual(values["task_count"], "2")
+        self.assertEqual(values["mode"], "parallel")
+        self.assertEqual(values["codex_1_reasoning_effort"], "low")
+        self.assertEqual(values["codex_2_reasoning_effort"], "low")
+        for idx in (1, 2):
+            prompt = base64.b64decode(
+                values[f"codex_{idx}_task_b64"]).decode("utf-8")
+            self.assertEqual(prompt.splitlines()[0],
+                             "TARGET_REPOSITORY=martaxi-boss/Project-leader-codex")
+        self.assertNotEqual(values["codex_1_task_b64"],
+                            values["codex_2_task_b64"])
+
     def test_owner_can_route_two_independent_codex_to_pink_without_auto_merge(self):
         manifest = self.order(
             [self.task("codex-pink-1"), self.task("codex-pink-2")],

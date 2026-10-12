@@ -20,6 +20,13 @@ from codex_patch_guard import MAX_FILES, MAX_PATCH_BYTES, guard_path
 
 ALLOWED = {
     "martaxi-boss/VPS": {( "Codex autonomous validation", "pull_request")},
+    # Project Leader + Codex has a separate mutable repository and own PR CI.
+    "martaxi-boss/Project-leader-codex": {
+        ("Codex specialization tests", "pull_request"),
+        ("Control contract tests", "pull_request"),
+        ("Validate control plane", "pull_request"),
+        ("Package ChatGPT plugins", "pull_request"),
+    },
     # PINK's CI is path-filtered, not a mandatory universal PR workflow.
     # Never invent a named CI pass: stage an isolated PR and return it for
     # independent Project Leader validation. Nothing may auto-merge.
@@ -193,6 +200,9 @@ def premerge_policy_gate(repo, paths):
         return ("PINK IPTV target is PR-ONLY: Project Leader must independently "
                 "validate player, VPN, Android/backend regressions and review "
                 "the exact-head merge authority; NEVER auto-merge or deploy")
+    if repo == "martaxi-boss/Project-leader-codex":
+        return ("Project Leader + Codex target is PR-ONLY: independent exact-head "
+                "review and integration are required; NEVER auto-merge or deploy")
     if repo == "martaxi-boss/Project-leader":
         return ("Project Leader main merge is an E2 consequential transition; "
                 "separate exact-SHA authorization and independent Supervisor acceptance "
