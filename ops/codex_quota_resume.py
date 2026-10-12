@@ -7,6 +7,7 @@ supply durable, bounded checkpoints; no successful stage is replayed.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -24,6 +25,7 @@ BOT = "github-actions[bot]"
 PAUSE = "<!-- CODEX_QUOTA_PAUSED_V1 -->"
 READY = "<!-- CODEX_STAGE_READY_V1 -->"
 CLAIM = "<!-- CODEX_QUOTA_CLAIM_V1 -->"
+STARTED = "<!-- CODEX_QUOTA_STARTED_V1 -->"
 LABEL = "codex-quota-paused"
 MAX_COMMENTS = 500
 MAX_ISSUES = 300
@@ -161,6 +163,25 @@ def _order(raw: str) -> dict:
     return agent_switch.parse_order(raw)
 
 
+def order_digest(order: dict) -> str:
+    """Bind retries to the exact authenticated Owner order, not editable text."""
+    normalized = json.dumps(order, sort_keys=True, separators=(",", ":"),
+                            ensure_ascii=False)
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def _ensure_label(source: int) -> None:
+    try:
+        _api("POST", "/labels",
+             {"name": LABEL, "color": "737373",
+              "description": "Await Codex subscription quota renewal"})
+    except QuotaResumeError:
+        existing = _api("GET", "/labels/" + urllib.parse.quote(LABEL, safe=""))
+        if not isinstance(existing, dict) or existing.get("name") != LABEL:
+            raise
+    _api("POST", f"/issues/{source}/labels", {"labels": [LABEL]})
+
+
 def _valid_stage(order: dict, stage: int) -> bool:
     return type(stage) is int and 1 <= stage <= len(order["tasks"]) <= 2
 
@@ -198,8 +219,10 @@ def verify_resume(payload: dict, *, now: int | None = None) -> tuple[dict, int]:
         raise QuotaResumeError("Unrecognized or out-of-range stage")
     all_comments = comments(source)
     pause = _validated_checkpoint(all_comments, run_id, stage, attempt - 1)
-    if pause["source_issue"] != source or (now if now is not None else int(time.time())) < pause["retry_at"]:
-        raise QuotaResumeError("Quota has not reached retry interval")
+    if (pause["source_issue"] != source or
+            pause.get("order_digest") != order_digest(order) or
+            (now if now is not None else int(time.time())) < pause["retry_at"]):
+        raise QuotaResumeError("Checkpoint no longer matches Owner order or retry interval")
     claims = parsed_comments(all_comments, CLAIM)
     claim = [c for c in claims if c.get("_comment_id") == claim_id
              and c.get("run_id") == run_id and c.get("stage") == stage
@@ -238,25 +261,19 @@ def pause_owner_issue(source: int, stage: int, run_id: int,
     marker = {"version": 1, "source_issue": source, "stage": stage,
               "run_id": run_id, "attempt": attempt,
               "retry_at": clock + delay_seconds(attempt),
+              "order_digest": order_digest(order),
               "quota": "provider_error_not_local_ledger"}
     text = PAUSE + "\n" + json.dumps(marker, sort_keys=True, separators=(",", ":"))
     prior = parsed_comments(comments(source), PAUSE)
-    if any(x.get("run_id") == run_id and x.get("stage") == stage for x in prior):
-        return marker
-    _api("POST", f"/issues/{source}/comments", {"body": text})
-    # First use may require installing the repo label; both operations are
-    # bounded repository metadata writes, not source/branch changes.
-    try:
-        _api("POST", "/labels",
-             {"name": LABEL, "color": "737373",
-              "description": "Await Codex subscription quota renewal"})
-    except QuotaResumeError:
-        # Existing labels return 422, which is fine only if confirmed.
-        label = _api("GET", "/labels/" + urllib.parse.quote(LABEL, safe=""))
-        if not isinstance(label, dict) or label.get("name") != LABEL:
-            raise
-    _api("POST", f"/issues/{source}/labels", {"labels": [LABEL]})
-    return marker
+    existing = next((x for x in prior if x.get("run_id") == run_id
+                     and x.get("stage") == stage), None)
+    if existing is None:
+        _api("POST", f"/issues/{source}/comments", {"body": text})
+    elif existing.get("order_digest") != marker["order_digest"]:
+        raise QuotaResumeError("Replay does not match initial authenticated order")
+    # Even when the comment already exists, repair a failed label write.
+    _ensure_label(source)
+    return existing if existing is not None else marker
 
 
 def ready_after_first_serial_stage(source: int, run_id: int, result_path: Path,
@@ -282,23 +299,19 @@ def ready_after_first_serial_stage(source: int, run_id: int, result_path: Path,
         return False
     if type(run_id) is not int or run_id <= 0:
         raise QuotaResumeError("Invalid first stage run")
-    if any(p.get("run_id") == run_id for p in parsed_comments(comments(source), READY)):
-        return True
+    prior = parsed_comments(comments(source), READY)
+    existing = next((p for p in prior if p.get("run_id") == run_id), None)
     ready = {"version": 1, "source_issue": source, "stage": 2,
              "run_id": run_id, "attempt": 0,
              "retry_at": int(time.time()) if now is None else now,
+             "order_digest": order_digest(order),
              "preceding_status": state}
-    _api("POST", f"/issues/{source}/comments",
-         {"body": READY + "\n" + json.dumps(ready, sort_keys=True, separators=(",", ":"))})
-    try:
-        _api("POST", "/labels",
-             {"name": LABEL, "color": "737373",
-              "description": "Await Codex subscription quota renewal"})
-    except QuotaResumeError:
-        label = _api("GET", "/labels/" + urllib.parse.quote(LABEL, safe=""))
-        if not isinstance(label, dict) or label.get("name") != LABEL:
-            raise
-    _api("POST", f"/issues/{source}/labels", {"labels": [LABEL]})
+    if existing is None:
+        _api("POST", f"/issues/{source}/comments",
+             {"body": READY + "\n" + json.dumps(ready, sort_keys=True, separators=(",", ":"))})
+    elif existing.get("order_digest") != ready["order_digest"]:
+        raise QuotaResumeError("Serial readiness order was edited")
+    _ensure_label(source)
     return True
 
 
@@ -349,7 +362,9 @@ def schedule_due(*, now: int | None = None) -> int:
             for paused in candidates:
                 if sent >= 3:
                     return sent
-                if not _valid_stage(order, paused["stage"]) or paused.get("source_issue") != number:
+                if (not _valid_stage(order, paused["stage"]) or
+                        paused.get("source_issue") != number or
+                        paused.get("order_digest") != order_digest(order)):
                     continue
                 run_id = paused["run_id"]
                 run = _api("GET", "/actions/runs/" + str(run_id))
