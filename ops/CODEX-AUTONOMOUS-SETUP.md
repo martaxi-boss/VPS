@@ -44,7 +44,7 @@ Then describe the concrete authorized implementation goal and acceptance criteri
 
 ## What happens
 
-1. Validate Issue owner, target allowlist and token presence; serialize tasks to protect quota.
+1. Validate Issue owner, target allowlist and token presence; bound active Codex workers to two independent execution slots.
 2. Execute Codex inside disposable VPS clone with workspace-write sandbox, **without write credentials**; emit a guarded patch and any observed JSONL token counts.
 3. An independent GitHub Actions runner checks exact source SHA, changed paths, patch size, symlinks and trust-sensitive paths. It publishes a short-lived branch and PR using the scoped token.
 4. Wait for named target-repository CI workflows **on the exact candidate SHA**. Required failure, missing check, moving main, ambiguous PR state or GitHub rejection means **NO MERGE**, with a truthful Issue status and PR link.
@@ -69,6 +69,30 @@ obrigatórios. Para efeitos materiais E2/E3, incluindo merges em `main`
 do Project Leader, o circuito recusa a promoção sem autorização de transição
 exata e prova independente de Supervisor. Não se pode inferir autorização de
 produção nem das permissões do token GitHub.
+
+## Utilização real da conta Codex e acompanhamento de tokens
+
+O Codex CLI na VPS deve apresentar `Logged in using ChatGPT` em `codex login status`.
+Se estiver em modo API key (ou houver variáveis de API billing), o executor pára
+**antes do modelo**, pois esse modo tem custos e limites diferentes da conta
+ChatGPT do Owner. Nunca imprimir ficheiros de autenticação nem credenciais.
+Além de validar o login, ambos os executores fixam o fornecedor nativo
+`openai`, substituem qualquer `openai_base_url` personalizado pelo endpoint oficial
+`https://chatgpt.com/backend-api/codex` e fixam a URL
+`https://chatgpt.com/backend-api/` através de opções explícitas da CLI.
+Assim, um `model_provider` personalizado em `config.toml` não pode
+encaminhar o trabalho para um serviço API faturado; o modelo só corre
+se o fornecedor efetivo aceitar a autenticação ChatGPT.
+
+Foi removido o limite interno artificial de 300 000 tokens / 24 h, que não
+correspondia aos limites reais mostrados no ChatGPT. O registo privado continua
+a contabilizar tokens observados e estimativas conservadoras quando faltam dados,
+mas **não bloqueia tarefas com base nessa soma**. O limite e a recusa de pedidos
+ficam a cargo do serviço Codex autenticado pela conta ChatGPT. O pipeline mantém
+dois slots simultâneos, limite de 35 minutos por chamada, sandboxes isoladas,
+validade da identidade SSH, idempotência de tarefas e publicação protegida.
+O Codex CLI não fornece neste pipeline as percentagens oficiais de quota;
+não apresentar a soma local como percentagem disponível.
 
 ## Boundaries and limitations
 

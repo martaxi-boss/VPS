@@ -91,14 +91,32 @@ class CodexDualVPSSmokeContractTests(unittest.TestCase):
         self.assertIn("host-key-probe:", WORKFLOW)
         self.assertIn("ops/codex_resource_policy.py", WORKFLOW)
 
-    def test_live_smoke_never_bypasses_shared_account_budget(self) -> None:
+    def test_smoke_wrapper_forces_builtin_chatgpt_provider(self) -> None:
+        invocation = SCRIPT.rsplit('"$HOME/codex-agent/node_modules/.bin/codex"', 1)[1]
+        # The wrapper must pass all three effective provider overrides before
+        # forwarding any model-controlled or runner-generated CLI arguments.
+        forwarded_args = invocation.index('"$@"')
+        for option in (
+            """-c 'model_provider="openai"'""",
+            """-c 'openai_base_url="https://chatgpt.com/backend-api/codex"'""",
+            """-c 'chatgpt_base_url="https://chatgpt.com/backend-api/"'""",
+        ):
+            self.assertIn(option, invocation)
+            self.assertLess(invocation.index(option), forwarded_args)
+
+    def test_live_smoke_uses_private_no_replay_ledger_not_artificial_budget(self) -> None:
         self.assertIn("$HOME/codex-bridge/.account-budget", SCRIPT)
         self.assertIn('reserve "$budget_root" "$budget_job_base-1" low', SCRIPT)
         self.assertIn('reserve "$budget_root" "$budget_job_base-2" low', SCRIPT)
         self.assertIn('settle "$budget_root" "$budget_job_base-$idx"', SCRIPT)
         self.assertIn('"observed": False', SCRIPT)
         self.assertIn('trap finish_smoke EXIT', SCRIPT)
-        self.assertIn('shared_soft_budget_unavailable', SCRIPT)
+        self.assertIn('shared_account_ledger_unavailable', SCRIPT)
+        self.assertNotIn('shared_soft_budget_unavailable', SCRIPT)
+        self.assertIn("Logged in using ChatGPT", SCRIPT)
+        self.assertIn('"$codex_cli" login status 2>&1', SCRIPT)
+        self.assertNotIn('"$codex_cli" login status 2>/dev/null', SCRIPT)
+        self.assertIn("chatgpt_subscription_auth_required", SCRIPT)
 
     def test_readonly_failure_diagnosis_is_strictly_owner_gated(self) -> None:
         diagnose = (ROOT / "ops/codex-dual-vps-diagnose.py").read_text(encoding="utf-8")

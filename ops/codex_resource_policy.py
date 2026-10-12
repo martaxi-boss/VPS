@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
-"""Shared, private *soft* Codex-token budget and bounded effort selection.
+"""Private usage ledger, replay protection and bounded Codex reasoning.
 
-Two signed-in Codex CLI processes may share one account. This policy is NOT
-an account-quota API, billing cap, model call, or credential broker.
+Only the Codex provider can enforce the signed-in account's actual limits.
+The previous artificial 300,000-token / 24h VPS admission cap contradicted
+the Owner's available ChatGPT account quota and has been removed explicitly.
 
-The ledger is limited to already-observed input/output tokens (cached input is
-part of input), plus conservative reservations for active/unobserved runs.
-It is shared only by the verified [codex run]/[agents run] executor path.
+This ledger still atomically rejects duplicate job identities and tracks
+observed input/output usage (cached input is already included in input),
+conservatively estimating unknown/failed turns. It is NOT a provider quota
+API, billing limit, source of authorization, or admission threshold.
+The trusted executor separately requires ChatGPT login, two process slots
+and a finite per-turn timeout before any provider call.
 """
 import fcntl
 import json
@@ -20,7 +24,6 @@ import time
 LEVELS = frozenset({"low", "medium", "high"})
 CHOICES = LEVELS | {"auto"}
 RESERVATIONS = {"low": 12000, "medium": 35000, "high": 75000}
-DEFAULT_24H_SOFT_LIMIT = 300000
 WINDOW_SECONDS = 24 * 3600
 JOB_PATTERN = re.compile(r"[0-9]+-[0-9]+(?:-[12])?\Z")
 
@@ -76,16 +79,6 @@ def _validate_root(root: Path) -> None:
         raise BudgetError("Codex budget directory must be private (0700)")
 
 
-def _limit() -> int:
-    value = os.environ.get("CODEX_SOFT_24H_TOKEN_LIMIT", str(DEFAULT_24H_SOFT_LIMIT))
-    if not re.fullmatch(r"[0-9]{5,7}", value):
-        raise BudgetError("Invalid configured soft token allowance")
-    limit = int(value)
-    if not 100000 <= limit <= 2000000:
-        raise BudgetError("Soft token allowance outside bounded range")
-    return limit
-
-
 def _edit(root: Path, operation):
     """Atomic, locked read-modify-write; JSON never contains task text or keys."""
     _validate_root(root)
@@ -135,14 +128,12 @@ def _edit(root: Path, operation):
         os.close(fd)
 
 
-def reserve(root: Path, key: str, effort: str, limit: int | None = None) -> dict:
+def reserve(root: Path, key: str, effort: str) -> dict:
+    """Record a unique turn atomically, never infer account quota from tokens."""
     _validate_key(key)
     if effort not in LEVELS:
         raise BudgetError("Unsupported Codex effort; no model started")
-    ceiling = _limit() if limit is None else limit
-    if type(ceiling) is not int or ceiling < 100000:
-        raise BudgetError("Invalid soft limit")
-    estimate = RESERVATIONS[effort]
+    estimate = RESERVATIONS[effort]  # Accounting fallback, never a token cap.
 
     def operation(data, now):
         records = data["records"]
@@ -150,14 +141,13 @@ def reserve(root: Path, key: str, effort: str, limit: int | None = None) -> dict
             raise BudgetError("Already reserved: do not replay an ambiguous Codex call")
         used = sum(int(r["actual"] if r.get("actual") is not None else r["reservation"])
                    for r in records)
-        if used + estimate > ceiling:
-            raise BudgetError("Shared 24h Codex soft budget exhausted; no model started")
         records.append({
             "job": key, "started_at": now, "effort": effort,
             "reservation": estimate, "actual": None, "observed": False,
         })
         return {"reserved": True, "effort": effort, "reserved_tokens": estimate,
-                "budget_remaining_estimate": ceiling - used - estimate}
+                "tracked_24h_tokens_estimate": used + estimate,
+                "quota_source": "provider_not_available_in_cli"}
     return _edit(Path(root), operation)
 
 
@@ -191,7 +181,7 @@ def settle(root: Path, key: str, usage: dict) -> dict:
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) not in (5, 6):
+    if len(argv) != 5:
         raise BudgetError("Expected reserve ROOT JOB EFFORT or settle ROOT JOB USAGE_JSON")
     operation, root, key, argument = argv[1:5]
     if operation == "reserve":

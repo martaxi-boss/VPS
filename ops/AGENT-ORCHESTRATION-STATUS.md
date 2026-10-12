@@ -54,9 +54,10 @@ da ordem. A execucao de **duas tarefas de leitura sem patch** foi comprovada ao 
 Skill Project Leader v0.7.0 pinada. Isto NAO certifica duas alteracoes reais
 de codigo nem o merge/reconciliacao de PRs concorrentes.
 Nao ha troca de modelo nem fornecedor: o executor validado continua em gpt-5.6-sol,
-com esforco adaptativo por tarefa. A quota semanal real nao e exposta. O controlo
-local bloqueia novos trabalhos ao atingir o limite mas nao e um limite rigido
-de tokens ja gastos no interior de uma chamada.
+com esforco adaptativo por tarefa. A quota semanal real nao e exposta. A VPS
+nao aplica um teto proprio de tokens nem infere disponibilidade da conta a
+partir do contador local; as recusas de quota sao decididas pelo fornecedor
+ChatGPT autenticado.
 
 O registo de adaptadores deixa Codex disponivel. Gemini, Composer e Claude estao
 registados mas indisponiveis ate existir um adaptador autenticado, testado e
@@ -69,9 +70,10 @@ do planeador nao constitui evidencia de quotas ou disponibilidade semanal.
 - O plano do Owner seleciona **uma ou duas tarefas** com `mode: serial` ou `mode: parallel`; so executa duas se o manifesto tiver dois IDs distintos. A versao atual nao cria um segundo trabalhador por adivinhacao.
 - Em cada tarefa o Project Leader pode enviar `reasoning_effort: "auto"` (ou omitir o campo): tarefas simples e delimitadas usam `low`, tarefas normais `medium`, problemas com indicios objetivos de elevada complexidade `high`. `low`, `medium` e `high` tambem podem ser fixados manualmente. O modelo autenticado continua a ser `gpt-5.6-sol`; nao ha troca automatica de fornecedor nem promessa de nivel Pro.
 - A escolha e **por tarefa/turno Codex**, nao uma mudanca invisivel a meio do mesmo pedido. Na etapa seguinte, o Project Leader pode subir ou descer o nivel mediante CI/falha, contexto e objetivo. Nunca aumenta o nivel para repetir cegamente uma falha.
-- O executor reserva, sob bloqueio atomico, um **orcamento flexivel conjunto de 24 horas** de 300 000 tokens contabilizados; o operador pode definir `CODEX_SOFT_24H_TOKEN_LIMIT` entre 100 000 e 2 000 000. Reservas: Low=12k, Medium=35k, High=75k. Se faltarem reservas, bloqueia **antes** da chamada. Ao terminar, usa os tokens realmente observados em JSONL; se a medicao falhar, contabiliza conservadoramente a reserva. Input em cache faz parte do input e nao e contado duas vezes.
-- O registo de consumo fica **privado na VPS**, nao contem prompt, identidade do cliente, chave ou credencial. Esta orcamentacao cobre os executores `[codex run]`/`[agents run]` por esta via; outras ferramentas/consultas Codex podem gastar a mesma quota fora deste ledger.
-- O **limite de tokens e flexivel, nao garante travar uma geracao em curso**, e a percentagem de quota semanal real da conta continua **UNKNOWN**. Assim, nunca se confunde o nosso orçamento local com os limites contratuais da OpenAI.
+- O executor regista cada tarefa num ledger privado, sob bloqueio atomico e com protecao contra repeticao. As estimativas contabilisticas sao Low=12k, Medium=35k e High=75k quando nao ha dados reais; ao terminar usa tokens observados em JSONL. Input em cache faz parte do input e nao e contado duas vezes. Estas estimativas **nao sao uma autorizacao ou um teto de quota**.
+- O ledger e privado na VPS e nao guarda prompt, identidade da conta, chave ou credencial. Abrange os executores `[codex run]`/`[agents run]`; outros consumidores da conta podem gastar utilizacao sem aparecer neste registo. O antigo teto artificial de 300 mil tokens/24h foi retirado por ordem expressa do Owner.
+- Antes de usar o modelo, a CLI tem de confirmar login ChatGPT; os dois executores fixam o fornecedor nativo `openai`, fixam a URL efetiva do fornecedor em `https://chatgpt.com/backend-api/codex`
+e a base de autenticacao ChatGPT oficial, em vez de uma URL vazia ou customizada. Modo API key ou variaveis de faturacao API sao recusados. O limite real fica a cargo da conta ChatGPT, e a percentagem semanal continua **UNKNOWN** na CLI. Mantem-se os dois slots, o timeout e o isolamento.
 - Este caminho permanece submetido a revisao de patches, PR/CI, protecao de codigo e sem auto-merge de trabalhos paralelos. Gemini, Cursor, Composer e Sonnet continuam desligados. A prova de comportamento real com Low/High sera registada separadamente; testes locais/CI nao sao apresentados como consumo real Codex.
 
 
@@ -103,9 +105,9 @@ um Low (34 803 input, 23 936 cached, 343 output), outro High
 (312 280 input, 282 624 cached, 4 998 output). Ambos devolveram
 NO_CHANGE autorizado e relatorios privados ao Telegram; isto nao comprova
 qualidade funcional nem modificacoes no repositorio PINK. O High ultrapassou
-a reserva inicial de 75k. O orcamento conjunto de 300k/24h e soft e nao
-impede gastos numa chamada ja iniciada. O ledger bloqueia novas tarefas
-quando nao existe saldo estimado, sem inventar quotas semanais.
+a estimativa inicial de 75k, mostrando por que a contabilizacao local nao
+deve substituir a quota contratual real. O ledger atual continua a registar
+esses valores, mas nao impede novos trabalhos pela soma acumulada.
 
 ## Preparacao para o Cursor (ligacao pendente)
 Implementar Cloud Agents da conta Cursor quando a conta ficar ativa. O contrato de cada etapa e:
