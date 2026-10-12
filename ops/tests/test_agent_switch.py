@@ -320,10 +320,15 @@ class AgentSwitchTests(unittest.TestCase):
         self.assertEqual(values["serial_independent"], "true")
         self.assertEqual(values["task_count"], "2")
         self.assertEqual(values["mode"], "serial")
+        prompts = []
         for i in (1, 2):
             prompt = base64.b64decode(values[f"codex_{i}_task_b64"]).decode("utf-8")
             self.assertIn("do not depend on or merge", prompt)
             self.assertIn("fresh main", prompt)
+            prompts.append(prompt)
+        self.assertIn("start immediately", prompts[0])
+        self.assertNotIn("wait until the previous worker", prompts[0])
+        self.assertIn("wait until the previous worker", prompts[1])
 
     def test_independent_serial_opt_in_is_strict_and_defaults_to_dependent(self):
         tasks = [self.task("codex-config"), self.task("codex-upstream")]
