@@ -15,7 +15,7 @@ class RateLimitProbeTests(unittest.TestCase):
 
     @staticmethod
     def rate(used=34, reset=1823456789):
-        return {"rateLimits": {"limitId": "codex",
+        return {"ordinaryUsageAllowed": True, "rateLimits": {"limitId": "codex",
                                "primary": {"usedPercent": used,
                                            "windowDurationMins": 300,
                                            "resetsAt": reset},
@@ -45,6 +45,13 @@ class RateLimitProbeTests(unittest.TestCase):
         variant = self.rate(used=2)
         variant["rateLimits"]["spendControlReached"] = True
         self.assertEqual(q.summarize(self.account, variant, now=1800000000)["status"], "BLOCKED")
+
+    def test_missing_backend_allowed_does_not_infer_quota_recovered(self):
+        for unavailable in (None,):
+            sample = self.rate(used=4)
+            sample["ordinaryUsageAllowed"] = unavailable
+            with self.assertRaisesRegex(q.ProbeError, "QUOTA_AVAILABILITY_UNVERIFIED"):
+                q.summarize(self.account, sample, now=1800000000)
 
     def test_api_keys_missing_codex_bucket_and_unknown_data_refused(self):
         for account in ({"account": {"type": "apiKey"}}, {"account": None}):
@@ -80,7 +87,7 @@ for line in sys.stdin:
         result = {"account": {"type": "chatgpt",
                               "email": "NEVER_LEAK_THIS@example.com"}}
     elif key == 3:
-        result = {"rateLimits": {"limitId": "codex",
+        result = {"ordinaryUsageAllowed": True, "rateLimits": {"limitId": "codex",
                     "primary": {"usedPercent": 69, "windowDurationMins": 300,
                                 "resetsAt": 1823456789},
                     "secondary": None}}
