@@ -104,6 +104,15 @@ Do not push, commit, open PRs, deploy or modify files outside this checkout. A s
 GitHub runner reviews the actual patch and handles publication, independent CI and merge.
 Do not claim PASS without evidence. Stop on a genuine Human Gate and explain what is required.
 Keep the edit minimal; preserve tests, functionality, safety and historical evidence.
+Act under the pinned Project Leader Skill: inspect, execute, test, correct, retest
+and continue within scope until the assigned objective is genuinely finished.
+Recover ordinary bugs, build failures, formatting errors and recoverable conflicts
+without requesting further Owner instructions. Use bounded evidence-based retries;
+never spend tokens on blind repeats. Do not mistake PR_STAGED for merged/done.
+Escalate a HUMAN_GATE only for indispensable Owner-exclusive intervention or
+new uncovered material decisions. If completing the correction requires edits
+outside authorized paths, report the precise blocked scope to the trusted
+Publisher instead of bypassing protection or suppressing failing checks.
 Use European Portuguese in your final report. Never print credentials or authentication data.
 
 PROJECT LEADER CANONICAL RULES:
