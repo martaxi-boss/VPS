@@ -272,12 +272,23 @@ def github(method, path, data=None):
         raise RuntimeError("GitHub API connection failed") from None
 
 
+def _supervisor_audit():
+    """Shared factual auditor; supports both module and script entrypoints."""
+    try:
+        from ops import supervisor_audit
+    except ModuleNotFoundError:
+        import supervisor_audit
+    return supervisor_audit
+
+
 def say(message):
-    if not CHAT_ID:
-        return
+    """Every Owner-directed text message crosses the Supervisor egress audit."""
+    if not CHAT_ID or not re.fullmatch(r"[1-9][0-9]{3,17}", CHAT_ID):
+        raise RuntimeError("Private Supervisor destination is unavailable")
+    verified = _supervisor_audit().check_delivery(message)
     telegram("sendMessage", {
         "chat_id": CHAT_ID,
-        "text": message[:4000],
+        "text": verified,
         "disable_web_page_preview": True,
     })
 
@@ -457,7 +468,7 @@ def handle_update(update):
             say("👁️ Supervisor: não consegui consultar agora o estado fiável "
                 "do GitHub. Não iniciei trabalhadores. Tenta consultar novamente.")
             return
-        say(answer)
+        say(_supervisor_audit().observation(answer, source="owner_query"))
         return
     if supervisor.is_addressed_to_supervisor(text):
         say("👁️ Supervisor: só consulto e comunico estados da produção. "
@@ -573,15 +584,18 @@ def private_report_status(status):
 
 
 def notify():
+    """Supervisor audits factual origin/outcomes, then privately forwards them.
+
+    The report content is never used as a command, Human Gate classifier or
+    public GitHub Issue; only the Project Leader worker owns those decisions.
+    """
     if not BOT_TOKEN or not CHAT_ID:
         print("TELEGRAM_NOTIFY=NOT_CONFIGURED")
         return
+    audit = _supervisor_audit()
     status = os.environ.get("CODEX_JOB_STATUS", "unknown")
     issue = os.environ.get("CODEX_ISSUE_NUMBER", "")
     run_url = os.environ.get("CODEX_RUN_URL", "")
-    report_path = Path(os.environ.get("CODEX_REPORT_PATH", "/nonexistent"))
-    report = (report_path.read_text(encoding="utf-8", errors="replace")
-              if report_path.is_file() else "Sem relatório disponível; consultar o GitHub.")
     worker = os.environ.get("CODEX_INSTANCE_ID", "")
     if not re.fullmatch(r"(?:[12]|p[2-8]-[12])?", worker):
         raise RuntimeError("Invalid trusted Codex worker identity")
@@ -596,12 +610,9 @@ def notify():
         top += "https://github.com/" + REPO + "/issues/" + issue + "\n"
     if run_url:
         top += run_url + "\n"
-    # The Supervisor sends the unmodified Project Leader worker report early,
-    # then sends a separate short *trusted pipeline outcome* (no duplicate report).
-    # It does not classify, authorize, create or resume Human Gates.
+
     mode = os.environ.get("CODEX_REPORT_MODE", "worker")
     if mode == "status":
-        # Trusted step outcomes only: no model report, Human Gate or dispatch.
         stages = (("PREFLIGHT_OUTCOME", "Pré-validação"),
                   ("STAGE_OUTCOME", "VPS"),
                   ("CODEX_OUTCOME", "Codex"),
@@ -609,27 +620,45 @@ def notify():
                   ("ARTIFACTS_OUTCOME", "Artefactos"),
                   ("PUBLISH_OUTCOME", "Publicação/CI"))
         allowed = {"success", "failure", "skipped", "cancelled"}
-        details = [label + ": " + os.environ[key]
-                   for key, label in stages if os.environ.get(key) in allowed]
+        facts = {key: os.environ[key] for key, _ in stages
+                 if os.environ.get(key) in allowed}
+        details = [name + ": " + facts[key]
+                   for key, name in stages if key in facts]
         suffix = ("\n" + "\n".join(details)) if details else ""
-        say(top + "\nEstado final do pipeline." + suffix +
+        audit_report = audit.pipeline(issue=issue, run_url=run_url,
+                                      worker=worker, status=status, steps=facts)
+        # Never include the private worker report in this second notification.
+        say(audit_report + top + "\nEstado final do pipeline." + suffix +
             "\nConsulta a tarefa no GitHub.")
         print("TELEGRAM_NOTIFY=SENT")
         return
     if mode != "worker":
         raise RuntimeError("Invalid passive Supervisor message mode")
-    if len(top) + len(report) < 3800:
-        say(top + "\nRELATÓRIO:\n" + report)
+
+    report_path = Path(os.environ.get("CODEX_REPORT_PATH", "/nonexistent"))
+    if not report_path.is_file() or report_path.is_symlink():
+        raise RuntimeError("Supervisor refused an absent or symlink worker report")
+    raw_report = report_path.read_bytes()
+    if not 1 <= len(raw_report) <= 65536:
+        raise RuntimeError("Supervisor refused an invalid-size report")
+    report = raw_report.decode("utf-8", errors="replace")
+    audit_report = audit.worker_report(
+        issue=issue, run_url=run_url, worker=worker, status=status, report=report)
+    prefix = audit_report + top
+    if len(prefix) + len(report) + 20 <= 4000:
+        say(prefix + "\nRELATÓRIO ORIGINAL:\n" + report)
     else:
-        say(top + "\nRESUMO:\n" + report[:1700] +
-            "\n\nO relatório completo segue como ficheiro.")
+        say(prefix + "\nEXCERTO DO RELATÓRIO:\n" + report[:1300] +
+            "\n\nO relatório completo segue como ficheiro privado, "
+            "sem cortes nem alterações.")
         name = "codex-relatorio-" + (issue or "execucao") + (
             "-worker-" + worker if worker else ""
         ) + ".txt"
+        # Audited above, and the original *bytes* are attached unchanged.
         telegram("sendDocument", {
             "chat_id": CHAT_ID,
-            "caption": "Relatório completo do Codex",
-        }, document=(name, report.encode("utf-8")))
+            "caption": "Relatório original integral, conferido pelo Supervisor",
+        }, document=(name, raw_report))
     print("TELEGRAM_NOTIFY=SENT")
 
 
