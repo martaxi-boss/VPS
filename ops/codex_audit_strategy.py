@@ -114,7 +114,7 @@ def compile_audit(value: object) -> dict:
         if not isinstance(raw, dict) or set(raw) != {"id", "paths", "severity", "observation"}:
             raise AuditStrategyError("Finding requires id, paths, severity and observation")
         fid = _ident(raw["id"])
-        if fid in observed or raw["severity"] not in LEVEL:
+        if fid in observed or type(raw["severity"]) is not str or raw["severity"] not in LEVEL:
             raise AuditStrategyError("Duplicate finding or invalid severity")
         paths = raw["paths"]
         if (not isinstance(paths, list) or not 1 <= len(paths) <= 12
