@@ -118,9 +118,12 @@ jobs:
               values = switch.workflow_values(order, str(resume_stage))
               values['issue_number'] = str(issue_number)
               values['resume_stage'] = str(resume_stage)
-              values['phase_count'] = str(phase_meta['phase_count'] if phase_meta else 1)
-              values['held_task_count'] = str(len(phase_meta['pending_task_ids']) if phase_meta else 0)
-              values['phase_owner_digest'] = phase_meta['owner_digest'] if phase_meta else ''
+              # The normalized Owner order carries exact phase metadata on
+              # both issue-open and authenticated quota continuation routes.
+              # Reporting must not forget held work when phase_meta is absent.
+              values['phase_count'] = str(order.get('phase_count', 1))
+              values['held_task_count'] = str(order.get('held_task_count', 0))
+              values['phase_owner_digest'] = order.get('phase_owner_digest', '')
               # Do not quietly substitute Codex for Gemini or Composer.
               # A future adapter must prove authentication, isolated execution,
               # Project Leader rules and independent GitHub publication first.
@@ -139,10 +142,11 @@ jobs:
                       out.write(f'{key}={value}\n')
               message = ('Bounded Codex order validated; only the selected '
                          'workers will run. Final status comes from verified results.')
-              if phase_meta and phase_meta['phase_count'] > 1:
-                  message += (' PHASE 1/' + str(phase_meta['phase_count']) +
-                              ' only; remaining tasks HOLD_FOR_CI_AND_REAUDIT.' +
-                              ' Owner order SHA-256: ' + phase_meta['owner_digest'])
+              if order.get('phase_count', 1) > 1:
+                  message += (' PHASE 1/' + str(order['phase_count']) +
+                              ' only; remaining tasks HOLD_FOR_CI_AND_REAUDIT (' +
+                              str(order['held_task_count']) + ' pending).' +
+                              ' Owner order SHA-256: ' + order['phase_owner_digest'])
               state.write_text(message, encoding='utf-8')
           except (switch.OrderError, ValueError) as exc:
               state.write_text('BLOCKED BEFORE EXECUTION: ' + str(exc), encoding='utf-8')
