@@ -47,8 +47,8 @@ on:
         default: 1
   issues:
     types: [opened]
-  repository_dispatch:
-    types: [codex_quota_resume]
+  # Quota resume via repository_dispatch removed: a new authenticated Owner
+  # order is necessary after any provider limit is reached.
   pull_request:
     paths:
       - '.github/workflows/agent-switch.yml'
@@ -67,9 +67,9 @@ on:
 
 permissions: {}
 
-# Only one actual retry at a time for each original Owner stage.
+# Each Owner-authorized task is isolated. No timer can resume a worker.
 concurrency:
-  group: ${{ github.event_name == 'repository_dispatch' && format('codex-quota-{0}-{1}-{2}', github.event.client_payload.source_issue, github.event.client_payload.paused_run, github.event.client_payload.stage) || format('agent-switch-{0}', github.run_id) }}
+  group: ${{ format('agent-switch-{0}', github.run_id) }}
   cancel-in-progress: false
   queue: max
 
