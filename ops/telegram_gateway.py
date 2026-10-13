@@ -579,8 +579,10 @@ def notify():
     mode = os.environ.get("CODEX_REPORT_MODE", "worker")
     if mode == "status":
         # Trusted step outcomes only: no model report, Human Gate or dispatch.
-        stages = (("STAGE_OUTCOME", "VPS"),
+        stages = (("PREFLIGHT_OUTCOME", "Pré-validação"),
+                  ("STAGE_OUTCOME", "VPS"),
                   ("CODEX_OUTCOME", "Codex"),
+                  ("COLLECT_OUTCOME", "Recolha"),
                   ("ARTIFACTS_OUTCOME", "Artefactos"),
                   ("PUBLISH_OUTCOME", "Publicação/CI"))
         allowed = {"success", "failure", "skipped", "cancelled"}

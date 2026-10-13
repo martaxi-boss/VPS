@@ -473,7 +473,8 @@ class TelegramGatewayTests(unittest.TestCase):
             sample = {"CODEX_REPORT_MODE": "status", "CODEX_JOB_STATUS": "FAILED",
                       "CODEX_REPORT_PATH": str(report), "CODEX_ISSUE_NUMBER": "181",
                       "CODEX_RUN_URL": "https://github.com/martaxi-boss/VPS/actions/runs/123",
-                      "STAGE_OUTCOME": "success", "CODEX_OUTCOME": "failure",
+                      "PREFLIGHT_OUTCOME": "success", "STAGE_OUTCOME": "success",
+                      "CODEX_OUTCOME": "failure", "COLLECT_OUTCOME": "success",
                       "ARTIFACTS_OUTCOME": "skipped", "PUBLISH_OUTCOME": "skipped"}
             with (patch.dict(os.environ, sample, clear=True),
                   patch.object(gateway, "BOT_TOKEN", "test"),
@@ -483,6 +484,8 @@ class TelegramGatewayTests(unittest.TestCase):
                 body = send.call_args.args[0]
             self.assertIn("Codex: failure", body)
             self.assertIn("Artefactos: skipped", body)
+            self.assertIn("Pré-validação: success", body)
+            self.assertIn("Recolha: success", body)
             self.assertIn("https://github.com/martaxi-boss/VPS/actions/runs/123", body)
             self.assertNotIn("PRIVATE_UNTRUSTED_MODEL_DATA", body)
             self.assertNotIn("HUMAN_GATE", body)

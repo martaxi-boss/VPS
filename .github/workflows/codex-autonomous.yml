@@ -90,6 +90,7 @@ jobs:
           persist-credentials: false
 
       - name: Validate Owner task and publication credential BEFORE consuming Codex quota
+        id: owner_preflight
         env:
           OWNER_TASK: ${{ github.event.issue.body }}
           ROUTED_TASK_B64: ${{ inputs.task_b64 }}
@@ -387,8 +388,10 @@ jobs:
           CODEX_REPORT_MODE: status
           CODEX_ISSUE_NUMBER: ${{ inputs.issue_number || github.event.issue.number }}
           CODEX_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          PREFLIGHT_OUTCOME: ${{ steps.owner_preflight.outcome }}
           STAGE_OUTCOME: ${{ steps.stage.outcome }}
           CODEX_OUTCOME: ${{ steps.codex.outcome }}
+          COLLECT_OUTCOME: ${{ steps.collect.outcome }}
           ARTIFACTS_OUTCOME: ${{ steps.validate_artifacts.outcome }}
           PUBLISH_OUTCOME: ${{ steps.publish.outcome }}
         shell: bash
@@ -435,8 +438,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ inputs.issue_number || github.event.issue.number }}
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          PREFLIGHT_OUTCOME: ${{ steps.owner_preflight.outcome }}
           STAGE_OUTCOME: ${{ steps.stage.outcome }}
           CODEX_OUTCOME: ${{ steps.codex.outcome }}
+          COLLECT_OUTCOME: ${{ steps.collect.outcome }}
           ARTIFACTS_OUTCOME: ${{ steps.validate_artifacts.outcome }}
           PUBLISH_OUTCOME: ${{ steps.publish.outcome }}
         shell: bash
@@ -497,17 +502,23 @@ jobs:
               preflight = (
                   allowed_signals[signal] if signal is not None
                   else (preflight_path.read_text(encoding='utf-8') if preflight_path.exists()
-                        else 'No verified preflight diagnosis available')
+                        else ('Owner task or preflight requirements rejected before Codex; no model started.'
+                              if os.environ.get('PREFLIGHT_OUTCOME') == 'failure'
+                              else 'No verified preflight diagnosis available'))
               )
               classification = (
                   'PAUSED_QUOTA' if signal == b'CODEX_QUOTA_BLOCKED\n'
-                  else 'NOT_STARTED' if signal is not None else 'NOT_COMPLETED'
+                  else ('NOT_STARTED'
+                        if signal is not None or os.environ.get('STAGE_OUTCOME') != 'success'
+                        else 'NOT_COMPLETED')
               )
               lines = ['## Codex execution: ' + classification,
                        'Preflight: ' + preflight,
                        'The pipeline stopped before trusted publication.',
+                       'Owner preflight: ' + os.environ['PREFLIGHT_OUTCOME'],
                        'Stage: ' + os.environ['STAGE_OUTCOME'],
                        'Codex: ' + os.environ['CODEX_OUTCOME'],
+                       'Collection: ' + os.environ['COLLECT_OUTCOME'],
                        'Artifacts: ' + os.environ['ARTIFACTS_OUTCOME'],
                        'Publisher: ' + os.environ['PUBLISH_OUTCOME']]
           runtime_path = Path(os.environ['RUNNER_TEMP']) / 'project-leader-runtime.json'
