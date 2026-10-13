@@ -48,6 +48,7 @@ class AuditDispatchTests(unittest.TestCase):
         values = agent_switch.workflow_values(order)
         self.assertEqual(values["task_count"], "2")
         self.assertEqual(values["mode"], "parallel")
+        self.assertEqual(values["audit_managed"], "true")
         self.assertEqual(values["codex_1_reasoning_effort"], "low")
         self.assertEqual(values["codex_2_reasoning_effort"], "medium")
         self.assertEqual(values["serial_independent"], "false")
@@ -75,6 +76,7 @@ class AuditDispatchTests(unittest.TestCase):
         order = agent_switch.parse_order(json.dumps(raw))
         selected = agent_switch.workflow_values(order)
         self.assertEqual(selected["task_count"], "1")
+        self.assertEqual(selected["audit_managed"], "true")
         self.assertEqual(selected["codex_1_reasoning_effort"], "low")
         self.assertEqual(selected["codex_2_reasoning_effort"], "")
         self.assertIn("AUDIT_BASE_SHA=" + PIN,
@@ -195,6 +197,8 @@ class AuditDispatchTests(unittest.TestCase):
         }
         self.assertEqual(agent_switch.workflow_values(
             agent_switch.parse_order(json.dumps(old)))["task_count"], "1")
+        self.assertEqual(agent_switch.workflow_values(
+            agent_switch.parse_order(json.dumps(old)))["audit_managed"], "false")
 
     def test_guarded_remote_and_workflow_load_exact_scope_verifier(self):
         root = Path(__file__).resolve().parents[1]
@@ -204,6 +208,9 @@ class AuditDispatchTests(unittest.TestCase):
         self.assertIn("verify_checkout", remote)
         self.assertIn("verify_changed", remote)
         self.assertIn("AUDIT_STALE_BLOCKED", workflow)
+        router = (root.parent / ".github/workflows/agent-switch.yml").read_text()
+        self.assertIn("fromJSON(needs.preflight.outputs.audit_managed)", router)
+        self.assertIn("no_auto_merge:", router)
         self.assertLess(remote.index("verify_checkout"), remote.index("timeout --signal=TERM"))
         self.assertGreater(remote.index("verify_changed"), remote.index("codex_patch_guard.py"))
 
