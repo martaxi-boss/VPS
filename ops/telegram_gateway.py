@@ -2,8 +2,8 @@
 """GitHub Actions <-> Telegram Bot API, using the Python standard library.
 
 No Telegram credential is ever checked into GitHub, copied to the VPS,
-or included in a ChatGPT message. Only a configured private chat can
-issue audit tasks. Nothing in this bridge executes user text as shell.
+or included in a ChatGPT message. Only a configured private chat can request audits or read-only Supervisor
+status. Nothing in this bridge executes user text as shell.
 """
 import hashlib
 import json
@@ -435,12 +435,31 @@ def handle_update(update):
             "Envia /audit seguido do pedido, ou 'Codex, faz uma auditoria...'.\n"
             "Podes enviar uma fotografia ou uma mensagem de voz até 90 segundos.\n"
             "As mensagens de voz são transcritas localmente e encaminhadas como auditorias.\n"
-            "Consulta o resultado com /status 123.\n\n"
+            "Consulta o resultado com /status 123.\n"
+            "Pergunta ao Supervisor com /supervisor ou /supervisor #123.\n\n"
             "Por segurança, só auditorias de leitura estão ativas. "
             "As correções e Cursor ainda não estão ativados.\n"
             "⚠️ Este repositório GitHub é público: nunca incluas passwords, "
             "tokens ou dados privados nas ordens.")
         return
+    # Supervisor is a separate read-only path: never create public Issues,
+    # dispatch Codex, or reinterpret Project Leader Human Gates.
+    try:
+        from ops import supervisor_live as supervisor
+    except ModuleNotFoundError:
+        import supervisor_live as supervisor
+    supervision = supervisor.parse_request(text)
+    if supervision is not None:
+        try:
+            answer = (supervisor.overview(github) if supervision == 0
+                      else supervisor.task_status(github, supervision))
+        except RuntimeError:
+            say("👁️ Supervisor: não consegui consultar agora o estado fiável "
+                "do GitHub. Não iniciei trabalhadores. Tenta consultar novamente.")
+            return
+        say(answer)
+        return
+
     if text.lower().startswith(("/fix", "/cursor", "/sonnet", "/composer")):
         say("Este agente ainda não está ativado. "
             "Para já posso enviar auditorias de leitura ao Codex: /audit <pedido>.")
