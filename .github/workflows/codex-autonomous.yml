@@ -60,15 +60,12 @@ concurrency:
 jobs:
   execute:
     if: >-
-      (github.event.issue.user.login == github.repository_owner &&
-       (startsWith(github.event.issue.title, '[codex run]') ||
-        ((startsWith(github.event.issue.title, '[agents run]') ||
-          startsWith(github.event.issue.title, '[coordinator run] ')) &&
-         inputs.task_b64 != '' &&
-         inputs.issue_number == github.event.issue.number))) ||
-      (github.event_name == 'repository_dispatch' &&
-       github.event.action == 'codex_quota_resume' &&
-       inputs.task_b64 != '' && inputs.issue_number > 0)
+      github.event.issue.user.login == github.repository_owner &&
+      (startsWith(github.event.issue.title, '[codex run]') ||
+       ((startsWith(github.event.issue.title, '[agents run]') ||
+         startsWith(github.event.issue.title, '[coordinator run] ')) &&
+        inputs.task_b64 != '' &&
+        inputs.issue_number == github.event.issue.number))
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
@@ -589,22 +586,6 @@ jobs:
           PY
           gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
             --body-file "$RUNNER_TEMP/owner-result.md"
-
-      - name: Continue authorized serial phase two after accepted resumed phase one
-        if: >-
-          github.event_name == 'repository_dispatch' &&
-          inputs.instance_id == '1' &&
-          steps.publish.outcome == 'success'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ORIGINAL_ISSUE: ${{ inputs.issue_number }}
-        run: |
-          set -euo pipefail
-          [[ "$ORIGINAL_ISSUE" =~ ^[1-9][0-9]*$ ]] || exit 3
-          test -s "$RUNNER_TEMP/codex-result.json"
-          python3 ops/codex_quota_resume.py ready "$ORIGINAL_ISSUE" \
-            "$GITHUB_RUN_ID" "$RUNNER_TEMP/codex-result.json"
 
       - name: Cleanup only completed disposable VPS jobs; keep quota-interrupted work
         if: always() && steps.stage.outcome != 'skipped'
