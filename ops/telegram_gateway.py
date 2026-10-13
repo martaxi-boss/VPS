@@ -398,7 +398,9 @@ def issue_status(text):
     issue = github("GET", "issues/" + str(number))
     comments = github("GET", "issues/" + str(number) + "/comments?per_page=100")
     results = [str(c.get("body") or "") for c in comments
-               if str(c.get("body") or "").startswith("**Codex VPS:")]
+               if (c.get("user") or {}).get("login") in
+                  ("github-actions[bot]", "github-actions")
+               and str(c.get("body") or "").startswith("**Codex VPS:")]
     if results:
         return ("Tarefa #" + str(number) + "\n\n" +
                 results[-1][:3300] + "\n\n" + issue["html_url"])
@@ -481,7 +483,7 @@ def handle_update(update):
         return
     status = issue_status(text)
     if status is not None:
-        say(status)
+        say(_supervisor_audit().observation(status, source="owner_query"))
         return
     task = parse_audit(text)
     if image is not None:
