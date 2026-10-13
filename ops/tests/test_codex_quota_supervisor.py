@@ -154,6 +154,16 @@ class QuotaSupervisorTests(unittest.TestCase):
                 self.assertIn("só o Owner decide", sent)
                 self.assertNotIn("nova ordem automaticamente iniciada", sent)
 
+    def test_no_legacy_resume_group_or_false_quota_workflow_name(self):
+        source = (Path(__file__).resolve().parents[2] /
+                  ".github/workflows/codex-quota-watch.yml").read_text()
+        self.assertTrue(source.startswith(
+            "name: Supervisor - Real ChatGPT quota watch (Owner notifications only)"))
+        self.assertIn("group: supervisor-real-chatgpt-quota-observer", source)
+        self.assertNotIn("group: owner-codex-quota-resume", source)
+        self.assertNotIn("name: Codex quota continuation", source)
+        self.assertIn("- cron: '*/5 * * * *'", source)
+
     def test_only_quota_workflow_is_polled_with_no_codex_worker_execution(self):
         source = (Path(__file__).resolve().parents[2] /
                   ".github/workflows/codex-quota-watch.yml").read_text()
