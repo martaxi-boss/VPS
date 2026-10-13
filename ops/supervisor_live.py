@@ -202,7 +202,7 @@ def overview(gh) -> str:
     else:
         lines.append("Sem ordens recentes reconhecidas na amostra consultada.")
     lines.append("Observação apenas de leitura; nenhuma ordem ou reinício efetuado.")
-    return "\n".join(lines)[:3800]
+    return "\n".join(lines)[:3350]
 
 
 def task_status(gh, number: int) -> str:
@@ -306,12 +306,13 @@ def notify_phase(gh, send, number: int, run: int, phase: int,
 
 
 
-def _private_sender(gateway, message: str) -> None:
-    """Never claim Telegram delivery when the original private bot is absent."""
+def _private_sender(gateway, message: str, *, source: str = "event") -> None:
+    """Audit authenticated observations before using the existing bot."""
     if (not gateway.BOT_TOKEN or
             not re.fullmatch(r"[1-9][0-9]{3,17}", gateway.CHAT_ID or "")):
         raise RuntimeError("Existing private Telegram destination not configured")
-    gateway.say(message)
+    from ops import supervisor_audit
+    gateway.say(supervisor_audit.observation(message, source=source))
 
 
 def main(argv: list[str]) -> int:
@@ -324,7 +325,7 @@ def main(argv: list[str]) -> int:
                     os.environ.get("GITHUB_REPOSITORY") != REPOSITORY):
                 return 2
             result = notify_plan(
-                gateway.github, lambda m: _private_sender(gateway, m), number, run,
+                gateway.github, lambda m: _private_sender(gateway, m, source="coordinator"), number, run,
                 os.environ.get("SUPERVISOR_PLAN_OUTCOME", ""),
                 os.environ.get("SUPERVISOR_PLAN_PHASE_COUNT", ""))
             print("SUPERVISOR_COORDINATOR=" + ("FORWARDED" if result else "IGNORED"))
@@ -342,7 +343,7 @@ def main(argv: list[str]) -> int:
                     os.environ.get("GITHUB_REPOSITORY") != REPOSITORY):
                 return 2
             result = notify_phase(
-                gateway.github, lambda m: _private_sender(gateway, m), number, run, phase,
+                gateway.github, lambda m: _private_sender(gateway, m, source="phase"), number, run, phase,
                 os.environ.get("SUPERVISOR_PLAN_OUTCOME", ""))
             print("SUPERVISOR_PHASE=" + ("FORWARDED" if result else "IGNORED"))
             return 0 if result else 2
@@ -356,7 +357,7 @@ def main(argv: list[str]) -> int:
     try:
         if event_name in ("issues", "workflow_run"):
             data = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8"))
-            result = observe_event(gateway.github, lambda m: _private_sender(gateway, m), event_name, data)
+            result = observe_event(gateway.github, lambda m: _private_sender(gateway, m, source="event"), event_name, data)
             print("SUPERVISOR_EVENT=" + ("FORWARDED" if result else "IGNORED"))
         elif event_name in ("schedule", "workflow_dispatch"):
             running = _runs(gateway.github, "in_progress")
