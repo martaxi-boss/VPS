@@ -175,6 +175,15 @@ class SupervisorLiveTests(unittest.TestCase):
         self.assertFalse(live.notify_plan(gh, send, 181, 11123, "success", "2"))
         send.assert_not_called()
 
+    def test_phase_milestone_does_not_create_a_new_plan_or_gate(self):
+        gh, send = Mock(return_value=self.owner_issue()), Mock()
+        self.assertTrue(live.notify_phase(gh, send, 181, 223344, 2, "success"))
+        self.assertIn("Fase 2", send.call_args.args[0])
+        self.assertEqual(gh.call_args.args, ("GET", "issues/181"))
+        send.reset_mock()
+        self.assertFalse(live.notify_phase(gh, send, 181, 223344, 9, "success"))
+        send.assert_not_called()
+
     def test_no_hidden_human_gate_classifier_or_side_effects(self):
         import inspect
         source = inspect.getsource(live)
