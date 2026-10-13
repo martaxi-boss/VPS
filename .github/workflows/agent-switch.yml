@@ -47,8 +47,7 @@ on:
         default: 1
   issues:
     types: [opened]
-  # Quota resume via repository_dispatch removed: a new authenticated Owner
-  # order is necessary after any provider limit is reached.
+  # A fresh authenticated Owner Issue is required after a quota hold.
   pull_request:
     paths:
       - '.github/workflows/agent-switch.yml'
@@ -96,13 +95,11 @@ jobs:
 
   preflight:
     if: >-
-      (github.event_name == 'issues' &&
-       github.event.issue.user.login == github.repository_owner &&
-       (startsWith(github.event.issue.title, '[agents run]') ||
-        (startsWith(github.event.issue.title, '[coordinator run] ') &&
-         inputs.coordinator_plan_b64 != ''))) ||
-      (github.event_name == 'repository_dispatch' &&
-       github.event.action == 'codex_quota_resume')
+      github.event_name == 'issues' &&
+      github.event.issue.user.login == github.repository_owner &&
+      (startsWith(github.event.issue.title, '[agents run]') ||
+       (startsWith(github.event.issue.title, '[coordinator run] ') &&
+        inputs.coordinator_plan_b64 != ''))
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -110,7 +107,6 @@ jobs:
       actions: read
     outputs:
       issue_number: ${{ steps.validate.outputs.issue_number }}
-      resume_stage: ${{ steps.validate.outputs.resume_stage }}
       codex: ${{ steps.validate.outputs.codex }}
       codex_task_b64: ${{ steps.validate.outputs.codex_task_b64 }}
       task_count: ${{ steps.validate.outputs.task_count }}
@@ -139,8 +135,6 @@ jobs:
         env:
           ORDER_BODY: ${{ github.event.issue.body }}
           COORDINATOR_PLAN_B64: ${{ inputs.coordinator_plan_b64 }}
-          EVENT_NAME: ${{ github.event_name }}
-          RESUME_PAYLOAD: ${{ toJSON(github.event.client_payload) }}
           GH_TOKEN: ${{ github.token }}
           ISSUE_SOURCE: ${{ github.event.issue.number || '0' }}
         shell: bash
@@ -155,13 +149,7 @@ jobs:
           spec.loader.exec_module(switch)
           state = Path(os.environ['RUNNER_TEMP']) / 'agent-switch-preflight.txt'
           try:
-              if os.environ.get('EVENT_NAME') == 'repository_dispatch':
-                  from ops import codex_quota_resume as quota
-                  payload = json.loads(os.environ.get('RESUME_PAYLOAD', '{}'))
-                  order, issue_number = quota.verify_resume(payload)
-                  resume_stage = payload['stage']
-                  phase_meta = None
-              elif os.environ.get('COORDINATOR_PLAN_B64'):
+              if os.environ.get('COORDINATOR_PLAN_B64'):
                   # This branch is enabled only for an exact Owner-authored
                   # Coordinator Issue through the reviewed reusable caller.
                   if not os.environ.get('ORDER_BODY', '').startswith(
@@ -170,17 +158,14 @@ jobs:
                   order, phase_meta = switch.parse_coordinator_envelope(
                       os.environ['COORDINATOR_PLAN_B64'])
                   issue_number = int(os.environ['ISSUE_SOURCE'])
-                  resume_stage = ''
               else:
                   order, phase_meta = switch.parse_owner_envelope(
                       os.environ.get('ORDER_BODY', ''))
                   issue_number = int(os.environ['ISSUE_SOURCE'])
-                  resume_stage = ''
-              values = switch.workflow_values(order, str(resume_stage))
+              values = switch.workflow_values(order)
               values['issue_number'] = str(issue_number)
-              values['resume_stage'] = str(resume_stage)
               # The normalized Owner order carries exact phase metadata on
-              # both issue-open and authenticated quota continuation routes.
+              # authenticated Owner Issue and Coordinator routes.
               # Reporting must not forget held work when phase_meta is absent.
               values['phase_count'] = str(order.get('phase_count', 1))
               values['held_task_count'] = str(order.get('held_task_count', 0))
@@ -195,9 +180,6 @@ jobs:
                       '. No agent started. Codex remains available via a separate one-agent order.')
               if values['codex'] != 'true':
                   raise switch.OrderError('No connected executor selected')
-              if os.environ.get('EVENT_NAME') == 'repository_dispatch':
-                  # Durable stage lease before any model execution.
-                  quota.record_start(payload)
               with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
                   for key, value in values.items():
                       out.write(f'{key}={value}\n')
@@ -244,8 +226,8 @@ jobs:
     with:
       task_b64: ${{ needs.preflight.outputs.codex_task_b64 }}
       issue_number: ${{ fromJSON(needs.preflight.outputs.issue_number) }}
-      instance_id: ${{ inputs.phase_number > 1 && format('p{0}-1', inputs.phase_number) || needs.preflight.outputs.resume_stage }}
-      no_auto_merge: ${{ github.event_name == 'repository_dispatch' || fromJSON(needs.preflight.outputs.audit_managed) }}
+      instance_id: ${{ inputs.phase_number > 1 && format('p{0}-1', inputs.phase_number) || '' }}
+      no_auto_merge: ${{ fromJSON(needs.preflight.outputs.audit_managed) }}
       allow_no_change: ${{ fromJSON(needs.preflight.outputs.allow_no_change_1) }}
       reasoning_effort: ${{ needs.preflight.outputs.codex_1_reasoning_effort }}
     secrets: inherit
@@ -301,7 +283,7 @@ jobs:
       task_b64: ${{ needs.preflight.outputs.codex_1_task_b64 }}
       issue_number: ${{ fromJSON(needs.preflight.outputs.issue_number) }}
       instance_id: ${{ inputs.phase_number > 1 && format('p{0}-1', inputs.phase_number) || '1' }}
-      no_auto_merge: ${{ github.event_name == 'repository_dispatch' || fromJSON(needs.preflight.outputs.serial_independent) || fromJSON(needs.preflight.outputs.audit_managed) }}
+      no_auto_merge: ${{ fromJSON(needs.preflight.outputs.serial_independent) || fromJSON(needs.preflight.outputs.audit_managed) }}
       allow_no_change: ${{ fromJSON(needs.preflight.outputs.allow_no_change_1) }}
       reasoning_effort: ${{ needs.preflight.outputs.codex_1_reasoning_effort }}
     secrets: inherit
@@ -309,22 +291,19 @@ jobs:
   codex_serial_2:
     needs: [preflight, codex_serial_1]
     # GitHub normally skips a dependent job when its predecessor was skipped.
-    # Explicit always() is needed for a verified stage-2 quota continuation.
-    # An ordinary run still requires stage 1's accepted publication result.
+    # Explicit always() keeps skipped predecessors visible to the blocking gate.
+    # Serial worker two requires first worker's accepted publication result.
     if: >-
       always() &&
       needs.preflight.result == 'success' &&
       needs.preflight.outputs.task_count == '2' &&
       needs.preflight.outputs.mode == 'serial' &&
       needs.preflight.outputs.run_stage_2 == 'true' &&
-      ((needs.preflight.outputs.resume_stage == '2' &&
-        needs.codex_serial_1.result == 'skipped') ||
-       (needs.preflight.outputs.resume_stage == '' &&
-        needs.codex_serial_1.result == 'success' &&
-        (needs.codex_serial_1.outputs.publication_status == 'MERGED' ||
-         needs.codex_serial_1.outputs.publication_status == 'NO_CHANGE' ||
-         (needs.preflight.outputs.serial_independent == 'true' &&
-          needs.codex_serial_1.outputs.publication_status == 'PR_STAGED'))))
+      needs.codex_serial_1.result == 'success' &&
+      (needs.codex_serial_1.outputs.publication_status == 'MERGED' ||
+       needs.codex_serial_1.outputs.publication_status == 'NO_CHANGE' ||
+       (needs.preflight.outputs.serial_independent == 'true' &&
+        needs.codex_serial_1.outputs.publication_status == 'PR_STAGED'))
     permissions:
       contents: read
       issues: write
@@ -334,7 +313,7 @@ jobs:
       task_b64: ${{ needs.preflight.outputs.codex_2_task_b64 }}
       issue_number: ${{ fromJSON(needs.preflight.outputs.issue_number) }}
       instance_id: ${{ inputs.phase_number > 1 && format('p{0}-2', inputs.phase_number) || '2' }}
-      no_auto_merge: ${{ github.event_name == 'repository_dispatch' || fromJSON(needs.preflight.outputs.serial_independent) || fromJSON(needs.preflight.outputs.audit_managed) }}
+      no_auto_merge: ${{ fromJSON(needs.preflight.outputs.serial_independent) || fromJSON(needs.preflight.outputs.audit_managed) }}
       allow_no_change: ${{ fromJSON(needs.preflight.outputs.allow_no_change_2) }}
       reasoning_effort: ${{ needs.preflight.outputs.codex_2_reasoning_effort }}
     secrets: inherit
@@ -346,7 +325,6 @@ jobs:
       always() && needs.preflight.result == 'success' &&
       needs.preflight.outputs.task_count == '2' &&
       needs.preflight.outputs.mode == 'serial' &&
-      needs.preflight.outputs.resume_stage == '' &&
       needs.preflight.outputs.run_stage_2 == 'true' &&
       (needs.codex_serial_1.result != 'success' ||
        (needs.codex_serial_1.outputs.publication_status != 'MERGED' &&
