@@ -247,12 +247,11 @@ def verify_resume(payload: dict, *, now: int | None = None) -> tuple[dict, int]:
     if pause["_source_kind"] == "ready" and (
             stage != 2 or order["mode"] != "serial" or len(order["tasks"]) != 2):
         raise QuotaResumeError("Invalid serial phase readiness")
-    # Only the *uncompleted* bounded task is replayed. Never repeat stage 1
-    # when the second of two workers failed; never substitute a vendor.
-    single = {"target_repository": order["target_repository"],
-              "mode": "serial",
-              "tasks": [order["tasks"][stage - 1]]}
-    return _order(json.dumps(single)), source
+    # Preserve the complete immutable Owner order for the trusted router.
+    # The attested stage is passed separately to workflow_values(), which
+    # enables *only* that worker. Truncating this order to one task would
+    # misidentify stage 2 and bypass the live serial/parallel job selection.
+    return order, source
 
 
 def record_start(payload: dict) -> None:
