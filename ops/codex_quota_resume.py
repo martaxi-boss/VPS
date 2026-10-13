@@ -27,6 +27,7 @@ READY = "<!-- CODEX_STAGE_READY_V1 -->"
 CLAIM = "<!-- CODEX_QUOTA_CLAIM_V1 -->"
 STARTED = "<!-- CODEX_QUOTA_STARTED_V1 -->"
 LABEL = "codex-quota-paused"
+HOLD_V2 = "<!-- CODEX_PROVIDER_QUOTA_HOLD_OWNER_ONLY_V2 -->"
 MAX_COMMENTS = 500
 MAX_ISSUES = 10_000  # Fail closed rather than silently losing any older paused issue
 ERROR_CODES = {"insufficient_quota", "usage_limit_reached",
@@ -385,6 +386,62 @@ def schedule_due(*, now: int | None = None) -> int:
     raise QuotaResumeError("QUOTA_AUTO_RESUME_DISABLED_OWNER_ONLY")
 
 
+
+def owner_only_hold(source: int, worker: str, run_id: int) -> dict:
+    """Durably freeze ANY authenticated Owner task, including Coordinator DAGs.
+
+    The record permits NO automatic model execution or resumed dispatch.
+    The Owner must issue a separate new authenticated instruction.
+    """
+    if (type(source) is not int or not 0 < source < 10**9 or
+            type(run_id) is not int or not 0 < run_id < 10**16 or
+            not isinstance(worker, str) or
+            not re.fullmatch(r"(?:[12]|p[2-8]-[12])", worker)):
+        raise QuotaResumeError("Quota hold identity unavailable")
+    item = _api("GET", "/issues/" + str(source))
+    if (not isinstance(item, dict) or item.get("number") != source
+            or item.get("pull_request") or item.get("state") != "open"
+            or (item.get("user") or {}).get("login") != OWNER
+            or not any(str(item.get("title", "")).startswith(prefix)
+                       for prefix in ("[agents run]", "[coordinator run] ",
+                                      "[codex run]", "[codex audit] "))):
+        raise QuotaResumeError("Authenticated original Owner order unavailable")
+    body = item.get("body")
+    if type(body) is not str or not body.strip():
+        raise QuotaResumeError("Original Owner instruction unavailable")
+    run = _api("GET", "/actions/runs/" + str(run_id))
+    if (not isinstance(run, dict) or run.get("id") != run_id or
+            run.get("name") not in (
+                "Agent switch (Owner GitHub order)",
+                "Coordinator to existing Codex router (Owner order)",
+                "Codex autonomous execution (Owner-authorized)",
+                "Codex - ChatGPT bridge") or
+            (run.get("repository") or {}).get("full_name") != REPO):
+        raise QuotaResumeError("Worker source execution could not be verified")
+    metadata = {
+        "version": 2, "source_issue": source,
+        "run_id": run_id, "worker": worker, "source": "codex_provider_quota",
+        "owner_order_sha256": hashlib.sha256(body.encode("utf-8")).hexdigest(),
+        "resumption": "REQUIRES_NEW_OWNER_ORDER",
+    }
+    note = HOLD_V2 + "\n" + json.dumps(
+        metadata, sort_keys=True, separators=(",", ":"))
+    historical = comments(source)
+    prior = parsed_comments(historical, HOLD_V2)
+    similar = [x for x in prior if
+               x.get("run_id") == run_id and x.get("worker") == worker]
+    if similar:
+        if len(similar) != 1 or any(
+                similar[0].get(key) != value for key, value in metadata.items()):
+            raise QuotaResumeError("Quota checkpoint differs from original Owner order")
+    else:
+        saved = _api("POST", f"/issues/{source}/comments", {"body": note})
+        if type(saved.get("id")) is not int:
+            raise QuotaResumeError("Quota checkpoint not confirmed")
+    _ensure_label(source)
+    return metadata
+
+
 def main(argv: list[str]) -> int:
     try:
         if len(argv) == 4 and argv[1] == "classify":
@@ -399,6 +456,10 @@ def main(argv: list[str]) -> int:
             advanced = ready_after_first_serial_stage(
                 int(argv[2]), int(argv[3]), Path(argv[4]))
             print("SERIAL_NEXT_STAGE_READY=" + ("YES" if advanced else "NO"))
+            return 0
+        if len(argv) == 5 and argv[1] == "hold":
+            meta = owner_only_hold(int(argv[2]), argv[3], int(argv[4]))
+            print("QUOTA_OWNER_ONLY_CHECKPOINT_SAVED=" + meta["worker"])
             return 0
         if len(argv) == 2 and argv[1] == "scan":
             # Keep old entrypoint harmless for external scheduled callers.
