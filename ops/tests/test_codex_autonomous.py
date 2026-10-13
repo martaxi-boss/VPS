@@ -534,7 +534,7 @@ class NoChangeAndQueueSafetyTests(unittest.TestCase):
                 '        if number is None: continue\n'
                 '        if number==1: value={}\n'
                 '        elif number==2: value={"account":{"type":"chatgpt"}}\n'
-                '        elif number==3: value={"rateLimits":{\n'
+                '        elif number==3: value={"ordinaryUsageAllowed":True,"rateLimits":{\n'
                 '            "limitId":"codex","primary":{"usedPercent":1,\n'
                 '            "windowDurationMins":300,"resetsAt":1823456789}}}\n'
                 '        else: raise SystemExit(3)\n'
