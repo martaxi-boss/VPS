@@ -14,6 +14,7 @@ on:
       - 'ops/agent_switch.py'
       - 'ops/codex_audit_strategy.py'
       - 'ops/tests/test_codex_audit_strategy.py'
+      - 'ops/tests/test_audited_owner_phase.py'
       - 'ops/tests/test_agent_switch.py'
       - 'ops/codex_resource_policy.py'
       - 'ops/tests/test_codex_resource_policy.py'
@@ -39,6 +40,7 @@ jobs:
       - run: |
           python3 -m py_compile ops/agent_switch.py ops/codex_audit_strategy.py
           python3 -m unittest discover -s ops/tests -p test_codex_audit_strategy.py -v
+          python3 -m unittest discover -s ops/tests -p test_audited_owner_phase.py -v
           python3 -m unittest discover -s ops/tests -p test_agent_switch.py -v
           python3 -m unittest discover -s ops/tests -p test_codex_resource_policy.py -v
           python3 -m unittest discover -s ops/tests -p test_codex_quota_resume.py -v
@@ -65,6 +67,9 @@ jobs:
       mode: ${{ steps.validate.outputs.mode }}
       serial_independent: ${{ steps.validate.outputs.serial_independent }}
       audit_managed: ${{ steps.validate.outputs.audit_managed }}
+      phase_count: ${{ steps.validate.outputs.phase_count }}
+      held_task_count: ${{ steps.validate.outputs.held_task_count }}
+      phase_owner_digest: ${{ steps.validate.outputs.phase_owner_digest }}
       run_stage_1: ${{ steps.validate.outputs.run_stage_1 }}
       run_stage_2: ${{ steps.validate.outputs.run_stage_2 }}
       codex_1_task_b64: ${{ steps.validate.outputs.codex_1_task_b64 }}
@@ -104,13 +109,18 @@ jobs:
                   payload = json.loads(os.environ.get('RESUME_PAYLOAD', '{}'))
                   order, issue_number = quota.verify_resume(payload)
                   resume_stage = payload['stage']
+                  phase_meta = None
               else:
-                  order = switch.parse_order(os.environ.get('ORDER_BODY', ''))
+                  order, phase_meta = switch.parse_owner_envelope(
+                      os.environ.get('ORDER_BODY', ''))
                   issue_number = int(os.environ['ISSUE_SOURCE'])
                   resume_stage = ''
               values = switch.workflow_values(order, str(resume_stage))
               values['issue_number'] = str(issue_number)
               values['resume_stage'] = str(resume_stage)
+              values['phase_count'] = str(phase_meta['phase_count'] if phase_meta else 1)
+              values['held_task_count'] = str(len(phase_meta['pending_task_ids']) if phase_meta else 0)
+              values['phase_owner_digest'] = phase_meta['owner_digest'] if phase_meta else ''
               # Do not quietly substitute Codex for Gemini or Composer.
               # A future adapter must prove authentication, isolated execution,
               # Project Leader rules and independent GitHub publication first.
@@ -127,9 +137,13 @@ jobs:
               with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
                   for key, value in values.items():
                       out.write(f'{key}={value}\n')
-              state.write_text('Bounded Codex order validated; only the explicitly named '
-                               'workers will run. Final status comes from each worker result.',
-                               encoding='utf-8')
+              message = ('Bounded Codex order validated; only the selected '
+                         'workers will run. Final status comes from verified results.')
+              if phase_meta and phase_meta['phase_count'] > 1:
+                  message += (' PHASE 1/' + str(phase_meta['phase_count']) +
+                              ' only; remaining tasks HOLD_FOR_CI_AND_REAUDIT.' +
+                              ' Owner order SHA-256: ' + phase_meta['owner_digest'])
+              state.write_text(message, encoding='utf-8')
           except (switch.OrderError, ValueError) as exc:
               state.write_text('BLOCKED BEFORE EXECUTION: ' + str(exc), encoding='utf-8')
               print('Safe preflight refused the task: ' + str(exc), file=sys.stderr)
