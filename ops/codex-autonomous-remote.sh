@@ -39,6 +39,7 @@ test -f "$base/codex_patch_guard.py"
 test -f "$base/codex_resource_policy.py"
 test -f "$base/codex_quota_resume.py"
 test -f "$base/codex_account_limits.py"
+test -f "$base/codex_quota_workspace.py"
 test -f "$base/codex_audit_strategy.py"
 test -s "$base/codex-reasoning.txt"
 effort="$(cat "$base/codex-reasoning.txt")"
@@ -58,39 +59,43 @@ if [ "$auth_status" != 'Logged in using ChatGPT' ] ||
   exit 3
 fi
 printf 'CODEX_AUTH_MODE=CHATGPT\n'
-# Read the actual signed-in ChatGPT Codex quota before any model call.
-# The app-server account/rateLimits/read RPC consumes zero inference tokens.
-set +e
-python3 "$base/codex_account_limits.py" read "$cli" > "$base/provider-quota.json"
-quota_read_code=$?
-set -e
-if [ "$quota_read_code" -ne 0 ]; then
-  printf 'CODEX_QUOTA_UNVERIFIED\n' > "$base/codex-preflight-signal.txt"
-  echo 'CODEX_ACCOUNT_QUOTA_UNVERIFIED=SAFE_HOLD; no model started' >&2
-  exit 76
-fi
-quota_status="$(python3 - "$base/provider-quota.json" <<'PY_QUOTA'
+# Quota read is advisory. The Owner can start with ANY amount of remaining
+# provider allowance. Only a REAL BLOCKED response stops the model preflight;
+# absent/unknown availability is left to the signed-in Codex CLI itself.
+# Never manufacture a 10% reserve or a virtual local quota.
+quota_status="UNKNOWN"
+if python3 "$base/codex_account_limits.py" read "$cli" > "$base/provider-quota.json"; then
+  quota_status="$(python3 - "$base/provider-quota.json" <<'PY_QUOTA'
 import json, sys
 from pathlib import Path
-value = json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
-if value.get('source') != 'codex_app_server' or value.get('auth') != 'chatgpt':
-    raise SystemExit(3)
-status = value.get('status')
-if status not in {'AVAILABLE', 'BLOCKED'}:
-    raise SystemExit(3)
-print(status)
+try:
+    data = json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
+    if data.get('source') != 'codex_app_server' or data.get('auth') != 'chatgpt':
+        raise ValueError
+    status = data.get('status')
+    if status not in ('AVAILABLE', 'BLOCKED'):
+        raise ValueError
+    print(status)
+except (OSError, ValueError, TypeError):
+    print('UNKNOWN')
 PY_QUOTA
-)" || {
-  printf 'CODEX_QUOTA_UNVERIFIED\n' > "$base/codex-preflight-signal.txt"
-  echo 'CODEX_PROVIDER_QUOTA_RESPONSE_UNVERIFIED=SAFE_HOLD' >&2
-  exit 76
-}
-if [ "$quota_status" = BLOCKED ]; then
-  printf 'CODEX_QUOTA_BLOCKED\n' > "$base/codex-preflight-signal.txt"
-  echo 'CODEX_REAL_CHATGPT_QUOTA=BLOCKED; waiting for Owner decision, no model started' >&2
-  exit 75
+)" || quota_status="UNKNOWN"
 fi
-echo 'CODEX_REAL_CHATGPT_QUOTA=AVAILABLE; provider snapshot validated'
+case "$quota_status" in
+  BLOCKED)
+    printf 'CODEX_QUOTA_BLOCKED\n' > "$base/codex-preflight-signal.txt"
+    echo 'CODEX_REAL_CHATGPT_QUOTA=BLOCKED; no model started; Owner controls restart' >&2
+    exit 75
+    ;;
+  AVAILABLE)
+    echo 'CODEX_REAL_CHATGPT_QUOTA=AVAILABLE; no artificial reserve'
+    ;;
+  UNKNOWN)
+    # Auth mode was verified separately. Actual signed-in Codex execution
+    # is authoritative: a provider quota error will stop and checkpoint.
+    echo 'CODEX_REAL_CHATGPT_QUOTA=UNKNOWN; signed-in provider decides; no fabricated limit'
+    ;;
+esac
 
 IFS= read -r header < "$base/codex-task.txt" || :
 case "$header" in
@@ -219,7 +224,13 @@ if [ "$code" -ne 0 ]; then
   state="$(python3 "$base/codex_quota_resume.py" classify "$base/cli.jsonl" "$base/cli.stderr")" || exit 18
   if [ "$state" = "QUOTA_BLOCKED" ]; then
     printf 'CODEX_QUOTA_BLOCKED\n' > "$base/codex-preflight-signal.txt"
-    echo 'CODEX_PROVIDER_QUOTA_PAUSED=YES; no patch accepted' >&2
+    # Work may already contain changed and new files. Never discard the
+    # original private clone after a genuine provider quota rejection.
+    # No partial patch is automatically published or executed.
+    if ! python3 "$base/codex_quota_workspace.py" secure "$base" "$job"; then
+      echo 'QUOTA_PRIVATE_CHECKPOINT_UNVERIFIED; keep VPS workspace for Owner recovery' >&2
+    fi
+    echo 'CODEX_PROVIDER_QUOTA_PAUSED=YES; private worktree retained; Owner decides' >&2
     exit 75
   fi
   echo "Codex exited with code $code; no patch accepted" >&2
