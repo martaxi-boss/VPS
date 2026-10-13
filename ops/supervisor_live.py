@@ -229,7 +229,9 @@ def observe_event(gh, send, event_name: str, payload: object) -> bool:
              "Vou acompanhar o Coordenador e a execução. "
              f"https://github.com/{REPOSITORY}/issues/{issue['number']}")
         return True
-    if event_name != "workflow_run" or payload.get("action") != "completed":
+    if event_name != "workflow_run" or payload.get("action") not in {
+        "requested", "in_progress", "completed"
+    }:
         return False
     run = payload.get("workflow_run")
     if not isinstance(run, dict) or run.get("name") not in WORKFLOWS:
@@ -240,10 +242,22 @@ def observe_event(gh, send, event_name: str, payload: object) -> bool:
     actual = _get(gh, f"actions/runs/{ident}")
     if (not isinstance(actual, dict) or actual.get("id") != ident or
             actual.get("name") != run["name"] or
-            actual.get("status") != "completed" or
-            actual.get("conclusion") not in OUTCOMES or
             actual.get("event") in ("pull_request", "pull_request_target") or
             (actual.get("repository") or {}).get("full_name") != REPOSITORY):
+        return False
+    action = payload["action"]
+    # A delayed event must not be presented as live when the run has already
+    # moved to a later state. Later events will give the current evidence.
+    if action == "requested" and actual.get("status") == "queued":
+        send(f"👁️ Supervisor: {WORKFLOWS[run['name']]} — trabalho em fila.\n"
+             f"https://github.com/{REPOSITORY}/actions/runs/{ident}")
+        return True
+    if action == "in_progress" and actual.get("status") == "in_progress":
+        send(f"👁️ Supervisor: {WORKFLOWS[run['name']]} — execução iniciada.\n"
+             f"https://github.com/{REPOSITORY}/actions/runs/{ident}")
+        return True
+    if (action != "completed" or actual.get("status") != "completed"
+            or actual.get("conclusion") not in OUTCOMES):
         return False
     conclusion = actual["conclusion"]
     # Existing autonomous workers already send a detailed final Telegram notice.
