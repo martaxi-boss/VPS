@@ -620,12 +620,16 @@ class PrivateOwnerReportDeliveryTests(unittest.TestCase):
     def test_public_issue_comment_never_loads_raw_agent_report(self):
         flow = (OPS.parent / '.github/workflows/codex-autonomous.yml').read_text(encoding='utf-8')
         a = flow.index('      - name: Publish truthful execution result to Owner Issue')
-        b = flow.index('      - name: Remove completed disposable VPS workspace')
+        b = flow.index('      - name: Cleanup only completed disposable VPS jobs; keep quota-interrupted work')
         public = flow[a:b]
         self.assertIn('Full model report (not published publicly):', public)
         self.assertIn('codex-private-status.txt', public)
         self.assertNotIn('report.md', public)
         self.assertNotIn('sendDocument', public)
+        # Quota workspace retention stays AFTER the public status; the issue
+        # never contains private patches, prompts or untracked file contents.
+        self.assertIn('CODEX_QUOTA_PRIVATE_WORKSPACE_RETAINED', flow)
+        self.assertIn('REMOTE_QUOTA_SAFE_CLEANUP', flow)
 
     def test_unconfigured_telegram_keeps_public_status(self):
         flow = (OPS.parent / '.github/workflows/codex-autonomous.yml').read_text(encoding='utf-8')

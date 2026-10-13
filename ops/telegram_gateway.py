@@ -637,6 +637,15 @@ def notify():
                  if os.environ.get(key) in allowed}
         details = [name + ": " + facts[key]
                    for key, name in stages if key in facts]
+        if status == "PAUSED_QUOTA":
+            proof = os.environ.get("QUOTA_HOLD_OUTCOME", "unknown")
+            if proof == "success":
+                details.append("Checkpoint da tarefa: registado para decisão do Owner. "
+                               "Se houver trabalho parcial, o espaço privado da VPS é preservado.")
+            else:
+                details.append("ATENÇÃO: checkpoint GitHub ainda NÃO certificado. "
+                               "Não reiniciar; verificar primeiro o espaço privado na VPS.")
+            details.append("Retoma: apenas após nova ordem autenticada do Owner.")
         suffix = ("\n" + "\n".join(details)) if details else ""
         audit_report = audit.pipeline(issue=issue, run_url=run_url,
                                       worker=worker, status=status, steps=facts)

@@ -17,6 +17,10 @@ on:
       - 'ops/codex_quota_supervisor.py'
       - 'ops/supervisor_audit.py'
       - 'ops/codex-autonomous-remote.sh'
+      - 'ops/codex_quota_workspace.py'
+      - 'ops/tests/test_codex_quota_workspace.py'
+      - 'ops/telegram_gateway.py'
+      - 'ops/tests/test_telegram_gateway.py'
       - 'ops/tests/test_codex_account_limits.py'
       - 'ops/tests/test_codex_quota_supervisor.py'
       - 'ops/tests/test_codex_quota_resume.py'
@@ -40,11 +44,13 @@ jobs:
           persist-credentials: false
       - name: Validate quota state machine without external writes or models
         run: |
-          python3 -m py_compile ops/codex_quota_resume.py ops/codex_account_limits.py ops/codex_quota_supervisor.py
+          python3 -m py_compile ops/codex_quota_resume.py ops/codex_account_limits.py ops/codex_quota_supervisor.py ops/codex_quota_workspace.py
           PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s ops/tests -p test_codex_account_limits.py -v
           PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s ops/tests -p test_codex_quota_supervisor.py -v
           PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
             -s ops/tests -p test_codex_quota_resume.py -v
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
+            -s ops/tests -p test_codex_quota_workspace.py -v
           bash -n ops/codex-autonomous-remote.sh
 
   quota-watch:

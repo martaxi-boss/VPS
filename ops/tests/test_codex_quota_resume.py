@@ -358,10 +358,11 @@ class QuotaLifecycleTests(unittest.TestCase):
                 return {"id": 1}
             raise AssertionError((method, path))
         with patch.object(q, "_api", side_effect=api):
-            meta = q.owner_only_hold(181, "p2-1", 564)
+            meta = q.owner_only_hold(181, "p2-1", 564, "564-1-p2-1")
         self.assertEqual(meta["resumption"], "REQUIRES_NEW_OWNER_ORDER")
         self.assertEqual(meta["worker"], "p2-1")
         self.assertEqual(meta["run_id"], 564)
+        self.assertEqual(meta["workspace_key"], "564-1-p2-1")
         self.assertEqual(len(posted), 1)
         self.assertIn(q.HOLD_V2, posted[0])
         self.assertNotIn("The immutable plan", posted[0])
@@ -373,11 +374,20 @@ class QuotaLifecycleTests(unittest.TestCase):
                  "user": {"login": "untrusted"}}
         with patch.object(q, "_api", return_value=issue) as api:
             with self.assertRaises(q.QuotaResumeError):
-                q.owner_only_hold(181, "p2-1", 564)
+                q.owner_only_hold(181, "p2-1", 564, "564-1-p2-1")
             self.assertEqual(api.call_count, 1)
         with patch.object(q, "_api") as api:
             with self.assertRaises(q.QuotaResumeError):
-                q.owner_only_hold(181, "INVALID/WORKER", 564)
+                q.owner_only_hold(181, "INVALID/WORKER", 564, "564-1-p2-1")
+            api.assert_not_called()
+
+    def test_owner_hold_cannot_reference_other_run_or_untrusted_vps_folder(self):
+        with patch.object(q, "_api") as api:
+            for job in ("555-1-p2-1", "564-1-p2-2",
+                        "564-1-p2-1/../../secrets", "564-0-p2-1",
+                        "564-1", ""):
+                with self.subTest(job=job), self.assertRaises(q.QuotaResumeError):
+                    q.owner_only_hold(181, "p2-1", 564, job)
             api.assert_not_called()
 
     def test_quota_checkpoint_can_read_actual_github_actions_run(self):
@@ -401,7 +411,10 @@ class QuotaLifecycleTests(unittest.TestCase):
         quota = remote.index('codex_account_limits.py" read')
         paid = remote.index('exec --model gpt-5.6-sol')
         self.assertLess(quota, paid)
-        self.assertIn('CODEX_QUOTA_UNVERIFIED', remote)
+        self.assertIn('quota_status="UNKNOWN"', remote)
+        self.assertIn('no artificial reserve', remote)
+        self.assertIn('codex_quota_workspace.py" secure', remote)
+        self.assertNotIn('CODEX_QUOTA_UNVERIFIED=SAFE_HOLD', remote)
         self.assertIn('CODEX_QUOTA_BLOCKED', remote)
         self.assertNotIn("scheduled retry", remote)
 

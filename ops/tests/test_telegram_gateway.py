@@ -706,5 +706,34 @@ class TelegramGatewayTests(unittest.TestCase):
             self.assertNotIn("PROMPT_INJECTION", body)
 
 
+
+    def test_supervisor_reports_real_quota_checkpoint_and_owner_only_restart(self):
+        baseline = {
+            "CODEX_REPORT_MODE": "status",
+            "CODEX_JOB_STATUS": "PAUSED_QUOTA",
+            "CODEX_ISSUE_NUMBER": "181",
+            "CODEX_RUN_URL": "https://github.com/martaxi-boss/VPS/actions/runs/12345",
+            "CODEX_OUTCOME": "failure",
+        }
+        for proof in ("success", "failure"):
+            with self.subTest(checkpoint=proof):
+                with (patch.dict(os.environ, {**baseline,
+                                             "QUOTA_HOLD_OUTCOME": proof}, clear=True),
+                      patch.object(gateway, "BOT_TOKEN", "mock"),
+                      patch.object(gateway, "CHAT_ID", "123456"),
+                      patch.object(gateway, "say") as send,
+                      patch.object(gateway, "create_audit") as issue):
+                    gateway.notify()
+                    body = send.call_args.args[0]
+                    self.assertIn("AUDITORIA DO RESULTADO", body)
+                    self.assertIn("QUOTA REAL", body)
+                    self.assertIn("nova ordem autenticada do Owner", body)
+                    if proof == "success":
+                        self.assertIn("Checkpoint da tarefa: registado", body)
+                    else:
+                        self.assertIn("checkpoint GitHub ainda NÃO certificado", body)
+                    issue.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()

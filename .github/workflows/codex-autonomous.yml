@@ -146,7 +146,7 @@ jobs:
           print('Owner task/target/GitHub write access verified. No token printed.')
           PY
           bash -n ops/codex-autonomous-remote.sh
-          python3 -m py_compile ops/codex-autonomous-publish.py ops/codex_patch_guard.py ops/codex-project-leader-bootstrap.py ops/codex_quota_resume.py ops/codex_account_limits.py ops/codex_audit_strategy.py
+          python3 -m py_compile ops/codex-autonomous-publish.py ops/codex_patch_guard.py ops/codex-project-leader-bootstrap.py ops/codex_quota_resume.py ops/codex_account_limits.py ops/codex_quota_workspace.py ops/codex_audit_strategy.py
 
       - name: Verify actual Git branch publication permission without model calls
         shell: bash
@@ -225,7 +225,7 @@ jobs:
           sshpass -e scp -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
             "$RUNNER_TEMP/codex-task.txt" "$RUNNER_TEMP/codex-reasoning.txt" \
             ops/codex-autonomous-remote.sh ops/codex_resource_policy.py \
-            ops/codex_quota_resume.py ops/codex_account_limits.py ops/codex_audit_strategy.py \
+            ops/codex_quota_resume.py ops/codex_account_limits.py ops/codex_quota_workspace.py ops/codex_audit_strategy.py \
             ops/codex_patch_guard.py \
             ops/codex-project-leader-bootstrap.py "$remote:$dest/"
 
@@ -280,7 +280,9 @@ jobs:
           case "$CODEX_INSTANCE_ID" in ''|1|2|p[2-8]-[12]) ;; *)
             echo 'QUOTA_WORKER_ID_INVALID'; exit 3;; esac
           worker="${CODEX_INSTANCE_ID:-1}"
-          python3 ops/codex_quota_resume.py hold "$ORIGINAL_ISSUE" "$worker" "$GITHUB_RUN_ID"
+          job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT${CODEX_INSTANCE_ID:+-$CODEX_INSTANCE_ID}"
+          [[ "$job" =~ ^[0-9]+-[0-9]+(-[12]|-p[2-8]-[12])?$ ]] || exit 3
+          python3 ops/codex_quota_resume.py hold "$ORIGINAL_ISSUE" "$worker" "$GITHUB_RUN_ID" "$job"
           echo 'QUOTA_HOLD=OWNER_ONLY_PERSISTED'
 
       # The Project Leader worker already decided what its report says, including
@@ -417,6 +419,7 @@ jobs:
           COLLECT_OUTCOME: ${{ steps.collect.outcome }}
           ARTIFACTS_OUTCOME: ${{ steps.validate_artifacts.outcome }}
           PUBLISH_OUTCOME: ${{ steps.publish.outcome }}
+          QUOTA_HOLD_OUTCOME: ${{ steps.quota_hold.outcome }}
         shell: bash
         run: |
           set -euo pipefail
@@ -435,8 +438,9 @@ jobs:
              ! test -L "$RUNNER_TEMP/codex-preflight-signal.txt"; then
             signal="$(cat "$RUNNER_TEMP/codex-preflight-signal.txt")"
           fi
-          if [ "$signal" = CODEX_QUOTA_BLOCKED ] &&
-             [ "${{ steps.quota_hold.outcome }}" = success ]; then
+          if [ "$signal" = CODEX_QUOTA_BLOCKED ]; then
+            # Never hide genuine quota exhaustion if the checkpoint write
+            # failed. Tell the Owner that the durable proof needs recovery.
             CODEX_JOB_STATUS="PAUSED_QUOTA"
           elif [ "$signal" = CODEX_QUOTA_UNVERIFIED ]; then
             CODEX_JOB_STATUS="QUOTA_UNVERIFIED"
@@ -602,16 +606,35 @@ jobs:
           python3 ops/codex_quota_resume.py ready "$ORIGINAL_ISSUE" \
             "$GITHUB_RUN_ID" "$RUNNER_TEMP/codex-result.json"
 
-      - name: Remove completed disposable VPS workspace
+      - name: Cleanup only completed disposable VPS jobs; keep quota-interrupted work
         if: always() && steps.stage.outcome != 'skipped'
         continue-on-error: true
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         shell: bash
         run: |
-          case "$CODEX_INSTANCE_ID" in ''|1|2|p[2-8]-[12]) ;; *) echo 'Invalid Codex worker identity' >&2; exit 12;; esac
+          set -euo pipefail
+          case "$CODEX_INSTANCE_ID" in ''|1|2|p[2-8]-[12]) ;; *)
+            echo 'Invalid Codex worker identity' >&2; exit 12;; esac
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT${CODEX_INSTANCE_ID:+-$CODEX_INSTANCE_ID}"
           [[ "$job" =~ ^[0-9]+-[0-9]+(-[12]|-p[2-8]-[12])?$ ]] || exit 2
-          sshpass -e ssh -T -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
-            -o ConnectTimeout=20 ubuntu@146.59.145.3 \
-            "rm -rf -- '/home/ubuntu/codex-bridge/jobs/$job'"
+          sshpass -e ssh -T -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519             -o ConnectTimeout=20 ubuntu@146.59.145.3             "bash -s -- '$job'" <<'REMOTE_QUOTA_SAFE_CLEANUP'
+          set -euo pipefail
+          job="$1"
+          [[ "$job" =~ ^[0-9]+-[0-9]+(-[12]|-p[2-8]-[12])?$ ]] || exit 2
+          base="$HOME/codex-bridge/jobs/$job"
+          signal="$base/codex-preflight-signal.txt"
+          # This marker comes from the trusted Codex CLI error classifier,
+          # outside the model's sandboxed checkout. Keep tracked and
+          # untracked edits, even if the GitHub checkpoint write failed.
+          if [ -d "$base" ] && [ ! -L "$base" ] &&
+             [ -f "$signal" ] && [ ! -L "$signal" ] &&
+             [ "$(cat "$signal")" = 'CODEX_QUOTA_BLOCKED' ] &&
+             [ -d "$base/repository" ] && [ ! -L "$base/repository" ]; then
+            chmod 700 "$base"
+            echo "CODEX_QUOTA_PRIVATE_WORKSPACE_RETAINED=$job"
+            exit 0
+          fi
+          rm -rf -- "$base"
+          echo 'CODEX_DISPOSABLE_WORKSPACE_CLEANED'
+          REMOTE_QUOTA_SAFE_CLEANUP
