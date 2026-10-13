@@ -20,6 +20,9 @@ on:
       worker_1_sha:
         description: First worker trusted implementation SHA
         value: ${{ jobs.codex.outputs.publication_sha || jobs.codex_parallel_1.outputs.publication_sha || jobs.codex_serial_1.outputs.publication_sha }}
+      worker_1_canonical_sha:
+        description: Project Leader SHA verified by first worker publisher
+        value: ${{ jobs.codex.outputs.publication_canonical_sha || jobs.codex_parallel_1.outputs.publication_canonical_sha || jobs.codex_serial_1.outputs.publication_canonical_sha }}
       worker_2_status:
         description: Second executor verified result
         value: ${{ jobs.codex_parallel_2.outputs.publication_status || jobs.codex_serial_2.outputs.publication_status }}
@@ -29,6 +32,9 @@ on:
       worker_2_sha:
         description: Second worker trusted implementation SHA
         value: ${{ jobs.codex_parallel_2.outputs.publication_sha || jobs.codex_serial_2.outputs.publication_sha }}
+      worker_2_canonical_sha:
+        description: Project Leader SHA verified by second worker publisher
+        value: ${{ jobs.codex_parallel_2.outputs.publication_canonical_sha || jobs.codex_serial_2.outputs.publication_canonical_sha }}
     inputs:
       coordinator_plan_b64:
         description: Authenticated Owner Coordinator audit; consumed by existing bounded router
