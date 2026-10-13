@@ -25,7 +25,7 @@ LEVELS = frozenset({"low", "medium", "high"})
 CHOICES = LEVELS | {"auto"}
 RESERVATIONS = {"low": 12000, "medium": 35000, "high": 75000}
 WINDOW_SECONDS = 24 * 3600
-JOB_PATTERN = re.compile(r"[0-9]+-[0-9]+(?:-[12])?\Z")
+JOB_PATTERN = re.compile(r"[0-9]+-[0-9]+(?:-[12]|-p[2-8]-[12])?\Z")
 
 # A task's topic is an imperfect estimate; no model difficulty is asserted
 # without actual evidence. The Owner may override with low/medium/high.

@@ -4,7 +4,7 @@ set -Eeuo pipefail
 umask 077
 
 job="${1:-}"
-[[ "$job" =~ ^[0-9]+-[0-9]+(-[12])?$ ]] || { echo 'Invalid job key' >&2; exit 2; }
+[[ "$job" =~ ^[0-9]+-[0-9]+(-[12]|-p[2-8]-[12])?$ ]] || { echo 'Invalid job key' >&2; exit 2; }
 base="$HOME/codex-bridge/jobs/$job"
 repo="$base/repository"
 report="$base/report.md"
