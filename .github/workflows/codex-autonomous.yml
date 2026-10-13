@@ -131,7 +131,7 @@ jobs:
           print('Owner task/target/GitHub write access verified. No token printed.')
           PY
           bash -n ops/codex-autonomous-remote.sh
-          python3 -m py_compile ops/codex-autonomous-publish.py ops/codex_patch_guard.py ops/codex-project-leader-bootstrap.py ops/codex_quota_resume.py
+          python3 -m py_compile ops/codex-autonomous-publish.py ops/codex_patch_guard.py ops/codex-project-leader-bootstrap.py ops/codex_quota_resume.py ops/codex_audit_strategy.py
 
       - name: Verify actual Git branch publication permission without model calls
         shell: bash
@@ -210,7 +210,8 @@ jobs:
           sshpass -e scp -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
             "$RUNNER_TEMP/codex-task.txt" "$RUNNER_TEMP/codex-reasoning.txt" \
             ops/codex-autonomous-remote.sh ops/codex_resource_policy.py \
-            ops/codex_quota_resume.py ops/codex_patch_guard.py \
+            ops/codex_quota_resume.py ops/codex_audit_strategy.py \
+            ops/codex_patch_guard.py \
             ops/codex-project-leader-bootstrap.py "$remote:$dest/"
 
       - name: Run signed-in Codex CLI with workspace-write sandbox
@@ -391,6 +392,8 @@ jobs:
                           'GitHub publisher cannot create an authorized target branch; no model started.',
                       b'CODEX_QUOTA_BLOCKED\n':
                           'Provider-reported Codex quota exhausted; this phase is paused for a safely validated scheduled retry.',
+                      b'AUDIT_STALE_BLOCKED\n':
+                          'Audited repository HEAD changed; no Codex model started.',
                   }
                   candidate = signal_path.read_bytes()
                   if candidate in allowed_signals:
