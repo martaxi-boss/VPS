@@ -25,6 +25,8 @@ _FINAL = {
     "NOT_STARTED": "execução não iniciada",
     "NOT_COMPLETED": "execução ainda não certificada",
     "FAILED": "falha de execução reportada",
+    "PAUSED_QUOTA": "cota real atingida; aguardar ordem expressa do Owner",
+    "QUOTA_UNVERIFIED": "cota real desconhecida; não iniciar trabalhadores",
 }
 
 
@@ -102,7 +104,8 @@ def pipeline(*, issue: str, run_url: str, worker: str, status: str,
         conclusion = ("INCONSISTÊNCIA: estado declarado como concluído, "
                       "mas existem etapas com falha/cancelamento; não certificar sucesso.")
     elif failing or status in ("NOT_STARTED", "NOT_COMPLETED", "FAILED",
-                               "PR_NEEDS_ATTENTION", "NO_CHANGE_UNVERIFIED"):
+                               "PR_NEEDS_ATTENTION", "NO_CHANGE_UNVERIFIED",
+                               "PAUSED_QUOTA", "QUOTA_UNVERIFIED"):
         conclusion = "ATENÇÃO: trabalho não certificado como concluído."
     elif status == "PR_STAGED":
         conclusion = "PR ainda não integrada; não apresentar como finalizado."
