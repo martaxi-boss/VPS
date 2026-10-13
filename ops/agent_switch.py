@@ -274,6 +274,7 @@ def workflow_values(order: dict) -> dict:
             "Active workflow supports one or two Codex workers only; "
             "the whole unsupported plan is blocked. No agent started"
         )
+    audited = str(any("AUDIT_ALLOWED_PATHS=" in t["task"] for t in tasks)).lower()
     if len(tasks) == 1:
         legacy = output_values(order)
         return {
@@ -281,6 +282,7 @@ def workflow_values(order: dict) -> dict:
             "task_count": "1",
             "mode": order["mode"],
             "serial_independent": "false",
+            "audit_managed": audited,
             "codex_1_task_b64": legacy["codex_task_b64"],
             "codex_2_task_b64": "",
             "allow_no_change_1": str(tasks[0].get("allow_no_change", False)).lower(),
@@ -323,6 +325,7 @@ def workflow_values(order: dict) -> dict:
         "task_count": "2",
         "mode": order["mode"],
         "serial_independent": str(order.get("serial_independent", False)).lower(),
+        "audit_managed": audited,
         "codex_1_task_b64": encoded[0],
         "codex_2_task_b64": encoded[1],
         "allow_no_change_1": str(tasks[0].get("allow_no_change", False)).lower(),
