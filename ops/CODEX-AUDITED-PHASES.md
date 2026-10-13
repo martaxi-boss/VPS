@@ -23,10 +23,13 @@ e guardas de escopo do executor VPS.
   alteracao em PR ainda nao integrada ja esta disponivel para a fase seguinte.
 - Uma tarefa suficiente: apenas um trabalhador.
 
-Apenas a primeira fase devolve `dispatch_audit`, para o gestor emitir a
-Issue Owner `[agents run]` no formato do executor existente. A ordem deve
-ser transportada em JSON e a revisao auditada deve continuar identica no
-momento do clone. Se o `main` mudou, o executor impede o gasto de tokens.
+Apenas a primeira fase devolve `dispatch_audit` e o texto canonico
+`dispatch_json`. O gestor deve enviar **exatamente** este ultimo texto como
+corpo da Issue Owner `[agents run]`, sem reformatacao que possa exceder 6800
+bytes. Antes de marcar a fase READY, o planeador percorre o mesmo
+`agent_switch.parse_order` e `workflow_values` do executor GitHub Actions,
+incluindo limites de 2200 caracteres por trabalhador e serializacao ASCII.
+A revisao auditada deve continuar identica no momento do clone. Se o `main` mudou, o executor impede o gasto de tokens.
 As fases seguintes tem `dispatch_audit: null`, estado
 `HOLD_FOR_CI_AND_REAUDIT` e **nao** podem ser disparadas a partir de prova
 antiga. O gestor primeiro valida a PR anterior, os testes, o estado do merge
