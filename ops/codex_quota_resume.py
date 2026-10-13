@@ -387,7 +387,8 @@ def schedule_due(*, now: int | None = None) -> int:
 
 
 
-def owner_only_hold(source: int, worker: str, run_id: int) -> dict:
+def owner_only_hold(source: int, worker: str, run_id: int,
+                    workspace_key: str) -> dict:
     """Durably freeze ANY authenticated Owner task, including Coordinator DAGs.
 
     The record permits NO automatic model execution or resumed dispatch.
@@ -398,6 +399,13 @@ def owner_only_hold(source: int, worker: str, run_id: int) -> dict:
             not isinstance(worker, str) or
             not re.fullmatch(r"(?:[12]|p[2-8]-[12])", worker)):
         raise QuotaResumeError("Quota hold identity unavailable")
+    # The saved private checkout is identified by the exact runner job key,
+    # not by an inferred attempt or a mutable Owner-supplied path.
+    if (type(workspace_key) is not str or
+            not re.fullmatch(rf"{run_id}-[1-9][0-9]{{0,3}}(?:-{re.escape(worker)})?",
+                             workspace_key) or
+            (worker.startswith("p") and not workspace_key.endswith("-" + worker))):
+        raise QuotaResumeError("Quota hold workspace identity unavailable")
     item = _api("GET", "/issues/" + str(source))
     if (not isinstance(item, dict) or item.get("number") != source
             or item.get("pull_request") or item.get("state") != "open"
@@ -420,7 +428,8 @@ def owner_only_hold(source: int, worker: str, run_id: int) -> dict:
         raise QuotaResumeError("Worker source execution could not be verified")
     metadata = {
         "version": 2, "source_issue": source,
-        "run_id": run_id, "worker": worker, "source": "codex_provider_quota",
+        "run_id": run_id, "worker": worker, "workspace_key": workspace_key,
+        "source": "codex_provider_quota",
         "owner_order_sha256": hashlib.sha256(body.encode("utf-8")).hexdigest(),
         "resumption": "REQUIRES_NEW_OWNER_ORDER",
     }
@@ -457,8 +466,8 @@ def main(argv: list[str]) -> int:
                 int(argv[2]), int(argv[3]), Path(argv[4]))
             print("SERIAL_NEXT_STAGE_READY=" + ("YES" if advanced else "NO"))
             return 0
-        if len(argv) == 5 and argv[1] == "hold":
-            meta = owner_only_hold(int(argv[2]), argv[3], int(argv[4]))
+        if len(argv) == 6 and argv[1] == "hold":
+            meta = owner_only_hold(int(argv[2]), argv[3], int(argv[4]), argv[5])
             print("QUOTA_OWNER_ONLY_CHECKPOINT_SAVED=" + meta["worker"])
             return 0
         if len(argv) == 2 and argv[1] == "scan":
