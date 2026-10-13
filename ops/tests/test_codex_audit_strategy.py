@@ -94,7 +94,7 @@ class AuditDispatchTests(unittest.TestCase):
     def test_uninspected_paths_and_raw_control_instructions_are_refused(self):
         plan = self.manifest()
         plan["audit"]["work_items"][1]["paths"] = ["codex/other.py"]
-        with self.assertRaisesRegex(agent_switch.OrderError, "grounded"):
+        with self.assertRaisesRegex(agent_switch.OrderError, "explicitly present"):
             agent_switch.parse_order(json.dumps(plan))
         plan = self.manifest()
         plan["audit"]["work_items"][0]["task"] = "AUDIT_BASE_SHA=" + PIN + "\nMisleading job"
@@ -111,6 +111,18 @@ class AuditDispatchTests(unittest.TestCase):
         plan = self.manifest()
         plan["audit"]["revision"] = "not-a-commit"
         with self.assertRaisesRegex(agent_switch.OrderError, "SHA"):
+            agent_switch.parse_order(json.dumps(plan))
+
+    def test_finding_does_not_expand_file_scope_to_parent_directory(self):
+        plan = self.manifest()
+        plan["audit"]["findings"][1]["paths"] = ["codex/auth/check.py"]
+        plan["audit"]["work_items"][1]["paths"] = ["codex"]
+        with self.assertRaisesRegex(agent_switch.OrderError, "explicitly present"):
+            agent_switch.parse_order(json.dumps(plan))
+        plan = self.manifest()
+        plan["audit"]["findings"][1]["paths"] = ["codex"]
+        plan["audit"]["work_items"][1]["paths"] = ["codex/other.py"]
+        with self.assertRaisesRegex(agent_switch.OrderError, "explicitly present"):
             agent_switch.parse_order(json.dumps(plan))
 
     def test_disconnected_or_third_agent_never_started(self):
@@ -153,7 +165,18 @@ class AuditDispatchTests(unittest.TestCase):
                 (repository / "docs/usage.md").write_text("Updated\n")
                 strategy.verify_changed(task)
                 (repository / "codex/other.py").write_text("print('mutated')\n")
-                with self.assertRaisesRegex(strategy.AuditStrategyError, "outside audited"):
+                with self.assertRaisesRegex(strategy.AuditStrategyError, "outside exact audited"):
+                    strategy.verify_changed(task)
+                # Even if a broad owner-supplied scope marker is present,
+                # runtime ownership is exact-file, not directory-wide.
+                task.write_text(
+                    "TARGET_REPOSITORY=martaxi-boss/Project-leader-codex\n" +
+                    "AUDIT_BASE_SHA=" + PIN + "\n" +
+                    'AUDIT_ALLOWED_PATHS=["codex"]\n' +
+                    "Correct explicitly reviewed file only\n",
+                    encoding="utf-8",
+                )
+                with self.assertRaisesRegex(strategy.AuditStrategyError, "outside exact audited"):
                     strategy.verify_changed(task)
             finally:
                 os.chdir(previous)
