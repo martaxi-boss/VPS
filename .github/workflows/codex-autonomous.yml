@@ -75,7 +75,7 @@ jobs:
       contents: read
       issues: write
     outputs:
-      publication_status: ${{ steps.publish.outputs.publication_status }}
+      publication_status: ${{ steps.publish.outputs.publication_status || steps.gate_notice.outputs.publication_status }}
       publication_pr: ${{ steps.publish.outputs.publication_pr }}
       publication_sha: ${{ steps.publish.outputs.publication_sha }}
       publication_canonical_sha: ${{ steps.publish.outputs.publication_canonical_sha }}
@@ -144,7 +144,7 @@ jobs:
           print('Owner task/target/GitHub write access verified. No token printed.')
           PY
           bash -n ops/codex-autonomous-remote.sh
-          python3 -m py_compile ops/codex-autonomous-publish.py ops/codex_patch_guard.py ops/codex-project-leader-bootstrap.py ops/codex_quota_resume.py ops/codex_audit_strategy.py
+          python3 -m py_compile ops/codex-autonomous-publish.py ops/codex_patch_guard.py ops/codex-project-leader-bootstrap.py ops/codex_quota_resume.py ops/codex_audit_strategy.py ops/codex_human_gate.py
 
       - name: Verify actual Git branch publication permission without model calls
         shell: bash
@@ -224,7 +224,7 @@ jobs:
             "$RUNNER_TEMP/codex-task.txt" "$RUNNER_TEMP/codex-reasoning.txt" \
             ops/codex-autonomous-remote.sh ops/codex_resource_policy.py \
             ops/codex_quota_resume.py ops/codex_audit_strategy.py \
-            ops/codex_patch_guard.py \
+            ops/codex_human_gate.py ops/codex_patch_guard.py \
             ops/codex-project-leader-bootstrap.py "$remote:$dest/"
 
       - name: Run signed-in Codex CLI with workspace-write sandbox
@@ -252,7 +252,7 @@ jobs:
           case "$CODEX_INSTANCE_ID" in ''|1|2|p[2-8]-[12]) ;; *) echo 'Invalid Codex worker identity' >&2; exit 12;; esac
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT${CODEX_INSTANCE_ID:+-$CODEX_INSTANCE_ID}"
           remote="ubuntu@146.59.145.3:/home/ubuntu/codex-bridge/jobs/$job"
-          for file in patch.diff target.txt base-sha.txt codex-task.txt usage.json project-leader-runtime.json report.md codex-preflight-signal.txt; do
+          for file in patch.diff target.txt base-sha.txt codex-task.txt usage.json project-leader-runtime.json report.md gate-signal.txt codex-preflight-signal.txt; do
             sshpass -e scp -q -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
               -o ConnectTimeout=20 "$remote/$file" "$RUNNER_TEMP/$file" || true
           done
@@ -265,9 +265,45 @@ jobs:
           fi
           test -f "$RUNNER_TEMP/patch.diff" || test '${{ steps.codex.outcome }}' != 'success'
 
+      - name: Verify canonical Project Leader Human Gate signal
+        id: human_gate
+        if: steps.codex.outcome == 'success' && steps.collect.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "$RUNNER_TEMP/gate-signal.txt" || exit 14
+          signal="$(cat "$RUNNER_TEMP/gate-signal.txt")"
+          case "$signal" in HUMAN_GATE_PENDING|NO_GATE) ;; *) exit 14;; esac
+          verified="$(python3 ops/codex_human_gate.py classify "$RUNNER_TEMP/report.md")"
+          test "$signal" = "$verified" || exit 14
+          echo "status=$signal" >> "$GITHUB_OUTPUT"
+          echo "PROJECT_LEADER_GATE_SIGNAL_VERIFIED=$signal"
+
+      - name: Supervisor sends genuine Human Gate directly to private Owner Telegram
+        id: gate_notice
+        if: steps.human_gate.outputs.status == 'HUMAN_GATE_PENDING'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          OWNER_ISSUE: ${{ inputs.issue_number || github.event.issue.number }}
+          GATE_REPORT_PATH: ${{ runner.temp }}/report.md
+          GATE_RUNTIME_PATH: ${{ runner.temp }}/project-leader-runtime.json
+          GATE_BASE_PATH: ${{ runner.temp }}/base-sha.txt
+          GATE_TARGET_PATH: ${{ runner.temp }}/target.txt
+          GATE_TASK_PATH: ${{ runner.temp }}/codex-task.txt
+        run: |
+          set -euo pipefail
+          python3 ops/coordinator_supervisor.py human-gate
+          echo "publication_status=HUMAN_GATE_PENDING" >> "$GITHUB_OUTPUT"
+
       - name: Publish guarded PR, validate exact CI, merge only if explicitly permitted
         id: publish
-        if: steps.codex.outcome == 'success' && steps.collect.outcome == 'success'
+        if: >-
+          steps.codex.outcome == 'success' &&
+          steps.collect.outcome == 'success' &&
+          steps.human_gate.outputs.status == 'NO_GATE'
         env:
           CODEX_GITHUB_TOKEN: ${{ secrets.CODEX_GITHUB_TOKEN }}
           CODEX_JOB_DIR: ${{ runner.temp }}
@@ -325,7 +361,7 @@ jobs:
       # only when both dedicated secrets are already configured.
       - name: Send private Codex report to configured Owner Telegram
         id: private_report
-        if: always() && steps.collect.outcome == 'success'
+        if: always() && steps.collect.outcome == 'success' && steps.human_gate.outputs.status != 'HUMAN_GATE_PENDING'
         continue-on-error: true
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -522,7 +558,8 @@ jobs:
           echo 'CODEX_QUOTA_CHECKPOINT=PERSISTED'
 
       - name: Remove completed disposable VPS workspace
-        if: always() && steps.stage.outcome != 'skipped'
+        # Gate checkpoints survive for one-time authenticated Owner resolution.
+        if: always() && steps.stage.outcome != 'skipped' && steps.human_gate.outputs.status != 'HUMAN_GATE_PENDING'
         continue-on-error: true
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
