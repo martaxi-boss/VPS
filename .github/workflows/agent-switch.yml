@@ -42,6 +42,7 @@ jobs:
           python3 -m unittest discover -s ops/tests -p test_agent_switch.py -v
           python3 -m unittest discover -s ops/tests -p test_codex_resource_policy.py -v
           python3 -m unittest discover -s ops/tests -p test_codex_quota_resume.py -v
+          python3 -m unittest discover -s ops/tests -p test_codex_resume_stage_routing.py -v
 
   preflight:
     if: >-
