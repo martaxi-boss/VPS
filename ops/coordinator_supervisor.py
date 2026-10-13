@@ -467,10 +467,10 @@ def observe_worker_event() -> int:
     # The report is untrusted model text, destined ONLY for the Owner's
     # existing private chat. It is NEVER a command or a Human Gate classifier.
     try:
-        try:
-            import telegram_gateway as gateway
-        except ModuleNotFoundError:
+        if __package__:
             from ops import telegram_gateway as gateway
+        else:
+            import telegram_gateway as gateway
         gateway.notify()
     except (RuntimeError, OSError):
         print("PROJECT_LEADER_SUPERVISOR_NOTICE=TELEGRAM_DELIVERY_FAILED")
