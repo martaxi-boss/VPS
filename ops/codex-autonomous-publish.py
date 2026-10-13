@@ -7,6 +7,7 @@ and merges only a correctly evidenced, exact-head PR without bypassing policies.
 """
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -261,7 +262,8 @@ def premerge_policy_gate(repo, paths):
 
 def worker_branch_name(issue, run_id, attempt, instance_id=""):
     """Keep old branch identities unchanged and separate explicit workers."""
-    if instance_id not in ("", "1", "2"):
+    if (instance_id not in ("", "1", "2") and
+            not re.fullmatch(r"p[2-8]-[12]", instance_id)):
         raise ValueError("Invalid trusted Codex worker identity")
     suffix = "-" + instance_id if instance_id else ""
     return f"codex/issue-{issue}-{run_id}-{attempt}{suffix}"

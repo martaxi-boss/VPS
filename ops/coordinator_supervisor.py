@@ -33,7 +33,7 @@ SHA = re.compile(r"[0-9a-f]{40}\Z")
 PR_URL = re.compile(
     r"https://github\.com/martaxi-boss/Project-leader-codex/pull/([1-9][0-9]*)\Z")
 BRANCH = re.compile(r"codex/issue-([1-9][0-9]*)-([1-9][0-9]*)-([1-9][0-9]*)"
-                    r"(?:-([12]))?\Z")
+                    r"(?:-([12])|-p([2-8])-([12]))?\Z")
 MAX_FILES = 3
 MAX_DIFF_LINES = 180
 MAX_NETWORK_BYTES = 1_000_000
@@ -137,12 +137,16 @@ def _files(number: int) -> tuple[str, ...]:
     return tuple(sorted(result))
 
 
-def _expected_branch(branch: str, issue: int, run: int) -> bool:
+def _expected_branch(branch: str, issue: int, run: int, phase: int = 1) -> bool:
     match = BRANCH.fullmatch(branch)
-    return bool(match and int(match[1]) == issue and int(match[2]) == run)
+    return bool(
+        match and int(match[1]) == issue and int(match[2]) == run and
+        ((phase == 1 and match[5] is None) or
+         (2 <= phase <= 8 and match[5] == str(phase) and match[6] in ("1", "2")))
+    )
 
 
-def _candidate(worker: Worker, issue: int, run: int) -> Candidate:
+def _candidate(worker: Worker, issue: int, run: int, phase: int = 1) -> Candidate:
     if worker.status != "PR_STAGED" or not SHA.fullmatch(worker.sha):
         raise SupervisorHold("WORKER_RESULT_NOT_STAGED")
     matched = PR_URL.fullmatch(worker.url)
@@ -161,7 +165,7 @@ def _candidate(worker: Worker, issue: int, run: int) -> Candidate:
             or head.get("repo", {}).get("full_name") != TARGET
             or base.get("ref") != "main"
             or head.get("sha") != worker.sha
-            or not _expected_branch(branch, issue, run)):
+            or not _expected_branch(branch, issue, run, phase)):
         raise SupervisorHold("PR_UNVERIFIED")
     body = pr.get("body")
     if (not isinstance(body, str) or
@@ -267,8 +271,10 @@ def _wait_updated_branch(second: Candidate, new_base: str) -> Candidate:
             before.get("base", {}).get("sha") != new_base or
             before.get("state") != "open"):
         raise SupervisorHold("SECOND_PR_DRIFT")
+    # GitHub REST update-branch accepts only expected_head_sha; its update
+    # is a server-created merge commit. Never substitute an unverified rebase.
     _api("PUT", f"repos/{TARGET}/pulls/{second.number}/update-branch",
-         {"expected_head_sha": second.sha, "update_method": "merge"})
+         {"expected_head_sha": second.sha})
     # A GitHub update-branch request is asynchronous. Do not guess the new
     # commit or accept an arbitrary new head just because it has green CI.
     deadline = time.monotonic() + 330
@@ -312,13 +318,15 @@ def _wait_fresh_ci(second: Candidate) -> None:
 
 
 def assess(issue: int, run: int, workers: list[Worker], phase_count: int,
-           canonical: str) -> dict:
+           canonical: str, phase_number: int = 1) -> dict:
     """Independently merge up to two non-overlapping, CI-verified doc PRs.
 
     Second PR receives a GitHub-owned merge update and exact-new-head CI,
     never blind reuse of checks from its stale first-wave parent.
     """
-    if not 1 <= len(workers) <= 2 or not 1 <= phase_count <= 8:
+    if (not 1 <= len(workers) <= 2 or not 1 <= phase_count <= 8 or
+            type(phase_number) is not int or not 1 <= phase_number <= 8 or
+            phase_number + phase_count > 9):
         raise SupervisorHold("INVALID_ROUTING")
     if not SHA.fullmatch(canonical):
         raise SupervisorHold("CANONICAL_UNVERIFIED")
@@ -326,7 +334,7 @@ def assess(issue: int, run: int, workers: list[Worker], phase_count: int,
     canonical_ref = _api("GET", f"repos/{SOURCE}/git/ref/heads/main")
     if canonical_ref.get("object", {}).get("sha") != canonical:
         raise SupervisorHold("CANONICAL_STALE")
-    candidates = [_candidate(w, issue, run) for w in workers]
+    candidates = [_candidate(w, issue, run, phase_number) for w in workers]
     if len({c.number for c in candidates}) != len(candidates):
         raise SupervisorHold("DUPLICATE_WORKER_PR")
     if len({c.sha for c in candidates}) != len(candidates):
@@ -369,6 +377,7 @@ def main() -> int:
         run = _int(os.environ.get("OWNER_RUN", ""), "RUN")
         count = _int(os.environ.get("WORKER_COUNT", ""), "WORKER_COUNT", 2)
         phases = _int(os.environ.get("PHASE_COUNT", ""), "PHASE_COUNT", 8)
+        phase_number = _int(os.environ.get("PHASE_NUMBER", "1"), "PHASE_NUMBER", 8)
         if count not in (1, 2):
             raise SupervisorHold("INVALID_WORKER_COUNT")
         canonical = os.environ.get("CANONICAL_SHA", "")
@@ -376,12 +385,23 @@ def main() -> int:
                           os.environ.get(f"WORKER_{i}_PR", ""),
                           os.environ.get(f"WORKER_{i}_SHA", ""))
                    for i in range(1, count + 1)]
-        result = assess(issue, run, workers, phases, canonical)
+        result = assess(issue, run, workers, phases, canonical, phase_number)
         numbers = ", ".join("#" + str(n) for n in result["pull_requests"])
         report = ("PROJECT_LEADER_" + result["status"] +
                   ": PR " + numbers + ", merged SHA "
                   + result["merge_sha"] + f"; phases {phases}.")
         print("PROJECT_LEADER_SUPERVISOR=" + result["status"], flush=True)
+        # Outputs follow only independently reconciled exact merged HEAD.
+        output = os.environ.get("GITHUB_OUTPUT", "")
+        if output:
+            from pathlib import Path
+            if (result["status"] not in {
+                    "TERMINAL_SUCCESS", "PHASE_VALIDATED_PENDING_REAUDIT"} or
+                    not SHA.fullmatch(result["merge_sha"])):
+                raise SupervisorHold("SUPERVISOR_OUTPUT_UNVERIFIED")
+            with Path(output).open("a", encoding="ascii") as writer:
+                writer.write("phase_status=" + result["status"] + "\n")
+                writer.write("merged_sha=" + result["merge_sha"] + "\n")
         _api("POST", f"repos/{CONTROL}/issues/{issue}/comments",
              {"body": report}, control=True)
         if result["status"] == "TERMINAL_SUCCESS":

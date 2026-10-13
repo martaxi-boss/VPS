@@ -362,6 +362,17 @@ class TwoWorkerPublicationTests(unittest.TestCase):
             "codex/issue-99-456-1-2",
         )
 
+    def test_original_dag_phase_workers_have_separate_branches(self):
+        for phase in range(2, 9):
+            for slot in (1, 2):
+                ident = f"p{phase}-{slot}"
+                name = publisher.worker_branch_name("99", "456", "1", ident)
+                self.assertEqual(name, f"codex/issue-99-456-1-{ident}")
+                self.assertNotEqual(name, "codex/issue-99-456-1")
+        for wrong in ("p1-1", "p9-2", "p2-3", "p2-1/../x"):
+            with self.assertRaises(ValueError):
+                publisher.worker_branch_name("99", "456", "1", wrong)
+
     def test_untrusted_worker_identity_fails_closed(self):
         with self.assertRaises(ValueError):
             publisher.worker_branch_name("99", "456", "1", "../secrets")

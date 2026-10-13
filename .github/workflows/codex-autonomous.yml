@@ -211,11 +211,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          case "$CODEX_INSTANCE_ID" in ''|1|2) ;; *) echo 'Invalid Codex worker identity' >&2; exit 12;; esac
+          case "$CODEX_INSTANCE_ID" in ''|1|2|p[2-8]-[12]) ;; *) echo 'Invalid Codex worker identity' >&2; exit 12;; esac
           case "$CODEX_REASONING_EFFORT" in low|medium|high) ;; *) echo 'Invalid Codex reasoning level; no model started' >&2; exit 12;; esac
           printf '%s\n' "$CODEX_REASONING_EFFORT" > "$RUNNER_TEMP/codex-reasoning.txt"
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT${CODEX_INSTANCE_ID:+-$CODEX_INSTANCE_ID}"
-          [[ "$job" =~ ^[0-9]+-[0-9]+(-[12])?$ ]]
+          [[ "$job" =~ ^[0-9]+-[0-9]+(-[12]|-p[2-8]-[12])?$ ]]
           remote='ubuntu@146.59.145.3'
           dest="/home/ubuntu/codex-bridge/jobs/$job"
           sshpass -e ssh -T -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
@@ -234,7 +234,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          case "$CODEX_INSTANCE_ID" in ''|1|2) ;; *) echo 'Invalid Codex worker identity' >&2; exit 12;; esac
+          case "$CODEX_INSTANCE_ID" in ''|1|2|p[2-8]-[12]) ;; *) echo 'Invalid Codex worker identity' >&2; exit 12;; esac
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT${CODEX_INSTANCE_ID:+-$CODEX_INSTANCE_ID}"
           sshpass -e ssh -T -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=5 \
@@ -249,7 +249,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          case "$CODEX_INSTANCE_ID" in ''|1|2) ;; *) echo 'Invalid Codex worker identity' >&2; exit 12;; esac
+          case "$CODEX_INSTANCE_ID" in ''|1|2|p[2-8]-[12]) ;; *) echo 'Invalid Codex worker identity' >&2; exit 12;; esac
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT${CODEX_INSTANCE_ID:+-$CODEX_INSTANCE_ID}"
           remote="ubuntu@146.59.145.3:/home/ubuntu/codex-bridge/jobs/$job"
           for file in patch.diff target.txt base-sha.txt codex-task.txt usage.json project-leader-runtime.json report.md codex-preflight-signal.txt; do
@@ -528,9 +528,9 @@ jobs:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         shell: bash
         run: |
-          case "$CODEX_INSTANCE_ID" in ''|1|2) ;; *) echo 'Invalid Codex worker identity' >&2; exit 12;; esac
+          case "$CODEX_INSTANCE_ID" in ''|1|2|p[2-8]-[12]) ;; *) echo 'Invalid Codex worker identity' >&2; exit 12;; esac
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT${CODEX_INSTANCE_ID:+-$CODEX_INSTANCE_ID}"
-          [[ "$job" =~ ^[0-9]+-[0-9]+(-[12])?$ ]] || exit 2
+          [[ "$job" =~ ^[0-9]+-[0-9]+(-[12]|-p[2-8]-[12])?$ ]] || exit 2
           sshpass -e ssh -T -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=20 ubuntu@146.59.145.3 \
             "rm -rf -- '/home/ubuntu/codex-bridge/jobs/$job'"

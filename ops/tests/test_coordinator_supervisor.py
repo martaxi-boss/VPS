@@ -108,7 +108,7 @@ def fixture():
         if method == "POST" and route == f"repos/{sup.CONTROL}/issues/{ISSUE}/comments":
             return {"id": 100}
         if method == "PUT" and route == f"repos/{sup.TARGET}/pulls/{NUMBER+1}/update-branch":
-            if data != {"expected_head_sha": SECOND, "update_method": "merge"}:
+            if data != {"expected_head_sha": SECOND}:
                 raise AssertionError("Unexpected update-branch payload")
             state["updated"] = True
             return {"message": "scheduled"}
