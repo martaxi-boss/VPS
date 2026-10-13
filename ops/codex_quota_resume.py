@@ -160,7 +160,10 @@ def _order(raw: str) -> dict:
         from ops import agent_switch
     except ModuleNotFoundError:
         import agent_switch
-    return agent_switch.parse_order(raw)
+    # Keep the same first-wave router and complete Owner-manifest digest as
+    # the original issue preflight. Otherwise a later edit of held stages
+    # could reuse an old quota lease for an unchanged first stage.
+    return agent_switch.parse_owner_envelope(raw)[0]
 
 
 def order_digest(order: dict) -> str:
