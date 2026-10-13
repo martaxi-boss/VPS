@@ -273,14 +273,14 @@ jobs:
         if: always() && steps.collect.outcome == 'success'
         continue-on-error: true
         env:
-          TELEGRAM_BOT_TOKEN: \${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: \${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           SUPERVISOR_OBSERVATION: WORKER_REPORT
           CODEX_REPORT_MODE: worker
           CODEX_JOB_STATUS: WORKER_REPORT_RECEIVED
-          CODEX_REPORT_PATH: \${{ runner.temp }}/report.md
-          CODEX_ISSUE_NUMBER: \${{ inputs.issue_number || github.event.issue.number }}
-          CODEX_RUN_URL: https://github.com/\${{ github.repository }}/actions/runs/\${{ github.run_id }}
+          CODEX_REPORT_PATH: ${{ runner.temp }}/report.md
+          CODEX_ISSUE_NUMBER: ${{ inputs.issue_number || github.event.issue.number }}
+          CODEX_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         shell: bash
         run: |
           set -euo pipefail
@@ -373,15 +373,15 @@ jobs:
         if: always()
         continue-on-error: true
         env:
-          TELEGRAM_BOT_TOKEN: \${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: \${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           SUPERVISOR_OBSERVATION: FINAL_STATE
           CODEX_REPORT_MODE: status
-          CODEX_ISSUE_NUMBER: \${{ inputs.issue_number || github.event.issue.number }}
-          CODEX_RUN_URL: https://github.com/\${{ github.repository }}/actions/runs/\${{ github.run_id }}
-          STAGE_OUTCOME: \${{ steps.stage.outcome }}
-          CODEX_OUTCOME: \${{ steps.codex.outcome }}
-          PUBLISH_OUTCOME: \${{ steps.publish.outcome }}
+          CODEX_ISSUE_NUMBER: ${{ inputs.issue_number || github.event.issue.number }}
+          CODEX_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          STAGE_OUTCOME: ${{ steps.stage.outcome }}
+          CODEX_OUTCOME: ${{ steps.codex.outcome }}
+          PUBLISH_OUTCOME: ${{ steps.publish.outcome }}
         shell: bash
         run: |
           set -euo pipefail
