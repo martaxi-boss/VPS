@@ -40,7 +40,7 @@ jobs:
           python3 -m unittest discover -s ops/tests -p test_coordinator_phase_continuation.py -v
           python3 -m unittest discover -s ops/tests -p test_coordinator_owner_routing.py -v
           python3 -m unittest discover -s ops/tests -p test_coordinator_smoke.py -v
-          python3 -m unittest discover -s ops/tests -p test_coordinator_supervisor.py -v
+          python3 -m unittest discover -s ops/tests -p test_coordinator_pr_integrator.py -v
 
   plan:
     if: >-
