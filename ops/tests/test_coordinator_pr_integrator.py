@@ -1,4 +1,4 @@
-"""Offline acceptance tests for independent Project Leader terminal supervisor."""
+"""Offline tests for the trusted PR integrator, not the passive Supervisor."""
 from __future__ import annotations
 
 import re
@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest import TestCase
 from unittest.mock import patch
 
-from ops import coordinator_supervisor as sup
+from ops import coordinator_pr_integrator as sup
 
 ROOT = Path(__file__).resolve().parents[2]
 BASE = "a" * 40
@@ -123,7 +123,7 @@ def fixture():
     return api, calls, reviewed, merged, state
 
 
-class SupervisorAcceptanceTests(TestCase):
+class TrustedIntegratorAcceptanceTests(TestCase):
     def test_real_provenance_exact_ci_docs_and_transition(self):
         api, calls, reviews, merges, state = fixture()
         with patch.object(sup, "_api", side_effect=api):
@@ -149,7 +149,7 @@ class SupervisorAcceptanceTests(TestCase):
         api, calls, _, merges, state = fixture()
         state["owner"] = "outsider"
         with patch.object(sup, "_api", side_effect=api):
-            with self.assertRaisesRegex(sup.SupervisorHold, "OWNER_AUTHORITY_UNVERIFIED"):
+            with self.assertRaisesRegex(sup.IntegratorHold, "OWNER_AUTHORITY_UNVERIFIED"):
                 sup.assess(ISSUE, RUN, [candidate()], 1, CANONICAL)
         self.assertEqual(len(calls), 1)
         self.assertEqual(merges, [])
@@ -161,7 +161,7 @@ class SupervisorAcceptanceTests(TestCase):
                 api, _, reviews, merges, state = fixture()
                 state["file"] = filename
                 with patch.object(sup, "_api", side_effect=api):
-                    with self.assertRaisesRegex(sup.SupervisorHold, "DIFF_OUTSIDE_SAFE_DOC_SCOPE"):
+                    with self.assertRaisesRegex(sup.IntegratorHold, "DIFF_OUTSIDE_SAFE_DOC_SCOPE"):
                         sup.assess(ISSUE, RUN, [candidate()], 1, CANONICAL)
                 self.assertEqual(reviews, [])
                 self.assertEqual(merges, [])
@@ -171,7 +171,7 @@ class SupervisorAcceptanceTests(TestCase):
             api, _, reviews, merges, state = fixture()
             state["ci"] = status
             with patch.object(sup, "_api", side_effect=api):
-                with self.assertRaisesRegex(sup.SupervisorHold, "CI_NOT_GREEN"):
+                with self.assertRaisesRegex(sup.IntegratorHold, "CI_NOT_GREEN"):
                     sup.assess(ISSUE, RUN, [candidate()], 1, CANONICAL)
             self.assertFalse(reviews)
             self.assertFalse(merges)
@@ -180,12 +180,12 @@ class SupervisorAcceptanceTests(TestCase):
         api, _, reviews, merges, state = fixture()
         state["target_sha"] = "e" * 40
         with patch.object(sup, "_api", side_effect=api):
-            with self.assertRaisesRegex(sup.SupervisorHold, "PR_UNVERIFIED"):
+            with self.assertRaisesRegex(sup.IntegratorHold, "PR_UNVERIFIED"):
                 sup.assess(ISSUE, RUN, [candidate()], 1, CANONICAL)
         self.assertFalse(reviews)
         self.assertFalse(merges)
         with patch.object(sup, "_api", side_effect=api):
-            with self.assertRaisesRegex(sup.SupervisorHold, "CANONICAL_STALE"):
+            with self.assertRaisesRegex(sup.IntegratorHold, "CANONICAL_STALE"):
                 sup.assess(ISSUE, RUN, [candidate()], 1, "f" * 40)
 
     def test_disallowed_worker_status_and_malformed_pr_are_refused(self):
@@ -196,7 +196,7 @@ class SupervisorAcceptanceTests(TestCase):
         ):
             api, _, _, merges, _ = fixture()
             with patch.object(sup, "_api", side_effect=api):
-                with self.assertRaises(sup.SupervisorHold):
+                with self.assertRaises(sup.IntegratorHold):
                     sup.assess(ISSUE, RUN, [x], 1, CANONICAL)
             self.assertFalse(merges)
 
@@ -227,7 +227,7 @@ class SupervisorAcceptanceTests(TestCase):
         api, _, reviews, merges, state = fixture()
         state["second_file"] = "README_CODEX.md"
         with patch.object(sup, "_api", side_effect=api):
-            with self.assertRaisesRegex(sup.SupervisorHold, "PARALLEL_FILE_CONFLICT"):
+            with self.assertRaisesRegex(sup.IntegratorHold, "PARALLEL_FILE_CONFLICT"):
                 sup.assess(ISSUE, RUN, [candidate(), self.second_worker()], 1, CANONICAL)
         self.assertFalse(reviews)
         self.assertFalse(merges)
@@ -236,7 +236,7 @@ class SupervisorAcceptanceTests(TestCase):
         api, _, reviews, merges, state = fixture()
         state["second_ci"] = "failure"
         with patch.object(sup, "_api", side_effect=api):
-            with self.assertRaisesRegex(sup.SupervisorHold, "CI_NOT_GREEN"):
+            with self.assertRaisesRegex(sup.IntegratorHold, "CI_NOT_GREEN"):
                 sup.assess(ISSUE, RUN, [candidate(), self.second_worker()], 1, CANONICAL)
         self.assertFalse(reviews)
         self.assertFalse(merges)
@@ -246,7 +246,7 @@ class SupervisorAcceptanceTests(TestCase):
         state["updated_parents_valid"] = False
         with patch.object(sup, "_api", side_effect=api):
             with self.assertRaisesRegex(
-                    sup.SupervisorHold, "UPDATED_BRANCH_ANCESTRY_UNVERIFIED"):
+                    sup.IntegratorHold, "UPDATED_BRANCH_ANCESTRY_UNVERIFIED"):
                 sup.assess(ISSUE, RUN, [candidate(), self.second_worker()], 1, CANONICAL)
         self.assertEqual([m["sha"] for m in merges], [SHA])
         self.assertEqual(len(reviews), 1)
@@ -256,7 +256,7 @@ class SupervisorAcceptanceTests(TestCase):
         api, _, reviews, merges, state = fixture()
         state["updated_ci"] = "failure"
         with patch.object(sup, "_api", side_effect=api):
-            with self.assertRaisesRegex(sup.SupervisorHold, "CI_NOT_GREEN"):
+            with self.assertRaisesRegex(sup.IntegratorHold, "CI_NOT_GREEN"):
                 sup.assess(ISSUE, RUN, [candidate(), self.second_worker()], 1, CANONICAL)
         self.assertEqual([m["sha"] for m in merges], [SHA])
         self.assertEqual(len(reviews), 1)
@@ -272,14 +272,14 @@ class SupervisorAcceptanceTests(TestCase):
         self.assertGreaterEqual(state["checks_seen"], 2)
         self.assertEqual(len(merges), 2)
 
-    def test_only_authenticated_owner_event_may_use_supervisor_secret(self):
+    def test_only_authenticated_owner_event_may_use_integrator_secret(self):
         workflow = (ROOT / ".github/workflows/coordinator-owner-order.yml").read_text()
-        supervisor = workflow.split("  supervise:", 1)[1]
-        self.assertIn("github.event.issue.user.login == github.repository_owner", supervisor)
-        self.assertIn("github.event_name == 'issues'", supervisor)
-        self.assertIn("needs.dispatch.result == 'success'", supervisor)
-        self.assertIn("CODEX_GITHUB_TOKEN: ${{ secrets.CODEX_GITHUB_TOKEN }}", supervisor)
-        self.assertIn("uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683", supervisor)
+        integrator = workflow.split("  integrate:", 1)[1]
+        self.assertIn("github.event.issue.user.login == github.repository_owner", integrator)
+        self.assertIn("github.event_name == 'issues'", integrator)
+        self.assertIn("needs.dispatch.result == 'success'", integrator)
+        self.assertIn("CODEX_GITHUB_TOKEN: ${{ secrets.CODEX_GITHUB_TOKEN }}", integrator)
+        self.assertIn("uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683", integrator)
         offline = workflow.split("  offline-contract:", 1)[1].split("  plan:", 1)[0]
         self.assertNotIn("secrets.", offline)
         self.assertNotIn("CODEX_GITHUB_TOKEN", offline)
@@ -291,8 +291,8 @@ class SupervisorAcceptanceTests(TestCase):
         self.assertIn("project-leader-runtime.json", executor)
         self.assertIn("worker_2_canonical_sha:", router)
 
-    def test_supervisor_is_not_a_second_ai_coordinator(self):
-        source = (ROOT / "ops/coordinator_supervisor.py").read_text()
+    def test_integrator_is_not_a_second_ai_coordinator(self):
+        source = (ROOT / "ops/coordinator_pr_integrator.py").read_text()
         self.assertNotIn("codex exec", source)
         self.assertNotIn("model_reasoning_effort", source)
         self.assertNotIn("project-leader-bootstrap.py", source)

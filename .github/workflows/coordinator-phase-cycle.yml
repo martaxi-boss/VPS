@@ -18,10 +18,10 @@ on:
     outputs:
       phase_status:
         description: Independently verified post-merge state
-        value: ${{ jobs.supervise.outputs.phase_status }}
+        value: ${{ jobs.integrate.outputs.phase_status }}
       merged_sha:
         description: Independently certified target HEAD
-        value: ${{ jobs.supervise.outputs.merged_sha }}
+        value: ${{ jobs.integrate.outputs.merged_sha }}
 
 permissions: {}
 
@@ -132,7 +132,7 @@ jobs:
       phase_number: ${{ inputs.phase_number }}
     secrets: inherit
 
-  supervise:
+  integrate:
     needs: [prepare, dispatch]
     if: >-
       needs.prepare.result == 'success' &&
@@ -148,7 +148,7 @@ jobs:
       phase_status: ${{ steps.terminal.outputs.phase_status }}
       merged_sha: ${{ steps.terminal.outputs.merged_sha }}
     steps:
-      - name: Load reviewed Project Leader Supervisor from default branch
+      - name: Load reviewed Project Leader trusted PR integrator from default branch
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pinned v4
         with:
           ref: ${{ github.event.repository.default_branch }}
@@ -178,4 +178,4 @@ jobs:
           if [ "$WORKER_COUNT" = '2' ]; then
             test "$WORKER_2_CANONICAL" = "$CANONICAL_SHA" || exit 12
           fi
-          python3 ops/coordinator_supervisor.py
+          python3 ops/coordinator_pr_integrator.py

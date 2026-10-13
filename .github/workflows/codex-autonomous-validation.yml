@@ -16,7 +16,7 @@ jobs:
       - name: Verify trusted bridge syntax
         run: |
           bash -n ops/codex-autonomous-remote.sh
-          python3 -m py_compile ops/codex-autonomous-publish.py ops/codex_patch_guard.py ops/codex-project-leader-bootstrap.py ops/codex_audit_strategy.py ops/coordinator_supervisor.py ops/telegram_gateway.py
+          python3 -m py_compile ops/codex-autonomous-publish.py ops/codex_patch_guard.py ops/codex-project-leader-bootstrap.py ops/codex_audit_strategy.py ops/coordinator_supervisor.py ops/coordinator_pr_integrator.py ops/telegram_gateway.py
       - name: Exercise mandatory offline path and CI evidence gates
         run: |
           python3 -m unittest discover -s ops/tests -p test_codex_autonomous.py -v

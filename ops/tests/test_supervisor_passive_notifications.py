@@ -36,10 +36,6 @@ class PassiveSupervisorTests(unittest.TestCase):
             raw = "HUMAN_GATE declarado APENAS pelo Project Leader do trabalhador.\n"
             (root / "report.md").write_text(raw, encoding="utf-8")
             with (patch.dict(os.environ, env(root), clear=True),
-                  patch.object(supervisor, "_api", side_effect=AssertionError(
-                      "passive observation must not issue any GitHub API call")),
-                  patch.object(supervisor, "assess", side_effect=AssertionError(
-                      "passive observation must not execute CI/merge")),
                   patch.object(telegram_gateway, "notify") as delivery):
                 self.assertEqual(supervisor.observe_worker_event(), 0)
                 delivery.assert_called_once_with()
@@ -53,8 +49,6 @@ class PassiveSupervisorTests(unittest.TestCase):
                 with (self.subTest(status=status),
                       patch.dict(os.environ, env(root, "FINAL_STATE", status),
                                  clear=True),
-                      patch.object(supervisor, "_api",
-                                   side_effect=AssertionError("no GitHub API")),
                       patch.object(telegram_gateway, "notify") as delivery):
                     self.assertEqual(supervisor.observe_worker_event(), 0)
                     delivery.assert_called_once_with()
@@ -106,6 +100,17 @@ class PassiveSupervisorTests(unittest.TestCase):
         self.assertNotIn("_api(", observer)
         self.assertNotIn("subprocess.", observer)
         self.assertNotIn("assess(", observer)
+
+    def test_supervisor_module_cannot_merge_or_dispatch(self):
+        source = inspect.getsource(supervisor)
+        for name in ("_api", "_merge", "assess", "main", "_review"):
+            with self.subTest(name=name):
+                self.assertFalse(hasattr(supervisor, name))
+        for forbidden in ("CODEX_GITHUB_TOKEN", "GH_TOKEN", "urllib.",
+                          "workflow_dispatch", "repository_dispatch",
+                          "subprocess.", "codex exec"):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, source)
 
     def test_original_worker_report_is_delivered_before_publisher_wait(self):
         workflow = (Path(__file__).resolve().parents[2] /

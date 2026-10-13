@@ -120,7 +120,7 @@ class PhaseWorkflowGuards(unittest.TestCase):
         self.assertIn("ops.coordinator_phase_continuation import prepared_phase", child)
         self.assertNotIn("sshpass", child)
         self.assertIn("OWNER_DAG_NEXT_PHASE_VERIFIED_WITHOUT_COORDINATOR_AI", child)
-        self.assertIn("ops/coordinator_supervisor.py", child)
+        self.assertIn("ops/coordinator_pr_integrator.py", child)
         self.assertNotIn("codex exec", child)
         self.assertNotIn("project-leader-rules.md", child)
         self.assertIn("VERIFIED_PREVIOUS_MERGE_HEAD_CHANGED", child)
@@ -129,7 +129,7 @@ class PhaseWorkflowGuards(unittest.TestCase):
         self.assertNotIn("StrictHostKeyChecking=no", child)
         dollar = chr(36)
         for phase in range(2, 9):
-            prior = "supervise" if phase == 2 else "phase_" + str(phase-1)
+            prior = "integrate" if phase == 2 else "phase_" + str(phase-1)
             self.assertIn("  phase_" + str(phase) + ":", owner)
             self.assertIn("    needs: [plan, " + prior + "]", owner)
             self.assertIn("      phase_number: " + str(phase), owner)
@@ -141,7 +141,7 @@ class PhaseWorkflowGuards(unittest.TestCase):
 
     def test_phase_worker_ids_cannot_repeat_or_expand_owner_authority(self):
         from pathlib import Path
-        from ops import coordinator_supervisor, codex_resource_policy
+        from ops import coordinator_pr_integrator, codex_resource_policy
         root = Path(__file__).resolve().parents[2]
         router = (root / ".github/workflows/agent-switch.yml").read_text()
         executor = (root / ".github/workflows/codex-autonomous.yml").read_text()
@@ -150,10 +150,10 @@ class PhaseWorkflowGuards(unittest.TestCase):
         for phase in range(2, 9):
             self.assertTrue(codex_resource_policy.JOB_PATTERN.fullmatch(
                 "38398020440-1-p" + str(phase) + "-1"))
-            self.assertTrue(coordinator_supervisor._expected_branch(
+            self.assertTrue(coordinator_pr_integrator._expected_branch(
                 "codex/issue-181-38398020440-1-p" + str(phase) + "-1",
                 181, 38398020440, phase))
-            self.assertFalse(coordinator_supervisor._expected_branch(
+            self.assertFalse(coordinator_pr_integrator._expected_branch(
                 "codex/issue-181-38398020440-1-p" + str(phase) + "-1",
                 181, 38398020440, 1))
         for suffix in ("p1-1", "p9-1", "p2-3", "p2-x", "p2-1/../../x"):
