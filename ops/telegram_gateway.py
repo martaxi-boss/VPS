@@ -640,8 +640,8 @@ def notify():
         if status == "PAUSED_QUOTA":
             proof = os.environ.get("QUOTA_HOLD_OUTCOME", "unknown")
             if proof == "success":
-                details.append("Checkpoint privado: registado para decisão do Owner; "
-                               "o trabalho parcial permanece protegido na VPS.")
+                details.append("Checkpoint da tarefa: registado para decisão do Owner. "
+                               "Se houver trabalho parcial, o espaço privado da VPS é preservado.")
             else:
                 details.append("ATENÇÃO: checkpoint GitHub ainda NÃO certificado. "
                                "Não reiniciar; verificar primeiro o espaço privado na VPS.")
