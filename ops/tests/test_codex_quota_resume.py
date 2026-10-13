@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import patch
 
 from ops import codex_quota_resume as q
+from ops import agent_switch
 
 
 class QuotaLifecycleTests(unittest.TestCase):
@@ -104,14 +105,44 @@ class QuotaLifecycleTests(unittest.TestCase):
         dispatch = {"source_issue": 154, "stage": 2, "paused_run": 42,
                     "attempt": 1, "claim_comment": 78}
         with patch.object(q, "_api", side_effect=api):
-            single, issue_id = q.verify_resume(dispatch, now=self.clock)
+            original, issue_id = q.verify_resume(dispatch, now=self.clock)
             self.assertEqual(issue_id, 154)
-            self.assertEqual(len(single["tasks"]), 1)
-            self.assertEqual(single["tasks"][0]["id"], "second")
+            self.assertEqual([t["id"] for t in original["tasks"]],
+                             ["first", "second"])
+            stages = agent_switch.workflow_values(original, "2")
+            self.assertEqual((stages["run_stage_1"], stages["run_stage_2"]),
+                             ("false", "true"))
             with self.assertRaises(q.QuotaResumeError):
                 q.verify_resume({**dispatch, "stage": 1}, now=self.clock)
             with self.assertRaises(q.QuotaResumeError):
                 q.verify_resume({**dispatch, "claim_comment": 77}, now=self.clock)
+
+    def test_attested_first_stage_resume_does_not_launch_second(self):
+        paused = {**self.pause, "stage": 1}
+        claimed = {**self.claim, "stage": 1}
+        rows = [self.comment(q.PAUSE, paused, 77),
+                self.comment(q.CLAIM, claimed, 78)]
+
+        def api(method, path, payload=None):
+            if path == "/issues/154":
+                return self.owner_issue
+            if path.startswith("/issues/154/comments?"):
+                return rows
+            if path == "/actions/runs/42":
+                return {"id": 42, "name": "Agent switch (Owner GitHub order)",
+                        "status": "completed", "conclusion": "failure"}
+            raise AssertionError(path)
+
+        with patch.object(q, "_api", side_effect=api):
+            order, source = q.verify_resume({
+                "source_issue": 154, "stage": 1, "paused_run": 42,
+                "attempt": 1, "claim_comment": 78,
+            }, now=self.clock)
+        self.assertEqual(source, 154)
+        self.assertEqual([t["id"] for t in order["tasks"]], ["first", "second"])
+        stages = agent_switch.workflow_values(order, "1")
+        self.assertEqual((stages["run_stage_1"], stages["run_stage_2"]),
+                         ("true", "false"))
 
     def test_success_run_or_bot_forgery_never_authorizes_retry(self):
         rows = [self.comment(q.PAUSE, self.pause, 77),
@@ -152,8 +183,10 @@ class QuotaLifecycleTests(unittest.TestCase):
                 "source_issue": 154, "stage": 2, "paused_run": 42,
                 "attempt": 1, "claim_comment": 78}, now=self.clock)
         self.assertEqual(source, 154)
-        self.assertEqual(order["tasks"][0]["id"], "second")
-        self.assertEqual(len(order["tasks"]), 1)
+        self.assertEqual([t["id"] for t in order["tasks"]], ["first", "second"])
+        flags = agent_switch.workflow_values(order, "2")
+        self.assertEqual((flags["run_stage_1"], flags["run_stage_2"]),
+                         ("false", "true"))
 
     def test_unmerged_dependent_first_pr_never_enables_next_stage(self):
         blocked = json.loads(self.manifest)
