@@ -117,6 +117,19 @@ jobs:
           print('OWNER_DAG_NEXT_PHASE_VERIFIED_WITHOUT_COORDINATOR_AI')
           PY_PREPARE
 
+      - name: Inform passive Supervisor about original DAG phase progress
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SUPERVISOR_PLAN_ISSUE: ${{ github.event.issue.number }}
+          SUPERVISOR_PLAN_OUTCOME: ${{ steps.prepare.outcome }}
+          SUPERVISOR_PHASE_NUMBER: ${{ inputs.phase_number }}
+        run: python3 -m ops.supervisor_live phase
+
+
   dispatch:
     needs: prepare
     if: >-
