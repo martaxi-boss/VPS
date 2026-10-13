@@ -222,6 +222,111 @@ def compile_audit(value: object) -> dict:
     return order
 
 
+
+MAX_PHASE_AUDIT = 24_000
+MAX_PHASE_ITEMS = 8
+
+
+def plan_phases(value: object) -> dict:
+    """Plan a bounded dependency DAG without invoking a model or dispatching workers.
+
+    The first wave can use its pinned audit. Every later wave is a HOLD:
+    previous PRs require independent validation and a fresh repository audit.
+    A dependency never silently consumes an unmerged predecessor's changes.
+    """
+    if not isinstance(value, dict) or set(value) != {"target_repository", "audit"}:
+        raise AuditStrategyError("Phase planning needs one audited repository")
+    target = value["target_repository"]
+    audit = value["audit"]
+    if (type(target) is not str or target not in REPOSITORIES or
+            not isinstance(audit, dict) or
+            set(audit) != {"revision", "findings", "work_items"}):
+        raise AuditStrategyError("Invalid pinned phase audit")
+    work = audit["work_items"]
+    if not isinstance(work, list) or not 1 <= len(work) <= MAX_PHASE_ITEMS:
+        raise AuditStrategyError("Phase plan requires 1-8 bounded work items")
+
+    # Validate *all* tasks before making even the first wave dispatchable.
+    # Reuse the executor's exact audit, scope and risk policy, rather than
+    # implementing a second, weaker validator for deferred tasks.
+    validated = []
+    identities = set()
+    for raw in work:
+        if not isinstance(raw, dict) or "id" not in raw:
+            raise AuditStrategyError("Malformed phase work item")
+        ident = _ident(raw["id"])
+        if ident in identities:
+            raise AuditStrategyError("Duplicate phase work item")
+        identities.add(ident)
+        deps = raw.get("depends_on", [])
+        if (type(deps) is not list or len(deps) > MAX_PHASE_ITEMS - 1 or
+                any(type(d) is not str or not IDENT.fullmatch(d) for d in deps) or
+                len(set(deps)) != len(deps) or ident in deps):
+            raise AuditStrategyError("Invalid phase dependency")
+        scoped_item = {key: v for key, v in raw.items() if key != "depends_on"}
+        single = compile_audit({
+            "target_repository": target,
+            "audit": {"revision": audit["revision"], "findings": audit["findings"],
+                      "work_items": [scoped_item]},
+        })["tasks"][0]
+        validated.append({
+            "id": ident, "depends_on": deps, "paths": list(raw["paths"]),
+            "effort": single["reasoning_effort"], "work": scoped_item,
+        })
+    if any(any(dep not in identities for dep in item["depends_on"])
+           for item in validated):
+        raise AuditStrategyError("Unknown phase dependency")
+
+    completed = set()
+    phases = []
+    while len(completed) < len(validated):
+        ready = [item for item in validated if item["id"] not in completed
+                 and all(dep in completed for dep in item["depends_on"])]
+        if not ready:
+            raise AuditStrategyError("Cyclic phase dependencies")
+        selected = [ready[0]]
+        for candidate in ready[1:]:
+            if not any(scoped(p, q)
+                       for first in selected for p in first["paths"]
+                       for q in candidate["paths"]):
+                selected.append(candidate)
+                break
+        phase_audit = {
+            "target_repository": target,
+            "audit": {
+                "revision": audit["revision"],
+                "findings": audit["findings"],
+                "work_items": [item["work"] for item in selected],
+            },
+        }
+        # This uses the same real router used by GitHub Actions. It decides
+        # parallel versus independent serial and the level per selected task.
+        route = compile_audit(phase_audit)
+        first = not phases
+        phases.append({
+            "phase": len(phases) + 1,
+            "task_ids": [item["id"] for item in selected],
+            "worker_count": len(selected),
+            "mode": route["mode"],
+            "reasoning_by_task": {
+                task["id"]: task["reasoning_effort"] for task in route["tasks"]
+            },
+            "pr_only": True,
+            "requires_fresh_audit": not first,
+            "state": "READY_FOR_REVIEWED_DISPATCH" if first else "HOLD_FOR_CI_AND_REAUDIT",
+            "dispatch_audit": phase_audit if first else None,
+        })
+        completed.update(item["id"] for item in selected)
+    return {
+        "status": "DRY_PLAN_NO_MODELS_STARTED",
+        "target_repository": target,
+        "audited_revision": audit["revision"],
+        "max_live_workers": 2,
+        "phase_count": len(phases),
+        "phases": phases,
+    }
+
+
 def audited_markers(task_file: Path) -> tuple[str, list[str]] | None:
     if not task_file.is_file() or task_file.is_symlink() or task_file.stat().st_size > 9000:
         raise AuditStrategyError("Missing or unsafe worker task")
@@ -277,6 +382,12 @@ def main(argv: list[str]) -> int:
         if len(argv) == 3 and argv[1] == "verify_changed":
             verify_changed(Path(argv[2]))
             print("CODEX_AUDITED_PATHS=VERIFIED")
+            return 0
+        if len(argv) == 2 and argv[1] == "phases":
+            raw = sys.stdin.read(MAX_PHASE_AUDIT + 1)
+            if len(raw.encode("utf-8")) > MAX_PHASE_AUDIT:
+                raise AuditStrategyError("Oversized phase plan")
+            print(json.dumps(plan_phases(json.loads(raw)), sort_keys=True))
             return 0
         if len(argv) == 2 and argv[1] == "plan":
             raw = sys.stdin.read(MAX_AUDIT + 1)
