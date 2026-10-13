@@ -377,60 +377,12 @@ def due_pauses(rows: list, *, now: int) -> list[dict]:
 
 
 def schedule_due(*, now: int | None = None) -> int:
-    clock = int(time.time()) if now is None else now
-    sent = 0
-    for page in range(1, MAX_ISSUES // 100 + 1):
-        records = _api("GET", f"/issues?state=open&labels={LABEL}&per_page=100&page={page}")
-        if not isinstance(records, list):
-            raise QuotaResumeError("Invalid paused issue listing")
-        for current in records:
-            if current.get("pull_request") or current.get("user", {}).get("login") != OWNER:
-                continue
-            number = current.get("number")
-            if type(number) is not int or number <= 0:
-                continue
-            try:
-                owned = issue(number)
-                order = _order(owned.get("body", ""))
-                candidates = due_pauses(comments(number), now=clock)
-            except (QuotaResumeError, ValueError):
-                continue
-            for paused in candidates:
-                if sent >= 3:
-                    return sent
-                if (not _valid_stage(order, paused["stage"]) or
-                        paused.get("source_issue") != number or
-                        paused.get("order_digest") != order_digest(order)):
-                    continue
-                run_id = paused["run_id"]
-                run = _api("GET", "/actions/runs/" + str(run_id))
-                expected = "success" if paused["_source_kind"] == "ready" else "failure"
-                if (run.get("status") != "completed" or run.get("conclusion") != expected or
-                        run.get("name") != "Agent switch (Owner GitHub order)"):
-                    continue
-                claim = {"version": 1, "source_issue": number,
-                         "stage": paused["stage"], "run_id": run_id,
-                         "attempt": paused["attempt"] + 1,
-                         "claimed_at": clock}
-                result = _api("POST", f"/issues/{number}/comments",
-                              {"body": CLAIM + "\n" + json.dumps(claim, sort_keys=True, separators=(",", ":"))})
-                comment_id = result.get("id")
-                if type(comment_id) is not int:
-                    raise QuotaResumeError("Dispatch claim not durable; refuse dispatch")
-                _api("POST", "/dispatches", {
-                    "event_type": "codex_quota_resume",
-                    "client_payload": {"source_issue": number,
-                                       "stage": paused["stage"],
-                                       "paused_run": run_id,
-                                       "attempt": paused["attempt"] + 1,
-                                       "claim_comment": comment_id},
-                })
-                sent += 1
-        if len(records) < 100:
-            break
-        if page == MAX_ISSUES // 100:
-            raise QuotaResumeError("Unbounded quota backlog; no silent truncation")
-    return sent
+    """Legacy automatic dispatch prohibited: only a new Owner order may resume.
+
+    Existing authenticated checkpoints remain durable evidence of paused
+    stages, but no internal timer, retry lease or quota reset is authorization.
+    """
+    raise QuotaResumeError("QUOTA_AUTO_RESUME_DISABLED_OWNER_ONLY")
 
 
 def main(argv: list[str]) -> int:
@@ -449,7 +401,8 @@ def main(argv: list[str]) -> int:
             print("SERIAL_NEXT_STAGE_READY=" + ("YES" if advanced else "NO"))
             return 0
         if len(argv) == 2 and argv[1] == "scan":
-            print("QUOTA_RESUMES_DISPATCHED=" + str(schedule_due()))
+            # Keep old entrypoint harmless for external scheduled callers.
+            print("QUOTA_AUTO_RESUME=DISABLED_OWNER_DECIDES")
             return 0
     except (QuotaResumeError, ValueError, OSError):
         print("QUOTA_LIFECYCLE_FAIL_CLOSED", file=sys.stderr)
