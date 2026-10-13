@@ -578,6 +578,10 @@ def private_report_status(status):
         return "📝 PR pronta para revisão; alterações NÃO integradas"
     if status == "WORKER_REPORT_RECEIVED":
         return "📩 Relatório do trabalhador recebido; validação final pendente"
+    if status == "PAUSED_QUOTA":
+        return "⏸️ QUOTA REAL DO CHATGPT/CODEX ATINGIDA — aguarda decisão do Owner"
+    if status == "QUOTA_UNVERIFIED":
+        return "⏸️ Cota real não verificável — trabalho protegido, sem Codex"
     if status in ("NOT_STARTED", "NOT_COMPLETED", "FAILED"):
         return "⚠️ Execução interrompida ou não certificada"
     if status in ("NO_CHANGE_UNVERIFIED", "PR_NEEDS_ATTENTION"):
