@@ -1,0 +1,250 @@
+name: Coordinator audited DAG later phase (existing Codex only)
+
+# Reuse the existing independent Coordinator, agent-switch and Project Leader
+# worker supervisor. Never accept public event inputs or start a new AI agent.
+on:
+  workflow_call:
+    inputs:
+      original_plan_b64:
+        required: true
+        type: string
+      phase_number:
+        required: true
+        type: number
+      previous_merged_sha:
+        required: true
+        type: string
+    outputs:
+      phase_status:
+        description: Independently verified post-merge state
+        value: ${{ jobs.supervise.outputs.phase_status }}
+      merged_sha:
+        description: Verified target main SHA following this phase
+        value: ${{ jobs.supervise.outputs.merged_sha }}
+
+permissions: {}
+
+jobs:
+  reaudit:
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.issue.user.login == github.repository_owner &&
+      startsWith(github.event.issue.title, '[coordinator run] ') &&
+      inputs.phase_number >= 2 && inputs.phase_number <= 8
+    runs-on: ubuntu-24.04
+    timeout-minutes: 49
+    permissions:
+      contents: read
+      issues: read
+    outputs:
+      coordinator_plan_b64: ${{ steps.validate.outputs.coordinator_plan_b64 }}
+      remaining_phases: ${{ steps.validate.outputs.remaining_phases }}
+      audited_sha: ${{ steps.validate.outputs.audited_sha }}
+    steps:
+      - name: Load only reviewed existing Coordinator from default branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pinned v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Verify original Owner Issue and current merged target HEAD before model
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CODEX_GITHUB_TOKEN: ${{ secrets.CODEX_GITHUB_TOKEN }}
+          OWNER_ISSUE: ${{ github.event.issue.number }}
+          ORIGINAL_PLAN_B64: ${{ inputs.original_plan_b64 }}
+          PHASE_NUMBER: ${{ inputs.phase_number }}
+          PREVIOUS_MERGED_SHA: ${{ inputs.previous_merged_sha }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY_SCOPE'
+          import base64, json, os, re, urllib.request
+          from pathlib import Path
+          from ops.coordinator_phase_continuation import new_order
+          phase = int(os.environ['PHASE_NUMBER'])
+          previous = os.environ.get('PREVIOUS_MERGED_SHA', '')
+          if not re.fullmatch(r'[0-9a-f]{40}', previous):
+              raise SystemExit('PREVIOUS_MERGE_SHA_REFUSED')
+          issue = os.environ.get('OWNER_ISSUE', '')
+          if not re.fullmatch(r'[1-9][0-9]{0,15}', issue):
+              raise SystemExit('OWNER_ISSUE_REFUSED')
+          def fetch(url, token):
+              if not token:
+                  raise SystemExit('GITHUB_TOKEN_UNAVAILABLE')
+              request = urllib.request.Request(
+                  'https://api.github.com/' + url,
+                  headers={'Authorization': 'Bearer ' + token,
+                           'Accept': 'application/vnd.github+json',
+                           'User-Agent': 'Project-Leader-Phase-Gate'})
+              with urllib.request.urlopen(request, timeout=20) as response:
+                  return json.load(response)
+          verified = fetch('repos/martaxi-boss/VPS/issues/' + issue,
+                           os.environ['GH_TOKEN'])
+          if (verified.get('state') != 'open' or
+                  verified.get('user', {}).get('login') != 'martaxi-boss' or
+                  not verified.get('title', '').startswith('[coordinator run] ') or
+                  not verified.get('body', '').startswith(
+                      'TARGET_REPOSITORY=martaxi-boss/Project-leader-codex\n')):
+              raise SystemExit('OWNER_ISSUE_NO_LONGER_AUTHORIZED')
+          source = fetch(
+              'repos/martaxi-boss/Project-leader-codex/git/ref/heads/main',
+              os.environ['CODEX_GITHUB_TOKEN'])
+          if source.get('object', {}).get('sha') != previous:
+              raise SystemExit('TARGET_HEAD_CHANGED_REAUDIT_REQUIRED')
+          original = os.environ['ORIGINAL_PLAN_B64']
+          order = new_order(original, phase, previous)
+          encoded = base64.b64encode(order.encode('utf-8')).decode('ascii')
+          if not re.fullmatch(r'[A-Za-z0-9+/=]{20,11000}', encoded):
+              raise SystemExit('PHASE_ORDER_OUT_OF_BOUNDS')
+          (Path(os.environ['RUNNER_TEMP']) / 'phase_order.b64').write_text(
+              encoded, encoding='ascii')
+          print('OWNER_DAG_SCOPE_AND_CURRENT_HEAD_VERIFIED')
+          PY_SCOPE
+          bash -n ops/coordinator-smoke-remote.sh
+
+      - name: Verify existing Owner-observed VPS SSH identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected='SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          known_hosts="$RUNNER_TEMP/phase_known_hosts"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known_hosts" || exit 12
+          chmod 600 "$known_hosts"
+          observed="$(ssh-keygen -lf "$known_hosts" -E sha256 | awk '{print $2}')"
+          test "$observed" = "$expected" || exit 12
+          ssh-keygen -F 146.59.145.3 -f "$known_hosts" >/dev/null || exit 12
+          echo 'COORDINATOR_PHASE_SSH_PIN=VERIFIED'
+
+      - name: Prepare isolated SSH client for existing Codex subscription
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS" || exit 12
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+
+      - name: Ask SAME independent Coordinator to audit exactly this phase
+        id: validate
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+          OWNER_ISSUE_ID: ${{ github.event.issue.id }}
+          ORIGINAL_PLAN_B64: ${{ inputs.original_plan_b64 }}
+          PHASE_NUMBER: ${{ inputs.phase_number }}
+          PREVIOUS_MERGED_SHA: ${{ inputs.previous_merged_sha }}
+        run: |
+          set -euo pipefail
+          job="$OWNER_ISSUE_ID-$PHASE_NUMBER"
+          [[ "$job" =~ ^[1-9][0-9]{7,14}-[2-8]$ ]] || exit 12
+          order_b64="$(cat "$RUNNER_TEMP/phase_order.b64")"
+          [[ "$order_b64" =~ ^[A-Za-z0-9+/=]{20,11000}$ ]] || exit 12
+          output="$RUNNER_TEMP/phase_private_audit.txt"
+          timeout --signal=TERM --kill-after=10s 40m \
+            sshpass -e ssh -T -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/phase_known_hosts" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=5 \
+            ubuntu@146.59.145.3 "bash -s -- '$job' dispatch '$order_b64'" \
+            < ops/coordinator-smoke-remote.sh > "$output" 2>/dev/null || exit 12
+          python3 - "$output" "$GITHUB_OUTPUT" <<'PY_VALIDATE'
+          import re, os
+          from pathlib import Path
+          from ops import agent_switch as router
+          from ops.coordinator_phase_continuation import validate_new_plan
+          raw = Path(__import__('sys').argv[1]).read_bytes()
+          pattern = re.compile(
+              rb'COORDINATOR_DISPATCH_STATUS=VALIDATED\n'
+              rb'TARGET_SHA=([0-9a-f]{40})\n'
+              rb'PHASE_COUNT=([1-8])\n'
+              rb'FIRST_PHASE_WORKERS=([12])\n'
+              rb'FIRST_PHASE_MODE=(serial|parallel)\n'
+              rb'AUDIT_B64=([A-Za-z0-9+/=]{20,32000})\n\Z')
+          match = pattern.fullmatch(raw) if len(raw) <= 33000 else None
+          if not match:
+              raise SystemExit('FRESH_PHASE_MODEL_OUTPUT_REFUSED')
+          encoded = match.group(5).decode('ascii')
+          scope = validate_new_plan(
+              encoded, os.environ['ORIGINAL_PLAN_B64'],
+              int(os.environ['PHASE_NUMBER']), os.environ['PREVIOUS_MERGED_SHA'])
+          order, _ = router.parse_coordinator_envelope(encoded)
+          route = router.workflow_values(order)
+          if (match.group(1).decode('ascii') != scope['audited_sha'] or
+                  int(match.group(2)) != 1 or
+                  int(match.group(3)) != scope['workers'] or
+                  int(route['task_count']) != scope['workers'] or
+                  match.group(4).decode('ascii') != scope['mode'] or
+                  route['mode'] != scope['mode'] or
+                  route['audit_managed'] != 'true'):
+              raise SystemExit('FRESH_PHASE_ROUTE_CHANGED')
+          with open(__import__('sys').argv[2], 'a', encoding='ascii') as writer:
+              writer.write('coordinator_plan_b64=' + encoded + '\n')
+              writer.write('remaining_phases=' + str(scope['remaining_phases']) + '\n')
+              writer.write('audited_sha=' + scope['audited_sha'] + '\n')
+          print('COORDINATOR_PHASE_REAUDIT_AND_SCOPE=VALIDATED')
+          PY_VALIDATE
+
+  dispatch:
+    needs: reaudit
+    if: >-
+      needs.reaudit.result == 'success' &&
+      needs.reaudit.outputs.coordinator_plan_b64 != ''
+    permissions:
+      contents: read
+      issues: write
+      actions: read
+    uses: ./.github/workflows/agent-switch.yml
+    with:
+      coordinator_plan_b64: ${{ needs.reaudit.outputs.coordinator_plan_b64 }}
+      phase_number: ${{ inputs.phase_number }}
+    secrets: inherit
+
+  supervise:
+    needs: [reaudit, dispatch]
+    if: >-
+      needs.reaudit.result == 'success' &&
+      needs.dispatch.result == 'success' &&
+      github.event_name == 'issues' &&
+      github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      issues: write
+    outputs:
+      phase_status: ${{ steps.terminal.outputs.phase_status }}
+      merged_sha: ${{ steps.terminal.outputs.merged_sha }}
+    steps:
+      - name: Load reviewed Project Leader Supervisor from default branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pinned v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Independently validate worker Project Leader proof and guarded PR merge
+        id: terminal
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CODEX_GITHUB_TOKEN: ${{ secrets.CODEX_GITHUB_TOKEN }}
+          OWNER_ISSUE: ${{ github.event.issue.number }}
+          OWNER_RUN: ${{ github.run_id }}
+          PHASE_NUMBER: ${{ inputs.phase_number }}
+          WORKER_COUNT: ${{ needs.dispatch.outputs.task_count }}
+          PHASE_COUNT: ${{ needs.reaudit.outputs.remaining_phases }}
+          CANONICAL_SHA: ${{ needs.dispatch.outputs.worker_1_canonical_sha }}
+          WORKER_1_STATUS: ${{ needs.dispatch.outputs.worker_1_status }}
+          WORKER_1_PR: ${{ needs.dispatch.outputs.worker_1_pr }}
+          WORKER_1_SHA: ${{ needs.dispatch.outputs.worker_1_sha }}
+          WORKER_2_STATUS: ${{ needs.dispatch.outputs.worker_2_status }}
+          WORKER_2_PR: ${{ needs.dispatch.outputs.worker_2_pr }}
+          WORKER_2_SHA: ${{ needs.dispatch.outputs.worker_2_sha }}
+          WORKER_2_CANONICAL: ${{ needs.dispatch.outputs.worker_2_canonical_sha }}
+        run: |
+          set -euo pipefail
+          if [ "$WORKER_COUNT" = '2' ]; then
+            test "$WORKER_2_CANONICAL" = "$CANONICAL_SHA" || exit 12
+          fi
+          python3 ops/coordinator_supervisor.py
