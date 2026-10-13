@@ -215,5 +215,110 @@ class AuditDispatchTests(unittest.TestCase):
         self.assertGreater(remote.index("verify_changed"), remote.index("codex_patch_guard.py"))
 
 
+
+class AuditedPhasePlanTests(unittest.TestCase):
+    def base(self):
+        return AuditDispatchTests().manifest()
+
+    def test_dependency_graph_selects_two_then_holds_dependent_stage(self):
+        audit = self.base()
+        audit["audit"]["findings"].append({
+            "id": "more-docs", "paths": ["docs/second.md"], "severity": "low",
+            "observation": "Second independent documentation correction verified",
+        })
+        audit["audit"]["work_items"].insert(1, {
+            "id": "second-docs", "paths": ["docs/second.md"],
+            "finding_ids": ["more-docs"],
+            "task": "Fix the second audited documentation example",
+        })
+        audit["audit"]["work_items"][2]["depends_on"] = ["docs-edit", "second-docs"]
+        planned = strategy.plan_phases(audit)
+        self.assertEqual(planned["status"], "DRY_PLAN_NO_MODELS_STARTED")
+        self.assertEqual(planned["phase_count"], 2)
+        first, second = planned["phases"]
+        self.assertEqual(first["task_ids"], ["docs-edit", "second-docs"])
+        self.assertEqual(first["worker_count"], 2)
+        self.assertEqual(first["mode"], "parallel")
+        self.assertFalse(first["requires_fresh_audit"])
+        self.assertTrue(first["pr_only"])
+        self.assertEqual(first["reasoning_by_task"],
+                         {"docs-edit": "low", "second-docs": "low"})
+        self.assertEqual(
+            agent_switch.workflow_values(agent_switch.parse_order(
+                json.dumps(first["dispatch_audit"])))["mode"], "parallel"
+        )
+        self.assertEqual(second["task_ids"], ["code-edit"])
+        self.assertEqual(second["reasoning_by_task"], {"code-edit": "medium"})
+        self.assertTrue(second["requires_fresh_audit"])
+        self.assertIsNone(second["dispatch_audit"])
+        self.assertEqual(second["state"], "HOLD_FOR_CI_AND_REAUDIT")
+
+    def test_high_risk_finding_selects_independent_serial_prs(self):
+        audited = self.base()
+        audited["audit"]["findings"][1]["severity"] = "high"
+        planned = strategy.plan_phases(audited)
+        self.assertEqual(planned["phase_count"], 1)
+        self.assertEqual(planned["phases"][0]["mode"], "serial")
+        self.assertEqual(planned["phases"][0]["reasoning_by_task"]["code-edit"], "high")
+        order = agent_switch.parse_order(json.dumps(
+            planned["phases"][0]["dispatch_audit"]))
+        self.assertTrue(order["serial_independent"])
+
+    def test_overlapping_paths_are_never_parallel_and_require_reaudit(self):
+        audited = self.base()
+        audited["audit"]["findings"][1]["paths"] = ["docs/usage.md"]
+        audited["audit"]["work_items"][1]["paths"] = ["docs/usage.md"]
+        result = strategy.plan_phases(audited)
+        self.assertEqual(result["phase_count"], 2)
+        self.assertEqual([p["worker_count"] for p in result["phases"]], [1, 1])
+        self.assertTrue(result["phases"][1]["requires_fresh_audit"])
+        self.assertIsNone(result["phases"][1]["dispatch_audit"])
+
+    def test_cyclic_or_unknown_dependency_fails_before_first_dispatch(self):
+        audited = self.base()
+        audited["audit"]["work_items"][0]["depends_on"] = ["code-edit"]
+        audited["audit"]["work_items"][1]["depends_on"] = ["docs-edit"]
+        with self.assertRaisesRegex(strategy.AuditStrategyError, "Cyclic"):
+            strategy.plan_phases(audited)
+        audited["audit"]["work_items"][1]["depends_on"] = ["missing-stage"]
+        with self.assertRaisesRegex(strategy.AuditStrategyError, "Unknown"):
+            strategy.plan_phases(audited)
+
+    def test_uninspected_deferred_stage_is_rejected_in_full_preflight(self):
+        audited = self.base()
+        audited["audit"]["work_items"][1]["depends_on"] = ["docs-edit"]
+        audited["audit"]["work_items"][1]["paths"] = ["codex/not-a-finding.py"]
+        with self.assertRaisesRegex(strategy.AuditStrategyError,
+                                    "explicitly present"):
+            strategy.plan_phases(audited)
+
+    def test_first_wave_does_not_include_irrelevant_findings(self):
+        audited = self.base()
+        for number in range(8):
+            audited["audit"]["findings"].append({
+                "id": "unused-" + str(number),
+                "paths": ["docs/unrelated" + str(number) + ".md"],
+                "severity": "low",
+                "observation": "An unrelated audited observation " + "x" * 450,
+            })
+        phases = strategy.plan_phases(audited)["phases"]
+        self.assertEqual(len(phases), 1)
+        payload = phases[0]["dispatch_audit"]
+        self.assertEqual({f["id"] for f in payload["audit"]["findings"]},
+                         {"docs", "code"})
+        self.assertLessEqual(len(json.dumps(payload).encode("utf-8")),
+                             strategy.MAX_AUDIT)
+
+    def test_more_than_eight_tasks_fail_closed(self):
+        audited = self.base()
+        audited["audit"]["work_items"] = (
+            audited["audit"]["work_items"] * 5
+        )
+        with self.assertRaisesRegex(strategy.AuditStrategyError, "1-8"):
+            strategy.plan_phases(audited)
+
+
+
+
 if __name__ == "__main__":
     unittest.main()
