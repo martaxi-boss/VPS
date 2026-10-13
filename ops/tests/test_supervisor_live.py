@@ -186,13 +186,19 @@ class SupervisorLiveTests(unittest.TestCase):
         send.assert_not_called()
 
     def test_private_delivery_is_fail_closed_if_destination_unavailable(self):
+        notice = ("👁️ Supervisor: Coordenador — falhou.\n"
+                  "https://github.com/martaxi-boss/VPS/actions/runs/12345")
         gateway = Mock(BOT_TOKEN="", CHAT_ID="123456")
         with self.assertRaises(RuntimeError):
-            live._private_sender(gateway, "Supervisor notice")
+            live._private_sender(gateway, notice)
         gateway.say.assert_not_called()
         gateway = Mock(BOT_TOKEN="some-bot-token", CHAT_ID="123456")
-        live._private_sender(gateway, "Supervisor notice")
-        gateway.say.assert_called_once_with("Supervisor notice")
+        live._private_sender(gateway, notice)
+        gateway.say.assert_called_once()
+        result = gateway.say.call_args.args[0]
+        self.assertIn("AUDITORIA OPERACIONAL", result)
+        self.assertIn("falhou", result)
+        self.assertIn("https://github.com/martaxi-boss/VPS/actions/runs/12345", result)
 
     def test_no_hidden_human_gate_classifier_or_side_effects(self):
         import inspect
