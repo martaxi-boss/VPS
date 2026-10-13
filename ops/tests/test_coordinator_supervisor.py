@@ -12,6 +12,9 @@ ROOT = Path(__file__).resolve().parents[2]
 BASE = "a" * 40
 SHA = "b" * 40
 MERGE = "c" * 40
+SECOND = "f" * 40
+UPDATED = "e" * 40
+SECOND_MERGE = "9" * 40
 CANONICAL = "d" * 40
 ISSUE = 188
 RUN = 40102002
@@ -29,7 +32,10 @@ def fixture():
     reviewed = []
     merged = []
     state = {"main": BASE, "owner": "martaxi-boss", "file": "README_CODEX.md",
-             "ci": "success", "target_sha": SHA, "changed": False}
+             "ci": "success", "target_sha": SHA, "changed": False,
+             "updated": False, "updated_parents_valid": True,
+             "second_ci": "success", "updated_ci": "success",
+             "second_file": "docs/second.md", "checks_seen": 0}
 
     def api(method, route, data=None, *, control=False):
         calls.append((method, route, control))
@@ -47,8 +53,9 @@ def fixture():
                 f"repos/{sup.TARGET}/pulls/{NUMBER}",
                 f"repos/{sup.TARGET}/pulls/{NUMBER+1}"):
             second = route.endswith("/" + str(NUMBER+1))
-            actual_sha = "f"*40 if second else state["target_sha"]
+            actual_sha = (UPDATED if state["updated"] else SECOND) if second else state["target_sha"]
             actual_ref = REF+"-2" if second else REF
+            publisher_sha = SECOND if second else SHA
             return {
                 "state": "open", "draft": False, "merged": False, "mergeable": True,
                 "user": {"login": "martaxi-boss"},
@@ -58,31 +65,60 @@ def fixture():
                 "body": (
                     f"Autonomous Codex change from {sup.CONTROL} issue #{ISSUE}.\n"
                     f"Remote isolated Codex clone base: {chr(96)}{BASE}{chr(96)}.\n"
-                    f"Trusted publisher commit: {chr(96)}{actual_sha}{chr(96)}.\n"
+                    f"Trusted publisher commit: {chr(96)}{publisher_sha}{chr(96)}.\n"
                     "No GitHub write credential was provided to Codex."
                 ),
             }
         if method == "GET" and route in (
                 f"repos/{sup.TARGET}/pulls/{NUMBER}/files?per_page=100",
                 f"repos/{sup.TARGET}/pulls/{NUMBER+1}/files?per_page=100"):
-            filename = ("docs/second.md" if "/pulls/20/" in route
+            filename = (state["second_file"] if "/pulls/20/" in route
                         else state["file"])
             return [{"filename": filename, "status": "modified",
                      "additions": 2, "deletions": 1}]
         if method == "GET" and route.startswith(f"repos/{sup.TARGET}/actions/runs?"):
+            from urllib.parse import parse_qs, urlparse
+            commit = parse_qs(urlparse(route).query)["head_sha"][0]
+            if commit == UPDATED:
+                selected = state["updated_ci"]
+                state["checks_seen"] += 1
+                if selected == "pending_then_success":
+                    selected = "in_progress" if state["checks_seen"] == 1 else "success"
+                branch, status = REF+"-2", selected
+            elif commit == SECOND:
+                branch, status = REF+"-2", state["second_ci"]
+            else:
+                branch, status = REF, state["ci"]
+            conclusion = status if status != "in_progress" else None
             return {"workflow_runs": [
-                {"name": name, "event": event, "head_sha": SHA,
-                 "head_branch": REF, "status": "completed",
-                 "conclusion": state["ci"], "created_at": "2026-10-13T15:00:00Z"}
+                {"name": name, "event": event, "head_sha": commit,
+                 "head_branch": branch,
+                 "status": "in_progress" if status == "in_progress" else "completed",
+                 "conclusion": conclusion, "created_at": "2026-10-13T15:00:00Z"}
                 for name, event in sup.REQUIRED
             ]}
-        if method == "POST" and route == f"repos/{sup.TARGET}/pulls/{NUMBER}/reviews":
+        if method == "GET" and route == f"repos/{sup.TARGET}/git/commits/{UPDATED}":
+            parents = [SECOND, MERGE] if state["updated_parents_valid"] else [SECOND, BASE]
+            return {"parents": [{"sha": sha} for sha in parents]}
+        if method == "POST" and route in (
+                f"repos/{sup.TARGET}/pulls/{NUMBER}/reviews",
+                f"repos/{sup.TARGET}/pulls/{NUMBER+1}/reviews"):
             reviewed.append(data)
             return {"id": 1}
-        if method == "PUT" and route == f"repos/{sup.TARGET}/pulls/{NUMBER}/merge":
+        if method == "POST" and route == f"repos/{sup.CONTROL}/issues/{ISSUE}/comments":
+            return {"id": 100}
+        if method == "PUT" and route == f"repos/{sup.TARGET}/pulls/{NUMBER+1}/update-branch":
+            if data != {"expected_head_sha": SECOND, "update_method": "merge"}:
+                raise AssertionError("Unexpected update-branch payload")
+            state["updated"] = True
+            return {"message": "scheduled"}
+        if method == "PUT" and route in (
+                f"repos/{sup.TARGET}/pulls/{NUMBER}/merge",
+                f"repos/{sup.TARGET}/pulls/{NUMBER+1}/merge"):
             merged.append(data)
-            state["main"] = MERGE
-            return {"sha": MERGE, "merged": True}
+            new_sha = SECOND_MERGE if route.endswith(f"/{NUMBER+1}/merge") else MERGE
+            state["main"] = new_sha
+            return {"sha": new_sha, "merged": True}
         raise AssertionError(f"Unexpected route: {method} {route}")
     return api, calls, reviewed, merged, state
 
@@ -164,17 +200,77 @@ class SupervisorAcceptanceTests(TestCase):
                     sup.assess(ISSUE, RUN, [x], 1, CANONICAL)
             self.assertFalse(merges)
 
-    def test_two_workers_are_held_instead_of_merging_stale_sibling(self):
-        api, _, reviews, merges, _ = fixture()
-        second = sup.Worker("PR_STAGED",
-                            f"https://github.com/{sup.TARGET}/pull/20",
-                            "f"*40)
+    @staticmethod
+    def second_worker():
+        return sup.Worker(
+            "PR_STAGED",
+            f"https://github.com/{sup.TARGET}/pull/{NUMBER+1}", SECOND)
+
+    def test_two_independent_workers_rebase_second_and_recheck_exact_ci(self):
+        api, calls, reviews, merges, state = fixture()
         with patch.object(sup, "_api", side_effect=api):
-            with self.assertRaisesRegex(
-                    sup.SupervisorHold, "TWO_PR_REBASE_REQUIRED"):
-                sup.assess(ISSUE, RUN, [candidate(), second], 1, CANONICAL)
+            result = sup.assess(ISSUE, RUN,
+                                [candidate(), self.second_worker()], 1, CANONICAL)
+        self.assertEqual(result["status"], "TERMINAL_SUCCESS")
+        self.assertEqual(result["pull_requests"], [NUMBER, NUMBER+1])
+        self.assertEqual(result["merge_sha"], SECOND_MERGE)
+        self.assertEqual(state["main"], SECOND_MERGE)
+        self.assertEqual([m["sha"] for m in merges], [SHA, UPDATED])
+        self.assertEqual(len(reviews), 2)
+        paths = [route for method, route, _ in calls]
+        self.assertIn(f"repos/{sup.TARGET}/pulls/{NUMBER+1}/update-branch", paths)
+        self.assertIn(f"repos/{sup.TARGET}/git/commits/{UPDATED}", paths)
+        self.assertTrue(any("head_sha=" + UPDATED in p for p in paths))
+        self.assertTrue(any(m == "POST" and "issues" in p for m, p, _ in calls))
+
+    def test_conflicting_parallel_files_hold_before_any_merge(self):
+        api, _, reviews, merges, state = fixture()
+        state["second_file"] = "README_CODEX.md"
+        with patch.object(sup, "_api", side_effect=api):
+            with self.assertRaisesRegex(sup.SupervisorHold, "PARALLEL_FILE_CONFLICT"):
+                sup.assess(ISSUE, RUN, [candidate(), self.second_worker()], 1, CANONICAL)
         self.assertFalse(reviews)
         self.assertFalse(merges)
+
+    def test_second_initial_ci_failure_blocks_entire_wave(self):
+        api, _, reviews, merges, state = fixture()
+        state["second_ci"] = "failure"
+        with patch.object(sup, "_api", side_effect=api):
+            with self.assertRaisesRegex(sup.SupervisorHold, "CI_NOT_GREEN"):
+                sup.assess(ISSUE, RUN, [candidate(), self.second_worker()], 1, CANONICAL)
+        self.assertFalse(reviews)
+        self.assertFalse(merges)
+
+    def test_unverified_git_update_ancestry_holds_after_durable_first_merge(self):
+        api, calls, reviews, merges, state = fixture()
+        state["updated_parents_valid"] = False
+        with patch.object(sup, "_api", side_effect=api):
+            with self.assertRaisesRegex(
+                    sup.SupervisorHold, "UPDATED_BRANCH_ANCESTRY_UNVERIFIED"):
+                sup.assess(ISSUE, RUN, [candidate(), self.second_worker()], 1, CANONICAL)
+        self.assertEqual([m["sha"] for m in merges], [SHA])
+        self.assertEqual(len(reviews), 1)
+        self.assertIn(("POST", f"repos/{sup.CONTROL}/issues/{ISSUE}/comments", True), calls)
+
+    def test_second_fresh_ci_failure_blocks_second_merge(self):
+        api, _, reviews, merges, state = fixture()
+        state["updated_ci"] = "failure"
+        with patch.object(sup, "_api", side_effect=api):
+            with self.assertRaisesRegex(sup.SupervisorHold, "CI_NOT_GREEN"):
+                sup.assess(ISSUE, RUN, [candidate(), self.second_worker()], 1, CANONICAL)
+        self.assertEqual([m["sha"] for m in merges], [SHA])
+        self.assertEqual(len(reviews), 1)
+
+    def test_updated_ci_waits_for_completion_but_not_unverified_green(self):
+        api, _, _, merges, state = fixture()
+        state["updated_ci"] = "pending_then_success"
+        with patch.object(sup, "_api", side_effect=api), \
+             patch.object(sup.time, "sleep", return_value=None):
+            result = sup.assess(ISSUE, RUN,
+                                [candidate(), self.second_worker()], 2, CANONICAL)
+        self.assertEqual(result["status"], "PHASE_VALIDATED_PENDING_REAUDIT")
+        self.assertGreaterEqual(state["checks_seen"], 2)
+        self.assertEqual(len(merges), 2)
 
     def test_only_authenticated_owner_event_may_use_supervisor_secret(self):
         workflow = (ROOT / ".github/workflows/coordinator-owner-order.yml").read_text()
