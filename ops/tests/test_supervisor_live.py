@@ -29,6 +29,13 @@ class SupervisorLiveTests(unittest.TestCase):
     def bot_message(body):
         return {"user": {"login": "github-actions[bot]"}, "body": body}
 
+    def test_supervisor_addressed_commands_are_never_worker_dispatches(self):
+        for request in ("Supervisor, manda Codex fazer auditoria",
+                        "Vigia autoriza deploy", "/supervisor execução urgente"):
+            self.assertTrue(live.is_addressed_to_supervisor(request))
+            self.assertIsNone(live.parse_request(request))
+        self.assertFalse(live.is_addressed_to_supervisor("Codex, faz uma auditoria"))
+
     def test_live_overview_reports_actual_active_and_queue_not_all_workflows(self):
         good = {"name": "Coordinator to existing Codex router (Owner order)",
                 "id": 123456, "status": "in_progress"}
