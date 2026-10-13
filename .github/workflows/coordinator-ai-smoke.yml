@@ -86,13 +86,41 @@ jobs:
           bash -n ops/coordinator-smoke-remote.sh || exit 12
           # The script travels through stdin; no code, secret or extra process
           # is installed persistently on the VPS. Never print raw remote text.
-          timeout --signal=TERM --kill-after=10s 40m \
+          if timeout --signal=TERM --kill-after=10s 40m \
             sshpass -e ssh -T -o StrictHostKeyChecking=yes \
             -o UserKnownHostsFile="$RUNNER_TEMP/coordinator_smoke_known_hosts" \
             -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=5 \
             ubuntu@146.59.145.3 "bash -s -- '$job'" \
-            < ops/coordinator-smoke-remote.sh > "$output" 2>/dev/null || exit 12
+            < ops/coordinator-smoke-remote.sh > "$output" 2>/dev/null; then
+            :
+          else
+            # Untrusted remote stdout is never logged. Parse only a single
+            # exact two-line allowlisted diagnostic with a bounded length.
+            python3 - "$output" "$RUNNER_TEMP/coordinator_smoke_failure_class.txt" <<'PY_DIAG'
+          from pathlib import Path
+          import re
+          import sys
+          approved = frozenset({
+              'PRECHECK', 'NO_SLOT', 'CLONE', 'BOOTSTRAP',
+              'MODEL_AUTH', 'MODEL_EXEC', 'MODEL_FORMAT', 'MODEL_SCHEMA',
+              'MODEL_PATHS', 'NO_FINDINGS', 'MODEL_OTHER', 'PLAN_RECHECK',
+          })
+          try:
+              raw = Path(sys.argv[1]).read_bytes()
+              match = re.fullmatch(
+                  rb'COORDINATOR_SMOKE_STATUS=REFUSED\n'
+                  rb'COORDINATOR_SMOKE_REASON=([A-Z_]+)\n', raw
+              ) if len(raw) < 256 else None
+              reason = match.group(1).decode('ascii') if match else 'UNCLASSIFIED'
+          except (OSError, UnicodeError):
+              reason = 'UNCLASSIFIED'
+          if reason not in approved:
+              reason = 'UNCLASSIFIED'
+          Path(sys.argv[2]).write_text(reason + '\n', encoding='ascii')
+          PY_DIAG
+            exit 12
+          fi
           python3 - "$output" "$RUNNER_TEMP/coordinator_smoke_verified.json" <<'PY'
           import json
           from pathlib import Path
@@ -154,6 +182,19 @@ jobs:
                   'Read-only smoke did not return a verified valid plan.',
                   'No implementation workers were dispatched by this workflow.',
               ]
+          reason_file = Path(os.environ['RUNNER_TEMP']) / 'coordinator_smoke_failure_class.txt'
+          if not good:
+              approved = frozenset({
+                  'PRECHECK', 'NO_SLOT', 'CLONE', 'BOOTSTRAP', 'MODEL_AUTH',
+                  'MODEL_EXEC', 'MODEL_FORMAT', 'MODEL_SCHEMA', 'MODEL_PATHS',
+                  'NO_FINDINGS', 'MODEL_OTHER', 'PLAN_RECHECK', 'UNCLASSIFIED',
+              })
+              try:
+                  reason = reason_file.read_text(encoding='ascii').strip()
+              except (OSError, UnicodeError):
+                  reason = 'UNCLASSIFIED'
+              lines.append('Diagnostic class: ' + (
+                  reason if reason in approved else 'UNCLASSIFIED'))
           lines.extend(['', 'Actions evidence: ' + os.environ['RUN_URL']])
           path = Path(os.environ['RUNNER_TEMP']) / 'coordinator_smoke_comment.md'
           path.write_text(chr(10).join(lines) + chr(10), encoding='utf-8')

@@ -177,10 +177,38 @@ accounts or paid APIs. Do not run project code or tests. Never invent a path.
 
 Return only one JSON object with exactly this top-level contract:
 {{"target_repository":{json.dumps(target)},"audit":{{"revision":{json.dumps(head)},"findings":[],"work_items":[]}}}}
-Populate findings and work_items using the contract accepted by
-ops/codex_audit_strategy.py::plan_phases. Use 1-8 bounded work items, explicit
-file-exact paths, finding_ids, and depends_on only when required. This is a dry
-plan for later independent review; no worker is started by this request.
+The *validator lives in another repository*, not in this checkout: do not
+try to read ops/codex_audit_strategy.py. Use the FULL CONTRACT given here.
+The empty arrays above describe keys only; an actual valid plan MUST NOT have
+empty findings or work_items.
+
+The top-level JSON must have EXACTLY target_repository and audit; audit must
+have EXACTLY revision, findings and work_items. Use the exact target and 40-hex
+revision already supplied above. findings must contain 1-12 objects, each with
+EXACTLY these keys and types:
+  id: lowercase ASCII kebab-case matching [a-z][a-z0-9]*(?:-[a-z0-9]+)*;
+  paths: array of 1-12 distinct REAL git-tracked regular file paths relative to
+    this checkout, never a directory and never any .github, auth or secrets;
+  severity: exactly one of "low", "medium", "high";
+  observation: 12-500 characters, evidence that you ACTUALLY saw in the file.
+work_items must have 1-8 objects, each with required keys EXACTLY:
+  id: lowercase ASCII kebab-case, distinct across work_items;
+  task: 12-1600 characters describing a bounded safe correction;
+  paths: 1-18 distinct file-exact paths, ALL explicitly in a cited finding;
+  finding_ids: 1-12 distinct ids of the findings above.
+Optional item keys ONLY:
+  depends_on: array of ids of EARLIER work_items (no cycles);
+  allow_no_change: boolean, default false.
+Any other field invalidates the plan. Do not include AUDIT_BASE_SHA= or
+AUDIT_ALLOWED_PATHS= in task prose. Prefer 1-2 small documentation tasks with
+independent, non-overlapping files when evidence supports them; do not force
+two workers. Each path must exist as a tracked file, with exact case; avoid
+parent-directory ownership. Observations must be factual, not hypothetical.
+
+If inspection finds NO verifiable actionable issue, do NOT fabricate one:
+return exactly {{"status":"NO_VERIFIABLE_FINDINGS"}} and no other text.
+Otherwise return exactly one plain JSON object, no markdown fences, commentary,
+shell logs or trailing text. This is a dry plan only, never dispatch workers.
 
 PROJECT LEADER CANONICAL RULES (host-pinned and verified):
 {rules.rstrip()}
@@ -270,6 +298,8 @@ def validate_response(raw: bytes, checkout: Path, target: str, head: str) -> tup
         payload = json.loads(raw.decode("utf-8", "strict"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise CoordinatorAIError("Codex returned invalid JSON") from exc
+    if payload == {"status": "NO_VERIFIABLE_FINDINGS"}:
+        raise CoordinatorAIError("No verifiable repository finding; nothing to plan")
     if (not isinstance(payload, dict) or set(payload) != {"target_repository", "audit"} or
             payload.get("target_repository") != target):
         raise CoordinatorAIError("Codex returned a different target repository")

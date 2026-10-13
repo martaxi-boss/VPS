@@ -128,6 +128,23 @@ END PINNED CANONICAL PROJECT LEADER SKILL
                 self.assertEqual("read-only", exec_command[exec_command.index("--sandbox") + 1])
                 self.assertNotIn("dispatch", " ".join(exec_command).lower())
 
+    def test_prompt_contains_complete_executable_audit_contract(self):
+        prompt = coordinator_ai._prompt(
+            "Audit inspected files", self.rules.read_text(encoding="utf-8"),
+            "martaxi-boss/VPS", self.head)
+        self.assertIn("validator lives in another repository", prompt)
+        self.assertIn("finding_ids", prompt)
+        self.assertIn("observation: 12-500 characters", prompt)
+        self.assertIn("allow_no_change: boolean", prompt)
+        self.assertIn("NO_VERIFIABLE_FINDINGS", prompt)
+        self.assertIn("1-8 objects", prompt)
+
+    def test_no_verifiable_finding_is_honestly_refused(self):
+        fake = FakeCodex({"status": "NO_VERIFIABLE_FINDINGS"})
+        with self.assertRaisesRegex(coordinator_ai.CoordinatorAIError, "No verifiable"):
+            self.coordinate(fake)
+        self.assertFalse(self.output.exists())
+
     def test_invalid_json_and_cycle_are_rejected_without_output(self):
         with self.assertRaisesRegex(coordinator_ai.CoordinatorAIError, "invalid JSON"):
             self.coordinate(FakeCodex("not json"))
