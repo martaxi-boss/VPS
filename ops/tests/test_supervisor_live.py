@@ -1,12 +1,24 @@
 #!/usr/bin/env python3
 """Read-only live Supervisor contracts; all GitHub and Telegram I/O mocked."""
 import unittest
+from pathlib import Path
 from unittest.mock import Mock
 
 from ops import supervisor_live as live
 
 
 class SupervisorLiveTests(unittest.TestCase):
+    def test_quota_observer_has_one_canonical_workflow_identity(self):
+        root = Path(__file__).resolve().parents[2]
+        quota = (root / ".github/workflows/codex-quota-watch.yml").read_text()
+        gateway = (root / ".github/workflows/telegram-codex-gateway.yml").read_text()
+        name = "Supervisor - Real ChatGPT quota watch (Owner notifications only)"
+        self.assertEqual(quota.splitlines()[0], "name: " + name)
+        self.assertIn('      - "' + name + '"', gateway)
+        self.assertEqual(live.WORKFLOWS[name], "Vigilância da quota real")
+        self.assertNotIn("Codex quota continuation (Owner checkpoints only)", gateway)
+        self.assertNotIn("Codex quota continuation (Owner checkpoints only)", live.WORKFLOWS)
+
     def test_commands_are_read_only_and_usable_by_voice(self):
         for value in ("/supervisor", "/vigia", "/estado", "Supervisor, como está o projeto?",
                       "Supervisor, que fases estão em execução?",
