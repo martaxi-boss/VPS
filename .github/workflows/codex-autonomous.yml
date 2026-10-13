@@ -260,6 +260,28 @@ jobs:
           # Best-effort retrieval must not suppress a completed private report.
           # Original strict publication validation runs after observer.
 
+      - name: Secure provider quota checkpoint before Supervisor delivery
+        id: quota_hold
+        if: always() && steps.codex.outcome == 'failure' && steps.collect.outcome == 'success'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ORIGINAL_ISSUE: ${{ inputs.issue_number || github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          signal="$RUNNER_TEMP/codex-preflight-signal.txt"
+          if ! test -f "$signal" || test -L "$signal" ||
+             [ "$(cat "$signal")" != 'CODEX_QUOTA_BLOCKED' ]; then
+            echo 'QUOTA_HOLD=NOT_APPLICABLE'
+            exit 0
+          fi
+          [[ "$ORIGINAL_ISSUE" =~ ^[1-9][0-9]*$ ]] || exit 3
+          case "$CODEX_INSTANCE_ID" in ''|1|2|p[2-8]-[12]) ;; *)
+            echo 'QUOTA_WORKER_ID_INVALID'; exit 3;; esac
+          worker="${CODEX_INSTANCE_ID:-1}"
+          python3 ops/codex_quota_resume.py hold "$ORIGINAL_ISSUE" "$worker" "$GITHUB_RUN_ID"
+          echo 'QUOTA_HOLD=OWNER_ONLY_PERSISTED'
+
       # The Project Leader worker already decided what its report says, including
       # whether it reached a genuine Human Gate. Do not parse or redefine it.
       # Deliver that exact private report promptly, before publication/CI wait.
@@ -407,7 +429,17 @@ jobs:
             exit 1
           fi
           CODEX_JOB_STATUS="NOT_COMPLETED"
-          if test -s "$RUNNER_TEMP/codex-result.json"; then
+          signal=""
+          if test -f "$RUNNER_TEMP/codex-preflight-signal.txt" &&
+             ! test -L "$RUNNER_TEMP/codex-preflight-signal.txt"; then
+            signal="$(cat "$RUNNER_TEMP/codex-preflight-signal.txt")"
+          fi
+          if [ "$signal" = CODEX_QUOTA_BLOCKED ] &&
+             [ "${{ steps.quota_hold.outcome }}" = success ]; then
+            CODEX_JOB_STATUS="PAUSED_QUOTA"
+          elif [ "$signal" = CODEX_QUOTA_UNVERIFIED ]; then
+            CODEX_JOB_STATUS="QUOTA_UNVERIFIED"
+          elif test -s "$RUNNER_TEMP/codex-result.json"; then
             CODEX_JOB_STATUS="$(python3 - <<'PY_STATUS'
           import json, os
           from pathlib import Path
