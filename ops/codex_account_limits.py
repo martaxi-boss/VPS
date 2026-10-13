@@ -71,6 +71,11 @@ def summarize(account: dict, response: dict, *, now: int | None = None) -> dict:
         raise ProbeError("AVAILABILITY_INVALID")
     blocked = (any(w["used_percent"] >= 100 for w in windows)
                or classified is not None or spend is True or allowed is False)
+    # The official Codex protocol explicitly says that absent/null
+    # ordinaryUsageAllowed does NOT prove that quota is available, even
+    # when percentages are below 100 or a reset timestamp has elapsed.
+    if not blocked and allowed is not True:
+        raise ProbeError("QUOTA_AVAILABILITY_UNVERIFIED")
     current = int(time.time()) if now is None else now
     if type(current) is not int or current < 1_500_000_000:
         raise ProbeError("CLOCK_INVALID")
