@@ -7,9 +7,22 @@ on:
   schedule:
     - cron: '7-59/5 * * * *'
   workflow_dispatch:
+  issues:
+    types: [opened]
+  workflow_run:
+    workflows:
+      - "Coordinator to existing Codex router (Owner order)"
+      - "Agent switch (Owner GitHub order)"
+      - "Continue original Owner DAG (no repeated Coordinator AI)"
+      - "Codex autonomous execution (Owner-authorized)"
+      - "Codex quota continuation (Owner checkpoints only)"
+      - "Codex - ChatGPT bridge"
+    types: [completed]
   pull_request:
     paths:
       - 'ops/telegram_gateway.py'
+      - 'ops/supervisor_live.py'
+      - 'ops/tests/test_supervisor_live.py'
       - 'ops/telegram_voice_transcribe.py'
       - 'ops/tests/test_telegram_gateway.py'
       - '.github/workflows/telegram-codex-gateway.yml'
@@ -36,8 +49,9 @@ jobs:
           persist-credentials: false
       - name: Validate syntax and restricted routing
         run: |
-          python3 -m py_compile ops/telegram_gateway.py ops/telegram_voice_transcribe.py
+          python3 -m py_compile ops/telegram_gateway.py ops/telegram_voice_transcribe.py ops/supervisor_live.py
           python3 -m unittest discover -s ops/tests -p 'test_telegram_gateway.py' -v
+          python3 -m unittest discover -s ops/tests -p 'test_supervisor_live.py' -v
 
 
   voice-smoke:
@@ -107,3 +121,10 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           GH_TOKEN: ${{ github.token }}
         run: python3 ops/telegram_gateway.py poll
+
+      - name: Passive Supervisor observes the entire Owner pipeline
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -m ops.supervisor_live watch
