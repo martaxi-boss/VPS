@@ -576,7 +576,15 @@ class PrivateOwnerReportDeliveryTests(unittest.TestCase):
     def test_private_report_is_fetched_and_delivered_using_existing_gateway(self):
         flow = (OPS.parent / '.github/workflows/codex-autonomous.yml').read_text(encoding='utf-8')
         self.assertIn('project-leader-runtime.json report.md codex-preflight-signal.txt; do', flow)
-        self.assertIn('python3 ops/telegram_gateway.py notify', flow)
+        self.assertEqual(flow.count('python3 ops/coordinator_supervisor.py observe'), 2)
+        self.assertNotIn('python3 ops/telegram_gateway.py notify', flow)
+        self.assertLess(flow.index('Passive Supervisor forwards Project Leader worker report'),
+                        flow.index('Publish guarded PR'))
+        self.assertGreater(flow.index('Passive Supervisor sends final publication state'),
+                           flow.index('Publish guarded PR'))
+        self.assertIn('SUPERVISOR_OBSERVATION: WORKER_REPORT', flow)
+        self.assertIn('SUPERVISOR_OBSERVATION: FINAL_STATE', flow)
+        self.assertIn('CODEX_REPORT_MODE: status', flow)
         self.assertIn('secrets.TELEGRAM_BOT_TOKEN', flow)
         self.assertIn('secrets.TELEGRAM_CHAT_ID', flow)
         self.assertIn('SENT_TO_PRIVATE_TELEGRAM', flow)
