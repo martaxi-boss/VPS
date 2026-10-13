@@ -165,6 +165,25 @@ class SupervisorAcceptanceTests(TestCase):
         self.assertFalse(reviews)
         self.assertFalse(merges)
 
+    def test_only_authenticated_owner_event_may_use_supervisor_secret(self):
+        workflow = (ROOT / ".github/workflows/coordinator-owner-order.yml").read_text()
+        supervisor = workflow.split("  supervise:", 1)[1]
+        self.assertIn("github.event.issue.user.login == github.repository_owner", supervisor)
+        self.assertIn("github.event_name == 'issues'", supervisor)
+        self.assertIn("needs.dispatch.result == 'success'", supervisor)
+        self.assertIn("CODEX_GITHUB_TOKEN: ${{ secrets.CODEX_GITHUB_TOKEN }}", supervisor)
+        self.assertIn("uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683", supervisor)
+        offline = workflow.split("  offline-contract:", 1)[1].split("  plan:", 1)[0]
+        self.assertNotIn("secrets.", offline)
+        self.assertNotIn("CODEX_GITHUB_TOKEN", offline)
+        router = (ROOT / ".github/workflows/agent-switch.yml").read_text()
+        executor = (ROOT / ".github/workflows/codex-autonomous.yml").read_text()
+        self.assertIn("value: ${{ jobs.preflight.outputs.task_count }}", router)
+        self.assertIn("worker_1_canonical_sha:", router)
+        self.assertIn("publication_canonical_sha:", executor)
+        self.assertIn("project-leader-runtime.json", executor)
+        self.assertIn("worker_2_canonical_sha:", router)
+
     def test_supervisor_is_not_a_second_ai_coordinator(self):
         source = (ROOT / "ops/coordinator_supervisor.py").read_text()
         self.assertNotIn("codex exec", source)
