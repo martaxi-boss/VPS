@@ -539,7 +539,8 @@ class TelegramGatewayTests(unittest.TestCase):
             gateway.handle_update(update)
             query.assert_called_once_with(gh)
             create.assert_not_called()
-            self.assertEqual(send.call_args.args[0], "Estado real do GitHub")
+            self.assertIn("AUDITORIA OPERACIONAL", send.call_args.args[0])
+            self.assertIn("Estado real do GitHub", send.call_args.args[0])
 
     def test_private_supervisor_specific_task_never_mutates(self):
         from ops import supervisor_live as observer
@@ -605,6 +606,79 @@ class TelegramGatewayTests(unittest.TestCase):
             read.assert_not_called()
             create.assert_not_called()
             send.assert_not_called()
+
+
+
+    def test_private_original_report_has_separate_factual_audit_and_unmodified_content(self):
+        content = "Human Gate decidido no Project Leader, sem outro supervisor.\nFASE: 2"
+        with tempfile.TemporaryDirectory() as tmp:
+            file = Path(tmp) / "report.md"
+            file.write_text(content, encoding="utf-8")
+            sample = {
+                "CODEX_REPORT_MODE": "worker",
+                "CODEX_JOB_STATUS": "WORKER_REPORT_RECEIVED",
+                "CODEX_REPORT_PATH": str(file),
+                "CODEX_INSTANCE_ID": "p2-1",
+                "CODEX_ISSUE_NUMBER": "181",
+                "CODEX_RUN_URL": "https://github.com/martaxi-boss/VPS/actions/runs/12345",
+            }
+            with (patch.dict(os.environ, sample, clear=True),
+                  patch.object(gateway, "BOT_TOKEN", "dummy"),
+                  patch.object(gateway, "CHAT_ID", "123456"),
+                  patch.object(gateway, "say") as send,
+                  patch.object(gateway, "telegram") as tg):
+                gateway.notify()
+                sent = send.call_args.args[0]
+                self.assertIn("AUDITORIA DO RELATÓRIO", sent)
+                self.assertIn("Project Leader do trabalhador", sent)
+                self.assertIn("sem certificação final", sent)
+                self.assertTrue(sent.endswith("RELATÓRIO ORIGINAL:\n" + content))
+                tg.assert_not_called()
+
+    def test_private_final_audit_flags_failure_without_leaking_worker_text(self):
+        sample = {
+            "CODEX_REPORT_MODE": "status", "CODEX_JOB_STATUS": "MERGED",
+            "CODEX_ISSUE_NUMBER": "181",
+            "CODEX_RUN_URL": "https://github.com/martaxi-boss/VPS/actions/runs/12345",
+            "CODEX_OUTCOME": "failure",
+        }
+        with (patch.dict(os.environ, sample, clear=True),
+              patch.object(gateway, "BOT_TOKEN", "dummy"),
+              patch.object(gateway, "CHAT_ID", "123456"),
+              patch.object(gateway, "say") as send):
+            gateway.notify()
+            self.assertIn("INCONSISTÊNCIA", send.call_args.args[0])
+            self.assertIn("não certificar sucesso", send.call_args.args[0])
+
+    def test_all_telegram_text_goes_through_supervisor_transport_audit(self):
+        from ops import supervisor_audit
+        with (patch.object(gateway, "CHAT_ID", "123456"),
+              patch.object(gateway, "BOT_TOKEN", "dummy"),
+              patch.object(gateway, "telegram") as api,
+              patch.object(supervisor_audit, "check_delivery",
+                           wraps=supervisor_audit.check_delivery) as inspect):
+            gateway.say("Informação verificada.")
+            inspect.assert_called_once_with("Informação verificada.")
+            api.assert_called_once()
+            self.assertEqual(api.call_args.args[0], "sendMessage")
+            api.reset_mock()
+            with self.assertRaises(RuntimeError):
+                gateway.say("X" * 4001)
+            api.assert_not_called()
+
+    def test_report_missing_refuses_false_notice_of_receipt(self):
+        sample = {
+            "CODEX_REPORT_MODE": "worker",
+            "CODEX_JOB_STATUS": "WORKER_REPORT_RECEIVED",
+            "CODEX_REPORT_PATH": "/nonexistent/report.md",
+        }
+        with (patch.dict(os.environ, sample, clear=True),
+              patch.object(gateway, "BOT_TOKEN", "dummy"),
+              patch.object(gateway, "CHAT_ID", "123456"),
+              patch.object(gateway, "telegram") as api):
+            with self.assertRaises(RuntimeError):
+                gateway.notify()
+            api.assert_not_called()
 
 
 if __name__ == "__main__":
