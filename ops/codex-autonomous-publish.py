@@ -7,6 +7,7 @@ and merges only a correctly evidenced, exact-head PR without bypassing policies.
 """
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
