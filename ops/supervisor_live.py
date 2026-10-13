@@ -283,6 +283,27 @@ def notify_plan(gh, send, number: int, run: int, outcome: str,
          f"https://github.com/{REPOSITORY}/actions/runs/{run}")
     return True
 
+
+def notify_phase(gh, send, number: int, run: int, phase: int,
+                 outcome: str) -> bool:
+    """Report a scheduled phase; never schedule, approve, or resume work."""
+    if (type(number) is not int or not 0 < number < 10**9 or
+            type(run) is not int or not 0 < run < 10**16 or
+            type(phase) is not int or not 2 <= phase <= 8 or
+            outcome not in {"success", "failure", "skipped", "cancelled"}):
+        return False
+    issue = _get(gh, f"issues/{number}")
+    if not _owner_order(issue) or not issue["title"].startswith("[coordinator run] "):
+        return False
+    if outcome == "success":
+        message = f"Fase {phase} do plano original preparada e validada; trabalhadores seguem o Project Leader."
+    else:
+        message = f"Fase {phase} não foi validada ou não iniciou; consultar a execução."
+    send(f"👁️ Supervisor: tarefa #{number}. {message}\n"
+         f"https://github.com/{REPOSITORY}/actions/runs/{run}")
+    return True
+
+
 def main(argv: list[str]) -> int:
     if argv == ["plan"]:
         from ops import telegram_gateway as gateway
@@ -300,6 +321,23 @@ def main(argv: list[str]) -> int:
             return 0 if result else 2
         except (ValueError, RuntimeError, OSError):
             print("SUPERVISOR_COORDINATOR=OBSERVATION_FAILED", file=sys.stderr)
+            return 1
+    if argv == ["phase"]:
+        from ops import telegram_gateway as gateway
+        try:
+            number = int(os.environ.get("SUPERVISOR_PLAN_ISSUE", ""))
+            run = int(os.environ.get("GITHUB_RUN_ID", ""))
+            phase = int(os.environ.get("SUPERVISOR_PHASE_NUMBER", ""))
+            if (os.environ.get("GITHUB_EVENT_NAME") != "issues" or
+                    os.environ.get("GITHUB_REPOSITORY") != REPOSITORY):
+                return 2
+            result = notify_phase(
+                gateway.github, gateway.say, number, run, phase,
+                os.environ.get("SUPERVISOR_PLAN_OUTCOME", ""))
+            print("SUPERVISOR_PHASE=" + ("FORWARDED" if result else "IGNORED"))
+            return 0 if result else 2
+        except (ValueError, RuntimeError, OSError):
+            print("SUPERVISOR_PHASE=OBSERVATION_FAILED", file=sys.stderr)
             return 1
     if argv != ["watch"]:
         return 2
