@@ -729,7 +729,7 @@ class TelegramGatewayTests(unittest.TestCase):
                     self.assertIn("QUOTA REAL", body)
                     self.assertIn("nova ordem autenticada do Owner", body)
                     if proof == "success":
-                        self.assertIn("Checkpoint privado: registado", body)
+                        self.assertIn("Checkpoint da tarefa: registado", body)
                     else:
                         self.assertIn("checkpoint GitHub ainda NÃO certificado", body)
                     issue.assert_not_called()
