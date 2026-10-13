@@ -105,7 +105,7 @@ class OwnerAuditedFirstWaveTests(unittest.TestCase):
         for key in ("phase_count", "held_task_count", "phase_owner_digest"):
             self.assertIn("order.get('" + key + "'", workflow)
         self.assertIn("if order.get('phase_count', 1) > 1:", workflow)
-        self.assertIn("HOLD_FOR_CI_AND_REAUDIT", workflow)
+        self.assertIn("HOLD_FOR_CI_AND_NEXT_PHASE", workflow)
 
     def test_resume_attested_worker_in_first_wave_never_replays_sibling(self):
         raw = json.dumps(phase_manifest())
@@ -173,7 +173,7 @@ class OwnerAuditedFirstWaveTests(unittest.TestCase):
                       workflow)
         self.assertIn("startsWith(github.event.issue.title, '[agents run]')",
                       workflow)
-        self.assertIn("HOLD_FOR_CI_AND_REAUDIT", workflow)
+        self.assertIn("HOLD_FOR_CI_AND_NEXT_PHASE", workflow)
         self.assertIn("owner_digest", workflow)
 
 
