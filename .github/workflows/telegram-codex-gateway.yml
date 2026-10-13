@@ -17,7 +17,7 @@ on:
       - "Codex autonomous execution (Owner-authorized)"
       - "Codex quota continuation (Owner checkpoints only)"
       - "Codex - ChatGPT bridge"
-    types: [completed]
+    types: [requested, in_progress, completed]
   pull_request:
     paths:
       - 'ops/telegram_gateway.py'
@@ -30,7 +30,7 @@ on:
       - '.github/workflows/telegram-codex-gateway.yml'
 
 concurrency:
-  group: telegram-codex-polling
+  group: telegram-codex-${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'polling' || github.run_id }}
   cancel-in-progress: false
 
 permissions:
@@ -105,7 +105,7 @@ jobs:
 
 
   telegram:
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -125,7 +125,25 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: python3 ops/telegram_gateway.py poll
 
-      - name: Passive Supervisor observes the entire Owner pipeline
+  observer:
+    name: Passive Supervisor — audited Owner notifications
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    # The observer cannot publish Issues, dispatch workflows or mutate code.
+    permissions:
+      contents: read
+      issues: read
+      actions: read
+    steps:
+      - name: Read pinned reviewed Supervisor and Telegram transport from main
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Validate passive observer and audit syntax
+        run: python3 -m py_compile ops/supervisor_live.py ops/supervisor_audit.py ops/telegram_gateway.py
+      - name: Read-only observation, factual audit and private Owner notification
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
