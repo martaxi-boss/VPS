@@ -44,6 +44,8 @@ def parse_report(raw: str) -> dict | None:
     if not isinstance(raw, str):
         raise HumanGateError("Malformed Codex report")
     if not raw.startswith(HEADER):
+        if "PROJECT_LEADER_HUMAN_GATE" in raw or "HUMAN_GATE_V1" in raw:
+            raise HumanGateError("Malformed explicit Human Gate signal")
         return None
     if not 35 <= len(raw.encode("utf-8")) <= 3200:
         raise HumanGateError("Invalid gate request size")
