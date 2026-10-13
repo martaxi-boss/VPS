@@ -18,10 +18,23 @@ refuse() {
   exit 12
 }
 
-if [ "$#" -ne 1 ] || [[ ! "$1" =~ ^[1-9][0-9]{7,14}-[1-9][0-9]{0,3}$ ]]; then
+# One tested read-only planning implementation, exposed in two modes:
+# 1) existing explicit no-dispatch smoke, 2) Owner-verified audited plan
+#    transferred to the existing trusted Actions router for dispatch.
+if { [ "$#" -ne 1 ] && [ "$#" -ne 3 ]; } ||
+   [[ ! "$1" =~ ^[1-9][0-9]{7,14}-[1-9][0-9]{0,3}$ ]]; then
   refuse
 fi
 job="$1"
+mode='smoke'
+encoded_order=''
+if [ "$#" -eq 3 ]; then
+  [ "$2" = 'dispatch' ] || refuse
+  mode='dispatch'
+  encoded_order="$3"
+  [ "${#encoded_order}" -ge 20 ] && [ "${#encoded_order}" -le 11000 ] || refuse
+  [[ "$encoded_order" =~ ^[A-Za-z0-9+/=]+$ ]] || refuse
+fi
 
 # Use the already-authenticated account and the same two worker slots.
 bridge="$HOME/codex-bridge"
@@ -99,6 +112,13 @@ rules_digest="${rules_digest%% *}"
 # Explicit, bounded document-only order. Coordinator AI is read-only, never
 # dispatches workers, creates Issues/PRs, or modifies the target checkout.
 order='Audit the existing Project-leader-codex documentation only. Inspect real tracked files and report one concrete verifiable documentation defect with its exact file path, if found. Do not invent findings, make changes, or dispatch agents.'
+if [ "$mode" = dispatch ]; then
+  # The original order came from an Owner-only GitHub Issue, prevalidated
+  # on the runner. This shell never evals or executes that order.
+  order="$(printf '%s' "$encoded_order" | base64 -d 2>/dev/null)" || refuse
+  [ "${#order}" -ge 25 ] && [ "${#order}" -le 8000 ] || refuse
+  [[ "$order" == TARGET_REPOSITORY=martaxi-boss/Project-leader-codex* ]] || refuse
+fi
 
 # Results live only in the disposable private workspace, not in a
 # persistent directory. The only failure output is a trusted static class.
@@ -130,13 +150,14 @@ fi
 # Independently re-validate the private model output and print allowlisted
 # metrics only. No prompts, arbitrary model strings or local paths are logged.
 python3 - "$private/coordinator-result.json" "$workspace/validated" \
-  "$control" "$slug" "$head" <<'PY' || refuse PLAN_RECHECK
+  "$control" "$slug" "$head" "$mode" <<'PY' || refuse PLAN_RECHECK
+import base64
 import json
 from pathlib import Path
 import stat
 import sys
 
-result_path, output_dir, control, target, head = sys.argv[1:]
+result_path, output_dir, control, target, head, mode = sys.argv[1:]
 try:
     report = json.loads(Path(result_path).read_text(encoding="utf-8"))
     if (not isinstance(report, dict) or
@@ -166,10 +187,25 @@ try:
         raise ValueError("Inconsistent coordinator result")
 except (OSError, ValueError, KeyError, TypeError, AssertionError, IndexError):
     raise SystemExit(13)
-print("COORDINATOR_SMOKE_STATUS=PASS")
-print("TARGET_REPOSITORY=" + target)
-print("TARGET_SHA=" + head)
-print("PHASE_COUNT=" + str(plan["phase_count"]))
-print("FIRST_PHASE_WORKERS=" + str(first["worker_count"]))
-print("FIRST_PHASE_MODE=" + first["mode"])
+if mode == "smoke":
+    print("COORDINATOR_SMOKE_STATUS=PASS")
+    print("TARGET_REPOSITORY=" + target)
+    print("TARGET_SHA=" + head)
+    print("PHASE_COUNT=" + str(plan["phase_count"]))
+    print("FIRST_PHASE_WORKERS=" + str(first["worker_count"]))
+    print("FIRST_PHASE_MODE=" + first["mode"])
+elif mode == "dispatch":
+    # The validated JSON is transmitted only into a private runner temp file;
+    # it never appears in an Issue, transcript or shell trace.
+    raw_audit = file.read_bytes().strip()
+    if not 0 < len(raw_audit) <= 24000:
+        raise SystemExit(13)
+    print("COORDINATOR_DISPATCH_STATUS=VALIDATED")
+    print("TARGET_SHA=" + head)
+    print("PHASE_COUNT=" + str(plan["phase_count"]))
+    print("FIRST_PHASE_WORKERS=" + str(first["worker_count"]))
+    print("FIRST_PHASE_MODE=" + first["mode"])
+    print("AUDIT_B64=" + base64.b64encode(raw_audit).decode("ascii"))
+else:
+    raise SystemExit(13)
 PY
