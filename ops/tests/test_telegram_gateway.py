@@ -524,5 +524,74 @@ class TelegramGatewayTests(unittest.TestCase):
             self.assertIn('Resultado privado do segundo Codex.', msg)
 
 
+    def test_private_supervisor_status_never_creates_issue_or_starts_codex(self):
+        from ops import supervisor_live as observer
+        update = {"update_id": 900, "message": {
+            "chat": {"type": "private", "id": 123456},
+            "from": {"id": 123456, "is_bot": False},
+            "text": "Supervisor, como está o projeto?"}}
+        with (patch.object(gateway, "CHAT_ID", "123456"),
+              patch.object(observer, "overview",
+                           return_value="Estado real do GitHub") as query,
+              patch.object(gateway, "create_audit") as create,
+              patch.object(gateway, "github") as gh,
+              patch.object(gateway, "say") as send):
+            gateway.handle_update(update)
+            query.assert_called_once_with(gh)
+            create.assert_not_called()
+            self.assertEqual(send.call_args.args[0], "Estado real do GitHub")
+
+    def test_private_supervisor_specific_task_never_mutates(self):
+        from ops import supervisor_live as observer
+        update = {"update_id": 901, "message": {
+            "chat": {"type": "private", "id": 123456},
+            "from": {"id": 123456, "is_bot": False},
+            "text": "/supervisor #181"}}
+        with (patch.object(gateway, "CHAT_ID", "123456"),
+              patch.object(observer, "task_status",
+                           return_value="Tarefa #181 verificada") as query,
+              patch.object(gateway, "create_audit") as create,
+              patch.object(gateway, "github") as gh,
+              patch.object(gateway, "say") as send):
+            gateway.handle_update(update)
+            query.assert_called_once_with(gh, 181)
+            create.assert_not_called()
+            self.assertIn("#181", send.call_args.args[0])
+
+    def test_private_supervisor_voice_status_uses_read_only_path(self):
+        from ops import supervisor_live as observer
+        update = {"update_id": 902, "message": {
+            "chat": {"type": "private", "id": 123456},
+            "from": {"id": 123456, "is_bot": False},
+            "voice": {"file_id": "AwACAgQAAAAAAAABBBBB", "duration": 5}}}
+        with (patch.object(gateway, "CHAT_ID", "123456"),
+              patch.object(gateway, "transcribe_voice",
+                           return_value="Supervisor, como estão os trabalhadores?"),
+              patch.object(observer, "overview",
+                           return_value="Trabalhadores a executar") as query,
+              patch.object(gateway, "github") as gh,
+              patch.object(gateway, "create_audit") as create,
+              patch.object(gateway, "say") as send):
+            gateway.handle_update(update)
+            query.assert_called_once_with(gh)
+            create.assert_not_called()
+            self.assertIn("Trabalhadores a executar", send.call_args.args[0])
+
+    def test_untrusted_supervisor_request_does_not_query_private_status(self):
+        from ops import supervisor_live as observer
+        update = {"update_id": 903, "message": {
+            "chat": {"type": "private", "id": 999999},
+            "from": {"id": 999999, "is_bot": False},
+            "text": "/supervisor"}}
+        with (patch.object(gateway, "CHAT_ID", "123456"),
+              patch.object(observer, "overview") as read,
+              patch.object(gateway, "create_audit") as create,
+              patch.object(gateway, "say") as send):
+            gateway.handle_update(update)
+            read.assert_not_called()
+            create.assert_not_called()
+            send.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
