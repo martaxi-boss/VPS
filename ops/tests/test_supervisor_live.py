@@ -138,6 +138,25 @@ class SupervisorLiveTests(unittest.TestCase):
         self.assertNotIn("secret", send.call_args.args[0])
         self.assertEqual(gh.call_args.args, ("GET", "actions/runs/982345"))
 
+    def test_workflow_run_start_and_queue_are_observed_using_live_evidence(self):
+        name = "Coordinator to existing Codex router (Owner order)"
+        base = {"id": 545, "name": name, "event": "issues",
+                "repository": {"full_name": "martaxi-boss/VPS"}}
+        gh, send = Mock(return_value={**base, "status": "queued"}), Mock()
+        event = {"workflow_run": {"id": 545, "name": name}, "action": "requested"}
+        self.assertTrue(live.observe_event(gh, send, "workflow_run", event))
+        self.assertIn("em fila", send.call_args.args[0])
+        gh.return_value = {**base, "status": "in_progress"}
+        send.reset_mock()
+        event["action"] = "in_progress"
+        self.assertTrue(live.observe_event(gh, send, "workflow_run", event))
+        self.assertIn("execução iniciada", send.call_args.args[0])
+        # Delayed start event must not misrepresent an already finished run.
+        gh.return_value = {**base, "status": "completed", "conclusion": "success"}
+        send.reset_mock()
+        self.assertFalse(live.observe_event(gh, send, "workflow_run", event))
+        send.assert_not_called()
+
     def test_workflow_run_rejects_pr_unrelated_and_cross_repository(self):
         name = "Agent switch (Owner GitHub order)"
         row = {"id": 999, "name": name, "status": "completed",
