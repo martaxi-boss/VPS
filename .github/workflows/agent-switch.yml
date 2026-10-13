@@ -61,7 +61,9 @@ on:
       - 'ops/codex_resource_policy.py'
       - 'ops/tests/test_codex_resource_policy.py'
       - 'ops/codex_quota_resume.py'
+      - 'ops/codex_quota_workspace.py'
       - 'ops/tests/test_codex_quota_resume.py'
+      - 'ops/tests/test_codex_quota_workspace.py'
       - '.github/workflows/coordinator-owner-order.yml'
       - 'ops/tests/test_coordinator_owner_routing.py'
 
@@ -88,6 +90,7 @@ jobs:
           python3 -m unittest discover -s ops/tests -p test_agent_switch.py -v
           python3 -m unittest discover -s ops/tests -p test_codex_resource_policy.py -v
           python3 -m unittest discover -s ops/tests -p test_codex_quota_resume.py -v
+          python3 -m unittest discover -s ops/tests -p test_codex_quota_workspace.py -v
           python3 -m unittest discover -s ops/tests -p test_codex_resume_stage_routing.py -v
           python3 -m unittest discover -s ops/tests -p test_coordinator_owner_routing.py -v
 
