@@ -39,6 +39,7 @@ test -f "$base/codex_patch_guard.py"
 test -f "$base/codex_resource_policy.py"
 test -f "$base/codex_quota_resume.py"
 test -f "$base/codex_audit_strategy.py"
+test -f "$base/codex_human_gate.py"
 test -s "$base/codex-reasoning.txt"
 effort="$(cat "$base/codex-reasoning.txt")"
 case "$effort" in low|medium|high) ;; *) echo 'Invalid trusted Codex thinking level' >&2; exit 10 ;; esac
@@ -110,9 +111,18 @@ Recover ordinary bugs, build failures, formatting errors and recoverable conflic
 without requesting further Owner instructions. Use bounded evidence-based retries;
 never spend tokens on blind repeats. Do not mistake PR_STAGED for merged/done.
 Escalate a HUMAN_GATE only for indispensable Owner-exclusive intervention or
-new uncovered material decisions. If completing the correction requires edits
-outside authorized paths, report the precise blocked scope to the trusted
-Publisher instead of bypassing protection or suppressing failing checks.
+new uncovered material decisions, as ALREADY defined by canonical Project Leader.
+Do not turn build errors, CI failures, quota limits or technical Recovery into gates.
+For a genuine Human Gate, stop and make the FINAL report EXACTLY two lines:
+PROJECT_LEADER_HUMAN_GATE_V1
+{"condition":"EXCLUSIVE_HUMAN_INTERVENTION","action":"a bounded description","needed_from_owner":"precise personal intervention"}
+Use NEW_UNCOVERED_MATERIAL_DECISION only when that canonical condition applies.
+No markdown fences, other paragraphs, credentials, passwords, OTPs or private data.
+No prior authorization extends the approved task scope. The deterministic VPS
+Supervisor relays this gate privately to the Owner without a Coordinator call.
+If completing the correction requires edits outside authorized paths, report
+the precise blocked scope to the trusted Publisher instead of bypassing
+protection or suppressing failing checks.
 Use European Portuguese in your final report. Never print credentials or authentication data.
 
 PROJECT LEADER CANONICAL RULES:
@@ -192,6 +202,15 @@ if [ "$code" -ne 0 ]; then
   exit "$code"
 fi
 test -s "$report" || { echo 'Codex returned no report' >&2; exit 6; }
+
+# Human Gate means the canonical Project Leader judged Owner intervention
+# indispensable. Never publish a partial patch or spend Coordinator tokens.
+# Preserve this private workspace for later exact-task/resumption verification.
+python3 "$base/codex_human_gate.py" classify "$report" > "$base/gate-signal.txt"
+if [ "$(cat "$base/gate-signal.txt")" = 'HUMAN_GATE_PENDING' ]; then
+  printf 'CODEX_HUMAN_GATE_PENDING\n'
+  exit 0
+fi
 
 # Independent mechanical guard rejects protected files, symlinks, secrets and oversized diffs.
 python3 "$base/codex_patch_guard.py" "$patch" > "$base/patch-metrics.txt"
