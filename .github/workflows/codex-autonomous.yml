@@ -10,6 +10,15 @@ on:
       publication_status:
         description: Trusted first worker publication result for dependent serial tasks
         value: ${{ jobs.execute.outputs.publication_status }}
+      publication_pr:
+        description: Trusted publisher PR URL; never model text
+        value: ${{ jobs.execute.outputs.publication_pr }}
+      publication_sha:
+        description: Trusted publisher exact SHA
+        value: ${{ jobs.execute.outputs.publication_sha }}
+      publication_canonical_sha:
+        description: Canonical Project Leader revision verified for this worker
+        value: ${{ jobs.execute.outputs.publication_canonical_sha }}
     inputs:
       task_b64:
         description: Validated owner task, encoded to avoid multiline output injection
@@ -67,6 +76,9 @@ jobs:
       issues: write
     outputs:
       publication_status: ${{ steps.publish.outputs.publication_status }}
+      publication_pr: ${{ steps.publish.outputs.publication_pr }}
+      publication_sha: ${{ steps.publish.outputs.publication_sha }}
+      publication_canonical_sha: ${{ steps.publish.outputs.publication_canonical_sha }}
     env:
       CODEX_INSTANCE_ID: ${{ inputs.instance_id }}
       CODEX_REASONING_EFFORT: ${{ inputs.reasoning_effort || 'medium' }}
@@ -274,8 +286,38 @@ jobs:
           status = result.get("status")
           if status not in {"MERGED", "NO_CHANGE", "PR_STAGED"}:
               raise SystemExit("Unverified publication; dependent worker blocked")
+          pr = result.get('pull_request', '')
+          sha = result.get('commit_sha', '')
+          if status == 'PR_STAGED':
+              from urllib.parse import urlparse
+              import re
+              location = urlparse(pr)
+              if (location.scheme != 'https' or location.netloc != 'github.com'
+                  or not re.fullmatch(
+                      r'/martaxi-boss/Project-leader-codex/pull/[1-9][0-9]*',
+                      location.path
+                  ) or location.query or location.fragment
+                  or not isinstance(sha, str)
+                  or not re.fullmatch(r'[0-9a-f]{40}', sha)):
+                  raise SystemExit("Trusted publication metadata missing or invalid")
+          else:
+              pr, sha = '', ''
+          import re
+          from pathlib import Path
+          runtime = json.loads(
+              (Path(os.environ["RUNNER_TEMP"]) /
+               "project-leader-runtime.json").read_text(encoding="utf-8")
+          )
+          canonical = runtime.get("canonical_revision", "")
+          if (not re.fullmatch(r"[0-9a-f]{40}", canonical) or
+              runtime.get("source_repository") != "martaxi-boss/Project-leader" or
+              runtime.get("mode") != "PINNED_CANONICAL_SKILL"):
+              raise SystemExit("Unverified Project Leader runtime at worker boundary")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
               out.write("publication_status=" + status + "\n")
+              out.write("publication_pr=" + pr + "\n")
+              out.write("publication_sha=" + sha + "\n")
+              out.write("publication_canonical_sha=" + canonical + "\n")
           PY
 
       # A public GitHub Issue must NEVER contain untrusted model report text.

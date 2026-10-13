@@ -14,6 +14,8 @@ on:
       - 'ops/coordinator-smoke-remote.sh'
       - 'ops/agent_switch.py'
       - 'ops/tests/test_coordinator_owner_routing.py'
+      - 'ops/coordinator_supervisor.py'
+      - 'ops/tests/test_coordinator_supervisor.py'
 
 permissions: {}
 
@@ -31,9 +33,10 @@ jobs:
       - name: Validate gateway, router and smoke offline; no models or secrets
         run: |
           bash -n ops/coordinator-smoke-remote.sh
-          python3 -m py_compile ops/agent_switch.py ops/coordinator_ai.py
+          python3 -m py_compile ops/agent_switch.py ops/coordinator_ai.py ops/coordinator_supervisor.py
           python3 -m unittest discover -s ops/tests -p test_coordinator_owner_routing.py -v
           python3 -m unittest discover -s ops/tests -p test_coordinator_smoke.py -v
+          python3 -m unittest discover -s ops/tests -p test_coordinator_supervisor.py -v
 
   plan:
     if: >-
@@ -214,3 +217,51 @@ jobs:
     with:
       coordinator_plan_b64: ${{ needs.plan.outputs.coordinator_plan_b64 }}
     secrets: inherit
+
+  # This is a deterministic independent Project Leader Supervisor gate.
+  # It does not call the Coordinator, create workers, or get model transcripts.
+  supervise:
+    needs: [plan, dispatch]
+    if: >-
+      always() &&
+      github.event_name == 'issues' &&
+      github.event.issue.user.login == github.repository_owner &&
+      startsWith(github.event.issue.title, '[coordinator run] ') &&
+      needs.plan.result == 'success' &&
+      needs.dispatch.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Load reviewed independent Project Leader Supervisor from main
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pinned v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Verify worker PR and integrate only safe exact-CI documentation E1
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CODEX_GITHUB_TOKEN: ${{ secrets.CODEX_GITHUB_TOKEN }}
+          OWNER_ISSUE: ${{ github.event.issue.number }}
+          OWNER_RUN: ${{ github.run_id }}
+          WORKER_COUNT: ${{ needs.dispatch.outputs.task_count }}
+          PHASE_COUNT: ${{ needs.dispatch.outputs.phase_count }}
+          CANONICAL_SHA: ${{ needs.dispatch.outputs.worker_1_canonical_sha }}
+          WORKER_1_STATUS: ${{ needs.dispatch.outputs.worker_1_status }}
+          WORKER_1_PR: ${{ needs.dispatch.outputs.worker_1_pr }}
+          WORKER_1_SHA: ${{ needs.dispatch.outputs.worker_1_sha }}
+          WORKER_2_STATUS: ${{ needs.dispatch.outputs.worker_2_status }}
+          WORKER_2_PR: ${{ needs.dispatch.outputs.worker_2_pr }}
+          WORKER_2_SHA: ${{ needs.dispatch.outputs.worker_2_sha }}
+          WORKER_2_CANONICAL: ${{ needs.dispatch.outputs.worker_2_canonical_sha }}
+        run: |
+          set -euo pipefail
+          # A missing or different verified runtime is not a Human Gate.
+          if [ "$WORKER_COUNT" = '2' ]; then
+            test "$WORKER_2_CANONICAL" = "$CANONICAL_SHA" || exit 3
+          fi
+          python3 ops/coordinator_supervisor.py
