@@ -152,9 +152,11 @@ def compile_audit(value: object) -> dict:
                 or len(set(map(str, references))) != len(references)
                 or any(type(fid) is not str or fid not in observed for fid in references)):
             raise AuditStrategyError("Worker must cite existing distinct audit findings")
-        if not all(any(scoped(p, x) for fid in references for x in observed[fid]["paths"])
+        # Ownership is FILE-EXACT. A finding about src/auth/check.py must
+        # never grant a worker src/ or some other uninspected sibling.
+        if not all(any(p == x for fid in references for x in observed[fid]["paths"])
                    for p in paths):
-            raise AuditStrategyError("Every owned path must be grounded in an audit finding")
+            raise AuditStrategyError("Every owned file must be explicitly present in an audit finding")
         deps = item.get("depends_on", [])
         if type(deps) is not list or len(set(map(str, deps))) != len(deps):
             raise AuditStrategyError("Invalid dependencies")
@@ -262,8 +264,8 @@ def verify_changed(task_file: Path) -> None:
         if not raw:
             continue
         name = raw.decode("utf-8", "strict")
-        if not any(name == p or name.startswith(p + "/") for p in allowed):
-            raise AuditStrategyError("Codex attempted to modify a path outside audited ownership")
+        if name not in allowed:
+            raise AuditStrategyError("Codex attempted to modify a file outside exact audited ownership")
 
 
 def main(argv: list[str]) -> int:
