@@ -8,6 +8,8 @@ on:
       - 'ops/codex-project-leader-bootstrap.py'
       - 'ops/tests/test_codex_project_leader_bootstrap.py'
       - '.github/workflows/codex-chatgpt-bridge.yml'
+      - '.github/workflows/codex-project-leader-safe-fix.yml'
+      - 'ops/tests/test_codex_ssh_host_pinning.py'
       - 'ops/test_codex_patch_guard.py'
       - 'ops/AGENT-ORCHESTRATION-STATUS.md'
       - 'ops/CODEX-BRIDGE-SETUP.md'
@@ -33,3 +35,4 @@ jobs:
         run: |
           python3 ops/test_codex_patch_guard.py -v
           python3 -m unittest discover -s ops/tests -p test_codex_project_leader_bootstrap.py -v
+          python3 -m unittest discover -s ops/tests -p test_codex_ssh_host_pinning.py -v
