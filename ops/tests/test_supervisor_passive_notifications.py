@@ -197,6 +197,15 @@ class PassiveSupervisorTests(unittest.TestCase):
                                      text=True, timeout=5)
             self.assertEqual(allowed.returncode, 0, allowed.stderr)
 
+    def test_trusted_preflight_failure_is_not_mislabeled_as_worker_execution(self):
+        flow = (Path(__file__).resolve().parents[2] /
+                ".github/workflows/codex-autonomous.yml").read_text(encoding="utf-8")
+        self.assertIn("id: owner_preflight", flow)
+        self.assertIn("os.environ.get('STAGE_OUTCOME') != 'success'", flow)
+        self.assertIn("os.environ.get('PREFLIGHT_OUTCOME') == 'failure'", flow)
+        self.assertIn("no model started.", flow)
+        self.assertNotIn("create_human_gate", flow)
+
     def test_original_worker_report_is_delivered_before_publisher_wait(self):
         workflow = (Path(__file__).resolve().parents[2] /
                     ".github/workflows/codex-autonomous.yml").read_text(
