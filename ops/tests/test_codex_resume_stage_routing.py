@@ -73,7 +73,9 @@ class QuotaStageRoutingTests(unittest.TestCase):
 
     def test_github_job_conditions_enforce_stage_identity(self):
         source = WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("switch.workflow_values(order, str(resume_stage))", source)
+        self.assertIn("switch.workflow_values(order)", source)
+        self.assertNotIn("repository_dispatch", source)
+        self.assertNotIn("verify_resume(payload)", source)
         for name, expected, excluded in (
             ("codex_parallel_1", "run_stage_1", "run_stage_2"),
             ("codex_parallel_2", "run_stage_2", "run_stage_1"),
@@ -88,23 +90,21 @@ class QuotaStageRoutingTests(unittest.TestCase):
         solo = job_text(source, "codex")
         self.assertIn("outputs.run_stage_1 == 'true'", solo)
 
-    def test_resumed_serial_second_stage_skips_completed_first(self):
+    def test_serial_second_stage_requires_prior_accepted_publication(self):
         source = WORKFLOW.read_text(encoding="utf-8")
         stage2 = job_text(source, "codex_serial_2")
         condition = stage2.split("    permissions:", 1)[0]
         self.assertIn("always()", condition)
         self.assertIn("outputs.run_stage_2 == 'true'", condition)
-        self.assertIn("outputs.resume_stage == '2'", condition)
-        self.assertIn("needs.codex_serial_1.result == 'skipped'", condition)
-        self.assertIn("outputs.resume_stage == ''", condition)
+        self.assertNotIn("needs.codex_serial_1.result == 'skipped'", condition)
         self.assertIn("needs.codex_serial_1.result == 'success'", condition)
         self.assertIn("publication_status == 'PR_STAGED'", condition)
 
         blocked = job_text(source, "codex_serial_blocked")
-        self.assertIn("outputs.resume_stage == ''", blocked)
+        self.assertNotIn("outputs.resume_stage", blocked)
         self.assertIn("outputs.run_stage_2 == 'true'", blocked)
 
-    def test_all_resumed_workers_bind_trusted_original_issue_and_pr_only(self):
+    def test_all_owner_workers_bind_original_issue_without_legacy_resume(self):
         source = WORKFLOW.read_text(encoding="utf-8")
         for name in ("codex", "codex_parallel_1", "codex_parallel_2",
                      "codex_serial_1", "codex_serial_2"):
@@ -116,8 +116,8 @@ class QuotaStageRoutingTests(unittest.TestCase):
                 )
                 self.assertNotIn("issue_number: ${{ github.event.issue.number }}", job)
                 self.assertIn("no_auto_merge:", job)
-                if name.startswith("codex_serial"):
-                    self.assertIn("github.event_name == 'repository_dispatch'", job)
+                self.assertNotIn("repository_dispatch", job)
+                self.assertNotIn("outputs.resume_stage", job)
 
         self.assertIn("run_stage_1: ${{ steps.validate.outputs.run_stage_1 }}", source)
         self.assertIn("run_stage_2: ${{ steps.validate.outputs.run_stage_2 }}", source)
