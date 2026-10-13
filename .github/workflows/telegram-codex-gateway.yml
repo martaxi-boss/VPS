@@ -15,7 +15,7 @@ on:
       - "Agent switch (Owner GitHub order)"
       - "Continue original Owner DAG (no repeated Coordinator AI)"
       - "Codex autonomous execution (Owner-authorized)"
-      - "Codex quota continuation (Owner checkpoints only)"
+      - "Supervisor - Real ChatGPT quota watch (Owner notifications only)"
       - "Codex - ChatGPT bridge"
     types: [requested, in_progress, completed]
   pull_request:
