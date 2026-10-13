@@ -56,7 +56,6 @@ class AuditDispatchTests(unittest.TestCase):
             self.assertIn("AUDIT_BASE_SHA=" + PIN, task)
             self.assertIn("AUDIT_ALLOWED_PATHS=", task)
             self.assertIn(expected, task)
-            self.assertIn("Single explicit", task) if False else None
 
     def test_risk_in_edited_evidence_not_keyword_chooses_effort(self):
         plan = self.manifest()
