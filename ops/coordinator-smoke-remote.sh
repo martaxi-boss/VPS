@@ -6,6 +6,14 @@ set +x
 umask 077
 
 refuse() {
+  # No private prompt, model output, stderr or local path is ever emitted.
+  local reason='PRECHECK'
+  if [ "$#" -gt 0 ]; then reason="$1"; fi
+  case "$reason" in
+    PRECHECK|NO_SLOT|CLONE|BOOTSTRAP|MODEL_AUTH|MODEL_EXEC|MODEL_FORMAT|MODEL_SCHEMA|MODEL_PATHS|NO_FINDINGS|MODEL_OTHER|PLAN_RECHECK) ;;
+    *) reason='PRECHECK' ;;
+  esac
+  printf 'COORDINATOR_SMOKE_STATUS=REFUSED\nCOORDINATOR_SMOKE_REASON=%s\n' "$reason"
   printf '%s\n' 'COORDINATOR_SMOKE_STATUS=REFUSED' >&2
   exit 12
 }
@@ -24,7 +32,7 @@ control_slug='martaxi-boss/VPS'
 canonical_slug='martaxi-boss/Project-leader'
 
 [ -d "$bridge" ] && [ ! -L "$bridge" ] || refuse
-[ -x "$cli" ] && command -v flock >/dev/null 2>&1 || refuse
+[ -x "$cli" ] && command -v flock >/dev/null 2>&1 || refuse CLONE
 [ -z "${OPENAI_API_KEY:-}" ] && [ -z "${CODEX_API_KEY:-}" ] || refuse
 
 # No chmod of an existing directory; require it to be already owner-only.
@@ -58,17 +66,17 @@ if flock -n 8; then
 elif flock -n 9; then
   :
 else
-  refuse
+  refuse NO_SLOT
 fi
 
 # Fixed HTTPS targets, no user-controlled source, path, branch or ref.
 # Hide Git stderr: neither remote details nor tokens belong in public logs.
 git clone -q --depth 1 --single-branch --branch main -- \
-  "https://github.com/$control_slug.git" "$control" >/dev/null 2>&1 || refuse
+  "https://github.com/$control_slug.git" "$control" >/dev/null 2>&1 || refuse CLONE
 git clone -q --depth 1 --single-branch --branch main -- \
-  "https://github.com/$slug.git" "$target" >/dev/null 2>&1 || refuse
+  "https://github.com/$slug.git" "$target" >/dev/null 2>&1 || refuse CLONE
 git clone -q --depth 1 --single-branch --branch main -- \
-  "https://github.com/$canonical_slug.git" "$canonical" >/dev/null 2>&1 || refuse
+  "https://github.com/$canonical_slug.git" "$canonical" >/dev/null 2>&1 || refuse CLONE
 
 for pair in "$control|$control_slug" "$target|$slug" "$canonical|$canonical_slug"; do
   checkout="${pair%%|*}"
@@ -83,7 +91,7 @@ head="$(git -C "$target" rev-parse HEAD)"
 # The host supplies canonical rules proof using the already-reviewed loader.
 python3 "$control/ops/codex-project-leader-bootstrap.py" \
   "$canonical" "$slug" "$head" "$private/project-leader-rules.md" \
-  "$private/project-leader-runtime.json" >/dev/null 2>&1 || refuse
+  "$private/project-leader-runtime.json" >/dev/null 2>&1 || refuse BOOTSTRAP
 rules_digest="$(sha256sum -- "$private/project-leader-rules.md")"
 rules_digest="${rules_digest%% *}"
 [[ "$rules_digest" =~ ^[0-9a-f]{64}$ ]] || refuse
@@ -92,19 +100,37 @@ rules_digest="${rules_digest%% *}"
 # dispatches workers, creates Issues/PRs, or modifies the target checkout.
 order='Audit the existing Project-leader-codex documentation only. Inspect real tracked files and report one concrete verifiable documentation defect with its exact file path, if found. Do not invent findings, make changes, or dispatch agents.'
 
-# Raw model output, including the private path, is NEVER sent to Actions logs.
-python3 "$control/ops/coordinator_ai.py" \
+# Results live only in the disposable private workspace, not in a
+# persistent directory. The only failure output is a trusted static class.
+if ! python3 "$control/ops/coordinator_ai.py" \
   --order "$order" --checkout "$target" \
   --rules-file "$private/project-leader-rules.md" \
   --runtime-file "$private/project-leader-runtime.json" \
   --rules-sha256 "$rules_digest" \
-  --output-dir "$root/validated-$job" \
-  --codex "$cli" > "$private/coordinator-result.json" 2>/dev/null || refuse
+  --output-dir "$workspace/validated" \
+  --codex "$cli" > "$private/coordinator-result.json" \
+  2>"$private/coordinator-error.txt"; then
+  diagnostic='MODEL_OTHER'
+  if grep -qxF 'COORDINATOR_AI_REFUSED: ChatGPT subscription login required; no model started' "$private/coordinator-error.txt"; then
+    diagnostic='MODEL_AUTH'
+  elif grep -qxF 'COORDINATOR_AI_REFUSED: Codex planning call failed' "$private/coordinator-error.txt"; then
+    diagnostic='MODEL_EXEC'
+  elif grep -qxF 'COORDINATOR_AI_REFUSED: Codex returned invalid JSON' "$private/coordinator-error.txt"; then
+    diagnostic='MODEL_FORMAT'
+  elif grep -qxF 'COORDINATOR_AI_REFUSED: Codex audit failed the existing phase planner' "$private/coordinator-error.txt"; then
+    diagnostic='MODEL_SCHEMA'
+  elif grep -qxF 'COORDINATOR_AI_REFUSED: Audit cites a non-versioned or non-regular path' "$private/coordinator-error.txt"; then
+    diagnostic='MODEL_PATHS'
+  elif grep -qxF 'COORDINATOR_AI_REFUSED: No verifiable repository finding; nothing to plan' "$private/coordinator-error.txt"; then
+    diagnostic='NO_FINDINGS'
+  fi
+  refuse "$diagnostic"
+fi
 
 # Independently re-validate the private model output and print allowlisted
 # metrics only. No prompts, arbitrary model strings or local paths are logged.
-python3 - "$private/coordinator-result.json" "$root/validated-$job" \
-  "$control" "$slug" "$head" <<'PY'
+python3 - "$private/coordinator-result.json" "$workspace/validated" \
+  "$control" "$slug" "$head" <<'PY' || refuse PLAN_RECHECK
 import json
 from pathlib import Path
 import stat
