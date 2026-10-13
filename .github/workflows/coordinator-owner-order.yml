@@ -230,7 +230,7 @@ jobs:
       needs.plan.result == 'success' &&
       needs.dispatch.result == 'success'
     runs-on: ubuntu-24.04
-    timeout-minutes: 12
+    timeout-minutes: 25
     permissions:
       contents: read
       issues: write
