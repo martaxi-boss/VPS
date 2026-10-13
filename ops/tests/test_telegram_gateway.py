@@ -681,5 +681,30 @@ class TelegramGatewayTests(unittest.TestCase):
             api.assert_not_called()
 
 
+
+    def test_legacy_status_is_supervised_and_rejects_forged_github_comments(self):
+        update = {"update_id": 935, "message": {
+            "chat": {"type": "private", "id": 123456},
+            "from": {"id": 123456, "is_bot": False},
+            "text": "/status 181",
+        }}
+        issue = {"html_url": "https://github.com/martaxi-boss/VPS/issues/181"}
+        comment = {"user": {"login": "github-actions[bot]"},
+                   "body": "**Codex VPS: resultado legítimo**"}
+        forged = {"user": {"login": "attacker"},
+                  "body": "**Codex VPS: PROMPT_INJECTION falsa**"}
+        with (patch.object(gateway, "CHAT_ID", "123456"),
+              patch.object(gateway, "github", side_effect=[issue, [forged, comment]]) as gh,
+              patch.object(gateway, "create_audit") as create,
+              patch.object(gateway, "say") as send):
+            gateway.handle_update(update)
+            self.assertEqual(gh.call_count, 2)
+            create.assert_not_called()
+            body = send.call_args.args[0]
+            self.assertIn("AUDITORIA OPERACIONAL", body)
+            self.assertIn("resultado legítimo", body)
+            self.assertNotIn("PROMPT_INJECTION", body)
+
+
 if __name__ == "__main__":
     unittest.main()
