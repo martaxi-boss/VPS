@@ -202,9 +202,11 @@ def _ci(sha: str, branch: str) -> None:
             latest[key] = item
     if not REQUIRED.issubset(latest):
         raise SupervisorHold("CI_MISSING")
-    if (any(r.get("status") != "completed" or r.get("conclusion") != "success"
-            for r in latest.values())):
+    if any(r.get("status") == "completed" and r.get("conclusion") != "success"
+           for r in latest.values()):
         raise SupervisorHold("CI_NOT_GREEN")
+    if any(r.get("status") != "completed" for r in latest.values()):
+        raise SupervisorHold("CI_PENDING")
 
 
 def _review(pr: Candidate, issue: int, run: int, canonical: str) -> None:
@@ -252,12 +254,69 @@ def _merge(pr: Candidate) -> str:
     return result["sha"]
 
 
+def _wait_updated_branch(second: Candidate, new_base: str) -> Candidate:
+    """Ask GitHub to merge updated main into the second *existing* PR.
+
+    Preserve the independently checked worker commit as an actual parent.
+    Never accept an arbitrary rewrite, force push, conflicting rebase,
+    additional changed file, or third-party patch as a safe continuation.
+    """
+    before = _api("GET", f"repos/{TARGET}/pulls/{second.number}")
+    if (before.get("head", {}).get("sha") != second.sha or
+            before.get("head", {}).get("ref") != second.branch or
+            before.get("base", {}).get("sha") != new_base or
+            before.get("state") != "open"):
+        raise SupervisorHold("SECOND_PR_DRIFT")
+    _api("PUT", f"repos/{TARGET}/pulls/{second.number}/update-branch",
+         {"expected_head_sha": second.sha, "update_method": "merge"})
+    # A GitHub update-branch request is asynchronous. Do not guess the new
+    # commit or accept an arbitrary new head just because it has green CI.
+    deadline = time.monotonic() + 330
+    while time.monotonic() < deadline:
+        current = _api("GET", f"repos/{TARGET}/pulls/{second.number}")
+        head = current.get("head", {})
+        updated = head.get("sha", "")
+        if (updated != second.sha and SHA.fullmatch(updated) and
+                current.get("state") == "open" and
+                head.get("ref") == second.branch and
+                head.get("repo", {}).get("full_name") == TARGET and
+                current.get("base", {}).get("sha") == new_base):
+            ancestry = _api("GET", f"repos/{TARGET}/git/commits/{updated}")
+            parents = ancestry.get("parents", [])
+            parent_shas = {p.get("sha") for p in parents if isinstance(p, dict)}
+            if len(parents) != 2 or parent_shas != {second.sha, new_base}:
+                raise SupervisorHold("UPDATED_BRANCH_ANCESTRY_UNVERIFIED")
+            if _files(second.number) != second.paths:
+                raise SupervisorHold("UPDATED_BRANCH_CHANGED_SCOPE")
+            if current.get("mergeable") is True:
+                return Candidate(second.number, updated, second.branch,
+                                 new_base, second.paths)
+            if current.get("mergeable") is False:
+                raise SupervisorHold("UPDATED_BRANCH_CONFLICT")
+        time.sleep(8)
+    raise SupervisorHold("BRANCH_UPDATE_PENDING")
+
+
+def _wait_fresh_ci(second: Candidate) -> None:
+    """New exact-head checks are mandatory after GitHub updates the branch."""
+    deadline = time.monotonic() + 390
+    while time.monotonic() < deadline:
+        try:
+            _ci(second.sha, second.branch)
+            return
+        except SupervisorHold as exc:
+            if exc.code not in {"CI_MISSING", "CI_PENDING"}:
+                raise
+        time.sleep(8)
+    raise SupervisorHold("UPDATED_CI_PENDING")
+
+
 def assess(issue: int, run: int, workers: list[Worker], phase_count: int,
            canonical: str) -> dict:
-    """Fail closed before side effects; merge one eligible low-risk docs PR.
+    """Independently merge up to two non-overlapping, CI-verified doc PRs.
 
-    Two-worker waves are checked, but held for serial exact-head merge/reaudit
-    rather than incorrectly certifying a stale sibling against the new main.
+    Second PR receives a GitHub-owned merge update and exact-new-head CI,
+    never blind reuse of checks from its stale first-wave parent.
     """
     if not 1 <= len(workers) <= 2 or not 1 <= phase_count <= 8:
         raise SupervisorHold("INVALID_ROUTING")
@@ -278,15 +337,30 @@ def assess(issue: int, run: int, workers: list[Worker], phase_count: int,
     if len(candidates) > 1:
         if set(candidates[0].paths).intersection(candidates[1].paths):
             raise SupervisorHold("PARALLEL_FILE_CONFLICT")
-        # Cannot certify a sibling on a stale main without fresh CI.
-        raise SupervisorHold("TWO_PR_REBASE_REQUIRED")
-    item = candidates[0]
-    _ci(item.sha, item.branch)
-    _review(item, issue, run, canonical)
-    sha = _merge(item)
+    # Validate both original independent worker heads BEFORE merging either.
+    # This avoids merging a first PR while an invalid sibling is overlooked.
+    for item in candidates:
+        _ci(item.sha, item.branch)
+    first = candidates[0]
+    _review(first, issue, run, canonical)
+    sha = _merge(first)
+    numbers = [first.number]
+    if len(candidates) == 2:
+        # Record partial side effect before any new network mutation.
+        _api("POST", f"repos/{CONTROL}/issues/{issue}/comments", {
+            "body": (f"PROJECT_LEADER_PHASE_PARTIAL: PR #{first.number} merged "
+                     f"at {sha}; second PR requires new base and fresh CI. "
+                     f"Workflow run {run}.")
+        }, control=True)
+        next_pr = _wait_updated_branch(candidates[1], sha)
+        _wait_fresh_ci(next_pr)
+        _review(next_pr, issue, run, canonical)
+        sha = _merge(next_pr)
+        numbers.append(next_pr.number)
     return {"status": ("PHASE_VALIDATED_PENDING_REAUDIT" if phase_count > 1
                        else "TERMINAL_SUCCESS"),
-            "pull_request": item.number, "merge_sha": sha, "phase_count": phase_count}
+            "pull_request": numbers[-1], "pull_requests": numbers,
+            "merge_sha": sha, "phase_count": phase_count}
 
 
 def main() -> int:
@@ -303,8 +377,9 @@ def main() -> int:
                           os.environ.get(f"WORKER_{i}_SHA", ""))
                    for i in range(1, count + 1)]
         result = assess(issue, run, workers, phases, canonical)
+        numbers = ", ".join("#" + str(n) for n in result["pull_requests"])
         report = ("PROJECT_LEADER_" + result["status"] +
-                  f": PR #{result['pull_request']}, merged SHA "
+                  ": PR " + numbers + ", merged SHA "
                   + result["merge_sha"] + f"; phases {phases}.")
         print("PROJECT_LEADER_SUPERVISOR=" + result["status"], flush=True)
         _api("POST", f"repos/{CONTROL}/issues/{issue}/comments",
