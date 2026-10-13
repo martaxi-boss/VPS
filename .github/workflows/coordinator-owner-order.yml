@@ -208,6 +208,18 @@ jobs:
           gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
             --body "$message"$'\n'"Actions evidence: $RUN_URL"
 
+      - name: Passive Supervisor receives once-only Coordinator planning result
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SUPERVISOR_PLAN_ISSUE: ${{ github.event.issue.number }}
+          SUPERVISOR_PLAN_OUTCOME: ${{ steps.invoke.outcome }}
+          SUPERVISOR_PLAN_PHASE_COUNT: ${{ steps.invoke.outputs.phase_count }}
+        run: python3 -m ops.supervisor_live plan
+
   dispatch:
     needs: plan
     if: >-
