@@ -602,6 +602,13 @@ def notify():
     label = (f" fase {worker[1]} trabalhador {worker[-1]}"
              if worker.startswith("p") else (f" {worker}" if worker else ""))
     outcome = private_report_status(status)
+    # The Supervisor must not repeat a success badge when trusted CI disagrees.
+    if (os.environ.get("CODEX_REPORT_MODE", "worker") == "status"
+            and status in ("MERGED", "NO_CHANGE")
+            and any(os.environ.get(key) in ("failure", "cancelled") for key in
+                    ("PREFLIGHT_OUTCOME", "STAGE_OUTCOME", "CODEX_OUTCOME",
+                     "COLLECT_OUTCOME", "ARTIFACTS_OUTCOME", "PUBLISH_OUTCOME"))):
+        outcome = "⚠️ INCONSISTÊNCIA: conclusão NÃO CERTIFICADA"
     top = "🤖 Codex" + label + " — " + outcome + "\n"
     if issue:
         top += "Tarefa #" + issue + "\n"
@@ -643,7 +650,7 @@ def notify():
         raise RuntimeError("Supervisor refused an invalid-size report")
     report = raw_report.decode("utf-8", errors="replace")
     audit_report = audit.worker_report(
-        issue=issue, run_url=run_url, worker=worker, status=status, report=report)
+        issue=issue, run_url=run_url, worker=worker, status=status, report=raw_report)
     prefix = audit_report + top
     if len(prefix) + len(report) + 20 <= 4000:
         say(prefix + "\nRELATÓRIO ORIGINAL:\n" + report)
