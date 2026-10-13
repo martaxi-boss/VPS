@@ -43,22 +43,31 @@ def fixture():
             return {"object": {"sha": CANONICAL}}
         if method == "GET" and route == f"repos/{sup.TARGET}/git/ref/heads/main":
             return {"object": {"sha": state["main"]}}
-        if method == "GET" and route == f"repos/{sup.TARGET}/pulls/{NUMBER}":
+        if method == "GET" and route in (
+                f"repos/{sup.TARGET}/pulls/{NUMBER}",
+                f"repos/{sup.TARGET}/pulls/{NUMBER+1}"):
+            second = route.endswith("/" + str(NUMBER+1))
+            actual_sha = "f"*40 if second else state["target_sha"]
+            actual_ref = REF+"-2" if second else REF
             return {
                 "state": "open", "draft": False, "merged": False, "mergeable": True,
                 "user": {"login": "martaxi-boss"},
-                "head": {"sha": state["target_sha"], "ref": REF,
+                "head": {"sha": actual_sha, "ref": actual_ref,
                          "repo": {"full_name": sup.TARGET}},
                 "base": {"ref": "main", "sha": state["main"]},
                 "body": (
                     f"Autonomous Codex change from {sup.CONTROL} issue #{ISSUE}.\n"
                     f"Remote isolated Codex clone base: {chr(96)}{BASE}{chr(96)}.\n"
-                    f"Trusted publisher commit: {chr(96)}{SHA}{chr(96)}.\n"
+                    f"Trusted publisher commit: {chr(96)}{actual_sha}{chr(96)}.\n"
                     "No GitHub write credential was provided to Codex."
                 ),
             }
-        if method == "GET" and route == f"repos/{sup.TARGET}/pulls/{NUMBER}/files?per_page=100":
-            return [{"filename": state["file"], "status": "modified",
+        if method == "GET" and route in (
+                f"repos/{sup.TARGET}/pulls/{NUMBER}/files?per_page=100",
+                f"repos/{sup.TARGET}/pulls/{NUMBER+1}/files?per_page=100"):
+            filename = ("docs/second.md" if "/pulls/20/" in route
+                        else state["file"])
+            return [{"filename": filename, "status": "modified",
                      "additions": 2, "deletions": 1}]
         if method == "GET" and route.startswith(f"repos/{sup.TARGET}/actions/runs?"):
             return {"workflow_runs": [
@@ -158,9 +167,11 @@ class SupervisorAcceptanceTests(TestCase):
     def test_two_workers_are_held_instead_of_merging_stale_sibling(self):
         api, _, reviews, merges, _ = fixture()
         second = sup.Worker("PR_STAGED",
-                            f"https://github.com/{sup.TARGET}/pull/20", SHA)
+                            f"https://github.com/{sup.TARGET}/pull/20",
+                            "f"*40)
         with patch.object(sup, "_api", side_effect=api):
-            with self.assertRaises(sup.SupervisorHold):
+            with self.assertRaisesRegex(
+                    sup.SupervisorHold, "TWO_PR_REBASE_REQUIRED"):
                 sup.assess(ISSUE, RUN, [candidate(), second], 1, CANONICAL)
         self.assertFalse(reviews)
         self.assertFalse(merges)
