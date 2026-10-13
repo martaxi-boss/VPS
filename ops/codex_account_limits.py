@@ -141,7 +141,7 @@ def read_provider(cli: str, *, now: int | None = None) -> dict:
            if k not in ("OPENAI_API_KEY", "CODEX_API_KEY")}
     try:
         login = subprocess.run([cli, "login", "status"], stdout=subprocess.PIPE,
-                               stderr=subprocess.DEVNULL, text=True, timeout=12,
+                               stderr=subprocess.STDOUT, text=True, timeout=12,
                                env=env, check=False)
     except (OSError, subprocess.TimeoutExpired):
         raise ProbeError("LOGIN_STATUS_UNAVAILABLE") from None
