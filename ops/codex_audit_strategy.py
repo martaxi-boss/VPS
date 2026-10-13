@@ -306,17 +306,41 @@ def plan_phases(value: object) -> dict:
             }
 
         phase_audit = current_payload(selected)
-        # A validated phase still needs to fit the existing 6800-byte Owner
-        # dispatch envelope. Prefer one worker over an unusable two-worker plan.
-        if (len(json.dumps(phase_audit, ensure_ascii=False).encode("utf-8")) > MAX_AUDIT
-                and len(selected) == 2):
+        # The exact Owner Issue text is the canonical compact JSON below.
+        # Escaping, task preambles and worker constraints MUST match the live
+        # parser; compile_audit() alone cannot certify actual dispatch.
+        def serialized(value: dict) -> str:
+            return json.dumps(value, sort_keys=True, separators=(",", ":"),
+                              ensure_ascii=True)
+
+        dispatch_json = serialized(phase_audit)
+        if len(dispatch_json.encode("utf-8")) > MAX_AUDIT and len(selected) == 2:
+            # Split an oversized independent wave instead of falsely claiming
+            # the two-worker order is ready. Both tasks remain in the DAG.
             selected = selected[:1]
             phase_audit = current_payload(selected)
-        if len(json.dumps(phase_audit, ensure_ascii=False).encode("utf-8")) > MAX_AUDIT:
+            dispatch_json = serialized(phase_audit)
+        if len(dispatch_json.encode("utf-8")) > MAX_AUDIT:
             raise AuditStrategyError("Audited phase exceeds safe dispatch size")
-        # This uses the same real router used by GitHub Actions. It decides
-        # parallel versus independent serial and the level per selected task.
-        route = compile_audit(phase_audit)
+
+        # Reuse the complete real Actions router in-process without a model.
+        # Its 2200-character worker ceiling, effective reasoning, and versioned
+        # outputs are stronger than compile_audit() alone.
+        try:
+            try:
+                from ops import agent_switch as switch
+            except ModuleNotFoundError:
+                import agent_switch as switch
+            checked = switch.parse_order(dispatch_json)
+            routed = switch.workflow_values(checked)
+        except (ImportError, ValueError) as exc:
+            raise AuditStrategyError(
+                "Audited phase fails actual executor contract"
+            ) from None
+        route = checked
+        if (routed["task_count"] != str(len(selected)) or
+                routed["mode"] != route["mode"]):
+            raise AuditStrategyError("Phase routing mismatch")
         first = not phases
         phases.append({
             "phase": len(phases) + 1,
@@ -330,6 +354,7 @@ def plan_phases(value: object) -> dict:
             "requires_fresh_audit": not first,
             "state": "READY_FOR_REVIEWED_DISPATCH" if first else "HOLD_FOR_CI_AND_REAUDIT",
             "dispatch_audit": phase_audit if first else None,
+            "dispatch_json": dispatch_json if first else None,
         })
         completed.update(item["id"] for item in selected)
     return {
