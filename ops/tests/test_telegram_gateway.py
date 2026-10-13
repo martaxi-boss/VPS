@@ -577,6 +577,20 @@ class TelegramGatewayTests(unittest.TestCase):
             create.assert_not_called()
             self.assertIn("Trabalhadores a executar", send.call_args.args[0])
 
+    def test_supervisor_order_by_voice_is_refused_without_codex_dispatch(self):
+        update = {"update_id": 904, "message": {
+            "chat": {"type": "private", "id": 123456},
+            "from": {"id": 123456, "is_bot": False},
+            "voice": {"file_id": "AwACAgQAAAAAAAABBBBB", "duration": 5}}}
+        with (patch.object(gateway, "CHAT_ID", "123456"),
+              patch.object(gateway, "transcribe_voice",
+                           return_value="Supervisor, manda Codex fazer uma auditoria"),
+              patch.object(gateway, "create_audit") as create,
+              patch.object(gateway, "say") as send):
+            gateway.handle_update(update)
+            create.assert_not_called()
+            self.assertIn("Não executo ordens", send.call_args.args[0])
+
     def test_untrusted_supervisor_request_does_not_query_private_status(self):
         from ops import supervisor_live as observer
         update = {"update_id": 903, "message": {
