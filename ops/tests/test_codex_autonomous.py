@@ -141,6 +141,15 @@ class CheckGateTests(unittest.TestCase):
 
 
 class SpecializationRouteTests(unittest.TestCase):
+    def test_unreachable_quota_retry_worker_entrypoint_is_gone(self):
+        source = (OPS.parent / ".github/workflows/codex-autonomous.yml").read_text()
+        self.assertNotIn("repository_dispatch", source)
+        self.assertNotIn("Continue authorized serial phase two after accepted resumed phase one", source)
+        self.assertNotIn("codex_quota_resume.py ready", source)
+        self.assertIn("codex_quota_resume.py hold", source)
+        self.assertIn("CODEX_QUOTA_PRIVATE_WORKSPACE_RETAINED", source)
+        self.assertIn("github.event.issue.user.login == github.repository_owner", source)
+
     def test_normal_authorization_stages_match_target_slug(self):
         flow = (OPS.parent / ".github/workflows/codex-autonomous.yml").read_text(
             encoding="utf-8")

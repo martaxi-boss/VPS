@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Fail-closed Codex provider-quota detection and authorized stage continuation.
+"""Provider quota error detection and Owner-only pause checkpoints.
 
-Provider availability is not guessed from the local token ledger. Only fixed,
-trusted quota errors from Codex CLI can schedule a later attempt. GitHub Issues
-supply durable, bounded checkpoints; no successful stage is replayed.
+Historical V1 PAUSE/READY/CLAIM records and validation functions are preserved
+read-only for audit compatibility, but their legacy CLI entrypoints and
+automatic retry scheduler are disabled. Only classify and Owner-only hold are
+active. No quota restoration authorizes another model call or worker dispatch.
 """
 from __future__ import annotations
 
@@ -456,16 +457,11 @@ def main(argv: list[str]) -> int:
         if len(argv) == 4 and argv[1] == "classify":
             print("QUOTA_BLOCKED" if quota_error(Path(argv[2]), Path(argv[3])) else "OTHER_ERROR")
             return 0
-        if len(argv) == 6 and argv[1] == "pause":
-            value = pause_owner_issue(int(argv[2]), int(argv[3]),
-                                      int(argv[4]), int(argv[5]))
-            print("QUOTA_CHECKPOINT_SAVED_" + str(value["attempt"]))
-            return 0
-        if len(argv) == 5 and argv[1] == "ready":
-            advanced = ready_after_first_serial_stage(
-                int(argv[2]), int(argv[3]), Path(argv[4]))
-            print("SERIAL_NEXT_STAGE_READY=" + ("YES" if advanced else "NO"))
-            return 0
+        if len(argv) >= 2 and argv[1] in ("pause", "ready"):
+            # Historical entrypoints must never mutate old checkpoints or
+            # declare a new stage ready without a fresh Owner instruction.
+            print("QUOTA_LEGACY_ROUTE=DISABLED_OWNER_ONLY")
+            return 3
         if len(argv) == 6 and argv[1] == "hold":
             meta = owner_only_hold(int(argv[2]), argv[3], int(argv[4]), argv[5])
             print("QUOTA_OWNER_ONLY_CHECKPOINT_SAVED=" + meta["worker"])

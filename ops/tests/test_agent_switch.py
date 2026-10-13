@@ -282,14 +282,15 @@ class AgentSwitchTests(unittest.TestCase):
         self.assertIn("publication_status == 'PR_STAGED'", serial)
         self.assertIn("serial_independent == 'true'", serial)
         self.assertIn("serial_independent != 'true'", workflow)
-        # Existing initial serial semantics remain, but quota resumptions and
-        # audit-managed serial phases may never auto-merge generated PRs.
+        # Serial and audit-managed tasks retain their original PR-only
+        # safety gate; the old quota replay event can no longer bypass it.
         self.assertEqual(workflow.count(
-            "no_auto_merge: ${{ github.event_name == 'repository_dispatch' || "
-            "fromJSON(needs.preflight.outputs.serial_independent) || "
+            "no_auto_merge: ${{ fromJSON(needs.preflight.outputs.serial_independent) || "
             "fromJSON(needs.preflight.outputs.audit_managed) }}"), 2)
         self.assertIn("outputs.run_stage_2 == 'true'", serial)
-        self.assertIn("outputs.resume_stage == '2'", serial)
+        self.assertIn("needs.codex_serial_1.result == 'success'", serial)
+        self.assertNotIn("outputs.resume_stage", serial)
+        self.assertNotIn("repository_dispatch", workflow)
         self.assertIn("always()", serial)
         self.assertIn("FIRST_PUBLICATION:", workflow)
         self.assertIn("CODEX_2_NOT_STARTED", workflow)

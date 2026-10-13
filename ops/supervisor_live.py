@@ -23,7 +23,7 @@ WORKFLOWS = {
     "Agent switch (Owner GitHub order)": "Trabalhadores Codex",
     "Continue original Owner DAG (no repeated Coordinator AI)": "Continuação das fases",
     "Codex autonomous execution (Owner-authorized)": "Trabalhador Codex",
-    "Codex quota continuation (Owner checkpoints only)": "Continuação após quota",
+    "Supervisor - Real ChatGPT quota watch (Owner notifications only)": "Vigilância da quota real",
     "Codex - ChatGPT bridge": "Ponte Codex",
 }
 OUTCOMES = {
@@ -267,7 +267,7 @@ def observe_event(gh, send, event_name: str, payload: object) -> bool:
     # Their failures/cancellations still get a separate high-level watcher alert.
     if conclusion == "success" and run["name"] in {
         "Codex autonomous execution (Owner-authorized)",
-        "Codex quota continuation (Owner checkpoints only)",
+        "Supervisor - Real ChatGPT quota watch (Owner notifications only)",
         "Codex - ChatGPT bridge",
     }:
         # Successful worker / audit / hourly quota scan have their own
