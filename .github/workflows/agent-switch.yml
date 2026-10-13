@@ -174,7 +174,7 @@ jobs:
   # concurrent merges from silently clobbering sibling changes.
   codex_parallel_1:
     needs: preflight
-    if: needs.preflight.result == 'success' && needs.preflight.outputs.task_count == '2' && needs.preflight.outputs.mode == 'parallel' && needs.preflight.outputs.run_stage_2 == 'true' && needs.preflight.outputs.run_stage_1 == 'true'
+    if: needs.preflight.result == 'success' && needs.preflight.outputs.task_count == '2' && needs.preflight.outputs.mode == 'parallel' && needs.preflight.outputs.run_stage_1 == 'true'
     permissions:
       contents: read
       issues: write
@@ -190,7 +190,7 @@ jobs:
 
   codex_parallel_2:
     needs: preflight
-    if: needs.preflight.result == 'success' && needs.preflight.outputs.task_count == '2' && needs.preflight.outputs.mode == 'parallel'
+    if: needs.preflight.result == 'success' && needs.preflight.outputs.task_count == '2' && needs.preflight.outputs.mode == 'parallel' && needs.preflight.outputs.run_stage_2 == 'true'
     permissions:
       contents: read
       issues: write
