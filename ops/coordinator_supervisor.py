@@ -415,5 +415,88 @@ def main() -> int:
         return 2
 
 
+def human_gate_notify() -> int:
+    """Relay a real, canonical Project Leader gate. No Coordinator/model call.
+
+    The public Issue contains only bounded, digested metadata. Full model
+    instructions go to the existing private Telegram via the existing bot.
+    """
+    import codex_human_gate as hg
+    import telegram_gateway as telegram
+    from pathlib import Path
+
+    issue_number = _int(os.environ.get("OWNER_ISSUE", ""), "ISSUE")
+    owner_run = _int(os.environ.get("GITHUB_RUN_ID", ""), "RUN")
+    attempt = _int(os.environ.get("GITHUB_RUN_ATTEMPT", ""), "ATTEMPT", 1000)
+    worker = os.environ.get("CODEX_INSTANCE_ID", "")
+    if not hg.IDENTITY.fullmatch(worker):
+        raise SupervisorHold("INVALID_WORKER_IDENTITY")
+    job = f"{owner_run}-{attempt}" + (("-" + worker) if worker else "")
+
+    source = {}
+    for name, key, limit in [
+        ("report", "GATE_REPORT_PATH", 3200),
+        ("task", "GATE_TASK_PATH", 9000),
+        ("runtime", "GATE_RUNTIME_PATH", 3000),
+        ("base", "GATE_BASE_PATH", 100),
+        ("target", "GATE_TARGET_PATH", 150),
+    ]:
+        f = Path(os.environ.get(key, "/nonexistent"))
+        if not f.is_file() or f.is_symlink() or not 0 < f.stat().st_size <= limit:
+            raise SupervisorHold("GATE_EVIDENCE_MISSING")
+        source[name] = f.read_text(encoding="utf-8", errors="strict")
+    if (source["target"].strip() != TARGET or
+            not source["task"].startswith("TARGET_REPOSITORY=" + TARGET + "\n") or
+            not SHA.fullmatch(source["base"].strip())):
+        raise SupervisorHold("GATE_TARGET_UNVERIFIED")
+    runtime = json.loads(source["runtime"])
+    if (runtime.get("loader_version") != 1 or
+            runtime.get("mode") != "PINNED_CANONICAL_SKILL" or
+            runtime.get("source_repository") != SOURCE or
+            runtime.get("target_repository") != TARGET or
+            runtime.get("target_revision") != source["base"].strip() or
+            not SHA.fullmatch(runtime.get("canonical_revision", ""))):
+        raise SupervisorHold("GATE_PROJECT_LEADER_UNVERIFIED")
+    gate = hg.create_ticket(
+        source["report"], str(issue_number), job, source["base"].strip(), worker)
+    _api("GET", f"repos/{CONTROL}/git/ref/heads/main", control=True)
+    issue = _api("GET", f"repos/{CONTROL}/issues/{issue_number}", control=True)
+    if (issue.get("state") != "open" or
+            issue.get("user", {}).get("login") != OWNER or
+            not any(issue.get("title", "").startswith(prefix) for prefix in (
+                "[coordinator run] ", "[agents run]", "[codex run]")) or
+            not str(issue.get("body", "")).startswith(
+                "TARGET_REPOSITORY=" + TARGET + "\n")):
+        raise SupervisorHold("GATE_OWNER_ORIGIN_UNVERIFIED")
+
+    # An issue is not a safe location for the actual Owner intervention text.
+    old = _api("GET", f"repos/{CONTROL}/issues/{issue_number}/comments?per_page=100",
+               control=True)
+    if not isinstance(old, list) or len(old) >= 100:
+        raise SupervisorHold("GATE_JOURNAL_UNBOUNDED")
+    recorded = [entry for entry in hg.trusted_entries(old, hg.PENDING)
+                if entry.get("gate_id") == gate["gate_id"]]
+    if recorded:
+        if recorded != [gate]:
+            raise SupervisorHold("GATE_REPLAY_CONFLICT")
+    else:
+        _api("POST", f"repos/{CONTROL}/issues/{issue_number}/comments",
+             {"body": hg.entry(hg.PENDING, gate)}, control=True)
+
+    if (not os.environ.get("TELEGRAM_BOT_TOKEN") or
+            not re.fullmatch(r"[1-9][0-9]{3,17}",
+                             os.environ.get("TELEGRAM_CHAT_ID", ""))):
+        raise SupervisorHold("GATE_TELEGRAM_NOT_CONFIGURED")
+    telegram.say(hg.message(gate, source["report"]))
+    print("PROJECT_LEADER_GATE_SENT_TO_PRIVATE_TELEGRAM")
+    return 0
+
+
 if __name__ == "__main__":
+    if len(sys.argv) == 2 and sys.argv[1] == "human-gate":
+        try:
+            sys.exit(human_gate_notify())
+        except (ValueError, OSError, UnicodeError):
+            print("PROJECT_LEADER_GATE_NOTIFICATION_REQUIRES_RECOVERY", flush=True)
+            sys.exit(2)
     sys.exit(main())
