@@ -305,6 +305,15 @@ def notify_phase(gh, send, number: int, run: int, phase: int,
     return True
 
 
+
+def _private_sender(gateway, message: str) -> None:
+    """Never claim Telegram delivery when the original private bot is absent."""
+    if (not gateway.BOT_TOKEN or
+            not re.fullmatch(r"[1-9][0-9]{3,17}", gateway.CHAT_ID or "")):
+        raise RuntimeError("Existing private Telegram destination not configured")
+    gateway.say(message)
+
+
 def main(argv: list[str]) -> int:
     if argv == ["plan"]:
         from ops import telegram_gateway as gateway
@@ -315,7 +324,7 @@ def main(argv: list[str]) -> int:
                     os.environ.get("GITHUB_REPOSITORY") != REPOSITORY):
                 return 2
             result = notify_plan(
-                gateway.github, gateway.say, number, run,
+                gateway.github, lambda m: _private_sender(gateway, m), number, run,
                 os.environ.get("SUPERVISOR_PLAN_OUTCOME", ""),
                 os.environ.get("SUPERVISOR_PLAN_PHASE_COUNT", ""))
             print("SUPERVISOR_COORDINATOR=" + ("FORWARDED" if result else "IGNORED"))
@@ -333,7 +342,7 @@ def main(argv: list[str]) -> int:
                     os.environ.get("GITHUB_REPOSITORY") != REPOSITORY):
                 return 2
             result = notify_phase(
-                gateway.github, gateway.say, number, run, phase,
+                gateway.github, lambda m: _private_sender(gateway, m), number, run, phase,
                 os.environ.get("SUPERVISOR_PLAN_OUTCOME", ""))
             print("SUPERVISOR_PHASE=" + ("FORWARDED" if result else "IGNORED"))
             return 0 if result else 2
@@ -347,7 +356,7 @@ def main(argv: list[str]) -> int:
     try:
         if event_name in ("issues", "workflow_run"):
             data = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8"))
-            result = observe_event(gateway.github, gateway.say, event_name, data)
+            result = observe_event(gateway.github, lambda m: _private_sender(gateway, m), event_name, data)
             print("SUPERVISOR_EVENT=" + ("FORWARDED" if result else "IGNORED"))
         elif event_name in ("schedule", "workflow_dispatch"):
             running = _runs(gateway.github, "in_progress")
