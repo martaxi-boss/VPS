@@ -74,6 +74,7 @@ jobs:
     permissions:
       contents: read
       issues: write
+      actions: read  # Verify genuine originating workflow before Owner-only quota hold
     outputs:
       publication_status: ${{ steps.publish.outputs.publication_status }}
       publication_pr: ${{ steps.publish.outputs.publication_pr }}
