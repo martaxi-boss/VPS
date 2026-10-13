@@ -42,7 +42,6 @@ root="$bridge/.coordinator-smoke"
 cli="$HOME/codex-agent/node_modules/.bin/codex"
 slug='martaxi-boss/Project-leader-codex'
 control_slug='martaxi-boss/VPS'
-canonical_slug='martaxi-boss/Project-leader'
 
 [ -d "$bridge" ] && [ ! -L "$bridge" ] || refuse
 [ -x "$cli" ] && command -v flock >/dev/null 2>&1 || refuse CLONE
@@ -67,7 +66,6 @@ trap 'rm -rf -- "$workspace"' EXIT
 
 control="$workspace/control"
 target="$workspace/target"
-canonical="$workspace/canonical"
 private="$workspace/proof"
 mkdir -m 700 -- "$private"
 
@@ -88,10 +86,8 @@ git clone -q --depth 1 --single-branch --branch main -- \
   "https://github.com/$control_slug.git" "$control" >/dev/null 2>&1 || refuse CLONE
 git clone -q --depth 1 --single-branch --branch main -- \
   "https://github.com/$slug.git" "$target" >/dev/null 2>&1 || refuse CLONE
-git clone -q --depth 1 --single-branch --branch main -- \
-  "https://github.com/$canonical_slug.git" "$canonical" >/dev/null 2>&1 || refuse CLONE
 
-for pair in "$control|$control_slug" "$target|$slug" "$canonical|$canonical_slug"; do
+for pair in "$control|$control_slug" "$target|$slug"; do
   checkout="${pair%%|*}"
   repo="${pair#*|}"
   [ "$(git -C "$checkout" remote get-url origin)" = "https://github.com/$repo.git" ] || refuse
@@ -101,14 +97,8 @@ done
 head="$(git -C "$target" rev-parse HEAD)"
 [[ "$head" =~ ^[0-9a-f]{40}$ ]] || refuse
 
-# The host supplies canonical rules proof using the already-reviewed loader.
-python3 "$control/ops/codex-project-leader-bootstrap.py" \
-  "$canonical" "$slug" "$head" "$private/project-leader-rules.md" \
-  "$private/project-leader-runtime.json" >/dev/null 2>&1 || refuse BOOTSTRAP
-rules_digest="$(sha256sum -- "$private/project-leader-rules.md")"
-rules_digest="${rules_digest%% *}"
-[[ "$rules_digest" =~ ^[0-9a-f]{64}$ ]] || refuse
-
+# The Coordinator does not load Project Leader. The trusted worker runtime
+# verifies and loads canonical rules for each isolated Codex implementer.
 # Explicit, bounded document-only order. Coordinator AI is read-only, never
 # dispatches workers, creates Issues/PRs, or modifies the target checkout.
 order='Audit the existing Project-leader-codex documentation only. Inspect real tracked files and report one concrete verifiable documentation defect with its exact file path, if found. Do not invent findings, make changes, or dispatch agents.'
@@ -124,9 +114,6 @@ fi
 # persistent directory. The only failure output is a trusted static class.
 if ! python3 "$control/ops/coordinator_ai.py" \
   --order "$order" --checkout "$target" \
-  --rules-file "$private/project-leader-rules.md" \
-  --runtime-file "$private/project-leader-runtime.json" \
-  --rules-sha256 "$rules_digest" \
   --output-dir "$workspace/validated" \
   --codex "$cli" > "$private/coordinator-result.json" \
   2>"$private/coordinator-error.txt"; then

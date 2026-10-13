@@ -1,7 +1,6 @@
 """Offline tests for the explicitly invoked read-only AI coordinator."""
 from __future__ import annotations
 
-import hashlib
 import json
 from pathlib import Path
 import subprocess
@@ -51,29 +50,6 @@ class CoordinatorAITests(unittest.TestCase):
         self.git("commit", "-qm", "fixture")
         self.git("remote", "add", "origin", "https://github.com/martaxi-boss/VPS.git")
         self.head = self.git("rev-parse", "HEAD").strip()
-        self.rules = self.base / "project-leader-rules.md"
-        self.runtime = self.base / "project-leader-runtime.json"
-        self.output = self.base / "private-results"
-        rules = f"""PROJECT LEADER CANONICAL CONTROL: PINNED AND VERIFIED
-RUNTIME_CANONICAL_REVISION={'a' * 40}
-PROJECT_LEADER_VERSION=0.7.0
-TARGET_REPOSITORY=martaxi-boss/VPS
-TARGET_REVISION={self.head}
-BEGIN PINNED CANONICAL PROJECT LEADER SKILL
-EXECUTION_FIRST_WITHIN_BOUNDS
-END PINNED CANONICAL PROJECT LEADER SKILL
-"""
-        self.rules.write_text(rules, encoding="utf-8")
-        self.digest = hashlib.sha256(self.rules.read_bytes()).hexdigest()
-        self.runtime.write_text(json.dumps({
-            "loader_version": 1,
-            "source_repository": "martaxi-boss/Project-leader",
-            "canonical_revision": "a" * 40,
-            "plugin_version": "0.7.0",
-            "target_repository": "martaxi-boss/VPS",
-            "target_revision": self.head,
-            "mode": "PINNED_CANONICAL_SKILL",
-        }), encoding="utf-8")
         self.codex = self.base / "codex"
         self.codex.write_text("#!/bin/sh\nexit 99\n", encoding="utf-8")
         self.codex.chmod(0o700)
@@ -112,7 +88,7 @@ END PINNED CANONICAL PROJECT LEADER SKILL
     def coordinate(self, fake, **kwargs):
         return coordinator_ai.coordinate(
             "Planear correcções para os problemas realmente observados",
-            self.repo, self.rules, self.runtime, self.digest, self.output,
+            self.repo, self.output,
             codex=self.codex, runner=fake, environment={}, **kwargs)
 
     def test_one_or_two_workers_are_selected_without_dispatch(self):
@@ -130,9 +106,11 @@ END PINNED CANONICAL PROJECT LEADER SKILL
 
     def test_prompt_contains_complete_executable_audit_contract(self):
         prompt = coordinator_ai._prompt(
-            "Audit inspected files", self.rules.read_text(encoding="utf-8"),
-            "martaxi-boss/VPS", self.head)
+            "Audit inspected files", "martaxi-boss/VPS", self.head)
         self.assertIn("validator lives in another repository", prompt)
+        self.assertIn("COORDINATOR INDEPENDENCE:", prompt)
+        self.assertNotIn("PROJECT LEADER CANONICAL RULES", prompt)
+        self.assertNotIn("EXECUTION_FIRST_WITHIN_BOUNDS", prompt)
         self.assertIn("finding_ids", prompt)
         self.assertIn("observation: 12-500 characters", prompt)
         self.assertIn("allow_no_change: boolean", prompt)
@@ -184,16 +162,16 @@ END PINNED CANONICAL PROJECT LEADER SKILL
         self.assertEqual(1, len(fake.commands))
         with self.assertRaisesRegex(coordinator_ai.CoordinatorAIError, "API-key billing"):
             coordinator_ai.coordinate(
-                "Valid order", self.repo, self.rules, self.runtime, self.digest,
-                self.output, codex=self.codex, runner=FakeCodex(self.audit()),
+                "Valid order", self.repo, self.output,
+                codex=self.codex, runner=FakeCodex(self.audit()),
                 environment={"OPENAI_API_KEY": "not-printed"})
         with self.assertRaisesRegex(coordinator_ai.CoordinatorAIError, "unavailable"):
             coordinator_ai.coordinate(
-                "Valid order", self.repo, self.rules, self.runtime, self.digest,
-                self.output, codex=self.base / "absent", runner=FakeCodex(self.audit()),
+                "Valid order", self.repo, self.output,
+                codex=self.base / "absent", runner=FakeCodex(self.audit()),
                 environment={})
 
-    def test_only_validated_result_is_private_and_rules_proof_is_required(self):
+    def test_only_validated_result_is_private_and_coordinator_needs_no_skill(self):
         result = self.coordinate(FakeCodex(self.audit(2)))
         self.assertEqual(self.audit(2), json.loads(result.output_path.read_text()))
         self.assertEqual(0o700, self.output.stat().st_mode & 0o777)
@@ -201,19 +179,15 @@ END PINNED CANONICAL PROJECT LEADER SKILL
         self.assertFalse(result.output_path.is_relative_to(self.repo))
         raw_files = [p for p in self.output.iterdir() if p != result.output_path]
         self.assertEqual([], raw_files)
-        with self.assertRaisesRegex(coordinator_ai.CoordinatorAIError, "digest proof"):
-            coordinator_ai.coordinate(
-                "Valid order", self.repo, self.rules, self.runtime, "0" * 64,
-                self.output, codex=self.codex, runner=FakeCodex(self.audit()),
-                environment={})
+        self.assertFalse((self.base / "project-leader-rules.md").exists())
+        self.assertFalse((self.base / "project-leader-runtime.json").exists())
 
 
     def test_codex_never_inherits_ambient_github_or_vps_secrets(self):
         fake = FakeCodex(self.audit())
         coordinator_ai.coordinate(
             "Planear apenas os problemas confirmados", self.repo,
-            self.rules, self.runtime, self.digest, self.output,
-            codex=self.codex, runner=fake,
+            self.output, codex=self.codex, runner=fake,
             environment={
                 "HOME": str(self.base), "PATH": "/usr/bin",
                 "GH_TOKEN": "private-example", "CODEX_GITHUB_TOKEN": "private-example",
@@ -232,8 +206,8 @@ END PINNED CANONICAL PROJECT LEADER SKILL
         with self.assertRaisesRegex(
                 coordinator_ai.CoordinatorAIError, "outside the checkout"):
             coordinator_ai.coordinate(
-                "Planear tarefa confirmada", self.repo, self.rules, self.runtime,
-                self.digest, self.repo, codex=self.codex,
+                "Planear tarefa confirmada", self.repo, self.repo,
+                codex=self.codex,
                 runner=FakeCodex(self.audit()), environment={})
         self.assertEqual(original_mode, self.repo.stat().st_mode & 0o777)
 
@@ -242,8 +216,8 @@ END PINNED CANONICAL PROJECT LEADER SKILL
         public.chmod(0o755)
         with self.assertRaisesRegex(coordinator_ai.CoordinatorAIError, "owner-only"):
             coordinator_ai.coordinate(
-                "Planear tarefa confirmada", self.repo, self.rules, self.runtime,
-                self.digest, public, codex=self.codex,
+                "Planear tarefa confirmada", self.repo, public,
+                codex=self.codex,
                 runner=FakeCodex(self.audit()), environment={})
         self.assertEqual(0o755, public.stat().st_mode & 0o777)
 
@@ -251,8 +225,8 @@ END PINNED CANONICAL PROJECT LEADER SKILL
         linked.symlink_to(self.base, target_is_directory=True)
         with self.assertRaisesRegex(coordinator_ai.CoordinatorAIError, "symlink"):
             coordinator_ai.coordinate(
-                "Planear tarefa confirmada", self.repo, self.rules, self.runtime,
-                self.digest, linked, codex=self.codex,
+                "Planear tarefa confirmada", self.repo, linked,
+                codex=self.codex,
                 runner=FakeCodex(self.audit()), environment={})
 
 
