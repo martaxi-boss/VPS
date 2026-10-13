@@ -123,5 +123,29 @@ class PassiveSupervisorTests(unittest.TestCase):
         self.assertNotIn("codex_autonomous_resume", workflow[first:publish])
 
 
+    def test_passive_telegram_env_expands_actual_github_expressions(self):
+        workflow = (Path(__file__).resolve().parents[2] /
+                    ".github/workflows/codex-autonomous.yml").read_text(
+                        encoding="utf-8")
+        # A leading backslash is passed literally to the runner environment.
+        # It breaks chat IDs, run provenance and paths but tests once missed it.
+        self.assertNotIn("\\${{", workflow)
+        report = workflow.split("id: supervisor_report", 1)[1].split(
+            "- name: Publish guarded PR", 1)[0]
+        final = workflow.split("id: private_report", 1)[1].split(
+            "- name: Publish truthful execution result", 1)[0]
+        for section in (report, final):
+            for env_value in (
+                    "TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}",
+                    "TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}",
+                    "CODEX_ISSUE_NUMBER: ${{ inputs.issue_number || github.event.issue.number }}",
+                    "CODEX_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"):
+                with self.subTest(section=section[:32], value=env_value):
+                    self.assertIn(env_value, section)
+        self.assertIn("CODEX_REPORT_PATH: ${{ runner.temp }}/report.md", report)
+        for outcome in ("STAGE_OUTCOME", "CODEX_OUTCOME", "PUBLISH_OUTCOME"):
+            self.assertIn(outcome + ": ${{ steps." +
+                          outcome.split("_")[0].lower() + ".outcome }}", final)
+
 if __name__ == "__main__":
     unittest.main()
