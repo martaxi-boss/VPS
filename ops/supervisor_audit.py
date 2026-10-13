@@ -124,7 +124,7 @@ def pipeline(*, issue: str, run_url: str, worker: str, status: str,
 
 def observation(message: str, *, source: str) -> str:
     """Audit already-authenticated owner-event/coordinator/phase observations."""
-    if source not in {"event", "coordinator", "phase", "owner_query"}:
+    if source not in {"event", "coordinator", "phase", "owner_query", "quota"}:
         raise RuntimeError("Supervisor rejected unknown observation source")
     original = check_delivery(message)
     if source != "owner_query" and (
@@ -139,6 +139,7 @@ def observation(message: str, *, source: str) -> str:
         "coordinator": "Coordenador, resultado validado da fase de planeamento",
         "phase": "Fase do plano original, transição autenticada",
         "owner_query": "Consulta privada autorizada, estado obtido do GitHub",
+        "quota": "Codex autenticado na conta ChatGPT, leitura do limite real",
     }[source]
     verdict = ("Atenção: ocorrência/limite comunicado, consultar a referência."
                if attention else
