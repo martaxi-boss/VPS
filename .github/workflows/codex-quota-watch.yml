@@ -152,7 +152,7 @@ jobs:
         run: |
           set -euo pipefail
           set +e
-          python3 -m ops.codex_quota_supervisor watch \
+          python3 -m ops.codex_quota_supervisor notify \
             "$RUNNER_TEMP/quota-sample.json" "$PREVIOUS_STATUS"
           code=$?
           set -e
