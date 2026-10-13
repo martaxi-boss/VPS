@@ -72,6 +72,14 @@ def parse_request(text: str) -> int | None:
     return None
 
 
+def is_addressed_to_supervisor(text: str) -> bool:
+    """Fail closed on commands addressed to this observer, even by voice."""
+    if not isinstance(text, str):
+        return False
+    plain = _plain(text.strip())
+    return bool(re.match(r"^/?(?:supervisor|vigia)(?:[,:;.!?\\s]|$)", plain))
+
+
 def _get(gh, path: str):
     """Deliberately no POST/PUT/DELETE or direct network client."""
     return gh("GET", path)
@@ -157,8 +165,8 @@ def _issue_line(gh, issue: dict, detail: bool = False) -> str:
         if run is not None:
             result += "\n" + _jobs(gh, run)
             result += f"\nhttps://github.com/{REPOSITORY}/actions/runs/{run}"
-        result += ("\nHuman Gates e relatórios privados: enviados diretamente "
-                   "ao Telegram pelo Project Leader; não são publicados nas Issues.")
+        result += ("\nHuman Gates e relatórios privados: tratados nas mensagens "
+                   "privadas do trabalhador; esta consulta não certifica pendências.")
     return result + f"\nhttps://github.com/{REPOSITORY}/issues/{number}"
 
 
@@ -239,7 +247,13 @@ def observe_event(gh, send, event_name: str, payload: object) -> bool:
     conclusion = actual["conclusion"]
     # Existing autonomous workers already send a detailed final Telegram notice.
     # Their failures/cancellations still get a separate high-level watcher alert.
-    if run["name"] == "Codex autonomous execution (Owner-authorized)" and conclusion == "success":
+    if conclusion == "success" and run["name"] in {
+        "Codex autonomous execution (Owner-authorized)",
+        "Codex quota continuation (Owner checkpoints only)",
+        "Codex - ChatGPT bridge",
+    }:
+        # Successful worker / audit / hourly quota scan have their own
+        # reporting paths. Do not generate a repetitive success notice.
         return False
     send(f"👁️ Supervisor: {WORKFLOWS[run['name']]} — "
          f"{OUTCOMES[conclusion]}.\n"
