@@ -303,6 +303,17 @@ class QuotaLifecycleTests(unittest.TestCase):
         self.assertEqual(len(posted), 1)
         self.assertTrue(posted[0].startswith(q.STARTED + "\n"))
 
+    def test_legacy_pause_and_ready_cli_cannot_mutate_or_resume(self):
+        for obsolete in (["quota", "pause", "154", "2", "42", "0"],
+                         ["quota", "ready", "154", "42", "/tmp/report.json"]):
+            with self.subTest(entrypoint=obsolete[1]):
+                with patch.object(q, "_api") as gh, patch.object(q, "pause_owner_issue") as pause, patch.object(q, "ready_after_first_serial_stage") as ready:
+                    self.assertEqual(q.main(obsolete), 3)
+                    gh.assert_not_called()
+                    pause.assert_not_called()
+                    ready.assert_not_called()
+        self.assertEqual(q.main(["quota", "scan"]), 0)
+
     def test_legacy_scan_is_harmless_and_never_calls_dispatch(self):
         with patch.object(q, "schedule_due") as schedule, patch.object(q, "_api") as api:
             self.assertEqual(q.main(["ops/codex_quota_resume.py", "scan"]), 0)
