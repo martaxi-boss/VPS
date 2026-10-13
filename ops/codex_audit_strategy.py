@@ -291,14 +291,29 @@ def plan_phases(value: object) -> dict:
                        for q in candidate["paths"]):
                 selected.append(candidate)
                 break
-        phase_audit = {
-            "target_repository": target,
-            "audit": {
-                "revision": audit["revision"],
-                "findings": audit["findings"],
-                "work_items": [item["work"] for item in selected],
-            },
-        }
+        def current_payload(chosen: list[dict]) -> dict:
+            referenced = {
+                fid for entry in chosen for fid in entry["work"]["finding_ids"]
+            }
+            return {
+                "target_repository": target,
+                "audit": {
+                    "revision": audit["revision"],
+                    "findings": [finding for finding in audit["findings"]
+                                 if finding["id"] in referenced],
+                    "work_items": [entry["work"] for entry in chosen],
+                },
+            }
+
+        phase_audit = current_payload(selected)
+        # A validated phase still needs to fit the existing 6800-byte Owner
+        # dispatch envelope. Prefer one worker over an unusable two-worker plan.
+        if (len(json.dumps(phase_audit, ensure_ascii=False).encode("utf-8")) > MAX_AUDIT
+                and len(selected) == 2):
+            selected = selected[:1]
+            phase_audit = current_payload(selected)
+        if len(json.dumps(phase_audit, ensure_ascii=False).encode("utf-8")) > MAX_AUDIT:
+            raise AuditStrategyError("Audited phase exceeds safe dispatch size")
         # This uses the same real router used by GitHub Actions. It decides
         # parallel versus independent serial and the level per selected task.
         route = compile_audit(phase_audit)
