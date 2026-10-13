@@ -244,13 +244,21 @@ class AuditedPhasePlanTests(unittest.TestCase):
         self.assertEqual(first["reasoning_by_task"],
                          {"docs-edit": "low", "second-docs": "low"})
         self.assertEqual(
-            agent_switch.workflow_values(agent_switch.parse_order(
-                json.dumps(first["dispatch_audit"])))["mode"], "parallel"
+            first["dispatch_json"],
+            json.dumps(first["dispatch_audit"], sort_keys=True,
+                       separators=(",", ":"), ensure_ascii=True),
         )
+        self.assertEqual(
+            agent_switch.workflow_values(agent_switch.parse_order(
+                first["dispatch_json"]))["mode"], "parallel"
+        )
+        self.assertLessEqual(len(first["dispatch_json"].encode("utf-8")),
+                             strategy.MAX_AUDIT)
         self.assertEqual(second["task_ids"], ["code-edit"])
         self.assertEqual(second["reasoning_by_task"], {"code-edit": "medium"})
         self.assertTrue(second["requires_fresh_audit"])
         self.assertIsNone(second["dispatch_audit"])
+        self.assertIsNone(second["dispatch_json"])
         self.assertEqual(second["state"], "HOLD_FOR_CI_AND_REAUDIT")
 
     def test_high_risk_finding_selects_independent_serial_prs(self):
@@ -308,6 +316,28 @@ class AuditedPhasePlanTests(unittest.TestCase):
                          {"docs", "code"})
         self.assertLessEqual(len(json.dumps(payload).encode("utf-8")),
                              strategy.MAX_AUDIT)
+
+    def test_compiled_worker_exceeding_actual_2200_character_ceiling_fails_closed(self):
+        audited = self.base()
+        long_paths = ["docs/" + "folder" * 25 + "-" + str(i) + ".md"
+                      for i in range(12)]
+        audited["audit"]["findings"][0]["paths"] = long_paths
+        audited["audit"]["work_items"][0]["paths"] = long_paths
+        audited["audit"]["work_items"][0]["task"] = (
+            "Correct safely scoped file " + "x" * 1500
+        )
+        with self.assertRaisesRegex(strategy.AuditStrategyError,
+                                    "actual executor contract"):
+            strategy.plan_phases(audited)
+
+    def test_ascii_escaped_owner_order_cannot_exceed_real_byte_limit(self):
+        audited = self.base()
+        audited["audit"]["work_items"][0]["task"] = (
+            "Review documented semantics " + "\u00e1" * 1200
+        )
+        with self.assertRaisesRegex(strategy.AuditStrategyError,
+                                    "safe dispatch size"):
+            strategy.plan_phases(audited)
 
     def test_more_than_eight_tasks_fail_closed(self):
         audited = self.base()
