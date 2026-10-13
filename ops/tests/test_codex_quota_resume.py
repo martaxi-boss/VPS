@@ -399,6 +399,28 @@ class QuotaLifecycleTests(unittest.TestCase):
         self.assertIn("      contents: read", worker)
         self.assertNotIn("      actions: write", worker)
 
+    def test_all_five_reusable_codex_callers_propagate_actions_read(self):
+        root = Path(__file__).resolve().parents[2]
+        child = (root / ".github/workflows/codex-autonomous.yml").read_text()
+        router = (root / ".github/workflows/agent-switch.yml").read_text()
+        self.assertIn("actions: read  # Verify genuine originating workflow", child)
+        marker = "uses: ./.github/workflows/codex-autonomous.yml"
+        chunks = router.split(marker)
+        self.assertEqual(len(chunks) - 1, 5)
+        for idx, block in enumerate(chunks[:-1], 1):
+            perms = block.rsplit("    permissions:", 1)[-1]
+            self.assertIn("actions: read", perms, f"Codex caller {idx}")
+            self.assertIn("contents: read", perms, f"Codex caller {idx}")
+            self.assertIn("issues: write", perms, f"Codex caller {idx}")
+            self.assertNotIn("actions: write", perms, f"Codex caller {idx}")
+        for path in (".github/workflows/coordinator-owner-order.yml",
+                     ".github/workflows/coordinator-phase-cycle.yml"):
+            source = (root / path).read_text()
+            chunks = source.split("uses: ./.github/workflows/agent-switch.yml")
+            self.assertGreaterEqual(len(chunks), 2)
+            for block in chunks[:-1]:
+                self.assertIn("actions: read", block.rsplit("    permissions:", 1)[-1])
+
     def test_quota_safe_hold_happens_before_private_owner_notice(self):
         root = Path(__file__).resolve().parents[2]
         flow = (root / ".github/workflows/codex-autonomous.yml").read_text()
