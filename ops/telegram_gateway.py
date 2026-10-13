@@ -459,6 +459,10 @@ def handle_update(update):
             return
         say(answer)
         return
+    if supervisor.is_addressed_to_supervisor(text):
+        say("👁️ Supervisor: só consulto e comunico estados da produção. "
+            "Não executo ordens, não autorizo nem encaminho trabalhadores.")
+        return
 
     if text.lower().startswith(("/fix", "/cursor", "/sonnet", "/composer")):
         say("Este agente ainda não está ativado. "
