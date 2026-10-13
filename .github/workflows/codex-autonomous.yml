@@ -507,15 +507,21 @@ jobs:
                            runtime['canonical_revision'] + '` (pinned).')
           else:
               lines.append('Project Leader Skill: NOT_OBSERVED (execution not certified).')
-          private_path = Path(os.environ['RUNNER_TEMP']) / 'codex-private-status.txt'
-          delivery = (private_path.read_text(encoding='utf-8').strip()
-                      if private_path.is_file() else 'NOT_OBSERVED')
-          if delivery not in {
+          valid_delivery = {
               'SENT_TO_PRIVATE_TELEGRAM', 'NOT_OBSERVED', 'NOT_CONFIGURED',
-              'INVALID_PRIVATE_DESTINATION', 'OVERSIZED_REPORT_NOT_SENT', 'NOT_DELIVERED'
-          }:
-              delivery = 'NOT_OBSERVED'
+              'INVALID_PRIVATE_DESTINATION', 'OVERSIZED_REPORT_NOT_SENT',
+              'NOT_DELIVERED'
+          }
+          def safe_notice_status(filename):
+              notice = Path(os.environ['RUNNER_TEMP']) / filename
+              value = (notice.read_text(encoding='utf-8').strip()
+                       if notice.is_file() and not notice.is_symlink()
+                       and notice.stat().st_size <= 64 else 'NOT_OBSERVED')
+              return value if value in valid_delivery else 'NOT_OBSERVED'
+          delivery = safe_notice_status('codex-worker-report-private-status.txt')
+          final_delivery = safe_notice_status('codex-private-status.txt')
           lines.append('Full model report (not published publicly): ' + delivery)
+          lines.append('Final pipeline-state Telegram notice: ' + final_delivery)
           lines.extend(['Weekly Codex quota percentage: UNKNOWN (not provided by the CLI).',
                         'Actions evidence: ' + os.environ['RUN_URL']])
           dest.write_text('\n\n'.join(lines) + '\n', encoding='utf-8')
