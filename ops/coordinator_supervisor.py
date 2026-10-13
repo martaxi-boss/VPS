@@ -267,8 +267,10 @@ def _wait_updated_branch(second: Candidate, new_base: str) -> Candidate:
             before.get("base", {}).get("sha") != new_base or
             before.get("state") != "open"):
         raise SupervisorHold("SECOND_PR_DRIFT")
+    # GitHub REST update-branch accepts only expected_head_sha; its update
+    # is a server-created merge commit. Never substitute an unverified rebase.
     _api("PUT", f"repos/{TARGET}/pulls/{second.number}/update-branch",
-         {"expected_head_sha": second.sha, "update_method": "merge"})
+         {"expected_head_sha": second.sha})
     # A GitHub update-branch request is asynchronous. Do not guess the new
     # commit or accept an arbitrary new head just because it has green CI.
     deadline = time.monotonic() + 330
