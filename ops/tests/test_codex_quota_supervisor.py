@@ -159,7 +159,7 @@ class QuotaSupervisorTests(unittest.TestCase):
                   ".github/workflows/codex-quota-watch.yml").read_text()
         self.assertIn("- cron: '*/5 * * * *'", source)
         self.assertIn("Supervisor — independent real ChatGPT quota watch", source)
-        self.assertIn("python3 -m ops.codex_quota_supervisor watch", source)
+        self.assertIn("python3 -m ops.codex_quota_supervisor notify", source)
         self.assertIn("python3 - read /home/ubuntu/codex-agent/node_modules/.bin/codex", source)
         self.assertIn("account", (Path(__file__).resolve().parents[1] /
                                   "codex_account_limits.py").read_text())
