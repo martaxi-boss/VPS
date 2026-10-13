@@ -1,0 +1,46 @@
+name: Passive Supervisor Telegram delivery proof (temporary)
+on:
+  issues:
+    types: [opened]
+permissions: {}
+jobs:
+  telegram-api-proof:
+    if: >-
+      github.event_name == 'issues' &&
+      github.actor == github.repository_owner &&
+      github.event.issue.user.login == github.repository_owner &&
+      github.event.issue.title == '[supervisor delivery smoke] Verified transport'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Read reviewed passive observer
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pinned v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Send synthetic delivery test through existing private bot only
+        shell: bash
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SUPERVISOR_OBSERVATION: WORKER_REPORT
+          CODEX_REPORT_MODE: worker
+          CODEX_JOB_STATUS: WORKER_REPORT_RECEIVED
+          CODEX_REPORT_PATH: ${{ runner.temp }}/report.md
+          CODEX_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          CODEX_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ops/coordinator_supervisor.py ops/telegram_gateway.py
+          test -n "$TELEGRAM_BOT_TOKEN" || { echo "SUPERVISOR_DELIVERY_SMOKE=NOT_CONFIGURED"; exit 3; }
+          [[ "$TELEGRAM_CHAT_ID" =~ ^[1-9][0-9]{3,17}$ ]] || { echo "SUPERVISOR_DELIVERY_SMOKE=INVALID_PRIVATE_CHAT"; exit 3; }
+          printf "%s\n" \
+            "TESTE DE TRANSPORTE DO SUPERVISOR - SEM EXECUCAO CODEX." \
+            "Notificacao sintetica: GitHub Actions -> Supervisor -> Telegram." \
+            "Nenhum trabalho ou Human Gate foi criado." > "$CODEX_REPORT_PATH"
+          chmod 600 "$CODEX_REPORT_PATH"
+          python3 ops/coordinator_supervisor.py observe
+          echo "SUPERVISOR_DELIVERY_SMOKE=TELEGRAM_API_ACCEPTED"
+

@@ -14,8 +14,8 @@ on:
       - 'ops/coordinator-smoke-remote.sh'
       - 'ops/agent_switch.py'
       - 'ops/tests/test_coordinator_owner_routing.py'
-      - 'ops/coordinator_supervisor.py'
-      - 'ops/tests/test_coordinator_supervisor.py'
+      - 'ops/coordinator_pr_integrator.py'
+      - 'ops/tests/test_coordinator_pr_integrator.py'
       - '.github/workflows/coordinator-phase-cycle.yml'
       - 'ops/coordinator_phase_continuation.py'
       - 'ops/tests/test_coordinator_phase_continuation.py'
@@ -36,11 +36,11 @@ jobs:
       - name: Validate gateway, router and smoke offline; no models or secrets
         run: |
           bash -n ops/coordinator-smoke-remote.sh
-          python3 -m py_compile ops/agent_switch.py ops/coordinator_ai.py ops/coordinator_supervisor.py ops/coordinator_phase_continuation.py
+          python3 -m py_compile ops/agent_switch.py ops/coordinator_ai.py ops/coordinator_pr_integrator.py ops/coordinator_supervisor.py ops/coordinator_phase_continuation.py
           python3 -m unittest discover -s ops/tests -p test_coordinator_phase_continuation.py -v
           python3 -m unittest discover -s ops/tests -p test_coordinator_owner_routing.py -v
           python3 -m unittest discover -s ops/tests -p test_coordinator_smoke.py -v
-          python3 -m unittest discover -s ops/tests -p test_coordinator_supervisor.py -v
+          python3 -m unittest discover -s ops/tests -p test_coordinator_pr_integrator.py -v
 
   plan:
     if: >-
@@ -222,9 +222,9 @@ jobs:
       coordinator_plan_b64: ${{ needs.plan.outputs.coordinator_plan_b64 }}
     secrets: inherit
 
-  # This is a deterministic independent Project Leader Supervisor gate.
+  # This is a deterministic independent Project Leader trusted PR integrator gate.
   # It does not call the Coordinator, create workers, or get model transcripts.
-  supervise:
+  integrate:
     needs: [plan, dispatch]
     if: >-
       always() &&
@@ -242,7 +242,7 @@ jobs:
       phase_status: ${{ steps.terminal.outputs.phase_status }}
       merged_sha: ${{ steps.terminal.outputs.merged_sha }}
     steps:
-      - name: Load reviewed independent Project Leader Supervisor from main
+      - name: Load reviewed independent Project Leader trusted PR integrator from main
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pinned v4
         with:
           ref: ${{ github.event.repository.default_branch }}
@@ -272,14 +272,14 @@ jobs:
           if [ "$WORKER_COUNT" = '2' ]; then
             test "$WORKER_2_CANONICAL" = "$CANONICAL_SHA" || exit 3
           fi
-          python3 ops/coordinator_supervisor.py
+          python3 ops/coordinator_pr_integrator.py
 
 
   phase_2:
-    needs: [plan, supervise]
+    needs: [plan, integrate]
     if: >-
-      needs.supervise.result == 'success' &&
-      needs.supervise.outputs.phase_status == 'PHASE_VALIDATED_PENDING_NEXT_PHASE'
+      needs.integrate.result == 'success' &&
+      needs.integrate.outputs.phase_status == 'PHASE_VALIDATED_PENDING_NEXT_PHASE'
     permissions:
       contents: read
       issues: write
@@ -288,7 +288,7 @@ jobs:
     with:
       original_plan_b64: ${{ needs.plan.outputs.coordinator_plan_b64 }}
       phase_number: 2
-      previous_merged_sha: ${{ needs.supervise.outputs.merged_sha }}
+      previous_merged_sha: ${{ needs.integrate.outputs.merged_sha }}
     secrets: inherit
 
   phase_3:
