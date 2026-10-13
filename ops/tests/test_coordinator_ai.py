@@ -16,10 +16,12 @@ class FakeCodex:
         self.response = response
         self.login = login
         self.commands = []
+        self.environments = []
         self.on_exec = None
 
     def __call__(self, command, **kwargs):
         self.commands.append(command)
+        self.environments.append(kwargs.get("env"))
         if command[1:] == ["login", "status"]:
             return subprocess.CompletedProcess(
                 command, 0, stdout=b"", stderr=(self.login + "\n").encode())
@@ -187,6 +189,54 @@ END PINNED CANONICAL PROJECT LEADER SKILL
                 "Valid order", self.repo, self.rules, self.runtime, "0" * 64,
                 self.output, codex=self.codex, runner=FakeCodex(self.audit()),
                 environment={})
+
+
+    def test_codex_never_inherits_ambient_github_or_vps_secrets(self):
+        fake = FakeCodex(self.audit())
+        coordinator_ai.coordinate(
+            "Planear apenas os problemas confirmados", self.repo,
+            self.rules, self.runtime, self.digest, self.output,
+            codex=self.codex, runner=fake,
+            environment={
+                "HOME": str(self.base), "PATH": "/usr/bin",
+                "GH_TOKEN": "private-example", "CODEX_GITHUB_TOKEN": "private-example",
+                "TELEGRAM_BOT_TOKEN": "private-example",
+                "VPS_SSH_PASSWORD": "private-example",
+                "AWS_SECRET_ACCESS_KEY": "private-example",
+                "BASH_ENV": "/tmp/untrusted-env",
+            })
+        self.assertEqual(2, len(fake.environments))
+        self.assertTrue(all(env == {
+            "HOME": str(self.base), "PATH": "/usr/bin",
+        } for env in fake.environments))
+
+    def test_private_output_refuses_checkout_and_public_directory_without_chmod(self):
+        original_mode = self.repo.stat().st_mode & 0o777
+        with self.assertRaisesRegex(
+                coordinator_ai.CoordinatorAIError, "outside the checkout"):
+            coordinator_ai.coordinate(
+                "Planear tarefa confirmada", self.repo, self.rules, self.runtime,
+                self.digest, self.repo, codex=self.codex,
+                runner=FakeCodex(self.audit()), environment={})
+        self.assertEqual(original_mode, self.repo.stat().st_mode & 0o777)
+
+        public = self.base / "public-results"
+        public.mkdir(mode=0o755)
+        public.chmod(0o755)
+        with self.assertRaisesRegex(coordinator_ai.CoordinatorAIError, "owner-only"):
+            coordinator_ai.coordinate(
+                "Planear tarefa confirmada", self.repo, self.rules, self.runtime,
+                self.digest, public, codex=self.codex,
+                runner=FakeCodex(self.audit()), environment={})
+        self.assertEqual(0o755, public.stat().st_mode & 0o777)
+
+        linked = self.base / "linked-results"
+        linked.symlink_to(self.base, target_is_directory=True)
+        with self.assertRaisesRegex(coordinator_ai.CoordinatorAIError, "symlink"):
+            coordinator_ai.coordinate(
+                "Planear tarefa confirmada", self.repo, self.rules, self.runtime,
+                self.digest, linked, codex=self.codex,
+                runner=FakeCodex(self.audit()), environment={})
 
 
 if __name__ == "__main__":

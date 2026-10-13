@@ -37,6 +37,21 @@ SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 SEMVER = re.compile(r"\d+\.\d+\.\d+\Z")
 Run = Callable[..., subprocess.CompletedProcess]
 
+# Codex needs only its signed-in local profile and ordinary process settings.
+# Never inherit GitHub, VPS, Telegram, cloud or other ambient secrets.
+CODEX_ENV_KEYS = frozenset({
+    "PATH", "HOME", "USER", "LOGNAME", "SHELL", "LANG", "LC_ALL",
+    "LC_CTYPE", "TERM", "TMPDIR", "CODEX_HOME", "XDG_CONFIG_HOME",
+    "SSL_CERT_FILE", "SSL_CERT_DIR",
+})
+
+
+def _restricted_codex_environment(environment: Mapping[str, str]) -> dict[str, str]:
+    return {
+        key: value for key, value in environment.items()
+        if key in CODEX_ENV_KEYS and type(value) is str
+    }
+
 
 class CoordinatorAIError(ValueError):
     """A fail-closed coordinator planning error."""
@@ -187,9 +202,7 @@ def _chatgpt_login(
 ) -> None:
     if environment.get("OPENAI_API_KEY") or environment.get("CODEX_API_KEY"):
         raise CoordinatorAIError("API-key billing is refused; no model started")
-    env = dict(environment)
-    env.pop("OPENAI_API_KEY", None)
-    env.pop("CODEX_API_KEY", None)
+    env = _restricted_codex_environment(environment)
     try:
         result = runner(
             [executable, "login", "status"], stdout=subprocess.PIPE,
@@ -207,9 +220,7 @@ def _invoke_codex(
     executable: str, prompt: str, checkout: Path, runner: Run,
     environment: Mapping[str, str],
 ) -> bytes:
-    env = dict(environment)
-    env.pop("OPENAI_API_KEY", None)
-    env.pop("CODEX_API_KEY", None)
+    env = _restricted_codex_environment(environment)
     with tempfile.TemporaryDirectory(prefix="coordinator-ai-") as temporary:
         private = Path(temporary)
         private.chmod(0o700)
@@ -246,7 +257,9 @@ def _validate_git_paths(checkout: Path, head: str, payload: dict) -> None:
         # plan_phases has already applied safe_path and protected-path policy.
         entry = _git(checkout, "ls-tree", head, "--", path)
         fields = entry.split(None, 3)
-        if len(fields) != 4 or fields[0] not in ("100644", "100755") or fields[1] != "blob":
+        if (len(fields) != 4 or "\n" in entry or
+                fields[0] not in ("100644", "100755") or
+                fields[1] != "blob" or fields[3] != path):
             raise CoordinatorAIError("Audit cites a non-versioned or non-regular path")
 
 
@@ -272,15 +285,27 @@ def validate_response(raw: bytes, checkout: Path, target: str, head: str) -> tup
 
 
 def _private_output_directory(output_dir: Path, checkout: Path) -> Path:
+    # Never chmod an arbitrary pre-existing directory, or the target checkout.
+    # Refuse public, foreign-owned or symlinked destinations rather than
+    # silently changing their permissions.
     try:
+        proposed = output_dir.resolve(strict=False)
+        if proposed == checkout or checkout in proposed.parents:
+            raise CoordinatorAIError(
+                "Validated audit output must remain outside the checkout")
+        if output_dir.is_symlink():
+            raise CoordinatorAIError("Private output directory cannot be a symlink")
         output_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
-        output_dir = output_dir.resolve(strict=True)
-        output_dir.chmod(0o700)
+        info = output_dir.lstat()
+        if (not stat.S_ISDIR(info.st_mode) or
+                info.st_uid != os.getuid() or info.st_mode & 0o077):
+            raise CoordinatorAIError("Private output directory must be owner-only")
+        resolved = output_dir.resolve(strict=True)
+        if resolved != proposed:
+            raise CoordinatorAIError("Private output directory changed")
+        return resolved
     except OSError as exc:
         raise CoordinatorAIError("Private output directory is unavailable") from exc
-    if output_dir == checkout or checkout in output_dir.parents:
-        raise CoordinatorAIError("Validated audit output must remain outside the checkout")
-    return output_dir
 
 
 def _store_validated(payload: dict, output_dir: Path, head: str) -> Path:
