@@ -121,5 +121,87 @@ class PhaseContinuationTests(unittest.TestCase):
             phases.scope_for_phase(enc(p), 2)
 
 
+
+class PhaseWorkflowGuards(unittest.TestCase):
+    def test_held_phases_use_existing_coordinator_and_owner_route(self):
+        from pathlib import Path
+        root = Path(__file__).resolve().parents[2]
+        owner = (root / ".github/workflows/coordinator-owner-order.yml").read_text()
+        child = (root / ".github/workflows/coordinator-phase-cycle.yml").read_text()
+        self.assertIn("github.event.issue.user.login == github.repository_owner", child)
+        self.assertIn("uses: ./.github/workflows/agent-switch.yml", child)
+        self.assertIn("ops/coordinator-smoke-remote.sh", child)
+        self.assertIn("ops/coordinator_supervisor.py", child)
+        self.assertNotIn("codex exec", child)
+        self.assertNotIn("project-leader-rules.md", child)
+        self.assertIn("TARGET_HEAD_CHANGED_REAUDIT_REQUIRED", child)
+        self.assertIn("OWNER_ISSUE_NO_LONGER_AUTHORIZED", child)
+        self.assertIn("StrictHostKeyChecking=yes", child)
+        self.assertNotIn("StrictHostKeyChecking=no", child)
+        dollar = chr(36)
+        for phase in range(2, 9):
+            prior = "supervise" if phase == 2 else "phase_" + str(phase-1)
+            self.assertIn("  phase_" + str(phase) + ":", owner)
+            self.assertIn("    needs: [plan, " + prior + "]", owner)
+            self.assertIn("      phase_number: " + str(phase), owner)
+            expected = ("      previous_merged_sha: " + dollar +
+                        "{{ needs." + prior + ".outputs.merged_sha }}")
+            self.assertIn(expected, owner)
+        self.assertIn("phase_status: " + dollar +
+                      "{{ steps.terminal.outputs.phase_status }}", owner)
+
+    def test_phase_worker_ids_cannot_repeat_or_expand_owner_authority(self):
+        from pathlib import Path
+        from ops import coordinator_supervisor, codex_resource_policy
+        root = Path(__file__).resolve().parents[2]
+        router = (root / ".github/workflows/agent-switch.yml").read_text()
+        executor = (root / ".github/workflows/codex-autonomous.yml").read_text()
+        remote = (root / "ops/codex-autonomous-remote.sh").read_text()
+        self.assertEqual(router.count("inputs.phase_number > 1"), 5)
+        for phase in range(2, 9):
+            self.assertTrue(codex_resource_policy.JOB_PATTERN.fullmatch(
+                "38398020440-1-p" + str(phase) + "-1"))
+            self.assertTrue(coordinator_supervisor._expected_branch(
+                "codex/issue-181-38398020440-1-p" + str(phase) + "-1",
+                181, 38398020440, phase))
+            self.assertFalse(coordinator_supervisor._expected_branch(
+                "codex/issue-181-38398020440-1-p" + str(phase) + "-1",
+                181, 38398020440, 1))
+        for suffix in ("p1-1", "p9-1", "p2-3", "p2-x", "p2-1/../../x"):
+            self.assertFalse(codex_resource_policy.JOB_PATTERN.fullmatch(
+                "38398020440-1-" + suffix))
+        self.assertIn("p[2-8]-[12]", executor)
+        self.assertIn("p[2-8]-[12]", remote)
+
+    def test_inline_python_contract_compiles_without_secrets_on_prs(self):
+        from pathlib import Path
+        root = Path(__file__).resolve().parents[2]
+        workflow = (root / ".github/workflows/coordinator-phase-cycle.yml").read_text()
+        self.assertIn("on:\n  workflow_call:", workflow)
+        self.assertNotIn("workflow_dispatch:", workflow)
+        self.assertNotIn("repository_dispatch:", workflow)
+        self.assertNotIn("pull_request:", workflow)
+        self.assertNotIn(chr(92) + chr(36) + "{{", workflow)
+        lines = workflow.splitlines()
+        count = 0
+        for i, row in enumerate(lines):
+            tag = next((x for x in ("PY_SCOPE", "PY_VALIDATE")
+                        if "<<'" + x + "'" in row), None)
+            if tag is None:
+                continue
+            code = []
+            for row2 in lines[i+1:]:
+                if row2.strip() == tag:
+                    break
+                code.append(row2)
+            else:
+                self.fail("Missing Python heredoc terminator")
+            indents = [len(line) - len(line.lstrip()) for line in code if line.strip()]
+            self.assertTrue(indents)
+            indent = min(indents)
+            compile("\n".join(line[indent:] for line in code), "<phase-cycle>", "exec")
+            count += 1
+        self.assertEqual(count, 2)
+
 if __name__ == "__main__":
     unittest.main()
