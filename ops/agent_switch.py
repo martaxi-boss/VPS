@@ -153,6 +153,18 @@ def parse_order(raw: str) -> dict:
         order = json.loads(raw)
     except json.JSONDecodeError as exc:
         raise OrderError("Use one JSON task manifest") from exc
+    # Explicit Owner-audited work is compiled into the existing bounded router.
+    # The dispatcher itself chooses workers, mode, and effort from inspected
+    # paths/dependencies/severity, never from prompt keywords alone.
+    if isinstance(order, dict) and set(order) == {"target_repository", "audit"}:
+        try:
+            try:
+                from ops.codex_audit_strategy import compile_audit
+            except ModuleNotFoundError:
+                from codex_audit_strategy import compile_audit
+            order = compile_audit(order)
+        except ValueError as exc:
+            raise OrderError(str(exc)) from None
     required = {"target_repository", "mode", "tasks"}
     allowed = required | {"serial_independent"}
     if not isinstance(order, dict) or not required.issubset(order) or not set(order).issubset(allowed):
