@@ -122,49 +122,44 @@ jobs:
         if: always()
         shell: bash
         env:
-          GH_TOKEN: \${{ github.token }}
-          ISSUE_NUMBER: \${{ github.event.issue.number }}
-          SMOKE_OUTCOME: \${{ steps.smoke.outcome }}
-          RUN_URL: https://github.com/\${{ github.repository }}/actions/runs/\${{ github.run_id }}
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
           [[ "$ISSUE_NUMBER" =~ ^[1-9][0-9]*$ ]] || exit 2
-          python3 - <<'PY'
+          python3 - <<'PY_EOF'
           import json, os
           from pathlib import Path
           good = os.environ.get('SMOKE_OUTCOME') == 'success'
           result = Path(os.environ['RUNNER_TEMP']) / 'coordinator_smoke_verified.json'
           if good and result.is_file():
               data = json.loads(result.read_text(encoding='ascii'))
-              message = ('## Coordenador IA: VERIFIED_READ_ONLY_PLAN\n\n'
-                         'Real signed-in Codex planning completed with no worker dispatch.\n\n'
-                         'Target: martaxi-boss/Project-leader-codex\n\n'
-                         'SHA: ' ' + data['head'] + ' '
-
-'
-                         'Phases: ' + str(data['phase_count']) + '
-
-'
-                         'First phase workers: ' + str(data['workers']) + '
-
-'
-                         'Mode: ' + data['mode'] + '
-
-')
+              lines = [
+                  '## Coordenador IA: VERIFIED_READ_ONLY_PLAN',
+                  '',
+                  'Real signed-in Codex planning completed with no worker dispatch.',
+                  '',
+                  'Target: martaxi-boss/Project-leader-codex',
+                  'SHA: ' + data['head'],
+                  'Phases: ' + str(data['phase_count']),
+                  'First phase workers: ' + str(data['workers']),
+                  'Mode: ' + data['mode'],
+              ]
           else:
-              message = ('## Coordenador IA: NOT_CERTIFIED
-
-'
-                         'Read-only smoke did not return a verified valid plan. '
-                         'No implementation workers were dispatched by this workflow.
-
-')
-          message += 'Actions evidence: ' + os.environ['RUN_URL'] + '
-'
-          (Path(os.environ['RUNNER_TEMP']) / 'coordinator_smoke_comment.md').write_text(
-              message, encoding='utf-8')
-          PY
-          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY"             --body-file "$RUNNER_TEMP/coordinator_smoke_comment.md"
+              lines = [
+                  '## Coordenador IA: NOT_CERTIFIED',
+                  '',
+                  'Read-only smoke did not return a verified valid plan.',
+                  'No implementation workers were dispatched by this workflow.',
+              ]
+          lines.extend(['', 'Actions evidence: ' + os.environ['RUN_URL']])
+          path = Path(os.environ['RUNNER_TEMP']) / 'coordinator_smoke_comment.md'
+          path.write_text(chr(10).join(lines) + chr(10), encoding='utf-8')
+          PY_EOF
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
+            --body-file "$RUNNER_TEMP/coordinator_smoke_comment.md"
 
       - name: Enforce certified result
         if: always()

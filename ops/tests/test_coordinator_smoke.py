@@ -128,6 +128,26 @@ class CoordinatorSmokeWorkflowTests(unittest.TestCase):
         self.assertIn('"bash -s -- \\'$job\\'"', self.workflow)
         self.assertNotIn("scp ", self.workflow)
 
+    def test_inline_workflow_python_is_syntactically_valid(self):
+        rows = self.workflow.splitlines()
+        blocks = 0
+        for i, row in enumerate(rows):
+            if "<<'PY'" not in row and "<<'PY_EOF'" not in row:
+                continue
+            indent = len(row) - len(row.lstrip(" "))
+            terminator = "PY_EOF" if "<<'PY_EOF'" in row else "PY"
+            code = []
+            for candidate in rows[i + 1:]:
+                if candidate.strip() == terminator:
+                    break
+                self.assertTrue(candidate.startswith(" " * indent))
+                code.append(candidate[indent:])
+            else:
+                self.fail("Unterminated inline Python in workflow")
+            compile("\n".join(code), "<coordinator-smoke-workflow>", "exec")
+            blocks += 1
+        self.assertEqual(blocks, 2)
+
     def test_no_model_logs_or_implementation_dispatch(self):
         self.assertIn('> "$output" 2>/dev/null', self.workflow)
         self.assertIn("COORDINATOR_SMOKE_STATUS=PASS", self.workflow)
