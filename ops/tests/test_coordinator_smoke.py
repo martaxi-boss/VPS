@@ -102,5 +102,39 @@ class CoordinatorSmokeTests(unittest.TestCase):
         self.assertNotIn("chmod -R", text)
 
 
+class CoordinatorSmokeWorkflowTests(unittest.TestCase):
+    def setUp(self):
+        self.workflow = (Path(__file__).resolve().parents[2] / ".github" /
+                         "workflows" / "coordinator-ai-smoke.yml").read_text(encoding="utf-8")
+
+    def test_paid_smoke_requires_exact_owner_issue(self):
+        self.assertIn("github.event.issue.user.login == github.repository_owner", self.workflow)
+        self.assertIn("github.event.issue.title == '[coordinator smoke] Test real de planeamento read-only'", self.workflow)
+        self.assertIn("types: [opened]", self.workflow)
+        self.assertIn("permissions: {}", self.workflow)
+        self.assertNotIn("workflow_dispatch:", self.workflow)
+
+    def test_pr_validation_cannot_receive_vps_secret(self):
+        offline = self.workflow.split("  offline-contract:", 1)[1].split("  coordinator-smoke:", 1)[0]
+        self.assertIn("github.event_name == 'pull_request'", offline)
+        self.assertNotIn("secrets.", offline)
+        self.assertNotIn("sshpass", offline)
+        self.assertNotIn("gh issue comment", offline)
+
+    def test_vps_ssh_identity_is_pinned_and_no_live_script_is_installed(self):
+        self.assertIn("SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc", self.workflow)
+        self.assertIn("StrictHostKeyChecking=yes", self.workflow)
+        self.assertNotIn("StrictHostKeyChecking=no", self.workflow)
+        self.assertIn('"bash -s -- \\'$job\\'"', self.workflow)
+        self.assertNotIn("scp ", self.workflow)
+
+    def test_no_model_logs_or_implementation_dispatch(self):
+        self.assertIn('> "$output" 2>/dev/null', self.workflow)
+        self.assertIn("COORDINATOR_SMOKE_STATUS=PASS", self.workflow)
+        self.assertNotIn("repository_dispatch", self.workflow)
+        self.assertNotIn("gh issue create", self.workflow)
+        self.assertIn('test "$SMOKE_OUTCOME" = success', self.workflow)
+
+
 if __name__ == "__main__":
     unittest.main()
