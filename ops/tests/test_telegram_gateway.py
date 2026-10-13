@@ -115,6 +115,47 @@ class TelegramGatewayTests(unittest.TestCase):
                 self.assertIn("A auditoria ficou bem.", send.call_args[0][0])
                 tg.assert_not_called()
 
+    def test_passive_supervisor_reports_are_not_new_human_gate_classification(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            report = Path(tmp) / "report.md"
+            report.write_text(
+                "HUMAN_GATE: apenas o Project Leader do trabalhador o declara.\\n"
+                "A intervenção do proprietário é necessária.", encoding="utf-8")
+            env = {
+                "CODEX_JOB_STATUS": "WORKER_REPORT_RECEIVED",
+                "CODEX_REPORT_MODE": "worker",
+                "CODEX_REPORT_PATH": str(report),
+                "CODEX_ISSUE_NUMBER": "181",
+            }
+            with (patch.dict(os.environ, env),
+                  patch.object(gateway, "BOT_TOKEN", "dummy"),
+                  patch.object(gateway, "CHAT_ID", "123456"),
+                  patch.object(gateway, "say") as send,
+                  patch.object(gateway, "telegram") as tg):
+                gateway.notify()
+                message = send.call_args.args[0]
+                self.assertIn("HUMAN_GATE:", message)
+                self.assertIn("Relatório do trabalhador", message)
+                self.assertIn("A intervenção do proprietário", message)
+                tg.assert_not_called()
+
+    def test_verified_final_state_avoids_resending_model_report(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            report = Path(tmp) / "private-model-text.md"
+            report.write_text("DO_NOT_REPEAT_RAW_MODEL_REPORT", encoding="utf-8")
+            with (patch.dict(os.environ, {
+                  "CODEX_REPORT_MODE": "status", "CODEX_JOB_STATUS": "PR_STAGED",
+                  "CODEX_REPORT_PATH": str(report),
+                  "CODEX_INSTANCE_ID": "p2-1", "CODEX_ISSUE_NUMBER": "181"}),
+                  patch.object(gateway, "BOT_TOKEN", "dummy"),
+                  patch.object(gateway, "CHAT_ID", "123456"),
+                  patch.object(gateway, "say") as send):
+                gateway.notify()
+                body = send.call_args.args[0]
+                self.assertIn("fase 2 trabalhador 1", body)
+                self.assertIn("PR pronta para revisão", body)
+                self.assertNotIn("DO_NOT_REPEAT_RAW_MODEL_REPORT", body)
+
     def test_long_report_sent_as_document(self):
         with tempfile.TemporaryDirectory() as tmp:
             report = Path(tmp) / "report.md"

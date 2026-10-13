@@ -540,6 +540,10 @@ def private_report_status(status):
         return "✅ Execução concluída (verificar o resultado)"
     if status == "PR_STAGED":
         return "📝 PR pronta para revisão; alterações NÃO integradas"
+    if status == "WORKER_REPORT_RECEIVED":
+        return "📩 Relatório do trabalhador recebido; validação final pendente"
+    if status in ("NOT_STARTED", "NOT_COMPLETED", "FAILED"):
+        return "⚠️ Execução interrompida ou não certificada"
     if status in ("NO_CHANGE_UNVERIFIED", "PR_NEEDS_ATTENTION"):
         return "⚠️ Revisão necessária; objetivo NÃO certificado"
     return "⚠️ Não concluído ou não verificado"
@@ -556,10 +560,12 @@ def notify():
     report = (report_path.read_text(encoding="utf-8", errors="replace")
               if report_path.is_file() else "Sem relatório disponível; consultar o GitHub.")
     worker = os.environ.get("CODEX_INSTANCE_ID", "")
-    if worker not in ("", "1", "2"):
+    if not re.fullmatch(r"(?:[12]|p[2-8]-[12])?", worker):
         raise RuntimeError("Invalid trusted Codex worker identity")
+    label = (f" fase {worker[1]} trabalhador {worker[-1]}"
+             if worker.startswith("p") else (f" {worker}" if worker else ""))
     outcome = private_report_status(status)
-    top = "🤖 Codex" + (f" {worker}" if worker else "") + " — " + outcome + "\n"
+    top = "🤖 Codex" + label + " — " + outcome + "\n"
     if issue:
         top += "Tarefa #" + issue + "\n"
     top += "Repositório: " + REPO + "\n"
@@ -567,6 +573,16 @@ def notify():
         top += "https://github.com/" + REPO + "/issues/" + issue + "\n"
     elif run_url:
         top += run_url + "\n"
+    # The Supervisor sends the unmodified Project Leader worker report early,
+    # then sends a separate short *trusted pipeline outcome* (no duplicate report).
+    # It does not classify, authorize, create or resume Human Gates.
+    mode = os.environ.get("CODEX_REPORT_MODE", "worker")
+    if mode == "status":
+        say(top + "\nEstado final do pipeline. Consulta a tarefa no GitHub.")
+        print("TELEGRAM_NOTIFY=SENT")
+        return
+    if mode != "worker":
+        raise RuntimeError("Invalid passive Supervisor message mode")
     if len(top) + len(report) < 3800:
         say(top + "\nRELATÓRIO:\n" + report)
     else:

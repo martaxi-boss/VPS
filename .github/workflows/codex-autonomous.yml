@@ -265,6 +265,49 @@ jobs:
           fi
           test -f "$RUNNER_TEMP/patch.diff" || test '${{ steps.codex.outcome }}' != 'success'
 
+      # The Project Leader worker already decided what its report says, including
+      # whether it reached a genuine Human Gate. Do not parse or redefine it.
+      # Deliver that exact private report promptly, before publication/CI wait.
+      - name: Passive Supervisor forwards Project Leader worker report privately
+        id: supervisor_report
+        if: always() && steps.collect.outcome == 'success'
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_TOKEN: \${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: \${{ secrets.TELEGRAM_CHAT_ID }}
+          SUPERVISOR_OBSERVATION: WORKER_REPORT
+          CODEX_REPORT_MODE: worker
+          CODEX_JOB_STATUS: WORKER_REPORT_RECEIVED
+          CODEX_REPORT_PATH: \${{ runner.temp }}/report.md
+          CODEX_ISSUE_NUMBER: \${{ inputs.issue_number || github.event.issue.number }}
+          CODEX_RUN_URL: https://github.com/\${{ github.repository }}/actions/runs/\${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$RUNNER_TEMP/codex-worker-report-private-status.txt"
+          if ! test -s "$CODEX_REPORT_PATH"; then
+            echo "NOT_OBSERVED" > "$status"
+            exit 0
+          fi
+          if test -z "$TELEGRAM_BOT_TOKEN" || test -z "$TELEGRAM_CHAT_ID"; then
+            echo "NOT_CONFIGURED" > "$status"
+            exit 0
+          fi
+          if [[ ! "$TELEGRAM_CHAT_ID" =~ ^[1-9][0-9]{3,17}$ ]]; then
+            echo "INVALID_PRIVATE_DESTINATION" > "$status"
+            exit 1
+          fi
+          if test "$(wc -c < "$CODEX_REPORT_PATH")" -gt 65536; then
+            echo "OVERSIZED_REPORT_NOT_SENT" > "$status"
+            exit 1
+          fi
+          echo "NOT_DELIVERED" > "$status"
+          if python3 ops/coordinator_supervisor.py observe; then
+            echo "SENT_TO_PRIVATE_TELEGRAM" > "$status"
+          else
+            exit 1
+          fi
+
       - name: Publish guarded PR, validate exact CI, merge only if explicitly permitted
         id: publish
         if: steps.codex.outcome == 'success' && steps.collect.outcome == 'success'
@@ -323,57 +366,56 @@ jobs:
       # A public GitHub Issue must NEVER contain untrusted model report text.
       # The existing Telegram bot can deliver it to the Owner's private chat
       # only when both dedicated secrets are already configured.
-      - name: Send private Codex report to configured Owner Telegram
+      # After the separate publisher/CI step, send ONLY the final pipeline
+      # outcome. This is not another model report or a Human Gate decision.
+      - name: Passive Supervisor sends final publication state without replaying report
         id: private_report
-        if: always() && steps.collect.outcome == 'success'
+        if: always()
         continue-on-error: true
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          CODEX_REPORT_PATH: ${{ runner.temp }}/report.md
-          CODEX_JOB_STATUS: ${{ steps.publish.outcome }}
-          CODEX_ISSUE_NUMBER: ${{ inputs.issue_number || github.event.issue.number }}
-          CODEX_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TELEGRAM_BOT_TOKEN: \${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: \${{ secrets.TELEGRAM_CHAT_ID }}
+          SUPERVISOR_OBSERVATION: FINAL_STATE
+          CODEX_REPORT_MODE: status
+          CODEX_ISSUE_NUMBER: \${{ inputs.issue_number || github.event.issue.number }}
+          CODEX_RUN_URL: https://github.com/\${{ github.repository }}/actions/runs/\${{ github.run_id }}
+          STAGE_OUTCOME: \${{ steps.stage.outcome }}
+          CODEX_OUTCOME: \${{ steps.codex.outcome }}
+          PUBLISH_OUTCOME: \${{ steps.publish.outcome }}
         shell: bash
         run: |
           set -euo pipefail
-          state="$RUNNER_TEMP/codex-private-status.txt"
-          if test ! -s "$CODEX_REPORT_PATH"; then
-            echo "NOT_OBSERVED" > "$state"
-            exit 0
-          fi
+          status="$RUNNER_TEMP/codex-private-status.txt"
           if test -z "$TELEGRAM_BOT_TOKEN" || test -z "$TELEGRAM_CHAT_ID"; then
-            echo "NOT_CONFIGURED" > "$state"
+            echo "NOT_CONFIGURED" > "$status"
             exit 0
           fi
-          # Never send reports to Telegram groups, channels or arbitrary chats.
           if [[ ! "$TELEGRAM_CHAT_ID" =~ ^[1-9][0-9]{3,17}$ ]]; then
-            echo "INVALID_PRIVATE_DESTINATION" > "$state"
+            echo "INVALID_PRIVATE_DESTINATION" > "$status"
             exit 1
           fi
-          if test "$(wc -c < "$CODEX_REPORT_PATH")" -gt 65536; then
-            echo "OVERSIZED_REPORT_NOT_SENT" > "$state"
-            exit 1
-          fi
-          echo "NOT_DELIVERED" > "$state"
-          # The private message must distinguish 'PR_STAGED' from 'MERGED'.
+          CODEX_JOB_STATUS="NOT_COMPLETED"
           if test -s "$RUNNER_TEMP/codex-result.json"; then
-            CODEX_JOB_STATUS="$(python3 - <<'PY'
-          import json
-          import os
+            CODEX_JOB_STATUS="$(python3 - <<'PY_STATUS'
+          import json, os
           from pathlib import Path
-          data = json.loads((Path(os.environ["RUNNER_TEMP"]) / "codex-result.json").read_text(encoding="utf-8"))
-          status = data.get("status")
-          allowed = {"MERGED", "NO_CHANGE", "PR_STAGED", "PR_NEEDS_ATTENTION", "NO_CHANGE_UNVERIFIED", "FAILED"}
-          print(status if status in allowed else "unknown")
-          PY
+          result = json.loads((Path(os.environ['RUNNER_TEMP']) /
+                               'codex-result.json').read_text(encoding='utf-8'))
+          valid = {'MERGED', 'NO_CHANGE', 'PR_STAGED',
+                   'PR_NEEDS_ATTENTION', 'NO_CHANGE_UNVERIFIED', 'FAILED'}
+          value = result.get('status')
+          print(value if value in valid else 'NOT_COMPLETED')
+          PY_STATUS
             )"
-            export CODEX_JOB_STATUS
+          elif test "$STAGE_OUTCOME" != 'success'; then
+            CODEX_JOB_STATUS="NOT_STARTED"
+          elif test "$CODEX_OUTCOME" != 'success' || test "$PUBLISH_OUTCOME" = 'failure'; then
+            CODEX_JOB_STATUS="FAILED"
           fi
-          # The Telegram gateway masks bot HTTP details and does not print
-          # the report or credentials to public GitHub Actions logs.
-          if python3 ops/telegram_gateway.py notify; then
-            echo "SENT_TO_PRIVATE_TELEGRAM" > "$state"
+          export CODEX_JOB_STATUS
+          echo "NOT_DELIVERED" > "$status"
+          if python3 ops/coordinator_supervisor.py observe; then
+            echo "SENT_TO_PRIVATE_TELEGRAM" > "$status"
           else
             exit 1
           fi
