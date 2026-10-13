@@ -279,7 +279,7 @@ jobs:
     needs: [plan, supervise]
     if: >-
       needs.supervise.result == 'success' &&
-      needs.supervise.outputs.phase_status == 'PHASE_VALIDATED_PENDING_REAUDIT'
+      needs.supervise.outputs.phase_status == 'PHASE_VALIDATED_PENDING_NEXT_PHASE'
     permissions:
       contents: read
       issues: write
@@ -295,7 +295,7 @@ jobs:
     needs: [plan, phase_2]
     if: >-
       needs.phase_2.result == 'success' &&
-      needs.phase_2.outputs.phase_status == 'PHASE_VALIDATED_PENDING_REAUDIT'
+      needs.phase_2.outputs.phase_status == 'PHASE_VALIDATED_PENDING_NEXT_PHASE'
     permissions:
       contents: read
       issues: write
@@ -311,7 +311,7 @@ jobs:
     needs: [plan, phase_3]
     if: >-
       needs.phase_3.result == 'success' &&
-      needs.phase_3.outputs.phase_status == 'PHASE_VALIDATED_PENDING_REAUDIT'
+      needs.phase_3.outputs.phase_status == 'PHASE_VALIDATED_PENDING_NEXT_PHASE'
     permissions:
       contents: read
       issues: write
@@ -327,7 +327,7 @@ jobs:
     needs: [plan, phase_4]
     if: >-
       needs.phase_4.result == 'success' &&
-      needs.phase_4.outputs.phase_status == 'PHASE_VALIDATED_PENDING_REAUDIT'
+      needs.phase_4.outputs.phase_status == 'PHASE_VALIDATED_PENDING_NEXT_PHASE'
     permissions:
       contents: read
       issues: write
@@ -343,7 +343,7 @@ jobs:
     needs: [plan, phase_5]
     if: >-
       needs.phase_5.result == 'success' &&
-      needs.phase_5.outputs.phase_status == 'PHASE_VALIDATED_PENDING_REAUDIT'
+      needs.phase_5.outputs.phase_status == 'PHASE_VALIDATED_PENDING_NEXT_PHASE'
     permissions:
       contents: read
       issues: write
@@ -359,7 +359,7 @@ jobs:
     needs: [plan, phase_6]
     if: >-
       needs.phase_6.result == 'success' &&
-      needs.phase_6.outputs.phase_status == 'PHASE_VALIDATED_PENDING_REAUDIT'
+      needs.phase_6.outputs.phase_status == 'PHASE_VALIDATED_PENDING_NEXT_PHASE'
     permissions:
       contents: read
       issues: write
@@ -375,7 +375,7 @@ jobs:
     needs: [plan, phase_7]
     if: >-
       needs.phase_7.result == 'success' &&
-      needs.phase_7.outputs.phase_status == 'PHASE_VALIDATED_PENDING_REAUDIT'
+      needs.phase_7.outputs.phase_status == 'PHASE_VALIDATED_PENDING_NEXT_PHASE'
     permissions:
       contents: read
       issues: write

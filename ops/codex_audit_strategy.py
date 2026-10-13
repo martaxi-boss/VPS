@@ -351,8 +351,8 @@ def plan_phases(value: object) -> dict:
                 task["id"]: task["reasoning_effort"] for task in route["tasks"]
             },
             "pr_only": True,
-            "requires_fresh_audit": not first,
-            "state": "READY_FOR_REVIEWED_DISPATCH" if first else "HOLD_FOR_CI_AND_REAUDIT",
+            "requires_fresh_audit": False,
+            "state": "READY_FOR_REVIEWED_DISPATCH" if first else "HOLD_FOR_CI_AND_NEXT_PHASE",
             "dispatch_audit": phase_audit if first else None,
             "dispatch_json": dispatch_json if first else None,
         })
