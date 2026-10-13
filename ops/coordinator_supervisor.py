@@ -312,7 +312,8 @@ def _wait_fresh_ci(second: Candidate) -> None:
 
 
 def assess(issue: int, run: int, workers: list[Worker], phase_count: int,
-           canonical: str) -> dict:
+           canonical: str, *, current_phase: int = 1,
+           max_phases: int | None = None) -> dict:
     """Independently merge up to two non-overlapping, CI-verified doc PRs.
 
     Second PR receives a GitHub-owned merge update and exact-new-head CI,
@@ -320,6 +321,11 @@ def assess(issue: int, run: int, workers: list[Worker], phase_count: int,
     """
     if not 1 <= len(workers) <= 2 or not 1 <= phase_count <= 8:
         raise SupervisorHold("INVALID_ROUTING")
+    maximum = phase_count if max_phases is None else max_phases
+    if (type(current_phase) is not int or type(maximum) is not int or
+            not 1 <= current_phase <= maximum <= 8 or
+            phase_count > maximum - current_phase + 1):
+        raise SupervisorHold("PHASE_BOUNDARY_EXCEEDED")
     if not SHA.fullmatch(canonical):
         raise SupervisorHold("CANONICAL_UNVERIFIED")
     _issue(issue)
@@ -357,10 +363,12 @@ def assess(issue: int, run: int, workers: list[Worker], phase_count: int,
         _review(next_pr, issue, run, canonical)
         sha = _merge(next_pr)
         numbers.append(next_pr.number)
-    return {"status": ("PHASE_VALIDATED_PENDING_REAUDIT" if phase_count > 1
+    pending = phase_count > 1 or current_phase < maximum
+    return {"status": ("PHASE_VALIDATED_PENDING_REAUDIT" if pending
                        else "TERMINAL_SUCCESS"),
             "pull_request": numbers[-1], "pull_requests": numbers,
-            "merge_sha": sha, "phase_count": phase_count}
+            "merge_sha": sha, "phase_count": phase_count,
+            "phase_index": current_phase, "max_phases": maximum}
 
 
 def main() -> int:
@@ -372,11 +380,15 @@ def main() -> int:
         if count not in (1, 2):
             raise SupervisorHold("INVALID_WORKER_COUNT")
         canonical = os.environ.get("CANONICAL_SHA", "")
+        index = _int(os.environ.get("OWNER_PHASE_INDEX", "1"), "PHASE_INDEX", 8)
+        maximum = _int(os.environ.get("OWNER_MAX_PHASES", str(phases)),
+                       "MAX_PHASES", 8)
         workers = [Worker(os.environ.get(f"WORKER_{i}_STATUS", ""),
                           os.environ.get(f"WORKER_{i}_PR", ""),
                           os.environ.get(f"WORKER_{i}_SHA", ""))
                    for i in range(1, count + 1)]
-        result = assess(issue, run, workers, phases, canonical)
+        result = assess(issue, run, workers, phases, canonical,
+                        current_phase=index, max_phases=maximum)
         numbers = ", ".join("#" + str(n) for n in result["pull_requests"])
         report = ("PROJECT_LEADER_" + result["status"] +
                   ": PR " + numbers + ", merged SHA "
@@ -385,9 +397,23 @@ def main() -> int:
         _api("POST", f"repos/{CONTROL}/issues/{issue}/comments",
              {"body": report}, control=True)
         if result["status"] == "TERMINAL_SUCCESS":
-            # Terminal means covered single phase, exact CI and verified main.
+            # Terminal: all bounded planned phases, exact CI and verified main.
             _api("PATCH", f"repos/{CONTROL}/issues/{issue}",
                  {"state": "closed", "state_reason": "completed"}, control=True)
+        else:
+            # A new read-only Coordinator audit is required for each held
+            # phase. Never dispatch Codex workers against the old Git HEAD.
+            try:
+                from ops import coordinator_phase_resume as continuation
+            except ModuleNotFoundError:
+                import coordinator_phase_resume as continuation
+            continuation.request_next(issue, run, index, maximum,
+                                      result["merge_sha"])
+        outputs = os.environ.get("GITHUB_OUTPUT", "")
+        if outputs:
+            with open(outputs, "a", encoding="ascii") as out:
+                out.write("phase_status=" + result["status"] + "\n")
+                out.write("merged_sha=" + result["merge_sha"] + "\n")
         return 0
     except SupervisorHold as exc:
         print("PROJECT_LEADER_SUPERVISOR=RECOVERY_REQUIRED:" + exc.code, flush=True)
