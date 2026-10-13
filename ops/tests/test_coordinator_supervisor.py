@@ -142,7 +142,7 @@ class SupervisorAcceptanceTests(TestCase):
         api, _, _, merges, _ = fixture()
         with patch.object(sup, "_api", side_effect=api):
             done = sup.assess(ISSUE, RUN, [candidate()], 3, CANONICAL)
-        self.assertEqual(done["status"], "PHASE_VALIDATED_PENDING_REAUDIT")
+        self.assertEqual(done["status"], "PHASE_VALIDATED_PENDING_NEXT_PHASE")
         self.assertEqual(len(merges), 1)
 
     def test_non_owner_is_rejected_before_accessing_target(self):
@@ -268,7 +268,7 @@ class SupervisorAcceptanceTests(TestCase):
              patch.object(sup.time, "sleep", return_value=None):
             result = sup.assess(ISSUE, RUN,
                                 [candidate(), self.second_worker()], 2, CANONICAL)
-        self.assertEqual(result["status"], "PHASE_VALIDATED_PENDING_REAUDIT")
+        self.assertEqual(result["status"], "PHASE_VALIDATED_PENDING_NEXT_PHASE")
         self.assertGreaterEqual(state["checks_seen"], 2)
         self.assertEqual(len(merges), 2)
 

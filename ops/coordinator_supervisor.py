@@ -365,7 +365,7 @@ def assess(issue: int, run: int, workers: list[Worker], phase_count: int,
         _review(next_pr, issue, run, canonical)
         sha = _merge(next_pr)
         numbers.append(next_pr.number)
-    return {"status": ("PHASE_VALIDATED_PENDING_REAUDIT" if phase_count > 1
+    return {"status": ("PHASE_VALIDATED_PENDING_NEXT_PHASE" if phase_count > 1
                        else "TERMINAL_SUCCESS"),
             "pull_request": numbers[-1], "pull_requests": numbers,
             "merge_sha": sha, "phase_count": phase_count}
@@ -396,7 +396,7 @@ def main() -> int:
         if output:
             from pathlib import Path
             if (result["status"] not in {
-                    "TERMINAL_SUCCESS", "PHASE_VALIDATED_PENDING_REAUDIT"} or
+                    "TERMINAL_SUCCESS", "PHASE_VALIDATED_PENDING_NEXT_PHASE"} or
                     not SHA.fullmatch(result["merge_sha"])):
                 raise SupervisorHold("SUPERVISOR_OUTPUT_UNVERIFIED")
             with Path(output).open("a", encoding="ascii") as writer:

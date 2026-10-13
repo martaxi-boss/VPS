@@ -260,10 +260,10 @@ class AuditedPhasePlanTests(unittest.TestCase):
                              strategy.MAX_AUDIT)
         self.assertEqual(second["task_ids"], ["code-edit"])
         self.assertEqual(second["reasoning_by_task"], {"code-edit": "medium"})
-        self.assertTrue(second["requires_fresh_audit"])
+        self.assertFalse(second["requires_fresh_audit"])
         self.assertIsNone(second["dispatch_audit"])
         self.assertIsNone(second["dispatch_json"])
-        self.assertEqual(second["state"], "HOLD_FOR_CI_AND_REAUDIT")
+        self.assertEqual(second["state"], "HOLD_FOR_CI_AND_NEXT_PHASE")
 
     def test_high_risk_finding_selects_independent_serial_prs(self):
         audited = self.base()
@@ -283,7 +283,7 @@ class AuditedPhasePlanTests(unittest.TestCase):
         result = strategy.plan_phases(audited)
         self.assertEqual(result["phase_count"], 2)
         self.assertEqual([p["worker_count"] for p in result["phases"]], [1, 1])
-        self.assertTrue(result["phases"][1]["requires_fresh_audit"])
+        self.assertFalse(result["phases"][1]["requires_fresh_audit"])
         self.assertIsNone(result["phases"][1]["dispatch_audit"])
 
     def test_cyclic_or_unknown_dependency_fails_before_first_dispatch(self):

@@ -42,101 +42,90 @@ def enc(value):
         json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).decode()
 
 
-def fresh():
-    result = fixture()
-    result["audit"]["revision"] = UPDATED
-    result["audit"]["findings"] = result["audit"]["findings"][-1:]
-    result["audit"]["work_items"] = result["audit"]["work_items"][-1:]
-    del result["audit"]["work_items"][0]["depends_on"]
-    return result
-
-
 class PhaseContinuationTests(unittest.TestCase):
     def setUp(self):
         self.original = enc(fixture())
-        self.updated = enc(fresh())
 
-    def test_owner_dag_holds_second_phase_until_revision_changes(self):
+    def test_dispatch_next_phase_without_any_coordinator_reaudit(self):
         scope = phases.scope_for_phase(self.original, 2)
         self.assertEqual(scope["phase_count"], 2)
         self.assertEqual(scope["task_ids"], ["correct-three"])
         self.assertEqual(scope["paths"], ["docs/three.md"])
-        self.assertNotIn("docs/one.md", scope["paths"])
-        request = phases.new_order(self.original, 2, UPDATED)
-        self.assertIn("TARGET_REPOSITORY=" + phases.TARGET, request)
-        self.assertIn(UPDATED, request)
-        self.assertIn("correct-three", request)
-        self.assertNotIn("Project Leader canonical", request)
+        self.assertEqual(scope["reasoning_by_task"]["correct-three"], "medium")
+        next_phase = phases.prepared_phase(self.original, 2, UPDATED)
+        self.assertEqual(next_phase["audited_sha"], UPDATED)
+        self.assertEqual(next_phase["phase"], 2)
+        self.assertEqual(next_phase["remaining_phases"], 1)
+        self.assertEqual(next_phase["task_ids"], ["correct-three"])
+        self.assertEqual(next_phase["workers"], 1)
+        self.assertEqual(next_phase["mode"], "serial")
+        clean = json.loads(base64.b64decode(next_phase["coordinator_plan_b64"]))
+        self.assertEqual(clean["audit"]["revision"], UPDATED)
+        self.assertEqual(clean["audit"]["work_items"][0]["id"], "correct-three")
+        self.assertEqual(clean["audit"]["findings"][0]["id"], "three")
+        self.assertNotIn("depends_on", clean["audit"]["work_items"][0])
+        self.assertNotIn("docs/one.md", next_phase["paths"])
 
-    def test_current_reaudit_may_dispatch_exact_held_phase_only(self):
-        result = phases.validate_new_plan(self.updated, self.original, 2, UPDATED)
-        self.assertEqual(result["audited_sha"], UPDATED)
-        self.assertEqual(result["phase"], 2)
-        self.assertEqual(result["original_phase_count"], 2)
-        self.assertEqual(result["remaining_phases"], 1)
-        self.assertEqual(result["task_ids"], ["correct-three"])
-        self.assertEqual(result["workers"], 1)
-        self.assertEqual(result["mode"], "serial")
+    def test_prepared_phase_is_deterministic_and_scoped(self):
+        first = phases.prepared_phase(self.original, 2, UPDATED)
+        second = phases.prepared_phase(self.original, 2, UPDATED)
+        self.assertEqual(first, second)
+        value = json.loads(base64.b64decode(first["coordinator_plan_b64"]))
+        self.assertEqual(len(value["audit"]["work_items"]), 1)
+        self.assertEqual(len(value["audit"]["findings"]), 1)
+        self.assertNotIn("correct-two", str(value))
 
-    def test_cannot_repeat_first_phase_or_invent_later_number(self):
+    def test_cannot_repeat_first_or_invent_later_phase(self):
         for n in (0, 1, 3, -1, True, "2", 1000):
             with self.subTest(phase=n), self.assertRaises(phases.PhaseContinuationError):
                 phases.scope_for_phase(self.original, n)
 
-    def test_wrong_current_git_head_is_rejected_before_worker(self):
-        with self.assertRaisesRegex(phases.PhaseContinuationError, "revision"):
-            phases.validate_new_plan(self.updated, self.original, 2, ORIGINAL)
-        with self.assertRaises(phases.PhaseContinuationError):
-            phases.new_order(self.original, 2, "c"*39)
+    def test_invalid_current_sha_refused_before_worker(self):
+        for invalid in ("", "bad", "c" * 39, "G" * 40, None):
+            with self.subTest(invalid=invalid), self.assertRaises(phases.PhaseContinuationError):
+                phases.prepared_phase(self.original, 2, invalid)
 
-    def test_model_cannot_expand_scope_or_change_ids(self):
-        cases = []
-        p = fresh()
-        p["audit"]["work_items"][0]["paths"] = ["docs/one.md"]
-        cases.append(p)
-        p = fresh()
-        p["audit"]["work_items"][0]["id"] = "new-task"
-        cases.append(p)
-        p = fresh()
-        p["audit"]["findings"][0]["paths"] = ["docs/one.md"]
-        cases.append(p)
-        p = fresh()
-        p["audit"]["work_items"][0]["depends_on"] = ["correct-one"]
-        cases.append(p)
-        for item in cases:
-            with self.subTest(kind=item["audit"]["work_items"][0]), \
-                 self.assertRaises(phases.PhaseContinuationError):
-                phases.validate_new_plan(enc(item), self.original, 2, UPDATED)
-
-    def test_corrupt_owner_audit_is_rejected(self):
+    def test_cannot_expand_original_task_paths_or_ids(self):
+        original = fixture()
+        original["audit"]["work_items"][2]["paths"] = ["docs/three.md", "../.env"]
         with self.assertRaises(phases.PhaseContinuationError):
-            phases.scope_for_phase("not-encoded", 2)
+            phases.prepared_phase(enc(original), 2, UPDATED)
+        original = fixture()
+        original["audit"]["work_items"][2]["id"] = "correct-one"
+        with self.assertRaises(phases.PhaseContinuationError):
+            phases.prepared_phase(enc(original), 2, UPDATED)
+
+    def test_corrupt_owner_audit_refused(self):
+        with self.assertRaises(phases.PhaseContinuationError):
+            phases.prepared_phase("not-encoded", 2, UPDATED)
         p = fixture()
         p["target_repository"] = "martaxi-boss/VPS"
         with self.assertRaises(phases.PhaseContinuationError):
-            phases.scope_for_phase(enc(p), 2)
+            phases.prepared_phase(enc(p), 2, UPDATED)
         p = fixture()
         p["audit"]["work_items"][2]["depends_on"] = ["unknown"]
         with self.assertRaises(phases.PhaseContinuationError):
-            phases.scope_for_phase(enc(p), 2)
-
+            phases.prepared_phase(enc(p), 2, UPDATED)
 
 
 class PhaseWorkflowGuards(unittest.TestCase):
-    def test_held_phases_use_existing_coordinator_and_owner_route(self):
+    def test_held_phases_use_original_owner_plan_without_coordinator(self):
         from pathlib import Path
         root = Path(__file__).resolve().parents[2]
         owner = (root / ".github/workflows/coordinator-owner-order.yml").read_text()
         child = (root / ".github/workflows/coordinator-phase-cycle.yml").read_text()
         self.assertIn("github.event.issue.user.login == github.repository_owner", child)
         self.assertIn("uses: ./.github/workflows/agent-switch.yml", child)
-        self.assertIn("ops/coordinator-smoke-remote.sh", child)
+        self.assertNotIn("ops/coordinator-smoke-remote.sh", child)
+        self.assertIn("ops.coordinator_phase_continuation import prepared_phase", child)
+        self.assertNotIn("sshpass", child)
+        self.assertIn("OWNER_DAG_NEXT_PHASE_VERIFIED_WITHOUT_COORDINATOR_AI", child)
         self.assertIn("ops/coordinator_supervisor.py", child)
         self.assertNotIn("codex exec", child)
         self.assertNotIn("project-leader-rules.md", child)
-        self.assertIn("TARGET_HEAD_CHANGED_REAUDIT_REQUIRED", child)
-        self.assertIn("OWNER_ISSUE_NO_LONGER_AUTHORIZED", child)
-        self.assertIn("StrictHostKeyChecking=yes", child)
+        self.assertIn("VERIFIED_PREVIOUS_MERGE_HEAD_CHANGED", child)
+        self.assertIn("OWNER_ISSUE_UNAUTHORIZED", child)
+        self.assertNotIn("StrictHostKeyChecking=yes", child)
         self.assertNotIn("StrictHostKeyChecking=no", child)
         dollar = chr(36)
         for phase in range(2, 9):
@@ -185,7 +174,7 @@ class PhaseWorkflowGuards(unittest.TestCase):
         lines = workflow.splitlines()
         count = 0
         for i, row in enumerate(lines):
-            tag = next((x for x in ("PY_SCOPE", "PY_VALIDATE")
+            tag = next((x for x in ("PY_PREPARE",)
                         if "<<'" + x + "'" in row), None)
             if tag is None:
                 continue
@@ -201,7 +190,7 @@ class PhaseWorkflowGuards(unittest.TestCase):
             indent = min(indents)
             compile("\n".join(line[indent:] for line in code), "<phase-cycle>", "exec")
             count += 1
-        self.assertEqual(count, 2)
+        self.assertEqual(count, 1)
 
 if __name__ == "__main__":
     unittest.main()

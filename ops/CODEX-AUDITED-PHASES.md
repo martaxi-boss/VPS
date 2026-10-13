@@ -31,7 +31,7 @@ bytes. Antes de marcar a fase READY, o planeador percorre o mesmo
 incluindo limites de 2200 caracteres por trabalhador e serializacao ASCII.
 A revisao auditada deve continuar identica no momento do clone. Se o `main` mudou, o executor impede o gasto de tokens.
 As fases seguintes tem `dispatch_audit: null`, estado
-`HOLD_FOR_CI_AND_REAUDIT` e **nao** podem ser disparadas a partir de prova
+`HOLD_FOR_CI_AND_NEXT_PHASE` e **nao** podem ser disparadas a partir de prova
 antiga. O gestor primeiro valida a PR anterior, os testes, o estado do merge
 ou NO_CHANGE e a nova auditoria; so depois gera o despacho seguinte.
 
@@ -41,7 +41,7 @@ alvo e nao supoe que o Codex Cloud esteja ligado a este chat.
 ## Limite operacional ainda por certificar
 
 A funcao produz a sequencia segura de fases, mas **nao** implementa por si
-um servico autonomo de reauditoria/CI entre fases nem valida automaticamente
+um servico autonomo de continuação e CI sem nova auditoria entre fases nem valida automaticamente
 uma situacao natural de quota esgotada. Os checks de CI testam o algoritmo
 offline. A primeira execucao real do agendador de quota e uma sequencia
 completa auditada com dependencia continuam a requerer evidencias separadas.
