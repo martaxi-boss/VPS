@@ -54,6 +54,8 @@ class OwnerAuditedFirstWaveTests(unittest.TestCase):
         self.assertEqual(phase["owner_digest"],
                          hashlib.sha256(data.encode("utf-8")).hexdigest())
         self.assertEqual(order["phase_owner_digest"], phase["owner_digest"])
+        self.assertEqual(order["phase_count"], 2)
+        self.assertEqual(order["held_task_count"], 1)
         self.assertEqual(order["mode"], "parallel")
         self.assertEqual([t["reasoning_effort"] for t in order["tasks"]],
                          ["low", "low"])
@@ -75,6 +77,8 @@ class OwnerAuditedFirstWaveTests(unittest.TestCase):
         from_quota = quota._order(raw)
         self.assertEqual(quota.order_digest(from_quota), quota.order_digest(first))
         self.assertEqual(from_quota["phase_owner_digest"], meta["owner_digest"])
+        self.assertEqual((from_quota["phase_count"], from_quota["held_task_count"]),
+                         (2, 1))
         amended = phase_manifest()
         amended["audit"]["work_items"][2]["task"] = (
             "Verify changed bridge behavior after earlier work is accepted"
@@ -84,6 +88,24 @@ class OwnerAuditedFirstWaveTests(unittest.TestCase):
         self.assertEqual([x["id"] for x in first["tasks"]],
                          [x["id"] for x in after["tasks"]])
         self.assertNotEqual(quota.order_digest(first), quota.order_digest(after))
+
+    def test_quota_resume_preflight_keeps_pending_phase_metadata(self):
+        raw = json.dumps(phase_manifest(), ensure_ascii=False)
+        # quota.verify_resume uses quota._order for both checkpoint and
+        # authenticated dispatch; never recalculate from a missing webhook body.
+        order = quota._order(raw)
+        route = agent_switch.workflow_values(order, "2")
+        self.assertEqual((route["run_stage_1"], route["run_stage_2"]),
+                         ("false", "true"))
+        self.assertEqual(order["phase_count"], 2)
+        self.assertEqual(order["held_task_count"], 1)
+        self.assertEqual(order["phase_owner_digest"],
+                         hashlib.sha256(raw.encode("utf-8")).hexdigest())
+        workflow = (ROOT / ".github/workflows/agent-switch.yml").read_text()
+        for key in ("phase_count", "held_task_count", "phase_owner_digest"):
+            self.assertIn("order.get('" + key + "'", workflow)
+        self.assertIn("if order.get('phase_count', 1) > 1:", workflow)
+        self.assertIn("HOLD_FOR_CI_AND_REAUDIT", workflow)
 
     def test_resume_attested_worker_in_first_wave_never_replays_sibling(self):
         raw = json.dumps(phase_manifest())
