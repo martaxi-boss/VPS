@@ -95,7 +95,8 @@ class CoordinatorSmokeTests(unittest.TestCase):
         self.assertIn("VALIDATED_PLAN_NO_DISPATCH", text)
         self.assertIn('flock -n 8', text)
         self.assertIn('flock -n 9', text)
-        self.assertIn('> "$private/coordinator-result.json" 2>/dev/null', text)
+        self.assertIn('> "$private/coordinator-result.json"', text)
+        self.assertIn('2>"$private/coordinator-error.txt"', text)
         self.assertNotIn("gh issue create", text)
         self.assertNotIn("git push", text)
         self.assertNotIn("repository_dispatch", text)
@@ -136,10 +137,11 @@ class CoordinatorSmokeWorkflowTests(unittest.TestCase):
         rows = self.workflow.splitlines()
         blocks = 0
         for i, row in enumerate(rows):
-            if "<<'PY'" not in row and "<<'PY_EOF'" not in row:
+            if not any(marker in row for marker in ("<<'PY'", "<<'PY_EOF'", "<<'PY_DIAG'")):
                 continue
             indent = len(row) - len(row.lstrip(" "))
-            terminator = "PY_EOF" if "<<'PY_EOF'" in row else "PY"
+            terminator = ("PY_DIAG" if "<<'PY_DIAG'" in row else
+                          "PY_EOF" if "<<'PY_EOF'" in row else "PY")
             code = []
             for candidate in rows[i + 1:]:
                 if candidate.strip() == terminator:
@@ -150,7 +152,21 @@ class CoordinatorSmokeWorkflowTests(unittest.TestCase):
                 self.fail("Unterminated inline Python in workflow")
             compile("\n".join(code), "<coordinator-smoke-workflow>", "exec")
             blocks += 1
-        self.assertEqual(blocks, 2)
+        self.assertEqual(blocks, 3)
+
+    def test_failure_class_is_allowlisted_and_private_data_is_disposable(self):
+        text = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('refuse "$diagnostic"', text)
+        self.assertIn("diagnostic='MODEL_SCHEMA'", text)
+        self.assertIn("diagnostic='NO_FINDINGS'", text)
+        self.assertIn("COORDINATOR_SMOKE_REASON=%s", text)
+        self.assertIn('grep -qxF', text)
+        self.assertIn('"$workspace/validated"', text)
+        self.assertNotIn('"$root/validated-$job"', text)
+        self.assertNotIn('cat "$private/coordinator-error.txt"', text)
+        self.assertIn("coordinator_smoke_failure_class.txt", self.workflow)
+        self.assertIn("Diagnostic class:", self.workflow)
+        self.assertIn("UNCLASSIFIED", self.workflow)
 
     def test_no_model_logs_or_implementation_dispatch(self):
         self.assertIn('> "$output" 2>/dev/null', self.workflow)
