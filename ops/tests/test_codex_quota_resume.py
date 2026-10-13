@@ -336,5 +336,67 @@ class QuotaLifecycleTests(unittest.TestCase):
         self.assertIn("quota-watch:", watcher)
 
 
+    def test_owner_only_coordinator_stage_hold_writes_one_durable_record(self):
+        issue = {"number": 181, "state": "open",
+                 "title": "[coordinator run] Original Owner plan",
+                 "body": "The immutable plan with 2 workers",
+                 "user": {"login": q.OWNER}}
+        run = {"id": 564, "name": "Coordinator to existing Codex router (Owner order)",
+               "status": "in_progress", "repository": {"full_name": q.REPO}}
+        posted = []
+        def api(method, path, payload=None):
+            if method == "GET" and path == "/issues/181":
+                return issue
+            if method == "GET" and path == "/actions/runs/564":
+                return run
+            if method == "GET" and path.startswith("/issues/181/comments?"):
+                return []
+            if method == "POST" and path == "/issues/181/comments":
+                posted.append(payload["body"])
+                return {"id": 98}
+            if method == "POST" and path in ("/labels", "/issues/181/labels"):
+                return {"id": 1}
+            raise AssertionError((method, path))
+        with patch.object(q, "_api", side_effect=api):
+            meta = q.owner_only_hold(181, "p2-1", 564)
+        self.assertEqual(meta["resumption"], "REQUIRES_NEW_OWNER_ORDER")
+        self.assertEqual(meta["worker"], "p2-1")
+        self.assertEqual(meta["run_id"], 564)
+        self.assertEqual(len(posted), 1)
+        self.assertIn(q.HOLD_V2, posted[0])
+        self.assertNotIn("The immutable plan", posted[0])
+        self.assertNotIn("/dispatches", posted[0])
+
+    def test_owner_only_hold_rejects_unverified_issue_and_worker(self):
+        issue = {"number": 181, "state": "open",
+                 "title": "[coordinator run] Wrong owner", "body": "text",
+                 "user": {"login": "untrusted"}}
+        with patch.object(q, "_api", return_value=issue) as api:
+            with self.assertRaises(q.QuotaResumeError):
+                q.owner_only_hold(181, "p2-1", 564)
+            self.assertEqual(api.call_count, 1)
+        with patch.object(q, "_api") as api:
+            with self.assertRaises(q.QuotaResumeError):
+                q.owner_only_hold(181, "INVALID/WORKER", 564)
+            api.assert_not_called()
+
+    def test_quota_safe_hold_happens_before_private_owner_notice(self):
+        root = Path(__file__).resolve().parents[2]
+        flow = (root / ".github/workflows/codex-autonomous.yml").read_text()
+        stored = flow.index("Secure provider quota checkpoint before Supervisor delivery")
+        notice = flow.index("Passive Supervisor sends final publication state")
+        self.assertLess(stored, notice)
+        self.assertIn("codex_quota_resume.py hold", flow)
+        self.assertNotIn("Persist provider quota checkpoint (Owner Issue)", flow)
+        remote = (root / "ops/codex-autonomous-remote.sh").read_text()
+        quota = remote.index('codex_account_limits.py" read')
+        paid = remote.index('exec --model gpt-5.6-sol')
+        self.assertLess(quota, paid)
+        self.assertIn('CODEX_QUOTA_UNVERIFIED', remote)
+        self.assertIn('CODEX_QUOTA_BLOCKED', remote)
+        self.assertNotIn("scheduled retry", remote)
+
+
+
 if __name__ == "__main__":
     unittest.main()
