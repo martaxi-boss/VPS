@@ -153,6 +153,18 @@ def parse_order(raw: str) -> dict:
         order = json.loads(raw)
     except json.JSONDecodeError as exc:
         raise OrderError("Use one JSON task manifest") from exc
+    # Explicit Owner-audited work is compiled into the existing bounded router.
+    # The dispatcher itself chooses workers, mode, and effort from inspected
+    # paths/dependencies/severity, never from prompt keywords alone.
+    if isinstance(order, dict) and set(order) == {"target_repository", "audit"}:
+        try:
+            try:
+                from ops.codex_audit_strategy import compile_audit
+            except ModuleNotFoundError:
+                from codex_audit_strategy import compile_audit
+            order = compile_audit(order)
+        except ValueError as exc:
+            raise OrderError(str(exc)) from None
     required = {"target_repository", "mode", "tasks"}
     allowed = required | {"serial_independent"}
     if not isinstance(order, dict) or not required.issubset(order) or not set(order).issubset(allowed):
@@ -262,6 +274,7 @@ def workflow_values(order: dict) -> dict:
             "Active workflow supports one or two Codex workers only; "
             "the whole unsupported plan is blocked. No agent started"
         )
+    audited = str(any("AUDIT_ALLOWED_PATHS=" in t["task"] for t in tasks)).lower()
     if len(tasks) == 1:
         legacy = output_values(order)
         return {
@@ -269,6 +282,7 @@ def workflow_values(order: dict) -> dict:
             "task_count": "1",
             "mode": order["mode"],
             "serial_independent": "false",
+            "audit_managed": audited,
             "codex_1_task_b64": legacy["codex_task_b64"],
             "codex_2_task_b64": "",
             "allow_no_change_1": str(tasks[0].get("allow_no_change", False)).lower(),
@@ -311,6 +325,7 @@ def workflow_values(order: dict) -> dict:
         "task_count": "2",
         "mode": order["mode"],
         "serial_independent": str(order.get("serial_independent", False)).lower(),
+        "audit_managed": audited,
         "codex_1_task_b64": encoded[0],
         "codex_2_task_b64": encoded[1],
         "allow_no_change_1": str(tasks[0].get("allow_no_change", False)).lower(),

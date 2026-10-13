@@ -38,6 +38,7 @@ test -s "$base/codex-task.txt"
 test -f "$base/codex_patch_guard.py"
 test -f "$base/codex_resource_policy.py"
 test -f "$base/codex_quota_resume.py"
+test -f "$base/codex_audit_strategy.py"
 test -s "$base/codex-reasoning.txt"
 effort="$(cat "$base/codex-reasoning.txt")"
 case "$effort" in low|medium|high) ;; *) echo 'Invalid trusted Codex thinking level' >&2; exit 10 ;; esac
@@ -71,6 +72,14 @@ git clone --quiet --depth 1 --branch main -- "https://github.com/$slug.git" "$re
 head="$(git -C "$repo" rev-parse HEAD)"
 printf '%s\n' "$slug" > "$base/target.txt"
 printf '%s\n' "$head" > "$base/base-sha.txt"
+
+# The Manager audited an exact repository tree before dispatch. If that HEAD
+# moved, stop BEFORE consuming Codex tokens; the Manager must re-audit.
+if ! python3 "$base/codex_audit_strategy.py" verify_checkout "$base/codex-task.txt" "$head"; then
+  printf 'AUDIT_STALE_BLOCKED\n' > "$base/codex-preflight-signal.txt"
+  echo 'Audited source changed; no model started' >&2
+  exit 20
+fi
 
 # Reconstruct the canonical Project Leader Skill at one immutable revision.
 # This is a separate read-only clone; only the task target is mutable.
@@ -177,4 +186,6 @@ test -s "$report" || { echo 'Codex returned no report' >&2; exit 6; }
 
 # Independent mechanical guard rejects protected files, symlinks, secrets and oversized diffs.
 python3 "$base/codex_patch_guard.py" "$patch" > "$base/patch-metrics.txt"
+# Recheck the actual diff against the independent audited ownership contract.
+python3 "$base/codex_audit_strategy.py" verify_changed "$base/codex-task.txt" > "$base/audit-paths.txt"
 printf 'CODEX_EXECUTION_COMPLETE\n'

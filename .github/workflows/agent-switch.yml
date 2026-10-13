@@ -12,6 +12,8 @@ on:
       - '.github/workflows/agent-switch.yml'
       - '.github/workflows/codex-autonomous.yml'
       - 'ops/agent_switch.py'
+      - 'ops/codex_audit_strategy.py'
+      - 'ops/tests/test_codex_audit_strategy.py'
       - 'ops/tests/test_agent_switch.py'
       - 'ops/codex_resource_policy.py'
       - 'ops/tests/test_codex_resource_policy.py'
@@ -35,7 +37,8 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pinned v4
       - run: |
-          python3 -m py_compile ops/agent_switch.py
+          python3 -m py_compile ops/agent_switch.py ops/codex_audit_strategy.py
+          python3 -m unittest discover -s ops/tests -p test_codex_audit_strategy.py -v
           python3 -m unittest discover -s ops/tests -p test_agent_switch.py -v
           python3 -m unittest discover -s ops/tests -p test_codex_resource_policy.py -v
           python3 -m unittest discover -s ops/tests -p test_codex_quota_resume.py -v
@@ -60,6 +63,7 @@ jobs:
       task_count: ${{ steps.validate.outputs.task_count }}
       mode: ${{ steps.validate.outputs.mode }}
       serial_independent: ${{ steps.validate.outputs.serial_independent }}
+      audit_managed: ${{ steps.validate.outputs.audit_managed }}
       codex_1_task_b64: ${{ steps.validate.outputs.codex_1_task_b64 }}
       codex_2_task_b64: ${{ steps.validate.outputs.codex_2_task_b64 }}
       allow_no_change_1: ${{ steps.validate.outputs.allow_no_change_1 }}
@@ -158,7 +162,7 @@ jobs:
       task_b64: ${{ needs.preflight.outputs.codex_task_b64 }}
       issue_number: ${{ fromJSON(needs.preflight.outputs.issue_number) }}
       instance_id: ${{ needs.preflight.outputs.resume_stage }}
-      no_auto_merge: ${{ github.event_name == 'repository_dispatch' }}
+      no_auto_merge: ${{ github.event_name == 'repository_dispatch' || fromJSON(needs.preflight.outputs.audit_managed) }}
       allow_no_change: ${{ fromJSON(needs.preflight.outputs.allow_no_change_1) }}
       reasoning_effort: ${{ needs.preflight.outputs.codex_1_reasoning_effort }}
     secrets: inherit
