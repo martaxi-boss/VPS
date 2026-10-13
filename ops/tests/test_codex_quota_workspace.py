@@ -14,7 +14,9 @@ class WorktreeCheckpointTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.base = Path(self.temp.name) / "12345-1-p2-1"
+        self.home = Path(self.temp.name) / "owner-vps-home"
+        (self.home / "codex-bridge" / "jobs").mkdir(parents=True, mode=0o700)
+        self.base = self.home / "codex-bridge" / "jobs" / "12345-1-p2-1"
         self.base.mkdir(mode=0o700)
         self.repo = self.base / "repository"
         self.repo.mkdir()
@@ -66,6 +68,38 @@ class WorktreeCheckpointTests(unittest.TestCase):
         shutil.rmtree(self.repo)
         with self.assertRaisesRegex(hold.CheckpointError, "WORKTREE_UNAVAILABLE"):
             hold.attest(self.base, self.base.name)
+
+
+    def _run_cleanup(self):
+        import textwrap
+        flow = (Path(__file__).resolve().parents[2] /
+                ".github/workflows/codex-autonomous.yml").read_text()
+        section = flow.split("<<'REMOTE_QUOTA_SAFE_CLEANUP'\n", 1)[1].split(
+            "\n          REMOTE_QUOTA_SAFE_CLEANUP", 1)[0]
+        script = textwrap.dedent(section) + "\n"
+        result = subprocess.run(["bash", "-s", "--", self.base.name],
+                                input=script, text=True, capture_output=True,
+                                env={**os.environ, "HOME": str(self.home)},
+                                check=False, timeout=12)
+        return result
+
+    def test_actual_cleanup_preserves_all_real_quota_work_even_if_proof_failed(self):
+        (self.repo / "tracked.txt").write_text("Partial unsaved fix")
+        (self.repo / "new-file.txt").write_text("Brand new work")
+        result = self._run_cleanup()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("CODEX_QUOTA_PRIVATE_WORKSPACE_RETAINED=", result.stdout)
+        self.assertEqual((self.repo / "tracked.txt").read_text(), "Partial unsaved fix")
+        self.assertEqual((self.repo / "new-file.txt").read_text(), "Brand new work")
+        self.assertEqual(self.base.stat().st_mode & 0o777, 0o700)
+
+    def test_actual_cleanup_removes_only_nonquota_disposable_work(self):
+        (self.base / "codex-preflight-signal.txt").write_bytes(b"OTHER_ERROR\n")
+        result = self._run_cleanup()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("CODEX_DISPOSABLE_WORKSPACE_CLEANED", result.stdout)
+        self.assertFalse(self.base.exists())
+
 
 
 if __name__ == "__main__":
