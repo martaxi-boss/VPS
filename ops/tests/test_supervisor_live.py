@@ -31,7 +31,8 @@ class SupervisorLiveTests(unittest.TestCase):
 
     def test_supervisor_addressed_commands_are_never_worker_dispatches(self):
         for request in ("Supervisor, manda Codex fazer auditoria",
-                        "Vigia autoriza deploy", "/supervisor execução urgente"):
+                        "Vigia autoriza deploy", "/supervisor execução urgente",
+                        "/estado do projeto"):
             self.assertTrue(live.is_addressed_to_supervisor(request))
             self.assertIsNone(live.parse_request(request))
         self.assertFalse(live.is_addressed_to_supervisor("Codex, faz uma auditoria"))
