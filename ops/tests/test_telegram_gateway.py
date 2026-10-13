@@ -466,6 +466,37 @@ class TelegramGatewayTests(unittest.TestCase):
 
 
 
+    def test_final_notification_reports_trusted_stage_failure_without_private_model_text(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report = Path(directory) / "report.md"
+            report.write_text("PRIVATE_UNTRUSTED_MODEL_DATA", encoding="utf-8")
+            sample = {"CODEX_REPORT_MODE": "status", "CODEX_JOB_STATUS": "FAILED",
+                      "CODEX_REPORT_PATH": str(report), "CODEX_ISSUE_NUMBER": "181",
+                      "CODEX_RUN_URL": "https://github.com/martaxi-boss/VPS/actions/runs/123",
+                      "STAGE_OUTCOME": "success", "CODEX_OUTCOME": "failure",
+                      "ARTIFACTS_OUTCOME": "skipped", "PUBLISH_OUTCOME": "skipped"}
+            with (patch.dict(os.environ, sample, clear=True),
+                  patch.object(gateway, "BOT_TOKEN", "test"),
+                  patch.object(gateway, "CHAT_ID", "123456"),
+                  patch.object(gateway, "say") as send):
+                gateway.notify()
+                body = send.call_args.args[0]
+            self.assertIn("Codex: failure", body)
+            self.assertIn("Artefactos: skipped", body)
+            self.assertIn("https://github.com/martaxi-boss/VPS/actions/runs/123", body)
+            self.assertNotIn("PRIVATE_UNTRUSTED_MODEL_DATA", body)
+            self.assertNotIn("HUMAN_GATE", body)
+
+    def test_final_notification_does_not_interpolate_untrusted_runner_status(self):
+        env = {"CODEX_REPORT_MODE": "status", "CODEX_JOB_STATUS": "FAILED",
+               "CODEX_OUTCOME": "failure\nUNTRUSTED_RUN_CODEX_AGAIN"}
+        with (patch.dict(os.environ, env, clear=True),
+              patch.object(gateway, "BOT_TOKEN", "test"),
+              patch.object(gateway, "CHAT_ID", "123456"),
+              patch.object(gateway, "say") as send):
+            gateway.notify()
+            self.assertNotIn("UNTRUSTED_RUN_CODEX_AGAIN", send.call_args.args[0])
+
     def test_private_codex_status_distinguishes_staged_pr(self):
         self.assertIn('PR pronta para revisão', gateway.private_report_status('PR_STAGED'))
         self.assertIn('NÃO certificado', gateway.private_report_status('NO_CHANGE_UNVERIFIED'))

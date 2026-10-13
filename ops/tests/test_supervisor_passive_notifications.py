@@ -112,6 +112,91 @@ class PassiveSupervisorTests(unittest.TestCase):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, source)
 
+    def test_failed_codex_still_delivers_private_report_without_publisher_metadata(self):
+        """Run actual collection shell with offline fake scp: only report.md exists."""
+        import subprocess
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fake = root / "sshpass"
+            fake.write_text(
+                "#!/usr/bin/env python3\n"
+                "import sys\n"
+                "from pathlib import Path\n"
+                "if Path(sys.argv[-2]).name != 'report.md':\n"
+                "    sys.exit(1)\n"
+                "Path(sys.argv[-1]).write_text('HUMAN_GATE: worker report only.\\n')\n",
+                encoding="utf-8")
+            fake.chmod(0o700)
+            workflow = (Path(__file__).resolve().parents[2] /
+                        ".github/workflows/codex-autonomous.yml").read_text(encoding="utf-8")
+            collect = workflow.split(
+                "- name: Retrieve patch, provenance and private agent report", 1
+            )[1].split("- name: Passive Supervisor forwards Project Leader worker report", 1)[0]
+            script = collect.split("run: |\n", 1)[1]
+            commands = []
+            for line in script.splitlines():
+                if not line.startswith("          "):
+                    break
+                commands.append(line[10:])
+            self.assertTrue(commands)
+            runtime_env = {**os.environ,
+                           "PATH": str(root) + os.pathsep + os.environ["PATH"],
+                           "RUNNER_TEMP": str(root), "CODEX_INSTANCE_ID": "",
+                           "GITHUB_RUN_ID": "38414318007",
+                           "GITHUB_RUN_ATTEMPT": "1",
+                           "SSHPASS": "offline-placeholder"}
+            actual = subprocess.run(
+                ["bash", "-e", "-o", "pipefail", "-c", "\n".join(commands)],
+                env=runtime_env, capture_output=True, text=True, timeout=15)
+            self.assertEqual(actual.returncode, 0, actual.stderr)
+            self.assertTrue((root / "report.md").is_file())
+            self.assertFalse((root / "target.txt").exists())
+            self.assertFalse((root / "base-sha.txt").exists())
+            with (patch.dict(os.environ, env(root), clear=True),
+                  patch.object(telegram_gateway, "notify") as sent):
+                self.assertEqual(supervisor.observe_worker_event(), 0)
+                sent.assert_called_once_with()
+                self.assertIn("HUMAN_GATE: worker report only.",
+                              (root / "report.md").read_text(encoding="utf-8"))
+
+    def test_existing_publication_guards_run_only_after_private_handoff(self):
+        """A report alone cannot authorize publishing an incomplete workspace."""
+        import subprocess
+        workflow = (Path(__file__).resolve().parents[2] /
+                    ".github/workflows/codex-autonomous.yml").read_text(encoding="utf-8")
+        collected = workflow.index("- name: Retrieve patch, provenance and private agent report")
+        observer = workflow.index("- name: Passive Supervisor forwards Project Leader worker report")
+        gate = workflow.index("- name: Validate publisher artifacts after private worker report")
+        publisher = workflow.index("- name: Publish guarded PR, validate exact CI")
+        self.assertLess(collected, observer)
+        self.assertLess(observer, gate)
+        self.assertLess(gate, publisher)
+        section = workflow[gate:publisher]
+        self.assertIn("id: validate_artifacts", section)
+        self.assertIn("steps.codex.outcome == 'success'", section)
+        self.assertIn("steps.collect.outcome == 'success'", section)
+        self.assertIn("steps.validate_artifacts.outcome == 'success'", workflow[publisher:])
+        contents = section.split("run: |\n", 1)[1]
+        commands = []
+        for line in contents.splitlines():
+            if not line.startswith("          "):
+                break
+            commands.append(line[10:])
+        with tempfile.TemporaryDirectory() as directory:
+            runtime_env = {**os.environ, "RUNNER_TEMP": directory}
+            cmd = ["bash", "-e", "-o", "pipefail", "-c", "\n".join(commands)]
+            (Path(directory) / "report.md").write_text("Worker report\n")
+            denied = subprocess.run(cmd, env=runtime_env, capture_output=True,
+                                    text=True, timeout=5)
+            self.assertNotEqual(denied.returncode, 0)
+            for name in ("target.txt", "base-sha.txt", "codex-task.txt",
+                         "project-leader-runtime.json"):
+                (Path(directory) / name).write_text("synthetic\n", encoding="utf-8")
+            (Path(directory) / "patch.diff").write_bytes(b"")
+            allowed = subprocess.run(cmd, env=runtime_env, capture_output=True,
+                                     text=True, timeout=5)
+            self.assertEqual(allowed.returncode, 0, allowed.stderr)
+
     def test_original_worker_report_is_delivered_before_publisher_wait(self):
         workflow = (Path(__file__).resolve().parents[2] /
                     ".github/workflows/codex-autonomous.yml").read_text(
