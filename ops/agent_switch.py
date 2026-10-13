@@ -296,6 +296,13 @@ def parse_owner_envelope(raw: str) -> tuple[dict, dict | None]:
     order = parse_order(canonical)
     digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
     order["phase_owner_digest"] = digest
+    # Keep bounded reporting metadata in the authenticated normalized order,
+    # so quota continuation can report the same held phases without trusting
+    # dispatch payloads or fetching the Owner Issue a second time.
+    order["phase_count"] = phases["phase_count"]
+    order["held_task_count"] = sum(
+        len(phase["task_ids"]) for phase in phases["phases"][1:]
+    )
     return order, {
         "phase_count": phases["phase_count"],
         "active_task_ids": first["task_ids"],
