@@ -50,6 +50,7 @@ class CoordinatorAITests(unittest.TestCase):
         self.git("commit", "-qm", "fixture")
         self.git("remote", "add", "origin", "https://github.com/martaxi-boss/VPS.git")
         self.head = self.git("rev-parse", "HEAD").strip()
+        self.output = self.base / "private-results"
         self.codex = self.base / "codex"
         self.codex.write_text("#!/bin/sh\nexit 99\n", encoding="utf-8")
         self.codex.chmod(0o700)
