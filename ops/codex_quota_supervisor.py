@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Supervisor's factual private Telegram notice for real Codex quota samples.
+"""Independent, model-free Supervisor watch of the real ChatGPT Codex quota.
 
-Inputs are sanitized snapshots from the signed-in provider via
-ops/codex_account_limits.py, not estimates or a local token ledger.
+The Supervisor receives read-only provider snapshots, decides whether a real
+state transition happened, audits and privately notifies the Owner. It never
+needs a worker message, Codex inference tokens, or a virtual quota ledger.
 """
 from __future__ import annotations
 
@@ -67,6 +68,8 @@ def report(sample: dict, run_id: int) -> str:
             lines.append("Reposição indicada pela conta (UTC): " +
                          datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime(
                              "%Y-%m-%d %H:%M UTC") + ".")
+    lines.append("Deteção: vigilância autónoma do Supervisor com dados da conta real; "
+                 "não depende de mensagens dos trabalhadores nem de tokens do modelo.")
     lines.append("Intervenção: só o Owner decide quando dar nova ordem ou escolher outro meio.")
     lines.append("Esta observação não consome tokens de modelos.")
     lines.append("https://github.com/martaxi-boss/VPS/actions/runs/" + str(run_id))
@@ -74,7 +77,9 @@ def report(sample: dict, run_id: int) -> str:
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) != 4 or argv[1] != "notify":
+    # notify is retained as a compatible alias for existing offline tests.
+    # The scheduled live observer calls watch, never a Codex worker.
+    if len(argv) != 4 or argv[1] not in ("watch", "notify"):
         return 2
     try:
         sample = parse_sample(Path(argv[2]))
