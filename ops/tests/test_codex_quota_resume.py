@@ -380,6 +380,15 @@ class QuotaLifecycleTests(unittest.TestCase):
                 q.owner_only_hold(181, "INVALID/WORKER", 564)
             api.assert_not_called()
 
+    def test_quota_checkpoint_can_read_actual_github_actions_run(self):
+        flow = (Path(__file__).resolve().parents[2] /
+                ".github/workflows/codex-autonomous.yml").read_text()
+        worker = flow.split("  execute:", 1)[1].split("    steps:", 1)[0]
+        self.assertIn("      actions: read", worker)
+        self.assertIn("      issues: write", worker)
+        self.assertIn("      contents: read", worker)
+        self.assertNotIn("      actions: write", worker)
+
     def test_quota_safe_hold_happens_before_private_owner_notice(self):
         root = Path(__file__).resolve().parents[2]
         flow = (root / ".github/workflows/codex-autonomous.yml").read_text()
