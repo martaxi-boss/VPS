@@ -207,3 +207,18 @@ def parse_telegram_answer(text: str) -> tuple[str, int, str] | None:
         return None
     return ("RESOLVED" if found[1].lower() == "resolvido" else "REJECTED",
             int(found[2]), found[3])
+
+
+if __name__ == "__main__":
+    import sys
+    from pathlib import Path
+    try:
+        if len(sys.argv) != 3 or sys.argv[1] != "classify":
+            raise HumanGateError("Usage: codex_human_gate.py classify REPORT")
+        location = Path(sys.argv[2])
+        if not location.is_file() or location.is_symlink() or location.stat().st_size > 65536:
+            raise HumanGateError("Unsafe or oversized private Codex report")
+        print(classify_report(location.read_text(encoding="utf-8", errors="strict")))
+    except (HumanGateError, OSError, UnicodeError):
+        print("PROJECT_LEADER_GATE_SIGNAL_INVALID", file=sys.stderr)
+        raise SystemExit(4)
