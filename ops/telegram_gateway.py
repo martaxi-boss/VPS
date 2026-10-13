@@ -571,14 +571,24 @@ def notify():
     top += "Repositório: " + REPO + "\n"
     if issue:
         top += "https://github.com/" + REPO + "/issues/" + issue + "\n"
-    elif run_url:
+    if run_url:
         top += run_url + "\n"
     # The Supervisor sends the unmodified Project Leader worker report early,
     # then sends a separate short *trusted pipeline outcome* (no duplicate report).
     # It does not classify, authorize, create or resume Human Gates.
     mode = os.environ.get("CODEX_REPORT_MODE", "worker")
     if mode == "status":
-        say(top + "\nEstado final do pipeline. Consulta a tarefa no GitHub.")
+        # Trusted step outcomes only: no model report, Human Gate or dispatch.
+        stages = (("STAGE_OUTCOME", "VPS"),
+                  ("CODEX_OUTCOME", "Codex"),
+                  ("ARTIFACTS_OUTCOME", "Artefactos"),
+                  ("PUBLISH_OUTCOME", "Publicação/CI"))
+        allowed = {"success", "failure", "skipped", "cancelled"}
+        details = [label + ": " + os.environ[key]
+                   for key, label in stages if os.environ.get(key) in allowed]
+        suffix = ("\n" + "\n".join(details)) if details else ""
+        say(top + "\nEstado final do pipeline." + suffix +
+            "\nConsulta a tarefa no GitHub.")
         print("TELEGRAM_NOTIFY=SENT")
         return
     if mode != "worker":

@@ -256,14 +256,8 @@ jobs:
             sshpass -e scp -q -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
               -o ConnectTimeout=20 "$remote/$file" "$RUNNER_TEMP/$file" || true
           done
-          test -s "$RUNNER_TEMP/target.txt"
-          test -s "$RUNNER_TEMP/base-sha.txt"
-          test -s "$RUNNER_TEMP/codex-task.txt"
-          if [ '${{ steps.codex.outcome }}' = 'success' ]; then
-            test -s "$RUNNER_TEMP/project-leader-runtime.json" || { echo 'Missing pinned Project Leader runtime'; exit 13; }
-            test -s "$RUNNER_TEMP/report.md" || { echo 'Missing private Codex report; no publication'; exit 13; }
-          fi
-          test -f "$RUNNER_TEMP/patch.diff" || test '${{ steps.codex.outcome }}' != 'success'
+          # Best-effort retrieval must not suppress a completed private report.
+          # Original strict publication validation runs after observer.
 
       # The Project Leader worker already decided what its report says, including
       # whether it reached a genuine Human Gate. Do not parse or redefine it.
@@ -308,9 +302,23 @@ jobs:
             exit 1
           fi
 
+      # Publisher inputs remain mandatory; passive Supervisor never controls PRs.
+      - name: Validate publisher artifacts after private worker report
+        id: validate_artifacts
+        if: steps.codex.outcome == 'success' && steps.collect.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "$RUNNER_TEMP/target.txt"
+          test -s "$RUNNER_TEMP/base-sha.txt"
+          test -s "$RUNNER_TEMP/codex-task.txt"
+          test -s "$RUNNER_TEMP/project-leader-runtime.json" || { echo 'Missing pinned Project Leader runtime'; exit 13; }
+          test -s "$RUNNER_TEMP/report.md" || { echo 'Missing private Codex report; no publication'; exit 13; }
+          test -f "$RUNNER_TEMP/patch.diff" || { echo 'Missing patch; no publication'; exit 13; }
+
       - name: Publish guarded PR, validate exact CI, merge only if explicitly permitted
         id: publish
-        if: steps.codex.outcome == 'success' && steps.collect.outcome == 'success'
+        if: steps.validate_artifacts.outcome == 'success'
         env:
           CODEX_GITHUB_TOKEN: ${{ secrets.CODEX_GITHUB_TOKEN }}
           CODEX_JOB_DIR: ${{ runner.temp }}
@@ -381,6 +389,7 @@ jobs:
           CODEX_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           STAGE_OUTCOME: ${{ steps.stage.outcome }}
           CODEX_OUTCOME: ${{ steps.codex.outcome }}
+          ARTIFACTS_OUTCOME: ${{ steps.validate_artifacts.outcome }}
           PUBLISH_OUTCOME: ${{ steps.publish.outcome }}
         shell: bash
         run: |
@@ -409,7 +418,7 @@ jobs:
             )"
           elif test "$STAGE_OUTCOME" != 'success'; then
             CODEX_JOB_STATUS="NOT_STARTED"
-          elif test "$CODEX_OUTCOME" != 'success' || test "$PUBLISH_OUTCOME" = 'failure'; then
+          elif test "$CODEX_OUTCOME" != 'success' || test "$ARTIFACTS_OUTCOME" = 'failure' || test "$PUBLISH_OUTCOME" = 'failure'; then
             CODEX_JOB_STATUS="FAILED"
           fi
           export CODEX_JOB_STATUS
@@ -428,6 +437,7 @@ jobs:
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           STAGE_OUTCOME: ${{ steps.stage.outcome }}
           CODEX_OUTCOME: ${{ steps.codex.outcome }}
+          ARTIFACTS_OUTCOME: ${{ steps.validate_artifacts.outcome }}
           PUBLISH_OUTCOME: ${{ steps.publish.outcome }}
         shell: bash
         run: |
@@ -498,6 +508,7 @@ jobs:
                        'The pipeline stopped before trusted publication.',
                        'Stage: ' + os.environ['STAGE_OUTCOME'],
                        'Codex: ' + os.environ['CODEX_OUTCOME'],
+                       'Artifacts: ' + os.environ['ARTIFACTS_OUTCOME'],
                        'Publisher: ' + os.environ['PUBLISH_OUTCOME']]
           runtime_path = Path(os.environ['RUNNER_TEMP']) / 'project-leader-runtime.json'
           if runtime_path.exists():
