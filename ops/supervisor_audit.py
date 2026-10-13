@@ -61,11 +61,12 @@ def _worker_name(worker: str) -> str:
 def worker_report(*, issue: str, run_url: str, worker: str,
                   status: str, report: str) -> str:
     """Audit the *receipt*, length and hash; never decide worker Human Gates."""
-    if (type(report) is not str or not report.strip() or
-            len(report.encode("utf-8")) > 65536):
+    raw = report if type(report) is bytes else (
+        report.encode("utf-8") if type(report) is str else b"")
+    if not 1 <= len(raw) <= 65536 or not raw.strip():
         raise RuntimeError("Supervisor cannot certify an absent or oversized report")
     name = _worker_name(worker)
-    checksum = hashlib.sha256(report.encode("utf-8")).hexdigest()
+    checksum = hashlib.sha256(raw).hexdigest()
     result = ("relatório recebido, ainda sem certificação final do pipeline"
               if status == "WORKER_REPORT_RECEIVED"
               else "estado comunicado pelo trabalhador; verificar resultado do pipeline")
@@ -74,7 +75,7 @@ def worker_report(*, issue: str, run_url: str, worker: str,
         f"Origem: {name}, Project Leader do trabalhador.\n"
         f"Referência: {_provenance(issue, run_url)}\n"
         "Verificação: conteúdo privado recebido e íntegro nesta entrega; "
-        f"{len(report.encode('utf-8'))} bytes; SHA-256 {checksum[:16]}…\n"
+        f"{len(raw)} bytes; SHA-256 {checksum[:16]}…\n"
         f"Conclusão verificada: {result}.\n"
         "Human Gate: a decisão e o texto pertencem exclusivamente ao "
         "Project Leader original; o Supervisor não os altera nem os valida.\n"
@@ -86,8 +87,10 @@ def pipeline(*, issue: str, run_url: str, worker: str, status: str,
              steps: dict[str, str]) -> str:
     """Audit trusted CI step outcomes without reading the model's private text."""
     name = _worker_name(worker)
+    # Unknown values are never interpolated into a trusted Owner notice.
     if status not in _FINAL:
         # Existing direct tests also call notify with nonterminal shorthand.
+        status = "UNKNOWN"
         description = "estado ainda sem conclusão certificada"
     else:
         description = _FINAL[status]
