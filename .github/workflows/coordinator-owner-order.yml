@@ -5,6 +5,8 @@ name: Coordinator to existing Codex router (Owner order)
 on:
   issues:
     types: [opened]
+  repository_dispatch:
+    types: [coordinator_next_phase]
   pull_request:
     paths:
       - '.github/workflows/coordinator-owner-order.yml'
@@ -16,6 +18,8 @@ on:
       - 'ops/tests/test_coordinator_owner_routing.py'
       - 'ops/coordinator_supervisor.py'
       - 'ops/tests/test_coordinator_supervisor.py'
+      - 'ops/coordinator_phase_resume.py'
+      - 'ops/tests/test_coordinator_phase_resume.py'
 
 permissions: {}
 
@@ -33,28 +37,36 @@ jobs:
       - name: Validate gateway, router and smoke offline; no models or secrets
         run: |
           bash -n ops/coordinator-smoke-remote.sh
-          python3 -m py_compile ops/agent_switch.py ops/coordinator_ai.py ops/coordinator_supervisor.py
+          python3 -m py_compile ops/agent_switch.py ops/coordinator_ai.py ops/coordinator_supervisor.py ops/coordinator_phase_resume.py
+          python3 -m unittest discover -s ops/tests -p test_coordinator_phase_resume.py -v
           python3 -m unittest discover -s ops/tests -p test_coordinator_owner_routing.py -v
           python3 -m unittest discover -s ops/tests -p test_coordinator_smoke.py -v
           python3 -m unittest discover -s ops/tests -p test_coordinator_supervisor.py -v
 
   plan:
     if: >-
-      github.event_name == 'issues' &&
-      github.event.issue.user.login == github.repository_owner &&
-      startsWith(github.event.issue.title, '[coordinator run] ')
+      (github.event_name == 'issues' &&
+       github.event.issue.user.login == github.repository_owner &&
+       startsWith(github.event.issue.title, '[coordinator run] ')) ||
+      (github.event_name == 'repository_dispatch' &&
+       github.event.action == 'coordinator_next_phase')
     runs-on: ubuntu-24.04
     timeout-minutes: 50
     permissions:
       contents: read
       issues: write
     concurrency:
-      group: coordinator-issue-${{ github.event.issue.id }}
+      group: coordinator-issue-${{ github.event.issue.id || github.event.client_payload.source_issue }}
       cancel-in-progress: false
     outputs:
       coordinator_plan_b64: ${{ steps.invoke.outputs.coordinator_plan_b64 }}
       audited_sha: ${{ steps.invoke.outputs.audited_sha }}
       phase_count: ${{ steps.invoke.outputs.phase_count }}
+      owner_order_b64: ${{ steps.ordercheck.outputs.owner_order_b64 }}
+      source_issue: ${{ steps.ordercheck.outputs.issue_number }}
+      owner_issue_id: ${{ steps.ordercheck.outputs.issue_id }}
+      phase_index: ${{ steps.ordercheck.outputs.phase_index }}
+      max_phases: ${{ steps.ordercheck.outputs.max_phases || steps.invoke.outputs.phase_count }}
     steps:
       - name: Load reviewed Coordinator and dispatcher from main
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pinned v4
@@ -62,17 +74,40 @@ jobs:
           ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
 
-      - name: Validate Owner order and target publication access before using Codex
+      - name: Validate Owner order and one-time phase checkpoint before Codex
+        id: ordercheck
         shell: bash
         env:
           ORDER_BODY: ${{ github.event.issue.body }}
+          GH_TOKEN: ${{ github.token }}
           CODEX_GITHUB_TOKEN: ${{ secrets.CODEX_GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          RESUME_PAYLOAD: ${{ toJSON(github.event.client_payload) }}
+          ORIGINAL_ISSUE_ID: ${{ github.event.issue.id || '0' }}
+          ORIGINAL_ISSUE_NUMBER: ${{ github.event.issue.number || '0' }}
         run: |
           set -euo pipefail
           python3 - <<'PY_ORDER'
           import base64, json, os, re, urllib.error, urllib.request
           from pathlib import Path
-          body = os.environ.get('ORDER_BODY', '').strip()
+          if os.environ.get('EVENT_NAME') == 'repository_dispatch':
+              from ops import coordinator_phase_resume as resume
+              # Verify a durable GH-bot checkpoint, original Owner, merged
+              # SHA, successful previous run and one-time use BEFORE SSH/model.
+              verified = resume.verify_dispatch(
+                  json.loads(os.environ.get('RESUME_PAYLOAD', '{}')))
+              body = base64.b64decode(
+                  verified['owner_order_b64'], validate=True).decode('utf-8').strip()
+              owner_issue_id = verified['issue_id']
+              owner_issue_number = verified['issue_number']
+              current_phase = verified['phase_index']
+              maximum = verified['max_phases']
+          else:
+              body = os.environ.get('ORDER_BODY', '').strip()
+              owner_issue_id = int(os.environ.get('ORIGINAL_ISSUE_ID', '0'))
+              owner_issue_number = int(os.environ.get('ORIGINAL_ISSUE_NUMBER', '0'))
+              current_phase = 1
+              maximum = 0
           prefix = 'TARGET_REPOSITORY=martaxi-boss/Project-leader-codex'
           if (not body.startswith(prefix + '\n') or
                   not 50 <= len(body.encode('utf-8')) <= 8000 or
@@ -99,7 +134,18 @@ jobs:
           if not re.fullmatch(r'[A-Za-z0-9+/=]{20,11000}', encoded):
               raise SystemExit('COORDINATOR_ORDER_ENCODE_FAILED')
           (temp / 'coordinator_owner_order.b64').write_text(encoded, encoding='ascii')
-          print('COORDINATOR_OWNER_SCOPE_AND_TOKEN_VERIFIED')
+          if (not 1 <= current_phase <= 8 or
+                  not 1 <= owner_issue_id <= 10**16 or
+                  not 1 <= owner_issue_number <= 10**16):
+              raise SystemExit('COORDINATOR_ISSUE_IDENTITY_REFUSED')
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='ascii') as out:
+              out.write('owner_order_b64=' + encoded + '\n')
+              out.write('issue_id=' + str(owner_issue_id) + '\n')
+              out.write('issue_number=' + str(owner_issue_number) + '\n')
+              out.write('phase_index=' + str(current_phase) + '\n')
+              if maximum:
+                  out.write('max_phases=' + str(maximum) + '\n')
+          print('COORDINATOR_OWNER_SCOPE_AND_PHASE_VERIFIED')
           PY_ORDER
           bash -n ops/coordinator-smoke-remote.sh
 
@@ -131,11 +177,12 @@ jobs:
         shell: bash
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
-          OWNER_ISSUE_ID: ${{ github.event.issue.id }}
+          OWNER_ISSUE_ID: ${{ steps.ordercheck.outputs.issue_id }}
+          PHASE_INDEX: ${{ steps.ordercheck.outputs.phase_index }}
         run: |
           set -euo pipefail
-          job="$OWNER_ISSUE_ID-1"
-          [[ "$job" =~ ^[1-9][0-9]{7,14}-1$ ]] || exit 12
+          job="$OWNER_ISSUE_ID-$PHASE_INDEX"
+          [[ "$job" =~ ^[1-9][0-9]{7,14}-[1-8]$ ]] || exit 12
           order_b64="$(cat "$RUNNER_TEMP/coordinator_owner_order.b64")"
           [[ "$order_b64" =~ ^[A-Za-z0-9+/=]{20,11000}$ ]] || exit 12
           output="$RUNNER_TEMP/coordinator_owner_audit.txt"
@@ -185,7 +232,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_NUMBER: ${{ steps.ordercheck.outputs.issue_number }}
           PLAN_OUTCOME: ${{ steps.invoke.outcome }}
           PLAN_SHA: ${{ steps.invoke.outputs.audited_sha }}
           PHASE_COUNT: ${{ steps.invoke.outputs.phase_count }}
@@ -216,6 +263,7 @@ jobs:
     uses: ./.github/workflows/agent-switch.yml
     with:
       coordinator_plan_b64: ${{ needs.plan.outputs.coordinator_plan_b64 }}
+      coordinator_owner_order_b64: ${{ needs.plan.outputs.owner_order_b64 }}
     secrets: inherit
 
   # This is a deterministic independent Project Leader Supervisor gate.
@@ -224,15 +272,17 @@ jobs:
     needs: [plan, dispatch]
     if: >-
       always() &&
-      github.event_name == 'issues' &&
-      github.event.issue.user.login == github.repository_owner &&
-      startsWith(github.event.issue.title, '[coordinator run] ') &&
+      ((github.event_name == 'issues' &&
+        github.event.issue.user.login == github.repository_owner &&
+        startsWith(github.event.issue.title, '[coordinator run] ')) ||
+       (github.event_name == 'repository_dispatch' &&
+        github.event.action == 'coordinator_next_phase')) &&
       needs.plan.result == 'success' &&
       needs.dispatch.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     permissions:
-      contents: read
+      contents: write
       issues: write
     steps:
       - name: Load reviewed independent Project Leader Supervisor from main
@@ -246,8 +296,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           CODEX_GITHUB_TOKEN: ${{ secrets.CODEX_GITHUB_TOKEN }}
-          OWNER_ISSUE: ${{ github.event.issue.number }}
+          OWNER_ISSUE: ${{ needs.plan.outputs.source_issue }}
           OWNER_RUN: ${{ github.run_id }}
+          OWNER_PHASE_INDEX: ${{ needs.plan.outputs.phase_index }}
+          OWNER_MAX_PHASES: ${{ needs.plan.outputs.max_phases }}
           WORKER_COUNT: ${{ needs.dispatch.outputs.task_count }}
           PHASE_COUNT: ${{ needs.dispatch.outputs.phase_count }}
           CANONICAL_SHA: ${{ needs.dispatch.outputs.worker_1_canonical_sha }}
