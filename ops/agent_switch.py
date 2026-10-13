@@ -261,7 +261,7 @@ def output_values(order: dict) -> dict:
 
 
 
-def workflow_values(order: dict) -> dict:
+def workflow_values(order: dict, resume_stage: str = "") -> dict:
     """Bounded trusted router for one or two verified Codex workers.
 
     The versioned dispatch_plan remains provider-neutral; the active backend
@@ -274,6 +274,15 @@ def workflow_values(order: dict) -> dict:
             "Active workflow supports one or two Codex workers only; "
             "the whole unsupported plan is blocked. No agent started"
         )
+    # A quota continuation is a single *stage* lease, not authorization to
+    # replay the original whole serial/parallel order. Validate this before
+    # generating any Actions outputs, including for a single worker.
+    if type(resume_stage) is not str or resume_stage not in ("", "1", "2"):
+        raise OrderError("Unrecognized quota continuation stage; no agent started")
+    if resume_stage == "2" and len(tasks) != 2:
+        raise OrderError("Second stage is unavailable in this Owner order")
+    run_stage_1 = str(resume_stage in ("", "1")).lower()
+    run_stage_2 = str(len(tasks) == 2 and resume_stage in ("", "2")).lower()
     audited = str(any("AUDIT_ALLOWED_PATHS=" in t["task"] for t in tasks)).lower()
     if len(tasks) == 1:
         legacy = output_values(order)
@@ -281,6 +290,8 @@ def workflow_values(order: dict) -> dict:
             **legacy,
             "task_count": "1",
             "mode": order["mode"],
+            "run_stage_1": run_stage_1,
+            "run_stage_2": run_stage_2,
             "serial_independent": "false",
             "audit_managed": audited,
             "codex_1_task_b64": legacy["codex_task_b64"],
@@ -324,6 +335,8 @@ def workflow_values(order: dict) -> dict:
         "dispatch_plan_b64": dispatch_plan_b64(order),
         "task_count": "2",
         "mode": order["mode"],
+        "run_stage_1": run_stage_1,
+        "run_stage_2": run_stage_2,
         "serial_independent": str(order.get("serial_independent", False)).lower(),
         "audit_managed": audited,
         "codex_1_task_b64": encoded[0],
