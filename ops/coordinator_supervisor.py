@@ -10,6 +10,10 @@ No API key, raw model report, or untrusted Issue body enters a worker.
 from __future__ import annotations
 
 from dataclasses import dataclass
+try:
+    from ops import coordinator_phase_resume as continuation
+except ModuleNotFoundError:
+    import coordinator_phase_resume as continuation
 import json
 import os
 import re
@@ -403,10 +407,6 @@ def main() -> int:
         else:
             # A new read-only Coordinator audit is required for each held
             # phase. Never dispatch Codex workers against the old Git HEAD.
-            try:
-                from ops import coordinator_phase_resume as continuation
-            except ModuleNotFoundError:
-                import coordinator_phase_resume as continuation
             continuation.request_next(issue, run, index, maximum,
                                       result["merge_sha"])
         outputs = os.environ.get("GITHUB_OUTPUT", "")
@@ -415,7 +415,7 @@ def main() -> int:
                 out.write("phase_status=" + result["status"] + "\n")
                 out.write("merged_sha=" + result["merge_sha"] + "\n")
         return 0
-    except SupervisorHold as exc:
+    except (SupervisorHold, continuation.PhaseHold) as exc:
         print("PROJECT_LEADER_SUPERVISOR=RECOVERY_REQUIRED:" + exc.code, flush=True)
         # Never publish raw model text, paths, credentials or exception detail.
         return 2
