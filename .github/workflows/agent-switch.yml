@@ -12,6 +12,8 @@ on:
       - '.github/workflows/agent-switch.yml'
       - '.github/workflows/codex-autonomous.yml'
       - 'ops/agent_switch.py'
+      - 'ops/codex_audit_strategy.py'
+      - 'ops/tests/test_codex_audit_strategy.py'
       - 'ops/tests/test_agent_switch.py'
       - 'ops/codex_resource_policy.py'
       - 'ops/tests/test_codex_resource_policy.py'
@@ -35,7 +37,8 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pinned v4
       - run: |
-          python3 -m py_compile ops/agent_switch.py
+          python3 -m py_compile ops/agent_switch.py ops/codex_audit_strategy.py
+          python3 -m unittest discover -s ops/tests -p test_codex_audit_strategy.py -v
           python3 -m unittest discover -s ops/tests -p test_agent_switch.py -v
           python3 -m unittest discover -s ops/tests -p test_codex_resource_policy.py -v
           python3 -m unittest discover -s ops/tests -p test_codex_quota_resume.py -v
