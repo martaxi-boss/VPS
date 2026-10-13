@@ -202,7 +202,7 @@ jobs:
                          'workers will run. Final status comes from verified results.')
               if order.get('phase_count', 1) > 1:
                   message += (' PHASE 1/' + str(order['phase_count']) +
-                              ' only; remaining tasks HOLD_FOR_CI_AND_REAUDIT (' +
+                              ' only; remaining tasks HOLD_FOR_CI_AND_NEXT_PHASE (' +
                               str(order['held_task_count']) + ' pending).' +
                               ' Owner order SHA-256: ' + order['phase_owner_digest'])
               state.write_text(message, encoding='utf-8')
