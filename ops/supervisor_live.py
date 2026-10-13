@@ -77,7 +77,8 @@ def is_addressed_to_supervisor(text: str) -> bool:
     if not isinstance(text, str):
         return False
     plain = _plain(text.strip())
-    return bool(re.match(r"^/?(?:supervisor|vigia)(?:[,:;.!?\s]|$)", plain))
+    return bool(re.match(r"^(?:/(?:supervisor|vigia|estado)|(?:supervisor|vigia))"
+                         r"(?:[,:;.!?\s]|$)", plain))
 
 
 def _get(gh, path: str):
