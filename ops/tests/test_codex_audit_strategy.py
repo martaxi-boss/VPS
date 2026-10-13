@@ -13,6 +13,7 @@ from ops import codex_audit_strategy as strategy
 
 # Keep coordinator regression tests inside the already-required offline CI suite.
 from ops.tests.test_coordinator_ai import CoordinatorAITests  # noqa: F401
+from ops.tests.test_coordinator_smoke import CoordinatorSmokeTests  # noqa: F401
 
 PIN = "f342346ef8b648118abbcc24ece860e1b9ea08af"
 

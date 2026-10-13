@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+# Explicit, read-only Coordinator AI smoke test for the existing Codex VPS.
+# This script is never an issue, Telegram, or workflow trigger by itself.
+set -Eeuo pipefail
+set +x
+umask 077
+
+refuse() {
+  printf '%s\n' 'COORDINATOR_SMOKE_STATUS=REFUSED' >&2
+  exit 12
+}
+
+if [ "$#" -ne 1 ] || [[ ! "$1" =~ ^[1-9][0-9]{7,14}-[1-9][0-9]{0,3}$ ]]; then
+  refuse
+fi
+job="$1"
+
+# Use the already-authenticated account and the same two worker slots.
+bridge="$HOME/codex-bridge"
+root="$bridge/.coordinator-smoke"
+cli="$HOME/codex-agent/node_modules/.bin/codex"
+slug='martaxi-boss/Project-leader-codex'
+control_slug='martaxi-boss/VPS'
+canonical_slug='martaxi-boss/Project-leader'
+
+[ -d "$bridge" ] && [ ! -L "$bridge" ] || refuse
+[ -x "$cli" ] && command -v flock >/dev/null 2>&1 || refuse
+[ -z "${OPENAI_API_KEY:-}" ] && [ -z "${CODEX_API_KEY:-}" ] || refuse
+
+# No chmod of an existing directory; require it to be already owner-only.
+if [ -e "$root" ] || [ -L "$root" ]; then
+  [ -d "$root" ] && [ ! -L "$root" ] || refuse
+else
+  mkdir -m 700 -- "$root" || refuse
+fi
+[ "$(stat -c '%u' -- "$root")" = "$(id -u)" ] || refuse
+[ "$(stat -c '%a' -- "$root")" = '700' ] || refuse
+
+workspace="$root/$job"
+[ ! -e "$workspace" ] && [ ! -L "$workspace" ] || refuse
+
+# Atomic, persistent anti-replay marker: a given Actions job is never started twice.
+( set -C; : > "$root/.started-$job" ) 2>/dev/null || refuse
+mkdir -m 700 -- "$workspace" || refuse
+trap 'rm -rf -- "$workspace"' EXIT
+
+control="$workspace/control"
+target="$workspace/target"
+canonical="$workspace/canonical"
+private="$workspace/proof"
+mkdir -m 700 -- "$private"
+
+# Do not spend a model turn when both account slots are occupied.
+exec 8>"$bridge/.codex-slot-1.lock"
+exec 9>"$bridge/.codex-slot-2.lock"
+if flock -n 8; then
+  :
+elif flock -n 9; then
+  :
+else
+  refuse
+fi
+
+# Fixed HTTPS targets, no user-controlled source, path, branch or ref.
+# Hide Git stderr: neither remote details nor tokens belong in public logs.
+git clone -q --depth 1 --single-branch --branch main -- \
+  "https://github.com/$control_slug.git" "$control" >/dev/null 2>&1 || refuse
+git clone -q --depth 1 --single-branch --branch main -- \
+  "https://github.com/$slug.git" "$target" >/dev/null 2>&1 || refuse
+git clone -q --depth 1 --single-branch --branch main -- \
+  "https://github.com/$canonical_slug.git" "$canonical" >/dev/null 2>&1 || refuse
+
+for pair in "$control|$control_slug" "$target|$slug" "$canonical|$canonical_slug"; do
+  checkout="${pair%%|*}"
+  repo="${pair#*|}"
+  [ "$(git -C "$checkout" remote get-url origin)" = "https://github.com/$repo.git" ] || refuse
+  [ "$(git -C "$checkout" symbolic-ref --short HEAD)" = main ] || refuse
+  [ -z "$(git -C "$checkout" status --porcelain --untracked-files=all)" ] || refuse
+done
+head="$(git -C "$target" rev-parse HEAD)"
+[[ "$head" =~ ^[0-9a-f]{40}$ ]] || refuse
+
+# The host supplies canonical rules proof using the already-reviewed loader.
+python3 "$control/ops/codex-project-leader-bootstrap.py" \
+  "$canonical" "$slug" "$head" "$private/project-leader-rules.md" \
+  "$private/project-leader-runtime.json" >/dev/null 2>&1 || refuse
+rules_digest="$(sha256sum -- "$private/project-leader-rules.md")"
+rules_digest="${rules_digest%% *}"
+[[ "$rules_digest" =~ ^[0-9a-f]{64}$ ]] || refuse
+
+# Explicit, bounded document-only order. Coordinator AI is read-only, never
+# dispatches workers, creates Issues/PRs, or modifies the target checkout.
+order='Audit the existing Project-leader-codex documentation only. Inspect real tracked files and report one concrete verifiable documentation defect with its exact file path, if found. Do not invent findings, make changes, or dispatch agents.'
+
+# Raw model output, including the private path, is NEVER sent to Actions logs.
+python3 "$control/ops/coordinator_ai.py" \
+  --order "$order" --checkout "$target" \
+  --rules-file "$private/project-leader-rules.md" \
+  --runtime-file "$private/project-leader-runtime.json" \
+  --rules-sha256 "$rules_digest" \
+  --output-dir "$root/validated-$job" \
+  --codex "$cli" > "$private/coordinator-result.json" 2>/dev/null || refuse
+
+# Independently re-validate the private model output and print allowlisted
+# metrics only. No prompts, arbitrary model strings or local paths are logged.
+python3 - "$private/coordinator-result.json" "$root/validated-$job" \
+  "$control" "$slug" "$head" <<'PY'
+import json
+from pathlib import Path
+import stat
+import sys
+
+result_path, output_dir, control, target, head = sys.argv[1:]
+try:
+    report = json.loads(Path(result_path).read_text(encoding="utf-8"))
+    if (not isinstance(report, dict) or
+            report.get("status") != "VALIDATED_PLAN_NO_DISPATCH" or
+            report.get("target_repository") != target or
+            report.get("revision") != head):
+        raise ValueError("Invalid coordinator report")
+    directory = Path(output_dir).resolve(strict=True)
+    file = Path(report["output_file"]).resolve(strict=True)
+    if (file.parent != directory or
+            not stat.S_ISREG(file.stat().st_mode) or
+            file.stat().st_size > 24_000 or
+            file.stat().st_mode & 0o077):
+        raise ValueError("Unsafe private result")
+    sys.path.insert(0, str(Path(control) / "ops"))
+    from codex_audit_strategy import plan_phases
+    payload = json.loads(file.read_text(encoding="utf-8"))
+    plan = plan_phases(payload)
+    first = plan["phases"][0]
+    if (plan["target_repository"] != target or
+            plan["audited_revision"] != head or
+            report.get("first_phase_workers") != first["worker_count"] or
+            report.get("first_phase_mode") != first["mode"] or
+            not 1 <= plan["phase_count"] <= 8 or
+            first["worker_count"] not in (1, 2) or
+            first["mode"] not in ("serial", "parallel")):
+        raise ValueError("Inconsistent coordinator result")
+except (OSError, ValueError, KeyError, TypeError, AssertionError, IndexError):
+    raise SystemExit(13)
+print("COORDINATOR_SMOKE_STATUS=PASS")
+print("TARGET_REPOSITORY=" + target)
+print("TARGET_SHA=" + head)
+print("PHASE_COUNT=" + str(plan["phase_count"]))
+print("FIRST_PHASE_WORKERS=" + str(first["worker_count"]))
+print("FIRST_PHASE_MODE=" + first["mode"])
+PY
