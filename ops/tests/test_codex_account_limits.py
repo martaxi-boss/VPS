@@ -21,7 +21,7 @@ class RateLimitProbeTests(unittest.TestCase):
                                            "resetsAt": reset},
                                "secondary": {"usedPercent": 24,
                                              "windowDurationMins": 10080,
-                                             "resetsAt": reset + 600},
+                                             "resetsAt": reset + 600 if type(reset) is int else reset},
                                "rateLimitReachedType": None}}
 
     def test_true_codex_bucket_from_real_protocol_not_synthetic_ledger(self):
@@ -65,7 +65,7 @@ class RateLimitProbeTests(unittest.TestCase):
         fake = r'''#!/usr/bin/env python3
 import json, sys
 if sys.argv[1:] == ["login", "status"]:
-    print("Logged in using ChatGPT")
+    print("Logged in using ChatGPT", file=sys.stderr)
     raise SystemExit(0)
 if sys.argv[1:] != ["app-server", "--stdio"]:
     raise SystemExit(45)
