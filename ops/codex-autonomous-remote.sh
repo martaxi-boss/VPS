@@ -38,6 +38,7 @@ test -s "$base/codex-task.txt"
 test -f "$base/codex_patch_guard.py"
 test -f "$base/codex_resource_policy.py"
 test -f "$base/codex_quota_resume.py"
+test -f "$base/codex_account_limits.py"
 test -f "$base/codex_audit_strategy.py"
 test -s "$base/codex-reasoning.txt"
 effort="$(cat "$base/codex-reasoning.txt")"
@@ -57,6 +58,39 @@ if [ "$auth_status" != 'Logged in using ChatGPT' ] ||
   exit 3
 fi
 printf 'CODEX_AUTH_MODE=CHATGPT\n'
+# Read the actual signed-in ChatGPT Codex quota before any model call.
+# The app-server account/rateLimits/read RPC consumes zero inference tokens.
+set +e
+python3 "$base/codex_account_limits.py" read "$cli" > "$base/provider-quota.json"
+quota_read_code=$?
+set -e
+if [ "$quota_read_code" -ne 0 ]; then
+  printf 'CODEX_QUOTA_UNVERIFIED\n' > "$base/codex-preflight-signal.txt"
+  echo 'CODEX_ACCOUNT_QUOTA_UNVERIFIED=SAFE_HOLD; no model started' >&2
+  exit 76
+fi
+quota_status="$(python3 - "$base/provider-quota.json" <<'PY_QUOTA'
+import json, sys
+from pathlib import Path
+value = json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
+if value.get('source') != 'codex_app_server' or value.get('auth') != 'chatgpt':
+    raise SystemExit(3)
+status = value.get('status')
+if status not in {'AVAILABLE', 'BLOCKED'}:
+    raise SystemExit(3)
+print(status)
+PY_QUOTA
+)" || {
+  printf 'CODEX_QUOTA_UNVERIFIED\n' > "$base/codex-preflight-signal.txt"
+  echo 'CODEX_PROVIDER_QUOTA_RESPONSE_UNVERIFIED=SAFE_HOLD' >&2
+  exit 76
+}
+if [ "$quota_status" = BLOCKED ]; then
+  printf 'CODEX_QUOTA_BLOCKED\n' > "$base/codex-preflight-signal.txt"
+  echo 'CODEX_REAL_CHATGPT_QUOTA=BLOCKED; waiting for Owner decision, no model started' >&2
+  exit 75
+fi
+echo 'CODEX_REAL_CHATGPT_QUOTA=AVAILABLE; provider snapshot validated'
 
 IFS= read -r header < "$base/codex-task.txt" || :
 case "$header" in
@@ -181,7 +215,7 @@ PY
 
 if [ "$code" -ne 0 ]; then
   # Only a genuine quota error emitted by the signed-in provider triggers
-  # future re-dispatch. Do not classify generic 429s, crashes or model prose.
+  # Owner-only resumption. Never auto-dispatch on a clock or a local estimate.
   state="$(python3 "$base/codex_quota_resume.py" classify "$base/cli.jsonl" "$base/cli.stderr")" || exit 18
   if [ "$state" = "QUOTA_BLOCKED" ]; then
     printf 'CODEX_QUOTA_BLOCKED\n' > "$base/codex-preflight-signal.txt"

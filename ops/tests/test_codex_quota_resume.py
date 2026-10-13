@@ -303,76 +303,99 @@ class QuotaLifecycleTests(unittest.TestCase):
         self.assertEqual(len(posted), 1)
         self.assertTrue(posted[0].startswith(q.STARTED + "\n"))
 
-    def test_workflow_calls_real_cli_scan_entrypoint_and_interpolates_token(self):
-        with patch.object(q, "schedule_due", return_value=0) as scheduler:
+    def test_legacy_scan_is_harmless_and_never_calls_dispatch(self):
+        with patch.object(q, "schedule_due") as schedule, patch.object(q, "_api") as api:
             self.assertEqual(q.main(["ops/codex_quota_resume.py", "scan"]), 0)
-            scheduler.assert_called_once()
+            schedule.assert_not_called()
+            api.assert_not_called()
         workflow = (Path(__file__).resolve().parents[2] /
                     ".github/workflows/codex-quota-watch.yml").read_text()
-        self.assertIn("python3 ops/codex_quota_resume.py scan", workflow)
-        self.assertIn("GH_TOKEN: ${{ github.token }}", workflow)
-        self.assertIn("ref: ${{ github.event.repository.default_branch }}", workflow)
-        self.assertNotIn(r"\${{", workflow)
+        self.assertNotIn("python3 ops/codex_quota_resume.py scan", workflow)
+        self.assertIn("ops.codex_quota_supervisor notify", workflow)
+        self.assertIn("ops/codex_account_limits.py", workflow)
+        self.assertIn("ref: " + "$" + "{{ github.event.repository.default_branch }}", workflow)
+        self.assertNotIn("\\" + "$" + "{{", workflow)
 
-    def test_scheduler_paginates_past_historical_label_backlog(self):
+    def test_legacy_scheduler_with_due_checkpoint_cannot_dispatch(self):
+        # Even a valid overdue checkpoint cannot silently create a worker.
         rows = [self.comment(q.PAUSE, self.pause, 77)]
+        self.assertEqual(len(q.due_pauses(rows, now=self.clock)), 1)
+        with patch.object(q, "_api") as api:
+            with self.assertRaisesRegex(q.QuotaResumeError, "OWNER_ONLY"):
+                q.schedule_due(now=self.clock)
+            api.assert_not_called()
+
+    def test_workflow_no_repository_dispatch_trigger_after_quota_reset(self):
+        source = (Path(__file__).resolve().parents[2] /
+                  ".github/workflows/agent-switch.yml").read_text()
+        trigger = source.split("on:", 1)[1].split("permissions:", 1)[0]
+        self.assertNotIn("repository_dispatch:", trigger)
+        watcher = (Path(__file__).resolve().parents[2] /
+                   ".github/workflows/codex-quota-watch.yml").read_text()
+        self.assertNotIn("/dispatches", watcher)
+        self.assertIn("quota-watch:", watcher)
+
+
+    def test_owner_only_coordinator_stage_hold_writes_one_durable_record(self):
+        issue = {"number": 181, "state": "open",
+                 "title": "[coordinator run] Original Owner plan",
+                 "body": "The immutable plan with 2 workers",
+                 "user": {"login": q.OWNER}}
+        run = {"id": 564, "name": "Coordinator to existing Codex router (Owner order)",
+               "status": "in_progress", "repository": {"full_name": q.REPO}}
         posted = []
-        background = [{"pull_request": {"url": "example"}, "user": {"login": q.OWNER}}
-                      for _ in range(100)]
         def api(method, path, payload=None):
-            if method == "GET" and path.startswith("/issues?"):
-                from urllib.parse import parse_qs, urlparse
-                page = int(parse_qs(urlparse(path).query)["page"][0])
-                if page in (1, 2, 3):
-                    return background
-                return [self.owner_issue]
-            if path == "/issues/154":
-                return self.owner_issue
-            if path.startswith("/issues/154/comments?"):
-                return rows
-            if path == "/actions/runs/42":
-                return {"id": 42, "name": "Agent switch (Owner GitHub order)",
-                        "status": "completed", "conclusion": "failure"}
-            if method == "POST" and path == "/issues/154/comments":
-                posted.append(path)
-                return {"id": 78}
-            if method == "POST" and path == "/dispatches":
-                posted.append(path)
-                return {}
+            if method == "GET" and path == "/issues/181":
+                return issue
+            if method == "GET" and path == "/actions/runs/564":
+                return run
+            if method == "GET" and path.startswith("/issues/181/comments?"):
+                return []
+            if method == "POST" and path == "/issues/181/comments":
+                posted.append(payload["body"])
+                return {"id": 98}
+            if method == "POST" and path in ("/labels", "/issues/181/labels"):
+                return {"id": 1}
             raise AssertionError((method, path))
         with patch.object(q, "_api", side_effect=api):
-            self.assertEqual(q.schedule_due(now=self.clock), 1)
-        self.assertEqual(posted, ["/issues/154/comments", "/dispatches"])
+            meta = q.owner_only_hold(181, "p2-1", 564)
+        self.assertEqual(meta["resumption"], "REQUIRES_NEW_OWNER_ORDER")
+        self.assertEqual(meta["worker"], "p2-1")
+        self.assertEqual(meta["run_id"], 564)
+        self.assertEqual(len(posted), 1)
+        self.assertIn(q.HOLD_V2, posted[0])
+        self.assertNotIn("The immutable plan", posted[0])
+        self.assertNotIn("/dispatches", posted[0])
 
-    def test_scheduler_claims_before_dispatch_and_never_duplicates(self):
-        rows = [self.comment(q.PAUSE, self.pause, 77)]
-        dispatched = []
-        def api(method, path, payload=None):
-            if path.startswith("/issues?"):
-                return [self.owner_issue] if "page=1" in path else []
-            if path == "/issues/154":
-                return self.owner_issue
-            if path.startswith("/issues/154/comments?"):
-                return rows
-            if path == "/actions/runs/42":
-                return {"id": 42, "name": "Agent switch (Owner GitHub order)",
-                        "status": "completed", "conclusion": "failure"}
-            if method == "POST" and path == "/issues/154/comments":
-                row = self.comment(q.CLAIM, json.loads(
-                    payload["body"].split("\n", 1)[1]), 78)
-                rows.append(row)
-                return {"id": 78}
-            if method == "POST" and path == "/dispatches":
-                dispatched.append(payload)
-                return {}
-            raise AssertionError((method, path))
-        with patch.object(q, "_api", side_effect=api):
-            self.assertEqual(q.schedule_due(now=self.clock), 1)
-            self.assertEqual(q.schedule_due(now=self.clock), 0)
-        self.assertEqual(len(dispatched), 1)
-        payload = dispatched[0]["client_payload"]
-        self.assertEqual(payload["stage"], 2)
-        self.assertEqual(payload["claim_comment"], 78)
+    def test_owner_only_hold_rejects_unverified_issue_and_worker(self):
+        issue = {"number": 181, "state": "open",
+                 "title": "[coordinator run] Wrong owner", "body": "text",
+                 "user": {"login": "untrusted"}}
+        with patch.object(q, "_api", return_value=issue) as api:
+            with self.assertRaises(q.QuotaResumeError):
+                q.owner_only_hold(181, "p2-1", 564)
+            self.assertEqual(api.call_count, 1)
+        with patch.object(q, "_api") as api:
+            with self.assertRaises(q.QuotaResumeError):
+                q.owner_only_hold(181, "INVALID/WORKER", 564)
+            api.assert_not_called()
+
+    def test_quota_safe_hold_happens_before_private_owner_notice(self):
+        root = Path(__file__).resolve().parents[2]
+        flow = (root / ".github/workflows/codex-autonomous.yml").read_text()
+        stored = flow.index("Secure provider quota checkpoint before Supervisor delivery")
+        notice = flow.index("Passive Supervisor sends final publication state")
+        self.assertLess(stored, notice)
+        self.assertIn("codex_quota_resume.py hold", flow)
+        self.assertNotIn("Persist provider quota checkpoint (Owner Issue)", flow)
+        remote = (root / "ops/codex-autonomous-remote.sh").read_text()
+        quota = remote.index('codex_account_limits.py" read')
+        paid = remote.index('exec --model gpt-5.6-sol')
+        self.assertLess(quota, paid)
+        self.assertIn('CODEX_QUOTA_UNVERIFIED', remote)
+        self.assertIn('CODEX_QUOTA_BLOCKED', remote)
+        self.assertNotIn("scheduled retry", remote)
+
 
 
 if __name__ == "__main__":

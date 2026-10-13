@@ -472,7 +472,7 @@ class NoChangeAndQueueSafetyTests(unittest.TestCase):
         self.assertIn('> "$base/codex-preflight-signal.txt"', remote)
         self.assertLess(remote.index('codex-preflight-signal.txt'),
                         remote.index('"$cli" exec'))
-        self.assertIn('project-leader-runtime.json report.md codex-preflight-signal.txt; do', flow)
+        self.assertIn('project-leader-runtime.json report.md codex-preflight-signal.txt provider-quota.json; do', flow)
         self.assertIn("signal_path.stat().st_size <= 64", flow)
         self.assertIn("signal_path.is_symlink()", flow)
         self.assertIn("b'LOCAL_LEDGER_PREFLIGHT_FAILED", flow)
@@ -484,7 +484,7 @@ class NoChangeAndQueueSafetyTests(unittest.TestCase):
         self.assertIn("else ('NOT_STARTED'", flow)
         self.assertIn("if signal is not None or os.environ.get('STAGE_OUTCOME') != 'success'", flow)
         self.assertIn("else 'NOT_COMPLETED')", flow)
-        self.assertIn("Provider-reported Codex quota exhausted", flow)
+        self.assertIn("Real signed-in ChatGPT Codex quota exhausted", flow)
         self.assertIn("no model started.", flow)
         self.assertNotIn("cli.stderr", flow)
         self.assertNotIn("usage-budget.json", flow)
@@ -502,9 +502,10 @@ class NoChangeAndQueueSafetyTests(unittest.TestCase):
                         call.index("--sandbox workspace-write"))
 
     def test_chatgpt_login_status_from_stderr_and_api_denial(self):
-        # Official Codex CLI v0.162.1 prints "Logged in using ChatGPT"
-        # through eprintln!, not stdout. Verify the actual shell preflight
-        # against a fake CLI: this test never contacts Codex or the VPS.
+        # Real Codex prints login status via stderr. The test verifies the
+        # actual quota preflight through an offline fake app-server, never
+        # touching real ChatGPT usage or any OAuth credentials.
+        from shutil import copyfile
         remote = (OPS / "codex-autonomous-remote.sh").read_text(
             encoding="utf-8")
         begin = remote.index('auth_status="$("$cli" login status')
@@ -515,19 +516,38 @@ class NoChangeAndQueueSafetyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             fake = root / "fake-codex"
+            copyfile(OPS / "codex_account_limits.py", root / "codex_account_limits.py")
             script = ('set -Eeuo pipefail\n'
                       'cli="$FAKE_CLI"\nbase="$FAKE_BASE"\n' + snippet + '\n')
             env = dict(os.environ)
             env.pop("OPENAI_API_KEY", None)
             env.pop("CODEX_API_KEY", None)
             env.update(FAKE_CLI=str(fake), FAKE_BASE=str(root))
-            fake.write_text("#!/bin/sh\nprintf 'Logged in using ChatGPT\\n' >&2\n",
-                            encoding="utf-8")
+            fake.write_text(
+                '#!/usr/bin/env python3\n'
+                'import json, sys\n'
+                'if sys.argv[1:] == ["login", "status"]:\n'
+                '    print("Logged in using ChatGPT", file=sys.stderr)\n'
+                'elif sys.argv[1:] == ["app-server", "--stdio"]:\n'
+                '    for line in sys.stdin:\n'
+                '        cmd=json.loads(line); number=cmd.get("id")\n'
+                '        if number is None: continue\n'
+                '        if number==1: value={}\n'
+                '        elif number==2: value={"account":{"type":"chatgpt"}}\n'
+                '        elif number==3: value={"ordinaryUsageAllowed":True,"rateLimits":{\n'
+                '            "limitId":"codex","primary":{"usedPercent":1,\n'
+                '            "windowDurationMins":300,"resetsAt":1823456789}}}\n'
+                '        else: raise SystemExit(3)\n'
+                '        print(json.dumps({"id":number,"result":value}),flush=True)\n'
+                'else:\n'
+                '    raise SystemExit(3)\n',
+                encoding="utf-8")
             fake.chmod(0o700)
             good = subprocess.run(["bash", "-c", script], text=True,
                                   capture_output=True, env=env, check=False)
             self.assertEqual(good.returncode, 0, good.stderr)
             self.assertIn("CODEX_AUTH_MODE=CHATGPT", good.stdout)
+            self.assertIn("CODEX_REAL_CHATGPT_QUOTA=AVAILABLE", good.stdout)
             self.assertNotIn("Logged in using ChatGPT", good.stdout)
             fake.write_text("#!/bin/sh\nprintf 'Logged in using an API key - abc123\\n' >&2\n",
                             encoding="utf-8")
@@ -577,7 +597,7 @@ class DirectIssueInputDefaultsTests(unittest.TestCase):
 class PrivateOwnerReportDeliveryTests(unittest.TestCase):
     def test_private_report_is_fetched_and_delivered_using_existing_gateway(self):
         flow = (OPS.parent / '.github/workflows/codex-autonomous.yml').read_text(encoding='utf-8')
-        self.assertIn('project-leader-runtime.json report.md codex-preflight-signal.txt; do', flow)
+        self.assertIn('project-leader-runtime.json report.md codex-preflight-signal.txt provider-quota.json; do', flow)
         self.assertEqual(flow.count('python3 ops/coordinator_supervisor.py observe'), 2)
         self.assertNotIn('python3 ops/telegram_gateway.py notify', flow)
         self.assertLess(flow.index('Passive Supervisor forwards Project Leader worker report'),

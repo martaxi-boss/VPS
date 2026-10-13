@@ -2,15 +2,23 @@ name: Codex quota continuation (Owner checkpoints only)
 
 on:
   schedule:
-    # Hourly metadata scan uses no Codex models; retries obey 2h-24h backoff.
+    # Hourly ChatGPT-account quota read uses NO model tokens or automatic retry.
     - cron: '17 * * * *'
   workflow_dispatch:
+  issues:
+    types: [opened]
   pull_request:
     paths:
       - '.github/workflows/codex-quota-watch.yml'
       - '.github/workflows/agent-switch.yml'
       - '.github/workflows/codex-autonomous.yml'
       - 'ops/codex_quota_resume.py'
+      - 'ops/codex_account_limits.py'
+      - 'ops/codex_quota_supervisor.py'
+      - 'ops/supervisor_audit.py'
+      - 'ops/codex-autonomous-remote.sh'
+      - 'ops/tests/test_codex_account_limits.py'
+      - 'ops/tests/test_codex_quota_supervisor.py'
       - 'ops/tests/test_codex_quota_resume.py'
 
 permissions: {}
@@ -32,30 +40,131 @@ jobs:
           persist-credentials: false
       - name: Validate quota state machine without external writes or models
         run: |
-          python3 -m py_compile ops/codex_quota_resume.py
+          python3 -m py_compile ops/codex_quota_resume.py ops/codex_account_limits.py ops/codex_quota_supervisor.py
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s ops/tests -p test_codex_account_limits.py -v
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s ops/tests -p test_codex_quota_supervisor.py -v
           PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
             -s ops/tests -p test_codex_quota_resume.py -v
           bash -n ops/codex-autonomous-remote.sh
 
   quota-watch:
     if: >-
-      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
-      github.repository == 'martaxi-boss/VPS'
+      github.repository == 'martaxi-boss/VPS' &&
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'issues' &&
+        github.event.issue.user.login == github.repository_owner &&
+        startsWith(github.event.issue.title, '[quota status] ')))
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 10
     permissions:
-      contents: write
-      issues: write
-      actions: read
+      contents: read
     steps:
-      - name: Use only the trusted default branch
+      - name: Load reviewed quota observer from default branch
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
-      - name: Dispatch at most three attested due stages; never guess quota
-        env:
-          GH_TOKEN: ${{ github.token }}
+
+      - name: Pin the existing Owner-observed VPS SSH host identity
+        shell: bash
         run: |
           set -euo pipefail
-          python3 ops/codex_quota_resume.py scan
+          known_hosts="$RUNNER_TEMP/quota-known-hosts"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known_hosts" ||
+            { echo 'QUOTA_HOST_UNAVAILABLE'; exit 2; }
+          chmod 600 "$known_hosts"
+          actual="$(ssh-keygen -lf "$known_hosts" -E sha256 | awk '{print $2}')"
+          test "$actual" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ||
+            { echo 'QUOTA_VPS_HOST_UNVERIFIED'; exit 2; }
+          ssh-keygen -F 146.59.145.3 -f "$known_hosts" >/dev/null
+
+      - name: Prepare existing secure SSH path without model calls
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS" || { echo 'VPS_SSH_UNAVAILABLE'; exit 2; }
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+
+      - name: Read real ChatGPT account quota using VPS Codex app-server only
+        id: sample
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ops/codex_account_limits.py ops/codex_quota_supervisor.py
+          remote='ubuntu@146.59.145.3'
+          known_hosts="$RUNNER_TEMP/quota-known-hosts"
+          opts=(-T -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$known_hosts"
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519
+            -o ConnectTimeout=20 -o ServerAliveInterval=10 -o ServerAliveCountMax=2)
+          set +e
+          sshpass -e ssh "${opts[@]}" "$remote" \
+            'python3 - read /home/ubuntu/codex-agent/node_modules/.bin/codex' \
+            < ops/codex_account_limits.py > "$RUNNER_TEMP/quota-sample.json"
+          code=$?
+          set -e
+          if [ "$code" -ne 0 ] && [ "$code" -ne 3 ]; then
+            printf '%s\n' '{"version":1,"source":"codex_app_server","auth":"unverified","status":"UNKNOWN","reason":"VPS_TRANSPORT_UNVERIFIED","owner_resumption":"REQUIRES_NEW_OWNER_ORDER"}' > "$RUNNER_TEMP/quota-sample.json"
+          fi
+          python3 - "$RUNNER_TEMP/quota-sample.json" "$GITHUB_OUTPUT" <<'PY'
+          import sys
+          from pathlib import Path
+          from ops.codex_quota_supervisor import parse_sample
+          data = parse_sample(Path(sys.argv[1]))
+          with open(sys.argv[2], 'a', encoding='ascii') as out:
+              out.write('provider_status=' + data['status'] + '\n')
+          print('REAL_CHATGPT_CODEX_QUOTA=' + data['status'])
+          PY
+          set +e
+          sshpass -e ssh "${opts[@]}" "$remote" \
+            'test -f /home/ubuntu/codex-bridge/.quota-monitor/last-sent && test ! -L /home/ubuntu/codex-bridge/.quota-monitor/last-sent && head -c 16 /home/ubuntu/codex-bridge/.quota-monitor/last-sent' \
+            > "$RUNNER_TEMP/quota-previous.txt"
+          prior=$?
+          set -e
+          if [ "$prior" -ne 0 ]; then
+            : > "$RUNNER_TEMP/quota-previous.txt"
+          fi
+          previous="$(tr -d '\n' < "$RUNNER_TEMP/quota-previous.txt")"
+          case "$previous" in ''|AVAILABLE|BLOCKED|UNKNOWN) ;; *)
+            echo 'QUOTA_PREVIOUS_INVALID'; exit 3;; esac
+          printf 'previous_status=%s\n' "$previous" >> "$GITHUB_OUTPUT"
+
+      - name: Supervisor audits and sends factual quota transition via Telegram
+        id: notify
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          QUOTA_FORCE_TEST: ${{ github.event_name == 'issues' && '1' || '0' }}
+          PREVIOUS_STATUS: ${{ steps.sample.outputs.previous_status }}
+        run: |
+          set -euo pipefail
+          set +e
+          python3 -m ops.codex_quota_supervisor notify \
+            "$RUNNER_TEMP/quota-sample.json" "$PREVIOUS_STATUS"
+          code=$?
+          set -e
+          case "$code" in
+            0) printf 'notice=delivered\n' >> "$GITHUB_OUTPUT";;
+            11) printf 'notice=unchanged\n' >> "$GITHUB_OUTPUT";;
+            *) echo 'QUOTA_SUPERVISOR_DELIVERY_UNVERIFIED'; exit 3;;
+          esac
+
+      - name: Remember the last notification only AFTER real Telegram delivery
+        if: steps.notify.outputs.notice == 'delivered'
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+          STATUS: ${{ steps.sample.outputs.provider_status }}
+        run: |
+          set -euo pipefail
+          case "$STATUS" in AVAILABLE|BLOCKED|UNKNOWN) ;; *)
+            echo 'INVALID_QUOTA_RESULT'; exit 3;; esac
+          sshpass -e ssh -T -o StrictHostKeyChecking=yes \
+            -o "UserKnownHostsFile=$RUNNER_TEMP/quota-known-hosts" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 ubuntu@146.59.145.3 \
+            "install -d -m 700 /home/ubuntu/codex-bridge/.quota-monitor && printf '%s\n' '$STATUS' > /home/ubuntu/codex-bridge/.quota-monitor/last-sent && chmod 600 /home/ubuntu/codex-bridge/.quota-monitor/last-sent"
+          echo 'REAL_QUOTA_STATE_ACKNOWLEDGED'

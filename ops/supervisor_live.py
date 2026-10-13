@@ -37,6 +37,7 @@ OUTCOMES = {
 WORKER_STATES = {
     "MERGED", "NO_CHANGE", "PR_STAGED", "PR_NEEDS_ATTENTION",
     "NO_CHANGE_UNVERIFIED", "NOT_STARTED", "NOT_COMPLETED", "FAILED",
+    "PAUSED_QUOTA", "QUOTA_UNVERIFIED",
 }
 RUN_LINK = re.compile(r"https://github\.com/martaxi-boss/VPS/actions/runs/([1-9][0-9]{0,15})")
 
@@ -135,6 +136,8 @@ def _progress(rows: list[dict]) -> tuple[str, int | None, int | None]:
                 "NOT_STARTED": "trabalhador não iniciado",
                 "NOT_COMPLETED": "execução não concluída",
                 "FAILED": "execução falhou",
+                "PAUSED_QUOTA": "quota real atingida; aguardando decisão do Owner",
+                "QUOTA_UNVERIFIED": "quota real não verificada; execução protegida",
             }.get(match.group(1), "validação ou revisão pendente")
     return state, phases, run
 

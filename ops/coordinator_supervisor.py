@@ -65,7 +65,8 @@ def observe_worker_event() -> int:
     elif category == "FINAL_STATE":
         if mode != "status" or status not in {
             "MERGED", "NO_CHANGE", "PR_STAGED", "PR_NEEDS_ATTENTION",
-            "NO_CHANGE_UNVERIFIED", "NOT_STARTED", "NOT_COMPLETED", "FAILED"
+            "NO_CHANGE_UNVERIFIED", "NOT_STARTED", "NOT_COMPLETED", "FAILED",
+            "PAUSED_QUOTA", "QUOTA_UNVERIFIED"
         }:
             print("PROJECT_LEADER_SUPERVISOR_NOTICE=INVALID_FINAL_STATE")
             return 2

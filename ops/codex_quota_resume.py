@@ -27,6 +27,7 @@ READY = "<!-- CODEX_STAGE_READY_V1 -->"
 CLAIM = "<!-- CODEX_QUOTA_CLAIM_V1 -->"
 STARTED = "<!-- CODEX_QUOTA_STARTED_V1 -->"
 LABEL = "codex-quota-paused"
+HOLD_V2 = "<!-- CODEX_PROVIDER_QUOTA_HOLD_OWNER_ONLY_V2 -->"
 MAX_COMMENTS = 500
 MAX_ISSUES = 10_000  # Fail closed rather than silently losing any older paused issue
 ERROR_CODES = {"insufficient_quota", "usage_limit_reached",
@@ -377,60 +378,68 @@ def due_pauses(rows: list, *, now: int) -> list[dict]:
 
 
 def schedule_due(*, now: int | None = None) -> int:
-    clock = int(time.time()) if now is None else now
-    sent = 0
-    for page in range(1, MAX_ISSUES // 100 + 1):
-        records = _api("GET", f"/issues?state=open&labels={LABEL}&per_page=100&page={page}")
-        if not isinstance(records, list):
-            raise QuotaResumeError("Invalid paused issue listing")
-        for current in records:
-            if current.get("pull_request") or current.get("user", {}).get("login") != OWNER:
-                continue
-            number = current.get("number")
-            if type(number) is not int or number <= 0:
-                continue
-            try:
-                owned = issue(number)
-                order = _order(owned.get("body", ""))
-                candidates = due_pauses(comments(number), now=clock)
-            except (QuotaResumeError, ValueError):
-                continue
-            for paused in candidates:
-                if sent >= 3:
-                    return sent
-                if (not _valid_stage(order, paused["stage"]) or
-                        paused.get("source_issue") != number or
-                        paused.get("order_digest") != order_digest(order)):
-                    continue
-                run_id = paused["run_id"]
-                run = _api("GET", "/actions/runs/" + str(run_id))
-                expected = "success" if paused["_source_kind"] == "ready" else "failure"
-                if (run.get("status") != "completed" or run.get("conclusion") != expected or
-                        run.get("name") != "Agent switch (Owner GitHub order)"):
-                    continue
-                claim = {"version": 1, "source_issue": number,
-                         "stage": paused["stage"], "run_id": run_id,
-                         "attempt": paused["attempt"] + 1,
-                         "claimed_at": clock}
-                result = _api("POST", f"/issues/{number}/comments",
-                              {"body": CLAIM + "\n" + json.dumps(claim, sort_keys=True, separators=(",", ":"))})
-                comment_id = result.get("id")
-                if type(comment_id) is not int:
-                    raise QuotaResumeError("Dispatch claim not durable; refuse dispatch")
-                _api("POST", "/dispatches", {
-                    "event_type": "codex_quota_resume",
-                    "client_payload": {"source_issue": number,
-                                       "stage": paused["stage"],
-                                       "paused_run": run_id,
-                                       "attempt": paused["attempt"] + 1,
-                                       "claim_comment": comment_id},
-                })
-                sent += 1
-        if len(records) < 100:
-            break
-        if page == MAX_ISSUES // 100:
-            raise QuotaResumeError("Unbounded quota backlog; no silent truncation")
-    return sent
+    """Legacy automatic dispatch prohibited: only a new Owner order may resume.
+
+    Existing authenticated checkpoints remain durable evidence of paused
+    stages, but no internal timer, retry lease or quota reset is authorization.
+    """
+    raise QuotaResumeError("QUOTA_AUTO_RESUME_DISABLED_OWNER_ONLY")
+
+
+
+def owner_only_hold(source: int, worker: str, run_id: int) -> dict:
+    """Durably freeze ANY authenticated Owner task, including Coordinator DAGs.
+
+    The record permits NO automatic model execution or resumed dispatch.
+    The Owner must issue a separate new authenticated instruction.
+    """
+    if (type(source) is not int or not 0 < source < 10**9 or
+            type(run_id) is not int or not 0 < run_id < 10**16 or
+            not isinstance(worker, str) or
+            not re.fullmatch(r"(?:[12]|p[2-8]-[12])", worker)):
+        raise QuotaResumeError("Quota hold identity unavailable")
+    item = _api("GET", "/issues/" + str(source))
+    if (not isinstance(item, dict) or item.get("number") != source
+            or item.get("pull_request") or item.get("state") != "open"
+            or (item.get("user") or {}).get("login") != OWNER
+            or not any(str(item.get("title", "")).startswith(prefix)
+                       for prefix in ("[agents run]", "[coordinator run] ",
+                                      "[codex run]", "[codex audit] "))):
+        raise QuotaResumeError("Authenticated original Owner order unavailable")
+    body = item.get("body")
+    if type(body) is not str or not body.strip():
+        raise QuotaResumeError("Original Owner instruction unavailable")
+    run = _api("GET", "/actions/runs/" + str(run_id))
+    if (not isinstance(run, dict) or run.get("id") != run_id or
+            run.get("name") not in (
+                "Agent switch (Owner GitHub order)",
+                "Coordinator to existing Codex router (Owner order)",
+                "Codex autonomous execution (Owner-authorized)",
+                "Codex - ChatGPT bridge") or
+            (run.get("repository") or {}).get("full_name") != REPO):
+        raise QuotaResumeError("Worker source execution could not be verified")
+    metadata = {
+        "version": 2, "source_issue": source,
+        "run_id": run_id, "worker": worker, "source": "codex_provider_quota",
+        "owner_order_sha256": hashlib.sha256(body.encode("utf-8")).hexdigest(),
+        "resumption": "REQUIRES_NEW_OWNER_ORDER",
+    }
+    note = HOLD_V2 + "\n" + json.dumps(
+        metadata, sort_keys=True, separators=(",", ":"))
+    historical = comments(source)
+    prior = parsed_comments(historical, HOLD_V2)
+    similar = [x for x in prior if
+               x.get("run_id") == run_id and x.get("worker") == worker]
+    if similar:
+        if len(similar) != 1 or any(
+                similar[0].get(key) != value for key, value in metadata.items()):
+            raise QuotaResumeError("Quota checkpoint differs from original Owner order")
+    else:
+        saved = _api("POST", f"/issues/{source}/comments", {"body": note})
+        if type(saved.get("id")) is not int:
+            raise QuotaResumeError("Quota checkpoint not confirmed")
+    _ensure_label(source)
+    return metadata
 
 
 def main(argv: list[str]) -> int:
@@ -448,8 +457,13 @@ def main(argv: list[str]) -> int:
                 int(argv[2]), int(argv[3]), Path(argv[4]))
             print("SERIAL_NEXT_STAGE_READY=" + ("YES" if advanced else "NO"))
             return 0
+        if len(argv) == 5 and argv[1] == "hold":
+            meta = owner_only_hold(int(argv[2]), argv[3], int(argv[4]))
+            print("QUOTA_OWNER_ONLY_CHECKPOINT_SAVED=" + meta["worker"])
+            return 0
         if len(argv) == 2 and argv[1] == "scan":
-            print("QUOTA_RESUMES_DISPATCHED=" + str(schedule_due()))
+            # Keep old entrypoint harmless for external scheduled callers.
+            print("QUOTA_AUTO_RESUME=DISABLED_OWNER_DECIDES")
             return 0
     except (QuotaResumeError, ValueError, OSError):
         print("QUOTA_LIFECYCLE_FAIL_CLOSED", file=sys.stderr)

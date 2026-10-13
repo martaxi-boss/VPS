@@ -145,7 +145,7 @@ jobs:
           print('Owner task/target/GitHub write access verified. No token printed.')
           PY
           bash -n ops/codex-autonomous-remote.sh
-          python3 -m py_compile ops/codex-autonomous-publish.py ops/codex_patch_guard.py ops/codex-project-leader-bootstrap.py ops/codex_quota_resume.py ops/codex_audit_strategy.py
+          python3 -m py_compile ops/codex-autonomous-publish.py ops/codex_patch_guard.py ops/codex-project-leader-bootstrap.py ops/codex_quota_resume.py ops/codex_account_limits.py ops/codex_audit_strategy.py
 
       - name: Verify actual Git branch publication permission without model calls
         shell: bash
@@ -224,7 +224,7 @@ jobs:
           sshpass -e scp -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
             "$RUNNER_TEMP/codex-task.txt" "$RUNNER_TEMP/codex-reasoning.txt" \
             ops/codex-autonomous-remote.sh ops/codex_resource_policy.py \
-            ops/codex_quota_resume.py ops/codex_audit_strategy.py \
+            ops/codex_quota_resume.py ops/codex_account_limits.py ops/codex_audit_strategy.py \
             ops/codex_patch_guard.py \
             ops/codex-project-leader-bootstrap.py "$remote:$dest/"
 
@@ -253,12 +253,34 @@ jobs:
           case "$CODEX_INSTANCE_ID" in ''|1|2|p[2-8]-[12]) ;; *) echo 'Invalid Codex worker identity' >&2; exit 12;; esac
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT${CODEX_INSTANCE_ID:+-$CODEX_INSTANCE_ID}"
           remote="ubuntu@146.59.145.3:/home/ubuntu/codex-bridge/jobs/$job"
-          for file in patch.diff target.txt base-sha.txt codex-task.txt usage.json project-leader-runtime.json report.md codex-preflight-signal.txt; do
+          for file in patch.diff target.txt base-sha.txt codex-task.txt usage.json project-leader-runtime.json report.md codex-preflight-signal.txt provider-quota.json; do
             sshpass -e scp -q -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
               -o ConnectTimeout=20 "$remote/$file" "$RUNNER_TEMP/$file" || true
           done
           # Best-effort retrieval must not suppress a completed private report.
           # Original strict publication validation runs after observer.
+
+      - name: Secure provider quota checkpoint before Supervisor delivery
+        id: quota_hold
+        if: always() && steps.codex.outcome == 'failure' && steps.collect.outcome == 'success'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ORIGINAL_ISSUE: ${{ inputs.issue_number || github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          signal="$RUNNER_TEMP/codex-preflight-signal.txt"
+          if ! test -f "$signal" || test -L "$signal" ||
+             [ "$(cat "$signal")" != 'CODEX_QUOTA_BLOCKED' ]; then
+            echo 'QUOTA_HOLD=NOT_APPLICABLE'
+            exit 0
+          fi
+          [[ "$ORIGINAL_ISSUE" =~ ^[1-9][0-9]*$ ]] || exit 3
+          case "$CODEX_INSTANCE_ID" in ''|1|2|p[2-8]-[12]) ;; *)
+            echo 'QUOTA_WORKER_ID_INVALID'; exit 3;; esac
+          worker="${CODEX_INSTANCE_ID:-1}"
+          python3 ops/codex_quota_resume.py hold "$ORIGINAL_ISSUE" "$worker" "$GITHUB_RUN_ID"
+          echo 'QUOTA_HOLD=OWNER_ONLY_PERSISTED'
 
       # The Project Leader worker already decided what its report says, including
       # whether it reached a genuine Human Gate. Do not parse or redefine it.
@@ -407,7 +429,17 @@ jobs:
             exit 1
           fi
           CODEX_JOB_STATUS="NOT_COMPLETED"
-          if test -s "$RUNNER_TEMP/codex-result.json"; then
+          signal=""
+          if test -f "$RUNNER_TEMP/codex-preflight-signal.txt" &&
+             ! test -L "$RUNNER_TEMP/codex-preflight-signal.txt"; then
+            signal="$(cat "$RUNNER_TEMP/codex-preflight-signal.txt")"
+          fi
+          if [ "$signal" = CODEX_QUOTA_BLOCKED ] &&
+             [ "${{ steps.quota_hold.outcome }}" = success ]; then
+            CODEX_JOB_STATUS="PAUSED_QUOTA"
+          elif [ "$signal" = CODEX_QUOTA_UNVERIFIED ]; then
+            CODEX_JOB_STATUS="QUOTA_UNVERIFIED"
+          elif test -s "$RUNNER_TEMP/codex-result.json"; then
             CODEX_JOB_STATUS="$(python3 - <<'PY_STATUS'
           import json, os
           from pathlib import Path
@@ -491,7 +523,9 @@ jobs:
                       b'GITHUB_PUBLISH_PERMISSION_MISSING\n':
                           'GitHub publisher cannot create an authorized target branch; no model started.',
                       b'CODEX_QUOTA_BLOCKED\n':
-                          'Provider-reported Codex quota exhausted; this phase is paused for a safely validated scheduled retry.',
+                          'Real signed-in ChatGPT Codex quota exhausted; safe hold; Owner must issue a new order before any continuation.',
+                      b'CODEX_QUOTA_UNVERIFIED\n':
+                          'The real ChatGPT Codex quota cannot be verified; held safely without starting models.',
                       b'AUDIT_STALE_BLOCKED\n':
                           'Audited repository HEAD changed; no Codex model started.',
                   }
@@ -566,30 +600,6 @@ jobs:
           test -s "$RUNNER_TEMP/codex-result.json"
           python3 ops/codex_quota_resume.py ready "$ORIGINAL_ISSUE" \
             "$GITHUB_RUN_ID" "$RUNNER_TEMP/codex-result.json"
-
-      - name: Persist provider quota checkpoint (Owner Issue)
-        if: always() && steps.codex.outcome == 'failure' && steps.collect.outcome == 'success'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ORIGINAL_ISSUE: ${{ inputs.issue_number || github.event.issue.number }}
-          RESUME_STAGE: ${{ inputs.instance_id || '1' }}
-          RESUME_ATTEMPT: ${{ github.event.client_payload.attempt || '0' }}
-        run: |
-          set -euo pipefail
-          marker="$RUNNER_TEMP/codex-preflight-signal.txt"
-          if ! test -f "$marker" || test -L "$marker"; then
-            exit 0
-          fi
-          if [ "$(cat "$marker")" != 'CODEX_QUOTA_BLOCKED' ]; then
-            exit 0
-          fi
-          case "$RESUME_STAGE" in 1|2) ;; *) echo 'INVALID_RESUME_STAGE'; exit 3;; esac
-          [[ "$ORIGINAL_ISSUE" =~ ^[1-9][0-9]*$ ]] || exit 3
-          [[ "$RESUME_ATTEMPT" =~ ^[0-9]{1,4}$ ]] || exit 3
-          python3 ops/codex_quota_resume.py pause "$ORIGINAL_ISSUE" "$RESUME_STAGE" \
-            "$GITHUB_RUN_ID" "$RESUME_ATTEMPT"
-          echo 'CODEX_QUOTA_CHECKPOINT=PERSISTED'
 
       - name: Remove completed disposable VPS workspace
         if: always() && steps.stage.outcome != 'skipped'
