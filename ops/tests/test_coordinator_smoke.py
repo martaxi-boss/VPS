@@ -125,7 +125,7 @@ class CoordinatorSmokeWorkflowTests(unittest.TestCase):
         self.assertIn("SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc", self.workflow)
         self.assertIn("StrictHostKeyChecking=yes", self.workflow)
         self.assertNotIn("StrictHostKeyChecking=no", self.workflow)
-        self.assertIn('"bash -s -- \\'$job\\'"', self.workflow)
+        self.assertIn('ubuntu@146.59.145.3 "bash -s --', self.workflow)
         self.assertNotIn("scp ", self.workflow)
 
     def test_inline_workflow_python_is_syntactically_valid(self):
