@@ -3,6 +3,12 @@ name: Agent switch (Owner GitHub order)
 # Names select the executor; an authenticated Owner Issue is the durable task.
 # Unsupported providers fail BEFORE any Codex tokens are consumed.
 on:
+  workflow_call:
+    inputs:
+      coordinator_plan_b64:
+        description: Authenticated Owner Coordinator audit; consumed by existing bounded router
+        required: true
+        type: string
   issues:
     types: [opened]
   repository_dispatch:
@@ -20,6 +26,8 @@ on:
       - 'ops/tests/test_codex_resource_policy.py'
       - 'ops/codex_quota_resume.py'
       - 'ops/tests/test_codex_quota_resume.py'
+      - '.github/workflows/coordinator-owner-order.yml'
+      - 'ops/tests/test_coordinator_owner_routing.py'
 
 permissions: {}
 
@@ -45,12 +53,15 @@ jobs:
           python3 -m unittest discover -s ops/tests -p test_codex_resource_policy.py -v
           python3 -m unittest discover -s ops/tests -p test_codex_quota_resume.py -v
           python3 -m unittest discover -s ops/tests -p test_codex_resume_stage_routing.py -v
+          python3 -m unittest discover -s ops/tests -p test_coordinator_owner_routing.py -v
 
   preflight:
     if: >-
       (github.event_name == 'issues' &&
        github.event.issue.user.login == github.repository_owner &&
-       startsWith(github.event.issue.title, '[agents run]')) ||
+       (startsWith(github.event.issue.title, '[agents run]') ||
+        (startsWith(github.event.issue.title, '[coordinator run] ') &&
+         inputs.coordinator_plan_b64 != ''))) ||
       (github.event_name == 'repository_dispatch' &&
        github.event.action == 'codex_quota_resume')
     runs-on: ubuntu-24.04
@@ -88,6 +99,7 @@ jobs:
         id: validate
         env:
           ORDER_BODY: ${{ github.event.issue.body }}
+          COORDINATOR_PLAN_B64: ${{ inputs.coordinator_plan_b64 }}
           EVENT_NAME: ${{ github.event_name }}
           RESUME_PAYLOAD: ${{ toJSON(github.event.client_payload) }}
           GH_TOKEN: ${{ github.token }}
@@ -110,6 +122,16 @@ jobs:
                   order, issue_number = quota.verify_resume(payload)
                   resume_stage = payload['stage']
                   phase_meta = None
+              elif os.environ.get('COORDINATOR_PLAN_B64'):
+                  # This branch is enabled only for an exact Owner-authored
+                  # Coordinator Issue through the reviewed reusable caller.
+                  if not os.environ.get('ORDER_BODY', '').startswith(
+                          'TARGET_REPOSITORY=martaxi-boss/Project-leader-codex'):
+                      raise switch.OrderError('Coordinator Issue target mismatch')
+                  order, phase_meta = switch.parse_coordinator_envelope(
+                      os.environ['COORDINATOR_PLAN_B64'])
+                  issue_number = int(os.environ['ISSUE_SOURCE'])
+                  resume_stage = ''
               else:
                   order, phase_meta = switch.parse_owner_envelope(
                       os.environ.get('ORDER_BODY', ''))

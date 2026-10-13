@@ -315,6 +315,36 @@ def parse_owner_envelope(raw: str) -> tuple[dict, dict | None]:
     }
 
 
+def parse_coordinator_envelope(encoded: str) -> tuple[dict, dict]:
+    """Route an independently validated Coordinator audit, never model prose.
+
+    The caller MUST authenticate the originating Owner Issue. This bounded
+    adapter reuses the exact Owner audit router and does not grant dispatch
+    authority, bypass the file guards, or start any agents.
+    """
+    if type(encoded) is not str or not 16 <= len(encoded) <= 32_000:
+        raise OrderError("Coordinator plan encoding is empty or oversized")
+    try:
+        raw = base64.b64decode(encoded.encode("ascii"), validate=True)
+        if (not raw or len(raw) > 24_000 or
+                base64.b64encode(raw).decode("ascii") != encoded):
+            raise ValueError("non-canonical or oversized audit")
+        text = raw.decode("utf-8", "strict")
+        payload = json.loads(text)
+    except (ValueError, UnicodeError) as exc:
+        raise OrderError("Coordinator plan encoding is invalid") from None
+    if (not isinstance(payload, dict) or
+            set(payload) != {"target_repository", "audit"} or
+            payload["target_repository"] != "martaxi-boss/Project-leader-codex"):
+        raise OrderError("Coordinator plan target or audit contract is invalid")
+    order, metadata = parse_owner_envelope(text)
+    if metadata is None or not order.get("phase_owner_digest"):
+        raise OrderError("Coordinator did not produce a valid phased audit")
+    if order["target_repository"] != payload["target_repository"]:
+        raise OrderError("Coordinator target mismatch")
+    return order, metadata
+
+
 def workflow_values(order: dict, resume_stage: str = "") -> dict:
     """Bounded trusted router for one or two verified Codex workers.
 
