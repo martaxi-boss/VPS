@@ -37,6 +37,7 @@ trap on_exit EXIT
 test -s "$base/codex-task.txt"
 test -f "$base/codex_patch_guard.py"
 test -f "$base/codex_resource_policy.py"
+test -f "$base/codex_quota_resume.py"
 test -s "$base/codex-reasoning.txt"
 effort="$(cat "$base/codex-reasoning.txt")"
 case "$effort" in low|medium|high) ;; *) echo 'Invalid trusted Codex thinking level' >&2; exit 10 ;; esac
@@ -161,6 +162,14 @@ Path(sys.argv[2]).write_text(json.dumps(result) + '\n', encoding='utf-8')
 PY
 
 if [ "$code" -ne 0 ]; then
+  # Only a genuine quota error emitted by the signed-in provider triggers
+  # future re-dispatch. Do not classify generic 429s, crashes or model prose.
+  state="$(python3 "$base/codex_quota_resume.py" classify "$base/cli.jsonl" "$base/cli.stderr")" || exit 18
+  if [ "$state" = "QUOTA_BLOCKED" ]; then
+    printf 'CODEX_QUOTA_BLOCKED\n' > "$base/codex-preflight-signal.txt"
+    echo 'CODEX_PROVIDER_QUOTA_PAUSED=YES; no patch accepted' >&2
+    exit 75
+  fi
   echo "Codex exited with code $code; no patch accepted" >&2
   exit "$code"
 fi

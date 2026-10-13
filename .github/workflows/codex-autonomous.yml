@@ -51,11 +51,14 @@ concurrency:
 jobs:
   execute:
     if: >-
-      github.event.issue.user.login == github.repository_owner &&
-      (startsWith(github.event.issue.title, '[codex run]') ||
-       (startsWith(github.event.issue.title, '[agents run]') &&
-        inputs.task_b64 != '' &&
-        inputs.issue_number == github.event.issue.number))
+      (github.event.issue.user.login == github.repository_owner &&
+       (startsWith(github.event.issue.title, '[codex run]') ||
+        (startsWith(github.event.issue.title, '[agents run]') &&
+         inputs.task_b64 != '' &&
+         inputs.issue_number == github.event.issue.number))) ||
+      (github.event_name == 'repository_dispatch' &&
+       github.event.action == 'codex_quota_resume' &&
+       inputs.task_b64 != '' && inputs.issue_number > 0)
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
@@ -128,13 +131,13 @@ jobs:
           print('Owner task/target/GitHub write access verified. No token printed.')
           PY
           bash -n ops/codex-autonomous-remote.sh
-          python3 -m py_compile ops/codex-autonomous-publish.py ops/codex_patch_guard.py ops/codex-project-leader-bootstrap.py
+          python3 -m py_compile ops/codex-autonomous-publish.py ops/codex_patch_guard.py ops/codex-project-leader-bootstrap.py ops/codex_quota_resume.py
 
       - name: Verify actual Git branch publication permission without model calls
         shell: bash
         env:
           CODEX_GITHUB_TOKEN: ${{ secrets.CODEX_GITHUB_TOKEN }}
-          CODEX_ORDER_ISSUE: ${{ github.event.issue.number }}
+          CODEX_ORDER_ISSUE: ${{ inputs.issue_number || github.event.issue.number }}
         run: |
           set -euo pipefail
           python3 - <<'PY'
@@ -207,7 +210,8 @@ jobs:
           sshpass -e scp -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
             "$RUNNER_TEMP/codex-task.txt" "$RUNNER_TEMP/codex-reasoning.txt" \
             ops/codex-autonomous-remote.sh ops/codex_resource_policy.py \
-            ops/codex_patch_guard.py ops/codex-project-leader-bootstrap.py "$remote:$dest/"
+            ops/codex_quota_resume.py ops/codex_patch_guard.py \
+            ops/codex-project-leader-bootstrap.py "$remote:$dest/"
 
       - name: Run signed-in Codex CLI with workspace-write sandbox
         id: codex
@@ -254,7 +258,7 @@ jobs:
           CODEX_GITHUB_TOKEN: ${{ secrets.CODEX_GITHUB_TOKEN }}
           CODEX_JOB_DIR: ${{ runner.temp }}
           CODEX_RESULT_PATH: ${{ runner.temp }}/codex-result.json
-          CODEX_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          CODEX_ISSUE_NUMBER: ${{ inputs.issue_number || github.event.issue.number }}
           CODEX_PR_ONLY: ${{ inputs.no_auto_merge }}
           CODEX_ALLOW_NO_CHANGE: ${{ inputs.allow_no_change }}
         run: |
@@ -284,7 +288,7 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           CODEX_REPORT_PATH: ${{ runner.temp }}/report.md
           CODEX_JOB_STATUS: ${{ steps.publish.outcome }}
-          CODEX_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          CODEX_ISSUE_NUMBER: ${{ inputs.issue_number || github.event.issue.number }}
           CODEX_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         shell: bash
         run: |
@@ -334,7 +338,7 @@ jobs:
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_NUMBER: ${{ inputs.issue_number || github.event.issue.number }}
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           STAGE_OUTCOME: ${{ steps.stage.outcome }}
           CODEX_OUTCOME: ${{ steps.codex.outcome }}
@@ -385,6 +389,8 @@ jobs:
                           'The VPS Codex login is not verified as ChatGPT subscription; no model started.',
                       b'GITHUB_PUBLISH_PERMISSION_MISSING\n':
                           'GitHub publisher cannot create an authorized target branch; no model started.',
+                      b'CODEX_QUOTA_BLOCKED\n':
+                          'Provider-reported Codex quota exhausted; this phase is paused for a safely validated scheduled retry.',
                   }
                   candidate = signal_path.read_bytes()
                   if candidate in allowed_signals:
@@ -395,7 +401,11 @@ jobs:
                   else (preflight_path.read_text(encoding='utf-8') if preflight_path.exists()
                         else 'No verified preflight diagnosis available')
               )
-              lines = ['## Codex execution: ' + ('NOT_STARTED' if signal is not None else 'NOT_COMPLETED'),
+              classification = (
+                  'PAUSED_QUOTA' if signal == b'CODEX_QUOTA_BLOCKED\n'
+                  else 'NOT_STARTED' if signal is not None else 'NOT_COMPLETED'
+              )
+              lines = ['## Codex execution: ' + classification,
                        'Preflight: ' + preflight,
                        'The pipeline stopped before trusted publication.',
                        'Stage: ' + os.environ['STAGE_OUTCOME'],
@@ -424,6 +434,46 @@ jobs:
           PY
           gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
             --body-file "$RUNNER_TEMP/owner-result.md"
+
+      - name: Continue authorized serial phase two after accepted resumed phase one
+        if: >-
+          github.event_name == 'repository_dispatch' &&
+          inputs.instance_id == '1' &&
+          steps.publish.outcome == 'success'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ORIGINAL_ISSUE: ${{ inputs.issue_number }}
+        run: |
+          set -euo pipefail
+          [[ "$ORIGINAL_ISSUE" =~ ^[1-9][0-9]*$ ]] || exit 3
+          test -s "$RUNNER_TEMP/codex-result.json"
+          python3 ops/codex_quota_resume.py ready "$ORIGINAL_ISSUE" \
+            "$GITHUB_RUN_ID" "$RUNNER_TEMP/codex-result.json"
+
+      - name: Persist provider quota checkpoint (Owner Issue)
+        if: always() && steps.codex.outcome == 'failure' && steps.collect.outcome == 'success'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ORIGINAL_ISSUE: ${{ inputs.issue_number || github.event.issue.number }}
+          RESUME_STAGE: ${{ inputs.instance_id || '1' }}
+          RESUME_ATTEMPT: ${{ github.event.client_payload.attempt || '0' }}
+        run: |
+          set -euo pipefail
+          marker="$RUNNER_TEMP/codex-preflight-signal.txt"
+          if ! test -f "$marker" || test -L "$marker"; then
+            exit 0
+          fi
+          if [ "$(cat "$marker")" != 'CODEX_QUOTA_BLOCKED' ]; then
+            exit 0
+          fi
+          case "$RESUME_STAGE" in 1|2) ;; *) echo 'INVALID_RESUME_STAGE'; exit 3;; esac
+          [[ "$ORIGINAL_ISSUE" =~ ^[1-9][0-9]*$ ]] || exit 3
+          [[ "$RESUME_ATTEMPT" =~ ^[0-9]{1,4}$ ]] || exit 3
+          python3 ops/codex_quota_resume.py pause "$ORIGINAL_ISSUE" "$RESUME_STAGE" \
+            "$GITHUB_RUN_ID" "$RESUME_ATTEMPT"
+          echo 'CODEX_QUOTA_CHECKPOINT=PERSISTED'
 
       - name: Remove completed disposable VPS workspace
         if: always() && steps.stage.outcome != 'skipped'
