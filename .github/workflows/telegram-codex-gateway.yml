@@ -22,7 +22,9 @@ on:
     paths:
       - 'ops/telegram_gateway.py'
       - 'ops/supervisor_live.py'
+      - 'ops/supervisor_audit.py'
       - 'ops/tests/test_supervisor_live.py'
+      - 'ops/tests/test_supervisor_audit.py'
       - 'ops/telegram_voice_transcribe.py'
       - 'ops/tests/test_telegram_gateway.py'
       - '.github/workflows/telegram-codex-gateway.yml'
@@ -49,9 +51,10 @@ jobs:
           persist-credentials: false
       - name: Validate syntax and restricted routing
         run: |
-          python3 -m py_compile ops/telegram_gateway.py ops/telegram_voice_transcribe.py ops/supervisor_live.py
+          python3 -m py_compile ops/telegram_gateway.py ops/telegram_voice_transcribe.py ops/supervisor_live.py ops/supervisor_audit.py
           python3 -m unittest discover -s ops/tests -p 'test_telegram_gateway.py' -v
           python3 -m unittest discover -s ops/tests -p 'test_supervisor_live.py' -v
+          python3 -m unittest discover -s ops/tests -p 'test_supervisor_audit.py' -v
 
 
   voice-smoke:
