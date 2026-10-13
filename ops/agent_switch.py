@@ -7,6 +7,7 @@ The versioned provider-neutral plan allows future authenticated adapters,
 but unsupported providers or more than two jobs fail before any model call.
 """
 import base64
+import hashlib
 import json
 import re
 import sys
@@ -259,6 +260,52 @@ def output_values(order: dict) -> dict:
         "dispatch_plan_b64": dispatch_plan_b64(order),
     }
 
+
+
+def parse_owner_envelope(raw: str) -> tuple[dict, dict | None]:
+    """Take one Owner-audited DAG; dispatch only its validated first wave.
+
+    Other phases are intentionally held for exact-CI acceptance and fresh
+    repository audit. The Owner's *entire* original text is bound to quota
+    checkpoints so changes to a held later phase cannot silently reuse an
+    earlier continuation lease.
+    """
+    if type(raw) is not str or len(raw.encode("utf-8")) > 24_000:
+        raise OrderError("Owner phase audit exceeds bounded request size")
+    try:
+        value = json.loads(raw)
+    except (ValueError, TypeError):
+        return parse_order(raw), None
+    if not (isinstance(value, dict) and
+            set(value) == {"target_repository", "audit"}):
+        return parse_order(raw), None
+
+    try:
+        try:
+            from ops.codex_audit_strategy import plan_phases
+        except ModuleNotFoundError:
+            from codex_audit_strategy import plan_phases
+        phases = plan_phases(value)
+    except ValueError as exc:
+        raise OrderError("Owner phase audit failed validated planning") from None
+
+    first = phases["phases"][0]
+    canonical = first["dispatch_json"]
+    if type(canonical) is not str:
+        raise OrderError("First audited phase is not dispatchable")
+    order = parse_order(canonical)
+    digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    order["phase_owner_digest"] = digest
+    return order, {
+        "phase_count": phases["phase_count"],
+        "active_task_ids": first["task_ids"],
+        "pending_task_ids": [
+            ident for phase in phases["phases"][1:]
+            for ident in phase["task_ids"]
+        ],
+        "audited_revision": phases["audited_revision"],
+        "owner_digest": digest,
+    }
 
 
 def workflow_values(order: dict, resume_stage: str = "") -> dict:
