@@ -2,8 +2,9 @@ name: Codex quota continuation (Owner checkpoints only)
 
 on:
   schedule:
-    # Hourly ChatGPT-account quota read uses NO model tokens or automatic retry.
-    - cron: '17 * * * *'
+    # Supervisor checks every five minutes, without Codex workers or model tokens.
+    # GitHub Actions scheduled starts can be delayed; this is not second-by-second.
+    - cron: '*/5 * * * *'
   workflow_dispatch:
   issues:
     types: [opened]
@@ -54,6 +55,7 @@ jobs:
           bash -n ops/codex-autonomous-remote.sh
 
   quota-watch:
+    name: Supervisor — independent real ChatGPT quota watch
     if: >-
       github.repository == 'martaxi-boss/VPS' &&
       (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
@@ -84,16 +86,18 @@ jobs:
             { echo 'QUOTA_VPS_HOST_UNVERIFIED'; exit 2; }
           ssh-keygen -F 146.59.145.3 -f "$known_hosts" >/dev/null
 
-      - name: Prepare existing secure SSH path without model calls
+      - name: Prepare existing read-only Supervisor SSH path without model calls
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         run: |
           set -euo pipefail
           test -n "$SSHPASS" || { echo 'VPS_SSH_UNAVAILABLE'; exit 2; }
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq sshpass >/dev/null
+          if ! command -v sshpass >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq sshpass >/dev/null
+          fi
 
-      - name: Read real ChatGPT account quota using VPS Codex app-server only
+      - name: Supervisor reads provider quota independently of all worker reports
         id: sample
         shell: bash
         env:
@@ -138,7 +142,7 @@ jobs:
             echo 'QUOTA_PREVIOUS_INVALID'; exit 3;; esac
           printf 'previous_status=%s\n' "$previous" >> "$GITHUB_OUTPUT"
 
-      - name: Supervisor audits and sends factual quota transition via Telegram
+      - name: Supervisor detects provider quota transition, audits and notifies Owner
         id: notify
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -148,7 +152,7 @@ jobs:
         run: |
           set -euo pipefail
           set +e
-          python3 -m ops.codex_quota_supervisor notify \
+          python3 -m ops.codex_quota_supervisor watch \
             "$RUNNER_TEMP/quota-sample.json" "$PREVIOUS_STATUS"
           code=$?
           set -e
