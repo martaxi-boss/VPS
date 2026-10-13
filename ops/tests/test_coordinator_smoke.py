@@ -107,6 +107,10 @@ class CoordinatorSmokeWorkflowTests(unittest.TestCase):
         self.workflow = (Path(__file__).resolve().parents[2] / ".github" /
                          "workflows" / "coordinator-ai-smoke.yml").read_text(encoding="utf-8")
 
+    def test_github_context_expressions_are_not_escaped(self):
+        self.assertNotIn(chr(92) + "${{", self.workflow)
+        self.assertIn("ref: ${{ github.event.repository.default_branch }}", self.workflow)
+        self.assertIn("SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}", self.workflow)
     def test_paid_smoke_requires_exact_owner_issue(self):
         self.assertIn("github.event.issue.user.login == github.repository_owner", self.workflow)
         self.assertIn("github.event.issue.title == '[coordinator smoke] Test real de planeamento read-only'", self.workflow)
