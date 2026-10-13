@@ -264,9 +264,14 @@ def assess(issue: int, run: int, workers: list[Worker], phase_count: int,
     if not SHA.fullmatch(canonical):
         raise SupervisorHold("CANONICAL_UNVERIFIED")
     _issue(issue)
+    canonical_ref = _api("GET", f"repos/{SOURCE}/git/ref/heads/main")
+    if canonical_ref.get("object", {}).get("sha") != canonical:
+        raise SupervisorHold("CANONICAL_STALE")
     candidates = [_candidate(w, issue, run) for w in workers]
     if len({c.number for c in candidates}) != len(candidates):
         raise SupervisorHold("DUPLICATE_WORKER_PR")
+    if len({c.sha for c in candidates}) != len(candidates):
+        raise SupervisorHold("DUPLICATE_WORKER_HEAD")
     main = _main_sha()
     if any(c.base != main for c in candidates):
         raise SupervisorHold("EXACT_STATE_DRIFT")
