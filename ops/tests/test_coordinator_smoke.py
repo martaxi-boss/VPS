@@ -145,12 +145,19 @@ class CoordinatorSmokeWorkflowTests(unittest.TestCase):
             code = []
             for candidate in rows[i + 1:]:
                 if candidate.strip() == terminator:
+                    # YAML strips the common block indent, not the deeper
+                    # indentation of a command nested in shell if/else.
+                    base_indent = len(candidate) - len(candidate.lstrip(" "))
                     break
-                self.assertTrue(candidate.startswith(" " * indent))
-                code.append(candidate[indent:])
+                code.append(candidate)
             else:
                 self.fail("Unterminated inline Python in workflow")
-            compile("\n".join(code), "<coordinator-smoke-workflow>", "exec")
+            self.assertLessEqual(base_indent, indent)
+            self.assertTrue(all(
+                not line.strip() or line.startswith(" " * base_indent)
+                for line in code))
+            compile("\n".join(line[base_indent:] for line in code),
+                    "<coordinator-smoke-workflow>", "exec")
             blocks += 1
         self.assertEqual(blocks, 3)
 
