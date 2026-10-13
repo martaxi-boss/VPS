@@ -1,8 +1,8 @@
-name: Codex quota continuation (Owner checkpoints only)
+name: Supervisor - Real ChatGPT quota watch (Owner notifications only)
 
 on:
   schedule:
-    # Supervisor checks every five minutes, without Codex workers or model tokens.
+    # Supervisor monitors the real Codex quota; no model calls or worker resumes.
     # GitHub Actions scheduled starts can be delayed; this is not second-by-second.
     - cron: '*/5 * * * *'
   workflow_dispatch:
@@ -29,7 +29,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: owner-codex-quota-resume
+  group: supervisor-real-chatgpt-quota-observer
   cancel-in-progress: false
 
 jobs:
