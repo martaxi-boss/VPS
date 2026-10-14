@@ -16,6 +16,7 @@ on:
       - 'ops/tests/test_coordinator_owner_routing.py'
       - 'ops/coordinator_pr_integrator.py'
       - 'ops/tests/test_coordinator_pr_integrator.py'
+      - 'ops/tests/test_coordinator_external_stage.py'
       - '.github/workflows/coordinator-phase-cycle.yml'
       - 'ops/coordinator_phase_continuation.py'
       - 'ops/tests/test_coordinator_phase_continuation.py'
@@ -42,6 +43,7 @@ jobs:
           python3 -m unittest discover -s ops/tests -p test_coordinator_owner_routing.py -v
           python3 -m unittest discover -s ops/tests -p test_coordinator_smoke.py -v
           python3 -m unittest discover -s ops/tests -p test_coordinator_pr_integrator.py -v
+          python3 -m unittest discover -s ops/tests -p test_coordinator_external_stage.py -v
 
   plan:
     if: >-

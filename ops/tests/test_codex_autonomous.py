@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 OPS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(OPS))
@@ -98,6 +99,54 @@ class CheckGateTests(unittest.TestCase):
         self.assertIn("NEVER auto-merge", publisher.premerge_policy_gate(
             repo, ["README.md"]))
 
+    def test_path_filtered_pr_only_target_is_staged_not_falsely_certified(self):
+        repo = "martaxi-boss/pink-iptv"
+        url = "https://github.com/martaxi-boss/pink-iptv/pull/200"
+        policy = publisher.premerge_policy_gate(repo, ["clients/extreme/prepare.py"])
+        with mock.patch.object(publisher, "api",
+                               return_value={"workflow_runs": []}) as check:
+            result = publisher.stage_without_universal_ci(repo, url, SHA, BRANCH, policy)
+        self.assertEqual(result["status"], "PR_STAGED")
+        self.assertIn("NOT a CI certification", result["reason"])
+        self.assertNotIn("merge_sha", result)
+        self.assertIn("head_sha=" + SHA, check.call_args.args[1])
+
+    def test_future_repo_stages_with_explicit_independent_policy_gate(self):
+        repo = "martaxi-boss/future-project"
+        policy = publisher.premerge_policy_gate(repo, ["src/main.py"])
+        self.assertIn("PR-ONLY", policy)
+        with mock.patch.object(publisher, "api",
+                               return_value={"workflow_runs": [success("Target custom CI")]}):
+            result = publisher.stage_without_universal_ci(
+                repo, "https://github.com/" + repo + "/pull/5", SHA, BRANCH, policy)
+        self.assertEqual(result["status"], "PR_STAGED")
+        self.assertIn("no universal required-check policy", result["reason"])
+        self.assertNotIn("merge_sha", result)
+
+    def test_failed_target_ci_never_treated_as_safe_staging(self):
+        repo = "martaxi-boss/pink-iptv"
+        bad = success("Android CI", conclusion="failure")
+        with mock.patch.object(publisher, "api",
+                               return_value={"workflow_runs": [bad]}):
+            result = publisher.stage_without_universal_ci(
+                repo, "https://github.com/" + repo + "/pull/10", SHA, BRANCH,
+                "Independent target CI required")
+        self.assertEqual(result["status"], "PR_NEEDS_ATTENTION")
+        self.assertNotIn("merge_sha", result)
+
+    def test_skipped_ci_is_not_claimed_as_certifying(self):
+        repo = "martaxi-boss/pink-iptv"
+        with mock.patch.object(publisher, "api",
+                               return_value={"workflow_runs": [
+                                   success("PINK Extreme Android 042", conclusion="skipped")]}):
+            result = publisher.stage_without_universal_ci(
+                repo, "https://github.com/" + repo + "/pull/10", SHA, BRANCH,
+                "Independent target policy")
+        self.assertEqual(result["status"], "PR_STAGED")
+        self.assertIn("skipped", result["reason"])
+        self.assertIn("NOT a CI certification", result["reason"])
+
+
     def test_specialization_never_auto_merges_or_touches_original_project_leader(self):
         repo = "martaxi-boss/Project-leader-codex"
         required = {
@@ -124,8 +173,9 @@ class CheckGateTests(unittest.TestCase):
     def test_specialization_direct_publisher_waits_ci_without_auto_merge(self):
         source = (OPS / "codex-autonomous-publish.py").read_text(encoding="utf-8")
         self.assertIn('or repo not in ALLOWED:', source)
-        self.assertIn("state, evidence = wait_for_checks(repo, sha, branch, ALLOWED.get(repo, set()))",
+        self.assertIn("state, evidence = wait_for_checks(repo, sha, branch, required)",
                       source)
+        self.assertIn("return stage_without_universal_ci(", source)
         self.assertIn("return staged_pr_result(repo, url, sha, blocking_policy, state, evidence)",
                       source)
 

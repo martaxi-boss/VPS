@@ -289,6 +289,52 @@ def staged_pr_result(repo, url, sha, blocking_policy, state, evidence):
             "pull_request": url, "commit_sha": sha, "reason": detail}
 
 
+def stage_without_universal_ci(repo, url, sha, branch, policy):
+    """Check exact PR evidence, then stage; NEVER treat absent CI as a pass.
+
+    Path-filtered or future projects lack a universal required-CI list. A
+    successfully published PR remains available for independent target policy
+    validation. Failed exact-head CI still blocks the worker publication report.
+    """
+    query = urllib.parse.urlencode({"head_sha": sha, "per_page": 100})
+    response = api("GET", f"repos/{repo}/actions/runs?{query}")
+    runs = response.get("workflow_runs") if isinstance(response, dict) else None
+    if not isinstance(runs, list) or len(runs) >= 100:
+        return {"status": "PR_NEEDS_ATTENTION", "repository": repo,
+                "pull_request": url, "commit_sha": sha,
+                "reason": "Unable to verify bounded target CI observations"}
+    relevant = [
+        run for run in runs
+        if run.get("head_sha") == sha
+        and run.get("head_branch") in (None, branch)
+        and run.get("event") in ("pull_request", "pull_request_target")
+    ]
+    bad = [run.get("name", "unnamed") for run in relevant
+           if run.get("status") == "completed"
+           and run.get("conclusion") not in ("success", "skipped")]
+    if bad:
+        return {"status": "PR_NEEDS_ATTENTION", "repository": repo,
+                "pull_request": url, "commit_sha": sha,
+                "reason": "Exact-head target CI did not pass; independent remediation required"}
+    observed = len(relevant)
+    pending = any(run.get("status") != "completed" for run in relevant)
+    skipped = any(run.get("conclusion") == "skipped" for run in relevant)
+    if not observed:
+        ci = "No exact-head PR CI observed yet"
+    elif pending:
+        ci = "Some exact-head PR CI remains pending"
+    elif skipped:
+        ci = "At least one exact-head PR job was skipped"
+    else:
+        ci = "Observed exact-head PR CI completed; no universal required-check policy"
+    return {"status": "PR_STAGED", "repository": repo,
+            "pull_request": url, "commit_sha": sha,
+            "reason": ci + ". " + policy +
+                      "; staging is NOT a CI certification, merge or authorization. "
+                      "Project Leader must independently validate target-required "
+                      "tests/security and exact-head merge authority."}
+
+
 def no_change_result(repo, allowed):
     """An empty patch is never implicit proof of completing a write task."""
     if allowed:
@@ -352,7 +398,12 @@ def perform(source, issue, run_id, attempt, instance_id="", pr_only=False, allow
         # invoked through a direct single Codex order or first serial stage.
         # Never auto-merge the separate Project Leader + Codex repository.
         if pr_only or repo == "martaxi-boss/Project-leader-codex" or repo not in ALLOWED:
-            state, evidence = wait_for_checks(repo, sha, branch, ALLOWED.get(repo, set()))
+            required = ALLOWED.get(repo, set())
+            if not required:
+                return stage_without_universal_ci(
+                    repo, url, sha, branch,
+                    blocking_policy or "Target-specific independent PR gate required")
+            state, evidence = wait_for_checks(repo, sha, branch, required)
             return staged_pr_result(repo, url, sha, blocking_policy, state, evidence)
         if blocking_policy:
             return {"status": "PR_NEEDS_ATTENTION", "repository": repo,
