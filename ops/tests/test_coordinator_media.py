@@ -25,6 +25,27 @@ class CoordinatorMediaTest(unittest.TestCase):
     def bundle(self):
         return media.pack([self.src], self.root / "private")
 
+    def test_one_gib_applies_to_one_video_or_a_mixed_selection(self):
+        self.assertEqual(media.MAX_TOTAL_BYTES, 1024 ** 3)
+        self.assertEqual(media.MAX_FILE_BYTES, 1024 ** 3)
+        self.assertEqual(media.TRANSFER_CHUNK_BYTES, 1024 ** 2)
+
+    def test_pack_refuses_over_budget_and_removes_incomplete_private_bundle(self):
+        video = self.root / "clip.mp4"
+        video.write_bytes(b"v" * 32)
+        with mock.patch.object(media, "MAX_TOTAL_BYTES", 32 + self.src.stat().st_size - 1):
+            with self.assertRaisesRegex(media.MediaRefused, "size limit"):
+                media.pack([self.src, video], self.root / "bounded")
+        self.assertFalse((self.root / "bounded").exists())
+
+    def test_verify_refuses_total_above_budget_even_if_manifest_is_consistent(self):
+        video = self.root / "clip.mp4"
+        video.write_bytes(b"v" * 32)
+        root = media.pack([self.src, video], self.root / "twofiles")
+        with mock.patch.object(media, "MAX_TOTAL_BYTES", 32 + self.src.stat().st_size - 1):
+            with self.assertRaisesRegex(media.MediaRefused, "size limit"):
+                media.verify(root)
+
     def test_pack_preserves_original_and_selected_digest(self):
         root = self.bundle()
         items = media.verify(root)
