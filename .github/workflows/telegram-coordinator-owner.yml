@@ -1,0 +1,74 @@
+name: Authenticated Telegram Owner order to Coordinator
+
+# This gateway NEVER dispatches workers itself. It verifies a short-lived
+# Telegram HMAC and uses a separately scoped Owner credential to create the
+# exact Owner Issue that the existing Coordinator already authenticates.
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        type: choice
+        required: true
+        options: [telegram]
+      signed_order_b64:
+        type: string
+        required: true
+      signature:
+        type: string
+        required: true
+  pull_request:
+    paths:
+      - '.github/workflows/telegram-coordinator-owner.yml'
+      - 'ops/telegram_coordinator_authority.py'
+      - 'ops/telegram_coordinator_issue.py'
+      - 'ops/telegram_gateway.py'
+      - 'ops/project_target.py'
+      - 'ops/tests/test_telegram_coordinator.py'
+
+permissions: {}
+
+concurrency:
+  group: telegram-owner-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  offline-tests:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pinned v4
+        with:
+          persist-credentials: false
+      - name: Validate Telegram HMAC and Owner issue boundary without secrets
+        run: |
+          python3 -m py_compile ops/telegram_coordinator_authority.py ops/telegram_coordinator_issue.py ops/telegram_gateway.py ops/project_target.py
+          python3 -m unittest discover -s ops/tests -p 'test_telegram_coordinator.py' -v
+          python3 -m unittest discover -s ops/tests -p 'test_telegram_gateway.py' -v
+
+  verified-owner-issue:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.actor == 'github-actions[bot]' &&
+      inputs.source == 'telegram'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Load trusted bridge from reviewed main
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pinned v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Verify authorization and create only one Owner coordinator Issue
+        env:
+          TELEGRAM_SIGNED_ORDER: ${{ inputs.signed_order_b64 }}
+          TELEGRAM_SIGNED_MAC: ${{ inputs.signature }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CODEX_GITHUB_TOKEN: ${{ secrets.CODEX_GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          python3 -m ops.telegram_coordinator_issue
