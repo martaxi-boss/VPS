@@ -21,7 +21,7 @@ refuse() {
 # One tested read-only planning implementation, exposed in two modes:
 # 1) existing explicit no-dispatch smoke, 2) Owner-verified audited plan
 #    transferred to the existing trusted Actions router for dispatch.
-if { [ "$#" -ne 1 ] && [ "$#" -ne 3 ] && [ "$#" -ne 4 ]; } ||
+if { [ "$#" -ne 1 ] && [ "$#" -ne 3 ] && [ "$#" -ne 4 ] && [ "$#" -ne 5 ]; } ||
    [[ ! "$1" =~ ^[1-9][0-9]{7,14}-[1-9][0-9]{0,3}$ ]]; then
   refuse
 fi
@@ -29,6 +29,7 @@ job="$1"
 mode='smoke'
 encoded_order=''
 private_assets=0
+source_reference=''
 if [ "$#" -ge 3 ]; then
   [ "$2" = 'dispatch' ] || refuse
   mode='dispatch'
@@ -36,9 +37,13 @@ if [ "$#" -ge 3 ]; then
   [ "${#encoded_order}" -ge 20 ] && [ "${#encoded_order}" -le 11000 ] || refuse
   [[ "$encoded_order" =~ ^[A-Za-z0-9+/=]+$ ]] || refuse
 fi
-if [ "$#" -eq 4 ]; then
+if [ "$#" -ge 4 ]; then
   [ "$4" = 'with-private-attachments' ] || refuse
   private_assets=1
+fi
+if [ "$#" -eq 5 ]; then
+  [[ "$5" =~ ^[0-9a-f]{32}$ ]] || refuse
+  source_reference="$5"
 fi
 
 # Use the already-authenticated account and the same two worker slots.
@@ -83,6 +88,19 @@ if [ "$private_assets" -eq 1 ]; then
   [ -d "$private_inbox" ] && [ ! -L "$private_inbox" ] || refuse
   [ "$(stat -c '%u' -- "$private_inbox")" = "$(id -u)" ] || refuse
   [ "$(stat -c '%a' -- "$private_inbox")" = '700' ] || refuse
+  if [ -n "$source_reference" ]; then
+    # The Owner-authenticated Issue selects exactly one prior private receipt.
+    # Stage IDs are single-use, cryptographically random, and never source URLs.
+    original_bundle="$private_inbox/$source_reference"
+    [ -d "$original_bundle" ] && [ ! -L "$original_bundle" ] || refuse
+    [ "$(stat -c '%u' -- "$original_bundle")" = "$(id -u)" ] || refuse
+    [ "$(stat -c '%a' -- "$original_bundle")" = '700' ] || refuse
+    [ ! -e "$asset_bundle" ] && [ ! -L "$asset_bundle" ] || refuse
+    # Never consume a staged receipt more than a day old.
+    age="$(( $(date +%s) - $(stat -c '%Y' -- "$original_bundle") ))"
+    [ "$age" -ge 0 ] && [ "$age" -le 86400 ] || refuse
+    mv -T -- "$original_bundle" "$asset_bundle" || refuse
+  fi
   [ -d "$asset_bundle" ] && [ ! -L "$asset_bundle" ] || refuse
   [ "$(stat -c '%u' -- "$asset_bundle")" = "$(id -u)" ] || refuse
   [ "$(stat -c '%a' -- "$asset_bundle")" = '700' ] || refuse
