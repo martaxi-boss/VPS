@@ -36,3 +36,9 @@ def from_owner_order(body: object) -> str:
     if not is_managed_target(target):
         raise TargetRefused("Untrusted repository selector")
     return target
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) != 3 or sys.argv[1] != "validate" or not is_managed_target(sys.argv[2]):
+        raise SystemExit(2)
+    raise SystemExit(0)
