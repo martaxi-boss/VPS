@@ -21,8 +21,11 @@ import stat
 import subprocess
 
 MAX_FILES = 16
-MAX_FILE_BYTES = 128 * 1024 * 1024
-MAX_TOTAL_BYTES = 256 * 1024 * 1024
+# Owner-approved maximum: one GiB of ORIGINALS per explicit transfer.
+# A single video may consume the full allowance; metadata/previews are additional.
+MAX_TOTAL_BYTES = 1024 * 1024 * 1024
+MAX_FILE_BYTES = MAX_TOTAL_BYTES
+TRANSFER_CHUNK_BYTES = 1024 * 1024
 SUFFIX = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".mp4", ".mov", ".webm", ".pdf", ".txt", ".md", ".csv", ".json", ".zip", ".docx", ".xlsx", ".pptx", ".xml", ".log"}
 SHA = re.compile(r"[0-9a-f]{64}\Z")
 ID = re.compile(r"file-[0-9]{3}\Z")
@@ -54,7 +57,7 @@ def _sha256(path: Path, maximum: int = MAX_FILE_BYTES) -> tuple[str, int]:
     digest = hashlib.sha256()
     count = 0
     with path.open("rb") as stream:
-        while chunk := stream.read(1024 * 1024):
+        while chunk := stream.read(TRANSFER_CHUNK_BYTES):
             count += len(chunk)
             if count > maximum:
                 raise MediaRefused("Attachment exceeds size limit")
@@ -121,7 +124,7 @@ def pack(paths: list[Path], destination: Path) -> Path:
                     os.chmod(dest, 0o600)
                     digest = hashlib.sha256()
                     count = 0
-                    while chunk := inp.read(1024 * 1024):
+                    while chunk := inp.read(TRANSFER_CHUNK_BYTES):
                         count += len(chunk)
                         total += len(chunk)
                         if count > MAX_FILE_BYTES or total > MAX_TOTAL_BYTES:

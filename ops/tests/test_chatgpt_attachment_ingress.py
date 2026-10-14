@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -60,6 +61,56 @@ class ChatGPTFileIngressTests(unittest.TestCase):
         self.assertNotIn("signature=", repr(result))
         self.assertEqual((self.inbox / result.bundle_id).stat().st_mode & 0o077, 0)
         self.assertEqual([x.name for x in self.inbox.iterdir()], [result.bundle_id])
+
+    def test_owner_approved_one_gib_cap_with_one_large_video_possible(self):
+        self.assertEqual(coordinator_media.MAX_TOTAL_BYTES, 1024 ** 3)
+        self.assertEqual(coordinator_media.MAX_FILE_BYTES, 1024 ** 3)
+        self.assertEqual(ingress.MAX_TOTAL_BYTES, 1024 ** 3)
+        self.assertEqual(coordinator_media.TRANSFER_CHUNK_BYTES, 1024 ** 2)
+        self.assertEqual(ingress.TRANSFER_CHUNK_BYTES, 1024 ** 2)
+
+    def test_downloader_receives_only_remaining_total_budget(self):
+        limits = []
+        def observed(url, target, maximum):
+            limits.append(maximum)
+            return self.downloader(url, target, maximum)
+        result = ingress.stage(
+            self.files, self.inbox, verified_owner="martaxi-boss",
+            downloader=observed)
+        self.assertEqual(result.file_count, 2)
+        self.assertEqual(limits, [
+            1024 ** 3,
+            1024 ** 3 - len(self.photo)])
+
+    def test_second_file_exceeding_remaining_budget_refuses_entire_selection(self):
+        with mock.patch.object(ingress, "MAX_TOTAL_BYTES",
+                               len(self.photo) + len(self.video) - 1):
+            with self.assertRaisesRegex(ingress.IngressRefused,
+                                        "integrity"):
+                self.stage()
+        self.assertEqual(list(self.inbox.iterdir()), [])
+
+    def test_http_download_streams_in_bounded_chunks_without_full_video_buffer(self):
+        step = ingress.TRANSFER_CHUNK_BYTES
+        contents = b"x" * (3 * step + 19)
+        requested = []
+        class StreamingResponse(io.BytesIO):
+            status = 200
+            headers = {"Content-Length": str(len(contents)),
+                       "Content-Encoding": "identity"}
+            def read(self, n=-1):
+                requested.append(n)
+                return super().read(n)
+        reply = StreamingResponse(contents)
+        with mock.patch.object(ingress.request, "build_opener") as opener:
+            opener.return_value.open.return_value = reply
+            result = ingress._secure_download(
+                self.files[1]["download_url"], self.root / "streamed.mp4",
+                ingress.MAX_TOTAL_BYTES)
+        self.assertEqual(result, len(contents))
+        self.assertEqual((self.root / "streamed.mp4").read_bytes(), contents)
+        self.assertGreaterEqual(len(requested), 4)
+        self.assertTrue(all(n == step for n in requested))
 
     def test_owner_authorization_is_required_before_any_file_download(self):
         with self.assertRaisesRegex(ingress.IngressRefused, "Owner"):

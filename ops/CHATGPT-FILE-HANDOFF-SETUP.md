@@ -12,6 +12,15 @@ Uma futura ligação privada e autenticada (OAuth: confirmar de forma independen
 
 **ATENÇÃO:** os URLs de download são credenciais temporárias; não podem aparecer em Issues, relatórios, logs, repositórios, outputs ou Telegram. Os hosts exatos devem ser validados e incluídos numa allowlist de confiança, configurada por quem instala o plugin; hosts desconhecidos falham sem transferência. Redirecionamentos HTTP são recusados. O backend conserva os originais, limita quantidade/tamanho e entrega SHA-256 e identificador aleatório de 128 bits.
 
+## Limite de ficheiros aprovado pelo Owner
+
+- **Até 1 GiB (1.073.741.824 bytes) de originais selecionados por envio**, no total. Um único vídeo pode ocupar esse limite; fotografias, vídeos, PDFs e outros ficheiros partilham a mesma quota.
+- Até **16 anexos** por seleção. Nunca encaminhar automaticamente todos os ficheiros de uma conversa.
+- Download HTTPS e cópia/verificação SHA-256 **em blocos de 1 MiB**, com orçamento restante aplicado a cada ficheiro; não carregar um vídeo inteiro para a RAM.
+- A preparação atualmente cria uma cópia privada temporária e outra cópia privada de verificação: para envios próximos de 1 GiB, reservar espaço de disco superior a 2 GiB mais margem. Em caso de falta de espaço, recusar e limpar sem produzir pacote parcial.
+- O limite do nosso backend não altera os eventuais limites de upload de cada cliente/plataforma ChatGPT.
+- **Esta alteração estabelece a capacidade de receção; não certifica ainda o transporte remoto privado.** O relay encriptado via GitHub e a ferramenta ChatGPT instalada são requisitos distintos, com certificação própria. Nunca colocar fotografias, ficheiros originais ou URLs de download num repositório público.
+
 ## Entrega ao Coordenador existente
 
 Depois de `stage` devolver e verificar a receção, e apenas mediante a ordem do Owner, criar Issue autenticada no repositório `martaxi-boss/VPS`:
