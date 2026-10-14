@@ -13,8 +13,11 @@ on:
       - 'ops/tests/test_coordinator_ai.py'
       - 'ops/tests/test_coordinator_media.py'
       - 'ops/chatgpt_attachment_ingress.py'
+      - 'ops/chatgpt_media_mcp.py'
+      - 'ops/CHATGPT-MCP-PRIVATE-SETUP.md'
       - 'ops/chatgpt_coordinator_file_tool.json'
       - 'ops/tests/test_chatgpt_attachment_ingress.py'
+      - 'ops/tests/test_chatgpt_media_mcp.py'
       - 'ops/tests/test_chatgpt_workflow_routing.py'
       - 'ops/tests/test_coordinator_smoke.py'
 
@@ -34,8 +37,9 @@ jobs:
       - name: Validate bounded smoke without accounts or model calls
         run: |
           bash -n ops/coordinator-smoke-remote.sh
-          python3 -m py_compile ops/coordinator_ai.py ops/coordinator_media.py ops/chatgpt_attachment_ingress.py
+          python3 -m py_compile ops/coordinator_ai.py ops/coordinator_media.py ops/chatgpt_attachment_ingress.py ops/chatgpt_media_mcp.py
           python3 -m unittest discover -s ops/tests -p test_chatgpt_attachment_ingress.py -v
+          python3 -m unittest discover -s ops/tests -p test_chatgpt_media_mcp.py -v
           python3 -m unittest discover -s ops/tests -p test_chatgpt_workflow_routing.py -v
           python3 -m unittest discover -s ops/tests -p test_coordinator_smoke.py -v
           python3 -m unittest discover -s ops/tests -p test_coordinator_ai.py -v
