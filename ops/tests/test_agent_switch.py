@@ -176,7 +176,7 @@ class AgentSwitchTests(unittest.TestCase):
 
     def test_malformed_and_malicious_inputs_fail_closed(self):
         bad_orders = (
-            self.order(target="martaxi-boss/untrusted"),
+            self.order(target="untrusted-owner/untrusted"),
             self.order(mode="sequential"),
             self.order([self.task("cloud-1", "cloud")]),
             self.order([self.task("codex-1"), self.task("codex-1")]),
