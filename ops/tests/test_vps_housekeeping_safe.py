@@ -273,9 +273,10 @@ class BoundedHousekeepingTests(unittest.TestCase):
 
 
 class CurrentHygieneEntrypointTests(unittest.TestCase):
-    def test_no_legacy_broad_deletion_entrypoints_on_main(self):
+    def test_no_legacy_vps_maintenance_entrypoints_on_main(self):
         workflows = Path(__file__).resolve().parents[2] / ".github" / "workflows"
-        for retired in ("vps-final-cleanup.yml", "vps-hygiene-050.yml"):
+        for retired in ("vps-final-cleanup.yml", "vps-hygiene-050.yml",
+                        "vps-residue-audit.yml"):
             with self.subTest(workflow=retired):
                 self.assertFalse((workflows / retired).exists())
 
