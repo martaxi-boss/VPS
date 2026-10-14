@@ -32,9 +32,9 @@ _SECRET = re.compile(
     r"\s*[:=]\s*\S{8,})"
 )
 _ACTION = re.compile(
-    r"(?i)\b(?:corrige|corrigir|corrijam|resolve|resolver|resolva|"
+    r"(?i)\b(?:corrige|corrigir|corrijam|corrijas|resolve|resolver|resolva|resolvas|resolvam|"
     r"implementa|implementar|conserta|consertar|altera|alterar|"
-    r"repara|reparar|melhora|melhorar|cria|criar|executa|executar)\b"
+    r"repara|reparar|arranja|arranjar|melhora|melhorar|cria|criar|executa|executar)\b"
 )
 
 
