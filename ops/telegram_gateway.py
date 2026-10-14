@@ -19,6 +19,13 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+try:
+    from ops.telegram_coordinator_authority import (
+        OrderRefused, resolve_target, sign_claim, is_execution_request)
+except ModuleNotFoundError:
+    from telegram_coordinator_authority import (
+        OrderRefused, resolve_target, sign_claim, is_execution_request)
+
 REPO = os.environ.get("GITHUB_REPOSITORY", "martaxi-boss/VPS")
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
@@ -378,6 +385,57 @@ def is_presence_message(text):
     )) or plain in ("codex", "project leader")
 
 
+def owner_public_repositories():
+    """Fetch a bounded public Owner project list; no Publisher credentials here."""
+    names = []
+    for page in range(1, 5):
+        url = ("https://api.github.com/users/martaxi-boss/repos?"
+               "type=owner&sort=updated&per_page=100&page=" + str(page))
+        try:
+            request = Request(url, headers={
+                "Accept": "application/vnd.github+json",
+                "User-Agent": "Project-Leader-Telegram-Project-Discovery"})
+            with urlopen(request, timeout=18) as response:
+                raw = response.read(500_001)
+            if len(raw) > 500_000:
+                raise RuntimeError("GitHub project registry response too large")
+            data = json.loads(raw.decode("utf-8"))
+        except (HTTPError, URLError, TimeoutError, ValueError) as exc:
+            raise RuntimeError("GitHub project discovery unavailable") from None
+        if not isinstance(data, list) or len(data) > 100:
+            raise RuntimeError("GitHub project list unverified")
+        for row in data:
+            if (isinstance(row, dict) and
+                    row.get("owner", {}).get("login") == "martaxi-boss" and
+                    row.get("private") is False and
+                    row.get("archived") is False and
+                    row.get("default_branch") == "main"):
+                names.append(row.get("full_name", ""))
+        if len(data) < 100:
+            return names
+    raise RuntimeError("Owner project list not fully enumerated")
+
+
+def dispatch_coordinator(update_id, task):
+    """Send only signed command data to a separate trusted Owner Issue gateway."""
+    if not BOT_TOKEN or not GH_TOKEN:
+        raise RuntimeError("Telegram Coordinator configuration unavailable")
+    try:
+        target = resolve_target(task, owner_public_repositories())
+        signed, mac = sign_claim(BOT_TOKEN, int(update_id), target, task)
+    except (OrderRefused, ValueError) as exc:
+        raise RuntimeError("Coordenador recusou uma ordem sem projeto inequívoco ou segura") from None
+    github("POST", "actions/workflows/telegram-coordinator-owner.yml/dispatches", {
+        "ref": "main",
+        "inputs": {
+            "source": "telegram",
+            "signed_order_b64": signed,
+            "signature": mac,
+        },
+    })
+    return target
+
+
 def is_voice_audit_request(task):
     """Recognizable read-only intent required; reject noisy ASR strings."""
     return bool(re.search(
@@ -445,15 +503,15 @@ def handle_update(update):
         return
     if re.match(r"^/(?:start|help)(?:@\w+)?$", text, re.I):
         say("🤖 Ponte Codex ligada ao GitHub.\n\n"
-            "Envia /audit seguido do pedido, ou 'Codex, faz uma auditoria...'.\n"
-            "Podes enviar uma fotografia ou uma mensagem de voz até 90 segundos.\n"
-            "As mensagens de voz são transcritas localmente e encaminhadas como auditorias.\n"
-            "Consulta o resultado com /status 123.\n"
-            "Pergunta ao Supervisor com /supervisor ou /supervisor #123.\n\n"
-            "Por segurança, só auditorias de leitura estão ativas. "
-            "As correções e Cursor ainda não estão ativados.\n"
-            "⚠️ Este repositório GitHub é público: nunca incluas passwords, "
-            "tokens ou dados privados nas ordens.")
+            "Para auditorias de leitura: /audit <pedido>.\n"
+            "Para correções, descreve por texto ou voz o que pretendes "
+            "corrigir e identifica o projeto (por exemplo, PINK IPTV).\n"
+            "Recebo mensagens de voz até 90 segundos.\n"
+            "Consulta resultados de auditoria com /status 123.\n"
+            "Pergunta ao Supervisor com /supervisor.\n\n"
+            "A execução de correções exige verificação independente "
+            "e permissões do proprietário no GitHub.\n"
+            "Não envies credenciais nem dados privados em ordens.")
         return
     # Supervisor is a separate read-only path: never create public Issues,
     # dispatch Codex, or reinterpret Project Leader Human Gates.
@@ -475,6 +533,25 @@ def handle_update(update):
     if supervisor.is_addressed_to_supervisor(text):
         say("👁️ Supervisor: só consulto e comunico estados da produção. "
             "Não executo ordens, não autorizo nem encaminho trabalhadores.")
+        return
+
+    # Natural text and offline-transcribed voice share the same authenticated
+    # Owner Coordinator path. A screenshot is private; do not silently publish
+    # or omit its evidence from a write order.
+    if is_execution_request(text):
+        if image is not None:
+            say("As imagens não são enviadas para tarefas de correção pela ponte "
+                "Telegram. Descreve o problema por texto ou voz.")
+            return
+        try:
+            target = dispatch_coordinator(update["update_id"], text)
+        except RuntimeError:
+            say("Não consegui encaminhar a ordem com segurança. "
+                "Confirma o nome de um único projeto teu e tenta novamente.")
+            return
+        say("📨 Ordem recebida para " + target + ". "
+            "A autorização e execução pelo Coordenador ainda serão verificadas "
+            "no GitHub; esta mensagem não confirma que os trabalhadores arrancaram.")
         return
 
     if text.lower().startswith(("/fix", "/cursor", "/sonnet", "/composer")):
