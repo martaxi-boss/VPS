@@ -154,9 +154,11 @@ Optional item keys ONLY:
   depends_on: array of ids of EARLIER work_items (no cycles);
   allow_no_change: boolean, default false.
 Any other field invalidates the plan. Do not include AUDIT_BASE_SHA= or
-AUDIT_ALLOWED_PATHS= in task prose. Prefer 1-2 small documentation tasks with
-independent, non-overlapping files when evidence supports them; do not force
-two workers. Each path must exist as a tracked file, with exact case; avoid
+AUDIT_ALLOWED_PATHS= in task prose. Select only corrections that advance the Owner's actual requested objective,
+grounded in inspected tracked files. Source code, tests or documentation may be
+selected when relevant; do not substitute easy documentation edits for a
+functional defect. Use up to two independent workers per wave and keep dependent
+work in later phases; never force two workers. Each path must exist as a tracked file, with exact case; avoid
 parent-directory ownership. Observations must be factual, not hypothetical.
 
 If inspection finds NO verifiable actionable issue, do NOT fabricate one:
