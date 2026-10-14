@@ -8,6 +8,10 @@ on:
     paths:
       - '.github/workflows/coordinator-ai-smoke.yml'
       - 'ops/coordinator-smoke-remote.sh'
+      - 'ops/coordinator_ai.py'
+      - 'ops/coordinator_media.py'
+      - 'ops/tests/test_coordinator_ai.py'
+      - 'ops/tests/test_coordinator_media.py'
       - 'ops/tests/test_coordinator_smoke.py'
 
 permissions: {}
@@ -26,7 +30,10 @@ jobs:
       - name: Validate bounded smoke without accounts or model calls
         run: |
           bash -n ops/coordinator-smoke-remote.sh
+          python3 -m py_compile ops/coordinator_ai.py ops/coordinator_media.py
           python3 -m unittest discover -s ops/tests -p test_coordinator_smoke.py -v
+          python3 -m unittest discover -s ops/tests -p test_coordinator_ai.py -v
+          python3 -m unittest discover -s ops/tests -p test_coordinator_media.py -v
 
   coordinator-smoke:
     if: >-

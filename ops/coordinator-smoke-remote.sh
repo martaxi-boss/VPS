@@ -21,19 +21,24 @@ refuse() {
 # One tested read-only planning implementation, exposed in two modes:
 # 1) existing explicit no-dispatch smoke, 2) Owner-verified audited plan
 #    transferred to the existing trusted Actions router for dispatch.
-if { [ "$#" -ne 1 ] && [ "$#" -ne 3 ]; } ||
+if { [ "$#" -ne 1 ] && [ "$#" -ne 3 ] && [ "$#" -ne 4 ]; } ||
    [[ ! "$1" =~ ^[1-9][0-9]{7,14}-[1-9][0-9]{0,3}$ ]]; then
   refuse
 fi
 job="$1"
 mode='smoke'
 encoded_order=''
-if [ "$#" -eq 3 ]; then
+private_assets=0
+if [ "$#" -ge 3 ]; then
   [ "$2" = 'dispatch' ] || refuse
   mode='dispatch'
   encoded_order="$3"
   [ "${#encoded_order}" -ge 20 ] && [ "${#encoded_order}" -le 11000 ] || refuse
   [[ "$encoded_order" =~ ^[A-Za-z0-9+/=]+$ ]] || refuse
+fi
+if [ "$#" -eq 4 ]; then
+  [ "$4" = 'with-private-attachments' ] || refuse
+  private_assets=1
 fi
 
 # Use the already-authenticated account and the same two worker slots.
@@ -68,12 +73,35 @@ fi
 [ "$(stat -c '%a' -- "$root")" = '700' ] || refuse
 
 workspace="$root/$job"
+asset_bundle=''
+asset_args=()
+if [ "$private_assets" -eq 1 ]; then
+  private_inbox="$bridge/.coordinator-inbox"
+  asset_bundle="$private_inbox/$job"
+  # Fixed, private, non-symlinked parent and exact run ID. Refuse any
+  # staged set which has not arrived through an authenticated private route.
+  [ -d "$private_inbox" ] && [ ! -L "$private_inbox" ] || refuse
+  [ "$(stat -c '%u' -- "$private_inbox")" = "$(id -u)" ] || refuse
+  [ "$(stat -c '%a' -- "$private_inbox")" = '700' ] || refuse
+  [ -d "$asset_bundle" ] && [ ! -L "$asset_bundle" ] || refuse
+  [ "$(stat -c '%u' -- "$asset_bundle")" = "$(id -u)" ] || refuse
+  [ "$(stat -c '%a' -- "$asset_bundle")" = '700' ] || refuse
+  asset_args=(--attachment-bundle "$asset_bundle")
+fi
 [ ! -e "$workspace" ] && [ ! -L "$workspace" ] || refuse
 
 # Atomic, persistent anti-replay marker: a given Actions job is never started twice.
 ( set -C; : > "$root/.started-$job" ) 2>/dev/null || refuse
 mkdir -m 700 -- "$workspace" || refuse
-trap 'rm -rf -- "$workspace"' EXIT
+cleanup_private_workspace() {
+  rm -rf -- "$workspace"
+  # The unique run ID is strictly validated above. Selected Owner media
+  # never remains in the private staging directory after an invoked run.
+  if [ "$private_assets" -eq 1 ] && [ -n "$asset_bundle" ]; then
+    rm -rf -- "$asset_bundle"
+  fi
+}
+trap cleanup_private_workspace EXIT
 
 control="$workspace/control"
 target="$workspace/target"
@@ -120,7 +148,7 @@ head="$(git -C "$target" rev-parse HEAD)"
 if ! python3 "$control/ops/coordinator_ai.py" \
   --order "$order" --checkout "$target" \
   --output-dir "$workspace/validated" \
-  --codex "$cli" > "$private/coordinator-result.json" \
+  --codex "$cli" "${asset_args[@]}" > "$private/coordinator-result.json" \
   2>"$private/coordinator-error.txt"; then
   diagnostic='MODEL_OTHER'
   if grep -qxF 'COORDINATOR_AI_REFUSED: ChatGPT subscription login required; no model started' "$private/coordinator-error.txt"; then
