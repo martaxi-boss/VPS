@@ -109,12 +109,11 @@ jobs:
           lines = task.splitlines()
           if not 1 <= len(task) <= 7000 or not lines:
               raise SystemExit('Task length must be 1-7000 characters')
-          allowed = ('TARGET_REPOSITORY=martaxi-boss/Project-leader',
-                     'TARGET_REPOSITORY=martaxi-boss/Project-leader-codex',
-                     'TARGET_REPOSITORY=martaxi-boss/VPS',
-                     'TARGET_REPOSITORY=martaxi-boss/pink-iptv')
-          if lines[0] not in allowed:
-              raise SystemExit('First line must be an allowlisted TARGET_REPOSITORY')
+          from ops.project_target import from_owner_order, TargetRefused
+          try:
+              target = from_owner_order(task)
+          except TargetRefused:
+              raise SystemExit('First line must name a verified Owner-scoped repository')
           if not os.environ.get('CODEX_GITHUB_TOKEN'):
               (Path(os.environ['RUNNER_TEMP']) / 'codex-preflight-status.txt').write_text(
                   'Missing GitHub Actions secret CODEX_GITHUB_TOKEN in martaxi-boss/VPS. Codex was NOT started.', encoding='utf-8')
@@ -123,7 +122,6 @@ jobs:
               task + '\n', encoding='utf-8')
           # Verify the token can actually WRITE the selected repository before invoking Codex.
           import json, urllib.request, urllib.error
-          target = lines[0].split('=', 1)[1]
           request = urllib.request.Request(
               'https://api.github.com/repos/' + target,
               headers={'Authorization': 'Bearer ' + os.environ['CODEX_GITHUB_TOKEN'],
@@ -136,6 +134,12 @@ jobs:
               (Path(os.environ['RUNNER_TEMP']) / 'codex-preflight-status.txt').write_text(
                   'GitHub token could not access the selected repository (HTTP ' + str(exc.code) + '). Codex was NOT started.', encoding='utf-8')
               raise SystemExit('CODEX_GITHUB_TOKEN failed GitHub preflight HTTP ' + str(exc.code))
+          if (info.get('full_name') != target or
+                  info.get('owner', {}).get('login') != 'martaxi-boss' or
+                  info.get('archived') is True or
+                  info.get('private') is not False or
+                  info.get('default_branch') != 'main'):
+              raise SystemExit('Repository is not a verified public Owner main target')
           if info.get('permissions', {}).get('push') is not True:
               (Path(os.environ['RUNNER_TEMP']) / 'codex-preflight-status.txt').write_text(
                   'GitHub token does not have Contents write on the selected repository. Codex was NOT started.', encoding='utf-8')
@@ -143,7 +147,7 @@ jobs:
           print('Owner task/target/GitHub write access verified. No token printed.')
           PY
           bash -n ops/codex-autonomous-remote.sh
-          python3 -m py_compile ops/codex-autonomous-publish.py ops/codex_patch_guard.py ops/codex-project-leader-bootstrap.py ops/codex_quota_resume.py ops/codex_account_limits.py ops/codex_quota_workspace.py ops/codex_audit_strategy.py
+          python3 -m py_compile ops/codex-autonomous-publish.py ops/codex_patch_guard.py ops/codex-project-leader-bootstrap.py ops/codex_quota_resume.py ops/codex_account_limits.py ops/codex_quota_workspace.py ops/codex_audit_strategy.py ops/project_target.py
 
       - name: Verify actual Git branch publication permission without model calls
         shell: bash
@@ -222,7 +226,7 @@ jobs:
           sshpass -e scp -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
             "$RUNNER_TEMP/codex-task.txt" "$RUNNER_TEMP/codex-reasoning.txt" \
             ops/codex-autonomous-remote.sh ops/codex_resource_policy.py \
-            ops/codex_quota_resume.py ops/codex_account_limits.py ops/codex_quota_workspace.py ops/codex_audit_strategy.py \
+            ops/codex_quota_resume.py ops/codex_account_limits.py ops/codex_quota_workspace.py ops/codex_audit_strategy.py ops/project_target.py \
             ops/codex_patch_guard.py \
             ops/codex-project-leader-bootstrap.py "$remote:$dest/"
 
@@ -366,9 +370,12 @@ jobs:
               from urllib.parse import urlparse
               import re
               location = urlparse(pr)
-              if (location.scheme != 'https' or location.netloc != 'github.com'
+              from ops.project_target import is_managed_target
+              published_repo = result.get('repository')
+              if (not is_managed_target(published_repo)
+                  or location.scheme != 'https' or location.netloc != 'github.com'
                   or not re.fullmatch(
-                      r'/martaxi-boss/Project-leader-codex/pull/[1-9][0-9]*',
+                      '/' + re.escape(published_repo) + r'/pull/[1-9][0-9]*',
                       location.path
                   ) or location.query or location.fragment
                   or not isinstance(sha, str)
