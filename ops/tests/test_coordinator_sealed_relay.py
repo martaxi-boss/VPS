@@ -109,6 +109,19 @@ class SealedRelayTests(unittest.TestCase):
             relay.stage(self.inbox, session2, extra_digest)
         self.assertFalse((self.inbox / session2).exists())
 
+    def test_rejects_compressed_zip_payload_without_publishing_any_original(self):
+        compressed = self.root / "compressed.zip"
+        with zipfile.ZipFile(self.bundle) as src, zipfile.ZipFile(
+                compressed, 'w', compression=zipfile.ZIP_DEFLATED) as out:
+            for info in src.infolist():
+                out.writestr(info.filename, src.read(info.filename))
+        pub = relay.request_key(self.inbox, self.session)
+        cipher = self.inbox / ('.relay-cipher-' + self.session)
+        digest, _ = relay.seal(compressed, self.session, pub, cipher)
+        with self.assertRaisesRegex(relay.RelayRefused, 'Unsafe'):
+            relay.stage(self.inbox, self.session, digest)
+        self.assertFalse((self.inbox / self.session).exists())
+
     def test_reject_shared_inbox(self):
         self.inbox.chmod(0o755)
         with self.assertRaisesRegex(relay.RelayRefused, 'Unsafe'):
