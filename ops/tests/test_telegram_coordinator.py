@@ -59,6 +59,7 @@ class AuthTests(unittest.TestCase):
         for task in ("Olá", "Verifica a VPS", "Audita o PINK IPTV"):
             self.assertFalse(auth.is_execution_request(task))
         self.assertTrue(auth.is_execution_request(TASK))
+        self.assertTrue(auth.is_execution_request("Quero que resolvas PINK IPTV"))
 
     def test_signed_claim_has_integrity_and_expires(self):
         encoded, mac = signed()
