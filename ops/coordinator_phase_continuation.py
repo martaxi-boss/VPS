@@ -108,6 +108,7 @@ def prepared_phase(original_b64: str, phase: int, current_sha: str) -> dict:
             != scoped["reasoning_by_task"]):
         raise PhaseContinuationError("Prepared phase changed Owner planning")
     return {
+        "target_repository": original["target_repository"],
         "coordinator_plan_b64": encoded,
         "phase": phase,
         "remaining_phases": scoped["phase_count"] - phase + 1,
