@@ -28,11 +28,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m pip install -q --disable-pip-version-check 'cryptography==46.0.3'
-          python3 -m py_compile ops/coordinator_sealed_relay.py
-          python3 -m unittest discover -s ops/tests -p test_coordinator_sealed_relay.py -v
-          python3 -m unittest discover -s ops/tests -p test_coordinator_media.py -v
-          python3 -m unittest discover -s ops/tests -p test_chatgpt_attachment_ingress.py -v
+          python3 -m venv "$RUNNER_TEMP/media-relay-venv"
+          python="$RUNNER_TEMP/media-relay-venv/bin/python"
+          "$python" -m pip install -q --disable-pip-version-check 'cryptography==46.0.3'
+          "$python" -m py_compile ops/coordinator_sealed_relay.py
+          "$python" -m unittest discover -s ops/tests -p test_coordinator_sealed_relay.py -v
+          "$python" -m unittest discover -s ops/tests -p test_coordinator_media.py -v
+          "$python" -m unittest discover -s ops/tests -p test_chatgpt_attachment_ingress.py -v
 
   request-key:
     if: >-
