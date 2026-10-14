@@ -99,7 +99,7 @@ class PhaseContinuationTests(unittest.TestCase):
         with self.assertRaises(phases.PhaseContinuationError):
             phases.prepared_phase("not-encoded", 2, UPDATED)
         p = fixture()
-        p["target_repository"] = "martaxi-boss/VPS"
+        p["target_repository"] = "untrusted-owner/VPS"
         with self.assertRaises(phases.PhaseContinuationError):
             phases.prepared_phase(enc(p), 2, UPDATED)
         p = fixture()
