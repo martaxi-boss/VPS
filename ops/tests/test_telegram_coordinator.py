@@ -140,6 +140,19 @@ class GatewayTests(unittest.TestCase):
             route.assert_called_once_with(12345, TASK)
             self.assertIn("ainda serão verificadas", response.call_args[0][0])
 
+    def test_explicit_readonly_audit_cannot_be_promoted_to_fix(self):
+        msg = {"update_id": 12345, "message": {
+            "chat": {"id": 765, "type": "private"},
+            "from": {"id": 765, "is_bot": False},
+            "text": "/audit Corrige a ortografia no PINK IPTV"}}
+        with mock.patch.object(gateway, "CHAT_ID", "765"), \
+             mock.patch.object(gateway, "create_audit", return_value=88) as audit, \
+             mock.patch.object(gateway, "dispatch_coordinator") as dispatch, \
+             mock.patch.object(gateway, "say"):
+            gateway.handle_update(msg)
+            audit.assert_called_once()
+            dispatch.assert_not_called()
+
     def test_no_owner_pat_in_telegram_bot_poll(self):
         root = Path(__file__).resolve().parents[2]
         bot = (root / ".github/workflows/telegram-codex-gateway.yml").read_text()
