@@ -9,14 +9,7 @@ import tempfile
 
 REPO = "martaxi-boss/Project-leader-codex"
 BRANCH = "codex/issue-134-38235356661-1-1"
-# Targets and branch refs are fixed in trusted code. No Issue body, arbitrary
-# repo, or caller-controlled Git URL can reach this privileged dry-run.
-PINK_REPO = "martaxi-boss/pink-iptv"
-PINK_BRANCH = "codex/issue-224-38578348749-1"
-PROBES = {
-    "codex": (REPO, BRANCH),
-    "pink": (PINK_REPO, PINK_BRANCH),
-}
+GIT_URL = "https://github.com/" + REPO + ".git"
 CATEGORIES = {
     "authentication": ("authentication failed", "bad credentials",
                        "invalid username", "could not read username"),
@@ -49,14 +42,10 @@ def publisher_module():
     spec.loader.exec_module(module)
     return module
 
-def diagnose(target: str = "codex"):
-    if target not in PROBES:
-        raise ValueError("Unsupported fixed publication probe target")
-    repo, branch = PROBES[target]
-    git_url = "https://github.com/" + repo + ".git"
+def diagnose():
     result = {"status": "NOT_COMPLETED",
-              "repo": repo,
-              "probe_branch": branch,
+              "repo": REPO,
+              "probe_branch": BRANCH,
               "permission_flag": "unknown", "api_check": "unknown",
               "normal": "not_attempted", "no_helper": "not_attempted",
               "models_called": False, "git_writes": False}
@@ -65,7 +54,7 @@ def diagnose(target: str = "codex"):
         return result
     publisher = publisher_module()
     try:
-        info = publisher.api("GET", f"repos/{repo}")
+        info = publisher.api("GET", f"repos/{REPO}")
         result["api_check"] = "ok"
         result["permission_flag"] = (
             "push_true" if info.get("permissions", {}).get("push") is True
@@ -89,13 +78,13 @@ def diagnose(target: str = "codex"):
         checkout = root / "target"
         try:
             cloned = call(["git", "clone", "--quiet", "--depth", "1",
-                           "--branch", "main", "--", git_url, str(checkout)])
+                           "--branch", "main", "--", GIT_URL, str(checkout)])
             if cloned.returncode:
                 result["normal"] = classify(cloned.stdout + cloned.stderr, cloned.returncode)
                 result["status"] = "CLONE_FAILED"
                 return result
             existing = call(["git", "ls-remote", "--heads", "origin",
-                             "refs/heads/" + branch], cwd=checkout)
+                             "refs/heads/" + BRANCH], cwd=checkout)
             if existing.returncode or existing.stdout.strip():
                 result["status"] = "BRANCH_NOT_AVAILABLE_FOR_SAFE_PROBE"
                 return result
@@ -103,7 +92,7 @@ def diagnose(target: str = "codex"):
             # Same credential and argument ordering as the real publisher,
             # with --dry-run added. Never create a ref or spend model tokens.
             normal = call(["git", "push", "--dry-run", "--porcelain",
-                           "origin", "HEAD:refs/heads/" + branch],
+                           "origin", "HEAD:refs/heads/" + BRANCH],
                           cwd=checkout, env=env)
             result["normal"] = classify(normal.stdout + normal.stderr, normal.returncode)
             if normal.returncode:
@@ -111,7 +100,7 @@ def diagnose(target: str = "codex"):
                 # target token/rules failures. Still no remote writes.
                 forced = call(["git", "-c", "credential.helper=", "push",
                                "--dry-run", "--porcelain", "origin",
-                               "HEAD:refs/heads/" + branch],
+                               "HEAD:refs/heads/" + BRANCH],
                               cwd=checkout, env=env)
                 result["no_helper"] = classify(
                     forced.stdout + forced.stderr, forced.returncode)
@@ -129,7 +118,4 @@ def diagnose(target: str = "codex"):
 
 if __name__ == "__main__":
     # Never print raw Git or API output: it may contain credential details.
-    # Only the workflow's exact Owner-authored Issue title selects this fixed
-    # profile; arbitrary strings fail before any secret or Git operation.
-    print(json.dumps(diagnose(os.environ.get("CODEX_PUBLISH_PROBE_TARGET", "codex")),
-                     sort_keys=True))
+    print(json.dumps(diagnose(), sort_keys=True))
