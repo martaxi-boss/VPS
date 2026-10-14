@@ -241,13 +241,23 @@ class BoundedHousekeepingTests(unittest.TestCase):
                 with patch.object(house, "_staged_inode_has_open_descriptor",
                                   side_effect=verify_held_moved_inode):
                     report = house.run("clean")
-            self.assertEqual(report["status"], "CLEANED")
+            self.assertEqual(report["status"], "BLOCKED_OPEN_CACHE_REFERENCES")
             self.assertEqual(report["removed_file_bytes"], 0)
+            self.assertEqual(report["late_open_references_preserved"], 1)
+            self.assertEqual(report["quarantined_for_recovery"], 0)
             self.assertGreaterEqual(report["changed_or_unsafe_preserved"], 1)
             self.assertEqual(self.old.read_bytes(), b"regenerable")
         finally:
             if held[0] is not None:
                 os.close(held[0])
+
+    def test_late_open_reference_reported_once(self):
+        with patch.object(house, "_staged_inode_has_open_descriptor", return_value=True):
+            report = house.run("clean")
+        self.assertEqual(report["status"], "BLOCKED_OPEN_CACHE_REFERENCES")
+        self.assertEqual(report["late_open_references_preserved"], 1)
+        self.assertEqual(report["quarantined_for_recovery"], 0)
+        self.assertTrue(self.old.exists())
 
     def test_unreadable_proc_never_grants_permission_to_unlink(self):
         original = self.patches[-2]

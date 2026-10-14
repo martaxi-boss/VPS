@@ -102,7 +102,7 @@ def _quarantined_verified_removal(root: str, entries: list) -> dict:
     """
     if root not in h.CACHE_ROOTS or str(Path(root).resolve()) != root:
         raise ValueError("Untrusted cache root")
-    total_removed, allocated_removed, skipped, stranded = 0, 0, 0, 0
+    total_removed, allocated_removed, skipped, stranded, active_references = 0, 0, 0, 0, 0
     root_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
     quarantine = ".vps-hygiene-" + secrets.token_hex(12)
     quarantine_fd = None
@@ -154,9 +154,16 @@ def _quarantined_verified_removal(root: str, entries: list) -> dict:
                     and moved.st_mtime_ns < (
                         time.time_ns() - h.MIN_AGE_SECONDS * 1_000_000_000)
                 )
+                if not matches:
+                    skipped += 1
+                    if not _restore_no_replace(quarantine_fd, stage,
+                                               parent_fd, name):
+                        stranded += 1
+                    continue
                 # A producer may have opened the shared original after our
                 # first /proc snapshot. Check the exact moved inode now.
-                if not matches or _staged_inode_has_open_descriptor(moved):
+                if _staged_inode_has_open_descriptor(moved):
+                    active_references += 1
                     skipped += 1
                     if not _restore_no_replace(quarantine_fd, stage,
                                                parent_fd, name):
@@ -185,6 +192,7 @@ def _quarantined_verified_removal(root: str, entries: list) -> dict:
         "allocated_bytes_removed": allocated_removed,
         "changed_or_unsafe_files_preserved": skipped,
         "quarantined_for_recovery": stranded,
+        "open_references_preserved": active_references,
     }
 
 
@@ -226,6 +234,7 @@ def run(mode: str) -> dict:
         summaries, candidates = [], []
         preexisting_quarantine = False
         quarantine_count = 0
+        late_open_refs = 0
         # Build a complete bounded snapshot before the first possible unlink.
         for root in h.CACHE_ROOTS:
             stats, items = h.cache_inventory(root, cutoff)
@@ -272,11 +281,15 @@ def run(mode: str) -> dict:
                         continue
                     effect = _quarantined_verified_removal(root, items)
                     quarantine_count += effect["quarantined_for_recovery"]
+                    late_open_refs += effect["open_references_preserved"]
                     removed_files += effect["bytes_removed"]
                     removed_allocated += effect["allocated_bytes_removed"]
                     changed_preserved += effect["changed_or_unsafe_files_preserved"]
                     if effect["quarantined_for_recovery"]:
                         status = "BLOCKED_QUARANTINE_RECOVERY"
+                        break
+                    if effect["open_references_preserved"]:
+                        status = "BLOCKED_OPEN_CACHE_REFERENCES"
                         break
 
         after_disk = shutil.disk_usage("/")
@@ -302,6 +315,7 @@ def run(mode: str) -> dict:
             "removed_allocated_bytes": removed_allocated,
             "changed_or_unsafe_preserved": changed_preserved,
             "quarantined_for_recovery": quarantine_count,
+            "late_open_references_preserved": late_open_refs,
             "root_candidates": summaries,
             "protected_services_before": before_services,
             "protected_services_after": after_services,
