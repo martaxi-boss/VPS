@@ -272,5 +272,19 @@ class BoundedHousekeepingTests(unittest.TestCase):
 
 
 
+class CurrentHygieneEntrypointTests(unittest.TestCase):
+    def test_no_legacy_broad_deletion_entrypoints_on_main(self):
+        workflows = Path(__file__).resolve().parents[2] / ".github" / "workflows"
+        for retired in ("vps-final-cleanup.yml", "vps-hygiene-050.yml"):
+            with self.subTest(workflow=retired):
+                self.assertFalse((workflows / retired).exists())
+
+        protected = (workflows / "vps-safe-housekeeping.yml").read_text(
+            encoding="utf-8")
+        self.assertIn("github.event.issue.user.login == github.repository_owner",
+                      protected)
+        self.assertIn("[vps hygiene] clean verified caches", protected)
+
+
 if __name__ == "__main__":
     unittest.main()
