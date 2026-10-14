@@ -30,7 +30,10 @@ jobs:
     if: >-
       github.event_name == 'issues' &&
       github.event.issue.user.login == github.repository_owner &&
-      github.event.issue.title == '[codex publish probe] Check Project-leader-codex branch push'
+      (
+        github.event.issue.title == '[codex publish probe] Check Project-leader-codex branch push' ||
+        github.event.issue.title == '[codex publish probe] Check PINK IPTV branch push'
+      )
     runs-on: ubuntu-24.04
     timeout-minutes: 7
     permissions:
@@ -44,6 +47,7 @@ jobs:
         shell: bash
         env:
           CODEX_GITHUB_TOKEN: ${{ secrets.CODEX_GITHUB_TOKEN }}
+          CODEX_PUBLISH_PROBE_TARGET: ${{ github.event.issue.title == '[codex publish probe] Check PINK IPTV branch push' && 'pink' || 'codex' }}
         run: |
           set -euo pipefail
           python3 ops/codex-publish-probe.py > "$RUNNER_TEMP/publish-probe.json"
