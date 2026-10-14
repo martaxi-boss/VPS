@@ -46,7 +46,7 @@ order='Audit the existing Project-leader-codex documentation only. Inspect real 
 if [ "$mode" = dispatch ]; then
   order="$(printf '%s' "$encoded_order" | base64 -d 2>/dev/null)" || refuse
   [ "${#order}" -ge 25 ] && [ "${#order}" -le 8000 ] || refuse
-  first="$(printf '%s\\n' "$order" | head -n 1)"
+  first="$(printf '%s' "$order" | head -n 1)"
   if [[ "$first" =~ ^TARGET_REPOSITORY=(martaxi-boss/[A-Za-z0-9][A-Za-z0-9._-]{0,99})$ ]]; then
     slug="${BASH_REMATCH[1]}"
   else
