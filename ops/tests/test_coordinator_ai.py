@@ -92,6 +92,31 @@ class CoordinatorAITests(unittest.TestCase):
             self.repo, self.output,
             codex=self.codex, runner=fake, environment={}, **kwargs)
 
+    def test_selected_private_photo_is_sent_to_existing_codex(self):
+        from ops import coordinator_media
+        photo = self.base / "test.jpg"
+        photo.write_bytes(b"\\xff\\xd8\\xff" + b"photo")
+        private = coordinator_media.pack([photo], self.base / "originals")
+        fake = FakeCodex(self.audit())
+        self.coordinate(fake, attachment_bundle=private)
+        exec_call = fake.commands[1]
+        self.assertIn("--add-dir", exec_call)
+        self.assertEqual(str(private), exec_call[exec_call.index("--add-dir") + 1])
+        self.assertIn("--image", exec_call)
+        self.assertIn(str(private / "file-001.jpg"), exec_call)
+        self.assertEqual("read-only", exec_call[exec_call.index("--sandbox") + 1])
+
+    def test_missing_media_blocks_before_any_model_call(self):
+        from ops import coordinator_media
+        photo = self.base / "test.jpg"
+        photo.write_bytes(b"\\xff\\xd8\\xff" + b"photo")
+        private = coordinator_media.pack([photo], self.base / "originals")
+        (private / "file-001.jpg").unlink()
+        fake = FakeCodex(self.audit())
+        with self.assertRaisesRegex(coordinator_ai.CoordinatorAIError, "attachments"):
+            self.coordinate(fake, attachment_bundle=private)
+        self.assertEqual([], fake.commands)
+
     def test_one_or_two_workers_are_selected_without_dispatch(self):
         for count, mode in ((1, "serial"), (2, "parallel")):
             with self.subTest(count=count):
