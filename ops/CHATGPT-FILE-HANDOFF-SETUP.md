@@ -8,7 +8,7 @@
 - Receção e verificação em blocos de 1 MiB para não carregar um vídeo inteiro na RAM. Tamanhos e SHA-256 são verificados para cada ficheiro e para a seleção.
 - O total de 1 GiB é um limite de **dados originais**, não garantia de que a interface ChatGPT ou qualquer conector aceite esse tamanho. O serviço de transporte e a VPS precisam de espaço temporário adicional.
 - Em falta de armazenamento, rede, conexão segura ou qualquer anexo selecionado, a operação falha sem transformar a ordem numa execução apenas de texto.
-- O teste GitHub de transporte de dados de aproximadamente 450 KB prova apenas a aceitação de blocos binários, **não** a entrega privada de 1 GiB à VPS.
+- A ligação cifrada GitHub Actions → VPS atualmente certificada utiliza um **Git blob limitado a 16 MiB de ciphertext** por envio (PR #221). A entrega privada de 3 fotografias PINK IPTV teve comprovativo de integridade na Issue VPS #223; **não** é prova de entrega remota de um vídeo de 1 GiB. O envio de até 1 GiB exige um transporte segmentado ou outro canal privado certificado.
 
 
 A entrada pelo ChatGPT é opt-in: somente quando o Owner pedir. Ordens só de texto usam a Issue Owner normal, sem alterar o contrato anterior.
