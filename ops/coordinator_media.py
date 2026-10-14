@@ -12,6 +12,7 @@ import argparse
 from dataclasses import dataclass
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -210,12 +211,26 @@ def prepare(directory: Path, previews: Path, *, video_frames: int = 3) -> Verifi
                 images.append(item.original)
                 notes.append(item.item_id + ": original image attached to the Codex model")
             elif item.mime.startswith("video/"):
-                if shutil.which("ffmpeg") is None:
+                if shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None:
                     raise MediaRefused("Video preview generator is unavailable")
+                if type(video_frames) is not int or not 1 <= video_frames <= 5:
+                    raise MediaRefused("Unsupported number of video frames")
+                try:
+                    metadata = subprocess.run(
+                        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                         "-of", "default=noprint_wrappers=1:nokey=1", str(item.original)],
+                        capture_output=True, check=False, timeout=15)
+                    duration = float(metadata.stdout.decode("ascii", "strict").strip())
+                except (OSError, ValueError, UnicodeError, subprocess.TimeoutExpired) as exc:
+                    raise MediaRefused("Unable to establish video duration") from exc
+                if metadata.returncode or not math.isfinite(duration) or not 0 < duration <= 7200:
+                    raise MediaRefused("Unsupported video duration")
                 for frame in range(video_frames):
                     output = preview_dir / f"{item.item_id}-frame-{frame+1}.png"
+                    # Spread samples throughout even very short videos.
+                    moment = duration * (frame + 1) / (video_frames + 1)
                     command = ["ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error",
-                               "-y", "-ss", str(frame), "-i", str(item.original),
+                               "-y", "-ss", format(moment, '.4f'), "-i", str(item.original),
                                "-frames:v", "1", "-vf", "scale='min(1280,iw)':-2", str(output)]
                     try:
                         completed = subprocess.run(command, check=False,
