@@ -539,7 +539,7 @@ def handle_update(update):
     # Owner Coordinator path. A screenshot is private; do not silently publish
     # or omit its evidence from a write order.
     if (is_execution_request(text) and
-            not re.match(r"^/(?:audit|codex)(?:@\\w+)?(?:\\s|$)", text, re.I)):
+            not re.match(r"^/(?:audit|codex)(?:@\w+)?(?:\s|$)", text, re.I)):
         if image is not None:
             say("As imagens não são enviadas para tarefas de correção pela ponte "
                 "Telegram. Descreve o problema por texto ou voz.")
