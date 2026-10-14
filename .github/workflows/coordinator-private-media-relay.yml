@@ -1,0 +1,245 @@
+name: Coordinator private media relay (Owner only)
+
+# This transfers privately sealed attachments to the EXISTING Coordinator inbox.
+# It never plans work, calls the model, creates workers, or reads Telegram.
+on:
+  issues:
+    types: [opened]
+  pull_request:
+    paths:
+      - '.github/workflows/coordinator-private-media-relay.yml'
+      - 'ops/coordinator_sealed_relay.py'
+      - 'ops/tests/test_coordinator_sealed_relay.py'
+
+permissions: {}
+
+jobs:
+  offline-contract:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pinned v4
+        with:
+          persist-credentials: false
+      - name: Check sealed relay without model, network or VPS secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/media-relay-venv"
+          python="$RUNNER_TEMP/media-relay-venv/bin/python"
+          "$python" -m pip install -q --disable-pip-version-check 'cryptography==46.0.3'
+          "$python" -m py_compile ops/coordinator_sealed_relay.py
+          "$python" -m unittest discover -s ops/tests -p test_coordinator_sealed_relay.py -v
+          "$python" -m unittest discover -s ops/tests -p test_coordinator_media.py -v
+          "$python" -m unittest discover -s ops/tests -p test_chatgpt_attachment_ingress.py -v
+
+  request-key:
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.issue.user.login == github.repository_owner &&
+      startsWith(github.event.issue.title, '[media key] ')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pinned v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Authenticate bounded Owner request
+        shell: bash
+        env:
+          MEDIA_BODY: ${{ github.event.issue.body }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re
+          body = os.environ.get('MEDIA_BODY', '').strip()
+          match = re.fullmatch(r'MEDIA_SESSION=([0-9a-f]{32})', body)
+          if not match:
+              raise SystemExit('MEDIA_OWNER_REQUEST_REFUSED')
+          with open(os.environ['RUNNER_TEMP'] + '/media-session', 'w', encoding='ascii') as out:
+              out.write(match.group(1))
+          PY
+      - name: Verify previously pinned SSH identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          known_hosts="$RUNNER_TEMP/media-known-hosts"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known_hosts" || exit 12
+          chmod 600 "$known_hosts"
+          observed="$(ssh-keygen -lf "$known_hosts" -E sha256 | awk '{print $2}')"
+          test "$observed" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' || exit 12
+      - name: Prepare existing SSH client
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS" || exit 12
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+      - name: Obtain VPS-only recipient public key
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          session="$(cat "$RUNNER_TEMP/media-session")"
+          timeout 70s sshpass -e ssh -T -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/media-known-hosts" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 ubuntu@146.59.145.3 \
+            "python3 - request '$session'" \
+            < ops/coordinator_sealed_relay.py > "$RUNNER_TEMP/media-pub" 2>/dev/null || exit 12
+          python3 - <<'PY'
+          import base64, os, re
+          p = os.environ['RUNNER_TEMP'] + '/media-pub'
+          reply = open(p, encoding='ascii').read().strip()
+          match = re.fullmatch(r'MEDIA_PUBLIC_KEY_V1=([A-Za-z0-9+/]{43}=)', reply)
+          if match is None or len(base64.b64decode(match.group(1), validate=True)) != 32:
+              raise SystemExit('MEDIA_PUBLIC_KEY_NOT_VERIFIED')
+          open(p, 'w', encoding='ascii').write(match.group(1))
+          print('MEDIA_RECIPIENT_PUBLIC_KEY_VALIDATED')
+          PY
+      - name: Return public recipient key (no private media)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          session="$(cat "$RUNNER_TEMP/media-session")"
+          pub="$(cat "$RUNNER_TEMP/media-pub")"
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
+            --body "MEDIA_PUBLIC_KEY_V1 session=$session public=$pub"
+
+  stage-sealed-originals:
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.issue.user.login == github.repository_owner &&
+      startsWith(github.event.issue.title, '[media stage] ')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pinned v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Authenticate exact Owner stage selection
+        shell: bash
+        env:
+          MEDIA_BODY: ${{ github.event.issue.body }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re
+          body = os.environ.get('MEDIA_BODY', '').strip()
+          match = re.fullmatch(
+              r'MEDIA_SESSION=([0-9a-f]{32})\n'
+              r'MEDIA_BLOB=([0-9a-f]{40})\n'
+              r'MEDIA_SHA256=([0-9a-f]{64})', body)
+          if not match:
+              raise SystemExit('MEDIA_OWNER_STAGE_REFUSED')
+          for name, value in zip(('media-session', 'media-blob', 'media-digest'), match.groups()):
+              with open(os.environ['RUNNER_TEMP'] + '/' + name, 'w', encoding='ascii') as out:
+                  out.write(value)
+          PY
+      - name: Retrieve and checksum opaque Git blob only
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64, hashlib, json, os, urllib.request
+          root = os.environ['RUNNER_TEMP']
+          sha = open(root+'/media-blob', encoding='ascii').read()
+          digest = open(root+'/media-digest', encoding='ascii').read()
+          repo = os.environ['GITHUB_REPOSITORY']
+          request = urllib.request.Request(
+              f'https://api.github.com/repos/{repo}/git/blobs/{sha}', headers={
+                  'Authorization': 'Bearer ' + os.environ['GITHUB_TOKEN'],
+                  'Accept': 'application/vnd.github+json',
+                  'User-Agent': 'ProjectLeader-private-media-relay'})
+          with urllib.request.urlopen(request, timeout=35) as response:
+              data = json.load(response)
+          if data.get('encoding') != 'base64' or type(data.get('size')) is not int:
+              raise SystemExit('MEDIA_BLOB_REFUSED')
+          # Git blobs are a small-file diagnostic route; never use an entire
+          # one-GiB original as a public Git object (encrypted or otherwise).
+          if not 1 <= data['size'] <= 16 * 1024 * 1024:
+              raise SystemExit('MEDIA_BLOB_TOO_LARGE_FOR_GIT_RELAY')
+          decoded = base64.b64decode(data['content'], validate=False)
+          if (len(decoded) != data['size'] or
+                  hashlib.sha256(decoded).hexdigest() != digest):
+              raise SystemExit('MEDIA_BLOB_DIGEST_MISMATCH')
+          p = root + '/media-ciphertext.bin'
+          fd = os.open(p, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+          with os.fdopen(fd, 'wb') as out:
+              out.write(decoded)
+          print('MEDIA_CIPHERTEXT_DIGEST_VERIFIED')
+          PY
+      - name: Verify previously pinned SSH identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          known_hosts="$RUNNER_TEMP/media-known-hosts"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known_hosts" || exit 12
+          chmod 600 "$known_hosts"
+          observed="$(ssh-keygen -lf "$known_hosts" -E sha256 | awk '{print $2}')"
+          test "$observed" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' || exit 12
+      - name: Prepare existing SSH client
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS" || exit 12
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+      - name: Transfer encrypted blob and prove private intact staging
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          session="$(cat "$RUNNER_TEMP/media-session")"
+          digest="$(cat "$RUNNER_TEMP/media-digest")"
+          sshopts=(-o StrictHostKeyChecking=yes
+                   -o UserKnownHostsFile="$RUNNER_TEMP/media-known-hosts"
+                   -o GlobalKnownHostsFile=/dev/null
+                   -o HostKeyAlgorithms=ssh-ed25519
+                   -o ConnectTimeout=20)
+          timeout 80s sshpass -e scp -q "${sshopts[@]}" \
+            "$RUNNER_TEMP/media-ciphertext.bin" \
+            "ubuntu@146.59.145.3:codex-bridge/.coordinator-inbox/.relay-cipher-$session" \
+            2>/dev/null || exit 12
+          timeout 90s sshpass -e ssh -T "${sshopts[@]}" ubuntu@146.59.145.3 \
+            "python3 - stage '$session' '$digest'" \
+            < ops/coordinator_sealed_relay.py > "$RUNNER_TEMP/media-receipt" 2>/dev/null || exit 12
+          python3 - <<'PY'
+          import os, re
+          root = os.environ['RUNNER_TEMP']
+          session = open(root+'/media-session', encoding='ascii').read()
+          receipt = open(root+'/media-receipt', encoding='ascii').read().strip()
+          expected = r'MEDIA_PRIVATE_STAGED_V1=' + re.escape(session) + r';count=([1-9]|1[0-6])'
+          if not re.fullmatch(expected, receipt):
+              raise SystemExit('MEDIA_PRIVATE_RECEIPT_REFUSED')
+          print('MEDIA_PRIVATE_ORIGINALS_VERIFIED')
+          PY
+      - name: Report number of validated originals to Owner issue
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          message="$(cat "$RUNNER_TEMP/media-receipt")"
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$message"
