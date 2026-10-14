@@ -422,7 +422,7 @@ def assess_external_stage(issue: int, run: int, workers: list[Worker],
         if worker.status != "PR_STAGED" or not SHA.fullmatch(worker.sha):
             raise IntegratorHold("WORKER_RESULT_NOT_STAGED")
         match = re.fullmatch(
-            r"https://github\\.com/" + re.escape(target) +
+            r"https://github\.com/" + re.escape(target) +
             r"/pull/([1-9][0-9]*)", worker.url)
         if match is None:
             raise IntegratorHold("PUBLISHER_PROVENANCE_MISMATCH")
@@ -446,7 +446,7 @@ def assess_external_stage(issue: int, run: int, workers: list[Worker],
                 or not _expected_branch(branch, issue, run, phase_number)
                 or not isinstance(body, str) or
                 "Autonomous Codex change from " + CONTROL +
-                    " issue #" + str(issue) + ".\\n" not in body or
+                    " issue #" + str(issue) + ".\n" not in body or
                 "Trusted publisher commit: " + "`" + worker.sha + "`" not in body or
                 "No GitHub write credential was provided to Codex." not in body or
                 "Remote isolated Codex clone base: " + "`" + main + "`" not in body):
@@ -514,7 +514,7 @@ def main() -> int:
             if output:
                 from pathlib import Path
                 with Path(output).open("a", encoding="ascii") as writer:
-                    writer.write("phase_status=" + result["status"] + "\\n")
+                    writer.write("phase_status=" + result["status"] + "\n")
             return 0
         numbers = ", ".join("#" + str(n) for n in result["pull_requests"])
         report = ("PROJECT_LEADER_" + result["status"] +
