@@ -81,7 +81,8 @@ class PublicationProbeTests(unittest.TestCase):
         self.assertFalse(result["git_writes"])
         self.assertFalse(result["models_called"])
         publisher.api.assert_called_once_with("GET", "repos/martaxi-boss/pink-iptv")
-        self.assertIn("martaxi-boss/pink-iptv.git", git.call_args_list[0].args[0])
+        self.assertTrue(any("martaxi-boss/pink-iptv.git" in part
+                            for part in git.call_args_list[0].args[0]))
         for called in git.call_args_list[2:]:
             args = called.args[0]
             self.assertIn("--dry-run", args)
