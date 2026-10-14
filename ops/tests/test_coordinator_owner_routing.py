@@ -74,7 +74,7 @@ class CoordinatorRoutingTests(unittest.TestCase):
             with self.subTest(value=value[:12]), self.assertRaises(agent_switch.OrderError):
                 agent_switch.parse_coordinator_envelope(value)
         wrong = audit()
-        wrong["target_repository"] = "martaxi-boss/VPS"
+        wrong["target_repository"] = "untrusted-owner/VPS"
         with self.assertRaises(agent_switch.OrderError):
             agent_switch.parse_coordinator_envelope(encode(wrong))
         bad = audit()
