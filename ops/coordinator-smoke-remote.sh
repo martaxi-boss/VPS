@@ -76,9 +76,13 @@ workspace="$root/$job"
 asset_bundle=''
 asset_args=()
 if [ "$private_assets" -eq 1 ]; then
-  asset_bundle="$bridge/.coordinator-inbox/$job"
-  # The bundle MUST already have arrived by an authenticated private
-  # transport. A missing/unsafe bundle is never converted into text-only.
+  private_inbox="$bridge/.coordinator-inbox"
+  asset_bundle="$private_inbox/$job"
+  # Fixed, private, non-symlinked parent and exact run ID. Refuse any
+  # staged set which has not arrived through an authenticated private route.
+  [ -d "$private_inbox" ] && [ ! -L "$private_inbox" ] || refuse
+  [ "$(stat -c '%u' -- "$private_inbox")" = "$(id -u)" ] || refuse
+  [ "$(stat -c '%a' -- "$private_inbox")" = '700' ] || refuse
   [ -d "$asset_bundle" ] && [ ! -L "$asset_bundle" ] || refuse
   [ "$(stat -c '%u' -- "$asset_bundle")" = "$(id -u)" ] || refuse
   [ "$(stat -c '%a' -- "$asset_bundle")" = '700' ] || refuse
