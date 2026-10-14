@@ -154,15 +154,23 @@ class GatewayTests(unittest.TestCase):
             audit.assert_called_once()
             dispatch.assert_not_called()
 
-    def test_no_owner_pat_in_telegram_bot_poll(self):
+    def test_paused_telegram_ingress_preserves_private_supervisor(self):
         root = Path(__file__).resolve().parents[2]
         bot = (root / ".github/workflows/telegram-codex-gateway.yml").read_text()
-        self.assertNotIn("CODEX_GITHUB_TOKEN:",
-                         bot.split("  telegram:", 1)[1].split("  observer:", 1)[0])
+        triggers = bot.split("\non:\n", 1)[1].split("\nconcurrency:", 1)[0]
+        self.assertNotIn("\n  schedule:", triggers)
+        self.assertNotIn("\n  workflow_dispatch:", triggers)
+        self.assertNotIn("\n  telegram:", bot)
+        self.assertNotIn("telegram_gateway.py poll", bot)
+        self.assertNotIn("CODEX_GITHUB_TOKEN:", bot)
+        self.assertIn("  observer:", bot)
+        self.assertIn("run: python3 -m ops.supervisor_live watch", bot)
+        self.assertIn("TELEGRAM_BOT_TOKEN:", bot)
+        self.assertIn("TELEGRAM_CHAT_ID:", bot)
+        self.assertIn("    permissions:\n      contents: read\n      issues: read\n      actions: read", bot)
         trusted = (root / ".github/workflows/telegram-coordinator-owner.yml").read_text()
         self.assertIn("github.actor == 'github-actions[bot]'", trusted)
         self.assertIn("persist-credentials: false", trusted)
-
 
 if __name__ == "__main__":
     unittest.main()

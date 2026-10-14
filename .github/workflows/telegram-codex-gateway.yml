@@ -1,12 +1,10 @@
 name: Telegram commands to Codex
 
-# Telegram bot processes only commands from TELEGRAM_CHAT_ID.
-# No long-lived process on production VPS. No ChatGPT Work polling.
-# Voice STT only on-demand in a disposable runner; no paid API key.
+# Telegram is temporarily OUTBOUND-ONLY by Owner decision.
+# Keep the passive Supervisor and worker-to-Owner reports unchanged.
+# Incoming text/voice orders and audits are paused; never poll backlogged updates.
+# To re-enable later, obtain a new Owner instruction and handle any stale queue safely.
 on:
-  schedule:
-    - cron: '7-59/5 * * * *'
-  workflow_dispatch:
   issues:
     types: [opened]
   workflow_run:
@@ -35,13 +33,13 @@ on:
       - '.github/workflows/telegram-codex-gateway.yml'
 
 concurrency:
-  group: telegram-codex-${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'polling' || github.run_id }}
+  group: telegram-codex-${{ github.run_id }}
   cancel-in-progress: false
 
 permissions:
   contents: read
-  actions: write
-  issues: write
+  actions: read
+  issues: read
 
 jobs:
   gateway-tests:
@@ -109,27 +107,6 @@ jobs:
           print("VOICE_SMOKE=PASS")
           PY
 
-
-  telegram:
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    steps:
-      - name: Read reviewed bot source
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          ref: ${{ github.event.repository.default_branch }}
-          persist-credentials: false
-
-      - name: Validate Telegram gateway syntax
-        run: python3 -m py_compile ops/telegram_gateway.py
-
-      - name: Process authorized private Telegram messages
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          GH_TOKEN: ${{ github.token }}
-        run: python3 ops/telegram_gateway.py poll
 
   observer:
     name: Passive Supervisor — audited Owner notifications
