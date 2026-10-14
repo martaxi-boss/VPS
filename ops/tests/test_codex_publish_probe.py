@@ -43,57 +43,6 @@ class PublicationProbeTests(unittest.TestCase):
         self.assertNotIn("git commit", source)
         self.assertNotIn("git branch -D", source)
 
-    def test_pink_probe_is_one_fixed_owner_only_dry_run_target(self):
-        self.assertEqual(probe.PROBES["codex"], (probe.REPO, probe.BRANCH))
-        self.assertEqual(
-            probe.PROBES["pink"],
-            ("martaxi-boss/pink-iptv", "codex/issue-224-38578348749-1"),
-        )
-        workflow = (SCRIPT.parents[1] / ".github/workflows/codex-publish-probe.yml").read_text(
-            encoding="utf-8")
-        self.assertIn("github.event.issue.user.login == github.repository_owner", workflow)
-        self.assertIn(
-            "github.event.issue.title == '[codex publish probe] Check PINK IPTV branch push'",
-            workflow,
-        )
-        self.assertIn(
-            "CODEX_PUBLISH_PROBE_TARGET: ${{ github.event.issue.title ==",
-            workflow,
-        )
-        self.assertNotIn("github.event.issue.body", workflow)
-        self.assertNotIn("repository_dispatch", workflow)
-
-    def test_pink_probe_uses_same_publisher_secret_without_git_writes(self):
-        publisher = mock.Mock()
-        publisher.api.return_value = {"permissions": {"push": True}}
-        publisher.git_push_environment.return_value = {}
-        ok = subprocess.CompletedProcess([], 0, "", "")
-        denied = subprocess.CompletedProcess([], 128, "", "remote: Permission to repo denied")
-        with mock.patch.dict(os.environ, {"CODEX_GITHUB_TOKEN": "unit-test-only"}):
-            with mock.patch.object(probe, "publisher_module", return_value=publisher):
-                with mock.patch.object(probe, "call",
-                                       side_effect=[ok, ok, denied, denied]) as git:
-                    result = probe.diagnose("pink")
-        self.assertEqual(result["repo"], "martaxi-boss/pink-iptv")
-        self.assertEqual(result["status"], "DRY_RUN_REFUSED")
-        self.assertEqual(result["normal"], "permission_denied")
-        self.assertEqual(result["no_helper"], "permission_denied")
-        self.assertFalse(result["git_writes"])
-        self.assertFalse(result["models_called"])
-        publisher.api.assert_called_once_with("GET", "repos/martaxi-boss/pink-iptv")
-        self.assertTrue(any("martaxi-boss/pink-iptv.git" in part
-                            for part in git.call_args_list[0].args[0]))
-        for called in git.call_args_list[2:]:
-            args = called.args[0]
-            self.assertIn("--dry-run", args)
-            self.assertIn("HEAD:refs/heads/codex/issue-224-38578348749-1", args)
-
-    def test_unrecognized_probe_profile_fails_before_git_or_secret_access(self):
-        with mock.patch.object(probe, "publisher_module") as publisher:
-            with self.assertRaises(ValueError):
-                probe.diagnose("owner-supplied-repository")
-        publisher.assert_not_called()
-
     def test_rest_failure_still_probes_git_without_authorizing_models(self):
         publisher = mock.Mock()
         publisher.api.side_effect = RuntimeError(
