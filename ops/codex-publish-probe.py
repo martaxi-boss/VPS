@@ -111,7 +111,7 @@ def diagnose(target: str = "codex"):
                 # target token/rules failures. Still no remote writes.
                 forced = call(["git", "-c", "credential.helper=", "push",
                                "--dry-run", "--porcelain", "origin",
-                               "HEAD:refs/heads/" + BRANCH],
+                               "HEAD:refs/heads/" + branch],
                               cwd=checkout, env=env)
                 result["no_helper"] = classify(
                     forced.stdout + forced.stderr, forced.returncode)
