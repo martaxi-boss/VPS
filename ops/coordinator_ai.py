@@ -24,6 +24,11 @@ try:
 except ModuleNotFoundError:  # Direct execution from ops/ on the VPS.
     import codex_audit_strategy
 
+try:
+    from ops.project_target import is_managed_target
+except ModuleNotFoundError:
+    from project_target import is_managed_target
+
 
 MAX_ORDER_BYTES = 8_000
 MAX_RESPONSE_BYTES = codex_audit_strategy.MAX_PHASE_AUDIT
@@ -94,7 +99,7 @@ def _checkout_state(checkout: Path) -> tuple[Path, str, str]:
     if not match:
         raise CoordinatorAIError("Target origin is not an inspectable GitHub repository")
     target = match.group(1)
-    if target not in codex_audit_strategy.REPOSITORIES:
+    if not is_managed_target(target):
         raise CoordinatorAIError("Target repository is not supported by the audit strategy")
     if _git(root, "status", "--porcelain", "--untracked-files=all"):
         raise CoordinatorAIError("Target checkout must exactly match its pinned HEAD")
