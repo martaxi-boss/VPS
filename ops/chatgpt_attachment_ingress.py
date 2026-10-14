@@ -32,6 +32,7 @@ OWNER = "martaxi-boss"
 MAX_FILES = coordinator_media.MAX_FILES
 MAX_FILE_BYTES = coordinator_media.MAX_FILE_BYTES
 MAX_TOTAL_BYTES = coordinator_media.MAX_TOTAL_BYTES
+TRANSFER_CHUNK_BYTES = coordinator_media.TRANSFER_CHUNK_BYTES
 FILE_ID = re.compile(r"file[-_][A-Za-z0-9_-]{8,180}\Z", re.ASCII)
 MIME = re.compile(r"[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+\Z", re.ASCII)
 BUNDLE_ID = re.compile(r"[0-9a-f]{32}\Z", re.ASCII)
@@ -135,7 +136,7 @@ def _secure_download(url: str, target: Path, maximum: int) -> int:
                     raise IngressRefused("Private file size exceeds limit")
             fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
             with os.fdopen(fd, "wb") as output:
-                while data := response.read(1024 * 1024):
+                while data := response.read(TRANSFER_CHUNK_BYTES):
                     total += len(data)
                     if total > maximum:
                         raise IngressRefused("Private file size exceeds limit")
@@ -191,9 +192,15 @@ def stage(
             part = temporary / f"part-{index:03d}"
             part.mkdir(mode=0o700)
             original = part / name
-            size = downloader(url, original, MAX_FILE_BYTES)
+            remaining = MAX_TOTAL_BYTES - total
+            if remaining < 1:
+                raise IngressRefused("Selected files exceed maximum transfer size")
+            # Tell the downloader its *remaining* transfer budget. Even when
+            # Content-Length is absent, abort before exceeding one GiB in total.
+            maximum = min(MAX_FILE_BYTES, remaining)
+            size = downloader(url, original, maximum)
             info = original.lstat()
-            if (type(size) is not int or size < 1 or size > MAX_FILE_BYTES or
+            if (type(size) is not int or size < 1 or size > maximum or
                     not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or
                     info.st_uid != os.getuid() or info.st_mode & 0o077 or
                     info.st_size != size):
