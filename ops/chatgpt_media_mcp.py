@@ -193,7 +193,8 @@ class Handler(BaseHTTPRequestHandler):
     # A client that stalls before sending its headers/body must not occupy
     # unbounded authenticated tunnel threads or VPS sockets.
     def setup(self):
-        self.connection.settimeout(60)
+        # The request socket exists before StreamRequestHandler defines connection.
+        self.request.settimeout(60)
         super().setup()
 
     # Disable all access logging to avoid presigned URLs or auth headers in logs.
