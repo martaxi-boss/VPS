@@ -38,6 +38,7 @@ jobs:
           bash -n ops/coordinator-smoke-remote.sh
           python3 -m py_compile ops/agent_switch.py ops/coordinator_ai.py ops/coordinator_pr_integrator.py ops/coordinator_supervisor.py ops/coordinator_phase_continuation.py
           python3 -m unittest discover -s ops/tests -p test_coordinator_phase_continuation.py -v
+          python3 -m unittest discover -s ops/tests -p test_project_target.py -v
           python3 -m unittest discover -s ops/tests -p test_coordinator_owner_routing.py -v
           python3 -m unittest discover -s ops/tests -p test_coordinator_smoke.py -v
           python3 -m unittest discover -s ops/tests -p test_coordinator_pr_integrator.py -v
@@ -77,16 +78,19 @@ jobs:
           import base64, json, os, re, urllib.error, urllib.request
           from pathlib import Path
           body = os.environ.get('ORDER_BODY', '').strip()
-          prefix = 'TARGET_REPOSITORY=martaxi-boss/Project-leader-codex'
-          if (not body.startswith(prefix + '\n') or
-                  not 50 <= len(body.encode('utf-8')) <= 8000 or
+          from ops.project_target import from_owner_order, TargetRefused
+          if (not 50 <= len(body.encode('utf-8')) <= 8000 or
                   re.search(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', body)):
+              raise SystemExit('COORDINATOR_OWNER_ORDER_REFUSED')
+          try:
+              target = from_owner_order(body)
+          except TargetRefused:
               raise SystemExit('COORDINATOR_OWNER_ORDER_REFUSED')
           token = os.environ.get('CODEX_GITHUB_TOKEN', '')
           if not token:
               raise SystemExit('COORDINATOR_PUBLICATION_TOKEN_UNAVAILABLE')
           request = urllib.request.Request(
-              'https://api.github.com/repos/martaxi-boss/Project-leader-codex',
+              'https://api.github.com/repos/' + target,
               headers={'Authorization': 'Bearer ' + token,
                        'Accept': 'application/vnd.github+json',
                        'User-Agent': 'Project-Leader-Codex-Owner-gate'})
@@ -95,7 +99,11 @@ jobs:
                   info = json.load(response)
           except (OSError, ValueError):
               raise SystemExit('COORDINATOR_PUBLICATION_PREFLIGHT_REFUSED')
-          if (info.get('full_name') != 'martaxi-boss/Project-leader-codex' or
+          if (info.get('full_name') != target or
+                  info.get('owner', {}).get('login') != 'martaxi-boss' or
+                  info.get('default_branch') != 'main' or
+                  info.get('private') is not False or
+                  info.get('archived') is True or
                   info.get('permissions', {}).get('push') is not True):
               raise SystemExit('COORDINATOR_TARGET_WRITE_NOT_VERIFIED')
           temp = Path(os.environ['RUNNER_TEMP'])
@@ -103,6 +111,7 @@ jobs:
           if not re.fullmatch(r'[A-Za-z0-9+/=]{20,11000}', encoded):
               raise SystemExit('COORDINATOR_ORDER_ENCODE_FAILED')
           (temp / 'coordinator_owner_order.b64').write_text(encoded, encoding='ascii')
+          (temp / 'coordinator_owner_target.txt').write_text(target, encoding='ascii')
           print('COORDINATOR_OWNER_SCOPE_AND_TOKEN_VERIFIED')
           PY_ORDER
           bash -n ops/coordinator-smoke-remote.sh
@@ -153,6 +162,7 @@ jobs:
             < ops/coordinator-smoke-remote.sh > "$output" 2>/dev/null || exit 12
           python3 - "$output" "$GITHUB_OUTPUT" <<'PY_PLAN'
           import base64
+          import os
           from pathlib import Path
           import re
           import sys
@@ -160,6 +170,7 @@ jobs:
           raw = Path(sys.argv[1]).read_bytes()
           pattern = re.compile(
               rb'COORDINATOR_DISPATCH_STATUS=VALIDATED\n'
+              rb'TARGET_REPOSITORY=(martaxi-boss/[A-Za-z0-9._-]+)\n'
               rb'TARGET_SHA=([0-9a-f]{40})\n'
               rb'PHASE_COUNT=([1-8])\n'
               rb'FIRST_PHASE_WORKERS=([12])\n'
@@ -168,13 +179,17 @@ jobs:
           match = pattern.fullmatch(raw) if len(raw) <= 33000 else None
           if not match:
               raise SystemExit('COORDINATOR_PLAN_FORMAT_REFUSED')
-          encoded = match.group(5).decode('ascii')
+          expected_target = (Path(os.environ['RUNNER_TEMP']) /
+                             'coordinator_owner_target.txt').read_text(encoding='ascii')
+          encoded = match.group(6).decode('ascii')
           order, meta = router.parse_coordinator_envelope(encoded)
           routed = router.workflow_values(order)
-          if (meta['audited_revision'] != match.group(1).decode('ascii') or
-                  int(routed['task_count']) != int(match.group(3)) or
-                  routed['mode'] != match.group(4).decode('ascii') or
-                  meta['phase_count'] != int(match.group(2)) or
+          if (order['target_repository'] != expected_target or
+                  match.group(1).decode('ascii') != expected_target or
+                  meta['audited_revision'] != match.group(2).decode('ascii') or
+                  int(routed['task_count']) != int(match.group(4)) or
+                  routed['mode'] != match.group(5).decode('ascii') or
+                  meta['phase_count'] != int(match.group(3)) or
                   routed['audit_managed'] != 'true'):
               raise SystemExit('COORDINATOR_ROUTE_MISMATCH')
           with open(sys.argv[2], 'a', encoding='ascii') as out:

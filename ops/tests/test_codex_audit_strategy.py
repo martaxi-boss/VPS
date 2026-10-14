@@ -111,7 +111,7 @@ class AuditDispatchTests(unittest.TestCase):
         with self.assertRaises(agent_switch.OrderError):
             agent_switch.parse_order(json.dumps(plan))
         plan = self.manifest()
-        plan["target_repository"] = "martaxi-boss/Project-leader"
+        plan["target_repository"] = "untrusted-owner/Project-leader"
         with self.assertRaisesRegex(agent_switch.OrderError, "mutable"):
             agent_switch.parse_order(json.dumps(plan))
         plan = self.manifest()

@@ -123,9 +123,8 @@ class CheckGateTests(unittest.TestCase):
 
     def test_specialization_direct_publisher_waits_ci_without_auto_merge(self):
         source = (OPS / "codex-autonomous-publish.py").read_text(encoding="utf-8")
-        self.assertIn('if pr_only or repo == "martaxi-boss/Project-leader-codex":',
-                      source)
-        self.assertIn("state, evidence = wait_for_checks(repo, sha, branch, ALLOWED[repo])",
+        self.assertIn('or repo not in ALLOWED:', source)
+        self.assertIn("state, evidence = wait_for_checks(repo, sha, branch, ALLOWED.get(repo, set()))",
                       source)
         self.assertIn("return staged_pr_result(repo, url, sha, blocking_policy, state, evidence)",
                       source)
@@ -156,8 +155,9 @@ class SpecializationRouteTests(unittest.TestCase):
         remote = (OPS / "codex-autonomous-remote.sh").read_text(encoding="utf-8")
         loader = (OPS / "codex-project-leader-bootstrap.py").read_text(
             encoding="utf-8")
-        self.assertIn("'TARGET_REPOSITORY=martaxi-boss/Project-leader-codex'", flow)
-        self.assertIn("TARGET_REPOSITORY=martaxi-boss/Project-leader-codex)", remote)
+        self.assertIn("from_owner_order(task)", flow)
+        self.assertIn('python3 "$base/project_target.py" validate "$slug"', remote)
+        self.assertIn("info.get('permissions', {}).get('push') is not True", flow)
         self.assertIn('"martaxi-boss/Project-leader-codex"', loader)
 
     def test_normal_executor_pins_ssh_before_any_password_is_used(self):
@@ -272,7 +272,7 @@ class SerialResultHandshakeTests(unittest.TestCase):
 
     def test_publication_preflight_rejects_unknown_target_without_a_network_call(self):
         self.assertEqual(publisher.verify_git_publication_dry_run(
-            "martaxi-boss/not-a-target", "1", "2", "1"),
+            "attacker/not-a-target", "1", "2", "1"),
             "TARGET_NOT_ALLOWED")
 
 class InputTests(unittest.TestCase):

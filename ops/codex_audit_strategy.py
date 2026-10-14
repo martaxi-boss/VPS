@@ -17,14 +17,15 @@ import re
 import subprocess
 import sys
 
+try:
+    from ops.project_target import is_managed_target
+except ModuleNotFoundError:
+    from project_target import is_managed_target
+
 SHA = re.compile(r"[0-9a-f]{40}\Z")
 IDENT = re.compile(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*\Z")
 PATH = re.compile(r"[A-Za-z0-9._/-]{1,170}\Z")
 LEVEL = {"low": 0, "medium": 1, "high": 2}
-REPOSITORIES = frozenset({
-    "martaxi-boss/VPS", "martaxi-boss/Project-leader-codex",
-    "martaxi-boss/pink-iptv",
-})
 BLOCKED_PARTS = frozenset({
     ".git", ".github", ".codex", ".ssh", ".project-leader", "__pycache__",
 })
@@ -92,7 +93,7 @@ def compile_audit(value: object) -> dict:
     if not isinstance(value, dict) or set(value) != {"target_repository", "audit"}:
         raise AuditStrategyError("Audited order requires target_repository and audit")
     target = value["target_repository"]
-    if type(target) is not str or target not in REPOSITORIES:
+    if type(target) is not str or not is_managed_target(target):
         raise AuditStrategyError("Only mutable, reviewed target repositories may be audited")
     audit = value["audit"]
     if not isinstance(audit, dict) or set(audit) != {"revision", "findings", "work_items"}:
@@ -238,7 +239,7 @@ def plan_phases(value: object) -> dict:
         raise AuditStrategyError("Phase planning needs one audited repository")
     target = value["target_repository"]
     audit = value["audit"]
-    if (type(target) is not str or target not in REPOSITORIES or
+    if (type(target) is not str or not is_managed_target(target) or
             not isinstance(audit, dict) or
             set(audit) != {"revision", "findings", "work_items"}):
         raise AuditStrategyError("Invalid pinned phase audit")

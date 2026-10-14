@@ -152,11 +152,15 @@ jobs:
               if os.environ.get('COORDINATOR_PLAN_B64'):
                   # This branch is enabled only for an exact Owner-authored
                   # Coordinator Issue through the reviewed reusable caller.
-                  if not os.environ.get('ORDER_BODY', '').startswith(
-                          'TARGET_REPOSITORY=martaxi-boss/Project-leader-codex'):
+                  from ops.project_target import from_owner_order, TargetRefused
+                  try:
+                      issue_target = from_owner_order(os.environ.get('ORDER_BODY', ''))
+                  except TargetRefused:
                       raise switch.OrderError('Coordinator Issue target mismatch')
                   order, phase_meta = switch.parse_coordinator_envelope(
                       os.environ['COORDINATOR_PLAN_B64'])
+                  if order['target_repository'] != issue_target:
+                      raise switch.OrderError('Coordinator audit changed the Owner target')
                   issue_number = int(os.environ['ISSUE_SOURCE'])
               else:
                   order, phase_meta = switch.parse_owner_envelope(

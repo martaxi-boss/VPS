@@ -42,6 +42,17 @@ root="$bridge/.coordinator-smoke"
 cli="$HOME/codex-agent/node_modules/.bin/codex"
 slug='martaxi-boss/Project-leader-codex'
 control_slug='martaxi-boss/VPS'
+order='Audit the existing Project-leader-codex documentation only. Inspect real tracked files and report one concrete verifiable documentation defect with its exact file path, if found. Do not invent findings, make changes, or dispatch agents.'
+if [ "$mode" = dispatch ]; then
+  order="$(printf '%s' "$encoded_order" | base64 -d 2>/dev/null)" || refuse
+  [ "${#order}" -ge 25 ] && [ "${#order}" -le 8000 ] || refuse
+  first="$(printf '%s' "$order" | head -n 1)"
+  if [[ "$first" =~ ^TARGET_REPOSITORY=(martaxi-boss/[A-Za-z0-9][A-Za-z0-9._-]{0,99})$ ]]; then
+    slug="${BASH_REMATCH[1]}"
+  else
+    refuse
+  fi
+fi
 
 [ -d "$bridge" ] && [ ! -L "$bridge" ] || refuse
 [ -x "$cli" ] && command -v flock >/dev/null 2>&1 || refuse CLONE
@@ -84,6 +95,7 @@ fi
 # Hide Git stderr: neither remote details nor tokens belong in public logs.
 git clone -q --depth 1 --single-branch --branch main -- \
   "https://github.com/$control_slug.git" "$control" >/dev/null 2>&1 || refuse CLONE
+python3 "$control/ops/project_target.py" validate "$slug" >/dev/null 2>&1 || refuse
 git clone -q --depth 1 --single-branch --branch main -- \
   "https://github.com/$slug.git" "$target" >/dev/null 2>&1 || refuse CLONE
 
@@ -101,14 +113,7 @@ head="$(git -C "$target" rev-parse HEAD)"
 # verifies and loads canonical rules for each isolated Codex implementer.
 # Explicit, bounded document-only order. Coordinator AI is read-only, never
 # dispatches workers, creates Issues/PRs, or modifies the target checkout.
-order='Audit the existing Project-leader-codex documentation only. Inspect real tracked files and report one concrete verifiable documentation defect with its exact file path, if found. Do not invent findings, make changes, or dispatch agents.'
-if [ "$mode" = dispatch ]; then
-  # The original order came from an Owner-only GitHub Issue, prevalidated
-  # on the runner. This shell never evals or executes that order.
-  order="$(printf '%s' "$encoded_order" | base64 -d 2>/dev/null)" || refuse
-  [ "${#order}" -ge 25 ] && [ "${#order}" -le 8000 ] || refuse
-  [[ "$order" == TARGET_REPOSITORY=martaxi-boss/Project-leader-codex* ]] || refuse
-fi
+# The authenticated Owner order is decoded only as data before target selection.
 
 # Results live only in the disposable private workspace, not in a
 # persistent directory. The only failure output is a trusted static class.
@@ -188,6 +193,7 @@ elif mode == "dispatch":
     if not 0 < len(raw_audit) <= 24000:
         raise SystemExit(13)
     print("COORDINATOR_DISPATCH_STATUS=VALIDATED")
+    print("TARGET_REPOSITORY=" + target)
     print("TARGET_SHA=" + head)
     print("PHASE_COUNT=" + str(plan["phase_count"]))
     print("FIRST_PHASE_WORKERS=" + str(first["worker_count"]))

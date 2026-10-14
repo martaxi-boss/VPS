@@ -98,13 +98,12 @@ case "$quota_status" in
 esac
 
 IFS= read -r header < "$base/codex-task.txt" || :
-case "$header" in
-  TARGET_REPOSITORY=martaxi-boss/VPS) slug='martaxi-boss/VPS' ;;
-  TARGET_REPOSITORY=martaxi-boss/Project-leader) slug='martaxi-boss/Project-leader' ;;
-  TARGET_REPOSITORY=martaxi-boss/Project-leader-codex) slug='martaxi-boss/Project-leader-codex' ;;
-  TARGET_REPOSITORY=martaxi-boss/pink-iptv) slug='martaxi-boss/pink-iptv' ;;
-  *) echo 'Unsupported target; fail closed' >&2; exit 4 ;;
-esac
+slug="${header#TARGET_REPOSITORY=}"
+if [ "$header" = "$slug" ] || \
+   ! python3 "$base/project_target.py" validate "$slug" >/dev/null 2>&1; then
+  echo 'Unsupported target; fail closed' >&2
+  exit 4
+fi
 
 test ! -e "$repo" || { echo 'Existing workspace refused' >&2; exit 5; }
 git clone --quiet --depth 1 --branch main -- "https://github.com/$slug.git" "$repo"

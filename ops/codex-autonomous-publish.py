@@ -19,6 +19,11 @@ from pathlib import Path
 
 from codex_patch_guard import MAX_FILES, MAX_PATCH_BYTES, guard_path
 
+try:
+    from ops.project_target import is_managed_target
+except ModuleNotFoundError:
+    from project_target import is_managed_target
+
 ALLOWED = {
     "martaxi-boss/VPS": {( "Codex autonomous validation", "pull_request")},
     # Project Leader + Codex has a separate mutable repository and own PR CI.
@@ -157,7 +162,7 @@ def verify_git_publication_dry_run(repo: str, issue: str, run_id: str,
     Read-only and credential-safe: no Git refs, patches, commits, or model calls
     are created; use exactly the same askpass method and branch ref as publish.
     """
-    if repo not in ALLOWED:
+    if not is_managed_target(repo):
         return "TARGET_NOT_ALLOWED"
     if not all(type(item) is str and item.isdecimal()
                for item in (issue, run_id, attempt)):
@@ -199,7 +204,7 @@ def validate_metadata(source):
     repo = (source / "target.txt").read_text(encoding="utf-8").strip()
     sha = (source / "base-sha.txt").read_text(encoding="utf-8").strip()
     task = (source / "codex-task.txt").read_text(encoding="utf-8")
-    if repo not in ALLOWED or task.splitlines()[0] != "TARGET_REPOSITORY=" + repo:
+    if not is_managed_target(repo) or task.splitlines()[0] != "TARGET_REPOSITORY=" + repo:
         raise ValueError("Untrusted or unsupported repository")
     if len(sha) != 40 or any(x not in "0123456789abcdef" for x in sha):
         raise ValueError("Invalid clone/base revision")
@@ -242,6 +247,9 @@ def wait_for_checks(repo, sha, branch, expected):
 
 def premerge_policy_gate(repo, paths):
     """Respect target-specific control law even after all technical checks pass."""
+    if repo not in ALLOWED:
+        return ("New managed project is PR-ONLY until Project Leader independently "
+                "validates its own CI, policy and exact-head merge authority")
     if repo == "martaxi-boss/pink-iptv":
         return ("PINK IPTV target is PR-ONLY: Project Leader must independently "
                 "validate player, VPN, Android/backend regressions and review "
@@ -343,14 +351,14 @@ def perform(source, issue, run_id, attempt, instance_id="", pr_only=False, allow
         # PR-only targets must still await their own exact-head CI even when
         # invoked through a direct single Codex order or first serial stage.
         # Never auto-merge the separate Project Leader + Codex repository.
-        if pr_only or repo == "martaxi-boss/Project-leader-codex":
-            state, evidence = wait_for_checks(repo, sha, branch, ALLOWED[repo])
+        if pr_only or repo == "martaxi-boss/Project-leader-codex" or repo not in ALLOWED:
+            state, evidence = wait_for_checks(repo, sha, branch, ALLOWED.get(repo, set()))
             return staged_pr_result(repo, url, sha, blocking_policy, state, evidence)
         if blocking_policy:
             return {"status": "PR_NEEDS_ATTENTION", "repository": repo,
                     "pull_request": url, "commit_sha": sha,
                     "reason": blocking_policy}
-        state, evidence = wait_for_checks(repo, sha, branch, ALLOWED[repo])
+        state, evidence = wait_for_checks(repo, sha, branch, ALLOWED.get(repo, set()))
         if state != "PASS":
             return {"status": "PR_NEEDS_ATTENTION", "repository": repo,
                     "pull_request": url, "commit_sha": sha, "reason": evidence}

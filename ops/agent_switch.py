@@ -20,7 +20,11 @@ except ModuleNotFoundError:
     # Direct 'python3 ops/agent_switch.py' starts with ops/ on sys.path.
     from codex_resource_policy import choose_effort
 
-ALLOWED_REPOSITORIES = {"martaxi-boss/VPS", "martaxi-boss/Project-leader", "martaxi-boss/Project-leader-codex", "martaxi-boss/pink-iptv"}
+try:
+    from ops.project_target import is_managed_target
+except ModuleNotFoundError:
+    from project_target import is_managed_target
+
 MODES = {"serial", "parallel"}
 MAX_TASKS = 8
 PLAN_VERSION = 1
@@ -171,7 +175,7 @@ def parse_order(raw: str) -> dict:
     if not isinstance(order, dict) or not required.issubset(order) or not set(order).issubset(allowed):
         raise OrderError("Required fields: target_repository, mode, tasks")
     target = order["target_repository"]
-    if type(target) is not str or target not in ALLOWED_REPOSITORIES:
+    if type(target) is not str or not is_managed_target(target):
         raise OrderError("Target repository is not yet authorized")
     mode = order["mode"]
     if type(mode) is not str or mode not in MODES:
@@ -335,7 +339,7 @@ def parse_coordinator_envelope(encoded: str) -> tuple[dict, dict]:
         raise OrderError("Coordinator plan encoding is invalid") from None
     if (not isinstance(payload, dict) or
             set(payload) != {"target_repository", "audit"} or
-            payload["target_repository"] != "martaxi-boss/Project-leader-codex"):
+            not is_managed_target(payload["target_repository"])):
         raise OrderError("Coordinator plan target or audit contract is invalid")
     order, metadata = parse_owner_envelope(text)
     if metadata is None or not order.get("phase_owner_digest"):

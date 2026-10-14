@@ -13,6 +13,7 @@ import re
 
 from ops import agent_switch
 from ops.codex_audit_strategy import plan_phases
+from ops.project_target import is_managed_target
 
 TARGET = "martaxi-boss/Project-leader-codex"
 SHA = re.compile(r"[0-9a-f]{40}\Z")
@@ -32,7 +33,8 @@ def _audited(encoded: str) -> tuple[dict, dict]:
     except (ValueError, TypeError, KeyError, UnicodeError):
         raise PhaseContinuationError("Original Owner DAG invalid") from None
     if (metadata["phase_count"] != phases["phase_count"] or
-            phases["target_repository"] != TARGET):
+            phases["target_repository"] != value.get("target_repository") or
+            not is_managed_target(value.get("target_repository"))):
         raise PhaseContinuationError("Original Owner DAG inconsistent")
     return value, phases
 
@@ -83,7 +85,7 @@ def prepared_phase(original_b64: str, phase: int, current_sha: str) -> dict:
         if row["id"] in referenced
     ]
     planned = {
-        "target_repository": TARGET,
+        "target_repository": original["target_repository"],
         "audit": {
             "revision": current_sha,
             "findings": findings,
@@ -106,6 +108,7 @@ def prepared_phase(original_b64: str, phase: int, current_sha: str) -> dict:
             != scoped["reasoning_by_task"]):
         raise PhaseContinuationError("Prepared phase changed Owner planning")
     return {
+        "target_repository": original["target_repository"],
         "coordinator_plan_b64": encoded,
         "phase": phase,
         "remaining_phases": scoped["phase_count"] - phase + 1,
