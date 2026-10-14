@@ -125,9 +125,11 @@ def _prompt(order: str, target: str, head: str) -> str:
         raise CoordinatorAIError("Coordinator order is empty or oversized")
     return f"""You are the read-only AI planning capability of the existing Coordinator.
 Do not implement fixes and do not create or dispatch workers, issues, commits, PRs,
-workflows, services or deployments. Statically inspect only the git checkout in the
-current working directory. Do not access its parent, credentials, network, external
-accounts or paid APIs. Do not run project code or tests. Never invent a path.
+workflows, services or deployments. Statically inspect the git checkout in the
+current working directory and, only if explicitly supplied, verified private
+Owner-selected attachments granted read-only in this invocation. Do not access
+any other directories, credentials, network, external accounts or paid APIs.
+Do not run project code or tests. Never invent a path.
 
 Return only one JSON object with exactly this top-level contract:
 {{"target_repository":{json.dumps(target)},"audit":{{"revision":{json.dumps(head)},"findings":[],"work_items":[]}}}}
