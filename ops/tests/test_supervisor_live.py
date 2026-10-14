@@ -19,6 +19,15 @@ class SupervisorLiveTests(unittest.TestCase):
         self.assertNotIn("Codex quota continuation (Owner checkpoints only)", gateway)
         self.assertNotIn("Codex quota continuation (Owner checkpoints only)", live.WORKFLOWS)
 
+    def test_no_status_fanout_per_workflow_start(self):
+        root = Path(__file__).resolve().parents[2]
+        gateway = (root / ".github/workflows/telegram-codex-gateway.yml").read_text()
+        listener = gateway.split("  workflow_run:", 1)[1].split("  pull_request:", 1)[0]
+        self.assertIn("types: [completed]", listener)
+        self.assertNotIn("types: [requested, in_progress, completed]", listener)
+        self.assertIn("Coordinator to existing Codex router (Owner order)", listener)
+        self.assertIn("Supervisor - Real ChatGPT quota watch", listener)
+
     def test_commands_are_read_only_and_usable_by_voice(self):
         for value in ("/supervisor", "/vigia", "/estado", "Supervisor, como está o projeto?",
                       "Supervisor, que fases estão em execução?",
