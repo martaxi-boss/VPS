@@ -369,6 +369,116 @@ def assess(issue: int, run: int, workers: list[Worker], phase_count: int,
             "merge_sha": sha, "phase_count": phase_count}
 
 
+def _authenticated_owner_target(issue_number: int) -> str:
+    """Resolve the original Owner Issue, not a worker-supplied project name."""
+    try:
+        from ops.project_target import from_owner_order, TargetRefused
+    except ModuleNotFoundError:
+        from project_target import from_owner_order, TargetRefused
+    issue = _api("GET", f"repos/{CONTROL}/issues/{issue_number}", control=True)
+    if (not isinstance(issue, dict) or issue.get("number") != issue_number
+            or issue.get("state") != "open"
+            or issue.get("user", {}).get("login") != OWNER
+            or not issue.get("title", "").startswith("[coordinator run] ")):
+        raise IntegratorHold("OWNER_AUTHORITY_UNVERIFIED")
+    try:
+        return from_owner_order(issue.get("body"))
+    except TargetRefused:
+        raise IntegratorHold("OWNER_TARGET_UNVERIFIED") from None
+
+
+def assess_external_stage(issue: int, run: int, workers: list[Worker],
+                          phase_count: int, canonical: str,
+                          target: str, phase_number: int = 1) -> dict:
+    """Verify staged PRs on any Owner project, NEVER merge outside trusted docs.
+
+    The live specialization docs gate remains the only automatic main integrator.
+    Other projects require their own independent CI, functional acceptance and
+    exact-head Project Leader controls before integration. A pending validation
+    is NOT a Human Gate and NEVER advances a dependent phase.
+    """
+    try:
+        from ops.project_target import is_managed_target
+    except ModuleNotFoundError:
+        from project_target import is_managed_target
+    if (not is_managed_target(target) or target == TARGET or
+            not 1 <= len(workers) <= 2 or not 1 <= phase_count <= 8 or
+            type(phase_number) is not int or not 1 <= phase_number <= 8 or
+            not SHA.fullmatch(canonical)):
+        raise IntegratorHold("INVALID_EXTERNAL_STAGE")
+    if _authenticated_owner_target(issue) != target:
+        raise IntegratorHold("ORIGINAL_OWNER_TARGET_DRIFT")
+    canonical_ref = _api("GET", f"repos/{SOURCE}/git/ref/heads/main")
+    if canonical_ref.get("object", {}).get("sha") != canonical:
+        raise IntegratorHold("CANONICAL_STALE")
+    target_ref = _api("GET", f"repos/{target}/git/ref/heads/main")
+    main = target_ref.get("object", {}).get("sha", "")
+    if not SHA.fullmatch(main):
+        raise IntegratorHold("TARGET_HEAD_UNVERIFIED")
+    numbers = []
+    heads = set()
+    scoped_paths = []
+    for worker in workers:
+        if worker.status != "PR_STAGED" or not SHA.fullmatch(worker.sha):
+            raise IntegratorHold("WORKER_RESULT_NOT_STAGED")
+        match = re.fullmatch(
+            r"https://github\\.com/" + re.escape(target) +
+            r"/pull/([1-9][0-9]*)", worker.url)
+        if match is None:
+            raise IntegratorHold("PUBLISHER_PROVENANCE_MISMATCH")
+        number = int(match[1])
+        if number in numbers or worker.sha in heads:
+            raise IntegratorHold("DUPLICATE_WORKER_PR")
+        pr = _api("GET", f"repos/{target}/pulls/{number}")
+        if not isinstance(pr, dict):
+            raise IntegratorHold("PR_UNVERIFIED")
+        prhead = pr.get("head", {})
+        prbase = pr.get("base", {})
+        branch = prhead.get("ref", "")
+        body = pr.get("body", "")
+        if (pr.get("state") != "open" or pr.get("draft") is not False
+                or pr.get("merged") is not False
+                or pr.get("user", {}).get("login") != OWNER
+                or prhead.get("repo", {}).get("full_name") != target
+                or prhead.get("sha") != worker.sha
+                or prbase.get("ref") != "main"
+                or prbase.get("sha") != main
+                or not _expected_branch(branch, issue, run, phase_number)
+                or not isinstance(body, str) or
+                "Autonomous Codex change from " + CONTROL +
+                    " issue #" + str(issue) + ".\\n" not in body or
+                "Trusted publisher commit: " + "`" + worker.sha + "`" not in body or
+                "No GitHub write credential was provided to Codex." not in body or
+                "Remote isolated Codex clone base: " + "`" + main + "`" not in body):
+            raise IntegratorHold("PUBLISHER_PROVENANCE_MISMATCH")
+        rows = _api("GET", f"repos/{target}/pulls/{number}/files?per_page=100")
+        if (not isinstance(rows, list) or not 1 <= len(rows) <= 40 or
+                any(not isinstance(row, dict) or
+                    row.get("status") not in ("added", "modified", "removed") or
+                    type(row.get("filename")) is not str
+                    for row in rows)):
+            raise IntegratorHold("EXTERNAL_PATCH_SCOPE_UNVERIFIED")
+        paths = {row["filename"] for row in rows}
+        if len(paths) != len(rows):
+            raise IntegratorHold("EXTERNAL_PATCH_SCOPE_UNVERIFIED")
+        # The publisher already enforces a stricter diff and protected paths.
+        # Do not imply that observing paths is an independent approval.
+        if any(paths.intersection(other) for other in scoped_paths):
+            raise IntegratorHold("PARALLEL_FILE_CONFLICT")
+        scoped_paths.append(paths)
+        numbers.append(number)
+        heads.add(worker.sha)
+    return {
+        "status": "PHASE_STAGED_AWAITING_TARGET_CERTIFICATION",
+        "target_repository": target,
+        "pull_requests": numbers,
+        "pull_request": numbers[-1],
+        "phase_count": phase_count,
+        "phase_number": phase_number,
+        "certified": False,
+    }
+
+
 def main() -> int:
     try:
         issue = _int(os.environ.get("OWNER_ISSUE", ""), "ISSUE")
@@ -383,7 +493,29 @@ def main() -> int:
                           os.environ.get(f"WORKER_{i}_PR", ""),
                           os.environ.get(f"WORKER_{i}_SHA", ""))
                    for i in range(1, count + 1)]
-        result = assess(issue, run, workers, phases, canonical, phase_number)
+        target = _authenticated_owner_target(issue)
+        if target == TARGET:
+            result = assess(issue, run, workers, phases, canonical, phase_number)
+        else:
+            result = assess_external_stage(issue, run, workers, phases,
+                                           canonical, target, phase_number)
+            numbers = ", ".join("#" + str(n) for n in result["pull_requests"])
+            notice = ("PROJECT_LEADER_PHASE_STAGED_AWAITING_TARGET_CERTIFICATION: "
+                      + target + "; verified Codex PRs " + numbers +
+                      f"; phase {phase_number}/{phase_number + phases - 1}. "
+                      "No merge, no exact-CI/functional certification, "
+                      "no dependent phase started. Project Leader must "
+                      "independently validate and integrate under target rules.")
+            _api("POST", f"repos/{CONTROL}/issues/{issue}/comments",
+                 {"body": notice}, control=True)
+            print("PROJECT_LEADER_PR_INTEGRATOR=STAGED_TARGET_REVIEW_REQUIRED",
+                  flush=True)
+            output = os.environ.get("GITHUB_OUTPUT", "")
+            if output:
+                from pathlib import Path
+                with Path(output).open("a", encoding="ascii") as writer:
+                    writer.write("phase_status=" + result["status"] + "\\n")
+            return 0
         numbers = ", ".join("#" + str(n) for n in result["pull_requests"])
         report = ("PROJECT_LEADER_" + result["status"] +
                   ": PR " + numbers + ", merged SHA "
