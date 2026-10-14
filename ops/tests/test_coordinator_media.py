@@ -35,6 +35,26 @@ class CoordinatorMediaTest(unittest.TestCase):
         self.assertEqual(items[0].original.stat().st_mode & 0o077, 0)
         self.assertEqual(items[0].original.parent.stat().st_mode & 0o077, 0)
 
+    def test_one_gib_limit_without_allocating_one_gib_during_tests(self):
+        self.assertEqual(media.MAX_TOTAL_BYTES, 1024 ** 3)
+        self.assertEqual(media.MAX_FILE_BYTES, 1024 ** 3)
+        self.assertEqual(media.TRANSFER_CHUNK_BYTES, 1024 ** 2)
+        # Test the very same aggregate branch with a lowered test-only cap.
+        with mock.patch.object(media, "MAX_TOTAL_BYTES", self.src.stat().st_size - 1):
+            with self.assertRaisesRegex(media.MediaRefused, "size limit"):
+                media.pack([self.src], self.root / "over-limit")
+        self.assertFalse((self.root / "over-limit").exists())
+
+    def test_bundle_pack_copies_original_in_streamed_blocks(self):
+        large = self.root / "movie.mp4"
+        large.write_bytes(b"v" * (media.TRANSFER_CHUNK_BYTES * 3 + 9))
+        large.chmod(0o600)
+        target = media.pack([large], self.root / "streaming-video")
+        items = media.verify(target)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0].size, large.stat().st_size)
+        self.assertEqual(items[0].sha256, media._sha256(large)[0])
+
     def test_missing_original_is_refused(self):
         root = self.bundle()
         (root / "file-001.jpg").unlink()
