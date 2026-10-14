@@ -538,7 +538,8 @@ def handle_update(update):
     # Natural text and offline-transcribed voice share the same authenticated
     # Owner Coordinator path. A screenshot is private; do not silently publish
     # or omit its evidence from a write order.
-    if is_execution_request(text):
+    if (is_execution_request(text) and
+            not re.match(r"^/(?:audit|codex)(?:@\\w+)?(?:\\s|$)", text, re.I)):
         if image is not None:
             say("As imagens não são enviadas para tarefas de correção pela ponte "
                 "Telegram. Descreve o problema por texto ou voz.")
