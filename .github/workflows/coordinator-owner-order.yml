@@ -38,6 +38,7 @@ jobs:
           bash -n ops/coordinator-smoke-remote.sh
           python3 -m py_compile ops/agent_switch.py ops/coordinator_ai.py ops/coordinator_pr_integrator.py ops/coordinator_supervisor.py ops/coordinator_phase_continuation.py
           python3 -m unittest discover -s ops/tests -p test_coordinator_phase_continuation.py -v
+          python3 -m unittest discover -s ops/tests -p test_project_target.py -v
           python3 -m unittest discover -s ops/tests -p test_coordinator_owner_routing.py -v
           python3 -m unittest discover -s ops/tests -p test_coordinator_smoke.py -v
           python3 -m unittest discover -s ops/tests -p test_coordinator_pr_integrator.py -v
