@@ -17,7 +17,8 @@ on:
       - "Codex autonomous execution (Owner-authorized)"
       - "Supervisor - Real ChatGPT quota watch (Owner notifications only)"
       - "Codex - ChatGPT bridge"
-    types: [requested, in_progress, completed]
+    # One passive observation per finished run; avoid 3x noisy status fan-out.
+    types: [completed]
   pull_request:
     paths:
       - 'ops/telegram_gateway.py'
