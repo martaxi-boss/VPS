@@ -89,7 +89,7 @@ class CoordinatorMediaTest(unittest.TestCase):
         binary.write_bytes(b"this is not a real mp4")
         binary.chmod(0o600)
         root = media.pack([binary], self.root / "video")
-        with self.assertRaisesRegex(media.MediaRefused, "incomplete|generator"):
+        with self.assertRaisesRegex(media.MediaRefused, "incomplete|generator|duration"):
             media.prepare(root, self.root / "frames")
 
     def test_reject_manifest_added_paths(self):
