@@ -63,6 +63,7 @@ jobs:
           python3 - <<'PY_PREPARE'
           import json, os, re, urllib.parse, urllib.request
           from ops.coordinator_phase_continuation import prepared_phase
+          from ops.project_target import from_owner_order, TargetRefused
           previous = os.environ.get('PREVIOUS_MERGED_SHA', '')
           issue_number = os.environ.get('OWNER_ISSUE', '')
           if (not re.fullmatch(r'[0-9a-f]{40}', previous) or
@@ -85,24 +86,36 @@ jobs:
                      os.environ.get('GH_TOKEN', ''))
           if (issue.get('state') != 'open' or
                   issue.get('user', {}).get('login') != 'martaxi-boss' or
-                  not issue.get('title', '').startswith('[coordinator run] ') or
-                  not str(issue.get('body', '')).startswith(
-                      'TARGET_REPOSITORY=martaxi-boss/Project-leader-codex\n')):
+                  not issue.get('title', '').startswith('[coordinator run] ')):
               raise SystemExit('OWNER_ISSUE_UNAUTHORIZED')
-          actual = gh(
-              'repos/martaxi-boss/Project-leader-codex/git/ref/heads/main',
-              os.environ.get('CODEX_GITHUB_TOKEN', ''))
+          try:
+              target = from_owner_order(issue.get('body', ''))
+          except TargetRefused:
+              raise SystemExit('OWNER_ISSUE_UNAUTHORIZED')
+          publisher_token = os.environ.get('CODEX_GITHUB_TOKEN', '')
+          info = gh('repos/' + target, publisher_token)
+          if (info.get('full_name') != target or
+                  info.get('owner', {}).get('login') != 'martaxi-boss' or
+                  info.get('default_branch') != 'main' or
+                  info.get('private') is not False or
+                  info.get('archived') is True or
+                  info.get('permissions', {}).get('push') is not True):
+              raise SystemExit('OWNER_TARGET_PERMISSION_UNVERIFIED')
+          actual = gh('repos/' + target + '/git/ref/heads/main',
+                      publisher_token)
           if actual.get('object', {}).get('sha') != previous:
               raise SystemExit('VERIFIED_PREVIOUS_MERGE_HEAD_CHANGED')
           plan = prepared_phase(
               os.environ['ORIGINAL_PLAN_B64'], int(os.environ['PHASE_NUMBER']),
               previous)
+          if plan['target_repository'] != target:
+              raise SystemExit('ORIGINAL_PLAN_TARGET_MISMATCH')
           # Existing source files must still exist and stay regular.
           # The Codex worker later pins the same commit and checks its scope.
           for path in plan['paths']:
               url_path = urllib.parse.quote(path, safe='/')
               item = gh(
-                  'repos/martaxi-boss/Project-leader-codex/contents/' +
+                  'repos/' + target + '/contents/' +
                   url_path + '?ref=' + previous,
                   os.environ['CODEX_GITHUB_TOKEN'])
               if (item.get('type') != 'file' or item.get('path') != path or
