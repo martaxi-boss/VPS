@@ -7,6 +7,8 @@ FINGERPRINT = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
 CASES = (
     (".github/workflows/codex-chatgpt-bridge.yml", "codex-bridge-known-hosts", 7),
     (".github/workflows/codex-project-leader-safe-fix.yml", "codex-safe-fix-known-hosts", 6),
+    (".github/workflows/codex-sandbox-repair.yml", "codex-sandbox-repair-known-hosts", 1),
+    (".github/workflows/agent-providers-readiness.yml", "codex-provider-readiness-known-hosts", 1),
 )
 
 

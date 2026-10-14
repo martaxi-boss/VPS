@@ -57,6 +57,20 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass > /dev/null
 
+      - name: Verify pinned VPS SSH identity (fail closed)
+        shell: bash
+        run: |
+          set -euo pipefail
+          known_hosts="$RUNNER_TEMP/codex-sandbox-repair-known-hosts"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known_hosts" ||
+            { echo 'CODEX_VPS_HOST_UNAVAILABLE'; exit 2; }
+          chmod 600 "$known_hosts"
+          observed="$(ssh-keygen -lf "$known_hosts" -E sha256 | awk '{print $2}')"
+          test "$observed" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ||
+            { echo 'CODEX_VPS_HOST_UNVERIFIED'; exit 2; }
+          ssh-keygen -F 146.59.145.3 -f "$known_hosts" >/dev/null ||
+            { echo 'CODEX_VPS_HOST_MISSING'; exit 2; }
+
       - name: Inspect or apply official Ubuntu sandbox prerequisites on VPS
         id: remote
         env:
@@ -67,7 +81,7 @@ jobs:
           set -euo pipefail
           # The maintenance script is read from reviewed repository content.
           # No prompt, issue body, token, or remote shell fragment is injected.
-          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new \
+          sshpass -e ssh -T -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/codex-sandbox-repair-known-hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=5 \
             ubuntu@146.59.145.3 "bash -s -- $RUN_MODE" \
             < ops/codex_sandbox_repair_ubuntu.sh \
