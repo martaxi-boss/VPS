@@ -158,6 +158,20 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass > /dev/null
 
+      - name: Verify pinned VPS SSH identity (fail closed)
+        shell: bash
+        run: |
+          set -euo pipefail
+          known_hosts="$RUNNER_TEMP/codex-bridge-known-hosts"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known_hosts" ||
+            { echo 'CODEX_VPS_HOST_UNAVAILABLE'; exit 2; }
+          chmod 600 "$known_hosts"
+          observed="$(ssh-keygen -lf "$known_hosts" -E sha256 | awk '{print $2}')"
+          test "$observed" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ||
+            { echo 'CODEX_VPS_HOST_UNVERIFIED'; exit 2; }
+          ssh-keygen -F 146.59.145.3 -f "$known_hosts" >/dev/null ||
+            { echo 'CODEX_VPS_HOST_MISSING'; exit 2; }
+
       - name: Stage private work directory on VPS
         id: stage
         env:
@@ -169,9 +183,9 @@ jobs:
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           remote="ubuntu@146.59.145.3"
           dest="/home/ubuntu/codex-bridge/jobs/$job"
-          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+          sshpass -e ssh -T -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/codex-bridge-known-hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
             "$remote" "install -d -m 700 '$dest'"
-          sshpass -e scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+          sshpass -e scp -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/codex-bridge-known-hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
             "$RUNNER_TEMP/codex-task.txt" ops/codex-vps-remote.sh \
             ops/codex-project-leader-bootstrap.py "$remote:$dest/"
           ext="$CODEX_IMAGE_EXT"
@@ -179,7 +193,7 @@ jobs:
             case "$ext" in jpg|png|webp) ;; *) exit 1;; esac
             test -s "$RUNNER_TEMP/codex-input.$ext"
             # Only temporary runner -> private VPS job dir. Never upload to GitHub.
-            sshpass -e scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+            sshpass -e scp -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/codex-bridge-known-hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
               "$RUNNER_TEMP/codex-input.$ext" "$remote:$dest/"
           fi
 
@@ -191,7 +205,7 @@ jobs:
         run: |
           set -euo pipefail
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new \
+          sshpass -e ssh -T -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/codex-bridge-known-hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=5 \
             ubuntu@146.59.145.3 \
             "bash /home/ubuntu/codex-bridge/jobs/$job/codex-vps-remote.sh '$job'"
@@ -205,7 +219,7 @@ jobs:
         run: |
           set -euo pipefail
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-          sshpass -e scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+          sshpass -e scp -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/codex-bridge-known-hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
             "ubuntu@146.59.145.3:/home/ubuntu/codex-bridge/jobs/$job/report.md" \
             "$RUNNER_TEMP/codex-report.md"
 
@@ -267,7 +281,7 @@ jobs:
         run: |
           set -euo pipefail
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+          sshpass -e ssh -T -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/codex-bridge-known-hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
             ubuntu@146.59.145.3 \
             "rm -f -- /home/ubuntu/codex-bridge/jobs/$job/codex-input.jpg /home/ubuntu/codex-bridge/jobs/$job/codex-input.png /home/ubuntu/codex-bridge/jobs/$job/codex-input.webp"
 
@@ -279,6 +293,6 @@ jobs:
         run: |
           set -euo pipefail
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+          sshpass -e ssh -T -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/codex-bridge-known-hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
             ubuntu@146.59.145.3 \
             "rm -rf -- /home/ubuntu/codex-bridge/jobs/$job"

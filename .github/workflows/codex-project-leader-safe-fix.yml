@@ -54,6 +54,20 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass >/dev/null
 
+      - name: Verify pinned VPS SSH identity (fail closed)
+        shell: bash
+        run: |
+          set -euo pipefail
+          known_hosts="$RUNNER_TEMP/codex-safe-fix-known-hosts"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known_hosts" ||
+            { echo 'CODEX_VPS_HOST_UNAVAILABLE'; exit 2; }
+          chmod 600 "$known_hosts"
+          observed="$(ssh-keygen -lf "$known_hosts" -E sha256 | awk '{print $2}')"
+          test "$observed" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ||
+            { echo 'CODEX_VPS_HOST_UNVERIFIED'; exit 2; }
+          ssh-keygen -F 146.59.145.3 -f "$known_hosts" >/dev/null ||
+            { echo 'CODEX_VPS_HOST_MISSING'; exit 2; }
+
       - name: Stage disposable Codex proposal
         id: stage
         env:
@@ -65,9 +79,9 @@ jobs:
           [[ "$job" =~ ^[0-9]+-[0-9]+$ ]]
           remote="ubuntu@146.59.145.3"
           dest="/home/ubuntu/codex-bridge/jobs/$job"
-          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+          sshpass -e ssh -T -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/codex-safe-fix-known-hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
             "$remote" "install -d -m 700 '$dest'"
-          sshpass -e scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+          sshpass -e scp -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/codex-safe-fix-known-hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
             "$RUNNER_TEMP/codex-task.txt" ops/codex-project-leader-remote.sh \
             "$remote:$dest/"
 
@@ -79,7 +93,7 @@ jobs:
         run: |
           set -euo pipefail
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new \
+          sshpass -e ssh -T -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/codex-safe-fix-known-hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=5 \
             ubuntu@146.59.145.3 \
             "bash /home/ubuntu/codex-bridge/jobs/$job/codex-project-leader-remote.sh '$job'"
@@ -94,10 +108,10 @@ jobs:
           set -euo pipefail
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           base="ubuntu@146.59.145.3:/home/ubuntu/codex-bridge/jobs/$job"
-          sshpass -e scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+          sshpass -e scp -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/codex-safe-fix-known-hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
             "$base/report.md" "$RUNNER_TEMP/codex-report.md"
           if [ "${{ steps.codex.outcome }}" = 'success' ]; then
-            sshpass -e scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+            sshpass -e scp -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/codex-safe-fix-known-hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
               "$base/patch.diff" "$RUNNER_TEMP/codex-patch.diff"
           fi
 
@@ -148,6 +162,6 @@ jobs:
           set -euo pipefail
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           [[ "$job" =~ ^[0-9]+-[0-9]+$ ]]
-          sshpass -e ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+          sshpass -e ssh -T -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/codex-safe-fix-known-hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
             ubuntu@146.59.145.3 \
             "rm -rf -- '/home/ubuntu/codex-bridge/jobs/$job'"

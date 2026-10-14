@@ -15,15 +15,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Verify pinned VPS SSH identity (fail closed)
+        shell: bash
+        run: |
+          set -euo pipefail
+          known_hosts="$RUNNER_TEMP/vps-access-push-known-hosts"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known_hosts" ||
+            { echo 'VPS_HOST_KEY_UNAVAILABLE'; exit 2; }
+          chmod 600 "$known_hosts"
+          observed="$(ssh-keygen -lf "$known_hosts" -E sha256 | awk '{print $2}')"
+          test "$observed" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ||
+            { echo 'VPS_HOST_KEY_MISMATCH'; exit 2; }
+          ssh-keygen -F 146.59.145.3 -f "$known_hosts" >/dev/null ||
+            { echo 'VPS_HOST_KEY_MISSING'; exit 2; }
       - name: Test SSH access to VPS
         env:
-          VPS_SSH_PASSWORD: ${{ secrets.VPS_SSH_PASSWORD }}
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         shell: bash
         run: |
           set -euo pipefail
           HOST="146.59.145.3"
 
-          if [ -z "${VPS_SSH_PASSWORD:-}" ]; then
+          if [ -z "${SSHPASS:-}" ]; then
             echo "VPS_SSH_PASSWORD secret is missing or empty"
             exit 2
           fi
@@ -33,7 +46,7 @@ jobs:
 
           for USER in root ubuntu; do
             echo "Testing SSH user: $USER"
-            if sshpass -p "$VPS_SSH_PASSWORD" ssh               -o PreferredAuthentications=password               -o PubkeyAuthentication=no               -o StrictHostKeyChecking=accept-new               -o ConnectTimeout=10               "$USER@$HOST"               'printf "SSH_ACCESS=PASS\n"; printf "REMOTE_USER=%s\n" "$(id -un)"; printf "HOSTNAME=%s\n" "$(hostname)"; uptime; df -h /; free -h' ; then
+            if sshpass -e ssh               -o PreferredAuthentications=password               -o PubkeyAuthentication=no               -o StrictHostKeyChecking=yes               -o "UserKnownHostsFile=$RUNNER_TEMP/vps-access-push-known-hosts"               -o GlobalKnownHostsFile=/dev/null               -o HostKeyAlgorithms=ssh-ed25519               -o ConnectTimeout=10               "$USER@$HOST"               'printf "SSH_ACCESS=PASS\n"; printf "REMOTE_USER=%s\n" "$(id -un)"; printf "HOSTNAME=%s\n" "$(hostname)"; uptime; df -h /; free -h' ; then
               echo "WORKING_SSH_USER=$USER"
               exit 0
             fi
