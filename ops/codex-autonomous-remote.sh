@@ -132,6 +132,36 @@ python3 "$base/codex-project-leader-bootstrap.py" \
   "$canonical" "$slug" "$head" "$base/project-leader-rules.md" \
   "$base/project-leader-runtime.json"
 
+# Load the shared Codex-specific policy from its ONE specialized repository.
+# This is a read-only, exact-commit overlay for an already verified VPS worker,
+# not another Coordinator, provider, GitHub publisher, Human Gate or Supervisor.
+specialized_sha=""
+if [ "$slug" != "martaxi-boss/Project-leader" ]; then
+  specialized="$repo"
+  if [ "$slug" != "martaxi-boss/Project-leader-codex" ]; then
+    specialized="$base/project-leader-codex-specialization"
+    test ! -e "$specialized" || { echo 'Existing specialization path refused' >&2; exit 5; }
+    git clone --quiet --depth 1 --branch main -- \
+      "https://github.com/martaxi-boss/Project-leader-codex.git" "$specialized"
+  fi
+  test "$(git -C "$specialized" symbolic-ref --short HEAD)" = main || exit 5
+  specialized_sha="$(git -C "$specialized" rev-parse HEAD)"
+  [[ "$specialized_sha" =~ ^[0-9a-f]{40}$ ]] || exit 5
+  git -C "$specialized" show "$specialized_sha:AGENTS.md" \
+    > "$base/codex-specialized-AGENTS.md"
+  git -C "$specialized" show "$specialized_sha:CODEX_COORDINATION.md" \
+    > "$base/codex-specialized-CODEX_COORDINATION.md"
+  for name in AGENTS.md CODEX_COORDINATION.md; do
+    file="$base/codex-specialized-$name"
+    test -s "$file" && test "$(wc -c < "$file")" -le 20000 || exit 5
+  done
+  grep -qF 'A Codex worker already dispatched by the verified VPS Coordinator' \
+    "$base/codex-specialized-AGENTS.md" || exit 5
+  grep -qF 'VPS (unchanged and independent)' \
+    "$base/codex-specialized-CODEX_COORDINATION.md" || exit 5
+  echo "CODEX_SPECIALIZED_RUNTIME_PIN=$specialized_sha"
+fi
+
 cat > "$base/prompt.md" <<'RULES'
 You are the IMPLEMENTER, not an auditor-only agent. Execute the bounded Owner task in this disposable checkout.
 Edit the actual repository files needed for the request, then run ONLY safe local tests relevant to the edit.
@@ -156,6 +186,12 @@ Use European Portuguese in your final report. Never print credentials or authent
 PROJECT LEADER CANONICAL RULES:
 RULES
 cat "$base/project-leader-rules.md" >> "$base/prompt.md"
+if [ -n "$specialized_sha" ]; then
+  printf '\nPROJECT LEADER + CODEX SPECIALIZATION (PINNED %s; EXISTING VPS WORKER ONLY):\n' \
+    "$specialized_sha" >> "$base/prompt.md"
+  cat "$base/codex-specialized-AGENTS.md" \
+    "$base/codex-specialized-CODEX_COORDINATION.md" >> "$base/prompt.md"
+fi
 printf '\nOWNER TASK:\n' >> "$base/prompt.md"
 cat "$base/codex-task.txt" >> "$base/prompt.md"
 
