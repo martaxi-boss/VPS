@@ -188,14 +188,14 @@ fi
 # Independently re-validate the private model output and print allowlisted
 # metrics only. No prompts, arbitrary model strings or local paths are logged.
 python3 - "$private/coordinator-result.json" "$workspace/validated" \
-  "$control" "$slug" "$head" "$mode" <<'PY' || refuse PLAN_RECHECK
+  "$control" "$slug" "$head" "$mode" "$root/.verified-plans" "$job" <<'PY' || refuse PLAN_RECHECK
 import base64
 import json
 from pathlib import Path
 import stat
 import sys
 
-result_path, output_dir, control, target, head, mode = sys.argv[1:]
+result_path, output_dir, control, target, head, mode, archive_root, job = sys.argv[1:]
 try:
     report = json.loads(Path(result_path).read_text(encoding="utf-8"))
     if (not isinstance(report, dict) or
@@ -238,6 +238,14 @@ elif mode == "dispatch":
     raw_audit = file.read_bytes().strip()
     if not 0 < len(raw_audit) <= 24000:
         raise SystemExit(13)
+    # Independently validated Owner DAG survives the disposable workspace.
+    # Host-private mode 0700/0600; never publish it as a GitHub artifact/Issue.
+    sys.path.insert(0, str(Path(control)))
+    from ops.coordinator_plan_archive import archive_verified_plan
+    archive_verified_plan(
+        base64.b64encode(raw_audit).decode("ascii"), Path(archive_root),
+        job=job, target=target, audited_sha=head,
+    )
     print("COORDINATOR_DISPATCH_STATUS=VALIDATED")
     print("TARGET_REPOSITORY=" + target)
     print("TARGET_SHA=" + head)

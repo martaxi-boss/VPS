@@ -192,5 +192,109 @@ class PhaseWorkflowGuards(unittest.TestCase):
             count += 1
         self.assertEqual(count, 1)
 
+
+class PrivateCoordinatorPlanArchiveTests(unittest.TestCase):
+    """A staged Android PR must not make the original Owner DAG disappear."""
+
+    def setUp(self):
+        import tempfile
+        from pathlib import Path
+        from ops import coordinator_plan_archive as archive
+        self.archive = archive
+        self.directory = tempfile.TemporaryDirectory()
+        self.root = Path(self.directory.name) / "archive"
+        self.job = "5857350401-1"
+        self.original = enc(fixture())
+        self.target = phases.TARGET
+
+    def tearDown(self):
+        self.directory.cleanup()
+
+    def _save(self):
+        return self.archive.archive_verified_plan(
+            self.original, self.root,
+            job=self.job, target=self.target, audited_sha=ORIGINAL,
+        )
+
+    def _load(self):
+        return self.archive.load_original_plan(
+            self.root, job=self.job, target=self.target, audited_sha=ORIGINAL,
+        )
+
+    def test_private_original_survives_disposable_coordinator_workspace(self):
+        import os
+        import stat
+        from pathlib import Path
+        result = self._save()
+        self.assertEqual(result["phase_count"], 2)
+        self.assertEqual(result["audited_sha"], ORIGINAL)
+        self.assertEqual(self._load(), self.original)
+        self.assertEqual(stat.S_IMODE(self.root.stat().st_mode), 0o700)
+        archive_file = self.root / (self.job + ".json")
+        self.assertEqual(stat.S_IMODE(archive_file.stat().st_mode), 0o600)
+        self.assertFalse(any(p.name.endswith(".tmp") for p in self.root.iterdir()))
+        with self.assertRaises(self.archive.PrivatePlanError):
+            self._save()  # even an identical replay cannot overwrite
+        self.assertEqual(self._load(), self.original)
+
+    def test_tampered_archive_and_stale_scope_fail_closed(self):
+        import json
+        self._save()
+        path = self.root / (self.job + ".json")
+        record = json.loads(path.read_text())
+        record["phase_count"] += 1
+        path.write_text(json.dumps(record))
+        with self.assertRaises(self.archive.PrivatePlanError):
+            self._load()
+        with self.assertRaises(self.archive.PrivatePlanError):
+            self.archive.load_original_plan(
+                self.root, job=self.job, target=self.target,
+                audited_sha=UPDATED,
+            )
+        with self.assertRaises(self.archive.PrivatePlanError):
+            self.archive.load_original_plan(
+                self.root, job=self.job, target="martaxi-boss/VPS",
+                audited_sha=ORIGINAL,
+            )
+
+    def test_public_archive_symlink_and_bad_provenance_refused(self):
+        import os
+        from pathlib import Path
+        with self.assertRaises(self.archive.PrivatePlanError):
+            self.archive.archive_verified_plan(
+                self.original, self.root,
+                job="../evil", target=self.target, audited_sha=ORIGINAL,
+            )
+        with self.assertRaises(self.archive.PrivatePlanError):
+            self.archive.archive_verified_plan(
+                self.original, self.root,
+                job=self.job, target=self.target, audited_sha=UPDATED,
+            )
+        self.root.mkdir(mode=0o700)
+        self.root.chmod(0o755)
+        with self.assertRaises(self.archive.PrivatePlanError):
+            self._save()
+        self.root.chmod(0o700)
+        link = Path(self.directory.name) / "link"
+        link.symlink_to(self.root, target_is_directory=True)
+        with self.assertRaises(self.archive.PrivatePlanError):
+            self.archive.archive_verified_plan(
+                self.original, link,
+                job=self.job, target=self.target, audited_sha=ORIGINAL,
+            )
+        self.assertFalse(list(self.root.glob("*.json")))
+
+    def test_existing_workflow_persists_only_audited_original_without_dispatch(self):
+        from pathlib import Path
+        root = Path(__file__).resolve().parents[2]
+        shell = (root / "ops/coordinator-smoke-remote.sh").read_text()
+        self.assertIn('"$root/.verified-plans" "$job"', shell)
+        self.assertIn("from ops.coordinator_plan_archive import archive_verified_plan", shell)
+        self.assertIn('base64.b64encode(raw_audit).decode("ascii")', shell)
+        self.assertIn('trap cleanup_private_workspace EXIT', shell)
+        start = shell.index("<<'PY' || refuse PLAN_RECHECK")
+        source = shell[start + len("<<'PY' || refuse PLAN_RECHECK"):].split("\nPY\n")[0]
+        compile(source, "<private-coordinator-proof>", "exec")
+
 if __name__ == "__main__":
     unittest.main()
