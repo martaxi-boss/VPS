@@ -210,6 +210,25 @@ class SpecializationRouteTests(unittest.TestCase):
         self.assertIn("info.get('permissions', {}).get('push') is not True", flow)
         self.assertIn('"martaxi-boss/Project-leader-codex"', loader)
 
+
+    def test_vps_worker_loads_pinned_specialized_codex_policy_without_new_router(self):
+        remote = (OPS / "codex-autonomous-remote.sh").read_text(encoding="utf-8")
+        self.assertIn("https://github.com/martaxi-boss/Project-leader-codex.git", remote)
+        self.assertIn('git -C "$specialized" show "$specialized_sha:AGENTS.md"', remote)
+        self.assertIn('git -C "$specialized" show "$specialized_sha:CODEX_COORDINATION.md"', remote)
+        self.assertIn('CODEX_SPECIALIZED_RUNTIME_PIN=$specialized_sha', remote)
+        self.assertIn('A Codex worker already dispatched by the verified VPS Coordinator', remote)
+        self.assertIn('VPS (unchanged and independent)', remote)
+        self.assertIn('if [ "$slug" != "martaxi-boss/Project-leader" ]; then', remote)
+        self.assertLess(remote.index("codex-project-leader-bootstrap.py"),
+                        remote.index("CODEX_SPECIALIZED_RUNTIME_PIN"))
+        self.assertLess(remote.index("CODEX_SPECIALIZED_RUNTIME_PIN"),
+                        remote.index('"$cli" exec --model'))
+        self.assertIn('PROJECT LEADER CANONICAL RULES:', remote)
+        self.assertIn('cat "$base/codex-specialized-AGENTS.md"', remote)
+        self.assertIn('cat "$base/codex-task.txt" >> "$base/prompt.md"', remote)
+        self.assertNotIn("repository_dispatch", remote)
+
     def test_normal_executor_pins_ssh_before_any_password_is_used(self):
         flow = (OPS.parent / ".github/workflows/codex-autonomous.yml").read_text(
             encoding="utf-8")
