@@ -1,0 +1,137 @@
+name: PINK definitive Android APK signing 20261016
+on:
+  push:
+    branches: ["release/pink-signing-readiness-20261016"]
+    paths:
+      - ".project-leader/transitions/PINK-IPTV-FINAL-SIGNING-20261016.authorization.json"
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: pink-definitive-apk-signing-20261016
+  cancel-in-progress: false
+jobs:
+  sign:
+    if: github.event.head_commit.message == 'Authorize and sign exact PINK final release APK'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check immutable source, owner authority and exact GitHub artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git diff --check
+          python3 -m py_compile ops/pink_release_signer_20261016.py ops/pink_release_artifact_20261016.py
+          python3 ops/pink_release_signer_20261016.py selftest
+          python3 ops/pink_release_artifact_20261016.py manifest
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407
+        with:
+          packages: "platforms;android-36 build-tools;36.0.0"
+      - name: Download only the authorized exact-source unsigned APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --connect-timeout 15 --max-time 180 \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/martaxi-boss/pink-iptv/actions/artifacts/12050624216/zip" \
+            -o "$RUNNER_TEMP/pink-signing-input.zip"
+          python3 ops/pink_release_artifact_20261016.py unsigned
+          sdk="$ANDROID_HOME/build-tools/36.0.0"
+          apk="$RUNNER_TEMP/pink-release-input/PINK-IPTV-RELEASE-UNSIGNED.apk"
+          "$sdk/zipalign" -c -p 4 "$apk"
+          ! "$sdk/apksigner" verify "$apk" >/dev/null 2>&1
+          "$sdk/aapt" dump badging "$apk" > "$RUNNER_TEMP/pink-release-input/badging.txt"
+          grep -Fq "package: name='com.pinkiptv.extreme'" "$RUNNER_TEMP/pink-release-input/badging.txt"
+          grep -Fq "application-label:'PINK IPTV'" "$RUNNER_TEMP/pink-release-input/badging.txt"
+          ! grep -Fq "application-debuggable" "$RUNNER_TEMP/pink-release-input/badging.txt"
+          echo PINK_FINAL_UNSIGNED_SOURCE_IDENTITY=PASS
+      - name: Verify pinned VPS server host identity before accessing SSH secret
+        run: |
+          set -euo pipefail
+          known_hosts="$RUNNER_TEMP/pink-release-pinned-hosts"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known_hosts"
+          chmod 600 "$known_hosts"
+          observed="$(ssh-keygen -lf "$known_hosts" -E sha256 | awk '{print $2}')"
+          test "$observed" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          ssh-keygen -F 146.59.145.3 -f "$known_hosts" >/dev/null
+          echo PINK_SIGNING_SSH_HOST_PIN=PASS
+      - name: Prepare SSH helper on disposable GitHub runner
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+      - name: Transfer unsigned input and verified SDK signer to protected VPS inbox
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sshopts=(-o PreferredAuthentications=password -o PubkeyAuthentication=no
+            -o StrictHostKeyChecking=yes
+            -o UserKnownHostsFile="$RUNNER_TEMP/pink-release-pinned-hosts"
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519
+            -o ConnectTimeout=20)
+          sshpass -e ssh -T ${sshopts[@]} ubuntu@146.59.145.3 \
+            'set -eu; umask 077; d=/home/ubuntu/.pink-release-inbox-20261016; test ! -L "$d"; mkdir -p "$d"; chmod 0700 "$d"; test -d "$d"'
+          sshpass -e scp -q ${sshopts[@]} \
+            "$RUNNER_TEMP/pink-release-input/PINK-IPTV-RELEASE-UNSIGNED.apk" \
+            "$ANDROID_HOME/build-tools/36.0.0/lib/apksigner.jar" \
+            ubuntu@146.59.145.3:/home/ubuntu/.pink-release-inbox-20261016/
+          echo PINK_SIGNING_ONLY_UNSIGNED_INPUT_SENT=PASS
+      - name: Sign inside VPS root protected vault without exporting signing secrets
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sshopts=(-o PreferredAuthentications=password -o PubkeyAuthentication=no
+            -o StrictHostKeyChecking=yes
+            -o UserKnownHostsFile="$RUNNER_TEMP/pink-release-pinned-hosts"
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519
+            -o ConnectTimeout=20)
+          sshpass -e ssh -T ${sshopts[@]} ubuntu@146.59.145.3 \
+            'sudo -n python3 - sign' < ops/pink_release_signer_20261016.py \
+            > "$RUNNER_TEMP/pink-signer-remote-report.txt" 2>/dev/null
+          python3 ops/pink_release_artifact_20261016.py remote
+      - name: Retrieve signed APK only
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sshopts=(-o PreferredAuthentications=password -o PubkeyAuthentication=no
+            -o StrictHostKeyChecking=yes
+            -o UserKnownHostsFile="$RUNNER_TEMP/pink-release-pinned-hosts"
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519
+            -o ConnectTimeout=20)
+          sshpass -e scp -q ${sshopts[@]} \
+            ubuntu@146.59.145.3:/home/ubuntu/.pink-release-inbox-20261016/PINK-IPTV-FINAL.apk \
+            "$RUNNER_TEMP/pink-release-output/PINK-IPTV-FINAL.apk"
+          echo PINK_SIGNED_APP_ONLY_RETRIEVED=PASS
+      - name: Independently certify signing fingerprint, PINK identity and WireGuard
+        run: |
+          set -euo pipefail
+          sdk="$ANDROID_HOME/build-tools/36.0.0"
+          apk="$RUNNER_TEMP/pink-release-output/PINK-IPTV-FINAL.apk"
+          "$sdk/apksigner" verify --verbose --print-certs "$apk" > "$RUNNER_TEMP/pink-release-output/apksigner-check.txt"
+          "$sdk/zipalign" -c -p 4 "$apk"
+          "$sdk/aapt" dump badging "$apk" > "$RUNNER_TEMP/pink-release-output/package-check.txt"
+          python3 ops/pink_release_artifact_20261016.py signed
+          cd "$RUNNER_TEMP/pink-release-output"
+          sha256sum PINK-IPTV-FINAL.apk > SHA256SUMS
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: PINK-IPTV-FINAL-ASSINADA-20261016
+          path: ${{ runner.temp }}/pink-release-output
+          if-no-files-found: error
+          retention-days: 90
