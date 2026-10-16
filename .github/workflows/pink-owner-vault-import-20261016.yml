@@ -1,0 +1,98 @@
+name: PINK exact existing APK signer to original Owner VPS vault
+on:
+  push:
+    branches: ["release/pink-signing-readiness-20261016"]
+    paths: [".project-leader/transitions/PINK-IPTV-OWNER-VAULT-IMPORT-20261016.authorization.json"]
+permissions:
+  contents: read
+concurrency:
+  group: pink-owner-original-vault-import-20261016
+  cancel-in-progress: false
+jobs:
+  import-owner-signer:
+    if: github.event.head_commit.message == 'Import exact previously-signed PINK identity to original Owner VPS vault'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Enforce owner scope, exact cipher and executable implementation
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "martaxi-boss/VPS"
+          test "$GITHUB_REF" = "refs/heads/release/pink-signing-readiness-20261016"
+          git diff --check
+          test "$(git hash-object ops/pink_owner_vault_transfer_20261016.py)" = "0becda86d500a36dc63244b21befabe2ea8371c9"
+          python3 -m py_compile ops/pink_owner_vault_transfer_20261016.py
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          a=json.loads(Path('.project-leader/transitions/PINK-IPTV-OWNER-VAULT-IMPORT-20261016.authorization.json').read_text())
+          p=Path('.project-leader/secure-transfers/pink-owner-signing-transfer-20261016.cms.b64')
+          assert a["repository"]=="martaxi-boss/VPS"
+          assert a["action"]=="import_owner_existing_signed_apk_key_to_original_root_vault"
+          assert a["authority"]=="CURRENT_OWNER_EXPLICIT_INSTRUCTION"
+          assert a["target_vault"]=="/root/project-secrets/OWNER-SIGNING/PINK-IPTV-FINAL-20261016"
+          assert a["script_blob_sha"]=="0becda86d500a36dc63244b21befabe2ea8371c9"
+          assert a["signed_apk_sha256"]=="779ca54dbbc3170f746a2f57bb9216f16fbf3c1f60f38aadbe1adee21d30e3ca"
+          assert a["source_apk_key_sha256"]=="95e2fe6da5834312a202c0eab74bfcbe36d9600d5f501ba485d011507b3d50ef"
+          assert a["signer_cert_sha256"]=="e65fb31a1ad7f4380a71b8503cd8d5627a92fc5b0fb56d82abfedf7ceab3ca8f"
+          assert a["ciphertext_base64_sha256"]==hashlib.sha256(p.read_bytes()).hexdigest()
+          assert 1000<p.stat().st_size<30000
+          print("BOUND_EXACT_ENCRYPTED_OWNER_SIGNER_MATERIAL=PASS")
+          PY
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/vault-pinned-host"
+          chmod 600 "$RUNNER_TEMP/vault-pinned-host"
+          observed="$(ssh-keygen -lf "$RUNNER_TEMP/vault-pinned-host" -E sha256 | awk '{print $2}')"
+          test "$observed" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
+          echo PINNED_OWNER_VPS=PASS
+      - name: Prepare authenticated SSH helper
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+      - name: Transfer encrypted ciphertext only, then decrypt inside Owner root vault
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vault-pinned-host" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 ubuntu@146.59.145.3 \
+            'set -eu; umask 077; d=/home/ubuntu/.pink-owner-signing-inbox-20261016; test ! -L "$d"; mkdir -p "$d"; chmod 0700 "$d"; test -d "$d"'
+          sshpass -e scp -q -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vault-pinned-host" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 \
+            .project-leader/secure-transfers/pink-owner-signing-transfer-20261016.cms.b64 \
+            ubuntu@146.59.145.3:/home/ubuntu/.pink-owner-signing-inbox-20261016/
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vault-pinned-host" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 ubuntu@146.59.145.3 \
+            'chmod 0600 /home/ubuntu/.pink-owner-signing-inbox-20261016/pink-owner-signing-transfer-20261016.cms.b64'
+          echo PINNED_VPS_RECEIVED_ONLY_ENCRYPTED_CIPHERTEXT=PASS
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vault-pinned-host" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 ubuntu@146.59.145.3 'sudo -n python3 - import' \
+            < ops/pink_owner_vault_transfer_20261016.py
+      - name: Independent protected vault and backup verification
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vault-pinned-host" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 ubuntu@146.59.145.3 'sudo -n python3 - verify' \
+            < ops/pink_owner_vault_transfer_20261016.py
+          echo PINK_ORIGINAL_OWNER_VAULT_SIGNER_IMPORT_AND_RECOVERY=PASS
