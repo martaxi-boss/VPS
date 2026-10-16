@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "transition": "PINK-IPTV-SIGNED-IDENTITY-TO-ORIGINAL-OWNER-VAULT-20261016",
+  "repository": "martaxi-boss/VPS",
+  "action": "import_owner_existing_signed_apk_key_to_original_root_vault",
+  "authority": "CURRENT_OWNER_EXPLICIT_INSTRUCTION",
+  "owner_intent": "Store existing permanent PINK IPTV final APK signing key and its recovery password inside the established VPS vault automatically; no owner manual key storage",
+  "target_vault": "/root/project-secrets/OWNER-SIGNING/PINK-IPTV-FINAL-20261016",
+  "protected_backup": "/var/backups/pink-iptv/release-signing/PINK-IPTV-FINAL-20261016",
+  "source_application": "com.pinkiptv.extreme",
+  "approved_app_main_sha": "d48126cb8b95da3ea76646fbb8bf3de033216167",
+  "signed_apk_sha256": "779ca54dbbc3170f746a2f57bb9216f16fbf3c1f60f38aadbe1adee21d30e3ca",
+  "source_apk_key_sha256": "95e2fe6da5834312a202c0eab74bfcbe36d9600d5f501ba485d011507b3d50ef",
+  "recovery_record_sha256": "53efa6cd65e843c4fb815096fec4b4e7fb7d6d46aed8d1a5b4bb1aa27f94c3a8",
+  "signer_cert_sha256": "e65fb31a1ad7f4380a71b8503cd8d5627a92fc5b0fb56d82abfedf7ceab3ca8f",
+  "ciphertext_base64_sha256": "3af61a526c0fde75f3b624d0b9364575b596537c189339fd4c522fca31628d19",
+  "transport_cert_sha256": "12582e88a044736487d3b8851d8244b2f166b413766399ce930676f76a143d0c",
+  "script_blob_sha": "0becda86d500a36dc63244b21befabe2ea8371c9",
+  "preservation": [
+    "No new signing identity or regeneration",
+    "Do not write plain key or password to GitHub, artifacts, logs or other projects",
+    "Pinned SSH host and root 0700 directory, files 0600",
+    "Verified ciphertext AES-256-GCM CMS decrypt only inside Owner original root vault",
+    "Protected root-only secondary backup and exact PKCS12/certificate hash checks",
+    "Destroy one-time transport decryption key after verified storage",
+    "No VPN backend/service changes or original Android install changes"
+  ]
+}
