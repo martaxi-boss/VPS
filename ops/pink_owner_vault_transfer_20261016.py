@@ -167,7 +167,7 @@ def import_existing():
     ubuntu=pwd.getpwnam("ubuntu").pw_uid
     if not stat.S_ISREG(st.st_mode) or st.st_uid!=ubuntu or stat.S_IMODE(st.st_mode)!=0o600 or not (1000<st.st_size<30000):
         raise RuntimeError("Encrypted source ownership, permissions or size invalid")
-    enc=base64.b64decode(ENCRYPTED.read_bytes(),validate=True)
+    enc=base64.b64decode(ENCRYPTED.read_bytes().strip(),validate=True)
     if len(enc)<1000 or len(enc)>30000:
         raise RuntimeError("Encrypted envelope size invalid")
     output=command(["openssl","cms","-decrypt","-binary","-inform","DER",
