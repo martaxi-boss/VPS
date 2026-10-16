@@ -66,6 +66,14 @@ def assure_vault():
     protected_dir(OWNER,create=True)
     protected_dir(VAULT,create=True)
 
+def backup_root_existing():
+    if BACKUP_ROOT.is_symlink() or not BACKUP_ROOT.is_dir():
+        raise RuntimeError("PINK backup root absent or symlinked")
+    st=BACKUP_ROOT.lstat()
+    if st.st_uid != 0 or stat.S_IMODE(st.st_mode) & 0o022:
+        raise RuntimeError("Unsafe PINK backup root")
+    return BACKUP_ROOT
+
 def guarded(path):
     if path.is_symlink():
         raise RuntimeError("Symlinked vault material")
@@ -119,9 +127,7 @@ def verify_cert_bytes(p12,password):
 
 def verify_files():
     assure_vault()
-    if not BACKUP_ROOT.exists():
-        raise RuntimeError("Established PINK backup root missing")
-    protected_dir(BACKUP_ROOT)
+    backup_root_existing()
     protected_dir(BACKUP_PARENT)
     protected_dir(BACKUP)
     for name,expected in [(KEY_NAME,EXPECTED_KEY_SHA),(RECOVERY_NAME,EXPECTED_RECOVERY_SHA)]:
@@ -180,7 +186,7 @@ def import_existing():
         raise RuntimeError("Recovery and signing password disagree")
     if verify_cert_bytes(p12,pw)!=EXPECTED_CERT_SHA:
         raise RuntimeError("PKCS12 signing identity mismatch")
-    protected_dir(BACKUP_ROOT)
+    backup_root_existing()
     protected_dir(BACKUP_PARENT,create=True)
     protected_dir(BACKUP,create=True)
     files={KEY_NAME:p12,PASS_NAME:pw+b"\n",RECOVERY_NAME:recovery}
