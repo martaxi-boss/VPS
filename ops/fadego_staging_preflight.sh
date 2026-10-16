@@ -102,4 +102,24 @@ else
   echo "FADEGO_LETSENCRYPT_CERT_DIR=NOT_VISIBLE"
 fi
 
+# Inspect *only the presence* of a FADEGO name in public Nginx vhosts.
+# Never print configuration files, paths, usernames or certificate contents.
+if grep -Riq --include='*.conf' --include='*fadego*' \
+  -E 'server_name[[:space:]]+fadego[.]duckdns[.]org' \
+  /etc/nginx/sites-enabled /etc/nginx/conf.d 2>/dev/null; then
+  echo "FADEGO_NGINX_VHOST=VISIBLE"
+else
+  echo "FADEGO_NGINX_VHOST=NOT_VISIBLE_OR_NOT_READABLE"
+fi
+if id fadego-staging >/dev/null 2>&1; then
+  echo "FADEGO_STAGING_SYSTEM_USER=EXISTS"
+else
+  echo "FADEGO_STAGING_SYSTEM_USER=ABSENT"
+fi
+if [[ -d /srv/fadego-staging ]]; then
+  echo "FADEGO_STAGING_APP_DIR=EXISTS"
+else
+  echo "FADEGO_STAGING_APP_DIR=ABSENT"
+fi
+
 echo "PREFLIGHT_READ_ONLY=COMPLETE"
