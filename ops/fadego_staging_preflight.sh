@@ -70,4 +70,36 @@ case "$status" in
   *) echo "FADEGO_HTTPS_VHOST=RESPONDS_OTHER" ;;
 esac
 
+# Verify available runtime and datastore tools without reading configuration.
+for tool in node npm corepack pnpm psql pg_dump certbot nginx; do
+  if command -v "$tool" >/dev/null 2>&1; then
+    printf 'TOOL_%s=AVAILABLE\n' "${tool^^}"
+  else
+    printf 'TOOL_%s=MISSING\n' "${tool^^}"
+  fi
+done
+if command -v node >/dev/null 2>&1; then
+  node_major="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || true)"
+  case "$node_major" in
+    20|22|24|26) echo "NODE_RUNTIME=SUPPORTED_MAJOR_$node_major" ;;
+    *) echo "NODE_RUNTIME=UNSUPPORTED_OR_UNKNOWN" ;;
+  esac
+fi
+
+if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet postgresql; then
+  echo "POSTGRESQL_SERVICE=ACTIVE"
+else
+  echo "POSTGRESQL_SERVICE=NOT_ACTIVE_OR_EXTERNAL"
+fi
+if [[ -d /etc/nginx/sites-enabled ]]; then
+  echo "NGINX_SITES_ENABLED_DIR=AVAILABLE"
+else
+  echo "NGINX_SITES_ENABLED_DIR=NOT_VISIBLE"
+fi
+if [[ -d /etc/letsencrypt/live/fadego.duckdns.org ]]; then
+  echo "FADEGO_LETSENCRYPT_CERT_DIR=EXISTS"
+else
+  echo "FADEGO_LETSENCRYPT_CERT_DIR=NOT_VISIBLE"
+fi
+
 echo "PREFLIGHT_READ_ONLY=COMPLETE"
