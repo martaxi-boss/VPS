@@ -1,0 +1,81 @@
+name: PINK release signer readiness audit (read-only)
+on:
+  push:
+    branches: ["release/pink-signing-readiness-20261016"]
+    paths: [".github/workflows/pink-android-signing-readiness-20261016.yml"]
+permissions:
+  contents: read
+jobs:
+  readonly:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify exact SSH host fingerprint before any secret is loaded
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "martaxi-boss/VPS"
+          test "$GITHUB_REF" = "refs/heads/release/pink-signing-readiness-20261016"
+          known_hosts="$RUNNER_TEMP/pink-release-pinned-hosts"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known_hosts"
+          chmod 600 "$known_hosts"
+          observed="$(ssh-keygen -lf "$known_hosts" -E sha256 | awk '{print $2}')"
+          test "$observed" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
+          ssh-keygen -F 146.59.145.3 -f "$known_hosts" >/dev/null
+          echo PINK_VPS_ED25519_HOST_IDENTITY_PINNED=PASS
+      - name: Prepare SSH helper on disposable GitHub runner
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+      - name: Read-only signing prerequisites on attested PINK VPS
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/pink-release-pinned-hosts" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 ubuntu@146.59.145.3 'sudo -n python3 -' <<'PY'
+          import glob,json,os,shutil,stat,subprocess
+          roots=('/var/lib/pink-iptv','/var/backups/pink-iptv','/etc/pink-iptv')
+          names=[]
+          for root in roots:
+              if not os.path.isdir(root):continue
+              for directory, dirs, files in os.walk(root, followlinks=False):
+                  depth=os.path.relpath(directory,root).count(os.sep)
+                  if depth >= 4: dirs[:] = []
+                  for name in files:
+                      if name.lower().endswith(('.p12','.jks','.keystore')): names.append(1)
+          java_candidates=glob.glob('/usr/lib/jvm/*/bin/java')
+          keytool_candidates=glob.glob('/usr/lib/jvm/*/bin/keytool')
+          statv=os.statvfs('/')
+          report={
+            'mode':'read_only',
+            'sudo':'root' if os.geteuid()==0 else 'not_root',
+            'host':'vps-32bea5b6' if os.path.exists('/var/backups/pink-iptv') else 'other_or_unknown',
+            'java_on_path':bool(shutil.which('java')),
+            'keytool_on_path':bool(shutil.which('keytool')),
+            'java_installation_exists':bool(java_candidates),
+            'keytool_installation_exists':bool(keytool_candidates),
+            'openssl_on_path':bool(shutil.which('openssl')),
+            'root_backup_exists':os.path.isdir('/var/backups/pink-iptv'),
+            'root_vault_exists':os.path.isdir('/var/lib/pink-iptv'),
+            'existing_signed_key_container_count_in_scoped_roots':len(names),
+            'designated_signer_file_exists':os.path.isfile('/var/lib/pink-iptv/release-signing/pink-iptv-release.p12'),
+            'backup_signer_file_exists':os.path.isfile('/var/backups/pink-iptv/release-signing/pink-iptv-release.p12'),
+            'disk_free_bytes':statv.f_bavail*statv.f_frsize,
+            'recorded_credentials':False
+          }
+          print('PINK_SIGNING_READINESS='+json.dumps(report,sort_keys=True,separators=(',',':')))
+          assert os.geteuid()==0
+          PY
