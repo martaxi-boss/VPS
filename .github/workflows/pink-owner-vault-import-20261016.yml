@@ -24,7 +24,7 @@ jobs:
           test "$GITHUB_REPOSITORY" = "martaxi-boss/VPS"
           test "$GITHUB_REF" = "refs/heads/release/pink-signing-readiness-20261016"
           git diff --check
-          test "$(git hash-object ops/pink_owner_vault_transfer_20261016.py)" = "0becda86d500a36dc63244b21befabe2ea8371c9"
+          test "$(git hash-object ops/pink_owner_vault_transfer_20261016.py)" = "26718d2204160b95235102fcb1e1835e0b372d72"
           python3 -m py_compile ops/pink_owner_vault_transfer_20261016.py
           python3 - <<'PY'
           import hashlib, json
@@ -35,7 +35,7 @@ jobs:
           assert a["action"]=="import_owner_existing_signed_apk_key_to_original_root_vault"
           assert a["authority"]=="CURRENT_OWNER_EXPLICIT_INSTRUCTION"
           assert a["target_vault"]=="/root/project-secrets/OWNER-SIGNING/PINK-IPTV-FINAL-20261016"
-          assert a["script_blob_sha"]=="0becda86d500a36dc63244b21befabe2ea8371c9"
+          assert a["script_blob_sha"]=="26718d2204160b95235102fcb1e1835e0b372d72"
           assert a["signed_apk_sha256"]=="779ca54dbbc3170f746a2f57bb9216f16fbf3c1f60f38aadbe1adee21d30e3ca"
           assert a["source_apk_key_sha256"]=="95e2fe6da5834312a202c0eab74bfcbe36d9600d5f501ba485d011507b3d50ef"
           assert a["signer_cert_sha256"]=="e65fb31a1ad7f4380a71b8503cd8d5627a92fc5b0fb56d82abfedf7ceab3ca8f"
