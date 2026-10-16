@@ -1,0 +1,61 @@
+name: FADEGO staging VPS read-only preflight
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/fadego-staging-preflight.yml"
+      - "ops/fadego_staging_preflight.sh"
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    if: >-
+      github.event.pull_request.user.login == github.repository_owner &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.head_ref, 'preflight/fadego-staging-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Load vetted read-only check
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Verify pinned VPS SSH identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          host="146.59.145.3"
+          known="$RUNNER_TEMP/fadego-preflight-known-hosts"
+          ssh-keyscan -T 15 -t ed25519 "$host" 2>/dev/null > "$known" || exit 2
+          chmod 600 "$known"
+          observed="$(ssh-keygen -lf "$known" -E sha256 | awk '{print $2}')"
+          test "$observed" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' || {
+            echo 'SSH_PIN_MISMATCH'; exit 2;
+          }
+          ssh-keygen -F "$host" -f "$known" >/dev/null || exit 2
+          echo 'SSH_PIN=VERIFIED'
+
+      - name: Read-only operational report (no secrets, no config dumps)
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}" || { echo 'SSH_CREDENTIAL=UNAVAILABLE'; exit 2; }
+          bash -n ops/fadego_staging_preflight.sh
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          timeout 90 sshpass -e ssh -T \
+            -o StrictHostKeyChecking=yes \
+            -o "UserKnownHostsFile=$RUNNER_TEMP/fadego-preflight-known-hosts" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o ConnectTimeout=15 \
+            ubuntu@146.59.145.3 'bash -s' \
+            < ops/fadego_staging_preflight.sh
