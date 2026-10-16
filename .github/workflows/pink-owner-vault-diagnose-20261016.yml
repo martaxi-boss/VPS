@@ -1,0 +1,94 @@
+name: PINK original Owner vault bounded import diagnostic (secret-safe)
+on:
+  push:
+    branches: ["release/pink-signing-readiness-20261016"]
+    paths: [".github/workflows/pink-owner-vault-diagnose-20261016.yml"]
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify known VPS fingerprint before SSH authentication
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "martaxi-boss/VPS"
+          test "$GITHUB_REF" = "refs/heads/release/pink-signing-readiness-20261016"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/pinned-vault-host"
+          chmod 600 "$RUNNER_TEMP/pinned-vault-host"
+          observed="$(ssh-keygen -lf "$RUNNER_TEMP/pinned-vault-host" -E sha256 | awk '{print $2}')"
+          test "$observed" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
+          echo PINNED_OWNER_VAULT_HOST=PASS
+      - name: Prepare trusted SSH helper
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+      - name: Diagnose only the chosen PINK signer vault path, without emitting secrets
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/pinned-vault-host" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 ubuntu@146.59.145.3 'sudo -n python3 -' <<'PY'
+          import base64,hashlib,json,os,pathlib,pwd,stat,subprocess,tempfile
+          v=pathlib.Path('/root/project-secrets/OWNER-SIGNING/PINK-IPTV-FINAL-20261016')
+          b=pathlib.Path('/var/backups/pink-iptv')
+          p=pathlib.Path('/home/ubuntu/.pink-owner-signing-inbox-20261016/pink-owner-signing-transfer-20261016.cms.b64')
+          priv=v/'.one-time-import-rsa.pem'
+          cert=v/'.one-time-import-cert.pem'
+          def mode(path):
+              if not path.exists(): return 'absent'
+              st=path.lstat()
+              return f"{stat.S_IMODE(st.st_mode):03o} uid{st.st_uid}"
+          answer={'stage':'READ_ONLY_BOUNDED_DIAGNOSTIC','root':os.geteuid()==0,
+              'vault_dir':mode(v),'backup_root':mode(b),
+              'backup_parent':mode(b/'release-signing'),
+              'backup_target':mode(b/'release-signing/PINK-IPTV-FINAL-20261016'),
+              'private_transport':mode(priv),'public_transport':mode(cert),
+              'ciphertext':mode(p),
+              'existing_vault_key':(v/'PINK-IPTV-CHAVE-DE-ASSINATURA-20261016.p12').exists(),
+              'existing_vault_password':(v/'PINK-IPTV-KEYSTORE-PASSWORD.txt').exists(),
+              'existing_backup_key':(b/'release-signing/PINK-IPTV-FINAL-20261016/PINK-IPTV-CHAVE-DE-ASSINATURA-20261016.p12').exists()}
+          if p.is_file():
+              raw=p.read_bytes()
+              answer['ciphertext_sha_match']=hashlib.sha256(raw).hexdigest()=='3af61a526c0fde75f3b624d0b9364575b596537c189339fd4c522fca31628d19'
+              try:
+                  data=base64.b64decode(raw,validate=True)
+                  cp=subprocess.run(['openssl','cms','-decrypt','-binary','-inform','DER','-inkey',str(priv),'-recip',str(cert)],
+                      input=data,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=20)
+                  answer['cms_decryption_success']=cp.returncode==0
+                  if cp.returncode==0:
+                      z=json.loads(cp.stdout)
+                      key=base64.b64decode(z['p12_b64'],validate=True)
+                      pw=base64.b64decode(z['password_b64'],validate=True)
+                      rec=base64.b64decode(z['recovery_b64'],validate=True)
+                      answer['p12_sha_match']=hashlib.sha256(key).hexdigest()=='95e2fe6da5834312a202c0eab74bfcbe36d9600d5f501ba485d011507b3d50ef'
+                      answer['recovery_sha_match']=hashlib.sha256(rec).hexdigest()=='53efa6cd65e843c4fb815096fec4b4e7fb7d6d46aed8d1a5b4bb1aa27f94c3a8'
+                      answer['password_in_recovery']=pw in rec
+                      answer['password_64_ascii']=len(pw)==64 and pw.isascii()
+                      with tempfile.TemporaryDirectory(prefix='.signer-diagnose-',dir=v) as td:
+                          a=pathlib.Path(td)/'test.p12';w=pathlib.Path(td)/'test.pw'
+                          a.write_bytes(key);w.write_bytes(pw+b'\n')
+                          os.chmod(a,0o600);os.chmod(w,0o600)
+                          chk=subprocess.run(['openssl','pkcs12','-in',str(a),'-passin','file:'+str(w),'-nokeys','-clcerts'],
+                              stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=20)
+                          answer['openssl_p12_success']=chk.returncode==0
+                          if chk.returncode==0:
+                              der=subprocess.run(['openssl','x509','-inform','PEM','-outform','DER'],
+                                  input=chk.stdout,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=10)
+                              answer['cert_sha_match']=der.returncode==0 and hashlib.sha256(der.stdout).hexdigest()=='e65fb31a1ad7f4380a71b8503cd8d5627a92fc5b0fb56d82abfedf7ceab3ca8f'
+              except Exception as ex:
+                  answer['diagnostic_stage_error_class']=type(ex).__name__
+          print('PINK_SIGNER_VAULT_CHECKS='+json.dumps(answer,sort_keys=True))
+          PY
