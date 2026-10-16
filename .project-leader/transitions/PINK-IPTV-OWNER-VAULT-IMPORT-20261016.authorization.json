@@ -15,7 +15,7 @@
   "signer_cert_sha256": "e65fb31a1ad7f4380a71b8503cd8d5627a92fc5b0fb56d82abfedf7ceab3ca8f",
   "ciphertext_base64_sha256": "3af61a526c0fde75f3b624d0b9364575b596537c189339fd4c522fca31628d19",
   "transport_cert_sha256": "12582e88a044736487d3b8851d8244b2f166b413766399ce930676f76a143d0c",
-  "script_blob_sha": "0becda86d500a36dc63244b21befabe2ea8371c9",
+  "script_blob_sha": "26718d2204160b95235102fcb1e1835e0b372d72",
   "preservation": [
     "No new signing identity or regeneration",
     "Do not write plain key or password to GitHub, artifacts, logs or other projects",
@@ -24,5 +24,12 @@
     "Protected root-only secondary backup and exact PKCS12/certificate hash checks",
     "Destroy one-time transport decryption key after verified storage",
     "No VPN backend/service changes or original Android install changes"
-  ]
+  ],
+  "technical_recovery": {
+    "previous_run": 38930139810,
+    "read_only_diagnostic_run": 38930529398,
+    "root_cause": "strict base64 decode rejected a newline in exact encrypted envelope",
+    "authorized_scope": "strip external ASCII base64 line ending; no changes to encrypted bytes, signing key or account",
+    "regression_checked": true
+  }
 }
