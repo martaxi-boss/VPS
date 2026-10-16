@@ -79,3 +79,17 @@ jobs:
           print('PINK_SIGNING_READINESS='+json.dumps(report,sort_keys=True,separators=(',',':')))
           assert os.geteuid()==0
           PY
+
+      - name: Artifact access without download from public PINK repository
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          url="https://api.github.com/repos/martaxi-boss/pink-iptv/actions/artifacts/12014905310/zip"
+          anonymous="$(curl -sS -o /dev/null -w '%{http_code}' --max-redirs 0 --connect-timeout 10 --max-time 20 -H 'Accept: application/vnd.github+json' "$url" || true)"
+          authorized="$(curl -sS -o /dev/null -w '%{http_code}' --max-redirs 0 --connect-timeout 10 --max-time 20 -H 'Accept: application/vnd.github+json' -H "Authorization: Bearer $GH_TOKEN" "$url" || true)"
+          case "$anonymous" in 200|302|401|403|404) ;; *) echo UNEXPECTED_ANONYMOUS_RESPONSE; exit 2;; esac
+          case "$authorized" in 200|302|401|403|404) ;; *) echo UNEXPECTED_SCOPED_TOKEN_RESPONSE; exit 2;; esac
+          echo "PINK_PUBLIC_ARTIFACT_ANONYMOUS_STATUS=$anonymous"
+          echo "PINK_PUBLIC_ARTIFACT_REPO_TOKEN_STATUS=$authorized"
