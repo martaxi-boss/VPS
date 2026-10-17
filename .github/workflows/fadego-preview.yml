@@ -143,7 +143,7 @@ jobs:
           set -euo pipefail
           headfile="$RUNNER_TEMP/fadego-demo-headers"
           bodyfile="$RUNNER_TEMP/fadego-demo-body"
-          code="$(curl -sS -L --max-time 20 -D "$headfile" -o "$bodyfile" -w '%{http_code}' https://fadego.duckdns.org/experimentar/)"
+          code="$(curl -sS -L --max-time 20 -D "$headfile" -o "$bodyfile" -w '%{http_code}' https://fadego.duckdns.org/experimentar)"
           test "$code" = 200
           grep -q 'FADEGO — Experimentar sem login' "$bodyfile"
           grep -qi '^x-robots-tag: .*noindex' "$headfile"
@@ -163,7 +163,7 @@ jobs:
       - name: Exercise real public HTTPS demo in mobile Chrome (with CSP)
         shell: bash
         env:
-          FADEGO_PREVIEW_TEST_URL: https://fadego.duckdns.org/experimentar/
+          FADEGO_PREVIEW_TEST_URL: https://fadego.duckdns.org/experimentar
         run: |
           set -euo pipefail
           npm install --prefix /tmp/fadego-preview-playwright --no-save --no-package-lock --silent playwright@1.56.1
