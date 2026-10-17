@@ -1,0 +1,141 @@
+name: FADEGO publicly readable institutional website (staging)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main]
+    paths:
+      - ".github/workflows/fadego-public-website.yml"
+      - "ops/fadego_public_website_release.sh"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fadego-public-site-release
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: >-
+      github.event.pull_request.user.login == github.repository_owner &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'marketing/fadego-public-website-20261017'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Checkout exact branding release source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Verify narrow branded staging boundaries and shell syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n ops/fadego_public_website_release.sh
+          grep -Fq 'FADEGO_PUBLIC_STAGING_DEPLOY=SUCCESS' ops/fadego_public_website_release.sh
+          grep -Fq 'FADEGO_PUBLIC_MAIL_GATES=DISABLED' ops/fadego_public_website_release.sh
+          grep -Fq 'FADEGO_PUBLIC_ROLLBACK=PREVIOUS_VERSION_AND_AUTH_POLICY' ops/fadego_public_website_release.sh
+          python3 - <<'PY'
+          from pathlib import Path
+          source=Path('ops/fadego_public_website_release.sh').read_text()
+          assert source.count('auth_basic off;')==4
+          assert 'location = / {' in source
+          assert 'location ^~ /_next/static/ {' in source
+          assert 'location = /fadego-mark.webp {' in source
+          assert 'location = /fadego-atelier.svg {' in source
+          assert 'FADEGO_PUBLIC_PORTAL_AND_BOOKINGS=STILL_AUTHENTICATED' in source
+          assert 'FADEGO_PUBLIC_HTTPS_AND_PRIVATE_PORTAL_SMOKE=PASS' in source
+          print('FADEGO_PUBLIC_AUTH_SCOPE_AND_ROLLBACK=VALIDATED')
+          PY
+
+  publish:
+    needs: [validate]
+    if: >-
+      needs.validate.result == 'success' &&
+      github.event.action == 'ready_for_review' &&
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.user.login == github.repository_owner &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'marketing/fadego-public-website-20261017'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - name: Checkout reviewed immutable release automation
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Verify exact Owner PR and certified FADEGO candidate
+        shell: bash
+        env:
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$HEAD"
+          bash -n ops/fadego_public_website_release.sh
+          pr="$(curl -fsS --max-time 20 "https://api.github.com/repos/martaxi-boss/VPS/pulls/$PR_NUMBER")"
+          jq -e --arg sha "$HEAD" \
+            '.state == "open" and .draft == false and .head.sha == $sha and
+             .head.ref == "marketing/fadego-public-website-20261017" and
+             .head.repo.full_name == "martaxi-boss/VPS" and
+             .base.ref == "main" and .user.login == "martaxi-boss"' <<<"$pr" >/dev/null
+          app="$(curl -fsS --max-time 20 https://api.github.com/repos/martaxi-boss/fadego/pulls/15)"
+          jq -e --arg sha "0c01fcf625f491b40068cfc495ddbdb5962a6da7" \
+            '.state == "open" and .head.sha == $sha and .base.ref == "main"' <<<"$app" >/dev/null
+          ci="$(curl -fsS --max-time 20 https://api.github.com/repos/martaxi-boss/fadego/actions/runs/39072159987)"
+          jq -e --arg sha "0c01fcf625f491b40068cfc495ddbdb5962a6da7" \
+            '.status == "completed" and .conclusion == "success" and .head_sha == $sha' <<<"$ci" >/dev/null
+          echo 'FADEGO_PUBLIC_EXACT_SHA_CERTIFIED=PASS'
+      - name: Build and atomically install only FADEGO branding on pinned VPS
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}" || exit 2
+          known="$RUNNER_TEMP/fadego-public-known"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known"
+          chmod 600 "$known"
+          observed="$(ssh-keygen -lf "$known" -E sha256 | awk '{print $2}')"
+          test "$observed" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          timeout --signal=TERM --kill-after=15s 42m \
+            sshpass -e ssh -T -o StrictHostKeyChecking=yes \
+            -o "UserKnownHostsFile=$known" -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=5 \
+            ubuntu@146.59.145.3 \
+            'sudo -n env FADEGO_PUBLIC_WEBSITE_APPROVED=1 bash -s' \
+            < ops/fadego_public_website_release.sh
+      - name: Independently test informational site and private portal over public TLS
+        shell: bash
+        run: |
+          set -euo pipefail
+          html="$RUNNER_TEMP/fadego-public-home.html"
+          headers="$RUNNER_TEMP/fadego-public-headers"
+          status="$(curl -sS --max-time 25 -D "$headers" -o "$html" -w '%{http_code}' https://fadego.duckdns.org/)"
+          test "$status" = 200
+          grep -Fq 'Portal FADEGO' "$html"
+          grep -Fq 'Website FADEGO' "$html"
+          grep -Fq 'Painel de cada barbearia' "$html"
+          grep -Fq 'Página de reservas' "$html"
+          if grep -Fq 'href="/experimentar"' "$html"; then echo 'FADEGO_PUBLIC_REFUSED_DEMO_CTA'; exit 2; fi
+          grep -qi '^x-robots-tag: .*noindex' "$headers"
+          grep -qi '^referrer-policy: no-referrer' "$headers"
+          if grep -qi '^www-authenticate:' "$headers"; then echo 'FADEGO_PUBLIC_REFUSED_LOGIN_ON_INSTITUTIONAL'; exit 2; fi
+          for route in /login /admin /super-admin /api/auth/session /b/example /_next/image; do
+            status="$(curl -sS --max-time 15 -o /dev/null -w '%{http_code}' "https://fadego.duckdns.org$route")"
+            test "$status" = 401 || { echo 'FADEGO_PUBLIC_REFUSED_PRIVATE_ROUTE'; exit 2; }
+          done
+          for route in /fadego-mark.webp /fadego-atelier.svg /experimentar; do
+            status="$(curl -sS --max-time 15 -o /dev/null -w '%{http_code}' "https://fadego.duckdns.org$route")"
+            test "$status" = 200 || { echo 'FADEGO_PUBLIC_REFUSED_ASSET_OR_PREVIEW'; exit 2; }
+          done
+          echo 'FADEGO_INSTITUTIONAL_WEBSITE=HTTPS_200_ANONYMOUS'
+          echo 'FADEGO_PORTAL_BOOKINGS_APIS=AUTH_401'
+          echo 'FADEGO_MARKETING_CTA_SEPARATION=PASS'
