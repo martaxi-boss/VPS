@@ -154,11 +154,25 @@ const get = async (path, init={}) => fetch(origin+path, {
   const markup=await login.text()
   assert.match(markup,/Entrar na plataforma/)
   assert.match(markup,/Palavra-passe/)
-  for (const route of ["/admin","/super-admin","/admin/example/agenda","/super-admin/anything"]) {
+  for (const route of ["/admin","/super-admin","/super-admin/anything"]) {
     const res=await get(route)
     assert.ok([301,302,303,307,308].includes(res.status),"Expected app redirect for "+route)
     assert.equal(new URL(res.headers.get("location"),origin).pathname,"/login")
     await res.body?.cancel()
+  }
+  // Unknown barbershop slugs first redirect to /admin, which must itself
+  // redirect unauthenticated users to /login. Neither hop may expose data.
+  const tenant=await get("/admin/example/agenda")
+  assert.ok([301,302,303,307,308].includes(tenant.status))
+  const next=new URL(tenant.headers.get("location"),origin)
+  assert.equal(next.origin,origin)
+  assert.ok(["/admin","/login"].includes(next.pathname))
+  await tenant.body?.cancel()
+  if(next.pathname==="/admin"){
+    const second=await get("/admin")
+    assert.ok([301,302,303,307,308].includes(second.status))
+    assert.equal(new URL(second.headers.get("location"),origin).pathname,"/login")
+    await second.body?.cancel()
   }
   for (const route of ["/b/example","/api/public/barbershops/example/availability",
     "/api/private/bookings/something/availability","/api/integrations/gmail/callback"]) {
