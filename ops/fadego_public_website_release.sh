@@ -190,8 +190,9 @@ done
 
 # Validate real CSS/JS paths from the actual HTML; no broad '/_next/' opening.
 tmp_html="$(mktemp)"
+tmp_assets="$(mktemp)"
 curl -fsS --max-time 20 --resolve fadego.duckdns.org:443:127.0.0.1 https://fadego.duckdns.org/ > "$tmp_html"
-python3 - "$tmp_html" <<'PY_ASSETS'
+python3 - "$tmp_html" "$tmp_assets" <<'PY_ASSETS'
 import re,sys
 from pathlib import Path
 text=Path(sys.argv[1]).read_text(encoding="utf-8")
@@ -200,14 +201,14 @@ css=[v for v in assets if ".css" in v]
 js=[v for v in assets if ".js" in v]
 if not css or not js:
     raise SystemExit("FADEGO_PUBLIC_REFUSED_STATIC_BUNDLES_MISSING")
-Path("/tmp/fadego-public-static-asset-sample").write_text(css[0]+"\n"+js[0]+"\n")
+Path(sys.argv[2]).write_text(css[0]+"\n"+js[0]+"\n")
 print("FADEGO_PUBLIC_HTML_ASSETS=CSS_AND_JS_REFERENCED")
 PY_ASSETS
 while IFS= read -r asset; do
   code="$(curl -sS --max-time 15 -o /dev/null -w '%{http_code}' --resolve fadego.duckdns.org:443:127.0.0.1 "https://fadego.duckdns.org$asset")"
   [[ "$code" == 200 ]] || { echo "FADEGO_PUBLIC_REFUSED_ASSET_BLOCKED"; exit 2; }
-done < /tmp/fadego-public-static-asset-sample
-rm -f "$tmp_html" /tmp/fadego-public-static-asset-sample
+done < "$tmp_assets"
+rm -f "$tmp_html" "$tmp_assets"
 
 # Existing smoke-staging.mjs intentionally requires a private homepage, so
 # use a narrower equivalent for the new public-home/private-portal contract.
