@@ -73,6 +73,9 @@ for attempt in $(seq 1 40); do
   sleep 2
 done
 [[ "$ready" == 1 ]] || { echo 'FADEGO_BRAND_APP_NOT_READY'; exit 2; }
+landing_html="$(curl -fsS --max-time 15 http://127.0.0.1:3100/)"
+[[ "$landing_html" == *"Menos confusão."* && "$landing_html" == *"Como funciona"* && "$landing_html" == *"Para o dono da barbearia"* ]] || { echo 'FADEGO_MARKETING_REAL_HOME_CONTENT_MISSING'; exit 2; }
+echo 'FADEGO_MARKETING_REAL_HOME=EXPLANATION_VISIBLE'
 served="$(curl -fsS --max-time 12 http://127.0.0.1:3100/fadego-mark.webp | sha256sum | cut -d' ' -f1)"
 [[ "$served" == "$DIGEST" ]] || { echo 'FADEGO_BRAND_BAD_APP_IMAGE'; exit 2; }
 python3 - "$(systemctl show -p MainPID --value fadego-staging.service)" <<'PY_GATES'
