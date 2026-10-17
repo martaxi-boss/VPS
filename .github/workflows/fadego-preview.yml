@@ -8,6 +8,7 @@ on:
       - ".github/workflows/fadego-preview.yml"
       - "ops/fadego_preview.html"
       - "ops/fadego_preview_deploy.sh"
+      - "ops/fadego_preview_e2e.cjs"
 
 permissions:
   contents: read
@@ -64,6 +65,13 @@ jobs:
           print("FADEGO_INTERACTIVE_LOCAL_ONLY=VALIDATED")
           PYTHON
           node --check "$RUNNER_TEMP/fadego-demo-check.js"
+          node --check ops/fadego_preview_e2e.cjs
+      - name: Exercise FADEGO preview UI in real mobile Chrome
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix /tmp/fadego-preview-playwright --no-save --no-package-lock --silent playwright@1.56.1
+          node ops/fadego_preview_e2e.cjs
       - name: Keep a short-lived reviewed HTML artifact for real browser testing
         uses: actions/upload-artifact@v4
         with:
