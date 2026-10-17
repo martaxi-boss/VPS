@@ -81,6 +81,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Revalidate exact owner pull request, files and app health before installing
         shell: bash
         env:
