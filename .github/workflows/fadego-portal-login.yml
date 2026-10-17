@@ -1,0 +1,155 @@
+name: FADEGO single secure portal login (staging)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main]
+    paths:
+      - ".github/workflows/fadego-portal-login.yml"
+      - "ops/fadego_portal_single_login.sh"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fadego-secure-login-release
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: >-
+      github.event.pull_request.user.login == github.repository_owner &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'portal/fadego-single-login-20261017'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Checkout exact reviewed portal Nginx change
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Validate single-login scope and rollback
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n ops/fadego_portal_single_login.sh
+          grep -Fq 'FADEGO_PORTAL_SINGLE_LOGIN_DEPLOY=SUCCESS' ops/fadego_portal_single_login.sh
+          grep -Fq 'FADEGO_PORTAL_RECOVERY=PRIOR_BASIC_AUTH_VHOST_RESTORED' ops/fadego_portal_single_login.sh
+          python3 - <<'PY'
+          from pathlib import Path
+          source=Path('ops/fadego_portal_single_login.sh').read_text()
+          for scoped in ('location = /login','location = /admin','location ^~ /admin/',
+                         'location = /super-admin','location ^~ /super-admin/',
+                         'location ^~ /api/auth/','location = /_next/image'):
+              assert scoped in source, scoped
+          for shield in ('FADEGO_PORTAL_PROTECTED_BOOKINGS_APIS=401',
+                         'FADEGO_PORTAL_APP_GUARDS=REDIRECT_LOGIN',
+                         'FADEGO_PORTAL_OPTIMIZED_LOGO=WHITELISTED',
+                         'FADEGO_PORTAL_OWNER_DASHBOARD=HTTP_200',
+                         'FADEGO_PORTAL_SUPER_ADMIN=HTTP_200'):
+              assert shield in source, shield
+          assert 'FADEGO_PORTAL_SINGLE_LOGIN_BEGIN' in source
+          assert 'FADEGO_PORTAL_REFUSED_MAIL_GATES' not in source
+          assert '/api/public/barbershops/example/availability' in source
+          assert 'auth_basic "FADEGO - ambiente de testes";' in source
+          print('FADEGO_PORTAL_SECURITY_GATES_AND_ROLLBACK=VALIDATED')
+          PY
+
+  publish:
+    needs: [validate]
+    if: >-
+      needs.validate.result == 'success' &&
+      github.event.action == 'ready_for_review' &&
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.user.login == github.repository_owner &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'portal/fadego-single-login-20261017'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - name: Checkout reviewed immutable release automation
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Verify exact Owner PR and certified FADEGO candidate
+        shell: bash
+        env:
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$HEAD"
+          bash -n ops/fadego_portal_single_login.sh
+          pr="$(curl -fsS --max-time 20 "https://api.github.com/repos/martaxi-boss/VPS/pulls/$PR_NUMBER")"
+          jq -e --arg sha "$HEAD" \
+            '.state == "open" and .draft == false and .head.sha == $sha and
+             .head.ref == "portal/fadego-single-login-20261017" and
+             .head.repo.full_name == "martaxi-boss/VPS" and
+             .base.ref == "main" and .user.login == "martaxi-boss"' <<<"$pr" >/dev/null
+          app="$(curl -fsS --max-time 20 https://api.github.com/repos/martaxi-boss/fadego/pulls/15)"
+          jq -e --arg sha "0c01fcf625f491b40068cfc495ddbdb5962a6da7" \
+            '.state == "open" and .head.sha == $sha and .base.ref == "main"' <<<"$app" >/dev/null
+          ci="$(curl -fsS --max-time 20 https://api.github.com/repos/martaxi-boss/fadego/actions/runs/39072159987)"
+          jq -e --arg sha "0c01fcf625f491b40068cfc495ddbdb5962a6da7" \
+            '.status == "completed" and .conclusion == "success" and .head_sha == $sha' <<<"$ci" >/dev/null
+          echo 'FADEGO_PORTAL_EXACT_SOURCE_AND_CI=PASS'
+      - name: Apply audited FADEGO-only portal access on pinned VPS
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}" || exit 2
+          known="$RUNNER_TEMP/fadego-portal-known"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known"
+          chmod 600 "$known"
+          observed="$(ssh-keygen -lf "$known" -E sha256 | awk '{print $2}')"
+          test "$observed" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          timeout --signal=TERM --kill-after=15s 42m \
+            sshpass -e ssh -T -o StrictHostKeyChecking=yes \
+            -o "UserKnownHostsFile=$known" -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=5 \
+            ubuntu@146.59.145.3 \
+            'sudo -n env FADEGO_PORTAL_SINGLE_LOGIN_APPROVED=1 bash -s' \
+            < ops/fadego_portal_single_login.sh
+      - name: Independently verify public login and private application over HTTPS
+        shell: bash
+        run: |
+          set -euo pipefail
+          page="$RUNNER_TEMP/fadego-portal-login.html"
+          headers="$RUNNER_TEMP/fadego-portal-login-headers"
+          code="$(curl -sS --max-time 20 -D "$headers" -o "$page" -w '%{http_code}' https://fadego.duckdns.org/login)"
+          test "$code" = 200
+          grep -Fq 'Entrar na plataforma' "$page"
+          grep -Fq 'Palavra-passe' "$page"
+          if grep -qi '^www-authenticate:' "$headers"; then echo 'FADEGO_PORTAL_REFUSED_EXTRA_PASSWORD_PROMPT'; exit 2; fi
+          for route in /admin /super-admin /admin/example/agenda; do
+            headers="$RUNNER_TEMP/fadego-portal-redirect-headers"
+            code="$(curl -sS --max-time 20 -D "$headers" -o /dev/null -w '%{http_code}' "https://fadego.duckdns.org$route")"
+            case "$code" in 301|302|303|307|308) ;; *) echo 'FADEGO_PORTAL_REFUSED_MISSING_APPLICATION_REDIRECT'; exit 2;; esac
+            grep -qi '^location: /login' "$headers" || { echo 'FADEGO_PORTAL_REFUSED_WRONG_LOGIN_REDIRECT'; exit 2; }
+          done
+          for route in /api/auth/providers /api/auth/csrf /api/auth/session; do
+            code="$(curl -sS --max-time 20 -o /dev/null -w '%{http_code}' "https://fadego.duckdns.org$route")"
+            test "$code" = 200 || { echo 'FADEGO_PORTAL_REFUSED_AUTH_FLOW_BLOCKED'; exit 2; }
+          done
+          for route in /b/example /api/public/barbershops/example/availability /api/private/bookings/something/availability /api/integrations/gmail/callback; do
+            code="$(curl -sS --max-time 20 -o /dev/null -w '%{http_code}' "https://fadego.duckdns.org$route")"
+            test "$code" = 401 || { echo 'FADEGO_PORTAL_REFUSED_PRIVATE_BUSINESS_DATA_EXPOSED'; exit 2; }
+          done
+          code="$(curl -sS --max-time 20 -o /dev/null -w '%{http_code}' 'https://fadego.duckdns.org/_next/image?url=%2Fapi%2Fauth%2Fsession&w=64&q=75')"
+          test "$code" = 403 || { echo 'FADEGO_PORTAL_REFUSED_IMAGE_PROXY_BYPASS'; exit 2; }
+          code="$(curl -sS --max-time 20 -o /dev/null -w '%{http_code}' 'https://fadego.duckdns.org/_next/image?url=%2Ffadego-mark.webp&w=64&q=75')"
+          test "$code" = 200 || { echo 'FADEGO_PORTAL_REFUSED_LOGO_IMAGE_MISSING'; exit 2; }
+          code="$(curl -sS --max-time 20 -o /dev/null -w '%{http_code}' https://fadego.duckdns.org/)"
+          test "$code" = 200
+          echo 'FADEGO_PORTAL_PUBLIC_LOGIN=HTTPS_200_NO_EXTRA_GATE'
+          echo 'FADEGO_PORTAL_ADMIN_UNAUTHENTICATED=APPLICATION_REDIRECT'
+          echo 'FADEGO_PORTAL_AUTH_FLOW=NEXTAUTH_AVAILABLE'
+          echo 'FADEGO_PORTAL_BOOKINGS_AND_GMAIL=STILL_BASIC_PROTECTED'
