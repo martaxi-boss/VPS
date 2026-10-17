@@ -12,7 +12,7 @@ VAULT=/root/project-secrets/fadego-staging
 BASE=https://raw.githubusercontent.com/martaxi-boss/fadego/$SHA/deploy/staging/native
 
 if [[ "$(id -u)" != 0 ]]; then echo 'STAGING_REFUSED_NOT_ROOT'; exit 2; fi
-if [[ "\${FADEGO_STAGING_TRANSITION_APPROVED:-}" != 1 ]]; then
+if [[ "${FADEGO_STAGING_TRANSITION_APPROVED:-}" != 1 ]]; then
   echo 'STAGING_REFUSED_WITHOUT_SUPERVISOR_TRANSITION'; exit 2
 fi
 if ! getent ahostsv4 "$DOMAIN" | awk -v ip="$IP" '$1==ip {ok=1} END{exit !ok}'; then
@@ -86,8 +86,8 @@ done
 set -a
 source "$CONF/app.env"
 set +a
-db_pass="\${DATABASE_URL#postgresql://fadego_staging:}"
-db_pass="\${db_pass%%@*}"
+db_pass="${DATABASE_URL#postgresql://fadego_staging:}"
+db_pass="${db_pass%%@*}"
 
 # A later systemd EnvironmentFile must NOT silently enable real Gmail delivery.
 if [[ -e /root/project-secrets/fadego-gmail/oauth.env ]]; then
@@ -130,7 +130,9 @@ printf '%s\n' "$gate_pass" | openssl passwd -6 -stdin | {
   IFS= read -r gate_hash
   printf '%s:%s\n' "$gate_user" "$gate_hash" > /etc/nginx/fadego-staging.htpasswd
 }
-chmod 0600 /etc/nginx/fadego-staging.htpasswd
+if ! getent group www-data >/dev/null; then echo 'STAGING_REFUSED_NGINX_AUTH_GROUP'; exit 2; fi
+chgrp www-data /etc/nginx/fadego-staging.htpasswd
+chmod 0640 /etc/nginx/fadego-staging.htpasswd
 
 download() {
   local name="$1" to="$2"
