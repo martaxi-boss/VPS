@@ -119,7 +119,34 @@ if ! systemctl is-active --quiet nginx || ! systemctl is-active --quiet fadego-s
 fi
 
 # Verify local HTTPS and Basic Auth *without ever knowing/publishing Basic credentials*.
-preview_status="$(curl -sS --max-time 12 --resolve fadego.duckdns.org:443:127.0.0.1 -o /dev/null -w '%{http_code}' https://fadego.duckdns.org/experimentar/)"
+# systemctl reload acknowledges HUP before Nginx workers finish loading config;
+# bounded poll prevents a false 401 on the previous worker generation.
+preview_status="000"
+for attempt in $(seq 1 18); do
+  preview_status="$(curl -sS --max-time 6 --resolve fadego.duckdns.org:443:127.0.0.1 -o /dev/null -w '%{http_code}' https://fadego.duckdns.org/experimentar/ || true)"
+  if [[ "$preview_status" == "200" ]]; then
+    echo "FADEGO_PREVIEW_RELOAD_OBSERVED_AFTER_ATTEMPT=$attempt"
+    break
+  fi
+  sleep 1
+done
+if [[ "$preview_status" != "200" ]]; then
+  if nginx -T 2>/dev/null | grep -Fq 'FADEGO_PREVIEW_BEGIN'; then
+    echo "FADEGO_PREVIEW_PARSED_NGINX_CONFIG=HAS_EXACT_ROUTE"
+  else
+    echo "FADEGO_PREVIEW_PARSED_NGINX_CONFIG=MISSING_EXACT_ROUTE"
+  fi
+  if [[ "$(readlink -f /etc/nginx/sites-enabled/fadego-staging.conf || true)" == "$host_conf" ]]; then
+    echo "FADEGO_PREVIEW_ENABLED_VHOST=POINTS_TO_EXPECTED_FILE"
+  else
+    echo "FADEGO_PREVIEW_ENABLED_VHOST=NOT_EXPECTED_FILE"
+  fi
+  if curl -sS -I --max-time 6 --resolve fadego.duckdns.org:443:127.0.0.1 https://fadego.duckdns.org/experimentar/ | grep -qi '^www-authenticate: Basic'; then
+    echo "FADEGO_PREVIEW_RESPONSE=STILL_BASIC_AUTH"
+  else
+    echo "FADEGO_PREVIEW_RESPONSE=OTHER_HTTP_RESPONSE"
+  fi
+fi
 admin_status="$(curl -sS --max-time 12 --resolve fadego.duckdns.org:443:127.0.0.1 -o /dev/null -w '%{http_code}' https://fadego.duckdns.org/admin)"
 home_status="$(curl -sS --max-time 12 --resolve fadego.duckdns.org:443:127.0.0.1 -o /dev/null -w '%{http_code}' https://fadego.duckdns.org/)"
 api_status="$(curl -sS --max-time 12 --resolve fadego.duckdns.org:443:127.0.0.1 -o /dev/null -w '%{http_code}' https://fadego.duckdns.org/api/auth/session)"
