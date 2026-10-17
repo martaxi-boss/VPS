@@ -24,8 +24,19 @@ done
 [[ -L "$ROOT/current" && ! -L "$ROOT/releases" ]] || exit 2
 [[ "$(readlink -f "$ROOT/current")" == "$ROOT/releases/$OLD" ]] || { echo "FADEGO_PUBLIC_REFUSED_WRONG_CURRENT_RELEASE"; exit 2; }
 [[ "$(runuser -u fadego-staging -- git -C "$ROOT/current" rev-parse HEAD)" == "$OLD" ]] || exit 2
-[[ ! -e "$ROOT/releases/$NEW" && ! -L "$ROOT/releases/$NEW" &&
-   ! -e "$ROOT/current.next" && ! -L "$ROOT/current.next" ]] || exit 2
+[[ ! -e "$ROOT/current.next" && ! -L "$ROOT/current.next" ]] || exit 2
+reuse_prepared=0
+if [[ -e "$ROOT/releases/$NEW" || -L "$ROOT/releases/$NEW" ]]; then
+  # A prior attempt may have finished the immutable build and rolled back
+  # only the live symlink. Reuse ONLY that exact fully built, inactive release.
+  [[ -d "$ROOT/releases/$NEW" && ! -L "$ROOT/releases/$NEW" ]] || exit 2
+  [[ "$(stat -c '%U' "$ROOT/releases/$NEW")" == "fadego-staging" ]] || exit 2
+  [[ "$(runuser -u fadego-staging -- git -C "$ROOT/releases/$NEW" rev-parse HEAD)" == "$NEW" ]] || exit 2
+  [[ -s "$ROOT/releases/$NEW/.next/BUILD_ID" && -d "$ROOT/releases/$NEW/node_modules" ]] || exit 2
+  [[ "$(sha256sum "$ROOT/releases/$NEW/public/fadego-mark.webp" | cut -d' ' -f1)" == "$ART_SHA256" ]] || exit 2
+  reuse_prepared=1
+  echo "FADEGO_PUBLIC_PREPARED_RELEASE=EXACT_SHA_REUSABLE"
+fi
 [[ -f "$VHOST" && ! -L "$VHOST" && -f "$PREVIEW" && ! -L "$PREVIEW" ]] || exit 2
 [[ -s "$ENV" && -s "$MAIL_CLOSED" && -s "$BASIC_VAULT" ]] || exit 2
 [[ "$(stat -c '%U' "$VHOST")" == "root" ]] || exit 2
@@ -72,7 +83,15 @@ set +a
 export BOOKING_EMAIL_PROVIDER=disabled GMAIL_LIVE_SEND_ENABLED=false
 export FADEGO_STAGING_SUPERVISOR_APPROVED=1 FADEGO_STAGING_APPROVED_SHA="$NEW"
 export HOME="$ROOT" COREPACK_HOME="$ROOT/.cache/corepack"
-runuser -u fadego-staging -m -- bash "$ROOT/releases/$OLD/deploy/staging/native/build-release.sh"
+if [[ "$reuse_prepared" == "1" ]]; then
+  # Validate there are no unapplied migrations before attaching existing build.
+  runuser -u fadego-staging -m -- bash -c 'cd "$1" && corepack pnpm prisma migrate status' bash "$ROOT/releases/$NEW"
+  ln -s "$ROOT/releases/$NEW" "$ROOT/current.next"
+  mv -Tf "$ROOT/current.next" "$ROOT/current"
+  echo "FADEGO_STAGING_RELEASE_PREPARED=$NEW"
+else
+  runuser -u fadego-staging -m -- bash "$ROOT/releases/$OLD/deploy/staging/native/build-release.sh"
+fi
 [[ "$(readlink -f "$ROOT/current")" == "$ROOT/releases/$NEW" ]] || exit 2
 [[ "$(runuser -u fadego-staging -- git -C "$ROOT/current" rev-parse HEAD)" == "$NEW" ]] || exit 2
 [[ "$(sha256sum "$ROOT/current/public/fadego-mark.webp" | cut -d' ' -f1)" == "$ART_SHA256" ]] || exit 2
