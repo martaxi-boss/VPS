@@ -235,8 +235,14 @@ const request = async (path, header) => fetch(host + path, {
   assert.equal(privateLogin.status, 401)
   assert.match(privateLogin.headers.get("www-authenticate") || "", /^Basic(?:\s|$)/i)
   await privateLogin.body?.cancel()
-  const bad = await request("/login", auth + "-wrong")
-  assert.equal(bad.status, 401)
+  // Encode a genuinely wrong password; appending bytes to a Basic base64 token
+  // can be ignored by decoders and falsely appear authenticated.
+  const incorrect = "Basic " + Buffer.from(
+    process.env.STAGING_GATE_USER + ":" + process.env.STAGING_GATE_PASSWORD + "-incorrect",
+    "utf8",
+  ).toString("base64")
+  const bad = await request("/login", incorrect)
+  assert.equal(bad.status, 401, "Private login must reject an actually wrong password")
   await bad.body?.cancel()
   const login = await request("/login", auth)
   assert.equal(login.status, 200)
