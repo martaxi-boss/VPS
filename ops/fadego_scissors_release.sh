@@ -126,8 +126,9 @@ for route in / /admin /login /api/auth/session; do
   status="$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' --resolve fadego.duckdns.org:443:127.0.0.1 "https://fadego.duckdns.org$route")"
   [[ "$status" == 401 ]] || { echo 'FADEGO_BRAND_PRIVATE_AUTH_REGRESSION'; exit 2; }
 done
-curl -fsS --max-time 10 --resolve fadego.duckdns.org:443:127.0.0.1 \
-  https://fadego.duckdns.org/experimentar | grep -qF 'data:image/webp;base64,'
+preview_body="$(curl -fsS --max-time 10 --resolve fadego.duckdns.org:443:127.0.0.1 \
+  https://fadego.duckdns.org/experimentar)"
+[[ "$preview_body" == *'data:image/webp;base64,'* ]] || { echo 'FADEGO_BRAND_PREVIEW_MARK_ABSENT'; exit 2; }
 STAGING_GATE_USER=fadego-pilot STAGING_GATE_PASSWORD="$(cat "$VAULT")" \
   node "$ROOT/current/scripts/smoke-staging.mjs"
 echo 'FADEGO_BRANDING_DEPLOY=SUCCESS'
