@@ -89,12 +89,10 @@ set +a
 db_pass="${DATABASE_URL#postgresql://fadego_staging:}"
 db_pass="${db_pass%%@*}"
 
-# A later systemd EnvironmentFile must NOT silently enable real Gmail delivery.
-if [[ -e /root/project-secrets/fadego-gmail/oauth.env ]]; then
-  if grep -Eq '^[[:space:]]*(BOOKING_EMAIL_PROVIDER|GMAIL_LIVE_SEND_ENABLED)[[:space:]]*=' /root/project-secrets/fadego-gmail/oauth.env; then
-    echo 'STAGING_REFUSED_GMAIL_VAULT_CONTAINS_SEND_GATE'; exit 2
-  fi
-fi
+# The shared Gmail vault may include send flags. Never mutate it.
+# The FADEGO-only unit gets its own FINAL EnvironmentFile forcing both gates
+# closed, even when the existing OAuth vault defines different values.
+echo 'FADEGO_SHARED_GMAIL_VAULT=UNCHANGED'
 
 role_exists="$(runuser -u postgres -- psql -qAt -c "SELECT 1 FROM pg_roles WHERE rolname='fadego_staging'")"
 db_exists="$(runuser -u postgres -- psql -qAt -c "SELECT 1 FROM pg_database WHERE datname='fadego_staging'")"
@@ -160,7 +158,16 @@ if [[ "$(readlink -f "$ROOT/current")" != "$ROOT/releases/$SHA" ]]; then
 fi
 echo 'FADEGO_RELEASE_SHA=VERIFIED'
 
+if ! grep -Fxq 'EnvironmentFile=-/root/project-secrets/fadego-gmail/oauth.env' "$CONF/reviewed/fadego-staging.service"; then
+  echo 'STAGING_REFUSED_UNEXPECTED_GMAIL_UNIT_ENV_ORDER'; exit 2
+fi
+printf '%s\n' 'BOOKING_EMAIL_PROVIDER=disabled' 'GMAIL_LIVE_SEND_ENABLED=false' > "$CONF/send-closed.env"
+chmod 0600 "$CONF/send-closed.env"
 install -o root -g root -m 0644 "$CONF/reviewed/fadego-staging.service" /etc/systemd/system/fadego-staging.service
+sed -i '/^EnvironmentFile=-\/root\/project-secrets\/fadego-gmail\/oauth.env$/a EnvironmentFile=/etc/fadego-staging/send-closed.env' /etc/systemd/system/fadego-staging.service
+if ! grep -Fxq 'EnvironmentFile=/etc/fadego-staging/send-closed.env' /etc/systemd/system/fadego-staging.service; then
+  echo 'STAGING_REFUSED_MISSING_FINAL_SEND_GATE'; exit 2
+fi
 systemctl daemon-reload
 systemctl enable --now fadego-staging.service >/dev/null
 if ! systemctl is-active --quiet fadego-staging.service; then
@@ -174,6 +181,17 @@ for i in $(seq 1 35); do
 done
 if [[ "$ready" != 1 ]]; then echo 'STAGING_LOCAL_HTTP=FAILED'; exit 2; fi
 echo 'STAGING_LOCAL_HTTP=200'
+python3 - "$(systemctl show -p MainPID --value fadego-staging.service)" <<'PY_GATES'
+import sys
+pid = int(sys.argv[1])
+if pid < 2:
+    raise SystemExit('STAGING_REFUSED_NO_SERVICE_PID')
+with open(f'/proc/{pid}/environ', 'rb') as stream:
+    values = dict(part.split(b'=', 1) for part in stream.read().split(b'\0') if b'=' in part)
+if values.get(b'BOOKING_EMAIL_PROVIDER') != b'disabled' or values.get(b'GMAIL_LIVE_SEND_ENABLED') != b'false':
+    raise SystemExit('STAGING_REFUSED_UNSAFE_EFFECTIVE_MAIL_GATES')
+print('STAGING_EFFECTIVE_MAIL_GATES=DISABLED')
+PY_GATES
 
 user_count="$(runuser -u postgres -- psql -qAt -d fadego_staging -c 'SELECT count(*) FROM "User"' 2>/dev/null || true)"
 if [[ "$user_count" == 0 ]]; then
