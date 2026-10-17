@@ -90,11 +90,12 @@ if original.count(anchor) != 1 or "    location / {" not in original:
 block = """
     # FADEGO_PREVIEW_BEGIN: exact-path fake-data walkthrough
     # Only /experimentar/ is public. Everything else inherits existing Basic Auth.
-    location = /experimentar {
-        auth_basic off;
-        return 302 /experimentar/;
-    }
     location = /experimentar/ {
+        auth_basic off;
+        return 302 /experimentar;
+    }
+    # The file-backed exact URI must NOT end in '/', preventing index rewrites.
+    location = /experimentar {
         auth_basic off;
         access_log off;
         alias /var/www/fadego-preview/index.html;
@@ -123,7 +124,7 @@ fi
 # bounded poll prevents a false 401 on the previous worker generation.
 preview_status="000"
 for attempt in $(seq 1 18); do
-  preview_status="$(curl -sS --max-time 6 --resolve fadego.duckdns.org:443:127.0.0.1 -o /dev/null -w '%{http_code}' https://fadego.duckdns.org/experimentar/ || true)"
+  preview_status="$(curl -sS --max-time 6 --resolve fadego.duckdns.org:443:127.0.0.1 -o /dev/null -w '%{http_code}' https://fadego.duckdns.org/experimentar || true)"
   if [[ "$preview_status" == "200" ]]; then
     echo "FADEGO_PREVIEW_RELOAD_OBSERVED_AFTER_ATTEMPT=$attempt"
     break
@@ -141,7 +142,7 @@ if [[ "$preview_status" != "200" ]]; then
   else
     echo "FADEGO_PREVIEW_ENABLED_VHOST=NOT_EXPECTED_FILE"
   fi
-  if curl -sS -I --max-time 6 --resolve fadego.duckdns.org:443:127.0.0.1 https://fadego.duckdns.org/experimentar/ | grep -qi '^www-authenticate: Basic'; then
+  if curl -sS -I --max-time 6 --resolve fadego.duckdns.org:443:127.0.0.1 https://fadego.duckdns.org/experimentar | grep -qi '^www-authenticate: Basic'; then
     echo "FADEGO_PREVIEW_RESPONSE=STILL_BASIC_AUTH"
   else
     echo "FADEGO_PREVIEW_RESPONSE=OTHER_HTTP_RESPONSE"
