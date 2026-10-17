@@ -102,9 +102,9 @@ if [[ "$had_config" == 0 && ( -n "$role_exists" || -n "$db_exists" ) ]]; then
   echo 'STAGING_REFUSED_PREEXISTING_DATABASE_OBJECTS'; exit 2
 fi
 if [[ -z "$role_exists" ]]; then
-  runuser -u postgres -- psql -v ON_ERROR_STOP=1 -q -c "CREATE ROLE fadego_staging LOGIN PASSWORD '$db_pass'"
+  printf "CREATE ROLE fadego_staging LOGIN PASSWORD '%s';\n" "$db_pass" | runuser -u postgres -- psql -v ON_ERROR_STOP=1 -q >/dev/null
 else
-  runuser -u postgres -- psql -v ON_ERROR_STOP=1 -q -c "ALTER ROLE fadego_staging PASSWORD '$db_pass'"
+  printf "ALTER ROLE fadego_staging PASSWORD '%s';\n" "$db_pass" | runuser -u postgres -- psql -v ON_ERROR_STOP=1 -q >/dev/null
 fi
 if [[ -z "$db_exists" ]]; then
   runuser -u postgres -- createdb --owner=fadego_staging fadego_staging
