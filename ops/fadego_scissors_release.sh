@@ -20,7 +20,7 @@ for c in git node corepack nginx curl python3 runuser systemctl sha256sum; do
 done
 [[ -L "$ROOT/current" && ! -L "$ROOT/releases" ]] || exit 2
 [[ $(readlink -f "$ROOT/current") == "$ROOT/releases/$OLD" ]] || { echo 'FADEGO_BRAND_REFUSED_WRONG_OLD_RELEASE'; exit 2; }
-[[ $(git -C "$ROOT/current" rev-parse HEAD) == "$OLD" ]] || exit 2
+[[ $(runuser -u fadego-staging -- git -C "$ROOT/current" rev-parse HEAD) == "$OLD" ]] || exit 2
 [[ ! -e "$ROOT/releases/$NEW" && ! -e "$ROOT/current.next" && ! -L "$ROOT/current.next" ]] || exit 2
 [[ -f "$VHOST" && ! -L "$VHOST" && -f "$PREVIEW" && ! -L "$PREVIEW" ]] || exit 2
 [[ -s "$ENV" && -s "$VAULT" && -s /etc/fadego-staging/send-closed.env ]] || exit 2
@@ -64,7 +64,7 @@ export FADEGO_STAGING_SUPERVISOR_APPROVED=1 FADEGO_STAGING_APPROVED_SHA="$NEW"
 export HOME="$ROOT" COREPACK_HOME="$ROOT/.cache/corepack"
 runuser -u fadego-staging -m -- bash "$ROOT/releases/$OLD/deploy/staging/native/build-release.sh"
 [[ $(readlink -f "$ROOT/current") == "$ROOT/releases/$NEW" ]] || exit 2
-[[ $(git -C "$ROOT/current" rev-parse HEAD) == "$NEW" ]] || exit 2
+[[ $(runuser -u fadego-staging -- git -C "$ROOT/current" rev-parse HEAD) == "$NEW" ]] || exit 2
 [[ $(sha256sum "$ROOT/current/public/fadego-mark.webp" | cut -d' ' -f1) == "$DIGEST" ]] || exit 2
 
 systemctl restart fadego-staging.service
