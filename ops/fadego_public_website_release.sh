@@ -209,8 +209,44 @@ while IFS= read -r asset; do
 done < /tmp/fadego-public-static-asset-sample
 rm -f "$tmp_html" /tmp/fadego-public-static-asset-sample
 
-STAGING_GATE_USER=fadego-pilot STAGING_GATE_PASSWORD="$(cat "$BASIC_VAULT")" \
-  node "$ROOT/current/scripts/smoke-staging.mjs"
+# Existing smoke-staging.mjs intentionally requires a private homepage, so
+# use a narrower equivalent for the new public-home/private-portal contract.
+STAGING_GATE_USER=fadego-pilot STAGING_GATE_PASSWORD="$(cat "$BASIC_VAULT")" node <<'PY_PORTAL'
+const assert = require("node:assert/strict")
+const host = "https://fadego.duckdns.org"
+const auth = "Basic " + Buffer.from(
+  process.env.STAGING_GATE_USER + ":" + process.env.STAGING_GATE_PASSWORD,
+  "utf8",
+).toString("base64")
+const request = async (path, header) => fetch(host + path, {
+  redirect: "manual",
+  signal: AbortSignal.timeout(12000),
+  headers: header ? { Authorization: header } : {},
+})
+;(async () => {
+  const home = await request("/")
+  assert.equal(home.status, 200)
+  assert.equal(home.headers.get("www-authenticate"), null)
+  assert.match(home.headers.get("x-robots-tag") || "", /noindex/i)
+  assert.match(home.headers.get("referrer-policy") || "", /no-referrer/i)
+  assert.match(await home.text(), /Website FADEGO/)
+  const privateLogin = await request("/login")
+  assert.equal(privateLogin.status, 401)
+  assert.match(privateLogin.headers.get("www-authenticate") || "", /^Basic(?:\s|$)/i)
+  await privateLogin.body?.cancel()
+  const bad = await request("/login", auth + "-wrong")
+  assert.equal(bad.status, 401)
+  await bad.body?.cancel()
+  const login = await request("/login", auth)
+  assert.equal(login.status, 200)
+  assert.match(await login.text(), /FADEGO/)
+  const admin = await request("/admin", auth)
+  assert.ok([301,302,303,307,308].includes(admin.status))
+  assert.equal(new URL(admin.headers.get("location"),host).pathname, "/login")
+  await admin.body?.cancel()
+  console.log("FADEGO_PUBLIC_HTTPS_AND_PRIVATE_PORTAL_SMOKE=PASS")
+})().catch(error => { console.error(error.message); process.exitCode = 1 })
+PY_PORTAL
 
 echo "FADEGO_PUBLIC_WEBSITE=HTTPS_200_WITHOUT_PASSWORD"
 echo "FADEGO_PUBLIC_PORTAL_AND_BOOKINGS=STILL_AUTHENTICATED"
