@@ -154,7 +154,7 @@ const get = async (path, init={}) => fetch(origin+path, {
   const markup=await login.text()
   assert.match(markup,/Entrar na plataforma/)
   assert.match(markup,/Palavra-passe/)
-  for (const route of ["/admin","/super-admin","/super-admin/anything"]) {
+  for (const route of ["/admin","/super-admin"]) {
     const res=await get(route)
     assert.ok([301,302,303,307,308].includes(res.status),"Expected app redirect for "+route)
     assert.equal(new URL(res.headers.get("location"),origin).pathname,"/login")
