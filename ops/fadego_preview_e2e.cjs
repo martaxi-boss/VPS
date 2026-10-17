@@ -16,7 +16,7 @@ async function main() {
     })
     const errors = []
     page.on("pageerror", (error) => errors.push(error.message))
-    const url = "file://" + resolve("ops/fadego_preview.html")
+    const url = process.env.FADEGO_PREVIEW_TEST_URL || ("file://" + resolve("ops/fadego_preview.html"))
     await page.goto(url, { waitUntil: "load" })
     await page.getByText("Uma agenda leve.").first().waitFor()
 
