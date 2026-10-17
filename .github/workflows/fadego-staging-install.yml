@@ -1,0 +1,80 @@
+name: FADEGO isolated staging installation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main]
+    paths:
+      - ".github/workflows/fadego-staging-install.yml"
+      - "ops/fadego_staging_install.sh"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fadego-staging-install
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    if: >-
+      github.event.pull_request.user.login == github.repository_owner &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'deploy/fadego-staging-20261017'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Verify exact FADEGO candidate and successful CI
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://api.github.com/repos/martaxi-boss/fadego"
+          pr="$(curl --fail --silent --show-error --max-time 15 "$url/pulls/15")"
+          jq -e --arg sha "7e2b6c0d00809eb65c800737daeb660c2869e077" \
+            '.state == "open" and .head.sha == $sha and .base.ref == "main"' <<<"$pr" >/dev/null
+          run="$(curl --fail --silent --show-error --max-time 15 "$url/actions/runs/39050431570")"
+          jq -e --arg sha "7e2b6c0d00809eb65c800737daeb660c2869e077" \
+            '.conclusion == "success" and .head_sha == $sha' <<<"$run" >/dev/null
+          echo 'FADEGO_EXACT_SHA_AND_CI=VERIFIED'
+      - name: Check fingerprint and privileged staging prerequisites without mutation
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}" || exit 2
+          known="$RUNNER_TEMP/fadego-stage-known-hosts"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known"
+          chmod 600 "$known"
+          observed="$(ssh-keygen -lf "$known" -E sha256 | awk '{print $2}')"
+          test "$observed" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          timeout 100 sshpass -e ssh -T \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$known" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o ConnectTimeout=15 ubuntu@146.59.145.3 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          if sudo -n true 2>/dev/null; then echo 'VPS_SUDO=NONINTERACTIVE'
+          else echo 'VPS_SUDO=REQUIRES_PASSWORD'; fi
+          if sudo -n -u postgres psql -qAt -c 'SELECT 1' 2>/dev/null | grep -qx 1; then
+            echo 'VPS_STAGING_POSTGRES_SUPERUSER=AVAILABLE'
+          else echo 'VPS_STAGING_POSTGRES_SUPERUSER=UNAVAILABLE'; fi
+          for cmd in git node corepack nginx certbot openssl curl systemctl python3; do
+            if command -v "$cmd" >/dev/null; then echo "VPS_TOOL_${cmd}=AVAILABLE"
+            else echo "VPS_TOOL_${cmd}=MISSING"; fi
+          done
+          if [[ -e /etc/fadego-staging/app.env ]]; then echo 'FADEGO_STAGING_APP_ENV=EXISTS'
+          else echo 'FADEGO_STAGING_APP_ENV=ABSENT'; fi
+          if [[ -d /srv/fadego-staging ]]; then echo 'FADEGO_STAGING_ROOT=EXISTS'
+          else echo 'FADEGO_STAGING_ROOT=ABSENT'; fi
+          if [[ -e /etc/nginx/sites-enabled/fadego-staging.conf || -e /etc/nginx/sites-enabled/fadego-staging-acme.conf ]]; then
+            echo 'FADEGO_STAGING_NGINX=EXISTS'
+          else echo 'FADEGO_STAGING_NGINX=ABSENT'; fi
+          if sudo -n test -s /root/project-secrets/fadego-gmail/oauth.env 2>/dev/null; then
+            echo 'FADEGO_GMAIL_VAULT=PRESENT'
+          else echo 'FADEGO_GMAIL_VAULT=NOT_VERIFIED'; fi
+          df -P /srv | awk 'NR==2 {if ($4>2500000) print "VPS_STAGING_FREE_DISK=OVER_2_5GB"; else print "VPS_STAGING_FREE_DISK=LOW"}'
+          echo 'READ_ONLY_SUDO_AND_SCOPE_PREFLIGHT=COMPLETE'
+          REMOTE
