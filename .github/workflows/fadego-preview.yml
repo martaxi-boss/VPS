@@ -64,6 +64,12 @@ jobs:
           print("FADEGO_INTERACTIVE_LOCAL_ONLY=VALIDATED")
           PYTHON
           node --check "$RUNNER_TEMP/fadego-demo-check.js"
+      - name: Keep a short-lived reviewed HTML artifact for real browser testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: fadego-preview-browser-qa
+          path: ops/fadego_preview.html
+          retention-days: 3
 
   publish:
     needs: [validate]
