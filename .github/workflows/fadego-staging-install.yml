@@ -24,6 +24,12 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
+      - name: Checkout only the Owner's proposed staging automation
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Validate narrow installer shell syntax
+        run: bash -n ops/fadego_staging_install.sh
       - name: Verify exact FADEGO candidate and successful CI
         shell: bash
         run: |
@@ -78,3 +84,71 @@ jobs:
           df -P /srv | awk 'NR==2 {if ($4>2500000) print "VPS_STAGING_FREE_DISK=OVER_2_5GB"; else print "VPS_STAGING_FREE_DISK=LOW"}'
           echo 'READ_ONLY_SUDO_AND_SCOPE_PREFLIGHT=COMPLETE'
           REMOTE
+
+  deploy:
+    needs: [preflight]
+    if: >-
+      needs.preflight.result == 'success' &&
+      github.event.action == 'ready_for_review' &&
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.user.login == github.repository_owner &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'deploy/fadego-staging-20261017'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout authorized Owner-controlled installation
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Recheck PR exact head, Owner scope, deployment authorization and certified application
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          bash -n ops/fadego_staging_install.sh
+          pr="$(curl --fail --silent --show-error --max-time 15 https://api.github.com/repos/martaxi-boss/VPS/pulls/239)"
+          jq -e --arg sha "$HEAD_SHA" \
+            '.number == 239 and .state == "open" and .draft == false and .head.sha == $sha and .head.ref == "deploy/fadego-staging-20261017" and .base.ref == "main" and .user.login == "martaxi-boss"' <<<"$pr" >/dev/null
+          app="$(curl --fail --silent --show-error --max-time 15 https://api.github.com/repos/martaxi-boss/fadego/pulls/15)"
+          jq -e --arg sha "7e2b6c0d00809eb65c800737daeb660c2869e077" \
+            '.state == "open" and .head.sha == $sha and .base.ref == "main"' <<<"$app" >/dev/null
+          ci="$(curl --fail --silent --show-error --max-time 15 https://api.github.com/repos/martaxi-boss/fadego/actions/runs/39050431570)"
+          jq -e --arg sha "7e2b6c0d00809eb65c800737daeb660c2869e077" \
+            '.conclusion == "success" and .head_sha == $sha' <<<"$ci" >/dev/null
+          echo 'SUPERVISED_STAGING_TRANSITION_AND_EXACT_CI=VERIFIED'
+      - name: Install certified FADEGO only in dedicated staging over pinned SSH
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}" || exit 2
+          known="$RUNNER_TEMP/fadego-approved-known-hosts"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known"
+          chmod 600 "$known"
+          observed="$(ssh-keygen -lf "$known" -E sha256 | awk '{print $2}')"
+          test "$observed" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' || exit 2
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          timeout --signal=TERM --kill-after=15s 48m \
+            sshpass -e ssh -T -o StrictHostKeyChecking=yes \
+            -o "UserKnownHostsFile=$known" -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=5 \
+            ubuntu@146.59.145.3 'sudo -n env FADEGO_STAGING_TRANSITION_APPROVED=1 bash -s' \
+            < ops/fadego_staging_install.sh
+      - name: Independently verify public TLS and closed Basic Auth gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          headers="$RUNNER_TEMP/fadego-https-headers"
+          status="$(curl -sS --max-time 20 -D "$headers" -o /dev/null -w '%{http_code}' https://fadego.duckdns.org/)"
+          test "$status" = 401
+          grep -qi '^www-authenticate: Basic' "$headers"
+          grep -Eqi '^x-robots-tag: .*noindex' "$headers"
+          echo 'FADEGO_STAGING_PUBLIC_HTTPS=TLS_VALID_BASIC_AUTH_NOINDEX'
