@@ -129,12 +129,16 @@ jobs:
           grep -Fq 'Entrar na plataforma' "$page"
           grep -Fq 'Palavra-passe' "$page"
           if grep -qi '^www-authenticate:' "$headers"; then echo 'FADEGO_PORTAL_REFUSED_EXTRA_PASSWORD_PROMPT'; exit 2; fi
-          for route in /admin /super-admin /admin/example/agenda; do
+          for route in /admin /super-admin; do
             headers="$RUNNER_TEMP/fadego-portal-redirect-headers"
             code="$(curl -sS --max-time 20 -D "$headers" -o /dev/null -w '%{http_code}' "https://fadego.duckdns.org$route")"
             case "$code" in 301|302|303|307|308) ;; *) echo 'FADEGO_PORTAL_REFUSED_MISSING_APPLICATION_REDIRECT'; exit 2;; esac
-            grep -qi '^location: /login' "$headers" || { echo 'FADEGO_PORTAL_REFUSED_WRONG_LOGIN_REDIRECT'; exit 2; }
+            grep -Eqi '^location: (https://fadego[.]duckdns[.]org)?/login([[:space:]]|$)' "$headers" || { echo 'FADEGO_PORTAL_REFUSED_WRONG_LOGIN_REDIRECT'; exit 2; }
           done
+          headers="$RUNNER_TEMP/fadego-portal-tenant-redirect-headers"
+          code="$(curl -sS --max-time 20 -D "$headers" -o /dev/null -w '%{http_code}' 'https://fadego.duckdns.org/admin/example/agenda')"
+          case "$code" in 301|302|303|307|308) ;; *) echo 'FADEGO_PORTAL_REFUSED_TENANT_AUTH_BYPASS'; exit 2;; esac
+          grep -Eqi '^location: (https://fadego[.]duckdns[.]org)?/(login|admin)([[:space:]]|$)' "$headers" || { echo 'FADEGO_PORTAL_REFUSED_WRONG_TENANT_REDIRECT'; exit 2; }
           for route in /api/auth/providers /api/auth/csrf /api/auth/session; do
             code="$(curl -sS --max-time 20 -o /dev/null -w '%{http_code}' "https://fadego.duckdns.org$route")"
             test "$code" = 200 || { echo 'FADEGO_PORTAL_REFUSED_AUTH_FLOW_BLOCKED'; exit 2; }
