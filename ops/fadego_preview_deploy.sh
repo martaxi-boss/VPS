@@ -123,6 +123,7 @@ preview_status="$(curl -sS --max-time 12 --resolve fadego.duckdns.org:443:127.0.
 admin_status="$(curl -sS --max-time 12 --resolve fadego.duckdns.org:443:127.0.0.1 -o /dev/null -w '%{http_code}' https://fadego.duckdns.org/admin)"
 home_status="$(curl -sS --max-time 12 --resolve fadego.duckdns.org:443:127.0.0.1 -o /dev/null -w '%{http_code}' https://fadego.duckdns.org/)"
 api_status="$(curl -sS --max-time 12 --resolve fadego.duckdns.org:443:127.0.0.1 -o /dev/null -w '%{http_code}' https://fadego.duckdns.org/api/auth/session)"
+printf 'FADEGO_PREVIEW_OBSERVED_STATUS demo=%s admin=%s home=%s api=%s\n' "$preview_status" "$admin_status" "$home_status" "$api_status"
 if [[ "$preview_status" != "200" || "$admin_status" != "401" ||
       "$home_status" != "401" || "$api_status" != "401" ]]; then
   echo "FADEGO_PREVIEW_REFUSED_AUTH_BOUNDARY_REGRESSION"; exit 2
