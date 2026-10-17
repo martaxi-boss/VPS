@@ -1,0 +1,147 @@
+name: FADEGO interactive no-login staging walkthrough
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main]
+    paths:
+      - ".github/workflows/fadego-preview.yml"
+      - "ops/fadego_preview.html"
+      - "ops/fadego_preview_deploy.sh"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fadego-preview-exact-path
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: >-
+      github.event.pull_request.user.login == github.repository_owner &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'preview/fadego-20261017'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Checkout owner-only demo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Shell check and browser JavaScript parsing
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f ops/fadego_preview.html && test ! -L ops/fadego_preview.html
+          test -f ops/fadego_preview_deploy.sh && test ! -L ops/fadego_preview_deploy.sh
+          bash -n ops/fadego_preview_deploy.sh
+          python3 - <<'PYTHON'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import os
+          class Script(HTMLParser):
+              collecting = False
+              sources = []
+              def handle_starttag(self, tag, attrs):
+                  if tag == "script":
+                      assert not dict(attrs).get("src"), "No external script allowed"
+                      self.collecting = True
+              def handle_data(self, data):
+                  if self.collecting:
+                      self.sources.append(data)
+              def handle_endtag(self, tag):
+                  if tag == "script":
+                      self.collecting = False
+          text = Path("ops/fadego_preview.html").read_text()
+          assert "FADEGO — Experimentar sem login" in text
+          assert "localStorage" in text and "data-form" in text
+          assert all(x not in text for x in ("fetch(", "XMLHttpRequest", "WebSocket", "sendBeacon", "document.cookie"))
+          parser = Script()
+          parser.feed(text)
+          assert len(parser.sources) == 1, "Exactly one inline client script"
+          Path(os.environ["RUNNER_TEMP"], "fadego-demo-check.js").write_text(parser.sources[0])
+          print("FADEGO_INTERACTIVE_LOCAL_ONLY=VALIDATED")
+          PYTHON
+          node --check "$RUNNER_TEMP/fadego-demo-check.js"
+
+  publish:
+    needs: [validate]
+    if: >-
+      needs.validate.result == 'success' &&
+      github.event.action == 'ready_for_review' &&
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.user.login == github.repository_owner &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'preview/fadego-20261017'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact proposed owner branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Revalidate exact owner pull request, files and app health before installing
+        shell: bash
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD" || {
+            echo "FADEGO_PREVIEW_REFUSED_UNEXPECTED_CHECKOUT"; exit 2;
+          }
+          pr="$(curl --fail -sS --max-time 15 https://api.github.com/repos/martaxi-boss/VPS/pulls/240)"
+          jq -e --arg sha "$EXPECTED_HEAD" \
+            '.state == "open" and .draft == false and
+             .user.login == "martaxi-boss" and .head.sha == $sha and
+             .head.ref == "preview/fadego-20261017" and .base.ref == "main"' <<<"$pr" >/dev/null
+          app="$(curl --fail -sS --max-time 15 https://api.github.com/repos/martaxi-boss/fadego/pulls/15)"
+          jq -e --arg sha "7e2b6c0d00809eb65c800737daeb660c2869e077" \
+            '.state == "open" and .head.sha == $sha' <<<"$app" >/dev/null
+          bash -n ops/fadego_preview_deploy.sh
+          echo "FADEGO_PREVIEW_EXACT_TARGET=VERIFIED"
+      - name: Install ONLY public fake-data demonstration under exact Nginx location
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}" || exit 2
+          known="$RUNNER_TEMP/fadego-preview-known-hosts"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known"
+          chmod 600 "$known"
+          observed="$(ssh-keygen -lf "$known" -E sha256 | awk '{print $2}')"
+          test "$observed" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' || exit 2
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          tar -cf - ops/fadego_preview_deploy.sh ops/fadego_preview.html | timeout 220 \
+            sshpass -e ssh -T -o StrictHostKeyChecking=yes \
+            -o "UserKnownHostsFile=$known" -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o ConnectTimeout=15 -o ServerAliveInterval=30 -o ServerAliveCountMax=3 \
+            ubuntu@146.59.145.3 \
+            'sudo -n env FADEGO_PREVIEW_DEPLOY_APPROVED=1 bash -c '"'"'set -euo pipefail; tmp="$(mktemp -d /tmp/fadego-preview.XXXXXXXX)"; trap "rm -rf -- \"$tmp\"" EXIT; tar -xf - -C "$tmp"; bash -n "$tmp/ops/fadego_preview_deploy.sh"; bash "$tmp/ops/fadego_preview_deploy.sh" "$tmp/ops/fadego_preview.html"'"'"''
+      - name: Verify public no-login demo, real Basic Auth and TLS independently
+        shell: bash
+        run: |
+          set -euo pipefail
+          headfile="$RUNNER_TEMP/fadego-demo-headers"
+          bodyfile="$RUNNER_TEMP/fadego-demo-body"
+          code="$(curl -sS -L --max-time 20 -D "$headfile" -o "$bodyfile" -w '%{http_code}' https://fadego.duckdns.org/experimentar/)"
+          test "$code" = 200
+          grep -q 'FADEGO — Experimentar sem login' "$bodyfile"
+          grep -qi '^x-robots-tag: .*noindex' "$headfile"
+          grep -qi '^content-security-policy:' "$headfile"
+          if grep -qi '^www-authenticate:' "$headfile"; then
+            echo "FADEGO_PREVIEW_REFUSED_UNEXPECTED_DEMO_LOGIN"; exit 2
+          fi
+          for route in / /admin /api/auth/session /experimentar/other; do
+            status="$(curl -sS --max-time 12 -o /dev/null -w '%{http_code}' "https://fadego.duckdns.org$route")"
+            if [[ "$status" != "401" ]]; then
+              echo "FADEGO_PREVIEW_REFUSED_PROTECTED_ROUTE_CHANGED"; exit 2
+            fi
+          done
+          echo 'FADEGO_PUBLIC_DEMO=HTTP_200_NO_LOGIN'
+          echo 'FADEGO_REAL_SITE=PROTECTED_HTTP_401'
+          echo 'FADEGO_PREVIEW_TLS=VALID'
