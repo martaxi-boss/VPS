@@ -160,3 +160,11 @@ jobs:
           echo 'FADEGO_PUBLIC_DEMO=HTTP_200_NO_LOGIN'
           echo 'FADEGO_REAL_SITE=PROTECTED_HTTP_401'
           echo 'FADEGO_PREVIEW_TLS=VALID'
+      - name: Exercise real public HTTPS demo in mobile Chrome (with CSP)
+        shell: bash
+        env:
+          FADEGO_PREVIEW_TEST_URL: https://fadego.duckdns.org/experimentar/
+        run: |
+          set -euo pipefail
+          npm install --prefix /tmp/fadego-preview-playwright --no-save --no-package-lock --silent playwright@1.56.1
+          node ops/fadego_preview_e2e.cjs
