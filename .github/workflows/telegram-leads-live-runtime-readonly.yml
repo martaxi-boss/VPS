@@ -1,0 +1,123 @@
+name: Telegram Leads live runtime census (read-only)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/telegram-leads-live-runtime-readonly.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    if: >-
+      github.event.pull_request.user.login == 'martaxi-boss' &&
+      github.event.pull_request.head.repo.full_name == 'martaxi-boss/VPS'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    steps:
+      - name: Verify pinned VPS SSH identity before using a credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          known="$RUNNER_TEMP/leads-known-hosts"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known" ||
+            { echo 'SSH_HOST_UNREACHABLE'; exit 2; }
+          chmod 600 "$known"
+          observed="$(ssh-keygen -lf "$known" -E sha256 | awk '{print $2}')"
+          test "$observed" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ||
+            { echo 'SSH_IDENTITY_MISMATCH'; exit 2; }
+          echo 'SSH_IDENTITY=VERIFIED'
+      - name: Read metadata only; never print bot tokens, usernames or session contents
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS" || { echo 'SSH_SECRET_MISSING'; exit 2; }
+          sudo apt-get update -qq >/dev/null
+          sudo apt-get install -y -qq sshpass >/dev/null
+          cat > "$RUNNER_TEMP/probe.py" <<'PY'
+          import datetime, json, os, socket, stat
+          from pathlib import Path
+
+          vault=Path('/root/project-secrets/TELEGRAM-IPTVPN')
+          def meta(p):
+              try: s=p.lstat()
+              except (OSError, ValueError): return {'present':False}
+              return {'present':True, 'file':stat.S_ISREG(s.st_mode),
+                      'directory':stat.S_ISDIR(s.st_mode),
+                      'owner_only':(stat.S_IMODE(s.st_mode)&0o077)==0,
+                      'not_symlink':not stat.S_ISLNK(s.st_mode)}
+          wanted={'TELEGRAM_GROWTH_BOT_TOKEN','TELEGRAM_GROWTH_BOT_DEDICATED',
+                  'TARGET_GROUP','TELEGRAM_API_ID','TELEGRAM_API_HASH',
+                  'API_ID','API_HASH','TELEGRAM_BOT_TOKEN','BOT_TOKEN','IPTVPN_BOT_TOKEN'}
+          present=set()
+          readable=False
+          try:
+              with (vault/'.env').open(encoding='utf-8',errors='replace') as f:
+                  for line in f:
+                      key,sep,_=line.partition('=')
+                      key=key.strip()
+                      if key.startswith('export '): key=key[7:].strip()
+                      if sep and key in wanted: present.add(key)
+              readable=True
+          except (OSError,ValueError): pass
+          sessions=[]
+          if vault.is_dir() and not vault.is_symlink():
+              try:
+                  for p in vault.iterdir():
+                      if p.suffix=='.session': sessions.append(meta(p))
+              except OSError: pass
+          running={'leads_main':0,'growth_tracker':0,'pm2_daemons':0}
+          try:
+              for p in Path('/proc').iterdir():
+                  if not p.name.isdecimal(): continue
+                  try:
+                      cmd=(p/'cmdline').read_bytes().replace(bytes([0]),b' ').decode('utf-8','replace').lower()
+                      comm=(p/'comm').read_text().strip().lower()
+                      cwd=os.readlink(p/'cwd').lower()
+                  except (OSError,ValueError,PermissionError): continue
+                  if 'pm2' in comm and 'daemon' in cmd: running['pm2_daemons']+=1
+                  if 'main.py' in cmd and ('telegram-iptvpn' in cwd or 'telegram-robot-leads' in cwd):
+                      running['leads_main']+=1
+                  if 'growth_tracker.py' in cmd: running['growth_tracker']+=1
+          except OSError: pass
+          known={key:meta(Path(value))['present'] for key,value in {
+              'legacy_root':'/root/TELEGRAM-IPTVPN',
+              'root_checkout':'/root/telegram-robot-leads',
+              'opt_checkout':'/opt/telegram-robot-leads',
+              'srv_checkout':'/srv/telegram-robot-leads',
+              'ubuntu_checkout':'/home/ubuntu/telegram-robot-leads'}.items()}
+          report={
+              'audit':'TELEGRAM_LEADS_RUNTIME_READONLY',
+              'timestamp_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              'hostname':socket.gethostname(),
+              'as_root':os.geteuid()==0,
+              'vault_directory':meta(vault),
+              'env_file':meta(vault/'.env'),
+              'accounts_json':meta(vault/'accounts.json'),
+              'env_keys_readable':readable,
+              'growth_token_key_present':'TELEGRAM_GROWTH_BOT_TOKEN' in present,
+              'growth_dedicated_flag_key_present':'TELEGRAM_GROWTH_BOT_DEDICATED' in present,
+              'target_group_key_present':'TARGET_GROUP' in present,
+              'telethon_api_id_key_present':bool({'TELEGRAM_API_ID','API_ID'} & present),
+              'telethon_api_hash_key_present':bool({'TELEGRAM_API_HASH','API_HASH'} & present),
+              'other_bot_token_key_present':bool({'TELEGRAM_BOT_TOKEN','BOT_TOKEN','IPTVPN_BOT_TOKEN'} & present),
+              'session_count':len(sessions),
+              'session_files_all_owner_only':all(q.get('owner_only') for q in sessions),
+              'session_files_all_regular':all(q.get('file') for q in sessions),
+              'known_runtime_locations':known,
+              'runtime_process_counts':running,
+              'backup_service_file_present':meta(Path('/etc/systemd/system/project-secrets-offsite-backup.service'))['present'],
+              'note':'No secrets, account identities, login, Telegram calls, deployment, or process mutations.'
+          }
+          print(json.dumps(report,sort_keys=True))
+          PY
+          sshpass -e ssh -T -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/leads-known-hosts" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 ubuntu@146.59.145.3 \
+            'sudo -n python3 -' < "$RUNNER_TEMP/probe.py"
