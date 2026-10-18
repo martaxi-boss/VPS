@@ -1,4 +1,5 @@
 name: Verify Telegram Leads code upgrade (read-only)
+# Recovery evidence: cache cleanup run 39161659736 removed one validated .pyc.
 
 on:
   pull_request:
