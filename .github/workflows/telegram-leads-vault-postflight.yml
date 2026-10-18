@@ -1,0 +1,79 @@
+name: Verify Telegram Robot Leads vault rename (read-only)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/telegram-leads-vault-postflight.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    if: >-
+      github.event.pull_request.user.login == 'martaxi-boss' &&
+      github.event.pull_request.head.repo.full_name == 'martaxi-boss/VPS'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Check pinned host identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          known="$RUNNER_TEMP/leads-postflight-known"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known"
+          chmod 600 "$known"
+          seen="$(ssh-keygen -lf "$known" -E sha256 | awk '{print $2}')"
+          test "$seen" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
+          echo 'SSH_PIN=PASS'
+      - name: Independently verify physical vault names and protected files
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq >/dev/null
+          sudo apt-get install -y -qq sshpass >/dev/null
+          cat > "$RUNNER_TEMP/check.py" <<'PY'
+          from pathlib import Path
+          import os, stat, json, sys
+          root=Path('/root/project-secrets')
+          old=root/'TELEGRAM-IPTVPN'
+          new=root/'telegram-robot-leads'
+          other=root/'iptvpn_bot'
+          def is_private_dir(p):
+              try: s=p.lstat()
+              except OSError: return False
+              return stat.S_ISDIR(s.st_mode) and s.st_uid==0 and not (stat.S_IMODE(s.st_mode)&0o077)
+          files=[]
+          if is_private_dir(new):
+              for f in new.iterdir():
+                  s=f.lstat()
+                  files.append({'name':f.name,'file':stat.S_ISREG(s.st_mode),'owner_only':s.st_uid==0 and not (stat.S_IMODE(s.st_mode)&0o077)})
+          passed=(not os.path.lexists(old)
+                  and is_private_dir(root) and is_private_dir(new)
+                  and is_private_dir(other)
+                  and len(files)==5
+                  and all(f['file'] and f['owner_only'] for f in files)
+                  and any(f['name']=='.env' for f in files)
+                  and any(f['name']=='accounts.json' for f in files)
+                  and sum(f['name'].endswith('.session') for f in files)==2)
+          report={'status':'PASS' if passed else 'FAIL',
+                  'canonical_vault_present':is_private_dir(new),
+                  'old_vault_absent':not os.path.lexists(old),
+                  'regular_owner_only_files':sum(bool(f['file'] and f['owner_only']) for f in files),
+                  'session_file_count':sum(f['name'].endswith('.session') for f in files),
+                  'iptvpn_bot_separate':is_private_dir(other),
+                  'credentials_examined':False,
+                  'runtime_services_changed':False}
+          print(json.dumps(report,sort_keys=True))
+          sys.exit(0 if passed else 2)
+          PY
+          sshpass -e ssh -T -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/leads-postflight-known" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 ubuntu@146.59.145.3 \
+            'sudo -n python3 -' < "$RUNNER_TEMP/check.py"
