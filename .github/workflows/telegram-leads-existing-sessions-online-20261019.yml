@@ -1,0 +1,90 @@
+name: Telegram Leads existing sessions read-only live validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/telegram-leads-existing-sessions-online-20261019.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: telegram-leads-existing-sessions-readonly-20261019
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    if: >-
+      github.event.pull_request.head.repo.full_name == 'martaxi-boss/VPS' &&
+      github.event.pull_request.head.ref == 'ops/leads-two-sessions-online-readonly-20261019'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Verify immutable repo, branch, target and protocol
+        shell: bash
+        env:
+          EXPECTED_BASE: a963979f1455498015d73d2a1e55138f9657055a
+          ACTUAL_BASE: ${{ github.event.pull_request.base.sha }}
+          ACTUAL_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "${ACTUAL_BASE}" = "${EXPECTED_BASE}"
+          test "${#ACTUAL_HEAD}" -eq 40
+          echo 'TELEGRAM_LEADS_READONLY_AUTH_SCOPE=VERIFIED'
+      - name: Verify pinned SSH identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          known="$RUNNER_TEMP/leads-session-readonly-known-hosts"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known"
+          chmod 600 "$known"
+          observed="$(ssh-keygen -lf "$known" -E sha256 | awk '{print $2}')"
+          test "$observed" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          ssh-keygen -F 146.59.145.3 -f "$known" >/dev/null
+          echo 'TELEGRAM_LEADS_SSH_PIN=PASS'
+      - name: Connect both existing accounts without additions or session writes
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T \
+            -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/leads-session-readonly-known-hosts" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 -o ServerAliveInterval=10 \
+            ubuntu@146.59.145.3 \
+            'sudo -n sh -c '\''test "$(cat /opt/telegram-robot-leads/.verified-source-commit)" = 862ed408f6f3a87a3b109a0b36d246cc7a5f8056 && exec /opt/telegram-robot-leads/.venv/bin/python /opt/telegram-robot-leads/scripts/telethon_sessions.py --vault /root/project-secrets/telegram-robot-leads --online'\''' \
+            > "$RUNNER_TEMP/telethon-two-account-result.json"
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          path = Path(os.environ["RUNNER_TEMP"]) / "telethon-two-account-result.json"
+          result = json.loads(path.read_text(encoding="utf-8"))
+          entries = result.get("accounts", [])
+          assert result.get("mode") == "online_read_only", "unexpected_probe_mode"
+          assert len(entries) == 2, "expected_two_accounts"
+          assert result.get("session_files_modified") is False, "session_write_not_allowed"
+          assert result.get("messages_sent") == 0 and result.get("users_added") == 0, "side_effect_reported"
+          safe = {
+              "probe": "TELEGRAM_LEADS_EXISTING_ACCOUNTS_READONLY",
+              "result": result.get("status"),
+              "api_source": result.get("api_source"),
+              "connected_count": sum(x.get("connected") is True for x in entries),
+              "authorized_count": sum(x.get("authorized") is True for x in entries),
+              "identity_verified_count": sum(x.get("identity_verified") is True for x in entries),
+              "phones_match_count": sum(x.get("phone_matches") is True for x in entries),
+              "users_added": 0,
+              "messages_sent": 0,
+              "sessions_modified": False,
+          }
+          print("TELEGRAM_LEADS_READONLY_LIVE_RESULT="+json.dumps(safe,sort_keys=True))
+          assert result.get("status") == "PASS", "account_verification_did_not_pass"
+          PY
