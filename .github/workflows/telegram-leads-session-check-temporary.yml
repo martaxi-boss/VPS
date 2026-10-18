@@ -33,7 +33,7 @@ jobs:
           sudo apt-get update -qq > /dev/null
           sudo apt-get install -qq -y sshpass > /dev/null
           cat > "$RUNNER_TEMP/check.py" <<'PY'
-          import os,stat,json,re,asyncio,shutil,tempfile
+          import os,stat,json,re,asyncio,shutil,tempfile,subprocess,sys
           from pathlib import Path
           base=Path("/root/project-secrets/telegram-robot-leads")
           def protect(p,folder=False):
@@ -50,6 +50,7 @@ jobs:
           result={"audit":"TELEGRAM_ROBOT_LEADS_TWO_SESSIONS","origin":"VPS",
                   "original_files_untouched":True,"invites_sent":0,
                   "new_logins":0,"messages_sent":0,"accounts":[]}
+          runtime_dir=None
           try:
               protect(base,folder=True)
               raw=read_secret(base/".env")
@@ -94,7 +95,19 @@ jobs:
               if not isinstance(accounts,list) or len(accounts)!=2:raise RuntimeError("TWO_ACCOUNTS_NOT_CONFIGURED")
               result["configured_accounts"]=2
               try:from telethon import TelegramClient
-              except ImportError:raise RuntimeError("TELETHON_RUNTIME_MISSING")
+              except ImportError:
+                  runtime_dir=tempfile.TemporaryDirectory(prefix="telethon-probe-",dir="/run")
+                  cmd=[sys.executable,"-m","pip","install","--quiet","--no-input",
+                       "--disable-pip-version-check","--no-cache-dir",
+                       "--target",runtime_dir.name,"telethon==1.41.2"]
+                  try:
+                      install=subprocess.run(cmd,stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,
+                                             stderr=subprocess.DEVNULL,timeout=145,check=False)
+                      if install.returncode!=0:raise RuntimeError("TELETHON_INSTALL_UNAVAILABLE")
+                  except (OSError,subprocess.TimeoutExpired):
+                      raise RuntimeError("TELETHON_INSTALL_UNAVAILABLE")
+                  sys.path.insert(0,runtime_dir.name)
+                  from telethon import TelegramClient
               async def check(account,number):
                   out={"account":number,"session_file_present":False,"connected":False,
                        "authorized":False,"identity_verified":False}
@@ -141,7 +154,10 @@ jobs:
               result["status"]="PRECHECK_BLOCKED"
               result["reason"]=str(exc) if str(exc) in {
                   "FILE_ABSENT","PERMISSIONS","FOLDER_INVALID","FILE_INVALID","FILE_TOO_LARGE",
-                  "API_CONFIG_INVALID","TWO_ACCOUNTS_NOT_CONFIGURED","TELETHON_RUNTIME_MISSING"} else type(exc).__name__
+                  "API_CONFIG_INVALID","TWO_ACCOUNTS_NOT_CONFIGURED","TELETHON_RUNTIME_MISSING",
+                  "TELETHON_INSTALL_UNAVAILABLE"} else type(exc).__name__
+          finally:
+              if runtime_dir is not None:runtime_dir.cleanup()
           print(json.dumps(result,sort_keys=True),flush=True)
           PY
           sshpass -e ssh -T -o PreferredAuthentications=password \
