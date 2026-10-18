@@ -65,8 +65,29 @@ jobs:
                       q=val[0]
                       val=val[1:val.find(q,1)] if q in val[1:] else val[1:]
                   config[key.strip()]=val
-              api_id=int(config.get("TELEGRAM_API_ID") or config.get("API_ID") or "0")
+              raw_id=config.get("TELEGRAM_API_ID") or config.get("API_ID") or "0"
+              try:api_id=int(raw_id)
+              except ValueError:api_id=0
               api_hash=config.get("TELEGRAM_API_HASH") or config.get("API_HASH") or ""
+              source="env"
+              if (config.get("TELEGRAM_USE_PUBLISHED_ANDROID_API") or "").strip().lower() in ("1","true","yes"):
+                  api_id=4
+                  api_hash="014b35b6184100b085b0d0572f9b5103"
+                  source="published_android_config"
+              if not api_id or not api_hash:
+                  raw_path=config.get("TELEGRAM_CREDENTIALS_FILE") or "telegram_api.json"
+                  candidate=base/raw_path
+                  if (not os.path.isabs(raw_path) and ".." not in candidate.parts
+                      and candidate.parent==base and candidate.exists()):
+                      other=json.loads(read_secret(candidate,maxbytes=16384))
+                      if isinstance(other,dict):
+                          if not api_id:
+                              try:api_id=int(other.get("api_id") or other.get("TELEGRAM_API_ID") or "0")
+                              except ValueError:api_id=0
+                          if not api_hash:
+                              api_hash=str(other.get("api_hash") or other.get("TELEGRAM_API_HASH") or "")
+                          source="private_credentials_json"
+              result["credentials_source"]=source
               if not api_id or not re.fullmatch(r"[A-Za-z0-9]{20,80}",api_hash):
                   raise RuntimeError("API_CONFIG_INVALID")
               accounts=json.loads(config.get("TELEGRAM_ACCOUNTS_JSON") or read_secret(base/"accounts.json"))
@@ -140,9 +161,10 @@ jobs:
           safe={
             "audit":d["audit"],"status":d["status"],
             "configured_accounts":d.get("configured_accounts"),
-            "reason":d.get("reason"),
+            "reason":d.get("reason"),"credentials_source":d.get("credentials_source"),
             "accounts":[{k:r.get(k) for k in ("account","session_file_present","connected",
                 "authorized","identity_verified","phone_matches_config","status","error_type")} for r in d.get("accounts",[])]
           }
           print(json.dumps(safe,sort_keys=True))
+          if d["status"]!="PASS":raise SystemExit(2)
           PY
