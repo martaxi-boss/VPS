@@ -1,0 +1,217 @@
+name: Upgrade Telegram Robot Leads opt-in code only (inert)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/telegram-leads-safe-upgrade-once.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  upgrade:
+    if: >-
+      github.event.pull_request.user.login == 'martaxi-boss' &&
+      github.event.pull_request.head.repo.full_name == 'martaxi-boss/VPS'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Check pinned VPS SSH identity before credential use
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/leads-host"
+          chmod 600 "$RUNNER_TEMP/leads-host"
+          observed="$(ssh-keygen -lf "$RUNNER_TEMP/leads-host" -E sha256 | awk '{print $2}')"
+          test "$observed" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
+          echo 'SSH_PIN=VERIFIED'
+
+      - name: Fetch exact main source revision (no stored credentials)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/telegram-robot-leads
+          ref: 6b628ec6f4ff1cdf7279b80fe83321e89fe93cec
+          path: source
+          persist-credentials: false
+
+      - name: Validate pinned source and run full offline regression first
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd source
+          test "$(git rev-parse HEAD)" = "6b628ec6f4ff1cdf7279b80fe83321e89fe93cec"
+          PYTHONDONTWRITEBYTECODE=1 PYTHONWARNINGS=error python3 -m unittest discover -s tests -v
+          python3 -m py_compile scripts/growth_store.py scripts/growth_tracker.py \
+            scripts/optin_join_links.py scripts/lead_health.py
+          bash -n scripts/telegram-robot-leads-status.sh scripts/telegram-iptvpn-status.sh
+          echo 'PINNED_SOURCE_TESTS=PASS'
+
+      - name: Make minimal code-only bundle with SHA-256 manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/build-manifest.py" <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          files=('growth_store.py','growth_tracker.py','optin_join_links.py','lead_health.py',
+                 'telegram-robot-leads-status.sh','telegram-iptvpn-status.sh')
+          root=Path('source/scripts')
+          manifest={}
+          for name in files:
+              p=root/name
+              if not p.is_file() or p.is_symlink():
+                  raise SystemExit('UNSAFE_SOURCE_COMPONENT')
+              manifest[name]=hashlib.sha256(p.read_bytes()).hexdigest()
+          Path('manifest.json').write_text(json.dumps(manifest,sort_keys=True),encoding='utf8')
+          print('PINNED_MANIFEST=PASS')
+          PY
+          (cd "$RUNNER_TEMP" && python3 build-manifest.py) || {
+            cd "$GITHUB_WORKSPACE"
+            python3 "$RUNNER_TEMP/build-manifest.py"
+            mv manifest.json "$RUNNER_TEMP/manifest.json"
+          }
+          test -s "$RUNNER_TEMP/manifest.json"
+          tar -C source -cf "$RUNNER_TEMP/leads-safe-upgrade.tar" \
+            scripts/growth_store.py scripts/growth_tracker.py \
+            scripts/optin_join_links.py scripts/lead_health.py \
+            scripts/telegram-robot-leads-status.sh scripts/telegram-iptvpn-status.sh
+          tar -C "$RUNNER_TEMP" -rf "$RUNNER_TEMP/leads-safe-upgrade.tar" manifest.json
+
+      - name: Stage, safely replace only metrics code and prove isolated vault access
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          [[ "$GITHUB_RUN_ID" =~ ^[0-9]+$ ]] || exit 2
+          sudo apt-get update -qq >/dev/null
+          sudo apt-get install -y -qq sshpass >/dev/null
+          host=ubuntu@146.59.145.3
+          ssh_safe() {
+            sshpass -e ssh -T -o PreferredAuthentications=password \
+              -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile="$RUNNER_TEMP/leads-host" \
+              -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+              -o ConnectTimeout=15 "$host" "$@"
+          }
+          target="/opt/telegram-leads-optin"
+          stage="/opt/.telegram-leads-upgrade-$GITHUB_RUN_ID"
+          ssh_safe "sudo -n test -d '$target' && sudo -n test ! -e '$stage' && sudo -n install -d -o root -g root -m 0700 '$stage'"
+          ssh_safe "sudo -n tar -xf - -C '$stage' --no-same-owner --no-same-permissions" \
+            < "$RUNNER_TEMP/leads-safe-upgrade.tar"
+          cat > "$RUNNER_TEMP/finalize.py" <<'PY'
+          import hashlib,json,os,stat,subprocess,sys
+          from pathlib import Path
+
+          run=sys.argv[1]
+          if not run.isdecimal():raise SystemExit('INVALID_RUN')
+          root=Path('/opt/telegram-leads-optin')
+          stage=Path('/opt/.telegram-leads-upgrade-'+run)
+          vault=Path('/root/project-secrets/telegram-robot-leads')
+          backup=root/('.old-scripts-'+run)
+          expected_old={'growth_store.py','growth_tracker.py','optin_join_links.py','lead_health.py'}
+          expected_new=expected_old|{'telegram-robot-leads-status.sh','telegram-iptvpn-status.sh'}
+          old_sha='db7eb29e27e483d85e59e106fcf5ae7a0bab16cd'
+          new_sha='6b628ec6f4ff1cdf7279b80fe83321e89fe93cec'
+          def private_dir(p):
+              try:s=p.lstat()
+              except OSError:return False
+              return stat.S_ISDIR(s.st_mode) and s.st_uid==0 and not stat.S_IMODE(s.st_mode)&0o077
+          def private_file(p):
+              try:s=p.lstat()
+              except OSError:return False
+              return stat.S_ISREG(s.st_mode) and s.st_uid==0 and not stat.S_IMODE(s.st_mode)&0o077
+          def require(ok,code):
+              if not ok:raise RuntimeError(code)
+          try:
+              require(os.geteuid()==0,'NOT_ROOT')
+              require(private_dir(root) and private_dir(vault) and private_dir(stage),'UNSAFE_ROOT')
+              require(not os.path.lexists(backup),'BACKUP_ALREADY_EXISTS')
+              require(private_file(root/'PROVENANCE.txt'),'PROVENANCE_UNSAFE')
+              prior=(root/'PROVENANCE.txt').read_text(encoding='utf8')
+              require('sha='+old_sha in prior or 'source_sha='+old_sha in prior,'UNEXPECTED_DEPLOYED_REVISION')
+              require(private_dir(root/'scripts'),'CURRENT_SCRIPTS_UNSAFE')
+              require({p.name for p in (root/'scripts').iterdir()}==expected_old,'CURRENT_SCRIPTS_DRIFT')
+              require(private_dir(stage/'scripts'),'STAGE_SCRIPTS_UNSAFE')
+              require({p.name for p in (stage/'scripts').iterdir()}==expected_new,'BUNDLE_NOT_ALLOWLISTED')
+              manifest=json.loads((stage/'manifest.json').read_text(encoding='utf8'))
+              require(set(manifest)==expected_new,'MANIFEST_FILE_LIST_MISMATCH')
+              for name in expected_new:
+                  p=stage/'scripts'/name
+                  require(p.is_file() and not p.is_symlink(),'STAGE_SYMLINK')
+                  require(hashlib.sha256(p.read_bytes()).hexdigest()==manifest[name],'HASH_MISMATCH')
+                  if name.endswith('.py'):
+                      compile(p.read_text(encoding='utf8'),str(p),'exec')
+              for p in Path('/proc').iterdir():
+                  if not p.name.isdecimal():continue
+                  try:cmd=(p/'cmdline').read_bytes()
+                  except OSError:continue
+                  require(b'growth_tracker.py' not in cmd,'METRICS_PROCESS_RUNNING')
+              require(private_file(vault/'.env'),'VAULT_ENV_UNSAFE')
+              # Validate external vault access without Telegram network requests or printing values.
+              sys.path.insert(0,str(stage/'scripts'))
+              from lead_health import read_env_names_and_values
+              config=read_env_names_and_values(vault/'.env',owner_only=True)
+              require(bool(config.get('TARGET_GROUP')),'NO_TARGET_GROUP')
+              observed_growth_token=bool(config.get('TELEGRAM_GROWTH_BOT_TOKEN'))
+              require(not observed_growth_token,'TOKEN_ACTIVATION_REQUIRES_SEPARATE_AUDIT')
+              os.chmod(stage/'scripts',0o700)
+              for p in (stage/'scripts').iterdir():os.chmod(p,0o600)
+              os.rename(root/'scripts',backup)
+              try:
+                  os.rename(stage/'scripts',root/'scripts')
+                  smoke=subprocess.run(['python3',str(root/'scripts'/'growth_tracker.py'),
+                       '--root',str(root),'--stats'],capture_output=True,text=True,timeout=8)
+                  require(smoke.returncode==0,'OFFLINE_STATS_FAILED')
+                  require(json.loads(smoke.stdout).get('status') in ('ok','no_data'),'INVALID_STATS')
+                  new_provenance=(root/('PROVENANCE.new-'+run))
+                  with new_provenance.open('x',encoding='utf8') as out:
+                      out.write('repository=martaxi-boss/telegram-robot-leads\n')
+                      out.write('sha='+new_sha+'\n')
+                      out.write('run_id='+run+'\n')
+                      out.write('credentials_copied=NO\nservice_started=NO\n')
+                  os.chmod(new_provenance,0o600)
+                  os.replace(new_provenance,root/'PROVENANCE.txt')
+              except Exception:
+                  if (root/'scripts').is_dir():
+                      os.rename(root/'scripts',stage/'scripts')
+                  os.rename(backup,root/'scripts')
+                  raise
+              for p in backup.iterdir():p.unlink()
+              backup.rmdir()
+              (stage/'manifest.json').unlink()
+              stage.rmdir()
+              print(json.dumps({'status':'INERT_UPDATE_VERIFIED','source_sha':new_sha,
+                     'modules_and_status_scripts':len(expected_new),
+                     'credentials_read_only_from_canonical_vault':True,
+                     'growth_token_present':observed_growth_token,
+                     'metrics_started':False,'legacy_bot_changed':False,
+                     'old_metrics_database_preserved':True},sort_keys=True))
+          except Exception as exc:
+              # Never include exception text: paths and token-dependent details can leak.
+              print(json.dumps({'status':'SAFE_UPGRADE_BLOCKED',
+                                'reason_class':type(exc).__name__}))
+              raise SystemExit(2)
+          PY
+          ssh_safe "sudo -n python3 - '$GITHUB_RUN_ID'" < "$RUNNER_TEMP/finalize.py"
+
+      - name: Remove only this run's abandoned stage on a failure
+        if: failure()
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set +e
+          [[ "$GITHUB_RUN_ID" =~ ^[0-9]+$ ]] || exit 0
+          test -s "$RUNNER_TEMP/leads-host" || exit 0
+          command -v sshpass >/dev/null || exit 0
+          sshpass -e ssh -T -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/leads-host" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=10 ubuntu@146.59.145.3 \
+            "sudo -n sh -c 'test ! -L /opt/.telegram-leads-upgrade-$GITHUB_RUN_ID && test -d /opt/.telegram-leads-upgrade-$GITHUB_RUN_ID && rm -rf -- /opt/.telegram-leads-upgrade-$GITHUB_RUN_ID'" \
+            >/dev/null 2>&1
+          echo 'UNCOMMITTED_STAGE_CLEANUP_ATTEMPTED'
