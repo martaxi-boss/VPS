@@ -109,6 +109,6 @@ jobs:
           assert data["other_projects_touched"] is False
           assert data["source_provenance_recorded"] is True
           assert data["git_history_present_in_live_checkout"] is False
-          assert data["api_source"] in ("private_app_credentials", "published_android_config", "NOT_VERIFIED")
+          assert data["api_source"] in ("private_app_credentials", "published_android_fallback", "NOT_VERIFIED")
           print("TELEGRAM_LEADS_STAGING_RESULT="+json.dumps(data,sort_keys=True))
           PY
