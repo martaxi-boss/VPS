@@ -1,0 +1,147 @@
+name: FADEGO unified business panels staging
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main]
+    paths:
+      - ".github/workflows/fadego-tenant-panels-staging.yml"
+      - "ops/fadego_tenant_panels_release.sh"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fadego-tenant-panels-staging-release
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: >-
+      github.event.pull_request.user.login == github.repository_owner &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'ops/fadego-tenant-panels-20261018'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact proposed release control
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Validate scope and fail-closed release preconditions
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n ops/fadego_tenant_panels_release.sh
+          grep -Fq 'FADEGO_TENANT_PANELS_RELEASE=SUCCESS' ops/fadego_tenant_panels_release.sh
+          grep -Fq 'FADEGO_TENANT_PANELS_RECOVERY=OLD_RELEASE_RESTORED' ops/fadego_tenant_panels_release.sh
+          grep -Fq 'FADEGO_TENANT_PANELS_TENANT_PRIVACY=PROTECTED' ops/fadego_tenant_panels_release.sh
+          grep -Fq 'FADEGO_TENANT_PANELS_VAULT_LOGIN=AUTHORIZED_NO_USERNAME' ops/fadego_tenant_panels_release.sh
+          grep -Fq 'FADEGO_TENANT_PANELS_GMAIL_SEND=DISABLED' ops/fadego_tenant_panels_release.sh
+          python3 - <<'PY_SCOPE'
+          from pathlib import Path
+          s=Path("ops/fadego_tenant_panels_release.sh").read_text()
+          for value in (
+              "OLD=1d19279f834ba726c5fede3f164d537f1414d3ea",
+              "NEW=037fc4c5794bdde1177d6b086cf87710b4335483",
+              "FADEGO_STAGING_SUPERVISOR_APPROVED=1",
+              "FADEGO_TENANT_PANELS_STAGING_APPROVED",
+              "build-release.sh",
+              "admin-password",
+              "FADEGO_PORTAL_SINGLE_LOGIN_BEGIN",
+              "/api/auth/callback/owner-password",
+          ):
+              assert value in s,value
+          assert "systemctl restart fadego-staging.service" in s
+          assert "BOOKING_EMAIL_PROVIDER=disabled GMAIL_LIVE_SEND_ENABLED=false" in s
+          assert "rm -rf" not in s
+          assert "nginx -s" not in s
+          print("FADEGO_TENANT_PANELS_RELEASE_GATES=VALIDATED")
+          PY_SCOPE
+
+  publish:
+    needs: [validate]
+    if: >-
+      needs.validate.result == 'success' &&
+      github.event.action == 'ready_for_review' &&
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.user.login == github.repository_owner &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'ops/fadego-tenant-panels-20261018'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - name: Checkout approved immutable control SHA
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Prove Owner PR, app SHA, CI and no database migrations
+        shell: bash
+        env:
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$HEAD"
+          bash -n ops/fadego_tenant_panels_release.sh
+          pr="$(curl -fsS --max-time 25 "https://api.github.com/repos/martaxi-boss/VPS/pulls/$PR_NUMBER")"
+          jq -e --arg sha "$HEAD" \
+            '.state=="open" and .draft==false and .head.sha==$sha and
+             .head.ref=="ops/fadego-tenant-panels-20261018" and
+             .head.repo.full_name=="martaxi-boss/VPS" and .base.ref=="main" and
+             .user.login=="martaxi-boss"' <<<"$pr" >/dev/null
+          app="$(curl -fsS --max-time 25 https://api.github.com/repos/martaxi-boss/fadego/pulls/15)"
+          jq -e --arg sha '037fc4c5794bdde1177d6b086cf87710b4335483' \
+            '.state=="open" and .head.sha==$sha and .base.ref=="main"' <<<"$app" >/dev/null
+          ci="$(curl -fsS --max-time 25 https://api.github.com/repos/martaxi-boss/fadego/actions/runs/39087294046)"
+          jq -e --arg sha '037fc4c5794bdde1177d6b086cf87710b4335483' \
+            '.status=="completed" and .conclusion=="success" and .head_sha==$sha' <<<"$ci" >/dev/null
+          diff="$(curl -fsS --max-time 25 'https://api.github.com/repos/martaxi-boss/fadego/compare/1d19279f834ba726c5fede3f164d537f1414d3ea...037fc4c5794bdde1177d6b086cf87710b4335483')"
+          jq -e '(.files | any(.filename | startswith("prisma/")) | not)' <<<"$diff" >/dev/null
+          echo 'FADEGO_TENANT_PANELS_EXACT_SHA_CI_UNCHANGED_MIGRATIONS=PASS'
+      - name: Install isolated FADEGO staging owner portal through pinned SSH
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}" || exit 2
+          known="$RUNNER_TEMP/fadego-owner-portal-known"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known"
+          chmod 600 "$known"
+          observed="$(ssh-keygen -lf "$known" -E sha256 | awk '{print $2}')"
+          test "$observed" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          timeout --signal=TERM --kill-after=15s 43m \
+            sshpass -e ssh -T -o StrictHostKeyChecking=yes \
+            -o "UserKnownHostsFile=$known" -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=5 \
+            ubuntu@146.59.145.3 \
+            'sudo -n env FADEGO_TENANT_PANELS_STAGING_APPROVED=1 bash -s' \
+            < ops/fadego_tenant_panels_release.sh
+      - name: Confirm live portal is password-only and private routes stay blocked
+        shell: bash
+        run: |
+          set -euo pipefail
+          login="$(curl -fsS --max-time 25 https://fadego.duckdns.org/login)"
+          grep -Fq 'O meu Portal FADEGO' <<<"$login"
+          grep -Fq 'name="password"' <<<"$login"
+          if grep -Fq 'name="email"' <<<"$login"; then
+            echo 'FADEGO_TENANT_PANELS_REFUSED_VISIBLE_USERNAME'; exit 2
+          fi
+          staff="$(curl -fsS --max-time 25 'https://fadego.duckdns.org/login?acesso=equipa')"
+          grep -Fq 'name="email"' <<<"$staff"
+          for route in / /experimentar; do
+            code="$(curl -sS --max-time 20 -o /dev/null -w '%{http_code}' "https://fadego.duckdns.org$route")"
+            test "$code" = 200
+          done
+          for route in /b/example /api/public/barbershops/example/availability; do
+            code="$(curl -sS --max-time 20 -o /dev/null -w '%{http_code}' "https://fadego.duckdns.org$route")"
+            test "$code" = 401
+          done
+          echo 'FADEGO_TENANT_PANELS_LIVE=PASSWORD_ONLY_NO_USERNAME'
