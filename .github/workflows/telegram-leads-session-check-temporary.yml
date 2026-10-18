@@ -120,37 +120,38 @@ jobs:
                       protect(src)
                       if src.stat().st_size<256:raise RuntimeError("SESSION_TOO_SMALL")
                       out["session_file_present"]=True
-                      out["stage"]="copy_snapshot"
-                      with tempfile.TemporaryDirectory(prefix="session-check-",dir="/run") as temp:
-                          os.chmod(temp,0o700)
-                          target=Path(temp)/"probe.session"
-                          shutil.copyfile(src,target)
-                          os.chmod(target,0o600)
-                          out["stage"]="sqlite_readonly"
-                          with sqlite3.connect("file:"+str(target)+"?mode=ro&immutable=1",uri=True) as db:
-                              row=db.execute("SELECT dc_id,server_address,port,auth_key FROM sessions LIMIT 1").fetchone()
-                              out["dc_config_present"]=bool(row and row[0] and row[1] and row[2])
-                              out["stored_auth_key_present"]=bool(row and row[3] and len(row[3])>=128)
-                          out["stage"]="client_init"
-                          client=TelegramClient(str(Path(temp)/"probe"),api_id,api_hash,
-                                                connection_retries=1,request_retries=0,
-                                                timeout=12,flood_sleep_threshold=0)
-                          try:
-                              out["stage"]="network_connect"
-                              await asyncio.wait_for(client.connect(),timeout=25)
-                              out["connected"]=client.is_connected()
-                              if out["connected"]:
-                                  out["stage"]="check_authorization"
-                                  out["authorized"]=bool(await asyncio.wait_for(client.is_user_authorized(),timeout=20))
-                                  if out["authorized"]:
-                                      out["stage"]="get_identity"
-                                      me=await asyncio.wait_for(client.get_me(),timeout=20)
-                                      out["identity_verified"]=bool(me and not me.deleted and me.id)
-                                      expected=re.sub(r"\D","",str(account.get("phone") or ""))
-                                      found=re.sub(r"\D","",str(getattr(me,"phone","") or ""))
-                                      out["phone_matches_config"]= (expected==found) if expected else None
-                          finally:
-                              if client.is_connected():await client.disconnect()
+                      out["stage"]="sqlite_readonly"
+                      with sqlite3.connect("file:"+str(src)+"?mode=ro&immutable=1",uri=True) as db:
+                          row=db.execute("SELECT dc_id,server_address,port,auth_key FROM sessions LIMIT 1").fetchone()
+                          out["dc_config_present"]=bool(row and row[0] and row[1] and row[2])
+                          out["stored_auth_key_present"]=bool(row and row[3] and len(row[3])>=128)
+                          if not (out["dc_config_present"] and out["stored_auth_key_present"]):
+                              raise RuntimeError("SESSION_KEY_OR_DC_MISSING")
+                      from telethon.sessions import MemorySession
+                      from telethon.crypto import AuthKey
+                      memory_session=MemorySession()
+                      memory_session.set_dc(int(row[0]),str(row[1]),int(row[2]))
+                      memory_session.auth_key=AuthKey(data=row[3])
+                      out["stage"]="client_init"
+                      client=TelegramClient(memory_session,api_id,api_hash,
+                                            connection_retries=1,request_retries=0,
+                                            timeout=12,flood_sleep_threshold=0)
+                      try:
+                          out["stage"]="network_connect"
+                          await asyncio.wait_for(client.connect(),timeout=25)
+                          out["connected"]=client.is_connected()
+                          if out["connected"]:
+                              out["stage"]="check_authorization"
+                              out["authorized"]=bool(await asyncio.wait_for(client.is_user_authorized(),timeout=20))
+                              if out["authorized"]:
+                                  out["stage"]="get_identity"
+                                  me=await asyncio.wait_for(client.get_me(),timeout=20)
+                                  out["identity_verified"]=bool(me and not me.deleted and me.id)
+                                  expected=re.sub(r"\D","",str(account.get("phone") or ""))
+                                  found=re.sub(r"\D","",str(getattr(me,"phone","") or ""))
+                                  out["phone_matches_config"]=(expected==found) if expected else None
+                      finally:
+                          if client.is_connected():await client.disconnect()
                       out["stage"]="done"
                       out["status"]="CONNECTED_AND_AUTHORIZED" if out["authorized"] and out["identity_verified"] else "NOT_VERIFIED"
                   except Exception as exc:
