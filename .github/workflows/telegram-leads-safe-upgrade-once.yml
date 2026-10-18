@@ -66,11 +66,8 @@ jobs:
           Path('manifest.json').write_text(json.dumps(manifest,sort_keys=True),encoding='utf8')
           print('PINNED_MANIFEST=PASS')
           PY
-          (cd "$RUNNER_TEMP" && python3 build-manifest.py) || {
-            cd "$GITHUB_WORKSPACE"
-            python3 "$RUNNER_TEMP/build-manifest.py"
-            mv manifest.json "$RUNNER_TEMP/manifest.json"
-          }
+          python3 "$RUNNER_TEMP/build-manifest.py"
+          mv manifest.json "$RUNNER_TEMP/manifest.json"
           test -s "$RUNNER_TEMP/manifest.json"
           tar -C source -cf "$RUNNER_TEMP/leads-safe-upgrade.tar" \
             scripts/growth_store.py scripts/growth_tracker.py \
@@ -134,6 +131,9 @@ jobs:
               require('sha='+old_sha in prior or 'source_sha='+old_sha in prior,'UNEXPECTED_DEPLOYED_REVISION')
               require(private_dir(root/'scripts'),'CURRENT_SCRIPTS_UNSAFE')
               require({p.name for p in (root/'scripts').iterdir()}==expected_old,'CURRENT_SCRIPTS_DRIFT')
+              require((stage/'scripts').is_dir() and not (stage/'scripts').is_symlink(),
+                      'STAGE_SCRIPTS_UNSAFE')
+              os.chmod(stage/'scripts',0o700)
               require(private_dir(stage/'scripts'),'STAGE_SCRIPTS_UNSAFE')
               require({p.name for p in (stage/'scripts').iterdir()}==expected_new,'BUNDLE_NOT_ALLOWLISTED')
               manifest=json.loads((stage/'manifest.json').read_text(encoding='utf8'))
