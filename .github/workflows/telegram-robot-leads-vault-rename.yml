@@ -1,0 +1,118 @@
+name: Rename Telegram Robot Leads vault (one time)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/telegram-robot-leads-vault-rename.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  rename:
+    if: >-
+      github.event.pull_request.user.login == 'martaxi-boss' &&
+      github.event.pull_request.head.repo.full_name == 'martaxi-boss/VPS'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    steps:
+      - name: Validate the existing pinned VPS host identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          key="$RUNNER_TEMP/leads-rename-host"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$key"
+          chmod 600 "$key"
+          actual="$(ssh-keygen -lf "$key" -E sha256 | awk '{print $2}')"
+          test "$actual" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
+          echo 'SSH_HOST_IDENTITY=PASS'
+      - name: Rename only the same-project vault folder; preserve all file contents
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq >/dev/null
+          sudo apt-get install -y -qq sshpass >/dev/null
+          cat > "$RUNNER_TEMP/rename.py" <<'PY'
+          import json, os, stat, subprocess, sys
+          from pathlib import Path
+
+          root=Path('/root/project-secrets')
+          old=root/'TELEGRAM-IPTVPN'
+          new=root/'telegram-robot-leads'
+          other=root/'iptvpn_bot'
+
+          def stop(reason):
+              print(json.dumps({'status':'BLOCKED','reason':reason}))
+              sys.exit(2)
+          def protected_dir(p):
+              try: s=p.lstat()
+              except OSError: return False
+              return stat.S_ISDIR(s.st_mode) and s.st_uid==0 and not (stat.S_IMODE(s.st_mode)&0o077)
+          def inventory(p):
+              if not protected_dir(p): stop('VAULT_NOT_PROTECTED')
+              result={}
+              for x in p.iterdir():
+                  s=x.lstat()
+                  if not stat.S_ISREG(s.st_mode) or s.st_uid!=0 or stat.S_IMODE(s.st_mode)&0o077:
+                      stop('UNSAFE_ENTRY')
+                  result[x.name]=(s.st_dev,s.st_ino,s.st_size,s.st_mtime_ns,stat.S_IMODE(s.st_mode))
+              if len(result)!=5 or '.env' not in result or 'accounts.json' not in result:
+                  stop('FILES_DIFFER_FROM_PRIOR_PREFLIGHT')
+              if sum(n.endswith('.session') for n in result)!=2:
+                  stop('SESSION_COUNT_CHANGED')
+              return result
+
+          if os.geteuid()!=0 or not protected_dir(root) or not protected_dir(other):
+              stop('HOST_OR_OTHER_BOT_VAULT_UNSAFE')
+          other_id=other.stat().st_ino
+          if os.path.lexists(new):
+              if not os.path.lexists(old):
+                  inventory(new)
+                  print(json.dumps({'status':'ALREADY_RENAMED','new_path_verified':True}))
+                  sys.exit(0)
+              stop('BOTH_NAMES_PRESENT')
+          before=inventory(old)
+          old_id=old.stat().st_ino
+          try:
+              running=subprocess.run(['systemctl','is-active','project-secrets-offsite-backup.service'],
+                                     capture_output=True,timeout=5,check=False)
+          except (OSError,subprocess.TimeoutExpired):
+              stop('BACKUP_STATUS_UNKNOWN')
+          if running.stdout.strip()==b'active':
+              stop('BACKUP_ACTIVE')
+          for proc in Path('/proc').iterdir():
+              if not proc.name.isdecimal(): continue
+              try:
+                  cmd=(proc/'cmdline').read_bytes()
+                  cwd=os.readlink(proc/'cwd')
+              except OSError: continue
+              if b'TELEGRAM-IPTVPN' in cmd or cwd.startswith(str(old)):
+                  stop('LEGACY_PROCESS_REFERENCE')
+          try: os.rename(old,new)
+          except OSError: stop('MOVE_FAILED')
+          try:
+              if os.path.lexists(old) or new.stat().st_ino!=old_id:
+                  raise RuntimeError('NAME_OR_INODE_MISMATCH')
+              if inventory(new)!=before or other.stat().st_ino!=other_id:
+                  raise RuntimeError('FILE_OR_OTHER_VAULT_CHANGED')
+          except Exception:
+              if not os.path.lexists(old) and protected_dir(new) and new.stat().st_ino==old_id:
+                  os.rename(new,old)
+                  stop('POSTCHECK_FAILED_ROLLED_BACK')
+              stop('POSTCHECK_FAILED_RECONCILE_MANUALLY')
+          print(json.dumps({'status':'RENAMED_VERIFIED',
+                            'canonical_vault':'/root/project-secrets/telegram-robot-leads',
+                            'regular_files':5,'sessions':2,
+                            'same_files_inodes':True,'separate_iptvpn_bot_unchanged':True,
+                            'secrets_read':False,'services_changed':False}))
+          PY
+          sshpass -e ssh -T -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/leads-rename-host" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 ubuntu@146.59.145.3 \
+            'sudo -n python3 -' < "$RUNNER_TEMP/rename.py"
