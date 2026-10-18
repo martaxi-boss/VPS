@@ -1,0 +1,174 @@
+#!/usr/bin/env python3
+"""Strictly scoped, idempotent staging of Telegram Robot Leads; never starts Telegram."""
+import json
+import os
+from pathlib import Path
+import shutil
+import stat
+import subprocess
+import sys
+import tempfile
+
+REPO = "https://github.com/martaxi-boss/telegram-robot-leads.git"
+PINNED = "862ed408f6f3a87a3b109a0b36d246cc7a5f8056"
+DEST = Path("/opt/telegram-robot-leads")
+VAULT = Path("/root/project-secrets/telegram-robot-leads")
+STATE_DIR = Path("/var/lib/telegram-robot-leads")
+BACKUP = VAULT / ".env.backup.pre-leads-hygiene-20261019"
+LEGACY_PREFIXES = ("SCRAPE_", "MIN_ADDS_", "MAX_ADDS_")
+OLD_KEYS = {"TELEGRAM_INVITES_ENABLED", "TELEGRAM_ACTIVE_MODE"}
+
+class StageBlocked(RuntimeError):
+    pass
+
+def owned_private_directory(path):
+    try:
+        s = path.lstat()
+    except OSError:
+        raise StageBlocked("protected_directory_missing")
+    if not stat.S_ISDIR(s.st_mode) or s.st_uid != 0 or stat.S_IMODE(s.st_mode) & 0o077:
+        raise StageBlocked("protected_directory_unsafe")
+
+def private_file(path):
+    try:
+        s = path.lstat()
+    except OSError:
+        raise StageBlocked("protected_file_missing")
+    if not stat.S_ISREG(s.st_mode) or s.st_uid != 0 or stat.S_IMODE(s.st_mode) & 0o077:
+        raise StageBlocked("protected_file_unsafe")
+
+def stale_key(line):
+    if "=" not in line or line.lstrip().startswith("#"):
+        return False
+    key = line.split("=", 1)[0].strip().removeprefix("export ").strip()
+    return key.startswith(LEGACY_PREFIXES) or key in OLD_KEYS
+
+def validate_prerequisites():
+    owned_private_directory(VAULT)
+    env = VAULT / ".env"
+    private_file(env)
+    private_file(VAULT / "accounts.json")
+    sessions = list(VAULT.glob("*.session"))
+    if len(sessions) != 2:
+        raise StageBlocked("existing_two_sessions_not_found")
+    for path in sessions:
+        private_file(path)
+    if Path("/root/project-secrets/TELEGRAM-IPTVPN").exists() or Path("/root/TELEGRAM-IPTVPN").exists():
+        raise StageBlocked("legacy_runtime_collision")
+    if DEST.is_symlink() or STATE_DIR.is_symlink():
+        raise StageBlocked("runtime_symlink_invalid")
+    try:
+        ps = subprocess.run(["pm2", "jlist"], capture_output=True, text=True, timeout=12)
+        if ps.returncode != 0:
+            raise StageBlocked("pm2_unavailable")
+        items = json.loads(ps.stdout)
+        if not isinstance(items, list):
+            raise StageBlocked("pm2_invalid")
+        for entry in items:
+            if isinstance(entry, dict) and entry.get("name") in {
+                "TELEGRAM-IPTVPN", "telegram-robot-leads", "TELEGRAM-LEADS-METRICS"
+            }:
+                raise StageBlocked("leads_worker_already_exists")
+    except (OSError, ValueError, subprocess.TimeoutExpired) as e:
+        raise StageBlocked("pm2_unavailable") from e
+    return env
+
+def run(cmd, *, cwd=None, timeout=120):
+    subprocess.run(cmd, cwd=cwd, stdout=subprocess.DEVNULL,
+                   stderr=subprocess.DEVNULL, timeout=timeout, check=True)
+
+def stage_source():
+    if DEST.exists():
+        if not DEST.is_dir() or DEST.is_symlink():
+            raise StageBlocked("runtime_path_collision")
+        try:
+            actual = subprocess.check_output(["git", "-C", str(DEST), "rev-parse", "HEAD"],
+                                             text=True, timeout=8).strip()
+        except (subprocess.SubprocessError, OSError) as exc:
+            raise StageBlocked("existing_runtime_not_git") from exc
+        if actual != PINNED or not (DEST / ".venv/bin/python").is_file():
+            raise StageBlocked("existing_runtime_unverified")
+        return False
+    temp = Path(tempfile.mkdtemp(prefix=".telegram-leads-install-", dir="/opt"))
+    try:
+        run(["git", "clone", "--quiet", "--no-checkout", REPO, str(temp)], timeout=120)
+        run(["git", "-C", str(temp), "checkout", "--quiet", "--detach", PINNED])
+        head = subprocess.check_output(["git", "-C", str(temp), "rev-parse", "HEAD"],
+                                       text=True, timeout=8).strip()
+        if head != PINNED:
+            raise StageBlocked("source_commit_mismatch")
+        run(["python3", "-m", "venv", str(temp / ".venv")], timeout=60)
+        python = temp / ".venv/bin/python"
+        run([str(python), "-m", "pip", "install", "--disable-pip-version-check",
+             "--no-input", "-r", str(temp / "requirements.txt")], timeout=180)
+        run([str(python), "-m", "unittest", "discover", "-s", "tests",
+             "-p", "test_*.py"], cwd=temp, timeout=120)
+        os.rename(temp, DEST)
+        return True
+    finally:
+        if temp.exists():
+            shutil.rmtree(temp)
+
+def clean_old_env(env):
+    private_file(env)
+    if BACKUP.exists() or BACKUP.is_symlink():
+        private_file(BACKUP)
+    data = env.read_bytes()
+    if len(data) > 65536:
+        raise StageBlocked("env_too_large")
+    try:
+        original = data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise StageBlocked("env_encoding_invalid") from exc
+    lines = original.splitlines(keepends=True)
+    removed = sum(stale_key(line) for line in lines)
+    if removed == 0:
+        return 0
+    if not BACKUP.exists():
+        fd = os.open(BACKUP, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+            f.flush()
+            os.fsync(f.fileno())
+    elif BACKUP.read_bytes() != data:
+        # Fail rather than overwrite a prior backup or ambiguous user changes.
+        raise StageBlocked("backup_exists_and_env_changed")
+    content = "".join(line for line in lines if not stale_key(line))
+    fd, name = tempfile.mkstemp(prefix=".env.hygiene-", dir=str(VAULT))
+    try:
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(content)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(name, env)
+    finally:
+        if os.path.exists(name):
+            os.unlink(name)
+    private_file(env)
+    return removed
+
+def main():
+    if os.geteuid() != 0:
+        raise StageBlocked("root_required")
+    env = validate_prerequisites()
+    created = stage_source()
+    STATE_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
+    owned_private_directory(STATE_DIR)
+    removed = clean_old_env(env)
+    print(json.dumps({
+        "status": "STAGED_NOT_STARTED",
+        "pinned_source": PINNED,
+        "installed_new_checkout": created,
+        "deprecated_config_lines_removed": removed,
+        "backup_private": BACKUP.exists(),
+        "state_directory_private": True,
+        "telegram_actions": 0,
+        "other_projects_touched": False
+    }, sort_keys=True))
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as exc:
+        print(json.dumps({"status": "BLOCKED", "reason": type(exc).__name__}, sort_keys=True))
+        sys.exit(2)
