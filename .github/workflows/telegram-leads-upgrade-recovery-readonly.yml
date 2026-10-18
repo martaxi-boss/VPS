@@ -1,0 +1,91 @@
+name: Diagnose inert Telegram Leads stage drift (read-only)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/telegram-leads-upgrade-recovery-readonly.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    if: >-
+      github.event.pull_request.user.login == 'martaxi-boss' &&
+      github.event.pull_request.head.repo.full_name == 'martaxi-boss/VPS'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Confirm pinned SSH identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          known="$RUNNER_TEMP/known"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known"
+          chmod 600 "$known"
+          observed="$(ssh-keygen -lf "$known" -E sha256 | awk '{print $2}')"
+          test "$observed" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
+          echo 'SSH_HOST_VERIFIED=YES'
+      - name: Report only source drift and safe file counts
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq >/dev/null
+          sudo apt-get install -y -qq sshpass >/dev/null
+          cat > "$RUNNER_TEMP/inspect.py" <<'PY'
+          import json,os,stat
+          from pathlib import Path
+          root=Path('/opt/telegram-leads-optin')
+          scripts=root/'scripts'
+          allowed={'growth_store.py','growth_tracker.py','optin_join_links.py','lead_health.py'}
+          def directory(p):
+              try:s=p.lstat()
+              except OSError:return False
+              return stat.S_ISDIR(s.st_mode) and s.st_uid==0 and not (stat.S_IMODE(s.st_mode)&0o077)
+          def exists(p):return os.path.lexists(p)
+          files=[]
+          if directory(scripts):
+              for p in scripts.iterdir():
+                  s=p.lstat()
+                  files.append((p.name,stat.S_ISDIR(s.st_mode),stat.S_ISREG(s.st_mode),
+                                stat.S_IMODE(s.st_mode)&0o077==0))
+          provenance='unavailable'
+          p=root/'PROVENANCE.txt'
+          if p.is_file() and not p.is_symlink():
+              text=p.read_text(encoding='utf8',errors='replace')[:512]
+              if 'db7eb29e27e483d85e59e106fcf5ae7a0bab16cd' in text:
+                  provenance='old_verified'
+              elif '6b628ec6f4ff1cdf7279b80fe83321e89fe93cec' in text:
+                  provenance='new_verified'
+              else:provenance='unexpected'
+          report={
+              'audit':'SAFE_UPGRADE_RECONCILIATION',
+              'staging_root_protected':directory(root),
+              'scripts_root_protected':directory(scripts),
+              'expected_python_file_count':sum(name in allowed and regular and private
+                                                for name,_,regular,private in files),
+              'pycache_directory_present':any(name=='__pycache__' and is_dir for name,is_dir,_,_ in files),
+              'other_script_entries':sum(name not in allowed and name!='__pycache__'
+                                         for name,_,_,_ in files),
+              'new_canonical_status_present':exists(scripts/'telegram-robot-leads-status.sh'),
+              'provenance':provenance,
+              'old_backup_directories':sum(p.name.startswith('.old-scripts-')
+                                           for p in root.iterdir()) if directory(root) else 0,
+              'metrics_db_exists':exists(root/'growth_metrics.sqlite3'),
+              'metrics_lock_exists':exists(root/'growth_metrics.lock'),
+              'staging_temp_directories':sum(p.name.startswith('.telegram-leads-upgrade-')
+                                              for p in Path('/opt').iterdir()),
+              'existing_vault_still_protected':directory(Path('/root/project-secrets/telegram-robot-leads')),
+          }
+          print(json.dumps(report,sort_keys=True))
+          PY
+          sshpass -e ssh -T -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/known" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 ubuntu@146.59.145.3 \
+            'sudo -n python3 -' < "$RUNNER_TEMP/inspect.py"
