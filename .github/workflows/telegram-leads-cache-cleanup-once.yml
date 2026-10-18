@@ -1,0 +1,96 @@
+name: Clean verified Telegram Leads Python bytecode cache once
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/telegram-leads-cache-cleanup-once.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  clean:
+    if: >-
+      github.event.pull_request.user.login == 'martaxi-boss' &&
+      github.event.pull_request.head.repo.full_name == 'martaxi-boss/VPS'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Verify pinned SSH host identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          known="$RUNNER_TEMP/cache-clean-known"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known"
+          chmod 600 "$known"
+          actual="$(ssh-keygen -lf "$known" -E sha256 | awk '{print $2}')"
+          test "$actual" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
+          echo 'SSH_PIN=PASS'
+      - name: Remove only separately verified generated Python bytecode
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq >/dev/null
+          sudo apt-get install -y -qq sshpass >/dev/null
+          cat > "$RUNNER_TEMP/clean.py" <<'PY'
+          import json,os,stat,sys
+          from pathlib import Path
+
+          root=Path('/opt/telegram-leads-optin')
+          scripts=root/'scripts'
+          cache=scripts/'__pycache__'
+          safe_files={'growth_store.py','growth_tracker.py','lead_health.py','optin_join_links.py',
+                      'telegram-robot-leads-status.sh','telegram-iptvpn-status.sh'}
+          expected_revision='6b628ec6f4ff1cdf7279b80fe83321e89fe93cec'
+          def private_dir(path):
+              try:s=path.lstat()
+              except OSError:return False
+              return stat.S_ISDIR(s.st_mode) and s.st_uid==0 and not (stat.S_IMODE(s.st_mode)&0o077)
+          def fail(reason):
+              print(json.dumps({'status':'CLEANUP_BLOCKED','reason_code':reason}))
+              sys.exit(2)
+          if os.geteuid()!=0 or not private_dir(root) or not private_dir(scripts):
+              fail('CODE_ROOT_UNSAFE')
+          provenance=root/'PROVENANCE.txt'
+          if not provenance.is_file() or provenance.is_symlink():
+              fail('PROVENANCE_UNSAFE')
+          if ('sha='+expected_revision) not in provenance.read_text(encoding='utf8',errors='replace')[:1024]:
+              fail('REVISION_MISMATCH')
+          for p in Path('/proc').iterdir():
+              if not p.name.isdecimal():continue
+              try:cmd=(p/'cmdline').read_bytes()
+              except OSError:continue
+              if b'growth_tracker.py' in cmd:fail('METRICS_RUNNING')
+          actual={p.name for p in scripts.iterdir()}
+          if actual==safe_files:
+              print(json.dumps({'status':'ALREADY_CLEAN','stale_bytecode_removed':0,'source_revision_verified':True}))
+              sys.exit(0)
+          if actual!=safe_files|{'__pycache__'}:
+              fail('UNEXPECTED_ENTRIES')
+          if not cache.is_dir() or cache.is_symlink():
+              fail('CACHE_DIRECTORY_UNSAFE')
+          files=list(cache.iterdir())
+          if len(files)>20:fail('CACHE_ENTRY_LIMIT_EXCEEDED')
+          for file in files:
+              s=file.lstat()
+              if not stat.S_ISREG(s.st_mode) or s.st_uid!=0 or file.suffix!='.pyc' or file.is_symlink():
+                  fail('CACHE_ENTRY_UNSAFE')
+          for file in files:file.unlink()
+          cache.rmdir()
+          if {p.name for p in scripts.iterdir()}!=safe_files:
+              fail('POSTCLEAN_DRIFT')
+          print(json.dumps({'status':'BYTECODE_CACHE_CLEANED',
+                            'stale_bytecode_removed':len(files),
+                            'code_files_preserved':6,'source_revision_verified':True,
+                            'metrics_processes_changed':False,'vault_touched':False}))
+          PY
+          sshpass -e ssh -T -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/cache-clean-known" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 ubuntu@146.59.145.3 \
+            'sudo -n python3 -' < "$RUNNER_TEMP/clean.py"
