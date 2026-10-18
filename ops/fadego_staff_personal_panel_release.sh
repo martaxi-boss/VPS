@@ -139,13 +139,20 @@ const req=async (path,init={})=>fetch(origin+path,{
   const staff=await req("/login?acesso=equipa");
   assert.equal(staff.status,200);
   assert.match(await staff.text(),/name="email"/);
-  for(const path of ["/admin","/super-admin",
-      "/admin/fadego-piloto-interno/barbeiro"]){
+  for(const path of ["/admin","/super-admin"]){
     const result=await req(path);
     assert.ok([301,302,303,307,308].includes(result.status),"Unauthenticated portal redirect");
     assert.equal(new URL(result.headers.get("location"),origin).pathname,"/login");
     await result.body?.cancel();
   }
+  // Next.js's private tenant layout first routes anonymous deep links to
+  // /admin, whose verified authentication boundary routes to /login.
+  const anonymousBarber=await req("/admin/fadego-piloto-interno/barbeiro");
+  assert.ok([301,302,303,307,308].includes(anonymousBarber.status),
+    "Barber dashboard must reject unauthenticated direct access");
+  assert.equal(new URL(anonymousBarber.headers.get("location"),origin).pathname,
+    "/admin","Private barber page must use the verified /admin auth gateway");
+  await anonymousBarber.body?.cancel();
   for(const path of ["/b/example","/api/public/barbershops/example/availability",
       "/api/private/bookings/something/availability",
       "/api/integrations/gmail/callback"]){
