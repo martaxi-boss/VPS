@@ -1,0 +1,105 @@
+name: VPS SSH mobile login diagnostics read-only
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    branches: [main]
+    paths:
+      - ".github/workflows/vps-ssh-mobile-readonly.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    if: >-
+      github.event.pull_request.user.login == github.repository_owner &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'diagnose/ssh-mobile-login-20261018'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check known host and inspect current SSH authentication
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}" || exit 2
+          known="$RUNNER_TEMP/ssh-diagnostic-known-hosts"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known"
+          chmod 600 "$known"
+          observed="$(ssh-keygen -lf "$known" -E sha256 | awk '{print $2}')"
+          test "$observed" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o StrictHostKeyChecking=yes \
+            -o "UserKnownHostsFile=$known" -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no -o NumberOfPasswordPrompts=1 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=2 \
+            ubuntu@146.59.145.3 'sudo -n python3 -' <<'REMOTE_READONLY'
+          import datetime
+          import re
+          import subprocess
+          import json
+
+          def run(*args):
+              return subprocess.run(args, capture_output=True, text=True, timeout=25, check=False)
+
+          now=datetime.datetime.now(datetime.timezone.utc)
+          print("REMOTE_DIAGNOSTIC_UTC="+now.isoformat(timespec="seconds"))
+          for name in ("ssh","sshd"):
+              r=run("systemctl","is-active",name)
+              if r.returncode==0:
+                  print("SSH_SERVICE=ACTIVE")
+                  break
+          else:
+              print("SSH_SERVICE=NOT_ACTIVE")
+          r=run("passwd","-S","ubuntu")
+          parts=r.stdout.split()
+          print("UBUNTU_ACCOUNT_STATE="+(parts[1] if len(parts)>1 else "UNKNOWN"))
+          r=run("/usr/sbin/sshd","-T")
+          if r.returncode==0:
+              allowed={"passwordauthentication","usepam","maxauthtries","permitrootlogin"}
+              config=dict(line.split(" ",1) for line in r.stdout.splitlines() if line.split(" ",1)[0] in allowed and " " in line)
+              print("SSHD_PASSWORDAUTH="+config.get("passwordauthentication","unknown"))
+              print("SSHD_PAM="+config.get("usepam","unknown"))
+              print("SSHD_MAXAUTH="+config.get("maxauthtries","unknown"))
+              print("SSHD_ROOT_LOGIN="+config.get("permitrootlogin","unknown"))
+          else:
+              print("SSHD_CONFIG_STATUS=UNKNOWN")
+          bans=run("fail2ban-client","status","sshd")
+          if bans.returncode==0:
+              print("FAIL2BAN_SSHD=ACTIVE")
+              for k in ("Currently failed","Currently banned","Total banned"):
+                  m=re.search(r"(?m)^\s*[^\w]*"+re.escape(k)+r":\s*(\d+)",bans.stdout)
+                  print("FAIL2BAN_"+k.upper().replace(" ","_")+"="+(m.group(1) if m else "unknown"))
+          else:
+              print("FAIL2BAN_SSHD=UNAVAILABLE_OR_INACTIVE")
+          r=run("journalctl","-u","ssh","-u","sshd","--since","3 hours ago","--output","json","--no-pager")
+          if r.returncode!=0:
+              print("SSHD_JOURNAL=UNAVAILABLE")
+          else:
+              events=[]
+              for line in r.stdout.splitlines():
+                  try:
+                      e=json.loads(line)
+                      when=int(e.get("__REALTIME_TIMESTAMP","0")) / 1000000
+                      msg=e.get("MESSAGE","")
+                      events.append((when,msg))
+                  except (ValueError,TypeError):
+                      continue
+              for minutes in (15,60,180):
+                  recent=[m for ts,m in events if ts>=now.timestamp()-60*minutes]
+                  success=sum("Accepted password for ubuntu" in m for m in recent)
+                  failed=sum("Failed password for ubuntu" in m for m in recent)
+                  invalid=sum("Invalid user" in m for m in recent)
+                  disconnect=sum("maximum authentication attempts" in m.lower() for m in recent)
+                  print(f"SSH_LOG_{minutes}MIN_UBUNTU_SUCCESS={success}")
+                  print(f"SSH_LOG_{minutes}MIN_UBUNTU_FAILED={failed}")
+                  print(f"SSH_LOG_{minutes}MIN_INVALID_USER={invalid}")
+                  print(f"SSH_LOG_{minutes}MIN_MAXAUTH_DISCONNECT={disconnect}")
+          print("SSH_CREDENTIALS=NOT_DISPLAYED")
+          print("SSH_CONFIGURATION=UNCHANGED")
+          REMOTE_READONLY
