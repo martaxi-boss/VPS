@@ -1,0 +1,164 @@
+name: Telegram Robot Leads runtime readiness (read only)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/telegram-leads-runtime-readiness.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  readiness:
+    if: >-
+      github.event.pull_request.user.login == 'martaxi-boss' &&
+      github.event.pull_request.head.repo.full_name == 'martaxi-boss/VPS'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    steps:
+      - name: Verify existing pinned VPS host SSH key
+        shell: bash
+        run: |
+          set -euo pipefail
+          known="$RUNNER_TEMP/leads-check-known-host"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known"
+          chmod 600 "$known"
+          got="$(ssh-keygen -lf "$known" -E sha256 | awk '{print $2}')"
+          test "$got" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
+          echo 'VPS_IDENTITY=VERIFIED'
+      - name: Report only sanitized vault, service and read-only Bot API status
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq >/dev/null
+          sudo apt-get install -y -qq sshpass >/dev/null
+          cat > "$RUNNER_TEMP/check.py" <<'PY'
+          import json, os, re, subprocess, stat, time, urllib.request
+          from pathlib import Path
+
+          root=Path('/root/project-secrets')
+          vault=root/'telegram-robot-leads'
+          other=root/'iptvpn_bot'
+          deploy=Path('/opt/telegram-leads-optin')
+          def private_file(p):
+              try: s=p.lstat()
+              except OSError: return False
+              return (stat.S_ISREG(s.st_mode) and s.st_uid==0
+                      and (stat.S_IMODE(s.st_mode)&0o077)==0)
+          def private_dir(p):
+              try: s=p.lstat()
+              except OSError: return False
+              return (stat.S_ISDIR(s.st_mode) and s.st_uid==0
+                      and (stat.S_IMODE(s.st_mode)&0o077)==0)
+          def envkeys(p):
+              data={}
+              if not private_file(p):return data
+              try:
+                  with p.open(encoding='utf8',errors='replace') as file:
+                      for line in file:
+                          k,sep,value=line.partition('=')
+                          k=k.strip().removeprefix('export ').strip()
+                          if sep and k in {'TARGET_GROUP','TELEGRAM_GROWTH_BOT_TOKEN',
+                                          'TELEGRAM_GROWTH_BOT_DEDICATED',
+                                          'TELEGRAM_BOT_TOKEN','BOT_TOKEN','IPTVPN_BOT_TOKEN'}:
+                              data[k]=value.strip().strip('"').strip("'")
+              except OSError:return {}
+              return data
+          leads=envkeys(vault/'.env')
+          old_exists=os.path.lexists(root/'TELEGRAM-IPTVPN')
+          processes={'legacy_leads':0,'metrics':0,'other_bot':0}
+          for p in Path('/proc').iterdir():
+              if not p.name.isdecimal():continue
+              try:
+                  cmd=(p/'cmdline').read_bytes().replace(bytes([0]),b' ').decode('utf8','replace').lower()
+                  cwd=os.readlink(p/'cwd').lower()
+              except OSError:continue
+              if 'growth_tracker.py' in cmd:processes['metrics']+=1
+              if 'main.py' in cmd and ('telegram-iptvpn' in cwd or 'telegram-robot-leads' in cwd):
+                  processes['legacy_leads']+=1
+              if 'main.py' in cmd and 'iptvpn_bot' in cwd:
+                  processes['other_bot']+=1
+          def service(property_name,unit):
+              try:
+                  cp=subprocess.run(['systemctl',property_name,unit],capture_output=True,
+                                    timeout=5,check=False)
+                  value=cp.stdout.decode('utf8','replace').strip()
+                  return value if value in {'active','inactive','failed','enabled','disabled','static','masked'} else 'unknown'
+              except (OSError,subprocess.TimeoutExpired):return 'unknown'
+          backup_record=Path('/var/lib/lowcost-europa/project-secrets-backup.last-success')
+          last_record_recent=False
+          if backup_record.is_file() and not backup_record.is_symlink():
+              last_record_recent=0<=time.time()-backup_record.stat().st_mtime<=172800
+
+          existing_bot={'vault_token_shape_valid':False,'getme_ok':False,'target_is_group':False,
+                        'bot_admin_in_target':False,'can_invite_users':False,
+                        'webhook_present':None,'api_error_class':'none'}
+          botenv=envkeys(other/'secrets.env')
+          token=next((botenv.get(k,'') for k in ('TELEGRAM_BOT_TOKEN','BOT_TOKEN','IPTVPN_BOT_TOKEN') if botenv.get(k)), '')
+          if not token and private_file(other/'secrets.env'):
+              try:
+                  with (other/'secrets.env').open(encoding='utf8',errors='replace') as f:
+                      for line in f:
+                          k,sep,v=line.partition('=')
+                          if sep and 'BOT' in k.upper() and 'TOKEN' in k.upper():
+                              token=v.strip().strip('"').strip("'")
+                              break
+              except OSError:pass
+          existing_bot['vault_token_shape_valid']=bool(re.fullmatch(r'[0-9]{6,15}:[A-Za-z0-9_-]{25,}',token))
+          def call(method,query=None):
+              from urllib.parse import urlencode
+              url='https://api.telegram.org/bot'+token+'/'+method
+              if query:url+='?'+urlencode(query)
+              try:
+                  with urllib.request.urlopen(url,timeout=7) as response:
+                      data=json.load(response)
+                  return data.get('result') if data.get('ok') is True else None
+              except Exception:
+                  existing_bot['api_error_class']='call_failed'
+                  return None
+          if existing_bot['vault_token_shape_valid']:
+              me=call('getMe')
+              existing_bot['getme_ok']=bool(isinstance(me,dict) and me.get('id'))
+              if existing_bot['getme_ok']:
+                  webhook=call('getWebhookInfo')
+                  if isinstance(webhook,dict):
+                      existing_bot['webhook_present']=bool(webhook.get('url'))
+                  target=leads.get('TARGET_GROUP','')
+                  if re.fullmatch(r'@[A-Za-z0-9_]{3,32}|-?[0-9]{5,20}',target):
+                      chat=call('getChat',{'chat_id':target})
+                      if isinstance(chat,dict) and chat.get('type') in ('group','supergroup'):
+                          existing_bot['target_is_group']=True
+                          membership=call('getChatMember',{'chat_id':target,'user_id':str(me['id'])})
+                          if isinstance(membership,dict):
+                              existing_bot['bot_admin_in_target']=membership.get('status') in ('administrator','creator')
+                              existing_bot['can_invite_users']=bool(membership.get('can_invite_users'))
+          existing_bot.pop('api_error_class',None)
+          outcome={'probe':'TELEGRAM_ROBOT_LEADS_READINESS_READONLY',
+                   'canonical_vault_ok':private_dir(vault),'old_vault_absent':not old_exists,
+                   'existing_vault_env_private':private_file(vault/'.env'),
+                   'existing_vault_accounts_private':private_file(vault/'accounts.json'),
+                   'dedicated_growth_token_configured':bool(leads.get('TELEGRAM_GROWTH_BOT_TOKEN')),
+                   'dedicated_growth_assertion_key_present':'TELEGRAM_GROWTH_BOT_DEDICATED' in leads,
+                   'target_group_key_configured':bool(leads.get('TARGET_GROUP')),
+                   'staged_scripts':{k:private_file(deploy/'scripts'/k) for k in
+                     ('growth_tracker.py','growth_store.py','optin_join_links.py','lead_health.py')},
+                   'source_provenance_file_private':private_file(deploy/'PROVENANCE.txt'),
+                   'runtime_process_counts':processes,
+                   'backup_timer':service('is-active','project-secrets-offsite-backup.timer'),
+                   'backup_timer_enabled':service('is-enabled','project-secrets-offsite-backup.timer'),
+                   'backup_recent_record_present':last_record_recent,
+                   'existing_iptvpn_bot':existing_bot,
+                   'no_processes_modified':True,
+                   'no_telegram_updates_consumed':True}
+          print(json.dumps(outcome,sort_keys=True))
+          PY
+          sshpass -e ssh -T -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/leads-check-known-host" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 ubuntu@146.59.145.3 \
+            'sudo -n python3 -' < "$RUNNER_TEMP/check.py"
