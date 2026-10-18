@@ -97,7 +97,7 @@ def finalize_source_checkout(path):
         if not marker.exists():
             fd = os.open(marker, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600)
             with os.fdopen(fd, "w", encoding="ascii") as file:
-                file.write(PINNED + "\\n")
+                file.write(PINNED + "\n")
                 file.flush()
                 os.fsync(file.fileno())
         if marker.read_text(encoding="ascii").strip() != PINNED:
