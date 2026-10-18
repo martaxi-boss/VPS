@@ -1,0 +1,107 @@
+name: Telegram Leads Vault Presence (read-only)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/telegram-leads-vault-presence.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    if: >-
+      github.event.pull_request.user.login == 'martaxi-boss' &&
+      github.event.pull_request.head.repo.full_name == 'martaxi-boss/VPS'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    steps:
+      - name: Verify host SSH identity before use of a credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          known="$RUNNER_TEMP/vault-host-key"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known" ||
+            { echo "SSH_HOST_NOT_REACHABLE"; exit 2; }
+          chmod 600 "$known"
+          fingerprint="$(ssh-keygen -lf "$known" -E sha256 | awk '{print $2}')"
+          test "$fingerprint" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc" ||
+            { echo "SSH_HOST_IDENTITY_MISMATCH"; exit 2; }
+          echo "SSH_PIN_MATCH=YES"
+
+      - name: Read only selected paths and metadata (never secret values)
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS" || { echo "SSH_SECRET_MISSING"; exit 2; }
+          sudo apt-get update -qq >/dev/null
+          sudo apt-get install -y -qq sshpass >/dev/null
+          cat > "$RUNNER_TEMP/probe.py" <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import socket
+          import stat
+
+          def check(path):
+              try:
+                  s = Path(path).lstat()
+              except (OSError, ValueError):
+                  return {"present": False}
+              return {
+                  "present": True,
+                  "kind": "directory" if stat.S_ISDIR(s.st_mode) else "regular_file" if stat.S_ISREG(s.st_mode) else "other",
+                  "owner_only": (stat.S_IMODE(s.st_mode) & 0o077) == 0,
+                  "not_symlink": not stat.S_ISLNK(s.st_mode),
+              }
+
+          root = "/root/project-secrets"
+          # Explicit allowlist only. Never enumerate files or read content.
+          out = {
+              "audit": "TELEGRAM_LEADS_VAULT_PRESENCE_ONLY",
+              "host": socket.gethostname(),
+              "executing_as_root": os.geteuid() == 0,
+              "vault_root": check(root),
+              "offsite_backup_service_unit": check("/etc/systemd/system/project-secrets-offsite-backup.service")["present"],
+              "offsite_backup_timer_unit": check("/etc/systemd/system/project-secrets-offsite-backup.timer")["present"],
+              "leads_vault_names": {
+                  "telegram-robot-leads": check(root + "/telegram-robot-leads")["present"],
+                  "telegram-leads": check(root + "/telegram-leads")["present"],
+                  "TELEGRAM-IPTVPN": check(root + "/TELEGRAM-IPTVPN")["present"],
+              },
+              "iptvpn_bot_separate_project_vault": {
+                  "directory": check(root + "/iptvpn_bot")["present"],
+                  "secrets_file": check(root + "/iptvpn_bot/secrets.env")["present"],
+              },
+              "leads_legacy_checkout": {
+                  "dir": check("/root/TELEGRAM-IPTVPN")["present"],
+                  "dotenv": check("/root/TELEGRAM-IPTVPN/.env")["present"],
+                  "sessions_metadata_only": 0,
+              },
+              "other_leads_checkout": {
+                  "ubuntu": check("/home/ubuntu/telegram-robot-leads")["present"],
+                  "root": check("/root/telegram-robot-leads")["present"],
+                  "srv": check("/srv/telegram-robot-leads")["present"],
+              },
+          }
+          # Count session files by suffix only. No names, phone numbers, or content.
+          p = Path("/root/TELEGRAM-IPTVPN")
+          if p.is_dir() and not p.is_symlink():
+              try:
+                  out["leads_legacy_checkout"]["sessions_metadata_only"] = sum(
+                      1 for f in p.iterdir() if f.is_file() and f.suffix == ".session"
+                  )
+              except OSError:
+                  out["leads_legacy_checkout"]["sessions_metadata_only"] = None
+
+          print(json.dumps(out, sort_keys=True))
+          PY
+          sshpass -e ssh -T -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/vault-host-key" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 ubuntu@146.59.145.3 \
+            'sudo -n python3 -' < "$RUNNER_TEMP/probe.py"
