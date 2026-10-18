@@ -77,21 +77,50 @@ def run(cmd, *, cwd=None, timeout=120):
     subprocess.run(cmd, cwd=cwd, stdout=subprocess.DEVNULL,
                    stderr=subprocess.DEVNULL, timeout=timeout, check=True)
 
+def finalize_source_checkout(path):
+    """Record exact source provenance and discard all git history from live checkout."""
+    marker = path / ".verified-source-commit"
+    gitdir = path / ".git"
+    if marker.is_symlink() or gitdir.is_symlink():
+        raise StageBlocked("provenance_symlink_invalid")
+    if gitdir.exists():
+        if not gitdir.is_dir():
+            raise StageBlocked("source_git_metadata_invalid")
+        try:
+            actual = subprocess.check_output(
+                ["git", "-C", str(path), "rev-parse", "HEAD"],
+                text=True, timeout=8, stderr=subprocess.DEVNULL).strip()
+        except (subprocess.SubprocessError, OSError) as exc:
+            raise StageBlocked("source_commit_unverifiable") from exc
+        if actual != PINNED:
+            raise StageBlocked("source_commit_mismatch")
+        if not marker.exists():
+            fd = os.open(marker, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600)
+            with os.fdopen(fd, "w", encoding="ascii") as file:
+                file.write(PINNED + "\\n")
+                file.flush()
+                os.fsync(file.fileno())
+        if marker.read_text(encoding="ascii").strip() != PINNED:
+            raise StageBlocked("provenance_marker_mismatch")
+        shutil.rmtree(gitdir)
+        return True
+    if not marker.is_file() or marker.read_text(encoding="ascii").strip() != PINNED:
+        raise StageBlocked("source_provenance_missing")
+    if marker.stat().st_uid != os.geteuid() or stat.S_IMODE(marker.stat().st_mode) & 0o077:
+        raise StageBlocked("source_provenance_permissions_invalid")
+    return False
+
 def stage_source():
     if DEST.exists():
         if not DEST.is_dir() or DEST.is_symlink():
             raise StageBlocked("runtime_path_collision")
-        try:
-            actual = subprocess.check_output(["git", "-C", str(DEST), "rev-parse", "HEAD"],
-                                             text=True, timeout=8).strip()
-        except (subprocess.SubprocessError, OSError) as exc:
-            raise StageBlocked("existing_runtime_not_git") from exc
-        if actual != PINNED or not (DEST / ".venv/bin/python").is_file():
+        if not (DEST / ".venv/bin/python").is_file():
             raise StageBlocked("existing_runtime_unverified")
+        finalize_source_checkout(DEST)
         return False
     temp = Path(tempfile.mkdtemp(prefix=".telegram-leads-install-", dir="/opt"))
     try:
-        run(["git", "clone", "--quiet", "--no-checkout", REPO, str(temp)], timeout=120)
+        run(["git", "clone", "--quiet", "--depth", "1", "--branch", "main", "--no-checkout", REPO, str(temp)], timeout=120)
         run(["git", "-C", str(temp), "checkout", "--quiet", "--detach", PINNED])
         head = subprocess.check_output(["git", "-C", str(temp), "rev-parse", "HEAD"],
                                        text=True, timeout=8).strip()
@@ -103,6 +132,7 @@ def stage_source():
              "--no-input", "-r", str(temp / "requirements.txt")], timeout=180)
         run([str(python), "-m", "unittest", "discover", "-s", "tests",
              "-p", "test_*.py"], cwd=temp, timeout=120)
+        finalize_source_checkout(temp)
         os.rename(temp, DEST)
         return True
     finally:
@@ -148,6 +178,22 @@ def clean_old_env(env):
     private_file(env)
     return removed
 
+def offline_session_source():
+    """No Telegram network connection or exposure of API values."""
+    try:
+        report = subprocess.run(
+            [str(DEST / ".venv/bin/python"), str(DEST / "scripts/telethon_sessions.py"),
+             "--vault", str(VAULT)],
+            cwd=DEST, capture_output=True, text=True, timeout=25, check=False)
+        if report.returncode != 0:
+            return "NOT_VERIFIED"
+        value = json.loads(report.stdout).get("api_source")
+        if value in ("private_app_credentials", "published_android_config"):
+            return value
+        return "NOT_VERIFIED"
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return "NOT_VERIFIED"
+
 def main():
     if os.geteuid() != 0:
         raise StageBlocked("root_required")
@@ -163,6 +209,9 @@ def main():
         "deprecated_config_lines_removed": removed,
         "backup_private": BACKUP.exists(),
         "state_directory_private": True,
+        "source_provenance_recorded": (DEST / ".verified-source-commit").is_file(),
+        "git_history_present_in_live_checkout": (DEST / ".git").exists(),
+        "api_source": offline_session_source(),
         "telegram_actions": 0,
         "other_projects_touched": False
     }, sort_keys=True))
