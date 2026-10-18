@@ -1,0 +1,111 @@
+name: Stage Telegram Robot Leads (pinned, without activation)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'ops/telegram_leads_stage_20261019.py'
+      - 'ops/test_telegram_leads_stage_20261019.py'
+      - '.github/workflows/telegram-leads-vps-stage-20261019.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'ops/telegram_leads_stage_20261019.py'
+      - 'ops/test_telegram_leads_stage_20261019.py'
+      - '.github/workflows/telegram-leads-vps-stage-20261019.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: telegram-leads-stage-20261019
+  cancel-in-progress: false
+
+jobs:
+  offline-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Verify safe staging script before any production change
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ops/telegram_leads_stage_20261019.py ops/test_telegram_leads_stage_20261019.py
+          PYTHONPATH=ops python3 -m unittest -v ops/test_telegram_leads_stage_20261019.py
+
+  stage:
+    if: github.event_name == 'push' && github.repository == 'martaxi-boss/VPS'
+    needs: offline-check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Bound production operation to reviewed change set
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/main
+          python3 - <<'PY'
+          import os, subprocess
+          previous=os.environ["GITHUB_EVENT_BEFORE"]
+          current=os.environ["GITHUB_SHA"]
+          changed=set(subprocess.check_output(["git","diff","--name-only",previous,current],text=True).splitlines())
+          allowed={
+              "ops/telegram_leads_vps_readiness_20261019.py",
+              ".github/workflows/telegram-leads-vps-readiness-20261019.yml",
+              "ops/telegram_leads_stage_20261019.py",
+              "ops/test_telegram_leads_stage_20261019.py",
+              ".github/workflows/telegram-leads-vps-stage-20261019.yml",
+          }
+          assert changed and changed <= allowed, changed-allowed
+          print("LEADS_STAGING_CHANGE_SCOPE=PASS")
+          PY
+        env:
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+      - name: Verify pinned SSH host key
+        shell: bash
+        run: |
+          set -euo pipefail
+          known="$RUNNER_TEMP/leads-stage-known-hosts"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known"
+          chmod 600 "$known"
+          observed="$(ssh-keygen -lf "$known" -E sha256 | awk '{print $2}')"
+          test "$observed" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          ssh-keygen -F 146.59.145.3 -f "$known" >/dev/null
+          echo SSH_HOST_KEY=VERIFIED
+      - name: Stage new runtime and archive legacy config via existing SSH credentials
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T \
+            -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/leads-stage-known-hosts" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 -o ServerAliveInterval=10 \
+            ubuntu@146.59.145.3 'sudo -n python3 -' \
+            < ops/telegram_leads_stage_20261019.py \
+            > "$RUNNER_TEMP/telegram-leads-stage.json" 2>/dev/null
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, os
+          path=Path(os.environ["RUNNER_TEMP"])/"telegram-leads-stage.json"
+          data=json.loads(path.read_text())
+          assert data["status"]=="STAGED_NOT_STARTED",data.get("reason","unknown")
+          assert data["pinned_source"]=="862ed408f6f3a87a3b109a0b36d246cc7a5f8056"
+          assert data["telegram_actions"]==0
+          assert data["other_projects_touched"] is False
+          print("TELEGRAM_LEADS_STAGING_RESULT="+json.dumps(data,sort_keys=True))
+          PY
