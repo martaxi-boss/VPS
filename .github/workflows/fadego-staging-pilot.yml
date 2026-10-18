@@ -1,0 +1,122 @@
+name: FADEGO internal synthetic pilot in staging
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main]
+    paths:
+      - ".github/workflows/fadego-staging-pilot.yml"
+      - "ops/fadego_staging_pilot_seed.sh"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fadego-staging-pilot-one-time
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: >-
+      github.event.pull_request.user.login == github.repository_owner &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'ops/fadego-staging-pilot-20261018'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Checkout exact pilot operation
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Validate isolated staging bounds and script
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n ops/fadego_staging_pilot_seed.sh
+          grep -Fq 'SHA=037fc4c5794bdde1177d6b086cf87710b4335483' ops/fadego_staging_pilot_seed.sh
+          grep -Fq 'FADEGO_STAGING_PILOT_OPERATOR_APPROVED' ops/fadego_staging_pilot_seed.sh
+          grep -Fq 'FADEGO_STAGING_PILOT_SEED_APPROVED=1' ops/fadego_staging_pilot_seed.sh
+          grep -Fq 'scripts/staging-pilot-seed.ts' ops/fadego_staging_pilot_seed.sh
+          grep -Fq 'FADEGO_PILOT_STATUS=SUSPENDED' ops/fadego_staging_pilot_seed.sh
+          grep -Fq 'FADEGO_PILOT_OWNER_ACCESS=ACTIVE' ops/fadego_staging_pilot_seed.sh
+          grep -Fq 'FADEGO_PILOT_STAGING=READY_FOR_OWNER_VISUAL_TEST' ops/fadego_staging_pilot_seed.sh
+          grep -Fxq 'grep -Fxq '"'"'BOOKING_EMAIL_PROVIDER=disabled'"'"' "$SEND_CLOSED"' ops/fadego_staging_pilot_seed.sh
+          if grep -Eq '(systemctl restart|nginx -s|rm -rf|sudo apt|sed -i|git push)' ops/fadego_staging_pilot_seed.sh; then
+            echo 'FADEGO_PILOT_SCOPE_REFUSED'; exit 2
+          fi
+          echo 'FADEGO_PILOT_STATIC_SCOPE=PASS'
+
+  seed:
+    needs: [validate]
+    if: >-
+      needs.validate.result == 'success' &&
+      github.event.action == 'ready_for_review' &&
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.user.login == github.repository_owner &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'ops/fadego-staging-pilot-20261018'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout immutable seed control
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Verify approved PR, FADEGO SHA, CI and last staging release
+        shell: bash
+        env:
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$HEAD"
+          bash -n ops/fadego_staging_pilot_seed.sh
+          pr="$(curl -fsS --max-time 25 "https://api.github.com/repos/martaxi-boss/VPS/pulls/$PR_NUMBER")"
+          jq -e --arg sha "$HEAD" \
+            '.state=="open" and .draft==false and .head.sha==$sha and
+             .head.ref=="ops/fadego-staging-pilot-20261018" and
+             .head.repo.full_name=="martaxi-boss/VPS" and .base.ref=="main" and
+             .user.login=="martaxi-boss"' <<<"$pr" >/dev/null
+          app="$(curl -fsS --max-time 25 https://api.github.com/repos/martaxi-boss/fadego/pulls/15)"
+          jq -e --arg sha '037fc4c5794bdde1177d6b086cf87710b4335483' \
+            '.state=="open" and .head.sha==$sha and .base.ref=="main"' <<<"$app" >/dev/null
+          ci="$(curl -fsS --max-time 25 https://api.github.com/repos/martaxi-boss/fadego/actions/runs/39087294046)"
+          jq -e '.status=="completed" and .conclusion=="success" and .head_sha=="037fc4c5794bdde1177d6b086cf87710b4335483"' <<<"$ci" >/dev/null
+          rollout="$(curl -fsS --max-time 25 https://api.github.com/repos/martaxi-boss/VPS/actions/runs/39087825935)"
+          jq -e '.status=="completed" and .conclusion=="success" and .head_sha=="120e815ebf50f7581973858bcc9a0d41e850546a"' <<<"$rollout" >/dev/null
+          echo 'FADEGO_PILOT_IMMUTABLE_RELEASE_AND_CI=PASS'
+      - name: Seed one synthetic SUSPENDED tenant via pinned SSH on current FADEGO VPS
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}" || exit 2
+          known="$RUNNER_TEMP/fadego-pilot-known-hosts"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known"
+          chmod 600 "$known"
+          observed="$(ssh-keygen -lf "$known" -E sha256 | awk '{print $2}')"
+          test "$observed" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          timeout --signal=TERM --kill-after=15s 10m \
+            sshpass -e ssh -T -o StrictHostKeyChecking=yes \
+            -o "UserKnownHostsFile=$known" -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o ConnectTimeout=20 -o ServerAliveInterval=20 -o ServerAliveCountMax=3 \
+            ubuntu@146.59.145.3 \
+            'sudo -n env FADEGO_STAGING_PILOT_OPERATOR_APPROVED=1 bash -s' \
+            < ops/fadego_staging_pilot_seed.sh
+      - name: Confirm portal login remains available and emails closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          login="$(curl -fsS --max-time 25 https://fadego.duckdns.org/login)"
+          grep -Fq 'O meu Portal FADEGO' <<<"$login"
+          if grep -Fq 'name="email"' <<<"$login"; then
+            echo 'FADEGO_PILOT_UNEXPECTED_OWNER_LOGIN_CHANGE'; exit 2
+          fi
+          echo 'FADEGO_PILOT_OWNER_LOGIN=UNCHANGED'
