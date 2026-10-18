@@ -102,7 +102,7 @@ def account_and_credential_file_inventory():
             accounts["readable_privately"] = True
             accounts["record_count"] = len(config)
             accounts["phone_fields_populated"] = sum(
-                bool(re.fullmatch(r"\\+?[0-9\\s()\\-]{7,25}", str(entry.get("phone") or "")))
+                7 <= len("".join(ch for ch in str(entry.get("phone") or "") if ch.isdigit())) <= 16
                 for entry in config if isinstance(entry, dict)
             )
             accounts["session_files_paired"] = sum(
