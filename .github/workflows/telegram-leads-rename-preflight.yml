@@ -1,0 +1,144 @@
+name: Preflight Telegram Robot Leads vault rename (read-only)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/telegram-leads-rename-preflight.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    if: >-
+      github.event.pull_request.user.login == 'martaxi-boss' &&
+      github.event.pull_request.head.repo.full_name == 'martaxi-boss/VPS'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Verify Owner-pinned SSH host identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          known="$RUNNER_TEMP/vault-rename-known"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known" || exit 2
+          chmod 600 "$known"
+          observed="$(ssh-keygen -lf "$known" -E sha256 | awk '{print $2}')"
+          test "$observed" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc" || exit 2
+          echo 'HOST_PIN=PASS'
+      - name: Inspect precise vault references and file safety without secret disclosure
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS" || exit 2
+          sudo apt-get update -qq >/dev/null
+          sudo apt-get install -y -qq sshpass >/dev/null
+          cat > "$RUNNER_TEMP/inspect.py" <<'PY'
+          import json, os, stat, subprocess
+          from pathlib import Path
+
+          parent=Path('/root/project-secrets')
+          old=parent/'TELEGRAM-IPTVPN'
+          new=parent/'telegram-robot-leads'
+
+          def meta(p):
+              try: s=p.lstat()
+              except OSError: return {'present':False}
+              return {'present':True,'is_directory':stat.S_ISDIR(s.st_mode),
+                      'is_regular_file':stat.S_ISREG(s.st_mode),
+                      'is_symlink':stat.S_ISLNK(s.st_mode),
+                      'owner_only':(stat.S_IMODE(s.st_mode)&0o077)==0}
+
+          ref_counts={'backup_unit_refs':0,'other_systemd_refs':0,'cron_refs':0,'backup_script_refs':0}
+          needle=b'TELEGRAM-IPTVPN'
+          paths=[]
+          systemd=Path('/etc/systemd/system')
+          if systemd.is_dir():
+              try:
+                  paths.extend(f for f in systemd.rglob('*') if f.is_file()
+                               and not f.is_symlink() and f.suffix in {'.service','.timer','.conf','.socket'})
+              except OSError: pass
+          cron=Path('/etc/cron.d')
+          if cron.is_dir():
+              try: paths.extend(p for p in cron.iterdir() if p.is_file() and not p.is_symlink())
+              except OSError: pass
+          paths.append(parent/'restore-project-secrets.sh')
+          for p in paths:
+              try:
+                  if p.stat().st_size > 500_000 or needle not in p.read_bytes():continue
+              except (OSError,PermissionError):continue
+              if p == parent/'restore-project-secrets.sh':
+                  ref_counts['backup_script_refs']+=1
+              elif p.name.startswith('project-secrets-offsite-backup'):
+                  ref_counts['backup_unit_refs']+=1
+              elif str(p).startswith(str(systemd)):
+                  ref_counts['other_systemd_refs']+=1
+              else:
+                  ref_counts['cron_refs']+=1
+
+          service_active=False
+          try:
+              cp=subprocess.run(['systemctl','is-active','project-secrets-offsite-backup.service'],
+                                stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,timeout=5)
+              service_active=cp.stdout.strip()==b'active'
+          except (OSError,subprocess.TimeoutExpired): pass
+
+          process_refs=0
+          open_fds=0
+          for proc in Path('/proc').iterdir():
+              if not proc.name.isdecimal(): continue
+              try:
+                  cmd=(proc/'cmdline').read_bytes()
+                  cwd=os.readlink(proc/'cwd')
+                  if needle in cmd or cwd.startswith(str(old)):
+                      process_refs+=1
+                  fddir=proc/'fd'
+                  for fd in fddir.iterdir():
+                      try:
+                          target=os.readlink(fd)
+                      except OSError:continue
+                      if target.startswith(str(old)+'/'):
+                          open_fds+=1
+              except (OSError,PermissionError):continue
+
+          regular=0; owner_only=0; sessions=0; symlinks=0
+          if old.is_dir() and not old.is_symlink():
+              for child in old.iterdir():
+                  m=meta(child)
+                  if m.get('is_regular_file'):
+                      regular+=1
+                      owner_only+=int(m.get('owner_only',False))
+                      sessions+=int(child.suffix=='.session')
+                  symlinks+=int(m.get('is_symlink',False))
+
+          results={
+              'audit':'TELEGRAM_ROBOT_LEADS_RENAME_PREFLIGHT',
+              'host':'vps-32bea5b6',
+              'vault_parent':meta(parent),
+              'old_vault':meta(old),
+              'new_vault':meta(new),
+              'expected_env':meta(old/'.env'),
+              'expected_accounts':meta(old/'accounts.json'),
+              'file_count':regular,
+              'owner_only_file_count':owner_only,
+              'session_file_count':sessions,
+              'symlinks_inside_old_vault':symlinks,
+              'backup_service_active_now':service_active,
+              'backup_service_unit_present':meta(Path('/etc/systemd/system/project-secrets-offsite-backup.service'))['present'],
+              'old_literal_reference_counts':ref_counts,
+              'live_process_reference_count':process_refs,
+              'live_open_file_reference_count':open_fds,
+              'separate_iptvpn_bot_vault':meta(parent/'iptvpn_bot')['present'],
+              'optin_safe_code_staged':meta(Path('/opt/telegram-leads-optin'))['present'],
+          }
+          print(json.dumps(results,sort_keys=True))
+          PY
+          sshpass -e ssh -T -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/vault-rename-known" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 ubuntu@146.59.145.3 \
+            'sudo -n python3 -' < "$RUNNER_TEMP/inspect.py"
