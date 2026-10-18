@@ -97,6 +97,36 @@ jobs:
               except OSError:
                   out["leads_legacy_checkout"]["sessions_metadata_only"] = None
 
+          project = Path(root) / "TELEGRAM-IPTVPN"
+          inventory = {
+              "present": project.is_dir() and not project.is_symlink(),
+              "total_regular_files": 0,
+              "owner_only_regular_files": 0,
+              "subdirectories": 0,
+              "session_files": 0,
+              "credential_file_candidates": {
+                  "secrets_env": check(str(project / "secrets.env"))["present"],
+                  "dotenv": check(str(project / ".env"))["present"],
+                  "accounts_json": check(str(project / "accounts.json"))["present"],
+                  "telegram_api_json": check(str(project / "telegram_api.json"))["present"],
+              },
+          }
+          if inventory["present"]:
+              try:
+                  for entry in project.iterdir():
+                      metadata = entry.lstat()
+                      if stat.S_ISREG(metadata.st_mode):
+                          inventory["total_regular_files"] += 1
+                          if (stat.S_IMODE(metadata.st_mode) & 0o077) == 0:
+                              inventory["owner_only_regular_files"] += 1
+                          if entry.suffix == ".session":
+                              inventory["session_files"] += 1
+                      elif stat.S_ISDIR(metadata.st_mode):
+                          inventory["subdirectories"] += 1
+              except OSError:
+                  inventory["count_error"] = True
+          out["leads_vault_file_metadata"] = inventory
+
           print(json.dumps(out, sort_keys=True))
           PY
           sshpass -e ssh -T -o PreferredAuthentications=password \
