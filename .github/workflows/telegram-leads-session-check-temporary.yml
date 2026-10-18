@@ -1,0 +1,148 @@
+name: Telegram Leads - read-only two session verification
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/telegram-leads-session-check-temporary.yml'
+permissions:
+  contents: read
+jobs:
+  session-check:
+    if: >-
+      github.event.pull_request.user.login == 'martaxi-boss' &&
+      github.event.pull_request.head.repo.full_name == 'martaxi-boss/VPS'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Verify pinned server fingerprint
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/known_hosts"
+          chmod 600 "$RUNNER_TEMP/known_hosts"
+          key="$(ssh-keygen -lf "$RUNNER_TEMP/known_hosts" -E sha256 | awk '{print $2}')"
+          test "$key" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
+          echo "PINNED_HOST_PASS=yes"
+      - name: Read-only connection and authorization check for existing two sessions
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq > /dev/null
+          sudo apt-get install -qq -y sshpass > /dev/null
+          cat > "$RUNNER_TEMP/check.py" <<'PY'
+          import os,stat,json,re,asyncio,shutil,tempfile
+          from pathlib import Path
+          base=Path("/root/project-secrets/telegram-robot-leads")
+          def protect(p,folder=False):
+              try:s=p.lstat()
+              except OSError:raise RuntimeError("FILE_ABSENT")
+              if s.st_uid!=0 or stat.S_IMODE(s.st_mode)&0o077:raise RuntimeError("PERMISSIONS")
+              if folder and not stat.S_ISDIR(s.st_mode):raise RuntimeError("FOLDER_INVALID")
+              if not folder and not stat.S_ISREG(s.st_mode):raise RuntimeError("FILE_INVALID")
+          def read_secret(p,maxbytes=131072):
+              protect(p)
+              if p.stat().st_size>maxbytes:raise RuntimeError("FILE_TOO_LARGE")
+              fd=os.open(p,os.O_RDONLY|os.O_NOFOLLOW)
+              with os.fdopen(fd,"r",encoding="utf-8") as f:return f.read(maxbytes+1)
+          result={"audit":"TELEGRAM_ROBOT_LEADS_TWO_SESSIONS","origin":"VPS",
+                  "original_files_untouched":True,"invites_sent":0,
+                  "new_logins":0,"messages_sent":0,"accounts":[]}
+          try:
+              protect(base,folder=True)
+              raw=read_secret(base/".env")
+              config={}
+              for line in raw.splitlines():
+                  line=line.strip()
+                  if not line or line.startswith("#"):continue
+                  if line.startswith("export "):line=line[7:]
+                  key,eq,value=line.partition("=")
+                  if not eq or not re.fullmatch(r"[A-Z_][A-Z_0-9]*",key.strip()):continue
+                  val=value.strip()
+                  if val.startswith(("'",'"')) and len(val)>1:
+                      q=val[0]
+                      val=val[1:val.find(q,1)] if q in val[1:] else val[1:]
+                  config[key.strip()]=val
+              api_id=int(config.get("TELEGRAM_API_ID") or config.get("API_ID") or "0")
+              api_hash=config.get("TELEGRAM_API_HASH") or config.get("API_HASH") or ""
+              if not api_id or not re.fullmatch(r"[A-Za-z0-9]{20,80}",api_hash):
+                  raise RuntimeError("API_CONFIG_INVALID")
+              accounts=json.loads(config.get("TELEGRAM_ACCOUNTS_JSON") or read_secret(base/"accounts.json"))
+              if not isinstance(accounts,list) or len(accounts)!=2:raise RuntimeError("TWO_ACCOUNTS_NOT_CONFIGURED")
+              result["configured_accounts"]=2
+              try:from telethon import TelegramClient
+              except ImportError:raise RuntimeError("TELETHON_RUNTIME_MISSING")
+              async def check(account,number):
+                  out={"account":number,"session_file_present":False,"connected":False,
+                       "authorized":False,"identity_verified":False}
+                  try:
+                      name=account.get("session")
+                      if not isinstance(name,str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,60}",name):
+                          raise RuntimeError("INVALID_SESSION_NAME")
+                      src=base/(name+".session")
+                      protect(src)
+                      if src.stat().st_size<256:raise RuntimeError("SESSION_TOO_SMALL")
+                      out["session_file_present"]=True
+                      with tempfile.TemporaryDirectory(prefix="session-check-",dir="/run") as temp:
+                          os.chmod(temp,0o700)
+                          target=Path(temp)/"probe.session"
+                          shutil.copyfile(src,target)
+                          os.chmod(target,0o600)
+                          client=TelegramClient(str(Path(temp)/"probe"),api_id,api_hash,
+                                                connection_retries=1,request_retries=0,
+                                                timeout=12,flood_sleep_threshold=0)
+                          try:
+                              await asyncio.wait_for(client.connect(),timeout=25)
+                              out["connected"]=client.is_connected()
+                              if out["connected"]:
+                                  out["authorized"]=bool(await asyncio.wait_for(client.is_user_authorized(),timeout=20))
+                                  if out["authorized"]:
+                                      me=await asyncio.wait_for(client.get_me(),timeout=20)
+                                      out["identity_verified"]=bool(me and not me.deleted and me.id)
+                                      expected=re.sub(r"\D","",str(account.get("phone") or ""))
+                                      found=re.sub(r"\D","",str(getattr(me,"phone","") or ""))
+                                      out["phone_matches_config"]= (expected==found) if expected else None
+                          finally:
+                              if client.is_connected():await client.disconnect()
+                      out["status"]="CONNECTED_AND_AUTHORIZED" if out["authorized"] and out["identity_verified"] else "NOT_VERIFIED"
+                  except Exception as exc:
+                      out["status"]="CHECK_FAILED"
+                      out["error_type"]=type(exc).__name__[:40]
+                  return out
+              async def main():
+                  for i,acc in enumerate(accounts,1):
+                      result["accounts"].append(await check(acc,i))
+              asyncio.run(main())
+              result["status"]="PASS" if all(x.get("status")=="CONNECTED_AND_AUTHORIZED" for x in result["accounts"]) else "INCOMPLETE"
+          except Exception as exc:
+              result["status"]="PRECHECK_BLOCKED"
+              result["reason"]=str(exc) if str(exc) in {
+                  "FILE_ABSENT","PERMISSIONS","FOLDER_INVALID","FILE_INVALID","FILE_TOO_LARGE",
+                  "API_CONFIG_INVALID","TWO_ACCOUNTS_NOT_CONFIGURED","TELETHON_RUNTIME_MISSING"} else type(exc).__name__
+          print(json.dumps(result,sort_keys=True),flush=True)
+          PY
+          sshpass -e ssh -T -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/known_hosts" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 ubuntu@146.59.145.3 \
+            'sudo -n python3 -' < "$RUNNER_TEMP/check.py" > "$RUNNER_TEMP/status.json" 2>/dev/null
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=Path(os.environ["RUNNER_TEMP"])/"status.json"
+          d=json.loads(p.read_text())
+          assert d.get("audit")=="TELEGRAM_ROBOT_LEADS_TWO_SESSIONS"
+          assert d.get("invites_sent")==0 and d.get("new_logins")==0 and d.get("messages_sent")==0
+          assert d.get("original_files_untouched") is True
+          safe={
+            "audit":d["audit"],"status":d["status"],
+            "configured_accounts":d.get("configured_accounts"),
+            "reason":d.get("reason"),
+            "accounts":[{k:r.get(k) for k in ("account","session_file_present","connected",
+                "authorized","identity_verified","phone_matches_config","status","error_type")} for r in d.get("accounts",[])]
+          }
+          print(json.dumps(safe,sort_keys=True))
+          PY
