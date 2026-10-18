@@ -20,7 +20,7 @@ class LeadsStagingPolicyTests(unittest.TestCase):
             gitdir = dest / ".git"
             gitdir.mkdir()
             with patch.object(stage.subprocess, "check_output",
-                              return_value=stage.PINNED + "\\n"):
+                              return_value=stage.PINNED):
                 self.assertTrue(stage.finalize_source_checkout(dest))
             self.assertFalse(gitdir.exists())
             self.assertEqual((dest / ".verified-source-commit").read_text().strip(),
@@ -33,7 +33,7 @@ class LeadsStagingPolicyTests(unittest.TestCase):
             gitdir = dest / ".git"
             gitdir.mkdir()
             with patch.object(stage.subprocess, "check_output",
-                              return_value="0" * 40 + "\\n"):
+                              return_value="0" * 40):
                 with self.assertRaises(stage.StageBlocked):
                     stage.finalize_source_checkout(dest)
             self.assertTrue(gitdir.exists())
