@@ -188,7 +188,7 @@ def offline_session_source():
         if report.returncode != 0:
             return "NOT_VERIFIED"
         value = json.loads(report.stdout).get("api_source")
-        if value in ("private_app_credentials", "published_android_config"):
+        if value in ("private_app_credentials", "published_android_fallback"):
             return value
         return "NOT_VERIFIED"
     except (OSError, ValueError, subprocess.TimeoutExpired):
