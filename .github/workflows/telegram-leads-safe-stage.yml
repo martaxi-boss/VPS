@@ -1,0 +1,129 @@
+name: Stage Telegram Leads opt-in metrics (inert)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/telegram-leads-safe-stage.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  stage:
+    if: >-
+      github.event.pull_request.user.login == 'martaxi-boss' &&
+      github.event.pull_request.head.repo.full_name == 'martaxi-boss/VPS'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 11
+    steps:
+      - name: Verify pinned SSH identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          key="$RUNNER_TEMP/leads-stage-host"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$key" || exit 2
+          chmod 600 "$key"
+          observed="$(ssh-keygen -lf "$key" -E sha256 | awk '{print $2}')"
+          test "$observed" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc" || exit 2
+          echo "SSH_IDENTITY=VERIFIED"
+      - name: Checkout exact tested Telegram Leads commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/telegram-robot-leads
+          ref: db7eb29e27e483d85e59e106fcf5ae7a0bab16cd
+          path: safe-source
+          persist-credentials: false
+      - name: Full local opt-in regression checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd safe-source
+          test "$(git rev-parse HEAD)" = "db7eb29e27e483d85e59e106fcf5ae7a0bab16cd"
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -v
+          python3 - <<'PY'
+          from pathlib import Path
+          for name in ('growth_store.py','growth_tracker.py','optin_join_links.py','lead_health.py'):
+              p=Path('scripts')/name
+              if not p.is_file() or p.is_symlink():
+                  raise SystemExit('UNSAFE_STAGE_SOURCE')
+              compile(p.read_text(encoding='utf8'),str(p),'exec')
+          print('FOUR_SAFE_FILES=VERIFIED')
+          PY
+      - name: Create source-only allowlisted archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -C safe-source -cf "$RUNNER_TEMP/optin-safe.tar" \
+            scripts/growth_store.py scripts/growth_tracker.py \
+            scripts/optin_join_links.py scripts/lead_health.py
+          test -s "$RUNNER_TEMP/optin-safe.tar"
+      - name: Stage inert code in fresh root-owned directory, never launch a process
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS" || { echo 'SSH_SECRET_UNAVAILABLE'; exit 2; }
+          [[ "$GITHUB_RUN_ID" =~ ^[0-9]+$ ]] || exit 2
+          sudo apt-get update -qq >/dev/null
+          sudo apt-get install -y -qq sshpass >/dev/null
+          ssh_safe() {
+            sshpass -e ssh -T -o PreferredAuthentications=password \
+              -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile="$RUNNER_TEMP/leads-stage-host" \
+              -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+              -o ConnectTimeout=15 ubuntu@146.59.145.3 "$@"
+          }
+          stage="/opt/.telegram-leads-optin-stage-$GITHUB_RUN_ID"
+          dest="/opt/telegram-leads-optin"
+          ssh_safe "sudo -n test ! -e '$dest' && sudo -n test ! -L '$dest' && sudo -n test ! -e '$stage' && sudo -n install -d -m 0700 -o root -g root '$stage'"
+          ssh_safe "sudo -n tar -xf - -C '$stage' --no-same-owner --no-same-permissions" \
+            < "$RUNNER_TEMP/optin-safe.tar"
+          cat > "$RUNNER_TEMP/finalize.sh" <<'SH'
+          set -euo pipefail
+          run="$1"
+          case "$run" in ''|*[!0-9]*) exit 2;; esac
+          stage="/opt/.telegram-leads-optin-stage-$run"
+          dest="/opt/telegram-leads-optin"
+          test ! -e "$dest" && test ! -L "$dest" &&
+            test -d "$stage" && test ! -L "$stage" || exit 2
+          python3 - "$stage" <<'PY'
+          import pathlib, sys
+          root=pathlib.Path(sys.argv[1])
+          expected={'growth_store.py','growth_tracker.py','optin_join_links.py','lead_health.py'}
+          if {p.name for p in (root/'scripts').iterdir()} != expected:
+              raise SystemExit('FILES_NOT_ALLOWLISTED')
+          for name in expected:
+              p=root/'scripts'/name
+              if not p.is_file() or p.is_symlink():
+                  raise SystemExit('UNSAFE_FILE')
+              compile(p.read_text(encoding='utf8'),str(p),'exec')
+          print('VPS_SAFE_CODE_COMPILES=PASS')
+          PY
+          chmod -R go-rwx "$stage"
+          printf 'repository=martaxi-boss/telegram-robot-leads\nsha=db7eb29e27e483d85e59e106fcf5ae7a0bab16cd\nrun_id=%s\ncredentials_copied=NO\nservice_started=NO\n' "$run" > "$stage/PROVENANCE.txt"
+          chmod 0600 "$stage/PROVENANCE.txt"
+          mv -T -- "$stage" "$dest"
+          python3 "$dest/scripts/growth_tracker.py" --root "$dest" --stats
+          printf 'OPTIN_CODE_STAGED=PASS\nSOURCE_SHA=db7eb29e27e483d85e59e106fcf5ae7a0bab16cd\nSERVICES_CHANGED=NO\n'
+          SH
+          ssh_safe "sudo -n bash -s -- '$GITHUB_RUN_ID'" < "$RUNNER_TEMP/finalize.sh"
+      - name: Clean only our temporary stage on failure
+        if: failure()
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set +e
+          [[ "$GITHUB_RUN_ID" =~ ^[0-9]+$ ]] || exit 0
+          test -s "$RUNNER_TEMP/leads-stage-host" || exit 0
+          command -v sshpass >/dev/null || exit 0
+          sshpass -e ssh -T -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/leads-stage-host" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=10 ubuntu@146.59.145.3 \
+            "sudo -n sh -c 'test ! -L /opt/.telegram-leads-optin-stage-$GITHUB_RUN_ID && rm -rf -- /opt/.telegram-leads-optin-stage-$GITHUB_RUN_ID'" \
+            >/dev/null 2>&1
+          echo 'TEMP_STAGE_CLEANUP_ATTEMPTED'
