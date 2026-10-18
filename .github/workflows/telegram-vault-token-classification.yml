@@ -1,0 +1,118 @@
+name: Classify existing Telegram vault credentials (read-only)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/telegram-vault-token-classification.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  vault:
+    if: >-
+      github.event.pull_request.user.login == 'martaxi-boss' &&
+      github.event.pull_request.head.repo.full_name == 'martaxi-boss/VPS'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    steps:
+      - name: Verify pinned VPS SSH identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          known="$RUNNER_TEMP/telegram-vault-known-hosts"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known" || exit 2
+          chmod 600 "$known"
+          observed="$(ssh-keygen -lf "$known" -E sha256 | awk '{print $2}')"
+          test "$observed" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc" || exit 2
+          echo "VPS_SSH_IDENTITY=VERIFIED"
+
+      - name: Inspect vault variable presence and token shapes only, never print values
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS" || { echo "VPS_SSH_SECRET_MISSING"; exit 2; }
+          sudo apt-get update -qq >/dev/null
+          sudo apt-get install -y -qq sshpass >/dev/null
+          cat > "$RUNNER_TEMP/credential_census.py" <<'PY'
+          import json, os, re, stat
+          from pathlib import Path
+
+          ROOT=Path('/root/project-secrets')
+          PATHS={
+              'leads_env':ROOT/'TELEGRAM-IPTVPN'/'.env',
+              'leads_secrets_env':ROOT/'TELEGRAM-IPTVPN'/'secrets.env',
+              'existing_iptvpn_bot_secrets':ROOT/'iptvpn_bot'/'secrets.env',
+              'existing_iptvpn_bot_env':ROOT/'iptvpn_bot'/'.env',
+          }
+          BOT_NAMES={
+              'TELEGRAM_BOT_TOKEN','BOT_TOKEN','TG_BOT_TOKEN','TOKEN_DO_BOT',
+              'TELEGRAM_TOKEN','BOT_API_TOKEN','API_BOT_TOKEN',
+              'IPTVPN_BOT_TOKEN','BOTFATHER_TOKEN','TELEGRAM_GROWTH_BOT_TOKEN',
+              'GROWTH_BOT_TOKEN',
+          }
+          TELETHON_NAMES={'TELEGRAM_API_ID','TELEGRAM_API_HASH','API_ID','API_HASH'}
+          SHAPE=re.compile(r'^[0-9]{6,15}:[A-Za-z0-9_-]{25,}$')
+          def examine(path):
+              out={'file_present':False,'regular_owner_only':False,
+                   'readable':False,'named_bot_token_nonempty':False,
+                   'named_bot_token_valid_shape':False,
+                   'growth_bot_token_nonempty':False,
+                   'general_telegram_token_key_count':0,
+                   'telethon_api_id_nonempty':False,
+                   'telethon_api_hash_nonempty':False,
+                   'named_token_count':0}
+              try:
+                  s=path.lstat()
+                  if not stat.S_ISREG(s.st_mode) or stat.S_ISLNK(s.st_mode):
+                      return out
+                  out['file_present']=True
+                  out['regular_owner_only']=(stat.S_IMODE(s.st_mode)&0o077)==0
+                  if not out['regular_owner_only']:
+                      return out
+                  with path.open('r',encoding='utf-8',errors='replace') as f:
+                      for line in f:
+                          key,separator,value=line.partition('=')
+                          if not separator: continue
+                          key=key.strip().removeprefix('export ').strip().upper()
+                          if not re.fullmatch(r'[A-Z][A-Z0-9_]{0,100}',key):continue
+                          is_token=(key in BOT_NAMES or ('BOT' in key and 'TOKEN' in key))
+                          is_generic_token='TOKEN' in key
+                          if key not in TELETHON_NAMES and not is_token and not is_generic_token:
+                              continue
+                          # Values are inspected transiently in memory ONLY;
+                          # never include a key, value, digest or length in outputs.
+                          value=value.strip().strip('"').strip("'")
+                          nonempty=bool(value and not value.startswith('<') and value not in {'""',"''"})
+                          if key in {'TELEGRAM_API_ID','API_ID'}:
+                              out['telethon_api_id_nonempty'] |= nonempty
+                          if key in {'TELEGRAM_API_HASH','API_HASH'}:
+                              out['telethon_api_hash_nonempty'] |= nonempty
+                          if is_generic_token and nonempty:
+                              out['general_telegram_token_key_count'] += 1
+                          if is_token and nonempty:
+                              out['named_token_count'] += 1
+                              out['named_bot_token_nonempty']=True
+                              out['named_bot_token_valid_shape'] |= bool(SHAPE.fullmatch(value))
+                          if key=='TELEGRAM_GROWTH_BOT_TOKEN':
+                              out['growth_bot_token_nonempty'] |= nonempty
+                  out['readable']=True
+              except (OSError,ValueError):
+                  out['readable']=False
+              return out
+
+          report={'audit':'TELEGRAM_VAULT_TOKEN_PRESENCE_ONLY',
+                  'hostname':'vps-32bea5b6' if os.path.isdir('/root/project-secrets') else 'UNVERIFIED',
+                  'vaults':{name:examine(path) for name,path in PATHS.items()},
+                  'note':'No token values, token hashes, token prefixes, usernames, account IDs, or session bytes transmitted. No Telegram API calls or service changes.'}
+          print(json.dumps(report,sort_keys=True))
+          PY
+          sshpass -e ssh -T -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/telegram-vault-known-hosts" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 ubuntu@146.59.145.3 \
+            'sudo -n python3 -' < "$RUNNER_TEMP/credential_census.py"
