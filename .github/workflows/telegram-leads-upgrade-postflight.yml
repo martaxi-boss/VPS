@@ -1,0 +1,104 @@
+name: Verify Telegram Leads code upgrade (read-only)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/telegram-leads-upgrade-postflight.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    if: >-
+      github.event.pull_request.user.login == 'martaxi-boss' &&
+      github.event.pull_request.head.repo.full_name == 'martaxi-boss/VPS'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Check pinned SSH identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          key="$RUNNER_TEMP/hostkey"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$key"
+          chmod 600 "$key"
+          seen="$(ssh-keygen -lf "$key" -E sha256 | awk '{print $2}')"
+          test "$seen" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
+          echo 'SSH_PIN=PASS'
+      - name: Independently verify new revision, vault and inert process status
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq >/dev/null
+          sudo apt-get install -y -qq sshpass >/dev/null
+          cat > "$RUNNER_TEMP/verify.py" <<'PY'
+          import json,os,stat,subprocess,sys
+          from pathlib import Path
+          root=Path('/opt/telegram-leads-optin')
+          vault=Path('/root/project-secrets/telegram-robot-leads')
+          other=Path('/root/project-secrets/iptvpn_bot')
+          expect={'growth_store.py','growth_tracker.py','lead_health.py','optin_join_links.py',
+                  'telegram-robot-leads-status.sh','telegram-iptvpn-status.sh'}
+          expected_sha='6b628ec6f4ff1cdf7279b80fe83321e89fe93cec'
+          def priv(p,is_dir):
+              try:s=p.lstat()
+              except OSError:return False
+              return ((stat.S_ISDIR(s.st_mode) if is_dir else stat.S_ISREG(s.st_mode))
+                      and s.st_uid==0 and not (stat.S_IMODE(s.st_mode)&0o077))
+          filenames={p.name for p in (root/'scripts').iterdir()} if priv(root/'scripts',True) else set()
+          exact_code=(filenames==expect and
+                 all(priv(root/'scripts'/name,False) for name in expect))
+          provenance=False
+          if priv(root/'PROVENANCE.txt',False):
+              raw=(root/'PROVENANCE.txt').read_text(encoding='utf8',errors='replace')[:1024]
+              provenance=('sha='+expected_sha in raw and 'service_started=NO' in raw)
+          session_count=sum(p.suffix=='.session' for p in vault.iterdir()) if priv(vault,True) else -1
+          active_metrics=0
+          active_iptvpn=0
+          for p in Path('/proc').iterdir():
+              if not p.name.isdecimal():continue
+              try:
+                  cmd=(p/'cmdline').read_bytes().replace(bytes([0]),b' ').decode('utf8','replace')
+                  cwd=os.readlink(p/'cwd')
+              except OSError:continue
+              active_metrics+=int('growth_tracker.py' in cmd)
+              active_iptvpn+=int('iptvpn_bot' in cwd and 'main.py' in cmd)
+          no_data=None
+          if exact_code:
+              proc=subprocess.run(['python3',str(root/'scripts'/'growth_tracker.py'),
+                '--stats','--root',str(root)],capture_output=True,text=True,timeout=10,
+                env={**os.environ,'PYTHONDONTWRITEBYTECODE':'1'})
+              if proc.returncode==0:
+                  try:no_data=json.loads(proc.stdout).get('status') in ('no_data','ok')
+                  except ValueError:no_data=False
+              else:no_data=False
+          passed=(exact_code and provenance and priv(vault,True) and priv(vault/'.env',False)
+                  and session_count==2 and priv(other,True) and active_metrics==0
+                  and no_data and not (root/'growth_metrics.sqlite3').exists()
+                  and not (root/'scripts'/'__pycache__').exists())
+          report={'audit':'TELEGRAM_LEADS_INERT_UPGRADE_POSTFLIGHT',
+                  'status':'PASS' if passed else 'FAIL',
+                  'source_provenance_exact':provenance,'source_scripts_exact_six':exact_code,
+                  'separate_canonical_vault_private':priv(vault,True),
+                  'private_vault_env_present':priv(vault/'.env',False),
+                  'protected_session_count':session_count,
+                  'other_bot_vault_unchanged':priv(other,True),
+                  'metrics_process_count':active_metrics,
+                  'other_iptvpn_bot_process_count':active_iptvpn,
+                  'metrics_stats_offline_valid':no_data,
+                  'metrics_database_absent':not (root/'growth_metrics.sqlite3').exists(),
+                  'stale_script_cache_absent':not (root/'scripts'/'__pycache__').exists()}
+          print(json.dumps(report,sort_keys=True))
+          sys.exit(0 if passed else 2)
+          PY
+          sshpass -e ssh -T -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/hostkey" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 ubuntu@146.59.145.3 \
+            'sudo -n python3 -' < "$RUNNER_TEMP/verify.py"
