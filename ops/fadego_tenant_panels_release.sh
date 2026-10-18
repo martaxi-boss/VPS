@@ -27,7 +27,7 @@ done
   echo 'FADEGO_TENANT_PANELS_REFUSED_RELEASE_DRIFT'; exit 2;
 }
 [[ "$(runuser -u fadego-staging -- git -C "$ROOT/current" rev-parse HEAD)" == "$OLD" ]] || exit 2
-[[ ! -e "$ROOT/releases/$NEW" && ! -L "$ROOT/releases/$NEW" ]] || exit 2
+[[ ! -L "$ROOT/releases/$NEW" ]] || exit 2
 [[ ! -e "$ROOT/current.next" && ! -L "$ROOT/current.next" ]] || exit 2
 [[ -s "$ENV" && -s "$SEND_CLOSED" && -s "$OWNER_PASSWORD" ]] || exit 2
 [[ -f "$VHOST" && ! -L "$VHOST" ]] || exit 2
@@ -83,7 +83,21 @@ set +a
 export BOOKING_EMAIL_PROVIDER=disabled GMAIL_LIVE_SEND_ENABLED=false
 export FADEGO_STAGING_SUPERVISOR_APPROVED=1 FADEGO_STAGING_APPROVED_SHA="$NEW"
 export HOME="$ROOT" COREPACK_HOME="$ROOT/.cache/corepack"
-runuser -u fadego-staging -m -- bash "$ROOT/releases/$OLD/deploy/staging/native/build-release.sh"
+if [[ -e "$ROOT/releases/$NEW" ]]; then
+  # Previous installation was rolled back after fully compiling the immutable
+  # release. Reuse only if the exact build, ownership and source are proven.
+  [[ -d "$ROOT/releases/$NEW" && ! -L "$ROOT/releases/$NEW" ]] || exit 2
+  [[ "$(stat -c %U "$ROOT/releases/$NEW")" == "fadego-staging" ]] || exit 2
+  [[ "$(runuser -u fadego-staging -- git -C "$ROOT/releases/$NEW" rev-parse HEAD)" == "$NEW" ]] || exit 2
+  [[ -s "$ROOT/releases/$NEW/.next/BUILD_ID" ]] || exit 2
+  [[ -d "$ROOT/releases/$NEW/node_modules" ]] || exit 2
+  [[ "$(sha256sum "$ROOT/releases/$NEW/public/fadego-mark.webp" | cut -d' ' -f1)" == "$LOGO_DIGEST" ]] || exit 2
+  ln -s "$ROOT/releases/$NEW" "$ROOT/current.next"
+  mv -Tf "$ROOT/current.next" "$ROOT/current"
+  echo 'FADEGO_TENANT_PANELS_REUSED_VERIFIED_PREBUILT_SHA'
+else
+  runuser -u fadego-staging -m -- bash "$ROOT/releases/$OLD/deploy/staging/native/build-release.sh"
+fi
 
 [[ "$(readlink -f "$ROOT/current")" == "$ROOT/releases/$NEW" ]] || exit 2
 [[ "$(runuser -u fadego-staging -- git -C "$ROOT/current" rev-parse HEAD)" == "$NEW" ]] || exit 2
@@ -149,7 +163,8 @@ const req=async (path,init={})=>fetch(origin+path,{
   assert.equal(session.status,200);
   assert.ok(!(await session.json()).user);
   const missingTenant=await req("/espaco/negocio-inexistente");
-  assert.equal(missingTenant.status,404,"Unknown business portal must not expose a tenant");
+  assert.ok([401,404].includes(missingTenant.status),
+    "Unknown business portal must not expose a tenant through Nginx or Next.js");
   await missingTenant.body?.cancel();
   const demo=await req("/experimentar");
   assert.equal(demo.status,200);

@@ -39,6 +39,10 @@ jobs:
           grep -Fq 'FADEGO_TENANT_PANELS_TENANT_PRIVACY=PROTECTED' ops/fadego_tenant_panels_release.sh
           grep -Fq 'FADEGO_TENANT_PANELS_VAULT_LOGIN=AUTHORIZED_NO_USERNAME' ops/fadego_tenant_panels_release.sh
           grep -Fq 'FADEGO_TENANT_PANELS_GMAIL_SEND=DISABLED' ops/fadego_tenant_panels_release.sh
+          grep -Fq 'FADEGO_TENANT_PANELS_REUSED_VERIFIED_PREBUILT_SHA' ops/fadego_tenant_panels_release.sh
+          grep -Fq 'assert.ok([401,404].includes(missingTenant.status)' ops/fadego_tenant_panels_release.sh
+          grep -Fq 'stat -c %U' ops/fadego_tenant_panels_release.sh
+          grep -Fq '.next/BUILD_ID' ops/fadego_tenant_panels_release.sh
           python3 - <<'PY_SCOPE'
           from pathlib import Path
           s=Path("ops/fadego_tenant_panels_release.sh").read_text()
