@@ -1,4 +1,8 @@
 import unittest
+import tempfile
+from pathlib import Path
+from unittest.mock import patch
+import telegram_leads_stage_20261019 as stage
 from telegram_leads_stage_20261019 import stale_key, PINNED, DEST, VAULT, LEGACY_PREFIXES
 
 class LeadsStagingPolicyTests(unittest.TestCase):
@@ -9,6 +13,30 @@ class LeadsStagingPolicyTests(unittest.TestCase):
                     "TELEGRAM_OPERATION_STATE", "TELEGRAM_APPROVED_USERS"):
             self.assertFalse(stale_key(key + "=private_or_current\n"))
         self.assertFalse(stale_key("# SCRAPE_GROUPS=archived comment\n"))
+
+    def test_drop_git_history_only_after_pinned_commit_verified(self):
+        with tempfile.TemporaryDirectory() as folder:
+            dest = Path(folder)
+            gitdir = dest / ".git"
+            gitdir.mkdir()
+            with patch.object(stage.subprocess, "check_output",
+                              return_value=stage.PINNED):
+                self.assertTrue(stage.finalize_source_checkout(dest))
+            self.assertFalse(gitdir.exists())
+            self.assertEqual((dest / ".verified-source-commit").read_text().strip(),
+                             stage.PINNED)
+            self.assertFalse(stage.finalize_source_checkout(dest))
+
+    def test_mismatched_source_does_not_delete_git(self):
+        with tempfile.TemporaryDirectory() as folder:
+            dest = Path(folder)
+            gitdir = dest / ".git"
+            gitdir.mkdir()
+            with patch.object(stage.subprocess, "check_output",
+                              return_value="0" * 40):
+                with self.assertRaises(stage.StageBlocked):
+                    stage.finalize_source_checkout(dest)
+            self.assertTrue(gitdir.exists())
 
     def test_staging_is_pinned_to_one_repo_path(self):
         self.assertEqual(len(PINNED), 40)
