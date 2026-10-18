@@ -107,5 +107,8 @@ jobs:
           assert data["pinned_source"]=="862ed408f6f3a87a3b109a0b36d246cc7a5f8056"
           assert data["telegram_actions"]==0
           assert data["other_projects_touched"] is False
+          assert data["source_provenance_recorded"] is True
+          assert data["git_history_present_in_live_checkout"] is False
+          assert data["api_source"] in ("private_app_credentials", "published_android_config", "NOT_VERIFIED")
           print("TELEGRAM_LEADS_STAGING_RESULT="+json.dumps(data,sort_keys=True))
           PY
