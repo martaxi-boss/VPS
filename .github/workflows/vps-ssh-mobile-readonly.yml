@@ -100,6 +100,18 @@ jobs:
                   print(f"SSH_LOG_{minutes}MIN_UBUNTU_FAILED={failed}")
                   print(f"SSH_LOG_{minutes}MIN_INVALID_USER={invalid}")
                   print(f"SSH_LOG_{minutes}MIN_MAXAUTH_DISCONNECT={disconnect}")
+          if bans.returncode==0 and r.returncode==0:
+              banned_match=re.search(r"(?m)^.*Banned IP list:\s*(.*)$",bans.stdout)
+              banned_ips=set(banned_match.group(1).split()) if banned_match else set()
+              successful_ips=set()
+              for ts,msg in events:
+                  if ts>=now.timestamp()-3*60*60:
+                      accepted=re.search(r"Accepted password for ubuntu from ([^\s]+)",msg)
+                      if accepted:
+                          successful_ips.add(accepted.group(1))
+              print("FAIL2BAN_BLOCKS_RECENT_SUCCESSFUL_UBUNTU_CLIENT="+str(bool(banned_ips & successful_ips)).lower())
+              print("FAIL2BAN_RECENT_SUCCESSFUL_CLIENTS="+str(len(successful_ips)))
+              print("FAIL2BAN_MATCH_COUNT="+str(len(banned_ips & successful_ips)))
           print("SSH_CREDENTIALS=NOT_DISPLAYED")
           print("SSH_CONFIGURATION=UNCHANGED")
           REMOTE_READONLY
