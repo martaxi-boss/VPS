@@ -10,6 +10,8 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
+  actions: read
 
 concurrency:
   group: fadego-staff-panel-staging-release
@@ -40,6 +42,7 @@ jobs:
           grep -Fq 'FADEGO_STAFF_PANEL_VAULT_LOGIN=AUTHORIZED_NO_USERNAME' ops/fadego_staff_personal_panel_release.sh
           grep -Fq 'FADEGO_STAFF_PANEL_GMAIL_SEND=DISABLED' ops/fadego_staff_personal_panel_release.sh
           grep -Fq 'FADEGO_STAFF_PANEL_OWNER_BARBER_PREVIEW=HTTP_200' ops/fadego_staff_personal_panel_release.sh
+          grep -Fq 'Authorization: Bearer $GH_TOKEN' .github/workflows/fadego-staff-panel-staging.yml
           grep -Fq 'FADEGO_STAFF_PANEL_REFUSED_UNCERTIFIED_DNS' ops/fadego_staff_personal_panel_release.sh
           grep -Fq 'FADEGO_STAFF_PANEL_REUSED_VERIFIED_PREBUILT_SHA' ops/fadego_staff_personal_panel_release.sh
           grep -Fq 'assert.ok([401,404].includes(missingTenant.status)' ops/fadego_staff_personal_panel_release.sh
@@ -88,23 +91,30 @@ jobs:
         env:
           HEAD: ${{ github.event.pull_request.head.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$HEAD"
           bash -n ops/fadego_staff_personal_panel_release.sh
-          pr="$(curl -fsS --max-time 25 "https://api.github.com/repos/martaxi-boss/VPS/pulls/$PR_NUMBER")"
+          test -n "${GH_TOKEN:-}" || exit 2
+          api() {
+            curl -fsS --max-time 25 \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H 'Accept: application/vnd.github+json' "$1"
+          }
+          pr="$(api "https://api.github.com/repos/martaxi-boss/VPS/pulls/$PR_NUMBER")"
           jq -e --arg sha "$HEAD" \
             '.state=="open" and .draft==false and .head.sha==$sha and
              .head.ref=="ops/fadego-staff-panel-20261018" and
              .head.repo.full_name=="martaxi-boss/VPS" and .base.ref=="main" and
              .user.login=="martaxi-boss"' <<<"$pr" >/dev/null
-          app="$(curl -fsS --max-time 25 https://api.github.com/repos/martaxi-boss/fadego/pulls/15)"
+          app="$(api https://api.github.com/repos/martaxi-boss/fadego/pulls/15)"
           jq -e --arg sha 'a673ea47272cc2f463f5aa9cfbf2b80c70d80d9d' \
             '.state=="open" and .head.sha==$sha and .base.ref=="main"' <<<"$app" >/dev/null
-          ci="$(curl -fsS --max-time 25 https://api.github.com/repos/martaxi-boss/fadego/actions/runs/39122303054)"
+          ci="$(api https://api.github.com/repos/martaxi-boss/fadego/actions/runs/39122303054)"
           jq -e --arg sha 'a673ea47272cc2f463f5aa9cfbf2b80c70d80d9d' \
             '.status=="completed" and .conclusion=="success" and .head_sha==$sha' <<<"$ci" >/dev/null
-          diff="$(curl -fsS --max-time 25 'https://api.github.com/repos/martaxi-boss/fadego/compare/037fc4c5794bdde1177d6b086cf87710b4335483...a673ea47272cc2f463f5aa9cfbf2b80c70d80d9d')"
+          diff="$(api 'https://api.github.com/repos/martaxi-boss/fadego/compare/037fc4c5794bdde1177d6b086cf87710b4335483...a673ea47272cc2f463f5aa9cfbf2b80c70d80d9d')"
           jq -e '(.files | any(.filename | startswith("prisma/")) | not)' <<<"$diff" >/dev/null
           echo 'FADEGO_STAFF_PANEL_EXACT_SHA_CI_UNCHANGED_MIGRATIONS=PASS'
       - name: Install isolated FADEGO staging owner portal through pinned SSH
