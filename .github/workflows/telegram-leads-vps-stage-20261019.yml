@@ -63,6 +63,8 @@ jobs:
               "ops/telegram_leads_stage_20261019.py",
               "ops/test_telegram_leads_stage_20261019.py",
               ".github/workflows/telegram-leads-vps-stage-20261019.yml",
+              "ops/telegram_leads_activate_20261020.py",
+              ".github/workflows/telegram-leads-prepare-activation-20261020.yml",
           }
           assert changed and changed <= allowed, changed-allowed
           print("LEADS_STAGING_CHANGE_SCOPE=PASS")
