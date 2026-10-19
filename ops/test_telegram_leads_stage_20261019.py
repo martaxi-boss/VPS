@@ -38,6 +38,39 @@ class LeadsStagingPolicyTests(unittest.TestCase):
                     stage.finalize_source_checkout(dest)
             self.assertTrue(gitdir.exists())
 
+    def test_existing_source_upgrade_recognizes_previous_checkout(self):
+        import os
+        with tempfile.TemporaryDirectory() as root:
+            dest = Path(root) / "telegram-robot-leads"
+            dest.mkdir()
+            (dest / ".venv/bin").mkdir(parents=True)
+            (dest / ".venv/bin/python").write_text("binary")
+            marker = dest / ".verified-source-commit"
+            marker.write_text(stage.PREVIOUS_PINNED + "\n", encoding="ascii")
+            os.chmod(marker, 0o600)
+            with patch.object(stage, "DEST", dest), patch.object(stage, "private_file"):
+                self.assertEqual(stage.existing_checkout_revision(), stage.PREVIOUS_PINNED)
+                marker.write_text(stage.PINNED + "\n", encoding="ascii")
+                self.assertEqual(stage.existing_checkout_revision(), stage.PINNED)
+                marker.write_text("0"*40 + "\n", encoding="ascii")
+                with self.assertRaises(stage.StageBlocked):
+                    stage.existing_checkout_revision()
+
+    def test_existing_live_git_is_not_replaced(self):
+        import os
+        with tempfile.TemporaryDirectory() as root:
+            dest = Path(root) / "telegram-robot-leads"
+            dest.mkdir()
+            (dest / ".venv/bin").mkdir(parents=True)
+            (dest / ".venv/bin/python").write_text("binary")
+            marker = dest / ".verified-source-commit"
+            marker.write_text(stage.PREVIOUS_PINNED + "\n", encoding="ascii")
+            os.chmod(marker, 0o600)
+            (dest / ".git").mkdir()
+            with patch.object(stage, "DEST", dest), patch.object(stage, "private_file"):
+                with self.assertRaises(stage.StageBlocked):
+                    stage.existing_checkout_revision()
+
     def test_staging_is_pinned_to_one_repo_path(self):
         self.assertEqual(len(PINNED), 40)
         self.assertEqual(str(DEST), "/opt/telegram-robot-leads")
