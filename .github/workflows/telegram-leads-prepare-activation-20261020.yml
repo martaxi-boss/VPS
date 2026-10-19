@@ -1,0 +1,97 @@
+name: Prepare Telegram Leads one-shot activation 20261020
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'ops/telegram_leads_activate_20261020.py'
+      - '.github/workflows/telegram-leads-prepare-activation-20261020.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'ops/telegram_leads_activate_20261020.py'
+      - '.github/workflows/telegram-leads-prepare-activation-20261020.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: telegram-leads-prepare-activation-20261020
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: |
+          set -euo pipefail
+          python3 -m py_compile ops/telegram_leads_activate_20261020.py
+          grep -F 'EXPECTED_SOURCE = "b417de8d6b76fa486555fd360d0f63fad58da0e7"' ops/telegram_leads_activate_20261020.py
+          grep -F 'NOT_BEFORE = datetime(2026, 10, 20, 8, 0' ops/telegram_leads_activate_20261020.py
+          grep -F 'exactly_two_sessions_required' ops/telegram_leads_activate_20261020.py
+
+  provision:
+    if: github.event_name == 'push' && github.repository == 'martaxi-boss/VPS'
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify pinned SSH host
+        shell: bash
+        run: |
+          set -euo pipefail
+          known="$RUNNER_TEMP/leads-activation-known"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known"
+          chmod 600 "$known"
+          observed="$(ssh-keygen -lf "$known" -E sha256 | awk '{print $2}')"
+          test "$observed" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+      - name: Install one-shot root timer without starting the robot now
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          known="$RUNNER_TEMP/leads-activation-known"
+          sshpass -e scp -q -o PreferredAuthentications=password -o PubkeyAuthentication=no             -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$known"             -o GlobalKnownHostsFile=/dev/null ops/telegram_leads_activate_20261020.py             ubuntu@146.59.145.3:/tmp/telegram_leads_activate_20261020.py
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no             -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$known"             -o GlobalKnownHostsFile=/dev/null ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -euo pipefail
+          install -o root -g root -m 700 /tmp/telegram_leads_activate_20261020.py /usr/local/sbin/telegram_leads_activate_20261020.py
+          rm -f /tmp/telegram_leads_activate_20261020.py
+          cat >/etc/systemd/system/telegram-leads-activate-20261020.service <<'UNIT'
+          [Unit]
+          Description=One-shot guarded Telegram Leads activation 2026-10-20
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=oneshot
+          ExecStart=/usr/bin/python3 /usr/local/sbin/telegram_leads_activate_20261020.py
+          UNIT
+          cat >/etc/systemd/system/telegram-leads-activate-20261020.timer <<'UNIT'
+          [Unit]
+          Description=Run Telegram Leads guarded activation at 08:00 Portugal
+
+          [Timer]
+          OnCalendar=2026-10-20 08:00:00 Europe/Lisbon
+          AccuracySec=30s
+          Persistent=false
+          Unit=telegram-leads-activate-20261020.service
+
+          [Install]
+          WantedBy=timers.target
+          UNIT
+          systemctl daemon-reload
+          systemctl enable --now telegram-leads-activate-20261020.timer >/dev/null
+          systemctl is-active --quiet telegram-leads-activate-20261020.timer
+          test "$(systemctl is-active telegram-robot-leads 2>/dev/null || true)" != active
+          echo TELEGRAM_LEADS_ACTIVATION_TIMER=PREPARED_NOT_STARTED
+          REMOTE
