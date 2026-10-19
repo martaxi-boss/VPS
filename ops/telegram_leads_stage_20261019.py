@@ -10,7 +10,9 @@ import sys
 import tempfile
 
 REPO = "https://github.com/martaxi-boss/telegram-robot-leads.git"
-PINNED = "862ed408f6f3a87a3b109a0b36d246cc7a5f8056"
+PINNED = "1381eba8695079ef002e09dbfb4e570204ec10c6"
+PREVIOUS_PINNED = "862ed408f6f3a87a3b109a0b36d246cc7a5f8056"
+PREVIOUS_CHECKOUT_BACKUP = Path("/opt/.telegram-leads-previous-862ed408f6f3")
 DEST = Path("/opt/telegram-robot-leads")
 VAULT = Path("/root/project-secrets/telegram-robot-leads")
 STATE_DIR = Path("/var/lib/telegram-robot-leads")
@@ -110,12 +112,31 @@ def finalize_source_checkout(path):
         raise StageBlocked("source_provenance_permissions_invalid")
     return False
 
+def existing_checkout_revision():
+    """Accept only a known previous staging or the exact current target.
+
+    Never overwrite an unexpected installation or recover from a mismatched
+    provenance marker by guessing. The vault is never part of the replacement.
+    """
+    if not DEST.exists():
+        return None
+    if not DEST.is_dir() or DEST.is_symlink():
+        raise StageBlocked("runtime_path_collision")
+    if not (DEST / ".venv/bin/python").is_file():
+        raise StageBlocked("existing_runtime_unverified")
+    marker = DEST / ".verified-source-commit"
+    private_file(marker)
+    if (DEST / ".git").exists() or (DEST / ".git").is_symlink():
+        raise StageBlocked("live_checkout_history_present")
+    revision = marker.read_text(encoding="ascii").strip()
+    if revision not in (PINNED, PREVIOUS_PINNED):
+        raise StageBlocked("unexpected_existing_source_commit")
+    return revision
+
+
 def stage_source():
-    if DEST.exists():
-        if not DEST.is_dir() or DEST.is_symlink():
-            raise StageBlocked("runtime_path_collision")
-        if not (DEST / ".venv/bin/python").is_file():
-            raise StageBlocked("existing_runtime_unverified")
+    revision = existing_checkout_revision()
+    if revision == PINNED:
         finalize_source_checkout(DEST)
         return False
     temp = Path(tempfile.mkdtemp(prefix=".telegram-leads-install-", dir="/opt"))
@@ -133,7 +154,19 @@ def stage_source():
         run([str(python), "-m", "unittest", "discover", "-s", "tests",
              "-p", "test_*.py"], cwd=temp, timeout=120)
         finalize_source_checkout(temp)
-        os.rename(temp, DEST)
+        if revision is None:
+            os.rename(temp, DEST)
+        else:
+            # Preserve the one verified previous version for recovery.
+            # Never overwrite an existing backup or move protected vault files.
+            if PREVIOUS_CHECKOUT_BACKUP.exists() or PREVIOUS_CHECKOUT_BACKUP.is_symlink():
+                raise StageBlocked("previous_checkout_backup_already_exists")
+            os.rename(DEST, PREVIOUS_CHECKOUT_BACKUP)
+            try:
+                os.rename(temp, DEST)
+            except Exception:
+                os.rename(PREVIOUS_CHECKOUT_BACKUP, DEST)
+                raise
         return True
     finally:
         if temp.exists():
@@ -206,6 +239,7 @@ def main():
         "status": "STAGED_NOT_STARTED",
         "pinned_source": PINNED,
         "installed_new_checkout": created,
+        "previous_checkout_backup_preserved": PREVIOUS_CHECKOUT_BACKUP.is_dir(),
         "deprecated_config_lines_removed": removed,
         "backup_private": BACKUP.exists(),
         "state_directory_private": True,
