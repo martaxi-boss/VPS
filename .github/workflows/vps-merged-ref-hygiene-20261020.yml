@@ -1,0 +1,82 @@
+name: VPS merged branch refs one-time hygiene 20261020
+
+# Only GitHub branch references are eligible. This workflow NEVER accesses VPS,
+# SSH, Telegram, PM2, log stores, app files or private credentials.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/vps-merged-ref-hygiene-20261020.yml'
+      - 'ops/vps_merged_ref_hygiene_20261020.py'
+      - 'ops/tests/test_vps_merged_ref_hygiene_20261020.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/vps-merged-ref-hygiene-20261020.yml'
+      - 'ops/vps_merged_ref_hygiene_20261020.py'
+      - 'ops/tests/test_vps_merged_ref_hygiene_20261020.py'
+
+permissions: {}
+
+concurrency:
+  group: vps-one-time-merged-ref-hygiene-20261020
+  cancel-in-progress: false
+
+jobs:
+  read-only-certification:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
+    steps:
+      - name: Checkout this exact PR / main commit without persistent credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Test unmerged, active, protected and non-target exclusion gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ops/vps_merged_ref_hygiene_20261020.py \
+            ops/tests/test_vps_merged_ref_hygiene_20261020.py
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=ops \
+            python3 -m unittest discover -s ops/tests \
+            -p test_vps_merged_ref_hygiene_20261020.py -v
+      - name: Read-only inventory of provably merged obsolete branches
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "martaxi-boss/VPS"
+          python3 ops/vps_merged_ref_hygiene_20261020.py --mode audit
+
+  prune-proved-merged-old-refs:
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      github.repository == 'martaxi-boss/VPS'
+    needs: read-only-certification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      contents: write
+      pull-requests: read
+      actions: read
+    steps:
+      - name: Checkout immutable main run revision without persistent credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Final guarded API ref cleanup (merged PR only, no VPS access)
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "martaxi-boss/VPS"
+          test "$GITHUB_REF" = "refs/heads/main"
+          test "$GITHUB_EVENT_NAME" = "push"
+          python3 ops/vps_merged_ref_hygiene_20261020.py --mode clean
