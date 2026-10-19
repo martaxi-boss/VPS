@@ -106,7 +106,7 @@ jobs:
           path=Path(os.environ["RUNNER_TEMP"])/"telegram-leads-stage.json"
           data=json.loads(path.read_text())
           assert data["status"]=="STAGED_NOT_STARTED",data.get("reason","unknown")
-          assert data["pinned_source"]=="b417de8d6b76fa486555fd360d0f63fad58da0e7"
+          assert data["pinned_source"]=="5e18982b0776537fad787407797b0f5f5d35df0f"
           assert data["telegram_actions"]==0
           assert data["other_projects_touched"] is False
           assert data["source_provenance_recorded"] is True
