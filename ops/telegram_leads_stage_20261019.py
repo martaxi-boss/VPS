@@ -10,9 +10,9 @@ import sys
 import tempfile
 
 REPO = "https://github.com/martaxi-boss/telegram-robot-leads.git"
-PINNED = "5e18982b0776537fad787407797b0f5f5d35df0f"
-PREVIOUS_PINNED = "b417de8d6b76fa486555fd360d0f63fad58da0e7"
-PREVIOUS_CHECKOUT_BACKUP = Path("/opt/.telegram-leads-previous-b417de8d6b76")
+PINNED = "c9ee64a2d5493e40a33cc6a6d6265c1452caa3da"
+PREVIOUS_PINNED = "5e18982b0776537fad787407797b0f5f5d35df0f"
+PREVIOUS_CHECKOUT_BACKUP = Path("/opt/.telegram-leads-previous-5e18982b0776")
 DEST = Path("/opt/telegram-robot-leads")
 VAULT = Path("/root/project-secrets/telegram-robot-leads")
 STATE_DIR = Path("/var/lib/telegram-robot-leads")
