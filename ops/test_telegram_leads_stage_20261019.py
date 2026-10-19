@@ -48,7 +48,7 @@ class LeadsStagingPolicyTests(unittest.TestCase):
             marker = dest / ".verified-source-commit"
             marker.write_text(stage.PREVIOUS_PINNED + "\n", encoding="ascii")
             os.chmod(marker, 0o600)
-            with patch.object(stage, "DEST", dest):
+            with patch.object(stage, "DEST", dest), patch.object(stage, "private_file"):
                 self.assertEqual(stage.existing_checkout_revision(), stage.PREVIOUS_PINNED)
                 marker.write_text(stage.PINNED + "\n", encoding="ascii")
                 self.assertEqual(stage.existing_checkout_revision(), stage.PINNED)
@@ -67,7 +67,7 @@ class LeadsStagingPolicyTests(unittest.TestCase):
             marker.write_text(stage.PREVIOUS_PINNED + "\n", encoding="ascii")
             os.chmod(marker, 0o600)
             (dest / ".git").mkdir()
-            with patch.object(stage, "DEST", dest):
+            with patch.object(stage, "DEST", dest), patch.object(stage, "private_file"):
                 with self.assertRaises(stage.StageBlocked):
                     stage.existing_checkout_revision()
 
