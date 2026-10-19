@@ -46,13 +46,13 @@ class LeadsStagingPolicyTests(unittest.TestCase):
             (dest / ".venv/bin").mkdir(parents=True)
             (dest / ".venv/bin/python").write_text("binary")
             marker = dest / ".verified-source-commit"
-            marker.write_text(stage.PREVIOUS_PINNED + "\\n", encoding="ascii")
+            marker.write_text(stage.PREVIOUS_PINNED + "\n", encoding="ascii")
             os.chmod(marker, 0o600)
             with patch.object(stage, "DEST", dest):
                 self.assertEqual(stage.existing_checkout_revision(), stage.PREVIOUS_PINNED)
-                marker.write_text(stage.PINNED + "\\n", encoding="ascii")
+                marker.write_text(stage.PINNED + "\n", encoding="ascii")
                 self.assertEqual(stage.existing_checkout_revision(), stage.PINNED)
-                marker.write_text("0"*40 + "\\n", encoding="ascii")
+                marker.write_text("0"*40 + "\n", encoding="ascii")
                 with self.assertRaises(stage.StageBlocked):
                     stage.existing_checkout_revision()
 
@@ -64,7 +64,7 @@ class LeadsStagingPolicyTests(unittest.TestCase):
             (dest / ".venv/bin").mkdir(parents=True)
             (dest / ".venv/bin/python").write_text("binary")
             marker = dest / ".verified-source-commit"
-            marker.write_text(stage.PREVIOUS_PINNED + "\\n", encoding="ascii")
+            marker.write_text(stage.PREVIOUS_PINNED + "\n", encoding="ascii")
             os.chmod(marker, 0o600)
             (dest / ".git").mkdir()
             with patch.object(stage, "DEST", dest):
