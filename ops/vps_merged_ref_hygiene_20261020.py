@@ -208,7 +208,7 @@ def main() -> int:
         raise HygieneBlocked("cleanup_requires_trusted_main_push")
     github = GitHub(os.environ.get("GITHUB_TOKEN", ""))
     branches = github.list_pages("branches")
-    closed = github.list_pages("pulls?state=closed") if False else []
+    closed: list[dict] = []
     # Parameters must not be embedded in a repository path: use the same
     # typed requester on each page to prevent accidental endpoint changes.
     for page in range(1, MAX_PAGES + 1):
