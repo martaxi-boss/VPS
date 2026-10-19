@@ -10,7 +10,7 @@ import sys
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-EXPECTED_SOURCE = "5e18982b0776537fad787407797b0f5f5d35df0f"
+EXPECTED_SOURCE = "c9ee64a2d5493e40a33cc6a6d6265c1452caa3da"
 DEST = Path("/opt/telegram-robot-leads")
 VAULT = Path("/root/project-secrets/telegram-robot-leads")
 STATE = Path("/var/lib/telegram-robot-leads")
