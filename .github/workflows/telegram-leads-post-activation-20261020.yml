@@ -28,7 +28,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          grep -F -- '--expected-source 08ffc99ae8b14696bbfb84c5952173f28ea035d4' .github/workflows/telegram-leads-post-activation-20261020.yml
+          grep -F -- '--expected-source d8736bd359de795182ee717448c93df2977d0a44' .github/workflows/telegram-leads-post-activation-20261020.yml
           grep -F -- 'LIVE_PUBLIC_DISCOVERY_OBSERVED' .github/workflows/telegram-leads-post-activation-20261020.yml
           echo LEADS_READONLY_PROBE=VALIDATED
 
@@ -78,7 +78,7 @@ jobs:
             -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=15 -o ServerAliveInterval=10 \
             ubuntu@146.59.145.3 \
-            'sudo -n /opt/telegram-robot-leads/.venv/bin/python /opt/telegram-robot-leads/scripts/leads_operational_report.py --expected-source 08ffc99ae8b14696bbfb84c5952173f28ea035d4' \
+            'sudo -n /opt/telegram-robot-leads/.venv/bin/python /opt/telegram-robot-leads/scripts/leads_operational_report.py --expected-source d8736bd359de795182ee717448c93df2977d0a44' \
             > "$RUNNER_TEMP/leads-readonly-report.json" 2>/dev/null
           python3 - <<'PY'
           import json
