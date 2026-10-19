@@ -1,0 +1,115 @@
+name: Verify Telegram Leads real public discovery 20261020
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '20 7 20 10 *'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/telegram-leads-post-activation-20261020.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: telegram-leads-readonly-proof-20261020
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Check expected source is pinned and workflow is read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F -- '--expected-source 1f3e538301d01dbde7ef49ac7e0f41a761e85049' .github/workflows/telegram-leads-post-activation-20261020.yml
+          grep -F -- 'LIVE_PUBLIC_DISCOVERY_OBSERVED' .github/workflows/telegram-leads-post-activation-20261020.yml
+          echo LEADS_READONLY_PROBE=VALIDATED
+
+  observe:
+    if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && github.ref == 'refs/heads/main' && github.repository == 'martaxi-boss/VPS'
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Limit annual calendar event to original activation date
+        id: date_guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == schedule && "$(date -u +%F)" != '2026-10-20' ]]; then
+            echo 'due=false' >> "$GITHUB_OUTPUT"
+            echo 'LEADS_READONLY_PROBE=NOT_DUE'
+          else
+            echo 'due=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Verify pinned SSH host identity
+        if: steps.date_guard.outputs.due == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          known="$RUNNER_TEMP/leads-proof-hosts"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known"
+          chmod 600 "$known"
+          observed="$(ssh-keygen -lf "$known" -E sha256 | awk '{print $2}')"
+          test "$observed" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          ssh-keygen -F 146.59.145.3 -f "$known" >/dev/null
+          echo SSH_HOST_KEY=VERIFIED
+      - name: Collect only the installed redacted offline/PM2 report
+        if: steps.date_guard.outputs.due == 'true'
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T \
+            -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/leads-proof-hosts" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 -o ServerAliveInterval=10 \
+            ubuntu@146.59.145.3 \
+            'sudo -n /opt/telegram-robot-leads/.venv/bin/python /opt/telegram-robot-leads/scripts/leads_operational_report.py --expected-source 1f3e538301d01dbde7ef49ac7e0f41a761e85049' \
+            > "$RUNNER_TEMP/leads-readonly-report.json" 2>/dev/null
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          report = json.loads((Path(os.environ["RUNNER_TEMP"]) /
+                               "leads-readonly-report.json").read_text())
+          snapshot = {
+              "status": report.get("status"),
+              "source_matches_expected": report.get("source", {}).get("matches_expected"),
+              "session_files": report.get("sessions", {}).get("accounts"),
+              "sessions_status": report.get("sessions", {}).get("status"),
+              "api_source": report.get("sessions", {}).get("api_source"),
+              "pm2": report.get("pm2", {}).get("status"),
+              "public_groups_found": report.get("public_discovery", {}).get("public_groups"),
+              "last_public_scan": report.get("public_discovery", {}).get("last_scan_at"),
+              "last_cycle": report.get("supervisor", {}).get("status"),
+              "discovery_cycle": report.get("supervisor", {}).get("public_discovery_status"),
+              "accounts_blocked": report.get("operation_state", {}).get("accounts_blocked"),
+              "telegram_requests_by_probe": report.get("telegram_requests"),
+              "members_added_by_probe": report.get("members_added"),
+          }
+          print("TELEGRAM_LEADS_RUNTIME_EVIDENCE=" + json.dumps(snapshot, sort_keys=True))
+          assert report.get("read_only") is True
+          assert report.get("telegram_requests") == 0
+          assert report.get("messages_sent") == 0
+          assert report.get("members_added") == 0
+          assert snapshot["source_matches_expected"] is True
+          assert snapshot["session_files"] == 2
+          assert snapshot["pm2"] == "ONLINE"
+          assert snapshot["status"] == "LIVE_PUBLIC_DISCOVERY_OBSERVED"
+          print("TELEGRAM_LEADS_POST_ACTIVATION_PROOF=PASS")
+          PY

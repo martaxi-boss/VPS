@@ -29,7 +29,7 @@ jobs:
       - run: |
           set -euo pipefail
           python3 -m py_compile ops/telegram_leads_activate_20261020.py
-          grep -F 'EXPECTED_SOURCE = "c9ee64a2d5493e40a33cc6a6d6265c1452caa3da"' ops/telegram_leads_activate_20261020.py
+          grep -F 'EXPECTED_SOURCE = "1f3e538301d01dbde7ef49ac7e0f41a761e85049"' ops/telegram_leads_activate_20261020.py
           grep -F 'NOT_BEFORE = datetime(2026, 10, 20, 8, 0' ops/telegram_leads_activate_20261020.py
           grep -F 'exactly_two_sessions_required' ops/telegram_leads_activate_20261020.py
 

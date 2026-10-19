@@ -65,6 +65,7 @@ jobs:
               ".github/workflows/telegram-leads-vps-stage-20261019.yml",
               "ops/telegram_leads_activate_20261020.py",
               ".github/workflows/telegram-leads-prepare-activation-20261020.yml",
+              ".github/workflows/telegram-leads-post-activation-20261020.yml",
           }
           assert changed and changed <= allowed, changed-allowed
           print("LEADS_STAGING_CHANGE_SCOPE=PASS")
@@ -106,7 +107,7 @@ jobs:
           path=Path(os.environ["RUNNER_TEMP"])/"telegram-leads-stage.json"
           data=json.loads(path.read_text())
           assert data["status"]=="STAGED_NOT_STARTED",data.get("reason","unknown")
-          assert data["pinned_source"]=="c9ee64a2d5493e40a33cc6a6d6265c1452caa3da"
+          assert data["pinned_source"]=="1f3e538301d01dbde7ef49ac7e0f41a761e85049"
           assert data["telegram_actions"]==0
           assert data["other_projects_touched"] is False
           assert data["source_provenance_recorded"] is True
