@@ -1,0 +1,37 @@
+{
+  "transition_id": "FADEGO-20261020-PRIVATE-REVIEW-RECOVERY",
+  "status": "SUCCESS",
+  "authorization_revision": "c215ca1b94ecab1dba086bfc487c2b1c5c085a19",
+  "implementation_head_sha": "fcae243ad161a3287ca278adfcaa2e760b31b573",
+  "application_revision": "2b3554ec6e075e36041e44178f99535e00961b2f",
+  "repository": "martaxi-boss/VPS",
+  "environment": "fadego-staging",
+  "run_id": 39505809966,
+  "run_url": "https://github.com/martaxi-boss/VPS/actions/runs/39505809966",
+  "observed_at": "2026-10-20 22:10:07 UTC",
+  "checks": {
+    "exact_sha_ci": "PASS",
+    "private_backup_before_migration": "PASS",
+    "additive_owner_schema_and_suspended_pilot": "PASS",
+    "authenticated_manager_and_barber_day_week": "PASS",
+    "existing_owner_login": "PASS",
+    "planning_and_invitations": "PASS",
+    "anonymous_and_tenant_boundary_smoke": "PASS",
+    "gmail_disabled_timer_inactive": "PASS",
+    "credentials_unchanged": "PASS",
+    "previous_release_retained_for_rollback": "PASS"
+  },
+  "blockers": [],
+  "remaining_commercial_dependencies": [
+    "per-shop Google OAuth consent and separately controlled real mail delivery",
+    "final wildcard DNS/TLS",
+    "Owner pilot acceptance",
+    "real payments not wired"
+  ],
+  "non_effects": [
+    "no main merge",
+    "no credentials/account activation",
+    "no live email, real customer booking or payment",
+    "no Nginx/DNS/other-product changes"
+  ]
+}
