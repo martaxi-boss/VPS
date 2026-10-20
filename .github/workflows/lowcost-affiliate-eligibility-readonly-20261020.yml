@@ -25,7 +25,7 @@ jobs:
           test "$observed" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
           ssh-keygen -F 146.59.145.3 -f "$known" >/dev/null
           echo 'LOWCOST_SSH_HOST_PIN=VERIFIED'
-      - name: Read promotion states from live DB without changing offers
+      - name: Read promotion states from live PostgreSQL without modifying offers
         shell: bash
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
@@ -40,7 +40,7 @@ jobs:
             -o UserKnownHostsFile="$RUNNER_TEMP/lowcost-promotions-known" \
             -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=15 -o ServerAliveInterval=10 \
-            ubuntu@146.59.145.3 'sudo -n /srv/lowcost-europa/.venv/bin/python -' <<'PY'
+            ubuntu@146.59.145.3 'sudo -n python3 -' <<'PY'
           import datetime as dt
           import json
           import os
@@ -48,165 +48,105 @@ jobs:
           import stat
           import subprocess
           import sys
-          from collections import Counter, defaultdict
           from pathlib import Path
           
-          APP = Path("/srv/lowcost-europa")
           ENV = Path("/etc/lowcost-europa/lowcost-europa.env")
-          WHITELIST = {
-              "DJANGO_SECRET_KEY", "DJANGO_DEBUG", "DJANGO_ALLOWED_HOSTS",
-              "POSTGRES_DB", "POSTGRES_USER", "POSTGRES_PASSWORD",
-              "POSTGRES_HOST", "POSTGRES_PORT", "DJANGO_PUBLIC_SITE_URL",
-              "DJANGO_PUBLIC_INDEXING_ENABLED", "CATALOG_MAINTENANCE_BATCH_SIZE",
-              "ALIEXPRESS_TRACKING_ID",
-          }
-          def load_config():
-              st = ENV.lstat()
-              if not stat.S_ISREG(st.st_mode) or st.st_uid != 0 or (st.st_mode & 0o077):
-                  raise RuntimeError("Protected env file does not meet root-only controls")
-              if st.st_size > 65536:
-                  raise RuntimeError("Env file too large")
+          def extract(key):
+              st=ENV.lstat()
+              if not stat.S_ISREG(st.st_mode) or st.st_uid != 0 or st.st_mode & 0o077 or st.st_size>65536:
+                  raise RuntimeError("Protected env missing or unsafe")
               for line in ENV.read_text(encoding="utf-8").splitlines():
-                  row = line.strip()
-                  if not row or row.startswith("#") or "=" not in row:
+                  if line.lstrip().startswith("#") or "=" not in line:
                       continue
-                  key, val = row.partition("=")[::2]
-                  key = key.strip()
-                  if key not in WHITELIST:
-                      continue
-                  value = val.strip()
-                  if len(value) >= 2 and value[0] in ('"', "'") and value[-1] == value[0]:
-                      value = value[1:-1]
-                  os.environ[key] = value
+                  k,_,v=line.partition("=")
+                  if k.strip()==key:
+                      v=v.strip()
+                      if len(v)>1 and v[0] in ("'", '"') and v[-1]==v[0]:
+                          v=v[1:-1]
+                      return v
+              return ""
           
-          def iso(value):
-              return value.astimezone(dt.timezone.utc).isoformat(timespec="seconds") if value else None
-          
-          def safe_title(value):
-              text = " ".join(str(value or "").split())
-              text = re.sub(r"https?://\S+", "[link]", text, flags=re.IGNORECASE)
-              text = "".join(c for c in text if c.isprintable())
-              return text[:84]
-          
+          sql = """
+          WITH base AS (
+           SELECT o.id, o.title, COALESCE(f.slug,'sem-familia') family, o.affiliate_promotion_status promotion_status,
+           o.is_active, o.owner_hidden, o.affiliate_promotion_verified_at,
+           (COALESCE(o.affiliate_url,'') <> '') has_link,
+           (o.is_active AND NOT o.owner_hidden AND COALESCE(o.affiliate_url,'') <> ''
+           AND o.affiliate_promotion_status = 'ELIGIBLE' AND o.affiliate_promotion_verified_at IS NOT NULL
+           AND o.protocol_verified_at IS NOT NULL AND o.protocol_verified_at <= now()) core_gate
+           FROM catalog_offer o
+           LEFT JOIN catalog_productfamily f ON f.id=o.product_family_id
+          )
+          SELECT row_to_json(t)::text FROM (
+           SELECT
+            (SELECT count(*) FROM base) total_offers,
+            (SELECT count(*) FROM base WHERE promotion_status='ELIGIBLE') eligible_offers,
+            (SELECT count(*) FROM base WHERE promotion_status='INELIGIBLE') ineligible_offers,
+            (SELECT count(*) FROM base WHERE promotion_status='UNKNOWN') unknown_offers,
+            (SELECT count(*) FROM base WHERE core_gate) core_gate_offers,
+            (SELECT count(*) FROM base WHERE promotion_status='INELIGIBLE'
+              AND affiliate_promotion_verified_at >= '2026-10-19 22:00:00+00'::timestamptz) ineligible_verified_since_night,
+            (SELECT count(*) FROM base WHERE promotion_status='ELIGIBLE'
+              AND affiliate_promotion_verified_at >= '2026-10-19 22:00:00+00'::timestamptz) eligible_verified_since_night,
+            (SELECT coalesce(json_agg(row_to_json(q)),'[]'::json) FROM (
+              SELECT family,promotion_status,count(*) AS offers FROM base GROUP BY 1,2 ORDER BY 1,2
+            ) q) by_family,
+            (SELECT coalesce(json_agg(row_to_json(q)),'[]'::json) FROM (
+              SELECT id,
+                left(regexp_replace(coalesce(title,''),'https?://[^[:space:]]+','[link]','gi'),84) title,
+                family,is_active,owner_hidden,has_link,core_gate,
+                to_char(affiliate_promotion_verified_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') last_status_verified_utc
+              FROM base WHERE promotion_status='INELIGIBLE' ORDER BY id LIMIT 30
+            ) q) ineligible_details,
+            (SELECT coalesce(json_agg(row_to_json(q)),'[]'::json) FROM (
+              SELECT id,family,is_active,owner_hidden,has_link,core_gate
+              FROM base WHERE promotion_status='UNKNOWN' ORDER BY id LIMIT 15
+            ) q) unknown_details
+          ) t;
+          """
           try:
-              if not APP.is_dir():
-                  raise RuntimeError("App checkout missing")
-              load_config()
-              try:
-                  probe = subprocess.run(
-                      ["systemctl", "show", "lowcost-europa.service", "-p", "MainPID", "--value"],
-                      capture_output=True, text=True, timeout=4, check=False,
-                  )
-                  pid = int(probe.stdout.strip())
-                  if pid > 1:
-                      for token in Path("/proc/" + str(pid) + "/environ").read_bytes().split(bytes([0])):
-                          if b"=" not in token:
-                              continue
-                          k, v = token.split(b"=", 1)
-                          name = k.decode("ascii", errors="ignore")
-                          if name in WHITELIST:
-                              os.environ[name] = v.decode("utf-8", errors="surrogateescape")
-              except (OSError, ValueError, subprocess.TimeoutExpired):
-                  pass
-              os.chdir(APP)
-              sys.path.insert(0, str(APP))
-              os.environ["DJANGO_SETTINGS_MODULE"] = "config.settings.production"
-              import django
-              django.setup()
-              from django.db import connection, transaction
-              from django.utils import timezone
-              from apps.catalog.models import Offer, OfferObservation, ProductFamily
-              from apps.catalog.services.public_eligibility import is_protocol_verified
-              cutoff = dt.datetime(2026, 10, 19, 22, 0, tzinfo=dt.timezone.utc)
-              with transaction.atomic():
-                  with connection.cursor() as cursor:
-                      cursor.execute("SET TRANSACTION READ ONLY")
-                  now = timezone.now()
-                  all_offers = list(Offer.objects.select_related("product_family").order_by("pk"))
-                  counts = Counter()
-                  changed = Counter()
-                  family = defaultdict(Counter)
-                  ineligible = []
-                  unknown = []
-                  core_public_eligible = 0
-                  for offer in all_offers:
-                      status = offer.affiliate_promotion_status
-                      name = offer.product_family.slug if offer.product_family else "(sem_familia)"
-                      counts[status] += 1
-                      family[name][status] += 1
-                      if offer.affiliate_promotion_verified_at and offer.affiliate_promotion_verified_at >= cutoff:
-                          changed[status] += 1
-                      gate = bool(
-                          offer.is_active and not offer.owner_hidden and
-                          offer.affiliate_url and status == "ELIGIBLE" and
-                          offer.affiliate_promotion_verified_at and is_protocol_verified(offer, now)
-                      )
-                      if gate:
-                          core_public_eligible += 1
-                      if status == "INELIGIBLE":
-                          ineligible.append({
-                              "id": offer.pk,
-                              "title": safe_title(offer.title),
-                              "family": name,
-                              "active": offer.is_active,
-                              "owner_hidden": offer.owner_hidden,
-                              "promotion_verified_utc": iso(offer.affiliate_promotion_verified_at),
-                              "affiliate_link_still_stored": bool(offer.affiliate_url),
-                              "core_public_gate": gate,
-                          })
-                      elif status == "UNKNOWN":
-                          unknown.append({
-                              "id": offer.pk, "family": name,
-                              "active": offer.is_active,
-                              "promotion_verified_utc": iso(offer.affiliate_promotion_verified_at),
-                          })
-                  tracking_id = os.environ.get("ALIEXPRESS_TRACKING_ID", "").lower()
-                  tracking_class = (
-                      "LOWCOST_LABELED" if "lowcost" in tracking_id or "low_cost" in tracking_id else
-                      "DEFAULT_LABELED" if "default" in tracking_id else
-                      "OTHER_OR_UNSET"
-                  )
-                  totals = {
-                      "total_offers": len(all_offers),
-                      "promotion_status_counts": dict(counts),
-                      "statuses_verified_since_20261019_22utc": dict(changed),
-                      "core_public_gate_count": core_public_eligible,
-                      "ineligible_distinct_offers": len(ineligible),
-                      "ineligible_list_truncated": len(ineligible) > 30,
-                      "ineligible": ineligible[:30],
-                      "unknown_list_truncated": len(unknown) > 15,
-                      "unknown": unknown[:15],
-                      "by_family": {k: dict(v) for k, v in sorted(family.items())},
-                      "tracking_class": tracking_class,
-                  }
-              sha = subprocess.run(["git", "-C", str(APP), "rev-parse", "--verify", "HEAD"], capture_output=True, text=True, timeout=6)
-              result = {
-                  "probe": "LOWCOST_PROMOTION_READONLY_20261020",
-                  "read_only": True,
-                  "checked_at_utc": iso(dt.datetime.now(dt.timezone.utc)),
-                  "deployed_sha": sha.stdout.strip() if sha.returncode == 0 and re.fullmatch(r"[0-9a-f]{40}", sha.stdout.strip()) else None,
-                  "db": totals,
-                  "important": "Verification status is technical AliExpress API classification, not commission accounting; no affiliate API requests were sent",
-              }
-              print("LOWCOST_PROMOTION_READONLY_RESULT=" + json.dumps(result, sort_keys=True, ensure_ascii=False))
+              db=extract("POSTGRES_DB")
+              if not re.fullmatch(r"[a-zA-Z0-9_]{1,90}",db):
+                  raise RuntimeError("Unsafe DB identifier")
+              tracking=extract("ALIEXPRESS_TRACKING_ID").lower()
+              tracking_class=("LOWCOST_LABELED" if "lowcost" in tracking or "low_cost" in tracking else
+                              "DEFAULT_LABELED" if "default" in tracking else "OTHER_OR_UNSET")
+              proc=subprocess.run(
+                  ["runuser","-u","postgres","--","psql","-X","-q","-A","-t","-v","ON_ERROR_STOP=1","-d",db,
+                   "-c","BEGIN READ ONLY; "+sql+" COMMIT;"],
+                  capture_output=True,text=True,timeout=22,check=False)
+              if proc.returncode:
+                  error=proc.stderr.lower()
+                  reason=next((label for k,label in (
+                      ("peer authentication failed","PEER_AUTH"),
+                      ("password authentication failed","PASSWORD_AUTH"),
+                      ("role","ROLE"),
+                      ("database","DATABASE"),
+                      ("connection refused","CONNECTION_REFUSED"),
+                      ("permission denied","PERMISSION_DENIED"),
+                      ("syntax error","QUERY_SYNTAX"),
+                      ("relation","TABLE_NOT_FOUND"),
+                      ("runuser","RUNUSER"),
+                  ) if k in error),"UNKNOWN_PSQL_FAILURE")
+                  print("LOWCOST_PROMOTION_READONLY_RESULT="+json.dumps({
+                      "probe":"LOWCOST_AFFILIATE_ELIGIBILITY_READONLY_20261020",
+                      "read_only":True,"status":"PSQL_ERROR",
+                      "category":reason,"exit":proc.returncode},sort_keys=True))
+                  sys.exit(1)
+              data=next((json.loads(l.strip()) for l in proc.stdout.splitlines() if l.strip().startswith("{")),None)
+              if not isinstance(data,dict):
+                  raise RuntimeError("No JSON data from database")
+              report={"probe":"LOWCOST_AFFILIATE_ELIGIBILITY_READONLY_20261020",
+                "read_only":True,
+                "checked_at_utc":dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
+                "tracking_class":tracking_class,
+                "database":data,
+                "distinct_vs_checks":"Counts are distinct offers currently; previous 17 ineligible were repeated checks",
+                "external_api_calls":0}
+              print("LOWCOST_PROMOTION_READONLY_RESULT="+json.dumps(report,sort_keys=True,ensure_ascii=False))
           except Exception as exc:
-              print("LOWCOST_PROMOTION_READONLY_RESULT=" + json.dumps({
-                  "probe": "LOWCOST_PROMOTION_READONLY_20261020",
-                  "read_only": True,
-                  "status": "ERROR",
-                  "error_type": type(exc).__name__,
-                  "error_bucket": next(
-                      (label for marker, label in (
-                          ("password authentication failed", "POSTGRES_PASSWORD_AUTH"),
-                          ("no password supplied", "POSTGRES_MISSING_PASSWORD"),
-                          ("connection refused", "POSTGRES_REFUSED"),
-                          ("could not connect", "POSTGRES_CONNECTION"),
-                          ("no such file or directory", "POSTGRES_UNAVAILABLE_SOCKET"),
-                          ("permission denied", "POSTGRES_PERMISSION"),
-                          ("read-only transaction", "POSTGRES_READONLY"),
-                      ) if marker in str(exc).lower()),
-                      "OTHER",
-                  ),
-              }, sort_keys=True))
+              print("LOWCOST_PROMOTION_READONLY_RESULT="+json.dumps({
+                 "probe":"LOWCOST_AFFILIATE_ELIGIBILITY_READONLY_20261020",
+                 "read_only":True,"status":"ERROR","error_type":type(exc).__name__},sort_keys=True))
               sys.exit(1)
           PY
