@@ -141,6 +141,7 @@ class PassiveCloudSourceTests(unittest.TestCase):
             datetime(2026, 10, 20, 17, 48, tzinfo=timezone.utc))
 
     def test_outbound_transport_is_read_only_and_fixed_to_one_repo(self):
+        self.assertTrue(cloud.PULLS_PATH.endswith("per_page=8"))
         import inspect
         source = inspect.getsource(cloud)
         self.assertIn("method=\"GET\"", source)
