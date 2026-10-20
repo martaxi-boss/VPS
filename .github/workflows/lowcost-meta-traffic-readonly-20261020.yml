@@ -376,3 +376,5 @@ jobs:
           }
           print("LOWCOST_META_TRAFFIC_REPORT=" + json.dumps(out, ensure_ascii=False, sort_keys=True))
           PY
+
+# Read-only refresh requested for owner review 2026-10-20 19:52 Europe/Lisbon.
