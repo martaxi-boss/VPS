@@ -41,7 +41,9 @@ alvo e nao supoe que o Codex Cloud esteja ligado a este chat.
 ## Limite operacional ainda por certificar
 
 A funcao produz a sequencia segura de fases, mas **nao** implementa por si
-um servico autonomo de continuação e CI sem nova auditoria entre fases nem valida automaticamente
-uma situacao natural de quota esgotada. Os checks de CI testam o algoritmo
-offline. A primeira execucao real do agendador de quota e uma sequencia
-completa auditada com dependencia continuam a requerer evidencias separadas.
+o servico autonomo de continuacao e CI. A Issue #288 e o run 39450295755
+certificaram, no workflow, duas fases documentais dependentes com continuidade
+sem nova auditoria entre fases; esta capacidade nao pertence ao algoritmo
+isolado, cujos checks de CI continuam a testa-lo offline. Permanecem por
+certificar a recuperacao generica apos quota esgotada e as integracoes noutros
+projetos.
