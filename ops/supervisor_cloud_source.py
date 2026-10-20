@@ -30,7 +30,7 @@ def _time(value: object) -> datetime:
 
 
 def last_observed_start(vps_get, now: datetime) -> datetime:
-    """Last successful scheduled/manual Cloud observation is the read-only cursor.
+    """Last successful observer run is the read-only cursor.
 
     Failed previous polls are deliberately excluded so events can be recovered.
     On initial activation inspect only the recent past, never the full history.
@@ -47,7 +47,8 @@ def last_observed_start(vps_get, now: datetime) -> datetime:
         if not isinstance(run, dict):
             continue
         if (run.get("name") != WORKFLOW
-                or run.get("event") not in ("schedule", "workflow_dispatch")
+                or run.get("event") not in ("schedule", "workflow_dispatch",
+                                            "push", "workflow_run")
                 or run.get("conclusion") != "success"
                 or run.get("status") != "completed"):
             continue
@@ -57,7 +58,7 @@ def last_observed_start(vps_get, now: datetime) -> datetime:
             continue
         if now - timedelta(days=7) <= created < now:
             candidates.append(created)
-    return max(candidates) if candidates else now - timedelta(minutes=20)
+    return max(candidates) if candidates else now - timedelta(hours=6)
 
 
 def cloud_get(token: str, path: str) -> object:
@@ -117,8 +118,11 @@ def _checks_summary(rows: list[dict]) -> str:
     return f"CI: {passed}/{total} verificações aprovadas; ainda não certificada"
 
 
-def messages(cloud_read, since: datetime, now: datetime) -> list[str]:
+def messages(cloud_read, since: datetime, now: datetime,
+             *, limit: int = 5) -> list[str]:
     """Only authenticated owner PR identifiers, fixed links and bounded CI facts."""
+    if type(limit) is not int or not 1 <= limit <= 5:
+        raise ValueError("Cloud report limit outside trusted bounds")
     prs = cloud_read(PULLS_PATH)
     if not isinstance(prs, list):
         raise RuntimeError("Cloud PR listing unavailable")
@@ -168,6 +172,6 @@ def messages(cloud_read, since: datetime, now: datetime) -> list[str]:
             "Observação GitHub; não certifica execução privada nem paralelismo."
         )
         output.append(message)
-        if len(output) == 5:
+        if len(output) == limit:
             break
     return output

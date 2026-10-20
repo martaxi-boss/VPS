@@ -6,6 +6,17 @@ name: Existing passive Supervisor - Cloud GitHub evidence
 on:
   schedule:
     - cron: '7,17,27,37,47,57 * * * *'
+  # Fallback: reuse the established VPS quota-watch event path if GitHub
+  # delays/drops a scheduled run. No new service or Supervisor is created.
+  workflow_run:
+    workflows:
+      - "Supervisor - Real ChatGPT quota watch (Owner notifications only)"
+    types: [completed]
+  # One bounded live smoke run when this reviewed workflow is deployed to main.
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/cloud-supervisor-observation.yml'
   workflow_dispatch:
   pull_request:
     paths:
@@ -14,6 +25,11 @@ on:
 permissions:
   contents: read
   actions: read
+
+# Serializes observer/checkpoint reads; it never dispatches Codex workers.
+concurrency:
+  group: cloud-supervisor-verified-evidence
+  cancel-in-progress: false
 
 jobs:
   observe-cloud:
@@ -34,7 +50,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python3 -m ops.supervisor_live watch
+        run: python3 -m ops.supervisor_live cloud
 
   offline-contract:
     name: Cloud observer offline security and identity tests

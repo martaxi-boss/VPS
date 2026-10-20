@@ -333,6 +333,34 @@ def _private_sender(gateway, message: str, *, source: str = "event") -> None:
 
 
 def main(argv: list[str]) -> int:
+    if argv == ["cloud"]:
+        # Same passive observer and private Telegram transport, called by its
+        # read-only GitHub Actions trigger; no worker/Coordinator dispatch.
+        event = os.environ.get("GITHUB_EVENT_NAME", "")
+        if (os.environ.get("GITHUB_REPOSITORY") != REPOSITORY
+                or event not in ("schedule", "workflow_dispatch",
+                                 "push", "workflow_run")
+                or event == "push"
+                and os.environ.get("GITHUB_REF") != "refs/heads/main"):
+            return 2
+        from datetime import datetime, timezone
+        from ops import supervisor_cloud_source as cloud
+        from ops import telegram_gateway as gateway
+        try:
+            now = datetime.now(timezone.utc)
+            since = cloud.last_observed_start(gateway.github, now)
+            notices = cloud.messages(
+                lambda path: cloud.cloud_get(gateway.GH_TOKEN, path),
+                since, now, limit=1 if event == "push" else 5)
+            for message in notices:
+                _private_sender(gateway, message, source="cloud")
+            outcome = "FORWARDED" if notices else "NO_CHANGE"
+            print(f"SUPERVISOR_CLOUD={outcome}; COUNT={len(notices)}")
+            return 0
+        except (OSError, ValueError, RuntimeError, KeyError, TypeError) as exc:
+            print("SUPERVISOR_CLOUD=OBSERVATION_FAILED:" +
+                  type(exc).__name__, file=sys.stderr)
+            return 1
     if argv == ["plan"]:
         from ops import telegram_gateway as gateway
         try:

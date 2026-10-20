@@ -113,7 +113,32 @@ class PassiveCloudSourceTests(unittest.TestCase):
         gh.return_value = {"workflow_runs": []}
         self.assertEqual(
             cloud.last_observed_start(gh, NOW),
-            datetime(2026, 10, 20, 17, 30, tzinfo=timezone.utc))
+            datetime(2026, 10, 20, 11, 50, tzinfo=timezone.utc))
+
+    def test_bounded_one_pr_bootstrap_does_not_spam_prior_cloud_tests(self):
+        lines = cloud.messages(
+            read_with([owner_pr(num=40), owner_pr(num=39), owner_pr(num=38)],
+                      []),
+            SINCE, NOW, limit=1)
+        self.assertEqual(len(lines), 1)
+        self.assertIn("/pull/40", lines[0])
+        with self.assertRaises(ValueError):
+            cloud.messages(read_with([], []), SINCE, NOW, limit=0)
+        with self.assertRaises(ValueError):
+            cloud.messages(read_with([], []), SINCE, NOW, limit=6)
+
+    def test_trusted_push_and_quota_fallback_runs_are_checkpoints(self):
+        gh = Mock(return_value={"workflow_runs": [
+            {"name": cloud.WORKFLOW, "event": "push", "status": "completed",
+             "conclusion": "success", "created_at": "2026-10-20T17:46:00Z"},
+            {"name": cloud.WORKFLOW, "event": "workflow_run", "status": "completed",
+             "conclusion": "success", "created_at": "2026-10-20T17:48:00Z"},
+            {"name": cloud.WORKFLOW, "event": "workflow_run", "status": "completed",
+             "conclusion": "failure", "created_at": "2026-10-20T17:49:00Z"},
+        ]})
+        self.assertEqual(
+            cloud.last_observed_start(gh, NOW),
+            datetime(2026, 10, 20, 17, 48, tzinfo=timezone.utc))
 
     def test_outbound_transport_is_read_only_and_fixed_to_one_repo(self):
         import inspect
