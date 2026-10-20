@@ -19,6 +19,7 @@ on:
       - '.github/workflows/coordinator-phase-cycle.yml'
       - 'ops/coordinator_phase_continuation.py'
       - 'ops/tests/test_coordinator_phase_continuation.py'
+      - 'ops/tests/test_portable_coordinator_retirement.py'
 
 permissions: {}
 
@@ -45,6 +46,7 @@ jobs:
           python3 -m unittest discover -s ops/tests -p test_coordinator_smoke.py -v
           python3 -m unittest discover -s ops/tests -p test_coordinator_pr_integrator.py -v
           python3 -m unittest discover -s ops/tests -p test_coordinator_external_stage.py -v
+          python3 -m unittest discover -s ops/tests -p test_portable_coordinator_retirement.py -v
 
   plan:
     if: >-
