@@ -363,7 +363,7 @@ def main(argv: list[str]) -> int:
         except (OSError, ValueError, RuntimeError, KeyError, TypeError) as exc:
             # Never print an exception's raw text or private token/chat ID.
             # A fixed pipeline stage and numeric HTTP status suffice for recovery.
-            match = re.search(r"\\bHTTP ([1-5][0-9]{2})\\b", str(exc))
+            match = re.search(r"\bHTTP ([1-5][0-9]{2})\b", str(exc))
             category = "HTTP_" + match.group(1) if match else type(exc).__name__
             print("SUPERVISOR_CLOUD=OBSERVATION_FAILED:" + stage + ":" +
                   category, file=sys.stderr)
