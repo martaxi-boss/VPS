@@ -114,10 +114,14 @@ class CoordinatorSmokeWorkflowTests(unittest.TestCase):
         self.assertNotIn(chr(92) + "${{", self.workflow)
         self.assertIn("ref: ${{ github.event.repository.default_branch }}", self.workflow)
         self.assertIn("SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}", self.workflow)
-    def test_paid_smoke_requires_exact_owner_issue(self):
+    def test_retired_paid_smoke_has_no_live_issue_trigger(self):
+        # Keep old exact-Owner checks as archival defense-in-depth, but do not
+        # permit the retired VPS AI smoke to run from new GitHub Issues.
         self.assertIn("github.event.issue.user.login == github.repository_owner", self.workflow)
         self.assertIn("github.event.issue.title == '[coordinator smoke] Test real de planeamento read-only'", self.workflow)
-        self.assertIn("types: [opened]", self.workflow)
+        trigger = self.workflow.split("\non:\n", 1)[1].split("\npermissions:", 1)[0]
+        self.assertNotIn("\n  issues:", trigger)
+        self.assertIn("\n  pull_request:", trigger)
         self.assertIn("permissions: {}", self.workflow)
         self.assertNotIn("workflow_dispatch:", self.workflow)
 
