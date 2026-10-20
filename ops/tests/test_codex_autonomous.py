@@ -451,6 +451,59 @@ class TwoWorkerPublicationTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 publisher.worker_branch_name("99", "456", "1", wrong)
 
+    def test_publisher_main_accepts_later_phase_instance_identity(self):
+        # Regression for Owner issue #288: p2-1 passed branch preflight,
+        # but the trusted publisher entrypoint refused it after a real Codex run.
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp) / "worker"
+            workspace.mkdir()
+            output = Path(temp) / "result.json"
+            environment = {
+                "CODEX_JOB_DIR": str(workspace),
+                "CODEX_RESULT_PATH": str(output),
+                "CODEX_ISSUE_NUMBER": "288",
+                "GITHUB_RUN_ID": "39450295755",
+                "GITHUB_RUN_ATTEMPT": "1",
+                "CODEX_GITHUB_TOKEN": "fixture-only-not-a-real-token",
+                "CODEX_PR_ONLY": "true",
+                "CODEX_ALLOW_NO_CHANGE": "false",
+            }
+            for identity in ("p2-1", "p8-2"):
+                with self.subTest(identity=identity), mock.patch.dict(
+                    os.environ, {**environment, "CODEX_INSTANCE_ID": identity},
+                    clear=True
+                ), mock.patch.object(
+                    publisher, "perform", return_value={"status": "PR_STAGED"}
+                ) as perform:
+                    self.assertEqual(publisher.main(), 0)
+                    perform.assert_called_once_with(
+                        workspace.resolve(), "288", "39450295755", "1",
+                        identity, True, False
+                    )
+                    self.assertEqual(json.loads(output.read_text())["status"],
+                                     "PR_STAGED")
+
+    def test_publisher_main_rejects_invalid_phase_id_before_publication(self):
+        with tempfile.TemporaryDirectory() as temp:
+            environment = {
+                "CODEX_JOB_DIR": temp,
+                "CODEX_RESULT_PATH": str(Path(temp) / "out.json"),
+                "CODEX_ISSUE_NUMBER": "288",
+                "GITHUB_RUN_ID": "39450295755",
+                "GITHUB_RUN_ATTEMPT": "1",
+                "CODEX_GITHUB_TOKEN": "fixture-only-not-a-real-token",
+            }
+            for identity in ("p1-1", "p9-2", "p2-3", "p2-1/../x"):
+                with self.subTest(identity=identity), mock.patch.dict(
+                    os.environ, {**environment, "CODEX_INSTANCE_ID": identity},
+                    clear=True
+                ), mock.patch.object(publisher, "perform") as perform:
+                    with self.assertRaisesRegex(
+                        ValueError, "Invalid trusted Codex instance identity"
+                    ):
+                        publisher.main()
+                    perform.assert_not_called()
+
     def test_untrusted_worker_identity_fails_closed(self):
         with self.assertRaises(ValueError):
             publisher.worker_branch_name("99", "456", "1", "../secrets")
