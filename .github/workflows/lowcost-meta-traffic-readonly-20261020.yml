@@ -1,0 +1,378 @@
+name: Lowcost Meta campaign traffic and errors read-only 20261020
+on:
+  push:
+    branches: ['ops/lowcost-meta-traffic-readonly-20261020']
+    paths: ['.github/workflows/lowcost-meta-traffic-readonly-20261020.yml']
+permissions:
+  contents: read
+jobs:
+  observe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    if: github.repository == 'martaxi-boss/VPS'
+    steps:
+      - name: Verify pinned VPS identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          known="$RUNNER_TEMP/lowcost-traffic-hosts"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known"
+          chmod 600 "$known"
+          observed="$(ssh-keygen -lf "$known" -E sha256 | awk '{print $2}')"
+          test "$observed" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          ssh-keygen -F 146.59.145.3 -f "$known" >/dev/null
+          echo LOWCOST_TRAFFIC_SSH_PIN=VERIFIED
+      - name: Audit visitors, outbounds and errors without writes
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T \
+            -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/lowcost-traffic-hosts" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 -o ServerAliveInterval=10 \
+            ubuntu@146.59.145.3 'sudo -n python3 -' <<'PY'
+          import collections
+          import datetime as dt
+          import gzip
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import stat
+          import subprocess
+          import urllib.parse
+          
+          SITE_DOMAINS = ("lowcost-europa.duckdns.org", "lowcost-europa.146-59-145-3.sslip.io")
+          SITE_START = dt.datetime(2026, 10, 19, 23, 0, tzinfo=dt.timezone.utc)
+          PREV_START = SITE_START - dt.timedelta(days=1)
+          NOW = dt.datetime.now(dt.timezone.utc)
+          PREV_END = NOW - dt.timedelta(days=1)
+          FILE_LIMIT = 80 * 1024 * 1024
+          ALL_LIMIT = 190 * 1024 * 1024
+          ALLOWED_KEYS = ("POSTGRES_DB",)
+          LOG_PATTERN = re.compile(r'(\S+) \S+ \S+ \[([^\]]+)\] "([^"]*)" (\d{3}) (\S+) "([^"]*)" "([^"]*)"(.*)$')
+          LOG_TS_FORMAT = "%d/%b/%Y:%H:%M:%S %z"
+          
+          def parse_env_var(name):
+              file = Path("/etc/lowcost-europa/lowcost-europa.env")
+              info = file.lstat()
+              if not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or (info.st_mode & 0o077) or info.st_size > 65536:
+                  raise ValueError("Protected app environment does not meet permissions")
+              for line in file.read_text(encoding="utf-8").splitlines():
+                  key, sep, val = line.partition("=")
+                  if sep and key.strip() == name:
+                      val = val.strip()
+                      if len(val) > 1 and val[0] in ("'", '"') and val[-1] == val[0]:
+                          val = val[1:-1]
+                      return val
+              return ""
+          
+          def psql_report():
+              db = parse_env_var("POSTGRES_DB")
+              if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,89}", db):
+                  return {"status": "DB_NAME_INVALID"}
+              sql = """
+              WITH clicks AS (
+                SELECT oc.clicked_at, o.id offer_id,
+                  left(regexp_replace(coalesce(o.title,''),'https?://[^[:space:]]+','[link]','gi'),74) AS product_title
+                FROM catalog_offerclick oc JOIN catalog_offer o ON o.id=oc.offer_id
+              )
+              SELECT row_to_json(t)::text FROM (
+                SELECT 
+                 (SELECT count(*) FROM clicks WHERE clicked_at >= '2026-10-19 23:00:00+00'::timestamptz) clicks_today,
+                 (SELECT count(*) FROM clicks WHERE clicked_at >= '2026-10-18 23:00:00+00'::timestamptz
+                  AND clicked_at < now() - interval '1 day') clicks_yesterday_same_elapsed,
+                 (SELECT count(*) FROM clicks WHERE clicked_at >= '2026-10-19 23:00:00+00'::timestamptz
+                  AND clicked_at < '2026-10-20 00:00:00+00'::timestamptz) clicks_midnight_hour,
+                 (SELECT count(*) FROM clicks) clicks_alltime,
+                 (SELECT count(DISTINCT offer_id) FROM clicks WHERE clicked_at >= '2026-10-19 23:00:00+00'::timestamptz) products_clicked_today,
+                 (SELECT coalesce(json_agg(row_to_json(z)),'[]'::json) FROM
+                   (SELECT to_char(date_trunc('hour', clicked_at AT TIME ZONE 'Europe/Lisbon'),'YYYY-MM-DD HH24:00') hour_pt,
+                           count(*) clicks
+                    FROM clicks WHERE clicked_at >= '2026-10-19 23:00:00+00'::timestamptz
+                    GROUP BY 1 ORDER BY 1) z) clicks_by_hour_pt,
+                 (SELECT coalesce(json_agg(row_to_json(z)),'[]'::json) FROM
+                    (SELECT offer_id, min(product_title) AS product_title, count(*) clicks
+                     FROM clicks WHERE clicked_at >= '2026-10-19 23:00:00+00'::timestamptz
+                     GROUP BY offer_id ORDER BY count(*) DESC, offer_id LIMIT 12) z) top_clicked_offers
+              ) t;
+              """
+              try:
+                  proc = subprocess.run(
+                      ["runuser", "-u", "postgres", "--", "psql", "-X", "-q", "-A", "-t", "-v",
+                       "ON_ERROR_STOP=1", "-d", db, "-c", "BEGIN READ ONLY; " + sql + " COMMIT;"],
+                      capture_output=True, text=True, timeout=25, check=False)
+                  if proc.returncode:
+                      return {"status": "PSQL_FAILURE", "exit": proc.returncode}
+                  val = next((json.loads(line.strip()) for line in proc.stdout.splitlines()
+                              if line.strip().startswith("{")), None)
+                  return {"status": "OK", "summary": val} if isinstance(val, dict) else {"status": "EMPTY_OR_UNPARSEABLE"}
+              except Exception as exc:
+                  return {"status": "ERROR", "error_type": type(exc).__name__}
+          
+          def host_inventory():
+              configs = [Path("/etc/nginx/nginx.conf")]
+              for root in (Path("/etc/nginx/sites-enabled"), Path("/etc/nginx/conf.d")):
+                  if root.exists():
+                      configs.extend(list(root.glob("*"))[:50])
+              sites = set()
+              custom_format_has_host = False
+              for p in configs:
+                  try:
+                      if not p.is_file() or p.stat().st_size > 120000:
+                          continue
+                      content = p.read_text(encoding="utf-8", errors="ignore")
+                      for names in re.findall(r"server_name\s+([^;]+);", content):
+                          for name in names.split():
+                              if name not in ("_", "localhost", "127.0.0.1", "*"):
+                                  sites.add(name.strip())
+                      if re.search(r"log_format\s+\w+[^;]*\$(?:host|http_host|server_name)", content, flags=re.S):
+                          custom_format_has_host = True
+                  except (OSError, UnicodeError):
+                      continue
+              return {"number_server_names": len(sites),
+                      "other_virtual_hosts_present": any(not any(d in s for d in SITE_DOMAINS) for s in sites),
+                      "nginx_config_has_host_aware_log_format": custom_format_has_host}
+          
+          def path_kind(path):
+              if path == "/" or path == "":
+                  return "home"
+              if path.startswith("/products/"):
+                  return "category"
+              if re.fullmatch(r"/go/\d+/?", path):
+                  return "outbound_aliexpress"
+              if path.startswith("/go/"):
+                  return "outbound_other"
+              if path == "/contactar/whatsapp/":
+                  return "whatsapp_redirect"
+              if path.startswith("/health/"):
+                  return "health"
+              if path.startswith("/static/"):
+                  return "static"
+              if path.startswith("/painel/") or path.startswith("/ops/") or path.startswith("/admin/"):
+                  return "private_management"
+              if path in ("/contacto/", "/como-funciona/", "/afiliados/", "/termos/", "/privacidade/"):
+                  return "institutional"
+              if path in ("/robots.txt", "/sitemap.xml", "/favicon.ico"):
+                  return "robots_or_asset"
+              return "other"
+          
+          def from_meta(referer, query):
+              try:
+                  ref = urllib.parse.urlsplit(referer).hostname or ""
+              except ValueError:
+                  ref = ""
+              if ref.endswith(("facebook.com", "instagram.com", "fb.com", "fb.me", "l.instagram.com")):
+                  return "meta_referrer"
+              try:
+                  q = urllib.parse.parse_qs(query, keep_blank_values=True, max_num_fields=50)
+              except ValueError:
+                  q = {}
+              if "fbclid" in q or "igshid" in q:
+                  return "social_click_id"
+              medium = " ".join(q.get("utm_source", []) + q.get("utm_medium", [])).lower()
+              if any(s in medium for s in ("facebook", "instagram", "meta", "fb", "ig", "paid_social")):
+                  return "utm_social"
+              return ""
+          
+          def files_for(base, kind):
+              if not base.is_dir():
+                  return []
+              paths = []
+              for p in base.iterdir():
+                  name = p.name.lower()
+                  if kind not in name:
+                      continue
+                  if not (name.endswith(".log") or ".log." in name):
+                      continue
+                  if not p.is_file():
+                      continue
+                  try:
+                      if p.stat().st_size < FILE_LIMIT:
+                          paths.append(p)
+                  except OSError:
+                      pass
+              return sorted(paths, key=lambda p: p.name)[:30]
+          
+          def nginx_traffic():
+              roots = (Path("/var/log/nginx"), Path("/var/log/lowcost-europa"))
+              access_paths = [p for root in roots for p in files_for(root, "access")]
+              error_paths = [p for root in roots for p in files_for(root, "error")]
+              total_bytes = 0
+              stats = collections.Counter()
+              by_hour = collections.Counter()
+              meta = collections.Counter()
+              route_status = collections.Counter()
+              errors = collections.Counter()
+              source_counters = collections.Counter()
+              timestamp_counts = {"oldest": None, "latest": None}
+              scanned = []
+              parse_examples = []
+              for path in access_paths:
+                  try:
+                      fsize = path.stat().st_size
+                      if total_bytes + fsize > ALL_LIMIT:
+                          stats["skipped_file_budget"] += 1
+                          continue
+                      total_bytes += fsize
+                      scanned.append({"kind": "access", "dedicated": ("lowcost" in path.name.lower()),
+                                      "size_bytes": fsize})
+                      op = gzip.open if path.suffix == ".gz" else open
+                      with op(path, "rt", encoding="utf-8", errors="replace") as fp:
+                          for line in fp:
+                              stats["access_lines_scanned"] += 1
+                              m = LOG_PATTERN.search(line)
+                              if not m:
+                                  stats["access_lines_unparsed"] += 1
+                                  continue
+                              try:
+                                  at = dt.datetime.strptime(m.group(2), LOG_TS_FORMAT).astimezone(dt.timezone.utc)
+                              except ValueError:
+                                  stats["timestamps_unparsed"] += 1
+                                  continue
+                              if at < PREV_START or at > NOW + dt.timedelta(minutes=3):
+                                  continue
+                              request = m.group(3)
+                              bits = request.split(" ")
+                              if len(bits) < 2:
+                                  continue
+                              try:
+                                  parsed = urllib.parse.urlsplit(bits[1][:2048])
+                              except ValueError:
+                                  continue
+                              kind = path_kind(parsed.path)
+                              dedicated = "lowcost" in path.name.lower()
+                              host_evidence = any(s in line for s in SITE_DOMAINS)
+                              strong = dedicated or host_evidence
+                              ambiguous = not strong
+                              status = int(m.group(4))
+                              signal = from_meta(m.group(6), parsed.query)
+                              day = "today" if at >= SITE_START else "yesterday_same_elapsed" if at < PREV_END else "prev_day_other"
+                              if day == "prev_day_other":
+                                  continue
+                              if kind in ("health", "static", "private_management", "robots_or_asset", "other"):
+                                  ignored = True
+                              else:
+                                  ignored = False
+                              state = "host_identified" if strong else "shared_log_ambiguous"
+                              stats[f"{day}_{state}_all_requests"] += 1
+                              source_counters[state] += 1
+                              if ignored:
+                                  stats[f"{day}_{state}_technical_or_other"] += 1
+                                  continue
+                              stats[f"{day}_{state}_interesting_requests"] += 1
+                              route_status[(day, state, kind, status)] += 1
+                              if signal:
+                                  meta[(day, state, kind, signal)] += 1
+                              if "bot" in m.group(7).lower() or "spider" in m.group(7).lower() or "curl" in m.group(7).lower():
+                                  stats[f"{day}_{state}_obvious_automated"] += 1
+                              if day == "today":
+                                  hour = at.astimezone(dt.timezone(dt.timedelta(hours=1))).strftime("%H")
+                                  by_hour[(state, hour)] += 1
+                              if day == "today" and status >= 500:
+                                  errors[(state, kind, str(status))] += 1
+                              if day == "today" and kind == "outbound_aliexpress" and status >= 400:
+                                  errors[(state, "outbound_aliexpress", str(status))] += 1
+                  except (OSError, EOFError, ValueError) as exc:
+                      stats["file_read_errors"] += 1
+              for path in error_paths:
+                  try:
+                      if path.stat().st_size > FILE_LIMIT:
+                          continue
+                      scanned.append({"kind": "error", "dedicated": ("lowcost" in path.name.lower()),
+                                      "size_bytes": path.stat().st_size})
+                      op = gzip.open if path.suffix == ".gz" else open
+                      with op(path, "rt", encoding="utf-8", errors="replace") as fp:
+                          for line in fp:
+                              prefix = line[:19]
+                              try:
+                                  at = dt.datetime.strptime(prefix, "%Y/%m/%d %H:%M:%S").replace(tzinfo=dt.timezone.utc)
+                              except ValueError:
+                                  continue
+                              if not (SITE_START <= at <= NOW):
+                                  continue
+                              lowcost_context = any(d in line for d in SITE_DOMAINS)
+                              if not lowcost_context and "lowcost" not in path.name.lower():
+                                  continue
+                              lower = line.lower()
+                              if "upstream timed out" in lower:
+                                  errors[("host_identified", "error_log", "upstream_timeout")] += 1
+                              elif "connect() failed" in lower:
+                                  errors[("host_identified", "error_log", "upstream_connect")] += 1
+                              elif "permission denied" in lower:
+                                  errors[("host_identified", "error_log", "permission_denied")] += 1
+                              elif "no live upstreams" in lower:
+                                  errors[("host_identified", "error_log", "no_upstreams")] += 1
+                              else:
+                                  errors[("host_identified", "error_log", "other")] += 1
+                  except (OSError, EOFError, ValueError):
+                      stats["error_file_read_errors"] += 1
+              return {
+                  "access_files_scanned": sum(f["kind"] == "access" for f in scanned),
+                  "error_files_scanned": sum(f["kind"] == "error" for f in scanned),
+                  "scanned_file_types": scanned[:25],
+                  "stats": dict(stats),
+                  "route_status": [{"window": w, "scope": scope, "route": kind, "http": status, "requests": value}
+                                   for (w, scope, kind, status), value in sorted(route_status.items())],
+                  "meta_signals": [{"window": w, "scope": scope, "route": route, "signal": signal, "requests": value}
+                                   for (w, scope, route, signal), value in sorted(meta.items())],
+                  "today_hourly_requests": [{"scope": scope, "hour_pt": hh + ":00", "requests": value}
+                                            for (scope, hh), value in sorted(by_hour.items())],
+                  "error_categories": [{"scope": scope, "route": route, "reason": reason, "count": count}
+                                       for (scope, route, reason), count in sorted(errors.items())],
+                  "important": "Host-identification is required for exact website-wide traffic attribution; shared Nginx logs without logged Host are ambiguous across VPS applications. Requests are not visitors, purchases, or conversations.",
+              }
+          
+          def journal():
+              args = ["journalctl", "-u", "lowcost-europa.service", "--since", "2026-10-19 23:00:00",
+                      "-o", "cat", "-n", "2000", "--no-pager"]
+              try:
+                  p = subprocess.run(args, capture_output=True, text=True, timeout=15)
+                  if p.returncode:
+                      return {"status": "NOT_AVAILABLE"}
+                  lines = p.stdout.splitlines()
+                  c = collections.Counter()
+                  for line in lines:
+                      low = line.lower()
+                      if "traceback" in low:
+                          c["traceback_marker"] += 1
+                      if "internal server error" in low:
+                          c["internal_server_error"] += 1
+                      if "connection refused" in low:
+                          c["connection_refused"] += 1
+                      if "error" in low:
+                          c["generic_error_lines"] += 1
+                  return {"status": "OK", "lines": len(lines), "error_classes": dict(c)}
+              except (OSError, subprocess.TimeoutExpired):
+                  return {"status": "ERROR"}
+          
+          def services():
+              result={}
+              for unit in ("lowcost-europa.service", "nginx.service", "postgresql.service"):
+                  try:
+                      p=subprocess.run(["systemctl","is-active", unit],capture_output=True,text=True,timeout=4)
+                      result[unit]=p.stdout.strip()[:20]
+                  except (OSError, subprocess.TimeoutExpired):
+                      result[unit]="unavailable"
+              return result
+          
+          out = {
+              "probe": "LOWCOST_META_AD_TRAFFIC_READONLY_20261020",
+              "read_only": True,
+              "time_cutoff_utc": SITE_START.isoformat(),
+              "checked_at_utc": NOW.isoformat(timespec="seconds"),
+              "comparison": "2026-10-19 00:00 to same elapsed local time",
+              "host_inventory": host_inventory(),
+              "service_state": services(),
+              "app_journal": journal(),
+              "db_outbound_clicks": psql_report(),
+              "nginx": nginx_traffic()
+          }
+          print("LOWCOST_META_TRAFFIC_REPORT=" + json.dumps(out, ensure_ascii=False, sort_keys=True))
+          PY
