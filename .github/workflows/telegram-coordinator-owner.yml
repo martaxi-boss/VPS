@@ -4,18 +4,7 @@ name: Authenticated Telegram Owner order to Coordinator
 # Telegram HMAC and uses a separately scoped Owner credential to create the
 # exact Owner Issue that the existing Coordinator already authenticates.
 on:
-  workflow_dispatch:
-    inputs:
-      source:
-        type: choice
-        required: true
-        options: [telegram]
-      signed_order_b64:
-        type: string
-        required: true
-      signature:
-        type: string
-        required: true
+  # Incoming Telegram Owner orders remain retired; outbound Supervisor unaffected.
   pull_request:
     paths:
       - '.github/workflows/telegram-coordinator-owner.yml'
