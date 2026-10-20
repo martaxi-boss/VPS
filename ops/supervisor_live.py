@@ -377,9 +377,22 @@ def main(argv: list[str]) -> int:
             result = observe_event(gateway.github, lambda m: _private_sender(gateway, m, source="event"), event_name, data)
             print("SUPERVISOR_EVENT=" + ("FORWARDED" if result else "IGNORED"))
         elif event_name in ("schedule", "workflow_dispatch"):
+            if os.environ.get("GITHUB_REPOSITORY") != REPOSITORY:
+                return 2
             running = _runs(gateway.github, "in_progress")
             queued = _runs(gateway.github, "queued")
             print(f"SUPERVISOR_HEARTBEAT=READ_ONLY; ACTIVE={len(running)}; QUEUED={len(queued)}")
+            # Extend this SAME Supervisor with read-only evidence from the
+            # public Codex Cloud repository. No workers, models or new bot.
+            from datetime import datetime, timezone
+            from ops import supervisor_cloud_source as cloud
+            now = datetime.now(timezone.utc)
+            since = cloud.last_observed_start(gateway.github, now)
+            notices = cloud.messages(
+                lambda path: cloud.cloud_get(gateway.GH_TOKEN, path), since, now)
+            for message in notices:
+                _private_sender(gateway, message, source="cloud")
+            print("SUPERVISOR_CLOUD=FORWARDED; COUNT=" + str(len(notices)))
         else:
             print("SUPERVISOR_EVENT=NOT_APPLICABLE")
         return 0
