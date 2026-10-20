@@ -5,11 +5,6 @@ name: Telegram commands to Codex
 # Incoming text/voice orders and audits are paused; never poll backlogged updates.
 # To re-enable later, obtain a new Owner instruction and handle any stale queue safely.
 on:
-  # The same passive Supervisor checks published Cloud PR/CI evidence.
-  # No access to private Cloud sessions and no incoming Telegram commands.
-  schedule:
-    - cron: '7,17,27,37,47,57 * * * *'
-  workflow_dispatch:
   issues:
     types: [opened]
   workflow_run:
