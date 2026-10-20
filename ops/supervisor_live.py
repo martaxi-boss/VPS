@@ -346,20 +346,27 @@ def main(argv: list[str]) -> int:
         from datetime import datetime, timezone
         from ops import supervisor_cloud_source as cloud
         from ops import telegram_gateway as gateway
+        stage = "CHECKPOINT"
         try:
             now = datetime.now(timezone.utc)
             since = cloud.last_observed_start(gateway.github, now)
+            stage = "CLOUD_READ"
             notices = cloud.messages(
                 lambda path: cloud.cloud_get(gateway.GH_TOKEN, path),
                 since, now, limit=1 if event == "push" else 5)
+            stage = "TELEGRAM"
             for message in notices:
                 _private_sender(gateway, message, source="cloud")
             outcome = "FORWARDED" if notices else "NO_CHANGE"
             print(f"SUPERVISOR_CLOUD={outcome}; COUNT={len(notices)}")
             return 0
         except (OSError, ValueError, RuntimeError, KeyError, TypeError) as exc:
-            print("SUPERVISOR_CLOUD=OBSERVATION_FAILED:" +
-                  type(exc).__name__, file=sys.stderr)
+            # Never print an exception's raw text or private token/chat ID.
+            # A fixed pipeline stage and numeric HTTP status suffice for recovery.
+            match = re.search(r"\\bHTTP ([1-5][0-9]{2})\\b", str(exc))
+            category = "HTTP_" + match.group(1) if match else type(exc).__name__
+            print("SUPERVISOR_CLOUD=OBSERVATION_FAILED:" + stage + ":" +
+                  category, file=sys.stderr)
             return 1
     if argv == ["plan"]:
         from ops import telegram_gateway as gateway
