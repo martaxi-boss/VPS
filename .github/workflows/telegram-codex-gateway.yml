@@ -5,6 +5,11 @@ name: Telegram commands to Codex
 # Incoming text/voice orders and audits are paused; never poll backlogged updates.
 # To re-enable later, obtain a new Owner instruction and handle any stale queue safely.
 on:
+  # The same passive Supervisor checks published Cloud PR/CI evidence.
+  # No access to private Cloud sessions and no incoming Telegram commands.
+  schedule:
+    - cron: '7,17,27,37,47,57 * * * *'
+  workflow_dispatch:
   issues:
     types: [opened]
   workflow_run:
@@ -25,8 +30,10 @@ on:
       - 'ops/tests/test_telegram_coordinator.py'
       - '.github/workflows/telegram-coordinator-owner.yml'
       - 'ops/supervisor_live.py'
+      - 'ops/supervisor_cloud_source.py'
       - 'ops/supervisor_audit.py'
       - 'ops/tests/test_supervisor_live.py'
+      - 'ops/tests/test_supervisor_cloud_source.py'
       - 'ops/tests/test_supervisor_audit.py'
       - 'ops/telegram_voice_transcribe.py'
       - 'ops/tests/test_telegram_gateway.py'
@@ -54,10 +61,11 @@ jobs:
           persist-credentials: false
       - name: Validate syntax and restricted routing
         run: |
-          python3 -m py_compile ops/telegram_gateway.py ops/telegram_voice_transcribe.py ops/supervisor_live.py ops/supervisor_audit.py
+          python3 -m py_compile ops/telegram_gateway.py ops/telegram_voice_transcribe.py ops/supervisor_live.py ops/supervisor_cloud_source.py ops/supervisor_audit.py
           python3 -m unittest discover -s ops/tests -p 'test_telegram_coordinator.py' -v
           python3 -m unittest discover -s ops/tests -p 'test_telegram_gateway.py' -v
           python3 -m unittest discover -s ops/tests -p 'test_supervisor_live.py' -v
+          python3 -m unittest discover -s ops/tests -p 'test_supervisor_cloud_source.py' -v
           python3 -m unittest discover -s ops/tests -p 'test_supervisor_audit.py' -v
 
 
@@ -125,7 +133,7 @@ jobs:
           ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
       - name: Validate passive observer and audit syntax
-        run: python3 -m py_compile ops/supervisor_live.py ops/supervisor_audit.py ops/telegram_gateway.py
+        run: python3 -m py_compile ops/supervisor_live.py ops/supervisor_cloud_source.py ops/supervisor_audit.py ops/telegram_gateway.py
       - name: Read-only observation, factual audit and private Owner notification
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
