@@ -2,8 +2,7 @@ name: Coordinator AI read-only live smoke
 
 # Explicit Owner Issue only. PRs never see SSH credentials or start Codex.
 on:
-  issues:
-    types: [opened]
+  # No live VPS Coordinator AI invocation; retain offline regression tests.
   pull_request:
     paths:
       - '.github/workflows/coordinator-ai-smoke.yml'

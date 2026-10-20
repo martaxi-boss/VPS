@@ -3,8 +3,7 @@ name: Coordinator private media relay (Owner only)
 # This transfers privately sealed attachments to the EXISTING Coordinator inbox.
 # It never plans work, calls the model, creates workers, or reads Telegram.
 on:
-  issues:
-    types: [opened]
+  # No new uploads to a retired Coordinator inbox; preserve offline tests.
   pull_request:
     paths:
       - '.github/workflows/coordinator-private-media-relay.yml'

@@ -3,8 +3,7 @@ name: Coordinator to existing Codex router (Owner order)
 # This is an authenticated gateway, NOT another AI coordinator.
 # The model stays in ops/coordinator_ai.py; workers stay in agent-switch.
 on:
-  issues:
-    types: [opened]
+  # Old Owner Issue AI planning retired; PR runs only execute offline tests.
   pull_request:
     paths:
       - '.github/workflows/coordinator-owner-order.yml'
@@ -20,6 +19,7 @@ on:
       - '.github/workflows/coordinator-phase-cycle.yml'
       - 'ops/coordinator_phase_continuation.py'
       - 'ops/tests/test_coordinator_phase_continuation.py'
+      - 'ops/tests/test_portable_coordinator_retirement.py'
 
 permissions: {}
 
@@ -46,6 +46,7 @@ jobs:
           python3 -m unittest discover -s ops/tests -p test_coordinator_smoke.py -v
           python3 -m unittest discover -s ops/tests -p test_coordinator_pr_integrator.py -v
           python3 -m unittest discover -s ops/tests -p test_coordinator_external_stage.py -v
+          python3 -m unittest discover -s ops/tests -p test_portable_coordinator_retirement.py -v
 
   plan:
     if: >-
