@@ -88,6 +88,7 @@ jobs:
           python3 - <<'PY'
           import json
           import os
+          from datetime import datetime, timezone
           from pathlib import Path
 
           report = json.loads((Path(os.environ["RUNNER_TEMP"]) /
@@ -99,9 +100,12 @@ jobs:
               "sessions_status": report.get("sessions", {}).get("status"),
               "api_source": report.get("sessions", {}).get("api_source"),
               "pm2": report.get("pm2", {}).get("status"),
+              "pm2_restarts": report.get("pm2", {}).get("restart_count"),
               "public_groups_found": report.get("public_discovery", {}).get("public_groups"),
               "last_public_scan": report.get("public_discovery", {}).get("last_scan_at"),
+              "last_attempt_day": report.get("public_discovery", {}).get("last_attempt_day"),
               "last_cycle": report.get("supervisor", {}).get("status"),
+              "last_cycle_kind": report.get("supervisor", {}).get("event_kind"),
               "discovery_cycle": report.get("supervisor", {}).get("public_discovery_status"),
               "accounts_blocked": report.get("operation_state", {}).get("accounts_blocked"),
               "telegram_requests_by_probe": report.get("telegram_requests"),
@@ -115,6 +119,33 @@ jobs:
           assert snapshot["source_matches_expected"] is True
           assert snapshot["session_files"] == 2
           assert snapshot["pm2"] == "ONLINE"
-          assert snapshot["status"] == "LIVE_PUBLIC_DISCOVERY_OBSERVED"
+          # Discovery is run once/day. Subsequent healthy cycles accurately
+          # report ALREADY_ATTEMPTED, not COMPLETE. Verify the timestamped
+          # first scan and a recent current loop instead of a false failure.
+          assert snapshot["last_cycle"] == "RECENT"
+          assert snapshot["last_cycle_kind"] == "cycle"
+          assert snapshot["discovery_cycle"] in {
+              "PUBLIC_DISCOVERY_COMPLETE",
+              "PUBLIC_DISCOVERY_ALREADY_ATTEMPTED_TODAY",
+          }
+          assert snapshot["last_attempt_day"] == "2026-10-20"
+          assert report.get("public_discovery", {}).get("status") == "CATALOG_PRESENT"
+          assert isinstance(snapshot["public_groups_found"], int)
+          assert snapshot["public_groups_found"] > 0
+          scan_at = datetime.fromisoformat(snapshot["last_public_scan"])
+          assert scan_at.tzinfo is not None
+          scan_epoch = scan_at.timestamp()
+          assert scan_epoch >= datetime(2026, 10, 20, 7, 0, tzinfo=timezone.utc).timestamp()
+          assert scan_epoch >= report.get("source", {}).get("installed_at_epoch", float("inf"))
+          assert scan_epoch <= datetime.now(timezone.utc).timestamp() + 300
+          assert (
+              snapshot["status"] == "LIVE_PUBLIC_DISCOVERY_OBSERVED"
+              or (
+                  snapshot["status"] == "PM2_ONLINE_DISCOVERY_NOT_VERIFIED"
+                  and snapshot["discovery_cycle"]
+                  == "PUBLIC_DISCOVERY_ALREADY_ATTEMPTED_TODAY"
+              )
+          )
+          print("TELEGRAM_LEADS_DISCOVERY_FIRST_SCAN_CONFIRMED=2026-10-20")
           print("TELEGRAM_LEADS_POST_ACTIVATION_PROOF=PASS")
           PY
