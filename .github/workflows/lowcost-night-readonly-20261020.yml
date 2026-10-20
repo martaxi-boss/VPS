@@ -1,0 +1,180 @@
+name: Lowcost Europa overnight read-only VPS audit 20261020
+
+on:
+  push:
+    branches: ['ops/lowcost-night-readonly-20261020']
+    paths: ['.github/workflows/lowcost-night-readonly-20261020.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  observe:
+    if: github.repository == 'martaxi-boss/VPS'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Verify exact Owner-pinned VPS SSH identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          known="$RUNNER_TEMP/lowcost-night-known-hosts"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known"
+          chmod 600 "$known"
+          observed="$(ssh-keygen -lf "$known" -E sha256 | awk '{print $2}')"
+          test "$observed" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          ssh-keygen -F 146.59.145.3 -f "$known" >/dev/null
+          echo 'LOWCOST_SSH_HOST_IDENTITY=VERIFIED'
+
+      - name: Read systemd and bounded overnight journals (no writes on VPS)
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}" || { echo 'VPS_SSH_PASSWORD_UNAVAILABLE'; exit 2; }
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T             -o PreferredAuthentications=password -o PubkeyAuthentication=no             -o StrictHostKeyChecking=yes             -o UserKnownHostsFile="$RUNNER_TEMP/lowcost-night-known-hosts"             -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519             -o ConnectTimeout=15 -o ServerAliveInterval=10             ubuntu@146.59.145.3 'sudo -n python3 -' <<'PY'
+          import datetime as dt
+          import json
+          import os
+          import re
+          import subprocess
+
+          os.environ["TZ"] = "UTC"
+          UNITS = (
+              "lowcost-europa-weekly-discovery.timer",
+              "lowcost-europa-weekly-discovery.service",
+              "lowcost-europa-catalog-maintenance.timer",
+              "lowcost-europa-catalog-maintenance.service",
+              "lowcost-europa.service",
+              "nginx.service",
+              "postgresql.service",
+          )
+          TIME_START = "2026-10-19 22:00:00"
+          TIME_END = "2026-10-20 09:00:00"
+          DISCOVERY_KEYS = (
+              "FAMÍLIA", "PENDENTES ANTES", "PESQUISAS API",
+              "DETALHES API", "NOVOS CANDIDATOS", "DUPLICADOS IGNORADOS",
+              "REJEITADOS HISTÓRICOS IGNORADOS", "ERROS TRANSITÓRIOS",
+              "PENDENTES DEPOIS", "LIMITE DE FILA ATINGIDO",
+              "OPERAÇÕES LÓGICAS", "TENTATIVAS HTTP", "RETRIES", "429", "5XX",
+              "FALHAS TRANSPORTE", "RATE-LIMIT ABORT", "DURAÇÃO",
+              "AUTO APROVADOS", "AUTO PUBLICADOS",
+              "LINKS AFILIADOS GERADOS PELA DESCOBERTA",
+          )
+          MAINTENANCE_KEYS = (
+              "Offers selected", "Detail attempts", "Available confirmed",
+              "Unavailable confirmed", "Transient failures", "Offers deactivated",
+              "Promotion attempts", "Promotion eligible", "Promotion ineligible",
+              "Promotion transient failures",
+          )
+
+          def execute(*args, timeout=25):
+              try:
+                  p = subprocess.run(args, capture_output=True, text=True, timeout=timeout, check=False)
+                  return {"exit": p.returncode, "stdout": p.stdout}
+              except (OSError, subprocess.TimeoutExpired):
+                  return {"exit": -1, "stdout": ""}
+
+          def show(unit):
+              props = (
+                  "LoadState", "ActiveState", "SubState", "UnitFileState", "Result",
+                  "ExecMainStatus", "ExecMainStartTimestamp", "ExecMainExitTimestamp",
+                  "LastTriggerUSec", "NextElapseUSecRealtime", "NRestarts",
+              )
+              args = ["systemctl", "show", "--no-pager", unit]
+              for prop in props:
+                  args.extend(["-p", prop])
+              r = execute(*args)
+              allowed = set(props)
+              result = {}
+              for line in r["stdout"].splitlines():
+                  key, eq, value = line.partition("=")
+                  if eq and key in allowed:
+                      result[key] = value[:125]
+              result["query_exit"] = r["exit"]
+              return result
+
+          def metric(line, keys, separator):
+              key, sep, value = line.strip().partition(separator)
+              if not sep or key not in keys:
+                  return None
+              value = value.strip()
+              if key == "FAMÍLIA":
+                  if not re.fullmatch(r"[a-z0-9-]{2,100}", value):
+                      return None
+              elif key in ("LIMITE DE FILA ATINGIDO", "RATE-LIMIT ABORT"):
+                  if value not in ("SIM", "NÃO"):
+                      return None
+              elif not re.fullmatch(r"\d{1,12}(?:ms)?", value):
+                  return None
+              return {"key": key, "value": value}
+
+          def read_log(unit, family):
+              cmd = (
+                  "journalctl", "--no-pager", "-o", "json", "-u", unit,
+                  "--since", TIME_START, "--until", TIME_END, "-n", "3000",
+              )
+              r = execute(*cmd, timeout=35)
+              records = []
+              metrics = []
+              event_counts = {"started": 0, "finished": 0, "failed": 0, "rate_limit": 0, "auth_error": 0, "transport_error": 0}
+              events = []
+              for line in r["stdout"].splitlines():
+                  try:
+                      record = json.loads(line)
+                      message = record.get("MESSAGE", "")
+                      micro = int(record.get("__REALTIME_TIMESTAMP", "0"))
+                  except (ValueError, TypeError):
+                      continue
+                  stamp = dt.datetime.fromtimestamp(micro / 1000000, dt.timezone.utc).isoformat(timespec="seconds") if micro else ""
+                  if not isinstance(message, str):
+                      continue
+                  records.append(stamp)
+                  for segment in message.splitlines():
+                      s = segment.strip()
+                      if s.startswith("Starting ") or s.startswith("Started "):
+                          event_counts["started"] += 1
+                          events.append({"time_utc": stamp, "kind": "started"})
+                      if s.startswith("Finished ") or "Deactivated successfully" in s:
+                          event_counts["finished"] += 1
+                          events.append({"time_utc": stamp, "kind": "finished"})
+                      if ("Failed with result" in s or "Failed to start" in s
+                              or "Main process exited" in s or "CommandError:" in s):
+                          event_counts["failed"] += 1
+                          events.append({"time_utc": stamp, "kind": "failed"})
+                      lower = s.lower()
+                      if "rate limit" in lower or "rate-limit" in lower or "http 429" in lower:
+                          event_counts["rate_limit"] += 1
+                      if "authenticat" in lower or "unauthorized" in lower:
+                          event_counts["auth_error"] += 1
+                      if "connection timed out" in lower or "connection error" in lower:
+                          event_counts["transport_error"] += 1
+                      item = metric(s, DISCOVERY_KEYS, "=") if family == "discovery" else metric(s, MAINTENANCE_KEYS, ":")
+                      if item:
+                          item["time_utc"] = stamp
+                          metrics.append(item)
+              return {
+                  "journal_query_exit": r["exit"],
+                  "journal_records": len(records),
+                  "first_record_utc": records[0] if records else None,
+                  "last_record_utc": records[-1] if records else None,
+                  "event_counts": event_counts,
+                  "recent_transitions": events[-18:],
+                  "metrics": metrics[-180:],
+                  "metrics_seen": len(metrics),
+              }
+
+          result = {
+              "probe": "LOWCOST_NIGHT_READ_ONLY_20261020",
+              "read_only": True,
+              "time_window_utc": [TIME_START, TIME_END],
+              "checked_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
+              "units": {name: show(name) for name in UNITS},
+              "discovery": read_log("lowcost-europa-weekly-discovery.service", "discovery"),
+              "maintenance": read_log("lowcost-europa-catalog-maintenance.service", "maintenance"),
+          }
+          print("LOWCOST_LIVE_OVERNIGHT_AUDIT=" + json.dumps(result, ensure_ascii=False, sort_keys=True))
+          PY
