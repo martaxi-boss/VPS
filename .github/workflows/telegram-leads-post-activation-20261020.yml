@@ -2,6 +2,11 @@ name: Verify Telegram Leads real public discovery 20261020
 
 on:
   workflow_dispatch:
+  # One-time on-main, read-only confirmation after 08:00 guarded activation.
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/telegram-leads-post-activation-20261020.yml'
   schedule:
     - cron: '20 7 20 10 *'
   pull_request:
@@ -33,7 +38,7 @@ jobs:
           echo LEADS_READONLY_PROBE=VALIDATED
 
   observe:
-    if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && github.ref == 'refs/heads/main' && github.repository == 'martaxi-boss/VPS'
+    if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'push') && github.ref == 'refs/heads/main' && github.repository == 'martaxi-boss/VPS'
     needs: validate
     runs-on: ubuntu-24.04
     timeout-minutes: 12
@@ -43,7 +48,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "$GITHUB_EVENT_NAME" == schedule && "$(date -u +%F)" != '2026-10-20' ]]; then
+          if [[ ( "$GITHUB_EVENT_NAME" == schedule || "$GITHUB_EVENT_NAME" == push ) && "$(date -u +%F)" != '2026-10-20' ]]; then
             echo 'due=false' >> "$GITHUB_OUTPUT"
             echo 'LEADS_READONLY_PROBE=NOT_DUE'
           else
