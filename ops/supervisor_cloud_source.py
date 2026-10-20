@@ -15,7 +15,7 @@ from urllib.request import Request, urlopen
 CLOUD_REPOSITORY = "martaxi-boss/Project-leader-codex"
 PARENT_REPOSITORY = "martaxi-boss/VPS"
 WORKFLOW = "Existing passive Supervisor - Cloud GitHub evidence"
-PULLS_PATH = "pulls?state=all&sort=updated&direction=desc&per_page=30"
+PULLS_PATH = "pulls?state=all&sort=updated&direction=desc&per_page=8"
 CHECKS_PATH = re.compile(r"commits/[0-9a-f]{40}/check-runs\?per_page=50\Z")
 SHA = re.compile(r"[0-9a-f]{40}\Z")
 
@@ -127,7 +127,7 @@ def messages(cloud_read, since: datetime, now: datetime,
     if not isinstance(prs, list):
         raise RuntimeError("Cloud PR listing unavailable")
     output = []
-    for pr in prs[:30]:
+    for pr in prs[:8]:
         if not _owner_pr(pr):
             continue
         try:
