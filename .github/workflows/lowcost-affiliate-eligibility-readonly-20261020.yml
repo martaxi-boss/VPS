@@ -92,6 +92,22 @@ jobs:
               if not APP.is_dir():
                   raise RuntimeError("App checkout missing")
               load_config()
+              try:
+                  probe = subprocess.run(
+                      ["systemctl", "show", "lowcost-europa.service", "-p", "MainPID", "--value"],
+                      capture_output=True, text=True, timeout=4, check=False,
+                  )
+                  pid = int(probe.stdout.strip())
+                  if pid > 1:
+                      for token in Path("/proc/" + str(pid) + "/environ").read_bytes().split(bytes([0])):
+                          if b"=" not in token:
+                              continue
+                          k, v = token.split(b"=", 1)
+                          name = k.decode("ascii", errors="ignore")
+                          if name in WHITELIST:
+                              os.environ[name] = v.decode("utf-8", errors="surrogateescape")
+              except (OSError, ValueError, subprocess.TimeoutExpired):
+                  pass
               os.chdir(APP)
               sys.path.insert(0, str(APP))
               os.environ["DJANGO_SETTINGS_MODULE"] = "config.settings.production"
@@ -179,6 +195,18 @@ jobs:
                   "read_only": True,
                   "status": "ERROR",
                   "error_type": type(exc).__name__,
+                  "error_bucket": next(
+                      (label for marker, label in (
+                          ("password authentication failed", "POSTGRES_PASSWORD_AUTH"),
+                          ("no password supplied", "POSTGRES_MISSING_PASSWORD"),
+                          ("connection refused", "POSTGRES_REFUSED"),
+                          ("could not connect", "POSTGRES_CONNECTION"),
+                          ("no such file or directory", "POSTGRES_UNAVAILABLE_SOCKET"),
+                          ("permission denied", "POSTGRES_PERMISSION"),
+                          ("read-only transaction", "POSTGRES_READONLY"),
+                      ) if marker in str(exc).lower()),
+                      "OTHER",
+                  ),
               }, sort_keys=True))
               sys.exit(1)
           PY
