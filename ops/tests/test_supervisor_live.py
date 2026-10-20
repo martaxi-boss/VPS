@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Read-only live Supervisor contracts; all GitHub and Telegram I/O mocked."""
 import os
+from io import StringIO
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -310,6 +311,25 @@ class SupervisorLiveTests(unittest.TestCase):
             with self.subTest(environment=environment), patch.dict(
                     os.environ, environment):
                 self.assertEqual(live.main(["cloud"]), 2)
+
+    def test_cloud_failure_reports_safe_stage_without_private_exception_text(self):
+        from ops import telegram_gateway as gateway
+        environment = {"GITHUB_EVENT_NAME": "push",
+                       "GITHUB_REPOSITORY": "martaxi-boss/VPS",
+                       "GITHUB_REF": "refs/heads/main"}
+        with (patch.dict(os.environ, environment),
+              patch.object(gateway, "GH_TOKEN", "token"),
+              patch.object(gateway, "BOT_TOKEN", "bot-token"),
+              patch.object(gateway, "CHAT_ID", "123456"),
+              patch.object(gateway, "say") as delivered,
+              patch("ops.supervisor_cloud_source.last_observed_start",
+                    side_effect=RuntimeError("GitHub API HTTP 403 TOKEN=PRIVATE")),
+              patch("sys.stderr", new_callable=StringIO) as stderr):
+            self.assertEqual(live.main(["cloud"]), 1)
+        self.assertIn("OBSERVATION_FAILED:CHECKPOINT:HTTP_403",
+                      stderr.getvalue())
+        self.assertNotIn("TOKEN=PRIVATE", stderr.getvalue())
+        delivered.assert_not_called()
 
     def test_no_hidden_human_gate_classifier_or_side_effects(self):
         import inspect
