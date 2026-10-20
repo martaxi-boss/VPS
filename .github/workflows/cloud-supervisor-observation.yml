@@ -1,0 +1,51 @@
+name: Existing passive Supervisor - Cloud GitHub evidence
+
+# Transport trigger ONLY. The Supervisor remains ops/supervisor_live.py,
+# the already-configured private Telegram bot, and the same VPS GitHub Actions.
+# No Cloud worker, new supervisor, incoming Telegram command, SSH or API billing.
+on:
+  schedule:
+    - cron: '7,17,27,37,47,57 * * * *'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cloud-supervisor-observation.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  observe-cloud:
+    name: Read-only Cloud PR/CI observations via existing Supervisor
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Load pinned existing Supervisor from main
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Verify existing observer syntax
+        run: python3 -m py_compile ops/supervisor_live.py ops/supervisor_cloud_source.py ops/supervisor_audit.py ops/telegram_gateway.py
+      - name: Observe published Cloud PR/CI and notify Owner privately
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python3 -m ops.supervisor_live watch
+
+  offline-contract:
+    name: Cloud observer offline security and identity tests
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: |
+          python3 -m py_compile ops/supervisor_live.py ops/supervisor_cloud_source.py ops/supervisor_audit.py
+          python3 -m unittest discover -s ops/tests -p 'test_supervisor_cloud_source.py' -v
