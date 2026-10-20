@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Read-only live Supervisor contracts; all GitHub and Telegram I/O mocked."""
+import os
 import unittest
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from ops import supervisor_live as live
 
@@ -239,6 +240,33 @@ class SupervisorLiveTests(unittest.TestCase):
         self.assertIn("AUDITORIA OPERACIONAL", result)
         self.assertIn("falhou", result)
         self.assertIn("https://github.com/martaxi-boss/VPS/actions/runs/12345", result)
+
+    def test_existing_observer_handles_cloud_without_starting_new_work(self):
+        from datetime import datetime, timezone
+        from ops import telegram_gateway as gateway
+        clock = datetime(2026, 10, 20, 17, 50, tzinfo=timezone.utc)
+        notice = (
+            "👁️ Supervisor: Codex Cloud — PR criada #40.\\n"
+            "Estado GitHub: rascunho, sem merge. CI ainda sem verificações observadas.\\n"
+            "https://github.com/martaxi-boss/Project-leader-codex/pull/40")
+        env = {"GITHUB_EVENT_NAME": "schedule",
+               "GITHUB_REPOSITORY": "martaxi-boss/VPS"}
+        with (patch.dict(os.environ, env),
+              patch.object(gateway, "BOT_TOKEN", "test-token"),
+              patch.object(gateway, "CHAT_ID", "123456"),
+              patch.object(gateway, "GH_TOKEN", "token"),
+              patch.object(gateway, "say") as delivered,
+              patch.object(live, "_runs", return_value=[]),
+              patch("ops.supervisor_cloud_source.last_observed_start",
+                    return_value=clock),
+              patch("ops.supervisor_cloud_source.messages",
+                    return_value=[notice]) as cloud_notice):
+            self.assertEqual(live.main(["watch"]), 0)
+        delivered.assert_called_once()
+        self.assertIn("evidência pública de PR e CI",
+                      delivered.call_args.args[0])
+        self.assertIn("/pull/40", delivered.call_args.args[0])
+        cloud_notice.assert_called_once()
 
     def test_no_hidden_human_gate_classifier_or_side_effects(self):
         import inspect
