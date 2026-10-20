@@ -14,7 +14,7 @@ from urllib.request import Request, urlopen
 
 CLOUD_REPOSITORY = "martaxi-boss/Project-leader-codex"
 PARENT_REPOSITORY = "martaxi-boss/VPS"
-WORKFLOW = "Telegram commands to Codex"
+WORKFLOW = "Existing passive Supervisor - Cloud GitHub evidence"
 PULLS_PATH = "pulls?state=all&sort=updated&direction=desc&per_page=30"
 CHECKS_PATH = re.compile(r"commits/[0-9a-f]{40}/check-runs\?per_page=50\Z")
 SHA = re.compile(r"[0-9a-f]{40}\Z")
@@ -37,7 +37,7 @@ def last_observed_start(vps_get, now: datetime) -> datetime:
     """
     result = vps_get(
         "GET",
-        "actions/workflows/telegram-codex-gateway.yml/runs?"
+        "actions/workflows/cloud-supervisor-observation.yml/runs?"
         "status=success&per_page=50",
     )
     if not isinstance(result, dict) or not isinstance(result.get("workflow_runs"), list):
