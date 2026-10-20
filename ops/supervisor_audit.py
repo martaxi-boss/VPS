@@ -127,10 +127,17 @@ def pipeline(*, issue: str, run_url: str, worker: str, status: str,
 
 def observation(message: str, *, source: str) -> str:
     """Audit already-authenticated owner-event/coordinator/phase observations."""
-    if source not in {"event", "coordinator", "phase", "owner_query", "quota"}:
+    if source not in {"event", "coordinator", "phase", "owner_query", "quota",
+                      "cloud"}:
         raise RuntimeError("Supervisor rejected unknown observation source")
     original = check_delivery(message)
-    if source != "owner_query" and (
+    if source == "cloud":
+        reference = re.search(
+            r"https://github\.com/martaxi-boss/Project-leader-codex/"
+            r"pull/[1-9][0-9]{0,8}(?:\n|$)", original)
+        if reference is None or len(original) > 1200:
+            raise RuntimeError("Supervisor refused unverified Cloud PR reference")
+    elif source != "owner_query" and (
             "https://github.com/martaxi-boss/VPS/" not in original or
             "\n" in original and len(original) > 1200):
         raise RuntimeError("Supervisor refused unauthenticated event reference")
@@ -143,6 +150,7 @@ def observation(message: str, *, source: str) -> str:
         "phase": "Fase do plano original, transição autenticada",
         "owner_query": "Consulta privada autorizada, estado obtido do GitHub",
         "quota": "Codex autenticado na conta ChatGPT, leitura do limite real",
+        "cloud": "Codex Cloud, evidência pública de PR e CI verificada no GitHub",
     }[source]
     verdict = ("Atenção: ocorrência/limite comunicado, consultar a referência."
                if attention else
