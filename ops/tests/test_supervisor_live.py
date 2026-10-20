@@ -268,6 +268,49 @@ class SupervisorLiveTests(unittest.TestCase):
         self.assertIn("/pull/40", delivered.call_args.args[0])
         cloud_notice.assert_called_once()
 
+    def test_cloud_probe_uses_existing_private_supervisor_and_fixed_github(self):
+        from datetime import datetime, timezone
+        from ops import telegram_gateway as gateway
+        clock = datetime(2026, 10, 20, 19, 10, tzinfo=timezone.utc)
+        notice = ("👁️ Supervisor: Codex Cloud — PR criada #40.\\n"
+                  "Estado GitHub: rascunho, sem merge. CI: 5/5 aprovadas.\\n"
+                  "https://github.com/martaxi-boss/Project-leader-codex/pull/40")
+        for event in ("push", "workflow_run"):
+            with self.subTest(event=event):
+                environment = {"GITHUB_EVENT_NAME": event,
+                               "GITHUB_REPOSITORY": "martaxi-boss/VPS",
+                               "GITHUB_REF": "refs/heads/main"}
+                with (patch.dict(os.environ, environment),
+                      patch.object(gateway, "BOT_TOKEN", "test-token"),
+                      patch.object(gateway, "CHAT_ID", "123456"),
+                      patch.object(gateway, "GH_TOKEN", "token"),
+                      patch.object(gateway, "say") as delivered,
+                      patch("ops.supervisor_cloud_source.last_observed_start",
+                            return_value=clock),
+                      patch("ops.supervisor_cloud_source.messages",
+                            return_value=[notice]) as notices):
+                    self.assertEqual(live.main(["cloud"]), 0)
+                delivered.assert_called_once()
+                self.assertIn("/pull/40", delivered.call_args.args[0])
+                self.assertEqual(notices.call_args.kwargs["limit"],
+                                 1 if event == "push" else 5)
+
+    def test_cloud_probe_refuses_untrusted_repository_and_non_main_push(self):
+        for environment in (
+            {"GITHUB_EVENT_NAME": "push",
+             "GITHUB_REPOSITORY": "other/repo",
+             "GITHUB_REF": "refs/heads/main"},
+            {"GITHUB_EVENT_NAME": "push",
+             "GITHUB_REPOSITORY": "martaxi-boss/VPS",
+             "GITHUB_REF": "refs/heads/untrusted"},
+            {"GITHUB_EVENT_NAME": "issues",
+             "GITHUB_REPOSITORY": "martaxi-boss/VPS",
+             "GITHUB_REF": "refs/heads/main"},
+        ):
+            with self.subTest(environment=environment), patch.dict(
+                    os.environ, environment):
+                self.assertEqual(live.main(["cloud"]), 2)
+
     def test_no_hidden_human_gate_classifier_or_side_effects(self):
         import inspect
         source = inspect.getsource(live)
