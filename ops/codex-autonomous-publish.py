@@ -464,7 +464,8 @@ def main():
     run_id = os.environ["GITHUB_RUN_ID"]
     attempt = os.environ["GITHUB_RUN_ATTEMPT"]
     instance_id = os.environ.get("CODEX_INSTANCE_ID", "")
-    if instance_id not in ("", "1", "2"):
+    if (instance_id not in ("", "1", "2") and
+            not re.fullmatch(r"p[2-8]-[12]", instance_id)):
         raise ValueError("Invalid trusted Codex instance identity")
     pr_only = parse_workflow_boolean(os.environ.get("CODEX_PR_ONLY"), "CODEX_PR_ONLY")
     allow_no_change = parse_workflow_boolean(
