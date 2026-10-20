@@ -1,0 +1,22 @@
+{
+  "transition_id": "FADEGO-20261020-PRIVATE-REVIEW-RECOVERY",
+  "action": "deploy_existing_isolated_private_staging",
+  "authority_source": "CURRENT_OWNER_OBJECTIVE",
+  "task_id": "FADEGO-20261020-PRIVATE-REVIEW-RECOVERY",
+  "repository": "martaxi-boss/VPS",
+  "target_environment": "fadego-staging",
+  "application_repository": "martaxi-boss/fadego",
+  "application_revision": "2b3554ec6e075e36041e44178f99535e00961b2f",
+  "implementation_head_sha": "fcae243ad161a3287ca278adfcaa2e760b31b573",
+  "predecessor_release": "3ada51c477710a6ea1612492cfae82cdf23948f8",
+  "canonical_runtime_revision": "b534629851dad20bcf6f9921f3c3a1dbc4ee7248",
+  "required_evidence": {
+    "application_ci": 39498652686,
+    "ops_draft_validation": 39505583110,
+    "ops_contract_validation": 39505583104,
+    "ops_ssh_check": 39505583058
+  },
+  "exact_effect": "Only existing isolated staging unit, additive owner-onboarding migration after verified private backup, no credentials reset or real business effects.",
+  "independent_controls": "Existing Actions exact-SHA/CI/additive-diff/Owner-origin gates; pinned SSH; target-scoped script baseline and rollback. Existing passive Supervisor is an observer, not the authority for this release.",
+  "created_at": "2026-10-20 22:06:49 UTC"
+}
