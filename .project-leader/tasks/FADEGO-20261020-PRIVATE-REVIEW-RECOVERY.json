@@ -1,0 +1,39 @@
+{
+  "task_id": "FADEGO-20261020-PRIVATE-REVIEW-RECOVERY",
+  "repository": "martaxi-boss/VPS",
+  "authority_source": "CURRENT_OWNER_OBJECTIVE",
+  "objective": "Deliver the existing certified FADEGO platform for private review; bounded operational subtask only.",
+  "base_sha": "666b59d1b0203d7453bb575d55e51fd078b3feb1",
+  "application_sha": "2b3554ec6e075e36041e44178f99535e00961b2f",
+  "application_ci": 39498652686,
+  "previous_release": "3ada51c477710a6ea1612492cfae82cdf23948f8",
+  "mutation_scope": [
+    ".github/workflows/fadego-staff-operations-staging.yml",
+    "ops/fadego_staff_operations_migration_release.sh",
+    ".project-leader/tasks/FADEGO-20261020-PRIVATE-REVIEW-RECOVERY.json"
+  ],
+  "source_procedure": "VPS PR252 at 0b68ab7a044d7df75dd76b1ff2ada2534a91d1f7",
+  "recovery_basis": "Issue298 Action39499120979 failed before dispatch. Do not rerun anti-replay-blocked coordinator job. Reuse proven isolated deployment procedure as separate ops subtask.",
+  "required_validation": [
+    "bash syntax",
+    "embedded JS syntax",
+    "YAML and offline release gates",
+    "draft PR validate before ready_for_review",
+    "exact app SHA and successful CI",
+    "backup before additive migration",
+    "authenticated day/week views and login",
+    "schema and suspended pilot",
+    "anonymous and tenant boundaries",
+    "Gmail disabled and timer inactive",
+    "rollback preserved"
+  ],
+  "excluded_effects": [
+    "main merges",
+    "DNS/Nginx/TLS changes",
+    "credentials or account activation",
+    "live emails, bookings or payments",
+    "other products",
+    "coordinator or supervisor changes"
+  ],
+  "created_at": "2026-10-20T22:04:00Z"
+}
