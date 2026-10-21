@@ -380,3 +380,39 @@ jobs:
 # Read-only refresh requested for owner review 2026-10-20 19:52 Europe/Lisbon.
 
 # Read-only refresh requested for comparison 2026-10-21 08:52 Europe/Lisbon.
+
+
+      - name: Check verified Lowcost Europa HTTPS endpoint
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sshpass -e ssh -T \
+            -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/lowcost-traffic-hosts" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 -o ServerAliveInterval=10 \
+            ubuntu@146.59.145.3 'sudo -n python3 -' <<'PY'
+          import subprocess
+          import json
+          hosts=["lowcost-europa.duckdns.org"]
+          for hostname in hosts:
+              cmd=["curl", "--silent", "--show-error", "--noproxy", "*",
+                   "--connect-timeout", "3", "--max-time", "9",
+                   "--resolve", hostname+":443:127.0.0.1",
+                   "--output", "/dev/null",
+                   "--write-out", "%{http_code} %{ssl_verify_result} %{redirect_url}",
+                   "https://"+hostname+"/"]
+              p=subprocess.run(cmd, capture_output=True,text=True,timeout=13)
+              items=p.stdout.strip().split(maxsplit=2)
+              print("LOWCOST_HTTPS_CHECK="+json.dumps({
+                  "hostname":hostname,
+                  "curl_exit_code":p.returncode,
+                  "http_status":items[0] if items else None,
+                  "ssl_verify_result":items[1] if len(items)>1 else None,
+                  "redirects":(items[2][:160] if len(items)>2 else None),
+                  "error_type": "CURL_FAILURE" if p.returncode else None,
+                  "read_only": True},sort_keys=True))
+          PY
