@@ -69,7 +69,7 @@ def preflight():
     if (MARKER.is_file() and UNIT.is_file() and SITE.is_file() and SITE_LINK.is_symlink() and
         SITE_LINK.resolve()==SITE and "server_name rea-reversa.duckdns.org;" in SITE.read_text() and
         "location / { return 404; }" in SITE.read_text() and
-        not AUTH_MAP.exists() and not TOKEN_FILE.exists()):
+        not AUTH_MAP.exists()):
         print_status("ACME_STAGE","RECOVER_SAFELY")
         return "staged"
     if MARKER.is_file() and UNIT.is_file() and not any((SITE.exists(), SITE_LINK.exists(), AUTH_MAP.exists(), TOKEN_FILE.exists())):
@@ -240,13 +240,14 @@ def issue_cert():
     print_status("TLS_CERTIFICATE","PASS")
 
 def configure_tls():
-    KEY_DIR.mkdir(mode=0o700)
-    TOKEN_FILE.write_text(secrets.token_hex(32)+"\n")
-    TOKEN_FILE.chmod(0o600)
+    KEY_DIR.mkdir(mode=0o700,exist_ok=True)
+    if not TOKEN_FILE.exists():
+        TOKEN_FILE.write_text(secrets.token_hex(32)+"\n")
+        TOKEN_FILE.chmod(0o600)
     token=TOKEN_FILE.read_text().strip()
     if len(token)!=64:
         raise RuntimeError("Credential generation failed")
-    AUTH_MAP.write_text('map $http_authorization $rea_reversa_auth_ok {\n'
+    AUTH_MAP.write_text('map_hash_bucket_size 128;\nmap $http_authorization $rea_reversa_auth_ok {\n'
         '    default 0;\n'
         '    "Bearer '+token+'" 1;\n'
         '}\n')
@@ -290,6 +291,8 @@ server {
     try:
         nginx_validate_reload()
     except Exception:
+        diag=run(["nginx","-t"],check=False)
+        print_status("NGINX_VALIDATION_ERROR",diag.stderr.strip()[-450:].replace(token,"[REDACTED]"))
         AUTH_MAP.unlink(missing_ok=True)
         SITE.write_text("""server {
     listen 80;
