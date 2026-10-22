@@ -448,6 +448,7 @@ jobs:
           SITE="lowcost-europa.duckdns.org"
           START=dt.datetime(2026,10,20,0,0,tzinfo=PT).astimezone(dt.timezone.utc)
           LAST_AUDIT=dt.datetime(2026,10,21,16,13,10,tzinfo=dt.timezone.utc)
+          SAMPLE_GO_LINKS=[]
           LOG_RE=re.compile(r'(\S+) \S+ \S+ \[([^\]]+)\] "([^"]*)" (\d{3}) (\S+) "([^"]*)" "([^"]*)"(.*)$')
           def db_name():
               p=Path("/etc/lowcost-europa/lowcost-europa.env")
@@ -539,6 +540,8 @@ jobs:
               parser=LinkParser()
               parser.feed(body[:3000000])
               go_links=[s for s in parser.links if re.fullmatch("/go/[0-9]+/?",s.split("?",1)[0])]
+              if path.startswith('/products/') and go_links:
+                  SAMPLE_GO_LINKS.append(go_links[0])
               categories=[s for s in parser.links if re.fullmatch("/products/[^/?#]+/?",s)]
               return {"exit":0,"status":code.strip(),"images":parser.images,"product_cta_links":len(go_links),
                       "distinct_product_cta_links":len(set(go_links)),
@@ -627,10 +630,39 @@ jobs:
                                          for (d,scope,metric),n in sorted(counters.items())],
                       "note":"HTTP requests are not unique visitors. Shared logs without a Host field cannot establish which site they belong to."}
           
+          def inspect_purchase_redirects():
+              results=[]
+              for path in list(dict.fromkeys(SAMPLE_GO_LINKS))[:5]:
+                  cmd=["curl","--silent","--show-error","--head","--noproxy","*",
+                       "--connect-timeout","4","--max-time","12",
+                       "--resolve", SITE+":443:127.0.0.1",
+                       "https://"+SITE+path]
+                  p=subprocess.run(cmd,capture_output=True,text=True,timeout=16)
+                  status=None
+                  location=None
+                  for line in p.stdout.splitlines():
+                      line=line.strip()
+                      found=re.match(r"^HTTP/[\d.]+ (\d{3})",line)
+                      if found:
+                          status=int(found.group(1))
+                      if line.lower().startswith("location:"):
+                          location=line.split(":",1)[1].strip()
+                  try:
+                      u=urllib.parse.urlsplit(location or "")
+                      domain=(u.hostname or "").lower()
+                      secure=u.scheme=="https"
+                  except ValueError:
+                      domain=""
+                      secure=False
+                  results.append({"route":path,"status":status,"curl_exit":p.returncode,
+                                  "redirect_host":domain,"redirect_https":secure,
+                                  "not_a_click":"HEAD request; application records only GET clicks"})
+              return results
+          
           out={"probe":"LOWCOST_DEEP_READONLY_V2","audited_at_utc":NOW.isoformat(timespec="seconds"),
                "local_time":NOW.astimezone(PT).isoformat(timespec="seconds"),
                "read_only":True}
-          for name,func in [("db",read_db),("pages",website_test),("nginx",nginx_rollup)]:
+          for name,func in [("db",read_db),("pages",website_test),("redirect_head_probes",inspect_purchase_redirects),("nginx",nginx_rollup)]:
               try:
                   out[name]=func()
               except Exception as ex:
