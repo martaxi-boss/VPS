@@ -1,0 +1,70 @@
+name: REA free Android and native tools 20261022
+on:
+  push:
+    branches:
+      - trial/rea-chatgpt-20261022
+    paths:
+      - "ops/rea_chatgpt_free_tools_20261022.sh"
+      - ".github/workflows/rea-chatgpt-free-tools-20261022.yml"
+permissions:
+  contents: read
+concurrency:
+  group: rea-chatgpt-tools-single-install
+  cancel-in-progress: false
+jobs:
+  install-tools:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Checkout staging branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify isolated tool installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n ops/rea_chatgpt_free_tools_20261022.sh
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path("ops/rea_chatgpt_free_tools_20261022.sh").read_text()
+          assert "REA_FREE_TOOLS_V1" in s
+          assert "/.local/share/rea-chatgpt-trial" in s
+          for x in ("sudo ", "apt-get", "systemctl", "service ", "docker ",
+                    "nginx ", "iptables ", "ufw ", "rm -rf /"):
+              assert x not in s,x
+          print("REA_TOOLS_ISOLATION=PASS")
+          PY
+      - name: Check pinned VPS host identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          known="$RUNNER_TEMP/rea-tools-known"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known"
+          chmod 600 "$known"
+          observed="$(ssh-keygen -lf "$known" -E sha256 | awk '{print $2}')"
+          test "$observed" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
+          echo "VPS_HOST_PIN=PASS"
+      - name: Install SSH helper on temporary runner
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+      - name: Stage free toolchain on VPS
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sshpass -e ssh -T \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/rea-tools-known" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 \
+            -o ServerAliveInterval=10 \
+            -o ServerAliveCountMax=5 \
+            ubuntu@146.59.145.3 "bash -s" \
+            < ops/rea_chatgpt_free_tools_20261022.sh
