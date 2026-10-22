@@ -66,6 +66,12 @@ def preflight():
         raise RuntimeError("Less than 18 GiB free disk")
     if not SITE.parent.is_dir() or not SITE_LINK.parent.is_dir():
         raise RuntimeError("Unexpected nginx directory layout")
+    if (MARKER.is_file() and UNIT.is_file() and SITE.is_file() and SITE_LINK.is_symlink() and
+        SITE_LINK.resolve()==SITE and "server_name rea-reversa.duckdns.org;" in SITE.read_text() and
+        "location / { return 404; }" in SITE.read_text() and
+        not AUTH_MAP.exists() and not TOKEN_FILE.exists()):
+        print_status("ACME_STAGE","RECOVER_SAFELY")
+        return "staged"
     if MARKER.is_file() and UNIT.is_file() and not any((SITE.exists(), SITE_LINK.exists(), AUTH_MAP.exists(), TOKEN_FILE.exists())):
         print_status("PREPARED_INSTALL","RESUME_ONLY")
         return "staged"
@@ -190,7 +196,7 @@ def resume_service():
 
 def configure_acme():
     ACME.joinpath(".well-known/acme-challenge").mkdir(parents=True,exist_ok=True)
-    http="""server {
+    http_config="""server {
     listen 80;
     server_name rea-reversa.duckdns.org;
     access_log off;
@@ -201,7 +207,7 @@ def configure_acme():
     location / { return 404; }
 }
 """
-    SITE.write_text(http)
+    SITE.write_text(http_config)
     SITE.chmod(0o644)
     SITE_LINK.symlink_to(SITE)
     nginx_validate_reload()
