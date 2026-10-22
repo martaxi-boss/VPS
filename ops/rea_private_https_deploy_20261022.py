@@ -209,7 +209,10 @@ def configure_acme():
 """
     SITE.write_text(http_config)
     SITE.chmod(0o644)
-    SITE_LINK.symlink_to(SITE)
+    if not SITE_LINK.is_symlink():
+        SITE_LINK.symlink_to(SITE)
+    elif SITE_LINK.resolve()!=SITE:
+        raise RuntimeError("Unexpected nginx symlink target")
     nginx_validate_reload()
     challenge=ACME/".well-known/acme-challenge/rea-vps-test"
     challenge.write_text("REA_ACME_TEST_V1")
