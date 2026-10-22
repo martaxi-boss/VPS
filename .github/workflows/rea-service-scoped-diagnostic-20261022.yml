@@ -1,0 +1,40 @@
+name: REA service scoped diagnostic 20261022
+on:
+  push:
+    branches: [trial/rea-chatgpt-20261022]
+    paths:
+      - ops/rea_systemd_scoped_diagnostic_20261022.py
+      - .github/workflows/rea-service-scoped-diagnostic-20261022.yml
+permissions: {contents: read}
+jobs:
+  diagnostic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with: {persist-credentials: false}
+      - name: Validate safe diagnostic
+        run: |
+          python3 -m py_compile ops/rea_systemd_scoped_diagnostic_20261022.py
+      - name: Verify pinned SSH host
+        run: |
+          set -euo pipefail
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/rea-diagnostic-known"
+          chmod 600 "$RUNNER_TEMP/rea-diagnostic-known"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/rea-diagnostic-known" -E sha256 | awk '{print $2}')" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
+      - name: Install SSH helper on temporary runner
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+      - name: Read REA systemd diagnostics only
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          test -n "$SSHPASS"
+          sshpass -e ssh -T \
+            -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/rea-diagnostic-known" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 ubuntu@146.59.145.3 \
+            'sudo -n python3 -' < ops/rea_systemd_scoped_diagnostic_20261022.py
