@@ -416,3 +416,224 @@ jobs:
                   "error_type": "CURL_FAILURE" if p.returncode else None,
                   "read_only": True},sort_keys=True))
           PY
+
+      - name: Accurate daily Lowcost conversion funnel read-only v2
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sshpass -e ssh -T \
+            -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/lowcost-traffic-hosts" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 -o ServerAliveInterval=10 \
+            ubuntu@146.59.145.3 'sudo -n python3 -' <<'PY'
+          import collections
+          import datetime as dt
+          import gzip
+          import json
+          import os
+          import re
+          import stat
+          import subprocess
+          import urllib.parse
+          from html.parser import HTMLParser
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+          
+          PT=ZoneInfo("Europe/Lisbon")
+          NOW=dt.datetime.now(dt.timezone.utc)
+          SITE="lowcost-europa.duckdns.org"
+          START=dt.datetime(2026,10,20,0,0,tzinfo=PT).astimezone(dt.timezone.utc)
+          LAST_AUDIT=dt.datetime(2026,10,21,16,13,10,tzinfo=dt.timezone.utc)
+          LOG_RE=re.compile(r'(\S+) \S+ \S+ \[([^\]]+)\] "([^"]*)" (\d{3}) (\S+) "([^"]*)" "([^"]*)"(.*)$')
+          def db_name():
+              p=Path("/etc/lowcost-europa/lowcost-europa.env")
+              s=p.lstat()
+              if not stat.S_ISREG(s.st_mode) or s.st_uid != 0 or (s.st_mode & 0o077) or s.st_size > 65536:
+                  raise ValueError("DB environment security check failed")
+              for line in p.read_text(encoding="utf-8").splitlines():
+                  k,sep,v=line.partition("=")
+                  if sep and k.strip()=="POSTGRES_DB":
+                      value=v.strip().strip("\"'")
+                      if re.fullmatch("[A-Za-z_][A-Za-z0-9_]{0,89}",value):
+                          return value
+              raise ValueError("DB name unavailable")
+          def read_db():
+              sql="""
+              SELECT json_build_object(
+                'clicks_all_time', (SELECT count(*) FROM catalog_offerclick),
+                'clicks_since_last_audit', (SELECT count(*) FROM catalog_offerclick WHERE clicked_at > '2026-10-21 16:13:10+00'::timestamptz),
+                'clicks_since_campaign_started', (SELECT count(*) FROM catalog_offerclick WHERE clicked_at >= '2026-10-20 02:27:23+01'::timestamptz),
+                'clicks_local_today', (SELECT count(*) FROM catalog_offerclick WHERE (clicked_at AT TIME ZONE 'Europe/Lisbon')::date = (now() AT TIME ZONE 'Europe/Lisbon')::date),
+                'clicks_local_yesterday', (SELECT count(*) FROM catalog_offerclick WHERE (clicked_at AT TIME ZONE 'Europe/Lisbon')::date = ((now() AT TIME ZONE 'Europe/Lisbon')::date - 1)),
+                'clicks_daily', (SELECT coalesce(json_agg(row_to_json(d)), '[]'::json) FROM (
+                    SELECT to_char(clicked_at AT TIME ZONE 'Europe/Lisbon','YYYY-MM-DD') AS local_date,
+                           count(*) AS click_events, count(DISTINCT offer_id) AS products_clicked
+                    FROM catalog_offerclick
+                    WHERE clicked_at >= '2026-10-19 23:00:00+00'::timestamptz
+                    GROUP BY 1 ORDER BY 1
+                ) d),
+                'public_category_placements', (SELECT coalesce(json_agg(row_to_json(c)), '[]'::json) FROM (
+                    SELECT f.slug, f.name, f.status,
+                           count(p.offer_id) AS linked_offers,
+                           count(p.offer_id) FILTER (
+                               WHERE o.is_active IS TRUE AND o.owner_hidden IS FALSE
+                                 AND o.affiliate_promotion_status = 'ELIGIBLE'
+                                 AND o.affiliate_promotion_verified_at IS NOT NULL
+                                 AND o.protocol_verified_at IS NOT NULL
+                                 AND o.protocol_verified_at <= now()
+                                 AND coalesce(o.affiliate_url,'') <> ''
+                           ) AS public_eligible_offers
+                    FROM catalog_productfamily f
+                    LEFT JOIN catalog_offerfamilyplacement p ON p.product_family_id=f.id
+                    LEFT JOIN catalog_offer o ON o.id=p.offer_id
+                    WHERE f.status <> 'RETIRED'
+                    GROUP BY f.id, f.slug, f.name, f.status, f.display_order
+                    ORDER BY f.display_order, f.name LIMIT 25
+                ) c)
+              )::text;
+              """
+              cmd=["runuser","-u","postgres","--","psql","-X","-A","-t","-q",
+                   "-v","ON_ERROR_STOP=1","-d",db_name(),"-c","BEGIN READ ONLY; "+sql+" COMMIT;"]
+              p=subprocess.run(cmd, capture_output=True,text=True,timeout=35)
+              if p.returncode:
+                  return {"status":"ERROR","type":"DB_READ_FAILED","exit":p.returncode}
+              for l in p.stdout.splitlines():
+                  if l.strip().startswith("{"):
+                      return {"status":"OK","data":json.loads(l.strip())}
+              return {"status":"ERROR","type":"NO_JSON_RESULT"}
+          
+          class LinkParser(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.links=[]
+                  self.images=0
+                  self.disabled_buttons=0
+              def handle_starttag(self,tag,attrs):
+                  a=dict(attrs)
+                  if tag=="a" and a.get("href"):
+                      self.links.append(a["href"])
+                  if tag=="img":
+                      self.images+=1
+                  if tag=="button" and a.get("aria-disabled")=="true":
+                      self.disabled_buttons+=1
+          
+          def fetch_html(path):
+              url="https://"+SITE+path
+              cmd=["curl","--silent","--show-error","--noproxy","*",
+                   "--connect-timeout","4","--max-time","14",
+                   "--resolve",SITE+":443:127.0.0.1",
+                   "--write-out","\\n__LOWCOST_HTTP_STATUS__:%{http_code}",
+                   url]
+              p=subprocess.run(cmd,capture_output=True,text=True,timeout=18)
+              if p.returncode:
+                  return {"exit":p.returncode,"status":None,"error_type":"CURL_FAILURE"},None
+              marker="__LOWCOST_HTTP_STATUS__:"
+              body,sep,code=p.stdout.rpartition(marker)
+              if not sep:
+                  return {"exit":p.returncode,"status":None,"error_type":"HTTP_STATUS_MISSING"},None
+              body=body.rsplit("\\n",1)[0] if body.endswith("\\n") else body
+              parser=LinkParser()
+              parser.feed(body[:3000000])
+              go_links=[s for s in parser.links if re.fullmatch("/go/[0-9]+/?",s.split("?",1)[0])]
+              categories=[s for s in parser.links if re.fullmatch("/products/[^/?#]+/?",s)]
+              return {"exit":0,"status":code.strip(),"images":parser.images,"product_cta_links":len(go_links),
+                      "distinct_product_cta_links":len(set(go_links)),
+                      "disabled_purchase_buttons":parser.disabled_buttons,
+                      "category_links":len(set(categories))},categories
+          
+          def website_test():
+              home,cats=fetch_html("/")
+              data={"homepage":home,"sample_categories":[]}
+              if cats is not None:
+                  for c in list(dict.fromkeys(cats))[:12]:
+                      status,_=fetch_html(c)
+                      data["sample_categories"].append({"path":c,**status})
+              return data
+          
+          def nginx_rollup():
+              counters=collections.Counter()
+              files=0
+              dedicated_files=0
+              bytes_read=0
+              roots=[Path("/var/log/nginx"),Path("/var/log/lowcost-europa")]
+              paths=[]
+              for root in roots:
+                  if root.is_dir():
+                      paths.extend(p for p in root.iterdir() if p.is_file() and "access" in p.name.lower() and (p.name.endswith(".log") or ".log." in p.name))
+              for path in sorted(paths,key=lambda p:str(p))[:32]:
+                  try:
+                      size=path.stat().st_size
+                      if size > 80000000 or bytes_read+size>180000000:
+                          continue
+                      bytes_read+=size
+                      files+=1
+                      dedicated=("lowcost" in path.name.lower() or "lowcost" in str(path.parent).lower())
+                      if dedicated:
+                          dedicated_files+=1
+                      opener=gzip.open if path.suffix==".gz" else open
+                      with opener(path,"rt",encoding="utf-8",errors="replace") as stream:
+                          for line in stream:
+                              m=LOG_RE.search(line)
+                              if not m:
+                                  continue
+                              try:
+                                  at=dt.datetime.strptime(m.group(2),"%d/%b/%Y:%H:%M:%S %z").astimezone(dt.timezone.utc)
+                              except ValueError:
+                                  continue
+                              if at<START or at>NOW+dt.timedelta(minutes=3):
+                                  continue
+                              day=at.astimezone(PT).strftime("%Y-%m-%d")
+                              requestparts=m.group(3).split(" ")
+                              if len(requestparts)<2:
+                                  continue
+                              try:
+                                  url=urllib.parse.urlsplit(requestparts[1][:2048])
+                              except ValueError:
+                                  continue
+                              absolute_site=(url.hostname or "").lower()==SITE
+                              strong=dedicated or absolute_site
+                              try:
+                                  referer=urllib.parse.urlsplit(m.group(6))
+                                  from_site=(referer.hostname or "").lower()==SITE
+                              except ValueError:
+                                  from_site=False
+                              meta_ref=("facebook" in m.group(6).lower() or "fbclid=" in url.query.lower())
+                              pathpart=url.path
+                              if pathpart in ("","/"): route="home"
+                              elif pathpart.startswith("/products/"): route="category"
+                              elif re.fullmatch("/go/[0-9]+/?",pathpart): route="go"
+                              else: route="other"
+                              status=int(m.group(4))
+                              if strong:
+                                  counters[(day,"confirmed","all")]+=1
+                                  if route=="go" and status==302: counters[(day,"confirmed","go_302")]+=1
+                                  if route=="home" and status==200: counters[(day,"confirmed","home_200")]+=1
+                                  if route=="category" and status==200: counters[(day,"confirmed","category_200")]+=1
+                                  if status>=500: counters[(day,"confirmed","5xx")]+=1
+                                  if meta_ref: counters[(day,"confirmed","meta_signal")]+=1
+                              elif from_site:
+                                  counters[(day,"referer_only_not_confirmed","requests")]+=1
+                              else:
+                                  counters[(day,"shared_unattributed","requests")]+=1
+                  except (OSError,EOFError):
+                      counters[("scanning","warning","file_error")]+=1
+              return {"access_files_scanned":files,"dedicated_access_files_found":dedicated_files,
+                      "strong_website_evidence":"Dedicated Lowcost access log file or absolute request URL targeting the Lowcost host; referer alone is NOT proof.",
+                      "grouped_requests":[{"day":d,"scope":scope,"metric":metric,"count":n}
+                                         for (d,scope,metric),n in sorted(counters.items())],
+                      "note":"HTTP requests are not unique visitors. Shared logs without a Host field cannot establish which site they belong to."}
+          
+          out={"probe":"LOWCOST_DEEP_READONLY_V2","audited_at_utc":NOW.isoformat(timespec="seconds"),
+               "local_time":NOW.astimezone(PT).isoformat(timespec="seconds"),
+               "read_only":True}
+          for name,func in [("db",read_db),("pages",website_test),("nginx",nginx_rollup)]:
+              try:
+                  out[name]=func()
+              except Exception as ex:
+                  out[name]={"status":"ERROR","error_type":type(ex).__name__}
+          print("LOWCOST_DEEP_READONLY_V2="+json.dumps(out,ensure_ascii=False,sort_keys=True))
+          PY
