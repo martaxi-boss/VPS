@@ -64,3 +64,27 @@ jobs:
             ubuntu@146.59.145.3 \
             'NODE_BIN="$(command -v node)"; sudo -n env REA_NODE_BIN="$NODE_BIN" python3 -' \
             < ops/rea_private_https_deploy_20261022.py
+
+      - name: Verify public TLS and anonymous access protection
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, ssl, urllib.request, urllib.error
+          url="https://rea-reversa.duckdns.org/mcp"
+          req=urllib.request.Request(url,
+              data=json.dumps({"jsonrpc":"2.0","id":1,"method":"initialize",
+                "params":{"protocolVersion":"2025-06-18","capabilities":{},
+                    "clientInfo":{"name":"rea-external-auth-check","version":"1.0.0"}}}).encode(),
+              method="POST",
+              headers={"Content-Type":"application/json",
+                       "Accept":"application/json, text/event-stream"})
+          try:
+              response=urllib.request.urlopen(req,timeout=22,context=ssl.create_default_context())
+          except urllib.error.HTTPError as e:
+              assert e.code==401, "Expected authenticated MCP to refuse anonymous, got "+str(e.code)
+              print("REA_EXTERNAL_TLS=PASS")
+              print("REA_EXTERNAL_UNAUTHENTICATED=BLOCKED_401")
+          else:
+              raise AssertionError("Unexpected public anonymous MCP HTTP "+str(response.status))
+          PY

@@ -379,6 +379,8 @@ def main():
     state=preflight()
     if state=="exists":
         verify()
+        renewal_hook()
+        print_status("COMPLETE","HTTPS_AUTH_MCP_VERIFIED")
         return
     if state=="staged":
         resume_service()
