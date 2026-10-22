@@ -333,7 +333,17 @@ def check_http(authorization=None):
     return status,body
 
 def verify():
-    unauthorized,_=check_http()
+    for attempt in range(20):
+        try:
+            unauthorized,_=check_http()
+            if unauthorized==401:
+                break
+        except (ssl.SSLCertVerificationError, ConnectionError, TimeoutError, OSError):
+            if attempt==19:
+                raise
+        time.sleep(.7)
+    else:
+        raise RuntimeError("HTTPS not ready after nginx reload")
     if unauthorized!=401:
         raise RuntimeError("Unauthenticated MCP did not return 401")
     print_status("UNAUTHENTICATED_REQUEST","BLOCKED_401")
