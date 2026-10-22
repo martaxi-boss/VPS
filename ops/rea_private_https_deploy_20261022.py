@@ -66,6 +66,9 @@ def preflight():
         raise RuntimeError("Less than 18 GiB free disk")
     if not SITE.parent.is_dir() or not SITE_LINK.parent.is_dir():
         raise RuntimeError("Unexpected nginx directory layout")
+    if MARKER.is_file() and UNIT.is_file() and not any((SITE.exists(), SITE_LINK.exists(), AUTH_MAP.exists(), TOKEN_FILE.exists())):
+        print_status("PREPARED_INSTALL","RESUME_ONLY")
+        return "staged"
     if SITE.exists() or SITE_LINK.exists() or AUTH_MAP.exists() or UNIT.exists():
         if MARKER.is_file() and SITE.exists() and TOKEN_FILE.is_file() and UNIT.is_file():
             print_status("EXISTING_DEPLOYMENT", "PRESENT")
@@ -153,9 +156,9 @@ WantedBy=multi-user.target
     UNIT.write_text(body)
     UNIT.chmod(0o644)
     run(["systemctl","daemon-reload"])
-    run(["systemctl","enable","--now",NAME+".service"],timeout=45)
+    run(["systemctl","enable","--now","rea-reversa-mcp.service"],timeout=45)
     for i in range(60):
-        if run(["systemctl","is-active","--quiet",NAME+".service"],check=False).returncode!=0:
+        if run(["systemctl","is-active","--quiet","rea-reversa-mcp.service"],check=False).returncode!=0:
             raise RuntimeError("REA service not active")
         with socket.socket(socket.AF_INET,socket.SOCK_STREAM) as sock:
             sock.settimeout(.4)
@@ -168,6 +171,22 @@ WantedBy=multi-user.target
 def nginx_validate_reload():
     run(["nginx","-t"],timeout=15)
     run(["systemctl","reload","nginx"],timeout=25)
+
+def resume_service():
+    if not (MARKER.is_file() and UNIT.is_file()):
+        raise RuntimeError("Unverified partial REA installation; refuse resume")
+    run(["systemctl","daemon-reload"])
+    run(["systemctl","enable","--now","rea-reversa-mcp.service"],timeout=45)
+    for attempt in range(60):
+        if run(["systemctl","is-active","--quiet","rea-reversa-mcp.service"],check=False).returncode!=0:
+            raise RuntimeError("REA MCP systemd service failed startup")
+        with socket.socket(socket.AF_INET,socket.SOCK_STREAM) as sock:
+            sock.settimeout(.4)
+            if sock.connect_ex(("127.0.0.1",PORT))==0:
+                print_status("SYSTEMD_LOOPBACK","PASS")
+                return
+        time.sleep(.5)
+    raise RuntimeError("MCP did not listen on loopback")
 
 def configure_acme():
     ACME.joinpath(".well-known/acme-challenge").mkdir(parents=True,exist_ok=True)
@@ -335,11 +354,15 @@ esac
     print_status("RENEWAL_HOOK","STAGED")
 
 def main():
-    if preflight()=="exists":
+    state=preflight()
+    if state=="exists":
         verify()
         return
-    stage_files()
-    service()
+    if state=="staged":
+        resume_service()
+    else:
+        stage_files()
+        service()
     configure_acme()
     issue_cert()
     configure_tls()
