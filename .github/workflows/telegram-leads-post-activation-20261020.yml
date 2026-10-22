@@ -48,7 +48,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ ( "$GITHUB_EVENT_NAME" == schedule || "$GITHUB_EVENT_NAME" == push ) && "$(date -u +%F)" != '2026-10-20' ]]; then
+          if [[ "$GITHUB_EVENT_NAME" == schedule && "$(date -u +%F)" != '2026-10-20' ]]; then
             echo 'due=false' >> "$GITHUB_OUTPUT"
             echo 'LEADS_READONLY_PROBE=NOT_DUE'
           else
@@ -108,6 +108,9 @@ jobs:
               "last_cycle_kind": report.get("supervisor", {}).get("event_kind"),
               "discovery_cycle": report.get("supervisor", {}).get("public_discovery_status"),
               "accounts_blocked": report.get("operation_state", {}).get("accounts_blocked"),
+              "member_additions_today_authorized": report.get("operation_state", {}).get("member_additions_today_authorized"),
+              "pending_member_actions": report.get("operation_state", {}).get("pending_member_actions"),
+              "authorized_member_action_count": report.get("supervisor", {}).get("authorized_member_action_count"),
               "telegram_requests_by_probe": report.get("telegram_requests"),
               "members_added_by_probe": report.get("members_added"),
           }
