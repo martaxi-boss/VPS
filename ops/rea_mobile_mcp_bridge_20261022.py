@@ -1136,7 +1136,7 @@ def main():
                             scan = subprocess.run(["ldd", str(gdb)], capture_output=True,
                                                   text=True, timeout=20, check=False, env=local_env)
                             missing = sorted(set(re.findall(
-                                r"^\\s*([^\\s]+)\\s*=>\\s*not found",
+                                r"^\s*([^\s]+)\s*=>\s*not found",
                                 scan.stdout, flags=re.MULTILINE)))
                             if not missing:
                                 break
