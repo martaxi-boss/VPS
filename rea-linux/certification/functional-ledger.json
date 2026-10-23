@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_18_SCOPED_POSITIVE_WABT_PWNTOOLS_ACTIVE",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_22_SCOPED_POSITIVE_AND_ACTIVE_PROVIDERS",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -1373,17 +1373,105 @@
         "pending_individual_review": 187,
         "fully_certified_distinct": 0
       }
+    },
+    {
+      "phase_id": "LINUX-P20-ACTIVE-SERVICE-DOCTOR-REPAIR-20261023",
+      "date_utc": "2026-10-23",
+      "status": "READ_ONLY_PROVIDER_DIAGNOSTIC_CORRECTED_NO_TOOL_CERTIFICATION",
+      "source": "Existing REA MCP on original Linux VPS, no new engine or service",
+      "actions_run_ids": [
+        40018521080,
+        40018709176,
+        40018805860
+      ],
+      "request_commits": [
+        "d4547829f5cf4062ae4f698b2fb756492af93d97",
+        "eb2bb4c089f312bf7898feab133e4a3d8ae1de60"
+      ],
+      "bridge_fix_commit": "863598add629893b894bba9b7e3df6e825711e7a",
+      "root_cause": "Read-only helper omitted REA_KUNA_COMMAND/REA_KUNA_CACHE_DIR and other recently installed supplier variables from temporary doctor process environment.",
+      "before": {
+        "kuna_configured": false,
+        "kuna_available": false,
+        "helper_forwarded_kuna_config": false
+      },
+      "after": {
+        "kuna_configured": true,
+        "kuna_available": true,
+        "ghidra_available": true,
+        "jadx_available": true,
+        "ida_available": false,
+        "original_doctor_healthy": false,
+        "original_doctor_environment_healthy": false
+      },
+      "mcp_tool_count": 208,
+      "real_mcp_loopback_pass": true,
+      "production_service_changed": false,
+      "only_diagnostic_bridge_changed": true,
+      "new_tool_functional_certification": 0,
+      "limitation": "Doctor's global health still false; missing proprietary/optional providers and agent registration are not equivalent to an engine-wide functional pass."
+    },
+    {
+      "phase_id": "LINUX-P21-JAVASCRIPT-APPLICATION-ORIGINAL-MCP-20261023",
+      "date_utc": "2026-10-23",
+      "status": "ONE_NEW_FUNCTIONAL_PASS_SCOPED",
+      "original_mcp_endpoint": "127.0.0.1:8765/mcp",
+      "actions_run_id": 40018862425,
+      "workflow_url": "https://github.com/martaxi-boss/VPS/actions/runs/40018862425",
+      "request_commit": "8ddfae845e1f642ee6ed23447b8282a59806fa45",
+      "encrypted_artifact_id": 12529347335,
+      "result_sha256": "0a99c1f80c0dbec8cd82fffa8ab98c2513095d4d6e2d2ebfae88a53cfedc3ecc",
+      "result_json_bytes": 146169,
+      "request_sha256_verified": true,
+      "rsa_oaep_and_aes_gcm_verified": true,
+      "result_sha256_and_size_verified": true,
+      "tool_tests": [
+        {
+          "name": "analyze_javascript_application",
+          "security_class": "workspace",
+          "status": "FUNCTIONAL_PASS_SCOPED",
+          "mcp_isError": "ABSENT_NOT_TRUE",
+          "mcp_protocol_error": null,
+          "provider": "rea-javascript-application",
+          "fixture": "Fixed two-module JavaScript package, version 1.1.0 and label 'REA version two', staged only in RAM-backed Linux /dev/shm",
+          "assertions": {
+            "source_hashes_verified": true,
+            "inputs_unchanged": true,
+            "temporary_file_cleanup": "PASS",
+            "node_count": 10,
+            "expected_export_greet": true,
+            "expected_labels_js": true,
+            "controlled_package_version_recognized": true,
+            "controlled_label_recognized": true,
+            "integrity_contradictions": 0
+          },
+          "scope": "One valid controlled JavaScript application only; no malformed inputs, large graphs, negative paths, cancellation or arbitrary target analyzed."
+        }
+      ],
+      "controls": {
+        "original_engine_source_unchanged": true,
+        "other_production_units_untouched": true,
+        "no_new_mcp_or_server": true,
+        "sensitive_authorization_unchanged": true,
+        "do_not_count_as_fully_certified": true
+      },
+      "cumulative": {
+        "functional_pass_scoped_distinct": 22,
+        "pending_individual_review": 186,
+        "fully_certified_distinct": 0
+      }
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 21,
-    "awaiting_canonical_individual_review": 187,
+    "functional_pass_scoped_distinct": 22,
+    "awaiting_canonical_individual_review": 186,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 14,
+    "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
-    "read_group_positive_permanent_mcp": 3
+    "read_group_positive_permanent_mcp": 3,
+    "fully_certified_distinct": 0
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -1413,7 +1501,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P19-RECORDED-CORE-SIGROK-DIAG-20261023",
+  "latest_phase": "LINUX-P21-JAVASCRIPT-APPLICATION-ORIGINAL-MCP-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -1724,6 +1812,17 @@
       "tool": "inspect_firmware_regions",
       "isError": false,
       "tool_scope_limit": "One small deterministic synthetic gzip-in-firmware image; does not certify arbitrary firmware, Binwalk coverage, extraction, malware, performance or resource limits"
+    },
+    "latest_readonly_runtime_doctor": {
+      "run_id": 40018805860,
+      "kuna_available": true,
+      "global_healthy": false,
+      "service_unchanged": true
+    },
+    "latest_real_mcp_positive": {
+      "tool": "analyze_javascript_application",
+      "run_id": 40018862425,
+      "distinct_cumulative": 22
     }
   }
 }

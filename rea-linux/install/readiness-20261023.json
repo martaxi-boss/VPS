@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_19_SCOPED_POSITIVES_BINWALK31_EXACT_SIGROK_LIBUSB_RESTRICTED",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_22_SCOPED_POSITIVES_SIGROK_LIBUSB_RESTRICTED",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -468,16 +468,35 @@
     "latest_functional_verification": {
       "as_of_utc": "2026-10-23",
       "original_mcp_catalog": 208,
-      "scoped_functional_positive_distinct": 21,
-      "awaiting_individual_review": 187,
+      "scoped_functional_positive_distinct": 22,
+      "awaiting_individual_review": 186,
       "fully_certified_distinct": 0,
-      "latest_tool": "inspect_recorded_crash",
-      "latest_real_mcp_run_id": 40012174187,
+      "latest_tool": "analyze_javascript_application",
+      "latest_real_mcp_run_id": 40018862425,
       "sigrok_libusb_still_unresolved": true,
       "sensitive_authorization_unchanged": true,
       "other_new_tool": "compare_wasm_interfaces",
       "other_new_tool_real_mcp_run_id": 40011404653,
       "sigrok_sandbox_diagnosis_run_id": 40011724942
+    },
+    "live_doctor_recheck": {
+      "run_id": 40018805860,
+      "helper_fix_commit": "863598add629893b894bba9b7e3df6e825711e7a",
+      "kuna_available": true,
+      "ghidra_available": true,
+      "jadx_available": true,
+      "ida_available": false,
+      "global_health": false,
+      "no_production_changes": true
+    },
+    "javascript_analysis_mcp": {
+      "run_id": 40018862425,
+      "tool": "analyze_javascript_application",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "sha256": "0a99c1f80c0dbec8cd82fffa8ab98c2513095d4d6e2d2ebfae88a53cfedc3ecc",
+      "authenticated": true,
+      "inputs_unchanged": true,
+      "cleanup": "PASS"
     }
   },
   "final_hygiene_verified": {
