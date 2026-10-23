@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_CORE_AND_PCAP_PROVIDERS_ACTIVE_WITH_LIMITED_FUNCTIONAL_MCP_PASSES",
+  "status": "LINUX_CORE_PCAP_APKTOOL_AND_KUNA_PROVIDERS_ACTIVE_SIGROK_MCP_DIFFERENTIAL_BLOCKED",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -24,6 +24,33 @@
       "workflow_run_id": 39983162092,
       "commit": "52f68e6d603d2f4ce60aedbfd6a5e0db78a8fab5",
       "url": "https://github.com/martaxi-boss/VPS/actions/runs/39983162092"
+    },
+    "kuna": {
+      "install": {
+        "workflow_run_id": 39988626142,
+        "commit": "d4ef6a0bf139d45f0538a9be0290111b684b8025"
+      },
+      "failed_activation": {
+        "workflow_run_id": 39988952408,
+        "commit": "ef2296f63e37116803853422a661cfbb88948f73"
+      },
+      "safe_rollback": {
+        "workflow_run_id": 39989493468,
+        "commit": "024752bd2370249482eb51c9f2cfba7864307bde"
+      },
+      "corrected_activation": {
+        "workflow_run_id": 39989610914,
+        "commit": "d931f7487c6873ee6a1c949f54e1174aae5452ec"
+      }
+    },
+    "sigrok": {
+      "preflight_run_id": 39986762626,
+      "activation_run_id": 39987163381,
+      "positive_original_mcp_failure_run_id": 39987443009,
+      "differential_read_only_diagnosis_runs": [
+        39987726184,
+        39988261036
+      ]
     }
   },
   "installed_core": {
@@ -269,7 +296,38 @@
       "post_restart_mcp_tools": 208,
       "doctor_future_rescan_needed": true,
       "post_activation_failing_original_mcp_run_id": 39987443009,
-      "note": "Real Sigrok-cli and service variable available. Original MCP inspect_signal_decoders and decode_signal_recording still return isError true; do not count as certified."
+      "note": "Real Sigrok-cli and service variable available. Original MCP inspect_signal_decoders and decode_signal_recording still return isError true; do not count as certified.",
+      "direct_native_version_under_prlimit_ok": true,
+      "original_cli_status": "PASS_LOCAL_CLI_INSPECT_SIGNAL_DECODERS",
+      "original_permanent_mcp_status": "FAIL_POSITIVE_TOOLS_MCP_ISERROR_TRUE",
+      "confirmed_error": "The MCP path rejects SIGROK version probe, while same real service user native and original CLI probes pass",
+      "diagnostic_runs": [
+        39987726184,
+        39988261036
+      ],
+      "precise_root_cause": "UNRESOLVED_DIFFERENTIAL_MCP_VS_NATIVE_CLI_OUTPUT",
+      "certified_tool_count": 0
+    },
+    "kuna": {
+      "version": "1.833",
+      "binary": "/opt/rea-reversa/providers/kuna-v1.833/bin/kuna",
+      "source_release_sha256": "e9f047fb5a93925ede6d869df22c26c1c0ced90764ace7467ae90f880625d530",
+      "binary_sha256": "f9f088a2bd99d9b87f3c53195ba5b02678828ace6cc3a501acb42b1d483f6a39",
+      "installation_run_id": 39988626142,
+      "installation_status": "PASS_PERSISTENT_SERVICE_USER_ACCESS",
+      "initial_activation_attempt_run_id": 39988952408,
+      "failed_attempt_diagnostic": "Temporary bridge Python TypeError before successful activation verification",
+      "confirmed_safe_rollback_readback_run_id": 39989493468,
+      "confirmed_safe_rollback": true,
+      "corrected_activation_run_id": 39989610914,
+      "integration_status": "PASS_ORIGINAL_SYSTEMD_AND_OFFICIAL_REA_DOCTOR",
+      "doctor_provider_configured": true,
+      "doctor_provider_available": true,
+      "live_mcp_tool_count": 208,
+      "service_user": "rea-reversa",
+      "restarted_only_rea": true,
+      "status": "PROVIDER_READY_NATIVE_TOOL_FUNCTIONAL_TESTS_PENDING",
+      "limits": "Installed/configured does not imply any additional tool's positive functional certification"
     }
   }
 }
