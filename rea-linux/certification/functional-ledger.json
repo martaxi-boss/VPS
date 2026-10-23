@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_6_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_7_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -1930,6 +1930,97 @@
         "stable_bridge_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
         "post_cleanup_catalog_recheck_required": true
       }
+    },
+    {
+      "phase_id": "LINUX-P27-WASM-INTERFACE-COMPARISON-FULL-CERTIFICATION-20261023",
+      "date_utc": "2026-10-23",
+      "status": "FULLY_CERTIFIED_LINUX_WABT_WASM_TYPED_INTERFACE_COMPARISON",
+      "tool": "compare_wasm_interfaces",
+      "tool_status": "FULLY_CERTIFIED",
+      "certification_scope": "Original REA permanent MCP Linux x64 with WABT 1.0.42-produced complete typed WASM Evidence: references retained within same session, scopes imports/exports/both, reverse comparison, changes added/removed/changed/unchanged/unknown, duplicate imported-name ambiguities, exact provenance and rejection of adulterated or missing Evidence.",
+      "reused_prior_original_positive": {
+        "run_id": 40011404653,
+        "source": "P18 synthetic two-module WASM static export comparison, 1 added, 1 removed, 1 changed, 1 unchanged, SHA/subject identity verified and fixture cleanup; no rerun of original fixtures"
+      },
+      "closure": {
+        "run_id": 40024887858,
+        "commit": "2846bceb3c4b80e6677f7cb9623a592db8c23940",
+        "MCP_tool_catalog": 208,
+        "source_wasm_inspections": "2/2",
+        "source_original_wabt_release": "1.0.42",
+        "original_mcp_positive_isError_false": true,
+        "cases_4_of_4": [
+          "imports",
+          "exports",
+          "both",
+          "reverse_imports"
+        ],
+        "expected_import_states": {
+          "added": 1,
+          "removed": 1,
+          "changed": 1,
+          "unchanged": 1,
+          "unknown": 1
+        },
+        "expected_export_states": {
+          "added": 0,
+          "removed": 0,
+          "changed": 1,
+          "unchanged": 1,
+          "unknown": 0
+        },
+        "expected_both_states": {
+          "added": 1,
+          "removed": 1,
+          "changed": 2,
+          "unchanged": 2,
+          "unknown": 1
+        },
+        "duplicate_name_retention": {
+          "name": "dup",
+          "left_occurrences": 2,
+          "right_occurrences": 1,
+          "status": "unknown",
+          "reason_valid": true
+        },
+        "coverage": {
+          "imports": "partial",
+          "exports": "complete-within-inputs",
+          "both": "partial"
+        },
+        "exact_evidence_IDs_and_artifact_SHA_unchanged": true,
+        "negative_cases_5_of_5": [
+          "unknown_evidence_id",
+          "invalid_scope",
+          "missing_scope",
+          "extra_argument",
+          "tampered_inline_evidence"
+        ],
+        "source_integrity": "PASS",
+        "temporary_fixture_cleanup": "PASS",
+        "REA_daemon_PID_stable": "PASS",
+        "sha256_results": "b0405fa3ffbe9f017d71be7eca7657bad78c6b4d2155009626d540181737fe27"
+      },
+      "controls": {
+        "no_device_acquisition": true,
+        "no_wasm_runtime_execution": true,
+        "no_source_engine_changes": true,
+        "no_server_restart": true,
+        "no_provider_installs": true,
+        "no_unrelated_service_changes": true,
+        "existing_mcp_policy_preserved": true
+      },
+      "limits": [
+        "Certification is bounded to Linux x64, WABT 1.0.42, well-formed small local modules, complete typed interfaces and retained Evidence in the same original MCP session; cancellation/stress and other runtimes remain untested.",
+        "Duplicate interface names are intentionally unknown; no claim of runtime ABI compatibility or proof that modules link or execute.",
+        "Unknown/partial historical type profiles covered by source-level tests but not fully reproduced in this permanent Linux MCP test; full universal coverage is not asserted."
+      ],
+      "hygiene": {
+        "spent_request_removed": "rea-linux/requests/wasm-comparison-closure-20261023.json",
+        "one_shot_harness_restored": true,
+        "stable_bridge_blob_SHA": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+        "final_catalog_smoke_pending": true
+      }
     }
   ],
   "active_scope_counts": {
@@ -1941,10 +2032,10 @@
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 6,
-    "scoped_positive_not_fully_certified_distinct": 16,
+    "fully_certified_distinct": 7,
+    "scoped_positive_not_fully_certified_distinct": 15,
     "not_functionally_positive_distinct": 186,
-    "remaining_full_certification_distinct": 202
+    "remaining_full_certification_distinct": 201
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -1974,7 +2065,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P26-WASM-ARTIFACT-WABT-CERTIFICATION-20261023",
+  "latest_phase": "LINUX-P27-WASM-INTERFACE-COMPARISON-FULL-CERTIFICATION-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -2376,6 +2467,16 @@
       ],
       "evidence_digest": "e012817103bb7bd1a3564112c9ed645069cefdafd43aa24dd94e694fc237e3a3",
       "phase_id": "LINUX-P26-WASM-ARTIFACT-WABT-CERTIFICATION-20261023"
+    },
+    "compare_wasm_interfaces": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Original Linux REA MCP with typed WABT 1.0.42 Evidence, retained references and scopes imports/exports/both/reverse, five comparison states and duplicate ambiguities; negative authorizations and provenance verified",
+      "run_ids": [
+        40011404653,
+        40024887858
+      ],
+      "evidence_digest": "b0405fa3ffbe9f017d71be7eca7657bad78c6b4d2155009626d540181737fe27",
+      "phase_id": "LINUX-P27-WASM-INTERFACE-COMPARISON-FULL-CERTIFICATION-20261023"
     }
   }
 }

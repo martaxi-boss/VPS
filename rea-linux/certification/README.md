@@ -113,3 +113,12 @@ As cinco ferramentas pertencem ao grupo `read`, mas têm pré-condições difere
 - Não declarar WAT como código-fonte original, nem associações JavaScript como prova de execução. A certificação não inclui todos os formatos/propostas WASM nem carga maliciosa/volumosa.
 - **Contagens:** 6 certificados no âmbito indicado; 16 com prova positiva limitada; 186 sem prova funcional positiva (208 no catálogo). Ponte estável restaurada e pedido consumido eliminado.
 
+
+## P27 — certificação de `compare_wasm_interfaces` (23/10/2026)
+
+- **`FULLY_CERTIFIED`** dentro do âmbito Linux x64 e WABT 1.0.42, com o REA MCP original e pares de Evidence observadas diretamente. Não implica garantia universal de execução/ligação WASM.
+- Prova anterior reaproveitada sem duplicar: [Actions #40011404653](https://github.com/martaxi-boss/VPS/actions/runs/40011404653) — diferenças reais de quatro exportações `foo`, `stay`, `gone`, `born`, com identidades e hashes de ficheiros inalterados.
+- [Actions #40024887858](https://github.com/martaxi-boss/VPS/actions/runs/40024887858): **2/2** fontes WASM validadas por WABT no MCP; **4/4** comparações de âmbitos (`imports`, `exports`, `both`, `reverse_imports`) corretas; **5/5** erros reais recusados, incluindo referência de Evidence ausente, âmbito inválido/em falta, campo extra e Evidence inline adulterada.
+- Casos esperados: importações [adicionada 1, removida 1, alterada 1, igual 1, desconhecida 1]; exportações [0,0,1,1,0]; ambas [1,1,2,2,1]. Duplicados de `env.dup` retêm as duas entradas do lado esquerdo e uma do direito, classificados `unknown` com cobertura parcial, sem alegar compatibilidade de runtime.
+- Fonte intacta, ficheiros temporários apagados e PID do serviço original estável. Nenhuma instalação ou reinício. Resposta MCP positiva com `isError` não verdadeiro.
+- **Contagens:** 7 certificadas, 15 adicionais com prova positiva limitada, 186 ainda sem prova positiva. Ponte original restaurada; pedido temporário removido. Verificar o catálogo de 208 no Actions após a limpeza.

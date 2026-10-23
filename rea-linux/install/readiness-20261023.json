@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_6_FULLY_CERTIFIED_CONTRACTS_AND_22_SCOPED_POSITIVES",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_7_FULLY_CERTIFIED_CONTRACTS_AND_22_SCOPED_POSITIVES",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -515,26 +515,18 @@
       "original_service_unmodified": true
     },
     "latest_contract_certification": {
-      "phase_id": "LINUX-P26-WASM-ARTIFACT-WABT-CERTIFICATION-20261023",
+      "phase_id": "LINUX-P27-WASM-INTERFACE-COMPARISON-FULL-CERTIFICATION-20261023",
       "original_mcp_catalog": 208,
-      "fully_certified_distinct": 6,
+      "fully_certified_distinct": 7,
       "existing_scoped_positive_distinct": 22,
-      "still_pending_full_distinct": 202,
-      "source": "Real original permanent Linux x64 MCP with pinned WABT 1.0.42",
+      "still_pending_full_distinct": 201,
+      "source": "Original REA permanent Linux x64 MCP compare_wasm_interfaces and WABT 1.0.42 typed module Evidence",
       "runs": [
-        40001710465,
         40011404653,
-        40024484529
+        40024887858
       ],
-      "source_unchanged": true,
-      "service_unchanged": true,
-      "unchanged_previous_certifications": [
-        "inspect_with_objdump",
-        "inspect_pcap_client",
-        "inspect_apktool_client",
-        "inspect_packet_fields",
-        "inspect_evm_interface"
-      ]
+      "original_service_unchanged": true,
+      "original_source_unchanged": true
     }
   },
   "final_hygiene_verified": {
