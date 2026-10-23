@@ -260,3 +260,16 @@ As cinco ferramentas pertencem ao grupo `read`, mas têm pré-condições difere
 - Higiene: ponte de ensaio retirada; blob canónico `ad6a6a7d3349caaa23be26aa1e5f95fa21521749` restaurado; pedido consumido excluído.
 - **Contagem:** **23/208 `FULLY_CERTIFIED`**, **0 parciais** no perfil canónico, **185** por certificar completamente.
 
+
+
+## P41 — `inspect_desktop_application` certificada no MCP original (24/10/2026)
+
+- **`FULLY_CERTIFIED`** para o perfil Linux de triagem estática de diretórios de aplicações, usando o MCP original em [GitHub Actions #40041146946](https://github.com/martaxi-boss/VPS/actions/runs/40041146946). **6/6 positivos**, **11/11 recusas** em `tools/call`; `tools/list=208`; `isError` não verdadeiro nos positivos e `isError=true` nas negativas, sem erro de protocolo.
+- **Seis positivos:** (1) indícios Electron `resources/app.asar` e Unreal `Content/Paks`, componentes `BepInEx` / `Easy Anti-Cheat` com presença em runtime desconhecida; (2) headers `GDPC` (Godot) e `FORM/GEN8` (GameMaker); (3) marcadores inválidos não promovidos indevidamente a candidatos e symlink externo não seguido; (4) limitação `max_entries=2` reportada como `partial`, sem falsificar cobertura total; (5) diretório vazio completo sem candidatos; (6) resumo associado ao mesmo ID de Evidence da observação completa retida.
+- **Onze negativas:** `path` ausente, não string, relativo, diretório inexistente, ficheiro regular como diretório, opção `execute` não suportada, detalhe inválido, `max_entries=0` ou `100001`, `max_probe_bytes=128` ou `67108865`. Todas as onze chamadas foram recusadas pelo MCP sem erro de protocolo.
+- Prova cifrada: artefacto **12539715349**, **RSA-OAEP-SHA256/A256GCM** autenticados; pedido SHA `117e95f6761d68ffc9930b2eda46bf74d1030df2b51fe580b7a45ee480549069`; resultado SHA `7599135241bdcc053492e7bc20fc2d40b4107521fa9ae2a1e43ca68af1fbe273`, verificado contra marcadores Actions. Recursos temporários removidos, digests dos ficheiros estáveis, checkout original intacto e PID systemd sem alteração.
+- **Diagnóstico descartado e corrigido:** [Actions #40041040268](https://github.com/martaxi-boss/VPS/actions/runs/40041040268) falhou em `mkdir` temporário **antes de qualquer `tools/call`**, sem ensaios parciais. Corrigido em commit `ff46272ce17669b2ca66fe41bbcee23a44a1c7c9` e executado uma única vez com provas funcionais completas.
+- **Limitações:** perfis de caminhos e magic bytes estáticos não provam que as aplicações arrancam, que os pacotes são genuínos nem que os componentes são executados; sem certificação de instalações arbitrárias, grandes árvores, ataques de corrida ou dinâmica de execução.
+- **Higiene:** bridge de ensaio retirada, restaurado blob canónico `ad6a6a7d3349caaa23be26aa1e5f95fa21521749`; ambos os pedidos consumidos eliminados. Sem novas Skills, motores, Codex ou serviços.
+- **Contagem:** **24 `FULLY_CERTIFIED`**, **184 por certificar** nas 208 ferramentas; zero parciais neste ledger.
+

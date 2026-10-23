@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_23_FULLY_CERTIFIED_185_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_24_FULLY_CERTIFIED_184_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -3312,21 +3312,111 @@
         "positive_partial": 0,
         "original_tool_catalog": 208
       }
+    },
+    {
+      "phase_id": "LINUX-P41-DESKTOP-APPLICATION-ORIGINAL-MCP-CERTIFICATION-20261024",
+      "date_utc": "2026-10-24",
+      "status": "FULLY_CERTIFIED_ORIGINAL_PERMANENT_LINUX_MCP_STATIC_DESKTOP_DIRECTORY_PROFILE",
+      "tool": "inspect_desktop_application",
+      "tool_status": "FULLY_CERTIFIED",
+      "risk": "workspace",
+      "certification_scope": "Permanent original Linux REA MCP read-only static desktop-directory triage of source-owned paths and magic headers: Electron/Unreal markers, Godot PCK and GameMaker FORM/GEN8, unknowns on insufficient marker evidence, symlink exclusion, max_entries partial coverage, empty directory, and retained summary identity; 11 invalid-target and schema refusals.",
+      "closure": {
+        "actions_run_id": 40041146946,
+        "request_commit": "b5434091ff43b49080d04343db8e8118b7097c11",
+        "encrypted_result_artifact_id": 12539715349,
+        "request_sha256": "117e95f6761d68ffc9930b2eda46bf74d1030df2b51fe580b7a45ee480549069",
+        "evidence_result_sha256": "7599135241bdcc053492e7bc20fc2d40b4107521fa9ae2a1e43ca68af1fbe273",
+        "verified_RSA_OAEP_AES_GCM": true,
+        "authenticated_request_digest": true,
+        "verified_vps_payload_digest": true,
+        "original_mcp_catalog": 208,
+        "mcp_positive_6_of_6": [
+          "electron_unreal_dir_path_markers_and_bepinex_eac_components",
+          "godot_pck_and_gamemaker_form_gen8_actual_header_bytes",
+          "weak_artifacts_do_not_create_false_candidates_and_symlinks_not_followed",
+          "max_entries_two_retains_partial_categorized_report",
+          "empty_directory_no_candidates_complete_within_scan",
+          "summary_delivery_parent_evidence_id_matches_prior_complete"
+        ],
+        "mcp_negative_11_of_11": [
+          "missing_required_path",
+          "integer_path",
+          "relative_path",
+          "nonexistent_directory",
+          "file_instead_of_directory",
+          "unknown_execute_option",
+          "invalid_detail_mode",
+          "max_entries_zero",
+          "max_entries_beyond_100000",
+          "max_probe_bytes_below_4096",
+          "max_probe_bytes_beyond_64_MiB"
+        ],
+        "positives_isError_not_true": true,
+        "negatives_isError_true": true,
+        "mcp_protocol_errors": false,
+        "source_worktree_unchanged": true,
+        "synthetic_input_digests_unchanged": true,
+        "temporary_fixture_cleanup": "PASS",
+        "original_daemon_pid_unchanged": true,
+        "prior_failed_test_setup": {
+          "actions_run_id": 40041040268,
+          "reason": "Temporary directory preparation FileExistsError before any original MCP call; fixed exist_ok=true and reran once; not a tool functional failure."
+        }
+      },
+      "semantic_assertions": [
+        "Two Electron and Unreal candidates from distinct source-owned markers, plus BepInEx and Easy Anti-Cheat components with runtime_presence unknown",
+        "GDPC PCK and FORM/GEN8 first bytes recognized as Godot and GameMaker candidates, not proof of valid full package or execution",
+        "Incomplete GameAssembly.dll, global-metadata.dat and GDPC header remain without false runtime candidates",
+        "One symlink recorded but not followed outside fixture boundary; source information preserved",
+        "Limited traversal retains partial coverage and exactly two examined entries without falsely claiming complete absence",
+        "Empty directory retains complete-within-scan status with no candidates",
+        "Summary delivery parent Evidence ID matches complete observation for unchanged directory",
+        "Each file range SHA-256 recomputed from the underlying source-owned bytes when present"
+      ],
+      "limitations": [
+        "Certified static original Linux MCP directory-triage profile only, not a guarantee of correct categorization of arbitrary real-world game installations or packed executables.",
+        "Electron/Unreal path convention alone does not prove genuine archive contents, runtime launch, network behavior or integrity; Godot/GameMaker headers are only static candidates.",
+        "Only bounded local fixtures, small directory trees and max_entries partial branch were tested; adversarial races, huge trees, symlink attacks under changed paths or resource stress not exhaustively exercised."
+      ],
+      "safety": {
+        "original_engine_unchanged": true,
+        "original_daemon_not_restarted": true,
+        "other_projects_unchanged": true,
+        "no_codex": true,
+        "no_target_execution": true,
+        "no_privileged_changes": true,
+        "no_new_mcp_or_bridge": true
+      },
+      "hygiene": {
+        "original_stable_bridge_restored_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+        "spent_requests_removed": [
+          "rea-linux/requests/desktop-application-p41-original-mcp-20261024.json",
+          "rea-linux/requests/desktop-application-p41-v2-20261024.json"
+        ],
+        "post_cleanup_catalog_check_pending": true
+      },
+      "resulting_counts": {
+        "fully_certified": 24,
+        "remaining_full": 184,
+        "partial": 0,
+        "total": 208
+      }
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 23,
-    "awaiting_canonical_individual_review": 185,
+    "functional_pass_scoped_distinct": 24,
+    "awaiting_canonical_individual_review": 184,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 23,
+    "fully_certified_distinct": 24,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 185,
-    "remaining_full_certification_distinct": 185
+    "not_functionally_positive_distinct": 184,
+    "remaining_full_certification_distinct": 184
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -3356,7 +3446,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P40-PE-RESOURCES-ORIGINAL-MCP-CERTIFICATION-20261024",
+  "latest_phase": "LINUX-P41-DESKTOP-APPLICATION-ORIGINAL-MCP-CERTIFICATION-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -3949,6 +4039,17 @@
       "evidence_digest": "7be7fe0820ef83488b186498c985e8666de7707355697385a7921599d84398cc",
       "request_digest": "07d3a2c049cf81a7a44ec8af14bd1bdd083a83e43f9a38692eb4d53fad29e774",
       "artifact_id": 12539057390
+    },
+    "inspect_desktop_application": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Permanent original Linux REA MCP read-only static desktop-directory triage of source-owned paths and magic headers: Electron/Unreal markers, Godot PCK and GameMaker FORM/GEN8, unknowns on insufficient marker evidence, symlink exclusion, max_entries partial coverage, empty directory, and retained summary identity; 11 invalid-target and schema refusals.",
+      "phase_id": "LINUX-P41-DESKTOP-APPLICATION-ORIGINAL-MCP-CERTIFICATION-20261024",
+      "run_ids": [
+        40041146946
+      ],
+      "request_digest": "117e95f6761d68ffc9930b2eda46bf74d1030df2b51fe580b7a45ee480549069",
+      "evidence_digest": "7599135241bdcc053492e7bc20fc2d40b4107521fa9ae2a1e43ca68af1fbe273",
+      "artifact_id": 12539715349
     }
   }
 }

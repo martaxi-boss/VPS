@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_23_FULLY_CERTIFIED_PROFILES_AND_185_PENDING",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_24_FULLY_CERTIFIED_PROFILES_AND_184_PENDING",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -515,6 +515,25 @@
       "original_service_unmodified": true
     },
     "latest_contract_certification": {
+      "phase_id": "LINUX-P41-DESKTOP-APPLICATION-ORIGINAL-MCP-CERTIFICATION-20261024",
+      "original_mcp_catalog": 208,
+      "fully_certified_distinct": 24,
+      "existing_scoped_positive_distinct": 24,
+      "positive_limited_distinct": 0,
+      "remaining_full_distinct": 184,
+      "source": "Original permanent REA Linux MCP static desktop application directory triage, 6 positive cases and 11 negative case validation on source-controlled public artifacts",
+      "runs": [
+        40041146946
+      ],
+      "encrypted_result_digest": "7599135241bdcc053492e7bc20fc2d40b4107521fa9ae2a1e43ca68af1fbe273",
+      "authenticated_request_sha256": "117e95f6761d68ffc9930b2eda46bf74d1030df2b51fe580b7a45ee480549069",
+      "encrypted_result_authenticated": true,
+      "original_engine_unchanged": true,
+      "original_service_unchanged": true,
+      "previous_fully_certified_contracts_unchanged": 23,
+      "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+    },
+    "prior_contract_certification": {
       "phase_id": "LINUX-P40-PE-RESOURCES-ORIGINAL-MCP-CERTIFICATION-20261024",
       "original_mcp_catalog": 208,
       "fully_certified_distinct": 23,
@@ -531,28 +550,6 @@
       "original_engine_unchanged": true,
       "original_service_unchanged": true,
       "previous_fully_certified_contracts_unchanged": 22,
-      "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
-    },
-    "prior_contract_certification": {
-      "phase_id": "LINUX-P39-LIST-UNKNOWNS-COMPOSITE-MCP-CERTIFICATION-20261023",
-      "original_mcp_catalog": 208,
-      "fully_certified_distinct": 22,
-      "existing_scoped_positive_distinct": 22,
-      "positive_limited_distinct": 0,
-      "remaining_full_distinct": 186,
-      "source": "Read-only original MCP list_unknowns contract: original source true in-memory nonempty pagination (5 heads, pages 2+1) + permanent MCP empty-data and schema validation (8/8); exact source file blob identity.",
-      "runs": [
-        39969213976,
-        40034574745,
-        40035029912
-      ],
-      "original_in_memory_nonempty_evidence_sha256": "28c2a4da1c7d4d7cf5805c992d913c1c4a7916ec2ac6849cfc3147eda62b5dbc",
-      "permanent_live_nonempty_observed": false,
-      "certified_profile_kind": "COMPOSITE_ORIGINAL_LINUX_MCP_READ_CONTRACT",
-      "no_production_mutation": true,
-      "original_engine_unchanged": true,
-      "original_service_unchanged": true,
-      "previous_fully_certified_contracts_unchanged": 21,
       "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
     },
     "previous_contract_certification_snapshots": [
@@ -672,6 +669,25 @@
         "original_engine_unchanged": true,
         "original_service_unchanged": true,
         "previous_fully_certified_contracts_unchanged": 21,
+        "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      },
+      {
+        "phase_id": "LINUX-P40-PE-RESOURCES-ORIGINAL-MCP-CERTIFICATION-20261024",
+        "original_mcp_catalog": 208,
+        "fully_certified_distinct": 23,
+        "existing_scoped_positive_distinct": 23,
+        "positive_limited_distinct": 0,
+        "remaining_full_distinct": 185,
+        "source": "Original permanent REA Linux MCP offline PE32 PE32+ synthetic resource files with original source fixture 5 positive and 12 negative checks; SHA linked and AES-GCM authenticated",
+        "runs": [
+          40040666973
+        ],
+        "encrypted_result_digest": "7be7fe0820ef83488b186498c985e8666de7707355697385a7921599d84398cc",
+        "authenticated_request_sha256": "07d3a2c049cf81a7a44ec8af14bd1bdd083a83e43f9a38692eb4d53fad29e774",
+        "encrypted_result_authenticated": true,
+        "original_engine_unchanged": true,
+        "original_service_unchanged": true,
+        "previous_fully_certified_contracts_unchanged": 22,
         "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
       }
     ]
