@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_24_FULLY_CERTIFIED_PROFILES_AND_184_PENDING",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_30_FULLY_CERTIFIED_PROFILES_AND_178_PENDING",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -515,6 +515,23 @@
       "original_service_unmodified": true
     },
     "latest_contract_certification": {
+      "phase_id": "LINUX-P42-P43-SIX-APPLICATION-CONTRACTS-20261024",
+      "fully_certified_distinct": 30,
+      "remaining_full_distinct": 178,
+      "original_mcp_catalog": 208,
+      "runs": [
+        40041816982,
+        40042135213
+      ],
+      "result_digests": [
+        "ec0f9c28c81fafa4c6c9f8f10dc0b9c705f8e5cc75a8b6e1023a2bc5745ca4cd",
+        "791cd92457691863547adc4fbcbfb9640425785c19c07c05491e01c3298020bf"
+      ],
+      "no_new_dependencies_needed": true,
+      "original_daemon_stable": true,
+      "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+    },
+    "prior_contract_certification": {
       "phase_id": "LINUX-P41-DESKTOP-APPLICATION-ORIGINAL-MCP-CERTIFICATION-20261024",
       "original_mcp_catalog": 208,
       "fully_certified_distinct": 24,
@@ -531,25 +548,6 @@
       "original_engine_unchanged": true,
       "original_service_unchanged": true,
       "previous_fully_certified_contracts_unchanged": 23,
-      "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
-    },
-    "prior_contract_certification": {
-      "phase_id": "LINUX-P40-PE-RESOURCES-ORIGINAL-MCP-CERTIFICATION-20261024",
-      "original_mcp_catalog": 208,
-      "fully_certified_distinct": 23,
-      "existing_scoped_positive_distinct": 23,
-      "positive_limited_distinct": 0,
-      "remaining_full_distinct": 185,
-      "source": "Original permanent REA Linux MCP offline PE32 PE32+ synthetic resource files with original source fixture 5 positive and 12 negative checks; SHA linked and AES-GCM authenticated",
-      "runs": [
-        40040666973
-      ],
-      "encrypted_result_digest": "7be7fe0820ef83488b186498c985e8666de7707355697385a7921599d84398cc",
-      "authenticated_request_sha256": "07d3a2c049cf81a7a44ec8af14bd1bdd083a83e43f9a38692eb4d53fad29e774",
-      "encrypted_result_authenticated": true,
-      "original_engine_unchanged": true,
-      "original_service_unchanged": true,
-      "previous_fully_certified_contracts_unchanged": 22,
       "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
     },
     "previous_contract_certification_snapshots": [

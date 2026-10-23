@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_24_FULLY_CERTIFIED_184_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_30_FULLY_CERTIFIED_178_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -3402,21 +3402,109 @@
         "partial": 0,
         "total": 208
       }
+    },
+    {
+      "phase_id": "LINUX-P42-P43-SIX-APPLICATION-CONTRACTS-20261024",
+      "status": "SIX_NEW_FULLY_CERTIFIED_SCOPED_MCP_PROFILES",
+      "date_utc": "2026-10-24",
+      "proofs": [
+        {
+          "run_id": 40041816982,
+          "artifact_id": 12539408489,
+          "request_sha256": "3ca2e0e613e69ee1f913e0cbcd9934a7734c1ecc16500a045cf23443a46788f7",
+          "result_sha256": "ec0f9c28c81fafa4c6c9f8f10dc0b9c705f8e5cc75a8b6e1023a2bc5745ca4cd",
+          "encrypted_authenticated": true,
+          "raw_marker": "INCOMPLETE",
+          "reconciliation": "Two self-comparison cases were wrongly expected to succeed by test oracle; original MCP correctly returned typed invalid_input with isError=true. Count as expected negatives."
+        },
+        {
+          "run_id": 40042135213,
+          "artifact_id": 12539777117,
+          "request_sha256": "3629c8fbc9b5eb958d9ce623c7afa1fba5e056adb94164dc8acea610f6e0eef8",
+          "result_sha256": "791cd92457691863547adc4fbcbfb9640425785c19c07c05491e01c3298020bf",
+          "encrypted_authenticated": true,
+          "tool_tests": "8/8",
+          "raw_marker": "ALL_PASS"
+        }
+      ],
+      "tools": [
+        {
+          "name": "build_reconstruction_obligation_ledger",
+          "status": "FULLY_CERTIFIED",
+          "positive_calls": 2,
+          "negative_calls": 3,
+          "profile": "Empty and one-reviewed-obligation Evidence bundles; unowned/open diagnostic; absent review Evidence and malformed input rejected."
+        },
+        {
+          "name": "project_android_application_graph",
+          "status": "FULLY_CERTIFIED",
+          "positive_calls": 3,
+          "negative_calls": 3,
+          "profile": "APK inventory root plus complete/partial rich inventory: manifest, 2 DEX, resources, ELF, JS, signer and 2 bridge hypotheses."
+        },
+        {
+          "name": "project_apple_application_graph",
+          "status": "FULLY_CERTIFIED",
+          "positive_calls": 4,
+          "negative_calls": 3,
+          "profile": "IPA/macOS roots; IPA populated bundle with framework, extension, signing, complete and partial inventory."
+        },
+        {
+          "name": "project_harmony_application_graph",
+          "status": "FULLY_CERTIFIED",
+          "positive_calls": 3,
+          "negative_calls": 3,
+          "profile": "HAP Stage root, module.json, .abc, resources, ELF, JavaScript and N-API bridge hypotheses; full and partial coverage."
+        },
+        {
+          "name": "compare_application_versions",
+          "status": "FULLY_CERTIFIED",
+          "positive_calls": 1,
+          "negative_calls": 3,
+          "profile": "Authenticated source JavaScript graphs: 2 added and 1 changed with complete coverage; invalid self-comparison correctly rejected."
+        },
+        {
+          "name": "compare_javascript_export_shapes",
+          "status": "FULLY_CERTIFIED",
+          "positive_calls": 1,
+          "negative_calls": 3,
+          "profile": "Authentic JavaScript export comparison: 1 added and 1 removed property; partial source coverage; invalid self-comparison correctly rejected."
+        }
+      ],
+      "limits": [
+        "Only explicitly tested static original Linux MCP profiles; no blanket production target or large-data claim.",
+        "Obligation ledger ready/verified closure and platform dynamic execution not certified."
+      ],
+      "supplier_installation": "No new packages required: original Node24 compiled application Evidence implementations already operational.",
+      "integrity": {
+        "original_service_pid_stable": true,
+        "source_checkout_stable": true,
+        "original_catalog": 208,
+        "production_deployment": false
+      },
+      "hygiene": {
+        "stable_bridge_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+        "consumed_requests_removed": true
+      },
+      "resulting_counts": {
+        "fully_certified_distinct": 30,
+        "remaining_full": 178
+      }
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 24,
-    "awaiting_canonical_individual_review": 184,
+    "functional_pass_scoped_distinct": 30,
+    "awaiting_canonical_individual_review": 178,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 24,
+    "fully_certified_distinct": 30,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 184,
-    "remaining_full_certification_distinct": 184
+    "not_functionally_positive_distinct": 178,
+    "remaining_full_certification_distinct": 178
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -3446,7 +3534,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P41-DESKTOP-APPLICATION-ORIGINAL-MCP-CERTIFICATION-20261024",
+  "latest_phase": "LINUX-P42-P43-SIX-APPLICATION-CONTRACTS-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -4050,6 +4138,92 @@
       "request_digest": "117e95f6761d68ffc9930b2eda46bf74d1030df2b51fe580b7a45ee480549069",
       "evidence_digest": "7599135241bdcc053492e7bc20fc2d40b4107521fa9ae2a1e43ca68af1fbe273",
       "artifact_id": 12539715349
+    },
+    "build_reconstruction_obligation_ledger": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Empty and one-reviewed-obligation Evidence bundles; unowned/open diagnostic; absent review Evidence and malformed input rejected.",
+      "phase_id": "LINUX-P42-P43-SIX-APPLICATION-CONTRACTS-20261024",
+      "run_ids": [
+        40041816982,
+        40042135213
+      ],
+      "positive_calls": 2,
+      "negative_calls": 3,
+      "proof_sha256": [
+        "ec0f9c28c81fafa4c6c9f8f10dc0b9c705f8e5cc75a8b6e1023a2bc5745ca4cd",
+        "791cd92457691863547adc4fbcbfb9640425785c19c07c05491e01c3298020bf"
+      ]
+    },
+    "project_android_application_graph": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "APK inventory root plus complete/partial rich inventory: manifest, 2 DEX, resources, ELF, JS, signer and 2 bridge hypotheses.",
+      "phase_id": "LINUX-P42-P43-SIX-APPLICATION-CONTRACTS-20261024",
+      "run_ids": [
+        40041816982,
+        40042135213
+      ],
+      "positive_calls": 3,
+      "negative_calls": 3,
+      "proof_sha256": [
+        "ec0f9c28c81fafa4c6c9f8f10dc0b9c705f8e5cc75a8b6e1023a2bc5745ca4cd",
+        "791cd92457691863547adc4fbcbfb9640425785c19c07c05491e01c3298020bf"
+      ]
+    },
+    "project_apple_application_graph": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "IPA/macOS roots; IPA populated bundle with framework, extension, signing, complete and partial inventory.",
+      "phase_id": "LINUX-P42-P43-SIX-APPLICATION-CONTRACTS-20261024",
+      "run_ids": [
+        40041816982,
+        40042135213
+      ],
+      "positive_calls": 4,
+      "negative_calls": 3,
+      "proof_sha256": [
+        "ec0f9c28c81fafa4c6c9f8f10dc0b9c705f8e5cc75a8b6e1023a2bc5745ca4cd",
+        "791cd92457691863547adc4fbcbfb9640425785c19c07c05491e01c3298020bf"
+      ]
+    },
+    "project_harmony_application_graph": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "HAP Stage root, module.json, .abc, resources, ELF, JavaScript and N-API bridge hypotheses; full and partial coverage.",
+      "phase_id": "LINUX-P42-P43-SIX-APPLICATION-CONTRACTS-20261024",
+      "run_ids": [
+        40041816982,
+        40042135213
+      ],
+      "positive_calls": 3,
+      "negative_calls": 3,
+      "proof_sha256": [
+        "ec0f9c28c81fafa4c6c9f8f10dc0b9c705f8e5cc75a8b6e1023a2bc5745ca4cd",
+        "791cd92457691863547adc4fbcbfb9640425785c19c07c05491e01c3298020bf"
+      ]
+    },
+    "compare_application_versions": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Authenticated source JavaScript graphs: 2 added and 1 changed with complete coverage; invalid self-comparison correctly rejected.",
+      "phase_id": "LINUX-P42-P43-SIX-APPLICATION-CONTRACTS-20261024",
+      "run_ids": [
+        40041816982
+      ],
+      "positive_calls": 1,
+      "negative_calls": 3,
+      "proof_sha256": [
+        "ec0f9c28c81fafa4c6c9f8f10dc0b9c705f8e5cc75a8b6e1023a2bc5745ca4cd"
+      ]
+    },
+    "compare_javascript_export_shapes": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Authentic JavaScript export comparison: 1 added and 1 removed property; partial source coverage; invalid self-comparison correctly rejected.",
+      "phase_id": "LINUX-P42-P43-SIX-APPLICATION-CONTRACTS-20261024",
+      "run_ids": [
+        40041816982
+      ],
+      "positive_calls": 1,
+      "negative_calls": 3,
+      "proof_sha256": [
+        "ec0f9c28c81fafa4c6c9f8f10dc0b9c705f8e5cc75a8b6e1023a2bc5745ca4cd"
+      ]
     }
   }
 }

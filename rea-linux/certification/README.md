@@ -273,3 +273,18 @@ As cinco ferramentas pertencem ao grupo `read`, mas têm pré-condições difere
 - **Higiene:** bridge de ensaio retirada, restaurado blob canónico `ad6a6a7d3349caaa23be26aa1e5f95fa21521749`; ambos os pedidos consumidos eliminados. Sem novas Skills, motores, Codex ou serviços.
 - **Contagem:** **24 `FULLY_CERTIFIED`**, **184 por certificar** nas 208 ferramentas; zero parciais neste ledger.
 
+
+## P42-P43 — 30 contratos certificados, 178 pendentes (24/10/2026)
+
+Seis novos perfis: `build_reconstruction_obligation_ledger`, `project_android_application_graph`, `project_apple_application_graph`, `project_harmony_application_graph`, `compare_application_versions`, `compare_javascript_export_shapes`.
+
+Original MCP: [P42](https://github.com/martaxi-boss/VPS/actions/runs/40041816982), 24 chamadas, prova cifrada ec0f9c28c81fafa4c6c9f8f10dc0b9c705f8e5cc75a8b6e1023a2bc5745ca4cd; [P43](https://github.com/martaxi-boss/VPS/actions/runs/40042135213), 8/8 testes de componentes ricos, prova cifrada 791cd92457691863547adc4fbcbfb9640425785c19c07c05491e01c3298020bf. Ambos os envelopes RSA-OAEP/AES-GCM e request SHA foram autenticados localmente. P42 indicou INCOMPLETE apenas porque dois testes de comparação com a mesma Evidence foram incorretamente classificados como positivos pelo oráculo; o MCP recusou-os corretamente com `isError=true`, pelo que contam como negativos esperados. São 14 positivos e 18 negativos reais, sem chamadas fictícias.
+
+- **build_reconstruction_obligation_ledger**: 2 positivos, 3 negativos. Empty and one-reviewed-obligation Evidence bundles; unowned/open diagnostic; absent review Evidence and malformed input rejected.
+- **project_android_application_graph**: 3 positivos, 3 negativos. APK inventory root plus complete/partial rich inventory: manifest, 2 DEX, resources, ELF, JS, signer and 2 bridge hypotheses.
+- **project_apple_application_graph**: 4 positivos, 3 negativos. IPA/macOS roots; IPA populated bundle with framework, extension, signing, complete and partial inventory.
+- **project_harmony_application_graph**: 3 positivos, 3 negativos. HAP Stage root, module.json, .abc, resources, ELF, JavaScript and N-API bridge hypotheses; full and partial coverage.
+- **compare_application_versions**: 1 positivos, 3 negativos. Authenticated source JavaScript graphs: 2 added and 1 changed with complete coverage; invalid self-comparison correctly rejected.
+- **compare_javascript_export_shapes**: 1 positivos, 3 negativos. Authentic JavaScript export comparison: 1 added and 1 removed property; partial source coverage; invalid self-comparison correctly rejected.
+
+Sem instalações globais: fornecedores já operacionais. Código original e PID do REA intactos. Certificação limitada aos perfis estáticos testados. Bridge original restaurada; pedidos consumidos removidos. **30/208; faltam 178.**
