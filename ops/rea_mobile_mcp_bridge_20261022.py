@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_sqlite_contract_closure"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_sqlite_contract_closure", "fixture_linux_sqlite_dependency_check"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -217,6 +217,11 @@ def encrypt_result(raw_path, request_path, envelope_path):
     request = validate(json.loads(request_raw))
     private = None
     allowed_markers = {
+        "REA_SQLITE_DEPENDENCY_MCP", "REA_SQLITE_DEPENDENCY_BRIDGE",
+        "REA_SQLITE_DEPENDENCY_REASON",
+        "REA_SQLITE_DEPENDENCY_SOURCE", "REA_SQLITE_DEPENDENCY_CLEANUP",
+        "REA_SQLITE_DEPENDENCY_DAEMON", "REA_SQLITE_DEPENDENCY_STATUS",
+        "REA_SQLITE_DEPENDENCY_RESULTS_SHA256",
         "REA_CERT_SQLITE_CASES", "REA_CERT_SQLITE_WAL",
         "REA_CERT_SQLITE_NEGATIVES", "REA_CERT_SQLITE_SCHEMAS",
         "REA_CERT_SQLITE_INTEGRITY", "REA_CERT_SQLITE_CLEANUP",
@@ -2681,6 +2686,76 @@ def main():
                 except (OSError, RuntimeError, ValueError):
                     print("REA_FIXTURE_CLEANUP=FAIL")
                     raise
+        return
+    if data["action"] == "fixture_linux_sqlite_dependency_check":
+        # Check two missing dependent-field validations without replaying the
+        # already passing SQLite positive and negative fixture cases.
+        import sqlite3
+        import tempfile
+        name="inspect_sqlite_database"
+        tool=tool_by_name.get(name)
+        if not tool or secure.classify(name,tool,())!="workspace":
+            error("SQLite original MCP contract/risk changed")
+        def daemon_pid():
+            p=subprocess.run(["systemctl","show","rea-reversa-mcp.service",
+                "-p","MainPID","--value"],capture_output=True,text=True,
+                timeout=10,check=False)
+            return p.stdout.strip() if p.returncode==0 else ""
+        before=daemon_pid()
+        refusals={}
+        bridge={}
+        reason={}
+        digests={}
+        source_ok=False
+        with tempfile.TemporaryDirectory(prefix="rea-sqlite-dep-",dir="/dev/shm") as folder:
+            root=Path(folder)
+            root.chmod(0o755)
+            db=root/"valid.sqlite"
+            conn=sqlite3.connect(str(db))
+            conn.execute("CREATE TABLE settings(id INTEGER PRIMARY KEY, name TEXT)")
+            conn.execute("INSERT INTO settings(name) VALUES('fixture')")
+            conn.commit()
+            conn.close()
+            db.chmod(0o644)
+            initial=hashlib.sha256(db.read_bytes()).hexdigest()
+            cases=(
+                ("columns_without_table",{"path":str(db),"columns":["id"]}),
+                ("row_limit_without_table",{"path":str(db),"row_limit":2}),
+            )
+            for ix,(case,args) in enumerate(cases,start=1751):
+                schema_rejected=False
+                try:
+                    secure.validate_arguments(tool,args)
+                except secure.SecureBridgeError:
+                    schema_rejected=True
+                _,reply=request_mcp({"jsonrpc":"2.0","id":ix,
+                    "method":"tools/call",
+                    "params":{"name":name,"arguments":args}},
+                    session,protocol,timeout=90)
+                res=reply.get("result")
+                mcp_iserror=(isinstance(res,dict) and res.get("isError") is True)
+                refusals[case]=mcp_iserror or "error" in reply
+                bridge[case]=schema_rejected
+                rendered=json.dumps(reply,ensure_ascii=True).lower()
+                reason[case]="table" in rendered
+                digests[case]=hashlib.sha256(
+                    json.dumps(reply,sort_keys=True).encode()).hexdigest()
+            source_ok=initial==hashlib.sha256(db.read_bytes()).hexdigest()
+        cleanup=not root.exists()
+        stable=before.isdecimal() and daemon_pid()==before
+        print("REA_SQLITE_DEPENDENCY_MCP="+json.dumps(refusals,sort_keys=True))
+        print("REA_SQLITE_DEPENDENCY_BRIDGE="+json.dumps(bridge,sort_keys=True))
+        print("REA_SQLITE_DEPENDENCY_REASON="+json.dumps(reason,sort_keys=True))
+        print("REA_SQLITE_DEPENDENCY_SOURCE="+("PASS" if source_ok else "FAIL"))
+        print("REA_SQLITE_DEPENDENCY_CLEANUP="+("PASS" if cleanup else "FAIL"))
+        print("REA_SQLITE_DEPENDENCY_DAEMON="+("PASS" if stable else "FAIL"))
+        print("REA_SQLITE_DEPENDENCY_RESULTS_SHA256="+hashlib.sha256(
+            json.dumps(digests,sort_keys=True).encode()).hexdigest())
+        correct=(len(refusals)==2 and all(refusals.values())
+            and all(reason.values()) and source_ok and cleanup and stable)
+        print("REA_SQLITE_DEPENDENCY_STATUS="+(
+            "PASS_ORIGINAL_MCP_2_DEPENDENT_INPUTS_REJECTED" if correct
+            else "NOT_CERTIFIED"))
         return
     if data["action"] == "fixture_linux_sqlite_contract_closure":
         # Complete missing SQLite modes with entirely self-generated offline data.
