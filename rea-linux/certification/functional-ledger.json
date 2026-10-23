@@ -607,7 +607,9 @@
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 2
+    "workspace_newly_passed_distinct": 2,
+    "read_group_positive_some_original_mcp_mode": 5,
+    "read_group_positive_permanent_mcp": 3
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -703,11 +705,11 @@
     "successful_scoped": 3,
     "negative_only": 1,
     "blocked_positive": 1,
-    "status": "READ5_SOURCE_CONTRACT_EXERCISED_LIVE_PREREQUISITES_PENDING",
+    "status": "THREE_POSITIVE_PERMANENT_MCP_TWO_POSITIVE_ISOLATED_ORIGINAL_MCP_PERMANENT_CLOSE_PENDING",
     "provider_preflight_run": 39959287285,
     "missing_prerequisites": {
       "verify_unknown_resolution": "No legitimate retained unknown in session; cannot fabricate one as read-only",
-      "gdb_session_status": "GNU GDB now persists and is configured in live service; authentic positive live gdb_session_status requires an independently owner-signed sensitive session-start and cleanup grant (not yet executed)."
+      "gdb_session_status": "Provider permanently installed and confirmed inside original daemon environment; owner-signed sensitive session start and cleanup necessary to prove positive in this PERMANENT endpoint."
     },
     "additional_isolated_regression": {
       "tool": "verify_unknown_resolution",
@@ -730,7 +732,7 @@
     },
     "verified_isolated_mcp_distinct": 4,
     "verified_real_linux_mcp_live_scoped": 3,
-    "verified_real_linux_mcp_in_memory_scoped_extra": 1,
+    "verified_real_linux_mcp_in_memory_scoped_extra": 2,
     "additional_gdb_ready_and_diagnostics": {
       "run_id": 39969907326,
       "pass": 2,
@@ -776,7 +778,32 @@
       ],
       "note": "Does not confer owner signature or functional session certification",
       "notes": "Persistent GNU GDB installed and service process configured. Positive production MCP status still pending signed session start/close (tool remains not fully certified)."
-    }
+    },
+    "additional_real_gdb_isolated_mcp_proof": {
+      "run_id": 39972622800,
+      "proof_level": "ORIGINAL_REA_MCP_IN_MEMORY_WITH_TRUE_LINUX_GNU_GDB_NOT_PERMANENT_SERVICE",
+      "gnu_gdb_version": "15.1",
+      "reactor": "Original registerGdbTools + GdbSessionManager with @modelcontextprotocol Client, InMemoryTransport and real GDB process",
+      "positive_assertions": [
+        "start_gdb_session returned isError!=true and UUID",
+        "gdb_session_status returned isError!=true and state ready",
+        "reported mi_version mi3 or mi2 and nontruncated diagnostics",
+        "close_gdb_session returned isError!=true",
+        "gdb_session_status after close returned isError=true"
+      ],
+      "result_marker": "REA_LINUX_GDB_REAL_STATUS=PASS_REAL_GDB_ISOLATED_MCP",
+      "vitest_exit_code": 0,
+      "source_unchanged": true,
+      "real_binary_sha256": "3832cc070ae1716e322105d3b39fb398695e5f031c9d39224cf227a8c2b889f6",
+      "stored_dependencies": [
+        "libbabeltrace1",
+        "libdebuginfod1t64",
+        "libipt2",
+        "libsource-highlight4t64"
+      ],
+      "limitation": "True positive in isolated original contract; not a live state from persistent REA systemd MCP; start/close via permanent endpoint still requires independently owner-signed authorization."
+    },
+    "read_tools_with_real_non_emulated_positive_in_some_original_mcp_mode": 5
   },
   "installation_readiness": {
     "status": "CORE_LINUX_PROVIDERS_PERSISTENT_ACTIVE_TOOL_CERTIFICATION_INCOMPLETE",
