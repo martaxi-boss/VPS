@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_9_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_10_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -2194,6 +2194,88 @@
         ],
         "final_catalog_recheck_pending": true
       }
+    },
+    {
+      "phase_id": "LINUX-P30-TSHARK4-PACKET-CAPTURE-FULL-CERTIFICATION-20261023",
+      "date_utc": "2026-10-23",
+      "status": "FULLY_CERTIFIED_LINUX_TSHARK4_CAPTURED_PCAP_PCAPNG_READONLY_ANALYSIS",
+      "tool": "inspect_packet_capture",
+      "tool_status": "FULLY_CERTIFIED",
+      "certification_scope": "Original permanent REA MCP Linux x64/TShark 4.x file-only packet decoding for owned PCAP and PCAPNG with IPv4 TCP/UDP, selected field retention, display filters, decode-as, two-pass vs single-pass, packet_limit before display-filter, filtered pagination and no-matches cases; malformed input/TShark and schema rejections.",
+      "reused_original_positive": {
+        "run_id": 39994380901,
+        "commit": "875c8d92ec776bab347e2ee47bf6d41517ba382e",
+        "original_result_sha256": "170355a7d50384844844034f489fb5f84f6602c600ca4aa2bf59a329617b01ce",
+        "source": "Existing single-packet synthetic UDP PCAP recorded by original MCP; fixture not repeated"
+      },
+      "closure": {
+        "run_id": 40027107320,
+        "commit": "dd35aa46e9f308b3165034436bd7a95ddf82dd54",
+        "MCP_catalog": 208,
+        "tool_positive_isError_false": true,
+        "positive_cases_11_of_11": [
+          "pcap_all_four_IP_TCP_UDP_frames",
+          "pcap_udp_filter_three_frames",
+          "filtered_page_offset_zero_limit_two",
+          "filtered_page_offset_two_limit_one",
+          "match_limit_null",
+          "page_offset_exhausted",
+          "single_pass_tcp_only",
+          "input_packet_limit_before_filtering",
+          "pcapng_udp_three_frames",
+          "decode_as_udp_port_42000_to_data",
+          "valid_no_matches_empty_results"
+        ],
+        "negative_provider_cases_5_of_5": [
+          "invalid_capture_magic",
+          "missing_capture_file",
+          "malformed_tshark_display_filter",
+          "invalid_tshark_field",
+          "invalid_decode_as_syntax"
+        ],
+        "bad_schema_cases_8_of_8": [
+          "empty_fields",
+          "packet_limit_zero",
+          "negative_match_offset",
+          "match_limit_zero",
+          "empty_filter",
+          "two_pass_wrong_type",
+          "over_1024_fields",
+          "unknown_dangerous_argument"
+        ],
+        "producer_SHA256_consistent_across_cases": true,
+        "frames_and_window_counts_checked_against_synthetic_oracle": true,
+        "hardcoded_PCAP_and_PCAPNG_packet_bytes_written_in_private_RAM_only": true,
+        "no_device_or_live_interface_access": true,
+        "accepted_fields_bounded_to_caller_selection": true,
+        "input_identity_SHA256_matches_original": true,
+        "source_files_unchanged": true,
+        "source_cleanup": "PASS",
+        "daemon_PID_stable": "PASS",
+        "result_hash": "7137a3a49284581621539f06fdd5c09eb64a35aade900bf8bb8fbb28012a1489"
+      },
+      "controls": {
+        "no_user_trace_examined": true,
+        "no_live_capture": true,
+        "no_device_hardware_access": true,
+        "no_new_mcp_server_skill_or_plugin": true,
+        "no_original_source_changes": true,
+        "no_global_provider_install": true,
+        "no_original_service_restart": true,
+        "no_signature_bypass": true,
+        "no_changes_to_other_projects": true
+      },
+      "limitations": [
+        "FULLY_CERTIFIED bounded to Linux TShark4 with synthetic Ethernet/IPv4 TCP and UDP PCAP/PCAPNG records; not guarantee of all protocol dissectors, thousands of packets, malformed capture families, or multi-stream TCP reassembly.",
+        "Selector and decoder functions were exercised including two-pass and decode-as, but no real device traffic was recorded or observed.",
+        "No exhaustive resource contention/cancellation analysis, out-of-budget source samples, or future TShark versions; supplier/profile changes require recertification.",
+        "No claim that absence from fixed sample means absence of device traffic."
+      ],
+      "hygiene": {
+        "spent_request_removed": "rea-linux/requests/packet-capture-contract-20261023.json",
+        "stable_bridge_restored_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+        "final_catalog_smoke_pending": true
+      }
     }
   ],
   "active_scope_counts": {
@@ -2205,10 +2287,10 @@
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 9,
-    "scoped_positive_not_fully_certified_distinct": 13,
+    "fully_certified_distinct": 10,
+    "scoped_positive_not_fully_certified_distinct": 12,
     "not_functionally_positive_distinct": 186,
-    "remaining_full_certification_distinct": 199
+    "remaining_full_certification_distinct": 198
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -2238,7 +2320,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P29-PWNTOOLS-ELF-BINARY-LAYOUT-FULL-CERTIFICATION-20261023",
+  "latest_phase": "LINUX-P30-TSHARK4-PACKET-CAPTURE-FULL-CERTIFICATION-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -2671,6 +2753,16 @@
       ],
       "evidence_digest": "50e2ee64f36ed619b8b4778f7c9441a37cf01120ac4d2aa4824b159b6d2a5541",
       "phase_id": "LINUX-P29-PWNTOOLS-ELF-BINARY-LAYOUT-FULL-CERTIFICATION-20261023"
+    },
+    "inspect_packet_capture": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Permanent Linux REA MCP TShark4 file-only PCAP/PCAPNG TCP/UDP, fields/filter/paging/two-pass/packet-limit/decode-as/no-match and error paths",
+      "run_ids": [
+        39994380901,
+        40027107320
+      ],
+      "evidence_digest": "7137a3a49284581621539f06fdd5c09eb64a35aade900bf8bb8fbb28012a1489",
+      "phase_id": "LINUX-P30-TSHARK4-PACKET-CAPTURE-FULL-CERTIFICATION-20261023"
     }
   }
 }
