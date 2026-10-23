@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_local_provider_triage", "fixture_linux_sigrok_preflight", "fixture_linux_sigrok_activate"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_local_provider_triage", "fixture_linux_sigrok_preflight", "fixture_linux_sigrok_activate", "fixture_linux_sigrok_live_mcp"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -239,6 +239,11 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SIGROK_ACTIVATION_PROVIDER", "REA_SIGROK_ACTIVATION_ENV",
         "REA_SIGROK_ACTIVATION_MCP_COUNT", "REA_SIGROK_ACTIVATION_ROLLBACK",
         "REA_SIGROK_ACTIVATION_STATUS", "REA_SIGROK_ACTIVATION_RESTART_ONLY_REA",
+        "REA_SIGROK_MCP_TOOL", "REA_SIGROK_MCP_STATUS",
+        "REA_SIGROK_MCP_ISERROR", "REA_SIGROK_MCP_SHA256",
+        "REA_SIGROK_MCP_ASSERTIONS", "REA_SIGROK_MCP_FAIL_CLASS",
+        "REA_SIGROK_MCP_CLEANUP", "REA_SIGROK_MCP_NO_SERVICE_RESTART",
+        "REA_SIGROK_MCP_TOTAL",
         "REA_MOBILE_DESCRIBE_TOOL", "REA_MOBILE_TOOL_DESCRIPTOR_B64",
         "REA_MOBILE_TOOL_SCHEMA_SUMMARY", "REA_MOBILE_TOOL_DESCRIPTOR_SHA256",
         "REA_MOBILE_TOOL_DESCRIPTOR_BYTES", "REA_MOBILE_TOOL_DESCRIPTOR_TRUNCATED",
@@ -2057,6 +2062,126 @@ def main():
             print("REA_PCONFIG_PROVIDER_"+name.upper()+"="+(
                 "PASS" if test.returncode==0 else "NOT_ACCESSIBLE"))
         print("REA_PCONFIG_STATUS=PASS_READ_ONLY")
+        return
+    if data["action"] == "fixture_linux_sigrok_live_mcp":
+        # Source-owned 9600-baud 8N1 UART frame: genuine Linux sigrok
+        # through original PERMANENT REA MCP. /dev/shm is shared across
+        # PrivateTmp=yes; never acquire network/device data or touch REA source.
+        import tempfile
+        import shutil
+        import re as regex
+        required = ("inspect_signal_decoders","decode_signal_recording")
+        for name in required:
+            if name not in tool_by_name:
+                print("REA_SIGROK_MCP_TOTAL=BLOCKED_CATALOG")
+                return
+            if secure.classify(name,tool_by_name[name],set(safe_callable)) != "workspace":
+                print("REA_SIGROK_MCP_TOTAL=BLOCKED_RISK")
+                return
+        prev=subprocess.run(["systemctl","show","rea-reversa-mcp.service",
+                    "-p","MainPID","--value"],capture_output=True,text=True,timeout=10).stdout.strip()
+        records=[]
+        def normalized(result):
+            if not isinstance(result,dict):
+                return None
+            parts=[result.get("structuredContent")]
+            for chunk in result.get("content",[]):
+                if isinstance(chunk,dict) and isinstance(chunk.get("text"),str):
+                    try:
+                        parts.append(json.loads(chunk["text"]))
+                    except ValueError:
+                        pass
+            for part in parts:
+                if isinstance(part,dict) and isinstance(part.get("normalized_result"),dict):
+                    return part["normalized_result"]
+            return None
+        def mcp(name,args,ident,extra_roots=()):
+            secure.validate_arguments(tool_by_name[name],args)
+            secure._authorized_target_paths(args,additional_roots=extra_roots)
+            _,response=request_mcp({"jsonrpc":"2.0","id":ident,
+                     "method":"tools/call","params":{"name":name,"arguments":args}},
+                    session,protocol,timeout=100)
+            item=response.get("result")
+            good=(isinstance(item,dict) and item.get("isError") is not True
+                  and "error" not in response)
+            raw=json.dumps(response,sort_keys=True,ensure_ascii=True).encode()
+            return good,normalized(item),hashlib.sha256(raw).hexdigest(),item
+        def report(name,good,hash_value,assertions):
+            passed=bool(good and assertions and all(assertions.values()))
+            print("REA_SIGROK_MCP_TOOL="+name)
+            print("REA_SIGROK_MCP_ISERROR="+str(not good).lower())
+            print("REA_SIGROK_MCP_SHA256="+hash_value)
+            print("REA_SIGROK_MCP_ASSERTIONS="+json.dumps(assertions,sort_keys=True))
+            print("REA_SIGROK_MCP_STATUS="+("FUNCTIONAL_PASS_SCOPED" if passed else "INCOMPLETE"))
+            records.append(passed)
+        for idx,(args,tag) in enumerate((
+             ({"query":"uart","limit":10},"catalog"),
+             ({"decoder":"uart","query":"baud","limit":10},"uart-help")
+        ),start=920):
+            good,val,digest,_=mcp("inspect_signal_decoders",args,idx)
+            w=val.get("output_window",{}) if isinstance(val,dict) else {}
+            detail=bool(args.get("decoder"))
+            item=val.get("help_lines" if detail else "decoders",[]) if isinstance(val,dict) else []
+            assertions={
+                "real_version":bool(val and "sigrok-cli 0.7.2" in
+                    (val.get("tool",{}).get("version_banner",""))),
+                "window_correct":w.get("unit")==("help-lines" if detail else "decoders"),
+                "matched":isinstance(w.get("matching"),int) and w["matching"]>0,
+                "result_size_consistent":w.get("returned")==len(item),
+                "expected_content":(any("baud" in row.get("text","").lower()
+                       for row in item) if detail else
+                       any(row.get("id")=="uart" for row in item)),
+                "no_hardware":val.get("hardware_acquisition")=="not-performed" if val else False
+            }
+            report("inspect_signal_decoders:"+tag,good,digest,assertions)
+        lines=["$timescale 1 us $end","$scope module logic $end",
+                "$var wire 1 ! RX $end","$upscope $end",
+                "$enddefinitions $end","#0","1!"]
+        tick=1000
+        for byte in b"REA":
+            for bit in [0]+[(byte>>k)&1 for k in range(8)]+[1]:
+                lines.extend(["#"+str(tick),str(bit)+"!"])
+                tick+=104
+            tick+=208
+        lines.extend(["#"+str(tick+1000),"1!"])
+        source=chr(10).join(lines)+chr(10)
+        cleanup="INCOMPLETE"
+        with tempfile.TemporaryDirectory(prefix="rea-sigrok-owned-",dir="/dev/shm") as td:
+            root=Path(td)
+            root.chmod(0o755)
+            target=root/"source.vcd"
+            target.write_text(source,encoding="ascii")
+            target.chmod(0o644)
+            before=hashlib.sha256(target.read_bytes()).hexdigest()
+            args={"path":str(target),"decoders":"uart:rx=RX:baudrate=9600",
+                  "input_format":"vcd","annotations":"uart=rx-data"}
+            good,val,digest,_=mcp("decode_signal_recording",args,931,(root,))
+            words=val.get("annotations_text","") if isinstance(val,dict) else ""
+            assertions={
+                "byte_R_observed":bool(regex.search(r"uart-1: 52(?:\\n|$)",words)),
+                "byte_E_observed":bool(regex.search(r"uart-1: 45(?:\\n|$)",words)),
+                "byte_A_observed":bool(regex.search(r"uart-1: 41(?:\\n|$)",words)),
+                "source_sha256_verified":val.get("artifact",{}).get("sha256")==before if val else False,
+                "no_hardware":val.get("hardware_acquisition")=="not-performed" if val else False,
+                "source_intact":hashlib.sha256(target.read_bytes()).hexdigest()==before
+            }
+            report("decode_signal_recording:uart_REA",good,digest,assertions)
+            bad={"path":str(root/"absent.vcd"),"decoders":"uart"}
+            no,_,digest,badbody=mcp("decode_signal_recording",bad,932,(root,))
+            expected=isinstance(badbody,dict) and badbody.get("isError") is True
+            print("REA_SIGROK_MCP_TOOL=decode_signal_recording:missing-file")
+            print("REA_SIGROK_MCP_ISERROR="+str(expected).lower())
+            print("REA_SIGROK_MCP_SHA256="+digest)
+            print("REA_SIGROK_MCP_ASSERTIONS="+json.dumps({"expected_error":expected}))
+            print("REA_SIGROK_MCP_STATUS="+("PASS_EXPECTED_NEGATIVE" if expected else "INCOMPLETE"))
+            records.append(expected)
+        cleanup = "PASS" if not root.exists() else "FAIL"
+        print("REA_SIGROK_MCP_CLEANUP="+cleanup)
+        cur=subprocess.run(["systemctl","show","rea-reversa-mcp.service",
+                   "-p","MainPID","--value"],capture_output=True,text=True,timeout=10).stdout.strip()
+        stable=bool(prev) and prev==cur
+        print("REA_SIGROK_MCP_NO_SERVICE_RESTART="+str(stable).lower())
+        print("REA_SIGROK_MCP_TOTAL="+str(sum(records))+"/"+str(len(records)))
         return
     if data["action"] == "fixture_linux_sigrok_activate":
         # Owner-requested integration of existing, version-checked Sigrok ONLY
