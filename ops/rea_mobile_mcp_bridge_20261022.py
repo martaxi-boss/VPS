@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_local_provider_triage", "fixture_linux_sigrok_preflight"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_local_provider_triage", "fixture_linux_sigrok_preflight", "fixture_linux_sigrok_activate"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -236,6 +236,9 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SIGROK_BINARY_VERSION", "REA_SIGROK_VERSION_OK",
         "REA_SIGROK_PRLIMIT_OK", "REA_SIGROK_SERVICE_ENV_KEY",
         "REA_SIGROK_SERVICE_USER_ACCESS",
+        "REA_SIGROK_ACTIVATION_PROVIDER", "REA_SIGROK_ACTIVATION_ENV",
+        "REA_SIGROK_ACTIVATION_MCP_COUNT", "REA_SIGROK_ACTIVATION_ROLLBACK",
+        "REA_SIGROK_ACTIVATION_STATUS", "REA_SIGROK_ACTIVATION_RESTART_ONLY_REA",
         "REA_MOBILE_DESCRIBE_TOOL", "REA_MOBILE_TOOL_DESCRIPTOR_B64",
         "REA_MOBILE_TOOL_SCHEMA_SUMMARY", "REA_MOBILE_TOOL_DESCRIPTOR_SHA256",
         "REA_MOBILE_TOOL_DESCRIPTOR_BYTES", "REA_MOBILE_TOOL_DESCRIPTOR_TRUNCATED",
@@ -2054,6 +2057,153 @@ def main():
             print("REA_PCONFIG_PROVIDER_"+name.upper()+"="+(
                 "PASS" if test.returncode==0 else "NOT_ACCESSIBLE"))
         print("REA_PCONFIG_STATUS=PASS_READ_ONLY")
+        return
+    if data["action"] == "fixture_linux_sigrok_activate":
+        # Owner-requested integration of existing, version-checked Sigrok ONLY
+        # into the existing systemd REA daemon. Roll back on integration failure.
+        import tempfile
+        import time
+        unit = "rea-reversa-mcp.service"
+        target = Path("/etc/systemd/system/rea-reversa-mcp.service.d/80-rea-linux-sigrok.conf")
+        executable = "/usr/bin/sigrok-cli"
+        def sudo(*args, timeout=35):
+            return subprocess.run(["sudo","-n",*args],capture_output=True,
+                                 timeout=timeout,check=False)
+        def property(name):
+            z=subprocess.run(["systemctl","show",unit,"-p",name,"--value"],
+                              capture_output=True,text=True,timeout=11,check=False)
+            return z.stdout.strip() if z.returncode == 0 else ""
+        if property("User") != "rea-reversa" or property("ActiveState") != "active":
+            print("REA_SIGROK_ACTIVATION_STATUS=BLOCKED_ORIGINAL_SERVICE")
+            return
+        if target.is_symlink() or sudo("test","!","-e",str(target),timeout=10).returncode:
+            print("REA_SIGROK_ACTIVATION_STATUS=BLOCKED_EXISTING_CONFIGURATION")
+            return
+        if not Path("/opt/rea-reversa/rea/package.json").is_file():
+            print("REA_SIGROK_ACTIVATION_STATUS=BLOCKED_ORIGINAL_ENGINE_MISSING")
+            return
+        if not all(sudo("-u","rea-reversa","test","-x",p,timeout=10).returncode == 0
+                  for p in (executable,"/usr/bin/prlimit")):
+            print("REA_SIGROK_ACTIVATION_STATUS=BLOCKED_NONEXECUTABLE_PROVIDER")
+            return
+        version=sudo("-u","rea-reversa",executable,"--version",timeout=20)
+        line=version.stdout.decode("utf-8",errors="replace").splitlines()
+        verified = (version.returncode == 0 and bool(line)
+            and line[0].strip() == "sigrok-cli 0.7.2"
+            and b"libsigrokdecode" in version.stdout)
+        print("REA_SIGROK_ACTIVATION_PROVIDER="+("PASS_0.7.2" if verified else "INCOMPATIBLE"))
+        if not verified:
+            print("REA_SIGROK_ACTIVATION_STATUS=BLOCKED_VERSION")
+            return
+        if "REA_SIGROK_COMMAND=" in property("Environment"):
+            print("REA_SIGROK_ACTIVATION_STATUS=BLOCKED_EXISTING_OVERRIDE")
+            return
+        pid=property("MainPID")
+        if not pid.isdecimal() or int(pid)<1:
+            print("REA_SIGROK_ACTIVATION_STATUS=BLOCKED_NO_ACTIVE_PROCESS")
+            return
+        proc=sudo("cat",f"/proc/{int(pid)}/environ",timeout=12)
+        if proc.returncode != 0:
+            print("REA_SIGROK_ACTIVATION_STATUS=BLOCKED_UNREADABLE_PROCESS")
+            return
+        envnames={entry.split(b"=",1)[0] for entry in proc.stdout.split(bytes([0])) if b"=" in entry}
+        if b"REA_SIGROK_COMMAND" in envnames:
+            print("REA_SIGROK_ACTIVATION_STATUS=BLOCKED_ALREADY_PRESENT")
+            return
+        artifacts=Path.home()/".local/share/rea-chatgpt-trial/artifacts"
+        artifacts.mkdir(mode=0o700,parents=True,exist_ok=True)
+        if artifacts.is_symlink():
+            error("Untrusted REA-only staging directory")
+        applied=False
+        verified_runtime=False
+        cfgfile=None
+        def live_check():
+            # Fresh initialize: restart retired the previous MCP session.
+            head, init = request_mcp({
+                "jsonrpc":"2.0","id":7101,"method":"initialize",
+                "params":{"protocolVersion":"2025-06-18","capabilities":{},
+                "clientInfo":{"name":"rea-linux-provider-cert","version":"1"}}},timeout=15)
+            if "result" not in init:
+                return False,0
+            sid=head.get("Mcp-Session-Id")
+            protocol=init["result"].get("protocolVersion")
+            request_mcp({"jsonrpc":"2.0","method":"notifications/initialized"},
+                        sid,protocol,timeout=15)
+            _,catalog=request_mcp({"jsonrpc":"2.0","id":7102,"method":"tools/list",
+                      "params":{}},sid,protocol,timeout=16)
+            entries=catalog.get("result",{}).get("tools",[])
+            if not isinstance(entries,list):
+                return False,0
+            return len(entries)==208,len(entries)
+        try:
+            with tempfile.NamedTemporaryFile(mode="w",encoding="ascii",delete=False,
+                        prefix="rea-sigrok-",suffix=".conf",dir=str(artifacts)) as f:
+                cfgfile=Path(f.name)
+                f.write('[Service]' + chr(10)
+                        + 'Environment="REA_SIGROK_COMMAND=/usr/bin/sigrok-cli"' + chr(10))
+            cfgfile.chmod(0o600)
+            folder=sudo("install","-d","-m","0755","-o","root","-g","root",
+                        str(target.parent),timeout=18)
+            if folder.returncode != 0:
+                print("REA_SIGROK_ACTIVATION_STATUS=BLOCKED_UNIT_DIRECTORY")
+                return
+            installed=sudo("install","-m","0644","-o","root","-g","root",
+                           str(cfgfile),str(target),timeout=18)
+            if installed.returncode != 0:
+                print("REA_SIGROK_ACTIVATION_STATUS=FAILED_CONFIG_INSTALL")
+                return
+            applied=True
+            if sudo("systemctl","daemon-reload",timeout=30).returncode != 0:
+                print("REA_SIGROK_ACTIVATION_STATUS=FAILED_DAEMON_RELOAD")
+                return
+            if str(target) not in property("DropInPaths") or
+                    "REA_SIGROK_COMMAND=/usr/bin/sigrok-cli" not in property("Environment"):
+                print("REA_SIGROK_ACTIVATION_STATUS=FAILED_SYSTEMD_KEY_CHECK")
+                return
+            if sudo("systemctl","restart",unit,timeout=105).returncode != 0:
+                print("REA_SIGROK_ACTIVATION_STATUS=FAILED_REA_ONLY_RESTART")
+                return
+            mcp_count=0
+            for attempt in range(8):
+                if property("ActiveState") != "active":
+                    time.sleep(1)
+                    continue
+                try:
+                    ok,mcp_count=live_check()
+                    if ok:
+                        break
+                except Exception:
+                    pass
+                time.sleep(1)
+            print("REA_SIGROK_ACTIVATION_MCP_COUNT="+str(mcp_count))
+            newpid=property("MainPID")
+            process=sudo("cat",f"/proc/{newpid}/environ",timeout=12) if
+                newpid.isdecimal() and int(newpid)>0 else None
+            found=False
+            if process is not None and process.returncode==0:
+                found=(b"REA_SIGROK_COMMAND=/usr/bin/sigrok-cli" in process.stdout.split(bytes([0])))
+            print("REA_SIGROK_ACTIVATION_ENV="+str(found).lower())
+            verified_runtime=(mcp_count==208 and found and property("ActiveState")=="active")
+            if verified_runtime:
+                print("REA_SIGROK_ACTIVATION_RESTART_ONLY_REA=true")
+                print("REA_SIGROK_ACTIVATION_STATUS=PASS_PERSISTENT_PROVIDER")
+                return
+            print("REA_SIGROK_ACTIVATION_STATUS=FAILED_POST_ACTIVATION_VERIFICATION")
+        finally:
+            if cfgfile is not None:
+                cfgfile.unlink(missing_ok=True)
+            if applied and not verified_runtime:
+                rm=sudo("rm","-f",str(target),timeout=20)
+                reload=sudo("systemctl","daemon-reload",timeout=35)
+                restart=sudo("systemctl","restart",unit,timeout=110)
+                healthy=False
+                try:
+                    healthy,_=live_check()
+                except Exception:
+                    pass
+                print("REA_SIGROK_ACTIVATION_ROLLBACK="+(
+                    "PASS_RESTORED" if rm.returncode==0 and reload.returncode==0
+                    and restart.returncode==0 and healthy else "NEEDS_OPERATOR_REVIEW"))
         return
     if data["action"] == "fixture_linux_sigrok_preflight":
         # Read-only independent provider launch preflight for ORIGINAL service.
