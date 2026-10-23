@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_PERSISTENT_CORE_PROVIDERS_LIVE_SERVICE_CONFIRMED_INDIVIDUAL_CERTIFICATION_OPEN",
+  "status": "LINUX_CORE_AND_PCAP_PROVIDERS_ACTIVE_WITH_LIMITED_FUNCTIONAL_MCP_PASSES",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -238,6 +238,25 @@
       "environment_reset_detected": false,
       "other_service_changes": false,
       "note": "Verifies 4 environment variables and service process, not individual tool functionality or health of unrelated services"
+    },
+    "wireshark_real_mcp_functional_probe": {
+      "run_id": 39984679548,
+      "commit": "97795e791860e9cf88a940884dca5beb73653413",
+      "status": "PASS_TWO_SCOPED_TOOLS",
+      "tools": [
+        "inspect_pcap_client",
+        "inspect_pcap_capture"
+      ],
+      "supplier_version_probes": true,
+      "packet_count": 1,
+      "source_sha256_verified": true,
+      "negative_missing_path_isError": true,
+      "source_unchanged": true,
+      "fixture_cleanup": true,
+      "original_service_pid_unchanged": true,
+      "systemd_private_tmp": true,
+      "fix": "Test fixture moved to shared RAM-backed /dev/shm, not service or engine configuration",
+      "limits": "One synthetic Ethernet/IPv4/UDP frame, only per-tool scoped positive/negative smoke tests"
     }
   }
 }
