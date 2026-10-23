@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -403,7 +403,18 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SIM_SERVICE_ENV_REA_JADX_MCP_JAR",
         "REA_SIM_SERVICE_ENV_REA_GDB_COMMAND",
         "REA_SIM_SERVICE_ENV_REA_BINWALK_COMMAND",
-        "REA_SIM_SERVICE_ENV_REA_UNBLOB_COMMAND"
+        "REA_SIM_SERVICE_ENV_REA_UNBLOB_COMMAND",
+        "REA_APPLY_SIM_PACKAGES",
+        "REA_APPLY_SIM_SHA256",
+        "REA_APPLY_REQUESTED",
+        "REA_APPLY_BEFORE_SHA256",
+        "REA_APPLY_APT_EXIT",
+        "REA_APPLY_OUTPUT_SHA256",
+        "REA_APPLY_INSTALLED",
+        "REA_APPLY_SERVICE_ACTIVE",
+        "REA_APPLY_STATE_SAVED",
+        "REA_APPLY_FAILURE",
+        "REA_APPLY_RESULT"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -1458,6 +1469,75 @@ def main():
                   json.dumps(safe_statuses(val),sort_keys=True)[:9000])
         print("REA_DOCTOR_LINUX_STATUS=" +
               ("PASS_READ_ONLY" if proc.returncode==0 else "DOCTOR_FOUND_READINESS_ISSUES"))
+        return
+    if data["action"] == "fixture_linux_provider_install_apply":
+        # Owner-initiated: signed distro packages, no upgrades or removals.
+        import re as regex
+        pkgs=("gdb","radare2","binwalk","tshark","adb","apktool",
+              "sigrok-cli","python3-venv","python3-pip",
+              "llvm","unzip","p7zip-full")
+        if not Path("/opt/rea-reversa/rea/package.json").is_file():
+            error("Original REA engine missing; refuse installation")
+        if subprocess.run(["systemctl","is-active","--quiet","rea-reversa-mcp.service"],
+                          timeout=10,check=False).returncode:
+            error("Original REA daemon is inactive")
+        if subprocess.run(["sudo","-n","true"],capture_output=True,
+                          timeout=10,check=False).returncode:
+            error("No safe noninteractive system installation permission")
+        simulation=subprocess.run(["apt-get","-s","--no-install-recommends",
+                                  "--no-remove","--no-upgrade","install",*pkgs],
+                                  capture_output=True,text=True,timeout=60,check=False)
+        planned=[line for line in simulation.stdout.splitlines() if line.startswith("Inst ")]
+        removed=[line for line in simulation.stdout.splitlines() if line.startswith("Remv ")]
+        if simulation.returncode or removed:
+            error("Package-manager safety simulation failed, no changes")
+        print("REA_APPLY_SIM_PACKAGES="+str(len(planned)))
+        print("REA_APPLY_SIM_SHA256="+hashlib.sha256(
+            (simulation.stdout+"\n"+simulation.stderr).encode()).hexdigest())
+        print("REA_APPLY_REQUESTED="+json.dumps(pkgs))
+        state_dir=Path.home()/".local/share/rea-chatgpt-trial/install"
+        state_dir.mkdir(mode=0o700,parents=True,exist_ok=True)
+        if state_dir.is_symlink():
+            error("Untrusted state directory")
+        before=subprocess.run(["dpkg-query","-W","-f=${binary:Package}=${Version}\\n"],
+                capture_output=True,text=True,timeout=25,check=False)
+        print("REA_APPLY_BEFORE_SHA256="+hashlib.sha256(before.stdout.encode()).hexdigest())
+        cmd=["sudo","-n","env","DEBIAN_FRONTEND=noninteractive",
+             "NEEDRESTART_MODE=l","APT_LISTCHANGES_FRONTEND=none",
+             "apt-get","-y","--no-install-recommends","--no-remove",
+             "--no-upgrade","-o","Dpkg::Options::=--force-confold",
+             "install",*pkgs]
+        try:
+            p=subprocess.run(cmd,capture_output=True,text=True,
+                             timeout=650,check=False)
+            exit_code=p.returncode
+            output=p.stdout+"\n"+p.stderr
+        except subprocess.TimeoutExpired:
+            exit_code=124
+            output="INSTALL_TIMEOUT"
+        print("REA_APPLY_APT_EXIT="+str(exit_code))
+        print("REA_APPLY_OUTPUT_SHA256="+hashlib.sha256(output.encode()).hexdigest())
+        status={}
+        for name in pkgs:
+            found=subprocess.run(["dpkg-query","-W","-f=${Status}",name],
+                capture_output=True,text=True,timeout=12,check=False)
+            status[name]=found.returncode==0 and found.stdout.strip()=="install ok installed"
+        print("REA_APPLY_INSTALLED="+json.dumps(status,sort_keys=True))
+        active=subprocess.run(["systemctl","is-active","--quiet","rea-reversa-mcp.service"],
+                    timeout=12,check=False).returncode==0
+        print("REA_APPLY_SERVICE_ACTIVE="+str(active).lower())
+        outcome="PASS_INSTALLED" if exit_code==0 and all(status.values()) and active else "INCOMPLETE"
+        report={"packages":pkgs,"installed":status,"apt_exit":exit_code,
+                "apt_output_sha256":hashlib.sha256(output.encode()).hexdigest(),
+                "service_active":active,"status":outcome}
+        snapshot=state_dir/"linux-distro-provider-packages-20261023.json"
+        snapshot.write_text(json.dumps(report,sort_keys=True,indent=2)+"\n")
+        snapshot.chmod(0o600)
+        print("REA_APPLY_STATE_SAVED="+str(snapshot.is_file()).lower())
+        if exit_code!=0:
+            print("REA_APPLY_FAILURE="+regex.sub(r"[^A-Za-z0-9 .,:;=/()+~-]",
+                                    " ",output[-700:]))
+        print("REA_APPLY_RESULT="+outcome)
         return
     if data["action"] == "fixture_linux_provider_install_simulate":
         # Simulation only; never apt-get update/install, no restart/edits.
