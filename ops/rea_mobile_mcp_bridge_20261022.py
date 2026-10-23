@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -358,7 +358,32 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_DOCTOR_LINUX_PROVIDER9",
         "REA_DOCTOR_LINUX_PROVIDER10",
         "REA_DOCTOR_LINUX_PROVIDER11",
-        "REA_DOCTOR_LINUX_PROVIDER12"
+        "REA_DOCTOR_LINUX_PROVIDER12",
+        "REA_PREFLIGHT_OS",
+        "REA_PREFLIGHT_UID",
+        "REA_PREFLIGHT_ADMIN_NONINTERACTIVE",
+        "REA_PREFLIGHT_ENGINE_OWNER",
+        "REA_PREFLIGHT_ENGINE_WRITE",
+        "REA_PREFLIGHT_DISK_GIB",
+        "REA_PREFLIGHT_HOME",
+        "REA_PREFLIGHT_CMD_DPKG_QUERY",
+        "REA_PREFLIGHT_CMD_APT_GET",
+        "REA_PREFLIGHT_CMD_APT_CACHE",
+        "REA_PREFLIGHT_CMD_SYSTEMCTL",
+        "REA_PREFLIGHT_CMD_PGREP",
+        "REA_PREFLIGHT_CMD_SUDO",
+        "REA_PREFLIGHT_CMD_LDCONFIG",
+        "REA_PREFLIGHT_CANDIDATE_GDB",
+        "REA_PREFLIGHT_CANDIDATE_RIZIN",
+        "REA_PREFLIGHT_CANDIDATE_RADARE2",
+        "REA_PREFLIGHT_CANDIDATE_BINWALK",
+        "REA_PREFLIGHT_CANDIDATE_TSHARK",
+        "REA_PREFLIGHT_CANDIDATE_ADB",
+        "REA_PREFLIGHT_CANDIDATE_APKTOOL",
+        "REA_PREFLIGHT_CANDIDATE_CHROMIUM",
+        "REA_PREFLIGHT_UNITS",
+        "REA_PREFLIGHT_NODE_PROC_COUNT",
+        "REA_PREFLIGHT_COMPLETE"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -1413,6 +1438,59 @@ def main():
                   json.dumps(safe_statuses(val),sort_keys=True)[:9000])
         print("REA_DOCTOR_LINUX_STATUS=" +
               ("PASS_READ_ONLY" if proc.returncode==0 else "DOCTOR_FOUND_READINESS_ISSUES"))
+        return
+    if data["action"] == "fixture_linux_service_install_preflight":
+        # Strictly read-only: verify ownership, service environment, admin
+        # capability and safe package-manager simulation, never install.
+        import shutil
+        import stat
+        import platform
+        import pwd
+        import re as regex
+        import tempfile
+        print("REA_PREFLIGHT_OS="+platform.system())
+        print("REA_PREFLIGHT_UID="+str(os.geteuid()))
+        print("REA_PREFLIGHT_ADMIN_NONINTERACTIVE="+str(subprocess.run(
+            ["sudo","-n","true"],capture_output=True,text=True,timeout=10,
+            check=False).returncode==0).lower() if shutil.which("sudo") else "false")
+        root=Path("/opt/rea-reversa/rea")
+        print("REA_PREFLIGHT_ENGINE_OWNER="+(
+            str(root.stat().st_uid) if root.is_dir() else "MISSING"))
+        print("REA_PREFLIGHT_ENGINE_WRITE="+str(os.access(root,os.W_OK)).lower())
+        disk=shutil.disk_usage(str(Path.home()))
+        print("REA_PREFLIGHT_DISK_GIB="+str(disk.free//(1024**3)))
+        print("REA_PREFLIGHT_HOME="+json.dumps({"write":os.access(Path.home(),os.W_OK),
+            "real":not Path.home().is_symlink()},sort_keys=True))
+        for tool in ("dpkg-query","apt-get","apt-cache","systemctl","pgrep","sudo","ldconfig"):
+            print("REA_PREFLIGHT_CMD_"+tool.upper().replace("-","_")+"="+
+                  str(bool(shutil.which(tool))).lower())
+        for name in ("gdb","rizin","radare2","binwalk","tshark","adb","apktool","chromium"):
+            result=subprocess.run(["apt-cache","policy",name],
+                capture_output=True,text=True,timeout=12,check=False)
+            version="NONE"
+            for line in result.stdout.splitlines():
+                if line.strip().startswith("Candidate:"):
+                    version=line.split(":",1)[1].strip()[:80]
+            print("REA_PREFLIGHT_CANDIDATE_"+name.upper()+"="+
+                  regex.sub(r"[^A-Za-z0-9.+:~_-]","",version))
+        # Only list REA-related service unit names and status, no full process
+        # command lines or process environments.
+        if shutil.which("systemctl"):
+            r=subprocess.run(["systemctl","list-units","--all","--type=service",
+               "--no-legend","--plain","--no-pager"],capture_output=True,text=True,
+               timeout=18,check=False)
+            found=[]
+            for line in r.stdout.splitlines():
+                unit=line.split()[0] if line.strip() else ""
+                if "rea" in unit.lower() and len(unit)<105:
+                    found.append(unit)
+            print("REA_PREFLIGHT_UNITS="+json.dumps(sorted(set(found))[:15]))
+        result=subprocess.run(["ps","-eo","pid=,comm="],capture_output=True,
+                              text=True,timeout=12,check=False)
+        print("REA_PREFLIGHT_NODE_PROC_COUNT="+str(sum(
+            1 for line in result.stdout.splitlines() if line.split()[-1:] in
+            (["node"],["nodejs"]))))
+        print("REA_PREFLIGHT_COMPLETE=PASS_READ_ONLY")
         return
     if data["action"] == "fixture_linux_install_inventory":
         # Audit original Linux REA installation; no installation, no restart.
