@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_7_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_8_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -2021,6 +2021,93 @@
         "stable_bridge_blob_SHA": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
         "final_catalog_smoke_pending": true
       }
+    },
+    {
+      "phase_id": "LINUX-P28-SQLITE-ORIGINAL-MCP-CONTRACT-CERTIFICATION-20261023",
+      "date_utc": "2026-10-23",
+      "status": "FULLY_CERTIFIED_LINUX_NODE24_SQLITE_DATABASE_OFFLINE_SNAPSHOT_PROFILE",
+      "tool": "inspect_sqlite_database",
+      "tool_status": "FULLY_CERTIFIED",
+      "certification_scope": "Original permanent REA MCP on Linux x64 using Node 24.22.1 native SQLite snapshot inspector: offline SQLite main DB, owned stable WAL, inventory/selected_table/database schema scopes, selected column order and row-limit/truncation, typed 64-bit integers, text bytes, blobs, real/null cells, views/index/trigger schema declarations (not executed), provider and conditional-argument failures.",
+      "prior_scoped_positive": {
+        "run_id": 39998433389,
+        "response_sha256": "abb9be008492c1572840119a245dfb5ba4cfd3b1e1d1e40aa8c89de42d22f01c",
+        "source": "P13 original positive one table, not rerun as a standalone baseline"
+      },
+      "closure": {
+        "first_trial_run_id": 40025537731,
+        "first_trial_result": "HARNESS_NAME_ERROR_AFTER_RPC_REQUESTS; NOT_REA_MCP_FAILURE",
+        "second_trial_run_id": 40025654776,
+        "second_trial_commit": "eb09a61eb27a044ee85b77de4f9ca11c0a1b79bf",
+        "second_trial_tool_catalog": 208,
+        "positives_4_of_4": [
+          "inventory",
+          "selected_default_with_value_projection",
+          "selected_columns_with_truncation",
+          "complete_database_schema"
+        ],
+        "WAL_cases_4_of_4": [
+          "WAL_present_and_quiescent",
+          "WAL_exact_sha256_and_bytes",
+          "committed_WAL_rows_observed",
+          "source_main_db_digest_matches"
+        ],
+        "provider_negatives_6_of_6": [
+          "invalid_SQLite_file",
+          "missing_file",
+          "missing_table",
+          "missing_column",
+          "view_row_execution_refused",
+          "arbitrary_SQL_text_refused_as_table"
+        ],
+        "tool_argument_schemas_5_of_7": [
+          "invalid_schema_scope",
+          "selected_scope_without_table",
+          "zero_row_limit",
+          "empty_columns",
+          "arbitrary_SQL_parameter"
+        ],
+        "original_mcp_positive_isError_false": true,
+        "provider_negative_isError_true": true,
+        "source_SHA256_stable": true,
+        "temp_files_removed": true,
+        "service_pid_stable": true,
+        "result_digest": "73d284651e36794c631a3ad76511513c5f4a470ecaf857be30151793e4788880",
+        "dependency_diag_run_id": 40025818607,
+        "dependency_diag_commit": "e076313e08958c22a114350a1e17d20719b05792",
+        "conditional_two_MCP_rejections_true": true,
+        "conditional_two_MCP_error_reasons_reference_table": true,
+        "conditional_two_bridge_json_schema_prevalidation_rejections_false": true,
+        "dependency_diagnostic_result_sha256": "c78b8549ada8116f74b617a34a8ddf19e4a9124ecabdb1e42389ebfbcc0f0871",
+        "final_original_mcp_invalid_input_rejections": "7/7",
+        "final_bridge_prevalidation_rejections": "5/7"
+      },
+      "security": {
+        "no_real_client_database_access": true,
+        "no_SQL_text_execution_by_REA": true,
+        "only_owned_offline_sources": true,
+        "no_source_database_write_during_MCP_analysis": true,
+        "no_original_service_restart": true,
+        "no_provider_install": true,
+        "no_new_agent_plugin_server": true,
+        "no_unrelated_project_service_modified": true,
+        "encryption_and_sensitive_approval_policy_unmodified": true
+      },
+      "residual_bridge_issue": "For columns or row_limit without table, live MCP Zod/refinement rejects with isError=true, while the secondary jsonschema prevalidation in existing SSH bridge accepts those two argument shapes. This is documented as a bridge dependency-validation parity gap, not a successful unauthorized tool invocation. Do not declare bridge prevalidation 208/208 semantically complete from descriptor matches alone.",
+      "limitations": [
+        "FULLY_CERTIFIED is scoped to self-authored offline Linux Node 24 SQLite with a small stable quiescent DB/WAL. Active DB races, corrupted WAL chains, encryption, unsupported virtual/shadow tables and resource-stress/cancellation remain untested.",
+        "Rows have unspecified order and bounded samples, not an ordered full database export or deleted record recovery.",
+        "Bridge prevalidation omits two dependent-field constraints although original MCP rejects both; track separately for hardening."
+      ],
+      "hygiene": {
+        "requests_to_remove": [
+          "rea-linux/requests/sqlite-closure-20261023.json",
+          "rea-linux/requests/sqlite-closure-retry-20261023.json",
+          "rea-linux/requests/sqlite-dependency-20261023.json"
+        ],
+        "experimental_bridge_to_restore_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+        "final_catalog_smoke_required": true
+      }
     }
   ],
   "active_scope_counts": {
@@ -2032,10 +2119,10 @@
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 7,
-    "scoped_positive_not_fully_certified_distinct": 15,
+    "fully_certified_distinct": 8,
+    "scoped_positive_not_fully_certified_distinct": 14,
     "not_functionally_positive_distinct": 186,
-    "remaining_full_certification_distinct": 201
+    "remaining_full_certification_distinct": 200
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -2065,7 +2152,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P27-WASM-INTERFACE-COMPARISON-FULL-CERTIFICATION-20261023",
+  "latest_phase": "LINUX-P28-SQLITE-ORIGINAL-MCP-CONTRACT-CERTIFICATION-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -2477,6 +2564,17 @@
       ],
       "evidence_digest": "b0405fa3ffbe9f017d71be7eca7657bad78c6b4d2155009626d540181737fe27",
       "phase_id": "LINUX-P27-WASM-INTERFACE-COMPARISON-FULL-CERTIFICATION-20261023"
+    },
+    "inspect_sqlite_database": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Original REA permanent MCP Linux x64 Node24 native SQLite offline DB/WAL snapshot and typed rows, selected column/page/schema, negative format/select/dependent validations; bridge dependentRequired parity gap documented",
+      "run_ids": [
+        39998433389,
+        40025654776,
+        40025818607
+      ],
+      "evidence_digest": "73d284651e36794c631a3ad76511513c5f4a470ecaf857be30151793e4788880",
+      "phase_id": "LINUX-P28-SQLITE-ORIGINAL-MCP-CONTRACT-CERTIFICATION-20261023"
     }
   }
 }
