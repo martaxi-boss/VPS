@@ -257,6 +257,19 @@
       "systemd_private_tmp": true,
       "fix": "Test fixture moved to shared RAM-backed /dev/shm, not service or engine configuration",
       "limits": "One synthetic Ethernet/IPv4/UDP frame, only per-tool scoped positive/negative smoke tests"
+    },
+    "sigrok": {
+      "version": "0.7.2",
+      "native_binary": "/usr/bin/sigrok-cli",
+      "native_prlimit": "/usr/bin/prlimit",
+      "native_preflight_run_id": 39986762626,
+      "systemd_activation_run_id": 39987163381,
+      "environment_variable": "REA_SIGROK_COMMAND",
+      "status": "PASS_PERSISTENT_IN_SYSTEMD_POSITIVE_SIGROK_FUNCTIONAL_TESTS_FAILING",
+      "post_restart_mcp_tools": 208,
+      "doctor_future_rescan_needed": true,
+      "post_activation_failing_original_mcp_run_id": 39987443009,
+      "note": "Real Sigrok-cli and service variable available. Original MCP inspect_signal_decoders and decode_signal_recording still return isError true; do not count as certified."
     }
   }
 }
