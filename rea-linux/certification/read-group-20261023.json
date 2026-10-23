@@ -1,0 +1,142 @@
+{
+  "schema_version": 1,
+  "group": "READ_ONLY_FIVE",
+  "os_family": "Linux",
+  "engine": "Original REA MCP at localhost on existing VPS",
+  "scope": "Only the five tools classified read by the live audited MCP catalog",
+  "status": "FIVE_CALLED_THREE_SCOPED_POSITIVES_TWO_NEGATIVE_ONLY",
+  "risk_verified_read_count": 5,
+  "distinct_tools_exercised": 5,
+  "calls_executed": 9,
+  "positive_functional_tools": 3,
+  "negative_only_tools": 2,
+  "fully_certified_tools": 0,
+  "no_live_session_or_unknown_created": true,
+  "service_restart": false,
+  "production_modified": false,
+  "input_security": "Confidential request arguments encrypted RSA-OAEP-SHA256 plus AES-GCM; same authenticated reply channel",
+  "result_validation": "Per-run request_sha256 matched, authenticated AES-GCM decrypted, result size and SHA256 matched",
+  "runs": [
+    {
+      "id": 39950220193,
+      "commit": "c5044e30957636941659897f66725b1e9857ca2a",
+      "request_sha256": "d9ce8f001961e13fec7dc3a4add6fbb95b35cd9a9f7dbbe32395e98da76f85a6",
+      "result_sha256": "ee6a318b648c4335e6132fe675302fb9cfdeab4d2153cbceb3d4da089f51fe56",
+      "artifact_id": 12499972561,
+      "steps": 5,
+      "isError_marker": false,
+      "request_matched": true,
+      "result_sha_matched": true
+    },
+    {
+      "id": 39950507161,
+      "commit": "23ceb513253d57db16b2b343f59b225d12e01f77",
+      "request_sha256": "c4310d8dd3ed29a8a6b72149ffb02c2043e0ac31fa42132274c1d90a295c6220",
+      "result_sha256": "15c4d15572dd6416969ddd638d33c9fc9159ee6738866ed8b8a61e31175f5fa0",
+      "artifact_id": 12500381480,
+      "steps": 3,
+      "isError_marker": true,
+      "expected_negative": "verify_unknown_resolution",
+      "request_matched": true,
+      "result_sha_matched": true
+    },
+    {
+      "id": 39950720098,
+      "commit": "1beaca2e2f1c8a21ae0014c72fbc96b2d2e9fe91",
+      "request_sha256": "3adc97f62fbceae775883b25b270c4bbdf2d38def9fdd2c4e89ccf8dc664f148",
+      "result_sha256": "b6953f4780df6fbdfab3dae2b95e9958125abba0cd6399a4e2c9695d54fac276",
+      "artifact_id": 12500007238,
+      "steps": 1,
+      "isError_marker": true,
+      "expected_negative": "gdb_session_status",
+      "request_matched": true,
+      "result_sha_matched": true
+    }
+  ],
+  "tests": [
+    {
+      "tool": "list_unknowns",
+      "risk": "read",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "calls": 3,
+      "expected": "Stable empty-state listing; filters and bounded pagination preserve total",
+      "observed": {
+        "total": 0,
+        "offset": 0,
+        "next_offset": null,
+        "nonexistent_domain_total": 0,
+        "paginated_total": 0
+      },
+      "limitation": "Nonempty pagination and status/severity filtering remain untested"
+    },
+    {
+      "tool": "get_evidence_bundle",
+      "risk": "read",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "calls": 3,
+      "expected": "Read retained Evidence summary and exact operation filter without mutation",
+      "observed": {
+        "total_retained_records": 13,
+        "matching_records_no_filter": 13,
+        "exact_operation_filter": "inspect_with_objdump",
+        "exact_operation_matches": 3,
+        "nonexistent_operation_matches": 0,
+        "unknown_revisions": 0
+      },
+      "limitation": "Only summary metadata; complete bundle and complex filters remain untested"
+    },
+    {
+      "tool": "evaluate_reconstruction_coverage",
+      "risk": "read",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "calls": 1,
+      "expected": "Incomplete owned reconstruction should fail closed with explicit missing evidence",
+      "observed": {
+        "status": "partial",
+        "reasons": [
+          "claim-missing",
+          "package-proof-missing",
+          "surface-missing"
+        ],
+        "reason_count": 3
+      },
+      "limitation": "Ready status with complete authenticated verifier results and contradictory facts remain untested"
+    },
+    {
+      "tool": "verify_unknown_resolution",
+      "risk": "read",
+      "status": "NEGATIVE_TEST_PASS_POSITIVE_PENDING",
+      "calls": 1,
+      "expected": "Reject unknown ID not in session; never invent a resolution",
+      "observed": {
+        "isError": true,
+        "error_code": "execution_failure",
+        "reason": "not-found",
+        "session_unknown_count": 0
+      },
+      "limitation": "Positive resolution verification requires an existing unknown record and real admissible evidence; no mutation created for this phase"
+    },
+    {
+      "tool": "gdb_session_status",
+      "risk": "read",
+      "status": "NEGATIVE_TEST_PASS_POSITIVE_PENDING",
+      "calls": 1,
+      "expected": "Reject missing GDB session without launching a debugger",
+      "observed": {
+        "isError": true,
+        "error_code": "invalid_request",
+        "category": "invalid_input",
+        "source_behavior": "registerGdbTools invalidSession returns AnalysisInputError for absent session_id"
+      },
+      "limitation": "Positive status requires a pre-existing authorized GDB session; no debugger process was started"
+    }
+  ],
+  "canonical_limits": [
+    "No tool is marked FULLY_CERTIFIED on negative-only evidence",
+    "No extra tool beyond the five read-class tools invoked",
+    "No production REA engine/provider/tool changed",
+    "No false positive for nonexistent unknown or GDB session",
+    "Workflow green validates transport, while tool isError controls per-step outcome"
+  ],
+  "remaining_steps": "For the two negative-only tools, rerun positive checks only when a legitimate existing unknown or GDB session is available and separately authorized"
+}
