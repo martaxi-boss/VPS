@@ -4,7 +4,7 @@
   "os_family": "Linux",
   "engine": "Original REA MCP at localhost on existing VPS",
   "scope": "Only the five tools classified read by the live audited MCP catalog",
-  "status": "FIVE_CALLED_THREE_SCOPED_POSITIVES_TWO_NEGATIVE_ONLY",
+  "status": "LIVE_3_SCOPED_AND_2_SOURCE_CONFORMANCE_PREREQUISITES_PENDING",
   "risk_verified_read_count": 5,
   "distinct_tools_exercised": 5,
   "calls_executed": 9,
@@ -138,5 +138,67 @@
     "No false positive for nonexistent unknown or GDB session",
     "Workflow green validates transport, while tool isError controls per-step outcome"
   ],
-  "remaining_steps": "For the two negative-only tools, rerun positive checks only when a legitimate existing unknown or GDB session is available and separately authorized"
+  "remaining_steps": [
+    "F",
+    "o",
+    "r",
+    " ",
+    "t",
+    "h",
+    "e",
+    "w",
+    "n",
+    "g",
+    "a",
+    "i",
+    "v",
+    "-",
+    "l",
+    "y",
+    "s",
+    ",",
+    "u",
+    "p",
+    "c",
+    "k",
+    "m",
+    "x",
+    "G",
+    "D",
+    "B",
+    "b",
+    "d",
+    "z",
+    "Do not overstate source conformance as a positive live original production MCP test",
+    "Real GDB not found in Linux runtime PATH; positive supplier integration remains pending independent security authorization"
+  ],
+  "supplemental_isolated_checks": [
+    {
+      "tool": "verify_unknown_resolution",
+      "test_level": "original REA EvidenceLedger source behaviour, not live production MCP",
+      "run_id": 39966736430,
+      "run_url": "https://github.com/martaxi-boss/VPS/actions/runs/39966736430",
+      "assertion": "rejects inference for observed resolution, then accepts matching live evidence",
+      "assertion_status": "PASS",
+      "exit_code": 0,
+      "code_under_test": "existing original REA Linux staged source",
+      "next_live_requirement": "legitimate recorded unknown with valid evidence and owning-session identity"
+    },
+    {
+      "tool": "gdb_session_status",
+      "test_level": "original REA source-in-memory MCP contract with simulated GDB MI provider, not real GNU GDB",
+      "run_id": 39967011323,
+      "run_url": "https://github.com/martaxi-boss/VPS/actions/runs/39967011323",
+      "assertions": [
+        "GDB manager starts/observes and closes owned simulated provider",
+        "GDB MCP status after cancellation returns closed"
+      ],
+      "assertion_status": "PASS_MOCKED_PROVIDER_ONLY",
+      "mcp_test_exit_code": 0,
+      "manager_test_exit_code": 0,
+      "source_worktree_unchanged": true,
+      "next_live_requirement": "real GDB supplier configured in Linux and independently signed sensitive session-start authorization"
+    }
+  ],
+  "source_conformance_passed_distinct": 2
 }
