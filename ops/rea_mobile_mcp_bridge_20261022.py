@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -303,7 +303,20 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_LINUX_GDB_PROBE_FIXED_FILES",
         "REA_LINUX_GDB_PROBE_MANAGERS",
         "REA_LINUX_GDB_PROBE_REPO",
-        "REA_LINUX_GDB_PROBE_AUDIT"
+        "REA_LINUX_GDB_PROBE_AUDIT",
+        "REA_LINUX_GDB_REAL_STATUS",
+        "REA_LINUX_GDB_REAL_REA_SOURCE",
+        "REA_LINUX_GDB_REAL_DOWNLOAD",
+        "REA_LINUX_GDB_REAL_DIAGNOSTIC",
+        "REA_LINUX_GDB_REAL_PACKAGE_SHA256",
+        "REA_LINUX_GDB_REAL_EXTRACT",
+        "REA_LINUX_GDB_REAL_BINARY_SHA256",
+        "REA_LINUX_GDB_REAL_BINARY_CHECK",
+        "REA_LINUX_GDB_REAL_VERSION",
+        "REA_LINUX_GDB_REAL_TEST_EXIT",
+        "REA_LINUX_GDB_REAL_TEST_SHA256",
+        "REA_LINUX_GDB_REAL_TEST",
+        "REA_LINUX_GDB_REAL_SOURCE_UNCHANGED"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -1044,6 +1057,96 @@ def main():
         print("REA_LINUX_GDB_STATES_BINARY_IN_PATH=" + str(shutil.which("gdb") is not None).lower())
         print("REA_LINUX_GDB_STATUS_STATES=" +
               ("PASS_EMULATED_GDB_MI_ONLY" if passed == 2 and intact else "INCOMPLETE"))
+        return
+    if data["action"] == "fixture_linux_gdb_real_provider":
+        # Rootless GDB from the distro's configured verified apt package list.
+        # Extract and test inside a temporary owner-controlled path ONLY.
+        # Original MCP daemon and installed OS libraries remain unchanged.
+        import shutil
+        import tempfile
+        if not (shutil.which("apt-get") and shutil.which("dpkg-deb")):
+            print("REA_LINUX_GDB_REAL_STATUS=UNAVAILABLE_LOCAL_PACKAGE_TOOLS")
+            return
+        root = Path.home() / ".local/share/rea-chatgpt-trial"
+        source = root / "repository/rea"
+        vitest = source / "node_modules/vitest/vitest.mjs"
+        node = shutil.which("node")
+        if not source.is_dir() or not vitest.is_file() or not node:
+            print("REA_LINUX_GDB_REAL_STATUS=UNAVAILABLE_SOURCE_DEPS")
+            return
+        before = subprocess.run(["git", "-C", str(source), "status", "--porcelain"],
+                                capture_output=True, text=True, timeout=12, check=False)
+        revision = subprocess.run(["git", "-C", str(source), "rev-parse", "HEAD"],
+                                  capture_output=True, text=True, timeout=12, check=False)
+        if before.returncode != 0 or revision.returncode != 0:
+            error("Original REA source provenance verification failed")
+        print("REA_LINUX_GDB_REAL_REA_SOURCE=" + revision.stdout.strip()[:40])
+        staging = root / "artifacts"
+        staging.mkdir(parents=True, mode=0o700, exist_ok=True)
+        fixed_test = source / "tests/boundary/mcp/reaLinuxRealGdbReadStatus.test.ts"
+        if fixed_test.exists():
+            error("Refusing to overwrite existing staged REA test source")
+        result = "INCOMPLETE"
+        try:
+            with tempfile.TemporaryDirectory(prefix="rea-real-gdb-", dir=str(staging)) as dirname:
+                temp = Path(dirname)
+                dl = subprocess.run(["apt-get", "download", "gdb"], cwd=str(temp),
+                                    capture_output=True, text=True, timeout=115, check=False,
+                                    env={**os.environ, "DEBIAN_FRONTEND":"noninteractive"})
+                packages = list(temp.glob("gdb_*.deb"))
+                if dl.returncode != 0 or len(packages) != 1 or packages[0].stat().st_size > 30*1024*1024:
+                    print("REA_LINUX_GDB_REAL_DOWNLOAD=FAIL")
+                    print("REA_LINUX_GDB_REAL_DIAGNOSTIC=" +
+                          re.sub(r"[^A-Za-z0-9 .,=_:;()/\\#-]", " ",
+                                 (dl.stdout+" "+dl.stderr)[-450:]))
+                    result = "UNAVAILABLE_PACKAGE_DOWNLOAD"
+                else:
+                    package = packages[0]
+                    print("REA_LINUX_GDB_REAL_PACKAGE_SHA256=" + hashlib.sha256(package.read_bytes()).hexdigest())
+                    unpack = temp / "unpacked"
+                    p = subprocess.run(["dpkg-deb", "-x", str(package), str(unpack)],
+                                       capture_output=True, text=True, timeout=30, check=False)
+                    gdb = unpack / "usr/bin/gdb"
+                    print("REA_LINUX_GDB_REAL_EXTRACT=" + ("PASS" if p.returncode == 0 and gdb.is_file() else "FAIL"))
+                    if p.returncode == 0 and gdb.is_file():
+                        g = subprocess.run([str(gdb), "--version"], capture_output=True, text=True,
+                                           timeout=30, check=False)
+                        print("REA_LINUX_GDB_REAL_BINARY_SHA256=" + hashlib.sha256(gdb.read_bytes()).hexdigest())
+                        if g.returncode != 0 or "GNU gdb" not in g.stdout:
+                            print("REA_LINUX_GDB_REAL_BINARY_CHECK=UNAVAILABLE")
+                            print("REA_LINUX_GDB_REAL_DIAGNOSTIC=" +
+                                  re.sub(r"[^A-Za-z0-9 .,=_:;()/\\#-]", " ", g.stderr[-700:]))
+                            result = "UNAVAILABLE_RUNTIME_LIBRARIES"
+                        else:
+                            print("REA_LINUX_GDB_REAL_BINARY_CHECK=PASS")
+                            print("REA_LINUX_GDB_REAL_VERSION=" +
+                                  re.sub(r"[^A-Za-z0-9 .()/-]", " ", g.stdout.splitlines()[0])[:120])
+                            fixed_test.write_text("import { Client, InMemoryTransport } from \"@modelcontextprotocol/client\";\nimport { McpServer } from \"@modelcontextprotocol/server\";\nimport { expect, it } from \"vitest\";\nimport { GdbSessionManager } from \"../../../src/gdb/GdbSessionManager.js\";\nimport { registerGdbTools } from \"../../../src/server/registerGdbTools.js\";\nimport { createToolResultDelivery } from \"../../../src/server/toolResult.js\";\nimport { silentLogger } from \"../../../src/logger.js\";\n\nit(\"observes a genuine Linux GDB session state via the original MCP contract\", async () => {\n  const binary = process.env.REA_GDB_REAL_FIXTURE_BINARY;\n  expect(binary).toBeTruthy();\n  const manager = new GdbSessionManager({\n    platform: \"linux\",\n    environment: { ...process.env, REA_GDB_COMMAND: binary },\n    startupTimeoutMs: 25000, commandTimeoutMs: 25000,\n  });\n  const server = new McpServer({ name: \"rea-linux-real-gdb\", version: \"1\" });\n  registerGdbTools(server, manager, silentLogger, createToolResultDelivery(undefined));\n  const client = new Client({ name: \"rea-linux-real-gdb-client\", version: \"1\" });\n  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();\n  try {\n    await server.connect(serverTransport);\n    await client.connect(clientTransport);\n    const started = await client.callTool({ name: \"start_gdb_session\", arguments: {} });\n    expect(started.isError, JSON.stringify(started)).not.toBe(true);\n    const id = (started.structuredContent as { session_id?: string }).session_id;\n    expect(id).toMatch(/^[0-9a-f-]{36}$/);\n    if (!id) throw new Error(\"No genuine GDB session ID\");\n    const status = await client.callTool({ name: \"gdb_session_status\", arguments: { session_id: id } });\n    expect(status.isError, JSON.stringify(status)).not.toBe(true);\n    expect(status.structuredContent).toMatchObject({\n      session_id: id,\n      state: \"ready\",\n      mi_invalid_utf8: false,\n      inferior_tty: null,\n      inferior_tty_verified: false,\n    });\n    const content = status.structuredContent as Record<string, unknown>;\n    expect([\"mi3\", \"mi2\"]).toContain(content.mi_version);\n    expect(Array.isArray(content.recent_mi_records)).toBe(true);\n    expect(typeof content.stderr).toBe(\"string\");\n    expect(content.diagnostics_truncated).toBe(false);\n    const closed = await client.callTool({ name: \"close_gdb_session\", arguments: { session_id: id } });\n    expect(closed.isError, JSON.stringify(closed)).not.toBe(true);\n    const absent = await client.callTool({ name: \"gdb_session_status\", arguments: { session_id: id } });\n    expect(absent.isError).toBe(true);\n  } finally {\n    await Promise.allSettled([client.close(), server.close()]);\n    await manager.closeAll().catch(() => undefined);\n  }\n});\n", encoding="utf-8")
+                            q = subprocess.run(
+                              [node, str(vitest), "run", str(fixed_test.relative_to(source)),
+                               "-t", "observes a genuine Linux GDB session state via the original MCP contract",
+                               "--no-file-parallelism", "--maxWorkers=1"],
+                              cwd=str(source), capture_output=True, text=True, timeout=125,
+                              check=False, env={**os.environ, "CI":"true", "NO_COLOR":"1",
+                                "REA_GDB_REAL_FIXTURE_BINARY":str(gdb),
+                                "NODE_OPTIONS":"--max-old-space-size=1024"})
+                            out = q.stdout + "\n" + q.stderr
+                            plain = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", out)
+                            passed = q.returncode == 0 and bool(re.search(r"\b1 passed\b", plain))
+                            print("REA_LINUX_GDB_REAL_TEST_EXIT=" + str(q.returncode))
+                            print("REA_LINUX_GDB_REAL_TEST_SHA256=" + hashlib.sha256(out.encode()).hexdigest())
+                            print("REA_LINUX_GDB_REAL_TEST=" + ("PASS" if passed else "FAIL"))
+                            if not passed:
+                                print("REA_LINUX_GDB_REAL_DIAGNOSTIC=" +
+                                      re.sub(r"[^A-Za-z0-9 .,=_:;()/\\#-]", " ", plain[-900:]))
+                            result = "PASS_REAL_GDB_ISOLATED_MCP" if passed else "FAIL_REAL_GDB_TEST"
+        finally:
+            fixed_test.unlink(missing_ok=True)
+        after = subprocess.run(["git", "-C", str(source), "status", "--porcelain"],
+                               capture_output=True, text=True, timeout=12, check=False)
+        print("REA_LINUX_GDB_REAL_SOURCE_UNCHANGED=" + str(
+            after.returncode == 0 and after.stdout == before.stdout).lower())
+        print("REA_LINUX_GDB_REAL_STATUS=" + result)
         return
     if data["action"] == "fixture_linux_gdb_provider_probe":
         # Query OS-native GDB availability without system package writes.
