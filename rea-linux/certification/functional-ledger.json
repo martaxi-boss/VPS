@@ -22,7 +22,11 @@
     "do_not_double_count_tools": true,
     "no_install_or_restart_without_approval": true,
     "no_repeat_of_proved_tests_without_change": true,
-    "no_import_of_prior_client_scoped_batches_into_active_ledger": true
+    "no_import_of_prior_client_scoped_batches_into_active_ledger": true,
+    "additional_test_statuses": [
+      "NEGATIVE_PATH_CONFIRMED_POSITIVE_PENDING",
+      "POSITIVE_PATH_BLOCKED_VALID_SESSION"
+    ]
   },
   "phases": [
     {
@@ -147,11 +151,153 @@
         "No malformed input, symlinks, source changes, negative tests or other CPU/ELF architectures certified",
         "Vendor backend is GNU objdump and output is raw; raw response preserved for local inspection only"
       ]
+    },
+    {
+      "phase_id": "LINUX-P03-READ5-20261023",
+      "group": "read",
+      "host_family": "Linux",
+      "scope": "Only five tools security-classified read; no other tool was invoked",
+      "status": "PARTIAL_GROUP_CERTIFICATION",
+      "total_unique_tools": 5,
+      "total_mcp_calls": 9,
+      "real_runs": [
+        39950220193,
+        39950507161,
+        39950720098
+      ],
+      "provenance": [
+        {
+          "id": 39950220193,
+          "commit": "c5044e30957636941659897f66725b1e9857ca2a",
+          "artifact_id": 12499972561,
+          "steps": 5,
+          "mcp_tool_error": false,
+          "payload_sha256": "ee6a318b648c4335e6132fe675302fb9cfdeab4d2153cbceb3d4da089f51fe56",
+          "bytes": 21350
+        },
+        {
+          "id": 39950507161,
+          "commit": "23ceb513253d57db16b2b343f59b225d12e01f77",
+          "artifact_id": 12500381480,
+          "steps": 3,
+          "mcp_tool_error": true,
+          "reason": "one deliberately missing unknown_id",
+          "payload_sha256": "15c4d15572dd6416969ddd638d33c9fc9159ee6738866ed8b8a61e31175f5fa0",
+          "bytes": 5550
+        },
+        {
+          "id": 39950720098,
+          "commit": "1beaca2e2f1c8a21ae0014c72fbc96b2d2e9fe91",
+          "artifact_id": 12500007238,
+          "steps": 1,
+          "mcp_tool_error": true,
+          "reason": "no valid owned GDB session supplied",
+          "payload_sha256": "b6953f4780df6fbdfab3dae2b95e9958125abba0cd6399a4e2c9695d54fac276",
+          "bytes": 472
+        }
+      ],
+      "cryptographic_validation": {
+        "all_three_requests_match_artifact_sha256": true,
+        "all_three_rsa_oaep_wrapped_keys_decrypt": true,
+        "all_three_aes_gcm_tags_valid": true,
+        "all_three_vps_result_sha256_and_byte_counts_verified": true,
+        "markers_compared_against_job_logs": true
+      },
+      "tools": [
+        {
+          "name": "list_unknowns",
+          "risk": "read",
+          "status": "FUNCTIONAL_PASS_SCOPED",
+          "mcp_call_count": 3,
+          "contracted_function": "Retrieve ordered residual unknown heads with filters and offset/limit pagination",
+          "verified_outputs": [
+            "Three consistent zero-count responses",
+            "total=0, offset=0, next_offset=null",
+            "Unmatched domain yielded 0 without failure"
+          ],
+          "limitations": [
+            "No nonempty unknown list existed to verify positive pagination"
+          ]
+        },
+        {
+          "name": "get_evidence_bundle",
+          "risk": "read",
+          "status": "FUNCTIONAL_PASS_SCOPED",
+          "mcp_call_count": 3,
+          "contracted_function": "Retrieve retained evidence records and filter exact operation names without modifying them",
+          "verified_outputs": [
+            "Unfiltered summary matching_records=13 and total_retained_records=13",
+            "Operation inspect_with_objdump matching_records=3",
+            "Nonmatching operation matching_records=0, still total_retained_records=13"
+          ],
+          "limitations": [
+            "Full record delivery and detailed evidence interpretation not tested"
+          ]
+        },
+        {
+          "name": "evaluate_reconstruction_coverage",
+          "risk": "read",
+          "status": "FUNCTIONAL_PASS_SCOPED",
+          "mcp_call_count": 1,
+          "contracted_function": "Evaluate one named reconstruction boundary and fail closed when proof is missing",
+          "verified_outputs": [
+            "status=partial",
+            "reasons=3",
+            "reason codes claim-missing, package-proof-missing, surface-missing",
+            "required_claims=1; required_surfaces=1"
+          ],
+          "limitations": [
+            "Ready/completely-proven scenario not yet tested"
+          ]
+        },
+        {
+          "name": "verify_unknown_resolution",
+          "risk": "read",
+          "status": "NEGATIVE_PATH_CONFIRMED_POSITIVE_PENDING",
+          "mcp_call_count": 1,
+          "contracted_function": "Verify a real unknown's resolution against evidence, revision and required authority",
+          "verified_outputs": [
+            "Nonexistent unk_...0000 ID rejected with isError=true",
+            "error category execution_failure",
+            "Non-retryable message explicitly states unknown does not exist"
+          ],
+          "limitations": [
+            "Current list_unknowns total=0; no existing unknown_id for positive verification",
+            "Creating an unknown requires another tool with separate authorization, outside current read-only group"
+          ]
+        },
+        {
+          "name": "gdb_session_status",
+          "risk": "read",
+          "status": "POSITIVE_PATH_BLOCKED_VALID_SESSION",
+          "mcp_call_count": 1,
+          "contracted_function": "Report state of an already established GDB session, with MI diagnostics",
+          "verified_outputs": [
+            "Tool was actually invoked with a UUID shaped like the published contract example",
+            "MCP returned isError=true, invalid_request / invalid_input"
+          ],
+          "limitations": [
+            "No verified existing owned GDB session available",
+            "Cannot assert positive functionality from invalid_input",
+            "Starting a GDB session is a separate sensitive operation; not authorized by a five-read-tools-only request"
+          ]
+        }
+      ],
+      "counts": {
+        "positive_functional_scoped": 3,
+        "negative_only": 1,
+        "positive_blocked": 1,
+        "fully_certified": 0
+      },
+      "acceptance_note": "No blanket 5/5 functional pass; only read class was invoked. Failures in intended negative tests do not indicate workflow failure."
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 4,
-    "awaiting_canonical_individual_review": 204
+    "functional_pass_scoped_distinct": 7,
+    "awaiting_canonical_individual_review": 201,
+    "read_group_tested_distinct": 5,
+    "read_group_positive_scoped": 3,
+    "read_group_missing_positive": 2
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -181,7 +327,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P02-gnu-objdump-20261023",
+  "latest_phase": "LINUX-P03-READ5-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -233,5 +379,20 @@
     "old_ssh_bridge_workflow_filename_still_in_use_for_compatibility": true,
     "do_not_remove_live_entrypoints_without_paired_migration": true,
     "no_test_runs_from_other_projects_deletion": true
+  },
+  "read_group_1": {
+    "phase_id": "LINUX-P03-READ5-20261023",
+    "tool_names": [
+      "list_unknowns",
+      "get_evidence_bundle",
+      "evaluate_reconstruction_coverage",
+      "verify_unknown_resolution",
+      "gdb_session_status"
+    ],
+    "mcp_calls": 9,
+    "successful_scoped": 3,
+    "negative_only": 1,
+    "blocked_positive": 1,
+    "status": "PARTIAL_WITH_PREREQUISITES"
   }
 }
