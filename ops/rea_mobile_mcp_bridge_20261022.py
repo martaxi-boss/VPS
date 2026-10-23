@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -295,7 +295,15 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_LINUX_GDB_STATES_LOSSY_DIAGNOSTIC",
         "REA_LINUX_GDB_STATES_WORKTREE",
         "REA_LINUX_GDB_STATES_BINARY_IN_PATH",
-        "REA_LINUX_GDB_STATUS_STATES"
+        "REA_LINUX_GDB_STATUS_STATES",
+        "REA_LINUX_GDB_PROBE_PLATFORM",
+        "REA_LINUX_GDB_PROBE_ARCH",
+        "REA_LINUX_GDB_PROBE_DISTRO",
+        "REA_LINUX_GDB_PROBE_PATH",
+        "REA_LINUX_GDB_PROBE_FIXED_FILES",
+        "REA_LINUX_GDB_PROBE_MANAGERS",
+        "REA_LINUX_GDB_PROBE_REPO",
+        "REA_LINUX_GDB_PROBE_AUDIT"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -1036,6 +1044,41 @@ def main():
         print("REA_LINUX_GDB_STATES_BINARY_IN_PATH=" + str(shutil.which("gdb") is not None).lower())
         print("REA_LINUX_GDB_STATUS_STATES=" +
               ("PASS_EMULATED_GDB_MI_ONLY" if passed == 2 and intact else "INCOMPLETE"))
+        return
+    if data["action"] == "fixture_linux_gdb_provider_probe":
+        # Query OS-native GDB availability without system package writes.
+        import shutil
+        import platform
+        import glob
+        print("REA_LINUX_GDB_PROBE_PLATFORM=" + str(platform.system()))
+        print("REA_LINUX_GDB_PROBE_ARCH=" + str(platform.machine()))
+        release = {}
+        os_release = Path("/etc/os-release")
+        if os_release.is_file():
+            for line in os_release.read_text(errors="replace").splitlines():
+                if "=" in line:
+                    k, v = line.split("=", 1)
+                    if k in ("ID", "VERSION_ID", "ID_LIKE"):
+                        release[k] = v.strip('"').strip("'")
+        print("REA_LINUX_GDB_PROBE_DISTRO=" + json.dumps(release, sort_keys=True))
+        print("REA_LINUX_GDB_PROBE_PATH=" + str(shutil.which("gdb") or "NOT_FOUND"))
+        print("REA_LINUX_GDB_PROBE_FIXED_FILES=" + json.dumps(
+            {p: Path(p).is_file() for p in
+             ("/usr/bin/gdb", "/bin/gdb", "/usr/local/bin/gdb",
+              "/usr/bin/gdb-multiarch", "/usr/bin/lldb")}, sort_keys=True))
+        print("REA_LINUX_GDB_PROBE_MANAGERS=" + json.dumps(
+            {p: bool(shutil.which(p)) for p in
+             ("apt-cache", "apt-get", "dpkg-deb", "rpm", "dnf", "pacman", "tar", "ldd")},
+            sort_keys=True))
+        if shutil.which("apt-cache"):
+            result = subprocess.run(["apt-cache", "policy", "gdb"],
+                                    capture_output=True, text=True, timeout=18, check=False)
+            text = result.stdout.strip()
+            # Only show bounded package version info; no private local sources.
+            sanitized = [line.strip() for line in text.splitlines()
+                         if "Installed:" in line or "Candidate:" in line]
+            print("REA_LINUX_GDB_PROBE_REPO=" + json.dumps(sanitized[:4]))
+        print("REA_LINUX_GDB_PROBE_AUDIT=PASS_READ_ONLY")
         return
     if data["action"] == "fixture_linux_gdb_conformance":
         # Run source-owned REA GDB tests in isolated Linux processes only.
