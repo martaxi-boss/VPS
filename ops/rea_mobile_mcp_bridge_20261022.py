@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_sigrok_offline_preflight", "fixture_linux_sigrok_build_simulate"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_sigrok_offline_preflight", "fixture_linux_sigrok_build_simulate", "fixture_linux_sigrok_builder_capability"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -228,6 +228,9 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SIGROK_BUILD_SIM_EXIT", "REA_SIGROK_BUILD_SIM_REQUESTED",
         "REA_SIGROK_BUILD_SIM_INSTALL", "REA_SIGROK_BUILD_SIM_UPGRADES",
         "REA_SIGROK_BUILD_SIM_REMOVALS", "REA_SIGROK_BUILD_SIM_SAFE",
+        "REA_SIGROK_BUILDER_BACKENDS", "REA_SIGROK_BUILDER_DOCKER_DAEMON",
+        "REA_SIGROK_BUILDER_IMAGE_CACHED", "REA_SIGROK_BUILDER_FREE_BYTES",
+        "REA_SIGROK_BUILDER_STATUS",
         "REA_MOBILE_LOOPBACK_MCP", "REA_MOBILE_MCP_TOOL_COUNT",
         "REA_MOBILE_READONLY_HINT_COUNT", "REA_MOBILE_STATIC_INSPECT_COUNT",
         "REA_MOBILE_SAFE_QUERY_COUNT", "REA_MOBILE_SAFE_CALLABLE_COUNT",
@@ -2058,6 +2061,31 @@ def main():
                 "PASS" if test.returncode==0 else "NOT_ACCESSIBLE"))
         print("REA_PCONFIG_STATUS=PASS_READ_ONLY")
         return
+    if data["action"] == "fixture_linux_sigrok_builder_capability":
+        # Read-only check; do not start containers or pull images.
+        import shutil
+        backends = ("docker", "podman", "buildah", "bwrap", "unshare")
+        print("REA_SIGROK_BUILDER_BACKENDS=" + json.dumps(
+            {name: bool(shutil.which(name)) for name in backends}, sort_keys=True))
+        docker = shutil.which("docker")
+        is_ok = False
+        is_cached = False
+        if docker:
+            daemon = subprocess.run(["sudo", "-n", "docker", "info", "--format",
+                "{{.ServerVersion}}"], capture_output=True, text=True,
+                timeout=15, check=False)
+            is_ok = daemon.returncode == 0 and bool(daemon.stdout.strip())
+            if is_ok:
+                cached = subprocess.run(["sudo", "-n", "docker", "image",
+                    "inspect", "ubuntu:24.04", "--format", "{{.Id}}"],
+                    capture_output=True, text=True, timeout=10, check=False)
+                is_cached = cached.returncode == 0
+        print("REA_SIGROK_BUILDER_DOCKER_DAEMON=" + str(is_ok).lower())
+        print("REA_SIGROK_BUILDER_IMAGE_CACHED=" + str(is_cached).lower())
+        print("REA_SIGROK_BUILDER_FREE_BYTES=" +
+              str(shutil.disk_usage("/opt/rea-reversa").free))
+        print("REA_SIGROK_BUILDER_STATUS=PASS_READ_ONLY_NO_CONTAINER_OR_HOST_CHANGE")
+        return
     if data["action"] == "fixture_linux_sigrok_build_simulate":
         # Dry run for minimal offline-source build prerequisites; never install.
         needed = ("autoconf", "automake", "libtool", "libglib2.0-dev",
@@ -2078,7 +2106,7 @@ def main():
         print("REA_SIGROK_BUILD_SIM_UPGRADES=" + str(len(upgrades)))
         print("REA_SIGROK_BUILD_SIM_REMOVALS=" + str(len(removals)))
         print("REA_SIGROK_BUILD_SIM_SAFE=" + str(
-              proc.returncode == 0 and not removals and len(installs) <= 25).lower())
+              proc.returncode == 0 and not removals and not upgrades and len(installs) <= 25).lower())
         return
     if data["action"] == "fixture_linux_sigrok_offline_preflight":
         # Read-only: assess whether a separately built offline libsigrok could
