@@ -489,7 +489,11 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SDIAG_PID_ENV_READ",
         "REA_SDIAG_PID_ENV_SIZE",
         "REA_SDIAG_PID_PROVIDER_KEYS",
-        "REA_SDIAG_STATUS"
+        "REA_SDIAG_STATUS",
+        "REA_FIRMWARE_P36_POSITIVES","REA_FIRMWARE_P36_NEGATIVES",
+        "REA_FIRMWARE_P36_CLEANUP","REA_FIRMWARE_P36_SOURCE",
+        "REA_FIRMWARE_P36_SERVICE","REA_FIRMWARE_P36_DIGEST",
+        "REA_FIRMWARE_P36_STATUS"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -683,6 +687,145 @@ def main():
         print("REA_MOBILE_TOOL_ERROR=" + str(any(r["status"] != "PASS" for r in records)).lower())
         print("REA_MOBILE_PRIVATE_RESULT_B64=" + base64.b64encode(raw).decode())
         return
+    if data["action"] == "fixture_static_files":
+        # P36 temporary extension of the already approved source-owned fixture.
+        # It uses only the existing original REA MCP and installed Binwalk 3.1.0.
+        import tempfile, tarfile, gzip, lzma, io, zipfile
+        name="inspect_firmware_regions"
+        descriptor=tool_by_name.get(name)
+        if not descriptor or secure.classify(name,descriptor,())!="workspace":
+            error("Original Binwalk tool risk/contract mismatch")
+        def original_pid():
+            p=subprocess.run(["systemctl","show","rea-reversa-mcp.service",
+                              "-p","MainPID","--value"],capture_output=True,
+                              text=True,timeout=12,check=False)
+            return p.stdout.strip() if p.returncode==0 else ""
+        pid_before=original_pid()
+        root=Path.home()/".local/share/rea-chatgpt-trial/repository/rea"
+        git_before=subprocess.run(["git","-C",str(root),"status","--porcelain"],
+                                  capture_output=True,text=True,timeout=12,check=False)
+        records=[]
+        with tempfile.TemporaryDirectory(prefix="rea-public-firmware-p36-",dir="/dev/shm") as temporary:
+            workspace=Path(temporary);workspace.chmod(0o755)
+            archive=io.BytesIO()
+            with tarfile.open(fileobj=archive,mode="w") as tar:
+                body=b"Source-owned Binwalk P36 nonexecutable test content\n"
+                t=tarfile.TarInfo("README.txt");t.size=len(body)
+                tar.addfile(t,io.BytesIO(body))
+            payload=archive.getvalue()
+            gz=gzip.compress(payload,mtime=0)
+            path_gz1=workspace/"gzip-offset-37.bin"
+            path_gz2=workspace/"gzip-offset-153.bin"
+            path_gz1.write_bytes(bytes([0x37])*37+gz)
+            path_gz2.write_bytes(bytes([0x21])*153+gz+b"\0"*9)
+            zip_data=io.BytesIO()
+            with zipfile.ZipFile(zip_data,"w",compression=zipfile.ZIP_STORED) as z:
+                z.writestr("README.txt","Synthetic P36 ZIP archive\n")
+            path_zip=workspace/"zip-offset-29.bin"
+            path_zip.write_bytes(bytes([0x0a])*29+zip_data.getvalue())
+            path_xz=workspace/"xz-offset-43.bin"
+            path_xz.write_bytes(bytes([0x10])*43+lzma.compress(payload))
+            path_none=workspace/"no-signature.bin"
+            path_none.write_bytes(bytes([0x01])*256)
+            all_files=[path_gz1,path_gz2,path_zip,path_xz,path_none]
+            for p in all_files:p.chmod(0o644)
+            hashes={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in all_files}
+            def call(label,args,positive,expected_path=None,expected_gzip=None,no_signatures=False):
+                schema_ok=True
+                try:secure.validate_arguments(descriptor,args)
+                except secure.SecureBridgeError:schema_ok=False
+                secure._authorized_target_paths(args,additional_roots=(workspace,))
+                _,rpc=request_mcp({"jsonrpc":"2.0","id":3650+len(records),
+                    "method":"tools/call","params":{"name":name,"arguments":args}},
+                    session,protocol,timeout=110)
+                result=rpc.get("result")
+                iserr=result.get("isError") if isinstance(result,dict) else None
+                protocol_error="error" in rpc
+                structured=result.get("structuredContent") if isinstance(result,dict) else None
+                norm=structured.get("normalized_result") if isinstance(structured,dict) else None
+                regions=norm.get("regions") if isinstance(norm,dict) else None
+                engine=norm.get("engine") if isinstance(norm,dict) else None
+                coverage=norm.get("coverage") if isinstance(norm,dict) else None
+                raw=json.dumps(rpc,sort_keys=True,ensure_ascii=True)
+                file_digest=hashes.get(expected_path.name) if expected_path else None
+                core_ok=(isinstance(regions,list) and
+                    isinstance(engine,dict) and engine.get("version")=="3.1.0" and
+                    coverage=="signature_scan" and expected_path is not None and
+                    norm.get("input_size")==expected_path.stat().st_size and
+                    file_digest in raw and all(
+                        isinstance(p.get("offset"),int) and p.get("offset")>=0 and
+                        p.get("size_basis")=="provider_reported_validation_unknown" and
+                        isinstance(p.get("reported_confidence"),int)
+                        for p in regions if isinstance(p,dict)))
+                gzip_found=(expected_gzip is None or isinstance(regions,list) and
+                     any(p.get("offset")==expected_gzip and
+                         "gzip" in str(p.get("signature","")).lower()+" "+str(p.get("description","")).lower()
+                         for p in regions if isinstance(p,dict)))
+                no_match_ok=not no_signatures or regions==[]
+                passed=(schema_ok and not protocol_error and iserr is not True and
+                        core_ok and gzip_found and no_match_ok) if positive else (
+                        iserr is True and not protocol_error)
+                records.append({"label":label,"positive":positive,"pass":bool(passed),
+                   "isError":iserr,"protocol_error":protocol_error,
+                   "schema_prevalidated":schema_ok,"region_count":len(regions) if isinstance(regions,list) else None,
+                   "expected_gzip_offset":expected_gzip,"gzip_offset_matched":bool(gzip_found),
+                   "core_result_valid":bool(core_ok),"reported_signatures":[str(x.get("signature"))[:80] for x in regions[:10]] if isinstance(regions,list) else [],
+                   "response_sha256":hashlib.sha256(raw.encode()).hexdigest()})
+            call("gzip_offset_37_real_binwalk",{"path":str(path_gz1)},True,path_gz1,37)
+            call("gzip_offset_153_real_binwalk",{"path":str(path_gz2)},True,path_gz2,153)
+            call("zip_embedded_signature_scan",{"path":str(path_zip)},True,path_zip)
+            call("xz_embedded_signature_scan",{"path":str(path_xz)},True,path_xz)
+            call("no_signatures_empty_regions",{"path":str(path_none)},True,path_none,no_signatures=True)
+            directory=workspace
+            missing=workspace/"missing.bin"
+            call("nonexistent_path",{"path":str(missing)},False)
+            call("directory_is_not_firmware_file",{"path":str(directory)},False)
+            bad=[
+                ("missing_path",{}),
+                ("path_integer",{"path":123}),
+                ("path_null",{"path":None}),
+                ("unexpected_extract_flag",{"path":str(path_gz1),"extract":True}),
+                ("unexpected_detail",{"path":str(path_gz1),"detail":"summary"}),
+                ("unexpected_byte_range",{"path":str(path_gz1),"range":{"offset":0,"length":12}}),
+                ("unexpected_output_directory",{"path":str(path_gz1),"output_directory":str(workspace/"out")})
+            ]
+            for label,args in bad:call(label,args,False)
+            input_unchanged=all(hashlib.sha256(p.read_bytes()).hexdigest()==hashes[p.name]
+                                for p in all_files)
+        cleaned=not workspace.exists()
+        git_after=subprocess.run(["git","-C",str(root),"status","--porcelain"],
+                                 capture_output=True,text=True,timeout=12,check=False)
+        source_unchanged=(git_before.returncode==git_after.returncode==0 and
+                          git_before.stdout==git_after.stdout)
+        daemon_stable=pid_before.isdecimal() and pid_before==original_pid()
+        report={"phase":"LINUX-P36-FIRMWARE-BINWALK31-ORIGINAL-MCP-CERTIFICATION-20261023",
+                "tool":name,"records":records,"original_mcp_tools":len(tools),
+                "file_sha256":hashes,"inputs_unchanged":input_unchanged,
+                "tmp_cleaned":cleaned,"source_unchanged":source_unchanged,
+                "daemon_PID_stable":daemon_stable}
+        raw=json.dumps(report,sort_keys=True,ensure_ascii=True).encode()
+        positive=[x for x in records if x["positive"]]
+        negative=[x for x in records if not x["positive"]]
+        print("REA_FIRMWARE_P36_POSITIVES="+str(sum(x["pass"] for x in positive))+"/"+str(len(positive)))
+        print("REA_FIRMWARE_P36_NEGATIVES="+str(sum(x["pass"] for x in negative))+"/"+str(len(negative)))
+        print("REA_FIRMWARE_P36_CLEANUP="+("PASS" if cleaned and input_unchanged else "FAIL"))
+        print("REA_FIRMWARE_P36_SOURCE="+("PASS" if source_unchanged else "FAIL"))
+        print("REA_FIRMWARE_P36_SERVICE="+("PASS" if daemon_stable else "FAIL"))
+        print("REA_FIRMWARE_P36_DIGEST="+hashlib.sha256(raw).hexdigest())
+        success=(len(positive)==5 and all(x["pass"] for x in positive) and
+                 len(negative)==9 and all(x["pass"] for x in negative) and
+                 input_unchanged and cleaned and source_unchanged and daemon_stable
+                 and len(tools)==208)
+        print("REA_FIRMWARE_P36_STATUS="+("PASS_BINWALK31_STATIC_PROFILE" if success else
+                                        "INCOMPLETE_KEEP_SCOPED"))
+        if len(raw)>MAX_RESPONSE or os.environ.get("REA_MOBILE_ENVELOPE_CAPTURE")!="1":
+            error("Firmware result requires bounded encrypted return")
+        print("REA_MOBILE_OUTPUT_BYTES="+str(len(raw)))
+        print("REA_MOBILE_OUTPUT_SHA256="+hashlib.sha256(raw).hexdigest())
+        print("REA_MOBILE_TOOL_ERROR="+str(not success).lower())
+        print("REA_MOBILE_PRIVATE_RESULT_B64="+base64.b64encode(raw).decode())
+        return
+
     if data["action"] in ("fixture_static_files", "fixture_static_files_v2"):
         # Fixed source-owned inputs; never a caller-selected path, URL or code.
         import tempfile
