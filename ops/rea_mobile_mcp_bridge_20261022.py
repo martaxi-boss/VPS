@@ -2191,21 +2191,20 @@ def main():
                 pid.isdecimal() and int(pid)>0) else None
             keys=set()
             if getenv is not None and getenv.returncode==0:
-                keys=set(getenv.stdout.split(bytes([0])))
-            accepted=(("REA_KUNA_COMMAND="+executable).encode() in keys
-                       and ("REA_KUNA_CACHE_DIR="+cache).encode() in keys)
+                keys=set(getenv.stdout.split(chr(0)))
+            accepted=(("REA_KUNA_COMMAND="+executable) in keys
+                       and ("REA_KUNA_CACHE_DIR="+cache) in keys)
             print("REA_KUNA_ACTIVATION_ENV="+str(accepted).lower())
             doctor={"configured":False,"available":False}
             if accepted and count==208:
                 rawenv={}
                 for record in keys:
-                    if b"=" in record:
-                        name,val=record.split(b"=",1)
-                        if name in (b"HOME",b"PATH",b"JAVA_HOME",b"GHIDRA_INSTALL_DIR",
-                            b"REA_KUNA_COMMAND",b"REA_KUNA_CACHE_DIR",
-                            b"REA_JADX_MCP_JAR",b"REA_JADX_HEAP_MIB"):
-                            try: rawenv[name.decode("ascii")]=val.decode("utf-8")
-                            except UnicodeDecodeError: pass
+                    if "=" in record:
+                        name,val=record.split("=",1)
+                        if name in ("HOME","PATH","JAVA_HOME","GHIDRA_INSTALL_DIR",
+                            "REA_KUNA_COMMAND","REA_KUNA_CACHE_DIR",
+                            "REA_JADX_MCP_JAR","REA_JADX_HEAP_MIB"):
+                            rawenv[name]=val
                 vars=[key+"="+value for key,value in rawenv.items()]
                 run=sudo("-u","rea-reversa","env",*vars,
                     "node","/opt/rea-reversa/rea/scripts/rea.mjs","doctor","--json",
