@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_supplier_gap_20261023", "fixture_linux_tshark_activate_20261023", "fixture_linux_glossary_sigrok_diag_20261023", "fixture_linux_sigrok_sandbox_20261023", "fixture_linux_static_formats_20261023", "fixture_linux_node24_stage_20261023"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_supplier_gap_20261023", "fixture_linux_tshark_activate_20261023", "fixture_linux_glossary_sigrok_diag_20261023", "fixture_linux_sigrok_sandbox_20261023", "fixture_linux_static_formats_20261023", "fixture_linux_node24_stage_20261023", "fixture_linux_node24_sqlite_cli_20261023"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -252,6 +252,10 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_NODE24_STAGE_SQLITE_LIMITS", "REA_NODE24_STAGE_REA_CLI",
         "REA_NODE24_STAGE_SERVICE_ACCESS", "REA_NODE24_STAGE_PID_STABLE",
         "REA_NODE24_STAGE_DOWNLOAD_BYTES",
+        "REA_NODE24_CLI_STATUS", "REA_NODE24_CLI_VERSION",
+        "REA_NODE24_CLI_RESULT", "REA_NODE24_CLI_ASSERTIONS",
+        "REA_NODE24_CLI_SOURCE_UNCHANGED", "REA_NODE24_CLI_CLEANUP",
+        "REA_NODE24_CLI_SERVICE_UNCHANGED",
         "REA_MOBILE_PROVIDER_DOCTOR_GHIDRA",
         "REA_MOBILE_PROVIDER_DOCTOR_JADX", "REA_MOBILE_CATALOG",
         "REA_MOBILE_DESCRIBE_TOOL", "REA_MOBILE_TOOL_DESCRIPTOR_B64",
@@ -1778,6 +1782,76 @@ def main():
                   (installed.stdout or installed.stderr).splitlines()[0][:110])
             print("REA_RIZIN_STATUS="+(
                 "PASS_PINNED_PERSISTENT" if installed.returncode==0 else "INCOMPLETE"))
+        return
+    if data["action"] == "fixture_linux_node24_sqlite_cli_20261023":
+        # Test ORIGINAL REA CLI under pinned Node24 on owned quiescent SQLite.
+        # No new engine, MCP server or daemon runtime changes.
+        import tempfile
+        import sqlite3
+        unit="rea-reversa-mcp.service"
+        node="/opt/rea-reversa/providers/node-v24.22.1/bin/node"
+        rea="/opt/rea-reversa/rea/scripts/rea.mjs"
+        def pid():
+            p=subprocess.run(["systemctl","show",unit,"-p","MainPID","--value"],
+                     capture_output=True,text=True,timeout=12,check=False)
+            return p.stdout.strip()
+        before=pid()
+        v=subprocess.run(["sudo","-n","-u","rea-reversa",node,"--version"],
+                  capture_output=True,text=True,timeout=18,check=False)
+        ready=v.returncode==0 and v.stdout.strip()=="v24.22.1"
+        print("REA_NODE24_CLI_VERSION="+str(ready).lower())
+        if not ready:
+            print("REA_NODE24_CLI_STATUS=BLOCKED_RUNTIME_MISSING")
+            return
+        with tempfile.TemporaryDirectory(prefix="rea-node24-sqlite-cli-",dir="/dev/shm") as td:
+            owned=Path(td)
+            owned.chmod(0o755)
+            target=owned/"example.sqlite"
+            db=sqlite3.connect(target)
+            try:
+                db.execute("PRAGMA journal_mode=DELETE")
+                db.execute("CREATE TABLE records (id INTEGER PRIMARY KEY, title TEXT NOT NULL)")
+                db.execute("INSERT INTO records (id,title) VALUES (17,'rea-native-sqlite')")
+                db.commit()
+            finally:
+                db.close()
+            target.chmod(0o644)
+            digest=hashlib.sha256(target.read_bytes()).hexdigest()
+            cmd=["sudo","-n","-u","rea-reversa",node,rea,
+                 "inspect-sqlite-database",str(target),"--table","records",
+                 "--column","id","--column","title","--row-limit","10","--json"]
+            p=subprocess.run(cmd,capture_output=True,text=True,timeout=105,check=False)
+            try:
+                response=json.loads(p.stdout)
+            except (TypeError,ValueError):
+                response={}
+            report=response.get("normalized_result",{}) if isinstance(response,dict) else {}
+            if not report and isinstance(response.get("result"),dict):
+                report=response["result"].get("normalized_result",{})
+            if not isinstance(report,dict):
+                report={}
+            rows=report.get("rows",{})
+            rows=rows if isinstance(rows,dict) else {}
+            checks={
+                "original_cli_exit_zero":p.returncode==0,
+                "valid_json":bool(response),
+                "artifact_sha256":report.get("artifact",{}).get("sha256")==digest,
+                "sqlite_engine":report.get("engine",{}).get("name")=="SQLite",
+                "selected_table":rows.get("table")=="records",
+                "exact_one_row":rows.get("returned_rows")==1,
+                "selected_columns":rows.get("columns")==["id","title"]
+            }
+            print("REA_NODE24_CLI_ASSERTIONS="+json.dumps(checks,sort_keys=True))
+            same=hashlib.sha256(target.read_bytes()).hexdigest()==digest
+            print("REA_NODE24_CLI_SOURCE_UNCHANGED="+str(same).lower())
+        cleaned=not owned.exists()
+        print("REA_NODE24_CLI_CLEANUP="+str(cleaned).lower())
+        stable=bool(before) and before==pid()
+        print("REA_NODE24_CLI_SERVICE_UNCHANGED="+str(stable).lower())
+        print("REA_NODE24_CLI_RESULT="+("PASS_REAL_SQLITE_CLI_NODE24"
+               if all(checks.values()) and same and cleaned and stable
+               else "INCOMPLETE_ORIGINAL_CLI"))
+        print("REA_NODE24_CLI_STATUS=PASS_READ_ONLY_SCOPE")
         return
     if data["action"] == "fixture_linux_node24_stage_20261023":
         # Pinned Node LTS dependency installed side-by-side; never replace
