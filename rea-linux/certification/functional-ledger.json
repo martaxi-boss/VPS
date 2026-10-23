@@ -598,7 +598,21 @@
         "systemd_restart": false,
         "other_services_untouched_by_test": true
       },
-      "certification_policy": "Two limited functional passes, not two complete global certifications; tests and outputs intentionally bounded/sanitized."
+      "certification_policy": "Two limited functional passes, not two complete global certifications; tests and outputs intentionally bounded/sanitized.",
+      "final_hygiene": {
+        "consumed_requests_deleted": 4,
+        "request_hygiene_commit": "34c50df2a565952f0ca3c66fed0ce0cdb6da32aa",
+        "active_rea_linux_requests": 0,
+        "one_shot_test_harness_removed": true,
+        "authorized_bridge_restored_commit": "aa21171b21ab4b670e179aa366c25fe558aacec0",
+        "restored_bridge_blob_sha": "e330062449a0bb2d2afc5a164083fc758f4a9676",
+        "final_live_original_mcp_smoke_run_id": 39985318260,
+        "final_live_original_mcp_smoke_result": "SUCCESS: SSH_PIN PASS, loopback MCP PASS, tools 208, read 5, workspace 120, sensitive 83",
+        "historical_github_actions_evidence_preserved": true,
+        "engine_repo_unchanged_by_current_turn": true,
+        "original_mcp_service_did_not_restart_during_packet_fixture": true,
+        "limits": "No independent health check of every unrelated service; no live signed GDB session created"
+      }
     }
   ],
   "active_scope_counts": {
