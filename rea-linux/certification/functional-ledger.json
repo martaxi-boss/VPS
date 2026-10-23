@@ -10,7 +10,8 @@
     "only_installed_engine": true,
     "no_production_code_or_daemon_changes": true,
     "remote_access": "existing GitHub Actions -> SSH -> Linux VPS -> original MCP",
-    "client_device_certification": false
+    "client_device_certification": false,
+    "gdb_binaries_live_path_present": false
   },
   "tool_catalog_count": 208,
   "certification_policy": {
@@ -264,12 +265,17 @@
           "limitations": [
             "Current list_unknowns total=0; no existing unknown_id for positive verification",
             "Creating an unknown requires another tool with separate authorization, outside current read-only group"
-          ]
+          ],
+          "prerequisite_evidence": {
+            "existing_unknown_heads_at_test": 0,
+            "nonexistent_id_error_confirmed": true,
+            "positive_requires": "Existing legitimately recorded unknown with valid evidence and consistent current revision"
+          }
         },
         {
           "name": "gdb_session_status",
           "risk": "read",
-          "status": "POSITIVE_PATH_BLOCKED_VALID_SESSION",
+          "status": "POSITIVE_PATH_BLOCKED_GDB_BINARY_ABSENT",
           "mcp_call_count": 1,
           "contracted_function": "Report state of an already established GDB session, with MI diagnostics",
           "verified_outputs": [
@@ -279,8 +285,21 @@
           "limitations": [
             "No verified existing owned GDB session available",
             "Cannot assert positive functionality from invalid_input",
-            "Starting a GDB session is a separate sensitive operation; not authorized by a five-read-tools-only request"
-          ]
+            "Starting a GDB session is a separate sensitive operation; not authorized by a five-read-tools-only request",
+            "GDB executable absent from Linux runtime PATH (checked live; no installation attempted)",
+            "Starting a GDB session requires independently owner-signed sensitive approval under canonical bridge policy"
+          ],
+          "prerequisite_evidence": {
+            "verified_on_existing_vps": true,
+            "run_id": 39959287285,
+            "run_url": "https://github.com/martaxi-boss/VPS/actions/runs/39959287285",
+            "linux_x86_64": true,
+            "mcp_live": true,
+            "tool_catalog": 208,
+            "gdb_in_runtime_path": false,
+            "compiled_rea_cli": true,
+            "source": "READ_ONLY_CAPABILITY_AUDIT"
+          }
         }
       ],
       "counts": {
@@ -393,6 +412,11 @@
     "successful_scoped": 3,
     "negative_only": 1,
     "blocked_positive": 1,
-    "status": "PARTIAL_WITH_PREREQUISITES"
+    "status": "PARTIAL_BLOCKED_BY_PRECONDITIONS",
+    "provider_preflight_run": 39959287285,
+    "missing_prerequisites": {
+      "verify_unknown_resolution": "No legitimate retained unknown in session; cannot fabricate one as read-only",
+      "gdb_session_status": "GDB missing from active Linux PATH; starting a session requires signed sensitive owner authorization"
+    }
   }
 }
