@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_22_SCOPED_POSITIVE_SIGROK_ISOLATED_BUILD_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_3_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -29,7 +29,8 @@
     "additional_test_statuses": [
       "NEGATIVE_PATH_CONFIRMED_POSITIVE_PENDING",
       "POSITIVE_PATH_BLOCKED_VALID_SESSION"
-    ]
+    ],
+    "full_certification_scope_rule": "Status FULLY_CERTIFIED attaches to the individually recorded Linux provider + tool contract profile, not to all platforms/architectures or unrelated tool contracts."
   },
   "phases": [
     {
@@ -1541,6 +1542,162 @@
         "temporary_action_code_restored_to_pre_phase_bridge": true,
         "original_engine_or_ghidra_modified": false
       }
+    },
+    {
+      "phase_id": "LINUX-P23-FUNCTIONAL-CERTIFICATION-CLOSURE-20261023",
+      "date_utc": "2026-10-23",
+      "status": "THREE_TOOLS_FULLY_CERTIFIED_WITH_EXPLICIT_LINUX_CONTRACT_SCOPE",
+      "original_rea_engine": "/opt/rea-reversa/rea",
+      "original_mcp_endpoint": "127.0.0.1:8765/mcp",
+      "mcp_catalog_tools": 208,
+      "tools": [
+        {
+          "name": "inspect_with_objdump",
+          "status": "FULLY_CERTIFIED",
+          "certification_scope": "Original permanent REA MCP on Linux x86_64; GNU objdump against ELF64 x86-64, all eight advertised operation choices including symbol targeting and DWARF debug-link setting, plus invalid source/argument behavior.",
+          "provider": "GNU objdump genuine Linux installed binary",
+          "references": [
+            {
+              "run_id": 39947962373,
+              "commit": "f3f49c29e814b06537d97d52746b8be0029a9835",
+              "kind": "live_positive_three_ops"
+            },
+            {
+              "run_id": 40021674074,
+              "commit": "9143d3f6c26e3c53daad42e00dc10311959d0147",
+              "kind": "live_positive_seven_facet_tests"
+            },
+            {
+              "run_id": 40021854654,
+              "commit": "d0ae3a2d55d77c36d08583d0543cfe21b14dae59",
+              "kind": "live_negative_and_schema_rejection_semantics"
+            },
+            {
+              "run_id": 40022033849,
+              "commit": "556d16f6f6b70eda66e0880a89eb566292d8f7f8",
+              "kind": "live_invalid_file_provider_exit_1"
+            }
+          ],
+          "isError_behavior": "Valid ELF facets had MCP isError not true. Invalid file reports genuine GNU objdump exit 1 and 'not recognized' within successful MCP Evidence (isError absent), which is the documented provider-capture contract; missing path and invalid arguments are rejected by original MCP isError=true.",
+          "assertions": {
+            "advertised_unique_operations_covered": 8,
+            "new_positive_cases_passed": "7/7",
+            "historical_positive_operations_covered": [
+              "file_headers",
+              "section_headers",
+              "disassemble"
+            ],
+            "source_fixture_self_generated_and_not_executed": true,
+            "source_hash_integrity": "PASS",
+            "temp_cleanup": "PASS",
+            "mcp_pid_stable": "PASS",
+            "invalid_binary_gnu_exit_code": 1,
+            "invalid_binary_error_diagnostic": true,
+            "invalid_schema_cases_rejected_by_original_mcp": "2/2",
+            "negative_missing_file_mcp_isError": true
+          },
+          "caveats": [
+            "Verified ELF64/x86-64 Linux contract; other BFD formats and CPU architectures require separate profiles.",
+            "Portable bridge JSON-schema admission accepted an extra field in architectures whereas original MCP rejected it; no unauthorized operation succeeded. Future adapter hardening remains tracked separately.",
+            "No assertion that high-volume, adversarial or all debug-link edge cases are exhausted."
+          ]
+        },
+        {
+          "name": "inspect_pcap_client",
+          "status": "FULLY_CERTIFIED",
+          "certification_scope": "Original Linux MCP; complete parameterless client inspection function resolving tshark and capinfos binaries, command/source and real versions, plus strict invalid-argument rejection.",
+          "provider": "Real tshark and capinfos",
+          "references": [
+            {
+              "run_id": 39984679548,
+              "commit": "97795e791860e9cf88a940884dca5beb73653413",
+              "kind": "original_positive"
+            },
+            {
+              "run_id": 40022180504,
+              "commit": "9a155547704dd6cee4c18585b1c3809be2553d34",
+              "kind": "live_positive_and_negative"
+            }
+          ],
+          "assertions": {
+            "positive_mcp_isError_false": true,
+            "required_nonempty_fields": [
+              "tshark_version",
+              "capinfos_version",
+              "tshark_command",
+              "capinfos_command"
+            ],
+            "invalid_extra_parameter_rejected_adapter": true,
+            "invalid_extra_parameter_rejected_mcp": true,
+            "provider_input_files_used": false,
+            "service_pid_stable": true,
+            "result_sha256": "d1a9e93320cecd9f73df5409f93539c7991e03141d2fce5ccbea4a1a47207e61"
+          },
+          "caveats": [
+            "Client discovery/version contract only; does not certify packet decoding or other tshark operations.",
+            "Must recertify after a supplier or service environment change."
+          ]
+        },
+        {
+          "name": "inspect_apktool_client",
+          "status": "FULLY_CERTIFIED",
+          "certification_scope": "Original Linux MCP; complete parameterless Apktool launcher discovery, selected command/source and version, plus strict invalid-argument rejection.",
+          "provider": "Real installed Apktool",
+          "references": [
+            {
+              "run_id": 39986315538,
+              "commit": "c59c3642ccb403e0af1d25d8045ddc6eda7237de",
+              "kind": "original_positive"
+            },
+            {
+              "run_id": 40022180504,
+              "commit": "9a155547704dd6cee4c18585b1c3809be2553d34",
+              "kind": "live_positive_and_negative"
+            }
+          ],
+          "assertions": {
+            "positive_mcp_isError_false": true,
+            "required_nonempty_fields": [
+              "apktool_version",
+              "command",
+              "command_source"
+            ],
+            "invalid_extra_parameter_rejected_adapter": true,
+            "invalid_extra_parameter_rejected_mcp": true,
+            "apk_decode_executed": false,
+            "service_pid_stable": true,
+            "result_sha256": "8eb8012630431da75a89aa535a6ca86519277f14c4c58e48e50d1bdba63bffca"
+          },
+          "caveats": [
+            "Launcher discovery/version contract only; does not certify APK decode functions.",
+            "Must recertify after a supplier or service environment change."
+          ]
+        }
+      ],
+      "prior_scoped_functional_distinct": 22,
+      "now_fully_certified_distinct": 3,
+      "remaining_scoped_positive_not_fully_certified": 19,
+      "remaining_without_scoped_positive": 186,
+      "security": {
+        "read_only_provider_inspection_only": true,
+        "owned_fixture_only": true,
+        "no_unauthorized_sensitive_calls": true,
+        "no_service_or_software_install": true,
+        "no_production_daemon_changes": true,
+        "other_project_services_not_modified_by_tests": true
+      },
+      "limited_note": "FULLY_CERTIFIED only for exact contracts and Linux profiles explicitly recorded; do not project across untested formats and suppliers.",
+      "hygiene": {
+        "restored_bridge_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+        "consumed_requests_removed": [
+          "rea-linux/requests/client-providers-cert-20261023.json",
+          "rea-linux/requests/objdump-certification-20261023.json",
+          "rea-linux/requests/objdump-invalid-exit-20261023.json",
+          "rea-linux/requests/objdump-negative-20261023.json"
+        ],
+        "retained_earlier_evidence": true,
+        "rerun_after_cleanup_required": true
+      }
     }
   ],
   "active_scope_counts": {
@@ -1552,7 +1709,10 @@
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 0
+    "fully_certified_distinct": 3,
+    "scoped_positive_not_fully_certified_distinct": 19,
+    "not_functionally_positive_distinct": 186,
+    "remaining_full_certification_distinct": 205
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -1582,7 +1742,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P22-SIGROK-OFFLINE-BUILDER-SAFETY-20261023",
+  "latest_phase": "LINUX-P23-FUNCTIONAL-CERTIFICATION-CLOSURE-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -1918,6 +2078,40 @@
       "source_offline_build_not_yet_installed": true,
       "service_sigrok_positive_mcp_status": "FAILED_HISTORICAL_LIBUSB",
       "recommendation": "Isolate supplier build; preserve original systemd sandbox"
+    }
+  },
+  "certified_tool_registry": {
+    "inspect_with_objdump": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Original permanent REA MCP on Linux x86_64; GNU objdump against ELF64 x86-64, all eight advertised operation choices including symbol targeting and DWARF debug-link setting, plus invalid source/argument behavior.",
+      "run_ids": [
+        39947962373,
+        40021674074,
+        40021854654,
+        40022033849
+      ],
+      "evidence_digest": null,
+      "phase_id": "LINUX-P23-FUNCTIONAL-CERTIFICATION-CLOSURE-20261023"
+    },
+    "inspect_pcap_client": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Original Linux MCP; complete parameterless client inspection function resolving tshark and capinfos binaries, command/source and real versions, plus strict invalid-argument rejection.",
+      "run_ids": [
+        39984679548,
+        40022180504
+      ],
+      "evidence_digest": "d1a9e93320cecd9f73df5409f93539c7991e03141d2fce5ccbea4a1a47207e61",
+      "phase_id": "LINUX-P23-FUNCTIONAL-CERTIFICATION-CLOSURE-20261023"
+    },
+    "inspect_apktool_client": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Original Linux MCP; complete parameterless Apktool launcher discovery, selected command/source and version, plus strict invalid-argument rejection.",
+      "run_ids": [
+        39986315538,
+        40022180504
+      ],
+      "evidence_digest": "8eb8012630431da75a89aa535a6ca86519277f14c4c58e48e50d1bdba63bffca",
+      "phase_id": "LINUX-P23-FUNCTIONAL-CERTIFICATION-CLOSURE-20261023"
     }
   }
 }
