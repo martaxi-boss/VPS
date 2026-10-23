@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_5_FULLY_CERTIFIED_CONTRACTS_AND_22_SCOPED_POSITIVES",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_6_FULLY_CERTIFIED_CONTRACTS_AND_22_SCOPED_POSITIVES",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -515,23 +515,25 @@
       "original_service_unmodified": true
     },
     "latest_contract_certification": {
-      "phase_id": "LINUX-P25-EVMOLE-INTERFACE-FULL-CERTIFICATION-20261023",
+      "phase_id": "LINUX-P26-WASM-ARTIFACT-WABT-CERTIFICATION-20261023",
       "original_mcp_catalog": 208,
-      "fully_certified_distinct": 5,
+      "fully_certified_distinct": 6,
       "existing_scoped_positive_distinct": 22,
-      "still_pending_full_distinct": 203,
-      "source": "Real permanent Linux x64 original REA MCP EVMole 0.9.3, raw and hex EVM fixtures",
+      "still_pending_full_distinct": 202,
+      "source": "Real original permanent Linux x64 MCP with pinned WABT 1.0.42",
       "runs": [
-        39995775540,
-        40023775648
+        40001710465,
+        40011404653,
+        40024484529
       ],
-      "original_daemon_unchanged": true,
-      "original_source_unchanged": true,
+      "source_unchanged": true,
+      "service_unchanged": true,
       "unchanged_previous_certifications": [
         "inspect_with_objdump",
         "inspect_pcap_client",
         "inspect_apktool_client",
-        "inspect_packet_fields"
+        "inspect_packet_fields",
+        "inspect_evm_interface"
       ]
     }
   },

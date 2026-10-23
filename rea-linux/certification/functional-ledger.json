@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_5_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_6_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -1844,6 +1844,92 @@
         "restored_stable_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
         "after_cleanup_catalog_smoke_pending": true
       }
+    },
+    {
+      "phase_id": "LINUX-P26-WASM-ARTIFACT-WABT-CERTIFICATION-20261023",
+      "date_utc": "2026-10-23",
+      "status": "FULLY_CERTIFIED_LINUX_X64_WABT_1_0_42_ARTIFACT_INSPECTION_CONTRACT",
+      "tool": "inspect_wasm_artifact",
+      "tool_status": "FULLY_CERTIFIED",
+      "certification_scope": "Original permanent REA MCP Linux x64 WABT 1.0.42: one owned minimal and one independently byte-built nontrivial WASM with typed import env.id and exported demo function, 3 authentic version-pinned WABT command profiles, exact selected bytes/hash, parsed sections/imports/exports/WAT SHA, optional candidate/glue selection and static associations, summary/retained evidence, malformed input and schema rejections.",
+      "supplier": {
+        "name": "WABT",
+        "version": "1.0.42",
+        "bin_directory": "/opt/rea-reversa/providers/wabt-1.0.42/bin",
+        "original_MCP_service": "rea-reversa-mcp.service"
+      },
+      "reused_positive": {
+        "run_id": 40001710465,
+        "response_sha256": "cb050d298df192ada383b368dc27d7431d828b31117a79b1ff86266a2692d534",
+        "source": "P15 old minimal 8-byte WASM, not rerun"
+      },
+      "reused_additional_integration": {
+        "run_id": 40011404653,
+        "source": "P18 real original MCP used inspect_wasm_artifact twice as evidence prerequisites for interface comparison. Does not count a new distinct positive."
+      },
+      "functional_closure": {
+        "run_id": 40024484529,
+        "commit": "a0549fae6afb1b04742c4d43e7987ca48bc3ad21",
+        "original_MCP_connected": true,
+        "original_catalog_tools": 208,
+        "full_evidence_positive": true,
+        "summary_evidence_positive": true,
+        "typed_core_imports_and_exports": true,
+        "WAT_sha256_independently_verified": true,
+        "section_offsets_bounded_to_selected_bytes": true,
+        "original_input_sha256_matches": true,
+        "candidate_identities_verified": true,
+        "JS_static_glue_complete": true,
+        "JS_glue_local_path_exact": true,
+        "JS_glue_URL_basename_candidate": true,
+        "JS_glue_unresolved_reference_preserved": true,
+        "summary_parent_evidence_id_present": true,
+        "summary_evidence_counts_match_full": true,
+        "summary_hides_WAT_text_and_preserves_digest": true,
+        "three_WABT_1_0_42_commands_verified": true,
+        "negative_cases_4_of_4": [
+          "invalid_WASM_module",
+          "missing_input",
+          "missing_candidate",
+          "invalid_UTF8_JS_glue"
+        ],
+        "invalid_schema_cases_4_of_4": [
+          "invalid_detail",
+          "empty_input_path",
+          "more_than_16_glue_paths",
+          "more_than_16_candidate_paths"
+        ],
+        "tool_isError_on_positive": false,
+        "tool_isError_on_negative": true,
+        "no_target_execution": true,
+        "no_network_fetch": true,
+        "fixture_integrity": "PASS",
+        "fixture_cleanup": "PASS",
+        "original_service_PID_stable": "PASS",
+        "results_sha256": "e012817103bb7bd1a3564112c9ed645069cefdafd43aa24dd94e694fc237e3a3"
+      },
+      "security": {
+        "only_self_created_sources": true,
+        "no_user_private_target": true,
+        "no_sensitive_signature_bypass": true,
+        "no_motor_source_changes": true,
+        "no_new_server_skill_or_plugin": true,
+        "no_global_dependencies_changed": true,
+        "no_service_restart": true,
+        "no_unrelated_projects_changed": true
+      },
+      "limitations": [
+        "FULLY_CERTIFIED applies to tested Linux x64 WABT 1.0.42 profile and declared contract operations; not proof of all WebAssembly proposals or malicious/large input limits.",
+        "Recovered WAT is a decoded representation rather than original source; no bytecode execution, dynamic behavior or runtime memory claims.",
+        "JavaScript linkages are static literal associations, not proven network fetch, module loading or data flow.",
+        "Input resource ceilings and cancellation under stress remain separate supplier-hardening work."
+      ],
+      "hygiene": {
+        "single_use_request_deleted": "rea-linux/requests/wasm-closure-20261023.json",
+        "experimental_fixture_code_removed": true,
+        "stable_bridge_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+        "post_cleanup_catalog_recheck_required": true
+      }
     }
   ],
   "active_scope_counts": {
@@ -1855,10 +1941,10 @@
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 5,
-    "scoped_positive_not_fully_certified_distinct": 17,
+    "fully_certified_distinct": 6,
+    "scoped_positive_not_fully_certified_distinct": 16,
     "not_functionally_positive_distinct": 186,
-    "remaining_full_certification_distinct": 203
+    "remaining_full_certification_distinct": 202
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -1888,7 +1974,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P25-EVMOLE-INTERFACE-FULL-CERTIFICATION-20261023",
+  "latest_phase": "LINUX-P26-WASM-ARTIFACT-WABT-CERTIFICATION-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -2279,6 +2365,17 @@
       ],
       "evidence_digest": "31a3b7bbf51bc28fbfa958e42f8cc71f940b54e6c189bd32e4834a9bd9d0e7b0",
       "phase_id": "LINUX-P25-EVMOLE-INTERFACE-FULL-CERTIFICATION-20261023"
+    },
+    "inspect_wasm_artifact": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Persistent Linux x64 REA WABT 1.0.42: real WASM import/export/WAT, static JavaScript associations, candidate selection, summary, identity, negative and invalid-schema cases",
+      "run_ids": [
+        40001710465,
+        40011404653,
+        40024484529
+      ],
+      "evidence_digest": "e012817103bb7bd1a3564112c9ed645069cefdafd43aa24dd94e694fc237e3a3",
+      "phase_id": "LINUX-P26-WASM-ARTIFACT-WABT-CERTIFICATION-20261023"
     }
   }
 }

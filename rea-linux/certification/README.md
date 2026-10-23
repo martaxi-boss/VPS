@@ -102,3 +102,14 @@ As cinco ferramentas pertencem ao grupo `read`, mas têm pré-condições difere
 - **5/5 casos negativos** recusados pelo MCP: hexadecimal ímpar, espaços interiores, contentor EF00 não suportado, ficheiro inexistente e tipo de encoding inválido. Ficou confirmada a integridade dos seis ficheiros temporários e a sua eliminação; REA MainPID estável.
 - O resultado da ferramenta continua inferencial: completar este contrato não garante descoberta de todos os seletores, código implantado genuíno, hardfork, contratos grandes ou EOF. Novas versões dos fornecedores exigem recertificação.
 - **Acumulado:** **5 FULLY_CERTIFIED**, **17 FUNCTIONAL_PASS_SCOPED**, **186 sem prova positiva**, num catálogo de 208; nenhuma ferramenta contada duas vezes. Ponte estável restaurada, pedido temporário apagado e nenhuma alteração ao motor de produção.
+
+## P26 — certificação funcional de `inspect_wasm_artifact` (23/10/2026)
+
+- **`FULLY_CERTIFIED`**, para o contrato WASM em **Linux x64 com WABT 1.0.42**, através do motor MCP original permanente; outros ambientes e versões não herdam automaticamente esta certificação.
+- Provas existentes preservadas: [Actions #40001710465](https://github.com/martaxi-boss/VPS/actions/runs/40001710465), módulo válido mínimo de oito bytes, e [#40011404653](https://github.com/martaxi-boss/VPS/actions/runs/40011404653), artefactos originais utilizados na comparação WASM posterior.
+- [Actions #40024484529](https://github.com/martaxi-boss/VPS/actions/runs/40024484529): dois positivos adicionais (retorno completo e `detail:summary`) no mesmo módulo WASM controlado com importação tipada `env.id`, exportação `demo` e código existente mas **não executado**. Verificadas SHA-256 do input e da WAT, secções/limites, as três ferramentas WABT genuínas 1.0.42, dois candidatos locais e três referências JavaScript estáticas (`local-path-candidate`, `basename-candidates`, `unresolved`). O resumo mantém ID da Evidence e respetivas contagens, omitindo o texto WAT.
+- **4/4 negativos MCP**: ficheiro WASM inválido, inexistente, candidato inexistente e JS mal codificado; **4/4 rejeições de schema MCP/ponte**: formato `detail` inválido, caminho vazio e listas de `glue_paths`/`candidate_paths` com mais de 16 elementos. As operações positivas apresentaram `isError` não verdadeiro, as rejeições `isError=true`.
+- Hashes dos ficheiros inalterados, fontes temporárias eliminadas, PID da instalação original sem mudança, sem adquirir dados de rede e sem executar módulo.
+- Não declarar WAT como código-fonte original, nem associações JavaScript como prova de execução. A certificação não inclui todos os formatos/propostas WASM nem carga maliciosa/volumosa.
+- **Contagens:** 6 certificados no âmbito indicado; 16 com prova positiva limitada; 186 sem prova funcional positiva (208 no catálogo). Ponte estável restaurada e pedido consumido eliminado.
+
