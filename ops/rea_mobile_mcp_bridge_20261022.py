@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_supplier_gap_20261023", "fixture_linux_tshark_activate_20261023", "fixture_linux_glossary_sigrok_diag_20261023"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_supplier_gap_20261023", "fixture_linux_tshark_activate_20261023", "fixture_linux_glossary_sigrok_diag_20261023", "fixture_linux_sigrok_sandbox_20261023"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -240,6 +240,8 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_GLOSS_ASSERTIONS", "REA_GLOSS_STATUS", "REA_GLOSS_SUMMARY",
         "REA_GLOSS_SERVICE_PID_STABLE", "REA_SIGROK_STDERR_SAFE", 
         "REA_SIGROK_STDERR_TAGS", "REA_SIGROK_STDOUT_LENGTH",
+        "REA_SIGROK_SANDBOX_UNIT", "REA_SIGROK_SANDBOX_PROC",
+        "REA_SIGROK_SANDBOX_USB_PATHS", "REA_SIGROK_SANDBOX_STATUS",
         "REA_MOBILE_PROVIDER_DOCTOR_GHIDRA",
         "REA_MOBILE_PROVIDER_DOCTOR_JADX", "REA_MOBILE_CATALOG",
         "REA_MOBILE_DESCRIBE_TOOL", "REA_MOBILE_TOOL_DESCRIPTOR_B64",
@@ -1766,6 +1768,62 @@ def main():
                   (installed.stdout or installed.stderr).splitlines()[0][:110])
             print("REA_RIZIN_STATUS="+(
                 "PASS_PINNED_PERSISTENT" if installed.returncode==0 else "INCOMPLETE"))
+        return
+    if data["action"] == "fixture_linux_sigrok_sandbox_20261023":
+        # Read-only inspect USB init constraints of existing REA service;
+        # never modify sandboxing, attach to devices or inspect device data.
+        unit="rea-reversa-mcp.service"
+        def prop(name):
+            r=subprocess.run(["systemctl","show",unit,"-p",name,"--value"],
+                capture_output=True,text=True,timeout=11,check=False)
+            return r.stdout.strip() if r.returncode==0 else "UNAVAILABLE"
+        props=("PrivateDevices","DevicePolicy","RestrictAddressFamilies",
+               "PrivateNetwork","ProtectKernelTunables","ProtectKernelModules",
+               "ProtectKernelLogs","SystemCallFilter","NoNewPrivileges",
+               "PrivateUsers","ProtectSystem","ProtectHome","ProtectProc",
+               "ProcSubset","RestrictNamespaces","PrivateMounts")
+        values={k:prop(k) for k in props}
+        classified={
+          "PrivateDevices":values["PrivateDevices"],
+          "DevicePolicy":values["DevicePolicy"],
+          "RestrictAddressFamilies_has_netlink":"AF_NETLINK" in values["RestrictAddressFamilies"],
+          "RestrictAddressFamilies_active":values["RestrictAddressFamilies"] not in ("","UNAVAILABLE"),
+          "PrivateNetwork":values["PrivateNetwork"],
+          "ProtectKernelTunables":values["ProtectKernelTunables"],
+          "ProtectKernelModules":values["ProtectKernelModules"],
+          "SystemCallFilter_active":values["SystemCallFilter"] not in ("","UNAVAILABLE"),
+          "NoNewPrivileges":values["NoNewPrivileges"],
+          "PrivateUsers":values["PrivateUsers"],
+          "ProtectSystem":values["ProtectSystem"],
+          "ProtectHome":values["ProtectHome"],
+          "ProtectProc":values["ProtectProc"],
+          "ProcSubset":values["ProcSubset"],
+          "RestrictNamespaces":values["RestrictNamespaces"],
+          "PrivateMounts":values["PrivateMounts"]
+        }
+        print("REA_SIGROK_SANDBOX_UNIT="+json.dumps(classified,sort_keys=True))
+        pid=prop("MainPID")
+        proc={}
+        if pid.isdecimal() and int(pid)>0:
+            r=subprocess.run(["sudo","-n","cat",f"/proc/{pid}/status"],
+                  capture_output=True,text=True,timeout=14,check=False)
+            for line in r.stdout.splitlines():
+                if line.startswith(("Seccomp:","NoNewPrivs:","Seccomp_filters:")):
+                    k,v=line.split(":",1)
+                    proc[k]=v.strip()
+        print("REA_SIGROK_SANDBOX_PROC="+json.dumps(proc,sort_keys=True))
+        def testdir(path):
+            return subprocess.run(["sudo","-n","test","-d",path],
+                    capture_output=True,timeout=9,check=False).returncode==0
+        paths={"host_usb_dir":testdir("/dev/bus/usb")}
+        if pid.isdecimal() and int(pid)>0:
+            paths.update({
+              "service_usb_dir":testdir(f"/proc/{pid}/root/dev/bus/usb"),
+              "service_usb_sysfs":testdir(f"/proc/{pid}/root/sys/bus/usb/devices"),
+              "service_dev_dir":testdir(f"/proc/{pid}/root/dev")
+            })
+        print("REA_SIGROK_SANDBOX_USB_PATHS="+json.dumps(paths,sort_keys=True))
+        print("REA_SIGROK_SANDBOX_STATUS=PASS_READ_ONLY_NO_CONFIG_CHANGES")
         return
     if data["action"] == "fixture_linux_glossary_sigrok_diag_20261023":
         # Only two fixed TShark catalogue queries and one bounded diagnostic.
