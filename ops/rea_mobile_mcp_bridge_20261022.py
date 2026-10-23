@@ -1871,7 +1871,8 @@ def main():
                 return
             module=("const {DatabaseSync}=require('node:sqlite');"+
                 "const db=new DatabaseSync(':memory:');"+
-                "const ok=typeof db.limits==='function';db.close();"+
+                "const ok=db.limits!==null&&typeof db.limits==='object'&&"+
+                "Number.isInteger(db.limits.sqlLength);db.close();"+
                 "if(!ok)process.exit(41);console.log('PASS_NATIVE_LIMITS')")
             check=subprocess.run([str(tempbin),"-e",module],capture_output=True,
                     text=True,timeout=25,check=False)
