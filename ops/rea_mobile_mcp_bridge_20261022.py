@@ -690,7 +690,6 @@ def main():
         # P38 fixed source-authored Go/Rust and read-only unknown-list conformance.
         # All images are synthetic replicas of the original REA public fixtures.
         import tempfile, struct, zlib
-        from pathlib import Path
         NAMES=("inspect_go_binary","inspect_rust_binary","list_unknowns")
         if len(tools)!=208 or any(n not in tool_by_name for n in NAMES):
             error("P38 MCP missing original tool descriptor")
