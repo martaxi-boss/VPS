@@ -532,7 +532,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_BIN3_BUILD_SERVICE_USER",
         "REA_BIN3_BUILD_TEMP_CLEANUP","REA_BIN3_BUILD_REA_PID_STABLE",
         "REA_BIN3_BUILD_DID_NOT_MODIFY_SYSTEM_PYTHON_RUST",
-        "REA_BINPREREQ_STATUS","REA_BINPREREQ_SIMULATED_ADDITIONS",
+        "REA_BINPREREQ_STATUS","REA_BINPREREQ_FULL_SIM_PLAN","REA_BINPREREQ_SIMULATED_ADDITIONS",
         "REA_BINPREREQ_SIM_DIAGNOSTIC","REA_BINPREREQ_REQUIRED_MISSING",
         "REA_BINPREREQ_INSTALL_EXIT","REA_BINPREREQ_INSTALL_DIAGNOSTIC",
         "REA_BINPREREQ_DPKG_STATUS","REA_BINPREREQ_PKG_CONFIG_AVAILABLE",
@@ -1730,11 +1730,14 @@ def main():
         if any(x.startswith(("Remv ","Purg ","Conflicts:")) for x in lines):
             print("REA_BINPREREQ_STATUS=BLOCKED_APT_REMOVALS")
             return
+        print("REA_BINPREREQ_FULL_SIM_PLAN="+json.dumps(
+            [row.split()[1] for row in lines if row.startswith("Inst ")],
+            sort_keys=True))
         install=[]
         allowed={"pkg-config","pkgconf-bin","pkgconf","libpkgconf3","libbz2-dev","liblzma-dev",
                  "libfontconfig-dev","libfontconfig1-dev","libfontconfig1","fontconfig-config",
                  "libfreetype-dev","libfreetype6-dev","libexpat1-dev","libpng-dev",
-                 "libbrotli-dev"}
+                 "libbrotli-dev","uuid-dev"}
         for line in lines:
             if not line.startswith("Inst "):
                 continue
