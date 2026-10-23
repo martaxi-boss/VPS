@@ -1158,15 +1158,94 @@
         "pending_individual_review": 190,
         "fully_certified_distinct": 0
       }
+    },
+    {
+      "phase_id": "LINUX-P17-BINWALK31-FIRMWARE-ORIGINAL-MCP-20261023",
+      "date_utc": "2026-10-23",
+      "status": "PINNED_BINWALK_3_1_0_BUILT_PERSISTENT_AND_ONE_NEW_ORIGINAL_REAL_MCP_FUNCTIONAL_PASS_SCOPED",
+      "original_engine_root": "/opt/rea-reversa/rea",
+      "original_source_repo": "martaxi-boss/Engenheira-reversa",
+      "original_mcp_catalog": 208,
+      "original_risk_classes": {
+        "read": 5,
+        "workspace": 120,
+        "sensitive": 83
+      },
+      "provider": {
+        "name": "Binwalk",
+        "version": "3.1.0",
+        "required_exact_original_source_commit": "4fdab3d464d97b68e0af9088df3f9e2e1545b21c",
+        "compiled_executable": "/opt/rea-reversa/providers/binwalk-3.1.0/bin/binwalk",
+        "compiled_executable_sha256": "077ededf7237777dc562ea3978230354c8302056dfa624d48c255498761d0c4e",
+        "original_upstream_source": "https://github.com/ReFirmLabs/binwalk",
+        "original_rea_contract": "rea/src/firmware/FirmwareRelease.ts",
+        "isolated_official_rustc_cargo_version": "1.85.1",
+        "build_run_id": 40006958918,
+        "service_activation_run_id": 40008096793,
+        "systemd_only_rea_dropin": "/etc/systemd/system/rea-reversa-mcp.service.d/97-rea-linux-binwalk31.conf",
+        "environment": "REA_BINWALK_COMMAND=/opt/rea-reversa/providers/binwalk-3.1.0/bin/binwalk",
+        "service_node24_22_1_preserved": true,
+        "other_provider_environment_preserved": true,
+        "source_unchanged": true,
+        "system_global_binwalk_preserved": "2.3.4+dfsg1-5",
+        "prerequisite_install_run_ids": [
+          40005438490,
+          40006181212
+        ],
+        "intentional_restart_scope": "ONLY_EXISTING_REA_SERVICE",
+        "failed_build_or_activation_evidence": [
+          40004652839,
+          40005660882,
+          40006375705,
+          40007428903
+        ],
+        "rollback_verified_run_id": 40007840475
+      },
+      "tool_tests": [
+        {
+          "name": "inspect_firmware_regions",
+          "status": "FUNCTIONAL_PASS_SCOPED",
+          "original_permanent_mcp_run_id": 40008229288,
+          "request_commit": "87aea58b5e64e4e6ec977ba138ea2a2b16fed52f",
+          "isError": false,
+          "response_sha256": "ecfce07de873e48619e756ee6db1277a3a1d5d47c6d06bfe29c4575f359e33f5",
+          "source_fixture": "Self-generated, owned Python USTAR tarfile + gzip payload prefixed at byte offset 64, per original REA scripts/fixtures/firmware/generate.py",
+          "observations": {
+            "matched_gzip_at_64": true,
+            "independently_matched_gzip_length": true,
+            "region_count": 1,
+            "engine_version": "3.1.0",
+            "signature_scan": true,
+            "artifact_digest_matches": true,
+            "original_mcp_isError_false": true,
+            "temporary_artifact_removed": true,
+            "original_rea_pid_unchanged": true
+          },
+          "scope": "One small deterministic synthetic gzip-in-firmware image; does not certify arbitrary firmware, Binwalk coverage, extraction, malware, performance or resource limits"
+        }
+      ],
+      "controls": {
+        "original_engine_source_unchanged": true,
+        "no_new_skill_plugin_mcp": true,
+        "sensitive_owner_signature_requirement_unchanged": true,
+        "existing_github_actions_ssh_transport": true,
+        "no_other_projects_modified": true,
+        "original_systemd_isolation_unchanged": true
+      },
+      "cumulative": {
+        "functional_pass_scoped_distinct": 19,
+        "pending_individual_review": 189,
+        "fully_certified_distinct": 0
+      }
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 18,
-    "awaiting_canonical_individual_review": 190,
+    "functional_pass_scoped_distinct": 19,
+    "awaiting_canonical_individual_review": 189,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 11,
+    "workspace_newly_passed_distinct": 12,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3
   },
@@ -1198,7 +1277,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P16-PWNTOOLS-ELF-ORIGINAL-MCP-20261023",
+  "latest_phase": "LINUX-P17-BINWALK31-FIRMWARE-ORIGINAL-MCP-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -1375,13 +1454,16 @@
       39978357233,
       39980837721,
       39981259095,
-      39983162092
+      39983162092,
+      40006958918,
+      40008096793,
+      40008229288
     ],
     "core_mcp_208_declared": true,
     "original_service_identity": "rea-reversa",
     "active_providers": [
       "GNU GDB",
-      "GNU Binwalk",
+      "Binwalk 3.1.0 original REA-only (system Binwalk untouched)",
       "Rizin 0.9.1",
       "Unblob 26.6.4"
     ],
@@ -1495,6 +1577,17 @@
       "no_compilers_required": true,
       "source_cleaned": true,
       "service_pid_stable": true
+    },
+    "binwalk31": {
+      "status": "PASS_EXACT_UPSTREAM_PROVIDER_ORIGINAL_MCP_ONE_TOOL_SCOPED",
+      "source_commit": "4fdab3d464d97b68e0af9088df3f9e2e1545b21c",
+      "bin_sha256": "077ededf7237777dc562ea3978230354c8302056dfa624d48c255498761d0c4e",
+      "build_run_id": 40006958918,
+      "activation_run_id": 40008096793,
+      "tool_run_id": 40008229288,
+      "tool": "inspect_firmware_regions",
+      "isError": false,
+      "tool_scope_limit": "One small deterministic synthetic gzip-in-firmware image; does not certify arbitrary firmware, Binwalk coverage, extraction, malware, performance or resource limits"
     }
   }
 }
