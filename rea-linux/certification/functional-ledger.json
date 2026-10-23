@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_12_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_13_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -2444,6 +2444,92 @@
         "stable_bridge_blob_SHA": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
         "post_cleanup_catalog_to_verify": true
       }
+    },
+    {
+      "phase_id": "LINUX-P33-RECONSTRUCTION-COVERAGE-ORIGINAL-MCP-CERTIFICATION-20261023",
+      "date_utc": "2026-10-23",
+      "tool": "evaluate_reconstruction_coverage",
+      "tool_status": "FULLY_CERTIFIED",
+      "risk": "read",
+      "status": "FULLY_CERTIFIED_ORIGINAL_PERMANENT_MCP_FAIL_CLOSED_COVERAGE_PROFILE",
+      "certification_scope": "Original permanent REA Linux MCP evaluates inline fully authenticated synthetic 5-Evidence coverage graph, generated via existing original REA source/tsx and caller-supplied current verifier timestamp; verifies ready, unknown due to stale/ambiguous/owner incompatibility, failed, partial package proof, and safe invalid graph and tampered Evidence rejection.",
+      "previous_positive": {
+        "permanent_mcp_phase": "LINUX-P03-READ5-20261023",
+        "original_run_id": 39950220193,
+        "result": "original in-memory MCP test ready, partial, unknown and fail-closed source-owned fixture",
+        "isolated_original_source_phase": "LINUX-P06-READ5-ISOLATED-MCP-CONTRACTS-20261023",
+        "isolated_run_id": 39969213976
+      },
+      "closure": {
+        "first_original_run_id": 40029650585,
+        "first_commit": "ee69157c75d27b8412f3b69484211f19a9e39c81",
+        "original_mcp_catalog": 208,
+        "baseline_source_generated_by": "original staged REA repository src/domain/reconstructionCoverage.fixture.ts through existing tsx dependency, no additional server",
+        "valid_canonical_Evidence_records": 5,
+        "initial_positive_cases": [
+          "complete_authenticated_boundary_status_ready",
+          "missing_clean_install_proof_status_partial",
+          "explicit_verifier_fail_status_failed",
+          "expired_observation_status_unknown",
+          "ambiguous_conflicting_verifier_results_status_unknown"
+        ],
+        "initial_invalid_cases": [
+          "empty_boundary_id",
+          "unknown_boundary_id",
+          "missing_coverage_argument",
+          "unexpected_execute_arg"
+        ],
+        "initial_oracle_correction": {
+          "owner_missing_expected_partial": "Original MCP returns unknown because both owner-missing and verifier-result-incompatible are present: expected fail-closed, not partial.",
+          "surface_missing_expected_partial": "Graph rejected before evaluation because claim references missing surface: correct.",
+          "claim_missing_expected_partial": "Graph rejected before evaluation because verifier references missing claim: correct.",
+          "tampered_Evidence_false": "First sorted record already had the intended authority; mutation was a no-op. Diagnostic explicitly flipped authority to a different valid value."
+        },
+        "targeted_original_run_id": 40029858500,
+        "targeted_commit": "17ae1f2e0f0a9cb0f35aae084b253ee64cad7ffe",
+        "targeted_assertions": {
+          "missing_owner_mcp_success": true,
+          "missing_owner_status": "unknown",
+          "reason_codes": [
+            "owner-missing",
+            "verifier-result-incompatible"
+          ],
+          "inconsistent_surface_graph_original_mcp_isError": true,
+          "inconsistent_claim_graph_original_mcp_isError": true,
+          "actual_tampered_semantic_field_mcp_isError": true,
+          "staged_original_source_unmodified": true,
+          "persistent_mcp_daemon_pid_unchanged": true
+        },
+        "corrected_functional_passes": "6/6",
+        "corrected_invalid_graph_and_schema_rejections": "7/7",
+        "original_tool_success_isError_not_true": true,
+        "failures_isError_true": true,
+        "initial_result_digest": "fc38da647a15d7736cef6e55699cb7564612e4b62bbbf07d2ee34d3cc73a4837",
+        "targeted_result_digest": "3008967043515a40d0b15edad1b4c36d8be9ffff46233de76105a71176bb8d15"
+      },
+      "constraints": {
+        "no_original_source_modification": true,
+        "no_other_projects_touched": true,
+        "no_new_MCP_or_coordinator": true,
+        "no_provider_installs": true,
+        "no_service_restart": true,
+        "no_unsigned_sensitive_calls": true,
+        "ephemeral_read_only_fixture_generator_unmodified": true
+      },
+      "limitations": [
+        "Profile covers a 5-Evidence synthetic local original-source canonical fixture against the live permanent REA MCP; not arbitrary real-world reconstruction completeness or all reference graph sizes.",
+        "No privileged observation, real historical reference/production data, huge bundles, fault injection or cancellation under stress.",
+        "A ready result is an evaluation of supplied authenticated inline coverage, not proof that a production app is reconstructed.",
+        "Additional concrete closures/unknown revisions and real-world authority boundaries remain separate qualification."
+      ],
+      "hygiene": {
+        "spent_requests_to_remove": [
+          "rea-linux/requests/reconstruction-coverage-closure-20261023.json",
+          "rea-linux/requests/coverage-targeted-diagnostic-20261023.json"
+        ],
+        "restore_stable_bridge_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+        "final_catalog_smoke_pending": true
+      }
     }
   ],
   "active_scope_counts": {
@@ -2455,10 +2541,10 @@
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 12,
-    "scoped_positive_not_fully_certified_distinct": 10,
+    "fully_certified_distinct": 13,
+    "scoped_positive_not_fully_certified_distinct": 9,
     "not_functionally_positive_distinct": 186,
-    "remaining_full_certification_distinct": 196
+    "remaining_full_certification_distinct": 195
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -2488,7 +2574,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P32-EVIDENCE-BUNDLE-PERMANENT-MCP-READ-CERTIFICATION-20261023",
+  "latest_phase": "LINUX-P33-RECONSTRUCTION-COVERAGE-ORIGINAL-MCP-CERTIFICATION-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -2953,6 +3039,18 @@
       ],
       "evidence_digest": "df7d7687aa3a620b1ada884b9feb9193f496a53007d5a2c3bcfacf6e97c70be8",
       "phase_id": "LINUX-P32-EVIDENCE-BUNDLE-PERMANENT-MCP-READ-CERTIFICATION-20261023"
+    },
+    "evaluate_reconstruction_coverage": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Original permanent Linux MCP with canonical 5 Evidence source-generated inline coverage: ready/partial/failed/unknown branch, owner ambiguity, expired verifier, invalid links and tampered evidence rejection",
+      "run_ids": [
+        39950220193,
+        39969213976,
+        40029650585,
+        40029858500
+      ],
+      "evidence_digest": "3008967043515a40d0b15edad1b4c36d8be9ffff46233de76105a71176bb8d15",
+      "phase_id": "LINUX-P33-RECONSTRUCTION-COVERAGE-ORIGINAL-MCP-CERTIFICATION-20261023"
     }
   }
 }

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_12_FULLY_CERTIFIED_CONTRACTS_AND_22_SCOPED_POSITIVES",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_13_FULLY_CERTIFIED_CONTRACTS_AND_22_SCOPED_POSITIVES",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -515,22 +515,21 @@
       "original_service_unmodified": true
     },
     "latest_contract_certification": {
-      "phase_id": "LINUX-P32-EVIDENCE-BUNDLE-PERMANENT-MCP-READ-CERTIFICATION-20261023",
+      "phase_id": "LINUX-P33-RECONSTRUCTION-COVERAGE-ORIGINAL-MCP-CERTIFICATION-20261023",
       "original_mcp_catalog": 208,
-      "fully_certified_distinct": 12,
+      "fully_certified_distinct": 13,
       "existing_scoped_positive_distinct": 22,
-      "still_pending_full_distinct": 196,
-      "read_certified_count": 1,
-      "source": "Real permanent original Linux REA MCP get_evidence_bundle, existing 82 retained Evidence records",
+      "still_pending_full_distinct": 195,
+      "source": "Real permanent original REA Linux MCP evaluator using authenticated 5-record fixture from original REA TypeScript source",
       "runs": [
         39950220193,
-        39950507161,
         39969213976,
-        40029183139
+        40029650585,
+        40029858500
       ],
+      "original_engine_unchanged": true,
       "original_service_unchanged": true,
-      "original_engine_source_unchanged": true,
-      "previous_fully_certified_contracts_unchanged": 11
+      "previous_fully_certified_contracts_unchanged": 12
     }
   },
   "final_hygiene_verified": {
