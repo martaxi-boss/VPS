@@ -8,7 +8,7 @@ A ligação existente `ChatGPT -> GitHub Actions -> SSH -> VPS Linux -> MCP em 1
 
 Cada uma das 208 ferramentas tem um contrato funcional próprio. Para aprovar uma ferramenta, registar: nome MCP e schema real, finalidade, alvo controlado guardado no Linux, resultado de `tools/call` (incluindo `isError`), comparação com resultado esperado, SHA-256 quando aplicável, invariância da entrada, limpeza da sessão/ficheiros, dependências e limitações, commit e ID da execução Actions.
 
-Estados permitidos: `NOT_REVIEWED`, `FUNCTIONAL_PASS_SCOPED`, `FULLY_CERTIFIED`, `PROVIDER_UNAVAILABLE`, `FAILED`, `AUTHORIZATION_REQUIRED`. Não confundir sucesso do transporte com correção funcional. Não aprovar uma ferramenta sem resultado demonstrado. Testes negativos são necessários antes da certificação completa.
+Estados permitidos: `NOT_REVIEWED`, `FUNCTIONAL_PASS_SCOPED`, `FULLY_CERTIFIED`, `PROVIDER_UNAVAILABLE`, `FAILED`, `AUTHORIZATION_REQUIRED`, `NEGATIVE_PATH_CONFIRMED_POSITIVE_PENDING`, `POSITIVE_PATH_BLOCKED_VALID_SESSION`. Não confundir sucesso do transporte com correção funcional. Não aprovar uma ferramenta sem resultado demonstrado. Testes negativos são necessários antes da certificação completa.
 
 ## Continuação em fases
 
@@ -41,3 +41,16 @@ O ficheiro `functional-ledger.json` é o registo ativo. Evidências de execuçõ
 - O nome histórico do ficheiro de workflow `.github/workflows/rea-android-bridge-20261022.yml` e os ficheiros `rea_mobile_*` continuam transitoriamente como *dependências técnicas da ponte existente*. Não são outra instalação nem alvo de testes. Apagar sem migrar todas as referências quebraria a ligação.
 - O registo canónico antigo foi retirado do ramo ativo; commits e artefactos históricos são retidos para proveniência.
 - Não apagar serviços em produção, sessões, chaves do proprietário, repositórios de outros projetos nem testes já confirmados.
+
+## Grupo 1 — as cinco ferramentas de leitura
+
+- Apenas as cinco ferramentas com classe MCP `read` foram chamadas; nove invocações reais, três workflows.
+- [Run 39950220193](https://github.com/martaxi-boss/VPS/actions/runs/39950220193) — 5 chamadas, todas `isError != true`. Lista de unknowns vazia filtrada/paginada; resumo com 13 evidências; avaliação de reconstrução devolveu `partial` com 3 razões corretas.
+- [Run 39950507161](https://github.com/martaxi-boss/VPS/actions/runs/39950507161) — 3 chamadas. Filtro de Evidence encontrou 3 registos, filtro inexistente 0; `verify_unknown_resolution` recusou corretamente um identificador inexistente, com `isError=true`.
+- [Run 39950720098](https://github.com/martaxi-boss/VPS/actions/runs/39950720098) — 1 chamada `gdb_session_status` com identificador UUID de exemplo; devolveu `isError=true`, categoria `invalid_input`. Sem sessão GDB própria válida, a via positiva permanece pendente.
+- Os três pedidos foram verificados com RSA-OAEP, AES-GCM e SHA-256 de pedido e resultado; nenhum resultado foi aceite apenas por o Actions estar verde.
+- **Aprovação funcional limitada**: `list_unknowns`, `get_evidence_bundle`, `evaluate_reconstruction_coverage` (3/5).
+- **Teste negativo correto, prova positiva pendente**: `verify_unknown_resolution` (1/5).
+- **Via positiva bloqueada sem sessão existente autorizada**: `gdb_session_status` (1/5). Não foi iniciado qualquer processo GDB.
+- Não inventar uma resolução nem criar sessões dinâmicas para aprovar artificialmente as duas ferramentas. A criação de pré-condições envolve outras classes de autorização e constitui uma fase separada.
+- O resultado e os hashes detalhados estão em `functional-ledger.json`, fase `LINUX-P03-READ5-20261023`.
