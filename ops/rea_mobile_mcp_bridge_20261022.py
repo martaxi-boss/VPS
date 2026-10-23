@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_objdump_certification"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -217,6 +217,15 @@ def encrypt_result(raw_path, request_path, envelope_path):
     request = validate(json.loads(request_raw))
     private = None
     allowed_markers = {
+        "REA_CERT_OBJDUMP_STATUS",
+        "REA_CERT_OBJDUMP_POSITIVE",
+        "REA_CERT_OBJDUMP_NEGATIVE",
+        "REA_CERT_OBJDUMP_SCHEMA",
+        "REA_CERT_OBJDUMP_PROVIDER",
+        "REA_CERT_OBJDUMP_INPUT",
+        "REA_CERT_OBJDUMP_CLEANUP",
+        "REA_CERT_OBJDUMP_DAEMON",
+        "REA_CERT_OBJDUMP_RESULTS_SHA256",
         "REA_MOBILE_LOOPBACK_MCP", "REA_MOBILE_MCP_TOOL_COUNT",
         "REA_MOBILE_READONLY_HINT_COUNT", "REA_MOBILE_STATIC_INSPECT_COUNT",
         "REA_MOBILE_SAFE_QUERY_COUNT", "REA_MOBILE_SAFE_CALLABLE_COUNT",
@@ -2676,6 +2685,171 @@ def main():
                 except (OSError, RuntimeError, ValueError):
                     print("REA_FIXTURE_CLEANUP=FAIL")
                     raise
+        return
+    if data["action"] == "fixture_linux_objdump_certification":
+        # Complete the missing GNU objdump facets on owned fixed C/ELF fixtures.
+        # Existing file_headers, section_headers, disassemble are already proved.
+        # No arbitrary caller paths or commands; no execution of compiled target.
+        import tempfile
+        import shutil
+        import stat
+        tool = "inspect_with_objdump"
+        if tool not in tool_by_name:
+            error("Original GNU objdump MCP contract absent")
+        gcc = shutil.which("gcc")
+        if not gcc:
+            print("REA_CERT_OBJDUMP_STATUS=BLOCKED_NO_GCC")
+            return
+        unit = "rea-reversa-mcp.service"
+        def service_pid():
+            pr = subprocess.run(
+                ["systemctl", "show", unit, "-p", "MainPID", "--value"],
+                capture_output=True, text=True, timeout=10, check=False)
+            return pr.stdout.strip() if pr.returncode == 0 else ""
+        pid_before = service_pid()
+        records = []
+        source_hashes = {}
+        inputs_unchanged = False
+        cleanup = False
+        def call(args, number):
+            _, response = request_mcp(
+                {"jsonrpc": "2.0", "id": number, "method": "tools/call",
+                 "params": {"name": tool, "arguments": args}},
+                session, protocol, timeout=95)
+            result = response.get("result")
+            success = "error" not in response and isinstance(result, dict) and (
+                result.get("isError") is not True)
+            return success, result if isinstance(result, dict) else {}, response.get("error")
+        try:
+            with tempfile.TemporaryDirectory(
+                prefix="rea-objdump-cert-", dir="/dev/shm"
+            ) as directory:
+                root = Path(directory)
+                root.chmod(0o755)
+                source = root / "fixture.c"
+                binary = root / "fixture.elf"
+                corrupt = root / "invalid.bin"
+                missing = root / "does-not-exist.elf"
+                source.write_text(
+                    "volatile int rea_fixture_value = 17;\\n"
+                    "__attribute__((noinline)) int rea_fixture_fn(int x) {\\n"
+                    " return x + rea_fixture_value; }\\n"
+                    "int main(void) { return rea_fixture_fn(5); }\\n",
+                    encoding="utf-8")
+                source.chmod(0o644)
+                compile = subprocess.run(
+                    [gcc, "-g", "-O0", "-fno-pie", "-no-pie",
+                     "-o", str(binary), str(source)],
+                    capture_output=True, text=True, timeout=55, check=False)
+                if compile.returncode != 0 or not binary.is_file() or (
+                    binary.read_bytes()[:4] != b"\\x7fELF"):
+                    print("REA_CERT_OBJDUMP_STATUS=BLOCKED_FIXTURE_COMPILE")
+                    return
+                binary.chmod(0o644)
+                corrupt.write_bytes(b"REA-controlled-invalid-objdump-fixture\\n")
+                corrupt.chmod(0o644)
+                source_hashes = {
+                    p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+                    for p in (source, binary, corrupt)
+                }
+                positives = (
+                    ("architectures", {"operation": "architectures"}, "elf64"),
+                    ("symbols", {"operation": "symbols",
+                                 "path": str(binary), "follow_debug_links": False},
+                      "rea_fixture_fn"),
+                    ("relocations", {"operation": "relocations",
+                                     "path": str(binary), "follow_debug_links": False},
+                      "elf64"),
+                    ("dwarf", {"operation": "dwarf",
+                               "path": str(binary), "follow_debug_links": False},
+                      "dw_tag_compile_unit"),
+                    ("disassemble_all", {"operation": "disassemble_all",
+                                        "path": str(binary), "follow_debug_links": False},
+                      "rea_fixture_fn"),
+                    ("disassemble_symbol", {"operation": "disassemble",
+                                          "path": str(binary), "symbol": "rea_fixture_fn",
+                                          "follow_debug_links": False},
+                      "rea_fixture_fn"),
+                    ("dwarf_follow_links", {"operation": "dwarf",
+                                           "path": str(binary), "follow_debug_links": True},
+                      "dw_tag_compile_unit"),
+                )
+                valid = []
+                for index, (case, arguments, expected) in enumerate(positives, 810):
+                    secure.validate_arguments(tool_by_name[tool], arguments)
+                    accepted, result, issue = call(arguments, index)
+                    structured = result.get("structuredContent")
+                    normalized = structured.get("normalized_result", structured) if isinstance(structured, dict) else None
+                    wire = json.dumps(normalized, sort_keys=True, ensure_ascii=True).lower()
+                    recognized = expected in wire
+                    okay = accepted and recognized
+                    valid.append(okay)
+                    records.append({"case": case, "kind": "positive",
+                        "isError": result.get("isError") is True,
+                        "protocol_error": issue is not None,
+                        "oracle_match": recognized, "pass": okay,
+                        "mcp_result_sha256": hashlib.sha256(
+                            json.dumps(result, sort_keys=True).encode()).hexdigest()})
+                negatives = (
+                    ("non_executable_text", {"operation": "file_headers",
+                      "path": str(corrupt), "follow_debug_links": False}),
+                    ("missing_file", {"operation": "file_headers",
+                      "path": str(missing), "follow_debug_links": False}),
+                )
+                denied = []
+                for index, (case, arguments) in enumerate(negatives, 830):
+                    secure.validate_arguments(tool_by_name[tool], arguments)
+                    accepted, result, issue = call(arguments, index)
+                    rejected = (not accepted) and (
+                        result.get("isError") is True or issue is not None)
+                    denied.append(rejected)
+                    records.append({"case": case, "kind": "negative",
+                        "isError": result.get("isError") is True,
+                        "protocol_error": issue is not None,
+                        "pass": rejected,
+                        "mcp_result_sha256": hashlib.sha256(
+                            json.dumps(result, sort_keys=True).encode()).hexdigest()})
+                invalid_schemas = (
+                    {"operation": "architectures", "path": str(binary)},
+                    {"operation": "disassemble", "path": str(binary), "symbol": ""},
+                )
+                schema_rejections = []
+                for arguments in invalid_schemas:
+                    try:
+                        secure.validate_arguments(tool_by_name[tool], arguments)
+                        rejected = False
+                    except secure.SecureBridgeError:
+                        rejected = True
+                    schema_rejections.append(rejected)
+                inputs_unchanged = all(
+                    hashlib.sha256((root / name).read_bytes()).hexdigest() == digest
+                    for name, digest in source_hashes.items())
+            cleanup = not root.exists()
+            print("REA_CERT_OBJDUMP_POSITIVE=" + str(sum(valid)) +
+                  "/" + str(len(valid)))
+            print("REA_CERT_OBJDUMP_NEGATIVE=" + str(sum(denied)) +
+                  "/" + str(len(denied)))
+            print("REA_CERT_OBJDUMP_SCHEMA=" + str(sum(schema_rejections)) +
+                  "/" + str(len(schema_rejections)))
+            print("REA_CERT_OBJDUMP_INPUT=" +
+                  ("PASS" if inputs_unchanged else "FAIL"))
+            print("REA_CERT_OBJDUMP_CLEANUP=" +
+                  ("PASS" if cleanup else "FAIL"))
+            pid_after = service_pid()
+            stable = pid_before.isdecimal() and pid_before == pid_after
+            print("REA_CERT_OBJDUMP_DAEMON=" + ("PASS" if stable else "FAIL"))
+            print("REA_CERT_OBJDUMP_PROVIDER=REAL_LINUX_GNU_OBJDUMP_MCP")
+            digest = hashlib.sha256(json.dumps(records,
+                sort_keys=True, ensure_ascii=True).encode()).hexdigest()
+            print("REA_CERT_OBJDUMP_RESULTS_SHA256=" + digest)
+            success = all(valid) and all(denied) and all(schema_rejections) and (
+                inputs_unchanged and cleanup and stable)
+            print("REA_CERT_OBJDUMP_STATUS=" + (
+                "PASS_ALL_CONTRACT_FACETS_AND_NEGATIVES" if success
+                else "INCOMPLETE_KEEP_SCOPED"))
+        except Exception as exc:
+            print("REA_CERT_OBJDUMP_STATUS=FAILED_" + type(exc).__name__)
+            raise
         return
     if data["action"] == "fixture_linux_objdump":
         # Source-owned, fixed Linux fixture on the original local REA MCP.
