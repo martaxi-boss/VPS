@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -427,7 +427,16 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SERVICE_DOCTOR_EXIT",
         "REA_SERVICE_DOCTOR_HEALTH",
         "REA_SERVICE_DOCTOR_PROVIDERS",
-        "REA_SERVICE_DOCTOR_BINARY_CHECK"
+        "REA_SERVICE_DOCTOR_BINARY_CHECK",
+        "REA_RIZIN_STATUS",
+        "REA_RIZIN_ALREADY_PRESENT",
+        "REA_RIZIN_VERSION_EXIT",
+        "REA_RIZIN_ARCHIVE_BYTES",
+        "REA_RIZIN_ARCHIVE_SHA256",
+        "REA_RIZIN_BINARIES",
+        "REA_RIZIN_VERIFIED_EXIT",
+        "REA_RIZIN_INSTALLED",
+        "REA_RIZIN_VERSION"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -1482,6 +1491,104 @@ def main():
                   json.dumps(safe_statuses(val),sort_keys=True)[:9000])
         print("REA_DOCTOR_LINUX_STATUS=" +
               ("PASS_READ_ONLY" if proc.returncode==0 else "DOCTOR_FOUND_READINESS_ISSUES"))
+        return
+    if data["action"] == "fixture_linux_rizin_persistent":
+        # Official checksum-pinned Rizin Linux static binary, under existing
+        # REA prefix. No apt changes, systemd reloads or other projects.
+        import urllib.request
+        import shutil
+        import tempfile
+        import tarfile
+        import platform
+        import os as operating_system
+        if platform.system()!="Linux" or platform.machine()!="x86_64":
+            error("Unsupported host for pinned Rizin x86_64 asset")
+        final=Path("/opt/rea-reversa/providers/rizin-v0.9.1")
+        asset="https://github.com/rizinorg/rizin/releases/download/v0.9.1/rizin-v0.9.1-static-x86_64.tar.xz"
+        expected="9102249a9f0b6319c5334a2e5cf8d9cc3f2035e1d3def027c41f6a90f647e8cf"
+        if final.exists():
+            q=final/"bin/rizin"
+            print("REA_RIZIN_ALREADY_PRESENT="+str(q.is_file()).lower())
+            if q.is_file():
+                version=subprocess.run([str(q),"-v"],capture_output=True,
+                    text=True,timeout=18,check=False)
+                print("REA_RIZIN_VERSION_EXIT="+str(version.returncode))
+            print("REA_RIZIN_STATUS=EXISTING_NO_OVERWRITE")
+            return
+        base=Path.home()/".local/share/rea-chatgpt-trial/artifacts"
+        base.mkdir(parents=True,mode=0o700,exist_ok=True)
+        if base.is_symlink():
+            error("Unsafe vendor staging path")
+        names={"rizin","rz-bin","rz-asm","rz-diff","rz-find",
+               "rz-hash","rz-pm","rz-run"}
+        with tempfile.TemporaryDirectory(dir=str(base),prefix="rizin-release-") as td:
+            p=Path(td);archive=p/"release.tar.xz"
+            sha=hashlib.sha256()
+            received=0
+            req=urllib.request.Request(asset,headers={"User-Agent":"REA-Linux-provider-certification/1"})
+            with urllib.request.urlopen(req,timeout=85) as source:
+                with archive.open("xb") as out:
+                    while True:
+                        data=source.read(256*1024)
+                        if not data:
+                            break
+                        received+=len(data)
+                        if received>155*1024*1024:
+                            error("Rizin official asset exceeds size cap")
+                        out.write(data);sha.update(data)
+            print("REA_RIZIN_ARCHIVE_BYTES="+str(received))
+            print("REA_RIZIN_ARCHIVE_SHA256="+sha.hexdigest())
+            if sha.hexdigest()!=expected:
+                error("Official Rizin checksum validation failed")
+            stage=p/"bin";stage.mkdir(mode=0o700)
+            extracted=[]
+            with tarfile.open(archive,"r:xz") as pkg:
+                for member in pkg:
+                    parts=Path(member.name).parts
+                    if (".." in parts or len(parts)<2 or
+                        parts[-1] not in names or not member.isfile() or
+                        "bin" not in parts[:-1]):
+                        continue
+                    if member.size>160*1024*1024:
+                        error("Pinned Rizin archive contains oversized executable")
+                    source=pkg.extractfile(member)
+                    if source is None or parts[-1] in extracted:
+                        error("Unexpected Rizin archive member")
+                    target=stage/parts[-1]
+                    with target.open("xb") as dest:
+                        shutil.copyfileobj(source,dest,length=256*1024)
+                    target.chmod(0o755)
+                    extracted.append(parts[-1])
+            print("REA_RIZIN_BINARIES="+json.dumps(sorted(extracted)))
+            if "rizin" not in extracted:
+                print("REA_RIZIN_STATUS=UNRECOGNIZED_ARCHIVE_LAYOUT")
+                return
+            check=subprocess.run([str(stage/"rizin"),"-v"],
+                 capture_output=True,text=True,timeout=22,check=False)
+            print("REA_RIZIN_VERIFIED_EXIT="+str(check.returncode))
+            if check.returncode!=0:
+                print("REA_RIZIN_STATUS=UNRUNNABLE_PINNED_BINARY")
+                return
+            # Only deploy verified executables beneath REA's dedicated prefix.
+            for folder in ("/opt/rea-reversa/providers",str(final),str(final/"bin")):
+                mk=subprocess.run(["sudo","-n","install","-d","-m","0755",
+                    "-o","root","-g","root",folder],capture_output=True,
+                    text=True,timeout=12,check=False)
+                if mk.returncode!=0:
+                    error("Cannot install in original REA provider-only directory")
+            for name in extracted:
+                copy=subprocess.run(["sudo","-n","install","-m","0755",
+                    "-o","root","-g","root",str(stage/name),str(final/"bin"/name)],
+                    capture_output=True,text=True,timeout=25,check=False)
+                if copy.returncode!=0:
+                    error("Rizin binary install failed")
+            installed=subprocess.run([str(final/"bin/rizin"),"-v"],
+                    capture_output=True,text=True,timeout=15,check=False)
+            print("REA_RIZIN_INSTALLED="+str(installed.returncode==0).lower())
+            print("REA_RIZIN_VERSION="+
+                  (installed.stdout or installed.stderr).splitlines()[0][:110])
+            print("REA_RIZIN_STATUS="+(
+                "PASS_PINNED_PERSISTENT" if installed.returncode==0 else "INCOMPLETE"))
         return
     if data["action"] == "fixture_linux_service_runtime_doctor":
         # Run original REA doctor under the actual systemd service identity
