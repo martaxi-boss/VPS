@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_local_provider_triage", "fixture_linux_sigrok_preflight", "fixture_linux_sigrok_activate", "fixture_linux_sigrok_live_mcp"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_local_provider_triage", "fixture_linux_sigrok_preflight", "fixture_linux_sigrok_activate", "fixture_linux_sigrok_live_mcp", "fixture_linux_sigrok_failure_doctor"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -244,6 +244,9 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SIGROK_MCP_ASSERTIONS", "REA_SIGROK_MCP_FAIL_CLASS",
         "REA_SIGROK_MCP_CLEANUP", "REA_SIGROK_MCP_NO_SERVICE_RESTART",
         "REA_SIGROK_MCP_TOTAL",
+        "REA_SIGROK_DX", "REA_SIGROK_DX_CATEGORIES",
+        "REA_SIGROK_DX_NATIVE_RESULT", "REA_SIGROK_DX_CLI_RESULT",
+        "REA_SIGROK_DX_CONFIG_PRESENT", "REA_SIGROK_DX_STATUS",
         "REA_MOBILE_DESCRIBE_TOOL", "REA_MOBILE_TOOL_DESCRIPTOR_B64",
         "REA_MOBILE_TOOL_SCHEMA_SUMMARY", "REA_MOBILE_TOOL_DESCRIPTOR_SHA256",
         "REA_MOBILE_TOOL_DESCRIPTOR_BYTES", "REA_MOBILE_TOOL_DESCRIPTOR_TRUNCATED",
@@ -2062,6 +2065,88 @@ def main():
             print("REA_PCONFIG_PROVIDER_"+name.upper()+"="+(
                 "PASS" if test.returncode==0 else "NOT_ACCESSIBLE"))
         print("REA_PCONFIG_STATUS=PASS_READ_ONLY")
+        return
+    if data["action"] == "fixture_linux_sigrok_failure_doctor":
+        # No production writes; no raw error content enters public Actions.
+        import shutil
+        unit="rea-reversa-mcp.service"
+        servicepid=subprocess.run(["systemctl","show",unit,"-p","MainPID","--value"],
+                     capture_output=True,text=True,timeout=10,check=False).stdout.strip()
+        process=subprocess.run(["sudo","-n","cat",f"/proc/{servicepid}/environ"],
+               capture_output=True,timeout=15,check=False) if (
+               servicepid.isdecimal() and int(servicepid)>0) else None
+        selection={}
+        if process is not None and process.returncode==0:
+            for part in process.stdout.split(bytes([0])):
+                if b"=" in part:
+                    key,value=part.split(b"=",1)
+                    if key in (b"PATH",b"HOME",b"REA_SIGROK_COMMAND",
+                               b"REA_SIGROK_PRLIMIT_COMMAND",b"XDG_CACHE_HOME"):
+                        try: selection[key.decode("ascii")]=value.decode("utf-8")
+                        except UnicodeDecodeError: pass
+        keys=set(selection)
+        print("REA_SIGROK_DX_CONFIG_PRESENT="+str(
+               selection.get("REA_SIGROK_COMMAND")=="/usr/bin/sigrok-cli").lower())
+        candidates={
+            "absolute_config_required":"Supply absolute REA_SIGROK_COMMAND",
+            "version_mismatch":"Expected sigrok-cli 0.7.2",
+            "binary_absent":"ENOENT",
+            "file_access_denied":"EACCES",
+            "permission_denied":"EPERM",
+            "resource_limiter":"prlimit",
+            "owned_workspace":"workspace",
+            "process_failure":"process",
+            "decoder_catalog_missing":"decoder catalog heading",
+            "decoder_unavailable":"unknown decoder",
+            "configuration":"configuration",
+            "rejected_external_input":"invalid_input",
+            "sigrok_backend":"sigrok",
+            "no_such_file":"no such file",
+            "not_found":"not-found",
+            "read_limit":"limit",
+            "no_home":"HOME"
+        }
+        for index, arguments in enumerate(
+             ({"query":"uart","limit":10}, {"decoder":"uart","query":"baud","limit":10}),start=960):
+            name="inspect_signal_decoders"
+            secure.validate_arguments(tool_by_name[name],arguments)
+            _,reply=request_mcp({"jsonrpc":"2.0","id":index,"method":"tools/call",
+                  "params":{"name":name,"arguments":arguments}},session,protocol,timeout=85)
+            result=reply.get("result") or {}
+            error=result.get("isError") is True or "error" in reply
+            raw=json.dumps(reply,ensure_ascii=True)
+            present=[label for label,term in candidates.items() if term.lower() in raw.lower()]
+            print("REA_SIGROK_DX="+("catalog" if index==960 else "help")+":"+(
+                  "ERROR" if error else "OK"))
+            print("REA_SIGROK_DX_CATEGORIES="+json.dumps(present))
+        env={key:selection[key] for key in
+             ("HOME","PATH","REA_SIGROK_COMMAND","REA_SIGROK_PRLIMIT_COMMAND",
+             "XDG_CACHE_HOME") if key in selection}
+        def invoke(args,timeout):
+            return subprocess.run(["sudo","-n","-u","rea-reversa","env",*[
+                    key+"="+val for key,val in env.items()],*args],
+                    capture_output=True,text=True,timeout=timeout,check=False)
+        native=invoke(["/usr/bin/sigrok-cli","--dont-scan","--list-supported"],25)
+        print("REA_SIGROK_DX_NATIVE_RESULT="+json.dumps({
+            "exit_code":native.returncode,
+            "catalog_header":"Supported protocol decoders:" in native.stdout,
+            "uart_in_catalog":"uart " in native.stdout.lower(),
+            "output_nonempty":bool(native.stdout),
+            "stderr_present":bool(native.stderr.strip())
+        },sort_keys=True))
+        node=shutil.which("node") or "/usr/bin/node"
+        cli="/opt/rea-reversa/rea/scripts/rea.mjs"
+        if Path(cli).is_file():
+            run=invoke([node,cli,"inspect-signal-decoders",
+                         "--query","uart","--format","json"],75)
+            print("REA_SIGROK_DX_CLI_RESULT="+json.dumps({
+               "exit_code":run.returncode,
+               "output_json":run.stdout.lstrip().startswith("{"),
+               "output_nonempty":bool(run.stdout),
+               "stderr_present":bool(run.stderr.strip())
+            },sort_keys=True))
+        else: print("REA_SIGROK_DX_CLI_RESULT=ORIGINAL_CLI_MISSING")
+        print("REA_SIGROK_DX_STATUS=PASS_READ_ONLY_CATEGORIZED")
         return
     if data["action"] == "fixture_linux_sigrok_live_mcp":
         # Source-owned 9600-baud 8N1 UART frame: genuine Linux sigrok
