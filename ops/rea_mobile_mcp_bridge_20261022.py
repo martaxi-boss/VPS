@@ -1856,7 +1856,7 @@ def main():
         u32(gob,128,1);u32(gob,132,6)
         u64(gob,136,0);u64(gob,144,0x10000)
         u64(gob,160,4096);u64(gob,168,4096)
-        sh=b"\\x00.shstrtab\\x00.go.buildinfo\\x00"
+        sh=b"\x00.shstrtab\x00.go.buildinfo\x00"
         gob[768:768+len(sh)]=sh
         u32(gob,320,1);u32(gob,324,3)
         u64(gob,344,768);u64(gob,352,len(sh))
@@ -1864,12 +1864,12 @@ def main():
         u64(gob,400,0x10000+1024);u64(gob,408,1024)
         u64(gob,416,2048)
         go_ver=b"go1.26.0"
-        mtext=(b"path\\texample.com/tool/cmd/tool\\n"
-               b"mod\\texample.com/tool\\t(devel)\\t\\n"
-               b"dep\\texample.com/dependency\\tv1.2.3\\th1:sample\\n"
-               b"=>\\t../dependency\\t\\t\\n"
-               b"build\\t-compiler=gc\\n"
-               b"build\\tGOOS=linux\\n")
+        mtext=(b"path\texample.com/tool/cmd/tool\n"
+               b"mod\texample.com/tool\t(devel)\t\n"
+               b"dep\texample.com/dependency\tv1.2.3\th1:sample\n"
+               b"=>\t../dependency\t\t\n"
+               b"build\t-compiler=gc\n"
+               b"build\tGOOS=linux\n")
         mbytes=(bytes.fromhex("3077af0c9274080241e1c107e6d618e6")
                 +mtext+bytes.fromhex("f932433186182072008242104116d8f2"))
         gob[1024:1038]=bytes.fromhex("ff20476f206275696c64696e663a")
@@ -1888,7 +1888,7 @@ def main():
         u32(rus,128,1);u32(rus,132,6)
         u64(rus,144,0x400000)
         u64(rus,160,4096);u64(rus,168,4096)
-        namestr=b"\\x00.shstrtab\\x00.dep-v0\\x00.rodata\\x00"
+        namestr=b"\x00.shstrtab\x00.dep-v0\x00.rodata\x00"
         rus[768:768+len(namestr)]=namestr
         u32(rus,320,1);u32(rus,324,3)
         u64(rus,344,768);u64(rus,352,len(namestr))
