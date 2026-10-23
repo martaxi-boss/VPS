@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_8_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_9_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -2108,6 +2108,92 @@
         "experimental_bridge_to_restore_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
         "final_catalog_smoke_required": true
       }
+    },
+    {
+      "phase_id": "LINUX-P29-PWNTOOLS-ELF-BINARY-LAYOUT-FULL-CERTIFICATION-20261023",
+      "date_utc": "2026-10-23",
+      "status": "FULLY_CERTIFIED_LINUX_X64_PWNTOOLS_THREE_ELF_OBJECT_TYPES",
+      "tool": "inspect_binary_layout",
+      "tool_status": "FULLY_CERTIFIED",
+      "scope": "Original permanent REA MCP Linux x64 Node 24, pinned pwntools 4.15.0/pyelftools 0.33/Unicorn 2.1.2: read-only static ELF64 x86-64 little-endian ET_REL/ET_EXEC/ET_DYN with correct file/section/program header identity, symbols, ELF linked relocation targets, linkage, static mitigations, summary Evidence and error/schema rejection paths.",
+      "reused_prior_positive": {
+        "run_id": 40003312811,
+        "commit": "f5b5e3c925dba78ac254592451c0a44839530f11",
+        "fixture": "Existing owned /usr/bin/true source copy in /dev/shm; evidence/sha and service unchanged.",
+        "result_sha256": "ad7dc650a0c03acb766e2503e5e646fbe3aff5082fe55d6d1a38e8a2d0960d8f"
+      },
+      "closure": {
+        "runner_syntax_preflight_failed_run_id": 40026519577,
+        "runner_syntax_error_corrected_before_running_actual_MCP_fixture": true,
+        "run_id": 40026611060,
+        "commit": "b96e303762a7329fad888eed1e4e910a6421cb64",
+        "original_mcp_catalog": 208,
+        "synthetically_compiled_read_only_sources": [
+          "ET_REL",
+          "ET_EXEC",
+          "ET_DYN"
+        ],
+        "positive_cases_3_of_3": [
+          "ET_REL",
+          "ET_EXEC",
+          "ET_DYN"
+        ],
+        "independent_GNU_readelf_ELF64_arch_and_type_3_of_3": true,
+        "independent_Python_ELF64_file_section_header_offsets_identity_3_of_3": true,
+        "independent_Python_ELF64_program_header_offsets_identity_3_of_3": true,
+        "symbols_and_relocation_reference_semantics_3_of_3": true,
+        "unresolved_external_symbol_ET_REL": true,
+        "dynamic_GLIBC_needs_sanity_true": true,
+        "static_mitigation_inference": true,
+        "entrypoint_ET_REL_not_applicable": true,
+        "entrypoint_linked_address_ET_EXEC_DYN": true,
+        "linkage_maps_and_runtime_base_unknown_are_not_presented_as_facts": true,
+        "summary_parent_evidence_and_counts_match_full": true,
+        "tool_valid_cases_isError_false": true,
+        "original_mcp_negative_rejections_5_of_5": [
+          "bad_ELF_magic",
+          "ELF64_wrong_architecture",
+          "truncated_ELF",
+          "over_32MiB_file",
+          "missing_file"
+        ],
+        "bridge_and_MCP_schema_rejections_4_of_4": [
+          "invalid_detail",
+          "missing_path",
+          "path_wrong_type",
+          "unexpected_execute_flag"
+        ],
+        "input_SHA256_unchanged": true,
+        "temp_fixture_and_sources_cleanup": "PASS",
+        "original_service_pid_stable": "PASS",
+        "results_sha256": "50e2ee64f36ed619b8b4778f7c9441a37cf01120ac4d2aa4824b159b6d2a5541"
+      },
+      "controls": {
+        "no_artifact_run": true,
+        "no_debugger_attach": true,
+        "no_custom_binary_execution": true,
+        "no_new_engine_or_server": true,
+        "no_skill_plugin_created": true,
+        "original_engine_source_unchanged": true,
+        "no_service_restart": true,
+        "no_sensitive_authorization_bypass": true,
+        "no_global_compiler_packages_changed": true,
+        "no_unrelated_services_or_projects_changed": true
+      },
+      "limitations": [
+        "Certification is bounded to Linux x64 and pinned providers, three locally GCC-built ELF64 file classes and the previous owned system ELF fixture; does not cover every malformed ELF variant or all toolchain layouts.",
+        "Static disassembly/layout and symbol provenance are not proof of runtime loads or dynamic loader addresses.",
+        "Packed RELR relocation logic covered by schema/invariants where encountered, not independently exercised with a forced non-empty GNU RELR table; resource stress and cancellation boundaries remain outside exercised profile.",
+        "CLI/host portability beyond this Linux VPS profile is not certified."
+      ],
+      "final_hygiene": {
+        "stable_bridge_to_restore_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+        "requests_to_remove": [
+          "rea-linux/requests/layout-full-contract-20261023.json",
+          "rea-linux/requests/layout-full-contract-rerun-20261023.json"
+        ],
+        "final_catalog_recheck_pending": true
+      }
     }
   ],
   "active_scope_counts": {
@@ -2119,10 +2205,10 @@
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 8,
-    "scoped_positive_not_fully_certified_distinct": 14,
+    "fully_certified_distinct": 9,
+    "scoped_positive_not_fully_certified_distinct": 13,
     "not_functionally_positive_distinct": 186,
-    "remaining_full_certification_distinct": 200
+    "remaining_full_certification_distinct": 199
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -2152,7 +2238,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P28-SQLITE-ORIGINAL-MCP-CONTRACT-CERTIFICATION-20261023",
+  "latest_phase": "LINUX-P29-PWNTOOLS-ELF-BINARY-LAYOUT-FULL-CERTIFICATION-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -2575,6 +2661,16 @@
       ],
       "evidence_digest": "73d284651e36794c631a3ad76511513c5f4a470ecaf857be30151793e4788880",
       "phase_id": "LINUX-P28-SQLITE-ORIGINAL-MCP-CONTRACT-CERTIFICATION-20261023"
+    },
+    "inspect_binary_layout": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Permanent Linux x64 original REA MCP pinned pwntools4.15.0 ELF64 x86-64 ET_REL ET_EXEC ET_DYN: native ELF header cross-check, relocation, static links, summary, negative boundaries",
+      "run_ids": [
+        40003312811,
+        40026611060
+      ],
+      "evidence_digest": "50e2ee64f36ed619b8b4778f7c9441a37cf01120ac4d2aa4824b159b6d2a5541",
+      "phase_id": "LINUX-P29-PWNTOOLS-ELF-BINARY-LAYOUT-FULL-CERTIFICATION-20261023"
     }
   }
 }

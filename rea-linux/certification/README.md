@@ -132,3 +132,13 @@ As cinco ferramentas pertencem ao grupo `read`, mas têm pré-condições difere
 - **Limitação residual da ponte:** o validador de pré-admissão JSON Schema existente **não rejeitou antecipadamente estas duas entradas condicionais**, embora o MCP original as tenha recusado. Permanecem como divergência documentada a endurecer, sem declarar falsamente 7/7 na validação da ponte; não houve execução não autorizada.
 - Nada foi instalado nem reiniciado. A certificação é de inspeção estática, não de corrupção de WAL arbitrária, recuperação de dados eliminados, transações de produção ou concorrência extrema.
 - Total acumulado: **8 certificadas**, **14 com prova funcional limitada**, **186 sem prova funcional positiva** do catálogo de 208. Três pedidos consumidos apagados e bridge original reposto; validar o catálogo pós-limpeza.
+
+## P29 — certificação de `inspect_binary_layout` (23/10/2026)
+
+- **`FULLY_CERTIFIED`** para o perfil Linux x64 com **pwntools 4.15.0 / pyelftools 0.33 / Unicorn 2.1.2** no motor original REA. Não se aplica automaticamente a outras arquiteturas.
+- A prova de um ELF64 real [Actions #40003312811](https://github.com/martaxi-boss/VPS/actions/runs/40003312811) foi reutilizada, sem repetir o teste anterior.
+- [Actions #40026611060](https://github.com/martaxi-boss/VPS/actions/runs/40026611060): novos ficheiros ELF64 autocriados com GCC **não executados**, cobrindo **3/3 tipos ET_REL/ET_EXEC/ET_DYN**. Estruturas de secções, segmentos, endereço de entrada, símbolos e relocalizações confrontadas de forma independente com os cabeçalhos reais dos ficheiros e `readelf`. Ligação estática e mitigação declaradas como inferências; base de carregamento e endereços runtime conservados como desconhecidos.
+- `detail:summary` passou e manteve referências e contagens da Evidence. **5/5 erros funcionais rejeitados** pelo MCP: assinatura ELF inválida, arquitetura incompatível, truncamento, ficheiro acima de 32 MiB e caminho inexistente. **4/4 rejeições por schema** confirmadas no MCP e no validador da ponte.
+- Fonte intacta, scripts e objetos temporários eliminados, serviço permanente sem reiniciar. A primeira execução [#40026519577](https://github.com/martaxi-boss/VPS/actions/runs/40026519577) parou na validação prévia do runner por sintaxe num ensaio; corrigida antes de contactar o MCP.
+- Limites da certificação: não provaram todas as entradas ELF malformadas, stress/cancelamento ou uma tabela RELR não vazia; a interpretação de runtime permanece explicitamente desconhecida.
+- **Contagem canónica:** 9 totalmente certificadas no respetivo perfil, 13 positivas limitadas, 186 sem prova funcional positiva, num catálogo real de 208. Dois pedidos consumidos retirados e bridge estável restaurada; verificar catálogo pós-limpeza.

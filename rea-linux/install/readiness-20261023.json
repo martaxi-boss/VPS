@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_8_FULLY_CERTIFIED_CONTRACTS_AND_22_SCOPED_POSITIVES",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_9_FULLY_CERTIFIED_CONTRACTS_AND_22_SCOPED_POSITIVES",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -515,20 +515,28 @@
       "original_service_unmodified": true
     },
     "latest_contract_certification": {
-      "phase_id": "LINUX-P28-SQLITE-ORIGINAL-MCP-CONTRACT-CERTIFICATION-20261023",
+      "phase_id": "LINUX-P29-PWNTOOLS-ELF-BINARY-LAYOUT-FULL-CERTIFICATION-20261023",
       "original_mcp_catalog": 208,
-      "fully_certified_distinct": 8,
+      "fully_certified_distinct": 9,
       "existing_scoped_positive_distinct": 22,
-      "still_pending_full_distinct": 200,
-      "source": "Original permanent REA Linux Node24 MCP SQLite offline DB/WAL and separate conditional-invalid-input probe",
+      "still_pending_full_distinct": 199,
+      "source": "Original REA permanent MCP Linux x64 pwntools 4.15.0, pyelftools 0.33 and Unicorn 2.1.2",
       "runs": [
-        39998433389,
-        40025654776,
-        40025818607
+        40003312811,
+        40026611060
       ],
       "original_service_unchanged": true,
-      "original_engine_unchanged": true,
-      "existing_bridge_jsonschema_dependent_field_gap": "Original MCP rejects 2 conditional invalid inputs; bridge prevalidation does not"
+      "original_engine_source_unchanged": true,
+      "previous_certifications_preserved": [
+        "inspect_with_objdump",
+        "inspect_pcap_client",
+        "inspect_apktool_client",
+        "inspect_packet_fields",
+        "inspect_evm_interface",
+        "inspect_wasm_artifact",
+        "compare_wasm_interfaces",
+        "inspect_sqlite_database"
+      ]
     }
   },
   "final_hygiene_verified": {
