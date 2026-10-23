@@ -2156,8 +2156,8 @@ def main():
             if sudo("systemctl","daemon-reload",timeout=30).returncode != 0:
                 print("REA_SIGROK_ACTIVATION_STATUS=FAILED_DAEMON_RELOAD")
                 return
-            if str(target) not in property("DropInPaths") or
-                    "REA_SIGROK_COMMAND=/usr/bin/sigrok-cli" not in property("Environment"):
+            if (str(target) not in property("DropInPaths") or
+                    "REA_SIGROK_COMMAND=/usr/bin/sigrok-cli" not in property("Environment")):
                 print("REA_SIGROK_ACTIVATION_STATUS=FAILED_SYSTEMD_KEY_CHECK")
                 return
             if sudo("systemctl","restart",unit,timeout=105).returncode != 0:
@@ -2177,8 +2177,8 @@ def main():
                 time.sleep(1)
             print("REA_SIGROK_ACTIVATION_MCP_COUNT="+str(mcp_count))
             newpid=property("MainPID")
-            process=sudo("cat",f"/proc/{newpid}/environ",timeout=12) if
-                newpid.isdecimal() and int(newpid)>0 else None
+            process=(sudo("cat",f"/proc/{newpid}/environ",timeout=12)
+                     if newpid.isdecimal() and int(newpid)>0 else None)
             found=False
             if process is not None and process.returncode==0:
                 found=(b"REA_SIGROK_COMMAND=/usr/bin/sigrok-cli" in process.stdout.split(bytes([0])))
