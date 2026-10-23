@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -442,7 +442,21 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_UNBLOB_WHEEL_SHA256",
         "REA_UNBLOB_PIP_EXIT",
         "REA_UNBLOB_PIP_SHA256",
-        "REA_UNBLOB_EXEC_EXIT"
+        "REA_UNBLOB_EXEC_EXIT",
+        "REA_PCONFIG_SERVICE_USER_OK",
+        "REA_PCONFIG_SERVICE_PID_OK",
+        "REA_PCONFIG_DROPIN_PRESENT",
+        "REA_PCONFIG_ENVFILE_PRESENT",
+        "REA_PCONFIG_UNIT_CUSTOM",
+        "REA_PCONFIG_SERVICE_PATH_RIZIN",
+        "REA_PCONFIG_REA_BINWALK_COMMAND",
+        "REA_PCONFIG_REA_UNBLOB_COMMAND",
+        "REA_PCONFIG_REA_GDB_COMMAND",
+        "REA_PCONFIG_PROVIDER_GDB",
+        "REA_PCONFIG_PROVIDER_BINWALK",
+        "REA_PCONFIG_PROVIDER_RIZIN",
+        "REA_PCONFIG_PROVIDER_UNBLOB",
+        "REA_PCONFIG_STATUS"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -1705,6 +1719,58 @@ def main():
                   (installed.stdout or installed.stderr).splitlines()[0][:110])
             print("REA_RIZIN_STATUS="+(
                 "PASS_PINNED_PERSISTENT" if installed.returncode==0 else "INCOMPLETE"))
+        return
+    if data["action"] == "fixture_linux_service_config_preflight":
+        # Only original REA service, never disclose environment values.
+        unit="rea-reversa-mcp.service"
+        def prop(key):
+            p=subprocess.run(["systemctl","show",unit,"-p",key,"--value"],
+                capture_output=True,text=True,timeout=10,check=False)
+            return p.stdout.strip() if p.returncode==0 else ""
+        user=prop("User")
+        pid=prop("MainPID")
+        print("REA_PCONFIG_SERVICE_USER_OK="+str(user=="rea-reversa").lower())
+        print("REA_PCONFIG_SERVICE_PID_OK="+str(pid.isdecimal() and int(pid)>0).lower())
+        print("REA_PCONFIG_DROPIN_PRESENT="+str(bool(prop("DropInPaths"))).lower())
+        print("REA_PCONFIG_ENVFILE_PRESENT="+str(bool(prop("EnvironmentFiles"))).lower())
+        print("REA_PCONFIG_UNIT_CUSTOM="+str(
+            prop("FragmentPath").startswith("/etc/systemd/system/")).lower())
+        if user!="rea-reversa" or not pid.isdecimal() or int(pid)<=0:
+            print("REA_PCONFIG_STATUS=INVALID_SERVICE_IDENTITY")
+            return
+        run=subprocess.run(["sudo","-n","cat",f"/proc/{int(pid)}/environ"],
+            capture_output=True,timeout=12,check=False)
+        if run.returncode:
+            print("REA_PCONFIG_STATUS=UNREADABLE_SERVICE_ENV")
+            return
+        data={}
+        for entry in run.stdout.split(bytes([0])):
+            if b"=" in entry:
+                key,val=entry.split(b"=",1)
+                if key in (b"PATH",b"REA_BINWALK_COMMAND",b"REA_UNBLOB_COMMAND",
+                    b"REA_GDB_COMMAND",b"GHIDRA_INSTALL_DIR",
+                    b"REA_JADX_MCP_JAR",b"JAVA_HOME"):
+                    data[key.decode("ascii")]=val.decode("utf-8",errors="replace")
+        path=data.get("PATH","")
+        print("REA_PCONFIG_SERVICE_PATH_RIZIN="+str(
+             "/opt/rea-reversa/providers/rizin-v0.9.1/bin" in path.split(":")).lower())
+        for key in ("REA_BINWALK_COMMAND","REA_UNBLOB_COMMAND","REA_GDB_COMMAND"):
+            val=data.get(key,"")
+            print("REA_PCONFIG_"+key+"="+(
+                "EXECUTABLE" if val.startswith("/") and Path(val).is_file()
+                else "UNSET" if not val else "MISSING"))
+        checks={
+            "gdb":"/usr/bin/gdb",
+            "binwalk":"/usr/bin/binwalk",
+            "rizin":"/opt/rea-reversa/providers/rizin-v0.9.1/bin/rizin",
+            "unblob":"/opt/rea-reversa/providers/unblob-26.6.4/bin/unblob",
+        }
+        for name,executable in checks.items():
+            test=subprocess.run(["sudo","-n","-u",user,"test","-x",executable],
+                capture_output=True,timeout=10,check=False)
+            print("REA_PCONFIG_PROVIDER_"+name.upper()+"="+(
+                "PASS" if test.returncode==0 else "NOT_ACCESSIBLE"))
+        print("REA_PCONFIG_STATUS=PASS_READ_ONLY")
         return
     if data["action"] == "fixture_linux_service_runtime_doctor":
         # Run original REA doctor under the actual systemd service identity
