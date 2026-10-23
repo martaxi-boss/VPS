@@ -1718,7 +1718,7 @@ def main():
         if not original_pid.isdecimal() or int(original_pid)<1:
             print("REA_BINPREREQ_STATUS=BLOCKED_ORIGINAL_SERVICE")
             return
-        req=("pkg-config","libbz2-dev","liblzma-dev")
+        req=("pkg-config","libbz2-dev","liblzma-dev","libfontconfig-dev")
         apt=["/usr/bin/apt-get","-s","-o","Debug::NoLocking=1",
              "install","--no-install-recommends",*req]
         sim=subprocess.run(apt,capture_output=True,text=True,timeout=45,check=False)
@@ -1731,7 +1731,10 @@ def main():
             print("REA_BINPREREQ_STATUS=BLOCKED_APT_REMOVALS")
             return
         install=[]
-        allowed={"pkg-config","pkgconf-bin","pkgconf","libpkgconf3","libbz2-dev","liblzma-dev"}
+        allowed={"pkg-config","pkgconf-bin","pkgconf","libpkgconf3","libbz2-dev","liblzma-dev",
+                 "libfontconfig-dev","libfontconfig1-dev","libfontconfig1","fontconfig-config",
+                 "libfreetype-dev","libfreetype6-dev","libexpat1-dev","libpng-dev",
+                 "libbrotli-dev"}
         for line in lines:
             if not line.startswith("Inst "):
                 continue
