@@ -2916,7 +2916,7 @@ def main():
                 conn_wal.close()
                 conn_wal=None
             cleanup=not root.exists()
-            stable=pid_before.isdecimal() and pid()==pid_before
+            stable=before_pid.isdecimal() and pid()==before_pid
             print("REA_CERT_SQLITE_CASES="+json.dumps(cases,sort_keys=True))
             print("REA_CERT_SQLITE_WAL="+json.dumps(wal_cases,sort_keys=True))
             print("REA_CERT_SQLITE_NEGATIVES="+json.dumps(negatives,sort_keys=True))
