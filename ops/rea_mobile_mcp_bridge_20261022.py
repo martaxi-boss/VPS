@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_wabt_deploy_20261023", "fixture_linux_wabt_real_mcp_20261023", "fixture_linux_pwntools_deploy_20261023", "fixture_linux_pwntools_diagnose_20261023", "fixture_linux_pwntools_real_mcp_20261023", "fixture_linux_binwalk_build_readiness_20261023", "fixture_linux_rust_official_checksum_20261023", "fixture_linux_binwalk31_isolated_build_20261023", "fixture_linux_binwalk_prereqs_install_20261023", "fixture_linux_binwalk31_activate_20261023", "fixture_linux_binwalk31_firmware_mcp_20261023"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_wabt_deploy_20261023", "fixture_linux_wabt_real_mcp_20261023", "fixture_linux_pwntools_deploy_20261023", "fixture_linux_pwntools_diagnose_20261023", "fixture_linux_pwntools_real_mcp_20261023", "fixture_linux_binwalk_build_readiness_20261023", "fixture_linux_rust_official_checksum_20261023", "fixture_linux_binwalk31_isolated_build_20261023", "fixture_linux_binwalk_prereqs_install_20261023", "fixture_linux_binwalk31_activate_20261023", "fixture_linux_binwalk31_firmware_mcp_20261023", "fixture_linux_binwalk31_postrollback_audit_20261023"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -544,7 +544,14 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_BIN3_ACT_RESTART_SCOPE","REA_BIN3_ACT_ROLLBACK",
         "REA_FW_MCP_TOOL","REA_FW_MCP_ISERROR","REA_FW_MCP_RESPONSE_SHA256",
         "REA_FW_MCP_ASSERTIONS","REA_FW_MCP_REGION_COUNT","REA_FW_MCP_ERROR_KEYS",
-        "REA_FW_MCP_STATUS","REA_FW_MCP_TEMP_CLEANUP","REA_FW_MCP_PID_STABLE"
+        "REA_FW_MCP_STATUS","REA_FW_MCP_TEMP_CLEANUP","REA_FW_MCP_PID_STABLE",
+        "REA_BIN3_AUDIT_STATUS","REA_BIN3_AUDIT_ACTIVE","REA_BIN3_AUDIT_PID_EXE",
+        "REA_BIN3_AUDIT_EXPECTED_NODE24","REA_BIN3_AUDIT_UNIT_EXEC_NODE24",
+        "REA_BIN3_AUDIT_UNIT_EXEC_SYSTEM_NODE","REA_BIN3_AUDIT_NODE_DROPIN_PRESENT",
+        "REA_BIN3_AUDIT_NODE_DROPIN_LOADED","REA_BIN3_AUDIT_BINWALK_DROPIN_PRESENT",
+        "REA_BIN3_AUDIT_BINWALK_DROPIN_LOADED","REA_BIN3_AUDIT_PREVIOUS_BINWALK_VAR",
+        "REA_BIN3_AUDIT_STAGED_BINWALK_EXISTS","REA_BIN3_AUDIT_BINWALK_SHA256",
+        "REA_BIN3_AUDIT_MCP_COUNT"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -2237,6 +2244,47 @@ def main():
                    capture_output=True,text=True,timeout=12,check=False)
         print("REA_FW_MCP_PID_STABLE="+str(
               check_pid.stdout.strip()==first_pid).lower())
+        return
+    if data["action"] == "fixture_linux_binwalk31_postrollback_audit_20261023":
+        # Read-only diagnosis after fail-closed integration guard, strictly
+        # no changes to REA or any service, sources, or provider binaries.
+        unit="rea-reversa-mcp.service"
+        def prop(name):
+            p=subprocess.run(["systemctl","show",unit,"-p",name,"--value"],
+                capture_output=True,text=True,timeout=12,check=False)
+            return p.stdout.strip() if p.returncode==0 else ""
+        pid=prop("MainPID")
+        if not pid.isdecimal() or int(pid)<1:
+            print("REA_BIN3_AUDIT_STATUS=BLOCKED_NO_REA_PID")
+            return
+        node="/opt/rea-reversa/providers/node-v24.22.1/bin/node"
+        showpath=subprocess.run(["sudo","-n","readlink","-f","/proc/"+pid+"/exe"],
+            capture_output=True,text=True,timeout=12,check=False)
+        observed=showpath.stdout.strip() if showpath.returncode==0 else "UNAVAILABLE"
+        config=prop("ExecStart")
+        env=prop("Environment")
+        dropins=prop("DropInPaths")
+        dropin97=Path("/etc/systemd/system/rea-reversa-mcp.service.d/97-rea-linux-binwalk31.conf")
+        dropin95=Path("/etc/systemd/system/rea-reversa-mcp.service.d/95-rea-linux-node24.conf")
+        target=Path("/opt/rea-reversa/providers/binwalk-3.1.0/bin/binwalk")
+        print("REA_BIN3_AUDIT_ACTIVE="+str(prop("ActiveState")=="active").lower())
+        print("REA_BIN3_AUDIT_PID_EXE="+observed[:200])
+        print("REA_BIN3_AUDIT_EXPECTED_NODE24="+str(observed==node).lower())
+        print("REA_BIN3_AUDIT_UNIT_EXEC_NODE24="+str(node in config).lower())
+        print("REA_BIN3_AUDIT_UNIT_EXEC_SYSTEM_NODE="+str(
+            "/usr/bin/node" in config or "/bin/node" in config).lower())
+        print("REA_BIN3_AUDIT_NODE_DROPIN_PRESENT="+str(dropin95.is_file()).lower())
+        print("REA_BIN3_AUDIT_NODE_DROPIN_LOADED="+str(str(dropin95) in dropins).lower())
+        print("REA_BIN3_AUDIT_BINWALK_DROPIN_PRESENT="+str(dropin97.is_file()).lower())
+        print("REA_BIN3_AUDIT_BINWALK_DROPIN_LOADED="+str(str(dropin97) in dropins).lower())
+        print("REA_BIN3_AUDIT_PREVIOUS_BINWALK_VAR="+str(
+            "REA_BINWALK_COMMAND=/usr/bin/binwalk" in env).lower())
+        print("REA_BIN3_AUDIT_STAGED_BINWALK_EXISTS="+str(target.is_file()).lower())
+        if target.is_file():
+            print("REA_BIN3_AUDIT_BINWALK_SHA256="+hashlib.sha256(
+                target.read_bytes()).hexdigest())
+        print("REA_BIN3_AUDIT_MCP_COUNT="+str(len(tools)))
+        print("REA_BIN3_AUDIT_STATUS=PASS_READ_ONLY")
         return
     if data["action"] == "fixture_linux_read5_mcp_boundaries":
         # Run original REA real MCP tool methods against private in-memory
