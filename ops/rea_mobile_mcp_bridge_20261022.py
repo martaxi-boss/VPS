@@ -339,7 +339,10 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_DOCTOR_LINUX_EXIT",
         "REA_DOCTOR_LINUX_JSON_SHA256",
         "REA_DOCTOR_LINUX_KEYS",
-        "REA_DOCTOR_LINUX_SAFE_SUMMARY"
+        "REA_DOCTOR_LINUX_SAFE_SUMMARY",
+        "REA_DOCTOR_LINUX_CHECKS",
+        "REA_DOCTOR_LINUX_PROVIDERS",
+        "REA_DOCTOR_LINUX_HEALTH"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -1339,6 +1342,32 @@ def main():
         if isinstance(val,dict):
             print("REA_DOCTOR_LINUX_KEYS=" +
                   json.dumps(sorted(str(k) for k in val.keys())[:35]))
+            checks=val.get("checks")
+            if isinstance(checks,list):
+                summary=[{"name":str(z.get("name",""))[:90],
+                          "ok":z.get("ok") is True,
+                          "classification":str(z.get("classification","unknown"))[:45]}
+                         for z in checks[:40] if isinstance(z,dict)]
+                print("REA_DOCTOR_LINUX_CHECKS="+json.dumps(summary,separators=(",",":")))
+            providers=val.get("providerInspections")
+            if isinstance(providers,list):
+                summary=[]
+                for entry in providers[:20]:
+                    if not isinstance(entry,dict):
+                        continue
+                    summary.append({
+                        "id":str(entry.get("id",""))[:45],
+                        "configured":entry.get("configured") is True,
+                        "available":entry.get("available") is True,
+                        "checks":[{"name":str(c.get("name",""))[:60],
+                                   "ok":c.get("ok") is True,
+                                   "classification":str(c.get("classification",""))[:35]}
+                                  for c in entry.get("checks",[])[:12]
+                                  if isinstance(c,dict)]
+                    })
+                print("REA_DOCTOR_LINUX_PROVIDERS="+json.dumps(summary,separators=(",",":")))
+            print("REA_DOCTOR_LINUX_HEALTH="+json.dumps({
+                "healthy":val.get("healthy"),"environment_healthy":val.get("environment_healthy")}))
             def safe_statuses(v,depth=0):
                 if depth>3:
                     return "nested"
