@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_19_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_21_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -2948,6 +2948,168 @@
         "canonical_bridge_restored": true,
         "post_cleanup_208_schema_contract_check_required": true
       }
+    },
+    {
+      "phase_id": "LINUX-P38-GO-RUST-CERTIFICATION-UNKNOWN-LIVE-SCOPED-20261023",
+      "date_utc": "2026-10-23",
+      "status": "TWO_FULLY_CERTIFIED_LINUX_ORIGINAL_MCP_STATIC_BINARY_PROFILES_ONE_READ_SCOPED_WAITING_REAL_NONEMPTY_UNKNOWN",
+      "original_mcp_catalog": 208,
+      "source_fixture_references": [
+        "martaxi-boss/Engenheira-reversa/rea/tests/fixtures/go/image.ts",
+        "martaxi-boss/Engenheira-reversa/rea/tests/fixtures/rust/image.ts"
+      ],
+      "proof_runs": [
+        {
+          "run_id": 39999209081,
+          "kind": "reused prior original MCP P14 ELF64 Go and Rust positive"
+        },
+        {
+          "run_id": 40034574745,
+          "request_commit": "e2b3bcee4bf29bf370c34d6571364d1829028898",
+          "artifact_id": 12536033449,
+          "result_sha256": "ce6213322811405ec0def5db190e8c945b7424bcb0867d26c318631c397240c8",
+          "verified_RSA_OAEP_AES_GCM": true,
+          "request_sha256_matched": true,
+          "positive_go": "9/9",
+          "negative_go": "7/7",
+          "positive_rust": "5/6",
+          "negative_rust": "7/7",
+          "list_unknowns": "8/8",
+          "live_unknown_total": 0
+        },
+        {
+          "run_id": 40034778611,
+          "request_commit": "6487b0b2b2de11b6a0b4646b0f24b0c3efd15d13",
+          "artifact_id": 12537190092,
+          "result_sha256": "4580513ee39759d1a868c8da89a7dae960922ccb9deabc46bb1e3f1f8f89f52b",
+          "verified_RSA_OAEP_AES_GCM": true,
+          "request_sha256_matched": true,
+          "only_target": "rust-elf-no-metadata",
+          "positive_rust": "1/1",
+          "no_other_tools_retested": true
+        }
+      ],
+      "tools": [
+        {
+          "name": "inspect_go_binary",
+          "status": "FULLY_CERTIFIED",
+          "risk": "workspace",
+          "profile": "Permanent original Linux REA MCP static Go binary metadata from controlled source-derived synthetic ELF32/64 (LE/BE), PE32/64, thin Mach-O32/64, inline and historical pointer encodings, ELF sectionless and missing build-info (unknown), plus seven rejections.",
+          "reused_prior_scope": "P14 ELF64 simple inline positive (not repeated)",
+          "positive_count": 9,
+          "negative_count": 7,
+          "positive_cases": [
+            "elf32-inline-buildinfo",
+            "elf64-pointer-historical",
+            "elf64-big-endian",
+            "pe64-inline",
+            "pe32-pointer",
+            "thin-macho64-inline",
+            "thin-macho32-pointer",
+            "elf64-sectionless-inline",
+            "elf64-missing-build-info-null"
+          ],
+          "negative_cases": [
+            "corrupt-pe-signature",
+            "missing-path-argument",
+            "integer-path-argument",
+            "unsupported-execute-argument",
+            "nonexistent-file",
+            "directory-as-file",
+            "non-binary-file"
+          ],
+          "verifications": [
+            "Go compiler version go1.26.0",
+            "main module path example.com/tool/cmd/tool",
+            "dependency example.com/dependency v1.2.3",
+            "module and compiler raw bytes matched",
+            "input SHA256 and size matched",
+            "metadata source header offset and encoding matched",
+            "missing compiler metadata explicitly null",
+            "tool isError absent for all positives; true for all negatives"
+          ],
+          "limitations": [
+            "Only static controlled fixture format carrier and metadata version profile; no actual compiled Go application target and no source-function reconstruction, dynamic execution or completeness guarantee.",
+            "No boundary measurements at 256MiB/1MiB/8MiB resource cap nor adversarial overlapping ELF segment count."
+          ]
+        },
+        {
+          "name": "inspect_rust_binary",
+          "status": "FULLY_CERTIFIED",
+          "risk": "workspace",
+          "profile": "Permanent original Linux REA MCP static Rust binary metadata from controlled source-derived synthetic ELF64, PE64, thin Mach-O64, rustc commit inference present/absent, .dep-v0 JSON+zlib dependencies present/missing, plus seven rejections.",
+          "reused_prior_scope": "P14 ELF64 compressed .dep-v0 positive (not repeated)",
+          "positive_count": 6,
+          "negative_count": 7,
+          "positive_cases": [
+            "pe64-embedded-dep-v0-and-rustc",
+            "thin-macho64-dep-v0-and-rustc",
+            "elf64-dep-v0-no-rustc",
+            "pe64-missing-dep-v0-null-rustc-visible",
+            "thin-macho64-missing-dep-v0-null-rustc-visible",
+            "elf64-missing-dep-v0-with-rustc-visible"
+          ],
+          "negative_cases": [
+            "corrupt-dep-v0-compressed-payload",
+            "missing-path-argument",
+            "integer-path-argument",
+            "unsupported-execute-argument",
+            "nonexistent-file",
+            "directory-as-file",
+            "non-binary-file"
+          ],
+          "verifications": [
+            "two crates itoa 1.0.18 and root sample 0.1.0",
+            "dependency edge index from root to itoa",
+            "metadata format version 1",
+            "inferred 40hex rustc path hash or null",
+            "missing .dep-v0 exposed as null not empty inventory",
+            "input SHA256 and size matched",
+            "tool isError absent for accepted positives; true for seven negatives"
+          ],
+          "corrected_only_failed_fixture": "The first 'rust-elf-no-metadata' attempt used an ELF with no section name table and no rustc data and returned isError=true. It was not counted as a passing positive. Replaced with valid source-owned ELF with rustc read-only section but absent .dep-v0; single new test PASSED (#40034778611).",
+          "limitations": [
+            "Only static controlled ELF64, PE64 and thin Mach-O64 carriers and compressed JSON package shape; not actual third-party compiled binaries, arbitrary Rust metadata, enormous decompression or dependency-graph cycle/resource cap coverage.",
+            "rustc 40hex extracted hash is an inference from the bytes; no proof of actual compiler binary/toolchain identity."
+          ]
+        },
+        {
+          "name": "list_unknowns",
+          "status": "FUNCTIONAL_PASS_SCOPED",
+          "risk": "read",
+          "profile": "Permanent original MCP: total=0 on 2026-10-23; filters, offsets, negative schema refusals; source-owned prior original REA in-memory MCP seeded nonempty and pagination already evidenced in P06 (Actions #39969213976).",
+          "live_p38_test_count": 8,
+          "live_p38_pass_count": 8,
+          "live_total_unknowns": 0,
+          "previous_seeded_in_memory_run_id": 39969213976,
+          "blocking_limitation": "Nonempty list pagination and filtering were not observed on the permanent systemd MCP; the live original session had zero recorded unknown heads. Seeding an unknown in the shared long-lived BinarySession would alter persistent MCP runtime state and was not authorized. Do not mark as fully certified without an existing legitimate record."
+        }
+      ],
+      "integrity": {
+        "synthetic_input_sha256_unchanged": true,
+        "temporary_fixture_cleanup": "PASS",
+        "original_engine_checkout_unchanged": true,
+        "original_service_pid_stable": "PASS",
+        "no_target_execution": true,
+        "no_supplier_installation": true,
+        "no_production_record_mutation": true,
+        "no_service_restart": true,
+        "no_owner_signature_fabricated": true
+      },
+      "hygiene": {
+        "stable_bridge_restored_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+        "spent_requests_removed": [
+          "rea-linux/requests/go-rust-unknowns-p38-v2-20261023.json",
+          "rea-linux/requests/rust-absence-p38-fixed-20261023.json"
+        ],
+        "post_cleanup_208_catalog_schemas_required": true
+      },
+      "resulting_counts": {
+        "fully_certified": 21,
+        "scoped_positive_not_fully_certified": 1,
+        "no_positive_proof": 186,
+        "full_remaining": 187
+      }
     }
   ],
   "active_scope_counts": {
@@ -2959,10 +3121,10 @@
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 19,
-    "scoped_positive_not_fully_certified_distinct": 3,
+    "fully_certified_distinct": 21,
+    "scoped_positive_not_fully_certified_distinct": 1,
     "not_functionally_positive_distinct": 186,
-    "remaining_full_certification_distinct": 189
+    "remaining_full_certification_distinct": 187
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -2992,7 +3154,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P37-RECORDED-CORE-MCP-CERTIFICATION-20261023",
+  "latest_phase": "LINUX-P38-GO-RUST-CERTIFICATION-UNKNOWN-LIVE-SCOPED-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -3533,6 +3695,30 @@
       ],
       "phase_id": "LINUX-P37-RECORDED-CORE-MCP-CERTIFICATION-20261023",
       "evidence_digest": "12d6441d768ac0d940ed72e5dd875ec470c3a6ab4e7316791fbe9d82c4cd0262"
+    },
+    "inspect_go_binary": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Permanent original Linux REA MCP static Go binary metadata from controlled source-derived synthetic ELF32/64 (LE/BE), PE32/64, thin Mach-O32/64, inline and historical pointer encodings, ELF sectionless and missing build-info (unknown), plus seven rejections.",
+      "phase_id": "LINUX-P38-GO-RUST-CERTIFICATION-UNKNOWN-LIVE-SCOPED-20261023",
+      "run_ids": [
+        39999209081,
+        40034574745
+      ],
+      "evidence_digest": "ce6213322811405ec0def5db190e8c945b7424bcb0867d26c318631c397240c8"
+    },
+    "inspect_rust_binary": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Permanent original Linux REA MCP static Rust binary metadata from controlled source-derived synthetic ELF64, PE64, thin Mach-O64, rustc commit inference present/absent, .dep-v0 JSON+zlib dependencies present/missing, plus seven rejections.",
+      "phase_id": "LINUX-P38-GO-RUST-CERTIFICATION-UNKNOWN-LIVE-SCOPED-20261023",
+      "run_ids": [
+        39999209081,
+        40034574745,
+        40034778611
+      ],
+      "evidence_digests": [
+        "ce6213322811405ec0def5db190e8c945b7424bcb0867d26c318631c397240c8",
+        "4580513ee39759d1a868c8da89a7dae960922ccb9deabc46bb1e3f1f8f89f52b"
+      ]
     }
   }
 }
