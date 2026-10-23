@@ -469,6 +469,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_PACT_PID_REPLACED",
         "REA_PACT_PROC_ENV_READ",
         "REA_PACT_POST_SYSTEMD_ENV_KEYS",
+        "REA_PACT_MCP_ATTEMPTS",
         "REA_SDIAG_IDENTITY",
         "REA_SDIAG_TYPE",
         "REA_SDIAG_DROPIN",
@@ -1919,21 +1920,33 @@ def main():
                             "capabilities":{},
                             "clientInfo":{"name":"rea-linux-provider-activation",
                                           "version":"1"}}}
-            headers,info=request_mcp(init,timeout=25)
-            if "result" not in info:
-                print("REA_PACT_STATUS=FAILED_MCP_INIT")
-                return
-            active_session=headers.get("Mcp-Session-Id")
-            protocol=info["result"].get("protocolVersion")
-            request_mcp({"jsonrpc":"2.0","method":"notifications/initialized"},
-                        active_session,protocol,timeout=25)
-            _,data=request_mcp({"jsonrpc":"2.0","id":9402,"method":"tools/list",
-                                "params":{}},active_session,protocol,timeout=35)
-            advertised=data.get("result",{}).get("tools")
-            count=len(advertised) if isinstance(advertised,list) else 0
+            # systemd can report "active" before Node binds loopback.
+            # Retry fresh read-only MCP initialization until startup settles.
+            count=0
+            attempts=0
+            for i in range(1,21):
+                attempts=i
+                try:
+                    headers,info=request_mcp(init,timeout=12)
+                    if "result" not in info:
+                        raise RuntimeError("MCP initialize not ready")
+                    active_session=headers.get("Mcp-Session-Id")
+                    protocol=info["result"].get("protocolVersion")
+                    request_mcp({"jsonrpc":"2.0","method":"notifications/initialized"},
+                                active_session,protocol,timeout=12)
+                    _,data=request_mcp({"jsonrpc":"2.0","id":9402,"method":"tools/list",
+                                        "params":{}},active_session,protocol,timeout=15)
+                    advertised=data.get("result",{}).get("tools")
+                    count=len(advertised) if isinstance(advertised,list) else 0
+                    if count==208:
+                        break
+                except (OSError,RuntimeError,ValueError,urllib.error.URLError):
+                    pass
+                time.sleep(2)
+            print("REA_PACT_MCP_ATTEMPTS="+str(attempts))
             print("REA_PACT_MCP_TOOL_COUNT="+str(count))
             if count!=208:
-                print("REA_PACT_STATUS=FAILED_MCP_CONTRACT_COUNT")
+                print("REA_PACT_STATUS=FAILED_MCP_NOT_READY")
                 return
             verified=True
             print("REA_PACT_RESULT=PASS_PERSISTENT_4_PROVIDERS")
