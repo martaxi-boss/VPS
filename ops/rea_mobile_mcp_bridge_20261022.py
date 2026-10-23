@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_wabt_deploy_20261023", "fixture_linux_wabt_real_mcp_20261023", "fixture_linux_pwntools_deploy_20261023"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_wabt_deploy_20261023", "fixture_linux_wabt_real_mcp_20261023", "fixture_linux_pwntools_deploy_20261023", "fixture_linux_pwntools_diagnose_20261023"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -502,7 +502,14 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_WASM_MCP_ORIGINAL_PID_STABLE",
         "REA_PWN_DEP_STATUS","REA_PWN_DEP_VENV","REA_PWN_DEP_SERVICE_USER",
         "REA_PWN_DEP_ACTIVE_ENV","REA_PWN_DEP_ONLY_REA_RESTART",
-        "REA_PWN_DEP_ROLLBACK","REA_PWN_DEP_VERSION"
+        "REA_PWN_DEP_ROLLBACK","REA_PWN_DEP_VERSION",
+        "REA_PWN_DIAG_ACTIVE","REA_PWN_DIAG_EXE","REA_PWN_DIAG_NODE24",
+        "REA_PWN_DIAG_EXECSTART_ORIGINAL","REA_PWN_DIAG_ENV_WABT",
+        "REA_PWN_DIAG_ENV_NODE24","REA_PWN_DIAG_ENV_PWN","REA_PWN_DIAG_DROPIN",
+        "REA_PWN_DIAG_STAGING","REA_PWN_DIAG_PYTHON","REA_PWN_DIAG_IMPORT",
+        "REA_PWN_DIAG_BINWALK_EXISTS","REA_PWN_DIAG_PYTHON_SYS_EXISTS",
+        "REA_PWN_DIAG_BINWALK_PACKAGE","REA_PWN_DIAG_RUSTC","REA_PWN_DIAG_CARGO",
+        "REA_PWN_DIAG_MCP_TOOLS","REA_PWN_DIAG_STATUS"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -1441,6 +1448,57 @@ def main():
         finally:
             if tmp is not None:
                 Path(tmp).unlink(missing_ok=True)
+        return
+    if data["action"] == "fixture_linux_pwntools_diagnose_20261023":
+        # Read-only original unit, Node24, provider folder, and Binwalk
+        # compatibility. Never dump process env values or host secrets.
+        unit="rea-reversa-mcp.service"
+        import shutil
+        def cmd(*parts):
+            return subprocess.run(list(parts),capture_output=True,text=True,
+                timeout=18,check=False)
+        def show(key):
+            p=cmd("systemctl","show",unit,"-p",key,"--value")
+            return p.stdout.strip() if p.returncode==0 else ""
+        pid=show("MainPID")
+        exe=cmd("sudo","-n","readlink","-f","/proc/"+pid+"/exe") if pid.isdecimal() else None
+        path=exe.stdout.strip() if exe and exe.returncode==0 else "UNRESOLVED"
+        print("REA_PWN_DIAG_ACTIVE="+str(show("ActiveState")=="active").lower())
+        print("REA_PWN_DIAG_EXE="+path)
+        print("REA_PWN_DIAG_NODE24="+str(path==
+               "/opt/rea-reversa/providers/node-v24.22.1/bin/node").lower())
+        print("REA_PWN_DIAG_EXECSTART_ORIGINAL="+str(
+               "/opt/rea-reversa/rea/scripts/rea.mjs" in show("ExecStart")).lower())
+        environ=show("Environment")
+        print("REA_PWN_DIAG_ENV_WABT="+str("REA_WABT_BIN_DIRECTORY=" in environ).lower())
+        print("REA_PWN_DIAG_ENV_NODE24="+str("REA_WABT_BIN_DIRECTORY=" in environ).lower())
+        print("REA_PWN_DIAG_ENV_PWN="+str("REA_PWNTOOLS_PYTHON=" in environ).lower())
+        dropin=Path("/etc/systemd/system/rea-reversa-mcp.service.d/97-rea-linux-pwntools.conf")
+        print("REA_PWN_DIAG_DROPIN="+str(dropin.exists()).lower())
+        folder=Path("/opt/rea-reversa/providers/pwntools-4.15.0")
+        stage=Path("/opt/rea-reversa/providers/.pwntools-4.15.0-staging-20261023")
+        print("REA_PWN_DIAG_STAGING="+str(stage.exists()).lower())
+        python=folder/"bin/python"
+        print("REA_PWN_DIAG_PYTHON="+str(python.exists()).lower())
+        if python.exists():
+            src=(
+                "import importlib.metadata as m,pwnlib,elftools,unicorn;"
+                "print(';'.join(k+'='+m.version(k) for k in "
+                "('pwntools','pyelftools','unicorn')))"
+            )
+            p=cmd("sudo","-n","runuser","-u","rea-reversa","--",str(python),"-c",src)
+            print("REA_PWN_DIAG_IMPORT="+(p.stdout.strip() if p.returncode==0 else
+                  "FAIL_"+str(p.returncode)))
+        for command,label in (("/usr/bin/binwalk","REA_PWN_DIAG_BINWALK"),
+                              ("/usr/bin/python3","REA_PWN_DIAG_PYTHON_SYS")):
+            print(label+"_EXISTS="+str(Path(command).is_file()).lower())
+        p=cmd("dpkg-query","-W","-f="+"$"+"{Version}","binwalk")
+        print("REA_PWN_DIAG_BINWALK_PACKAGE="+(
+            p.stdout.strip() if p.returncode==0 else "UNKNOWN"))
+        print("REA_PWN_DIAG_RUSTC="+str(bool(shutil.which("rustc"))).lower())
+        print("REA_PWN_DIAG_CARGO="+str(bool(shutil.which("cargo"))).lower())
+        print("REA_PWN_DIAG_MCP_TOOLS="+str(len(tools)))
+        print("REA_PWN_DIAG_STATUS=PASS_READ_ONLY")
         return
     if data["action"] == "fixture_linux_read5_mcp_boundaries":
         # Run original REA real MCP tool methods against private in-memory
