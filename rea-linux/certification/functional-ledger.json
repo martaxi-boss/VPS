@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_22_FULLY_CERTIFIED_186_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_23_FULLY_CERTIFIED_185_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -3218,21 +3218,115 @@
         "lacking_positive_proof": 186,
         "pending_full_certification": 186
       }
+    },
+    {
+      "phase_id": "LINUX-P40-PE-RESOURCES-ORIGINAL-MCP-CERTIFICATION-20261024",
+      "date_utc": "2026-10-24",
+      "status": "FULLY_CERTIFIED_ORIGINAL_PERMANENT_LINUX_REA_MCP_PE_RESOURCE_STATIC_PROFILE",
+      "tool": "inspect_pe_resources",
+      "tool_status": "FULLY_CERTIFIED",
+      "risk": "workspace",
+      "certification_scope": "Original permanent Linux REA MCP static inspection of controlled source-derived PE32 and PE32+ resource directory trees; type/name/language ID vs UTF-16 string identity, 5 resource payload SHA/file offsets, 1 RT_GROUP_ICON with 2 linked image candidates, zero-length payload and absent resource directory; 12 invalid-schema, format, file and resource-budget refusal cases.",
+      "source_fixture": {
+        "original_repo": "martaxi-boss/Engenheira-reversa",
+        "original_fixture_path": "rea/src/native/pe/PeResources.fixture.ts",
+        "fixture_blob_sha": "d50136e2910224d0584d4ae5ca5e117a8dfcdba5",
+        "generation_method": "existing staged original REA fixture imported in existing Node 24 (type stripping), owned scratch files",
+        "no_extra_source_or_package_install": true
+      },
+      "closure": {
+        "actions_run_id": 40040666973,
+        "request_commit": "412e8b320b0e671cbe35b46c209fa2ba8659ca7c",
+        "encrypted_result_artifact_id": 12539057390,
+        "request_sha256": "07d3a2c049cf81a7a44ec8af14bd1bdd083a83e43f9a38692eb4d53fad29e774",
+        "evidence_result_sha256": "7be7fe0820ef83488b186498c985e8666de7707355697385a7921599d84398cc",
+        "cryptography": "RSA-OAEP-SHA256 + A256GCM",
+        "authenticated_decryption": true,
+        "authenticated_original_request_sha256": true,
+        "authenticated_vps_result_sha256": true,
+        "original_mcp_catalog": 208,
+        "mcp_positive_5_of_5": [
+          "pe32_resource_tree_5_payloads_icon_group",
+          "pe32_plus_resource_tree_5_payloads_icon_group",
+          "pe32_resource_tree_with_one_zero_payload",
+          "pe32_plus_resource_tree_with_one_zero_payload",
+          "pe32_no_resource_directory_yields_null_and_zero_resources"
+        ],
+        "mcp_negative_12_of_12": [
+          "required_path_missing",
+          "integer_path_argument",
+          "relative_path_rejected",
+          "unexpected_execute_flag",
+          "nonexistent_file",
+          "directory_instead_of_file",
+          "non_pe_bytes",
+          "invalid_dos_signature",
+          "corrupted_resource_directory_rva",
+          "invalid_raw_section_padding_mapping",
+          "max_file_bytes_64_refusal",
+          "max_entries_1_refusal"
+        ],
+        "no_protocol_errors": true,
+        "positive_isError_not_true": true,
+        "negative_isError_true": true,
+        "source_fixture_sha_verified": true,
+        "source_checkout_unchanged": true,
+        "original_daemon_pid_unchanged": true,
+        "fixture_input_digests_stable": true,
+        "temporary_fixture_cleanup": "PASS",
+        "no_target_execution": true,
+        "no_network": true,
+        "no_sensitive_unsigned_operations": true
+      },
+      "semantic_assertions": [
+        "Artifact sha256 and size match original generated PE fixture bytes on all five positives",
+        "PE32 and PE32+ format and 0x14c vs 0x8664 machine identity",
+        "Five type/name/language resource records, a UTF-16 named resource '7' distinct from numeric id 7",
+        "Resource payload offset/bytes in file bounds and sha256 independently recomputed from file byte ranges",
+        "RT_GROUP_ICON two candidates: resource id 1 selects both icon language entries and same language resource; missing resource id 99 has no candidates",
+        "Zero-sized icon resource matches empty SHA-256 and reported zero length",
+        "Resource absent yields directory null, resources [], icon_groups [] and complete scan of zero resources",
+        "All twelve invalid inputs fail within original tools/call with isError true"
+      ],
+      "limitations": [
+        "Certified profile is offline static synthetic PE32/PE32+ images produced by original REA test fixture, not arbitrary real-world PE resources, Windows DLLs or execution of target.",
+        "No scale test of 6476 entries or max 512 MiB files, fuzzed overlapping maps, compressed/obfuscated resource loaders or Windows runtime language fallback.",
+        "Static icon links are candidates, not proof of rendered icon or of exact loader fallback behavior."
+      ],
+      "safety": {
+        "no_production_service_changes": true,
+        "no_other_projects_touched": true,
+        "no_new_mcp_skill_plugin_codex_coordinator": true,
+        "no_binary_process_execution": true,
+        "no_original_source_changes": true,
+        "no_privileged_supplier_install": true
+      },
+      "hygiene": {
+        "spent_request_removed": "rea-linux/requests/pe-resources-p40-original-mcp-20261024.json",
+        "temporary_test_bridge_restored_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+        "post_cleanup_live_tool_schema_check_required": true
+      },
+      "cumulative_after_phase": {
+        "fully_certified": 23,
+        "remaining_full": 185,
+        "positive_partial": 0,
+        "original_tool_catalog": 208
+      }
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 22,
-    "awaiting_canonical_individual_review": 186,
+    "functional_pass_scoped_distinct": 23,
+    "awaiting_canonical_individual_review": 185,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 22,
+    "fully_certified_distinct": 23,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 186,
-    "remaining_full_certification_distinct": 186
+    "not_functionally_positive_distinct": 185,
+    "remaining_full_certification_distinct": 185
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -3262,7 +3356,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P39-LIST-UNKNOWNS-COMPOSITE-MCP-CERTIFICATION-20261023",
+  "latest_phase": "LINUX-P40-PE-RESOURCES-ORIGINAL-MCP-CERTIFICATION-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -3844,6 +3938,17 @@
       ],
       "explicit_unverified_case": "Nonempty pagination on the permanent systemd session was not observed (0 records at read); nonempty pagination was verified on the original MCP in-memory.",
       "no_fake_records_in_permanent_service": true
+    },
+    "inspect_pe_resources": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Original permanent Linux REA MCP static inspection of controlled source-derived PE32 and PE32+ resource directory trees; type/name/language ID vs UTF-16 string identity, 5 resource payload SHA/file offsets, 1 RT_GROUP_ICON with 2 linked image candidates, zero-length payload and absent resource directory; 12 invalid-schema, format, file and resource-budget refusal cases.",
+      "phase_id": "LINUX-P40-PE-RESOURCES-ORIGINAL-MCP-CERTIFICATION-20261024",
+      "run_ids": [
+        40040666973
+      ],
+      "evidence_digest": "7be7fe0820ef83488b186498c985e8666de7707355697385a7921599d84398cc",
+      "request_digest": "07d3a2c049cf81a7a44ec8af14bd1bdd083a83e43f9a38692eb4d53fad29e774",
+      "artifact_id": 12539057390
     }
   }
 }
