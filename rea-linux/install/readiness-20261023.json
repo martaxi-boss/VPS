@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_17_FULLY_CERTIFIED_CONTRACTS_AND_22_SCOPED_POSITIVES",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_18_FULLY_CERTIFIED_CONTRACTS_AND_22_SCOPED_POSITIVES",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -515,6 +515,24 @@
       "original_service_unmodified": true
     },
     "latest_contract_certification": {
+      "phase_id": "LINUX-P36-FIRMWARE-BINWALK31-ORIGINAL-MCP-CERTIFICATION-20261023",
+      "original_mcp_catalog": 208,
+      "fully_certified_distinct": 18,
+      "existing_scoped_positive_distinct": 22,
+      "positive_limited_distinct": 4,
+      "remaining_full_distinct": 190,
+      "source": "Permanent original Linux REA MCP signature scanning with pinned Binwalk 3.1.0, synthetic GZIP ZIP XZ and no signature plus nine controlled error cases",
+      "runs": [
+        40008229288,
+        40032203252
+      ],
+      "encrypted_result_digest": "0e118477b7af20f2f98350ec94d27ab82bcac11a2815d1eb29624f176ec46e0d",
+      "original_engine_unchanged": true,
+      "original_service_unchanged": true,
+      "previous_fully_certified_contracts_unchanged": 17,
+      "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+    },
+    "prior_contract_certification": {
       "phase_id": "LINUX-P35-JAVASCRIPT-APPLICATION-CONTRACT-CERTIFICATION-20261023",
       "original_mcp_catalog": 208,
       "fully_certified_distinct": 17,
@@ -531,25 +549,6 @@
       "previously_fully_certified_contracts_unchanged": 16,
       "authenticated_result_digest": "acbbdcc3dfd15b21200ba252fe78b70f80664a15bda0ce5f6e2754ba76cb3b8e",
       "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
-    },
-    "prior_contract_certification": {
-      "phase_id": "LINUX-P34-MANAGED-ORIGINAL-MCP-CERTIFICATION-20261023",
-      "original_mcp_catalog": 208,
-      "fully_certified_distinct": 16,
-      "existing_scoped_positive_distinct": 22,
-      "still_pending_full_distinct": 192,
-      "positive_limited_distinct": 6,
-      "source": "Authentic authenticated original permanent Linux REA MCP synthetic managed PE/CLI contract checks",
-      "runs": [
-        39945973782,
-        39946140124,
-        40030975590
-      ],
-      "original_engine_unchanged": true,
-      "original_service_unchanged": true,
-      "previous_fully_certified_contracts_unchanged": 13,
-      "bridge_restoration_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
-      "encrypted_result_sha256": "3d51b39827e31b830e9f521d9327dc6fe2bf2822a086b2c34ec17edb8892330c"
     },
     "previous_contract_certification_snapshots": [
       {
@@ -587,6 +586,24 @@
         "previous_fully_certified_contracts_unchanged": 13,
         "bridge_restoration_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
         "encrypted_result_sha256": "3d51b39827e31b830e9f521d9327dc6fe2bf2822a086b2c34ec17edb8892330c"
+      },
+      {
+        "phase_id": "LINUX-P35-JAVASCRIPT-APPLICATION-CONTRACT-CERTIFICATION-20261023",
+        "original_mcp_catalog": 208,
+        "fully_certified_distinct": 17,
+        "existing_scoped_positive_distinct": 22,
+        "remaining_full_distinct": 191,
+        "positive_limited_distinct": 5,
+        "source": "Original REA Linux MCP static JavaScript synthetically-generated ES module contract closures",
+        "runs": [
+          40018862425,
+          40031757715
+        ],
+        "original_engine_unchanged": true,
+        "original_service_unchanged": true,
+        "previously_fully_certified_contracts_unchanged": 16,
+        "authenticated_result_digest": "acbbdcc3dfd15b21200ba252fe78b70f80664a15bda0ce5f6e2754ba76cb3b8e",
+        "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
       }
     ]
   },

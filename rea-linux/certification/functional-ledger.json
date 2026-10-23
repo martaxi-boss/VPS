@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_17_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_18_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -2738,6 +2738,107 @@
         "stable_bridge_restored": true,
         "post_cleanup_208_schema_catalog_check_required": true
       }
+    },
+    {
+      "phase_id": "LINUX-P36-FIRMWARE-BINWALK31-ORIGINAL-MCP-CERTIFICATION-20261023",
+      "date_utc": "2026-10-23",
+      "status": "FULLY_CERTIFIED_ORIGINAL_MCP_BINWALK_3_1_0_STATIC_SIGNATURE_PROFILE",
+      "tool": "inspect_firmware_regions",
+      "tool_status": "FULLY_CERTIFIED",
+      "risk": "workspace",
+      "certification_scope": "The original permanent Linux REA MCP and installed Binwalk 3.1.0 signature-only static firmware analysis, on controlled gzip/ZIP/XZ embedded archives and negative/empty signature files; full input SHA, reported input size, metadata/version/signature/offset correspondence and nine invalid-target/schema refusals.",
+      "reused_scoped_previous": {
+        "phase_id": "LINUX-P17-BINWALK31-FIRMWARE-ORIGINAL-MCP-20261023",
+        "run_id": 40008229288,
+        "original_gzip_offset": 64,
+        "no_rerun": true
+      },
+      "closure": {
+        "run_id": 40032203252,
+        "request_commit": "27975c0cd458b25ea94bae88b7dcb9550d880357",
+        "test_bridge_commit": "3d30f13e4b1af0474158fd6fc306a3334276a482",
+        "original_mcp_catalog": 208,
+        "positives_5_of_5": [
+          {
+            "type": "GZIP",
+            "offset": 37,
+            "region_count": 1,
+            "sig": "gzip",
+            "signed_engine_version": "3.1.0"
+          },
+          {
+            "type": "GZIP",
+            "offset": 153,
+            "region_count": 1,
+            "sig": "gzip",
+            "signed_engine_version": "3.1.0"
+          },
+          {
+            "type": "ZIP",
+            "region_count": 1,
+            "sig": "zip"
+          },
+          {
+            "type": "XZ",
+            "region_count": 1,
+            "sig": "xz"
+          },
+          {
+            "type": "No magic bytes",
+            "region_count": 0,
+            "sig": null
+          }
+        ],
+        "negatives_9_of_9": [
+          "nonexistent_path",
+          "directory_instead_of_file",
+          "omitted_path",
+          "integer_path",
+          "null_path",
+          "unexpected_extract_flag",
+          "unexpected_detail",
+          "unexpected_range",
+          "unexpected_output_directory"
+        ],
+        "positives_isError_not_true": true,
+        "negatives_isError_true": true,
+        "protocol_error_count": 0,
+        "binwalk_version": "3.1.0",
+        "original_input_digests_correlate_with_Evidence": true,
+        "reported_input_sizes_verified": true,
+        "signature_offsets_verified": true,
+        "coverage": "signature_scan",
+        "reported_size_basis": "provider_reported_validation_unknown",
+        "encrypted_result_artifact_id": 12535841134,
+        "authenticated_request_SHA256": true,
+        "authenticated_AES_GCM": true,
+        "evidence_sha256": "0e118477b7af20f2f98350ec94d27ab82bcac11a2815d1eb29624f176ec46e0d",
+        "synthetic_files_SHA256_unchanged": true,
+        "temporary_file_cleanup": "PASS",
+        "original_REA_git_unchanged": true,
+        "original_service_pid_unchanged": true,
+        "original_bridge_restored_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      },
+      "limitations": [
+        "Only the original Binwalk 3.1.0 static signature detection contract was certified, not extraction; reported chunk sizes and lengths are supplier-reported, not independently validated for arbitrary firmware.",
+        "Tests used source-controlled deterministic gzip archives at new offsets 37 and 153 (earlier 64 reused as historical evidence), source-owned ZIP and XZ, and a no-signature file; this does not prove recognition of all proprietary firmware formats.",
+        "Not a security certification of hostile enormous compressed archives, nested extraction, runtime address derivation, mounted filesystems, target execution or dependency completeness beyond Binwalk."
+      ],
+      "safety": {
+        "source_owned_synthetic_inputs": true,
+        "does_not_extract_or_execute": true,
+        "no_customer_data": true,
+        "no_other_projects": true,
+        "no_sensitive_actions": true,
+        "no_service_restart": true,
+        "no_new_motor_mcp_plugin_skill": true
+      },
+      "hygiene": {
+        "spent_request_removed": "rea-linux/requests/firmware-p36-contract-20261023.json",
+        "ephemeral_fixture_bridge_removed": true,
+        "stable_bridge_restored": true,
+        "post_cleanup_208_schema_catalog_check_required": true
+      }
     }
   ],
   "active_scope_counts": {
@@ -2749,10 +2850,10 @@
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 17,
-    "scoped_positive_not_fully_certified_distinct": 5,
+    "fully_certified_distinct": 18,
+    "scoped_positive_not_fully_certified_distinct": 4,
     "not_functionally_positive_distinct": 186,
-    "remaining_full_certification_distinct": 191
+    "remaining_full_certification_distinct": 190
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -2782,7 +2883,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P35-JAVASCRIPT-APPLICATION-CONTRACT-CERTIFICATION-20261023",
+  "latest_phase": "LINUX-P36-FIRMWARE-BINWALK31-ORIGINAL-MCP-CERTIFICATION-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -3302,6 +3403,16 @@
       ],
       "evidence_digest": "acbbdcc3dfd15b21200ba252fe78b70f80664a15bda0ce5f6e2754ba76cb3b8e",
       "phase_id": "LINUX-P35-JAVASCRIPT-APPLICATION-CONTRACT-CERTIFICATION-20261023"
+    },
+    "inspect_firmware_regions": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Installed permanent Linux original REA MCP Binwalk 3.1.0 static firmware signature candidate scanning for gzip/ZIP/XZ and no-signature files, exact offsets and digests, and nine controlled failure paths; no extraction or execution.",
+      "run_ids": [
+        40008229288,
+        40032203252
+      ],
+      "phase_id": "LINUX-P36-FIRMWARE-BINWALK31-ORIGINAL-MCP-CERTIFICATION-20261023",
+      "evidence_digest": "0e118477b7af20f2f98350ec94d27ab82bcac11a2815d1eb29624f176ec46e0d"
     }
   }
 }
