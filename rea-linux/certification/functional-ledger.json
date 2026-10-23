@@ -203,7 +203,27 @@
     "result_sha256_verified": true,
     "per_tool_functionality_contracts_retrieved": true,
     "next_test_selection": "Per tool from MCP schema and description, select fixtures, outcomes and comparison oracle",
-    "note": "MCP catalog schemas and description prove contract inventory only; no further tools certified by catalog retrieval"
+    "note": "MCP catalog schemas and description prove contract inventory only; no further tools certified by catalog retrieval",
+    "extracted_functional_matrix": {
+      "status": "COMPLETE_DOCUMENTED_CONTRACT_MATRIX",
+      "rows": 208,
+      "source": "same authenticated live MCP response",
+      "sha256": "46eeaf88b8d8a48c2fe1fc73aca4e4c52176ec0b3500b9185d41bd940c6fd394",
+      "bytes": 276774,
+      "format": "JSON UTF-8",
+      "fields": [
+        "name",
+        "functional_description_from_mcp",
+        "risk_class",
+        "input_required",
+        "input_fields",
+        "input_schema_sha256",
+        "family",
+        "certification_status",
+        "test_plan"
+      ],
+      "note": "Downloadable conversation artifact; regenerated deterministically from encrypted live catalog; tool acceptance still in individual phases"
+    }
   },
   "legacy_hygiene": {
     "linux_only_active_request_path": "rea-linux/requests/*.json",
