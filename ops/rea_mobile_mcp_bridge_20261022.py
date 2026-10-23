@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_wasm_compare_real_mcp_20261023", "fixture_linux_sigrok_readonly_sandbox_20261023"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_wasm_compare_real_mcp_20261023", "fixture_linux_sigrok_readonly_sandbox_20261023", "fixture_linux_recorded_core_real_mcp_20261023"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -507,7 +507,10 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SIGROK_NATIVE_SERVICE_USER_EXIT",
         "REA_SIGROK_NATIVE_SERVICE_USER_VERSION_072",
         "REA_SIGROK_NATIVE_SERVICE_USER_STDERR_SHA256",
-        "REA_SIGROK_DISTRO_PKG_SHA256"
+        "REA_SIGROK_DISTRO_PKG_SHA256",
+        "REA_CORE_MCP_STATUS","REA_CORE_MCP_TOOL","REA_CORE_MCP_ISERROR",
+        "REA_CORE_MCP_ASSERTIONS","REA_CORE_MCP_RESPONSE_SHA256",
+        "REA_CORE_MCP_FIXTURE_CLEANUP","REA_CORE_MCP_ORIGINAL_PID_STABLE"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -1268,6 +1271,106 @@ def main():
         print("REA_SIGROK_DISTRO_PKG_SHA256="+hashlib.sha256(
               package.stdout.encode()).hexdigest())
         print("REA_SIGROK_READONLY_STATUS=PASS_NO_DEVICE_OR_UNIT_CHANGES")
+        return
+    if data["action"] == "fixture_linux_recorded_core_real_mcp_20261023":
+        # Recreate the original REA source-owned NT_PRSTATUS ELF64 test
+        # from rea/tests/fixtures/binaryDiagnostics/recordedCrash.ts.
+        # No target process launch, no live PID attachment, no debugger use.
+        import tempfile
+        import struct
+        unit="rea-reversa-mcp.service"
+        proc=subprocess.run(["systemctl","show",unit,"-p","MainPID","--value"],
+                  capture_output=True,text=True,timeout=12,check=False)
+        initial_pid=proc.stdout.strip()
+        name="inspect_recorded_crash"
+        if (not initial_pid.isdigit() or int(initial_pid)<1 or len(tools)!=208
+            or name not in tool_by_name
+            or secure.classify(name,tool_by_name[name],())!="workspace"):
+            print("REA_CORE_MCP_STATUS=BLOCKED_ORIGINAL_CONTRACT")
+            return
+        data=bytearray(512)
+        data[0:7]=bytes.fromhex("7f454c46020101")
+        struct.pack_into("<H",data,16,4) # ET_CORE
+        struct.pack_into("<H",data,18,62) # EM_X86_64
+        struct.pack_into("<I",data,20,1) # ELF v1
+        struct.pack_into("<Q",data,32,64) # ELF program header offset
+        struct.pack_into("<H",data,52,64)
+        struct.pack_into("<H",data,54,56)
+        struct.pack_into("<H",data,56,1)
+        struct.pack_into("<I",data,64,4) # PT_NOTE
+        struct.pack_into("<I",data,68,0)
+        struct.pack_into("<Q",data,72,128) # file offset
+        struct.pack_into("<Q",data,96,356) # NOTE_HEADER_BYTES 20 + 336
+        struct.pack_into("<Q",data,104,0)
+        struct.pack_into("<Q",data,112,4)
+        struct.pack_into("<III",data,128,5,336,1) # namesz,descsz,NT_PRSTATUS
+        data[140:145]=b"CORE\x00"
+        desc=148
+        struct.pack_into("<h",data,desc+12,11) # sigsegv recorded
+        struct.pack_into("<i",data,desc+32,123) # historical PID
+        struct.pack_into("<Q",data,desc+112+14*8,0x1122334455667788)
+        with tempfile.TemporaryDirectory(prefix="rea-owned-recorded-core-",dir="/dev/shm") as td:
+            root=Path(td)
+            root.chmod(0o755)
+            path=root/"source-owned.core"
+            path.write_bytes(data)
+            path.chmod(0o644)
+            digest=hashlib.sha256(path.read_bytes()).hexdigest()
+            args={"path":str(path),"include_debugger_context":False}
+            secure.validate_arguments(tool_by_name[name],args)
+            secure._authorized_target_paths(args,additional_roots=(root,))
+            _,reply=request_mcp({"jsonrpc":"2.0","id":2418,
+                  "method":"tools/call","params":{"name":name,"arguments":args}},
+                  session,protocol,timeout=105)
+            result=reply.get("result") if isinstance(reply,dict) else None
+            iserror=(not isinstance(result,dict) or result.get("isError") is True
+                     or "error" in reply)
+            raw=result.get("structuredContent") if isinstance(result,dict) else None
+            if not isinstance(raw,dict):
+                for c in result.get("content",[]) if isinstance(result,dict) else []:
+                    if isinstance(c,dict) and isinstance(c.get("text"),str):
+                        try:
+                            raw=json.loads(c["text"])
+                            break
+                        except ValueError:pass
+            raw=raw if isinstance(raw,dict) else {}
+            report=raw.get("normalized_result",{})
+            report=report if isinstance(report,dict) else {}
+            artifact=report.get("artifact",{})
+            artifact=artifact if isinstance(artifact,dict) else {}
+            notes=report.get("notes",[])
+            threads=report.get("threads",[])
+            first=threads[0] if isinstance(threads,list) and threads else {}
+            regs=first.get("registers",[]) if isinstance(first,dict) else []
+            fault=any(r.get("value")=="0x1122334455667788" for r in regs
+                 if isinstance(r,dict))
+            checks={
+                "mcp_isError_false":not iserror,
+                "original_core_file_sha":artifact.get("sha256")==digest,
+                "original_bytes_512":artifact.get("bytes")==512,
+                "elf_core":report.get("format")=="elf-core",
+                "amd64_little_endian":report.get("architecture")=="x86_64-little-endian",
+                "prstatus_note":isinstance(notes,list) and
+                      any(x.get("type")=="NT_PRSTATUS" for x in notes if isinstance(x,dict)),
+                "historical_pid_123":first.get("historical_pid")==123,
+                "recorded_sigsegv_11":first.get("recorded_current_signal")==11,
+                "distinct_full_width_register":fault,
+                "no_target_execution":report.get("target_execution")=="not-performed",
+                "no_live_pid_identity":report.get("live_process_identity")=="unknown",
+                "debugger_not_requested":report.get("debugger",{}).get("status")=="not-requested",
+                "input_unchanged":hashlib.sha256(path.read_bytes()).hexdigest()==digest
+            }
+            print("REA_CORE_MCP_TOOL="+name)
+            print("REA_CORE_MCP_ISERROR="+str(iserror).lower())
+            print("REA_CORE_MCP_ASSERTIONS="+json.dumps(checks,sort_keys=True))
+            print("REA_CORE_MCP_RESPONSE_SHA256="+hashlib.sha256(json.dumps(
+                    reply,sort_keys=True,ensure_ascii=True).encode()).hexdigest())
+            print("REA_CORE_MCP_STATUS="+("FUNCTIONAL_PASS_SCOPED" if all(checks.values()) else "INCOMPLETE"))
+        print("REA_CORE_MCP_FIXTURE_CLEANUP="+str(not root.exists()).lower())
+        now=subprocess.run(["systemctl","show",unit,"-p","MainPID","--value"],
+                    capture_output=True,text=True,timeout=12,check=False)
+        print("REA_CORE_MCP_ORIGINAL_PID_STABLE="+str(
+                   now.stdout.strip()==initial_pid).lower())
         return
     if data["action"] == "fixture_linux_read5_mcp_boundaries":
         # Run original REA real MCP tool methods against private in-memory
