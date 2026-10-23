@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_supplier_gap_20261023", "fixture_linux_tshark_activate_20261023"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_supplier_gap_20261023", "fixture_linux_tshark_activate_20261023", "fixture_linux_glossary_sigrok_diag_20261023"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -236,6 +236,10 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_TSHARK_DEPLOY_VERSION", "REA_TSHARK_DEPLOY_MCP_COUNT",
         "REA_TSHARK_DEPLOY_PROCESS_ENV", "REA_TSHARK_DEPLOY_ROLLBACK",
         "REA_TSHARK_DEPLOY_STATUS", "REA_TSHARK_DEPLOY_RESTART_ONLY_REA",
+        "REA_GLOSS_TOOL", "REA_GLOSS_ISERROR", "REA_GLOSS_SHA256",
+        "REA_GLOSS_ASSERTIONS", "REA_GLOSS_STATUS", "REA_GLOSS_SUMMARY",
+        "REA_GLOSS_SERVICE_PID_STABLE", "REA_SIGROK_STDERR_SAFE", 
+        "REA_SIGROK_STDERR_TAGS", "REA_SIGROK_STDOUT_LENGTH",
         "REA_MOBILE_PROVIDER_DOCTOR_GHIDRA",
         "REA_MOBILE_PROVIDER_DOCTOR_JADX", "REA_MOBILE_CATALOG",
         "REA_MOBILE_DESCRIBE_TOOL", "REA_MOBILE_TOOL_DESCRIPTOR_B64",
@@ -1762,6 +1766,94 @@ def main():
                   (installed.stdout or installed.stderr).splitlines()[0][:110])
             print("REA_RIZIN_STATUS="+(
                 "PASS_PINNED_PERSISTENT" if installed.returncode==0 else "INCOMPLETE"))
+        return
+    if data["action"] == "fixture_linux_glossary_sigrok_diag_20261023":
+        # Only two fixed TShark catalogue queries and one bounded diagnostic.
+        # No file input, network, device, daemon or systemd mutation.
+        import re as regex
+        user="rea-reversa"
+        unit="rea-reversa-mcp.service"
+        proc=subprocess.run(["systemctl","show",unit,"-p","MainPID","--value"],
+                  capture_output=True,text=True,timeout=10,check=False)
+        before=proc.stdout.strip()
+        passes=[]
+        def mcp(name,args,ident):
+            if name not in tool_by_name:
+                error("Original MCP tool missing: "+name)
+            if secure.classify(name,tool_by_name[name],())!="workspace":
+                error("Not authorized as workspace fixture: "+name)
+            secure.validate_arguments(tool_by_name[name],args)
+            secure._authorized_target_paths(args)
+            _,reply=request_mcp({"jsonrpc":"2.0","id":ident,
+                "method":"tools/call","params":{"name":name,"arguments":args}},
+                session,protocol,timeout=90)
+            result=reply.get("result",{})
+            good=isinstance(result,dict) and result.get("isError") is not True and "error" not in reply
+            raw=result.get("structuredContent") if isinstance(result,dict) else None
+            if not isinstance(raw,dict):
+                for chunk in result.get("content",[]) if isinstance(result,dict) else []:
+                    if isinstance(chunk,dict) and isinstance(chunk.get("text"),str):
+                        try:
+                            raw=json.loads(chunk["text"])
+                            break
+                        except (ValueError,TypeError):
+                            pass
+            raw=raw if isinstance(raw,dict) else {}
+            digest=hashlib.sha256(json.dumps(reply,sort_keys=True,
+                      ensure_ascii=True).encode()).hexdigest()
+            return good,raw,digest
+        for i,(label,args) in enumerate((
+           ("udp-protocol",{"kind":"protocols","protocol":"udp","query":"","limit":5}),
+           ("udp-fields",{"kind":"fields","protocol":"udp","query":"port","limit":5}),
+           ("unknown-protocol",{"kind":"protocols","protocol":"rea_unregistered_fixture_protocol_929",
+                              "query":"","limit":5})
+        ),start=996):
+            good,raw,digest=mcp("inspect_packet_fields",args,i)
+            r=raw.get("normalized_result",{})
+            records=r.get("records",[]) if isinstance(r,dict) else []
+            window=r.get("output_window",{}) if isinstance(r,dict) else {}
+            expected=(
+             any(v.get("kind")=="protocol" and v.get("abbreviation")=="udp" for v in records)
+             if label=="udp-protocol" else
+             any(v.get("kind")=="field" and v.get("parent_protocol")=="udp" and
+                 "port" in v.get("abbreviation","") for v in records)
+             if label=="udp-fields" else
+             records==[] and window.get("matching")==0
+            )
+            assertions={
+               "expected_result":expected,
+               "result_window":window.get("returned")==len(records),
+               "tshark_4":str(r.get("tool",{}).get("version_banner","")).startswith("TShark (Wireshark) 4."),
+               "hardware_acquisition_absent":r.get("hardware_acquisition")=="not-performed"
+            }
+            passed=good and all(assertions.values())
+            print("REA_GLOSS_TOOL=inspect_packet_fields:"+label)
+            print("REA_GLOSS_ISERROR="+str(not good).lower())
+            print("REA_GLOSS_SHA256="+digest)
+            print("REA_GLOSS_ASSERTIONS="+json.dumps(assertions,sort_keys=True))
+            print("REA_GLOSS_STATUS="+("PASS_SCOPED" if passed else "INCOMPLETE"))
+            passes.append(passed)
+        good,raw,digest=mcp("inspect_signal_decoders",{"query":"uart","limit":3},1004)
+        detail=raw.get("error",{}).get("details",{}) if isinstance(raw.get("error"),dict) else {}
+        captured=detail.get("captured_output",{}) if isinstance(detail,dict) else {}
+        stderr=captured.get("stderr","") if isinstance(captured,dict) else ""
+        stdout=captured.get("stdout","") if isinstance(captured,dict) else ""
+        stderr=stderr if isinstance(stderr,str) else ""
+        stdout=stdout if isinstance(stdout,str) else ""
+        candidate=stderr.strip()
+        safe=bool(len(candidate)<=128 and
+            regex.fullmatch(r"[A-Za-z0-9 :.,()_\\-]+",candidate))
+        print("REA_SIGROK_STDERR_SAFE="+(candidate if safe else "REDACTED"))
+        print("REA_SIGROK_STDOUT_LENGTH="+str(len(stdout.encode())))
+        keywords=("prlimit","limit","failed","error","warning","memory",
+                  "sigrok","python","lib","file","resource","permission",
+                  "denied","sandbox","device","unsupported","not found")
+        print("REA_SIGROK_STDERR_TAGS="+json.dumps(
+            [word for word in keywords if word in candidate.lower()]))
+        print("REA_GLOSS_SUMMARY="+str(sum(passes))+"/"+str(len(passes)))
+        curr=subprocess.run(["systemctl","show",unit,"-p","MainPID","--value"],
+                  capture_output=True,text=True,timeout=10,check=False).stdout.strip()
+        print("REA_GLOSS_SERVICE_PID_STABLE="+str(bool(before) and before==curr).lower())
         return
     if data["action"] == "fixture_linux_tshark_activate_20261023":
         # TShark v4 is already installed. Configure only ORIGINAL REA unit,
