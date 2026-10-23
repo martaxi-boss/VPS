@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_sigrok_offline_preflight"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -2046,6 +2046,52 @@ def main():
             print("REA_PCONFIG_PROVIDER_"+name.upper()+"="+(
                 "PASS" if test.returncode==0 else "NOT_ACCESSIBLE"))
         print("REA_PCONFIG_STATUS=PASS_READ_ONLY")
+        return
+    if data["action"] == "fixture_linux_sigrok_offline_preflight":
+        # Read-only: assess whether a separately built offline libsigrok could
+        # avoid USB initialisation without relaxing the original service sandbox.
+        import shutil
+        executable = Path("/usr/bin/sigrok-cli")
+        print("REA_SIGROK_OFFLINE_HOST_BINARY=" + str(executable.is_file()).lower())
+        utilities = ("gcc", "make", "autoconf", "automake", "libtoolize",
+                     "pkg-config", "ldd", "dpkg-query", "apt-cache")
+        print("REA_SIGROK_OFFLINE_BUILD_UTILITIES=" +
+              json.dumps({name: bool(shutil.which(name)) for name in utilities},
+                         sort_keys=True))
+        packages = ("libsigrok-dev", "libsigrokdecode-dev", "libusb-1.0-0-dev",
+                    "libglib2.0-dev", "libzip-dev", "libglib2.0-0",
+                    "libsigrok4", "libsigrokdecode4", "libusb-1.0-0")
+        pkg_status = {}
+        for name in packages:
+            query = subprocess.run(["dpkg-query", "-W", "-f=${Status}|${Version}", name],
+                capture_output=True, text=True, timeout=10, check=False)
+            installed = query.returncode == 0 and query.stdout.startswith("install ok installed|")
+            version = query.stdout.split("|", 1)[1][:70] if installed else None
+            policy = subprocess.run(["apt-cache", "policy", name],
+                capture_output=True, text=True, timeout=10, check=False)
+            candidate = next((line.split(":", 1)[1].strip()[:70]
+                for line in policy.stdout.splitlines()
+                if line.strip().startswith("Candidate:")), "(unknown)")
+            pkg_status[name] = {"installed": installed, "version": version,
+                                "candidate_available": candidate not in ("(none)", "(unknown)")}
+        print("REA_SIGROK_OFFLINE_PACKAGES=" + json.dumps(pkg_status, sort_keys=True))
+        links = subprocess.run(["ldd", str(executable)], capture_output=True,
+                               text=True, timeout=10, check=False)
+        output = links.stdout.lower() if links.returncode == 0 else ""
+        print("REA_SIGROK_OFFLINE_NATIVE_LINKS=" + json.dumps({
+            "libsigrok": "libsigrok.so" in output,
+            "libsigrokdecode": "libsigrokdecode.so" in output,
+            "libusb": "libusb-1.0.so" in output,
+            "libglib": "libglib-2.0.so" in output,
+            "libzip": "libzip.so" in output,
+        }, sort_keys=True))
+        for variable in ("PrivateDevices", "DevicePolicy", "RestrictAddressFamilies"):
+            proc = subprocess.run(["systemctl", "show", "rea-reversa-mcp.service",
+                "-p", variable, "--value"], capture_output=True, text=True,
+                timeout=10, check=False)
+            actual = proc.stdout.strip()[:200] if proc.returncode == 0 else "UNAVAILABLE"
+            print("REA_SIGROK_OFFLINE_SANDBOX_" + variable.upper() + "=" + actual)
+        print("REA_SIGROK_OFFLINE_STATUS=READ_ONLY_PREFLIGHT_NO_INSTALL_OR_POLICY_CHANGE")
         return
     if data["action"] == "fixture_linux_service_runtime_doctor":
         # Run original REA doctor under the actual systemd service identity
