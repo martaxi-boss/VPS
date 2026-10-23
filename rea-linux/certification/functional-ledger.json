@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ONLY_WITH_PERSISTENT_KUNA_SIGROK_10_SCOPED_TOOL_PASSES",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_17_SCOPED_POSITIVE_WABT_ACTIVE",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -1023,15 +1023,78 @@
         "pending_individual_review": 192,
         "fully_certified_distinct": 0
       }
+    },
+    {
+      "phase_id": "LINUX-P15-WABT-ORIGINAL-MCP-20261023",
+      "date_utc": "2026-10-23",
+      "status": "ORIGINAL_WABT_1_0_42_PERSISTENT_AND_ONE_NEW_FUNCTIONAL_PASS_SCOPED",
+      "deployment": {
+        "engine_repository": "martaxi-boss/Engenheira-reversa",
+        "original_engine_unchanged": true,
+        "provider": "WABT 1.0.42",
+        "upstream_source": "https://github.com/WebAssembly/wabt/releases/tag/1.0.42",
+        "upstream_archive_sha256": "84895407a6bbb80e918f33b16b2fb2206021c150b6bc9ff6f761263a745ab131",
+        "service_dropin": "/etc/systemd/system/rea-reversa-mcp.service.d/96-rea-linux-wabt.conf",
+        "service_env": "REA_WABT_BIN_DIRECTORY=/opt/rea-reversa/providers/wabt-1.0.42/bin",
+        "activation_actions_run_id": 40001421270,
+        "activation_commit": "34fd254b6ac507f581913058a9cc5ec9dd7edabf",
+        "source_hash_verification": true,
+        "three_executable_checksums_and_versions": true,
+        "only_original_service_restarted": true,
+        "node24_preserved": true,
+        "running_process_env_verified": true
+      },
+      "tool_tests": [
+        {
+          "name": "inspect_wasm_artifact",
+          "status": "FUNCTIONAL_PASS_SCOPED",
+          "isError": false,
+          "original_permanent_mcp_run_id": 40001710465,
+          "request_commit": "e5b2fe5b884f4222580237f1a778f1f11c7776e7",
+          "response_sha256": "cb050d298df192ada383b368dc27d7431d828b31117a79b1ff86266a2692d534",
+          "assertions": {
+            "selected_bytes_sha256_matches": true,
+            "bytes_eight": true,
+            "validation_valid": true,
+            "wabt_release_1_0_42": true,
+            "three_upstream_commands": true,
+            "wat_decoded": true,
+            "no_runtime_execution": true,
+            "no_network_fetch": true,
+            "source_unchanged": true,
+            "mcp_isError_false": true
+          },
+          "fixture": "Privately created minimal 8-byte valid WebAssembly module; no execution; temporary /dev/shm fixture removed; original service PID stable",
+          "scope": "One trivial valid WASM fixture only; full coverage of sections, imports, edge cases, malicious inputs, cancellation and resource limits not certified"
+        }
+      ],
+      "unresolved_supplier": {
+        "name": "Binwalk",
+        "issue": "Installed /usr/bin/binwalk treats --version as filename (exit 3); original firmware adapter expects Binwalk 3.1.x; no cargo/rustc/docker on native path; no unvalidated replacement",
+        "pwntools": "Isolated pwntools package installation attempted after WABT; service activation rolled back on runtime identity mismatch; separate read-only recovery verification pending"
+      },
+      "controls": {
+        "request_risk_class": "workspace",
+        "no_sensitive_bypass": true,
+        "original_mcp_count": 208,
+        "original_engine_code_unchanged": true,
+        "no_other_services_restarted_during_wabt": true,
+        "no_unreviewed_upstream_code_changes": true
+      },
+      "cumulative": {
+        "functional_pass_scoped_distinct": 17,
+        "pending_individual_review": 191,
+        "fully_certified_distinct": 0
+      }
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 16,
-    "awaiting_canonical_individual_review": 192,
+    "functional_pass_scoped_distinct": 17,
+    "awaiting_canonical_individual_review": 191,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 9,
+    "workspace_newly_passed_distinct": 10,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3
   },
@@ -1063,7 +1126,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P14-GO-RUST-ORIGINAL-MCP-20261023",
+  "latest_phase": "LINUX-P15-WABT-ORIGINAL-MCP-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
