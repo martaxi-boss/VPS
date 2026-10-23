@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "INCOMPLETE_FOR_ALL_TOOL_FAMILIES",
+  "status": "LINUX_CORE_KEY_PROVIDERS_INSTALLED_ACTIVE_MCP_TOOL_CERTIFICATION_INCOMPLETE",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -129,14 +129,93 @@
     "source": "rea/docs/installation.md and rea/install.sh in owner source repository"
   },
   "operational_requirements": [
-    "Configure existing Ghidra/JADX staged vendors for the ORIGINAL REA service; verify with its doctor and actual call",
-    "Install missing Linux-compatible external providers and libraries durably with pinned provenance and do not change unrelated apps",
-    "Verify effective PATH and provider-specific env of the REA server process, not just interactive SSH session",
-    "Respect licensing and Linux platform constraints; do not imply the 208 MCP tool names are 208 binary installers",
-    "Only then resume individually scoped, genuine MCP functional certification"
+    "Check availability and applicability of optional suppliers by Linux tool family (no claim all 208 suppliers installed)",
+    "Do not attempt to install non-Linux, proprietary/licensed, or hardware/device-dependent providers without verified compatibility and authorization",
+    "Run actual MCP tools/call per individual tool and validate normalized behavior, not only binary executable readiness",
+    "MCP sensitive operations require independently signed owner authorization, not just server installation"
   ],
   "no_os_package_install_executed_this_audit": true,
   "original_daemon_modified": false,
   "github_actions_ssh_bridge_maintained": true,
-  "certification_gating": "Pause new provider-dependent certification until Linux install readiness is verified"
+  "certification_gating": "Do not mark full 208/208; key native Linux provider installation enabled and verified, per-tool behavioral checks remain.",
+  "baseline_is_historical": true,
+  "baseline_observation": "Pre-install check retained for provenance. Compare with current_verified_installation below; do not treat baseline missing-provider flags as current.",
+  "current_verified_installation": {
+    "captured_on": "2026-10-23",
+    "os_family": "Linux",
+    "original_engine": "/opt/rea-reversa/rea",
+    "original_mcp_service": "rea-reversa-mcp.service",
+    "original_mcp_available": true,
+    "real_mcp_tool_catalog_count": 208,
+    "distro_specific_assumption": false,
+    "systemd_provider_paths_active": true,
+    "apt_provider_packages": {
+      "status": "PASS_INSTALLED_12_EXPLICIT_PACKAGES",
+      "run_id": 39976335309,
+      "names": [
+        "gdb",
+        "radare2",
+        "binwalk",
+        "tshark",
+        "adb",
+        "apktool",
+        "sigrok-cli",
+        "python3-venv",
+        "python3-pip",
+        "llvm",
+        "unzip",
+        "p7zip-full"
+      ]
+    },
+    "pinned_providers": {
+      "rizin": {
+        "version": "0.9.1",
+        "status": "PERSISTENT_EXECUTABLE_PASS",
+        "run_id": 39977192509
+      },
+      "unblob": {
+        "version": "26.6.4",
+        "status": "PERSISTENT_EXECUTABLE_PASS",
+        "run_id": 39978357233
+      }
+    },
+    "systemd_activation": {
+      "run_id": 39980837721,
+      "status": "PASS_PERSISTENT_4_PROVIDERS",
+      "service_restarted_only_rea": true,
+      "rollback_needed": false,
+      "mcp_tools_after_restart": 208,
+      "environment": {
+        "REA_GDB_COMMAND": "/usr/bin/gdb",
+        "REA_BINWALK_COMMAND": "/usr/bin/binwalk",
+        "REA_RIZIN_COMMAND": "/opt/rea-reversa/providers/rizin-v0.9.1/bin/rizin",
+        "REA_UNBLOB_COMMAND": "/opt/rea-reversa/providers/unblob-26.6.4/bin/unblob"
+      },
+      "systemd_drop_in": "/etc/systemd/system/rea-reversa-mcp.service.d/70-rea-linux-providers.conf"
+    },
+    "post_activation_independent_verification": {
+      "run_id": 39981259095,
+      "status": "PASS_READ_ONLY_CHECKED",
+      "service_user": "rea-reversa",
+      "binary_paths_accessible_from_service_user": true,
+      "four_provider_environment_vars_observed": true,
+      "ghidra": {
+        "configured": true,
+        "available": true
+      },
+      "jadx": {
+        "configured": true,
+        "available": true
+      },
+      "official_rea_doctor_exit_code": 1,
+      "official_rea_doctor_healthy": false,
+      "reason_doctor_not_fully_healthy": "Optional or proprietary analysis providers and agent registration checks are not fully configured. Does not negate successful core GDB, Binwalk, Rizin, Unblob, Ghidra and JADX checks."
+    },
+    "remaining_categories": [
+      "Check availability and applicability of optional suppliers by Linux tool family (no claim all 208 suppliers installed)",
+      "Do not attempt to install non-Linux, proprietary/licensed, or hardware/device-dependent providers without verified compatibility and authorization",
+      "Run actual MCP tools/call per individual tool and validate normalized behavior, not only binary executable readiness",
+      "MCP sensitive operations require independently signed owner authorization, not just server installation"
+    ]
+  }
 }
