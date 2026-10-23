@@ -676,6 +676,64 @@
         "limitations": "Installed/exposed provider does not by itself prove real decoder usability; preserve negative evidence"
       },
       "next": "Inspect bounded error classifications; correct service configuration only if grounded and verify sigrok tool-level behavior; retain existing canonical positives without repeating"
+    },
+    {
+      "phase_id": "LINUX-P11-KUNA-PERSISTENT-INTEGRATION-20261023",
+      "status": "PASS_KUNA_1_833_PERSISTENT_SYSTEMD_PROVIDER_NO_NEW_TOOL_FUNCTIONAL_CERTIFICATION",
+      "date_utc": "2026-10-23",
+      "environment": "Original existing Ubuntu Linux x86_64 VPS only; REA engine at /opt/rea-reversa/rea",
+      "provider": "Kuna static native decompiler",
+      "provider_license": "Apache-2.0 as declared by Kuna upstream",
+      "provider_rea_verified_version": "1.833",
+      "original_source": "martaxi-boss/Engenheira-reversa rea/docs/kuna-provider.md and rea/src/kuna/KunaDoctor.ts",
+      "official_release": "https://github.com/Noelo-Lab/kuna/releases/tag/v1.833",
+      "official_asset": "kuna-v1.833-linux-x86_64.tar.gz",
+      "official_release_sha256": "e9f047fb5a93925ede6d869df22c26c1c0ced90764ace7467ae90f880625d530",
+      "installed_executable_sha256": "f9f088a2bd99d9b87f3c53195ba5b02678828ace6cc3a501acb42b1d483f6a39",
+      "binary_path": "/opt/rea-reversa/providers/kuna-v1.833/bin/kuna",
+      "binary_service_user": "rea-reversa",
+      "binary_version_probe": "PASS_EXECUTABLE_1.833",
+      "evidence": {
+        "install_run_id": 39988626142,
+        "install_request_commit": "d4ef6a0bf139d45f0538a9be0290111b684b8025",
+        "first_activation_run_id": 39988952408,
+        "first_activation_outcome": "FAILED_TEMPORARY_BRIDGE_TYPE_ERROR_NO_KUNA_TOOL_EXECUTED",
+        "rollback_readback_run_id": 39989493468,
+        "rollback_readback_commit": "024752bd2370249482eb51c9f2cfba7864307bde",
+        "rollback_readback": {
+          "original_service_active": true,
+          "configured_kuna_dropin_absent": true,
+          "kuna_keys_absent_from_unit": true,
+          "kuna_keys_absent_from_live_process": true,
+          "installed_binary_accessible": true,
+          "mcp_tool_count": 208
+        },
+        "corrected_activation_run_id": 39989610914,
+        "corrected_request_commit": "d931f7487c6873ee6a1c949f54e1174aae5452ec",
+        "corrected_bridge_fix_commit": "6c5fcdd2813c25acce389b95a908a033a974bd7d",
+        "corrected_activation_logs": {
+          "original_mcp_208": true,
+          "environment_in_original_pid": true,
+          "rea_doctor_provider_configured": true,
+          "rea_doctor_provider_available": true,
+          "rea_service_restart_only": true,
+          "scope": "PASS_PERSISTENT_ORIGINAL_MCP"
+        }
+      },
+      "service_dropin": "/etc/systemd/system/rea-reversa-mcp.service.d/90-rea-linux-kuna.conf",
+      "service_vars": [
+        "REA_KUNA_COMMAND",
+        "REA_KUNA_CACHE_DIR"
+      ],
+      "supplier_cache": "/opt/rea-reversa/providers/kuna-v1.833/cache",
+      "post_activation_next_requirement": "Authorize legitimate, controlled native analysis or per-operation signed original MCP open_binary and close_binary on owned Linux fixture before functional certification of any REA native tools through Kuna",
+      "newly_functionally_certified_tools": [],
+      "not_performed": [
+        "No standalone Kuna decompilation test",
+        "No sensitivity bypass or unsigned MCP native session",
+        "No unrelated daemon changes"
+      ],
+      "safe_evidence_handling": "GitHub Actions logs only bounded status markers and SHA-256; prior failed activation preserved as negative evidence"
     }
   ],
   "active_scope_counts": {
@@ -716,7 +774,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P10-APKTOOL-SIGROK-DEPLOYMENT-20261023",
+  "latest_phase": "LINUX-P11-KUNA-PERSISTENT-INTEGRATION-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -924,6 +982,30 @@
       "configuration_active": true,
       "original_mcp_catalog_208_after_restart": true,
       "functional_sigrok_tools_passed": false
+    },
+    "kuna_persistent": {
+      "source_sha256": "e9f047fb5a93925ede6d869df22c26c1c0ced90764ace7467ae90f880625d530",
+      "version": "1.833",
+      "install_run_id": 39988626142,
+      "active_service_run_id": 39989610914,
+      "service_configured": true,
+      "service_doctor_available": true,
+      "restarted_only_original_rea": true,
+      "tool_functional_certification_pending": true
+    },
+    "sigrok_positive_path_diagnostics": {
+      "original_mcp_failed_run_id": 39987443009,
+      "diagnostic_run_ids": [
+        39987726184,
+        39988261036
+      ],
+      "exact_original_mcp_error": "Expected sigrok-cli 0.7.2 with libsigrokdecode; inspect the selected installation.",
+      "native_sigrok_0_7_2_version_and_libsigrokdecode": true,
+      "native_under_prlimit_success": true,
+      "original_rea_standalone_cli_inspect_signal_decoders_success": true,
+      "live_mcp_positive_tools_still_isError_true": true,
+      "root_cause_unresolved": true,
+      "do_not_count_as_certified": true
     }
   }
 }
