@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_wabt_deploy_20261023"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -489,7 +489,14 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SDIAG_PID_ENV_READ",
         "REA_SDIAG_PID_ENV_SIZE",
         "REA_SDIAG_PID_PROVIDER_KEYS",
-        "REA_SDIAG_STATUS"
+        "REA_SDIAG_STATUS",
+        "REA_WABT_DEP_STATUS","REA_WABT_DEP_STAGE","REA_WABT_DEP_SOURCE_SHA256",
+        "REA_WABT_DEP_BINARY_SHA256","REA_WABT_DEP_INSTALL","REA_WABT_DEP_SERVICE_ACCESS",
+        "REA_WABT_DEP_DROPIN","REA_WABT_DEP_PROCESS_ENV","REA_WABT_DEP_NODE24",
+        "REA_WABT_DEP_RESTART_SCOPE","REA_WABT_DEP_ROLLBACK",
+        "REA_FIRMWARE_BINWALK_VERSION","REA_FIRMWARE_BINWALK_VERSION_EXIT",
+        "REA_FIRMWARE_CARGO_AVAILABLE","REA_FIRMWARE_RUSTC_AVAILABLE",
+        "REA_FIRMWARE_DOCKER_AVAILABLE"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -1084,6 +1091,156 @@ def main():
                     error("Staged WABT validator did not start")
             print("REA_STAGE_" + provider + "=" + outcome)
         print("REA_STAGE_NO_SERVICE_CHANGES=PASS")
+        return
+    if data["action"] == "fixture_linux_wabt_deploy_20261023":
+        # Exact official REA WABT 1.0.42 provider; narrowly scoped to one
+        # existing original service. No other unit, PATH, provider or MCP.
+        import shutil
+        import tempfile
+        import time
+        unit = "rea-reversa-mcp.service"
+        source = Path.home() / ".local/share/rea-chatgpt-trial/tools/wabt-1.0.42"
+        final = Path("/opt/rea-reversa/providers/wabt-1.0.42")
+        binary_dir = final / "bin"
+        dropin = Path("/etc/systemd/system/rea-reversa-mcp.service.d/96-rea-linux-wabt.conf")
+        expected = "84895407a6bbb80e918f33b16b2fb2206021c150b6bc9ff6f761263a745ab131"
+        names = ("wasm-validate", "wasm-objdump", "wasm2wat")
+        def cmd(argv, seconds=38):
+            proc = subprocess.run(argv, capture_output=True, text=True,
+                                  timeout=seconds, check=False)
+            if proc.returncode != 0:
+                raise RuntimeError("WABT action command failed: " + Path(argv[0]).name
+                                   + " " + str(proc.returncode)
+                                   + " " + proc.stderr.strip()[:130])
+            return proc.stdout.strip()
+        def sudo(*parts, seconds=38):
+            return cmd(["sudo", "-n", *parts], seconds)
+        def show(key):
+            return cmd(["systemctl", "show", unit, "-p", key, "--value"])
+        def pid():
+            value = show("MainPID")
+            if not value.isdigit() or int(value) < 1:
+                raise RuntimeError("Original REA unit has no active main PID")
+            return value
+        if len(tools) != 208 or Path("/opt/rea-reversa/rea/scripts/rea.mjs").is_file() is False:
+            print("REA_WABT_DEP_STATUS=BLOCKED_ORIGINAL_CATALOG")
+            return
+        if show("User") != "rea-reversa" or not show("FragmentPath").endswith("/rea-reversa-mcp.service"):
+            print("REA_WABT_DEP_STATUS=BLOCKED_UNIT_IDENTITY")
+            return
+        original_pid = pid()
+        node_exe = sudo("readlink", "-f", "/proc/" + original_pid + "/exe")
+        if node_exe != "/opt/rea-reversa/providers/node-v24.22.1/bin/node":
+            print("REA_WABT_DEP_STATUS=BLOCKED_NODE24_INTEGRITY")
+            return
+        if source.is_symlink() or not source.is_dir() or not (source / "SOURCE-SHA256.txt").is_file():
+            print("REA_WABT_DEP_STATUS=BLOCKED_STAGE_NOT_PRESENT")
+            return
+        if (source / "SOURCE-SHA256.txt").read_text().strip() != expected:
+            print("REA_WABT_DEP_STATUS=BLOCKED_ARCHIVE_PROVENANCE")
+            return
+        digests = {}
+        for name in names:
+            binary = source / "bin" / name
+            if binary.is_symlink() or not binary.is_file():
+                raise RuntimeError("Pinned WABT executable absent or symlink: " + name)
+            version = cmd([str(binary), "--version"], 12)
+            if version != "1.0.42":
+                raise RuntimeError("WABT original requires exact version 1.0.42: " + name)
+            digests[name] = hashlib.sha256(binary.read_bytes()).hexdigest()
+        print("REA_WABT_DEP_STAGE=PASS_PINNED_1_0_42")
+        print("REA_WABT_DEP_SOURCE_SHA256=" + expected)
+        print("REA_WABT_DEP_BINARY_SHA256=" + json.dumps(digests,sort_keys=True))
+        firmware_bin = Path("/usr/bin/binwalk")
+        if firmware_bin.is_file():
+            inspected = subprocess.run([str(firmware_bin), "--version"],
+                capture_output=True, text=True, timeout=12, check=False)
+            print("REA_FIRMWARE_BINWALK_VERSION=" +
+                (inspected.stdout + inspected.stderr).strip()[:130].replace("\n"," "))
+            print("REA_FIRMWARE_BINWALK_VERSION_EXIT=" + str(inspected.returncode))
+        print("REA_FIRMWARE_CARGO_AVAILABLE=" + str(bool(shutil.which("cargo"))).lower())
+        print("REA_FIRMWARE_RUSTC_AVAILABLE=" + str(bool(shutil.which("rustc"))).lower())
+        print("REA_FIRMWARE_DOCKER_AVAILABLE=" + str(bool(shutil.which("docker"))).lower())
+        if final.is_symlink() or dropin.is_symlink():
+            raise RuntimeError("Refusing to overwrite provider or systemd symlink")
+        created_provider = False
+        if final.exists():
+            if not binary_dir.is_dir() or any(
+                not (binary_dir / name).is_file()
+                or (binary_dir / name).is_symlink()
+                or hashlib.sha256((binary_dir / name).read_bytes()).hexdigest()!=digests[name]
+                for name in names
+            ):
+                raise RuntimeError("Existing WABT provider has unmatched bytes")
+            print("REA_WABT_DEP_INSTALL=ALREADY_PRESENT_CHECKSUM_PASS")
+        else:
+            staging = Path("/opt/rea-reversa/providers/.wabt-1.0.42-staging-20261023")
+            if staging.exists() or staging.is_symlink():
+                raise RuntimeError("Refusing to reuse pre-existing provider staging path")
+            sudo("install","-d","-o","root","-g","root","-m","0755",str(staging / "bin"))
+            try:
+                for name in names:
+                    sudo("install","-o","root","-g","root","-m","0755",
+                         str(source / "bin" / name), str(staging / "bin" / name))
+                for name in names:
+                    if hashlib.sha256((staging/"bin"/name).read_bytes()).hexdigest()!=digests[name]:
+                        raise RuntimeError("Installed WABT hash mismatch")
+                sudo("mv","-T",str(staging),str(final))
+                created_provider = True
+            except Exception:
+                sudo("rm","-rf","--",str(staging))
+                raise
+            print("REA_WABT_DEP_INSTALL=PASS_ATOMIC_ORIGINAL_PROVIDER")
+        for name in names:
+            if sudo("runuser","-u","rea-reversa","--",str(binary_dir/name),"--version") != "1.0.42":
+                raise RuntimeError("REA service user WABT version mismatch")
+        print("REA_WABT_DEP_SERVICE_ACCESS=PASS_THREE_EXECUTABLES")
+        text_value = '[Service]\nEnvironment="REA_WABT_BIN_DIRECTORY=/opt/rea-reversa/providers/wabt-1.0.42/bin"\n'
+        if dropin.exists():
+            if dropin.read_text() != text_value:
+                raise RuntimeError("Refusing to overwrite another systemd provider configuration")
+            print("REA_WABT_DEP_DROPIN=ALREADY_PRESENT")
+            print("REA_WABT_DEP_STATUS=ALREADY_ACTIVE_CONFIG_NOT_MODIFIED")
+            return
+        config_path = None
+        installed = False
+        try:
+            with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8",
+                        prefix="rea-wabt-dropin-", delete=False) as handle:
+                handle.write(text_value)
+                config_path = handle.name
+            sudo("install","-o","root","-g","root","-m","0644",config_path,str(dropin))
+            installed = True
+            sudo("systemctl","daemon-reload")
+            if str(binary_dir) not in show("Environment"):
+                raise RuntimeError("Systemd did not admit WABT environment")
+            sudo("systemctl","restart",unit,seconds=90)
+            newpid = pid()
+            if newpid == original_pid or show("ActiveState") != "active":
+                raise RuntimeError("Original REA did not restart cleanly")
+            if sudo("readlink","-f","/proc/"+newpid+"/exe") != node_exe:
+                raise RuntimeError("Original REA Node24 executor unexpectedly changed")
+            check = subprocess.run(["sudo","-n","python3","-c",
+                 "from pathlib import Path;import sys;"
+                 "s=Path('/proc/'+sys.argv[1]+'/environ').read_bytes().split(bytes([0]));"
+                 "sys.exit(0 if b'REA_WABT_BIN_DIRECTORY=/opt/rea-reversa/providers/wabt-1.0.42/bin' in s else 7)",
+                 newpid],capture_output=True,text=True,timeout=12,check=False)
+            if check.returncode != 0:
+                raise RuntimeError("Running REA process lacks WABT provider variable")
+            print("REA_WABT_DEP_PROCESS_ENV=PASS")
+            print("REA_WABT_DEP_NODE24=PASS")
+            print("REA_WABT_DEP_RESTART_SCOPE=ONLY_ORIGINAL_REA_SERVICE")
+            print("REA_WABT_DEP_STATUS=PASS_PERSISTENT_SERVICE_INTEGRATION")
+        except Exception as cause:
+            if installed:
+                sudo("rm","-f","--",str(dropin))
+                sudo("systemctl","daemon-reload")
+                sudo("systemctl","restart",unit,seconds=90)
+                print("REA_WABT_DEP_ROLLBACK=PASS_DROPIN_AND_ORIGINAL_SERVICE")
+            raise RuntimeError("WABT activation aborted and rolled back: "+str(cause)[:170])
+        finally:
+            if config_path is not None:
+                Path(config_path).unlink(missing_ok=True)
         return
     if data["action"] == "fixture_linux_read5_mcp_boundaries":
         # Run original REA real MCP tool methods against private in-memory
