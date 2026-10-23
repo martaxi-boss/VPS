@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -414,7 +414,20 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_APPLY_SERVICE_ACTIVE",
         "REA_APPLY_STATE_SAVED",
         "REA_APPLY_FAILURE",
-        "REA_APPLY_RESULT"
+        "REA_APPLY_RESULT",
+        "REA_SERVICE_DOCTOR_STATUS",
+        "REA_SERVICE_DOCTOR_UNIT_USER",
+        "REA_SERVICE_DOCTOR_CONFIG_KEYS",
+        "REA_SERVICE_DOCTOR_CONFIG_GHIDRA_INSTALL_DIR",
+        "REA_SERVICE_DOCTOR_CONFIG_JAVA_HOME",
+        "REA_SERVICE_DOCTOR_CONFIG_REA_JADX_MCP_JAR",
+        "REA_SERVICE_DOCTOR_CONFIG_REA_GDB_COMMAND",
+        "REA_SERVICE_DOCTOR_CONFIG_REA_BINWALK_COMMAND",
+        "REA_SERVICE_DOCTOR_CONFIG_REA_UNBLOB_COMMAND",
+        "REA_SERVICE_DOCTOR_EXIT",
+        "REA_SERVICE_DOCTOR_HEALTH",
+        "REA_SERVICE_DOCTOR_PROVIDERS",
+        "REA_SERVICE_DOCTOR_BINARY_CHECK"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -1469,6 +1482,84 @@ def main():
                   json.dumps(safe_statuses(val),sort_keys=True)[:9000])
         print("REA_DOCTOR_LINUX_STATUS=" +
               ("PASS_READ_ONLY" if proc.returncode==0 else "DOCTOR_FOUND_READINESS_ISSUES"))
+        return
+    if data["action"] == "fixture_linux_service_runtime_doctor":
+        # Run original REA doctor under the actual systemd service identity
+        # and selected live service environment; never print env values.
+        import shutil
+        unit="rea-reversa-mcp.service"
+        def systemctl_value(key):
+            p=subprocess.run(["systemctl","show",unit,"-p",key,"--value"],
+                   capture_output=True,text=True,timeout=12,check=False)
+            return p.stdout.strip() if p.returncode==0 else ""
+        user=systemctl_value("User")
+        pidstr=systemctl_value("MainPID")
+        if not user or not pidstr.isdigit() or int(pidstr)<1:
+            print("REA_SERVICE_DOCTOR_STATUS=NO_SERVICE_PROCESS")
+            return
+        procenv=subprocess.run(["sudo","-n","cat",f"/proc/{int(pidstr)}/environ"],
+                         capture_output=True,timeout=18,check=False)
+        if procenv.returncode!=0:
+            print("REA_SERVICE_DOCTOR_STATUS=ENV_NOT_READABLE")
+            return
+        d={}
+        for item in procenv.stdout.split(b"\x00"):
+            if b"=" in item:
+                k,v=item.split(b"=",1)
+                try:
+                    d[k.decode("utf-8")]=v.decode("utf-8")
+                except UnicodeDecodeError:
+                    pass
+        allow=("PATH","HOME","NODE_OPTIONS","JAVA_HOME","GHIDRA_INSTALL_DIR",
+               "REA_JADX_MCP_JAR","REA_JADX_HEAP_MIB",
+               "REA_JADX_ACTIVE_PROCESSOR_COUNT","REA_GDB_COMMAND",
+               "REA_BINWALK_COMMAND","REA_UNBLOB_COMMAND","REA_IDA_MCP_CONFIG")
+        supplied={k:v for k,v in d.items() if k in allow and len(v)<3000}
+        print("REA_SERVICE_DOCTOR_UNIT_USER="+user[:45])
+        print("REA_SERVICE_DOCTOR_CONFIG_KEYS="+json.dumps(
+              sorted(k for k in allow if k in supplied)))
+        for name in ("GHIDRA_INSTALL_DIR","JAVA_HOME","REA_JADX_MCP_JAR",
+                     "REA_GDB_COMMAND","REA_BINWALK_COMMAND","REA_UNBLOB_COMMAND"):
+            val=supplied.get(name)
+            isfile=bool(val and Path(val).is_file())
+            isdir=bool(val and Path(val).is_dir())
+            print("REA_SERVICE_DOCTOR_CONFIG_"+name+"="+
+                  ("FILE" if isfile else "DIR" if isdir else "MISSING" if val else "UNSET"))
+        original=Path("/opt/rea-reversa/rea/scripts/rea.mjs")
+        if not original.is_file():
+            print("REA_SERVICE_DOCTOR_STATUS=ORIGINAL_CLI_MISSING")
+            return
+        envargs=[f"{k}={v}" for k,v in supplied.items()]
+        if "PATH" not in supplied:
+            envargs.append("PATH=/usr/local/bin:/usr/bin:/bin")
+        cmd=["sudo","-n","-u",user,"env",*envargs,
+             "node",str(original),"doctor","--json"]
+        result=subprocess.run(cmd,capture_output=True,text=True,timeout=120,
+                 cwd="/opt/rea-reversa/rea",check=False)
+        print("REA_SERVICE_DOCTOR_EXIT="+str(result.returncode))
+        try:
+            doc=json.loads(result.stdout)
+        except ValueError:
+            print("REA_SERVICE_DOCTOR_STATUS=INVALID_RESULT")
+            return
+        if not isinstance(doc,dict):
+            print("REA_SERVICE_DOCTOR_STATUS=INVALID_SHAPE")
+            return
+        print("REA_SERVICE_DOCTOR_HEALTH="+json.dumps(
+            {"healthy":doc.get("healthy"),"environment_healthy":doc.get("environment_healthy")},
+            sort_keys=True))
+        providers=doc.get("providerInspections",[])
+        if isinstance(providers,list):
+            print("REA_SERVICE_DOCTOR_PROVIDERS="+json.dumps([
+              {"id":str(v.get("id",""))[:45],
+               "configured":v.get("configured") is True,
+               "available":v.get("available") is True}
+              for v in providers[:15] if isinstance(v,dict)],sort_keys=True))
+        print("REA_SERVICE_DOCTOR_BINARY_CHECK="+json.dumps({
+            name:Path("/usr/bin/"+name).is_file()
+            for name in ("gdb","r2","binwalk","tshark","adb","apktool","sigrok-cli")},
+            sort_keys=True))
+        print("REA_SERVICE_DOCTOR_STATUS=PASS_READ_ONLY_CHECKED")
         return
     if data["action"] == "fixture_linux_provider_install_apply":
         # Owner-initiated: signed distro packages, no upgrades or removals.
