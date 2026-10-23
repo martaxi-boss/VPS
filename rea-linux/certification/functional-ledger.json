@@ -675,5 +675,23 @@
         "isolated_mcp": "CONTRACT_PASS_EMULATED_MI_ONLY"
       }
     ]
+  },
+  "installation_readiness": {
+    "status": "BLOCKED_FULL_PROVIDER_READINESS",
+    "audit_report": "rea-linux/install/readiness-20261023.json",
+    "evidence_runs": [
+      39973902938,
+      39974761497
+    ],
+    "core_mcp_208_declared": true,
+    "full_linux_provider_stack_installed_and_configured": false,
+    "engine_doctor_healthy": false,
+    "provider_configuration_indicated_unavailable": [
+      "ghidra",
+      "ida",
+      "jadx",
+      "kuna"
+    ],
+    "note": "Existing historical functional evidence remains valid within its scope. Do not label all 208 tools operational or permanently certified until server provider configuration, compatible dependencies and tool-specific tests pass."
   }
 }
