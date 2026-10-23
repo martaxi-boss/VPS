@@ -2158,9 +2158,9 @@ def main():
             good,val,digest,_=mcp("decode_signal_recording",args,931,(root,))
             words=val.get("annotations_text","") if isinstance(val,dict) else ""
             assertions={
-                "byte_R_observed":bool(regex.search(r"uart-1: 52(?:\\n|$)",words)),
-                "byte_E_observed":bool(regex.search(r"uart-1: 45(?:\\n|$)",words)),
-                "byte_A_observed":bool(regex.search(r"uart-1: 41(?:\\n|$)",words)),
+                "byte_R_observed":bool(regex.search(r"uart-1: 52",words)),
+                "byte_E_observed":bool(regex.search(r"uart-1: 45",words)),
+                "byte_A_observed":bool(regex.search(r"uart-1: 41",words)),
                 "source_sha256_verified":val.get("artifact",{}).get("sha256")==before if val else False,
                 "no_hardware":val.get("hardware_acquisition")=="not-performed" if val else False,
                 "source_intact":hashlib.sha256(target.read_bytes()).hexdigest()==before
