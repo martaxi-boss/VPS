@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_wabt_deploy_20261023"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_wabt_deploy_20261023", "fixture_linux_wabt_real_mcp_20261023"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -496,7 +496,10 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_WABT_DEP_RESTART_SCOPE","REA_WABT_DEP_ROLLBACK",
         "REA_FIRMWARE_BINWALK_VERSION","REA_FIRMWARE_BINWALK_VERSION_EXIT",
         "REA_FIRMWARE_CARGO_AVAILABLE","REA_FIRMWARE_RUSTC_AVAILABLE",
-        "REA_FIRMWARE_DOCKER_AVAILABLE"
+        "REA_FIRMWARE_DOCKER_AVAILABLE",
+        "REA_WASM_MCP_TOOL","REA_WASM_MCP_ISERROR","REA_WASM_MCP_RESPONSE_SHA256",
+        "REA_WASM_MCP_ASSERTIONS","REA_WASM_MCP_STATUS","REA_WASM_MCP_CLEANUP",
+        "REA_WASM_MCP_ORIGINAL_PID_STABLE"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -1241,6 +1244,89 @@ def main():
         finally:
             if config_path is not None:
                 Path(config_path).unlink(missing_ok=True)
+        return
+    if data["action"] == "fixture_linux_wabt_real_mcp_20261023":
+        # Fixed, private fixture against original persistent REA MCP only;
+        # no hardware, network, execution of the analyzed module, or new MCP.
+        import tempfile
+        unit="rea-reversa-mcp.service"
+        p=subprocess.run(["systemctl","show",unit,"-p","MainPID","--value"],
+                   capture_output=True,text=True,timeout=12,check=False)
+        starting_pid=p.stdout.strip()
+        name="inspect_wasm_artifact"
+        if not starting_pid.isdecimal() or int(starting_pid)<1:
+            print("REA_WASM_MCP_STATUS=BLOCKED_ORIGINAL_SERVICE")
+            return
+        if name not in tool_by_name or secure.classify(
+                name,tool_by_name[name],())!="workspace":
+            print("REA_WASM_MCP_STATUS=BLOCKED_CLASSIFICATION")
+            return
+        provider=Path("/opt/rea-reversa/providers/wabt-1.0.42/bin")
+        if not all((provider/n).is_file() for n in
+                   ("wasm-validate","wasm-objdump","wasm2wat")):
+            print("REA_WASM_MCP_STATUS=BLOCKED_WABT")
+            return
+        with tempfile.TemporaryDirectory(prefix="rea-owned-wasm-",dir="/dev/shm") as temp:
+            root=Path(temp)
+            root.chmod(0o755)
+            wasm=root/"module.wasm"
+            wasm.write_bytes(bytes.fromhex("0061736d01000000"))
+            wasm.chmod(0o644)
+            digest=hashlib.sha256(wasm.read_bytes()).hexdigest()
+            args={"path":str(wasm),"glue_paths":[],"candidate_paths":[]}
+            secure.validate_arguments(tool_by_name[name],args)
+            secure._authorized_target_paths(args,additional_roots=(root,))
+            _,response=request_mcp({"jsonrpc":"2.0","id":2010,
+               "method":"tools/call","params":{"name":name,"arguments":args}},
+                  session,protocol,timeout=90)
+            result=response.get("result") if isinstance(response,dict) else None
+            iserror=(not isinstance(result,dict)
+                     or result.get("isError") is True or "error" in response)
+            raw=result.get("structuredContent") if isinstance(result,dict) else None
+            if not isinstance(raw,dict):
+                for row in result.get("content",[]) if isinstance(result,dict) else []:
+                    if isinstance(row,dict) and isinstance(row.get("text"),str):
+                        try:
+                            raw=json.loads(row["text"])
+                            break
+                        except (ValueError,TypeError):
+                            pass
+            raw=raw if isinstance(raw,dict) else {}
+            norm=raw.get("normalized_result",{})
+            norm=norm if isinstance(norm,dict) else {}
+            artifact=norm.get("artifact",{})
+            artifact=artifact if isinstance(artifact,dict) else {}
+            profile=norm.get("tool_profile",{})
+            profile=profile if isinstance(profile,dict) else {}
+            wat=norm.get("wat",{})
+            wat=wat if isinstance(wat,dict) else {}
+            cmds=profile.get("commands",[])
+            checks={
+                "mcp_ok":not iserror,
+                "source_sha256":artifact.get("sha256")==digest,
+                "source_bytes":artifact.get("bytes")==8,
+                "validation":norm.get("validation")=="valid",
+                "original_wabt":profile.get("release")=="1.0.42",
+                "three_commands":isinstance(cmds,list) and
+                     [c.get("tool") for c in cmds if isinstance(c,dict)]==
+                     ["wasm-validate","wasm-objdump","wasm2wat"],
+                "wat_decoded":isinstance(wat.get("text"),str) and len(wat["text"])>5,
+                "no_execution":norm.get("runtime_execution")=="not-performed",
+                "no_fetch":norm.get("network_fetch")=="not-performed",
+                "bytes_stable":hashlib.sha256(wasm.read_bytes()).hexdigest()==digest
+            }
+            print("REA_WASM_MCP_TOOL="+name)
+            print("REA_WASM_MCP_ISERROR="+str(iserror).lower())
+            print("REA_WASM_MCP_RESPONSE_SHA256="+hashlib.sha256(
+                  json.dumps(response,sort_keys=True,ensure_ascii=True).encode()).hexdigest())
+            print("REA_WASM_MCP_ASSERTIONS="+json.dumps(checks,sort_keys=True))
+            print("REA_WASM_MCP_STATUS="+(
+                  "FUNCTIONAL_PASS_SCOPED" if all(checks.values()) else "INCOMPLETE"))
+        print("REA_WASM_MCP_CLEANUP="+str(not root.exists()).lower())
+        p2=subprocess.run(["systemctl","show",unit,"-p","MainPID","--value"],
+                   capture_output=True,text=True,timeout=12,check=False)
+        print("REA_WASM_MCP_ORIGINAL_PID_STABLE="+str(
+              p2.stdout.strip()==starting_pid).lower())
         return
     if data["action"] == "fixture_linux_read5_mcp_boundaries":
         # Run original REA real MCP tool methods against private in-memory
