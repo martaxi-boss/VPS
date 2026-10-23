@@ -84,3 +84,12 @@ As cinco ferramentas pertencem ao grupo `read`, mas têm pré-condições difere
 - A promoção não é universal: a certificação GNU objdump cobre Linux ELF64 x86-64 e todas as escolhas de operação aí ensaiadas, não todos os formatos e CPUs. Os dois contratos de cliente não certificam a leitura de PCAP ou descodificação de APK.
 - O bridge de validação JSON permitiu um campo extra num pedido `architectures`, mas o MCP original recusou o pedido com `isError=true`; fica documentado para endurecimento posterior, não como sucesso indevido.
 - Todos os pedidos temporários desta fase foram eliminados e a ponte estável com suporte ao Kuna restaurada. As provas anteriores e execuções GitHub permanecem disponíveis. A limpeza desencadeia validação final de catálogo, a verificar antes de declarar o transporte pós-higiene PASS.
+
+## P24 — Certificação definitiva de `inspect_packet_fields` (23/10/2026)
+
+- **Estado:** `FULLY_CERTIFIED` no perfil **Linux + TShark 4.x instalado**, com todas as variantes contratadas de seleção, filtros, paginação e erros representadas nos testes e fonte real independente.
+- **Resultados reutilizados, sem os repetir:** [39994660187](https://github.com/martaxi-boss/VPS/actions/runs/39994660187), três operações positivas sobre UDP e protocolo inexistente.
+- [Actions #40023117472](https://github.com/martaxi-boss/VPS/actions/runs/40023117472): 8/8 ensaios funcionais no MCP original (protocolos por omissão, protocolo exato TCP, campos UDP paginados, `limit:null`, consulta `PORT` indiferente a maiúsculas, página esgotada) e 4/4 rejeições reais de inputs inválidos. `isError` não verdadeiro nas respostas válidas e `isError=true` nos quatro inputs recusados. SHA do fornecedor consistente e PID do MCP estável.
+- [Actions #40023335985](https://github.com/martaxi-boss/VPS/actions/runs/40023335985): verificadas diretamente contra a saída original `/usr/bin/tshark -G fields` as posições `source_line` de protocolos e campos UDP, tipos, descrições, base, máscara e nome. Perfil privado vazio; identidade SHA do binário comparada; diretório temporário limpo; REA sem reiniciar.
+- **Contagens canónicas:** **4 FULLY_CERTIFIED**, **18 adicionais FUNCTIONAL_PASS_SCOPED**, **186 sem aprovação positiva**, total 208. Certificação limitada ao perfil de fornecedor e operações ensaiadas: a ferramenta não captura tráfego e não implica certificação da descodificação de ficheiros PCAP.
+- Ponte experimental removida e bridge estável restaurada com zero pedidos pendentes; validar catálogo pós-limpeza antes de encerrar a fase.

@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_3_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_4_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -1698,6 +1698,85 @@
         "retained_earlier_evidence": true,
         "rerun_after_cleanup_required": true
       }
+    },
+    {
+      "phase_id": "LINUX-P24-TSHARK-FIELD-DISCOVERY-FULL-CERTIFICATION-20261023",
+      "date_utc": "2026-10-23",
+      "status": "FULLY_CERTIFIED_LINUX_TSHARK_4_X_FIELD_DISCOVERY_CONTRACT",
+      "tool": "inspect_packet_fields",
+      "tool_status": "FULLY_CERTIFIED",
+      "certification_scope": "Original permanent REA MCP on Linux with the installed TShark 4.x; protocol and field glossary discovery, exact protocol abbreviation filtering (TCP/UDP), literal case-insensitive query (UDP port), paging (offset/limit), null/all remaining, exhausted page, default selection, source line and field metadata fidelity; strict invalid-argument rejection.",
+      "provider": "real /usr/bin/tshark -G fields under private WIRESHARK_CONFIG_DIR, real prlimit, no live capture",
+      "reused_positive": {
+        "run_id": 39994660187,
+        "result": "Three preexisting scoped MCP positive cases, no repeat of their general contractual claims"
+      },
+      "closure_run": {
+        "run_id": 40023117472,
+        "commit": "f36d693b4b6e116c587161904c26acc39ccc3ea5",
+        "result_sha256": "b979ff4d01fe9be6c442dc504ded366405b60d3dc17cad9ec03cce039fe704ca",
+        "original_mcp_tool_count": 208,
+        "positives": "8/8",
+        "negatives": "4/4",
+        "cases": [
+          "default_protocols",
+          "tcp_exact",
+          "udp_page0",
+          "udp_page1",
+          "udp_all",
+          "udp_query_upper",
+          "udp_query_lower",
+          "udp_exhausted"
+        ],
+        "negative_cases": [
+          "invalid_kind",
+          "zero_limit",
+          "negative_offset",
+          "empty_protocol"
+        ],
+        "all_positive_mcp_isError_false": true,
+        "all_negative_mcp_isError_true": true,
+        "all_bridge_side_schema_rejections_true": true,
+        "independent_page_consistency": true,
+        "case_insensitive_literal_search": true,
+        "no_hardware_acquisition": true,
+        "provider_sha_consistent": true,
+        "original_daemon_pid_stable": true
+      },
+      "source_line_oracle_run": {
+        "run_id": 40023335985,
+        "commit": "763c6fa4af72ce880b2c622cf2811ab92319bd43",
+        "results_sha256": "ac1725100dcea410dcbe8a9ec2e886caf3f579552661843af864446970db96f7",
+        "original_mcp_tool_count": 208,
+        "independent_tshark_cli_glossary": true,
+        "original_provider_binary_SHA256_matches_independent": true,
+        "source_line_PROTOCOL_exact": true,
+        "source_line_UDP_and_field_type_parent_base_bitmask_description_exact": true,
+        "private_empty_personal_profile": true,
+        "main_pid_stable": true,
+        "temp_configuration_removed": true
+      },
+      "controls": {
+        "source_repo_unchanged": true,
+        "no_new_skills_mcp_or_daemon": true,
+        "no_service_restart": true,
+        "no_global_packages_modified": true,
+        "existing_signature_policy_unchanged": true,
+        "other_project_services_untouched": true
+      },
+      "limitations": [
+        "Scope limited to this Linux/TShark 4.x producer and observed TCP/UDP profiles, rather than every registered protocol or future TShark version.",
+        "Field catalog discovery does not certify packet dissection, PCAP/PCAPNG interpretation, packet capture, high-volume or future supplier changes.",
+        "No claim that TShark plugin or global configuration registries are isolated; they remain trusted installed source per original REA supplier contract."
+      ],
+      "final_hygiene": {
+        "spend_requests_removed": [
+          "rea-linux/requests/packet-fields-closure-20261023.json",
+          "rea-linux/requests/packet-fields-raw-20261023.json"
+        ],
+        "stable_bridge_restored_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+        "final_catalog_run_pending": true
+      }
     }
   ],
   "active_scope_counts": {
@@ -1709,10 +1788,10 @@
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 3,
-    "scoped_positive_not_fully_certified_distinct": 19,
+    "fully_certified_distinct": 4,
+    "scoped_positive_not_fully_certified_distinct": 18,
     "not_functionally_positive_distinct": 186,
-    "remaining_full_certification_distinct": 205
+    "remaining_full_certification_distinct": 204
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -1742,7 +1821,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P23-FUNCTIONAL-CERTIFICATION-CLOSURE-20261023",
+  "latest_phase": "LINUX-P24-TSHARK-FIELD-DISCOVERY-FULL-CERTIFICATION-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -2112,6 +2191,17 @@
       ],
       "evidence_digest": "8eb8012630431da75a89aa535a6ca86519277f14c4c58e48e50d1bdba63bffca",
       "phase_id": "LINUX-P23-FUNCTIONAL-CERTIFICATION-CLOSURE-20261023"
+    },
+    "inspect_packet_fields": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Permanent REA MCP Linux TShark 4.x glossary, protocol/field selection, filter/query, paging and producer line fidelity with negative paths",
+      "run_ids": [
+        39994660187,
+        40023117472,
+        40023335985
+      ],
+      "evidence_digest": "ac1725100dcea410dcbe8a9ec2e886caf3f579552661843af864446970db96f7",
+      "phase_id": "LINUX-P24-TSHARK-FIELD-DISCOVERY-FULL-CERTIFICATION-20261023"
     }
   }
 }
