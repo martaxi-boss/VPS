@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_local_provider_triage"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_local_provider_triage", "fixture_linux_sigrok_preflight"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -232,6 +232,10 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_LOCAL_PROVIDER_RESULT_SHA256", "REA_LOCAL_PROVIDER_ASSERTIONS",
         "REA_LOCAL_PROVIDER_STATUS", "REA_LOCAL_PROVIDER_FAILURE_CLASS",
         "REA_LOCAL_PROVIDER_ALL_SCOPED",
+        "REA_SIGROK_PREFLIGHT_STATUS", "REA_SIGROK_UNIT_IDENTITY",
+        "REA_SIGROK_BINARY_VERSION", "REA_SIGROK_VERSION_OK",
+        "REA_SIGROK_PRLIMIT_OK", "REA_SIGROK_SERVICE_ENV_KEY",
+        "REA_SIGROK_SERVICE_USER_ACCESS",
         "REA_MOBILE_DESCRIBE_TOOL", "REA_MOBILE_TOOL_DESCRIPTOR_B64",
         "REA_MOBILE_TOOL_SCHEMA_SUMMARY", "REA_MOBILE_TOOL_DESCRIPTOR_SHA256",
         "REA_MOBILE_TOOL_DESCRIPTOR_BYTES", "REA_MOBILE_TOOL_DESCRIPTOR_TRUNCATED",
@@ -2050,6 +2054,48 @@ def main():
             print("REA_PCONFIG_PROVIDER_"+name.upper()+"="+(
                 "PASS" if test.returncode==0 else "NOT_ACCESSIBLE"))
         print("REA_PCONFIG_STATUS=PASS_READ_ONLY")
+        return
+    if data["action"] == "fixture_linux_sigrok_preflight":
+        # Read-only independent provider launch preflight for ORIGINAL service.
+        import re as regex
+        unit="rea-reversa-mcp.service"
+        def systemctl(key):
+            p=subprocess.run(["systemctl","show",unit,"-p",key,"--value"],
+                             capture_output=True,text=True,timeout=10,check=False)
+            return p.stdout.strip() if p.returncode==0 else ""
+        identity=(systemctl("User")=="rea-reversa" and systemctl("ActiveState")=="active")
+        print("REA_SIGROK_UNIT_IDENTITY=" + str(identity).lower())
+        binary="/usr/bin/sigrok-cli"
+        prlimit="/usr/bin/prlimit"
+        b=subprocess.run(["sudo","-n","-u","rea-reversa",binary,"--version"],
+              capture_output=True,text=True,timeout=18,check=False) if
+              Path(binary).is_file() else None
+        if b is not None:
+            banner=b.stdout
+            ok=(b.returncode==0 and
+                regex.search(r"^sigrok-cli 0\\.7\\.2(?:\\r?\\n|$)",banner) is not None and
+                "libsigrokdecode" in banner)
+        else:
+            ok=False
+        print("REA_SIGROK_BINARY_VERSION=" +
+              ("0.7.2" if ok else "UNVERIFIED_OR_INCOMPATIBLE"))
+        print("REA_SIGROK_VERSION_OK="+str(ok).lower())
+        lim=subprocess.run(["sudo","-n","-u","rea-reversa","test","-x",prlimit],
+              capture_output=True,timeout=10,check=False)
+        print("REA_SIGROK_PRLIMIT_OK="+str(lim.returncode==0).lower())
+        pid=systemctl("MainPID")
+        environment=subprocess.run(["sudo","-n","cat",f"/proc/{pid}/environ"],
+             capture_output=True,timeout=10,check=False) if pid.isdecimal() and int(pid)>0 else None
+        names=set()
+        if environment is not None and environment.returncode==0:
+            names={p.split(b"=",1)[0] for p in environment.stdout.split(b"\\x00") if b"=" in p}
+        print("REA_SIGROK_SERVICE_ENV_KEY="+str(b"REA_SIGROK_COMMAND" in names).lower())
+        access=subprocess.run(["sudo","-n","-u","rea-reversa","test","-x",binary],
+             capture_output=True,timeout=10,check=False)
+        print("REA_SIGROK_SERVICE_USER_ACCESS="+str(access.returncode==0).lower())
+        print("REA_SIGROK_PREFLIGHT_STATUS="+(
+            "PASS_READY_TO_ACTIVATE" if identity and ok and lim.returncode==0
+            and access.returncode==0 else "BLOCKED_REQUIRE_MANUAL_DEPENDENCY"))
         return
     if data["action"] == "fixture_linux_local_provider_triage":
         # Three original REA workspace-class tools with fixed arguments.
