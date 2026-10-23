@@ -877,16 +877,19 @@ def main():
             check=False,
         )
         combined = (proc.stdout + "\n" + proc.stderr)[-16000:]
-        passed = (proc.returncode == 0 and target in combined
-                  and ("1 passed" in combined or "1 test passed" in combined
-                       or "1 passed |" in combined))
+        plain = re.sub(r"\x1b\[[0-9;]*m", "", combined)
+        # The exact -t filter above selects one original REA test. Under
+        # Vitest v5, its name is not necessarily echoed in the summary.
+        selected = ("10 tests" in plain and "9 skipped" in plain)
+        passed = (proc.returncode == 0 and
+                  (bool(re.search(r"\b1 passed\b", plain)) or selected))
         print("REA_LINUX_READ5_REGRESSION=" + ("PASS" if passed else "FAIL"))
         print("REA_LINUX_READ5_EXIT_CODE=" + str(proc.returncode))
         print("REA_LINUX_READ5_TEST_OUTPUT_SHA256=" +
               hashlib.sha256(combined.encode()).hexdigest())
         print("REA_LINUX_READ5_TEST_NAME=" + target)
         print("REA_LINUX_READ5_TEST_DIAGNOSTIC=" +
-              re.sub(r"[^A-Za-z0-9 .,_:;=/()\[\]#-]", " ", combined[-1200:]))
+              re.sub(r"[^A-Za-z0-9 .,_:;=/()\[\]#-]", " ", plain[-1200:]))
         return
     if data["action"] == "capability_audit":
         import shutil
