@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_16_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_17_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -2650,6 +2650,94 @@
         "stable_bridge_restored": true,
         "post_cleanup_catalog_recheck_required": true
       }
+    },
+    {
+      "phase_id": "LINUX-P35-JAVASCRIPT-APPLICATION-CONTRACT-CERTIFICATION-20261023",
+      "date_utc": "2026-10-23",
+      "status": "FULLY_CERTIFIED_ORIGINAL_MCP_LINUX_JAVASCRIPT_STATIC_APPLICATION_PROFILE",
+      "tool": "analyze_javascript_application",
+      "tool_status": "FULLY_CERTIFIED",
+      "risk": "workspace",
+      "scope": "Original permanent Linux x64 REA MCP JavaScript application static reconstruction of self-authored small ES-module directory artifacts (valid ESM and one malformed parser input), exact source selection, summary retained evidence, bounded semantic retention, default/fail/record-continue integrity choices and strict invalid schema/input handling.",
+      "reused_previous_positive": {
+        "phase_id": "LINUX-P21-JAVASCRIPT-APPLICATION-ORIGINAL-MCP-20261023",
+        "run_id": 40018862425,
+        "source_hash": "0a99c1f80c0dbec8cd82fffa8ab98c2513095d4d6e2d2ebfae88a53cfedc3ecc",
+        "not_rerun": true
+      },
+      "closure": {
+        "github_actions_run_id": 40031757715,
+        "request_commit": "70ff228115554c6ef8531ba8d0d765c9f531d939",
+        "one_shot_fixture_commits": [
+          "8542ad6c58aaecc9caf611f078ef7752024e2dac",
+          "893586ba4835235a93410b4c2d028d04c820eb36"
+        ],
+        "original_mcp_tools": 208,
+        "positive_cases_7_of_7": [
+          "explicit_directory_format_with_integrity_fail_and_expected_ESM_exports",
+          "exact_one-module_source_paths_selection_preserves_inventory_unselected_files",
+          "selected_two_module_source_paths_detail_summary_retains_parent_Evidence",
+          "low_bounded_semantic_node_and_unknown_retention_profiles",
+          "record_and_continue_integrity_policy_on_intact_synthetic_sources",
+          "malformed_JavaScript_source_reported_as_parser_failures_without_execution",
+          "whole_inventory_detail_summary_with_retained_Evidence"
+        ],
+        "negative_cases_17_of_17": [
+          "missing_directory",
+          "file_not_application",
+          "invalid_format",
+          "source_paths_empty",
+          "source_paths_contains_empty",
+          "unexpected_execute_argument",
+          "invalid_integrity_policy",
+          "format_wrong_type",
+          "invalid_detail",
+          "max_semantic_nodes_zero",
+          "max_semantic_nodes_per_file_zero",
+          "max_semantic_unknowns_zero",
+          "max_semantic_unknowns_per_file_zero",
+          "max_heap_mb_below_minimum",
+          "analysis_timeout_zero",
+          "input_path_wrong_type",
+          "source_paths_wrong_type"
+        ],
+        "positive_result_isError_not_true": true,
+        "negative_result_isError_true": true,
+        "original_mcp_protocol_errors": false,
+        "prevalidated_schema_negative_cases_15_of_15": true,
+        "provider_negative_cases_2_of_2": true,
+        "encrypted_result_artifact_id": 12535172555,
+        "encrypted_result_request_SHA256_authentication": true,
+        "encrypted_result_AES_GCM_authentication": true,
+        "result_sha256": "acbbdcc3dfd15b21200ba252fe78b70f80664a15bda0ce5f6e2754ba76cb3b8e",
+        "fixture_SHA256_unchanged": true,
+        "original_rea_source_unchanged": true,
+        "temporary_fixture_cleanup": "PASS",
+        "original_rea_service_pid_stable": "PASS",
+        "original_bridge_blob_restored": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      },
+      "controls": {
+        "only_owned_temporary_JS_sources": true,
+        "no_app_code_execution": true,
+        "no_network_targets": true,
+        "no_production_or_other_projects": true,
+        "no_service_restart": true,
+        "no_new_skill_plugin_or_mcp": true,
+        "no_signed_sensitive_actions": true,
+        "no_external_provider_install": true
+      },
+      "limitations": [
+        "FULLY_CERTIFIED is limited to the tested Linux original-MCP static reconstruction profile: small controlled ESM directories with an additional syntax-error case; not all ASAR formats, enormous projects, hostile dependencies, Electron active capture or external source loading.",
+        "Malformed JS was parsed as a diagnostic; no target code execution, runtime behavior, dynamic module resolution or application correctness established.",
+        "Selection retains full artifact inventory while restricting source analysis; unselected source semantics remain unknown.",
+        "Only native bounded semantic budgets were verified; stress, cancellation, OOM and massive application graphs not certified."
+      ],
+      "hygiene": {
+        "spent_request_deleted": "rea-linux/requests/javascript-p35-contract-20261023.json",
+        "one_shot_trial_removed": true,
+        "stable_bridge_restored": true,
+        "post_cleanup_208_schema_catalog_check_required": true
+      }
     }
   ],
   "active_scope_counts": {
@@ -2661,10 +2749,10 @@
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 16,
-    "scoped_positive_not_fully_certified_distinct": 6,
+    "fully_certified_distinct": 17,
+    "scoped_positive_not_fully_certified_distinct": 5,
     "not_functionally_positive_distinct": 186,
-    "remaining_full_certification_distinct": 192
+    "remaining_full_certification_distinct": 191
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -2694,7 +2782,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P34-MANAGED-ORIGINAL-MCP-CERTIFICATION-20261023",
+  "latest_phase": "LINUX-P35-JAVASCRIPT-APPLICATION-CONTRACT-CERTIFICATION-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -3204,6 +3292,16 @@
       ],
       "evidence_digest": "3d51b39827e31b830e9f521d9327dc6fe2bf2822a086b2c34ec17edb8892330c",
       "phase_id": "LINUX-P34-MANAGED-ORIGINAL-MCP-CERTIFICATION-20261023"
+    },
+    "analyze_javascript_application": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Original permanent REA Linux MCP small extracted synthetic ESM application static reconstruction: explicit format and integrity, exact source selection, retained summary, bounded semantic profiles, malformed JavaScript recovery and 17 negative cases; no code execution or live Electron application.",
+      "run_ids": [
+        40018862425,
+        40031757715
+      ],
+      "evidence_digest": "acbbdcc3dfd15b21200ba252fe78b70f80664a15bda0ce5f6e2754ba76cb3b8e",
+      "phase_id": "LINUX-P35-JAVASCRIPT-APPLICATION-CONTRACT-CERTIFICATION-20261023"
     }
   }
 }
