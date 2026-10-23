@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_evm_contract_closure"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -217,6 +217,11 @@ def encrypt_result(raw_path, request_path, envelope_path):
     request = validate(json.loads(request_raw))
     private = None
     allowed_markers = {
+        "REA_CERT_EVM_POSITIVES", "REA_CERT_EVM_NEGATIVES",
+        "REA_CERT_EVM_SELECTORS", "REA_CERT_EVM_PARITY",
+        "REA_CERT_EVM_SOURCE", "REA_CERT_EVM_CLEANUP",
+        "REA_CERT_EVM_DAEMON", "REA_CERT_EVM_RESULTS_SHA256",
+        "REA_CERT_EVM_STATUS",
         "REA_MOBILE_LOOPBACK_MCP", "REA_MOBILE_MCP_TOOL_COUNT",
         "REA_MOBILE_READONLY_HINT_COUNT", "REA_MOBILE_STATIC_INSPECT_COUNT",
         "REA_MOBILE_SAFE_QUERY_COUNT", "REA_MOBILE_SAFE_CALLABLE_COUNT",
@@ -2676,6 +2681,173 @@ def main():
                 except (OSError, RuntimeError, ValueError):
                     print("REA_FIXTURE_CLEANUP=FAIL")
                     raise
+        return
+    if data["action"] == "fixture_linux_evm_contract_closure":
+        # Explicit small self-created flat EVM bytecode carriers only.
+        # No chain RPC, transaction, deployed contract or target execution.
+        import tempfile
+        name="inspect_evm_interface"
+        tool=tool_by_name.get(name)
+        if not tool or secure.classify(name,tool,())!="workspace":
+            error("Wrong original EVM contract or workspace policy")
+        def pid():
+            output=subprocess.run(["systemctl","show","rea-reversa-mcp.service",
+                "-p","MainPID","--value"],capture_output=True,text=True,
+                timeout=10,check=False)
+            return output.stdout.strip() if output.returncode==0 else ""
+        before_pid=pid()
+        cases={}
+        negs={}
+        hashes={}
+        derived={}
+        fixture_hashes={}
+        input_untouched=False
+        cleanup=False
+        selector_present=False
+        expected_hex="60003560e01c8063a9059cbb14601457600080fd5b600160005260206000f3"
+        bytecode=bytes.fromhex(expected_hex)
+        decoded_hash=hashlib.sha256(bytecode).hexdigest()
+        try:
+            with tempfile.TemporaryDirectory(prefix="rea-evm-closure-",dir="/dev/shm") as directory:
+                root=Path(directory)
+                root.chmod(0o755)
+                raw=root/"evm.bin"
+                prefixed=root/"evm-prefix.hex"
+                plain=root/"evm-plain.hex"
+                bad_odd=root/"bad-odd.hex"
+                bad_space=root/"bad-space.hex"
+                unsupported=root/"unsupported-ef00.bin"
+                files={
+                    raw:bytecode,
+                    prefixed:("  0x"+expected_hex.upper()+" \n").encode("ascii"),
+                    plain:expected_hex.encode("ascii"),
+                    bad_odd:b"0x123",
+                    bad_space:b"60 00 60 00",
+                    unsupported:bytes.fromhex("ef000101"),
+                }
+                for file,content in files.items():
+                    file.write_bytes(content)
+                    file.chmod(0o644)
+                    fixture_hashes[file.name]=hashlib.sha256(content).hexdigest()
+                positive=[
+                  ("raw",{"path":str(raw),"encoding":"raw"}),
+                  ("hex_prefix",{"path":str(prefixed),"encoding":"hex"}),
+                  ("hex_plain",{"path":str(plain),"encoding":"hex"}),
+                  ("hex_summary",{"path":str(prefixed),"encoding":"hex","detail":"summary"}),
+                ]
+                for ix,(case,args) in enumerate(positive,start=1001):
+                    secure.validate_arguments(tool,args)
+                    secure._authorized_target_paths(args,additional_roots=(root,))
+                    _,reply=request_mcp({"jsonrpc":"2.0","id":ix,"method":"tools/call",
+                        "params":{"name":name,"arguments":args}},
+                        session,protocol,timeout=95)
+                    res=reply.get("result")
+                    valid=("error" not in reply and isinstance(res,dict)
+                           and res.get("isError") is not True)
+                    structured=res.get("structuredContent") if valid else None
+                    report=structured.get("normalized_result",structured) if isinstance(structured,dict) else {}
+                    expected_carrier=fixture_hashes[Path(args["path"]).name]
+                    if not isinstance(report,dict):
+                        report={}
+                    if case=="hex_summary":
+                        summ=report.get("summary",{})
+                        evidence_id=report.get("parent_evidence_id")
+                        bcode=summ.get("bytecode") if isinstance(summ,dict) else None
+                        artifact=summ.get("artifact") if isinstance(summ,dict) else None
+                        correct=(valid and report.get("kind")=="summary"
+                            and report.get("parent_operation")==name
+                            and isinstance(evidence_id,str) and len(evidence_id)>20
+                            and isinstance(bcode,dict) and "hex" not in bcode
+                            and bcode.get("sha256")==decoded_hash
+                            and bcode.get("bytes")==len(bytecode)
+                            and isinstance(artifact,dict)
+                            and artifact.get("sha256")==expected_carrier
+                            and summ.get("runtime_execution")=="not-performed")
+                    else:
+                        bcode=report.get("bytecode")
+                        artifact=report.get("artifact")
+                        functions=report.get("functions")
+                        correct=(valid and isinstance(bcode,dict)
+                            and bcode.get("hex")==expected_hex
+                            and bcode.get("sha256")==decoded_hash
+                            and bcode.get("bytes")==len(bytecode)
+                            and bcode.get("kind")=="unknown"
+                            and bcode.get("deployment_authenticity")=="unknown"
+                            and bcode.get("hardfork")=="unknown"
+                            and isinstance(artifact,dict)
+                            and artifact.get("encoding")==args["encoding"]
+                            and artifact.get("sha256")==expected_carrier
+                            and artifact.get("bytes")==len(files[Path(args["path"])])
+                            and report.get("runtime_execution")=="not-performed"
+                            and report.get("discovery_completeness")=="unknown"
+                            and isinstance(functions,list)
+                            and all(isinstance(x,dict) and
+                                isinstance(x.get("selector"),str)
+                                and x["selector"].startswith("0x")
+                                and type(x.get("bytecode_offset")) is int
+                                and 0 <= x["bytecode_offset"] < len(bytecode)
+                                for x in functions))
+                        derived[case]={
+                            "functions":functions if isinstance(functions,list) else None,
+                            "bytecode_sha256":bcode.get("sha256") if isinstance(bcode,dict) else None,
+                            "runtime_execution":report.get("runtime_execution")
+                        }
+                        if isinstance(functions,list):
+                            selector_present=selector_present or any(
+                                f.get("selector")=="0xa9059cbb" for f in functions if isinstance(f,dict))
+                    cases[case]=bool(correct)
+                    hashes[case]=hashlib.sha256(
+                        json.dumps(res,sort_keys=True,ensure_ascii=True).encode()).hexdigest()
+                negative=[
+                    ("odd_hex",{"path":str(bad_odd),"encoding":"hex"}),
+                    ("interior_spaces",{"path":str(bad_space),"encoding":"hex"}),
+                    ("ef00_unsupported",{"path":str(unsupported),"encoding":"raw"}),
+                    ("missing_file",{"path":str(root/"nonexistent.evm"),"encoding":"hex"}),
+                    ("invalid_encoding",{"path":str(raw),"encoding":"base64"}),
+                ]
+                for ix,(case,args) in enumerate(negative,start=1061):
+                    try:
+                        secure.validate_arguments(tool,args)
+                        bridge_rejected=False
+                    except secure.SecureBridgeError:
+                        bridge_rejected=True
+                    _,reply=request_mcp({"jsonrpc":"2.0","id":ix,"method":"tools/call",
+                        "params":{"name":name,"arguments":args}},
+                        session,protocol,timeout=90)
+                    result=reply.get("result")
+                    negs[case]=(bool(bridge_rejected) if case=="invalid_encoding" else True) and (
+                        "error" in reply or (
+                        isinstance(result,dict) and result.get("isError") is True))
+                    hashes[case]=hashlib.sha256(
+                        json.dumps(reply,sort_keys=True,ensure_ascii=True).encode()).hexdigest()
+                parity=(
+                    cases.get("raw") and cases.get("hex_prefix") and cases.get("hex_plain")
+                    and derived["raw"]["functions"]==derived["hex_prefix"]["functions"]
+                    and derived["raw"]["functions"]==derived["hex_plain"]["functions"]
+                    and derived["raw"]["bytecode_sha256"]==derived["hex_prefix"]["bytecode_sha256"]
+                    and derived["raw"]["bytecode_sha256"]==derived["hex_plain"]["bytecode_sha256"])
+                input_untouched=all(
+                    hashlib.sha256((root/file).read_bytes()).hexdigest()==digest
+                    for file,digest in fixture_hashes.items())
+            cleanup=not root.exists()
+            daemon=before_pid.isdecimal() and pid()==before_pid
+            print("REA_CERT_EVM_POSITIVES="+json.dumps(cases,sort_keys=True))
+            print("REA_CERT_EVM_NEGATIVES="+json.dumps(negs,sort_keys=True))
+            print("REA_CERT_EVM_SELECTORS="+str(selector_present).lower())
+            print("REA_CERT_EVM_PARITY="+str(bool(parity)).lower())
+            print("REA_CERT_EVM_SOURCE="+("PASS" if input_untouched else "FAIL"))
+            print("REA_CERT_EVM_CLEANUP="+("PASS" if cleanup else "FAIL"))
+            print("REA_CERT_EVM_DAEMON="+("PASS" if daemon else "FAIL"))
+            print("REA_CERT_EVM_RESULTS_SHA256="+hashlib.sha256(
+                json.dumps(hashes,sort_keys=True).encode()).hexdigest())
+            accepted=(all(cases.values()) and all(negs.values()) and parity
+                and input_untouched and cleanup and daemon and selector_present)
+            print("REA_CERT_EVM_STATUS="+(
+                "PASS_LINUX_EVMOLE_REAL_INTERFACE_RECOVERY_CONTRACT" if accepted
+                else "INCOMPLETE_KEEP_SCOPED"))
+        except Exception as exc:
+            print("REA_CERT_EVM_STATUS=ERROR_"+type(exc).__name__)
+            raise
         return
     if data["action"] == "fixture_linux_objdump":
         # Source-owned, fixed Linux fixture on the original local REA MCP.
