@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -334,7 +334,12 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_INSTALL_AUDIT_PROVIDER_CANDIDATES",
         "REA_INSTALL_AUDIT_PROVIDERS_JSON",
         "REA_INSTALL_AUDIT_MCP_TOOL_COUNT",
-        "REA_INSTALL_AUDIT_COMPLETED"
+        "REA_INSTALL_AUDIT_COMPLETED",
+        "REA_DOCTOR_LINUX_STATUS",
+        "REA_DOCTOR_LINUX_EXIT",
+        "REA_DOCTOR_LINUX_JSON_SHA256",
+        "REA_DOCTOR_LINUX_KEYS",
+        "REA_DOCTOR_LINUX_SAFE_SUMMARY"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -1306,6 +1311,59 @@ def main():
         print("REA_LINUX_GDB_CONFORMANCE_STATUS=" +
               ("PASS_MOCKED_PROVIDER_ONLY" if passed_all and unchanged
                else "FAIL"))
+        return
+    if data["action"] == "fixture_linux_doctor_readiness":
+        # Read-only original REA doctor. Only bounded metadata/status, not
+        # local paths, usernames, credentials, commands, or captured content.
+        import shutil
+        cli = Path("/opt/rea-reversa/rea/scripts/rea.mjs")
+        node = shutil.which("node")
+        if not cli.is_file() or not node:
+            print("REA_DOCTOR_LINUX_STATUS=UNAVAILABLE_CORE")
+            return
+        proc=subprocess.run(
+            [node, str(cli), "doctor", "--json"],
+            capture_output=True,text=True,timeout=110,check=False,
+            env={**os.environ,"NO_COLOR":"1","NODE_OPTIONS":"--max-old-space-size=1024"})
+        print("REA_DOCTOR_LINUX_EXIT=" + str(proc.returncode))
+        if not proc.stdout or len(proc.stdout)>500000:
+            print("REA_DOCTOR_LINUX_STATUS=UNAVAILABLE_RESULT")
+            return
+        try:
+            val=json.loads(proc.stdout)
+        except ValueError:
+            print("REA_DOCTOR_LINUX_STATUS=INVALID_JSON")
+            return
+        print("REA_DOCTOR_LINUX_JSON_SHA256=" +
+              hashlib.sha256(proc.stdout.encode()).hexdigest())
+        if isinstance(val,dict):
+            print("REA_DOCTOR_LINUX_KEYS=" +
+                  json.dumps(sorted(str(k) for k in val.keys())[:35]))
+            def safe_statuses(v,depth=0):
+                if depth>3:
+                    return "nested"
+                if isinstance(v,dict):
+                    filtered={}
+                    for k,z in v.items():
+                        name=str(k)
+                        if len(filtered)>=35:
+                            break
+                        if re.search(r"token|secret|key|path|environment|command|user|host|uri|url", name,re.I):
+                            continue
+                        if isinstance(z,bool):
+                            filtered[name]=z
+                        elif isinstance(z,str) and name in ("status","state","healthy","availability"):
+                            filtered[name]=z[:80]
+                        elif isinstance(z,(dict,list)):
+                            filtered[name]=safe_statuses(z,depth+1)
+                    return filtered
+                if isinstance(v,list):
+                    return {"count":len(v),"sample":[safe_statuses(z,depth+1) for z in v[:8]]}
+                return type(v).__name__
+            print("REA_DOCTOR_LINUX_SAFE_SUMMARY=" +
+                  json.dumps(safe_statuses(val),sort_keys=True)[:9000])
+        print("REA_DOCTOR_LINUX_STATUS=" +
+              ("PASS_READ_ONLY" if proc.returncode==0 else "DOCTOR_FOUND_READINESS_ISSUES"))
         return
     if data["action"] == "fixture_linux_install_inventory":
         # Audit original Linux REA installation; no installation, no restart.
