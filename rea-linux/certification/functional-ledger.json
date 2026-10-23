@@ -1,0 +1,113 @@
+{
+  "schema_version": 2,
+  "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
+  "status": "IN_PROGRESS_LINUX_ONLY",
+  "environment": {
+    "host_os_family": "Linux",
+    "distro_agnostic_requirement": true,
+    "installed_engine": "/opt/rea-reversa/rea",
+    "mcp_endpoint": "127.0.0.1:8765/mcp",
+    "only_installed_engine": true,
+    "no_production_code_or_daemon_changes": true,
+    "remote_access": "existing GitHub Actions -> SSH -> Linux VPS -> original MCP",
+    "client_device_certification": false
+  },
+  "tool_catalog_count": 208,
+  "certification_policy": {
+    "per_tool_individual_contracted_behavior": true,
+    "test_source": "authorized controlled input on Linux filesystem",
+    "acceptance": "MCP real execution, expected content verified, input integrity, cleanup and limitations",
+    "return_success_alone_not_accepted": true,
+    "negative_tests_needed_for_full_approval": true,
+    "do_not_double_count_tools": true,
+    "no_install_or_restart_without_approval": true,
+    "no_repeat_of_proved_tests_without_change": true,
+    "no_import_of_prior_client_scoped_batches_into_active_ledger": true
+  },
+  "phases": [
+    {
+      "phase_id": "LINUX-P01-managed-metadata-20261023",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "source": "Controlled fixture generated and analyzed inside existing Linux VPS",
+      "test_type": "Read-only binary metadata and controlled content difference",
+      "workflow_run_ids": [
+        39945973782,
+        39946140124
+      ],
+      "workflow_urls": [
+        "https://github.com/martaxi-boss/VPS/actions/runs/39945973782",
+        "https://github.com/martaxi-boss/VPS/actions/runs/39946140124"
+      ],
+      "commits": [
+        "a131c18ee675a8f0f3e51f310bf539d16cc3f66a",
+        "b6c5f44e118c0f005b7aec30b7a46ac255b4f71e"
+      ],
+      "artifact_sha256_baseline": "7edc9f6853f9eb22e664b500c698bd4aa53a92d7a9429da2669a4b394e8ec4b3",
+      "artifact_sha256_variant": "817b39ca8475e7c7e7508ec96e3f6a668fc02b23ba0e7d03a82f17c6155f8542",
+      "mcp_result_sha256": [
+        "379a907f4941dcf29c8bb742732c62c67be4a049e27bcab243a29a34c320856b",
+        "0d1091b00590b12edb1769c912b84cd02df3970b43710c99a8c28990523d29ff"
+      ],
+      "known_difference": {
+        "method_baseline": "Main",
+        "method_variant": "MainV2",
+        "mvid_changed": true
+      },
+      "unchanged_input_verified": true,
+      "temporary_files_cleaned": true,
+      "tools": [
+        {
+          "name": "inspect_managed_artifact",
+          "status": "FUNCTIONAL_PASS_SCOPED",
+          "purpose": "Read assembly and module identity, content hash and metadata"
+        },
+        {
+          "name": "inspect_managed_members",
+          "status": "FUNCTIONAL_PASS_SCOPED",
+          "purpose": "Read methods and identify controlled change Main -> MainV2"
+        },
+        {
+          "name": "inspect_managed_native_boundaries",
+          "status": "FUNCTIONAL_PASS_SCOPED",
+          "purpose": "Report managed/native boundaries, expected absence of native calls"
+        }
+      ],
+      "gaps": [
+        "Needs invalid-input and edge-case testing before full certification",
+        "Only one controlled input family tested"
+      ]
+    }
+  ],
+  "active_scope_counts": {
+    "functional_pass_scoped_distinct": 3,
+    "awaiting_canonical_individual_review": 205
+  },
+  "verified_prior_linux_host_runs_pending_individual_reconciliation": [
+    {
+      "run_id": 39940346935,
+      "area": "Existing Linux ELF inspection with original Ghidra MCP",
+      "note": "Reconcile individual contracts, results and limitations without re-running"
+    },
+    {
+      "run_id": 39943693993,
+      "area": "Existing Linux ELF additional Ghidra MCP probes",
+      "note": "Reconcile individual contracts, results and limitations without re-running"
+    },
+    {
+      "run_id": 39940069733,
+      "area": "Isolated original REA CLI with staged Linux suppliers",
+      "note": "Do not count as MCP certification"
+    },
+    {
+      "run_id": 39938429274,
+      "area": "Existing static fixture smoke test on Linux",
+      "note": "Review only relevant general REA tools individually"
+    },
+    {
+      "run_id": 39938614581,
+      "area": "Controlled JavaScript content difference on Linux",
+      "note": "Reconcile separately; avoid duplicate count"
+    }
+  ],
+  "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval"
+}
