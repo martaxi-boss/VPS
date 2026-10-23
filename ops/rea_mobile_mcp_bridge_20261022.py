@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_wasm_compare_real_mcp_20261023"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -489,7 +489,11 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SDIAG_PID_ENV_READ",
         "REA_SDIAG_PID_ENV_SIZE",
         "REA_SDIAG_PID_PROVIDER_KEYS",
-        "REA_SDIAG_STATUS"
+        "REA_SDIAG_STATUS",
+        "REA_WCMP_STATUS","REA_WCMP_TOOL","REA_WCMP_ASSERTIONS",
+        "REA_WCMP_RESPONSE_SHA256","REA_WCMP_FIXTURE_CLEANUP",
+        "REA_WCMP_INSPECT_0","REA_WCMP_INSPECT_1",
+        "REA_WCMP_MCP_CALL_FAILED","REA_WCMP_CALL_ISERROR"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -1084,6 +1088,113 @@ def main():
                     error("Staged WABT validator did not start")
             print("REA_STAGE_" + provider + "=" + outcome)
         print("REA_STAGE_NO_SERVICE_CHANGES=PASS")
+        return
+    if data["action"] == "fixture_linux_wasm_compare_real_mcp_20261023":
+        # Exact original REA MCP; two privately owned WebAssembly binaries and
+        # true two-sided interface difference with the already-installed WABT.
+        # No foreign code executes and no new service or MCP is created.
+        import tempfile
+        name="compare_wasm_interfaces"
+        inspector="inspect_wasm_artifact"
+        for n in (name,inspector):
+            if n not in tool_by_name or secure.classify(n,tool_by_name[n],())!="workspace":
+                print("REA_WCMP_STATUS=BLOCKED_AUTHORIZATION_CLASS")
+                return
+        if len(tools)!=208:
+            print("REA_WCMP_STATUS=BLOCKED_ORIGINAL_CATALOG")
+            return
+        def section(kind,payload):
+            if len(payload)>=128:
+                raise RuntimeError("Small WASM fixture section too large")
+            return bytes([kind,len(payload)])+payload
+        def export(name,index):
+            b=name.encode("ascii")
+            return bytes([len(b)])+b+bytes([0,index])
+        def fixture(foo_type, third_name):
+            types=bytes([2,0x60,1,0x7f,0,0x60,1,0x7e,0])
+            fns=bytes([3,foo_type,0,0])
+            exports=(bytes([3])+export("foo",0)+export("stay",1)
+                        +export(third_name,2))
+            code=bytes([3,2,0,11,2,0,11,2,0,11])
+            return (bytes.fromhex("0061736d01000000")+section(1,types)
+                    +section(3,fns)+section(7,exports)+section(10,code))
+        def call(n,args,id):
+            secure.validate_arguments(tool_by_name[n],args)
+            response=request_mcp({"jsonrpc":"2.0","id":id,
+               "method":"tools/call","params":{"name":n,"arguments":args}},
+               session,protocol,timeout=105)[1]
+            res=response.get("result") if isinstance(response,dict) else None
+            if not isinstance(res,dict) or res.get("isError") is True or "error" in response:
+                print("REA_WCMP_MCP_CALL_FAILED="+n)
+                print("REA_WCMP_CALL_ISERROR="+str(res.get("isError") if isinstance(res,dict) else True).lower())
+                return None, response
+            output=res.get("structuredContent")
+            if not isinstance(output,dict):
+                for c in res.get("content",[]):
+                    if isinstance(c,dict) and isinstance(c.get("text"),str):
+                        try:
+                            output=json.loads(c["text"])
+                            break
+                        except ValueError:pass
+            return output if isinstance(output,dict) else None,response
+        with tempfile.TemporaryDirectory(prefix="rea-wcmp-owned-",dir="/dev/shm") as tmp:
+            root=Path(tmp)
+            root.chmod(0o755)
+            ids=[]
+            fixtures=[("before.wasm",fixture(0,"gone")),
+                      ("after.wasm",fixture(1,"born"))]
+            src_ok=True
+            for idx,(filename,raw) in enumerate(fixtures):
+                dest=root/filename
+                dest.write_bytes(raw)
+                dest.chmod(0o644)
+                hashval=hashlib.sha256(raw).hexdigest()
+                arguments={"path":str(dest),"glue_paths":[],"candidate_paths":[]}
+                secure._authorized_target_paths(arguments,additional_roots=(root,))
+                evidence,response=call(inspector,arguments,2200+idx)
+                norm=evidence.get("normalized_result",{}) if isinstance(evidence,dict) else {}
+                art=norm.get("artifact",{}) if isinstance(norm,dict) else {}
+                interface=norm.get("interface",{}) if isinstance(norm,dict) else {}
+                version=(norm.get("tool_profile") or {}).get("release") if isinstance(norm,dict) else None
+                evid=evidence.get("evidence_id") if isinstance(evidence,dict) else None
+                good=(isinstance(evid,str) and evid.startswith("ev-")
+                      and art.get("sha256")==hashval
+                      and interface.get("state")=="complete"
+                      and version=="1.0.42")
+                print("REA_WCMP_INSPECT_"+str(idx)+"="+("PASS" if good else "FAIL"))
+                if not good:
+                    print("REA_WCMP_STATUS=FAILED_INPUT_INSPECTION")
+                    return
+                ids.append(evid)
+                src_ok=src_ok and hashlib.sha256(dest.read_bytes()).hexdigest()==hashval
+            req={"left":{"kind":"retained-evidence","evidence_id":ids[0]},
+                 "right":{"kind":"retained-evidence","evidence_id":ids[1]},
+                 "scope":"both"}
+            secure._authorized_target_paths(req,additional_roots=(root,))
+            output,response=call(name,req,2300)
+            report=output.get("normalized_result",{}) if isinstance(output,dict) else {}
+            summary=report.get("summary",{}) if isinstance(report,dict) else {}
+            by_name={c.get("name"):c.get("state") for c in report.get("changes",[])
+                     if isinstance(c,dict)} if isinstance(report,dict) else {}
+            checks={
+               "real_mcp_isError_false":isinstance(output,dict),
+               "coverage_complete_within_inputs":report.get("coverage")=="complete-within-inputs",
+               "foo_changed_signature":by_name.get("foo")=="changed",
+               "stay_unchanged":by_name.get("stay")=="unchanged",
+               "gone_removed":by_name.get("gone")=="removed",
+               "born_added":by_name.get("born")=="added",
+               "counts_match":summary=={"added":1,"removed":1,"changed":1,
+                                       "unchanged":1,"unknown":0},
+               "left_evidence_link":report.get("left",{}).get("evidence_id")==ids[0],
+               "right_evidence_link":report.get("right",{}).get("evidence_id")==ids[1],
+               "original_sources_unchanged":src_ok,
+            }
+            print("REA_WCMP_TOOL="+name)
+            print("REA_WCMP_ASSERTIONS="+json.dumps(checks,sort_keys=True))
+            print("REA_WCMP_RESPONSE_SHA256="+hashlib.sha256(json.dumps(
+                 response,sort_keys=True,ensure_ascii=True).encode()).hexdigest())
+            print("REA_WCMP_STATUS="+("FUNCTIONAL_PASS_SCOPED" if all(checks.values()) else "INCOMPLETE"))
+        print("REA_WCMP_FIXTURE_CLEANUP="+str(not root.exists()).lower())
         return
     if data["action"] == "fixture_linux_read5_mcp_boundaries":
         # Run original REA real MCP tool methods against private in-memory
