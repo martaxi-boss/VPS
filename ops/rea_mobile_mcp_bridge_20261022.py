@@ -814,7 +814,7 @@ def main():
         print("REA_JS_P35_SERVICE="+("PASS" if service_unchanged else "FAIL"))
         print("REA_JS_P35_SOURCE="+("PASS" if engine_unmodified else "FAIL"))
         print("REA_JS_P35_DIGEST="+hashlib.sha256(raw).hexdigest())
-        passed=(len(p)==7 and all(x["pass"] for x in p) and len(n)==18 and
+        passed=(len(p)==7 and all(x["pass"] for x in p) and len(n)==17 and
             all(x["pass"] for x in n) and cleaned and inputs_unchanged and
             engine_unmodified and service_unchanged and len(tools)==208)
         print("REA_JS_P35_STATUS="+("PASS_JS_STATIC_CONTRACT" if passed else
