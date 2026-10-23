@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_wabt_deploy_20261023", "fixture_linux_wabt_real_mcp_20261023", "fixture_linux_pwntools_deploy_20261023", "fixture_linux_pwntools_diagnose_20261023", "fixture_linux_pwntools_real_mcp_20261023", "fixture_linux_binwalk_build_readiness_20261023"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_wabt_deploy_20261023", "fixture_linux_wabt_real_mcp_20261023", "fixture_linux_pwntools_deploy_20261023", "fixture_linux_pwntools_diagnose_20261023", "fixture_linux_pwntools_real_mcp_20261023", "fixture_linux_binwalk_build_readiness_20261023", "fixture_linux_rust_official_checksum_20261023"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -518,7 +518,9 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_BINBUILD_HOST","REA_BINBUILD_SPACE_BYTES","REA_BINBUILD_RAM",
         "REA_BINBUILD_COMPILERS","REA_BINBUILD_PACKAGES",
         "REA_BINBUILD_PROVIDER_RUST_DIR","REA_BINBUILD_NO_GLOBAL_MODIFICATIONS",
-        "REA_BINBUILD_MCP_COUNT","REA_BINBUILD_STATUS"
+        "REA_BINBUILD_MCP_COUNT","REA_BINBUILD_STATUS",
+        "REA_RUST_VENDOR_SHA_RUSTUP","REA_RUST_VENDOR_SHA_RUST_CHANNEL_1_85_1",
+        "REA_RUST_VENDOR_UNCHANGED_ORIGINAL","REA_RUST_VENDOR_STATUS"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -1660,6 +1662,28 @@ def main():
         print("REA_BINBUILD_NO_GLOBAL_MODIFICATIONS=true")
         print("REA_BINBUILD_MCP_COUNT="+str(len(tools)))
         print("REA_BINBUILD_STATUS=PASS_READ_ONLY_CAPACITY_AND_TOOLCHAIN_AUDIT")
+        return
+    if data["action"] == "fixture_linux_rust_official_checksum_20261023":
+        # Only official HTTPS checksum manifests; absolutely no install or
+        # binary download, no global changes, no web arbitrary URL inputs.
+        import ssl
+        import re as regex
+        items={
+            "RUSTUP":"https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init.sha256",
+            "RUST_CHANNEL_1_85_1":"https://static.rust-lang.org/dist/channel-rust-1.85.1.toml.sha256"
+        }
+        for name,url in items.items():
+            with urllib.request.urlopen(urllib.request.Request(
+                url,headers={"User-Agent":"REA-original-Binwalk3.1-prerequisite/1"}),
+                timeout=25,context=ssl.create_default_context()) as reply:
+                payload=reply.read(1200)
+            parts=payload.decode("ascii",errors="strict").strip().split()
+            if not parts or not regex.fullmatch("[0-9a-f]{64}",parts[0]):
+                print("REA_RUST_VENDOR_STATUS=BLOCKED_OFFICIAL_SHA_FORMAT_"+name)
+                return
+            print("REA_RUST_VENDOR_SHA_"+name+"="+parts[0])
+        print("REA_RUST_VENDOR_UNCHANGED_ORIGINAL=true")
+        print("REA_RUST_VENDOR_STATUS=PASS_OFFICIAL_STATIC_RUST_SHA_PUBLISHED")
         return
     if data["action"] == "fixture_linux_read5_mcp_boundaries":
         # Run original REA real MCP tool methods against private in-memory
