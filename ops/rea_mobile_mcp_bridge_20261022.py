@@ -1157,7 +1157,7 @@ def main():
                 interface=norm.get("interface",{}) if isinstance(norm,dict) else {}
                 version=(norm.get("tool_profile") or {}).get("release") if isinstance(norm,dict) else None
                 evid=evidence.get("evidence_id") if isinstance(evidence,dict) else None
-                good=(isinstance(evid,str) and evid.startswith("ev-")
+                good=(isinstance(evid,str) and evid.startswith("ev_")
                       and art.get("sha256")==hashval
                       and interface.get("state")=="complete"
                       and version=="1.0.42")
