@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_wabt_deploy_20261023", "fixture_linux_wabt_real_mcp_20261023"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_wabt_deploy_20261023", "fixture_linux_wabt_real_mcp_20261023", "fixture_linux_pwntools_deploy_20261023"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -499,7 +499,10 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_FIRMWARE_DOCKER_AVAILABLE",
         "REA_WASM_MCP_TOOL","REA_WASM_MCP_ISERROR","REA_WASM_MCP_RESPONSE_SHA256",
         "REA_WASM_MCP_ASSERTIONS","REA_WASM_MCP_STATUS","REA_WASM_MCP_CLEANUP",
-        "REA_WASM_MCP_ORIGINAL_PID_STABLE"
+        "REA_WASM_MCP_ORIGINAL_PID_STABLE",
+        "REA_PWN_DEP_STATUS","REA_PWN_DEP_VENV","REA_PWN_DEP_SERVICE_USER",
+        "REA_PWN_DEP_ACTIVE_ENV","REA_PWN_DEP_ONLY_REA_RESTART",
+        "REA_PWN_DEP_ROLLBACK","REA_PWN_DEP_VERSION"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -1327,6 +1330,117 @@ def main():
                    capture_output=True,text=True,timeout=12,check=False)
         print("REA_WASM_MCP_ORIGINAL_PID_STABLE="+str(
               p2.stdout.strip()==starting_pid).lower())
+        return
+    if data["action"] == "fixture_linux_pwntools_deploy_20261023":
+        # REA-original pwntools 4.15.0 + pyelftools 0.33 + unicorn 2.1.2,
+        # in a dedicated, atomic virtualenv. No OS Python, PATH or other unit edits.
+        import tempfile
+        unit="rea-reversa-mcp.service"
+        final=Path("/opt/rea-reversa/providers/pwntools-4.15.0")
+        staging=Path("/opt/rea-reversa/providers/.pwntools-4.15.0-staging-20261023")
+        dropin=Path("/etc/systemd/system/rea-reversa-mcp.service.d/97-rea-linux-pwntools.conf")
+        desired="pwntools=4.15.0;pyelftools=0.33;unicorn=2.1.2"
+        verify=("import importlib.metadata as m; import pwnlib,elftools,unicorn;"
+                "v=';'.join(k+'='+m.version(k) for k in "
+                "('pwntools','pyelftools','unicorn'));print(v)")
+        def cmd(*parts, timeout=90):
+            p=subprocess.run(list(parts),capture_output=True,text=True,check=False,timeout=timeout)
+            if p.returncode:
+                raise RuntimeError("REA pwntools command failed: "+
+                                   str(parts[0])+" "+str(p.returncode)+
+                                   " "+p.stderr.strip()[-180:])
+            return p.stdout.strip()
+        def sudo(*parts, timeout=90):
+            return cmd("sudo","-n",*parts,timeout=timeout)
+        def show(key):
+            return cmd("systemctl","show",unit,"-p",key,"--value",timeout=18)
+        if len(tools)!=208 or not Path("/opt/rea-reversa/rea/scripts/rea.mjs").is_file():
+            print("REA_PWN_DEP_STATUS=BLOCKED_ORIGINAL_REA_CATALOG")
+            return
+        if show("User")!="rea-reversa" or not show("FragmentPath").endswith("/rea-reversa-mcp.service"):
+            print("REA_PWN_DEP_STATUS=BLOCKED_SERVICE_IDENTITY")
+            return
+        before=show("MainPID")
+        if not before.isdecimal() or int(before)<1 or sudo(
+            "readlink","-f",f"/proc/{before}/exe")!=(
+                 "/opt/rea-reversa/providers/node-v24.22.1/bin/node"):
+            print("REA_PWN_DEP_STATUS=BLOCKED_ORIGINAL_NODE")
+            return
+        if final.is_symlink() or dropin.is_symlink() or staging.exists() or staging.is_symlink():
+            raise RuntimeError("Provider path symlink or pre-existing staging disallowed")
+        if final.exists():
+            actual=cmd(str(final/"bin/python"),"-c",verify,timeout=26)
+            if actual!=desired:
+                raise RuntimeError("Existing pwntools provider differs from original audited pins")
+            print("REA_PWN_DEP_VENV=ALREADY_PRESENT_VERSION_PASS")
+        else:
+            sudo("/usr/bin/python3","-m","venv",str(staging),timeout=75)
+            try:
+                python=str(staging/"bin/python")
+                sudo(python,"-m","pip","install",
+                     "--no-input","--disable-pip-version-check",
+                     "--no-cache-dir","--retries","1","--timeout","25",
+                     "--only-binary=:all:",
+                     "pwntools==4.15.0","pyelftools==0.33","unicorn==2.1.2",
+                     timeout=450)
+                sudo(python,"-m","pip","check",timeout=40)
+                if sudo(python,"-c",verify,timeout=25)!=desired:
+                    raise RuntimeError("Audited pwntools versions not resolved")
+                sudo("mv","-T",str(staging),str(final),timeout=25)
+            except Exception:
+                sudo("rm","-rf","--",str(staging),timeout=25)
+                raise
+            print("REA_PWN_DEP_VENV=PASS_PINNED_ISOLATED")
+        service_python=str(final/"bin/python")
+        if sudo("runuser","-u","rea-reversa","--",
+                service_python,"-c",verify,timeout=35)!=desired:
+            raise RuntimeError("Original service user cannot import pinned pwntools")
+        print("REA_PWN_DEP_VERSION="+desired)
+        print("REA_PWN_DEP_SERVICE_USER=PASS_IMPORT")
+        config='[Service]\nEnvironment="REA_PWNTOOLS_PYTHON='+service_python+'"\n'
+        if dropin.exists():
+            if dropin.read_text()!=config:
+                raise RuntimeError("Refusing to overwrite existing systemd dropin")
+            print("REA_PWN_DEP_STATUS=ALREADY_CONFIGURED")
+            return
+        tmp=None
+        changed=False
+        try:
+            with tempfile.NamedTemporaryFile(mode="w",encoding="utf-8",
+                    prefix="rea-pwntools-systemd-",delete=False) as f:
+                f.write(config);tmp=f.name
+            sudo("install","-o","root","-g","root","-m","0644",tmp,str(dropin))
+            changed=True
+            sudo("systemctl","daemon-reload",timeout=45)
+            if service_python not in show("Environment"):
+                raise RuntimeError("systemd did not admit REA_PWNTOOLS_PYTHON")
+            sudo("systemctl","restart",unit,timeout=90)
+            newpid=show("MainPID")
+            if not newpid.isdecimal() or newpid==before or show("ActiveState")!="active":
+                raise RuntimeError("Original REA service did not come back")
+            if sudo("readlink","-f",f"/proc/{newpid}/exe")!=(
+                    "/opt/rea-reversa/providers/node-v24.22.1/bin/node"):
+                raise RuntimeError("Original service runtime was unexpectedly replaced")
+            check=subprocess.run(["sudo","-n","python3","-c",
+                "from pathlib import Path;import sys;"
+                "e=Path('/proc/'+sys.argv[1]+'/environ').read_bytes().split(bytes([0]));"
+                "sys.exit(0 if ('REA_PWNTOOLS_PYTHON='+sys.argv[2]).encode() in e else 1)",
+                newpid,service_python],capture_output=True,text=True,timeout=15,check=False)
+            if check.returncode:
+                raise RuntimeError("Running REA original process missing pwntools configuration")
+            print("REA_PWN_DEP_ACTIVE_ENV=PASS")
+            print("REA_PWN_DEP_ONLY_REA_RESTART=PASS")
+            print("REA_PWN_DEP_STATUS=PASS_PERSISTENT_ORIGINAL_MCP_PROVIDER")
+        except Exception as ex:
+            if changed:
+                sudo("rm","-f","--",str(dropin))
+                sudo("systemctl","daemon-reload",timeout=45)
+                sudo("systemctl","restart",unit,timeout=90)
+                print("REA_PWN_DEP_ROLLBACK=PASS_ORIGINAL_SERVICE_RESTORED")
+            raise RuntimeError("Original pwntools integration rolled back: "+str(ex)[:180])
+        finally:
+            if tmp is not None:
+                Path(tmp).unlink(missing_ok=True)
         return
     if data["action"] == "fixture_linux_read5_mcp_boundaries":
         # Run original REA real MCP tool methods against private in-memory
