@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_objdump_certification", "fixture_linux_objdump_negative_finalize", "fixture_linux_objdump_invalid_exit_probe"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_objdump_certification", "fixture_linux_objdump_negative_finalize", "fixture_linux_objdump_invalid_exit_probe", "fixture_linux_client_contract_certification"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -217,6 +217,12 @@ def encrypt_result(raw_path, request_path, envelope_path):
     request = validate(json.loads(request_raw))
     private = None
     allowed_markers = {
+        "REA_CERT_CLIENT_PCAP",
+        "REA_CERT_CLIENT_APKTOOL",
+        "REA_CERT_CLIENT_NEGATIVE",
+        "REA_CERT_CLIENT_PID",
+        "REA_CERT_CLIENT_SHA256",
+        "REA_CERT_CLIENT_STATUS",
         "REA_OBJDUMP_INVALID_EXIT",
         "REA_OBJDUMP_INVALID_ISERROR",
         "REA_OBJDUMP_INVALID_MESSAGE",
@@ -2696,6 +2702,75 @@ def main():
                 except (OSError, RuntimeError, ValueError):
                     print("REA_FIXTURE_CLEANUP=FAIL")
                     raise
+        return
+    if data["action"] == "fixture_linux_client_contract_certification":
+        # Two parameterless, read-only version probes on the original Linux MCP.
+        # Check versions, strict input rejection and service stability.
+        unit = "rea-reversa-mcp.service"
+        def pid():
+            proc = subprocess.run(["systemctl", "show", unit, "-p", "MainPID",
+                "--value"],capture_output=True,text=True,timeout=10,check=False)
+            return proc.stdout.strip() if proc.returncode == 0 else ""
+        before = pid()
+        statuses = {}
+        hashes = {}
+        rejects = {}
+        def collect(node, keys, found):
+            if isinstance(node,dict):
+                for k,v in node.items():
+                    if k in keys and isinstance(v,str) and v.strip():
+                        found[k] = True
+                    elif isinstance(v,(dict,list)):
+                        collect(v,keys,found)
+            elif isinstance(node,list):
+                for v in node: collect(v,keys,found)
+        required = {
+            "inspect_pcap_client": ("tshark_version","capinfos_version",
+                                    "tshark_command","capinfos_command"),
+            "inspect_apktool_client": ("apktool_version","command","command_source"),
+        }
+        for idx,(name,needed) in enumerate(required.items(), start=941):
+            descriptor=tool_by_name.get(name)
+            if not descriptor:
+                error("Required original MCP client tool absent: " + name)
+            secure.validate_arguments(descriptor,{})
+            _,response=request_mcp({"jsonrpc":"2.0","id":idx,
+                "method":"tools/call","params":{"name":name,"arguments":{}}},
+                session,protocol,timeout=85)
+            res=response.get("result")
+            valid = isinstance(res,dict) and res.get("isError") is not True and (
+                "error" not in response)
+            fields={}
+            if valid:
+                collect(res.get("structuredContent",{}),needed,fields)
+            statuses[name]=valid and all(fields.get(k) is True for k in needed)
+            hashes[name]=hashlib.sha256(
+                json.dumps(response,sort_keys=True).encode()).hexdigest()
+            arg={"unexpected_rea_parameter":True}
+            schema_rejected=False
+            try:
+                secure.validate_arguments(descriptor,arg)
+            except secure.SecureBridgeError:
+                schema_rejected=True
+            _,invalid_response=request_mcp({"jsonrpc":"2.0","id":idx+10,
+                "method":"tools/call","params":{"name":name,"arguments":arg}},
+                session,protocol,timeout=85)
+            invalid=invalid_response.get("result")
+            mcp_rejected="error" in invalid_response or (
+                isinstance(invalid,dict) and invalid.get("isError") is True)
+            rejects[name]=schema_rejected and mcp_rejected
+        stable=before.isdecimal() and before==pid()
+        print("REA_CERT_CLIENT_PCAP="+(
+             "PASS" if statuses["inspect_pcap_client"] else "FAIL"))
+        print("REA_CERT_CLIENT_APKTOOL="+(
+             "PASS" if statuses["inspect_apktool_client"] else "FAIL"))
+        print("REA_CERT_CLIENT_NEGATIVE="+json.dumps(rejects,sort_keys=True))
+        print("REA_CERT_CLIENT_PID="+("PASS" if stable else "FAIL"))
+        print("REA_CERT_CLIENT_SHA256="+json.dumps(hashes,sort_keys=True))
+        accepted=all(statuses.values()) and all(rejects.values()) and stable
+        print("REA_CERT_CLIENT_STATUS="+(
+             "PASS_BOTH_FULL_PARAMETERLESS_CONTRACTS" if accepted
+             else "INCOMPLETE_KEEP_SCOPED"))
         return
     if data["action"] == "fixture_linux_objdump_invalid_exit_probe":
         # Only earlier inconclusive invalid-binary exit-code assertion.
