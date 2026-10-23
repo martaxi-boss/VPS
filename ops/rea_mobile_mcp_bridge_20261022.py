@@ -100,7 +100,7 @@ def validate(data):
                   "secure_public_key", "stage_dependencies"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
-    elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2"):
+    elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
         # Named system-owned ELF only; never an arbitrary caller-selected path.
         if set(data) != {"version", "action", "response_key"}:
             error("Ghidra inspection fixture accepts only a public reply key")
@@ -271,7 +271,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         if private is not None:
             error("Unexpected private response")
         return
-    if request["action"] not in ("call", "sealed_batch", "fixture_apkdemos", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2") or private is None:
+    if request["action"] not in ("call", "sealed_batch", "fixture_apkdemos", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump") or private is None:
         error("Missing encrypted-return payload from REA")
     public = serialization.load_der_public_key(
         base64.b64decode(request["response_key"], validate=True)
@@ -1140,6 +1140,46 @@ def main():
                 except (OSError, RuntimeError, ValueError):
                     print("REA_FIXTURE_CLEANUP=FAIL")
                     raise
+        return
+    if data["action"] == "fixture_linux_objdump":
+        # Source-owned, fixed Linux fixture on the original local REA MCP.
+        target = Path("/usr/bin/true")
+        if not target.is_file() or target.read_bytes()[:4] != b"\x7fELF":
+            error("Fixed Linux ELF input is unavailable")
+        target_hash_before = hashlib.sha256(target.read_bytes()).hexdigest()
+        if "inspect_with_objdump" not in tool_by_name:
+            error("GNU objdump MCP tool is not advertised")
+        records = []
+        for idx, operation in enumerate(("file_headers", "section_headers", "disassemble"), start=701):
+            arguments = {"operation": operation, "path": str(target),
+                         "follow_debug_links": False}
+            secure.validate_arguments(tool_by_name["inspect_with_objdump"], arguments)
+            _, reply = request_mcp(
+                {"jsonrpc": "2.0", "id": idx, "method": "tools/call",
+                 "params": {"name": "inspect_with_objdump", "arguments": arguments}},
+                session, protocol, timeout=95)
+            result = reply.get("result")
+            accepted = ("error" not in reply and isinstance(result, dict)
+                        and result.get("isError") is not True)
+            records.append({"tool": "inspect_with_objdump", "operation": operation,
+                            "arguments_sha256": secure.arguments_sha256(arguments),
+                            "isError": result.get("isError") if isinstance(result, dict) else None,
+                            "status": "MCP_OK" if accepted else "MCP_ERROR",
+                            "result": result if isinstance(result, dict) else None,
+                            "protocol_error": reply.get("error")})
+        unchanged = target_hash_before == hashlib.sha256(target.read_bytes()).hexdigest()
+        payload = {"host_family": "Linux", "source": "/usr/bin/true",
+                   "source_sha256": target_hash_before, "source_unchanged": unchanged,
+                   "records": records, "method": "original MCP tools/call on Linux"}
+        raw = json.dumps(payload, ensure_ascii=True, sort_keys=True).encode()
+        if len(raw) > MAX_RESPONSE or os.environ.get("REA_MOBILE_ENVELOPE_CAPTURE") != "1":
+            error("Linux objdump fixture requires bounded encrypted evidence")
+        print("REA_MOBILE_TOOL_CALL=PASS")
+        print("REA_MOBILE_TOOL_ERROR=" + str(
+            not unchanged or any(r["status"] != "MCP_OK" for r in records)).lower())
+        print("REA_MOBILE_OUTPUT_BYTES=" + str(len(raw)))
+        print("REA_MOBILE_OUTPUT_SHA256=" + hashlib.sha256(raw).hexdigest())
+        print("REA_MOBILE_PRIVATE_RESULT_B64=" + base64.b64encode(raw).decode("ascii"))
         return
     if data["action"] == "fixture_objdump":
         # Deterministic system-owned ELF; no caller path, source, shell or flags.
