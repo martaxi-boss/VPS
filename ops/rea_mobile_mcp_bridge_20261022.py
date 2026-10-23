@@ -542,6 +542,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_BIN3_ACT_MCP_COUNT","REA_BIN3_ACT_RISK_CLASSES",
         "REA_BIN3_ACT_NODE24","REA_BIN3_ACT_ORIGINAL_SOURCE",
         "REA_BIN3_ACT_RESTART_SCOPE","REA_BIN3_ACT_ROLLBACK",
+        "REA_BIN3_ACT_SETTLED_NODE_PATH","REA_BIN3_ACT_ERROR_KIND",
         "REA_FW_MCP_TOOL","REA_FW_MCP_ISERROR","REA_FW_MCP_RESPONSE_SHA256",
         "REA_FW_MCP_ASSERTIONS","REA_FW_MCP_REGION_COUNT","REA_FW_MCP_ERROR_KEYS",
         "REA_FW_MCP_STATUS","REA_FW_MCP_TEMP_CLEANUP","REA_FW_MCP_PID_STABLE",
@@ -2073,12 +2074,22 @@ def main():
                 if str(binary) not in show("Environment"):
                     raise RuntimeError("New REA Binwalk environment not accepted by systemd")
                 sudo("systemctl","restart",unit,timeout=105)
-            newpid=pid()
-            if show("ActiveState")!="active" or (
-                      created and newpid==original_pid):
-                raise RuntimeError("REA main service failed to restart")
-            if sudo("readlink","-f","/proc/"+newpid+"/exe")!=node24:
-                raise RuntimeError("Node24 original MCP executor changed unexpectedly")
+            observed_exe="UNAVAILABLE"
+            for settle in range(12):
+                try:
+                    newpid=pid()
+                    active=show("ActiveState")=="active"
+                    if active and (not created or newpid!=original_pid):
+                        observed_exe=sudo("readlink","-f","/proc/"+newpid+"/exe",timeout=12)
+                        if observed_exe==node24:
+                            break
+                except (RuntimeError,subprocess.TimeoutExpired):
+                    observed_exe="SERVICE_TRANSIENT"
+                time.sleep(1)
+            else:
+                raise RuntimeError("Original Node24 PID/executable did not stabilize: "+
+                                   observed_exe[:110])
+            print("REA_BIN3_ACT_SETTLED_NODE_PATH="+observed_exe)
             newenv=envmap(newpid)
             if newenv.get("REA_BINWALK_COMMAND")!=str(binary):
                 raise RuntimeError("REA original process missing new Binwalk3 setting")
@@ -2138,8 +2149,21 @@ def main():
                 sudo("rm","-f","--",str(dropin))
                 sudo("systemctl","daemon-reload")
                 sudo("systemctl","restart",unit,timeout=105)
+                for guard in range(12):
+                    try:
+                        checkpid=pid()
+                        restored=sudo("readlink","-f","/proc/"+checkpid+"/exe",timeout=12)
+                        if restored==node24 and show("ActiveState")=="active":
+                            break
+                    except (RuntimeError,subprocess.TimeoutExpired):
+                        pass
+                    time.sleep(1)
+                else:
+                    raise RuntimeError("Binwalk provider rollback could not restore original Node24") from exc
                 print("REA_BIN3_ACT_ROLLBACK=RESTORED_OLD_REA_PROVIDER_CONFIGURATION")
-            raise RuntimeError("Binwalk3 scoped activation reverted or blocked: "+str(exc)[:160])
+            print("REA_BIN3_ACT_ERROR_KIND="+str(exc)[:170].replace("\n"," "))
+            print("REA_BIN3_ACT_STATUS=BLOCKED_SAFE_ROLLBACK")
+            return
         finally:
             if stage_path is not None:
                 Path(stage_path).unlink(missing_ok=True)
