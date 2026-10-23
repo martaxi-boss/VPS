@@ -310,6 +310,44 @@
         "fully_certified": 0
       },
       "acceptance_note": "No blanket 5/5 functional pass; only read class was invoked. Failures in intended negative tests do not indicate workflow failure."
+    },
+    {
+      "phase_id": "LINUX-P04-UNKNOWN-RESOLUTION-ISOLATED-REGRESSION-20261023",
+      "status": "SOURCE_FUNCTIONAL_REGRESSION_PASS_NOT_LIVE_MCP_PASS",
+      "scope": "Original REA source-code behavioral regression executed on the same Linux VPS, with fresh in-memory evidence ledger and no modification of production MCP sessions",
+      "method": "Existing Vitest v5.0.3 targeted test in staged REA source repository",
+      "workflow_run_id": 39966736430,
+      "workflow_url": "https://github.com/martaxi-boss/VPS/actions/runs/39966736430",
+      "git_commit_trigger": "d08fd8762bfb81f062c2e1ecc7bcc3ce0eb637ea",
+      "executed_test": "rejects inference for observed resolution, then accepts matching live evidence",
+      "source_test_file": "src/application/investigation/EvidenceLedger.residualUnknown.test.ts",
+      "evidence": {
+        "host": "Linux VPS",
+        "real_original_rea_code": true,
+        "subprocess_exit_code": 0,
+        "source_present": true,
+        "vitest_present": true,
+        "node_present": true,
+        "selected_test_passed": 1,
+        "other_tests_skipped": 9,
+        "captured_test_output_sha256": "876aafc48675a729e741ad2f6e3d79d1bdb3293db363d6eb3437b9fca90a9a5c",
+        "expected_rejection": "inference alone cannot satisfy observed verified resolution",
+        "expected_acceptance": "matching valid observed evidence supports verified resolution",
+        "original_mcp_tools_list_count_in_same_run": 208
+      },
+      "tools": [
+        {
+          "name": "verify_unknown_resolution",
+          "status": "SOURCE_REGRESSION_PASS_LIVE_POSITIVE_PENDING",
+          "scope": "Real EvidenceLedger verification implementation, not production MCP tools/call for a genuine created unknown"
+        }
+      ],
+      "negative_test_confirmed_previous_run_id": 39950507161,
+      "limitations": [
+        "MCP live endpoint was checked for availability but verify_unknown_resolution positive tools/call was not performed in the shared production session",
+        "GDB remains outside this fixture, pending a signed sensitive test session and an available real GDB executable",
+        "No production session state or GDB process changed"
+      ]
     }
   ],
   "active_scope_counts": {
@@ -418,6 +456,12 @@
     "missing_prerequisites": {
       "verify_unknown_resolution": "No legitimate retained unknown in session; cannot fabricate one as read-only",
       "gdb_session_status": "GDB missing from active Linux PATH; starting a session requires signed sensitive owner authorization"
+    },
+    "additional_isolated_regression": {
+      "tool": "verify_unknown_resolution",
+      "run_id": 39966736430,
+      "status": "SOURCE_FUNCTIONAL_PASS_ONLY",
+      "live_mcp_positive_still_pending": true
     }
   }
 }
