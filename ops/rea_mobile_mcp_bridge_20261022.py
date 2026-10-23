@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_supplier_gap_20261023", "fixture_linux_tshark_activate_20261023", "fixture_linux_glossary_sigrok_diag_20261023", "fixture_linux_sigrok_sandbox_20261023", "fixture_linux_static_formats_20261023", "fixture_linux_node24_stage_20261023", "fixture_linux_node24_sqlite_cli_20261023", "fixture_linux_node24_unit_preflight_20261023", "fixture_linux_node24_unit_shape_20261023"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_supplier_gap_20261023", "fixture_linux_tshark_activate_20261023", "fixture_linux_glossary_sigrok_diag_20261023", "fixture_linux_sigrok_sandbox_20261023", "fixture_linux_static_formats_20261023", "fixture_linux_node24_stage_20261023", "fixture_linux_node24_sqlite_cli_20261023", "fixture_linux_node24_unit_preflight_20261023", "fixture_linux_node24_unit_shape_20261023", "fixture_linux_node24_activate_20261023"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -265,6 +265,14 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_NODE24_SHAPE_HAS_EXECSTART", "REA_NODE24_SHAPE_PARTS",
         "REA_NODE24_SHAPE_FILEPATH_KIND", "REA_NODE24_SHAPE_SAFETY",
         "REA_NODE24_SHAPE_ACTUAL_ARGC",
+        "REA_NODE24_ACTIVATE_ORIGINAL_CHECK", "REA_NODE24_ACTIVATE_NODE24_VERSION",
+        "REA_NODE24_ACTIVATE_SERVICE_SCOPE", "REA_NODE24_ACTIVATE_MCP_COUNT",
+        "REA_NODE24_ACTIVATE_CLASSIFICATION", "REA_NODE24_ACTIVATE_SQLITE",
+        "REA_NODE24_ACTIVATE_SQLITE_SHA256", "REA_NODE24_ACTIVATE_SQLITE_ASSERTIONS",
+        "REA_NODE24_ACTIVATE_SOURCE_UNCHANGED", "REA_NODE24_ACTIVATE_TEMP_CLEANUP",
+        "REA_NODE24_ACTIVATE_PROVIDERS_PRESERVED", "REA_NODE24_ACTIVATE_EXE",
+        "REA_NODE24_ACTIVATE_STATUS", "REA_NODE24_ACTIVATE_ROLLBACK",
+        "REA_NODE24_ACTIVATE_ONLY_REA_RESTARTED",
         "REA_MOBILE_PROVIDER_DOCTOR_GHIDRA",
         "REA_MOBILE_PROVIDER_DOCTOR_JADX", "REA_MOBILE_CATALOG",
         "REA_MOBILE_DESCRIBE_TOOL", "REA_MOBILE_TOOL_DESCRIPTOR_B64",
@@ -1791,6 +1799,281 @@ def main():
                   (installed.stdout or installed.stderr).splitlines()[0][:110])
             print("REA_RIZIN_STATUS="+(
                 "PASS_PINNED_PERSISTENT" if installed.returncode==0 else "INCOMPLETE"))
+        return
+    if data["action"] == "fixture_linux_node24_activate_20261023":
+        # Switch only the original REA systemd ExecStart to verified Node 24.
+        # Preserve exact original arguments, all supplier variables and
+        # isolation. Refuse unknown/shell/systemd syntax. Restore on failures.
+        import shlex
+        import re as regex
+        import tempfile
+        import sqlite3
+        import time
+        unit="rea-reversa-mcp.service"
+        original_rea="/opt/rea-reversa/rea/scripts/rea.mjs"
+        newnode="/opt/rea-reversa/providers/node-v24.22.1/bin/node"
+        dropin=Path("/etc/systemd/system/rea-reversa-mcp.service.d/95-rea-linux-node24.conf")
+        def sudo(*args,timeout=30):
+            return subprocess.run(["sudo","-n",*args],capture_output=True,
+                text=True,timeout=timeout,check=False)
+        def systemctl(k):
+            p=subprocess.run(["systemctl","show",unit,"-p",k,"--value"],
+                 capture_output=True,text=True,timeout=13,check=False)
+            return p.stdout.strip() if p.returncode==0 else ""
+        def getpid():
+            q=systemctl("MainPID")
+            return int(q) if q.isdecimal() and int(q)>0 else 0
+        def getenv(pid):
+            p=sudo("cat",f"/proc/{pid}/environ",timeout=14)
+            if p.returncode!=0:
+                return None
+            values={}
+            for entry in p.stdout.split(chr(0)):
+                if "=" in entry:
+                    name,val=entry.split("=",1)
+                    values[name]=val
+            return values
+        def getexe(pid):
+            p=sudo("readlink","-f",f"/proc/{pid}/exe",timeout=14)
+            return p.stdout.strip() if p.returncode==0 else ""
+        def new_mcp_catalog():
+            headers,hello=request_mcp({
+                "jsonrpc":"2.0","id":11701,"method":"initialize",
+                "params":{"protocolVersion":"2025-06-18","capabilities":{},
+                 "clientInfo":{"name":"rea-linux-node24-verified","version":"1"}}},
+                timeout=21)
+            if "result" not in hello:
+                return None
+            sid=headers.get("Mcp-Session-Id")
+            pv=hello["result"].get("protocolVersion")
+            request_mcp({"jsonrpc":"2.0","method":"notifications/initialized"},
+                 sid,pv,timeout=17)
+            _,res=request_mcp({"jsonrpc":"2.0","id":11702,
+                "method":"tools/list","params":{}},sid,pv,timeout=30)
+            tools=res.get("result",{}).get("tools",[])
+            if not isinstance(tools,list):
+                return None
+            return sid,pv,{t.get("name"):t for t in tools
+                            if isinstance(t,dict) and isinstance(t.get("name"),str)}
+        if (systemctl("User")!="rea-reversa" or systemctl("ActiveState")!="active"
+                or not Path(original_rea).is_file()):
+            print("REA_NODE24_ACTIVATE_STATUS=BLOCKED_ORIGINAL_SERVICE")
+            return
+        if dropin.is_symlink() or sudo("test","!","-e",str(dropin),timeout=10).returncode!=0:
+            print("REA_NODE24_ACTIVATE_STATUS=BLOCKED_DROPIN_ALREADY_EXISTS")
+            return
+        prior_pid=getpid()
+        prev_exe=getexe(prior_pid)
+        prev_env=getenv(prior_pid)
+        if prior_pid<1 or not prev_exe or not prev_env:
+            print("REA_NODE24_ACTIVATE_STATUS=BLOCKED_PREVIOUS_STATE_UNKNOWN")
+            return
+        if prev_exe==newnode:
+            print("REA_NODE24_ACTIVATE_STATUS=BLOCKED_NODE24_ALREADY_ACTIVE")
+            return
+        ready=sudo("-u","rea-reversa",newnode,"--version",timeout=20)
+        okay=ready.returncode==0 and ready.stdout.strip()=="v24.22.1"
+        print("REA_NODE24_ACTIVATE_NODE24_VERSION="+str(okay).lower())
+        if not okay:
+            print("REA_NODE24_ACTIVATE_STATUS=BLOCKED_NODE24_RUNTIME")
+            return
+        config=subprocess.run(["systemctl","cat",unit],
+                    capture_output=True,text=True,timeout=16,check=False)
+        lines=[l.strip() for l in config.stdout.splitlines()
+                   if l.strip().startswith("ExecStart=")]
+        if config.returncode or len(lines)!=1:
+            print("REA_NODE24_ACTIVATE_STATUS=BLOCKED_UNIT_CONFIG_UNEXPECTED")
+            return
+        try:
+            args=shlex.split(lines[0].partition("=")[2])
+        except ValueError:
+            args=[]
+        # Strict direct Node original REA, bounded fixed service arguments;
+        # disallow shell metacharacters, specifiers or systemd expansions.
+        safe=(len(args)==8 and args[1]==original_rea and args[2]=="mcp"
+            and args[0].startswith("/") and args[0].endswith("/node")
+            and prev_exe==args[0] and
+            all(regex.fullmatch(r"[A-Za-z0-9_./:=+\\-]{1,160}",v) for v in args)
+            and any("transport" in a for a in args[3:])
+            and any("8765" in a for a in args[3:])
+            and any("127.0.0.1" in a for a in args[3:]))
+        process=sudo("cat",f"/proc/{prior_pid}/cmdline",timeout=14)
+        process_args=process.stdout.split(chr(0)) if process.returncode==0 else []
+        while process_args and not process_args[-1]:
+            process_args.pop()
+        safe=safe and process_args==args
+        print("REA_NODE24_ACTIVATE_ORIGINAL_CHECK="+str(bool(safe)).lower())
+        if not safe:
+            print("REA_NODE24_ACTIVATE_STATUS=BLOCKED_UNEXPECTED_ACTUAL_EXECSTART")
+            return
+        try:
+            initial=new_mcp_catalog()
+            valid=initial is not None and len(initial[2])==208
+        except Exception:
+            valid=False
+        if not valid:
+            print("REA_NODE24_ACTIVATE_STATUS=BLOCKED_ORIGINAL_CATALOG")
+            return
+        suppliers=("REA_GDB_COMMAND","REA_BINWALK_COMMAND","REA_UNBLOB_COMMAND",
+           "REA_RIZIN_COMMAND","REA_KUNA_COMMAND","REA_KUNA_CACHE_DIR",
+           "REA_TSHARK_COMMAND","REA_SIGROK_COMMAND",
+           "REA_JADX_MCP_JAR","REA_JADX_HEAP_MIB","JAVA_HOME",
+           "GHIDRA_INSTALL_DIR")
+        if any(not prev_env.get(x) for x in (
+              "REA_GDB_COMMAND","REA_BINWALK_COMMAND","REA_UNBLOB_COMMAND",
+              "REA_RIZIN_COMMAND","REA_KUNA_COMMAND",
+              "REA_TSHARK_COMMAND","REA_SIGROK_COMMAND")):
+            print("REA_NODE24_ACTIVATE_STATUS=BLOCKED_PROVIDER_ENV_INCOMPLETE")
+            return
+        print("REA_NODE24_ACTIVATE_SERVICE_SCOPE=EXISTING_REA_NODE_ONLY")
+        directory=Path.home()/".local/share/rea-chatgpt-trial/artifacts"
+        directory.mkdir(parents=True,mode=0o700,exist_ok=True)
+        if directory.is_symlink() or dropin.parent.is_symlink():
+            print("REA_NODE24_ACTIVATE_STATUS=BLOCKED_SYMLINK")
+            return
+        configfile=None
+        applied=False
+        success=False
+        try:
+            with tempfile.NamedTemporaryFile(mode="w",encoding="ascii",
+                  delete=False,prefix="rea-node24-switch-",
+                  suffix=".conf",dir=str(directory)) as o:
+                configfile=Path(o.name)
+                o.write("[Service]"+chr(10)+"ExecStart="+chr(10)+
+                  "ExecStart="+" ".join([newnode]+args[1:])+chr(10))
+            configfile.chmod(0o600)
+            put=sudo("install","-m","0644","-o","root","-g","root",
+                     str(configfile),str(dropin),timeout=18)
+            if put.returncode!=0:
+                print("REA_NODE24_ACTIVATE_STATUS=FAILED_DROPIN_INSTALL")
+                return
+            applied=True
+            if sudo("systemctl","daemon-reload",timeout=30).returncode!=0:
+                print("REA_NODE24_ACTIVATE_STATUS=FAILED_DAEMON_RELOAD")
+                return
+            if str(dropin) not in systemctl("DropInPaths"):
+                print("REA_NODE24_ACTIVATE_STATUS=FAILED_SYSTEMD_DROPIN_READBACK")
+                return
+            if sudo("systemctl","restart",unit,timeout=105).returncode!=0:
+                print("REA_NODE24_ACTIVATE_STATUS=FAILED_NODE24_RESTART")
+                return
+            ok=False
+            latest=None
+            for _ in range(9):
+                try:
+                    if systemctl("ActiveState")=="active":
+                        latest=new_mcp_catalog()
+                        if latest is not None and len(latest[2])==208:
+                            ok=True
+                            break
+                except Exception:
+                    pass
+                time.sleep(1)
+            count=len(latest[2]) if latest is not None else 0
+            print("REA_NODE24_ACTIVATE_MCP_COUNT="+str(count))
+            current_pid=getpid()
+            exeok=current_pid!=prior_pid and getexe(current_pid)==newnode
+            print("REA_NODE24_ACTIVATE_EXE="+str(exeok).lower())
+            current_env=getenv(current_pid)
+            providers=(current_env is not None and
+                  all(prev_env.get(p)==current_env.get(p) for p in suppliers))
+            print("REA_NODE24_ACTIVATE_PROVIDERS_PRESERVED="+str(bool(providers)).lower())
+            classes={"read":0,"workspace":0,"sensitive":0}
+            if latest is not None:
+                for name,desc in latest[2].items():
+                    klass=secure.classify(name,desc,())
+                    if klass in classes:
+                        classes[klass]+=1
+            class_ok=classes=={"read":5,"workspace":120,"sensitive":83}
+            print("REA_NODE24_ACTIVATE_CLASSIFICATION="+json.dumps(classes,sort_keys=True))
+            if not (ok and exeok and providers and class_ok):
+                print("REA_NODE24_ACTIVATE_STATUS=FAILED_MCP_OR_RUNTIME_READBACK")
+                return
+            # SQLite positive, using real original MCP / tools/call only.
+            with tempfile.TemporaryDirectory(prefix="rea-node24-permanent-sqlite-",
+                                                dir="/dev/shm") as td:
+                owned=Path(td)
+                owned.chmod(0o755)
+                target=owned/"owned.sqlite"
+                db=sqlite3.connect(target)
+                try:
+                    db.execute("PRAGMA journal_mode=DELETE")
+                    db.execute("CREATE TABLE records (id INTEGER PRIMARY KEY, note TEXT NOT NULL)")
+                    db.execute("INSERT INTO records (id,note) VALUES (29,'rea-mcp-node24')")
+                    db.commit()
+                finally: db.close()
+                target.chmod(0o644)
+                digest=hashlib.sha256(target.read_bytes()).hexdigest()
+                desc=latest[2].get("inspect_sqlite_database")
+                if desc is None or secure.classify("inspect_sqlite_database",desc,())!="workspace":
+                    print("REA_NODE24_ACTIVATE_STATUS=BLOCKED_SQLITE_RISK_CLASSIFICATION")
+                    return
+                inputs={"path":str(target),"table":"records",
+                        "columns":["id","note"],"row_limit":10}
+                secure.validate_arguments(desc,inputs)
+                secure._authorized_target_paths(inputs,additional_roots=(owned,))
+                _,res=request_mcp({"jsonrpc":"2.0","id":11703,
+                    "method":"tools/call","params":{"name":"inspect_sqlite_database",
+                                                   "arguments":inputs}},
+                                    latest[0],latest[1],timeout=95)
+                value=res.get("result",{})
+                good=isinstance(value,dict) and value.get("isError") is not True and "error" not in res
+                report=value.get("structuredContent") if isinstance(value,dict) else None
+                if not isinstance(report,dict):
+                    for item in value.get("content",[]) if isinstance(value,dict) else []:
+                        if isinstance(item,dict) and isinstance(item.get("text"),str):
+                            try:
+                                report=json.loads(item["text"])
+                                break
+                            except (TypeError,ValueError): pass
+                report=report if isinstance(report,dict) else {}
+                normalized=report.get("normalized_result",{})
+                normalized=normalized if isinstance(normalized,dict) else {}
+                rows=normalized.get("rows",{})
+                rows=rows if isinstance(rows,dict) else {}
+                assertions={
+                    "mcp_isError_false":good,
+                    "original_sha256":normalized.get("artifact",{}).get("sha256")==digest,
+                    "sqlite_engine":normalized.get("engine",{}).get("name")=="SQLite",
+                    "selected_table":rows.get("table")=="records",
+                    "selected_columns":rows.get("columns")==["id","note"],
+                    "row_count":rows.get("returned_rows")==1,
+                    "node24_is_live":exeok
+                }
+                print("REA_NODE24_ACTIVATE_SQLITE_ASSERTIONS="+json.dumps(assertions,sort_keys=True))
+                print("REA_NODE24_ACTIVATE_SQLITE_SHA256="+hashlib.sha256(
+                  json.dumps(res,sort_keys=True,ensure_ascii=True).encode()).hexdigest())
+                unchanged=hashlib.sha256(target.read_bytes()).hexdigest()==digest
+                print("REA_NODE24_ACTIVATE_SOURCE_UNCHANGED="+str(unchanged).lower())
+                accepted=all(assertions.values()) and unchanged
+            print("REA_NODE24_ACTIVATE_TEMP_CLEANUP="+str(not owned.exists()).lower())
+            success=accepted and not owned.exists() and systemctl("ActiveState")=="active"
+            if success:
+                print("REA_NODE24_ACTIVATE_ONLY_REA_RESTARTED=true")
+                print("REA_NODE24_ACTIVATE_STATUS=PASS_NODE24_SQLITE_ORIGINAL_MCP")
+                return
+            print("REA_NODE24_ACTIVATE_STATUS=FAILED_LIVE_SQLITE_CONTRACT")
+        finally:
+            if configfile is not None:
+                configfile.unlink(missing_ok=True)
+            if applied and not success:
+                rm=sudo("rm","-f",str(dropin),timeout=18)
+                reload=sudo("systemctl","daemon-reload",timeout=30)
+                back=sudo("systemctl","restart",unit,timeout=110)
+                original=False
+                try:
+                    restored=new_mcp_catalog()
+                    original=(restored is not None and len(restored[2])==208 and
+                          getexe(getpid())==prev_exe and
+                          all((getenv(getpid()) or {}).get(v)==prev_env.get(v)
+                              for v in suppliers))
+                except Exception:
+                    pass
+                print("REA_NODE24_ACTIVATE_ROLLBACK="+(
+                   "PASS_RESTORED_OLD_NODE_208" if
+                    rm.returncode==0 and reload.returncode==0 and
+                    back.returncode==0 and original
+                   else "NEEDS_MANUAL_REVIEW"))
         return
     if data["action"] == "fixture_linux_node24_unit_shape_20261023":
         # Inspect original ExecStart syntax, never emit arbitrary arguments
