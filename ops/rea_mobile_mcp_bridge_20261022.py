@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_local_provider_triage", "fixture_linux_sigrok_preflight", "fixture_linux_sigrok_activate", "fixture_linux_sigrok_live_mcp", "fixture_linux_sigrok_failure_doctor"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_local_provider_triage", "fixture_linux_sigrok_preflight", "fixture_linux_sigrok_activate", "fixture_linux_sigrok_live_mcp", "fixture_linux_sigrok_failure_doctor", "fixture_linux_kuna_persistent"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -249,6 +249,10 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SIGROK_DX_CONFIG_PRESENT", "REA_SIGROK_DX_STATUS",
         "REA_SIGROK_DX_EXACT_CAUSE", "REA_SIGROK_DX_VERSION_PROBE",
         "REA_SIGROK_DX_INHERITED_LIMITS",
+        "REA_KUNA_INSTALL_STATUS", "REA_KUNA_INSTALL_SOURCE_SHA256",
+        "REA_KUNA_INSTALL_BINARY_SHA256", "REA_KUNA_INSTALL_VERSION",
+        "REA_KUNA_INSTALL_SERVICE_ACCESS", "REA_KUNA_INSTALL_NOTE",
+        "REA_KUNA_INSTALL_REA_SERVICE_UNCHANGED", "REA_KUNA_INSTALL_BYTES",
         "REA_MOBILE_DESCRIBE_TOOL", "REA_MOBILE_TOOL_DESCRIPTOR_B64",
         "REA_MOBILE_TOOL_SCHEMA_SUMMARY", "REA_MOBILE_TOOL_DESCRIPTOR_SHA256",
         "REA_MOBILE_TOOL_DESCRIPTOR_BYTES", "REA_MOBILE_TOOL_DESCRIPTOR_TRUNCATED",
@@ -2067,6 +2071,134 @@ def main():
             print("REA_PCONFIG_PROVIDER_"+name.upper()+"="+(
                 "PASS" if test.returncode==0 else "NOT_ACCESSIBLE"))
         print("REA_PCONFIG_STATUS=PASS_READ_ONLY")
+        return
+    if data["action"] == "fixture_linux_kuna_persistent":
+        # Original REA Kuna provider: Apache-2.0, 1.833 is the version
+        # explicitly verified by REA source. No daemon restarts, no PATH edits,
+        # no impact outside /opt/rea-reversa/providers. Check published SHA.
+        import tarfile
+        import platform
+        import urllib.request
+        import tempfile
+        import shutil
+        url=("https://github.com/Noelo-Lab/kuna/releases/download/v1.833/"
+             "kuna-v1.833-linux-x86_64.tar.gz")
+        expected="e9f047fb5a93925ede6d869df22c26c1c0ced90764ace7467ae90f880625d530"
+        binary=Path("/opt/rea-reversa/providers/kuna-v1.833/bin/kuna")
+        unit="rea-reversa-mcp.service"
+        def prop(name):
+            z=subprocess.run(["systemctl","show",unit,"-p",name,"--value"],
+                   capture_output=True,text=True,timeout=12,check=False)
+            return z.stdout.strip() if z.returncode == 0 else ""
+        def sudo(*args,timeout=25):
+            return subprocess.run(["sudo","-n",*args],capture_output=True,text=True,
+                                  timeout=timeout,check=False)
+        if platform.system() != "Linux" or platform.machine() != "x86_64":
+            print("REA_KUNA_INSTALL_STATUS=BLOCKED_PLATFORM")
+            return
+        if (not Path("/opt/rea-reversa/rea/package.json").is_file() or
+                prop("User") != "rea-reversa" or prop("ActiveState") != "active"):
+            print("REA_KUNA_INSTALL_STATUS=BLOCKED_ORIGINAL_ENGINE")
+            return
+        before_pid=prop("MainPID")
+        if binary.is_file():
+            if binary.is_symlink():
+                print("REA_KUNA_INSTALL_STATUS=BLOCKED_EXISTING_SYMLINK")
+                return
+            ver=sudo("-u","rea-reversa",str(binary),"--version",timeout=18)
+            print("REA_KUNA_INSTALL_VERSION="+(
+                "1.833" if ver.returncode==0 and
+                ver.stdout.strip().splitlines()[0:1]==["kuna 1.833"] else "UNVERIFIED"))
+            print("REA_KUNA_INSTALL_STATUS=EXISTING_NO_OVERWRITE")
+            return
+        final=binary.parent.parent
+        if any(folder.is_symlink() for folder in
+                (final,final.parent,final.parent.parent)):
+            print("REA_KUNA_INSTALL_STATUS=BLOCKED_SYMLINK_PATH")
+            return
+        if final.exists():
+            print("REA_KUNA_INSTALL_STATUS=BLOCKED_PARTIAL_INSTALL")
+            return
+        root=Path.home()/".local/share/rea-chatgpt-trial/artifacts"
+        root.mkdir(mode=0o700,parents=True,exist_ok=True)
+        if root.is_symlink() or shutil.disk_usage(root).free<180*1024*1024:
+            print("REA_KUNA_INSTALL_STATUS=BLOCKED_STAGING_RESOURCE")
+            return
+        with tempfile.TemporaryDirectory(prefix="rea-kuna-release-",dir=str(root)) as tmpdir:
+            stage=Path(tmpdir)
+            pkg=stage/"kuna.tar.gz"
+            digest=hashlib.sha256()
+            count=0
+            req=urllib.request.Request(url,headers={"User-Agent":"REA-Linux-provider-audit/1"})
+            with urllib.request.urlopen(req,timeout=75) as download:
+                with pkg.open("xb") as writer:
+                    while True:
+                        chunk=download.read(262144)
+                        if not chunk: break
+                        count+=len(chunk)
+                        if count>27*1024*1024:
+                            error("Kuna source archive larger than official release")
+                        digest.update(chunk)
+                        writer.write(chunk)
+            print("REA_KUNA_INSTALL_BYTES="+str(count))
+            print("REA_KUNA_INSTALL_SOURCE_SHA256="+digest.hexdigest())
+            if digest.hexdigest()!=expected:
+                print("REA_KUNA_INSTALL_STATUS=BLOCKED_OFFICIAL_SHA256_MISMATCH")
+                return
+            selected=None
+            with tarfile.open(pkg,mode="r:gz") as archive:
+                entries=[]
+                for entry in archive:
+                    name=Path(entry.name)
+                    if name.is_absolute() or ".." in name.parts:
+                        print("REA_KUNA_INSTALL_STATUS=BLOCKED_TAR_PATH")
+                        return
+                    if name.name=="kuna" and entry.isfile() and entry.size<100*1024*1024:
+                        entries.append(entry)
+                if len(entries)!=1:
+                    print("REA_KUNA_INSTALL_STATUS=BLOCKED_UNKNOWN_ARCHIVE_LAYOUT")
+                    return
+                with archive.extractfile(entries[0]) as source:
+                    selected=stage/"kuna"
+                    with selected.open("xb") as dest:
+                        shutil.copyfileobj(source,dest,length=262144)
+            selected.chmod(0o755)
+            binary_digest=hashlib.sha256(selected.read_bytes()).hexdigest()
+            print("REA_KUNA_INSTALL_BINARY_SHA256="+binary_digest)
+            test=subprocess.run([str(selected),"--version"],capture_output=True,
+                       text=True,timeout=25,check=False)
+            success=(test.returncode==0 and
+                bool(test.stdout.splitlines()) and
+                test.stdout.splitlines()[0].strip()=="kuna 1.833")
+            print("REA_KUNA_INSTALL_VERSION="+(
+                "1.833" if success else "UNVERIFIED_OR_UNRUNNABLE"))
+            if not success:
+                print("REA_KUNA_INSTALL_STATUS=BLOCKED_VERSION_SMOKE")
+                return
+            # Root-owned versioned directory under existing REA provider prefix only.
+            for folder in (final.parent,final,final/"bin"):
+                done=sudo("install","-d","-m","0755","-o","root","-g","root",
+                    str(folder),timeout=20)
+                if done.returncode:
+                    print("REA_KUNA_INSTALL_STATUS=BLOCKED_CREATE_PROVIDER_DIR")
+                    return
+            result=sudo("install","-m","0755","-o","root","-g","root",
+                        str(selected),str(binary),timeout=35)
+            if result.returncode:
+                print("REA_KUNA_INSTALL_STATUS=FAILED_BINARY_COPY")
+                return
+            check=sudo("-u","rea-reversa",str(binary),"--version",timeout=25)
+            accessible=(check.returncode==0 and check.stdout.strip().splitlines()[0:1]==["kuna 1.833"])
+            print("REA_KUNA_INSTALL_SERVICE_ACCESS="+str(accessible).lower())
+            if not accessible:
+                print("REA_KUNA_INSTALL_STATUS=INSTALLED_BUT_NOT_READY")
+                return
+        same=bool(before_pid) and before_pid==prop("MainPID")
+        print("REA_KUNA_INSTALL_REA_SERVICE_UNCHANGED="+str(same).lower())
+        print("REA_KUNA_INSTALL_NOTE=PINNED_VERIFIED_1.833_PROVIDER_BINARY_ONLY")
+        print("REA_KUNA_INSTALL_STATUS="+(
+              "PASS_PERSISTENT_NOT_YET_SYSTEMD_ACTIVATED" if same else
+              "PASS_PERSISTENT_SERVICE_STATE_CHANGED_EXTERNALLY"))
         return
     if data["action"] == "fixture_linux_sigrok_failure_doctor":
         # No production writes; no raw error content enters public Actions.
