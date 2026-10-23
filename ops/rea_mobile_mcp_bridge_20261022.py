@@ -273,6 +273,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_NODE24_ACTIVATE_PROVIDERS_PRESERVED", "REA_NODE24_ACTIVATE_EXE",
         "REA_NODE24_ACTIVATE_STATUS", "REA_NODE24_ACTIVATE_ROLLBACK",
         "REA_NODE24_ACTIVATE_ONLY_REA_RESTARTED",
+        "REA_NODE24_ARG_DIAGNOSTIC",
         "REA_MOBILE_PROVIDER_DOCTOR_GHIDRA",
         "REA_MOBILE_PROVIDER_DOCTOR_JADX", "REA_MOBILE_CATALOG",
         "REA_MOBILE_DESCRIBE_TOOL", "REA_MOBILE_TOOL_DESCRIPTOR_B64",
@@ -1901,6 +1902,22 @@ def main():
         process_args=process.stdout.split(chr(0)) if process.returncode==0 else []
         while process_args and not process_args[-1]:
             process_args.pop()
+        print("REA_NODE24_ARG_DIAGNOSTIC="+json.dumps({
+          "expected_8_args":len(args)==8,
+          "service_process_count":len(process_args),
+          "systemd_args_8":len(args),
+          "node_path_exact":prev_exe==args[0] if args else False,
+          "node_path_realpath_equal":os.path.realpath(args[0])==prev_exe if args else False,
+          "argv_exact":process_args==args,
+          "argv_equal_except_argv0":process_args[1:]==args[1:],
+          "tool_script_exact":len(args)>1 and args[1]==original_rea,
+          "mcp_command_exact":len(args)>2 and args[2]=="mcp",
+          "args_safe_chars":all(regex.fullmatch(r"[A-Za-z0-9_./:=+\\-]{1,160}",v)
+                 for v in args),
+          "port_loopback":any("8765" in a for a in args[3:]),
+          "host_loopback":any("127.0.0.1" in a for a in args[3:]),
+          "transport_explicit":any("transport" in a for a in args[3:])
+        },sort_keys=True))
         safe=safe and process_args==args
         print("REA_NODE24_ACTIVATE_ORIGINAL_CHECK="+str(bool(safe)).lower())
         if not safe:
