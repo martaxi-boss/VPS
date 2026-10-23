@@ -489,7 +489,11 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SDIAG_PID_ENV_READ",
         "REA_SDIAG_PID_ENV_SIZE",
         "REA_SDIAG_PID_PROVIDER_KEYS",
-        "REA_SDIAG_STATUS"
+        "REA_SDIAG_STATUS",
+        "REA_MANAGED_P34_ARTIFACT", "REA_MANAGED_P34_MEMBERS",
+        "REA_MANAGED_P34_NATIVE", "REA_MANAGED_P34_CLEANUP",
+        "REA_MANAGED_P34_SOURCE", "REA_MANAGED_P34_DAEMON",
+        "REA_MANAGED_P34_DIGEST", "REA_MANAGED_P34_STATUS"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -634,6 +638,162 @@ def main():
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
               secure.request_public_key_b64(create=True))
         return
+    if data["action"] == "fixture_managed_inputs":
+        # P34 one-shot test extension of the EXISTING fixed managed-fixture action.
+        # The source-owned generator constructs only independent synthetic PE files.
+        # Restore the original stable bridge after evidence is collected.
+        import tempfile
+        root = Path.home() / ".local/share/rea-chatgpt-trial/repository/rea"
+        generator = root / "scripts/fixtures/managed/pe.mjs"
+        names = ("inspect_managed_artifact", "inspect_managed_members",
+                 "inspect_managed_native_boundaries")
+        for name in names:
+            if name not in tool_by_name or secure.classify(name, tool_by_name[name], ()) != "workspace":
+                error("Managed original MCP contract/classification changed")
+        def service_pid():
+            p = subprocess.run(["systemctl", "show", "rea-reversa-mcp.service",
+                                "-p", "MainPID", "--value"],
+                               capture_output=True, text=True, timeout=10, check=False)
+            return p.stdout.strip() if p.returncode == 0 else ""
+        pid_before = service_pid()
+        source_before = subprocess.run(["git", "-C", str(root), "status", "--porcelain"],
+                                       capture_output=True, text=True, timeout=12, check=False)
+        records = []
+        with tempfile.TemporaryDirectory(prefix="rea-public-managed-p34-", dir="/dev/shm") as temporary:
+            workspace = Path(temporary)
+            workspace.chmod(0o755)
+            clean = workspace / "interop.dll"
+            unmanaged = workspace / "native.exe"
+            malformed = workspace / "bad-metadata.dll"
+            nonsense = workspace / "invalid.dll"
+            js = (
+                "import{writeFileSync}from'node:fs';"
+                "const m=await import(process.argv[1]);"
+                "writeFileSync(process.argv[2],m.buildManagedPeFixture({"
+                "pinvoke:{moduleName:'user32.dll',importName:'MessageBoxW',mappingFlags:0x0345},"
+                "readyToRun:true,methodName:'BridgeCall',mvid:m.alternateMvid}));"
+                "writeFileSync(process.argv[3],m.buildNativePeFixture());"
+                "writeFileSync(process.argv[4],m.buildManagedPeFixture({"
+                "corruptMetadataSignature:true,readyToRun:true}));"
+            )
+            built = subprocess.run(["node", "--input-type=module", "-e", js,
+                                    generator.as_uri(), str(clean), str(unmanaged),
+                                    str(malformed)],
+                                   capture_output=True, text=True, timeout=35, check=False)
+            if built.returncode or any(not p.is_file() for p in (clean, unmanaged, malformed)):
+                error("Existing managed fixture generator failed in P34")
+            nonsense.write_bytes(b"not a PE managed application\n")
+            paths = (clean, unmanaged, malformed, nonsense)
+            for p in paths:
+                p.chmod(0o644)
+            digests = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in paths}
+            missing = workspace / "does-not-exist.dll"
+            def verify(label, name, args, positive, expected_tokens=()):
+                descriptor = tool_by_name[name]
+                schema_pass = True
+                try:
+                    secure.validate_arguments(descriptor, args)
+                except secure.SecureBridgeError:
+                    schema_pass = False
+                # Only the fixed trial root is trusted. Invalid schemas are passed
+                # to the original MCP only after independent path-scope checking.
+                secure._authorized_target_paths(args, additional_roots=(workspace,))
+                _, reply = request_mcp({"jsonrpc": "2.0", "id": 3400+len(records),
+                    "method": "tools/call", "params": {"name": name, "arguments": args}},
+                    session, protocol, timeout=105)
+                returned = reply.get("result")
+                is_error = returned.get("isError") if isinstance(returned, dict) else None
+                protocol_error = "error" in reply
+                raw = json.dumps(reply, sort_keys=True, ensure_ascii=True)
+                success = isinstance(returned, dict) and is_error is not True and not protocol_error
+                matching = all(t.lower() in raw.lower() for t in expected_tokens)
+                passed = (success and schema_pass and matching) if positive else (
+                    is_error is True and not protocol_error)
+                records.append({"label": label, "tool": name, "positive": positive,
+                    "passed": passed, "schema_valid": schema_pass,
+                    "isError": is_error, "protocol_error": protocol_error,
+                    "expected_tokens": expected_tokens, "matched": matching,
+                    "reply_sha256": hashlib.sha256(raw.encode()).hexdigest()})
+            a, m, n = names
+            # New functional facets. The old base-case inspection is NOT re-run.
+            verify("artifact_interop_and_framework", a, {"path": str(clean)},
+                   True, ("Fixture.Managed", "modern-dotnet", digests[clean.name]))
+            verify("members_default_selected_type", m,
+                   {"type_names": ["Fixture.Program"]}, True,
+                   ("BridgeCall", "Fixture.Program", digests[clean.name]))
+            verify("native_default_selected_pinvoke_readytorun", n, {}, True,
+                   ("MessageBoxW", "user32.dll", "ready_to_run"))
+            verify("artifact_summary_with_evidence", a,
+                   {"path": str(clean), "detail": "summary"}, True,
+                   ("parent_evidence_id", digests[clean.name]))
+            verify("members_unmatched_type", m,
+                   {"path": str(clean), "type_names": ["Fixture.Missing"]}, True,
+                   ("Fixture.Missing", digests[clean.name]))
+            verify("members_summary_selected_type", m,
+                   {"path": str(clean), "type_names": ["Fixture.Program"],
+                    "detail": "summary"}, True,
+                   ("parent_evidence_id", "Fixture.Program"))
+            verify("artifact_nonmanaged_pe_classification", a,
+                   {"path": str(unmanaged)}, True, ("not-managed",))
+            verify("native_nonmanaged_degradation", n,
+                   {"path": str(unmanaged)}, True, ("unavailable",))
+            verify("artifact_corrupt_metadata_degradation", a,
+                   {"path": str(malformed)}, True, ("malformed",))
+            verify("members_corrupt_metadata_degradation", m,
+                   {"path": str(malformed)}, True, ("malformed",))
+            verify("native_corrupt_metadata_degradation", n,
+                   {"path": str(malformed)}, True, ("malformed",))
+            # Negative provider behavior and MCP Zod/contract rejection.
+            for name in names:
+                verify("missing_source_"+name, name, {"path": str(missing)}, False)
+                verify("non_pe_source_"+name, name, {"path": str(nonsense)}, False)
+                verify("unrecognized_argument_"+name, name,
+                       {"path": str(clean), "execute": True}, False)
+                verify("path_wrong_type_"+name, name, {"path": 7}, False)
+            verify("artifact_invalid_detail", a,
+                   {"path": str(clean), "detail": "invalid"}, False)
+            verify("members_invalid_detail", m,
+                   {"path": str(clean), "detail": "invalid"}, False)
+            verify("members_empty_type_filter", m,
+                   {"path": str(clean), "type_names": []}, False)
+            verify("members_duplicate_type_filter", m,
+                   {"path": str(clean), "type_names": ["Fixture.Program","Fixture.Program"]}, False)
+            verify("native_disallows_detail", n,
+                   {"path": str(clean), "detail": "summary"}, False)
+            unchanged = all(hashlib.sha256(p.read_bytes()).hexdigest() == digests[p.name]
+                            for p in paths)
+        cleanup_ok = not workspace.exists()
+        source_after = subprocess.run(["git", "-C", str(root), "status", "--porcelain"],
+                                      capture_output=True, text=True, timeout=12, check=False)
+        source_stable = (source_before.returncode == source_after.returncode == 0
+                         and source_before.stdout == source_after.stdout)
+        daemon_stable = pid_before.isdecimal() and service_pid() == pid_before
+        output = {"phase": "LINUX-P34-MANAGED-ORIGINAL-MCP-CERTIFICATION-20261023",
+                  "records": records, "input_sha256": digests,
+                  "source_integrity": unchanged, "source_unchanged": source_stable,
+                  "fixture_cleanup": cleanup_ok, "daemon_stable": daemon_stable,
+                  "catalog_count": len(tools)}
+        raw = json.dumps(output, ensure_ascii=True, sort_keys=True).encode()
+        for name, label in ((a, "ARTIFACT"), (m, "MEMBERS"), (n, "NATIVE")):
+            group = [r for r in records if r["tool"] == name]
+            print("REA_MANAGED_P34_"+label+"="+str(sum(r["passed"] for r in group))
+                  +"/"+str(len(group)))
+        print("REA_MANAGED_P34_CLEANUP="+("PASS" if cleanup_ok and unchanged else "FAIL"))
+        print("REA_MANAGED_P34_SOURCE="+("PASS" if source_stable else "FAIL"))
+        print("REA_MANAGED_P34_DAEMON="+("PASS" if daemon_stable else "FAIL"))
+        print("REA_MANAGED_P34_DIGEST="+hashlib.sha256(raw).hexdigest())
+        all_ok = (len(records) == 28 and all(r["passed"] for r in records)
+                  and cleanup_ok and unchanged and source_stable and daemon_stable
+                  and len(tools) == 208)
+        print("REA_MANAGED_P34_STATUS="+("PASS_THREE_CONTRACTS" if all_ok else "INCOMPLETE_KEEP_SCOPED"))
+        if len(raw) > MAX_RESPONSE or os.environ.get("REA_MOBILE_ENVELOPE_CAPTURE") != "1":
+            error("Managed certification evidence over encrypted result budget")
+        print("REA_MOBILE_OUTPUT_BYTES="+str(len(raw)))
+        print("REA_MOBILE_OUTPUT_SHA256="+hashlib.sha256(raw).hexdigest())
+        print("REA_MOBILE_TOOL_ERROR="+str(not all_ok).lower())
+        print("REA_MOBILE_PRIVATE_RESULT_B64="+base64.b64encode(raw).decode())
+        return
+
     if data["action"] in ("fixture_managed_inputs", "fixture_managed_inputs_v2"):
         # Real Evidence prerequisites for managed graph/comparison workflows;
         # generated from the same existing source fixture as earlier PE tests.
