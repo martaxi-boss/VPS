@@ -348,6 +348,39 @@
         "GDB remains outside this fixture, pending a signed sensitive test session and an available real GDB executable",
         "No production session state or GDB process changed"
       ]
+    },
+    {
+      "phase_id": "LINUX-P05-GDB-STATUS-CONFORMANCE-20261023",
+      "status": "SOURCE_CONFORMANCE_PASS_MOCKED_PROVIDER_NOT_LIVE_GDB",
+      "scope": "Linux VPS original REA source tests against controlled simulated GDB/MI provider; no global package installation, no production GDB session or REA process changes",
+      "workflow_run_id": 39967011323,
+      "workflow_url": "https://github.com/martaxi-boss/VPS/actions/runs/39967011323",
+      "workflow_request_commit": "a8a62df5f4b820a7cea553bb4ffc3bfc9b71ab07",
+      "evidence": {
+        "rea_original_mcp_live": true,
+        "tools_list_count": 208,
+        "manager_test_exit_code": 0,
+        "manager_result": "PASS",
+        "mcp_conformance_test_exit_code": 0,
+        "mcp_conformance_result": "PASS",
+        "worktree_cleanup": "PASS",
+        "tested_files": 2,
+        "mocked_provider": true,
+        "manager_stdout_sha256": "7c8c568c47f5115b92b6ba9758b9b306c68d7d06ef8d4883a182fe858c58ed0e",
+        "mcp_stdout_sha256": "2ea1b0289b4a16a2e06a401ca13c69daa95126b3273f3b8de14d158b74724d8d"
+      },
+      "tools": [
+        {
+          "name": "gdb_session_status",
+          "status": "SOURCE_CONFORMANCE_PASS_MOCKED_MI_LIVE_GDB_UNAVAILABLE",
+          "notes": "Positive conformance under mocked MI; does not certify a real persistent GDB session through the production MCP tools/call"
+        }
+      ],
+      "limitations": [
+        "Real gdb command was not discovered in live VPS runtime PATH as of Actions #39959287285",
+        "Starting a real debugger session requires per-operation owner Ed25519 authorization",
+        "GDB/MI simulated-provider conformance is not counted as real-GDB integration pass"
+      ]
     }
   ],
   "active_scope_counts": {
@@ -462,6 +495,11 @@
       "run_id": 39966736430,
       "status": "SOURCE_FUNCTIONAL_PASS_ONLY",
       "live_mcp_positive_still_pending": true
+    },
+    "additional_gdb_source_conformance": {
+      "run_id": 39967011323,
+      "status": "PASS_MOCKED_MI_ONLY",
+      "live_gdb_status_mcp_positive_still_pending": true
     }
   }
 }
