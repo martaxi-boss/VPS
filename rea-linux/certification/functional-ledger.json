@@ -861,15 +861,115 @@
         "pending_individual_review": 196,
         "fully_certified_by_this_phase": 0
       }
+    },
+    {
+      "phase_id": "LINUX-P13-EVM-NODE24-SQLITE-ORIGINAL-MCP-20261023",
+      "date_utc": "2026-10-23",
+      "status": "TWO_NEW_FUNCTIONAL_PASS_SCOPED_NODE24_ORIGINAL_MCP_LIVE",
+      "original_service": "rea-reversa-mcp.service",
+      "original_engine_root": "/opt/rea-reversa/rea",
+      "node": {
+        "old_version": "v22.23.3",
+        "staged_version": "v24.22.1",
+        "binary": "/opt/rea-reversa/providers/node-v24.22.1/bin/node",
+        "official_upstream_archive_sha256": "6c172a9ab6718f7b801fb5a7bd486af2ee5e32758086a04b84fcce2aa77095e6",
+        "installed_binary_sha256": "e32e2d16081cf644f88392934288086e7662529d0d43277c34f7aad2207cfafb",
+        "staging_verified_run_id": 39996402957,
+        "cli_sqlite_positive_run_id": 39996871092,
+        "original_service_args_shape_verified_run_id": 39997331726,
+        "initial_live_attempt_blocked_fail_closed_run_id": 39998016855,
+        "runtime_command_comparison_diagnostic_run_id": 39998173847,
+        "successful_permanent_service_activation_run_id": 39998433389,
+        "activation_request_commit": "deb338c47ab1d971d09b66171ae55ae500bb4cec",
+        "config_dropin": "/etc/systemd/system/rea-reversa-mcp.service.d/95-rea-linux-node24.conf",
+        "unchanged_other_units": true,
+        "global_node_unmodified": true,
+        "all_supplier_env_preserved": true,
+        "persisted_service_executable_verified": true,
+        "service_restored_208_tools": true,
+        "catalog_classification": {
+          "read": 5,
+          "workspace": 120,
+          "sensitive": 83
+        },
+        "rollback_behavior": "Fail-closed before deployment, or remove REA-only ExecStart override and restart original REA unit if health or SQLite proof fails",
+        "rollback_exercised_during_successful_trial": false
+      },
+      "tool_tests": [
+        {
+          "name": "inspect_evm_interface",
+          "status": "FUNCTIONAL_PASS_SCOPED",
+          "original_permanent_mcp_run_id": 39995775540,
+          "request_commit": "ce0fc64e57a494ebef635c296dc147c55e2319df",
+          "isError": false,
+          "response_sha256": "61b3a675934e2f04b83dc432ee609955596b4073daf6e92b8cfe3cf3e85a34c0",
+          "assertions": {
+            "carrier_sha256_matches": true,
+            "decoded_sha256_matches": true,
+            "decoded_bytes_5": true,
+            "bytecode_hex_matches": true,
+            "output_inference": true,
+            "no_runtime_execution": true,
+            "source_unchanged": true
+          },
+          "notes": "Original permanent MCP, small self-owned EVM hex source. Pass was recorded before Node 24 switch; post-upgrade specific EVM regression not measured."
+        },
+        {
+          "name": "inspect_sqlite_database",
+          "status": "FUNCTIONAL_PASS_SCOPED",
+          "original_permanent_mcp_run_id": 39998433389,
+          "request_commit": "deb338c47ab1d971d09b66171ae55ae500bb4cec",
+          "isError": false,
+          "response_sha256": "abb9be008492c1572840119a245dfb5ba4cfd3b1e1d1e40aa8c89de42d22f01c",
+          "assertions": {
+            "artifact_sha256_matches": true,
+            "sqlite_engine": true,
+            "correct_table": true,
+            "correct_columns": true,
+            "correct_row_count": true,
+            "node24_confirmed_in_live_process": true,
+            "source_unchanged": true,
+            "temp_files_removed": true
+          },
+          "original_cli_positive_preflight_run_id": 39996871092,
+          "notes": "Only one tiny quiescent offline SQLite snapshot; neither WAL, large payloads, concurrency, nor full feature certification tested."
+        }
+      ],
+      "security": {
+        "no_other_project_changes": true,
+        "no_signature_bypass": true,
+        "no_live_device_or_network_acquisition": true,
+        "original_systemd_sandbox_unchanged": true,
+        "no_external_mcp_or_extra_engine_created": true
+      },
+      "preexisting_blockers": [
+        {
+          "name": "inspect_web_network_capture",
+          "status": "SENSITIVE_AUTHORIZATION_REQUIRED",
+          "reason": "Classification blocked ordinary fixture, deliberately not bypassed",
+          "run_id": 39995587309
+        },
+        {
+          "name": "inspect_signal_decoders",
+          "status": "BLOCKED_IN_SANDBOX",
+          "reason": "Original MCP sigrok process reports libusb_init LIBUSB_ERROR_OTHER. service has PrivateDevices=yes, DevicePolicy=closed, host USB /dev/bus/usb hidden from unit",
+          "read_only_sandbox_run_id": 39994993320
+        }
+      ],
+      "totals": {
+        "functional_pass_scoped_distinct": 14,
+        "awaiting_individual_review": 194,
+        "fully_certified_tools_added": 0
+      }
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 12,
-    "awaiting_canonical_individual_review": 196,
+    "functional_pass_scoped_distinct": 14,
+    "awaiting_canonical_individual_review": 194,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 5,
+    "workspace_newly_passed_distinct": 7,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3
   },
@@ -901,7 +1001,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P12-TSHARK-FIELDS-ORIGINAL-MCP-20261023",
+  "latest_phase": "LINUX-P13-EVM-NODE24-SQLITE-ORIGINAL-MCP-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -1161,6 +1261,32 @@
       "stderr_bytes": 56,
       "mcp_tool_isError": true,
       "sandbox_relaxation_not_performed": true
+    },
+    "node24": {
+      "version": "v24.22.1",
+      "status": "PASS_PERSISTENT_ORIGINAL_REA_SERVICE_AND_REAL_SQLITE_MCP",
+      "enabled_service_dropin": "/etc/systemd/system/rea-reversa-mcp.service.d/95-rea-linux-node24.conf",
+      "official_release_sha256": "6c172a9ab6718f7b801fb5a7bd486af2ee5e32758086a04b84fcce2aa77095e6",
+      "installed_binary_sha256": "e32e2d16081cf644f88392934288086e7662529d0d43277c34f7aad2207cfafb",
+      "activation_run": 39998433389,
+      "tool_count": 208,
+      "read_count": 5,
+      "workspace_count": 120,
+      "sensitive_count": 83,
+      "supplier_variables_preserved": true,
+      "system_node_unmodified": true
+    },
+    "sigrok_sandbox_observation": {
+      "run_id": 39994993320,
+      "service_PrivateDevices": true,
+      "service_DevicePolicy": "closed",
+      "host_USB_tree_present": true,
+      "service_USB_tree_hidden": true,
+      "failure": "libusb_init() returned LIBUSB_ERROR_OTHER",
+      "proven_cause": "UNKNOWN",
+      "likely_cause": "service device isolation",
+      "operation": "READ_ONLY_ASSESSMENT",
+      "security_bypass": false
     }
   }
 }
