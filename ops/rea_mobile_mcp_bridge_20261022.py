@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -383,7 +383,27 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_PREFLIGHT_CANDIDATE_CHROMIUM",
         "REA_PREFLIGHT_UNITS",
         "REA_PREFLIGHT_NODE_PROC_COUNT",
-        "REA_PREFLIGHT_COMPLETE"
+        "REA_PREFLIGHT_COMPLETE",
+        "REA_SIM_APT_AVAILABLE",
+        "REA_SIM_APT_UNAVAILABLE",
+        "REA_SIM_APT_EXIT",
+        "REA_SIM_APT_INSTALL_COUNT",
+        "REA_SIM_APT_REMOVE_COUNT",
+        "REA_SIM_APT_FIRST_PACKAGES",
+        "REA_SIM_APT_PLAN_SHA256",
+        "REA_SIM_APT_SAFE",
+        "REA_SIM_APT_FAILURE",
+        "REA_SIM_SERVICE_USER",
+        "REA_SIM_SERVICE_ACTIVE",
+        "REA_SIM_SERVICE_PID_PRESENT",
+        "REA_SIM_SERVICE_DROPIN",
+        "REA_SIM_COMPLETED",
+        "REA_SIM_SERVICE_ENV_GHIDRA_INSTALL_DIR",
+        "REA_SIM_SERVICE_ENV_JAVA_HOME",
+        "REA_SIM_SERVICE_ENV_REA_JADX_MCP_JAR",
+        "REA_SIM_SERVICE_ENV_REA_GDB_COMMAND",
+        "REA_SIM_SERVICE_ENV_REA_BINWALK_COMMAND",
+        "REA_SIM_SERVICE_ENV_REA_UNBLOB_COMMAND"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -1438,6 +1458,64 @@ def main():
                   json.dumps(safe_statuses(val),sort_keys=True)[:9000])
         print("REA_DOCTOR_LINUX_STATUS=" +
               ("PASS_READ_ONLY" if proc.returncode==0 else "DOCTOR_FOUND_READINESS_ISSUES"))
+        return
+    if data["action"] == "fixture_linux_provider_install_simulate":
+        # Simulation only; never apt-get update/install, no restart/edits.
+        import shutil
+        import re as regex
+        approved=("gdb","radare2","binwalk","tshark","adb","apktool",
+                  "sigrok-cli","python3-venv","python3-pip",
+                  "llvm","unzip","p7zip-full")
+        available=[]
+        unavailable=[]
+        for name in approved:
+            p=subprocess.run(["apt-cache","policy",name],capture_output=True,
+                             text=True,timeout=12,check=False)
+            values=[l.split(":",1)[1].strip() for l in p.stdout.splitlines()
+                    if l.strip().startswith("Candidate:")]
+            if len(values)==1 and values[0] not in ("(none)","none"):
+                available.append(name)
+            else:
+                unavailable.append(name)
+        print("REA_SIM_APT_AVAILABLE="+json.dumps(available))
+        print("REA_SIM_APT_UNAVAILABLE="+json.dumps(unavailable))
+        cmd=["apt-get","-s","--no-install-recommends","--no-remove",
+             "--no-upgrade","install",*available]
+        p=subprocess.run(cmd,capture_output=True,text=True,timeout=55,check=False,
+                         env={**os.environ,"DEBIAN_FRONTEND":"noninteractive"})
+        output=p.stdout+"\n"+p.stderr
+        install=[l.split()[1] for l in output.splitlines()
+                 if l.startswith("Inst ") and len(l.split())>=2]
+        removed=[l.split()[1] for l in output.splitlines()
+                 if l.startswith("Remv ") and len(l.split())>=2]
+        # A dry-run must not introduce removals; exit code alone insufficient.
+        print("REA_SIM_APT_EXIT="+str(p.returncode))
+        print("REA_SIM_APT_INSTALL_COUNT="+str(len(install)))
+        print("REA_SIM_APT_REMOVE_COUNT="+str(len(removed)))
+        print("REA_SIM_APT_FIRST_PACKAGES="+json.dumps(install[:20]))
+        print("REA_SIM_APT_PLAN_SHA256="+hashlib.sha256(output.encode()).hexdigest())
+        print("REA_SIM_APT_SAFE="+str(p.returncode==0 and not removed).lower())
+        if p.returncode!=0:
+            print("REA_SIM_APT_FAILURE="+regex.sub(
+                r"[^A-Za-z0-9 .,:;=/()+~-]"," ",output[-500:]))
+        # Host service current root path and effective provider keys.
+        if shutil.which("systemctl"):
+            unit="rea-reversa-mcp.service"
+            values={}
+            for key in ("User","Group","MainPID","ActiveState","SubState","WorkingDirectory",
+                        "ExecStart","Environment","EnvironmentFiles"):
+                proc=subprocess.run(["systemctl","show",unit,"-p",key,"--value"],
+                   capture_output=True,text=True,timeout=12,check=False)
+                values[key]=proc.stdout.strip() if proc.returncode==0 else ""
+            print("REA_SIM_SERVICE_USER="+values["User"][:50])
+            print("REA_SIM_SERVICE_ACTIVE="+values["ActiveState"][:35])
+            print("REA_SIM_SERVICE_PID_PRESENT="+str(values["MainPID"].isdigit()
+                  and int(values["MainPID"])>0).lower())
+            for k in ("GHIDRA_INSTALL_DIR","JAVA_HOME","REA_JADX_MCP_JAR",
+                      "REA_GDB_COMMAND","REA_BINWALK_COMMAND","REA_UNBLOB_COMMAND"):
+                print("REA_SIM_SERVICE_ENV_"+k+"="+str(k+"=" in values["Environment"]).lower())
+            print("REA_SIM_SERVICE_DROPIN="+str("rea-reversa-mcp" in values["EnvironmentFiles"]).lower())
+        print("REA_SIM_COMPLETED=PASS_READ_ONLY")
         return
     if data["action"] == "fixture_linux_service_install_preflight":
         # Strictly read-only: verify ownership, service environment, admin
