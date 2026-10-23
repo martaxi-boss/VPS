@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_objdump_certification", "fixture_linux_objdump_negative_finalize"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_objdump_certification", "fixture_linux_objdump_negative_finalize", "fixture_linux_objdump_invalid_exit_probe"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -217,6 +217,12 @@ def encrypt_result(raw_path, request_path, envelope_path):
     request = validate(json.loads(request_raw))
     private = None
     allowed_markers = {
+        "REA_OBJDUMP_INVALID_EXIT",
+        "REA_OBJDUMP_INVALID_ISERROR",
+        "REA_OBJDUMP_INVALID_MESSAGE",
+        "REA_OBJDUMP_INVALID_SOURCE",
+        "REA_OBJDUMP_INVALID_CLEANUP",
+        "REA_OBJDUMP_INVALID_STATUS",
         "REA_OBJDUMP_NEGATIVE_DIAGNOSTICS",
         "REA_OBJDUMP_SCHEMA_DIAGNOSTICS",
         "REA_OBJDUMP_NEGATIVE_INPUT",
@@ -2690,6 +2696,54 @@ def main():
                 except (OSError, RuntimeError, ValueError):
                     print("REA_FIXTURE_CLEANUP=FAIL")
                     raise
+        return
+    if data["action"] == "fixture_linux_objdump_invalid_exit_probe":
+        # Only earlier inconclusive invalid-binary exit-code assertion.
+        import tempfile
+        target_sha_before = None
+        provider_exit_codes = []
+        is_error = None
+        message = False
+        intact = False
+        with tempfile.TemporaryDirectory(prefix="rea-objdump-exit-",dir="/dev/shm") as directory:
+            root=Path(directory)
+            root.chmod(0o755)
+            target=root/"invalid.bin"
+            target.write_bytes(b"REA-invalid-binary-canonical-20261023\n")
+            target.chmod(0o644)
+            target_sha_before=hashlib.sha256(target.read_bytes()).hexdigest()
+            args={"path":str(target),"operation":"file_headers",
+                  "follow_debug_links":False}
+            secure.validate_arguments(tool_by_name["inspect_with_objdump"],args)
+            _,reply=request_mcp({"jsonrpc":"2.0","id":922,"method":"tools/call",
+                "params":{"name":"inspect_with_objdump","arguments":args}},
+                session,protocol,timeout=90)
+            result=reply.get("result") if isinstance(reply.get("result"),dict) else {}
+            is_error=result.get("isError")
+            def walk(obj):
+                if isinstance(obj,dict):
+                    for k,v in obj.items():
+                        if k in ("exit_code","exitCode") and type(v) is int:
+                            provider_exit_codes.append(v)
+                        elif isinstance(v,(dict,list)):
+                            walk(v)
+                elif isinstance(obj,list):
+                    for v in obj: walk(v)
+            walk(result.get("structuredContent",{}))
+            rendered=json.dumps(result,ensure_ascii=True,sort_keys=True).lower()
+            message="not recognized" in rendered or "file format not recognized" in rendered
+            intact=target_sha_before==hashlib.sha256(target.read_bytes()).hexdigest()
+        cleanup=not root.exists()
+        print("REA_OBJDUMP_INVALID_EXIT="+json.dumps(provider_exit_codes[:8]))
+        print("REA_OBJDUMP_INVALID_ISERROR="+str(is_error).lower())
+        print("REA_OBJDUMP_INVALID_MESSAGE="+str(message).lower())
+        print("REA_OBJDUMP_INVALID_SOURCE="+str(intact).lower())
+        print("REA_OBJDUMP_INVALID_CLEANUP="+str(cleanup).lower())
+        confirmed=bool(provider_exit_codes and any(x != 0 for x in provider_exit_codes)
+            and message and intact and cleanup and "error" not in reply)
+        print("REA_OBJDUMP_INVALID_STATUS="+(
+            "PASS_PROVIDER_FAILURE_CAPTURED_WITHOUT_MCP_ERROR" if confirmed
+            else "NEEDS_FURTHER_DIAGNOSIS"))
         return
     if data["action"] == "fixture_linux_objdump_negative_finalize":
         # Examine only missing negative-path cases. Never re-run proved positives.
