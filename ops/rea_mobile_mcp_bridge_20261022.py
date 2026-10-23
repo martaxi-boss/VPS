@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_wasm_contract_closure"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -217,6 +217,12 @@ def encrypt_result(raw_path, request_path, envelope_path):
     request = validate(json.loads(request_raw))
     private = None
     allowed_markers = {
+        "REA_WASM_CERT_FULL", "REA_WASM_CERT_SUMMARY",
+        "REA_WASM_CERT_GLUE", "REA_WASM_CERT_NEGATIVES",
+        "REA_WASM_CERT_SCHEMA", "REA_WASM_CERT_BINARY",
+        "REA_WASM_CERT_INTEGRITY", "REA_WASM_CERT_CLEANUP",
+        "REA_WASM_CERT_DAEMON", "REA_WASM_CERT_RESULTS_SHA256",
+        "REA_WASM_CERT_STATUS",
         "REA_MOBILE_LOOPBACK_MCP", "REA_MOBILE_MCP_TOOL_COUNT",
         "REA_MOBILE_READONLY_HINT_COUNT", "REA_MOBILE_STATIC_INSPECT_COUNT",
         "REA_MOBILE_SAFE_QUERY_COUNT", "REA_MOBILE_SAFE_CALLABLE_COUNT",
@@ -2676,6 +2682,277 @@ def main():
                 except (OSError, RuntimeError, ValueError):
                     print("REA_FIXTURE_CLEANUP=FAIL")
                     raise
+        return
+    if data["action"] == "fixture_linux_wasm_contract_closure":
+        # Complete unproved WASM facets with a fixed, self-authored module.
+        # No arbitrary inputs, live processes or network acquisition.
+        import tempfile
+        import stat
+        name = "inspect_wasm_artifact"
+        contract = tool_by_name.get(name)
+        if not contract or secure.classify(name, contract, ()) != "workspace":
+            error("WASM contract/risk classification not as expected")
+        def service_pid():
+            proc = subprocess.run(
+                ["systemctl", "show", "rea-reversa-mcp.service",
+                 "-p", "MainPID", "--value"],
+                capture_output=True, text=True, timeout=10, check=False)
+            return proc.stdout.strip() if proc.returncode == 0 else ""
+        pid_before = service_pid()
+        # One type (i32)->i32, one env.id function import, and a
+        # separately defined/exported demo function. Source is never executed.
+        def varuint(n):
+            out = bytearray()
+            while True:
+                digit = n & 0x7f
+                n >>= 7
+                out.append(digit | (0x80 if n else 0))
+                if not n:
+                    return bytes(out)
+        def section(tag, payload):
+            return bytes([tag]) + varuint(len(payload)) + payload
+        def wasm_name(v):
+            raw = v.encode("ascii")
+            return varuint(len(raw)) + raw
+        module = (
+            bytes.fromhex("0061736d01000000")
+            + section(1, bytes.fromhex("0160017f017f"))
+            + section(2, b"\x01" + wasm_name("env") + wasm_name("id") + b"\x00\x00")
+            + section(3, bytes.fromhex("0100"))
+            + section(7, b"\x01" + wasm_name("demo") + b"\x00\x01")
+            + section(10, bytes.fromhex("01040020000b"))
+        )
+        file_hashes = {}
+        summaries = {}
+        negative_results = {}
+        schema_results = {}
+        result_hashes = {}
+        complete_ok = False
+        summary_ok = False
+        glue_ok = False
+        binary_ok = False
+        integrity = False
+        cleanup = False
+        try:
+            with tempfile.TemporaryDirectory(prefix="rea-wasm-cert-", dir="/dev/shm") as folder:
+                root = Path(folder)
+                root.chmod(0o755)
+                target = root / "module.wasm"
+                other = root / "other.wasm"
+                glue = root / "glue.js"
+                invalid = root / "invalid.wasm"
+                bad_glue = root / "bad-utf8.js"
+                files = {
+                    target: module,
+                    other: bytes.fromhex("0061736d01000000"),
+                    glue: (
+                        'const local = "./module.wasm";\n'
+                        'const remote = "https://cdn.example.org/other.wasm?v=1";\n'
+                        'const absent = "absent.wasm";\n'
+                    ).encode("utf-8"),
+                    invalid: bytes.fromhex("0061736d0100000001020160"),
+                    bad_glue: bytes.fromhex("fffe"),
+                }
+                for path, data in files.items():
+                    path.write_bytes(data)
+                    path.chmod(0o644)
+                    file_hashes[path.name] = hashlib.sha256(data).hexdigest()
+                arguments = {
+                    "path":str(target),
+                    "candidate_paths":[str(other)],
+                    "glue_paths":[str(glue)],
+                }
+                secure.validate_arguments(contract,arguments)
+                secure._authorized_target_paths(arguments,additional_roots=(root,))
+                _,reply=request_mcp({
+                    "jsonrpc":"2.0","id":1201,"method":"tools/call",
+                    "params":{"name":name,"arguments":arguments}
+                },session,protocol,timeout=115)
+                result=reply.get("result")
+                accepted=("error" not in reply and isinstance(result,dict)
+                          and result.get("isError") is not True)
+                structured=result.get("structuredContent") if accepted else None
+                report=structured.get("normalized_result",structured) if isinstance(structured,dict) else {}
+                if not isinstance(report,dict):
+                    report={}
+                artifact=report.get("artifact")
+                tool=report.get("tool_profile")
+                wat=report.get("wat")
+                candidates=report.get("candidates")
+                glue_list=report.get("glue")
+                imports=report.get("imports")
+                exports=report.get("exports")
+                interface=report.get("interface")
+                sections=report.get("sections")
+                commands=tool.get("commands") if isinstance(tool,dict) else None
+                binary_ok=(isinstance(commands,list) and len(commands)==3
+                    and [c.get("tool") for c in commands if isinstance(c,dict)] ==
+                    ["wasm-validate","wasm-objdump","wasm2wat"]
+                    and all(c.get("version_banner","").strip()=="1.0.42"
+                        and isinstance(c.get("sha256"),str) and len(c["sha256"])==64
+                        for c in commands if isinstance(c,dict)))
+                identity_ok=(isinstance(artifact,dict)
+                    and artifact.get("path")==str(target)
+                    and artifact.get("sha256")==file_hashes[target.name]
+                    and artifact.get("bytes")==len(module))
+                wat_ok=(isinstance(wat,dict) and isinstance(wat.get("text"),str)
+                    and wat["text"].startswith("(module")
+                    and wat.get("sha256")==hashlib.sha256(wat["text"].encode()).hexdigest()
+                    and "demo" in wat["text"])
+                source_ok=(isinstance(candidates,list) and len(candidates)==2
+                    and candidates[0]=={"path":str(target),"sha256":file_hashes[target.name],"bytes":len(module)}
+                    and candidates[1]=={"path":str(other),"sha256":file_hashes[other.name],"bytes":len(files[other])})
+                iface_ok=(isinstance(interface,dict)
+                    and interface.get("state")=="complete"
+                    and isinstance(interface.get("entries"),list)
+                    and any(e.get("direction")=="import" and e.get("name")=="id" and e.get("module")=="env"
+                        and e.get("kind")=="func" for e in interface["entries"])
+                    and any(e.get("direction")=="export" and e.get("name")=="demo" and e.get("kind")=="func"
+                        for e in interface["entries"]))
+                sections_ok=(isinstance(sections,list) and len(sections)>=4
+                    and all(isinstance(x,dict) and type(x.get("start")) is int
+                        and type(x.get("end")) is int
+                        and 0<=x["start"]<=x["end"]<=len(module)
+                        and x.get("bytes")==x["end"]-x["start"] for x in sections))
+                forms_ok=(isinstance(imports,list) and isinstance(exports,list)
+                    and len(imports)>=1 and len(exports)>=1
+                    and any('"env"' in form and '"id"' in form for form in imports)
+                    and any('"demo"' in form for form in exports))
+                refs={}
+                if isinstance(glue_list,list) and len(glue_list)==1:
+                    glue_record=glue_list[0]
+                    if isinstance(glue_record,dict) and isinstance(glue_record.get("references"),list):
+                        refs={r.get("value"):r for r in glue_record["references"] if isinstance(r,dict)}
+                        glue_ok=(glue_record.get("parse_status")=="complete"
+                            and glue_record.get("artifact")=={
+                                "path":str(glue),"sha256":file_hashes[glue.name],"bytes":len(files[glue])}
+                            and len(refs)==3
+                            and refs.get("./module.wasm",{}).get("association")=="local-path-candidate"
+                            and refs.get("./module.wasm",{}).get("candidate_paths")==[str(target)]
+                            and refs.get("https://cdn.example.org/other.wasm?v=1",{}).get("association")=="basename-candidates"
+                            and refs.get("https://cdn.example.org/other.wasm?v=1",{}).get("candidate_paths")==[str(other)]
+                            and refs.get("absent.wasm",{}).get("association")=="unresolved"
+                            and refs.get("absent.wasm",{}).get("candidate_paths")==[]
+                            and all(type(v.get("line")) is int and v["line"]>0 and
+                                type(v.get("column")) is int and v["column"]>=0
+                                and v.get("evidence_kind")=="static-literal"
+                                for v in refs.values()))
+                complete_ok=bool(
+                    accepted and identity_ok and binary_ok and wat_ok and source_ok
+                    and iface_ok and sections_ok and forms_ok and glue_ok
+                    and report.get("validation")=="valid"
+                    and report.get("runtime_execution")=="not-performed"
+                    and report.get("network_fetch")=="not-performed")
+                result_hashes["full"]=hashlib.sha256(json.dumps(result,sort_keys=True).encode()).hexdigest()
+                summaries["full"]={
+                    "accepted":accepted,"identity":identity_ok,
+                    "tool_profile":binary_ok,"wat_hash":wat_ok,
+                    "candidates":source_ok,"typed_interface":iface_ok,
+                    "sections":sections_ok,"wat_import_export":forms_ok}
+                summary_arguments={**arguments,"detail":"summary"}
+                secure.validate_arguments(contract,summary_arguments)
+                secure._authorized_target_paths(summary_arguments,additional_roots=(root,))
+                _,summary_reply=request_mcp({
+                    "jsonrpc":"2.0","id":1202,"method":"tools/call",
+                    "params":{"name":name,"arguments":summary_arguments}
+                },session,protocol,timeout=115)
+                summ_result=summary_reply.get("result")
+                summ_success=("error" not in summary_reply
+                    and isinstance(summ_result,dict)
+                    and summ_result.get("isError") is not True)
+                summ_content=summ_result.get("structuredContent") if summ_success else None
+                summ_report=summ_content.get("normalized_result",summ_content) if isinstance(summ_content,dict) else {}
+                if not isinstance(summ_report,dict):
+                    summ_report={}
+                summ=summ_report.get("summary")
+                tally=summ.get("available_counts") if isinstance(summ,dict) else {}
+                summ_wat=summ.get("wat") if isinstance(summ,dict) else {}
+                summary_ok=bool(
+                    summ_success and isinstance(summ,dict)
+                    and summ_report.get("kind")=="summary"
+                    and summ_report.get("parent_operation")==name
+                    and isinstance(summ_report.get("parent_evidence_id"),str)
+                    and len(summ_report["parent_evidence_id"])>20
+                    and summ.get("bytes")==len(module)
+                    and summ.get("validation")=="valid"
+                    and tally.get("sections")==len(sections or [])
+                    and tally.get("imports")==len(imports or [])
+                    and tally.get("exports")==len(exports or [])
+                    and tally.get("candidates")==2 and tally.get("glue")==1
+                    and isinstance(summ_wat,dict)
+                    and summ_wat.get("sha256")==wat.get("sha256")
+                    and summ_wat.get("code_units")==len(wat.get("text",""))
+                    and "text" not in summ_wat
+                    and summ.get("runtime_execution")=="not-performed"
+                    and summ.get("network_fetch")=="not-performed")
+                result_hashes["summary"]=hashlib.sha256(
+                    json.dumps(summ_result,sort_keys=True).encode()).hexdigest()
+                # These error paths have not been covered by the earlier 8-byte success.
+                negatives=[
+                    ("invalid_binary",{"path":str(invalid)}),
+                    ("missing_input",{"path":str(root/"missing.wasm")}),
+                    ("missing_candidate",{"path":str(target),"candidate_paths":[str(root/"unknown.wasm")]}),
+                    ("invalid_utf8_glue",{"path":str(target),"glue_paths":[str(bad_glue)]}),
+                ]
+                for idx,(case,args) in enumerate(negatives,start=1240):
+                    secure.validate_arguments(contract,args)
+                    secure._authorized_target_paths(args,additional_roots=(root,))
+                    _,negative=request_mcp({
+                        "jsonrpc":"2.0","id":idx,"method":"tools/call",
+                        "params":{"name":name,"arguments":args}
+                    },session,protocol,timeout=95)
+                    negative_result=negative.get("result")
+                    rejected=("error" in negative or
+                        (isinstance(negative_result,dict) and negative_result.get("isError") is True))
+                    negative_results[case]=bool(rejected)
+                    result_hashes[case]=hashlib.sha256(json.dumps(negative,sort_keys=True).encode()).hexdigest()
+                schema_cases=[
+                    ("invalid_detail",{"path":str(target),"detail":"brief"}),
+                    ("no_path",{"path":""}),
+                    ("too_many_glue",{"path":str(target),"glue_paths":[str(glue)]*17}),
+                    ("too_many_candidates",{"path":str(target),"candidate_paths":[str(other)]*17}),
+                ]
+                for idx,(case,args) in enumerate(schema_cases,start=1270):
+                    adapter_rejected=False
+                    try:
+                        secure.validate_arguments(contract,args)
+                    except secure.SecureBridgeError:
+                        adapter_rejected=True
+                    _,negative=request_mcp({
+                        "jsonrpc":"2.0","id":idx,"method":"tools/call",
+                        "params":{"name":name,"arguments":args}
+                    },session,protocol,timeout=75)
+                    negative_result=negative.get("result")
+                    mcp_rejected=("error" in negative or
+                        (isinstance(negative_result,dict) and negative_result.get("isError") is True))
+                    schema_results[case]=bool(adapter_rejected and mcp_rejected)
+                    result_hashes[case]=hashlib.sha256(json.dumps(negative,sort_keys=True).encode()).hexdigest()
+                integrity=all(
+                    hashlib.sha256((root/fn).read_bytes()).hexdigest()==digest
+                    for fn,digest in file_hashes.items())
+            cleanup=not root.exists()
+            stable=pid_before.isdecimal() and service_pid()==pid_before
+            print("REA_WASM_CERT_FULL="+str(complete_ok).lower())
+            print("REA_WASM_CERT_SUMMARY="+str(summary_ok).lower())
+            print("REA_WASM_CERT_GLUE="+str(glue_ok).lower())
+            print("REA_WASM_CERT_NEGATIVES="+json.dumps(negative_results,sort_keys=True))
+            print("REA_WASM_CERT_SCHEMA="+json.dumps(schema_results,sort_keys=True))
+            print("REA_WASM_CERT_BINARY="+str(binary_ok).lower())
+            print("REA_WASM_CERT_INTEGRITY="+("PASS" if integrity else "FAIL"))
+            print("REA_WASM_CERT_CLEANUP="+("PASS" if cleanup else "FAIL"))
+            print("REA_WASM_CERT_DAEMON="+("PASS" if stable else "FAIL"))
+            print("REA_WASM_CERT_RESULTS_SHA256="+hashlib.sha256(
+                json.dumps({"results":result_hashes,"oracle":summaries},sort_keys=True).encode()).hexdigest())
+            all_good=(
+                complete_ok and summary_ok and glue_ok and binary_ok and integrity and cleanup and stable
+                and all(negative_results.values()) and all(schema_results.values())
+                and len(negative_results)==4 and len(schema_results)==4)
+            print("REA_WASM_CERT_STATUS="+(
+                "PASS_LINUX_WABT_1_0_42_NONTRIVIAL_CONTRACT" if all_good else
+                "INCOMPLETE_KEEP_SCOPED"))
+        except Exception as exc:
+            print("REA_WASM_CERT_STATUS=ERROR_"+type(exc).__name__)
+            raise
         return
     if data["action"] == "fixture_linux_objdump":
         # Source-owned, fixed Linux fixture on the original local REA MCP.
