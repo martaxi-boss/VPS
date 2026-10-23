@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_13_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_16_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -2530,6 +2530,126 @@
         "restore_stable_bridge_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
         "final_catalog_smoke_pending": true
       }
+    },
+    {
+      "phase_id": "LINUX-P34-MANAGED-ORIGINAL-MCP-CERTIFICATION-20261023",
+      "date_utc": "2026-10-23",
+      "status": "FULLY_CERTIFIED_THREE_ORIGINAL_LINUX_MCP_MANAGED_STATIC_CONTRACTS",
+      "tools": [
+        "inspect_managed_artifact",
+        "inspect_managed_members",
+        "inspect_managed_native_boundaries"
+      ],
+      "tool_status": "FULLY_CERTIFIED",
+      "risk": "workspace",
+      "scope": "Original permanent REA MCP on Linux x86_64 using only source-owned synthetically generated PE/CLI images, no CLR execution; retained existing P01 scoped positives and tested previously uncovered contract facets.",
+      "prior_scoped_evidence": {
+        "phase_id": "LINUX-P01-managed-metadata-20261023",
+        "run_ids": [
+          39945973782,
+          39946140124
+        ],
+        "reused_without_repetition": true
+      },
+      "closure": {
+        "run_id": 40030975590,
+        "run_commit": "a9ba7f18ecdd4898c47e510fa6069e4a774b2628",
+        "test_fixture_code_commit": "2b35d6b6ae59581df02ec3efa629429203a0a100",
+        "original_mcp_tool_count": 208,
+        "total_cases_28_of_28": true,
+        "positive_cases_11_of_11": true,
+        "invalid_cases_17_of_17": true,
+        "positive_isError_not_true": true,
+        "negative_isError_true": true,
+        "no_protocol_errors": true,
+        "authenticated_encrypted_artifact": true,
+        "request_sha256_authenticated": true,
+        "encrypted_result_digest_sha256": "3d51b39827e31b830e9f521d9327dc6fe2bf2822a086b2c34ec17edb8892330c",
+        "per_tool": {
+          "inspect_managed_artifact": {
+            "positive_cases": [
+              "new_PE_CLI_interop_assembly_and_framework_identity",
+              "detail_summary_retains_parent_Evidence_and_SHA",
+              "unmanaged_PE_correctly_not_managed",
+              "malformed_metadata_reports_degradation"
+            ],
+            "negative_cases": [
+              "missing_file_isError_true",
+              "non_PE_file_isError_true",
+              "unrecognized_execute_option_isError_true",
+              "wrong_path_type_isError_true",
+              "unsupported_detail_isError_true"
+            ],
+            "positive_count": 4,
+            "negative_count": 5,
+            "all_pass": true
+          },
+          "inspect_managed_members": {
+            "positive_cases": [
+              "previously_selected_managed_path_and_exact_type_filter",
+              "unmatched_type_selection_reported",
+              "summary_selected_type_retained_Evidence",
+              "malformed_metadata_reports_degradation"
+            ],
+            "negative_cases": [
+              "missing_file_isError_true",
+              "non_PE_file_isError_true",
+              "unrecognized_execute_option_isError_true",
+              "wrong_path_type_isError_true",
+              "invalid_detail_isError_true",
+              "empty_type_names_isError_true",
+              "duplicate_type_names_isError_true"
+            ],
+            "positive_count": 4,
+            "negative_count": 7,
+            "all_pass": true
+          },
+          "inspect_managed_native_boundaries": {
+            "positive_cases": [
+              "previously_selected_PE_PInvoke_and_ReadyToRun_declared_boundaries",
+              "unmanaged_PE_unavailable_coverage",
+              "malformed_metadata_reports_degradation"
+            ],
+            "negative_cases": [
+              "missing_file_isError_true",
+              "non_PE_file_isError_true",
+              "unrecognized_execute_option_isError_true",
+              "wrong_path_type_isError_true",
+              "unsupported_detail_isError_true"
+            ],
+            "positive_count": 3,
+            "negative_count": 5,
+            "all_pass": true
+          }
+        },
+        "generated_source_SHA256_unchanged": true,
+        "original_REA_repository_unchanged": true,
+        "temp_fixture_cleanup": "PASS",
+        "original_service_PID_stable": "PASS",
+        "original_bridge_restored_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      },
+      "safety": {
+        "no_unrelated_project_data": true,
+        "no_production_analysis": true,
+        "no_original_engine_source_changes": true,
+        "no_service_restart": true,
+        "no_supplier_installation": true,
+        "no_additional_motor_skill_plugin": true,
+        "no_signature_fabrication": true,
+        "fixture_contract_existing_fixed_source_owned_action": true
+      },
+      "limitations": [
+        "FULLY_CERTIFIED is limited to the specific static Linux PE/CLI and malformed/negative profiles exercised on the installed REA original MCP; not all .NET formats, large/corrupted binaries, exotic metadata graphs or resource exhaustion.",
+        "P/Invoke and ReadyToRun are inferred from declarations and image headers; native libraries, exports, dynamic loading and call execution were not checked.",
+        "Member method names and metadata tokens are build-local evidence, not proof of runtime control flow or execution.",
+        "Existing source-owned fixture action has a tightly bounded trial root; generic workspace operations still require their own authorized target and exact grant."
+      ],
+      "hygiene": {
+        "spent_request_deleted": "rea-linux/requests/managed-p34-new-contract-20261023.json",
+        "experimental_bridge_code_removed": true,
+        "stable_bridge_restored": true,
+        "post_cleanup_catalog_recheck_required": true
+      }
     }
   ],
   "active_scope_counts": {
@@ -2541,10 +2661,10 @@
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 13,
-    "scoped_positive_not_fully_certified_distinct": 9,
+    "fully_certified_distinct": 16,
+    "scoped_positive_not_fully_certified_distinct": 6,
     "not_functionally_positive_distinct": 186,
-    "remaining_full_certification_distinct": 195
+    "remaining_full_certification_distinct": 192
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -2574,7 +2694,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P33-RECONSTRUCTION-COVERAGE-ORIGINAL-MCP-CERTIFICATION-20261023",
+  "latest_phase": "LINUX-P34-MANAGED-ORIGINAL-MCP-CERTIFICATION-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -3051,6 +3171,39 @@
       ],
       "evidence_digest": "3008967043515a40d0b15edad1b4c36d8be9ffff46233de76105a71176bb8d15",
       "phase_id": "LINUX-P33-RECONSTRUCTION-COVERAGE-ORIGINAL-MCP-CERTIFICATION-20261023"
+    },
+    "inspect_managed_artifact": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Original permanent Linux REA MCP .NET static PE/CLI classification and assembly/module/framework, summary linked evidence, unmanaged PE and malformed-metadata degradation, with missing/invalid target and strict parameter rejection.",
+      "run_ids": [
+        39945973782,
+        39946140124,
+        40030975590
+      ],
+      "evidence_digest": "3d51b39827e31b830e9f521d9327dc6fe2bf2822a086b2c34ec17edb8892330c",
+      "phase_id": "LINUX-P34-MANAGED-ORIGINAL-MCP-CERTIFICATION-20261023"
+    },
+    "inspect_managed_members": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Original permanent Linux REA MCP static .NET metadata membership, previously selected target, exact declaring-type selection, unmatched filters, summary with retained Evidence, malformed metadata and seven controlled negative boundaries.",
+      "run_ids": [
+        39945973782,
+        39946140124,
+        40030975590
+      ],
+      "evidence_digest": "3d51b39827e31b830e9f521d9327dc6fe2bf2822a086b2c34ec17edb8892330c",
+      "phase_id": "LINUX-P34-MANAGED-ORIGINAL-MCP-CERTIFICATION-20261023"
+    },
+    "inspect_managed_native_boundaries": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Original permanent Linux REA MCP .NET static P/Invoke ModuleRef/ImplMap declaration and ReadyToRun indicator, explicit unavailable/malformed degradations and five invalid-target/schema rejections; no native export resolution or code execution.",
+      "run_ids": [
+        39945973782,
+        39946140124,
+        40030975590
+      ],
+      "evidence_digest": "3d51b39827e31b830e9f521d9327dc6fe2bf2822a086b2c34ec17edb8892330c",
+      "phase_id": "LINUX-P34-MANAGED-ORIGINAL-MCP-CERTIFICATION-20261023"
     }
   }
 }
