@@ -711,7 +711,7 @@ def main():
             for path in dirs.values():
                 path.mkdir(mode=0o755)
             def put(directory,name,contents):
-                p=directory/name;p.parent.mkdir(mode=0o755,parents=True)
+                p=directory/name;p.parent.mkdir(mode=0o755,parents=True,exist_ok=True)
                 p.write_bytes(contents)
                 p.chmod(0o644)
                 return p
