@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_4_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_5_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -1777,6 +1777,73 @@
         "stable_bridge_restored_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
         "final_catalog_run_pending": true
       }
+    },
+    {
+      "phase_id": "LINUX-P25-EVMOLE-INTERFACE-FULL-CERTIFICATION-20261023",
+      "date_utc": "2026-10-23",
+      "status": "FULLY_CERTIFIED_LINUX_X64_EVMOLE_FLAT_BYTECODE_INTERFACE_CONTRACT",
+      "tool": "inspect_evm_interface",
+      "tool_status": "FULLY_CERTIFIED",
+      "certification_scope": "Original persistent REA MCP on Linux x64, unchanged EVMole/WASM 0.9.3: explicit raw and UTF-8 hex bytecode carriers (prefix, uppercase and outer ASCII whitespace), invariant original carrier+decoded SHA-256/bytecode bytes, real 0xa9059cbb ABI-selector inference, returned optional summary Evidence, strict malformed and unsupported input failures; no chain/RPC/runtime execution.",
+      "supplier": "EVMole 0.9.3 locked WASM worker running under REA Node v24.22.1 in Linux permanent MCP",
+      "previous_positive": {
+        "run_id": 39995775540,
+        "source": "P13 existing positive simple five-byte flat EVM source, deliberately not repeated"
+      },
+      "closure_test": {
+        "run_id": 40023775648,
+        "request_commit": "b6cc4904ea86691f03a483e9e1f5417e4d06710b",
+        "original_mcp_catalog": 208,
+        "original_mcp_isError_for_positives": false,
+        "positive_passes": "4/4",
+        "positive_cases": [
+          "raw_binary",
+          "hex_uppercase_prefixed_outer_whitespace",
+          "hex_lowercase_without_prefix",
+          "hex_summary_retained_evidence"
+        ],
+        "negatives_pass": "5/5",
+        "negative_cases": [
+          "odd_hex_carrier",
+          "interior_hex_whitespace",
+          "unsupported_EF00_container",
+          "nonexistent_file",
+          "invalid_encoding_enum"
+        ],
+        "negative_cases_original_mcp_isError_true": true,
+        "independent_decoded_byte_sha256": true,
+        "carrier_identity_sha256": true,
+        "decoded_identity_parity_across_raw_hex_and_hex_without_prefix": true,
+        "genuine_selector_recovered": "0xa9059cbb",
+        "inferred_function_location_in_bounds": true,
+        "summary_producer_parent_id_preserved": true,
+        "summary_omits_hex_and_reports_correct_decoded_hash": true,
+        "input_unchanged": true,
+        "temp_fixtures_deleted": true,
+        "permanent_service_pid_stable": true,
+        "result_digest": "31a3b7bbf51bc28fbfa958e42f8cc71f940b54e6c189bd32e4834a9bd9d0e7b0"
+      },
+      "security": {
+        "no_rpc_or_network_lookup": true,
+        "no_transaction_broadcast": true,
+        "no_target_execution": true,
+        "no_new_skill_plugin_or_mcp": true,
+        "no_supplier_install": true,
+        "no_restart": true,
+        "no_signature_bypass": true,
+        "no_production_other_services_changed": true
+      },
+      "limitations": [
+        "Certification is attached to an explicit Linux x64 flat-bytecode EVMole supplier profile, not to deployed-contract authenticity or support for EF00 EOF containers.",
+        "Selector/argument inference is heuristic, completeness unknown; one controlled selector confirmed, not arbitrary large bytecode or every Solidity compiler layout.",
+        "Summary mode requires original Evidence retention; tested in this persistent Linux MCP context; other clients/providers and future releases need separate qualification."
+      ],
+      "hygiene": {
+        "temporary_request_removed": "rea-linux/requests/evm-closure-20261023.json",
+        "experimental_bridge_removed": true,
+        "restored_stable_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+        "after_cleanup_catalog_smoke_pending": true
+      }
     }
   ],
   "active_scope_counts": {
@@ -1788,10 +1855,10 @@
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 4,
-    "scoped_positive_not_fully_certified_distinct": 18,
+    "fully_certified_distinct": 5,
+    "scoped_positive_not_fully_certified_distinct": 17,
     "not_functionally_positive_distinct": 186,
-    "remaining_full_certification_distinct": 204
+    "remaining_full_certification_distinct": 203
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -1821,7 +1888,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P24-TSHARK-FIELD-DISCOVERY-FULL-CERTIFICATION-20261023",
+  "latest_phase": "LINUX-P25-EVMOLE-INTERFACE-FULL-CERTIFICATION-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -2202,6 +2269,16 @@
       ],
       "evidence_digest": "ac1725100dcea410dcbe8a9ec2e886caf3f579552661843af864446970db96f7",
       "phase_id": "LINUX-P24-TSHARK-FIELD-DISCOVERY-FULL-CERTIFICATION-20261023"
+    },
+    "inspect_evm_interface": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Permanent Linux x64 EVMole 0.9.3 flat bytecode: raw/hex, recovered selector, summary, carrier identities and negative paths",
+      "run_ids": [
+        39995775540,
+        40023775648
+      ],
+      "evidence_digest": "31a3b7bbf51bc28fbfa958e42f8cc71f940b54e6c189bd32e4834a9bd9d0e7b0",
+      "phase_id": "LINUX-P25-EVMOLE-INTERFACE-FULL-CERTIFICATION-20261023"
     }
   }
 }

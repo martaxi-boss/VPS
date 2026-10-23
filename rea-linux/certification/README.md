@@ -93,3 +93,12 @@ As cinco ferramentas pertencem ao grupo `read`, mas têm pré-condições difere
 - [Actions #40023335985](https://github.com/martaxi-boss/VPS/actions/runs/40023335985): verificadas diretamente contra a saída original `/usr/bin/tshark -G fields` as posições `source_line` de protocolos e campos UDP, tipos, descrições, base, máscara e nome. Perfil privado vazio; identidade SHA do binário comparada; diretório temporário limpo; REA sem reiniciar.
 - **Contagens canónicas:** **4 FULLY_CERTIFIED**, **18 adicionais FUNCTIONAL_PASS_SCOPED**, **186 sem aprovação positiva**, total 208. Certificação limitada ao perfil de fornecedor e operações ensaiadas: a ferramenta não captura tráfego e não implica certificação da descodificação de ficheiros PCAP.
 - Ponte experimental removida e bridge estável restaurada com zero pedidos pendentes; validar catálogo pós-limpeza antes de encerrar a fase.
+
+## P25 — Certificação definitiva de `inspect_evm_interface` (23/10/2026)
+
+- **Novo estado:** `FULLY_CERTIFIED` com âmbito **MCP original permanente Linux x64, EVMole 0.9.3, bytecode EVM plano** (o desempenho noutras arquiteturas/release não foi certificado).
+- Reaproveitada a prova anterior no [Actions #39995775540](https://github.com/martaxi-boss/VPS/actions/runs/39995775540), sem repetir o ficheiro inicial.
+- [Actions #40023775648](https://github.com/martaxi-boss/VPS/actions/runs/40023775648) passou **4/4 casos positivos** com bytecode próprio, idêntico nos carriers `raw`, `hex` com `0x`/maiúsculas/espaços exteriores, `hex` puro e modo `detail:summary`; devolveu provas de identidade SHA-256 do carrier e do bytecode descodificado, inferiu o seletor `0xa9059cbb`, deu a mesma inferência em raw/hex, preservou o ID da Evidence no resumo, sem executar contratos ou contactar redes.
+- **5/5 casos negativos** recusados pelo MCP: hexadecimal ímpar, espaços interiores, contentor EF00 não suportado, ficheiro inexistente e tipo de encoding inválido. Ficou confirmada a integridade dos seis ficheiros temporários e a sua eliminação; REA MainPID estável.
+- O resultado da ferramenta continua inferencial: completar este contrato não garante descoberta de todos os seletores, código implantado genuíno, hardfork, contratos grandes ou EOF. Novas versões dos fornecedores exigem recertificação.
+- **Acumulado:** **5 FULLY_CERTIFIED**, **17 FUNCTIONAL_PASS_SCOPED**, **186 sem prova positiva**, num catálogo de 208; nenhuma ferramenta contada duas vezes. Ponte estável restaurada, pedido temporário apagado e nenhuma alteração ao motor de produção.
