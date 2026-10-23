@@ -11,7 +11,8 @@
     "no_production_code_or_daemon_changes": true,
     "remote_access": "existing GitHub Actions -> SSH -> Linux VPS -> original MCP",
     "client_device_certification": false,
-    "gdb_binaries_live_path_present": false
+    "gdb_binaries_live_path_present": false,
+    "gdb_in_active_runtime_path": false
   },
   "tool_catalog_count": 208,
   "certification_policy": {
@@ -275,7 +276,7 @@
         {
           "name": "gdb_session_status",
           "risk": "read",
-          "status": "POSITIVE_PATH_BLOCKED_GDB_BINARY_ABSENT",
+          "status": "POSITIVE_PATH_BLOCKED_GDB_NOT_IN_RUNTIME_PATH",
           "mcp_call_count": 1,
           "contracted_function": "Report state of an already established GDB session, with MI diagnostics",
           "verified_outputs": [
