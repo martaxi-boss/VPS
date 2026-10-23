@@ -527,6 +527,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_BIN3_BUILD_SOURCE_COMMIT","REA_BIN3_BUILD_SOURCE_DIAGNOSTIC",
         "REA_BIN3_BUILD_CARGO_EXIT","REA_BIN3_BUILD_CARGO_DIAGNOSTIC",
         "REA_BIN3_BUILD_VERSION","REA_BIN3_BUILD_BIN_SHA256",
+        "REA_BIN3_BUILD_SERVICE_USER",
         "REA_BIN3_BUILD_TEMP_CLEANUP","REA_BIN3_BUILD_REA_PID_STABLE",
         "REA_BIN3_BUILD_DID_NOT_MODIFY_SYSTEM_PYTHON_RUST"
     }
@@ -1847,16 +1848,26 @@ def main():
                 if not target.is_file():
                     print("REA_BIN3_BUILD_STATUS=BLOCKED_MISSING_COMPILED_BIN")
                     return
-                banner=sudo("runuser","-u","rea-reversa","--",
-                            str(target),"--version",timeout=30)
+                banner=sudo(str(target),"--version",timeout=30)
                 print("REA_BIN3_BUILD_VERSION="+banner.replace("\n"," ")[:95])
                 if banner.strip()!="binwalk 3.1.0":
                     print("REA_BIN3_BUILD_STATUS=BLOCKED_VERSION_MISMATCH")
                     return
-                sha=hashlib.sha256(target.read_bytes()).hexdigest()
-                print("REA_BIN3_BUILD_BIN_SHA256="+sha)
+                sha=sudo("sha256sum",str(target),timeout=24).split()[0]
+                if len(sha)!=64 or any(ch not in "0123456789abcdef" for ch in sha):
+                    print("REA_BIN3_BUILD_STATUS=BLOCKED_SHA_CHECK")
+                    return
                 sudo("mv","-T",str(build/"install"),str(final),timeout=25)
+                probe=subprocess.run(["sudo","-n","runuser","-u","rea-reversa",
+                     "--",str(final/"bin/binwalk"),"--version"],
+                     capture_output=True,text=True,timeout=25,check=False)
+                if probe.returncode or probe.stdout.strip()!="binwalk 3.1.0":
+                    sudo("rm","-rf","--",str(final),timeout=25)
+                    print("REA_BIN3_BUILD_STATUS=BLOCKED_SERVICE_USER_EXECUTION")
+                    return
                 built=True
+                print("REA_BIN3_BUILD_BIN_SHA256="+sha)
+                print("REA_BIN3_BUILD_SERVICE_USER=PASS")
                 print("REA_BIN3_BUILD_STATUS=PASS_PINNED_BINWALK31_ISOLATED")
             finally:
                 sudo("rm","-rf","--",str(build),timeout=95)
