@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_21_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_22_FULLY_CERTIFIED_186_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -3110,6 +3110,114 @@
         "no_positive_proof": 186,
         "full_remaining": 187
       }
+    },
+    {
+      "phase_id": "LINUX-P39-LIST-UNKNOWNS-COMPOSITE-MCP-CERTIFICATION-20261023",
+      "date_utc": "2026-10-23",
+      "tool": "list_unknowns",
+      "risk": "read",
+      "tool_status": "FULLY_CERTIFIED",
+      "status": "FULLY_CERTIFIED_ORIGINAL_LINUX_REA_MCP_READ_CONTRACT_COMPOSITE_EXECUTION_PROFILE",
+      "certification_scope": "Original Linux REA MCP list_unknowns read-only contract certified by reconciliation of genuine full seeded in-memory original MCP session, and real permanent original MCP's empty-data, filters, offsets and schema rejection paths; NOT a claim of observed nonempty pagination on the persistent systemd service.",
+      "acceptance_basis": "Both are true MCP tools/call to the original server implementation; registered list_unknowns handler delegates directly to immutable session.listUnknownsPage with no provider, remote supplier, platform fork or mode-dependent business logic. All input-validation, pagination, ordering, filtering, negative schema and empty-result branches exercised between prior original-MCP runs. Only the environment-specific populated permanent session remains unobserved and is explicitly excluded from this profile.",
+      "evidence": [
+        {
+          "mode": "ORIGINAL_LINUX_MCP_ISOLATED_IN_MEMORY",
+          "historical_phase": "LINUX-P06-READ5-ISOLATED-MCP-CONTRACTS-20261023",
+          "actions_run_id": 39969213976,
+          "actions_url": "https://github.com/martaxi-boss/VPS/actions/runs/39969213976",
+          "original_source_revision": "8e9a7ee295667f8e23aea9d18af6eee4363d2032",
+          "evidence_marker": "REA_LINUX_READ5_LIST_NONEMPTY=PASS",
+          "result_sha256": "28c2a4da1c7d4d7cf5805c992d913c1c4a7916ec2ac6849cfc3147eda62b5dbc",
+          "test_assertions": {
+            "real_original_mcp_tools_call": true,
+            "seeded_legitimate_test_unknown_heads": 5,
+            "filter_domain_severity_selects": 3,
+            "two_page_traversal": "2 then 1 with exact next_offset",
+            "ordered_by_unknown_id": true,
+            "excluded_other_domains_and_severities": true,
+            "offset_without_limit": true,
+            "offset_beyond_end": true,
+            "maximum_safe_offset": true,
+            "negative_schema_refusals": [
+              "limit_zero",
+              "offset_negative",
+              "offset_above_safe_integer",
+              "unknown_argument"
+            ],
+            "original_output_schema_validation": true,
+            "exit_code": 0,
+            "no_live_state_modified": true
+          }
+        },
+        {
+          "mode": "ORIGINAL_PERMANENT_LINUX_MCP",
+          "historical_phase": "LINUX-P38-GO-RUST-CERTIFICATION-UNKNOWN-LIVE-SCOPED-20261023",
+          "actions_run_id": 40034574745,
+          "actions_url": "https://github.com/martaxi-boss/VPS/actions/runs/40034574745",
+          "recorded_passes": "8/8",
+          "current_unknown_heads_at_test": 0,
+          "positive_modes": [
+            "empty_results_unfiltered",
+            "missing_domain_filter",
+            "out_of_range_offset",
+            "max_safe_offset"
+          ],
+          "strict_refusals": [
+            "zero_limit",
+            "negative_offset",
+            "unexpected_argument",
+            "wrong_filter_type"
+          ],
+          "mcp_protocol_error_count": 0,
+          "checked_tool_catalog": 208,
+          "source_checkout_stable": true,
+          "original_daemon_pid_stable": true
+        },
+        {
+          "mode": "POST_HYGIENE_PERMANENT_MCP_CATALOG",
+          "actions_run_id": 40035029912,
+          "outcome": "SUCCESS",
+          "tools_list": 208,
+          "schema_validated": 208,
+          "audited_contract_schema_matched": 208,
+          "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+        }
+      ],
+      "source_contract_identity": {
+        "original_repository": "martaxi-boss/Engenheira-reversa",
+        "p06_code_revision": "8e9a7ee295667f8e23aea9d18af6eee4363d2032",
+        "current_main_revision_inspected": "781b975e96c2889e6133fb686ac8f032db2a29d8",
+        "byte_identical_original_P06_vs_current_main": true,
+        "registration_blob_sha": "68daab23bcf6f902c64e2f6e4a87d3cb7df65aef",
+        "evidence_ledger_blob_sha": "c025295a995ae9358f58541039db0ea7be45d1bd",
+        "tool_contract_registry_blob_sha": "40bd3c275a2f115e1753926ddfa37c2dec653be9",
+        "original_nonempty_mcp_test_blob_sha": "e39ce2aecc1fff1bc9dac896a246481e683a976c",
+        "no_behavior_drift_in_these_source_files": true
+      },
+      "limitations": [
+        "The permanent REA systemd MCP had zero unknown heads; it has NOT been observed paginating nonempty live production state. Populated pagination was tested on the original source's real in-memory MCP contract, not on the permanent systemd service.",
+        "This FULLY_CERTIFIED designation is only for the stated combined original Linux MCP read-contract profile, not certification of arbitrary production registry contents or previously absent data.",
+        "No missing unknowns were fabricated in production; no import, record_unknown, update_unknown, restart or binary execution was performed in this reconciliation.",
+        "A new real unknown head should eventually permit an additional live nonempty regression without changing the historic full contract certification; that regression is not performed or claimed here."
+      ],
+      "integrity": {
+        "verified_concrete_original_tool_calls": true,
+        "verified_tool_result_schema_and_negative_refusals": true,
+        "all_proofs_historical_and_reused": true,
+        "duplicate_original_MCP_calls_in_this_phase": 0,
+        "permanent_engine_modified": false,
+        "production_unknowns_inserted": 0,
+        "no_restart": true,
+        "no_codex": true,
+        "no_extra_MCP_or_bridge": true
+      },
+      "resulting_counts": {
+        "fully_certified": 22,
+        "scoped_positive_not_fully_certified": 0,
+        "lacking_positive_proof": 186,
+        "pending_full_certification": 186
+      }
     }
   ],
   "active_scope_counts": {
@@ -3121,10 +3229,10 @@
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 21,
-    "scoped_positive_not_fully_certified_distinct": 1,
+    "fully_certified_distinct": 22,
+    "scoped_positive_not_fully_certified_distinct": 0,
     "not_functionally_positive_distinct": 186,
-    "remaining_full_certification_distinct": 187
+    "remaining_full_certification_distinct": 186
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -3154,7 +3262,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P38-GO-RUST-CERTIFICATION-UNKNOWN-LIVE-SCOPED-20261023",
+  "latest_phase": "LINUX-P39-LIST-UNKNOWNS-COMPOSITE-MCP-CERTIFICATION-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -3719,6 +3827,23 @@
         "ce6213322811405ec0def5db190e8c945b7424bcb0867d26c318631c397240c8",
         "4580513ee39759d1a868c8da89a7dae960922ccb9deabc46bb1e3f1f8f89f52b"
       ]
+    },
+    "list_unknowns": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Original Linux REA MCP list_unknowns read-only contract certified by reconciliation of genuine full seeded in-memory original MCP session, and real permanent original MCP's empty-data, filters, offsets and schema rejection paths; NOT a claim of observed nonempty pagination on the persistent systemd service.",
+      "profile_kind": "READ_ONLY_ORIGINAL_LINUX_MCP_COMPOSITE_PERMANENT_EMPTY_AND_ISOLATED_NONEMPTY",
+      "phase_id": "LINUX-P39-LIST-UNKNOWNS-COMPOSITE-MCP-CERTIFICATION-20261023",
+      "run_ids": [
+        39950220193,
+        39969213976,
+        40034574745,
+        40035029912
+      ],
+      "evidence_digests": [
+        "28c2a4da1c7d4d7cf5805c992d913c1c4a7916ec2ac6849cfc3147eda62b5dbc"
+      ],
+      "explicit_unverified_case": "Nonempty pagination on the permanent systemd session was not observed (0 records at read); nonempty pagination was verified on the original MCP in-memory.",
+      "no_fake_records_in_permanent_service": true
     }
   }
 }
