@@ -88,8 +88,9 @@ jobs:
           python3 - <<'PY'
           import json
           import os
-          from datetime import datetime, timezone
+          from datetime import date, datetime, timezone
           from pathlib import Path
+          from zoneinfo import ZoneInfo
 
           report = json.loads((Path(os.environ["RUNNER_TEMP"]) /
                                "leads-readonly-report.json").read_text())
@@ -131,7 +132,11 @@ jobs:
               "PUBLIC_DISCOVERY_COMPLETE",
               "PUBLIC_DISCOVERY_ALREADY_ATTEMPTED_TODAY",
           }
-          assert snapshot["last_attempt_day"] == "2026-10-20"
+          # Check the most recent real calendar day in Portugal. A
+          # hardcoded 20-Oct value makes a healthy worker fail on later days.
+          day = date.fromisoformat(snapshot["last_attempt_day"])
+          age_days = (datetime.now(ZoneInfo("Europe/Lisbon")).date() - day).days
+          assert 0 <= age_days <= 1
           assert report.get("public_discovery", {}).get("status") == "CATALOG_PRESENT"
           assert isinstance(snapshot["public_groups_found"], int)
           assert snapshot["public_groups_found"] > 0
@@ -149,6 +154,6 @@ jobs:
                   == "PUBLIC_DISCOVERY_ALREADY_ATTEMPTED_TODAY"
               )
           )
-          print("TELEGRAM_LEADS_DISCOVERY_FIRST_SCAN_CONFIRMED=2026-10-20")
+          print("TELEGRAM_LEADS_DISCOVERY_LATEST_SCAN_CONFIRMED=" + scan_at.date().isoformat())
           print("TELEGRAM_LEADS_POST_ACTIVATION_PROOF=PASS")
           PY
