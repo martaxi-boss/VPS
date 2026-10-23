@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_supplier_gap_20261023", "fixture_linux_tshark_activate_20261023", "fixture_linux_glossary_sigrok_diag_20261023", "fixture_linux_sigrok_sandbox_20261023", "fixture_linux_static_formats_20261023", "fixture_linux_node24_stage_20261023", "fixture_linux_node24_sqlite_cli_20261023"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_supplier_gap_20261023", "fixture_linux_tshark_activate_20261023", "fixture_linux_glossary_sigrok_diag_20261023", "fixture_linux_sigrok_sandbox_20261023", "fixture_linux_static_formats_20261023", "fixture_linux_node24_stage_20261023", "fixture_linux_node24_sqlite_cli_20261023", "fixture_linux_node24_unit_preflight_20261023"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -256,6 +256,11 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_NODE24_CLI_RESULT", "REA_NODE24_CLI_ASSERTIONS",
         "REA_NODE24_CLI_SOURCE_UNCHANGED", "REA_NODE24_CLI_CLEANUP",
         "REA_NODE24_CLI_SERVICE_UNCHANGED",
+        "REA_NODE24_UNIT_STATUS", "REA_NODE24_UNIT_ENTRYPOINT",
+        "REA_NODE24_UNIT_COMMAND_KIND", "REA_NODE24_UNIT_ARGC",
+        "REA_NODE24_UNIT_AVOID_SHELL", "REA_NODE24_UNIT_REA_ONLY",
+        "REA_NODE24_UNIT_PERMISSIONS", "REA_NODE24_UNIT_DROPIN_EXISTS",
+        "REA_NODE24_UNIT_PREVIOUS_VERSION",
         "REA_MOBILE_PROVIDER_DOCTOR_GHIDRA",
         "REA_MOBILE_PROVIDER_DOCTOR_JADX", "REA_MOBILE_CATALOG",
         "REA_MOBILE_DESCRIBE_TOOL", "REA_MOBILE_TOOL_DESCRIPTOR_B64",
@@ -1782,6 +1787,58 @@ def main():
                   (installed.stdout or installed.stderr).splitlines()[0][:110])
             print("REA_RIZIN_STATUS="+(
                 "PASS_PINNED_PERSISTENT" if installed.returncode==0 else "INCOMPLETE"))
+        return
+    if data["action"] == "fixture_linux_node24_unit_preflight_20261023":
+        # Read-only: original systemd ExecStart *structure*, no arguments
+        # or environment values are ever exposed in Actions logs.
+        import shlex
+        import re as regex
+        unit="rea-reversa-mcp.service"
+        def show(k):
+            r=subprocess.run(["systemctl","show",unit,"-p",k,"--value"],
+                     capture_output=True,text=True,timeout=14,check=False)
+            return r.stdout.strip() if r.returncode==0 else ""
+        active=show("ActiveState")=="active" and show("User")=="rea-reversa"
+        print("REA_NODE24_UNIT_REA_ONLY="+str(active).lower())
+        cmd=show("ExecStart")
+        match=regex.search(r"\\{ path=([^;]+) ; argv\\[\\]=(.+?) ; ignore_errors=",cmd)
+        if not match:
+            match=regex.search(r"\\{ path=([^;]+) ; argv\\[\\]=(.+?) ; start_time=",cmd)
+        parsed=[]
+        name=""
+        if match:
+            name=match.group(1).strip()
+            try: parsed=shlex.split(match.group(2).strip())
+            except ValueError: parsed=[]
+        okay=bool(parsed and parsed[0]==name and name.startswith("/") and
+                  Path(name).is_file() and Path(name).name=="node")
+        print("REA_NODE24_UNIT_AVOID_SHELL="+str(okay).lower())
+        print("REA_NODE24_UNIT_COMMAND_KIND="+(
+            "DIRECT_NODE" if okay else "NONCANONICAL_UNSUPPORTED"))
+        entry=parsed[1] if len(parsed)>1 else ""
+        known=entry in (
+          "/opt/rea-reversa/rea/scripts/rea.mjs",
+          "/opt/rea-reversa/rea/dist/cli.js",
+          "/opt/rea-reversa/rea/dist/index.js"
+        )
+        print("REA_NODE24_UNIT_ENTRYPOINT="+("KNOWN_ORIGINAL_REA" if known else "OTHER"))
+        print("REA_NODE24_UNIT_ARGC="+str(len(parsed)))
+        node="/opt/rea-reversa/providers/node-v24.22.1/bin/node"
+        ver=subprocess.run(["sudo","-n","-u","rea-reversa",node,"--version"],
+                 capture_output=True,text=True,timeout=18,check=False)
+        ready=ver.returncode==0 and ver.stdout.strip()=="v24.22.1"
+        print("REA_NODE24_UNIT_PERMISSIONS="+str(ready).lower())
+        print("REA_NODE24_UNIT_PREVIOUS_VERSION="+(
+              "NODE22_OR_OTHER" if name!="" else "UNKNOWN"))
+        drop="/etc/systemd/system/rea-reversa-mcp.service.d/95-rea-linux-node24.conf"
+        exists=subprocess.run(["sudo","-n","test","-e",drop],
+                   capture_output=True,timeout=13,check=False).returncode==0
+        print("REA_NODE24_UNIT_DROPIN_EXISTS="+str(exists).lower())
+        print("REA_NODE24_UNIT_STATUS="+(
+             "PASS_READ_ONLY_SAFE_FOR_BOUNDED_SWITCH"
+             if active and okay and known and ready and len(parsed)>=3 and
+                parsed[2]=="mcp" and not exists else
+             "BLOCKED_REQUIRES_EXACT_UNIT_REVIEW"))
         return
     if data["action"] == "fixture_linux_node24_sqlite_cli_20261023":
         # Test ORIGINAL REA CLI under pinned Node24 on owned quiescent SQLite.
