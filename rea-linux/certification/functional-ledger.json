@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_10_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_11_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -2276,6 +2276,100 @@
         "stable_bridge_restored_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
         "final_catalog_smoke_pending": true
       }
+    },
+    {
+      "phase_id": "LINUX-P31-PCAP-TShark-CAPINFOS-FULL-CERTIFICATION-20261023",
+      "date_utc": "2026-10-23",
+      "status": "FULLY_CERTIFIED_LINUX_X64_TSHARK_CAPINFOS_MULTIPROTOCOL_PCAP_PCAPNG_SUMMARY",
+      "tool": "inspect_pcap_capture",
+      "tool_status": "FULLY_CERTIFIED",
+      "certified_scope": "Original permanent REA MCP on Linux x64 with genuine installed TShark/capinfos: read-only stable owned Ethernet PCAP and PCAPNG files including IPv4/IPv6 UDP/TCP, DNS single-question A response, HTTP request URI, TLS ClientHello SNI, protocol distribution, timestamps, endpoint counts, zero-packet capture, complete inline Evidence and retained summary; safe rejection of invalid/missing files and argument-shape errors.",
+      "previous_scoped_positive": {
+        "original_permanent_mcp_run_id": 39984679548,
+        "original_result_sha256": "ade1f2fd0cc3869fda36199cf356432b342d2e57779016930aef529f0e6aad45",
+        "source": "P09 existing positive one saved IPv4 UDP packet with real TShark/capinfos, not rewritten or reset"
+      },
+      "closure": {
+        "final_original_MCP_run_id": 40028203596,
+        "final_commit": "d11db1e77984908ffce14095ab476317bd02a574",
+        "original_tool_count": 208,
+        "pass_marker": "PASS_LINUX_TSHARK_CAPINFOS_MULTIPROTOCOL_PCAP_PCAPNG",
+        "positive_cases_7_of_7": [
+          "pcap_5_synthetic_frames_protocol_and_endpoint_count_dns_A_response",
+          "pcapng_5_frames_same_endpoints_protocol_distribution_dns_tls_http",
+          "genuine_TLS_ClientHello_SNI_secure.example",
+          "plain_HTTP_request_URI_catalog.example_items",
+          "protocol_distribution_5_packets_exact",
+          "valid_empty_PCAPPacketCount_0",
+          "detail_summary_retains_complete_Evidence_identity_and_counts"
+        ],
+        "real_provider_tool_positive_isError_false": true,
+        "negative_cases_2_of_2": [
+          "invalid_capture_bytes",
+          "missing_capture_file"
+        ],
+        "invalid_argument_MCP_rejections_5_of_5": [
+          "empty_path",
+          "missing_required_path",
+          "relative_path_refused_by_MCP_runtime",
+          "unexpected_live_capture_flag",
+          "invalid_detail_enum"
+        ],
+        "adapter_schema_prevalidation_4_of_5": true,
+        "adapter_relative_path_runtime_only_reason": "The shared localPathStringSchema intentionally permits relative path shape; original MCP denies it at runtime. This is not a failed MCP rejection.",
+        "capture_identical_SHA256_before_after": true,
+        "capinfos_genuine_filetype_labels": [
+          "pcap",
+          "pcapng"
+        ],
+        "capinfos_genuine_linktype": "ether",
+        "captured_frame_count": 5,
+        "observed_unique_endpoints": 8,
+        "dns_name": "lab.example",
+        "associated_response_A": "203.0.113.9",
+        "verified_tls_sni": "secure.example",
+        "verified_http_uri_path": "/items?category=tools",
+        "captured_source_timestamps_RFC3339_UTC": true,
+        "no_unattributed_DNS_answers": true,
+        "original_daemon_PID_unchanged": true,
+        "temporary_fixture_cleanup": "PASS",
+        "answer_digest_sha256": "6cc5dfc8295c9477416091a60a7044d9d1bd74e6c2031878038d4813a219d2b1"
+      },
+      "trial_provenance": {
+        "first_incomplete_oracle_run_id": 40027736210,
+        "original_MCP_positive_facts": "TLS, HTTP, protocols, summary, original errors and integrity passed; initial Ethernet linktype expectation wrongly required uppercase display name.",
+        "trial_diagnostic_scope_error_run_id": 40027995142,
+        "diagnostic_corrected_before_cleanup_run_id": 40028076914,
+        "discovered_expected_supplier_encapsulation": "ether",
+        "corrected_fixture_only_without_motor_change": true,
+        "final_all_cases_verified_run_id": 40028203596
+      },
+      "controls": {
+        "original_REA_source_untouched": true,
+        "original_MCP_service_not_restarted": true,
+        "no_live_network_capture_or_interface_access": true,
+        "no_forged_owner_signature": true,
+        "no_additional_server_plugin_skill_or_motor": true,
+        "no_global_supplier_install": true,
+        "no_other_project_files_touched": true
+      },
+      "limitations": [
+        "Certification is per tested original Linux TShark/capinfos provider profile on synthetic small saved Ethernet PCAP/PCAPNG; not arbitrary large/malicious capture corpus or future supplier versions.",
+        "DNS is only associated when a single question and address appear in the same response; multi-question/cross-packet DNS correlation is deliberately not claimed.",
+        "HTTP credential-bearing URI redaction, ambiguous DNS attribution, IPv6 AAAA responses, complete TLS transcript and forensic error recovery were not independently exercised in this phase; retain as uncovered facets, not guaranteed outcomes.",
+        "The tool never captured network traffic; no claim about endpoint process identities, causality or unseen device packets.",
+        "One argument (relative path) is allowed at generic JSON-schema shape validation and rejected by the original MCP at runtime; no unauthorized operation is performed."
+      ],
+      "hygiene": {
+        "spent_request_files_removed": [
+          "rea-linux/requests/pcap-summary-closure-20261023.json",
+          "rea-linux/requests/pcap-summary-diagnostic-20261023.json",
+          "rea-linux/requests/pcap-summary-diagnostic-fixed-20261023.json",
+          "rea-linux/requests/pcap-summary-final-20261023.json"
+        ],
+        "stable_bridge_restored_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+        "catalog_smoke_after_cleanup_pending": true
+      }
     }
   ],
   "active_scope_counts": {
@@ -2287,10 +2381,10 @@
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 10,
-    "scoped_positive_not_fully_certified_distinct": 12,
+    "fully_certified_distinct": 11,
+    "scoped_positive_not_fully_certified_distinct": 11,
     "not_functionally_positive_distinct": 186,
-    "remaining_full_certification_distinct": 198
+    "remaining_full_certification_distinct": 197
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -2320,7 +2414,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P30-TSHARK4-PACKET-CAPTURE-FULL-CERTIFICATION-20261023",
+  "latest_phase": "LINUX-P31-PCAP-TShark-CAPINFOS-FULL-CERTIFICATION-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -2763,6 +2857,16 @@
       ],
       "evidence_digest": "7137a3a49284581621539f06fdd5c09eb64a35aade900bf8bb8fbb28012a1489",
       "phase_id": "LINUX-P30-TSHARK4-PACKET-CAPTURE-FULL-CERTIFICATION-20261023"
+    },
+    "inspect_pcap_capture": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Original Linux x64 REA MCP genuine capinfos/TShark4 provider: saved PCAP/PCAPNG IPv4/IPv6 TCP/UDP, DNS single-response A mapping, HTTP URI, TLS SNI, empty file, summary and invalid input paths",
+      "run_ids": [
+        39984679548,
+        40028203596
+      ],
+      "evidence_digest": "6cc5dfc8295c9477416091a60a7044d9d1bd74e6c2031878038d4813a219d2b1",
+      "phase_id": "LINUX-P31-PCAP-TShark-CAPINFOS-FULL-CERTIFICATION-20261023"
     }
   }
 }

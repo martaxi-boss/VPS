@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_10_FULLY_CERTIFIED_CONTRACTS_AND_22_SCOPED_POSITIVES",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_11_FULLY_CERTIFIED_CONTRACTS_AND_22_SCOPED_POSITIVES",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -515,19 +515,19 @@
       "original_service_unmodified": true
     },
     "latest_contract_certification": {
-      "phase_id": "LINUX-P30-TSHARK4-PACKET-CAPTURE-FULL-CERTIFICATION-20261023",
+      "phase_id": "LINUX-P31-PCAP-TShark-CAPINFOS-FULL-CERTIFICATION-20261023",
       "original_mcp_catalog": 208,
-      "fully_certified_distinct": 10,
+      "fully_certified_distinct": 11,
       "existing_scoped_positive_distinct": 22,
-      "still_pending_full_distinct": 198,
-      "source": "Original permanent Linux REA MCP TShark4 synthetic offline PCAP/PCAPNG packet analysis",
+      "still_pending_full_distinct": 197,
+      "source": "Original permanent Linux REA MCP genuine TShark4/capinfos on owned PCAP and PCAPNG",
       "runs": [
-        39994380901,
-        40027107320
+        39984679548,
+        40028203596
       ],
-      "source_unchanged": true,
-      "service_unchanged": true,
-      "previous_fully_certified_contracts_unchanged": 9
+      "original_motor_unchanged": true,
+      "original_service_unchanged": true,
+      "previous_fully_certified_contracts_unchanged": 10
     }
   },
   "final_hygiene_verified": {
