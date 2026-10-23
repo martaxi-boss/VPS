@@ -2731,10 +2731,10 @@ def main():
                 corrupt = root / "invalid.bin"
                 missing = root / "does-not-exist.elf"
                 source.write_text(
-                    "volatile int rea_fixture_value = 17;\\n"
-                    "__attribute__((noinline)) int rea_fixture_fn(int x) {\\n"
-                    " return x + rea_fixture_value; }\\n"
-                    "int main(void) { return rea_fixture_fn(5); }\\n",
+                    "volatile int rea_fixture_value = 17;\n"
+                    "__attribute__((noinline)) int rea_fixture_fn(int x) {\n"
+                    " return x + rea_fixture_value; }\n"
+                    "int main(void) { return rea_fixture_fn(5); }\n",
                     encoding="utf-8")
                 source.chmod(0o644)
                 compile = subprocess.run(
@@ -2742,11 +2742,11 @@ def main():
                      "-o", str(binary), str(source)],
                     capture_output=True, text=True, timeout=55, check=False)
                 if compile.returncode != 0 or not binary.is_file() or (
-                    binary.read_bytes()[:4] != b"\\x7fELF"):
+                    binary.read_bytes()[:4] != b"\x7fELF"):
                     print("REA_CERT_OBJDUMP_STATUS=BLOCKED_FIXTURE_COMPILE")
                     return
                 binary.chmod(0o644)
-                corrupt.write_bytes(b"REA-controlled-invalid-objdump-fixture\\n")
+                corrupt.write_bytes(b"REA-controlled-invalid-objdump-fixture\n")
                 corrupt.chmod(0o644)
                 source_hashes = {
                     p.name: hashlib.sha256(p.read_bytes()).hexdigest()
