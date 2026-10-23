@@ -424,6 +424,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SERVICE_DOCTOR_CONFIG_REA_GDB_COMMAND",
         "REA_SERVICE_DOCTOR_CONFIG_REA_BINWALK_COMMAND",
         "REA_SERVICE_DOCTOR_CONFIG_REA_UNBLOB_COMMAND",
+        "REA_SERVICE_DOCTOR_CONFIG_REA_RIZIN_COMMAND",
         "REA_SERVICE_DOCTOR_EXIT",
         "REA_SERVICE_DOCTOR_HEALTH",
         "REA_SERVICE_DOCTOR_PROVIDERS",
@@ -2076,16 +2077,27 @@ def main():
         allow=("PATH","HOME","NODE_OPTIONS","JAVA_HOME","GHIDRA_INSTALL_DIR",
                "REA_JADX_MCP_JAR","REA_JADX_HEAP_MIB",
                "REA_JADX_ACTIVE_PROCESSOR_COUNT","REA_GDB_COMMAND",
-               "REA_BINWALK_COMMAND","REA_UNBLOB_COMMAND","REA_IDA_MCP_CONFIG")
+               "REA_BINWALK_COMMAND","REA_UNBLOB_COMMAND",
+               "REA_RIZIN_COMMAND","REA_IDA_MCP_CONFIG")
         supplied={k:v for k,v in d.items() if k in allow and len(v)<3000}
         print("REA_SERVICE_DOCTOR_UNIT_USER="+user[:45])
         print("REA_SERVICE_DOCTOR_CONFIG_KEYS="+json.dumps(
               sorted(k for k in allow if k in supplied)))
         for name in ("GHIDRA_INSTALL_DIR","JAVA_HOME","REA_JADX_MCP_JAR",
-                     "REA_GDB_COMMAND","REA_BINWALK_COMMAND","REA_UNBLOB_COMMAND"):
+                     "REA_GDB_COMMAND","REA_BINWALK_COMMAND","REA_UNBLOB_COMMAND",
+                     "REA_RIZIN_COMMAND"):
             val=supplied.get(name)
-            isfile=bool(val and Path(val).is_file())
-            isdir=bool(val and Path(val).is_dir())
+            # unblob is 0750 owned by REA service: the SSH ubuntu account
+            # cannot stat it; test through service identity instead.
+            isfile=False
+            isdir=False
+            if val and val.startswith("/"):
+                file_check=subprocess.run(["sudo","-n","-u",user,"test","-f",val],
+                     capture_output=True,timeout=10,check=False)
+                dir_check=subprocess.run(["sudo","-n","-u",user,"test","-d",val],
+                     capture_output=True,timeout=10,check=False)
+                isfile=file_check.returncode==0
+                isdir=dir_check.returncode==0
             print("REA_SERVICE_DOCTOR_CONFIG_"+name+"="+
                   ("FILE" if isfile else "DIR" if isdir else "MISSING" if val else "UNSET"))
         original=Path("/opt/rea-reversa/rea/scripts/rea.mjs")
