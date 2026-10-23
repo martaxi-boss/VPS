@@ -1729,7 +1729,7 @@ def main():
             print("REA_BINPREREQ_STATUS=BLOCKED_APT_REMOVALS")
             return
         install=[]
-        allowed={"pkg-config","pkgconf-bin","pkgconf","libbz2-dev","liblzma-dev"}
+        allowed={"pkg-config","pkgconf-bin","pkgconf","libpkgconf3","libbz2-dev","liblzma-dev"}
         for line in lines:
             if not line.startswith("Inst "):
                 continue
