@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_layout_full_contract"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -217,6 +217,13 @@ def encrypt_result(raw_path, request_path, envelope_path):
     request = validate(json.loads(request_raw))
     private = None
     allowed_markers = {
+        "REA_LAYOUT_CERT_CASES", "REA_LAYOUT_CERT_HEADER",
+        "REA_LAYOUT_CERT_SEGMENTS", "REA_LAYOUT_CERT_RELOCATIONS",
+        "REA_LAYOUT_CERT_SUMMARY", "REA_LAYOUT_CERT_NEGATIVES",
+        "REA_LAYOUT_CERT_SCHEMA", "REA_LAYOUT_CERT_COMPILER",
+        "REA_LAYOUT_CERT_INTEGRITY", "REA_LAYOUT_CERT_CLEANUP",
+        "REA_LAYOUT_CERT_DAEMON", "REA_LAYOUT_CERT_RESULTS_SHA256",
+        "REA_LAYOUT_CERT_STATUS",
         "REA_MOBILE_LOOPBACK_MCP", "REA_MOBILE_MCP_TOOL_COUNT",
         "REA_MOBILE_READONLY_HINT_COUNT", "REA_MOBILE_STATIC_INSPECT_COUNT",
         "REA_MOBILE_SAFE_QUERY_COUNT", "REA_MOBILE_SAFE_CALLABLE_COUNT",
@@ -2676,6 +2683,329 @@ def main():
                 except (OSError, RuntimeError, ValueError):
                     print("REA_FIXTURE_CLEANUP=FAIL")
                     raise
+        return
+    if data["action"] == "fixture_linux_layout_full_contract":
+        # Original Linux x64 MCP with self-authored ELF files. The compiled
+        # binaries are never launched, linked to real software or installed.
+        import tempfile
+        import shutil
+        import struct
+        name = "inspect_binary_layout"
+        descriptor=tool_by_name.get(name)
+        if not descriptor or secure.classify(name, descriptor, ())!="workspace":
+            error("ELF tool absent or policy/classification changed")
+        def daemon_pid():
+            probe=subprocess.run(["systemctl","show","rea-reversa-mcp.service",
+                "-p","MainPID","--value"],capture_output=True,text=True,
+                timeout=10,check=False)
+            return probe.stdout.strip() if probe.returncode==0 else ""
+        before_pid=daemon_pid()
+        cases={}
+        native_headers={}
+        section_checks={}
+        relocation_checks={}
+        invalids={}
+        bridge_checks={}
+        results={}
+        hashes={}
+        full_observations={}
+        clean=False
+        invariant=False
+        build={}
+        compiler=shutil.which("gcc") or shutil.which("cc")
+        readelf=shutil.which("readelf")
+        if not compiler or not readelf:
+            error("Original Linux GCC/readelf fixture prerequisites unavailable")
+        try:
+            with tempfile.TemporaryDirectory(prefix="rea-layout-certificate-",dir="/dev/shm") as dirname:
+                root=Path(dirname)
+                root.chmod(0o755)
+                src=root/"program.c"
+                objsrc=root/"object.c"
+                src.write_text(
+                    '#include <stdio.h>\n'
+                    'int exported_sample(int value) { puts("REA-owned-layout-test"); return value + 7; }\n'
+                    'int main(void) { return exported_sample(2) != 9; }\n',
+                    encoding="utf-8")
+                objsrc.write_text(
+                    'extern int missing_external_symbol(int);\n'
+                    'int exported_object_symbol(int value) { return missing_external_symbol(value + 1); }\n',
+                    encoding="utf-8")
+                source_files=[src,objsrc]
+                for p in source_files:p.chmod(0o644)
+                object_file=root/"layout-rel.o"
+                exec_file=root/"layout-exec"
+                dyn_file=root/"layout-pie"
+                compiler_commands=[
+                    ("ET_REL",[compiler,"-c","-g","-O0","-fno-pic",
+                        "-o",str(object_file),str(objsrc)],object_file),
+                    ("ET_EXEC",[compiler,"-g","-O0","-no-pie",
+                        "-Wl,-z,relro","-o",str(exec_file),str(src)],exec_file),
+                    ("ET_DYN",[compiler,"-g","-O0","-fPIE","-pie",
+                        "-Wl,-z,relro,-z,now","-o",str(dyn_file),str(src)],dyn_file),
+                ]
+                for kind,argv,path in compiler_commands:
+                    cc=subprocess.run(argv,capture_output=True,text=True,
+                        timeout=35,check=False)
+                    build[kind]=bool(cc.returncode==0 and path.is_file()
+                        and 64<path.stat().st_size<1000000)
+                    if not build[kind]:
+                        print("REA_LAYOUT_CERT_COMPILER="+
+                            json.dumps(build,sort_keys=True))
+                        print("REA_LAYOUT_CERT_STATUS=INCOMPLETE_FIXTURE_BUILD")
+                        return
+                    path.chmod(0o644)
+                samples=dict((kind,path) for kind,_,path in compiler_commands)
+                source_digests={p.name:hashlib.sha256(p.read_bytes()).hexdigest()
+                    for p in [...source_files,*samples.values()]}
+                # ELF64 header, program headers and section headers independently
+                # decoded from owned bytes, not copied from the MCP response.
+                def independent(path):
+                    data=path.read_bytes()
+                    header=struct.unpack_from("<16sHHIQQQIHHHHHH",data,0)
+                    if data[:6]!=b"\x7fELF\x02\x01" or header[2]!=62:
+                        raise ValueError("Own compiler did not create ELF64 AMD64")
+                    return {"entry":hex(header[4]),"phnum":header[10],
+                        "shnum":header[12],"phoff":header[5],
+                        "shoff":header[6],"shentsize":header[11],
+                        "phentsize":header[9],"etype":header[1],
+                        "raw":data}
+                def invoke(args, rpc_id):
+                    secure.validate_arguments(descriptor,args)
+                    secure._authorized_target_paths(args,additional_roots=(root,))
+                    _,reply=request_mcp({"jsonrpc":"2.0","id":rpc_id,
+                        "method":"tools/call","params":{"name":name,"arguments":args}},
+                        session,protocol,timeout=105)
+                    result=reply.get("result")
+                    success=("error" not in reply and isinstance(result,dict)
+                        and result.get("isError") is not True)
+                    structured=result.get("structuredContent") if success else None
+                    normalized=(structured.get("normalized_result",structured)
+                        if isinstance(structured,dict) else {})
+                    results[str(rpc_id)]=hashlib.sha256(
+                        json.dumps(reply,sort_keys=True,ensure_ascii=True).encode()).hexdigest()
+                    return success,normalized if isinstance(normalized,dict) else {},result,reply
+                for idx,(kind,path) in enumerate(samples.items(),start=1881):
+                    oracle=independent(path)
+                    expected_kind={"ET_REL":1,"ET_EXEC":2,"ET_DYN":3}[kind]
+                    readelf_result=subprocess.run([readelf,"-h",str(path)],
+                        capture_output=True,text=True,timeout=20,check=False)
+                    native_headers[kind]=bool(oracle["etype"]==expected_kind
+                        and readelf_result.returncode==0
+                        and "Advanced Micro Devices X86-64" in readelf_result.stdout)
+                    ok,report,result,reply=invoke({"path":str(path)},idx)
+                    artifact=report.get("artifact")
+                    architecture=report.get("architecture")
+                    ep=report.get("entry_point")
+                    sections=report.get("sections")
+                    segments=report.get("segments")
+                    relocations=report.get("relocations")
+                    packed=report.get("packed_relative_relocations")
+                    link=report.get("linkage")
+                    mitigation=report.get("mitigations")
+                    symbols=report.get("symbols")
+                    ep_meaning=("not-applicable" if kind=="ET_REL" else
+                        ("absent" if oracle["entry"]=="0x0" else "linked-virtual-address"))
+                    structural=bool(ok and report.get("format")=="elf"
+                        and isinstance(artifact,dict)
+                        and artifact.get("path")==str(path)
+                        and artifact.get("sha256")==source_digests[path.name]
+                        and artifact.get("bytes")==len(oracle["raw"])
+                        and architecture=={"machine":"EM_X86_64","bits":64,
+                                          "byte_order":"little"}
+                        and report.get("image_type")==kind
+                        and isinstance(ep,dict)
+                        and ep.get("reported_value")==oracle["entry"]
+                        and ep.get("meaning")==ep_meaning
+                        and ep.get("execution_status")=="unknown"
+                        and report.get("runtime_load_base") is None
+                        and report.get("relocation_inventory_completeness")=="unknown"
+                        and isinstance(sections,list)
+                        and isinstance(segments,list)
+                        and isinstance(symbols,list)
+                        and isinstance(relocations,list)
+                        and isinstance(packed,list)
+                        and isinstance(mitigation,dict)
+                        and mitigation.get("evidence_kind")=="inferred"
+                        and isinstance(link,dict)
+                        and link.get("convenience_maps_completeness")=="unknown"
+                        and link.get("runtime_library_paths") is None)
+                    # Cross-check each section's offsets, addresses, sizes and
+                    # header location using a separate ELF64 byte reader.
+                    section_oracle=isinstance(sections,list) and len(sections)==oracle["shnum"]
+                    if section_oracle:
+                        for i,sec in enumerate(sections):
+                            off=oracle["shoff"]+i*oracle["shentsize"]
+                            if off+64>len(oracle["raw"]):
+                                section_oracle=False
+                                break
+                            sh=struct.unpack_from("<IIQQQQIIQQ",oracle["raw"],off)
+                            loc=sec.get("header_location") or {}
+                            match=(
+                                sec.get("index")==i
+                                and sec.get("name_offset")==hex(sh[0])
+                                and sec.get("flags")==hex(sh[2])
+                                and sec.get("address")==hex(sh[3])
+                                and sec.get("offset")==hex(sh[4])
+                                and sec.get("size")==hex(sh[5])
+                                and sec.get("link")==sh[6]
+                                and sec.get("info")==sh[7]
+                                and sec.get("alignment")==hex(sh[8])
+                                and sec.get("entry_size")==hex(sh[9])
+                                and loc.get("offset")==hex(off)
+                                and loc.get("bytes")==hex(oracle["shentsize"]))
+                            if not match:
+                                section_oracle=False
+                                break
+                    section_checks[kind]=bool(section_oracle)
+                    # Compare program header byte locations and selected offsets.
+                    segments_oracle=isinstance(segments,list) and len(segments)==oracle["phnum"]
+                    if segments_oracle:
+                        for i,seg in enumerate(segments):
+                            off=oracle["phoff"]+i*oracle["phentsize"]
+                            if off+56>len(oracle["raw"]):
+                                segments_oracle=False
+                                break
+                            ph=struct.unpack_from("<IIQQQQQQ",oracle["raw"],off)
+                            loc=seg.get("header_location") or {}
+                            match=(seg.get("index")==i
+                                and seg.get("offset")==hex(ph[2])
+                                and seg.get("virtual_address")==hex(ph[3])
+                                and seg.get("physical_address")==hex(ph[4])
+                                and seg.get("file_size")==hex(ph[5])
+                                and seg.get("memory_size")==hex(ph[6])
+                                and seg.get("alignment")==hex(ph[7])
+                                and seg.get("flags")==hex(ph[1])
+                                and loc.get("offset")==hex(off)
+                                and loc.get("bytes")==hex(oracle["phentsize"]))
+                            if not match:
+                                segments_oracle=False
+                                break
+                    section_checks[kind+"_segments"]=bool(segments_oracle)
+                    reloc_ok=(isinstance(relocations,list)
+                        and isinstance(symbols,list)
+                        and len(symbols)>0
+                        and all(isinstance(reloc,dict)
+                            and reloc.get("target",{}).get("kind")==(
+                               "section-offset" if kind=="ET_REL"
+                               else "linked-virtual-address")
+                            and reloc.get("symbol_reference_meaning") in (
+                                "zero-symbol-value","symbol-table-entry")
+                            for reloc in relocations))
+                    if kind=="ET_REL":
+                        reloc_ok=reloc_ok and len(relocations)>0 and any(
+                            x.get("name",{}).get("display")=="missing_external_symbol"
+                            and x.get("value_meaning")=="undefined"
+                            for x in symbols if isinstance(x,dict))
+                    if kind!="ET_REL":
+                        reloc_ok=reloc_ok and bool(segments) and any(
+                            isinstance(n,dict) and "libc" in n.get("display","")
+                            for n in link.get("needed_libraries",[]))
+                    relocation_checks[kind]=bool(reloc_ok)
+                    cases[kind]=bool(
+                        structural and native_headers[kind] and section_oracle
+                        and segments_oracle and reloc_ok)
+                    if kind=="ET_REL":
+                        full_observations={"sections":len(sections or []),
+                            "segments":len(segments or []),
+                            "symbols":len(symbols or []),
+                            "relocations":len(relocations or []),
+                            "entry":ep}
+                # Separate summary mode and full-detail parity for ET_REL.
+                args={"path":str(object_file),"detail":"summary"}
+                ok,report,result,reply=invoke(args,1899)
+                summ=report.get("summary")
+                count=summ.get("counts") if isinstance(summ,dict) else None
+                summary_ok=bool(ok and report.get("kind")=="summary"
+                    and report.get("parent_operation")==name
+                    and isinstance(report.get("parent_evidence_id"),str)
+                    and report["parent_evidence_id"].startswith("ev_")
+                    and isinstance(summ,dict) and summ.get("format")=="elf"
+                    and summ.get("image_type")=="ET_REL"
+                    and summ.get("bytes")==object_file.stat().st_size
+                    and summ.get("entry")==full_observations.get("entry")
+                    and isinstance(count,dict)
+                    and all(count.get(k)==full_observations.get(k) for k in
+                        ("sections","segments","symbols","relocations"))
+                    and "sections" not in summ
+                    and "symbols" not in summ
+                    and isinstance(report.get("unknowns"),list))
+                # Real negative execution semantics for unsupported malformed
+                # ELF, wrong machine, oversized metadata, absent input.
+                bad_magic=root/"invalid-magic.elf"
+                bad_magic.write_bytes(b"not-a-meaningful-elf\x00")
+                bad_machine=root/"wrong-machine.elf"
+                changed=bytearray(object_file.read_bytes())
+                struct.pack_into("<H",changed,18,183)
+                bad_machine.write_bytes(changed)
+                truncated=root/"truncated.elf"
+                truncated.write_bytes(bytes.fromhex("7f454c4602010100"))
+                too_large=root/"oversized.elf"
+                with too_large.open("wb") as out:
+                    out.write(bytes.fromhex("7f454c4602010100"))
+                    out.truncate(33*1024*1024)
+                for p in (bad_magic,bad_machine,truncated,too_large):
+                    p.chmod(0o644)
+                for idx,(label,path) in enumerate((
+                    ("invalid_magic",bad_magic),
+                    ("wrong_arch",bad_machine),
+                    ("truncated",truncated),
+                    ("over_32mib",too_large),
+                    ("missing_file",root/"not-found.elf")
+                ),start=1931):
+                    ok,report,result,reply=invoke({"path":str(path)},idx)
+                    invalids[label]=bool(not ok and (
+                        "error" in reply or
+                        (isinstance(result,dict) and result.get("isError") is True)))
+                # Invalid inputs must be blocked by both active bridge
+                # JSON-schema validator and original MCP.
+                for idx,(label,args) in enumerate((
+                    ("invalid_detail",{"path":str(object_file),"detail":"brief"}),
+                    ("no_path",{}),
+                    ("wrong_path_type",{"path":123}),
+                    ("extra_argument",{"path":str(object_file),"execute":True})
+                ),start=1961):
+                    preflight=False
+                    try:secure.validate_arguments(descriptor,args)
+                    except secure.SecureBridgeError:preflight=True
+                    _,reply=request_mcp({"jsonrpc":"2.0","id":idx,
+                        "method":"tools/call",
+                        "params":{"name":name,"arguments":args}},
+                        session,protocol,timeout=75)
+                    res=reply.get("result")
+                    bridge_checks[label]=bool(preflight and (
+                        "error" in reply or
+                        (isinstance(res,dict) and res.get("isError") is True)))
+                    hashes[label]=hashlib.sha256(
+                        json.dumps(reply,sort_keys=True).encode()).hexdigest()
+                invariant=all(hashlib.sha256((root/filename).read_bytes()).hexdigest()==digest
+                    for filename,digest in source_digests.items())
+            clean=not root.exists()
+            unchanged_pid=before_pid.isdecimal() and daemon_pid()==before_pid
+            print("REA_LAYOUT_CERT_CASES="+json.dumps(cases,sort_keys=True))
+            print("REA_LAYOUT_CERT_HEADER="+json.dumps(native_headers,sort_keys=True))
+            print("REA_LAYOUT_CERT_SEGMENTS="+json.dumps(section_checks,sort_keys=True))
+            print("REA_LAYOUT_CERT_RELOCATIONS="+json.dumps(relocation_checks,sort_keys=True))
+            print("REA_LAYOUT_CERT_SUMMARY="+str(summary_ok).lower())
+            print("REA_LAYOUT_CERT_NEGATIVES="+json.dumps(invalids,sort_keys=True))
+            print("REA_LAYOUT_CERT_SCHEMA="+json.dumps(bridge_checks,sort_keys=True))
+            print("REA_LAYOUT_CERT_COMPILER="+json.dumps(build,sort_keys=True))
+            print("REA_LAYOUT_CERT_INTEGRITY="+("PASS" if invariant else "FAIL"))
+            print("REA_LAYOUT_CERT_CLEANUP="+("PASS" if clean else "FAIL"))
+            print("REA_LAYOUT_CERT_DAEMON="+("PASS" if unchanged_pid else "FAIL"))
+            print("REA_LAYOUT_CERT_RESULTS_SHA256="+hashlib.sha256(
+                json.dumps({"requests":results,"schema":hashes},
+                sort_keys=True).encode()).hexdigest())
+            good=(len(cases)==3 and all(cases.values()) and summary_ok
+                and len(invalids)==5 and all(invalids.values())
+                and len(bridge_checks)==4 and all(bridge_checks.values())
+                and invariant and clean and unchanged_pid)
+            print("REA_LAYOUT_CERT_STATUS="+(
+                "PASS_LINUX_PWNTOOLS_ALL_THREE_ELF_IMAGE_KINDS"
+                if good else "INCOMPLETE_KEEP_SCOPED"))
+        except Exception as exc:
+            print("REA_LAYOUT_CERT_STATUS=ERROR_"+type(exc).__name__)
+            raise
         return
     if data["action"] == "fixture_linux_objdump":
         # Source-owned, fixed Linux fixture on the original local REA MCP.
