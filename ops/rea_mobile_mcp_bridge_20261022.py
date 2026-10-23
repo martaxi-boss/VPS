@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_evidence_read_closure"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -217,10 +217,6 @@ def encrypt_result(raw_path, request_path, envelope_path):
     request = validate(json.loads(request_raw))
     private = None
     allowed_markers = {
-        "REA_EVIDENCE_READ_CASES","REA_EVIDENCE_READ_NEGATIVES",
-        "REA_EVIDENCE_READ_PROVENANCE","REA_EVIDENCE_READ_DAEMON",
-        "REA_EVIDENCE_READ_CATALOG","REA_EVIDENCE_READ_RESULTS_SHA256",
-        "REA_EVIDENCE_READ_STATUS",
         "REA_MOBILE_LOOPBACK_MCP", "REA_MOBILE_MCP_TOOL_COUNT",
         "REA_MOBILE_READONLY_HINT_COUNT", "REA_MOBILE_STATIC_INSPECT_COUNT",
         "REA_MOBILE_SAFE_QUERY_COUNT", "REA_MOBILE_SAFE_CALLABLE_COUNT",
@@ -2680,165 +2676,6 @@ def main():
                 except (OSError, RuntimeError, ValueError):
                     print("REA_FIXTURE_CLEANUP=FAIL")
                     raise
-        return
-    if data["action"] == "fixture_linux_evidence_read_closure":
-        # Exercise only original READ classified get_evidence_bundle.
-        # No mutation tool, file target, CLI execution, provider or signing.
-        name="get_evidence_bundle"
-        descriptor=tool_by_name.get(name)
-        if not descriptor or secure.classify(name,descriptor,())!="read":
-            error("Read-only Evidence tool or policy has changed")
-        def pid():
-            p=subprocess.run(["systemctl","show","rea-reversa-mcp.service",
-               "-p","MainPID","--value"],capture_output=True,text=True,
-               timeout=10,check=False)
-            return p.stdout.strip() if p.returncode==0 else ""
-        start=pid()
-        cases={}
-        negatives={}
-        digests={}
-        sources={}
-        def call(args,request_id,prevalidate=True):
-            if prevalidate: secure.validate_arguments(descriptor,args)
-            _,reply=request_mcp({"jsonrpc":"2.0","id":request_id,
-                "method":"tools/call","params":{"name":name,"arguments":args}},
-                session,protocol,timeout=110)
-            res=reply.get("result")
-            good=("error" not in reply and isinstance(res,dict)
-                and res.get("isError") is not True)
-            content=res.get("structuredContent") if good else {}
-            body=content.get("result",content) if isinstance(content,dict) else {}
-            digests[str(request_id)]=hashlib.sha256(
-                json.dumps(reply,sort_keys=True,ensure_ascii=True).encode()).hexdigest()
-            return good,body if isinstance(body,dict) else {},res,reply
-        good,summary,res,reply=call({"detail":"summary"},2451)
-        records=summary.get("records")
-        total=summary.get("total_retained_records")
-        revisions=summary.get("unknown_revisions")
-        summary_consistent=bool(good and summary.get("kind")=="evidence-bundle-summary"
-            and isinstance(records,list)
-            and type(total) is int and total>0
-            and len(records)==summary.get("matching_records")==total
-            and type(revisions) is int and revisions>=0
-            and summary.get("filters")=={}
-            and all(isinstance(x,dict) and x.get("retention")=="complete-record"
-                and isinstance(x.get("evidence_id"),str)
-                and x["evidence_id"].startswith("ev_")
-                and isinstance(x.get("native_dossier"),dict)
-                and type(x.get("limitation_count")) is int
-                for x in records)
-            and len(set(x["evidence_id"] for x in records))==len(records))
-        cases["summary_unfiltered"]=summary_consistent
-        original_records=records if isinstance(records,list) else []
-        record_ops=[x.get("operation") for x in original_records if isinstance(x,dict)]
-        operation=record_ops[0] if record_ops else None
-        chosen=original_records[0] if original_records else None
-        first_id=chosen.get("evidence_id") if isinstance(chosen,dict) else None
-        source=chosen.get("subject") if isinstance(chosen,dict) else None
-        source_sha=None
-        if isinstance(source,dict):
-            digest=source.get("digest")
-            if isinstance(digest,dict):source_sha=digest.get("sha256")
-        # The live session may retain many producer responses. Refuse a
-        # potentially over-budget full transport rather than assert success.
-        if summary_consistent and total<=120:
-            ok,complete,_,_=call({"detail":"complete"},2452)
-            full_records=complete.get("records")
-            keys=("artifacts","providers","environments","scenarios","captures","unknowns")
-            correct=bool(ok and isinstance(full_records,list) and len(full_records)==total
-                and all(isinstance(complete.get(k),list) for k in keys)
-                and len(complete["unknowns"])==revisions
-                and {x.get("evidence_id") for x in full_records
-                    if isinstance(x,dict)}=={x.get("evidence_id")
-                    for x in original_records if isinstance(x,dict)}
-                and len(complete["records"])==len(set(x.get("evidence_id")
-                    for x in full_records if isinstance(x,dict)))
-                and all(isinstance(r,dict)
-                    and isinstance(r.get("normalized_result"),(dict,list,str,int,float,bool,type(None)))
-                    for r in full_records))
-            cases["complete_bundle"]=correct
-            sources["complete_record_count"]=len(full_records) if isinstance(full_records,list) else -1
-        else:
-            cases["complete_bundle"]=False
-            sources["not_attempted_reason"]="too_many_records_or_no_valid_summary"
-        if summary_consistent and isinstance(operation,str) and isinstance(first_id,str):
-            ok,filter_op,_,_=call({"detail":"summary","filters":{"operation":operation}},2453)
-            expected=sum(1 for r in original_records if r.get("operation")==operation)
-            cases["filter_operation"]=bool(ok
-                and filter_op.get("filters")=={"operation":operation}
-                and filter_op.get("total_retained_records")==total
-                and filter_op.get("matching_records")==expected
-                and len(filter_op.get("records",[]))==expected
-                and all(r.get("operation")==operation for r in filter_op["records"]))
-            ok,filter_one,_,_=call({"detail":"summary","filters":{"evidence_id":first_id}},2454)
-            cases["filter_evidence_id"]=bool(ok
-                and filter_one.get("matching_records")==1
-                and filter_one.get("records",[{}])[0].get("evidence_id")==first_id)
-            ok,filter_no,_,_=call({"detail":"summary","filters":{"operation":"absent_read_evidence_marker"}},2455)
-            cases["filter_no_matches"]=bool(ok
-                and filter_no.get("matching_records")==0
-                and filter_no.get("records")==[]
-                and filter_no.get("total_retained_records")==total)
-            ok,multi,_,_=call({"detail":"summary","filters":{
-                "operation":"absent_read_evidence_marker","evidence_id":first_id}},2456)
-            cases["filter_intersection_empty"]=bool(ok and multi.get("records")==[]
-                and multi.get("matching_records")==0
-                and multi.get("total_retained_records")==total)
-            if isinstance(source_sha,str) and len(source_sha)==64:
-                ok,by_source,_,_=call({"detail":"summary","filters":{"target_sha256":source_sha}},2457)
-                expected_source=sum(1 for r in original_records
-                    if isinstance(r.get("subject"),dict)
-                    and isinstance(r["subject"].get("digest"),dict)
-                    and r["subject"]["digest"].get("sha256")==source_sha)
-                cases["filter_target_sha"]=bool(ok
-                    and by_source.get("matching_records")==expected_source
-                    and len(by_source.get("records",[]))==expected_source
-                    and all(isinstance(r.get("subject"),dict)
-                        and r["subject"]["digest"].get("sha256")==source_sha
-                        for r in by_source["records"]))
-            else:
-                cases["filter_target_sha"]=False
-                sources["missing_target_sha_in_first_record"]=True
-        else:
-            for x in ("filter_operation","filter_evidence_id",
-                      "filter_no_matches","filter_intersection_empty","filter_target_sha"):
-                cases[x]=False
-        bad=[
-            ("complete_with_filters",{"detail":"complete","filters":{"operation":"inspect_with_objdump"}},False),
-            ("invalid_detail",{"detail":"brief"},True),
-            ("invalid_filter_name",{"detail":"summary","filters":{"invalid_filter":"x"}},True),
-            ("bad_evidence_id",{"detail":"summary","filters":{"evidence_id":"ev_short"}},True),
-            ("bad_target_hash",{"detail":"summary","filters":{"target_sha256":"f"}},True),
-            ("unknown_top_field",{"detail":"summary","allow_write":True},True),
-        ]
-        for idx,(label,args,expected_schema_reject) in enumerate(bad,start=2490):
-            pre=False
-            try:secure.validate_arguments(descriptor,args)
-            except secure.SecureBridgeError:pre=True
-            okay,body,res,reply=call(args,idx,prevalidate=False)
-            original_refused=not okay and ("error" in reply or
-                (isinstance(res,dict) and res.get("isError") is True))
-            negatives[label]=bool(original_refused
-                and (pre if expected_schema_reject else not pre))
-        end=pid()
-        status=(start.isdecimal() and end==start)
-        print("REA_EVIDENCE_READ_CASES="+json.dumps(cases,sort_keys=True))
-        print("REA_EVIDENCE_READ_NEGATIVES="+json.dumps(negatives,sort_keys=True))
-        print("REA_EVIDENCE_READ_PROVENANCE="+json.dumps({
-           "distinct_session_records":total if isinstance(total,int) else -1,
-           "unknown_revisions":revisions if isinstance(revisions,int) else -1,
-           "chosen_operation":operation if isinstance(operation,str) else None,
-           "observed_target_sha":bool(source_sha),
-           "complete_record_count":sources.get("complete_record_count",-1),
-           "no_background_mutation":True},sort_keys=True))
-        print("REA_EVIDENCE_READ_DAEMON="+("PASS" if status else "FAIL"))
-        print("REA_EVIDENCE_READ_RESULTS_SHA256="+hashlib.sha256(
-            json.dumps(digests,sort_keys=True).encode()).hexdigest())
-        success=(len(cases)==7 and all(cases.values())
-            and len(negatives)==6 and all(negatives.values()) and status)
-        print("REA_EVIDENCE_READ_STATUS="+(
-             "PASS_PERMANENT_LINUX_EVIDENCE_BUNDLE_READ_CONTRACT" if success
-             else "INCOMPLETE_KEEP_SCOPED"))
         return
     if data["action"] == "fixture_linux_objdump":
         # Source-owned, fixed Linux fixture on the original local REA MCP.

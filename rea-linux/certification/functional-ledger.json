@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_11_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_12_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -2370,6 +2370,80 @@
         "stable_bridge_restored_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
         "catalog_smoke_after_cleanup_pending": true
       }
+    },
+    {
+      "phase_id": "LINUX-P32-EVIDENCE-BUNDLE-PERMANENT-MCP-READ-CERTIFICATION-20261023",
+      "date_utc": "2026-10-23",
+      "status": "FULLY_CERTIFIED_PERMANENT_MCP_EVIDENCE_BUNDLE_READ_CONTRACT",
+      "tool": "get_evidence_bundle",
+      "tool_status": "FULLY_CERTIFIED",
+      "risk": "read",
+      "scope": "Read-only original REA Linux persistent MCP Evidence bundle: unfiltered summary, full canonical 82-record delivery, exact evidence ID / operation / source SHA filters, intersecting filters, empty matches, full-vs-summary count and identity conservation, strict schema rejection and invalid complete-plus-filters dependence.",
+      "reused_live_positive": {
+        "phase_id": "LINUX-P03-READ5-20261023",
+        "run_ids": [
+          39950220193,
+          39950507161
+        ],
+        "evidence": "Earlier 13-entry permanent MCP summary with operation selection; not rerun as separate old fixture"
+      },
+      "reused_original_isolated_contract": {
+        "phase_id": "LINUX-P06-READ5-ISOLATED-MCP-CONTRACTS-20261023",
+        "run_id": 39969213976,
+        "evidence": "Original in-memory MCP tested complete delivery in seeded capture context; not used to substitute live proof"
+      },
+      "closure": {
+        "action_run_id": 40029183139,
+        "source_commit": "64408939372eac2ff1fa29d9a4f10b19376900aa",
+        "original_MCP_tools": 208,
+        "read_only_original_tools_call": true,
+        "evidence_records": 82,
+        "unknown_revisions": 0,
+        "positive_cases_7_of_7": [
+          "summary_unfiltered_82_records",
+          "full_bundle_82_records_matches_summary",
+          "exact_evidence_id_filter",
+          "exact_operation_filter",
+          "exact_subject_sha256_filter",
+          "no_matching_operation_zero_records",
+          "intersecting_filters_empty"
+        ],
+        "invalid_cases_6_of_6": [
+          "complete_with_filters_requires_summary",
+          "invalid_detail_mode",
+          "unknown_nested_filter",
+          "malformed_Evidence_id",
+          "malformed_target_digest",
+          "unknown_top_level_mutation_option"
+        ],
+        "positive_original_mcp_isError_false": true,
+        "invalid_original_mcp_isError_true": true,
+        "invalid_prevalidation_5_of_5": true,
+        "conditional_complete_filters_rejected_by_original_mcp": true,
+        "total_retained_records_stable": true,
+        "original_daemon_pid_unchanged": true,
+        "exact_response_sha256": "df7d7687aa3a620b1ada884b9feb9193f496a53007d5a2c3bcfacf6e97c70be8"
+      },
+      "controls": {
+        "no_write_tools_called": true,
+        "no_record_import_export": true,
+        "no_sensitive_owner_signature_bypass": true,
+        "no_source_file_reads_other_than_existing_Evidence": true,
+        "original_REA_engine_and_service_unchanged": true,
+        "no_new_mcp_plugin_skill_or_coordinator": true,
+        "no_other_projects_modified": true
+      },
+      "limitations": [
+        "Scoped to the original Linux permanent MCP's observed 82 records, 0 unknown revisions and supported filter combinations; binary/nonstandard large Evidence bundles and resource stress were not exercised.",
+        "No nonempty unknown revision chain was available to check nested manifest revision integrity; completeness relates to currently retained session records only.",
+        "Bundle query reads retained metadata and evidence, not a claim that underlying analyzed targets were observed or reconstructed completely."
+      ],
+      "hygiene": {
+        "spent_request_deleted": "rea-linux/requests/evidence-bundle-read-closure-20261023.json",
+        "one_shot_test_logic_removed": true,
+        "stable_bridge_blob_SHA": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+        "post_cleanup_catalog_to_verify": true
+      }
     }
   ],
   "active_scope_counts": {
@@ -2381,10 +2455,10 @@
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 11,
-    "scoped_positive_not_fully_certified_distinct": 11,
+    "fully_certified_distinct": 12,
+    "scoped_positive_not_fully_certified_distinct": 10,
     "not_functionally_positive_distinct": 186,
-    "remaining_full_certification_distinct": 197
+    "remaining_full_certification_distinct": 196
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -2414,7 +2488,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P31-PCAP-TShark-CAPINFOS-FULL-CERTIFICATION-20261023",
+  "latest_phase": "LINUX-P32-EVIDENCE-BUNDLE-PERMANENT-MCP-READ-CERTIFICATION-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -2867,6 +2941,18 @@
       ],
       "evidence_digest": "6cc5dfc8295c9477416091a60a7044d9d1bd74e6c2031878038d4813a219d2b1",
       "phase_id": "LINUX-P31-PCAP-TShark-CAPINFOS-FULL-CERTIFICATION-20261023"
+    },
+    "get_evidence_bundle": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Original permanent Linux REA MCP 82 retained Evidence records; complete and summary delivery, exact record filters, negative validation and session-stable identity",
+      "run_ids": [
+        39950220193,
+        39950507161,
+        39969213976,
+        40029183139
+      ],
+      "evidence_digest": "df7d7687aa3a620b1ada884b9feb9193f496a53007d5a2c3bcfacf6e97c70be8",
+      "phase_id": "LINUX-P32-EVIDENCE-BUNDLE-PERMANENT-MCP-READ-CERTIFICATION-20261023"
     }
   }
 }
