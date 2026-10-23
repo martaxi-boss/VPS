@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_reconstruction_coverage_closure"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_reconstruction_coverage_closure", "fixture_linux_coverage_targeted_diagnostics"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -217,6 +217,9 @@ def encrypt_result(raw_path, request_path, envelope_path):
     request = validate(json.loads(request_raw))
     private = None
     allowed_markers = {
+        "REA_COVERAGE_DIAG_MCP","REA_COVERAGE_DIAG_SOURCE",
+        "REA_COVERAGE_DIAG_DAEMON","REA_COVERAGE_DIAG_HASH",
+        "REA_COVERAGE_DIAG_STATUS",
         "REA_COVERAGE_CERT_GENERATOR","REA_COVERAGE_CERT_CASES",
         "REA_COVERAGE_CERT_NEGATIVES","REA_COVERAGE_CERT_SOURCE",
         "REA_COVERAGE_CERT_DAEMON","REA_COVERAGE_CERT_DIGEST",
@@ -2680,6 +2683,104 @@ def main():
                 except (OSError, RuntimeError, ValueError):
                     print("REA_FIXTURE_CLEANUP=FAIL")
                     raise
+        return
+    if data["action"] == "fixture_linux_coverage_targeted_diagnostics":
+        # Correct only four unsettled cases after the positive P33 trial;
+        # source-consistent deletion is refused before any write.
+        import shutil
+        import copy
+        name="evaluate_reconstruction_coverage"
+        desc=tool_by_name.get(name)
+        if not desc or secure.classify(name,desc,())!="read":
+            error("Only the original read tool may run here")
+        def mainpid():
+            v=subprocess.run(["systemctl","show","rea-reversa-mcp.service",
+                "-p","MainPID","--value"],capture_output=True,text=True,
+                timeout=10,check=False)
+            return v.stdout.strip() if v.returncode==0 else ""
+        before=mainpid()
+        source=Path.home()/".local/share/rea-chatgpt-trial/repository/rea"
+        node=shutil.which("node")
+        if not node or not (source/"node_modules/tsx").is_dir():
+            error("Prior original source fixture generator is no longer accessible")
+        git_before=subprocess.run(["git","-C",str(source),"status","--porcelain"],
+            capture_output=True,text=True,timeout=15,check=False)
+        js=(
+            "import {completeReconstructionCoverageData} from './src/domain/reconstructionCoverage.fixture.ts';"
+            "const c=completeReconstructionCoverageData();"
+            "c.verifier_results=c.verifier_results.map(x=>({...x,observed_at:new Date().toISOString()}));"
+            "process.stdout.write(JSON.stringify(c));"
+        )
+        result=subprocess.run([node,"--import","tsx","--input-type=module","-e",js],
+            cwd=str(source),capture_output=True,text=True,timeout=45,check=False,
+            env={**os.environ,"NODE_OPTIONS":"--max-old-space-size=384"})
+        if result.returncode!=0 or len(result.stdout)>500000:
+            error("Existing original canonical fixture could not be generated")
+        fixture=json.loads(result.stdout)
+        probes={}
+        hashes={}
+        def call(label,args,i):
+            secure.validate_arguments(desc,args)
+            _,reply=request_mcp({"jsonrpc":"2.0","id":i,
+                "method":"tools/call","params":{"name":name,"arguments":args}},
+                session,protocol,timeout=110)
+            r=reply.get("result")
+            success="error" not in reply and isinstance(r,dict) and r.get("isError") is not True
+            value=r.get("structuredContent") if success else {}
+            value=value.get("result",value) if isinstance(value,dict) else {}
+            err="error" in reply or (isinstance(r,dict) and r.get("isError") is True)
+            hashes[label]=hashlib.sha256(json.dumps(reply,sort_keys=True).encode()).hexdigest()
+            return success,value if isinstance(value,dict) else {},err
+        owner_missing=copy.deepcopy(fixture)
+        owner_missing["owners"]=[]
+        success,value,err=call("owner_missing",{"coverage":owner_missing,"boundary_id":"replacement.cli"},2671)
+        codes=[r.get("code") for r in value.get("reasons",[]) if isinstance(r,dict)]
+        probes["owner_missing"]={"mcp_ok":success,
+            "non_ready":value.get("status") in ("partial","unknown","failed"),
+            "owner_missing_reason":"owner-missing" in codes,
+            "status":value.get("status"),
+            "reason_codes":codes[:5]}
+        without_surface=copy.deepcopy(fixture)
+        without_surface["surfaces"]=[]
+        ok,body,err=call("surface_missing",{"coverage":without_surface,
+             "boundary_id":"replacement.cli"},2672)
+        probes["surface_missing"]={"mcp_isError":err}
+        without_claim=copy.deepcopy(fixture)
+        without_claim["claims"]=[]
+        ok,body,err=call("claim_missing",{"coverage":without_claim,
+             "boundary_id":"replacement.cli"},2673)
+        probes["claim_missing"]={"mcp_isError":err}
+        altered=copy.deepcopy(fixture)
+        record=altered["evidence_bundle"]["records"][0]
+        previous=record["authority"]
+        record["authority"]=(
+            "shipped-artifact" if previous=="controlled-replay"
+            else "controlled-replay")
+        ok,body,err=call("tampered_evidence",{"coverage":altered,
+             "boundary_id":"replacement.cli"},2674)
+        probes["tampered_evidence"]={"mutated_semantic_field":record["authority"]!=previous,
+                                    "original_mcp_isError":err}
+        git_after=subprocess.run(["git","-C",str(source),"status","--porcelain"],
+            capture_output=True,text=True,timeout=15,check=False)
+        stable=before.isdecimal() and before==mainpid()
+        src_stable=(git_before.returncode==git_after.returncode==0
+            and git_before.stdout==git_after.stdout)
+        valid=(probes["owner_missing"]["mcp_ok"]
+            and probes["owner_missing"]["non_ready"]
+            and probes["owner_missing"]["owner_missing_reason"]
+            and probes["surface_missing"]["mcp_isError"]
+            and probes["claim_missing"]["mcp_isError"]
+            and probes["tampered_evidence"]["mutated_semantic_field"]
+            and probes["tampered_evidence"]["original_mcp_isError"]
+            and stable and src_stable)
+        print("REA_COVERAGE_DIAG_MCP="+json.dumps(probes,sort_keys=True))
+        print("REA_COVERAGE_DIAG_SOURCE="+("PASS" if src_stable else "FAIL"))
+        print("REA_COVERAGE_DIAG_DAEMON="+("PASS" if stable else "FAIL"))
+        print("REA_COVERAGE_DIAG_HASH="+hashlib.sha256(
+            json.dumps(hashes,sort_keys=True).encode()).hexdigest())
+        print("REA_COVERAGE_DIAG_STATUS="+(
+            "PASS_EXACT_COVERAGE_REFUSALS_AND_FAIL_CLOSED_OWNER"
+            if valid else "INCOMPLETE_KEEP_SCOPED"))
         return
     if data["action"] == "fixture_linux_reconstruction_coverage_closure":
         # Construct a canonical synthetic coverage graph using the original
