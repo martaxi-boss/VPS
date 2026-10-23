@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_wabt_deploy_20261023", "fixture_linux_wabt_real_mcp_20261023", "fixture_linux_pwntools_deploy_20261023", "fixture_linux_pwntools_diagnose_20261023"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_wabt_deploy_20261023", "fixture_linux_wabt_real_mcp_20261023", "fixture_linux_pwntools_deploy_20261023", "fixture_linux_pwntools_diagnose_20261023", "fixture_linux_pwntools_real_mcp_20261023"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -510,7 +510,11 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_PWN_DIAG_STAGING","REA_PWN_DIAG_PYTHON","REA_PWN_DIAG_IMPORT",
         "REA_PWN_DIAG_BINWALK_EXISTS","REA_PWN_DIAG_PYTHON_SYS_EXISTS",
         "REA_PWN_DIAG_BINWALK_PACKAGE","REA_PWN_DIAG_RUSTC","REA_PWN_DIAG_CARGO",
-        "REA_PWN_DIAG_MCP_TOOLS","REA_PWN_DIAG_STATUS"
+        "REA_PWN_DIAG_MCP_TOOLS","REA_PWN_DIAG_STATUS",
+        "REA_PWN_ELF_TOOL","REA_PWN_ELF_ISERROR","REA_PWN_ELF_SOURCE_SHA256",
+        "REA_PWN_ELF_RESPONSE_SHA256","REA_PWN_ELF_ASSERTIONS",
+        "REA_PWN_ELF_STATUS","REA_PWN_ELF_ERROR_CLASS",
+        "REA_PWN_ELF_CLEANUP","REA_PWN_ELF_SERVICE_PID_STABLE"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -1517,6 +1521,102 @@ def main():
         print("REA_PWN_DIAG_CARGO="+str(bool(shutil.which("cargo"))).lower())
         print("REA_PWN_DIAG_MCP_TOOLS="+str(len(tools)))
         print("REA_PWN_DIAG_STATUS=PASS_READ_ONLY")
+        return
+    if data["action"] == "fixture_linux_pwntools_real_mcp_20261023":
+        # Owned offline ELF input and original live REA MCP; only read and
+        # inspect from service-accessible RAM, never execute selected binary.
+        import tempfile
+        import shutil
+        unit="rea-reversa-mcp.service"
+        original=Path("/opt/rea-reversa/rea/scripts/rea.mjs")
+        provider=Path("/opt/rea-reversa/providers/pwntools-4.15.0/bin/python")
+        def show(name):
+            p=subprocess.run(["systemctl","show",unit,"-p",name,"--value"],
+                       capture_output=True,text=True,timeout=15,check=False)
+            return p.stdout.strip() if p.returncode==0 else ""
+        oldpid=show("MainPID")
+        tool="inspect_binary_layout"
+        if not original.is_file() or not oldpid.isdecimal() or int(oldpid)<1 or len(tools)!=208:
+            print("REA_PWN_ELF_STATUS=BLOCKED_ORIGINAL_SERVICE")
+            return
+        if tool not in tool_by_name or secure.classify(
+               tool,tool_by_name[tool],())!="workspace":
+            print("REA_PWN_ELF_STATUS=BLOCKED_TOOL_CLASSIFICATION")
+            return
+        if not provider.is_file() or (
+              "REA_PWNTOOLS_PYTHON=/opt/rea-reversa/providers/pwntools-4.15.0/bin/python"
+              not in show("Environment")):
+            print("REA_PWN_ELF_STATUS=BLOCKED_ORIGINAL_PROVIDER_NOT_ACTIVE")
+            return
+        source=Path("/usr/bin/true")
+        if source.is_symlink():
+            source=source.resolve(strict=True)
+        if not source.is_file() or source.stat().st_size>1024*1024:
+            print("REA_PWN_ELF_STATUS=BLOCKED_OWNED_OS_ELF_MISSING")
+            return
+        with tempfile.TemporaryDirectory(prefix="rea-owned-pwntools-",dir="/dev/shm") as temp:
+            root=Path(temp)
+            root.chmod(0o755)
+            dest=root/"owned-elf64.bin"
+            shutil.copyfile(source,dest)
+            dest.chmod(0o644)
+            h=hashlib.sha256(dest.read_bytes()).hexdigest()
+            args={"path":str(dest)}
+            secure.validate_arguments(tool_by_name[tool],args)
+            secure._authorized_target_paths(args,additional_roots=(root,))
+            _,reply=request_mcp({"jsonrpc":"2.0","id":2400,"method":"tools/call",
+                   "params":{"name":tool,"arguments":args}},session,protocol,timeout=100)
+            result=reply.get("result") if isinstance(reply,dict) else None
+            error=not isinstance(result,dict) or result.get("isError") is True or "error" in reply
+            raw=result.get("structuredContent") if isinstance(result,dict) else None
+            if not isinstance(raw,dict):
+                for rec in result.get("content",[]) if isinstance(result,dict) else []:
+                    if isinstance(rec,dict) and isinstance(rec.get("text"),str):
+                        try:
+                            raw=json.loads(rec["text"])
+                            break
+                        except (ValueError,TypeError):
+                            pass
+            raw=raw if isinstance(raw,dict) else {}
+            norm=raw.get("normalized_result",{})
+            norm=norm if isinstance(norm,dict) else {}
+            artifact=norm.get("artifact",{})
+            artifact=artifact if isinstance(artifact,dict) else {}
+            arch=norm.get("architecture",{})
+            arch=arch if isinstance(arch,dict) else {}
+            checks={
+                "mcp_isError_false":not error,
+                "selected_sha256_matches":artifact.get("sha256")==h,
+                "selected_bytes_matches":artifact.get("bytes")==dest.stat().st_size,
+                "elf_format":norm.get("format")=="elf",
+                "arch_x86_64":arch.get("machine")=="EM_X86_64",
+                "bits_64":arch.get("bits")==64,
+                "little_endian":arch.get("byte_order")=="little",
+                "image_type_valid":norm.get("image_type") in ("ET_EXEC","ET_DYN","ET_REL"),
+                "sections_nonempty":isinstance(norm.get("sections"),list) and
+                        len(norm.get("sections"))>0,
+                "segments_nonempty":isinstance(norm.get("segments"),list) and
+                        len(norm.get("segments"))>0,
+                "inferred_mitigations":isinstance(norm.get("mitigations"),dict)
+                        and norm["mitigations"].get("evidence_kind")=="inferred",
+                "no_executed_target":isinstance(norm.get("entry_point"),dict)
+                        and norm["entry_point"].get("execution_status")=="unknown",
+                "unknown_runtime_base":norm.get("runtime_load_base","BAD") is None,
+                "original_bytes_unchanged":hashlib.sha256(dest.read_bytes()).hexdigest()==h
+            }
+            print("REA_PWN_ELF_TOOL="+tool)
+            print("REA_PWN_ELF_ISERROR="+str(error).lower())
+            print("REA_PWN_ELF_SOURCE_SHA256="+h)
+            print("REA_PWN_ELF_RESPONSE_SHA256="+hashlib.sha256(
+                json.dumps(reply,sort_keys=True,ensure_ascii=True).encode()).hexdigest())
+            print("REA_PWN_ELF_ASSERTIONS="+json.dumps(checks,sort_keys=True))
+            print("REA_PWN_ELF_STATUS="+(
+                "FUNCTIONAL_PASS_SCOPED" if all(checks.values()) else "INCOMPLETE"))
+            if error and isinstance(raw,dict):
+                failure=raw.get("error") or raw.get("message") or raw.get("status")
+                print("REA_PWN_ELF_ERROR_CLASS="+str(failure)[:170].replace(chr(10)," "))
+        print("REA_PWN_ELF_CLEANUP="+str(not root.exists()).lower())
+        print("REA_PWN_ELF_SERVICE_PID_STABLE="+str(show("MainPID")==oldpid).lower())
         return
     if data["action"] == "fixture_linux_read5_mcp_boundaries":
         # Run original REA real MCP tool methods against private in-memory
