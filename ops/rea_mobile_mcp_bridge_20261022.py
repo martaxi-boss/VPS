@@ -489,7 +489,11 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SDIAG_PID_ENV_READ",
         "REA_SDIAG_PID_ENV_SIZE",
         "REA_SDIAG_PID_PROVIDER_KEYS",
-        "REA_SDIAG_STATUS"
+        "REA_SDIAG_STATUS",
+        "REA_CORE_P37_POSITIVES","REA_CORE_P37_NEGATIVES",
+        "REA_CORE_P37_CLEANUP","REA_CORE_P37_SOURCE",
+        "REA_CORE_P37_SERVICE","REA_CORE_P37_DIGEST",
+        "REA_CORE_P37_STATUS"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -683,6 +687,177 @@ def main():
         print("REA_MOBILE_TOOL_ERROR=" + str(any(r["status"] != "PASS" for r in records)).lower())
         print("REA_MOBILE_PRIVATE_RESULT_B64=" + base64.b64encode(raw).decode())
         return
+    if data["action"] == "fixture_static_files":
+        # P37 isolated, one-shot original REA MCP static recorded-core qualification.
+        # No external program execution, service changes or real process snapshots.
+        import tempfile
+        import struct
+        name="inspect_recorded_crash"
+        descriptor=tool_by_name.get(name)
+        if descriptor is None or secure.classify(name, descriptor, ())!="workspace":
+            error("P37 original recorded core descriptor/class mismatch")
+        def current_pid():
+            p=subprocess.run(["systemctl","show","rea-reversa-mcp.service",
+               "-p","MainPID","--value"],capture_output=True,text=True,timeout=12,check=False)
+            return p.stdout.strip() if p.returncode==0 else ""
+        pid_before=current_pid()
+        original=Path.home()/".local/share/rea-chatgpt-trial/repository/rea"
+        git_before=subprocess.run(["git","-C",str(original),"status","--porcelain"],
+                                  capture_output=True,text=True,timeout=12,check=False)
+        def align4(length):
+            return (length+3)&~3
+        def make_note(ntype,desc):
+            owner=b"CORE\x00"
+            return (struct.pack("<III",len(owner),len(desc),ntype) +
+                    owner.ljust(align4(len(owner)),b"\x00") +
+                    desc.ljust(align4(len(desc)),b"\x00"))
+        def prstatus(machine,pid,signal,marker):
+            data=bytearray(392 if machine==183 else 336)
+            struct.pack_into("<h",data,12,signal)
+            struct.pack_into("<i",data,32,pid)
+            struct.pack_into("<Q",data,112+14*8,marker)
+            return make_note(1,bytes(data))
+        def siginfo(number=11):
+            desc=bytearray(32)
+            struct.pack_into("<iii",desc,0,number,-2,1)
+            struct.pack_into("<Q",desc,16,0x1122334455667788)
+            return make_note(0x53494749,bytes(desc))
+        def ntfile():
+            path=b"synthetic/p37/executable\x00"
+            desc=struct.pack("<QQQQQ",1,4096,0x1000,0x2000,0)+path
+            return make_note(0x46494c45,desc)
+        def elfcore(machine,parts):
+            notes=b"".join(parts)
+            data=bytearray(max(640,128+len(notes)))
+            data[:7]=b"\x7fELF\x02\x01\x01"
+            struct.pack_into("<HHI",data,16,4,machine,1)
+            struct.pack_into("<Q",data,32,64)
+            struct.pack_into("<HHH",data,52,64,56,1)
+            struct.pack_into("<IIQQQQQQ",data,64,4,0,128,0,0,len(notes),0,4)
+            data[128:128+len(notes)]=notes
+            return bytes(data)
+        records=[]
+        with tempfile.TemporaryDirectory(prefix="rea-public-core-p37-",dir="/dev/shm") as temporary:
+            workspace=Path(temporary);workspace.chmod(0o755)
+            files={
+               "amd64-with-siginfo.core":elfcore(62,[prstatus(62,123,11,0x1122334455667788),siginfo()]),
+               "aarch64-prstatus.core":elfcore(183,[prstatus(183,234,5,0x0123456789ABCDEF)]),
+               "amd64-two-threads.core":elfcore(62,[prstatus(62,123,11,0x1111222233334444),prstatus(62,456,6,0x2222333344445555)]),
+               "amd64-with-file.core":elfcore(62,[prstatus(62,321,5,0x123456789),ntfile()]),
+               "non-core-elf.bin":elfcore(62,[prstatus(62,123,11,123)]),
+               "not-elf.bin":b"P37 controlled non-ELF bytes\n",
+               "truncated-elf.bin":b"\x7fELF\x02\x01\x01",
+            }
+            files["non-core-elf.bin"]=bytearray(files["non-core-elf.bin"])
+            struct.pack_into("<H",files["non-core-elf.bin"],16,2)
+            files["non-core-elf.bin"]=bytes(files["non-core-elf.bin"])
+            for filename,contents in files.items():
+                target=workspace/filename
+                target.write_bytes(contents)
+                target.chmod(0o644)
+            hashes={filename:hashlib.sha256(contents).hexdigest() for filename,contents in files.items()}
+            expected={
+              "amd64-with-siginfo.core":{"arch":"x86_64-little-endian","pids":[123],"thread_count":1,"signal_count":1,"note_count":2,"regs":27},
+              "aarch64-prstatus.core":{"arch":"aarch64-little-endian","pids":[234],"thread_count":1,"signal_count":0,"note_count":1,"regs":34},
+              "amd64-two-threads.core":{"arch":"x86_64-little-endian","pids":[123,456],"thread_count":2,"signal_count":0,"note_count":2,"regs":27},
+              "amd64-with-file.core":{"arch":"x86_64-little-endian","pids":[321],"thread_count":1,"signal_count":0,"note_count":2,"regs":27},
+            }
+            def execute(label,args,positive=False,target_name=None):
+                schema_ok=True
+                try:secure.validate_arguments(descriptor,args)
+                except secure.SecureBridgeError:schema_ok=False
+                secure._authorized_target_paths(args,additional_roots=(workspace,))
+                _,reply=request_mcp({"jsonrpc":"2.0","id":3750+len(records),
+                   "method":"tools/call","params":{"name":name,"arguments":args}},
+                   session,protocol,timeout=110)
+                tool=reply.get("result")
+                is_error=tool.get("isError") if isinstance(tool,dict) else None
+                protocol_error="error" in reply
+                norm=tool.get("structuredContent",{}).get("normalized_result") if isinstance(tool,dict) and isinstance(tool.get("structuredContent"),dict) else None
+                target=(workspace/target_name) if target_name else None
+                e=expected.get(target_name) if target_name else None
+                threads=norm.get("threads") if isinstance(norm,dict) else None
+                notes=norm.get("notes") if isinstance(norm,dict) else None
+                signals=norm.get("signals") if isinstance(norm,dict) else None
+                artifact=norm.get("artifact") if isinstance(norm,dict) else None
+                dbg=norm.get("debugger") if isinstance(norm,dict) else None
+                passed_core=(isinstance(norm,dict) and norm.get("format")=="elf-core" and
+                    norm.get("architecture")==e["arch"] and norm.get("target_execution")=="not-performed" and
+                    norm.get("live_process_identity")=="unknown" and isinstance(dbg,dict) and
+                    dbg.get("status")=="not-requested" and
+                    isinstance(artifact,dict) and artifact.get("sha256")==hashes[target_name] and
+                    artifact.get("bytes")==target.stat().st_size and
+                    isinstance(threads,list) and len(threads)==e["thread_count"] and
+                    sorted(t.get("historical_pid") for t in threads)==sorted(e["pids"]) and
+                    isinstance(notes,list) and len(notes)==e["note_count"] and
+                    isinstance(signals,list) and len(signals)==e["signal_count"] and
+                    all(len(t.get("registers",[]))==e["regs"] for t in threads))
+                if positive and target_name=="amd64-with-siginfo.core" and isinstance(signals,list):
+                    passed_core=passed_core and signals[0].get("number")==11 and (
+                         signals[0].get("fault_address")=="0x1122334455667788")
+                if positive and target_name=="aarch64-prstatus.core" and isinstance(threads,list):
+                    passed_core=passed_core and any(r.get("value")=="0x123456789abcdef"
+                              for r in threads[0].get("registers",[]))
+                if positive and target_name=="amd64-with-file.core" and isinstance(notes,list):
+                    passed_core=passed_core and any(n.get("type")=="NT_FILE" for n in notes)
+                passed=(schema_ok and is_error is not True and not protocol_error and
+                        passed_core) if positive else (is_error is True and not protocol_error)
+                raw=json.dumps(reply,sort_keys=True,ensure_ascii=True)
+                records.append({"label":label,"positive":positive,"pass":bool(passed),
+                    "schema_prevalidated":schema_ok,"isError":is_error,
+                    "protocol_error":protocol_error,"core_semantics_matched":bool(passed_core),
+                    "threads":len(threads) if isinstance(threads,list) else None,
+                    "notes":len(notes) if isinstance(notes,list) else None,
+                    "signals":len(signals) if isinstance(signals,list) else None,
+                    "response_sha256":hashlib.sha256(raw.encode()).hexdigest()})
+            for filename in expected:
+                execute("positive_"+filename,{"path":str(workspace/filename),
+                    "include_debugger_context":False},True,filename)
+            execute("missing_path",{"path":str(workspace/"does-not-exist.core")})
+            execute("directory_as_core",{"path":str(workspace)})
+            execute("non_core_elf",{"path":str(workspace/"non-core-elf.bin")})
+            execute("non_elf",{"path":str(workspace/"not-elf.bin")})
+            execute("truncated_elf",{"path":str(workspace/"truncated-elf.bin")})
+            execute("path_missing",{})
+            execute("path_wrong_type",{"path":55})
+            execute("unknown_field",{"path":str(workspace/"aarch64-prstatus.core"),"execute":True})
+            execute("debugger_wrong_type",{"path":str(workspace/"aarch64-prstatus.core"),
+                                      "include_debugger_context":"true"})
+            unchanged=all(hashlib.sha256((workspace/filename).read_bytes()).hexdigest()==digest
+                for filename,digest in hashes.items())
+        cleanup=not workspace.exists()
+        git_after=subprocess.run(["git","-C",str(original),"status","--porcelain"],
+                                 capture_output=True,text=True,timeout=12,check=False)
+        source_stable=(git_before.returncode==git_after.returncode==0 and
+            git_before.stdout==git_after.stdout)
+        daemon_stable=pid_before.isdecimal() and current_pid()==pid_before
+        report={"phase":"LINUX-P37-RECORDED-CORE-MCP-CERTIFICATION-20261023",
+            "tool":name,"records":records,"input_sha256":hashes,
+            "inputs_unchanged":unchanged,"fixture_cleanup":cleanup,
+            "original_source_stable":source_stable,"original_service_PID_stable":daemon_stable,
+            "tools_list_count":len(tools)}
+        raw=json.dumps(report,sort_keys=True,ensure_ascii=True).encode()
+        pos=[r for r in records if r["positive"]]
+        neg=[r for r in records if not r["positive"]]
+        print("REA_CORE_P37_POSITIVES="+str(sum(r["pass"] for r in pos))+"/"+str(len(pos)))
+        print("REA_CORE_P37_NEGATIVES="+str(sum(r["pass"] for r in neg))+"/"+str(len(neg)))
+        print("REA_CORE_P37_CLEANUP="+("PASS" if unchanged and cleanup else "FAIL"))
+        print("REA_CORE_P37_SOURCE="+("PASS" if source_stable else "FAIL"))
+        print("REA_CORE_P37_SERVICE="+("PASS" if daemon_stable else "FAIL"))
+        print("REA_CORE_P37_DIGEST="+hashlib.sha256(raw).hexdigest())
+        all_pass=(len(pos)==4 and all(r["pass"] for r in pos) and len(neg)==9 and
+                  all(r["pass"] for r in neg) and unchanged and cleanup and
+                  source_stable and daemon_stable and len(tools)==208)
+        print("REA_CORE_P37_STATUS="+("PASS_ORIGINAL_MCP_RECORDED_CORE_PROFILE" if all_pass
+                                    else "INCOMPLETE_KEEP_SCOPED"))
+        if len(raw)>MAX_RESPONSE or os.environ.get("REA_MOBILE_ENVELOPE_CAPTURE")!="1":
+            error("Recorded core evidence requires bounded encrypted result")
+        print("REA_MOBILE_OUTPUT_BYTES="+str(len(raw)))
+        print("REA_MOBILE_OUTPUT_SHA256="+hashlib.sha256(raw).hexdigest())
+        print("REA_MOBILE_TOOL_ERROR="+str(not all_pass).lower())
+        print("REA_MOBILE_PRIVATE_RESULT_B64="+base64.b64encode(raw).decode())
+        return
+
     if data["action"] in ("fixture_static_files", "fixture_static_files_v2"):
         # Fixed source-owned inputs; never a caller-selected path, URL or code.
         import tempfile
