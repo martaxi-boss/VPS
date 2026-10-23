@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_16_SCOPED_POSITIVES_SIGROK_LIBUSB_RESTRICTED",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_19_SCOPED_POSITIVES_BINWALK31_EXACT_SIGROK_LIBUSB_RESTRICTED",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -51,6 +51,30 @@
         39987726184,
         39988261036
       ]
+    },
+    "binwalk31": {
+      "source_build": {
+        "workflow_run_id": 40006958918,
+        "commit": "40da12a6e0c37e19025f4b635760af098449de70",
+        "url": "https://github.com/martaxi-boss/VPS/actions/runs/40006958918"
+      },
+      "safe_rollback": {
+        "workflow_run_id": 40007840475,
+        "commit": "51846da9ef57ad8f300045d98c9eea32fa664ed7",
+        "url": "https://github.com/martaxi-boss/VPS/actions/runs/40007840475"
+      },
+      "activation": {
+        "workflow_run_id": 40008096793,
+        "commit": "6b7d57c90052909aa0ed90c0502933e69adcb75d",
+        "url": "https://github.com/martaxi-boss/VPS/actions/runs/40008096793"
+      },
+      "real_original_mcp": {
+        "workflow_run_id": 40008229288,
+        "commit": "87aea58b5e64e4e6ec977ba138ea2a2b16fed52f",
+        "url": "https://github.com/martaxi-boss/VPS/actions/runs/40008229288",
+        "name": "inspect_firmware_regions",
+        "isError": false
+      }
     }
   },
   "installed_core": {
@@ -209,6 +233,22 @@
         "version": "26.6.4",
         "status": "PERSISTENT_EXECUTABLE_PASS",
         "run_id": 39978357233
+      },
+      "binwalk31": {
+        "required_version": "3.1.0",
+        "source_commit": "4fdab3d464d97b68e0af9088df3f9e2e1545b21c",
+        "service_binary": "/opt/rea-reversa/providers/binwalk-3.1.0/bin/binwalk",
+        "sha256": "077ededf7237777dc562ea3978230354c8302056dfa624d48c255498761d0c4e",
+        "upstream_build_run_id": 40006958918,
+        "integrated_mcp_run_id": 40008096793,
+        "original_mcp_tool_functional_run_id": 40008229288,
+        "bounded_tool": "inspect_firmware_regions",
+        "tool_status": "FUNCTIONAL_PASS_SCOPED",
+        "system_binwalk_version": "2.3.4+dfsg1-5",
+        "system_binwalk_unchanged": true,
+        "original_engine_source_unchanged": true,
+        "other_provider_environment_preserved": true,
+        "service_only_restarted": true
       }
     },
     "systemd_activation": {
@@ -387,6 +427,47 @@
       "compiled_code_run": false,
       "source_fixtures_deleted": true,
       "rea_service_pid_stable": true
+    },
+    "current_rea_only_binwalk_override": {
+      "key": "REA_BINWALK_COMMAND",
+      "executable": "/opt/rea-reversa/providers/binwalk-3.1.0/bin/binwalk",
+      "systemd_dropin": "/etc/systemd/system/rea-reversa-mcp.service.d/97-rea-linux-binwalk31.conf",
+      "verified_systemd_live_environment": true,
+      "original_208_mcp_tools_preserved": true,
+      "risk_classes_preserved": {
+        "read": 5,
+        "workspace": 120,
+        "sensitive": 83
+      }
+    },
+    "additional_native_build_prerequisites": {
+      "installed_persistent_system_packages": [
+        "pkg-config",
+        "libbz2-dev",
+        "liblzma-dev",
+        "libfontconfig-dev",
+        "libbrotli-dev",
+        "libpng-dev",
+        "libfreetype-dev",
+        "uuid-dev"
+      ],
+      "bounded_additive_apt_install_evidence_runs": [
+        40005438490,
+        40006181212
+      ],
+      "no_removals_or_package_upgrades_in_simulated_plan": true,
+      "compiler": "Rust 1.85.1 pinned isolated install, not a global rustc/cargo replacement"
+    },
+    "latest_functional_verification": {
+      "as_of_utc": "2026-10-23",
+      "original_mcp_catalog": 208,
+      "scoped_functional_positive_distinct": 19,
+      "awaiting_individual_review": 189,
+      "fully_certified_distinct": 0,
+      "latest_tool": "inspect_firmware_regions",
+      "latest_real_mcp_run_id": 40008229288,
+      "sigrok_libusb_still_unresolved": true,
+      "sensitive_authorization_unchanged": true
     }
   },
   "final_hygiene_verified": {
