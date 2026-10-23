@@ -76,11 +76,82 @@
         "Needs invalid-input and edge-case testing before full certification",
         "Only one controlled input family tested"
       ]
+    },
+    {
+      "phase_id": "LINUX-P02-gnu-objdump-20261023",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "host_family": "Linux",
+      "source": "/usr/bin/true",
+      "source_sha256": "8a63c98320173f79e263115e47d1fd4b5a70e4429d2699cae28",
+      "source_unchanged": true,
+      "method": "Three actual tools/call requests to inspect_with_objdump in the existing original Linux VPS REA MCP",
+      "workflow_run_id": 39947962373,
+      "workflow_url": "https://github.com/martaxi-boss/VPS/actions/runs/39947962373",
+      "workflow_commit": "f3f49c29e814b06537d97d52746b8be0029a9835",
+      "bridge_commits": [
+        "86b832d1093a69210bdebf75533f79aeab45650a",
+        "3221100010f1fe251810b2bf4f8ca166c438759a"
+      ],
+      "encrypted_artifact_id": 12499096997,
+      "request_result_sha256_binding": true,
+      "decrypted_result_verified": true,
+      "result_sha256": "1f32ed1bbb34a0014d524a92b6a52154951dc82ada38601d5e081befd447b736",
+      "mcp_error_marker": "false",
+      "records": [
+        {
+          "operation": "file_headers",
+          "result": "PASS",
+          "assertions": [
+            "ELF64 x86-64 format",
+            "i386:x86-64 architecture",
+            "entry point observed",
+            "provider exit_code=0",
+            "result complete and not truncated",
+            "source hash unchanged"
+          ]
+        },
+        {
+          "operation": "section_headers",
+          "result": "PASS",
+          "assertions": [
+            "ELF64 x86-64 format",
+            "Sections enumerated with .text and .dynamic",
+            "provider exit_code=0",
+            "result complete and not truncated",
+            "source hash unchanged"
+          ]
+        },
+        {
+          "operation": "disassemble",
+          "result": "PASS",
+          "assertions": [
+            "Assembly output for .init",
+            "endbr64 and call instructions found",
+            "2755 instruction lines recognized",
+            "provider exit_code=0",
+            "result complete and not truncated",
+            "source hash unchanged"
+          ]
+        }
+      ],
+      "tools": [
+        {
+          "name": "inspect_with_objdump",
+          "status": "FUNCTIONAL_PASS_SCOPED",
+          "purpose": "Inspect GNU objdump file headers, section headers and disassemble an ELF file on Linux",
+          "mcp_call_count": 3
+        }
+      ],
+      "limitations": [
+        "Scoped to one known Linux ELF64 x86-64 artifact and three operations",
+        "No malformed input, symlinks, source changes, negative tests or other CPU/ELF architectures certified",
+        "Vendor backend is GNU objdump and output is raw; raw response preserved for local inspection only"
+      ]
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 3,
-    "awaiting_canonical_individual_review": 205
+    "functional_pass_scoped_distinct": 4,
+    "awaiting_canonical_individual_review": 204
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -109,5 +180,6 @@
       "note": "Reconcile separately; avoid duplicate count"
     }
   ],
-  "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval"
+  "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
+  "latest_phase": "LINUX-P02-gnu-objdump-20261023"
 }
