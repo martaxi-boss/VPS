@@ -1119,7 +1119,7 @@ def main():
                         dl_map = {
                             "libbabeltrace.so.1":"libbabeltrace1",
                             "libbabeltrace-ctf.so.1":"libbabeltrace1",
-                            "libdebuginfod.so.1":"libdebuginfod1",
+                            "libdebuginfod.so.1":"libdebuginfod1t64",
                             "libipt.so.2":"libipt2",
                             "libsource-highlight.so.4":"libsource-highlight4v5",
                             "libboost_regex.so.1.83.0":"libboost-regex1.83.0",
