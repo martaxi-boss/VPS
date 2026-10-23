@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_supplier_gap_20261023", "fixture_linux_tshark_activate_20261023", "fixture_linux_glossary_sigrok_diag_20261023", "fixture_linux_sigrok_sandbox_20261023", "fixture_linux_static_formats_20261023", "fixture_linux_node24_stage_20261023", "fixture_linux_node24_sqlite_cli_20261023", "fixture_linux_node24_unit_preflight_20261023"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_supplier_gap_20261023", "fixture_linux_tshark_activate_20261023", "fixture_linux_glossary_sigrok_diag_20261023", "fixture_linux_sigrok_sandbox_20261023", "fixture_linux_static_formats_20261023", "fixture_linux_node24_stage_20261023", "fixture_linux_node24_sqlite_cli_20261023", "fixture_linux_node24_unit_preflight_20261023", "fixture_linux_node24_unit_shape_20261023"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -261,6 +261,10 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_NODE24_UNIT_AVOID_SHELL", "REA_NODE24_UNIT_REA_ONLY",
         "REA_NODE24_UNIT_PERMISSIONS", "REA_NODE24_UNIT_DROPIN_EXISTS",
         "REA_NODE24_UNIT_PREVIOUS_VERSION",
+        "REA_NODE24_SHAPE_SOURCE_COUNT", "REA_NODE24_SHAPE_ARGV_LABEL",
+        "REA_NODE24_SHAPE_HAS_EXECSTART", "REA_NODE24_SHAPE_PARTS",
+        "REA_NODE24_SHAPE_FILEPATH_KIND", "REA_NODE24_SHAPE_SAFETY",
+        "REA_NODE24_SHAPE_ACTUAL_ARGC",
         "REA_MOBILE_PROVIDER_DOCTOR_GHIDRA",
         "REA_MOBILE_PROVIDER_DOCTOR_JADX", "REA_MOBILE_CATALOG",
         "REA_MOBILE_DESCRIBE_TOOL", "REA_MOBILE_TOOL_DESCRIPTOR_B64",
@@ -1787,6 +1791,46 @@ def main():
                   (installed.stdout or installed.stderr).splitlines()[0][:110])
             print("REA_RIZIN_STATUS="+(
                 "PASS_PINNED_PERSISTENT" if installed.returncode==0 else "INCOMPLETE"))
+        return
+    if data["action"] == "fixture_linux_node24_unit_shape_20261023":
+        # Inspect original ExecStart syntax, never emit arbitrary arguments
+        # or environment, and do not alter the REA service.
+        import shlex
+        import re as regex
+        unit="rea-reversa-mcp.service"
+        r=subprocess.run(["systemctl","cat",unit],capture_output=True,
+                    text=True,timeout=18,check=False)
+        lines=[line.strip() for line in r.stdout.splitlines()
+               if line.strip().startswith("ExecStart=")]
+        print("REA_NODE24_SHAPE_SOURCE_COUNT="+str(len(lines)))
+        selected=lines[-1] if lines else ""
+        raw=selected.partition("=")[2]
+        try: argv=shlex.split(raw)
+        except ValueError: argv=[]
+        absnames=[p for p in argv[:4] if p.startswith("/")]
+        kinds=[
+          "NODE_BINARY" if p.endswith("/node") else
+          "REA_SCRIPT" if p.startswith("/opt/rea-reversa/rea/") else
+          "OTHER_ABSOLUTE" for p in absnames]
+        allowed=(r.returncode==0 and len(lines)==1 and
+            len(argv)>2 and argv[0].startswith("/") and argv[0].endswith("/node") and
+            argv[1].startswith("/opt/rea-reversa/rea/") and argv[2]=="mcp" and
+            all(chr(10) not in x and chr(13) not in x for x in argv))
+        print("REA_NODE24_SHAPE_PARTS="+json.dumps(kinds))
+        print("REA_NODE24_SHAPE_HAS_EXECSTART="+str(bool(selected)).lower())
+        print("REA_NODE24_SHAPE_FILEPATH_KIND="+(
+            "SAFE_DIRECT_NODE_REA_SCRIPT" if allowed else "OTHER"))
+        print("REA_NODE24_SHAPE_ACTUAL_ARGC="+str(len(argv)))
+        print("REA_NODE24_SHAPE_ARGV_LABEL="+json.dumps({
+           "has_mcp_command":any(x=="mcp" for x in argv),
+           "has_transport_flag":any("http" in x.lower() for x in argv),
+           "node_path_matches_system":argv[0] in ("/usr/bin/node","/usr/local/bin/node") if argv else False,
+           "script_entrypoint_name":Path(argv[1]).name
+                if len(argv)>1 and argv[1].startswith("/opt/rea-reversa/rea/")
+                else "UNKNOWN"
+        },sort_keys=True))
+        print("REA_NODE24_SHAPE_SAFETY="+(
+             "PASS_ONE_SIMPLE_NODE_EXECSTART" if allowed else "UNSAFE_OR_UNKNOWN_NO_CHANGES"))
         return
     if data["action"] == "fixture_linux_node24_unit_preflight_20261023":
         # Read-only: original systemd ExecStart *structure*, no arguments
