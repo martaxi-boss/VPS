@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -849,6 +849,40 @@ def main():
                     error("Staged WABT validator did not start")
             print("REA_STAGE_" + provider + "=" + outcome)
         print("REA_STAGE_NO_SERVICE_CHANGES=PASS")
+        return
+    if data["action"] == "fixture_linux_read5_regression":
+        # Run existing original REA test using an isolated in-memory ledger,
+        # never the production server's retained Evidence or GDB sessions.
+        import shutil
+        source = Path.home() / ".local/share/rea-chatgpt-trial/repository/rea"
+        test = source / "src/application/investigation/EvidenceLedger.residualUnknown.test.ts"
+        runner = source / "node_modules/vitest/vitest.mjs"
+        node = shutil.which("node")
+        print("REA_LINUX_READ5_SOURCE_PRESENT=" + str(test.is_file()).lower())
+        print("REA_LINUX_READ5_VITEST_PRESENT=" + str(runner.is_file()).lower())
+        print("REA_LINUX_READ5_NODE_PRESENT=" + str(node is not None).lower())
+        if not test.is_file() or not runner.is_file() or node is None:
+            print("REA_LINUX_READ5_REGRESSION=UNAVAILABLE_DEPENDENCIES")
+            return
+        target = "rejects inference for observed resolution, then accepts matching live evidence"
+        proc = subprocess.run(
+            [node, str(runner), "run", str(test.relative_to(source)),
+             "-t", target, "--no-file-parallelism", "--maxWorkers=1"],
+            cwd=str(source), capture_output=True, text=True, timeout=140,
+            env={**os.environ, "CI":"true", "NODE_OPTIONS":"--max-old-space-size=1024"},
+            check=False,
+        )
+        combined = (proc.stdout + "\n" + proc.stderr)[-16000:]
+        passed = (proc.returncode == 0 and target in combined
+                  and ("1 passed" in combined or "1 test passed" in combined
+                       or "1 passed |" in combined))
+        print("REA_LINUX_READ5_REGRESSION=" + ("PASS" if passed else "FAIL"))
+        print("REA_LINUX_READ5_EXIT_CODE=" + str(proc.returncode))
+        print("REA_LINUX_READ5_TEST_OUTPUT_SHA256=" +
+              hashlib.sha256(combined.encode()).hexdigest())
+        print("REA_LINUX_READ5_TEST_NAME=" + target)
+        print("REA_LINUX_READ5_TEST_DIAGNOSTIC=" +
+              re.sub(r"[^A-Za-z0-9 .,_:;=/()\[\]#-]", " ", combined[-1200:]))
         return
     if data["action"] == "capability_audit":
         import shutil
