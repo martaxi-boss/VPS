@@ -2078,14 +2078,19 @@ def main():
                "REA_JADX_MCP_JAR","REA_JADX_HEAP_MIB",
                "REA_JADX_ACTIVE_PROCESSOR_COUNT","REA_GDB_COMMAND",
                "REA_BINWALK_COMMAND","REA_UNBLOB_COMMAND",
-               "REA_RIZIN_COMMAND","REA_IDA_MCP_CONFIG")
+               "REA_RIZIN_COMMAND","REA_KUNA_COMMAND","REA_KUNA_CACHE_DIR",
+               "REA_SIGROK_COMMAND","REA_TSHARK_COMMAND",
+               "REA_WABT_BIN_DIRECTORY","REA_PWNTOOLS_PYTHON",
+               "REA_IDA_MCP_CONFIG")
         supplied={k:v for k,v in d.items() if k in allow and len(v)<3000}
         print("REA_SERVICE_DOCTOR_UNIT_USER="+user[:45])
         print("REA_SERVICE_DOCTOR_CONFIG_KEYS="+json.dumps(
               sorted(k for k in allow if k in supplied)))
         for name in ("GHIDRA_INSTALL_DIR","JAVA_HOME","REA_JADX_MCP_JAR",
                      "REA_GDB_COMMAND","REA_BINWALK_COMMAND","REA_UNBLOB_COMMAND",
-                     "REA_RIZIN_COMMAND"):
+                     "REA_RIZIN_COMMAND","REA_KUNA_COMMAND","REA_KUNA_CACHE_DIR",
+                     "REA_SIGROK_COMMAND","REA_TSHARK_COMMAND",
+                     "REA_WABT_BIN_DIRECTORY","REA_PWNTOOLS_PYTHON"):
             val=supplied.get(name)
             # unblob is 0750 owned by REA service: the SSH ubuntu account
             # cannot stat it; test through service identity instead.
