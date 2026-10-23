@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -463,7 +463,24 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_PACT_MCP_TOOL_COUNT",
         "REA_PACT_RESULT",
         "REA_PACT_ERROR_CLASS",
-        "REA_PACT_ROLLBACK"
+        "REA_PACT_ROLLBACK",
+        "REA_SDIAG_IDENTITY",
+        "REA_SDIAG_TYPE",
+        "REA_SDIAG_DROPIN",
+        "REA_SDIAG_ENVFILE",
+        "REA_SDIAG_PASSENV",
+        "REA_SDIAG_UNSETENV",
+        "REA_SDIAG_ENV_KEY_COUNT",
+        "REA_SDIAG_PROVIDER_ENV_KEYS",
+        "REA_SDIAG_EXEC_SH",
+        "REA_SDIAG_EXEC_ENV_RESET",
+        "REA_SDIAG_EXEC_NODE",
+        "REA_SDIAG_EXEC_SUDO",
+        "REA_SDIAG_PROC_EXE_KIND",
+        "REA_SDIAG_PID_ENV_READ",
+        "REA_SDIAG_PID_ENV_SIZE",
+        "REA_SDIAG_PID_PROVIDER_KEYS",
+        "REA_SDIAG_STATUS"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -1726,6 +1743,57 @@ def main():
                   (installed.stdout or installed.stderr).splitlines()[0][:110])
             print("REA_RIZIN_STATUS="+(
                 "PASS_PINNED_PERSISTENT" if installed.returncode==0 else "INCOMPLETE"))
+        return
+    if data["action"] == "fixture_linux_service_unit_diagnose":
+        # Read-only, classify original service wiring without printing secrets.
+        import re as regex
+        unit="rea-reversa-mcp.service"
+        keys=("User","Type","MainPID","FragmentPath","DropInPaths",
+              "EnvironmentFiles","PassEnvironment","UnsetEnvironment","Environment","ExecStart")
+        values={}
+        for name in keys:
+            p=subprocess.run(["systemctl","show",unit,"-p",name,"--value"],
+                             capture_output=True,text=True,timeout=12,check=False)
+            values[name]=p.stdout.strip() if p.returncode==0 else ""
+        command=values["ExecStart"]
+        config=values["Environment"]
+        keys_present=sorted(set(regex.findall(r"(?:^| )([A-Za-z_][A-Za-z0-9_]*)=",config)))
+        print("REA_SDIAG_IDENTITY="+str(values["User"]=="rea-reversa").lower())
+        print("REA_SDIAG_TYPE="+values["Type"][:30])
+        print("REA_SDIAG_DROPIN="+str(bool(values["DropInPaths"])).lower())
+        print("REA_SDIAG_ENVFILE="+str(bool(values["EnvironmentFiles"])).lower())
+        print("REA_SDIAG_PASSENV="+str(bool(values["PassEnvironment"])).lower())
+        print("REA_SDIAG_UNSETENV="+str(bool(values["UnsetEnvironment"])).lower())
+        print("REA_SDIAG_ENV_KEY_COUNT="+str(len(keys_present)))
+        print("REA_SDIAG_PROVIDER_ENV_KEYS="+json.dumps({
+            key:key in keys_present for key in (
+                "REA_BINWALK_COMMAND","REA_UNBLOB_COMMAND",
+                "REA_RIZIN_COMMAND","REA_GDB_COMMAND")},sort_keys=True))
+        print("REA_SDIAG_EXEC_SH="+str(
+            any(x in command for x in ("/bin/bash","/bin/sh","/usr/bin/bash"))).lower())
+        print("REA_SDIAG_EXEC_ENV_RESET="+str(
+            any(x in command for x in ("env -i","env --ignore-environment","--unset"))).lower())
+        print("REA_SDIAG_EXEC_NODE="+str("node" in command).lower())
+        print("REA_SDIAG_EXEC_SUDO="+str("sudo" in command or "runuser" in command).lower())
+        pid=values["MainPID"]
+        if pid.isdecimal() and int(pid)>0:
+            ex=subprocess.run(["sudo","-n","readlink","-f",f"/proc/{int(pid)}/exe"],
+                              capture_output=True,text=True,timeout=12,check=False)
+            print("REA_SDIAG_PROC_EXE_KIND="+(
+                Path(ex.stdout.strip()).name[:70] if ex.returncode==0 else "UNAVAILABLE"))
+            env=subprocess.run(["sudo","-n","cat",f"/proc/{int(pid)}/environ"],
+                              capture_output=True,timeout=12,check=False)
+            names=set()
+            if env.returncode==0:
+                names={row.split(b"=",1)[0].decode("ascii",errors="ignore")
+                       for row in env.stdout.split(bytes([0])) if b"=" in row}
+            print("REA_SDIAG_PID_ENV_READ="+str(env.returncode==0).lower())
+            print("REA_SDIAG_PID_ENV_SIZE="+str(len(names)))
+            print("REA_SDIAG_PID_PROVIDER_KEYS="+json.dumps({
+                key:key in names for key in (
+                    "REA_BINWALK_COMMAND","REA_UNBLOB_COMMAND",
+                    "REA_RIZIN_COMMAND","REA_GDB_COMMAND")},sort_keys=True))
+        print("REA_SDIAG_STATUS=PASS_READ_ONLY")
         return
     if data["action"] == "fixture_linux_service_provider_activate":
         # Owner-requested REA ONLY integration, with rollback on any
