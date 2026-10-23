@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -456,7 +456,14 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_PCONFIG_PROVIDER_BINWALK",
         "REA_PCONFIG_PROVIDER_RIZIN",
         "REA_PCONFIG_PROVIDER_UNBLOB",
-        "REA_PCONFIG_STATUS"
+        "REA_PCONFIG_STATUS",
+        "REA_PACT_PROVIDER_ACCESS",
+        "REA_PACT_STATUS",
+        "REA_PACT_ACTIVE_ENV",
+        "REA_PACT_MCP_TOOL_COUNT",
+        "REA_PACT_RESULT",
+        "REA_PACT_ERROR_CLASS",
+        "REA_PACT_ROLLBACK"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -1719,6 +1726,146 @@ def main():
                   (installed.stdout or installed.stderr).splitlines()[0][:110])
             print("REA_RIZIN_STATUS="+(
                 "PASS_PINNED_PERSISTENT" if installed.returncode==0 else "INCOMPLETE"))
+        return
+    if data["action"] == "fixture_linux_service_provider_activate":
+        # Owner-requested REA ONLY integration, with rollback on any
+        # activation failure. Other Linux projects/services stay untouched.
+        import tempfile
+        import time
+        unit="rea-reversa-mcp.service"
+        paths={
+            "REA_GDB_COMMAND":"/usr/bin/gdb",
+            "REA_BINWALK_COMMAND":"/usr/bin/binwalk",
+            "REA_RIZIN_COMMAND":"/opt/rea-reversa/providers/rizin-v0.9.1/bin/rizin",
+            "REA_UNBLOB_COMMAND":"/opt/rea-reversa/providers/unblob-26.6.4/bin/unblob",
+        }
+        target=Path("/etc/systemd/system/rea-reversa-mcp.service.d/70-rea-linux-providers.conf")
+        folder=target.parent
+        def sudo(*args, timeout=35):
+            return subprocess.run(["sudo","-n",*args],capture_output=True,
+                                  timeout=timeout,check=False)
+        def prop(name):
+            p=subprocess.run(["systemctl","show",unit,"-p",name,"--value"],
+                             capture_output=True,text=True,timeout=12,check=False)
+            return p.stdout.strip() if p.returncode==0 else ""
+        if prop("User")!="rea-reversa" or prop("ActiveState")!="active":
+            print("REA_PACT_STATUS=BLOCKED_ORIGINAL_REA_INACTIVE")
+            return
+        if prop("DropInPaths") or prop("EnvironmentFiles"):
+            print("REA_PACT_STATUS=BLOCKED_EXISTING_SERVICE_OVERRIDES")
+            return
+        check=sudo("test","!","-e",str(target),timeout=10)
+        if check.returncode:
+            print("REA_PACT_STATUS=BLOCKED_PREEXISTING_FILE")
+            return
+        if not Path("/opt/rea-reversa/rea/package.json").is_file():
+            print("REA_PACT_STATUS=BLOCKED_MISSING_ORIGINAL_ENGINE")
+            return
+        good={}
+        for key,p in paths.items():
+            chk=sudo("-u","rea-reversa","test","-x",p,timeout=12)
+            good[key]=(chk.returncode==0)
+        print("REA_PACT_PROVIDER_ACCESS="+json.dumps(good,sort_keys=True))
+        if not all(good.values()):
+            print("REA_PACT_STATUS=BLOCKED_MISSING_PROVIDER")
+            return
+        cfg="[Service]\\n"+ "".join(
+            f'Environment="{key}={value}"\\n' for key,value in paths.items())
+        # Only four fixed executable paths; never copy external environment
+        # or user secrets to public GitHub logs or service configuration.
+        user_stage=Path.home()/".local/share/rea-chatgpt-trial/artifacts"
+        user_stage.mkdir(mode=0o700,parents=True,exist_ok=True)
+        cfgfile=None
+        applied=False
+        verified=False
+        try:
+            with tempfile.NamedTemporaryFile(prefix="rea-unit-env-",suffix=".conf",
+                 dir=str(user_stage),mode="w",encoding="utf-8",delete=False) as tmp:
+                tmp.write(cfg)
+                cfgfile=Path(tmp.name)
+            cfgfile.chmod(0o600)
+            mk=sudo("install","-d","-m","0755","-o","root","-g","root",
+                    str(folder),timeout=18)
+            if mk.returncode:
+                print("REA_PACT_STATUS=BLOCKED_DIRECTORY_CREATION")
+                return
+            put=sudo("install","-m","0644","-o","root","-g","root",
+                     str(cfgfile),str(target),timeout=18)
+            if put.returncode:
+                print("REA_PACT_STATUS=BLOCKED_DROPIN_WRITE")
+                return
+            applied=True
+            reload=sudo("systemctl","daemon-reload",timeout=35)
+            if reload.returncode:
+                print("REA_PACT_STATUS=FAILED_SYSTEMD_RELOAD")
+                return
+            restart=sudo("systemctl","restart",unit,timeout=105)
+            if restart.returncode:
+                print("REA_PACT_STATUS=FAILED_REA_RESTART")
+                return
+            for _ in range(25):
+                pid=prop("MainPID")
+                if prop("ActiveState")=="active" and pid.isdecimal() and int(pid)>0:
+                    break
+                time.sleep(1)
+            else:
+                print("REA_PACT_STATUS=FAILED_REA_NOT_ACTIVE")
+                return
+            actual=sudo("cat",f"/proc/{int(pid)}/environ",timeout=15)
+            env_values={}
+            if actual.returncode==0:
+                for row in actual.stdout.split(bytes([0])):
+                    if b"=" in row:
+                        k,v=row.split(b"=",1)
+                        key=k.decode("ascii",errors="ignore")
+                        if key in paths:
+                            env_values[key]=v.decode("utf-8",errors="replace")
+            matches={k:env_values.get(k)==value for k,value in paths.items()}
+            print("REA_PACT_ACTIVE_ENV="+json.dumps(matches,sort_keys=True))
+            if not all(matches.values()):
+                print("REA_PACT_STATUS=FAILED_ENV_NOT_PROPAGATED")
+                return
+            # Independent *new* MCP session after REA restart.
+            init={"jsonrpc":"2.0","id":9401,"method":"initialize",
+                  "params":{"protocolVersion":"2025-06-18",
+                            "capabilities":{},
+                            "clientInfo":{"name":"rea-linux-provider-activation",
+                                          "version":"1"}}}
+            headers,info=request_mcp(init,timeout=25)
+            if "result" not in info:
+                print("REA_PACT_STATUS=FAILED_MCP_INIT")
+                return
+            active_session=headers.get("Mcp-Session-Id")
+            protocol=info["result"].get("protocolVersion")
+            request_mcp({"jsonrpc":"2.0","method":"notifications/initialized"},
+                        active_session,protocol,timeout=25)
+            _,data=request_mcp({"jsonrpc":"2.0","id":9402,"method":"tools/list",
+                                "params":{}},active_session,protocol,timeout=35)
+            advertised=data.get("result",{}).get("tools")
+            count=len(advertised) if isinstance(advertised,list) else 0
+            print("REA_PACT_MCP_TOOL_COUNT="+str(count))
+            if count!=208:
+                print("REA_PACT_STATUS=FAILED_MCP_CONTRACT_COUNT")
+                return
+            verified=True
+            print("REA_PACT_RESULT=PASS_PERSISTENT_4_PROVIDERS")
+        except (OSError,ValueError,RuntimeError,subprocess.TimeoutExpired) as exc:
+            print("REA_PACT_STATUS=FAILED_RUNTIME_VERIFICATION")
+            print("REA_PACT_ERROR_CLASS="+type(exc).__name__)
+        finally:
+            if cfgfile is not None:
+                cfgfile.unlink(missing_ok=True)
+            if applied and not verified:
+                rm=sudo("rm","-f","--",str(target),timeout=20)
+                reload=sudo("systemctl","daemon-reload",timeout=35)
+                restart=sudo("systemctl","restart",unit,timeout=100)
+                restored=(rm.returncode==0 and reload.returncode==0
+                          and restart.returncode==0
+                          and prop("ActiveState")=="active")
+                print("REA_PACT_ROLLBACK="+
+                      ("RESTORED" if restored else "INCOMPLETE_CHECK_SERVICE"))
+            elif verified:
+                print("REA_PACT_ROLLBACK=NOT_NEEDED")
         return
     if data["action"] == "fixture_linux_service_config_preflight":
         # Only original REA service, never disclose environment values.
