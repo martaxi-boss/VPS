@@ -1895,7 +1895,7 @@ def main():
             and args[0].startswith("/") and args[0].endswith("/node")
             and prev_exe==args[0] and
             all(regex.fullmatch(r"[A-Za-z0-9_./:=+\\-]{1,160}",v) for v in args)
-            and any("transport" in a for a in args[3:])
+            and any(a == "--http" or a.startswith("--http=") or a == "--transport" or a.startswith("--transport=") for a in args[3:])
             and any("8765" in a for a in args[3:])
             and any("127.0.0.1" in a for a in args[3:]))
         process=sudo("cat",f"/proc/{prior_pid}/cmdline",timeout=14)
