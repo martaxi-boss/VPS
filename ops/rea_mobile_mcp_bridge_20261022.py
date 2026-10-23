@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_supplier_gap_20261023", "fixture_linux_tshark_activate_20261023", "fixture_linux_glossary_sigrok_diag_20261023", "fixture_linux_sigrok_sandbox_20261023", "fixture_linux_static_formats_20261023", "fixture_linux_node24_stage_20261023", "fixture_linux_node24_sqlite_cli_20261023", "fixture_linux_node24_unit_preflight_20261023", "fixture_linux_node24_unit_shape_20261023", "fixture_linux_node24_activate_20261023"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_supplier_gap_20261023", "fixture_linux_tshark_activate_20261023", "fixture_linux_glossary_sigrok_diag_20261023", "fixture_linux_sigrok_sandbox_20261023", "fixture_linux_static_formats_20261023", "fixture_linux_node24_stage_20261023", "fixture_linux_node24_sqlite_cli_20261023", "fixture_linux_node24_unit_preflight_20261023", "fixture_linux_node24_unit_shape_20261023", "fixture_linux_node24_activate_20261023", "fixture_linux_go_rust_metadata_20261023"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -274,6 +274,11 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_NODE24_ACTIVATE_STATUS", "REA_NODE24_ACTIVATE_ROLLBACK",
         "REA_NODE24_ACTIVATE_ONLY_REA_RESTARTED",
         "REA_NODE24_ARG_DIAGNOSTIC",
+        "REA_GORUST_TOOL", "REA_GORUST_ISERROR",
+        "REA_GORUST_RESULT_SHA256", "REA_GORUST_ASSERTIONS",
+        "REA_GORUST_STATUS", "REA_GORUST_SUMMARY",
+        "REA_GORUST_SOURCE_PRESERVED", "REA_GORUST_CLEANUP",
+        "REA_GORUST_SERVICE_PID_STABLE", "REA_GORUST_NODE24_ACTIVE",
         "REA_MOBILE_PROVIDER_DOCTOR_GHIDRA",
         "REA_MOBILE_PROVIDER_DOCTOR_JADX", "REA_MOBILE_CATALOG",
         "REA_MOBILE_DESCRIBE_TOOL", "REA_MOBILE_TOOL_DESCRIPTOR_B64",
@@ -1800,6 +1805,183 @@ def main():
                   (installed.stdout or installed.stderr).splitlines()[0][:110])
             print("REA_RIZIN_STATUS="+(
                 "PASS_PINNED_PERSISTENT" if installed.returncode==0 else "INCOMPLETE"))
+        return
+    if data["action"] == "fixture_linux_go_rust_metadata_20261023":
+        # Both ELF fixtures originate from REA's test source contracts
+        # rea/tests/fixtures/go/image.ts and rust/image.ts. Static bytes only.
+        import tempfile
+        import struct
+        import zlib
+        unit="rea-reversa-mcp.service"
+        def pid():
+            p=subprocess.run(["systemctl","show",unit,"-p","MainPID","--value"],
+                   capture_output=True,text=True,timeout=10,check=False)
+            return p.stdout.strip()
+        start_pid=pid()
+        p=subprocess.run(["sudo","-n","readlink","-f",f"/proc/{start_pid}/exe"],
+                 capture_output=True,text=True,timeout=11,check=False)
+        node24=p.returncode==0 and p.stdout.strip()==(
+              "/opt/rea-reversa/providers/node-v24.22.1/bin/node")
+        print("REA_GORUST_NODE24_ACTIVE="+str(node24).lower())
+        if not node24:
+            print("REA_GORUST_SUMMARY=BLOCKED_ORIGINAL_NODE24_MISSING")
+            return
+        names=("inspect_go_binary","inspect_rust_binary")
+        for name in names:
+            if name not in tool_by_name or secure.classify(
+                  name,tool_by_name[name],())!="workspace":
+                print("REA_GORUST_SUMMARY=BLOCKED_UNAUTHORIZED_TOOL:"+name)
+                return
+        def u16(buf,offset,val):
+            struct.pack_into("<H",buf,offset,val)
+        def u32(buf,offset,val):
+            struct.pack_into("<I",buf,offset,val)
+        def u64(buf,offset,val):
+            struct.pack_into("<Q",buf,offset,val)
+        def varint(number):
+            encoded=bytearray()
+            while number>=128:
+                encoded.append((number&127)|128)
+                number>>=7
+            encoded.append(number)
+            return bytes(encoded)
+        # Go original image.ts: simple ELF64 program header, .go.buildinfo,
+        # 14-byte Go magic, inline version and Go module records.
+        gob=bytearray(4096)
+        gob[:7]=bytes((127,69,76,70,2,1,1))
+        u16(gob,16,2);u16(gob,18,62);u32(gob,20,1)
+        u64(gob,32,128);u64(gob,40,256)
+        u16(gob,52,64);u16(gob,54,56);u16(gob,56,1)
+        u16(gob,58,64);u16(gob,60,3);u16(gob,62,1)
+        u32(gob,128,1);u32(gob,132,6)
+        u64(gob,136,0);u64(gob,144,0x10000)
+        u64(gob,160,4096);u64(gob,168,4096)
+        sh=b"\\x00.shstrtab\\x00.go.buildinfo\\x00"
+        gob[768:768+len(sh)]=sh
+        u32(gob,320,1);u32(gob,324,3)
+        u64(gob,344,768);u64(gob,352,len(sh))
+        u32(gob,384,11);u32(gob,388,1)
+        u64(gob,400,0x10000+1024);u64(gob,408,1024)
+        u64(gob,416,2048)
+        go_ver=b"go1.26.0"
+        mtext=(b"path\\texample.com/tool/cmd/tool\\n"
+               b"mod\\texample.com/tool\\t(devel)\\t\\n"
+               b"dep\\texample.com/dependency\\tv1.2.3\\th1:sample\\n"
+               b"=>\\t../dependency\\t\\t\\n"
+               b"build\\t-compiler=gc\\n"
+               b"build\\tGOOS=linux\\n")
+        mbytes=(bytes.fromhex("3077af0c9274080241e1c107e6d618e6")
+                +mtext+bytes.fromhex("f932433186182072008242104116d8f2"))
+        gob[1024:1038]=bytes.fromhex("ff20476f206275696c64696e663a")
+        gob[1038]=8
+        gob[1039]=2
+        inline=varint(len(go_ver))+go_ver+varint(len(mbytes))+mbytes
+        gob[1056:1056+len(inline)]=inline
+        # Rust original image.ts: ELF64 with compressed .dep-v0 JSON
+        # and a read-only /rustc/40hex/ symbol string; no code executed.
+        rus=bytearray(4096)
+        rus[:7]=bytes((127,69,76,70,2,1,1))
+        u16(rus,16,2);u16(rus,18,62);u32(rus,20,1)
+        u64(rus,32,128);u64(rus,40,256)
+        u16(rus,52,64);u16(rus,54,56);u16(rus,56,1)
+        u16(rus,58,64);u16(rus,60,4);u16(rus,62,1)
+        u32(rus,128,1);u32(rus,132,6)
+        u64(rus,144,0x400000)
+        u64(rus,160,4096);u64(rus,168,4096)
+        namestr=b"\\x00.shstrtab\\x00.dep-v0\\x00.rodata\\x00"
+        rus[768:768+len(namestr)]=namestr
+        u32(rus,320,1);u32(rus,324,3)
+        u64(rus,344,768);u64(rus,352,len(namestr))
+        packages={"packages":[
+              {"name":"itoa","version":"1.0.18","source":"crates.io"},
+              {"name":"sample","version":"0.1.0","source":"local",
+               "dependencies":[0],"root":True}],"format":1}
+        compressed=zlib.compress(json.dumps(packages,separators=(",",":")).encode())
+        u32(rus,384,11);u32(rus,388,1)
+        u64(rus,408,1024);u64(rus,416,len(compressed))
+        rus[1024:1024+len(compressed)]=compressed
+        hash40="a"*40
+        rustc=("/rustc/"+hash40+"/library/core").encode()
+        u32(rus,448,19);u32(rus,452,1)
+        u64(rus,456,2);u64(rus,464,0x400000+2048)
+        u64(rus,472,2048);u64(rus,480,len(rustc))
+        rus[2048:2048+len(rustc)]=rustc
+        checked=[]
+        sources_unchanged=True
+        with tempfile.TemporaryDirectory(prefix="rea-metadata-elf-",dir="/dev/shm") as td:
+            root=Path(td)
+            root.chmod(0o755)
+            for idx,(name,buf) in enumerate(
+                 (("inspect_go_binary",gob),("inspect_rust_binary",rus)),start=1261):
+                path=root/("go.elf" if idx==1261 else "rust.elf")
+                path.write_bytes(buf)
+                path.chmod(0o644)
+                sha=hashlib.sha256(buf).hexdigest()
+                args={"path":str(path)}
+                secure.validate_arguments(tool_by_name[name],args)
+                secure._authorized_target_paths(args,additional_roots=(root,))
+                _,response=request_mcp({"jsonrpc":"2.0","id":idx,
+                 "method":"tools/call","params":{"name":name,"arguments":args}},
+                             session,protocol,timeout=88)
+                result=response.get("result")
+                good=isinstance(result,dict) and result.get("isError") is not True and "error" not in response
+                raw=result.get("structuredContent") if isinstance(result,dict) else None
+                if not isinstance(raw,dict):
+                    for rec in result.get("content",[]) if isinstance(result,dict) else []:
+                        if isinstance(rec,dict) and isinstance(rec.get("text"),str):
+                            try:
+                                raw=json.loads(rec["text"])
+                                break
+                            except (TypeError,ValueError):pass
+                raw=raw if isinstance(raw,dict) else {}
+                norm=raw.get("normalized_result",{})
+                norm=norm if isinstance(norm,dict) else {}
+                stable=hashlib.sha256(path.read_bytes()).hexdigest()==sha
+                sources_unchanged=sources_unchanged and stable
+                checks={
+                   "mcp_isError_false":good,
+                   "artifact_sha256":norm.get("artifact",{}).get("sha256")==sha,
+                   "format_elf":norm.get("format")=="elf",
+                   "arch_64":norm.get("bits")==64,
+                   "source_stable":stable
+                }
+                if name=="inspect_go_binary":
+                    bi=norm.get("build_info")
+                    bi=bi if isinstance(bi,dict) else {}
+                    module=bi.get("module",{})
+                    module=module if isinstance(module,dict) else {}
+                    checks.update({
+                       "go_version":bi.get("go_version")=="go1.26.0",
+                       "module_path":module.get("path")=="example.com/tool/cmd/tool",
+                       "dependency_present":any(d.get("path")=="example.com/dependency"
+                          for d in module.get("dependencies",[]) if isinstance(d,dict))
+                    })
+                else:
+                    meta=norm.get("auditable_metadata")
+                    meta=meta if isinstance(meta,dict) else {}
+                    packages=meta.get("packages",[])
+                    hashes=(norm.get("rustc_commit") or {}).get("hashes",[])
+                    checks.update({
+                       "two_crates":len(packages)==2,
+                       "root_crate_sample":any(p.get("name")=="sample" and p.get("root") is True
+                            for p in packages if isinstance(p,dict)),
+                       "dependency_itoa":any(p.get("name")=="itoa" and p.get("version")=="1.0.18"
+                            for p in packages if isinstance(p,dict)),
+                       "rustc_hash_identified":any(h.get("hash")==hash40 for h in hashes
+                            if isinstance(h,dict))
+                    })
+                status=bool(checks) and all(checks.values())
+                checked.append(status)
+                print("REA_GORUST_TOOL="+name)
+                print("REA_GORUST_ISERROR="+str(not good).lower())
+                print("REA_GORUST_RESULT_SHA256="+hashlib.sha256(
+                         json.dumps(response,sort_keys=True,ensure_ascii=True).encode()).hexdigest())
+                print("REA_GORUST_ASSERTIONS="+json.dumps(checks,sort_keys=True))
+                print("REA_GORUST_STATUS="+("FUNCTIONAL_PASS_SCOPED" if status else "INCOMPLETE"))
+        print("REA_GORUST_SOURCE_PRESERVED="+str(sources_unchanged).lower())
+        print("REA_GORUST_CLEANUP="+str(not root.exists()).lower())
+        print("REA_GORUST_SERVICE_PID_STABLE="+str(bool(start_pid) and start_pid==pid()).lower())
+        print("REA_GORUST_SUMMARY="+str(sum(checked))+"/"+str(len(checked)))
         return
     if data["action"] == "fixture_linux_node24_activate_20261023":
         # Switch only the original REA systemd ExecStart to verified Node 24.
