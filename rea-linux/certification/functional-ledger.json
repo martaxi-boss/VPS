@@ -458,6 +458,57 @@
       ],
       "test_total": 4,
       "test_pass": 4
+    },
+    {
+      "phase_id": "LINUX-P07-GDB-STATUS-READY-AND-LOSSY-MCP-CONTRACTS-20261023",
+      "host_family": "Linux",
+      "status": "PASS_ISOLATED_MCP_EMULATED_GDB_MI_ONLY",
+      "source_repo": "martaxi-boss/Engenheira-reversa",
+      "source_commit_on_vps": "8e9a7ee295667f8e23aea9d18af6eee4363d2032",
+      "workflow_run_id": 39969907326,
+      "workflow_url": "https://github.com/martaxi-boss/VPS/actions/runs/39969907326",
+      "request_commit": "8d7058be4f9ca293b67b619e0a88637dba134534",
+      "tests": [
+        {
+          "name": "READY",
+          "result": "PASS",
+          "exit_code": 0,
+          "sha256": "20e069d744191023cd23a98ac4e9ee8ae2680116b7946c1183440ec274f0d92f",
+          "assertions": [
+            "Original GDB MCP tool returns ready session state",
+            "Selected inferior TTY is reported as verified"
+          ]
+        },
+        {
+          "name": "LOSSY",
+          "result": "PASS",
+          "exit_code": 0,
+          "sha256": "06698b4650d439cd7ee864bc347d17e53c4d4dadaca5363123cf2dfa67f69afd",
+          "assertions": [
+            "Original GDB MCP tool reports invalid UTF-8 MI payload as lossy data",
+            "Contract-restricted structured result stays typed"
+          ]
+        }
+      ],
+      "tests_passed": 2,
+      "tests_total": 2,
+      "source_worktree_unchanged": true,
+      "mcp_tool_called": "gdb_session_status",
+      "provider_under_test": "emulated GDB/MI subprocess",
+      "original_engine_source": true,
+      "production_mcp_test": false,
+      "real_gdb_executable_available_in_path": false,
+      "limitations": [
+        "This test does NOT use actual GDB binary or an authenticated live MCP debugger session",
+        "No sensitive owner-signed start_gdb_session calls were issued to the persistent MCP",
+        "The genuine GDB integration needs executable availability plus independent signed authorization"
+      ],
+      "tools": [
+        {
+          "name": "gdb_session_status",
+          "status": "ISOLATED_MCP_CONTRACT_PASS_EMULATED_GDB_MI_REAL_INTEGRATION_PENDING"
+        }
+      ]
     }
   ],
   "active_scope_counts": {
@@ -495,7 +546,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P06-READ5-ISOLATED-MCP-CONTRACTS-20261023",
+  "latest_phase": "LINUX-P07-GDB-STATUS-READY-AND-LOSSY-MCP-CONTRACTS-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -561,7 +612,7 @@
     "successful_scoped": 3,
     "negative_only": 1,
     "blocked_positive": 1,
-    "status": "READ_CONTRACT_4_POSITIVE_LIVE_GDB_BLOCKED",
+    "status": "READ5_SOURCE_CONTRACT_EXERCISED_LIVE_PREREQUISITES_PENDING",
     "provider_preflight_run": 39959287285,
     "missing_prerequisites": {
       "verify_unknown_resolution": "No legitimate retained unknown in session; cannot fabricate one as read-only",
@@ -588,6 +639,41 @@
     },
     "verified_isolated_mcp_distinct": 4,
     "verified_real_linux_mcp_live_scoped": 3,
-    "verified_real_linux_mcp_in_memory_scoped_extra": 1
+    "verified_real_linux_mcp_in_memory_scoped_extra": 1,
+    "additional_gdb_ready_and_diagnostics": {
+      "run_id": 39969907326,
+      "pass": 2,
+      "total": 2,
+      "original_mcp_tool": true,
+      "emulated_gdb_provider": true,
+      "real_gdb_pending": true
+    },
+    "test_coverage_by_tool": [
+      {
+        "name": "list_unknowns",
+        "live_mcp": "FUNCTIONAL_PASS_SCOPED",
+        "isolated_mcp": "PASS"
+      },
+      {
+        "name": "get_evidence_bundle",
+        "live_mcp": "FUNCTIONAL_PASS_SCOPED",
+        "isolated_mcp": "PASS"
+      },
+      {
+        "name": "evaluate_reconstruction_coverage",
+        "live_mcp": "FUNCTIONAL_PASS_SCOPED",
+        "isolated_mcp": "PASS"
+      },
+      {
+        "name": "verify_unknown_resolution",
+        "live_mcp": "NEGATIVE_ONLY",
+        "isolated_mcp": "POSITIVE_PASS_GENUINE_SEEDED_EVIDENCE"
+      },
+      {
+        "name": "gdb_session_status",
+        "live_mcp": "NO_REAL_GDB_AVAILABLE",
+        "isolated_mcp": "CONTRACT_PASS_EMULATED_MI_ONLY"
+      }
+    ]
   }
 }
