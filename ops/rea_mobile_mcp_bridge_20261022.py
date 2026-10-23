@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -436,7 +436,13 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_RIZIN_BINARIES",
         "REA_RIZIN_VERIFIED_EXIT",
         "REA_RIZIN_INSTALLED",
-        "REA_RIZIN_VERSION"
+        "REA_RIZIN_VERSION",
+        "REA_UNBLOB_ALREADY_INSTALLED",
+        "REA_UNBLOB_STATUS",
+        "REA_UNBLOB_WHEEL_SHA256",
+        "REA_UNBLOB_PIP_EXIT",
+        "REA_UNBLOB_PIP_SHA256",
+        "REA_UNBLOB_EXEC_EXIT"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -1491,6 +1497,106 @@ def main():
                   json.dumps(safe_statuses(val),sort_keys=True)[:9000])
         print("REA_DOCTOR_LINUX_STATUS=" +
               ("PASS_READ_ONLY" if proc.returncode==0 else "DOCTOR_FOUND_READINESS_ISSUES"))
+        return
+    if data["action"] == "fixture_linux_unblob_persistent":
+        # Official SHA-pinned unblob wheel in dedicated Linux service-owned venv.
+        # No global Python changes and no other REA/process restarts.
+        import pwd
+        import grp
+        import shutil
+        import urllib.request
+        import tempfile
+        installed=Path("/opt/rea-reversa/providers/unblob-26.6.4")
+        entry=installed/"bin/unblob"
+        if entry.is_file():
+            p=subprocess.run([str(entry),"--version"],capture_output=True,
+                       text=True,timeout=25,check=False)
+            print("REA_UNBLOB_ALREADY_INSTALLED="+str(p.returncode==0).lower())
+            print("REA_UNBLOB_STATUS=EXISTING_NO_OVERWRITE")
+            return
+        try:
+            account=pwd.getpwnam("rea-reversa")
+        except KeyError:
+            error("Original REA systemd service account missing")
+        group=grp.getgrgid(account.pw_gid).gr_name
+        parent=Path("/opt/rea-reversa/providers")
+        if parent.is_symlink() or installed.is_symlink():
+            error("Untrusted REA service provider path")
+        for folder,perms in ((parent,"0755"),(installed,"0750")):
+            mk=subprocess.run(["sudo","-n","install","-d","-m",perms,
+                              "-o","rea-reversa","-g",group,str(folder)],
+                              capture_output=True,text=True,timeout=15,check=False)
+            if mk.returncode:
+                error("Cannot create dedicated REA provider directory")
+        venv=subprocess.run(["sudo","-n","-u","rea-reversa","/usr/bin/python3",
+                            "-m","venv",str(installed)],capture_output=True,
+                            text=True,timeout=65,check=False)
+        if venv.returncode:
+            print("REA_UNBLOB_STATUS=VENV_CREATION_FAILED")
+            return
+        url=("https://github.com/onekey-sec/unblob/releases/download/26.6.4/"
+             "unblob-26.6.4-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl")
+        digest="0fc16e9c7dc92fcf86b8b61475700c9dd16e1dddacf34467574ea965a5d3584e"
+        local=installed/"unblob-official.whl"
+        try:
+            req=urllib.request.Request(url,headers={"User-Agent":"REA-Linux-provider-verification/1"})
+            with urllib.request.urlopen(req,timeout=65) as source:
+                chunks=[];size=0
+                while True:
+                    data=source.read(65536)
+                    if not data: break
+                    size+=len(data)
+                    if size>3*1024*1024:
+                        error("Pinned unblob wheel unexpectedly large")
+                    chunks.append(data)
+            wheel=b"".join(chunks)
+            sha=hashlib.sha256(wheel).hexdigest()
+            print("REA_UNBLOB_WHEEL_SHA256="+sha)
+            if sha!=digest:
+                error("Pinned unblob official wheel checksum mismatched")
+            # pip requires valid wheel naming; do not add/modify arbitrary files.
+            wheelname="unblob-26.6.4-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
+            target=installed/wheelname
+            # Copy wheel into directory accessible only to REA service identity.
+            temp=Path.home()/".local/share/rea-chatgpt-trial/artifacts"
+            temp.mkdir(mode=0o700,parents=True,exist_ok=True)
+            staging=temp/wheelname
+            if staging.exists():
+                error("Fixed wheel staging path unexpectedly occupied")
+            staging.write_bytes(wheel)
+            try:
+                cp=subprocess.run(["sudo","-n","install","-m","0640",
+                    "-o","rea-reversa","-g",group,str(staging),str(target)],
+                    capture_output=True,text=True,timeout=20,check=False)
+                if cp.returncode:
+                    error("Failed to stage wheel in private REA service directory")
+            finally:
+                staging.unlink(missing_ok=True)
+            cmd=["sudo","-n","-u","rea-reversa","env","PIP_NO_CACHE_DIR=1",
+                 "PIP_DISABLE_PIP_VERSION_CHECK=1","PIP_NO_INPUT=1",
+                 str(installed/"bin/python"),"-m","pip","install",
+                 "--no-input","--disable-pip-version-check",str(target)]
+            pip=subprocess.run(cmd,capture_output=True,text=True,timeout=380,
+                               check=False)
+            print("REA_UNBLOB_PIP_EXIT="+str(pip.returncode))
+            print("REA_UNBLOB_PIP_SHA256="+hashlib.sha256(
+                (pip.stdout+"\n"+pip.stderr).encode()).hexdigest())
+            if pip.returncode:
+                print("REA_UNBLOB_STATUS=PIP_DEPENDENCIES_FAILED")
+                return
+            check=subprocess.run(["sudo","-n","-u","rea-reversa",str(entry),
+                                  "--version"],capture_output=True,
+                                  text=True,timeout=32,check=False)
+            print("REA_UNBLOB_EXEC_EXIT="+str(check.returncode))
+            print("REA_UNBLOB_STATUS="+(
+                "PASS_PERSISTENT_LINUX" if check.returncode==0 else
+                "UNAVAILABLE_AFTER_INSTALL"))
+        finally:
+            # Delete only the fixed, owner-scoped transient wheel path.
+            target=installed/"unblob-26.6.4-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
+            if target.is_file():
+                subprocess.run(["sudo","-n","rm","--",str(target)],
+                    capture_output=True,timeout=15,check=False)
         return
     if data["action"] == "fixture_linux_rizin_persistent":
         # Official checksum-pinned Rizin Linux static binary, under existing
