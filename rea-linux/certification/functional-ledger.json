@@ -750,15 +750,126 @@
         "no_bypass_of_sensitive_owner_signature": true,
         "other_service_changes": "No modifications requested or issued to unrelated service units; independent unrelated-service health not audited"
       }
+    },
+    {
+      "phase_id": "LINUX-P12-TSHARK-FIELDS-ORIGINAL-MCP-20261023",
+      "date_utc": "2026-10-23",
+      "status": "TWO_NEW_FUNCTIONAL_PASS_SCOPED_TOOLS_TSHARK_PERSISTENT_LINUX_SIGROK_LIBUSB_INIT_FAILURE",
+      "original_rea_mcp": "127.0.0.1:8765/mcp",
+      "original_service": "rea-reversa-mcp.service",
+      "supplier": {
+        "tshark": "installed 4.x, service user can execute",
+        "unit_environment": "REA_TSHARK_COMMAND=/usr/bin/tshark",
+        "drop_in": "/etc/systemd/system/rea-reversa-mcp.service.d/85-rea-linux-tshark.conf",
+        "deployment_action_run_id": 39994256498,
+        "deployment_action_commit": "54774088df4a63ea7288f9bf65b413d038e6033e",
+        "verified_mcp_tool_catalog": 208,
+        "verified_live_process_env": true,
+        "restart_scope": "Only existing REA systemd unit",
+        "official_source_contracts": [
+          "rea/src/contracts/captures/captureToolContracts.ts",
+          "rea/src/domain/captures/packetFields.ts",
+          "rea/src/domain/captures/packetCapture.ts"
+        ]
+      },
+      "tool_tests": [
+        {
+          "name": "inspect_packet_capture",
+          "status": "FUNCTIONAL_PASS_SCOPED",
+          "original_permanent_mcp_run_id": 39994380901,
+          "commit": "875c8d92ec776bab347e2ee47bf6d41517ba382e",
+          "isError": false,
+          "response_sha256": "170355a7d50384844844034f489fb5f84f6602c600ca4aa2bf59a329617b01ce",
+          "assertions": {
+            "matched_packet_count_1": true,
+            "returned_packet_count_1": true,
+            "udp_port_field": true,
+            "source_sha256_matches": true,
+            "hardware_acquisition_not_performed": true
+          },
+          "fixture": {
+            "kind": "single self-synthesized Ethernet/IPv4/UDP PCAP",
+            "path_zone": "/dev/shm/rea-owned-udp-",
+            "not_real_user_data": true,
+            "cleanup": true,
+            "original_mcp_pid_unchanged": true
+          },
+          "limitations": "One synthetic UDP PCAP and specified fields; no pcapng or large-capture/performance certification"
+        },
+        {
+          "name": "inspect_packet_fields",
+          "status": "FUNCTIONAL_PASS_SCOPED",
+          "original_permanent_mcp_run_id": 39994660187,
+          "commit": "86f2d0c006540917ed890df9f184252e98f8c9c6",
+          "isError": false,
+          "cases": [
+            {
+              "name": "exact UDP protocol",
+              "response_sha256": "d39dbab45c01e1310a9b5987fd7b839d38ba44e81cbfe8c14bdfe1232e05c2a1",
+              "assertions_all_true": true
+            },
+            {
+              "name": "UDP port field definitions",
+              "response_sha256": "f16437edbfc63106ad6ddb6b498d6396ad45db6ad3276539e757a7870a3e1965",
+              "assertions_all_true": true
+            },
+            {
+              "name": "unknown protocol yields expected empty list",
+              "response_sha256": "726773f6cd0fd09d762d68b5e25a1235bf87378339e8a80fe8b3f5ebbe731c19",
+              "assertions_all_true": true
+            }
+          ],
+          "assertions": {
+            "tshark_real_major_4": true,
+            "window_length_consistent": true,
+            "no_hardware_acquisition": true,
+            "source_line_preservation_in_result_schema_not_directly_audited": true
+          },
+          "limitations": "Protocol/field discovery confined to fixed UDP and unknown queries; not a full TShark catalog enumeration certification"
+        }
+      ],
+      "sigrok": {
+        "installed_version": "0.7.2",
+        "active_systemd_env": true,
+        "original_mcp_tool": "inspect_signal_decoders",
+        "test_run_ids": [
+          39993909113,
+          39994380901,
+          39994660187
+        ],
+        "original_mcp_isError": true,
+        "output_capture": {
+          "exit_code": 0,
+          "stdout_bytes": 0,
+          "stderr_bytes": 56
+        },
+        "libusb_error": "sr: backend: libusb_init() returned LIBUSB_ERROR_OTHER.",
+        "native_service_user_sigrok_version_succeeds": true,
+        "diagnosis": "Blocked inside original systemd service context by libusb initialization, not by REA_SIGROK_COMMAND absence or version mismatch",
+        "sandbox_assessment": "Read-only diagnostic pending; no REA sandbox relaxation and no tool certification"
+      },
+      "provider_safety": {
+        "original_service_active": true,
+        "mcp_tool_catalog": 208,
+        "other_services_not_modified": true,
+        "real_live_capture": false,
+        "fixture_deleted": true,
+        "sensitive_signature_policy_not_changed": true
+      },
+      "canonical_counts_after_phase": {
+        "scoped_functional_distinct": 12,
+        "pending_individual_review": 196,
+        "fully_certified_by_this_phase": 0
+      }
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 10,
-    "awaiting_canonical_individual_review": 198,
+    "functional_pass_scoped_distinct": 12,
+    "awaiting_canonical_individual_review": 196,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 3,
+    "workspace_newly_passed_distinct": 5,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3
   },
@@ -790,7 +901,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P11-KUNA-PERSISTENT-INTEGRATION-20261023",
+  "latest_phase": "LINUX-P12-TSHARK-FIELDS-ORIGINAL-MCP-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -1031,6 +1142,25 @@
       "positive_real_sigrok_mcp_functionality": false,
       "kuna_provider_configured_and_available": true,
       "per_tool_certification_incomplete": true
+    },
+    "tshark_persistent": {
+      "status": "PASS_CONFIGURED_AND_TWO_REAL_MCP_TOOLS_POSITIVE_SCOPED",
+      "version_family": "4.x",
+      "deployment_run_id": 39994256498,
+      "test_runs": [
+        39994380901,
+        39994660187
+      ],
+      "service_mainpid_env_verified": true,
+      "other_services_unchanged_by_action": true
+    },
+    "sigrok_blocker": {
+      "type": "ORIGINAL_SERVICE_LIBUSB_INIT_ERROR",
+      "exact_stderr": "sr: backend: libusb_init() returned LIBUSB_ERROR_OTHER.",
+      "stdout_bytes": 0,
+      "stderr_bytes": 56,
+      "mcp_tool_isError": true,
+      "sandbox_relaxation_not_performed": true
     }
   }
 }
