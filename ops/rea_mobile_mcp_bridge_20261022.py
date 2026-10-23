@@ -325,6 +325,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_PCAP_STATUS",
         "REA_PCAP_DIAG_INDICATORS", "REA_PCAP_DIAG_KEYS",
         "REA_PCAP_DIAG_STRUCTURED_KEYS",
+        "REA_PCAP_SYSTEMD_PRIVATE_TMP",
         "REA_LINUX_GDB_REAL_MISSING_LIBS",
         "REA_LINUX_GDB_REAL_STAGED_DEPS",
         "REA_LINUX_GDB_REAL_DEP_ERROR",
@@ -1881,7 +1882,17 @@ def main():
         print("REA_PCAP_PROVIDER_VERSIONS=" + json.dumps(versions, sort_keys=True))
         fixture_status = "INCOMPLETE"
         cleanup_ok = False
-        with tempfile.TemporaryDirectory(prefix="rea-pcap-certified-", dir="/tmp") as folder:
+        isolation = subprocess.run(
+            ["systemctl", "show", "rea-reversa-mcp.service",
+             "-p", "PrivateTmp", "--value"],
+            capture_output=True, text=True, timeout=10, check=False)
+        private_tmp = isolation.stdout.strip().lower()
+        print("REA_PCAP_SYSTEMD_PRIVATE_TMP=" +
+              (private_tmp if private_tmp in ("yes","no","true","false","disconnected")
+               else "UNKNOWN"))
+        # /tmp may be private to systemd. /dev/shm holds a tiny synthetic
+        # read-only sample in a shared, self-cleaning location, no target data.
+        with tempfile.TemporaryDirectory(prefix="rea-pcap-certified-", dir="/dev/shm") as folder:
             root = Path(folder)
             root.chmod(0o755)
             target = root / "one-udp-packet.pcap"
