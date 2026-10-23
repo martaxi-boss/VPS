@@ -526,6 +526,8 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_BIN3_BUILD_RUST_VERSION","REA_BIN3_BUILD_CARGO_VERSION",
         "REA_BIN3_BUILD_SOURCE_COMMIT","REA_BIN3_BUILD_SOURCE_DIAGNOSTIC",
         "REA_BIN3_BUILD_CARGO_EXIT","REA_BIN3_BUILD_CARGO_DIAGNOSTIC",
+        "REA_BIN3_BUILD_CARGO_FAILURE_COUNT","REA_BIN3_BUILD_CARGO_FAILURE_1",
+        "REA_BIN3_BUILD_CARGO_FAILURE_2","REA_BIN3_BUILD_CARGO_FAILURE_3",
         "REA_BIN3_BUILD_VERSION","REA_BIN3_BUILD_BIN_SHA256",
         "REA_BIN3_BUILD_SERVICE_USER",
         "REA_BIN3_BUILD_TEMP_CLEANUP","REA_BIN3_BUILD_REA_PID_STABLE",
@@ -1920,6 +1922,17 @@ def main():
                         cargo_exit=124
                 print("REA_BIN3_BUILD_CARGO_EXIT="+str(cargo_exit))
                 if cargo_exit!=0:
+                    cargo_lines=cargolog.read_text(errors="replace").splitlines()
+                    errors=[row for row in cargo_lines if any(
+                        key in row.lower() for key in (
+                          "error:", "error[", "caused by:", "failed to",
+                          "fatal error", "pkg-config", "not found", "missing",
+                          "could not", "no such file", "requires rustc"
+                        ))]
+                    print("REA_BIN3_BUILD_CARGO_FAILURE_COUNT="+str(len(errors)))
+                    for idx,row in enumerate(errors[-3:],start=1):
+                        clean=re.sub(r"[^A-Za-z0-9 ./=_:;()\[\]-]"," ",row).strip()
+                        print("REA_BIN3_BUILD_CARGO_FAILURE_"+str(idx)+"="+clean[:215])
                     print("REA_BIN3_BUILD_CARGO_DIAGNOSTIC="+
                           cargolog.read_text(errors="replace")[-190:].replace("\n"," "))
                     print("REA_BIN3_BUILD_STATUS=BLOCKED_CARGO_BUILD")
