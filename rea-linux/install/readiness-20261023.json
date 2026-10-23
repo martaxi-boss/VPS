@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_CORE_KEY_PROVIDERS_INSTALLED_ACTIVE_MCP_TOOL_CERTIFICATION_INCOMPLETE",
+  "status": "LINUX_PERSISTENT_CORE_PROVIDERS_LIVE_SERVICE_CONFIRMED_INDIVIDUAL_CERTIFICATION_OPEN",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -19,6 +19,11 @@
       "workflow_run_id": 39972622800,
       "url": "https://github.com/martaxi-boss/VPS/actions/runs/39972622800",
       "scope": "Only temporary user-level extracted GNU GDB and libraries; no durable provider installation"
+    },
+    "current_live_systemd_process_confirmation": {
+      "workflow_run_id": 39983162092,
+      "commit": "52f68e6d603d2f4ce60aedbfd6a5e0db78a8fab5",
+      "url": "https://github.com/martaxi-boss/VPS/actions/runs/39983162092"
     }
   },
   "installed_core": {
@@ -139,7 +144,7 @@
   "github_actions_ssh_bridge_maintained": true,
   "certification_gating": "Do not mark full 208/208; key native Linux provider installation enabled and verified, per-tool behavioral checks remain.",
   "baseline_is_historical": true,
-  "baseline_observation": "Pre-install check retained for provenance. Compare with current_verified_installation below; do not treat baseline missing-provider flags as current.",
+  "baseline_observation": "Historical pre-install missing-provider flags must not be interpreted as current: compare with current_verified_installation, including active systemd process confirmation",
   "current_verified_installation": {
     "captured_on": "2026-10-23",
     "os_family": "Linux",
@@ -216,6 +221,23 @@
       "Do not attempt to install non-Linux, proprietary/licensed, or hardware/device-dependent providers without verified compatibility and authorization",
       "Run actual MCP tools/call per individual tool and validate normalized behavior, not only binary executable readiness",
       "MCP sensitive operations require independently signed owner authorization, not just server installation"
-    ]
+    ],
+    "post_activation_systemd_process_confirmation": {
+      "run_id": 39983162092,
+      "commit": "52f68e6d603d2f4ce60aedbfd6a5e0db78a8fab5",
+      "status": "PASS_READ_ONLY_LIVE_ORIGINAL_SERVICE_PROCESS",
+      "mcp_tools": 208,
+      "service_user": "rea-reversa",
+      "mainpid_executable": "node",
+      "provider_environment_keys_from_systemd_and_mainpid": [
+        "REA_GDB_COMMAND",
+        "REA_BINWALK_COMMAND",
+        "REA_RIZIN_COMMAND",
+        "REA_UNBLOB_COMMAND"
+      ],
+      "environment_reset_detected": false,
+      "other_service_changes": false,
+      "note": "Verifies 4 environment variables and service process, not individual tool functionality or health of unrelated services"
+    }
   }
 }
