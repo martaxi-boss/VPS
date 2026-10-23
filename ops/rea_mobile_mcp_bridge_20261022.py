@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_local_provider_triage", "fixture_linux_sigrok_preflight", "fixture_linux_sigrok_activate", "fixture_linux_sigrok_live_mcp", "fixture_linux_sigrok_failure_doctor", "fixture_linux_kuna_persistent"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_local_provider_triage", "fixture_linux_sigrok_preflight", "fixture_linux_sigrok_activate", "fixture_linux_sigrok_live_mcp", "fixture_linux_sigrok_failure_doctor", "fixture_linux_kuna_persistent", "fixture_linux_kuna_activate"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -253,6 +253,10 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_KUNA_INSTALL_BINARY_SHA256", "REA_KUNA_INSTALL_VERSION",
         "REA_KUNA_INSTALL_SERVICE_ACCESS", "REA_KUNA_INSTALL_NOTE",
         "REA_KUNA_INSTALL_REA_SERVICE_UNCHANGED", "REA_KUNA_INSTALL_BYTES",
+        "REA_KUNA_ACTIVATION_VERSION", "REA_KUNA_ACTIVATION_ENV",
+        "REA_KUNA_ACTIVATION_MCP_COUNT", "REA_KUNA_ACTIVATION_DOCTOR",
+        "REA_KUNA_ACTIVATION_RESTART_ONLY_REA", "REA_KUNA_ACTIVATION_STATUS",
+        "REA_KUNA_ACTIVATION_ROLLBACK",
         "REA_MOBILE_DESCRIBE_TOOL", "REA_MOBILE_TOOL_DESCRIPTOR_B64",
         "REA_MOBILE_TOOL_SCHEMA_SUMMARY", "REA_MOBILE_TOOL_DESCRIPTOR_SHA256",
         "REA_MOBILE_TOOL_DESCRIPTOR_BYTES", "REA_MOBILE_TOOL_DESCRIPTOR_TRUNCATED",
@@ -2071,6 +2075,170 @@ def main():
             print("REA_PCONFIG_PROVIDER_"+name.upper()+"="+(
                 "PASS" if test.returncode==0 else "NOT_ACCESSIBLE"))
         print("REA_PCONFIG_STATUS=PASS_READ_ONLY")
+        return
+    if data["action"] == "fixture_linux_kuna_activate":
+        # Only the existing REA daemon: add two fixed, fully vetted Kuna settings.
+        # Do not alter other units, touch original REA source, or replace overrides.
+        import tempfile
+        import time
+        import pwd
+        import grp
+        unit="rea-reversa-mcp.service"
+        executable="/opt/rea-reversa/providers/kuna-v1.833/bin/kuna"
+        cache="/opt/rea-reversa/providers/kuna-v1.833/cache"
+        target=Path("/etc/systemd/system/rea-reversa-mcp.service.d/90-rea-linux-kuna.conf")
+        def sudo(*args,timeout=35):
+            return subprocess.run(["sudo","-n",*args],capture_output=True,
+                text=True,timeout=timeout,check=False)
+        def prop(key):
+            p=subprocess.run(["systemctl","show",unit,"-p",key,"--value"],
+                       capture_output=True,text=True,timeout=12,check=False)
+            return p.stdout.strip() if p.returncode==0 else ""
+        if prop("User")!="rea-reversa" or prop("ActiveState")!="active":
+            print("REA_KUNA_ACTIVATION_STATUS=BLOCKED_SERVICE_IDENTITY")
+            return
+        if target.is_symlink() or sudo("test","!","-e",str(target),timeout=10).returncode!=0:
+            print("REA_KUNA_ACTIVATION_STATUS=BLOCKED_OVERRIDE_ALREADY_EXISTS")
+            return
+        if "REA_KUNA_COMMAND=" in prop("Environment"):
+            print("REA_KUNA_ACTIVATION_STATUS=BLOCKED_EXISTING_PROVIDER_KEY")
+            return
+        if (not Path("/opt/rea-reversa/rea/package.json").is_file() or
+                not Path(executable).is_file()):
+            print("REA_KUNA_ACTIVATION_STATUS=BLOCKED_UNAVAILABLE_ENGINE")
+            return
+        version=sudo("-u","rea-reversa",executable,"--version",timeout=20)
+        approved=version.returncode==0 and version.stdout.strip().splitlines()[0:1]==["kuna 1.833"]
+        print("REA_KUNA_ACTIVATION_VERSION="+("PASS_1.833" if approved else "FAIL"))
+        if not approved:
+            print("REA_KUNA_ACTIVATION_STATUS=BLOCKED_VERSION")
+            return
+        account=pwd.getpwnam("rea-reversa")
+        group=grp.getgrgid(account.pw_gid).gr_name
+        if Path(cache).is_symlink():
+            print("REA_KUNA_ACTIVATION_STATUS=BLOCKED_CACHE_SYMLINK")
+            return
+        if Path(cache).exists():
+            stat=Path(cache).stat()
+            if not Path(cache).is_dir() or stat.st_uid!=account.pw_uid:
+                print("REA_KUNA_ACTIVATION_STATUS=BLOCKED_CACHE_OWNER")
+                return
+        else:
+            mk=sudo("install","-d","-m","0700","-o","rea-reversa",
+                  "-g",group,cache,timeout=20)
+            if mk.returncode:
+                print("REA_KUNA_ACTIVATION_STATUS=BLOCKED_CACHE_SETUP")
+                return
+        def test_mcp():
+            headers,hello=request_mcp({"jsonrpc":"2.0","id":761,
+              "method":"initialize","params":{"protocolVersion":"2025-06-18",
+                 "capabilities":{},"clientInfo":{"name":"rea-kuna-cert",
+                  "version":"1"}}},timeout=20)
+            if "result" not in hello: return False,0
+            sid=headers.get("Mcp-Session-Id")
+            proto=hello["result"].get("protocolVersion")
+            request_mcp({"jsonrpc":"2.0","method":"notifications/initialized"},
+                        sid,proto,timeout=20)
+            _,cat=request_mcp({"jsonrpc":"2.0","id":762,
+                     "method":"tools/list","params":{}},sid,proto,timeout=25)
+            entries=cat.get("result",{}).get("tools",[])
+            return isinstance(entries,list) and len(entries)==208,len(entries)
+        staging=Path.home()/".local/share/rea-chatgpt-trial/artifacts"
+        staging.mkdir(mode=0o700,parents=True,exist_ok=True)
+        if staging.is_symlink():
+            error("REA staging directory is a symlink")
+        cfg=None
+        applied=False
+        verified=False
+        try:
+            with tempfile.NamedTemporaryFile(mode="w",encoding="ascii",delete=False,
+                          prefix="rea-kuna-env-",suffix=".conf",dir=str(staging)) as fp:
+                cfg=Path(fp.name)
+                fp.write("[Service]" + chr(10) +
+                 'Environment="REA_KUNA_COMMAND='+executable+'"' + chr(10) +
+                 'Environment="REA_KUNA_CACHE_DIR='+cache+'"' + chr(10))
+            cfg.chmod(0o600)
+            if sudo("install","-m","0644","-o","root","-g","root",
+                    str(cfg),str(target),timeout=20).returncode:
+                print("REA_KUNA_ACTIVATION_STATUS=FAILED_WRITING_DROPIN")
+                return
+            applied=True
+            if sudo("systemctl","daemon-reload",timeout=30).returncode:
+                print("REA_KUNA_ACTIVATION_STATUS=FAILED_DAEMON_RELOAD")
+                return
+            loaded=prop("DropInPaths")
+            environment=prop("Environment")
+            if (str(target) not in loaded or
+                "REA_KUNA_COMMAND="+executable not in environment or
+                "REA_KUNA_CACHE_DIR="+cache not in environment):
+                print("REA_KUNA_ACTIVATION_STATUS=FAILED_UNIT_CONFIG")
+                return
+            if sudo("systemctl","restart",unit,timeout=105).returncode:
+                print("REA_KUNA_ACTIVATION_STATUS=FAILED_REA_ONLY_RESTART")
+                return
+            count=0
+            for attempt in range(9):
+                try:
+                    if prop("ActiveState")=="active":
+                        okay,count=test_mcp()
+                        if okay: break
+                except Exception:
+                    pass
+                time.sleep(1)
+            print("REA_KUNA_ACTIVATION_MCP_COUNT="+str(count))
+            pid=prop("MainPID")
+            getenv=sudo("cat",f"/proc/{pid}/environ",timeout=15) if (
+                pid.isdecimal() and int(pid)>0) else None
+            keys=set()
+            if getenv is not None and getenv.returncode==0:
+                keys=set(getenv.stdout.split(bytes([0])))
+            accepted=(("REA_KUNA_COMMAND="+executable).encode() in keys
+                       and ("REA_KUNA_CACHE_DIR="+cache).encode() in keys)
+            print("REA_KUNA_ACTIVATION_ENV="+str(accepted).lower())
+            doctor={"configured":False,"available":False}
+            if accepted and count==208:
+                rawenv={}
+                for record in keys:
+                    if b"=" in record:
+                        name,val=record.split(b"=",1)
+                        if name in (b"HOME",b"PATH",b"JAVA_HOME",b"GHIDRA_INSTALL_DIR",
+                            b"REA_KUNA_COMMAND",b"REA_KUNA_CACHE_DIR",
+                            b"REA_JADX_MCP_JAR",b"REA_JADX_HEAP_MIB"):
+                            try: rawenv[name.decode("ascii")]=val.decode("utf-8")
+                            except UnicodeDecodeError: pass
+                vars=[key+"="+value for key,value in rawenv.items()]
+                run=sudo("-u","rea-reversa","env",*vars,
+                    "node","/opt/rea-reversa/rea/scripts/rea.mjs","doctor","--json",
+                    timeout=115)
+                try:
+                    d=json.loads(run.stdout)
+                    for part in d.get("providerInspections",[]):
+                        if isinstance(part,dict) and part.get("id")=="kuna":
+                            doctor={"configured":part.get("configured") is True,
+                                    "available":part.get("available") is True}
+                except (ValueError,TypeError):
+                    pass
+            print("REA_KUNA_ACTIVATION_DOCTOR="+json.dumps(doctor,sort_keys=True))
+            verified=(count==208 and accepted and all(doctor.values())
+                     and prop("ActiveState")=="active")
+            if verified:
+                print("REA_KUNA_ACTIVATION_RESTART_ONLY_REA=true")
+                print("REA_KUNA_ACTIVATION_STATUS=PASS_PERSISTENT_ORIGINAL_MCP")
+                return
+            print("REA_KUNA_ACTIVATION_STATUS=FAILED_POST_ACTIVATION_DOCTOR")
+        finally:
+            if cfg is not None:
+                cfg.unlink(missing_ok=True)
+            if applied and not verified:
+                rem=sudo("rm","-f",str(target),timeout=18)
+                rel=sudo("systemctl","daemon-reload",timeout=35)
+                rest=sudo("systemctl","restart",unit,timeout=110)
+                health=False
+                try: health,_=test_mcp()
+                except Exception: pass
+                print("REA_KUNA_ACTIVATION_ROLLBACK="+(
+                    "PASS_RESTORED" if rem.returncode==0 and rel.returncode==0
+                    and rest.returncode==0 and health else "NEEDS_REVIEW"))
         return
     if data["action"] == "fixture_linux_kuna_persistent":
         # Original REA Kuna provider: Apache-2.0, 1.833 is the version
