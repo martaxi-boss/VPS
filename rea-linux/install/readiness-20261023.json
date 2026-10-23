@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_CORE_TSHARK_KUNA_AND_APKTOOL_ACTIVE_SIGROK_SERVICE_LIBUSB_PENDING_196_TOOLS_UNREVIEWED",
+  "status": "LINUX_REA_ORIGINAL_MCP_NODE24_208_CATALOG_SQLITE_EVM_TSHARK_KUNA_ACTIVE_SIGROK_LIBUSB_BLOCKED",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -311,7 +311,14 @@
       "actual_captured_version_stdout_bytes": 0,
       "actual_captured_version_exit_code": 0,
       "latest_signature_run_id": 39994660187,
-      "security": "Do not disable sandbox or expose USB devices without detailed safety assessment"
+      "security": "Do not disable sandbox or expose USB devices without detailed safety assessment",
+      "sandbox_read_only_run_id": 39994993320,
+      "unit_PrivateDevices": true,
+      "unit_DevicePolicy": "closed",
+      "host_dev_bus_usb_present": true,
+      "service_dev_bus_usb_present": false,
+      "diagnosis": "LIBUSB_ERROR_OTHER in original MCP context likely from device namespace; not proven sole cause",
+      "security_posture": "PRESERVED_NO_RELAXATION"
     },
     "kuna": {
       "version": "1.833",
@@ -350,6 +357,23 @@
         39994380901,
         39994660187
       ]
+    },
+    "node24": {
+      "version": "v24.22.1",
+      "staged_binary": "/opt/rea-reversa/providers/node-v24.22.1/bin/node",
+      "official_archive_sha256": "6c172a9ab6718f7b801fb5a7bd486af2ee5e32758086a04b84fcce2aa77095e6",
+      "staged_bin_sha256": "e32e2d16081cf644f88392934288086e7662529d0d43277c34f7aad2207cfafb",
+      "version_preflight_run_id": 39996402957,
+      "successful_original_cli_sqlite_run_id": 39996871092,
+      "clean_systemd_exec_shape_run_id": 39997331726,
+      "original_service_migration_run_id": 39998433389,
+      "activated_through_only_service_dropin": "/etc/systemd/system/rea-reversa-mcp.service.d/95-rea-linux-node24.conf",
+      "active_service_version_verified": true,
+      "existing_tool_count": 208,
+      "signature_risks_unchanged": true,
+      "real_sqlite_mcp_pass": true,
+      "other_units_unchanged": true,
+      "metadata": "No global node replacement; permanent original MCP provider environment remains unchanged"
     }
   },
   "final_hygiene_verified": {
