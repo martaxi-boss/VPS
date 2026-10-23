@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_wasm_compare_real_mcp_20261023"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_wasm_compare_real_mcp_20261023", "fixture_linux_sigrok_readonly_sandbox_20261023"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -493,7 +493,21 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_WCMP_STATUS","REA_WCMP_TOOL","REA_WCMP_ASSERTIONS",
         "REA_WCMP_RESPONSE_SHA256","REA_WCMP_FIXTURE_CLEANUP",
         "REA_WCMP_INSPECT_0","REA_WCMP_INSPECT_1",
-        "REA_WCMP_MCP_CALL_FAILED","REA_WCMP_CALL_ISERROR"
+        "REA_WCMP_MCP_CALL_FAILED","REA_WCMP_CALL_ISERROR",
+        "REA_SIGROK_READONLY_STATUS","REA_SIGROK_SANDBOX_FRAGMENTPATH",
+        "REA_SIGROK_SANDBOX_MAINPID","REA_SIGROK_SANDBOX_ACTIVESTATE",
+        "REA_SIGROK_SANDBOX_USER","REA_SIGROK_SANDBOX_PRIVATEDEVICES",
+        "REA_SIGROK_SANDBOX_DEVICEPOLICY","REA_SIGROK_SANDBOX_RESTRICTADDRESSFAMILIES",
+        "REA_SIGROK_SANDBOX_SYSTEMCALLFILTER","REA_SIGROK_SANDBOX_PRIVATENETWORK",
+        "REA_SIGROK_SANDBOX_NONEWPRIVILEGES","REA_SIGROK_SANDBOX_PROTECTHOME",
+        "REA_SIGROK_SANDBOX_PROTECTKERNELTUNABLES",
+        "REA_SIGROK_SANDBOX_RESTRICTNAMESPACES","REA_SIGROK_PROC_SECURITY",
+        "REA_SIGROK_NATIVE_SYSTEM_EXIT","REA_SIGROK_NATIVE_SYSTEM_VERSION_072",
+        "REA_SIGROK_NATIVE_SYSTEM_STDERR_SHA256",
+        "REA_SIGROK_NATIVE_SERVICE_USER_EXIT",
+        "REA_SIGROK_NATIVE_SERVICE_USER_VERSION_072",
+        "REA_SIGROK_NATIVE_SERVICE_USER_STDERR_SHA256",
+        "REA_SIGROK_DISTRO_PKG_SHA256"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -1195,6 +1209,65 @@ def main():
                  response,sort_keys=True,ensure_ascii=True).encode()).hexdigest())
             print("REA_WCMP_STATUS="+("FUNCTIONAL_PASS_SCOPED" if all(checks.values()) else "INCOMPLETE"))
         print("REA_WCMP_FIXTURE_CLEANUP="+str(not root.exists()).lower())
+        return
+    if data["action"] == "fixture_linux_sigrok_readonly_sandbox_20261023":
+        # Diagnose libusb/offline Sigrok 0.7.2 without touching original
+        # REA service, USB device namespace, kernel or another provider.
+        unit="rea-reversa-mcp.service"
+        def run(argv,seconds=18):
+            return subprocess.run(argv,capture_output=True,text=True,
+                                  timeout=seconds,check=False)
+        prop=["FragmentPath","MainPID","ActiveState","User","PrivateDevices",
+              "DevicePolicy","RestrictAddressFamilies","SystemCallFilter",
+              "PrivateNetwork","NoNewPrivileges","ProtectHome",
+              "ProtectKernelTunables","RestrictNamespaces","CapabilityBoundingSet"]
+        p=run(["systemctl","show",unit,*["-p"+x for x in prop]])
+        if p.returncode != 0:
+            print("REA_SIGROK_READONLY_STATUS=FAILED_SYSTEMD_QUERY")
+            return
+        settings={}
+        for line in p.stdout.splitlines():
+            if "=" in line:
+                k,v=line.split("=",1)
+                if k in prop:
+                    settings[k]=v
+        if (settings.get("User")!="rea-reversa"
+            or settings.get("ActiveState")!="active"
+            or len(tools)!=208):
+            print("REA_SIGROK_READONLY_STATUS=BLOCKED_ORIGINAL_IDENTITY")
+            return
+        for key in prop:
+            if key == "CapabilityBoundingSet":
+                continue
+            print("REA_SIGROK_SANDBOX_"+key.upper()+"="+
+                  str(settings.get(key,"UNSET"))[:225].replace("\n"," "))
+        pid=settings.get("MainPID","")
+        if pid.isdigit() and int(pid)>0:
+            p=run(["sudo","-n","cat","/proc/"+pid+"/status"],12)
+            if p.returncode==0:
+                reported={}
+                for line in p.stdout.splitlines():
+                    for key in ("Seccomp","Seccomp_filters","NoNewPrivs"):
+                        if line.startswith(key+":"):
+                            reported[key]=line.split(":",1)[1].strip()
+                print("REA_SIGROK_PROC_SECURITY="+json.dumps(reported,sort_keys=True))
+        for identity,command in (("SYSTEM","/usr/bin/sigrok-cli"),
+                                  ("SERVICE_USER","/usr/bin/sigrok-cli")):
+            cmd=([command,"--version"] if identity=="SYSTEM"
+                else ["sudo","-n","runuser","-u","rea-reversa","--",
+                      command,"--version"])
+            p=run(cmd,15)
+            txt=p.stdout.strip()
+            print("REA_SIGROK_NATIVE_"+identity+"_EXIT="+str(p.returncode))
+            print("REA_SIGROK_NATIVE_"+identity+"_VERSION_072="+str(
+                 txt.startswith("sigrok-cli 0.7.2") and "libsigrokdecode" in txt).lower())
+            print("REA_SIGROK_NATIVE_"+identity+"_STDERR_SHA256="+
+                  hashlib.sha256(p.stderr.encode()).hexdigest())
+        package=run(["dpkg-query","-W","-f="+chr(36)+"{Version}",
+                      "libsigrok4","sigrok-cli"],12)
+        print("REA_SIGROK_DISTRO_PKG_SHA256="+hashlib.sha256(
+              package.stdout.encode()).hexdigest())
+        print("REA_SIGROK_READONLY_STATUS=PASS_NO_DEVICE_OR_UNIT_CHANGES")
         return
     if data["action"] == "fixture_linux_read5_mcp_boundaries":
         # Run original REA real MCP tool methods against private in-memory
