@@ -1,0 +1,142 @@
+{
+  "schema_version": 1,
+  "title": "Actual Linux REA installation and provider readiness verification",
+  "status": "INCOMPLETE_FOR_ALL_TOOL_FAMILIES",
+  "authoritative_platform": "Linux on existing VPS; original REA only",
+  "evidence": {
+    "live_inventory": {
+      "workflow_run_id": 39973902938,
+      "commit": "efef8cb001844c6bed316b1d270913f8b5342d45",
+      "url": "https://github.com/martaxi-boss/VPS/actions/runs/39973902938"
+    },
+    "official_rea_doctor": {
+      "workflow_run_id": 39974761497,
+      "commit": "48dd4aba883ab6a62f30b2ad2455253f623ef945",
+      "url": "https://github.com/martaxi-boss/VPS/actions/runs/39974761497",
+      "json_sha256": "df6d0da0876a5eb6051a31f307c97b216217e46492c1ed496919caad27b63fc8"
+    },
+    "prior_real_gdb_isolated_proof": {
+      "workflow_run_id": 39972622800,
+      "url": "https://github.com/martaxi-boss/VPS/actions/runs/39972622800",
+      "scope": "Only temporary user-level extracted GNU GDB and libraries; no durable provider installation"
+    }
+  },
+  "installed_core": {
+    "original_engine_file": true,
+    "original_package_manifest": true,
+    "live_loopback_mcp": true,
+    "mcp_tool_catalog_count": 208,
+    "core_commands": {
+      "node": true,
+      "npm": true,
+      "python3": true,
+      "java": true,
+      "javac": true,
+      "ps": true,
+      "git": true,
+      "curl": true
+    },
+    "native_core_commands": {
+      "objdump": true,
+      "readelf": true,
+      "strings": true,
+      "nm": true
+    },
+    "captured_on_host": {
+      "os": "Linux",
+      "architecture": "x86_64",
+      "distribution_at_audit": "ubuntu",
+      "distribution_release_at_audit": "24.04"
+    }
+  },
+  "staged_vendor_files_not_equivalent_to_enabled_provider": {
+    "ghidra": true,
+    "jadx": true,
+    "jdk21": true,
+    "node24": true,
+    "wabt": true,
+    "pwntools": false
+  },
+  "not_detected_on_bridge_user_path": {
+    "gdb": true,
+    "gdb_multiarch": true,
+    "rizin": true,
+    "radare2": true,
+    "binwalk": true,
+    "unblob": true,
+    "tshark": true,
+    "sigrok_cli": true,
+    "adb": true,
+    "frida": true,
+    "apktool": true,
+    "dotnet": true,
+    "chromium": true,
+    "firefox": true,
+    "llvm_objdump": true
+  },
+  "original_rea_doctor": {
+    "exit_code": 1,
+    "healthy": false,
+    "environment_healthy": false,
+    "passing_core_checks": [
+      "node",
+      "host"
+    ],
+    "analysis_engine_checks_failed": [
+      "hopper",
+      "ghidra",
+      "ida-registration",
+      "jadx",
+      "kuna-installation"
+    ],
+    "provider_inspections": [
+      {
+        "provider": "ghidra",
+        "configured": false,
+        "available": false
+      },
+      {
+        "provider": "ida",
+        "configured": false,
+        "available": false
+      },
+      {
+        "provider": "jadx",
+        "configured": false,
+        "available": false
+      },
+      {
+        "provider": "kuna",
+        "configured": false,
+        "available": false
+      }
+    ],
+    "integration_registration_checks_failed": [
+      "skill:identity",
+      "registration:antigravity",
+      "registration:codex",
+      "registration:gemini_cli"
+    ],
+    "note": "Client/skill registration drift is a distinct diagnostic category and does not require creating or altering unrelated integrations for Linux engine certification."
+  },
+  "official_installer_behavior": {
+    "installation_script": "rea/install.sh",
+    "installs_core_cli": true,
+    "starts_rea_setup_by_default": true,
+    "external_providers_not_all_auto_installed": true,
+    "hopper_optional_requires_separate_approval": true,
+    "provider_licences_or_platform_requirements_may_limit_coverage": true,
+    "source": "rea/docs/installation.md and rea/install.sh in owner source repository"
+  },
+  "operational_requirements": [
+    "Configure existing Ghidra/JADX staged vendors for the ORIGINAL REA service; verify with its doctor and actual call",
+    "Install missing Linux-compatible external providers and libraries durably with pinned provenance and do not change unrelated apps",
+    "Verify effective PATH and provider-specific env of the REA server process, not just interactive SSH session",
+    "Respect licensing and Linux platform constraints; do not imply the 208 MCP tool names are 208 binary installers",
+    "Only then resume individually scoped, genuine MCP functional certification"
+  ],
+  "no_os_package_install_executed_this_audit": true,
+  "original_daemon_modified": false,
+  "github_actions_ssh_bridge_maintained": true,
+  "certification_gating": "Pause new provider-dependent certification until Linux install readiness is verified"
+}
