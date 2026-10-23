@@ -1,0 +1,132 @@
+name: REA one Skill to original VPS MCP engine
+on:
+  push:
+    branches:
+      - rea/one-skill-bridge-20261023
+    paths:
+      - ".github/workflows/rea-android-bridge-20261022.yml"
+      - "ops/rea_mobile_mcp_bridge_20261022.py"
+      - "ops/rea_secure_protocol_20261022.py"
+      - "ops/tests/test_rea_secure_protocol_20261022.py"
+      - "rea-android/requests/*.json"
+permissions:
+  contents: read
+concurrency:
+  group: rea-one-skill-bridge
+  cancel-in-progress: false
+jobs:
+  rea-android-smoke:
+    if: github.actor == 'martaxi-boss'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout isolated trial branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Validate bridge and select one request
+        env:
+          REA_COMMIT: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ops/rea_mobile_mcp_bridge_20261022.py ops/rea_secure_protocol_20261022.py ops/tests/test_rea_secure_protocol_20261022.py ops/tests/test_rea_describe_delivery_20261022.py
+          python3 - <<'PY'
+          import os, pathlib, re, subprocess
+          commit = os.environ["REA_COMMIT"]
+          diff = subprocess.run(
+              ["git", "diff-tree", "--no-commit-id", "--name-status", "-r", commit],
+              capture_output=True, text=True, check=True
+          ).stdout.splitlines()
+          selected = []
+          for line in diff:
+              entry = line.split("\t", 1)
+              if len(entry) != 2:
+                  continue
+              status, path = entry
+              if path.startswith("rea-android/requests/"):
+                  if not re.fullmatch(
+                      r"rea-android/requests/[a-zA-Z0-9_-]{1,64}\.json", path
+                  ):
+                      raise RuntimeError("Request path outside fixed-name contract")
+                  # Deleting spent one-use requests is allowed hygiene, NEVER execution.
+                  if status == "D":
+                      continue
+                  if status != "A":
+                      raise RuntimeError("Only newly added request files can be executed")
+                  selected.append(path)
+          if len(selected) > 1:
+              raise RuntimeError("Only one request per commit")
+          target = pathlib.Path(os.environ["RUNNER_TEMP"]) / "rea-mobile-request.json"
+          if selected:
+              target.write_bytes(pathlib.Path(selected[0]).read_bytes())
+              print("REA_MOBILE_JOB_FILE=" + selected[0])
+          else:
+              target.write_text('{"version":1,"action":"catalog"}', encoding="utf-8")
+              print("REA_MOBILE_JOB_FILE=default-catalog")
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as file:
+              file.write("REA_JOB_PATH=" + str(target) + "\n")
+          PY
+          python3 ops/rea_mobile_mcp_bridge_20261022.py --validate "$RUNNER_TEMP/rea-mobile-request.json"
+      - name: Check SSH host identity against existing owner pin
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/rea-mobile-known"
+          chmod 600 "$RUNNER_TEMP/rea-mobile-known"
+          observed="$(ssh-keygen -lf "$RUNNER_TEMP/rea-mobile-known" -E sha256 | awk '{print $2}')"
+          test "$observed" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
+          echo "REA_MOBILE_SSH_HOST_PIN=PASS"
+      - name: Prepare temporary runner SSH client
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass python3-cryptography python3-jsonschema > /dev/null
+          /usr/bin/python3 -c "from cryptography.hazmat.primitives.ciphers.aead import AESGCM"
+          /usr/bin/python3 -m unittest -v ops.tests.test_rea_secure_protocol_20261022 ops.tests.test_rea_describe_delivery_20261022
+      - name: Talk to existing REA over VPS loopback
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          umask 077
+          request64="$(base64 -w0 "$REA_JOB_PATH")"
+          raw="$RUNNER_TEMP/rea-mobile-private-output.txt"
+          # Feed the same reviewed source files over the existing authenticated SSH.
+          # The VPS runs the module in memory: no second daemon or installation.
+          {
+            # Ciphertext travels on the SAME SSH stdin as the reviewed source.
+            # Large portable Evidence must not hit the OS single-argv limit.
+            printf 'import base64,sys,types,os\nos.environ["REA_MOBILE_JOB_B64"]="%s"\n_rea_secure=types.ModuleType("rea_secure_protocol_20261022")\nexec(base64.b64decode("%s"),_rea_secure.__dict__)\nsys.modules["rea_secure_protocol_20261022"]=_rea_secure\n' \
+              "$request64" \
+              "$(base64 -w0 ops/rea_secure_protocol_20261022.py)"
+            cat ops/rea_mobile_mcp_bridge_20261022.py
+          } > "$RUNNER_TEMP/rea-mobile-remote.py"
+          sshpass -e ssh -T \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/rea-mobile-known" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 -o ServerAliveInterval=10 \
+            -o ServerAliveCountMax=5 \
+            ubuntu@146.59.145.3 \
+            "REA_MOBILE_ENVELOPE_CAPTURE=1 python3 -" \
+            < "$RUNNER_TEMP/rea-mobile-remote.py" > "$raw"
+          /usr/bin/python3 ops/rea_mobile_mcp_bridge_20261022.py \
+            --envelope "$raw" "$REA_JOB_PATH" "$RUNNER_TEMP/rea-mobile-envelope.json"
+          rm -f "$raw"
+      - name: Preserve only encrypted REA result
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: rea-android-encrypted-result
+          path: ${{ runner.temp }}/rea-mobile-envelope.json
+          if-no-files-found: ignore
+          retention-days: 1
+
