@@ -11,8 +11,9 @@
     "no_production_code_or_daemon_changes": true,
     "remote_access": "existing GitHub Actions -> SSH -> Linux VPS -> original MCP",
     "client_device_certification": false,
-    "gdb_binaries_live_path_present": false,
-    "gdb_in_active_runtime_path": false
+    "gdb_binaries_live_path_present": true,
+    "gdb_in_active_runtime_path": true,
+    "gdb_activation_basis": "Live service systemd command and MainPID environment contain REA_GDB_COMMAND=/usr/bin/gdb; package installed and readable as service identity"
   },
   "tool_catalog_count": 208,
   "certification_policy": {
@@ -509,6 +510,37 @@
           "status": "ISOLATED_MCP_CONTRACT_PASS_EMULATED_GDB_MI_REAL_INTEGRATION_PENDING"
         }
       ]
+    },
+    {
+      "phase_id": "LINUX-P08-PERSISTENT-LINUX-PROVIDERS-SERVICE-INTEGRATION-20261023",
+      "status": "PASS_PROVIDER_INSTALL_AND_LIVE_SERVICE_ENVIRONMENT_NOT_TOOL_FUNCTIONAL_CERTIFICATION",
+      "scope": "Original Linux VPS REA service only; historical scoped functional tests are preserved unchanged",
+      "evidence": {
+        "apt_packages_installed_run_id": 39976335309,
+        "pinned_rizin_run_id": 39977192509,
+        "pinned_unblob_run_id": 39978357233,
+        "systemd_activation_run_id": 39980837721,
+        "real_service_identity_and_doctor_run_id": 39981259095,
+        "independent_active_pid_env_diagnose_run_id": 39983162092,
+        "independent_active_pid_env_diagnose_commit": "52f68e6d603d2f4ce60aedbfd6a5e0db78a8fab5",
+        "diagnostic": {
+          "mcp_live": true,
+          "tools_list": 208,
+          "read": 5,
+          "workspace": 120,
+          "sensitive": 83,
+          "systemd_type": "simple",
+          "service_user": "rea-reversa",
+          "mainpid_executable": "node",
+          "systemd_dropin_present": true,
+          "gdb_binwalk_rizin_unblob_keys_present_in_systemd": true,
+          "gdb_binwalk_rizin_unblob_keys_present_in_mainpid": true,
+          "service_uses_env_reset": false
+        }
+      },
+      "newly_functionally_certified_tools": [],
+      "provider_limitation": "REA doctor --json is not globally healthy; IDA and Kuna optional registration unavailable; no live GDB session approved",
+      "effects_in_this_phase": "Read-only bridge diagnosis; no new OS packages, no service restart or edits to unrelated services"
     }
   ],
   "active_scope_counts": {
@@ -546,7 +578,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P07-GDB-STATUS-READY-AND-LOSSY-MCP-CONTRACTS-20261023",
+  "latest_phase": "LINUX-P08-PERSISTENT-LINUX-PROVIDERS-SERVICE-INTEGRATION-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -616,7 +648,7 @@
     "provider_preflight_run": 39959287285,
     "missing_prerequisites": {
       "verify_unknown_resolution": "No legitimate retained unknown in session; cannot fabricate one as read-only",
-      "gdb_session_status": "GDB missing from active Linux PATH; starting a session requires signed sensitive owner authorization"
+      "gdb_session_status": "GNU GDB now persists and is configured in live service; authentic positive live gdb_session_status requires an independently owner-signed sensitive session-start and cleanup grant (not yet executed)."
     },
     "additional_isolated_regression": {
       "tool": "verify_unknown_resolution",
@@ -674,24 +706,49 @@
         "live_mcp": "NO_REAL_GDB_AVAILABLE",
         "isolated_mcp": "CONTRACT_PASS_EMULATED_MI_ONLY"
       }
-    ]
+    ],
+    "gdb_live_supplier_prerequisite_resolved": {
+      "status": "PASS_PERSISTENT_SYSTEMD_INTEGRATION",
+      "evidence_runs": [
+        39976335309,
+        39980837721,
+        39981259095,
+        39983162092
+      ],
+      "note": "Does not confer owner signature or functional session certification"
+    }
   },
   "installation_readiness": {
-    "status": "BLOCKED_FULL_PROVIDER_READINESS",
+    "status": "CORE_LINUX_PROVIDERS_PERSISTENT_ACTIVE_TOOL_CERTIFICATION_INCOMPLETE",
     "audit_report": "rea-linux/install/readiness-20261023.json",
     "evidence_runs": [
       39973902938,
-      39974761497
+      39974761497,
+      39976335309,
+      39977192509,
+      39978357233,
+      39980837721,
+      39981259095,
+      39983162092
     ],
     "core_mcp_208_declared": true,
-    "full_linux_provider_stack_installed_and_configured": false,
-    "engine_doctor_healthy": false,
-    "provider_configuration_indicated_unavailable": [
-      "ghidra",
+    "original_service_identity": "rea-reversa",
+    "active_providers": [
+      "GNU GDB",
+      "GNU Binwalk",
+      "Rizin 0.9.1",
+      "Unblob 26.6.4"
+    ],
+    "ghidra_configured_available": true,
+    "jadx_configured_available": true,
+    "original_doctor_exit_code": 1,
+    "optional_non_ready_providers": [
       "ida",
-      "jadx",
       "kuna"
     ],
-    "note": "Existing historical functional evidence remains valid within its scope. Do not label all 208 tools operational or permanently certified until server provider configuration, compatible dependencies and tool-specific tests pass."
+    "live_systemd_process_environment_verified": true,
+    "all_208_functionally_certified": false,
+    "remaining": "Individual MCP tools/call conformance, real owned positive sessions, optional/proprietary provider decisions and owner-signed sensitive authorization",
+    "historical_provider_missing_flags_superseded": true
   }
 }
