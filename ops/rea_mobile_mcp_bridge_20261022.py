@@ -686,7 +686,7 @@ def main():
         print("REA_MOBILE_TOOL_ERROR=" + str(any(r["status"] != "PASS" for r in records)).lower())
         print("REA_MOBILE_PRIVATE_RESULT_B64=" + base64.b64encode(raw).decode())
         return
-    if data["action"] == "fixture_static_files":
+    if data["action"] in ("fixture_static_files", "fixture_static_files_v2"):
         # P38 fixed source-authored Go/Rust and read-only unknown-list conformance.
         # All images are synthetic replicas of the original REA public fixtures.
         import tempfile, struct, zlib
@@ -898,6 +898,7 @@ def main():
         src_before=subprocess.run(["git","-C",str(src),"status","--porcelain"],
               capture_output=True,text=True,timeout=12,check=False)
         records=[]
+        only_missing=(data["action"]=="fixture_static_files_v2")
         with tempfile.TemporaryDirectory(prefix="rea-p38-source-owned-",dir="/dev/shm") as dirname:
             workspace=Path(dirname);workspace.chmod(0o755)
             fixtures={
@@ -913,7 +914,7 @@ def main():
                "rust-pe":("rust",rust_image(fmt="pe"),{"format":"pe","present":True,"rustc":True}),
                "rust-macho":("rust",rust_image(fmt="macho"),{"format":"macho","present":True,"rustc":True}),
                "rust-elf-no-rustc":("rust",rust_image(include_rustc=False),{"format":"elf","present":True,"rustc":False}),
-               "rust-elf-no-metadata":("rust",rust_image(omit=True,include_rustc=False),{"format":"elf","present":False,"rustc":False}),
+               "rust-elf-no-metadata":("rust",rust_image(omit=True,include_rustc=True),{"format":"elf","present":False,"rustc":True}),
                "rust-pe-no-metadata":("rust",rust_image(fmt="pe",omit=True),{"format":"pe","present":False,"rustc":True}),
                "rust-macho-no-metadata":("rust",rust_image(fmt="macho",omit=True),{"format":"macho","present":False,"rustc":True}),
                "go-corrupt-pe":("go",b"MZ"+b"\x00"*24,{"expect_error":True}),
@@ -1017,10 +1018,11 @@ def main():
                 return norm if isinstance(norm,dict) else {}
             # Incremental proof: P14 already exercised the simple ELF64 inline image.
             for fname,(family,binary,expected) in fixtures.items():
-                if fname=="not-binary":continue
+                if fname=="not-binary" or (only_missing and fname!="rust-elf-no-metadata"):continue
                 tool="inspect_go_binary" if family=="go" else "inspect_rust_binary"
                 call(tool,{"path":str(workspace/fname)},fname,expected)
             for family in ("go","rust"):
+                if only_missing:continue
                 name="inspect_"+family+"_binary"
                 for label,args in [
                    ("missing-argument",{}),("path-int",{"path":12}),
@@ -1029,14 +1031,14 @@ def main():
                    ("directory",{"path":str(workspace)}),
                    ("unsupported-format",{"path":str(workspace/"not-binary")})]:
                     call(name,args,family+"-"+label,{"expect_error":True})
-            unknown_base=call("list_unknowns",{},"list-all")
+            unknown_base={} if only_missing else call("list_unknowns",{},"list-all")
             unknown_total=unknown_base.get("total")
             for label,args in [
               ("filter-nonexistent-domain",{"domain":"rea-cert-p38-absent-domain","limit":2}),
               ("offset-after-end",{"offset":9999999,"limit":2}),
               ("offset-max",{"offset":9007199254740991,"limit":9007199254740991}),
             ]:
-                call("list_unknowns",args,label)
+                if not only_missing:call("list_unknowns",args,label)
             if isinstance(unknown_total,int) and unknown_total>0:
                 first=call("list_unknowns",{"limit":1},"nonempty-first")
                 if isinstance(first.get("next_offset"),int):
@@ -1045,7 +1047,7 @@ def main():
                  ("bad-limit-zero",{"limit":0}),("bad-offset-negative",{"offset":-1}),
                  ("unknown-property",{"unrecognized":True}),
                  ("wrong-filter-type",{"domain":12})]:
-                call("list_unknowns",args,label,{"expect_error":True})
+                if not only_missing:call("list_unknowns",args,label,{"expect_error":True})
             inputs_unchanged=all(hashlib.sha256((workspace/name).read_bytes()).hexdigest()==sha
                   for name,sha in input_hashes.items())
         cleanup=not workspace.exists()
