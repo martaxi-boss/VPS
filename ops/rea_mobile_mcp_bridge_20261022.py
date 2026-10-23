@@ -1121,7 +1121,7 @@ def main():
                             "libbabeltrace-ctf.so.1":"libbabeltrace1",
                             "libdebuginfod.so.1":"libdebuginfod1t64",
                             "libipt.so.2":"libipt2",
-                            "libsource-highlight.so.4":"libsource-highlight4v5",
+                            "libsource-highlight.so.4":"libsource-highlight4t64",
                             "libboost_regex.so.1.83.0":"libboost-regex1.83.0",
                             "libpython3.12.so.1.0":"libpython3.12",
                             "libpopt.so.0":"libpopt0",
