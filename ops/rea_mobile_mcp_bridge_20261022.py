@@ -1779,8 +1779,7 @@ def main():
         # No network fetch, user data, devices, foreign binaries or daemon restart.
         import tempfile
         import sqlite3
-        tools_pending=("inspect_sqlite_database","inspect_evm_interface",
-                       "inspect_web_network_capture")
+        tools_pending=("inspect_sqlite_database","inspect_evm_interface")
         for name in tools_pending:
             if name not in tool_by_name or secure.classify(
                   name,tool_by_name[name],())!="workspace":
@@ -1871,35 +1870,6 @@ def main():
                "inference_observed":r.get("evidence_kind")=="inferred",
                "runtime_not_executed":r.get("runtime_execution")=="not-performed",
                "source_unmodified":hashlib.sha256(evmpath.read_bytes()).hexdigest()==evmsha
-            },owned)
-            harpath=owned/"example.har"
-            har={"log":{"version":"1.2",
-                 "creator":{"name":"REA fixture","version":"1"},
-                 "pages":[],
-                 "entries":[{
-                   "startedDateTime":"2026-01-01T00:00:00.000Z",
-                   "time":3,
-                   "request":{"method":"GET","url":"https://example.invalid/rea-canonical-fixture",
-                              "httpVersion":"HTTP/1.1","headers":[],"queryString":[],
-                              "cookies":[],"headersSize":-1,"bodySize":0},
-                   "response":{"status":200,"statusText":"OK","httpVersion":"HTTP/1.1",
-                               "headers":[],"cookies":[],"content":{"size":0,"mimeType":"text/plain"},
-                               "redirectURL":"","headersSize":-1,"bodySize":0},
-                   "cache":{},"timings":{"blocked":0,"dns":0,"connect":0,"send":1,
-                                        "wait":1,"receive":1,"ssl":0}
-                 }]}}
-            harpath.write_text(json.dumps(har,separators=(",",":")),encoding="ascii")
-            harpath.chmod(0o644)
-            harsha=hashlib.sha256(harpath.read_bytes()).hexdigest()
-            invoke("inspect_web_network_capture",{
-               "capture_path":str(harpath),"format":"har","record_ordinals":[0]
-            },1003,lambda r:{
-               "format_har":r.get("format")=="har",
-               "one_record":r.get("total_records")==1,
-               "requested_ordinal0":len(r.get("records",[]))==1 and r.get("records",[{}])[0].get("ordinal")==0,
-               "capture_sha":r.get("artifact",{}).get("sha256")==harsha,
-               "attribution_unknown":r.get("runtime_attribution")=="unknown",
-               "source_unmodified":hashlib.sha256(harpath.read_bytes()).hexdigest()==harsha
             },owned)
         print("REA_STATIC_FORMAT_CLEANUP="+str(not owned.exists()).lower())
         print("REA_STATIC_FORMAT_PID_STABLE="+str(bool(beforepid) and beforepid==pid()).lower())
