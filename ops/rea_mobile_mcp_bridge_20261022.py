@@ -503,6 +503,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_PWN_DEP_STATUS","REA_PWN_DEP_VENV","REA_PWN_DEP_SERVICE_USER",
         "REA_PWN_DEP_ACTIVE_ENV","REA_PWN_DEP_ONLY_REA_RESTART",
         "REA_PWN_DEP_ROLLBACK","REA_PWN_DEP_VERSION",
+        "REA_PWN_DEP_EXE_READBACK","REA_PWN_DEP_ERROR_CLASS",
         "REA_PWN_DIAG_ACTIVE","REA_PWN_DIAG_EXE","REA_PWN_DIAG_NODE24",
         "REA_PWN_DIAG_EXECSTART_ORIGINAL","REA_PWN_DIAG_ENV_WABT",
         "REA_PWN_DIAG_ENV_NODE24","REA_PWN_DIAG_ENV_PWN","REA_PWN_DIAG_DROPIN",
@@ -1342,6 +1343,7 @@ def main():
         # REA-original pwntools 4.15.0 + pyelftools 0.33 + unicorn 2.1.2,
         # in a dedicated, atomic virtualenv. No OS Python, PATH or other unit edits.
         import tempfile
+        import time
         unit="rea-reversa-mcp.service"
         final=Path("/opt/rea-reversa/providers/pwntools-4.15.0")
         staging=Path("/opt/rea-reversa/providers/.pwntools-4.15.0-staging-20261023")
@@ -1422,12 +1424,26 @@ def main():
             if service_python not in show("Environment"):
                 raise RuntimeError("systemd did not admit REA_PWNTOOLS_PYTHON")
             sudo("systemctl","restart",unit,timeout=90)
-            newpid=show("MainPID")
-            if not newpid.isdecimal() or newpid==before or show("ActiveState")!="active":
-                raise RuntimeError("Original REA service did not come back")
-            if sudo("readlink","-f",f"/proc/{newpid}/exe")!=(
-                    "/opt/rea-reversa/providers/node-v24.22.1/bin/node"):
-                raise RuntimeError("Original service runtime was unexpectedly replaced")
+            expected_exe="/opt/rea-reversa/providers/node-v24.22.1/bin/node"
+            newpid=""
+            observed_exe="UNAVAILABLE"
+            for attempt in range(8):
+                newpid=show("MainPID")
+                if newpid.isdecimal() and int(newpid)>0:
+                    try:
+                        observed_exe=sudo("readlink","-f",
+                                          f"/proc/{newpid}/exe",timeout=18)
+                    except Exception:
+                        observed_exe="UNREADABLE_DURING_RESTART"
+                    if (observed_exe==expected_exe and newpid!=before
+                            and show("ActiveState")=="active"):
+                        break
+                time.sleep(1)
+            print("REA_PWN_DEP_EXE_READBACK="+observed_exe[:200])
+            if (not newpid.isdecimal() or newpid==before
+                    or show("ActiveState")!="active"
+                    or observed_exe!=expected_exe):
+                raise RuntimeError("Original REA runtime attestation failed after bounded settling")
             check=subprocess.run(["sudo","-n","python3","-c",
                 "from pathlib import Path;import sys;"
                 "e=Path('/proc/'+sys.argv[1]+'/environ').read_bytes().split(bytes([0]));"
@@ -1444,7 +1460,9 @@ def main():
                 sudo("systemctl","daemon-reload",timeout=45)
                 sudo("systemctl","restart",unit,timeout=90)
                 print("REA_PWN_DEP_ROLLBACK=PASS_ORIGINAL_SERVICE_RESTORED")
-            raise RuntimeError("Original pwntools integration rolled back: "+str(ex)[:180])
+            print("REA_PWN_DEP_ERROR_CLASS="+type(ex).__name__)
+            print("REA_PWN_DEP_STATUS=FAILED_ROLLED_BACK")
+            return
         finally:
             if tmp is not None:
                 Path(tmp).unlink(missing_ok=True)
