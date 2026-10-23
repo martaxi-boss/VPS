@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_18_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_19_FULLY_CERTIFIED_22_SCOPED_POSITIVE",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -2839,6 +2839,115 @@
         "stable_bridge_restored": true,
         "post_cleanup_208_schema_catalog_check_required": true
       }
+    },
+    {
+      "phase_id": "LINUX-P37-RECORDED-CORE-MCP-CERTIFICATION-20261023",
+      "date_utc": "2026-10-23",
+      "status": "FULLY_CERTIFIED_ORIGINAL_LINUX_MCP_RECORDED_CRASH_OFFLINE_CORE_PROFILE",
+      "tool": "inspect_recorded_crash",
+      "tool_status": "FULLY_CERTIFIED",
+      "risk": "workspace",
+      "scope": "Read-only original permanent REA MCP offline synthetic Linux ELF64 amd64 and AArch64 core files, PRSTATUS registers and historical PIDs, SIGINFO signal address, NT_FILE mapping note, multiple threads, artifact SHA, plus nine malformed targets/argument rejection profiles; no live debugger/process.",
+      "reused_prior_positive": {
+        "phase_id": "LINUX-P19-RECORDED-CORE-SIGROK-DIAG-20261023",
+        "run_id": 40012174187,
+        "scope": "Prior single synthetic amd64 PT_NOTE/PRSTATUS with historical PID 123/current signal 11; retained without repetition."
+      },
+      "closure": {
+        "initial_run_id": 40033133054,
+        "initial_result_digest": "b18850561df65b5ef695b07ae89ff4f4f4f8d1a5cadda43a17ceb42acd9a6be2",
+        "authenticated_per_case_run_id": 40033420431,
+        "request_commit": "f892756abd1e4c75a1388b180ac3575f1f7d3b2a",
+        "original_mcp_tools": 208,
+        "positive_cases_4_of_4": [
+          {
+            "case": "amd64-with-siginfo",
+            "architecture": "x86_64-little-endian",
+            "threads": 1,
+            "notes": 2,
+            "signals": 1,
+            "historical_pid": 123,
+            "siginfo_fault_address": "0x1122334455667788"
+          },
+          {
+            "case": "aarch64-prstatus",
+            "architecture": "aarch64-little-endian",
+            "threads": 1,
+            "notes": 1,
+            "signals": 0,
+            "historical_pid": 234,
+            "register_value": "0x123456789abcdef"
+          },
+          {
+            "case": "amd64-two-threads",
+            "architecture": "x86_64-little-endian",
+            "threads": 2,
+            "notes": 2,
+            "signals": 0,
+            "historical_pids": [
+              123,
+              456
+            ]
+          },
+          {
+            "case": "amd64-with-file",
+            "architecture": "x86_64-little-endian",
+            "threads": 1,
+            "notes": 2,
+            "signals": 0,
+            "historical_pid": 321,
+            "note_kind": "NT_FILE"
+          }
+        ],
+        "negative_cases_9_of_9": [
+          "nonexistent_path",
+          "directory_instead_of_file",
+          "ET_EXEC_not_ET_CORE",
+          "non_ELF_target",
+          "truncated_ELF_header",
+          "missing_path_argument",
+          "nonstring_path_argument",
+          "unexpected_execute_argument",
+          "nonboolean_include_debugger_context"
+        ],
+        "positive_isError_not_true": true,
+        "negative_isError_true": true,
+        "JSON_RPC_errors": 0,
+        "verified_RSA_OAEP_AES_GCM": true,
+        "request_sha256_authenticated": true,
+        "decrypted_result_sha256": "12d6441d768ac0d940ed72e5dd875ec470c3a6ab4e7316791fbe9d82c4cd0262",
+        "encrypted_actions_artifact_id": 12536545335,
+        "input_SHA256_verified_unchanged": true,
+        "fixture_cleanup": "PASS",
+        "original_REA_source_unmodified": true,
+        "original_REA_service_PID_stable": "PASS",
+        "stable_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      },
+      "limitations": [
+        "FULLY_CERTIFIED applies only to small controlled ELF64 amd64 and AArch64 Linux ET_CORE offline static inspection, including registered PRSTATUS/SIGINFO/NT_FILE cases and supported negative paths; not arbitrary live crashes, huge cores, corrupted note graphs or cross-OS dumps.",
+        "Historical PIDs are recorded metadata, not current running process identity. No process attachment, executable matching or thread-signal association was verified.",
+        "include_debugger_context=true and optional GDB/pwndbg mapping candidates were NOT exercised, are not covered by this profile, and require separate supplier-specific proof.",
+        "No production programs were launched or core files extracted from customer environments."
+      ],
+      "safety": {
+        "self_owned_synthetic_core": true,
+        "no_live_PIDs": true,
+        "no_debugger_requested": true,
+        "no_target_execution": true,
+        "no_production_changes": true,
+        "no_other_projects": true,
+        "no_sensitive_operations": true,
+        "no_service_restart": true
+      },
+      "hygiene": {
+        "spent_requests_deleted": [
+          "rea-linux/requests/recorded-core-p37-contract-20261023.json",
+          "rea-linux/requests/recorded-core-p37-proof-20261023.json"
+        ],
+        "transient_bridge_removed": true,
+        "canonical_bridge_restored": true,
+        "post_cleanup_208_schema_contract_check_required": true
+      }
     }
   ],
   "active_scope_counts": {
@@ -2850,10 +2959,10 @@
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 18,
-    "scoped_positive_not_fully_certified_distinct": 4,
+    "fully_certified_distinct": 19,
+    "scoped_positive_not_fully_certified_distinct": 3,
     "not_functionally_positive_distinct": 186,
-    "remaining_full_certification_distinct": 190
+    "remaining_full_certification_distinct": 189
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -2883,7 +2992,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P36-FIRMWARE-BINWALK31-ORIGINAL-MCP-CERTIFICATION-20261023",
+  "latest_phase": "LINUX-P37-RECORDED-CORE-MCP-CERTIFICATION-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -3413,6 +3522,17 @@
       ],
       "phase_id": "LINUX-P36-FIRMWARE-BINWALK31-ORIGINAL-MCP-CERTIFICATION-20261023",
       "evidence_digest": "0e118477b7af20f2f98350ec94d27ab82bcac11a2815d1eb29624f176ec46e0d"
+    },
+    "inspect_recorded_crash": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Permanent original REA MCP offline Linux amd64/AArch64 ET_CORE static PRSTATUS registers, NT_SIGINFO, NT_FILE and multi-thread inspection of self-owned synthetic files; optional GDB debugging not tested.",
+      "run_ids": [
+        40012174187,
+        40033133054,
+        40033420431
+      ],
+      "phase_id": "LINUX-P37-RECORDED-CORE-MCP-CERTIFICATION-20261023",
+      "evidence_digest": "12d6441d768ac0d940ed72e5dd875ec470c3a6ab4e7316791fbe9d82c4cd0262"
     }
   }
 }
