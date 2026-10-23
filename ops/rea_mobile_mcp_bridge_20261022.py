@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_local_provider_triage"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -228,6 +228,10 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_MOBILE_TOOL_ERROR", "REA_MOBILE_HEALTH",
         "REA_MOBILE_PROVIDER_DOCTOR_GHIDRA",
         "REA_MOBILE_PROVIDER_DOCTOR_JADX", "REA_MOBILE_CATALOG",
+        "REA_LOCAL_PROVIDER_TOOL", "REA_LOCAL_PROVIDER_MCP_ISERROR",
+        "REA_LOCAL_PROVIDER_RESULT_SHA256", "REA_LOCAL_PROVIDER_ASSERTIONS",
+        "REA_LOCAL_PROVIDER_STATUS", "REA_LOCAL_PROVIDER_FAILURE_CLASS",
+        "REA_LOCAL_PROVIDER_ALL_SCOPED",
         "REA_MOBILE_DESCRIBE_TOOL", "REA_MOBILE_TOOL_DESCRIPTOR_B64",
         "REA_MOBILE_TOOL_SCHEMA_SUMMARY", "REA_MOBILE_TOOL_DESCRIPTOR_SHA256",
         "REA_MOBILE_TOOL_DESCRIPTOR_BYTES", "REA_MOBILE_TOOL_DESCRIPTOR_TRUNCATED",
@@ -2046,6 +2050,93 @@ def main():
             print("REA_PCONFIG_PROVIDER_"+name.upper()+"="+(
                 "PASS" if test.returncode==0 else "NOT_ACCESSIBLE"))
         print("REA_PCONFIG_STATUS=PASS_READ_ONLY")
+        return
+    if data["action"] == "fixture_linux_local_provider_triage":
+        # Three original REA workspace-class tools with fixed arguments.
+        # No device connections, arbitrary targets, installation or server change.
+        import re as regex
+        items = (
+            ("inspect_adb_client", {}, 901),
+            ("inspect_apktool_client", {}, 902),
+            ("inspect_signal_decoders", {"query": "uart", "limit": 10}, 903),
+            ("inspect_signal_decoders", {"decoder":"uart","query":"baud","limit":10}, 904)
+        )
+        results = []
+        def parsed_value(item):
+            if not isinstance(item,dict): return None
+            payloads = [item.get("structuredContent")]
+            for chunk in item.get("content", []):
+                if isinstance(chunk,dict) and isinstance(chunk.get("text"), str):
+                    try:
+                        payloads.append(json.loads(chunk["text"]))
+                    except ValueError:
+                        pass
+            for d in payloads:
+                if isinstance(d,dict) and isinstance(d.get("normalized_result"),dict):
+                    return d["normalized_result"]
+            return None
+        for name, args, num in items:
+            if name not in tool_by_name:
+                print("REA_LOCAL_PROVIDER_TOOL=" + name)
+                print("REA_LOCAL_PROVIDER_STATUS=NOT_REGISTERED")
+                results.append(False)
+                continue
+            descriptor = tool_by_name[name]
+            classification = secure.classify(name, descriptor, set(safe_callable))
+            if classification != "workspace":
+                print("REA_LOCAL_PROVIDER_TOOL=" + name)
+                print("REA_LOCAL_PROVIDER_STATUS=BLOCKED_RISK_MISMATCH")
+                results.append(False)
+                continue
+            secure.validate_arguments(descriptor, args)
+            secure._authorized_target_paths(args)
+            _, result = request_mcp(
+                {"jsonrpc": "2.0", "id": num, "method": "tools/call",
+                 "params": {"name": name, "arguments": args}}, session, protocol, timeout=75)
+            data_item = result.get("result")
+            is_error = (isinstance(data_item, dict) and data_item.get("isError") is True)
+            protocol_err = "error" in result or not isinstance(data_item,dict)
+            val = parsed_value(data_item)
+            summary = {}
+            if isinstance(val,dict):
+                if name == "inspect_adb_client":
+                    client = val.get("client") or {}
+                    summary = {"version_reported":bool(client.get("version")),
+                      "client_path_reported":bool(client.get("binary_path")),
+                      "no_server_contact":val.get("contacted_adb_server") is False}
+                elif name == "inspect_apktool_client":
+                    client = val.get("client") or {}
+                    summary = {"version_reported":bool(client.get("apktool_version")),
+                      "client_command_reported":bool(client.get("command"))}
+                elif name == "inspect_signal_decoders":
+                    window = val.get("output_window") or {}
+                    expected_unit = "help-lines" if args.get("decoder") else "decoders"
+                    summary = {"tool_version_reported":bool(
+                        (val.get("tool") or {}).get("version_banner")),
+                        "window_unit_correct":window.get("unit") == expected_unit,
+                        "matching_positive":isinstance(window.get("matching"),int) and window["matching"] > 0,
+                        "returned_consistent":window.get("returned") == len(
+                            val.get("help_lines",[]) if args.get("decoder")
+                            else val.get("decoders",[])),
+                        "no_hardware_acquisition":val.get("hardware_acquisition") == "not-performed"}
+            passed = not (is_error or protocol_err) and summary and all(summary.values())
+            encoded = json.dumps(result,sort_keys=True,ensure_ascii=True).encode()
+            failure_raw = json.dumps(data_item,ensure_ascii=True)[:30000] if is_error else ""
+            failure_classes = [name for name,needle in (
+                ("provider_missing","unavailable"), ("binary_missing","ENOENT"),
+                ("permission","EACCES"), ("version","version"), ("resource","limit"),
+                ("decoder","decoder"), ("invalid","invalid"), ("unknown","unknown")
+            ) if needle.lower() in failure_raw.lower()]
+            print("REA_LOCAL_PROVIDER_TOOL=" + name +
+                  (":help" if args.get("decoder") else ":catalog" if args.get("query") else ""))
+            print("REA_LOCAL_PROVIDER_MCP_ISERROR=" + str(is_error or protocol_err).lower())
+            print("REA_LOCAL_PROVIDER_RESULT_SHA256=" + hashlib.sha256(encoded).hexdigest())
+            print("REA_LOCAL_PROVIDER_ASSERTIONS=" + json.dumps(summary,sort_keys=True))
+            print("REA_LOCAL_PROVIDER_STATUS=" + ("FUNCTIONAL_PASS_SCOPED" if passed else "INCOMPLETE"))
+            if is_error or protocol_err:
+                print("REA_LOCAL_PROVIDER_FAILURE_CLASS=" + json.dumps(failure_classes))
+            results.append(bool(passed))
+        print("REA_LOCAL_PROVIDER_ALL_SCOPED=" + str(sum(results)) + "/4")
         return
     if data["action"] == "fixture_linux_service_runtime_doctor":
         # Run original REA doctor under the actual systemd service identity
