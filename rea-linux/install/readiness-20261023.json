@@ -357,8 +357,15 @@
       "unit_DevicePolicy": "closed",
       "host_dev_bus_usb_present": true,
       "service_dev_bus_usb_present": false,
-      "diagnosis": "LIBUSB_ERROR_OTHER in original MCP context likely from device namespace; not proven sole cause",
-      "security_posture": "PRESERVED_NO_RELAXATION"
+      "diagnosis": "Difference between normal sigrok user and original REA sandbox verified. Service lacks AF_NETLINK and hides host USB; correlated to libusb_init failure, not independently isolated as sole root cause.",
+      "security_posture": "PRESERVED_NO_RELAXATION",
+      "readonly_sandbox_diagnostic_run_id": 40011724942,
+      "original_rea_private_devices": "yes",
+      "original_rea_device_policy": "closed",
+      "original_rea_restricted_address_families": "AF_INET AF_INET6 AF_UNIX",
+      "original_rea_netlink_in_whitelist": false,
+      "no_sandbox_relaxation": true,
+      "positive_mcp_functionality_certified": false
     },
     "kuna": {
       "version": "1.833",
@@ -461,13 +468,16 @@
     "latest_functional_verification": {
       "as_of_utc": "2026-10-23",
       "original_mcp_catalog": 208,
-      "scoped_functional_positive_distinct": 19,
-      "awaiting_individual_review": 189,
+      "scoped_functional_positive_distinct": 21,
+      "awaiting_individual_review": 187,
       "fully_certified_distinct": 0,
-      "latest_tool": "inspect_firmware_regions",
-      "latest_real_mcp_run_id": 40008229288,
+      "latest_tool": "inspect_recorded_crash",
+      "latest_real_mcp_run_id": 40012174187,
       "sigrok_libusb_still_unresolved": true,
-      "sensitive_authorization_unchanged": true
+      "sensitive_authorization_unchanged": true,
+      "other_new_tool": "compare_wasm_interfaces",
+      "other_new_tool_real_mcp_run_id": 40011404653,
+      "sigrok_sandbox_diagnosis_run_id": 40011724942
     }
   },
   "final_hygiene_verified": {
