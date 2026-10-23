@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_packet_fields_closure"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_packet_fields_closure", "fixture_linux_packet_fields_raw_line"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -217,6 +217,9 @@ def encrypt_result(raw_path, request_path, envelope_path):
     request = validate(json.loads(request_raw))
     private = None
     allowed_markers = {
+        "REA_FIELDS_RAW_LINE_PROTOCOL", "REA_FIELDS_RAW_LINE_UDP",
+        "REA_FIELDS_RAW_BINARY_IDENTITY", "REA_FIELDS_RAW_DAEMON",
+        "REA_FIELDS_RAW_RESULT_SHA256", "REA_FIELDS_RAW_STATUS",
         "REA_CERT_FIELDS_CASES", "REA_CERT_FIELDS_NEGATIVES",
         "REA_CERT_FIELDS_SOURCE", "REA_CERT_FIELDS_DAEMON",
         "REA_CERT_FIELDS_RESULT_SHA256", "REA_CERT_FIELDS_STATUS",
@@ -2679,6 +2682,102 @@ def main():
                 except (OSError, RuntimeError, ValueError):
                     print("REA_FIXTURE_CLEANUP=FAIL")
                     raise
+        return
+    if data["action"] == "fixture_linux_packet_fields_raw_line":
+        # Independent genuine Tshark glossary oracle for producer source line
+        # and exact field type, base, mask and description preservation.
+        import tempfile
+        import stat
+        name="inspect_packet_fields"
+        descriptor=tool_by_name.get(name)
+        if not descriptor or secure.classify(name,descriptor,())!="workspace":
+            error("Unexpected field discovery contract/policy")
+        def pid():
+            output=subprocess.run(["systemctl","show","rea-reversa-mcp.service",
+                "-p","MainPID","--value"],capture_output=True,text=True,
+                timeout=10,check=False)
+            return output.stdout.strip() if output.returncode==0 else ""
+        before_pid=pid()
+        cases=[
+            ("protocol",{"kind":"protocols","protocol":"tcp","limit":1}),
+            ("udp",{"kind":"fields","protocol":"udp","offset":0,"limit":4}),
+        ]
+        proofs={}
+        digests={}
+        binary_matches=[]
+        with tempfile.TemporaryDirectory(prefix="rea-fields-raw-",dir="/dev/shm") as d:
+            cfg=Path(d)/"wireshark-config"
+            cfg.mkdir(mode=0o700)
+            for ix,(case,args) in enumerate(cases,start=980):
+                secure.validate_arguments(descriptor,args)
+                _,reply=request_mcp({"jsonrpc":"2.0","id":ix,"method":"tools/call",
+                    "params":{"name":name,"arguments":args}},
+                    session,protocol,timeout=95)
+                result=reply.get("result")
+                accepted=(isinstance(result,dict) and "error" not in reply
+                    and result.get("isError") is not True)
+                structured=result.get("structuredContent") if accepted else None
+                report=structured.get("normalized_result",structured) if isinstance(structured,dict) else {}
+                rows=report.get("records") if isinstance(report,dict) else None
+                tool=report.get("tool") if isinstance(report,dict) else None
+                if not isinstance(rows,list) or not isinstance(tool,dict):
+                    proofs[case]=False
+                    continue
+                configured=tool.get("path")
+                if not isinstance(configured,str):
+                    proofs[case]=False
+                    continue
+                expected_binary=Path("/usr/bin/tshark").resolve()
+                actual_binary=Path(configured).resolve()
+                executable_ok=(actual_binary==expected_binary
+                    and expected_binary.is_file()
+                    and stat.S_ISREG(expected_binary.stat().st_mode))
+                binary_integrity=(executable_ok and hashlib.sha256(
+                     expected_binary.read_bytes()).hexdigest()==tool.get("sha256"))
+                binary_matches.append(binary_integrity)
+                if not executable_ok:
+                    proofs[case]=False
+                    continue
+                env=dict(os.environ)
+                env["WIRESHARK_CONFIG_DIR"]=str(cfg)
+                original=subprocess.run(
+                    [str(expected_binary),"-G","fields"],
+                    capture_output=True,text=True,encoding="utf-8",errors="replace",
+                    timeout=55,check=False,env=env)
+                lines=original.stdout.splitlines()
+                match=(original.returncode==0 and binary_integrity
+                    and len(lines)>0 and len(rows)>=1)
+                for row in rows:
+                    lineno=row.get("source_line")
+                    if not isinstance(lineno,int) or lineno<=0 or lineno>len(lines):
+                        match=False
+                        break
+                    columns=lines[lineno-1].split("\t")
+                    if row.get("kind")=="protocol":
+                        ref=["P",row.get("name"),row.get("abbreviation")]
+                        match=match and columns==ref
+                    else:
+                        ref=["F",row.get("name"),row.get("abbreviation"),
+                             row.get("field_type"),row.get("parent_protocol"),
+                             row.get("display_base"),row.get("bitmask"),
+                             row.get("description")]
+                        match=match and columns==ref
+                proofs[case]=bool(match)
+                digests[case]=hashlib.sha256(
+                    json.dumps({"records":rows,"line_count":len(lines),
+                       "tool_sha256":tool.get("sha256")},
+                    sort_keys=True).encode()).hexdigest()
+        daemon_ok=before_pid.isdecimal() and before_pid==pid()
+        print("REA_FIELDS_RAW_LINE_PROTOCOL="+str(proofs.get("protocol",False)).lower())
+        print("REA_FIELDS_RAW_LINE_UDP="+str(proofs.get("udp",False)).lower())
+        print("REA_FIELDS_RAW_BINARY_IDENTITY="+str(all(binary_matches) and len(binary_matches)==2).lower())
+        print("REA_FIELDS_RAW_DAEMON="+("PASS" if daemon_ok else "FAIL"))
+        print("REA_FIELDS_RAW_RESULT_SHA256="+hashlib.sha256(
+            json.dumps(digests,sort_keys=True).encode()).hexdigest())
+        print("REA_FIELDS_RAW_STATUS="+(
+            "PASS_INDEPENDENT_GENUINE_TSHARK_GLOSSARY_ORACLE"
+            if len(proofs)==2 and all(proofs.values()) and daemon_ok
+            and all(binary_matches) else "NOT_CERTIFIED"))
         return
     if data["action"] == "fixture_linux_packet_fields_closure":
         # Finish only unproved dimensions of the original TShark4 glossary tool.
