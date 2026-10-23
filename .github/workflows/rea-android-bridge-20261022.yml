@@ -1,4 +1,4 @@
-name: REA one Skill to original VPS MCP engine
+name: REA Linux VPS original MCP functional certification
 on:
   push:
     branches:
@@ -8,14 +8,14 @@ on:
       - "ops/rea_mobile_mcp_bridge_20261022.py"
       - "ops/rea_secure_protocol_20261022.py"
       - "ops/tests/test_rea_secure_protocol_20261022.py"
-      - "rea-android/requests/*.json"
+      - "rea-linux/requests/*.json"
 permissions:
   contents: read
 concurrency:
   group: rea-one-skill-bridge
   cancel-in-progress: false
 jobs:
-  rea-android-smoke:
+  rea-linux-certification:
     if: github.actor == 'martaxi-boss'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -45,9 +45,9 @@ jobs:
               if len(entry) != 2:
                   continue
               status, path = entry
-              if path.startswith("rea-android/requests/"):
+              if path.startswith("rea-linux/requests/"):
                   if not re.fullmatch(
-                      r"rea-android/requests/[a-zA-Z0-9_-]{1,64}\.json", path
+                      r"rea-linux/requests/[a-zA-Z0-9_-]{1,64}\.json", path
                   ):
                       raise RuntimeError("Request path outside fixed-name contract")
                   # Deleting spent one-use requests is allowed hygiene, NEVER execution.
@@ -125,7 +125,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: rea-android-encrypted-result
+          name: rea-linux-encrypted-result
           path: ${{ runner.temp }}/rea-mobile-envelope.json
           if-no-files-found: ignore
           retention-days: 1
