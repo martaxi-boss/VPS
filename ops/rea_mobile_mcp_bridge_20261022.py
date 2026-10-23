@@ -2757,7 +2757,7 @@ def main():
                     path.chmod(0o644)
                 samples=dict((kind,path) for kind,_,path in compiler_commands)
                 source_digests={p.name:hashlib.sha256(p.read_bytes()).hexdigest()
-                    for p in [...source_files,*samples.values()]}
+                    for p in [*source_files,*samples.values()]}
                 # ELF64 header, program headers and section headers independently
                 # decoded from owned bytes, not copied from the MCP response.
                 def independent(path):
