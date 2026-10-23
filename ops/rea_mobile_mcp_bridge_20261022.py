@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_supplier_gap_20261023", "fixture_linux_tshark_activate_20261023", "fixture_linux_glossary_sigrok_diag_20261023", "fixture_linux_sigrok_sandbox_20261023", "fixture_linux_static_formats_20261023"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_supplier_gap_20261023", "fixture_linux_tshark_activate_20261023", "fixture_linux_glossary_sigrok_diag_20261023", "fixture_linux_sigrok_sandbox_20261023", "fixture_linux_static_formats_20261023", "fixture_linux_node24_stage_20261023"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -247,6 +247,11 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_STATIC_FORMAT_ASSERTIONS", "REA_STATIC_FORMAT_NEGATIVE",
         "REA_STATIC_FORMAT_NODE", "REA_STATIC_FORMAT_CLEANUP",
         "REA_STATIC_FORMAT_PID_STABLE", "REA_STATIC_FORMAT_TOTAL",
+        "REA_NODE24_STAGE_STATUS", "REA_NODE24_STAGE_VERSION",
+        "REA_NODE24_STAGE_ARCHIVE_SHA256", "REA_NODE24_STAGE_BINARY_SHA256",
+        "REA_NODE24_STAGE_SQLITE_LIMITS", "REA_NODE24_STAGE_REA_CLI",
+        "REA_NODE24_STAGE_SERVICE_ACCESS", "REA_NODE24_STAGE_PID_STABLE",
+        "REA_NODE24_STAGE_DOWNLOAD_BYTES",
         "REA_MOBILE_PROVIDER_DOCTOR_GHIDRA",
         "REA_MOBILE_PROVIDER_DOCTOR_JADX", "REA_MOBILE_CATALOG",
         "REA_MOBILE_DESCRIBE_TOOL", "REA_MOBILE_TOOL_DESCRIPTOR_B64",
@@ -1773,6 +1778,136 @@ def main():
                   (installed.stdout or installed.stderr).splitlines()[0][:110])
             print("REA_RIZIN_STATUS="+(
                 "PASS_PINNED_PERSISTENT" if installed.returncode==0 else "INCOMPLETE"))
+        return
+    if data["action"] == "fixture_linux_node24_stage_20261023":
+        # Pinned Node LTS dependency installed side-by-side; never replace
+        # system Node or systemd ExecStart. Original REA service unchanged.
+        import tempfile
+        import shutil
+        import platform
+        import tarfile
+        import urllib.request
+        version="24.22.1"
+        archive_name="node-v24.22.1-linux-x64.tar.xz"
+        archive_sha="6c172a9ab6718f7b801fb5a7bd486af2ee5e32758086a04b84fcce2aa77095e6"
+        url="https://nodejs.org/dist/v24.22.1/"+archive_name
+        root=Path("/opt/rea-reversa/providers/node-v24.22.1")
+        binary=root/"bin"/"node"
+        unit="rea-reversa-mcp.service"
+        def prop(key):
+            r=subprocess.run(["systemctl","show",unit,"-p",key,"--value"],
+                  capture_output=True,text=True,timeout=12,check=False)
+            return r.stdout.strip() if r.returncode==0 else ""
+        def sudo(*args,timeout=22):
+            return subprocess.run(["sudo","-n",*args],capture_output=True,text=True,
+                  timeout=timeout,check=False)
+        if platform.system()!="Linux" or platform.machine()!="x86_64":
+            print("REA_NODE24_STAGE_STATUS=BLOCKED_ARCHITECTURE")
+            return
+        if (not Path("/opt/rea-reversa/rea/package.json").is_file() or
+            prop("ActiveState")!="active" or prop("User")!="rea-reversa"):
+            print("REA_NODE24_STAGE_STATUS=BLOCKED_REA_IDENTITY")
+            return
+        beforepid=prop("MainPID")
+        if root.is_symlink() or binary.is_symlink():
+            print("REA_NODE24_STAGE_STATUS=BLOCKED_SYMLINK")
+            return
+        if root.exists():
+            if binary.is_file():
+                v=sudo("-u","rea-reversa",str(binary),"--version",timeout=20)
+                print("REA_NODE24_STAGE_VERSION="+v.stdout.strip()[:40])
+                print("REA_NODE24_STAGE_STATUS=EXISTING_NO_REPLACEMENT")
+            else:
+                print("REA_NODE24_STAGE_STATUS=BLOCKED_PARTIAL_INSTALL")
+            return
+        scratch=Path.home()/".local/share/rea-chatgpt-trial/artifacts"
+        scratch.mkdir(parents=True,mode=0o700,exist_ok=True)
+        if scratch.is_symlink() or shutil.disk_usage(scratch).free<450*1024*1024:
+            print("REA_NODE24_STAGE_STATUS=BLOCKED_DISK_OR_STAGING")
+            return
+        with tempfile.TemporaryDirectory(prefix="rea-node24-",dir=str(scratch)) as td:
+            work=Path(td)
+            package=work/archive_name
+            got=hashlib.sha256()
+            n=0
+            req=urllib.request.Request(url,headers={"User-Agent":"REA-Linux-dependency-audit/1"})
+            with urllib.request.urlopen(req,timeout=75) as source:
+                with package.open("xb") as target:
+                    while True:
+                        chunk=source.read(524288)
+                        if not chunk: break
+                        n+=len(chunk)
+                        if n>65*1024*1024:
+                            error("Pinned Node archive too large; fail closed")
+                        got.update(chunk)
+                        target.write(chunk)
+            print("REA_NODE24_STAGE_DOWNLOAD_BYTES="+str(n))
+            print("REA_NODE24_STAGE_ARCHIVE_SHA256="+got.hexdigest())
+            if got.hexdigest()!=archive_sha:
+                print("REA_NODE24_STAGE_STATUS=BLOCKED_PINNED_DIGEST_MISMATCH")
+                return
+            with tarfile.open(package,"r:xz") as archive:
+                good_name="node-v24.22.1-linux-x64/bin/node"
+                matches=[entry for entry in archive.getmembers()
+                         if entry.name==good_name and entry.isfile()
+                         and entry.size<230*1024*1024]
+                if len(matches)!=1:
+                    print("REA_NODE24_STAGE_STATUS=BLOCKED_TAR_LAYOUT")
+                    return
+                tempbin=work/"node"
+                with archive.extractfile(matches[0]) as src:
+                    with tempbin.open("xb") as dst:
+                        shutil.copyfileobj(src,dst,length=1048576)
+            tempbin.chmod(0o755)
+            digest=hashlib.sha256(tempbin.read_bytes()).hexdigest()
+            print("REA_NODE24_STAGE_BINARY_SHA256="+digest)
+            ver=subprocess.run([str(tempbin),"--version"],capture_output=True,
+                  text=True,timeout=22,check=False)
+            ok=ver.returncode==0 and ver.stdout.strip()=="v24.22.1"
+            print("REA_NODE24_STAGE_VERSION="+(
+                "v24.22.1" if ok else "INVALID_OR_NOT_EXECUTABLE"))
+            if not ok:
+                print("REA_NODE24_STAGE_STATUS=BLOCKED_LOCAL_VERSION")
+                return
+            module=("const {DatabaseSync}=require('node:sqlite');"+
+                "const db=new DatabaseSync(':memory:');"+
+                "const ok=typeof db.limits==='function';db.close();"+
+                "if(!ok)process.exit(41);console.log('PASS_NATIVE_LIMITS')")
+            check=subprocess.run([str(tempbin),"-e",module],capture_output=True,
+                    text=True,timeout=25,check=False)
+            sqliteok=check.returncode==0 and "PASS_NATIVE_LIMITS" in check.stdout
+            print("REA_NODE24_STAGE_SQLITE_LIMITS="+str(sqliteok).lower())
+            if not sqliteok:
+                print("REA_NODE24_STAGE_STATUS=BLOCKED_SQLITE_RUNTIME_FEATURES")
+                return
+            for parent in (root,root/"bin"):
+                p=sudo("install","-d","-m","0755","-o","root","-g","root",
+                       str(parent),timeout=20)
+                if p.returncode:
+                    print("REA_NODE24_STAGE_STATUS=BLOCKED_INSTALL_DIRECTORY")
+                    return
+            file=sudo("install","-m","0755","-o","root","-g","root",
+                    str(tempbin),str(binary),timeout=35)
+            if file.returncode:
+                print("REA_NODE24_STAGE_STATUS=FAILED_COPY")
+                return
+        av=sudo("-u","rea-reversa",str(binary),"--version",timeout=25)
+        access=av.returncode==0 and av.stdout.strip()=="v24.22.1"
+        print("REA_NODE24_STAGE_SERVICE_ACCESS="+str(access).lower())
+        if not access:
+            print("REA_NODE24_STAGE_STATUS=FAILED_SERVICE_USER_ACCESS")
+            return
+        script="/opt/rea-reversa/rea/scripts/rea.mjs"
+        cli=sudo("-u","rea-reversa",str(binary),script,"--version",timeout=55)
+        c=cli.returncode==0 and bool(cli.stdout.strip())
+        print("REA_NODE24_STAGE_REA_CLI="+("PASS" if c else "INCOMPLETE"))
+        unchanged=bool(beforepid) and beforepid==prop("MainPID")
+        print("REA_NODE24_STAGE_PID_STABLE="+str(unchanged).lower())
+        print("REA_NODE24_STAGE_STATUS="+(
+           "PASS_SIDE_BY_SIDE_SQLITE_READY_SERVICE_UNCHANGED"
+           if c and unchanged else
+           "PASS_STAGED_RUNTIME_SERVICE_UNCHANGED_MORE_VALIDATION_REQUIRED"
+        ))
         return
     if data["action"] == "fixture_linux_static_formats_20261023":
         # Real file-only REA MCP tools with model-owned source fixtures.
