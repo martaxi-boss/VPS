@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_pcap_provider"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -317,6 +317,12 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_LINUX_GDB_REAL_TEST_SHA256",
         "REA_LINUX_GDB_REAL_TEST",
         "REA_LINUX_GDB_REAL_SOURCE_UNCHANGED",
+        "REA_PCAP_CLIENT", "REA_PCAP_CLIENT_ISERROR", "REA_PCAP_CLIENT_SHA256",
+        "REA_PCAP_PROVIDER_VERSIONS", "REA_PCAP_CAPTURE", "REA_PCAP_CAPTURE_ISERROR",
+        "REA_PCAP_CAPTURE_SHA256", "REA_PCAP_PACKET_COUNT", "REA_PCAP_TARGET_HASH",
+        "REA_PCAP_NEGATIVE", "REA_PCAP_NEGATIVE_ISERROR", "REA_PCAP_NEGATIVE_SHA256",
+        "REA_PCAP_SOURCE_UNCHANGED", "REA_PCAP_CLEANUP", "REA_PCAP_SERVICE_UNCHANGED",
+        "REA_PCAP_STATUS",
         "REA_LINUX_GDB_REAL_MISSING_LIBS",
         "REA_LINUX_GDB_REAL_STAGED_DEPS",
         "REA_LINUX_GDB_REAL_DEP_ERROR",
@@ -1803,6 +1809,137 @@ def main():
                     "REA_BINWALK_COMMAND","REA_UNBLOB_COMMAND",
                     "REA_RIZIN_COMMAND","REA_GDB_COMMAND")},sort_keys=True))
         print("REA_SDIAG_STATUS=PASS_READ_ONLY")
+        return
+    if data["action"] == "fixture_linux_pcap_provider":
+        # Fixed, artificial one-packet capture: test the ORIGINAL permanent MCP
+        # and real system tshark/capinfos. No packets are captured from a network.
+        # Does not install, restart services or accept user-selected paths.
+        import tempfile
+        import struct
+        import shutil
+        if not {"inspect_pcap_client", "inspect_pcap_capture"}.issubset(tool_by_name):
+            print("REA_PCAP_STATUS=BLOCKED_MCP_TOOL_MISSING")
+            return
+        pid_before = subprocess.run(
+            ["systemctl", "show", "rea-reversa-mcp.service", "-p", "MainPID", "--value"],
+            capture_output=True, text=True, timeout=10, check=False).stdout.strip()
+        def call_pcap(name, args, ident):
+            secure.validate_arguments(tool_by_name[name], args)
+            _, response = request_mcp({
+                "jsonrpc": "2.0", "id": ident, "method": "tools/call",
+                "params": {"name": name, "arguments": args}
+            }, session, protocol, timeout=100)
+            result = response.get("result")
+            successful = ("error" not in response and isinstance(result, dict)
+                          and result.get("isError") is not True)
+            blob = json.dumps(response, sort_keys=True, ensure_ascii=True).encode()
+            return successful, result, hashlib.sha256(blob).hexdigest()
+        def normalized(result):
+            if not isinstance(result, dict):
+                return None
+            candidates = [result.get("structuredContent")]
+            for segment in result.get("content", []):
+                if isinstance(segment, dict) and isinstance(segment.get("text"), str):
+                    try:
+                        candidates.append(json.loads(segment["text"]))
+                    except (ValueError, TypeError):
+                        pass
+            def visit(item, depth=0):
+                if depth > 5:
+                    return None
+                if isinstance(item, dict):
+                    if isinstance(item.get("normalized_result"), dict):
+                        return item["normalized_result"]
+                    for child in item.values():
+                        match = visit(child, depth + 1)
+                        if match is not None:
+                            return match
+                if isinstance(item, list):
+                    for child in item[:12]:
+                        match = visit(child, depth + 1)
+                        if match is not None:
+                            return match
+                return None
+            for candidate in candidates:
+                match = visit(candidate)
+                if match is not None:
+                    return match
+            return None
+        client_ok, client, client_digest = call_pcap("inspect_pcap_client", {}, 851)
+        details = normalized(client)
+        versions = {}
+        if isinstance(details, dict) and isinstance(details.get("client"), dict):
+            c = details["client"]
+            versions = {"tshark": bool(c.get("tshark_version")),
+                        "capinfos": bool(c.get("capinfos_version"))}
+        print("REA_PCAP_CLIENT=" + ("PASS" if client_ok and all(versions.values())
+              else "FAIL"))
+        print("REA_PCAP_CLIENT_ISERROR=" + str(not client_ok).lower())
+        print("REA_PCAP_CLIENT_SHA256=" + client_digest)
+        print("REA_PCAP_PROVIDER_VERSIONS=" + json.dumps(versions, sort_keys=True))
+        fixture_status = "INCOMPLETE"
+        cleanup_ok = False
+        with tempfile.TemporaryDirectory(prefix="rea-pcap-certified-", dir="/tmp") as folder:
+            root = Path(folder)
+            root.chmod(0o755)
+            target = root / "one-udp-packet.pcap"
+            payload = b"rea-owned-fixture-only"
+            eth = bytes.fromhex("00112233445566778899aabb0800")
+            source_ip = bytes([192,0,2,1])
+            dest_ip = bytes([198,51,100,2])
+            ip_header = struct.pack("!BBHHHBBH4s4s", 0x45,0,
+                    20 + 8 + len(payload), 1234, 0, 64, 17, 0, source_ip, dest_ip)
+            def checksum(buf):
+                if len(buf) % 2:
+                    buf += b"\\x00"
+                numbers = struct.unpack("!" + "H"*(len(buf)//2), buf)
+                total = sum(numbers)
+                while total >> 16:
+                    total = (total & 0xffff) + (total >> 16)
+                return (~total) & 0xffff
+            ip_header = ip_header[:10] + struct.pack("!H", checksum(ip_header)) + ip_header[12:]
+            udp_header = struct.pack("!HHHH", 51000,53000,8 + len(payload),0)
+            frame = eth + ip_header + udp_header + payload
+            pcap = (struct.pack("<IHHIIII",0xa1b2c3d4,2,4,0,0,65535,1)
+                    + struct.pack("<IIII",1700000000,0,len(frame),len(frame)) + frame)
+            target.write_bytes(pcap)
+            target.chmod(0o644)
+            before = hashlib.sha256(target.read_bytes()).hexdigest()
+            capture_ok, capture, capture_digest = call_pcap(
+                "inspect_pcap_capture", {"path": str(target)}, 852)
+            captured = normalized(capture)
+            packets = captured.get("packet_count") if isinstance(captured,dict) else None
+            target_hash = ((captured.get("target") or {}).get("sha256")
+                           if isinstance(captured,dict) and
+                              isinstance(captured.get("target"),dict) else None)
+            print("REA_PCAP_CAPTURE=" + ("PASS" if capture_ok and packets == 1
+                  and target_hash == before else "FAIL"))
+            print("REA_PCAP_CAPTURE_ISERROR=" + str(not capture_ok).lower())
+            print("REA_PCAP_CAPTURE_SHA256=" + capture_digest)
+            print("REA_PCAP_PACKET_COUNT=" + str(packets))
+            print("REA_PCAP_TARGET_HASH=" + str(target_hash == before).lower())
+            missing = root / "does-not-exist.pcap"
+            negative_ok, negative, negative_digest = call_pcap(
+                "inspect_pcap_capture", {"path": str(missing)}, 853)
+            expected_error = isinstance(negative,dict) and negative.get("isError") is True
+            print("REA_PCAP_NEGATIVE=" + ("PASS_EXPECTED_ERROR" if expected_error
+                  else "FAIL"))
+            print("REA_PCAP_NEGATIVE_ISERROR=" + str(expected_error).lower())
+            print("REA_PCAP_NEGATIVE_SHA256=" + negative_digest)
+            unchanged = hashlib.sha256(target.read_bytes()).hexdigest() == before
+            print("REA_PCAP_SOURCE_UNCHANGED=" + str(unchanged).lower())
+            fixture_status = ("FUNCTIONAL_PASS_SCOPED" if client_ok and
+                all(versions.values()) and capture_ok and packets == 1 and
+                target_hash == before and expected_error and unchanged else "INCOMPLETE")
+        cleanup_ok = not root.exists()
+        print("REA_PCAP_CLEANUP=" + ("PASS" if cleanup_ok else "FAIL"))
+        pid_after = subprocess.run(
+            ["systemctl", "show", "rea-reversa-mcp.service", "-p", "MainPID", "--value"],
+            capture_output=True, text=True, timeout=10, check=False).stdout.strip()
+        unchanged_service = bool(pid_before) and pid_before == pid_after
+        print("REA_PCAP_SERVICE_UNCHANGED=" + str(unchanged_service).lower())
+        print("REA_PCAP_STATUS=" + (fixture_status if cleanup_ok and unchanged_service
+              else "INCOMPLETE"))
         return
     if data["action"] == "fixture_linux_service_provider_activate":
         # Owner-requested REA ONLY integration, with rollback on any
