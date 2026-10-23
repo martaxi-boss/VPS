@@ -107,6 +107,73 @@
         "Does not test dynamic execution, real Android devices, or all possible reference edges",
         "An MCP call without isError=true is not proof of general correctness"
       ]
+    },
+    {
+      "id": "2026-10-23-managed-pe-controlled-change",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "target": "Source-owned PE/CLR fixture DLL generated in isolated /dev/shm",
+      "workflow_runs": [
+        39945973782,
+        39946140124
+      ],
+      "workflow_urls": [
+        "https://github.com/martaxi-boss/VPS/actions/runs/39945973782",
+        "https://github.com/martaxi-boss/VPS/actions/runs/39946140124"
+      ],
+      "request_commits": [
+        "a131c18ee675a8f0f3e51f310bf539d16cc3f66a",
+        "b6c5f44e118c0f005b7aec30b7a46ac255b4f71e"
+      ],
+      "cleanup_commits": [
+        "d4277d37b01287b4c3932a7c10df7343c161cf97",
+        "5b72d58834cedf6d6d1995d4bd1b5398fdbd57fd"
+      ],
+      "artifact_sha256_baseline": "7edc9f6853f9eb22e664b500c698bd4aa53a92d7a9429da2669a4b394e8ec4b3",
+      "artifact_sha256_variant": "817b39ca8475e7c7e7508ec96e3f6a668fc02b23ba0e7d03a82f17c6155f8542",
+      "authenticated_result_sha256": [
+        "379a907f4941dcf29c8bb742732c62c67be4a049e27bcab243a29a34c320856b",
+        "0d1091b00590b12edb1769c912b84cd02df3970b43710c99a8c28990523d29ff"
+      ],
+      "artifacts_actions": [
+        12497642842,
+        12498910145
+      ],
+      "mcp_calls": 4,
+      "request_result_binding_verified": true,
+      "authenticated_decryption": true,
+      "mcp_is_error": false,
+      "input_hash_changed": true,
+      "input_unchanged_both": true,
+      "temporary_cleanups": [
+        "PASS",
+        "PASS"
+      ],
+      "observed_input_change": {
+        "method": "Main → MainV2",
+        "mvid": "00112233-4455-6677-8899-aabbccddeeff → efbeadde-3344-5566-aabb-ccddeeff1122"
+      },
+      "tools": [
+        {
+          "name": "inspect_managed_artifact",
+          "status": "FUNCTIONAL_PASS_SCOPED",
+          "check": "Reports PE/CLR assembly Fixture.Managed v1.2.3.4, module identity, SHA-256 and full coverage on baseline"
+        },
+        {
+          "name": "inspect_managed_members",
+          "status": "FUNCTIONAL_PASS_SCOPED",
+          "check": "Finds 1 managed method Main, then MainV2 after controlled change; related call-edge caller updates; token remains stable"
+        },
+        {
+          "name": "inspect_managed_native_boundaries",
+          "status": "FUNCTIONAL_PASS_SCOPED",
+          "check": "Shows IL-only, zero PInvoke, zero native implementations on a known pure managed fixture"
+        }
+      ],
+      "limitations": [
+        "Only one source-owned PE fixture and one controlled change; no corrupt-file negative test",
+        "Does not certify PInvoke/nonzero native interoperability or code execution",
+        "No independent second PE parser used, but source generator and cross-tool consistency checked"
+      ]
     }
   ],
   "previous_evidence": {
@@ -119,5 +186,17 @@
       39943693993
     ],
     "prior_tool_counts": "Not re-certified or summed in this new phase"
-  }
+  },
+  "latest_phase": "2026-10-23-managed-pe-controlled-change",
+  "scoped_positive_distinct_tool_names": [
+    "inspect_android_class",
+    "inspect_android_method",
+    "inspect_android_package",
+    "inspect_managed_artifact",
+    "inspect_managed_members",
+    "inspect_managed_native_boundaries",
+    "search_android_classes",
+    "trace_android_references"
+  ],
+  "scoped_positive_distinct_tools": 8
 }
