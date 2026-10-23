@@ -181,5 +181,37 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P02-gnu-objdump-20261023"
+  "latest_phase": "LINUX-P02-gnu-objdump-20261023",
+  "live_catalog_snapshot": {
+    "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
+    "source": "original REA MCP tools/list on existing Linux VPS",
+    "run_id": 39948431340,
+    "workflow_url": "https://github.com/martaxi-boss/VPS/actions/runs/39948431340",
+    "request_commit": "a029820ef7060be3f19da484a7f2855f57bae0a6",
+    "request_cleanup_commit": "7da6d143b598e700a6e1bfa5416f8e425f814d64",
+    "artifact_id": 12499545716,
+    "live_tool_count": 208,
+    "duplicate_tool_names": 0,
+    "risk_breakdown": {
+      "read": 5,
+      "workspace": 120,
+      "sensitive": 83
+    },
+    "live_contract_result_sha256": "b06c75345f4e61de65a8035ea16e34a1c5644c41b590a5f2a8442b28b885ed8e",
+    "request_binding_verified": true,
+    "result_decrypted": true,
+    "result_sha256_verified": true,
+    "per_tool_functionality_contracts_retrieved": true,
+    "next_test_selection": "Per tool from MCP schema and description, select fixtures, outcomes and comparison oracle",
+    "note": "MCP catalog schemas and description prove contract inventory only; no further tools certified by catalog retrieval"
+  },
+  "legacy_hygiene": {
+    "linux_only_active_request_path": "rea-linux/requests/*.json",
+    "legacy_request_path_active": false,
+    "legacy_platform_scoped_canonical_ledger_retired": true,
+    "production_motor_modified": false,
+    "old_ssh_bridge_workflow_filename_still_in_use_for_compatibility": true,
+    "do_not_remove_live_entrypoints_without_paired_migration": true,
+    "no_test_runs_from_other_projects_deletion": true
+  }
 }
