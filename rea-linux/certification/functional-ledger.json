@@ -961,15 +961,77 @@
         "awaiting_individual_review": 194,
         "fully_certified_tools_added": 0
       }
+    },
+    {
+      "phase_id": "LINUX-P14-GO-RUST-ORIGINAL-MCP-20261023",
+      "date_utc": "2026-10-23",
+      "status": "TWO_ADDITIONAL_FUNCTIONAL_PASS_SCOPED_TOOLS_ORIGINAL_LINUX_NODE24_MCP",
+      "actions_run_id": 39999209081,
+      "actions_request_commit": "f2466ea51b90a62621ee09fc64e8e326a0cb5b6e",
+      "source_fixture_references": [
+        "martaxi-boss/Engenheira-reversa/rea/tests/fixtures/go/image.ts",
+        "martaxi-boss/Engenheira-reversa/rea/tests/fixtures/rust/image.ts"
+      ],
+      "original_mcp_tool_catalog": 208,
+      "verified_active_runtime": "node v24.22.1 original systemd REA",
+      "tool_tests": [
+        {
+          "name": "inspect_go_binary",
+          "status": "FUNCTIONAL_PASS_SCOPED",
+          "isError": false,
+          "reply_sha256": "c43b56dcfa1b347314ac70e3601f9e082a818226442809ae71ac5a70c5b65c5e",
+          "assertions": {
+            "format_elf": true,
+            "bits_64": true,
+            "go_version": "go1.26.0",
+            "module_path": "example.com/tool/cmd/tool",
+            "dependency_found": "example.com/dependency",
+            "selected_artifact_sha256_matches": true,
+            "source_unchanged": true
+          },
+          "scope": "One source-derived synthetic ELF64 buildinfo container, no Go program execution, no real compiled binary certification"
+        },
+        {
+          "name": "inspect_rust_binary",
+          "status": "FUNCTIONAL_PASS_SCOPED",
+          "isError": false,
+          "reply_sha256": "b26dbed8c7256fee6f22d1a9066efd50b3061b7e8d30cc37891e0e0ec7080f6d",
+          "assertions": {
+            "format_elf": true,
+            "bits_64": true,
+            "two_crates": true,
+            "root_crate": "sample",
+            "dependency": "itoa 1.0.18",
+            "rustc_hash_observed": true,
+            "selected_artifact_sha256_matches": true,
+            "source_unchanged": true
+          },
+          "scope": "One source-derived synthetic ELF64 .dep-v0 zlib image; no complete coverage of Rust encodings or corruption cases"
+        }
+      ],
+      "controls": {
+        "request_risk_class": "workspace",
+        "no_sensitive_bypass": true,
+        "owner_only_temp_files": true,
+        "owned_temp_files_cleaned": true,
+        "original_service_pid_unchanged": true,
+        "non_target_services_untouched": true,
+        "did_not_exercise_compiled_foreign_program": true
+      },
+      "cumulative": {
+        "functional_pass_scoped_distinct": 16,
+        "pending_individual_review": 192,
+        "fully_certified_distinct": 0
+      }
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 14,
-    "awaiting_canonical_individual_review": 194,
+    "functional_pass_scoped_distinct": 16,
+    "awaiting_canonical_individual_review": 192,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 7,
+    "workspace_newly_passed_distinct": 9,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3
   },
@@ -1001,7 +1063,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P13-EVM-NODE24-SQLITE-ORIGINAL-MCP-20261023",
+  "latest_phase": "LINUX-P14-GO-RUST-ORIGINAL-MCP-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -1287,6 +1349,17 @@
       "likely_cause": "service device isolation",
       "operation": "READ_ONLY_ASSESSMENT",
       "security_bypass": false
+    },
+    "go_rust_static_mcp": {
+      "status": "PASS_TWO_REAL_ORIGINAL_MCP_FILE_ONLY_FUNCTIONS",
+      "run_id": 39999209081,
+      "tools": [
+        "inspect_go_binary",
+        "inspect_rust_binary"
+      ],
+      "no_compilers_required": true,
+      "source_cleaned": true,
+      "service_pid_stable": true
     }
   }
 }
