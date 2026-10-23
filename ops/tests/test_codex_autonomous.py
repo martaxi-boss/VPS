@@ -217,8 +217,14 @@ class SpecializationRouteTests(unittest.TestCase):
         self.assertIn('git -C "$specialized" show "$specialized_sha:AGENTS.md"', remote)
         self.assertIn('git -C "$specialized" show "$specialized_sha:CODEX_COORDINATION.md"', remote)
         self.assertIn('CODEX_SPECIALIZED_RUNTIME_PIN=$specialized_sha', remote)
-        self.assertIn('A Codex worker already dispatched by the verified VPS Coordinator', remote)
-        self.assertIn('VPS (unchanged and independent)', remote)
+        # Pin the portable, single-Coordinator policy; do not require retired
+        # VPS Coordinator wording that no longer appears in AGENTS.md.
+        self.assertIn('# Project Leader + Codex (specialized runtime)', remote)
+        self.assertIn('The sole Coordinator belongs to this repository', remote)
+        self.assertIn('The project Coordinator is the existing', remote)
+        self.assertIn('VPS legacy observation only by default', remote)
+        self.assertNotIn('A Codex worker already dispatched by the verified VPS Coordinator', remote)
+        self.assertNotIn("grep -qF 'VPS (unchanged and independent)'", remote)
         self.assertIn('if [ "$slug" != "martaxi-boss/Project-leader" ]; then', remote)
         self.assertLess(remote.index("codex-project-leader-bootstrap.py"),
                         remote.index("CODEX_SPECIALIZED_RUNTIME_PIN"))

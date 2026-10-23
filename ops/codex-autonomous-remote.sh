@@ -155,9 +155,16 @@ if [ "$slug" != "martaxi-boss/Project-leader" ]; then
     file="$base/codex-specialized-$name"
     test -s "$file" && test "$(wc -c < "$file")" -le 20000 || exit 5
   done
-  grep -qF 'A Codex worker already dispatched by the verified VPS Coordinator' \
+  # Require the current portable, project-owned Coordinator policy from the
+  # exactly pinned specialized repository. Historical VPS Coordinator wording
+  # was retired and must not be treated as an authority or an acceptance gate.
+  grep -qF '# Project Leader + Codex (specialized runtime)' \
     "$base/codex-specialized-AGENTS.md" || exit 5
-  grep -qF 'VPS (unchanged and independent)' \
+  grep -qF 'The sole Coordinator belongs to this repository' \
+    "$base/codex-specialized-AGENTS.md" || exit 5
+  grep -qF 'The project Coordinator is the existing' \
+    "$base/codex-specialized-CODEX_COORDINATION.md" || exit 5
+  grep -qF 'VPS legacy observation only by default' \
     "$base/codex-specialized-CODEX_COORDINATION.md" || exit 5
   echo "CODEX_SPECIALIZED_RUNTIME_PIN=$specialized_sha"
 fi
