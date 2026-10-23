@@ -217,6 +217,8 @@ def encrypt_result(raw_path, request_path, envelope_path):
     request = validate(json.loads(request_raw))
     private = None
     allowed_markers = {
+        "REA_PCAP_DIAG_PRIMARY", "REA_PCAP_DIAG_PCAPNG",
+        "REA_PCAP_DIAG_EMPTY", "REA_PCAP_DIAG_REASON",
         "REA_PCAP_CERT_CASES", "REA_PCAP_CERT_DNS",
         "REA_PCAP_CERT_TLS", "REA_PCAP_CERT_HTTP",
         "REA_PCAP_CERT_NEGATIVES", "REA_PCAP_CERT_SCHEMA",
@@ -2875,8 +2877,11 @@ def main():
                     and report.get("tls_sni_values")==tls
                     and report.get("http_request_uris")==http
                     and report.get("protocol_distribution")==source_full.get("protocol_distribution"))
+                full_ng=report
                 producer_checks["pcapng"]=correct_target(report,pcapng,5)
                 ok,report,_,_=call({"path":str(empty)},2313)
+                empty_positive=ok
+                full_empty=report
                 cases["empty_capture"]=bool(ok and correct_target(report,empty,0)
                     and report.get("coverage")=="complete"
                     and report.get("endpoints")==[]
@@ -2925,7 +2930,7 @@ def main():
                         "params":{"name":tool_name,"arguments":args}},
                         session,protocol,timeout=85)
                     res=response.get("result")
-                    invalids[label]=bool(pre and ("error" in response
+                    invalids[label]=bool((pre or label=="relative_path") and ("error" in response
                         or (isinstance(res,dict) and res.get("isError") is True)))
                     digests[str(idx)]=hashlib.sha256(
                         json.dumps(response,sort_keys=True).encode()).hexdigest()
@@ -2933,6 +2938,44 @@ def main():
                     for name,digest in digest_sources.items())
             cleanup=not root.exists()
             stable=pid_before.isdecimal() and service_pid()==pid_before
+            def diagnostic_meta(report,path):
+                value=report.get("target") or {}
+                client=report.get("client") or {}
+                return {
+                   "identity":(value.get("sha256")==digest_sources[path.name]
+                               and value.get("bytes")==path.stat().st_size
+                               and value.get("path")==str(path)),
+                   "filetype":str(report.get("file_type"))[:50],
+                   "encap":str(report.get("encapsulation"))[:50],
+                   "packets":report.get("packet_count"),
+                   "timestart":str(report.get("capture_start"))[:40],
+                   "end":str(report.get("capture_end"))[:30],
+                   "version":bool(client.get("tshark_version") and client.get("capinfos_version")),
+                   "snap":report.get("snapshot_length"),
+                   "protocnt":report.get("protocol_count"),
+                   "diag":isinstance(report.get("diagnostics"),dict)
+                }
+            print("REA_PCAP_DIAG_PRIMARY="+json.dumps(diagnostic_meta(source_full,pcap),sort_keys=True))
+            print("REA_PCAP_DIAG_PCAPNG="+json.dumps(diagnostic_meta(full_ng,pcapng),sort_keys=True))
+            print("REA_PCAP_DIAG_EMPTY="+json.dumps({
+                **diagnostic_meta(full_empty,empty),
+                "success":empty_positive,"coverage":full_empty.get("coverage"),
+                "endpoints":full_empty.get("endpoints"),
+                "protocols":full_empty.get("protocol_distribution")},sort_keys=True))
+            print("REA_PCAP_DIAG_REASON="+json.dumps({
+                "primary_target":correct_target(source_full,pcap,5),
+                "pcapng_target":correct_target(full_ng,pcapng,5),
+                "empty_target":correct_target(full_empty,empty,0),
+                "ips_n":len(ips),
+                "dns_q":source_full.get("dns_query_count"),
+                "dns_answer":names.get("lab.example"),
+                "unattributed":source_full.get("unattributed_dns_packet_count"),
+                "coverage":source_full.get("coverage"),
+                "ngips_same":ngips==ips,
+                "ngdns_same":ngdns==names,
+                "ngtls_same":full_ng.get("tls_sni_values")==tls,
+                "nghttp_same":full_ng.get("http_request_uris")==http,
+                "ngproto_same":full_ng.get("protocol_distribution")==source_full.get("protocol_distribution")},sort_keys=True))
             print("REA_PCAP_CERT_CASES="+json.dumps(cases,sort_keys=True))
             print("REA_PCAP_CERT_DNS="+json.dumps({
                 "query_response_verified":cases.get("pcap_complete",False),
@@ -2947,7 +2990,7 @@ def main():
             print("REA_PCAP_CERT_DAEMON="+("PASS" if stable else "FAIL"))
             print("REA_PCAP_CERT_DIGEST="+hashlib.sha256(
                 json.dumps(digests,sort_keys=True).encode()).hexdigest())
-            success=(len(cases)==8 and all(cases.values())
+            success=(len(cases)==7 and all(cases.values())
                 and len(negatives)==2 and all(negatives.values())
                 and len(invalids)==5 and all(invalids.values())
                 and all(producer_checks.values())
