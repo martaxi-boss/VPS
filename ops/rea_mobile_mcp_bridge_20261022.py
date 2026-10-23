@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_sigrok_offline_preflight"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_sigrok_offline_preflight", "fixture_linux_sigrok_build_simulate"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -225,6 +225,9 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SIGROK_OFFLINE_SANDBOX_DEVICEPOLICY",
         "REA_SIGROK_OFFLINE_SANDBOX_RESTRICTADDRESSFAMILIES",
         "REA_SIGROK_OFFLINE_STATUS",
+        "REA_SIGROK_BUILD_SIM_EXIT", "REA_SIGROK_BUILD_SIM_REQUESTED",
+        "REA_SIGROK_BUILD_SIM_INSTALL", "REA_SIGROK_BUILD_SIM_UPGRADES",
+        "REA_SIGROK_BUILD_SIM_REMOVALS", "REA_SIGROK_BUILD_SIM_SAFE",
         "REA_MOBILE_LOOPBACK_MCP", "REA_MOBILE_MCP_TOOL_COUNT",
         "REA_MOBILE_READONLY_HINT_COUNT", "REA_MOBILE_STATIC_INSPECT_COUNT",
         "REA_MOBILE_SAFE_QUERY_COUNT", "REA_MOBILE_SAFE_CALLABLE_COUNT",
@@ -2054,6 +2057,28 @@ def main():
             print("REA_PCONFIG_PROVIDER_"+name.upper()+"="+(
                 "PASS" if test.returncode==0 else "NOT_ACCESSIBLE"))
         print("REA_PCONFIG_STATUS=PASS_READ_ONLY")
+        return
+    if data["action"] == "fixture_linux_sigrok_build_simulate":
+        # Dry run for minimal offline-source build prerequisites; never install.
+        needed = ("autoconf", "automake", "libtool", "libglib2.0-dev",
+                  "libzip-dev", "libsigrokdecode-dev")
+        proc = subprocess.run(
+            ["apt-get", "-s", "--no-install-recommends", "--no-remove",
+             "--no-upgrade", "install", *needed],
+            capture_output=True, text=True, timeout=90, check=False)
+        lines = proc.stdout.splitlines()
+        installs = [line.split()[1] for line in lines if line.startswith("Inst ")]
+        removals = [line.split()[1] for line in lines if line.startswith("Remv ")]
+        upgrades = [line.split()[1] for line in lines if line.startswith("Inst ")
+                    and "[" in line.split("(", 1)[0]]
+        print("REA_SIGROK_BUILD_SIM_EXIT=" + str(proc.returncode))
+        print("REA_SIGROK_BUILD_SIM_REQUESTED=" + json.dumps(needed))
+        print("REA_SIGROK_BUILD_SIM_INSTALL=" +
+              json.dumps({"count": len(installs), "first": installs[:20]}))
+        print("REA_SIGROK_BUILD_SIM_UPGRADES=" + str(len(upgrades)))
+        print("REA_SIGROK_BUILD_SIM_REMOVALS=" + str(len(removals)))
+        print("REA_SIGROK_BUILD_SIM_SAFE=" + str(
+              proc.returncode == 0 and not removals and len(installs) <= 25).lower())
         return
     if data["action"] == "fixture_linux_sigrok_offline_preflight":
         # Read-only: assess whether a separately built offline libsigrok could
