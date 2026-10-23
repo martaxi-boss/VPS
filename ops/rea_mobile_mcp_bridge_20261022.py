@@ -470,6 +470,8 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_PACT_PROC_ENV_READ",
         "REA_PACT_POST_SYSTEMD_ENV_KEYS",
         "REA_PACT_MCP_ATTEMPTS",
+        "REA_PACT_POST_READY_ENV",
+        "REA_PACT_POST_READY_CHECKS",
         "REA_SDIAG_IDENTITY",
         "REA_SDIAG_TYPE",
         "REA_SDIAG_DROPIN",
@@ -1911,9 +1913,8 @@ def main():
                             env_values[key]=v.decode("utf-8",errors="replace")
             matches={k:env_values.get(k)==value for k,value in paths.items()}
             print("REA_PACT_ACTIVE_ENV="+json.dumps(matches,sort_keys=True))
-            if not all(matches.values()):
-                print("REA_PACT_STATUS=FAILED_ENV_NOT_PROPAGATED")
-                return
+            # A service can pass through a short exec/ready transition.
+            # Do not reject provider env until the new MCP is fully serving.
             # Independent *new* MCP session after REA restart.
             init={"jsonrpc":"2.0","id":9401,"method":"initialize",
                   "params":{"protocolVersion":"2025-06-18",
@@ -1947,6 +1948,31 @@ def main():
             print("REA_PACT_MCP_TOOL_COUNT="+str(count))
             if count!=208:
                 print("REA_PACT_STATUS=FAILED_MCP_NOT_READY")
+                return
+            stable={}
+            for env_attempt in range(1,11):
+                final_pid=prop("MainPID")
+                if not final_pid.isdecimal() or int(final_pid)<1:
+                    time.sleep(1)
+                    continue
+                proc=sudo("cat",f"/proc/{int(final_pid)}/environ",timeout=14)
+                current={}
+                if proc.returncode==0:
+                    for item in proc.stdout.split(bytes([0])):
+                        if b"=" not in item:
+                            continue
+                        name,value=item.split(b"=",1)
+                        key=name.decode("ascii",errors="ignore")
+                        if key in paths:
+                            current[key]=value.decode("utf-8",errors="replace")
+                stable={key:current.get(key)==value for key,value in paths.items()}
+                if all(stable.values()):
+                    break
+                time.sleep(1)
+            print("REA_PACT_POST_READY_ENV="+json.dumps(stable,sort_keys=True))
+            print("REA_PACT_POST_READY_CHECKS="+str(env_attempt))
+            if not all(stable.values()):
+                print("REA_PACT_STATUS=FAILED_PROVIDER_ENV_AFTER_MCP_READY")
                 return
             verified=True
             print("REA_PACT_RESULT=PASS_PERSISTENT_4_PROVIDERS")
