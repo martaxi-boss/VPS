@@ -613,15 +613,78 @@
         "original_mcp_service_did_not_restart_during_packet_fixture": true,
         "limits": "No independent health check of every unrelated service; no live signed GDB session created"
       }
+    },
+    {
+      "phase_id": "LINUX-P10-APKTOOL-SIGROK-DEPLOYMENT-20261023",
+      "status": "ONE_NEW_SCOPED_FUNCTIONAL_PASS_AND_SIGROK_PERSISTENT_DEPLOYMENT",
+      "tools": [
+        {
+          "name": "inspect_apktool_client",
+          "status": "FUNCTIONAL_PASS_SCOPED",
+          "risk": "workspace",
+          "test_level": "Original permanent REA MCP Linux",
+          "run_id": 39986315538,
+          "request_commit": "c59c3642ccb403e0af1d25d8045ddc6eda7237de",
+          "mcp_isError": false,
+          "result_sha256": "c9f1efdb23dffc068e21b2e5fdba46a43a92f354d5f5040e9752264699804e37",
+          "assertions": {
+            "client_command_reported": true,
+            "version_reported": true
+          },
+          "limits": "Only client version and selected launcher, not APK decoding"
+        },
+        {
+          "name": "inspect_adb_client",
+          "status": "AUTHORIZATION_REQUIRED",
+          "run_id": 39986315538,
+          "reason": "Bridge classifies as sensitive despite source tool's read-only ADB CLI version operation; no MCP tools/call executed; do not bypass authorization"
+        },
+        {
+          "name": "inspect_signal_decoders",
+          "status": "FAILED_POSITIVE_PRE_CONFIGURATION",
+          "run_id": 39986315538,
+          "reason": "REA requires absolute service-level REA_SIGROK_COMMAND; identified from original provider source and systemd preflight; post-configuration live positive still pending"
+        },
+        {
+          "name": "decode_signal_recording",
+          "status": "FUNCTIONAL_POSITIVE_PENDING",
+          "reason": "Real Sigrok provider tests have not demonstrated successful UART decoding on the permanent MCP"
+        }
+      ],
+      "installation": {
+        "suppliers_reused": [
+          "apktool",
+          "adb",
+          "sigrok-cli 0.7.2",
+          "prlimit"
+        ],
+        "sigrok_preflight_run": 39986762626,
+        "sigrok_preflight_commit": "3b0ed81abbc372a18cfe10f228c3c70abbdf80a1",
+        "sigrok_activation_run": 39987163381,
+        "sigrok_activation_commit": "f1039d5de43b17e377d213fe9aeacadecd30b253",
+        "sigrok_persistent_environment": "REA_SIGROK_COMMAND=/usr/bin/sigrok-cli",
+        "sigrok_systemd_dropin": "/etc/systemd/system/rea-reversa-mcp.service.d/80-rea-linux-sigrok.conf",
+        "sigrok_post_restart_mcp_tools": 208,
+        "sigrok_post_restart_env_present": true,
+        "restart_only_rea": true,
+        "sigrok_provider_tool_results_after_activation_run": 39987443009,
+        "sigrok_after_restart_tool_isError_positive_calls": true,
+        "sigrok_positive_functional_status": "NOT_CERTIFIED",
+        "sigrok_negative_path_status": "PASS_EXPECTED_ERROR",
+        "original_service_pid_unchanged_during_sigrok_fixture": true,
+        "fixture_cleanup": "PASS",
+        "limitations": "Installed/exposed provider does not by itself prove real decoder usability; preserve negative evidence"
+      },
+      "next": "Inspect bounded error classifications; correct service configuration only if grounded and verify sigrok tool-level behavior; retain existing canonical positives without repeating"
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 9,
-    "awaiting_canonical_individual_review": 199,
+    "functional_pass_scoped_distinct": 10,
+    "awaiting_canonical_individual_review": 198,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 2,
+    "workspace_newly_passed_distinct": 3,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3
   },
@@ -653,7 +716,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P09-PCAP-ORIGINAL-PERMANENT-MCP-20261023",
+  "latest_phase": "LINUX-P10-APKTOOL-SIGROK-DEPLOYMENT-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -855,6 +918,12 @@
       "tshark",
       "capinfos"
     ],
-    "additional_real_mcp_run_id": 39984679548
+    "additional_real_mcp_run_id": 39984679548,
+    "sigrok_persistent_deployment": {
+      "run_id": 39987163381,
+      "configuration_active": true,
+      "original_mcp_catalog_208_after_restart": true,
+      "functional_sigrok_tools_passed": false
+    }
   }
 }
