@@ -342,7 +342,23 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_DOCTOR_LINUX_SAFE_SUMMARY",
         "REA_DOCTOR_LINUX_CHECKS",
         "REA_DOCTOR_LINUX_PROVIDERS",
-        "REA_DOCTOR_LINUX_HEALTH"
+        "REA_DOCTOR_LINUX_HEALTH",
+        "REA_DOCTOR_LINUX_CHECK_GROUP1",
+        "REA_DOCTOR_LINUX_CHECK_GROUP2",
+        "REA_DOCTOR_LINUX_CHECK_GROUP3",
+        "REA_DOCTOR_LINUX_CHECK_GROUP4",
+        "REA_DOCTOR_LINUX_PROVIDER1",
+        "REA_DOCTOR_LINUX_PROVIDER2",
+        "REA_DOCTOR_LINUX_PROVIDER3",
+        "REA_DOCTOR_LINUX_PROVIDER4",
+        "REA_DOCTOR_LINUX_PROVIDER5",
+        "REA_DOCTOR_LINUX_PROVIDER6",
+        "REA_DOCTOR_LINUX_PROVIDER7",
+        "REA_DOCTOR_LINUX_PROVIDER8",
+        "REA_DOCTOR_LINUX_PROVIDER9",
+        "REA_DOCTOR_LINUX_PROVIDER10",
+        "REA_DOCTOR_LINUX_PROVIDER11",
+        "REA_DOCTOR_LINUX_PROVIDER12"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -1349,6 +1365,8 @@ def main():
                           "classification":str(z.get("classification","unknown"))[:45]}
                          for z in checks[:40] if isinstance(z,dict)]
                 print("REA_DOCTOR_LINUX_CHECKS="+json.dumps(summary,separators=(",",":")))
+                for i in range(0,len(summary),3):
+                    print("REA_DOCTOR_LINUX_CHECK_GROUP"+str(i//3+1)+"="+json.dumps(summary[i:i+3],separators=(",",":")))
             providers=val.get("providerInspections")
             if isinstance(providers,list):
                 summary=[]
@@ -1366,6 +1384,8 @@ def main():
                                   if isinstance(c,dict)]
                     })
                 print("REA_DOCTOR_LINUX_PROVIDERS="+json.dumps(summary,separators=(",",":")))
+                for i,entry in enumerate(summary[:12]):
+                    print("REA_DOCTOR_LINUX_PROVIDER"+str(i+1)+"="+json.dumps({"id":entry["id"],"configured":entry["configured"],"available":entry["available"],"failed_checks":sum(1 for c in entry["checks"] if not c["ok"])},separators=(",",":")))
             print("REA_DOCTOR_LINUX_HEALTH="+json.dumps({
                 "healthy":val.get("healthy"),"environment_healthy":val.get("environment_healthy")}))
             def safe_statuses(v,depth=0):
