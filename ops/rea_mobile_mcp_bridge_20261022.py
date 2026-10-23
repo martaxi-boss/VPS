@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_wabt_deploy_20261023", "fixture_linux_wabt_real_mcp_20261023", "fixture_linux_pwntools_deploy_20261023", "fixture_linux_pwntools_diagnose_20261023", "fixture_linux_pwntools_real_mcp_20261023", "fixture_linux_binwalk_build_readiness_20261023", "fixture_linux_rust_official_checksum_20261023", "fixture_linux_binwalk31_isolated_build_20261023", "fixture_linux_binwalk_prereqs_install_20261023"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_wabt_deploy_20261023", "fixture_linux_wabt_real_mcp_20261023", "fixture_linux_pwntools_deploy_20261023", "fixture_linux_pwntools_diagnose_20261023", "fixture_linux_pwntools_real_mcp_20261023", "fixture_linux_binwalk_build_readiness_20261023", "fixture_linux_rust_official_checksum_20261023", "fixture_linux_binwalk31_isolated_build_20261023", "fixture_linux_binwalk_prereqs_install_20261023", "fixture_linux_binwalk31_activate_20261023"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -536,7 +536,12 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_BINPREREQ_SIM_DIAGNOSTIC","REA_BINPREREQ_REQUIRED_MISSING",
         "REA_BINPREREQ_INSTALL_EXIT","REA_BINPREREQ_INSTALL_DIAGNOSTIC",
         "REA_BINPREREQ_DPKG_STATUS","REA_BINPREREQ_PKG_CONFIG_AVAILABLE",
-        "REA_BINPREREQ_MCP_PID_STABLE"
+        "REA_BINPREREQ_MCP_PID_STABLE",
+        "REA_BIN3_ACT_STATUS","REA_BIN3_ACT_PRECHECK","REA_BIN3_ACT_BINARY_SHA256",
+        "REA_BIN3_ACT_PROCESS_ENV","REA_BIN3_ACT_PROVIDER_KEYS_PRESERVED",
+        "REA_BIN3_ACT_MCP_COUNT","REA_BIN3_ACT_RISK_CLASSES",
+        "REA_BIN3_ACT_NODE24","REA_BIN3_ACT_ORIGINAL_SOURCE",
+        "REA_BIN3_ACT_RESTART_SCOPE","REA_BIN3_ACT_ROLLBACK"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -1973,6 +1978,158 @@ def main():
                 print("REA_BIN3_BUILD_TEMP_CLEANUP="+str(not build.exists()).lower())
                 print("REA_BIN3_BUILD_REA_PID_STABLE="+str(pid==show("MainPID")).lower())
                 print("REA_BIN3_BUILD_DID_NOT_MODIFY_SYSTEM_PYTHON_RUST=true")
+        return
+    if data["action"] == "fixture_linux_binwalk31_activate_20261023":
+        # Integrate the source-pinned Binwalk 3.1.0 executable into ONLY
+        # the existing original REA systemd service; preserve distro
+        # Binwalk, other services, signed approvals and all original source.
+        import tempfile
+        import time
+        unit="rea-reversa-mcp.service"
+        binary=Path("/opt/rea-reversa/providers/binwalk-3.1.0/bin/binwalk")
+        dropin=Path("/etc/systemd/system/rea-reversa-mcp.service.d/97-rea-linux-binwalk31.conf")
+        contract=Path("/opt/rea-reversa/rea/src/firmware/FirmwareRelease.ts")
+        node24="/opt/rea-reversa/providers/node-v24.22.1/bin/node"
+        def command(argv,timeout=40):
+            r=subprocess.run(argv,capture_output=True,text=True,timeout=timeout,check=False)
+            if r.returncode!=0:
+                raise RuntimeError("Binwalk scoped setup failed: "+Path(argv[0]).name+
+                       " rc="+str(r.returncode)+" "+r.stderr.strip()[-120:])
+            return r.stdout.strip()
+        def sudo(*parts,timeout=40):
+            return command(["sudo","-n",*parts],timeout)
+        def show(key):
+            return command(["systemctl","show",unit,"-p",key,"--value"],13)
+        def pid():
+            a=show("MainPID")
+            if not a.isdigit() or int(a)<1:
+                raise RuntimeError("Original REA service has no main PID")
+            return a
+        def envmap(proc):
+            script=("import json,sys;from pathlib import Path;"
+                "raw=Path('/proc/'+sys.argv[1]+'/environ').read_bytes();"
+                "vals=[x.split(b'=',1) for x in raw.split(bytes([0])) if b'=' in x];"
+                "out={a.decode('ascii'):b.decode('utf-8','replace') for a,b in vals if a.startswith(b'REA_')};"
+                "print(json.dumps(out,sort_keys=True))")
+            return json.loads(sudo("python3","-c",script,proc,timeout=20))
+        if len(tools)!=208 or not contract.is_file() or contract.is_symlink():
+            print("REA_BIN3_ACT_STATUS=BLOCKED_ORIGINAL_MCP")
+            return
+        src_digest=hashlib.sha256(contract.read_bytes()).hexdigest()
+        source=contract.read_text()
+        if 'version: "3.1.0"' not in source or "4fdab3d464d97b68e0af9088df3f9e2e1545b21c" not in source:
+            print("REA_BIN3_ACT_STATUS=BLOCKED_ORIGINAL_VERSION_CONTRACT")
+            return
+        if show("User")!="rea-reversa" or not show("FragmentPath").endswith("/rea-reversa-mcp.service"):
+            print("REA_BIN3_ACT_STATUS=BLOCKED_UNIT_IDENTITY")
+            return
+        original_pid=pid()
+        old_exe=sudo("readlink","-f","/proc/"+original_pid+"/exe")
+        if old_exe!=node24:
+            print("REA_BIN3_ACT_STATUS=BLOCKED_NODE24")
+            return
+        oldenv=envmap(original_pid)
+        if not binary.is_file() or binary.is_symlink():
+            print("REA_BIN3_ACT_STATUS=BLOCKED_COMPILED_PROVIDER_ABSENT")
+            return
+        previous_sha=hashlib.sha256(binary.read_bytes()).hexdigest()
+        banner=sudo("runuser","-u","rea-reversa","--",str(binary),"--version",timeout=26)
+        if banner!="binwalk 3.1.0":
+            print("REA_BIN3_ACT_STATUS=BLOCKED_COMPILED_VERSION")
+            return
+        print("REA_BIN3_ACT_PRECHECK=PASS_EXACT_ORIGINAL_3_1_0")
+        print("REA_BIN3_ACT_BINARY_SHA256="+previous_sha)
+        text_value='[Service]\nEnvironment="REA_BINWALK_COMMAND=/opt/rea-reversa/providers/binwalk-3.1.0/bin/binwalk"\n'
+        if dropin.is_symlink():
+            print("REA_BIN3_ACT_STATUS=BLOCKED_DROPIN_SYMLINK")
+            return
+        if dropin.exists() and dropin.read_text()!=text_value:
+            print("REA_BIN3_ACT_STATUS=BLOCKED_DROPIN_CONFLICT")
+            return
+        created=False
+        stage_path=None
+        try:
+            if not dropin.exists():
+                with tempfile.NamedTemporaryFile(mode="w",encoding="utf-8",
+                               prefix="rea-binwalk31-unit-",delete=False) as item:
+                    item.write(text_value)
+                    stage_path=item.name
+                sudo("install","-o","root","-g","root","-m","0644",stage_path,str(dropin))
+                created=True
+                sudo("systemctl","daemon-reload")
+                if str(binary) not in show("Environment"):
+                    raise RuntimeError("New REA Binwalk environment not accepted by systemd")
+                sudo("systemctl","restart",unit,timeout=105)
+            newpid=pid()
+            if show("ActiveState")!="active" or (
+                      created and newpid==original_pid):
+                raise RuntimeError("REA main service failed to restart")
+            if sudo("readlink","-f","/proc/"+newpid+"/exe")!=node24:
+                raise RuntimeError("Node24 original MCP executor changed unexpectedly")
+            newenv=envmap(newpid)
+            if newenv.get("REA_BINWALK_COMMAND")!=str(binary):
+                raise RuntimeError("REA original process missing new Binwalk3 setting")
+            if any(newenv.get(k)!=v for k,v in oldenv.items()
+                   if k!="REA_BINWALK_COMMAND"):
+                raise RuntimeError("Unrelated REA provider environment was changed")
+            if hashlib.sha256(binary.read_bytes()).hexdigest()!=previous_sha:
+                raise RuntimeError("Compiled Binwalk executable changed during activation")
+            if hashlib.sha256(contract.read_bytes()).hexdigest()!=src_digest:
+                raise RuntimeError("Original REA firmware source changed")
+            verified=False
+            for retry in range(8):
+                try:
+                    h,init_again=request_mcp({"jsonrpc":"2.0","id":3001,
+                         "method":"initialize","params":{"protocolVersion":"2025-06-18",
+                         "capabilities":{},"clientInfo":{"name":"rea-binwalk-original-service-check",
+                         "version":"1.0"}}},timeout=16)
+                    if not isinstance(init_again.get("result"),dict):
+                        raise RuntimeError("Original MCP after restart did not initialize")
+                    fresh_session=h.get("Mcp-Session-Id")
+                    fresh_version=init_again["result"].get("protocolVersion")
+                    request_mcp({"jsonrpc":"2.0","method":"notifications/initialized"},
+                                fresh_session,fresh_version,timeout=12)
+                    _,cat=request_mcp({"jsonrpc":"2.0","id":3002,
+                         "method":"tools/list","params":{}},fresh_session,fresh_version,
+                          timeout=18)
+                    fresh_tools=cat.get("result",{}).get("tools")
+                    if not isinstance(fresh_tools,list) or len(fresh_tools)!=208:
+                        raise RuntimeError("REA MCP catalog changed after provider activation")
+                    if (sum(secure.classify(t["name"],t,())=="read" for t in fresh_tools)!=5
+                         or sum(secure.classify(t["name"],t,())=="workspace" for t in fresh_tools)!=120
+                         or sum(secure.classify(t["name"],t,())=="sensitive" for t in fresh_tools)!=83):
+                        raise RuntimeError("REA original signed classifications changed")
+                    verified=True
+                    break
+                except Exception:
+                    if retry==7:
+                        raise
+                    time.sleep(1)
+            if not verified:
+                raise RuntimeError("REA original MCP transport verification not completed")
+            print("REA_BIN3_ACT_PROCESS_ENV=PASS_REA_BINWALK_COMMAND_3_1_0")
+            print("REA_BIN3_ACT_PROVIDER_KEYS_PRESERVED="+str(
+                    all(newenv.get(k)==v for k,v in oldenv.items()
+                        if k!="REA_BINWALK_COMMAND")).lower())
+            print("REA_BIN3_ACT_MCP_COUNT=208")
+            print("REA_BIN3_ACT_RISK_CLASSES=5_120_83_UNCHANGED")
+            print("REA_BIN3_ACT_NODE24=PASS")
+            print("REA_BIN3_ACT_ORIGINAL_SOURCE=UNCHANGED")
+            print("REA_BIN3_ACT_RESTART_SCOPE="+(
+                 "ONLY_ORIGINAL_REA_SERVICE" if created else "NO_RESTART"))
+            print("REA_BIN3_ACT_STATUS="+(
+                 "PASS_BINWALK31_PERSISTENT_ORIGINAL_MCP" if created
+                 else "PASS_ALREADY_INSTALLED_READBACK"))
+        except Exception as exc:
+            if created:
+                sudo("rm","-f","--",str(dropin))
+                sudo("systemctl","daemon-reload")
+                sudo("systemctl","restart",unit,timeout=105)
+                print("REA_BIN3_ACT_ROLLBACK=RESTORED_OLD_REA_PROVIDER_CONFIGURATION")
+            raise RuntimeError("Binwalk3 scoped activation reverted or blocked: "+str(exc)[:160])
+        finally:
+            if stage_path is not None:
+                Path(stage_path).unlink(missing_ok=True)
         return
     if data["action"] == "fixture_linux_read5_mcp_boundaries":
         # Run original REA real MCP tool methods against private in-memory
