@@ -541,14 +541,73 @@
       "newly_functionally_certified_tools": [],
       "provider_limitation": "REA doctor --json is not globally healthy; IDA and Kuna optional registration unavailable; no live GDB session approved",
       "effects_in_this_phase": "Read-only bridge diagnosis; no new OS packages, no service restart or edits to unrelated services"
+    },
+    {
+      "phase_id": "LINUX-P09-PCAP-ORIGINAL-PERMANENT-MCP-20261023",
+      "status": "FUNCTIONAL_PASS_SCOPED_TWO_TOOLS_REAL_LINUX_MCP",
+      "tools": [
+        {
+          "name": "inspect_pcap_client",
+          "status": "FUNCTIONAL_PASS_SCOPED",
+          "risk": "workspace",
+          "contract": "Inspect available real Wireshark tshark and capinfos versions without capture file",
+          "assertions": {
+            "mcp_tools_call": true,
+            "isError": false,
+            "both_supplier_version_strings_present": true
+          },
+          "result_sha256": "accc385e71f2a7d9002c452f5c2d23cae1eb5447d8065bedbf863360cc928be3",
+          "limits": "One Linux x86_64 service environment; no vendor-specific platform coverage"
+        },
+        {
+          "name": "inspect_pcap_capture",
+          "status": "FUNCTIONAL_PASS_SCOPED",
+          "risk": "workspace",
+          "contract": "Inspect bounded owned pcap recording through real tshark and capinfos",
+          "assertions": {
+            "mcp_tools_call": true,
+            "isError": false,
+            "packet_count": 1,
+            "target_sha256_verified": true,
+            "nonexistent_path_isError": true,
+            "source_unchanged": true,
+            "fixture_deleted": true,
+            "original_mcp_service_pid_stable": true
+          },
+          "result_sha256": "ade1f2fd0cc3869fda36199cf356432b342d2e57779016930aef529f0e6aad45",
+          "negative_case_result_sha256": "6b4d26109e835b1ef1e2628407833e226dd92a3152d99d22c0a0e67613e68071",
+          "limits": "Artificial single IPv4 UDP packet only; untested larger, malformed, pcapng, DNS, TLS, HTTP and resource boundaries"
+        }
+      ],
+      "provenance": {
+        "initial_run_id": 39983872605,
+        "initial_commit": "4e19b025cefd8095e57cf7aad0a54afdc564059a",
+        "initial_result": "CLIENT_PASS_CAPTURE_NEGATIVE_EXPECTED_AND_POSITIVE_FAILED_ENOENT",
+        "failure_diagnostic_run_id": 39984364285,
+        "source_diagnostic": "Original systemd PrivateTmp=yes isolated /tmp file path from MCP",
+        "corrected_live_run_id": 39984679548,
+        "corrected_request_commit": "97795e791860e9cf88a940884dca5beb73653413",
+        "fixture_code_commit": "7c479bbabb42b47cf11153bf90f5aaf5eb3d6fc7",
+        "workflow": "REA Linux VPS original MCP functional certification",
+        "bridge": "ChatGPT -> GitHub Actions -> SSH -> existing Linux VPS -> 127.0.0.1:8765/mcp",
+        "correction": "Changed only fixed synthetic fixture from /tmp to /dev/shm. No REA source/daemon changes",
+        "supplier": "Real system-installed tshark and capinfos (no stubs)",
+        "both_positives": true,
+        "test_negative_isError": true,
+        "cleanup": "PASS",
+        "systemd_restart": false,
+        "other_services_untouched_by_test": true
+      },
+      "certification_policy": "Two limited functional passes, not two complete global certifications; tests and outputs intentionally bounded/sanitized."
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 7,
-    "awaiting_canonical_individual_review": 201,
+    "functional_pass_scoped_distinct": 9,
+    "awaiting_canonical_individual_review": 199,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
-    "read_group_missing_positive": 2
+    "read_group_missing_positive": 2,
+    "workspace_newly_passed_distinct": 2
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -578,7 +637,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P08-PERSISTENT-LINUX-PROVIDERS-SERVICE-INTEGRATION-20261023",
+  "latest_phase": "LINUX-P09-PCAP-ORIGINAL-PERMANENT-MCP-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -715,7 +774,8 @@
         39981259095,
         39983162092
       ],
-      "note": "Does not confer owner signature or functional session certification"
+      "note": "Does not confer owner signature or functional session certification",
+      "notes": "Persistent GNU GDB installed and service process configured. Positive production MCP status still pending signed session start/close (tool remains not fully certified)."
     }
   },
   "installation_readiness": {
@@ -749,6 +809,11 @@
     "live_systemd_process_environment_verified": true,
     "all_208_functionally_certified": false,
     "remaining": "Individual MCP tools/call conformance, real owned positive sessions, optional/proprietary provider decisions and owner-signed sensitive authorization",
-    "historical_provider_missing_flags_superseded": true
+    "historical_provider_missing_flags_superseded": true,
+    "additional_original_live_mcp_providers_passed": [
+      "tshark",
+      "capinfos"
+    ],
+    "additional_real_mcp_run_id": 39984679548
   }
 }
