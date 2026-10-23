@@ -1508,11 +1508,18 @@ def main():
         import tempfile
         installed=Path("/opt/rea-reversa/providers/unblob-26.6.4")
         entry=installed/"bin/unblob"
-        if entry.is_file():
-            p=subprocess.run([str(entry),"--version"],capture_output=True,
-                       text=True,timeout=25,check=False)
+        # Provider directory is 0750 and belongs to the REA service user:
+        # the SSH transport account MUST NOT inspect it directly.
+        existing=subprocess.run(["sudo","-n","-u","rea-reversa",
+                                 "test","-f",str(entry)],
+                                capture_output=True,timeout=12,check=False)
+        if existing.returncode==0:
+            p=subprocess.run(["sudo","-n","-u","rea-reversa",
+                              str(entry),"--version"],capture_output=True,
+                             text=True,timeout=25,check=False)
             print("REA_UNBLOB_ALREADY_INSTALLED="+str(p.returncode==0).lower())
-            print("REA_UNBLOB_STATUS=EXISTING_NO_OVERWRITE")
+            print("REA_UNBLOB_STATUS="+("PASS_PERSISTENT_LINUX"
+                  if p.returncode==0 else "EXISTING_EXECUTABLE_UNHEALTHY"))
             return
         try:
             account=pwd.getpwnam("rea-reversa")
@@ -1592,11 +1599,14 @@ def main():
                 "PASS_PERSISTENT_LINUX" if check.returncode==0 else
                 "UNAVAILABLE_AFTER_INSTALL"))
         finally:
-            # Delete only the fixed, owner-scoped transient wheel path.
+            # The service-owned provider directory is 0750. Only sudo may
+            # traverse it. Remove this exact transient wheel without probing
+            # via the unprivileged SSH account (previously raised EACCES).
             target=installed/"unblob-26.6.4-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
-            if target.is_file():
-                subprocess.run(["sudo","-n","rm","--",str(target)],
-                    capture_output=True,timeout=15,check=False)
+            cleanup=subprocess.run(["sudo","-n","rm","-f","--",str(target)],
+                capture_output=True,timeout=15,check=False)
+            print("REA_UNBLOB_TRANSIENT_CLEANUP="+
+                  ("PASS" if cleanup.returncode==0 else "FAIL"))
         return
     if data["action"] == "fixture_linux_rizin_persistent":
         # Official checksum-pinned Rizin Linux static binary, under existing
