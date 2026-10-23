@@ -139,38 +139,10 @@
     "Workflow green validates transport, while tool isError controls per-step outcome"
   ],
   "remaining_steps": [
-    "F",
-    "o",
-    "r",
-    " ",
-    "t",
-    "h",
-    "e",
-    "w",
-    "n",
-    "g",
-    "a",
-    "i",
-    "v",
-    "-",
-    "l",
-    "y",
-    "s",
-    ",",
-    "u",
-    "p",
-    "c",
-    "k",
-    "m",
-    "x",
-    "G",
-    "D",
-    "B",
-    "b",
-    "d",
-    "z",
-    "Do not overstate source conformance as a positive live original production MCP test",
-    "Real GDB not found in Linux runtime PATH; positive supplier integration remains pending independent security authorization"
+    "Preserve 3 scoped live permanent MCP positives and 1 valid isolated original MCP positive; do not count source-only or emulated tests as permanent integrations.",
+    "verify_unknown_resolution requires an admissible retained unknown with authentic evidence within an authorized live session.",
+    "gdb_session_status requires a real existing GDB session created and closed through the original signed sensitive authorization; GDB executable and service environment are now persistent.",
+    "Continue individual edge and negative conformance tests before full five-tool certification."
   ],
   "supplemental_isolated_checks": [
     {
@@ -200,5 +172,16 @@
       "next_live_requirement": "real GDB supplier configured in Linux and independently signed sensitive session-start authorization"
     }
   ],
-  "source_conformance_passed_distinct": 2
+  "source_conformance_passed_distinct": 2,
+  "current_prerequisite_reconciliation": {
+    "date_utc": "2026-10-23",
+    "persistent_gdb_package_installed_run": 39976335309,
+    "live_service_gdb_command_activated_run": 39980837721,
+    "independent_actual_daemon_environment_run": 39983162092,
+    "all_four_native_provider_env_keys_present_in_service_process": true,
+    "read_group_tool_status_unchanged": true,
+    "full_group_certification": false,
+    "no_owner_signed_live_gdb_session_test_this_phase": true,
+    "notes": "Historical negative test evidence remains valid; prior 'GDB not installed' limitation superseded as an installation statement, not as a functional tool certification."
+  }
 }
