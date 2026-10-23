@@ -15,3 +15,29 @@ Estados permitidos: `NOT_REVIEWED`, `FUNCTIONAL_PASS_SCOPED`, `FULLY_CERTIFIED`,
 Primeiro reconciliar as evidências já obtidas no Linux, sem repetir ensaios. Depois selecionar ferramentas ainda não cobertas e testar por função; corrigir problemas numa área isolada; voltar a testar pelo MCP original; consolidar as provas neste diretório. A atividade de certificação não autoriza modificar, reiniciar ou reconfigurar o serviço de produção, nem instalar outro motor.
 
 O ficheiro `functional-ledger.json` é o registo ativo. Evidências de execuções históricas continuam disponíveis nos respetivos commits e runs GitHub, mas não contam automaticamente como certificação funcional.
+
+## Fase comprovada: GNU objdump no Linux
+
+- Actions: https://github.com/martaxi-boss/VPS/actions/runs/39947962373
+- Ferramenta: `inspect_with_objdump` (uma ferramenta, três operações)
+- Ações funcionais: `file_headers`, `section_headers`, `disassemble`
+- Alvo: `/usr/bin/true` no Linux original; SHA-256 `8a63c98320173f79e263115e10cefc170155e47d1fd4b5a70e4429d2699cae28`
+- As três chamadas MCP devolveram resultado completo e não truncado, código de saída 0; alvo permaneceu inalterado.
+- Validação da saída cifrada: correspondência SHA-256 de pedido, autenticação AES-GCM e digest do resultado; inspecionados os campos `structuredContent.normalized_result`.
+- Interpretação: `FUNCTIONAL_PASS_SCOPED`, não certificação geral sem ensaio de entradas inválidas e outros perfis.
+
+## Catálogo real de funcionalidades no Linux
+
+- Actions: https://github.com/martaxi-boss/VPS/actions/runs/39948431340
+- Catálogo: 208 descritores MCP únicos, 5 leitura, 120 workspace, 83 sensíveis.
+- SHA-256 do resultado: `b06c75345f4e61de65a8035ea16e34a1c5644c41b590a5f2a8442b28b885ed8e`.
+- Foram verificados os contratos reais por nome, descrição e parâmetros. Um contrato não substitui um teste funcional.
+- O planeamento é por ferramenta e por operação, não por sistemas operativos de acesso.
+
+## Higienização de transportes legados
+
+- O diretório de pedidos em uso é **`rea-linux/requests/`**, não o diretório antigo.
+- O único workflow operacional foi renomeado na interface do GitHub para **REA Linux VPS original MCP functional certification**.
+- O nome histórico do ficheiro de workflow `.github/workflows/rea-android-bridge-20261022.yml` e os ficheiros `rea_mobile_*` continuam transitoriamente como *dependências técnicas da ponte existente*. Não são outra instalação nem alvo de testes. Apagar sem migrar todas as referências quebraria a ligação.
+- O registo canónico antigo foi retirado do ramo ativo; commits e artefactos históricos são retidos para proveniência.
+- Não apagar serviços em produção, sessões, chaves do proprietário, repositórios de outros projetos nem testes já confirmados.
