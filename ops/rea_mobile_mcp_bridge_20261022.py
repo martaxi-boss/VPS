@@ -1941,7 +1941,7 @@ def main():
                     count=len(advertised) if isinstance(advertised,list) else 0
                     if count==208:
                         break
-                except (OSError,RuntimeError,ValueError,urllib.error.URLError):
+                except (OSError,RuntimeError,ValueError):
                     pass
                 time.sleep(2)
             print("REA_PACT_MCP_ATTEMPTS="+str(attempts))
