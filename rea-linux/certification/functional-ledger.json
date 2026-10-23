@@ -1301,15 +1301,87 @@
         "pending_individual_review": 188,
         "fully_certified_distinct": 0
       }
+    },
+    {
+      "phase_id": "LINUX-P19-RECORDED-CORE-SIGROK-DIAG-20261023",
+      "date_utc": "2026-10-23",
+      "status": "ONE_NEW_RECORDED_CORE_FUNCTIONAL_PASS_SCOPED_SIGROK_CAUSE_NARROWED_NO_SANDBOX_RELAXATION",
+      "original_rea_mcp": "127.0.0.1:8765/mcp",
+      "original_source_repository": "martaxi-boss/Engenheira-reversa",
+      "tool_tests": [
+        {
+          "name": "inspect_recorded_crash",
+          "status": "FUNCTIONAL_PASS_SCOPED",
+          "original_permanent_mcp_run_id": 40012174187,
+          "request_commit": "d1a88d9fea9e5a7cb6603f7933e45187b62cf2e0",
+          "isError": false,
+          "response_sha256": "4e574fd709abfd74e30b0c9d0fce86963c6b19710a3d52e9562d08b385ac8504",
+          "fixture": "Self-created 512-byte ELF64 AMD64 PT_NOTE + Linux CORE NT_PRSTATUS according to original REA tests/fixtures/binaryDiagnostics/recordedCrash.ts",
+          "assertions": {
+            "original_mcp_tool_pass": true,
+            "source_file_sha256_matches": true,
+            "source_bytes_512": true,
+            "architecture_amd64_little_endian": true,
+            "elf_core_recognized": true,
+            "historical_pid_123": true,
+            "recorded_current_signal_11": true,
+            "preserved_distinct_64bit_register": true,
+            "no_target_execution": true,
+            "no_live_pid_identification": true,
+            "debugger_not_requested": true,
+            "input_bytes_unchanged": true,
+            "fixture_removed": true,
+            "original_service_pid_stable": true
+          },
+          "scope": "One synthetic Linux x86_64 ET_CORE with one PRSTATUS note; no debugger, truncated or malformed notes, AArch64, multiple threads, cancellation or live crashes tested."
+        }
+      ],
+      "sigrok_readonly_sandbox_diagnostic": {
+        "actions_run_id": 40011724942,
+        "request_commit": "2313793df20918782f20f12f7ead4f79657bf32b",
+        "state": "ORIGINAL_PROVIDER_STILL_UNAVAILABLE_NO_POSITIVE_MCP_CERTIFICATION",
+        "executable": "/usr/bin/sigrok-cli",
+        "version": "0.7.2",
+        "native_service_user_outside_systemd": "PASS",
+        "native_system_user": "PASS",
+        "original_mcp_historical_isError": true,
+        "historical_error": "sr: backend: libusb_init() returned LIBUSB_ERROR_OTHER.",
+        "properties": {
+          "PrivateDevices": "yes",
+          "DevicePolicy": "closed",
+          "RestrictAddressFamilies": "AF_INET AF_INET6 AF_UNIX",
+          "AF_NETLINK_allowed": false,
+          "NoNewPrivileges": "yes",
+          "Seccomp": 2,
+          "Seccomp_filters": 13
+        },
+        "causality": "Environment restrictions including device namespace and missing AF_NETLINK are consistent with libusb initialisation failure, but sole root cause has not been individually proven.",
+        "corrective_path": "Investigate a version-pinned offline Sigrok/libsigrok build without USB acquisition before considering any service policy changes; no sandbox weakening approved.",
+        "service_config_changed": false,
+        "risk_classification_unchanged": true
+      },
+      "controls": {
+        "only_original_mcp_used": true,
+        "no_new_engine_plugin_or_mcp": true,
+        "sensitive_authorization_unchanged": true,
+        "persistent_service_unchanged": true,
+        "sigrok_security_policy_unchanged": true,
+        "no_other_project_touched": true
+      },
+      "cumulative": {
+        "functional_pass_scoped_distinct": 21,
+        "pending_individual_review": 187,
+        "fully_certified_distinct": 0
+      }
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 20,
-    "awaiting_canonical_individual_review": 188,
+    "functional_pass_scoped_distinct": 21,
+    "awaiting_canonical_individual_review": 187,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 13,
+    "workspace_newly_passed_distinct": 14,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3
   },
@@ -1341,7 +1413,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P18-WABT-INTERFACE-COMPARISON-ORIGINAL-MCP-20261023",
+  "latest_phase": "LINUX-P19-RECORDED-CORE-SIGROK-DIAG-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
