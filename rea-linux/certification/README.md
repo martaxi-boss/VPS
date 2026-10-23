@@ -65,3 +65,12 @@ As cinco ferramentas pertencem ao grupo `read`, mas têm pré-condições difere
 - **Pendências para certificação de integração completa:** `verify_unknown_resolution` com uma questão real no MCP persistente autorizada; `gdb_session_status` com um GDB real disponível e sessão criada mediante autorização sensível assinada.
 - Não instalar novos fornecedores, não alterar o motor original, não iniciar depuradores reais sem a prova de autorização, não contar ensaios emulados como execução real de GDB.
 - Os SHA-256 dos testes e os commits exatos constam do `functional-ledger.json`, nas fases P06 e P07.
+
+## P22 - Sigrok offline sem relaxar a seguranca (2026-10-23)
+
+- Actions: [40020212413](https://github.com/martaxi-boss/VPS/actions/runs/40020212413), [40020409580](https://github.com/martaxi-boss/VPS/actions/runs/40020409580), [40020641241](https://github.com/martaxi-boss/VPS/actions/runs/40020641241).
+- O MCP original manteve **208** nomes. O sigrok-cli do host liga libsigrok e libusb; o servico REA usa `PrivateDevices=yes`, `DevicePolicy=closed` e nao permite AF_NETLINK. A causa unica da falha de inicializacao USB nao esta demonstrada.
+- A simulacao APT para seis dependencias de build apresentou 23 instalacoes, **4 upgrades** e zero remocoes. **Instalacao global recusada**; houve um marcador temporario SAFE inicialmente incompleto, corrigido antes de qualquer alteracao. Nenhum pacote foi instalado.
+- Docker/Podman nao estavam presentes; `bwrap` e `unshare` estavam acessiveis. A alternativa continua a ser uma build isolada com as releases oficiais libsigrok 0.5.2 e sigrok-cli 0.7.2, **sem USB**, antes de ligar o fornecedor REA.
+- As duas ferramentas de sinais continuam por certificar no MCP permanente. Zero ferramentas adicionadas nesta fase. Nem o motor, nem o servico, nem o sandbox, nem os outros projetos foram alterados.
+- Foram retirados os pedidos GitHub consumidos e o codigo experimental da ponte foi restaurado ao estado apos a correcao Kuna; provas e Actions historicos mantidos.

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_22_SCOPED_POSITIVES_SIGROK_LIBUSB_RESTRICTED",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_22_SCOPED_POSITIVES_SIGROK_BUILD_ISOLATION_PENDING",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -497,6 +497,22 @@
       "authenticated": true,
       "inputs_unchanged": true,
       "cleanup": "PASS"
+    },
+    "sigrok_offline_build_readiness": {
+      "phase_id": "LINUX-P22-SIGROK-OFFLINE-BUILDER-SAFETY-20261023",
+      "actions": [
+        40020212413,
+        40020409580,
+        40020641241
+      ],
+      "original_mcp_208": true,
+      "host_apt_sim_23_packages_four_upgrades": true,
+      "host_install_refused": true,
+      "docker_absent": true,
+      "bwrap_available": true,
+      "free_disk_bytes": 33822900224,
+      "provider_not_installed": true,
+      "original_service_unmodified": true
     }
   },
   "final_hygiene_verified": {

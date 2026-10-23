@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_22_SCOPED_POSITIVE_AND_ACTIVE_PROVIDERS",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_22_SCOPED_POSITIVE_SIGROK_ISOLATED_BUILD_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -1460,6 +1460,87 @@
         "pending_individual_review": 186,
         "fully_certified_distinct": 0
       }
+    },
+    {
+      "phase_id": "LINUX-P22-SIGROK-OFFLINE-BUILDER-SAFETY-20261023",
+      "date_utc": "2026-10-23",
+      "status": "READ_ONLY_SUPPLIER_CAPABILITY_CONFIRMED_HOST_PACKAGE_UPGRADES_BLOCKED",
+      "original_mcp_endpoint": "127.0.0.1:8765/mcp",
+      "tool_catalog_count": 208,
+      "tool_level_functional_certifications_added": 0,
+      "actions_run_ids": [
+        40020015814,
+        40020212413,
+        40020409580,
+        40020641241
+      ],
+      "authenticated_request_commits": [
+        "42eeb0f8cb30714e93729421d46091943d214258",
+        "43f05c9d5adee1a80b14327b153a402c4b98f49b",
+        "c39e034f382a19610fd75fccdb5a5457ce8049ad",
+        "32f84250f0baaf1088791bf8c5a473396b10f7ed"
+      ],
+      "evidence": {
+        "system_sigrok_cli_present": true,
+        "host_sigrok_libsigrok_libusb_linkage_observed": true,
+        "live_service_PrivateDevices": "yes",
+        "live_service_DevicePolicy": "closed",
+        "live_service_RestrictAddressFamilies": "AF_INET AF_INET6 AF_UNIX",
+        "original_mcp_tools_list_count": 208,
+        "primary_compiler_gcc_make_pkg_config_available": true,
+        "autoconf_automake_libtoolize_absent": true,
+        "original_upstream_libsigrok_usb_dependency_optional": true,
+        "package_simulation": {
+          "run_id": 40020409580,
+          "exit_code": 0,
+          "planned_installs": 23,
+          "planned_existing_package_upgrades": 4,
+          "planned_removals": 0,
+          "packages": [
+            "autoconf",
+            "automake",
+            "libtool",
+            "libglib2.0-dev",
+            "libzip-dev",
+            "libsigrokdecode-dev"
+          ],
+          "installation_performed": false,
+          "safety_acceptance": "BLOCKED_GLOBAL_UPGRADES",
+          "note": "The temporary dry-run helper reported SAFE=true without checking upgrades; corrected before any write and temporary helper restored away at end of phase."
+        },
+        "isolated_build_capability": {
+          "run_id": 40020641241,
+          "docker_installed": false,
+          "podman_installed": false,
+          "bwrap_installed": true,
+          "unshare_installed": true,
+          "free_bytes_on_rea_filesystem": 33822900224,
+          "container_created": false
+        },
+        "no_linux_package_upgrade": true,
+        "no_linux_package_install": true,
+        "no_provider_change": true,
+        "no_systemd_restart": true,
+        "no_security_sandbox_relaxation": true,
+        "no_sensitive_mcp_tool_invoked": true,
+        "other_services_not_touched": true
+      },
+      "limitations": [
+        "The USB library linkage and sandbox restrictions correlate with the prior Sigrok libusb initialization failure; exclusive root cause remains unproven.",
+        "No offline-only Sigrok binary built, deployed or tested in the persistent MCP.",
+        "Do not add these tests to the 22 existing positive tool certifications."
+      ],
+      "next_safe_action": "Build official libsigrok 0.5.2 and sigrok-cli 0.7.2 without USB in an isolated Linux build environment, validate library identity offline and deploy only to REA-owned provider prefix; do not globally upgrade the VPS or relax MCP sandbox.",
+      "hygiene": {
+        "consumed_request_paths_removed": [
+          "rea-linux/requests/sigrok-builder-capability-20261023.json",
+          "rea-linux/requests/sigrok-offline-build-simulate-20261023.json",
+          "rea-linux/requests/sigrok-offline-preflight-20261023.json",
+          "rea-linux/requests/sigrok-offline-preflight-verified-20261023.json"
+        ],
+        "temporary_action_code_restored_to_pre_phase_bridge": true,
+        "original_engine_or_ghidra_modified": false
+      }
     }
   ],
   "active_scope_counts": {
@@ -1501,7 +1582,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P21-JAVASCRIPT-APPLICATION-ORIGINAL-MCP-20261023",
+  "latest_phase": "LINUX-P22-SIGROK-OFFLINE-BUILDER-SAFETY-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -1823,6 +1904,20 @@
       "tool": "analyze_javascript_application",
       "run_id": 40018862425,
       "distinct_cumulative": 22
+    },
+    "sigrok_offline_build_readiness": {
+      "phase_id": "LINUX-P22-SIGROK-OFFLINE-BUILDER-SAFETY-20261023",
+      "host_dependency_install": "BLOCKED_4_SHARED_UPGRADES",
+      "tested_by_actions": [
+        40020212413,
+        40020409580,
+        40020641241
+      ],
+      "docker_absent": true,
+      "bwrap_present": true,
+      "source_offline_build_not_yet_installed": true,
+      "service_sigrok_positive_mcp_status": "FAILED_HISTORICAL_LIBUSB",
+      "recommendation": "Isolate supplier build; preserve original systemd sandbox"
     }
   }
 }
