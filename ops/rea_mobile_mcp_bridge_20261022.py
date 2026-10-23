@@ -316,7 +316,10 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_LINUX_GDB_REAL_TEST_EXIT",
         "REA_LINUX_GDB_REAL_TEST_SHA256",
         "REA_LINUX_GDB_REAL_TEST",
-        "REA_LINUX_GDB_REAL_SOURCE_UNCHANGED"
+        "REA_LINUX_GDB_REAL_SOURCE_UNCHANGED",
+        "REA_LINUX_GDB_REAL_MISSING_LIBS",
+        "REA_LINUX_GDB_REAL_STAGED_DEPS",
+        "REA_LINUX_GDB_REAL_DEP_ERROR"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -1109,8 +1112,61 @@ def main():
                     gdb = unpack / "usr/bin/gdb"
                     print("REA_LINUX_GDB_REAL_EXTRACT=" + ("PASS" if p.returncode == 0 and gdb.is_file() else "FAIL"))
                     if p.returncode == 0 and gdb.is_file():
+                        # Resolve only missing shared libraries from the
+                        # host distro's signed, configured package metadata.
+                        # dpkg-deb extracts into this temporary directory only.
+                        local_env = os.environ.copy()
+                        dl_map = {
+                            "libbabeltrace.so.1":"libbabeltrace1",
+                            "libbabeltrace-ctf.so.1":"libbabeltrace1",
+                            "libdebuginfod.so.1":"libdebuginfod1",
+                            "libipt.so.2":"libipt2",
+                            "libsource-highlight.so.4":"libsource-highlight4v5",
+                            "libboost_regex.so.1.83.0":"libboost-regex1.83.0",
+                            "libpython3.12.so.1.0":"libpython3.12",
+                            "libpopt.so.0":"libpopt0",
+                            "libunistring.so.5":"libunistring5",
+                            "libdw.so.1":"libdw1",
+                            "libelf.so.1":"libelf1",
+                        }
+                        staged_packages = set()
+                        staged_path = unpack / "usr/lib/x86_64-linux-gnu"
+                        local_env["LD_LIBRARY_PATH"] = str(staged_path) + os.pathsep + local_env.get("LD_LIBRARY_PATH", "")
+                        for _ in range(4):
+                            scan = subprocess.run(["ldd", str(gdb)], capture_output=True,
+                                                  text=True, timeout=20, check=False, env=local_env)
+                            missing = sorted(set(re.findall(
+                                r"^\\s*([^\\s]+)\\s*=>\\s*not found",
+                                scan.stdout, flags=re.MULTILINE)))
+                            if not missing:
+                                break
+                            unknown = [lib for lib in missing if lib not in dl_map]
+                            if unknown:
+                                print("REA_LINUX_GDB_REAL_MISSING_LIBS=" + json.dumps(unknown[:10]))
+                                break
+                            needed = sorted({dl_map[lib] for lib in missing} - staged_packages)
+                            if not needed or len(staged_packages) + len(needed) > 12:
+                                break
+                            for pkg_name in needed:
+                                dl_dep = subprocess.run(["apt-get", "download", pkg_name],
+                                                       cwd=str(temp), capture_output=True,
+                                                       text=True, timeout=85, check=False)
+                                matches = sorted(temp.glob(pkg_name + "_*.deb"))
+                                if (dl_dep.returncode != 0 or len(matches) != 1 or
+                                        matches[0].stat().st_size > 20*1024*1024):
+                                    print("REA_LINUX_GDB_REAL_DEP_ERROR=" + pkg_name)
+                                    break
+                                dep_extract = subprocess.run(
+                                    ["dpkg-deb", "-x", str(matches[0]), str(unpack)],
+                                    capture_output=True, text=True, timeout=25, check=False)
+                                if dep_extract.returncode != 0:
+                                    print("REA_LINUX_GDB_REAL_DEP_ERROR=" + pkg_name)
+                                    break
+                                staged_packages.add(pkg_name)
+                        print("REA_LINUX_GDB_REAL_STAGED_DEPS=" +
+                              json.dumps(sorted(staged_packages)))
                         g = subprocess.run([str(gdb), "--version"], capture_output=True, text=True,
-                                           timeout=30, check=False)
+                                           timeout=30, check=False, env=local_env)
                         print("REA_LINUX_GDB_REAL_BINARY_SHA256=" + hashlib.sha256(gdb.read_bytes()).hexdigest())
                         if g.returncode != 0 or "GNU gdb" not in g.stdout:
                             print("REA_LINUX_GDB_REAL_BINARY_CHECK=UNAVAILABLE")
@@ -1129,6 +1185,7 @@ def main():
                               cwd=str(source), capture_output=True, text=True, timeout=125,
                               check=False, env={**os.environ, "CI":"true", "NO_COLOR":"1",
                                 "REA_GDB_REAL_FIXTURE_BINARY":str(gdb),
+                                "LD_LIBRARY_PATH":local_env["LD_LIBRARY_PATH"],
                                 "NODE_OPTIONS":"--max-old-space-size=1024"})
                             out = q.stdout + "\n" + q.stderr
                             plain = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", out)
