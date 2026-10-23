@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_supplier_gap_20261023"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_supplier_gap_20261023", "fixture_linux_tshark_activate_20261023"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -233,6 +233,9 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_GAP_ENV_KEYS", "REA_GAP_PROVIDERS_SHELL",
         "REA_GAP_TEMPFILE_CLEANUP", "REA_GAP_PID_UNCHANGED",
         "REA_GAP_SUMMARY",
+        "REA_TSHARK_DEPLOY_VERSION", "REA_TSHARK_DEPLOY_MCP_COUNT",
+        "REA_TSHARK_DEPLOY_PROCESS_ENV", "REA_TSHARK_DEPLOY_ROLLBACK",
+        "REA_TSHARK_DEPLOY_STATUS", "REA_TSHARK_DEPLOY_RESTART_ONLY_REA",
         "REA_MOBILE_PROVIDER_DOCTOR_GHIDRA",
         "REA_MOBILE_PROVIDER_DOCTOR_JADX", "REA_MOBILE_CATALOG",
         "REA_MOBILE_DESCRIBE_TOOL", "REA_MOBILE_TOOL_DESCRIPTOR_B64",
@@ -1759,6 +1762,137 @@ def main():
                   (installed.stdout or installed.stderr).splitlines()[0][:110])
             print("REA_RIZIN_STATUS="+(
                 "PASS_PINNED_PERSISTENT" if installed.returncode==0 else "INCOMPLETE"))
+        return
+    if data["action"] == "fixture_linux_tshark_activate_20261023":
+        # TShark v4 is already installed. Configure only ORIGINAL REA unit,
+        # with persistent root-owned drop-in and verified rollback.
+        import tempfile
+        import time
+        unit="rea-reversa-mcp.service"
+        command="/usr/bin/tshark"
+        target=Path("/etc/systemd/system/rea-reversa-mcp.service.d/85-rea-linux-tshark.conf")
+        def sudo(*args,timeout=30):
+            return subprocess.run(["sudo","-n",*args],capture_output=True,
+                    text=True,timeout=timeout,check=False)
+        def prop(k):
+            r=subprocess.run(["systemctl","show",unit,"-p",k,"--value"],
+                    capture_output=True,text=True,timeout=12,check=False)
+            return r.stdout.strip() if r.returncode==0 else ""
+        if prop("User")!="rea-reversa" or prop("ActiveState")!="active":
+            print("REA_TSHARK_DEPLOY_STATUS=BLOCKED_ORIGINAL_SERVICE")
+            return
+        if not Path("/opt/rea-reversa/rea/package.json").is_file():
+            print("REA_TSHARK_DEPLOY_STATUS=BLOCKED_ORIGINAL_ENGINE")
+            return
+        if target.is_symlink() or sudo("test","!","-e",str(target),timeout=9).returncode:
+            print("REA_TSHARK_DEPLOY_STATUS=BLOCKED_EXISTING_OVERRIDE")
+            return
+        if "REA_TSHARK_COMMAND=" in prop("Environment"):
+            print("REA_TSHARK_DEPLOY_STATUS=BLOCKED_ALREADY_CONFIGURED")
+            return
+        pid=prop("MainPID")
+        if not pid.isdecimal() or int(pid)<1:
+            print("REA_TSHARK_DEPLOY_STATUS=BLOCKED_NO_LIVE_PID")
+            return
+        prior=sudo("cat",f"/proc/{pid}/environ",timeout=14)
+        if prior.returncode!=0:
+            print("REA_TSHARK_DEPLOY_STATUS=BLOCKED_ENV_UNREADABLE")
+            return
+        if any(x.startswith("REA_TSHARK_COMMAND=") for x in prior.stdout.split(chr(0))):
+            print("REA_TSHARK_DEPLOY_STATUS=BLOCKED_PROCESS_ALREADY_CONFIGURED")
+            return
+        v=sudo("-u","rea-reversa",command,"--version",timeout=22)
+        first=v.stdout.splitlines()[0] if v.stdout.splitlines() else ""
+        valid=v.returncode==0 and first.startswith("TShark (Wireshark) 4.")
+        print("REA_TSHARK_DEPLOY_VERSION="+("PASS_REAL_4" if valid else "UNSUPPORTED"))
+        if not valid:
+            print("REA_TSHARK_DEPLOY_STATUS=BLOCKED_UNVERIFIED_VERSION")
+            return
+        def catalog():
+            headers,hello=request_mcp({"jsonrpc":"2.0","id":981,
+                  "method":"initialize","params":{"protocolVersion":"2025-06-18",
+                  "capabilities":{},"clientInfo":{"name":"rea-linux-tshark","version":"1"}}},
+                 timeout=20)
+            if "result" not in hello:
+                return 0
+            sid=headers.get("Mcp-Session-Id")
+            ver=hello["result"].get("protocolVersion")
+            request_mcp({"jsonrpc":"2.0","method":"notifications/initialized"},
+                        sid,ver,timeout=12)
+            _,ls=request_mcp({"jsonrpc":"2.0","id":982,"method":"tools/list",
+                        "params":{}},sid,ver,timeout=25)
+            items=ls.get("result",{}).get("tools",[])
+            return len(items) if isinstance(items,list) else 0
+        stage=Path.home()/".local/share/rea-chatgpt-trial/artifacts"
+        stage.mkdir(mode=0o700,parents=True,exist_ok=True)
+        if stage.is_symlink():
+            print("REA_TSHARK_DEPLOY_STATUS=BLOCKED_STAGING_SYMLINK")
+            return
+        cfg=None
+        installed=False
+        accepted=False
+        try:
+            with tempfile.NamedTemporaryFile(mode="w",encoding="ascii",delete=False,
+                          prefix="rea-tshark-",suffix=".conf",dir=str(stage)) as fd:
+                cfg=Path(fd.name)
+                fd.write("[Service]"+chr(10)+
+                   'Environment="REA_TSHARK_COMMAND=/usr/bin/tshark"'+chr(10))
+            cfg.chmod(0o600)
+            if sudo("install","-m","0644","-o","root","-g","root",
+                    str(cfg),str(target),timeout=20).returncode:
+                print("REA_TSHARK_DEPLOY_STATUS=FAILED_DROPIN_INSTALL")
+                return
+            installed=True
+            if sudo("systemctl","daemon-reload",timeout=35).returncode:
+                print("REA_TSHARK_DEPLOY_STATUS=FAILED_DAEMON_RELOAD")
+                return
+            if (str(target) not in prop("DropInPaths") or
+                 "REA_TSHARK_COMMAND=/usr/bin/tshark" not in prop("Environment")):
+                print("REA_TSHARK_DEPLOY_STATUS=FAILED_DROPIN_VERIFICATION")
+                return
+            if sudo("systemctl","restart",unit,timeout=105).returncode:
+                print("REA_TSHARK_DEPLOY_STATUS=FAILED_REA_ONLY_RESTART")
+                return
+            count=0
+            for n in range(8):
+                try:
+                    if prop("ActiveState")=="active":
+                        count=catalog()
+                        if count==208:
+                            break
+                except Exception:
+                    pass
+                time.sleep(1)
+            print("REA_TSHARK_DEPLOY_MCP_COUNT="+str(count))
+            newpid=prop("MainPID")
+            proc=sudo("cat",f"/proc/{newpid}/environ",timeout=15) if (
+                newpid.isdecimal() and int(newpid)>0) else None
+            found=(proc is not None and proc.returncode==0 and
+                    "REA_TSHARK_COMMAND=/usr/bin/tshark" in
+                    proc.stdout.split(chr(0)))
+            print("REA_TSHARK_DEPLOY_PROCESS_ENV="+str(found).lower())
+            accepted=bool(count==208 and found and prop("ActiveState")=="active")
+            if accepted:
+                print("REA_TSHARK_DEPLOY_RESTART_ONLY_REA=true")
+                print("REA_TSHARK_DEPLOY_STATUS=PASS_PERSISTENT_PROVIDER")
+                return
+            print("REA_TSHARK_DEPLOY_STATUS=FAILED_POST_RESTART_VERIFICATION")
+        finally:
+            if cfg is not None:
+                cfg.unlink(missing_ok=True)
+            if installed and not accepted:
+                removed=sudo("rm","-f",str(target),timeout=20)
+                loaded=sudo("systemctl","daemon-reload",timeout=35)
+                restarted=sudo("systemctl","restart",unit,timeout=110)
+                restored=False
+                try:
+                    restored=catalog()==208
+                except Exception:
+                    pass
+                print("REA_TSHARK_DEPLOY_ROLLBACK="+(
+                    "PASS_ORIGINAL_RESTORED" if
+                    removed.returncode==0 and loaded.returncode==0 and
+                    restarted.returncode==0 and restored else "NEEDS_REVIEW"))
         return
     if data["action"] == "fixture_linux_supplier_gap_20261023":
         # Only original local MCP, no device/other process actions.
