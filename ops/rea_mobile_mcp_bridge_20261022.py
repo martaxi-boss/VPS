@@ -1667,13 +1667,14 @@ def main():
         # Only official HTTPS checksum manifests; absolutely no install or
         # binary download, no global changes, no web arbitrary URL inputs.
         import ssl
+        from urllib import request as vendor_request
         import re as regex
         items={
             "RUSTUP":"https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init.sha256",
             "RUST_CHANNEL_1_85_1":"https://static.rust-lang.org/dist/channel-rust-1.85.1.toml.sha256"
         }
         for name,url in items.items():
-            with urllib.request.urlopen(urllib.request.Request(
+            with vendor_request.urlopen(vendor_request.Request(
                 url,headers={"User-Agent":"REA-original-Binwalk3.1-prerequisite/1"}),
                 timeout=25,context=ssl.create_default_context()) as reply:
                 payload=reply.read(1200)
