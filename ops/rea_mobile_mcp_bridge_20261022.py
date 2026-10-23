@@ -489,7 +489,10 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SDIAG_PID_ENV_READ",
         "REA_SDIAG_PID_ENV_SIZE",
         "REA_SDIAG_PID_PROVIDER_KEYS",
-        "REA_SDIAG_STATUS"
+        "REA_SDIAG_STATUS",
+        "REA_P42_LEDGER","REA_P42_ANDROID","REA_P42_APPLE",
+        "REA_P42_HARMONY","REA_P42_VERSION","REA_P42_EXPORT",
+        "REA_P42_SERVICE","REA_P42_SOURCE","REA_P42_STATUS"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -683,6 +686,199 @@ def main():
         print("REA_MOBILE_TOOL_ERROR=" + str(any(r["status"] != "PASS" for r in records)).lower())
         print("REA_MOBILE_PRIVATE_RESULT_B64=" + base64.b64encode(raw).decode())
         return
+    if data["action"] == "fixture_static_files_v2":
+        # P42 source-owned application tools; no target I/O or provider install.
+        # Exact official examples come from the ORIGINAL installed REA compiled contracts.
+        import tempfile
+        targets=("build_reconstruction_obligation_ledger",
+          "project_android_application_graph","project_apple_application_graph",
+          "project_harmony_application_graph","compare_application_versions",
+          "compare_javascript_export_shapes")
+        if len(tools)!=208 or any(n not in tool_by_name for n in targets):
+            error("P42 original MCP application contracts not registered")
+        classes={n:secure.classify(n,tool_by_name[n],safe_callable) for n in targets}
+        if any(x=="sensitive" for x in classes.values()):
+            error("P42 refuses sensitive tools without independent owner signature")
+        src=Path.home()/".local/share/rea-chatgpt-trial/repository/rea"
+        engine=Path("/opt/rea-reversa/rea")
+        js=engine/"dist/contracts/applicationToolContracts.js"
+        node=Path.home()/".local/share/rea-chatgpt-trial/tools/node-24.15.0/bin/node"
+        if not js.is_file() or not node.is_file():
+            error("P42 original installed compiled contracts/runtime unavailable")
+        before=subprocess.run(["git","-C",str(src),"status","--porcelain"],capture_output=True,text=True,timeout=15,check=False)
+        def pid():
+            p=subprocess.run(["systemctl","show","rea-reversa-mcp.service","-p","MainPID","--value"],
+              capture_output=True,text=True,timeout=12,check=False)
+            return p.stdout.strip() if p.returncode==0 else ""
+        pid_before=pid()
+        script=r"""
+          const names=JSON.parse(process.argv[1]);
+          const {APPLICATION_TOOL_CONTRACTS}=await import(process.argv[2]);
+          const chosen=[];
+          for(const name of names){
+            const contract=APPLICATION_TOOL_CONTRACTS.find(x=>x.name===name);
+            if(!contract||!contract.examples.length)throw Error('missing exact original example '+name);
+            chosen.push({name,examples:contract.examples.map(x=>x.input)});
+          }
+          process.stdout.write(JSON.stringify(chosen));
+        """
+        process=subprocess.run([str(node),"--input-type=module","-e",script,
+            json.dumps(targets),js.as_uri()],cwd=str(engine),
+            capture_output=True,text=True,timeout=80,check=False,
+            env={**os.environ,"NODE_OPTIONS":"--max-old-space-size=1536"})
+        if process.returncode or not process.stdout:
+            result={"stage":"original_compiled_examples","exit_code":process.returncode,
+                    "stderr":process.stderr[-1800:],"stdout":process.stdout[-1800:]}
+            raw=json.dumps(result,sort_keys=True,ensure_ascii=True).encode()
+            print("REA_P42_STATUS=EXAMPLES_UNAVAILABLE")
+            print("REA_MOBILE_TOOL_ERROR=true")
+            print("REA_MOBILE_OUTPUT_SHA256="+hashlib.sha256(raw).hexdigest())
+            print("REA_MOBILE_PRIVATE_RESULT_B64="+base64.b64encode(raw).decode())
+            return
+        examples=json.loads(process.stdout)
+        if [x.get("name") for x in examples]!=list(targets):
+            error("P42 compiled example names differ")
+        records=[]
+        def request(name,args,label,kind,check):
+            _,reply=request_mcp({"jsonrpc":"2.0","id":4200+len(records),
+                 "method":"tools/call","params":{"name":name,"arguments":args}},
+                 session,protocol,timeout=110)
+            result=reply.get("result")
+            is_error=result.get("isError") if isinstance(result,dict) else None
+            obj=result.get("structuredContent") if isinstance(result,dict) else None
+            norm=obj.get("normalized_result") if isinstance(obj,dict) else None
+            protocol_error="error" in reply
+            ok=False
+            if kind=="negative":
+                ok=(is_error is True and not protocol_error)
+            else:
+                if isinstance(norm,dict) and is_error is not True and not protocol_error:
+                    if name=="build_reconstruction_obligation_ledger":
+                        summary=norm.get("summary")
+                        ok=(norm.get("schema")=="ReconstructionObligationLedger"
+                          and isinstance(summary,dict) and summary.get("total")==0
+                          and norm.get("obligations")==[]
+                          and isinstance(norm.get("closure_digest"),str)
+                          and len(norm["closure_digest"])==64
+                          and isinstance(norm.get("ledger_id"),str)
+                          and norm.get("status") in ("ready","open","unknown"))
+                    elif name.startswith("project_"):
+                        expected_format=check.get("format")
+                        exp_root=check.get("sha")
+                        coverage=norm.get("coverage")
+                        components=norm.get("components")
+                        ok=(norm.get("root_format")==expected_format
+                          and norm.get("root_sha256")==exp_root
+                          and isinstance(coverage,dict)
+                          and coverage.get("status") in ("complete-within-inventory","partial")
+                          and isinstance(components,dict)
+                          and all(isinstance(v,list) for v in components.values())
+                          and isinstance(norm.get("bridge_candidate_coverage"),dict))
+                    elif name=="compare_application_versions":
+                        summary=norm.get("summary")
+                        coverage=norm.get("coverage")
+                        ok=(isinstance(summary,dict) and isinstance(coverage,dict)
+                           and coverage.get("status") in ("complete-within-inputs","partial","truncated")
+                           and isinstance(norm.get("graph"),dict)
+                           and all(isinstance(summary.get(k),int) for k in ("added","removed","changed","unchanged")))
+                        if check.get("same"):
+                            ok=ok and summary.get("changed")==0 and summary.get("added")==0 and summary.get("removed")==0
+                    elif name=="compare_javascript_export_shapes":
+                        summary=norm.get("summary")
+                        ok=(isinstance(summary,dict) and isinstance(norm.get("changes"),list)
+                          and isinstance(norm.get("coverage"),dict)
+                          and all(isinstance(summary.get(k),int) for k in ("added","removed","changed")))
+                        if check.get("same"):
+                            ok=ok and summary.get("added")==0 and summary.get("removed")==0 and summary.get("changed")==0
+            rjson=json.dumps(reply,sort_keys=True,ensure_ascii=True).encode()
+            rec={"tool":name,"case":label,"kind":kind,"pass":bool(ok),
+                 "isError":is_error,"protocol_error":protocol_error,
+                 "response_sha256":hashlib.sha256(rjson).hexdigest()}
+            if kind=="positive":
+                rec["result_fields"]=sorted(norm.keys())[:45] if isinstance(norm,dict) else None
+                rec["summary"]=norm.get("summary") if isinstance(norm,dict) else None
+                rec["coverage"]=norm.get("coverage") if isinstance(norm,dict) else None
+            if not ok:
+                rec["diagnostic"]=json.dumps(obj if obj is not None else reply,
+                   ensure_ascii=True,sort_keys=True)[:6500]
+            records.append(rec)
+        original_examples={}
+        for family in examples:
+            name=family["name"]
+            contract=tool_by_name[name]
+            inp=family["examples"][0]
+            original_examples[name]=len(json.dumps(inp))
+            try:secure.validate_arguments(contract,inp)
+            except secure.SecureBridgeError as e:
+                error("P42 original example schema mismatch for "+name)
+            if name=="project_android_application_graph":want={"format":"apk","sha":"a"*64}
+            elif name=="project_apple_application_graph":want={"format":"ipa","sha":"b"*64}
+            elif name=="project_harmony_application_graph":want={"format":"hap","sha":"d"*64}
+            else:want={}
+            request(name,inp,"source-authored-canonical", "positive",want)
+            if name=="project_apple_application_graph" and len(family["examples"])>=2:
+                second=family["examples"][1]
+                secure.validate_arguments(contract,second)
+                request(name,second,"source-authored-macos-directory","positive",
+                        {"format":"directory","sha":"c"*64})
+            if name in ("compare_application_versions","compare_javascript_export_shapes"):
+                symmetrical={**inp,"right":inp["left"]}
+                secure.validate_arguments(contract,symmetrical)
+                request(name,symmetrical,"same-identity-no-difference","positive",{"same":True})
+            for label,invalid in [
+              ("required-arguments-missing",{}),
+              ("unknown-argument",{**inp,"rea_unrecognized_mutation":True})]:
+                request(name,invalid,label,"negative",{})
+            if name.startswith("project_"):
+                if name!="project_apple_application_graph":
+                    other=next(x for x in examples if x["name"]==
+                      "project_apple_application_graph")["examples"][0]
+                else:
+                    other=next(x for x in examples if x["name"]==
+                      "project_android_application_graph")["examples"][0]
+                request(name,other,"wrong-platform-inventory","negative",{})
+        after=subprocess.run(["git","-C",str(src),"status","--porcelain"],
+          capture_output=True,text=True,timeout=15,check=False)
+        source_stable=before.returncode==after.returncode==0 and before.stdout==after.stdout
+        pid_stable=pid_before.isdecimal() and pid()==pid_before
+        summary={}
+        for name in targets:
+            cases=[r for r in records if r["tool"]==name]
+            summary[name]={"passed":sum(r["pass"] for r in cases),"total":len(cases),
+                "positives":sum(r["pass"] for r in cases if r["kind"]=="positive"),
+                "negatives":sum(r["pass"] for r in cases if r["kind"]=="negative"),
+                "all_pass":all(r["pass"] for r in cases)}
+            short={
+                "build_reconstruction_obligation_ledger":"LEDGER",
+                "project_android_application_graph":"ANDROID",
+                "project_apple_application_graph":"APPLE",
+                "project_harmony_application_graph":"HARMONY",
+                "compare_application_versions":"VERSION",
+                "compare_javascript_export_shapes":"EXPORT"}[name]
+            print("REA_P42_"+short+"="+str(summary[name]["passed"])+"/"+str(summary[name]["total"]))
+        print("REA_P42_SERVICE="+("PASS" if pid_stable else "FAIL"))
+        print("REA_P42_SOURCE="+("PASS" if source_stable else "FAIL"))
+        all_pass=(len(tools)==208 and source_stable and pid_stable
+             and all(s["all_pass"] for s in summary.values()))
+        print("REA_P42_STATUS="+("ALL_PASS" if all_pass else "INCOMPLETE"))
+        payload={"phase":"LINUX-P42-APPLICATION-SIX-MCP-20261024",
+          "tool_categories":classes,"source_examples_byte_counts":original_examples,
+          "source_compiled_contract":str(js),
+          "source_compiled_contract_sha256":hashlib.sha256(js.read_bytes()).hexdigest(),
+          "records":records,"summaries":summary,
+          "original_service_pid_stable":pid_stable,
+          "original_source_checkout_stable":source_stable,
+          "original_tool_catalog":len(tools),
+          "all_pass":all_pass}
+        raw=json.dumps(payload,sort_keys=True,ensure_ascii=True).encode()
+        print("REA_MOBILE_TOOL_ERROR="+str(not all_pass).lower())
+        print("REA_MOBILE_OUTPUT_BYTES="+str(len(raw)))
+        print("REA_MOBILE_OUTPUT_SHA256="+hashlib.sha256(raw).hexdigest())
+        if len(raw)>MAX_RESPONSE or os.environ.get("REA_MOBILE_ENVELOPE_CAPTURE")!="1":
+            error("P42 application certification requires private sealed output")
+        print("REA_MOBILE_PRIVATE_RESULT_B64="+base64.b64encode(raw).decode())
+        return
+
     if data["action"] in ("fixture_static_files", "fixture_static_files_v2"):
         # Fixed source-owned inputs; never a caller-selected path, URL or code.
         import tempfile
