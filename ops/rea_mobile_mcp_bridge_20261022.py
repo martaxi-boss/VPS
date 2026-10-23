@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_objdump_certification"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_objdump_certification", "fixture_linux_objdump_negative_finalize"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -217,6 +217,11 @@ def encrypt_result(raw_path, request_path, envelope_path):
     request = validate(json.loads(request_raw))
     private = None
     allowed_markers = {
+        "REA_OBJDUMP_NEGATIVE_DIAGNOSTICS",
+        "REA_OBJDUMP_SCHEMA_DIAGNOSTICS",
+        "REA_OBJDUMP_NEGATIVE_INPUT",
+        "REA_OBJDUMP_NEGATIVE_CLEANUP",
+        "REA_OBJDUMP_NEGATIVE_STATUS",
         "REA_CERT_OBJDUMP_STATUS",
         "REA_CERT_OBJDUMP_POSITIVE",
         "REA_CERT_OBJDUMP_NEGATIVE",
@@ -2685,6 +2690,72 @@ def main():
                 except (OSError, RuntimeError, ValueError):
                     print("REA_FIXTURE_CLEANUP=FAIL")
                     raise
+        return
+    if data["action"] == "fixture_linux_objdump_negative_finalize":
+        # Examine only missing negative-path cases. Never re-run proved positives.
+        import tempfile
+        import re as regex
+        descriptor = tool_by_name.get("inspect_with_objdump")
+        if not descriptor:
+            error("Original objdump tool missing")
+        with tempfile.TemporaryDirectory(prefix="rea-objdump-neg-", dir="/dev/shm") as directory:
+            path = Path(directory)
+            path.chmod(0o755)
+            invalid = path / "invalid.bin"
+            missing = path / "missing.elf"
+            invalid.write_bytes(b"REA invalid controlled binary source\n")
+            invalid.chmod(0o644)
+            before = hashlib.sha256(invalid.read_bytes()).hexdigest()
+            negative_summaries=[]
+            for ix,(name,filename) in enumerate((
+                ("invalid_binary",str(invalid)),("missing_binary",str(missing))
+            ),start=881):
+                args={"operation":"file_headers","path":filename,
+                      "follow_debug_links":False}
+                secure.validate_arguments(descriptor,args)
+                _,reply=request_mcp({"jsonrpc":"2.0","id":ix,
+                    "method":"tools/call","params":{"name":"inspect_with_objdump",
+                    "arguments":args}},session,protocol,timeout=85)
+                result=reply.get("result")
+                output=json.dumps(reply,ensure_ascii=True,sort_keys=True).lower()
+                structured=result.get("structuredContent") if isinstance(result,dict) else None
+                normalized=structured.get("normalized_result",structured) if isinstance(structured,dict) else {}
+                normalized_keys=sorted(normalized.keys())[:35] if isinstance(normalized,dict) else []
+                indicators={w:bool(regex.search(w,output)) for w in (
+                    "exit_code", "no such file", "not recognized",
+                    "not found", "invalid", "execution_failure",
+                    "file format", "error_code")}
+                negative_summaries.append({"case":name,
+                   "isError":(result or {}).get("isError") if isinstance(result,dict) else None,
+                   "protocol_error":"error" in reply,
+                   "normalized_keys":normalized_keys,"indicators":indicators,
+                   "result_sha256":hashlib.sha256(
+                       json.dumps(reply,sort_keys=True).encode()).hexdigest()})
+            schema_summaries=[]
+            for name,args in (
+                ("unexpected_path",{"operation":"architectures","path":str(invalid)}),
+                ("empty_symbol",{"operation":"disassemble","path":str(invalid),
+                                 "symbol":""})
+            ):
+                schema_rejected=False
+                try:
+                    secure.validate_arguments(descriptor,args)
+                except secure.SecureBridgeError:
+                    schema_rejected=True
+                _,reply=request_mcp({"jsonrpc":"2.0","id":891+len(schema_summaries),
+                    "method":"tools/call","params":{"name":"inspect_with_objdump",
+                    "arguments":args}},session,protocol,timeout=85)
+                result=reply.get("result")
+                schema_summaries.append({"case":name,
+                    "adapter_schema_rejected":schema_rejected,
+                    "mcp_isError":(result or {}).get("isError") if isinstance(result,dict) else None,
+                    "protocol_error":"error" in reply})
+            integrity=before==hashlib.sha256(invalid.read_bytes()).hexdigest()
+        print("REA_OBJDUMP_NEGATIVE_DIAGNOSTICS="+json.dumps(negative_summaries,sort_keys=True))
+        print("REA_OBJDUMP_SCHEMA_DIAGNOSTICS="+json.dumps(schema_summaries,sort_keys=True))
+        print("REA_OBJDUMP_NEGATIVE_INPUT="+("PASS" if integrity else "FAIL"))
+        print("REA_OBJDUMP_NEGATIVE_CLEANUP="+("PASS" if not path.exists() else "FAIL"))
+        print("REA_OBJDUMP_NEGATIVE_STATUS=PASS_DIAGNOSTIC_READONLY")
         return
     if data["action"] == "fixture_linux_objdump_certification":
         # Complete the missing GNU objdump facets on owned fixed C/ELF fixtures.
