@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ONLY",
+  "status": "IN_PROGRESS_LINUX_ONLY_WITH_PERSISTENT_KUNA_SIGROK_10_SCOPED_TOOL_PASSES",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -733,7 +733,23 @@
         "No sensitivity bypass or unsigned MCP native session",
         "No unrelated daemon changes"
       ],
-      "safe_evidence_handling": "GitHub Actions logs only bounded status markers and SHA-256; prior failed activation preserved as negative evidence"
+      "safe_evidence_handling": "GitHub Actions logs only bounded status markers and SHA-256; prior failed activation preserved as negative evidence",
+      "final_hygiene": {
+        "consumed_linux_mcp_request_files_deleted": 10,
+        "request_deletion_commit": "cc0e30d63b9b9d22c5e2283037525abc7c84b380",
+        "active_linux_requests_after_deletion": 0,
+        "one_shot_fixture_code_removed": true,
+        "bridge_original_baseline_restored": true,
+        "bridge_restoration_commit": "304416ffcad6a19feefe335198b5dc6fe9244541",
+        "bridge_restored_blob_sha": "e330062449a0bb2d2afc5a164083fc758f4a9676",
+        "mcp_smoke_after_restoration_run": 39989873229,
+        "mcp_smoke_after_request_cleanup_run": 39989928802,
+        "mcp_smoke_after_request_cleanup": "SUCCESS: loopback original MCP PASS, 208 tools (read5, workspace120, sensitive83)",
+        "prior_functional_results_preserved": true,
+        "failed_preliminary_actions_remain_available_in_history": true,
+        "no_bypass_of_sensitive_owner_signature": true,
+        "other_service_changes": "No modifications requested or issued to unrelated service units; independent unrelated-service health not audited"
+      }
     }
   ],
   "active_scope_counts": {
@@ -1006,6 +1022,15 @@
       "live_mcp_positive_tools_still_isError_true": true,
       "root_cause_unresolved": true,
       "do_not_count_as_certified": true
+    },
+    "final_bridge_integrity": {
+      "restored_bridge_sha": "e330062449a0bb2d2afc5a164083fc758f4a9676",
+      "all_one_shot_requests_removed": true,
+      "proof_run_id": 39989928802,
+      "original_mcp_tool_count": 208,
+      "positive_real_sigrok_mcp_functionality": false,
+      "kuna_provider_configured_and_available": true,
+      "per_tool_certification_incomplete": true
     }
   }
 }
