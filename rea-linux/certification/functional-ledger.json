@@ -1237,15 +1237,79 @@
         "pending_individual_review": 189,
         "fully_certified_distinct": 0
       }
+    },
+    {
+      "phase_id": "LINUX-P18-WABT-INTERFACE-COMPARISON-ORIGINAL-MCP-20261023",
+      "date_utc": "2026-10-23",
+      "status": "ORIGINAL_208_TOOL_MCP_ONE_NEW_SCOPED_FUNCTIONAL_POSITIVE",
+      "actions_run_id": 40011404653,
+      "actions_request_commit": "6c6c31d1e15cb974090ff1514775568c2870bc0c",
+      "original_rea_repo": "martaxi-boss/Engenheira-reversa",
+      "original_motor_code_unchanged": true,
+      "runtime": "original permanent REA MCP Node 24 with pinned WABT 1.0.42",
+      "tools_reused_as_setup": [
+        {
+          "name": "inspect_wasm_artifact",
+          "calls": 2,
+          "already_scoped_certified": true
+        }
+      ],
+      "tool_tests": [
+        {
+          "name": "compare_wasm_interfaces",
+          "status": "FUNCTIONAL_PASS_SCOPED",
+          "isError": false,
+          "original_permanent_mcp_run_id": 40011404653,
+          "request_commit": "6c6c31d1e15cb974090ff1514775568c2870bc0c",
+          "response_sha256": "281b0e47104a40ef14c3e3f63b8938c9b366de031fedbd9b0dcba81e486a2c36",
+          "expected_summary": {
+            "added": 1,
+            "removed": 1,
+            "changed": 1,
+            "unchanged": 1,
+            "unknown": 0
+          },
+          "assertions": {
+            "original_wabt_input_0": true,
+            "original_wabt_input_1": true,
+            "mcp_isError_false": true,
+            "comparison_complete_within_inputs": true,
+            "export_born_added": true,
+            "export_gone_removed": true,
+            "export_foo_signature_changed": true,
+            "export_stay_unchanged": true,
+            "counts_match_expected": true,
+            "left_evidence_identity_retained": true,
+            "right_evidence_identity_retained": true,
+            "bytes_unchanged": true,
+            "fixtures_cleaned": true
+          },
+          "input": "Two owned private byte-authored WASM modules with differing function signatures and export names under /dev/shm; no runtime code execution",
+          "scope": "One synthetic pair, valid WABT 1.0.42 and retained Evidence comparison. Does not certify unsupported types, duplicates, invalid binaries, large interfaces or cancellation."
+        }
+      ],
+      "controls": {
+        "sensitive_class_authorization_unchanged": true,
+        "workspace_fixture_only": true,
+        "source_repo_unchanged": true,
+        "service_pid_not_probed_after_fixture": true,
+        "no_new_mcp_skill_plugin": true,
+        "temporary_files_removed": true
+      },
+      "cumulative": {
+        "functional_pass_scoped_distinct": 20,
+        "pending_individual_review": 188,
+        "fully_certified_distinct": 0
+      }
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 19,
-    "awaiting_canonical_individual_review": 189,
+    "functional_pass_scoped_distinct": 20,
+    "awaiting_canonical_individual_review": 188,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 12,
+    "workspace_newly_passed_distinct": 13,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3
   },
@@ -1277,7 +1341,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P17-BINWALK31-FIRMWARE-ORIGINAL-MCP-20261023",
+  "latest_phase": "LINUX-P18-WABT-INTERFACE-COMPARISON-ORIGINAL-MCP-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
