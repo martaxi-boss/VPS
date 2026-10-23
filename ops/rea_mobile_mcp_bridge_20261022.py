@@ -1769,8 +1769,9 @@ def main():
         if not all(good.values()):
             print("REA_PACT_STATUS=BLOCKED_MISSING_PROVIDER")
             return
-        cfg="[Service]\\n"+ "".join(
-            f'Environment="{key}={value}"\\n' for key,value in paths.items())
+        cfg=("[Service]"+chr(10)+"".join(
+            f'Environment="{key}={value}"'+chr(10)
+            for key,value in paths.items()))
         # Only four fixed executable paths; never copy external environment
         # or user secrets to public GitHub logs or service configuration.
         user_stage=Path.home()/".local/share/rea-chatgpt-trial/artifacts"
