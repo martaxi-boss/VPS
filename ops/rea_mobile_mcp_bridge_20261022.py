@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_supplier_gap_20261023"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -226,6 +226,13 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_MOBILE_TOOL_CALL", "REA_MOBILE_TOOL_NAME",
         "REA_MOBILE_OUTPUT_BYTES", "REA_MOBILE_OUTPUT_SHA256",
         "REA_MOBILE_TOOL_ERROR", "REA_MOBILE_HEALTH",
+        "REA_GAP_RUNNING_SERVICE", "REA_GAP_MCP_PROVIDER",
+        "REA_GAP_MCP_ISERROR", "REA_GAP_MCP_RESULT_SHA256",
+        "REA_GAP_MCP_CATEGORIES", "REA_GAP_MCP_ASSERTIONS",
+        "REA_GAP_MCP_STATUS", "REA_GAP_SIGROK_CAPTURE_METRICS",
+        "REA_GAP_ENV_KEYS", "REA_GAP_PROVIDERS_SHELL",
+        "REA_GAP_TEMPFILE_CLEANUP", "REA_GAP_PID_UNCHANGED",
+        "REA_GAP_SUMMARY",
         "REA_MOBILE_PROVIDER_DOCTOR_GHIDRA",
         "REA_MOBILE_PROVIDER_DOCTOR_JADX", "REA_MOBILE_CATALOG",
         "REA_MOBILE_DESCRIBE_TOOL", "REA_MOBILE_TOOL_DESCRIPTOR_B64",
@@ -1752,6 +1759,172 @@ def main():
                   (installed.stdout or installed.stderr).splitlines()[0][:110])
             print("REA_RIZIN_STATUS="+(
                 "PASS_PINNED_PERSISTENT" if installed.returncode==0 else "INCOMPLETE"))
+        return
+    if data["action"] == "fixture_linux_supplier_gap_20261023":
+        # Only original local MCP, no device/other process actions.
+        # Exact, bounded, source-owned VCD/PCAP and non-invasive provider checks.
+        import struct
+        import tempfile
+        unit="rea-reversa-mcp.service"
+        def prop(k):
+            out=subprocess.run(["systemctl","show",unit,"-p",k,"--value"],
+                   capture_output=True,text=True,timeout=11,check=False)
+            return out.stdout.strip() if out.returncode==0 else ""
+        before=prop("MainPID")
+        if prop("User")!="rea-reversa" or prop("ActiveState")!="active":
+            print("REA_GAP_RUNNING_SERVICE=false")
+            return
+        print("REA_GAP_RUNNING_SERVICE=true")
+        envr=subprocess.run(["sudo","-n","cat",f"/proc/{before}/environ"],
+                     capture_output=True,timeout=15,check=False) if (
+                     before.isdecimal() and int(before)>0) else None
+        envs={}
+        if envr is not None and envr.returncode==0:
+            for part in envr.stdout.split(bytes([0])):
+                if b"=" in part:
+                    key,value=part.split(b"=",1)
+                    if key in (b"REA_TSHARK_COMMAND",b"REA_SIGROK_COMMAND",b"REA_KUNA_COMMAND"):
+                        envs[key.decode("ascii")]=value.decode("utf-8","replace")
+        print("REA_GAP_ENV_KEYS="+json.dumps({
+          "tshark_present":bool(envs.get("REA_TSHARK_COMMAND")),
+          "sigrok_configured":envs.get("REA_SIGROK_COMMAND")=="/usr/bin/sigrok-cli",
+          "kuna_configured":envs.get("REA_KUNA_COMMAND")=="/opt/rea-reversa/providers/kuna-v1.833/bin/kuna"
+        },sort_keys=True))
+        supplier={}
+        for name,cmd,flags in (
+          ("tshark","/usr/bin/tshark",["--version"]),
+          ("sigrok","/usr/bin/sigrok-cli",["--version"]),
+          ("prlimit","/usr/bin/prlimit",["--version"])
+        ):
+            if not Path(cmd).is_file():
+                supplier[name]="MISSING"
+                continue
+            p=subprocess.run(["sudo","-n","-u","rea-reversa",cmd,*flags],
+                    capture_output=True,text=True,timeout=17,check=False)
+            line=p.stdout.splitlines()[0] if p.stdout.splitlines() else ""
+            supplier[name]={
+              "exit_zero":p.returncode==0,
+              "tshark_major4":line.startswith("TShark (Wireshark) 4.") if name=="tshark" else None,
+              "sigrok_0_7_2":line.strip()=="sigrok-cli 0.7.2" if name=="sigrok" else None
+            }
+        print("REA_GAP_PROVIDERS_SHELL="+json.dumps(supplier,sort_keys=True))
+        checked=[]
+        def call(name,args,id,extra=()):
+            if name not in tool_by_name:
+                print("REA_GAP_MCP_PROVIDER="+name)
+                print("REA_GAP_MCP_STATUS=NOT_REGISTERED")
+                checked.append(False)
+                return None
+            if secure.classify(name,tool_by_name[name],())!="workspace":
+                print("REA_GAP_MCP_PROVIDER="+name)
+                print("REA_GAP_MCP_STATUS=BLOCKED_RISK_CLASSIFICATION")
+                checked.append(False)
+                return None
+            secure.validate_arguments(tool_by_name[name],args)
+            secure._authorized_target_paths(args,additional_roots=extra)
+            _,reply=request_mcp({"jsonrpc":"2.0","id":id,"method":"tools/call",
+                 "params":{"name":name,"arguments":args}},session,protocol,timeout=90)
+            result=reply.get("result",{})
+            good=isinstance(result,dict) and result.get("isError") is not True and "error" not in reply
+            content=result.get("structuredContent") if isinstance(result,dict) else None
+            if not isinstance(content,dict):
+                for item in result.get("content",[]) if isinstance(result,dict) else []:
+                    if isinstance(item,dict) and isinstance(item.get("text"),str):
+                        try:
+                            candidate=json.loads(item["text"])
+                            if isinstance(candidate,dict):
+                                content=candidate
+                                break
+                        except (TypeError,ValueError):
+                            pass
+            encoded=json.dumps(reply,sort_keys=True,ensure_ascii=True).encode("utf-8")
+            sha=hashlib.sha256(encoded).hexdigest()
+            print("REA_GAP_MCP_PROVIDER="+name)
+            print("REA_GAP_MCP_ISERROR="+str(not good).lower())
+            print("REA_GAP_MCP_RESULT_SHA256="+sha)
+            if not good:
+                error=content.get("error",{}) if isinstance(content,dict) else {}
+                print("REA_GAP_MCP_CATEGORIES="+json.dumps({
+                 "code":error.get("code") if isinstance(error.get("code"),str) else "UNKNOWN",
+                 "reason_version": "Expected sigrok-cli 0.7.2 with libsigrokdecode" in str(error.get("message","")) or
+                     "Expected sigrok-cli 0.7.2 with libsigrokdecode" in str(error.get("details",{})),
+                 "absolute_binary_missing":"Supply absolute REA_TSHARK_COMMAND" in str(error.get("details",{})) or
+                   "REA_TSHARK_COMMAND" in str(error.get("message","")),
+                 "no_raw_data_logged":True
+                },sort_keys=True))
+                if name=="inspect_signal_decoders":
+                    cap=error.get("details",{}).get("captured_output",{}) if isinstance(error.get("details"),dict) else {}
+                    stdout=cap.get("stdout") if isinstance(cap,dict) else None
+                    stderr=cap.get("stderr") if isinstance(cap,dict) else None
+                    stdout=stdout if isinstance(stdout,str) else ""
+                    stderr=stderr if isinstance(stderr,str) else ""
+                    first=stdout.splitlines()[0].strip() if stdout.splitlines() else ""
+                    print("REA_GAP_SIGROK_CAPTURE_METRICS="+json.dumps({
+                      "stdout_bytes":len(stdout.encode("utf-8")),
+                      "stderr_bytes":len(stderr.encode("utf-8")),
+                      "first_line_matches":first=="sigrok-cli 0.7.2",
+                      "first_line_sigrok_prefix":first.startswith("sigrok-cli"),
+                      "libsigrokdecode_present":"libsigrokdecode" in stdout,
+                      "captured_output_present":isinstance(cap,dict) and "stdout" in cap,
+                      "exit_code":cap.get("exit_code") if isinstance(cap,dict) else None,
+                      "stdout_digest":hashlib.sha256(stdout.encode()).hexdigest()
+                    },sort_keys=True))
+            else:
+                payload=content if isinstance(content,dict) else {}
+                report=payload.get("normalized_result") if isinstance(payload.get("normalized_result"),dict) else {}
+                if name=="inspect_packet_fields":
+                    rows=report.get("records",[])
+                    metrics={
+                      "protocol_found":any(isinstance(r,dict) and r.get("abbreviation")=="udp" for r in rows),
+                      "tshark_4":str(report.get("tool",{}).get("version_banner","")).startswith("TShark (Wireshark) 4."),
+                      "window_positive":report.get("output_window",{}).get("matching",0)>0,
+                      "no_hardware":report.get("hardware_acquisition")=="not-performed",
+                      "rows_match":len(rows)==report.get("output_window",{}).get("returned")
+                    }
+                elif name=="inspect_packet_capture":
+                    packets=report.get("packets",[])
+                    metrics={
+                      "packet_count":report.get("output_window",{}).get("matching_packets")==1,
+                      "returned_1":len(packets)==1,
+                      "udp_port":any("udp.port" in p for p in packets),
+                      "source_sha":report.get("artifact",{}).get("sha256")==test_digest,
+                      "no_hardware":report.get("hardware_acquisition")=="not-performed"
+                    }
+                else: metrics={"content_normalized":bool(report)}
+                print("REA_GAP_MCP_ASSERTIONS="+json.dumps(metrics,sort_keys=True))
+                checked.append(bool(metrics) and all(metrics.values()))
+                print("REA_GAP_MCP_STATUS="+("FUNCTIONAL_PASS_SCOPED" if checked[-1] else "INCOMPLETE_ASSERTIONS"))
+                return good,report
+            checked.append(False)
+            print("REA_GAP_MCP_STATUS=INCOMPLETE")
+            return good,None
+        call("inspect_signal_decoders",{"query":"uart","limit":10},971)
+        call("inspect_packet_fields",{"query":"udp","limit":10},972)
+        base=Path("/dev/shm")
+        with tempfile.TemporaryDirectory(prefix="rea-owned-udp-",dir=str(base)) as td:
+            owned=Path(td)
+            owned.chmod(0o755)
+            target=owned/"one.pcap"
+            payload=b"rea-canonical-fixture"
+            ethernet=bytes.fromhex("0200000000020200000000010800")
+            header=struct.pack("!BBHHHBBH4s4s",69,0,20+8+len(payload),0,0,64,17,0,
+                   bytes((192,0,2,1)),bytes((198,51,100,2)))
+            udp=struct.pack("!HHHH",40000,53,8+len(payload),0)
+            packet=ethernet+header+udp+payload
+            global_header=struct.pack("<IHHIIII",0xa1b2c3d4,2,4,0,0,65535,1)
+            frame_header=struct.pack("<IIII",1,0,len(packet),len(packet))
+            source=global_header+frame_header+packet
+            target.write_bytes(source)
+            target.chmod(0o644)
+            test_digest=hashlib.sha256(source).hexdigest()
+            call("inspect_packet_capture",{"path":str(target),
+                 "fields":["ip.src","ip.dst","udp.port"],
+                 "display_filter":"udp","match_limit":10},973,(owned,))
+            verified=hashlib.sha256(target.read_bytes()).hexdigest()==test_digest
+        print("REA_GAP_TEMPFILE_CLEANUP="+str(not owned.exists() and verified).lower())
+        after=prop("MainPID")
+        print("REA_GAP_PID_UNCHANGED="+str(bool(before) and before==after).lower())
+        print("REA_GAP_SUMMARY="+str(sum(checked))+"/"+str(len(checked)))
         return
     if data["action"] == "fixture_linux_service_unit_diagnose":
         # Read-only, classify original service wiring without printing secrets.
