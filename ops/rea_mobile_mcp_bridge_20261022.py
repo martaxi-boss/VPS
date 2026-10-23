@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_wabt_deploy_20261023", "fixture_linux_wabt_real_mcp_20261023", "fixture_linux_pwntools_deploy_20261023", "fixture_linux_pwntools_diagnose_20261023", "fixture_linux_pwntools_real_mcp_20261023", "fixture_linux_binwalk_build_readiness_20261023", "fixture_linux_rust_official_checksum_20261023", "fixture_linux_binwalk31_isolated_build_20261023", "fixture_linux_binwalk_prereqs_install_20261023", "fixture_linux_binwalk31_activate_20261023"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_wabt_deploy_20261023", "fixture_linux_wabt_real_mcp_20261023", "fixture_linux_pwntools_deploy_20261023", "fixture_linux_pwntools_diagnose_20261023", "fixture_linux_pwntools_real_mcp_20261023", "fixture_linux_binwalk_build_readiness_20261023", "fixture_linux_rust_official_checksum_20261023", "fixture_linux_binwalk31_isolated_build_20261023", "fixture_linux_binwalk_prereqs_install_20261023", "fixture_linux_binwalk31_activate_20261023", "fixture_linux_binwalk31_firmware_mcp_20261023"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -541,7 +541,10 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_BIN3_ACT_PROCESS_ENV","REA_BIN3_ACT_PROVIDER_KEYS_PRESERVED",
         "REA_BIN3_ACT_MCP_COUNT","REA_BIN3_ACT_RISK_CLASSES",
         "REA_BIN3_ACT_NODE24","REA_BIN3_ACT_ORIGINAL_SOURCE",
-        "REA_BIN3_ACT_RESTART_SCOPE","REA_BIN3_ACT_ROLLBACK"
+        "REA_BIN3_ACT_RESTART_SCOPE","REA_BIN3_ACT_ROLLBACK",
+        "REA_FW_MCP_TOOL","REA_FW_MCP_ISERROR","REA_FW_MCP_RESPONSE_SHA256",
+        "REA_FW_MCP_ASSERTIONS","REA_FW_MCP_REGION_COUNT","REA_FW_MCP_ERROR_KEYS",
+        "REA_FW_MCP_STATUS","REA_FW_MCP_TEMP_CLEANUP","REA_FW_MCP_PID_STABLE"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -2130,6 +2133,107 @@ def main():
         finally:
             if stage_path is not None:
                 Path(stage_path).unlink(missing_ok=True)
+        return
+    if data["action"] == "fixture_linux_binwalk31_firmware_mcp_20261023":
+        # Original published REA firmware fixture contract:
+        # Python USTAR tarfile + gzip, prefixed at offset 64. No target
+        # execution, no extraction, no other projects or new MCP server.
+        import tempfile
+        import io
+        import tarfile
+        import gzip
+        unit="rea-reversa-mcp.service"
+        name="inspect_firmware_regions"
+        if name not in tool_by_name or secure.classify(
+                name,tool_by_name[name],())!="workspace":
+            print("REA_FW_MCP_STATUS=BLOCKED_ORIGINAL_RISK_CLASS")
+            return
+        observed=subprocess.run(["systemctl","show",unit,"-p","MainPID","--value"],
+                   capture_output=True,text=True,timeout=12,check=False)
+        first_pid=observed.stdout.strip()
+        if not first_pid.isdecimal() or int(first_pid)<1:
+            print("REA_FW_MCP_STATUS=BLOCKED_ORIGINAL_SERVICE")
+            return
+        original=Path("/opt/rea-reversa/providers/binwalk-3.1.0/bin/binwalk")
+        if not original.is_file() or original.is_symlink():
+            print("REA_FW_MCP_STATUS=BLOCKED_ORIGINAL_BINWALK_PROVIDER_ABSENT")
+            return
+        with tempfile.TemporaryDirectory(prefix="rea-owned-firmware-",dir="/dev/shm") as temp:
+            root=Path(temp)
+            root.chmod(0o755)
+            file=root/"firmware.bin"
+            buffer=io.BytesIO()
+            sample=Path("/usr/bin/true").read_bytes()
+            data={"etc/rea.conf":b"rea_fixture=true\n","usr/bin/probe":sample}
+            with tarfile.open(fileobj=buffer,mode="w",format=tarfile.USTAR_FORMAT) as archive:
+                for item,payload in data.items():
+                    info=tarfile.TarInfo(item)
+                    info.size=len(payload)
+                    info.mode=0o644
+                    info.mtime=0
+                    archive.addfile(info,io.BytesIO(payload))
+            compressed=gzip.compress(buffer.getvalue(),mtime=0)
+            image=b"REA firmware fixture\n".ljust(64,bytes([255]))+compressed+bytes(128)
+            file.write_bytes(image)
+            file.chmod(0o644)
+            digest=hashlib.sha256(image).hexdigest()
+            args={"path":str(file)}
+            secure.validate_arguments(tool_by_name[name],args)
+            secure._authorized_target_paths(args,additional_roots=(root,))
+            _,response=request_mcp({"jsonrpc":"2.0","id":3012,"method":"tools/call",
+                "params":{"name":name,"arguments":args}},session,protocol,timeout=110)
+            result=response.get("result") if isinstance(response,dict) else None
+            errored=(not isinstance(result,dict)
+                     or result.get("isError") is True
+                     or "error" in response)
+            raw=result.get("structuredContent") if isinstance(result,dict) else None
+            if not isinstance(raw,dict):
+                for part in result.get("content",[]) if isinstance(result,dict) else []:
+                    if isinstance(part,dict) and isinstance(part.get("text"),str):
+                        try:
+                            raw=json.loads(part["text"])
+                            break
+                        except (ValueError,TypeError):
+                            pass
+            raw=raw if isinstance(raw,dict) else {}
+            norm=raw.get("normalized_result",{})
+            norm=norm if isinstance(norm,dict) else {}
+            regions=norm.get("regions",[])
+            regions=regions if isinstance(regions,list) else []
+            engine=norm.get("engine",{})
+            engine=engine if isinstance(engine,dict) else {}
+            subject=raw.get("subject",{})
+            subject=subject if isinstance(subject,dict) else {}
+            sdigest=subject.get("digest",{})
+            sdigest=sdigest if isinstance(sdigest,dict) else {}
+            observed_gzip=[r for r in regions if isinstance(r,dict)
+                      and r.get("signature")=="gzip" and r.get("offset")==64]
+            checks={
+                "real_mcp_isError_false":not errored,
+                "real_compiled_binwalk_3_1_0":engine.get("version")=="3.1.0",
+                "original_engine_id":engine.get("name")=="binwalk",
+                "input_bytes":norm.get("input_size")==len(image),
+                "signature_scan":norm.get("coverage")=="signature_scan",
+                "independent_gzip_at_64":len(observed_gzip)>=1,
+                "gzip_length":any(x.get("reported_size")==len(compressed)
+                        for x in observed_gzip),
+                "evidence_digest_matches":sdigest.get("sha256")==digest,
+                "source_sha_stable":hashlib.sha256(file.read_bytes()).hexdigest()==digest,
+            }
+            print("REA_FW_MCP_TOOL="+name)
+            print("REA_FW_MCP_ISERROR="+str(errored).lower())
+            print("REA_FW_MCP_RESPONSE_SHA256="+hashlib.sha256(
+                  json.dumps(response,sort_keys=True,ensure_ascii=True).encode()).hexdigest())
+            print("REA_FW_MCP_ASSERTIONS="+json.dumps(checks,sort_keys=True))
+            print("REA_FW_MCP_REGION_COUNT="+str(len(regions)))
+            print("REA_FW_MCP_ERROR_KEYS="+json.dumps(sorted(raw.keys())[:9]))
+            print("REA_FW_MCP_STATUS="+(
+                 "FUNCTIONAL_PASS_SCOPED" if all(checks.values()) else "INCOMPLETE"))
+        print("REA_FW_MCP_TEMP_CLEANUP="+str(not root.exists()).lower())
+        check_pid=subprocess.run(["systemctl","show",unit,"-p","MainPID","--value"],
+                   capture_output=True,text=True,timeout=12,check=False)
+        print("REA_FW_MCP_PID_STABLE="+str(
+              check_pid.stdout.strip()==first_pid).lower())
         return
     if data["action"] == "fixture_linux_read5_mcp_boundaries":
         # Run original REA real MCP tool methods against private in-memory
