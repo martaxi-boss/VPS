@@ -183,5 +183,44 @@
     "full_group_certification": false,
     "no_owner_signed_live_gdb_session_test_this_phase": true,
     "notes": "Historical negative test evidence remains valid; prior 'GDB not installed' limitation superseded as an installation statement, not as a functional tool certification."
+  },
+  "additional_real_gdb_mcp_isolated_proof": {
+    "run_id": 39972622800,
+    "proof_level": "ORIGINAL_REA_MCP_IN_MEMORY_WITH_TRUE_LINUX_GNU_GDB_NOT_PERMANENT_SERVICE",
+    "gnu_gdb_version": "15.1",
+    "reactor": "Original registerGdbTools + GdbSessionManager with @modelcontextprotocol Client, InMemoryTransport and real GDB process",
+    "positive_assertions": [
+      "start_gdb_session returned isError!=true and UUID",
+      "gdb_session_status returned isError!=true and state ready",
+      "reported mi_version mi3 or mi2 and nontruncated diagnostics",
+      "close_gdb_session returned isError!=true",
+      "gdb_session_status after close returned isError=true"
+    ],
+    "result_marker": "REA_LINUX_GDB_REAL_STATUS=PASS_REAL_GDB_ISOLATED_MCP",
+    "vitest_exit_code": 0,
+    "source_unchanged": true,
+    "real_binary_sha256": "3832cc070ae1716e322105d3b39fb398695e5f031c9d39224cf227a8c2b889f6",
+    "stored_dependencies": [
+      "libbabeltrace1",
+      "libdebuginfod1t64",
+      "libipt2",
+      "libsource-highlight4t64"
+    ],
+    "limitation": "True positive in isolated original contract; not a live state from persistent REA systemd MCP; start/close via permanent endpoint still requires independently owner-signed authorization."
+  },
+  "current_positive_scope_summary": {
+    "positive_live_original_service_tools": [
+      "list_unknowns",
+      "get_evidence_bundle",
+      "evaluate_reconstruction_coverage"
+    ],
+    "positive_original_mcp_isolated_tools": [
+      "verify_unknown_resolution",
+      "gdb_session_status"
+    ],
+    "real_gdb_not_emulated_in_run_39972622800": true,
+    "gdb_now_persistent_installed_and_visible_in_service": true,
+    "full_permanent_service_certifications": 0,
+    "limitations": "Five positive functional paths across two MCP modes, but no approval of all five for the permanent service."
   }
 }
