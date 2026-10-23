@@ -247,6 +247,8 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SIGROK_DX", "REA_SIGROK_DX_CATEGORIES",
         "REA_SIGROK_DX_NATIVE_RESULT", "REA_SIGROK_DX_CLI_RESULT",
         "REA_SIGROK_DX_CONFIG_PRESENT", "REA_SIGROK_DX_STATUS",
+        "REA_SIGROK_DX_EXACT_CAUSE", "REA_SIGROK_DX_VERSION_PROBE",
+        "REA_SIGROK_DX_INHERITED_LIMITS",
         "REA_MOBILE_DESCRIBE_TOOL", "REA_MOBILE_TOOL_DESCRIPTOR_B64",
         "REA_MOBILE_TOOL_SCHEMA_SUMMARY", "REA_MOBILE_TOOL_DESCRIPTOR_SHA256",
         "REA_MOBILE_TOOL_DESCRIPTOR_BYTES", "REA_MOBILE_TOOL_DESCRIPTOR_TRUNCATED",
@@ -2119,6 +2121,15 @@ def main():
             print("REA_SIGROK_DX="+("catalog" if index==960 else "help")+":"+(
                   "ERROR" if error else "OK"))
             print("REA_SIGROK_DX_CATEGORIES="+json.dumps(present))
+            print("REA_SIGROK_DX_EXACT_CAUSE="+json.dumps({
+              "actual_version_probe_mismatch":("Expected sigrok-cli 0.7.2 with libsigrokdecode; inspect the selected installation." in raw),
+              "absolute_sigrok_command_missing":("Supply absolute REA_SIGROK_COMMAND" in raw),
+              "workspace_failure":("Cannot prepare the private analysis workspace" in raw),
+              "configured_limiter_missing":("REA_SIGROK_PRLIMIT_COMMAND must be absolute" in raw),
+              "unable_to_start_process":("Unable to launch" in raw),
+              "producer_process_error":("provider_adapter_error" in raw),
+              "resource_exceeded":("resource_constraint" in raw)
+            },sort_keys=True))
         env={key:selection[key] for key in
              ("HOME","PATH","REA_SIGROK_COMMAND","REA_SIGROK_PRLIMIT_COMMAND",
              "XDG_CACHE_HOME") if key in selection}
@@ -2126,6 +2137,29 @@ def main():
             return subprocess.run(["sudo","-n","-u","rea-reversa","env",*[
                     key+"="+val for key,val in env.items()],*args],
                     capture_output=True,text=True,timeout=timeout,check=False)
+        for tag,cmd in (
+          ("direct",["/usr/bin/sigrok-cli","--version"]),
+          ("with-prlimit",["/usr/bin/prlimit",
+             "--as=1073741824:1073741824","--fsize=67108864:67108864",
+             "--cpu=30:30","--core=0:0","--",
+             "/usr/bin/sigrok-cli","--version"])
+        ):
+            p=invoke(cmd,24)
+            print("REA_SIGROK_DX_VERSION_PROBE="+json.dumps({
+             "mode":tag,"exit":p.returncode,
+             "first_line_matches":bool(p.stdout.splitlines() and
+                   p.stdout.splitlines()[0].strip()=="sigrok-cli 0.7.2"),
+             "libsigrokdecode_present":"libsigrokdecode" in p.stdout,
+             "stdout_bytes":len(p.stdout.encode()),
+             "stderr_bytes":len(p.stderr.encode())
+            },sort_keys=True))
+        if servicepid.isdecimal():
+            limits=subprocess.run(["sudo","-n","cat",f"/proc/{servicepid}/limits"],
+                   capture_output=True,text=True,timeout=12,check=False)
+            relevant=[row.split() for row in limits.stdout.splitlines()
+                      if row.startswith(("Max address space","Max cpu time"))]
+            print("REA_SIGROK_DX_INHERITED_LIMITS="+json.dumps(
+                ["unlimited" if "unlimited" in row else "bounded" for row in relevant]))
         native=invoke(["/usr/bin/sigrok-cli","--dont-scan","--list-supported"],25)
         print("REA_SIGROK_DX_NATIVE_RESULT="+json.dumps({
             "exit_code":native.returncode,
