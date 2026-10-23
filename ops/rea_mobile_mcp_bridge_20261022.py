@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_wabt_deploy_20261023", "fixture_linux_wabt_real_mcp_20261023", "fixture_linux_pwntools_deploy_20261023", "fixture_linux_pwntools_diagnose_20261023", "fixture_linux_pwntools_real_mcp_20261023", "fixture_linux_binwalk_build_readiness_20261023", "fixture_linux_rust_official_checksum_20261023", "fixture_linux_binwalk31_isolated_build_20261023"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_wabt_deploy_20261023", "fixture_linux_wabt_real_mcp_20261023", "fixture_linux_pwntools_deploy_20261023", "fixture_linux_pwntools_diagnose_20261023", "fixture_linux_pwntools_real_mcp_20261023", "fixture_linux_binwalk_build_readiness_20261023", "fixture_linux_rust_official_checksum_20261023", "fixture_linux_binwalk31_isolated_build_20261023", "fixture_linux_binwalk_prereqs_install_20261023"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -529,7 +529,12 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_BIN3_BUILD_VERSION","REA_BIN3_BUILD_BIN_SHA256",
         "REA_BIN3_BUILD_SERVICE_USER",
         "REA_BIN3_BUILD_TEMP_CLEANUP","REA_BIN3_BUILD_REA_PID_STABLE",
-        "REA_BIN3_BUILD_DID_NOT_MODIFY_SYSTEM_PYTHON_RUST"
+        "REA_BIN3_BUILD_DID_NOT_MODIFY_SYSTEM_PYTHON_RUST",
+        "REA_BINPREREQ_STATUS","REA_BINPREREQ_SIMULATED_ADDITIONS",
+        "REA_BINPREREQ_SIM_DIAGNOSTIC","REA_BINPREREQ_REQUIRED_MISSING",
+        "REA_BINPREREQ_INSTALL_EXIT","REA_BINPREREQ_INSTALL_DIAGNOSTIC",
+        "REA_BINPREREQ_DPKG_STATUS","REA_BINPREREQ_PKG_CONFIG_AVAILABLE",
+        "REA_BINPREREQ_MCP_PID_STABLE"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -1694,6 +1699,81 @@ def main():
             print("REA_RUST_VENDOR_SHA_"+name+"="+parts[0])
         print("REA_RUST_VENDOR_UNCHANGED_ORIGINAL=true")
         print("REA_RUST_VENDOR_STATUS=PASS_OFFICIAL_STATIC_RUST_SHA_PUBLISHED")
+        return
+    if data["action"] == "fixture_linux_binwalk_prereqs_install_20261023":
+        # Only three additive compiler prerequisites used by original
+        # Binwalk v3.1.0 Rust crate dependencies; no upgrade, removals,
+        # compiler PATH change, code changes, or REA service restarts.
+        import re as regex
+        import shutil
+        unit="rea-reversa-mcp.service"
+        if len(tools)!=208 or not Path("/opt/rea-reversa/rea/src/firmware/FirmwareRelease.ts").is_file():
+            print("REA_BINPREREQ_STATUS=BLOCKED_ORIGINAL_REA")
+            return
+        p=subprocess.run(["systemctl","show",unit,"-p","MainPID","--value"],
+                capture_output=True,text=True,timeout=12,check=False)
+        original_pid=p.stdout.strip()
+        if not original_pid.isdecimal() or int(original_pid)<1:
+            print("REA_BINPREREQ_STATUS=BLOCKED_ORIGINAL_SERVICE")
+            return
+        req=("pkg-config","libbz2-dev","liblzma-dev")
+        apt=["/usr/bin/apt-get","-s","-o","Debug::NoLocking=1",
+             "install","--no-install-recommends",*req]
+        sim=subprocess.run(apt,capture_output=True,text=True,timeout=45,check=False)
+        if sim.returncode!=0:
+            print("REA_BINPREREQ_STATUS=BLOCKED_APT_SIMULATION")
+            print("REA_BINPREREQ_SIM_DIAGNOSTIC="+sim.stderr[-150:].replace("\n"," "))
+            return
+        lines=sim.stdout.splitlines()
+        if any(x.startswith(("Remv ","Purg ","Conflicts:")) for x in lines):
+            print("REA_BINPREREQ_STATUS=BLOCKED_APT_REMOVALS")
+            return
+        install=[]
+        allowed={"pkg-config","pkgconf-bin","pkgconf","libbz2-dev","liblzma-dev"}
+        for line in lines:
+            if not line.startswith("Inst "):
+                continue
+            tokens=line.split()
+            if len(tokens)<3 or tokens[1] not in allowed:
+                print("REA_BINPREREQ_STATUS=BLOCKED_UNRELATED_PACKAGE:"+tokens[1][:50])
+                return
+            # Existing packages would show an upgrade version in square
+            # brackets after the package name; block it fail-closed.
+            if tokens[2].startswith("["):
+                print("REA_BINPREREQ_STATUS=BLOCKED_APT_UPGRADE:"+tokens[1])
+                return
+            install.append(tokens[1])
+        print("REA_BINPREREQ_SIMULATED_ADDITIONS="+json.dumps(install,sort_keys=True))
+        absent=[x for x in req if subprocess.run(
+            ["dpkg-query","-W","-f="+chr(36)+"{Status}",x],
+            capture_output=True,text=True,timeout=12,check=False).stdout.strip()
+                != "install ok installed"]
+        print("REA_BINPREREQ_REQUIRED_MISSING="+json.dumps(absent))
+        if install:
+            result=subprocess.run(
+                ["sudo","-n","/usr/bin/env","DEBIAN_FRONTEND=noninteractive",
+                 "APT_LISTCHANGES_FRONTEND=none","/usr/bin/apt-get",
+                 "-y","-qq","--no-install-recommends","install",*req],
+                capture_output=True,text=True,timeout=175,check=False)
+            if result.returncode!=0:
+                print("REA_BINPREREQ_INSTALL_EXIT="+str(result.returncode))
+                print("REA_BINPREREQ_INSTALL_DIAGNOSTIC="+result.stderr[-180:].replace("\n"," "))
+                print("REA_BINPREREQ_STATUS=BLOCKED_INSTALL_FAILURE")
+                return
+        found={}
+        for name in req:
+            q=subprocess.run(["dpkg-query","-W","-f="+chr(36)+"{Status}",name],
+                 capture_output=True,text=True,timeout=12,check=False)
+            found[name]=q.stdout.strip()=="install ok installed"
+        print("REA_BINPREREQ_DPKG_STATUS="+json.dumps(found,sort_keys=True))
+        print("REA_BINPREREQ_PKG_CONFIG_AVAILABLE="+str(bool(shutil.which("pkg-config"))).lower())
+        p2=subprocess.run(["systemctl","show",unit,"-p","MainPID","--value"],
+                capture_output=True,text=True,timeout=12,check=False)
+        stable=p2.stdout.strip()==original_pid
+        print("REA_BINPREREQ_MCP_PID_STABLE="+str(stable).lower())
+        print("REA_BINPREREQ_STATUS="+(
+            "PASS_MINIMAL_COMPILE_DEPENDENCIES" if all(found.values()) and stable
+            else "BLOCKED_POST_INSTALL_CHECK"))
         return
     if data["action"] == "fixture_linux_binwalk31_isolated_build_20261023":
         # Official Binwalk3.1 tag at exact commit from REA FirmwareRelease.
