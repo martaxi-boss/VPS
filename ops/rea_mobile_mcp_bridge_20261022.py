@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -319,7 +319,22 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_LINUX_GDB_REAL_SOURCE_UNCHANGED",
         "REA_LINUX_GDB_REAL_MISSING_LIBS",
         "REA_LINUX_GDB_REAL_STAGED_DEPS",
-        "REA_LINUX_GDB_REAL_DEP_ERROR"
+        "REA_LINUX_GDB_REAL_DEP_ERROR",
+        "REA_INSTALL_AUDIT_OS",
+        "REA_INSTALL_AUDIT_ARCH",
+        "REA_INSTALL_AUDIT_RELEASE",
+        "REA_INSTALL_AUDIT_BIN_CORE",
+        "REA_INSTALL_AUDIT_BIN_NATIVE",
+        "REA_INSTALL_AUDIT_BIN_APPLICATION",
+        "REA_INSTALL_AUDIT_BIN_FIRMWARE",
+        "REA_INSTALL_AUDIT_BIN_CAPTURE",
+        "REA_INSTALL_AUDIT_VENDOR",
+        "REA_INSTALL_AUDIT_PROVIDERS_CLI",
+        "REA_INSTALL_AUDIT_PROVIDERS_TOP_KEYS",
+        "REA_INSTALL_AUDIT_PROVIDER_CANDIDATES",
+        "REA_INSTALL_AUDIT_PROVIDERS_JSON",
+        "REA_INSTALL_AUDIT_MCP_TOOL_COUNT",
+        "REA_INSTALL_AUDIT_COMPLETED"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -1291,6 +1306,71 @@ def main():
         print("REA_LINUX_GDB_CONFORMANCE_STATUS=" +
               ("PASS_MOCKED_PROVIDER_ONLY" if passed_all and unchanged
                else "FAIL"))
+        return
+    if data["action"] == "fixture_linux_install_inventory":
+        # Audit original Linux REA installation; no installation, no restart.
+        import shutil
+        import platform
+        import re as regex
+        base = Path.home() / ".local/share/rea-chatgpt-trial/tools"
+        groups = {
+            "core": ("node","npm","python3","java","javac","ps","git","curl"),
+            "native": ("gdb","gdb-multiarch","rizin","rz-bin","r2","radare2",
+                       "objdump","readelf","strings","llvm-objdump","nm"),
+            "application": ("adb","frida","apktool","dotnet","mono","ffmpeg",
+                            "chrome","chromium","google-chrome","firefox"),
+            "firmware": ("binwalk","unblob","prlimit","wasm2wat","wasm-objdump","wasm-validate"),
+            "capture": ("tshark","tcpdump","sigrok-cli","wireshark","strace"),
+        }
+        print("REA_INSTALL_AUDIT_OS=" + str(platform.system()))
+        print("REA_INSTALL_AUDIT_ARCH=" + str(platform.machine()))
+        release = {}
+        os_release = Path("/etc/os-release")
+        if os_release.is_file():
+            for line in os_release.read_text(errors="replace").splitlines():
+                if "=" in line:
+                    k, v = line.split("=",1)
+                    if k in ("ID", "ID_LIKE", "VERSION_ID"):
+                        release[k]=v.strip('"').strip("'")
+        print("REA_INSTALL_AUDIT_RELEASE=" + json.dumps(release, sort_keys=True))
+        for name, commands in groups.items():
+            print("REA_INSTALL_AUDIT_BIN_" + name.upper() + "=" +
+                  json.dumps({cmd: bool(shutil.which(cmd)) for cmd in commands},
+                  sort_keys=True))
+        vendor = {
+          "original_motor":Path("/opt/rea-reversa/rea/scripts/rea.mjs"),
+          "original_package":Path("/opt/rea-reversa/rea/package.json"),
+          "ghidra":base/"ghidra_12.1.4_PUBLIC/support/analyzeHeadless",
+          "jdk21":base/"jdk-21/bin/java",
+          "jadx":base/"jadx-headless-mcp-0.7.1-all.jar",
+          "node24":base/"node-24.15.0/bin/node",
+          "wabt":base/"wabt-1.0.42/bin/wasm-objdump",
+          "pwntools":base/"pwntools-4.15.0/bin/python",
+        }
+        print("REA_INSTALL_AUDIT_VENDOR="+
+              json.dumps({name:path.is_file() and not path.is_symlink()
+                         for name,path in vendor.items()},sort_keys=True))
+        cli=vendor["original_motor"]
+        node=shutil.which("node")
+        if node and cli.is_file():
+            probe=subprocess.run([node,str(cli),"providers","--json"],
+                capture_output=True,text=True,timeout=60,check=False,
+                env={**os.environ,"NO_COLOR":"1","NODE_OPTIONS":"--max-old-space-size=1024"})
+            print("REA_INSTALL_AUDIT_PROVIDERS_CLI=" +
+                  ("PASS" if probe.returncode==0 else "FAIL"))
+            if probe.returncode==0:
+                try:
+                    data=json.loads(probe.stdout)
+                    print("REA_INSTALL_AUDIT_PROVIDERS_TOP_KEYS="+json.dumps(
+                        sorted(str(k) for k in data)[:30] if isinstance(data,dict) else []))
+                    if isinstance(data,dict):
+                        candidates=data.get("analysis_provider_candidates")
+                        if isinstance(candidates,list):
+                            print("REA_INSTALL_AUDIT_PROVIDER_CANDIDATES="+str(len(candidates)))
+                except ValueError:
+                    print("REA_INSTALL_AUDIT_PROVIDERS_JSON=INVALID")
+        print("REA_INSTALL_AUDIT_MCP_TOOL_COUNT="+str(len(tools)))
+        print("REA_INSTALL_AUDIT_COMPLETED=PASS_READ_ONLY")
         return
     if data["action"] == "capability_audit":
         import shutil
