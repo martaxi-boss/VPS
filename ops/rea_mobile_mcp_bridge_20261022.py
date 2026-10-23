@@ -2824,7 +2824,7 @@ def main():
                         and isinstance(report.get("file_type"),str)
                         and len(report["file_type"])>3
                         and isinstance(report.get("encapsulation"),str)
-                        and "Ethernet" in report["encapsulation"]
+                        and report["encapsulation"].lower() in ("ether","ethernet")
                         and (report.get("snapshot_length") is None
                             or report["snapshot_length"]>0)
                         and isinstance(report.get("protocol_distribution"),list)
