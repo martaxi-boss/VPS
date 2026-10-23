@@ -1952,7 +1952,10 @@ def main():
                     print("REA_BIN3_BUILD_STATUS=BLOCKED_CARGO_BUILD")
                     return
                 target=build/"install/bin/binwalk"
-                if not target.is_file():
+                check_compiled=subprocess.run(
+                    ["sudo","-n","test","-f",str(target)],
+                    capture_output=True,text=True,timeout=15,check=False)
+                if check_compiled.returncode!=0:
                     print("REA_BIN3_BUILD_STATUS=BLOCKED_MISSING_COMPILED_BIN")
                     return
                 banner=sudo(str(target),"--version",timeout=30)
