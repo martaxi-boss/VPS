@@ -2068,12 +2068,12 @@ def main():
         binary="/usr/bin/sigrok-cli"
         prlimit="/usr/bin/prlimit"
         b=subprocess.run(["sudo","-n","-u","rea-reversa",binary,"--version"],
-              capture_output=True,text=True,timeout=18,check=False) if
-              Path(binary).is_file() else None
+              capture_output=True,text=True,timeout=18,check=False) if (
+              Path(binary).is_file()) else None
         if b is not None:
             banner=b.stdout
             ok=(b.returncode==0 and
-                regex.search(r"^sigrok-cli 0\\.7\\.2(?:\\r?\\n|$)",banner) is not None and
+                bool(banner.splitlines() and banner.splitlines()[0].strip() == "sigrok-cli 0.7.2") and
                 "libsigrokdecode" in banner)
         else:
             ok=False
@@ -2088,7 +2088,7 @@ def main():
              capture_output=True,timeout=10,check=False) if pid.isdecimal() and int(pid)>0 else None
         names=set()
         if environment is not None and environment.returncode==0:
-            names={p.split(b"=",1)[0] for p in environment.stdout.split(b"\\x00") if b"=" in p}
+            names={p.split(b"=",1)[0] for p in environment.stdout.split(bytes([0])) if b"=" in p}
         print("REA_SIGROK_SERVICE_ENV_KEY="+str(b"REA_SIGROK_COMMAND" in names).lower())
         access=subprocess.run(["sudo","-n","-u","rea-reversa","test","-x",binary],
              capture_output=True,timeout=10,check=False)
