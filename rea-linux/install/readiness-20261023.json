@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_CORE_PCAP_APKTOOL_AND_KUNA_PROVIDERS_ACTIVE_SIGROK_MCP_DIFFERENTIAL_BLOCKED",
+  "status": "LINUX_CORE_TSHARK_KUNA_AND_APKTOOL_ACTIVE_SIGROK_SERVICE_LIBUSB_PENDING_196_TOOLS_UNREVIEWED",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -292,7 +292,7 @@
       "native_preflight_run_id": 39986762626,
       "systemd_activation_run_id": 39987163381,
       "environment_variable": "REA_SIGROK_COMMAND",
-      "status": "PASS_PERSISTENT_IN_SYSTEMD_POSITIVE_SIGROK_FUNCTIONAL_TESTS_FAILING",
+      "status": "DEPLOYED_BUT_FUNCTIONAL_FAILURE_LIBUSB_INIT_IN_SYSTEMD",
       "post_restart_mcp_tools": 208,
       "doctor_future_rescan_needed": true,
       "post_activation_failing_original_mcp_run_id": 39987443009,
@@ -306,7 +306,12 @@
         39988261036
       ],
       "precise_root_cause": "UNRESOLVED_DIFFERENTIAL_MCP_VS_NATIVE_CLI_OUTPUT",
-      "certified_tool_count": 0
+      "certified_tool_count": 0,
+      "exact_mcp_failure_stderr": "sr: backend: libusb_init() returned LIBUSB_ERROR_OTHER.",
+      "actual_captured_version_stdout_bytes": 0,
+      "actual_captured_version_exit_code": 0,
+      "latest_signature_run_id": 39994660187,
+      "security": "Do not disable sandbox or expose USB devices without detailed safety assessment"
     },
     "kuna": {
       "version": "1.833",
@@ -328,6 +333,23 @@
       "restarted_only_rea": true,
       "status": "PROVIDER_READY_NATIVE_TOOL_FUNCTIONAL_TESTS_PENDING",
       "limits": "Installed/configured does not imply any additional tool's positive functional certification"
+    },
+    "tshark": {
+      "version": "4.x",
+      "configured_command": "/usr/bin/tshark",
+      "service_var": "REA_TSHARK_COMMAND",
+      "unit_drop_in": "/etc/systemd/system/rea-reversa-mcp.service.d/85-rea-linux-tshark.conf",
+      "deployment_run_id": 39994256498,
+      "original_permanent_mcp_catalog_208": true,
+      "service_process_env_verified": true,
+      "individual_tool_positive_scoped": [
+        "inspect_packet_capture",
+        "inspect_packet_fields"
+      ],
+      "tool_test_runs": [
+        39994380901,
+        39994660187
+      ]
     }
   },
   "final_hygiene_verified": {
