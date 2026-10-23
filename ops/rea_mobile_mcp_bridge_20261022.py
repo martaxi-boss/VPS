@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_supplier_gap_20261023", "fixture_linux_tshark_activate_20261023", "fixture_linux_glossary_sigrok_diag_20261023", "fixture_linux_sigrok_sandbox_20261023"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_supplier_gap_20261023", "fixture_linux_tshark_activate_20261023", "fixture_linux_glossary_sigrok_diag_20261023", "fixture_linux_sigrok_sandbox_20261023", "fixture_linux_static_formats_20261023"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -242,6 +242,11 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SIGROK_STDERR_TAGS", "REA_SIGROK_STDOUT_LENGTH",
         "REA_SIGROK_SANDBOX_UNIT", "REA_SIGROK_SANDBOX_PROC",
         "REA_SIGROK_SANDBOX_USB_PATHS", "REA_SIGROK_SANDBOX_STATUS",
+        "REA_STATIC_FORMAT_TOOL", "REA_STATIC_FORMAT_STATUS",
+        "REA_STATIC_FORMAT_ISERROR", "REA_STATIC_FORMAT_SHA256",
+        "REA_STATIC_FORMAT_ASSERTIONS", "REA_STATIC_FORMAT_NEGATIVE",
+        "REA_STATIC_FORMAT_NODE", "REA_STATIC_FORMAT_CLEANUP",
+        "REA_STATIC_FORMAT_PID_STABLE", "REA_STATIC_FORMAT_TOTAL",
         "REA_MOBILE_PROVIDER_DOCTOR_GHIDRA",
         "REA_MOBILE_PROVIDER_DOCTOR_JADX", "REA_MOBILE_CATALOG",
         "REA_MOBILE_DESCRIBE_TOOL", "REA_MOBILE_TOOL_DESCRIPTOR_B64",
@@ -1768,6 +1773,137 @@ def main():
                   (installed.stdout or installed.stderr).splitlines()[0][:110])
             print("REA_RIZIN_STATUS="+(
                 "PASS_PINNED_PERSISTENT" if installed.returncode==0 else "INCOMPLETE"))
+        return
+    if data["action"] == "fixture_linux_static_formats_20261023":
+        # Real file-only REA MCP tools with model-owned source fixtures.
+        # No network fetch, user data, devices, foreign binaries or daemon restart.
+        import tempfile
+        import sqlite3
+        tools_pending=("inspect_sqlite_database","inspect_evm_interface",
+                       "inspect_web_network_capture")
+        for name in tools_pending:
+            if name not in tool_by_name or secure.classify(
+                  name,tool_by_name[name],())!="workspace":
+                print("REA_STATIC_FORMAT_STATUS=BLOCKED_TOOL_CLASSIFICATION:"+name)
+                return
+        node=subprocess.run(["sudo","-n","-u","rea-reversa","node","--version"],
+                    capture_output=True,text=True,timeout=11,check=False)
+        print("REA_STATIC_FORMAT_NODE="+(
+           node.stdout.strip()[:30] if node.returncode==0 else "UNAVAILABLE"))
+        unit="rea-reversa-mcp.service"
+        def pid():
+            v=subprocess.run(["systemctl","show",unit,"-p","MainPID","--value"],
+                         capture_output=True,text=True,timeout=10,check=False)
+            return v.stdout.strip() if v.returncode==0 else ""
+        beforepid=pid()
+        results={}
+        def invoke(name,args,id,expected,owned):
+            secure.validate_arguments(tool_by_name[name],args)
+            secure._authorized_target_paths(args,additional_roots=(owned,))
+            _,reply=request_mcp({"jsonrpc":"2.0","id":id,
+              "method":"tools/call","params":{"name":name,"arguments":args}},
+                 session,protocol,timeout=135)
+            value=reply.get("result")
+            good=(isinstance(value,dict) and value.get("isError") is not True
+                  and "error" not in reply)
+            obj=value.get("structuredContent") if isinstance(value,dict) else None
+            if not isinstance(obj,dict):
+                for part in value.get("content",[]) if isinstance(value,dict) else []:
+                    if isinstance(part,dict) and isinstance(part.get("text"),str):
+                        try:
+                            obj=json.loads(part["text"])
+                            break
+                        except (ValueError,TypeError):
+                            pass
+            obj=obj if isinstance(obj,dict) else {}
+            report=obj.get("normalized_result") or {}
+            if not isinstance(report,dict):
+                report={}
+            checks=expected(report)
+            valid=bool(good and checks and all(checks.values()))
+            print("REA_STATIC_FORMAT_TOOL="+name)
+            print("REA_STATIC_FORMAT_ISERROR="+str(not good).lower())
+            print("REA_STATIC_FORMAT_SHA256="+hashlib.sha256(
+                        json.dumps(reply,sort_keys=True,ensure_ascii=True).encode()).hexdigest())
+            print("REA_STATIC_FORMAT_ASSERTIONS="+json.dumps(checks,sort_keys=True))
+            print("REA_STATIC_FORMAT_STATUS="+("FUNCTIONAL_PASS_SCOPED" if valid else "INCOMPLETE"))
+            results[name]=results.get(name,False) or valid
+            return good,report
+        with tempfile.TemporaryDirectory(prefix="rea-offline-formats-",dir="/dev/shm") as td:
+            owned=Path(td)
+            owned.chmod(0o755)
+            sqlitepath=owned/"source.sqlite"
+            sql=sqlite3.connect(sqlitepath)
+            try:
+                sql.execute("PRAGMA journal_mode=DELETE")
+                sql.execute("CREATE TABLE items (id INTEGER PRIMARY KEY, note TEXT NOT NULL)")
+                sql.executemany("INSERT INTO items (id,note) VALUES (?,?)",
+                           ((1,"rea-fixture"),(2,"second-fixture")))
+                sql.commit()
+            finally:
+                sql.close()
+            sqlitepath.chmod(0o644)
+            sqlite_sha=hashlib.sha256(sqlitepath.read_bytes()).hexdigest()
+            invoke("inspect_sqlite_database",{
+               "path":str(sqlitepath),"table":"items",
+               "columns":["id","note"],"row_limit":10
+            },1001,lambda r:{
+               "engine_sqlite":r.get("engine",{}).get("name")=="SQLite",
+               "sha_matches":r.get("artifact",{}).get("sha256")==sqlite_sha,
+               "table_selected":r.get("rows",{}).get("table")=="items" if isinstance(r.get("rows"),dict) else False,
+               "selected_cols":r.get("rows",{}).get("columns")==["id","note"] if isinstance(r.get("rows"),dict) else False,
+               "two_rows":r.get("rows",{}).get("returned_rows")==2 if isinstance(r.get("rows"),dict) else False,
+               "source_unmodified":hashlib.sha256(sqlitepath.read_bytes()).hexdigest()==sqlite_sha
+            },owned)
+            evmpath=owned/"runtime.hex"
+            evmhex="0x60006000f3"+chr(10)
+            evmpath.write_text(evmhex,encoding="ascii")
+            evmpath.chmod(0o644)
+            evmsha=hashlib.sha256(evmpath.read_bytes()).hexdigest()
+            actual=hashlib.sha256(bytes.fromhex("60006000f3")).hexdigest()
+            invoke("inspect_evm_interface",{
+               "path":str(evmpath),"encoding":"hex"
+            },1002,lambda r:{
+               "carrier_sha_matches":r.get("artifact",{}).get("sha256")==evmsha,
+               "decoded_sha_matches":r.get("bytecode",{}).get("sha256")==actual,
+               "decoded_bytes":r.get("bytecode",{}).get("bytes")==5,
+               "original_hex":r.get("bytecode",{}).get("hex")=="60006000f3",
+               "inference_observed":r.get("evidence_kind")=="inferred",
+               "runtime_not_executed":r.get("runtime_execution")=="not-performed",
+               "source_unmodified":hashlib.sha256(evmpath.read_bytes()).hexdigest()==evmsha
+            },owned)
+            harpath=owned/"example.har"
+            har={"log":{"version":"1.2",
+                 "creator":{"name":"REA fixture","version":"1"},
+                 "pages":[],
+                 "entries":[{
+                   "startedDateTime":"2026-01-01T00:00:00.000Z",
+                   "time":3,
+                   "request":{"method":"GET","url":"https://example.invalid/rea-canonical-fixture",
+                              "httpVersion":"HTTP/1.1","headers":[],"queryString":[],
+                              "cookies":[],"headersSize":-1,"bodySize":0},
+                   "response":{"status":200,"statusText":"OK","httpVersion":"HTTP/1.1",
+                               "headers":[],"cookies":[],"content":{"size":0,"mimeType":"text/plain"},
+                               "redirectURL":"","headersSize":-1,"bodySize":0},
+                   "cache":{},"timings":{"blocked":0,"dns":0,"connect":0,"send":1,
+                                        "wait":1,"receive":1,"ssl":0}
+                 }]}}
+            harpath.write_text(json.dumps(har,separators=(",",":")),encoding="ascii")
+            harpath.chmod(0o644)
+            harsha=hashlib.sha256(harpath.read_bytes()).hexdigest()
+            invoke("inspect_web_network_capture",{
+               "capture_path":str(harpath),"format":"har","record_ordinals":[0]
+            },1003,lambda r:{
+               "format_har":r.get("format")=="har",
+               "one_record":r.get("total_records")==1,
+               "requested_ordinal0":len(r.get("records",[]))==1 and r.get("records",[{}])[0].get("ordinal")==0,
+               "capture_sha":r.get("artifact",{}).get("sha256")==harsha,
+               "attribution_unknown":r.get("runtime_attribution")=="unknown",
+               "source_unmodified":hashlib.sha256(harpath.read_bytes()).hexdigest()==harsha
+            },owned)
+        print("REA_STATIC_FORMAT_CLEANUP="+str(not owned.exists()).lower())
+        print("REA_STATIC_FORMAT_PID_STABLE="+str(bool(beforepid) and beforepid==pid()).lower())
+        print("REA_STATIC_FORMAT_TOTAL="+str(sum(results.values()))+"/"+str(len(results)))
         return
     if data["action"] == "fixture_linux_sigrok_sandbox_20261023":
         # Read-only inspect USB init constraints of existing REA service;
