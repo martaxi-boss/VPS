@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_17_SCOPED_POSITIVE_WABT_ACTIVE",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_18_SCOPED_POSITIVE_WABT_PWNTOOLS_ACTIVE",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -1086,15 +1086,87 @@
         "pending_individual_review": 191,
         "fully_certified_distinct": 0
       }
+    },
+    {
+      "phase_id": "LINUX-P16-PWNTOOLS-ELF-ORIGINAL-MCP-20261023",
+      "date_utc": "2026-10-23",
+      "status": "PINNED_PWNTOOLS_4_15_0_PERSISTENT_AND_ONE_NEW_ORIGINAL_MCP_SCOPED_POSITIVE",
+      "original_engine_root": "/opt/rea-reversa/rea",
+      "original_repository": "martaxi-boss/Engenheira-reversa",
+      "original_mcp_tool_catalog": 208,
+      "deployment": {
+        "runtime": "dedicated venv /opt/rea-reversa/providers/pwntools-4.15.0/bin/python",
+        "audited_requirements": {
+          "pwntools": "4.15.0",
+          "pyelftools": "0.33",
+          "unicorn": "2.1.2"
+        },
+        "systemd_dropin": "/etc/systemd/system/rea-reversa-mcp.service.d/97-rea-linux-pwntools.conf",
+        "active_service_env": "REA_PWNTOOLS_PYTHON=/opt/rea-reversa/providers/pwntools-4.15.0/bin/python",
+        "installation_attempt_failed_and_rolled_back_run_id": 40002190718,
+        "recovered_node24_wabt_and_catalog_verified_run_id": 40002652447,
+        "successful_activation_run_id": 40002942516,
+        "successful_activation_commit": "3ae5fe89e6d131628b23301091c9cf279191556b",
+        "service_node24_verified": true,
+        "original_service_only_restarted": true,
+        "global_python_node_unmodified": true
+      },
+      "tool_tests": [
+        {
+          "name": "inspect_binary_layout",
+          "status": "FUNCTIONAL_PASS_SCOPED",
+          "original_permanent_mcp_run_id": 40003312811,
+          "request_commit": "f5b5e3c925dba78ac254592451c0a44839530f11",
+          "isError": false,
+          "input_source_sha256": "8a63c98320173f79e263115e10cefc170155e47d1fd4b5a70e4429d2699cae28",
+          "response_sha256": "ad7dc650a0c03acb766e2503e5e646fbe3aff5082fe55d6d1a38e8a2d0960d8f",
+          "assertions": {
+            "mcp_error_false": true,
+            "sha256_matches": true,
+            "bytes_matches": true,
+            "elf_format": true,
+            "architecture_x86_64_64_le": true,
+            "image_type_supported": true,
+            "sections_nonempty": true,
+            "segments_nonempty": true,
+            "mitigations_inferred": true,
+            "target_was_not_executed": true,
+            "runtime_base_unknown": true,
+            "input_unchanged": true,
+            "temporary_file_cleaned": true,
+            "original_mcp_pid_stable": true
+          },
+          "scope": "One owned copy of /usr/bin/true in service-accessible RAM, static ELF64, no target process execution; more file formats, corrupt inputs and resource limits not yet individually certified"
+        }
+      ],
+      "outstanding_compatibility": {
+        "binwalk_native": "2.3.4+dfsg1-5",
+        "binwalk_original_required": "3.1.x (verified upstream original adapter 3.1.0)",
+        "binwalk_provider_status": "NOT_RESOLVED_VERSION_MISMATCH",
+        "rustc_cargo_docker_native": "not on system PATH",
+        "sigrok": "Original MCP libusb_init LIBUSB_ERROR_OTHER remains; device isolation unchanged"
+      },
+      "controls": {
+        "original_engine_code_unchanged": true,
+        "original_gitops_route": true,
+        "workspace_class_authorization_enforced": true,
+        "no_sensitive_authorization_bypass": true,
+        "no_other_services_modified": true
+      },
+      "cumulative": {
+        "functional_pass_scoped_distinct": 18,
+        "pending_individual_review": 190,
+        "fully_certified_distinct": 0
+      }
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 17,
-    "awaiting_canonical_individual_review": 191,
+    "functional_pass_scoped_distinct": 18,
+    "awaiting_canonical_individual_review": 190,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 10,
+    "workspace_newly_passed_distinct": 11,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3
   },
@@ -1126,7 +1198,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P15-WABT-ORIGINAL-MCP-20261023",
+  "latest_phase": "LINUX-P16-PWNTOOLS-ELF-ORIGINAL-MCP-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
