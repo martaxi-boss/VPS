@@ -381,6 +381,83 @@
         "Starting a real debugger session requires per-operation owner Ed25519 authorization",
         "GDB/MI simulated-provider conformance is not counted as real-GDB integration pass"
       ]
+    },
+    {
+      "phase_id": "LINUX-P06-READ5-ISOLATED-MCP-CONTRACTS-20261023",
+      "host_family": "Linux",
+      "status": "ISOLATED_ORIGINAL_MCP_CONTRACTS_PASS_4_OF_4",
+      "purpose": "Real in-memory original REA MCP tools/call with controlled evidence; not production MCP session",
+      "source_repo": "martaxi-boss/Engenheira-reversa",
+      "source_commit_on_vps": "8e9a7ee295667f8e23aea9d18af6eee4363d2032",
+      "workflow_run_id": 39969213976,
+      "workflow_url": "https://github.com/martaxi-boss/VPS/actions/runs/39969213976",
+      "request_commit": "f0b89c3453156114e337cbaffb98c3d75364a09f",
+      "result_markers_authenticated_by": "original GitHub Actions job logs, bounded allowlisted output",
+      "test_names_and_results": [
+        {
+          "name": "LIST_NONEMPTY",
+          "purpose": "MCP list_unknowns with 5 seeded unknown heads; exact ordering, 2-page traversal, filters and invalid arguments",
+          "exit_code": 0,
+          "result": "PASS",
+          "sha256": "28c2a4da1c7d4d7cf5805c992d913c1c4a7916ec2ac6849cfc3147eda62b5dbc"
+        },
+        {
+          "name": "EVIDENCE_BUNDLE",
+          "purpose": "MCP get_evidence_bundle complete snapshot from controlled process-capture disagreement and idempotent repeated comparison",
+          "exit_code": 0,
+          "result": "PASS",
+          "sha256": "d6b4d6b23fe0ccc01db9da827a79ffbb3e2c71e2eadbecda0d04518b59347175"
+        },
+        {
+          "name": "COVERAGE",
+          "purpose": "MCP evaluate_reconstruction_coverage ready, partial, unknown, fail-closed verification branches in source-owned fixture",
+          "exit_code": 0,
+          "result": "PASS",
+          "sha256": "a1a0444e609fb5eeeff660885bfb3fa57c3bf92abf7d95db7a94468881697ca2"
+        },
+        {
+          "name": "RESOLUTION_MCP",
+          "purpose": "MCP verify_unknown_resolution on actual seeded in-memory unknown: unresolved false; evidence-qualified resolved true; absent ID isError true",
+          "exit_code": 0,
+          "result": "PASS",
+          "sha256": "c34a088d7de54b58f49d926a3e00bc60191e23769095216d0024eef155deb081"
+        }
+      ],
+      "contract_calls_inside_isolated_server": true,
+      "original_linux_engine_source": true,
+      "live_production_session_calls_in_this_phase": false,
+      "source_worktree_unchanged": true,
+      "live_vps_mcp_available": true,
+      "no_production_service_changes": true,
+      "tools": [
+        {
+          "name": "list_unknowns",
+          "status": "ISOLATED_MCP_FUNCTIONAL_PASS",
+          "already_has_live_scoped_pass": true
+        },
+        {
+          "name": "get_evidence_bundle",
+          "status": "ISOLATED_MCP_FUNCTIONAL_PASS",
+          "already_has_live_scoped_pass": true
+        },
+        {
+          "name": "evaluate_reconstruction_coverage",
+          "status": "ISOLATED_MCP_FUNCTIONAL_PASS",
+          "already_has_live_scoped_pass": true
+        },
+        {
+          "name": "verify_unknown_resolution",
+          "status": "ISOLATED_MCP_FUNCTIONAL_PASS",
+          "still_needs_live_production_positive": true
+        }
+      ],
+      "limitations": [
+        "In-memory MCP test uses original REA contracts and source but not the persistent production MCP session",
+        "GDB status is not included; test producer is still missing from live runtime PATH",
+        "No additional provider packages were installed; no owner-sensitive tool was invoked on production MCP"
+      ],
+      "test_total": 4,
+      "test_pass": 4
     }
   ],
   "active_scope_counts": {
@@ -418,7 +495,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P03-READ5-20261023",
+  "latest_phase": "LINUX-P06-READ5-ISOLATED-MCP-CONTRACTS-20261023",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -484,7 +561,7 @@
     "successful_scoped": 3,
     "negative_only": 1,
     "blocked_positive": 1,
-    "status": "PARTIAL_BLOCKED_BY_PRECONDITIONS",
+    "status": "READ_CONTRACT_4_POSITIVE_LIVE_GDB_BLOCKED",
     "provider_preflight_run": 39959287285,
     "missing_prerequisites": {
       "verify_unknown_resolution": "No legitimate retained unknown in session; cannot fabricate one as read-only",
@@ -500,6 +577,17 @@
       "run_id": 39967011323,
       "status": "PASS_MOCKED_MI_ONLY",
       "live_gdb_status_mcp_positive_still_pending": true
-    }
+    },
+    "additional_isolated_mcp_proof": {
+      "run_id": 39969213976,
+      "tests": 4,
+      "passes": 4,
+      "tool": "verify_unknown_resolution",
+      "positive_status": "ISOLATED_MCP_POSITIVE_VERIFIED",
+      "live_endpoint_positive_unverified": true
+    },
+    "verified_isolated_mcp_distinct": 4,
+    "verified_real_linux_mcp_live_scoped": 3,
+    "verified_real_linux_mcp_in_memory_scoped_extra": 1
   }
 }
