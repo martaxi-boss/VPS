@@ -323,6 +323,8 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_PCAP_NEGATIVE", "REA_PCAP_NEGATIVE_ISERROR", "REA_PCAP_NEGATIVE_SHA256",
         "REA_PCAP_SOURCE_UNCHANGED", "REA_PCAP_CLEANUP", "REA_PCAP_SERVICE_UNCHANGED",
         "REA_PCAP_STATUS",
+        "REA_PCAP_DIAG_INDICATORS", "REA_PCAP_DIAG_KEYS",
+        "REA_PCAP_DIAG_STRUCTURED_KEYS",
         "REA_LINUX_GDB_REAL_MISSING_LIBS",
         "REA_LINUX_GDB_REAL_STAGED_DEPS",
         "REA_LINUX_GDB_REAL_DEP_ERROR",
@@ -1907,6 +1909,24 @@ def main():
             before = hashlib.sha256(target.read_bytes()).hexdigest()
             capture_ok, capture, capture_digest = call_pcap(
                 "inspect_pcap_capture", {"path": str(target)}, 852)
+            # Only fixed-key classifications, never raw MCP error content or secrets.
+            diagnostic_blob = json.dumps(capture, ensure_ascii=True)[:60000]
+            indicators = (
+                "prlimit", "resource", "permission", "denied", "timeout",
+                "memory", "quota", "unavailable", "invalid", "not supported",
+                "not a capture", "not found", "ENOENT", "EACCES", "EPERM",
+                "file", "snapshot", "ownership", "process", "tshark",
+                "capinfos", "cleanup", "capacity", "execution_failure",
+                "analysis_error", "analysis_protocol", "error"
+            )
+            print("REA_PCAP_DIAG_INDICATORS=" + json.dumps(
+                [key for key in indicators if key.lower() in diagnostic_blob.lower()]))
+            print("REA_PCAP_DIAG_KEYS=" + json.dumps(
+                sorted(capture.keys()) if isinstance(capture, dict) else []))
+            print("REA_PCAP_DIAG_STRUCTURED_KEYS=" + json.dumps(
+                sorted(capture["structuredContent"].keys())
+                if isinstance(capture,dict) and
+                    isinstance(capture.get("structuredContent"),dict) else []))
             captured = normalized(capture)
             packets = captured.get("packet_count") if isinstance(captured,dict) else None
             target_hash = ((captured.get("target") or {}).get("sha256")
