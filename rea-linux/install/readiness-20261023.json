@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_REA_ORIGINAL_MCP_NODE24_208_CATALOG_SQLITE_EVM_TSHARK_KUNA_ACTIVE_SIGROK_LIBUSB_BLOCKED",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_16_SCOPED_POSITIVES_SIGROK_LIBUSB_RESTRICTED",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -374,6 +374,19 @@
       "real_sqlite_mcp_pass": true,
       "other_units_unchanged": true,
       "metadata": "No global node replacement; permanent original MCP provider environment remains unchanged"
+    },
+    "go_rust_static_mcp": {
+      "observed_date_utc": "2026-10-23",
+      "run_id": 39999209081,
+      "run_commit": "f2466ea51b90a62621ee09fc64e8e326a0cb5b6e",
+      "tested_tools": [
+        "inspect_go_binary",
+        "inspect_rust_binary"
+      ],
+      "status": "PASS_SCOPED_REAL_REA_MCP_NOT_FULL_CERTIFICATION",
+      "compiled_code_run": false,
+      "source_fixtures_deleted": true,
+      "rea_service_pid_stable": true
     }
   },
   "final_hygiene_verified": {
