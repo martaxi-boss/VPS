@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -258,7 +258,12 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_LINUX_READ5_SOURCE_PRESENT", "REA_LINUX_READ5_VITEST_PRESENT",
         "REA_LINUX_READ5_NODE_PRESENT", "REA_LINUX_READ5_REGRESSION",
         "REA_LINUX_READ5_EXIT_CODE", "REA_LINUX_READ5_TEST_OUTPUT_SHA256",
-        "REA_LINUX_READ5_TEST_NAME", "REA_LINUX_READ5_TEST_DIAGNOSTIC"
+        "REA_LINUX_READ5_TEST_NAME", "REA_LINUX_READ5_TEST_DIAGNOSTIC",
+        "REA_LINUX_GDB_CONFORMANCE_SOURCE", "REA_LINUX_GDB_CONFORMANCE_COUNT",
+        "REA_LINUX_GDB_CONFORMANCE_STATUS", "REA_LINUX_GDB_CONFORMANCE_WORKTREE",
+        "REA_LINUX_GDB_MANAGER_EXIT", "REA_LINUX_GDB_MANAGER_RESULT",
+        "REA_LINUX_GDB_MANAGER_SHA256", "REA_LINUX_GDB_MCP_EXIT",
+        "REA_LINUX_GDB_MCP_RESULT", "REA_LINUX_GDB_MCP_SHA256"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -890,6 +895,58 @@ def main():
         print("REA_LINUX_READ5_TEST_NAME=" + target)
         print("REA_LINUX_READ5_TEST_DIAGNOSTIC=" +
               re.sub(r"[^A-Za-z0-9 .,_:;=/()\[\]#-]", " ", plain[-1200:]))
+        return
+    if data["action"] == "fixture_linux_gdb_conformance":
+        # Run source-owned REA GDB tests in isolated Linux processes only.
+        # The test uses an explicit emulated MI provider, not the real gdb
+        # executable or a production MCP session. No production writes.
+        import shutil
+        source = Path.home() / ".local/share/rea-chatgpt-trial/repository/rea"
+        vitest = source / "node_modules/vitest/vitest.mjs"
+        node = shutil.which("node")
+        if not source.is_dir() or not vitest.is_file() or not node:
+            print("REA_LINUX_GDB_CONFORMANCE_STATUS=UNAVAILABLE_DEPENDENCIES")
+            return
+        revision = subprocess.run(["git", "-C", str(source), "rev-parse", "HEAD"],
+            capture_output=True, text=True, timeout=10, check=False)
+        initial = subprocess.run(["git", "-C", str(source), "status", "--porcelain"],
+            capture_output=True, text=True, timeout=10, check=False)
+        if revision.returncode != 0 or initial.returncode != 0:
+            error("Original REA staged source provenance unavailable")
+        print("REA_LINUX_GDB_CONFORMANCE_SOURCE=" + revision.stdout.strip()[:40])
+        tests = (
+            ("MANAGER", "tests/boundary/providers/GdbSessionManagers.test.ts",
+             "runs a correlated GDB MI command, reports status, and closes its owned process"),
+            ("MCP", "tests/boundary/mcp/gdbCancellationMcp.test.ts",
+             "propagates MCP cancellation into a running GDB command"),
+        )
+        passed_all = True
+        for name, file, selected in tests:
+            if not (source / file).is_file():
+                error("Original REA GDB source test missing")
+            proc = subprocess.run(
+                [node, str(vitest), "run", file, "-t", selected,
+                 "--no-file-parallelism", "--maxWorkers=1"],
+                cwd=str(source), capture_output=True, text=True,
+                timeout=110, check=False, env={**os.environ,
+                    "CI":"true", "NO_COLOR":"1", "NODE_OPTIONS":"--max-old-space-size=1024"})
+            raw = proc.stdout + "\n" + proc.stderr
+            plain = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", raw)
+            ok = proc.returncode == 0 and bool(re.search(r"\b1 passed\b", plain))
+            passed_all = passed_all and ok
+            print("REA_LINUX_GDB_" + name + "_EXIT=" + str(proc.returncode))
+            print("REA_LINUX_GDB_" + name + "_RESULT=" + ("PASS" if ok else "FAIL"))
+            print("REA_LINUX_GDB_" + name + "_SHA256=" +
+                  hashlib.sha256(raw.encode()).hexdigest())
+        final = subprocess.run(["git", "-C", str(source), "status", "--porcelain"],
+            capture_output=True, text=True, timeout=10, check=False)
+        unchanged = final.returncode == 0 and final.stdout == initial.stdout
+        print("REA_LINUX_GDB_CONFORMANCE_WORKTREE=" +
+              ("PASS" if unchanged else "FAIL"))
+        print("REA_LINUX_GDB_CONFORMANCE_COUNT=2")
+        print("REA_LINUX_GDB_CONFORMANCE_STATUS=" +
+              ("PASS_MOCKED_PROVIDER_ONLY" if passed_all and unchanged
+               else "FAIL"))
         return
     if data["action"] == "capability_audit":
         import shutil
