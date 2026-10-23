@@ -464,6 +464,11 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_PACT_RESULT",
         "REA_PACT_ERROR_CLASS",
         "REA_PACT_ROLLBACK",
+        "REA_PACT_SYSTEMD_DROPIN_LOADED",
+        "REA_PACT_SYSTEMD_ENV_KEYS",
+        "REA_PACT_PID_REPLACED",
+        "REA_PACT_PROC_ENV_READ",
+        "REA_PACT_POST_SYSTEMD_ENV_KEYS",
         "REA_SDIAG_IDENTITY",
         "REA_SDIAG_TYPE",
         "REA_SDIAG_DROPIN",
@@ -1868,6 +1873,15 @@ def main():
             if reload.returncode:
                 print("REA_PACT_STATUS=FAILED_SYSTEMD_RELOAD")
                 return
+            loaded=prop("DropInPaths")
+            environment=prop("Environment")
+            observed={key:(key+"=" in environment) for key in paths}
+            print("REA_PACT_SYSTEMD_DROPIN_LOADED="+str(str(target) in loaded).lower())
+            print("REA_PACT_SYSTEMD_ENV_KEYS="+json.dumps(observed,sort_keys=True))
+            if str(target) not in loaded or not all(observed.values()):
+                print("REA_PACT_STATUS=FAILED_SYSTEMD_ENV_NOT_LOADED")
+                return
+            previous_pid=prop("MainPID")
             restart=sudo("systemctl","restart",unit,timeout=105)
             if restart.returncode:
                 print("REA_PACT_STATUS=FAILED_REA_RESTART")
@@ -1881,6 +1895,11 @@ def main():
                 print("REA_PACT_STATUS=FAILED_REA_NOT_ACTIVE")
                 return
             actual=sudo("cat",f"/proc/{int(pid)}/environ",timeout=15)
+            print("REA_PACT_PID_REPLACED="+str(pid!=previous_pid).lower())
+            print("REA_PACT_PROC_ENV_READ="+str(actual.returncode==0).lower())
+            print("REA_PACT_POST_SYSTEMD_ENV_KEYS="+json.dumps(
+                {key:(key+"=" in prop("Environment")) for key in paths},
+                sort_keys=True))
             env_values={}
             if actual.returncode==0:
                 for row in actual.stdout.split(bytes([0])):
