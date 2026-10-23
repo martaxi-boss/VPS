@@ -54,3 +54,14 @@ O ficheiro `functional-ledger.json` é o registo ativo. Evidências de execuçõ
 - **Via positiva bloqueada sem sessão existente autorizada**: `gdb_session_status` (1/5). Não foi iniciado qualquer processo GDB.
 - Não inventar uma resolução nem criar sessões dinâmicas para aprovar artificialmente as duas ferramentas. A criação de pré-condições envolve outras classes de autorização e constitui uma fase separada.
 - O resultado e os hashes detalhados estão em `functional-ledger.json`, fase `LINUX-P03-READ5-20261023`.
+
+## Progresso do Grupo 1 — testes MCP isolados em Linux (fases P06 e P07)
+
+As cinco ferramentas pertencem ao grupo `read`, mas têm pré-condições diferentes. A aprovação funcional **no motor MCP permanente** mantém-se diferente dos testes **do contrato MCP original em memória**.
+
+- [P06 — Actions #39969213976](https://github.com/martaxi-boss/VPS/actions/runs/39969213976): quatro ensaios **PASS** do MCP original em processos Linux isolados, com teste real de paginação, evidências, cobertura e resolução de um registo com evidência `observed`. A ferramenta `verify_unknown_resolution` recebeu um ID válido e confirmou `valid=true` e `truthVerified=true`, após primeiro confirmar que ainda não estava resolvido; um ID inexistente foi recusado. O teste não escreveu na sessão MCP persistente.
+- [P07 — Actions #39969907326](https://github.com/martaxi-boss/VPS/actions/runs/39969907326): duas operações **PASS** de `gdb_session_status` no MCP original de testes, para estado `ready` e diagnóstico de resposta MI mal codificada. **O GDB era emulado**; não constitui integração com um executável GDB real.
+- Os cinco contratos de leitura têm alguma prova positiva de funcionamento no Linux: **3 provas positivas no MCP persistente, 1 apenas no MCP isolado com registo legítimo e 1 apenas com fornecedor GDB emulado**.
+- **Pendências para certificação de integração completa:** `verify_unknown_resolution` com uma questão real no MCP persistente autorizada; `gdb_session_status` com um GDB real disponível e sessão criada mediante autorização sensível assinada.
+- Não instalar novos fornecedores, não alterar o motor original, não iniciar depuradores reais sem a prova de autorização, não contar ensaios emulados como execução real de GDB.
+- Os SHA-256 dos testes e os commits exatos constam do `functional-ledger.json`, nas fases P06 e P07.
