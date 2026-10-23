@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_wabt_deploy_20261023", "fixture_linux_wabt_real_mcp_20261023", "fixture_linux_pwntools_deploy_20261023", "fixture_linux_pwntools_diagnose_20261023", "fixture_linux_pwntools_real_mcp_20261023"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_wabt_deploy_20261023", "fixture_linux_wabt_real_mcp_20261023", "fixture_linux_pwntools_deploy_20261023", "fixture_linux_pwntools_diagnose_20261023", "fixture_linux_pwntools_real_mcp_20261023", "fixture_linux_binwalk_build_readiness_20261023"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -514,7 +514,11 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_PWN_ELF_TOOL","REA_PWN_ELF_ISERROR","REA_PWN_ELF_SOURCE_SHA256",
         "REA_PWN_ELF_RESPONSE_SHA256","REA_PWN_ELF_ASSERTIONS",
         "REA_PWN_ELF_STATUS","REA_PWN_ELF_ERROR_CLASS",
-        "REA_PWN_ELF_CLEANUP","REA_PWN_ELF_SERVICE_PID_STABLE"
+        "REA_PWN_ELF_CLEANUP","REA_PWN_ELF_SERVICE_PID_STABLE",
+        "REA_BINBUILD_HOST","REA_BINBUILD_SPACE_BYTES","REA_BINBUILD_RAM",
+        "REA_BINBUILD_COMPILERS","REA_BINBUILD_PACKAGES",
+        "REA_BINBUILD_PROVIDER_RUST_DIR","REA_BINBUILD_NO_GLOBAL_MODIFICATIONS",
+        "REA_BINBUILD_MCP_COUNT","REA_BINBUILD_STATUS"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -1617,6 +1621,45 @@ def main():
                 print("REA_PWN_ELF_ERROR_CLASS="+str(failure)[:170].replace(chr(10)," "))
         print("REA_PWN_ELF_CLEANUP="+str(not root.exists()).lower())
         print("REA_PWN_ELF_SERVICE_PID_STABLE="+str(show("MainPID")==oldpid).lower())
+        return
+    if data["action"] == "fixture_linux_binwalk_build_readiness_20261023":
+        # Feasibility only. Do not download/compile/change global packages,
+        # Docker, other projects, existing REA service or its config.
+        import shutil
+        import platform
+        import importlib.util
+        unit="rea-reversa-mcp.service"
+        root=Path("/opt/rea-reversa/providers")
+        from shutil import disk_usage
+        drive=disk_usage(root)
+        mem={}
+        try:
+            for line in Path("/proc/meminfo").read_text().splitlines():
+                if line.split(":",1)[0] in ("MemTotal","MemAvailable","SwapTotal","SwapFree"):
+                    label,value=line.split(":",1)
+                    mem[label]=int(value.strip().split()[0])*1024
+        except Exception:
+            pass
+        compiler={name:shutil.which(name) for name in (
+            "cargo","rustc","gcc","cc","clang","make","cmake","pkg-config",
+            "git","curl","wget","python3","xz","tar","ld")}
+        dpkg={}
+        for package in ("liblzma-dev","zlib1g-dev","libbz2-dev","libssl-dev",
+                        "pkg-config","build-essential","rustc","cargo","binwalk"):
+            p=subprocess.run(["dpkg-query","-W","-f="+chr(36)+"{Version}",package],
+                            capture_output=True,text=True,timeout=12,check=False)
+            dpkg[package]=p.stdout.strip() if p.returncode==0 else None
+        print("REA_BINBUILD_HOST="+platform.system()+"_"+platform.machine())
+        print("REA_BINBUILD_SPACE_BYTES="+str(drive.free))
+        print("REA_BINBUILD_RAM="+json.dumps(mem,sort_keys=True))
+        print("REA_BINBUILD_COMPILERS="+json.dumps({
+                 name:bool(path) for name,path in compiler.items()},sort_keys=True))
+        print("REA_BINBUILD_PACKAGES="+json.dumps(dpkg,sort_keys=True))
+        print("REA_BINBUILD_PROVIDER_RUST_DIR="+str(
+                any(root.glob("rust-*"))).lower())
+        print("REA_BINBUILD_NO_GLOBAL_MODIFICATIONS=true")
+        print("REA_BINBUILD_MCP_COUNT="+str(len(tools)))
+        print("REA_BINBUILD_STATUS=PASS_READ_ONLY_CAPACITY_AND_TOOLCHAIN_AUDIT")
         return
     if data["action"] == "fixture_linux_read5_mcp_boundaries":
         # Run original REA real MCP tool methods against private in-memory
