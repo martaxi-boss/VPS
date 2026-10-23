@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -858,6 +858,67 @@ def main():
                     error("Staged WABT validator did not start")
             print("REA_STAGE_" + provider + "=" + outcome)
         print("REA_STAGE_NO_SERVICE_CHANGES=PASS")
+        return
+    if data["action"] == "fixture_linux_read5_mcp_boundaries":
+        # Run original REA real MCP tool methods against private in-memory
+        # sessions with controlled evidence. No production MCP state writes.
+        import shutil
+        source = Path.home() / ".local/share/rea-chatgpt-trial/repository/rea"
+        vitest = source / "node_modules/vitest/vitest.mjs"
+        node = shutil.which("node")
+        if not source.is_dir() or not vitest.is_file() or not node:
+            print("REA_LINUX_READ5_MCP_BOUNDARIES=UNAVAILABLE_DEPENDENCIES")
+            return
+        git_before = subprocess.run(["git", "-C", str(source), "status", "--porcelain"],
+                                    capture_output=True, text=True, timeout=15, check=False)
+        source_rev = subprocess.run(["git", "-C", str(source), "rev-parse", "HEAD"],
+                                    capture_output=True, text=True, timeout=15, check=False)
+        if git_before.returncode != 0 or source_rev.returncode != 0:
+            error("Original staged REA source integrity check failed")
+        print("REA_LINUX_READ5_SOURCE_REVISION=" + source_rev.stdout.strip()[:40])
+        temporary = source / "tests/boundary/mcp/reaLinuxReadFiveFixture.test.ts"
+        if temporary.exists():
+            error("Isolated temporary read-5 test already exists")
+        checks = (
+            ("LIST_NONEMPTY", "tests/boundary/mcp/serverUnknownsMcp.test.ts",
+             "pages filtered unknown heads through the public MCP contract"),
+            ("EVIDENCE_BUNDLE", "tests/boundary/mcp/serverUnknownsMcp.test.ts",
+             "records capture disagreement as a contradicted unknown"),
+            ("COVERAGE", "tests/boundary/mcp/reconstructionCoverageMcp.test.ts",
+             "evaluates inline fail-closed coverage without session retention"),
+            ("RESOLUTION_MCP", "tests/boundary/mcp/reaLinuxReadFiveFixture.test.ts",
+             "verifies a genuinely recorded unknown through original MCP with observed evidence"),
+        )
+        pass_count = 0
+        try:
+            temporary.write_text("import { Client, InMemoryTransport } from \"@modelcontextprotocol/client\";\nimport { expect, it } from \"vitest\";\nimport { createTestBinarySession } from \"../../fixtures/binarySession.js\";\nimport { createServer } from \"../../../src/server/createServer.js\";\nimport { createEvidence } from \"../../../src/domain/evidence.js\";\nimport { observed } from \"../../fixtures/analysisExecution.js\";\nimport { ok as resultOk } from \"../../../src/domain/result.js\";\n\nit(\"verifies a genuinely recorded unknown through original MCP with observed evidence\", async () => {\n  const session = createTestBinarySession(() => ({\n    execute: () => Promise.resolve(observed(null)),\n    close: () => Promise.resolve(resultOk(null)),\n  }));\n  const server = createServer({ kind: \"session\", session });\n  const client = new Client({ name: \"rea-linux-read5-fixture\", version: \"1\" });\n  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();\n  try {\n    await server.connect(serverTransport);\n    await client.connect(clientTransport);\n    const provider = { id: \"fixture\", name: \"Fixture\", version: \"1\" };\n    const environment = {\n      id: \"fixture-linux\", platform: \"linux\",\n      architecture: \"x86_64\", isolation: \"process\",\n    } as const;\n    const evidence = (label: string, confidence: \"observed\" | \"inferred\") =>\n      createEvidence(undefined, provider, {\n        operation: label, parameters: {}, result: { label },\n        authority: confidence === \"observed\" ? \"controlled-replay\" : \"analyst-inference\",\n        confidence, environment: confidence === \"observed\" ? environment : null,\n      });\n    const inferred = evidence(\"read-five-inferred\", \"inferred\");\n    expect(session.recordEvidence(inferred).ok).toBe(true);\n    const created = session.recordUnknown({\n      question: \"Was controlled Linux replay observed?\",\n      severity: \"high\", domain: \"read-five-certification\",\n      required_authority: \"controlled-replay\",\n      required_confidence: \"observed\",\n      required_environment: environment,\n      recommended_probes: [], relationships: [],\n      supporting_evidence_ids: [inferred.evidence_id],\n      contradicting_evidence_ids: [],\n    });\n    expect(created.ok).toBe(true);\n    if (!created.ok) throw created.error;\n    const id = created.value.unknown_id;\n    const pending = await client.callTool({\n      name: \"verify_unknown_resolution\", arguments: { unknown_id: id },\n    });\n    expect(pending.isError).not.toBe(true);\n    expect(pending.structuredContent).toMatchObject({\n      result: { valid: false, truthVerified: false },\n    });\n    const observedEvidence = evidence(\"read-five-controlled-replay\", \"observed\");\n    expect(session.recordEvidence(observedEvidence).ok).toBe(true);\n    const updated = session.updateUnknown({\n      unknown_id: id, expected_revision: created.value.revision,\n      status: \"resolved\", severity: created.value.severity,\n      supporting_evidence_ids: [inferred.evidence_id, observedEvidence.evidence_id],\n      contradicting_evidence_ids: [],\n      required_authority: \"controlled-replay\",\n      required_confidence: \"observed\",\n      required_environment: environment,\n      recommended_probes: [], relationships: [],\n      resolution: {\n        disposition: \"verified\", rationale: \"Controlled replay observed in Linux test\",\n        evidence_ids: [observedEvidence.evidence_id],\n      },\n    });\n    expect(updated.ok).toBe(true);\n    if (!updated.ok) throw updated.error;\n    const verified = await client.callTool({\n      name: \"verify_unknown_resolution\", arguments: { unknown_id: id },\n    });\n    expect(verified.isError).not.toBe(true);\n    expect(verified.structuredContent).toMatchObject({\n      result: { valid: true, truthVerified: true, unknown: { status: \"resolved\" } },\n    });\n    const absent = await client.callTool({\n      name: \"verify_unknown_resolution\", arguments: { unknown_id: \"unk_\" + \"0\".repeat(64) },\n    });\n    expect(absent.isError).toBe(true);\n    const filtered = await client.callTool({\n      name: \"list_unknowns\", arguments: { status: \"resolved\", domain: \"read-five-certification\" },\n    });\n    expect(filtered.structuredContent).toMatchObject({ result: { total: 1 } });\n  } finally {\n    await Promise.allSettled([client.close(), server.close()]);\n  }\n});\n", encoding="utf-8")
+            for name, rel, title in checks:
+                proc = subprocess.run(
+                    [node, str(vitest), "run", rel, "-t", title,
+                     "--no-file-parallelism", "--maxWorkers=1"],
+                    cwd=str(source), capture_output=True, text=True, timeout=125,
+                    check=False, env={**os.environ, "CI":"true", "NO_COLOR":"1",
+                                      "NODE_OPTIONS":"--max-old-space-size=1024"})
+                raw = proc.stdout + "\n" + proc.stderr
+                clean = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", raw)
+                ok = proc.returncode == 0 and bool(re.search(r"\b1 passed\b", clean))
+                pass_count += int(ok)
+                print("REA_LINUX_READ5_" + name + "=" + ("PASS" if ok else "FAIL"))
+                print("REA_LINUX_READ5_" + name + "_EXIT=" + str(proc.returncode))
+                print("REA_LINUX_READ5_" + name + "_SHA256=" +
+                      hashlib.sha256(raw.encode()).hexdigest())
+                if not ok:
+                    print("REA_LINUX_READ5_" + name + "_DIAGNOSTIC=" +
+                          re.sub(r"[^A-Za-z0-9 .,=_:;()\[\]/#-]", " ", clean[-1500:]))
+        finally:
+            temporary.unlink(missing_ok=True)
+        git_after = subprocess.run(["git", "-C", str(source), "status", "--porcelain"],
+                                   capture_output=True, text=True, timeout=15, check=False)
+        intact = git_after.returncode == 0 and git_after.stdout == git_before.stdout
+        print("REA_LINUX_READ5_MCP_WORKTREE=" + ("PASS" if intact else "FAIL"))
+        print("REA_LINUX_READ5_MCP_PASS_COUNT=" + str(pass_count))
+        print("REA_LINUX_READ5_MCP_BOUNDARIES=" +
+              ("PASS_ISOLATED_MCP_NOT_PRODUCTION" if pass_count == 4 and intact else "INCOMPLETE"))
         return
     if data["action"] == "fixture_linux_read5_regression":
         # Run existing original REA test using an isolated in-memory ledger,
