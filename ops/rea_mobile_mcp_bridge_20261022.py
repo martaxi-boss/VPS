@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_pcap_summary_closure"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -217,6 +217,12 @@ def encrypt_result(raw_path, request_path, envelope_path):
     request = validate(json.loads(request_raw))
     private = None
     allowed_markers = {
+        "REA_PCAP_CERT_CASES", "REA_PCAP_CERT_DNS",
+        "REA_PCAP_CERT_TLS", "REA_PCAP_CERT_HTTP",
+        "REA_PCAP_CERT_NEGATIVES", "REA_PCAP_CERT_SCHEMA",
+        "REA_PCAP_CERT_ORACLE", "REA_PCAP_CERT_INTEGRITY",
+        "REA_PCAP_CERT_CLEANUP", "REA_PCAP_CERT_DAEMON",
+        "REA_PCAP_CERT_DIGEST", "REA_PCAP_CERT_STATUS",
         "REA_MOBILE_LOOPBACK_MCP", "REA_MOBILE_MCP_TOOL_COUNT",
         "REA_MOBILE_READONLY_HINT_COUNT", "REA_MOBILE_STATIC_INSPECT_COUNT",
         "REA_MOBILE_SAFE_QUERY_COUNT", "REA_MOBILE_SAFE_CALLABLE_COUNT",
@@ -2676,6 +2682,282 @@ def main():
                 except (OSError, RuntimeError, ValueError):
                     print("REA_FIXTURE_CLEANUP=FAIL")
                     raise
+        return
+    if data["action"] == "fixture_linux_pcap_summary_closure":
+        # Source-owned PCAP and PCAPNG fixture, never a live device capture.
+        # The provided streams, HTTP names and SNI are synthetic/fictional.
+        import tempfile
+        import struct
+        import ipaddress
+        from datetime import datetime, timezone
+        tool_name="inspect_pcap_capture"
+        descriptor=tool_by_name.get(tool_name)
+        if not descriptor or secure.classify(tool_name,descriptor,())!="workspace":
+            error("Original PCAP contract or effects classification changed")
+        def service_pid():
+            res=subprocess.run(["systemctl","show","rea-reversa-mcp.service",
+                "-p","MainPID","--value"],capture_output=True,text=True,
+                timeout=10,check=False)
+            return res.stdout.strip() if res.returncode==0 else ""
+        pid_before=service_pid()
+        def ip_checksum(buf):
+            data=buf+(b"\x00" if len(buf)%2 else b"")
+            acc=sum(struct.unpack("!"+("H"*(len(data)//2)),data))
+            while acc>65535:acc=(acc&65535)+(acc>>16)
+            return (~acc)&0xffff
+        def udp(srcport,dstport,payload):
+            return struct.pack("!HHHH",srcport,dstport,len(payload)+8,0)+payload
+        def tcp(srcport,dstport,payload):
+            return struct.pack("!HHIIHHHH",srcport,dstport,1,1,
+                0x5018,65535,0,0)+payload
+        def ipv4(src,dst,proto,l4,num):
+            a=ipaddress.IPv4Address(src).packed
+            b=ipaddress.IPv4Address(dst).packed
+            header=struct.pack("!BBHHHBBH4s4s",0x45,0,len(l4)+20,num,
+                0x4000,64,proto,0,a,b)
+            sum_=ip_checksum(header)
+            header=struct.pack("!BBHHHBBH4s4s",0x45,0,len(l4)+20,num,
+                0x4000,64,proto,sum_,a,b)
+            return bytes.fromhex("0200000000010200000000020800")+header+l4
+        def ipv6(src,dst,next_header,l4):
+            a=ipaddress.IPv6Address(src).packed
+            b=ipaddress.IPv6Address(dst).packed
+            head=struct.pack("!IHBB16s16s",6<<28,len(l4),next_header,64,a,b)
+            return bytes.fromhex("02000000000102000000000286dd")+head+l4
+        domain=b"\x03lab\x07example\x00"
+        question=domain+bytes.fromhex("00010001")
+        dns_query=struct.pack("!HHHHHH",0x3344,0x0100,1,0,0,0)+question
+        dns_answer=(struct.pack("!HHHHHH",0x3344,0x8180,1,1,0,0)
+            +question+bytes.fromhex("c00c000100010000003c0004cb007109"))
+        http_payload=(
+            b"GET /items?category=tools HTTP/1.1\r\n"
+            b"Host: catalog.example\r\n"
+            b"Connection: close\r\n\r\n"
+        )
+        hostname=b"secure.example"
+        one_name=b"\x00"+struct.pack("!H",len(hostname))+hostname
+        names=struct.pack("!H",len(one_name))+one_name
+        ext=b"\x00\x00"+struct.pack("!H",len(names))+names
+        hello=(bytes.fromhex("0303")+bytes(range(32))+b"\x00"
+            +bytes.fromhex("00021301")+b"\x01\x00"
+            +struct.pack("!H",len(ext))+ext)
+        handshake=b"\x01"+len(hello).to_bytes(3,"big")+hello
+        tls_payload=b"\x16\x03\x01"+len(handshake).to_bytes(2,"big")+handshake
+        frames=[
+            ipv4("192.0.2.10","198.51.100.53",17,udp(53535,53,dns_query),1),
+            ipv4("198.51.100.53","192.0.2.10",17,udp(53,53535,dns_answer),2),
+            ipv4("192.0.2.11","198.51.100.80",6,tcp(33333,80,http_payload),3),
+            ipv4("192.0.2.12","198.51.100.20",6,tcp(44444,443,tls_payload),4),
+            ipv6("2001:db8::1","2001:db8::2",17,udp(10000,10001,b"test-ipv6")),
+        ]
+        cases={}
+        negatives={}
+        invalids={}
+        digests={}
+        digest_sources={}
+        producer_checks={}
+        source_ok=False
+        cleanup=False
+        try:
+            with tempfile.TemporaryDirectory(prefix="rea-pcap-cert-",dir="/dev/shm") as folder:
+                root=Path(folder)
+                root.chmod(0o755)
+                pcap=root/"controlled.pcap"
+                pcapng=root/"controlled.pcapng"
+                empty=root/"empty.pcap"
+                bad=root/"invalid.pcap"
+                def assemble_pcap(frames):
+                    raw=struct.pack("<IHHIIII",0xa1b2c3d4,2,4,0,0,65535,1)
+                    for i,p in enumerate(frames,start=1):
+                        raw+=struct.pack("<IIII",1600000000+i,500000,
+                            len(p),len(p))+p
+                    return raw
+                def assemble_pcapng(frames):
+                    shb=struct.pack("<IIIHHqI",0x0a0d0d0a,28,0x1a2b3c4d,1,0,-1,28)
+                    idb=struct.pack("<IIHHII",1,20,1,0,65535,20)
+                    enhanced=b""
+                    for i,p in enumerate(frames,start=1):
+                        pad=p+b"\x00"*((-len(p))%4)
+                        ts=(1600000000+i)*1000000+500000
+                        lo=ts&0xffffffff
+                        hi=ts>>32
+                        n=32+len(pad)
+                        enhanced+=(struct.pack("<II",6,n)
+                            +struct.pack("<IIIII",0,hi,lo,len(p),len(p))
+                            +pad+struct.pack("<I",n))
+                    return shb+idb+enhanced
+                pcap.write_bytes(assemble_pcap(frames))
+                pcapng.write_bytes(assemble_pcapng(frames))
+                empty.write_bytes(assemble_pcap([]))
+                bad.write_bytes(b"rea-owned-invalid-not-capture")
+                for path in (pcap,pcapng,empty,bad):
+                    path.chmod(0o644)
+                    digest_sources[path.name]=hashlib.sha256(path.read_bytes()).hexdigest()
+                def call(args,idx):
+                    secure.validate_arguments(descriptor,args)
+                    secure._authorized_target_paths(args,additional_roots=(root,))
+                    _,response=request_mcp({"jsonrpc":"2.0","id":idx,
+                        "method":"tools/call",
+                        "params":{"name":tool_name,"arguments":args}},
+                        session,protocol,timeout=130)
+                    res=response.get("result")
+                    success=("error" not in response and isinstance(res,dict)
+                        and res.get("isError") is not True)
+                    value=res.get("structuredContent") if success else None
+                    obj=value.get("normalized_result",value) if isinstance(value,dict) else {}
+                    digests[str(idx)]=hashlib.sha256(
+                        json.dumps(response,sort_keys=True,ensure_ascii=True).encode()).hexdigest()
+                    return success,obj if isinstance(obj,dict) else {},res,response
+                def correct_target(report,path,n):
+                    meta=report.get("target")
+                    client=report.get("client")
+                    return (isinstance(meta,dict)
+                        and meta.get("path")==str(path)
+                        and meta.get("sha256")==digest_sources[path.name]
+                        and meta.get("bytes")==path.stat().st_size
+                        and isinstance(client,dict)
+                        and isinstance(client.get("tshark_version"),str)
+                        and isinstance(client.get("capinfos_version"),str)
+                        and report.get("packet_count")==n
+                        and isinstance(report.get("file_type"),str)
+                        and len(report["file_type"])>3
+                        and isinstance(report.get("encapsulation"),str)
+                        and "Ethernet" in report["encapsulation"]
+                        and (report.get("snapshot_length") is None
+                            or report["snapshot_length"]>0)
+                        and isinstance(report.get("protocol_distribution"),list)
+                        and report.get("protocol_count")==len(report["protocol_distribution"])
+                        and isinstance(report.get("diagnostics"),dict))
+                ok,report,_,_=call({"path":str(pcap)},2311)
+                ips={x.get("address"):x.get("packet_count")
+                    for x in report.get("endpoints",[]) if isinstance(x,dict)}
+                names={x.get("query"):x.get("response_addresses")
+                    for x in report.get("dns_queries",[]) if isinstance(x,dict)}
+                http=report.get("http_request_uris")
+                tls=report.get("tls_sni_values")
+                cases["pcap_complete"]=bool(ok and correct_target(report,pcap,5)
+                    and report.get("coverage")=="complete"
+                    and report.get("endpoint_count")==len(ips)
+                    and len(ips)==8
+                    and ips.get("192.0.2.10")==2
+                    and ips.get("198.51.100.53")==2
+                    and ips.get("2001:db8::1")==1
+                    and ips.get("2001:db8::2")==1
+                    and report.get("capture_start","").endswith("Z")
+                    and report.get("capture_end","").endswith("Z")
+                    and report.get("dns_query_count")==1
+                    and "203.0.113.9" in names.get("lab.example",[])
+                    and report.get("unattributed_dns_packet_count")==0
+                    and report.get("unattributed_dns_address_count")==0)
+                cases["tls_sni"]=bool(ok and isinstance(tls,list)
+                    and "secure.example" in tls
+                    and report.get("tls_sni_count")==len(tls))
+                cases["http_uri"]=bool(ok and isinstance(http,list)
+                    and any("/items?category=tools" in x for x in http)
+                    and report.get("http_request_uri_count")==len(http)
+                    and report.get("http_uri_redaction_count")==0)
+                cases["protocol_inventory"]=bool(ok
+                    and len(report.get("protocol_distribution",[]))>=3
+                    and sum(x.get("packet_count",0)
+                        for x in report["protocol_distribution"])==5)
+                producer_checks["pcap"]=correct_target(report,pcap,5)
+                source_full=report
+                ok,report,_,_=call({"path":str(pcapng)},2312)
+                ngips={x.get("address"):x.get("packet_count")
+                    for x in report.get("endpoints",[]) if isinstance(x,dict)}
+                ngdns={x.get("query"):x.get("response_addresses")
+                    for x in report.get("dns_queries",[]) if isinstance(x,dict)}
+                cases["pcapng_complete"]=bool(ok and correct_target(report,pcapng,5)
+                    and "pcapng" in report.get("file_type","").lower()
+                    and report.get("coverage")=="complete"
+                    and ngips==ips
+                    and ngdns==names
+                    and report.get("tls_sni_values")==tls
+                    and report.get("http_request_uris")==http
+                    and report.get("protocol_distribution")==source_full.get("protocol_distribution"))
+                producer_checks["pcapng"]=correct_target(report,pcapng,5)
+                ok,report,_,_=call({"path":str(empty)},2313)
+                cases["empty_capture"]=bool(ok and correct_target(report,empty,0)
+                    and report.get("coverage")=="complete"
+                    and report.get("endpoints")==[]
+                    and report.get("dns_queries")==[]
+                    and report.get("protocol_distribution")==[]
+                    and report.get("http_request_uris")==[]
+                    and report.get("tls_sni_values")==[]
+                    and report.get("capture_start") is None
+                    and report.get("capture_end") is None)
+                ok,report,_,_=call({"path":str(pcap),"detail":"summary"},2314)
+                summary=report.get("summary")
+                counts=summary.get("retained_counts") if isinstance(summary,dict) else {}
+                cases["summary"]=bool(ok and report.get("kind")=="summary"
+                    and report.get("parent_operation")==tool_name
+                    and isinstance(report.get("parent_evidence_id"),str)
+                    and report["parent_evidence_id"].startswith("ev_")
+                    and isinstance(summary,dict)
+                    and summary.get("packet_count")==5
+                    and summary.get("target",{}).get("sha256")==digest_sources[pcap.name]
+                    and summary.get("dns_query_count")==1
+                    and counts.get("endpoints")==len(ips)
+                    and counts.get("dns_queries")==len(names)
+                    and counts.get("tls_sni_values")==len(tls or [])
+                    and counts.get("http_request_uris")==len(http or [])
+                    and "endpoints" not in summary
+                    and "dns_queries" not in summary)
+                for idx,(label,args) in enumerate([
+                    ("invalid_capture",{"path":str(bad)}),
+                    ("missing_path",{"path":str(root/"nonexistent.pcap")}),
+                ],start=2341):
+                    ok,rep,res,response=call(args,idx)
+                    negatives[label]=bool(not ok and ("error" in response
+                        or (isinstance(res,dict) and res.get("isError") is True)))
+                for idx,(label,args) in enumerate([
+                    ("empty_absolute_path",{"path":""}),
+                    ("relative_path",{"path":"relative.pcap"}),
+                    ("unknown_detail",{"path":str(pcap),"detail":"brief"}),
+                    ("unexpected_flag",{"path":str(pcap),"live_capture":True}),
+                    ("missing_required_path",{}),
+                ],start=2351):
+                    pre=False
+                    try:secure.validate_arguments(descriptor,args)
+                    except secure.SecureBridgeError:pre=True
+                    _,response=request_mcp({"jsonrpc":"2.0","id":idx,
+                        "method":"tools/call",
+                        "params":{"name":tool_name,"arguments":args}},
+                        session,protocol,timeout=85)
+                    res=response.get("result")
+                    invalids[label]=bool(pre and ("error" in response
+                        or (isinstance(res,dict) and res.get("isError") is True)))
+                    digests[str(idx)]=hashlib.sha256(
+                        json.dumps(response,sort_keys=True).encode()).hexdigest()
+                source_ok=all(hashlib.sha256((root/name).read_bytes()).hexdigest()==digest
+                    for name,digest in digest_sources.items())
+            cleanup=not root.exists()
+            stable=pid_before.isdecimal() and service_pid()==pid_before
+            print("REA_PCAP_CERT_CASES="+json.dumps(cases,sort_keys=True))
+            print("REA_PCAP_CERT_DNS="+json.dumps({
+                "query_response_verified":cases.get("pcap_complete",False),
+                "pcapng_parity":cases.get("pcapng_complete",False)}))
+            print("REA_PCAP_CERT_TLS="+str(cases.get("tls_sni",False)).lower())
+            print("REA_PCAP_CERT_HTTP="+str(cases.get("http_uri",False)).lower())
+            print("REA_PCAP_CERT_NEGATIVES="+json.dumps(negatives,sort_keys=True))
+            print("REA_PCAP_CERT_SCHEMA="+json.dumps(invalids,sort_keys=True))
+            print("REA_PCAP_CERT_ORACLE="+json.dumps(producer_checks,sort_keys=True))
+            print("REA_PCAP_CERT_INTEGRITY="+("PASS" if source_ok else "FAIL"))
+            print("REA_PCAP_CERT_CLEANUP="+("PASS" if cleanup else "FAIL"))
+            print("REA_PCAP_CERT_DAEMON="+("PASS" if stable else "FAIL"))
+            print("REA_PCAP_CERT_DIGEST="+hashlib.sha256(
+                json.dumps(digests,sort_keys=True).encode()).hexdigest())
+            success=(len(cases)==8 and all(cases.values())
+                and len(negatives)==2 and all(negatives.values())
+                and len(invalids)==5 and all(invalids.values())
+                and all(producer_checks.values())
+                and source_ok and cleanup and stable)
+            print("REA_PCAP_CERT_STATUS="+(
+                "PASS_LINUX_TSHARK_CAPINFOS_MULTIPROTOCOL_PCAP_PCAPNG"
+                if success else "INCOMPLETE_KEEP_SCOPED"))
+        except Exception as exc:
+            print("REA_PCAP_CERT_STATUS=ERROR_"+type(exc).__name__)
+            raise
         return
     if data["action"] == "fixture_linux_objdump":
         # Source-owned, fixed Linux fixture on the original local REA MCP.
