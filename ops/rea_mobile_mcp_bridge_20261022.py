@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_wabt_deploy_20261023", "fixture_linux_wabt_real_mcp_20261023", "fixture_linux_pwntools_deploy_20261023", "fixture_linux_pwntools_diagnose_20261023", "fixture_linux_pwntools_real_mcp_20261023", "fixture_linux_binwalk_build_readiness_20261023", "fixture_linux_rust_official_checksum_20261023"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_wabt_deploy_20261023", "fixture_linux_wabt_real_mcp_20261023", "fixture_linux_pwntools_deploy_20261023", "fixture_linux_pwntools_diagnose_20261023", "fixture_linux_pwntools_real_mcp_20261023", "fixture_linux_binwalk_build_readiness_20261023", "fixture_linux_rust_official_checksum_20261023", "fixture_linux_binwalk31_isolated_build_20261023"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -520,7 +520,15 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_BINBUILD_PROVIDER_RUST_DIR","REA_BINBUILD_NO_GLOBAL_MODIFICATIONS",
         "REA_BINBUILD_MCP_COUNT","REA_BINBUILD_STATUS",
         "REA_RUST_VENDOR_SHA_RUSTUP","REA_RUST_VENDOR_SHA_RUST_CHANNEL_1_85_1",
-        "REA_RUST_VENDOR_UNCHANGED_ORIGINAL","REA_RUST_VENDOR_STATUS"
+        "REA_RUST_VENDOR_UNCHANGED_ORIGINAL","REA_RUST_VENDOR_STATUS",
+        "REA_BIN3_BUILD_STATUS","REA_BIN3_BUILD_RUSTUP_SHA256",
+        "REA_BIN3_BUILD_RUSTUP_EXIT","REA_BIN3_BUILD_RUSTUP_DIAGNOSTIC",
+        "REA_BIN3_BUILD_RUST_VERSION","REA_BIN3_BUILD_CARGO_VERSION",
+        "REA_BIN3_BUILD_SOURCE_COMMIT","REA_BIN3_BUILD_SOURCE_DIAGNOSTIC",
+        "REA_BIN3_BUILD_CARGO_EXIT","REA_BIN3_BUILD_CARGO_DIAGNOSTIC",
+        "REA_BIN3_BUILD_VERSION","REA_BIN3_BUILD_BIN_SHA256",
+        "REA_BIN3_BUILD_TEMP_CLEANUP","REA_BIN3_BUILD_REA_PID_STABLE",
+        "REA_BIN3_BUILD_DID_NOT_MODIFY_SYSTEM_PYTHON_RUST"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -1685,6 +1693,176 @@ def main():
             print("REA_RUST_VENDOR_SHA_"+name+"="+parts[0])
         print("REA_RUST_VENDOR_UNCHANGED_ORIGINAL=true")
         print("REA_RUST_VENDOR_STATUS=PASS_OFFICIAL_STATIC_RUST_SHA_PUBLISHED")
+        return
+    if data["action"] == "fixture_linux_binwalk31_isolated_build_20261023":
+        # Official Binwalk3.1 tag at exact commit from REA FirmwareRelease.
+        # Isolated official Rust toolchain, no global cargo/rustc, no new MCP
+        # and no service unit changes at any point during this bounded build.
+        import tempfile
+        import shutil
+        import ssl
+        from urllib import request as vendor_request
+        commit="4fdab3d464d97b68e0af9088df3f9e2e1545b21c"
+        rustup_sha="5be191e8c70a5007074254cb74d78dbfdd25cd5a61c27de7b8e5410122ec24f4"
+        rustup_url=("https://static.rust-lang.org/rustup/dist/"
+                    "x86_64-unknown-linux-gnu/rustup-init")
+        version="1.85.1"
+        providers=Path("/opt/rea-reversa/providers")
+        build=providers/".binwalk-3.1.0-build-20261023"
+        final=providers/"binwalk-3.1.0"
+        unit="rea-reversa-mcp.service"
+        def show(key):
+            p=subprocess.run(["systemctl","show",unit,"-p",key,"--value"],
+                     capture_output=True,text=True,timeout=14,check=False)
+            return p.stdout.strip() if p.returncode==0 else ""
+        pid=show("MainPID")
+        if len(tools)!=208 or not pid.isdecimal() or int(pid)<1 or (
+             not Path("/opt/rea-reversa/rea/src/firmware/FirmwareRelease.ts").is_file()):
+            print("REA_BIN3_BUILD_STATUS=BLOCKED_ORIGINAL_MCP")
+            return
+        source_release=Path("/opt/rea-reversa/rea/src/firmware/FirmwareRelease.ts").read_text()
+        if commit not in source_release or 'version: "3.1.0"' not in source_release:
+            print("REA_BIN3_BUILD_STATUS=BLOCKED_ORIGINAL_RELEASE_CONTRACT")
+            return
+        d=shutil.disk_usage(providers)
+        if d.free<12*1024**3:
+            print("REA_BIN3_BUILD_STATUS=BLOCKED_STORAGE_BELOW_12_GIB")
+            return
+        if build.exists() or build.is_symlink() or final.is_symlink():
+            print("REA_BIN3_BUILD_STATUS=BLOCKED_PREEXISTING_PATH")
+            return
+        def run(argv,timeout=60):
+            p=subprocess.run(argv,capture_output=True,text=True,
+                       timeout=timeout,check=False)
+            if p.returncode:
+                raise RuntimeError("Command failed: "+str(argv[0])+" "+str(p.returncode)
+                                   + " "+p.stderr[-140:].replace("\n"," "))
+            return p.stdout.strip()
+        def sudo(*args,timeout=60):
+            return run(["sudo","-n",*args],timeout)
+        if final.exists():
+            target=final/"bin/binwalk"
+            if not target.is_file():
+                print("REA_BIN3_BUILD_STATUS=BLOCKED_EXISTING_WRONG_PROVIDER")
+                return
+            banner=sudo("runuser","-u","rea-reversa","--",str(target),"--version",timeout=20)
+            print("REA_BIN3_BUILD_VERSION="+banner.replace("\n"," ")[:90])
+            print("REA_BIN3_BUILD_STATUS=ALREADY_PRESENT_REQUIRE_MCP_TEST")
+            return
+        with tempfile.TemporaryDirectory(prefix="rea-binwalk31-verify-",
+             dir=str(Path.home()/".local/share/rea-chatgpt-trial/artifacts")) as scratch:
+            check=Path(scratch)
+            rustup=check/"rustup-init"
+            digest=hashlib.sha256()
+            size=0
+            with vendor_request.urlopen(vendor_request.Request(
+                    rustup_url,headers={"User-Agent":"REA-official-isolated-binwalk-build/1"}),
+                    timeout=45,context=ssl.create_default_context()) as remote:
+                with rustup.open("xb") as sink:
+                    while True:
+                        part=remote.read(131072)
+                        if not part:
+                            break
+                        size+=len(part)
+                        if size>64*1024*1024:
+                            raise RuntimeError("Rustup official tool larger than 64MiB")
+                        digest.update(part)
+                        sink.write(part)
+            if digest.hexdigest()!=rustup_sha:
+                print("REA_BIN3_BUILD_STATUS=BLOCKED_RUSTUP_HASH_MISMATCH")
+                return
+            print("REA_BIN3_BUILD_RUSTUP_SHA256="+rustup_sha)
+            sudo("install","-d","-m","0700","-o","root","-g","root",str(build))
+            built=False
+            try:
+                init=build/"rustup-init"
+                sudo("install","-m","0700","-o","root","-g","root",str(rustup),str(init))
+                env=["/usr/bin/env","-i",
+                     "HOME="+str(build),
+                     "PATH="+str(build/"cargo/bin")+":/usr/bin:/bin",
+                     "CARGO_HOME="+str(build/"cargo"),
+                     "RUSTUP_HOME="+str(build/"rustup"),
+                     "RUSTUP_NO_UPDATE_CHECK=1",
+                     "RUSTUP_INIT_SKIP_PATH_CHECK=yes",
+                     "LC_ALL=C"]
+                bootstrap=["sudo","-n",*env,str(init),
+                     "-y","--no-modify-path","--profile","minimal",
+                     "--default-toolchain",version]
+                rustlog=check/"rustup.log"
+                with rustlog.open("wb") as output:
+                    boot=subprocess.run(bootstrap,stdout=output,stderr=subprocess.STDOUT,
+                                        timeout=220,check=False)
+                if boot.returncode:
+                    print("REA_BIN3_BUILD_RUSTUP_EXIT="+str(boot.returncode))
+                    print("REA_BIN3_BUILD_RUSTUP_DIAGNOSTIC="+
+                          rustlog.read_text(errors="replace")[-180:].replace("\n"," "))
+                    print("REA_BIN3_BUILD_STATUS=BLOCKED_OFFICIAL_RUST_BOOTSTRAP")
+                    return
+                rustenv=["sudo","-n",*env]
+                rv=run([*rustenv,str(build/"cargo/bin/rustc"),"--version"],timeout=20)
+                cv=run([*rustenv,str(build/"cargo/bin/cargo"),"--version"],timeout=20)
+                print("REA_BIN3_BUILD_RUST_VERSION="+rv[:100])
+                print("REA_BIN3_BUILD_CARGO_VERSION="+cv[:100])
+                if not rv.startswith("rustc 1.85.1 "):
+                    print("REA_BIN3_BUILD_STATUS=BLOCKED_RUST_VERSION")
+                    return
+                src=build/"source"
+                cloned=subprocess.run(["sudo","-n","/usr/bin/git","clone",
+                      "--depth","1","--branch","v3.1.0",
+                      "https://github.com/ReFirmLabs/binwalk.git",str(src)],
+                      capture_output=True,text=True,timeout=70,check=False)
+                if cloned.returncode:
+                    print("REA_BIN3_BUILD_SOURCE_DIAGNOSTIC="+
+                         cloned.stderr.strip()[-150:].replace("\n"," "))
+                    print("REA_BIN3_BUILD_STATUS=BLOCKED_SOURCE_FETCH")
+                    return
+                observed=sudo("git","-C",str(src),"rev-parse","HEAD",timeout=18)
+                print("REA_BIN3_BUILD_SOURCE_COMMIT="+observed)
+                if observed!=commit:
+                    print("REA_BIN3_BUILD_STATUS=BLOCKED_SOURCE_COMMIT_MISMATCH")
+                    return
+                cargo_argv=["sudo","-n",*env,
+                   "CARGO_TARGET_DIR="+str(build/"target"),
+                   "CARGO_BUILD_JOBS=2",
+                   "CARGO_INCREMENTAL=0",
+                   "RUSTFLAGS=-Cdebuginfo=0",
+                   "/usr/bin/nice","-n","15",str(build/"cargo/bin/cargo"),
+                   "install","--path",str(src),"--locked",
+                   "--root",str(build/"install"),"--jobs","2"]
+                cargolog=check/"cargo.log"
+                with cargolog.open("wb") as output:
+                    try:
+                        cargo_result=subprocess.run(cargo_argv,stdout=output,
+                               stderr=subprocess.STDOUT,timeout=510,check=False)
+                        cargo_exit=cargo_result.returncode
+                    except subprocess.TimeoutExpired:
+                        cargo_exit=124
+                print("REA_BIN3_BUILD_CARGO_EXIT="+str(cargo_exit))
+                if cargo_exit!=0:
+                    print("REA_BIN3_BUILD_CARGO_DIAGNOSTIC="+
+                          cargolog.read_text(errors="replace")[-190:].replace("\n"," "))
+                    print("REA_BIN3_BUILD_STATUS=BLOCKED_CARGO_BUILD")
+                    return
+                target=build/"install/bin/binwalk"
+                if not target.is_file():
+                    print("REA_BIN3_BUILD_STATUS=BLOCKED_MISSING_COMPILED_BIN")
+                    return
+                banner=sudo("runuser","-u","rea-reversa","--",
+                            str(target),"--version",timeout=30)
+                print("REA_BIN3_BUILD_VERSION="+banner.replace("\n"," ")[:95])
+                if banner.strip()!="binwalk 3.1.0":
+                    print("REA_BIN3_BUILD_STATUS=BLOCKED_VERSION_MISMATCH")
+                    return
+                sha=hashlib.sha256(target.read_bytes()).hexdigest()
+                print("REA_BIN3_BUILD_BIN_SHA256="+sha)
+                sudo("mv","-T",str(build/"install"),str(final),timeout=25)
+                built=True
+                print("REA_BIN3_BUILD_STATUS=PASS_PINNED_BINWALK31_ISOLATED")
+            finally:
+                sudo("rm","-rf","--",str(build),timeout=95)
+                print("REA_BIN3_BUILD_TEMP_CLEANUP="+str(not build.exists()).lower())
+                print("REA_BIN3_BUILD_REA_PID_STABLE="+str(pid==show("MainPID")).lower())
+                print("REA_BIN3_BUILD_DID_NOT_MODIFY_SYSTEM_PYTHON_RUST=true")
         return
     if data["action"] == "fixture_linux_read5_mcp_boundaries":
         # Run original REA real MCP tool methods against private in-memory
