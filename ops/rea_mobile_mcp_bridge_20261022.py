@@ -2766,7 +2766,7 @@ def main():
                 fixture.as_uri(), str(app_a), str(app_b), str(engine)],
                 capture_output=True, text=True, timeout=30, check=False)
             if generated.returncode or any(not p.is_file() for p in (app_a, app_b, engine)):
-                error("Original REA Flutter fixture generator failed")
+                error("Original REA Flutter fixture generator failed: "+generated.stderr.strip()[-160:])
             if any(p.stat().st_size > 50000 for p in (app_a, app_b, engine)):
                 error("Unexpected fixed Flutter fixture size")
             good = staging / "rea-flutter.apk"
