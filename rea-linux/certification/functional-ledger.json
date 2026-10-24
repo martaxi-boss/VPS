@@ -4492,9 +4492,14 @@
       ],
       "no_new_dependencies": true,
       "original_engine_unmodified": true,
-      "consumed_request_hygiene": "PENDING",
+      "consumed_request_hygiene": "PASS_REMOVED_1",
       "fully_certified_total": 67,
-      "remaining": 141
+      "remaining": 141,
+      "cleanup_commit": "b0553505bd771868a3c1731b291b5853967baf19",
+      "post_cleanup_run_id": 40053091719,
+      "post_cleanup_catalog": 208,
+      "post_cleanup_schemas": 208,
+      "post_cleanup_contract_matches": 208
     }
   ],
   "active_scope_counts": {
