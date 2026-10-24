@@ -220,6 +220,58 @@ jobs:
           echo "REA_P184_STAGING=PASS_NATIVE_SERVICE_ACCOUNT_OFFLINE"
           valid=1
           REMOTE
+      - name: P185 activate REA-only USB-free Sigrok MCP
+        if: contains(github.event.head_commit.message, 'P185 activate REA-only Sigrok MCP')
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          opts=(-o PreferredAuthentications=password -o PubkeyAuthentication=no
+            -o StrictHostKeyChecking=yes
+            -o UserKnownHostsFile="$RUNNER_TEMP/rea-mobile-known"
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519
+            -o ConnectTimeout=15 -o ServerAliveInterval=10)
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 "bash -se" <<'REMOTE'
+          set -euo pipefail
+          unit=rea-reversa-mcp.service
+          prefix=/opt/rea-reversa/providers/sigrok-offline-0.5.2-20261024
+          snippet=/etc/systemd/system/rea-reversa-mcp.service.d/98-rea-sigrok-offline-20261024.conf
+          test -f "$prefix/libsigrok.so.4.1.1"
+          test -x "$prefix/sigrok-cli"
+          test "$(sha256sum "$prefix/libsigrok.so.4.1.1" | cut -d' ' -f1)" = "408da7c2416f4927628ff69f59bc4991505421e35f1f655221636f3cab3aaea4"
+          test ! -e "$snippet"
+          test "$(systemctl show "$unit" -p PrivateDevices --value)" = yes
+          test "$(systemctl show "$unit" -p DevicePolicy --value)" = closed
+          created=0
+          active=0
+          rollback() {
+            rc="$?"
+            if [ "$created" = 1 ] && [ "$active" != 1 ]; then
+              sudo -n rm -f -- "$snippet" || true
+              sudo -n systemctl daemon-reload || true
+              sudo -n systemctl restart "$unit" || true
+            fi
+            exit "$rc"
+          }
+          trap rollback EXIT
+          tmp="$(mktemp /dev/shm/rea-p185-env.XXXXXX)"
+          printf '[Service]\nEnvironment="REA_SIGROK_COMMAND=%s/sigrok-cli"\n' "$prefix" > "$tmp"
+          sudo -n install -o root -g root -m 0644 "$tmp" "$snippet"
+          rm -f -- "$tmp"
+          created=1
+          sudo -n systemctl daemon-reload
+          sudo -n systemctl restart "$unit"
+          sleep 5
+          systemctl is-active --quiet "$unit"
+          test "$(systemctl show "$unit" -p PrivateDevices --value)" = yes
+          test "$(systemctl show "$unit" -p DevicePolicy --value)" = closed
+          echo "REA_P185_REA_SERVICE_ACTIVE=PASS"
+          echo "REA_P185_DEVICE_ISOLATION_UNCHANGED=PASS"
+          echo "REA_P185_REA_ONLY_OFFLINE_SUPPLIER=PASS"
+          active=1
+          REMOTE
       - name: Talk to existing REA over VPS loopback
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
