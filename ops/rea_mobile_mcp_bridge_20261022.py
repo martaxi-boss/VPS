@@ -115,7 +115,7 @@ def validate(data):
                 or not re.fullmatch(r"[A-Za-z0-9+/=]{340,1800}",
                                     data["response_key"])):
             error("Format fixture requires an RSA reply public key")
-    elif action == "fixture_apkdemos":
+    elif action in ("fixture_apkdemos", "fixture_android_resources"):
         # Fixed, Apache-2.0 public Appium APK. Only a public response key is accepted.
         if set(data) != {"version", "action", "response_key"}:
             error("Android fixture request must not contain caller paths or commands")
@@ -245,7 +245,8 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SEALED_STEPS_EXECUTED", "REA_SEALED_POLICY",
         "REA_SEALED_CLEANUP", "REA_FIXTURE_ANDROID_DOWNLOAD",
         "REA_FIXTURE_ANDROID_SHA256", "REA_FIXTURE_ANDROID_JADX",
-        "REA_FIXTURE_ANDROID_CLEANUP",
+        "REA_FIXTURE_ANDROID_CLEANUP", "REA_FIXTURE_ANDROID_RESOURCES",
+        "REA_FIXTURE_ANDROID_RESOURCES_NO_STRINGS",
         "REA_FIXTURE_MANAGED_PE", "REA_FIXTURE_PE_RESOURCES",
         "REA_FIXTURE_MANAGED_MEMBERS", "REA_FIXTURE_MANAGED_BOUNDARIES",
         "REA_FIXTURE_MACHO_FUSES", "REA_FIXTURE_FORMAT_CLEANUP",
@@ -2883,7 +2884,7 @@ def main():
             if not cleanup_ok:
                 error("Public format fixture staging was not cleaned")
         return
-    if data["action"] == "fixture_apkdemos":
+    if data["action"] in ("fixture_apkdemos", "fixture_android_resources"):
         # Public source and sha256 are pinned to the checked-in REA fixture
         # rea/scripts/fixtures/android/apidemos.json. No caller-controlled URL,
         # path, script, APK, or install is admitted by this action.
@@ -2937,6 +2938,15 @@ def main():
                 ("trace_android_references", {**public_apk, "class_name": class_name},
                  "REA_FIXTURE_ANDROID_XREFS"),
             )
+            if data["action"] == "fixture_android_resources":
+                # Source-owned, SHA-pinned public APK only. Other certified Android
+                # operations are deliberately NOT rerun. No device interaction.
+                fixed_operations = (
+                    ("decode_android_resources", {**public_apk, "include_strings": True},
+                     "REA_FIXTURE_ANDROID_RESOURCES"),
+                    ("decode_android_resources", {**public_apk, "include_strings": False},
+                     "REA_FIXTURE_ANDROID_RESOURCES_NO_STRINGS"),
+                )
             observations = []
             for pos, (tool, args, marker) in enumerate(fixed_operations):
                 if tool not in tool_by_name:
@@ -2964,8 +2974,33 @@ def main():
                         "tool": tool, "status": "ERROR",
                         "response": {"error": "MCP operation unavailable"}
                     })
+            if data["action"] == "fixture_android_resources":
+                # Deliberate negative MCP outcomes, not supplier success.
+                for pos, args in enumerate((
+                    {"path": str(path.with_name(path.stem + "-absent.apk"))},
+                    {"path": str(path), "locale": "BAD_LOCALE"},
+                ), start=0):
+                    _, reply = request_mcp(
+                        {"jsonrpc": "2.0", "id": 189 + pos, "method": "tools/call",
+                         "params": {"name": "decode_android_resources", "arguments": args}},
+                        session, protocol, timeout=75
+                    )
+                    response = reply.get("result")
+                    rejected = "error" in reply or (
+                        isinstance(response, dict) and response.get("isError") is True
+                    )
+                    observations.append({
+                        "tool": "decode_android_resources",
+                        "case": "missing_apk" if pos == 0 else "invalid_locale_schema",
+                        "expected_rejection": True,
+                        "status": "PASS" if rejected else "ERROR",
+                        "protocol_error": reply.get("error"),
+                        "response": response,
+                    })
+            unchanged = hashlib.sha256(path.read_bytes()).hexdigest() == expected
             body = json.dumps(
                 {"artifact": "Appium ApiDemos 6.0.18", "sha256": expected,
+                 "input_unchanged": unchanged,
                  "records": observations}, sort_keys=True, ensure_ascii=True
             ).encode()
             if len(body) > MAX_RESPONSE:
