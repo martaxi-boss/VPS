@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_60_FULLY_CERTIFIED_148_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_62_FULLY_CERTIFIED_146_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -4313,21 +4313,82 @@
       "negative_request_cleanup": "PASS_IN_THIS_COMMIT",
       "certified_total": 60,
       "remaining": 148
+    },
+    {
+      "phase_id": "LINUX-P55-CALLEES-REFERENCES-20261024",
+      "date_utc": "2026-10-24",
+      "status": "TWO_NEW_FULLY_CERTIFIED_SCOPED_ORIGINAL_MCP_PROCEDURE_EDGES",
+      "proof": {
+        "positive_run_id": 40051763765,
+        "positive_result_sha256": "12fe31fd0e37d31120d0b02843d1151a1a470c9ff7d530313836c5584070ce66",
+        "negative_runs": [
+          {
+            "tool": "procedure_callees",
+            "run": 40052146344,
+            "artifact": 12543717996,
+            "request_sha256": "cf47880dc352aa98448240f2c2578d7ca4b288287147ec76b040976f545e5aaa",
+            "result_sha256": "3e131e52ef56a127ea8aa0d21bc6c438962f384b07d8d0524a11d3b3be909cc7",
+            "isError": true,
+            "request_authenticated": true,
+            "session_cleanup": "PASS"
+          },
+          {
+            "tool": "procedure_references",
+            "run": 40052222500,
+            "artifact": 12542849908,
+            "request_sha256": "4272e2084ccb2cea4f94950fd1bf4dc6f4f003e4e58b8ac02b4157d38564684c",
+            "result_sha256": "6c62b32bbad5cf081a0817cd0315817cadf7bb702496145ae15c488a262adfb7",
+            "isError": true,
+            "request_authenticated": true,
+            "session_cleanup": "PASS"
+          }
+        ]
+      },
+      "tools": [
+        {
+          "name": "procedure_callees",
+          "status": "FULLY_CERTIFIED",
+          "positive": "Procedure 0x101480 calls 0x101260",
+          "negative": "0x200000 rejected with isError=true invalid_input"
+        },
+        {
+          "name": "procedure_references",
+          "status": "FULLY_CERTIFIED",
+          "positive": "0x101480 outgoing UNCONDITIONAL_CALL ref to 0x101260",
+          "negative": "0x200000 rejected with isError=true invalid_input"
+        }
+      ],
+      "positive_not_yet_certified": [
+        "procedure_address",
+        "procedure_assembly",
+        "procedure_callers"
+      ],
+      "unexecuted_pushes_not_proofs": [
+        "f114480d5b68767c46d16bd8445c60a50f5c30bd",
+        "09f8e7457e12cf3df04387d259b832d1bb5102be",
+        "f7bea953873bf929eb761b32a9f4e217a824b97c"
+      ],
+      "failed_auth_before_mcp_run": 40052139666,
+      "original_engine_unchanged": true,
+      "new_dependency_installs": 0,
+      "cleanup_requests": "PENDING",
+      "fully_certified_total": 62,
+      "remaining": 146
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 60,
-    "awaiting_canonical_individual_review": 148,
+    "functional_pass_scoped_distinct": 62,
+    "awaiting_canonical_individual_review": 146,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 60,
-    "scoped_positive_not_fully_certified_distinct": 5,
+    "fully_certified_distinct": 62,
+    "scoped_positive_not_fully_certified_distinct": 3,
     "not_functionally_positive_distinct": 143,
-    "remaining_full_certification_distinct": 148
+    "remaining_full_certification_distinct": 146
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -4357,7 +4418,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P54-NATIVE-NAMES-BYTES-CONTEXT-GRAPH-20261024",
+  "latest_phase": "LINUX-P55-CALLEES-REFERENCES-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -5433,6 +5494,32 @@
       "positive_calls": 1,
       "negative_calls": 1,
       "negative_kind": "mcp-isError-true"
+    },
+    "procedure_callees": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P55-CALLEES-REFERENCES-20261024",
+      "scope": "Original Ghidra 12.1.4 Linux x86-64 ELF /usr/bin/true; Procedure 0x101480 calls 0x101260; 0x200000 rejected with isError=true invalid_input",
+      "run_ids": [
+        40051763765,
+        40052146344
+      ],
+      "positive_evidence_sha256": "12fe31fd0e37d31120d0b02843d1151a1a470c9ff7d530313836c5584070ce66",
+      "evidence_sha256": "3e131e52ef56a127ea8aa0d21bc6c438962f384b07d8d0524a11d3b3be909cc7",
+      "positive_calls": 1,
+      "negative_calls": 1
+    },
+    "procedure_references": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P55-CALLEES-REFERENCES-20261024",
+      "scope": "Original Ghidra 12.1.4 Linux x86-64 ELF /usr/bin/true; 0x101480 outgoing UNCONDITIONAL_CALL ref to 0x101260; 0x200000 rejected with isError=true invalid_input",
+      "run_ids": [
+        40051763765,
+        40052222500
+      ],
+      "positive_evidence_sha256": "12fe31fd0e37d31120d0b02843d1151a1a470c9ff7d530313836c5584070ce66",
+      "evidence_sha256": "6c62b32bbad5cf081a0817cd0315817cadf7bb702496145ae15c488a262adfb7",
+      "positive_calls": 1,
+      "negative_calls": 1
     }
   }
 }
