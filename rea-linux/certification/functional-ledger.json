@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_47_FULLY_CERTIFIED_161_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_48_FULLY_CERTIFIED_160_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -3898,21 +3898,60 @@
       "bridge_modified": false,
       "certified_total": 47,
       "remaining": 161
+    },
+    {
+      "phase_id": "LINUX-P50-NATIVE-INSTRUCTION-20261024",
+      "date_utc": "2026-10-24",
+      "status": "ONE_NEW_FULLY_CERTIFIED_SCOPED_NATIVE_INSTRUCTION_PROFILE",
+      "proof": {
+        "positive_run_id": 40049475089,
+        "positive_artifact_id": 12542158278,
+        "positive_result_sha256": "2c8fbcf4b22073514bf16f5c54acf044844f29d3bf6134dd108b0602fd2bf2fe",
+        "positive_commit": "dc74518969a253331fd6b24fa5c92ab7bebc7c86",
+        "negative_run_id": 40049725627,
+        "negative_artifact_id": 12541849864,
+        "negative_result_sha256": "63a8ab978989ab7764d4eed0d7be35c999dc65bd93b2098dd60bc2541968a83f",
+        "negative_commit": "3b57ebeb472f83eb2eed41f42195b1038c8dad59",
+        "authenticated_local_decryption": true,
+        "request_binding_verified": true,
+        "original_mcp_catalog": 208,
+        "positive_calls": 1,
+        "negative_semantic_diagnostics": 1,
+        "negative_isError_true_calls": 0,
+        "session_cleanup": "PASS",
+        "target_sha256": "8a63c98320173f79e263115e10cefc170155e47d1fd4b5a70e4429d2699cae28"
+      },
+      "tools": [
+        {
+          "name": "inspect_native_instruction",
+          "status": "FULLY_CERTIFIED",
+          "positive": 1,
+          "negative_semantic_diagnostic": 1,
+          "scope": "Original Ghidra 12.1.4 MCP Linux x86-64 controlled ELF /usr/bin/true: code address 0x101480 decoded as CALL length=5 bytes=e8dbfdffff with direct destination 0x101260 and typed refs; nonmapped address 0x200000 returned status=outside-memory, bytes=null, mnemonic=null, length=null and empty references, isError not true; both expected typed outcomes."
+        }
+      ],
+      "repeated_previous_positive_tests": 0,
+      "new_dependency_installs": 0,
+      "original_engine_changed": false,
+      "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+      "consumed_github_requests_hygiene": "PENDING_GIT_CLEANUP",
+      "certified_total": 48,
+      "remaining": 160
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 47,
-    "awaiting_canonical_individual_review": 161,
+    "functional_pass_scoped_distinct": 48,
+    "awaiting_canonical_individual_review": 160,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 47,
+    "fully_certified_distinct": 48,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 161,
-    "remaining_full_certification_distinct": 161
+    "not_functionally_positive_distinct": 160,
+    "remaining_full_certification_distinct": 160
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -3942,7 +3981,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P49B-OPEN-BINARY-EXISTING-P48-EVIDENCE-20261024",
+  "latest_phase": "LINUX-P50-NATIVE-INSTRUCTION-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -4856,6 +4895,19 @@
       "negative_evidence_sha256": "a760610eaa21ef277716812e575b0103ac48d79c770042c7dc6a799f2e2759d9",
       "positive_calls": 1,
       "negative_calls": 1
+    },
+    "inspect_native_instruction": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Linux x86-64 original Ghidra 12.1.4 MCP: exact CALL instruction at code address 0x101480 with 5 bytes and references, contrasted with typed outside-memory result for 0x200000; no universal disassembler-provider coverage",
+      "phase_id": "LINUX-P50-NATIVE-INSTRUCTION-20261024",
+      "run_ids": [
+        40049475089,
+        40049725627
+      ],
+      "evidence_sha256": "63a8ab978989ab7764d4eed0d7be35c999dc65bd93b2098dd60bc2541968a83f",
+      "positive_evidence_sha256": "2c8fbcf4b22073514bf16f5c54acf044844f29d3bf6134dd108b0602fd2bf2fe",
+      "positive_calls": 1,
+      "negative_semantic_diagnostics": 1
     }
   }
 }
