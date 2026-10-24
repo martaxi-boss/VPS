@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_74_FULLY_CERTIFIED_134_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_75_FULLY_CERTIFIED_133_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -4805,21 +4805,78 @@
       "post_cleanup_catalog_run_id": null,
       "certified_total": 74,
       "remaining": 134
+    },
+    {
+      "phase_id": "LINUX-P74-WEB-SCREENSHOT-PIXEL-DIFF-20261024",
+      "date_utc": "2026-10-24",
+      "status": "ONE_NEW_FULLY_CERTIFIED_SCOPED_ORIGINAL_MCP_PNG_PIXEL_DIFFERENCE_AND_DIGEST_INTEGRITY",
+      "source": "Owner original persistent Linux VPS REA MCP accessed only through existing Skill/GitHub Actions/SSH, local 2x2 PNG byte fixtures and signed encrypted responses",
+      "proof": {
+        "run_id": 40056542143,
+        "commit": "d7145cce0cde301e5e47461e24df7524525989c8",
+        "artifact_id": 12545796426,
+        "request_sha256": "741e11752a7a477a27ee8e69ac9686a4b729f8529938b93f86efb89ab561fff2",
+        "authenticated_result_sha256": "e4afe379d2fff643bb1f3fb688bef061cae17979d3335240bf48a52f4e2cb898",
+        "exact_request_git_blob": "373207990677f642a0fb56aed8d11ead9da1f1f6",
+        "source_png_a_sha256": "a93c17028d894827813ce3f52be4c7f70b5e33571bd9e51ca8fd2975ef03a1a9",
+        "source_png_b_sha256": "f63d8b937f28694961e953a8959bf1e18fac22cffb08548959d4ef6408c5d5f9",
+        "png_dimensions": "2x2 RGB",
+        "real_mcp_steps_executed": 3,
+        "real_mcp_tool_catalog": 208,
+        "positive_changed_pixels": 1,
+        "positive_compared_pixels": 4,
+        "positive_changed_ratio": 0.25,
+        "positive_maximum_channel_delta": 255,
+        "identity_changed_pixels": 0,
+        "identity_changed_ratio": 0,
+        "negative_digest_mismatch_error": true,
+        "negative_isError": true,
+        "request_matched": true,
+        "digest_verified": true,
+        "encrypted_authenticated": true,
+        "service_unchanged": true,
+        "bridge_unchanged": true
+      },
+      "tools": [
+        {
+          "name": "compare_web_screenshots",
+          "status": "FULLY_CERTIFIED_SCOPED_ORIGINAL_MCP",
+          "positive_difference": 1,
+          "positive_identity": 1,
+          "negative_integrity_rejection": 1,
+          "scope": "Original REA MCP Linux on 2x2 non-interlaced RGB PNG data bytes with exact SHA-256: compare_web_screenshots returned 1/4 altered pixels (0.25 ratio, max delta 255) for genuine one-pixel black-on-white change, 0/4 altered pixels for identical files, and isError=true Input validation error for a deliberately falsified after-image digest; no browser session, OCR, layout inference or perceptual color correction tested."
+        }
+      ],
+      "uncertified_os_provider": {
+        "name": "inspect_plist",
+        "run_id": 40056345142,
+        "artifact_id": 12545303539,
+        "result_sha256": "44b75eb9b5ad27a4181bf47099e4b3a531f5d7eb2814dfe949c1d03e3ed3e275",
+        "reason": "Original MCP requires macOS native utilities; valid public Info.plist fixture received but Linux runtime provider unavailable; no positive functional certification"
+      },
+      "prior_uncertified_linux_tools": [
+        "next_address (ghidra unsupported_provider)",
+        "demangle_swift (macOS provider required)",
+        "trace_native_values (negative error miscategorized)"
+      ],
+      "consumed_github_requests": "PASS_REMOVED_2_IN_CANONICAL_COMMIT",
+      "certified_total": 75,
+      "remaining": 133
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 74,
-    "awaiting_canonical_individual_review": 134,
+    "functional_pass_scoped_distinct": 75,
+    "awaiting_canonical_individual_review": 133,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 74,
+    "fully_certified_distinct": 75,
     "scoped_positive_not_fully_certified_distinct": 1,
-    "not_functionally_positive_distinct": 133,
-    "remaining_full_certification_distinct": 134
+    "not_functionally_positive_distinct": 132,
+    "remaining_full_certification_distinct": 133
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -4849,7 +4906,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P72-ELECTRON-FUSES-MACHO-AND-ELF-20261024",
+  "latest_phase": "LINUX-P74-WEB-SCREENSHOT-PIXEL-DIFF-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -6106,6 +6163,19 @@
       "positive_calls": 1,
       "negative_semantic_calls": 1,
       "negative_isError_true": false
+    },
+    "compare_web_screenshots": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P74-WEB-SCREENSHOT-PIXEL-DIFF-20261024",
+      "scope": "Original REA MCP Linux on 2x2 non-interlaced RGB PNG data bytes with exact SHA-256: compare_web_screenshots returned 1/4 altered pixels (0.25 ratio, max delta 255) for genuine one-pixel black-on-white change, 0/4 altered pixels for identical files, and isError=true Input validation error for a deliberately falsified after-image digest; no browser session, OCR, layout inference or perceptual color correction tested.",
+      "run_ids": [
+        40056542143
+      ],
+      "positive_evidence_sha256": "e4afe379d2fff643bb1f3fb688bef061cae17979d3335240bf48a52f4e2cb898",
+      "negative_evidence_sha256": "e4afe379d2fff643bb1f3fb688bef061cae17979d3335240bf48a52f4e2cb898",
+      "positive_calls": 2,
+      "negative_calls": 1,
+      "negative_isError_true": true
     }
   }
 }

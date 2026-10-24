@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_74_FULLY_CERTIFIED_PROFILES_AND_134_PENDING",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_75_FULLY_CERTIFIED_PROFILES_AND_133_PENDING",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -515,6 +515,45 @@
       "original_service_unmodified": true
     },
     "latest_contract_certification": {
+      "phase_id": "LINUX-P74-WEB-SCREENSHOT-PIXEL-DIFF-20261024",
+      "original_mcp_catalog": 208,
+      "fully_certified_distinct": 75,
+      "remaining_full_distinct": 133,
+      "positive_limited_distinct": 1,
+      "latest_run_ids": [
+        40056542143
+      ],
+      "artifact_ids": [
+        12545796426
+      ],
+      "request_sha256": [
+        "741e11752a7a477a27ee8e69ac9686a4b729f8529938b93f86efb89ab561fff2"
+      ],
+      "result_sha256": [
+        "e4afe379d2fff643bb1f3fb688bef061cae17979d3335240bf48a52f4e2cb898"
+      ],
+      "authenticated_encrypted_results": true,
+      "exact_request_match": true,
+      "new_scoped_certifications": [
+        "compare_web_screenshots"
+      ],
+      "positive_changed_pixel_ratio": 0.25,
+      "positive_identical_pixel_ratio": 0,
+      "negative_hash_mismatch_isError_true": true,
+      "uncertified_linux_mac_provider": [
+        "inspect_plist"
+      ],
+      "previous_positive_pending_diagnostic": [
+        "trace_native_values"
+      ],
+      "no_additional_dependencies": true,
+      "original_engine_unchanged": true,
+      "original_service_unchanged": true,
+      "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+      "consumed_github_requests": "PASS_REMOVED_2",
+      "post_cleanup_run_id": null
+    },
+    "prior_contract_certification": {
       "phase_id": "LINUX-P72-ELECTRON-FUSES-MACHO-AND-ELF-20261024",
       "original_mcp_catalog": 208,
       "fully_certified_distinct": 74,
@@ -558,52 +597,6 @@
       "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
       "consumed_github_requests": "PASS_REMOVED_5",
       "post_cleanup_run_id": null
-    },
-    "prior_contract_certification": {
-      "phase_id": "LINUX-P69-GHIDRA-DEFINED-DATA-TYPE-20261024",
-      "previous_phase_id": "LINUX-P68-GHIDRA-BATCH-DECOMPILE-20261024",
-      "original_mcp_catalog": 208,
-      "fully_certified_distinct": 73,
-      "remaining_full_distinct": 135,
-      "positive_limited_distinct": 1,
-      "latest_run_ids": [
-        40054079758,
-        40054155230
-      ],
-      "artifact_ids": [
-        12544088442,
-        12544532654
-      ],
-      "request_sha256": [
-        "426a3904c9c289ed36845a38bff1c8d3960f8db3eaa66f69ee174f837e80f5a8",
-        "c6e0877aac9ea8542dd9ea6a9ca9458d108643b7748b05991aed26ca40cf6aee"
-      ],
-      "result_sha256": [
-        "aff4a29ccb97a2d246037c01bd7736c2ec95144c7d5dd126bd70671b0c79e21b",
-        "6b4de229e243b24cd0735b0b9bfad2011f0a3cb98ca6dd7d568dbcb6b8688e57"
-      ],
-      "authenticated_encrypted_results": true,
-      "exact_request_match": true,
-      "new_scoped_certifications": [
-        "batch_decompile",
-        "inspect_native_data_type"
-      ],
-      "positive_pending_negative_diagnostic": [
-        "trace_native_values"
-      ],
-      "negative_trace_unreadable_output_is_not_certified": true,
-      "mcp_steps_executed": 8,
-      "ephemeral_ghidra_session_cleanup": "PASS",
-      "no_additional_dependencies": true,
-      "original_engine_unchanged": true,
-      "original_service_unchanged": true,
-      "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
-      "consumed_github_requests": "PASS_REMOVED_2",
-      "previous_post_cleanup_catalog_run_id": 40053981743,
-      "post_cleanup_run_id": 40054296043,
-      "post_cleanup_catalog": 208,
-      "post_cleanup_schemas": 208,
-      "post_cleanup_contract_matches": 208
     },
     "previous_contract_certification_snapshots": [
       {
@@ -1321,6 +1314,51 @@
         "post_cleanup_catalog": 208,
         "post_cleanup_schemas": 208,
         "post_cleanup_contract_matches": 208
+      },
+      {
+        "phase_id": "LINUX-P72-ELECTRON-FUSES-MACHO-AND-ELF-20261024",
+        "original_mcp_catalog": 208,
+        "fully_certified_distinct": 74,
+        "remaining_full_distinct": 134,
+        "positive_limited_distinct": 1,
+        "latest_run_ids": [
+          40056127581,
+          40056204351
+        ],
+        "artifact_ids": [
+          12545243470,
+          12545044637
+        ],
+        "request_sha256": [
+          "216f89c35b833b533e9dddf91fee76e11a0dbb3127f37bbf011cd11112ad7007",
+          "688e761b8eeeadb18776705b4c1990b8eb5219d320e0d3ef0180c5f4a97b36d4"
+        ],
+        "result_sha256": [
+          "9c361c3fc32b6e77c0a945dd85bc9e57e786ea94bebdf4cead255f8740ba4b47",
+          "ba985019053b7075e29f965fa9621d4252a8e45ec0749c0f64279567f1ab6ba5"
+        ],
+        "authenticated_encrypted_results": true,
+        "exact_request_match": true,
+        "new_scoped_certifications": [
+          "inspect_electron_fuses"
+        ],
+        "previous_positive_pending_diagnostic": [
+          "trace_native_values"
+        ],
+        "noncertified_provider_blockers": [
+          "next_address:ghidra",
+          "demangle_swift:macOS"
+        ],
+        "positive_macho_fuses": 8,
+        "negative_elf_sentinel_count": 0,
+        "negative_elf_state": "unknown_not_disabled",
+        "positive_fixture_staged_cleanup": "PASS",
+        "no_additional_dependencies": true,
+        "original_engine_unchanged": true,
+        "original_service_unchanged": true,
+        "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+        "consumed_github_requests": "PASS_REMOVED_5",
+        "post_cleanup_run_id": null
       }
     ],
     "latest_p48_hygiene": {
