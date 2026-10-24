@@ -1,0 +1,30 @@
+{
+  "project": "REA ORIGINAL — Engenharia Reversa",
+  "phase_id": "REA_OWNER_ED25519_VERIFIER_ON_ORIGINAL_VPS_20261024",
+  "utc_date": "2026-10-24",
+  "scope": "Existing single REA GitHub Actions SSH to VPS loopback MCP. Read-only cryptographic verifier proof.",
+  "status": "PASS_PUBLIC_KEY_ENROLLED_AND_NEGATIVE_SIGNATURE_REJECTED",
+  "github_action_run": 40133541774,
+  "request_commit": "3a9f2435e4612b15a39f50921190e2f374c7a8e9",
+  "request": "rea-linux/requests/rea-owner-key-proof-20261024.json",
+  "owner_public_key_fingerprint_sha256_der": "99580a4806703661ca38f75a3cb95e47d46e32228cf89d5aa7ab55e95a4e25b4",
+  "owner_device": "Android Termux; private signer never sent to REA Github connector or VPS in this enrollment",
+  "verification": {
+    "ssh_pinned_host_identity": "PASS",
+    "vps_mcp_loopback": "PASS",
+    "mcp_tool_count": 208,
+    "owner_verifier_public_file_ed25519": "PASS",
+    "owner_verifier_permissions": "PASS_OWNER_0600_PRIVATE_DIRECTORY_0700",
+    "enrolled_fingerprint_matches_owner_device": "PASS",
+    "negative_signature_test": "PASS_REJECTED_INVALID_SIGNATURE",
+    "negative_signature_test_type": "Synthetic invalid 64-byte signature tested against original secure._verify_sensitive_owner_authorization, no MCP sensitive tools/calls",
+    "signed_positive_owner_challenge": "PENDING_OWNER_ANDROID_SIGNATURE",
+    "sensitive_mcp_calls_made": 0
+  },
+  "restored_bridge_git_blob": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7",
+  "request_removal_in_same_commit": true,
+  "no_new_plugins_or_mcp": true,
+  "no_other_projects_touched": true,
+  "user_action_pending": "Safely remove superseded trial private/public keypair from VPS ~/.rea-owner/, after confirming this key is different from Android signer; keep Android private key secure and backed up offline.",
+  "caveat": "Verifies owner ED25519 public key trust and invalid signature denial, not any third-party software licence or blanket authorization. Each sensitive REA action must still be independently signed."
+}

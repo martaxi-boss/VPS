@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_owner_verifier_status"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -489,11 +489,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SDIAG_PID_ENV_READ",
         "REA_SDIAG_PID_ENV_SIZE",
         "REA_SDIAG_PID_PROVIDER_KEYS",
-        "REA_SDIAG_STATUS",
-        "REA_OWNER_VERIFIER_STATUS",
-        "REA_OWNER_VERIFIER_SHA256",
-        "REA_OWNER_VERIFIER_NEGATIVE_CHECK",
-        "REA_OWNER_VERIFIER_MCP_COUNT"
+        "REA_SDIAG_STATUS"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -634,50 +630,6 @@ def main():
     print("REA_MOBILE_CATALOG_SAMPLE=" + json.dumps(
         list(tool_by_name)[:14], ensure_ascii=True
     ))
-    if data["action"] == "fixture_owner_verifier_status":
-        # Read-only witness of owner-enrolled public Ed25519 trust.
-        # Does not read the private key or authorize an actual MCP operation.
-        from cryptography.hazmat.primitives import serialization
-        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-        import stat
-        expected = "99580a4806703661ca38f75a3cb95e47d46e32228cf89d5aa7ab55e95a4e25b4"
-        directory = secure._private_directory()
-        key = directory / "owner-approval-public.pem"
-        if key.is_symlink() or not key.is_file():
-            error("Owner public verifier not enrolled as a regular file")
-        st = key.stat()
-        if (st.st_uid != os.geteuid() or not stat.S_ISREG(st.st_mode) or
-                stat.S_IMODE(st.st_mode) != 0o600):
-            error("Owner public verifier ownership or permissions mismatch")
-        public = serialization.load_pem_public_key(key.read_bytes())
-        if not isinstance(public, Ed25519PublicKey):
-            error("Owner public verifier is not Ed25519")
-        der = public.public_bytes(
-            serialization.Encoding.DER,
-            serialization.PublicFormat.SubjectPublicKeyInfo)
-        observed = hashlib.sha256(der).hexdigest()
-        if observed != expected:
-            error("Owner public verifier fingerprint mismatch")
-        invalid = base64.b64encode(b"\x00" * 64).decode("ascii")
-        try:
-            secure._verify_sensitive_owner_authorization(
-                {"nonce":"0123456789abcdef0123456789abcdef",
-                 "expires_at":"2026-10-25T23:59:00Z"},
-                0, "fixture_owner_verifier_status", {},
-                {"owner_signature":invalid,
-                 "scope":"sensitive",
-                 "reason":"Read-only synthetic Ed25519 rejection verification",
-                 "acknowledgement":"AUTORIZO_OPERACAO_SENSIVEL"})
-        except secure.SecureBridgeError as exc:
-            if str(exc) != "Invalid independent owner authorization":
-                error("Unexpected owner verifier rejection mode")
-        else:
-            error("Owner verifier wrongly accepted invalid signature")
-        print("REA_OWNER_VERIFIER_STATUS=PASS_ENROLLED_PUBLIC_KEY")
-        print("REA_OWNER_VERIFIER_SHA256=" + observed)
-        print("REA_OWNER_VERIFIER_NEGATIVE_CHECK=PASS_REJECTED_INVALID_SIGNATURE")
-        print("REA_OWNER_VERIFIER_MCP_COUNT=" + str(len(tools)))
-        return
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
               secure.request_public_key_b64(create=True))
