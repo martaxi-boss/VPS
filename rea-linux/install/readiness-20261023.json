@@ -543,7 +543,11 @@
       "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
       "certified_tool": "inspect_native_instruction",
       "source": "Real Ghidra native CALL with verified bytes and references; unbacked address correctly reports outside-memory status (not MCP failure)",
-      "consumed_github_requests": "PENDING_REMOVAL"
+      "consumed_github_requests": "PASS_REMOVED_2",
+      "post_cleanup_run_id": 40049888164,
+      "post_cleanup_catalog": 208,
+      "post_cleanup_schemas": 208,
+      "post_cleanup_contract_matches": 208
     },
     "prior_contract_certification": {
       "phase_id": "LINUX-P49B-OPEN-BINARY-EXISTING-P48-EVIDENCE-20261024",
@@ -849,6 +853,17 @@
       "audited_contract_matches": 208,
       "original_bridge_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
       "no_production_changes": true
+    },
+    "latest_p49_p50_hygiene": {
+      "cleanup_commit": "176437e098aa154fca469975aa082c5dbd8fcfcc",
+      "consumed_requests_deleted": 2,
+      "post_cleanup_workflow_run_id": 40049888164,
+      "conclusion": "SUCCESS",
+      "mcp_loopback": "PASS",
+      "tool_catalog_count": 208,
+      "validated_schema_count": 208,
+      "audited_contracts_count": 208,
+      "original_bridge_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
     }
   },
   "final_hygiene_verified": {
