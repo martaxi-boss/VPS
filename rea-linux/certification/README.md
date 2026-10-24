@@ -462,3 +462,9 @@ A consulta complementar `inspect_plist` por [GitHub Actions #40056345142](https:
 - Continuam **75/208 certificadas, 133 pendentes**. A última verificação funcional pós-higiene previamente concluída continua a ser [Actions #40056690144](https://github.com/martaxi-boss/VPS/actions/runs/40056690144), não uma nova prova de disponibilidade. É necessário diagnosticar o alcance SSH pelo percurso existente antes de retomar os ensaios a partir da 76.ª ferramenta.
 
 - **Rechecagem pós-higiene**: [Actions #40078631883](https://github.com/martaxi-boss/VPS/actions/runs/40078631883) terminou `failure` no mesmo passo SSH. Não houve acesso ao MCP; a contagem permanece 75/208 e a última prova MCP de 208/208/208 continua a ser a execução anterior #40056690144.
+
+## Diagnóstico de continuidade 24/10/2026 — nova tentativa 40078631883 (tentativa 2)
+
+- A repetição controlada do workflow de catálogo existente, [Actions #40078631883 (attempt 2)](https://github.com/martaxi-boss/VPS/actions/runs/40078631883), job `120829465188`, falhou novamente no passo `Check SSH host identity against existing owner pin`. `REA_MOBILE_REQUEST_VALID=PASS`, mas `ssh-keyscan -T 15 -t ed25519` terminou com código 1; o pin não chegou a ser comparado.
+- Não houve ligação SSH autenticada, chamada ao MCP, artefacto de resultado ou alteração do motor. Estado **75/208 FULLY_CERTIFIED** e **133 pendentes** inalterado. A última execução comprovadamente bem-sucedida do MCP original continua a ser `40056690144`.
+- Bloqueio externo ao REA: restabelecer SSH/porta configurada da VPS através do acesso administrativo autorizado e depois repetir o catálogo pela mesma ponte, sem contornar verificação de fingerprint nem criar rotas paralelas.

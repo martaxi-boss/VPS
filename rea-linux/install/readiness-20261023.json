@@ -1461,6 +1461,13 @@
     "last_known_successful_original_mcp_post_cleanup_run": 40056690144,
     "failed_catalog_after_cleanup_run": 40078631883,
     "failed_catalog_after_cleanup_step": "Check SSH host identity against existing owner pin",
-    "future_action": "Diagnose SSH reachability/host key via authorized infrastructure controls; do not relax pin. Resume from 76 only after bridge health restored."
+    "future_action": "Diagnose SSH reachability/host key via authorized infrastructure controls; do not relax pin. Resume from 76 only after bridge health restored.",
+    "followup_run_attempt": 2,
+    "followup_run_job_id": 120829465188,
+    "followup_result": "FAIL_SSH_HOST_KEY_SCAN",
+    "followup_mcp_calls": 0,
+    "followup_artifact_count": 0,
+    "followup_no_bridge_mutation": true,
+    "recovery_requires": "Existing VPS SSH reachability restored via authorized host console/network administration. Keep original GitHub host key pin and workflow. No production service change was attempted."
   }
 }

@@ -6224,7 +6224,21 @@
       "post_cleanup_run_id": 40078631883,
       "post_cleanup_run_conclusion": "failure",
       "post_cleanup_failed_step": "Check SSH host identity against existing owner pin",
-      "security": "SSH pin and existing original bridge unchanged; no bypass, restart, sensitive signature or alternate route."
+      "security": "SSH pin and existing original bridge unchanged; no bypass, restart, sensitive signature or alternate route.",
+      "followup_attempt": {
+        "run_id": 40078631883,
+        "run_attempt": 2,
+        "job_id": 120829465188,
+        "job_result": "failure",
+        "failed_step": "Check SSH host identity against existing owner pin",
+        "validation": "PASS",
+        "ssh_fingerprint_confirmation": "NOT_REACHED",
+        "tools_call_count": 0,
+        "encrypted_artifact_count": 0,
+        "diagnostic": "Read-only catalog smoke retried on existing job; SSH keyscan returned exit code 1 after 15 seconds; no MCP request reached VPS.",
+        "not_a_new_certification": true
+      },
+      "latest_attempt_utc": "2026-10-24T08:46:55Z"
     }
   ]
 }
