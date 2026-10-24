@@ -5687,7 +5687,17 @@
       "fully_certified_total": 80,
       "remaining": 128,
       "consumed_request_deleted": "p102-ghidra-native-data-type-20261024.json",
-      "original_bridge_preserved": true
+      "original_bridge_preserved": true,
+      "post_cleanup_verification": {
+        "run_id": 40093857052,
+        "result": "SUCCESS",
+        "ssh_host_pin": "PASS",
+        "catalog": 208,
+        "validated_schemas": 208,
+        "audited_contracts": 208,
+        "bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+        "temporary_request_dir_absent": true
+      }
     }
   ],
   "active_scope_counts": {

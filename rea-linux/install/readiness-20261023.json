@@ -1638,6 +1638,14 @@
     "new_certifications": 0,
     "fully_certified_total": 80,
     "pending": 128,
-    "cleanup": "PASS"
+    "cleanup": "PASS",
+    "post_cleanup_verification": {
+      "run_id": 40093857052,
+      "result": "SUCCESS",
+      "catalog": 208,
+      "validated_schemas": 208,
+      "audited_contracts": 208,
+      "bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+    }
   }
 }
