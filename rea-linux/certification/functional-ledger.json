@@ -5848,6 +5848,35 @@
       "code_or_server_modified": false,
       "temporary_request_removed_in_same_commit": true,
       "prior_comparisons_not_recertified": true
+    },
+    {
+      "phase_id": "LINUX-P110-KUNA-SEGMENTS-UNSUPPORTED-20261024",
+      "date_utc": "2026-10-24",
+      "status": "NO_NEW_CERTIFICATION_UNSUPPORTED_PROVIDER",
+      "tool": "list_segments",
+      "prior_positive": "P82 Ghidra 32 segments (Actions 40084449312)",
+      "proof": {
+        "run_id": 40098141810,
+        "commit": "e3829e4b3545ce3d0933c46733080aedccdd22e3",
+        "encrypted_artifact_id": 12562240151,
+        "request_sha256": "05782efc7e2c7ba593beb62ca522409157f6430120306c0a7ad906226d4e7b02",
+        "authenticated_result_sha256": "c6a5a0f818297579ab2c38bce9c3980c79eec24cef21fb8e1eb94d6a38e54b0f",
+        "request_matched": true,
+        "source_sha256": "8a63c98320173f79e263115e10cefc170155e47d1fd4b5a70e4429d2699cae28",
+        "mcp_steps_executed": 2,
+        "open_binary_kuna_pass": true,
+        "list_segments_isError_true": true,
+        "list_segments_error_code": "capability_unavailable",
+        "list_segments_error_category": "unsupported_provider",
+        "list_segments_error_details": "operation is not declared by this provider",
+        "cleanup": "PASS"
+      },
+      "new_certifications": 0,
+      "fully_certified_total": 82,
+      "remaining": 126,
+      "reason": "Supplier unavailability is not negative functional certification. No positive negative within supported Ghidra target for this tool.",
+      "original_bridge_unchanged": true,
+      "request_removed_in_same_commit": true
     }
   ],
   "active_scope_counts": {
@@ -5892,7 +5921,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P109-VERIFY-RECONSTRUCTION-SCOPED-20261024",
+  "latest_phase": "LINUX-P110-KUNA-SEGMENTS-UNSUPPORTED-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
