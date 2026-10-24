@@ -634,6 +634,115 @@ def main():
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
               secure.request_public_key_b64(create=True))
         return
+    if data["action"] == "fixture_rea_symbols":
+        import tempfile, shutil
+        import textwrap
+        source = textwrap.dedent("""
+        __attribute__((visibility("default"),used)) void rea_objc_class(void) __asm__("OBJC_CLASS_$_REAExample");
+        __attribute__((visibility("default"),used)) void rea_objc_class(void) {}
+        __attribute__((visibility("default"),used)) void rea_objc_protocol(void) __asm__("OBJC_PROTOCOL_$_REAExampleProtocol");
+        __attribute__((visibility("default"),used)) void rea_objc_protocol(void) {}
+        __attribute__((visibility("default"),used)) void rea_swift_struct(void) __asm__("$s3REA4PairV");
+        __attribute__((visibility("default"),used)) void rea_swift_struct(void) {}
+        int main(void) { return 0; }
+        """).strip() + "\n"
+        compiler = shutil.which("cc") or shutil.which("gcc")
+        if not compiler:
+            error("Public source-owned C compiler unavailable")
+        rows = []
+        with tempfile.TemporaryDirectory(prefix="rea-p170-symbol-", dir="/dev/shm") as temporary:
+            root = Path(temporary)
+            root.chmod(0o755)
+            code_path = root / "rea_symbols.c"
+            elf_path = root / "rea_symbols"
+            code_path.write_text(source)
+            code_path.chmod(0o644)
+            run = subprocess.run([compiler, "-O0", "-g", "-fno-inline", "-o",
+                                  str(elf_path), str(code_path)], capture_output=True,
+                                 timeout=45, check=False)
+            if run.returncode or not elf_path.is_file() or elf_path.read_bytes()[:4] != b"\x7fELF":
+                error("Trusted static ELF fixture build unavailable")
+            elf_path.chmod(0o644)
+            hashes = {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+                      for p in (code_path, elf_path)}
+            safe_names = ("get_objc_classes", "get_objc_protocols", "analyze_swift_types")
+            for name in safe_names:
+                if name not in tool_by_name or secure.classify(
+                    name, tool_by_name[name], safe_callable) == "sensitive":
+                    error("Source-owned symbol analysis requires unexpectedly sensitive permission")
+            selected = {"path": str(elf_path), "provider_id": "ghidra"}
+            secure.validate_arguments(tool_by_name["open_binary"], selected)
+            secure._authorized_target_paths(selected, additional_roots=(root,))
+            opened = False
+            try:
+                _, reply = request_mcp(
+                    {"jsonrpc":"2.0","id":1700,"method":"tools/call",
+                     "params":{"name":"open_binary","arguments":selected}},
+                     session, protocol, timeout=145)
+                opened = "error" not in reply and isinstance(reply.get("result"), dict) and reply["result"].get("isError") is not True
+                if not opened:
+                    rows.append({"tool":"open_binary","kind":"positive","status":"ERROR","result":reply.get("result"),"protocol_error":reply.get("error")})
+                else:
+                    rows.append({"tool":"open_binary","kind":"positive","status":"PASS","result":reply.get("result")})
+                    for idx, name in enumerate(safe_names, start=1701):
+                        args = {}
+                        secure.validate_arguments(tool_by_name[name], args)
+                        _, answer = request_mcp(
+                            {"jsonrpc":"2.0","id":idx,"method":"tools/call",
+                             "params":{"name":name,"arguments":args}},session,protocol,timeout=110)
+                        value = answer.get("result")
+                        normalized = value.get("structuredContent",{}).get("normalized_result",{}) if isinstance(value,dict) else {}
+                        if name=="get_objc_classes":
+                            positive = normalized.get("count",0)>=1 and any(
+                                "OBJC_CLASS_$_REAExample" in x.get("name","") for x in normalized.get("classes",[]))
+                        elif name=="get_objc_protocols":
+                            positive = normalized.get("count",0)>=1 and any(
+                                "OBJC_PROTOCOL_$_REAExampleProtocol" in x.get("name","") for x in normalized.get("protocols",[]))
+                        else:
+                            positive = normalized.get("categories",{}).get("structs",{}).get("count",0)>=1
+                        rows.append({"tool":name,"kind":"positive",
+                            "status":"PASS" if positive and "error" not in answer and isinstance(value,dict) and value.get("isError") is not True else "ERROR",
+                            "result":value,"protocol_error":answer.get("error")})
+                    bad = (("get_objc_classes", {"pattern": 123}),
+                           ("get_objc_protocols", {"unexpected": 123}),
+                           ("analyze_swift_types", {"category": "invalid"}),
+                           ("close_binary", {"overwrite": "not-a-boolean"}))
+                    for idx,(name,args) in enumerate(bad,start=1710):
+                        _,answer=request_mcp(
+                            {"jsonrpc":"2.0","id":idx,"method":"tools/call",
+                             "params":{"name":name,"arguments":args}},session,protocol,timeout=55)
+                        value=answer.get("result")
+                        rejected="error" in answer or (isinstance(value,dict) and value.get("isError") is True)
+                        rows.append({"tool":name,"kind":"negative",
+                            "status":"PASS" if rejected else "ERROR",
+                            "result":value,"protocol_error":answer.get("error")})
+            finally:
+                if opened:
+                    _,finish=request_mcp(
+                        {"jsonrpc":"2.0","id":1720,"method":"tools/call",
+                         "params":{"name":"close_binary","arguments":{}}},
+                         session,protocol,timeout=100)
+                    close_value=finish.get("result")
+                    good="error" not in finish and isinstance(close_value,dict) and close_value.get("isError") is not True
+                    rows.append({"tool":"close_binary","kind":"positive",
+                                 "status":"PASS" if good else "ERROR",
+                                 "result":close_value,"protocol_error":finish.get("error")})
+            unchanged=all(hashlib.sha256((root/n).read_bytes()).hexdigest()==h
+                          for n,h in hashes.items())
+        report={"source":"isolated fixed-source public ELF; compiled but never executed",
+            "records":rows,"input_hashes":hashes,"inputs_unchanged":unchanged,
+            "cleanup":"PASS" if not root.exists() else "FAIL",
+            "catalog":len(tool_by_name)}
+        result=json.dumps(report,sort_keys=True,ensure_ascii=True).encode()
+        if len(result)>MAX_RESPONSE or os.environ.get("REA_MOBILE_ENVELOPE_CAPTURE")!="1":
+            error("Authenticated P170 source-owned response budget unavailable")
+        print("REA_P170_PASS="+str(sum(x["status"]=="PASS" for x in rows))+"/"+str(len(rows)))
+        print("REA_P170_CLEANUP="+report["cleanup"])
+        print("REA_MOBILE_TOOL_ERROR="+str(any(x["status"]!="PASS" for x in rows)).lower())
+        print("REA_MOBILE_OUTPUT_BYTES="+str(len(result)))
+        print("REA_MOBILE_OUTPUT_SHA256="+hashlib.sha256(result).hexdigest())
+        print("REA_MOBILE_PRIVATE_RESULT_B64="+base64.b64encode(result).decode())
+        return
     if data["action"] in ("fixture_managed_inputs", "fixture_managed_inputs_v2"):
         # Real Evidence prerequisites for managed graph/comparison workflows;
         # generated from the same existing source fixture as earlier PE tests.
@@ -2738,115 +2847,6 @@ def main():
                                      sort_keys=True).encode()
             print(marker + "=PASS")
             print(marker + "_SHA256=" + hashlib.sha256(data_bytes).hexdigest())
-        return
-    if data["action"] == "fixture_rea_symbols":
-        import tempfile, shutil
-        import textwrap
-        source = textwrap.dedent("""
-        __attribute__((visibility("default"),used)) void rea_objc_class(void) __asm__("OBJC_CLASS_$_REAExample");
-        __attribute__((visibility("default"),used)) void rea_objc_class(void) {}
-        __attribute__((visibility("default"),used)) void rea_objc_protocol(void) __asm__("OBJC_PROTOCOL_$_REAExampleProtocol");
-        __attribute__((visibility("default"),used)) void rea_objc_protocol(void) {}
-        __attribute__((visibility("default"),used)) void rea_swift_struct(void) __asm__("$s3REA4PairV");
-        __attribute__((visibility("default"),used)) void rea_swift_struct(void) {}
-        int main(void) { return 0; }
-        """).strip() + "\n"
-        compiler = shutil.which("cc") or shutil.which("gcc")
-        if not compiler:
-            error("Public source-owned C compiler unavailable")
-        rows = []
-        with tempfile.TemporaryDirectory(prefix="rea-p170-symbol-", dir="/dev/shm") as temporary:
-            root = Path(temporary)
-            root.chmod(0o755)
-            code_path = root / "rea_symbols.c"
-            elf_path = root / "rea_symbols"
-            code_path.write_text(source)
-            code_path.chmod(0o644)
-            run = subprocess.run([compiler, "-O0", "-g", "-fno-inline", "-o",
-                                  str(elf_path), str(code_path)], capture_output=True,
-                                 timeout=45, check=False)
-            if run.returncode or not elf_path.is_file() or elf_path.read_bytes()[:4] != b"\x7fELF":
-                error("Trusted static ELF fixture build unavailable")
-            elf_path.chmod(0o644)
-            hashes = {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
-                      for p in (code_path, elf_path)}
-            safe_names = ("get_objc_classes", "get_objc_protocols", "analyze_swift_types")
-            for name in safe_names:
-                if name not in tool_by_name or secure.classify(
-                    name, tool_by_name[name], safe_callable) == "sensitive":
-                    error("Source-owned symbol analysis requires unexpectedly sensitive permission")
-            selected = {"path": str(elf_path), "provider_id": "ghidra"}
-            secure.validate_arguments(tool_by_name["open_binary"], selected)
-            secure._authorized_target_paths(selected, additional_roots=(root,))
-            opened = False
-            try:
-                _, reply = request_mcp(
-                    {"jsonrpc":"2.0","id":1700,"method":"tools/call",
-                     "params":{"name":"open_binary","arguments":selected}},
-                     session, protocol, timeout=145)
-                opened = "error" not in reply and isinstance(reply.get("result"), dict) and reply["result"].get("isError") is not True
-                if not opened:
-                    rows.append({"tool":"open_binary","kind":"positive","status":"ERROR","result":reply.get("result"),"protocol_error":reply.get("error")})
-                else:
-                    rows.append({"tool":"open_binary","kind":"positive","status":"PASS","result":reply.get("result")})
-                    for idx, name in enumerate(safe_names, start=1701):
-                        args = {}
-                        secure.validate_arguments(tool_by_name[name], args)
-                        _, answer = request_mcp(
-                            {"jsonrpc":"2.0","id":idx,"method":"tools/call",
-                             "params":{"name":name,"arguments":args}},session,protocol,timeout=110)
-                        value = answer.get("result")
-                        normalized = value.get("structuredContent",{}).get("normalized_result",{}) if isinstance(value,dict) else {}
-                        if name=="get_objc_classes":
-                            positive = normalized.get("count",0)>=1 and any(
-                                "OBJC_CLASS_$_REAExample" in x.get("name","") for x in normalized.get("classes",[]))
-                        elif name=="get_objc_protocols":
-                            positive = normalized.get("count",0)>=1 and any(
-                                "OBJC_PROTOCOL_$_REAExampleProtocol" in x.get("name","") for x in normalized.get("protocols",[]))
-                        else:
-                            positive = normalized.get("categories",{}).get("structs",{}).get("count",0)>=1
-                        rows.append({"tool":name,"kind":"positive",
-                            "status":"PASS" if positive and "error" not in answer and isinstance(value,dict) and value.get("isError") is not True else "ERROR",
-                            "result":value,"protocol_error":answer.get("error")})
-                    bad = (("get_objc_classes", {"pattern": 123}),
-                           ("get_objc_protocols", {"unexpected": 123}),
-                           ("analyze_swift_types", {"category": "invalid"}),
-                           ("close_binary", {"overwrite": "not-a-boolean"}))
-                    for idx,(name,args) in enumerate(bad,start=1710):
-                        _,answer=request_mcp(
-                            {"jsonrpc":"2.0","id":idx,"method":"tools/call",
-                             "params":{"name":name,"arguments":args}},session,protocol,timeout=55)
-                        value=answer.get("result")
-                        rejected="error" in answer or (isinstance(value,dict) and value.get("isError") is True)
-                        rows.append({"tool":name,"kind":"negative",
-                            "status":"PASS" if rejected else "ERROR",
-                            "result":value,"protocol_error":answer.get("error")})
-            finally:
-                if opened:
-                    _,finish=request_mcp(
-                        {"jsonrpc":"2.0","id":1720,"method":"tools/call",
-                         "params":{"name":"close_binary","arguments":{}}},
-                         session,protocol,timeout=100)
-                    close_value=finish.get("result")
-                    good="error" not in finish and isinstance(close_value,dict) and close_value.get("isError") is not True
-                    rows.append({"tool":"close_binary","kind":"positive",
-                                 "status":"PASS" if good else "ERROR",
-                                 "result":close_value,"protocol_error":finish.get("error")})
-            unchanged=all(hashlib.sha256((root/n).read_bytes()).hexdigest()==h
-                          for n,h in hashes.items())
-        report={"source":"isolated fixed-source public ELF; compiled but never executed",
-            "records":rows,"input_hashes":hashes,"inputs_unchanged":unchanged,
-            "cleanup":"PASS" if not root.exists() else "FAIL",
-            "catalog":len(tool_by_name)}
-        result=json.dumps(report,sort_keys=True,ensure_ascii=True).encode()
-        if len(result)>MAX_RESPONSE or os.environ.get("REA_MOBILE_ENVELOPE_CAPTURE")!="1":
-            error("Authenticated P170 source-owned response budget unavailable")
-        print("REA_P170_PASS="+str(sum(x["status"]=="PASS" for x in rows))+"/"+str(len(rows)))
-        print("REA_P170_CLEANUP="+report["cleanup"])
-        print("REA_MOBILE_TOOL_ERROR="+str(any(x["status"]!="PASS" for x in rows)).lower())
-        print("REA_MOBILE_OUTPUT_BYTES="+str(len(result)))
-        print("REA_MOBILE_OUTPUT_SHA256="+hashlib.sha256(result).hexdigest())
-        print("REA_MOBILE_PRIVATE_RESULT_B64="+base64.b64encode(result).decode())
         return
     if data["action"] == "fixture_portable_formats":
         # Fixed source-owned fixtures, never fetched from private customers.
