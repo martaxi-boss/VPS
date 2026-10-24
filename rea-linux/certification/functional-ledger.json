@@ -5198,6 +5198,45 @@
       "original_bridge_unchanged": true,
       "fully_certified_total": 79,
       "remaining": 129
+    },
+    {
+      "phase_id": "LINUX-P87-P88-DUPLICATE_AND_POLICY_NEGATIVE_BLOCK-20261024",
+      "date_utc": "2026-10-24",
+      "status": "NO_NEW_FULLY_CERTIFIED",
+      "preexisting_fully_certified": 79,
+      "fully_certified_total": 79,
+      "remaining": 129,
+      "P87": {
+        "tool": "list_strings",
+        "run_id": 40086045453,
+        "commit": "4e82c89659c16f6c33326cbd637ade0495ea34a6",
+        "encrypted_artifact_id": 12557575022,
+        "authenticated_result_sha256": "2b644f8d69e37d408832951dd4895c24b07476f6c356259f1e8e51bb8f519787",
+        "authenticated_request_sha256": "dcc2ad98edd2fdac6133723e0a66c138b58f25128ba22e2a3efd64d9e43f9885",
+        "request_matched": true,
+        "mcp_steps_executed": 3,
+        "session_cleanup": "PASS",
+        "result": "MCP executed, but list_strings is already in certified_tool_registry; no double-count."
+      },
+      "P88": {
+        "tool": "list_procedures",
+        "run_id": 40086493802,
+        "commit": "030f02f9ebce37b1533d98897ae21302bfe29bda",
+        "request_sha256": "589e5ce7b0e61147f5d08e2e51f03bab9ee083915f838171000e6701700bf7bd",
+        "status": "BLOCKED_BEFORE_MCP",
+        "request_validation": "PASS",
+        "ssh_host_pin": "PASS",
+        "failed_step": "Talk to existing REA over VPS loopback",
+        "diagnostic": "SecureBridgeError: Reviewed session inspections must use the newly opened document",
+        "reason": "Unmatched document negative invalid under existing sealed-session policy; no MCP call in this run.",
+        "certified": false
+      },
+      "consumed_requests_removed_in_same_commit": [
+        "p87-list-strings-20261024.json",
+        "p88-procedures-document-20261024.json"
+      ],
+      "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+      "safety": "No changes to engine, SSH identity or services."
     }
   ],
   "active_scope_counts": {
@@ -5242,7 +5281,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P79-GHIDRA-LIST-DOCUMENTS-20261024",
+  "latest_phase": "LINUX-P87-P88-DUPLICATE_AND_POLICY_NEGATIVE_BLOCK-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",

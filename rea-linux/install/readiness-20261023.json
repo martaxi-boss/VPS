@@ -1532,5 +1532,17 @@
     "no_new_certification": true,
     "failed_negative_is_policy_blocked": true,
     "post_cleanup_recheck": "P78_CERTIFICATION_HYGIENE_PENDING_WORKFLOW"
+  },
+  "last_duplicate_and_policy_block": {
+    "phase_id": "LINUX-P87-P88-DUPLICATE_AND_POLICY_NEGATIVE_BLOCK-20261024",
+    "preexisting_certified": 79,
+    "still_pending": 129,
+    "duplicate_run": 40086045453,
+    "policy_blocked_run": 40086493802,
+    "requests_removed_in_same_commit": [
+      "p87-list-strings-20261024.json",
+      "p88-procedures-document-20261024.json"
+    ],
+    "post_hygiene_recheck": "PENDING"
   }
 }
