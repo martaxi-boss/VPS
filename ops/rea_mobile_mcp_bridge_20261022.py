@@ -2503,8 +2503,9 @@ def main():
             opened = True
             basic_queries = (
                 "binary_overview", "list_segments", "list_names", "list_bookmarks",
-                "current_document", "current_address", "search_procedures",
-                "search_strings",
+                "current_document", "current_address", "get_objc_classes",
+                "get_objc_protocols", "analyze_swift_types",
+                "get_navigation_context", "search_procedures", "search_strings",
             ) if data["action"] == "fixture_ghidra_metadata" else ()
             for idx, name in enumerate(basic_queries, start=211):
                 if name not in tool_by_name:
