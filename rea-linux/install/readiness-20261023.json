@@ -547,7 +547,11 @@
       "original_engine_unchanged": true,
       "original_service_unchanged": true,
       "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
-      "consumed_github_requests": "PENDING_REMOVAL"
+      "consumed_github_requests": "PASS_REMOVED_2",
+      "post_cleanup_run_id": 40051039989,
+      "post_cleanup_catalog": 208,
+      "post_cleanup_schemas": 208,
+      "post_cleanup_contract_matches": 208
     },
     "prior_contract_certification": {
       "phase_id": "LINUX-P51B-NATIVE-INSTRUCTION-LIST-20261024",
@@ -1007,6 +1011,17 @@
       "schemas_validated": 208,
       "contracts_matching": 208,
       "original_bridge_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+    },
+    "latest_p52_hygiene": {
+      "cleanup_commit": "9b3164af9c650988cc124f0538211f8a842db711",
+      "deleted_consumed_requests": 2,
+      "post_cleanup_run_id": 40051039989,
+      "workflow_conclusion": "SUCCESS",
+      "mcp_loopback": "PASS",
+      "catalog_tools": 208,
+      "schemas_validated": 208,
+      "contracts_matched": 208,
+      "bridge_original_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
     }
   },
   "final_hygiene_verified": {
