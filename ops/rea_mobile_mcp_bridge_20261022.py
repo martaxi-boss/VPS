@@ -498,7 +498,11 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SDIAG_PID_ENV_READ",
         "REA_SDIAG_PID_ENV_SIZE",
         "REA_SDIAG_PID_PROVIDER_KEYS",
-        "REA_SDIAG_STATUS"
+        "REA_SDIAG_STATUS",
+        "REA_VPS_HYGIENE_STATUS", "REA_VPS_HYGIENE_INVENTORY",
+        "REA_VPS_HYGIENE_MCP_CATALOG",
+        "REA_VPS_HYGIENE_DELETE_COUNT",
+        "REA_VPS_HYGIENE_DELETED_FINGERPRINTS"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -509,7 +513,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         elif "=" in line:
             k, value = line.split("=", 1)
             if k in allowed_markers:
-                markers[k] = value[:1500] if k == "REA_SECURE_REQUEST_PUBLIC_KEY_B64" else value[:24000] if k == "REA_MOBILE_TOOL_DESCRIPTOR_B64" else (value[:1200] if k in ("REA_AUDIT_PROVIDER_SECTIONS", "REA_AUDIT_PROVIDER_NAMES") else value[:300])
+                markers[k] = value[:8000] if k == "REA_VPS_HYGIENE_INVENTORY" else (value[:1500] if k == "REA_SECURE_REQUEST_PUBLIC_KEY_B64" else value[:24000] if k in ("REA_MOBILE_TOOL_DESCRIPTOR_B64", "REA_VPS_HYGIENE_DELETED_FINGERPRINTS") else (value[:1200] if k in ("REA_AUDIT_PROVIDER_SECTIONS", "REA_AUDIT_PROVIDER_NAMES") else value[:300]))
                 print(k + "=" + markers[k])
     if "response_key" not in request:
         if private is not None:
