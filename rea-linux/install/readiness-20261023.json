@@ -1704,11 +1704,19 @@
     "bridge_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
   },
   "latest_continuation_diagnostics": {
-    "phase_id": "LINUX-P127-P130-ANDROID-JADX-API-DEMOS-20261024",
-    "new_certifications": 5,
+    "phase_id": "LINUX-P132-P133-RUNTIME-CONTRACTS-PLIST-PROVIDER-GATE-20261024",
+    "new_certifications": 0,
     "fully_certified": 90,
     "pending": 118,
-    "technical_fix": "urllib function-local import shadowing removed; original MCP and GitHub Actions workflow not replaced",
-    "sensitive_operation_gate": "No sensitive tools invoked without independent owner Ed25519 approval"
+    "plist_run_id": 40112344134,
+    "plist_error": "capability_unavailable/unsupported_provider: Native macOS utilities require macOS",
+    "plist_request_matched": true,
+    "plist_authenticated_result_sha256": "640cbacd6576af9a687efaac88ce7460e540f9f48fd9ae130e5be1cef",
+    "plist_cleanup": "PASS",
+    "original_mcp_tools": 208,
+    "owner_ed25519_public_verifier_present": false,
+    "owner_ed25519_verifier_validated": false,
+    "sensitive_operations_not_executed": true,
+    "p133_cleanup_commit": "dc3c573de981d101ead5077e7d5a9ad8aa338fb2"
   }
 }
