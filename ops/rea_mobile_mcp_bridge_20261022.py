@@ -1551,7 +1551,6 @@ def main():
         import pwd
         import grp
         import shutil
-        import urllib.request
         import tempfile
         installed=Path("/opt/rea-reversa/providers/unblob-26.6.4")
         entry=installed/"bin/unblob"
@@ -1658,7 +1657,6 @@ def main():
     if data["action"] == "fixture_linux_rizin_persistent":
         # Official checksum-pinned Rizin Linux static binary, under existing
         # REA prefix. No apt changes, systemd reloads or other projects.
-        import urllib.request
         import shutil
         import tempfile
         import tarfile
