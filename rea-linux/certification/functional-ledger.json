@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_43_FULLY_CERTIFIED_165_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_45_FULLY_CERTIFIED_163_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -3749,21 +3749,82 @@
       "bridge_restored": true,
       "certified_total": 43,
       "remaining": 165
+    },
+    {
+      "phase_id": "LINUX-P48-NATIVE-SESSION-ADDRESS-OFFSET-20261024",
+      "date_utc": "2026-10-24",
+      "status": "TWO_NEW_FULLY_CERTIFIED_SCOPED_ORIGINAL_MCP_NATIVE_SESSION_PROFILES",
+      "source": "Permanent REA MCP Linux x86-64 service, controlled system /usr/bin/true ELF64; explicit existing Ghidra 12.1.4 provider",
+      "proof": {
+        "run_id": 40049159017,
+        "artifact_id": 12543035781,
+        "run_url": "https://github.com/martaxi-boss/VPS/actions/runs/40049159017",
+        "commit": "d91cf680d2d9bd5dc372e19c892cb8ae7acb6594",
+        "result_sha256": "c305b2c97e2245fe1e73e00b9d836cfcb573a281e8f91b18343192b37303bf4a",
+        "request_sha256": "d54de72448d7038e95283bead8797425ac6188118bfb0bb6019c21a3332130f1",
+        "authenticated_local_decryption": true,
+        "request_binding_verified": true,
+        "mcp_calls": 5,
+        "positive_successful_calls": 4,
+        "correct_negative_mcp_isError_true_calls": 1,
+        "correct_semantic_mismatch_diagnostics": 1,
+        "prior_positive_run_ids": [
+          40048642790,
+          40049037688
+        ],
+        "original_mcp_catalog": 208,
+        "controlled_target_sha256": "8a63c98320173f79e263115e10cefc170155e47d1fd4b5a70e4429d2699cae28",
+        "session_cleanup": "PASS"
+      },
+      "tools": [
+        {
+          "name": "binary_session",
+          "status": "FULLY_CERTIFIED",
+          "scope": "In owned ephemeral original Ghidra 12.1.4 session opened against /usr/bin/true, original MCP reports correct aligned identity when expected package 6.7.0 matches, and typed package_version_mismatch with mcp_server_restart_required when intentionally incorrect; both valid diagnostic outputs have isError not true, no restart performed",
+          "positive": 1,
+          "negative_semantic_diagnostic": 1,
+          "negative_error_calls": 0
+        },
+        {
+          "name": "address_to_file_offset",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Original Ghidra 12.1.4 Linux session, file-backed .text address 0x101480 resolves to exact ELF file offset 5248 (0x1480), while unmapped 0x200000 correctly rejected isError=true with invalid_input and no initialized file-backed memory",
+          "positive": 1,
+          "negative_error_calls": 1
+        }
+      ],
+      "known_pending_positive_without_full_negative_certification": [
+        "binary_overview",
+        "list_segments",
+        "list_documents"
+      ],
+      "limitations": [
+        "Only Linux x86-64, one controlled ELF64 target and Ghidra 12.1.4; does not certify Hopper, IDA or other formats",
+        "Version mismatch is a typed diagnostic returned with isError not true, not a protocol exception",
+        "For binary_overview without an open session, original sealed bridge forbids dispatch: Actions #40048766263 is policy rejection before MCP and was not counted as a functional negative",
+        "Ephemeral Ghidra session cleanup passed; no production restart or new provider installation"
+      ],
+      "new_dependency_installs": 0,
+      "engine_or_daemon_changed": false,
+      "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+      "consumed_github_requests_hygiene": "PENDING_GIT_CLEANUP",
+      "certified_total": 45,
+      "remaining": 163
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 43,
-    "awaiting_canonical_individual_review": 165,
+    "functional_pass_scoped_distinct": 45,
+    "awaiting_canonical_individual_review": 163,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 43,
+    "fully_certified_distinct": 45,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 165,
-    "remaining_full_certification_distinct": 165
+    "not_functionally_positive_distinct": 163,
+    "remaining_full_certification_distinct": 163
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -3793,7 +3854,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P47-BUNDLE-COMPARISON-ANALYSIS-VIEW-20261024",
+  "latest_phase": "LINUX-P48-NATIVE-SESSION-ADDRESS-OFFSET-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -4659,6 +4720,30 @@
       "evidence_sha256": "6ae9a5f28b309b99f680fb96b2f391faea38bf7f9041a4488834d546b9d04488",
       "positive_calls": 2,
       "negative_calls": 3
+    },
+    "binary_session": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Original Linux REA MCP Ghidra 12.1.4, one controlled ELF64: active binding, aligned package 6.7.0 and typed mismatch diagnostic; scoped session identity functionality only",
+      "phase_id": "LINUX-P48-NATIVE-SESSION-ADDRESS-OFFSET-20261024",
+      "run_ids": [
+        40048642790,
+        40049037688,
+        40049159017
+      ],
+      "evidence_sha256": "c305b2c97e2245fe1e73e00b9d836cfcb573a281e8f91b18343192b37303bf4a",
+      "positive_calls": 1,
+      "negative_semantic_diagnostics": 1
+    },
+    "address_to_file_offset": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Original Linux REA MCP Ghidra 12.1.4: real file-backed 0x101480 mapped to 5248, non-mapped 0x200000 rejected with isError=true; source-backed ELF64 x86-64 only",
+      "phase_id": "LINUX-P48-NATIVE-SESSION-ADDRESS-OFFSET-20261024",
+      "run_ids": [
+        40049159017
+      ],
+      "evidence_sha256": "c305b2c97e2245fe1e73e00b9d836cfcb573a281e8f91b18343192b37303bf4a",
+      "positive_calls": 1,
+      "negative_calls": 1
     }
   }
 }
