@@ -1562,5 +1562,13 @@
       "validated_schemas": 208,
       "audited_contracts": 208
     }
+  },
+  "last_reconstruction_negative": {
+    "phase_id": "LINUX-P90-RECONSTRUCTION-MISSING-EVIDENCE-20261024",
+    "run_id": 40088281579,
+    "result_sha256": "d4a801d2f1e464028dfcb1af5c2839d7bc8fa457ab92eda88c2978fe36f03ff5",
+    "negative_checked": true,
+    "positive_pending": true,
+    "certification_awarded": false
   }
 }

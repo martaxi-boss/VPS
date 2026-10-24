@@ -5281,6 +5281,38 @@
         "bridge_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
         "requests_directory_absent": true
       }
+    },
+    {
+      "phase_id": "LINUX-P90-RECONSTRUCTION-MISSING-EVIDENCE-20261024",
+      "date_utc": "2026-10-24",
+      "status": "CONTROLLED_NEGATIVE_MCP_VALID_TOOL_PENDING",
+      "tools": [
+        {
+          "name": "verify_reconstruction",
+          "status": "NOT_FULLY_CERTIFIED",
+          "evidence": "Original MCP rejects nonexistent comparison Evidence with invalid_request/invalid_input; positive reconstruction verification remains pending."
+        }
+      ],
+      "proof": {
+        "run_id": 40088281579,
+        "commit": "18021c823ff8f8ddf3c75518fadd6b4345763188",
+        "encrypted_artifact_id": 12557258738,
+        "request_sha256": "003bdf38ed4cc097a6f0d1f9e1808948195abfc56e242b21a08b07b4772ae6a5",
+        "authenticated_result_sha256": "d4a801d2f1e464028dfcb1af5c2839d7bc8fa457ab92eda88c2978fe36f03ff5",
+        "request_matched": true,
+        "mcp_steps_planned": 5,
+        "mcp_steps_executed": 2,
+        "negative_isError": true,
+        "negative_code": "invalid_request",
+        "negative_category": "invalid_input",
+        "negative_message": "Missing comparison Evidence ev_000..0",
+        "session_cleanup": "PASS"
+      },
+      "new_certifications": 0,
+      "total_certified": 79,
+      "pending": 129,
+      "consumed_request_removed": true,
+      "bridge_sha_preserved": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
     }
   ],
   "active_scope_counts": {
@@ -5325,7 +5357,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P89-SIGROK-PROVIDER_UNAVAILABLE-20261024",
+  "latest_phase": "LINUX-P90-RECONSTRUCTION-MISSING-EVIDENCE-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",

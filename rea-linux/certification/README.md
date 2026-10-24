@@ -527,3 +527,8 @@ A consulta complementar `inspect_plist` por [GitHub Actions #40056345142](https:
 - Não se instalou nem alterou fornecedor, configuração, SSH, motor, API ou serviço em produção. Antes de insistir, resolver dependência dentro das regras de instalação autorizada. Pedido temporário P89 apagado no mesmo commit canónico. **79/208 certificadas, 129 pendentes.**
 
 - Pós-higienização P89: [Actions #40087051547](https://github.com/martaxi-boss/VPS/actions/runs/40087051547) terminou `SUCCESS`: pin SSH `PASS`, catálogo MCP **208**, schemas validados **208**, contratos verificados **208**, ponte original preservada. Não houve qualquer nova certificação; mantêm-se 79/208.
+
+## P90 — verificação negativa `verify_reconstruction` (24/10/2026)
+
+- [GitHub Actions #40088281579](https://github.com/martaxi-boss/VPS/actions/runs/40088281579), pedido SHA-256 `003bdf38ed4cc097a6f0d1f9e1808948195abfc56e242b21a08b07b4772ae6a5`, artefacto cifrado `12557258738`, resultado autenticado SHA-256 `d4a801d2f1e464028dfcb1af5c2839d7bc8fa457ab92eda88c2978fe36f03ff5`: no MCP original, `/usr/bin/true` foi aberto em Ghidra e `verify_reconstruction` rejeitou corretamente comparação com `ev_000...0` inexistente (`isError=true`, `invalid_request/invalid_input`, `Missing comparison Evidence`). 2 passos executados; 3 seguintes não executados por proteção. Limpeza da sessão: PASS. **Ainda sem positivo; não certificar.**
+- Pedido P90 consumido eliminado nesta rotação; P91 usa apenas novo envelope cifrado e binário público controlado. Contagem **79/208**, **129 pendentes**.
