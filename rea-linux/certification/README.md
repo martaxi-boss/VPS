@@ -4,6 +4,28 @@
 
 A ligação existente `ChatGPT -> GitHub Actions -> SSH -> VPS Linux -> MCP em 127.0.0.1:8765/mcp` é apenas transporte para comandar o motor instalado. A nomenclatura legada de certos ficheiros da ponte não determina o sistema operativo do motor. Não mudar ou remover a ponte operacional durante esta normalização.
 
+## Recuperação canónica de GitHub Actions após mudar de conversa (push)
+
+**Regra permanente para a certificação REA — independente de Android/Windows/macOS/Linux e do histórico do chat.** O workflow existente `.github/workflows/rea-android-bridge-20261022.yml` é acionado por **`push`** no ramo `rea/one-skill-bridge-20261023`. A função `mcp__GitHub__fetch_commit_workflow_runs` só apresenta os runs ligados a pull requests na implementação disponível: devolver `[]` **não significa ausência de execução, falha da VPS ou bloqueio da certificação**. Não repetir tentativas por esse método.
+
+**Consulta obrigatória de runs:** utilizar a função existente `mcp__GitHub__fetch` (não criar novos Plugins, Skills, MCP, workflows, pontes ou motores) com a URL GitHub REST:
+
+```text
+https://api.github.com/repos/martaxi-boss/VPS/actions/runs?branch=rea%2Fone-skill-bridge-20261023&per_page=30
+```
+
+Para correlacionar **um commit exato**, consultar por SHA de commit (substituir apenas `COMMIT_SHA` pelo SHA real obtido no GitHub):
+
+```text
+https://api.github.com/repos/martaxi-boss/VPS/actions/runs?head_sha=COMMIT_SHA&per_page=10
+```
+
+No JSON `workflow_runs[]`, selecionar o run com `head_sha` e `head_branch` corretos; registar `id`, `event`, `status`, `conclusion` e, quando houver, `run_attempt`. Se `status` ainda for `queued`/`in_progress`, aguardar/verificar o **mesmo run** (não publicar pedidos duplicados). Em seguida consultar `mcp__GitHub__fetch_workflow_run_jobs` com `run_id`; para cada job relevante usar `fetch_workflow_job_logs`, `fetch_workflow_run_artifacts` e `download_workflow_artifact` quando o formato for suportado. Se o resultado cifrado estiver apenas nos logs, recuperá-lo pelo protocolo existente e autenticar/decifrar localmente com a chave efémera correspondente; não expor chaves privadas ou resultado em claro.
+
+**Reentrada entre chats:** ler primeiro `rea-linux/certification/functional-ledger.json` no ramo acima, comparar o total com `rea-linux/install/readiness-20261023.json` e este README, e recuperar o último run `push` pela consulta REST acima. Não partir do número recordado pela conversa anterior nem contar workflow `SUCCESS` como ferramenta certificada. Uma ferramenta só é adicionada após chamadas reais ao MCP original, controlo positivo/negativo aplicável, `isError`, autenticidade, prova e higienização. Não repetir provas já canónicas nem modificar o motor instalado na VPS.
+
+**Falha real de recuperação:** distinguir (a) `fetch_commit_workflow_runs=[]` — limitação conhecida e contornada pela consulta REST —, (b) erro real de `mcp__GitHub__fetch`/permissão do conector, (c) run ainda ativo, (d) falha de transporte SSH/MCP, e (e) falha funcional da ferramenta. Comunicar a categoria exata e não inventar IDs. Esta documentação não corrige o código interno do conector nem uma falha de interface do ChatGPT no Windows.
+
 ## Aprovação canónica
 
 Cada uma das 208 ferramentas tem um contrato funcional próprio. Para aprovar uma ferramenta, registar: nome MCP e schema real, finalidade, alvo controlado guardado no Linux, resultado de `tools/call` (incluindo `isError`), comparação com resultado esperado, SHA-256 quando aplicável, invariância da entrada, limpeza da sessão/ficheiros, dependências e limitações, commit e ID da execução Actions.
