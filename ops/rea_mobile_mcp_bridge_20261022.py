@@ -100,7 +100,7 @@ def validate(data):
                   "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
-    elif action in ("fixture_rea_flutter", "fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
+    elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
         # Named system-owned ELF only; never an arbitrary caller-selected path.
         if set(data) != {"version", "action", "response_key"}:
             error("Ghidra inspection fixture accepts only a public reply key")
@@ -506,7 +506,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         if private is not None:
             error("Unexpected private response")
         return
-    if request["action"] not in ("call", "sealed_batch", "fixture_rea_flutter", "fixture_apkdemos", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump") or private is None:
+    if request["action"] not in ("call", "sealed_batch", "fixture_apkdemos", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump") or private is None:
         error("Missing encrypted-return payload from REA")
     public = serialization.load_der_public_key(
         base64.b64decode(request["response_key"], validate=True)
@@ -2738,92 +2738,6 @@ def main():
                                      sort_keys=True).encode()
             print(marker + "=PASS")
             print(marker + "_SHA256=" + hashlib.sha256(data_bytes).hexdigest())
-        return
-    if data["action"] == "fixture_rea_flutter":
-        # One-shot public source-owned Flutter ELF/APK fixtures. No caller paths, network or execution.
-        import tempfile
-        import zipfile
-        root = Path.home() / ".local/share/rea-chatgpt-trial"
-        fixture = root / "repository/rea/src/flutter/FlutterBuild.fixture.ts"
-        node = root / "tools/node-24.15.0/bin/node"
-        if not fixture.is_file() or not node.is_file():
-            error("Original REA Flutter fixture source or staged Node 24 unavailable")
-        records = []
-        with tempfile.TemporaryDirectory(prefix="rea-flutter-fixed-", dir="/dev/shm") as dirname:
-            staging = Path(dirname)
-            staging.chmod(0o755)
-            app_a = staging / "libapp-arm64.so"
-            app_b = staging / "libapp-x86.so"
-            engine = staging / "libflutter.so"
-            script = (
-                "import{writeFileSync}from'node:fs';"
-                "const x=await import(process.argv[1]);"
-                "writeFileSync(process.argv[2],x.aotFixtureImage('a'.repeat(32)));"
-                "writeFileSync(process.argv[3],x.aotFixtureImage('b'.repeat(32)));"
-                "writeFileSync(process.argv[4],x.engineFixtureImage({notes:Buffer.from('040000000800000003000000474e55000123456789abcdef','hex')}));"
-            )
-            generated = subprocess.run([str(node), "--input-type=module", "-e", script,
-                fixture.as_uri(), str(app_a), str(app_b), str(engine)],
-                capture_output=True, text=True, timeout=30, check=False)
-            if generated.returncode or any(not p.is_file() for p in (app_a, app_b, engine)):
-                error("Original REA Flutter fixture generator failed: "+generated.stderr.strip()[-160:])
-            if any(p.stat().st_size > 50000 for p in (app_a, app_b, engine)):
-                error("Unexpected fixed Flutter fixture size")
-            good = staging / "rea-flutter.apk"
-            negative = staging / "rea-not-flutter.apk"
-            with zipfile.ZipFile(good, "w", compression=zipfile.ZIP_STORED) as z:
-                for abi, image in (("arm64-v8a", app_a), ("x86_64", app_b)):
-                    z.write(image, "lib/" + abi + "/libapp.so")
-                    z.write(engine, "lib/" + abi + "/libflutter.so")
-            with zipfile.ZipFile(negative, "w", compression=zipfile.ZIP_STORED) as z:
-                z.writestr("assets/README.txt", b"controlled non-Flutter APK\n")
-            for p in staging.iterdir():
-                if p.is_file():
-                    p.chmod(0o644)
-            checksums = {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
-                         for p in staging.iterdir() if p.is_file()}
-            cases = (
-                ("identify_flutter_build", "positive-two-ABI", {"path": str(good)}),
-                ("inspect_dart_aot", "positive-default-ABI", {"path": str(good)}),
-                ("inspect_dart_aot", "positive-selected-x86_64",
-                 {"path": str(good), "abi":"x86_64"}),
-                ("identify_flutter_build", "semantic-negative-not-flutter",
-                 {"path": str(negative)}),
-                ("inspect_dart_aot", "negative-ABI-not-present",
-                 {"path": str(good), "abi": "absent-ABI"}),
-                ("inspect_dart_aot", "negative-absent-payload",
-                 {"path": str(negative)}),
-            )
-            for i, (name, label, args) in enumerate(cases):
-                if name not in tool_by_name:
-                    error("Original REA Flutter tool not advertised: " + name)
-                secure.validate_arguments(tool_by_name[name], args)
-                secure._authorized_target_paths(args, additional_roots=(staging,))
-                _, reply = request_mcp({"jsonrpc":"2.0", "id":810+i,
-                    "method":"tools/call", "params":{"name":name,"arguments":args}},
-                    session, protocol, timeout=115)
-                result = reply.get("result")
-                records.append({"tool":name,"test":label,
-                    "isError":(result.get("isError") if isinstance(result,dict) else True),
-                    "result":result,"protocol_error":reply.get("error")})
-            if any(not (staging / k).is_file() or
-                   hashlib.sha256((staging / k).read_bytes()).hexdigest()!=h
-                   for k,h in checksums.items()):
-                error("Source-owned fixed Flutter fixture changed")
-        if staging.exists():
-            error("Flutter fixture directory was not cleaned")
-        result={"records":records,"input_sha256":checksums,
-                "generator":"Original REA src/flutter/FlutterBuild.fixture.ts",
-                "cleanup":"PASS","inputs_unchanged":True}
-        raw=json.dumps(result,sort_keys=True,ensure_ascii=True).encode()
-        if len(raw)>MAX_RESPONSE or os.environ.get("REA_MOBILE_ENVELOPE_CAPTURE")!="1":
-            error("Flutter MCP result exceeds bounded encrypted capture")
-        print("REA_MOBILE_OUTPUT_BYTES="+str(len(raw)))
-        print("REA_MOBILE_OUTPUT_SHA256="+hashlib.sha256(raw).hexdigest())
-        print("REA_MOBILE_TOOL_ERROR="+str(any(rec["isError"] is True
-                                               for rec in records)).lower())
-        print("REA_FLUTTER_FIXED_CLEANUP=PASS")
-        print("REA_MOBILE_PRIVATE_RESULT_B64="+base64.b64encode(raw).decode("ascii"))
         return
     if data["action"] == "fixture_portable_formats":
         # Fixed source-owned fixtures, never fetched from private customers.
