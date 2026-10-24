@@ -3860,9 +3860,20 @@
       "new_dependency_installs": 0,
       "production_modified": false,
       "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
-      "consumed_github_requests_hygiene": "PENDING_GIT_CLEANUP",
+      "consumed_github_requests_hygiene": "PASS",
       "certified_total": 46,
-      "remaining": 162
+      "remaining": 162,
+      "git_hygiene": {
+        "cleanup_commit": "176437e098aa154fca469975aa082c5dbd8fcfcc",
+        "consumed_requests_deleted": 2,
+        "post_cleanup_workflow_run_id": 40049888164,
+        "conclusion": "SUCCESS",
+        "mcp_loopback": "PASS",
+        "tool_catalog_count": 208,
+        "validated_schema_count": 208,
+        "audited_contracts_count": 208,
+        "original_bridge_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      }
     },
     {
       "phase_id": "LINUX-P49B-OPEN-BINARY-EXISTING-P48-EVIDENCE-20261024",
@@ -3934,9 +3945,20 @@
       "new_dependency_installs": 0,
       "original_engine_changed": false,
       "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
-      "consumed_github_requests_hygiene": "PENDING_GIT_CLEANUP",
+      "consumed_github_requests_hygiene": "PASS",
       "certified_total": 48,
-      "remaining": 160
+      "remaining": 160,
+      "git_hygiene": {
+        "cleanup_commit": "176437e098aa154fca469975aa082c5dbd8fcfcc",
+        "consumed_requests_deleted": 2,
+        "post_cleanup_workflow_run_id": 40049888164,
+        "conclusion": "SUCCESS",
+        "mcp_loopback": "PASS",
+        "tool_catalog_count": 208,
+        "validated_schema_count": 208,
+        "audited_contracts_count": 208,
+        "original_bridge_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      }
     }
   ],
   "active_scope_counts": {
