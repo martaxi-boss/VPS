@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_46_FULLY_CERTIFIED_162_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_47_FULLY_CERTIFIED_161_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -3863,21 +3863,56 @@
       "consumed_github_requests_hygiene": "PENDING_GIT_CLEANUP",
       "certified_total": 46,
       "remaining": 162
+    },
+    {
+      "phase_id": "LINUX-P49B-OPEN-BINARY-EXISTING-P48-EVIDENCE-20261024",
+      "date_utc": "2026-10-24",
+      "status": "ONE_ADDITIONAL_FULLY_CERTIFIED_ORIGINAL_MCP_SESSION_OPENING_PROFILE_FROM_EXISTING_P48_EVIDENCE_NO_RETEST",
+      "proof": {
+        "negative_run_id": 40048544577,
+        "negative_artifact_id": 12542267460,
+        "negative_result_sha256": "a760610eaa21ef277716812e575b0103ac48d79c770042c7dc6a799f2e2759d9",
+        "negative_request_commit": "59d3cbdcf347d90f1e45eeecb56c03b95c44aee9",
+        "positive_run_id": 40048642790,
+        "positive_artifact_id": 12542332442,
+        "positive_result_sha256": "de0ddec4de6605395a306f02ca669822bdd4dce90ad7cae11a5503422bd19179",
+        "positive_request_commit": "04bf612497ed56940400d889a7920942a095c146",
+        "authenticated_local_decryption": true,
+        "positive_calls": 1,
+        "expected_negative_isError_true_calls": 1,
+        "live_original_mcp": true,
+        "ephemeral_session_cleanup": "PASS",
+        "target_sha256": "8a63c98320173f79e263115e10cefc170155e47d1fd4b5a70e4429d2699cae28"
+      },
+      "tools": [
+        {
+          "name": "open_binary",
+          "status": "FULLY_CERTIFIED",
+          "positive": 1,
+          "negative": 1,
+          "scope": "Known system ELF /usr/bin/true opens under existing Linux REA MCP when explicit provider_id=ghidra; returned SHA256 format elf x86_64; omitted provider returns genuine MCP isError=true code capability_unavailable/category unsupported_provider with ambiguous provider candidates (ghidra/hopper/ida/kuna). Test-owned Ghidra session closes successfully; no target execution."
+        }
+      ],
+      "new_dependency_installs": 0,
+      "repeated_calls": 0,
+      "bridge_modified": false,
+      "certified_total": 47,
+      "remaining": 161
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 46,
-    "awaiting_canonical_individual_review": 162,
+    "functional_pass_scoped_distinct": 47,
+    "awaiting_canonical_individual_review": 161,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 46,
+    "fully_certified_distinct": 47,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 162,
-    "remaining_full_certification_distinct": 162
+    "not_functionally_positive_distinct": 161,
+    "remaining_full_certification_distinct": 161
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -3907,7 +3942,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P49-NATIVE-BYTES-20261024",
+  "latest_phase": "LINUX-P49B-OPEN-BINARY-EXISTING-P48-EVIDENCE-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -4808,6 +4843,19 @@
       "evidence_sha256": "2c8fbcf4b22073514bf16f5c54acf044844f29d3bf6134dd108b0602fd2bf2fe",
       "positive_calls": 1,
       "negative_semantic_incomplete": 1
+    },
+    "open_binary": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Original Linux MCP, known ELF64 /usr/bin/true: explicit Ghidra 12.1.4 opens with identity and sha256; auto provider ambiguity rejects correctly with isError=true unsupported_provider; ephemeral cleanup pass",
+      "phase_id": "LINUX-P49B-OPEN-BINARY-EXISTING-P48-EVIDENCE-20261024",
+      "run_ids": [
+        40048544577,
+        40048642790
+      ],
+      "evidence_sha256": "de0ddec4de6605395a306f02ca669822bdd4dce90ad7cae11a5503422bd19179",
+      "negative_evidence_sha256": "a760610eaa21ef277716812e575b0103ac48d79c770042c7dc6a799f2e2759d9",
+      "positive_calls": 1,
+      "negative_calls": 1
     }
   }
 }
