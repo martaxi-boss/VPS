@@ -108,6 +108,12 @@ def validate(data):
                 or not re.fullmatch(r"[A-Za-z0-9+/=]{340,1800}",
                                     data["response_key"])):
             error("Ghidra fixture requires RSA public response key")
+    elif action == "fixture_sigrok_offline_mcp":
+        if set(data) != {"version", "action", "response_key"}:
+            error("Offline sigrok fixture requires only a public RSA reply key")
+        if (not isinstance(data["response_key"], str) or
+                not re.fullmatch(r"[A-Za-z0-9+/=]{340,1800}", data["response_key"])):
+            error("Invalid offline sigrok reply public key")
     elif action == "fixture_portable_formats":
         if set(data) != {"version", "action", "response_key"}:
             error("Format fixture accepts only a public reply key")
@@ -2318,6 +2324,90 @@ def main():
             1 for line in result.stdout.splitlines() if line.split()[-1:] in
             (["node"],["nodejs"]))))
         print("REA_PREFLIGHT_COMPLETE=PASS_READ_ONLY")
+        return
+    if data["action"] == "fixture_sigrok_offline_mcp":
+        # Isolated, source-owned synthetic VCD. Use ORIGINAL permanent REA MCP.
+        # Only readonly/workspace effect tools, no owner-signature shortcuts.
+        import tempfile
+        import shutil
+        root = None
+        records = []
+        unchanged = False
+        try:
+            root = Path(tempfile.mkdtemp(prefix="rea-p185-sigrok-", dir="/dev/shm"))
+            root.chmod(0o755)
+            vcd = root / "owned-uart.vcd"
+            bits = [(0,1),(1042,0),(1146,1),(1250,0),(1354,1),
+                (1458,0),(1562,1),(1666,0),(1770,1),(1874,0),
+                (1978,1),(2288,1)]
+            head = ["$date REA public fixture $end", "$version REA P183 $end",
+                "$timescale 1us $end", "$scope module REA $end",
+                "$var wire 1 ! RX $end", "$upscope $end", "$enddefinitions $end"]
+            body = [f"#{t}\n{v}!" for t,v in bits]
+            vcd.write_text("\n".join(head+body)+"\n", encoding="utf-8")
+            vcd.chmod(0o644)
+            digest = hashlib.sha256(vcd.read_bytes()).hexdigest()
+            if digest != "39a9d0fb2d3a1db6fcf943931efd175e9ca8673d5b871fbab1a3a58b0ccc9209":
+                error("P185 controlled VCD fixture sha mismatch")
+            tasks = [
+                ("inspect_signal_decoders", {"query":"uart"},
+                 "decoder_catalog_uart_positive", False),
+                ("inspect_signal_decoders",
+                 {"decoder":"uart", "query":"baudrate"},
+                 "decoder_uart_help_positive", False),
+                ("inspect_signal_decoders",
+                 {"decoder":"../bad"}, "decoder_invalid_id_negative", True),
+                ("decode_signal_recording",
+                 {"path":str(vcd), "decoders":"uart:rx=RX:baudrate=9600",
+                  "input_format":"vcd", "line_limit":50},
+                 "vcd_uart_annotation_positive", False),
+                ("decode_signal_recording",
+                 {"path":str(vcd), "decoders":""},
+                 "vcd_empty_decoder_negative", True),
+                ("decode_signal_recording",
+                 {"path":str(root/"missing.vcd"),
+                  "decoders":"uart:rx=RX:baudrate=9600",
+                  "input_format":"vcd"},
+                 "vcd_missing_file_negative", True),
+            ]
+            for idx,(name,args,label,expect_error) in enumerate(tasks,start=1850):
+                desc = tool_by_name.get(name)
+                if not isinstance(desc,dict):
+                    error("P185 original tool missing from MCP")
+                classified = secure.classify(name,desc,safe_callable)
+                if classified == "sensitive":
+                    error("P185 requires independently signed owner authorization; stop")
+                if not expect_error:
+                    secure.validate_arguments(desc,args)
+                    secure._authorized_target_paths(args,additional_roots=(root,))
+                _,reply=request_mcp({"jsonrpc":"2.0","id":idx,
+                    "method":"tools/call","params":{"name":name,
+                    "arguments":args}},session,protocol,timeout=95)
+                value=reply.get("result")
+                is_error=("error" in reply or not isinstance(value,dict)
+                          or value.get("isError") is True)
+                records.append({"tool":name,"label":label,
+                    "classification":classified,"arguments":args,
+                    "expected_error":expect_error,"actual_error":is_error,
+                    "pass":expect_error==is_error,"result":value,
+                    "protocol_error":reply.get("error")})
+            unchanged=hashlib.sha256(vcd.read_bytes()).hexdigest()==digest
+        finally:
+            if root is not None and root.exists():
+                shutil.rmtree(root)
+        output={"phase":"REA-P185-SIGROK-OFFLINE","catalog":len(tools),
+            "fixture_sha256":digest,"fixture_input_unchanged":unchanged,
+            "fixture_cleanup":"PASS" if not root.exists() else "FAIL",
+            "vendor_library_sha256":"408da7c2416f4927628ff69f59bc4991505421e35f1f655221636f3cab3aaea4",
+            "records":records}
+        raw=json.dumps(output,ensure_ascii=True,sort_keys=True).encode()
+        if len(raw)>MAX_RESPONSE or os.environ.get("REA_MOBILE_ENVELOPE_CAPTURE")!="1":
+            error("P185 encrypted response capture unavailable")
+        print("REA_MOBILE_OUTPUT_BYTES="+str(len(raw)))
+        print("REA_MOBILE_OUTPUT_SHA256="+hashlib.sha256(raw).hexdigest())
+        print("REA_MOBILE_TOOL_ERROR="+str(
+            any(rec["actual_error"] for rec in records)).lower())
+        print("REA_MOBILE_PRIVATE_RESULT_B64="+base64.b64encode(raw).decode("ascii"))
         return
     if data["action"] == "fixture_linux_install_inventory":
         # Audit original Linux REA installation; no installation, no restart.
