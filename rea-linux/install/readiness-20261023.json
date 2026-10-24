@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_106_FULLY_CERTIFIED_PROFILES_AND_102_PENDING",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_108_FULLY_CERTIFIED_PROFILES_AND_100_PENDING",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -1482,22 +1482,25 @@
     }
   },
   "latest_certification": {
-    "phase_id": "LINUX-P164-APPLE-INTERFACE-DYLIB-SOURCE-OWNED-20261024",
+    "phase_id": "LINUX-P186-SIGROK-OFFLINE-SOURCE-OWNED-20261024",
     "tools": [
-      "decode_interface_builder",
-      "trace_dylib_resolution"
+      "inspect_signal_decoders",
+      "decode_signal_recording"
     ],
-    "run_id": 40122446133,
-    "authenticated_result_sha256": "09cf069a441d3f100e617d18dada2f6bc7ba07d088a96158784a320060b061c6",
-    "fully_certified": 100,
-    "pending": 108,
+    "run_id": 40129444101,
+    "authenticated_result_sha256": "30992b9c15ac0e334df64fc9d6e7d350e18f227e7c02bf473f506ddcf58b247d",
+    "fully_certified": 108,
+    "pending": 100,
     "positive_and_semantic_negative": true,
     "negative_isError_true": true,
+    "original_mcp_catalog": 208,
     "source_owned_offline": true,
+    "hardware_acquisition": "not-performed",
     "fixture_cleanup": "PASS",
     "original_bridge_blob": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7",
-    "bridge_restored": true,
-    "milestone_100_reached": true
+    "original_workflow_blob": "c81ef44d3f3e9dc3b3a819add5ff4f1a33d343df",
+    "request_removed": true,
+    "milestone_108_reached": true
   },
   "transport_status_after_ovh_renewal": {
     "status": "RESTORED_EXACT_ORIGINAL_SSH_BRIDGE",
@@ -1701,8 +1704,8 @@
     "provider": "rea-artifact-graph",
     "negative_error_marker_expected": true
   },
-  "remaining_full_certification_distinct": 102,
-  "fully_certified_distinct": 106,
+  "remaining_full_certification_distinct": 100,
+  "fully_certified_distinct": 108,
   "latest_real_mcp_positive": {
     "phase_id": "LINUX-P177-RETAINED-STATIC-RUNTIME-CORRELATION-20261024",
     "run_id": 40126930712,
@@ -1712,5 +1715,21 @@
     "certified_count": 106,
     "pending": 102,
     "evidence_verified": true
+  },
+  "sigrok_offline_functional_certification": {
+    "status": "PASS_TWO_ORIGINAL_MCP_TOOLS_OFFLINE_SOURCE_OWNED",
+    "run_id": 40129444101,
+    "provider": "sigrok-recording",
+    "provider_version": "sigrok-cli@0.7.2",
+    "provider_library_sha256": "408da7c2416f4927628ff69f59bc4991505421e35f1f655221636f3cab3aaea4",
+    "provider_path": "/opt/rea-reversa/providers/sigrok-offline-0.5.2-20261024/sigrok-cli",
+    "tools": [
+      "inspect_signal_decoders",
+      "decode_signal_recording"
+    ],
+    "usb_hardware_tested": false,
+    "remaining_hardware_libusb_issue": "Out of scope; do not claim repaired",
+    "service_isolation_relaxation": false,
+    "source_fixture_cleanup": "PASS"
   }
 }

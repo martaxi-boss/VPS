@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_100_FULLY_CERTIFIED_108_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_108_FULLY_CERTIFIED_100_PENDING_HYGIENE_MILESTONE",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -6943,21 +6943,84 @@
         }
       ],
       "bridge_restored_commit": "091157f087af3e8905d76b6fe4a81d64050f5e64"
+    },
+    {
+      "phase_id": "LINUX-P186-SIGROK-OFFLINE-SOURCE-OWNED-20261024",
+      "date_utc": "2026-10-24",
+      "status": "TWO_NEW_FULLY_CERTIFIED_ORIGINAL_OFFLINE_SIGROK_MCP_TOOLS_MILESTONE_108",
+      "tools": [
+        {
+          "name": "inspect_signal_decoders",
+          "status": "FULLY_CERTIFIED",
+          "scope": "MCP source-owned offline Sigrok decoder catalog: uart identified in 111 examined decoder entries, baudrate help line returned. Invalid decoder identifier rejected with isError=true.",
+          "positive_evidence_ids": [
+            "ev_56d664e51c37767552e16eaeda2be1bf2bf8c9aa624cc0054d7f463ce5ae1aae",
+            "ev_a49f7e35579b847403422fa8f1cd1f7b73845cdc1376a679c73183e61adc3d4c"
+          ],
+          "positive_calls": 2,
+          "negative_cases": [
+            "invalid_decoder_id"
+          ],
+          "negative_isError_true": true
+        },
+        {
+          "name": "decode_signal_recording",
+          "status": "FULLY_CERTIFIED",
+          "scope": "MCP 258-byte synthetic UART VCD: 11 annotation lines, 0x55 decoded, start/stop bits; invalid empty decoder and nonexistent VCD both rejected isError=true.",
+          "positive_evidence_id": "ev_c29f20f4eb205e550954bcda4359101a90b783b6e2b3a34b3b2085f80156bb56",
+          "positive_calls": 1,
+          "negative_cases": [
+            "empty_decoder",
+            "missing_vcd"
+          ],
+          "negative_isError_true": true
+        }
+      ],
+      "proof": {
+        "run_id": 40129444101,
+        "request_commit": "269217cd68dc8aaf055fc73bf9d75eaedfe8f96a",
+        "encrypted_artifact_id": 12574886174,
+        "encrypted_artifact_sha256": "fad249375631f56c5f4ef3290a7e0bd3af930df47c0a77f0357acd092a5375f3",
+        "request_sha256": "d6c4c7e381de36410b3152604eba158e6b4a9da8eb26e41377204960076b5711",
+        "authenticated_result_sha256": "30992b9c15ac0e334df64fc9d6e7d350e18f227e7c02bf473f506ddcf58b247d",
+        "request_matched": true,
+        "result_digest_matched": true,
+        "original_mcp_catalog": 208,
+        "positive_mcp_calls": 3,
+        "expected_negative_isError_true": 3,
+        "fixture_vcd_sha256": "39a9d0fb2d3a1db6fcf943931efd175e9ca8673d5b871fbab1a3a58b0ccc9209",
+        "provider_library_sha256": "408da7c2416f4927628ff69f59bc4991505421e35f1f655221636f3cab3aaea4",
+        "provider_binary_path": "/opt/rea-reversa/providers/sigrok-offline-0.5.2-20261024/sigrok-cli",
+        "fixture_input_unchanged": true,
+        "fixture_cleanup": "PASS",
+        "original_bridge_restored_blob": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7",
+        "original_workflow_restored_blob": "c81ef44d3f3e9dc3b3a819add5ff4f1a33d343df",
+        "trial_request_deleted": true
+      },
+      "new_certifications": 2,
+      "fully_certified_total": 108,
+      "pending": 100,
+      "limitations": [
+        "Offline USB-free provider: no hardware acquisition or libusb validation.",
+        "Synthetic UART VCD only, not arbitrary signal recordings or USB hardware.",
+        "Real tested original MCP, not catalog-only or mocked provider."
+      ],
+      "hygiene": "Workflow and bridge restored to exact pre-P180 blobs; P186 request removed, encrypted Actions proof preserved; REA-only provider service remains active."
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 106,
-    "awaiting_canonical_individual_review": 102,
+    "functional_pass_scoped_distinct": 108,
+    "awaiting_canonical_individual_review": 100,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 46,
+    "workspace_newly_passed_distinct": 48,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 106,
+    "fully_certified_distinct": 108,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 102,
-    "remaining_full_certification_distinct": 102
+    "not_functionally_positive_distinct": 100,
+    "remaining_full_certification_distinct": 100
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -6987,7 +7050,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P177-RETAINED-STATIC-RUNTIME-CORRELATION-20261024",
+  "latest_phase": "LINUX-P186-SIGROK-OFFLINE-SOURCE-OWNED-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -8769,6 +8832,43 @@
       "limitations": [
         "Correlation is a declared hypothesis, not causality",
         "Controlled fixture evidence only"
+      ]
+    },
+    "inspect_signal_decoders": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P186-SIGROK-OFFLINE-SOURCE-OWNED-20261024",
+      "scope": "Original REA permanent Linux MCP with isolated, USB-free Sigrok 0.7.2/0.5.2 provider installed only in REA; 111 offline protocol decoders examined, query uart returned one actual uart decoder and query baudrate on uart returned one original help line. Invalid decoder path grammar rejected isError=true. No hardware scan, USB acquisition or user recordings.",
+      "run_ids": [
+        40129444101
+      ],
+      "positive_evidence_id": "ev_56d664e51c37767552e16eaeda2be1bf2bf8c9aa624cc0054d7f463ce5ae1aae",
+      "second_positive_evidence_id": "ev_a49f7e35579b847403422fa8f1cd1f7b73845cdc1376a679c73183e61adc3d4c",
+      "positive_evidence_sha256": "30992b9c15ac0e334df64fc9d6e7d350e18f227e7c02bf473f506ddcf58b247d",
+      "negative_evidence_sha256": "30992b9c15ac0e334df64fc9d6e7d350e18f227e7c02bf473f506ddcf58b247d",
+      "positive_calls": 2,
+      "negative_semantic_assertions": 1,
+      "negative_isError_true": true,
+      "limitations": [
+        "USB-free local catalog/help only, no attached signal devices or remote sources.",
+        "Historical hardware libusb limitation not resolved by this offline profile."
+      ]
+    },
+    "decode_signal_recording": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P186-SIGROK-OFFLINE-SOURCE-OWNED-20261024",
+      "scope": "Original REA permanent Linux MCP decodes an isolated source-owned 258-byte VCD carrying one UART 9600-baud 0x55 sample to 11 accurate annotated lines including start and stop bits; source SHA-256 independently verified, untouched afterward, provider sigrok-recording. Empty decoders and missing VCD path rejected isError=true. No acquisition or arbitrary waveform claims.",
+      "run_ids": [
+        40129444101
+      ],
+      "positive_evidence_id": "ev_c29f20f4eb205e550954bcda4359101a90b783b6e2b3a34b3b2085f80156bb56",
+      "positive_evidence_sha256": "30992b9c15ac0e334df64fc9d6e7d350e18f227e7c02bf473f506ddcf58b247d",
+      "negative_evidence_sha256": "30992b9c15ac0e334df64fc9d6e7d350e18f227e7c02bf473f506ddcf58b247d",
+      "positive_calls": 1,
+      "negative_semantic_assertions": 2,
+      "negative_isError_true": true,
+      "limitations": [
+        "Source-owned synthetic VCD and UART only; other formats/protocols and physical capture not certified.",
+        "Offline provider has no USB driver access."
       ]
     }
   },
