@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_30_FULLY_CERTIFIED_PROFILES_AND_178_PENDING",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_38_SCOPED_FULLY_CERTIFIED_AND_170_PENDING",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -515,6 +515,27 @@
       "original_service_unmodified": true
     },
     "latest_contract_certification": {
+      "phase_id": "LINUX-P44-P45-EIGHT-STATIC-COMPOSITION-PROFILES-20261024",
+      "original_mcp_catalog": 208,
+      "fully_certified_distinct": 38,
+      "remaining_full_distinct": 170,
+      "positive_limited_distinct": 0,
+      "original_engine_unchanged": true,
+      "original_service_unchanged": true,
+      "no_additional_dependencies": true,
+      "latest_run_ids": [
+        40046037097,
+        40046252943
+      ],
+      "result_sha256": [
+        "28904046f4ef528cd1db0db22e56675d7b683640d39243b59e41537946c81e78",
+        "15f14666558f042f588abdc5e095fb379491129d19a5fdaf3f78412a00b0125b"
+      ],
+      "authenticated_encrypted_results": true,
+      "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+      "source": "Original compiled REA composed Evidence pure static workflow profiles; 8 tools. Runtime mixed comparison not certified."
+    },
+    "prior_contract_certification": {
       "phase_id": "LINUX-P42-P43-SIX-APPLICATION-CONTRACTS-20261024",
       "fully_certified_distinct": 30,
       "remaining_full_distinct": 178,
@@ -529,25 +550,6 @@
       ],
       "no_new_dependencies_needed": true,
       "original_daemon_stable": true,
-      "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
-    },
-    "prior_contract_certification": {
-      "phase_id": "LINUX-P41-DESKTOP-APPLICATION-ORIGINAL-MCP-CERTIFICATION-20261024",
-      "original_mcp_catalog": 208,
-      "fully_certified_distinct": 24,
-      "existing_scoped_positive_distinct": 24,
-      "positive_limited_distinct": 0,
-      "remaining_full_distinct": 184,
-      "source": "Original permanent REA Linux MCP static desktop application directory triage, 6 positive cases and 11 negative case validation on source-controlled public artifacts",
-      "runs": [
-        40041146946
-      ],
-      "encrypted_result_digest": "7599135241bdcc053492e7bc20fc2d40b4107521fa9ae2a1e43ca68af1fbe273",
-      "authenticated_request_sha256": "117e95f6761d68ffc9930b2eda46bf74d1030df2b51fe580b7a45ee480549069",
-      "encrypted_result_authenticated": true,
-      "original_engine_unchanged": true,
-      "original_service_unchanged": true,
-      "previous_fully_certified_contracts_unchanged": 23,
       "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
     },
     "previous_contract_certification_snapshots": [

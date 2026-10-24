@@ -489,10 +489,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SDIAG_PID_ENV_READ",
         "REA_SDIAG_PID_ENV_SIZE",
         "REA_SDIAG_PID_PROVIDER_KEYS",
-        "REA_SDIAG_STATUS",
-        "REA_P44_FEATURE","REA_P44_SEMANTIC","REA_P44_SOURCE","REA_P44_FUNCTIONS",
-        "REA_P44_PATH","REA_P44_CHANGED","REA_P44_PROCESS","REA_P44_ARTIFACTS",
-        "REA_P44_SERVICE","REA_P44_STATUS","REA_P45_SEMANTIC","REA_P45_STATUS"
+        "REA_SDIAG_STATUS"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -686,93 +683,6 @@ def main():
         print("REA_MOBILE_TOOL_ERROR=" + str(any(r["status"] != "PASS" for r in records)).lower())
         print("REA_MOBILE_PRIVATE_RESULT_B64=" + base64.b64encode(raw).decode())
         return
-    if data["action"] == "fixture_static_files_v2":
-        # P45 exact source-authenticated semantic-node trace, not a fabricated ID.
-        NAME="trace_javascript_semantics"
-        if len(tools)!=208 or NAME not in tool_by_name:
-            error("P45 original MCP contract unavailable")
-        risk=secure.classify(NAME,tool_by_name[NAME],safe_callable)
-        if risk=="sensitive":
-            error("P45 refuses sensitive contract")
-        engine=Path("/opt/rea-reversa/rea")
-        code=engine/"dist/contracts/applicationToolContracts.js"
-        node=Path.home()/".local/share/rea-chatgpt-trial/tools/node-24.15.0/bin/node"
-        source=Path.home()/".local/share/rea-chatgpt-trial/repository/rea"
-        before=subprocess.run(["git","-C",str(source),"status","--porcelain"],
-            capture_output=True,text=True,timeout=12,check=False)
-        ps=subprocess.run(["systemctl","show","rea-reversa-mcp.service","-p","MainPID","--value"],
-            capture_output=True,text=True,timeout=12,check=False)
-        original_pid=ps.stdout.strip()
-        script=r"""
-          const m=await import(process.argv[1]);
-          const e=m.APPLICATION_TOOL_CONTRACTS.find(x=>x.name==='trace_javascript_semantics').examples[0].input;
-          const nodes=e.application.normalized_result.semantic_graph.nodes;
-          if(nodes.length<1)throw Error('Original source example missing semantic node');
-          const seed={kind:'semantic-node',node_id:nodes[0].node_id};
-          const matched={...e,query:{seed,direction:'backward-provenance'}};
-          const nodeQuery={...e,query:{seed:{kind:'property',name:'no-such-property-p45'},direction:'backward-provenance'}};
-          process.stdout.write(JSON.stringify({matched,no_match:nodeQuery}));
-        """
-        generated=subprocess.run([str(node),"--input-type=module","-e",script,code.as_uri()],
-             cwd=str(engine),capture_output=True,text=True,timeout=40,check=False)
-        if generated.returncode or not generated.stdout:
-            error("P45 original compiled semantic node fixture unavailable: "+generated.stderr[-450:])
-        test_inputs=json.loads(generated.stdout)
-        results=[]
-        for case,args in test_inputs.items():
-            secure.validate_arguments(tool_by_name[NAME],args)
-            _,reply=request_mcp({"jsonrpc":"2.0","id":4500+len(results),
-                 "method":"tools/call","params":{"name":NAME,"arguments":args}},
-                 session,protocol,timeout=95)
-            r=reply.get("result")
-            err=r.get("isError") if isinstance(r,dict) else None
-            st=r.get("structuredContent") if isinstance(r,dict) else None
-            norm=st.get("normalized_result") if isinstance(st,dict) else None
-            match=case=="matched"
-            ok=(err is not True and "error" not in reply and isinstance(norm,dict)
-                and isinstance(norm.get("seed_node_ids"),list)
-                and isinstance(norm.get("summary"),dict)
-                and isinstance(norm.get("nodes"),list))
-            if ok and match:
-                ok=(norm.get("seed_node_ids")==[args["query"]["seed"]["node_id"]]
-                    and norm["summary"].get("total_seed_matches")==1
-                    and norm["summary"].get("traversed_nodes")==1
-                    and len(norm["nodes"])==1
-                    and norm["nodes"][0].get("node_id")==args["query"]["seed"]["node_id"]
-                    and norm.get("status") in ("found","partial"))
-            if ok and not match:
-                ok=(norm.get("seed_node_ids")==[] and
-                    norm["summary"].get("total_seed_matches")==0
-                    and norm["nodes"]==[]
-                    and norm.get("status") in ("no-match","partial"))
-            results.append({"case":case,"pass":bool(ok),"isError":err,
-                "status":norm.get("status") if isinstance(norm,dict) else None,
-                "summary":norm.get("summary") if isinstance(norm,dict) else None,
-                "response_sha256":hashlib.sha256(json.dumps(reply,sort_keys=True).encode()).hexdigest(),
-                **({"diagnostic":json.dumps(reply,sort_keys=True)[:2700]} if not ok else {})})
-        after=subprocess.run(["git","-C",str(source),"status","--porcelain"],
-             capture_output=True,text=True,timeout=12,check=False)
-        now=subprocess.run(["systemctl","show","rea-reversa-mcp.service","-p","MainPID","--value"],
-             capture_output=True,text=True,timeout=12,check=False)
-        checkout_stable=before.returncode==after.returncode==0 and before.stdout==after.stdout
-        pid_stable=original_pid.isdecimal() and now.stdout.strip()==original_pid
-        allpass=(len(results)==2 and all(x["pass"] for x in results)
-                 and checkout_stable and pid_stable and len(tools)==208)
-        print("REA_P45_SEMANTIC="+str(sum(x["pass"] for x in results))+"/"+str(len(results)))
-        print("REA_P45_STATUS="+("ALL_PASS" if allpass else "INCOMPLETE"))
-        report={"phase":"LINUX-P45-SEMANTIC-TRACE-NONEMPTY-MCP-20261024",
-            "cases":results,"all_pass":allpass,"original_mcp_catalog":len(tools),
-            "source_checkout_stable":checkout_stable,"service_pid_stable":pid_stable,
-            "source_compiled_sha256":hashlib.sha256(code.read_bytes()).hexdigest()}
-        raw=json.dumps(report,sort_keys=True,ensure_ascii=True).encode()
-        print("REA_MOBILE_TOOL_ERROR="+str(not allpass).lower())
-        print("REA_MOBILE_OUTPUT_BYTES="+str(len(raw)))
-        print("REA_MOBILE_OUTPUT_SHA256="+hashlib.sha256(raw).hexdigest())
-        if len(raw)>MAX_RESPONSE or os.environ.get("REA_MOBILE_ENVELOPE_CAPTURE")!="1":
-            error("P45 evidence must use encrypted response")
-        print("REA_MOBILE_PRIVATE_RESULT_B64="+base64.b64encode(raw).decode())
-        return
-
     if data["action"] in ("fixture_static_files", "fixture_static_files_v2"):
         # Fixed source-owned inputs; never a caller-selected path, URL or code.
         import tempfile

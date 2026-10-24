@@ -288,3 +288,23 @@ Original MCP: [P42](https://github.com/martaxi-boss/VPS/actions/runs/40041816982
 - **compare_javascript_export_shapes**: 1 positivos, 3 negativos. Authentic JavaScript export comparison: 1 added and 1 removed property; partial source coverage; invalid self-comparison correctly rejected.
 
 Sem instalações globais: fornecedores já operacionais. Código original e PID do REA intactos. Certificação limitada aos perfis estáticos testados. Bridge original restaurada; pedidos consumidos removidos. **30/208; faltam 178.**
+
+
+## P44–P45 — oito novos perfis no MCP original (24/10/2026)
+
+**38/208 `FULLY_CERTIFIED` para os perfis evidenciados; faltam 170.**
+
+Prova principal: [Actions #40046037097](https://github.com/martaxi-boss/VPS/actions/runs/40046037097) (artefacto cifrado `12540834987`, RSA-OAEP/AES-GCM autenticado localmente, SHA do pedido `f7ade7937aa65759aa0922126f2a03dfc3e7fdf9d057ccfe640ab1c31adb2f01`, SHA da resposta `28904046f4ef528cd1db0db22e56675d7b683640d39243b59e41537946c81e78`). 27/28 dos oráculos iniciais passaram, com **um caso adicional** de Evidence misturada corretamente recusado por referência pendente (`evidence_integrity_mismatch`); não foi contado como resultado positivo de runtime.
+
+Prova reforçada: [Actions #40046252943](https://github.com/martaxi-boss/VPS/actions/runs/40046252943) (artefacto cifrado `12540893407`, RSA/AES autenticado, SHA do pedido `8005df1c91688abaf397cde913703afe420a46edf7f55ba3d871806d1789f408`, SHA da resposta `15f14666558f042f588abdc5e095fb379491129d19a5fdaf3f78412a00b0125b`). `trace_javascript_semantics` **2/2**, incluindo verdadeiro nó semântico encontrado e ausência de correspondência com cobertura `partial`.
+
+- **`trace_application_feature`**: 2 chamadas positivas, 2 recusas previstas. Authenticated JavaScript application graph traces one exact renderer.js module seed and a nonexisting module; 1 matched seed, 1 traced node and explicit no-match. No native handoffs.
+- **`trace_javascript_semantics`**: 3 chamadas positivas, 2 recusas previstas. Original semantic graph example: matching real semantic-node ID produces found and one traversed module, missing property produces partial/zero seeds; source example with unavailable seed produces partial; two invalid schemas refused.
+- **`compare_source_to_bundle`**: 1 chamadas positivas, 2 recusas previstas. Canonical historical source graph vs authenticated shipped JavaScript application Evidence: one removed source file, zero matching candidates, complete-within-inputs; two invalid inputs refused.
+- **`compare_functions`**: 1 chamadas positivas, 2 recusas previstas. Two distinct genuine source-authored analyze_function Evidence: exact pseudocode return 0 vs return 1 changed, 7 other facets unchanged; two invalid schemas refused.
+- **`build_call_path`**: 2 chamadas positivas, 2 recusas previstas. Complete single-dossier direct call path: start=goal 0x1000 found shortest_hops=0; unreachable goal 0xdeadbeef not_found; two input refusals.
+- **`find_changed_behavior`**: 1 chamadas positivas, 3 recusas previstas. Authenticated function comparison Evidence reports exactly one static_candidate, zero observed runtime changes and behavior_status unknown; three invalid/untrusted input refusals. Extra combined static/runtime Evidence rejected integrity_mismatch (dangling Evidence link), not a validated runtime-positive case.
+- **`compare_process_captures`**: 1 chamadas positivas, 2 recusas previstas. Two distinct empty controlled process-capture Evidence records compare with status unchanged and no first divergence; two invalid requests refused.
+- **`compare_artifacts`**: 1 chamadas positivas, 2 recusas previstas. Two source-authored distinct inventory Evidence roots compare as changed, one changed summary delta, no contradictory membership; two invalid schemas refused.
+
+Todos os testes foram `tools/call` no motor original Linux, com `tools/list=208`; inspeções de esquema erradas deram `isError=true`. Os exemplos são do código compilado original (sem dados de produção). Não há provas de execução dinâmica, grandes volumes ou autorizações gerais sobre alvos externos. O motor, o PID e o checkout ficaram inalterados; nenhum fornecedor novo foi necessário. Ponte temporária retirada, pedido consumido eliminado e catálogo reaprovado no pós-higiene.

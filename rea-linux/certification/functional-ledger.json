@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_30_FULLY_CERTIFIED_178_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_38_SCOPED_FULLY_CERTIFIED_170_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -3490,21 +3490,169 @@
         "fully_certified_distinct": 30,
         "remaining_full": 178
       }
+    },
+    {
+      "phase_id": "LINUX-P44-P45-EIGHT-STATIC-COMPOSITION-PROFILES-20261024",
+      "date_utc": "2026-10-24",
+      "status": "EIGHT_NEW_SCOPED_ORIGINAL_PERMANENT_MCP_COMPOSITION_CONTRACTS_CERTIFIED",
+      "source": {
+        "engine": "/opt/rea-reversa/rea",
+        "original_mcp": "127.0.0.1:8765/mcp",
+        "catalog": 208,
+        "tool_examples": "Original installed compiled REA contracts (source-owned, no external targets)",
+        "source_module_sha256": {
+          "applicationToolContracts.js": "abc2c2c62b0b3d16c56a149d63ce5494d5633d0d89e8ac99a2330663e6944d95",
+          "sessionToolContracts.js": "1ffd07c5825d9c9a05d76fa2f94c8bad7d1c19539606159218c3748e57b96cdc",
+          "investigationExamples.js": "4df4365dec0b2bea855d5ca0cffff9c9b5ba41e4939b5a308a53c2b1150b619a"
+        }
+      },
+      "runs": [
+        {
+          "run_id": 40046037097,
+          "request_commit": "8f171d1a357f825250be39bfc1e709fab3f7a6ea",
+          "artifact_id": 12540834987,
+          "authenticated_request_sha256": "f7ade7937aa65759aa0922126f2a03dfc3e7fdf9d057ccfe640ab1c31adb2f01",
+          "authenticated_result_sha256": "28904046f4ef528cd1db0db22e56675d7b683640d39243b59e41537946c81e78",
+          "verified_AES_GCM_RSA_OAEP": true,
+          "raw_result": "27/28 suite oracle PASS; 1 extra combined static/runtime scenario is a typed evidence_integrity_mismatch due dangling Evidence link, recorded explicitly as input rejection (not a positive runtime case).",
+          "positive_outputs": 10,
+          "expected_rejections": 17,
+          "additional_integrity_rejection": 1
+        },
+        {
+          "run_id": 40046252943,
+          "request_commit": "dc3bdf4cbaf5c356b271346eb2c8d892e947d99e",
+          "artifact_id": 12540893407,
+          "authenticated_request_sha256": "8005df1c91688abaf397cde913703afe420a46edf7f55ba3d871806d1789f408",
+          "authenticated_result_sha256": "15f14666558f042f588abdc5e095fb379491129d19a5fdaf3f78412a00b0125b",
+          "verified_AES_GCM_RSA_OAEP": true,
+          "raw_result": "2/2 PASS; matched real semantic node status found, distinct missing property status partial; source and systemd PID unchanged.",
+          "positive_outputs": 2
+        }
+      ],
+      "tools": [
+        {
+          "name": "trace_application_feature",
+          "status": "FULLY_CERTIFIED",
+          "risk": "workspace",
+          "scope": "Authenticated JavaScript application graph traces one exact renderer.js module seed and a nonexisting module; 1 matched seed, 1 traced node and explicit no-match. No native handoffs.",
+          "positive_calls": 2,
+          "negative_calls": 2,
+          "limitations": [
+            "Synthetic original source Evidence only; untested on arbitrary production targets or large adversarial inputs."
+          ]
+        },
+        {
+          "name": "trace_javascript_semantics",
+          "status": "FULLY_CERTIFIED",
+          "risk": "workspace",
+          "scope": "Original semantic graph example: matching real semantic-node ID produces found and one traversed module, missing property produces partial/zero seeds; source example with unavailable seed produces partial; two invalid schemas refused.",
+          "positive_calls": 3,
+          "negative_calls": 2,
+          "limitations": [
+            "Semantic example lacks real relations, so edge traversal and dynamic flows are not certified."
+          ]
+        },
+        {
+          "name": "compare_source_to_bundle",
+          "status": "FULLY_CERTIFIED",
+          "risk": "workspace",
+          "scope": "Canonical historical source graph vs authenticated shipped JavaScript application Evidence: one removed source file, zero matching candidates, complete-within-inputs; two invalid inputs refused.",
+          "positive_calls": 1,
+          "negative_calls": 2,
+          "limitations": [
+            "Synthetic original source Evidence only; untested on arbitrary production targets or large adversarial inputs."
+          ]
+        },
+        {
+          "name": "compare_functions",
+          "status": "FULLY_CERTIFIED",
+          "risk": "workspace",
+          "scope": "Two distinct genuine source-authored analyze_function Evidence: exact pseudocode return 0 vs return 1 changed, 7 other facets unchanged; two invalid schemas refused.",
+          "positive_calls": 1,
+          "negative_calls": 2,
+          "limitations": [
+            "Synthetic original source Evidence only; untested on arbitrary production targets or large adversarial inputs."
+          ]
+        },
+        {
+          "name": "build_call_path",
+          "status": "FULLY_CERTIFIED",
+          "risk": "workspace",
+          "scope": "Complete single-dossier direct call path: start=goal 0x1000 found shortest_hops=0; unreachable goal 0xdeadbeef not_found; two input refusals.",
+          "positive_calls": 2,
+          "negative_calls": 2,
+          "limitations": [
+            "Synthetic original source Evidence only; untested on arbitrary production targets or large adversarial inputs."
+          ]
+        },
+        {
+          "name": "find_changed_behavior",
+          "status": "FULLY_CERTIFIED",
+          "risk": "workspace",
+          "scope": "Authenticated function comparison Evidence reports exactly one static_candidate, zero observed runtime changes and behavior_status unknown; three invalid/untrusted input refusals. Extra combined static/runtime Evidence rejected integrity_mismatch (dangling Evidence link), not a validated runtime-positive case.",
+          "positive_calls": 1,
+          "negative_calls": 3,
+          "limitations": [
+            "Combined process/static runtime Evidence had dangling links and was rejected; certified scope is static comparison, not mixed runtime correlation."
+          ]
+        },
+        {
+          "name": "compare_process_captures",
+          "status": "FULLY_CERTIFIED",
+          "risk": "workspace",
+          "scope": "Two distinct empty controlled process-capture Evidence records compare with status unchanged and no first divergence; two invalid requests refused.",
+          "positive_calls": 1,
+          "negative_calls": 2,
+          "limitations": [
+            "Synthetic original source Evidence only; untested on arbitrary production targets or large adversarial inputs."
+          ]
+        },
+        {
+          "name": "compare_artifacts",
+          "status": "FULLY_CERTIFIED",
+          "risk": "workspace",
+          "scope": "Two source-authored distinct inventory Evidence roots compare as changed, one changed summary delta, no contradictory membership; two invalid schemas refused.",
+          "positive_calls": 1,
+          "negative_calls": 2,
+          "limitations": [
+            "Synthetic original source Evidence only; untested on arbitrary production targets or large adversarial inputs."
+          ]
+        }
+      ],
+      "limitations": [
+        "Full certification is limited to the declared static/test Evidence profiles; catalog visibility and synthetic source fixtures are not equivalent to unrestricted production authorization.",
+        "Workspace-class tools still require the Skill's exact owner authorization when analyzing an actual external target; synthetic suite does not prove arbitrary permissions.",
+        "No service restart, package installation, original engine changes, target execution, owner signature fabrication or changes to unrelated projects."
+      ],
+      "hygiene": {
+        "restore_canonical_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+        "one_shot_requests_to_remove": [
+          "rea-linux/requests/semantic-nonempty-p45-20261024.json"
+        ],
+        "post_cleanup_tools_schemas_contracts_check_required": true
+      },
+      "resulting_counts": {
+        "fully_certified_distinct": 38,
+        "remaining": 170,
+        "partial": 0,
+        "registered": 208
+      }
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 30,
-    "awaiting_canonical_individual_review": 178,
+    "functional_pass_scoped_distinct": 38,
+    "awaiting_canonical_individual_review": 170,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 30,
+    "fully_certified_distinct": 38,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 178,
-    "remaining_full_certification_distinct": 178
+    "not_functionally_positive_distinct": 170,
+    "remaining_full_certification_distinct": 170
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -3534,7 +3682,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P42-P43-SIX-APPLICATION-CONTRACTS-20261024",
+  "latest_phase": "LINUX-P44-P45-EIGHT-STATIC-COMPOSITION-PROFILES-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -4223,6 +4371,121 @@
       "negative_calls": 3,
       "proof_sha256": [
         "ec0f9c28c81fafa4c6c9f8f10dc0b9c705f8e5cc75a8b6e1023a2bc5745ca4cd"
+      ]
+    },
+    "trace_application_feature": {
+      "status": "FULLY_CERTIFIED",
+      "risk": "workspace",
+      "scope": "Authenticated JavaScript application graph traces one exact renderer.js module seed and a nonexisting module; 1 matched seed, 1 traced node and explicit no-match. No native handoffs.",
+      "phase_id": "LINUX-P44-P45-EIGHT-STATIC-COMPOSITION-PROFILES-20261024",
+      "positive_calls": 2,
+      "negative_calls": 2,
+      "run_ids": [
+        40046037097
+      ],
+      "evidence_result_digests": [
+        "28904046f4ef528cd1db0db22e56675d7b683640d39243b59e41537946c81e78"
+      ]
+    },
+    "trace_javascript_semantics": {
+      "status": "FULLY_CERTIFIED",
+      "risk": "workspace",
+      "scope": "Original semantic graph example: matching real semantic-node ID produces found and one traversed module, missing property produces partial/zero seeds; source example with unavailable seed produces partial; two invalid schemas refused.",
+      "phase_id": "LINUX-P44-P45-EIGHT-STATIC-COMPOSITION-PROFILES-20261024",
+      "positive_calls": 3,
+      "negative_calls": 2,
+      "run_ids": [
+        40046037097,
+        40046252943
+      ],
+      "evidence_result_digests": [
+        "28904046f4ef528cd1db0db22e56675d7b683640d39243b59e41537946c81e78",
+        "15f14666558f042f588abdc5e095fb379491129d19a5fdaf3f78412a00b0125b"
+      ]
+    },
+    "compare_source_to_bundle": {
+      "status": "FULLY_CERTIFIED",
+      "risk": "workspace",
+      "scope": "Canonical historical source graph vs authenticated shipped JavaScript application Evidence: one removed source file, zero matching candidates, complete-within-inputs; two invalid inputs refused.",
+      "phase_id": "LINUX-P44-P45-EIGHT-STATIC-COMPOSITION-PROFILES-20261024",
+      "positive_calls": 1,
+      "negative_calls": 2,
+      "run_ids": [
+        40046037097
+      ],
+      "evidence_result_digests": [
+        "28904046f4ef528cd1db0db22e56675d7b683640d39243b59e41537946c81e78"
+      ]
+    },
+    "compare_functions": {
+      "status": "FULLY_CERTIFIED",
+      "risk": "workspace",
+      "scope": "Two distinct genuine source-authored analyze_function Evidence: exact pseudocode return 0 vs return 1 changed, 7 other facets unchanged; two invalid schemas refused.",
+      "phase_id": "LINUX-P44-P45-EIGHT-STATIC-COMPOSITION-PROFILES-20261024",
+      "positive_calls": 1,
+      "negative_calls": 2,
+      "run_ids": [
+        40046037097
+      ],
+      "evidence_result_digests": [
+        "28904046f4ef528cd1db0db22e56675d7b683640d39243b59e41537946c81e78"
+      ]
+    },
+    "build_call_path": {
+      "status": "FULLY_CERTIFIED",
+      "risk": "workspace",
+      "scope": "Complete single-dossier direct call path: start=goal 0x1000 found shortest_hops=0; unreachable goal 0xdeadbeef not_found; two input refusals.",
+      "phase_id": "LINUX-P44-P45-EIGHT-STATIC-COMPOSITION-PROFILES-20261024",
+      "positive_calls": 2,
+      "negative_calls": 2,
+      "run_ids": [
+        40046037097
+      ],
+      "evidence_result_digests": [
+        "28904046f4ef528cd1db0db22e56675d7b683640d39243b59e41537946c81e78"
+      ]
+    },
+    "find_changed_behavior": {
+      "status": "FULLY_CERTIFIED",
+      "risk": "workspace",
+      "scope": "Authenticated function comparison Evidence reports exactly one static_candidate, zero observed runtime changes and behavior_status unknown; three invalid/untrusted input refusals. Extra combined static/runtime Evidence rejected integrity_mismatch (dangling Evidence link), not a validated runtime-positive case.",
+      "phase_id": "LINUX-P44-P45-EIGHT-STATIC-COMPOSITION-PROFILES-20261024",
+      "positive_calls": 1,
+      "negative_calls": 3,
+      "run_ids": [
+        40046037097
+      ],
+      "evidence_result_digests": [
+        "28904046f4ef528cd1db0db22e56675d7b683640d39243b59e41537946c81e78"
+      ],
+      "limitation": "Combined static/runtime rejected integrity mismatch; only static scope certified."
+    },
+    "compare_process_captures": {
+      "status": "FULLY_CERTIFIED",
+      "risk": "workspace",
+      "scope": "Two distinct empty controlled process-capture Evidence records compare with status unchanged and no first divergence; two invalid requests refused.",
+      "phase_id": "LINUX-P44-P45-EIGHT-STATIC-COMPOSITION-PROFILES-20261024",
+      "positive_calls": 1,
+      "negative_calls": 2,
+      "run_ids": [
+        40046037097
+      ],
+      "evidence_result_digests": [
+        "28904046f4ef528cd1db0db22e56675d7b683640d39243b59e41537946c81e78"
+      ]
+    },
+    "compare_artifacts": {
+      "status": "FULLY_CERTIFIED",
+      "risk": "workspace",
+      "scope": "Two source-authored distinct inventory Evidence roots compare as changed, one changed summary delta, no contradictory membership; two invalid schemas refused.",
+      "phase_id": "LINUX-P44-P45-EIGHT-STATIC-COMPOSITION-PROFILES-20261024",
+      "positive_calls": 1,
+      "negative_calls": 2,
+      "run_ids": [
+        40046037097
+      ],
+      "evidence_result_digests": [
+        "28904046f4ef528cd1db0db22e56675d7b683640d39243b59e41537946c81e78"
       ]
     }
   }
