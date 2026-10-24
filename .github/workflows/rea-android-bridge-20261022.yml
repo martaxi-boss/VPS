@@ -87,7 +87,7 @@ jobs:
           /usr/bin/python3 -c "from cryptography.hazmat.primitives.ciphers.aead import AESGCM"
           /usr/bin/python3 -m unittest -v ops.tests.test_rea_secure_protocol_20261022 ops.tests.test_rea_describe_delivery_20261022
       - name: P182 offline sigrok USB-free library build on disposable runner
-        if: contains(github.event.head_commit.message, 'P182 offline sigrok build trial') || contains(github.event.head_commit.message, 'P183 sigrok CLI replay trial')
+        if: contains(github.event.head_commit.message, 'P182 offline sigrok build trial') || contains(github.event.head_commit.message, 'P183 sigrok CLI replay trial') || contains(github.event.head_commit.message, 'P184 offline Sigrok private staging')
         shell: bash
         run: |
           set -euo pipefail
@@ -117,7 +117,7 @@ jobs:
           echo "REA_P182_SIGROK_USB_LINK=NONE"
           echo "REA_P182_SIGROK_BUILD=PASS_ON_EPHEMERAL_RUNNER"
       - name: P183 verify USB-free sigrok CLI decoder on synthetic VCD
-        if: contains(github.event.head_commit.message, 'P183 sigrok CLI replay trial')
+        if: contains(github.event.head_commit.message, 'P183 sigrok CLI replay trial') || contains(github.event.head_commit.message, 'P184 offline Sigrok private staging')
         shell: bash
         run: |
           set -euo pipefail
@@ -152,6 +152,74 @@ jobs:
           echo "REA_P183_UART_OUTPUT_SHA256=$(sha256sum "$root/uart.txt" | cut -d' ' -f1)"
           echo "REA_P183_UART_OUTPUT_BYTES=$(wc -c < "$root/uart.txt")"
           echo "REA_P183_OFFLINE_CLI=PASS_USB_FREE"
+      - name: P184 stage offline Sigrok within REA-only provider prefix
+        if: contains(github.event.head_commit.message, 'P184 offline Sigrok private staging')
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          lib="$RUNNER_TEMP/rea-sigrok-offline-build/prefix/lib/libsigrok.so.4.1.1"
+          vcd="$RUNNER_TEMP/rea-sigrok-offline-build/owned-uart.vcd"
+          test -s "$lib"
+          test -s "$vcd"
+          printf '#!/bin/sh\nexport LD_LIBRARY_PATH=/opt/rea-reversa/providers/sigrok-offline-0.5.2-20261024\nexec /usr/bin/sigrok-cli "$@"\n' > "$RUNNER_TEMP/rea-p184-sigrok-cli"
+          chmod 700 "$RUNNER_TEMP/rea-p184-sigrok-cli"
+          src_sha="$(sha256sum "$lib" | cut -d' ' -f1)"
+          stage="/dev/shm/rea-p184-$(printf '%.12s' "$GITHUB_SHA")"
+          opts=(-o PreferredAuthentications=password -o PubkeyAuthentication=no
+            -o StrictHostKeyChecking=yes
+            -o UserKnownHostsFile="$RUNNER_TEMP/rea-mobile-known"
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519
+            -o ConnectTimeout=15 -o ServerAliveInterval=10)
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
+            "umask 077; test ! -e '$stage'; mkdir -m 0700 '$stage'"
+          sshpass -e scp -q "${opts[@]}" "$lib" "$vcd" \
+            "$RUNNER_TEMP/rea-p184-sigrok-cli" \
+            "ubuntu@146.59.145.3:$stage/"
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
+            "REA_P184_STAGE='$stage' REA_P184_EXPECTED_SHA='$src_sha' bash -se" <<'REMOTE'
+          set -euo pipefail
+          stage="$REA_P184_STAGE"
+          prefix=/opt/rea-reversa/providers/sigrok-offline-0.5.2-20261024
+          created=0
+          valid=0
+          cleanup() {
+            code="$?"
+            if [ "$created" = 1 ] && [ "$valid" != 1 ]; then
+              sudo -n rm -rf -- "$prefix" || true
+            fi
+            rm -rf -- "$stage"
+            exit "$code"
+          }
+          trap cleanup EXIT
+          test ! -e "$prefix"
+          actual="$(sha256sum "$stage/libsigrok.so.4.1.1" | cut -d' ' -f1)"
+          test "$actual" = "$REA_P184_EXPECTED_SHA"
+          sudo -n install -d -m 0755 -o root -g root "$prefix"
+          created=1
+          sudo -n install -m 0644 -o root -g root \
+            "$stage/libsigrok.so.4.1.1" "$prefix/libsigrok.so.4.1.1"
+          sudo -n ln -s libsigrok.so.4.1.1 "$prefix/libsigrok.so.4"
+          sudo -n install -m 0755 -o root -g root \
+            "$stage/rea-p184-sigrok-cli" "$prefix/sigrok-cli"
+          chmod 755 "$stage"
+          chmod 644 "$stage/owned-uart.vcd"
+          sudo -n -u rea-reversa "$prefix/sigrok-cli" --version \
+            > "$stage/version.txt" 2>&1
+          grep -q 'sigrok-cli 0.7.2' "$stage/version.txt"
+          sudo -n -u rea-reversa "$prefix/sigrok-cli" --dont-scan \
+            --input-file="$stage/owned-uart.vcd" --input-format=vcd \
+            --protocol-decoders=uart:rx=RX:baudrate=9600 \
+            --protocol-decoder-samplenum \
+            > "$stage/replayed.txt" 2> "$stage/error.txt"
+          test -s "$stage/replayed.txt"
+          if ldd "$prefix/libsigrok.so.4" | grep -qi libusb; then exit 1; fi
+          echo "REA_P184_REA_ONLY_LIBRARY_SHA256=$actual"
+          echo "REA_P184_STAGING=PASS_NATIVE_SERVICE_ACCOUNT_OFFLINE"
+          valid=1
+          REMOTE
       - name: Talk to existing REA over VPS loopback
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
