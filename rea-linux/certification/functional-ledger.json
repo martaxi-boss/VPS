@@ -4656,7 +4656,19 @@
       "new_dependencies": 0,
       "original_bridge_unchanged": true,
       "consumed_request_removed_in_canonical_commit": true,
-      "fully_certified_total": 72
+      "fully_certified_total": 72,
+      "git_hygiene": {
+        "cleanup_commit": "37134ff1c272bbed0cb74df7f0a41629ba60195b",
+        "deleted_consumed_requests": 2,
+        "post_cleanup_run_id": 40054296043,
+        "workflow_conclusion": "SUCCESS",
+        "loopback_mcp": "PASS",
+        "catalog": 208,
+        "validated_schemas": 208,
+        "audited_contracts": 208,
+        "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      },
+      "consumed_request_cleanup": "PASS"
     },
     {
       "phase_id": "LINUX-P69-GHIDRA-DEFINED-DATA-TYPE-20261024",
@@ -4691,7 +4703,19 @@
       "original_bridge_unchanged": true,
       "consumed_request_removed_in_canonical_commit": true,
       "fully_certified_total": 73,
-      "remaining": 135
+      "remaining": 135,
+      "git_hygiene": {
+        "cleanup_commit": "37134ff1c272bbed0cb74df7f0a41629ba60195b",
+        "deleted_consumed_requests": 2,
+        "post_cleanup_run_id": 40054296043,
+        "workflow_conclusion": "SUCCESS",
+        "loopback_mcp": "PASS",
+        "catalog": 208,
+        "validated_schemas": 208,
+        "audited_contracts": 208,
+        "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      },
+      "consumed_request_cleanup": "PASS"
     }
   ],
   "active_scope_counts": {

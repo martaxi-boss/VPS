@@ -555,7 +555,10 @@
       "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
       "consumed_github_requests": "PASS_REMOVED_2",
       "previous_post_cleanup_catalog_run_id": 40053981743,
-      "post_cleanup_run_id": null
+      "post_cleanup_run_id": 40054296043,
+      "post_cleanup_catalog": 208,
+      "post_cleanup_schemas": 208,
+      "post_cleanup_contract_matches": 208
     },
     "prior_contract_certification": {
       "phase_id": "LINUX-P65-GHIDRA-ADVANCED-FOUR-SCOPED-FUNCTION-PROFILES-20261024",
@@ -1319,6 +1322,17 @@
       "schemas_validated": 208,
       "contracts_matched": 208,
       "bridge_original_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+    },
+    "latest_p68_p69_hygiene": {
+      "cleanup_commit": "37134ff1c272bbed0cb74df7f0a41629ba60195b",
+      "deleted_consumed_requests": 2,
+      "post_cleanup_run_id": 40054296043,
+      "workflow_conclusion": "SUCCESS",
+      "loopback_mcp": "PASS",
+      "catalog": 208,
+      "validated_schemas": 208,
+      "audited_contracts": 208,
+      "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
     }
   },
   "final_hygiene_verified": {
