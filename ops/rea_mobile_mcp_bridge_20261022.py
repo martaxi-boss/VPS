@@ -635,7 +635,6 @@ def main():
         # live sensitive tools/calls, no attached devices, no user input.
         # This is isolated provider/MCP source conformance and must not be
         # mistaken for a signed production-MCP negative replay.
-        import re
         root = Path.home() / ".local/share/rea-chatgpt-trial"
         source = root / "repository/rea"
         node = root / "tools/node-24.15.0/bin/node"
