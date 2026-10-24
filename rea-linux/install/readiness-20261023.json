@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_47_FULLY_CERTIFIED_PROFILES_AND_161_PENDING",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_48_FULLY_CERTIFIED_PROFILES_AND_160_PENDING",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -515,6 +515,37 @@
       "original_service_unmodified": true
     },
     "latest_contract_certification": {
+      "phase_id": "LINUX-P50-NATIVE-INSTRUCTION-20261024",
+      "original_mcp_catalog": 208,
+      "fully_certified_distinct": 48,
+      "remaining_full_distinct": 160,
+      "positive_limited_distinct": 0,
+      "latest_run_ids": [
+        40049475089,
+        40049725627
+      ],
+      "artifact_ids": [
+        12542158278,
+        12541849864
+      ],
+      "result_sha256": [
+        "2c8fbcf4b22073514bf16f5c54acf044844f29d3bf6134dd108b0602fd2bf2fe",
+        "63a8ab978989ab7764d4eed0d7be35c999dc65bd93b2098dd60bc2541968a83f"
+      ],
+      "authenticated_encrypted_results": true,
+      "positive_original_mcp_instruction_decode": true,
+      "negative_normalized_outside_memory": true,
+      "negative_isError_true": false,
+      "no_additional_dependencies": true,
+      "original_engine_unchanged": true,
+      "original_service_unchanged": true,
+      "ephemeral_ghidra_session_cleanup": "PASS",
+      "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+      "certified_tool": "inspect_native_instruction",
+      "source": "Real Ghidra native CALL with verified bytes and references; unbacked address correctly reports outside-memory status (not MCP failure)",
+      "consumed_github_requests": "PENDING_REMOVAL"
+    },
+    "prior_contract_certification": {
       "phase_id": "LINUX-P49B-OPEN-BINARY-EXISTING-P48-EVIDENCE-20261024",
       "original_mcp_catalog": 208,
       "fully_certified_distinct": 47,
@@ -543,35 +574,6 @@
       "original_service_unchanged": true,
       "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
       "source": "Two pre-existing original authenticated MCP calls; real provider ambiguity refusal vs explicitly bound Ghidra session opening"
-    },
-    "prior_contract_certification": {
-      "phase_id": "LINUX-P49-NATIVE-BYTES-20261024",
-      "original_mcp_catalog": 208,
-      "fully_certified_distinct": 46,
-      "remaining_full_distinct": 162,
-      "positive_limited_distinct": 0,
-      "latest_run_ids": [
-        40049475089
-      ],
-      "artifact_ids": [
-        12542158278
-      ],
-      "result_sha256": [
-        "2c8fbcf4b22073514bf16f5c54acf044844f29d3bf6134dd108b0602fd2bf2fe"
-      ],
-      "request_sha256": [
-        "453e6225754f1de6aeb4047825671579fdfde0f1802cc6a6d2b538d06e596b66"
-      ],
-      "authenticated_encrypted_results": true,
-      "no_additional_dependencies": true,
-      "original_engine_unchanged": true,
-      "original_service_unchanged": true,
-      "ephemeral_ghidra_session_cleanup": "PASS",
-      "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
-      "certified_tool": "read_bytes",
-      "source": "16 real mapped bytes and zero real unmapped bytes with complete=false; isError not true for both typed outcomes",
-      "pending_positive_tool": "inspect_native_instruction",
-      "consumed_github_requests": "PENDING_REMOVAL"
     },
     "previous_contract_certification_snapshots": [
       {
@@ -805,6 +807,36 @@
         "source": "16 real mapped bytes and zero real unmapped bytes with complete=false; isError not true for both typed outcomes",
         "pending_positive_tool": "inspect_native_instruction",
         "consumed_github_requests": "PENDING_REMOVAL"
+      },
+      {
+        "phase_id": "LINUX-P49B-OPEN-BINARY-EXISTING-P48-EVIDENCE-20261024",
+        "original_mcp_catalog": 208,
+        "fully_certified_distinct": 47,
+        "remaining_full_distinct": 161,
+        "positive_limited_distinct": 0,
+        "latest_run_ids": [
+          40048544577,
+          40048642790
+        ],
+        "artifact_ids": [
+          12542267460,
+          12542332442
+        ],
+        "result_sha256": [
+          "a760610eaa21ef277716812e575b0103ac48d79c770042c7dc6a799f2e2759d9",
+          "de0ddec4de6605395a306f02ca669822bdd4dce90ad7cae11a5503422bd19179"
+        ],
+        "authenticated_encrypted_results": true,
+        "reused_prior_proofs_without_reexecution": true,
+        "newly_certified_tool": "open_binary",
+        "negative_isError_true_unsupported_provider": true,
+        "positive_explicit_ghidra": true,
+        "ephemeral_ghidra_session_cleanup": "PASS",
+        "no_additional_dependencies": true,
+        "original_engine_unchanged": true,
+        "original_service_unchanged": true,
+        "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+        "source": "Two pre-existing original authenticated MCP calls; real provider ambiguity refusal vs explicitly bound Ghidra session opening"
       }
     ],
     "latest_p48_hygiene": {
