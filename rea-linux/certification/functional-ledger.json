@@ -6761,21 +6761,79 @@
         "No system package installation or production modification"
       ],
       "hygiene": "Original bridge restored and P164 request deleted"
+    },
+    {
+      "phase_id": "LINUX-P172-GHIDRA-SOURCE-OWNED-OBJC-SWIFT-20261024",
+      "date_utc": "2026-10-24",
+      "status": "THREE_NEW_FULLY_CERTIFIED_ORIGINAL_GHIDRA_OBJC_SWIFT_STATIC_TOOLS",
+      "tools": [
+        {
+          "name": "get_objc_classes",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Original REA Linux MCP on /dev/shm source-owned compiled synthetic ELF; actual Ghidra session; Detected 1 source-owned ELF symbol OBJC_CLASS_$_REAExample at 0x101129; invalid numeric pattern rejected isError=true. No target execution; synthetic symbol inventory only, not runtime Apple framework metadata.",
+          "positive_evidence_id": "ev_c3b859b5f639c7254fd8b0ded2645a0f1f2c7d827b1b946ad56b90cf252e16e1",
+          "positive_calls": 1,
+          "negative_isError_true": true
+        },
+        {
+          "name": "get_objc_protocols",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Original REA Linux MCP on /dev/shm source-owned compiled synthetic ELF; actual Ghidra session; Detected 1 source-owned ELF symbol OBJC_PROTOCOL_$_REAExampleProtocol at 0x101134; extra unsupported argument rejected isError=true. No target execution; synthetic symbol inventory only, not runtime Apple framework metadata.",
+          "positive_evidence_id": "ev_feed6d0c1a8b575550869bf96cf3ae64a64ba42dd068fabc9618c5d87f6090b9",
+          "positive_calls": 1,
+          "negative_isError_true": true
+        },
+        {
+          "name": "analyze_swift_types",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Original REA Linux MCP on /dev/shm source-owned compiled synthetic ELF; actual Ghidra session; Detected 1 Swift-mangled synthetic type $s3REA4PairV as structs (address 0x10113f, alias rea_swift_struct); invalid category rejected isError=true. No target execution; synthetic symbol inventory only, not runtime Apple framework metadata.",
+          "positive_evidence_id": "ev_66b308a5d3b2de8d0d47179bae19f83a5ac8721408020f6a2f62d59b765b6dfa",
+          "positive_calls": 1,
+          "negative_isError_true": true
+        }
+      ],
+      "proof": {
+        "run_id": 40125734763,
+        "request_commit": "7226be52b88a698c6b76a8a1a7dfa3176ef55121",
+        "encrypted_artifact_id": 12573236065,
+        "encrypted_artifact_sha256": "df9a0973f271beff82c9e63ebfc3a78b646476c61a440e6a8ff33c74ec8c2328",
+        "request_sha256": "704d6aee4e9f3bde0d29fb1ca406eed4858f76c8d23d943d6987075294cd55ec",
+        "authenticated_result_sha256": "8f1c7f7970c52ae23cea50de257c990934c086f3a61c6c8eb13e33428611a232",
+        "request_matched": true,
+        "result_digest_matched": true,
+        "catalog": 208,
+        "source_compiled_elf_sha256": "aff3553fe0f77f12a70b4979fea775ff8a10ae3a4d737b39592836e98714dc8c",
+        "source_c_sha256": "c77c75db196b1afe254646c4d069732e718beba317ac046c0ccd842770ab2921",
+        "positive_mcp_calls": 5,
+        "negative_mcp_input_rejections": 4,
+        "inputs_unchanged": true,
+        "cleanup": "PASS",
+        "bridge_restored_after_trial_commit": "dc4d2a0fba3d841aa3ca2894a024969d39f47c1e"
+      },
+      "new_certifications": 3,
+      "fully_certified_total": 103,
+      "pending": 105,
+      "limitations": [
+        "Only source-owned ELF with synthetic Objective-C/Swift-named symbols; not real iOS application/runtime",
+        "No independent sensitive owner signature used or bypassed",
+        "Does not certify Ghidra GUI-only operations"
+      ],
+      "hygiene": "P172 source-owned staging removed, original bridge byte-identical restored after trial; consumed request deleted."
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 100,
-    "awaiting_canonical_individual_review": 108,
+    "functional_pass_scoped_distinct": 103,
+    "awaiting_canonical_individual_review": 105,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 40,
+    "workspace_newly_passed_distinct": 43,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 100,
+    "fully_certified_distinct": 103,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 108,
-    "remaining_full_certification_distinct": 108
+    "not_functionally_positive_distinct": 105,
+    "remaining_full_certification_distinct": 105
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -6805,7 +6863,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P164-APPLE-INTERFACE-DYLIB-SOURCE-OWNED-20261024",
+  "latest_phase": "LINUX-P172-GHIDRA-SOURCE-OWNED-OBJC-SWIFT-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -8482,6 +8540,57 @@
       "negative_isError_true": true,
       "limitations": [
         "Only synthetic ARM64 Mach-O dyld static model, not dynamic execution"
+      ]
+    },
+    "get_objc_classes": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P172-GHIDRA-SOURCE-OWNED-OBJC-SWIFT-20261024",
+      "scope": "Detected 1 source-owned ELF symbol OBJC_CLASS_$_REAExample at 0x101129; invalid numeric pattern rejected isError=true. Original REA Ghidra on public synthetic ELF; static symbol detection only.",
+      "run_ids": [
+        40125734763
+      ],
+      "positive_evidence_id": "ev_c3b859b5f639c7254fd8b0ded2645a0f1f2c7d827b1b946ad56b90cf252e16e1",
+      "positive_evidence_sha256": "8f1c7f7970c52ae23cea50de257c990934c086f3a61c6c8eb13e33428611a232",
+      "negative_evidence_sha256": "8f1c7f7970c52ae23cea50de257c990934c086f3a61c6c8eb13e33428611a232",
+      "positive_calls": 1,
+      "negative_semantic_assertions": 1,
+      "negative_isError_true": true,
+      "limitations": [
+        "Source-owned Linux ELF with synthetic symbol names; no real Objective-C/Swift runtime certified"
+      ]
+    },
+    "get_objc_protocols": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P172-GHIDRA-SOURCE-OWNED-OBJC-SWIFT-20261024",
+      "scope": "Detected 1 source-owned ELF symbol OBJC_PROTOCOL_$_REAExampleProtocol at 0x101134; extra unsupported argument rejected isError=true. Original REA Ghidra on public synthetic ELF; static symbol detection only.",
+      "run_ids": [
+        40125734763
+      ],
+      "positive_evidence_id": "ev_feed6d0c1a8b575550869bf96cf3ae64a64ba42dd068fabc9618c5d87f6090b9",
+      "positive_evidence_sha256": "8f1c7f7970c52ae23cea50de257c990934c086f3a61c6c8eb13e33428611a232",
+      "negative_evidence_sha256": "8f1c7f7970c52ae23cea50de257c990934c086f3a61c6c8eb13e33428611a232",
+      "positive_calls": 1,
+      "negative_semantic_assertions": 1,
+      "negative_isError_true": true,
+      "limitations": [
+        "Source-owned Linux ELF with synthetic symbol names; no real Objective-C/Swift runtime certified"
+      ]
+    },
+    "analyze_swift_types": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P172-GHIDRA-SOURCE-OWNED-OBJC-SWIFT-20261024",
+      "scope": "Detected 1 Swift-mangled synthetic type $s3REA4PairV as structs (address 0x10113f, alias rea_swift_struct); invalid category rejected isError=true. Original REA Ghidra on public synthetic ELF; static symbol detection only.",
+      "run_ids": [
+        40125734763
+      ],
+      "positive_evidence_id": "ev_66b308a5d3b2de8d0d47179bae19f83a5ac8721408020f6a2f62d59b765b6dfa",
+      "positive_evidence_sha256": "8f1c7f7970c52ae23cea50de257c990934c086f3a61c6c8eb13e33428611a232",
+      "negative_evidence_sha256": "8f1c7f7970c52ae23cea50de257c990934c086f3a61c6c8eb13e33428611a232",
+      "positive_calls": 1,
+      "negative_semantic_assertions": 1,
+      "negative_isError_true": true,
+      "limitations": [
+        "Source-owned Linux ELF with synthetic symbol names; no real Objective-C/Swift runtime certified"
       ]
     }
   },

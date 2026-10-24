@@ -747,3 +747,13 @@ A ferramenta original `inspect_native_load_image` foi **`FULLY_CERTIFIED` num pe
 - REA_MOBILE_TOOL_ERROR=true no run foi esperado por tres negativos deliberados; todos os positivos entregaram Evidence valido. Sessões open_binary e close_binary passaram, staging e recursos foram limpos.
 - Ponte temporaria restaurada byte a byte ao original blob f8009ad372a2cd936201ef02c0e1ae40832d1ab7, pedido P164 eliminado no commit 7fe1ce3e54bba804c6d4c4e19db9950360b08112. Sem instalacao macOS, mudancas produtivas, acesso externo ou assinaturas sensiveis fabricadas.
 - **META ATINGIDA: 100/208 ferramentas distintas certificadas por perfis funcionais Linux; 108 pendentes.** Certificacao circunscrita a fixtures controladas; nao significa compatibilidade com todas as aplicacoes Apple nem funcionamento das restantes 108 ferramentas.
+
+## P172 — 3 ferramentas originais Ghidra Objective-C/Swift (24/10/2026)
+
+- [Actions #40125734763](https://github.com/martaxi-boss/VPS/actions/runs/40125734763), commit 7226be52b88a698c6b76a8a1a7dfa3176ef55121, artefacto cifrado 12573236065 (ZIP SHA-256 df9a0973f271beff82c9e63ebfc3a78b646476c61a440e6a8ff33c74ec8c2328). Pedido 704d6aee4e9f3bde0d29fb1ca406eed4858f76c8d23d943d6987075294cd55ec e resposta RSA-OAEP/AES-GCM 8f1c7f7970c52ae23cea50de257c990934c086f3a61c6c8eb13e33428611a232 autenticados localmente, incluindo coincidência dos digests.
+- **`get_objc_classes`**: símbolo sintético `OBJC_CLASS_$_REAExample` identificado, Evidence `ev_c3b859b5f639c7254fd8b0ded2645a0f1f2c7d827b1b946ad56b90cf252e16e1`; padrão numérico inválido rejeitado por MCP `isError=true`.
+- **`get_objc_protocols`**: `OBJC_PROTOCOL_$_REAExampleProtocol` identificado, Evidence `ev_feed6d0c1a8b575550869bf96cf3ae64a64ba42dd068fabc9618c5d87f6090b9`; argumento extra rejeitado (`isError=true`).
+- **`analyze_swift_types`**: `$s3REA4PairV` classificado em `structs` com uma entrada, Evidence `ev_66b308a5d3b2de8d0d47179bae19f83a5ac8721408020f6a2f62d59b765b6dfa`; categoria inválida rejeitada (`isError=true`).
+- Ficheiros C e ELF foram compilados localmente para `/dev/shm`, **nunca executados**, com hashes de entrada estáveis; abertura/fecho Ghidra PASS, quatro negativos de schema intencionais e limpeza PASS. Fase limitada a símbolos sintéticos Linux: **não** certifica aplicações Apple reais ou comportamento de runtime.
+- Ponte original reposta pelo commit dc4d2a0fba3d841aa3ca2894a024969d39f47c1e, pedido P172 retirado. Nenhum controlo de assinatura sensível foi desativado.
+- **Total canónico atualizado: 103/208; 105 ferramentas por certificar; faltam 5 para 108.**
