@@ -1468,6 +1468,17 @@
     "followup_mcp_calls": 0,
     "followup_artifact_count": 0,
     "followup_no_bridge_mutation": true,
-    "recovery_requires": "Existing VPS SSH reachability restored via authorized host console/network administration. Keep original GitHub host key pin and workflow. No production service change was attempted."
+    "recovery_requires": "Existing VPS SSH reachability restored via authorized host console/network administration. Keep original GitHub host key pin and workflow. No production service change was attempted.",
+    "latest_recheck": {
+      "workflow_run_id": 40078631883,
+      "attempt": 3,
+      "job_id": 120830386298,
+      "result": "FAIL_SSH_HOST_KEY_SCAN_BEFORE_MCP",
+      "validated_request": true,
+      "mcp_calls": 0,
+      "artifacts": 0,
+      "certified": 75,
+      "pending": 133
+    }
   }
 }
