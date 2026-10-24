@@ -5030,6 +5030,84 @@
       "pending_unchanged": 131,
       "request_cleanup": "IN_SAME_COMMIT",
       "bridge_unchanged": true
+    },
+    {
+      "phase_id": "LINUX-P81-P83-GHIDRA-METADATA-WEB-CAPTURES-BLOCKERS-20261024",
+      "date_utc": "2026-10-24",
+      "status": "REAL_TESTS_RECONCILED_NO_NEW_CERTIFICATION",
+      "tool_count_certified_before": 77,
+      "tool_count_certified_after": 77,
+      "remaining": 131,
+      "source": "Original VPS REA MCP via existing GitHub Actions SSH, no new server/tool/plugin",
+      "P81": {
+        "tool": "compare_web_captures",
+        "run_id": 40083899986,
+        "commit": "3394346531a664a30fadc8b6321c60f4aa658dbf",
+        "encrypted_artifact_id": 12555879736,
+        "authenticated_result_sha256": "1123e30361154be43ef3e9121c29bf7216e714400429c8df9219e72b26a6206e",
+        "request_matched": true,
+        "mcp_steps_requested": 2,
+        "mcp_steps_executed": 1,
+        "result": "NEGATIVE_SCHEMA_VALIDATION_ONLY",
+        "diagnostic": "Controlled capture scenarios omitted the mandatory initial scenario_start state and started at step_index 1; original MCP rejected them correctly, but no positive comparison occurred.",
+        "fully_certified": false
+      },
+      "P82": {
+        "fixture": "fixture_ghidra_metadata",
+        "run_id": 40084449312,
+        "commit": "a0a7dd8876ca4c032630294fe641e6c8977bbb55",
+        "encrypted_artifact_id": 12555994996,
+        "authenticated_result_sha256": "4267b7737d1154c3a22f27c6c8b811d7def14f20fe66204cdc9c08ca87359cb6",
+        "request_matched": true,
+        "mcp_tools_called": 17,
+        "mcp_positive": 13,
+        "mcp_unavailable": 4,
+        "session_cleanup": "PASS",
+        "binary_sha256": "8a63c98320173f79e263115e47d1fd4b5a70e4429d2699cae28",
+        "new_tools_positive_pending_negative": [
+          {
+            "name": "binary_overview",
+            "procedure_count": 133,
+            "string_count": 122,
+            "segment_count": 32
+          },
+          {
+            "name": "list_segments",
+            "observed_segment_count": 32
+          }
+        ],
+        "provider_unsupported": [
+          "list_bookmarks",
+          "current_document",
+          "current_address",
+          "comment"
+        ],
+        "previously_certified_tools_not_recertified": 11,
+        "fully_certified_new": 0
+      },
+      "P83": {
+        "tool": "binary_overview",
+        "run_id": 40084705948,
+        "commit": "7b05c3e6702cc1f828cac64450f37748fda897ec",
+        "status": "REJECTED_BY_BRIDGE_BEFORE_MCP",
+        "request_validation": "PASS",
+        "ssh_host_pin": "PASS",
+        "mcp_calls": 0,
+        "diagnostic": "Reviewed session inspection requires open_binary in this request",
+        "not_negative_functional_test": true,
+        "fully_certified": false
+      },
+      "safety": {
+        "bridge_unchanged": true,
+        "production_unchanged": true,
+        "no_sensitive_owner_signatures_generated": true,
+        "consumed_public_requests_deleted": [
+          "p81-web-captures-mini-20261024.json",
+          "p82-ghidra-metadata-20261024.json",
+          "p83-overview-negative-20261024.json"
+        ],
+        "original_mcp_public_internet_exposed": false
+      }
     }
   ],
   "active_scope_counts": {
@@ -5074,7 +5152,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P80-GHIDRA-NATIVE-VALUES-DEPTH-BOUND-20261024",
+  "latest_phase": "LINUX-P81-P83-GHIDRA-METADATA-WEB-CAPTURES-BLOCKERS-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",

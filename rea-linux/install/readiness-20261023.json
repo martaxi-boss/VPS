@@ -1518,5 +1518,18 @@
     "certification_awarded": false,
     "certified_unchanged": 77,
     "pending_unchanged": 131
+  },
+  "last_continuation_diagnostics": {
+    "phase_id": "LINUX-P81-P83-GHIDRA-METADATA-WEB-CAPTURES-BLOCKERS-20261024",
+    "fully_certified": 77,
+    "pending": 131,
+    "p81_run": 40083899986,
+    "p82_run": 40084449312,
+    "p83_run": 40084705948,
+    "authentic_results_verified": true,
+    "bridge_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+    "no_new_certification": true,
+    "failed_negative_is_policy_blocked": true,
+    "post_cleanup_recheck": "PENDING_NEXT_WORKFLOW"
   }
 }
