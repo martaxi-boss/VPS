@@ -4164,9 +4164,20 @@
       ],
       "dependencies_installed": 0,
       "bridge_modified": false,
-      "consumed_request_cleanup": "PENDING",
+      "consumed_request_cleanup": "PASS",
       "certified_total": 54,
-      "remaining": 154
+      "remaining": 154,
+      "git_hygiene": {
+        "cleanup_commit": "9b3164af9c650988cc124f0538211f8a842db711",
+        "deleted_consumed_requests": 2,
+        "post_cleanup_run_id": 40051039989,
+        "workflow_conclusion": "SUCCESS",
+        "mcp_loopback": "PASS",
+        "catalog_tools": 208,
+        "schemas_validated": 208,
+        "contracts_matched": 208,
+        "bridge_original_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      }
     }
   ],
   "active_scope_counts": {
