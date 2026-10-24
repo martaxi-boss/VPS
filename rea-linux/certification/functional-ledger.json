@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_55_FULLY_CERTIFIED_153_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_60_FULLY_CERTIFIED_148_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -4223,21 +4223,111 @@
       "consumed_request_cleanup": "PASS_ON_SAME_COMMIT",
       "certified_total": 55,
       "remaining": 153
+    },
+    {
+      "phase_id": "LINUX-P54-NATIVE-NAMES-BYTES-CONTEXT-GRAPH-20261024",
+      "date_utc": "2026-10-24",
+      "status": "FIVE_NEW_FUNCTIONALLY_CERTIFIED_SCOPED_NATIVE_MCP_TOOLS_FIVE_MORE_POSITIVE_PENDING_NEGATIVE",
+      "source": "Original permanent REA MCP via pre-existing GitHub Actions SSH on owner VPS, controlled Ghidra 12.1.4 analysis of /usr/bin/true",
+      "proof": {
+        "positive_run_id": 40051763765,
+        "positive_commit": "d02e753749f9373ca8e2d34f63271e7d04748fcf",
+        "positive_artifact_id": 12543722229,
+        "positive_request_sha256": "ca3f198df031823166719f7fc0defbeb311c8b3ded0660e3607a356ac8c37ee0",
+        "positive_result_sha256": "12fe31fd0e37d31120d0b02843d1151a1a470c9ff7d530313836c5584070ce66",
+        "positive_mcp_steps": 11,
+        "positive_tool_error": false,
+        "negative_run_id": 40051908470,
+        "negative_commit": "7250f53279e6b507b4535c2cfcbac537a10cde7a",
+        "negative_artifact_id": 12543209663,
+        "negative_request_sha256": "189b372396628040b1cc4395de7d3fd4a28cc1eb7ecbed14fb77ef9a8599d10c",
+        "negative_result_sha256": "1d0322b1d5336b78e8599676192e26777f5842a118d3801ac525423743cbbbb3",
+        "negative_mcp_steps": 6,
+        "negative_tool_error": true,
+        "negative_graph_error_expected": true,
+        "authenticated_aes_gcm_rsa_oaep": true,
+        "both_requests_matched": true,
+        "ephemeral_ghidra_session_cleanup": "PASS",
+        "mcp_tools_catalog": 208,
+        "controlled_target_sha256": "8a63c98320173f79e263115e10cefc170155e47d1fd4b5a70e4429d2699cae28",
+        "positive_request_git_blob": "e144db15bc0a87d35995f7e202ad7b77518ed2ba",
+        "negative_request_git_blob": "fb2da023f079caec75bb295c270530667bf2de77"
+      },
+      "tools": [
+        {
+          "name": "search_bytes",
+          "status": "FULLY_CERTIFIED_SCOPED_ORIGINAL_MCP",
+          "scope": "Ghidra 12.1.4 Linux ELF /usr/bin/true: exact five-byte CALL signature e8dbfdffff found at 0x101480 in .text with file_offset=5248; 5-byte absent deadbeef00 in same 17-byte fully scanned range returned complete=true, matches=[]; no false byte match.",
+          "positive": 1,
+          "negative": 1,
+          "negative_kind": "typed-no-match"
+        },
+        {
+          "name": "find_xrefs_to_name",
+          "status": "FULLY_CERTIFIED_SCOPED_ORIGINAL_MCP",
+          "scope": "Ghidra 12.1.4 Linux ELF: exact switchD_00102043::default resolved to 0x101480, with four provider-returned xrefs including 0x102027; nonexistent REA_MISSING_SYMBOL_20261024_X returned status=unresolved, reason=name_not_found, no xrefs; absence not fabricated.",
+          "positive": 1,
+          "negative": 1,
+          "negative_kind": "typed-unresolved"
+        },
+        {
+          "name": "address_name",
+          "status": "FULLY_CERTIFIED_SCOPED_ORIGINAL_MCP",
+          "scope": "Original REA MCP Ghidra 12.1.4: address_name(0x101480) resolved exact switchD_00102043::default; address_name(0x200000) returned null rather than a fake name.",
+          "positive": 1,
+          "negative": 1,
+          "negative_kind": "typed-null"
+        },
+        {
+          "name": "inspect_address_context",
+          "status": "FULLY_CERTIFIED_SCOPED_ORIGINAL_MCP",
+          "scope": "Bounded Ghidra native address context: 0x101480 returned verified name and exact procedure body; 0x200000 returned name=null and procedure found=false reason=outside_segments. Provider-unavailable comments/inline comments/bookmarks are explicitly reported as unavailable, not verified; certification limited to name/procedure and typed capability reporting.",
+          "positive": 1,
+          "negative": 1,
+          "negative_kind": "typed-outside-segments"
+        },
+        {
+          "name": "get_call_graph",
+          "status": "FULLY_CERTIFIED_SCOPED_ORIGINAL_MCP",
+          "scope": "Original Linux REA MCP Ghidra call graph for 0x101480 returned forward chain 0x101480->0x101260->0x107010 <EXTERNAL>::abort with unresolved-calls limitations; unknown procedure 0x200000 rejected with real isError=true invalid_request/invalid_input (source procedure_address) without fabricated graph.",
+          "positive": 1,
+          "negative": 1,
+          "negative_kind": "mcp-isError-true"
+        }
+      ],
+      "positive_pending_individual_negative": [
+        "procedure_assembly",
+        "procedure_callees",
+        "procedure_callers",
+        "procedure_references",
+        "procedure_address"
+      ],
+      "provider_limits": [
+        "Comments, inline comments and bookmark facets unavailable in Ghidra context response; not claimed available",
+        "Static-only call graph without runtime proof of indirect calls"
+      ],
+      "new_dependency_installs": 0,
+      "original_bridge_intact": true,
+      "original_engine_unchanged": true,
+      "positive_request_cleanup_commit": "6f375b8fc0d2f4b16fded3eb278f45478a377535",
+      "negative_request_cleanup": "PASS_IN_THIS_COMMIT",
+      "certified_total": 60,
+      "remaining": 148
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 55,
-    "awaiting_canonical_individual_review": 153,
+    "functional_pass_scoped_distinct": 60,
+    "awaiting_canonical_individual_review": 148,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 55,
-    "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 153,
-    "remaining_full_certification_distinct": 153
+    "fully_certified_distinct": 60,
+    "scoped_positive_not_fully_certified_distinct": 5,
+    "not_functionally_positive_distinct": 143,
+    "remaining_full_certification_distinct": 148
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -4267,7 +4357,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P53-NATIVE-PROCEDURE-METADATA-20261024",
+  "latest_phase": "LINUX-P54-NATIVE-NAMES-BYTES-CONTEXT-GRAPH-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -5273,6 +5363,76 @@
       "evidence_sha256": "e7cb42e6fd975ea3f50ab93b2878f64d79e2ff8332f1d09a23b1f9f894a58b79",
       "positive_calls": 1,
       "negative_calls": 1
+    },
+    "search_bytes": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P54-NATIVE-NAMES-BYTES-CONTEXT-GRAPH-20261024",
+      "scope": "Ghidra 12.1.4 Linux ELF /usr/bin/true: exact five-byte CALL signature e8dbfdffff found at 0x101480 in .text with file_offset=5248; 5-byte absent deadbeef00 in same 17-byte fully scanned range returned complete=true, matches=[]; no false byte match.",
+      "run_ids": [
+        40051763765,
+        40051908470
+      ],
+      "evidence_sha256": "1d0322b1d5336b78e8599676192e26777f5842a118d3801ac525423743cbbbb3",
+      "positive_evidence_sha256": "12fe31fd0e37d31120d0b02843d1151a1a470c9ff7d530313836c5584070ce66",
+      "positive_calls": 1,
+      "negative_calls": 1,
+      "negative_kind": "typed-no-match"
+    },
+    "find_xrefs_to_name": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P54-NATIVE-NAMES-BYTES-CONTEXT-GRAPH-20261024",
+      "scope": "Ghidra 12.1.4 Linux ELF: exact switchD_00102043::default resolved to 0x101480, with four provider-returned xrefs including 0x102027; nonexistent REA_MISSING_SYMBOL_20261024_X returned status=unresolved, reason=name_not_found, no xrefs; absence not fabricated.",
+      "run_ids": [
+        40051763765,
+        40051908470
+      ],
+      "evidence_sha256": "1d0322b1d5336b78e8599676192e26777f5842a118d3801ac525423743cbbbb3",
+      "positive_evidence_sha256": "12fe31fd0e37d31120d0b02843d1151a1a470c9ff7d530313836c5584070ce66",
+      "positive_calls": 1,
+      "negative_calls": 1,
+      "negative_kind": "typed-unresolved"
+    },
+    "address_name": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P54-NATIVE-NAMES-BYTES-CONTEXT-GRAPH-20261024",
+      "scope": "Original REA MCP Ghidra 12.1.4: address_name(0x101480) resolved exact switchD_00102043::default; address_name(0x200000) returned null rather than a fake name.",
+      "run_ids": [
+        40051763765,
+        40051908470
+      ],
+      "evidence_sha256": "1d0322b1d5336b78e8599676192e26777f5842a118d3801ac525423743cbbbb3",
+      "positive_evidence_sha256": "12fe31fd0e37d31120d0b02843d1151a1a470c9ff7d530313836c5584070ce66",
+      "positive_calls": 1,
+      "negative_calls": 1,
+      "negative_kind": "typed-null"
+    },
+    "inspect_address_context": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P54-NATIVE-NAMES-BYTES-CONTEXT-GRAPH-20261024",
+      "scope": "Bounded Ghidra native address context: 0x101480 returned verified name and exact procedure body; 0x200000 returned name=null and procedure found=false reason=outside_segments. Provider-unavailable comments/inline comments/bookmarks are explicitly reported as unavailable, not verified; certification limited to name/procedure and typed capability reporting.",
+      "run_ids": [
+        40051763765,
+        40051908470
+      ],
+      "evidence_sha256": "1d0322b1d5336b78e8599676192e26777f5842a118d3801ac525423743cbbbb3",
+      "positive_evidence_sha256": "12fe31fd0e37d31120d0b02843d1151a1a470c9ff7d530313836c5584070ce66",
+      "positive_calls": 1,
+      "negative_calls": 1,
+      "negative_kind": "typed-outside-segments"
+    },
+    "get_call_graph": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P54-NATIVE-NAMES-BYTES-CONTEXT-GRAPH-20261024",
+      "scope": "Original Linux REA MCP Ghidra call graph for 0x101480 returned forward chain 0x101480->0x101260->0x107010 <EXTERNAL>::abort with unresolved-calls limitations; unknown procedure 0x200000 rejected with real isError=true invalid_request/invalid_input (source procedure_address) without fabricated graph.",
+      "run_ids": [
+        40051763765,
+        40051908470
+      ],
+      "evidence_sha256": "1d0322b1d5336b78e8599676192e26777f5842a118d3801ac525423743cbbbb3",
+      "positive_evidence_sha256": "12fe31fd0e37d31120d0b02843d1151a1a470c9ff7d530313836c5584070ce66",
+      "positive_calls": 1,
+      "negative_calls": 1,
+      "negative_kind": "mcp-isError-true"
     }
   }
 }
