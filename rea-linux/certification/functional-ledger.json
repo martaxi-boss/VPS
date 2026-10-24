@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_62_FULLY_CERTIFIED_146_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_65_FULLY_CERTIFIED_143_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -4374,21 +4374,88 @@
       "cleanup_requests": "PENDING",
       "fully_certified_total": 62,
       "remaining": 146
+    },
+    {
+      "phase_id": "LINUX-P56-PROCEDURE-LOOKUPS-20261024",
+      "date_utc": "2026-10-24",
+      "status": "THREE_NEW_FULLY_CERTIFIED_SCOPED_ORIGINAL_GHIDRA_MCP_PROCEDURE_PROFILES",
+      "proof": {
+        "positive_run_id": 40051763765,
+        "positive_evidence_sha256": "12fe31fd0e37d31120d0b02843d1151a1a470c9ff7d530313836c5584070ce66",
+        "negative_evidence": [
+          {
+            "tool": "procedure_address",
+            "run_id": 40052462212,
+            "artifact_id": 12543688534,
+            "request_sha256": "ae9535d92b79a5f4c92e7c06580c1078a4548afa8bfb0688178524aa6b9a69ba",
+            "result_sha256": "bb8d4897460f5e59ad0dd7a3065b6f3a73db37c987d469b1e6d0c90c98e57fbf",
+            "request_matched": true,
+            "isError": true,
+            "ghidra_cleanup": "PASS"
+          },
+          {
+            "tool": "procedure_assembly",
+            "run_id": 40052565721,
+            "artifact_id": 12543119581,
+            "request_sha256": "cbcfb6117fad29acdc3356ae38f307cfebce92c52779ace46aba4599cf7990b6",
+            "result_sha256": "8da0aa860b6de64441930b342e1d989078f5e63dfd7f4b117682513de084839b",
+            "request_matched": true,
+            "isError": true,
+            "ghidra_cleanup": "PASS"
+          },
+          {
+            "tool": "procedure_callers",
+            "run_id": 40052630376,
+            "artifact_id": 12543374969,
+            "request_sha256": "b3c8fba1256d0c9b7e56dba9cc8ace5c9770bdbe15594b925199822e73755d50",
+            "result_sha256": "c58cb9ec27bc8cedc0573aa3cb40c53123894223bee67fee2c908d2c35e36eba",
+            "request_matched": true,
+            "isError": true,
+            "ghidra_cleanup": "PASS"
+          }
+        ],
+        "mcp_catalog": 208,
+        "original_engine_unchanged": true,
+        "dependency_installs": 0
+      },
+      "tools": [
+        {
+          "name": "procedure_address",
+          "positive": "Resolved actual switchD_00102043::default to 0x101480",
+          "negative": "Unknown REA_MISSING_SYMBOL_20261024_X rejected with isError=true invalid_input",
+          "status": "FULLY_CERTIFIED"
+        },
+        {
+          "name": "procedure_assembly",
+          "positive": "Decoded valid 0x101480: CALL 0x00101260 assembly of one real ELF thunk",
+          "negative": "Nonexistent procedure 0x200000 rejected with isError=true invalid_input",
+          "status": "FULLY_CERTIFIED"
+        },
+        {
+          "name": "procedure_callers",
+          "positive": "Callers of 0x101260 were 0x101480, 0x101490, 0x101cd0",
+          "negative": "Nonexistent procedure 0x200000 rejected with isError=true invalid_input",
+          "status": "FULLY_CERTIFIED"
+        }
+      ],
+      "consumed_github_requests": "PENDING_CLEANUP",
+      "certified_total": 65,
+      "remaining": 143
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 62,
-    "awaiting_canonical_individual_review": 146,
+    "functional_pass_scoped_distinct": 65,
+    "awaiting_canonical_individual_review": 143,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 62,
-    "scoped_positive_not_fully_certified_distinct": 3,
+    "fully_certified_distinct": 65,
+    "scoped_positive_not_fully_certified_distinct": 0,
     "not_functionally_positive_distinct": 143,
-    "remaining_full_certification_distinct": 146
+    "remaining_full_certification_distinct": 143
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -4418,7 +4485,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P55-CALLEES-REFERENCES-20261024",
+  "latest_phase": "LINUX-P56-PROCEDURE-LOOKUPS-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -5518,6 +5585,45 @@
       ],
       "positive_evidence_sha256": "12fe31fd0e37d31120d0b02843d1151a1a470c9ff7d530313836c5584070ce66",
       "evidence_sha256": "6c62b32bbad5cf081a0817cd0315817cadf7bb702496145ae15c488a262adfb7",
+      "positive_calls": 1,
+      "negative_calls": 1
+    },
+    "procedure_address": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P56-PROCEDURE-LOOKUPS-20261024",
+      "scope": "Ghidra 12.1.4 original REA Linux MCP /usr/bin/true x86-64: Resolved actual switchD_00102043::default to 0x101480; Unknown REA_MISSING_SYMBOL_20261024_X rejected with isError=true invalid_input",
+      "run_ids": [
+        40051763765,
+        40052462212
+      ],
+      "positive_evidence_sha256": "12fe31fd0e37d31120d0b02843d1151a1a470c9ff7d530313836c5584070ce66",
+      "evidence_sha256": "bb8d4897460f5e59ad0dd7a3065b6f3a73db37c987d469b1e6d0c90c98e57fbf",
+      "positive_calls": 1,
+      "negative_calls": 1
+    },
+    "procedure_assembly": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P56-PROCEDURE-LOOKUPS-20261024",
+      "scope": "Ghidra 12.1.4 original REA Linux MCP /usr/bin/true x86-64: Decoded valid 0x101480: CALL 0x00101260 assembly of one real ELF thunk; Nonexistent procedure 0x200000 rejected with isError=true invalid_input",
+      "run_ids": [
+        40051763765,
+        40052565721
+      ],
+      "positive_evidence_sha256": "12fe31fd0e37d31120d0b02843d1151a1a470c9ff7d530313836c5584070ce66",
+      "evidence_sha256": "8da0aa860b6de64441930b342e1d989078f5e63dfd7f4b117682513de084839b",
+      "positive_calls": 1,
+      "negative_calls": 1
+    },
+    "procedure_callers": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P56-PROCEDURE-LOOKUPS-20261024",
+      "scope": "Ghidra 12.1.4 original REA Linux MCP /usr/bin/true x86-64: Callers of 0x101260 were 0x101480, 0x101490, 0x101cd0; Nonexistent procedure 0x200000 rejected with isError=true invalid_input",
+      "run_ids": [
+        40051763765,
+        40052630376
+      ],
+      "positive_evidence_sha256": "12fe31fd0e37d31120d0b02843d1151a1a470c9ff7d530313836c5584070ce66",
+      "evidence_sha256": "c58cb9ec27bc8cedc0573aa3cb40c53123894223bee67fee2c908d2c35e36eba",
       "positive_calls": 1,
       "negative_calls": 1
     }
