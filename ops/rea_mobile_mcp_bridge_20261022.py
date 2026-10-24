@@ -250,7 +250,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_FIXTURE_MANAGED_MEMBERS", "REA_FIXTURE_MANAGED_BOUNDARIES",
         "REA_FIXTURE_MACHO_FUSES", "REA_FIXTURE_FORMAT_CLEANUP",
         "REA_FIXTURE_WASM", "REA_FIXTURE_SQLITE",
-        "REA_FIXTURE_GHIDRA_METADATA", "REA_FIXTURE_GHIDRA_METADATA_CLEANUP",
+        "REA_P170_PASS", "REA_P170_CLEANUP", "REA_FIXTURE_GHIDRA_METADATA", "REA_FIXTURE_GHIDRA_METADATA_CLEANUP",
         "REA_FIXTURE_GHIDRA_ADDITIONAL", "REA_FIXTURE_GHIDRA_ADDITIONAL_CLEANUP",
         "REA_FIXTURE_ANDROID_CLASSES", "REA_FIXTURE_ANDROID_CLASS",
         "REA_FIXTURE_ANDROID_METHOD", "REA_FIXTURE_ANDROID_XREFS",
@@ -506,7 +506,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         if private is not None:
             error("Unexpected private response")
         return
-    if request["action"] not in ("call", "sealed_batch", "fixture_apkdemos", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump") or private is None:
+    if request["action"] not in ("fixture_rea_symbols", "call", "sealed_batch", "fixture_apkdemos", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump") or private is None:
         error("Missing encrypted-return payload from REA")
     public = serialization.load_der_public_key(
         base64.b64decode(request["response_key"], validate=True)
