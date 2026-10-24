@@ -790,3 +790,13 @@ A ferramenta original `inspect_native_load_image` foi **`FULLY_CERTIFIED` num pe
 - **6 chamadas MCP reais:** 3 positivas, 3 negativas intencionais. O marcador global `REA_MOBILE_TOOL_ERROR=true` reflete exclusivamente as rejeições negativas esperadas. Integridade dos inputs e limpeza temporária `PASS`.
 - Sigrok original utilizado com fornecedor **USB-free** isolado em `/opt/rea-reversa/providers/sigrok-offline-0.5.2-20261024/`, lib SHA-256 `408da7c2416f4927628ff69f59bc4991505421e35f1f655221636f3cab3aaea4`. Hardware/USB não testado nem desbloqueado; as restrições da unidade de serviço permanecem. Workflow existente e ponte GitHub→SSH restaurados aos blobs originais, sem criar outros serviços; pedido P186 removido após recolha da prova.
 - **Marco canónico alcançado: 108/208 certificadas, exatamente 100 pendentes**. Segue-se higienização profunda *limitada ao REA* antes de trabalhar as restantes 100, preservando os artefactos de prova e a configuração necessária ao fornecedor Sigrok.
+
+## P187 — higienização profunda controlada após marco 108 (24/10/2026)
+
+- Consulta pós-restauro [Actions #40129922132](https://github.com/martaxi-boss/VPS/actions/runs/40129922132): ligação `GitHub Actions -> SSH -> VPS -> MCP original` PASS, catálogo 208, contratos válidos.
+- Diagnóstico de unidade [Actions #40130039718](https://github.com/martaxi-boss/VPS/actions/runs/40130039718): `rea-reversa-mcp.service` executado pelo utilizador dedicado `rea-reversa` em Node, configurações de fornecedores GDB/Binwalk/Rizin/Unblob presentes na unidade e no processo vivo. Diagnóstico só de leitura PASS.
+- Ponte Python `f8009ad372a2cd936201ef02c0e1ae40832d1ab7` e workflow GitHub `c81ef44d3f3e9dc3b3a819add5ff4f1a33d343df` **restaurados exatamente às versões anteriores aos ensaios P180–P186**. Nenhuma desativação de GitHub Actions, de SSH ou do REA.
+- Quatro pedidos antigos e já consumidos removidos da diretoria ativa de pedidos no ramo: P114 (run 40099906776), P152 (40121358413), P163 (40121939440) e P187 (40130039718). Evidências, commits e artefactos cifrados preservados; *histórico Git não é reescrito*.
+- Fornecedor Sigrok USB-free específico do REA mantido operacional, pois sustenta duas ferramentas agora certificadas; não eliminar dependências em uso. Sem relaxar as restrições da unidade nem interferir nos restantes projetos e serviços.
+- Relatório verificável: [hygiene-108-20261024.json](hygiene-108-20261024.json). A higienização incidiu nos resíduos conhecidos, pedidos e configuração da ponte; **não** implica varrimento integral da VPS nem remoção automática de ficheiros desconhecidos.
+- **Marco preservado: 108/208 ferramentas certificadas, 100 pendentes**. Retomar certificações somente depois desta fase.

@@ -1731,5 +1731,19 @@
     "remaining_hardware_libusb_issue": "Out of scope; do not claim repaired",
     "service_isolation_relaxation": false,
     "source_fixture_cleanup": "PASS"
+  },
+  "milestone_108_hygiene": {
+    "phase_id": "LINUX-P187-MILESTONE-108-DEEP-HYGIENE",
+    "status": "REA_GITHUB_TRANSPORT_AND_TEMP_REQUESTS_CLEAN_WITH_READONLY_VPS_SERVICE_VALIDATION",
+    "run_id": 40130039718,
+    "original_mcp_catalog": 208,
+    "bridge_sha": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7",
+    "workflow_sha": "c81ef44d3f3e9dc3b3a819add5ff4f1a33d343df",
+    "old_requests_removed": 4,
+    "archived_evidence_preserved": true,
+    "provider_sigrok_unchanged": true,
+    "unrelated_projects_untouched_by_this_commit": true,
+    "hardware_usb_not_certified": true,
+    "report_path": "rea-linux/certification/hygiene-108-20261024.json"
   }
 }
