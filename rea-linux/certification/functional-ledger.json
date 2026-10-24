@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_92_FULLY_CERTIFIED_116_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_93_FULLY_CERTIFIED_115_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -6468,21 +6468,82 @@
         "unsupported Flutter ABIs",
         "real private APKs"
       ]
+    },
+    {
+      "phase_id": "LINUX-P149-APKTOOL-ANDROID-RESOURCES-POSITIVE-NEGATIVE-20261024",
+      "date_utc": "2026-10-24",
+      "status": "ONE_NEW_FULLY_CERTIFIED_SCOPED_ORIGINAL_APKTOOL_MCP_POSITIVE_AND_NEGATIVE",
+      "tools": [
+        {
+          "name": "decode_android_resources",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Original Linux REA MCP/Apktool 2.7.0-dirty with hash-pinned public Appium ApiDemos 6.0.18 APK; decoded 985 public files, locale inventory of 85 and 967 string entries with include_strings=true (coverage partial); include_strings=false returns zero strings and coverage complete while preserving package metadata. Semantic negative nonexistent APK and invalid locale both returned isError=true; static input remained unchanged, staging cleanup PASS. Does not claim coverage of arbitrary APKs or Android runtime.",
+          "positives": 2,
+          "semantic_negatives": 2,
+          "mcp_isError_true_negatives": 2
+        }
+      ],
+      "proof": {
+        "run_id": 40120716235,
+        "request_commit": "895d696fc3a3740fb932356d49835a9fcb12125b",
+        "encrypted_artifact_id": 12571002167,
+        "encrypted_artifact_sha256": "c36864dcbb59b384b1877e73905b1be8fba243d940ae1018d1f7538b31faf39e",
+        "request_sha256": "d00f46f7bfe95fc0ffb1dff48776693253c246dffe2b59b036ed0190563761b2",
+        "authenticated_result_sha256": "0ded57fe4efdd031c3420b6758518f7379daabc8b6751242421faf1bc684eaf1",
+        "request_matched": true,
+        "result_digest_matched": true,
+        "original_mcp_catalog": 208,
+        "positive_cases": 2,
+        "negative_cases": 2,
+        "negative_isError_true": 2,
+        "public_apk_sha256": "a9eecf37b26cd084855c530db81c2bb1b91f4c1b095a04f47aa7c20e2791f686",
+        "positive_evidence_ids": [
+          "ev_6dcdbc65c2b67c80ef9399698e81dde7ddc9748f5b832cbd9e0be7494f55141c",
+          "ev_baa597a596c5fa8ebdd52ecf62409513d6c1c5c7c581d2ce7f4fcbcf0af873d7"
+        ],
+        "source_unchanged": true,
+        "apk_cleanup": "PASS",
+        "original_bridge_blob_restored": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7"
+      },
+      "new_certifications": 1,
+      "fully_certified_total": 93,
+      "pending": 115,
+      "not_claimed": [
+        "Unpinned Android binaries",
+        "Android runtime behavior",
+        "MacOS-only tools",
+        "Sensitive operations without independent owner signature"
+      ],
+      "transport_failures_before_success": [
+        {
+          "run_id": 40120240725,
+          "category": "missing_encrypted_response_action_whitelist"
+        },
+        {
+          "run_id": 40120380999,
+          "category": "invalid_RSA_public_response_key"
+        }
+      ],
+      "unverifiable_previous_encrypted_response": {
+        "run_id": 40120478958,
+        "reason": "Local matching ephemeral private key absent; not counted"
+      },
+      "cleanup": "Bridge restored and consumed request deleted in the same ledger commit; historical artifact preserved"
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 92,
-    "awaiting_canonical_individual_review": 116,
+    "functional_pass_scoped_distinct": 93,
+    "awaiting_canonical_individual_review": 115,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 32,
+    "workspace_newly_passed_distinct": 33,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 92,
+    "fully_certified_distinct": 93,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 116,
-    "remaining_full_certification_distinct": 116
+    "not_functionally_positive_distinct": 115,
+    "remaining_full_certification_distinct": 115
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -6512,7 +6573,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P136-FLUTTER-TWO-ABI-SOURCE-OWNED-POSITIVE-NEGATIVE-20261024",
+  "latest_phase": "LINUX-P149-APKTOOL-ANDROID-RESOURCES-POSITIVE-NEGATIVE-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -8058,6 +8119,23 @@
       "negative_isError_true": true,
       "limitations": [
         "Original source-owned static synthetic ELF/APK on Linux only; no runtime behavior or other releases certified"
+      ]
+    },
+    "decode_android_resources": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P149-APKTOOL-ANDROID-RESOURCES-POSITIVE-NEGATIVE-20261024",
+      "scope": "Original Linux REA MCP/Apktool 2.7.0-dirty with hash-pinned public Appium ApiDemos 6.0.18 APK; decoded 985 public files, locale inventory of 85 and 967 string entries with include_strings=true (coverage partial); include_strings=false returns zero strings and coverage complete while preserving package metadata. Semantic negative nonexistent APK and invalid locale both returned isError=true; static input remained unchanged, staging cleanup PASS. Does not claim coverage of arbitrary APKs or Android runtime.",
+      "run_ids": [
+        40120716235
+      ],
+      "positive_evidence_sha256": "0ded57fe4efdd031c3420b6758518f7379daabc8b6751242421faf1bc684eaf1",
+      "negative_evidence_sha256": "0ded57fe4efdd031c3420b6758518f7379daabc8b6751242421faf1bc684eaf1",
+      "positive_calls": 2,
+      "negative_semantic_assertions": 2,
+      "negative_isError_true": true,
+      "limitations": [
+        "Only a pinned public APK and installed Apktool 2.7.0-dirty were tested, not arbitrary APK/resource formats",
+        "No APK runtime behavior or resource completeness beyond provider declared partial/complete scopes asserted"
       ]
     }
   },

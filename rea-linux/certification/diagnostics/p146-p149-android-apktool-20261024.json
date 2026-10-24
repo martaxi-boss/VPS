@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "phase_id": "LINUX-P149-APKTOOL-ANDROID-RESOURCES-POSITIVE-NEGATIVE-20261024",
+  "repo": "martaxi-boss/VPS",
+  "branch": "rea/one-skill-bridge-20261023",
+  "motor": "OVH VPS original Linux REA MCP 127.0.0.1:8765 through existing GitHub Actions SSH only",
+  "proof": {
+    "run_id": 40120716235,
+    "request_commit": "895d696fc3a3740fb932356d49835a9fcb12125b",
+    "encrypted_artifact_id": 12571002167,
+    "encrypted_artifact_sha256": "c36864dcbb59b384b1877e73905b1be8fba243d940ae1018d1f7538b31faf39e",
+    "request_sha256": "d00f46f7bfe95fc0ffb1dff48776693253c246dffe2b59b036ed0190563761b2",
+    "authenticated_result_sha256": "0ded57fe4efdd031c3420b6758518f7379daabc8b6751242421faf1bc684eaf1",
+    "request_matched": true,
+    "result_digest_matched": true,
+    "original_mcp_catalog": 208,
+    "positive_cases": 2,
+    "negative_cases": 2,
+    "negative_isError_true": 2,
+    "public_apk_sha256": "a9eecf37b26cd084855c530db81c2bb1b91f4c1b095a04f47aa7c20e2791f686",
+    "positive_evidence_ids": [
+      "ev_6dcdbc65c2b67c80ef9399698e81dde7ddc9748f5b832cbd9e0be7494f55141c",
+      "ev_baa597a596c5fa8ebdd52ecf62409513d6c1c5c7c581d2ce7f4fcbcf0af873d7"
+    ],
+    "source_unchanged": true,
+    "apk_cleanup": "PASS",
+    "original_bridge_blob_restored": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7"
+  },
+  "observed": {
+    "tool": "decode_android_resources",
+    "provider": "apktool",
+    "version": "2.7.0-dirty",
+    "package": "io.appium.android.apis",
+    "decoded_files": 985,
+    "locales": 85,
+    "include_strings_true": {
+      "strings": 967,
+      "coverage": "partial"
+    },
+    "include_strings_false": {
+      "strings": 0,
+      "coverage": "complete"
+    },
+    "negative_cases": [
+      {
+        "case": "missing_apk",
+        "isError": true,
+        "error_code": "invalid_request",
+        "category": "invalid_input"
+      },
+      {
+        "case": "invalid_locale",
+        "isError": true,
+        "error": "schema locale validation"
+      }
+    ],
+    "input_unchanged": true,
+    "cleanup": "PASS"
+  },
+  "other_runs": [
+    {
+      "run_id": 40120240725,
+      "result": "UNVERIFIABLE: return encryption step blocked"
+    },
+    {
+      "run_id": 40120380999,
+      "result": "NOT_EXECUTED: invalid reply key"
+    },
+    {
+      "run_id": 40120478958,
+      "result": "ENCRYPTED_ONLY: matching local private key absent; no individual proof credited"
+    }
+  ],
+  "new_certifications": 1,
+  "canonical_after": 93,
+  "canonical_pending": 115,
+  "temporary_bridge_restored_to": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7"
+}

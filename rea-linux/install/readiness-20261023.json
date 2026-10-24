@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_92_FULLY_CERTIFIED_PROFILES_AND_116_PENDING",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_93_FULLY_CERTIFIED_PROFILES_AND_115_PENDING",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -1482,18 +1482,17 @@
     }
   },
   "latest_certification": {
-    "phase_id": "LINUX-P136-FLUTTER-TWO-ABI-SOURCE-OWNED-POSITIVE-NEGATIVE-20261024",
+    "phase_id": "LINUX-P149-APKTOOL-ANDROID-RESOURCES-POSITIVE-NEGATIVE-20261024",
     "tools": [
-      "identify_flutter_build",
-      "inspect_dart_aot"
+      "decode_android_resources"
     ],
-    "run_id": 40113923650,
-    "authenticated_result_sha256": "f8c3caa20c3f14cb74448bcadbe7c4d4fcd942cda43af0d18718251dea34e105",
-    "fully_certified": 92,
-    "pending": 116,
+    "run_id": 40120716235,
+    "authenticated_result_sha256": "0ded57fe4efdd031c3420b6758518f7379daabc8b6751242421faf1bc684eaf1",
+    "fully_certified": 93,
+    "pending": 115,
     "positive_and_semantic_negative": true,
     "mcp_negative_isError_true": true,
-    "scope": "Linux REA original Flutter parser on public source-owned two-ABI synthetic ELF/APK and missing Flutter negative; no runtime execution.",
+    "scope": "Original Linux REA MCP/Apktool 2.7.0-dirty with hash-pinned public Appium ApiDemos 6.0.18 APK; decoded 985 public files, locale inventory of 85 and 967 string entries with include_strings=true (coverage partial); include_strings=false returns zero strings and coverage complete while preserving package metadata. Semantic negative nonexistent APK and invalid locale both returned isError=true; static input remained unchanged, staging cleanup PASS. Does not claim coverage of arbitrary APKs or Android runtime.",
     "original_bridge_blob": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7"
   },
   "transport_status_after_ovh_renewal": {
@@ -1685,14 +1684,14 @@
     "bridge_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
   },
   "latest_continuation_diagnostics": {
-    "phase_id": "LINUX-P136-FLUTTER-TWO-ABI-SOURCE-OWNED-POSITIVE-NEGATIVE-20261024",
-    "new_certifications": 2,
-    "fully_certified": 92,
-    "pending": 116,
-    "remaining_to_100": 8,
-    "real_mcp_run_id": 40113923650,
+    "phase_id": "LINUX-P149-APKTOOL-ANDROID-RESOURCES-POSITIVE-NEGATIVE-20261024",
+    "new_certifications": 1,
+    "fully_certified": 93,
+    "pending": 115,
+    "remaining_to_100": 7,
+    "real_mcp_run_id": 40120716235,
     "negative_cases_confirmed": 2,
     "fixture_cleanup": "PASS",
-    "bridge_original_plus_urllib_fix_restored": true
+    "restores_original_bridge": true
   }
 }
