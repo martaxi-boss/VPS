@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_43_FULLY_CERTIFIED_PROFILES_AND_165_PENDING",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_45_FULLY_CERTIFIED_PROFILES_AND_163_PENDING",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -515,6 +515,48 @@
       "original_service_unmodified": true
     },
     "latest_contract_certification": {
+      "phase_id": "LINUX-P48-NATIVE-SESSION-ADDRESS-OFFSET-20261024",
+      "original_mcp_catalog": 208,
+      "fully_certified_distinct": 45,
+      "remaining_full_distinct": 163,
+      "positive_limited_distinct": 0,
+      "latest_run_ids": [
+        40048642790,
+        40049037688,
+        40049159017
+      ],
+      "artifact_ids": [
+        12542332442,
+        12542985187,
+        12543035781
+      ],
+      "result_sha256": [
+        "de0ddec4de6605395a306f02ca669822bdd4dce90ad7cae11a5503422bd19179",
+        "85e1ac83f97494ba061f2cee2baea6fca1ce11b52929144efa4de91297c7087b",
+        "c305b2c97e2245fe1e73e00b9d836cfcb573a281e8f91b18343192b37303bf4a"
+      ],
+      "authenticated_encrypted_results": true,
+      "request_sha256_matched": true,
+      "scoped_profiles_newly_certified": [
+        "binary_session",
+        "address_to_file_offset"
+      ],
+      "bounded_positive_mcp_calls_in_final_run": 4,
+      "bounded_expected_isError_true_mcp_calls_in_final_run": 1,
+      "one_typed_semantic_mismatch_diagnostic": true,
+      "additional_pending_positive_tools": [
+        "binary_overview",
+        "list_segments",
+        "list_documents"
+      ],
+      "no_additional_dependencies": true,
+      "original_engine_unchanged": true,
+      "original_service_unchanged": true,
+      "ephemeral_ghidra_session_cleanup": "PASS",
+      "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+      "consumed_github_requests": "PENDING_REMOVAL"
+    },
+    "prior_contract_certification": {
       "phase_id": "LINUX-P47-BUNDLE-COMPARISON-ANALYSIS-VIEW-20261024",
       "original_mcp_catalog": 208,
       "fully_certified_distinct": 43,
@@ -531,25 +573,6 @@
       "original_engine_unchanged": true,
       "original_service_unchanged": true,
       "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
-    },
-    "prior_contract_certification": {
-      "phase_id": "LINUX-P46-THREE-MANAGED-STATIC-MCP-CERTIFICATION-20261024",
-      "original_mcp_catalog": 208,
-      "fully_certified_distinct": 41,
-      "remaining_full_distinct": 167,
-      "positive_limited_distinct": 0,
-      "original_engine_unchanged": true,
-      "original_service_unchanged": true,
-      "no_additional_dependencies": true,
-      "latest_run_ids": [
-        40046993456
-      ],
-      "result_sha256": [
-        "905849a6358dfc3ea3a43980ee3181e7a5f86c8b512594c254bc0ccca9067fbd"
-      ],
-      "authenticated_encrypted_results": true,
-      "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
-      "source": "Managed source-owned Evidence examples: compare members, verify P/Invoke, project managed app graph; 5 positive and 9 negative MCP tests. Sensitive imports/reconciliation withheld."
     },
     "previous_contract_certification_snapshots": [
       {
@@ -687,6 +710,24 @@
         "original_engine_unchanged": true,
         "original_service_unchanged": true,
         "previous_fully_certified_contracts_unchanged": 22,
+        "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      },
+      {
+        "phase_id": "LINUX-P47-BUNDLE-COMPARISON-ANALYSIS-VIEW-20261024",
+        "original_mcp_catalog": 208,
+        "fully_certified_distinct": 43,
+        "remaining_full_distinct": 165,
+        "positive_limited_distinct": 0,
+        "latest_run_ids": [
+          40047298905
+        ],
+        "result_sha256": [
+          "6ae9a5f28b309b99f680fb96b2f391faea38bf7f9041a4488834d546b9d04488"
+        ],
+        "authenticated_encrypted_results": true,
+        "no_additional_dependencies": true,
+        "original_engine_unchanged": true,
+        "original_service_unchanged": true,
         "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
       }
     ]
