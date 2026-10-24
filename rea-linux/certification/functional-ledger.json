@@ -5237,6 +5237,40 @@
       ],
       "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
       "safety": "No changes to engine, SSH identity or services."
+    },
+    {
+      "phase_id": "LINUX-P89-SIGROK-PROVIDER_UNAVAILABLE-20261024",
+      "date_utc": "2026-10-24",
+      "status": "PENDING_VENDOR_DEPENDENCY_NOT_CERTIFIED",
+      "tools": [
+        {
+          "name": "inspect_signal_decoders",
+          "status": "NOT_FULLY_CERTIFIED",
+          "reason": "Original MCP returned capability_unavailable/unsupported_provider on Linux sigrok-recording provider; no positive decoder catalog available."
+        }
+      ],
+      "proof": {
+        "run_id": 40086766731,
+        "commit": "c6c3fce3a99a30a851c323788c863c22f5dd915d",
+        "encrypted_artifact_id": 12557273165,
+        "request_sha256": "f486ac64810656c871feec30175621553af7d01167b9a3896497de751f48cd00",
+        "authenticated_result_sha256": "0b3200e9c49f68a73727dc6285fa7d4bd15d245eb32c2c16dcd09e450629e427",
+        "request_matched": true,
+        "mcp_steps_planned": 2,
+        "mcp_steps_executed": 1,
+        "first_error_isError": true,
+        "first_error_code": "capability_unavailable",
+        "first_error_category": "unsupported_provider",
+        "first_error_detail": "Expected sigrok-cli 0.7.2 with libsigrokdecode; backend stderr sr: backend: libusb_init() returned LIBUSB_ERROR_OTHER.",
+        "not_transport_failure": true,
+        "positive_verified": false,
+        "negative_not_run": true
+      },
+      "new_certifications": 0,
+      "total_certified": 79,
+      "pending": 129,
+      "temporary_request_deleted": true,
+      "original_bridge_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
     }
   ],
   "active_scope_counts": {
@@ -5281,7 +5315,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P87-P88-DUPLICATE_AND_POLICY_NEGATIVE_BLOCK-20261024",
+  "latest_phase": "LINUX-P89-SIGROK-PROVIDER_UNAVAILABLE-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
