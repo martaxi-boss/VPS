@@ -5876,7 +5876,69 @@
       "remaining": 126,
       "reason": "Supplier unavailability is not negative functional certification. No positive negative within supported Ghidra target for this tool.",
       "original_bridge_unchanged": true,
-      "request_removed_in_same_commit": true
+      "request_removed_in_same_commit": true,
+      "post_cleanup_verification": {
+        "run_id": 40098336363,
+        "result": "SUCCESS",
+        "mcp_catalog": 208,
+        "validated_schemas": 208,
+        "audited_contracts": 208,
+        "ssh_host_pin": "PASS",
+        "bridge_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+        "original_requests_removed": true
+      }
+    },
+    {
+      "phase_id": "LINUX-P111-VERIFY-UNKNOWN-RESOLUTION-UNRESOLVED-20261024",
+      "date_utc": "2026-10-24",
+      "status": "REAL_MCP_KNOWN_UNRESOLVED_AND_MISSING_ID_NEGATIVE_ONLY; NOT_FULLY_CERTIFIED",
+      "source": "Existing original REA MCP via GitHub Actions SSH; controlled source-authored evidence only",
+      "proof": {
+        "run_id": 40098733634,
+        "commit": "55463a3364f9b1b69f6193955f172bbc8e1344d1",
+        "encrypted_artifact_id": 12562230618,
+        "request_sha256": "cef8e3addf58e3255f6a3df22385821d034e15e1fe929b3f20e265d1bd3dc56b",
+        "authenticated_result_sha256": "84c63bb5032b9272469347fc6038e9c566b1456e6f813d9c7e088c9ab5eb8daa",
+        "request_matched": true,
+        "original_mcp_catalog": 208,
+        "executed_steps": 5,
+        "source_tools": [
+          "compare_functions",
+          "verify_reconstruction",
+          "list_unknowns",
+          "verify_unknown_resolution",
+          "verify_unknown_resolution"
+        ],
+        "known_unknown": {
+          "id": "unk_293cb5fc31568342695963ab858c86b9f58bfd8d96463438d7e604a18e2b799c",
+          "status": "contradicted",
+          "revision": 1,
+          "valid": false,
+          "truthVerified": false,
+          "isError_true": false
+        },
+        "missing_unknown": {
+          "id": "unk_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "isError_true": true,
+          "error_code": "execution_failure",
+          "error_category": "execution_failure",
+          "reason": "not-found",
+          "retryable": false
+        },
+        "external_owner_signature_used": false
+      },
+      "certification": {
+        "tool": "verify_unknown_resolution",
+        "status": "PENDING_POSITIVE_VERIFIED_RESOLUTION",
+        "reason": "Known contradiction was read correctly, but no resolution with truthVerified=true was available or demonstrated. update_unknown/record_unknown require independent owner signature and were not invoked.",
+        "new_certifications": 0
+      },
+      "consumed_temporary_requests_removed": [
+        "rea-linux/requests/p111-verify-unknown-resolution-20261024.json"
+      ],
+      "total_certified": 82,
+      "pending": 126,
+      "bridge_preserved": true
     }
   ],
   "active_scope_counts": {
@@ -5921,7 +5983,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P110-KUNA-SEGMENTS-UNSUPPORTED-20261024",
+  "latest_phase": "LINUX-P111-VERIFY-UNKNOWN-RESOLUTION-UNRESOLVED-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
