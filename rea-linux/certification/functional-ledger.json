@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_48_FULLY_CERTIFIED_160_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_50_FULLY_CERTIFIED_158_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -3959,21 +3959,79 @@
         "audited_contracts_count": 208,
         "original_bridge_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
       }
+    },
+    {
+      "phase_id": "LINUX-P51-NATIVE-PROCEDURE-XREFS-20261024",
+      "date_utc": "2026-10-24",
+      "status": "TWO_NEW_FULLY_CERTIFIED_SCOPED_ORIGINAL_GHIDRA_MCP_NATIVE_READ_PROFILES",
+      "source": "Permanent original REA MCP Linux x86-64 via existing Actions/SSH, controlled /usr/bin/true x86_64 ELF analyzed by existing Ghidra 12.1.4 provider",
+      "proof": {
+        "workflow_run_id": 40050341667,
+        "workflow_url": "https://github.com/martaxi-boss/VPS/actions/runs/40050341667",
+        "request_commit": "b68c335ea9e82320f58931ab9db3780726c7ac08",
+        "encrypted_artifact_id": 12543410592,
+        "encrypted_request_sha256": "380d327bb9ff78619975941686c1d04122a687606d6a0d8049c1431ca2e5aa33",
+        "authenticated_mcp_result_sha256": "986bc0c9f877334293d874d04229fed901dfef0b1ce0110c8aa5885e225d7cba",
+        "request_matched": true,
+        "rsa_oaep_aes_gcm_verified": true,
+        "original_mcp_tools_count": 208,
+        "mcp_steps_executed": 6,
+        "positive_normalized_calls": 4,
+        "correct_negative_semantic_calls": 2,
+        "other_setup_mcp_calls": 1,
+        "extra_positive_not_yet_certified_calls": 1,
+        "tool_error": false,
+        "rea_sealed_cleanup": "PASS",
+        "known_target_sha256": "8a63c98320173f79e263115e10cefc170155e47d1fd4b5a70e4429d2699cae28"
+      },
+      "tools": [
+        {
+          "name": "resolve_containing_procedure",
+          "status": "FULLY_CERTIFIED",
+          "positive": 1,
+          "negative_semantic": 1,
+          "scope": "Ghidra 12.1.4 Linux x86-64 known ELF: code address 0x101480 resolved to exact existing thunk switchD_00102043::default at 0x101480 with 5-byte body, thunk_target=0x101260; unbacked 0x200000 returned found=false, reason=outside_segments, procedure=null, no misleading nearby guess; isError not true for both typed cases"
+        },
+        {
+          "name": "xrefs",
+          "status": "FULLY_CERTIFIED",
+          "positive": 1,
+          "negative_semantic": 1,
+          "scope": "Original Ghidra session known ELF: xrefs to 0x101260 found six normalized incoming refs including previously decoded CALL source 0x101480; unbacked 0x200000 returned empty references list, without fabricated refs; both responses isError not true"
+        }
+      ],
+      "positive_pending_tool": {
+        "name": "read_function_instructions",
+        "status": "POSITIVE_PENDING_NEGATIVE",
+        "observed": "Existing original tool call returned exact 0x101480 CALL 0x00101260 instruction with Ghidra terminal-flow limitation",
+        "no_certification_counted": true
+      },
+      "limitations": [
+        "Only one known Linux ELF64 x86-64 target and Ghidra 12.1.4 provider",
+        "Typed empty/no match is correct semantic negative; no isError=true because native tool contract expresses no-match as data",
+        "Ghidra classification of no-return/thunks is provider interpretation, not independent runtime proof",
+        "No debugger execution, external target, or production modification"
+      ],
+      "dependency_installs": 0,
+      "bridge_unchanged": true,
+      "consumed_github_requests_hygiene": "PENDING_CLEANUP",
+      "fully_certified_total": 50,
+      "remaining": 158
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 48,
-    "awaiting_canonical_individual_review": 160,
+    "functional_pass_scoped_distinct": 50,
+    "awaiting_canonical_individual_review": 158,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 48,
+    "fully_certified_distinct": 50,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 160,
-    "remaining_full_certification_distinct": 160
+    "not_functionally_positive_distinct": 158,
+    "remaining_full_certification_distinct": 158
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -4003,7 +4061,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P50-NATIVE-INSTRUCTION-20261024",
+  "latest_phase": "LINUX-P51-NATIVE-PROCEDURE-XREFS-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -4930,6 +4988,28 @@
       "positive_evidence_sha256": "2c8fbcf4b22073514bf16f5c54acf044844f29d3bf6134dd108b0602fd2bf2fe",
       "positive_calls": 1,
       "negative_semantic_diagnostics": 1
+    },
+    "resolve_containing_procedure": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P51-NATIVE-PROCEDURE-XREFS-20261024",
+      "scope": "Exact positive match of Ghidra 5-byte thunk at 0x101480 and correctly negative outside-segments for 0x200000 on known /usr/bin/true ELF x86-64; isError not true on normalized no-match",
+      "run_ids": [
+        40050341667
+      ],
+      "evidence_sha256": "986bc0c9f877334293d874d04229fed901dfef0b1ce0110c8aa5885e225d7cba",
+      "positive_calls": 1,
+      "negative_semantic_calls": 1
+    },
+    "xrefs": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P51-NATIVE-PROCEDURE-XREFS-20261024",
+      "scope": "Ghidra 12.1.4 real code-reference inventory including source 0x101480 for target 0x101260, with no references invented for outside-memory 0x200000 on known ELF64",
+      "run_ids": [
+        40050341667
+      ],
+      "evidence_sha256": "986bc0c9f877334293d874d04229fed901dfef0b1ce0110c8aa5885e225d7cba",
+      "positive_calls": 1,
+      "negative_semantic_calls": 1
     }
   }
 }
