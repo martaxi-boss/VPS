@@ -7057,21 +7057,79 @@
         "Every future sensitive call still needs a new exact owner Ed25519 authorization; no general unlock."
       ],
       "hygiene": "Original bridge and workflow byte-identical; fixed isolated negative trial request removed; no user private key exposed; source test worktree untouched."
+    },
+    {
+      "phase_id": "LINUX-P203-ADB-CUTTER-SIGNED-POSITIVES-ISOLATED-MCP-NEGATIVES-20261024",
+      "date_utc": "2026-10-24",
+      "status": "TWO_NEW_SCOPED_FULLY_CERTIFIED_SENSITIVE_ADB_CUTTER",
+      "tools": [
+        {
+          "name": "list_adb_devices",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Original permanent REA Linux MCP owner-signed list_adb_devices {} returned adb 34.0.4-debian and zero attached devices. Isolated original REA MCP test exercised real AdbProvider parsing a source-owned malformed ADB device-state response, with isError=true. No physical device was contacted.",
+          "positive_calls": 1,
+          "negative_cases": [
+            "Malformed ADB state output rejected with isError=true in original source MCP using a controlled private adb stub"
+          ],
+          "negative_isError_true": true
+        },
+        {
+          "name": "list_cutter_sessions",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Original permanent REA Linux MCP owner-signed list_cutter_sessions {} returned no live Cutter sessions without sending commands. Source-owned isolated original MCP verified live synthetic Cutter bridge discovery, unsafe directory refusal and isError=true for injected bridge failure.",
+          "positive_calls": 1,
+          "negative_cases": [
+            "Injected local Cutter bridge failure returned isError=true at original source MCP contract"
+          ],
+          "negative_isError_true": true
+        }
+      ],
+      "proof": {
+        "signed_original_mcp_runs": [
+          40137629176,
+          40139159814
+        ],
+        "signed_original_artifact_ids": [
+          12577146813,
+          12577674753
+        ],
+        "owner_ed25519_approved": true,
+        "negative_isolated_original_mcp_run": 40140155961,
+        "negative_job_id": 121010016405,
+        "original_mcp_test_output_sha256": "ed8f3818d5565fd1e6f0a8c9914cfa42ae0c2b193605f1357b56a35639eb43c8",
+        "negative_tool_isError_assertions": 2,
+        "original_source_additional_boundary_run": 40139833305,
+        "original_source_worktree_unchanged": true,
+        "bridge_restoration_commit": "b53c0fd6eddce4c931d468ddd38a5a14585526a3",
+        "original_bridge_blob": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7",
+        "original_workflow_blob": "c81ef44d3f3e9dc3b3a819add5ff4f1a33d343df",
+        "consumed_trial_request_removed": true
+      },
+      "new_certifications": 2,
+      "fully_certified_total": 111,
+      "pending": 97,
+      "limitations": [
+        "Linux local ADB zero-device enumeration and malformed-state refusal only; USB/online/tcp devices and mutating device commands not certified.",
+        "Negative ran against isolated original source MCP and a stub adb executable, not a modified permanent service.",
+        "Permanent REA host had no live GUI Cutter session; GUI session operations and external Cutter targets are not certified.",
+        "Negative error was injected in isolated original source MCP, not by changing the real Cutter provider."
+      ],
+      "hygiene": "Original bridge restored, source fixture deleted, no target/device changes, no unauthorized signatures, temporary request removed."
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 109,
-    "awaiting_canonical_individual_review": 99,
+    "functional_pass_scoped_distinct": 111,
+    "awaiting_canonical_individual_review": 97,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
     "workspace_newly_passed_distinct": 48,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 109,
+    "fully_certified_distinct": 111,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 99,
-    "remaining_full_certification_distinct": 99
+    "not_functionally_positive_distinct": 97,
+    "remaining_full_certification_distinct": 97
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -7101,7 +7159,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P202-FRIDA-SIGNED-POSITIVE-ISOLATED-MCP-NEGATIVE-20261024",
+  "latest_phase": "LINUX-P203-ADB-CUTTER-SIGNED-POSITIVES-ISOLATED-MCP-NEGATIVES-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -8940,6 +8998,46 @@
         "Negative binding-unavailable case exercised via source-owned original MCP InMemoryTransport in an isolated process, not by inducing failure in the permanent REA service.",
         "Three enumerated entries are Frida interfaces, not evidence of three physical devices.",
         "Every future sensitive call still needs a new exact owner Ed25519 authorization; no general unlock."
+      ]
+    },
+    "list_adb_devices": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P203-ADB-CUTTER-SIGNED-POSITIVES-ISOLATED-MCP-NEGATIVES-20261024",
+      "scope": "Original permanent REA Linux MCP owner-signed list_adb_devices {} returned adb 34.0.4-debian and zero attached devices. Isolated original REA MCP test exercised real AdbProvider parsing a source-owned malformed ADB device-state response, with isError=true. No physical device was contacted.",
+      "run_ids": [
+        40137629176,
+        40139833305,
+        40140155961
+      ],
+      "positive_evidence_sha256": "5146561f629f9cbb79c80b4fae36f5468755622772f7c4df0e3e332955778e69",
+      "negative_evidence_sha256": "ed8f3818d5565fd1e6f0a8c9914cfa42ae0c2b193605f1357b56a35639eb43c8",
+      "positive_calls": 1,
+      "negative_semantic_assertions": 1,
+      "negative_isError_true": true,
+      "limitations": [
+        "Linux local ADB zero-device enumeration and malformed-state refusal only; USB/online/tcp devices and mutating device commands not certified.",
+        "Negative ran against isolated original source MCP and a stub adb executable, not a modified permanent service.",
+        "Future live sensitive calls continue to require independently signed exact Ed25519 owner authorizations."
+      ]
+    },
+    "list_cutter_sessions": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P203-ADB-CUTTER-SIGNED-POSITIVES-ISOLATED-MCP-NEGATIVES-20261024",
+      "scope": "Original permanent REA Linux MCP owner-signed list_cutter_sessions {} returned no live Cutter sessions without sending commands. Source-owned isolated original MCP verified live synthetic Cutter bridge discovery, unsafe directory refusal and isError=true for injected bridge failure.",
+      "run_ids": [
+        40139159814,
+        40139833305,
+        40140155961
+      ],
+      "positive_evidence_sha256": "505a875273e575264c3e832aefec7543b12d259a41197fb6fa30551dd3689028",
+      "negative_evidence_sha256": "ed8f3818d5565fd1e6f0a8c9914cfa42ae0c2b193605f1357b56a35639eb43c8",
+      "positive_calls": 1,
+      "negative_semantic_assertions": 1,
+      "negative_isError_true": true,
+      "limitations": [
+        "Permanent REA host had no live GUI Cutter session; GUI session operations and external Cutter targets are not certified.",
+        "Negative error was injected in isolated original source MCP, not by changing the real Cutter provider.",
+        "Future live sensitive calls continue to require independently signed exact Ed25519 owner authorizations."
       ]
     }
   },
