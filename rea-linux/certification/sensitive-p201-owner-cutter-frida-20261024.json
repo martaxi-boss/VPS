@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "project": "REA ORIGINAL / Engenharia Reversa",
+  "phase_id": "REA_SENSITIVE_P201_OWNER_SIGNED_CUTTER_FRIDA_DISCOVERY_20261024",
+  "date_utc": "2026-10-24",
+  "status": "TWO_SCOPED_POSITIVE_MCP_CALLS__NEGATIVE_SEMANTIC_TESTS_PENDING",
+  "mode": "Existing REA Skill -> GitHub Actions -> pinned SSH -> original VPS loopback MCP",
+  "proof": {
+    "github_actions_run_id": 40139159814,
+    "github_actions_job_id": 121007002893,
+    "request_commit": "8f60e1c003e0fc0f38a2c16e7a8d570a3d50e2b2",
+    "encrypted_request_file": "rea-linux/requests/rea-sensitive-p201-signed-cutter-frida-20261024.json",
+    "encrypted_request_sha256": "9fc08286ade3e1381926685ff09a8e54979804ece55a072e33a73581a116be0c",
+    "encrypted_artifact_id": 12577674753,
+    "encrypted_artifact_sha256": "6b1367982a2cec94dfa7c4fa98500c62db14cf3c09bb592f1f9747259f0c3cc7",
+    "authenticated_result_sha256": "505a875273e575264c3e832aefec7543b12d259a41197fb6fa30551dd3689028",
+    "authenticated_envelope_matched_request": true,
+    "result_digest_matched": true,
+    "host_key_pin": "PASS",
+    "loopback_mcp": "PASS",
+    "mcp_catalog": 208,
+    "signature_policy": "PASS",
+    "steps_expected": 2,
+    "steps_executed": 2,
+    "tool_call_marker": "PASS",
+    "tool_error_marker": false
+  },
+  "owner_authorization": {
+    "signed_on": "Android Termux device",
+    "public_verifier_der_sha256": "99580a4806703661ca38f75a3cb95e47d46e32228cf89d5aa7ab55e95a4e25b4",
+    "owner_signatures_independently_verified": true,
+    "signature_count": 2,
+    "bound_tool_arguments_each": {},
+    "scope": "sensitive",
+    "expiry_utc": "2026-10-24T23:12:11Z",
+    "nonce_single_use_consumed": true,
+    "private_owner_key_transferred": false,
+    "signer_autogeneration": false
+  },
+  "tools": [
+    {
+      "tool": "list_cutter_sessions",
+      "arguments": {},
+      "mcp_success": true,
+      "semantic_result": {
+        "sessions": [],
+        "discovery_status": "no_live_bridge_found",
+        "bridge_directory_security": "not_checked"
+      },
+      "scope": "Source-owned Linux empty-session discovery only; no live Cutter session tested",
+      "negative_semantic_isError_test": "PENDING",
+      "full_certification": "NOT_YET"
+    },
+    {
+      "tool": "list_frida_devices",
+      "arguments": {},
+      "mcp_success": true,
+      "semantic_result": {
+        "devices": [
+          {
+            "device_id": "local",
+            "name": "Local System",
+            "type": "local"
+          },
+          {
+            "device_id": "socket",
+            "name": "Local Socket",
+            "type": "remote"
+          },
+          {
+            "device_id": "barebone",
+            "name": "GDB Remote Stub",
+            "type": "remote"
+          }
+        ],
+        "cleanup_error": null
+      },
+      "scope": "Host-level Frida discovery only; three built-in interfaces, not three attached physical devices; no process injection",
+      "negative_semantic_isError_test": "PENDING",
+      "full_certification": "NOT_YET"
+    }
+  ],
+  "canonical_counts_unchanged": {
+    "mcp_catalog": 208,
+    "fully_certified_total": 108,
+    "full_certification_pending": 100,
+    "sensitive_total": 83,
+    "sensitive_fully_certified": 2,
+    "sensitive_full_pending": 81,
+    "new_full_certifications": 0
+  },
+  "prior_scoped_positive": {
+    "tool": "list_adb_devices",
+    "proof": "rea-linux/certification/sensitive-p196-owner-signed-adb-devices-20261024.json",
+    "full_certification": "NEGATIVE_TEST_PENDING"
+  },
+  "security": {
+    "no_new_engine_plugin_skill_or_mcp": true,
+    "no_external_target_controlled": true,
+    "no_proprietary_license_bypass": true,
+    "no_vault_changes": true,
+    "no_unrelated_project_modified": true,
+    "original_bridge_sha": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7"
+  },
+  "hygiene": {
+    "consumed_request_must_be_deleted_after_report": true
+  }
+}
