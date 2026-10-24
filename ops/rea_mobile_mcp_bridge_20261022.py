@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_sensitive_mcp_negatives_two"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -489,7 +489,14 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SDIAG_PID_ENV_READ",
         "REA_SDIAG_PID_ENV_SIZE",
         "REA_SDIAG_PID_PROVIDER_KEYS",
-        "REA_SDIAG_STATUS"
+        "REA_SDIAG_STATUS",
+        "REA_P203_ADB_MCP_NEGATIVE",
+        "REA_P203_CUTTER_MCP_NEGATIVE",
+        "REA_P203_TEST_STATUS",
+        "REA_P203_TEST_EXIT",
+        "REA_P203_TEST_OUTPUT_SHA256",
+        "REA_P203_TEST_DIAG",
+        "REA_P203_WORKTREE"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -630,6 +637,131 @@ def main():
     print("REA_MOBILE_CATALOG_SAMPLE=" + json.dumps(
         list(tool_by_name)[:14], ensure_ascii=True
     ))
+    if data["action"] == "fixture_linux_sensitive_mcp_negatives_two":
+        # Fixed isolated MCP negative tests, never calls original LIVE
+        # sensitive service endpoints. Source-owned tests use a private ADB
+        # shell stub and a deliberately failing Cutter test port.
+        root = Path.home() / ".local/share/rea-chatgpt-trial"
+        source = root / "repository/rea"
+        node = root / "tools/node-24.15.0/bin/node"
+        vitest = source / "node_modules/vitest/vitest.mjs"
+        test = source / "tests/boundary/mcp/reaOwnerP203SensitiveNegatives.test.ts"
+        if not node.is_file() or not vitest.is_file() or test.exists() or test.is_symlink():
+            error("Fixed P203 isolated MCP fixture precondition failed")
+        before = subprocess.run(["git", "-C", str(source), "status", "--porcelain"],
+                                capture_output=True, text=True, timeout=15, check=False)
+        if before.returncode:
+            error("REA source status unavailable")
+        fixture = r"""import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
+import { McpServer } from "@modelcontextprotocol/server";
+import { mkdtemp, writeFile, chmod, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { expect, it } from "vitest";
+import { AdbProvider } from "../../../src/adb/AdbProvider.js";
+import { createServer as createREA } from "../../../src/server/createServer.js";
+import { createTestBinarySession } from "../../fixtures/binarySession.js";
+import { CutterBridgeService } from "../../../src/cutter/CutterBridgeService.js";
+import { registerCutterTools } from "../../../src/server/registerCutterTools.js";
+import { createToolResultDelivery } from "../../../src/server/toolResult.js";
+import { silentLogger } from "../../../src/logger.js";
+
+it("ownerP203 ADB malformed state isError on original MCP", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "rea-owner-adb-mcp-negative-"));
+  const bin = join(directory, "adb");
+  const script = [
+    "#!/bin/sh",
+    'if [ "$1" = "version" ]; then',
+    '  echo "Android Debug Bridge version 1.0.41"',
+    '  echo "Version 34.0.5-stub"',
+    '  echo "Installed as $0"',
+    "  exit 0",
+    "fi",
+    'if [ "$1" = "devices" ]; then',
+    '  echo "List of devices attached"',
+    '  echo "serial deviceXYZ"',
+    "  exit 0",
+    "fi",
+    "exit 9",
+    "",
+  ].join("\n");
+  const session = createTestBinarySession(() => {
+    throw new Error("No binary input permitted in ADB negative");
+  });
+  let server: ReturnType<typeof createREA> | undefined;
+  let client: Client | undefined;
+  try {
+    await writeFile(bin, script, { mode: 0o755 });
+    await chmod(bin, 0o755);
+    const provider = new AdbProvider({ environment: { REA_ADB_PATH: bin } });
+    server = createREA({ kind: "session", session }, { adbDeviceAnalysis: provider });
+    const [ct, st] = InMemoryTransport.createLinkedPair();
+    await server.connect(st);
+    client = new Client({ name: "rea-owner-adb-negative", version: "1" });
+    await client.connect(ct);
+    const response = await client.callTool({ name: "list_adb_devices", arguments: {} });
+    expect(response.isError).toBe(true);
+  } finally {
+    await client?.close().catch(() => undefined);
+    await server?.close().catch(() => undefined);
+    await session.close().catch(() => undefined);
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+it("ownerP203 Cutter failure isError on original MCP", async () => {
+  const fake = new CutterBridgeService({
+    listSessions: async () => {
+      throw new Error("controlled owner-negative bridge discovery failure");
+    },
+    execute: async () => {
+      throw new Error("must not send Cutter commands in discovery test");
+    },
+  });
+  const server = new McpServer({ name: "rea-owner-cutter-negative", version: "1" });
+  registerCutterTools(server, fake, silentLogger, createToolResultDelivery(undefined));
+  const [ct, st] = InMemoryTransport.createLinkedPair();
+  let client: Client | undefined;
+  try {
+    await server.connect(st);
+    client = new Client({ name: "rea-owner-cutter-negative", version: "1" });
+    await client.connect(ct);
+    const response = await client.callTool({ name: "list_cutter_sessions", arguments: {} });
+    expect(response.isError).toBe(true);
+  } finally {
+    await client?.close().catch(() => undefined);
+    await server.close().catch(() => undefined);
+  }
+});
+"""
+        try:
+            with test.open("x", encoding="utf-8") as stream:
+                stream.write(fixture)
+            result = subprocess.run(
+                [str(node), str(vitest), "run",
+                 "tests/boundary/mcp/reaOwnerP203SensitiveNegatives.test.ts",
+                 "--no-file-parallelism", "--maxWorkers=1"],
+                cwd=str(source), capture_output=True, text=True, timeout=170,
+                check=False, env={**os.environ, "CI":"true", "NO_COLOR":"1",
+                                  "NODE_OPTIONS":"--max-old-space-size=1024"})
+            raw = result.stdout + "\n" + result.stderr
+            passed = result.returncode == 0 and "2 passed" in raw
+            print("REA_P203_ADB_MCP_NEGATIVE=" + ("PASS" if passed else "FAIL"))
+            print("REA_P203_CUTTER_MCP_NEGATIVE=" + ("PASS" if passed else "FAIL"))
+            print("REA_P203_TEST_STATUS=" + ("PASS_TWO_ORIGINAL_MCP_ISOLATED_NEGATIVES" if passed else "FAIL"))
+            print("REA_P203_TEST_EXIT=" + str(result.returncode))
+            print("REA_P203_TEST_OUTPUT_SHA256=" + hashlib.sha256(raw.encode()).hexdigest())
+            if not passed:
+                diagnostic = re.sub(r"[^A-Za-z0-9 .,=_:;()/\\#-]", " ", raw[-900:])
+                print("REA_P203_TEST_DIAG=" + diagnostic[:280])
+        finally:
+            test.unlink(missing_ok=True)
+            after = subprocess.run(
+                ["git", "-C", str(source), "status", "--porcelain"],
+                capture_output=True, text=True, timeout=15, check=False)
+            print("REA_P203_WORKTREE=" +
+                  ("PASS" if after.returncode == 0 and after.stdout == before.stdout else "FAIL"))
+        return
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
               secure.request_public_key_b64(create=True))
