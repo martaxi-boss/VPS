@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_93_FULLY_CERTIFIED_115_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_96_FULLY_CERTIFIED_112_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -6529,21 +6529,83 @@
         "reason": "Local matching ephemeral private key absent; not counted"
       },
       "cleanup": "Bridge restored and consumed request deleted in the same ledger commit; historical artifact preserved"
+    },
+    {
+      "phase_id": "LINUX-P150-OFFLINE-SOURCE-MAP-HAR-ADB-20261024",
+      "date_utc": "2026-10-24",
+      "status": "THREE_NEW_FULLY_CERTIFIED_SCOPED_ORIGINAL_MCP_OFFLINE_TOOLS",
+      "tools": [
+        {
+          "name": "trace_web_source_location",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Original REA Linux MCP/source-map codec on source-owned isolated script export and regular v3 source map. Successfully mapped generated line 1 column 0 to original.ts, retained SHA-256 identity and embedded source; missing manifest path yielded isError=true invalid_request/invalid_input. No external fetching or deployment authenticity asserted.",
+          "positive_evidence_id": "ev_2d28541f6fb69785bc2e35e647d52728e2925c9702a35ac94c5337fc2df658c1",
+          "negative_case": "missing_manifest",
+          "positive_calls": 1,
+          "negative_isError_true": true
+        },
+        {
+          "name": "inspect_web_network_capture",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Original REA Linux MCP lossless HAR 1.2 parser on one inert source-owned recorded HTTP GET for example.invalid; complete ordinal 0, decoded records=1 and source hash, never fetched any endpoint. Truncated HAR JSON was correctly rejected with isError=true invalid_request/invalid_input. No browser/transaction attribution claimed.",
+          "positive_evidence_id": "ev_bc765fd8d67a95087f42913acf46d5b710f1c2ff0a00cc536e7c525fd8086daa",
+          "negative_case": "truncated_har",
+          "positive_calls": 1,
+          "negative_isError_true": true
+        },
+        {
+          "name": "inspect_adb_client",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Original REA Linux MCP/Android Debug Bridge client introspection only; located apt-installed adb 34.0.4-debian at /usr/lib/android-sdk/platform-tools/adb with contacted_adb_server=false. Extra unrecognized schema argument rejected isError=true; no device connection, ADB server launch or device enumeration claimed.",
+          "positive_evidence_id": "ev_8cd349975d2bdf6490463aed2f8cd38d2590439ff58357090273f02a8f41e291",
+          "negative_case": "invalid_args",
+          "positive_calls": 1,
+          "negative_isError_true": true
+        }
+      ],
+      "proof": {
+        "run_id": 40121075172,
+        "request_commit": "d7d7a39c31c5c95712597a68bbc1d425f091b6c2",
+        "encrypted_artifact_id": 12571600754,
+        "encrypted_artifact_sha256": "a97ebab34eece39f555f0376bad3b03c0c5ff045728cb76792933e62fb24e242",
+        "request_sha256": "1fbc6eb79d5766a38c3d05ef5509597ed8a3b653c052f4f97bbfb11b787577e5",
+        "authenticated_result_sha256": "e132e0e08d21cff6d1a0b31d2312ab8ff9890aee82deedb3c12648d472872921",
+        "request_matched": true,
+        "result_digest_matched": true,
+        "original_mcp_catalog": 208,
+        "positive_cases": 3,
+        "negative_cases": 3,
+        "negative_isError_true": 3,
+        "fixture_inputs_unchanged": true,
+        "fixture_cleanup": "PASS",
+        "bridge_restored_blob": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7"
+      },
+      "new_certifications": 3,
+      "fully_certified_total": 96,
+      "pending": 112,
+      "not_claimed": [
+        "Live browser execution, session capture or deployment authenticity",
+        "ADB devices or device management",
+        "External URLs contacted",
+        "Other supplier versions"
+      ],
+      "request_hygiene": "Consumed request deleted in the same commit",
+      "bridge_original_restored": true
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 93,
-    "awaiting_canonical_individual_review": 115,
+    "functional_pass_scoped_distinct": 96,
+    "awaiting_canonical_individual_review": 112,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 33,
+    "workspace_newly_passed_distinct": 36,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 93,
+    "fully_certified_distinct": 96,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 115,
-    "remaining_full_certification_distinct": 115
+    "not_functionally_positive_distinct": 112,
+    "remaining_full_certification_distinct": 112
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -6573,7 +6635,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P149-APKTOOL-ANDROID-RESOURCES-POSITIVE-NEGATIVE-20261024",
+  "latest_phase": "LINUX-P150-OFFLINE-SOURCE-MAP-HAR-ADB-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -8136,6 +8198,54 @@
       "limitations": [
         "Only a pinned public APK and installed Apktool 2.7.0-dirty were tested, not arbitrary APK/resource formats",
         "No APK runtime behavior or resource completeness beyond provider declared partial/complete scopes asserted"
+      ]
+    },
+    "trace_web_source_location": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P150-OFFLINE-SOURCE-MAP-HAR-ADB-20261024",
+      "scope": "Original REA Linux MCP/source-map codec on source-owned isolated script export and regular v3 source map. Successfully mapped generated line 1 column 0 to original.ts, retained SHA-256 identity and embedded source; missing manifest path yielded isError=true invalid_request/invalid_input. No external fetching or deployment authenticity asserted.",
+      "run_ids": [
+        40121075172
+      ],
+      "positive_evidence_sha256": "e132e0e08d21cff6d1a0b31d2312ab8ff9890aee82deedb3c12648d472872921",
+      "negative_evidence_sha256": "e132e0e08d21cff6d1a0b31d2312ab8ff9890aee82deedb3c12648d472872921",
+      "positive_calls": 1,
+      "negative_semantic_assertions": 1,
+      "negative_isError_true": true,
+      "limitations": [
+        "No external fetching or deployment authenticity asserted."
+      ]
+    },
+    "inspect_web_network_capture": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P150-OFFLINE-SOURCE-MAP-HAR-ADB-20261024",
+      "scope": "Original REA Linux MCP lossless HAR 1.2 parser on one inert source-owned recorded HTTP GET for example.invalid; complete ordinal 0, decoded records=1 and source hash, never fetched any endpoint. Truncated HAR JSON was correctly rejected with isError=true invalid_request/invalid_input. No browser/transaction attribution claimed.",
+      "run_ids": [
+        40121075172
+      ],
+      "positive_evidence_sha256": "e132e0e08d21cff6d1a0b31d2312ab8ff9890aee82deedb3c12648d472872921",
+      "negative_evidence_sha256": "e132e0e08d21cff6d1a0b31d2312ab8ff9890aee82deedb3c12648d472872921",
+      "positive_calls": 1,
+      "negative_semantic_assertions": 1,
+      "negative_isError_true": true,
+      "limitations": [
+        "No browser/transaction attribution claimed."
+      ]
+    },
+    "inspect_adb_client": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P150-OFFLINE-SOURCE-MAP-HAR-ADB-20261024",
+      "scope": "Original REA Linux MCP/Android Debug Bridge client introspection only; located apt-installed adb 34.0.4-debian at /usr/lib/android-sdk/platform-tools/adb with contacted_adb_server=false. Extra unrecognized schema argument rejected isError=true; no device connection, ADB server launch or device enumeration claimed.",
+      "run_ids": [
+        40121075172
+      ],
+      "positive_evidence_sha256": "e132e0e08d21cff6d1a0b31d2312ab8ff9890aee82deedb3c12648d472872921",
+      "negative_evidence_sha256": "e132e0e08d21cff6d1a0b31d2312ab8ff9890aee82deedb3c12648d472872921",
+      "positive_calls": 1,
+      "negative_semantic_assertions": 1,
+      "negative_isError_true": true,
+      "limitations": [
+        "Extra unrecognized schema argument rejected isError=true; no device connection, ADB server launch or device enumeration claimed."
       ]
     }
   },

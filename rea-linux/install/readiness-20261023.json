@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_93_FULLY_CERTIFIED_PROFILES_AND_115_PENDING",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_96_FULLY_CERTIFIED_PROFILES_AND_112_PENDING",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -1482,17 +1482,19 @@
     }
   },
   "latest_certification": {
-    "phase_id": "LINUX-P149-APKTOOL-ANDROID-RESOURCES-POSITIVE-NEGATIVE-20261024",
+    "phase_id": "LINUX-P150-OFFLINE-SOURCE-MAP-HAR-ADB-20261024",
     "tools": [
-      "decode_android_resources"
+      "trace_web_source_location",
+      "inspect_web_network_capture",
+      "inspect_adb_client"
     ],
-    "run_id": 40120716235,
-    "authenticated_result_sha256": "0ded57fe4efdd031c3420b6758518f7379daabc8b6751242421faf1bc684eaf1",
-    "fully_certified": 93,
-    "pending": 115,
+    "run_id": 40121075172,
+    "authenticated_result_sha256": "e132e0e08d21cff6d1a0b31d2312ab8ff9890aee82deedb3c12648d472872921",
+    "fully_certified": 96,
+    "pending": 112,
     "positive_and_semantic_negative": true,
-    "mcp_negative_isError_true": true,
-    "scope": "Original Linux REA MCP/Apktool 2.7.0-dirty with hash-pinned public Appium ApiDemos 6.0.18 APK; decoded 985 public files, locale inventory of 85 and 967 string entries with include_strings=true (coverage partial); include_strings=false returns zero strings and coverage complete while preserving package metadata. Semantic negative nonexistent APK and invalid locale both returned isError=true; static input remained unchanged, staging cleanup PASS. Does not claim coverage of arbitrary APKs or Android runtime.",
+    "negative_isError_true": true,
+    "source_owned_offline": true,
     "original_bridge_blob": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7"
   },
   "transport_status_after_ovh_renewal": {
@@ -1684,14 +1686,14 @@
     "bridge_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
   },
   "latest_continuation_diagnostics": {
-    "phase_id": "LINUX-P149-APKTOOL-ANDROID-RESOURCES-POSITIVE-NEGATIVE-20261024",
-    "new_certifications": 1,
-    "fully_certified": 93,
-    "pending": 115,
-    "remaining_to_100": 7,
-    "real_mcp_run_id": 40120716235,
-    "negative_cases_confirmed": 2,
+    "phase_id": "LINUX-P150-OFFLINE-SOURCE-MAP-HAR-ADB-20261024",
+    "new_certifications": 3,
+    "fully_certified": 96,
+    "pending": 112,
+    "remaining_to_100": 4,
+    "real_mcp_run_id": 40121075172,
+    "negative_cases_confirmed": 3,
     "fixture_cleanup": "PASS",
-    "restores_original_bridge": true
+    "bridge_original_restored": true
   }
 }

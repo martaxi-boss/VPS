@@ -711,3 +711,12 @@ A ferramenta original `inspect_native_load_image` foi **`FULLY_CERTIFIED` num pe
 - Controlo negativo: caminho APK inexistente e parâmetro `locale` inválido; ambas respostas MCP `isError=true`. Alteração de input: nenhuma; limpeza: PASS. Certificação limitada à análise estática deste APK público; `coverage=partial` no caso de strings e `complete` ao excluir strings.
 - Falhas P146/P147 e P148 cifrado sem chave privada correspondente **não** contam como certificação. O pedido P149 foi eliminado e a ponte temporária restaurada no mesmo commit canónico, mantendo as provas cifradas Actions.
 - **Total canónico: 93/208 certificadas, 115 pendentes, faltam 7 até às 100.**
+
+## P150 — três ferramentas originais MCP offline certificadas (24/10/2026)
+
+- [Actions #40121075172](https://github.com/martaxi-boss/VPS/actions/runs/40121075172), commit `d7d7a39c31c5c95712597a68bbc1d425f091b6c2`, artefacto cifrado `12571600754`; pedido SHA-256 `1fbc6eb79d5766a38c3d05ef5509597ed8a3b653c052f4f97bbfb11b787577e5`, resultado decifrado autenticado `e132e0e08d21cff6d1a0b31d2312ab8ff9890aee82deedb3c12648d472872921`. Resposta associada ao pedido, hash conferido, 3 positivos e 3 negativos `isError=true`; entrada inalterada e limpeza PASS.
+- `trace_web_source_location`: mapa regular v3 e posição mapeada para `original.ts` com conteúdo embutido; manifesto em falta rejeitado.
+- `inspect_web_network_capture`: HAR 1.2 local, uma transação GET, sem ligação externa; HAR truncado rejeitado.
+- `inspect_adb_client`: versão Debian `34.0.4`, binário `/usr/lib/android-sdk/platform-tools/adb`, `contacted_adb_server=false`; argumento não reconhecido rejeitado. Não certifica enumeração ou ligação a dispositivos.
+- Ponte restaurada ao blob `f8009ad372a2cd936201ef02c0e1ae40832d1ab7` e pedido consumido removido. Apenas fixtures públicas estáticas, sem alterações produtivas.
+- **Total: 96/208 certificadas; 112 pendentes; faltam 4 para 100.**
