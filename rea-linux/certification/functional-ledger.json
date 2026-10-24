@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_75_FULLY_CERTIFIED_133_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_76_FULLY_CERTIFIED_132_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -4874,21 +4874,78 @@
         "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
         "git_request_directory_empty": true
       }
+    },
+    {
+      "phase_id": "LINUX-P76-GHIDRA-TRACE-FEATURE-20261024",
+      "date_utc": "2026-10-24",
+      "status": "ONE_NEW_FULLY_CERTIFIED_SCOPED_GHIDRA_TRACE_FEATURE",
+      "source": "GitHub Actions SSH -> original Linux REA MCP loopback",
+      "proof": {
+        "run_id": 40082666247,
+        "commit": "61659c72e89210ccbb4721405fee14ca25e94f87",
+        "encrypted_artifact_id": 12556225127,
+        "request_sha256": "7f8ad3798644feb0f871be8d36d1ee6936966fb3d5ad9a8918f2d44ec5b1d498",
+        "authenticated_result_sha256": "3919499abab81c94884dfa08e2e1b097655b828596b49d0f0dd2ce91ff855e1c",
+        "request_matched": true,
+        "original_mcp_catalog": 208,
+        "real_mcp_steps": 3,
+        "positive": 1,
+        "negative_semantic": 1,
+        "positive_matches": 4,
+        "positive_references": 8,
+        "negative_matches": 0,
+        "negative_references": 0,
+        "positive_isError_true": false,
+        "negative_isError_true": false,
+        "not_truncated": true,
+        "residual_unknowns": 0,
+        "source_sha256": "8a63c98320173f79e263115e47d1fd4b5a70e4429d2699cae28",
+        "ghidra_cleanup": "PASS",
+        "bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      },
+      "tools": [
+        {
+          "name": "trace_feature",
+          "positive": 1,
+          "negative_semantic": 1,
+          "status": "FULLY_CERTIFIED_SCOPED_ORIGINAL_MCP",
+          "scope": "Original Linux REA MCP Ghidra 12.1.4 on unchanged /usr/bin/true ELF x86_64. trace_feature literal 'abort' found 4 matching string/procedure entries and 8 references, no truncation or unknowns. Unmatched controlled identifier produced zero matches/references, no fabricated evidence and isError not true as typed semantic absence. Session auto-cleaned. No claim of GUI/live dynamic behavior."
+        }
+      ],
+      "new_dependencies": 0,
+      "original_bridge_unchanged": true,
+      "consumed_requests_removed_in_canonical_commit": true,
+      "fully_certified_total": 76,
+      "remaining": 132,
+      "other_observations": [
+        {
+          "name": "fixture_apkdemos",
+          "run_id": 40082378366,
+          "status": "BLOCKED_BEFORE_MCP",
+          "reason": "Existing bridge UnboundLocalError local urllib variable; no Android tools executed."
+        },
+        {
+          "name": "automatic_ghidra_provider",
+          "run_id": 40082560290,
+          "status": "REJECTED_AMBIGUOUS_PROVIDER",
+          "reason": "open_binary requires explicit provider_id=ghidra on multi-provider Linux host; corrected in run 40082666247."
+        }
+      ]
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 75,
-    "awaiting_canonical_individual_review": 133,
+    "functional_pass_scoped_distinct": 76,
+    "awaiting_canonical_individual_review": 132,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 15,
+    "workspace_newly_passed_distinct": 16,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 75,
+    "fully_certified_distinct": 76,
     "scoped_positive_not_fully_certified_distinct": 1,
-    "not_functionally_positive_distinct": 132,
-    "remaining_full_certification_distinct": 133
+    "not_functionally_positive_distinct": 131,
+    "remaining_full_certification_distinct": 132
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -4918,7 +4975,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P74-WEB-SCREENSHOT-PIXEL-DIFF-20261024",
+  "latest_phase": "LINUX-P76-GHIDRA-TRACE-FEATURE-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -6188,6 +6245,19 @@
       "positive_calls": 2,
       "negative_calls": 1,
       "negative_isError_true": true
+    },
+    "trace_feature": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P76-GHIDRA-TRACE-FEATURE-20261024",
+      "scope": "Original Linux REA MCP Ghidra 12.1.4 on unchanged /usr/bin/true ELF x86_64. trace_feature literal 'abort' found 4 matching string/procedure entries and 8 references, no truncation or unknowns. Unmatched controlled identifier produced zero matches/references, no fabricated evidence and isError not true as typed semantic absence. Session auto-cleaned. No claim of GUI/live dynamic behavior.",
+      "run_ids": [
+        40082666247
+      ],
+      "positive_evidence_sha256": "3919499abab81c94884dfa08e2e1b097655b828596b49d0f0dd2ce91ff855e1c",
+      "negative_evidence_sha256": "3919499abab81c94884dfa08e2e1b097655b828596b49d0f0dd2ce91ff855e1c",
+      "positive_calls": 1,
+      "negative_semantic_calls": 1,
+      "negative_isError_true": false
     }
   },
   "transport_incidents": [
@@ -6254,5 +6324,15 @@
         "no_additional_blind_retries": true
       }
     }
-  ]
+  ],
+  "transport_recovery_after_ovh_renewal": {
+    "date_utc": "2026-10-24",
+    "ssh_success_run_id": 40078631883,
+    "ssh_success_run_attempt": 5,
+    "live_208_tools_run_id": 40082168348,
+    "authenticated_contract_run_id": 40082232609,
+    "successfully_reached_original_mcp": true,
+    "safety_pin_preserved": true,
+    "reinstalled_engine": false
+  }
 }
