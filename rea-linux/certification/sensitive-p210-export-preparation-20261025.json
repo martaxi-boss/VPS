@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "project": "REA ORIGINAL — Engenharia Reversa",
+  "phase_id": "LINUX-P210-SENSITIVE-EVIDENCE-EXPORT-CONTRACT-AND-OFFLINE-SIGNER-20261025",
+  "date_utc": "2026-10-25",
+  "status": "LIVE_DESCRIBE_SUCCESS__OWNER_SIGNATURE_PENDING__NO_NEW_CERTIFICATION",
+  "baseline": {
+    "ledger_path": "rea-linux/certification/functional-ledger.json",
+    "ledger_blob": "1463a4a71a215d276488ab12211cc8d4be5c6f9b",
+    "certified": 112,
+    "uncertified": 96,
+    "sensitive_certified": 6,
+    "sensitive_pending": 77
+  },
+  "live_mcp": {
+    "tool": "export_evidence_bundle",
+    "action": "describe",
+    "run_id": 40143959913,
+    "job_id": 121021282155,
+    "request_commit": "0222e6559c642534b10133aad5922117a6a54ec7",
+    "conclusion": "SUCCESS",
+    "mcp_catalog": 208,
+    "descriptor_sha256": "f283207bacc090659695f8d2ad7ad668195cd51640a14f950c539fe80a956e5b",
+    "descriptor_size": 1624,
+    "required": [
+      "path"
+    ],
+    "optional": [
+      "overwrite"
+    ],
+    "default_overwrite": false,
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "consumed_request_cleanup_commit": "a3dad985b95310377ada1cba5fdf2330ffa0aa59"
+  },
+  "preservation_guard": {
+    "source_report": "rea-linux/certification/sensitive-p209-preservation-block-20261025.json",
+    "retained_evidence": 6,
+    "unknown_records": 0,
+    "actual_retained_evidence_last_checked_run": 40143554927,
+    "do_not_run": [
+      "open_binary",
+      "close_binary"
+    ],
+    "implementation_checked": "original rea/src/server/registerSessionRecordTools.ts export handler serializes evidence without closing session; original rea/src/application/JsonFiles.ts atomic destination creation, 0600 staging, non-overwrite EEXIST",
+    "no_mcp_sensitive_call_in_this_phase": true
+  },
+  "owner_signer": {
+    "path": "rea-linux/owner/sign_export_evidence_p210_android.py",
+    "blob": "3e5371f944dd2aa36310a5456fa46aa92ef2efb7",
+    "syntax_test": "PASS local Python py_compile",
+    "operation_preflight": "PASS two independent sensitive operations with same exact path and overwrite=false",
+    "owner_public_fingerprint": "99580a4806703661ca38f75a3cb95e47d46e32228cf89d5aa7ab55e95a4e25b4",
+    "owner_private_key": "Android Termux only, already exists, unchanged",
+    "signatures_created_at_reporting_time": 0,
+    "signature_validity_minutes": 45,
+    "owner_action_required": true,
+    "proposed_destination": "/opt/rea-reversa/rea/rea-p210-evidence-backup-<fresh-request-nonce>.json",
+    "scope": "Write one newly named backup under already installed REA engine, not source code modifications or any unrelated project. Preserve after successful write as intentionally archived evidence.",
+    "positive": {
+      "tool": "export_evidence_bundle",
+      "overwrite": false,
+      "expect": "mcp.isError not true; saved archive containing 6 Evidence records"
+    },
+    "negative": {
+      "tool": "export_evidence_bundle",
+      "same_path": true,
+      "overwrite": false,
+      "expect": "mcp.isError true, existing destination rejected and preserved"
+    },
+    "caveat": "Service runtime filesystem write permissions for this specific destination are not yet proven. If positive returns IO/permission failure, certify nothing, preserve six Evidence, require new owner approval for any corrected path."
+  },
+  "must_verify_after_owner_request": [
+    "Signed JSON received as text and unexpired; both Ed25519 signatures valid on VPS",
+    "sealed response key never published as private",
+    "per-step tools/call original MCP and isError verified from decrypted result",
+    "exported file size, record count, and error category match expectations",
+    "six retained Evidence entries remain unchanged, no unknowns changed",
+    "remove sealed GitHub one-use request and ephemeral response-key files",
+    "bridge, workflow and owner verifier unchanged"
+  ],
+  "environment": {
+    "original_bridge_blob": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7",
+    "original_workflow_blob": "c81ef44d3f3e9dc3b3a819add5ff4f1a33d343df",
+    "no_new_skills_plugins_mcp_engines": true,
+    "no_codex": true,
+    "no_other_projects": true
+  },
+  "certification_granted": false
+}
