@@ -1679,5 +1679,32 @@
     "pending": 126,
     "post_cleanup_recheck": "PENDING",
     "bridge_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+  },
+  "latest_continuation_diagnostics": {
+    "phase_id": "LINUX-P118-P123-PROVIDER-AND-NEGATIVE-GATES-20261024",
+    "certification_change": 0,
+    "fully_certified": 84,
+    "pending": 124,
+    "latest_real_mcp_test": {
+      "run_id": 40108039250,
+      "open_binary_success": true,
+      "get_navigation_context_error": "capability_unavailable/unsupported_provider/current_document",
+      "encrypted_result_sha256": "c1bd9ddf3876100a9032adbc43282cf8b5a4881562d645b392e49f50effc5e97",
+      "cleanup": "PASS"
+    },
+    "sensitive_guard": "close_binary requires independent Ed25519 owner signature; not invoked",
+    "artifact_positive_reused": [
+      40088562064,
+      40088720153
+    ],
+    "artifact_negative_pending": true,
+    "post_cleanup_recheck": {
+      "run_id": 40108550920,
+      "conclusion": "SUCCESS",
+      "ssh_host_pin": "PASS",
+      "catalog_count": 208,
+      "audited_schema_count": 208
+    },
+    "original_bridge_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
   }
 }
