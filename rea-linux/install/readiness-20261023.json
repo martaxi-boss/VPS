@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_54_FULLY_CERTIFIED_PROFILES_AND_154_PENDING",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_55_FULLY_CERTIFIED_PROFILES_AND_153_PENDING",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -515,6 +515,39 @@
       "original_service_unmodified": true
     },
     "latest_contract_certification": {
+      "phase_id": "LINUX-P53-NATIVE-PROCEDURE-METADATA-20261024",
+      "original_mcp_catalog": 208,
+      "fully_certified_distinct": 55,
+      "remaining_full_distinct": 153,
+      "positive_limited_distinct": 0,
+      "latest_run_ids": [
+        40051529669
+      ],
+      "artifact_ids": [
+        12543218894
+      ],
+      "request_sha256": [
+        "12dd6da3bf6fb8ab46a44b39d326e27727bb6f6e3b9fd1fd90e121649592d386"
+      ],
+      "result_sha256": [
+        "e7cb42e6fd975ea3f50ab93b2878f64d79e2ff8332f1d09a23b1f9f894a58b79"
+      ],
+      "authenticated_encrypted_results": true,
+      "exact_request_match": true,
+      "new_scoped_certifications": [
+        "procedure_info"
+      ],
+      "mcp_steps_executed": 3,
+      "mcp_steps_planned": 11,
+      "stopped_after_expected_negative_isError": true,
+      "no_additional_dependencies": true,
+      "original_engine_unchanged": true,
+      "original_service_unchanged": true,
+      "ephemeral_ghidra_session_cleanup": "PASS",
+      "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+      "consumed_github_requests": "PASS_REMOVED_1"
+    },
+    "prior_contract_certification": {
       "phase_id": "LINUX-P52-SEARCH-AND-CALL-TARGETS-20261024",
       "original_mcp_catalog": 208,
       "fully_certified_distinct": 54,
@@ -549,50 +582,6 @@
       "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
       "consumed_github_requests": "PASS_REMOVED_2",
       "post_cleanup_run_id": 40051039989,
-      "post_cleanup_catalog": 208,
-      "post_cleanup_schemas": 208,
-      "post_cleanup_contract_matches": 208
-    },
-    "prior_contract_certification": {
-      "phase_id": "LINUX-P51B-NATIVE-INSTRUCTION-LIST-20261024",
-      "original_mcp_catalog": 208,
-      "fully_certified_distinct": 51,
-      "remaining_full_distinct": 157,
-      "positive_limited_distinct": 0,
-      "latest_run_ids": [
-        40050341667,
-        40050594419
-      ],
-      "artifact_ids": [
-        12543410592,
-        12543415450
-      ],
-      "request_sha256": [
-        "380d327bb9ff78619975941686c1d04122a687606d6a0d8049c1431ca2e5aa33",
-        "bd1d7b58a1371fbd0f3d33d37ce7ea4799fd7dc861bdb3b619d031f94251aaf8"
-      ],
-      "result_sha256": [
-        "986bc0c9f877334293d874d04229fed901dfef0b1ce0110c8aa5885e225d7cba",
-        "6d673ed7ee3d6ff0bee55f372cbd23b7956019fc3f2f112c5eb8bed82b5d2873"
-      ],
-      "newly_certified": [
-        "read_function_instructions"
-      ],
-      "positive_scoped_pending_negative": [
-        "list_procedures"
-      ],
-      "negative_mcp_isError_true": true,
-      "negative_category": "invalid_input",
-      "authenticated_encrypted_results": true,
-      "exact_request_match": true,
-      "missing_function_rejected": true,
-      "no_additional_dependencies": true,
-      "original_engine_unchanged": true,
-      "original_service_unchanged": true,
-      "ephemeral_ghidra_session_cleanup": "PASS",
-      "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
-      "consumed_github_requests": "PASS_REMOVED_5",
-      "post_cleanup_run_id": 40050787498,
       "post_cleanup_catalog": 208,
       "post_cleanup_schemas": 208,
       "post_cleanup_contract_matches": 208
@@ -974,6 +963,45 @@
         "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
         "consumed_github_requests": "PASS_REMOVED_5",
         "post_cleanup_run_id": 40050787498,
+        "post_cleanup_catalog": 208,
+        "post_cleanup_schemas": 208,
+        "post_cleanup_contract_matches": 208
+      },
+      {
+        "phase_id": "LINUX-P52-SEARCH-AND-CALL-TARGETS-20261024",
+        "original_mcp_catalog": 208,
+        "fully_certified_distinct": 54,
+        "remaining_full_distinct": 154,
+        "positive_limited_distinct": 0,
+        "latest_run_ids": [
+          40050881478
+        ],
+        "commit": "d37d9d19e5ac3b52bf4794d04fb31c7fb49ddc9c",
+        "artifact_ids": [
+          12542449293
+        ],
+        "request_sha256": [
+          "9682c347310b400fc0605bc57d52bbf0888fdbc5cf4b274d7e6d154ed0dd7114"
+        ],
+        "result_sha256": [
+          "f87be6d452a1eacac0c0664bfd7f057e63bbce55d6594d1255d31a5ede63063e"
+        ],
+        "authenticated_encrypted_results": true,
+        "new_scoped_certifications": [
+          "search_procedures",
+          "search_strings",
+          "resolve_native_call_targets"
+        ],
+        "positive_calls": 3,
+        "correct_negative_semantic_calls": 3,
+        "tool_error": false,
+        "ephemeral_ghidra_session_cleanup": "PASS",
+        "no_additional_dependencies": true,
+        "original_engine_unchanged": true,
+        "original_service_unchanged": true,
+        "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+        "consumed_github_requests": "PASS_REMOVED_2",
+        "post_cleanup_run_id": 40051039989,
         "post_cleanup_catalog": 208,
         "post_cleanup_schemas": 208,
         "post_cleanup_contract_matches": 208

@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_54_FULLY_CERTIFIED_154_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_55_FULLY_CERTIFIED_153_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -4178,21 +4178,66 @@
         "contracts_matched": 208,
         "bridge_original_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
       }
+    },
+    {
+      "phase_id": "LINUX-P53-NATIVE-PROCEDURE-METADATA-20261024",
+      "date_utc": "2026-10-24",
+      "status": "ONE_NEW_FULLY_CERTIFIED_SCOPED_GHIDRA_PROCEDURE_INFO_PROFILE",
+      "source": "Real original REA MCP Linux x86-64 with Ghidra 12.1.4",
+      "proof": {
+        "run_id": 40051529669,
+        "run_url": "https://github.com/martaxi-boss/VPS/actions/runs/40051529669",
+        "commit": "4775709f928836d871f4c5fb3f64feea1127a7f2",
+        "encrypted_artifact_id": 12543218894,
+        "request_sha256": "12dd6da3bf6fb8ab46a44b39d326e27727bb6f6e3b9fd1fd90e121649592d386",
+        "mcp_result_sha256": "e7cb42e6fd975ea3f50ab93b2878f64d79e2ff8332f1d09a23b1f9f894a58b79",
+        "authenticated_aes_gcm_rsa_oaep": true,
+        "request_matched": true,
+        "original_mcp_tool_catalog": 208,
+        "planned_mcp_tools": 11,
+        "executed_mcp_tools": 3,
+        "stop_on_first_isError": true,
+        "ghidra_session_cleanup": "PASS",
+        "negative_isError": true,
+        "negative_error": "invalid_request / invalid_input: no procedure exists at 0x200000",
+        "controlled_target_sha256": "8a63c98320173f79e263115e10cefc170155e47d1fd4b5a70e4429d2699cae28"
+      },
+      "tools": [
+        {
+          "name": "procedure_info",
+          "status": "FULLY_CERTIFIED",
+          "positive": 1,
+          "negative": 1,
+          "scope": "Original REA MCP Linux Ghidra 12.1.4 /usr/bin/true x86_64: procedure_info(0x101480) returned exact switchD_00102043::default 5-byte body 0x101480..0x101484, thunk to 0x101260, signature void default(void), basicblock_count=1; nonexistent 0x200000 rejected with real MCP isError=true invalid_request/invalid_input without invented procedure."
+        }
+      ],
+      "not_executed_in_same_batch_due_to_stop": [
+        "procedure_assembly",
+        "procedure_callees",
+        "procedure_callers",
+        "procedure_references"
+      ],
+      "new_dependency_installs": 0,
+      "bridge_modified": false,
+      "original_engine_unchanged": true,
+      "consumed_request_cleanup": "PASS_ON_SAME_COMMIT",
+      "certified_total": 55,
+      "remaining": 153
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 54,
-    "awaiting_canonical_individual_review": 154,
+    "functional_pass_scoped_distinct": 55,
+    "awaiting_canonical_individual_review": 153,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 54,
+    "fully_certified_distinct": 55,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 154,
-    "remaining_full_certification_distinct": 154
+    "not_functionally_positive_distinct": 153,
+    "remaining_full_certification_distinct": 153
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -4222,7 +4267,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P52-SEARCH-AND-CALL-TARGETS-20261024",
+  "latest_phase": "LINUX-P53-NATIVE-PROCEDURE-METADATA-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -5217,6 +5262,17 @@
       "evidence_sha256": "f87be6d452a1eacac0c0664bfd7f057e63bbce55d6594d1255d31a5ede63063e",
       "positive_calls": 1,
       "negative_semantic_calls": 1
+    },
+    "procedure_info": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P53-NATIVE-PROCEDURE-METADATA-20261024",
+      "scope": "Original REA MCP Linux Ghidra 12.1.4 /usr/bin/true x86_64: procedure_info(0x101480) returned exact switchD_00102043::default 5-byte body 0x101480..0x101484, thunk to 0x101260, signature void default(void), basicblock_count=1; nonexistent 0x200000 rejected with real MCP isError=true invalid_request/invalid_input without invented procedure.",
+      "run_ids": [
+        40051529669
+      ],
+      "evidence_sha256": "e7cb42e6fd975ea3f50ab93b2878f64d79e2ff8332f1d09a23b1f9f894a58b79",
+      "positive_calls": 1,
+      "negative_calls": 1
     }
   }
 }
