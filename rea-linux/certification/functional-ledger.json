@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_51_FULLY_CERTIFIED_157_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_54_FULLY_CERTIFIED_154_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -4103,21 +4103,85 @@
         "contracts_matching": 208,
         "original_bridge_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
       }
+    },
+    {
+      "phase_id": "LINUX-P52-SEARCH-AND-CALL-TARGETS-20261024",
+      "date_utc": "2026-10-24",
+      "status": "THREE_FULLY_CERTIFIED_SCOPED_ORIGINAL_LINUX_MCP_SEARCH_AND_CALL_REFERENCE_PROFILES",
+      "source": "Single original persistent REA MCP Linux x86-64, Ghidra 12.1.4, /usr/bin/true known system ELF64; no binary execution",
+      "proof": {
+        "run_id": 40050881478,
+        "run_url": "https://github.com/martaxi-boss/VPS/actions/runs/40050881478",
+        "commit": "d37d9d19e5ac3b52bf4794d04fb31c7fb49ddc9c",
+        "encrypted_artifact_id": 12542449293,
+        "request_sha256": "9682c347310b400fc0605bc57d52bbf0888fdbc5cf4b274d7e6d154ed0dd7114",
+        "mcp_result_sha256": "f87be6d452a1eacac0c0664bfd7f057e63bbce55d6594d1255d31a5ede63063e",
+        "authenticated_aes_gcm_rsa_oaep": true,
+        "request_matched": true,
+        "github_blob_exact_local": true,
+        "original_mcp_tool_catalog": 208,
+        "real_tools_call_count": 7,
+        "setup_calls": 1,
+        "positive_functional_calls": 3,
+        "negative_semantic_calls": 3,
+        "all_isError_not_true": true,
+        "mcp_tool_error": false,
+        "session_cleanup": "PASS",
+        "controlled_target_sha256": "8a63c98320173f79e263115e10cefc170155e47d1fd4b5a70e4429d2699cae28"
+      },
+      "tools": [
+        {
+          "name": "search_procedures",
+          "status": "FULLY_CERTIFIED",
+          "positive": 1,
+          "negative_semantic": 1,
+          "scope": "Original REA Linux MCP Ghidra 12.1.4, known ELF /usr/bin/true: exact literal switchD_00102043 found one canonical 0x101480 procedure with name switchD_00102043::default; nonexistent literal REA_NO_FUNCTION_20261024_X correctly returned empty list, no fabricated procedure."
+        },
+        {
+          "name": "search_strings",
+          "status": "FULLY_CERTIFIED",
+          "positive": 1,
+          "negative_semantic": 1,
+          "scope": "Original REA Linux MCP Ghidra 12.1.4, known ELF /usr/bin/true: regex . matched 122 Ghidra-reported strings including /lib64/ld-linux-x86-64.so.2; nonexistent literal REA_NO_STRING_20261024_X correctly returned empty list. Bounded to provider-reported strings, not arbitrary undecoded binary text."
+        },
+        {
+          "name": "resolve_native_call_targets",
+          "status": "FULLY_CERTIFIED",
+          "positive": 1,
+          "negative_semantic": 1,
+          "scope": "Original REA Linux MCP Ghidra 12.1.4: known CALL at 0x101480 resolved direct unique target 0x101260 with source/target and UNCONDITIONAL_CALL Ghidra ReferenceManager provenance; non-mapped 0x200000 returned status=unavailable, mechanism=unavailable, procedure=null, targets=[] without invented call edge. Static reference only, not runtime confirmation."
+        }
+      ],
+      "failed_preflight_run_not_counted": {
+        "run_id": 40050857368,
+        "cause": "Truncated public response key in encrypted request transport, before MCP tool call"
+      },
+      "limitations": [
+        "Only one Linux x86-64 ELF and one Ghidra version, not universal across files/providers",
+        "Regex . matched provider-reported Ghidra strings, not all possible literal byte sequences",
+        "Call target is static Ghidra ReferenceManager observation, not observed runtime execution",
+        "No installs or production changes"
+      ],
+      "dependencies_installed": 0,
+      "bridge_modified": false,
+      "consumed_request_cleanup": "PENDING",
+      "certified_total": 54,
+      "remaining": 154
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 51,
-    "awaiting_canonical_individual_review": 157,
+    "functional_pass_scoped_distinct": 54,
+    "awaiting_canonical_individual_review": 154,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 51,
+    "fully_certified_distinct": 54,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 157,
-    "remaining_full_certification_distinct": 157
+    "not_functionally_positive_distinct": 154,
+    "remaining_full_certification_distinct": 154
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -4147,7 +4211,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P51B-NATIVE-INSTRUCTION-LIST-20261024",
+  "latest_phase": "LINUX-P52-SEARCH-AND-CALL-TARGETS-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -5109,6 +5173,39 @@
       "positive_evidence_sha256": "986bc0c9f877334293d874d04229fed901dfef0b1ce0110c8aa5885e225d7cba",
       "positive_calls": 1,
       "negative_calls": 1
+    },
+    "search_procedures": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P52-SEARCH-AND-CALL-TARGETS-20261024",
+      "scope": "Original REA Linux MCP Ghidra 12.1.4, known ELF /usr/bin/true: exact literal switchD_00102043 found one canonical 0x101480 procedure with name switchD_00102043::default; nonexistent literal REA_NO_FUNCTION_20261024_X correctly returned empty list, no fabricated procedure.",
+      "run_ids": [
+        40050881478
+      ],
+      "evidence_sha256": "f87be6d452a1eacac0c0664bfd7f057e63bbce55d6594d1255d31a5ede63063e",
+      "positive_calls": 1,
+      "negative_semantic_calls": 1
+    },
+    "search_strings": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P52-SEARCH-AND-CALL-TARGETS-20261024",
+      "scope": "Original REA Linux MCP Ghidra 12.1.4, known ELF /usr/bin/true: regex . matched 122 Ghidra-reported strings including /lib64/ld-linux-x86-64.so.2; nonexistent literal REA_NO_STRING_20261024_X correctly returned empty list. Bounded to provider-reported strings, not arbitrary undecoded binary text.",
+      "run_ids": [
+        40050881478
+      ],
+      "evidence_sha256": "f87be6d452a1eacac0c0664bfd7f057e63bbce55d6594d1255d31a5ede63063e",
+      "positive_calls": 1,
+      "negative_semantic_calls": 1
+    },
+    "resolve_native_call_targets": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P52-SEARCH-AND-CALL-TARGETS-20261024",
+      "scope": "Original REA Linux MCP Ghidra 12.1.4: known CALL at 0x101480 resolved direct unique target 0x101260 with source/target and UNCONDITIONAL_CALL Ghidra ReferenceManager provenance; non-mapped 0x200000 returned status=unavailable, mechanism=unavailable, procedure=null, targets=[] without invented call edge. Static reference only, not runtime confirmation.",
+      "run_ids": [
+        40050881478
+      ],
+      "evidence_sha256": "f87be6d452a1eacac0c0664bfd7f057e63bbce55d6594d1255d31a5ede63063e",
+      "positive_calls": 1,
+      "negative_semantic_calls": 1
     }
   }
 }
