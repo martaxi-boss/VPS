@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_45_FULLY_CERTIFIED_PROFILES_AND_163_PENDING",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_46_FULLY_CERTIFIED_PROFILES_AND_162_PENDING",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -515,6 +515,35 @@
       "original_service_unmodified": true
     },
     "latest_contract_certification": {
+      "phase_id": "LINUX-P49-NATIVE-BYTES-20261024",
+      "original_mcp_catalog": 208,
+      "fully_certified_distinct": 46,
+      "remaining_full_distinct": 162,
+      "positive_limited_distinct": 0,
+      "latest_run_ids": [
+        40049475089
+      ],
+      "artifact_ids": [
+        12542158278
+      ],
+      "result_sha256": [
+        "2c8fbcf4b22073514bf16f5c54acf044844f29d3bf6134dd108b0602fd2bf2fe"
+      ],
+      "request_sha256": [
+        "453e6225754f1de6aeb4047825671579fdfde0f1802cc6a6d2b538d06e596b66"
+      ],
+      "authenticated_encrypted_results": true,
+      "no_additional_dependencies": true,
+      "original_engine_unchanged": true,
+      "original_service_unchanged": true,
+      "ephemeral_ghidra_session_cleanup": "PASS",
+      "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+      "certified_tool": "read_bytes",
+      "source": "16 real mapped bytes and zero real unmapped bytes with complete=false; isError not true for both typed outcomes",
+      "pending_positive_tool": "inspect_native_instruction",
+      "consumed_github_requests": "PENDING_REMOVAL"
+    },
+    "prior_contract_certification": {
       "phase_id": "LINUX-P48-NATIVE-SESSION-ADDRESS-OFFSET-20261024",
       "original_mcp_catalog": 208,
       "fully_certified_distinct": 45,
@@ -561,24 +590,6 @@
       "post_cleanup_schemas": 208,
       "post_cleanup_contract_matches": 208,
       "cleanup_commit": "54def008a54174e08a8da19084da964f856f7404"
-    },
-    "prior_contract_certification": {
-      "phase_id": "LINUX-P47-BUNDLE-COMPARISON-ANALYSIS-VIEW-20261024",
-      "original_mcp_catalog": 208,
-      "fully_certified_distinct": 43,
-      "remaining_full_distinct": 165,
-      "positive_limited_distinct": 0,
-      "latest_run_ids": [
-        40047298905
-      ],
-      "result_sha256": [
-        "6ae9a5f28b309b99f680fb96b2f391faea38bf7f9041a4488834d546b9d04488"
-      ],
-      "authenticated_encrypted_results": true,
-      "no_additional_dependencies": true,
-      "original_engine_unchanged": true,
-      "original_service_unchanged": true,
-      "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
     },
     "previous_contract_certification_snapshots": [
       {
@@ -735,6 +746,54 @@
         "original_engine_unchanged": true,
         "original_service_unchanged": true,
         "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      },
+      {
+        "phase_id": "LINUX-P48-NATIVE-SESSION-ADDRESS-OFFSET-20261024",
+        "original_mcp_catalog": 208,
+        "fully_certified_distinct": 45,
+        "remaining_full_distinct": 163,
+        "positive_limited_distinct": 0,
+        "latest_run_ids": [
+          40048642790,
+          40049037688,
+          40049159017
+        ],
+        "artifact_ids": [
+          12542332442,
+          12542985187,
+          12543035781
+        ],
+        "result_sha256": [
+          "de0ddec4de6605395a306f02ca669822bdd4dce90ad7cae11a5503422bd19179",
+          "85e1ac83f97494ba061f2cee2baea6fca1ce11b52929144efa4de91297c7087b",
+          "c305b2c97e2245fe1e73e00b9d836cfcb573a281e8f91b18343192b37303bf4a"
+        ],
+        "authenticated_encrypted_results": true,
+        "request_sha256_matched": true,
+        "scoped_profiles_newly_certified": [
+          "binary_session",
+          "address_to_file_offset"
+        ],
+        "bounded_positive_mcp_calls_in_final_run": 4,
+        "bounded_expected_isError_true_mcp_calls_in_final_run": 1,
+        "one_typed_semantic_mismatch_diagnostic": true,
+        "additional_pending_positive_tools": [
+          "binary_overview",
+          "list_segments",
+          "list_documents"
+        ],
+        "no_additional_dependencies": true,
+        "original_engine_unchanged": true,
+        "original_service_unchanged": true,
+        "ephemeral_ghidra_session_cleanup": "PASS",
+        "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+        "consumed_github_requests": "PASS_REMOVED_10",
+        "post_cleanup_run_id": 40049344542,
+        "post_cleanup_run_conclusion": "SUCCESS",
+        "post_cleanup_catalog": 208,
+        "post_cleanup_schemas": 208,
+        "post_cleanup_contract_matches": 208,
+        "cleanup_commit": "54def008a54174e08a8da19084da964f856f7404"
       }
     ],
     "latest_p48_hygiene": {
