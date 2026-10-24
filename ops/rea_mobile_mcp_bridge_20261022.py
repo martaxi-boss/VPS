@@ -689,7 +689,6 @@ def main():
     if data["action"] == "fixture_static_files_v2":
         # P44 deterministic original-REA official examples and truthful branch checks.
         # No package installation, target execution, or mutations.
-        import subprocess, json, hashlib, base64
         NAMES=("trace_application_feature","trace_javascript_semantics",
           "compare_source_to_bundle","compare_functions","build_call_path",
           "find_changed_behavior","compare_process_captures","compare_artifacts")
