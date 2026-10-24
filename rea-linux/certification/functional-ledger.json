@@ -6066,6 +6066,85 @@
       "remaining": 124,
       "cleanup_request": "rea-linux/requests/p117-list-procedures-controlled-20261024.json",
       "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+    },
+    {
+      "phase_id": "LINUX-P118-P123-PROVIDER-AND-NEGATIVE-GATES-20261024",
+      "date_utc": "2026-10-24",
+      "status": "NO_NEW_CERTIFICATION_VERIFIED_ELF_PROVIDER_LIMITS_AND_SENSITIVE_GATE",
+      "purpose": "Choose next tests after P117 without repeating 84 certified tools; inspect tool contracts and one real original-MCP trial",
+      "source": "Existing GitHub Actions -> authenticated SSH -> original REA MCP; local ephemeral response key, RSA-OAEP/AES-GCM and request-hash verification",
+      "observations": [
+        {
+          "phase": "P118",
+          "tool": "inspect_native_load_image",
+          "run_id": 40107529954,
+          "authenticated_result_sha256": "748d70614e05c06648a895f797bc652bd20582a4f8608c725afec550ee3fc564",
+          "result": "CONTRACT_ONLY",
+          "why_not_certified": "DOS MZ/COM image verification contract; existing controlled target is Linux ELF /usr/bin/true",
+          "cleanup_commit": "c58582670f5fb32ea06c33cc1c4e135fb8565d6e"
+        },
+        {
+          "phase": "P119",
+          "tool": "list_architectures",
+          "run_id": 40107661286,
+          "authenticated_result_sha256": "c0e3ce4f55179a1c9a219050d3696256bb1ad56e215c70af20d57cfd559884e0",
+          "result": "CONTRACT_ONLY",
+          "why_not_certified": "Mach-O thin/universal slice inventory; not the controlled Linux ELF",
+          "cleanup_commit": "2e927ce0ebd7a51fa4db21c826b0c6029f6fe428"
+        },
+        {
+          "phase": "P120-P121",
+          "tool": "get_navigation_context",
+          "describe_run_id": 40107763769,
+          "describe_sha256": "8c0e37908952de734b3bccd39d1ba0e471d700e4bcacecac96864db13e356153",
+          "mcp_run_id": 40108039250,
+          "authenticated_result_sha256": "c1bd9ddf3876100a9032adbc43282cf8b5a4881562d645b392e49f50effc5e97",
+          "request_sha256": "b3c34e21265871a4ba2ae14775786d86503e393b620384f4af69ab2e7f1f7a1e",
+          "request_matched": true,
+          "steps_executed": 2,
+          "open_binary_isError_true": false,
+          "tool_isError_true": true,
+          "error_code": "capability_unavailable",
+          "error_category": "unsupported_provider",
+          "unavailable_provider_operation": "current_document",
+          "session_cleanup": "PASS",
+          "result": "NOT_CERTIFIED_UNSUPPORTED_GHIDRA_OPERATION",
+          "cleanup_commits": [
+            "c224902a1db9b2841dbe55245ec426ffec7a803d",
+            "bccade6bf98d3123fc6d11863472da685a76a245"
+          ]
+        },
+        {
+          "phase": "P122",
+          "tool": "close_binary",
+          "run_id": 40108230316,
+          "authenticated_result_sha256": "5d8254c8ca16b5d660646114340353ec8bdffc9c82b6620acf3b4ef45207d1f5",
+          "result": "CONTRACT_ONLY_SENSITIVE_NOT_CALLED",
+          "why_not_certified": "Descriptor destructiveHint=true; independent Ed25519 owner authorization required for direct sensitive call",
+          "cleanup_commit": "86855af4f188031fc6129da12bd10744c7e0fd92"
+        },
+        {
+          "phase": "P123",
+          "tool": "inspect_artifact",
+          "run_id": 40108348962,
+          "authenticated_result_sha256": "4081bee23f585129c1717e18499b959d936548d8b7f2006fab5ac9245b8d1d0a",
+          "result": "PRIOR_POSITIVES_P91_P92_REUSED_NEGATIVE_PENDING",
+          "why_not_certified": "No controlled integrity violation available; positive P91/P92 insufficient to prove failure-on-corruption and record-and-continue integrity semantics; do not repeat positives or count a provider error",
+          "prior_positive_runs": [
+            40088562064,
+            40088720153
+          ],
+          "cleanup_commit": "ac3b6f704350a19facf557f8cd1f8947e75382c9"
+        }
+      ],
+      "new_certifications": 0,
+      "fully_certified_total": 84,
+      "pending_total": 124,
+      "source_bridge_unchanged": true,
+      "production_service_unchanged": true,
+      "all_new_private_requests_encrypted": true,
+      "other_existing_request_preserved": "rea-linux/requests/p114-evidence-bundle-semantic-absence-20261024.json",
+      "next_safe_preparation": "Stage controlled immutable format/integrity fixtures only through existing authorized GitHub Actions -> SSH trial path; verify tool-specific positive and true negative without using unsupported provider results or unsigned sensitive tools"
     }
   ],
   "active_scope_counts": {
@@ -6110,7 +6189,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P117-LIST-PROCEDURES-SEMANTIC-THUNKS-20261024",
+  "latest_phase": "LINUX-P118-P123-PROVIDER-AND-NEGATIVE-GATES-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
