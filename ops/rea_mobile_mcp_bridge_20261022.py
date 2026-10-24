@@ -100,7 +100,7 @@ def validate(data):
                   "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
-    elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
+    elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump", "fixture_offline_web_adb"):
         # Named system-owned ELF only; never an arbitrary caller-selected path.
         if set(data) != {"version", "action", "response_key"}:
             error("Ghidra inspection fixture accepts only a public reply key")
@@ -506,7 +506,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         if private is not None:
             error("Unexpected private response")
         return
-    if request["action"] not in ("call", "sealed_batch", "fixture_apkdemos", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump") or private is None:
+    if request["action"] not in ("call", "sealed_batch", "fixture_apkdemos", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump", "fixture_offline_web_adb") or private is None:
         error("Missing encrypted-return payload from REA")
     public = serialization.load_der_public_key(
         base64.b64decode(request["response_key"], validate=True)
@@ -2882,6 +2882,139 @@ def main():
                   ("PASS" if cleanup_ok else "FAIL"))
             if not cleanup_ok:
                 error("Public format fixture staging was not cleaned")
+        return
+    if data["action"] == "fixture_offline_web_adb":
+        # Controlled offline public source fixtures; original MCP tools/call.
+        # No browser navigation, no actual device connection or service changes.
+        import tempfile
+        import shutil
+        parent = Path(tempfile.mkdtemp(prefix="rea-offline-150-", dir="/dev/shm"))
+        parent.chmod(0o755)
+        cases = []
+        unchanged = False
+        try:
+            sources = parent / "files" / "modules"
+            sources.mkdir(parents=True)
+            source_path = sources / "main.js"
+            source_text = "export const multiply = x => x * 2;\\n"
+            source_path.write_text(source_text, encoding="utf-8")
+            source_path.chmod(0o644)
+            source_sha = hashlib.sha256(source_path.read_bytes()).hexdigest()
+            manifest = {
+                "capture_path": str(parent / "capture.json"),
+                "capture_sha256": "a"*64, "capture_kind": "browser-scenario",
+                "source_evidence_id": None,
+                "capture_completeness": {
+                    "status":"complete", "equality_eligible":True,
+                    "missing_sections":[], "truncated_sections":[]
+                },
+                "output_directory": str(parent),
+                "analysis_input": {"input_path":str(parent),"format":"directory"},
+                "scripts": [{
+                    "url":"https://example.invalid/modules/main.js",
+                    "source":{"kind":"scenario-response",
+                              "transaction_id":"controlled-txn",
+                              "request_sequence":1,"response_sequence":2,"status":200},
+                    "content":{"state":"exported","relative_path":"modules/main.js",
+                               "layout":"isolated","layout_reason":"controlled-source",
+                               "sha256":source_sha,"bytes":len(source_text.encode()),
+                               "media_type":"text/javascript", "redacted":False,
+                               "representation":"browser-decoded-response-bytes"}
+                }],
+                "limitations":[]
+            }
+            manifest_path = parent / "manifest.json"
+            manifest_path.write_text(json.dumps(manifest,sort_keys=True))
+            map_path = parent / "main.js.map"
+            map_path.write_text(json.dumps({
+                "version":3,"sources":["original.ts"],"sourcesContent":[
+                    "export const multiply = (x: number) => x * 2;"],
+                "names":[],"mappings":"AAAA"
+            }))
+            har_path = parent / "public.har"
+            har = {"log":{"version":"1.2",
+                   "creator":{"name":"REA controlled","version":"1"},
+                   "entries":[{"startedDateTime":"2026-10-24T00:00:00.000Z",
+                               "time":9,
+                               "request":{"method":"GET",
+                                          "url":"https://example.invalid/api/status",
+                                          "httpVersion":"HTTP/1.1",
+                                          "cookies":[],"headers":[],"queryString":[],
+                                          "headersSize":-1,"bodySize":0},
+                               "response":{"status":200,"statusText":"OK",
+                                           "httpVersion":"HTTP/1.1","cookies":[],
+                                           "headers":[],"content":{"size":2,
+                                           "mimeType":"text/plain","text":"OK"},
+                                           "redirectURL":"","headersSize":-1,
+                                           "bodySize":2},
+                               "cache":{},"timings":{"send":0,"wait":9,"receive":0}}]}}
+            har_path.write_text(json.dumps(har,sort_keys=True))
+            bad_har = parent / "broken.har"
+            bad_har.write_text('{"log":')
+            for path in parent.rglob("*"):
+                path.chmod(0o755 if path.is_dir() else 0o644)
+            staged = {str(p.relative_to(parent)):hashlib.sha256(p.read_bytes()).hexdigest()
+                      for p in parent.rglob("*") if p.is_file()}
+            pos = [
+                ("trace_web_source_location",{
+                    "manifest_path":str(manifest_path),"script_index":0,
+                    "source_map":{"path":str(map_path),
+                                  "url":"https://example.invalid/modules/main.js.map"},
+                    "generated_position":{"line":1,"column":0}}, "positive"),
+                ("inspect_web_network_capture",{
+                    "capture_path":str(har_path),"format":"har","detail":"complete"}, "positive"),
+                ("inspect_adb_client",{},"positive")
+            ]
+            neg = [
+                ("trace_web_source_location",{
+                    "manifest_path":str(parent/"missing-manifest.json"),"script_index":0,
+                    "source_map":{"path":str(map_path),
+                                  "url":"https://example.invalid/modules/main.js.map"},
+                    "generated_position":{"line":1,"column":0}}, "missing_manifest"),
+                ("inspect_web_network_capture",{
+                    "capture_path":str(bad_har),"format":"har","detail":"complete"},
+                    "truncated_har"),
+                ("inspect_adb_client",{"unrecognized_test_field":"no"},"invalid_args")
+            ]
+            for idx,(name,args,case) in enumerate(pos+neg,start=710):
+                if name not in tool_by_name:
+                    cases.append({"tool":name,"case":case,"status":"NOT_ADVERTISED"})
+                    continue
+                try:
+                    if case == "positive":
+                        secure.validate_arguments(tool_by_name[name], args)
+                    _, reply = request_mcp(
+                        {"jsonrpc":"2.0","id":idx,"method":"tools/call",
+                         "params":{"name":name,"arguments":args}},
+                        session,protocol,timeout=95
+                    )
+                    result = reply.get("result")
+                    iserr = result.get("isError") if isinstance(result,dict) else None
+                    good = ("error" not in reply and isinstance(result,dict) and
+                            (iserr is not True if case=="positive" else iserr is True))
+                    cases.append({"tool":name,"case":case,"status":"PASS" if good else "ERROR",
+                                  "isError":iserr,"protocol_error":reply.get("error"),
+                                  "response":result})
+                except Exception:
+                    cases.append({"tool":name,"case":case,"status":"ERROR",
+                                  "message":"MCP call not available"})
+            unchanged = all(hashlib.sha256((parent/p).read_bytes()).hexdigest()==sha
+                            for p,sha in staged.items())
+        finally:
+            shutil.rmtree(parent)
+        payload={"source":"fixed, inert public offline fixtures",
+                 "input_sha256":staged if unchanged else {},
+                 "inputs_unchanged":unchanged,
+                 "cleanup":"PASS" if not parent.exists() else "FAIL",
+                 "records":cases}
+        raw=json.dumps(payload,sort_keys=True,ensure_ascii=True).encode()
+        if len(raw)>MAX_RESPONSE or os.environ.get("REA_MOBILE_ENVELOPE_CAPTURE")!="1":
+            error("Offline fixture requires bounded encrypted return")
+        print("REA_MOBILE_TOOL_CALL=PASS")
+        print("REA_MOBILE_TOOL_ERROR="+str(any(x["status"]!="PASS" for x in cases)).lower())
+        print("REA_MOBILE_OUTPUT_BYTES="+str(len(raw)))
+        print("REA_MOBILE_OUTPUT_SHA256="+hashlib.sha256(raw).hexdigest())
+        print("REA_MOBILE_PRIVATE_RESULT_B64="+base64.b64encode(raw).decode("ascii"))
         return
     if data["action"] == "fixture_apkdemos":
         # Public source and sha256 are pinned to the checked-in REA fixture
