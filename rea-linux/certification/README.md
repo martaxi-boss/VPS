@@ -626,3 +626,10 @@ A consulta complementar `inspect_plist` por [GitHub Actions #40056345142](https:
 - `isError` não foi verdadeiro, `REA_MOBILE_TOOL_ERROR=false`; os 133 procedimentos repetem a dimensão do positivo válido do P82, sem dupla contagem.
 - **`FULLY_CERTIFIED` apenas neste perfil de enumeração e classificação de procedimentos Ghidra**. A ponte bloqueia previamente um `document` diferente do recém-aberto, logo não existe negativo MCP para essa seleção inválida. Não certificar outros fornecedores, arquiteturas ou comportamentos de sessão.
 - **Novo total: 84/208 certificadas, 124 pendentes, faltam 16 até 100.** Higienizar o pedido temporário P117 e comprovar o workflow de pós-limpeza.
+
+## Recuperação de Actions por push (24/10/2026)
+
+- A consulta do conector GitHub `fetch_commit_workflow_runs` só abrange runs de *pull request*, pelo que não serve para estes pedidos de execução por *push*. A ausência de resultados nessa consulta não demonstra que o Actions falhou.
+- Caminho recuperado e testado sem modificar a ponte: utilizar a operação genérica de consulta de recursos GitHub REST, quando disponível, em `https://api.github.com/repos/martaxi-boss/VPS/actions/runs?head_sha=COMMIT_SHA&per_page=5`. Procurar `workflow_runs[].id`, `status` e `conclusion`, verificando a correspondência exata de `head_sha`. Depois usar os métodos existentes de jobs/logs/artefactos.
+- Prova histórica do problema resolvido: pedido P113 no commit `d8da0700cec49d9d1a8c2fcfeb891f4fda36aa58`, [Actions #40104880548](https://github.com/martaxi-boss/VPS/actions/runs/40104880548), resultado `SUCCESS`, SSH host pin `PASS`, MCP 208. O pedido já fora eliminado, pelo que não deve ser repetido.
+- O dispositivo Android/Windows não modifica a VPS nem os Actions. Não criar outra ponte/MCP/Skill e não enviar pedidos duplicados quando o ID da execução estiver apenas por descobrir. A resposta cifrada exige chave efémera privada local correspondente; resultados não podem ser declarados certificados apenas por `SUCCESS`.
