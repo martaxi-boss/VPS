@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_83_FULLY_CERTIFIED_125_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_84_FULLY_CERTIFIED_124_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -6012,21 +6012,75 @@
       "cleanup_request": "rea-linux/requests/p115-list-segments-controlled-20261024.json",
       "historical_P110_unsupported_kuna_not_counted": true,
       "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+    },
+    {
+      "phase_id": "LINUX-P117-LIST-PROCEDURES-SEMANTIC-THUNKS-20261024",
+      "date_utc": "2026-10-24",
+      "status": "ONE_NEW_FULLY_CERTIFIED_SCOPED_GHIDRA_PROCEDURE_ENUMERATION",
+      "tools": [
+        {
+          "name": "list_procedures",
+          "status": "FULLY_CERTIFIED_SCOPED_ORIGINAL_MCP",
+          "positive": 2,
+          "negative_semantic": 2,
+          "scope": "Original Linux REA MCP list_procedures with Ghidra 12.1.4 on immutable /usr/bin/true x86_64 ELF. All 133 analyzed procedures are enumerated with unique address and explicit external/thunk/thunk_target metadata; positive external and thunk cases versus negative internal and non-thunk cases are verified, with 76/76 thunks carrying targets and 57/57 non-thunks having null target. Does not certify invalid document selection (bridge blocks it), other binary families, providers or absence of an open session."
+        }
+      ],
+      "proof": {
+        "run_id": 40107047518,
+        "commit": "0abe430adf3a021fe2460f5f4a680073a9173122",
+        "artifact_id": 12565281506,
+        "artifact_digest": "4c7bee7e36c38849f23d3d00851f18a0ef9fa5adb38eb52e22cc1d57a80e7c9e",
+        "request_sha256": "af2b53a31c5d986f45e212f12ddbc5e59b1d6d553114912bd8a1d4e0896148fe",
+        "authenticated_result_sha256": "1e5616ee832d6a664b1677cad502c2f540919e5796df4dac237b84bd5292f6bb",
+        "request_matched": true,
+        "steps_executed": 2,
+        "open_binary_mcp_isError_true": false,
+        "list_procedures_mcp_isError_true": false,
+        "mcp_tool_error": false,
+        "policy": "PASS",
+        "cleanup": "PASS",
+        "original_mcp_catalog": 208,
+        "provider": "Ghidra 12.1.4",
+        "source_sha256": "8a63c98320173f79e263115e47d1fd4b5a70e4429d2699cae28",
+        "procedure_count": 133,
+        "unique_addresses": 133,
+        "external_true": 39,
+        "external_false": 94,
+        "thunk_true": 76,
+        "thunk_false": 57,
+        "thunk_with_target": 76,
+        "non_thunk_null_target": 57
+      },
+      "descriptor": {
+        "run_id": 40106913626,
+        "authenticated_result_sha256": "8bfb275a880de0ba7d3457406b64f0768d5e1132437408664c4b5a93609bb837"
+      },
+      "semantic_negative_explanation": "Real internal (external=false) and non-thunk (thunk=false, no target) groups; not unsupported-provider or bridge-policy blocks.",
+      "prior_positive_reused": {
+        "run_id": 40084449312,
+        "procedure_count": 133
+      },
+      "new_certifications": 1,
+      "fully_certified_total": 84,
+      "remaining": 124,
+      "cleanup_request": "rea-linux/requests/p117-list-procedures-controlled-20261024.json",
+      "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 83,
-    "awaiting_canonical_individual_review": 125,
+    "functional_pass_scoped_distinct": 84,
+    "awaiting_canonical_individual_review": 124,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 23,
+    "workspace_newly_passed_distinct": 24,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 83,
+    "fully_certified_distinct": 84,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 125,
-    "remaining_full_certification_distinct": 125
+    "not_functionally_positive_distinct": 124,
+    "remaining_full_certification_distinct": 124
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -6056,7 +6110,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P115-LIST-SEGMENTS-SEMANTIC-PERMISSIONS-20261024",
+  "latest_phase": "LINUX-P117-LIST-PROCEDURES-SEMANTIC-THUNKS-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -7441,6 +7495,25 @@
         "No invalid-input negative: session-absent and foreign-document paths are blocked by bridge before MCP",
         "Semantic negative restricted to non-executable/uninitialized memory-block properties",
         "Kuna segment inventory operation remains unsupported"
+      ]
+    },
+    "list_procedures": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P117-LIST-PROCEDURES-SEMANTIC-THUNKS-20261024",
+      "scope": "Original Linux REA MCP list_procedures with Ghidra 12.1.4 on immutable /usr/bin/true x86_64 ELF. All 133 analyzed procedures are enumerated with unique address and explicit external/thunk/thunk_target metadata; positive external and thunk cases versus negative internal and non-thunk cases are verified, with 76/76 thunks carrying targets and 57/57 non-thunks having null target. Does not certify invalid document selection (bridge blocks it), other binary families, providers or absence of an open session.",
+      "run_ids": [
+        40084449312,
+        40106913626,
+        40107047518
+      ],
+      "positive_evidence_sha256": "1e5616ee832d6a664b1677cad502c2f540919e5796df4dac237b84bd5292f6bb",
+      "negative_evidence_sha256": "1e5616ee832d6a664b1677cad502c2f540919e5796df4dac237b84bd5292f6bb",
+      "positive_calls": 1,
+      "negative_semantic_assertions": 2,
+      "negative_isError_true": false,
+      "limitations": [
+        "No invalid-document negative; bridge restricts active-session document selection before MCP",
+        "Semantic negatives are provider metadata classification rather than error responses"
       ]
     }
   },
