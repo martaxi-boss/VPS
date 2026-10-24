@@ -100,7 +100,7 @@ def validate(data):
                   "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
-    elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
+    elif action in ("fixture_rea_workflows", "fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
         # Named system-owned ELF only; never an arbitrary caller-selected path.
         if set(data) != {"version", "action", "response_key"}:
             error("Ghidra inspection fixture accepts only a public reply key")
@@ -250,7 +250,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_FIXTURE_MANAGED_MEMBERS", "REA_FIXTURE_MANAGED_BOUNDARIES",
         "REA_FIXTURE_MACHO_FUSES", "REA_FIXTURE_FORMAT_CLEANUP",
         "REA_FIXTURE_WASM", "REA_FIXTURE_SQLITE",
-        "REA_FIXTURE_GHIDRA_METADATA", "REA_FIXTURE_GHIDRA_METADATA_CLEANUP",
+        "REA_P173_PASS", "REA_P173_CLEANUP", "REA_FIXTURE_GHIDRA_METADATA", "REA_FIXTURE_GHIDRA_METADATA_CLEANUP",
         "REA_FIXTURE_GHIDRA_ADDITIONAL", "REA_FIXTURE_GHIDRA_ADDITIONAL_CLEANUP",
         "REA_FIXTURE_ANDROID_CLASSES", "REA_FIXTURE_ANDROID_CLASS",
         "REA_FIXTURE_ANDROID_METHOD", "REA_FIXTURE_ANDROID_XREFS",
@@ -506,7 +506,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         if private is not None:
             error("Unexpected private response")
         return
-    if request["action"] not in ("call", "sealed_batch", "fixture_apkdemos", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump") or private is None:
+    if request["action"] not in ("fixture_rea_workflows", "call", "sealed_batch", "fixture_apkdemos", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump") or private is None:
         error("Missing encrypted-return payload from REA")
     public = serialization.load_der_public_key(
         base64.b64decode(request["response_key"], validate=True)
@@ -633,6 +633,136 @@ def main():
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
               secure.request_public_key_b64(create=True))
+        return
+    if data["action"] == "fixture_rea_workflows":
+        import tempfile, shutil, textwrap
+        results=[]
+        source=Path.home()/".local/share/rea-chatgpt-trial/repository/rea"
+        node=shutil.which("node")
+        if node is None or not (source/"node_modules/tsx").exists():
+            error("Source-owned REA fixture dependencies unavailable")
+        script=textwrap.dedent("""
+        import {writeFileSync} from 'node:fs';
+        import {scriptScenarioFixture} from './tests/fixtures/webScriptCapture.ts';
+        import {INVESTIGATION_EXAMPLES} from './src/contracts/investigationExamples.ts';
+        import {createEvidence} from './src/domain/evidence.ts';
+        const root=process.argv[1];
+        writeFileSync(root+'/capture.json',JSON.stringify(scriptScenarioFixture()));
+        const staticComparison=INVESTIGATION_EXAMPLES.find_changed_behavior.comparisons[0];
+        if(!staticComparison)throw Error('Missing original REA static comparison');
+        const capture=(label)=>createEvidence(undefined,{id:'fixture',name:'Fixture',version:'1'},{
+          predicateType:'rea.process-capture',operation:'capture_process_scenario',
+          parameters:{},result:{label},authority:'controlled-replay',
+          environment:{id:'fixture-'+label,platform:'test',architecture:'test',isolation:'process'}
+        });
+        const left=capture('1'),right=capture('2');
+        const runtime=createEvidence(undefined,{id:'rea-process',name:'REA deterministic process harness',version:'3'},{
+          predicateType:'rea.process-comparison',operation:'compare_process_captures',
+          parameters:{left_evidence_id:left.evidence_id,right_evidence_id:right.evidence_id},
+          result:{status:'changed',terminal:'changed',interaction:'unchanged',exit:'unchanged',
+            filesystem:'unchanged',process:'unchanged',
+            first_divergence:{status:'found',dimension:'terminal',index:0,left_at_ms:0,right_at_ms:0,left:'left',right:'right'},
+            limitations:[]},
+          confidence:'derived',authority:'analyst-inference',
+          evidenceLinks:[left.evidence_id,right.evidence_id]
+        });
+        const input={
+          static_comparisons:[staticComparison],
+          runtime_comparisons:[runtime],
+          mappings:[{
+            static:{comparison_evidence_id:staticComparison.evidence_id,selector:{kind:'function',dimension:'pseudocode'}},
+            runtime:{comparison_evidence_id:runtime.evidence_id,dimension:'terminal'},
+            side_alignment:'left_to_left',
+            hypothesis:{statement:'Controlled source edit is associated with runtime terminal change',
+                        expected_pattern:'cochanged'}
+          }]
+        };
+        writeFileSync(root+'/correlation.json',JSON.stringify(input));
+        """)
+        with tempfile.TemporaryDirectory(prefix="rea-p173-safe-",dir="/dev/shm") as dirname:
+            root=Path(dirname)
+            root.chmod(0o1777)
+            prepared=subprocess.run([node,"--import=tsx","--input-type=module","-e",
+                script,str(root)],cwd=str(source),capture_output=True,timeout=80,check=False)
+            if prepared.returncode or not (root/"capture.json").is_file() or not (root/"correlation.json").is_file():
+                error("Source-owned capture/correlation fixture generation failed")
+            for path in root.glob("*.json"):
+                path.chmod(0o644)
+            hashes={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in root.glob("*.json")}
+            comparison=json.loads((root/"correlation.json").read_text())
+            def normalized(value):
+                sc=value.get("structuredContent") if isinstance(value,dict) else None
+                return sc.get("normalized_result",sc) if isinstance(sc,dict) else {}
+            def call(name,args,label,expect_failure=False,check=None):
+                if name not in tool_by_name:
+                    results.append({"label":label,"tool":name,"status":"NOT_ADVERTISED"})
+                    return None
+                if secure.classify(name,tool_by_name[name],safe_callable)=="sensitive":
+                    error("Public test attempted sensitive operation: "+name)
+                secure.validate_arguments(tool_by_name[name],args) if not expect_failure else None
+                secure._authorized_target_paths(args,additional_roots=(root,))
+                _,response=request_mcp({"jsonrpc":"2.0","id":1730+len(results),
+                    "method":"tools/call","params":{"name":name,"arguments":args}},
+                    session,protocol,timeout=115)
+                result=response.get("result")
+                is_error=("error" in response or not isinstance(result,dict)
+                    or result.get("isError") is True)
+                n=normalized(result)
+                semantic=(check(n) if check is not None and not is_error else True)
+                results.append({"label":label,"tool":name,"status":"PASS" if
+                    is_error==expect_failure and semantic else "ERROR",
+                    "isError":is_error,"result":result,
+                    "protocol_error":response.get("error")})
+                return (not is_error),n
+            exported=call("export_web_scripts",{
+                "capture_path":str(root/"capture.json"),
+                "output_directory":str(root/"exported")},"export_captured_script_positive",
+                check=lambda n:len(n.get("scripts",[]))>0 and any(
+                    x.get("content",{}).get("state")=="exported" and
+                    int(x.get("content",{}).get("bytes",0))>0 for x in n.get("scripts",[])))
+            (root/"bad.json").write_text("{}")
+            (root/"bad.json").chmod(0o644)
+            call("export_web_scripts",{"capture_path":str(root/"bad.json"),
+                "output_directory":str(root/"bad-export")},
+                "reject_malformed_capture",True)
+            correlate=call("correlate_static_and_runtime",comparison,
+                "correlate_source_owned_evidence",check=lambda n:
+                    n.get("status")=="correlated" and
+                    n.get("summary",{}).get("hypotheses",0)>=1)
+            invalid=json.loads(json.dumps(comparison))
+            invalid["mappings"][0]["static"]["comparison_evidence_id"]=comparison["runtime_comparisons"][0]["evidence_id"]
+            call("correlate_static_and_runtime",invalid,
+                "reject_absent_static_comparison_id",True)
+            call("inspect_signal_decoders",{"query":"uart","limit":5},
+                 "sigrok_decoder_catalog_positive",check=lambda n:
+                    len(n.get("decoders",[]))>=1 or n.get("matching_count",0)>=1)
+            call("inspect_signal_decoders",{"query":123},
+                 "reject_invalid_decoder_query",True)
+            current=call("list_unknowns",{"limit":3},
+                 "inspect_current_unknowns",check=lambda n:True)
+            if current and current[0]:
+                heads=current[1].get("unknowns",current[1].get("items",[]))
+                if isinstance(heads,list) and heads and "unknown_id" in heads[0]:
+                    call("verify_unknown_resolution",
+                         {"unknown_id":heads[0]["unknown_id"]},
+                         "verify_existing_residual_unknown",check=lambda n:
+                             isinstance(n.get("valid"),bool))
+            call("verify_unknown_resolution",{"unknown_id":"unk_"+"0"*64},
+                 "reject_nonexistent_unknown",True)
+            unchanged=all(hashlib.sha256((root/n).read_bytes()).hexdigest()==h for n,h in hashes.items())
+        payload={"records":results,"source_owned_fixtures":hashes,
+                 "inputs_unchanged":unchanged,"cleanup":"PASS" if not root.exists() else "FAIL",
+                 "source":"real original REA MCP on source-owned synthetic scenario and correlation Evidence",
+                 "catalog":len(tool_by_name)}
+        raw=json.dumps(payload,ensure_ascii=True,sort_keys=True).encode()
+        if len(raw)>MAX_RESPONSE or os.environ.get("REA_MOBILE_ENVELOPE_CAPTURE")!="1":
+            error("No authenticated response capture for workflow fixture")
+        print("REA_P173_PASS="+str(sum(r["status"]=="PASS" for r in results))+"/"+str(len(results)))
+        print("REA_P173_CLEANUP="+payload["cleanup"])
+        print("REA_MOBILE_TOOL_ERROR="+str(any(r["status"]!="PASS" for r in results)).lower())
+        print("REA_MOBILE_OUTPUT_BYTES="+str(len(raw)))
+        print("REA_MOBILE_OUTPUT_SHA256="+hashlib.sha256(raw).hexdigest())
+        print("REA_MOBILE_PRIVATE_RESULT_B64="+base64.b64encode(raw).decode())
         return
     if data["action"] in ("fixture_managed_inputs", "fixture_managed_inputs_v2"):
         # Real Evidence prerequisites for managed graph/comparison workflows;
