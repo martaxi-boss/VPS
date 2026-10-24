@@ -2760,7 +2760,7 @@ def main():
                 "const x=await import(process.argv[1]);"
                 "writeFileSync(process.argv[2],x.aotFixtureImage('a'.repeat(32)));"
                 "writeFileSync(process.argv[3],x.aotFixtureImage('b'.repeat(32)));"
-                "writeFileSync(process.argv[4],x.engineFixtureImage());"
+                "writeFileSync(process.argv[4],x.engineFixtureImage({notes:Buffer.from('040000000800000003000000474e55000123456789abcdef','hex')}));"
             )
             generated = subprocess.run([str(node), "--input-type=module", "-e", script,
                 fixture.as_uri(), str(app_a), str(app_b), str(engine)],
