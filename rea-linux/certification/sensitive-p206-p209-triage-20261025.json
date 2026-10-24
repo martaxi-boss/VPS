@@ -66,7 +66,7 @@
   ],
   "next_batch_owner_signer": {
     "path": "rea-linux/owner/sign_record_unknown_p209_android.py",
-    "blob_sha": "bb6e41c26b6814214446e85ced3576889cfc8e62",
+    "blob_sha": "76180273d0a0d484654fa9e0a2fead6d55b6906a",
     "owner_private_key_location": "Android Termux exclusively, unchanged",
     "public_fingerprint_der_sha256": "99580a4806703661ca38f75a3cb95e47d46e32228cf89d5aa7ab55e95a4e25b4",
     "steps": [
