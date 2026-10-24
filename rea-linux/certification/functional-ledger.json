@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_79_FULLY_CERTIFIED_129_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_80_FULLY_CERTIFIED_128_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -5561,21 +5561,97 @@
         "p99-native-valid-leaf-20261024.json"
       ],
       "original_bridge_preserved": true
+    },
+    {
+      "phase_id": "LINUX-P101-TRACE-NATIVE-VALUES-INDEPENDENT-COMPLETE-LEAF-20261024",
+      "date_utc": "2026-10-24",
+      "status": "ONE_NEW_FULLY_CERTIFIED_SCOPED_ORIGINAL_MCP",
+      "source": "GitHub Actions SSH -> original Linux REA MCP Ghidra, previously verified P96 positive plus new P101 genuine negative",
+      "proof": {
+        "positive": {
+          "run_id": 40091082075,
+          "commit": "466686729748fbbf8bc46d1290b70b09b3e8a6b4",
+          "encrypted_artifact_id": 12559415761,
+          "request_sha256": "2aaa583176b59e95dd320d9fae5afcbc9a84487d5307db673e92925af6c605bd",
+          "authenticated_result_sha256": "6783f0abbdecaeacd3a92b6b1f8a73e308f18a7a0f19b595ca896b30ad5aa30b",
+          "seed": "0x101a90",
+          "procedures": 4,
+          "nodes": 19,
+          "edges": 8,
+          "call_edges": 3,
+          "unknown_parameter_bindings": 3,
+          "truncated": false,
+          "mcp_isError_true": false,
+          "cleanup": "PASS"
+        },
+        "negative_semantic": {
+          "run_id": 40092888121,
+          "commit": "b55bf01e2657ea48d08b2c5f0f4efe7b26d4e8f2",
+          "encrypted_artifact_id": 12559687393,
+          "request_sha256": "6d2aba5ae7931a6be64c2f741540e7e78cfe4284bd1c0ae5a30b6e91e9e75343",
+          "authenticated_result_sha256": "6d4cd50396f57ed6b9f3d35996ec3d29a4c4ba556b949970747668437886052e",
+          "request_matched": true,
+          "seed": "0x101ae0",
+          "source_analyze_function_assembly_instructions": 69,
+          "source_pseudocode_valid": true,
+          "source_unresolved_calls": 0,
+          "source_resolved_callees": 0,
+          "source_relationship_coverage": "complete",
+          "source_native_value_flow_truncated": false,
+          "source_known_omitted_edges": 0,
+          "source_omitted_operations_lower_bound": 0,
+          "source_assembly_CALL_instructions": 0,
+          "trace_procedures": 1,
+          "trace_nodes": 87,
+          "trace_edges": 92,
+          "trace_edge_kinds": {
+            "def-use": 78,
+            "parameter-use": 14
+          },
+          "trace_call_edges": 0,
+          "trace_unknowns": 0,
+          "trace_truncated": false,
+          "mcp_steps_executed": 4,
+          "mcp_isError_true": false,
+          "cleanup": "PASS"
+        },
+        "target_sha256": "8a63c98320173f79e263115e10cefc170155e47d1fd4b5a70e4429d2699cae28",
+        "provider": "Ghidra 12.1.4 Linux x86_64",
+        "catalog_count": 208,
+        "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      },
+      "tools": [
+        {
+          "name": "trace_native_values",
+          "status": "FULLY_CERTIFIED_SCOPED_ORIGINAL_MCP",
+          "positive": 1,
+          "negative_semantic": 1,
+          "scope": "Original Linux REA MCP Ghidra 12.1.4, static data-flow analysis of valid procedures in immutable ELF /usr/bin/true. P96 positive recovers four procedures and real call/dataflow edges with explicitly recorded unknown parameter bindings. P101 independently corroborates a fully decoded callable-free procedure 0x101ae0: 69 assembly instructions without CALL, valid pseudocode, 0 callee references, 0 unresolved calls, complete relationship coverage, native value flow no known omissions, trace with 87 operation/data nodes and 92 def-use/parameter edges, 0 call edges, 0 unknowns and no truncation. Valid-procedure semantic absence only. Invalid-selector failure previously misclassified as unreadable_output/execution_failure remains a separate open limitation; no claim of correct diagnostic there or dynamic runtime flow."
+        }
+      ],
+      "new_certifications": 1,
+      "fully_certified_total": 80,
+      "remaining": 128,
+      "original_bridge_preserved": true,
+      "consumed_requests_removed": [
+        "p101-ghidra-verified-leaf-101ae0-20261024.json"
+      ],
+      "caveat": "Previously observed invalid-selector error diagnostic remains unresolved."
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 79,
-    "awaiting_canonical_individual_review": 129,
+    "functional_pass_scoped_distinct": 80,
+    "awaiting_canonical_individual_review": 128,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 19,
+    "workspace_newly_passed_distinct": 20,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 79,
-    "scoped_positive_not_fully_certified_distinct": 1,
+    "fully_certified_distinct": 80,
+    "scoped_positive_not_fully_certified_distinct": 0,
     "not_functionally_positive_distinct": 128,
-    "remaining_full_certification_distinct": 129
+    "remaining_full_certification_distinct": 128
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -5605,7 +5681,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P98-P99-NATIVE-VALUES-CERTIFICATION-CORRECTION-20261024",
+  "latest_phase": "LINUX-P101-TRACE-NATIVE-VALUES-INDEPENDENT-COMPLETE-LEAF-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -6928,6 +7004,21 @@
       "positive_calls": 1,
       "negative_calls": 1,
       "negative_isError_true": true
+    },
+    "trace_native_values": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P101-TRACE-NATIVE-VALUES-INDEPENDENT-COMPLETE-LEAF-20261024",
+      "scope": "Original Linux REA MCP Ghidra 12.1.4, static data-flow analysis of valid procedures in immutable ELF /usr/bin/true. P96 positive recovers four procedures and real call/dataflow edges with explicitly recorded unknown parameter bindings. P101 independently corroborates a fully decoded callable-free procedure 0x101ae0: 69 assembly instructions without CALL, valid pseudocode, 0 callee references, 0 unresolved calls, complete relationship coverage, native value flow no known omissions, trace with 87 operation/data nodes and 92 def-use/parameter edges, 0 call edges, 0 unknowns and no truncation. Valid-procedure semantic absence only. Invalid-selector failure previously misclassified as unreadable_output/execution_failure remains a separate open limitation; no claim of correct diagnostic there or dynamic runtime flow.",
+      "run_ids": [
+        40091082075,
+        40092888121
+      ],
+      "positive_evidence_sha256": "6783f0abbdecaeacd3a92b6b1f8a73e308f18a7a0f19b595ca896b30ad5aa30b",
+      "negative_evidence_sha256": "6d4cd50396f57ed6b9f3d35996ec3d29a4c4ba556b949970747668437886052e",
+      "positive_calls": 1,
+      "negative_semantic_calls": 1,
+      "negative_isError_true": false,
+      "known_invalid_selector_limitation": "Still pending as a diagnostic issue outside the tested valid-procedure profile."
     }
   },
   "transport_incidents": [

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_79_FULLY_CERTIFIED_PROFILES_AND_129_PENDING",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_80_FULLY_CERTIFIED_PROFILES_AND_128_PENDING",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -1482,15 +1482,17 @@
     }
   },
   "latest_certification": {
-    "phase_id": "LINUX-P79-GHIDRA-LIST-DOCUMENTS-20261024",
-    "tool": "list_documents",
-    "positive_run_id": 40085521638,
-    "negative_run_id": 40085404197,
-    "authenticated_positive_result_sha256": "64cb79c879af65fdccd7b104b20e04fe6c6593b86d65a3b71e5572ce36b446be",
-    "authenticated_negative_result_sha256": "eca4620e370287c362f3068285ad5a004c7fc14365eed510a34a9b57822ba10f",
-    "fully_certified": 79,
-    "pending": 129,
-    "scope": "Original Linux REA MCP Ghidra 12.1.4, immutable /usr/bin/true ELF x86_64; list_documents returns current imported program identity, and without open target returns typed target_unavailable. No claim of multi-document capability for other providers.",
+    "phase_id": "LINUX-P101-TRACE-NATIVE-VALUES-INDEPENDENT-COMPLETE-LEAF-20261024",
+    "tool": "trace_native_values",
+    "positive_run_id": 40091082075,
+    "negative_run_id": 40092888121,
+    "authenticated_positive_sha256": "6783f0abbdecaeacd3a92b6b1f8a73e308f18a7a0f19b595ca896b30ad5aa30b",
+    "authenticated_negative_sha256": "6d4cd50396f57ed6b9f3d35996ec3d29a4c4ba556b949970747668437886052e",
+    "semantic_absence_corrob_by_decoded_source": true,
+    "ghidra_cleanup": "PASS",
+    "fully_certified": 80,
+    "pending": 128,
+    "known_invalid_selector_diagnostic": "UNRESOLVED",
     "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
   },
   "transport_status_after_ovh_renewal": {
