@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_85_FULLY_CERTIFIED_123_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_90_FULLY_CERTIFIED_118_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -6234,21 +6234,134 @@
       "fully_certified_total": 85,
       "pending": 123,
       "notes": "Do not infer COM or malformed-format support from the DOS MZ scope; unsupported COM was an open_binary negative only."
+    },
+    {
+      "phase_id": "LINUX-P127-P130-ANDROID-JADX-API-DEMOS-20261024",
+      "date_utc": "2026-10-24",
+      "status": "FIVE_NEW_FULLY_CERTIFIED_SCOPED_ORIGINAL_ANDROID_JADX_MCP_POSITIVE_AND_NEGATIVE",
+      "tool_names": [
+        "inspect_android_package",
+        "search_android_classes",
+        "inspect_android_class",
+        "inspect_android_method",
+        "trace_android_references"
+      ],
+      "tools": [
+        {
+          "name": "inspect_android_package",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Linux REA original MCP/JADX 0.7.1 on pinned public Appium ApiDemos APK 6.0.18; verifies package io.appium.android.apis, version code 44, min SDK 26, target SDK 33, 2876 classes, 869 resources, declared permissions and decoded manifest. Negative semantic absence of undeclared READ_SMS; does not certify signatures, other APKs or runtime execution."
+        },
+        {
+          "name": "search_android_classes",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Linux REA original MCP/JADX 0.7.1 on pinned public ApiDemos APK; positive query 'ApiDemos' matches exact 2 classes in a complete 2876-class enumeration, negative query '__REA_CERT_NONEXISTENT_CLASS_20261024__' yields zero matches with coverage=complete."
+        },
+        {
+          "name": "inspect_android_class",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Linux REA original MCP/JADX 0.7.1 on pinned public ApiDemos APK; exact class io.appium.android.apis.ApiDemos has 8 parsed methods including onCreate, one field and one inner class; nonexistent exact class returns isError=true invalid_request/invalid_input."
+        },
+        {
+          "name": "inspect_android_method",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Linux REA original MCP/JADX 0.7.1 on pinned public ApiDemos APK; method io.appium.android.apis.ApiDemos.onCreate yields available complete Java body with DEX signature and no fallback; nonexistent method in existing class returns isError=true invalid_request/invalid_input."
+        },
+        {
+          "name": "trace_android_references",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Linux REA original MCP/JADX 0.7.1 on pinned public ApiDemos APK; incoming class references to io.appium.android.apis.ApiDemos count=3 using-node references with complete coverage; nonexistent class selection returns isError=true invalid_request/invalid_input."
+        }
+      ],
+      "proof": {
+        "runs": [
+          {
+            "id": 40111156260,
+            "commit": "9f9d451a564a1778fe68b2c155208a1014ee7d10",
+            "artifact_id": 12565719618,
+            "artifact_zip_digest": "sha256:5227cd4cb6185b311c692cf157970364d5729d04d85dda4383dd5bbba73da557",
+            "request_sha256": "e7ea2599ceadd8cce3c33a47fa031547aa6ef77927ae6e3053636121b63e7bc1",
+            "authenticated_result_sha256": "b9f4a350aabd4b257f3e945dbf5486450e91e7a57d51b1cb89e367fb98093d9c",
+            "steps_executed": 5,
+            "all_isError_false": true
+          },
+          {
+            "id": 40111694239,
+            "commit": "e2c1a3007391fb8dc2d746d103c0aafc2950fd75",
+            "artifact_id": 12566822727,
+            "artifact_zip_digest": "sha256:f573170cb593c7bdbd682224ad6d366700c7041746326515843d625e9c2e8c42",
+            "request_sha256": "6b53196b6a8e3b0a2fd7a2d1cb3bff513491009d71914a555bffe8872b8a0b53",
+            "authenticated_result_sha256": "12f139fabbe9ee0514b67ff08e9d0a149ced4d277b0eacceca760a2f0fb4d4e4",
+            "steps_executed": 4,
+            "zero_query_result": true,
+            "invalid_class_isError_true": true,
+            "invalid_method_isError_true": true,
+            "invalid_xref_isError_true": true
+          }
+        ],
+        "pinned_apk_sha256": "a9eecf37b26cd084855c530db81c2bb1b91f4c1b095a04f47aa7c20e2791f686",
+        "pinned_apk_version": "Appium ApiDemos 6.0.18",
+        "provider": "JADX 0.7.1 original REA MCP",
+        "source_identity_matched": true,
+        "encrypted_reply_integrity_verified": true,
+        "sha256_result_verified": true,
+        "source_apk_deleted_after_runs": true,
+        "mcp_catalog": 208,
+        "positive_package_metadata": {
+          "package": "io.appium.android.apis",
+          "version": "6.0.18",
+          "version_code": "44",
+          "sdk_min": 26,
+          "sdk_target": 33,
+          "classes": 2876,
+          "resources": 869
+        },
+        "positive_search_matches": 2,
+        "negative_search_matches": 0,
+        "method_oncreate_body_status": "available",
+        "positive_references": 3,
+        "invalid_exact_class_error": "invalid_request/invalid_input",
+        "invalid_method_error": "invalid_request/invalid_input",
+        "invalid_ref_class_error": "invalid_request/invalid_input",
+        "original_ssl_pinned_ssh": true,
+        "cleanup_commits": [
+          "e2654adb43b11b29f6825f0a4f185dd9bf9920f4",
+          "0bb3f6477c803b7c32bbd55e7761198d7676e402"
+        ],
+        "bridge_fixed_restoration_commit": "fbf81c944e7d32d99847e7d0230b5a27438e9897",
+        "bridge_restored_blob": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7",
+        "permanent_bridge_correction": "Remove two redundant function-local urllib.request imports shadowing module-level import; original REA MCP unmodified",
+        "failed_preflight_runs_not_counted": [
+          40111034187,
+          40111411286,
+          40111523709
+        ]
+      },
+      "new_certifications": 5,
+      "fully_certified_total": 90,
+      "pending": 118,
+      "unsupported_features_not_claimed": [
+        "APK execution",
+        "signatures",
+        "unseen APKs",
+        "reflective invocations",
+        "other JADX versions"
+      ]
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 85,
-    "awaiting_canonical_individual_review": 123,
+    "functional_pass_scoped_distinct": 90,
+    "awaiting_canonical_individual_review": 118,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 25,
+    "workspace_newly_passed_distinct": 30,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 85,
+    "fully_certified_distinct": 90,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 123,
-    "remaining_full_certification_distinct": 123
+    "not_functionally_positive_distinct": 118,
+    "remaining_full_certification_distinct": 118
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -6278,7 +6391,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P124-P125-DOS-MZ-LOAD-IMAGE-20261024",
+  "latest_phase": "LINUX-P127-P130-ANDROID-JADX-API-DEMOS-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -7702,6 +7815,96 @@
         "No COM functional proof; unsupported_target was returned by open_binary before tool invocation",
         "No malformed/truncated DOS MZ negative through inspect_native_load_image; only nonempty vs empty overlay semantic contrast",
         "No claim for other architectures, providers or dynamic execution"
+      ]
+    },
+    "inspect_android_package": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P127-P130-ANDROID-JADX-API-DEMOS-20261024",
+      "scope": "Linux REA original MCP/JADX 0.7.1 on pinned public Appium ApiDemos APK 6.0.18; verifies package io.appium.android.apis, version code 44, min SDK 26, target SDK 33, 2876 classes, 869 resources, declared permissions and decoded manifest. Negative semantic absence of undeclared READ_SMS; does not certify signatures, other APKs or runtime execution.",
+      "run_ids": [
+        40111156260,
+        40111694239
+      ],
+      "positive_evidence_sha256": "b9f4a350aabd4b257f3e945dbf5486450e91e7a57d51b1cb89e367fb98093d9c",
+      "negative_evidence_sha256": "12f139fabbe9ee0514b67ff08e9d0a149ced4d277b0eacceca760a2f0fb4d4e4",
+      "positive_calls": 1,
+      "negative_semantic_assertions": 1,
+      "negative_isError_true": false,
+      "limitations": [
+        "Scope limited to static analysis of pinned public ApiDemos 6.0.18 on Linux/JADX; APK was never executed",
+        "Does not imply compatibility with all APK variants or dynamic/reflective call coverage"
+      ]
+    },
+    "search_android_classes": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P127-P130-ANDROID-JADX-API-DEMOS-20261024",
+      "scope": "Linux REA original MCP/JADX 0.7.1 on pinned public ApiDemos APK; positive query 'ApiDemos' matches exact 2 classes in a complete 2876-class enumeration, negative query '__REA_CERT_NONEXISTENT_CLASS_20261024__' yields zero matches with coverage=complete.",
+      "run_ids": [
+        40111156260,
+        40111694239
+      ],
+      "positive_evidence_sha256": "b9f4a350aabd4b257f3e945dbf5486450e91e7a57d51b1cb89e367fb98093d9c",
+      "negative_evidence_sha256": "12f139fabbe9ee0514b67ff08e9d0a149ced4d277b0eacceca760a2f0fb4d4e4",
+      "positive_calls": 1,
+      "negative_semantic_assertions": 1,
+      "negative_isError_true": false,
+      "limitations": [
+        "Scope limited to static analysis of pinned public ApiDemos 6.0.18 on Linux/JADX; APK was never executed",
+        "Does not imply compatibility with all APK variants or dynamic/reflective call coverage"
+      ]
+    },
+    "inspect_android_class": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P127-P130-ANDROID-JADX-API-DEMOS-20261024",
+      "scope": "Linux REA original MCP/JADX 0.7.1 on pinned public ApiDemos APK; exact class io.appium.android.apis.ApiDemos has 8 parsed methods including onCreate, one field and one inner class; nonexistent exact class returns isError=true invalid_request/invalid_input.",
+      "run_ids": [
+        40111156260,
+        40111694239
+      ],
+      "positive_evidence_sha256": "b9f4a350aabd4b257f3e945dbf5486450e91e7a57d51b1cb89e367fb98093d9c",
+      "negative_evidence_sha256": "12f139fabbe9ee0514b67ff08e9d0a149ced4d277b0eacceca760a2f0fb4d4e4",
+      "positive_calls": 1,
+      "negative_semantic_assertions": 1,
+      "negative_isError_true": true,
+      "limitations": [
+        "Scope limited to static analysis of pinned public ApiDemos 6.0.18 on Linux/JADX; APK was never executed",
+        "Does not imply compatibility with all APK variants or dynamic/reflective call coverage"
+      ]
+    },
+    "inspect_android_method": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P127-P130-ANDROID-JADX-API-DEMOS-20261024",
+      "scope": "Linux REA original MCP/JADX 0.7.1 on pinned public ApiDemos APK; method io.appium.android.apis.ApiDemos.onCreate yields available complete Java body with DEX signature and no fallback; nonexistent method in existing class returns isError=true invalid_request/invalid_input.",
+      "run_ids": [
+        40111156260,
+        40111694239
+      ],
+      "positive_evidence_sha256": "b9f4a350aabd4b257f3e945dbf5486450e91e7a57d51b1cb89e367fb98093d9c",
+      "negative_evidence_sha256": "12f139fabbe9ee0514b67ff08e9d0a149ced4d277b0eacceca760a2f0fb4d4e4",
+      "positive_calls": 1,
+      "negative_semantic_assertions": 1,
+      "negative_isError_true": true,
+      "limitations": [
+        "Scope limited to static analysis of pinned public ApiDemos 6.0.18 on Linux/JADX; APK was never executed",
+        "Does not imply compatibility with all APK variants or dynamic/reflective call coverage"
+      ]
+    },
+    "trace_android_references": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P127-P130-ANDROID-JADX-API-DEMOS-20261024",
+      "scope": "Linux REA original MCP/JADX 0.7.1 on pinned public ApiDemos APK; incoming class references to io.appium.android.apis.ApiDemos count=3 using-node references with complete coverage; nonexistent class selection returns isError=true invalid_request/invalid_input.",
+      "run_ids": [
+        40111156260,
+        40111694239
+      ],
+      "positive_evidence_sha256": "b9f4a350aabd4b257f3e945dbf5486450e91e7a57d51b1cb89e367fb98093d9c",
+      "negative_evidence_sha256": "12f139fabbe9ee0514b67ff08e9d0a149ced4d277b0eacceca760a2f0fb4d4e4",
+      "positive_calls": 1,
+      "negative_semantic_assertions": 1,
+      "negative_isError_true": true,
+      "limitations": [
+        "Scope limited to static analysis of pinned public ApiDemos 6.0.18 on Linux/JADX; APK was never executed",
+        "Does not imply compatibility with all APK variants or dynamic/reflective call coverage"
       ]
     }
   },
