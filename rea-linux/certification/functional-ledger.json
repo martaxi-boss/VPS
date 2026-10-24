@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_96_FULLY_CERTIFIED_112_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_97_FULLY_CERTIFIED_111_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -6591,21 +6591,79 @@
       ],
       "request_hygiene": "Consumed request deleted in the same commit",
       "bridge_original_restored": true
+    },
+    {
+      "phase_id": "LINUX-P152-FOUNDATION-KEYED-ARCHIVE-20261024",
+      "date_utc": "2026-10-24",
+      "status": "ONE_NEW_FULLY_CERTIFIED_SCOPED_SOURCE_OWNED_ORIGINAL_MCP_KEYED_ARCHIVE",
+      "tools": [
+        {
+          "name": "inspect_keyed_archive",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Original REA permanent MCP on Linux; source-owned Foundation XML NSKeyedArchiver golden fixture. Opened local plist with matching SHA-256, decoded six objects/eight UID references, paging offset=1 limit=2 with stable [1,2], next_offset=3 and preserved original identities; invalid standalone path was rejected by MCP isError=true invalid_request/invalid_input. Safe automatic close PASS. Does not claim binary plist coverage or interpretation of Objective-C classes.",
+          "positive_evidence_id": "ev_a5c2c32f41c7b1e86d888110ff27cbde0e588bd24154c46fe87ce4b1d4b758e6c1",
+          "positive_cases": [
+            {
+              "input_format": "xml-plist",
+              "total_objects": 6,
+              "total_references": 8,
+              "offset": 1,
+              "limit": 2,
+              "object_ids": [
+                1,
+                2
+              ],
+              "next_offset": 3,
+              "truncated": true
+            }
+          ],
+          "negative_case": "mismatched standalone archive path",
+          "negative_isError_true": true
+        }
+      ],
+      "proof": {
+        "run_id": 40121358413,
+        "request_commit": "30dc205d8947fee84efb2be42bf4550b87e847bb",
+        "artifact_id": 12570813285,
+        "artifact_sha256": "8cb8ba99ec88ecb1b94eb298ba7f67aceb0b7d5f2035f643fd76079333daf880",
+        "request_sha256": "aebe1d9157bb48de68956d5861fab18d698fc51e527d0e97479ec42fbb05500a",
+        "authenticated_result_sha256": "b36a0dce91d99a2f8bfd6823fad93f89bc19bd48081d14638932eec65950680f",
+        "request_matched": true,
+        "result_digest_matched": true,
+        "mcp_tool": "inspect_keyed_archive",
+        "mcp_positive_isError_false": true,
+        "mcp_negative_isError_true": true,
+        "auto_close_cleanup": "PASS",
+        "source_path": "/opt/rea-reversa/rea/tests/fixtures/golden/keyed-archive/foundation.xml",
+        "source_sha256": "93c2bf33ad960be6fba6d45c28462c4bda73ff371fe16725d087087f044479ec",
+        "source_hash_matches_readback": true,
+        "read_only": true,
+        "production_unchanged": true
+      },
+      "new_certifications": 1,
+      "fully_certified_total": 97,
+      "pending": 111,
+      "limitations": [
+        "Source-owned XML property list only",
+        "Classes are not instantiated",
+        "No claim for binary plists, other Apple formats or arbitrary consumer artifacts"
+      ],
+      "no_production_changes": true
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 96,
-    "awaiting_canonical_individual_review": 112,
+    "functional_pass_scoped_distinct": 97,
+    "awaiting_canonical_individual_review": 111,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 36,
+    "workspace_newly_passed_distinct": 37,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 96,
+    "fully_certified_distinct": 97,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 112,
-    "remaining_full_certification_distinct": 112
+    "not_functionally_positive_distinct": 111,
+    "remaining_full_certification_distinct": 111
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -6635,7 +6693,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P150-OFFLINE-SOURCE-MAP-HAR-ADB-20261024",
+  "latest_phase": "LINUX-P152-FOUNDATION-KEYED-ARCHIVE-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -8246,6 +8304,22 @@
       "negative_isError_true": true,
       "limitations": [
         "Extra unrecognized schema argument rejected isError=true; no device connection, ADB server launch or device enumeration claimed."
+      ]
+    },
+    "inspect_keyed_archive": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P152-FOUNDATION-KEYED-ARCHIVE-20261024",
+      "scope": "Original REA permanent MCP on Linux; source-owned Foundation XML NSKeyedArchiver golden fixture. Opened local plist with matching SHA-256, decoded six objects/eight UID references, paging offset=1 limit=2 with stable [1,2], next_offset=3 and preserved original identities; invalid standalone path was rejected by MCP isError=true invalid_request/invalid_input. Safe automatic close PASS. Does not claim binary plist coverage or interpretation of Objective-C classes.",
+      "run_ids": [
+        40121358413
+      ],
+      "positive_evidence_sha256": "b36a0dce91d99a2f8bfd6823fad93f89bc19bd48081d14638932eec65950680f",
+      "negative_evidence_sha256": "b36a0dce91d99a2f8bfd6823fad93f89bc19bd48081d14638932eec65950680f",
+      "positive_calls": 1,
+      "negative_semantic_assertions": 1,
+      "negative_isError_true": true,
+      "limitations": [
+        "Only original source-owned XML Foundation archive on Linux; no binary-plist or arbitrary archive coverage."
       ]
     }
   },
