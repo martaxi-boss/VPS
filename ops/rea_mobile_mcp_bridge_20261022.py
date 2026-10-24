@@ -2382,6 +2382,42 @@ def main():
                 except ValueError:
                     print("REA_INSTALL_AUDIT_PROVIDERS_JSON=INVALID")
         print("REA_INSTALL_AUDIT_MCP_TOOL_COUNT="+str(len(tools)))
+        # Scoped Sigrok offline-only vendor rebuild preflight, no service edits.
+        import shutil as _which
+        required=["gcc","make","autoreconf","autoconf","automake",
+                  "libtoolize","pkg-config","git","curl","bwrap","cmake"]
+        print("REA_SIGROK_OFFLINE_BUILD_TOOLS="+json.dumps({
+            cmd:bool(_which.which(cmd)) for cmd in required},sort_keys=True))
+        versions={}
+        for mod in ["glib-2.0","libzip","libsigrok","libsigrokdecode","libusb-1.0"]:
+            p=subprocess.run(["pkg-config","--modversion",mod],capture_output=True,
+                text=True,timeout=7,check=False)
+            versions[mod]=p.stdout.strip()[:60] if p.returncode==0 else None
+        print("REA_SIGROK_OFFLINE_PKGMODS="+json.dumps(versions,sort_keys=True))
+        print("REA_SIGROK_OFFLINE_HEADERS="+json.dumps({
+            p:Path(p).is_file() for p in ["/usr/include/glib-2.0/glib.h",
+            "/usr/include/zip.h","/usr/include/libusb-1.0/libusb.h"]},sort_keys=True))
+        for pk in ["libsigrok-dev","libsigrokdecode-dev","libzip-dev",
+                   "libglib2.0-dev","libtool","autoconf","automake"]:
+            p=subprocess.run(["dpkg-query","-s",pk],
+                capture_output=True,text=True,timeout=7,check=False)
+            print("REA_SIGROK_OFFLINE_PKG_"+pk.replace("-","_")+
+                  "="+str(p.returncode==0).lower())
+        if _which.which("systemctl"):
+            for key in ["PrivateDevices","DevicePolicy","NoNewPrivileges","ProtectSystem"]:
+                p=subprocess.run(["systemctl","show","rea-reversa-mcp.service",
+                    "-p",key,"--value"],capture_output=True,text=True,
+                    timeout=9,check=False)
+                print("REA_SIGROK_SERVICE_"+key.upper()+
+                      "="+(p.stdout.strip()[:45] if p.returncode==0 else "UNAVAILABLE"))
+        if _which.which("sigrok-cli"):
+            cmd=subprocess.run(["sigrok-cli","--version"],capture_output=True,
+                text=True,timeout=12,check=False)
+            print("REA_SIGROK_OFFLINE_CLI_EXIT="+str(cmd.returncode))
+            print("REA_SIGROK_OFFLINE_CLI_BYTES="+str(len(cmd.stdout.encode())))
+            print("REA_SIGROK_OFFLINE_CLI_STDERR_SHA256="+
+                  hashlib.sha256(cmd.stderr.encode()).hexdigest())
+        print("REA_SIGROK_OFFLINE_PREFLIGHT=COMPLETE_READ_ONLY")
         print("REA_INSTALL_AUDIT_COMPLETED=PASS_READ_ONLY")
         return
     if data["action"] == "capability_audit":
