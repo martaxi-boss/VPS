@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_90_FULLY_CERTIFIED_118_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_92_FULLY_CERTIFIED_116_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -6393,21 +6393,96 @@
       "new_certifications": 0,
       "fully_certified_total": 90,
       "pending": 118
+    },
+    {
+      "phase_id": "LINUX-P136-FLUTTER-TWO-ABI-SOURCE-OWNED-POSITIVE-NEGATIVE-20261024",
+      "date_utc": "2026-10-24",
+      "status": "TWO_NEW_FULLY_CERTIFIED_SCOPED_FLUTTER_STATIC_MCP_POSITIVE_AND_NEGATIVE",
+      "tools": [
+        {
+          "name": "identify_flutter_build",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Original REA Linux MCP Flutter pure parser, original REA src/flutter/FlutterBuild.fixture.ts synthetic ELF libraries staged into disposable /dev/shm APKs: positive two architectures arm64-v8a and x86_64 with aaaa... and bbbb... snapshot hashes and same engine GNU build-id 0123456789abcdef; real semantic negative no Flutter payload, and real MCP isError=true unsupported_target for absent ABI and missing AOT. Static, non-executed source-owned fixtures only, not arbitrary real Flutter apps.",
+          "positives": 1,
+          "semantic_negatives": 1
+        },
+        {
+          "name": "inspect_dart_aot",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Original REA Linux MCP Flutter pure parser, original REA src/flutter/FlutterBuild.fixture.ts synthetic ELF libraries staged into disposable /dev/shm APKs: positive two architectures arm64-v8a and x86_64 with aaaa... and bbbb... snapshot hashes and same engine GNU build-id 0123456789abcdef; real semantic negative no Flutter payload, and real MCP isError=true unsupported_target for absent ABI and missing AOT. Static, non-executed source-owned fixtures only, not arbitrary real Flutter apps.",
+          "positives": 2,
+          "mcp_error_negatives": 2
+        }
+      ],
+      "proof": {
+        "run_id": 40113923650,
+        "request_commit": "87f06597710cda71955ebe3ecc4b3d324fa91fa6",
+        "encrypted_artifact_id": 12567289120,
+        "encrypted_artifact_digest": "sha256:f11a3ea331d9965e791c32e00f62f8b1cc5a90ede91d8c254bce060cfedece6b",
+        "request_sha256": "2350446ad79702ccc0ae996af36c17d0d3df98d9dc9dadbbe4aaa2b8c09b6123",
+        "authenticated_result_sha256": "f8c3caa20c3f14cb74448bcadbe7c4d4fcd942cda43af0d18718251dea34e105",
+        "request_matched": true,
+        "result_digest_matched": true,
+        "original_mcp_catalog": 208,
+        "source_fixture": "rea/src/flutter/FlutterBuild.fixture.ts",
+        "positive_cases": 3,
+        "semantic_negative_cases": 1,
+        "error_negative_cases": 2,
+        "abi_positive": [
+          "arm64-v8a",
+          "x86_64"
+        ],
+        "flutter_positive_detected": true,
+        "flutter_negative_detected": false,
+        "fixture_apk_sha256": "b714b344a79b609506926de6ddd88fb49d046f1dfbc1b2bcbe36e14f54397fc9",
+        "negative_apk_sha256": "691b4a65b1bead5e056fc83229c8faf9498c19c42271283bd0b17d938f921d6e",
+        "engine_build_id": "0123456789abcdef",
+        "snapshot_hash_arm64": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "snapshot_hash_x86_64": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "aot_section_names": [
+          "_kDartVmSnapshotData",
+          "_kDartVmSnapshotInstructions",
+          "_kDartIsolateSnapshotData",
+          "_kDartIsolateSnapshotInstructions"
+        ],
+        "positive_aot_string_pool": {
+          "package_uris": 2,
+          "dart_uris": 2
+        },
+        "errors": [
+          "unsupported_target: ABI absent-ABI missing libapp.so",
+          "unsupported_target: no lib/<abi>/libapp.so in negative control"
+        ],
+        "inputs_unchanged": true,
+        "cleanup": "PASS",
+        "request_hygiene_commit": "16c0a1fdc1250d62ac562a171a8ccdb18191b33e",
+        "temporary_bridge_restore_commit": "dd63fd36e175260d911ca9940c53d33c87d9845f",
+        "bridge_blob_restored": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7"
+      },
+      "new_certifications": 2,
+      "fully_certified_total": 92,
+      "pending": 116,
+      "not_claimed": [
+        "Dynamic APK execution",
+        "external Dart SDK hash-version lookup",
+        "unsupported Flutter ABIs",
+        "real private APKs"
+      ]
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 90,
-    "awaiting_canonical_individual_review": 118,
+    "functional_pass_scoped_distinct": 92,
+    "awaiting_canonical_individual_review": 116,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 30,
+    "workspace_newly_passed_distinct": 32,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 90,
+    "fully_certified_distinct": 92,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 118,
-    "remaining_full_certification_distinct": 118
+    "not_functionally_positive_distinct": 116,
+    "remaining_full_certification_distinct": 116
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -6437,7 +6512,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P132-P133-RUNTIME-CONTRACTS-PLIST-PROVIDER-GATE-20261024",
+  "latest_phase": "LINUX-P136-FLUTTER-TWO-ABI-SOURCE-OWNED-POSITIVE-NEGATIVE-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -7951,6 +8026,38 @@
       "limitations": [
         "Scope limited to static analysis of pinned public ApiDemos 6.0.18 on Linux/JADX; APK was never executed",
         "Does not imply compatibility with all APK variants or dynamic/reflective call coverage"
+      ]
+    },
+    "identify_flutter_build": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P136-FLUTTER-TWO-ABI-SOURCE-OWNED-POSITIVE-NEGATIVE-20261024",
+      "scope": "Original REA Linux MCP Flutter pure parser, original REA src/flutter/FlutterBuild.fixture.ts synthetic ELF libraries staged into disposable /dev/shm APKs: positive two architectures arm64-v8a and x86_64 with aaaa... and bbbb... snapshot hashes and same engine GNU build-id 0123456789abcdef; real semantic negative no Flutter payload, and real MCP isError=true unsupported_target for absent ABI and missing AOT. Static, non-executed source-owned fixtures only, not arbitrary real Flutter apps.",
+      "run_ids": [
+        40113923650
+      ],
+      "positive_evidence_sha256": "f8c3caa20c3f14cb74448bcadbe7c4d4fcd942cda43af0d18718251dea34e105",
+      "negative_evidence_sha256": "f8c3caa20c3f14cb74448bcadbe7c4d4fcd942cda43af0d18718251dea34e105",
+      "positive_calls": 1,
+      "negative_semantic_assertions": 1,
+      "negative_isError_true": false,
+      "limitations": [
+        "Original source-owned static synthetic ELF/APK on Linux only; no runtime behavior or other releases certified"
+      ]
+    },
+    "inspect_dart_aot": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P136-FLUTTER-TWO-ABI-SOURCE-OWNED-POSITIVE-NEGATIVE-20261024",
+      "scope": "Original REA Linux MCP Flutter pure parser, original REA src/flutter/FlutterBuild.fixture.ts synthetic ELF libraries staged into disposable /dev/shm APKs: positive two architectures arm64-v8a and x86_64 with aaaa... and bbbb... snapshot hashes and same engine GNU build-id 0123456789abcdef; real semantic negative no Flutter payload, and real MCP isError=true unsupported_target for absent ABI and missing AOT. Static, non-executed source-owned fixtures only, not arbitrary real Flutter apps.",
+      "run_ids": [
+        40113923650
+      ],
+      "positive_evidence_sha256": "f8c3caa20c3f14cb74448bcadbe7c4d4fcd942cda43af0d18718251dea34e105",
+      "negative_evidence_sha256": "f8c3caa20c3f14cb74448bcadbe7c4d4fcd942cda43af0d18718251dea34e105",
+      "positive_calls": 2,
+      "negative_semantic_assertions": 1,
+      "negative_isError_true": true,
+      "limitations": [
+        "Original source-owned static synthetic ELF/APK on Linux only; no runtime behavior or other releases certified"
       ]
     }
   },
