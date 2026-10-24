@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_79_FULLY_CERTIFIED_129_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_80_FULLY_CERTIFIED_128_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -5453,21 +5453,86 @@
       "pending": 129,
       "temporary_request_deleted": true,
       "original_bridge_unchanged": true
+    },
+    {
+      "phase_id": "LINUX-P96-P97-GHIDRA-TRACE-NATIVE-VALUES-20261024",
+      "date_utc": "2026-10-24",
+      "status": "ONE_NEW_FULLY_CERTIFIED_SCOPED_LINUX_GHIDRA_NATIVE_VALUE_FLOW",
+      "source": "Existing GitHub Actions SSH -> original REA MCP 127.0.0.1:8765/mcp; no new providers",
+      "proof": {
+        "profile": "Linux x86_64 Ghidra 12.1.4 (static, existing original MCP)",
+        "positive": {
+          "run_id": 40091082075,
+          "commit_sha": "466686729748fbbf8bc46d1290b70b09b3e8a6b4",
+          "encrypted_artifact_id": 12559415761,
+          "request_sha256": "2aaa583176b59e95dd320d9fae5afcbc9a84487d5307db673e92925af6c605bd",
+          "authenticated_result_sha256": "6783f0abbdecaeacd3a92b6b1f8a73e308f18a7a0f19b595ca896b30ad5aa30b",
+          "request_matched": true,
+          "procedures": 4,
+          "nodes": 19,
+          "edges": 8,
+          "call_edges": 3,
+          "unknown_parameter_bindings": 3,
+          "truncated": false,
+          "tool_isError_true": false,
+          "ghidra_cleanup": "PASS"
+        },
+        "negative_semantic": {
+          "run_id": 40091578743,
+          "commit_sha": "3bebad6bfde75a9d75f0fd535d7649923069b450",
+          "encrypted_artifact_id": 12558423892,
+          "request_sha256": "3a84bfa898c740d6d70993ed6c9a80ba9d93edd85654bddf71818dc0635d2deb",
+          "authenticated_result_sha256": "4f1ddcdb0d427fb05d3e5642c4d1922ce534293b05ffdd7a8b9be8aa0d47df7a",
+          "request_matched": true,
+          "leaf_seed": "0x107160",
+          "procedures": 1,
+          "nodes": 1,
+          "edges": 0,
+          "unknowns": 0,
+          "truncated": false,
+          "independent_procedure_callees_count": 0,
+          "procedure_callees_relationship_coverage": "complete",
+          "trace_tool_isError_true": false,
+          "ghidra_cleanup": "PASS"
+        },
+        "target_sha256": "8a63c98320173f79e263115e10cefc170155e47d1fd4b5a70e4429d2699cae28",
+        "target_unchanged": true,
+        "live_original_mcp_tool_catalog": 208,
+        "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      },
+      "tools": [
+        {
+          "name": "trace_native_values",
+          "status": "FULLY_CERTIFIED_SCOPED_ORIGINAL_MCP",
+          "positive": 1,
+          "negative_semantic": 1,
+          "scope": "Fully certified only for static native data-flow analysis of valid Ghidra 12.1.4 procedures in immutable Linux ELF /usr/bin/true. P96 positive has nonempty operation, def-use and call edges, and explicitly typed unresolved parameter bindings; P97 leaf control has no call/dataflow edges and zero unknowns with no truncation, independently corroborated by procedure_callees normalized_result=[] and complete relationship coverage. Previously known invalid-selector classification as unreadable_output/execution_failure remains an unresolved separate limitation.",
+          "remaining_limitation": "The known incorrect invalid-selector error classification remains unresolved and is not claimed repaired."
+        }
+      ],
+      "new_certifications": 1,
+      "fully_certified_total": 80,
+      "remaining": 128,
+      "consumed_requests_removed_in_same_commit": [
+        "p96-native-values-leaf-20261024.json",
+        "p97-native-values-leaf-negative-20261024.json"
+      ],
+      "original_bridge_preserved": true
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 79,
-    "awaiting_canonical_individual_review": 129,
+    "functional_pass_scoped_distinct": 80,
+    "awaiting_canonical_individual_review": 128,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 19,
+    "workspace_newly_passed_distinct": 20,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 79,
-    "scoped_positive_not_fully_certified_distinct": 1,
+    "fully_certified_distinct": 80,
+    "scoped_positive_not_fully_certified_distinct": 0,
     "not_functionally_positive_distinct": 128,
-    "remaining_full_certification_distinct": 129
+    "remaining_full_certification_distinct": 128
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -5497,7 +5562,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P95-UNKNOWN-STATUS-INTEGRITY-20261024",
+  "latest_phase": "LINUX-P96-P97-GHIDRA-TRACE-NATIVE-VALUES-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -6820,6 +6885,21 @@
       "positive_calls": 1,
       "negative_calls": 1,
       "negative_isError_true": true
+    },
+    "trace_native_values": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P96-P97-GHIDRA-TRACE-NATIVE-VALUES-20261024",
+      "scope": "Fully certified only for static native data-flow analysis of valid Ghidra 12.1.4 procedures in immutable Linux ELF /usr/bin/true. P96 positive has nonempty operation, def-use and call edges, and explicitly typed unresolved parameter bindings; P97 leaf control has no call/dataflow edges and zero unknowns with no truncation, independently corroborated by procedure_callees normalized_result=[] and complete relationship coverage. Previously known invalid-selector classification as unreadable_output/execution_failure remains an unresolved separate limitation.",
+      "run_ids": [
+        40091082075,
+        40091578743
+      ],
+      "positive_evidence_sha256": "6783f0abbdecaeacd3a92b6b1f8a73e308f18a7a0f19b595ca896b30ad5aa30b",
+      "negative_evidence_sha256": "4f1ddcdb0d427fb05d3e5642c4d1922ce534293b05ffdd7a8b9be8aa0d47df7a",
+      "positive_calls": 1,
+      "negative_semantic_calls": 1,
+      "negative_isError_true": false,
+      "known_invalid_selector_limitation": "Still pending as an error-diagnostic fix outside certified valid-procedure profile."
     }
   },
   "transport_incidents": [
