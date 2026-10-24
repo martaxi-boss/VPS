@@ -1,0 +1,203 @@
+{
+  "project": "REA ORIGINAL — Engenharia Reversa",
+  "phase_id": "REA_SENSITIVE_83_CERTIFICATION_RESUME_20261024",
+  "status": "TWO_EXISTING_SCOPED_CERTIFICATIONS_VERIFIED_CURRENT_DESCRIPTOR_AND_HISTORY__81_FUTURE_TESTS_REQUIRE_OWNER_SIGNING_AND_PROVIDERS",
+  "timestamp_date_utc": "2026-10-24",
+  "original_motor": "/opt/rea-reversa/rea",
+  "bridge": "ChatGPT Skill -> GitHub Actions -> pinned SSH -> VPS -> local original MCP",
+  "counts": {
+    "catalog": 208,
+    "certified_total": 108,
+    "pending_total": 100,
+    "risk_sensitive": 83,
+    "sensitive_already_certified": 2,
+    "sensitive_pending": 81
+  },
+  "existing_certifications": [
+    {
+      "tool": "inspect_adb_client",
+      "ledger_status": "FULLY_CERTIFIED",
+      "run_id": 40121075172,
+      "fixture": "ADB 34.0.4-debian metadata; no device contacted; bad args isError=true",
+      "scope": "Original REA Linux MCP/Android Debug Bridge client introspection only; located apt-installed adb 34.0.4-debian at /usr/lib/android-sdk/platform-tools/adb with contacted_adb_server=false. Extra unrecognized schema argument rejected isError=true; no device connection, ADB server launch or device enumeration claimed.",
+      "live_descriptor_run": 40135349224,
+      "live_descriptor": {
+        "properties": [],
+        "required": [],
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true,
+          "readOnlyHint": false
+        }
+      },
+      "signed_replay": "PENDING_OWNER_SIGNATURE_NOT_NEEDED_TO_RETAIN_OLD_CERTIFICATION"
+    },
+    {
+      "tool": "inspect_web_network_capture",
+      "ledger_status": "FULLY_CERTIFIED",
+      "run_id": 40121075172,
+      "fixture": "Source-owned HAR 1.2 one inert request to example.invalid; no URL fetched; truncated JSON isError=true",
+      "scope": "Original REA Linux MCP lossless HAR 1.2 parser on one inert source-owned recorded HTTP GET for example.invalid; complete ordinal 0, decoded records=1 and source hash, never fetched any endpoint. Truncated HAR JSON was correctly rejected with isError=true invalid_request/invalid_input. No browser/transaction attribution claimed.",
+      "live_descriptor_run": 40135379096,
+      "live_descriptor": {
+        "properties": [
+          "capture_path",
+          "detail",
+          "format",
+          "record_ordinals",
+          "sensitive_values"
+        ],
+        "required": [
+          "capture_path",
+          "format"
+        ],
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true,
+          "readOnlyHint": false
+        }
+      },
+      "signed_replay": "REQUIRES_OWNER_SIGNATURE_AND_ISOLATED_OWNED_HAR_INPUT"
+    }
+  ],
+  "prior_authenticated_evidence": {
+    "certification_run_id": 40121075172,
+    "request_commit": "d7d7a39c31c5c95712597a68bbc1d425f091b6c2",
+    "artifact_id": 12571600754,
+    "artifact_digest_sha256": "a97ebab34eece39f555f0376bad3b03c0c5ff045728cb76792933e62fb24e242",
+    "artifact_expires_at": "2026-10-25T18:31:40Z",
+    "result_sha256": "e132e0e08d21cff6d1a0b31d2312ab8ff9890aee82deedb3c12648d472872921",
+    "protocol_request_matched": true,
+    "protocol_result_digest_matched": true,
+    "positive_calls": 2,
+    "negative_isError_true": 2,
+    "notes": "Combined run has third (trace_web_source_location) separately certified; not recounted"
+  },
+  "original_owner": {
+    "verifier_proof_run": 40133541774,
+    "original_rea_live_catalog_after_restoration_run": 40134894647,
+    "public_key_sha256_der": "99580a4806703661ca38f75a3cb95e47d46e32228cf89d5aa7ab55e95a4e25b4",
+    "public_key_verified_vps": true,
+    "invalid_signature_rejected": true,
+    "positive_local_android_signature": "PASS",
+    "positive_canonical_vps_authorization": "PENDING",
+    "scope": "Owner private signer remains on Android; per step explicit Ed25519 signature mandatory."
+  },
+  "triage_groups": {
+    "browser_web_runtime": [
+      "analyze_web_bundle",
+      "capture_browser_scenario",
+      "capture_electron_scenario",
+      "capture_web_screenshot",
+      "discover_webmcp_tools",
+      "inspect_electron_page",
+      "inspect_web_event_listeners",
+      "inspect_web_page",
+      "list_browser_targets",
+      "list_electron_targets",
+      "list_javascript_runtime_targets",
+      "observe_javascript_runtime",
+      "observe_web_execution",
+      "observe_web_session",
+      "reconcile_javascript_runtime",
+      "recover_javascript_sources",
+      "trace_web_module_imports"
+    ],
+    "native_debug_analysis": [
+      "annotate_native_function",
+      "capture_native_ui_scenario",
+      "close_gdb_session",
+      "close_rizin_debug_session",
+      "cutter_command",
+      "execute_rizin_command",
+      "gdb_console",
+      "goto_address",
+      "list_cutter_sessions",
+      "observe_native_ui",
+      "rizin_debug_command",
+      "set_address_name",
+      "set_addresses_names",
+      "set_bookmark",
+      "set_comment",
+      "set_inline_comment",
+      "start_gdb_session",
+      "start_rizin_debug_session",
+      "unset_bookmark"
+    ],
+    "adb_device": [
+      "capture_adb_screen",
+      "collect_adb_bugreport",
+      "inspect_adb_device",
+      "inspect_adb_display",
+      "inspect_adb_package",
+      "inspect_adb_window",
+      "install_adb_package",
+      "list_adb_devices",
+      "list_adb_directory",
+      "list_adb_features",
+      "list_adb_packages",
+      "list_adb_processes",
+      "list_adb_services",
+      "pull_adb_file",
+      "pull_adb_package",
+      "push_adb_file",
+      "read_adb_logcat",
+      "read_adb_setting",
+      "resolve_adb_packages",
+      "start_adb_activity",
+      "start_adb_app",
+      "stop_adb_app",
+      "uninstall_adb_package"
+    ],
+    "other": [
+      "capture_process_scenario",
+      "close_binary"
+    ],
+    "frida_runtime": [
+      "close_frida_session",
+      "instrument_with_frida",
+      "list_frida_devices",
+      "list_frida_processes",
+      "load_frida_script",
+      "observe_native_calls",
+      "resume_frida_session",
+      "start_frida_session",
+      "unload_frida_script"
+    ],
+    "jeb_licence": [
+      "decompile_jeb_item",
+      "inspect_jeb_client",
+      "list_jeb_units",
+      "open_jeb_project"
+    ],
+    "evidence_state": [
+      "export_evidence_bundle",
+      "extract_artifact",
+      "extract_firmware",
+      "import_evidence_bundle",
+      "import_managed_reconstruction",
+      "record_unknown",
+      "update_unknown"
+    ]
+  },
+  "classification_caveat": "Name-based planning only; real inputSchema and provider/target existence must be checked per tool. No certification is obtained by name grouping.",
+  "next_safe_action": "One source-owned, signature-bound inspect_adb_client regression using {} to establish positive end-to-end cryptographic operation approval; not counted as a NEW certified tool.",
+  "next_certification_goal": "Select source-owned fixtures among the remaining 81; no global unlock; sign precise steps only; avoid all production devices/third-party licences.",
+  "isolation_guards": {
+    "no_codex": true,
+    "no_new_skill_plugin_mcp_engine": true,
+    "no_ssh_password_in_repo": true,
+    "no_private_owner_key_in_vps": true,
+    "no_unrelated_projects": true,
+    "no_auto_sensitive_approvals": true,
+    "max_sealed_batch_steps": 12
+  },
+  "phase_evidence": {
+    "latest_provider_doctor_run": 40134719489,
+    "latest_install_inventory_run": 40134794933,
+    "currently_missing_or_unverified": "IDA/JEB commercial prerequisites, Frida executable, GUI browsers and real Android/USB devices may require separate authorized supply. Provider presence not equivalent to certification."
+  },
+  "current_branch_before_staging": "24d185802f35de9025a2fda50c1182a59b1d020e"
+}
