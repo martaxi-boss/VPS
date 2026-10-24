@@ -4014,9 +4014,21 @@
       ],
       "dependency_installs": 0,
       "bridge_unchanged": true,
-      "consumed_github_requests_hygiene": "PENDING_CLEANUP",
+      "consumed_github_requests_hygiene": "PASS",
       "fully_certified_total": 50,
-      "remaining": 158
+      "remaining": 158,
+      "consumed_request_hygiene": "PASS",
+      "git_hygiene": {
+        "cleanup_commit": "d221a92e979668d82da467d451df04f4f9f444c5",
+        "deleted_consumed_requests": 5,
+        "post_cleanup_run_id": 40050787498,
+        "post_cleanup_conclusion": "SUCCESS",
+        "mcp_loopback": "PASS",
+        "tool_count": 208,
+        "schemas_validated": 208,
+        "contracts_matching": 208,
+        "original_bridge_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      }
     },
     {
       "phase_id": "LINUX-P51B-NATIVE-INSTRUCTION-LIST-20261024",
@@ -4076,9 +4088,21 @@
       "new_dependency_installs": 0,
       "original_bridge_intact": true,
       "engine_daemon_unchanged": true,
-      "consumed_request_hygiene": "PENDING",
+      "consumed_request_hygiene": "PASS",
       "fully_certified_total": 51,
-      "remaining": 157
+      "remaining": 157,
+      "consumed_github_requests_hygiene": "PASS",
+      "git_hygiene": {
+        "cleanup_commit": "d221a92e979668d82da467d451df04f4f9f444c5",
+        "deleted_consumed_requests": 5,
+        "post_cleanup_run_id": 40050787498,
+        "post_cleanup_conclusion": "SUCCESS",
+        "mcp_loopback": "PASS",
+        "tool_count": 208,
+        "schemas_validated": 208,
+        "contracts_matching": 208,
+        "original_bridge_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      }
     }
   ],
   "active_scope_counts": {
