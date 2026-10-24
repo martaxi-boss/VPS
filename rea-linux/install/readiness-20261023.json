@@ -1459,6 +1459,8 @@
     "temporary_request_removed_in_same_commit": true,
     "bridge_blob_preserved": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
     "last_known_successful_original_mcp_post_cleanup_run": 40056690144,
+    "failed_catalog_after_cleanup_run": 40078631883,
+    "failed_catalog_after_cleanup_step": "Check SSH host identity against existing owner pin",
     "future_action": "Diagnose SSH reachability/host key via authorized infrastructure controls; do not relax pin. Resume from 76 only after bridge health restored."
   }
 }
