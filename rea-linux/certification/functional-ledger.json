@@ -6347,6 +6347,52 @@
         "reflective invocations",
         "other JADX versions"
       ]
+    },
+    {
+      "phase_id": "LINUX-P132-P133-RUNTIME-CONTRACTS-PLIST-PROVIDER-GATE-20261024",
+      "date_utc": "2026-10-24",
+      "status": "NO_NEW_CERTIFICATIONS_REAL_PROVIDER_UNSUPPORTED_PLIST_AND_SENSITIVE_APPROVAL_NOT_PROVISIONED",
+      "tools": [
+        {
+          "name": "inspect_plist",
+          "status": "NOT_CERTIFIED",
+          "mcp_isError_true": true,
+          "error_code": "capability_unavailable",
+          "error_category": "unsupported_provider",
+          "error_detail": "Native macOS utilities require macOS.",
+          "positive_mcp_test": false
+        }
+      ],
+      "proof": {
+        "run_id": 40112344134,
+        "commit": "5e54cab22a91a9e1df3f55e477bdba5234c6b848",
+        "artifact_id": 12567196652,
+        "artifact_zip_digest": "sha256:afb8bb2b9053b4023b8648095e8db89c7c0b5aeeba1d3f20496cf28911cfb889",
+        "request_sha256": "7498ee568778941b5f94cebf806d12f2d2987941e0e7e9e62072d98843ef7dbe",
+        "authenticated_result_sha256": "640cbacd6576af9a687efaac88ce7460e540f9f48fd9ae130e5be1cef",
+        "ssh_pin": "PASS",
+        "original_mcp_catalog": 208,
+        "session_cleanup": "PASS",
+        "public_fixture_cleanup": "PASS",
+        "inputs_unchanged": true,
+        "tool_error": true,
+        "cleanup_commit": "dc3c573de981d101ead5077e7d5a9ad8aa338fb2"
+      },
+      "runtime_contracts": {
+        "run_id": 40111971498,
+        "authenticated_result_sha256": "d26932274bae3586e79b43962a45c7cc8058d2f83d02c43401509f0cfe646c3f",
+        "tool_count": 208,
+        "owner_verifier_file_present": false,
+        "owner_verifier_validated": false,
+        "macos_xcrun_present": false,
+        "rizin_present": false,
+        "gdb_present": true,
+        "adb_present": true
+      },
+      "notes": "P133 inspected only the pending inspect_plist among static public fixture operations; positive unavailable on Linux, do not count. Sensitive operations remain gated behind independently provisioned Ed25519 owner verifier and real authorization, not forgeable by operator.",
+      "new_certifications": 0,
+      "fully_certified_total": 90,
+      "pending": 118
     }
   ],
   "active_scope_counts": {
@@ -6391,7 +6437,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P127-P130-ANDROID-JADX-API-DEMOS-20261024",
+  "latest_phase": "LINUX-P132-P133-RUNTIME-CONTRACTS-PLIST-PROVIDER-GATE-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
