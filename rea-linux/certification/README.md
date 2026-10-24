@@ -728,3 +728,12 @@ A ferramenta original `inspect_native_load_image` foi **`FULLY_CERTIFIED` num pe
 - **Não certificadas aqui:** `decode_interface_builder` e `trace_dylib_resolution`; sessão `.app` bloqueada por seleção ambígua de fornecedores `open_binary` sem `provider_id`. Não foram contadas nem declaradas operacionais.
 - Ponte original restaurada ao blob `f8009ad372a2cd936201ef02c0e1ae40832d1ab7` e pedido P160 consumido removido; pedido P152 alheio preservado.
 - **Total canónico: 98/208 certificadas, 110 pendentes, faltam 2 para 100.**
+
+## P152 — Foundation NSKeyedArchiver: inspect_keyed_archive (24/10/2026)
+
+- [Actions #40121358413](https://github.com/martaxi-boss/VPS/actions/runs/40121358413), commit `30dc205d8947fee84efb2be42bf4550b87e847bb`, artefacto cifrado `12570813285`, SHA-256 do artefacto `8cb8ba99ec88ecb1b94eb298ba7f67aceb0b7d5f2035f643fd76079333daf880`.
+- Pedido SHA-256 `aebe1d9157bb48de68956d5861fab18d698fc51e527d0e97479ec42fbb05500a`; resultado RSA-OAEP/AES-GCM autenticado, SHA-256 `b36a0dce91d99a2f8bfd6823fad93f89bc19bd48081d14638932eec65950680f`.
+- **Certificada `inspect_keyed_archive`** em Linux com fixture original `tests/fixtures/golden/keyed-archive/foundation.xml`, SHA-256 `93c2bf33ad960be6fba6d45c28462c4bda73ff371fe16725d087087f044479ec`: `xml-plist`, 6 objetos, 8 referencias, paginacao offset 1 limit 2, IDs 1 e 2, `next_offset=3`; entrada invalida rejeitada com MCP `isError=true`, `invalid_request/invalid_input`.
+- Sessao `open_binary` encerrada automaticamente pelo bridge `REA_SEALED_CLEANUP=PASS`; sem alteracao de producao; alcance apenas esta fixture XML Foundation, nao formatos Apple arbitrarios.
+- O primeiro pedido P151 falhou no validador de caminhos, antes do MCP; nao foi contabilizado. A limpeza do pedido P152 no GitHub esta pendente (nonce de uso unico ja consumido). Historico preservado.
+- **Estado canonico apos P152: 97/208 certificadas, 111 pendentes, faltam 3 ate 100.** A fase P160 posterior elevou o total a 98, sem contar novamente P152.
