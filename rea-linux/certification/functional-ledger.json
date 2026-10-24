@@ -7006,21 +7006,72 @@
         "Real tested original MCP, not catalog-only or mocked provider."
       ],
       "hygiene": "Workflow and bridge restored to exact pre-P180 blobs; P186 request removed, encrypted Actions proof preserved; REA-only provider service remains active."
+    },
+    {
+      "phase_id": "LINUX-P202-FRIDA-SIGNED-POSITIVE-ISOLATED-MCP-NEGATIVE-20261024",
+      "date_utc": "2026-10-24",
+      "status": "ONE_NEW_SCOPED_FULLY_CERTIFIED_SENSITIVE_FRIDA_LOCAL_DISCOVERY",
+      "tools": [
+        {
+          "name": "list_frida_devices",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Original permanent REA Linux MCP list_frida_devices with explicit owner Ed25519 approval and default {} input (no remote): returned three host Frida interfaces local/socket/barebone; no USB physical devices, process attachment or instrumentation claimed. Isolated original REA MCP negative case with injected missing optional Frida binding yielded isError=true and unavailable tool inventory; no production provider outage induced.",
+          "positive_calls": 1,
+          "negative_cases": [
+            "isolated_optional_frida_binding_unavailable_mcp_isError_true"
+          ],
+          "negative_isError_true": true
+        }
+      ],
+      "proof": {
+        "positive_signed_original_mcp_run_id": 40139159814,
+        "signed_original_mcp_job_id": 121007002893,
+        "owner_signed_request_commit": "8f60e1c003e0fc0f38a2c16e7a8d570a3d50e2b2",
+        "positive_encrypted_artifact_id": 12577674753,
+        "positive_artifact_sha256": "6b1367982a2cec94dfa7c4fa98500c62db14cf3c09bb592f1f9747259f0c3cc7",
+        "authenticated_positive_sha256": "505a875273e575264c3e832aefec7543b12d259a41197fb6fa30551dd3689028",
+        "owner_ed25519_signature_valid": true,
+        "owner_per_operation_signature_still_required": true,
+        "negative_isolated_source_mcp_run_id": 40139833305,
+        "negative_isolated_source_mcp_job_id": 121009044146,
+        "original_test_path": "rea/tests/boundary/mcp/fridaMcp.test.ts",
+        "negative_test_name": "reports Frida tools as unavailable after the optional binding fails to load",
+        "negative_test_exit": 0,
+        "negative_test_isError_true_asserted": true,
+        "negative_test_output_sha256": "734acbd0bda1ec32aa5f4adeb0e8ed3db9760e05eb3a3b898d81e435867f9cfd",
+        "additional_boundary_tests_passed": 4,
+        "staged_source_worktree_unchanged": true,
+        "signed_request_cleaned": true,
+        "bridge_restoration_commit": "d754b5e574ded19ed48291c4fea57373b5d1fe7c",
+        "original_bridge_blob": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7",
+        "original_workflow_blob": "c81ef44d3f3e9dc3b3a819add5ff4f1a33d343df",
+        "post_restore_workflow_run_id": 40139908371
+      },
+      "new_certifications": 1,
+      "fully_certified_total": 109,
+      "pending": 99,
+      "limitations": [
+        "Fully certified only for default local Frida discovery on original REA Linux host; remote Frida endpoints, TLS credentials, physical USB device sessions and instrumentation not tested.",
+        "Negative binding-unavailable case exercised via source-owned original MCP InMemoryTransport in an isolated process, not by inducing failure in the permanent REA service.",
+        "Three enumerated entries are Frida interfaces, not evidence of three physical devices.",
+        "Every future sensitive call still needs a new exact owner Ed25519 authorization; no general unlock."
+      ],
+      "hygiene": "Original bridge and workflow byte-identical; fixed isolated negative trial request removed; no user private key exposed; source test worktree untouched."
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 108,
-    "awaiting_canonical_individual_review": 100,
+    "functional_pass_scoped_distinct": 109,
+    "awaiting_canonical_individual_review": 99,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
     "workspace_newly_passed_distinct": 48,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 108,
+    "fully_certified_distinct": 109,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 100,
-    "remaining_full_certification_distinct": 100
+    "not_functionally_positive_distinct": 99,
+    "remaining_full_certification_distinct": 99
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -7050,7 +7101,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P186-SIGROK-OFFLINE-SOURCE-OWNED-20261024",
+  "latest_phase": "LINUX-P202-FRIDA-SIGNED-POSITIVE-ISOLATED-MCP-NEGATIVE-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -8869,6 +8920,26 @@
       "limitations": [
         "Source-owned synthetic VCD and UART only; other formats/protocols and physical capture not certified.",
         "Offline provider has no USB driver access."
+      ]
+    },
+    "list_frida_devices": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P202-FRIDA-SIGNED-POSITIVE-ISOLATED-MCP-NEGATIVE-20261024",
+      "scope": "Original permanent REA Linux MCP list_frida_devices with explicit owner Ed25519 approval and default {} input (no remote): returned three host Frida interfaces local/socket/barebone; no USB physical devices, process attachment or instrumentation claimed. Isolated original REA MCP negative case with injected missing optional Frida binding yielded isError=true and unavailable tool inventory; no production provider outage induced.",
+      "run_ids": [
+        40139159814,
+        40139833305
+      ],
+      "positive_evidence_sha256": "505a875273e575264c3e832aefec7543b12d259a41197fb6fa30551dd3689028",
+      "negative_evidence_sha256": "734acbd0bda1ec32aa5f4adeb0e8ed3db9760e05eb3a3b898d81e435867f9cfd",
+      "positive_calls": 1,
+      "negative_semantic_assertions": 1,
+      "negative_isError_true": true,
+      "limitations": [
+        "Fully certified only for default local Frida discovery on original REA Linux host; remote Frida endpoints, TLS credentials, physical USB device sessions and instrumentation not tested.",
+        "Negative binding-unavailable case exercised via source-owned original MCP InMemoryTransport in an isolated process, not by inducing failure in the permanent REA service.",
+        "Three enumerated entries are Frida interfaces, not evidence of three physical devices.",
+        "Every future sensitive call still needs a new exact owner Ed25519 authorization; no general unlock."
       ]
     }
   },
