@@ -2747,10 +2747,8 @@ def main():
         source = Path.home() / ".local/share/rea-chatgpt-trial/repository/rea"
         node = shutil.which("node")
         examples = (
-            ("com", source / "tests/conformance/ghidra/dos-com-fixture.mjs",
-             "buildDosComFixture", "controlled.com"),
-            ("mz", source / "tests/conformance/ghidra/dos-mz-fixture.mjs",
-             "buildDosMzFixture", "controlled.exe"),
+            ("mz-overlay", source / "tests/conformance/ghidra/dos-mz-fixture.mjs",
+             "buildDosMzFixture", "controlled-overlay.exe"),
         )
         if not node or any(not p.is_file() for _, p, _, _ in examples):
             error("Missing original REA DOS conformance fixture generators")
@@ -2770,6 +2768,9 @@ def main():
                 )
                 if p.returncode or not target.is_file() or target.stat().st_size > 4096:
                     error("Controlled DOS source fixture generation failed")
+                if kind == "mz-overlay":
+                    with target.open("ab") as output:
+                        output.write(bytes([0xa5]) * 17)
                 target.chmod(0o644)
                 original_sha256 = hashlib.sha256(target.read_bytes()).hexdigest()
                 opened = False
