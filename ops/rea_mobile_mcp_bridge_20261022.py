@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_sensitive_negative_boundaries"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -489,31 +489,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SDIAG_PID_ENV_READ",
         "REA_SDIAG_PID_ENV_SIZE",
         "REA_SDIAG_PID_PROVIDER_KEYS",
-        "REA_SDIAG_STATUS",
-        "REA_SENSITIVE_BOUNDARY_SOURCE",
-        "REA_SENSITIVE_BOUNDARY_WORKTREE",
-        "REA_SENSITIVE_BOUNDARY_TESTS_PASSED",
-        "REA_SENSITIVE_BOUNDARY_STATUS",
-        "REA_SENSITIVE_BOUNDARY_ADB_PROVIDER_MALFORMED_STATE",
-        "REA_SENSITIVE_BOUNDARY_ADB_PROVIDER_MALFORMED_STATE_EXIT",
-        "REA_SENSITIVE_BOUNDARY_ADB_PROVIDER_MALFORMED_STATE_SHA256",
-        "REA_SENSITIVE_BOUNDARY_ADB_PROVIDER_MALFORMED_STATE_DIAG",
-        "REA_SENSITIVE_BOUNDARY_ADB_MCP_INPUT_REFUSAL",
-        "REA_SENSITIVE_BOUNDARY_ADB_MCP_INPUT_REFUSAL_EXIT",
-        "REA_SENSITIVE_BOUNDARY_ADB_MCP_INPUT_REFUSAL_SHA256",
-        "REA_SENSITIVE_BOUNDARY_ADB_MCP_INPUT_REFUSAL_DIAG",
-        "REA_SENSITIVE_BOUNDARY_CUTTER_BRIDGE_UNSAFE_DIRECTORY",
-        "REA_SENSITIVE_BOUNDARY_CUTTER_BRIDGE_UNSAFE_DIRECTORY_EXIT",
-        "REA_SENSITIVE_BOUNDARY_CUTTER_BRIDGE_UNSAFE_DIRECTORY_SHA256",
-        "REA_SENSITIVE_BOUNDARY_CUTTER_BRIDGE_UNSAFE_DIRECTORY_DIAG",
-        "REA_SENSITIVE_BOUNDARY_CUTTER_MCP_SYNTHETIC_LIVE_SESSION",
-        "REA_SENSITIVE_BOUNDARY_CUTTER_MCP_SYNTHETIC_LIVE_SESSION_EXIT",
-        "REA_SENSITIVE_BOUNDARY_CUTTER_MCP_SYNTHETIC_LIVE_SESSION_SHA256",
-        "REA_SENSITIVE_BOUNDARY_CUTTER_MCP_SYNTHETIC_LIVE_SESSION_DIAG",
-        "REA_SENSITIVE_BOUNDARY_FRIDA_MCP_OPTIONAL_PROVIDER_UNAVAILABLE",
-        "REA_SENSITIVE_BOUNDARY_FRIDA_MCP_OPTIONAL_PROVIDER_UNAVAILABLE_EXIT",
-        "REA_SENSITIVE_BOUNDARY_FRIDA_MCP_OPTIONAL_PROVIDER_UNAVAILABLE_SHA256",
-        "REA_SENSITIVE_BOUNDARY_FRIDA_MCP_OPTIONAL_PROVIDER_UNAVAILABLE_DIAG"
+        "REA_SDIAG_STATUS"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -654,66 +630,6 @@ def main():
     print("REA_MOBILE_CATALOG_SAMPLE=" + json.dumps(
         list(tool_by_name)[:14], ensure_ascii=True
     ))
-    if data["action"] == "fixture_linux_sensitive_negative_boundaries":
-        # Fixed, source-owned Vitest cases only; no service config changes, no
-        # live sensitive tools/calls, no attached devices, no user input.
-        # This is isolated provider/MCP source conformance and must not be
-        # mistaken for a signed production-MCP negative replay.
-        root = Path.home() / ".local/share/rea-chatgpt-trial"
-        source = root / "repository/rea"
-        node = root / "tools/node-24.15.0/bin/node"
-        vitest = source / "node_modules/vitest/vitest.mjs"
-        if not node.is_file() or not vitest.is_file():
-            error("Pinned REA node or vitest staging is missing")
-        cases = (
-            ("ADB_PROVIDER_MALFORMED_STATE", "src/adb/AdbProvider.test.ts",
-             "refuses device listings with an invalid state token"),
-            ("ADB_MCP_INPUT_REFUSAL", "tests/boundary/mcp/adbMcp.test.ts",
-             "rejects invalid tool input before reaching the provider"),
-            ("CUTTER_BRIDGE_UNSAFE_DIRECTORY", "tests/boundary/providers/CutterBridgeClient.test.ts",
-             "rejects a POSIX bridge directory that is accessible to other users"),
-            ("CUTTER_MCP_SYNTHETIC_LIVE_SESSION", "tests/boundary/mcp/cutterMcp.test.ts",
-             "preserves live Cutter command Evidence and parity through the MCP boundary"),
-            ("FRIDA_MCP_OPTIONAL_PROVIDER_UNAVAILABLE", "tests/boundary/mcp/fridaMcp.test.ts",
-             "reports Frida tools as unavailable after the optional binding fails to load"),
-        )
-        for _, file, _ in cases:
-            entry = source / file
-            if entry.is_symlink() or not entry.is_file():
-                error("Fixed original REA test unavailable: " + file)
-        base = subprocess.run(["git", "-C", str(source), "status", "--porcelain"],
-                              capture_output=True, text=True, timeout=12, check=False)
-        if base.returncode:
-            error("Original REA source baseline cannot be inspected")
-        print("REA_SENSITIVE_BOUNDARY_SOURCE=PASS")
-        count = 0
-        for label, file, title in cases:
-            result = subprocess.run(
-                [str(node), str(vitest), "run", file, "-t", title,
-                 "--no-file-parallelism", "--maxWorkers=1"],
-                cwd=str(source), capture_output=True, text=True, timeout=140,
-                check=False, env={**os.environ, "CI":"true", "NO_COLOR":"1",
-                                  "NODE_OPTIONS":"--max-old-space-size=1024"})
-            plain = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "",
-                           result.stdout + "\n" + result.stderr)
-            passed = result.returncode == 0 and bool(re.search(r"\b1 passed\b", plain))
-            print("REA_SENSITIVE_BOUNDARY_" + label + "=" + ("PASS" if passed else "FAIL"))
-            print("REA_SENSITIVE_BOUNDARY_" + label + "_EXIT=" + str(result.returncode))
-            print("REA_SENSITIVE_BOUNDARY_" + label + "_SHA256=" +
-                  hashlib.sha256(plain.encode()).hexdigest())
-            if not passed:
-                excerpt = re.sub(r"[^A-Za-z0-9 .,=_:;()/\\#\n-]", " ", plain[-600:])
-                print("REA_SENSITIVE_BOUNDARY_" + label + "_DIAG=" + excerpt.replace("\n", " ")[:600])
-            count += int(passed)
-        after = subprocess.run(["git", "-C", str(source), "status", "--porcelain"],
-                               capture_output=True, text=True, timeout=12, check=False)
-        unchanged = after.returncode == 0 and after.stdout == base.stdout
-        print("REA_SENSITIVE_BOUNDARY_WORKTREE=" + ("PASS" if unchanged else "FAIL"))
-        print("REA_SENSITIVE_BOUNDARY_TESTS_PASSED=" + str(count))
-        print("REA_SENSITIVE_BOUNDARY_STATUS=" +
-              ("PASS_ISOLATED_ONLY_NOT_PRODUCTION_NEGATIVE" if
-               unchanged and count == len(cases) else "FAIL_INCOMPLETE"))
-        return
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
               secure.request_public_key_b64(create=True))
