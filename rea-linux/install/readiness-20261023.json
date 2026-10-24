@@ -1593,6 +1593,14 @@
     "fully_certified": 79,
     "pending": 129,
     "last_consumed_request_deleted_in_canonical_commit": true,
-    "bridge_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+    "bridge_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+    "post_cleanup": {
+      "run_id": 40089765645,
+      "conclusion": "SUCCESS",
+      "catalog": 208,
+      "validated_schemas": 208,
+      "audited_contracts": 208,
+      "ssh_host_pin": "PASS"
+    }
   }
 }

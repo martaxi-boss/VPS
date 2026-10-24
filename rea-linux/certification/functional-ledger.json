@@ -5398,7 +5398,17 @@
       "mcp_steps_executed": 4,
       "result_note": "Real comparison Evidence against itself exposed independent-source and coverage limitations. verify_reconstruction produced status unknown; list_unknowns exposed open reconstruction-verification unknown; no global pass and no new certification. Follow-up positive for verify_unknown_resolution was not executed.",
       "canonical_certified_count": 79,
-      "remaining": 129
+      "remaining": 129,
+      "post_cleanup_verification": {
+        "run_id": 40089765645,
+        "conclusion": "SUCCESS",
+        "ssh_host_pin": "PASS",
+        "catalog": 208,
+        "validated_schemas": 208,
+        "audited_contracts": 208,
+        "temporary_requests_absent": true,
+        "original_bridge_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      }
     }
   ],
   "active_scope_counts": {
