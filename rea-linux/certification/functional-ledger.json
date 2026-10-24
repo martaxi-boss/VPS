@@ -4859,9 +4859,21 @@
         "demangle_swift (macOS provider required)",
         "trace_native_values (negative error miscategorized)"
       ],
-      "consumed_github_requests": "PASS_REMOVED_2_IN_CANONICAL_COMMIT",
+      "consumed_github_requests": "PASS_REMOVED_2",
       "certified_total": 75,
-      "remaining": 133
+      "remaining": 133,
+      "git_hygiene": {
+        "cleanup_commit": "112255b92dd06a3802c4ec3377384a0b7d8f508b",
+        "deleted_consumed_requests": 2,
+        "post_cleanup_run_id": 40056690144,
+        "post_cleanup_conclusion": "SUCCESS",
+        "loopback_mcp": "PASS",
+        "catalog_tools": 208,
+        "validated_schemas": 208,
+        "matched_contracts": 208,
+        "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+        "git_request_directory_empty": true
+      }
     }
   ],
   "active_scope_counts": {
