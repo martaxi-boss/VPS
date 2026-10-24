@@ -773,3 +773,11 @@ A ferramenta original `inspect_native_load_image` foi **`FULLY_CERTIFIED` num pe
 - Input C c77c75db196b1afe254646c4d069732e718beba317ac046c0ccd842770ab2921, executável ELF 3a3e586284b17dc837fe73b36e57f06facbae18bb7eb2cbbb82698da64ea7d2d, hashes imutáveis, alvo nunca executado, sessão Ghidra encerrada e staging limpo PASS. Foco em símbolos Linux, **não** runtime Apple nem metadados binários completos.
 - Ponte original restaurada e pedido P176 removido; nenhuma alteração a verificações de assinatura.
 - **Total canónico: 105/208 certificadas, 103 pendentes; faltam 3 para 108.**
+
+## P177 — correlacao estatica/runtime na sessão MCP original (24/10/2026)
+
+- [Actions #40126930712](https://github.com/martaxi-boss/VPS/actions/runs/40126930712), commit `36e315f975cbb610a19cfcba5c02e3936369cab1`, artefacto cifrado `12572738338` (ZIP SHA-256 `cccb14a7e6052198f909c5e21c4190807c6436045fbbcca75fb7594587513afb`). Pedido SHA-256 `16440dbe62c3376152e33ea71369cfcde3e8d5fdf3f5c65c63df15085514487c`; resposta autenticada por RSA-OAEP/AES-GCM, SHA-256 `84de17fec4f656f9b3782249e3b7fd67cf4bf746cccea6ba98fbcd3ca3cb74cd`.
+- **`correlate_static_and_runtime` FULLY_CERTIFIED** em fixture original REA: `compare_functions` gerou Evidence `ev_bd0f12fdf85b4aac628196f6b44b143f83e106635def54230443d38963619d09` e `compare_process_captures` Evidence `ev_c34721f214ae76a323923252d33de55c8ba9067435765ec2a224224649f47007`, guardados na mesma sessao. A correlação obteve 1 hipótese `static_only`, 6 evidências encadeadas e Evidence `ev_051442672c082100f6dcba577eead20ab2b8d5afe585fc718b1c2050c5df2b7c`; seleção de comparações trocada rejeitada `isError=true`.
+- `verify_unknown_resolution` viu incógnita real contradita (`isError=false`), mas devolveu `valid=false, truthVerified=false`. A via positiva de resolução com `valid=true` continua pendente; portanto **nao** certificada.
+- Fixture descartável inalterada e limpeza PASS. Ponte original restaurada e pedido removido no commit `091157f087af3e8905d76b6fe4a81d64050f5e64`.
+- **Total 106/208 certificadas, 102 por certificar; faltam 2 para 108.**
