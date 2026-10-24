@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_83_FULLY_CERTIFIED_PROFILES_AND_125_PENDING",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_84_FULLY_CERTIFIED_PROFILES_AND_124_PENDING",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -1482,16 +1482,15 @@
     }
   },
   "latest_certification": {
-    "phase_id": "LINUX-P115-LIST-SEGMENTS-SEMANTIC-PERMISSIONS-20261024",
-    "tool": "list_segments",
-    "run_id": 40106634962,
-    "authenticated_result_sha256": "a628011ceb18af34bac1f6a2e4ca909bc7b81de6bac1f1940ddacc0b2fd2f8ff",
+    "phase_id": "LINUX-P117-LIST-PROCEDURES-SEMANTIC-THUNKS-20261024",
+    "tool": "list_procedures",
+    "run_id": 40107047518,
+    "authenticated_result_sha256": "1e5616ee832d6a664b1677cad502c2f540919e5796df4dac237b84bd5292f6bb",
     "positive_and_semantic_negative": true,
-    "negative_case": "Non-executable .rodata and non-initialized .bss with executable .text and writable .data in 32 Ghidra memory blocks",
     "invalid_input_rejection": false,
-    "fully_certified": 83,
-    "pending": 125,
-    "scope": "Only Linux Ghidra 12.1.4 on /usr/bin/true ELF x86_64; permission/range semantics. No session-absent invalid-input MCP test, no non-Ghidra claim.",
+    "fully_certified": 84,
+    "pending": 124,
+    "scope": "Ghidra 12.1.4 on Linux /usr/bin/true ELF x86_64; 133 unique addresses, 39/94 external true/false, 76/57 thunk true/false, targets coherent. No invalid-document MCP-negative; bridge guards session.",
     "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
   },
   "transport_status_after_ovh_renewal": {
@@ -1657,11 +1656,11 @@
     "provider_configuration_changed": false
   },
   "latest_hygiene": {
-    "scope": "P115",
+    "scope": "P117",
     "consumed_request_removed": true,
-    "cleanup_commit": "ebc77346895b27df4e7acd6e2332eb21b92ad87c",
+    "cleanup_commit": "b37a7cb73c2d39d20f7c6db1413e67f39e93b812",
     "post_cleanup_original_mcp_recheck": {
-      "run_id": 40106858023,
+      "run_id": 40107199336,
       "conclusion": "SUCCESS",
       "ssh_host_pin": "PASS",
       "catalog": 208,
