@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_98_FULLY_CERTIFIED_110_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_100_FULLY_CERTIFIED_108_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -6697,21 +6697,85 @@
       "bridge_restored_blob": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7",
       "temporary_request_removed": true,
       "concurrent_keyed_archive_P152_preserved": true
+    },
+    {
+      "phase_id": "LINUX-P164-APPLE-INTERFACE-DYLIB-SOURCE-OWNED-20261024",
+      "date_utc": "2026-10-24",
+      "status": "TWO_NEW_FULLY_CERTIFIED_SCOPED_ORIGINAL_MCP_APPLE_TOOLS_MILESTONE_100",
+      "tools": [
+        {
+          "name": "decode_interface_builder",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Original REA Linux MCP artifact graph on source-owned synthetic ARM64 Mach-O .app with UIKitOutlet.xml as Main.nib: 1 NIB, 6 objects, 1 outlet, 8 nodes, 5 graph edges (4 contains, 1 outlet_to); complete Evidence and summary. Empty .app had zero NIBs. Incompatible ZIP rejected isError=true unsupported_target. Isolated static source-owned fixture only, not native compiled NIB, arbitrary Apple app or runtime.",
+          "positive_evidence_id": "ev_8061517244e1694187fa6991da616eee3128719975e7926849ebe3016a3bea77",
+          "summary_evidence_id": "ev_fb260e624019f667885101380cda8a93fa472405cabe86bc3e3b6d7e1782a10c",
+          "empty_fixture_evidence_id": "ev_cdf4a43f4c71614618f0a2d102f38837e973ae082bb45645306393cae7d309c7",
+          "positive_calls": 3,
+          "negative_cases": [
+            "zip_not_app"
+          ],
+          "negative_isError_true": true
+        },
+        {
+          "name": "trace_dylib_resolution",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Original REA Linux MCP artifact graph on synthetic ARM64 Mach-O .app: @rpath/libcore.dylib resolved to Contents/Frameworks/libcore.dylib, @rpath/libmissing.dylib unresolved, finding required-load-unresolved, coverage complete. Unknown selected root rejected isError=true invalid_request; ZIP rejected isError=true unsupported_target. Static dyld header graph only, no runtime load claimed.",
+          "positive_evidence_id": "ev_2e2add030523e12340dc6ff2ef31bba82e3911286d0f80672ad03654ce61e833",
+          "positive_calls": 1,
+          "negative_cases": [
+            "missing_selected_root",
+            "zip_not_macho"
+          ],
+          "negative_isError_true": true
+        }
+      ],
+      "proof": {
+        "run_id": 40122446133,
+        "request_commit": "2289d35eb4fc254b93c1266974181dff5511ee63",
+        "encrypted_artifact_id": 12572030237,
+        "encrypted_artifact_sha256": "37bf20cefe6f06e581e31322090d2024c3e461b0af471c18f64f5c7b0a0c5f57",
+        "request_sha256": "1d4f7b82b4414c48792431adfb92b6dd2f5154e54b90a3a6e0512ffc0906f286",
+        "authenticated_result_sha256": "09cf069a441d3f100e617d18dada2f6bc7ba07d088a96158784a320060b061c6",
+        "request_matched": true,
+        "result_digest_matched": true,
+        "original_mcp_catalog": 208,
+        "provider": "rea-artifact-graph",
+        "source_executable_sha256": "0e6317cc2b4a4fa7df92fc78f43c310da249f0e462d39cfd70a7dd00a82c963c",
+        "nib_sha256": "b8b1fc512c0a6351e9d2cc55d680e52e0959f18fa796746ba6df161b039a7212",
+        "resolved_dylib_sha256": "8f2ea5129325099575781d0884a057a0c73560e1e4afe08375a54dbc42405442",
+        "positive_mcp_calls": 4,
+        "expected_negative_isError_true": 3,
+        "inputs_unchanged": true,
+        "staging_cleanup": "PASS",
+        "session_cleanup": "PASS",
+        "original_bridge_restored_blob": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7",
+        "cleanup_commit": "7fe1ce3e54bba804c6d4c4e19db9950360b08112",
+        "trial_request_deleted": true,
+        "tool_error_marker_explanation": "Expected intentionally negative cases produced isError=true while all positive calls returned valid Evidence"
+      },
+      "new_certifications": 2,
+      "fully_certified_total": 100,
+      "pending": 108,
+      "scope_limitations": [
+        "Static isolated source-owned Apple fixture only; no arbitrary Apple application/runtime certified",
+        "No system package installation or production modification"
+      ],
+      "hygiene": "Original bridge restored and P164 request deleted"
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 98,
-    "awaiting_canonical_individual_review": 110,
+    "functional_pass_scoped_distinct": 100,
+    "awaiting_canonical_individual_review": 108,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 38,
+    "workspace_newly_passed_distinct": 40,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 98,
+    "fully_certified_distinct": 100,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 110,
-    "remaining_full_certification_distinct": 110
+    "not_functionally_positive_distinct": 108,
+    "remaining_full_certification_distinct": 108
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -6741,7 +6805,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P160-ZIP-CRC32-ARTIFACT-INTEGRITY-20261024",
+  "latest_phase": "LINUX-P164-APPLE-INTERFACE-DYLIB-SOURCE-OWNED-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -8384,6 +8448,40 @@
       "negative_isError_true": true,
       "limitations": [
         "Scoped only to controlled ZIP CRC32 integrity detection and original MCP inventory, no general claims for Apple packages or all archive formats"
+      ]
+    },
+    "decode_interface_builder": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P164-APPLE-INTERFACE-DYLIB-SOURCE-OWNED-20261024",
+      "scope": "Original REA Linux MCP artifact graph on source-owned synthetic ARM64 Mach-O .app with UIKitOutlet.xml as Main.nib: 1 NIB, 6 objects, 1 outlet, 8 nodes, 5 graph edges (4 contains, 1 outlet_to); complete Evidence and summary. Empty .app had zero NIBs. Incompatible ZIP rejected isError=true unsupported_target. Isolated static source-owned fixture only, not native compiled NIB, arbitrary Apple app or runtime.",
+      "run_ids": [
+        40122446133
+      ],
+      "positive_evidence_id": "ev_8061517244e1694187fa6991da616eee3128719975e7926849ebe3016a3bea77",
+      "positive_evidence_sha256": "09cf069a441d3f100e617d18dada2f6bc7ba07d088a96158784a320060b061c6",
+      "negative_evidence_sha256": "09cf069a441d3f100e617d18dada2f6bc7ba07d088a96158784a320060b061c6",
+      "positive_calls": 3,
+      "negative_semantic_assertions": 1,
+      "negative_isError_true": true,
+      "limitations": [
+        "Only synthetic XML NIB on Linux, not arbitrary Apple apps"
+      ]
+    },
+    "trace_dylib_resolution": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P164-APPLE-INTERFACE-DYLIB-SOURCE-OWNED-20261024",
+      "scope": "Original REA Linux MCP artifact graph on synthetic ARM64 Mach-O .app: @rpath/libcore.dylib resolved to Contents/Frameworks/libcore.dylib, @rpath/libmissing.dylib unresolved, finding required-load-unresolved, coverage complete. Unknown selected root rejected isError=true invalid_request; ZIP rejected isError=true unsupported_target. Static dyld header graph only, no runtime load claimed.",
+      "run_ids": [
+        40122446133
+      ],
+      "positive_evidence_id": "ev_2e2add030523e12340dc6ff2ef31bba82e3911286d0f80672ad03654ce61e833",
+      "positive_evidence_sha256": "09cf069a441d3f100e617d18dada2f6bc7ba07d088a96158784a320060b061c6",
+      "negative_evidence_sha256": "09cf069a441d3f100e617d18dada2f6bc7ba07d088a96158784a320060b061c6",
+      "positive_calls": 1,
+      "negative_semantic_assertions": 2,
+      "negative_isError_true": true,
+      "limitations": [
+        "Only synthetic ARM64 Mach-O dyld static model, not dynamic execution"
       ]
     }
   },
