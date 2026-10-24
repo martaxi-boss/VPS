@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_80_FULLY_CERTIFIED_128_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_79_FULLY_CERTIFIED_129_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -5457,7 +5457,7 @@
     {
       "phase_id": "LINUX-P96-P97-GHIDRA-TRACE-NATIVE-VALUES-20261024",
       "date_utc": "2026-10-24",
-      "status": "ONE_NEW_FULLY_CERTIFIED_SCOPED_LINUX_GHIDRA_NATIVE_VALUE_FLOW",
+      "status": "REVIEW_REVOKED_NEGATIVE_NOT_CONCLUSIVE",
       "source": "Existing GitHub Actions SSH -> original REA MCP 127.0.0.1:8765/mcp; no new providers",
       "proof": {
         "profile": "Linux x86_64 Ghidra 12.1.4 (static, existing original MCP)",
@@ -5510,29 +5510,72 @@
           "remaining_limitation": "The known incorrect invalid-selector error classification remains unresolved and is not claimed repaired."
         }
       ],
-      "new_certifications": 1,
-      "fully_certified_total": 80,
-      "remaining": 128,
+      "new_certifications": 0,
+      "fully_certified_total": 79,
+      "remaining": 129,
       "consumed_requests_removed_in_same_commit": [
         "p96-native-values-leaf-20261024.json",
         "p97-native-values-leaf-negative-20261024.json"
+      ],
+      "original_bridge_preserved": true,
+      "revocation_reason": "P98 confirmed selected negative procedure 0x107160 has bad-instruction decompilation rather than complete decoded control flow; P99 0x101a20 has a Ghidra-resolved callee 0x107028 although trace_native_values reports zero edges, so neither negative can be asserted as evidence that the full source function has no calls. The previous scoped certification requires a valid independently corroborated negative.",
+      "corrective_run_ids": [
+        40091911222,
+        40092205978
+      ]
+    },
+    {
+      "phase_id": "LINUX-P98-P99-NATIVE-VALUES-CERTIFICATION-CORRECTION-20261024",
+      "date_utc": "2026-10-24",
+      "status": "CORRECTION_REVIEW_RETRACTED_UNVERIFIED_NEGATIVE_NO_NEW_CERTIFICATION",
+      "source": "Original Ghidra 12.1.4 Linux REA MCP via existing GitHub Actions",
+      "evidence": [
+        {
+          "tool": "analyze_function",
+          "run_id": 40091911222,
+          "commit": "041f2e2de5b8041bee79d16b5e59cd8db541b90c",
+          "encrypted_artifact_id": 12558959337,
+          "request_sha256": "f12a33cd07da7ef7533810c847feacff022f38fc78fe070bd69ff27a988b2032",
+          "authenticated_result_sha256": "cc38178ebebd56a2bf3162e1e75fd245fa7d2431af37124bbf18fe43fe64ba5c",
+          "observed": "Ghidra pseudocode of P97 0x107160 shows WARNING: Control flow encountered bad instruction data, so a call-free graph is not a reliable complete-negative."
+        },
+        {
+          "tool": "trace_native_values",
+          "run_id": 40092205978,
+          "commit": "95162b1ebb30ac2778c6ca408d471a1eedfc4664",
+          "encrypted_artifact_id": 12559397808,
+          "request_sha256": "8668b3e7e373b6b12b4d8b13f03d51c60094a9423711fe236d4599c048e06f61",
+          "authenticated_result_sha256": "5ec99e366b55cf27a61903c6ed50ed8a1a29ae7485591144d52faa377d236af2",
+          "matched": true,
+          "positive_control": "Ghidra analyze_function 0x101a20 has 9 decoded assembly lines, decompiler warnings about unreachable blocks; procedure_callees normalized_result=['0x107028'] with complete coverage",
+          "negative_observed": "trace_native_values 0x101a20 returned total_nodes=1, total_edges=0, unknowns=[], truncated=false, inconsistent with source callee inventory for a claim of no raw calls.",
+          "session_cleanup": "PASS"
+        }
+      ],
+      "certified_before_correction": 80,
+      "certified_after_correction": 79,
+      "pending_after_correction": 129,
+      "remaining_issue": "Find a fully decoded function with no independent callee references, then test typed absence. Known invalid selector error misclassification remains unresolved.",
+      "request_cleanup": [
+        "p98-function-source-evidence-20261024.json",
+        "p99-native-valid-leaf-20261024.json"
       ],
       "original_bridge_preserved": true
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 80,
-    "awaiting_canonical_individual_review": 128,
+    "functional_pass_scoped_distinct": 79,
+    "awaiting_canonical_individual_review": 129,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 20,
+    "workspace_newly_passed_distinct": 19,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 80,
-    "scoped_positive_not_fully_certified_distinct": 0,
+    "fully_certified_distinct": 79,
+    "scoped_positive_not_fully_certified_distinct": 1,
     "not_functionally_positive_distinct": 128,
-    "remaining_full_certification_distinct": 128
+    "remaining_full_certification_distinct": 129
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -5562,7 +5605,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P96-P97-GHIDRA-TRACE-NATIVE-VALUES-20261024",
+  "latest_phase": "LINUX-P98-P99-NATIVE-VALUES-CERTIFICATION-CORRECTION-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -6885,21 +6928,6 @@
       "positive_calls": 1,
       "negative_calls": 1,
       "negative_isError_true": true
-    },
-    "trace_native_values": {
-      "status": "FULLY_CERTIFIED",
-      "phase_id": "LINUX-P96-P97-GHIDRA-TRACE-NATIVE-VALUES-20261024",
-      "scope": "Fully certified only for static native data-flow analysis of valid Ghidra 12.1.4 procedures in immutable Linux ELF /usr/bin/true. P96 positive has nonempty operation, def-use and call edges, and explicitly typed unresolved parameter bindings; P97 leaf control has no call/dataflow edges and zero unknowns with no truncation, independently corroborated by procedure_callees normalized_result=[] and complete relationship coverage. Previously known invalid-selector classification as unreadable_output/execution_failure remains an unresolved separate limitation.",
-      "run_ids": [
-        40091082075,
-        40091578743
-      ],
-      "positive_evidence_sha256": "6783f0abbdecaeacd3a92b6b1f8a73e308f18a7a0f19b595ca896b30ad5aa30b",
-      "negative_evidence_sha256": "4f1ddcdb0d427fb05d3e5642c4d1922ce534293b05ffdd7a8b9be8aa0d47df7a",
-      "positive_calls": 1,
-      "negative_semantic_calls": 1,
-      "negative_isError_true": false,
-      "known_invalid_selector_limitation": "Still pending as an error-diagnostic fix outside certified valid-procedure profile."
     }
   },
   "transport_incidents": [
