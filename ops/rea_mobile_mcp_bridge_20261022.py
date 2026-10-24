@@ -100,7 +100,7 @@ def validate(data):
                   "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
-    elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
+    elif action in ("fixture_rea_evidence_graph", "fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
         # Named system-owned ELF only; never an arbitrary caller-selected path.
         if set(data) != {"version", "action", "response_key"}:
             error("Ghidra inspection fixture accepts only a public reply key")
@@ -506,7 +506,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         if private is not None:
             error("Unexpected private response")
         return
-    if request["action"] not in ("call", "sealed_batch", "fixture_apkdemos", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump") or private is None:
+    if request["action"] not in ("call", "sealed_batch", "fixture_rea_evidence_graph", "fixture_apkdemos", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump") or private is None:
         error("Missing encrypted-return payload from REA")
     public = serialization.load_der_public_key(
         base64.b64decode(request["response_key"], validate=True)
@@ -2738,6 +2738,113 @@ def main():
                                      sort_keys=True).encode()
             print(marker + "=PASS")
             print(marker + "_SHA256=" + hashlib.sha256(data_bytes).hexdigest())
+        return
+    if data["action"] == "fixture_rea_evidence_graph":
+        import tempfile, textwrap, shutil
+        repo=Path.home()/".local/share/rea-chatgpt-trial/repository/rea"
+        node=shutil.which("node")
+        if node is None or not (repo/"node_modules/tsx").exists():
+            error("Owned REA conformance examples unavailable")
+        records=[]
+        with tempfile.TemporaryDirectory(prefix="rea-p177-verified-",dir="/dev/shm") as directory:
+            root=Path(directory)
+            root.chmod(0o755)
+            script=textwrap.dedent("""
+                import {writeFileSync} from "node:fs";
+                import {FUNCTION_COMPARISON_EXAMPLE} from "./src/contracts/functionComparisonExample.ts";
+                import {INVESTIGATION_EXAMPLES} from "./src/contracts/investigationExamples.ts";
+                const args={
+                    function_pair:FUNCTION_COMPARISON_EXAMPLE,
+                    capture_pair:INVESTIGATION_EXAMPLES.compare_process_captures.input
+                };
+                writeFileSync(process.argv[1]+"/pairs.json",JSON.stringify(args));
+            """)
+            done=subprocess.run([node,"--import=tsx","--input-type=module","-e",script,str(root)],
+                                cwd=str(repo),capture_output=True,timeout=80,check=False)
+            pairs=root/"pairs.json"
+            if done.returncode or not pairs.is_file() or pairs.stat().st_size>200000:
+                error("REA canonical Evidence pair construction failed")
+            pairs.chmod(0o644)
+            digest=hashlib.sha256(pairs.read_bytes()).hexdigest()
+            inp=json.loads(pairs.read_text())
+            def normalize(res):
+                if not isinstance(res,dict):return {},{}
+                sc=res.get("structuredContent")
+                if not isinstance(sc,dict):return {},{}
+                norm=sc.get("normalized_result",sc.get("result",sc))
+                return sc,norm if isinstance(norm,dict) else {}
+            def tool(name,args,label,should_error=False,test=None):
+                if name not in tool_by_name:
+                    records.append({"name":name,"label":label,"status":"MISSING"})
+                    return None
+                if secure.classify(name,tool_by_name[name],safe_callable)=="sensitive":
+                    error("Source-owned Evidence trial refuses sensitive operation: "+name)
+                if not should_error:secure.validate_arguments(tool_by_name[name],args)
+                secure._authorized_target_paths(args,additional_roots=(root,))
+                _,response=request_mcp({"jsonrpc":"2.0","id":1770+len(records),
+                    "method":"tools/call","params":{"name":name,"arguments":args}},
+                    session,protocol,timeout=115)
+                result=response.get("result")
+                failed="error" in response or not isinstance(result,dict) or result.get("isError") is True
+                sc,norm=normalize(result)
+                passed=failed==should_error and (test(norm,sc) if test is not None and not failed else True)
+                records.append({"name":name,"label":label,"status":"PASS" if passed else "ERROR",
+                    "isError":failed,"result":result,"protocol_error":response.get("error")})
+                return (not failed),sc,norm
+            f=tool("compare_functions",inp["function_pair"],"record_real_static_comparison",
+                test=lambda n,s:bool(s.get("evidence_id")) and n.get("status") in ("changed","unknown","truncated","unchanged"))
+            p=tool("compare_process_captures",inp["capture_pair"],"record_real_runtime_comparison",
+                test=lambda n,s:bool(s.get("evidence_id")) and n.get("status") in ("changed","unknown","truncated","unchanged"))
+            if f and p and f[0] and p[0]:
+                static,runtime=f[1],p[1]
+                args={
+                    "static_comparisons":[static],"runtime_comparisons":[runtime],
+                    "mappings":[{
+                        "static":{"comparison_evidence_id":static["evidence_id"],
+                                  "selector":{"kind":"function","dimension":"pseudocode"}},
+                        "runtime":{"comparison_evidence_id":runtime["evidence_id"],
+                                   "dimension":"terminal"},
+                        "side_alignment":"left_to_left",
+                        "hypothesis":{"statement":"Verified source-owned function difference with replay comparison",
+                                      "expected_pattern":"static_only"}
+                    }]
+                }
+                tool("correlate_static_and_runtime",args,"correlate_retained_original_evidence",
+                     test=lambda n,s:bool(s.get("evidence_id")) and n.get("status") in ("correlated","unknown","truncated","contradicted") and len(n.get("correlations",{}).get("items",[]))==1 and len(n.get("evidence_links",[]))>=4)
+                wrong=json.loads(json.dumps(args))
+                wrong["mappings"][0]["static"]["comparison_evidence_id"]=runtime["evidence_id"]
+                tool("correlate_static_and_runtime",wrong,
+                     "reject_cross_scope_mapping",should_error=True)
+            heads=tool("list_unknowns",{},"read_real_source_derived_unknown_heads")
+            if heads and heads[0]:
+                n=heads[2]
+                values=[]
+                for field in ("items","unknowns","heads","results"):
+                    v=n.get(field)
+                    if isinstance(v,list):values.extend(v)
+                if not values and isinstance(n.get("page"),dict):
+                    values.extend(n["page"].get("items",[]))
+                if values:
+                    chosen=next((z.get("unknown_id") for z in values if isinstance(z,dict)
+                         and isinstance(z.get("unknown_id"),str) and z["unknown_id"].startswith("unk_")),None)
+                    if chosen:
+                        tool("verify_unknown_resolution",{"unknown_id":chosen},
+                             "verify_real_derivation_unknown",test=lambda n,s:isinstance(n.get("valid"),bool))
+            tool("verify_unknown_resolution",{"unknown_id":"unk_"+"0"*64},
+                 "reject_missing_unknown",should_error=True)
+            unchanged=hashlib.sha256(pairs.read_bytes()).hexdigest()==digest
+        report={"phase":"P177","records":records,"source_hash":digest,
+                "inputs_unchanged":unchanged,"staging_cleanup":"PASS" if not root.exists() else "FAIL",
+                "catalog":len(tool_by_name),"source":"original REA source-owned inline Evidence comparisons, permanent loopback MCP"}
+        raw=json.dumps(report,ensure_ascii=True,sort_keys=True).encode()
+        if len(raw)>MAX_RESPONSE or os.environ.get("REA_MOBILE_ENVELOPE_CAPTURE")!="1":
+            error("P177 encrypted result budget unavailable")
+        print("REA_P177_PASS="+str(sum(r.get("status")=="PASS" for r in records))+"/"+str(len(records)))
+        print("REA_P177_CLEANUP="+report["staging_cleanup"])
+        print("REA_MOBILE_TOOL_ERROR="+str(any(r.get("status")!="PASS" for r in records)).lower())
+        print("REA_MOBILE_OUTPUT_BYTES="+str(len(raw)))
+        print("REA_MOBILE_OUTPUT_SHA256="+hashlib.sha256(raw).hexdigest())
+        print("REA_MOBILE_PRIVATE_RESULT_B64="+base64.b64encode(raw).decode())
         return
     if data["action"] == "fixture_portable_formats":
         # Fixed source-owned fixtures, never fetched from private customers.
