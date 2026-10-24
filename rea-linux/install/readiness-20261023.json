@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_76_FULLY_CERTIFIED_PROFILES_AND_132_PENDING",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_77_FULLY_CERTIFIED_PROFILES_AND_131_PENDING",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -1482,14 +1482,15 @@
     }
   },
   "latest_certification": {
-    "phase_id": "LINUX-P76-GHIDRA-TRACE-FEATURE-20261024",
-    "tool": "trace_feature",
-    "run_id": 40082666247,
-    "authenticated_result_sha256": "3919499abab81c94884dfa08e2e1b097655b828596b49d0f0dd2ce91ff855e1c",
-    "positive_and_semantic_negative": true,
+    "phase_id": "LINUX-P77-GHIDRA-NATIVE-UI-ACTION-20261024",
+    "tool": "trace_native_ui_action",
+    "run_id": 40082946566,
+    "authenticated_result_sha256": "03f6bc180a8524d0dd1e718b9241c91d746656ccf7a195786d14b297d259ce7b",
+    "positive_and_negative": true,
+    "negative_isError": true,
     "ghidra_cleanup": "PASS",
-    "fully_certified": 76,
-    "pending": 132,
+    "fully_certified": 77,
+    "pending": 131,
     "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
   },
   "transport_status_after_ovh_renewal": {
@@ -1499,5 +1500,13 @@
     "tool_count": 208,
     "verified_contract_run_id": 40082232609,
     "original_mcp_response_verified": true
+  },
+  "latest_post_hygiene_verification": {
+    "run_id": 40082881308,
+    "status": "SUCCESS",
+    "catalog": 208,
+    "validated_schemas": 208,
+    "audited_contracts": 208,
+    "scope": "Previous 76/208 cleanup; next 77 cleanup pending"
   }
 }

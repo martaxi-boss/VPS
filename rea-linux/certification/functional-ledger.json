@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_76_FULLY_CERTIFIED_132_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_77_FULLY_CERTIFIED_131_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -4930,22 +4930,72 @@
           "status": "REJECTED_AMBIGUOUS_PROVIDER",
           "reason": "open_binary requires explicit provider_id=ghidra on multi-provider Linux host; corrected in run 40082666247."
         }
-      ]
+      ],
+      "git_hygiene": {
+        "cleanup_commit": "a9da12c70896410861b930a4a28104fd9fbbc2bf",
+        "deleted_consumed_requests": 5,
+        "post_cleanup_run_id": 40082881308,
+        "workflow_conclusion": "SUCCESS",
+        "loopback_mcp": "PASS",
+        "catalog": 208,
+        "validated_schemas": 208,
+        "audited_contracts": 208,
+        "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      }
+    },
+    {
+      "phase_id": "LINUX-P77-GHIDRA-NATIVE-UI-ACTION-20261024",
+      "date_utc": "2026-10-24",
+      "status": "ONE_NEW_FULLY_CERTIFIED_SCOPED_NATIVE_STATIC_UI_ACTION_TRACE",
+      "source": "Existing GitHub Actions SSH -> original Linux REA MCP, Ghidra 12.1.4",
+      "proof": {
+        "run_id": 40082946566,
+        "commit": "8b9c24ece95af7bee4894823c4a723785b829627",
+        "encrypted_artifact_id": 12556430142,
+        "request_sha256": "67cd891eaaad3e29685328ecb4aafae537e663a920c5d18d5bc25ff8e9ffb1ac",
+        "authenticated_result_sha256": "03f6bc180a8524d0dd1e718b9241c91d746656ccf7a195786d14b297d259ce7b",
+        "request_matched": true,
+        "original_mcp_catalog": 208,
+        "real_mcp_steps": 3,
+        "positive": 1,
+        "negative": 1,
+        "positive_nodes": 3,
+        "positive_edges": 2,
+        "negative_isError_true": true,
+        "negative_error_category": "invalid_input",
+        "source_sha256": "8a63c98320173f79e263115e47d1fd4b5a70e4429d2699cae28",
+        "ghidra_cleanup": "PASS",
+        "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      },
+      "tools": [
+        {
+          "name": "trace_native_ui_action",
+          "positive": 1,
+          "negative": 1,
+          "status": "FULLY_CERTIFIED_SCOPED_ORIGINAL_MCP",
+          "scope": "Original Linux REA MCP Ghidra 12.1.4 on immutable /usr/bin/true ELF x86_64. trace_native_ui_action(action=0x101480) resolved an exact native-function seed and 3 observed function nodes with two static call edges (direct 0x101480 to 0x101260 and resolved indirect 0x101260 to 0x107010). Invalid native action symbol returned genuine MCP isError=true invalid_input; no fake graph. Objective-C Interface Builder and runtime UI reachability untested/unsupported on this ELF; results are scoped to native static-call tracing. Session cleaned."
+        }
+      ],
+      "new_dependencies": 0,
+      "original_bridge_unchanged": true,
+      "consumed_request_removed_in_canonical_commit": true,
+      "fully_certified_total": 77,
+      "remaining": 131
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 76,
-    "awaiting_canonical_individual_review": 132,
+    "functional_pass_scoped_distinct": 77,
+    "awaiting_canonical_individual_review": 131,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 16,
+    "workspace_newly_passed_distinct": 17,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 76,
+    "fully_certified_distinct": 77,
     "scoped_positive_not_fully_certified_distinct": 1,
-    "not_functionally_positive_distinct": 131,
-    "remaining_full_certification_distinct": 132
+    "not_functionally_positive_distinct": 130,
+    "remaining_full_certification_distinct": 131
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -4975,7 +5025,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P76-GHIDRA-TRACE-FEATURE-20261024",
+  "latest_phase": "LINUX-P77-GHIDRA-NATIVE-UI-ACTION-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -6258,6 +6308,19 @@
       "positive_calls": 1,
       "negative_semantic_calls": 1,
       "negative_isError_true": false
+    },
+    "trace_native_ui_action": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P77-GHIDRA-NATIVE-UI-ACTION-20261024",
+      "scope": "Original Linux REA MCP Ghidra 12.1.4 on immutable /usr/bin/true ELF x86_64. trace_native_ui_action(action=0x101480) resolved an exact native-function seed and 3 observed function nodes with two static call edges (direct 0x101480 to 0x101260 and resolved indirect 0x101260 to 0x107010). Invalid native action symbol returned genuine MCP isError=true invalid_input; no fake graph. Objective-C Interface Builder and runtime UI reachability untested/unsupported on this ELF; results are scoped to native static-call tracing. Session cleaned.",
+      "run_ids": [
+        40082946566
+      ],
+      "positive_evidence_sha256": "03f6bc180a8524d0dd1e718b9241c91d746656ccf7a195786d14b297d259ce7b",
+      "negative_evidence_sha256": "03f6bc180a8524d0dd1e718b9241c91d746656ccf7a195786d14b297d259ce7b",
+      "positive_calls": 1,
+      "negative_calls": 1,
+      "negative_isError_true": true
     }
   },
   "transport_incidents": [
