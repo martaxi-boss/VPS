@@ -5313,6 +5313,41 @@
       "pending": 129,
       "consumed_request_removed": true,
       "bridge_sha_preserved": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+    },
+    {
+      "phase_id": "LINUX-P91-ARTIFACT-SUMMARY-EVIDENCE-20261024",
+      "date_utc": "2026-10-24",
+      "status": "POSITIVE_PARTIAL_ARTIFACT_INSPECTION_NOT_CERTIFIED",
+      "source": "GitHub Actions SSH -> original Linux REA MCP",
+      "tools": [
+        {
+          "name": "inspect_artifact",
+          "status": "PENDING_NEGATIVE",
+          "result": "Valid structured summary Evidence and parent_evidence_id for /usr/bin/true. No negative scenario verified."
+        },
+        {
+          "name": "get_evidence_bundle",
+          "status": "PREVIOUSLY_CERTIFIED",
+          "result": "Invalid request due filtered complete detail; schema requires unfiltered complete bundle."
+        }
+      ],
+      "proof": {
+        "run_id": 40088562064,
+        "commit": "6bf4f28c0b29c2fb88c70164c730c59dd992eb07",
+        "encrypted_artifact_id": 12557289053,
+        "request_sha256": "18876485de0226bfc072cc5e713d73484128edb8563c4ef5271b97518ef8915a",
+        "authenticated_result_sha256": "f7c52313fd96fa9b11ed16c1941c5baa25356a9e2d1a591f9f1e765396a9531f",
+        "request_matched": true,
+        "steps_requested": 4,
+        "steps_executed": 3,
+        "positive_evidence_id": "ev_182a0669f6510be1942fc5066e575207481d0307ebb9dbb6745dabe947f73b5d",
+        "positive_summary": 1,
+        "invalid_bundle_detail_error_isError": true,
+        "cleanup": "PASS"
+      },
+      "fully_certified_total": 79,
+      "pending": 129,
+      "request_removed": true
     }
   ],
   "active_scope_counts": {
@@ -5357,7 +5392,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P90-RECONSTRUCTION-MISSING-EVIDENCE-20261024",
+  "latest_phase": "LINUX-P91-ARTIFACT-SUMMARY-EVIDENCE-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",

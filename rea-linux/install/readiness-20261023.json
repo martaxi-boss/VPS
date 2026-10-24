@@ -1570,5 +1570,15 @@
     "negative_checked": true,
     "positive_pending": true,
     "certification_awarded": false
+  },
+  "last_artifact_partial": {
+    "phase_id": "LINUX-P91-ARTIFACT-SUMMARY-EVIDENCE-20261024",
+    "run_id": 40088562064,
+    "result_sha256": "f7c52313fd96fa9b11ed16c1941c5baa25356a9e2d1a591f9f1e765396a9531f",
+    "artifact_summary_valid": true,
+    "negative_not_yet_tested": true,
+    "bundle_requery_unfiltered": true,
+    "certified_total": 79,
+    "pending_total": 129
   }
 }
