@@ -333,3 +333,54 @@ jobs:
                   out[name]={"status":"ERROR","error_type":type(ex).__name__}
           print("LOWCOST_DEEP_READONLY_V2="+json.dumps(out,ensure_ascii=False,sort_keys=True))
           PY
+
+      - name: Read-only AliExpress affiliate paid order count (2026-10-19 through today)
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${SSHPASS:-}"
+          sshpass -e ssh -T \
+            -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/lowcost-traffic-hosts" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 -o ServerAliveInterval=10 \
+            ubuntu@146.59.145.3 'sudo -n python3 -' <<'PY'
+          import json
+          import os
+          import pathlib
+          import re
+          import stat
+          import subprocess
+          
+          env_path=pathlib.Path("/etc/lowcost-europa/lowcost-europa.env")
+          info=env_path.lstat()
+          if not stat.S_ISREG(info.st_mode) or info.st_uid!=0 or (info.st_mode & 0o077) or info.st_size>65536:
+              print("ALIEXPRESS_AFFILIATE_ORDERS_CHECK="+json.dumps({"status":"UNAVAILABLE","reason":"APP_ENV_SECURITY"}))
+          else:
+              env=os.environ.copy()
+              for line in env_path.read_text(encoding="utf-8").splitlines():
+                  key,sep,value=line.partition("=")
+                  key=key.strip()
+                  if sep and re.fullmatch(r"ALIEXPRESS_[A-Z_]+",key):
+                      v=value.strip()
+                      if len(v)>1 and v[0] in ("'",'"') and v[-1]==v[0]:
+                          v=v[1:-1]
+                      env[key]=v
+              if not all(env.get(k) for k in ("ALIEXPRESS_APP_KEY","ALIEXPRESS_APP_SECRET","ALIEXPRESS_TRACKING_ID")):
+                  print("ALIEXPRESS_AFFILIATE_ORDERS_CHECK="+json.dumps({"status":"UNAVAILABLE","reason":"APP_CREDENTIALS_NOT_SET"}))
+              else:
+                  child_script = "import dataclasses\nimport datetime as dt\nimport json\nfrom zoneinfo import ZoneInfo\nfrom apps.integrations.aliexpress.client import AliExpressClient\nfrom apps.integrations.aliexpress.config import AliExpressConfig\n\nMETHOD = \"aliexpress.affiliate.order.list\"\nstatuses = (\"Payment Completed\", \"Buyer Confirmed Receipt\", \"Completed Settlement\")\nend_time = dt.datetime.now(ZoneInfo(\"America/Los_Angeles\")).strftime(\"%Y-%m-%d %H:%M:%S\")\nout = {\"checked_through_pacific_time\": end_time, \"start_pacific_time\": \"2026-10-19 00:00:00\", \"scope\":\"Affiliate program API overall; not necessarily Lowcost tracking\", \"statuses\":[], \"method\":METHOD}\ntry:\n    config = dataclasses.replace(AliExpressConfig.from_env(), max_retries=0, timeout_seconds=9.0)\n    client = AliExpressClient(config=config)\n    for st in statuses:\n        item={\"status\":st}\n        try:\n            payload=client._call(METHOD, {\n                \"start_time\":\"2026-10-19 00:00:00\",\n                \"end_time\":end_time,\n                \"status\":st,\n                \"page_no\":1,\n                \"page_size\":1\n            })\n            wrap=payload.get(\"aliexpress_affiliate_order_list_response\")\n            if not isinstance(wrap,dict):\n                item.update({\"query_state\":\"UNKNOWN\",\"reason\":\"NO_RESPONSE_WRAPPER\"})\n                out[\"statuses\"].append(item)\n                break\n            inner=wrap.get(\"resp_result\")\n            if not isinstance(inner,dict):\n                item.update({\"query_state\":\"UNKNOWN\",\"reason\":\"NO_RESP_RESULT\"})\n                out[\"statuses\"].append(item)\n                break\n            code=inner.get(\"resp_code\")\n            if str(code) not in (\"200\",\"0\",\"None\"):\n                item.update({\"query_state\":\"ERROR\",\"resp_code\":str(code)[:10]})\n                out[\"statuses\"].append(item)\n                break\n            result=inner.get(\"result\")\n            if not isinstance(result,dict):\n                item.update({\"query_state\":\"UNKNOWN\",\"reason\":\"NO_DATA_RESULT\"})\n                out[\"statuses\"].append(item)\n                break\n            count=result.get(\"total_record_count\")\n            if count is None:\n                item.update({\"query_state\":\"UNKNOWN\",\"reason\":\"NO_TOTAL_COUNT\"})\n                out[\"statuses\"].append(item)\n                break\n            item.update({\"query_state\":\"OK\",\"orders_reported\":int(count)})\n            out[\"statuses\"].append(item)\n        except Exception as exc:\n            item.update({\"query_state\":\"ERROR\",\"error_class\":type(exc).__name__})\n            out[\"statuses\"].append(item)\n            break\nexcept Exception as exc:\n    out[\"setup_error_class\"]=type(exc).__name__\nprint(\"ALIEXPRESS_AFFILIATE_ORDERS_CHECK=\"+json.dumps(out,sort_keys=True))\n"
+                  p=subprocess.run(["runuser","-u","le001_1789265592","--",
+                      "/srv/lowcost-europa/.venv/bin/python","-c",child_script],
+                      cwd="/srv/lowcost-europa", env=env,
+                      capture_output=True,text=True,timeout=85)
+                  valid=[l for l in p.stdout.splitlines() if l.startswith("ALIEXPRESS_AFFILIATE_ORDERS_CHECK=")]
+                  if valid:
+                      print(valid[-1])
+                  else:
+                      print("ALIEXPRESS_AFFILIATE_ORDERS_CHECK="+json.dumps({
+                          "status":"UNAVAILABLE","reason":"NO_SAFE_REPORT",
+                          "child_exit":p.returncode}))
+          PY
