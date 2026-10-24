@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_82_FULLY_CERTIFIED_PROFILES_AND_126_PENDING",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_83_FULLY_CERTIFIED_PROFILES_AND_125_PENDING",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -1482,15 +1482,16 @@
     }
   },
   "latest_certification": {
-    "phase_id": "LINUX-P109-VERIFY-RECONSTRUCTION-SCOPED-20261024",
-    "tool": "verify_reconstruction",
-    "run_id": 40097896131,
-    "authenticated_result_sha256": "dc8a6faa86e21c97e0c834ad3424ceac87b7d83cb245b1bd72f6470ffba80a05",
+    "phase_id": "LINUX-P115-LIST-SEGMENTS-SEMANTIC-PERMISSIONS-20261024",
+    "tool": "list_segments",
+    "run_id": 40106634962,
+    "authenticated_result_sha256": "a628011ceb18af34bac1f6a2e4ca909bc7b81de6bac1f1940ddacc0b2fd2f8ff",
     "positive_and_semantic_negative": true,
-    "invalid_input_rejection": true,
-    "fully_certified": 82,
-    "pending": 126,
-    "scope": "Original Linux REA MCP verifies finite structural-function claims on two controlled inline analyze_function Evidence fixtures (not genuine shipped artifacts): identical comments and CFG return pass; changed pseudocode returns fail; nonexistent comparison Evidence is rejected as invalid_input/isError=true. This tests the evaluator's bounded logical contract only; no live application, shipped-artifact identity, real source equivalence or runtime behavior established.",
+    "negative_case": "Non-executable .rodata and non-initialized .bss with executable .text and writable .data in 32 Ghidra memory blocks",
+    "invalid_input_rejection": false,
+    "fully_certified": 83,
+    "pending": 125,
+    "scope": "Only Linux Ghidra 12.1.4 on /usr/bin/true ELF x86_64; permission/range semantics. No session-absent invalid-input MCP test, no non-Ghidra claim.",
     "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
   },
   "transport_status_after_ovh_renewal": {
@@ -1656,9 +1657,17 @@
     "provider_configuration_changed": false
   },
   "latest_hygiene": {
-    "scope": "P109",
-    "consumed_request_removed_in_same_commit": true,
-    "post_cleanup_original_mcp_recheck": "PENDING"
+    "scope": "P115",
+    "consumed_request_removed": true,
+    "cleanup_commit": "ebc77346895b27df4e7acd6e2332eb21b92ad87c",
+    "post_cleanup_original_mcp_recheck": {
+      "run_id": 40106858023,
+      "conclusion": "SUCCESS",
+      "ssh_host_pin": "PASS",
+      "catalog": 208,
+      "audited_schema_match": 208,
+      "bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+    }
   },
   "latest_uncertified_diagnostic": {
     "phase_id": "LINUX-P111-VERIFY-UNKNOWN-RESOLUTION-UNRESOLVED-20261024",
