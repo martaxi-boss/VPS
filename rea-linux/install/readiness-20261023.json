@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_104_FULLY_CERTIFIED_PROFILES_AND_104_PENDING",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_105_FULLY_CERTIFIED_PROFILES_AND_103_PENDING",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -1701,16 +1701,16 @@
     "provider": "rea-artifact-graph",
     "negative_error_marker_expected": true
   },
-  "remaining_full_certification_distinct": 104,
-  "fully_certified_distinct": 104,
+  "remaining_full_certification_distinct": 103,
+  "fully_certified_distinct": 105,
   "latest_real_mcp_positive": {
-    "phase_id": "LINUX-P174-SOURCE-OWNED-WEB-SCRIPT-EXPORT-20261024",
-    "run_id": 40126104633,
+    "phase_id": "LINUX-P176-SOURCE-OWNED-GHIDRA-DISPATCH-METADATA-20261024",
+    "run_id": 40126661320,
     "tools": [
-      "export_web_scripts"
+      "inspect_native_dispatch_metadata"
     ],
-    "certified_count": 104,
-    "pending": 104,
+    "certified_count": 105,
+    "pending": 103,
     "evidence_verified": true
   }
 }

@@ -6868,21 +6868,59 @@
         }
       ],
       "hygiene": "P174 scratch output and stale P173 scratch cleaned; bridge restored and request deleted by 0262ddc"
+    },
+    {
+      "phase_id": "LINUX-P176-SOURCE-OWNED-GHIDRA-DISPATCH-METADATA-20261024",
+      "date_utc": "2026-10-24",
+      "status": "ONE_NEW_FULLY_CERTIFIED_ORIGINAL_MCP_STATIC_DISPATCH_METADATA",
+      "tools": [
+        {
+          "name": "inspect_native_dispatch_metadata",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Original REA Linux Ghidra session on compiled source-owned ELF with Objective-C class and Swift mangled symbol. Positive native dispatch metadata via fallback symbol inventory (one class, one Swift symbol, partial coverage); max_records 0 and string rejected isError=true."
+        }
+      ],
+      "proof": {
+        "run_id": 40126661320,
+        "request_commit": "3f12d789fdcf3fc1a7e1f377deef77ee1582b238",
+        "encrypted_artifact_id": 12573687393,
+        "encrypted_artifact_sha256": "2143d938c877b4139551b35eaf0bc168ba3af75a45fa071747776a284ed39bf1",
+        "request_sha256": "34b99bca19d327fde6f31a3c584bb5425c8c0c406d20bf7d2b772085d7621aec",
+        "authenticated_result_sha256": "873d596dc2505591cde47317f680e8fba47da6c7bb0f3a288d008deedcf2b57e",
+        "request_matched": true,
+        "result_digest_matched": true,
+        "catalog": 208,
+        "positive_evidence_id": "ev_894a39bc44236e4e639430cd5f9ddf5daaf4610a1f6f545fd12038b5c3a8d0ac",
+        "fixture_elf_sha256": "3a3e586284b17dc837fe73b36e57f06facbae18bb7eb2cbbb82698da64ea7d2d",
+        "fixture_source_sha256": "c77c75db196b1afe254646c4d069732e718beba317ac046c0ccd842770ab2921",
+        "inputs_unchanged": true,
+        "staging_cleanup": "PASS",
+        "session_cleanup": "PASS"
+      },
+      "new_certifications": 1,
+      "fully_certified_total": 105,
+      "pending": 103,
+      "scope_limitations": [
+        "Only synthetic ELF symbol-derived metadata; no Apple runtime, ObjC layout or Swift protocol decode",
+        "No native macOS provider claimed",
+        "No sensitive owner signature bypass"
+      ],
+      "hygiene": "Source-owned fixture removed, Ghidra closed, original bridge restored and request removed"
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 104,
-    "awaiting_canonical_individual_review": 104,
+    "functional_pass_scoped_distinct": 105,
+    "awaiting_canonical_individual_review": 103,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 44,
+    "workspace_newly_passed_distinct": 45,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 104,
+    "fully_certified_distinct": 105,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 104,
-    "remaining_full_certification_distinct": 104
+    "not_functionally_positive_distinct": 103,
+    "remaining_full_certification_distinct": 103
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -6912,7 +6950,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P174-SOURCE-OWNED-WEB-SCRIPT-EXPORT-20261024",
+  "latest_phase": "LINUX-P176-SOURCE-OWNED-GHIDRA-DISPATCH-METADATA-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -8658,6 +8696,24 @@
       "limitations": [
         "Controlled offline source fixture only; no browser session or dynamic code",
         "No credit for failed correlation or signal provider"
+      ]
+    },
+    "inspect_native_dispatch_metadata": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P176-SOURCE-OWNED-GHIDRA-DISPATCH-METADATA-20261024",
+      "scope": "Original Linux REA Ghidra static named-symbol fallback: objc_classes REAExample and swift_symbols $s3REA4PairV; partial exact coverage, unsupported fields explicit. Negative invalid max_records rejected. Source-owned ELF only, not actual Apple runtime.",
+      "run_ids": [
+        40126661320
+      ],
+      "positive_evidence_id": "ev_894a39bc44236e4e639430cd5f9ddf5daaf4610a1f6f545fd12038b5c3a8d0ac",
+      "positive_evidence_sha256": "873d596dc2505591cde47317f680e8fba47da6c7bb0f3a288d008deedcf2b57e",
+      "negative_evidence_sha256": "873d596dc2505591cde47317f680e8fba47da6c7bb0f3a288d008deedcf2b57e",
+      "positive_calls": 1,
+      "negative_semantic_assertions": 2,
+      "negative_isError_true": true,
+      "limitations": [
+        "Synthetic ELF only, not compiled Apple Objective-C binary",
+        "Only symbol names, no runtime class decoding"
       ]
     }
   },

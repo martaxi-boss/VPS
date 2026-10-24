@@ -765,3 +765,11 @@ A ferramenta original `inspect_native_load_image` foi **`FULLY_CERTIFIED` num pe
 - Inputs inalterados, limpeza P174 e órfão P173 `PASS`; `correlate_static_and_runtime` rejeitou link Evidence órfão, `inspect_signal_decoders` bloqueado por libusb, `verify_unknown_resolution` sem caso positivo: **não certificados**.
 - Ponte original restaurada e pedido de teste removido no commit 0262ddc9806ac745c76393e08b6c76e145110db8. Sem alterações a permissões sensíveis.
 - **Total: 104/208 certificadas, 104 pendentes, faltam 4 para as 108.**
+
+## P176 — inspect_native_dispatch_metadata, análise de símbolos original REA (24/10/2026)
+
+- [Actions #40126661320](https://github.com/martaxi-boss/VPS/actions/runs/40126661320), commit 3f12d789fdcf3fc1a7e1f377deef77ee1582b238, artefacto cifrado 12573687393, SHA-256 ZIP 2143d938c877b4139551b35eaf0bc168ba3af75a45fa071747776a284ed39bf1. Pedido autenticado 34b99bca19d327fde6f31a3c584bb5425c8c0c406d20bf7d2b772085d7621aec; resposta autenticada 873d596dc2505591cde47317f680e8fba47da6c7bb0f3a288d008deedcf2b57e por RSA-OAEP/AES-GCM e verificação independente local.
+- **`inspect_native_dispatch_metadata` FULLY_CERTIFIED** neste perfil estático: Ghidra do motor REA original leu ELF sintético contendo `OBJC_CLASS_$_REAExample` e `$s3REA4PairV`, Evidence ev_894a39bc44236e4e639430cd5f9ddf5daaf4610a1f6f545fd12038b5c3a8d0ac. Retornou 1 `objc_classes`, 1 `swift_symbols`, cobertura parcial explícita e facetas não suportadas declaradas; `max_records=0` e string inválida rejeitados por MCP `isError=true`.
+- Input C c77c75db196b1afe254646c4d069732e718beba317ac046c0ccd842770ab2921, executável ELF 3a3e586284b17dc837fe73b36e57f06facbae18bb7eb2cbbb82698da64ea7d2d, hashes imutáveis, alvo nunca executado, sessão Ghidra encerrada e staging limpo PASS. Foco em símbolos Linux, **não** runtime Apple nem metadados binários completos.
+- Ponte original restaurada e pedido P176 removido; nenhuma alteração a verificações de assinatura.
+- **Total canónico: 105/208 certificadas, 103 pendentes; faltam 3 para 108.**
