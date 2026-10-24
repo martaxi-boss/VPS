@@ -554,7 +554,13 @@
       "original_service_unchanged": true,
       "ephemeral_ghidra_session_cleanup": "PASS",
       "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
-      "consumed_github_requests": "PENDING_REMOVAL"
+      "consumed_github_requests": "PASS_REMOVED_10",
+      "post_cleanup_run_id": 40049344542,
+      "post_cleanup_run_conclusion": "SUCCESS",
+      "post_cleanup_catalog": 208,
+      "post_cleanup_schemas": 208,
+      "post_cleanup_contract_matches": 208,
+      "cleanup_commit": "54def008a54174e08a8da19084da964f856f7404"
     },
     "prior_contract_certification": {
       "phase_id": "LINUX-P47-BUNDLE-COMPARISON-ANALYSIS-VIEW-20261024",
@@ -730,7 +736,18 @@
         "original_service_unchanged": true,
         "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
       }
-    ]
+    ],
+    "latest_p48_hygiene": {
+      "cleanup_commit": "54def008a54174e08a8da19084da964f856f7404",
+      "removed_one_use_requests": 10,
+      "smoke_run_id": 40049344542,
+      "conclusion": "SUCCESS",
+      "original_mcp_catalog_count": 208,
+      "validated_schemas": 208,
+      "audited_contract_matches": 208,
+      "original_bridge_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+      "no_production_changes": true
+    }
   },
   "final_hygiene_verified": {
     "git_requests_removed": 10,
