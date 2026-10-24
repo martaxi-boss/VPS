@@ -7115,21 +7115,72 @@
         "Negative error was injected in isolated original source MCP, not by changing the real Cutter provider."
       ],
       "hygiene": "Original bridge restored, source fixture deleted, no target/device changes, no unauthorized signatures, temporary request removed."
+    },
+    {
+      "phase_id": "LINUX-P205-SIGNED-FRIDA-PROCESSES-LOCAL-AND-INVALID-DEVICE-MCP-20261024",
+      "date_utc": "2026-10-24",
+      "status": "ONE_NEW_SCOPE_CERTIFIED_OWNER_SIGNED_LIVE_FRIDA_PROCESSES_POSITIVE_AND_LIVE_NEGATIVE",
+      "tools": [
+        {
+          "name": "list_frida_processes",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Original permanent REA Linux MCP list_frida_processes called twice with independent owner Ed25519 approvals: local Frida host identified two process metadata records (names and PIDs) with no process control; a deliberately nonexistent local device selector was rejected with isError=true capability_unavailable/unsupported_provider. Scope excludes process attachment, injection, remote endpoints, USB devices and modifying targets.",
+          "positive_calls": 1,
+          "negative_cases": [
+            "nonexistent_local_device_rejected_capability_unavailable_unsupported_provider"
+          ],
+          "negative_isError_true": true
+        }
+      ],
+      "proof": {
+        "run_id": 40141557070,
+        "job_id": 121014191366,
+        "request_commit": "1f9fb4b16755e6f1cefb783ddcabc011c37784a9",
+        "encrypted_artifact_id": 12578433755,
+        "encrypted_artifact_sha256": "651e6caaa94a8acbd127afc10583a600aa9d3c50fdacc4ada98a17d06863eab4",
+        "encrypted_request_sha256": "216ed08a533cd6454336c1c4b5b034da0b3eef856512e1ed81d8a3a98db78b2d",
+        "authenticated_result_sha256": "b46cd02859ce8e350c7a797a03ac8b8e053b3ea0099d3fc71641dbd9e2cd0e2c",
+        "request_matched": true,
+        "result_digest_matched": true,
+        "original_permanent_mcp_catalog": 208,
+        "owner_ed25519_verified_steps": 2,
+        "owner_public_fingerprint_sha256_der": "99580a4806703661ca38f75a3cb95e47d46e32228cf89d5aa7ab55e95a4e25b4",
+        "policy_status": "PASS",
+        "signed_positive_device": "local",
+        "signed_negative_device": "rea-p205-nonexistent-device",
+        "positive_mcp_isError_not_true": true,
+        "negative_mcp_isError_true": true,
+        "positive_process_metadata_record_count": 2,
+        "negative_error_code": "capability_unavailable",
+        "negative_error_category": "unsupported_provider",
+        "original_bridge_restored_blob": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7",
+        "consumed_request_deleted_in_certification_commit": true
+      },
+      "new_certifications": 1,
+      "fully_certified_total": 112,
+      "pending": 96,
+      "limitations": [
+        "Two read-only metadata calls on REA VPS only. Enumerated two local process entries; no names or PIDs published in the GitHub report.",
+        "Negative test used a known nonexistent device identifier and returned capability_unavailable/unsupported_provider with isError=true on permanent MCP.",
+        "Does not certify process attachment, instrumentation, USB/remote Frida usage or operation on devices outside the VPS.",
+        "Each future sensitive invocation requires new exact independently owner-signed authorization; signatures in this phase are one-use, not a blanket unlock."
+      ],
+      "hygiene": "Only encrypted one-use request on GitHub; remove it with certification record; no owner private key transferred; no source, provider, or workflow changes."
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 111,
-    "awaiting_canonical_individual_review": 97,
+    "functional_pass_scoped_distinct": 112,
+    "awaiting_canonical_individual_review": 96,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
     "workspace_newly_passed_distinct": 48,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 111,
+    "fully_certified_distinct": 112,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 97,
-    "remaining_full_certification_distinct": 97
+    "not_functionally_positive_distinct": 96,
+    "remaining_full_certification_distinct": 96
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -7159,7 +7210,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P203-ADB-CUTTER-SIGNED-POSITIVES-ISOLATED-MCP-NEGATIVES-20261024",
+  "latest_phase": "LINUX-P205-SIGNED-FRIDA-PROCESSES-LOCAL-AND-INVALID-DEVICE-MCP-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -9038,6 +9089,25 @@
         "Permanent REA host had no live GUI Cutter session; GUI session operations and external Cutter targets are not certified.",
         "Negative error was injected in isolated original source MCP, not by changing the real Cutter provider.",
         "Future live sensitive calls continue to require independently signed exact Ed25519 owner authorizations."
+      ]
+    },
+    "list_frida_processes": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P205-SIGNED-FRIDA-PROCESSES-LOCAL-AND-INVALID-DEVICE-MCP-20261024",
+      "scope": "Original permanent REA Linux MCP list_frida_processes called twice with independent owner Ed25519 approvals: local Frida host identified two process metadata records (names and PIDs) with no process control; a deliberately nonexistent local device selector was rejected with isError=true capability_unavailable/unsupported_provider. Scope excludes process attachment, injection, remote endpoints, USB devices and modifying targets.",
+      "run_ids": [
+        40141557070
+      ],
+      "positive_evidence_sha256": "b46cd02859ce8e350c7a797a03ac8b8e053b3ea0099d3fc71641dbd9e2cd0e2c",
+      "negative_evidence_sha256": "b46cd02859ce8e350c7a797a03ac8b8e053b3ea0099d3fc71641dbd9e2cd0e2c",
+      "positive_calls": 1,
+      "negative_semantic_assertions": 1,
+      "negative_isError_true": true,
+      "limitations": [
+        "Two read-only metadata calls on REA VPS only. Enumerated two local process entries; no names or PIDs published in the GitHub report.",
+        "Negative test used a known nonexistent device identifier and returned capability_unavailable/unsupported_provider with isError=true on permanent MCP.",
+        "Does not certify process attachment, instrumentation, USB/remote Frida usage or operation on devices outside the VPS.",
+        "Each future sensitive invocation requires new exact independently owner-signed authorization; signatures in this phase are one-use, not a blanket unlock."
       ]
     }
   },

@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "project": "REA ORIGINAL — Engenharia Reversa",
+  "phase_id": "LINUX-P205-SIGNED-FRIDA-PROCESSES-LOCAL-AND-INVALID-DEVICE-MCP-20261024",
+  "date_utc": "2026-10-24",
+  "status": "ONE_NEW_SCOPE_CERTIFIED_OWNER_SIGNED_LIVE_FRIDA_PROCESSES_POSITIVE_AND_LIVE_NEGATIVE",
+  "tool": "list_frida_processes",
+  "risk_class": "sensitive",
+  "scope": "Original permanent REA Linux MCP list_frida_processes called twice with independent owner Ed25519 approvals: local Frida host identified two process metadata records (names and PIDs) with no process control; a deliberately nonexistent local device selector was rejected with isError=true capability_unavailable/unsupported_provider. Scope excludes process attachment, injection, remote endpoints, USB devices and modifying targets.",
+  "positive": {
+    "arguments": {
+      "device_id": "local"
+    },
+    "processes_enumerated": 2,
+    "mcp_isError_not_true": true
+  },
+  "negative": {
+    "arguments": {
+      "device_id": "rea-p205-nonexistent-device"
+    },
+    "mcp_isError_true": true,
+    "error_code": "capability_unavailable",
+    "error_category": "unsupported_provider"
+  },
+  "proof": {
+    "run_id": 40141557070,
+    "job_id": 121014191366,
+    "request_commit": "1f9fb4b16755e6f1cefb783ddcabc011c37784a9",
+    "encrypted_artifact_id": 12578433755,
+    "encrypted_artifact_sha256": "651e6caaa94a8acbd127afc10583a600aa9d3c50fdacc4ada98a17d06863eab4",
+    "encrypted_request_sha256": "216ed08a533cd6454336c1c4b5b034da0b3eef856512e1ed81d8a3a98db78b2d",
+    "authenticated_result_sha256": "b46cd02859ce8e350c7a797a03ac8b8e053b3ea0099d3fc71641dbd9e2cd0e2c",
+    "request_matched": true,
+    "result_digest_matched": true,
+    "original_permanent_mcp_catalog": 208,
+    "owner_ed25519_verified_steps": 2,
+    "owner_public_fingerprint_sha256_der": "99580a4806703661ca38f75a3cb95e47d46e32228cf89d5aa7ab55e95a4e25b4",
+    "policy_status": "PASS",
+    "signed_positive_device": "local",
+    "signed_negative_device": "rea-p205-nonexistent-device",
+    "positive_mcp_isError_not_true": true,
+    "negative_mcp_isError_true": true,
+    "positive_process_metadata_record_count": 2,
+    "negative_error_code": "capability_unavailable",
+    "negative_error_category": "unsupported_provider",
+    "original_bridge_restored_blob": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7",
+    "consumed_request_deleted_in_certification_commit": true
+  },
+  "state": {
+    "mcp_catalog_total": 208,
+    "fully_certified": 112,
+    "pending_full": 96,
+    "sensitive_total": 83,
+    "sensitive_fully_certified": 6,
+    "sensitive_pending_full": 77
+  },
+  "limitations": [
+    "Two read-only metadata calls on REA VPS only. Enumerated two local process entries; no names or PIDs published in the GitHub report.",
+    "Negative test used a known nonexistent device identifier and returned capability_unavailable/unsupported_provider with isError=true on permanent MCP.",
+    "Does not certify process attachment, instrumentation, USB/remote Frida usage or operation on devices outside the VPS.",
+    "Each future sensitive invocation requires new exact independently owner-signed authorization; signatures in this phase are one-use, not a blanket unlock."
+  ],
+  "security": {
+    "no_private_owner_key_in_github": true,
+    "no_process_identifiers_published": true,
+    "no_injection_or_remote_endpoint": true,
+    "no_global_unlock": true,
+    "no_other_projects_changed": true
+  },
+  "original_bridge_and_workflow_unchanged": true
+}
