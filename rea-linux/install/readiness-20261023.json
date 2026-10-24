@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_38_SCOPED_FULLY_CERTIFIED_AND_170_PENDING",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_41_FULLY_CERTIFIED_PROFILES_AND_167_PENDING",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -515,6 +515,25 @@
       "original_service_unmodified": true
     },
     "latest_contract_certification": {
+      "phase_id": "LINUX-P46-THREE-MANAGED-STATIC-MCP-CERTIFICATION-20261024",
+      "original_mcp_catalog": 208,
+      "fully_certified_distinct": 41,
+      "remaining_full_distinct": 167,
+      "positive_limited_distinct": 0,
+      "original_engine_unchanged": true,
+      "original_service_unchanged": true,
+      "no_additional_dependencies": true,
+      "latest_run_ids": [
+        40046993456
+      ],
+      "result_sha256": [
+        "905849a6358dfc3ea3a43980ee3181e7a5f86c8b512594c254bc0ccca9067fbd"
+      ],
+      "authenticated_encrypted_results": true,
+      "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+      "source": "Managed source-owned Evidence examples: compare members, verify P/Invoke, project managed app graph; 5 positive and 9 negative MCP tests. Sensitive imports/reconciliation withheld."
+    },
+    "prior_contract_certification": {
       "phase_id": "LINUX-P44-P45-EIGHT-STATIC-COMPOSITION-PROFILES-20261024",
       "original_mcp_catalog": 208,
       "fully_certified_distinct": 38,
@@ -534,23 +553,6 @@
       "authenticated_encrypted_results": true,
       "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
       "source": "Original compiled REA composed Evidence pure static workflow profiles; 8 tools. Runtime mixed comparison not certified."
-    },
-    "prior_contract_certification": {
-      "phase_id": "LINUX-P42-P43-SIX-APPLICATION-CONTRACTS-20261024",
-      "fully_certified_distinct": 30,
-      "remaining_full_distinct": 178,
-      "original_mcp_catalog": 208,
-      "runs": [
-        40041816982,
-        40042135213
-      ],
-      "result_digests": [
-        "ec0f9c28c81fafa4c6c9f8f10dc0b9c705f8e5cc75a8b6e1023a2bc5745ca4cd",
-        "791cd92457691863547adc4fbcbfb9640425785c19c07c05491e01c3298020bf"
-      ],
-      "no_new_dependencies_needed": true,
-      "original_daemon_stable": true,
-      "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
     },
     "previous_contract_certification_snapshots": [
       {

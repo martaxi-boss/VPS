@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_38_SCOPED_FULLY_CERTIFIED_170_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_41_FULLY_CERTIFIED_167_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -3638,21 +3638,94 @@
         "partial": 0,
         "registered": 208
       }
+    },
+    {
+      "phase_id": "LINUX-P46-THREE-MANAGED-STATIC-MCP-CERTIFICATION-20261024",
+      "date_utc": "2026-10-24",
+      "status": "THREE_NEW_FULLY_CERTIFIED_BOUNDED_MANAGED_STATIC_ORIGINAL_MCP_PROFILES",
+      "original_mcp_catalog": 208,
+      "source": "Original installed compiled managed workflow contract examples, inert canonical Evidence",
+      "proof": {
+        "run_id": 40046993456,
+        "artifact_id": 12541217935,
+        "request_commit": "fc9f4b4e59740156d805c4c10566b4f1d188f8aa",
+        "request_sha256": "245b9308c945a0c36d9f2786f6bd4acfcd5c0c89aab6f6d45936b57aed1b8703",
+        "result_sha256": "905849a6358dfc3ea3a43980ee3181e7a5f86c8b512594c254bc0ccca9067fbd",
+        "request_and_result_authenticated_locally": true,
+        "RSA_OAEP_SHA256_AES_256_GCM": true,
+        "positive_total": 5,
+        "negative_total": 9,
+        "passed_all_14_calls": true,
+        "source_checkout_stable": true,
+        "original_systemd_pid_stable": true
+      },
+      "preflight_excluded": {
+        "run_id": 40046841759,
+        "result": "FAIL before tools/call",
+        "reason": "Original security classification marked import_managed_reconstruction and reconcile_javascript_runtime as sensitive; excluded from P46 and left uncertified. No sensitive operation was called; no signature fabricated."
+      },
+      "tools": [
+        {
+          "name": "compare_managed_members",
+          "status": "FULLY_CERTIFIED",
+          "positive_mcp_calls": 2,
+          "negative_mcp_calls": 3,
+          "scope": "Read-only comparison of original REA source-owned .NET managed member Evidence: empty-vs-empty (all count=0) and one authenticated method-vs-empty produces 1 unknown, not false added; deterministic artifact identity and build-local token scope; self comparison and two invalid schema requests rejected.",
+          "limitations": [
+            "Scoped to source-owned inert synthetic Evidence; no live customer assemblies, arbitrary build variants or runtime behavior."
+          ]
+        },
+        {
+          "name": "verify_managed_native_boundaries",
+          "status": "FULLY_CERTIFIED",
+          "positive_mcp_calls": 1,
+          "negative_mcp_calls": 3,
+          "scope": "Read-only managed P/Invoke/native export verification of original source-owned .NET+Mach-O Evidence. One native import of open_native verifies against one native export, preserving token_to_address_mapping not-inferred. Empty native observation set plus two invalid schemas rejected.",
+          "limitations": [
+            "Scoped to source-owned inert synthetic Evidence; no live customer assemblies, arbitrary build variants or runtime behavior."
+          ]
+        },
+        {
+          "name": "project_managed_application_graph",
+          "status": "FULLY_CERTIFIED",
+          "positive_mcp_calls": 2,
+          "negative_mcp_calls": 3,
+          "scope": "Read-only projection of authenticated managed methods into one method and module with 3 graph nodes, and of a distinct native boundary into one P/Invoke and module. Cross-artifact mix and two invalid requests rejected; no assembly loads or target execution.",
+          "limitations": [
+            "Scoped to source-owned inert synthetic Evidence; no live customer assemblies, arbitrary build variants or runtime behavior."
+          ]
+        }
+      ],
+      "dependencies": {
+        "new_installations": 0,
+        "original_node_24_and_compiled_rea_ready": true
+      },
+      "hygiene": {
+        "original_bridge_restored_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+        "spent_requests_deleted": [
+          "rea-linux/requests/managed-static-p46-v2-20261024.json"
+        ],
+        "prior_failed_request_already_deleted": true
+      },
+      "resulting_counts": {
+        "fully_certified": 41,
+        "remaining_full": 167
+      }
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 38,
-    "awaiting_canonical_individual_review": 170,
+    "functional_pass_scoped_distinct": 41,
+    "awaiting_canonical_individual_review": 167,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 38,
+    "fully_certified_distinct": 41,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 170,
-    "remaining_full_certification_distinct": 170
+    "not_functionally_positive_distinct": 167,
+    "remaining_full_certification_distinct": 167
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -3682,7 +3755,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P44-P45-EIGHT-STATIC-COMPOSITION-PROFILES-20261024",
+  "latest_phase": "LINUX-P46-THREE-MANAGED-STATIC-MCP-CERTIFICATION-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -4487,6 +4560,45 @@
       "evidence_result_digests": [
         "28904046f4ef528cd1db0db22e56675d7b683640d39243b59e41537946c81e78"
       ]
+    },
+    "compare_managed_members": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P46-THREE-MANAGED-STATIC-MCP-CERTIFICATION-20261024",
+      "scope": "Read-only comparison of original REA source-owned .NET managed member Evidence: empty-vs-empty (all count=0) and one authenticated method-vs-empty produces 1 unknown, not false added; deterministic artifact identity and build-local token scope; self comparison and two invalid schema requests rejected.",
+      "positive_calls": 2,
+      "negative_calls": 3,
+      "run_ids": [
+        40046993456
+      ],
+      "artifact_id": 12541217935,
+      "evidence_sha256": "905849a6358dfc3ea3a43980ee3181e7a5f86c8b512594c254bc0ccca9067fbd",
+      "request_sha256": "245b9308c945a0c36d9f2786f6bd4acfcd5c0c89aab6f6d45936b57aed1b8703"
+    },
+    "verify_managed_native_boundaries": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P46-THREE-MANAGED-STATIC-MCP-CERTIFICATION-20261024",
+      "scope": "Read-only managed P/Invoke/native export verification of original source-owned .NET+Mach-O Evidence. One native import of open_native verifies against one native export, preserving token_to_address_mapping not-inferred. Empty native observation set plus two invalid schemas rejected.",
+      "positive_calls": 1,
+      "negative_calls": 3,
+      "run_ids": [
+        40046993456
+      ],
+      "artifact_id": 12541217935,
+      "evidence_sha256": "905849a6358dfc3ea3a43980ee3181e7a5f86c8b512594c254bc0ccca9067fbd",
+      "request_sha256": "245b9308c945a0c36d9f2786f6bd4acfcd5c0c89aab6f6d45936b57aed1b8703"
+    },
+    "project_managed_application_graph": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P46-THREE-MANAGED-STATIC-MCP-CERTIFICATION-20261024",
+      "scope": "Read-only projection of authenticated managed methods into one method and module with 3 graph nodes, and of a distinct native boundary into one P/Invoke and module. Cross-artifact mix and two invalid requests rejected; no assembly loads or target execution.",
+      "positive_calls": 2,
+      "negative_calls": 3,
+      "run_ids": [
+        40046993456
+      ],
+      "artifact_id": 12541217935,
+      "evidence_sha256": "905849a6358dfc3ea3a43980ee3181e7a5f86c8b512594c254bc0ccca9067fbd",
+      "request_sha256": "245b9308c945a0c36d9f2786f6bd4acfcd5c0c89aab6f6d45936b57aed1b8703"
     }
   }
 }
