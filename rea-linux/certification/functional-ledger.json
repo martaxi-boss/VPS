@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_67_FULLY_CERTIFIED_141_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_71_FULLY_CERTIFIED_137_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -4500,21 +4500,133 @@
       "post_cleanup_catalog": 208,
       "post_cleanup_schemas": 208,
       "post_cleanup_contract_matches": 208
+    },
+    {
+      "phase_id": "LINUX-P65-GHIDRA-ADVANCED-FOUR-SCOPED-FUNCTION-PROFILES-20261024",
+      "date_utc": "2026-10-24",
+      "status": "FOUR_NEW_FULLY_CERTIFIED_SCOPED_NATIVE_GHIDRA_FUNCTION_AND_DECOMPILER_PROFILES",
+      "source": "Original Linux VPS REA MCP over existing GitHub Actions SSH, fixed controlled local ELF /usr/bin/true, Ghidra 12.1.4",
+      "proof": {
+        "positive_run_id": 40053250632,
+        "positive_commit": "5d6b0a3560b6ee4b1e1f68928d3059ea025f7704",
+        "positive_artifact_id": 12543744923,
+        "positive_request_sha256": "7926c2f3e11a20aee1f93aa04c0454efe69700fa76f6d7b1c0b7bd4d485df389",
+        "positive_result_sha256": "e4aa982db8eac4ebd5a6bbd99feee8bee7e09c156888986ba8ca5ab35a685757",
+        "positive_original_mcp_call_count": 5,
+        "negative_runs": {
+          "trace_call_path": {
+            "run": 40053556185,
+            "artifact": 12543579073,
+            "commit": "1ed26c51c830994fe23e43a40277859061783e12",
+            "request": "60bcd8b48ae6d21a454641b94caf70be63ced530001aef4f3ef6d61d76c42dfd",
+            "result": "52f868c9ea164cd3c58d1e9f6b8a70d9b21c99ecab4439b738de7e0639b74be1"
+          },
+          "procedure_pseudo_code": {
+            "run": 40053698412,
+            "artifact": 12544955317,
+            "commit": "6a89012f0624d4ee3e08e5192757da2d8e42724c",
+            "request": "ad648d8fc99300ab0cdf6720f7bf740c81a77053d632d35967d0b6bbf1bceae7",
+            "result": "bb640d0735fec2489a803d355f2de8e68ce7c37efb9e82e046070f37e90847a2"
+          },
+          "inspect_native_api": {
+            "run": 40053593642,
+            "artifact": 12544406247,
+            "commit": "59bb8adf36f88a8275b158bd028324e63c2caae1",
+            "request": "4c18b2edb4c76d71b546819db038b884ea3370c8ea2facc184d97ddcd795234f",
+            "result": "408b556130d3eaf1f36a53d47f53af29e3ea515ff73dd766f21e4c9e912da875"
+          },
+          "analyze_function": {
+            "run": 40053743691,
+            "artifact": 12544965384,
+            "commit": "7f21b7c025791a47a1459411a51246b146bd790f",
+            "request": "f256e557efd156baa632c0cc99ca274aa3783feb49a6bdbcee8f947af0bbee8f",
+            "result": "ecd63eeca08ccc2c63bc6b105970481841631e73f3c883c51c97547c685be666"
+          }
+        },
+        "mcp_isError_true_on_all_four_negative_cases": true,
+        "all_four_response_request_sha256_verified": true,
+        "all_four_decrypted_evidence_sha256_verified": true,
+        "negative_runs_stop_on_expected_rejection": true,
+        "ghidra_ephemeral_session_cleanup": "PASS",
+        "original_mcp_catalog": 208,
+        "controlled_target_sha256": "8a63c98320173f79e263115e10cefc170155e47d1fd4b5a70e4429d2699cae28"
+      },
+      "tools": [
+        {
+          "name": "analyze_function",
+          "status": "FULLY_CERTIFIED_SCOPED_ORIGINAL_MCP",
+          "positive": 1,
+          "negative": 1,
+          "scope": "Single original Linux REA MCP + Ghidra 12.1.4, immutable /usr/bin/true x86-64: analyzed exact 5-byte thunk switchD_00102043::default at 0x101480, returned one basic block, assembly CALL 0x00101260, pseudocode and callers/callees/ref facets with explicit limitations; rejected nonexistent procedure 0x200000 with MCP isError=true invalid_request/invalid_input.",
+          "positive_run_id": 40053250632,
+          "negative_run_id": 40053743691
+        },
+        {
+          "name": "procedure_pseudo_code",
+          "status": "FULLY_CERTIFIED_SCOPED_ORIGINAL_MCP",
+          "positive": 1,
+          "negative": 1,
+          "scope": "Original REA MCP Ghidra decompiler on immutable /usr/bin/true ELF: returned explicitly warning-bearing non-source pseudocode for 0x101480 calling abort(); invalid selector 0x200000 rejected as missing mapped source-file-offset with true MCP isError=true invalid_input; do not treat decompiled output as original or recompilable source.",
+          "positive_run_id": 40053250632,
+          "negative_run_id": 40053698412
+        },
+        {
+          "name": "inspect_native_api",
+          "status": "FULLY_CERTIFIED_SCOPED_ORIGINAL_MCP",
+          "positive": 1,
+          "negative": 1,
+          "scope": "Original REA MCP Ghidra on known /usr/bin/true ELF: emitted typed native API boundary at 0x101480 with available=true, return type void, calling_convention unknown, decompiler-artifact limitations and native high-function provenance; missing procedure 0x200000 refused with genuine MCP isError=true invalid_input.",
+          "positive_run_id": 40053250632,
+          "negative_run_id": 40053593642
+        },
+        {
+          "name": "trace_call_path",
+          "status": "FULLY_CERTIFIED_SCOPED_ORIGINAL_MCP",
+          "positive": 1,
+          "negative": 1,
+          "scope": "Original REA MCP Ghidra on known /usr/bin/true ELF: discovered exact direct traversal 0x101480 -> 0x101260 -> 0x107010, goal_status=reached, with explicit unknown indirect-edge limitations; invalid destination procedure 0x200000 refused with genuine MCP isError=true invalid_input and no fabricated traversal.",
+          "positive_run_id": 40053250632,
+          "negative_run_id": 40053556185
+        }
+      ],
+      "attempted_but_not_counted": [
+        {
+          "tool": "list_procedures",
+          "run_id": 40053828840,
+          "reason": "SecureBridgeError: Reviewed session inspections must use the newly opened document",
+          "mcp_call_executed": false,
+          "status": "BRIDGE_BLOCKED_NOT_CERTIFIED"
+        },
+        {
+          "tool": "list_segments",
+          "run_id": 40053831609,
+          "reason": "SecureBridgeError: Reviewed session inspections must use the newly opened document",
+          "mcp_call_executed": false,
+          "status": "BRIDGE_BLOCKED_NOT_CERTIFIED"
+        }
+      ],
+      "transport_note": "First P65B addition did not dispatch GitHub Actions; same unused nonce/blob was added under a unique request file and executed once in run 40053698412.",
+      "no_dependencies_installed": true,
+      "original_bridge_unchanged": true,
+      "original_service_unchanged": true,
+      "consumed_github_requests": "PASS_REMOVED_8_IN_CANONICAL_COMMIT",
+      "certified_total": 71,
+      "remaining": 137
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 67,
-    "awaiting_canonical_individual_review": 141,
+    "functional_pass_scoped_distinct": 71,
+    "awaiting_canonical_individual_review": 137,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 67,
+    "fully_certified_distinct": 71,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 141,
-    "remaining_full_certification_distinct": 141
+    "not_functionally_positive_distinct": 137,
+    "remaining_full_certification_distinct": 137
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -4544,7 +4656,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P63-GHIDRA-NAME-STRING-LISTS-20261024",
+  "latest_phase": "LINUX-P65-GHIDRA-ADVANCED-FOUR-SCOPED-FUNCTION-PROFILES-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -5707,6 +5819,62 @@
       "evidence_sha256": "1eaae49dbb09fe7c2c75ecd57ca35c91c9d38a6e5139f0480cbe6873c7b43444",
       "positive_calls": 1,
       "negative_semantic_calls": 1
+    },
+    "analyze_function": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P65-GHIDRA-ADVANCED-FOUR-SCOPED-FUNCTION-PROFILES-20261024",
+      "scope": "Single original Linux REA MCP + Ghidra 12.1.4, immutable /usr/bin/true x86-64: analyzed exact 5-byte thunk switchD_00102043::default at 0x101480, returned one basic block, assembly CALL 0x00101260, pseudocode and callers/callees/ref facets with explicit limitations; rejected nonexistent procedure 0x200000 with MCP isError=true invalid_request/invalid_input.",
+      "run_ids": [
+        40053250632,
+        40053743691
+      ],
+      "positive_evidence_sha256": "e4aa982db8eac4ebd5a6bbd99feee8bee7e09c156888986ba8ca5ab35a685757",
+      "negative_evidence_sha256": "ecd63eeca08ccc2c63bc6b105970481841631e73f3c883c51c97547c685be666",
+      "positive_calls": 1,
+      "negative_calls": 1,
+      "negative_isError_true": true
+    },
+    "procedure_pseudo_code": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P65-GHIDRA-ADVANCED-FOUR-SCOPED-FUNCTION-PROFILES-20261024",
+      "scope": "Original REA MCP Ghidra decompiler on immutable /usr/bin/true ELF: returned explicitly warning-bearing non-source pseudocode for 0x101480 calling abort(); invalid selector 0x200000 rejected as missing mapped source-file-offset with true MCP isError=true invalid_input; do not treat decompiled output as original or recompilable source.",
+      "run_ids": [
+        40053250632,
+        40053698412
+      ],
+      "positive_evidence_sha256": "e4aa982db8eac4ebd5a6bbd99feee8bee7e09c156888986ba8ca5ab35a685757",
+      "negative_evidence_sha256": "bb640d0735fec2489a803d355f2de8e68ce7c37efb9e82e046070f37e90847a2",
+      "positive_calls": 1,
+      "negative_calls": 1,
+      "negative_isError_true": true
+    },
+    "inspect_native_api": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P65-GHIDRA-ADVANCED-FOUR-SCOPED-FUNCTION-PROFILES-20261024",
+      "scope": "Original REA MCP Ghidra on known /usr/bin/true ELF: emitted typed native API boundary at 0x101480 with available=true, return type void, calling_convention unknown, decompiler-artifact limitations and native high-function provenance; missing procedure 0x200000 refused with genuine MCP isError=true invalid_input.",
+      "run_ids": [
+        40053250632,
+        40053593642
+      ],
+      "positive_evidence_sha256": "e4aa982db8eac4ebd5a6bbd99feee8bee7e09c156888986ba8ca5ab35a685757",
+      "negative_evidence_sha256": "408b556130d3eaf1f36a53d47f53af29e3ea515ff73dd766f21e4c9e912da875",
+      "positive_calls": 1,
+      "negative_calls": 1,
+      "negative_isError_true": true
+    },
+    "trace_call_path": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P65-GHIDRA-ADVANCED-FOUR-SCOPED-FUNCTION-PROFILES-20261024",
+      "scope": "Original REA MCP Ghidra on known /usr/bin/true ELF: discovered exact direct traversal 0x101480 -> 0x101260 -> 0x107010, goal_status=reached, with explicit unknown indirect-edge limitations; invalid destination procedure 0x200000 refused with genuine MCP isError=true invalid_input and no fabricated traversal.",
+      "run_ids": [
+        40053250632,
+        40053556185
+      ],
+      "positive_evidence_sha256": "e4aa982db8eac4ebd5a6bbd99feee8bee7e09c156888986ba8ca5ab35a685757",
+      "negative_evidence_sha256": "52f868c9ea164cd3c58d1e9f6b8a70d9b21c99ecab4439b738de7e0639b74be1",
+      "positive_calls": 1,
+      "negative_calls": 1,
+      "negative_isError_true": true
     }
   }
 }

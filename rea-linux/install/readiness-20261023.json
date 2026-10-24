@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_67_FULLY_CERTIFIED_PROFILES_AND_141_PENDING",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_71_FULLY_CERTIFIED_PROFILES_AND_137_PENDING",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -515,6 +515,53 @@
       "original_service_unmodified": true
     },
     "latest_contract_certification": {
+      "phase_id": "LINUX-P65-GHIDRA-ADVANCED-FOUR-SCOPED-FUNCTION-PROFILES-20261024",
+      "original_mcp_catalog": 208,
+      "fully_certified_distinct": 71,
+      "remaining_full_distinct": 137,
+      "latest_run_ids": [
+        40053250632,
+        40053556185,
+        40053698412,
+        40053593642,
+        40053743691
+      ],
+      "artifact_ids": [
+        12543744923,
+        12543579073,
+        12544955317,
+        12544406247,
+        12544965384
+      ],
+      "result_sha256": [
+        "e4aa982db8eac4ebd5a6bbd99feee8bee7e09c156888986ba8ca5ab35a685757",
+        "52f868c9ea164cd3c58d1e9f6b8a70d9b21c99ecab4439b738de7e0639b74be1",
+        "bb640d0735fec2489a803d355f2de8e68ce7c37efb9e82e046070f37e90847a2",
+        "408b556130d3eaf1f36a53d47f53af29e3ea515ff73dd766f21e4c9e912da875",
+        "ecd63eeca08ccc2c63bc6b105970481841631e73f3c883c51c97547c685be666"
+      ],
+      "authenticated_encrypted_results": true,
+      "exact_request_match": true,
+      "new_scoped_certifications": [
+        "analyze_function",
+        "procedure_pseudo_code",
+        "inspect_native_api",
+        "trace_call_path"
+      ],
+      "blocked_without_mcp_certification": [
+        "list_procedures",
+        "list_segments"
+      ],
+      "mcp_negative_isError_true_count": 4,
+      "ephemeral_ghidra_session_cleanup": "PASS",
+      "no_additional_dependencies": true,
+      "original_engine_unchanged": true,
+      "original_service_unchanged": true,
+      "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+      "consumed_github_requests": "PASS_REMOVED_8",
+      "post_cleanup_run_id": null
+    },
+    "prior_contract_certification": {
       "phase_id": "LINUX-P63-GHIDRA-NAME-STRING-LISTS-20261024",
       "original_mcp_catalog": 208,
       "fully_certified_distinct": 67,
@@ -554,50 +601,6 @@
       "post_cleanup_schemas": 208,
       "post_cleanup_contract_matches": 208,
       "cleanup_commit": "b0553505bd771868a3c1731b291b5853967baf19"
-    },
-    "prior_contract_certification": {
-      "phase_id": "LINUX-P56-PROCEDURE-LOOKUPS-20261024",
-      "original_mcp_catalog": 208,
-      "fully_certified_distinct": 65,
-      "remaining_full_distinct": 143,
-      "positive_limited_distinct": 0,
-      "newly_certified": [
-        "procedure_address",
-        "procedure_assembly",
-        "procedure_callers"
-      ],
-      "positive_run_id": 40051763765,
-      "negative_run_ids": [
-        40052462212,
-        40052565721,
-        40052630376
-      ],
-      "artifact_ids": [
-        12543722229,
-        12543688534,
-        12543119581,
-        12543374969
-      ],
-      "result_sha256": [
-        "12fe31fd0e37d31120d0b02843d1151a1a470c9ff7d530313836c5584070ce66",
-        "bb8d4897460f5e59ad0dd7a3065b6f3a73db37c987d469b1e6d0c90c98e57fbf",
-        "8da0aa860b6de64441930b342e1d989078f5e63dfd7f4b117682513de084839b",
-        "c58cb9ec27bc8cedc0573aa3cb40c53123894223bee67fee2c908d2c35e36eba"
-      ],
-      "authenticated_encrypted_results": true,
-      "request_binding_verified": true,
-      "negative_mcp_isError_true": true,
-      "no_additional_dependencies": true,
-      "original_engine_unchanged": true,
-      "original_service_unchanged": true,
-      "ephemeral_ghidra_session_cleanup": "PASS",
-      "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
-      "consumed_github_requests": "PASS_REMOVED_3",
-      "post_cleanup_run_id": 40052826811,
-      "post_cleanup_catalog": 208,
-      "post_cleanup_schemas": 208,
-      "post_cleanup_contract_matches": 208,
-      "cleanup_commit": "ae4937e10725f8c140a54c48e14b27462e71ad30"
     },
     "previous_contract_certification_snapshots": [
       {
@@ -1181,6 +1184,47 @@
         "post_cleanup_schemas": 208,
         "post_cleanup_contract_matches": 208,
         "cleanup_commit": "ae4937e10725f8c140a54c48e14b27462e71ad30"
+      },
+      {
+        "phase_id": "LINUX-P63-GHIDRA-NAME-STRING-LISTS-20261024",
+        "original_mcp_catalog": 208,
+        "fully_certified_distinct": 67,
+        "remaining_full_distinct": 141,
+        "positive_limited_distinct": 0,
+        "newly_certified": [
+          "list_names",
+          "list_strings"
+        ],
+        "latest_run_ids": [
+          40052938189
+        ],
+        "artifact_ids": [
+          12543689426
+        ],
+        "request_sha256": [
+          "74bb4786b5b4c84b6b0f4cda96d1f3e4b4c1bcd52d1dbf1c20288134af6dd1a2"
+        ],
+        "result_sha256": [
+          "1eaae49dbb09fe7c2c75ecd57ca35c91c9d38a6e5139f0480cbe6873c7b43444"
+        ],
+        "authenticated_encrypted_results": true,
+        "request_matched": true,
+        "real_mcp_steps": 5,
+        "positive_functional_calls": 2,
+        "correct_empty_negative_calls": 2,
+        "negative_mcp_isError_true": false,
+        "provider": "ghidra 12.1.4",
+        "no_additional_dependencies": true,
+        "original_engine_unchanged": true,
+        "original_service_unchanged": true,
+        "ephemeral_ghidra_session_cleanup": "PASS",
+        "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+        "consumed_github_requests": "PASS_REMOVED_1",
+        "post_cleanup_run_id": 40053091719,
+        "post_cleanup_catalog": 208,
+        "post_cleanup_schemas": 208,
+        "post_cleanup_contract_matches": 208,
+        "cleanup_commit": "b0553505bd771868a3c1731b291b5853967baf19"
       }
     ],
     "latest_p48_hygiene": {
