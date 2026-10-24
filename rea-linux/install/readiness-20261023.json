@@ -552,7 +552,11 @@
       "original_service_unchanged": true,
       "ephemeral_ghidra_session_cleanup": "PASS",
       "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
-      "consumed_github_requests": "PENDING_REMOVAL"
+      "consumed_github_requests": "PASS_REMOVED_5",
+      "post_cleanup_run_id": 40050787498,
+      "post_cleanup_catalog": 208,
+      "post_cleanup_schemas": 208,
+      "post_cleanup_contract_matches": 208
     },
     "prior_contract_certification": {
       "phase_id": "LINUX-P51-NATIVE-PROCEDURE-XREFS-20261024",
@@ -952,6 +956,17 @@
       "validated_schema_count": 208,
       "audited_contracts_count": 208,
       "original_bridge_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+    },
+    "latest_p51_hygiene": {
+      "cleanup_commit": "d221a92e979668d82da467d451df04f4f9f444c5",
+      "deleted_consumed_requests": 5,
+      "post_cleanup_run_id": 40050787498,
+      "post_cleanup_conclusion": "SUCCESS",
+      "mcp_loopback": "PASS",
+      "tool_count": 208,
+      "schemas_validated": 208,
+      "contracts_matching": 208,
+      "original_bridge_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
     }
   },
   "final_hygiene_verified": {
