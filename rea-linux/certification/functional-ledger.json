@@ -4980,7 +4980,56 @@
       "original_bridge_unchanged": true,
       "consumed_request_removed_in_canonical_commit": true,
       "fully_certified_total": 77,
-      "remaining": 131
+      "remaining": 131,
+      "git_hygiene": {
+        "cleanup_commit": "46ee0c34312eb97052854cb3e5ea81fc98a66cfa",
+        "deleted_consumed_requests": 1,
+        "post_cleanup_run_id": 40083097257,
+        "workflow_conclusion": "SUCCESS",
+        "loopback_mcp": "PASS",
+        "catalog": 208,
+        "validated_schemas": 208,
+        "audited_contracts": 208,
+        "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      }
+    },
+    {
+      "phase_id": "LINUX-P80-GHIDRA-NATIVE-VALUES-DEPTH-BOUND-20261024",
+      "date_utc": "2026-10-24",
+      "status": "ADDITIONAL_REAL_MCP_BOUNDARY_PASS_TOOL_STILL_PENDING_NEGATIVE_DIAGNOSTIC",
+      "source": "Original Ghidra 12.1.4 Linux REA MCP",
+      "tools": [
+        {
+          "name": "trace_native_values",
+          "status": "NOT_FULLY_CERTIFIED",
+          "observed_positive_budget_semantics": true,
+          "unresolved_preexisting_negative_diagnostic": "Unrecognized selector is still diagnosed as unreadable_output/execution_failure; no repair or retest of that classification; retain pending."
+        }
+      ],
+      "proof": {
+        "run_id": 40083389788,
+        "commit": "4a860a4d0c0c232ee7d699cc59b69f5402dc5e4e",
+        "encrypted_artifact_id": 12556013206,
+        "request_sha256": "536a8f8fec9405b0072621ebc6172e7fc449c03f04bd861023adcefafc21ac8f",
+        "authenticated_result_sha256": "f1705bbf2aaf92764e640394699a74aefeca6ca4b07128c702dfe641d1dfaa8a",
+        "matched": true,
+        "mcp_steps": 2,
+        "tool_positive_bounded": true,
+        "depth_max": 0,
+        "max_functions": 1,
+        "decompilations": 1,
+        "graph_nodes": 2,
+        "graph_edges": 1,
+        "truncated": true,
+        "explicit_depth_unknown": true,
+        "source_immutable_sha256": "8a63c98320173f79e263115e47d1fd4b5a70e4429d2699cae28",
+        "ghidra_cleanup": "PASS"
+      },
+      "new_certifications": 0,
+      "total_unchanged": 77,
+      "pending_unchanged": 131,
+      "request_cleanup": "IN_SAME_COMMIT",
+      "bridge_unchanged": true
     }
   ],
   "active_scope_counts": {
@@ -5025,7 +5074,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P77-GHIDRA-NATIVE-UI-ACTION-20261024",
+  "latest_phase": "LINUX-P80-GHIDRA-NATIVE-VALUES-DEPTH-BOUND-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
