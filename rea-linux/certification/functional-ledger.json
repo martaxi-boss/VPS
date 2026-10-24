@@ -5348,6 +5348,57 @@
       "fully_certified_total": 79,
       "pending": 129,
       "request_removed": true
+    },
+    {
+      "phase_id": "LINUX-P92-ARTIFACT-EVIDENCE-COMPLETE-20261024",
+      "date_utc": "2026-10-24",
+      "status": "POSITIVE_INVENTORY_SCOPED_NEGATIVE_PENDING",
+      "tool": "inspect_artifact",
+      "certification_granted": false,
+      "run_id": 40088720153,
+      "encrypted_artifact_id": 12558266776,
+      "commit": "a9eed1fbf9525b0612d4659660580951a7c34b5b",
+      "request_sha256": "89faf5463cd8734768fc3c0e441ded1197ec684d8549dc0f05c80c4b9c79e3cf",
+      "authenticated_result_sha256": "9024116025024bfe688121376e5c635e629d6ad6883c0e5e26d7823f7bc21311",
+      "request_matched": true,
+      "mcp_steps_executed": 5,
+      "result_note": "Full real inventory Evidence for /usr/bin/true, bundle complete, no unknowns; verified negative of verify_unknown_resolution nonexistent unknown_id: isError true execution_failure not-found; Ghidra cleanup PASS.",
+      "canonical_certified_count": 79,
+      "remaining": 129
+    },
+    {
+      "phase_id": "LINUX-P93-ARTIFACT-IDENTITY-COMPARISON-20261024",
+      "date_utc": "2026-10-24",
+      "status": "ALREADY_CERTIFIED_NO_DOUBLE_COUNT",
+      "tool": "compare_artifacts",
+      "certification_granted": false,
+      "run_id": 40089030520,
+      "encrypted_artifact_id": 12558600603,
+      "commit": "9d005e39b153228bba6572882a04801cb7e2e501",
+      "request_sha256": "be7a42246f78e5462f700632a683f7f796a5bb5119d05bfc9b89aedeb0d44b69",
+      "authenticated_result_sha256": "072d2488624d445910afe0e12bda509ee56f1d9cd40cc7e307e8657ddcb55522",
+      "request_matched": true,
+      "mcp_steps_executed": 2,
+      "result_note": "Authenticated same real inventory on both sides; unchanged (added/removed/changed/unknown 0), with explicit coverage limitations. Previous comparison certification not repeated.",
+      "canonical_certified_count": 79,
+      "remaining": 129
+    },
+    {
+      "phase_id": "LINUX-P94-RECONSTRUCTION-UNKNOWN-REGISTRATION-20261024",
+      "date_utc": "2026-10-24",
+      "status": "UNKNOWN_REAL_EVIDENCE_POSITIVE_PASS_NOT_PROVEN",
+      "tool": "verify_reconstruction",
+      "certification_granted": false,
+      "run_id": 40089373435,
+      "encrypted_artifact_id": 12558242999,
+      "commit": "e880a72f6e7d6abe69be1b26106e1c8fb6bdd1ad",
+      "request_sha256": "e4f230c823b7738d297ea13d82756acd3613baa054ab584c434c8800b9697927",
+      "authenticated_result_sha256": "7c46ef0adff4c3e5f6004e44cc6bb37244af1fa51cbe686d1924c90f37e957fb",
+      "request_matched": true,
+      "mcp_steps_executed": 4,
+      "result_note": "Real comparison Evidence against itself exposed independent-source and coverage limitations. verify_reconstruction produced status unknown; list_unknowns exposed open reconstruction-verification unknown; no global pass and no new certification. Follow-up positive for verify_unknown_resolution was not executed.",
+      "canonical_certified_count": 79,
+      "remaining": 129
     }
   ],
   "active_scope_counts": {
@@ -5392,7 +5443,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P91-ARTIFACT-SUMMARY-EVIDENCE-20261024",
+  "latest_phase": "LINUX-P94-RECONSTRUCTION-UNKNOWN-REGISTRATION-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",

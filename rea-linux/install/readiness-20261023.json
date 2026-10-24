@@ -1580,5 +1580,19 @@
     "bundle_requery_unfiltered": true,
     "certified_total": 79,
     "pending_total": 129
+  },
+  "latest_artifact_evidence_chain": {
+    "status": "AUTHENTICATED_PARTIAL_NO_NEW_CERTIFICATION",
+    "runs": [
+      40088720153,
+      40089030520,
+      40089373435
+    ],
+    "reconstruction_status": "unknown",
+    "unknown_id": "unk_86ae76ae0d5d6885289dead2f9427b346d006bced1d86c9f0dc30d4f4f860d34",
+    "fully_certified": 79,
+    "pending": 129,
+    "last_consumed_request_deleted_in_canonical_commit": true,
+    "bridge_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
   }
 }
