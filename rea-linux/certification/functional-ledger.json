@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_78_FULLY_CERTIFIED_130_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_79_FULLY_CERTIFIED_129_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -5146,22 +5146,73 @@
       "original_bridge_unchanged": true,
       "consumed_request_removed_in_canonical_commit": true,
       "fully_certified_total": 78,
-      "remaining": 130
+      "remaining": 130,
+      "post_cleanup_verification": {
+        "run_id": 40085225674,
+        "status": "SUCCESS",
+        "catalog": 208,
+        "validated_schemas": 208,
+        "audited_contracts": 208,
+        "ssh_host_pin": "PASS",
+        "bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      }
+    },
+    {
+      "phase_id": "LINUX-P79-GHIDRA-LIST-DOCUMENTS-20261024",
+      "date_utc": "2026-10-24",
+      "status": "ONE_NEW_FULLY_CERTIFIED_SCOPED_GHIDRA_DOCUMENT_LIST",
+      "source": "Existing GitHub Actions SSH to original REA MCP",
+      "proof": {
+        "negative_run_id": 40085404197,
+        "negative_commit": "54299ced43f6c09d1f983041c3d032faaacd8b0e",
+        "negative_artifact_id": 12556318123,
+        "negative_request_sha256": "2ee0c78d7d7e019beb16e6f3c5687a0be1d1fd9fd27b0986b57b04c141de4e94",
+        "negative_authenticated_result_sha256": "eca4620e370287c362f3068285ad5a004c7fc14365eed510a34a9b57822ba10f",
+        "negative_isError_true": true,
+        "negative_error_code": "target_unavailable",
+        "negative_error_category": "unavailable",
+        "positive_run_id": 40085521638,
+        "positive_commit": "2b8e249045038d8bdd62726e72e340a2f090df37",
+        "positive_artifact_id": 12556514168,
+        "positive_request_sha256": "07bdb23016087891320f43da650f2b7d6eb7a32477c10ab6cb22a2ad62d2ae9f",
+        "positive_authenticated_result_sha256": "64cb79c879af65fdccd7b104b20e04fe6c6593b86d65a3b71e5572ce36b446be",
+        "positive_isError_true": false,
+        "positive_documents": [
+          "target-8a63c9832017.bin"
+        ],
+        "immutable_target_sha256": "8a63c98320173f79e263115e47d1fd4b5a70e4429d2699cae28",
+        "session_cleanup": "PASS",
+        "original_mcp_catalog": 208,
+        "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      },
+      "tools": [
+        {
+          "name": "list_documents",
+          "positive": 1,
+          "negative": 1,
+          "status": "FULLY_CERTIFIED_SCOPED_ORIGINAL_MCP",
+          "scope": "Original Linux REA MCP Ghidra 12.1.4, immutable /usr/bin/true ELF x86_64; list_documents returns current imported program identity, and without open target returns typed target_unavailable. No claim of multi-document capability for other providers."
+        }
+      ],
+      "new_dependencies": 0,
+      "original_bridge_unchanged": true,
+      "fully_certified_total": 79,
+      "remaining": 129
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 78,
-    "awaiting_canonical_individual_review": 130,
+    "functional_pass_scoped_distinct": 79,
+    "awaiting_canonical_individual_review": 129,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 18,
+    "workspace_newly_passed_distinct": 19,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 78,
+    "fully_certified_distinct": 79,
     "scoped_positive_not_fully_certified_distinct": 1,
-    "not_functionally_positive_distinct": 129,
-    "remaining_full_certification_distinct": 130
+    "not_functionally_positive_distinct": 128,
+    "remaining_full_certification_distinct": 129
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -5191,7 +5242,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P78-CONTROLLED-WEB-SCENARIO-DIFF-20261024",
+  "latest_phase": "LINUX-P79-GHIDRA-LIST-DOCUMENTS-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -6500,6 +6551,20 @@
       "positive_calls": 1,
       "negative_semantic_calls": 1,
       "negative_isError_true": false
+    },
+    "list_documents": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P79-GHIDRA-LIST-DOCUMENTS-20261024",
+      "scope": "Original Linux REA MCP Ghidra 12.1.4, immutable /usr/bin/true ELF x86_64; list_documents returns current imported program identity, and without open target returns typed target_unavailable. No claim of multi-document capability for other providers.",
+      "run_ids": [
+        40085404197,
+        40085521638
+      ],
+      "positive_evidence_sha256": "64cb79c879af65fdccd7b104b20e04fe6c6593b86d65a3b71e5572ce36b446be",
+      "negative_evidence_sha256": "eca4620e370287c362f3068285ad5a004c7fc14365eed510a34a9b57822ba10f",
+      "positive_calls": 1,
+      "negative_calls": 1,
+      "negative_isError_true": true
     }
   },
   "transport_incidents": [

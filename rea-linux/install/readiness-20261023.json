@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_78_FULLY_CERTIFIED_PROFILES_AND_130_PENDING",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_79_FULLY_CERTIFIED_PROFILES_AND_129_PENDING",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -1482,15 +1482,16 @@
     }
   },
   "latest_certification": {
-    "phase_id": "LINUX-P78-CONTROLLED-WEB-SCENARIO-DIFF-20261024",
-    "tool": "compare_web_captures",
-    "run_id": 40085095324,
-    "authenticated_result_sha256": "fd4428198aa502eeafd1b1df61b4159ead575cf23627930cf4af7d0372f0cd14",
-    "positive_and_negative": true,
-    "negative_isError": false,
-    "fully_certified": 78,
-    "pending": 130,
-    "scope": "controlled offline web-capture comparison",
+    "phase_id": "LINUX-P79-GHIDRA-LIST-DOCUMENTS-20261024",
+    "tool": "list_documents",
+    "negative_run_id": 40085404197,
+    "positive_run_id": 40085521638,
+    "authenticated_negative_sha256": "eca4620e370287c362f3068285ad5a004c7fc14365eed510a34a9b57822ba10f",
+    "authenticated_positive_sha256": "64cb79c879af65fdccd7b104b20e04fe6c6593b86d65a3b71e5572ce36b446be",
+    "ghidra_cleanup": "PASS",
+    "fully_certified": 79,
+    "pending": 129,
+    "scope": "Original Linux REA MCP Ghidra 12.1.4, immutable /usr/bin/true ELF x86_64; list_documents returns current imported program identity, and without open target returns typed target_unavailable. No claim of multi-document capability for other providers.",
     "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
   },
   "transport_status_after_ovh_renewal": {
@@ -1502,12 +1503,12 @@
     "original_mcp_response_verified": true
   },
   "latest_post_hygiene_verification": {
-    "run_id": 40083097257,
+    "run_id": 40085225674,
     "status": "SUCCESS",
     "catalog": 208,
     "validated_schemas": 208,
     "audited_contracts": 208,
-    "scope": "P77 cleanup; P80 pending cleanup"
+    "scope": "P78 cleanup; P79 cleanup pending"
   },
   "last_native_values_boundary": {
     "phase_id": "LINUX-P80-GHIDRA-NATIVE-VALUES-DEPTH-BOUND-20261024",
