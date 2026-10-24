@@ -86,6 +86,36 @@ jobs:
           sudo apt-get install -y -qq sshpass python3-cryptography python3-jsonschema > /dev/null
           /usr/bin/python3 -c "from cryptography.hazmat.primitives.ciphers.aead import AESGCM"
           /usr/bin/python3 -m unittest -v ops.tests.test_rea_secure_protocol_20261022 ops.tests.test_rea_describe_delivery_20261022
+      - name: P182 offline sigrok USB-free library build on disposable runner
+        if: contains(github.event.head_commit.message, 'P182 offline sigrok build trial')
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y -qq --no-install-recommends libglib2.0-dev libzip-dev pkg-config > /dev/null
+          root="$RUNNER_TEMP/rea-sigrok-offline-build"
+          mkdir -p "$root"
+          curl --fail --location --retry 2 --max-time 75 \
+            https://sigrok.org/download/source/libsigrok/libsigrok-0.5.2.tar.gz \
+            -o "$root/libsigrok-0.5.2.tar.gz"
+          printf '%s  %s\n' \
+            '4d341f90b6220d3e8cb251dacf726c41165285612248f2c52d15df4590a1ce3c' \
+            "$root/libsigrok-0.5.2.tar.gz" | sha256sum -c -
+          tar -xzf "$root/libsigrok-0.5.2.tar.gz" -C "$root"
+          cd "$root/libsigrok-0.5.2"
+          ./configure --prefix="$root/prefix" --disable-bindings \
+            --disable-all-drivers --without-libusb --without-libserialport \
+            --without-libftdi --without-libhidapi > "$root/configure.log" 2>&1 || {
+              tail -n 16 "$root/configure.log"; exit 1; }
+          make -j 2 > "$root/make.log" 2>&1 || {
+              tail -n 18 "$root/make.log"; exit 1; }
+          make install > "$root/install.log" 2>&1 || {
+              tail -n 18 "$root/install.log"; exit 1; }
+          test -f "$root/prefix/lib/libsigrok.so.4"
+          ! ldd "$root/prefix/lib/libsigrok.so.4" | grep -qi libusb
+          echo "REA_P182_SIGROK_SOURCE_SHA256=4d341f90b6220d3e8cb251dacf726c41165285612248f2c52d15df4590a1ce3c"
+          echo "REA_P182_SIGROK_BUILT_SHA256=$(sha256sum "$root/prefix/lib/libsigrok.so.4" | cut -d' ' -f1)"
+          echo "REA_P182_SIGROK_USB_LINK=NONE"
+          echo "REA_P182_SIGROK_BUILD=PASS_ON_EPHEMERAL_RUNNER"
       - name: Talk to existing REA over VPS loopback
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
