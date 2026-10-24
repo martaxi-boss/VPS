@@ -5270,7 +5270,17 @@
       "total_certified": 79,
       "pending": 129,
       "temporary_request_deleted": true,
-      "original_bridge_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      "original_bridge_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+      "post_cleanup_verification": {
+        "run_id": 40087051547,
+        "result": "SUCCESS",
+        "ssh_host_pin": "PASS",
+        "catalog": 208,
+        "validated_schemas": 208,
+        "audited_contracts": 208,
+        "bridge_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
+        "requests_directory_absent": true
+      }
     }
   ],
   "active_scope_counts": {
