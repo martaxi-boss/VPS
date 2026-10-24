@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_71_FULLY_CERTIFIED_137_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_73_FULLY_CERTIFIED_135_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -4612,21 +4612,101 @@
       "consumed_github_requests": "PASS_REMOVED_8_IN_CANONICAL_COMMIT",
       "certified_total": 71,
       "remaining": 137
+    },
+    {
+      "phase_id": "LINUX-P68-GHIDRA-BATCH-DECOMPILE-20261024",
+      "date_utc": "2026-10-24",
+      "status": "ONE_NEW_FULLY_CERTIFIED_SCOPED_GHIDRA_BATCH_DECOMPILATION_PROFILE_WITH_ONE_POSITIVE_TRACE_PENDING_NEGATIVE_CLASSIFICATION",
+      "source": "Original Linux owner VPS REA MCP over existing bridge, Ghidra 12.1.4 controlled /usr/bin/true ELF",
+      "proof": {
+        "run_id": 40054079758,
+        "commit": "8ef6bdf3b6c01f227f9aaa93d7e9686430fffde7",
+        "encrypted_artifact_id": 12544088442,
+        "request_sha256": "426a3904c9c289ed36845a38bff1c8d3960f8db3eaa66f69ee174f837e80f5a8",
+        "authenticated_result_sha256": "aff4a29ccb97a2d246037c01bd7736c2ec95144c7d5dd126bd70671b0c79e21b",
+        "request_matched": true,
+        "original_mcp_catalog": 208,
+        "ghidra_cleanup": "PASS",
+        "real_mcp_steps": 5,
+        "positive_scoped_batch": 1,
+        "per_item_negative_semantic": 1,
+        "trace_native_values_positive": 1,
+        "trace_native_values_negative_isError_true": true,
+        "trace_negative_error_category": "execution_failure",
+        "trace_negative_error_code": "unreadable_output",
+        "trace_not_fully_certified": true,
+        "known_immutable_target_sha256": "8a63c98320173f79e263115e10cefc170155e47d1fd4b5a70e4429d2699cae28"
+      },
+      "tools": [
+        {
+          "name": "batch_decompile",
+          "positive": 1,
+          "negative_semantic": 1,
+          "status": "FULLY_CERTIFIED_SCOPED_ORIGINAL_MCP",
+          "scope": "Original Linux REA MCP Ghidra 12.1.4 /usr/bin/true x86_64: batch_decompile([{0x101480,0x101260}]) returned two separately identified, real decompiler outputs (succeeded=2,failed=0), including CALL/abort() code and warning; invalid 0x200000 returned per-item invalid_request/invalid_input, failed=1, without pseudocode and with container isError not true, as specified by aggregate partial-failure contract."
+        }
+      ],
+      "positive_pending_tool": {
+        "name": "trace_native_values",
+        "status": "PENDING_NEGATIVE_DIAGNOSTIC_FIX",
+        "observation": "trace_native_values on valid 0x101480 returned real static high-pcode/def-use graph and direct call edges 0x101480->0x101260->0x107010 with stated budgets. Invalid 0x200000 refused with isError=true but incorrectly classified as unreadable_output/execution_failure (message: No seed function could be analyzed) rather than invalid_input; leave PENDING_NEGATIVE_DIAGNOSTIC_FIX, no full certification.",
+        "positive_run_id": 40054079758,
+        "positive_evidence_sha256": "aff4a29ccb97a2d246037c01bd7736c2ec95144c7d5dd126bd70671b0c79e21b"
+      },
+      "new_dependencies": 0,
+      "original_bridge_unchanged": true,
+      "consumed_request_removed_in_canonical_commit": true,
+      "fully_certified_total": 72
+    },
+    {
+      "phase_id": "LINUX-P69-GHIDRA-DEFINED-DATA-TYPE-20261024",
+      "date_utc": "2026-10-24",
+      "status": "ONE_NEW_FULLY_CERTIFIED_SCOPED_NATIVE_DEFINED_DATA_TYPE_PROFILE",
+      "source": "Original Linux owner VPS REA MCP with Ghidra 12.1.4",
+      "proof": {
+        "run_id": 40054155230,
+        "commit": "3618e6e91dfc0d211b71f51573b65ad1fe54d200",
+        "encrypted_artifact_id": 12544532654,
+        "request_sha256": "c6e0877aac9ea8542dd9ea6a9ca9458d108643b7748b05991aed26ca40cf6aee",
+        "authenticated_result_sha256": "6b4de229e243b24cd0735b0b9bfad2011f0a3cb98ca6dd7d568dbcb6b8688e57",
+        "request_matched": true,
+        "original_mcp_catalog": 208,
+        "ghidra_cleanup": "PASS",
+        "real_mcp_steps": 3,
+        "positive_defined_type": 1,
+        "negative_typed_unavailable": 1,
+        "negative_isError_true": false,
+        "known_immutable_target_sha256": "8a63c98320173f79e263115e10cefc170155e47d1fd4b5a70e4429d2699cae28"
+      },
+      "tools": [
+        {
+          "name": "inspect_native_data_type",
+          "positive": 1,
+          "negative_semantic": 1,
+          "status": "FULLY_CERTIFIED_SCOPED_ORIGINAL_MCP",
+          "scope": "Original Linux REA MCP Ghidra 12.1.4 /usr/bin/true x86_64: inspect_native_data_type(address=0x100318) reported actual defined TerminatedCString scalar data type (/TerminatedCString) alignment=1 and source=analysis-database; outside-memory 0x200000 returned typed status=unavailable, kind=unavailable, id/name null and reason=no exact database type or defined typed data; no invented field layout/size."
+        }
+      ],
+      "new_dependencies": 0,
+      "original_bridge_unchanged": true,
+      "consumed_request_removed_in_canonical_commit": true,
+      "fully_certified_total": 73,
+      "remaining": 135
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 71,
-    "awaiting_canonical_individual_review": 137,
+    "functional_pass_scoped_distinct": 73,
+    "awaiting_canonical_individual_review": 135,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 71,
-    "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 137,
-    "remaining_full_certification_distinct": 137
+    "fully_certified_distinct": 73,
+    "scoped_positive_not_fully_certified_distinct": 1,
+    "not_functionally_positive_distinct": 134,
+    "remaining_full_certification_distinct": 135
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -4656,7 +4736,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P65-GHIDRA-ADVANCED-FOUR-SCOPED-FUNCTION-PROFILES-20261024",
+  "latest_phase": "LINUX-P69-GHIDRA-DEFINED-DATA-TYPE-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -5875,6 +5955,30 @@
       "positive_calls": 1,
       "negative_calls": 1,
       "negative_isError_true": true
+    },
+    "batch_decompile": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P68-GHIDRA-BATCH-DECOMPILE-20261024",
+      "scope": "Original Linux REA MCP Ghidra 12.1.4 /usr/bin/true x86_64: batch_decompile([{0x101480,0x101260}]) returned two separately identified, real decompiler outputs (succeeded=2,failed=0), including CALL/abort() code and warning; invalid 0x200000 returned per-item invalid_request/invalid_input, failed=1, without pseudocode and with container isError not true, as specified by aggregate partial-failure contract.",
+      "run_ids": [
+        40054079758
+      ],
+      "positive_evidence_sha256": "aff4a29ccb97a2d246037c01bd7736c2ec95144c7d5dd126bd70671b0c79e21b",
+      "negative_evidence_sha256": "aff4a29ccb97a2d246037c01bd7736c2ec95144c7d5dd126bd70671b0c79e21b",
+      "positive_calls": 1,
+      "negative_semantic_calls": 1
+    },
+    "inspect_native_data_type": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P69-GHIDRA-DEFINED-DATA-TYPE-20261024",
+      "scope": "Original Linux REA MCP Ghidra 12.1.4 /usr/bin/true x86_64: inspect_native_data_type(address=0x100318) reported actual defined TerminatedCString scalar data type (/TerminatedCString) alignment=1 and source=analysis-database; outside-memory 0x200000 returned typed status=unavailable, kind=unavailable, id/name null and reason=no exact database type or defined typed data; no invented field layout/size.",
+      "run_ids": [
+        40054155230
+      ],
+      "positive_evidence_sha256": "6b4de229e243b24cd0735b0b9bfad2011f0a3cb98ca6dd7d568dbcb6b8688e57",
+      "negative_evidence_sha256": "6b4de229e243b24cd0735b0b9bfad2011f0a3cb98ca6dd7d568dbcb6b8688e57",
+      "positive_calls": 1,
+      "negative_semantic_calls": 1
     }
   }
 }
