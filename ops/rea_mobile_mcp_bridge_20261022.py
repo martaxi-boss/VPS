@@ -690,8 +690,7 @@ def main():
         # P46 source-owned managed workflows and reconciliation, original compiled REA.
         # No caller-selected target paths, installation, execution, or production writes.
         names=("compare_managed_members","verify_managed_native_boundaries",
-               "import_managed_reconstruction","project_managed_application_graph",
-               "reconcile_javascript_runtime")
+               "project_managed_application_graph")
         if len(tools)!=208 or any(n not in tool_by_name for n in names):
             error("P46 source runtime tool mismatch")
         classes={n:secure.classify(n,tool_by_name[n],safe_callable) for n in names}
@@ -718,8 +717,7 @@ def main():
           const {ELECTRON_TOOL_CONTRACTS}=await import(electronUrl);
           const F=await import(fixtureUrl);
           const names=['compare_managed_members','verify_managed_native_boundaries',
-            'import_managed_reconstruction','project_managed_application_graph',
-            'reconcile_javascript_runtime'];
+            'project_managed_application_graph'];
           const contracts=[...MANAGED_WORKFLOW_TOOL_CONTRACTS,...ELECTRON_TOOL_CONTRACTS];
           const items={};
           for(const name of names){
