@@ -489,7 +489,10 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SDIAG_PID_ENV_READ",
         "REA_SDIAG_PID_ENV_SIZE",
         "REA_SDIAG_PID_PROVIDER_KEYS",
-        "REA_SDIAG_STATUS"
+        "REA_SDIAG_STATUS",
+        "REA_P44_FEATURE","REA_P44_SEMANTIC","REA_P44_SOURCE","REA_P44_FUNCTIONS",
+        "REA_P44_PATH","REA_P44_CHANGED","REA_P44_PROCESS","REA_P44_ARTIFACTS",
+        "REA_P44_SERVICE","REA_P44_STATUS"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -683,6 +686,216 @@ def main():
         print("REA_MOBILE_TOOL_ERROR=" + str(any(r["status"] != "PASS" for r in records)).lower())
         print("REA_MOBILE_PRIVATE_RESULT_B64=" + base64.b64encode(raw).decode())
         return
+    if data["action"] == "fixture_static_files_v2":
+        # P44 deterministic original-REA official examples and truthful branch checks.
+        # No package installation, target execution, or mutations.
+        import subprocess, json, hashlib, base64
+        from pathlib import Path
+        NAMES=("trace_application_feature","trace_javascript_semantics",
+          "compare_source_to_bundle","compare_functions","build_call_path",
+          "find_changed_behavior","compare_process_captures","compare_artifacts")
+        if len(tools)!=208 or any(n not in tool_by_name for n in NAMES):
+            error("P44 original MCP catalog/tool missing")
+        risks={n:secure.classify(n,tool_by_name[n],safe_callable) for n in NAMES}
+        if any(x=="sensitive" for x in risks.values()):
+            error("P44 would require independent owner signature")
+        repo=Path("/opt/rea-reversa/rea")
+        source=Path.home()/".local/share/rea-chatgpt-trial/repository/rea"
+        node=Path.home()/".local/share/rea-chatgpt-trial/tools/node-24.15.0/bin/node"
+        contracts=[repo/"dist/contracts/applicationToolContracts.js",
+                   repo/"dist/contracts/sessionToolContracts.js",
+                   repo/"dist/contracts/investigationExamples.js"]
+        if not node.is_file() or any(not p.is_file() for p in contracts):
+            error("P44 existing Node24 original compiled contracts absent")
+        pidp=subprocess.run(["systemctl","show","rea-reversa-mcp.service","-p","MainPID","--value"],
+            capture_output=True,text=True,timeout=14,check=False)
+        beforepid=pidp.stdout.strip()
+        gitbefore=subprocess.run(["git","-C",str(source),"status","--porcelain"],
+            capture_output=True,text=True,timeout=14,check=False)
+        js=r"""
+          const names=JSON.parse(process.argv[1]);
+          const [app,session,inv]=await Promise.all([
+            import(process.argv[2]),import(process.argv[3]),import(process.argv[4])
+          ]);
+          const contracts=[...app.APPLICATION_TOOL_CONTRACTS,...session.SESSION_TOOL_CONTRACTS];
+          const samples={};
+          for(const name of names){
+            const obj=contracts.find(x=>x.name===name);
+            if(!obj||obj.examples.length<1)throw Error('original example missing '+name);
+            samples[name]=obj.examples[0].input;
+          }
+          const pr=inv.PROCESS_COMPARISON_EVIDENCE;
+          const fn=inv.FUNCTION_COMPARISON_EVIDENCE;
+          samples.__combined_changed_behavior={comparisons:[pr,fn]};
+          samples.__untrusted_comparison={comparisons:[samples.compare_functions.left]};
+          process.stdout.write(JSON.stringify(samples));
+        """
+        generated=subprocess.run([str(node),"--input-type=module","-e",js,
+                json.dumps(NAMES),*[p.as_uri() for p in contracts]],
+                cwd=str(repo),capture_output=True,text=True,timeout=100,check=False,
+                env={**os.environ,"NODE_OPTIONS":"--max-old-space-size=1536"})
+        if generated.returncode or not generated.stdout:
+            diagnostics={"stage":"COMPILED_EXAMPLES_UNAVAILABLE","return_code":generated.returncode,
+                "stderr":generated.stderr[-2500:],"stdout":generated.stdout[-800:]}
+            raw=json.dumps(diagnostics,sort_keys=True).encode()
+            print("REA_P44_STATUS=FIXTURE_GENERATION_FAILED")
+            print("REA_MOBILE_TOOL_ERROR=true")
+            print("REA_MOBILE_OUTPUT_SHA256="+hashlib.sha256(raw).hexdigest())
+            print("REA_MOBILE_PRIVATE_RESULT_B64="+base64.b64encode(raw).decode())
+            return
+        examples=json.loads(generated.stdout)
+        calls=[]
+        def do(name,args,case,expected="success",oracle=None):
+            _,reply=request_mcp({"jsonrpc":"2.0","id":4400+len(calls),
+                "method":"tools/call","params":{"name":name,"arguments":args}},session,protocol,timeout=105)
+            result=reply.get("result")
+            iserror=result.get("isError") if isinstance(result,dict) else None
+            structured=result.get("structuredContent") if isinstance(result,dict) else None
+            normalized=structured.get("normalized_result") if isinstance(structured,dict) else None
+            proto="error" in reply
+            verified=(iserror is True and not proto) if expected=="rejected" else False
+            facts={}
+            if expected=="success" and isinstance(normalized,dict) and iserror is not True and not proto:
+                if name=="trace_application_feature":
+                    sm=normalized.get("summary")
+                    cv=normalized.get("coverage")
+                    matches=normalized.get("seed_matches")
+                    verified=(isinstance(sm,dict) and isinstance(cv,dict)
+                         and isinstance(matches,list) and
+                         sm.get("matched_seeds")==len(matches)
+                         and sm.get("matched_seeds",0)>0
+                         and cv.get("status") in ("complete-within-source","partial","no-match"))
+                    if case=="nonexistent-module":
+                        verified=(isinstance(sm,dict) and sm.get("matched_seeds")==0
+                          and cv.get("status")=="no-match")
+                    facts={"summary":sm,"coverage":cv}
+                elif name=="trace_javascript_semantics":
+                    sm=normalized.get("summary")
+                    verified=(isinstance(sm,dict)
+                          and normalized.get("status") in ("found","no-match","ambiguous","partial","unsupported")
+                          and isinstance(normalized.get("nodes"),list)
+                          and sm.get("total_seed_matches")==len(normalized.get("seed_node_ids",[]))
+                          and isinstance(normalized.get("source_graph_id"),str))
+                    facts={"status":normalized.get("status"),"summary":sm,"coverage":normalized.get("coverage")}
+                elif name=="compare_source_to_bundle":
+                    sm=normalized.get("summary")
+                    items=normalized.get("items")
+                    cov=normalized.get("coverage")
+                    keys=("unchanged","modified","removed","split","merged","duplicated","unknown")
+                    verified=(isinstance(sm,dict) and isinstance(items,list)
+                      and all(isinstance(sm.get(k),int) for k in keys)
+                      and sum(sm[k] for k in keys)==len(items)
+                      and isinstance(cov,dict)
+                      and isinstance(normalized.get("scoring"),dict)
+                      and normalized["scoring"].get("algorithm")=="rea-source-to-bundle-signals")
+                    facts={"summary":sm,"coverage":cov}
+                elif name=="compare_functions":
+                    sm=normalized.get("summary")
+                    dims=normalized.get("dimensions")
+                    verified=(isinstance(sm,dict) and isinstance(dims,list)
+                      and len(dims)==8 and sm.get("changed",0)>0
+                      and normalized.get("status")=="changed"
+                      and any(x.get("dimension")=="pseudocode" and x.get("status")=="changed" for x in dims)
+                      and sum(sm.get(k,0) for k in ("unchanged","changed","unknown"))==8)
+                    facts={"status":normalized.get("status"),"summary":sm,
+                           "pseudocode":[x for x in dims if x.get("dimension")=="pseudocode"]}
+                elif name=="build_call_path":
+                    status=normalized.get("status")
+                    paths=normalized.get("paths")
+                    verified=(status in ("found","not_found","unknown") and isinstance(paths,list)
+                      and isinstance(normalized.get("explored"),dict))
+                    if case=="start-goal-same":
+                        verified=(verified and status=="found" and normalized.get("shortest_hops")==0
+                          and len(paths)>=1 and paths[0].get("hops")==0)
+                    if case=="unreachable":
+                        verified=(verified and status in ("not_found","unknown") and paths==[])
+                    facts={"status":status,"path_count":len(paths) if isinstance(paths,list) else None,
+                      "shortest_hops":normalized.get("shortest_hops"),"explored":normalized.get("explored")}
+                elif name=="find_changed_behavior":
+                    sm=normalized.get("summary")
+                    items=(normalized.get("findings") or {}).get("items")
+                    verified=(isinstance(sm,dict) and isinstance(items,list)
+                       and sum(sm.get(k,0) for k in ("observed_changes","static_candidates","contradictions","unresolved"))==len(items)
+                       and sm.get("static_candidates",0)>0
+                       and normalized.get("behavior_status") in ("unknown","observed_changed","observed_unchanged","truncated"))
+                    if case=="static-plus-runtime":
+                        verified=verified and normalized.get("behavior_status") in ("observed_unchanged","unknown","truncated")
+                    facts={"behavior_status":normalized.get("behavior_status"),"summary":sm}
+                elif name=="compare_process_captures":
+                    status=normalized.get("status")
+                    verified=(status in ("unchanged","changed","unknown","truncated")
+                      and isinstance(normalized.get("first_divergence"),dict)
+                      and all(k in normalized for k in ("terminal","interaction","exit","filesystem","process")))
+                    facts={"status":status,"terminal":normalized.get("terminal"),"first_divergence":normalized.get("first_divergence")}
+                elif name=="compare_artifacts":
+                    sm=normalized.get("summary")
+                    verified=(isinstance(sm,dict) and isinstance(normalized.get("changes"),list)
+                     and normalized.get("status") in ("changed","unchanged","unknown","truncated"))
+                    facts={"status":normalized.get("status"),"summary":sm}
+            response_bytes=json.dumps(reply,sort_keys=True,ensure_ascii=True).encode()
+            item={"tool":name,"case":case,"kind":expected,"pass":bool(verified),
+              "isError":iserror,"protocol_error":proto,
+              "response_sha256":hashlib.sha256(response_bytes).hexdigest(),**facts}
+            if not verified:item["diagnostic"]=json.dumps(structured if structured is not None else reply,
+              sort_keys=True,ensure_ascii=True)[:4500]
+            calls.append(item)
+        for name in NAMES:
+            arg=examples[name]
+            secure.validate_arguments(tool_by_name[name],arg)
+            case="start-goal-same" if name=="build_call_path" else "official-authenticated-example"
+            do(name,arg,case)
+            if name=="trace_application_feature":
+                alt={**arg,"seed":{"kind":"module","value":"rea-p44-no-such-module","match":"exact","case_sensitive":False}}
+                secure.validate_arguments(tool_by_name[name],alt)
+                do(name,alt,"nonexistent-module")
+            if name=="build_call_path":
+                alt={**arg,"goal":{"address":"0xdeadbeef"}}
+                secure.validate_arguments(tool_by_name[name],alt)
+                do(name,alt,"unreachable")
+            if name=="find_changed_behavior":
+                alt=examples["__combined_changed_behavior"]
+                secure.validate_arguments(tool_by_name[name],alt)
+                do(name,alt,"static-plus-runtime")
+                do(name,examples["__untrusted_comparison"],"reject-untrusted-comparison",expected="rejected")
+            for label,invalid in [("missing-required",{}),
+                ("unknown-property",{**arg,"rea_unrecognized":True})]:
+                do(name,invalid,label,expected="rejected")
+        gitafter=subprocess.run(["git","-C",str(source),"status","--porcelain"],
+              capture_output=True,text=True,timeout=12,check=False)
+        pidafter=subprocess.run(["systemctl","show","rea-reversa-mcp.service","-p","MainPID","--value"],
+              capture_output=True,text=True,timeout=12,check=False)
+        code_stable=gitbefore.returncode==gitafter.returncode==0 and gitbefore.stdout==gitafter.stdout
+        service_stable=beforepid.isdecimal() and beforepid==pidafter.stdout.strip()
+        summaries={}
+        for name in NAMES:
+            arr=[x for x in calls if x["tool"]==name]
+            summaries[name]={"passed":sum(x["pass"] for x in arr),"total":len(arr),
+              "positives":sum(x["pass"] for x in arr if x["kind"]=="success"),
+              "negatives":sum(x["pass"] for x in arr if x["kind"]=="rejected")}
+            label={"trace_application_feature":"FEATURE","trace_javascript_semantics":"SEMANTIC",
+                   "compare_source_to_bundle":"SOURCE","compare_functions":"FUNCTIONS",
+                   "build_call_path":"PATH","find_changed_behavior":"CHANGED",
+                   "compare_process_captures":"PROCESS","compare_artifacts":"ARTIFACTS"}[name]
+            print("REA_P44_"+label+"="+str(summaries[name]["passed"])+"/"+str(summaries[name]["total"]))
+        allpass=(len(tools)==208 and code_stable and service_stable and
+          all(x["pass"] for x in calls))
+        print("REA_P44_SOURCE="+("PASS" if code_stable else "FAIL"))
+        print("REA_P44_SERVICE="+("PASS" if service_stable else "FAIL"))
+        print("REA_P44_STATUS="+("ALL_PASS" if allpass else "REVIEW_INDIVIDUAL"))
+        result={"phase":"LINUX-P44-COMPOSITION-WORKFLOWS-20261024",
+          "installed_contract_sha256":{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in contracts},
+          "original_mcp_catalog":len(tools),
+          "source_checkout_unchanged":code_stable,"mcp_pid_unchanged":service_stable,
+          "risk_classifications":risks,"cases":calls,"summary":summaries,"all_pass":allpass}
+        raw=json.dumps(result,sort_keys=True,ensure_ascii=True).encode()
+        print("REA_MOBILE_TOOL_ERROR="+str(not allpass).lower())
+        print("REA_MOBILE_OUTPUT_BYTES="+str(len(raw)))
+        print("REA_MOBILE_OUTPUT_SHA256="+hashlib.sha256(raw).hexdigest())
+        if len(raw)>MAX_RESPONSE or os.environ.get("REA_MOBILE_ENVELOPE_CAPTURE")!="1":
+            error("P44 private original MCP case evidence must be encrypted")
+        print("REA_MOBILE_PRIVATE_RESULT_B64="+base64.b64encode(raw).decode())
+        return
+
     if data["action"] in ("fixture_static_files", "fixture_static_files_v2"):
         # Fixed source-owned inputs; never a caller-selected path, URL or code.
         import tempfile
