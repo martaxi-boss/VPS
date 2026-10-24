@@ -100,7 +100,7 @@ def validate(data):
                   "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
-    elif action in ("fixture_rea_artifact", "fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
+    elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
         # Named system-owned ELF only; never an arbitrary caller-selected path.
         if set(data) != {"version", "action", "response_key"}:
             error("Ghidra inspection fixture accepts only a public reply key")
@@ -506,7 +506,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         if private is not None:
             error("Unexpected private response")
         return
-    if request["action"] not in ("call", "sealed_batch", "fixture_rea_artifact", "fixture_apkdemos", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump") or private is None:
+    if request["action"] not in ("call", "sealed_batch", "fixture_apkdemos", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump") or private is None:
         error("Missing encrypted-return payload from REA")
     public = serialization.load_der_public_key(
         base64.b64decode(request["response_key"], validate=True)
@@ -2738,126 +2738,6 @@ def main():
                                      sort_keys=True).encode()
             print(marker + "=PASS")
             print(marker + "_SHA256=" + hashlib.sha256(data_bytes).hexdigest())
-        return
-    if data["action"] == "fixture_rea_artifact":
-        # One-use, hardcoded original REA Apple source fixtures. No caller-selected paths.
-        import tempfile, zipfile, shutil
-        root = Path.home() / ".local/share/rea-chatgpt-trial"
-        source = root / "repository/rea"
-        mach = source / "src/artifacts/apple/MachoImage.fixture.ts"
-        nib = source / "tests/fixtures/interface-builder/UIKitOutlet.xml"
-        keyed = source / "tests/fixtures/golden/keyed-archive/foundation.xml"
-        node = root / "tools/node-24.15.0/bin/node"
-        if not all(p.is_file() for p in (mach,nib,keyed,node)):
-            error("Original REA Apple public conformance source fixture missing")
-        reports = []
-        with tempfile.TemporaryDirectory(prefix="rea-apple-static-", dir="/dev/shm") as folder:
-            stage=Path(folder)
-            stage.chmod(0o755)
-            app=stage/"Fixture.app"
-            resources=app/"Contents/Resources"
-            executables=app/"Contents/MacOS"
-            frameworks=app/"Contents/Frameworks"
-            for directory in (resources,executables,frameworks):
-                directory.mkdir(parents=True, exist_ok=True,mode=0o755)
-            executable=executables/"App"
-            lib=frameworks/"libcore.dylib"
-            script=(
-                "import{writeFileSync}from'node:fs';"
-                "const m=await import(process.argv[1]);"
-                "writeFileSync(process.argv[2],m.machoImage({commands:["
-                "m.buildVersionCommand(1),"
-                "m.rpathCommand('@executable_path/../Frameworks'),"
-                "m.dylibCommand(m.LC.LOAD_DYLIB,'@rpath/libcore.dylib'),"
-                "m.dylibCommand(m.LC.LOAD_DYLIB,'@rpath/libmissing.dylib')]}));"
-                "writeFileSync(process.argv[3],m.machoImage({"
-                "fileType:m.FILE_TYPE.dylib,commands:[m.buildVersionCommand(1)]}));"
-            )
-            generated=subprocess.run([str(node),"--input-type=module","-e",script,
-                mach.as_uri(),str(executable),str(lib)],capture_output=True,
-                text=True,timeout=24,check=False)
-            if generated.returncode or not executable.is_file() or not lib.is_file():
-                error("Original REA Mach-O fixture generation failed: "+
-                      next((l[:150] for l in generated.stderr.splitlines()
-                            if "Error:" in l), "missing output"))
-            (app/"Contents/Info.plist").write_text(
-                "<plist><dict><key>CFBundleExecutable</key><string>App</string></dict></plist>")
-            shutil.copyfile(nib,resources/"Main.nib")
-            shutil.copyfile(keyed,resources/"Model.plist")
-            empty=stage/"Empty.app"
-            (empty/"Contents/MacOS").mkdir(parents=True,mode=0o755)
-            (empty/"Contents/Info.plist").write_text(
-                "<plist><dict><key>CFBundleExecutable</key><string>App</string></dict></plist>")
-            shutil.copyfile(executable,empty/"Contents/MacOS/App")
-            positive=stage/"public-good.zip"
-            negative=stage/"public-corrupt.zip"
-            marker=b"PUBLIC-REA-CONTROLLED-ZIP-ENTRY"
-            with zipfile.ZipFile(positive,"w",compression=zipfile.ZIP_STORED) as z:
-                z.writestr("data.txt",marker)
-            raw=bytearray(positive.read_bytes())
-            at=raw.index(marker)
-            raw[at] ^= 1
-            negative.write_bytes(raw)
-            for p in stage.rglob("*"):
-                p.chmod(0o755 if p.is_dir() else 0o644)
-            hashes={str(p.relative_to(stage)):hashlib.sha256(p.read_bytes()).hexdigest()
-                    for p in stage.rglob("*") if p.is_file()}
-            def call(name,args,label):
-                if name not in tool_by_name:
-                    error("Original artifact MCP tool missing: "+name)
-                secure.validate_arguments(tool_by_name[name],args)
-                secure._authorized_target_paths(args,additional_roots=(stage,))
-                _,response=request_mcp({"jsonrpc":"2.0","id":1300+len(reports),
-                    "method":"tools/call","params":{"name":name,"arguments":args}},
-                    session,protocol,timeout=125)
-                value=response.get("result")
-                accepted=("error" not in response and isinstance(value,dict)
-                          and value.get("isError") is not True)
-                reports.append({"name":name,"test":label,"isError":not accepted,
-                    "result":value,"protocol_error":response.get("error")})
-                return accepted
-            def inspect_session(target,label,queries):
-                opening_args={"path":str(target)}
-                if target.suffix == ".app":
-                    opening_args["provider_id"]="ghidra"
-                opened=call("open_binary",opening_args,label+"-open")
-                try:
-                    if opened:
-                        for name,args,test in queries:
-                            call(name,args,label+"-"+test)
-                finally:
-                    if opened and not call("close_binary",{},label+"-cleanup"):
-                        error("Original artifact session cleanup failed")
-            inspect_session(app,"apple-app",[
-                ("decode_interface_builder",{"detail":"summary"},"interface-summary"),
-                ("decode_interface_builder",{},"interface-full"),
-                ("trace_dylib_resolution",{},"dylib-resolved-and-absent"),
-                ("trace_dylib_resolution",{"roots":["Contents/MacOS/Absent"]},"dylib-unknown-root")
-            ])
-            inspect_session(empty,"empty-app",[
-                ("decode_interface_builder",{},"no-nib-documents")
-            ])
-            inspect_session(positive,"zip-negative",[
-                ("decode_interface_builder",{},"reject-non-app"),
-                ("trace_dylib_resolution",{},"reject-non-macho")
-            ])
-            if any(not (stage / k).is_file() or
-                   hashlib.sha256((stage / k).read_bytes()).hexdigest()!=h
-                   for k,h in hashes.items()):
-                error("Original source-owned artifact fixture changed during MCP calls")
-        if stage.exists():
-            error("Artifact fixture directory cleanup failed")
-        output={"records":reports,"fixture_hashes":hashes,"cleanup":"PASS",
-                "inputs_unchanged":True,
-                "origin":"REA MachoImage.fixture.ts + UIKitOutlet.xml + foundation.xml"}
-        raw=json.dumps(output,sort_keys=True,ensure_ascii=True).encode()
-        if len(raw)>MAX_RESPONSE or os.environ.get("REA_MOBILE_ENVELOPE_CAPTURE")!="1":
-            error("Public artifact tool calls require bounded encrypted return")
-        print("REA_MOBILE_OUTPUT_BYTES="+str(len(raw)))
-        print("REA_MOBILE_OUTPUT_SHA256="+hashlib.sha256(raw).hexdigest())
-        print("REA_MOBILE_TOOL_ERROR="+str(any(r["isError"] for r in reports)).lower())
-        print("REA_ARTIFACT_FIXED_CLEANUP=PASS")
-        print("REA_MOBILE_PRIVATE_RESULT_B64="+base64.b64encode(raw).decode("ascii"))
         return
     if data["action"] == "fixture_portable_formats":
         # Fixed source-owned fixtures, never fetched from private customers.
