@@ -90,14 +90,14 @@ def require_rsa_response_key(encoded):
 
 def validate(data):
     if not isinstance(data, dict) or set(data) - {
-        "version", "action", "tool", "arguments", "response_key", "sealed", "targets"
+        "version", "action", "tool", "arguments", "response_key", "sealed"
     }:
         error("Unknown request fields")
     if data.get("version") != 1:
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_hygiene_inventory"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -123,15 +123,6 @@ def validate(data):
                 or not re.fullmatch(r"[A-Za-z0-9+/=]{340,1800}",
                                     data["response_key"])):
             error("Android fixture requires a public RSA reply key")
-    elif action == "fixture_linux_hygiene_remove":
-        if set(data) != {"version", "action", "targets"}:
-            error("Hygiene cleanup requires explicit audited candidate fingerprints")
-        targets = data["targets"]
-        if (not isinstance(targets, list) or not 1 <= len(targets) <= 20 or
-                len(set(map(str, targets))) != len(targets) or
-                not all(isinstance(v, str) and re.fullmatch(r"[0-9a-f]{64}", v)
-                        for v in targets)):
-            error("Invalid exact-match cleanup fingerprints")
     elif action == "sealed_batch":
         if set(data) != {"version", "action", "sealed", "response_key"}:
             error("Sealed batch must carry a public reply key and sealed request")
@@ -498,11 +489,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SDIAG_PID_ENV_READ",
         "REA_SDIAG_PID_ENV_SIZE",
         "REA_SDIAG_PID_PROVIDER_KEYS",
-        "REA_SDIAG_STATUS",
-        "REA_VPS_HYGIENE_STATUS", "REA_VPS_HYGIENE_INVENTORY",
-        "REA_VPS_HYGIENE_MCP_CATALOG",
-        "REA_VPS_HYGIENE_DELETE_COUNT",
-        "REA_VPS_HYGIENE_DELETED_FINGERPRINTS"
+        "REA_SDIAG_STATUS"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -513,7 +500,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         elif "=" in line:
             k, value = line.split("=", 1)
             if k in allowed_markers:
-                markers[k] = value[:8000] if k == "REA_VPS_HYGIENE_INVENTORY" else (value[:1500] if k == "REA_SECURE_REQUEST_PUBLIC_KEY_B64" else value[:24000] if k in ("REA_MOBILE_TOOL_DESCRIPTOR_B64", "REA_VPS_HYGIENE_DELETED_FINGERPRINTS") else (value[:1200] if k in ("REA_AUDIT_PROVIDER_SECTIONS", "REA_AUDIT_PROVIDER_NAMES") else value[:300]))
+                markers[k] = value[:1500] if k == "REA_SECURE_REQUEST_PUBLIC_KEY_B64" else value[:24000] if k == "REA_MOBILE_TOOL_DESCRIPTOR_B64" else (value[:1200] if k in ("REA_AUDIT_PROVIDER_SECTIONS", "REA_AUDIT_PROVIDER_NAMES") else value[:300])
                 print(k + "=" + markers[k])
     if "response_key" not in request:
         if private is not None:
@@ -643,151 +630,6 @@ def main():
     print("REA_MOBILE_CATALOG_SAMPLE=" + json.dumps(
         list(tool_by_name)[:14], ensure_ascii=True
     ))
-    if data["action"] in ("fixture_linux_hygiene_inventory", "fixture_linux_hygiene_remove"):
-        # Temporary, owner-requested hygiene ONLY for stale disposable REA bridge
-        # scratch. No service restart, package uninstall, HOME key access,
-        # recursive scans outside fixed temp roots, or external MCP calls.
-        import time, stat, shutil
-        roots = (Path("/dev/shm"), Path("/tmp"), Path("/var/tmp"))
-        scratch_prefixes = (
-            "rea-public-managed-", "rea-public-static-", "rea-real-gdb-",
-            "rea-public-portable-", "rea-public-android-", "rea-fixture-",
-        )
-        def fingerprint(root, name, st):
-            material = ("%s/%s:%s:%s:%s:%s" % (
-                root, name, st.st_dev, st.st_ino, st.st_mtime_ns, st.st_uid))
-            return hashlib.sha256(material.encode("utf-8")).hexdigest()
-        report = {"root_scan": {}, "eligible": [], "observed_rea_temp": 0,
-                  "service": {}, "installation": {}, "owner_key": {},
-                  "scan_limit_reached": False}
-        for root in roots:
-            scan = {"scanned": 0, "rea_named": 0, "eligible": 0, "unsafe": 0}
-            report["root_scan"][str(root)] = scan
-            if not root.is_dir() or root.is_symlink():
-                continue
-            try:
-                with os.scandir(str(root)) as listing:
-                    for entry in listing:
-                        scan["scanned"] += 1
-                        if scan["scanned"] > 3000:
-                            report["scan_limit_reached"] = True
-                            break
-                        if not entry.name.startswith(("rea-", "rea_", "sigrok-")):
-                            continue
-                        scan["rea_named"] += 1
-                        report["observed_rea_temp"] += 1
-                        try:
-                            st = entry.stat(follow_symlinks=False)
-                            if stat.S_ISLNK(st.st_mode):
-                                scan["unsafe"] += 1
-                                continue
-                            owned = st.st_uid == os.geteuid()
-                            aged = time.time() - st.st_mtime >= 7200
-                            disposable = entry.name.startswith(scratch_prefixes)
-                            ordinary = stat.S_ISDIR(st.st_mode) or stat.S_ISREG(st.st_mode)
-                            same_device = st.st_dev == root.stat().st_dev
-                            if not (owned and aged and disposable and ordinary and same_device):
-                                scan["unsafe"] += 1
-                                continue
-                            scan["eligible"] += 1
-                            report["eligible"].append({
-                                "fingerprint": fingerprint(root, entry.name, st),
-                                "root": str(root), "name_sha256": hashlib.sha256(
-                                    entry.name.encode("utf-8")).hexdigest()[:16],
-                                "kind": "dir" if stat.S_ISDIR(st.st_mode) else "file",
-                                "size_entry": st.st_size,
-                                "age_hours_floor": int((time.time() - st.st_mtime) // 3600),
-                            })
-                        except (OSError, PermissionError):
-                            scan["unsafe"] += 1
-            except (OSError, PermissionError):
-                scan["scan_failed"] = True
-        service = subprocess.run(
-            ["systemctl", "show", "rea-reversa-mcp.service", "-p",
-             "ActiveState", "-p", "MainPID", "-p", "User"],
-            capture_output=True, text=True, timeout=12, check=False)
-        fields = dict(line.split("=", 1) for line in service.stdout.splitlines()
-                      if "=" in line)
-        report["service"] = {
-            "active": fields.get("ActiveState") == "active",
-            "user_correct": fields.get("User") == "rea-reversa",
-            "pid_present": fields.get("MainPID", "0").isdigit() and
-                           int(fields.get("MainPID", "0")) > 0,
-            "queried": service.returncode == 0,
-        }
-        provider_root = Path("/opt/rea-reversa/providers")
-        report["installation"] = {
-            "original_root": Path("/opt/rea-reversa/rea").is_dir(),
-            "providers_root": provider_root.is_dir(),
-            "provider_entries_count": -1,
-            "provider_names_logged": False,
-            "provider_files_changed": False,
-        }
-        if provider_root.is_dir():
-            try:
-                report["installation"]["provider_entries_count"] = min(
-                    sum(1 for _ in os.scandir(str(provider_root))), 5000)
-            except (OSError, PermissionError):
-                pass
-        key_dir = Path.home() / ".local/share/rea-chatgpt-trial/sealed-bridge"
-        report["owner_key"] = {
-            "key_directory_exists": key_dir.is_dir(),
-            "verifier_exists": (key_dir / "owner-approval-public.pem").is_file(),
-            "key_file_contents_read": False,
-            "key_files_changed": False,
-        }
-        if data["action"] == "fixture_linux_hygiene_remove":
-            if report["scan_limit_reached"]:
-                error("Hygiene scan incomplete; refuse deletion")
-            requested = set(data["targets"])
-            found = {item["fingerprint"]: item for item in report["eligible"]}
-            if not requested.issubset(found):
-                error("One or more audited exact-match candidates changed; no deletion")
-            if len(found) > 20:
-                error("Unexpected number of eligible candidates; refuse deletion")
-            if not shutil.rmtree.avoids_symlink_attacks:
-                error("Symlink-safe rmtree not supported; refuse deletion")
-            # Revalidate each inode immediately before removal; only SSH-user
-            # owned, old and explicitly prefixed top-level disposable entries.
-            deleted = []
-            for fp in sorted(requested):
-                item = found[fp]
-                root = Path(item["root"])
-                with os.scandir(str(root)) as listing:
-                    matches = []
-                    for entry in listing:
-                        if not entry.name.startswith(scratch_prefixes):
-                            continue
-                        st = entry.stat(follow_symlinks=False)
-                        if fingerprint(root, entry.name, st) == fp:
-                            matches.append((entry.name, st))
-                if len(matches) != 1:
-                    error("Hygiene candidate no longer unique; stop")
-                name, st = matches[0]
-                path = root / name
-                if (path.is_symlink() or st.st_uid != os.geteuid() or
-                        time.time() - st.st_mtime < 7200 or
-                        st.st_dev != root.stat().st_dev or
-                        not (stat.S_ISDIR(st.st_mode) or stat.S_ISREG(st.st_mode))):
-                    error("Hygiene deletion safety condition changed")
-                if stat.S_ISDIR(st.st_mode):
-                    shutil.rmtree(str(path))
-                else:
-                    path.unlink()
-                if path.exists() or path.is_symlink():
-                    error("Hygiene candidate remains after deletion")
-                deleted.append(fp)
-            print("REA_VPS_HYGIENE_DELETED_FINGERPRINTS=" +
-                  json.dumps(deleted, separators=(",", ":")))
-            print("REA_VPS_HYGIENE_DELETE_COUNT=" + str(len(deleted)))
-            print("REA_VPS_HYGIENE_STATUS=PASS_BOUNDED_TEMP_CLEAN")
-        else:
-            print("REA_VPS_HYGIENE_STATUS=PASS_READ_ONLY_INVENTORY")
-        report["eligible"] = report["eligible"][:40]
-        print("REA_VPS_HYGIENE_INVENTORY=" + json.dumps(
-              report, sort_keys=True, separators=(",", ":")))
-        print("REA_VPS_HYGIENE_MCP_CATALOG=" + str(len(tools)))
-        return
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
               secure.request_public_key_b64(create=True))

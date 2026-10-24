@@ -3,7 +3,7 @@
   "project": "REA original motor only",
   "date_utc": "2026-10-24",
   "phase": "LINUX-P187-MILESTONE-108-DEEP-HYGIENE",
-  "status": "REA_GITHUB_TRANSPORT_AND_TEMP_REQUESTS_CLEAN_WITH_READONLY_VPS_SERVICE_VALIDATION",
+  "status": "REA_GITHUB_CLEAN_VPS_TEMP_ROOTS_VERIFIED_NO_STALE_REA_RESIDUES",
   "canonical_count": {
     "mcp_declared": 208,
     "fully_certified_distinct": 108,
@@ -80,7 +80,53 @@
         "conclusion": "success",
         "sealed": false
       }
-    ]
+    ],
+    "vps_original_mcp_temp_root_hygiene": {
+      "phase_id": "LINUX-P188-ORIGINAL-VPS-REA-BOUNDED-SCRATCH-HYGIENE-20261024",
+      "read_only_run_id": 40131555812,
+      "request_commit": "ddd7f17e530655728e0bff550afaa13b7d963b8e",
+      "verification": "PASS_REAL_VPS_READONLY",
+      "original_mcp_tools_seen": 208,
+      "service_active": true,
+      "service_user_correct": true,
+      "service_mainpid_present": true,
+      "inspected_roots": {
+        "/dev/shm": {
+          "entries_scanned": 2,
+          "rea_named": 0,
+          "eligible_to_delete": 0
+        },
+        "/tmp": {
+          "entries_scanned": 18,
+          "rea_named": 0,
+          "eligible_to_delete": 0
+        },
+        "/var/tmp": {
+          "entries_scanned": 14,
+          "rea_named": 0,
+          "eligible_to_delete": 0
+        }
+      },
+      "scan_limit_reached": false,
+      "observed_rea_temp_entries": 0,
+      "eligible_for_deletion": 0,
+      "deleted_in_vps": 0,
+      "deletion_reason": "No identifiable REA scratch candidates; do not delete unrelated or active files.",
+      "original_engine_root_exists": true,
+      "providers_root_exists": true,
+      "provider_directories_count": 8,
+      "provider_files_untouched": true,
+      "owner_key_files_untouched": true,
+      "owner_approval_public_verifier_present": false,
+      "no_service_restart": true,
+      "no_installation_or_uninstall": true,
+      "request_files_removed_in_restoration_commit": [
+        "rea-linux/requests/rea188-vps-hygiene-inventory-20261024.json",
+        "rea-linux/requests/rea188-vps-hygiene-inventory-r2-20261024.json"
+      ],
+      "original_bridge_sha_restored": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7",
+      "scope": "Bounded first-level file inventory of three shared scratch roots under existing authenticated GitHub Actions SSH; no full provider-cache or VPS-wide deletion."
+    }
   },
   "deleted_live_branch_requests": [
     "rea-linux/requests/p114-evidence-bundle-semantic-absence-20261024.json",
@@ -104,6 +150,7 @@
     "Historical Git commits and encrypted Actions evidence remain available by design.",
     "USB hardware/libusb remains outside the offline Sigrok profile and is not certified.",
     "Further 100 certifications remain pending and should not start until this hygiene proof is reviewed.",
-    "Filesystem-wide scanning or deletion of undocumented staging files was not performed."
+    "Filesystem-wide scanning or deletion of undocumented staging files was not performed.",
+    "P188 checked /dev/shm, /tmp and /var/tmp on the original VPS: no REA-named scratch entries, so no deletion was necessary. Provider and engine data outside these roots were not globally purged."
   ]
 }
