@@ -4438,9 +4438,14 @@
           "status": "FULLY_CERTIFIED"
         }
       ],
-      "consumed_github_requests": "PENDING_CLEANUP",
+      "consumed_github_requests": "PASS_REMOVED_3",
       "certified_total": 65,
-      "remaining": 143
+      "remaining": 143,
+      "post_cleanup_run_id": 40052826811,
+      "post_cleanup_contracts": 208,
+      "post_cleanup_schemas": 208,
+      "post_cleanup_catalog": 208,
+      "cleanup_commit": "ae4937e10725f8c140a54c48e14b27462e71ad30"
     }
   ],
   "active_scope_counts": {
