@@ -250,7 +250,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_FIXTURE_MANAGED_MEMBERS", "REA_FIXTURE_MANAGED_BOUNDARIES",
         "REA_FIXTURE_MACHO_FUSES", "REA_FIXTURE_FORMAT_CLEANUP",
         "REA_FIXTURE_WASM", "REA_FIXTURE_SQLITE",
-        "REA_P173_PASS", "REA_P173_CLEANUP", "REA_FIXTURE_GHIDRA_METADATA", "REA_FIXTURE_GHIDRA_METADATA_CLEANUP",
+        "REA_P174_STALE_CLEANUP", "REA_P173_PASS", "REA_P173_CLEANUP", "REA_FIXTURE_GHIDRA_METADATA", "REA_FIXTURE_GHIDRA_METADATA_CLEANUP",
         "REA_FIXTURE_GHIDRA_ADDITIONAL", "REA_FIXTURE_GHIDRA_ADDITIONAL_CLEANUP",
         "REA_FIXTURE_ANDROID_CLASSES", "REA_FIXTURE_ANDROID_CLASS",
         "REA_FIXTURE_ANDROID_METHOD", "REA_FIXTURE_ANDROID_XREFS",
@@ -679,7 +679,18 @@ def main():
         };
         writeFileSync(root+'/correlation.json',JSON.stringify(input));
         """)
-        with tempfile.TemporaryDirectory(prefix="rea-p173-safe-",dir="/dev/shm") as dirname:
+        stale=Path("/dev/shm/rea-p173-safe-pxpp2k1x")
+        if stale.exists():
+            if (stale.is_symlink() or not stale.is_dir() or
+                stale.parent!=Path("/dev/shm") or
+                stale.stat().st_uid!=os.geteuid()):
+                error("Foreign or tampered P173 scratch path; refusing cleanup")
+            clean=subprocess.run(["sudo","-n","/usr/bin/rm","-rf","--",str(stale)],
+                capture_output=True,timeout=25,check=False)
+            if clean.returncode!=0 or stale.exists():
+                error("Owned source-only P173 scratch cleanup incomplete")
+        print("REA_P174_STALE_CLEANUP=PASS")
+        with tempfile.TemporaryDirectory(prefix="rea-p174-safe-",dir="/dev/shm") as dirname:
             root=Path(dirname)
             root.chmod(0o1777)
             prepared=subprocess.run([node,"--import=tsx","--input-type=module","-e",
@@ -750,6 +761,16 @@ def main():
             call("verify_unknown_resolution",{"unknown_id":"unk_"+"0"*64},
                  "reject_nonexistent_unknown",True)
             unchanged=all(hashlib.sha256((root/n).read_bytes()).hexdigest()==h for n,h in hashes.items())
+            # REA's service user owns exported script files. Remove only
+            # this disposable, source-owned output under a verified temp root.
+            for target in (root/"exported",root/"bad-export"):
+                if target.exists():
+                    if target.is_symlink() or target.parent!=root:
+                        error("Tampered disposable export output; refusing cleanup")
+                    cleaned=subprocess.run(["sudo","-n","/usr/bin/rm","-rf","--",str(target)],
+                        capture_output=True,timeout=25,check=False)
+                    if cleaned.returncode!=0 or target.exists():
+                        error("Disposable source-owned output cleanup failed")
         payload={"records":results,"source_owned_fixtures":hashes,
                  "inputs_unchanged":unchanged,"cleanup":"PASS" if not root.exists() else "FAIL",
                  "source":"real original REA MCP on source-owned synthetic scenario and correlation Evidence",
