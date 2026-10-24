@@ -5636,7 +5636,58 @@
       "consumed_requests_removed": [
         "p101-ghidra-verified-leaf-101ae0-20261024.json"
       ],
-      "caveat": "Previously observed invalid-selector error diagnostic remains unresolved."
+      "caveat": "Previously observed invalid-selector error diagnostic remains unresolved.",
+      "post_cleanup_verification": {
+        "run_id": 40093403711,
+        "result": "SUCCESS",
+        "ssh_host_pin": "PASS",
+        "catalog": 208,
+        "validated_schemas": 208,
+        "audited_contracts": 208,
+        "bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      }
+    },
+    {
+      "phase_id": "LINUX-P102-GHIDRA-TYPE-REGRESSION-NO-DOUBLE-COUNT-20261024",
+      "date_utc": "2026-10-24",
+      "status": "DUPLICATE_ALREADY_CERTIFIED_NO_NEW_CERTIFICATION",
+      "tool": "inspect_native_data_type",
+      "existing_certification_phase_id": "LINUX-P69-GHIDRA-DEFINED-DATA-TYPE-20261024",
+      "proof": {
+        "run_id": 40093635740,
+        "commit": "992b6876c4fea4e65d35a52a221787e4e9c1bdea",
+        "encrypted_artifact_id": 12559478322,
+        "request_sha256": "711bb37640f2776bc082cbb47aa1ce2e7ff3fd1152768d15366d9b17bcae0f4a",
+        "authenticated_result_sha256": "4fd55272ec9f98fdfff4bc13dfaff188029cf994a4049e34047a79d97a75003b",
+        "request_matched": true,
+        "mcp_steps": 5,
+        "positive_types": [
+          {
+            "id": "/byte",
+            "status": "available",
+            "size_bytes": 1
+          },
+          {
+            "id": "/int",
+            "status": "available",
+            "size_bytes": 4
+          }
+        ],
+        "negative_typed_unavailable": [
+          {
+            "address": "0x101ae0"
+          },
+          {
+            "type": "/REA-STRICTLY-ABSENT-999abc"
+          }
+        ],
+        "cleanup": "PASS"
+      },
+      "new_certifications": 0,
+      "fully_certified_total": 80,
+      "remaining": 128,
+      "consumed_request_deleted": "p102-ghidra-native-data-type-20261024.json",
+      "original_bridge_preserved": true
     }
   ],
   "active_scope_counts": {
@@ -5681,7 +5732,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P101-TRACE-NATIVE-VALUES-INDEPENDENT-COMPLETE-LEAF-20261024",
+  "latest_phase": "LINUX-P102-GHIDRA-TYPE-REGRESSION-NO-DOUBLE-COUNT-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",

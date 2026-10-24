@@ -1504,12 +1504,12 @@
     "original_mcp_response_verified": true
   },
   "latest_post_hygiene_verification": {
-    "run_id": 40085225674,
+    "run_id": 40093403711,
     "status": "SUCCESS",
     "catalog": 208,
     "validated_schemas": 208,
     "audited_contracts": 208,
-    "scope": "P78 cleanup; P79 cleanup pending"
+    "scope": "P101 cleanup"
   },
   "last_native_values_boundary": {
     "phase_id": "LINUX-P80-GHIDRA-NATIVE-VALUES-DEPTH-BOUND-20261024",
@@ -1629,5 +1629,15 @@
     "certified_total": 79,
     "pending": 129,
     "post_cleanup_verification": "PENDING_NEXT_WORKFLOW"
+  },
+  "last_redundancy_check": {
+    "phase_id": "LINUX-P102-GHIDRA-TYPE-REGRESSION-NO-DOUBLE-COUNT-20261024",
+    "run_id": 40093635740,
+    "tool": "inspect_native_data_type",
+    "preexisting_status": "FULLY_CERTIFIED",
+    "new_certifications": 0,
+    "fully_certified_total": 80,
+    "pending": 128,
+    "cleanup": "PASS"
   }
 }
