@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_65_FULLY_CERTIFIED_143_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_67_FULLY_CERTIFIED_141_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -4446,21 +4446,70 @@
       "post_cleanup_schemas": 208,
       "post_cleanup_catalog": 208,
       "cleanup_commit": "ae4937e10725f8c140a54c48e14b27462e71ad30"
+    },
+    {
+      "phase_id": "LINUX-P63-GHIDRA-NAME-STRING-LISTS-20261024",
+      "date_utc": "2026-10-24",
+      "status": "TWO_NEW_FULLY_CERTIFIED_ORIGINAL_GHIDRA_MCP_SYMBOL_AND_STRING_LISTS",
+      "source": "Original REA MCP via existing GitHub Actions SSH on VPS, Ghidra 12.1.4, /usr/bin/true",
+      "proof": {
+        "workflow_run_id": 40052938189,
+        "workflow_url": "https://github.com/martaxi-boss/VPS/actions/runs/40052938189",
+        "request_commit": "c85bcc75f6bde33ab355e5ccc606ccda89772ed3",
+        "request_blob_sha": "ea310af7cfcb4e9c57245091b89722ddb195feb6",
+        "request_sha256": "74bb4786b5b4c84b6b0f4cda96d1f3e4b4c1bcd52d1dbf1c20288134af6dd1a2",
+        "result_sha256": "1eaae49dbb09fe7c2c75ecd57ca35c91c9d38a6e5139f0480cbe6873c7b43444",
+        "encrypted_artifact_id": 12543689426,
+        "request_bound_to_authentic_reply": true,
+        "mcp_tool_count": 208,
+        "steps_executed": 5,
+        "positive_calls": 2,
+        "typed_negative_calls": 2,
+        "negative_isError": false,
+        "tool_error": false,
+        "ghidra_session_cleanup": "PASS",
+        "target_sha256": "8a63c98320173f79e263115e10cefc170155e47d1fd4b5a70e4429d2699cae28"
+      },
+      "tools": [
+        {
+          "name": "list_names",
+          "status": "FULLY_CERTIFIED",
+          "positive": 1,
+          "negative_semantic": 1,
+          "scope": "Original REA MCP Linux Ghidra12.1.4 /usr/bin/true: list_names(address=0x101480) returned one exact analyzed primary function symbol switchD_00102043::default, address 0x101480; list_names(address=0x200000) correctly returned normalized_result=[] without fabricated symbol."
+        },
+        {
+          "name": "list_strings",
+          "status": "FULLY_CERTIFIED",
+          "positive": 1,
+          "negative_semantic": 1,
+          "scope": "Original REA MCP Linux Ghidra12.1.4 /usr/bin/true: list_strings({}) returned 122 distinct Ghidra-analyzed strings including the ELF interpreter /lib64/ld-linux-x86-64.so.2; list_strings(address=0x200000) returned normalized_result=[] rather than synthetic strings; limited to provider-analyzed strings."
+        }
+      ],
+      "provider_limits": [
+        "Ghidra provider symbol and strings inventory only, not exhaustive arbitrary-byte scanning",
+        "One known x86-64 ELF and one Ghidra version, no cross-provider guarantee"
+      ],
+      "no_new_dependencies": true,
+      "original_engine_unmodified": true,
+      "consumed_request_hygiene": "PENDING",
+      "fully_certified_total": 67,
+      "remaining": 141
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 65,
-    "awaiting_canonical_individual_review": 143,
+    "functional_pass_scoped_distinct": 67,
+    "awaiting_canonical_individual_review": 141,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 65,
+    "fully_certified_distinct": 67,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 143,
-    "remaining_full_certification_distinct": 143
+    "not_functionally_positive_distinct": 141,
+    "remaining_full_certification_distinct": 141
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -4490,7 +4539,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P56-PROCEDURE-LOOKUPS-20261024",
+  "latest_phase": "LINUX-P63-GHIDRA-NAME-STRING-LISTS-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -5631,6 +5680,28 @@
       "evidence_sha256": "c58cb9ec27bc8cedc0573aa3cb40c53123894223bee67fee2c908d2c35e36eba",
       "positive_calls": 1,
       "negative_calls": 1
+    },
+    "list_names": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P63-GHIDRA-NAME-STRING-LISTS-20261024",
+      "scope": "Original REA MCP Linux Ghidra12.1.4 /usr/bin/true: list_names(address=0x101480) returned one exact analyzed primary function symbol switchD_00102043::default, address 0x101480; list_names(address=0x200000) correctly returned normalized_result=[] without fabricated symbol.",
+      "run_ids": [
+        40052938189
+      ],
+      "evidence_sha256": "1eaae49dbb09fe7c2c75ecd57ca35c91c9d38a6e5139f0480cbe6873c7b43444",
+      "positive_calls": 1,
+      "negative_semantic_calls": 1
+    },
+    "list_strings": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P63-GHIDRA-NAME-STRING-LISTS-20261024",
+      "scope": "Original REA MCP Linux Ghidra12.1.4 /usr/bin/true: list_strings({}) returned 122 distinct Ghidra-analyzed strings including the ELF interpreter /lib64/ld-linux-x86-64.so.2; list_strings(address=0x200000) returned normalized_result=[] rather than synthetic strings; limited to provider-analyzed strings.",
+      "run_ids": [
+        40052938189
+      ],
+      "evidence_sha256": "1eaae49dbb09fe7c2c75ecd57ca35c91c9d38a6e5139f0480cbe6873c7b43444",
+      "positive_calls": 1,
+      "negative_semantic_calls": 1
     }
   }
 }
