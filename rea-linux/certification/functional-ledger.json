@@ -3807,9 +3807,20 @@
       "new_dependency_installs": 0,
       "engine_or_daemon_changed": false,
       "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
-      "consumed_github_requests_hygiene": "PENDING_GIT_CLEANUP",
+      "consumed_github_requests_hygiene": "PASS",
       "certified_total": 45,
-      "remaining": 163
+      "remaining": 163,
+      "git_hygiene": {
+        "cleanup_commit": "54def008a54174e08a8da19084da964f856f7404",
+        "consumed_requests_deleted": 10,
+        "post_cleanup_workflow_run_id": 40049344542,
+        "workflow_conclusion": "SUCCESS",
+        "rea_mcp_access": "PASS",
+        "tool_catalog_count": 208,
+        "validated_schema_count": 208,
+        "audited_schema_match_count": 208,
+        "bridge_original_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      }
     }
   ],
   "active_scope_counts": {
