@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_41_FULLY_CERTIFIED_167_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_43_FULLY_CERTIFIED_165_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -3711,21 +3711,59 @@
         "fully_certified": 41,
         "remaining_full": 167
       }
+    },
+    {
+      "phase_id": "LINUX-P47-BUNDLE-COMPARISON-ANALYSIS-VIEW-20261024",
+      "date_utc": "2026-10-24",
+      "status": "TWO_FULLY_CERTIFIED_ORIGINAL_MCP_STATIC_EVIDENCE_PROFILES",
+      "proof": {
+        "run_id": 40047298905,
+        "artifact_id": 12541603856,
+        "result_sha256": "6ae9a5f28b309b99f680fb96b2f391faea38bf7f9041a4488834d546b9d04488",
+        "request_sha256": "ec841768c580ceda0924bf7676a03477a2bc1c351c28c207802e6f3a0a9d4e94",
+        "authenticated_local_decryption": true,
+        "positive_calls": 5,
+        "expected_rejections": 7,
+        "all_pass": true,
+        "source_unchanged": true,
+        "daemon_pid_stable": true,
+        "fixture_cleanup": true
+      },
+      "tools": [
+        {
+          "name": "compare_bundles",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Canonical EvidenceBundles in temporary local source-owned scratch: empty unchanged, one-sided member unknown, exact one-to-one pairing changed, four typed refusal cases.",
+          "positive": 3,
+          "negative": 4
+        },
+        {
+          "name": "inspect_analysis_view",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Inline authenticated original REA JavaScript and .NET managed Evidence summary projections with preserved source identity; three typed refusals.",
+          "positive": 2,
+          "negative": 3
+        }
+      ],
+      "new_dependency_installs": 0,
+      "bridge_restored": true,
+      "certified_total": 43,
+      "remaining": 165
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 41,
-    "awaiting_canonical_individual_review": 167,
+    "functional_pass_scoped_distinct": 43,
+    "awaiting_canonical_individual_review": 165,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
     "workspace_newly_passed_distinct": 15,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 41,
+    "fully_certified_distinct": 43,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 167,
-    "remaining_full_certification_distinct": 167
+    "not_functionally_positive_distinct": 165,
+    "remaining_full_certification_distinct": 165
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -3755,7 +3793,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P46-THREE-MANAGED-STATIC-MCP-CERTIFICATION-20261024",
+  "latest_phase": "LINUX-P47-BUNDLE-COMPARISON-ANALYSIS-VIEW-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -4599,6 +4637,28 @@
       "artifact_id": 12541217935,
       "evidence_sha256": "905849a6358dfc3ea3a43980ee3181e7a5f86c8b512594c254bc0ccca9067fbd",
       "request_sha256": "245b9308c945a0c36d9f2786f6bd4acfcd5c0c89aab6f6d45936b57aed1b8703"
+    },
+    "compare_bundles": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Canonical EvidenceBundles in temporary local source-owned scratch: empty unchanged, one-sided member unknown, exact one-to-one pairing changed, four typed refusal cases.",
+      "phase_id": "LINUX-P47-BUNDLE-COMPARISON-ANALYSIS-VIEW-20261024",
+      "run_ids": [
+        40047298905
+      ],
+      "evidence_sha256": "6ae9a5f28b309b99f680fb96b2f391faea38bf7f9041a4488834d546b9d04488",
+      "positive_calls": 3,
+      "negative_calls": 4
+    },
+    "inspect_analysis_view": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Inline authenticated original REA JavaScript and .NET managed Evidence summary projections with preserved source identity; three typed refusals.",
+      "phase_id": "LINUX-P47-BUNDLE-COMPARISON-ANALYSIS-VIEW-20261024",
+      "run_ids": [
+        40047298905
+      ],
+      "evidence_sha256": "6ae9a5f28b309b99f680fb96b2f391faea38bf7f9041a4488834d546b9d04488",
+      "positive_calls": 2,
+      "negative_calls": 3
     }
   }
 }
