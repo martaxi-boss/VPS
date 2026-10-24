@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_80_FULLY_CERTIFIED_128_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_81_FULLY_CERTIFIED_127_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -5698,21 +5698,108 @@
         "bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
         "temporary_request_dir_absent": true
       }
+    },
+    {
+      "phase_id": "LINUX-P103-P105-KUNA-INVENTORY-SCOPED-20261024",
+      "date_utc": "2026-10-24",
+      "status": "ONE_NEW_FULLY_CERTIFIED_SCOPED_ORIGINAL_MCP_PROVIDER_COVERAGE",
+      "source": "Original GitHub Actions SSH -> VPS REA MCP, existing Ghidra and Kuna providers",
+      "proof": {
+        "positive_full_coverage": {
+          "run_id": 40084449312,
+          "commit": "a0a7dd8876ca4c032630294fe641e6c8977bbb55",
+          "artifact_id": 12555994996,
+          "authenticated_result_sha256": "4267b7737d1154c3a22f27c6c8b811d7def14f20fe66204cdc9c08ca87359cb6",
+          "source_sha256": "8a63c98320173f79e263115e47d1fd4b5a70e4429d2699cae28",
+          "provider": "Ghidra 12.1.4",
+          "procedure_count": 133,
+          "string_count": 122,
+          "segment_count": 32,
+          "segments_length": 32,
+          "image_base": "0x100000",
+          "status": "PASS",
+          "mcp_isError_true": false
+        },
+        "semantic_negative_unavailable_coverage": {
+          "run_id": 40094842641,
+          "commit": "6c4e4cce82ddf6a2e47f8a214eb51027091051f4",
+          "artifact_id": 12560800193,
+          "request_sha256": "f62086447bbe321fd14c48b25b0cd3ff1bdc9c26489a8cb9e44706ed4a9be0a2",
+          "authenticated_result_sha256": "beabc1d7f5c1df08417ae4c1268eb80502c9cea18cc6bfce42788e2036e3d003",
+          "request_matched": true,
+          "provider": "Kuna 1.833 verified",
+          "procedure_count": 54,
+          "string_count": 113,
+          "segment_fields_omitted": true,
+          "segment_coverage": "unavailable_not_zero",
+          "status": "PASS",
+          "mcp_isError_true": false,
+          "cleanup": "PASS"
+        },
+        "other_observations": [
+          {
+            "run_id": 40094352643,
+            "commit": "3b25ab6960f7f10137041f4261e7f1b79fd5cc19",
+            "artifact_id": 12560410966,
+            "authenticated_result_sha256": "5cf57678be961236d5a892629fedaa6832d24beedd03d5107ee4602c52a2f465",
+            "request_matched": true,
+            "provider": "Kuna 1.833",
+            "list_procedures_operational": true,
+            "source_address_model": "ELF virtual address 0x1ae0 (vs Ghidra 0x101ae0)",
+            "bad_address_negative_isError": true,
+            "no_new_certification": true
+          },
+          {
+            "run_id": 40094634139,
+            "commit": "55c29912526e56232de078608979c34449529e86",
+            "artifact_id": 12560332696,
+            "request_sha256": "fde18e46e77ebd85ef22685c5644730d9370eb05dd305b0162927b4d30981ba3",
+            "authenticated_result_sha256": "5d66344dbd4be250b460c6308db6db89738ea541c63f9a9acefc529ba6deedec",
+            "request_matched": true,
+            "steps_executed": 2,
+            "failed_tool": "analyze_function",
+            "error_code": "capability_unavailable",
+            "category": "unsupported_provider",
+            "diagnostic": "Kuna project export failed creating /opt/rea-reversa/providers/kuna-v1.833/cache/staging (ENOENT)",
+            "provider_install_or_config_modified": false,
+            "not_certified": true,
+            "cleanup": "PASS"
+          }
+        ],
+        "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      },
+      "tools": [
+        {
+          "name": "binary_overview",
+          "positive": 1,
+          "negative_semantic": 1,
+          "status": "FULLY_CERTIFIED_SCOPED_ORIGINAL_MCP",
+          "scope": "Original Linux REA MCP binary_overview on immutable /usr/bin/true under two existing static providers. Ghidra 12.1.4 returns all 32 observed segments with 0x100000 image_base, 133 analyzed procedures and 122 strings. Kuna 1.833 returns typed procedure_count=54,string_count=113 and deliberately OMITS segment_count/segments/image_base, representing unavailable coverage not zero segments. Certification tests complete inventory with and without segment capability; relative counts are provider-specific and not cross-provider equivalence, no dynamic analysis, no claim of Kuna full decompiler export."
+        }
+      ],
+      "new_certifications": 1,
+      "fully_certified_total": 81,
+      "remaining": 127,
+      "consumed_requests_removed_in_phase": [
+        "p103-kuna-secondary-static-provider-20261024.json",
+        "p104-kuna-metadata-corrected-address-20261024.json",
+        "p105-kuna-overview-20261024.json"
+      ]
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 80,
-    "awaiting_canonical_individual_review": 128,
+    "functional_pass_scoped_distinct": 81,
+    "awaiting_canonical_individual_review": 127,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 20,
+    "workspace_newly_passed_distinct": 21,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 80,
+    "fully_certified_distinct": 81,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 128,
-    "remaining_full_certification_distinct": 128
+    "not_functionally_positive_distinct": 127,
+    "remaining_full_certification_distinct": 127
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -5742,7 +5829,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P102-GHIDRA-TYPE-REGRESSION-NO-DOUBLE-COUNT-20261024",
+  "latest_phase": "LINUX-P103-P105-KUNA-INVENTORY-SCOPED-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -7080,6 +7167,20 @@
       "negative_semantic_calls": 1,
       "negative_isError_true": false,
       "known_invalid_selector_limitation": "Still pending as a diagnostic issue outside the tested valid-procedure profile."
+    },
+    "binary_overview": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P103-P105-KUNA-INVENTORY-SCOPED-20261024",
+      "scope": "Original Linux REA MCP binary_overview on immutable /usr/bin/true under two existing static providers. Ghidra 12.1.4 returns all 32 observed segments with 0x100000 image_base, 133 analyzed procedures and 122 strings. Kuna 1.833 returns typed procedure_count=54,string_count=113 and deliberately OMITS segment_count/segments/image_base, representing unavailable coverage not zero segments. Certification tests complete inventory with and without segment capability; relative counts are provider-specific and not cross-provider equivalence, no dynamic analysis, no claim of Kuna full decompiler export.",
+      "run_ids": [
+        40084449312,
+        40094842641
+      ],
+      "positive_evidence_sha256": "4267b7737d1154c3a22f27c6c8b811d7def14f20fe66204cdc9c08ca87359cb6",
+      "negative_evidence_sha256": "beabc1d7f5c1df08417ae4c1268eb80502c9cea18cc6bfce42788e2036e3d003",
+      "positive_calls": 1,
+      "negative_semantic_calls": 1,
+      "negative_isError_true": false
     }
   },
   "transport_incidents": [

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_80_FULLY_CERTIFIED_PROFILES_AND_128_PENDING",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_81_FULLY_CERTIFIED_PROFILES_AND_127_PENDING",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -1482,17 +1482,16 @@
     }
   },
   "latest_certification": {
-    "phase_id": "LINUX-P101-TRACE-NATIVE-VALUES-INDEPENDENT-COMPLETE-LEAF-20261024",
-    "tool": "trace_native_values",
-    "positive_run_id": 40091082075,
-    "negative_run_id": 40092888121,
-    "authenticated_positive_sha256": "6783f0abbdecaeacd3a92b6b1f8a73e308f18a7a0f19b595ca896b30ad5aa30b",
-    "authenticated_negative_sha256": "6d4cd50396f57ed6b9f3d35996ec3d29a4c4ba556b949970747668437886052e",
-    "semantic_absence_corrob_by_decoded_source": true,
-    "ghidra_cleanup": "PASS",
-    "fully_certified": 80,
-    "pending": 128,
-    "known_invalid_selector_diagnostic": "UNRESOLVED",
+    "phase_id": "LINUX-P103-P105-KUNA-INVENTORY-SCOPED-20261024",
+    "tool": "binary_overview",
+    "positive_run_id": 40084449312,
+    "semantic_negative_run_id": 40094842641,
+    "positive_sha256": "4267b7737d1154c3a22f27c6c8b811d7def14f20fe66204cdc9c08ca87359cb6",
+    "negative_sha256": "beabc1d7f5c1df08417ae4c1268eb80502c9cea18cc6bfce42788e2036e3d003",
+    "fully_certified": 81,
+    "pending": 127,
+    "negative_semantics": "Kuna unavailable segment facet omitted, not empty",
+    "scope": "Original Linux REA MCP binary_overview on immutable /usr/bin/true under two existing static providers. Ghidra 12.1.4 returns all 32 observed segments with 0x100000 image_base, 133 analyzed procedures and 122 strings. Kuna 1.833 returns typed procedure_count=54,string_count=113 and deliberately OMITS segment_count/segments/image_base, representing unavailable coverage not zero segments. Certification tests complete inventory with and without segment capability; relative counts are provider-specific and not cross-provider equivalence, no dynamic analysis, no claim of Kuna full decompiler export.",
     "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
   },
   "transport_status_after_ovh_renewal": {
@@ -1647,5 +1646,14 @@
       "audited_contracts": 208,
       "bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
     }
+  },
+  "last_kuna_observation": {
+    "phase_id": "LINUX-P103-P105-KUNA-INVENTORY-SCOPED-20261024",
+    "provider": "Kuna 1.833 installed",
+    "functions_strings": "OPERATIONAL",
+    "full_export": "BLOCKED_KUNA_CACHE_STAGING_ENOENT",
+    "failed_run_id": 40094634139,
+    "catalog_and_ssh_intact": true,
+    "provider_configuration_changed": false
   }
 }
