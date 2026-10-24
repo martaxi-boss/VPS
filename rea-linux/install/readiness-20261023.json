@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_84_FULLY_CERTIFIED_PROFILES_AND_124_PENDING",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_85_FULLY_CERTIFIED_PROFILES_AND_123_PENDING",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -1482,15 +1482,22 @@
     }
   },
   "latest_certification": {
-    "phase_id": "LINUX-P117-LIST-PROCEDURES-SEMANTIC-THUNKS-20261024",
-    "tool": "list_procedures",
-    "run_id": 40107047518,
-    "authenticated_result_sha256": "1e5616ee832d6a664b1677cad502c2f540919e5796df4dac237b84bd5292f6bb",
+    "phase_id": "LINUX-P124-P125-DOS-MZ-LOAD-IMAGE-20261024",
+    "tool": "inspect_native_load_image",
+    "run_ids": [
+      40109443037,
+      40109640475
+    ],
+    "authenticated_result_sha256": [
+      "4c82add59f8079da1ab39352341beb1533b4fac464a2e6a3b217711c0c996b72",
+      "18ce846e618d1a9ad89b759e8d36d68e67da8294d1a88cec6ef13bd8ca08626c"
+    ],
     "positive_and_semantic_negative": true,
+    "negative_semantics": "Real DOS MZ overlay absence 0B versus presence 17B, with same 128B loaded module and one applied relocation; all 44/44 independent checks match each case",
     "invalid_input_rejection": false,
-    "fully_certified": 84,
-    "pending": 124,
-    "scope": "Ghidra 12.1.4 on Linux /usr/bin/true ELF x86_64; 133 unique addresses, 39/94 external true/false, 76/57 thunk true/false, targets coherent. No invalid-document MCP-negative; bridge guards session.",
+    "fully_certified": 85,
+    "pending": 123,
+    "scope": "Source-owned static DOS MZ x86 real-mode Ghidra 12.1.4 Linux only; no COM/other-format/provider or malformed-MZ proof",
     "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
   },
   "transport_status_after_ovh_renewal": {
@@ -1656,11 +1663,16 @@
     "provider_configuration_changed": false
   },
   "latest_hygiene": {
-    "scope": "P117",
-    "consumed_request_removed": true,
-    "cleanup_commit": "b37a7cb73c2d39d20f7c6db1413e67f39e93b812",
+    "scope": "P124-P125",
+    "consumed_requests_removed": true,
+    "request_cleanup_commits": [
+      "18e5382ac195280c61c7b26993d27c7ec852d49f",
+      "de62dde7b43c6c91c8cfdda214fb35b2496d9702"
+    ],
+    "temporary_bridge_fixture_removed": true,
+    "bridge_restoration_commit": "b0b1ee25501e6b38a805ed70563dec6eb46c37a1",
     "post_cleanup_original_mcp_recheck": {
-      "run_id": 40107199336,
+      "run_id": 40109781929,
       "conclusion": "SUCCESS",
       "ssh_host_pin": "PASS",
       "catalog": 208,
@@ -1681,30 +1693,13 @@
     "bridge_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
   },
   "latest_continuation_diagnostics": {
-    "phase_id": "LINUX-P118-P123-PROVIDER-AND-NEGATIVE-GATES-20261024",
-    "certification_change": 0,
-    "fully_certified": 84,
-    "pending": 124,
-    "latest_real_mcp_test": {
-      "run_id": 40108039250,
-      "open_binary_success": true,
-      "get_navigation_context_error": "capability_unavailable/unsupported_provider/current_document",
-      "encrypted_result_sha256": "c1bd9ddf3876100a9032adbc43282cf8b5a4881562d645b392e49f50effc5e97",
-      "cleanup": "PASS"
-    },
-    "sensitive_guard": "close_binary requires independent Ed25519 owner signature; not invoked",
-    "artifact_positive_reused": [
-      40088562064,
-      40088720153
-    ],
-    "artifact_negative_pending": true,
-    "post_cleanup_recheck": {
-      "run_id": 40108550920,
-      "conclusion": "SUCCESS",
-      "ssh_host_pin": "PASS",
-      "catalog_count": 208,
-      "audited_schema_count": 208
-    },
-    "original_bridge_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+    "phase_id": "LINUX-P124-P125-DOS-MZ-LOAD-IMAGE-20261024",
+    "new_certifications": 1,
+    "certified": 85,
+    "pending": 123,
+    "tool": "inspect_native_load_image",
+    "one_unsupported_target_control": "DOS COM open_binary rejected; does not count as tool negative",
+    "post_restore_run_id": 40109781929,
+    "original_bridge_restored": true
   }
 }
