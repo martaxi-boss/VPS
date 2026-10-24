@@ -757,3 +757,11 @@ A ferramenta original `inspect_native_load_image` foi **`FULLY_CERTIFIED` num pe
 - Ficheiros C e ELF foram compilados localmente para `/dev/shm`, **nunca executados**, com hashes de entrada estáveis; abertura/fecho Ghidra PASS, quatro negativos de schema intencionais e limpeza PASS. Fase limitada a símbolos sintéticos Linux: **não** certifica aplicações Apple reais ou comportamento de runtime.
 - Ponte original reposta pelo commit dc4d2a0fba3d841aa3ca2894a024969d39f47c1e, pedido P172 retirado. Nenhum controlo de assinatura sensível foi desativado.
 - **Total canónico atualizado: 103/208; 105 ferramentas por certificar; faltam 5 para 108.**
+
+## P174 — export_web_scripts com captura controlada (24/10/2026)
+
+- [Actions #40126104633](https://github.com/martaxi-boss/VPS/actions/runs/40126104633), commit dbd3751f4b719d1db3130b893fe4ffac9e8e4d9a, artefacto cifrado 12572917119 (SHA-256 13d178dd959ac36cc1cf0e6c71f3e07b7e4ba19176775b87e5f1de0190878398). Pedido 6d29d0efe87af96f32f09561fc25af184be284c5f1c78a02356ffcc99cfc9308 e resposta autenticada 75e0dfcb1c68aff98ec8ad293cbb0bb608fb4e35192479af053a545f342e2749 validados por RSA-OAEP/AES-GCM.
+- **`export_web_scripts` FULLY_CERTIFIED** em cenário REA sintético local, `capture.json` SHA-256 e3f91c5030ead07887c31e09417f1d2a4bd3cc5bce2f95102a7f3c43c0bb1c1f. O MCP original publicou JavaScript, `manifest.json` SHA-256 78ba682f995e2c13c240e212e4cd08ac00019c32e066079983545f8c0489f1ba, `analysis_input` e Evidence ev_0ed33cd936fff6531c8ef9573ca054f7dd70f4a61b39e42134a4a5aa62d8085d. Captura malformada `{}` rejeitada com `isError=true`.
+- Inputs inalterados, limpeza P174 e órfão P173 `PASS`; `correlate_static_and_runtime` rejeitou link Evidence órfão, `inspect_signal_decoders` bloqueado por libusb, `verify_unknown_resolution` sem caso positivo: **não certificados**.
+- Ponte original restaurada e pedido de teste removido no commit 0262ddc9806ac745c76393e08b6c76e145110db8. Sem alterações a permissões sensíveis.
+- **Total: 104/208 certificadas, 104 pendentes, faltam 4 para as 108.**

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_103_FULLY_CERTIFIED_PROFILES_AND_105_PENDING",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_104_FULLY_CERTIFIED_PROFILES_AND_104_PENDING",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -1701,18 +1701,16 @@
     "provider": "rea-artifact-graph",
     "negative_error_marker_expected": true
   },
-  "remaining_full_certification_distinct": 105,
-  "fully_certified_distinct": 103,
+  "remaining_full_certification_distinct": 104,
+  "fully_certified_distinct": 104,
   "latest_real_mcp_positive": {
-    "phase_id": "LINUX-P172-GHIDRA-SOURCE-OWNED-OBJC-SWIFT-20261024",
-    "run_id": 40125734763,
+    "phase_id": "LINUX-P174-SOURCE-OWNED-WEB-SCRIPT-EXPORT-20261024",
+    "run_id": 40126104633,
     "tools": [
-      "get_objc_classes",
-      "get_objc_protocols",
-      "analyze_swift_types"
+      "export_web_scripts"
     ],
-    "certified_count": 103,
-    "pending": 105,
+    "certified_count": 104,
+    "pending": 104,
     "evidence_verified": true
   }
 }

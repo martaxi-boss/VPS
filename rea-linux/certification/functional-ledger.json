@@ -6819,21 +6819,70 @@
         "Does not certify Ghidra GUI-only operations"
       ],
       "hygiene": "P172 source-owned staging removed, original bridge byte-identical restored after trial; consumed request deleted."
+    },
+    {
+      "phase_id": "LINUX-P174-SOURCE-OWNED-WEB-SCRIPT-EXPORT-20261024",
+      "date_utc": "2026-10-24",
+      "status": "ONE_NEW_FULLY_CERTIFIED_ORIGINAL_MCP_WEB_SCRIPT_EXPORT",
+      "tools": [
+        {
+          "name": "export_web_scripts",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Original REA Linux permanent MCP with source-owned synthetic browser scenario containing JavaScript response bytes. Published digest-verified manifest, analysis_input and exported scripts; malformed capture rejected isError=true; no external network or target code."
+        }
+      ],
+      "proof": {
+        "run_id": 40126104633,
+        "request_commit": "dbd3751f4b719d1db3130b893fe4ffac9e8e4d9a",
+        "encrypted_artifact_id": 12572917119,
+        "encrypted_artifact_sha256": "13d178dd959ac36cc1cf0e6c71f3e07b7e4ba19176775b87e5f1de0190878398",
+        "request_sha256": "6d29d0efe87af96f32f09561fc25af184be284c5f1c78a02356ffcc99cfc9308",
+        "authenticated_result_sha256": "75e0dfcb1c68aff98ec8ad293cbb0bb608fb4e35192479af053a545f342e2749",
+        "request_matched": true,
+        "result_digest_matched": true,
+        "catalog": 208,
+        "positive_evidence_id": "ev_0ed33cd936fff6531c8ef9573ca054f7dd70f4a61b39e42134a4a5aa62d8085d",
+        "capture_sha256": "e3f91c5030ead07887c31e09417f1d2a4bd3cc5bce2f95102a7f3c43c0bb1c1f",
+        "manifest_sha256": "78ba682f995e2c13c240e212e4cd08ac00019c32e066079983545f8c0489f1ba",
+        "inputs_unchanged": true,
+        "staging_cleanup": "PASS",
+        "stale_P173_cleanup": "PASS",
+        "bridge_restored_commit": "0262ddc9806ac745c76393e08b6c76e145110db8",
+        "failed_attempt_P173": 40125957124
+      },
+      "new_certifications": 1,
+      "fully_certified_total": 104,
+      "pending": 104,
+      "other_tested_not_certified": [
+        {
+          "name": "correlate_static_and_runtime",
+          "reason": "Original MCP rejected inline input with dangling Evidence link; no positive semantics"
+        },
+        {
+          "name": "inspect_signal_decoders",
+          "reason": "Sigrok provider libusb_init() LIBUSB_ERROR_OTHER / unsupported_provider"
+        },
+        {
+          "name": "verify_unknown_resolution",
+          "reason": "Only negative missing-unknown case; positive existing unknown unavailable"
+        }
+      ],
+      "hygiene": "P174 scratch output and stale P173 scratch cleaned; bridge restored and request deleted by 0262ddc"
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 103,
-    "awaiting_canonical_individual_review": 105,
+    "functional_pass_scoped_distinct": 104,
+    "awaiting_canonical_individual_review": 104,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 43,
+    "workspace_newly_passed_distinct": 44,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 103,
+    "fully_certified_distinct": 104,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 105,
-    "remaining_full_certification_distinct": 105
+    "not_functionally_positive_distinct": 104,
+    "remaining_full_certification_distinct": 104
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -6863,7 +6912,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P172-GHIDRA-SOURCE-OWNED-OBJC-SWIFT-20261024",
+  "latest_phase": "LINUX-P174-SOURCE-OWNED-WEB-SCRIPT-EXPORT-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -8591,6 +8640,24 @@
       "negative_isError_true": true,
       "limitations": [
         "Source-owned Linux ELF with synthetic symbol names; no real Objective-C/Swift runtime certified"
+      ]
+    },
+    "export_web_scripts": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P174-SOURCE-OWNED-WEB-SCRIPT-EXPORT-20261024",
+      "scope": "Original REA Linux MCP export from source-owned browser scenario with retained JavaScript bytes: verified digest manifest and published files; invalid capture rejected isError=true. Synthetic capture only.",
+      "run_ids": [
+        40126104633
+      ],
+      "positive_evidence_id": "ev_0ed33cd936fff6531c8ef9573ca054f7dd70f4a61b39e42134a4a5aa62d8085d",
+      "positive_evidence_sha256": "75e0dfcb1c68aff98ec8ad293cbb0bb608fb4e35192479af053a545f342e2749",
+      "negative_evidence_sha256": "75e0dfcb1c68aff98ec8ad293cbb0bb608fb4e35192479af053a545f342e2749",
+      "positive_calls": 1,
+      "negative_semantic_assertions": 1,
+      "negative_isError_true": true,
+      "limitations": [
+        "Controlled offline source fixture only; no browser session or dynamic code",
+        "No credit for failed correlation or signal provider"
       ]
     }
   },
