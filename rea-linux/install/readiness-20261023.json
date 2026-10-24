@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_77_FULLY_CERTIFIED_PROFILES_AND_131_PENDING",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_78_FULLY_CERTIFIED_PROFILES_AND_130_PENDING",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -1482,15 +1482,15 @@
     }
   },
   "latest_certification": {
-    "phase_id": "LINUX-P77-GHIDRA-NATIVE-UI-ACTION-20261024",
-    "tool": "trace_native_ui_action",
-    "run_id": 40082946566,
-    "authenticated_result_sha256": "03f6bc180a8524d0dd1e718b9241c91d746656ccf7a195786d14b297d259ce7b",
+    "phase_id": "LINUX-P78-CONTROLLED-WEB-SCENARIO-DIFF-20261024",
+    "tool": "compare_web_captures",
+    "run_id": 40085095324,
+    "authenticated_result_sha256": "fd4428198aa502eeafd1b1df61b4159ead575cf23627930cf4af7d0372f0cd14",
     "positive_and_negative": true,
-    "negative_isError": true,
-    "ghidra_cleanup": "PASS",
-    "fully_certified": 77,
-    "pending": 131,
+    "negative_isError": false,
+    "fully_certified": 78,
+    "pending": 130,
+    "scope": "controlled offline web-capture comparison",
     "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
   },
   "transport_status_after_ovh_renewal": {
@@ -1530,6 +1530,6 @@
     "bridge_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
     "no_new_certification": true,
     "failed_negative_is_policy_blocked": true,
-    "post_cleanup_recheck": "PENDING_NEXT_WORKFLOW"
+    "post_cleanup_recheck": "P78_CERTIFICATION_HYGIENE_PENDING_WORKFLOW"
   }
 }

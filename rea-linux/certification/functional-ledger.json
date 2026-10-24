@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_77_FULLY_CERTIFIED_131_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_78_FULLY_CERTIFIED_130_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -5108,21 +5108,60 @@
         ],
         "original_mcp_public_internet_exposed": false
       }
+    },
+    {
+      "phase_id": "LINUX-P78-CONTROLLED-WEB-SCENARIO-DIFF-20261024",
+      "date_utc": "2026-10-24",
+      "status": "ONE_NEW_FULLY_CERTIFIED_SCOPED_OFFLINE_WEB_SCENARIO_COMPARISON",
+      "source": "Existing GitHub Actions SSH -> REA original Linux MCP, no browser launched",
+      "proof": {
+        "run_id": 40085095324,
+        "commit": "223a0b641d0dde2255845fa16e568ca221dafb73",
+        "encrypted_artifact_id": 12556697515,
+        "request_sha256": "c881d10f66f4d887d7574d560156912de89a053b2449257197ff375331bc6932",
+        "authenticated_result_sha256": "fd4428198aa502eeafd1b1df61b4159ead575cf23627930cf4af7d0372f0cd14",
+        "request_matched": true,
+        "original_mcp_catalog": 208,
+        "positive_isError_true": false,
+        "negative_isError_true": false,
+        "mcp_steps_executed": 2,
+        "positive_overall_status": "changed",
+        "positive_diff_count": 1,
+        "negative_overall_status": "unchanged",
+        "negative_diff_count": 0,
+        "alignment": "aligned",
+        "aligned_steps": 2,
+        "original_bridge_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      },
+      "tools": [
+        {
+          "name": "compare_web_captures",
+          "status": "FULLY_CERTIFIED_SCOPED_ORIGINAL_MCP",
+          "positive": 1,
+          "negative_semantic": 1,
+          "scope": "Original REA MCP browser-scenario comparison of schema-conformant, non-live controlled capture_browser_scenario normalized_result fixtures. Positive URL/state change at aligned open-settings step; negative unchanged capture. No claim of Chromium/browser session capture or live network inspection."
+        }
+      ],
+      "new_dependencies": 0,
+      "original_bridge_unchanged": true,
+      "consumed_request_removed_in_canonical_commit": true,
+      "fully_certified_total": 78,
+      "remaining": 130
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 77,
-    "awaiting_canonical_individual_review": 131,
+    "functional_pass_scoped_distinct": 78,
+    "awaiting_canonical_individual_review": 130,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 17,
+    "workspace_newly_passed_distinct": 18,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 77,
+    "fully_certified_distinct": 78,
     "scoped_positive_not_fully_certified_distinct": 1,
-    "not_functionally_positive_distinct": 130,
-    "remaining_full_certification_distinct": 131
+    "not_functionally_positive_distinct": 129,
+    "remaining_full_certification_distinct": 130
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -5152,7 +5191,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P81-P83-GHIDRA-METADATA-WEB-CAPTURES-BLOCKERS-20261024",
+  "latest_phase": "LINUX-P78-CONTROLLED-WEB-SCENARIO-DIFF-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -6448,6 +6487,19 @@
       "positive_calls": 1,
       "negative_calls": 1,
       "negative_isError_true": true
+    },
+    "compare_web_captures": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P78-CONTROLLED-WEB-SCENARIO-DIFF-20261024",
+      "scope": "Original REA MCP browser-scenario comparison of schema-conformant, non-live controlled capture_browser_scenario normalized_result fixtures. Positive URL/state change at aligned open-settings step; negative unchanged capture. No claim of Chromium/browser session capture or live network inspection.",
+      "run_ids": [
+        40085095324
+      ],
+      "positive_evidence_sha256": "fd4428198aa502eeafd1b1df61b4159ead575cf23627930cf4af7d0372f0cd14",
+      "negative_evidence_sha256": "fd4428198aa502eeafd1b1df61b4159ead575cf23627930cf4af7d0372f0cd14",
+      "positive_calls": 1,
+      "negative_semantic_calls": 1,
+      "negative_isError_true": false
     }
   },
   "transport_incidents": [
