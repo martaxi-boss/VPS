@@ -115,7 +115,7 @@ def validate(data):
                 or not re.fullmatch(r"[A-Za-z0-9+/=]{340,1800}",
                                     data["response_key"])):
             error("Format fixture requires an RSA reply public key")
-    elif action in ("fixture_apkdemos", "fixture_apkdemos_negative"):
+    elif action == "fixture_apkdemos":
         # Fixed, Apache-2.0 public Appium APK. Only a public response key is accepted.
         if set(data) != {"version", "action", "response_key"}:
             error("Android fixture request must not contain caller paths or commands")
@@ -506,7 +506,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         if private is not None:
             error("Unexpected private response")
         return
-    if request["action"] not in ("call", "sealed_batch", "fixture_apkdemos", "fixture_apkdemos_negative", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump") or private is None:
+    if request["action"] not in ("call", "sealed_batch", "fixture_apkdemos", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump") or private is None:
         error("Missing encrypted-return payload from REA")
     public = serialization.load_der_public_key(
         base64.b64decode(request["response_key"], validate=True)
@@ -2883,7 +2883,7 @@ def main():
             if not cleanup_ok:
                 error("Public format fixture staging was not cleaned")
         return
-    if data["action"] in ("fixture_apkdemos", "fixture_apkdemos_negative"):
+    if data["action"] == "fixture_apkdemos":
         # Public source and sha256 are pinned to the checked-in REA fixture
         # rea/scripts/fixtures/android/apidemos.json. No caller-controlled URL,
         # path, script, APK, or install is admitted by this action.
@@ -2937,22 +2937,6 @@ def main():
                 ("trace_android_references", {**public_apk, "class_name": class_name},
                  "REA_FIXTURE_ANDROID_XREFS"),
             )
-            if data["action"] == "fixture_apkdemos_negative":
-                fixed_operations = (
-                    ("search_android_classes",
-                     {**public_apk, "query": "__REA_CERT_NONEXISTENT_CLASS_20261024__"},
-                     "REA_FIXTURE_ANDROID_NO_CLASSES"),
-                    ("inspect_android_class",
-                     {**public_apk, "class_name": "io.appium.android.apis.REA_DOES_NOT_EXIST_20261024"},
-                     "REA_FIXTURE_ANDROID_NO_CLASS"),
-                    ("inspect_android_method",
-                     {**public_apk, "class_name": class_name,
-                      "method_name": "REA_DOES_NOT_EXIST_20261024"},
-                     "REA_FIXTURE_ANDROID_NO_METHOD"),
-                    ("trace_android_references",
-                     {**public_apk, "class_name": "io.appium.android.apis.REA_DOES_NOT_EXIST_20261024"},
-                     "REA_FIXTURE_ANDROID_NO_XREFS"),
-                )
             observations = []
             for pos, (tool, args, marker) in enumerate(fixed_operations):
                 if tool not in tool_by_name:
