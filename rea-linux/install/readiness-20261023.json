@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_85_FULLY_CERTIFIED_PROFILES_AND_123_PENDING",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_90_FULLY_CERTIFIED_PROFILES_AND_118_PENDING",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -1482,23 +1482,27 @@
     }
   },
   "latest_certification": {
-    "phase_id": "LINUX-P124-P125-DOS-MZ-LOAD-IMAGE-20261024",
-    "tool": "inspect_native_load_image",
+    "phase_id": "LINUX-P127-P130-ANDROID-JADX-API-DEMOS-20261024",
+    "tools": [
+      "inspect_android_package",
+      "search_android_classes",
+      "inspect_android_class",
+      "inspect_android_method",
+      "trace_android_references"
+    ],
     "run_ids": [
-      40109443037,
-      40109640475
+      40111156260,
+      40111694239
     ],
     "authenticated_result_sha256": [
-      "4c82add59f8079da1ab39352341beb1533b4fac464a2e6a3b217711c0c996b72",
-      "18ce846e618d1a9ad89b759e8d36d68e67da8294d1a88cec6ef13bd8ca08626c"
+      "b9f4a350aabd4b257f3e945dbf5486450e91e7a57d51b1cb89e367fb98093d9c",
+      "12f139fabbe9ee0514b67ff08e9d0a149ced4d277b0eacceca760a2f0fb4d4e4"
     ],
     "positive_and_semantic_negative": true,
-    "negative_semantics": "Real DOS MZ overlay absence 0B versus presence 17B, with same 128B loaded module and one applied relocation; all 44/44 independent checks match each case",
-    "invalid_input_rejection": false,
-    "fully_certified": 85,
-    "pending": 123,
-    "scope": "Source-owned static DOS MZ x86 real-mode Ghidra 12.1.4 Linux only; no COM/other-format/provider or malformed-MZ proof",
-    "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+    "fully_certified": 90,
+    "pending": 118,
+    "scope": "Original REA MCP Linux JADX 0.7.1 on SHA256-pinned Appium ApiDemos APK 6.0.18, positive package/classes/method/source/xrefs and real negative exact-selector/error semantics; no runtime APK execution.",
+    "original_bridge_blob": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7"
   },
   "transport_status_after_ovh_renewal": {
     "status": "RESTORED_EXACT_ORIGINAL_SSH_BRIDGE",
@@ -1663,22 +1667,29 @@
     "provider_configuration_changed": false
   },
   "latest_hygiene": {
-    "scope": "P124-P125",
+    "scope": "P127-P132",
     "consumed_requests_removed": true,
-    "request_cleanup_commits": [
-      "18e5382ac195280c61c7b26993d27c7ec852d49f",
-      "de62dde7b43c6c91c8cfdda214fb35b2496d9702"
+    "removed": [
+      "P127",
+      "P128",
+      "P129",
+      "P130",
+      "P132"
     ],
-    "temporary_bridge_fixture_removed": true,
-    "bridge_restoration_commit": "b0b1ee25501e6b38a805ed70563dec6eb46c37a1",
-    "post_cleanup_original_mcp_recheck": {
-      "run_id": 40109781929,
+    "bridge_temporary_variant_removed": true,
+    "bridge_restoration_commit": "fbf81c944e7d32d99847e7d0230b5a27438e9897",
+    "permanent_bugfix_commit": "6f2636e2853b9139e08f1a6f34ab5a0998f08755",
+    "post_restore_original_mcp_recheck": {
+      "run_id": 40111874136,
       "conclusion": "SUCCESS",
-      "ssh_host_pin": "PASS",
-      "catalog": 208,
-      "audited_schema_match": 208,
-      "bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
-    }
+      "expected_original_plus_urllib_fix": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7"
+    },
+    "runtime_contracts": {
+      "run_id": 40111971498,
+      "catalogue": 208,
+      "authenticated_result_sha256": "d26932274bae3586e79b43962a45c7cc8058d2f83d02c43401509f0cfe646c3f"
+    },
+    "consumed_contract_cleanup_commit": "877b5500443e02f6c786c5238d3673da503d3e2f"
   },
   "latest_uncertified_diagnostic": {
     "phase_id": "LINUX-P111-VERIFY-UNKNOWN-RESOLUTION-UNRESOLVED-20261024",
@@ -1693,13 +1704,11 @@
     "bridge_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
   },
   "latest_continuation_diagnostics": {
-    "phase_id": "LINUX-P124-P125-DOS-MZ-LOAD-IMAGE-20261024",
-    "new_certifications": 1,
-    "certified": 85,
-    "pending": 123,
-    "tool": "inspect_native_load_image",
-    "one_unsupported_target_control": "DOS COM open_binary rejected; does not count as tool negative",
-    "post_restore_run_id": 40109781929,
-    "original_bridge_restored": true
+    "phase_id": "LINUX-P127-P130-ANDROID-JADX-API-DEMOS-20261024",
+    "new_certifications": 5,
+    "fully_certified": 90,
+    "pending": 118,
+    "technical_fix": "urllib function-local import shadowing removed; original MCP and GitHub Actions workflow not replaced",
+    "sensitive_operation_gate": "No sensitive tools invoked without independent owner Ed25519 approval"
   }
 }
