@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_96_FULLY_CERTIFIED_PROFILES_AND_112_PENDING",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_98_FULLY_CERTIFIED_PROFILES_AND_110_PENDING",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -1482,20 +1482,18 @@
     }
   },
   "latest_certification": {
-    "phase_id": "LINUX-P150-OFFLINE-SOURCE-MAP-HAR-ADB-20261024",
+    "phase_id": "LINUX-P160-ZIP-CRC32-ARTIFACT-INTEGRITY-20261024",
     "tools": [
-      "trace_web_source_location",
-      "inspect_web_network_capture",
-      "inspect_adb_client"
+      "inspect_artifact"
     ],
-    "run_id": 40121075172,
-    "authenticated_result_sha256": "e132e0e08d21cff6d1a0b31d2312ab8ff9890aee82deedb3c12648d472872921",
-    "fully_certified": 96,
-    "pending": 112,
+    "run_id": 40121478378,
+    "authenticated_result_sha256": "ac05950886691f00c92db0dd82d0de3684e32bf8eb7e10d182ded2ad2fd6708e",
+    "fully_certified": 98,
+    "pending": 110,
     "positive_and_semantic_negative": true,
     "negative_isError_true": true,
-    "source_owned_offline": true,
-    "original_bridge_blob": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7"
+    "source_owned_zip_fixture": true,
+    "bridge_restored_original": true
   },
   "transport_status_after_ovh_renewal": {
     "status": "RESTORED_EXACT_ORIGINAL_SSH_BRIDGE",
@@ -1686,14 +1684,14 @@
     "bridge_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
   },
   "latest_continuation_diagnostics": {
-    "phase_id": "LINUX-P150-OFFLINE-SOURCE-MAP-HAR-ADB-20261024",
-    "new_certifications": 3,
-    "fully_certified": 96,
-    "pending": 112,
-    "remaining_to_100": 4,
-    "real_mcp_run_id": 40121075172,
-    "negative_cases_confirmed": 3,
-    "fixture_cleanup": "PASS",
+    "phase_id": "LINUX-P160-ZIP-CRC32-ARTIFACT-INTEGRITY-20261024",
+    "new_certifications": 1,
+    "fully_certified": 98,
+    "pending": 110,
+    "remaining_to_100": 2,
+    "run_id": 40121478378,
+    "cleanup": "PASS",
+    "Apple_app_session": "BLOCKED_AMBIGUOUS_PROVIDER",
     "bridge_original_restored": true
   }
 }

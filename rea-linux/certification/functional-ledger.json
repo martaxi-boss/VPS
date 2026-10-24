@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_97_FULLY_CERTIFIED_111_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_98_FULLY_CERTIFIED_110_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -6649,21 +6649,69 @@
         "No claim for binary plists, other Apple formats or arbitrary consumer artifacts"
       ],
       "no_production_changes": true
+    },
+    {
+      "phase_id": "LINUX-P160-ZIP-CRC32-ARTIFACT-INTEGRITY-20261024",
+      "date_utc": "2026-10-24",
+      "status": "ONE_NEW_FULLY_CERTIFIED_SCOPED_ORIGINAL_ARTIFACT_GRAPH_ZIP_INTEGRITY",
+      "tools": [
+        {
+          "name": "inspect_artifact",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Original REA Linux MCP artifact graph on disposable source-owned valid ZIP and otherwise-identical CRC32-corrupted ZIP. Positive inspect_artifact produces complete content-addressed nested inventory Evidence with ZIP root graph; corrupted bytes triggered isError=true artifact_operation_failed execution_failure with Invalid CRC32. Input hashes unchanged and staging/session cleanup PASS. Does not assert Apple .app directory support, archives other than ZIP, nor generic integrity policy modes.",
+          "positive_evidence_id": "ev_66e48e3619bf1dd303a69e6b98493b5021836d305d6797f37772a2b4ab5eed39",
+          "negative_isError_true": true
+        }
+      ],
+      "proof": {
+        "run_id": 40121478378,
+        "request_commit": "14e445d3164e94723f7b33fc3afe9bab30cb82ac",
+        "encrypted_artifact_id": 12571571402,
+        "encrypted_artifact_sha256": "5246779b6b77fe792219f66156ee5371d03efff42104aa90860d0b6fabe4684e",
+        "request_sha256": "f4912ffadafa591ef9d1aa9e0f7237bd2fa4c5432a3a1d65d4a2e5b727d99b85",
+        "authenticated_result_sha256": "ac05950886691f00c92db0dd82d0de3684e32bf8eb7e10d182ded2ad2fd6708e",
+        "request_matched": true,
+        "result_digest_matched": true,
+        "catalog": 208,
+        "positive_evidence_id": "ev_66e48e3619bf1dd303a69e6b98493b5021836d305d6797f37772a2b4ab5eed39",
+        "negative_isError_true": true,
+        "negative_error_code": "artifact_operation_failed",
+        "negative_detail": "ZIP archive is malformed: Invalid CRC32",
+        "source_inputs_unchanged": true,
+        "session_cleanup": "PASS",
+        "fixture_cleanup": "PASS"
+      },
+      "new_certifications": 1,
+      "fully_certified_total": 98,
+      "pending": 110,
+      "other_tested_not_certified": [
+        {
+          "name": "decode_interface_builder",
+          "reason": "Apple app open_binary in auto mode blocked by multiple providers, no MCP call"
+        },
+        {
+          "name": "trace_dylib_resolution",
+          "reason": "Apple app open_binary auto-mode ambiguous providers; no call"
+        }
+      ],
+      "bridge_restored_blob": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7",
+      "temporary_request_removed": true,
+      "concurrent_keyed_archive_P152_preserved": true
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 97,
-    "awaiting_canonical_individual_review": 111,
+    "functional_pass_scoped_distinct": 98,
+    "awaiting_canonical_individual_review": 110,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 37,
+    "workspace_newly_passed_distinct": 38,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 97,
+    "fully_certified_distinct": 98,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 111,
-    "remaining_full_certification_distinct": 111
+    "not_functionally_positive_distinct": 110,
+    "remaining_full_certification_distinct": 110
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -6693,7 +6741,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P152-FOUNDATION-KEYED-ARCHIVE-20261024",
+  "latest_phase": "LINUX-P160-ZIP-CRC32-ARTIFACT-INTEGRITY-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -8320,6 +8368,22 @@
       "negative_isError_true": true,
       "limitations": [
         "Only original source-owned XML Foundation archive on Linux; no binary-plist or arbitrary archive coverage."
+      ]
+    },
+    "inspect_artifact": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P160-ZIP-CRC32-ARTIFACT-INTEGRITY-20261024",
+      "scope": "Original REA Linux MCP artifact graph on disposable source-owned valid ZIP and otherwise-identical CRC32-corrupted ZIP. Positive inspect_artifact produces complete content-addressed nested inventory Evidence with ZIP root graph; corrupted bytes triggered isError=true artifact_operation_failed execution_failure with Invalid CRC32. Input hashes unchanged and staging/session cleanup PASS. Does not assert Apple .app directory support, archives other than ZIP, nor generic integrity policy modes.",
+      "run_ids": [
+        40121478378
+      ],
+      "positive_evidence_sha256": "ac05950886691f00c92db0dd82d0de3684e32bf8eb7e10d182ded2ad2fd6708e",
+      "negative_evidence_sha256": "ac05950886691f00c92db0dd82d0de3684e32bf8eb7e10d182ded2ad2fd6708e",
+      "positive_calls": 1,
+      "negative_semantic_assertions": 1,
+      "negative_isError_true": true,
+      "limitations": [
+        "Scoped only to controlled ZIP CRC32 integrity detection and original MCP inventory, no general claims for Apple packages or all archive formats"
       ]
     }
   },

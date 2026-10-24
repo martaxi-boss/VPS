@@ -720,3 +720,11 @@ A ferramenta original `inspect_native_load_image` foi **`FULLY_CERTIFIED` num pe
 - `inspect_adb_client`: versão Debian `34.0.4`, binário `/usr/lib/android-sdk/platform-tools/adb`, `contacted_adb_server=false`; argumento não reconhecido rejeitado. Não certifica enumeração ou ligação a dispositivos.
 - Ponte restaurada ao blob `f8009ad372a2cd936201ef02c0e1ae40832d1ab7` e pedido consumido removido. Apenas fixtures públicas estáticas, sem alterações produtivas.
 - **Total: 96/208 certificadas; 112 pendentes; faltam 4 para 100.**
+
+## P160 — inspect_artifact, deteção original MCP de ZIP CRC32 (24/10/2026)
+
+- [Actions #40121478378](https://github.com/martaxi-boss/VPS/actions/runs/40121478378), commit `14e445d3164e94723f7b33fc3afe9bab30cb82ac`, artefacto cifrado `12571571402`. Pedido SHA-256 `f4912ffadafa591ef9d1aa9e0f7237bd2fa4c5432a3a1d65d4a2e5b727d99b85`, resultado autenticado SHA-256 `ac05950886691f00c92db0dd82d0de3684e32bf8eb7e10d182ded2ad2fd6708e`, inputs inalterados e limpeza PASS.
+- **`inspect_artifact` certificada com ZIP controlado:** devolveu grafo de artefactos e Evidence `ev_66e48e3619bf1dd303a69e6b98493b5021836d305d6797f37772a2b4ab5eed39`; corrupção de um byte no mesmo ZIP produziu `isError=true`, `artifact_operation_failed` e `Invalid CRC32`.
+- **Não certificadas aqui:** `decode_interface_builder` e `trace_dylib_resolution`; sessão `.app` bloqueada por seleção ambígua de fornecedores `open_binary` sem `provider_id`. Não foram contadas nem declaradas operacionais.
+- Ponte original restaurada ao blob `f8009ad372a2cd936201ef02c0e1ae40832d1ab7` e pedido P160 consumido removido; pedido P152 alheio preservado.
+- **Total canónico: 98/208 certificadas, 110 pendentes, faltam 2 para 100.**
