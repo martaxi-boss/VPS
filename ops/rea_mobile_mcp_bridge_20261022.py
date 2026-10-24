@@ -100,7 +100,7 @@ def validate(data):
                   "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
-    elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
+    elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump", "fixture_linux_dos_loadimage"):
         # Named system-owned ELF only; never an arbitrary caller-selected path.
         if set(data) != {"version", "action", "response_key"}:
             error("Ghidra inspection fixture accepts only a public reply key")
@@ -506,7 +506,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         if private is not None:
             error("Unexpected private response")
         return
-    if request["action"] not in ("call", "sealed_batch", "fixture_apkdemos", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump") or private is None:
+    if request["action"] not in ("call", "sealed_batch", "fixture_apkdemos", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump", "fixture_linux_dos_loadimage") or private is None:
         error("Missing encrypted-return payload from REA")
     public = serialization.load_der_public_key(
         base64.b64decode(request["response_key"], validate=True)
@@ -2740,6 +2740,88 @@ def main():
                                      sort_keys=True).encode()
             print(marker + "=PASS")
             print(marker + "_SHA256=" + hashlib.sha256(data_bytes).hexdigest())
+        return
+    if data["action"] == "fixture_linux_dos_loadimage":
+        # Source-owned immutable COM/MZ fixtures only. No caller paths, scripts or device activity.
+        import tempfile, shutil
+        source = Path.home() / ".local/share/rea-chatgpt-trial/repository/rea"
+        node = shutil.which("node")
+        examples = (
+            ("com", source / "tests/conformance/ghidra/dos-com-fixture.mjs",
+             "buildDosComFixture", "controlled.com"),
+            ("mz", source / "tests/conformance/ghidra/dos-mz-fixture.mjs",
+             "buildDosMzFixture", "controlled.exe"),
+        )
+        if not node or any(not p.is_file() for _, p, _, _ in examples):
+            error("Missing original REA DOS conformance fixture generators")
+        records = []
+        with tempfile.TemporaryDirectory(prefix="rea-dos-static-", dir="/dev/shm") as dirname:
+            sandbox = Path(dirname)
+            sandbox.chmod(0o755)
+            for i, (kind, generator, function, filename) in enumerate(examples):
+                target = sandbox / filename
+                js = ("import{writeFileSync}from'node:fs';"
+                      "const m=await import(process.argv[1]);"
+                      "writeFileSync(process.argv[2],m[process.argv[3]]().bytes)")
+                p = subprocess.run(
+                    [node, "--input-type=module", "-e", js, generator.as_uri(),
+                     str(target), function],
+                    capture_output=True, text=True, timeout=20, check=False
+                )
+                if p.returncode or not target.is_file() or target.stat().st_size > 4096:
+                    error("Controlled DOS source fixture generation failed")
+                target.chmod(0o644)
+                original_sha256 = hashlib.sha256(target.read_bytes()).hexdigest()
+                opened = False
+                try:
+                    _, reply = request_mcp(
+                        {"jsonrpc": "2.0", "id": 910+i*10, "method": "tools/call",
+                         "params": {"name": "open_binary",
+                                    "arguments": {"path": str(target),
+                                                  "provider_id": "ghidra"}}},
+                        session, protocol, timeout=150)
+                    reply_result = reply.get("result")
+                    opened = ("error" not in reply and isinstance(reply_result, dict)
+                              and reply_result.get("isError") is not True)
+                    records.append({"family":kind,"tool":"open_binary",
+                                    "isError":not opened,"result":reply_result})
+                    if opened:
+                        _, observed = request_mcp(
+                            {"jsonrpc": "2.0", "id": 911+i*10, "method": "tools/call",
+                             "params": {"name": "inspect_native_load_image",
+                                        "arguments": {}}},
+                            session, protocol, timeout=125)
+                        result = observed.get("result")
+                        ok = ("error" not in observed and isinstance(result, dict)
+                              and result.get("isError") is not True)
+                        records.append({"family":kind,"tool":"inspect_native_load_image",
+                                        "isError":not ok,"result":result})
+                finally:
+                    if opened:
+                        _, closed = request_mcp(
+                            {"jsonrpc": "2.0", "id": 912+i*10, "method": "tools/call",
+                             "params": {"name":"close_binary","arguments":{}}},
+                            session, protocol, timeout=90)
+                        val = closed.get("result")
+                        if ("error" in closed or not isinstance(val,dict)
+                                or val.get("isError") is True):
+                            error("Ghidra DOS ephemeral session cleanup failed")
+                    if hashlib.sha256(target.read_bytes()).hexdigest() != original_sha256:
+                        error("Controlled source-owned DOS fixture changed")
+                records.append({"family":kind, "source_sha256":original_sha256,
+                                "source_bytes":target.stat().st_size,"cleanup":"PASS"})
+        if sandbox.exists():
+            error("DOS test scratch directory cleanup failed")
+        raw = json.dumps({"records":records,"cleanup":"PASS",
+                          "source":"original REA public DOS COM/MZ conformance generators"},
+                         ensure_ascii=True,sort_keys=True).encode()
+        if len(raw)>MAX_RESPONSE or os.environ.get("REA_MOBILE_ENVELOPE_CAPTURE")!="1":
+            error("DOS controlled response requires bounded encrypted capture")
+        print("REA_MOBILE_OUTPUT_BYTES="+str(len(raw)))
+        print("REA_MOBILE_OUTPUT_SHA256="+hashlib.sha256(raw).hexdigest())
+        print("REA_MOBILE_TOOL_ERROR="+str(any(x.get("isError") is True for x in records)).lower())
+        print("REA_FIXTURE_DOS_CLEANUP=PASS")
+        print("REA_MOBILE_PRIVATE_RESULT_B64="+base64.b64encode(raw).decode("ascii"))
         return
     if data["action"] == "fixture_portable_formats":
         # Fixed source-owned fixtures, never fetched from private customers.
