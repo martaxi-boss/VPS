@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_82_FULLY_CERTIFIED_126_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_83_FULLY_CERTIFIED_125_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -5939,21 +5939,94 @@
       "total_certified": 82,
       "pending": 126,
       "bridge_preserved": true
+    },
+    {
+      "phase_id": "LINUX-P115-LIST-SEGMENTS-SEMANTIC-PERMISSIONS-20261024",
+      "date_utc": "2026-10-24",
+      "status": "ONE_NEW_FULLY_CERTIFIED_SCOPED_SEGMENT_PERMISSIONS_AND_RANGES",
+      "tools": [
+        {
+          "name": "list_segments",
+          "status": "FULLY_CERTIFIED_SCOPED_ORIGINAL_MCP",
+          "positive": 1,
+          "negative_semantic": 2,
+          "scope": "Original Linux REA MCP list_segments, Ghidra 12.1.4, controlled immutable /usr/bin/true ELF x86_64. Enumerates 32 uniquely named Ghidra memory blocks, verifies same-space positive-length exclusive end ranges and permission availability for all 32. Positive executable .text and writable .data; semantic negatives non-executable .rodata, non-executable and uninitialized .bss; absence of fabricated segment. No malformed-input/session-absent negative (bridge blocks it), no other architectures or providers certified; Kuna provider unsupported."
+        }
+      ],
+      "proof": {
+        "run_id": 40106634962,
+        "commit": "f1773f96e20e1fda31022476f681265701262ea8",
+        "encrypted_artifact_id": 12564622660,
+        "encrypted_artifact_sha256": "f110a33175920420445bf0e7962aece6af8d529a7d75d8b1d59287eb8942dc64",
+        "request_sha256": "0d1dbec7ae9aae7355eabe64b1a6429bbbe3287164e2cf8bafe1137768d4920c",
+        "authenticated_result_sha256": "a628011ceb18af34bac1f6a2e4ca909bc7b81de6bac1f1940ddacc0b2fd2f8ff",
+        "request_matched": true,
+        "original_mcp_catalog": 208,
+        "steps_executed": 2,
+        "open_binary_mcp_isError_true": false,
+        "list_segments_mcp_isError_true": false,
+        "mcp_tool_error": false,
+        "cleanup": "PASS",
+        "policy": "PASS",
+        "provider": "Ghidra 12.1.4",
+        "source_path": "/usr/bin/true",
+        "source_sha256": "8a63c98320173f79e263115e47d1fd4b5a70e4429d2699cae28",
+        "segments_count": 32,
+        "unique_names": 32,
+        "permission_metadata_available": 32,
+        "end_exclusive_range_validation": 32,
+        "nondefault_address_spaces": 4
+      },
+      "source_assertions": {
+        "text": {
+          "executable": true,
+          "writable": false
+        },
+        "rodata": {
+          "executable": false,
+          "writable": false
+        },
+        "data": {
+          "writable": true,
+          "executable": false
+        },
+        "bss": {
+          "initialized": false,
+          "writable": true
+        },
+        "segment_name_uniqueness": true,
+        "all_permission_flags_available": true,
+        "exclusive_end_ranges_all_valid": true
+      },
+      "prior_positive_reused": {
+        "run_id": 40084449312,
+        "segments_count": 32
+      },
+      "descriptor": {
+        "run_id": 40106354212,
+        "authenticated_result_sha256": "9428b717e8656e77b58a3a0160bb67b6909a97fdfeb7192cc8e99a856857cee6"
+      },
+      "new_certifications": 1,
+      "fully_certified_total": 83,
+      "remaining": 125,
+      "cleanup_request": "rea-linux/requests/p115-list-segments-controlled-20261024.json",
+      "historical_P110_unsupported_kuna_not_counted": true,
+      "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 82,
-    "awaiting_canonical_individual_review": 126,
+    "functional_pass_scoped_distinct": 83,
+    "awaiting_canonical_individual_review": 125,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 22,
+    "workspace_newly_passed_distinct": 23,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 82,
+    "fully_certified_distinct": 83,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 126,
-    "remaining_full_certification_distinct": 126
+    "not_functionally_positive_distinct": 125,
+    "remaining_full_certification_distinct": 125
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -5983,7 +6056,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P111-VERIFY-UNKNOWN-RESOLUTION-UNRESOLVED-20261024",
+  "latest_phase": "LINUX-P115-LIST-SEGMENTS-SEMANTIC-PERMISSIONS-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -7349,6 +7422,26 @@
       "negative_semantic_calls": 1,
       "negative_error_calls": 1,
       "source_authority_limitation": "inline controlled fixtures only"
+    },
+    "list_segments": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P115-LIST-SEGMENTS-SEMANTIC-PERMISSIONS-20261024",
+      "scope": "Original Linux REA MCP list_segments, Ghidra 12.1.4, controlled immutable /usr/bin/true ELF x86_64. Enumerates 32 uniquely named Ghidra memory blocks, verifies same-space positive-length exclusive end ranges and permission availability for all 32. Positive executable .text and writable .data; semantic negatives non-executable .rodata, non-executable and uninitialized .bss; absence of fabricated segment. No malformed-input/session-absent negative (bridge blocks it), no other architectures or providers certified; Kuna provider unsupported.",
+      "run_ids": [
+        40084449312,
+        40106354212,
+        40106634962
+      ],
+      "positive_evidence_sha256": "a628011ceb18af34bac1f6a2e4ca909bc7b81de6bac1f1940ddacc0b2fd2f8ff",
+      "negative_evidence_sha256": "a628011ceb18af34bac1f6a2e4ca909bc7b81de6bac1f1940ddacc0b2fd2f8ff",
+      "positive_calls": 1,
+      "negative_semantic_assertions": 2,
+      "negative_isError_true": false,
+      "limitations": [
+        "No invalid-input negative: session-absent and foreign-document paths are blocked by bridge before MCP",
+        "Semantic negative restricted to non-executable/uninitialized memory-block properties",
+        "Kuna segment inventory operation remains unsupported"
+      ]
     }
   },
   "transport_incidents": [
