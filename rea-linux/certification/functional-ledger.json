@@ -5409,6 +5409,50 @@
         "temporary_requests_absent": true,
         "original_bridge_blob_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
       }
+    },
+    {
+      "phase_id": "LINUX-P95-UNKNOWN-STATUS-INTEGRITY-20261024",
+      "date_utc": "2026-10-24",
+      "status": "REAL_EXISTING_UNKNOWN_REVALIDATION_NOT_FULLY_CERTIFIED",
+      "proof": {
+        "run_id": 40090619261,
+        "commit": "9088228d63594d7ba7360f7e3071aa515a892fce",
+        "encrypted_artifact_id": 12558658046,
+        "request_sha256": "c2f896ec4d65195f3d8addb3a53523c43c62b91f71923afbeedf9e8ddc03f59e",
+        "authenticated_result_sha256": "c7352eacbf2a166727fe919c8967bbaa2c8a024a00bbca33c848c882852ba477",
+        "request_matched": true,
+        "real_mcp_steps": 4,
+        "tool_error": false,
+        "unknown_id": "unk_86ae76ae0d5d6885289dead2f9427b346d006bced1d86c9f0dc30d4f4f860d34",
+        "unknown_status": "open",
+        "revision": 1,
+        "known_unknown_response_isError_true": false,
+        "known_unknown_valid": false,
+        "known_unknown_truthVerified": false,
+        "unknowns_list_total": 1,
+        "negative_prior_run_id": 40088720153,
+        "negative_prior_result_sha256": "9024116025024bfe688121376e5c635e629d6ad6883c0e5e26d7823f7bc21311",
+        "negative_prior_error": "execution_failure (details.reason=not-found)",
+        "semantic_assessment": "Known open unknown returned typed validation without claiming truth; does NOT validate an actually resolved unknown. Prior nonexistent-id negative was surfaced as execution_failure/not-found. Keep pending.",
+        "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      },
+      "tools": [
+        {
+          "name": "verify_unknown_resolution",
+          "status": "PENDING_RESOLVED_POSITIVE",
+          "result": "Known open unknown identified and truthVerified=false, but successful resolved validation not demonstrated."
+        },
+        {
+          "name": "verify_reconstruction",
+          "status": "PENDING_REAL_PASS",
+          "result": "Real comparison lacked independent evidence, status unknown, no false pass."
+        }
+      ],
+      "new_certifications": 0,
+      "certified_total": 79,
+      "pending": 129,
+      "temporary_request_deleted": true,
+      "original_bridge_unchanged": true
     }
   ],
   "active_scope_counts": {
@@ -5453,7 +5497,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P94-RECONSTRUCTION-UNKNOWN-REGISTRATION-20261024",
+  "latest_phase": "LINUX-P95-UNKNOWN-STATUS-INTEGRITY-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",

@@ -1602,5 +1602,14 @@
       "audited_contracts": 208,
       "ssh_host_pin": "PASS"
     }
+  },
+  "latest_unknown_integrity_check": {
+    "phase_id": "LINUX-P95-UNKNOWN-STATUS-INTEGRITY-20261024",
+    "run_id": 40090619261,
+    "result_sha256": "c7352eacbf2a166727fe919c8967bbaa2c8a024a00bbca33c848c882852ba477",
+    "result": "CORRECT_UNRESOLVED_UNKNOWN_NOT_FULL_CERTIFICATION",
+    "certified": 79,
+    "pending": 129,
+    "post_cleanup_verification": "PENDING"
   }
 }
