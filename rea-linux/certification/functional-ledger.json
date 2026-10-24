@@ -6189,5 +6189,39 @@
       "negative_calls": 1,
       "negative_isError_true": true
     }
-  }
+  },
+  "transport_incidents": [
+    {
+      "incident_id": "REA-LINUX-SSH-BRIDGE-20261024-0832Z",
+      "status": "BLOCKED_BEFORE_ORIGINAL_MCP",
+      "date_utc": "2026-10-24",
+      "trigger": "One-use secure_public_key request for subsequent Linux REA certifications",
+      "request_commit": "ae048c51533485be148b31b908b92cc36e6c4263",
+      "workflow_run_id": 40078435804,
+      "attempts": [
+        {
+          "attempt": 1,
+          "job_id": 120826720958,
+          "conclusion": "failure",
+          "failed_step": "Check SSH host identity against existing owner pin"
+        },
+        {
+          "attempt": 2,
+          "job_id": 120826868176,
+          "conclusion": "failure",
+          "failed_step": "Check SSH host identity against existing owner pin"
+        }
+      ],
+      "observation": "Request validation PASS; ssh-keyscan -T 15 -t ed25519 returned exit code 1 after ~15 seconds without reaching SSH host-pin PASS. No SSH session, no tools/call, no returned REA public key. This does not establish a key mismatch or definitively prove VPS shutdown.",
+      "mcp_tools_called": 0,
+      "new_certifications": 0,
+      "certified_total_unchanged": 75,
+      "pending_unchanged": 133,
+      "latest_successful_post_hygiene_mcp_run": 40056690144,
+      "temporary_request": "rea-linux/requests/p75-key-fresh-20261024-0833.json",
+      "temporary_request_deletion": "IN_SAME_HYGIENE_COMMIT",
+      "post_cleanup_mcp_recheck": "BLOCKED_BY_SSH_TRANSPORT",
+      "security": "SSH pin and existing original bridge unchanged; no bypass, restart, sensitive signature or alternate route."
+    }
+  ]
 }
