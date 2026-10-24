@@ -6906,21 +6906,58 @@
         "No sensitive owner signature bypass"
       ],
       "hygiene": "Source-owned fixture removed, Ghidra closed, original bridge restored and request removed"
+    },
+    {
+      "phase_id": "LINUX-P177-RETAINED-STATIC-RUNTIME-CORRELATION-20261024",
+      "date_utc": "2026-10-24",
+      "status": "ONE_NEW_FULLY_CERTIFIED_ORIGINAL_MCP_STATIC_RUNTIME_CORRELATION",
+      "tools": [
+        {
+          "name": "correlate_static_and_runtime",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Original REA Linux MCP, source-owned comparison Evidence retained by prior compare_functions and compare_process_captures calls; one correlated static_only hypothesis and six authenticated links. Invalid mapping rejected isError=true."
+        }
+      ],
+      "proof": {
+        "run_id": 40126930712,
+        "request_commit": "36e315f975cbb610a19cfcba5c02e3936369cab1",
+        "encrypted_artifact_id": 12572738338,
+        "encrypted_artifact_sha256": "cccb14a7e6052198f909c5e21c4190807c6436045fbbcca75fb7594587513afb",
+        "request_sha256": "16440dbe62c3376152e33ea71369cfcde3e8d5fdf3f5c65c63df15085514487c",
+        "authenticated_result_sha256": "84de17fec4f656f9b3782249e3b7fd67cf4bf746cccea6ba98fbcd3ca3cb74cd",
+        "request_matched": true,
+        "result_digest_matched": true,
+        "positive_evidence_id": "ev_051442672c082100f6dcba577eead20ab2b8d5afe585fc718b1c2050c5df2b7c",
+        "evidence_links_count": 6,
+        "source_fixture_sha256": "8dcffaf0027728d7f8ae1fa7b0363bd602c859ff55bc05d2f3277a66ce277940",
+        "inputs_unchanged": true,
+        "cleanup": "PASS"
+      },
+      "new_certifications": 1,
+      "fully_certified_total": 106,
+      "pending": 102,
+      "other_tested_not_certified": [
+        {
+          "name": "verify_unknown_resolution",
+          "reason": "Existing contradicted unknown returned valid=false; confirmed resolved unknown with valid=true still missing"
+        }
+      ],
+      "bridge_restored_commit": "091157f087af3e8905d76b6fe4a81d64050f5e64"
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 105,
-    "awaiting_canonical_individual_review": 103,
+    "functional_pass_scoped_distinct": 106,
+    "awaiting_canonical_individual_review": 102,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 45,
+    "workspace_newly_passed_distinct": 46,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 105,
+    "fully_certified_distinct": 106,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 103,
-    "remaining_full_certification_distinct": 103
+    "not_functionally_positive_distinct": 102,
+    "remaining_full_certification_distinct": 102
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -6950,7 +6987,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P176-SOURCE-OWNED-GHIDRA-DISPATCH-METADATA-20261024",
+  "latest_phase": "LINUX-P177-RETAINED-STATIC-RUNTIME-CORRELATION-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -8714,6 +8751,24 @@
       "limitations": [
         "Synthetic ELF only, not compiled Apple Objective-C binary",
         "Only symbol names, no runtime class decoding"
+      ]
+    },
+    "correlate_static_and_runtime": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P177-RETAINED-STATIC-RUNTIME-CORRELATION-20261024",
+      "scope": "Original Linux REA MCP live source-owned retained function/process Evidence: status correlated, 1 static_only hypothesis, 6 Evidence links; cross-comparison mapping rejected isError=true.",
+      "run_ids": [
+        40126930712
+      ],
+      "positive_evidence_id": "ev_051442672c082100f6dcba577eead20ab2b8d5afe585fc718b1c2050c5df2b7c",
+      "positive_evidence_sha256": "84de17fec4f656f9b3782249e3b7fd67cf4bf746cccea6ba98fbcd3ca3cb74cd",
+      "negative_evidence_sha256": "84de17fec4f656f9b3782249e3b7fd67cf4bf746cccea6ba98fbcd3ca3cb74cd",
+      "positive_calls": 1,
+      "negative_semantic_assertions": 1,
+      "negative_isError_true": true,
+      "limitations": [
+        "Correlation is a declared hypothesis, not causality",
+        "Controlled fixture evidence only"
       ]
     }
   },
