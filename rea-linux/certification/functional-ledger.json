@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_81_FULLY_CERTIFIED_127_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_82_FULLY_CERTIFIED_126_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -5785,21 +5785,84 @@
         "p104-kuna-metadata-corrected-address-20261024.json",
         "p105-kuna-overview-20261024.json"
       ]
+    },
+    {
+      "phase_id": "LINUX-P109-VERIFY-RECONSTRUCTION-SCOPED-20261024",
+      "date_utc": "2026-10-24",
+      "status": "ONE_NEW_FULLY_CERTIFIED_SCOPED_INLINE_VERIFICATION_EVALUATOR",
+      "tools": [
+        {
+          "name": "verify_reconstruction",
+          "positive": 2,
+          "negative_semantic": 1,
+          "negative_invalid_input": 1,
+          "status": "FULLY_CERTIFIED_SCOPED_ORIGINAL_MCP",
+          "scope": "Original Linux REA MCP verifies finite structural-function claims on two controlled inline analyze_function Evidence fixtures (not genuine shipped artifacts): identical comments and CFG return pass; changed pseudocode returns fail; nonexistent comparison Evidence is rejected as invalid_input/isError=true. This tests the evaluator's bounded logical contract only; no live application, shipped-artifact identity, real source equivalence or runtime behavior established."
+        }
+      ],
+      "proof": {
+        "run_id": 40097896131,
+        "commit": "44cc0000625e5e7d087f26175b7c6e8186f64018",
+        "encrypted_artifact_id": 12561901057,
+        "request_sha256": "a71791ffe4157bd78cdefe87d62037c7ce7bc2893b36f99835072222a0b13ef3",
+        "authenticated_result_sha256": "dc8a6faa86e21c97e0c834ad3424ceac87b7d83cb245b1bd72f6470ffba80a05",
+        "request_matched": true,
+        "original_mcp_catalog": 208,
+        "steps_executed": 5,
+        "prerequisite_tool": "compare_functions",
+        "prerequisite_already_certified": true,
+        "positive_claims": [
+          {
+            "claim": "comments",
+            "status": "pass",
+            "isError_true": false
+          },
+          {
+            "claim": "cfg",
+            "status": "pass",
+            "isError_true": false
+          }
+        ],
+        "semantic_negative": {
+          "dimension": "pseudocode",
+          "status": "fail",
+          "isError_true": false
+        },
+        "invalid_input_negative": {
+          "missing_evidence_id": "ev_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "isError_true": true,
+          "error_category": "invalid_input",
+          "error_code": "invalid_request"
+        },
+        "sample_type": "controlled_inline_typed_fixtures",
+        "runtime_or_real_artifact_verified": false,
+        "prior_related_runs": [
+          40096996821,
+          40097644098
+        ],
+        "cleanup_request": "rea-linux/requests/p109-verify-reconstruction-scoped-20261024.json",
+        "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
+      },
+      "fully_certified_total": 82,
+      "remaining": 126,
+      "code_or_server_modified": false,
+      "temporary_request_removed_in_same_commit": true,
+      "prior_comparisons_not_recertified": true
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 81,
-    "awaiting_canonical_individual_review": 127,
+    "functional_pass_scoped_distinct": 82,
+    "awaiting_canonical_individual_review": 126,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
-    "workspace_newly_passed_distinct": 21,
+    "workspace_newly_passed_distinct": 22,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 81,
+    "fully_certified_distinct": 82,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 127,
-    "remaining_full_certification_distinct": 127
+    "not_functionally_positive_distinct": 126,
+    "remaining_full_certification_distinct": 126
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -5829,7 +5892,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P103-P105-KUNA-INVENTORY-SCOPED-20261024",
+  "latest_phase": "LINUX-P109-VERIFY-RECONSTRUCTION-SCOPED-20261024",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -7181,6 +7244,20 @@
       "positive_calls": 1,
       "negative_semantic_calls": 1,
       "negative_isError_true": false
+    },
+    "verify_reconstruction": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P109-VERIFY-RECONSTRUCTION-SCOPED-20261024",
+      "scope": "Original Linux REA MCP verifies finite structural-function claims on two controlled inline analyze_function Evidence fixtures (not genuine shipped artifacts): identical comments and CFG return pass; changed pseudocode returns fail; nonexistent comparison Evidence is rejected as invalid_input/isError=true. This tests the evaluator's bounded logical contract only; no live application, shipped-artifact identity, real source equivalence or runtime behavior established.",
+      "run_ids": [
+        40097896131
+      ],
+      "positive_evidence_sha256": "dc8a6faa86e21c97e0c834ad3424ceac87b7d83cb245b1bd72f6470ffba80a05",
+      "negative_evidence_sha256": "dc8a6faa86e21c97e0c834ad3424ceac87b7d83cb245b1bd72f6470ffba80a05",
+      "positive_calls": 2,
+      "negative_semantic_calls": 1,
+      "negative_error_calls": 1,
+      "source_authority_limitation": "inline controlled fixtures only"
     }
   },
   "transport_incidents": [

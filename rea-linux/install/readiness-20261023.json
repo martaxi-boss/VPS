@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "title": "Actual Linux REA installation and provider readiness verification",
-  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_81_FULLY_CERTIFIED_PROFILES_AND_127_PENDING",
+  "status": "LINUX_NODE24_ORIGINAL_MCP_208_WITH_82_FULLY_CERTIFIED_PROFILES_AND_126_PENDING",
   "authoritative_platform": "Linux on existing VPS; original REA only",
   "evidence": {
     "live_inventory": {
@@ -1482,16 +1482,15 @@
     }
   },
   "latest_certification": {
-    "phase_id": "LINUX-P103-P105-KUNA-INVENTORY-SCOPED-20261024",
-    "tool": "binary_overview",
-    "positive_run_id": 40084449312,
-    "semantic_negative_run_id": 40094842641,
-    "positive_sha256": "4267b7737d1154c3a22f27c6c8b811d7def14f20fe66204cdc9c08ca87359cb6",
-    "negative_sha256": "beabc1d7f5c1df08417ae4c1268eb80502c9cea18cc6bfce42788e2036e3d003",
-    "fully_certified": 81,
-    "pending": 127,
-    "negative_semantics": "Kuna unavailable segment facet omitted, not empty",
-    "scope": "Original Linux REA MCP binary_overview on immutable /usr/bin/true under two existing static providers. Ghidra 12.1.4 returns all 32 observed segments with 0x100000 image_base, 133 analyzed procedures and 122 strings. Kuna 1.833 returns typed procedure_count=54,string_count=113 and deliberately OMITS segment_count/segments/image_base, representing unavailable coverage not zero segments. Certification tests complete inventory with and without segment capability; relative counts are provider-specific and not cross-provider equivalence, no dynamic analysis, no claim of Kuna full decompiler export.",
+    "phase_id": "LINUX-P109-VERIFY-RECONSTRUCTION-SCOPED-20261024",
+    "tool": "verify_reconstruction",
+    "run_id": 40097896131,
+    "authenticated_result_sha256": "dc8a6faa86e21c97e0c834ad3424ceac87b7d83cb245b1bd72f6470ffba80a05",
+    "positive_and_semantic_negative": true,
+    "invalid_input_rejection": true,
+    "fully_certified": 82,
+    "pending": 126,
+    "scope": "Original Linux REA MCP verifies finite structural-function claims on two controlled inline analyze_function Evidence fixtures (not genuine shipped artifacts): identical comments and CFG return pass; changed pseudocode returns fail; nonexistent comparison Evidence is rejected as invalid_input/isError=true. This tests the evaluator's bounded logical contract only; no live application, shipped-artifact identity, real source equivalence or runtime behavior established.",
     "original_bridge_blob": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749"
   },
   "transport_status_after_ovh_renewal": {
@@ -1655,5 +1654,10 @@
     "failed_run_id": 40094634139,
     "catalog_and_ssh_intact": true,
     "provider_configuration_changed": false
+  },
+  "latest_hygiene": {
+    "scope": "P109",
+    "consumed_request_removed_in_same_commit": true,
+    "post_cleanup_original_mcp_recheck": "PENDING"
   }
 }
