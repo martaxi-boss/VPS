@@ -87,7 +87,7 @@ jobs:
           /usr/bin/python3 -c "from cryptography.hazmat.primitives.ciphers.aead import AESGCM"
           /usr/bin/python3 -m unittest -v ops.tests.test_rea_secure_protocol_20261022 ops.tests.test_rea_describe_delivery_20261022
       - name: P182 offline sigrok USB-free library build on disposable runner
-        if: contains(github.event.head_commit.message, 'P182 offline sigrok build trial')
+        if: contains(github.event.head_commit.message, 'P182 offline sigrok build trial') || contains(github.event.head_commit.message, 'P183 sigrok CLI replay trial')
         shell: bash
         run: |
           set -euo pipefail
@@ -116,6 +116,42 @@ jobs:
           echo "REA_P182_SIGROK_BUILT_SHA256=$(sha256sum "$root/prefix/lib/libsigrok.so.4" | cut -d' ' -f1)"
           echo "REA_P182_SIGROK_USB_LINK=NONE"
           echo "REA_P182_SIGROK_BUILD=PASS_ON_EPHEMERAL_RUNNER"
+      - name: P183 verify USB-free sigrok CLI decoder on synthetic VCD
+        if: contains(github.event.head_commit.message, 'P183 sigrok CLI replay trial')
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y -qq --no-install-recommends sigrok-cli > /dev/null
+          root="$RUNNER_TEMP/rea-sigrok-offline-build"
+          lib="$root/prefix/lib"
+          test -f "$lib/libsigrok.so.4"
+          LD_LIBRARY_PATH="$lib" sigrok-cli --version > "$root/version.txt" 2>&1
+          grep -q 'sigrok-cli 0.7.2' "$root/version.txt"
+          LD_LIBRARY_PATH="$lib" sigrok-cli --dont-scan --list-supported > "$root/catalog.txt" 2>&1
+          grep -qi 'uart' "$root/catalog.txt"
+          python3 - "$root/owned-uart.vcd" <<'PY'
+          import sys
+          from pathlib import Path
+          bits=[(0,1),(1042,0),(1146,1),(1250,0),(1354,1),
+                (1458,0),(1562,1),(1666,0),(1770,1),(1874,0),
+                (1978,1),(2288,1)]
+          head=['$date REA public fixture $end','$version REA P183 $end',
+                '$timescale 1us $end','$scope module REA $end',
+                '$var wire 1 ! RX $end','$upscope $end','$enddefinitions $end']
+          body=[f'#{t}\n{v}!' for t,v in bits]
+          Path(sys.argv[1]).write_text('\n'.join(head+body)+'\n')
+          PY
+          LD_LIBRARY_PATH="$lib" sigrok-cli --dont-scan \
+            --input-file="$root/owned-uart.vcd" --input-format=vcd \
+            --protocol-decoders=uart:rx=RX:baudrate=9600 \
+            --protocol-decoder-samplenum > "$root/uart.txt" 2> "$root/uart.err" || {
+              echo "REA_P183_UART_ERROR"; tail -n 20 "$root/uart.err"; exit 1; }
+          test -s "$root/uart.txt" || {
+              echo "REA_P183_UART_EMPTY"; tail -n 15 "$root/uart.err"; exit 1; }
+          echo "REA_P183_VCD_SHA256=$(sha256sum "$root/owned-uart.vcd" | cut -d' ' -f1)"
+          echo "REA_P183_UART_OUTPUT_SHA256=$(sha256sum "$root/uart.txt" | cut -d' ' -f1)"
+          echo "REA_P183_UART_OUTPUT_BYTES=$(wc -c < "$root/uart.txt")"
+          echo "REA_P183_OFFLINE_CLI=PASS_USB_FREE"
       - name: Talk to existing REA over VPS loopback
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
