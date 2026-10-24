@@ -1,0 +1,56 @@
+{
+  "phase": "REA_SENSITIVE_P197_P200_TRIAGE_20261024",
+  "status": "MCP_DESCRIPTORS_VERIFIED__TWO_OWNER_APPROVALS_PENDING",
+  "catalog": 208,
+  "fully_certified_total": 108,
+  "pending_total": 100,
+  "sensitive_certified": 2,
+  "sensitive_pending": 81,
+  "checked": [
+    {
+      "tool": "list_cutter_sessions",
+      "run": 40138069456,
+      "schema_required": [],
+      "arguments": {},
+      "finding": "May discover localhost Cutter REA sessions; no commands executed; owner signature required"
+    },
+    {
+      "tool": "export_evidence_bundle",
+      "run": 40138150524,
+      "schema_required": [
+        "path"
+      ],
+      "finding": "Writes evidence to a local path; no authorized session or output specified; deferred without mutation"
+    },
+    {
+      "tool": "list_frida_devices",
+      "run": 40138204734,
+      "schema_required": [],
+      "arguments": {},
+      "finding": "Local/USB Frida device discovery with no remote endpoint; owner signature required; library readiness not yet proven"
+    },
+    {
+      "tool": "list_browser_targets",
+      "run": 40138267273,
+      "schema_required": [
+        "cdp_endpoint"
+      ],
+      "finding": "Requires literal owner-selected loopback CDP endpoint; not supplied or known; deferred"
+    }
+  ],
+  "owner_batch": "list_cutter_sessions {} and list_frida_devices {} individually signed in one nonce-bound two-step request",
+  "scoped_positive_list_adb_devices": {
+    "run": 40137629176,
+    "full_certification": "PENDING_SEMANTIC_NEGATIVE",
+    "proof_path": "rea-linux/certification/sensitive-p196-owner-signed-adb-devices-20261024.json"
+  },
+  "temporary_request_cleaned": "rea-linux/requests/rea-sensitive-p200-describe-browser-targets-20261024.json",
+  "security": {
+    "no_global_owner_unlock": true,
+    "no_key_export": true,
+    "no_new_server_or_plugin": true,
+    "no_sensitive_tools_called_in_this_phase": true,
+    "no_unrelated_projects_modified": true
+  },
+  "unmodified_original_bridge_sha": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7"
+}
