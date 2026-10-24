@@ -548,7 +548,12 @@
       "original_service_unchanged": true,
       "ephemeral_ghidra_session_cleanup": "PASS",
       "original_bridge_restored_sha": "ad6a6a7d3349caaa23be26aa1e5f95fa21521749",
-      "consumed_github_requests": "PENDING_REMOVAL"
+      "consumed_github_requests": "PASS_REMOVED_1",
+      "post_cleanup_run_id": 40053091719,
+      "post_cleanup_catalog": 208,
+      "post_cleanup_schemas": 208,
+      "post_cleanup_contract_matches": 208,
+      "cleanup_commit": "b0553505bd771868a3c1731b291b5853967baf19"
     },
     "prior_contract_certification": {
       "phase_id": "LINUX-P56-PROCEDURE-LOOKUPS-20261024",
