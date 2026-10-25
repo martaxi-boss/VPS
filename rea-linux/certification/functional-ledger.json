@@ -8124,6 +8124,14 @@
       "source_offline_build_not_yet_installed": true,
       "service_sigrok_positive_mcp_status": "FAILED_HISTORICAL_LIBUSB",
       "recommendation": "Isolate supplier build; preserve original systemd sandbox"
+    },
+    "latest_p260_scope_audit": {
+      "date_utc": "2026-10-25",
+      "audit_report": "rea-linux/certification/p260-audit-121-certified-readiness-owner-key-20261025.json",
+      "github_actions_provider_health": 40228952686,
+      "github_actions_service_doctor": 40229204839,
+      "provider_status": "GHIDRA_JADX_PASS_IN_LOCAL_HEALTH; SERVICE_DOCTOR_GLOBAL_HEALTH_FALSE; CORE_CONFIGURED_PATHS_PRESENT; IDA_UNAVAILABLE",
+      "provider_operational_readiness_not_equivalent_to_certificate_status": true
     }
   },
   "certified_tool_registry": {
@@ -9978,7 +9986,7 @@
   "active_retained_state_incident": {
     "incident_id": "P225-LIVE-SESSION-RECORDS-RESET-AFTER-SOURCE-OWNED-BINARY-CLOSE-20261025",
     "report_path": "rea-linux/certification/incident-p225-live-investigation-records-reset-20261025.json",
-    "status": "OPEN_PARTIAL_RECOVERY_P229_SIX_RESTORED_P249_NINE_LIVE_EVIDENCE_P232_RETENTION_HOLD",
+    "status": "OPEN_PARTIAL_RECOVERY_P229_SIX_RESTORED_P260_ELEVEN_LIVE_EVIDENCE_P232_RETENTION_HOLD",
     "observed_evidence_records": 0,
     "observed_unknowns": 0,
     "preincident_expected_evidence": 8,
@@ -9993,6 +10001,65 @@
     "historical_observations_date_utc": "2026-10-25",
     "historical_observations_qualification": "observed_evidence_records=0, observed_unknowns=0, historical_certifications_preserved=116 and preincident_expected_evidence=8 describe the original P225 incident snapshot, NOT the current P249 live state; historical P217/P218 Evidence and Unknown records were not recovered.",
     "current_verified_followup": {
+      "phase_id": "LINUX-P259-OWNER-SIGNED-GDB-SESSION-STATUS-FULL-CERTIFICATION-20261025",
+      "as_of_utc": "2026-10-25",
+      "p229_restored_historical_P214_evidence": 6,
+      "P248_source_owned_synthetic_evidence": 1,
+      "P249_new_managed_synthetic_evidence": 2,
+      "latest_live_evidence_count": 11,
+      "latest_live_unknown_count": 1,
+      "latest_complete_bundle_semantic_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+      "prior_seven_records_preserved_exactly": true,
+      "P214_original_six_evidence_preserved_exactly": true,
+      "lost_P217_P218_evidence_or_unknown_recovered": false,
+      "independently_durable_archive_of_P248_P249_evidence_verified": false,
+      "readback_run_id": 40228657095,
+      "owner_signature_scope": "P259 owner-signed GDB start/close consumed, verified; P260 purely read-only; no standing owner authorization",
+      "current_fully_certified": 121,
+      "current_pending": 87,
+      "p232_p246_bridge_hold_active": true,
+      "latest_readonly_snapshot": {
+        "run_id": 40228657095,
+        "report_path": "rea-linux/certification/p260-audit-121-certified-readiness-owner-key-20261025.json",
+        "evidence_count": 11,
+        "unknown_count": 1,
+        "bundle_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+        "matches_P259_prior_retention": true,
+        "independent_archive_restore_tested": false,
+        "owner_download_confirmed": false,
+        "retention_hold_P232_P246": true,
+        "provider_global_health": "UNHEALTHY_IN_P260_READONLY_SERVICE_DOCTOR_WITH_CORE_TOOLS_AVAILABLE"
+      },
+      "P254_source_owned_firmware_evidence": {
+        "new_evidence_id": "ev_2ef3be85fb34ee35c4fdc90084f0b4ef444a732ab116c7056e5188040d5ada85",
+        "owner_signed_run_id": 40220314743,
+        "post_readback_run_id": 40220461649,
+        "before_nine_sha256": "a00cb128ab4daabe4acfe0f3a7d738972e9d65e3fb954f8b645e603790dbf6ec",
+        "after_ten_sha256": "8ddc202430af04e5da8c53521211d7a8968021316b9abc1c8d063c9c72066bc5",
+        "prior_nine_preserved": true,
+        "new_records": 1,
+        "new_record_operation": "extract_firmware",
+        "new_record_coverage": "partial",
+        "P232_hold_remains_active": true,
+        "ten_record_durable_archive_verified": false,
+        "prepared_independent_ten_evidence_archive": {
+          "date_utc": "2026-10-25",
+          "filename": "REA_P254_Evidence_10_Copia_20261025.zip",
+          "sha256": "3c73eb8ebf635db1309e88cd24f80e1053ff40744783d9a167491baa57a7b682",
+          "bytes": 13204,
+          "bundle_sha256": "8ddc202430af04e5da8c53521211d7a8968021316b9abc1c8d063c9c72066bc5",
+          "local_zip_integrity_verified": true,
+          "owner_download_confirmed": false,
+          "archive_restoration_tested": false,
+          "durable_external_storage_verified": false,
+          "hold_P232_P246_remains_active": true
+        }
+      },
+      "latest_audit_check_phase": "P260-AUDIT-ONLY-121-CERTIFIED-READINESS-20261025",
+      "original_P217_P218_records_restored": false,
+      "live_unknown_status": "open"
+    },
+    "historical_p254_current_followup_before_p260_hygiene": {
       "phase_id": "LINUX-P249-SIGNED-IMPORT-MANAGED-RECONSTRUCTION-ORIGINAL-MCP-20261025",
       "as_of_utc": "2026-10-25",
       "p229_restored_historical_P214_evidence": 6,
@@ -10130,7 +10197,9 @@
       "latest_prepared_zip_sha256": "8f9842efd89816ac313d5004d83d7926b0e933bfadff4be92e431b07b59ea636",
       "independent_archive_restoration_tested": false,
       "owner_download_confirmed": false,
-      "current_live_unknowns": 1
+      "current_live_unknowns": 1,
+      "current_live_bundle_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+      "latest_readonly_check_run_id": 40228657095
     },
     "no_new_certifications": false,
     "gdb_session_status": {
@@ -10282,6 +10351,38 @@
       "evidence_semantic_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
       "report": "rea-linux/certification/read-p259-gdb-session-status-certified-20261025.json"
     },
-    "latest_preparation_phase": "P259-GDB-ONLY-OWNER-SIGNER-READY-NO_CERTIFICATION_20261025"
+    "latest_preparation_phase": "P259-GDB-ONLY-OWNER-SIGNER-READY-NO_CERTIFICATION_20261025",
+    "latest_certified_only_audit": {
+      "phase": "P260",
+      "status": "REVIEW_COMPLETE_WITH_OPERATIONAL_GATES_NOT_BLANKET_READY",
+      "report_path": "rea-linux/certification/p260-audit-121-certified-readiness-owner-key-20261025.json",
+      "fully_certified_distinct": 121,
+      "remaining": 87,
+      "certified_risk_breakdown": {
+        "read": 5,
+        "workspace": 103,
+        "sensitive": 13
+      },
+      "current_policy_sensitive_original_owner_signed_histories": 11,
+      "current_policy_sensitive_historical_pre_signature_positives": 2,
+      "certified_reviewed_sessions_needing_open_binary": 41,
+      "open_binary_itself_under_P232_P246_hold": true,
+      "at_least_42_currently_gated": true,
+      "provider_doctors_ghidra_jadx": "PASS",
+      "service_doctor_run_id": 40229204839,
+      "service_doctor_global_healthy": false,
+      "doctor_ida_available": false,
+      "provider_pconfig_aux_run_failure_id": 40229201534,
+      "provider_pconfig_aux_failure_explanation": "Auxiliary SSH read of original protected Unblob executable returned PermissionError; service identity itself checked Unblob executable FILE, so do not modify file permissions.",
+      "live_current_readback_run_id": 40228657095,
+      "live_evidence_records": 11,
+      "live_unknown_records": 1,
+      "live_semantic_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+      "no_new_certifications": true,
+      "no_daemon_restart": true,
+      "no_sensitive_operations": true,
+      "no_provider_permission_loosening": true,
+      "hold_P232_P246_active": true
+    }
   }
 }
