@@ -113,7 +113,7 @@
   "remaining_limitations": [
     "Historical P217/P218 evidence records (two) and related Unknown revisions were not in six-record P214 archive and remain absent from active MCP.",
     "Evidence is in current live MCP process memory, but existing binary session close behavior can erase it again. Do not open/close binaries before fixing retention.",
-    "Original P214 backup remains canonical permanent preservation source. Temporary staged copy in engine directory was not removed in this phase; owner-controlled cleanup is a separate operation after matching original archive SHA.",
+    "Owner-console screenshot reports temporary staged P229 copy deleted after comparing both SHA-256 digests; original P214 archive retained. Independent VPS file absence check not yet executed.",
     "No new tool certifications: historic fully-certified still 116/208 (including 10 sensitive); restore is not another tool certification.",
     "No change to original REA source, secure bridge, GitHub workflow, owner Ed25519 policy, MCP binding or other projects."
   ],
@@ -134,6 +134,18 @@
     "private_owner_key_never_transmitted": true,
     "only_ciphertext_in_git_request": true,
     "no_sudo_actions_by_assistant": true,
-    "staged_copy_cleanup_pending_owner": true
+    "staged_copy_cleanup_pending_owner": false
+  },
+  "owner_stage_cleanup": {
+    "source": "Owner-uploaded original Ubuntu terminal screenshot in current conversation",
+    "image_sha256": "5ed4e4d108642cd6ef9364c16e05fd89d896871e1d123cd82214ae483bfd6239",
+    "observation": "Owner executed chained SRC and DST sha256sum matches against the original canonical P214 archive digest, then sudo rm -- \"$DST\" and saw REA_P229_STAGE_CLEANED=PASS.",
+    "timestamp_observed": "2026-10-25T11:45:00Z",
+    "expected_sha256": "daa7bcc15a6cb1adf4fb46563100b2d67ff8b6694b191ef762d3cd2d8e61f3c4",
+    "source_kept_intact_by_command": true,
+    "temporary_destination_deleted_by_command": true,
+    "terminal_exit_status": "PASS_AND_SHELL_PROMPT_RETURNED",
+    "independently_readback_directory_absence_on_VPS": false,
+    "qualification": "Owner-console evidence, not an additional independent SSH runtime filesystem probe."
   }
 }
