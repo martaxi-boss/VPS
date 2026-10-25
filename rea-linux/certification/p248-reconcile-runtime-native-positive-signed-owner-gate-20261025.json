@@ -77,5 +77,25 @@
     "reused_existing_engine": true,
     "no_other_project_changes": true
   },
-  "next_required": "Have actual owner run the local one-step Android Ed25519 signer and supply unexpired signed JSON. Then private encrypt and execute original MCP exact 3-step batch, check isError and before-after six historic Evidence identities, append exactly one certified_tool_registry entry on positive and negative evidence."
+  "next_required": "Have actual owner run the local one-step Android Ed25519 signer and supply unexpired signed JSON. Then private encrypt and execute original MCP exact 3-step batch, check isError and before-after six historic Evidence identities, append exactly one certified_tool_registry entry on positive and negative evidence.",
+  "failed_signed_attempt": [
+    {
+      "run_id": 40201512047,
+      "job_id": 121193485323,
+      "head_sha": "dee46c38e45da8b961f726d16c76fafc48605a92",
+      "status": "REJECTED_PRE_TOOLS_CALL",
+      "diagnostic": "Signed REASON was 484 chars, secure policy accepts at most 400; failure before nonce claim and MCP execution; no Evidence changed",
+      "request_cipher_git_blob": "b17c5c44fb6082a4d53c5f7a85ed71d6a2cbff69",
+      "owner_signature_validated_in_VPS": false,
+      "new_tool_certified": false
+    }
+  ],
+  "signer_fix": {
+    "reason_character_count": 399,
+    "policy": "Existing 12..400 characters unmodified",
+    "owner_new_signature_required": true,
+    "old_signature_cannot_be_reused": true,
+    "signer_path": "rea-linux/owner/sign_p248_runtime_reconciliation_android.py",
+    "phase": "P248"
+  }
 }
