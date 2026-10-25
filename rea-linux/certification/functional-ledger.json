@@ -9982,7 +9982,22 @@
         "unknowns": 0,
         "bundle_sha256": "8ddc202430af04e5da8c53521211d7a8968021316b9abc1c8d063c9c72066bc5"
       },
-      "report": "rea-linux/certification/p255-readonly-two-real-mcp-negative-preconditions-20261025.json"
+      "report": "rea-linux/certification/p255-readonly-two-real-mcp-negative-preconditions-20261025.json",
+      "p259_offline_owner_signer_preparation": {
+        "phase": "P259",
+        "status": "ONLY_GDB_LOCAL_SIGNER_PREPARED_AND_PREVIEW_TESTED__ED25519_SIGNATURE_MISSING__NO_REAL_MCP_GDB_START",
+        "report": "rea-linux/certification/p259-gdb-only-owner-signer-prepared-20261025.json",
+        "android_zip_name": "REA_P259_GDB_Android.zip",
+        "android_zip_sha256": "bb074cf834821f7287b83e4c9faf7602b9883343dbce77177d5461bf02095642",
+        "no_new_unknown_created": true,
+        "no_start_or_close_executed": true,
+        "owner_signature_provided": false,
+        "gdb_requires_exact_two_signatures": "start_gdb_session before test; close_gdb_session bound to returned live UUID after test",
+        "baseline_live_evidence_count": 11,
+        "baseline_unknown_count": 1,
+        "baseline_evidence_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+        "do_not_reuse_superseded_p256_android_plan": true
+      }
     },
     "latest_readonly_two_tools_probe": {
       "phase": "P255",
@@ -10016,6 +10031,7 @@
       "owner_keys_unchanged": true,
       "readback_run_id": 40224253679,
       "report": "rea-linux/certification/read-p258-verify-unknown-resolution-certified-20261025.json"
-    }
+    },
+    "latest_preparation_phase": "P259-GDB-ONLY-OWNER-SIGNER-READY-NO_CERTIFICATION_20261025"
   }
 }
