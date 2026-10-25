@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_121_CERTIFIED__ALL_FIVE_READ_DONE__P214_SIX_PRESERVED__P232_RETENTION_HOLD_ACTIVE",
+  "status": "P261_CANONICAL_SAFE_CHECKPOINT__121_OF_208_SCOPED_CERTIFIED__SOURCE_REPAIR_TESTED_NOT_DEPLOYED__P232_P246_HOLD_ACTIVE",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -7724,6 +7724,38 @@
         "Previous missing P217/P218 records not claimed restored.",
         "Postclose read-only Actions marker REA_MOBILE_TOOL_ERROR=true is the expected negative tool assertion, not a transport failure."
       ]
+    },
+    {
+      "phase_id": "LINUX-P261-SAFE-CANONICAL-REPAIR-STAGING-PRESERVE-EVIDENCE-20261025",
+      "date_utc": "2026-10-25",
+      "status": "ZERO_NEW_CERTIFICATIONS_SAFE_CODE_PATCH_TESTED_OFFLINE_LIBRARY_BACKUP_VERIFIED_CANONICAL_HOLD_MAINTAINED",
+      "tools": [],
+      "proof": {
+        "report": "rea-linux/certification/p261-canonical-repair-staged-retention-tested-hygiene-20261025.json",
+        "original_source_staging_branch": "rea/p261-preserve-investigation-records-20261025",
+        "source_test_run_id": 40230724635,
+        "old_source_regression_failure_as_expected": true,
+        "corrected_source_regressions_passed": 158,
+        "typecheck_and_lint_pass": true,
+        "full_live_backup_SHA256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+        "private_library_zip_sha256": "8f9842efd89816ac313d5004d83d7926b0e933bfadff4be92e431b07b59ea636",
+        "private_library_backup_independently_downloaded_and_verified": true,
+        "metadata_digest_aliases_corrected_for": 10,
+        "original_service_not_restarted": true,
+        "original_source_patch_not_deployed": true
+      },
+      "new_certifications": 0,
+      "fully_certified_total": 121,
+      "pending": 87,
+      "read_certified_total": 5,
+      "original_live_evidence_count": 11,
+      "original_live_unknowns": 1,
+      "P232_P246_hold_active": true,
+      "limitations": [
+        "42 certified workspace tools remain blocked by P232/P246 until independently tested original-REA import/restore and safe deployment; staged source regression alone is not live activation.",
+        "Service doctor healthy=false; optional vendor providers not forced green.",
+        "Every future sensitive call still requires a fresh matching owner Ed25519 signature; two legacy sensitive tool proofs are pre-signed-policy."
+      ]
     }
   ],
   "active_scope_counts": {
@@ -7768,7 +7800,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P259-OWNER-SIGNED-GDB-SESSION-STATUS-FULL-CERTIFICATION-20261025",
+  "latest_phase": "LINUX-P261-SAFE-CANONICAL-REPAIR-STAGING-PRESERVE-EVIDENCE-20261025",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -10281,7 +10313,10 @@
       "owner_download_confirmed": false,
       "current_live_unknowns": 1,
       "current_live_bundle_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
-      "latest_readonly_check_run_id": 40228657095
+      "latest_readonly_check_run_id": 40228657095,
+      "external_private_archive_verified": true,
+      "external_private_archive_restore_bytes_verified": true,
+      "external_original_rea_import_tested": false
     },
     "no_new_certifications": false,
     "gdb_session_status": {
@@ -10436,7 +10471,7 @@
       "p260_no_new_read_certifications": true,
       "p260_report": "rea-linux/certification/p260-audit-121-certified-readiness-security-hygiene-20261025.json"
     },
-    "latest_preparation_phase": "P259-GDB-ONLY-OWNER-SIGNER-READY-NO_CERTIFICATION_20261025",
+    "latest_preparation_phase": "P261_TESTED_SOURCE_AND_LIBRARY_BACKUP_COMPLETE_NO_LIVE_ACTIVATION",
     "latest_certified_only_audit": {
       "phase": "P260",
       "status": "REVIEW_COMPLETE_WITH_OPERATIONAL_GATES_NOT_BLANKET_READY",
@@ -10542,6 +10577,39 @@
       "source_fix_staged_branch": "martaxi-boss/Engenheira-reversa:rea/p261-preserve-investigation-records-20261025",
       "source_fix_not_deployed": true,
       "p232_p246_retention_hold_active": true
+    },
+    "p261_source_retention_staging": {
+      "phase": "P261",
+      "status": "PATCH_TESTED_AND_CANONICAL_SOURCE_STAGED_NOT_DEPLOYED_TO_ORIGINAL_RUNNING_MCP",
+      "original_source_repo": "martaxi-boss/Engenheira-reversa",
+      "staging_branch": "rea/p261-preserve-investigation-records-20261025",
+      "staging_commit": "059ea30ad2392c2fd4e5f4096f529674cf56dc0e",
+      "source_original_main_unchanged": true,
+      "test_run_id": 40230724635,
+      "expected_old_source_test_failure": true,
+      "regressions_passed": 158,
+      "formatter": "PASS",
+      "typecheck_and_lint": "PASS",
+      "new_certifications": 0,
+      "installed_live_rea_service": false,
+      "safe_to_use_open_binary_and_restricted_session_tools": false,
+      "P232_P246_hold_active": true,
+      "report": "rea-linux/certification/p261-canonical-repair-staged-retention-tested-hygiene-20261025.json"
+    },
+    "p261_offsite_private_checkpoint": {
+      "phase": "P261",
+      "status": "PRIVATE_LIBRARY_BYTES_RECOVERED_VERIFIED__ORIGINAL_REA_IMPORT_NOT_TESTED",
+      "name": "REA_P261_Evidence_11_Backup_Verificado.zip",
+      "private_location": "engenharia reversa",
+      "zip_sha256": "8f9842efd89816ac313d5004d83d7926b0e933bfadff4be92e431b07b59ea636",
+      "bundle_semantic_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+      "evidence_records": 11,
+      "unknown_revisions": 1,
+      "private_library_roundtrip_tested": true,
+      "original_rea_import_roundtrip_tested": false,
+      "live_records_preserved": true,
+      "restoration_and_restart_hold_active": true,
+      "report": "rea-linux/certification/p261-canonical-repair-staged-retention-tested-hygiene-20261025.json"
     }
   }
 }
