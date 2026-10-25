@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_retention_p241", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -259,6 +259,25 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_LINUX_READ5_NODE_PRESENT", "REA_LINUX_READ5_REGRESSION",
         "REA_LINUX_READ5_EXIT_CODE", "REA_LINUX_READ5_TEST_OUTPUT_SHA256",
         "REA_LINUX_READ5_TEST_NAME", "REA_LINUX_READ5_TEST_DIAGNOSTIC",
+        "REA_P241_STAGED_SOURCE_SHA",
+        "REA_P241_INSTALLED_PACKAGE_SHA256",
+        "REA_P241_STAGED_PACKAGE_SHA256",
+        "REA_P241_PACKAGE_MANIFEST_MATCH",
+        "REA_P241_FIXTURE_BLOB",
+        "REA_P241_PHASE_A_EXIT",
+        "REA_P241_PHASE_A_TEST",
+        "REA_P241_PHASE_A_LOG_SHA256",
+        "REA_P241_PHASE_B_EXIT",
+        "REA_P241_PHASE_B_TEST",
+        "REA_P241_PHASE_B_LOG_SHA256",
+        "REA_P241_ARCHIVE_SHA256",
+        "REA_P241_ARCHIVE_BYTES",
+        "REA_P241_RECORD_COUNT",
+        "REA_P241_UNKNOWN_REVISIONS",
+        "REA_P241_PRIVATE_MODE",
+        "REA_P241_SOURCE_HYGIENE",
+        "REA_P241_RECOVERY_STATUS",
+        "REA_P241_BLOCKER",
         "REA_LINUX_GDB_CONFORMANCE_SOURCE", "REA_LINUX_GDB_CONFORMANCE_COUNT",
         "REA_LINUX_GDB_CONFORMANCE_STATUS", "REA_LINUX_GDB_CONFORMANCE_WORKTREE",
         "REA_LINUX_GDB_MANAGER_EXIT", "REA_LINUX_GDB_MANAGER_RESULT",
@@ -1145,6 +1164,134 @@ def main():
         print("REA_LINUX_READ5_MCP_PASS_COUNT=" + str(pass_count))
         print("REA_LINUX_READ5_MCP_BOUNDARIES=" +
               ("PASS_ISOLATED_MCP_NOT_PRODUCTION" if pass_count == 4 and intact else "INCOMPLETE"))
+        return
+    if data["action"] == "fixture_linux_retention_p241":
+        # P241: run ORIGINAL REA MCP source via two separate Vitest OS
+        # processes, each with its own IN-MEMORY server. Never restart
+        # the permanent service or access its investigation records.
+        import shutil, tempfile, stat
+        source = Path.home() / ".local/share/rea-chatgpt-trial/repository/rea"
+        runner = source / "node_modules/vitest/vitest.mjs"
+        node = shutil.which("node")
+        fixture = source / "tests/boundary/mcp/reaP241IsolatedProcessFixture.test.ts"
+        source_git = subprocess.run(
+            ["git", "-C", str(source), "rev-parse", "HEAD"],
+            capture_output=True, text=True, timeout=12, check=False)
+        before = subprocess.run(
+            ["git", "-C", str(source), "status", "--porcelain"],
+            capture_output=True, text=True, timeout=12, check=False)
+        if (not source.is_dir() or not runner.is_file() or not node or
+            source_git.returncode or before.returncode or before.stdout.strip()):
+            print("REA_P241_BLOCKER=ORIGINAL_STAGED_SOURCE_OR_TEST_RUNNER_UNAVAILABLE")
+            return
+        staged = source_git.stdout.strip()
+        print("REA_P241_STAGED_SOURCE_SHA=" + staged)
+        if staged != "8e9a7ee295667f8e23aea9d18af6eee4363d2032":
+            print("REA_P241_BLOCKER=ORIGINAL_STAGED_SOURCE_PIN_MISMATCH")
+            return
+        if fixture.exists() or fixture.is_symlink():
+            print("REA_P241_BLOCKER=TEMPORARY_FIXTURE_ALREADY_EXISTS")
+            return
+        if not Path("/dev/shm").is_dir():
+            print("REA_P241_BLOCKER=ISOLATED_MEMORY_FILESYSTEM_MISSING")
+            return
+        pkg_installed = Path("/opt/rea-reversa/rea/package.json")
+        pkg_staged = source / "package.json"
+        if pkg_installed.is_file() and pkg_staged.is_file():
+            installed_sha = hashlib.sha256(pkg_installed.read_bytes()).hexdigest()
+            staged_sha = hashlib.sha256(pkg_staged.read_bytes()).hexdigest()
+            print("REA_P241_INSTALLED_PACKAGE_SHA256=" + installed_sha)
+            print("REA_P241_STAGED_PACKAGE_SHA256=" + staged_sha)
+            print("REA_P241_PACKAGE_MANIFEST_MATCH=" +
+                  ("PASS" if installed_sha == staged_sha else "MISMATCH"))
+        else:
+            print("REA_P241_PACKAGE_MANIFEST_MATCH=UNAVAILABLE")
+        fixture_text = "/**\n * P241: ORIGINAL REA source-only test, executed twice in separate Node/Vitest\n * operating-system processes. All MCP servers/transports are in-memory.\n * No production daemon, service, evidence or owner key is accessed.\n * REA_P241_FIXTURE_ROOT is a private 0700 directory supplied by the bridge.\n */\nimport { createHash } from \"node:crypto\";\nimport { chmod, lstat, readFile, writeFile } from \"node:fs/promises\";\nimport { join } from \"node:path\";\nimport { Client, InMemoryTransport } from \"@modelcontextprotocol/client\";\nimport { expect, it } from \"vitest\";\nimport { createEvidence } from \"../../../src/domain/evidence.js\";\nimport { ok as resultOk } from \"../../../src/domain/result.js\";\nimport { createServer } from \"../../../src/server/createServer.js\";\nimport { createTestBinarySession } from \"../../fixtures/binarySession.js\";\nimport { observed } from \"../../fixtures/analysisExecution.js\";\n\ntype Bundle = {\n  artifacts: unknown[]; providers: unknown[]; environments: unknown[];\n  scenarios: unknown[]; captures: unknown[];\n  records: Array<{ evidence_id: string; normalized_result: unknown }>;\n  unknowns: Array<{\n    unknown_id: string; revision: number;\n    previous_revision_digest: string | null; revision_digest: string;\n  }>;\n};\ntype Reply = Awaited<ReturnType<Client[\"callTool\"]>>;\nconst root = () => {\n  const folder = process.env.REA_P241_FIXTURE_ROOT;\n  expect(folder).toMatch(/^\\/[^\\n]+$/);\n  if (!folder) throw new Error(\"private P241 test directory absent\");\n  return folder;\n};\nconst files = () => ({\n  archive: join(root(), \"complete-original-rea.json\"),\n  manifest: join(root(), \"baseline-digests.json\"),\n  restored: join(root(), \"complete-restored-rea.json\"),\n  corrupt: join(root(), \"tampered-evidence.json\"),\n  gap: join(root(), \"missing-unknown-revision.json\"),\n  absent: join(root(), \"nonexistent-archive.json\"),\n});\nconst hash = (bytes: string) => createHash(\"sha256\").update(bytes).digest(\"hex\");\nconst readBundle = (reply: Reply): Bundle => {\n  expect(reply.isError).not.toBe(true);\n  const result = (reply.structuredContent as { result?: Bundle } | undefined)?.result;\n  expect(result).toBeDefined();\n  if (!result) throw new Error(\"original MCP did not return a full bundle\");\n  return result;\n};\nconst connect = async () => {\n  const session = createTestBinarySession(() => ({\n    execute: () => Promise.resolve(observed(null)),\n    close: () => Promise.resolve(resultOk(null)),\n  }));\n  const server = createServer({ kind: \"session\", session });\n  const client = new Client({ name: \"p241-original-rea-restart-fixture\", version: \"1\" });\n  const [a, b] = InMemoryTransport.createLinkedPair();\n  await server.connect(b);\n  await client.connect(a);\n  const call = async (name: string, args: Record<string, unknown> = {}): Promise<Reply> => {\n    const reply = await client.callTool({ name, arguments: args });\n    expect(reply.isError, name + \" unexpectedly returned error\").not.toBe(true);\n    return reply;\n  };\n  const bundle = async () => readBundle(await call(\"get_evidence_bundle\"));\n  const dispose = async () => {\n    await Promise.allSettled([client.close(), server.close(), session.close()]);\n  };\n  return { session, client, call, bundle, dispose };\n};\nconst assertRevisionChain = (bundle: Bundle) => {\n  expect(bundle.unknowns).toHaveLength(2);\n  const [first, second] = bundle.unknowns;\n  expect(first!.unknown_id).toBe(second!.unknown_id);\n  expect(first!.revision).toBe(1);\n  expect(second!.revision).toBe(2);\n  expect(first!.previous_revision_digest).toBeNull();\n  expect(second!.previous_revision_digest).toBe(first!.revision_digest);\n  expect(new Set(bundle.records.map(r => r.evidence_id)).size).toBe(bundle.records.length);\n};\nconst empty = (bundle: Bundle) => {\n  expect(bundle.records).toEqual([]);\n  expect(bundle.unknowns).toEqual([]);\n};\n\nit(\"P241 phase A exports complete Evidence and two Unknown revisions before OS process exit\", async () => {\n  const p = files();\n  const x = await connect();\n  try {\n    const provider = { id: \"fixture\", name: \"Fixture\", version: \"1\" };\n    for (const label of [\"alpha\", \"beta\"]) {\n      const ev = createEvidence(undefined, provider, {\n        operation: \"p241_\" + label,\n        parameters: { label },\n        result: { label, deep: { retained: true, rank: label === \"alpha\" ? 1 : 2 } },\n      });\n      expect(x.session.recordEvidence(ev).ok).toBe(true);\n    }\n    const fields = {\n      severity: \"medium\",\n      required_authority: \"shipped-artifact\",\n      required_confidence: \"observed\",\n      required_environment: null,\n      recommended_probes: [],\n      relationships: [],\n    };\n    const created = await x.call(\"record_unknown\", {\n      ...fields, question: \"What created the fixture?\", domain: \"p241-native-restart\",\n    });\n    const initial = (created.structuredContent as {\n      result: { unknown_id: string; revision: number }\n    }).result;\n    expect(initial.unknown_id).toMatch(/^unk_[0-9a-f]{64}$/);\n    await x.call(\"update_unknown\", {\n      ...fields, unknown_id: initial.unknown_id, expected_revision: initial.revision,\n      status: \"investigating\", supporting_evidence_ids: [],\n      contradicting_evidence_ids: [], resolution: null,\n    });\n    const before = await x.bundle();\n    expect(before.records.length).toBeGreaterThanOrEqual(2);\n    assertRevisionChain(before);\n    await x.call(\"export_evidence_bundle\", { path: p.archive });\n    await chmod(p.archive, 0o600);\n    const stat = await lstat(p.archive);\n    expect(stat.isFile() && !stat.isSymbolicLink()).toBe(true);\n    expect(stat.mode & 0o077).toBe(0);\n    const bytes = await readFile(p.archive, \"utf8\");\n    expect(JSON.parse(bytes)).toEqual(before);\n    const manifest = {\n      sha256: hash(bytes),\n      evidence_ids: before.records.map(r => r.evidence_id),\n      unknown_revisions: before.unknowns,\n      record_count: before.records.length,\n      original_bytes: Buffer.byteLength(bytes),\n    };\n    await writeFile(p.manifest, JSON.stringify(manifest), { flag: \"wx\", mode: 0o600 });\n    expect((await lstat(p.manifest)).mode & 0o077).toBe(0);\n  } finally {\n    await x.dispose();\n  }\n});\n\nit(\"P241 phase B starts a new OS process, refuses damaged archives, restores exact state\", async () => {\n  const p = files();\n  const manifest = JSON.parse(await readFile(p.manifest, \"utf8\")) as {\n    sha256: string;\n    evidence_ids: string[];\n    unknown_revisions: Bundle[\"unknowns\"];\n    record_count: number;\n    original_bytes: number;\n  };\n  const bytes = await readFile(p.archive, \"utf8\");\n  expect(hash(bytes)).toBe(manifest.sha256);\n  expect(Buffer.byteLength(bytes)).toBe(manifest.original_bytes);\n  const expected = JSON.parse(bytes) as Bundle;\n  assertRevisionChain(expected);\n  expect(expected.records.map(r => r.evidence_id)).toEqual(manifest.evidence_ids);\n  expect(expected.unknowns).toEqual(manifest.unknown_revisions);\n  const x = await connect();\n  try {\n    empty(await x.bundle());\n    const changed = structuredClone(expected);\n    changed.records[0]!.normalized_result = { tampered: true };\n    await writeFile(p.corrupt, JSON.stringify(changed), { flag: \"wx\", mode: 0o600 });\n    const gapped = structuredClone(expected);\n    gapped.unknowns.shift();\n    await writeFile(p.gap, JSON.stringify(gapped), { flag: \"wx\", mode: 0o600 });\n    for (const candidate of [p.absent, p.corrupt, p.gap]) {\n      const refused = await x.client.callTool({\n        name: \"import_evidence_bundle\", arguments: { path: candidate },\n      });\n      expect(refused.isError, \"unsafe archive unexpectedly accepted\").toBe(true);\n      empty(await x.bundle());\n    }\n    await x.call(\"import_evidence_bundle\", { path: p.archive });\n    const restored = await x.bundle();\n    expect(restored).toEqual(expected);\n    assertRevisionChain(restored);\n    await x.call(\"import_evidence_bundle\", { path: p.archive });\n    expect(await x.bundle()).toEqual(expected);\n    await x.call(\"export_evidence_bundle\", { path: p.restored });\n    await chmod(p.restored, 0o600);\n    const post = await readFile(p.restored, \"utf8\");\n    expect(post).toBe(bytes);\n    expect(hash(post)).toBe(manifest.sha256);\n    expect(restored.records.map(r => r.evidence_id)).toEqual(manifest.evidence_ids);\n    expect(restored.unknowns).toEqual(manifest.unknown_revisions);\n  } finally {\n    await x.dispose();\n  }\n});\n"
+        passed = []
+        cleaned = False
+        try:
+            # Write source-owned P241 fixture, verify exact reviewed Git blob.
+            with open(fixture, "x", encoding="utf-8") as stream:
+                stream.write(fixture_text)
+            file_hash = subprocess.run(
+                ["git", "-C", str(source), "hash-object", "--", str(fixture)],
+                capture_output=True, text=True, timeout=12, check=False)
+            verified = (file_hash.returncode == 0 and
+                        file_hash.stdout.strip() == "44044239412d025e0da263ad763ae0716afe37cb")
+            print("REA_P241_FIXTURE_BLOB=" + ("PASS" if verified else "FAIL"))
+            if not verified:
+                print("REA_P241_BLOCKER=TEMP_FIXTURE_SHA_MISMATCH")
+                return
+            with tempfile.TemporaryDirectory(prefix="rea-p241-", dir="/dev/shm") as folder:
+                os.chmod(folder, 0o700)
+                env = {**os.environ, "CI":"true", "NO_COLOR":"1",
+                       "NODE_OPTIONS":"--max-old-space-size=1024",
+                       "REA_P241_FIXTURE_ROOT":folder}
+                for step, pattern in (
+                    ("A", "P241 phase A exports complete Evidence"),
+                    ("B", "P241 phase B starts a new OS process")):
+                    try:
+                        proc = subprocess.run(
+                            [node, str(runner), "run",
+                             "tests/boundary/mcp/reaP241IsolatedProcessFixture.test.ts",
+                             "-t", pattern, "--no-file-parallelism", "--maxWorkers=1"],
+                            cwd=str(source), capture_output=True, text=True,
+                            timeout=145, check=False, env=env)
+                    except subprocess.TimeoutExpired:
+                        print("REA_P241_BLOCKER=PHASE_" + step + "_TIMEOUT")
+                        break
+                    raw = proc.stdout + "\n" + proc.stderr
+                    output = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", raw)
+                    accepted = (proc.returncode == 0 and
+                                bool(re.search(r"\b1 passed\b", output)))
+                    print("REA_P241_PHASE_" + step + "_EXIT=" + str(proc.returncode))
+                    print("REA_P241_PHASE_" + step + "_LOG_SHA256=" +
+                          hashlib.sha256(raw.encode()).hexdigest())
+                    print("REA_P241_PHASE_" + step + "_TEST=" +
+                          ("PASS" if accepted else "FAIL"))
+                    passed.append(accepted)
+                    if not accepted:
+                        print("REA_P241_BLOCKER=PHASE_" + step + "_NATIVE_REGRESSION_FAILED")
+                        break
+                archive = Path(folder) / "complete-original-rea.json"
+                restored = Path(folder) / "complete-restored-rea.json"
+                manifest = Path(folder) / "baseline-digests.json"
+                if len(passed)==2 and all(passed) and archive.is_file() and restored.is_file() and manifest.is_file():
+                    data = json.loads(manifest.read_text(encoding="utf-8"))
+                    before_file = archive.read_bytes()
+                    after_file = restored.read_bytes()
+                    checks = (
+                        hashlib.sha256(before_file).hexdigest() == data["sha256"],
+                        before_file == after_file,
+                        len(before_file) == data["original_bytes"],
+                        data["record_count"] >= 2,
+                        len(data["unknown_revisions"]) == 2,
+                        all((not p.is_symlink() and stat.S_ISREG(p.stat().st_mode)
+                             and (p.stat().st_mode & 0o077)==0)
+                            for p in (archive,restored,manifest)),
+                    )
+                    print("REA_P241_ARCHIVE_SHA256=" + data["sha256"])
+                    print("REA_P241_ARCHIVE_BYTES=" + str(len(before_file)))
+                    print("REA_P241_RECORD_COUNT=" + str(data["record_count"]))
+                    print("REA_P241_UNKNOWN_REVISIONS=" + str(len(data["unknown_revisions"])))
+                    print("REA_P241_PRIVATE_MODE=" + ("PASS" if checks[-1] else "FAIL"))
+                    passed.append(all(checks))
+                    if not passed[-1]:
+                        print("REA_P241_BLOCKER=ARCHIVE_OR_METADATA_INTEGRITY")
+                else:
+                    passed.append(False)
+        finally:
+            # Remove ONLY the named fixture created above, never original code.
+            if fixture.is_file() and not fixture.is_symlink():
+                fixture.unlink()
+            after = subprocess.run(
+                ["git", "-C", str(source), "status", "--porcelain"],
+                capture_output=True, text=True, timeout=12, check=False)
+            cleaned = (after.returncode == 0 and after.stdout == before.stdout)
+            print("REA_P241_SOURCE_HYGIENE=" + ("PASS" if cleaned else "FAIL"))
+        print("REA_P241_RECOVERY_STATUS=" +
+              ("PASS_TWO_SEPARATE_NATIVE_PROCESSES_NOT_PERMANENT_RELEASE"
+               if len(passed)==3 and all(passed) and cleaned else "INCOMPLETE"))
         return
     if data["action"] == "fixture_linux_read5_regression":
         # Run existing original REA test using an isolated in-memory ledger,
