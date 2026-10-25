@@ -127,7 +127,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_firmware_stage", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -1575,6 +1575,82 @@ def main():
                   json.dumps(safe_statuses(val),sort_keys=True)[:9000])
         print("REA_DOCTOR_LINUX_STATUS=" +
               ("PASS_READ_ONLY" if proc.returncode==0 else "DOCTOR_FOUND_READINESS_ISSUES"))
+        return
+    if data["action"] == "fixture_linux_firmware_stage":
+        # P253: public fixed bytes only. Stage a gzip/USTAR fixture for a
+        # separately owner-signed extract_firmware MCP call. Never execute
+        # the sensitive tool, touch Evidence, or restart the REA daemon here.
+        import grp
+        import pwd
+        fixed_public_b64 = "UkVBIGZpcm13YXJlIHRlc3QgYnl0ZXMK/////////////////////////////////////////////////////x+LCAAAAAAAAv/t1L0KwjAUhuHMXkVuQE216OQgxcHBH8RdYkw1II2kCXr5VhEEd4vg+yznkCXD4ftsNP1gdc/4qhRfohqjPH/OxudUapC998d7prLBWEglWpDqqEPzvfhPze13pbvFFOwkhmQ7Av+kPulgHw3QX66282LWi7fYev7Hw4/8Z8Nckf82bGZT6YM7ukqf5aJYy9qnYGzXXyt7kJe0PzsjjQ3Rlc7o6HwlX3VBUwAAAAAAAAAAAAAAAPyCO93jVTIAKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        expected_sha = "fdee9c184dc1251981c5c82ef82091c03106a62a5e258c536ef3ef650a9c7ebf"
+        raw = base64.b64decode(fixed_public_b64, validate=True)
+        if len(raw) != 395 or hashlib.sha256(raw).hexdigest() != expected_sha:
+            error("Source-owned firmware fixture identity mismatch")
+        engine = Path("/opt/rea-reversa/rea")
+        if engine.is_symlink() or not (engine / "package.json").is_file():
+            error("Original REA source ownership unavailable")
+        parent = engine / "_reference"
+        target = parent / "rea-p253-controlled-firmware"
+        if parent.is_symlink() or target.is_symlink():
+            error("Source-owned fixture directory cannot be a symlink")
+        service = pwd.getpwnam("rea-reversa")
+        group = grp.getgrgid(service.pw_gid).gr_name
+        for folder in (parent, target):
+            if folder.exists() and not folder.is_dir():
+                error("Source-owned fixture path is not a directory")
+            if not folder.exists():
+                made = subprocess.run(
+                    ["sudo", "-n", "install", "-d", "-m", "0755", "-o",
+                     "rea-reversa", "-g", group, str(folder)],
+                    capture_output=True, timeout=20, check=False
+                )
+                if made.returncode:
+                    error("Cannot create REA source-owned fixture directory")
+        if target.stat().st_uid != service.pw_uid:
+            error("Source-owned fixture directory has unexpected owner")
+        # Input is a known, independently built public gzip/USTAR fixture.
+        # The service identity owns the file and its still-absent output.
+        writer = (
+            "import sys,base64,hashlib,json\n"
+            "from pathlib import Path\n"
+            "root=Path(sys.argv[1]); payload=base64.b64decode(sys.argv[2],validate=True)\n"
+            "expected=sys.argv[3]; image=root/'firmware.bin'\n"
+            "if image.is_symlink(): raise RuntimeError('Symlink firmware denied')\n"
+            "if image.exists():\n"
+            "  if not image.is_file() or hashlib.sha256(image.read_bytes()).hexdigest()!=expected:\n"
+            "    raise RuntimeError('Existing firmware mismatch; no overwrite')\n"
+            "  status='EXISTING_VERIFIED'\n"
+            "else:\n"
+            "  with image.open('xb') as file: file.write(payload)\n"
+            "  image.chmod(0o644)\n"
+            "  status='CREATED'\n"
+            "output=root/'extracted-p253'\n"
+            "if output.exists() or output.is_symlink():\n"
+            "  raise RuntimeError('Extraction output is not absent')\n"
+            "print(json.dumps({'status':status,'sha256':hashlib.sha256(image.read_bytes()).hexdigest(),"
+            "'bytes':image.stat().st_size,'output_absent':True}))\n"
+        )
+        outcome = subprocess.run(
+            ["sudo", "-n", "-u", "rea-reversa", "/usr/bin/python3",
+             "-c", writer, str(target), fixed_public_b64, expected_sha],
+            capture_output=True, text=True, timeout=30, check=False
+        )
+        if outcome.returncode:
+            error("Source-owned fixture staging failed under REA service user")
+        parsed = json.loads(outcome.stdout)
+        if (parsed.get("status") not in ("CREATED", "EXISTING_VERIFIED")
+                or parsed.get("sha256") != expected_sha
+                or parsed.get("bytes") != 395
+                or parsed.get("output_absent") is not True):
+            error("Source-owned fixture staging check failed")
+        print("REA_P253_STAGE=PASS")
+        print("REA_P253_STAGE_STATUS=" + parsed["status"])
+        print("REA_P253_FIXTURE_SHA256=" + parsed["sha256"])
+        print("REA_P253_FIXTURE_BYTES=395")
+        print("REA_P253_GZIP_OFFSET=64")
+        print("REA_P253_OUTPUT_ABSENT=true")
+        print("REA_P253_SERVICE_IDENTITY=rea-reversa")
         return
     if data["action"] == "fixture_linux_unblob_persistent":
         # Official SHA-pinned unblob wheel in dedicated Linux service-owned venv.
