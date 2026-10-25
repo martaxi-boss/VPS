@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "project": "Engenharia Reversa / REA original VPS Linux",
+  "phase_id": "P250-READONLY-NINE-EVIDENCE-CANONICAL-SNAPSHOT-20261025",
+  "date_utc": "2026-10-25",
+  "status": "READ_ONLY_ORIGINAL_MCP_SNAPSHOT_AUTHENTICATED_NO_NEW_TOOL_CERTIFICATION",
+  "reason": "Before further sensitive session lifecycle activity, independently retrieve and authenticate the live evidence state without a new owner-signed mutation.",
+  "run": {
+    "repository": "martaxi-boss/VPS",
+    "branch": "rea/one-skill-bridge-20261023",
+    "id": 40211803209,
+    "sha": "2df9830f25fc5e9762691ff57903ca1dbf517c89",
+    "conclusion": "success",
+    "ssh_host_pin": "PASS",
+    "mcp_loopback": "PASS",
+    "catalog_count": 208,
+    "tool": "get_evidence_bundle",
+    "args": {
+      "detail": "complete"
+    },
+    "tool_call": "PASS",
+    "isError": false,
+    "response_aes_gcm_and_rsa_oaep_verified": true,
+    "request_sha256": "9a1fe25cb715eb4d9cd88f5728fe6559f54fdf7c402790f578deded5cd295644",
+    "verified_result_sha256": "00fe6fa4fba00d83bffc9562f90e5505b24f79b14ffaebc08963c8b7676a1fe1",
+    "verified_result_bytes": 82338,
+    "artifact_id": 12606331200
+  },
+  "snapshot": {
+    "current_live_evidence_count": 9,
+    "current_live_unknown_count": 0,
+    "complete_canonical_evidence_bundle_sha256": "a00cb128ab4daabe4acfe0f3a7d738972e9d65e3fb954f8b645e603790dbf6ec",
+    "matches_P249_verified_after_bundle_sha256": true,
+    "historical_P214_six_evidence_preserved": true,
+    "P248_evidence_present": true,
+    "P249_two_new_evidence_present": true,
+    "changes_during_readonly_call": false,
+    "archive_filename": "REA_P250_Evidence_9_Copia_20261025.zip",
+    "archive_zip_sha256": "72d8eff92b2f8295827104b6e41d2872da924354481670216ef3f7eb4318ed52",
+    "archive_location": "ChatGPT conversation attachment available to owner for download; not uploaded as plaintext to public GitHub",
+    "archive_import_restoration_tested": false,
+    "archive_is_durable_on_owner_device": false
+  },
+  "ledger": {
+    "before_certified": 118,
+    "after_certified": 118,
+    "remaining_full_certifications": 90,
+    "p250_verify_unknown_resolution_certified": false
+  },
+  "safety": {
+    "no_owner_signature_needed_for_read": true,
+    "no_owner_signature_reused": true,
+    "no_secret_pem_published": true,
+    "existing_bridge_and_rea_unchanged": true,
+    "P232_P246_retention_hold_active": true,
+    "no_service_restart": true,
+    "no_binary_close_or_open": true,
+    "private_snapshot_not_uploaded_to_github": true,
+    "missing_P217_P218_records_not_recovered": true
+  },
+  "limitations": [
+    "Snapshot SHA matches prior P249 state but restore feasibility through import_evidence_bundle is untested.",
+    "Owner must download the backup outside the conversation before treating it as durable independent copy; a ChatGPT sandbox file alone is not an archival guarantee.",
+    "No P250 sensitive record_unknown mutation was run; verify_unknown_resolution lacks a current persistent Unknown.",
+    "Normal READ tool and standard GitHub/SSH/MCP bridge remain available; owner-signed sensitive publication previously blocked by platform safety is not bypassed."
+  ]
+}
