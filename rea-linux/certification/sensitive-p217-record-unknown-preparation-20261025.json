@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "project": "Engenharia Reversa — motor REA original",
+  "phase_id": "LINUX-P217-RECORD-UNKNOWN-OFFLINE-OWNER-PREPARATION-20261025",
+  "date_utc": "2026-10-25",
+  "status": "OFFLINE_SIGNER_PREPARED__LIVE_POSITIVE_AND_NEGATIVE_NOT_YET_EXECUTED__OWNER_CONSENT_PENDING",
+  "baseline": {
+    "ledger_sha": "345af47ebd014ee81b92624504329a97c4484662",
+    "fully_certified": 114,
+    "remaining": 94,
+    "sensitive_certified": 8,
+    "sensitive_remaining": 75,
+    "original_mcp_count": 208
+  },
+  "candidate": {
+    "tool": "record_unknown",
+    "previous_descriptor_run_id": 40142440749,
+    "previous_descriptor_sha256": "5dfb61f9d3da3deb2edc8ac10feadf53dcb254746784d68a6bfdf1332d61d8e3",
+    "source_implementation": "rea/src/server/registerSessionRecordTools.ts and rea/src/application/binary/BinarySessionRecords.ts; session.recordUnknown does not require binary opening",
+    "expected_positive": "One low-severity unresolved owner-authorized browser CDP readiness question plus associated mutation Evidence appended to existing persistent REA evidence ledger; original 6 retained Evidence preserved",
+    "expected_negative": "One exact duplicate record_unknown attempt returning MCP isError=true already-exists and no further mutation",
+    "risk": "This operation intentionally and permanently appends at least one investigation unknown/mutation Evidence. Do NOT attempt until owner independently approves each exact step by Ed25519."
+  },
+  "signed_batch": {
+    "signer_path": "rea-linux/owner/sign_record_unknown_p217_android.py",
+    "signer_blob_sha": "35d789c96b00229ae3916b6da0d1368614064e21",
+    "signer_commit": "dd98805eb6153071f467e6d53eca63d9409749c5",
+    "owner_public_key_der_sha256": "99580a4806703661ca38f75a3cb95e47d46e32228cf89d5aa7ab55e95a4e25b4",
+    "existing_android_private_key_unchanged": true,
+    "step_count": 2,
+    "individual_signature_per_step": true,
+    "signature_validity_minutes": 45,
+    "needs_confirmed_owner_action": true,
+    "saves_json_to_android_downloads_if_permission": true,
+    "request_uploaded": false
+  },
+  "preservation_requirements": {
+    "must_compare_before_after_retained_six_evidence_ids": true,
+    "postcheck_should_have_original_six_plus_one_mutation_evidence": true,
+    "postcheck_unknown_head_count_expected": 1,
+    "do_not_use_open_or_close_binary": true,
+    "do_not_touch_other_projects": true,
+    "keep_exact_original_bridge_workflow_and_policy": true,
+    "original_bridge_sha": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7",
+    "original_policy_sha": "8757abb589a779eaeda1d0eeefc85e4476503a41",
+    "original_workflow_sha": "c81ef44d3f3e9dc3b3a819add5ff4f1a33d343df"
+  },
+  "new_certifications": 0,
+  "next": "Owner reviews and individually signs each P217 call on Android; operator must check fresh signature expiry, submit only an encrypted request via existing GitHub Action, inspect isError positives and negatives, preserve six prior Evidence, then update canonical ledger only on actual MCP success."
+}
