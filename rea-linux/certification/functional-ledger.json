@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "P269_ORIGINAL_REA_121_OF_208__P268_SIGNED_LIFECYCLE_READY__OFFLINE_BATCH_OWNER_SIGNER_TESTED__70_SENSITIVE_PENDING__11_EVIDENCE_1_UNKNOWN_PRESERVED",
+  "status": "P270_ORIGINAL_REA_121_OF_208__70_SENSITIVE_CONTRACTS_AUTHENTICATED__2_SCOPED_GHIDRA_TEST_CANDIDATES_UNSIGNED__11_EVIDENCE_1_UNKNOWN_LAST_VERIFIED_P267",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -8013,6 +8013,48 @@
       "unknowns_count": 1,
       "evidence_canonical_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
       "report": "rea-linux/certification/p269-owner-batch-signing-preparation-70-sensitive-20261025.json"
+    },
+    {
+      "phase_id": "LINUX-P270-70-SENSITIVE-LIVE-MCP-CONTRACT-INDEX-FIRST-OWNER-BATCH-READY-20261025",
+      "date_utc": "2026-10-25",
+      "status": "READ_ONLY_REAL_RUNTIME_CONTRACTS_PASS__70_SENSITIVE_SCHEMAS_INDEXED__FOUR_UNSIGNED_OWNER_REVIEW_REQUESTS_READY__0_NEW_CERTIFICATIONS",
+      "source_repo": "martaxi-boss/VPS",
+      "source_branch": "rea/one-skill-bridge-20261023",
+      "original_MCP_count": 208,
+      "real_runtime_contracts_read_run_id": 40238685797,
+      "encrypted_original_MCP_runtime_result_sha256": "49f8c83a3b9861c8a21d03b5fab7bd66bb9176567bbaacb8e65f117ae8cbd088",
+      "owner_batch_plan_sha256": "c2c8e86d79428b6db67dc4219e9fca3346fcb3677e0587c17e4813b7a1c62c6a",
+      "owner_signature_status": "WAITING_FOR_OWNER_8_INDIVIDUAL_SENSITIVE_APPROVALS_IN_ONE_ANDROID_CONFIRMATION",
+      "unsigned_scoped_requests_prepared": 4,
+      "sensitive_signature_count_if_owner_approves": 8,
+      "ready_tool_names": [
+        "annotate_native_function",
+        "set_address_name"
+      ],
+      "sensitive_remaining_to_preflight": 68,
+      "sensitive_unconfirmed_total": 70,
+      "historical_certifications_preserved": 121,
+      "uncertified_remaining": 87,
+      "new_certifications": 0,
+      "tool_status": "NOT_YET_CERTIFIED; only schemas and offline positive/negative test requests prepared",
+      "test_basis": "Ghidra controlled public ELF fixture previously exercised P267 and P223; no new sensitive MCP calls in P270",
+      "one_termux_consent_zip_generation_tested_with_temporary_ed25519_key": true,
+      "test_private_key_destroyed": true,
+      "owner_key_untouched": true,
+      "original_P269_signer_still_available": true,
+      "source_control_report": "rea-linux/certification/p270-70-sensitive-live-contract-matrix-first-owner-batch-prepared-20261025.json",
+      "private_owner_review_library": "engenharia reversa/REA_P270_Lote_Assinatura_Sensivel_Nao_Assinado.zip",
+      "baseline_evidence_last_verified": 11,
+      "baseline_unknowns_last_verified": 1,
+      "baseline_semantic_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+      "runtime_contracts_request_consumed_deleted": true,
+      "tools": [],
+      "limitations": [
+        "No sensitive P270 tools executed; certification count must not increase until signed owner batch and MCP results inspected",
+        "First batch covers two candidate tools out of 70; remaining tools require devices, providers, owned dynamic sessions, valid targets or additional specific approvals",
+        "Existing official global provider doctor remains healthy=false, optional IDA unavailable",
+        "Temporary timed unsigned manifest expires; Android offline signer uses immutable reviewed plan with fresh nonces and six-hour expiry at the time of signing."
+      ]
     }
   ],
   "active_scope_counts": {
@@ -8057,7 +8099,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P269-OFFLINE-OWNER-BATCH-SIGNER-PREPARED-20261025",
+  "latest_phase": "LINUX-P270-70-SENSITIVE-LIVE-MCP-CONTRACT-INDEX-FIRST-OWNER-BATCH-READY-20261025",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -11117,6 +11159,23 @@
       "repo_helper": "rea-linux/owner/owner_approval.py",
       "report": "rea-linux/certification/p269-owner-batch-signing-preparation-70-sensitive-20261025.json",
       "next": "Prepare exact schema checked target-scoped fixtures per pending sensitive tool, then unsigned manifests for owner review. Do not ask for private key upload or bulk-sign unknown future arguments."
+    },
+    "p270_owner_batch_preparation": {
+      "status": "P270_READY_FOR_ONE_OFFLINE_OWNER_REVIEW_OF_FOUR_EXACT_REQUESTS_NOT_EXECUTED",
+      "source_real_MCP_run": 40238685797,
+      "tool_schemas_live": 208,
+      "sensitive_pending_total": 70,
+      "first_ready_profiles": 2,
+      "unsigned_requests": 4,
+      "owner_signatures_expected": 8,
+      "remaining_sensitives_need_provider_preflight": 68,
+      "owner_private_key_required_only_in_existing_Termux": true,
+      "external_signature_not_received": true,
+      "no_new_certifications": true,
+      "remaining_full_certifications": 87,
+      "safe_action": "Use local owner approval once for four reviewed Ghidra tests; then deliver signed ZIP and execute requests via encrypted GitHub Actions/SSH/original MCP. Verify isError and evidence integrity; no signatures automatically generated by ChatGPT.",
+      "report": "rea-linux/certification/p270-70-sensitive-live-contract-matrix-first-owner-batch-prepared-20261025.json",
+      "readback_evidence_last_verified_sha": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380"
     }
   }
 }
