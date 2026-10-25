@@ -40,7 +40,17 @@
     ],
     "no_original_mcp_tools_executed_for_tests": true,
     "no_binary_session_opened_or_closed": true,
-    "no_sensitive_owner_signature_reused": true
+    "no_sensitive_owner_signature_reused": true,
+    "real_prior_owner_signed_P229_no_mutation_check": {
+      "request": "Exact user-uploaded signed P229 JSON used historically to restore P214; locally available attachment, no network request",
+      "tool": "import_evidence_bundle",
+      "guard_result": "PASS_PRESEAL_BINARY_LIFECYCLE_HOLD",
+      "guard_steps_checked": 1,
+      "no_owner_private_key_read": true,
+      "no_mcp_tool_called": true,
+      "no_signature_reused": true,
+      "authorization_verification_deferred_to_original_policy": true
+    }
   },
   "guard_contract": {
     "runs_offline_before_sealing_only": true,
