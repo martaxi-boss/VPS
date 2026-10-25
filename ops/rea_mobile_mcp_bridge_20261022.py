@@ -127,7 +127,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_public_runtime_input_p248", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -661,6 +661,68 @@ def main():
     print("REA_MOBILE_CATALOG_SAMPLE=" + json.dumps(
         list(tool_by_name)[:14], ensure_ascii=True
     ))
+    if data["action"] == "fixture_linux_public_runtime_input_p248":
+        # Export only the PUBLIC committed original REA example, never session
+        # Evidence or a customer's script. No tools/call or network endpoint.
+        src = Path.home() / ".local/share/rea-chatgpt-trial/repository/rea"
+        source_file = src / "src/contracts/javascript/javascriptRuntimeReconciliationExample.ts"
+        if not source_file.is_file() or source_file.is_symlink():
+            print("REA_P248_RUNTIME_INPUT_STATUS=FAIL_SOURCE")
+            return
+        check = subprocess.run(
+            ["git","-C",str(src),"rev-parse","HEAD"],
+            capture_output=True,text=True,timeout=15,check=False)
+        clean = subprocess.run(
+            ["git","-C",str(src),"status","--porcelain"],
+            capture_output=True,text=True,timeout=15,check=False)
+        if (check.returncode != 0 or clean.returncode != 0 or
+            check.stdout.strip() != "8e9a7ee295667f8e23aea9d18af6eee4363d2032" or
+            clean.stdout.strip()):
+            print("REA_P248_RUNTIME_INPUT_STATUS=FAIL_STAGED_SOURCE_PROVENANCE")
+            return
+        script = (
+            "import { JAVASCRIPT_RUNTIME_RECONCILIATION_EXAMPLE as v } "
+            "from './src/contracts/javascript/javascriptRuntimeReconciliationExample.ts';"
+            "process.stdout.write(JSON.stringify(v))"
+        )
+        try:
+            cmd=subprocess.run(
+                ["node","--import","tsx","--input-type=module","-e",script],
+                cwd=str(src),capture_output=True,text=True,timeout=65,check=False,
+                env={**os.environ,"CI":"true","NO_COLOR":"1",
+                     "NODE_OPTIONS":"--max-old-space-size=768"})
+        except subprocess.TimeoutExpired:
+            print("REA_P248_RUNTIME_INPUT_STATUS=FAIL_TIMEOUT")
+            return
+        if cmd.returncode:
+            print("REA_P248_RUNTIME_INPUT_STATUS=FAIL_NODE")
+            print("REA_P248_RUNTIME_INPUT_EXIT="+str(cmd.returncode))
+            return
+        try:
+            parsed=json.loads(cmd.stdout)
+        except (ValueError,TypeError):
+            print("REA_P248_RUNTIME_INPUT_STATUS=FAIL_JSON")
+            return
+        if (not isinstance(parsed,dict) or
+            not isinstance(parsed.get("static_layers"),list) or
+            not isinstance(parsed.get("runtime_observations"),list) or
+            not parsed["static_layers"] or not parsed["runtime_observations"]):
+            print("REA_P248_RUNTIME_INPUT_STATUS=FAIL_SHAPE")
+            return
+        raw=json.dumps(parsed,sort_keys=True,ensure_ascii=True,
+                       separators=(",",":")).encode()
+        if len(raw)>250000:
+            print("REA_P248_RUNTIME_INPUT_STATUS=FAIL_OVERSIZE")
+            return
+        print("REA_P248_RUNTIME_INPUT_JSON_SHA256="+hashlib.sha256(raw).hexdigest())
+        print("REA_P248_RUNTIME_INPUT_JSON_BYTES="+str(len(raw)))
+        encoded=base64.b64encode(raw).decode("ascii")
+        chunks=[encoded[i:i+2100] for i in range(0,len(encoded),2100)]
+        for i,part in enumerate(chunks,1):
+            print("REA_P248_PUBLIC_ARGS_PART_%04d_OF_%04d=%s" %
+                  (i,len(chunks),part))
+        print("REA_P248_RUNTIME_INPUT_STATUS=PASS_PUBLIC_ORIGINAL_EXAMPLE")
+        return
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
               secure.request_public_key_b64(create=True))
