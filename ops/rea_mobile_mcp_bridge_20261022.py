@@ -127,7 +127,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_p262_private_checkpoint", "fixture_linux_p262_release_preflight"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -520,20 +520,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SDIAG_PID_ENV_READ",
         "REA_SDIAG_PID_ENV_SIZE",
         "REA_SDIAG_PID_PROVIDER_KEYS",
-        "REA_SDIAG_STATUS",
-        "REA_P262_PRIVATE_CHECKPOINT",
-        "REA_P262_PRIVATE_CHECKPOINT_KIND",
-        "REA_P262_PRIVATE_CHECKPOINT_COUNT",
-        "REA_P262_PRIVATE_CHECKPOINT_UNKNOWNS",
-        "REA_P262_PRIVATE_CHECKPOINT_SHA256",
-        "REA_P262_PRIVATE_CHECKPOINT_SERVICE_PID_UNCHANGED",
-        "REA_P262_PRIVATE_CHECKPOINT_ORIGINAL_MCP_UNMODIFIED",
-        "REA_P262_RELEASE_PREFLIGHT",
-        "REA_P262_RELEASE_FILE_STATES",
-        "REA_P262_RELEASE_PACKAGE_VERSION",
-        "REA_P262_RELEASE_PID_UNCHANGED",
-        "REA_P262_RELEASE_FREE_DISK_GIB",
-        "REA_P262_RELEASE_CHECKPOINT_PASS"
+        "REA_SDIAG_STATUS"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -544,7 +531,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         elif "=" in line:
             k, value = line.split("=", 1)
             if k in allowed_markers:
-                markers[k] = value[:1500] if k == "REA_SECURE_REQUEST_PUBLIC_KEY_B64" else value[:24000] if k == "REA_MOBILE_TOOL_DESCRIPTOR_B64" else (value[:1200] if k in ("REA_AUDIT_PROVIDER_SECTIONS", "REA_AUDIT_PROVIDER_NAMES", "REA_P262_RELEASE_FILE_STATES") else value[:300])
+                markers[k] = value[:1500] if k == "REA_SECURE_REQUEST_PUBLIC_KEY_B64" else value[:24000] if k == "REA_MOBILE_TOOL_DESCRIPTOR_B64" else (value[:1200] if k in ("REA_AUDIT_PROVIDER_SECTIONS", "REA_AUDIT_PROVIDER_NAMES") else value[:300])
                 print(k + "=" + markers[k])
     if "response_key" not in request:
         if private is not None:
@@ -2427,217 +2414,6 @@ def main():
                     print("REA_INSTALL_AUDIT_PROVIDERS_JSON=INVALID")
         print("REA_INSTALL_AUDIT_MCP_TOOL_COUNT="+str(len(tools)))
         print("REA_INSTALL_AUDIT_COMPLETED=PASS_READ_ONLY")
-        return
-    if data["action"] == "fixture_linux_p262_release_preflight":
-        # P262: strictly READ-ONLY original installed REA release-path
-        # inspection. No subprocess arguments originate from request content.
-        import shutil
-        root = Path("/opt/rea-reversa/rea")
-        paths = {
-            "src_BinarySession": root / "src/application/binary/BinarySession.ts",
-            "src_BinarySessionRecords": root / "src/application/binary/BinarySessionRecords.ts",
-            "dist_BinarySession": root / "dist/application/binary/BinarySession.js",
-            "dist_BinarySessionRecords": root / "dist/application/binary/BinarySessionRecords.js",
-            "entrypoint": root / "scripts/rea.mjs",
-            "package": root / "package.json",
-        }
-        original = {}
-        for key, target in paths.items():
-            probe = subprocess.run(
-                ["sudo", "-n", "-u", "rea-reversa", "test", "-f", str(target)],
-                capture_output=True, timeout=10, check=False)
-            row = {"exists": probe.returncode == 0}
-            if row["exists"]:
-                read = subprocess.run(
-                    ["sudo", "-n", "-u", "rea-reversa", "sha256sum", str(target)],
-                    capture_output=True, text=True, timeout=10, check=False)
-                if read.returncode == 0 and len(read.stdout.split()) >= 1:
-                    row["sha256"] = read.stdout.split()[0]
-            original[key] = row
-        checkpoint = root / ".rea-private/p262-live-evidence-11-8b17734c.json"
-        archive = subprocess.run(
-            ["sudo", "-n", "-u", "rea-reversa", "sha256sum", str(checkpoint)],
-            capture_output=True, text=True, timeout=12, check=False)
-        archive_ok = archive.returncode == 0 and (
-            archive.stdout.split()[0]
-            == "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380"
-        )
-        unit = "rea-reversa-mcp.service"
-        def value(prop):
-            res = subprocess.run(
-                ["systemctl", "show", unit, "-p", prop, "--value"],
-                capture_output=True, text=True, timeout=10, check=False)
-            return res.stdout.strip() if res.returncode == 0 else ""
-        before = value("MainPID")
-        version = "UNKNOWN"
-        if paths["package"].is_file():
-            try:
-                version = str(json.loads(paths["package"].read_text()).get("version", "UNKNOWN"))
-            except (OSError, ValueError):
-                version = "UNREADABLE"
-        if not before.isdecimal() or not int(before) > 0 or value("User") != "rea-reversa":
-            error("P262 inspected service is not original REA runtime")
-        after = value("MainPID")
-        print("REA_P262_RELEASE_FILE_STATES=" + json.dumps(original, sort_keys=True))
-        print("REA_P262_RELEASE_PACKAGE_VERSION=" + version[:70])
-        print("REA_P262_RELEASE_PID_UNCHANGED=" + str(before == after).lower())
-        print("REA_P262_RELEASE_CHECKPOINT_PASS=" + str(archive_ok).lower())
-        print("REA_P262_RELEASE_FREE_DISK_GIB=" + str(
-            shutil.disk_usage(str(root)).free // (1024**3)))
-        print("REA_P262_RELEASE_PREFLIGHT=" + (
-            "PASS_READ_ONLY" if archive_ok and before == after else "BLOCKED"))
-        return
-    if data["action"] == "fixture_linux_p262_private_checkpoint":
-        # P262: a strictly fixed, additive OFFSITE INDEPENDENT BACKUP in the
-        # existing REA-only directory. No MCP mutation, no restart or binary
-        # lifecycle. The data originate only from the original LIVE read tool.
-        import tempfile
-        import pwd
-        import stat
-        expected = "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380"
-        operation = "get_evidence_bundle"
-        if operation not in tool_by_name or secure.classify(
-            operation, tool_by_name[operation], set(safe_callable)
-        ) != "read":
-            error("P262 original read tool is not validated as read-only")
-        arguments = {"detail": "complete"}
-        secure.validate_arguments(tool_by_name[operation], arguments)
-        def get_original_bundle():
-            _, response = request_mcp(
-                {"jsonrpc": "2.0", "id": 26215, "method": "tools/call",
-                 "params": {"name": operation, "arguments": arguments}},
-                session, protocol, timeout=45
-            )
-            if "error" in response or not isinstance(response.get("result"), dict):
-                error("P262 original MCP call protocol failed")
-            result = response["result"]
-            if result.get("isError") is True:
-                error("P262 read tool returned isError true")
-            candidates = []
-            sources = [result.get("structuredContent")]
-            for c in result.get("content", []):
-                if isinstance(c, dict) and isinstance(c.get("text"), str):
-                    try:
-                        sources.append(json.loads(c["text"]))
-                    except ValueError:
-                        continue
-            def inspect(obj, depth=0):
-                if depth > 4:
-                    return
-                if isinstance(obj, dict):
-                    required = {"records", "unknowns", "artifacts", "providers",
-                                "captures", "environments", "scenarios"}
-                    if required.issubset(obj):
-                        candidates.append(obj)
-                        return
-                    for val in obj.values():
-                        if isinstance(val, (dict, list)):
-                            inspect(val, depth+1)
-                elif isinstance(obj, list):
-                    for val in obj[:15]:
-                        if isinstance(val, (dict, list)):
-                            inspect(val, depth+1)
-            for val in sources:
-                inspect(val)
-            accepted = []
-            for obj in candidates:
-                if not isinstance(obj.get("records"), list) or not isinstance(
-                        obj.get("unknowns"), list):
-                    continue
-                raw = json.dumps(obj, sort_keys=True, separators=(",", ":"),
-                                 ensure_ascii=True).encode("utf-8")
-                if hashlib.sha256(raw).hexdigest() == expected:
-                    accepted.append(raw)
-            if not accepted or any(x != accepted[0] for x in accepted):
-                error("P262 live Evidence digest not exact, no backup written")
-            if len(candidates) != len(accepted):
-                error("P262 Evidence candidates conflict, no write")
-            bundle = json.loads(accepted[0])
-            if len(bundle["records"]) != 11 or len(bundle["unknowns"]) != 1:
-                error("P262 record counts changed, no write")
-            return accepted[0]
-        original = get_original_bundle()
-        unit = "rea-reversa-mcp.service"
-        owner = subprocess.run(
-            ["systemctl", "show", unit, "-p", "User", "--value"],
-            capture_output=True, text=True, timeout=10, check=False)
-        pid = subprocess.run(
-            ["systemctl", "show", unit, "-p", "MainPID", "--value"],
-            capture_output=True, text=True, timeout=10, check=False)
-        if owner.returncode or owner.stdout.strip() != "rea-reversa" or (
-            not pid.stdout.strip().isdigit() or int(pid.stdout.strip()) < 1
-        ):
-            error("P262 service identity is not the original REA service")
-        initial_pid = pid.stdout.strip()
-        root = Path("/opt/rea-reversa/rea")
-        if not root.is_dir() or root.is_symlink() or not (
-            root / "scripts/rea.mjs").is_file():
-            error("P262 original engine directory identity failed")
-        destdir = root / ".rea-private"
-        target = destdir / "p262-live-evidence-11-8b17734c.json"
-        if str(target) != (
-            "/opt/rea-reversa/rea/.rea-private/p262-live-evidence-11-8b17734c.json"
-        ):
-            error("P262 destination path mismatch")
-        directory = Path.home() / ".local/share/rea-chatgpt-trial/artifacts"
-        directory.mkdir(mode=0o700, parents=True, exist_ok=True)
-        local = None
-        try:
-            with tempfile.NamedTemporaryFile(
-                prefix="p262-owned-checkpoint-", suffix=".json", dir=directory,
-                mode="wb", delete=False
-            ) as tmp:
-                local = Path(tmp.name)
-                tmp.write(original)
-            local.chmod(0o600)
-            sudo = ["sudo", "-n"]
-            created = subprocess.run(
-                sudo + ["install", "-d", "-m", "0700", "-o", "rea-reversa",
-                        "-g", "rea-reversa", str(destdir)],
-                capture_output=True, timeout=20, check=False)
-            if created.returncode:
-                error("P262 safe private checkpoint directory unavailable")
-            exists = subprocess.run(
-                sudo + ["-u", "rea-reversa", "test", "-e", str(target)],
-                capture_output=True, timeout=10, check=False)
-            if exists.returncode == 0:
-                # Fail closed on an existing conflicting archive.
-                current = subprocess.run(
-                    sudo + ["-u", "rea-reversa", "sha256sum", str(target)],
-                    capture_output=True, text=True, timeout=15, check=False)
-                if current.returncode or current.stdout.split()[0] != expected:
-                    error("P262 existing checkpoint conflicts; no overwrite")
-                state = "EXISTING_MATCH"
-            else:
-                installed = subprocess.run(
-                    sudo + ["install", "-m", "0600", "-o", "rea-reversa",
-                            "-g", "rea-reversa", str(local), str(target)],
-                    capture_output=True, timeout=20, check=False)
-                if installed.returncode:
-                    error("P262 private checkpoint installation refused")
-                state = "INSTALLED"
-            checked = subprocess.run(
-                sudo + ["-u", "rea-reversa", "sha256sum", str(target)],
-                capture_output=True, text=True, timeout=15, check=False)
-            if checked.returncode or checked.stdout.split()[0] != expected:
-                error("P262 checkpoint not readable/verified by original service")
-            if get_original_bundle() != original:
-                error("P262 live Evidence changed during backup, halt")
-            now = subprocess.run(
-                ["systemctl", "show", unit, "-p", "MainPID", "--value"],
-                capture_output=True, text=True, timeout=10, check=False)
-            if now.returncode or now.stdout.strip() != initial_pid:
-                error("P262 REA service PID unexpectedly changed")
-            print("REA_P262_PRIVATE_CHECKPOINT=PASS")
-            print("REA_P262_PRIVATE_CHECKPOINT_KIND=" + state)
-            print("REA_P262_PRIVATE_CHECKPOINT_COUNT=11")
-            print("REA_P262_PRIVATE_CHECKPOINT_UNKNOWNS=1")
-            print("REA_P262_PRIVATE_CHECKPOINT_SHA256=" + expected)
-            print("REA_P262_PRIVATE_CHECKPOINT_SERVICE_PID_UNCHANGED=true")
-            print("REA_P262_PRIVATE_CHECKPOINT_ORIGINAL_MCP_UNMODIFIED=true")
-        finally:
-            if local is not None:
-                local.unlink(missing_ok=True)
         return
     if data["action"] == "capability_audit":
         import shutil
