@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_114_FULLY_CERTIFIED_94_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_115_FULLY_CERTIFIED_93_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -7292,21 +7292,64 @@
         "Six retained records and zero unknown revisions verified by matching full MCP get_evidence_bundle result SHA-256 before and after: f27d981d..."
       ],
       "hygiene": "Original security protocol, bridge and workflow blobs restored; one-use ciphertext files removed; six retained Evidence records preserved; original archive preserved; owner private key never left Android."
+    },
+    {
+      "phase_id": "LINUX-P217-OWNER-SIGNED-RECORD-UNKNOWN-CREATE-AND-DUPLICATE-20261025",
+      "date_utc": "2026-10-25",
+      "status": "ONE_NEW_FULLY_CERTIFIED_SENSITIVE_RECORD_UNKNOWN_ORIGINAL_LINUX_MCP",
+      "tools": [
+        {
+          "name": "record_unknown",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Permanent original REA Linux MCP: one explicitly owner-signed low-severity browser-CDP-readiness unknown creation (open, revision 1) and one associated Evidence mutation, followed by an independently owner-signed exact duplicate identity rejected with isError=true revision_conflict/already-exists. Original six retained Evidence records preserved, yielding seven total and one unknown revision. Does not certify arbitrary questions, bulk writes, edits, deletions, session closes, or other devices.",
+          "positive_calls": 1,
+          "negative_cases": [
+            "exact_duplicate_rejected_revision_conflict_already_exists"
+          ],
+          "negative_isError_true": true
+        }
+      ],
+      "proof": {
+        "signed_original_mcp_run_id": 40182623467,
+        "readback_original_mcp_run_id": 40182736099,
+        "authenticated_result_sha256": "4d139f5c807ec85cbe958c58666390705123d402d5c3870de6a451366c29935d",
+        "owner_ed25519_verified_steps": 2,
+        "owner_public_fingerprint_sha256_der": "99580a4806703661ca38f75a3cb95e47d46e32228cf89d5aa7ab55e95a4e25b4",
+        "positive_mcp_isError_false": true,
+        "negative_mcp_isError_true": true,
+        "old_evidence_retained": 6,
+        "new_evidence": 1,
+        "evidence_total": 7,
+        "question_revision": 1,
+        "certification_report": "rea-linux/certification/sensitive-p217-record-unknown-certified-20261025.json"
+      },
+      "new_certifications": 1,
+      "fully_certified_total": 115,
+      "pending": 93,
+      "sensitive_certified_total": 9,
+      "sensitive_pending": 74,
+      "limitations": [
+        "Specific positive creation and duplicate rejection only; does not imply a CDP endpoint is actually available.",
+        "The negative error includes retryable=true although semantic reason is already-exists; certification is restricted to this exact duplicate case.",
+        "Full historic Evidence record digest is expected to change because a new Evidence is created; preserve original six by identity and operation counts.",
+        "Future sensitive calls require new independent owner signatures. No reusable sensitive authorization created."
+      ],
+      "hygiene": "Consumed request removed; existing owner Ed25519 key preserved on Android; original workflow bridge policy and other projects unchanged."
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 114,
-    "awaiting_canonical_individual_review": 94,
+    "functional_pass_scoped_distinct": 115,
+    "awaiting_canonical_individual_review": 93,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
     "workspace_newly_passed_distinct": 48,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 114,
+    "fully_certified_distinct": 115,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 94,
-    "remaining_full_certification_distinct": 94
+    "not_functionally_positive_distinct": 93,
+    "remaining_full_certification_distinct": 93
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -7336,7 +7379,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P215-OWNER-SIGNED-IDEMPOTENT-EVIDENCE-IMPORT-20261025",
+  "latest_phase": "LINUX-P217-OWNER-SIGNED-RECORD-UNKNOWN-CREATE-AND-DUPLICATE-20261025",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -9277,6 +9320,28 @@
         "Six retained records and zero unknown revisions verified by matching full MCP get_evidence_bundle result SHA-256 before and after: f27d981d..."
       ],
       "certification_report": "rea-linux/certification/sensitive-p215-import-evidence-certified-20261025.json"
+    },
+    "record_unknown": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P217-OWNER-SIGNED-RECORD-UNKNOWN-CREATE-AND-DUPLICATE-20261025",
+      "scope": "Permanent original REA Linux MCP: one explicitly owner-signed low-severity browser-CDP-readiness unknown creation (open, revision 1) and one associated Evidence mutation, followed by an independently owner-signed exact duplicate identity rejected with isError=true revision_conflict/already-exists. Original six retained Evidence records preserved, yielding seven total and one unknown revision. Does not certify arbitrary questions, bulk writes, edits, deletions, session closes, or other devices.",
+      "run_ids": [
+        40182623467,
+        40182736099
+      ],
+      "positive_evidence_id": "ev_45782da3709470ea8fc37a64a71e1221b7cf148626b3ce5b782e8a663c551aba",
+      "positive_evidence_sha256": "4d139f5c807ec85cbe958c58666390705123d402d5c3870de6a451366c29935d",
+      "negative_evidence_sha256": "4d139f5c807ec85cbe958c58666390705123d402d5c3870de6a451366c29935d",
+      "positive_calls": 1,
+      "negative_semantic_assertions": 1,
+      "negative_isError_true": true,
+      "limitations": [
+        "Specific positive creation and duplicate rejection only; does not imply a CDP endpoint is actually available.",
+        "The negative error includes retryable=true although semantic reason is already-exists; certification is restricted to this exact duplicate case.",
+        "Full historic Evidence record digest is expected to change because a new Evidence is created; preserve original six by identity and operation counts.",
+        "Future sensitive calls require new independent owner signatures. No reusable sensitive authorization created."
+      ],
+      "certification_report": "rea-linux/certification/sensitive-p217-record-unknown-certified-20261025.json"
     }
   },
   "transport_incidents": [
