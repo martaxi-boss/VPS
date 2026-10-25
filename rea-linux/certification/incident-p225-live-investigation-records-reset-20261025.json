@@ -4,7 +4,7 @@
   "incident_id": "P225-LIVE-SESSION-RECORDS-RESET-AFTER-SOURCE-OWNED-BINARY-CLOSE-20261025",
   "date_utc": "2026-10-25",
   "severity": "critical",
-  "status": "OPEN__NO_NEW_STATEFUL_SENSITIVE_TESTS_UNTIL_RETENTION_RECOVERED",
+  "status": "OPEN__P214_SIX_RECORD_BACKUP_SHA_VERIFIED__P217_P218_ACTIVE_STATE_RECOVERY_UNRESOLVED",
   "title": "Live investigation Evidence and Unknown records are empty after controlled Ghidra session close",
   "baseline_from_prior_certification": {
     "p217_record_unknown_run": 40182623467,
@@ -96,9 +96,35 @@
     "p214_last_verified_backup_evidence_records": 6,
     "p214_last_verified_backup_unknowns": 0,
     "p214_last_service_user_preflight_run": 40180712811,
-    "p214_backup_current_existence_and_hash_verified": false,
+    "p214_backup_current_existence_and_hash_verified": true,
     "p214_recovery_scope": "At most six historical Evidence entries, cannot recreate P217/P218 unknown or later Evidence; current backup existence not yet retested",
-    "owner_signature_required_for_import": true
+    "owner_signature_required_for_import": true,
+    "p214_backup_current_readonly": {
+      "github_actions_run_id": 40187442883,
+      "job_id": 121151123564,
+      "request_commit": "fbcf99567d590fb96197c602f272edf12fd827f6",
+      "original_service_identity": "rea-reversa",
+      "request_action": "fixture_linux_service_unit_diagnose",
+      "existing_temporary_probe_blob": "c922a9b4232065e12a80506e95778a64519eea78",
+      "target": "/var/lib/rea-reversa/rea-p214-evidence-backup-7c5e1ad42fe74b121f3e2c4fe830c6c7.json",
+      "file_regular_not_symlink": true,
+      "bytes": 17563,
+      "evidence_records": 6,
+      "unknown_revisions": 0,
+      "archive_sha256": "daa7bcc15a6cb1adf4fb46563100b2d67ff8b6694b191ef762d3cd2d8e61f3c4",
+      "previous_archive_digest_matched": true,
+      "results_emitted": "bounded count/size/hash in GitHub Actions logs; raw contents not exported",
+      "ssh_host_pin": "PASS",
+      "mcp_loopback": "PASS",
+      "mcp_catalog_tools": 208,
+      "no_mcp_mutation": true,
+      "workflow_conclusion": "success",
+      "exact_probe_request_deleted": true,
+      "original_bridge_restored_commit": "84556f44d1a5e661e6c92286f5c3ca3d49ed2d4a",
+      "bridge_restored_sha": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7",
+      "original_policy_unchanged": "8757abb589a779eaeda1d0eeefc85e4476503a41",
+      "workflow_unchanged": "c81ef44d3f3e9dc3b3a819add5ff4f1a33d343df"
+    }
   },
   "constraints": [
     "No replay of P217/P218 owner-signed requests or owner Ed25519 signatures.",
@@ -116,10 +142,10 @@
     "historical_certification_count_not_incremented_or_decremented_without_review": true
   },
   "next_safe_actions": [
-    "Perform read-only filesystem validation of the P214 archived six-record JSON under existing systemd StateDirectory, no write.",
-    "Recover full P217/P218 historic immutable data only from authenticated originals, not guesses. If complete data unavailable, report unrecoverable gap and seek owner-controlled restoration decision.",
-    "Prepare exact owner-signed scoped restore request only after backup byte validity and effect on original MCP state are established.",
-    "After restoration, re-read get_evidence_bundle/list_unknowns and compare exact IDs, preserve future bundles before any session close."
+    "COMPLETE: P214 six-record Evidence archive exists on VPS with same SHA-256 and 17563 bytes; reverified via run 40187442883 under service identity, without modifying the archive.",
+    "Verify an exact owner-signed import_evidence_bundle recovery plan against the already verified P214 six-record archive; import only after new owner Ed25519 approval, fresh nonce and expiry. The normal bridge currently lacks StateDirectory path allowance; any temporary exact-path exception must leave the independent signature verifier unchanged and be restored immediately.",
+    "Do not claim full restoration: P214 archive contains six historical Evidence and no unknowns, so P217/P218 exact Evidence bodies and unknown revisions require other authenticated full-data sources or an explicit owner decision.",
+    "After authorized six-record restoration, re-read get_evidence_bundle and list_unknowns, and verify the imported Evidence IDs and persistence without open_binary/close_binary. Do not run stateful tests before complete retention safeguards."
   ],
   "hygiene": {
     "owner_key_android_only": true,
