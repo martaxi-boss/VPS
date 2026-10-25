@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "project": "Engenharia Reversa — original REA Linux MCP",
+  "phase_id": "P231-DEMANGLE-SWIFT-LIVE-PROVIDER-BLOCKER-20261025",
+  "status": "ORIGINAL_MCP_CALLED__TARGET_UNAVAILABLE__NOT_CERTIFIED",
+  "date_utc": "2026-10-25",
+  "tool": "demangle_swift",
+  "original_mcp_catalog": 208,
+  "real_descriptor": {
+    "run": 40190730977,
+    "job": 121161024363,
+    "commit": "5693563f8397fe401e794c0a7e1240f5ab2b1a6c",
+    "encrypted_artifact_id": 12597687178,
+    "verified_result_sha256": "c2cab0cd51c2137c67497320706eb1c786bece284d19fe9bc4617723bebb0f1f",
+    "bytes": 10161,
+    "authenticity": "AES-GCM request correlation and descriptor hash PASS",
+    "description": "Demangle an ordered list of single-line Swift symbols without requiring Hopper.",
+    "required_input_keys": [
+      "symbols"
+    ],
+    "call_is_readonly_descriptor": true,
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": true,
+      "idempotentHint": true
+    },
+    "original_effects": [
+      "mutatesSession",
+      "launchesProcess"
+    ],
+    "policy_risk": "workspace"
+  },
+  "original_mcp_workspace_call": {
+    "run": 40191036602,
+    "job": 121161936169,
+    "commit": "956bcb8e3d8e0ce476d077be13ee334ffbbfca59",
+    "encrypted_artifact_id": 12598026687,
+    "artifact_digest_sha256": "262b698e13035fb64b386db490ea961bb89d1900749d76373674fbc44aff2de5",
+    "authenticated_result_sha256": "c977c15bcbd2998c13e1296a3eaf29e2e52a662796119c6e05d47bc1b9a777ec",
+    "authenticated_result_bytes": 569,
+    "request_envelope_sha256": "0e97b2eee56cbaec81021f9bf45d77fbb6d4c23a768b6d133461b0e9b621e1c0",
+    "risk": "workspace",
+    "tools_executed": 1,
+    "policy": "PASS",
+    "mcp_transport": "PASS",
+    "mcp_tool_isError": true,
+    "error_code": "target_unavailable",
+    "error_category": "unavailable",
+    "error_message": "No app is open. Ask the user which app to investigate, then call open_binary with its local path.",
+    "fixed_nonconfidential_arguments": {
+      "symbols": [
+        "$s4Test3fooyyF",
+        "_Z3foov",
+        "$sBad"
+      ]
+    },
+    "positive_swift_demangling_observed": false,
+    "negative_target_unavailable_observed": true,
+    "opened_binary": false,
+    "closed_binary": false
+  },
+  "transport_hygiene": {
+    "first_descriptor_failed_run": 40190659134,
+    "first_descriptor_failed_pre_mcp_reason": "truncated RSA response public key",
+    "first_bad_request_cleanup_commit": "43ac87b3ac6349049655c659e02ba12e5f6cc0e1",
+    "descriptor_success_cleanup_commit": "0af76493e42c0579d6175ebe23d48b563fa7e9df",
+    "initial_workspace_failed_run": 40190891509,
+    "initial_workspace_failed_pre_mcp_reason": "one byte case typo in encrypted ciphertext; AES-GCM correctly rejected",
+    "initial_workspace_cleanup_commit": "25ed26e06fe2eb7791110e50847dd48a4d46ee9a",
+    "successful_transport_consumed_request_cleanup_commit": "d9726f0c71a4337bbcdb584a892c3e50d998f730",
+    "no_mcp_replay": true
+  },
+  "retention_guard": {
+    "p230_source_contract": "close_binary clears global Evidence and Unknown records by design",
+    "prior_recovered_evidence_count": 6,
+    "original_archive_preserved": true,
+    "no_open_close_test_executed": true,
+    "provider_p231_positive_blocked_until_safe_session_lifecycle_proved": true
+  },
+  "canonical": {
+    "historically_certified": 116,
+    "pending": 92,
+    "new_certifications": 0
+  },
+  "evidence_grade": "Functional negative only; descriptor positive; no positive Swift demangling and no full certification.",
+  "next_safe_actions": [
+    "Do not retry demangle_swift without an explicitly approved, provider-available isolated target and independently verified retention safeguard.",
+    "No original code/policy/bridge/workflow changes and no other project touched.",
+    "Continue source-owned P230 retention guard certification work and pending tools that can run without opening app."
+  ]
+}
