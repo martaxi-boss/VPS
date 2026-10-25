@@ -198,15 +198,20 @@ def sign_batch_requests(manifest_path, private_pem, output_dir, confirm_callback
         names.add(name)
         nonces.add(body["nonce"])
         parsed.append((name, body, sensitive))
-        for index, step in sensitive:
+        sensitive_total += len(sensitive)
+        # Review *every* step, including workspace approvals and reads.
+        # A batch cannot hide a side-effecting workspace call behind one
+        # visible sensitive signature.
+        for index, step in enumerate(body["steps"]):
             args_json = canonical(step["arguments"]).decode("utf-8")
             if len(args_json) > 4096:
-                raise ValueError("Bulk review refuses to hide large sensitive arguments")
-            sensitive_total += 1
+                raise ValueError("Bulk review refuses to hide large arguments")
+            auth = step.get("authorization")
+            scope = auth["scope"] if auth is not None else "read_claim_server_checks"
+            digest = hashlib.sha256(canonical(step["arguments"])).hexdigest()
+            reason = auth["reason"] if auth is not None else "Read-only step; original MCP validates risk"
             previews.append((
-                name, index, step["tool"], args_json,
-                step["authorization"]["arguments_sha256"],
-                step["authorization"]["reason"]
+                name, index, step["tool"], scope, args_json, digest, reason
             ))
     if not 1 <= sensitive_total <= 83:
         raise ValueError("No sensitive steps to approve or excessive signature count")
@@ -219,12 +224,13 @@ def sign_batch_requests(manifest_path, private_pem, output_dir, confirm_callback
     if any(path.resolve() == manifest_path.resolve() for path in outputs):
         raise ValueError("Refusing to overwrite manifest")
     plan_hash = hashlib.sha256(canonical(manifest)).hexdigest()
-    print("REA_OWNER_BATCH_V1: review EACH sensitive operation below.")
+    print("REA_OWNER_BATCH_V1: review ALL steps below, including workspace and read calls.")
     print("No automatic execution. The same private key remains on this device.")
     print("Batch SHA-256:", plan_hash)
-    print("Requests:", len(parsed), "sensitive signatures:", sensitive_total)
-    for name, index, tool, args, digest, reason in previews:
-        print("REQUEST:", name, "STEP:", index, "TOOL:", tool)
+    print("Requests:", len(parsed), "total steps:", len(previews),
+          "sensitive signatures:", sensitive_total)
+    for name, index, tool, scope, args, digest, reason in previews:
+        print("REQUEST:", name, "STEP:", index, "TOOL:", tool, "SCOPE:", scope)
         print("ARGUMENTS:", args)
         print("ARGUMENTS_SHA256:", digest)
         print("PURPOSE:", reason)
