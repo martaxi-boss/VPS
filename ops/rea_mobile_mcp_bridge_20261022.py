@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_retention_p239", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -1145,6 +1145,83 @@ def main():
         print("REA_LINUX_READ5_MCP_PASS_COUNT=" + str(pass_count))
         print("REA_LINUX_READ5_MCP_BOUNDARIES=" +
               ("PASS_ISOLATED_MCP_NOT_PRODUCTION" if pass_count == 4 and intact else "INCOMPLETE"))
+        return
+    if data["action"] == "fixture_linux_retention_p239":
+        # P239 bounded one-use native REA regression. DO NOT call permanent MCP.
+        # Reuse already staged ORIGINAL REA source and original Vitest runner.
+        import shutil
+        source = Path.home() / ".local/share/rea-chatgpt-trial/repository/rea"
+        vitest = source / "node_modules/vitest/vitest.mjs"
+        node = shutil.which("node")
+        test_files = (
+            ("tests/boundary/mcp/sessionEvidenceRecovery.test.ts",
+             "dab264dbcddb7250e803ff230a6dcf8dcf58fa7d"),
+            ("tests/boundary/mcp/evidenceImportLifecycle.test.ts",
+             "f0371ef897f01deadc07318c244ac1c814a3db47"),
+        )
+        if not source.is_dir() or not vitest.is_file() or not node:
+            print("REA_P239_NATIVE=BLOCKED_MISSING_STAGED_ORIGINAL_SOURCE_OR_VITEST")
+            return
+        before = subprocess.run(
+            ["git", "-C", str(source), "status", "--porcelain"],
+            capture_output=True, text=True, timeout=12, check=False)
+        revision = subprocess.run(
+            ["git", "-C", str(source), "rev-parse", "HEAD"],
+            capture_output=True, text=True, timeout=12, check=False)
+        if before.returncode or revision.returncode:
+            print("REA_P239_NATIVE=BLOCKED_SOURCE_PROVENANCE")
+            return
+        if before.stdout.strip():
+            print("REA_P239_NATIVE=BLOCKED_STAGED_SOURCE_DIRTY")
+            return
+        print("REA_P239_SOURCE_COMMIT=" + revision.stdout.strip()[:40])
+        for name, expected in test_files:
+            file = source / name
+            if not file.is_file() or file.is_symlink():
+                print("REA_P239_NATIVE=BLOCKED_MISSING_OR_SYMLINK_TEST")
+                return
+            digest = subprocess.run(
+                ["git", "-C", str(source), "hash-object", "--", str(file)],
+                capture_output=True, text=True, timeout=12, check=False)
+            if digest.returncode or digest.stdout.strip() != expected:
+                print("REA_P239_NATIVE=BLOCKED_SOURCE_TEST_HASH_MISMATCH")
+                return
+        print("REA_P239_ORIGINAL_TEST_BLOBS=PASS")
+        try:
+            proc = subprocess.run(
+                [node, str(vitest), "run",
+                 test_files[0][0], test_files[1][0],
+                 "--no-file-parallelism", "--maxWorkers=1"],
+                cwd=str(source), capture_output=True, text=True,
+                timeout=200, check=False,
+                env={**os.environ, "CI": "true", "NO_COLOR": "1",
+                     "NODE_OPTIONS": "--max-old-space-size=1024"})
+            raw = proc.stdout + "\n" + proc.stderr
+            clean = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", raw)
+            passed = (proc.returncode == 0 and
+                      bool(re.search(r"\b4 passed\b", clean)) and
+                      bool(re.search(r"\b2 passed\b", clean)))
+            print("REA_P239_ORIGINAL_TEST_RUN_EXIT=" + str(proc.returncode))
+            print("REA_P239_ORIGINAL_TEST_LOG_SHA256=" +
+                  hashlib.sha256(raw.encode()).hexdigest())
+            print("REA_P239_ORIGINAL_TESTS=" +
+                  ("PASS_FOUR_NATIVE_IN_MEMORY_TESTS" if passed else "FAIL"))
+            if not passed:
+                print("REA_P239_DIAGNOSTIC=" +
+                      re.sub(r"[^A-Za-z0-9 .,_:;=/()\[\]#-]",
+                             " ", clean[-1800:]))
+        except subprocess.TimeoutExpired:
+            print("REA_P239_ORIGINAL_TESTS=BLOCKED_TIMEOUT")
+            passed = False
+        after = subprocess.run(
+            ["git", "-C", str(source), "status", "--porcelain"],
+            capture_output=True, text=True, timeout=12, check=False)
+        clean_worktree = after.returncode == 0 and after.stdout == before.stdout
+        print("REA_P239_STAGED_SOURCE_HYGIENE=" +
+              ("PASS" if clean_worktree else "FAIL"))
+        print("REA_P239_RETENTION_STATUS=" +
+              ("PASS_NATIVE_ISOLATED_TESTS_NOT_LIVE_RELEASE"
+               if passed and clean_worktree else "INCOMPLETE"))
         return
     if data["action"] == "fixture_linux_read5_regression":
         # Run existing original REA test using an isolated in-memory ledger,
