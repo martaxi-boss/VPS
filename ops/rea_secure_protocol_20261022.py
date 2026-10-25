@@ -765,22 +765,6 @@ def _authorized_target_paths(arguments, additional_roots=()):
         Path("/opt/rea-reversa/rea").resolve(),
     ]
     exact = {Path("/usr/bin/true").resolve()}
-    # TEMP P214 owner-specific archive only. No new directory root or broad grant.
-    # The pathname itself remains confined to the encrypted signed request.
-    # The original sensitive Ed25519 authorization check stays mandatory.
-    if (type(arguments) is dict
-            and set(arguments) == {"path", "overwrite"}
-            and arguments.get("overwrite") is False
-            and isinstance(arguments.get("path"), str)
-            and hashlib.sha256(arguments["path"].encode("utf-8")).hexdigest()
-                == "8f04a540a297922cb4a2789f1e3eaf13009264ab0d1e442ac81a0d79f21b3531"
-            and datetime.now(timezone.utc)
-                < datetime(2026, 10, 25, 5, 52, 12, tzinfo=timezone.utc)):
-        p214 = Path(arguments["path"])
-        state_root = Path("/var/lib/rea-reversa")
-        if (p214.parent == state_root and state_root.is_dir()
-                and not state_root.is_symlink() and not p214.is_symlink()):
-            exact.add(p214.resolve())
     # Only source-owned fixture code may supply its freshly created root.
     # This parameter is never read from a public or sealed request.
     roots.extend(Path(root).resolve() for root in additional_roots)
