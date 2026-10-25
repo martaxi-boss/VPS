@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "P278_ORIGINAL_REA_123_OF_208__TWO_FIXED_GHIDRA_REQUESTS_PREPARED_OWNER_APPROVAL_PENDING__P277_13_EVIDENCE_1_UNKNOWN_PRESERVED__85_PENDING",
+  "status": "P279_ORIGINAL_REA_124_OF_208__P278_OWNER_SIGNED_GHIDRA_MULTI_NAME_CERTIFIED_SCOPED__15_EVIDENCE_1_UNKNOWN_PRESERVED__84_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -8178,21 +8178,57 @@
         "Two future signatures per request for sensitive Ghidra name write and exact close; source-owned test fixture only.",
         "No sensitive tool newly certified; original service unchanged."
       ]
+    },
+    {
+      "phase_id": "LINUX-P279-P278-SCOPED-CERTIFICATION-20261025",
+      "date_utc": "2026-10-25",
+      "status": "PASS_ONE_SCOPED_SENSITIVE_CERTIFICATION_TWO_FUNCTIONAL_TESTS_AND_INDEPENDENT_READBACK",
+      "new_certifications": 1,
+      "certified_total": 124,
+      "uncertified_remaining": 84,
+      "sensitive_certified": 16,
+      "sensitive_pending": 67,
+      "workspace_pending": 17,
+      "tools": [
+        {
+          "name": "set_addresses_names",
+          "risk": "sensitive",
+          "status": "FULLY_CERTIFIED",
+          "positive_run": 40243343601,
+          "negative_run": 40243479358
+        }
+      ],
+      "live_mcp_original": true,
+      "actions": [
+        40243343601,
+        40243479358,
+        40243600652
+      ],
+      "original_13_evidence_exact_preserved": true,
+      "unknown_unchanged": true,
+      "live_evidence_count": 15,
+      "live_bundle_sha256": "b82b7e0d6024bbb0c6e96f014405c7470d4cc1a8d2d3a99bb1afa6efcb71a31b",
+      "private_backup": "engenharia reversa/REA_P278_Evidence_15_Backup_Verificado.zip",
+      "private_backup_sha256": "5581b0aa735fd5ba88858588dfc7fe00dbb7dc423c2b9210333f800313b6ba9d",
+      "report": "rea-linux/certification/p279-p278-owner-signed-ghidra-scoped-certification-15-evidence-20261025.json",
+      "limitations": [
+        "Original REA unchanged. Only the controlled Ghidra fixture and expected negative semantics were proved; global provider doctor status not changed."
+      ]
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 123,
-    "awaiting_canonical_individual_review": 85,
+    "functional_pass_scoped_distinct": 124,
+    "awaiting_canonical_individual_review": 84,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 5,
     "read_group_missing_positive": 0,
     "workspace_newly_passed_distinct": 48,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 5,
-    "fully_certified_distinct": 123,
+    "fully_certified_distinct": 124,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 85,
-    "remaining_full_certification_distinct": 85
+    "not_functionally_positive_distinct": 84,
+    "remaining_full_certification_distinct": 84
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -8222,7 +8258,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P278-GHIDRA_SET_ADDRESSES_NAMES_TWO_CASES_ONE_OWNER_REVIEW_PREPARED_20261025",
+  "latest_phase": "LINUX-P279-P278-SCOPED-CERTIFICATION-20261025",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -10520,6 +10556,46 @@
         "Every future sensitive tool invocation still needs an exact owner Ed25519 approval.",
         "Private checkpoint 13/1 not yet import-restored, no service restart attempted."
       ]
+    },
+    "set_addresses_names": {
+      "status": "FULLY_CERTIFIED",
+      "risk": "sensitive",
+      "phase_id": "LINUX-P279-P278-SCOPED-CERTIFICATION-20261025",
+      "scope": "Original REA permanent Linux MCP, Ghidra 12.1.4 temporary database on preverified controlled ELF. Two mapped-address naming operations returned true; an unmapped control returned false without error. Executable bytes unchanged. No claims for other targets, providers, or persistent writes.",
+      "run_ids": [
+        40243343601,
+        40243479358,
+        40243600652
+      ],
+      "positive_run_id": 40243343601,
+      "positive_job_id": 121319643994,
+      "positive_steps": 7,
+      "positive_all_isError_not_true": true,
+      "positive_results_count_true": 2,
+      "positive_response_sha256": "e012859f6c31064e80952eaeb4b687420ed40f2aa48953fbcd04ea16376023aa",
+      "positive_evidence_id": "ev_5f5b6e2e9316e25df0648f8063f5e6c5618b65521a1d12db335d3cb61371c3c0",
+      "positive_evidence_sha256": "99820ba88fb63732eaecb597c936cfcaf81677f6863417a08afbe99bc5b53f9d",
+      "negative_run_id": 40243479358,
+      "negative_job_id": 121320063261,
+      "negative_steps": 7,
+      "negative_all_isError_not_true": true,
+      "negative_expected_unmapped_normalized_false": true,
+      "negative_response_sha256": "480e28225194dd773e054a4745233fa491783b1cae5362ce4e6505a085e51389",
+      "negative_evidence_id": "ev_8cfd33a69ce95c703eaa43a8c7449aa7a86234c74914d1eba3b0435abbb7a60a",
+      "negative_evidence_sha256": "1409543bbd0f305b3113412e8e35ab9c0db7a84f83f57f9835914d510d24571a",
+      "independent_readback_run_id": 40243600652,
+      "independent_readback_sha256": "39dbfb424c67f22ceff9c8e5571b04bf1b24a90692f7d8d7fcc25531a445e3e7",
+      "original_13_evidence_sha256": "98655f7309a8fe941e2c5687b331511942086ab57ecf63dc26c1877c2f7b201c",
+      "final_15_evidence_sha256": "b82b7e0d6024bbb0c6e96f014405c7470d4cc1a8d2d3a99bb1afa6efcb71a31b",
+      "records_preserved": true,
+      "unknown_preserved": true,
+      "original_service_modified": false,
+      "certification_report": "rea-linux/certification/p279-p278-owner-signed-ghidra-scoped-certification-15-evidence-20261025.json",
+      "limitations": [
+        "Scoped to controlled Ghidra fixture; not unrestricted across arbitrary targets/providers.",
+        "Fresh exact Ed25519 authorization required for every new sensitive call.",
+        "Negative case returned a per-address false rather than MCP isError=true."
+      ]
     }
   },
   "transport_incidents": [
@@ -11344,8 +11420,8 @@
       "phase": "P269",
       "status": "OFFLINE_MULTI_SIGNER_UNIT_VERIFIED_NOT_EXECUTED",
       "sensitive_total": 83,
-      "sensitive_certified": 13,
-      "sensitive_pending": 70,
+      "sensitive_certified": 16,
+      "sensitive_pending": 67,
       "other_pending": 17,
       "max_steps_per_original_MCP_request": 12,
       "maximum_expiry_hours": 24,
@@ -11355,7 +11431,7 @@
       "signed_batch_authorizations_created": 0,
       "remote_sensitive_tools_called": 0,
       "actual_new_certifications": 0,
-      "remaining_certifications": 87,
+      "remaining_certifications": 84,
       "repo_helper": "rea-linux/owner/owner_approval.py",
       "report": "rea-linux/certification/p269-owner-batch-signing-preparation-70-sensitive-20261025.json",
       "next": "Prepare exact schema checked target-scoped fixtures per pending sensitive tool, then unsigned manifests for owner review. Do not ask for private key upload or bulk-sign unknown future arguments."
@@ -11427,21 +11503,49 @@
       "report": "rea-linux/certification/p277-swift-demangle-original-mcp-session-gate-retention-20261025.json"
     },
     "p278_pending_ghidra_owner_batch": {
-      "status": "TESTED_OFFLINE_AWAITING_ONE_EXPLICIT_ANDROID_CONSENT",
+      "status": "P278_EXECUTED_AND_CLOSED_P279_ONE_SCOPED_SENSITIVE_CERTIFICATION",
       "batch_plan_sha256": "4232181c23847de31b367efd821b50be37d3b98f91e30706612b351a225ae6bf",
       "candidate_sensitive_tool": "set_addresses_names",
-      "total_original_certified": 123,
-      "remaining_full_certifications": 85,
+      "total_original_certified": 124,
+      "remaining_full_certifications": 84,
       "number_unsigned_requests": 2,
       "number_sensitive_signatures_required": 4,
-      "signed_by_owner": false,
-      "tool_executed_original_MCP": false,
-      "certifications_added": 0,
+      "signed_by_owner": true,
+      "tool_executed_original_MCP": true,
+      "certifications_added": 1,
       "prior_record_count": 13,
       "prior_unknown_count": 1,
       "prior_semantic_sha256": "98655f7309a8fe941e2c5687b331511942086ab57ecf63dc26c1877c2f7b201c",
       "report": "rea-linux/certification/p278-ghidra-set-addresses-names-owner-signed-batch-prepared-20261025.json",
-      "owner_key_private_remains_on_Termux": true
+      "owner_key_private_remains_on_Termux": true,
+      "positive_negative_original_MCP_runs": [
+        40243343601,
+        40243479358
+      ],
+      "independent_readback_run_id": 40243600652,
+      "final_record_count": 15,
+      "final_unknown_count": 1,
+      "final_semantic_sha256": "b82b7e0d6024bbb0c6e96f014405c7470d4cc1a8d2d3a99bb1afa6efcb71a31b",
+      "closure_report": "rea-linux/certification/p279-p278-owner-signed-ghidra-scoped-certification-15-evidence-20261025.json"
+    },
+    "p279_scoped_multi_name_certification": {
+      "status": "CERTIFIED_SCOPED_POSITIVE_NEGATIVE_INDEPENDENT_READBACK_PASS",
+      "tool": "set_addresses_names",
+      "certified_total": 124,
+      "remaining_total": 84,
+      "sensitive_certified": 16,
+      "sensitive_remaining": 67,
+      "workspace_pending": 17,
+      "evidence_count": 15,
+      "unknown_count": 1,
+      "evidence_sha256": "b82b7e0d6024bbb0c6e96f014405c7470d4cc1a8d2d3a99bb1afa6efcb71a31b",
+      "private_backup": "engenharia reversa/REA_P278_Evidence_15_Backup_Verificado.zip",
+      "report": "rea-linux/certification/p279-p278-owner-signed-ghidra-scoped-certification-15-evidence-20261025.json",
+      "original_MCP_runs": [
+        40243343601,
+        40243479358,
+        40243600652
+      ]
     }
   }
 }
