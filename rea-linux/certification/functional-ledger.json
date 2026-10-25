@@ -9717,18 +9717,24 @@
       "resume_only_if": "genuine original supported provider and fully authorized target; do not retry Linux macOS-only code"
     },
     "extract_firmware": {
-      "phase": "P252",
-      "status": "LINUX_UNBLOB_PROVIDER_READY_POSITIVE_EXTRACTION_NOT_YET_CERTIFIED",
+      "phase": "P253",
+      "status": "FIXED_LINUX_GZIP_USTAR_FIXTURE_STAGED_AND_SHA256_VERIFIED__WAITING_EXACT_OWNER_ED25519_SIGNATURE",
       "proof": {
         "descriptor_run_id": 40213273134,
         "original_service_doctor_run_id": 40213343117,
         "unblob_probe_run_id": 40213477453,
         "unblob_present_and_runnable": true,
         "binwalk_present": true,
-        "original_mcp_catalog_count": 208
+        "original_mcp_catalog_count": 208,
+        "fixture_run_id": 40216156507,
+        "fixture_input_bytes": 395,
+        "fixture_input_sha256": "fdee9c184dc1251981c5c82ef82091c03106a62a5e258c536ef3ef650a9c7ebf",
+        "fixture_output_directory_absent": true,
+        "service_identity": "rea-reversa",
+        "original_bridge_restored_blob_sha": "81ec4fb4677e2e4c7b11b2d0550fee8cef9400e7"
       },
-      "next": "First identify/stage one genuine source-owned Unblob compatible fixture at an allowed VPS path and absent output directory; then obtain a new owner Ed25519 signature exactly bound to extract_firmware arguments; use before/after readback of all nine Evidence. P250 owner signature cannot authorize a different operation.",
-      "report": "rea-linux/certification/p252-extract-firmware-live-readiness-20261025.json",
+      "next": "Owner signs the exact P253 existing-local-fixture extract_firmware pair using unchanged Android Ed25519 key, returns signed JSON; then call permanent original REA MCP via current sealed GitHub Actions bridge, verify actual child digests and preserve all prior Evidence; increment only after positive original live tool.",
+      "report": "rea-linux/certification/p253-controlled-firmware-fixture-staged-20261025.json",
       "caution": "Global REA doctor healthy=false/environment_healthy=false; no blanket provider-health claim."
     },
     "retention": {
