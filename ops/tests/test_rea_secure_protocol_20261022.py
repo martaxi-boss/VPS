@@ -356,6 +356,61 @@ class ReaSecureProtocolTests(unittest.TestCase):
             secure.seal_for_client(too_large, recipient, reply)
 
 
+    def test_P267_exact_owner_signed_retention_hold_is_one_request_only(self):
+        # Source regression for the original P232/P246 gate. The real signed
+        # batch goes through validate_inner(owner Ed25519) before this guard.
+        # No actual MCP call or bypass is performed in this unit test.
+        import hashlib
+        import sys
+        sys.modules.setdefault("rea_secure_protocol_20261022", secure)
+        from ops import rea_mobile_mcp_bridge_20261022 as bridge
+
+        names = bridge.P267_EXACT_SEQUENCE
+        steps = [{"tool": name, "arguments": (
+            {"path": "/usr/bin/true", "provider_id": "ghidra"}
+            if name == "open_binary" else {} if name != "get_evidence_bundle"
+            else {"detail": "complete"}
+        )} for name in names]
+        test_body = {
+            "protocol": 1,
+            "nonce": "0" * 32,
+            "expires_at": expires(1),
+            "steps": steps,
+        }
+        test_pin = hashlib.sha256(secure.canonical_json(test_body)).hexdigest()
+        with mock.patch.object(bridge, "P267_SIGNED_CANONICAL_REQUEST_SHA256", test_pin):
+            self.assertTrue(bridge.p232_guard_inner_batch(test_body))
+            for name in ("open_binary", "close_binary"):
+                payload = {"method": "tools/call", "params": {
+                    "name": name, "arguments": (
+                        {"path": "/usr/bin/true", "provider_id": "ghidra"}
+                        if name == "open_binary" else {}
+                    )}}
+                with self.assertRaises(ValueError):
+                    bridge.p232_guard_live_call(payload)
+                self.assertIsNone(
+                    bridge.p232_guard_live_call(payload, p267_lifecycle=True))
+                mutated = {"method": "tools/call", "params": {
+                    "name": name, "arguments": {"path": "/usr/bin/true"}
+                }}
+                with self.assertRaises(ValueError):
+                    bridge.p232_guard_live_call(mutated, p267_lifecycle=True)
+            changed = {**test_body, "nonce": "1" * 32}
+            with self.assertRaises(ValueError):
+                bridge.p232_guard_inner_batch(changed)
+            other = {**test_body, "steps": [
+                *steps[:2], {"tool": "open_binary", "arguments": {
+                    "path": "/usr/bin/false", "provider_id": "ghidra"}},
+                *steps[3:],
+            ]}
+            with self.assertRaises(ValueError):
+                bridge.p232_guard_inner_batch(other)
+        self.assertFalse(bridge.p232_guard_inner_batch(request([
+            {"tool": "list_unknowns", "arguments": {}}
+        ])))
+
+
+
 if __name__ == "__main__":
     unittest.main()
 
