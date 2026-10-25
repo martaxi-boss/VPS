@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "P268_ORIGINAL_REA_121_OF_208__P267_OWNER_SIGNED_LIVE_OPEN_CLOSE_11_EVIDENCE_1_UNKNOWN_SHA_PRESERVED__P232_P246_BLANKET_HOLD_RELEASED_ONLY_FOR_VALID_SIGNED_SEALED_BATCH",
+  "status": "P269_ORIGINAL_REA_121_OF_208__P268_SIGNED_LIFECYCLE_READY__OFFLINE_BATCH_OWNER_SIGNER_TESTED__70_SENSITIVE_PENDING__11_EVIDENCE_1_UNKNOWN_PRESERVED",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -7981,6 +7981,38 @@
         "121 certifications remain scoped and 87 not yet certified",
         "Future signed per-step authorizations needed; no unrestricted session access"
       ]
+    },
+    {
+      "phase_id": "LINUX-P269-OFFLINE-OWNER-BATCH-SIGNER-PREPARED-20261025",
+      "status": "SIGNED_MANIFEST_BATCH_OFFLINE_HELPER_PREPARED_AND_REGRESSIONS_PASS__NO_OWNER_SIGNATURE_USED__NO_NEW_CERTIFICATIONS",
+      "source": "rea-linux/owner/owner_approval.py",
+      "source_code_commits": [
+        "418baa379413c9cfeea97537740ba4156e1239b9",
+        "03f8004c2f64c51fd169d1788338a5292f64d20b",
+        "68e2a3736cfcd9e0319a01a5f75f1d6c18047b6d"
+      ],
+      "final_source_commit_with_tests": "42d4826205065a23698e04ea9d87877332dc005b",
+      "regression_workflow_id": 40238387328,
+      "regression_result": "SUCCESS_16_TESTS",
+      "original_catalog": 208,
+      "sensitive_total": 83,
+      "sensitive_certified": 13,
+      "sensitive_pending": 70,
+      "workspace_or_read_pending": 17,
+      "originally_certified_distinct": 121,
+      "newly_certified": 0,
+      "tools": [],
+      "signing_rule": "One local visible review for manifest, distinct bound Ed25519 signature for each exact sensitive step; never share/private key, never auto authorize; original protocol remains max 12 steps each, <=24h per request and unique nonce.",
+      "not_yet_done": [
+        "No 70-op manifest signed",
+        "No pending sensitive MCP tools certified",
+        "No external provider licensing bypass",
+        "Exact fixtures/targets and schema gates remain to be prepared per tool"
+      ],
+      "evidence_count": 11,
+      "unknowns_count": 1,
+      "evidence_canonical_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+      "report": "rea-linux/certification/p269-owner-batch-signing-preparation-70-sensitive-20261025.json"
     }
   ],
   "active_scope_counts": {
@@ -8025,7 +8057,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P268-P232-P246-SIGNED-SESSION-GATE-RELEASE-20261025",
+  "latest_phase": "LINUX-P269-OFFLINE-OWNER-BATCH-SIGNER-PREPARED-20261025",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -11065,6 +11097,26 @@
       "optional_doctor_still_unhealthy": true,
       "pending_uncertified_count": 87,
       "report": "rea-linux/certification/p268-signed-lifecycle-bridge-release-121-scoped-tools-ready-20261025.json"
+    },
+    "p269_batch_owner_signing": {
+      "phase": "P269",
+      "status": "OFFLINE_MULTI_SIGNER_UNIT_VERIFIED_NOT_EXECUTED",
+      "sensitive_total": 83,
+      "sensitive_certified": 13,
+      "sensitive_pending": 70,
+      "other_pending": 17,
+      "max_steps_per_original_MCP_request": 12,
+      "maximum_expiry_hours": 24,
+      "one_owner_review_many_per_step_signatures_supported_in_prepared_helper": true,
+      "verified_gitHub_action_id": 40238387328,
+      "tests_passed": 16,
+      "signed_batch_authorizations_created": 0,
+      "remote_sensitive_tools_called": 0,
+      "actual_new_certifications": 0,
+      "remaining_certifications": 87,
+      "repo_helper": "rea-linux/owner/owner_approval.py",
+      "report": "rea-linux/certification/p269-owner-batch-signing-preparation-70-sensitive-20261025.json",
+      "next": "Prepare exact schema checked target-scoped fixtures per pending sensitive tool, then unsigned manifests for owner review. Do not ask for private key upload or bulk-sign unknown future arguments."
     }
   }
 }
