@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "project": "Engenharia Reversa - permanent original REA 6.7.0 Linux MCP",
+  "phase_id": "LINUX-P268-P232-P246-SIGNED-SESSION-GATE-RELEASE-20261025",
+  "date_utc": "2026-10-25",
+  "status": "CONDITIONAL_BRIDGE_HOLD_RELEASED_TO_INDIVIDUALLY_AUTHORIZED_SIGNED_SEALED_SESSIONS__NO_UNSAFE_GLOBAL_BYPASS__121_CERTIFIED_87_PENDING",
+  "basis": {
+    "original_source_fix": "P265 source+dist live verified",
+    "restoration": "P265 exact signed 11 Evidence + 1 Unknown restored and independently checked",
+    "exact_live_close_smoke": "P267 authorized /usr/bin/true Ghidra via original permanent MCP",
+    "P267_test_run_id": 40237348857,
+    "P267_test_job_id": 121301628707,
+    "P267_six_mcp_isError_all_false": true,
+    "P267_before_after_evidence_count": [
+      11,
+      11
+    ],
+    "P267_before_after_unknown_revisions": [
+      1,
+      1
+    ],
+    "P267_deep_evidence_equal": true,
+    "P267_deep_unknown_equal": true,
+    "retained_evidence_canonical_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380"
+  },
+  "implementation": {
+    "original_bridge_path": "ops/rea_mobile_mcp_bridge_20261022.py",
+    "branch": "rea/one-skill-bridge-20261023",
+    "release_commit": "bd6308e6526b78fbe9a50715af618c8fb27d72ba",
+    "release_bridge_blob_sha": "e2405473eaff646be5952b785b57f41f906354b6",
+    "secure_policy_file_unchanged": true,
+    "original_mcp_original_service_unchanged": true,
+    "original_ssh_host_identity_pinned": true,
+    "no_secondary_service_or_MCP_created": true,
+    "control": "Only sealed_batch after secure.validate_inner verified 208-schema exact match, per-step workspace grant and owner Ed25519 signature for sensitive close_binary can obtain ephemeral per-name argument digest lifecycle grants.",
+    "open_binary_scope": "workspace, explicit exact approval",
+    "close_binary_scope": "sensitive, fresh exact owner Ed25519 signature per operation",
+    "paired_open_requires_later_signed_close_in_same_batch": true,
+    "multiple_opens_or_closes_rejected": true,
+    "paired_close_with_snapshot_rejected": true,
+    "direct_fixture_binary_lifecycle_still_blocked_without_owner_signed_batch": true,
+    "unrelated_signed_calls_still_classified_by_existing_secure_policy": true,
+    "no_old_P267_signed_request_replay": true,
+    "emergency_cleanup_uses_validated_signed_close_once_only": true,
+    "ambiguous_failed_close_not_retried": true,
+    "full_original_service_retention_patch_preserved": true
+  },
+  "tests": {
+    "release_code_run": 40237657266,
+    "final_snapshot_guard_run": 40237729254,
+    "final_job_id": 121302783188,
+    "source_bridge_and_policy_units_passed": 13,
+    "P268_specific_negative_and_positive_regression_test": "PASS",
+    "same_original_MCP_catalog": 208,
+    "loopback_MCP": "PASS",
+    "Actions_conclusion": "success",
+    "test_input": "ephemeral isolated Ed25519 test key; never owner private key",
+    "no_new_individual_certification": true
+  },
+  "status_after_release": {
+    "total_tool_catalog": 208,
+    "certified_scoped": 121,
+    "not_yet_certified": 87,
+    "certified_read": 5,
+    "certified_analysis_workspace": 103,
+    "certified_sensitive": 13,
+    "historic_binary_session_dependent": 42,
+    "historic_binary_session_eligible_with_exact_individual_authorizations": true,
+    "unrestricted_open_close": false,
+    "private_P262_backup_retained": true,
+    "evidence": 11,
+    "unknown_revisions": 1,
+    "evidence_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+    "doctor_global_healthy": false,
+    "ghidra_available": true,
+    "jadx_available": true,
+    "kuna_available": true,
+    "ida_available": false,
+    "old_two_sensitive_positive_retests_required": [
+      "inspect_web_network_capture",
+      "inspect_adb_client"
+    ]
+  },
+  "hygiene": {
+    "temporary_P267_exception_removed_from_bridge": true,
+    "P267_one_use_encrypted_request_deleted": true,
+    "P267_one_use_public_key_request_deleted": true,
+    "temporary_private_library_staging_deleted": true,
+    "original_evidence_deleted": false,
+    "reports_workflow_ids_retained": true,
+    "private_owner_key_never_uploaded": true,
+    "other_projects_untouched": true
+  },
+  "limitations": [
+    "121 certifications apply only to individually previously verified functional contract scopes. The release does not certify 87 pending tools or arbitrary new targets.",
+    "Current service-wide provider doctor remains globally unhealthy. IDA unavailable; additional optional vendors/targets may require genuine dependencies.",
+    "Opening original binary workspace through secure bridge requires matching owner-approved workspace grant; closing requires fresh valid Ed25519 owner signature in the same sealed batch; no blanket unrestricted session access.",
+    "P267 exact live smoke exercised one controlled Ghidra target /usr/bin/true. P268 generic admission gate unit-tested and catalog/live loopback verified, not yet exercised on every certified session tool."
+  ],
+  "next_phase": "Continue certifying 87 pending tools by existing original MCP without repeating 121; use verified provider-aligned controlled inputs and per-operation approvals, preserving evidence SHA baselines and hygienic one-use encrypted requests."
+}
