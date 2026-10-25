@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "project": "Engenharia Reversa — original REA Linux VPS",
+  "phase_id": "P246-MANDATORY-P232-GITHUB-BRIDGE-LIVE-MCP-LIFECYCLE-HOLD-20261025",
+  "date_utc": "2026-10-25",
+  "status": "PASS_17_OF_17_BRIDGE_UNIT_REGRESSIONS__PERMANENT_REA_MCP_UNMODIFIED",
+  "purpose": "Apply the existing P232 binary-session hold to every live tools/call using the existing GitHub Actions transport; preserve owner verification, service, original REA code and six P214 Evidence.",
+  "before": {
+    "original_bridge_blob": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7",
+    "problem": "P232 was only optional pre-sealing operator guard. Existing sealed_batch executed open_binary and automatically closed it in finally, or legacy source-owned fixtures could reach open_binary/close_binary. Previous P225 close_binary wiped global Evidence/Unknown state.",
+    "service_mcp_modified": false,
+    "previously_fully_certified": 116,
+    "catalog_count": 208
+  },
+  "implementation": {
+    "bridge_path": "ops/rea_mobile_mcp_bridge_20261022.py",
+    "enforced_tools": [
+      "open_binary",
+      "close_binary"
+    ],
+    "defense_in_depth": [
+      "p232_guard_live_call called at beginning of central request_mcp before constructing urllib HTTP request; affects all original-MCP call sources including historic source-owned fixtures and automatic close_binary cleanup.",
+      "p232_guard_inner_batch called AFTER original secure.validate_inner / Ed25519 checks but BEFORE one-use nonce claim and before first step: rejects whole mixed batches atomically without consuming nonce.",
+      "Malformed tools/call name/params and malformed inner steps fail closed.",
+      "Harmless initialize, tools/list and other authorized queries are unaffected.",
+      "Existing per-tool workspace authorizations and owner-sensitive signatures remain mandatory; this guard can only remove permission, never grant it.",
+      "Original P232 local operator preseal guard remains unchanged and required.",
+      "Guard is in the preexisting bridge only; does not install a new plugin, skill, MCP, engine or server."
+    ],
+    "original_secure_policy_blob": "8757abb589a779eaeda1d0eeefc85e4476503a41",
+    "original_workflow_blob": "c81ef44d3f3e9dc3b3a819add5ff4f1a33d343df"
+  },
+  "test_evidence": {
+    "successful_run_id": 40196617970,
+    "successful_job_id": 121178706099,
+    "successful_request_commit": "0e7f539f8c96795fea15f2cfea29f0035a0dbe69",
+    "successful_workflow_url": "https://github.com/martaxi-boss/VPS/actions/runs/40196617970",
+    "workflow_conclusion": "success",
+    "original_mcp_connection": "PASS",
+    "original_mcp_tools_list_count": 208,
+    "test_module": "rea-linux/certification/tests/test_rea_p246_bridge_retention_hold.py",
+    "pinned_test_module_blob": "f9e1f458929e7ea58ecad78f092598f893a97caf",
+    "in_process_tests_count": 17,
+    "passes": 17,
+    "unit_test_exit_code": 0,
+    "test_log_sha256": "2afc93bc30fe62f60f353a0f8ea5819f9774c9c0e046f271c92d4789bc71cd53",
+    "mocked_all_test_network_tools_call": true,
+    "native_execution_scope": "Existing Python bridge loaded via stdin on original Linux VPS, zero unit-test calls to real binary lifecycle tools",
+    "earlier_diagnostic_run_id": 40196472209,
+    "earlier_diagnostic_note": "First test harness attempted to import bridge through filesystem path. The original bridge runs via stdin. This failed before tests started; corrected by executing 17 tests against the already-loaded bridge in memory.",
+    "result_marker": "MANDATORY_BRIDGE_P232_LIFECYCLE_HOLD_TESTED"
+  },
+  "limitations": [
+    "The guard is enforced in the GitHub/Skill transport's central live request_mcp, not inside the original REA MCP service; independent local clients to 127.0.0.1:8765 may bypass it.",
+    "It intentionally prevents open_binary/close_binary even with fresh owner signature until a separate independently approved safe lifecycle release.",
+    "Other sensitive tools that implicitly retire an active provider may still need independent review; do not assume all 83 sensitive tools are safe.",
+    "No live binary close/restart was attempted, so permanent Evidence durability after actual daemon restart remains unproven.",
+    "No new per-tool functional certification occurred, total remains 116/208.",
+    "This commit intentionally updates bridge source from the previous original SHA; workflow and signing policy are unchanged."
+  ],
+  "canonical": {
+    "catalog_total": 208,
+    "fully_certified": 116,
+    "pending": 92,
+    "pending_sensitive": 73,
+    "pending_workspace": 17,
+    "pending_read": 2,
+    "owner_signatures_created": 0,
+    "owner_private_key_accessed": false,
+    "original_p214_backup_sha256": "daa7bcc15a6cb1adf4fb46563100b2d67ff8b6694b191ef762d3cd2d8e61f3c4",
+    "original_P214_live_complete_verified_run": 40195674583,
+    "original_unknown_history_latest": 0,
+    "missing_original_P217_P218_evidence": 2
+  },
+  "hygiene": {
+    "remove_consumed_request": "rea-linux/requests/p246-p232-bridge-lifecycle-guard-20261025-b.json",
+    "retain_readonly_original_bridge_test_source": true,
+    "remove_ephemeral_test_action_and_embedded_code": true,
+    "no_changes_to_original_REA_repository": true,
+    "preserve_ledger_blob": "b09a56ed4d401d150f99836844622a96b89523c8",
+    "no_other_projects_touched": true
+  }
+}
