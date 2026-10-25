@@ -256,7 +256,19 @@
       "policy_bridge_workflow_unchanged": true,
       "owner_private_key_stayed_android": true,
       "exact_evidence_ids_verified": true,
-      "staged_copy_cleanup_pending_owner": true
+      "staged_copy_cleanup_pending_owner": false,
+      "owner_stage_cleanup": {
+        "status": "PASS_REPORTED_BY_OWNER_CONSOLE",
+        "screenshot_sha256": "5ed4e4d108642cd6ef9364c16e05fd89d896871e1d123cd82214ae483bfd6239",
+        "owner_observed_token": "REA_P229_STAGE_CLEANED=PASS",
+        "sha_before_delete": {
+          "source": "MATCHED_CANONICAL",
+          "staged": "MATCHED_CANONICAL",
+          "sha256": "daa7bcc15a6cb1adf4fb46563100b2d67ff8b6694b191ef762d3cd2d8e61f3c4"
+        },
+        "scope": "Only temporary staged P229 copy under /opt/rea-reversa/rea; P214 original not deleted",
+        "independent_file_absence_check": false
+      }
     }
   },
   "constraints": [
@@ -278,7 +290,7 @@
     "COMPLETED P229: Exact owner-signed import_evidence_bundle restored six authentic P214 Evidence; second original MCP readback verified six identical IDs and zero Unknowns (runs 40189757896, 40189898588).",
     "Preserve original P214 archive and do not open/close binaries in permanent MCP while BinarySession.closeActive default clearSessionRecords would reset restored in-memory Evidence; fix retention with separate owner-controlled review and regression checks before resuming stateful tool certifications.",
     "Recover exact original P217/P218 later two Evidence bodies and Unknown revision history only from full authenticated sources, never reconstruct by guessing.",
-    "Owner-controlled removal of only the staged copy under /opt/rea-reversa/rea after readback and rechecking original P214 archive SHA; original archive must remain.",
+    "COMPLETED per owner VPS terminal evidence: P229 staged copy removed after checking SHA256 of original and stage against canonical digest; do not repeat deletion, and preserve P214 source archive.",
     "Continue remaining historical 92 tool certifications only where not risky to current recovered state; no replay of any used nonce or sensitive owner signature."
   ],
   "hygiene": {
