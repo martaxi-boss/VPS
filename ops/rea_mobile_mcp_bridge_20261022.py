@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_retention_p244", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -259,7 +259,6 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_LINUX_READ5_NODE_PRESENT", "REA_LINUX_READ5_REGRESSION",
         "REA_LINUX_READ5_EXIT_CODE", "REA_LINUX_READ5_TEST_OUTPUT_SHA256",
         "REA_LINUX_READ5_TEST_NAME", "REA_LINUX_READ5_TEST_DIAGNOSTIC",
-        "REA_P244_STATUS", "REA_P244_P214_ARCHIVE_SHA256", "REA_P244_P214_ARCHIVE_BYTES", "REA_P244_ARCHIVE_RECORDS", "REA_P244_ARCHIVE_UNKNOWN_REVISIONS", "REA_P244_MCP_ISERROR", "REA_P244_LIVE_RECORDS", "REA_P244_LIVE_UNKNOWN_REVISIONS", "REA_P244_ORIGINAL_SEMANTIC_SHA256", "REA_P244_LIVE_SEMANTIC_SHA256", "REA_P244_EXACT_IDS_MATCH", "REA_P244_FULL_BODIES_MATCH", "REA_P244_PID_UNCHANGED",
         "REA_LINUX_GDB_CONFORMANCE_SOURCE", "REA_LINUX_GDB_CONFORMANCE_COUNT",
         "REA_LINUX_GDB_CONFORMANCE_STATUS", "REA_LINUX_GDB_CONFORMANCE_WORKTREE",
         "REA_LINUX_GDB_MANAGER_EXIT", "REA_LINUX_GDB_MANAGER_RESULT",
@@ -631,128 +630,6 @@ def main():
     print("REA_MOBILE_CATALOG_SAMPLE=" + json.dumps(
         list(tool_by_name)[:14], ensure_ascii=True
     ))
-    if data["action"] == "fixture_linux_retention_p244":
-        # One-use READ-ONLY complete content equivalence against immutable P214
-        # archive. Never print Evidence/Unknown bodies or owner keys.
-        import stat
-        service="rea-reversa-mcp.service"
-        def mainpid():
-            p=subprocess.run(["systemctl","show",service,"-p","MainPID","--value"],
-                capture_output=True,text=True,timeout=9,check=False)
-            return p.stdout.strip() if p.returncode==0 else ""
-        pid_before=mainpid()
-        if not pid_before.isdecimal() or int(pid_before)<1:
-            print("REA_P244_STATUS=BLOCKED_SERVICE_NOT_ACTIVE")
-            return
-        if secure.classify("get_evidence_bundle",tool_by_name.get("get_evidence_bundle"),())!="read":
-            print("REA_P244_STATUS=BLOCKED_NOT_AUTHORIZED_READ_CATEGORY")
-            return
-        arguments={"detail":"complete"}
-        try:
-            secure.validate_arguments(tool_by_name["get_evidence_bundle"],arguments)
-        except Exception:
-            print("REA_P244_STATUS=BLOCKED_READ_SCHEMA_CHANGED")
-            return
-        archive_path="/var/lib/rea-reversa/rea-p214-evidence-backup-7c5e1ad42fe74b121f3e2c4fe830c6c7.json"
-        archive_fingerprint="daa7bcc15a6cb1adf4fb46563100b2d67ff8b6694b191ef762d3cd2d8e61f3c4"
-        service_owned_reader = ("import os,stat,sys;" +
-            "p="+repr(archive_path)+";" +
-            "f=os.open(p,os.O_RDONLY|os.O_NOFOLLOW);" +
-            "s=os.fstat(f);" +
-            "assert stat.S_ISREG(s.st_mode) and (s.st_mode&0o077)==0;" +
-            "assert 0<s.st_size<=25000000;" +
-            "b=os.read(f,25000001);" +
-            "assert len(b)==s.st_size;" +
-            "sys.stdout.buffer.write(b);os.close(f)")
-        p=subprocess.run(["sudo","-n","-u","rea-reversa","/usr/bin/python3","-c",
-                          service_owned_reader],
-                         capture_output=True,timeout=18,check=False)
-        if p.returncode!=0:
-            print("REA_P244_STATUS=BLOCKED_OWNER_ARCHIVE_READ_OR_PERMISSIONS")
-            return
-        source_bytes=p.stdout
-        file_digest=hashlib.sha256(source_bytes).hexdigest()
-        print("REA_P244_P214_ARCHIVE_SHA256="+file_digest)
-        print("REA_P244_P214_ARCHIVE_BYTES="+str(len(source_bytes)))
-        if file_digest!=archive_fingerprint:
-            print("REA_P244_STATUS=BLOCKED_ARCHIVE_SHA256_MISMATCH")
-            return
-        def no_dupes(pairs):
-            result={}
-            for k,v in pairs:
-                if k in result: raise ValueError("Duplicate key")
-                result[k]=v
-            return result
-        try:
-            original=json.loads(source_bytes.decode("utf-8"),object_pairs_hook=no_dupes)
-        except (ValueError,UnicodeError):
-            print("REA_P244_STATUS=BLOCKED_ARCHIVE_JSON")
-            return
-        if (not isinstance(original,dict) or
-            set(original)!={"artifacts","providers","environments",
-                             "scenarios","captures","unknowns","records"} or
-            not isinstance(original["records"],list) or
-            not isinstance(original["unknowns"],list)):
-            print("REA_P244_STATUS=BLOCKED_ARCHIVE_SCHEMA")
-            return
-        print("REA_P244_ARCHIVE_RECORDS="+str(len(original["records"])))
-        print("REA_P244_ARCHIVE_UNKNOWN_REVISIONS="+str(len(original["unknowns"])))
-        if len(original["records"])!=6 or len(original["unknowns"])!=0:
-            print("REA_P244_STATUS=BLOCKED_ARCHIVE_SCOPE_CHANGED")
-            return
-        try:
-            _,mcp_reply=request_mcp({
-                "jsonrpc":"2.0","id":850,"method":"tools/call",
-                "params":{"name":"get_evidence_bundle","arguments":arguments}
-                },session,protocol,timeout=48)
-        except Exception:
-            print("REA_P244_STATUS=BLOCKED_MCP_READ_ERROR")
-            return
-        result=mcp_reply.get("result") if isinstance(mcp_reply,dict) else None
-        if not isinstance(result,dict) or result.get("isError") is True:
-            print("REA_P244_MCP_ISERROR=true")
-            print("REA_P244_STATUS=BLOCKED_ORIGINAL_MCP_ISERROR")
-            return
-        print("REA_P244_MCP_ISERROR=false")
-        structured=result.get("structuredContent")
-        live=structured.get("result") if isinstance(structured,dict) else None
-        if not isinstance(live,dict) or set(live)!=set(original):
-            print("REA_P244_STATUS=BLOCKED_ORIGINAL_MCP_COMPLETE_FORMAT")
-            return
-        if not isinstance(live["records"],list) or not isinstance(live["unknowns"],list):
-            print("REA_P244_STATUS=BLOCKED_ORIGINAL_MCP_SCHEMA")
-            return
-        print("REA_P244_LIVE_RECORDS="+str(len(live["records"])))
-        print("REA_P244_LIVE_UNKNOWN_REVISIONS="+str(len(live["unknowns"])))
-        def semsha(obj):
-            return hashlib.sha256(json.dumps(obj,sort_keys=True,ensure_ascii=True,
-                separators=(",",":"),allow_nan=False).encode("ascii")).hexdigest()
-        try:
-            sem_archive=semsha(original)
-            sem_live=semsha(live)
-        except (TypeError,ValueError):
-            print("REA_P244_STATUS=BLOCKED_NONCANONICAL_MCP_RESPONSE")
-            return
-        print("REA_P244_ORIGINAL_SEMANTIC_SHA256="+sem_archive)
-        print("REA_P244_LIVE_SEMANTIC_SHA256="+sem_live)
-        ids_old=sorted([v.get("evidence_id","") for v in original["records"]
-                     if isinstance(v,dict)])
-        ids_live=sorted([v.get("evidence_id","") for v in live["records"]
-                     if isinstance(v,dict)])
-        print("REA_P244_EXACT_IDS_MATCH="+
-              ("PASS" if ids_old==ids_live and len(ids_old)==6 else "FAIL"))
-        print("REA_P244_FULL_BODIES_MATCH="+
-              ("PASS" if sem_archive==sem_live else "FAIL"))
-        pid_after=mainpid()
-        print("REA_P244_PID_UNCHANGED="+
-              ("PASS" if pid_after==pid_before else "FAIL"))
-        print("REA_P244_STATUS="+
-              ("PASS_ORIGINAL_LIVE_MCP_FULL_P214_ARCHIVE_EQUIVALENCE"
-               if (sem_archive==sem_live and ids_old==ids_live and
-                   len(ids_old)==6 and len(live["unknowns"])==0 and
-                   pid_after==pid_before)
-               else "INCOMPLETE_LIVE_STATE_CHANGED_OR_UNEQUAL"))
-        return
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
               secure.request_public_key_b64(create=True))
