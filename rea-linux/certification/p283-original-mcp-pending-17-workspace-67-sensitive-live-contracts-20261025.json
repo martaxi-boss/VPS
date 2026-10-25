@@ -1,0 +1,259 @@
+{
+  "schema_version": 1,
+  "project": "Engenharia Reversa - original REA Linux MCP only",
+  "phase_id": "LINUX-P283-LIVE-CONTRACT-RECONCILIATION-17-WORKSPACE-67-SENSITIVE-20261025",
+  "date_utc": "2026-10-25",
+  "status": "AUTHENTICATED_LIVE_ORIGINAL_MCP_208_CONTRACTS__124_CANONICALLY_CERTIFIED__17_WORKSPACE_67_SENSITIVE_PENDING__NO_NEW_TOOL_CALL_CERTIFICATIONS",
+  "transport": "Existing Engenharia Reversa Skill -> GitHub Actions -> pinned SSH -> original VPS loopback REA MCP -> encrypted response",
+  "live_proof": {
+    "workflow_run_id": 40246756909,
+    "commit": "5c2e134ca683e9d0723d3c7ed0ac31335095e768",
+    "conclusion": "SUCCESS",
+    "encrypted_artifact_id": 12618314266,
+    "encrypted_artifact_name": "rea-linux-encrypted-result",
+    "original_action": "runtime_contracts",
+    "request_sha256": "70395c521cf2fc389a0a97b354c5467f463233af350c73cd826fc1340c9f0ef4",
+    "result_sha256": "49f8c83a3b9861c8a21d03b5fab7bd66bb9176567bbaacb8e65f117ae8cbd088",
+    "result_serialized_bytes": 3490853,
+    "authenticated_by": "RSA encrypted reply + AES-GCM tag + exact request SHA + original REA result SHA and byte count",
+    "catalog_tool_names_unique": true,
+    "tools_list_count": 208,
+    "total_risk_classes": {
+      "read": 5,
+      "workspace": 120,
+      "sensitive": 83
+    },
+    "signed_sensitive_steps_executed": 0,
+    "workspace_tools_call_executed": 0,
+    "tool_schemas_are_runtime_descriptors_not_functional_acceptance": true
+  },
+  "canonical_ledger": {
+    "file": "rea-linux/certification/functional-ledger.json",
+    "fully_certified_distinct": 124,
+    "read_certified": 5,
+    "workspace_certified": 103,
+    "sensitive_certified": 16,
+    "pending": 84,
+    "workspace_pending": 17,
+    "sensitive_pending": 67,
+    "ledger_unchanged": true
+  },
+  "workspace_pending": [
+    {
+      "name": "comment",
+      "risk": "workspace",
+      "required_arguments": [],
+      "readiness_gate": "hopper_navigation"
+    },
+    {
+      "name": "current_address",
+      "risk": "workspace",
+      "required_arguments": [],
+      "readiness_gate": "hopper_navigation"
+    },
+    {
+      "name": "current_document",
+      "risk": "workspace",
+      "required_arguments": [],
+      "readiness_gate": "hopper_navigation"
+    },
+    {
+      "name": "current_procedure",
+      "risk": "workspace",
+      "required_arguments": [],
+      "readiness_gate": "hopper_navigation"
+    },
+    {
+      "name": "demangle_swift",
+      "risk": "workspace",
+      "required_arguments": [
+        "symbols"
+      ],
+      "readiness_gate": "swift_demangler_and_selected_native_target"
+    },
+    {
+      "name": "frida_session_status",
+      "risk": "workspace",
+      "required_arguments": [
+        "session_id"
+      ],
+      "readiness_gate": "frida_live_owned_session"
+    },
+    {
+      "name": "get_navigation_context",
+      "risk": "workspace",
+      "required_arguments": [],
+      "readiness_gate": "hopper_navigation"
+    },
+    {
+      "name": "inline_comment",
+      "risk": "workspace",
+      "required_arguments": [],
+      "readiness_gate": "hopper_navigation"
+    },
+    {
+      "name": "inspect_asset_catalog",
+      "risk": "workspace",
+      "required_arguments": [],
+      "readiness_gate": "apple_target_and_native_provider"
+    },
+    {
+      "name": "inspect_macho",
+      "risk": "workspace",
+      "required_arguments": [],
+      "readiness_gate": "apple_target_and_native_provider"
+    },
+    {
+      "name": "inspect_plist",
+      "risk": "workspace",
+      "required_arguments": [],
+      "readiness_gate": "apple_target_and_native_provider"
+    },
+    {
+      "name": "inspect_signature",
+      "risk": "workspace",
+      "required_arguments": [],
+      "readiness_gate": "apple_target_and_native_provider"
+    },
+    {
+      "name": "list_architectures",
+      "risk": "workspace",
+      "required_arguments": [],
+      "readiness_gate": "apple_target_and_native_provider"
+    },
+    {
+      "name": "list_bookmarks",
+      "risk": "workspace",
+      "required_arguments": [],
+      "readiness_gate": "hopper_navigation"
+    },
+    {
+      "name": "next_address",
+      "risk": "workspace",
+      "required_arguments": [],
+      "readiness_gate": "hopper_navigation"
+    },
+    {
+      "name": "prev_address",
+      "risk": "workspace",
+      "required_arguments": [],
+      "readiness_gate": "hopper_navigation"
+    },
+    {
+      "name": "rizin_debug_session_status",
+      "risk": "workspace",
+      "required_arguments": [
+        "session_id"
+      ],
+      "readiness_gate": "rizin_live_owned_session"
+    }
+  ],
+  "sensitive_pending_names": [
+    "analyze_web_bundle",
+    "capture_adb_screen",
+    "capture_browser_scenario",
+    "capture_electron_scenario",
+    "capture_native_ui_scenario",
+    "capture_process_scenario",
+    "capture_web_screenshot",
+    "close_binary",
+    "close_frida_session",
+    "close_gdb_session",
+    "close_rizin_debug_session",
+    "collect_adb_bugreport",
+    "cutter_command",
+    "decompile_jeb_item",
+    "discover_webmcp_tools",
+    "execute_rizin_command",
+    "extract_artifact",
+    "gdb_console",
+    "goto_address",
+    "inspect_adb_device",
+    "inspect_adb_display",
+    "inspect_adb_package",
+    "inspect_adb_window",
+    "inspect_electron_page",
+    "inspect_jeb_client",
+    "inspect_web_event_listeners",
+    "inspect_web_page",
+    "install_adb_package",
+    "instrument_with_frida",
+    "list_adb_directory",
+    "list_adb_features",
+    "list_adb_packages",
+    "list_adb_processes",
+    "list_adb_services",
+    "list_browser_targets",
+    "list_electron_targets",
+    "list_javascript_runtime_targets",
+    "list_jeb_units",
+    "load_frida_script",
+    "observe_javascript_runtime",
+    "observe_native_calls",
+    "observe_native_ui",
+    "observe_web_execution",
+    "observe_web_session",
+    "open_jeb_project",
+    "pull_adb_file",
+    "pull_adb_package",
+    "push_adb_file",
+    "read_adb_logcat",
+    "read_adb_setting",
+    "recover_javascript_sources",
+    "resolve_adb_packages",
+    "resume_frida_session",
+    "rizin_debug_command",
+    "set_bookmark",
+    "set_comment",
+    "set_inline_comment",
+    "start_adb_activity",
+    "start_adb_app",
+    "start_frida_session",
+    "start_gdb_session",
+    "start_rizin_debug_session",
+    "stop_adb_app",
+    "trace_web_module_imports",
+    "uninstall_adb_package",
+    "unload_frida_script",
+    "unset_bookmark"
+  ],
+  "workspace_group_counts": {
+    "hopper_navigation": 9,
+    "apple_target_and_native_provider": 5,
+    "frida_live_owned_session": 1,
+    "rizin_live_owned_session": 1,
+    "swift_demangler_and_selected_native_target": 1
+  },
+  "provider_status": {
+    "hopper_navigation": "The original P280 live service does not have verified usable native Hopper interactive navigation. Linux Hopper support in source is not proof the provider is installed, licensed, launched or usable on this VPS.",
+    "apple_target_and_native_provider": "Native Apple/macOS tooling and authentic active Apple target are not proved on current Linux service; inspect_plist has documented unsupported-host P251 result. Do not misreport Linux cross-platform availability.",
+    "frida_live_owned_session": "No observed valid and authorized current Frida session ID; status tool cannot be positively tested with a fabricated UUID.",
+    "rizin_live_owned_session": "P280 verified existing service Rizin configured, but no active authorized Rizin debugging session for status; signed start and signed close require individually bound owner approval.",
+    "swift_demangler_and_selected_native_target": "Original source MCP test is macOS-only; the real Linux executable and active target remain unverified. No result or negative path has been counted."
+  },
+  "owner_gate": {
+    "P282": "execute_rizin_command exact signed positive+negative batch prepared; real owner Ed25519 signed ZIP not yet supplied or executed",
+    "sensitive": "Do not generate or reuse proprietor signature; existing key can sign each exact operation with fresh nonce, time and independently approved arguments",
+    "workspace": "Exact local analysis approval per workspace operation required; generic runtime contract inventory is read-only and does not grant that approval.",
+    "no_unauthorized_session_start": true
+  },
+  "retention": {
+    "last_full_independent_live_readback": "P281",
+    "baseline_evidence_count": 15,
+    "baseline_unknown_count": 1,
+    "baseline_evidence_semantic_sha256": "b82b7e0d6024bbb0c6e96f014405c7470d4cc1a8d2d3a99bb1afa6efcb71a31b",
+    "phase_actions_not_expected_to_mutate_evidence": true,
+    "no_claim_of_new_independent_evidence_readback": true
+  },
+  "hygiene": {
+    "p283_public_request_path": "rea-linux/requests/p283_live_original_contracts_20261025.json",
+    "consumed_public_request_deleted": true,
+    "deletion_commit": "11bea9b7fc3d93d46fcd59acaaceab14eb5ba4a0",
+    "original_engine_code_unchanged": true,
+    "no_new_plugins_skills_mcp_servers": true,
+    "no_Codex": true,
+    "no_restart": true,
+    "no_other_projects_touched": true
+  },
+  "next": "First finish P282 only after receiving owner-signed exact Ed25519 bundle. Then prioritize sessionless workspace Swift demangling only when original Linux provider and exact local-analyst approval are verified; any Rizin/Frida session status requires genuinely authorized start and close. Preserve 15 Evidence + 1 Unknown and independently read back after sensitive calls."
+}
