@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "project": "Engenharia Reversa / original REA Linux VPS only",
+  "date_utc": "2026-10-25",
+  "historic_state": {
+    "certified": 116,
+    "pending": 92,
+    "sensitive_certified": 10,
+    "last_authenticated_live_evidence": 6,
+    "last_authenticated_live_unknown_revisions": 0,
+    "p217_p218_missing_evidence": 2,
+    "latest_live_read_run": 40192227404
+  },
+  "staged_original_rea_revision": "8e9a7ee295667f8e23aea9d18af6eee4363d2032",
+  "newer_source_repository_main": "781b975e96c2889e6133fb686ac8f032db2a29d8",
+  "staged_revision_is_behind_main_by_commits": 3,
+  "no_live_original_mcp_tools_call_during_phase": true,
+  "original_live_mcp_catalog_listed": 208,
+  "no_owner_sensitivity_signature_needed": true,
+  "no_permanent_binary_open_or_close": true,
+  "p232_permanent_lifecycle_hold_preserved": true,
+  "no_tool_newly_certified": true,
+  "phase_id": "P239-ISOLATED-ORIGINAL-REA-NATIVE-RETENTION-REGRESSION-20261025",
+  "status": "PASS_4_OF_4_NATIVE_ISOLATED__NOT_PERMANENT_RETENTION_RELEASE",
+  "execution": {
+    "action": "fixture_linux_retention_p239",
+    "initial_run_without_visible_test_markers": 40193962102,
+    "authenticated_evidence_run": 40194085177,
+    "job_id": 121171158568,
+    "request_commit": "a3668feef50a38ed97cb0c6c5bd06e8c217a81a7",
+    "workflow_url": "https://github.com/martaxi-boss/VPS/actions/runs/40194085177",
+    "exit_code": 0,
+    "original_test_blobs_matched": true,
+    "test_log_sha256": "3c3dd997d36d970cc167fe87b152e9d5ce8887b921e47967e73898d20bfae00a",
+    "pass_count": 4,
+    "source_worktree_hygiene": "PASS",
+    "extracted_marker": "PASS_NATIVE_ISOLATED_TESTS_NOT_LIVE_RELEASE"
+  },
+  "native_source_suites": [
+    {
+      "file": "rea/tests/boundary/mcp/sessionEvidenceRecovery.test.ts",
+      "blob": "dab264dbcddb7250e803ff230a6dcf8dcf58fa7d",
+      "cases": 2,
+      "scope": "MCP in-memory target switch/restart cleanup failures preserve Evidence and Unknown revision history until explicit close; full export compared"
+    },
+    {
+      "file": "rea/tests/boundary/mcp/evidenceImportLifecycle.test.ts",
+      "blob": "f0371ef897f01deadc07318c244ac1c814a3db47",
+      "cases": 2,
+      "scope": "Import/close serialization, clear-on-close, later import of another bundle"
+    }
+  ],
+  "limitations": [
+    "Native suites are original REA code executed in a staged source checkout, not the permanent REA MCP service.",
+    "The original staged revision is 3 commits behind repository main; no claim that it matches deployed daemon revision.",
+    "These pre-existing suites alone do not verify identical complete Evidence+Unknown full bundle restore after close; P240 covers this in a separate synthetic in-memory fixture.",
+    "No persistent restart, owner-signed live export/import or real P214 source archive validation performed."
+  ]
+}
