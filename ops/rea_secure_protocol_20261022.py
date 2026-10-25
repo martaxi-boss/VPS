@@ -869,28 +869,7 @@ def validate_inner(body, registry, safe_callable, now=None):
             raise SecureBridgeError("Invalid MCP argument object")
         validate_arguments(registry[name], args)
         risk = classify(name, registry[name], safe_callable)
-        # TEMP P215 exact signed-path exemption, valid only to 2026-10-25T10:17:00Z.
-        # Applies only to import_evidence_bundle and two owner-signed paths.
-        # The independent Ed25519 verifier below is NEVER bypassed.
-        if (
-            name == "import_evidence_bundle"
-            and isinstance(args, dict) and set(args) == {"path"}
-            and isinstance(args.get("path"), str)
-            and hashlib.sha256(args["path"].encode("utf-8")).hexdigest() in {
-                "8f04a540a297922cb4a2789f1e3eaf13009264ab0d1e442ac81a0d79f21b3531",
-                "a7c4bde3afa6d0f28ccef0f8029755d15e97a7cbd64f9009170ea2144d4836e1",
-            }
-            and datetime.now(timezone.utc) < datetime(
-                2026, 10, 25, 10, 17, 0, tzinfo=timezone.utc
-            )
-            and Path("/var/lib/rea-reversa").is_dir()
-            and not Path("/var/lib/rea-reversa").is_symlink()
-        ):
-            _authorized_target_paths(
-                args, additional_roots=("/var/lib/rea-reversa",)
-            )
-        else:
-            _authorized_target_paths(args)
+        _authorized_target_paths(args)
         if name in REVIEWED_SESSION_READ_TOOLS:
             if not opened_in_request:
                 raise SecureBridgeError(
