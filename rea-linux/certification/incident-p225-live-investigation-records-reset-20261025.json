@@ -4,7 +4,7 @@
   "incident_id": "P225-LIVE-SESSION-RECORDS-RESET-AFTER-SOURCE-OWNED-BINARY-CLOSE-20261025",
   "date_utc": "2026-10-25",
   "severity": "critical",
-  "status": "OPEN__P214_SIX_RECORD_BACKUP_SHA_VERIFIED__P217_P218_ACTIVE_STATE_RECOVERY_UNRESOLVED",
+  "status": "OPEN__P228_SIGNED_REQUEST_RECEIVED__SIGNED_RESTORATION_NOT_EXECUTED_PLATFORM_WRITE_BLOCK",
   "title": "Live investigation Evidence and Unknown records are empty after controlled Ghidra session close",
   "baseline_from_prior_certification": {
     "p217_record_unknown_run": 40182623467,
@@ -171,7 +171,33 @@
       "signed_request_created": false,
       "original_MCP_import_performed": false,
       "expected_recovery_scope": "At most six historic Evidence, zero Unknowns; P217/P218 Evidence and Unknown revisions cannot be restored from P214.",
-      "notes": "The original secure policy currently rejects StateDirectory paths without an exact temporary scoped allowance. Apply only after verifying owner signature, current archive digest, existing empty live state and final exact-path policy guard; restore original security blob after use."
+      "notes": "The original secure policy currently rejects StateDirectory paths without an exact temporary scoped allowance. Apply only after verifying owner signature, current archive digest, existing empty live state and final exact-path policy guard; restore original security blob after use.",
+      "signed_request_received": true,
+      "signed_request_source": "Owner-uploaded P228 JSON in active conversation; not committed plaintext to GitHub",
+      "signed_request_sha256": "3b785bc61da596017bee94aabee87fee94ea28e91ae02033276de0c84bcc280c",
+      "exact_private_nonce": "3260ee59966b33ad520ab0c3bcc1d72f",
+      "expires_utc": "2026-10-25T12:01:23Z",
+      "authorization_shape": "PASS_ONE_SENSITIVE_IMPORT_EXACT_P214_PATH_AND_MATCHED_ARGUMENT_HASH",
+      "owner_termux_local_signature_status": "PASS_REPORTED_BY_OWNER_ANDROID",
+      "owner_signature_remote_verified": false,
+      "mcp_recovery_import_executed": false,
+      "transport_status": "PAUSED_PLATFORM_TOOL_SECURITY_GATE_ON_TEMPORARY_STATE_DIRECTORY_ALLOWANCE_WRITE",
+      "security_policy_unchanged": true,
+      "no_new_certifications": true,
+      "safe_encrypted_readonly_preflight": {
+        "github_run": 40188519274,
+        "github_job": 121154330742,
+        "request_commit": "d0ebedc4abb21a83ca1ad46185a388ab4755d1dc",
+        "artifact_id": 12597332125,
+        "artifact_digest_sha256": "285483c2363feef270f7ee00bb661f70edc25825840712353cfb239417fc641f",
+        "result_sha256": "9bc0f242c614531a3e2b93b20931e96699267253e75f164d69b067c34dcdb799",
+        "aes_gcm_authenticated_and_request_correlated": true,
+        "evidence_records": 0,
+        "unknown_revisions": 0,
+        "unknown_items": 0,
+        "isError_false_both": true,
+        "request_cleanup_commit": "de3f46861df67f38a15339594069552cd9a74ba6"
+      }
     }
   },
   "constraints": [
@@ -190,10 +216,10 @@
     "historical_certification_count_not_incremented_or_decremented_without_review": true
   },
   "next_safe_actions": [
-    "COMPLETE: P214 six-record Evidence archive exists on VPS with same SHA-256 and 17563 bytes; reverified via run 40187442883 under service identity, without modifying the archive.",
-    "P228 offline single-step Ed25519 signer is prepared but NOT executed. The owner must explicitly sign one exact import_evidence_bundle of the reverified P214 backup using existing Android key. Before running on VPS, verify signed JSON nonce/expiry and unchanged archive hash plus current state; apply only an exact-path temporary security gate with no owner signature bypass, restore original immediately.",
-    "P227 read-only scan found no P217/P218 full backup among REA-named archive JSONs in the checked StateDirectory; do not infer absence outside this scope. Do not reconstruct missing two Evidence bodies or unknown revisions from summaries. Seek exact historical full-data sources or owner decision.",
-    "After authorized six-record restoration, re-read get_evidence_bundle and list_unknowns, and verify the imported Evidence IDs and persistence without open_binary/close_binary. Do not run stateful tests before complete retention safeguards."
+    "Preserve historical 116/208 certifications. Current active state remains empty, verified original MCP P228 preflight 40188519274.",
+    "P214 six-record archive is original SHA256 verified and retained. The one-step exact owner-signed P228 import request was received and structurally inspected but was NOT executed. Platform security check blocked the attempted write of a temporary narrow file-path allowance; do not bypass or misrepresent this as success.",
+    "Use an explicitly approved, platform-supported owner-controlled recovery workflow without changing the bridge security boundary in response to tool denial, or wait for appropriately authorized configuration remediation. A new owner signature will be required if request expiration passes or arguments change.",
+    "Any successful restoration must be independently verified with get_evidence_bundle and list_unknowns. Do not recreate two later Evidence bodies or P217/P218 Unknown history from metadata; do not open/close binary while state is unresolved."
   ],
   "hygiene": {
     "owner_key_android_only": true,
