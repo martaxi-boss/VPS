@@ -9731,11 +9731,17 @@
         "fixture_input_sha256": "fdee9c184dc1251981c5c82ef82091c03106a62a5e258c536ef3ef650a9c7ebf",
         "fixture_output_directory_absent": true,
         "service_identity": "rea-reversa",
-        "original_bridge_restored_blob_sha": "81ec4fb4677e2e4c7b11b2d0550fee8cef9400e7"
+        "original_bridge_restored_blob_sha": "81ec4fb4677e2e4c7b11b2d0550fee8cef9400e7",
+        "sealed_readonly_channel_run_id": 40216580298,
+        "sealed_readonly_channel_authenticated": true,
+        "latest_live_evidence_count": 9,
+        "latest_live_unknowns_count": 0,
+        "sealed_readonly_probe_consumed_request_removed": true
       },
-      "next": "Owner signs the exact P253 existing-local-fixture extract_firmware pair using unchanged Android Ed25519 key, returns signed JSON; then call permanent original REA MCP via current sealed GitHub Actions bridge, verify actual child digests and preserve all prior Evidence; increment only after positive original live tool.",
+      "next": "Await explicit owner-signed P253 JSON from Android (script SHA256 23bb86bf8b512037cc87064bc912551ae98b0d899e66be7e8b5425707ee8fc10). Fixed firmware target, output-free destination, original bridge and sealed read-only channel already verified. Run exact new signed extract_firmware steps only after receipt; inspect AES-GCM verified result and child SHA256; preserve nine current Evidence; then decide 119/208.",
       "report": "rea-linux/certification/p253-controlled-firmware-fixture-staged-20261025.json",
-      "caution": "Global REA doctor healthy=false/environment_healthy=false; no blanket provider-health claim."
+      "caution": "Global REA doctor healthy=false/environment_healthy=false; no blanket provider-health claim.",
+      "owner_signer_sha256": "23bb86bf8b512037cc87064bc912551ae98b0d899e66be7e8b5425707ee8fc10"
     },
     "retention": {
       "P232_hold_active": true,
