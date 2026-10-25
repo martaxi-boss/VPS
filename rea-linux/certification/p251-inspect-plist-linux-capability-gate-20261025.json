@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "project": "Engenharia Reversa — REA original VPS Linux only",
+  "phase_id": "P251-INSPECT-PLIST-LINUX-PROVIDER-CAPABILITY-GATE-20261025",
+  "date_utc": "2026-10-25",
+  "status": "BLOCKED_UNSUPPORTED_HOST__LIVE_DESCRIPTOR_PASS__NO_NEW_CERTIFICATION",
+  "tool": "inspect_plist",
+  "risk": "workspace",
+  "original_mcp": {
+    "run_id": 40212824643,
+    "job_id": 121227536877,
+    "request_commit": "0ba1a87cb594460a1546e2c02ca13f3102bd83d1",
+    "conclusion": "success",
+    "ssh_host_pin": "PASS",
+    "mcp_loopback": "PASS",
+    "tool_count": 208,
+    "tool_descriptor_sha256": "4f14837f85fdccba4547def967cead127614ceef750215a46f002b7b53dda7f5",
+    "tool_schema": {
+      "properties": [
+        "path"
+      ],
+      "required": [],
+      "readOnlyHint": false
+    },
+    "tool_call_performed": false
+  },
+  "source_evidence": {
+    "repo": "martaxi-boss/Engenheira-reversa",
+    "branch": "main",
+    "contracts": "rea/src/contracts/native/nativeToolContracts.ts",
+    "provider_metadata": "rea/src/native/NativeMacOSProviderMetadata.ts",
+    "provider": "rea/src/native/NativeMacOSProvider.ts",
+    "provider_mac_os_only": true,
+    "provider_declares_unsupported_host_when_platform_not_darwin": true,
+    "provider_reason": "Native macOS utilities require macOS.",
+    "runtime_dependency": "file and plutil (macOS native)",
+    "source_owned_linux_vps_is_not_mac_os": true
+  },
+  "reason": "The original provider advertises inspect_plist as unavailable on Linux. Live tools/list presence and describe do not mean that the native macOS implementation is executable on the original Linux host. No fabricated positive, no unsupported manual substitution, no new provider or macOS service.",
+  "canonical": {
+    "fully_certified_before": 118,
+    "fully_certified_after": 118,
+    "pending": 90,
+    "change_to_ledger_counter": false,
+    "next_tool_should_not_retest_this_known_platform_gate_without_a_supported_original_provider_change": true
+  },
+  "safety": {
+    "no_sensitive_owner_signature_reused": true,
+    "no_workspace_false_confirmation": true,
+    "no_binary_open_or_close": true,
+    "no_live_evidence_mutation": true,
+    "no_service_restart": true,
+    "p232_p246_retention_hold_unchanged": true
+  },
+  "hygiene": {
+    "single_live_descriptor_request_path": "rea-linux/requests/p251-inspect-plist-contract-20261025.json",
+    "delete_after_report": true
+  },
+  "next": "Choose another pending tool with a supported Linux provider and a real permitted target; for workspace require exact owner approval, for sensitive require separate signed owner authorization. The P250 owner-signed request is not a general-purpose authorization."
+}
