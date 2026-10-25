@@ -79,7 +79,7 @@
     "android_existing_key_path": "~/.rea-owner/rea-owner-private.pem",
     "single_termux_paste_no_download": true,
     "owner_must_explicitly_type": "AUTORIZO_P282",
-    "command_source_sha256": "0f11f0e9015de9edec6aa4e1e4e0e3fcada5446669a1a1d6976081745da148b1",
+    "command_source_sha256": "1ee3ba8bbbdecd28ed5f84f8f41f3cbdd842db560c7109fa4ffac95dfe4618c4",
     "python_syntax_test": "PASS",
     "disposable_owner_ed25519_key_scenario": "PASS",
     "independent_signature_verification": "PASS_TWO_NONCES_TWO_SIGNATURES",
@@ -87,7 +87,10 @@
     "discarded_simulation_key": true,
     "actual_owner_signatures_collected": 0,
     "no_owner_private_key_exfiltration": true,
-    "no_Library_or_downloading_dependency": true
+    "no_Library_or_downloading_dependency": true,
+    "real_heredoc_pseudo_tty_owner_prompt": "PASS",
+    "real_heredoc_exact_output_zip_and_two_signatures": "PASS_EPHEMERAL_TEST_KEY_DESTROYED",
+    "owner_confirmation_reads_controlling_tty": "/dev/tty"
   },
   "retention": {
     "baseline_phase": "P281",
