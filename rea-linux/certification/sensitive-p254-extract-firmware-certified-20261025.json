@@ -113,13 +113,25 @@
     "after_ten_bundle_sha256": "8ddc202430af04e5da8c53521211d7a8968021316b9abc1c8d063c9c72066bc5"
   },
   "hygiene": {
-    "status": "PENDING_REQUEST_REMOVAL",
+    "status": "COMPLETE_EXACT_REQUESTS_CONSUMED_AND_REMOVED__ORIGINAL_SECURE_POLICY_RESTORED",
     "temporary_authorization_policy_restored_original": true,
     "policy_restore_commit": "1da9ba493fd55160d9baa514a358d09d2ac36bf6",
     "original_policy_blob_sha": "8757abb589a779eaeda1d0eeefc85e4476503a41",
     "P232_P246_no_open_close_no_restart": true,
     "consumed_one_use_nonce_not_reusable": true,
-    "private_owner_key_stays_on_android": true
+    "private_owner_key_stays_on_android": true,
+    "deleted_paths": [
+      "rea-linux/requests/p254-owner-signed-state-firmware-89541b13.json",
+      "rea-linux/requests/p254-post-positive-9-evidence-readback-20261025.json",
+      "rea-linux/requests/p254-rsa-receiver-key-20261025.json"
+    ],
+    "deletion_commits": [
+      "964ff0a002250786211160aae291305cc235ac47",
+      "929cc4d309d3f436e9560084e98cf7238a7d4124",
+      "143c36e31148e73c07cecb97b18cc9eff193a33b"
+    ],
+    "original_secret_verifier_unchanged": true,
+    "original_secure_policy_restored_sha": "8757abb589a779eaeda1d0eeefc85e4476503a41"
   },
   "canonical": {
     "count_before": 118,
