@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "P265_CANONICAL_ORIGINAL_REA_121_OF_208__LIVE_RETENTION_PATCH_ACTIVE__11_EVIDENCE_1_UNKNOWN_EXACTLY_RESTORED__INDEPENDENT_PASS__P232_P246_HOLD_RELEASED_WITH_NORMAL_AUTHORIZATION",
+  "status": "P266_CANONICAL_ORIGINAL_REA_121_OF_208__P265_PATCH_AND_11_EVIDENCE_1_UNKNOWN_RESTORE_VERIFIED__P232_P246_BRIDGE_HOLD_REMAINS_ACTIVE_PENDING_SIGNED_BINARY_SMOKE",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -7881,6 +7881,38 @@
         "Global REA doctor returns healthy=false because optional providers/environment are not all available; IDA is not configured.",
         "87 catalog tools remain uncertified, and two historically sensitive read/inspection tools need owner-signed positive retests under current protocol."
       ]
+    },
+    {
+      "phase_id": "LINUX-P266-VERIFY-ACTIVE-BRIDGE-HOLD-AFTER-P265-20261025",
+      "status": "BRIDGE_P232_P246_UNCONDITIONAL_HOLD_VERIFIED_IN_PRODUCTION_BRANCH__NO_NEW_CERTIFICATIONS",
+      "date_utc": "2026-10-25",
+      "methods_verified_in_existing_bridge": [
+        "p232_guard_live_call",
+        "p232_guard_inner_batch"
+      ],
+      "denied_by_existing_bridge": [
+        "open_binary",
+        "close_binary"
+      ],
+      "bridge_source_blob_sha": "81ec4fb4677e2e4c7b11b2d0550fee8cef9400e7",
+      "bridge_path": "ops/rea_mobile_mcp_bridge_20261022.py",
+      "verification": "READ_ONLY_GITHUB_ORIGINAL_BRIDGE_SOURCE_INSPECTED",
+      "prior_P265_fix_and_restore_still_verified": true,
+      "historical_certifications": 121,
+      "new_certifications": 0,
+      "evidence_count": 11,
+      "unknowns_count": 1,
+      "evidence_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+      "controlled_binary_lifecycle_smoke_completed": false,
+      "signature_required_for_close_binary": "NEW_EXACT_OWNER_ED25519_SENSITIVE_AUTHORIZATION_NOT_AVAILABLE",
+      "tools": [],
+      "report": "rea-linux/certification/p266-verified-bridge-retention-hold-reconciliation-20261025.json",
+      "limitations": [
+        "P265 claim that the historical P232/P246 hold had been lifted was a recovery-level recommendation, not an actual change to the existing live GitHub SSH MCP bridge.",
+        "Existing bridge unconditionally rejects both lifecycle names; 42 affected previously certified session operations cannot be treated as immediately usable through this route.",
+        "For a controlled live post-patch open/close retention smoke, close_binary is classified sensitive and needs a new exact Ed25519 owner signature. The already consumed P263 import authorization cannot be reused.",
+        "The service-wide doctor remains healthy=false; configured Ghidra/JADX/Kuna and unconfigured optional IDA do not justify global provider-ready status."
+      ]
     }
   ],
   "active_scope_counts": {
@@ -7925,7 +7957,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P265-ORIGINAL-MCP-PATCH-ACTIVE-OWNER-SIGNED-11-EVIDENCE-RESTORE-INDEPENDENT-PASS-20261025",
+  "latest_phase": "LINUX-P266-VERIFY-ACTIVE-BRIDGE-HOLD-AFTER-P265-20261025",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -10463,7 +10495,7 @@
       "owner_signer_sha256": "23bb86bf8b512037cc87064bc912551ae98b0d899e66be7e8b5425707ee8fc10"
     },
     "retention": {
-      "P232_hold_active": false,
+      "P232_hold_active": true,
       "P250_nine_evidence_snapshot_verified": true,
       "independent_archive_restore_tested": true,
       "current_live_evidence_count": 11,
@@ -10484,14 +10516,18 @@
       "independent_offline_original_InvestigationRecords_11_1_restore": true,
       "original_live_sensitive_MCP_import_tested": true,
       "owner_signed_original_live_MCP_import_pending": false,
-      "P246_hold_active": false,
+      "P246_hold_active": true,
       "P232_P246_release_reason": "P265 corrected compiled and source original REA BinarySession retention, archived exact 11/1 under original service identity, owner-signed live original MCP import after restart and independent matching 11/1 readback; source CI negative control and 159 regressions passed.",
-      "P232_P246_release_phase": "P265",
+      "P232_P246_release_phase": "PENDING_REVIEWED_EXISTING_BRIDGE_GUARD_RELEASE_AND_OWNER_SIGNED_LIVE_BINARY_SMOKE",
       "p265_live_owner_signed_restore_run_id": 40234127680,
       "p265_independent_live_readback_run_id": 40234374750,
       "p265_source_alignment_run_id": 40234537835,
       "p265_live_open_close_smoke_test_done": false,
-      "old_private_checkpoint_retain_for_rollback": true
+      "old_private_checkpoint_retain_for_rollback": true,
+      "p266_source_guard_unconditional_verified": true,
+      "p266_existing_bridge_source_sha": "81ec4fb4677e2e4c7b11b2d0550fee8cef9400e7",
+      "p266_lifecycle_smoke_completed": false,
+      "p266_report": "rea-linux/certification/p266-verified-bridge-retention-hold-reconciliation-20261025.json"
     },
     "no_new_certifications": false,
     "gdb_session_status": {
@@ -10914,7 +10950,26 @@
         "private_key_material_purged": true,
         "no_other_projects_touched": true,
         "report": "rea-linux/certification/p265-original-rea-active-fix-owner-restored-11-evidence-independent-readback-20261025.json"
-      }
+      },
+      "p266_note": "The P265 recovery proof is valid; its stated global P232/P246 release is superseded by P266 source-verified hard-stop at the current bridge."
+    },
+    "p266_bridge_hold_reconciliation": {
+      "phase": "P266",
+      "status": "P232_P246_EFFECTIVE_HOLD_STILL_ACTIVE_IN_EXISTING_GITHUB_ACTIONS_SSH_MCP_BRIDGE",
+      "previously_certified_tools_session_dependent": 42,
+      "historic_certifications_retained": 121,
+      "evidence": 11,
+      "unknowns": 1,
+      "sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+      "preexisting_P265_evidence_and_recovery_is_valid": true,
+      "active_bridge_unconditional_guards": [
+        "p232_guard_live_call",
+        "p232_guard_inner_batch"
+      ],
+      "code_sha": "81ec4fb4677e2e4c7b11b2d0550fee8cef9400e7",
+      "previous_ledger_release_claim_superseded": true,
+      "next_safe_step": "Prepare owner-signed exact close_binary authorization for a narrowly reviewed controlled open_binary/close_binary smoke. No global hold removal before retention proof.",
+      "report": "rea-linux/certification/p266-verified-bridge-retention-hold-reconciliation-20261025.json"
     }
   }
 }
