@@ -190,8 +190,8 @@
       "response": "Do not mark all Frida capabilities or all Rizin targets unavailable based on SSH PATH alone. Require matching source-owned runtime/provider checks for new targets."
     },
     {
-      "severity": "INFO",
-      "id": "HISTORICAL_PROVENANCE_LEDGER_SCHEMA",
+      "severity": "RESOLVED",
+      "id": "HISTORICAL_PROVENANCE_FIELD_ALIAS_REINDEXED_P261",
       "count": 10,
       "tools": [
         "inspect_rust_binary",
@@ -205,8 +205,9 @@
         "compare_process_captures",
         "compare_artifacts"
       ],
-      "impact": "10 certificate registry entries have valid GitHub run IDs and phase links, but do not repeat a direct SHA/digest in their individual registry entry. This is a documentation/provenance indexing gap, not a demonstrated tool failure.",
-      "response": "Preserve historical records and reference original phase proofs; do not invent SHA-256 values or repeat certifications merely for metadata."
+      "impact": "The ten affected certificate entries ALREADY contained authentic SHA-256 arrays named evidence_digests or evidence_result_digests. The P260 audit's initial direct-field heuristic did not recognize these names; this was an indexing false positive, not absent hashes.",
+      "response": "P261 normalized aliases in the existing canonical ledger; original fields and all authentic hashes remain intact. No re-certification or new hash generation occurred.",
+      "resolution_commit": "fad73d2d22c641f19cf26fa592db2f9faa5d4d74"
     },
     {
       "severity": "INFO",
@@ -2406,5 +2407,19 @@
       "extract_firmware"
     ]
   },
-  "next_gate": "Complete durable recovery validation independently before unblocking P232/P246. For the 2 P150 sensitivity-policy legacy tools, preserve their historical certs but request exact signed owner authorization if retesting. Continue 87 pending tools only with available explicit prerequisites, never by reusing owner signatures."
+  "next_gate": "Complete durable recovery validation independently before unblocking P232/P246. For the 2 P150 sensitivity-policy legacy tools, preserve their historical certs but request exact signed owner authorization if retesting. Continue 87 pending tools only with available explicit prerequisites, never by reusing owner signatures.",
+  "correction_log": [
+    {
+      "phase": "P261",
+      "date_utc": "2026-10-25",
+      "type": "AUDIT_FALSE_POSITIVE_RECONCILED",
+      "original_field_aliases": [
+        "evidence_digests",
+        "evidence_result_digests"
+      ],
+      "count": 10,
+      "changed_certification_count": 0,
+      "ledger_commit": "fad73d2d22c641f19cf26fa592db2f9faa5d4d74"
+    }
+  ]
 }
