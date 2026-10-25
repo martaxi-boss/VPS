@@ -4,7 +4,7 @@
   "phase_id": "P260-AUDIT-ONLY-121-CERTIFIED-READINESS-20261025",
   "date_utc": "2026-10-25",
   "audit_purpose": "Read-only audit of existing 121 scoped FULLY_CERTIFIED tools without rerunning or incrementing certifications; owner Ed25519 authorization, provider inventory, currently safe workflow and hygienization.",
-  "status": "AUDIT_CONFIRMED_WITH_CAVEATS__CERTIFICATIONS_121_UNCHANGED__NOT_BLANKET_ALL_TOOLS_READY_FOR_ANY_TARGET",
+  "status": "AUDIT_COMPLETED_WITH_DOCUMENTED_READINESS_GATES__CLEANED_ONE_USE_REQUESTS__121_CERTIFICATIONS_UNCHANGED",
   "canonical_source": {
     "repo": "martaxi-boss/VPS",
     "branch": "rea/one-skill-bridge-20261023",
@@ -87,7 +87,8 @@
     "same_as_P258_postreadback_sha256_result": "b3459b465b4c16afbcb03b53250b595a276a3feecedb6e0f16d39106108e2384",
     "binary_recovery_P232_P246_hold_active": true,
     "old_lost_P217_P218_evidence_restored": false,
-    "independent_backup_restore_tested": false
+    "independent_backup_restore_tested": false,
+    "source_exact_digest_validated_in_P260": true
   },
   "providers_live_checks": {
     "ghidra_jadx_health_run": 40228952686,
@@ -180,6 +181,11 @@
       "finding": "Prior latest current incident followup points at older 119/208, 10 Evidence and zero Unknowns though current verified state is 121/208, 11 Evidence, 1 Unknown.",
       "effect": "Stale nested current-state pointer can mislead a future session.",
       "action": "Hygienize only current-state metadata while retaining P225/P254 historical observations."
+    },
+    {
+      "priority": "P2",
+      "finding": "One optional read-only auxiliary preflight fails with PermissionError on REA-owned Unblob restricted path; separate original-service identity doctor reports its executable as FILE.",
+      "action": "Do not widen filesystem permissions, do not downgrade extract_firmware certified scope, prefer existing service-identity doctor and fix preflight separately only if needed."
     }
   ],
   "hygiene_actions": {
@@ -187,10 +193,31 @@
     "owner_policy_modified": false,
     "service_config_modified": false,
     "run_certification_counts_modified": false,
-    "spent_request_cleanup": "PENDING_AFTER_REPORT",
+    "spent_request_cleanup": "COMPLETE; rea-linux/requests directory absent after all P260 requests deleted by verified GitHub cleanup, no outstanding one-use files",
     "new_credentials_or_servers_created": false,
-    "temporary_private_material_purged_after_checks": true,
-    "historical_reports_preserved": true
+    "temporary_private_material_purged_after_checks": "NOT_IN_CURRENT_CONTAINER; previous isolated runtime key disposal cannot independently be verified here",
+    "historical_reports_preserved": true,
+    "p260_request_files_remaining": 0,
+    "canonical_stale_live_state_pointer_reconciled": true,
+    "canonical_metadata_update_commit": "86492db901bd590361819073a2ac68a981d477cc",
+    "original_P225_and_P254_historical_state_preserved": true,
+    "owner_private_key_exposed": false,
+    "service_permissions_weakened": false,
+    "service_restarted": false,
+    "certifications_changed": false,
+    "user_devices_touched": false,
+    "verified_sample_historical_actions_ids": [
+      39947962373,
+      40022033849,
+      40121075172,
+      40141557070,
+      40184152641,
+      40202140571,
+      40208602772,
+      40220314743
+    ],
+    "verified_sample_historical_actions_conclusion": "SUCCESS_ALL_8_ONLY_SAMPLE_NOT_ALL_121_LIVE_RETESTED",
+    "resulting_ledger_blob_sha": "352f1a396a7bbb2888659d41428e4c96ea6fc8d2"
   },
   "per_tool_audit": [
     {
