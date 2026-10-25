@@ -288,7 +288,7 @@
   },
   "next_safe_actions": [
     "COMPLETED P229: Exact owner-signed import_evidence_bundle restored six authentic P214 Evidence; second original MCP readback verified six identical IDs and zero Unknowns (runs 40189757896, 40189898588).",
-    "Preserve original P214 archive and do not open/close binaries in permanent MCP while BinarySession.closeActive default clearSessionRecords would reset restored in-memory Evidence; fix retention with separate owner-controlled review and regression checks before resuming stateful tool certifications.",
+    "P230 source/test analysis confirmed cleanup is intentional close_binary behavior. Keep permanent REA binary session operations suspended until an owner-approved, independently tested Evidence+Unknown retention boundary protects all live records. Do not alter source semantics or disable Ed25519 protections.",
     "Recover exact original P217/P218 later two Evidence bodies and Unknown revision history only from full authenticated sources, never reconstruct by guessing.",
     "COMPLETED per owner VPS terminal evidence: P229 staged copy removed after checking SHA256 of original and stage against canonical digest; do not repeat deletion, and preserve P214 source archive.",
     "Continue remaining historical 92 tool certifications only where not risky to current recovered state; no replay of any used nonce or sensitive owner signature."
@@ -313,5 +313,17 @@
     "no_unauthorized_owner_signature_reuse": true,
     "not_a_new_tool_certification": true,
     "root_cause_remains_unfixed": true
+  },
+  "source_contract_p230": {
+    "result": "CODE_AND_TESTS_CONFIRM_CLOSE_BINARY_CLEARS_ALL_SESSION_RECORDS_BY_DEFAULT",
+    "regression_files_examined": 5,
+    "source_sha": "2ce4bc1524f6b62594003788c0ef74fb9d69d651",
+    "tested_behavior": "Existing test sessionEvidenceRecovery and evidenceImportLifecycle expect Evidence+Unknowns empty after close_binary",
+    "interpretation": "Global investigation records share lifetime with binary session; explicit close can erase active evidence state. No original source or running service was modified; remediation not yet implemented.",
+    "report_path": "rea-linux/certification/retention-p230-original-lifecycle-contract-analysis-20261025.json",
+    "report_sha": "fce7600bc35d0f71ecd89008e4649f1d1203dd8f",
+    "report_creation_commit": "ec2c1bcfea8fdd7b156bbd25ce32a6d76bbea162",
+    "safe_guard_active_at_operator_level": true,
+    "production_runtime_fix_applied": false
   }
 }
