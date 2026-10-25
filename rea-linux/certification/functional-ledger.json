@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_117_CERTIFIED__P214_SIX_PRESERVED__P232_RETENTION_HOLD_ACTIVE",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_118_CERTIFIED__P214_SIX_PRESERVED__P232_RETENTION_HOLD_ACTIVE",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -7426,21 +7426,75 @@
         "Future sensitive MCP invocations require fresh exact owner Ed25519 signatures and time-bounded nonces."
       ],
       "hygiene": "Consumed sealed request removed; original REA daemon and guarded P246 bridge unchanged. Unrestored P217/P218 histories remain historical. P232 hold remains."
+    },
+    {
+      "phase_id": "LINUX-P249-SIGNED-IMPORT-MANAGED-RECONSTRUCTION-ORIGINAL-MCP-20261025",
+      "date_utc": "2026-10-25",
+      "status": "ONE_NEW_SENSITIVE_TOOL_FULLY_CERTIFIED_SCOPED_TO_SYNTHETIC_MANAGED_RECONSTRUCTION_WITH_LIVE_MCP_POSITIVE_AND_ISOLATED_ORIGINAL_GUARD_NEGATIVE",
+      "tools": [
+        {
+          "name": "import_managed_reconstruction",
+          "risk": "sensitive",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Exact owner-signed import of the original REA synthetic C# managed reconstruction via permanent live Linux MCP; one imported C# method linked to authenticated synthetic inspect_managed_members Evidence. Two new Evidence were retained; seven previously present Evidence were byte-identical on before/after readback. No real decompiler execution.",
+          "positive_calls": 1,
+          "negative_cases": [
+            "wrong_method_signature",
+            "wrong_normalized_il",
+            "wrong_method_token",
+            "null_normalized_il",
+            "absent_method_body"
+          ],
+          "negative_isError_true": "isolated_original_source_guard_not_live_MCP"
+        }
+      ],
+      "proof": {
+        "owner_signed_live_run_id": 40208602772,
+        "owner_signed_live_job_id": 121214797145,
+        "owner_signature_validated_by_existing_policy": true,
+        "positive_mcp_isError_not_true": true,
+        "three_live_mcp_steps": 3,
+        "verified_result_sha256": "f4f057c6c4cfb060b84c99fb2937b1e7a7f087a684c5f6b17d6571fdd193fcc6",
+        "signed_request_sha256": "9fa8608d8bd6942393d67f866da884cc32b473e0971e1fe65eac2c27214848c1",
+        "sealed_request_sha256": "3b0045e4a00eed4ad5832720b2783dce46d5df0414debc0985c5d4d031edde7b",
+        "before_seven_complete_bundle_sha256": "0054ea71ffbc7df61fcd6677daa54ae73b7384eec6a52ded66068edb57d50228",
+        "after_nine_complete_bundle_sha256": "a00cb128ab4daabe4acfe0f3a7d738972e9d65e3fb954f8b645e603790dbf6ec",
+        "old_seven_records_identical": true,
+        "original_six_P214_and_P248_preserved": true,
+        "input_evidence_id": "ev_382c53a742780e132cd8cce8c6f415b1d2671fe35f2387c19107757a2ad057b7",
+        "positive_evidence_id": "ev_8fc4b62f26914ed0dbde76c93c9875c7306cc1e5af2db0c3b769ccb4fb395455",
+        "source_guard_blob_sha": "9600166aec6677c60bc4afb7b257145425213083",
+        "isolated_original_guard_negative_cases": 5,
+        "certification_report": "rea-linux/certification/sensitive-p249-import-managed-reconstruction-certified-20261025.json"
+      },
+      "new_certifications": 1,
+      "fully_certified_total": 118,
+      "pending": 90,
+      "sensitive_certified_total": 12,
+      "sensitive_pending": 71,
+      "limitations": [
+        "Scope is a source-owned synthetic C# reconstruction import of one method; no real managed client binary and no real decompiler execution.",
+        "Original live MCP provided one owner-signed import and two original MCP readbacks. Five isolated original-source lock guard negative assertions are not extra signed MCP calls.",
+        "Seven pre-existing Evidence preserved exactly; two new synthetic Evidence retained in the live session. Nine-record state not yet separately archived durably; P232 hold remains and no restart/open/close.",
+        "Missing old P217/P218 session records are not invented, recovered, or claimed.",
+        "A future sensitive operation requires its own owner signature and nonce."
+      ],
+      "hygiene": "Original REA motor/bridge/policy unchanged; only encrypted request file to be deleted after closure; archived report and historical evidence protected. P232 retention hold active."
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 117,
-    "awaiting_canonical_individual_review": 91,
+    "functional_pass_scoped_distinct": 118,
+    "awaiting_canonical_individual_review": 90,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
     "workspace_newly_passed_distinct": 48,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 117,
+    "fully_certified_distinct": 118,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 91,
-    "remaining_full_certification_distinct": 91
+    "not_functionally_positive_distinct": 90,
+    "remaining_full_certification_distinct": 90
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -7470,7 +7524,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P248-SIGNED-RECONCILE-JAVASCRIPT-RUNTIME-ORIGINAL-MCP-20261025",
+  "latest_phase": "LINUX-P249-SIGNED-IMPORT-MANAGED-RECONSTRUCTION-ORIGINAL-MCP-20261025",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -9483,6 +9537,34 @@
         "The seventh synthetic Evidence was retained in the live memory session but was not yet added to a separate durable archive; P232 retention hold and no service restart/close remain mandatory.",
         "Previously lost P217/P218 Evidence/Unknown histories are not reconstructed and should never be claimed recovered.",
         "Future sensitive MCP invocations require fresh exact owner Ed25519 signatures and time-bounded nonces."
+      ]
+    },
+    "import_managed_reconstruction": {
+      "status": "FULLY_CERTIFIED",
+      "risk": "sensitive",
+      "phase_id": "LINUX-P249-SIGNED-IMPORT-MANAGED-RECONSTRUCTION-ORIGINAL-MCP-20261025",
+      "scope": "One original permanent Linux REA MCP owner Ed25519-signed positive import_managed_reconstruction on source-owned synthetic C# Example.Program.Main: matched method token, signature SHA, normalized IL SHA; returned typed inferred Evidence and content-addressed reconstruction; original get_evidence_bundle before/after retained all prior seven Evidence exactly and appended two managed synthetic Evidence. Five isolated original-source guard negative checks. Does not certify a real decompiler run or arbitrary binaries.",
+      "run_ids": [
+        40208602772
+      ],
+      "positive_calls": 1,
+      "negative_semantic_assertions": 5,
+      "negative_isError_true": "isolated_source_guard_not_live_mcp",
+      "positive_evidence_id": "ev_8fc4b62f26914ed0dbde76c93c9875c7306cc1e5af2db0c3b769ccb4fb395455",
+      "positive_evidence_sha256": "ed21bc0b3966e64eccdf16d9f8ce370ce112d71974831ed25a1291eff68672b5",
+      "input_evidence_id": "ev_382c53a742780e132cd8cce8c6f415b1d2671fe35f2387c19107757a2ad057b7",
+      "reconstruction_id": "mre_b9e6caabfa1ed2016d19d8fe7e239ef958d579f02f461f7421557fdbe4cf8350",
+      "authenticated_result_sha256": "f4f057c6c4cfb060b84c99fb2937b1e7a7f087a684c5f6b17d6571fdd193fcc6",
+      "before_seven_semantic_sha256": "0054ea71ffbc7df61fcd6677daa54ae73b7384eec6a52ded66068edb57d50228",
+      "after_nine_semantic_sha256": "a00cb128ab4daabe4acfe0f3a7d738972e9d65e3fb954f8b645e603790dbf6ec",
+      "prior_seven_evidence_preserved": true,
+      "retention_hold_P232": true,
+      "certification_report": "rea-linux/certification/sensitive-p249-import-managed-reconstruction-certified-20261025.json",
+      "limitations": [
+        "Synthetic one-method import; no actual external managed application, actual decompiler, or execution of target code.",
+        "Negative checks exercised verbatim original guard predicate in an isolated process, not a second MCP call.",
+        "Live nine Evidence require an independent durable archival strategy before any binary lifecycle or restart; historical six P214 backup preserved.",
+        "Fresh exact Ed25519 owner signature required for future sensitive calls."
       ]
     }
   },
