@@ -8375,7 +8375,13 @@
       "evidence_digests": [
         "ce6213322811405ec0def5db190e8c945b7424bcb0867d26c318631c397240c8",
         "4580513ee39759d1a868c8da89a7dae960922ccb9deabc46bb1e3f1f8f89f52b"
-      ]
+      ],
+      "provenance_digest_sha256s": [
+        "ce6213322811405ec0def5db190e8c945b7424bcb0867d26c318631c397240c8",
+        "4580513ee39759d1a868c8da89a7dae960922ccb9deabc46bb1e3f1f8f89f52b"
+      ],
+      "provenance_digest_original_field": "evidence_digests",
+      "provenance_index_status": "REINDEXED_EXISTING_AUTHENTICATED_DIGESTS_NO_NEW_TESTS"
     },
     "list_unknowns": {
       "status": "FULLY_CERTIFIED",
@@ -8392,7 +8398,12 @@
         "28c2a4da1c7d4d7cf5805c992d913c1c4a7916ec2ac6849cfc3147eda62b5dbc"
       ],
       "explicit_unverified_case": "Nonempty pagination on the permanent systemd session was not observed (0 records at read); nonempty pagination was verified on the original MCP in-memory.",
-      "no_fake_records_in_permanent_service": true
+      "no_fake_records_in_permanent_service": true,
+      "provenance_digest_sha256s": [
+        "28c2a4da1c7d4d7cf5805c992d913c1c4a7916ec2ac6849cfc3147eda62b5dbc"
+      ],
+      "provenance_digest_original_field": "evidence_digests",
+      "provenance_index_status": "REINDEXED_EXISTING_AUTHENTICATED_DIGESTS_NO_NEW_TESTS"
     },
     "inspect_pe_resources": {
       "status": "FULLY_CERTIFIED",
@@ -8514,7 +8525,12 @@
       ],
       "evidence_result_digests": [
         "28904046f4ef528cd1db0db22e56675d7b683640d39243b59e41537946c81e78"
-      ]
+      ],
+      "provenance_digest_sha256s": [
+        "28904046f4ef528cd1db0db22e56675d7b683640d39243b59e41537946c81e78"
+      ],
+      "provenance_digest_original_field": "evidence_result_digests",
+      "provenance_index_status": "REINDEXED_EXISTING_AUTHENTICATED_DIGESTS_NO_NEW_TESTS"
     },
     "trace_javascript_semantics": {
       "status": "FULLY_CERTIFIED",
@@ -8530,7 +8546,13 @@
       "evidence_result_digests": [
         "28904046f4ef528cd1db0db22e56675d7b683640d39243b59e41537946c81e78",
         "15f14666558f042f588abdc5e095fb379491129d19a5fdaf3f78412a00b0125b"
-      ]
+      ],
+      "provenance_digest_sha256s": [
+        "28904046f4ef528cd1db0db22e56675d7b683640d39243b59e41537946c81e78",
+        "15f14666558f042f588abdc5e095fb379491129d19a5fdaf3f78412a00b0125b"
+      ],
+      "provenance_digest_original_field": "evidence_result_digests",
+      "provenance_index_status": "REINDEXED_EXISTING_AUTHENTICATED_DIGESTS_NO_NEW_TESTS"
     },
     "compare_source_to_bundle": {
       "status": "FULLY_CERTIFIED",
@@ -8544,7 +8566,12 @@
       ],
       "evidence_result_digests": [
         "28904046f4ef528cd1db0db22e56675d7b683640d39243b59e41537946c81e78"
-      ]
+      ],
+      "provenance_digest_sha256s": [
+        "28904046f4ef528cd1db0db22e56675d7b683640d39243b59e41537946c81e78"
+      ],
+      "provenance_digest_original_field": "evidence_result_digests",
+      "provenance_index_status": "REINDEXED_EXISTING_AUTHENTICATED_DIGESTS_NO_NEW_TESTS"
     },
     "compare_functions": {
       "status": "FULLY_CERTIFIED",
@@ -8558,7 +8585,12 @@
       ],
       "evidence_result_digests": [
         "28904046f4ef528cd1db0db22e56675d7b683640d39243b59e41537946c81e78"
-      ]
+      ],
+      "provenance_digest_sha256s": [
+        "28904046f4ef528cd1db0db22e56675d7b683640d39243b59e41537946c81e78"
+      ],
+      "provenance_digest_original_field": "evidence_result_digests",
+      "provenance_index_status": "REINDEXED_EXISTING_AUTHENTICATED_DIGESTS_NO_NEW_TESTS"
     },
     "build_call_path": {
       "status": "FULLY_CERTIFIED",
@@ -8572,7 +8604,12 @@
       ],
       "evidence_result_digests": [
         "28904046f4ef528cd1db0db22e56675d7b683640d39243b59e41537946c81e78"
-      ]
+      ],
+      "provenance_digest_sha256s": [
+        "28904046f4ef528cd1db0db22e56675d7b683640d39243b59e41537946c81e78"
+      ],
+      "provenance_digest_original_field": "evidence_result_digests",
+      "provenance_index_status": "REINDEXED_EXISTING_AUTHENTICATED_DIGESTS_NO_NEW_TESTS"
     },
     "find_changed_behavior": {
       "status": "FULLY_CERTIFIED",
@@ -8587,7 +8624,12 @@
       "evidence_result_digests": [
         "28904046f4ef528cd1db0db22e56675d7b683640d39243b59e41537946c81e78"
       ],
-      "limitation": "Combined static/runtime rejected integrity mismatch; only static scope certified."
+      "limitation": "Combined static/runtime rejected integrity mismatch; only static scope certified.",
+      "provenance_digest_sha256s": [
+        "28904046f4ef528cd1db0db22e56675d7b683640d39243b59e41537946c81e78"
+      ],
+      "provenance_digest_original_field": "evidence_result_digests",
+      "provenance_index_status": "REINDEXED_EXISTING_AUTHENTICATED_DIGESTS_NO_NEW_TESTS"
     },
     "compare_process_captures": {
       "status": "FULLY_CERTIFIED",
@@ -8601,7 +8643,12 @@
       ],
       "evidence_result_digests": [
         "28904046f4ef528cd1db0db22e56675d7b683640d39243b59e41537946c81e78"
-      ]
+      ],
+      "provenance_digest_sha256s": [
+        "28904046f4ef528cd1db0db22e56675d7b683640d39243b59e41537946c81e78"
+      ],
+      "provenance_digest_original_field": "evidence_result_digests",
+      "provenance_index_status": "REINDEXED_EXISTING_AUTHENTICATED_DIGESTS_NO_NEW_TESTS"
     },
     "compare_artifacts": {
       "status": "FULLY_CERTIFIED",
@@ -8615,7 +8662,12 @@
       ],
       "evidence_result_digests": [
         "28904046f4ef528cd1db0db22e56675d7b683640d39243b59e41537946c81e78"
-      ]
+      ],
+      "provenance_digest_sha256s": [
+        "28904046f4ef528cd1db0db22e56675d7b683640d39243b59e41537946c81e78"
+      ],
+      "provenance_digest_original_field": "evidence_result_digests",
+      "provenance_index_status": "REINDEXED_EXISTING_AUTHENTICATED_DIGESTS_NO_NEW_TESTS"
     },
     "compare_managed_members": {
       "status": "FULLY_CERTIFIED",
@@ -10464,6 +10516,32 @@
       },
       "report": "rea-linux/certification/p260-audit-121-certified-readiness-security-hygiene-20261025.json",
       "notes": "Historical FULLY_CERTIFIED statuses remain scoped; this is a metadata/read-only audit, not a renewed functional-positive certification of all 121 on 25 October. No new Ed25519 owner authorization or provider installation occurred."
+    },
+    "p261_provenance_reindex": {
+      "date_utc": "2026-10-25",
+      "phase": "P261",
+      "status": "TEN_HISTORICALLY_EXISTING_DIGEST_ARRAYS_INDEXED_WITH_CANONICAL_ALIAS",
+      "tools": [
+        "inspect_rust_binary",
+        "list_unknowns",
+        "trace_application_feature",
+        "trace_javascript_semantics",
+        "compare_source_to_bundle",
+        "compare_functions",
+        "build_call_path",
+        "find_changed_behavior",
+        "compare_process_captures",
+        "compare_artifacts"
+      ],
+      "sha_values_newly_generated": 0,
+      "sha_values_copied_from_original_existing_registry": 12,
+      "original_fields_preserved": true,
+      "run_ids_preserved": true,
+      "full_certified_count_preserved": 121,
+      "limitation": "The P260 report's ten absent digests were an index/parser limitation. Original arrays evidence_digests and evidence_result_digests already held valid SHA-256s. No evidence records were missing because of this naming difference.",
+      "source_fix_staged_branch": "martaxi-boss/Engenheira-reversa:rea/p261-preserve-investigation-records-20261025",
+      "source_fix_not_deployed": true,
+      "p232_p246_retention_hold_active": true
     }
   }
 }
