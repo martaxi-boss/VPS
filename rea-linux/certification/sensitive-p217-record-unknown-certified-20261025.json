@@ -1,0 +1,150 @@
+{
+  "schema_version": 1,
+  "project": "Engenharia Reversa / REA original",
+  "phase_id": "LINUX-P217-OWNER-SIGNED-RECORD-UNKNOWN-CREATE-AND-DUPLICATE-20261025",
+  "date_utc": "2026-10-25",
+  "status": "ONE_NEW_FULLY_CERTIFIED_SENSITIVE_ORIGINAL_REA_MCP_TOOL",
+  "tool": "record_unknown",
+  "canonical_before": {
+    "total_mcp": 208,
+    "fully_certified": 114,
+    "pending": 94,
+    "sensitive_catalog": 83,
+    "sensitive_fully_certified": 8,
+    "sensitive_pending": 75,
+    "ledger_blob_sha": "345af47ebd014ee81b92624504329a97c4484662"
+  },
+  "signed_request": {
+    "source": "Exact uploaded Android/Termux JSON, not screenshot reconstruction",
+    "sha256": "7e1ae3b8c2db3e7ee14e1a70f5b8efa91f9069b1bf44dc56031b9be0c88b745e",
+    "nonce": "e6074a8526c507320219162d85e956d8",
+    "expiry_utc": "2026-10-25T10:33:45Z",
+    "owner_pubkey_sha256_der": "99580a4806703661ca38f75a3cb95e47d46e32228cf89d5aa7ab55e95a4e25b4",
+    "sensitive_steps": 2,
+    "independent_signatures": true,
+    "signed_arguments_sha256": "d060ebbd40587dc93611a2a1dcfaa7faa3e5a1b511fd4dccee046864a08d7081",
+    "each_signature_base64_bytes": 64,
+    "signature_checks_local": [
+      "exact canonical arguments sha256",
+      "owner approval acknowledgement",
+      "two different 64-byte Ed25519 signatures"
+    ],
+    "signature_checks_vps": "REA_SEALED_POLICY=PASS",
+    "private_owner_key_transferred": false
+  },
+  "real_positive_negative": {
+    "run_id": 40182623467,
+    "job_id": 121136692695,
+    "request_commit": "6a93f3b6f2405d068e744bdb5bdb0be2f30c2c14",
+    "encrypted_request_sha256": "4d219fcb7d6e9ec913e94b3e0928418e4efa7405abd1c72e91cf36323d0876d5",
+    "encrypted_request_git_blob_sha": "7e5d3de4126fc1eaf12525fcef8dc7f47621661c",
+    "result_artifact_id": 12595096316,
+    "artifact_zip_sha256": "e25dde8cb944ac76a3bf09bf8e2ea3f23797d70588930f95f7a7f7af0dff4907",
+    "decrypted_authenticated_result_sha256": "4d139f5c807ec85cbe958c58666390705123d402d5c3870de6a451366c29935d",
+    "decrypted_authenticated_result_bytes": 2401,
+    "correlation_verified": true,
+    "result_sha256_and_byte_length_verified": true,
+    "original_mcp_local_loopback": "PASS",
+    "catalog_tools": 208,
+    "independent_owner_policy": "PASS",
+    "two_mcp_steps_executed": true,
+    "github_actions_conclusion": "success",
+    "positive": {
+      "tool": "record_unknown",
+      "mcp_isError": false,
+      "isError_field_absent": true,
+      "unknown_id": "unk_83470d409b1de94724284543af4f1db77f71da800bd2b6ee259b22e9a67c3952",
+      "unknown_revision": 1,
+      "status": "open",
+      "severity": "low",
+      "domain": "rea-p217-browser-cdp-readiness-e6074a8526c507320219162d85e956d8",
+      "question": "Existe um endpoint CDP de navegador local explicitamente autorizado e operacional para certificar list_browser_targets no motor REA original?",
+      "mutation_evidence_ids": [
+        "ev_45782da3709470ea8fc37a64a71e1221b7cf148626b3ce5b782e8a663c551aba"
+      ],
+      "created_unknowns": 1,
+      "new_mutation_evidence": 1
+    },
+    "negative": {
+      "tool": "record_unknown",
+      "same_exact_arguments_as_positive": true,
+      "mcp_isError": true,
+      "error_code": "revision_conflict",
+      "error_category": "execution_failure",
+      "error_details": {
+        "reason": "already-exists",
+        "retryable": true
+      },
+      "outcome": "Duplicate rejected by original MCP; postcheck confirms only one new unknown revision and one new mutation Evidence."
+    }
+  },
+  "retention_check": {
+    "original_mcp_tool": "get_evidence_bundle",
+    "run_id": 40182736099,
+    "job_id": 121137034958,
+    "request_commit": "cf9f4f8ebf8dc0ed4ddfa2f60183ac0ff8cd8eaf",
+    "encrypted_request_sha256": "45aa6b0b51c893096843dacb2599850c586961aa53950d2164edee6d8c82156f",
+    "encrypted_request_git_blob": "a5a1c04a98c1ab81a40c72776c1994fb1a8ef68f",
+    "artifact_id": 12594204283,
+    "artifact_zip_sha256": "a3d64039bd1e7d66fbc066939f2a5cf53546dd9df5d02e63401edba57520cf62",
+    "authenticated_result_sha256": "ef7f7754bf35d0bd6ce2ad6c61e1e77b5b9a7bdf0666dc96bb518b27dbc40849",
+    "authenticated_result_bytes": 8946,
+    "request_and_response_verified": true,
+    "mcp_isError": false,
+    "before": {
+      "total_retained": 6,
+      "unknown_revisions": 0,
+      "by_operation": {
+        "inspect_signal_decoders": 2,
+        "decode_signal_recording": 2,
+        "inspect_adb_client": 1,
+        "list_adb_devices": 1
+      }
+    },
+    "after": {
+      "total_retained": 7,
+      "matching_records": 7,
+      "unknown_revisions": 1,
+      "by_operation": {
+        "inspect_signal_decoders": 2,
+        "decode_signal_recording": 2,
+        "inspect_adb_client": 1,
+        "list_adb_devices": 1,
+        "record_unknown": 1
+      }
+    },
+    "new_evidence_id_present": true,
+    "old_six_preserved_by_operation_counts": true,
+    "note": "The expected P217 append changes the full bundle digest; unlike the idempotent P215 test, unchanged pre/post full SHA is not expected."
+  },
+  "hygiene": {
+    "owner_signed_encrypted_request_deleted": true,
+    "owner_signed_cleanup_commit": "510429d9052101ea72b7815104ec426603214fd7",
+    "postcheck_encrypted_request_deleted": true,
+    "postcheck_cleanup_commit": "703f11bcf208b1de6d780618247a4d5b02e1b27b",
+    "original_bridge_sha": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7",
+    "original_workflow_sha": "c81ef44d3f3e9dc3b3a819add5ff4f1a33d343df",
+    "original_security_protocol_sha": "8757abb589a779eaeda1d0eeefc85e4476503a41",
+    "no_bridge_or_policy_change": true,
+    "no_new_skill_plugin_mcp_or_server": true,
+    "no_codex": true,
+    "other_projects_untouched": true,
+    "ephemeral_response_keys_private_local_cleanup": "Delete immediately after completing certification write/readback; owner private key remains Android."
+  },
+  "certification": {
+    "tool": "record_unknown",
+    "status": "FULLY_CERTIFIED",
+    "scope": "Permanent original REA Linux MCP: one explicitly owner-signed low-severity browser-CDP-readiness unknown creation (open, revision 1) and one associated Evidence mutation, followed by an independently owner-signed exact duplicate identity rejected with isError=true revision_conflict/already-exists. Original six retained Evidence records preserved, yielding seven total and one unknown revision. Does not certify arbitrary questions, bulk writes, edits, deletions, session closes, or other devices.",
+    "new_certifications": 1,
+    "fully_certified_after": 115,
+    "uncertified_after": 93,
+    "sensitive_certified_after": 9,
+    "sensitive_pending_after": 74
+  },
+  "limitations": [
+    "Specific positive creation and duplicate rejection only; does not imply a CDP endpoint is actually available.",
+    "The negative error includes retryable=true although semantic reason is already-exists; certification is restricted to this exact duplicate case.",
+    "Full historic Evidence record digest is expected to change because a new Evidence is created; preserve original six by identity and operation counts.",
+    "Future sensitive calls require new independent owner signatures. No reusable sensitive authorization created."
+  ]
+}
