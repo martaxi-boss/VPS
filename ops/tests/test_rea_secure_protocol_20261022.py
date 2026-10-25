@@ -410,6 +410,13 @@ class ReaSecureProtocolTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             bridge.p232_guard_inner_batch(request([
                 body["steps"][1], body["steps"][0]]))
+        snapshot_args = {"snapshot_path": "/opt/rea-reversa/rea/private-snapshot"}
+        with self.assertRaises(ValueError):
+            bridge.p232_guard_inner_batch(request([
+                body["steps"][0], {**body["steps"][1], "arguments": snapshot_args,
+                "authorization": {**auth,
+                    "arguments_sha256": secure.arguments_sha256(snapshot_args)}}
+            ]))
         bad = request([body["steps"][0], {**body["steps"][1],
                      "authorization": {**auth, "owner_signature": "A" * 88}}])
         with self.assertRaises(secure.SecureBridgeError):

@@ -115,6 +115,10 @@ def p232_guard_inner_batch(body):
         raise ValueError("REA_RETENTION_GATE: one binary open/close maximum")
     if opens and (len(closes) != 1 or closes[0] <= opens[0]):
         raise ValueError("REA_RETENTION_GATE: signed close must follow binary open")
+    if opens and steps[closes[0]]["arguments"] != {}:
+        # Emergency cleanup has an already-signed no-snapshot close. A
+        # close_with_snapshot requires a separate, explicit signed batch.
+        raise ValueError("REA_RETENTION_GATE: paired close must not write a snapshot")
     grants = {}
     for step in steps:
         name = step["tool"]
