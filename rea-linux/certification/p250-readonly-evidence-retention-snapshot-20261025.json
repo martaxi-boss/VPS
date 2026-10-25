@@ -39,7 +39,23 @@
     "archive_zip_sha256": "72d8eff92b2f8295827104b6e41d2872da924354481670216ef3f7eb4318ed52",
     "archive_location": "ChatGPT conversation attachment available to owner for download; not uploaded as plaintext to public GitHub",
     "archive_import_restoration_tested": false,
-    "archive_is_durable_on_owner_device": false
+    "archive_is_durable_on_owner_device": false,
+    "followup_offline_integrity_check": {
+      "zip_file": "REA_P250_Evidence_9_Copia_20261025.zip",
+      "zip_crc": "PASS",
+      "zip_sha256_verified": "72d8eff92b2f8295827104b6e41d2872da924354481670216ef3f7eb4318ed52",
+      "bundle_semantic_sha256_verified": "a00cb128ab4daabe4acfe0f3a7d738972e9d65e3fb954f8b645e603790dbf6ec",
+      "unique_records": 9,
+      "unknown_records": 0,
+      "provider_references_check": "PASS",
+      "external_evidence_links_not_resolved_in_current_bundle": 2,
+      "affected_operation": "reconcile_javascript_runtime",
+      "original_source": "martaxi-boss/Engenheira-reversa:main:rea/src/domain/evidenceBundle.ts",
+      "original_parser_contract": "evidence_links do not require closed graph for Evidence records; Unknown referenced Evidence must be present but zero Unknowns exist",
+      "conclusion": "Backup ZIP integrity and recorded live state match; two original P248 provenance links refer to source Evidence absent from current live snapshot, not a demonstrated canonical bundle parse failure.",
+      "full_restore_tested": false,
+      "retention_hold_P232_P246": true
+    }
   },
   "ledger": {
     "before_certified": 118,
