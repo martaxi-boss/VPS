@@ -1584,7 +1584,7 @@ def main():
         import pwd
         fixed_public_b64 = "UkVBIGZpcm13YXJlIHRlc3QgYnl0ZXMK/////////////////////////////////////////////////////x+LCAAAAAAAAv/t1L0KwjAUhuHMXkVuQE216OQgxcHBH8RdYkw1II2kCXr5VhEEd4vg+yznkCXD4ftsNP1gdc/4qhRfohqjPH/OxudUapC998d7prLBWEglWpDqqEPzvfhPze13pbvFFOwkhmQ7Av+kPulgHw3QX66282LWi7fYev7Hw4/8Z8Nckf82bGZT6YM7ukqf5aJYy9qnYGzXXyt7kJe0PzsjjQ3Rlc7o6HwlX3VBUwAAAAAAAAAAAAAAAPyCO93jVTIAKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
         expected_sha = "fdee9c184dc1251981c5c82ef82091c03106a62a5e258c536ef3ef650a9c7ebf"
-        raw = base64.b64decode(fixed_public_b64, validate=True)
+        raw = base64.b64decode(fixed_public_b64, validate=True) + bytes(24)
         if len(raw) != 395 or hashlib.sha256(raw).hexdigest() != expected_sha:
             error("Source-owned firmware fixture identity mismatch")
         engine = Path("/opt/rea-reversa/rea")
@@ -1614,7 +1614,7 @@ def main():
         writer = (
             "import sys,base64,hashlib,json\n"
             "from pathlib import Path\n"
-            "root=Path(sys.argv[1]); payload=base64.b64decode(sys.argv[2],validate=True)\n"
+            "root=Path(sys.argv[1]); payload=base64.b64decode(sys.argv[2],validate=True)+bytes(24)\n"
             "expected=sys.argv[3]; image=root/'firmware.bin'\n"
             "if image.is_symlink(): raise RuntimeError('Symlink firmware denied')\n"
             "if image.exists():\n"
