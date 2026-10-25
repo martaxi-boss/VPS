@@ -3,7 +3,7 @@
   "project": "Engenharia Reversa / original REA Linux MCP",
   "phase_id": "LINUX-P259-OWNER-SIGNED-START-LIVE-GDB-STATUS-POSITIVE-PENDING-CLEANUP-20261025",
   "date_utc": "2026-10-25",
-  "status": "LIVE_GDB_READ_POSITIVE_PERSISTENT_ORIGINAL_MCP__EXACT_OWNER_SIGNED_CLEANUP_REQUIRED_BEFORE_CANONICAL_FULL_CERTIFICATION",
+  "status": "SUPERSEDED_BY_COMPLETED_OWNER_SIGNED_GDB_CLOSE_AND_INDEPENDENT_POSTCLOSE_NEGATIVE__READ5_CERTIFIED_121_OF_208",
   "active_certified_before": 120,
   "active_certified_after": 120,
   "remaining": 88,
@@ -60,7 +60,7 @@
     "inferior_tty": null,
     "old_missing_uuid_negative_case_run_id": 40222203784,
     "positive_status": "PASS",
-    "certificate_state": "WAITING_APPROVED_CLEANUP"
+    "certificate_state": "FULLY_CERTIFIED_SCOPED_AFTER_SIGNED_CLOSE_AND_READBACK"
   },
   "preservation": {
     "baseline_existing_evidence_records": 11,
@@ -79,15 +79,37 @@
     "P232_P246_hold": true
   },
   "pending_owner_human_gate": {
-    "required": "Fresh exact-UUID Ed25519 owner approval for close_gdb_session only",
-    "next_action": "Receive the exact new owner signed JSON, encrypt, call original MCP close_gdb_session, verify result and independent evidence readback, then certify as fifth read / 121-of-208",
-    "close_signature_already_received": false,
-    "currently_running_gdb_session": true,
+    "required": "FULFILLED",
+    "next_action": "CLOSED; REFER_TO_CANONICAL_FINAL_REPORT",
+    "close_signature_already_received": true,
+    "currently_running_gdb_session": false,
     "do_not_restart_original_service": true,
     "do_not_reuse_owner_start_signature": true,
     "do_not_reveal_private_owner_key": true,
-    "closure_may_not_be_authorized_by_chat_only": true
+    "closure_may_not_be_authorized_by_chat_only": true,
+    "status": "FULFILLED_AND_VERIFIED",
+    "signed_closure_run_id": 40227769313,
+    "independent_postclose_run_id": 40227930817
   },
   "original_bridge_and_policy": "UNCHANGED",
-  "new_plugin_skill_server_codex": false
+  "new_plugin_skill_server_codex": false,
+  "current_canonical_after_finalization": {
+    "certified": 121,
+    "remaining": 87,
+    "read_fully_certified": 5,
+    "read_pending": 0,
+    "session_closed": true,
+    "evidence_records": 11,
+    "unknown_count": 1,
+    "bundle_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+    "canonical_report": "rea-linux/certification/read-p259-gdb-session-status-certified-20261025.json"
+  },
+  "final_hygiene": {
+    "signed_start_encrypted_request_deleted": true,
+    "positive_read_encrypted_request_deleted": true,
+    "signed_close_encrypted_request_deleted": true,
+    "postclose_negative_encrypted_request_deleted": true,
+    "ephemeral_local_RSA_keys_removed": true,
+    "original_motor_bridge_and_owner_verifier_unchanged": true
+  }
 }
