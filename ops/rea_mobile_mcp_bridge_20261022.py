@@ -248,6 +248,8 @@ def encrypt_result(raw_path, request_path, envelope_path):
     request = validate(json.loads(request_raw))
     private = None
     allowed_markers = {
+        "REA_P248_RUNTIME_INPUT_STATUS", "REA_P248_RUNTIME_INPUT_JSON_SHA256",
+        "REA_P248_RUNTIME_INPUT_JSON_BYTES", "REA_P248_RUNTIME_INPUT_EXIT",
         "REA_MOBILE_LOOPBACK_MCP", "REA_MOBILE_MCP_TOOL_COUNT",
         "REA_MOBILE_READONLY_HINT_COUNT", "REA_MOBILE_STATIC_INSPECT_COUNT",
         "REA_MOBILE_SAFE_QUERY_COUNT", "REA_MOBILE_SAFE_CALLABLE_COUNT",
@@ -530,8 +532,8 @@ def encrypt_result(raw_path, request_path, envelope_path):
             private = base64.b64decode(line.split("=", 1)[1], validate=True)
         elif "=" in line:
             k, value = line.split("=", 1)
-            if k in allowed_markers:
-                markers[k] = value[:1500] if k == "REA_SECURE_REQUEST_PUBLIC_KEY_B64" else value[:24000] if k == "REA_MOBILE_TOOL_DESCRIPTOR_B64" else (value[:1200] if k in ("REA_AUDIT_PROVIDER_SECTIONS", "REA_AUDIT_PROVIDER_NAMES") else value[:300])
+            if k in allowed_markers or re.fullmatch(r"REA_P248_PUBLIC_ARGS_PART_[0-9]{4}_OF_[0-9]{4}", k):
+                markers[k] = value[:1500] if k == "REA_SECURE_REQUEST_PUBLIC_KEY_B64" else value[:24000] if k == "REA_MOBILE_TOOL_DESCRIPTOR_B64" or k.startswith("REA_P248_PUBLIC_ARGS_PART_") else (value[:1200] if k in ("REA_AUDIT_PROVIDER_SECTIONS", "REA_AUDIT_PROVIDER_NAMES") else value[:300])
                 print(k + "=" + markers[k])
     if "response_key" not in request:
         if private is not None:
