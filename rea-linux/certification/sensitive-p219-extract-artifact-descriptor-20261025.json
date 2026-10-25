@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "project": "Engenharia Reversa / motor REA original",
+  "phase_id": "LINUX-P219-EXTRACT-ARTIFACT-CONTRACT-AND-OWNER-GATE-20261025",
+  "date_utc": "2026-10-25",
+  "status": "ORIGINAL_MCP_DESCRIBE_VERIFIED__NOT_FUNCTIONALLY_CERTIFIED",
+  "tool": "extract_artifact",
+  "live_mcp_descriptor": {
+    "run_id": 40185300533,
+    "job_id": 121144716280,
+    "request_commit": "564f371eb55bdb6ad45a22fb4b59af69a522840b",
+    "transport": "existing Actions -> pinned SSH -> REA Linux original MCP",
+    "mcp_catalog": 208,
+    "job_conclusion": "success",
+    "descriptor_result_sha256": "b655cfc15ce8fd82072dbf97481e7597ef9c5f433964b956fc232b96c2e0846f",
+    "descriptor_result_bytes": 13460,
+    "encrypted_artifact_id": 12595442957,
+    "encrypted_zip_sha256": "db1885a5188ed5860be69ebbb2aa0df1c4a923026112ecaf4639eeb657c46952",
+    "request_sha256": "4471b084e7559397385da535a0d1a6ced9845fa8d536e11811465c79ac6159bf",
+    "authenticated_decryption": true,
+    "request_binding_verified": true,
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    },
+    "required": [],
+    "properties": {
+      "integrity_policy": {
+        "type": "string",
+        "enum": [
+          "fail",
+          "record-and-continue"
+        ],
+        "default": "fail"
+      }
+    }
+  },
+  "semantics": "Extracts regular files from an active archive/application package into a new REA-selected temporary directory; rejects traversal and symlink escapes, prevents overwrite and verifies cleanup. Integrity mismatches fail by default or can be recorded as untrusted contradictions.",
+  "blockers": [
+    "No verified source-owned and owner-approved active archive/application package session was established for this new sensitive tool.",
+    "P219 has no new exact owner Ed25519 signatures; previous P217/P218 signatures and nonces cannot be reused.",
+    "A true negative case must be tested with an isolated malformed or traversal archive; a describe success is insufficient."
+  ],
+  "next_safe_actions": [
+    "Read-only confirm an isolated authorized archive/package fixture genuinely accessible to original REA MCP; do not borrow another project’s artifacts.",
+    "Inspect the existing MCP open_binary contract and session cleanup before constructing a controlled positive and negative; avoid active production targets.",
+    "Only after exact owner-authorized independently signed sensitive steps, execute original MCP extract_artifact and verify actual extracted regular files and rejected unsafe archive.",
+    "Preserve prior eight Evidence records and keep original bridge, security verifier, workflows and other projects unchanged."
+  ],
+  "hygiene": {
+    "encrypted_describe_request_deleted": true,
+    "cleanup_commit": "3563f3b6886c6a90d2a733cfd4c1c05e82070e6d",
+    "owner_private_key_android_only": true,
+    "no_sensitive_mcp_call_executed": true,
+    "new_certifications": 0
+  },
+  "canonical_unchanged": {
+    "fully_certified": 116,
+    "pending": 92,
+    "sensitive_certified": 10,
+    "sensitive_pending": 73,
+    "ledger_blob_sha": "a1bf8d0a9bb7dd0c478784d1694799db4a669cd6"
+  }
+}
