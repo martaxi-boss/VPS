@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "project": "Engenharia Reversa / REA original",
+  "phase_id": "LINUX-P221-SET-BOOKMARK-DESCRIBE-20261025",
+  "date_utc": "2026-10-25",
+  "status": "DESCRIPTOR_AUTHENTICATED__SENSITIVE_FUNCTIONAL_CERTIFICATION_PENDING",
+  "tool": "set_bookmark",
+  "live_mcp_descriptor": {
+    "github_actions_run": 40185696811,
+    "github_actions_job": 121145899901,
+    "request_commit": "5adbe82772109c30813f81bb3733f3ad61257c3f",
+    "request_sha256": "7bc0f3f07d62b5841706f81b1c2cd6adddaf987b2973f775f4c4c72e44cfb313",
+    "response_artifact_id": 12595862696,
+    "zip_digest_sha256": "e6266f5242cf284db3fc21411bbe979064529c970f151bdc7ea63c3f066d6c98",
+    "result_sha256": "a9006a11ca3e7ee4d399817a8872c58c4e201a7ff275ac192dda860f56819283",
+    "result_bytes": 8890,
+    "result_decrypted_and_aes_gcm_authenticated": true,
+    "correlation_request_sha256_matched": true,
+    "original_mcp_tools": 208,
+    "policy": "read_only_descriptor_not_sensitive_tools_call",
+    "actions_conclusion": "success",
+    "tool_annotations": {
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    }
+  },
+  "schema": {
+    "input_additionalProperties": false,
+    "required": [
+      "address"
+    ],
+    "properties": {
+      "address": {
+        "type": "string",
+        "description": "provider-normalized mapped hexadecimal address"
+      },
+      "document": {
+        "type": "string",
+        "optional": true
+      },
+      "name": {
+        "type": "string",
+        "optional": true
+      }
+    },
+    "description": "Create or replace a bookmark at a mapped hexadecimal address; mutates navigation metadata, not binary evidence."
+  },
+  "prerequisites": [
+    "Confirm no unrelated active binary session on original REA host; do not close/overwrite existing sessions.",
+    "Prepare an isolated source-owned ELF test target and confirm a valid mapped address before signing exact sensitive arguments.",
+    "Generate two fresh independent owner Ed25519 signatures on Android: one positive marker creation/replacement and one strictly negative malformed/unmapped-address refusal.",
+    "Verify original MCP isError and old eight Evidence records preserved with read-only postcheck; do not count describe as certification."
+  ],
+  "security": {
+    "prior_signatures_reusable": false,
+    "owner_key_fingerprint_sha256_der": "99580a4806703661ca38f75a3cb95e47d46e32228cf89d5aa7ab55e95a4e25b4",
+    "new_sensitive_execution_made": false,
+    "original_bridge_workflow_policy_unchanged": true,
+    "request_cleanup_commit": "c1e44694cc7193fd074cfee0b686a4368e71886d",
+    "no_other_projects": true
+  },
+  "canonical": {
+    "certified": 116,
+    "pending": 92,
+    "sensitive_certified": 10,
+    "sensitive_pending": 73,
+    "new_certifications": 0,
+    "ledger_sha": "a1bf8d0a9bb7dd0c478784d1694799db4a669cd6"
+  }
+}
