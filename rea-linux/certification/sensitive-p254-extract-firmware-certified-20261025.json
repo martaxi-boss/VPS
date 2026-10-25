@@ -151,5 +151,22 @@
     "10 live Evidence are not yet independently shown to be safely restorable. P232/P246 retention hold remains active; do not restart the motor or close binary sessions.",
     "A future sensitive call always needs fresh independent owner Ed25519 authorization; P254 signatures are spent and not general-purpose."
   ],
-  "next": "Continue with remaining tools only with supported providers, genuine VPS fixture and exact owner-approved scope; preserve 10 Evidence and do not repeat certified P254."
+  "next": "Continue with remaining tools only with supported providers, genuine VPS fixture and exact owner-approved scope; preserve 10 Evidence and do not repeat certified P254.",
+  "independent_snapshot_backup": {
+    "status": "ZIP_CREATED_AND_LOCAL_INTEGRITY_VERIFIED__OWNER_DOWNLOAD_NOT_CONFIRMED__RESTORE_NOT_TESTED",
+    "date_utc": "2026-10-25",
+    "source_run_id": 40220461649,
+    "zip_filename": "REA_P254_Evidence_10_Copia_20261025.zip",
+    "zip_sha256": "3c73eb8ebf635db1309e88cd24f80e1053ff40744783d9a167491baa57a7b682",
+    "zip_bytes": 13204,
+    "bundle_sha256": "8ddc202430af04e5da8c53521211d7a8968021316b9abc1c8d063c9c72066bc5",
+    "evidence_records": 10,
+    "prior_nine_records_unchanged": true,
+    "unknown_revisions": 0,
+    "restoration_tested": false,
+    "owner_download_confirmed": false,
+    "independent_durability_confirmed": false,
+    "storage": "Private ChatGPT conversation-generated ZIP attachment, not plaintext public GitHub",
+    "note": "ZIP contains the complete original MCP Evidence bundle and SHA256 manifest. The original service remains running. No archive import has been tried."
+  }
 }
