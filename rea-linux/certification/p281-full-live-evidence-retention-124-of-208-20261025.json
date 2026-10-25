@@ -1,0 +1,137 @@
+{
+  "schema_version": 1,
+  "phase_id": "LINUX-P281-REAL_ORIGINAL_MCP_FULL_EVIDENCE_RETENTION_RECHECK_20261025",
+  "date_utc": "2026-10-25",
+  "project": "Engenharia Reversa — original REA Linux",
+  "status": "EXACT_FULL_LIVE_15_EVIDENCE_1_UNKNOWN_SEMANTIC_SHA256_MATCHES_P279__124_CERTIFIED_UNCHANGED__P280_CLOSED",
+  "route": "Existing Engenharia Reversa Skill -> GitHub Actions -> host-pinned authenticated SSH -> original loopback REA MCP -> RSA-OAEP-SHA256 + AES-256-GCM encrypted return",
+  "repo": "martaxi-boss/VPS",
+  "branch": "rea/one-skill-bridge-20261023",
+  "workflow": ".github/workflows/rea-android-bridge-20261022.yml",
+  "mcp_original": "127.0.0.1:8765/mcp",
+  "mcp_catalog": 208,
+  "operations": [
+    {
+      "run_id": 40245303958,
+      "job_id": 121325490578,
+      "status": "SUCCESS",
+      "action": "existing_service_public_transport_key_retrieval",
+      "no_new_mcp_tool_certification": true
+    },
+    {
+      "run_id": 40245417759,
+      "job_id": 121325831335,
+      "status": "FAIL_CLOSED",
+      "reason": "Initial batch had binary_session, policy required individual authorization; no MCP operation executed",
+      "request_removed": true
+    },
+    {
+      "run_id": 40245532644,
+      "job_id": 121326172047,
+      "artifact_id": 12619010543,
+      "status": "SUCCESS",
+      "read_only_tools": [
+        "get_evidence_bundle(detail=summary)",
+        "list_unknowns"
+      ],
+      "authenticated_mcp_result_sha256": "b0226b0aa3b4ccb39faf51f81db4eb554e525e022a99c836fe61392cff5e8f33",
+      "evidence_summary_count": 15,
+      "unknown_count": 1,
+      "request_removed": true
+    },
+    {
+      "run_id": 40245703995,
+      "job_id": 121326693069,
+      "status": "FAIL_CLOSED",
+      "reason": "Malformed public RSA reply key validation at Actions before any SSH/MCP call",
+      "request_removed": true
+    },
+    {
+      "run_id": 40245784316,
+      "job_id": 121326936638,
+      "artifact_id": 12618058813,
+      "status": "SUCCESS",
+      "read_only_tools": [
+        "get_evidence_bundle(default_full)",
+        "list_unknowns"
+      ],
+      "mcp_errors": [
+        false,
+        false
+      ],
+      "authenticated_mcp_result_sha256": "39dbfb424c67f22ceff9c8e5571b04bf1b24a90692f7d8d7fcc25531a445e3e7",
+      "output_digest_verified": true,
+      "response_request_digest_match": true,
+      "encrypted_result_decoded_locally": true,
+      "private_artifact_not_committed": true,
+      "evidence_count": 15,
+      "unknown_count": 1,
+      "full_bundle_semantic_sha256": "b82b7e0d6024bbb0c6e96f014405c7470d4cc1a8d2d3a99bb1afa6efcb71a31b",
+      "matches_p279_reference_semantic_sha256": true
+    }
+  ],
+  "retention": {
+    "independent_full_content_sha256_match": true,
+    "baseline_phase": "P279",
+    "original_fifteen_evidence_intact": true,
+    "unknown_revision_intact": true,
+    "full_bundle_semantic_sha256": "b82b7e0d6024bbb0c6e96f014405c7470d4cc1a8d2d3a99bb1afa6efcb71a31b",
+    "private_backup": "engenharia reversa/REA_P278_Evidence_15_Backup_Verificado.zip",
+    "private_backup_zip_sha256": "5581b0aa735fd5ba88858588dfc7fe00dbb7dc423c2b9210333f800313b6ba9d",
+    "older_backups_retained": [
+      "P261",
+      "P276"
+    ],
+    "one_unknown_still_open": true
+  },
+  "provider_preflight_reused_from_p280": {
+    "ghidra": "available",
+    "jadx": "available",
+    "kuna": "available",
+    "rizin": "executable_configured_in_service__real_tool_positive_not_yet_tested",
+    "ida": "not_configured",
+    "hopper": "native_gui_unavailable_on_linux",
+    "global_doctor_healthy": false
+  },
+  "next_candidate": {
+    "tool": "execute_rizin_command",
+    "risk": "sensitive",
+    "status": "SCHEMA_SOURCE_REVIEWED_PENDING_EXACT_INDEPENDENT_OWNER_SIGNATURE_PER_STEP",
+    "positive_fixture": {
+      "path": "/usr/bin/true",
+      "command": "iI"
+    },
+    "negative_fixture": {
+      "path": "/opt/rea-reversa/rea/.rea-private/p282-rizin-absent-fixture",
+      "command": "iI"
+    },
+    "tool_schema_sha256_prior_live_P270": "7fbb8cb5ef8c4f043a63f24cda0b6008c47e9faa12dc2260d3a3b338b175793b",
+    "not_ready_to_certify_without_real_signed_positive_negative_and_independent_postreadback": true
+  },
+  "ledger": {
+    "path": "rea-linux/certification/functional-ledger.json",
+    "certified": 124,
+    "remaining": 84,
+    "sensitive_certified": 16,
+    "sensitive_pending": 67,
+    "workspace_pending": 17,
+    "unchanged": true
+  },
+  "hygiene": {
+    "consumed_request_cleaned_in_same_commit_as_this_report": true,
+    "failed_requests_removed": true,
+    "no_reuse_of_failed_nonces": true,
+    "owner_private_key_not_transferred": true,
+    "no_owner_signature_spent": true,
+    "no_original_provider_installed_or_modified": true,
+    "no_active_session_opened": true,
+    "no_original_mcp_restart": true,
+    "no_evidence_modified": true,
+    "no_unrelated_projects_changed": true
+  },
+  "limits": [
+    "Live readback and hash equivalence do not add certifications.",
+    "Rizin candidate is based on P280 config/source contract, not yet a signed successful tool call.",
+    "Full semantic SHA-256 is Python sorted-key ASCII JSON serialization of the original REA bundle result, consistent with P279's established digest."
+  ]
+}
