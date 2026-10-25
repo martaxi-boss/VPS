@@ -288,7 +288,7 @@
   },
   "next_safe_actions": [
     "COMPLETED P229: Exact owner-signed import_evidence_bundle restored six authentic P214 Evidence; second original MCP readback verified six identical IDs and zero Unknowns (runs 40189757896, 40189898588).",
-    "P236 confirms six genuine P214 Evidence retained in a fresh signed transport read-only MCP run. Source demonstrates close_binary(snapshot_path) may save only active target Evidence/Unknowns, losing unrelated multi-provider records. KEEP original binary lifecycle HOLD. Before any release, verify a complete full-bundle archive and revisions with fresh owner-signed export/restore and isolated fixture no-loss tests; P232 guard is only local, not server enforced.",
+    "P232 preseal hold remains (not server-enforced). P237 local comparator passed 17/17 synthetic tests and can detect missing/changed Evidence and Unknown revision history from independently validated full before/after REA bundles, but no live signed export/close/import release has been performed. Keep permanent MCP binary-session operations suspended.",
     "Recover exact original P217/P218 later two Evidence bodies and Unknown revision history only from full authenticated sources, never reconstruct by guessing.",
     "COMPLETED per owner VPS terminal evidence: P229 staged copy removed after checking SHA256 of original and stage against canonical digest; do not repeat deletion, and preserve P214 source archive.",
     "Continue remaining historical 92 tool certifications only where not risky to current recovered state; no replay of any used nonce or sensitive owner signature."
@@ -366,5 +366,20 @@
     "runtime_fix_deployed": false,
     "p232_guard_12_tests_reexecuted": true,
     "owner_approval_required_for_sensitive_close_export_import": true
+  },
+  "offline_full_bundle_guard_p237": {
+    "status": "OFFLINE_17_TESTS_PASS__NO_SERVER_SIDE_RETENTION_RELEASE",
+    "report_path": "rea-linux/certification/retention-p237-complete-bundle-identity-guard-tested-20261025.json",
+    "report_sha": "2511d11c4f1d41ee44971cede9564aced9aa39d6",
+    "comparator": "rea-linux/owner/rea_p237_bundle_identity_guard.py",
+    "comparator_sha": "2bf883f280912316fe6010960b8e98b2190b3e86",
+    "tests": "rea-linux/certification/tests/test_rea_p237_bundle_identity_guard.py",
+    "tests_passed": 17,
+    "enforces_evidence_ids_and_full_bodies": true,
+    "enforces_unknown_revision_chain": true,
+    "fail_closed_against_duplicates_tamper_and_insecure_files": true,
+    "synthetic_data_only": true,
+    "real_mcp_preservation_test_performed": false,
+    "p232_original_mcp_runtime_hold_still_needed": true
   }
 }
