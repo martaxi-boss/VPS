@@ -127,7 +127,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_retention_p247", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -290,13 +290,6 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_LINUX_READ5_NODE_PRESENT", "REA_LINUX_READ5_REGRESSION",
         "REA_LINUX_READ5_EXIT_CODE", "REA_LINUX_READ5_TEST_OUTPUT_SHA256",
         "REA_LINUX_READ5_TEST_NAME", "REA_LINUX_READ5_TEST_DIAGNOSTIC",
-        "REA_P247_NATIVE_STATUS",
-        "REA_P247_NATIVE_FIXTURE_BLOB",
-        "REA_P247_NATIVE_TEST_EXIT",
-        "REA_P247_NATIVE_TEST_SHA256",
-        "REA_P247_NATIVE_TEST_STATUS",
-        "REA_P247_NATIVE_TEST_DIAG",
-        "REA_P247_NATIVE_HYGIENE",
         "REA_LINUX_GDB_CONFORMANCE_SOURCE", "REA_LINUX_GDB_CONFORMANCE_COUNT",
         "REA_LINUX_GDB_CONFORMANCE_STATUS", "REA_LINUX_GDB_CONFORMANCE_WORKTREE",
         "REA_LINUX_GDB_MANAGER_EXIT", "REA_LINUX_GDB_MANAGER_RESULT",
@@ -668,65 +661,6 @@ def main():
     print("REA_MOBILE_CATALOG_SAMPLE=" + json.dumps(
         list(tool_by_name)[:14], ensure_ascii=True
     ))
-    if data["action"] == "fixture_linux_retention_p247":
-        # Original native MCP handlers, isolated test-only session/manager.
-        # The original permanent REA service is never used for this fixture.
-        import shutil
-        source = Path.home() / ".local/share/rea-chatgpt-trial/repository/rea"
-        vitest=source/"node_modules/vitest/vitest.mjs"
-        node=shutil.which("node")
-        f=source/"tests/boundary/mcp/reaP247PendingReadTools.test.ts"
-        if not node or not vitest.is_file() or not source.is_dir():
-            print("REA_P247_NATIVE_STATUS=BLOCKED_RUNTIME_MISSING")
-            return
-        before=subprocess.run(["git","-C",str(source),"status","--porcelain"],
-            capture_output=True,text=True,timeout=12,check=False)
-        head=subprocess.run(["git","-C",str(source),"rev-parse","HEAD"],
-            capture_output=True,text=True,timeout=12,check=False)
-        if (before.returncode or before.stdout.strip() or head.returncode or
-            head.stdout.strip()!="8e9a7ee295667f8e23aea9d18af6eee4363d2032"):
-            print("REA_P247_NATIVE_STATUS=BLOCKED_SOURCE_PROVENANCE")
-            return
-        if f.exists() or f.is_symlink():
-            print("REA_P247_NATIVE_STATUS=BLOCKED_FIXTURE_PREEXISTS")
-            return
-        passed=False
-        try:
-            f.write_text("import { Client, InMemoryTransport } from \"@modelcontextprotocol/client\";\nimport { McpServer } from \"@modelcontextprotocol/server\";\nimport { expect, it } from \"vitest\";\nimport { createServer } from \"../../../src/server/createServer.js\";\nimport { registerGdbTools } from \"../../../src/server/registerGdbTools.js\";\nimport { createToolResultDelivery } from \"../../../src/server/toolResult.js\";\nimport { silentLogger } from \"../../../src/logger.js\";\nimport { createTestBinarySession } from \"../../fixtures/binarySession.js\";\nimport { ok } from \"../../../src/domain/result.js\";\nimport { observed } from \"../../fixtures/analysisExecution.js\";\n\nconst unknownContext = async () => {\n  const session = createTestBinarySession(() => ({\n    execute: () => Promise.resolve(observed(null)),\n    close: () => Promise.resolve(ok(null)),\n  }));\n  const server = createServer({ kind:\"session\", session });\n  const client = new Client({ name:\"p247-unknown-isolated\", version:\"1\" });\n  const [a,b] = InMemoryTransport.createLinkedPair();\n  await server.connect(b); await client.connect(a);\n  return { client, close: () => Promise.allSettled([\n    client.close(), server.close(), session.close(),\n  ]) };\n};\nconst fields = {\n  severity:\"medium\", required_authority:\"shipped-artifact\",\n  required_confidence:\"observed\", required_environment:null,\n  recommended_probes:[],relationships:[],\n};\nit(\"P247 original verify_unknown_resolution accepts a real isolated registry entry\",async()=>{\n const c=await unknownContext();\n try {\n  const a=await c.client.callTool({name:\"record_unknown\",arguments:{\n    ...fields, question:\"Synthetic owner of fixture?\",domain:\"p247-isolated-only\"}});\n  expect(a.isError).not.toBe(true);\n  const id=(a.structuredContent as {result:{unknown_id:string}}).result.unknown_id;\n  const before=await c.client.callTool({name:\"get_evidence_bundle\",arguments:{detail:\"complete\"}});\n  const v=await c.client.callTool({name:\"verify_unknown_resolution\",arguments:{unknown_id:id}});\n  expect(v.isError).not.toBe(true);\n  expect(v.structuredContent).toMatchObject({result:{\n    valid:false,truthVerified:false,unknown:{unknown_id:id}}});\n  const after=await c.client.callTool({name:\"get_evidence_bundle\",arguments:{detail:\"complete\"}});\n  expect(after.structuredContent).toEqual(before.structuredContent);\n } finally {await c.close();}\n});\nit(\"P247 original verify_unknown_resolution rejects missing registry entry\",async()=>{\n const c=await unknownContext();\n try {\n  const v=await c.client.callTool({name:\"verify_unknown_resolution\",arguments:{\n    unknown_id:\"unk_\"+\"0\".repeat(64)}});\n  expect(v.isError).toBe(true);\n } finally {await c.close();}\n});\nconst id=\"00000000-0000-4000-8000-000000000071\";\nconst status=(state:\"ready\"|\"closed\")=>({\n session_id:id, mi_version:\"mi3\",state,\n recent_mi_records:state===\"ready\"?[\"(gdb)\"]:[\"^exit\"],\n recent_mi_records_truncated:false,mi_invalid_utf8:false,\n stderr:\"\",stderr_observed_bytes:0,stderr_truncated:false,\n stderr_invalid_utf8:false,diagnostics_truncated:false,\n inferior_tty:null,inferior_tty_verified:false,\n});\nit.each([\"ready\",\"closed\"] as const)(\n \"P247 original gdb_session_status exposes valid %s manager status and refuses missing UUID\",\n async state=>{\n  const server=new McpServer({name:\"p247-isolated-gdb\",version:\"1\"});\n  let calls=0;\n  const manager={\n    status:(sessionId:string)=>{calls++;return sessionId===id?status(state):undefined;},\n    start:()=>{throw Error(\"Must not start GDB\")},\n    execute:()=>{throw Error(\"Must not run GDB\")},\n    close:()=>{throw Error(\"Must not close GDB\")},\n    retryCleanupFailures:()=>{throw Error(\"No cleanup needed\")},\n  };\n  registerGdbTools(server,manager as never,silentLogger,\n    createToolResultDelivery(undefined));\n  const client=new Client({name:\"p247-gdb-isolated\",version:\"1\"});\n  const [a,b]=InMemoryTransport.createLinkedPair();\n  await server.connect(b);await client.connect(a);\n  try {\n    const v=await client.callTool({name:\"gdb_session_status\",arguments:{session_id:id}});\n    expect(v.isError).not.toBe(true);\n    expect(v.structuredContent).toMatchObject({\n      session_id:id,state,mi_version:\"mi3\",inferior_tty_verified:false});\n    const absent=await client.callTool({name:\"gdb_session_status\",arguments:{\n      session_id:\"00000000-0000-4000-8000-000000000099\"}});\n    expect(absent.isError).toBe(true);\n    expect(calls).toBe(2);\n  } finally {await Promise.allSettled([client.close(),server.close()]);}\n });\n",encoding="utf-8")
-            blob=subprocess.run(["git","-C",str(source),"hash-object","--",str(f)],
-                capture_output=True,text=True,timeout=12,check=False)
-            if blob.returncode or blob.stdout.strip()!="c0153b5f834473fac18075a23cf86453f972a2ba":
-                print("REA_P247_NATIVE_STATUS=BLOCKED_FIXTURE_BLOB_MISMATCH")
-                return
-            print("REA_P247_NATIVE_FIXTURE_BLOB=PASS")
-            try:
-                result=subprocess.run([node,str(vitest),"run",
-                    "tests/boundary/mcp/reaP247PendingReadTools.test.ts",
-                    "--no-file-parallelism","--maxWorkers=1"],
-                    cwd=str(source),capture_output=True,text=True,timeout=165,check=False,
-                    env={**os.environ,"CI":"true","NO_COLOR":"1",
-                         "NODE_OPTIONS":"--max-old-space-size=1024"})
-                raw=result.stdout+"\n"+result.stderr
-                clean=re.sub(r"\x1b\[[0-9;]*[A-Za-z]","",raw)
-                passed=result.returncode==0 and bool(re.search(r"\b4 passed\b",clean))
-                print("REA_P247_NATIVE_TEST_EXIT="+str(result.returncode))
-                print("REA_P247_NATIVE_TEST_SHA256="+hashlib.sha256(raw.encode()).hexdigest())
-                print("REA_P247_NATIVE_TEST_STATUS="+("PASS_4_OF_4" if passed else "FAIL"))
-                if not passed:
-                    print("REA_P247_NATIVE_TEST_DIAG="+re.sub(
-                        r"[^A-Za-z0-9 .,=:_#/()\[\]-]"," ",clean[-1250:]))
-            except subprocess.TimeoutExpired:
-                print("REA_P247_NATIVE_TEST_STATUS=TIMEOUT")
-        finally:
-            if f.is_file() and not f.is_symlink(): f.unlink()
-            after=subprocess.run(["git","-C",str(source),"status","--porcelain"],
-                capture_output=True,text=True,timeout=12,check=False)
-            clean_tree=after.returncode==0 and after.stdout==before.stdout
-            print("REA_P247_NATIVE_HYGIENE="+("PASS" if clean_tree else "FAIL"))
-        print("REA_P247_NATIVE_STATUS="+
-              ("PASS_ISOLATED_NATIVE_READ_TOOLS_NOT_LIVE_CERTIFICATION"
-               if passed and clean_tree else "INCOMPLETE"))
-        return
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
               secure.request_public_key_b64(create=True))
