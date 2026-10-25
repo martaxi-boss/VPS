@@ -288,7 +288,7 @@
   },
   "next_safe_actions": [
     "COMPLETED P229: Exact owner-signed import_evidence_bundle restored six authentic P214 Evidence; second original MCP readback verified six identical IDs and zero Unknowns (runs 40189757896, 40189898588).",
-    "P232 non-invasive offline operator preseal retention guard TESTED (12/12) prevents prepared open_binary/close_binary calls, including implicit cleanup, when explicitly invoked. It is NOT enforced inside the original MCP server/bridge; automatic runtime retention remains unfixed. Keep permanent binary-session certification on HOLD until signed durable retention and isolated readback are proven.",
+    "P236 confirms six genuine P214 Evidence retained in a fresh signed transport read-only MCP run. Source demonstrates close_binary(snapshot_path) may save only active target Evidence/Unknowns, losing unrelated multi-provider records. KEEP original binary lifecycle HOLD. Before any release, verify a complete full-bundle archive and revisions with fresh owner-signed export/restore and isolated fixture no-loss tests; P232 guard is only local, not server enforced.",
     "Recover exact original P217/P218 later two Evidence bodies and Unknown revision history only from full authenticated sources, never reconstruct by guessing.",
     "COMPLETED per owner VPS terminal evidence: P229 staged copy removed after checking SHA256 of original and stage against canonical digest; do not repeat deletion, and preserve P214 source archive.",
     "Continue remaining historical 92 tool certifications only where not risky to current recovered state; no replay of any used nonce or sensitive owner signature."
@@ -345,5 +345,26 @@
     "p231_report_git_sha": "5490a1f8b22f40b86b7b66703174183eb63a0b81",
     "p231_live_run": 40191036602,
     "p231_positive": "not observed"
+  },
+  "durable_retention_analysis_p236": {
+    "status": "SIX_AUTHENTIC_EVIDENCE_RETAINED__PROVIDER_LIFECYCLE_REMAINS_ON_HOLD",
+    "report_path": "rea-linux/certification/p236-durable-evidence-retention-safety-contract-20261025.json",
+    "report_sha": "836c3de1cc54a0c3fa5f14af3f3eb6b67895cbb7",
+    "report_creation_commit": "77e16ea1ddf21d2f0717cde81287fd853df08f7a",
+    "independent_mcp_run": 40192227404,
+    "live_evidence_count": 6,
+    "evidence_ids_sha256": "1edf82505c28b0b54e220faa5908030b35d4e1c9915fb4195eebfedfb465bef7",
+    "full_unknown_revisions": 0,
+    "safe_read_only_tools": [
+      "get_evidence_bundle",
+      "list_unknowns"
+    ],
+    "case_when_active_target_snapshot_is_partial": true,
+    "code_source": "rea/src/application/binary/BinarySessionRecords.ts -> evidenceBundleForTarget",
+    "original_source_sha": "83f02aa58c3d6aa99ac3f5433ff38c35484c91b4",
+    "implementation_warning": "close_binary(snapshot_path) is not sufficient for whole-investigation Evidence retention when another target is active. Full portable export with SHA/IDs/revisions check before close is essential.",
+    "runtime_fix_deployed": false,
+    "p232_guard_12_tests_reexecuted": true,
+    "owner_approval_required_for_sensitive_close_export_import": true
   }
 }
