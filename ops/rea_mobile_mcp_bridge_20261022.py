@@ -69,67 +69,67 @@ def error(msg):
     raise ValueError(msg)
 
 
-# P246: mandatory P232 operator hold at the EXISTING GitHub-to-permanent-MCP
-# transport boundary. This does not grant authority and does not change
-# the original motor, secure policy or existing owner Ed25519 verifier.
+# P268: Retention defect repaired in original REA (P265), and a real
+# owner-signed Ghidra open/close proved 11/1 Evidence preserved (P267).
+# The existing bridge still fail-closes for all non-sealed fixture/direct paths.
+# These TWO tools are released only within a batch already verified by
+# secure.validate_inner (workspace open, owner Ed25519 sensitive close).
 P232_BLOCKED_MCP_TOOLS = frozenset(("open_binary", "close_binary"))
-# P267: One SHA-256-pinned, owner-signed request to prove the already deployed
-# retention repair. Never grant based on a claimed nonce or user-editable flag.
-# The complete original six-step request, including owner Ed25519 proof, must
-# match the pinned canonical digest AFTER secure.validate_inner verified it.
-P267_SIGNED_CANONICAL_REQUEST_SHA256 = "0ca2d022a96fa5c23dfcfead9b53ff1f45f78d5cc2b90622a121cfac26f4acf3"
-P267_ALLOWED_ARG_DIGESTS = {
-    "open_binary": "038202c5e899da95d555be6b6c2f63eb4e2ba0ef1f0e4eb782f5b379f79a5ec3",
-    "close_binary": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-}
-P267_EXACT_SEQUENCE = (
-    "get_evidence_bundle", "list_unknowns", "open_binary", "close_binary",
-    "get_evidence_bundle", "list_unknowns",
-)
 
 
-def p232_guard_live_call(payload, p267_lifecycle=False):
-    """Fail closed before HTTP for either data-destructive binary lifecycle tool."""
+def p232_guard_live_call(payload, lifecycle_grants=None):
+    """Block binary lifecycle unless the current validated sealed batch granted exact args."""
     if not isinstance(payload, dict):
-        raise ValueError("P232_RETENTION_HOLD: malformed MCP payload")
+        raise ValueError("REA_RETENTION_GATE: malformed MCP payload")
     if payload.get("method") != "tools/call":
         return
     params = payload.get("params")
     if not isinstance(params, dict) or not isinstance(params.get("name"), str):
-        raise ValueError("P232_RETENTION_HOLD: malformed tools/call")
-    if params["name"] in P232_BLOCKED_MCP_TOOLS:
+        raise ValueError("REA_RETENTION_GATE: malformed tools/call")
+    name = params["name"]
+    if name in P232_BLOCKED_MCP_TOOLS:
         args = params.get("arguments")
-        if not (p267_lifecycle and isinstance(args, dict) and
-                secure.arguments_sha256(args) == P267_ALLOWED_ARG_DIGESTS[params["name"]]):
-            raise ValueError("P232_RETENTION_HOLD: original binary lifecycle is blocked")
+        expected = lifecycle_grants.get(name) if isinstance(lifecycle_grants, dict) else None
+        if (not isinstance(args, dict) or not isinstance(expected, str) or
+                secure.arguments_sha256(args) != expected):
+            raise ValueError("REA_RETENTION_GATE: exact signed session admission required")
 
 
 def p232_guard_inner_batch(body):
-    """Reject WHOLE batch before nonce claim and before even the first MCP call."""
+    """Admission after validate_inner already checked owner Ed25519 and every schema.
+
+    An opened target must have exactly one later signed close inside the SAME
+    one-use sealed batch. Even emergency finally cleanup uses that validated
+    close authorization; never implicitly close an unsigned session.
+    """
     if not isinstance(body, dict) or not isinstance(body.get("steps"), list):
-        raise ValueError("P232_RETENTION_HOLD: malformed sealed steps")
-    p267_exact = (
-        hashlib.sha256(secure.canonical_json(body)).hexdigest() ==
-        P267_SIGNED_CANONICAL_REQUEST_SHA256 and
-        tuple(step.get("tool") for step in body["steps"] if isinstance(step, dict)) ==
-        P267_EXACT_SEQUENCE
-    )
-    for step in body["steps"]:
-        if not isinstance(step, dict) or not isinstance(step.get("tool"), str):
-            raise ValueError("P232_RETENTION_HOLD: malformed sealed tool")
-        if step["tool"] in P232_BLOCKED_MCP_TOOLS and not p267_exact:
-            raise ValueError("P232_RETENTION_HOLD: original binary lifecycle is blocked")
-    return p267_exact
-
-
-def p267_readback_object(item):
-    """Never print Evidence. Validate a real, complete structured MCP reply."""
-    value = item.get("structuredContent")
-    if isinstance(value, dict) and isinstance(value.get("result"), dict):
-        value = value["result"]
-    if not isinstance(value, dict):
-        raise RuntimeError("P267 requires a complete structured MCP result")
-    return value
+        raise ValueError("REA_RETENTION_GATE: malformed sealed batch")
+    steps = body["steps"]
+    for step in steps:
+        if (not isinstance(step, dict) or not isinstance(step.get("tool"), str)
+                or not isinstance(step.get("arguments"), dict)):
+            raise ValueError("REA_RETENTION_GATE: malformed sealed tool")
+    opens = [i for i, step in enumerate(steps) if step["tool"] == "open_binary"]
+    closes = [i for i, step in enumerate(steps) if step["tool"] == "close_binary"]
+    if len(opens) > 1 or len(closes) > 1:
+        raise ValueError("REA_RETENTION_GATE: one binary open/close maximum")
+    if opens and (len(closes) != 1 or closes[0] <= opens[0]):
+        raise ValueError("REA_RETENTION_GATE: signed close must follow binary open")
+    grants = {}
+    for step in steps:
+        name = step["tool"]
+        if name not in P232_BLOCKED_MCP_TOOLS:
+            continue
+        auth = step.get("authorization")
+        expected_scope = "sensitive" if name == "close_binary" else "workspace"
+        if (not isinstance(auth, dict) or auth.get("scope") != expected_scope or
+                auth.get("tool") != name or
+                auth.get("arguments_sha256") != secure.arguments_sha256(step["arguments"])
+                or auth.get("confirmed_by_owner") is not True or
+                (name == "close_binary" and not isinstance(auth.get("owner_signature"), str))):
+            raise ValueError("REA_RETENTION_GATE: exact individual authorization missing")
+        grants[name] = secure.arguments_sha256(step["arguments"])
+    return grants
 
 
 def require_rsa_response_key(encoded):
@@ -248,8 +248,8 @@ def parse_mcp(raw):
     raise RuntimeError("Unexpected MCP response type")
 
 
-def request_mcp(payload, session=None, protocol=None, timeout=55, p267_lifecycle=False):
-    p232_guard_live_call(payload, p267_lifecycle=p267_lifecycle)
+def request_mcp(payload, session=None, protocol=None, timeout=55, lifecycle_grants=None):
+    p232_guard_live_call(payload, lifecycle_grants=lifecycle_grants)
     headers = {
         "Content-Type": "application/json",
         "Accept": "application/json, text/event-stream",
@@ -3142,62 +3142,32 @@ def main():
         # No plaintext request parameters/results are printed to public logs.
         body = secure.unseal(data["sealed"], data["response_key"])
         profiles = secure.validate_inner(body, tool_by_name, set(safe_callable))
-        # Authentication and exact schema validation precede this one-use hold gate.
-        p267_lifecycle = p232_guard_inner_batch(body)
+        # Individual workspace and owner-Ed25519 sensitive approvals have
+        # already been verified before releasing either lifecycle tool.
+        lifecycle_grants = p232_guard_inner_batch(body)
         secure.claim_one_use_nonce(body["nonce"])
         print("REA_SEALED_POLICY=PASS")
         print("REA_SEALED_STEPS_TOTAL=" + str(len(body["steps"])))
         records = []
         binary_open = False
         cleanup_ok = True
-        p267_close_attempted = False
-        p267_before_bundle = None
-        p267_before_unknowns = None
-        p267_after_bundle = None
-        p267_after_unknowns = None
+        signed_close_attempted = False
         try:
             for idx, (step, risk) in enumerate(zip(body["steps"], profiles), start=1):
                 name = step["tool"]
-                if p267_lifecycle and idx == 3 and (
-                        p267_before_bundle is None or p267_before_unknowns is None):
-                    raise RuntimeError("P267 baseline not verified; refusing binary open")
-                if p267_lifecycle and name == "close_binary":
-                    # Attempt this exact signed close at most once: no silent retries
-                    # if the transport loses the close response.
-                    p267_close_attempted = True
+                if name == "close_binary" and "close_binary" in lifecycle_grants:
+                    signed_close_attempted = True
                 _, reply = request_mcp(
                     {"jsonrpc": "2.0", "id": idx + 100, "method": "tools/call",
                      "params": {"name": name, "arguments": step["arguments"]}},
                     session, protocol, timeout=100,
-                    p267_lifecycle=p267_lifecycle and name in P232_BLOCKED_MCP_TOOLS
+                    lifecycle_grants=lifecycle_grants
                 )
                 if "error" in reply or not isinstance(reply.get("result"), dict):
                     raise RuntimeError("REA returned a protocol error for an authorized step")
                 item = reply["result"]
                 ok = item.get("isError") is not True
                 records.append({"tool": name, "risk": risk, "result": item})
-                if p267_lifecycle and ok and name == "get_evidence_bundle":
-                    bundle = p267_readback_object(item)
-                    if (not isinstance(bundle.get("records"), list) or
-                            not isinstance(bundle.get("unknowns"), list) or
-                            len(bundle["records"]) != 11 or len(bundle["unknowns"]) != 1):
-                        raise RuntimeError("P267 Evidence baseline/postcheck count mismatch")
-                    if idx == 1:
-                        p267_before_bundle = bundle
-                    elif idx == 5:
-                        p267_after_bundle = bundle
-                        if bundle != p267_before_bundle:
-                            raise RuntimeError("P267 Evidence content changed across close")
-                if p267_lifecycle and ok and name == "list_unknowns":
-                    unknowns = p267_readback_object(item)
-                    if unknowns.get("total") != 1:
-                        raise RuntimeError("P267 Unknown count mismatch")
-                    if idx == 2:
-                        p267_before_unknowns = unknowns
-                    elif idx == 6:
-                        p267_after_unknowns = unknowns
-                        if unknowns != p267_before_unknowns:
-                            raise RuntimeError("P267 Unknown changed across close")
                 if name == "open_binary" and ok:
                     binary_open = True
                 elif name == "close_binary" and ok:
@@ -3206,9 +3176,9 @@ def main():
                     break
         finally:
             if binary_open:
-                if p267_lifecycle and p267_close_attempted:
-                    # A close was already attempted. Never replay an ambiguous
-                    # state-changing call on the same owner signature.
+                if signed_close_attempted or "close_binary" not in lifecycle_grants:
+                    # Do not replay an ambiguous signed close. A missing
+                    # signed close is a hard error, never implicit permission.
                     cleanup_ok = False
                 else:
                     try:
@@ -3216,7 +3186,7 @@ def main():
                             {"jsonrpc": "2.0", "id": 199, "method": "tools/call",
                              "params": {"name": "close_binary", "arguments": {}}},
                             session, protocol, timeout=85,
-                            p267_lifecycle=p267_lifecycle
+                            lifecycle_grants=lifecycle_grants
                         )
                         cleanup_ok = ("error" not in closed and
                                       (closed.get("result") or {}).get("isError") is not True)
@@ -3225,28 +3195,8 @@ def main():
                 print("REA_SEALED_CLEANUP=" + ("PASS" if cleanup_ok else "FAIL"))
         if not cleanup_ok:
             raise RuntimeError("REA binary session cleanup failed")
-        p267_status = "NOT_APPLICABLE"
-        p267_digest = None
-        if p267_lifecycle:
-            p267_status = ("PASS" if len(records) == 6 and
-                           p267_before_bundle is not None and
-                           p267_after_bundle is not None and
-                           p267_before_unknowns is not None and
-                           p267_after_unknowns is not None and
-                           all(row["result"].get("isError") is not True for row in records)
-                           else "INCOMPLETE")
-            if p267_status == "PASS":
-                p267_digest = hashlib.sha256(
-                    secure.canonical_json(p267_after_bundle)).hexdigest()
-            print("REA_P267_RETENTION=" + p267_status)
-        output = json.dumps({
-            "protocol": 1,
-            "steps": records,
-            **({"p267_retention": {"status": p267_status,
-                 "same_evidence_content": p267_status == "PASS",
-                 "same_unknowns": p267_status == "PASS",
-                 "bundle_canonical_sha256": p267_digest}} if p267_lifecycle else {})
-        }, ensure_ascii=True, sort_keys=True).encode()
+        output = json.dumps({"protocol": 1, "steps": records},
+                            ensure_ascii=True, sort_keys=True).encode()
         if len(output) > MAX_RESPONSE:
             raise RuntimeError("REA secure result exceeds encrypted response limit")
         print("REA_SEALED_STEPS_EXECUTED=" + str(len(records)))

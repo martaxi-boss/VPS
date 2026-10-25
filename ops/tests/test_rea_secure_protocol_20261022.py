@@ -356,59 +356,67 @@ class ReaSecureProtocolTests(unittest.TestCase):
             secure.seal_for_client(too_large, recipient, reply)
 
 
-    def test_P267_exact_owner_signed_retention_hold_is_one_request_only(self):
-        # Source regression for the original P232/P246 gate. The real signed
-        # batch goes through validate_inner(owner Ed25519) before this guard.
-        # No actual MCP call or bypass is performed in this unit test.
-        import hashlib
+    def test_P268_released_lifecycle_requires_owner_signed_close_and_exact_args(self):
+        # One-use owner signature has been checked by validate_inner before
+        # p232_guard_inner_batch returns grants. No actual MCP calls here.
         import sys
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+        from cryptography.hazmat.primitives import serialization
         sys.modules.setdefault("rea_secure_protocol_20261022", secure)
         from ops import rea_mobile_mcp_bridge_20261022 as bridge
 
-        names = bridge.P267_EXACT_SEQUENCE
-        steps = [{"tool": name, "arguments": (
-            {"path": "/usr/bin/true", "provider_id": "ghidra"}
-            if name == "open_binary" else {} if name != "get_evidence_bundle"
-            else {"detail": "complete"}
-        )} for name in names]
-        test_body = {
-            "protocol": 1,
-            "nonce": "0" * 32,
-            "expires_at": expires(1),
-            "steps": steps,
+        key = Ed25519PrivateKey.generate()
+        verifier = secure._private_directory() / "owner-approval-public.pem"
+        verifier.write_bytes(key.public_key().public_bytes(
+            serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo))
+        verifier.chmod(0o600)
+        op = {"path": "/usr/bin/true", "provider_id": "ghidra"}
+        body = request([
+            {"tool": "open_binary", "arguments": op,
+             "authorization": approved("open_binary", op)},
+            {"tool": "close_binary", "arguments": {},
+             "authorization": approved("close_binary", {}, "sensitive")},
+        ])
+        auth = body["steps"][1]["authorization"]
+        payload = {
+            "purpose": "REA_OWNER_APPROVAL_V1",
+            "nonce": body["nonce"], "expires_at": body["expires_at"],
+            "step_index": 1, "tool": "close_binary",
+            "arguments_sha256": secure.arguments_sha256({}),
+            "scope": "sensitive", "reason": auth["reason"],
+            "acknowledgement": auth["acknowledgement"],
         }
-        test_pin = hashlib.sha256(secure.canonical_json(test_body)).hexdigest()
-        with mock.patch.object(bridge, "P267_SIGNED_CANONICAL_REQUEST_SHA256", test_pin):
-            self.assertTrue(bridge.p232_guard_inner_batch(test_body))
-            for name in ("open_binary", "close_binary"):
-                payload = {"method": "tools/call", "params": {
-                    "name": name, "arguments": (
-                        {"path": "/usr/bin/true", "provider_id": "ghidra"}
-                        if name == "open_binary" else {}
-                    )}}
-                with self.assertRaises(ValueError):
-                    bridge.p232_guard_live_call(payload)
-                self.assertIsNone(
-                    bridge.p232_guard_live_call(payload, p267_lifecycle=True))
-                mutated = {"method": "tools/call", "params": {
-                    "name": name, "arguments": {"path": "/usr/bin/true"}
-                }}
-                with self.assertRaises(ValueError):
-                    bridge.p232_guard_live_call(mutated, p267_lifecycle=True)
-            changed = {**test_body, "nonce": "1" * 32}
+        auth["owner_signature"] = base64.b64encode(
+            key.sign(secure.canonical_json(payload))).decode()
+        self.assertEqual(["workspace", "sensitive"],
+                         secure.validate_inner(body, self.registry, set()))
+        grants = bridge.p232_guard_inner_batch(body)
+        self.assertEqual({"open_binary": secure.arguments_sha256(op),
+                          "close_binary": secure.arguments_sha256({})}, grants)
+        for name, args in (("open_binary", op), ("close_binary", {})):
+            method = {"method": "tools/call", "params": {
+                "name": name, "arguments": args}}
             with self.assertRaises(ValueError):
-                bridge.p232_guard_inner_batch(changed)
-            other = {**test_body, "steps": [
-                *steps[:2], {"tool": "open_binary", "arguments": {
-                    "path": "/usr/bin/false", "provider_id": "ghidra"}},
-                *steps[3:],
-            ]}
-            with self.assertRaises(ValueError):
-                bridge.p232_guard_inner_batch(other)
-        self.assertFalse(bridge.p232_guard_inner_batch(request([
+                bridge.p232_guard_live_call(method)
+            self.assertIsNone(
+                bridge.p232_guard_live_call(method, lifecycle_grants=grants))
+        with self.assertRaises(ValueError):
+            bridge.p232_guard_live_call(
+                {"method": "tools/call", "params": {
+                    "name": "open_binary", "arguments": {"path": "/usr/bin/false"}}},
+                lifecycle_grants=grants)
+        with self.assertRaises(ValueError):
+            bridge.p232_guard_inner_batch(request([body["steps"][0]]))
+        with self.assertRaises(ValueError):
+            bridge.p232_guard_inner_batch(request([
+                body["steps"][1], body["steps"][0]]))
+        bad = request([body["steps"][0], {**body["steps"][1],
+                     "authorization": {**auth, "owner_signature": "A" * 88}}])
+        with self.assertRaises(secure.SecureBridgeError):
+            secure.validate_inner(bad, self.registry, set())
+        self.assertEqual({}, bridge.p232_guard_inner_batch(request([
             {"tool": "list_unknowns", "arguments": {}}
         ])))
-
 
 
 if __name__ == "__main__":
