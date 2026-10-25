@@ -426,6 +426,117 @@ class ReaSecureProtocolTests(unittest.TestCase):
         ])))
 
 
+    def _p269_signer_test_fixture(self):
+        import importlib.util
+        import hashlib
+        import json
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+        from cryptography.hazmat.primitives import serialization
+        source = Path(__file__).resolve().parents[2] / "rea-linux/owner/owner_approval.py"
+        spec = importlib.util.spec_from_file_location("rea_p269_owner_batch", source)
+        owner = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(owner)
+        root = Path(self.tmp.name)
+        key = Ed25519PrivateKey.generate()
+        private = root / "rea-owner-private.pem"
+        private.write_bytes(key.private_bytes(
+            serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
+            serialization.NoEncryption()))
+        private.chmod(0o600)
+        batches = [
+            request([{"tool":"inspect_adb_client", "arguments":{},
+                      "authorization":approved("inspect_adb_client",{}, "sensitive")}]),
+            request([
+                {"tool":"get_evidence_bundle","arguments":{"detail":"complete"}},
+                {"tool":"inspect_web_network_capture","arguments":{"path":"/usr/bin/true"},
+                 "authorization":approved("inspect_web_network_capture",
+                     {"path":"/usr/bin/true"}, "sensitive")}
+            ])
+        ]
+        manifest = {"protocol":"REA_OWNER_BATCH_V1","requests":[]}
+        for i, body in enumerate(batches):
+            filename = "p269-test-" + str(i) + ".json"
+            (root / filename).write_bytes(owner.canonical(body) + b"\n")
+            manifest["requests"].append({
+                "file":filename,
+                "unsigned_sha256":hashlib.sha256(owner.canonical(body)).hexdigest()
+            })
+        manifest_file = root / "p269-manifest.json"
+        manifest_file.write_bytes(owner.canonical(manifest) + b"\n")
+        return owner,root,key,private,manifest_file,batches
+
+    def test_P269_offline_one_review_many_independent_owner_signatures(self):
+        import hashlib
+        import json
+        owner,root,key,private,manifest,batches = self._p269_signer_test_fixture()
+        prompts = []
+        def consent(prompt):
+            prompts.append(prompt)
+            return prompt.split("Type ",1)[1].split(" to sign",1)[0]
+        outcome = owner.sign_batch_requests(manifest, private, root,
+                                            confirm_callback=consent)
+        self.assertEqual("SIGNED_EXACT_BATCH_OFFLINE",outcome["status"])
+        self.assertEqual(2,outcome["signed_requests"])
+        self.assertEqual(2,outcome["individually_signed_sensitive_steps"])
+        self.assertEqual(1,len(prompts))
+        for i,filename in enumerate(outcome["output_files"]):
+            signed = json.loads(Path(filename).read_text())
+            unsigned = batches[i]
+            self.assertEqual(signed["nonce"],unsigned["nonce"])
+            self.assertEqual(signed["expires_at"],unsigned["expires_at"])
+            self.assertEqual(len(signed["steps"]),len(unsigned["steps"]))
+            step_index = 0 if i == 0 else 1
+            step = signed["steps"][step_index]
+            auth = step["authorization"]
+            signed_message = {
+                "purpose":"REA_OWNER_APPROVAL_V1",
+                "nonce":signed["nonce"],"expires_at":signed["expires_at"],
+                "step_index":step_index, "tool":step["tool"],
+                "arguments_sha256":hashlib.sha256(owner.canonical(step["arguments"])).hexdigest(),
+                "scope":"sensitive", "reason":auth["reason"],
+                "acknowledgement":auth["acknowledgement"]
+            }
+            key.public_key().verify(
+                base64.b64decode(auth["owner_signature"],validate=True),
+                owner.canonical(signed_message))
+        # One-use output name may not be clobbered by a second approval.
+        with self.assertRaises(ValueError):
+            owner.sign_batch_requests(manifest,private,root,
+                                     confirm_callback=consent)
+        self.assertEqual(1,len(prompts))
+
+    def test_P269_refuses_unsigned_digest_tamper_before_owner_prompt(self):
+        import json
+        owner,root,key,private,manifest,batches = self._p269_signer_test_fixture()
+        first = root / "p269-test-0.json"
+        altered = json.loads(first.read_text())
+        altered["steps"][0]["arguments"]["path"] = "/usr/bin/false"
+        first.write_bytes(owner.canonical(altered)+b"\n")
+        with self.assertRaises(ValueError) as failure:
+            owner.sign_batch_requests(manifest,private,root,
+                confirm_callback=lambda _: self.fail("Prompt should not happen"))
+        self.assertIn("manifest SHA-256",str(failure.exception))
+        self.assertFalse(list(root.glob("signed-*.json")))
+
+    def test_P269_requires_fresh_distinct_nonces_and_declines_without_writing(self):
+        import json
+        owner,root,key,private,manifest,batches = self._p269_signer_test_fixture()
+        body = batches[1]
+        body["nonce"] = batches[0]["nonce"]
+        second = root / "p269-test-1.json"
+        second.write_bytes(owner.canonical(body)+b"\n")
+        current = json.loads(manifest.read_text())
+        import hashlib
+        current["requests"][1]["unsigned_sha256"] = hashlib.sha256(
+            owner.canonical(body)).hexdigest()
+        manifest.write_bytes(owner.canonical(current)+b"\n")
+        with self.assertRaises(ValueError) as failure:
+            owner.sign_batch_requests(manifest,private,root,
+                confirm_callback=lambda _: self.fail("Prompt should not happen"))
+        self.assertIn("Duplicate",str(failure.exception))
+        self.assertFalse(list(root.glob("signed-*.json")))
+
+
 if __name__ == "__main__":
     unittest.main()
 
