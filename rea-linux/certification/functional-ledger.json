@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_118_CERTIFIED__P214_SIX_PRESERVED__P232_RETENTION_HOLD_ACTIVE",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_119_CERTIFIED__P214_SIX_PRESERVED__P232_RETENTION_HOLD_ACTIVE",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -7480,21 +7480,80 @@
         "A future sensitive operation requires its own owner signature and nonce."
       ],
       "hygiene": "Original REA motor/bridge/policy unchanged; only encrypted request file to be deleted after closure; archived report and historical evidence protected. P232 retention hold active."
+    },
+    {
+      "phase_id": "LINUX-P254-SIGNED-EXTRACT-FIRMWARE-ORIGINAL-MCP-20261025",
+      "date_utc": "2026-10-25",
+      "status": "ONE_NEW_SENSITIVE_TOOL_FULLY_CERTIFIED_ORIGINAL_MCP_SIGNED_POSITIVE_AND_OVERWRITE_NEGATIVE_PLUS_INDEPENDENT_EVIDENCE_READBACK",
+      "tools": [
+        {
+          "name": "extract_firmware",
+          "risk": "sensitive",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Original permanent REA Linux MCP: exact fresh owner Ed25519-signed extract_firmware of source-owned 395-byte synthetic firmware.bin via installed Unblob 26.6.4 into a fresh StateDirectory subfolder; five files published including independently expected /etc/rea.conf and /share/rea/NOTICE.txt with matching SHA256, coverage partial from known 64-byte unknown header. Independently signed repetition with exactly identical arguments rejected on existing output root isError=true execution_failure. Separate authenticated read-only MCP readback confirmed 10 Evidence, all nine P249 baseline records byte-identical, one new firmware Evidence and zero unknowns. No original service restart, binary open or close.",
+          "positive_calls": 1,
+          "negative_cases": [
+            "owner-signed identical output rejected execution_failure/output-root-exists"
+          ],
+          "negative_isError_true": true
+        }
+      ],
+      "proof": {
+        "owner_signed_live_run_id": 40220314743,
+        "owner_signed_live_job_id": 121250274108,
+        "owner_signature_validated_by_original_existing_policy": true,
+        "signed_steps_verified": 2,
+        "mcp_positive_isError_not_true": true,
+        "mcp_negative_isError_true": true,
+        "mcp_stopped_after_expected_negative_steps_executed": 3,
+        "separate_readback_run_id": 40220461649,
+        "separate_readback_job_id": 121250715987,
+        "readback_mcp_steps_executed": 2,
+        "readback_mcp_isError_false": true,
+        "authenticated_signed_result_sha256": "957b4dedab155081cc7772bd24a55fd3cbcbdbab000403556454067d2446cc4e",
+        "authenticated_readback_result_sha256": "b97645ccadd728a97701adc277d61ee4758ab7da60e544d19f0c16a31bd7dbce",
+        "positive_evidence_id": "ev_2ef3be85fb34ee35c4fdc90084f0b4ef444a732ab116c7056e5188040d5ada85",
+        "positive_evidence_sha256": "f3d6c26c60bd381c343778f0405caff83c007a879c1068ab67506710c890b140",
+        "before_nine_semantic_sha256": "a00cb128ab4daabe4acfe0f3a7d738972e9d65e3fb954f8b645e603790dbf6ec",
+        "after_ten_semantic_sha256": "8ddc202430af04e5da8c53521211d7a8968021316b9abc1c8d063c9c72066bc5",
+        "nine_prior_records_exactly_unchanged": true,
+        "current_live_evidence_count": 10,
+        "current_live_unknowns": 0,
+        "oracle_child_sha256_verified": true,
+        "owner_signatures_spent": true,
+        "restored_original_policy_blob_sha": "8757abb589a779eaeda1d0eeefc85e4476503a41",
+        "certification_report": "rea-linux/certification/sensitive-p254-extract-firmware-certified-20261025.json"
+      },
+      "new_certifications": 1,
+      "fully_certified_total": 119,
+      "pending": 89,
+      "sensitive_certified_total": 13,
+      "sensitive_pending": 70,
+      "limitations": [
+        "Certified only for exact 395-byte synthetic gzip/USTAR fixture on permanent original Linux REA MCP and Unblob 26.6.4; not all possible firmware formats, providers, devices or arbitrary file paths.",
+        "Partial coverage is correct because the custom 64-byte header is unknown; no full firmware reconstruction claim.",
+        "Positive five output file metadata and hashes were validated against two independent fixture oracle SHA256 values in original MCP Evidence; no further raw SSH file digest pass.",
+        "Negative isError=true execution_failure has exact producer reason Extraction output root already exists. Sealed batch ended after negative; separate independently authenticated readback provided post-state.",
+        "Nine previous live Evidence unchanged exactly; P217/P218 historical records lost before P249 were not recovered or fabricated.",
+        "Ten live Evidence are not proven restorable independently; P232/P246 retention hold remains, forbidding open_binary/close_binary and REA service restarts.",
+        "No signature reuse: P254 one-use owner Ed25519 proof was validated for these two precise steps, then nonce spent and GitHub ciphertext deleted; future sensitive operations require distinct approval."
+      ],
+      "hygiene": "Exactly three P254 used GitHub request paths removed; original secure protocol policy byte-identical to pre-P254. Retain P232/P246 hold, original REA service and ten live Evidence."
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 118,
-    "awaiting_canonical_individual_review": 90,
+    "functional_pass_scoped_distinct": 119,
+    "awaiting_canonical_individual_review": 89,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
     "workspace_newly_passed_distinct": 48,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 118,
+    "fully_certified_distinct": 119,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 90,
-    "remaining_full_certification_distinct": 90
+    "not_functionally_positive_distinct": 89,
+    "remaining_full_certification_distinct": 89
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -7524,7 +7583,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P249-SIGNED-IMPORT-MANAGED-RECONSTRUCTION-ORIGINAL-MCP-20261025",
+  "latest_phase": "LINUX-P254-SIGNED-EXTRACT-FIRMWARE-ORIGINAL-MCP-20261025",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -9566,6 +9625,50 @@
         "Live nine Evidence require an independent durable archival strategy before any binary lifecycle or restart; historical six P214 backup preserved.",
         "Fresh exact Ed25519 owner signature required for future sensitive calls."
       ]
+    },
+    "extract_firmware": {
+      "status": "FULLY_CERTIFIED",
+      "risk": "sensitive",
+      "phase_id": "LINUX-P254-SIGNED-EXTRACT-FIRMWARE-ORIGINAL-MCP-20261025",
+      "scope": "Original permanent REA Linux MCP: exact fresh owner Ed25519-signed extract_firmware of source-owned 395-byte synthetic firmware.bin via installed Unblob 26.6.4 into a fresh StateDirectory subfolder; five files published including independently expected /etc/rea.conf and /share/rea/NOTICE.txt with matching SHA256, coverage partial from known 64-byte unknown header. Independently signed repetition with exactly identical arguments rejected on existing output root isError=true execution_failure. Separate authenticated read-only MCP readback confirmed 10 Evidence, all nine P249 baseline records byte-identical, one new firmware Evidence and zero unknowns. No original service restart, binary open or close.",
+      "run_ids": [
+        40220314743,
+        40220461649
+      ],
+      "positive_calls": 1,
+      "negative_semantic_assertions": 1,
+      "negative_isError_true": true,
+      "negative_reason": "execution_failure: Extraction output root already exists",
+      "positive_evidence_id": "ev_2ef3be85fb34ee35c4fdc90084f0b4ef444a732ab116c7056e5188040d5ada85",
+      "positive_evidence_sha256": "f3d6c26c60bd381c343778f0405caff83c007a879c1068ab67506710c890b140",
+      "authenticated_signed_result_sha256": "957b4dedab155081cc7772bd24a55fd3cbcbdbab000403556454067d2446cc4e",
+      "authenticated_readback_result_sha256": "b97645ccadd728a97701adc277d61ee4758ab7da60e544d19f0c16a31bd7dbce",
+      "before_nine_semantic_sha256": "a00cb128ab4daabe4acfe0f3a7d738972e9d65e3fb954f8b645e603790dbf6ec",
+      "after_ten_semantic_sha256": "8ddc202430af04e5da8c53521211d7a8968021316b9abc1c8d063c9c72066bc5",
+      "prior_nine_evidence_preserved": true,
+      "new_live_evidence_count": 10,
+      "owner_signed_two_independent_steps": true,
+      "source_fixture_sha256": "fdee9c184dc1251981c5c82ef82091c03106a62a5e258c536ef3ef650a9c7ebf",
+      "source_fixture_bytes": 395,
+      "provider": "unblob",
+      "provider_version": "26.6.4",
+      "result_file_count": 5,
+      "coverage": "partial",
+      "matched_child_sha256s": {
+        "etc/rea.conf": "96627e0ccc2a9c00a02340d12d7f2866165aa994cc74be3f7043303be9261029",
+        "share/rea/NOTICE.txt": "bef7cde9b3579e769c176ee8e5da9884a12fef760fc29a5649211d7eef87d0d9"
+      },
+      "retention_hold_P232": true,
+      "certification_report": "rea-linux/certification/sensitive-p254-extract-firmware-certified-20261025.json",
+      "limitations": [
+        "Certified only for exact 395-byte synthetic gzip/USTAR fixture on permanent original Linux REA MCP and Unblob 26.6.4; not all possible firmware formats, providers, devices or arbitrary file paths.",
+        "Partial coverage is correct because the custom 64-byte header is unknown; no full firmware reconstruction claim.",
+        "Positive five output file metadata and hashes were validated against two independent fixture oracle SHA256 values in original MCP Evidence; no further raw SSH file digest pass.",
+        "Negative isError=true execution_failure has exact producer reason Extraction output root already exists. Sealed batch ended after negative; separate independently authenticated readback provided post-state.",
+        "Nine previous live Evidence unchanged exactly; P217/P218 historical records lost before P249 were not recovered or fabricated.",
+        "Ten live Evidence are not proven restorable independently; P232/P246 retention hold remains, forbidding open_binary/close_binary and REA service restarts.",
+        "No signature reuse: P254 one-use owner Ed25519 proof was validated for these two precise steps, then nonce spent and GitHub ciphertext deleted; future sensitive operations require distinct approval."
+      ]
     }
   },
   "transport_incidents": [
@@ -9666,17 +9769,17 @@
       "p229_restored_historical_P214_evidence": 6,
       "P248_source_owned_synthetic_evidence": 1,
       "P249_new_managed_synthetic_evidence": 2,
-      "latest_live_evidence_count": 9,
+      "latest_live_evidence_count": 10,
       "latest_live_unknown_count": 0,
-      "latest_complete_bundle_semantic_sha256": "a00cb128ab4daabe4acfe0f3a7d738972e9d65e3fb954f8b645e603790dbf6ec",
+      "latest_complete_bundle_semantic_sha256": "8ddc202430af04e5da8c53521211d7a8968021316b9abc1c8d063c9c72066bc5",
       "prior_seven_records_preserved_exactly": true,
       "P214_original_six_evidence_preserved_exactly": true,
       "lost_P217_P218_evidence_or_unknown_recovered": false,
       "independently_durable_archive_of_P248_P249_evidence_verified": false,
-      "readback_run_id": 40208602772,
+      "readback_run_id": 40220461649,
       "owner_signature_scope": "exact P249 operation only, consumed and must not be reused",
-      "current_fully_certified": 118,
-      "current_pending": 90,
+      "current_fully_certified": 119,
+      "current_pending": 89,
       "p232_p246_bridge_hold_active": true,
       "latest_readonly_snapshot": {
         "run_id": 40211803209,
@@ -9689,12 +9792,25 @@
         "restore_tested": false,
         "owner_download_confirmed": false,
         "independent_durable_archive_verified": false
+      },
+      "P254_source_owned_firmware_evidence": {
+        "new_evidence_id": "ev_2ef3be85fb34ee35c4fdc90084f0b4ef444a732ab116c7056e5188040d5ada85",
+        "owner_signed_run_id": 40220314743,
+        "post_readback_run_id": 40220461649,
+        "before_nine_sha256": "a00cb128ab4daabe4acfe0f3a7d738972e9d65e3fb954f8b645e603790dbf6ec",
+        "after_ten_sha256": "8ddc202430af04e5da8c53521211d7a8968021316b9abc1c8d063c9c72066bc5",
+        "prior_nine_preserved": true,
+        "new_records": 1,
+        "new_record_operation": "extract_firmware",
+        "new_record_coverage": "partial",
+        "P232_hold_remains_active": true,
+        "ten_record_durable_archive_verified": false
       }
     }
   },
   "pending_tool_followups": {
     "as_of_utc": "2026-10-25",
-    "scope": "Non-certifying readiness and blocker index; DOES NOT increase 118/208",
+    "scope": "Pending tool blockers plus the latest fully certified scoped tool for anti-repeat; P254 raised canonical fully certified count to 119/208.",
     "verify_unknown_resolution": {
       "phase": "P250",
       "status": "PENDING_POSITIVE",
@@ -9717,8 +9833,8 @@
       "resume_only_if": "genuine original supported provider and fully authorized target; do not retry Linux macOS-only code"
     },
     "extract_firmware": {
-      "phase": "P253",
-      "status": "FIXED_LINUX_GZIP_USTAR_FIXTURE_STAGED_AND_SHA256_VERIFIED__WAITING_EXACT_OWNER_ED25519_SIGNATURE",
+      "phase": "P254",
+      "status": "FULLY_CERTIFIED_SCOPED_POSITIVE_AND_NEGATIVE_P254_ORIGINAL_MCP",
       "proof": {
         "descriptor_run_id": 40213273134,
         "original_service_doctor_run_id": 40213343117,
@@ -9736,10 +9852,15 @@
         "sealed_readonly_channel_authenticated": true,
         "latest_live_evidence_count": 9,
         "latest_live_unknowns_count": 0,
-        "sealed_readonly_probe_consumed_request_removed": true
+        "sealed_readonly_probe_consumed_request_removed": true,
+        "signed_positive_negative_run_id": 40220314743,
+        "authenticated_after_ten_evidence_run_id": 40220461649,
+        "after_ten_evidence_sha256": "8ddc202430af04e5da8c53521211d7a8968021316b9abc1c8d063c9c72066bc5",
+        "prior_nine_preserved": true,
+        "tool_fully_certified": true
       },
-      "next": "Await explicit owner-signed P253 JSON from Android (script SHA256 23bb86bf8b512037cc87064bc912551ae98b0d899e66be7e8b5425707ee8fc10). Fixed firmware target, output-free destination, original bridge and sealed read-only channel already verified. Run exact new signed extract_firmware steps only after receipt; inspect AES-GCM verified result and child SHA256; preserve nine current Evidence; then decide 119/208.",
-      "report": "rea-linux/certification/p253-controlled-firmware-fixture-staged-20261025.json",
+      "next": "CLOSED: do not repeat certified P254 synthetic Unblob firmware test. Next pick a different pending original MCP tool; require genuine supplier/target and owner approval where applicable; preserve 10 live Evidence.",
+      "report": "rea-linux/certification/sensitive-p254-extract-firmware-certified-20261025.json",
       "caution": "Global REA doctor healthy=false/environment_healthy=false; no blanket provider-health claim.",
       "owner_signer_sha256": "23bb86bf8b512037cc87064bc912551ae98b0d899e66be7e8b5425707ee8fc10"
     },
@@ -9748,6 +9869,6 @@
       "P250_nine_evidence_snapshot_verified": true,
       "independent_archive_restore_tested": false
     },
-    "no_new_certifications": true
+    "no_new_certifications": false
   }
 }
