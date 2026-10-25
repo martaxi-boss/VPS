@@ -41,7 +41,6 @@
       "set_address_name known mapped positive and valid-schema unmapped negative",
       "annotate_native_function known Ghidra function positive and valid-schema unmapped negative"
     ],
-    "fixture_existing_original_mcp_target": "/usr/bin/true",
     "fixture_known_target_sha256": "8a63c98320173f79e263115e10cefc170155e47d1fd4b5a70e4429d2699cae28",
     "candidate_input_schemas_validated_by_local_jsonschema": true,
     "requests_with_seven_steps_each": true,
@@ -56,7 +55,8 @@
     "isolated_test_owner_key_deleted": true,
     "one_owner_review_for_8_signatures": true,
     "proposal_template_private_library": "engenharia reversa/REA_P270_Lote_Assinatura_Sensivel_Nao_Assinado.zip",
-    "not_signed_or_executed": true
+    "not_signed_or_executed": true,
+    "original_fixture_argument_values_only_in_private_owner_review_package": true
   },
   "risk_index": [
     {
