@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_115_FULLY_CERTIFIED_93_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_116_FULLY_CERTIFIED_92_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -7335,21 +7335,67 @@
         "Future sensitive calls require new independent owner signatures. No reusable sensitive authorization created."
       ],
       "hygiene": "Consumed request removed; existing owner Ed25519 key preserved on Android; original workflow bridge policy and other projects unchanged."
+    },
+    {
+      "phase_id": "LINUX-P218-SIGNED-UPDATE-UNKNOWN-POSITIVE-STALE-NEGATIVE-20261025",
+      "date_utc": "2026-10-25",
+      "status": "ONE_NEW_FULLY_CERTIFIED_OWNER_SIGNED_UPDATE_UNKNOWN_REVISION_AND_STALE_REFUSAL",
+      "tools": [
+        {
+          "name": "update_unknown",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Original permanent REA Linux MCP: an explicitly owner Ed25519-signed update_unknown of the single P217 browser-CDP readiness question from open revision 1 to investigating revision 2, severity low, creating one mutation Evidence; independently signed stale-revision replay rejected with isError=true revision_conflict. Independently authenticated original MCP get_evidence_bundle and list_unknowns verified eight distinct Evidence records, six older+P217+P218, with one unknown at revision 2. Does not establish a CDP endpoint or certify arbitrary edits or deletions.",
+          "positive_calls": 1,
+          "negative_cases": [
+            "identical_stale_expected_revision_1_rejected_revision_conflict"
+          ],
+          "negative_isError_true": true
+        }
+      ],
+      "proof": {
+        "signed_original_mcp_run_id": 40184152641,
+        "signed_original_mcp_job_id": 121141275393,
+        "owner_ed25519_verified_steps": 2,
+        "source_authenticated_result_sha256": "4adf0568af8d9b1adac29070986977d1fd3ab34870c1a74a0d8c1ba73c627df9",
+        "independent_readback_run_id": 40185020265,
+        "independent_readback_job_id": 121143882685,
+        "readback_artifact_id": 12596285514,
+        "readback_zip_sha256": "4aafbcaa6117df57d79c0d41a9d250d587bbe91d4d203eb98b0dcd31cd0852dc",
+        "readback_authenticated_result_sha256": "f733da19d88ded0e80ea0df1e42b18205370e448507d1e4492c5598a7644c8bd",
+        "readback_evidence_count": 8,
+        "readback_unknown_revision": 2,
+        "original_mcp_policy": "PASS",
+        "positive_mcp_isError_false": true,
+        "negative_mcp_isError_true": true,
+        "certification_report": "rea-linux/certification/sensitive-p218-update-unknown-certified-20261025.json"
+      },
+      "new_certifications": 1,
+      "fully_certified_total": 116,
+      "pending": 92,
+      "sensitive_certified_total": 10,
+      "sensitive_pending": 73,
+      "limitations": [
+        "Certified for the exact low-severity owner-signed revision-1 to revision-2 question transition and stale revision refusal; no generic unknown edit privileges.",
+        "The research question remains investigating; no real browser CDP endpoint was claimed or proven.",
+        "Original permanent MCP preservation verified with six historical Evidence records plus one P217 and one P218; two revisions refer to one unknown.",
+        "Future sensitive invocations must have new independent Ed25519 owner signatures; consumed P218 nonce is never reusable."
+      ],
+      "hygiene": "Original owner signed P218 and read-only postcheck consumed ciphertext files removed. No replay of P217 or P218 mutation. Owner private key retained on Android; no other project or permanent REA bridge changes."
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 115,
-    "awaiting_canonical_individual_review": 93,
+    "functional_pass_scoped_distinct": 116,
+    "awaiting_canonical_individual_review": 92,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
     "workspace_newly_passed_distinct": 48,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 115,
+    "fully_certified_distinct": 116,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 93,
-    "remaining_full_certification_distinct": 93
+    "not_functionally_positive_distinct": 92,
+    "remaining_full_certification_distinct": 92
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -7379,7 +7425,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P217-OWNER-SIGNED-RECORD-UNKNOWN-CREATE-AND-DUPLICATE-20261025",
+  "latest_phase": "LINUX-P218-SIGNED-UPDATE-UNKNOWN-POSITIVE-STALE-NEGATIVE-20261025",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -9342,6 +9388,29 @@
         "Future sensitive calls require new independent owner signatures. No reusable sensitive authorization created."
       ],
       "certification_report": "rea-linux/certification/sensitive-p217-record-unknown-certified-20261025.json"
+    },
+    "update_unknown": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P218-SIGNED-UPDATE-UNKNOWN-POSITIVE-STALE-NEGATIVE-20261025",
+      "scope": "Original permanent REA Linux MCP: an explicitly owner Ed25519-signed update_unknown of the single P217 browser-CDP readiness question from open revision 1 to investigating revision 2, severity low, creating one mutation Evidence; independently signed stale-revision replay rejected with isError=true revision_conflict. Independently authenticated original MCP get_evidence_bundle and list_unknowns verified eight distinct Evidence records, six older+P217+P218, with one unknown at revision 2. Does not establish a CDP endpoint or certify arbitrary edits or deletions.",
+      "run_ids": [
+        40184152641,
+        40185020265
+      ],
+      "positive_evidence_id": "ev_e25feefde31539250b125f01905eef07985484a17063b87cadf5e37d0dd37e34",
+      "positive_evidence_sha256": "4adf0568af8d9b1adac29070986977d1fd3ab34870c1a74a0d8c1ba73c627df9",
+      "negative_evidence_sha256": "4adf0568af8d9b1adac29070986977d1fd3ab34870c1a74a0d8c1ba73c627df9",
+      "readback_result_sha256": "f733da19d88ded0e80ea0df1e42b18205370e448507d1e4492c5598a7644c8bd",
+      "positive_calls": 1,
+      "negative_semantic_assertions": 1,
+      "negative_isError_true": true,
+      "limitations": [
+        "Certified for the exact low-severity owner-signed revision-1 to revision-2 question transition and stale revision refusal; no generic unknown edit privileges.",
+        "The research question remains investigating; no real browser CDP endpoint was claimed or proven.",
+        "Original permanent MCP preservation verified with six historical Evidence records plus one P217 and one P218; two revisions refer to one unknown.",
+        "Future sensitive invocations must have new independent Ed25519 owner signatures; consumed P218 nonce is never reusable."
+      ],
+      "certification_report": "rea-linux/certification/sensitive-p218-update-unknown-certified-20261025.json"
     }
   },
   "transport_incidents": [
