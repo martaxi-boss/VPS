@@ -9646,16 +9646,38 @@
   "active_retained_state_incident": {
     "incident_id": "P225-LIVE-SESSION-RECORDS-RESET-AFTER-SOURCE-OWNED-BINARY-CLOSE-20261025",
     "report_path": "rea-linux/certification/incident-p225-live-investigation-records-reset-20261025.json",
-    "status": "OPEN_RECOVERY_REQUIRED",
+    "status": "OPEN_PARTIAL_RECOVERY_P229_SIX_RESTORED_P249_NINE_LIVE_EVIDENCE_P232_RETENTION_HOLD",
     "observed_evidence_records": 0,
     "observed_unknowns": 0,
     "preincident_expected_evidence": 8,
     "probable_cause": "Original close_binary cleared in-memory InvestigationRecords",
-    "blocked_operations": "All further state-changing original MCP certification steps pending recovery",
+    "blocked_operations": "P232/P246 hold: no open_binary, close_binary, implicit provider retirement or REA service restart without separately established durable retention, contract review and required owner approvals; unrelated precisely authorized safe operations may continue. Other sensitive operations require individual owner Ed25519 signing.",
     "historical_certifications_preserved": 116,
     "readback_runs": [
       40186516453,
       40186710970
-    ]
+    ],
+    "initial_p225_status_preserved": "OPEN_RECOVERY_REQUIRED",
+    "historical_observations_date_utc": "2026-10-25",
+    "historical_observations_qualification": "observed_evidence_records=0, observed_unknowns=0, historical_certifications_preserved=116 and preincident_expected_evidence=8 describe the original P225 incident snapshot, NOT the current P249 live state; historical P217/P218 Evidence and Unknown records were not recovered.",
+    "current_verified_followup": {
+      "phase_id": "LINUX-P249-SIGNED-IMPORT-MANAGED-RECONSTRUCTION-ORIGINAL-MCP-20261025",
+      "as_of_utc": "2026-10-25",
+      "p229_restored_historical_P214_evidence": 6,
+      "P248_source_owned_synthetic_evidence": 1,
+      "P249_new_managed_synthetic_evidence": 2,
+      "latest_live_evidence_count": 9,
+      "latest_live_unknown_count": 0,
+      "latest_complete_bundle_semantic_sha256": "a00cb128ab4daabe4acfe0f3a7d738972e9d65e3fb954f8b645e603790dbf6ec",
+      "prior_seven_records_preserved_exactly": true,
+      "P214_original_six_evidence_preserved_exactly": true,
+      "lost_P217_P218_evidence_or_unknown_recovered": false,
+      "independently_durable_archive_of_P248_P249_evidence_verified": false,
+      "readback_run_id": 40208602772,
+      "owner_signature_scope": "exact P249 operation only, consumed and must not be reused",
+      "current_fully_certified": 118,
+      "current_pending": 90,
+      "p232_p246_bridge_hold_active": true
+    }
   }
 }
