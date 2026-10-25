@@ -111,14 +111,19 @@
   "hygiene": {
     "used_signed_close_encrypted_request_removed": true,
     "used_close_delete_commit": "5a585fe63804567abb177b455915ccde93035a8e",
-    "consumed_postclose_encrypted_request_removal_pending": true,
+    "consumed_postclose_encrypted_request_removal_pending": false,
     "original_bridge_unchanged": true,
     "original_owner_policy_unchanged": true,
     "no_credential_exposure": true,
     "no_service_restart": true,
     "no_binary_open_or_close": true,
     "no_new_mcp_plugin_skill": true,
-    "ephemeral_local_keys_purged_after_verification": false
+    "ephemeral_local_keys_purged_after_verification": true,
+    "consumed_postclose_encrypted_request_removed": true,
+    "used_postclose_delete_commit": "2a778264de5c71af137b5f5f826afbc1fabc8ecd",
+    "evidence_private_decrypted_temp_results_purged": true,
+    "uploaded_owner_signed_close_file_preserved_as_user_attachment": true,
+    "readonly_status_result_mcp_isError_true_after_close_is_expected": true
   },
   "limitations": [
     "Certified only for real on-host GNU GDB/MI3 session lifecycle with no inferior; no claim regarding arbitrary attached processes.",
