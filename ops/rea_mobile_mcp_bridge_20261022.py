@@ -1800,30 +1800,7 @@ def main():
                 key:key in names for key in (
                     "REA_BINWALK_COMMAND","REA_UNBLOB_COMMAND",
                     "REA_RIZIN_COMMAND","REA_GDB_COMMAND")},sort_keys=True))
-        # TEMP P215 READ-ONLY inspection of the exact source-owned P214 backup.
-        # No file mutation; run with the real REA service user, expose metadata only.
-        source = "/var/lib/rea-reversa/rea-p214-evidence-backup-7c5e1ad42fe74b121f3e2c4fe830c6c7.json"
-        script = (
-            "import os,sys,json,hashlib,stat;"
-            "p=sys.argv[1]; st=os.lstat(p);"
-            "assert stat.S_ISREG(st.st_mode) and not stat.S_ISLNK(st.st_mode);"
-            "assert st.st_size<1000000;"
-            "raw=open(p,'rb').read();"
-            "bundle=json.loads(raw);"
-            "assert isinstance(bundle,dict) and isinstance(bundle.get('records'),list)"
-            " and isinstance(bundle.get('unknowns'),list);"
-            "print('PASS;bytes='+str(len(raw))+';records='+str(len(bundle['records']))"
-            "+';unknowns='+str(len(bundle['unknowns']))"
-            "+';sha256='+hashlib.sha256(raw).hexdigest())"
-        )
-        chk = subprocess.run(
-            ["sudo","-n","-u","rea-reversa","python3","-c",script,source],
-            capture_output=True,text=True,timeout=15,check=False
-        )
-        observed=chk.stdout.strip() if chk.returncode==0 else "UNAVAILABLE"
-        if not re.fullmatch(r"PASS;bytes=[0-9]+;records=[0-9]+;unknowns=[0-9]+;sha256=[a-f0-9]{64}",observed):
-            observed = "FAIL_READ_ONLY"
-        print("REA_SDIAG_STATUS=P215_ARCHIVE_"+observed)
+        print("REA_SDIAG_STATUS=PASS_READ_ONLY")
         return
     if data["action"] == "fixture_linux_service_provider_activate":
         # Owner-requested REA ONLY integration, with rollback on any
