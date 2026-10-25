@@ -1,0 +1,99 @@
+{
+  "project": "Engenharia Reversa / REA original",
+  "phase_id": "LINUX-P210-OWNER-ED25519-SIGNED-EXPORT-WRITE-IO-20261025",
+  "date_utc": "2026-10-25",
+  "status": "OWNER_ED25519_VERIFIED_LIVE_MCP_WRITE_IO_NO_CERTIFICATION",
+  "tool": "export_evidence_bundle",
+  "scope": "Linux REA original permanent MCP on VPS, safe single-file no-overwrite Evidence export",
+  "canonical_before": {
+    "certified": 112,
+    "total": 208,
+    "sensitive_certified": 6,
+    "sensitive_pending": 77,
+    "ledger_blob_sha": "1463a4a71a215d276488ab12211cc8d4be5c6f9b"
+  },
+  "source": "Owner-uploaded exact UTF-8 rea-p210-pedido.json, signatures never reconstructed from screenshot",
+  "authorization": {
+    "owner_fingerprint_sha256_der": "99580a4806703661ca38f75a3cb95e47d46e32228cf89d5aa7ab55e95a4e25b4",
+    "independent_ed25519_signatures_verified_by_live_vps_policy": 2,
+    "argument_hashes_locally_verified": true,
+    "expires_at_utc": "2026-10-25T05:28:21Z",
+    "overwrites_allowed": false,
+    "owner_private_key_transferred": false,
+    "nonce_reuse_prohibited": true
+  },
+  "original_mcp_execution": {
+    "github_actions_run_id": 40163261150,
+    "github_actions_job_id": 121079050523,
+    "head_sha": "8e07380be0413523afdb55ce1cabb40753e684e8",
+    "encrypted_result_artifact_id": 12586967815,
+    "request_envelope_blob_sha": "b60a5d6508a2ae1eebbbae3a8782e0e85f394ef2",
+    "result_sha256": "c60c623427d2d57b98ba24b82f9f42ef800a941a5facc9cd00706dbed4bdcbfc",
+    "authenticated_response_decryption": true,
+    "request_sha256_matched": true,
+    "owner_policy_marker": "REA_SEALED_POLICY=PASS",
+    "configured_steps": 2,
+    "mcp_tools_call_steps_executed": 1,
+    "first_step": {
+      "tool": "export_evidence_bundle",
+      "mcp_isError": true,
+      "error_code": "execution_failure",
+      "details": {
+        "operation": "write",
+        "reason": "io"
+      },
+      "message": "Evidence file could not be accessed. Check file permissions and try again.",
+      "target_root": "/opt/rea-reversa/rea",
+      "overwrite": false
+    },
+    "second_step": {
+      "tool": "export_evidence_bundle",
+      "executed": false,
+      "reason": "Bridge intentionally aborts remaining steps after the first MCP isError=true"
+    },
+    "actions_job_conclusion": "success",
+    "warning": "A successful GitHub Actions workflow is transport/policy success, not a functional positive tool certification."
+  },
+  "retained_evidence_before": {
+    "github_actions_run_id": 40143554927,
+    "retained_records": 6,
+    "unknown_revisions": 0,
+    "result_sha256": "f27d981d256f7ca702f8084ed4f346789d8b54b3b59fdd8f04a7573132f8c6cd"
+  },
+  "retained_evidence_after": {
+    "github_actions_run_id": 40163373898,
+    "github_actions_job_id": 121079401161,
+    "encrypted_result_artifact_id": 12586674454,
+    "mcp_tool": "get_evidence_bundle",
+    "arguments": {
+      "detail": "summary"
+    },
+    "authenticated_decryption": true,
+    "request_sha256_matched": true,
+    "result_sha256": "f27d981d256f7ca702f8084ed4f346789d8b54b3b59fdd8f04a7573132f8c6cd",
+    "retained_records": 6,
+    "matching_records": 6,
+    "unknown_revisions": 0,
+    "response_byte_for_byte_same_as_before": true
+  },
+  "hygiene": {
+    "consumed_signed_request_deleted": true,
+    "signed_request_cleanup_commit": "71600b3bdb5fb93e15de45b882db37512f6ba62f",
+    "read_only_postcheck_request_deleted": true,
+    "postcheck_cleanup_commit": "9518c6d6b7d1413d550bcb83606b216e10c8abc8",
+    "previous_failed_screenshot_transcription_request_already_deleted_commit": "83339613649734885e8a9db960de0c24aa0a3794",
+    "raw_owner_signatures_in_report": false,
+    "original_bridge_blob": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7",
+    "original_workflow_blob": "c81ef44d3f3e9dc3b3a819add5ff4f1a33d343df",
+    "other_projects_modified": false
+  },
+  "certification": {
+    "new_tools_certified": 0,
+    "tool_status": "PENDING_LIVE_POSITIVE_AND_EXPECTED_NEGATIVE",
+    "canonical_certified_after": 112,
+    "canonical_sensitive_certified_after": 6,
+    "canonical_sensitive_pending_after": 77,
+    "retest_old_certification": false
+  },
+  "next": "Diagnose a pre-existing writable path available to the active REA MCP systemd service, and ensure it is within the current bridge's approved analysis roots. Never change the signed arguments or bypass owner signature. Fresh two-step owner authorization is required after a valid path is established; preserve historical evidence and keep bridge/workflow unchanged."
+}
