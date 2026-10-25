@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "project": "Engenharia Reversa / original persistent REA MCP on Linux VPS",
+  "phase": "P255-READONLY-REAL-MCP-NEGATIVE-PRECONDITIONS-20261025",
+  "date_utc": "2026-10-25",
+  "status": "TWO_ORIGINAL_MCP_READ_CALLS_COMPLETED_NEGATIVE_ONLY_NOT_FULLY_CERTIFIED",
+  "tested_tools": [
+    {
+      "tool": "verify_unknown_resolution",
+      "risk": "read",
+      "workflow_run_id": 40222183647,
+      "workflow_commit": "4e1fe52e4e23ebbbf6984a3d9848e3df71c2b827",
+      "artifact_id": 12610076059,
+      "request_nonce": "948a53dc0919ed466c98e23f858317d8",
+      "steps_executed": 3,
+      "mcp_isError": true,
+      "error_code": "execution_failure",
+      "error_category": "execution_failure",
+      "reason": "not-found",
+      "message": "The requested residual unknown does not exist in this session",
+      "unknowns_live": 0,
+      "authenticated_result_sha256": "ae785156aea5cf34fe0b07a7c14c7caf4eb8793aa2f4096d53a80f8451aea0fb",
+      "status": "NEGATIVE_CONFIRMED_POSITIVE_NEEDS_GENUINE_RETAINED_RESOLVED_UNKNOWN"
+    },
+    {
+      "tool": "gdb_session_status",
+      "risk": "read",
+      "workflow_run_id": 40222203784,
+      "workflow_commit": "17fc93aaedea9262cc23a55c0437a57a035eaea2",
+      "artifact_id": 12610111092,
+      "request_nonce": "795e61889ac30f451b2072543c8b415c",
+      "steps_executed": 3,
+      "mcp_isError": true,
+      "error_code": "invalid_request",
+      "error_category": "invalid_input",
+      "reason": "supplied contract-valid example UUID did not resolve to an owned REA GDB session",
+      "authenticated_result_sha256": "bf2600a82e3fc90c48b463508ad6946dd76c798e2cd65733d7911298bb555bdf",
+      "status": "NEGATIVE_CONFIRMED_POSITIVE_NEEDS_GENUINE_ACTIVE_GDB_SESSION"
+    }
+  ],
+  "authenticated_preservation": {
+    "before_and_after_each_probe": "get_evidence_bundle detail=complete, list_unknowns",
+    "live_evidence_count": 10,
+    "unknowns": 0,
+    "semantic_evidence_bundle_sha256": "8ddc202430af04e5da8c53521211d7a8968021316b9abc1c8d063c9c72066bc5",
+    "matches_prior_P254_reference": true,
+    "both_new_readbacks_equal": true,
+    "output_encrypted_authenticated": true,
+    "no_open_binary": true,
+    "no_close_binary": true,
+    "no_server_restart": true
+  },
+  "canonical": {
+    "certified_before": 119,
+    "certified_after": 119,
+    "remaining_before": 89,
+    "remaining_after": 89,
+    "read_pending_before": 2,
+    "read_pending_after": 2,
+    "new_certifications": 0
+  },
+  "next": {
+    "gdb_session_status": "Requires genuine active owned REA GDB session UUID. start_gdb_session is a different sensitive operation and requires new exact independently signed owner approval plus retention-safe cleanup validation; not executed here.",
+    "verify_unknown_resolution": "Requires genuine retained Unknown with supporting resolution Evidence; record_unknown and update_unknown are separate sensitive operations with step-specific Ed25519 approval. Do not fabricate records or reinterpret negative result as positive."
+  },
+  "hygiene": {
+    "requests_to_remove": [
+      "rea-linux/requests/p255-read-verify_unknown_resolution-948a53dc0919.json",
+      "rea-linux/requests/p255-read-gdb_session_status-795e61889ac3.json"
+    ],
+    "status": "PENDING_AT_REPORT_WRITING"
+  },
+  "constraints": [
+    "Do not increment 119 count",
+    "P232/P246 10 Evidence retention hold remains",
+    "No signatures obtained or bypassed",
+    "No simulated or isolated positive represents permanent MCP certification"
+  ]
+}
