@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_116_FULLY_CERTIFIED_92_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_116_HISTORICALLY_CERTIFIED__ACTIVE_STATE_RECOVERY_REQUIRED",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -9487,5 +9487,20 @@
     "successfully_reached_original_mcp": true,
     "safety_pin_preserved": true,
     "reinstalled_engine": false
+  },
+  "active_retained_state_incident": {
+    "incident_id": "P225-LIVE-SESSION-RECORDS-RESET-AFTER-SOURCE-OWNED-BINARY-CLOSE-20261025",
+    "report_path": "rea-linux/certification/incident-p225-live-investigation-records-reset-20261025.json",
+    "status": "OPEN_RECOVERY_REQUIRED",
+    "observed_evidence_records": 0,
+    "observed_unknowns": 0,
+    "preincident_expected_evidence": 8,
+    "probable_cause": "Original close_binary cleared in-memory InvestigationRecords",
+    "blocked_operations": "All further state-changing original MCP certification steps pending recovery",
+    "historical_certifications_preserved": 116,
+    "readback_runs": [
+      40186516453,
+      40186710970
+    ]
   }
 }

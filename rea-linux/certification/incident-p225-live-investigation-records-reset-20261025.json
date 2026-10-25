@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "project": "Engenharia Reversa / original REA MCP on Linux VPS",
+  "incident_id": "P225-LIVE-SESSION-RECORDS-RESET-AFTER-SOURCE-OWNED-BINARY-CLOSE-20261025",
+  "date_utc": "2026-10-25",
+  "severity": "critical",
+  "status": "OPEN__NO_NEW_STATEFUL_SENSITIVE_TESTS_UNTIL_RETENTION_RECOVERED",
+  "title": "Live investigation Evidence and Unknown records are empty after controlled Ghidra session close",
+  "baseline_from_prior_certification": {
+    "p217_record_unknown_run": 40182623467,
+    "p217_evidence_postcheck_run": 40182736099,
+    "p218_update_unknown_run": 40184152641,
+    "p218_reported_readback_run": 40185020265,
+    "previous_certification_reported_evidence": 8,
+    "previous_reported_unknown_revisions": 2,
+    "previous_question_id": "unk_83470d409b1de94724284543af4f1db77f71da800bd2b6ee259b22e9a67c3952",
+    "source_reports": [
+      "rea-linux/certification/sensitive-p217-record-unknown-certified-20261025.json",
+      "rea-linux/certification/sensitive-p218-update-unknown-certified-20261025.json"
+    ]
+  },
+  "observed_trigger": {
+    "source_owned_target": "/usr/bin/true",
+    "target_sha256": "8a63c98320173f79e263115e10cefc170155e47d1fd4b5a70e4429d2699cae28",
+    "provider": "ghidra",
+    "version": "12.1.4",
+    "workflow_run": 40186230648,
+    "job_id": 121147484093,
+    "request_commit": "e204b6bf9de5c189a41c5ab9ab603922705f5e75",
+    "mcp_steps": [
+      {
+        "tool": "open_binary",
+        "mcp_isError": false
+      },
+      {
+        "tool": "list_segments",
+        "mcp_isError": false,
+        "evidence_id": "ev_803ae4fafcb85ab0dd4f5bf153636b78494fcbb5764712efd4cf4f495b33e13c",
+        "text_segment_start": "0x101480"
+      },
+      {
+        "tool": "get_navigation_context",
+        "mcp_isError": true,
+        "error_code": "capability_unavailable",
+        "provider_reason": "current_document unavailable on Ghidra"
+      }
+    ],
+    "result_sha256": "c3dd6c546c9f350a8d142f898dc7641c58ad3ac1c16bae7c7d86647973eec1a3",
+    "encrypted_artifact_id": 12595928529,
+    "bridge_binary_cleanup_marker": "PASS",
+    "no_sensitive_tools_called": true
+  },
+  "actual_independent_readbacks": [
+    {
+      "tool": "get_evidence_bundle",
+      "run_id": 40186516453,
+      "job_id": 121148333544,
+      "request_commit": "830857381ed18f7342774e1cfac7b95181e16fde",
+      "artifact_id": 12596043927,
+      "encrypted_zip_sha256": "1365aa4e4c31b09e71eda7fa808f769ec7cc9366fa19de5d260fc891f227b50d",
+      "authenticated_result_sha256": "d1a829b665ceddf20524f56b38021a9a38b8ba5874b66c11a18a75822946f3fc",
+      "mcp_isError": false,
+      "total_retained_records": 0,
+      "unknown_revisions": 0
+    },
+    {
+      "tool": "list_unknowns",
+      "run_id": 40186710970,
+      "job_id": 121148945090,
+      "request_commit": "2304626ee4ee019eed402c79ae49b62e27759c32",
+      "artifact_id": 12596263705,
+      "encrypted_zip_sha256": "7bbc89a98d5f7f18ded08476815fc6d843c28062bfbca32dbfbc6d1e9013f368",
+      "authenticated_result_sha256": "bf94f77905aef577d068bc4b952b1ea9796f5f3d8e15137d1f0542ec399b5b59",
+      "mcp_isError": false,
+      "total_unknowns": 0
+    }
+  ],
+  "probable_root_cause": {
+    "source_repo": "martaxi-boss/Engenheira-reversa",
+    "file": "rea/src/application/binary/BinarySession.ts",
+    "routine": "#closeActive",
+    "behavior": "closeActive defaults clearRecords=true and calls clearSessionRecords() after provider retirement; this can erase in-memory InvestigationRecords and Unknowns. The bridge executes close_binary after a successful open_binary even when the source-owned fixture is temporary.",
+    "second_file": "rea/src/application/binary/BinarySessionRecords.ts",
+    "behavior2": "clearSessionRecords invokes InvestigationRecords.clear() and resets analysis snapshots.",
+    "causality": "Strong code-and-timing-supported hypothesis; prior 8-record state was not independently read immediately before the Ghidra fixture in this turn."
+  },
+  "recovery_assets": {
+    "p214_verified_export_report": "rea-linux/certification/sensitive-p214-export-evidence-certified-20261025.json",
+    "p214_archive_path_reported": "/var/lib/rea-reversa/rea-p214-evidence-backup-7c5e1ad42fe74b121f3e2c4fe830c6c7.json",
+    "p214_backup_covers_six_historic_evidence_only": true,
+    "p217_p218_complete_bundle_export_verified": false,
+    "p217_p218_proof_reports_still_in_git": true,
+    "do_not_assume_p214_archive_exists_until_read_only_checked": true
+  },
+  "constraints": [
+    "No replay of P217/P218 owner-signed requests or owner Ed25519 signatures.",
+    "Do not invent or reconstruct missing Evidence bodies or revisions from summaries.",
+    "Do not import P214 backup or call further sensitive tools until the owner creates fresh exact operation signatures and the full recovery plan is approved.",
+    "No new servers, engines, MCP endpoints, plugins, skills, agents or Codex; preserve existing bridge/workflow/security policy.",
+    "Do not run open_binary/close_binary on the permanent service while live Evidence recovery is unresolved."
+  ],
+  "certification_accounting": {
+    "historically_certified_distinct": 116,
+    "historically_pending": 92,
+    "sensitive_historically_certified": 10,
+    "new_certifications_in_this_incident": 0,
+    "live_retention_state": "EMPTY_AND_RECOVERY_REQUIRED",
+    "historical_certification_count_not_incremented_or_decremented_without_review": true
+  },
+  "next_safe_actions": [
+    "Perform read-only filesystem validation of the P214 archived six-record JSON under existing systemd StateDirectory, no write.",
+    "Recover full P217/P218 historic immutable data only from authenticated originals, not guesses. If complete data unavailable, report unrecoverable gap and seek owner-controlled restoration decision.",
+    "Prepare exact owner-signed scoped restore request only after backup byte validity and effect on original MCP state are established.",
+    "After restoration, re-read get_evidence_bundle/list_unknowns and compare exact IDs, preserve future bundles before any session close."
+  ],
+  "hygiene": {
+    "owner_key_android_only": true,
+    "original_engine_source_unchanged": true,
+    "other_projects_untouched": true,
+    "source_owned_ghidra_ephemeral_target_closed": true,
+    "workflow_bridge_policy_unchanged": true
+  }
+}

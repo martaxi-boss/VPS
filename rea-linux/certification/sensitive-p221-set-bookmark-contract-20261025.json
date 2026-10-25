@@ -3,7 +3,7 @@
   "project": "Engenharia Reversa / REA original",
   "phase_id": "LINUX-P221-SET-BOOKMARK-DESCRIBE-20261025",
   "date_utc": "2026-10-25",
-  "status": "DESCRIPTOR_AUTHENTICATED__SENSITIVE_FUNCTIONAL_CERTIFICATION_PENDING",
+  "status": "BLOCKED_HOPPER_UNAVAILABLE__GHI_DRA_NO_BOOKMARK_SUPPORT__P225_RETENTION_INCIDENT",
   "tool": "set_bookmark",
   "live_mcp_descriptor": {
     "github_actions_run": 40185696811,
@@ -68,5 +68,31 @@
     "sensitive_pending": 73,
     "new_certifications": 0,
     "ledger_sha": "a1bf8d0a9bb7dd0c478784d1694799db4a669cd6"
-  }
+  },
+  "provider_status": {
+    "hopper": {
+      "status": "unavailable",
+      "reason": "Hopper launcher missing or not executable at /opt/hopper/bin/Hopper"
+    },
+    "ghidra": {
+      "status": "available",
+      "supports_set_bookmark": false,
+      "supports_set_address_name": true
+    },
+    "source": "Authenticated original MCP binary_session run 40186034393"
+  },
+  "preflight": {
+    "run": 40186230648,
+    "tool_calls": [
+      "open_binary",
+      "list_segments",
+      "get_navigation_context"
+    ],
+    "binary_open_pass": true,
+    "segments_pass": true,
+    "navigation_context_isError_true": true,
+    "cleanup_pass": true,
+    "incident_report": "rea-linux/certification/incident-p225-live-investigation-records-reset-20261025.json"
+  },
+  "no_new_certifications": true
 }
