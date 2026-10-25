@@ -135,12 +135,18 @@
     "Any future sensitive call requires its own freshly signed exact owner approval."
   ],
   "hygiene": {
-    "consumed_ciphertext_request_must_be_removed_after_report": true,
+    "consumed_ciphertext_request_must_be_removed_after_report": false,
     "original_REA_source_service_bridge_and_policy_unchanged": true,
     "existing_bridge_blob": "81ec4fb4677e2e4c7b11b2d0550fee8cef9400e7",
     "existing_policy_blob": "8757abb589a779eaeda1d0eeefc85e4476503a41",
     "encrypted_artifact_available_short_retention_only": true,
-    "decrypted_result_kept_local_temporarily_for_verification": true,
-    "no_new_plugin_skill_mcp_server_or_codex": true
+    "decrypted_result_kept_local_temporarily_for_verification": false,
+    "no_new_plugin_skill_mcp_server_or_codex": true,
+    "consumed_private_ciphertext_request_deleted_from_GitHub": true,
+    "consumed_public_key_request_deleted_from_GitHub": true,
+    "cleanup_commit_sha": "f5b4d0c657c359a10d61bec21d9b499de90061ff",
+    "cleanup_run_id": 40209073143,
+    "cleanup_run_conclusion": "success",
+    "decrypted_result_destroy_after_readback_verification": true
   }
 }
