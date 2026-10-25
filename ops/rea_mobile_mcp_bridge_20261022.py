@@ -1800,6 +1800,49 @@ def main():
                 key:key in names for key in (
                     "REA_BINWALK_COMMAND","REA_UNBLOB_COMMAND",
                     "REA_RIZIN_COMMAND","REA_GDB_COMMAND")},sort_keys=True))
+        # P210 one-time READ-ONLY service-filesystem preflight; remove after test.
+        # No path contents or sensitive systemd environment values are printed.
+        for property_name in (
+            "ProtectSystem", "ProtectHome", "PrivateTmp", "PrivateDevices",
+            "DynamicUser", "StateDirectory", "RuntimeDirectory",
+            "ReadWritePaths", "ReadOnlyPaths", "TemporaryFileSystem",
+        ):
+            prop = subprocess.run(
+                ["systemctl", "show", unit, "-p", property_name, "--value"],
+                capture_output=True, text=True, timeout=8, check=False
+            )
+            value = prop.stdout.strip() if prop.returncode == 0 else ""
+            key = "REA_P210_UNIT_" + property_name.upper()
+            if property_name in ("StateDirectory", "RuntimeDirectory",
+                                 "ReadWritePaths", "ReadOnlyPaths", "TemporaryFileSystem"):
+                print(key + "_ENTRIES=" + str(len(value.split())))
+            else:
+                print(key + "=" + (value[:45] if value else "UNSET"))
+        checked = {
+            "engine_root": "/opt/rea-reversa/rea",
+            "engine_tmp": "/opt/rea-reversa/rea/tmp",
+            "engine_artifacts": "/opt/rea-reversa/rea/artifacts",
+            "engine_evidence": "/opt/rea-reversa/rea/evidence",
+            "engine_cache": "/opt/rea-reversa/rea/.cache",
+            "shared_ram": "/dev/shm",
+            "service_state": "/var/lib/rea-reversa",
+            "service_runtime": "/run/rea-reversa",
+        }
+        for label, candidate in checked.items():
+            # Direct DAC probe under the SAME uid, without writing or
+            # exposing paths outside the fixed hardcoded inventory.
+            status = []
+            for flag in ("-d", "-x", "-w"):
+                q = subprocess.run(
+                    ["sudo", "-n", "-u", "rea-reversa", "test", flag, candidate],
+                    capture_output=True, timeout=8, check=False
+                )
+                status.append(q.returncode == 0)
+            print("REA_P210_DIR_" + label.upper() +
+                  "=exists:" + str(status[0]).lower() +
+                  ",traverse:" + str(status[1]).lower() +
+                  ",writable_dac:" + str(status[2]).lower())
+        print("REA_P210_DIAGNOSTIC_READ_ONLY=PASS")
         print("REA_SDIAG_STATUS=PASS_READ_ONLY")
         return
     if data["action"] == "fixture_linux_service_provider_activate":
