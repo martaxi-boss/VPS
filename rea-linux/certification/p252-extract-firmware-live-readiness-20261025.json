@@ -95,7 +95,15 @@
       "rea-linux/requests/p252-service-provider-readiness-20261025.json",
       "rea-linux/requests/p252-unblob-version-20261025.json"
     ],
-    "status": "PENDING_EXACT_REQUEST_DELETION"
+    "status": "COMPLETE_EXACT_THREE_CONSUMED_REQUESTS_DELETED",
+    "deletion_commits": [
+      "9b69dfac5062da83f9b9c418ac128dbddbeb02b9",
+      "a798f84698327494efeb9a18c846f8d078434d37",
+      "e2d0bd867d265298f18b6cd9172da9b963b0fec9"
+    ],
+    "consumed_request_paths_confirmed_absent": true,
+    "original_bridge_and_policy_unchanged": true,
+    "note": "Deletion-only workflow in progress at report closure; earlier P252 original describe, service doctor and Unblob probe were individually SUCCESS. Not a new MCP tool certification."
   },
   "next_gate": "Stage and attest one source-owned, bounded Unblob-compatible firmware archive at an approved original-MCP-accessible path without restarting or closing REA, then request exact one-use owner signature for extract_firmware and verify results plus intact nine Evidence before ledger increment."
 }
