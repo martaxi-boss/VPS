@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "P261_CANONICAL_SAFE_CHECKPOINT__121_OF_208_SCOPED_CERTIFIED__SOURCE_REPAIR_TESTED_NOT_DEPLOYED__P232_P246_HOLD_ACTIVE",
+  "status": "P263_CANONICAL_121_CERTIFIED_SCOPED__ORIGINAL_LIVE_11_BACKUP_AND_INSTALLED_CLI_VALIDATION_PASS__OWNER_ED25519_RESTORE_GATE",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -7756,6 +7756,38 @@
         "Service doctor healthy=false; optional vendor providers not forced green.",
         "Every future sensitive call still requires a fresh matching owner Ed25519 signature; two legacy sensitive tool proofs are pre-signed-policy."
       ]
+    },
+    {
+      "phase_id": "LINUX-P263-ORIGINAL-CLI-RECORDS-RECOVERY-VALIDATED-OWNER-GATE-20261025",
+      "date_utc": "2026-10-25",
+      "status": "LIVE_SERVICE_PRIVATE_BACKUP_VERIFIED_AND_ORIGINAL_REA_CLI_IMPORTED_11_1_VALIDATION_ONLY__ED25519_OWNER_GATE_REQUIRED_BEFORE_RELEASE",
+      "tools": [],
+      "proof": {
+        "report": "rea-linux/certification/p263-original-vps-archive-validated-owner-import-gate-canonical-20261025.json",
+        "original_service_checkpoint_run_id": 40231957305,
+        "checkpoint_readback_run_id": 40232100820,
+        "installed_rea_cli_evidence_import_validation_run_id": 40232521450,
+        "offline_full_restore_original_source_run_id": 40231650672,
+        "source_patch_test_count": 159,
+        "original_catalog": 208,
+        "original_service_PID_unchanged": true,
+        "original_bridge_sha_restored": "81ec4fb4677e2e4c7b11b2d0550fee8cef9400e7",
+        "live_evidence_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+        "owner_signature_new_import": false
+      },
+      "new_certifications": 0,
+      "fully_certified_total": 121,
+      "pending": 87,
+      "read_group_fully_certified_total": 5,
+      "retained_evidence_records": 11,
+      "retained_unknowns": 1,
+      "P232_P246_hold_active": true,
+      "limitations": [
+        "Code repair is tested in source but not deployed to original systemd MCP; do not claim 100% functional readiness.",
+        "One exact fresh owner Ed25519 signature for sensitive import_evidence_bundle is required for safe post-restart restore.",
+        "Original installed CLI validation of the backup does not modify or verify live MCP restore.",
+        "Historical scoped certifications remain 121, with 42 binary-session-dependent tools held."
+      ]
     }
   ],
   "active_scope_counts": {
@@ -7800,7 +7832,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P261-SAFE-CANONICAL-REPAIR-STAGING-PRESERVE-EVIDENCE-20261025",
+  "latest_phase": "LINUX-P263-ORIGINAL-CLI-RECORDS-RECOVERY-VALIDATED-OWNER-GATE-20261025",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -10316,7 +10348,15 @@
       "latest_readonly_check_run_id": 40228657095,
       "external_private_archive_verified": true,
       "external_private_archive_restore_bytes_verified": true,
-      "external_original_rea_import_tested": false
+      "external_original_rea_import_tested": false,
+      "original_service_checkpoint_status": "PASS_EXISTS_AND_INDEPENDENTLY_HASHED_BY_SERVICE_USER",
+      "original_service_checkpoint_path": "/opt/rea-reversa/rea/.rea-private/p262-live-evidence-11-8b17734c.json",
+      "original_service_checkpoint_readback_run_id": 40232100820,
+      "original_installed_rea_CLI_bundle_validation_run_id": 40232521450,
+      "original_installed_rea_CLI_bundle_validation_status": "PASS_11_RECORDS_1_UNKNOWN_VALIDATION_ONLY",
+      "independent_offline_original_InvestigationRecords_11_1_restore": true,
+      "original_live_sensitive_MCP_import_tested": false,
+      "owner_signed_original_live_MCP_import_pending": true
     },
     "no_new_certifications": false,
     "gdb_session_status": {
@@ -10583,11 +10623,11 @@
       "status": "PATCH_TESTED_AND_CANONICAL_SOURCE_STAGED_NOT_DEPLOYED_TO_ORIGINAL_RUNNING_MCP",
       "original_source_repo": "martaxi-boss/Engenheira-reversa",
       "staging_branch": "rea/p261-preserve-investigation-records-20261025",
-      "staging_commit": "059ea30ad2392c2fd4e5f4096f529674cf56dc0e",
+      "staging_commit": "9532f852cb41d1ae0a1640128681508aa07edade",
       "source_original_main_unchanged": true,
-      "test_run_id": 40230724635,
+      "test_run_id": 40231650672,
       "expected_old_source_test_failure": true,
-      "regressions_passed": 158,
+      "regressions_passed": 159,
       "formatter": "PASS",
       "typecheck_and_lint": "PASS",
       "new_certifications": 0,
@@ -10610,6 +10650,35 @@
       "live_records_preserved": true,
       "restoration_and_restart_hold_active": true,
       "report": "rea-linux/certification/p261-canonical-repair-staged-retention-tested-hygiene-20261025.json"
+    },
+    "p263_production_readiness": {
+      "phase": "P263",
+      "status": "ORIGINAL_INSTALLED_REA_CLI_ACCEPTED_11_EVIDENCE_AND_ONE_UNKNOWN_BACKUP__SIGNED_LIVE_MCP_IMPORT_PENDING",
+      "original_cli_run_id": 40232521450,
+      "original_cli_is_state_mutation": false,
+      "backup_original_path": "/opt/rea-reversa/rea/.rea-private/p262-live-evidence-11-8b17734c.json",
+      "backup_original_service_user": "rea-reversa",
+      "backup_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+      "record_counts": {
+        "evidence": 11,
+        "unknowns": 1
+      },
+      "checkpoint_backup_run_id": 40231957305,
+      "independent_checkpoint_readback_run_id": 40232100820,
+      "installed_readonly_preflight_run_id": 40232287301,
+      "owner_ED25519_signed_import_received": false,
+      "owner_ED25519_signed_import_required": true,
+      "source_patch_branch": "martaxi-boss/Engenheira-reversa:rea/p261-preserve-investigation-records-20261025",
+      "source_patch_staging_head": "9532f852cb41d1ae0a1640128681508aa07edade",
+      "original_component_real_private_archive_import": "PASS_IDLE_ISOLATED_NO_LIVE_MUTATION",
+      "source_159_regression_tests_run_id": 40231650672,
+      "source_patch_production_deployed": false,
+      "original_REA_service_restarted": false,
+      "remaining_42_historically_certified_binary_tools_blocked": true,
+      "P232_P246_hold_active": true,
+      "source_only_policy_two_legacy_sensitive_tools_test_run_id": 40231576542,
+      "original_bridge_restored_exact_sha": "81ec4fb4677e2e4c7b11b2d0550fee8cef9400e7",
+      "report": "rea-linux/certification/p263-original-vps-archive-validated-owner-import-gate-canonical-20261025.json"
     }
   }
 }
