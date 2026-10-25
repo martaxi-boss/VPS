@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "project": "Engenharia Reversa - original REA Linux MCP",
+  "date_utc": "2026-10-25",
+  "phase": "P256-P257-READ-CERTIFICATION-SIGNED-PREPARATION",
+  "status": "OWNER_SIGNATURES_REQUIRED__NO_NEW_CERTIFICATION",
+  "previous_real_negative_runs": [
+    40222183647,
+    40222203784
+  ],
+  "original_mcp_tools_pending": [
+    "verify_unknown_resolution",
+    "gdb_session_status"
+  ],
+  "installation": "ALREADY_REGISTERED_NO_REINSTALL",
+  "canonical_before": {
+    "tools": 208,
+    "fully_certified": 119,
+    "pending": 89,
+    "read_pending": 2,
+    "live_evidence_at_last_authenticated_readback": 10,
+    "unknowns": 0,
+    "evidence_bundle_sha256": "8ddc202430af04e5da8c53521211d7a8968021316b9abc1c8d063c9c72066bc5"
+  },
+  "source_verified": {
+    "verify_unknown_resolution": "Original EvidenceLedger.verifyUnknownResolution returns MCP success for existing unknown, with valid=true only if resolved, truthVerified=true only if verified disposition. Negative absent-unknown case was already tested.",
+    "gdb_session_status": "Original GdbSessionManager requires UUID of a live owned GDB session. No valid session UUID is currently documented.",
+    "gdb_start": "Original GDB start_gdb_session with empty args launches only local GNU GDB MI, with no inferior, but requires exact owner Ed25519 signature.",
+    "gdb_cleanup": "A separate owner signature is required for close_gdb_session once the real UUID is returned; do not leave an owned debugger running without authorized cleanup."
+  },
+  "android_signer": {
+    "filename": "REA_P256_P257_Assinar_Android.py",
+    "sha256": "a9a2ef85b69f2ce907587751af26a6d63b3ff413dd713701f78d54a18daadb00",
+    "source": "Conversation-delivered local script only, NOT deployed to VPS or GitHub",
+    "existing_owner_ed25519_public_fingerprint_sha256_der": "99580a4806703661ca38f75a3cb95e47d46e32228cf89d5aa7ab55e95a4e25b4",
+    "private_key_transferred": false,
+    "key_created": false,
+    "local_static_compile": "PASS",
+    "local_noninteractive_preview": "PASS",
+    "local_owner_signature": "PENDING_OWNER_INTERACTION"
+  },
+  "p256_unknown": {
+    "controlled_question": "Did the controlled P253 GZIP firmware fixture extract both oracle files while leaving its 64-byte header unclassified?",
+    "proposed_id": "unk_0b1cd369ec5d278d29e314676bf2870f3f8d38c65695b0abfd4a71ad62199d58",
+    "supporting_original_evidence_id": "ev_2ef3be85fb34ee35c4fdc90084f0b4ef444a732ab116c7056e5188040d5ada85",
+    "signed_operations": [
+      "record_unknown",
+      "update_unknown"
+    ],
+    "subsequent_read": "verify_unknown_resolution",
+    "result_expected": "isError=false valid=true truthVerified=true if original MCP and protected retention checks pass",
+    "not_yet_executed": true
+  },
+  "p257_gdb": {
+    "signed_first_operation": "start_gdb_session",
+    "arguments": {},
+    "read_after_owner_signed_start": "gdb_session_status exact returned UUID",
+    "cleanup_requires_fresh_exact_signature": "close_gdb_session after valid owned UUID",
+    "not_yet_executed": true
+  },
+  "constraints": [
+    "Preserve all ten existing Evidence",
+    "P232/P246 hold forbids open_binary/close_binary and REA restart",
+    "No changes to original secure policy, bridge, workflow or owner key",
+    "No tool added to certified registry without genuine authenticated MCP positive",
+    "Never publish owner keys, decrypted records or plaintext sensitive requests in public GitHub"
+  ],
+  "canonical_after_preparation": {
+    "fully_certified": 119,
+    "pending": 89,
+    "read_pending": 2,
+    "new_certifications": 0
+  }
+}
