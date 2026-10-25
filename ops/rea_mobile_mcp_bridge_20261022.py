@@ -1800,6 +1800,44 @@ def main():
                 key:key in names for key in (
                     "REA_BINWALK_COMMAND","REA_UNBLOB_COMMAND",
                     "REA_RIZIN_COMMAND","REA_GDB_COMMAND")},sort_keys=True))
+        # TEMP P227: READ ONLY inventory of source-owned REA archival JSON; no file mutation.
+        script = r'''import os,json,hashlib,stat,re,sys
+root = sys.argv[1]
+assert os.path.realpath(root) == '/var/lib/rea-reversa'
+items = []
+for name in sorted(os.listdir(root)):
+    if not re.fullmatch('rea-p[0-9]{3}-[A-Za-z0-9._-]{1,100}[.]json', name):
+        continue
+    if len(items) >= 40:
+        break
+    path = os.path.join(root, name)
+    st = os.lstat(path)
+    if not stat.S_ISREG(st.st_mode) or st.st_size > 1000000:
+        continue
+    with open(path, 'rb') as f:
+        raw = f.read()
+    try:
+        obj = json.loads(raw)
+    except (ValueError, UnicodeDecodeError):
+        continue
+    if not (isinstance(obj, dict) and isinstance(obj.get('records'), list) and isinstance(obj.get('unknowns'), list)):
+        continue
+    items.append({'name':name,'bytes':len(raw),'records':len(obj['records']),'unknowns':len(obj['unknowns']),'sha256':hashlib.sha256(raw).hexdigest()})
+print(json.dumps({'matched':len(items),'archives':items}, sort_keys=True, separators=(',',':')))
+'''
+        chk = subprocess.run(
+            ["sudo","-n","-u","rea-reversa","python3","-c",script,"/var/lib/rea-reversa"],
+            capture_output=True,text=True,timeout=18,check=False
+        )
+        safe_output = chk.stdout.strip() if chk.returncode == 0 else ""
+        try:
+            report = json.loads(safe_output) if len(safe_output) < 11000 else {}
+        except (ValueError, TypeError):
+            report = {}
+        if not isinstance(report, dict) or not isinstance(report.get("archives"), list) or not isinstance(report.get("matched"), int):
+            print("REA_P227_ARCHIVE_SUMMARY=FAIL_READ_ONLY")
+        else:
+            print("REA_P227_ARCHIVE_SUMMARY="+json.dumps(report, sort_keys=True, separators=(",",":")))
         print("REA_SDIAG_STATUS=PASS_READ_ONLY")
         return
     if data["action"] == "fixture_linux_service_provider_activate":
