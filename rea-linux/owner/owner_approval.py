@@ -94,7 +94,7 @@ def sign_sensitive_step(body, index, private_pem):
 # P269: One offline review/confirmation can sign many *distinct*, exact
 # one-use requests, but cannot grant a blanket signature or override MCP policy.
 # The original verifier still checks each Ed25519 signature independently.
-_BATCH_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,90}\\.json$")
+_BATCH_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,90}\.json$")
 _BATCH_SHA = re.compile(r"^[0-9a-f]{64}$")
 _BATCH_NONCE = re.compile(r"^[0-9a-f]{32}$")
 _BATCH_TOOL = re.compile(r"^[a-zA-Z][a-zA-Z0-9_.:-]{0,119}$")
@@ -120,7 +120,7 @@ def _load_p269_request(manifest_dir, entry, now):
     if body["protocol"] != 1 or not isinstance(body["nonce"], str) or not _BATCH_NONCE.fullmatch(body["nonce"]):
         raise ValueError("Invalid original protocol/nonce")
     expiry_raw = body["expires_at"]
-    if not isinstance(expiry_raw, str) or not re.fullmatch(r"\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z", expiry_raw):
+    if not isinstance(expiry_raw, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", expiry_raw):
         raise ValueError("Invalid expiry format")
     expiry = datetime.strptime(expiry_raw, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
     if not 0 < (expiry - now).total_seconds() <= 86400:
@@ -255,7 +255,7 @@ def sign_batch_requests(manifest_path, private_pem, output_dir, confirm_callback
                 "acknowledgement": auth["acknowledgement"]
             }
             auth["owner_signature"] = base64.b64encode(key.sign(canonical(payload))).decode("ascii")
-        prepared.append(canonical(body) + b"\\n")
+        prepared.append(canonical(body) + b"\n")
     created = []
     try:
         for out, payload in zip(outputs, prepared):
