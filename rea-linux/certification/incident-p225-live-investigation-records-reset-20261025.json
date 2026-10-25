@@ -90,7 +90,15 @@
     "p214_backup_covers_six_historic_evidence_only": true,
     "p217_p218_complete_bundle_export_verified": false,
     "p217_p218_proof_reports_still_in_git": true,
-    "do_not_assume_p214_archive_exists_until_read_only_checked": true
+    "do_not_assume_p214_archive_exists_until_read_only_checked": true,
+    "p214_last_verified_backup_sha256": "daa7bcc15a6cb1adf4fb46563100b2d67ff8b6694b191ef762d3cd2d8e61f3c4",
+    "p214_last_verified_backup_bytes": 17563,
+    "p214_last_verified_backup_evidence_records": 6,
+    "p214_last_verified_backup_unknowns": 0,
+    "p214_last_service_user_preflight_run": 40180712811,
+    "p214_backup_current_existence_and_hash_verified": false,
+    "p214_recovery_scope": "At most six historical Evidence entries, cannot recreate P217/P218 unknown or later Evidence; current backup existence not yet retested",
+    "owner_signature_required_for_import": true
   },
   "constraints": [
     "No replay of P217/P218 owner-signed requests or owner Ed25519 signatures.",
