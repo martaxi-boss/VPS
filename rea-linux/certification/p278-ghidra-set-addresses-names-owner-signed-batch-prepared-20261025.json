@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "project": "Engenharia Reversa — REA original on Linux VPS",
+  "phase_id": "LINUX-P278-GHIDRA_SET_ADDRESSES_NAMES_TWO_CASES_ONE_OWNER_REVIEW_PREPARED_20261025",
+  "date_utc": "2026-10-25",
+  "status": "OFFLINE_BATCH_PREPARED_TEST_SIGNER_PASS__NOT_SIGNED_BY_OWNER__NO_NEW_MCP_SENSITIVE_EXECUTIONS_OR_CERTIFICATIONS",
+  "entrypoint": "Use existing GitHub Actions SSH MCP bridge and original owner Ed25519 key on Android; no new provider or daemon.",
+  "source_basis": {
+    "previous_certification_phase": "P276",
+    "certified_count": 123,
+    "pending_count": 85,
+    "read_certified": 5,
+    "workspace_certified": 103,
+    "sensitive_certified": 15,
+    "sensitive_pending": 68,
+    "workspace_pending": 17,
+    "live_authenticated_catalog_run": 40238685797,
+    "supported_ghidra_operations_source": "rea/src/ghidra/GhidraInventoryValues.ts and rea/src/ghidra/GhidraProviderCapabilities.ts",
+    "fixture_provenance": "Same system-owned unmodified ELF/Ghidra 12.1.4 mapped function targets verified by owner-signed P270; exact addresses, reason and SHA-256 are shown only in offline owner review.",
+    "old_evidence_checkpoint": "engenharia reversa/REA_P276_Evidence_13_Backup_Verificado.zip",
+    "baseline_record_count": 13,
+    "baseline_unknown_count": 1,
+    "baseline_semantic_sha256": "98655f7309a8fe941e2c5687b331511942086ab57ecf63dc26c1877c2f7b201c"
+  },
+  "batch_plan": {
+    "static_plan_sha256": "4232181c23847de31b367efd821b50be37d3b98f91e30706612b351a225ae6bf",
+    "script_sha256": "83c5c9909ce4f4f73d6a02d4cc791f7327cafa1d49eacee937622fdde29e0325",
+    "package_zip_sha256": "42882aa42793d51988f7d69d8d7f9b247b7ae2665a61c5858b6e2d3cde321b80",
+    "private_owner_deliverable": "REA_P278_ASSINAR_SEM_DOWNLOAD.sh",
+    "private_owner_zip": "REA_P278_Lote_Para_Assinar_Android.zip",
+    "requests": 2,
+    "steps_each": 7,
+    "sensitive_signatures": 4,
+    "owner_confirmations": 1,
+    "tools": [
+      "get_evidence_bundle",
+      "list_unknowns",
+      "open_binary",
+      "set_addresses_names",
+      "close_binary",
+      "get_evidence_bundle",
+      "list_unknowns"
+    ],
+    "case_profiles": [
+      "two previously mapped addresses, Ghidra ephemeral name edit/readback",
+      "one guaranteed unmapped address, Ghidra negative/false-or-error behavior with signed session cleanup"
+    ],
+    "future_nonce_provision": "owner Android creates fresh independent 128-bit nonce per request immediately before signing",
+    "future_expiration": "6h from owner Android signing UTC; original MCP maximum 24h",
+    "owner_private_key_expected_location": "Existing owner Android Termux key; never share PEM",
+    "existing_authorization_policy_unchanged": true,
+    "requires_owner_exact_sensitive_signature": true,
+    "original_GitHub_encrypted_request_only": true,
+    "no_old_P270_P267_nonce_replayed": true
+  },
+  "offline_quality": {
+    "bash_syntax_pass": true,
+    "isolated_pseudo_tty_owner_review_simulation_pass": true,
+    "ephemeral_test_ed25519_key_used_and_destroyed": true,
+    "two_distinct_test_one_use_nonces_verified": true,
+    "four_independent_ed25519_signatures_verified": true,
+    "private_key_not_in_signed_zip": true,
+    "no_zip_filename_overwrite": true,
+    "all_seven_steps_visible_before_owner_confirm": true,
+    "no_owner_live_signed_requests_created": true,
+    "no_real_MCP_sensitive_tool_calls_this_phase": true,
+    "no_new_certifications": true
+  },
+  "next_operation": "After the owner explicitly reviews and signs exact 2-request P278 batch once in Android, upload only signed ZIP; validate signature and expiry; execute one encrypted request per commit through existing bridge. Compare before/after Evidence against immutable P276 archive and update ledger only after authenticated positive and controlled negative results. If any tool fails, preserve 123 certified.",
+  "hygiene": {
+    "current_live_evidence_last_verified": 13,
+    "current_unknown_last_verified": 1,
+    "original_service_not_restarted": true,
+    "other_projects_untouched": true,
+    "no_library_downloading_assumed": true,
+    "no_plugins_skills_MCP_servers_created": true
+  },
+  "limitations": [
+    "Ready for first safe Ghidra candidate only; other pending tools depend on target/provider/device/session and cannot be pre-signed with unknown arguments.",
+    "This is preparation, not a certification or a real signed owner request; 123/208 remains canonical.",
+    "A negative multi-address operation may return per-address false instead of isError; inspect actual structured MCP return before judging.",
+    "Every future close_binary requires its own exact owner Ed25519 signature; no reuse of earlier signer outputs."
+  ]
+}
