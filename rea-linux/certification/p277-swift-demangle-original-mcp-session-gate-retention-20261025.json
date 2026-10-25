@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "project": "Engenharia Reversa — REA original 208-tool Linux MCP",
+  "phase_id": "LINUX-P277-SWIFT_DEMANGLE_REQUIRES_ACTIVE_SESSION__EVIDENCE_RETENTION_VERIFIED_20261025",
+  "date_utc": "2026-10-25",
+  "status": "BLOCKER_VERIFIED_ORIGINAL_MCP_DEMANGLE_SWIFT_NO_ACTIVE_TARGET__INDEPENDENT_13_EVIDENCE_1_UNKNOWN_SAME_SHA__NO_NEW_CERTIFICATION",
+  "baseline": {
+    "prior_phase": "P276",
+    "historical_certified": 123,
+    "historical_remaining": 85,
+    "sensitive_certified": 15,
+    "sensitive_pending": 68,
+    "workspace_remaining": 17,
+    "read_group_certified": 5
+  },
+  "route": "ChatGPT -> existing Engenharia Reversa Skill -> GitHub Actions -> pinned SSH -> original localhost:8765/mcp, encrypted result",
+  "test": {
+    "original_workflow_id": 40242047320,
+    "workflow_commit": "3724209542529ce3fcf2504f6942a9a4dfb8760e",
+    "original_mcp_catalog": 208,
+    "original_owner_selected_test_profile": "exact isolated illustrative Swift symbol probes; workspace authorization, no sensitive signature",
+    "requested_steps": [
+      "get_evidence_bundle",
+      "list_unknowns",
+      "demangle_swift",
+      "demangle_swift",
+      "get_evidence_bundle",
+      "list_unknowns"
+    ],
+    "total_requested": 6,
+    "steps_executed": 3,
+    "first_2_read_isError_false": true,
+    "demangle_swift_isError": true,
+    "original_error_code": "target_unavailable",
+    "original_error_category": "unavailable",
+    "original_remediation": "No app is open; open an authorized local binary before demangle_swift.",
+    "original_tool_result_sha256": "ae12bd65444c7098e833b4111282d19402bb152177661c758a4db91e6e47b1c3",
+    "encrypted_result_artifact_id": 12617089229,
+    "request_response_hash_verified": true,
+    "encrypted_return_authenticated_AES_256_GCM": true,
+    "did_not_attempt_again_after_nonce_consumed": true,
+    "not_declared_certified": true
+  },
+  "root_cause_supported_by_original_source": {
+    "binary_session_execution_file": "rea/src/application/binary/BinarySessionExecution.ts",
+    "source_blob_sha": "73dfe4eeae492978100fd847e6363508320458a5",
+    "behavior": "prepareSessionExecution() returns NoBinaryOpenError if active binding absent, before testing provider capability.",
+    "original_tool_contract_file": "rea/src/contracts/native/nativeToolContracts.ts",
+    "notes": "Contract says no Hopper dependency, but session-target admission still applies. A user-signed controlled open_binary/close_binary is needed to assess actual provider support; do not claim Swift demangler unavailable from this test."
+  },
+  "retention": {
+    "initial_13_record_bundle_equals_verified_private_P276_backup": true,
+    "independent_followup_run_id": 40242302635,
+    "independent_followup_job_id": 121316509596,
+    "independent_followup_artifact_id": 12615984880,
+    "independent_followup_read_steps": [
+      "get_evidence_bundle",
+      "list_unknowns"
+    ],
+    "independent_followup_isError_all_false": true,
+    "request_and_result_cryptographic_binding": true,
+    "old_and_new_13_records_deep_equal": true,
+    "unknown_revisions_unchanged": true,
+    "evidence_count": 13,
+    "unknown_count": 1,
+    "unchanged_13_bundle_semantic_sha256": "98655f7309a8fe941e2c5687b331511942086ab57ecf63dc26c1877c2f7b201c",
+    "original_P261_11_evidence_preserved": true,
+    "original_private_P276_checkpoint": "engenharia reversa/REA_P276_Evidence_13_Backup_Verificado.zip"
+  },
+  "next_canonical_scope": {
+    "ghidra_available_controlled_fixture": "/usr/bin/true",
+    "ghidra_provider_supported_new_sensitive": "set_addresses_names",
+    "ghidra_capabilities_source": "rea/src/ghidra/GhidraInventoryValues.ts / GHIDRA_NAMING_OPERATIONS",
+    "ghidra_names_positive_control_mapped_addresses": [
+      "0x101480",
+      "0x101260"
+    ],
+    "ghidra_names_negative_control": "0xffffffffffffffff",
+    "exact_new_owner_Ed25519_required_for_names_write_and_signed_close": true,
+    "other_sensitive_provider_targets_not_fabricated": true,
+    "owner_key_not_requested_or_exported": true,
+    "next_task": "Prepare a single offline-reviewed signed batch for set_addresses_names Ghidra mapped+unmapped cases, with one signed close in each fixed session. Post-verify independent 13 Evidence and Unknown baseline; do not reuse P270 nonce or signatures.",
+    "no_new_certifications": 0
+  },
+  "hygiene": {
+    "consumed_one_use_encrypted_requests_deleted": true,
+    "prior_reports_and_artifacts_retained": true,
+    "no_private_owner_key_shared": true,
+    "no_original_REA_code_changed": true,
+    "no_restart": true,
+    "no_plugins_skills_mcp_servers_created": true,
+    "no_other_projects_touched": true
+  },
+  "limitations": [
+    "Demangle Swift is not certified. Exact failure is missing active binary, not proven absence of swift-demangle toolchain.",
+    "Provider capabilities and workflow opportunities remain limited to actual configured Linux suppliers. Do not count 17 workspace and 68 sensitive pending as completed.",
+    "The first request stopped after step 3 by design, so independent follow-up readback was executed and authenticated.",
+    "The earlier 11-record semantic hash remains the historical subset, while the live 13-record bundle has its different canonical hash."
+  ]
+}
