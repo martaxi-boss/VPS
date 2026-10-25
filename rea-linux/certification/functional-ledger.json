@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "P276_ORIGINAL_REA_123_OF_208__TWO_P270_SENSITIVE_GHIDRA_CERTIFICATIONS__13_EVIDENCE_ONE_UNKNOWN_INDEPENDENTLY_VERIFIED__85_PENDING",
+  "status": "P277_ORIGINAL_REA_123_OF_208__SWIFT_SESSION_GATE_VERIFIED__13_EVIDENCE_1_UNKNOWN_SHA_UNCHANGED__85_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -8120,6 +8120,36 @@
       "original_service_restarted": false,
       "report": "rea-linux/certification/p276-p270-four-signed-sensitives-two-scoped-certifications-13-evidence-20261025.json",
       "remaining_scope_note": "85 remain (68 sensitive plus 17 other), signed authorization required per future sensitive operation."
+    },
+    {
+      "phase_id": "LINUX-P277-SWIFT_DEMANGLE_REQUIRES_ACTIVE_SESSION__EVIDENCE_RETENTION_VERIFIED_20261025",
+      "date_utc": "2026-10-25",
+      "status": "SIGNED_WORKSPACE_NONDESTRUCTIVE_TEST_REACHED_ORIGINAL_MCP__DEMANGLE_SWIFT_ISERROR_TARGET_UNAVAILABLE_NO_OPEN_BINARY__INDEPENDENT_13_EVIDENCE_UNCHANGED",
+      "new_certifications": 0,
+      "tools": [],
+      "original_mcp_attempted": [
+        "get_evidence_bundle",
+        "list_unknowns",
+        "demangle_swift"
+      ],
+      "intended_read_and_post_steps": 6,
+      "executed_before_isError": 3,
+      "denied_tool": "demangle_swift",
+      "denied_error_code": "target_unavailable",
+      "owner_sensitive_ED25519_signature_required_for_future_binary_close": true,
+      "run_id": 40242047320,
+      "job_id": 121315729968,
+      "independent_followup_run": 40242302635,
+      "independent_followup_job": 121316509596,
+      "old_and_new_evidence_count": 13,
+      "unknown_count": 1,
+      "canonical_sha256": "98655f7309a8fe941e2c5687b331511942086ab57ecf63dc26c1877c2f7b201c",
+      "report": "rea-linux/certification/p277-swift-demangle-original-mcp-session-gate-retention-20261025.json",
+      "limitations": [
+        "No open binary in this original REA session; demangle_swift cannot be certified. No provider absence inferred.",
+        "Original service and 123 certifications untouched.",
+        "Next controlled Ghidra candidate is set_addresses_names; any sensitive write and close need new exact Ed25519."
+      ]
     }
   ],
   "active_scope_counts": {
@@ -8164,7 +8194,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P276-P270-FOUR-SIGNED-GHIDRA-REAL-MCP-TESTS-TWO-SENSITIVE-CERTIFICATIONS-20261025",
+  "latest_phase": "LINUX-P277-SWIFT_DEMANGLE_REQUIRES_ACTIVE_SESSION__EVIDENCE_RETENTION_VERIFIED_20261025",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -11354,6 +11384,19 @@
       "checkpoint_verified_offline": true,
       "checkpoint_import_restore_tested": false,
       "next": "Continue to 85 remaining without repeating 123; preflight providers and dynamic targets, prepare one-reviewed exact Ed25519 batches, verify evidence after each."
+    },
+    "p277_swift_session_readback": {
+      "status": "BLOCKED_AS_DESIGNED_BY_ORIGINAL_NO_BINARY_OPEN__P276_EVIDENCE_VERIFIED",
+      "run_id": 40242047320,
+      "independent_readback_run_id": 40242302635,
+      "certified_count_unchanged": 123,
+      "remaining_full_certifications": 85,
+      "demangle_swift_status": "NOT_CERTIFIED_TARGET_UNAVAILABLE",
+      "original_session_source": "rea/src/application/binary/BinarySessionExecution.ts",
+      "original_13_evidence_and_1_unknown_sha": "98655f7309a8fe941e2c5687b331511942086ab57ecf63dc26c1877c2f7b201c",
+      "next_ready_ghidra_sensitive_candidate": "set_addresses_names",
+      "next_operation_requires_exact_owner_confirmation": true,
+      "report": "rea-linux/certification/p277-swift-demangle-original-mcp-session-gate-retention-20261025.json"
     }
   }
 }
