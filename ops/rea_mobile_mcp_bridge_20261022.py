@@ -127,7 +127,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_public_runtime_input_p248", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_public_runtime_input_p248", "fixture_linux_validate_runtime_p248", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -250,6 +250,9 @@ def encrypt_result(raw_path, request_path, envelope_path):
     allowed_markers = {
         "REA_P248_RUNTIME_INPUT_STATUS", "REA_P248_RUNTIME_INPUT_JSON_SHA256",
         "REA_P248_RUNTIME_INPUT_JSON_BYTES", "REA_P248_RUNTIME_INPUT_EXIT",
+        "REA_P248_RUNTIME_NATIVE_EXIT", "REA_P248_RUNTIME_POSITIVE_STATUS",
+        "REA_P248_RUNTIME_NEGATIVE_STATUS", "REA_P248_RUNTIME_NEGATIVE_CLASS",
+        "REA_P248_RUNTIME_NO_PERMANENT_MCP_MUTATION",
         "REA_MOBILE_LOOPBACK_MCP", "REA_MOBILE_MCP_TOOL_COUNT",
         "REA_MOBILE_READONLY_HINT_COUNT", "REA_MOBILE_STATIC_INSPECT_COUNT",
         "REA_MOBILE_SAFE_QUERY_COUNT", "REA_MOBILE_SAFE_CALLABLE_COUNT",
@@ -663,6 +666,65 @@ def main():
     print("REA_MOBILE_CATALOG_SAMPLE=" + json.dumps(
         list(tool_by_name)[:14], ensure_ascii=True
     ))
+    if data["action"] == "fixture_linux_validate_runtime_p248":
+        # Original statically executed source function, no tool calls to
+        # permanent MCP and absolutely no session/Evidence mutations.
+        root=Path.home()/".local/share/rea-chatgpt-trial/repository/rea"
+        commit=subprocess.run(["git","-C",str(root),"rev-parse","HEAD"],
+            capture_output=True,text=True,timeout=12,check=False)
+        status=subprocess.run(["git","-C",str(root),"status","--porcelain"],
+            capture_output=True,text=True,timeout=12,check=False)
+        if (commit.returncode or status.returncode or status.stdout.strip()
+            or commit.stdout.strip()!="8e9a7ee295667f8e23aea9d18af6eee4363d2032"):
+            print("REA_P248_RUNTIME_POSITIVE_STATUS=FAIL_SOURCE_PROVENANCE")
+            return
+        src=(
+         "import {JAVASCRIPT_RUNTIME_RECONCILIATION_EXAMPLE as v} from"
+         " './src/contracts/javascript/javascriptRuntimeReconciliationExample.ts';"
+         "import {reconcileJavaScriptRuntimeEvidence as evaluate} from"
+         " './src/application/javascript/JavaScriptRuntimeReconciliationService.ts';"
+         "const good=evaluate(v);"
+         "const bad=structuredClone(v);"
+         "bad.static_layers[0].analysis.evidence_id='ev_'+('0'.repeat(64));"
+         "const refusal=evaluate(bad);"
+         "process.stdout.write(JSON.stringify({"
+         "positive:good.ok,negative:!refusal.ok,"
+         "positive_operation:good.ok?good.value.operation:null,"
+         "positive_evidence_id:good.ok?good.value.evidence_id:null,"
+         "negative_error_name:refusal.ok?null:refusal.error.constructor.name,"
+         "static_layers:v.static_layers.length,"
+         "runtime_observations:v.runtime_observations.length"
+         "}));"
+        )
+        try:
+            proc=subprocess.run(["node","--import","tsx","--input-type=module",
+                "-e",src],capture_output=True,text=True,timeout=70,check=False,
+                cwd=str(root),env={**os.environ,"CI":"true","NO_COLOR":"1"})
+        except subprocess.TimeoutExpired:
+            print("REA_P248_RUNTIME_POSITIVE_STATUS=FAIL_TIMEOUT")
+            return
+        print("REA_P248_RUNTIME_NATIVE_EXIT="+str(proc.returncode))
+        if proc.returncode:
+            print("REA_P248_RUNTIME_POSITIVE_STATUS=FAIL_IMPORT")
+            return
+        try:
+            tested=json.loads(proc.stdout)
+        except (ValueError,TypeError):
+            print("REA_P248_RUNTIME_POSITIVE_STATUS=FAIL_JSON")
+            return
+        good=(tested.get("positive") is True and
+              tested.get("positive_operation")=="reconcile_javascript_runtime" and
+              tested.get("static_layers")==1 and
+              tested.get("runtime_observations")==1 and
+              isinstance(tested.get("positive_evidence_id"),str) and
+              re.fullmatch(r"ev_[a-f0-9]{64}",tested["positive_evidence_id"]))
+        negative=tested.get("negative") is True
+        print("REA_P248_RUNTIME_POSITIVE_STATUS="+("PASS" if good else "FAIL"))
+        print("REA_P248_RUNTIME_NEGATIVE_STATUS="+("PASS" if negative else "FAIL"))
+        print("REA_P248_RUNTIME_NEGATIVE_CLASS="+re.sub(
+            r"[^A-Za-z0-9_]","",str(tested.get("negative_error_name")))[:80])
+        print("REA_P248_RUNTIME_NO_PERMANENT_MCP_MUTATION=PASS")
+        return
     if data["action"] == "fixture_linux_public_runtime_input_p248":
         # Export only the PUBLIC committed original REA example, never session
         # Evidence or a customer's script. No tools/call or network endpoint.
