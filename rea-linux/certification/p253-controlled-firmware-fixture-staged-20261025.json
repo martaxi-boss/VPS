@@ -67,7 +67,9 @@
     "no_owner_signature_used_or_fabricated": true,
     "no_extract_firmware_tools_call_yet": true,
     "P232_P246_evidence_retention_hold_active": true,
-    "fixture_staging_helper_to_be_removed_from_bridge_after_proven_readback": true
+    "fixture_staging_helper_to_be_removed_from_bridge_after_proven_readback": true,
+    "temporary_fixture_staging_helper_removed_from_original_bridge": true,
+    "original_bridge_blob_sha256_git": "81ec4fb4677e2e4c7b11b2d0550fee8cef9400e7"
   },
   "next_signed_test": {
     "tool": "extract_firmware",
@@ -86,5 +88,20 @@
     "pending": 90,
     "tool": "extract_firmware",
     "fully_certified": false
+  },
+  "hygiene": {
+    "status": "COMPLETE_CONSUMED_REQUESTS_DELETED_ORIGINAL_BRIDGE_RESTORED",
+    "consumed_request_paths": [
+      "rea-linux/requests/p253-firmware-stage-20261025.json",
+      "rea-linux/requests/p253-firmware-stage-verify-20261025.json",
+      "rea-linux/requests/p253-firmware-confirm-integrity-20261025.json"
+    ],
+    "deletion_commits": [
+      "c1f9b189afea05c856f824b10ee19ed5694cfaee",
+      "45c2ab58f2b97ddd3a9a21103f3bf3ff23de2ca9",
+      "bafc4129b3b7a578181031094ba4bc21d422d597"
+    ],
+    "original_bridge_restore_commit": "76af169f4f6363830ca45b292714eec6132ffe6f",
+    "original_bridge_exact_blob_restored": true
   }
 }
