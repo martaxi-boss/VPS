@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_retention_p242", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -259,6 +259,26 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_LINUX_READ5_NODE_PRESENT", "REA_LINUX_READ5_REGRESSION",
         "REA_LINUX_READ5_EXIT_CODE", "REA_LINUX_READ5_TEST_OUTPUT_SHA256",
         "REA_LINUX_READ5_TEST_NAME", "REA_LINUX_READ5_TEST_DIAGNOSTIC",
+        "REA_P242_STATUS",
+        "REA_P242_STAGED_HEAD",
+        "REA_P242_INSTALLED_HEAD",
+        "REA_P242_SERVICE_ACTIVE",
+        "REA_P242_SERVICE_USER_OK",
+        "REA_P242_EXEC_PREFIX",
+        "REA_P242_SOURCE_MATCHES",
+        "REA_P242_SOURCE_TOTAL",
+        "REA_P242_DIST_MATCHES",
+        "REA_P242_DIST_TOTAL",
+        "REA_P242_FILE_01",
+        "REA_P242_FILE_02",
+        "REA_P242_FILE_03",
+        "REA_P242_FILE_04",
+        "REA_P242_FILE_05",
+        "REA_P242_FILE_06",
+        "REA_P242_FILE_07",
+        "REA_P242_FILE_08",
+        "REA_P242_FILE_09",
+        "REA_P242_FILE_10",
         "REA_LINUX_GDB_CONFORMANCE_SOURCE", "REA_LINUX_GDB_CONFORMANCE_COUNT",
         "REA_LINUX_GDB_CONFORMANCE_STATUS", "REA_LINUX_GDB_CONFORMANCE_WORKTREE",
         "REA_LINUX_GDB_MANAGER_EXIT", "REA_LINUX_GDB_MANAGER_RESULT",
@@ -1145,6 +1165,84 @@ def main():
         print("REA_LINUX_READ5_MCP_PASS_COUNT=" + str(pass_count))
         print("REA_LINUX_READ5_MCP_BOUNDARIES=" +
               ("PASS_ISOLATED_MCP_NOT_PRODUCTION" if pass_count == 4 and intact else "INCOMPLETE"))
+        return
+    if data["action"] == "fixture_linux_retention_p242":
+        # P242: bounded read-only fingerprints of specific REA files ONLY.
+        # Never restart service, touch current Evidence or print process secrets.
+        source = Path.home() / ".local/share/rea-chatgpt-trial/repository/rea"
+        installed = Path("/opt/rea-reversa/rea")
+        if not source.is_dir() or not installed.is_dir():
+            print("REA_P242_STATUS=BLOCKED_ORIGINAL_PATH_MISSING")
+            return
+        def revision(root):
+            p=subprocess.run(["git","-C",str(root),"rev-parse","HEAD"],
+                capture_output=True,text=True,timeout=10,check=False)
+            return p.stdout.strip() if p.returncode==0 else "UNAVAILABLE"
+        staged_head = revision(source)
+        installed_head = revision(installed)
+        print("REA_P242_STAGED_HEAD=" + staged_head[:40])
+        print("REA_P242_INSTALLED_HEAD=" + installed_head[:40])
+        if staged_head != "8e9a7ee295667f8e23aea9d18af6eee4363d2032":
+            print("REA_P242_STATUS=BLOCKED_STAGED_REVISION_PIN")
+            return
+        def property_value(key):
+            p=subprocess.run(["systemctl","show","rea-reversa-mcp.service",
+                              "-p",key,"--value"],
+                capture_output=True,text=True,timeout=10,check=False)
+            return p.stdout.strip() if p.returncode==0 else ""
+        print("REA_P242_SERVICE_ACTIVE=" +
+              ("PASS" if property_value("ActiveState")=="active" else "FAIL"))
+        print("REA_P242_SERVICE_USER_OK=" +
+              ("PASS" if property_value("User")=="rea-reversa" else "FAIL"))
+        print("REA_P242_EXEC_PREFIX=" +
+              ("PASS" if "/opt/rea-reversa/rea" in property_value("ExecStart") else "UNCONFIRMED"))
+        file_list=[
+            ("src/application/binary/BinarySession.ts","SOURCE"),
+            ("src/application/binary/BinarySessionRecords.ts","SOURCE"),
+            ("src/domain/evidenceBundle.ts","SOURCE"),
+            ("src/domain/residualUnknown.ts","SOURCE"),
+            ("src/application/investigation/InvestigationRecords.ts","SOURCE"),
+            ("src/contracts/sessionToolContracts.ts","SOURCE"),
+            ("dist/application/binary/BinarySession.js","DIST"),
+            ("dist/application/binary/BinarySessionRecords.js","DIST"),
+            ("dist/domain/evidenceBundle.js","DIST"),
+            ("dist/application/investigation/InvestigationRecords.js","DIST"),
+        ]
+        def file_hash(root, relative):
+            f=root/relative
+            if f.is_symlink():
+                return "SYMLINK"
+            if not f.is_file():
+                return "ABSENT"
+            st=f.stat()
+            if st.st_size <= 0 or st.st_size>2000000:
+                return "SIZE_INVALID"
+            return hashlib.sha256(f.read_bytes()).hexdigest()
+        source_match=dist_match=0
+        source_total=dist_total=0
+        for index,(name,kind) in enumerate(file_list,1):
+            a=file_hash(source,name)
+            b=file_hash(installed,name)
+            match=len(a)==64 and len(b)==64 and a==b
+            if kind=="SOURCE":
+                source_total+=1
+                source_match+=int(match)
+            else:
+                dist_total+=1
+                dist_match+=int(match)
+            # Fixed names/filenames and SHA digests only. No source bytes.
+            key="REA_P242_FILE_"+str(index).zfill(2)
+            print(key+"="+name+"|staged="+a+"|installed="+b+
+                  "|comparison="+("MATCH" if match else "NOT_MATCHED"))
+        print("REA_P242_SOURCE_MATCHES="+str(source_match))
+        print("REA_P242_SOURCE_TOTAL="+str(source_total))
+        print("REA_P242_DIST_MATCHES="+str(dist_match))
+        print("REA_P242_DIST_TOTAL="+str(dist_total))
+        status=("PASS_SOURCE_AND_DIST_PARITY" if
+                source_match==source_total and dist_match==dist_total
+                else ("PASS_SOURCE_ONLY_DIST_UNPROVEN" if source_match==source_total
+                      else "BLOCKED_SOURCE_PARITY"))
+        print("REA_P242_STATUS="+status)
         return
     if data["action"] == "fixture_linux_read5_regression":
         # Run existing original REA test using an isolated in-memory ledger,
