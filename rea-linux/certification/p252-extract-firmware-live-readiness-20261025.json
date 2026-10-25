@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "project": "Engenharia Reversa — motor REA original / VPS Linux",
+  "phase_id": "P252-EXTRACT-FIRMWARE-LIVE-READINESS-20261025",
+  "date_utc": "2026-10-25",
+  "status": "ORIGINAL_LINUX_PROVIDER_PRESENT_AND_TOOL_DESCRIBED__POSITIVE_MCP_EXTRACTION_NOT_YET_TESTED__NO_NEW_CERTIFICATION",
+  "target_tool": "extract_firmware",
+  "risk": "sensitive",
+  "evidence": {
+    "original_live_descriptor": {
+      "run_id": 40213273134,
+      "job_id": 121228888572,
+      "commit": "ac8bdecef6f70f31bb7be087731e364440de1c4e",
+      "conclusion": "success",
+      "ssh_host_pin": "PASS",
+      "mcp_loopback": "PASS",
+      "tool_count": 208,
+      "tool_descriptor_sha256": "9a6f7a70f461a823c14f4d7c25b6024036758d57b3402f9feaf79c05a8365dce",
+      "required_arguments": [
+        "path",
+        "output_directory"
+      ],
+      "optional_arguments": [
+        "range",
+        "max_depth",
+        "max_output_bytes",
+        "max_output_files"
+      ],
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": false
+      }
+    },
+    "actual_service_doctor": {
+      "run_id": 40213343117,
+      "job_id": 121229092482,
+      "commit": "00b5aa76c16c1eedacdc2dbf8d0816a3ca18cb54",
+      "conclusion": "success",
+      "service_user": "rea-reversa",
+      "ssh_host_pin": "PASS",
+      "mcp_loopback": "PASS",
+      "tool_count": 208,
+      "binwalk_executable_present": true,
+      "unblob_executable_present": true,
+      "binwalk_path_environment_configured": true,
+      "unblob_path_environment_configured": true,
+      "overall_doctor_healthy": false,
+      "overall_doctor_environment_healthy": false,
+      "doctor_exit": 1,
+      "available_configured_providers": [
+        "ghidra",
+        "jadx",
+        "kuna"
+      ],
+      "ida_provider": "unavailable_unconfigured",
+      "provider_readiness_claim": "binary path existence only; not yet a successful firmware extraction"
+    },
+    "unblob_version_probe": {
+      "run_id": 40213477453,
+      "job_id": 121229507804,
+      "commit": "edb2852d8d965b9595f5d6d3bf44983c482c1fe3",
+      "conclusion": "success",
+      "unblob_already_installed": true,
+      "unblob_status": "PASS_PERSISTENT_LINUX",
+      "no_provider_reinstall": true
+    },
+    "source_contract": {
+      "repo": "martaxi-boss/Engenheira-reversa",
+      "branch": "main",
+      "contract_path": "rea/src/contracts/firmware/firmwareToolContracts.ts",
+      "contract_blob_sha": "00b1e373b3ecf956db7f772c8c7261a6fcf80b76",
+      "input_path": "rea/src/domain/firmware/firmwareAnalysis.ts",
+      "input_blob_sha": "852f380cd426ccd7ac5fcc42a201593f6df8a9b6",
+      "requires": "real local absolute input path and new absent output_directory, optional explicit bytes range",
+      "scope": "Unblob 26.6.x verified with 26.6.4, Linux, util-linux prlimit, no mounts or extracted-code execution"
+    }
+  },
+  "constraints": [
+    "No genuine public firmware archive file has yet been demonstrated at a stable original-VPS MCP-accessible approved path for this specific signed test.",
+    "Tool is sensitive per original unchanged policy and requires a new exact Ed25519 owner signature, not P250/P249 signatures.",
+    "No positive extract_firmware tools/call yet, and no new certification; no synthetic stand-in or catalogue-only claim.",
+    "Overall doctor reports unhealthy environment, despite Unblob binary being installed and runnable; availability of every provider not implied.",
+    "P232/P246 lifetime hold remains in force: no open_binary/close_binary/restart or Evidence deletion."
+  ],
+  "canonical": {
+    "fully_certified": 118,
+    "pending": 90,
+    "latest_fully_certified_phase": "LINUX-P249-SIGNED-IMPORT-MANAGED-RECONSTRUCTION-ORIGINAL-MCP-20261025"
+  },
+  "hygiene": {
+    "temporary_requests": [
+      "rea-linux/requests/p252-describe-extract-firmware-20261025.json",
+      "rea-linux/requests/p252-service-provider-readiness-20261025.json",
+      "rea-linux/requests/p252-unblob-version-20261025.json"
+    ],
+    "status": "PENDING_EXACT_REQUEST_DELETION"
+  },
+  "next_gate": "Stage and attest one source-owned, bounded Unblob-compatible firmware archive at an approved original-MCP-accessible path without restarting or closing REA, then request exact one-use owner signature for extract_firmware and verify results plus intact nine Evidence before ledger increment."
+}
