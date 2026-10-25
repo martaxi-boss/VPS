@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "P263_CANONICAL_121_CERTIFIED_SCOPED__ORIGINAL_LIVE_11_BACKUP_AND_INSTALLED_CLI_VALIDATION_PASS__OWNER_ED25519_RESTORE_GATE",
+  "status": "P264_CANONICAL_121_CERTIFIED__PRIVATE_ORIGINAL_6_7_0_RELEASE_READY__OWNER_SIGNED_RESTORE_REQUIRED",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -7788,6 +7788,33 @@
         "Original installed CLI validation of the backup does not modify or verify live MCP restore.",
         "Historical scoped certifications remain 121, with 42 binary-session-dependent tools held."
       ]
+    },
+    {
+      "phase_id": "LINUX-P264-COMPILED-ORIGINAL-REA-SOURCE-PRIVATE-LIBRARY-READY-20261025",
+      "date_utc": "2026-10-25",
+      "status": "ORIGINAL_6_7_0_COMPILED_BUILD_PASS_SOURCE_ONLY_PRIVATE_LIBRARY_COPY_VERIFIED_GATE_OWNER_ED25519_P263_PENDING",
+      "tools": [],
+      "new_certifications": 0,
+      "fully_certified_total": 121,
+      "pending": 87,
+      "read_group_fully_certified_total": 5,
+      "proof": {
+        "source_ci_run_id": 40232767297,
+        "private_tar_sha256": "1bb99b70f4d2e45dc8ef70fdef507553f78a8a8fef78f4830a320bdc84b1ed98",
+        "tar_members": 1927,
+        "original_test_count": 159,
+        "production_sha256": [
+          "06194e106c791c652f5eaed5c1d5327cacff9f9f4491156e43a75baecfbf4f17",
+          "cfa157e47e030ea945b80b5ee5e88a651fb03f35f6f882b4cb1f28ee79f4af69",
+          "3ab3bee473a77ed4d52cc530e92c5df28e8da9deb61e925cb59c8271ca5ec907"
+        ],
+        "report": "rea-linux/certification/p264-source-runtime-compiled-private-candidate-owner-gate-20261025.json"
+      },
+      "limitations": [
+        "Compiled artifact is not yet active original Linux service. No claims of unconditional 121 tool operability.",
+        "The owner must produce fresh per-operation Ed25519 signature for exact original sensitive import before the carefully gated restart and 11/1 Evidence restore.",
+        "P232/P246 remains active for 42 historical tools pending safe rollout and positive live readback."
+      ]
     }
   ],
   "active_scope_counts": {
@@ -7832,7 +7859,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P263-ORIGINAL-CLI-RECORDS-RECOVERY-VALIDATED-OWNER-GATE-20261025",
+  "latest_phase": "LINUX-P264-COMPILED-ORIGINAL-REA-SOURCE-PRIVATE-LIBRARY-READY-20261025",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -10678,7 +10705,30 @@
       "P232_P246_hold_active": true,
       "source_only_policy_two_legacy_sensitive_tools_test_run_id": 40231576542,
       "original_bridge_restored_exact_sha": "81ec4fb4677e2e4c7b11b2d0550fee8cef9400e7",
-      "report": "rea-linux/certification/p263-original-vps-archive-validated-owner-import-gate-canonical-20261025.json"
+      "report": "rea-linux/certification/p263-original-vps-archive-validated-owner-import-gate-canonical-20261025.json",
+      "compiled_release_candidate_prepared": true,
+      "compiled_release_tar_sha256": "1bb99b70f4d2e45dc8ef70fdef507553f78a8a8fef78f4830a320bdc84b1ed98"
+    },
+    "p264_verified_compiled_release": {
+      "phase": "P264",
+      "status": "PRODUCTION_ORIGINAL_SOURCE_COMPILED_AND_PRIVATELY_ARCHIVED__NOT_ACTIVATED",
+      "original_version": "6.7.0",
+      "source_ci_build_run_id": 40232767297,
+      "source_staging_commit": "9c18892dddd0762deb199643709ec88a096bd2c7",
+      "fixed_dist_tar_sha256": "1bb99b70f4d2e45dc8ef70fdef507553f78a8a8fef78f4830a320bdc84b1ed98",
+      "dist_members": 1927,
+      "private_Library_path": "engenharia reversa/REA_P264_REA_6_7_0_Candidato_Compilado_SHA1bb99b70.tar.gz",
+      "private_Library_download_roundtrip_verified": true,
+      "owner_ED25519_signed_import_received": false,
+      "owner_sensitive_import_tool": "import_evidence_bundle",
+      "owner_sensitive_import_path": "/opt/rea-reversa/rea/.rea-private/p262-live-evidence-11-8b17734c.json",
+      "production_code_deployed": false,
+      "original_REA_restart_performed": false,
+      "old_bridge_restored": true,
+      "live_checkpoint_records": 11,
+      "live_checkpoint_unknowns": 1,
+      "P232_P246_hold_active": true,
+      "report": "rea-linux/certification/p264-source-runtime-compiled-private-candidate-owner-gate-20261025.json"
     }
   }
 }
