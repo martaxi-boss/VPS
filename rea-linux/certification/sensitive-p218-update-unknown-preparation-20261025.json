@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "project": "REA original — Engenharia Reversa",
+  "phase_id": "LINUX-P218-UPDATE-UNKNOWN-READINESS-20261025",
+  "date_utc": "2026-10-25",
+  "status": "LIVE_MCP_DESCRIBE_PASS__OWNER_ED25519_SIGNER_PREPARED__FUNCTIONAL_TEST_NOT_EXECUTED",
+  "baseline_and_reconciliation": {
+    "primary_ledger": "rea-linux/certification/functional-ledger.json",
+    "primary_ledger_blob": "345af47ebd014ee81b92624504329a97c4484662",
+    "primary_ledger_certified": 114,
+    "primary_ledger_pending": 94,
+    "p217_certified_proof": "rea-linux/certification/sensitive-p217-record-unknown-certified-20261025.json",
+    "p217_reconciliation": "rea-linux/certification/sensitive-p217-pending-ledger-reconciliation-20261025.json",
+    "effective_verified_certifications": 115,
+    "effective_pending": 93,
+    "effective_sensitive_certified": 9,
+    "effective_sensitive_pending": 74,
+    "note": "P217 was executed, cryptographically proven and source evidence retained, but the ~475K-character original ledger update_file write was blocked by security checks. Do not repeat P217 or pretend the primary ledger has been updated."
+  },
+  "tool": "update_unknown",
+  "live_original_mcp_descriptor": {
+    "github_actions_run_id": 40183573862,
+    "job_id": 121139531744,
+    "request_commit": "d59c01fb2430761e83165cc4c9164f1edd277bd0",
+    "mcp_catalog_count": 208,
+    "loopback_mcp": "PASS",
+    "workflow_conclusion": "success",
+    "descriptor_sha256": "04abdb4f01a3d69a8e901a132739a89ee3c469a45bac48af2c1e9493c708ca77",
+    "schema_required": [
+      "unknown_id",
+      "expected_revision",
+      "status",
+      "severity",
+      "supporting_evidence_ids",
+      "contradicting_evidence_ids",
+      "required_authority",
+      "required_confidence",
+      "required_environment",
+      "recommended_probes",
+      "relationships",
+      "resolution"
+    ],
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "descriptor_request_deleted_commit": "fc78df118b5358a633b144ce212bb374fceec598"
+  },
+  "owner_approved_target": {
+    "unknown_id": "unk_83470d409b1de94724284543af4f1db77f71da800bd2b6ee259b22e9a67c3952",
+    "current_expected_revision": 1,
+    "current_expected_status": "open",
+    "question": "Existe um endpoint CDP de navegador local explicitamente autorizado e operacional para certificar list_browser_targets no motor REA original?",
+    "source_p217_run": 40182623467,
+    "source_p217_evidence_id": "ev_45782da3709470ea8fc37a64a71e1221b7cf148626b3ce5b782e8a663c551aba",
+    "postcheck_previous_records": 7
+  },
+  "next_batch": {
+    "offline_signer": "rea-linux/owner/sign_update_unknown_p218_android.py",
+    "offline_signer_blob": "dec2a7cedfc582c9be51f3e7c86b56070ab8df65",
+    "offline_signer_commit": "39d7ad0848e15acf2906f3de268cb9a03677cd94",
+    "offline_signed_json_format": "rea-p218-pedido-<nonce>.json",
+    "signer_python_compile_not_proven_locally": "Termux command must run python -m py_compile before signing",
+    "owner_public_fingerprint_sha256_der": "99580a4806703661ca38f75a3cb95e47d46e32228cf89d5aa7ab55e95a4e25b4",
+    "private_key_remains_android": true,
+    "per_step_own_authorization": "AUTORIZO_OPERACAO_SENSIVEL",
+    "signature_validity_minutes": 45,
+    "step_count": 2,
+    "positive": {
+      "tool": "update_unknown",
+      "status": "investigating",
+      "expected_revision": 1,
+      "expected_new_revision": 2,
+      "metadata": {
+        "severity": "low",
+        "required_authority": "controlled-replay",
+        "required_confidence": "observed",
+        "required_environment": null,
+        "resolution": null
+      },
+      "expected": "MCP isError false; one new revision and one Evidence mutation, no other projects or binary sessions modified"
+    },
+    "negative": {
+      "tool": "update_unknown",
+      "identical_arguments": true,
+      "expected_revision": 1,
+      "expected": "MCP isError true revision-conflict after successful first call; zero additional Evidence"
+    }
+  },
+  "strict_execution_conditions": [
+    "Verify signed JSON tool, two independent owner signatures, argument hashes, validity, and exact unknown_id against current state.",
+    "Use only original REA MCP over existing encrypted GitHub Actions SSH bridge; no new engines or plugins.",
+    "If the unknown was updated concurrently, fail closed without claiming certification or changing unrelated records.",
+    "Verify postcheck retains the six historical evidence records plus P217 original record and exactly one P218 mutation (expected 8 Evidence total, unknown revision 2).",
+    "Delete only consumed encrypted requests and ephemeral response keys; preserve all source Evidence, owner Android private key, original bridge/workflow/policy."
+  ],
+  "no_new_tool_certification_this_phase": true
+}
