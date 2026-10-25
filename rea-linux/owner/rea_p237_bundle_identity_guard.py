@@ -32,20 +32,43 @@ class PreservationFailure(ValueError):
     """Fail-closed input or Evidence/Unknown preservation violation."""
 
 
+def _unique_json_keys(pairs):
+    data = {}
+    for key, value in pairs:
+        if key in data:
+            raise PreservationFailure('duplicate JSON object key')
+        data[key] = value
+    return data
+
+
+def _reject_nonfinite(value):
+    raise PreservationFailure('nonfinite JSON numeric constant: ' + value)
+
+
 def _load(path):
     p = Path(path)
+    # Inspect and read the *same opened file descriptor*: no symlink-following
+    # after lstat, and no unbounded reads if the file grows concurrently.
     try:
-        info = p.lstat()
-        if not stat.S_ISREG(info.st_mode) or stat.S_ISLNK(info.st_mode):
-            raise PreservationFailure('bundle must be a regular non-symlink file')
-        if info.st_size == 0 or info.st_size > MAX_BYTES:
-            raise PreservationFailure('invalid or oversized bundle')
-        if info.st_mode & 0o077:
-            raise PreservationFailure('bundle must be private (mode 0600 or stricter)')
-        raw = p.read_bytes()
-        if len(raw) != info.st_size:
+        flags = os.O_RDONLY | getattr(os, 'O_CLOEXEC', 0) | getattr(os, 'O_NOFOLLOW', 0)
+        with os.fdopen(os.open(p, flags), 'rb') as stream:
+            info = os.fstat(stream.fileno())
+            if not stat.S_ISREG(info.st_mode):
+                raise PreservationFailure('bundle must be a regular non-symlink file')
+            if info.st_size == 0 or info.st_size > MAX_BYTES:
+                raise PreservationFailure('invalid or oversized bundle')
+            if info.st_mode & 0o077:
+                raise PreservationFailure('bundle must be private (mode 0600 or stricter)')
+            raw = stream.read(MAX_BYTES + 1)
+            after = os.fstat(stream.fileno())
+        if (len(raw) != info.st_size or after.st_size != info.st_size
+                or after.st_mtime_ns != info.st_mtime_ns
+                or after.st_ctime_ns != info.st_ctime_ns
+                or after.st_ino != info.st_ino or after.st_dev != info.st_dev
+                or after.st_mode != info.st_mode):
             raise PreservationFailure('bundle changed while being read')
-        bundle = json.loads(raw.decode('utf-8'))
+        bundle = json.loads(raw.decode('utf-8'), object_pairs_hook=_unique_json_keys,
+                            parse_constant=_reject_nonfinite)
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise PreservationFailure('bundle could not be read and parsed') from exc
     if not isinstance(bundle, dict) or set(bundle) != BUNDLE_KEYS:
@@ -53,7 +76,6 @@ def _load(path):
     if any(not isinstance(bundle[key], list) for key in BUNDLE_KEYS):
         raise PreservationFailure('bundle lists invalid')
     return bundle, (info.st_dev, info.st_ino), hashlib.sha256(raw).hexdigest()
-
 
 def _validate(bundle):
     seen_records = set()
@@ -106,6 +128,19 @@ def _validate(bundle):
     }
 
 
+def _exact_json(left, right):
+    """Preserve JSON scalar types (Python otherwise equates True == 1 == 1.0)."""
+    if type(left) is not type(right):
+        return False
+    if isinstance(left, dict):
+        return (left.keys() == right.keys() and
+                all(_exact_json(value, right[key]) for key, value in left.items()))
+    if isinstance(left, list):
+        return (len(left) == len(right) and
+                all(_exact_json(a, b) for a, b in zip(left, right)))
+    return left == right
+
+
 def compare_exports(before_path, after_path):
     original, original_inode, original_raw_hash = _load(before_path)
     restored, restored_inode, restored_raw_hash = _load(after_path)
@@ -115,7 +150,7 @@ def compare_exports(before_path, after_path):
     after_counts = _validate(restored)
     if counts != after_counts:
         raise PreservationFailure('Evidence count or Unknown revision history changed')
-    if original != restored:
+    if not _exact_json(original, restored):
         raise PreservationFailure('Evidence, Unknown revisions or manifests changed')
     # Python canonical JSON here is a COMPARISON digest, not the REA RFC8785 file hash.
     semantic = json.dumps(original, ensure_ascii=True, sort_keys=True,
@@ -127,6 +162,7 @@ def compare_exports(before_path, after_path):
         'source_file_sha256': original_raw_hash,
         'poststate_file_sha256': restored_raw_hash,
         'note': 'This is not REA semantic authenticity or owner authorization',
+        'p238_strict_json_types': True,
     }
 
 
