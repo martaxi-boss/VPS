@@ -127,7 +127,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_p262_private_checkpoint"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_p262_private_checkpoint", "fixture_linux_p262_release_preflight"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -527,7 +527,13 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_P262_PRIVATE_CHECKPOINT_UNKNOWNS",
         "REA_P262_PRIVATE_CHECKPOINT_SHA256",
         "REA_P262_PRIVATE_CHECKPOINT_SERVICE_PID_UNCHANGED",
-        "REA_P262_PRIVATE_CHECKPOINT_ORIGINAL_MCP_UNMODIFIED"
+        "REA_P262_PRIVATE_CHECKPOINT_ORIGINAL_MCP_UNMODIFIED",
+        "REA_P262_RELEASE_PREFLIGHT",
+        "REA_P262_RELEASE_FILE_STATES",
+        "REA_P262_RELEASE_PACKAGE_VERSION",
+        "REA_P262_RELEASE_PID_UNCHANGED",
+        "REA_P262_RELEASE_FREE_DISK_GIB",
+        "REA_P262_RELEASE_CHECKPOINT_PASS"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -2421,6 +2427,65 @@ def main():
                     print("REA_INSTALL_AUDIT_PROVIDERS_JSON=INVALID")
         print("REA_INSTALL_AUDIT_MCP_TOOL_COUNT="+str(len(tools)))
         print("REA_INSTALL_AUDIT_COMPLETED=PASS_READ_ONLY")
+        return
+    if data["action"] == "fixture_linux_p262_release_preflight":
+        # P262: strictly READ-ONLY original installed REA release-path
+        # inspection. No subprocess arguments originate from request content.
+        import shutil
+        root = Path("/opt/rea-reversa/rea")
+        paths = {
+            "src_BinarySession": root / "src/application/binary/BinarySession.ts",
+            "src_BinarySessionRecords": root / "src/application/binary/BinarySessionRecords.ts",
+            "dist_BinarySession": root / "dist/application/binary/BinarySession.js",
+            "dist_BinarySessionRecords": root / "dist/application/binary/BinarySessionRecords.js",
+            "entrypoint": root / "scripts/rea.mjs",
+            "package": root / "package.json",
+        }
+        original = {}
+        for key, target in paths.items():
+            probe = subprocess.run(
+                ["sudo", "-n", "-u", "rea-reversa", "test", "-f", str(target)],
+                capture_output=True, timeout=10, check=False)
+            row = {"exists": probe.returncode == 0}
+            if row["exists"]:
+                read = subprocess.run(
+                    ["sudo", "-n", "-u", "rea-reversa", "sha256sum", str(target)],
+                    capture_output=True, text=True, timeout=10, check=False)
+                if read.returncode == 0 and len(read.stdout.split()) >= 1:
+                    row["sha256"] = read.stdout.split()[0]
+            original[key] = row
+        checkpoint = root / ".rea-private/p262-live-evidence-11-8b17734c.json"
+        archive = subprocess.run(
+            ["sudo", "-n", "-u", "rea-reversa", "sha256sum", str(checkpoint)],
+            capture_output=True, text=True, timeout=12, check=False)
+        archive_ok = archive.returncode == 0 and (
+            archive.stdout.split()[0]
+            == "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380"
+        )
+        unit = "rea-reversa-mcp.service"
+        def value(prop):
+            res = subprocess.run(
+                ["systemctl", "show", unit, "-p", prop, "--value"],
+                capture_output=True, text=True, timeout=10, check=False)
+            return res.stdout.strip() if res.returncode == 0 else ""
+        before = value("MainPID")
+        version = "UNKNOWN"
+        if paths["package"].is_file():
+            try:
+                version = str(json.loads(paths["package"].read_text()).get("version", "UNKNOWN"))
+            except (OSError, ValueError):
+                version = "UNREADABLE"
+        if not before.isdecimal() or not int(before) > 0 or value("User") != "rea-reversa":
+            error("P262 inspected service is not original REA runtime")
+        after = value("MainPID")
+        print("REA_P262_RELEASE_FILE_STATES=" + json.dumps(original, sort_keys=True))
+        print("REA_P262_RELEASE_PACKAGE_VERSION=" + version[:70])
+        print("REA_P262_RELEASE_PID_UNCHANGED=" + str(before == after).lower())
+        print("REA_P262_RELEASE_CHECKPOINT_PASS=" + str(archive_ok).lower())
+        print("REA_P262_RELEASE_FREE_DISK_GIB=" + str(
+            shutil.disk_usage(str(root)).free // (1024**3)))
+        print("REA_P262_RELEASE_PREFLIGHT=" + (
+            "PASS_READ_ONLY" if archive_ok and before == after else "BLOCKED"))
         return
     if data["action"] == "fixture_linux_p262_private_checkpoint":
         # P262: a strictly fixed, additive OFFSITE INDEPENDENT BACKUP in the
