@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_113_FULLY_CERTIFIED_95_PENDING",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_114_FULLY_CERTIFIED_94_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -7229,21 +7229,84 @@
         "Future sensitive calls require new, exact independently owner-signed Ed25519 authorization; no permanent allowlist extension."
       ],
       "hygiene": "Temporary exact-filename-hash policy exception removed, original policy/bridge/workflow restored to verified blobs, both one-use encrypted GitHub requests deleted; preserved owner evidence backup."
+    },
+    {
+      "phase_id": "LINUX-P215-OWNER-SIGNED-IDEMPOTENT-EVIDENCE-IMPORT-20261025",
+      "date_utc": "2026-10-25",
+      "status": "ONE_NEW_FULLY_CERTIFIED_SENSITIVE_IMPORT_EVIDENCE_BUNDLE_LINUX_ORIGINAL_MCP",
+      "tools": [
+        {
+          "name": "import_evidence_bundle",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Original permanent REA Linux MCP: owner-signed idempotent import_evidence_bundle of the known P214 backup (six existing records, zero unknown revisions), imported=0 unknowns_added=0 total=6; separately signed import of a nonce-named nonexistent file rejected with isError=true invalid_request/read/missing. Full get_evidence_bundle result SHA-256 unchanged before and after. Excludes non-idempotent merge, arbitrary data paths, foreign archives and restoration semantics.",
+          "positive_calls": 1,
+          "negative_cases": [
+            "source_owned_absent_file_import_rejected_invalid_request_read_missing"
+          ],
+          "negative_isError_true": true
+        }
+      ],
+      "proof": {
+        "run_id": 40181433098,
+        "job_id": 121133162466,
+        "request_commit": "a76fde5e958c4f0f5cba1fba46f6f15a18db53b2",
+        "encrypted_request_git_blob": "75437b7d20745d645f3ce0ab570dec70c77f28bc",
+        "encrypted_request_sha256": "0a1dab3c9811f0ceca20146435b4987c863df6114c27d82e7ae4d584876e0778",
+        "encrypted_artifact_id": 12593767957,
+        "encrypted_artifact_zip_sha256": "4cccb47963dbe5afb552c207c6bfbd08a3a2381177650cb205db42734b09b797",
+        "authenticated_result_sha256": "acd18001d60a6ad9a647ea493bb000b9363627880ce81da264e5e5008eaaa7ec",
+        "request_matched": true,
+        "sha_and_bytes_verified": true,
+        "original_mcp_tools_count": 208,
+        "policy": "PASS",
+        "owner_independent_ed25519_signatures_verified": 2,
+        "owner_public_fingerprint_sha256_der": "99580a4806703661ca38f75a3cb95e47d46e32228cf89d5aa7ab55e95a4e25b4",
+        "positive_mcp_isError_not_true": true,
+        "positive_imported": 0,
+        "positive_unknowns_added": 0,
+        "positive_total": 6,
+        "negative_mcp_isError_true": true,
+        "negative_error_code": "invalid_request",
+        "negative_operation": "read",
+        "negative_reason": "missing",
+        "postcheck_run_id": 40181550483,
+        "postcheck_artifact_id": 12594555361,
+        "postcheck_original_mcp_result_sha256": "f27d981d256f7ca702f8084ed4f346789d8b54b3b59fdd8f04a7573132f8c6cd",
+        "pre_post_result_sha256_equal": true,
+        "original_policy_restored_blob": "8757abb589a779eaeda1d0eeefc85e4476503a41",
+        "original_bridge_restored_blob": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7",
+        "original_workflow_restored_blob": "c81ef44d3f3e9dc3b3a819add5ff4f1a33d343df",
+        "signed_request_removed": true,
+        "postcheck_request_removed": true,
+        "detailed_certification_report": "rea-linux/certification/sensitive-p215-import-evidence-certified-20261025.json"
+      },
+      "new_certifications": 1,
+      "fully_certified_total": 114,
+      "pending": 94,
+      "sensitive_certified_total": 8,
+      "sensitive_pending": 75,
+      "limitations": [
+        "Positive limited to idempotent import of one already validated six-record archive under REA existing StateDirectory; no unrelated or conflicting archives were imported.",
+        "Two independent owner Ed25519 signatures bound to exact tool, path and nonce; no permanent path gate added.",
+        "Negative case was a new absent file; no repair/import of differing data or profile metadata certified.",
+        "Six retained records and zero unknown revisions verified by matching full MCP get_evidence_bundle result SHA-256 before and after: f27d981d..."
+      ],
+      "hygiene": "Original security protocol, bridge and workflow blobs restored; one-use ciphertext files removed; six retained Evidence records preserved; original archive preserved; owner private key never left Android."
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 113,
-    "awaiting_canonical_individual_review": 95,
+    "functional_pass_scoped_distinct": 114,
+    "awaiting_canonical_individual_review": 94,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 3,
     "read_group_missing_positive": 2,
     "workspace_newly_passed_distinct": 48,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 113,
+    "fully_certified_distinct": 114,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 95,
-    "remaining_full_certification_distinct": 95
+    "not_functionally_positive_distinct": 94,
+    "remaining_full_certification_distinct": 94
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -7273,7 +7336,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P214-SIGNED-EVIDENCE-EXPORT-POSITIVE-NEGATIVE-20261025",
+  "latest_phase": "LINUX-P215-OWNER-SIGNED-IDEMPOTENT-EVIDENCE-IMPORT-20261025",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -9193,6 +9256,27 @@
         "Future sensitive calls require new, exact independently owner-signed Ed25519 authorization; no permanent allowlist extension."
       ],
       "certification_report": "rea-linux/certification/sensitive-p214-export-evidence-certified-20261025.json"
+    },
+    "import_evidence_bundle": {
+      "status": "FULLY_CERTIFIED",
+      "phase_id": "LINUX-P215-OWNER-SIGNED-IDEMPOTENT-EVIDENCE-IMPORT-20261025",
+      "scope": "Original permanent REA Linux MCP: owner-signed idempotent import_evidence_bundle of the known P214 backup (six existing records, zero unknown revisions), imported=0 unknowns_added=0 total=6; separately signed import of a nonce-named nonexistent file rejected with isError=true invalid_request/read/missing. Full get_evidence_bundle result SHA-256 unchanged before and after. Excludes non-idempotent merge, arbitrary data paths, foreign archives and restoration semantics.",
+      "run_ids": [
+        40181433098,
+        40181550483
+      ],
+      "positive_evidence_sha256": "acd18001d60a6ad9a647ea493bb000b9363627880ce81da264e5e5008eaaa7ec",
+      "negative_evidence_sha256": "acd18001d60a6ad9a647ea493bb000b9363627880ce81da264e5e5008eaaa7ec",
+      "positive_calls": 1,
+      "negative_semantic_assertions": 1,
+      "negative_isError_true": true,
+      "limitations": [
+        "Positive limited to idempotent import of one already validated six-record archive under REA existing StateDirectory; no unrelated or conflicting archives were imported.",
+        "Two independent owner Ed25519 signatures bound to exact tool, path and nonce; no permanent path gate added.",
+        "Negative case was a new absent file; no repair/import of differing data or profile metadata certified.",
+        "Six retained records and zero unknown revisions verified by matching full MCP get_evidence_bundle result SHA-256 before and after: f27d981d..."
+      ],
+      "certification_report": "rea-linux/certification/sensitive-p215-import-evidence-certified-20261025.json"
     }
   },
   "transport_incidents": [
