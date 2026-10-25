@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_retention_p243", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -259,6 +259,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_LINUX_READ5_NODE_PRESENT", "REA_LINUX_READ5_REGRESSION",
         "REA_LINUX_READ5_EXIT_CODE", "REA_LINUX_READ5_TEST_OUTPUT_SHA256",
         "REA_LINUX_READ5_TEST_NAME", "REA_LINUX_READ5_TEST_DIAGNOSTIC",
+        "REA_P243_STATUS", "REA_P243_SOURCE_SHA", "REA_P243_ORIGINAL_TEST_BLOBS", "REA_P243_TEST_EXIT", "REA_P243_LOG_SHA256", "REA_P243_TEST_STATUS", "REA_P243_SOURCE_HYGIENE", "REA_P243_FAILURE_BOUNDED",
         "REA_LINUX_GDB_CONFORMANCE_SOURCE", "REA_LINUX_GDB_CONFORMANCE_COUNT",
         "REA_LINUX_GDB_CONFORMANCE_STATUS", "REA_LINUX_GDB_CONFORMANCE_WORKTREE",
         "REA_LINUX_GDB_MANAGER_EXIT", "REA_LINUX_GDB_MANAGER_RESULT",
@@ -1145,6 +1146,67 @@ def main():
         print("REA_LINUX_READ5_MCP_PASS_COUNT=" + str(pass_count))
         print("REA_LINUX_READ5_MCP_BOUNDARIES=" +
               ("PASS_ISOLATED_MCP_NOT_PRODUCTION" if pass_count == 4 and intact else "INCOMPLETE"))
+        return
+    if data["action"] == "fixture_linux_retention_p243":
+        # Original REA tests (7 cases) for cancelled/invalid/corrupted
+        # Evidence bundle operations. No live daemon lifecycle tools/call.
+        import shutil
+        source = Path.home() / ".local/share/rea-chatgpt-trial/repository/rea"
+        runner = source / "node_modules/vitest/vitest.mjs"
+        node = shutil.which("node")
+        tests = [["tests/boundary/mcp/evidenceExportCancellation.test.ts","ca084f8133c43f97cb9b26192008c4b55bda9f3b",2],["tests/boundary/mcp/evidenceImportCancellation.test.ts","0413e6ec4d422fabbd93a14fef7e9d991c36b28d",3],["tests/boundary/mcp/evidenceBundleInline.test.ts","ae07a1be55df08afaeb774250f512dad63df8d77",2]]
+        if not source.is_dir() or not runner.is_file() or not node:
+            print("REA_P243_STATUS=BLOCKED_ORIGINAL_STAGED_SOURCE_OR_VITEST_MISSING")
+            return
+        before=subprocess.run(["git","-C",str(source),"status","--porcelain"],
+            capture_output=True,text=True,timeout=12,check=False)
+        rev=subprocess.run(["git","-C",str(source),"rev-parse","HEAD"],
+            capture_output=True,text=True,timeout=12,check=False)
+        if (before.returncode or rev.returncode or before.stdout.strip() or
+            rev.stdout.strip()!="8e9a7ee295667f8e23aea9d18af6eee4363d2032"):
+            print("REA_P243_STATUS=BLOCKED_SOURCE_REVISION_OR_DIRTY")
+            return
+        print("REA_P243_SOURCE_SHA=" + rev.stdout.strip())
+        checked=0
+        for path,sha,count in tests:
+            p=source/path
+            if not p.is_file() or p.is_symlink():
+                print("REA_P243_STATUS=BLOCKED_MISSING_OR_SYMLINK_TEST")
+                return
+            h=subprocess.run(["git","-C",str(source),"hash-object","--",str(p)],
+                capture_output=True,text=True,timeout=12,check=False)
+            if h.returncode or h.stdout.strip()!=sha:
+                print("REA_P243_STATUS=BLOCKED_PINNED_TEST_HASH")
+                return
+            checked+=1
+        print("REA_P243_ORIGINAL_TEST_BLOBS=" + str(checked))
+        try:
+            proc=subprocess.run([node,str(runner),"run",
+                *[x[0] for x in tests],"--no-file-parallelism","--maxWorkers=1"],
+                cwd=str(source),capture_output=True,text=True,timeout=180,check=False,
+                env={**os.environ,"CI":"true","NO_COLOR":"1",
+                     "NODE_OPTIONS":"--max-old-space-size=1024"})
+            raw=proc.stdout+"\n"+proc.stderr
+            plain=re.sub(r"\x1b\[[0-9;]*[A-Za-z]","",raw)
+            success=(proc.returncode==0 and
+                bool(re.search(r"\b7 passed\b",plain)) and
+                bool(re.search(r"\b3 passed\b",plain)))
+            print("REA_P243_TEST_EXIT="+str(proc.returncode))
+            print("REA_P243_LOG_SHA256="+hashlib.sha256(raw.encode()).hexdigest())
+            print("REA_P243_TEST_STATUS="+("PASS_7_OF_7" if success else "INCOMPLETE"))
+            if not success:
+                print("REA_P243_FAILURE_BOUNDED="+
+                    re.sub(r"[^A-Za-z0-9 .,=_:;()/\[\]#-]"," ",plain[-500:]))
+        except subprocess.TimeoutExpired:
+            success=False
+            print("REA_P243_TEST_STATUS=TIMEOUT")
+        after=subprocess.run(["git","-C",str(source),"status","--porcelain"],
+            capture_output=True,text=True,timeout=12,check=False)
+        hygiene=after.returncode==0 and after.stdout==before.stdout
+        print("REA_P243_SOURCE_HYGIENE="+("PASS" if hygiene else "FAIL"))
+        print("REA_P243_STATUS="+
+            ("PASS_NATIVE_ISOLATED_NOT_PERMANENT_RESTART"
+             if success and hygiene else "INCOMPLETE"))
         return
     if data["action"] == "fixture_linux_read5_regression":
         # Run existing original REA test using an isolated in-memory ledger,
