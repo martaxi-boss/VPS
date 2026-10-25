@@ -152,6 +152,26 @@
       "temporary_request_cleaned": true,
       "code_change_scope": "Temporary read-only backup-inventory instrumentation only, removed after run",
       "no_mcp_mutation": true
+    },
+    "p228_owner_recovery_signer": {
+      "status": "OFFLINE_SIGNER_READY_NOT_EXECUTED",
+      "github_path": "rea-linux/owner/sign_restore_p228_evidence_android.py",
+      "git_blob_sha": "e43201d7ef49ca10e8ac0791f0504ab584b9bbd1",
+      "creation_commit": "feae69c570d5f2d3bef07e11cbb15c2b885b90fd",
+      "only_tool": "import_evidence_bundle",
+      "exact_args": {
+        "path": "/var/lib/rea-reversa/rea-p214-evidence-backup-7c5e1ad42fe74b121f3e2c4fe830c6c7.json"
+      },
+      "owner_key_der_sha256": "99580a4806703661ca38f75a3cb95e47d46e32228cf89d5aa7ab55e95a4e25b4",
+      "new_owner_key_generated": false,
+      "signature_count": 1,
+      "explicit_owner_ack_required": "AUTORIZO_OPERACAO_SENSIVEL",
+      "local_signer_no_network": true,
+      "expires_minutes_after_owner_runs": 45,
+      "signed_request_created": false,
+      "original_MCP_import_performed": false,
+      "expected_recovery_scope": "At most six historic Evidence, zero Unknowns; P217/P218 Evidence and Unknown revisions cannot be restored from P214.",
+      "notes": "The original secure policy currently rejects StateDirectory paths without an exact temporary scoped allowance. Apply only after verifying owner signature, current archive digest, existing empty live state and final exact-path policy guard; restore original security blob after use."
     }
   },
   "constraints": [
@@ -171,7 +191,7 @@
   },
   "next_safe_actions": [
     "COMPLETE: P214 six-record Evidence archive exists on VPS with same SHA-256 and 17563 bytes; reverified via run 40187442883 under service identity, without modifying the archive.",
-    "Verify an exact owner-signed import_evidence_bundle recovery plan against the already verified P214 six-record archive; import only after new owner Ed25519 approval, fresh nonce and expiry. The normal bridge currently lacks StateDirectory path allowance; any temporary exact-path exception must leave the independent signature verifier unchanged and be restored immediately.",
+    "P228 offline single-step Ed25519 signer is prepared but NOT executed. The owner must explicitly sign one exact import_evidence_bundle of the reverified P214 backup using existing Android key. Before running on VPS, verify signed JSON nonce/expiry and unchanged archive hash plus current state; apply only an exact-path temporary security gate with no owner signature bypass, restore original immediately.",
     "P227 read-only scan found no P217/P218 full backup among REA-named archive JSONs in the checked StateDirectory; do not infer absence outside this scope. Do not reconstruct missing two Evidence bodies or unknown revisions from summaries. Seek exact historical full-data sources or owner decision.",
     "After authorized six-record restoration, re-read get_evidence_bundle and list_unknowns, and verify the imported Evidence IDs and persistence without open_binary/close_binary. Do not run stateful tests before complete retention safeguards."
   ],
