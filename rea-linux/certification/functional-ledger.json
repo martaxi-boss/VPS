@@ -8132,6 +8132,21 @@
       "github_actions_service_doctor": 40229204839,
       "provider_status": "GHIDRA_JADX_PASS_IN_LOCAL_HEALTH; SERVICE_DOCTOR_GLOBAL_HEALTH_FALSE; CORE_CONFIGURED_PATHS_PRESENT; IDA_UNAVAILABLE",
       "provider_operational_readiness_not_equivalent_to_certificate_status": true
+    },
+    "latest_p260_original_service_doctor": {
+      "phase": "P260",
+      "run_id": 40229168849,
+      "as_of_utc": "2026-10-25",
+      "doctor_exit_code": 1,
+      "healthy": false,
+      "environment_healthy": false,
+      "available_configured": {
+        "ghidra": true,
+        "jadx": true,
+        "kuna": true,
+        "ida": false
+      },
+      "note": "Provider doctor is not globally green despite live MCP and core provider positives; follow per-tool tested scope and active session requirements. Does not annul 121 historical scoped certifications."
     }
   },
   "certified_tool_registry": {
@@ -10114,6 +10129,21 @@
           "hold_P232_P246_remains_active": true
         }
       }
+    },
+    "latest_verified_live_readonly_state": {
+      "phase": "P260",
+      "run_id": 40228657095,
+      "date_utc": "2026-10-25",
+      "evidence_count": 11,
+      "unknown_count": 1,
+      "evidence_semantic_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+      "unchanged_within_run": true,
+      "historical_incident_observed_evidence_records_0_remains_original_p225_snapshot": true,
+      "archive_zip_sha256": "8f9842efd89816ac313d5004d83d7926b0e933bfadff4be92e431b07b59ea636",
+      "zip_integrity_verified": true,
+      "archive_restore_tested": false,
+      "restoration_hold_P232_P246_remains": true,
+      "no_service_restart_or_binary_lifecycle": true
     }
   },
   "pending_tool_followups": {
@@ -10349,7 +10379,10 @@
       "retained_evidence": 11,
       "unknowns": 1,
       "evidence_semantic_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
-      "report": "rea-linux/certification/read-p259-gdb-session-status-certified-20261025.json"
+      "report": "rea-linux/certification/read-p259-gdb-session-status-certified-20261025.json",
+      "p260_readonly_audit_complete": true,
+      "p260_no_new_read_certifications": true,
+      "p260_report": "rea-linux/certification/p260-audit-121-certified-readiness-security-hygiene-20261025.json"
     },
     "latest_preparation_phase": "P259-GDB-ONLY-OWNER-SIGNER-READY-NO_CERTIFICATION_20261025",
     "latest_certified_only_audit": {
@@ -10383,6 +10416,54 @@
       "no_sensitive_operations": true,
       "no_provider_permission_loosening": true,
       "hold_P232_P246_active": true
+    },
+    "p260_readiness_audit": {
+      "phase": "P260",
+      "date_utc": "2026-10-25",
+      "status": "COMPLETE_READ_ONLY_SCOPE_AUDIT_WITH_BLOCKERS_AND_SCOPED_ASSURANCES",
+      "individual_tool_rows": 121,
+      "historical_certification_count_unchanged": 121,
+      "remaining_to_certify_unchanged": 87,
+      "risk_classes": {
+        "read": 5,
+        "workspace": 103,
+        "sensitive": 13
+      },
+      "sensitive_valid_owner_signed_historical_positive_count": 11,
+      "sensitive_legacy_no_current_signed_positive_count": 2,
+      "legacy_sensitive_names": [
+        "inspect_web_network_capture",
+        "inspect_adb_client"
+      ],
+      "workspace_open_binary_or_same_request_session_dependent_hold_count": 42,
+      "read_done": 5,
+      "original_live_mcp_catalog": 208,
+      "original_mcp_contract_schemas_audited_matching": 208,
+      "original_service_doctor_globally_healthy": false,
+      "service_available_providers": [
+        "ghidra",
+        "jadx",
+        "kuna"
+      ],
+      "service_optional_ida_available": false,
+      "subsystems_jadx_ghidra_doctor_pass": true,
+      "owner_ed25519_policy_and_replay_tests_pass": true,
+      "live_evidence_count": 11,
+      "live_unknown_count": 1,
+      "live_evidence_semantic_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+      "p232_p246_hold_active": true,
+      "archive_zip_integrity_verified": true,
+      "independent_archive_restore_tested": false,
+      "five_one_shot_audit_requests_removed": true,
+      "runs": {
+        "catalog": 40228497132,
+        "state": 40228657095,
+        "health": 40228952686,
+        "inventory": 40228961958,
+        "original_service_doctor": 40229168849
+      },
+      "report": "rea-linux/certification/p260-audit-121-certified-readiness-security-hygiene-20261025.json",
+      "notes": "Historical FULLY_CERTIFIED statuses remain scoped; this is a metadata/read-only audit, not a renewed functional-positive certification of all 121 on 25 October. No new Ed25519 owner authorization or provider installation occurred."
     }
   }
 }
