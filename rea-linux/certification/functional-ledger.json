@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "P266_CANONICAL_ORIGINAL_REA_121_OF_208__P265_PATCH_AND_11_EVIDENCE_1_UNKNOWN_RESTORE_VERIFIED__P232_P246_BRIDGE_HOLD_REMAINS_ACTIVE_PENDING_SIGNED_BINARY_SMOKE",
+  "status": "P268_ORIGINAL_REA_121_OF_208__P267_OWNER_SIGNED_LIVE_OPEN_CLOSE_11_EVIDENCE_1_UNKNOWN_SHA_PRESERVED__P232_P246_BLANKET_HOLD_RELEASED_ONLY_FOR_VALID_SIGNED_SEALED_BATCH",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -7913,6 +7913,74 @@
         "For a controlled live post-patch open/close retention smoke, close_binary is classified sensitive and needs a new exact Ed25519 owner signature. The already consumed P263 import authorization cannot be reused.",
         "The service-wide doctor remains healthy=false; configured Ghidra/JADX/Kuna and unconfigured optional IDA do not justify global provider-ready status."
       ]
+    },
+    {
+      "phase_id": "LINUX-P267-OWNER-SIGNED-CONTROLLED-GHIDRA-BINARY-LIFECYCLE-RETENTION-20261025",
+      "status": "OWNER_ED25519_VERIFIED_AND_SIX_REAL_MCP_STEPS_PASS__POST_CLOSE_11_EVIDENCE_AND_1_UNKNOWN_CANONICAL_DIGEST_PRESERVED",
+      "tools": [],
+      "new_certifications": 0,
+      "run_id": 40237348857,
+      "job_id": 121301628707,
+      "original_mcp_service": true,
+      "test_target": "/usr/bin/true",
+      "provider": "ghidra",
+      "requested_tools": [
+        "get_evidence_bundle",
+        "list_unknowns",
+        "open_binary",
+        "close_binary",
+        "get_evidence_bundle",
+        "list_unknowns"
+      ],
+      "executed_all_six": true,
+      "isError_all_false": true,
+      "evidence_before": 11,
+      "evidence_after": 11,
+      "unknowns_before": 1,
+      "unknowns_after": 1,
+      "evidence_deep_equal": true,
+      "unknowns_deep_equal": true,
+      "retained_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+      "response_authenticated_sha256": "578d434972908f05290c59523b7332269e6ba2a4a495e2b1511affcc39767d79",
+      "old_p232_p246_guard_overridden_exact_only": true,
+      "one_use_original_owner_signature_replay_guard": true,
+      "report": "rea-linux/certification/p267-owner-signed-original-mcp-binary-session-retention-proven-20261025.json",
+      "limitations": [
+        "Controlled single /usr/bin/true Ghidra session, no arbitrary-target extrapolation",
+        "No new provider certification; exact owner approval still required for sensitive calls"
+      ]
+    },
+    {
+      "phase_id": "LINUX-P268-P232-P246-SIGNED-SESSION-GATE-RELEASE-20261025",
+      "status": "BLANKET_RETENTION_HOLD_LIFTED_AFTER_REAL_P267_SMOKE__ORIGINAL_BRIDGE_REQUIRES_AUTHENTICATED_PER_TOOL_GRANTS_AND_OWNER_ED25519_CLOSE",
+      "tools": [],
+      "new_certifications": 0,
+      "original_mcp_service_restarted": false,
+      "original_mcp_binary_retention_fix_active": true,
+      "source_bridge_commit": "bd6308e6526b78fbe9a50715af618c8fb27d72ba",
+      "source_bridge_sha": "e2405473eaff646be5952b785b57f41f906354b6",
+      "regression_pass_run": 40237729254,
+      "regression_pass_job": 121302783188,
+      "regression_tests": 13,
+      "original_loopback_pass": true,
+      "catalog_count": 208,
+      "formerly_held_session_dependent_scoped_certifications": 42,
+      "open_binary_workspace_approval_required": true,
+      "close_binary_exact_owner_Ed25519_required": true,
+      "same_batch_signed_close_after_open_required": true,
+      "paired_close_snapshot_unsafe_variants_rejected": true,
+      "unsigned_nonsealed_fixture_calls_still_denied": true,
+      "temporary_p267_one_use_guard_removed": true,
+      "P232_P246_blanket_hold_active": false,
+      "evidence_count": 11,
+      "unknowns": 1,
+      "sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+      "report": "rea-linux/certification/p268-signed-lifecycle-bridge-release-121-scoped-tools-ready-20261025.json",
+      "limitations": [
+        "Provider doctor globally unhealthy; optional IDA absent",
+        "121 certifications remain scoped and 87 not yet certified",
+        "Future signed per-step authorizations needed; no unrestricted session access"
+      ]
     }
   ],
   "active_scope_counts": {
@@ -7957,7 +8025,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P266-VERIFY-ACTIVE-BRIDGE-HOLD-AFTER-P265-20261025",
+  "latest_phase": "LINUX-P268-P232-P246-SIGNED-SESSION-GATE-RELEASE-20261025",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -10495,7 +10563,7 @@
       "owner_signer_sha256": "23bb86bf8b512037cc87064bc912551ae98b0d899e66be7e8b5425707ee8fc10"
     },
     "retention": {
-      "P232_hold_active": true,
+      "P232_hold_active": false,
       "P250_nine_evidence_snapshot_verified": true,
       "independent_archive_restore_tested": true,
       "current_live_evidence_count": 11,
@@ -10516,9 +10584,9 @@
       "independent_offline_original_InvestigationRecords_11_1_restore": true,
       "original_live_sensitive_MCP_import_tested": true,
       "owner_signed_original_live_MCP_import_pending": false,
-      "P246_hold_active": true,
-      "P232_P246_release_reason": "P265 corrected compiled and source original REA BinarySession retention, archived exact 11/1 under original service identity, owner-signed live original MCP import after restart and independent matching 11/1 readback; source CI negative control and 159 regressions passed.",
-      "P232_P246_release_phase": "PENDING_REVIEWED_EXISTING_BRIDGE_GUARD_RELEASE_AND_OWNER_SIGNED_LIVE_BINARY_SMOKE",
+      "P246_hold_active": false,
+      "P232_P246_release_reason": "P267 exact owner Ed25519 signed original REA MCP open_binary/close_binary real Ghidra /usr/bin/true verified six isError=false, 11 Evidence+1 Unknown full identical semantic SHA, P268 conditional bridge gates require every per-tool approval including fresh signed close.",
+      "P232_P246_release_phase": "P268_SIGNED_ONE_USE_SEALED_BATCH_SCOPED_AFTER_P267_REAL_ORIGINAL_MCP_RETENTION_SMOKE",
       "p265_live_owner_signed_restore_run_id": 40234127680,
       "p265_independent_live_readback_run_id": 40234374750,
       "p265_source_alignment_run_id": 40234537835,
@@ -10527,7 +10595,13 @@
       "p266_source_guard_unconditional_verified": true,
       "p266_existing_bridge_source_sha": "81ec4fb4677e2e4c7b11b2d0550fee8cef9400e7",
       "p266_lifecycle_smoke_completed": false,
-      "p266_report": "rea-linux/certification/p266-verified-bridge-retention-hold-reconciliation-20261025.json"
+      "p266_report": "rea-linux/certification/p266-verified-bridge-retention-hold-reconciliation-20261025.json",
+      "p267_live_binary_open_close_smoke_pass": true,
+      "p267_report": "rea-linux/certification/p267-owner-signed-original-mcp-binary-session-retention-proven-20261025.json",
+      "p267_run_id": 40237348857,
+      "p268_conditional_release_run_id": 40237729254,
+      "p268_source_gate_sha": "e2405473eaff646be5952b785b57f41f906354b6",
+      "p268_report": "rea-linux/certification/p268-signed-lifecycle-bridge-release-121-scoped-tools-ready-20261025.json"
     },
     "no_new_certifications": false,
     "gdb_session_status": {
@@ -10951,11 +11025,14 @@
         "no_other_projects_touched": true,
         "report": "rea-linux/certification/p265-original-rea-active-fix-owner-restored-11-evidence-independent-readback-20261025.json"
       },
-      "p266_note": "The P265 recovery proof is valid; its stated global P232/P246 release is superseded by P266 source-verified hard-stop at the current bridge."
+      "p266_note": "The P265 recovery proof is valid; its stated global P232/P246 release is superseded by P266 source-verified hard-stop at the current bridge.",
+      "live_open_close_smoke_tested_after_fix": true,
+      "live_open_close_smoke_run_id": 40237348857,
+      "p268_note": "P267 live owner-signed smoke and P268 bounded bridge lifecycle release verified; P266 hold was active until this reviewed release."
     },
     "p266_bridge_hold_reconciliation": {
       "phase": "P266",
-      "status": "P232_P246_EFFECTIVE_HOLD_STILL_ACTIVE_IN_EXISTING_GITHUB_ACTIONS_SSH_MCP_BRIDGE",
+      "status": "HISTORICAL_P266_ACTIVE_HOLD_VERIFIED_THEN_RELEASED_CONDITIONALLY_BY_P268",
       "previously_certified_tools_session_dependent": 42,
       "historic_certifications_retained": 121,
       "evidence": 11,
@@ -10969,7 +11046,25 @@
       "code_sha": "81ec4fb4677e2e4c7b11b2d0550fee8cef9400e7",
       "previous_ledger_release_claim_superseded": true,
       "next_safe_step": "Prepare owner-signed exact close_binary authorization for a narrowly reviewed controlled open_binary/close_binary smoke. No global hold removal before retention proof.",
-      "report": "rea-linux/certification/p266-verified-bridge-retention-hold-reconciliation-20261025.json"
+      "report": "rea-linux/certification/p266-verified-bridge-retention-hold-reconciliation-20261025.json",
+      "resolved_by": "LINUX-P268-P232-P246-SIGNED-SESSION-GATE-RELEASE-20261025"
+    },
+    "p268_operational_session_release": {
+      "status": "SIGNED_BATCH_LIFECYCLE_READY_WITH_PER_TOOL_POLICY_NOT_UNRESTRICTED",
+      "historical_certifications_count": 121,
+      "historical_binary_session_dependent": 42,
+      "normal_workspace_approval_required": true,
+      "close_requires_per_operation_owner_Ed25519": true,
+      "direct_fixture_lifecycle_still_denied": true,
+      "source_gate_commit": "bd6308e6526b78fbe9a50715af618c8fb27d72ba",
+      "run_id": 40237729254,
+      "original_service_binary_smoke_run_id": 40237348857,
+      "retained_records": 11,
+      "retained_unknowns": 1,
+      "canonical_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+      "optional_doctor_still_unhealthy": true,
+      "pending_uncertified_count": 87,
+      "report": "rea-linux/certification/p268-signed-lifecycle-bridge-release-121-scoped-tools-ready-20261025.json"
     }
   }
 }
