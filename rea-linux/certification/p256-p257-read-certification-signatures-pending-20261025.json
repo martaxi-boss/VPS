@@ -70,5 +70,23 @@
     "pending": 89,
     "read_pending": 2,
     "new_certifications": 0
+  },
+  "android_delivery_fix": {
+    "observed": "Android Termux screenshots showed Errno 2 / No such file or directory for REA_P256_P257_Assinar_Android.py in both ~/storage/downloads and ~/downloads; no owner signatures had been produced.",
+    "correction": "Prepared zipapp distribution archive containing previously SHA-pinned exact P256/P257 Android signer as __main__.py; Chrome-downloadable .zip extension instead of .py direct link.",
+    "archive_name": "REA_P256_P257_Android_pronto.zip",
+    "archive_bytes": 5358,
+    "archive_sha256": "d3b3da0afca60081b20ce3403f287349b0ac92c491e893005b9bac5d11e183ad",
+    "signer_inside_sha256": "a9a2ef85b69f2ce907587751af26a6d63b3ff413dd713701f78d54a18daadb00",
+    "checks": [
+      "python3 -m py_compile of original signer passed",
+      "python3 zipapp.zip preview PASS - did not access owner key and did not contact any REA/MCP endpoint",
+      "verified p256 exact computed unknown id and sensitive arguments SHA-256",
+      "verified read steps contain no sensitive authorization",
+      "verified neither open_binary nor close_binary invoked"
+    ],
+    "delivery_note": "ZIP made available as conversation artifact for owner local use; it cannot install/run itself, nor can this ChatGPT/GitHub bridge access Android filesystem or private Ed25519 key. No owner signature or permanent MCP positive certification claimed.",
+    "owner_signature_status": "NOT_SUBMITTED",
+    "certification_status": "UNMODIFIED_119_OF_208"
   }
 }
