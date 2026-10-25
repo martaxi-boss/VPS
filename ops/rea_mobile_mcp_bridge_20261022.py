@@ -127,7 +127,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_p263_validate_evidence_restore"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -520,11 +520,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SDIAG_PID_ENV_READ",
         "REA_SDIAG_PID_ENV_SIZE",
         "REA_SDIAG_PID_PROVIDER_KEYS",
-        "REA_SDIAG_STATUS",
-        "REA_P263_RESTORE_VALIDATE",
-        "REA_P263_RESTORE_CHECKPOINT_SHA256",
-        "REA_P263_RESTORE_COUNTS",
-        "REA_P263_RESTORE_ORIGINAL_SERVICE_PID_UNCHANGED"
+        "REA_SDIAG_STATUS"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -2418,64 +2414,6 @@ def main():
                     print("REA_INSTALL_AUDIT_PROVIDERS_JSON=INVALID")
         print("REA_INSTALL_AUDIT_MCP_TOOL_COUNT="+str(len(tools)))
         print("REA_INSTALL_AUDIT_COMPLETED=PASS_READ_ONLY")
-        return
-    if data["action"] == "fixture_linux_p263_validate_evidence_restore":
-        # Source-owned original CLI evidence-import is VALIDATION ONLY,
-        # not the sensitive MCP import that mutates the live investigation.
-        unit = "rea-reversa-mcp.service"
-        root = Path("/opt/rea-reversa/rea")
-        source = root / ".rea-private/p262-live-evidence-11-8b17734c.json"
-        expected = "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380"
-        def status(prop):
-            o = subprocess.run(["systemctl", "show", unit, "-p", prop, "--value"],
-                               capture_output=True, text=True, timeout=12,
-                               check=False)
-            return o.stdout.strip() if o.returncode == 0 else ""
-        pid = status("MainPID")
-        if not pid.isdecimal() or int(pid) < 1 or status("User") != "rea-reversa":
-            error("P263 original REA service identity invalid")
-        checked = subprocess.run(
-            ["sudo", "-n", "-u", "rea-reversa", "sha256sum", str(source)],
-            capture_output=True, text=True, timeout=15, check=False)
-        if checked.returncode or checked.stdout.split()[0] != expected:
-            error("P263 real saved Evidence not verified")
-        cli = root / "scripts/rea.mjs"
-        if not cli.is_file():
-            error("P263 original REA CLI missing")
-        result = subprocess.run(
-            ["sudo", "-n", "-u", "rea-reversa", "node",
-             str(cli), "evidence-import", str(source), "--json"],
-            cwd=str(root), capture_output=True, text=True,
-            timeout=90, check=False)
-        if result.returncode:
-            print("REA_P263_RESTORE_VALIDATE=FAILED_ORIGINAL_CLI_EXIT_" +
-                  str(result.returncode))
-            return
-        try:
-            parsed = json.loads(result.stdout)
-        except ValueError:
-            print("REA_P263_RESTORE_VALIDATE=INCONCLUSIVE_NOT_JSON")
-            return
-        if not isinstance(parsed, dict):
-            print("REA_P263_RESTORE_VALIDATE=INCONCLUSIVE_NOT_OBJECT")
-            return
-        counts = {"imported": parsed.get("imported"),
-                  "unknowns_added": parsed.get("unknowns_added"),
-                  "total": parsed.get("total")}
-        print("REA_P263_RESTORE_COUNTS=" + json.dumps(counts, sort_keys=True))
-        again = subprocess.run(
-            ["sudo", "-n", "-u", "rea-reversa", "sha256sum", str(source)],
-            capture_output=True, text=True, timeout=15, check=False)
-        if again.returncode or again.stdout.split()[0] != expected:
-            error("P263 original REA archive changed during validation")
-        if status("MainPID") != pid:
-            error("P263 original live REA process changed during validation")
-        print("REA_P263_RESTORE_CHECKPOINT_SHA256=" + expected)
-        print("REA_P263_RESTORE_ORIGINAL_SERVICE_PID_UNCHANGED=true")
-        print("REA_P263_RESTORE_VALIDATE=" + (
-            "PASS_ORIGINAL_CLI_VALIDATION_ONLY" if counts == {
-                "imported": 11, "unknowns_added": 1, "total": 11
-            } else "FAIL_COUNT_MISMATCH"))
         return
     if data["action"] == "capability_audit":
         import shutil
