@@ -3,7 +3,7 @@
   "project": "REA original — Engenharia Reversa",
   "date_utc": "2026-10-25",
   "phase": "P248_NEW_PENDING_RECONCILE_JAVASCRIPT_RUNTIME",
-  "status": "PREPARED_ORIGINAL_NATIVE_POSITIVE_AND_NEGATIVE_PASS__AWAITING_OWNER_ED25519_SIGNATURE__NOT_FULLY_CERTIFIED",
+  "status": "CLOSED_BY_P248_SIGNED_PERMANENT_MCP_CERTIFICATION_ONE_TOOL",
   "ledger_blob_sha256": "b09a56ed4d401d150f99836844622a96b89523c8",
   "certified_count": 116,
   "pending_count": 92,
@@ -56,8 +56,8 @@
     ],
     "file": "rea-linux/owner/sign_p248_runtime_reconciliation_android.py",
     "expiry_minutes": 45,
-    "signatures_ready": false,
-    "execution_performed": false,
+    "signatures_ready": true,
+    "execution_performed": true,
     "no_fake_approval": true
   },
   "security": {
@@ -77,7 +77,7 @@
     "reused_existing_engine": true,
     "no_other_project_changes": true
   },
-  "next_required": "Have actual owner run the local one-step Android Ed25519 signer and supply unexpired signed JSON. Then private encrypt and execute original MCP exact 3-step batch, check isError and before-after six historic Evidence identities, append exactly one certified_tool_registry entry on positive and negative evidence.",
+  "next_required": "P248 completed: signed permanent MCP positive, isolated original negative, six P214 Evidence preserved, certification in the functional ledger; next tool requires fresh exact owner authorization.",
   "failed_signed_attempt": [
     {
       "run_id": 40201512047,
@@ -97,5 +97,14 @@
     "old_signature_cannot_be_reused": true,
     "signer_path": "rea-linux/owner/sign_p248_runtime_reconciliation_android.py",
     "phase": "P248"
+  },
+  "closure": {
+    "phase_id": "LINUX-P248-SIGNED-RECONCILE-JAVASCRIPT-RUNTIME-ORIGINAL-MCP-20261025",
+    "report_path": "rea-linux/certification/sensitive-p248-reconcile-javascript-runtime-certified-20261025.json",
+    "successful_run_id": 40202140571,
+    "ledger_after": 117,
+    "sensitive_certified_after": 11,
+    "six_p214_evidence_preserved": true,
+    "encrypted_artifact_id": 12602605903
   }
 }
