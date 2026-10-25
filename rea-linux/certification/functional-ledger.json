@@ -9804,7 +9804,19 @@
         "new_record_operation": "extract_firmware",
         "new_record_coverage": "partial",
         "P232_hold_remains_active": true,
-        "ten_record_durable_archive_verified": false
+        "ten_record_durable_archive_verified": false,
+        "prepared_independent_ten_evidence_archive": {
+          "date_utc": "2026-10-25",
+          "filename": "REA_P254_Evidence_10_Copia_20261025.zip",
+          "sha256": "3c73eb8ebf635db1309e88cd24f80e1053ff40744783d9a167491baa57a7b682",
+          "bytes": 13204,
+          "bundle_sha256": "8ddc202430af04e5da8c53521211d7a8968021316b9abc1c8d063c9c72066bc5",
+          "local_zip_integrity_verified": true,
+          "owner_download_confirmed": false,
+          "archive_restoration_tested": false,
+          "durable_external_storage_verified": false,
+          "hold_P232_P246_remains_active": true
+        }
       }
     }
   },
@@ -9867,7 +9879,11 @@
     "retention": {
       "P232_hold_active": true,
       "P250_nine_evidence_snapshot_verified": true,
-      "independent_archive_restore_tested": false
+      "independent_archive_restore_tested": false,
+      "current_live_evidence_count": 10,
+      "latest_prepared_zip_sha256": "3c73eb8ebf635db1309e88cd24f80e1053ff40744783d9a167491baa57a7b682",
+      "independent_archive_restoration_tested": false,
+      "owner_download_confirmed": false
     },
     "no_new_certifications": false
   }
