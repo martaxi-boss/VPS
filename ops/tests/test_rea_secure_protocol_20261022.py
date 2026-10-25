@@ -145,6 +145,68 @@ class ReaSecureProtocolTests(unittest.TestCase):
         with self.assertRaises(secure.SecureBridgeError):
             secure.validate_inner(altered, self.registry, {"list_unknowns"})
 
+    def test_P262_legacy_sensitive_names_require_exact_owner_signatures(self):
+        # These two historically certified tools predate current owner signatures.
+        # Verify the existing current policy enforces exact per-tool authorization
+        # using an ephemeral unit-test key only. No live owner key or tool call.
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+        from cryptography.hazmat.primitives import serialization
+        names = ("inspect_web_network_capture", "inspect_adb_client")
+        for name in names:
+            flags = secure.AUDITED_EFFECTS[name]
+            descriptor = {
+                "inputSchema": {"type": "object"},
+                "annotations": {
+                    "readOnlyHint": not bool(flags),
+                    "destructiveHint": bool(flags.intersection({
+                        "mayDiscardData", "executesForeignCode", "mutatesDevice"})),
+                    "openWorldHint": bool(flags.intersection({
+                        "launchesProcess", "accessesNetwork"})),
+                },
+            }
+            self.registry[name] = descriptor
+            secure.AUDITED_SCHEMA_SHA256[name] = secure.arguments_sha256(
+                descriptor["inputSchema"])
+        key = Ed25519PrivateKey.generate()
+        key_path = secure._private_directory() / "owner-approval-public.pem"
+        key_path.write_bytes(key.public_key().public_bytes(
+            serialization.Encoding.PEM,
+            serialization.PublicFormat.SubjectPublicKeyInfo))
+        for name in names:
+            with self.subTest(name=name):
+                self.assertEqual("sensitive", secure.classify(
+                    name, self.registry[name], {"list_unknowns"}))
+                arguments = {}
+                step = {"tool": name, "arguments": arguments,
+                        "authorization": approved(name, arguments, "sensitive")}
+                body = request([step])
+                with self.assertRaises(secure.SecureBridgeError):
+                    secure.validate_inner(body, self.registry, {"list_unknowns"})
+                auth = step["authorization"]
+                payload = {
+                    "purpose": "REA_OWNER_APPROVAL_V1",
+                    "nonce": body["nonce"],
+                    "expires_at": body["expires_at"],
+                    "step_index": 0,
+                    "tool": name,
+                    "arguments_sha256": secure.arguments_sha256(arguments),
+                    "scope": "sensitive",
+                    "reason": auth["reason"],
+                    "acknowledgement": auth["acknowledgement"],
+                }
+                auth["owner_signature"] = base64.b64encode(
+                    key.sign(secure.canonical_json(payload))).decode()
+                self.assertEqual(["sensitive"], secure.validate_inner(
+                    body, self.registry, {"list_unknowns"}))
+                other_name = names[1] if name == names[0] else names[0]
+                substitution = request([{"tool": other_name, "arguments": arguments,
+                                         "authorization": dict(auth)}])
+                substitution["nonce"] = body["nonce"]
+                substitution["expires_at"] = body["expires_at"]
+                with self.assertRaises(secure.SecureBridgeError):
+                    secure.validate_inner(substitution, self.registry,
+                                          {"list_unknowns"})
+
     def test_reviewed_session_operations_require_open_and_exact_approval(self):
         examples = {
             "read_bytes": {"address": "0x1019f0", "length": 16},
