@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "P270_ORIGINAL_REA_121_OF_208__70_SENSITIVE_CONTRACTS_AUTHENTICATED__2_SCOPED_GHIDRA_TEST_CANDIDATES_UNSIGNED__11_EVIDENCE_1_UNKNOWN_LAST_VERIFIED_P267",
+  "status": "P276_ORIGINAL_REA_123_OF_208__TWO_P270_SENSITIVE_GHIDRA_CERTIFICATIONS__13_EVIDENCE_ONE_UNKNOWN_INDEPENDENTLY_VERIFIED__85_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -8055,21 +8055,86 @@
         "Existing official global provider doctor remains healthy=false, optional IDA unavailable",
         "Temporary timed unsigned manifest expires; Android offline signer uses immutable reviewed plan with fresh nonces and six-hour expiry at the time of signing."
       ]
+    },
+    {
+      "phase_id": "LINUX-P276-P270-FOUR-SIGNED-GHIDRA-REAL-MCP-TESTS-TWO-SENSITIVE-CERTIFICATIONS-20261025",
+      "date_utc": "2026-10-25",
+      "status": "TWO_NEW_SENSITIVE_FULLY_CERTIFIED_SCOPED__FOUR_OWNER_SIGNED_ORIGINAL_MCP_REAL_TESTS_2_POSITIVE_2_EXPECTED_NEGATIVE__INDEPENDENT_13_EVIDENCE_1_UNKNOWN_READBACK_PASS",
+      "tools": [
+        {
+          "name": "set_address_name",
+          "status": "FULLY_CERTIFIED",
+          "risk": "sensitive",
+          "positive_run_id": 40240454499,
+          "negative_run_id": 40240946159,
+          "positive_isError_false": true,
+          "negative_isError_true": true,
+          "independent_postcheck_run_id": 40241216212,
+          "record_evidence_id": "ev_0cf704d3c639ef1214b41a73e4695339d284c504a385a2482b371f46aebe12ed"
+        },
+        {
+          "name": "annotate_native_function",
+          "status": "FULLY_CERTIFIED",
+          "risk": "sensitive",
+          "positive_run_id": 40240804396,
+          "negative_run_id": 40241088451,
+          "positive_isError_false": true,
+          "negative_isError_true": true,
+          "independent_postcheck_run_id": 40241216212,
+          "record_evidence_id": "ev_0590d2033b02271440f6cb38bedb516dcf9f5c41e754be44c480b78bd1739a3e"
+        }
+      ],
+      "provider": "Ghidra 12.1.4",
+      "previous_certified": 121,
+      "new_certifications": 2,
+      "fully_certified": 123,
+      "pending": 85,
+      "sensitive_certified": 15,
+      "sensitive_remaining": 68,
+      "other_pending": 17,
+      "exact_signed_owner_batch_requests": 4,
+      "individual_owner_Ed25519_sensitive_signatures": 8,
+      "runs": [
+        40240454499,
+        40240804396,
+        40240946159,
+        40241088451
+      ],
+      "readback_run_id": 40241216212,
+      "independent_MCP_isError_all_false": true,
+      "positive_mcp_isError_false": true,
+      "negative_mcp_isError_true_expected": true,
+      "negative_cleanup_PASS_both": true,
+      "previous_11_records_identical": true,
+      "final_13_evidence_count": 13,
+      "unknowns": 1,
+      "original_11_semantic_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+      "final_13_semantic_sha256": "98655f7309a8fe941e2c5687b331511942086ab57ecf63dc26c1877c2f7b201c",
+      "previous_11_private_archive_preserved": true,
+      "new_13_private_archive": "engenharia reversa/REA_P276_Evidence_13_Backup_Verificado.zip",
+      "new_13_private_archive_zip_sha256": "640fb5fc2805f658e3a5dcf5c3f8420fcaa997e48687d42721c9d129ab1882d6",
+      "new_13_archive_import_restore_tested": false,
+      "previously_certified_tool_profiles_not_retested": true,
+      "doctor_global_healthy": false,
+      "new_plugins_or_servers_created": false,
+      "original_service_restarted": false,
+      "report": "rea-linux/certification/p276-p270-four-signed-sensitives-two-scoped-certifications-13-evidence-20261025.json",
+      "remaining_scope_note": "85 remain (68 sensitive plus 17 other), signed authorization required per future sensitive operation."
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 121,
-    "awaiting_canonical_individual_review": 87,
+    "functional_pass_scoped_distinct": 123,
+    "awaiting_canonical_individual_review": 85,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 5,
     "read_group_missing_positive": 0,
     "workspace_newly_passed_distinct": 48,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 5,
-    "fully_certified_distinct": 121,
+    "fully_certified_distinct": 123,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 87,
-    "remaining_full_certification_distinct": 87
+    "not_functionally_positive_distinct": 85,
+    "remaining_full_certification_distinct": 85
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -8099,7 +8164,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P270-70-SENSITIVE-LIVE-MCP-CONTRACT-INDEX-FIRST-OWNER-BATCH-READY-20261025",
+  "latest_phase": "LINUX-P276-P270-FOUR-SIGNED-GHIDRA-REAL-MCP-TESTS-TWO-SENSITIVE-CERTIFICATIONS-20261025",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -10325,6 +10390,78 @@
       ],
       "evidence_digest": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
       "phase_id": "LINUX-P259-OWNER-SIGNED-GDB-SESSION-STATUS-FULL-CERTIFICATION-20261025"
+    },
+    "set_address_name": {
+      "status": "FULLY_CERTIFIED",
+      "risk": "sensitive",
+      "phase_id": "LINUX-P276-P270-FOUR-SIGNED-GHIDRA-REAL-MCP-TESTS-TWO-SENSITIVE-CERTIFICATIONS-20261025",
+      "scope": "Ghidra 12.1.4 source-owned controlled ELF, mapped address naming returned normalized_result=true, one new Evidence; negative unmapped address returned isError=true invalid_request/invalid_input. Original permanent Linux REA MCP, Ghidra 12.1.4, controlled system-owned ELF64, exact independent owner Ed25519 authorization for tool and close_binary in same seven-step batch; validated positive behavior plus correctly rejected unmapped negative and an independent post-negative Evidence readback. No arbitrary binaries, vendors or remote devices certified.",
+      "run_ids": [
+        40240454499,
+        40240946159,
+        40241216212
+      ],
+      "positive_run_id": 40240454499,
+      "positive_job_id": 121310941681,
+      "positive_calls": 1,
+      "positive_isError_false": true,
+      "positive_authenticated_result_sha256": "489e456a9c42c89ac127ad3630dad3bacfdc020c422f68df63d5c4c193cda75f",
+      "positive_evidence_id": "ev_0cf704d3c639ef1214b41a73e4695339d284c504a385a2482b371f46aebe12ed",
+      "positive_evidence_record_sha256": "f684cda254fdc3085d5c03c938fdd7f4c932bfdc06df4a13f8dcea4d620eee5e",
+      "negative_run_id": 40240946159,
+      "negative_job_id": 121312387305,
+      "negative_isError_true": true,
+      "negative_category": "invalid_input",
+      "negative_authenticated_result_sha256": "24f49ead330076ea6d5490ba70593f6afcc3b16ee38d0aa18dcd6e345677d685",
+      "signed_close_cleanup": "PASS",
+      "independent_readback_run_id": 40241216212,
+      "original_11_evidence_semantic_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+      "final_13_evidence_semantic_sha256": "98655f7309a8fe941e2c5687b331511942086ab57ecf63dc26c1877c2f7b201c",
+      "evidence_history_preserved": true,
+      "unknown_preserved": true,
+      "source_fixture_sha256": "8a63c98320173f79e263115e10cefc170155e47d1fd4b5a70e4429d2699cae28",
+      "certification_report": "rea-linux/certification/p276-p270-four-signed-sensitives-two-scoped-certifications-13-evidence-20261025.json",
+      "limitations": [
+        "Scoped original Linux Ghidra 12.1.4 controlled system ELF only; not unrestricted renaming across arbitrary providers or targets.",
+        "New sensitive operations require individual fresh exact signed owner approval.",
+        "This test created one additional Evidence; complete 13-record checkpoint is verified offline but has not been re-imported."
+      ]
+    },
+    "annotate_native_function": {
+      "status": "FULLY_CERTIFIED",
+      "risk": "sensitive",
+      "phase_id": "LINUX-P276-P270-FOUR-SIGNED-GHIDRA-REAL-MCP-TESTS-TWO-SENSITIVE-CERTIFICATIONS-20261025",
+      "scope": "Ghidra 12.1.4 source-owned controlled ELF mapped function annotation returned structured annotations/dossier/effects payload, one new Evidence; non-existent function unmapped negative correctly rejected isError=true invalid_request/invalid_input. Original permanent Linux REA MCP, Ghidra 12.1.4, controlled system-owned ELF64, exact independent owner Ed25519 authorization for tool and close_binary in same seven-step batch; validated positive behavior plus correctly rejected unmapped negative and an independent post-negative Evidence readback. No arbitrary binaries, vendors or remote devices certified.",
+      "run_ids": [
+        40240804396,
+        40241088451,
+        40241216212
+      ],
+      "positive_run_id": 40240804396,
+      "positive_job_id": 121311965350,
+      "positive_calls": 1,
+      "positive_isError_false": true,
+      "positive_authenticated_result_sha256": "7d576361dc46107cb506ab5bd18c8717bdd87c974eb8b820672ef9bcd00d2c87",
+      "positive_evidence_id": "ev_0590d2033b02271440f6cb38bedb516dcf9f5c41e754be44c480b78bd1739a3e",
+      "positive_evidence_record_sha256": "361abd83518dc46b1ae2d5100d249d1a0ece0e658a6ed7919b1153bb07e0a923",
+      "negative_run_id": 40241088451,
+      "negative_job_id": 121312815163,
+      "negative_isError_true": true,
+      "negative_category": "invalid_input",
+      "negative_authenticated_result_sha256": "afe8aba0467255b4e5cf54c49942ee57a2f5c73a7cb87c0ca95c5949e06de6fb",
+      "signed_close_cleanup": "PASS",
+      "independent_readback_run_id": 40241216212,
+      "original_11_evidence_semantic_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+      "final_13_evidence_semantic_sha256": "98655f7309a8fe941e2c5687b331511942086ab57ecf63dc26c1877c2f7b201c",
+      "evidence_history_preserved": true,
+      "unknown_preserved": true,
+      "source_fixture_sha256": "8a63c98320173f79e263115e10cefc170155e47d1fd4b5a70e4429d2699cae28",
+      "certification_report": "rea-linux/certification/p276-p270-four-signed-sensitives-two-scoped-certifications-13-evidence-20261025.json",
+      "limitations": [
+        "Scoped Ghidra source-owned ELF annotation; does not validate arbitrary binary target mutations, platforms or third-party providers.",
+        "Every future sensitive tool invocation still needs an exact owner Ed25519 approval.",
+        "Private checkpoint 13/1 not yet import-restored, no service restart attempted."
+      ]
     }
   },
   "transport_incidents": [
@@ -10640,13 +10777,13 @@
       "P232_hold_active": false,
       "P250_nine_evidence_snapshot_verified": true,
       "independent_archive_restore_tested": true,
-      "current_live_evidence_count": 11,
+      "current_live_evidence_count": 13,
       "latest_prepared_zip_sha256": "8f9842efd89816ac313d5004d83d7926b0e933bfadff4be92e431b07b59ea636",
       "independent_archive_restoration_tested": true,
       "owner_download_confirmed": false,
       "current_live_unknowns": 1,
-      "current_live_bundle_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
-      "latest_readonly_check_run_id": 40234374750,
+      "current_live_bundle_sha256": "98655f7309a8fe941e2c5687b331511942086ab57ecf63dc26c1877c2f7b201c",
+      "latest_readonly_check_run_id": 40241216212,
       "external_private_archive_verified": true,
       "external_private_archive_restore_bytes_verified": true,
       "external_original_rea_import_tested": true,
@@ -10675,7 +10812,12 @@
       "p267_run_id": 40237348857,
       "p268_conditional_release_run_id": 40237729254,
       "p268_source_gate_sha": "e2405473eaff646be5952b785b57f41f906354b6",
-      "p268_report": "rea-linux/certification/p268-signed-lifecycle-bridge-release-121-scoped-tools-ready-20261025.json"
+      "p268_report": "rea-linux/certification/p268-signed-lifecycle-bridge-release-121-scoped-tools-ready-20261025.json",
+      "p276_original_11_preserved": true,
+      "p276_13_private_library_checkpoint": "engenharia reversa/REA_P276_Evidence_13_Backup_Verificado.zip",
+      "p276_13_archive_zip_sha256": "640fb5fc2805f658e3a5dcf5c3f8420fcaa997e48687d42721c9d129ab1882d6",
+      "p276_private_checkpoint_restore_tested": false,
+      "p276_report": "rea-linux/certification/p276-p270-four-signed-sensitives-two-scoped-certifications-13-evidence-20261025.json"
     },
     "no_new_certifications": false,
     "gdb_session_status": {
@@ -10809,7 +10951,7 @@
       "used_encrypted_requests_deleted": true,
       "no_owner_sensitive_operations": true
     },
-    "last_new_tool_certified": "gdb_session_status",
+    "last_new_tool_certified": "annotate_native_function",
     "latest_read_progress": {
       "phase": "P259_FINAL",
       "fully_certified": 121,
@@ -11161,21 +11303,57 @@
       "next": "Prepare exact schema checked target-scoped fixtures per pending sensitive tool, then unsigned manifests for owner review. Do not ask for private key upload or bulk-sign unknown future arguments."
     },
     "p270_owner_batch_preparation": {
-      "status": "P270_READY_FOR_ONE_OFFLINE_OWNER_REVIEW_OF_FOUR_EXACT_REQUESTS_NOT_EXECUTED",
+      "status": "EXECUTED_P276_FOUR_OWNER_SIGNED_BATCHES_2_SENSITIVE_CERTIFICATIONS",
       "source_real_MCP_run": 40238685797,
       "tool_schemas_live": 208,
-      "sensitive_pending_total": 70,
+      "sensitive_pending_total": 68,
       "first_ready_profiles": 2,
       "unsigned_requests": 4,
       "owner_signatures_expected": 8,
       "remaining_sensitives_need_provider_preflight": 68,
       "owner_private_key_required_only_in_existing_Termux": true,
-      "external_signature_not_received": true,
-      "no_new_certifications": true,
-      "remaining_full_certifications": 87,
+      "external_signature_not_received": false,
+      "no_new_certifications": false,
+      "remaining_full_certifications": 85,
       "safe_action": "Use local owner approval once for four reviewed Ghidra tests; then deliver signed ZIP and execute requests via encrypted GitHub Actions/SSH/original MCP. Verify isError and evidence integrity; no signatures automatically generated by ChatGPT.",
       "report": "rea-linux/certification/p270-70-sensitive-live-contract-matrix-first-owner-batch-prepared-20261025.json",
-      "readback_evidence_last_verified_sha": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380"
+      "readback_evidence_last_verified_sha": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+      "owner_consent_received": true,
+      "actual_new_certifications": 2,
+      "executed_original_mcp_signed_requests": 4,
+      "p276_report": "rea-linux/certification/p276-p270-four-signed-sensitives-two-scoped-certifications-13-evidence-20261025.json"
+    },
+    "p276_owner_signed_ghidra_completed": {
+      "status": "FOUR_SIGNED_GHIDRA_TESTS_PASS_2_NEW_SENSITIVE_FULLY_CERTIFIED",
+      "new_tools": [
+        "set_address_name",
+        "annotate_native_function"
+      ],
+      "previous_certified": 121,
+      "current_certified": 123,
+      "remaining": 85,
+      "remaining_sensitive": 68,
+      "remaining_other": 17,
+      "original_MCP_signed_runs": [
+        40240454499,
+        40240804396,
+        40240946159,
+        40241088451
+      ],
+      "original_MCP_independent_readback_run_id": 40241216212,
+      "new_evidence_count": 2,
+      "live_evidence_count": 13,
+      "unknowns": 1,
+      "original_11_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+      "final_13_sha256": "98655f7309a8fe941e2c5687b331511942086ab57ecf63dc26c1877c2f7b201c",
+      "all_13_history_intact": true,
+      "no_evidence_lost": true,
+      "owner_private_key_absent_from_GitHub_and_VPS": true,
+      "report": "rea-linux/certification/p276-p270-four-signed-sensitives-two-scoped-certifications-13-evidence-20261025.json",
+      "private_library_checkpoint": "engenharia reversa/REA_P276_Evidence_13_Backup_Verificado.zip",
+      "checkpoint_verified_offline": true,
+      "checkpoint_import_restore_tested": false,
+      "next": "Continue to 85 remaining without repeating 123; preflight providers and dynamic targets, prepare one-reviewed exact Ed25519 batches, verify evidence after each."
     }
   }
 }
