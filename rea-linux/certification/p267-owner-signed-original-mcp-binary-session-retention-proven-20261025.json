@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "project": "Engenharia Reversa - original permanent REA 6.7.0 Linux MCP",
+  "phase_id": "LINUX-P267-OWNER-SIGNED-CONTROLLED-GHIDRA-BINARY-LIFECYCLE-RETENTION-20261025",
+  "date_utc": "2026-10-25",
+  "status": "PASS_SIX_LIVE_ORIGINAL_MCP_CALLS__P261_RETENTION_CONFIRMED_AFTER_REAL_OPEN_AND_CLOSE__11_EVIDENCE_1_UNKNOWN_DEEP_EQUAL",
+  "original_service": {
+    "path": "/opt/rea-reversa/rea",
+    "loopback": "127.0.0.1:8765/mcp",
+    "catalog": 208
+  },
+  "bridge": {
+    "repo": "martaxi-boss/VPS",
+    "branch": "rea/one-skill-bridge-20261023",
+    "workflow": ".github/workflows/rea-android-bridge-20261022.yml",
+    "bridge_blob_sha_during_trial": "5fea1beb39ae1d51d8d7445fd4f4773f9b149658",
+    "one_use_exception": "Pinned to SHA-256 of exact P267 signed request after original owner Ed25519 verification; all unrelated binary operations still denied"
+  },
+  "authorization": {
+    "owner_signed_original_android": true,
+    "scope_close": "sensitive",
+    "scope_open": "workspace",
+    "nonce": "62bd6cb9fd325fa7277f55890423bce9",
+    "signed_body_canonical_sha256": "0ca2d022a96fa5c23dfcfead9b53ff1f45f78d5cc2b90622a121cfac26f4acf3",
+    "expires_at_utc": "2026-10-26T17:30:38Z",
+    "real_original_bridge_owner_signature_verifier": "PASS_SECURE_VALIDATE_INNER_BEFORE_NONCE_AND_MCP",
+    "exact_close_arguments_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "signature_never_published_plaintext": true,
+    "request_never_replayed": true
+  },
+  "verification": {
+    "workflow_run_id": 40237348857,
+    "workflow_job_id": 121301628707,
+    "workflow_commit": "054ca1c8145772341e8a383fe61debeeeaf8253a",
+    "live_steps": [
+      "get_evidence_bundle",
+      "list_unknowns",
+      "open_binary",
+      "close_binary",
+      "get_evidence_bundle",
+      "list_unknowns"
+    ],
+    "exact_test_target": "/usr/bin/true",
+    "provider": "ghidra",
+    "live_steps_executed": 6,
+    "all_six_mcp_isError_false": true,
+    "opening_original_mcp_isError": false,
+    "closing_original_mcp_isError": false,
+    "pre_open_evidence_count": 11,
+    "post_close_evidence_count": 11,
+    "pre_open_unknown_revisions": 1,
+    "post_close_unknown_revisions": 1,
+    "pre_post_bundle_deep_equal": true,
+    "pre_post_unknown_page_deep_equal": true,
+    "canonical_bundle_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+    "p267_guard_reported_status": "PASS",
+    "bridge_reported_same_evidence_content": true,
+    "encrypted_workflow_artifact_id": 12614828487,
+    "encrypted_artifact_bytes": 63591,
+    "authenticated_output_result_sha256": "578d434972908f05290c59523b7332269e6ba2a4a495e2b1511affcc39767d79",
+    "response_request_sha256": "fd9b8bc4e63b4c158ef1c3bc3205592c1f49919ae68010c6da4110638a2d7bdb",
+    "decrypted_locally_with_private_ephemeral_reply_key": true,
+    "request_matches_encrypted_reply": true,
+    "original_source_fix_remains_active_from_P265": true
+  },
+  "security_checks": {
+    "unit_tests_passed": 13,
+    "unit_test_run_id": 40237167305,
+    "count_uncertified_unchanged": 87,
+    "historically_certified_unchanged": 121,
+    "global_healthy_state_not_changed": false,
+    "optional_ida_unavailable": true
+  },
+  "hygiene": {
+    "consumed_one_use_encrypted_request_deleted": true,
+    "consumed_public_key_read_request_deleted": true,
+    "original_private_P262_backup_retained": true,
+    "all_evidence_retained": true,
+    "signature_private_key_not_exported": true,
+    "temporary_library_stage_removed": true,
+    "old_ssh_host_pin_preserved": true,
+    "original_mcp_publicly_unexposed": true
+  },
+  "next_safe_action": "Replace consumed one-off P267 bridge exception with a general validated sealed-batch lifecycle admission gate that permits only individually authorized open_binary (workspace) and owner-Ed25519-signed close_binary with an automatic close authorized in the same batch. Unit-test and read back before recording P232/P246 operational hold released. Do not declare all providers globally healthy.",
+  "limitations": [
+    "The P267 trial confirms one real Linux Ghidra binary cycle on /usr/bin/true; it does not prove all 121 historically certified tool contracts on arbitrary targets.",
+    "Original global service provider doctor remains healthy=false; optional IDA is still not configured.",
+    "No new individual tools certified by this phase; 87 remain."
+  ]
+}
