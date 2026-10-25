@@ -97,7 +97,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_retention_p239", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_retention_p240", "fixture_linux_retention_p239", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -263,6 +263,9 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_P239_ORIGINAL_TEST_BLOBS", "REA_P239_ORIGINAL_TEST_RUN_EXIT",
         "REA_P239_ORIGINAL_TEST_LOG_SHA256", "REA_P239_ORIGINAL_TESTS",
         "REA_P239_STAGED_SOURCE_HYGIENE", "REA_P239_RETENTION_STATUS",
+        "REA_P240_SOURCE_REV", "REA_P240_TEST_EXIT", "REA_P240_TEST_LOG_SHA256",
+        "REA_P240_TEST_STATUS", "REA_P240_WORKTREE_HYGIENE",
+        "REA_P240_RECOVERY_STATUS", "REA_P240_BLOCKER",
         "REA_LINUX_GDB_CONFORMANCE_SOURCE", "REA_LINUX_GDB_CONFORMANCE_COUNT",
         "REA_LINUX_GDB_CONFORMANCE_STATUS", "REA_LINUX_GDB_CONFORMANCE_WORKTREE",
         "REA_LINUX_GDB_MANAGER_EXIT", "REA_LINUX_GDB_MANAGER_RESULT",
@@ -1149,6 +1152,63 @@ def main():
         print("REA_LINUX_READ5_MCP_PASS_COUNT=" + str(pass_count))
         print("REA_LINUX_READ5_MCP_BOUNDARIES=" +
               ("PASS_ISOLATED_MCP_NOT_PRODUCTION" if pass_count == 4 and intact else "INCOMPLETE"))
+        return
+    if data["action"] == "fixture_linux_retention_p240":
+        # P240: temporary source-owned Vitest fixture, strictly in-memory MCP.
+        # Never talks to or closes the persistent REA MCP service.
+        import shutil
+        root = Path.home() / ".local/share/rea-chatgpt-trial/repository/rea"
+        runner = root / "node_modules/vitest/vitest.mjs"
+        node = shutil.which("node")
+        fixture = root / "tests/boundary/mcp/reaP240ExactRetentionFixture.test.ts"
+        if not root.is_dir() or not runner.is_file() or not node:
+            print("REA_P240_BLOCKER=MISSING_ORIGINAL_STAGED_SOURCE_OR_VITEST")
+            return
+        revision = subprocess.run(["git","-C",str(root),"rev-parse","HEAD"],
+                                  capture_output=True,text=True,timeout=12,check=False)
+        before = subprocess.run(["git","-C",str(root),"status","--porcelain"],
+                                capture_output=True,text=True,timeout=12,check=False)
+        if revision.returncode or before.returncode or before.stdout.strip():
+            print("REA_P240_BLOCKER=SOURCE_PROVENANCE_OR_DIRTY_WORKTREE")
+            return
+        if revision.stdout.strip() != "8e9a7ee295667f8e23aea9d18af6eee4363d2032":
+            print("REA_P240_BLOCKER=SOURCE_REVISION_CHANGED")
+            return
+        if fixture.exists() or fixture.is_symlink():
+            print("REA_P240_BLOCKER=TEMP_FIXTURE_PREEXISTS")
+            return
+        print("REA_P240_SOURCE_REV=" + revision.stdout.strip())
+        success = False
+        clean = False
+        try:
+            fixture.write_text("import { readFile, writeFile } from \"node:fs/promises\";\nimport { join } from \"node:path\";\nimport { Client, InMemoryTransport } from \"@modelcontextprotocol/client\";\nimport { expect, it } from \"vitest\";\nimport { createEvidence } from \"../../../src/domain/evidence.js\";\nimport { ok as resultOk } from \"../../../src/domain/result.js\";\nimport { createServer } from \"../../../src/server/createServer.js\";\nimport { createTestBinarySession } from \"../../fixtures/binarySession.js\";\nimport { createTestTempDirectory } from \"../../fixtures/temporaryDirectory.js\";\nimport { observed } from \"../../fixtures/analysisExecution.js\";\n\nconst sourceSession = () => createTestBinarySession(() => ({\n  execute: () => Promise.resolve(observed(null)),\n  close: () => Promise.resolve(resultOk(null)),\n}));\n\nconst initialize = async () => {\n  const session = sourceSession();\n  for (const label of [\"one\", \"two\"]) {\n    const evidence = createEvidence(\n      undefined, { id: \"fixture\", name: \"Fixture\", version: \"1\" },\n      { operation: \"p240_\" + label, parameters: { part: label },\n        result: { marker: label, nested: { untouched: true } } },\n    );\n    expect(session.recordEvidence(evidence).ok).toBe(true);\n  }\n  const server = createServer({ kind: \"session\", session });\n  const client = new Client({ name: \"p240-original-retention\", version: \"1\" });\n  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();\n  await server.connect(serverTransport);\n  await client.connect(clientTransport);\n  const call = async (name: string, args: Record<string, unknown> = {}) => {\n    const answer = await client.callTool({ name, arguments: args });\n    expect(answer.isError, name + \": \" + JSON.stringify(answer.content)).not.toBe(true);\n    return answer;\n  };\n  const fields = {\n    severity: \"medium\", required_authority: \"shipped-artifact\",\n    required_confidence: \"observed\", required_environment: null,\n    recommended_probes: [], relationships: [],\n  };\n  const recorded = await call(\"record_unknown\", {\n    ...fields, question: \"Which revision generated the original artifact?\",\n    domain: \"p240-original-retention\",\n  });\n  const u = (recorded.structuredContent as {\n    result: { unknown_id: string; revision: number }\n  }).result;\n  expect(u.unknown_id).toMatch(/^unk_[0-9a-f]{64}$/);\n  const updated = await call(\"update_unknown\", {\n    ...fields, unknown_id: u.unknown_id, expected_revision: u.revision,\n    status: \"investigating\", supporting_evidence_ids: [],\n    contradicting_evidence_ids: [], resolution: null,\n  });\n  expect(updated.isError).not.toBe(true);\n  const bundle = async () => (await call(\"get_evidence_bundle\")).structuredContent as {\n    result: {\n      records: Array<{ evidence_id: string; normalized_result: unknown }>;\n      unknowns: Array<{ unknown_id: string; revision: number }>;\n    };\n  };\n  const before = (await bundle()).result;\n  expect(before.records.length).toBeGreaterThanOrEqual(2);\n  expect(before.unknowns).toHaveLength(2);\n  expect(before.unknowns.map(x => x.revision)).toEqual([1, 2]);\n  return { client, server, session, call, bundle, before };\n};\n\nconst closeAll = async (fixture: Awaited<ReturnType<typeof initialize>>) =>\n  Promise.allSettled([fixture.client.close(), fixture.server.close(), fixture.session.close()]);\n\nit(\"restores complete Evidence IDs, payloads and two Unknown revisions after close_binary\", async () => {\n  const root = await createTestTempDirectory(\"rea-p240-good-\");\n  const path = join(root, \"original-full-evidence.json\");\n  const post = join(root, \"post-restore.json\");\n  const x = await initialize();\n  try {\n    await x.call(\"export_evidence_bundle\", { path });\n    const originalBytes = await readFile(path, \"utf8\");\n    expect(JSON.parse(originalBytes)).toEqual(x.before);\n    await x.call(\"close_binary\");\n    const closed = (await x.bundle()).result;\n    expect(closed.records).toEqual([]);\n    expect(closed.unknowns).toEqual([]);\n    await x.call(\"import_evidence_bundle\", { path });\n    const restored = (await x.bundle()).result;\n    expect(restored).toEqual(x.before);\n    expect(restored.records.map(r => r.evidence_id)).toEqual(x.before.records.map(r => r.evidence_id));\n    expect(restored.unknowns).toEqual(x.before.unknowns);\n    await x.call(\"export_evidence_bundle\", { path: post });\n    expect(await readFile(post, \"utf8\")).toBe(originalBytes);\n    await x.call(\"import_evidence_bundle\", { path });\n    expect((await x.bundle()).result).toEqual(x.before);\n  } finally { await closeAll(x); }\n});\n\nit(\"rejects corrupted Evidence and incomplete Unknown revisions before valid recovery\", async () => {\n  const root = await createTestTempDirectory(\"rea-p240-reject-\");\n  const good = join(root, \"complete.json\");\n  const tampered = join(root, \"evidence-corrupt.json\");\n  const missing = join(root, \"missing-first-revision.json\");\n  const x = await initialize();\n  try {\n    await x.call(\"export_evidence_bundle\", { path: good });\n    const bytes = JSON.parse(await readFile(good, \"utf8\"));\n    const payload = structuredClone(bytes);\n    payload.records[0].normalized_result = { altered: true };\n    await writeFile(tampered, JSON.stringify(payload));\n    const revisions = structuredClone(bytes);\n    revisions.unknowns.shift();\n    await writeFile(missing, JSON.stringify(revisions));\n    await x.call(\"close_binary\");\n    for (const path of [tampered, missing]) {\n      const error = await x.client.callTool({ name: \"import_evidence_bundle\", arguments: { path } });\n      expect(error.isError, path).toBe(true);\n      const empty = (await x.bundle()).result;\n      expect(empty.records).toEqual([]);\n      expect(empty.unknowns).toEqual([]);\n    }\n    await x.call(\"import_evidence_bundle\", { path: good });\n    expect((await x.bundle()).result).toEqual(x.before);\n  } finally { await closeAll(x); }\n});\n",encoding="utf-8")
+            try:
+                p = subprocess.run([node,str(runner),"run",
+                    "tests/boundary/mcp/reaP240ExactRetentionFixture.test.ts",
+                    "--no-file-parallelism","--maxWorkers=1"],
+                    cwd=str(root),capture_output=True,text=True,
+                    timeout=200,check=False,env={**os.environ,"CI":"true",
+                    "NO_COLOR":"1","NODE_OPTIONS":"--max-old-space-size=1024"})
+                raw = p.stdout + "\n" + p.stderr
+                plain = re.sub(r"\x1b\[[0-9;]*[A-Za-z]","",raw)
+                success = p.returncode == 0 and bool(re.search(r"\b2 passed\b",plain))
+                print("REA_P240_TEST_EXIT=" + str(p.returncode))
+                print("REA_P240_TEST_LOG_SHA256=" + hashlib.sha256(raw.encode()).hexdigest())
+                print("REA_P240_TEST_STATUS=" + ("PASS_2_NATIVE" if success else "FAIL_NATIVE_TESTS"))
+                if not success:
+                    print("REA_P240_BLOCKER=TEST_FAILURE_DETAILS_RETAINED_ONLY_IN_PRIVATE_RUNNER")
+            except subprocess.TimeoutExpired:
+                print("REA_P240_BLOCKER=TEST_TIMEOUT")
+        finally:
+            if fixture.is_file() and not fixture.is_symlink():
+                fixture.unlink()
+            after = subprocess.run(["git","-C",str(root),"status","--porcelain"],
+                                   capture_output=True,text=True,timeout=12,check=False)
+            clean = after.returncode == 0 and after.stdout == before.stdout
+            print("REA_P240_WORKTREE_HYGIENE=" + ("PASS" if clean else "FAIL"))
+        print("REA_P240_RECOVERY_STATUS=" +
+              ("PASS_ISOLATED_FULL_RESTORE_NOT_PERMANENT_RELEASE"
+               if success and clean else "INCOMPLETE"))
         return
     if data["action"] == "fixture_linux_retention_p239":
         # P239 bounded one-use native REA regression. DO NOT call permanent MCP.
