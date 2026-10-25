@@ -9831,7 +9831,19 @@
         "descriptor_run_id": 40211388837,
         "normal_read_transport": "PASS"
       },
-      "retention_report": "rea-linux/certification/p250-readonly-evidence-retention-snapshot-20261025.json"
+      "retention_report": "rea-linux/certification/p250-readonly-evidence-retention-snapshot-20261025.json",
+      "p255_negative_recheck": {
+        "date_utc": "2026-10-25",
+        "run_id": 40222183647,
+        "commit": "4e1fe52e4e23ebbbf6984a3d9848e3df71c2b827",
+        "mcp_isError": true,
+        "reason": "not-found",
+        "active_unknowns": 0,
+        "readback_evidence_records": 10,
+        "baseline_semantic_sha256": "8ddc202430af04e5da8c53521211d7a8968021316b9abc1c8d063c9c72066bc5",
+        "status": "NEGATIVE_ONLY_REAL_POSITIVE_STILL_PENDING",
+        "report": "rea-linux/certification/p255-readonly-two-real-mcp-negative-preconditions-20261025.json"
+      }
     },
     "inspect_plist": {
       "phase": "P251",
@@ -9885,6 +9897,38 @@
       "independent_archive_restoration_tested": false,
       "owner_download_confirmed": false
     },
-    "no_new_certifications": false
+    "no_new_certifications": false,
+    "gdb_session_status": {
+      "phase": "P255",
+      "status": "NEGATIVE_ONLY_PERMANENT_MCP_POSITIVE_NEEDS_VALID_OWNER_GDB_SESSION",
+      "blocking": "The live original MCP requires a UUID for a genuinely active owned REA GDB session. Invalid/absent session returned isError=true invalid_request/invalid_input. Starting or closing sessions are separate sensitive operations requiring exact owner signatures and retention-safe handling; neither was invoked.",
+      "proof": {
+        "run_id": 40222203784,
+        "commit": "17fc93aaedea9262cc23a55c0437a57a035eaea2",
+        "mcp_isError": true,
+        "return_code": "invalid_request",
+        "category": "invalid_input",
+        "retained_evidence_records": 10,
+        "unknowns": 0,
+        "bundle_sha256": "8ddc202430af04e5da8c53521211d7a8968021316b9abc1c8d063c9c72066bc5"
+      },
+      "report": "rea-linux/certification/p255-readonly-two-real-mcp-negative-preconditions-20261025.json"
+    },
+    "latest_readonly_two_tools_probe": {
+      "phase": "P255",
+      "status": "TWO_LIVE_READ_CALLS_COMPLETED_NEGATIVE_ONLY_NO_NEW_CERTIFICATIONS",
+      "runs": [
+        40222183647,
+        40222203784
+      ],
+      "report": "rea-linux/certification/p255-readonly-two-real-mcp-negative-preconditions-20261025.json",
+      "count_before": 119,
+      "count_after": 119,
+      "remaining": 89,
+      "read_pending": 2,
+      "ten_evidence_semantic_sha256": "8ddc202430af04e5da8c53521211d7a8968021316b9abc1c8d063c9c72066bc5",
+      "used_encrypted_requests_deleted": true,
+      "no_owner_sensitive_operations": true
+    }
   }
 }
