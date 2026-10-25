@@ -3,7 +3,7 @@
   "project": "Engenharia Reversa - original REA Linux MCP",
   "date_utc": "2026-10-25",
   "phase": "P256-P257-READ-CERTIFICATION-SIGNED-PREPARATION",
-  "status": "OWNER_SIGNATURES_REQUIRED__NO_NEW_CERTIFICATION",
+  "status": "P256_UNKNOWN_ALT_PREPARATION_SUPERSEDED_BY_P258_CERTIFICATION; P257_GDB_REMAINS_PENDING_OWNER_SIGNATURE",
   "previous_real_negative_runs": [
     40222183647,
     40222203784
@@ -49,14 +49,28 @@
     ],
     "subsequent_read": "verify_unknown_resolution",
     "result_expected": "isError=false valid=true truthVerified=true if original MCP and protected retention checks pass",
-    "not_yet_executed": true
+    "not_yet_executed": true,
+    "original_staged_plan_status": "NOT_EXECUTED_AS_PREPARED_AND_NOT_NEEDED; DO_NOT_RUN_REDUNDANT_P256_CREATION",
+    "superseded_by": {
+      "phase": "P258",
+      "tool": "verify_unknown_resolution",
+      "status": "FULLY_CERTIFIED_SCOPED",
+      "original_mcp_signed_run_id": 40224058765,
+      "independent_readback_run_id": 40224253679,
+      "owner_signature_source": "Previously unused exact P250 owner signature; P256 Android signer not needed for this read",
+      "read_success_with_existing_open_unknown": true,
+      "read_valid": false,
+      "read_truthVerified": false,
+      "report": "rea-linux/certification/read-p258-verify-unknown-resolution-certified-20261025.json"
+    }
   },
   "p257_gdb": {
     "signed_first_operation": "start_gdb_session",
     "arguments": {},
     "read_after_owner_signed_start": "gdb_session_status exact returned UUID",
     "cleanup_requires_fresh_exact_signature": "close_gdb_session after valid owned UUID",
-    "not_yet_executed": true
+    "not_yet_executed": true,
+    "current_status": "PENDING_REAL_PERMANENT_MCP_GDB_SESSION; P257 owner signed start and exact UUID cleanup still required"
   },
   "constraints": [
     "Preserve all ten existing Evidence",
@@ -87,6 +101,18 @@
     ],
     "delivery_note": "ZIP made available as conversation artifact for owner local use; it cannot install/run itself, nor can this ChatGPT/GitHub bridge access Android filesystem or private Ed25519 key. No owner signature or permanent MCP positive certification claimed.",
     "owner_signature_status": "NOT_SUBMITTED",
-    "certification_status": "UNMODIFIED_119_OF_208"
+    "certification_status": "UNMODIFIED_119_OF_208",
+    "requires_update": "Existing P256/P257 Android package would create a second, unnecessary P256 Unknown if its prepare mode is run; do not run that generic prepare package after P258. The only missing owner approval concerns safe GDB start and exact signed cleanup."
+  },
+  "current_after_P258": {
+    "fully_certified": 120,
+    "remaining": 88,
+    "read_positive_permanent_mcp": 4,
+    "read_missing_positive": 1,
+    "evidence_records": 11,
+    "unknown_records": 1,
+    "retention_hold_P232_P246": true,
+    "do_not_reissue_p256_unknown_requests": true,
+    "android_signer_zip_is_partial_superseded": true
   }
 }
