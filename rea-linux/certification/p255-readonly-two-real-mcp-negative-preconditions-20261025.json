@@ -68,7 +68,11 @@
       "rea-linux/requests/p255-read-verify_unknown_resolution-948a53dc0919.json",
       "rea-linux/requests/p255-read-gdb_session_status-795e61889ac3.json"
     ],
-    "status": "PENDING_AT_REPORT_WRITING"
+    "status": "COMPLETE_EXACT_TWO_CONSUMED_CIPHERTEXT_REQUESTS_REMOVED",
+    "deletion_commits": [
+      "9a944dfed5268f62e7b26868949f7185c1263f88",
+      "7d512677e6e214deee513371532364ed82f5df2a"
+    ]
   },
   "constraints": [
     "Do not increment 119 count",
