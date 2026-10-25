@@ -1,0 +1,752 @@
+{
+  "schema_version": 1,
+  "project": "Engenharia Reversa / REA permanent original Linux 6.7.0",
+  "phase_id": "LINUX-P269-OFFLINE-OWNER-BATCH-SIGNER-PREPARED-CI-VERIFIED-20261025",
+  "date_utc": "2026-10-25",
+  "status": "OWNER_BATCH_SIGNER_PREPARED_AND_OFFLINE_TESTED__70_SENSITIVE_PENDING_INVENTORIED__NO_MCP_SENSITIVE_EXECUTION__NO_NEW_CERTIFICATIONS",
+  "purpose": "Reduce repeated Android Termux confirmations while retaining owner Ed25519 independent per-step authorization and exact original MCP tests",
+  "sources": {
+    "canonical_ledger_blob_sha": "98ee579696d83635dbedc97e40c04b24e2884384",
+    "sensitive_names_earlier_audit_blob_sha": "f4d4168f022d584237e7353972e23f5eb1435b0c",
+    "current_policy": "ops/rea_secure_protocol_20261022.py"
+  },
+  "inventory": {
+    "total_catalog": 208,
+    "certified": 121,
+    "remaining": 87,
+    "original_sensitive_total": 83,
+    "certified_sensitive": 13,
+    "pending_sensitive": 70,
+    "pending_other": 17,
+    "already_certified_sensitive_no_recertification": 13,
+    "older_unsigned_positive_provenances_preserved_reauthorization_for_new_calls": [
+      "inspect_adb_client",
+      "inspect_web_network_capture"
+    ],
+    "pending_tool_names": [
+      "analyze_web_bundle",
+      "annotate_native_function",
+      "capture_adb_screen",
+      "capture_browser_scenario",
+      "capture_electron_scenario",
+      "capture_native_ui_scenario",
+      "capture_process_scenario",
+      "capture_web_screenshot",
+      "close_binary",
+      "close_frida_session",
+      "close_gdb_session",
+      "close_rizin_debug_session",
+      "collect_adb_bugreport",
+      "cutter_command",
+      "decompile_jeb_item",
+      "discover_webmcp_tools",
+      "execute_rizin_command",
+      "extract_artifact",
+      "gdb_console",
+      "goto_address",
+      "inspect_adb_device",
+      "inspect_adb_display",
+      "inspect_adb_package",
+      "inspect_adb_window",
+      "inspect_electron_page",
+      "inspect_jeb_client",
+      "inspect_web_event_listeners",
+      "inspect_web_page",
+      "install_adb_package",
+      "instrument_with_frida",
+      "list_adb_directory",
+      "list_adb_features",
+      "list_adb_packages",
+      "list_adb_processes",
+      "list_adb_services",
+      "list_browser_targets",
+      "list_electron_targets",
+      "list_javascript_runtime_targets",
+      "list_jeb_units",
+      "load_frida_script",
+      "observe_javascript_runtime",
+      "observe_native_calls",
+      "observe_native_ui",
+      "observe_web_execution",
+      "observe_web_session",
+      "open_jeb_project",
+      "pull_adb_file",
+      "pull_adb_package",
+      "push_adb_file",
+      "read_adb_logcat",
+      "read_adb_setting",
+      "recover_javascript_sources",
+      "resolve_adb_packages",
+      "resume_frida_session",
+      "rizin_debug_command",
+      "set_address_name",
+      "set_addresses_names",
+      "set_bookmark",
+      "set_comment",
+      "set_inline_comment",
+      "start_adb_activity",
+      "start_adb_app",
+      "start_frida_session",
+      "start_gdb_session",
+      "start_rizin_debug_session",
+      "stop_adb_app",
+      "trace_web_module_imports",
+      "uninstall_adb_package",
+      "unload_frida_script",
+      "unset_bookmark"
+    ],
+    "pending_classification_hints": [
+      {
+        "name": "analyze_web_bundle",
+        "preflight_tags": [
+          "browser_or_network_target_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "annotate_native_function",
+        "preflight_tags": [
+          "changes_state_or_process_strict_explicit_approval"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "capture_adb_screen",
+        "preflight_tags": [
+          "device_or_adb_state_must_be_verified"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "capture_browser_scenario",
+        "preflight_tags": [
+          "browser_or_network_target_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "capture_electron_scenario",
+        "preflight_tags": [
+          "browser_or_network_target_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "capture_native_ui_scenario",
+        "preflight_tags": [
+          "exact_original_schema_controlled_fixture_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "capture_process_scenario",
+        "preflight_tags": [
+          "exact_original_schema_controlled_fixture_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "capture_web_screenshot",
+        "preflight_tags": [
+          "browser_or_network_target_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "close_binary",
+        "preflight_tags": [
+          "exact_original_schema_controlled_fixture_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "close_frida_session",
+        "preflight_tags": [
+          "live_provider_or_dynamic_session_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "close_gdb_session",
+        "preflight_tags": [
+          "live_provider_or_dynamic_session_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "close_rizin_debug_session",
+        "preflight_tags": [
+          "live_provider_or_dynamic_session_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "collect_adb_bugreport",
+        "preflight_tags": [
+          "device_or_adb_state_must_be_verified"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "cutter_command",
+        "preflight_tags": [
+          "live_provider_or_dynamic_session_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "decompile_jeb_item",
+        "preflight_tags": [
+          "live_provider_or_dynamic_session_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "discover_webmcp_tools",
+        "preflight_tags": [
+          "browser_or_network_target_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "execute_rizin_command",
+        "preflight_tags": [
+          "live_provider_or_dynamic_session_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "extract_artifact",
+        "preflight_tags": [
+          "exact_original_schema_controlled_fixture_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "gdb_console",
+        "preflight_tags": [
+          "live_provider_or_dynamic_session_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "goto_address",
+        "preflight_tags": [
+          "live_provider_or_dynamic_session_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "inspect_adb_device",
+        "preflight_tags": [
+          "device_or_adb_state_must_be_verified"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "inspect_adb_display",
+        "preflight_tags": [
+          "device_or_adb_state_must_be_verified"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "inspect_adb_package",
+        "preflight_tags": [
+          "device_or_adb_state_must_be_verified"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "inspect_adb_window",
+        "preflight_tags": [
+          "device_or_adb_state_must_be_verified"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "inspect_electron_page",
+        "preflight_tags": [
+          "browser_or_network_target_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "inspect_jeb_client",
+        "preflight_tags": [
+          "live_provider_or_dynamic_session_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "inspect_web_event_listeners",
+        "preflight_tags": [
+          "browser_or_network_target_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "inspect_web_page",
+        "preflight_tags": [
+          "browser_or_network_target_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "install_adb_package",
+        "preflight_tags": [
+          "device_or_adb_state_must_be_verified",
+          "changes_state_or_process_strict_explicit_approval"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "instrument_with_frida",
+        "preflight_tags": [
+          "live_provider_or_dynamic_session_preflight",
+          "changes_state_or_process_strict_explicit_approval"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "list_adb_directory",
+        "preflight_tags": [
+          "device_or_adb_state_must_be_verified"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "list_adb_features",
+        "preflight_tags": [
+          "device_or_adb_state_must_be_verified"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "list_adb_packages",
+        "preflight_tags": [
+          "device_or_adb_state_must_be_verified"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "list_adb_processes",
+        "preflight_tags": [
+          "device_or_adb_state_must_be_verified"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "list_adb_services",
+        "preflight_tags": [
+          "device_or_adb_state_must_be_verified"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "list_browser_targets",
+        "preflight_tags": [
+          "browser_or_network_target_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "list_electron_targets",
+        "preflight_tags": [
+          "browser_or_network_target_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "list_javascript_runtime_targets",
+        "preflight_tags": [
+          "browser_or_network_target_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "list_jeb_units",
+        "preflight_tags": [
+          "live_provider_or_dynamic_session_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "load_frida_script",
+        "preflight_tags": [
+          "live_provider_or_dynamic_session_preflight",
+          "changes_state_or_process_strict_explicit_approval"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "observe_javascript_runtime",
+        "preflight_tags": [
+          "browser_or_network_target_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "observe_native_calls",
+        "preflight_tags": [
+          "exact_original_schema_controlled_fixture_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "observe_native_ui",
+        "preflight_tags": [
+          "exact_original_schema_controlled_fixture_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "observe_web_execution",
+        "preflight_tags": [
+          "browser_or_network_target_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "observe_web_session",
+        "preflight_tags": [
+          "live_provider_or_dynamic_session_preflight",
+          "browser_or_network_target_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "open_jeb_project",
+        "preflight_tags": [
+          "live_provider_or_dynamic_session_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "pull_adb_file",
+        "preflight_tags": [
+          "device_or_adb_state_must_be_verified"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "pull_adb_package",
+        "preflight_tags": [
+          "device_or_adb_state_must_be_verified"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "push_adb_file",
+        "preflight_tags": [
+          "device_or_adb_state_must_be_verified",
+          "changes_state_or_process_strict_explicit_approval"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "read_adb_logcat",
+        "preflight_tags": [
+          "device_or_adb_state_must_be_verified"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "read_adb_setting",
+        "preflight_tags": [
+          "device_or_adb_state_must_be_verified"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "recover_javascript_sources",
+        "preflight_tags": [
+          "exact_original_schema_controlled_fixture_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "resolve_adb_packages",
+        "preflight_tags": [
+          "device_or_adb_state_must_be_verified"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "resume_frida_session",
+        "preflight_tags": [
+          "live_provider_or_dynamic_session_preflight",
+          "changes_state_or_process_strict_explicit_approval"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "rizin_debug_command",
+        "preflight_tags": [
+          "live_provider_or_dynamic_session_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "set_address_name",
+        "preflight_tags": [
+          "changes_state_or_process_strict_explicit_approval"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "set_addresses_names",
+        "preflight_tags": [
+          "changes_state_or_process_strict_explicit_approval"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "set_bookmark",
+        "preflight_tags": [
+          "changes_state_or_process_strict_explicit_approval"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "set_comment",
+        "preflight_tags": [
+          "changes_state_or_process_strict_explicit_approval"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "set_inline_comment",
+        "preflight_tags": [
+          "changes_state_or_process_strict_explicit_approval"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "start_adb_activity",
+        "preflight_tags": [
+          "device_or_adb_state_must_be_verified",
+          "changes_state_or_process_strict_explicit_approval"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "start_adb_app",
+        "preflight_tags": [
+          "device_or_adb_state_must_be_verified",
+          "changes_state_or_process_strict_explicit_approval"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "start_frida_session",
+        "preflight_tags": [
+          "live_provider_or_dynamic_session_preflight",
+          "changes_state_or_process_strict_explicit_approval"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "start_gdb_session",
+        "preflight_tags": [
+          "live_provider_or_dynamic_session_preflight",
+          "changes_state_or_process_strict_explicit_approval"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "start_rizin_debug_session",
+        "preflight_tags": [
+          "live_provider_or_dynamic_session_preflight",
+          "changes_state_or_process_strict_explicit_approval"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "stop_adb_app",
+        "preflight_tags": [
+          "device_or_adb_state_must_be_verified",
+          "changes_state_or_process_strict_explicit_approval"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "trace_web_module_imports",
+        "preflight_tags": [
+          "browser_or_network_target_preflight"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "uninstall_adb_package",
+        "preflight_tags": [
+          "device_or_adb_state_must_be_verified",
+          "changes_state_or_process_strict_explicit_approval"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "unload_frida_script",
+        "preflight_tags": [
+          "live_provider_or_dynamic_session_preflight",
+          "changes_state_or_process_strict_explicit_approval"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      },
+      {
+        "name": "unset_bookmark",
+        "preflight_tags": [
+          "changes_state_or_process_strict_explicit_approval"
+        ],
+        "ready_to_sign_now": false,
+        "remaining_requirement": "Confirm target, original schema, provider, isolated fixture, expected result and side-effect scope before generating exact unsigned request."
+      }
+    ]
+  },
+  "offline_signing_implementation": {
+    "existing_file": "rea-linux/owner/owner_approval.py",
+    "existing_script_updated_not_new_skill": true,
+    "helper_command": "sign-batches",
+    "local_private_key_stays_in_owner_android": true,
+    "owner_key_material_uploaded": false,
+    "no_auto_confirmation": true,
+    "one_explicit_manifest_review_prompt": true,
+    "displays_all_steps_read_workspace_sensitive": true,
+    "per_sensitive_step_unique_Ed25519_signatures": true,
+    "attestation_fields": [
+      "tool",
+      "arguments_sha256",
+      "step_index",
+      "nonce",
+      "expires_at",
+      "scope",
+      "reason",
+      "acknowledgement"
+    ],
+    "integrity_controls": [
+      "SHA256 of each complete unsigned request pinned in manifest",
+      "unique nonce per sealed request",
+      "per-step exact argument digest",
+      "read each exact tool, scope, arguments and purpose before owner confirmation",
+      "private-key 0600 expected",
+      "exclusive output creation, no overwrite",
+      "reject expired or >24h",
+      "reject symlink/traversal inputs"
+    ],
+    "original_per_request_limit": 12,
+    "original_max_expiration_seconds": 86400,
+    "manifest_max_request_files": 16,
+    "manifest_max_sensitive_signatures": 83,
+    "lower_bound_requests_for_70_sensitive_calls_no_extra_steps": 6,
+    "note": "Cannot execute 70 sensitive operations in a single original MCP call; GitHub workflow accepts one new encrypted request per commit, each request up to 12 steps; independent encrypted result checking is mandatory after execution."
+  },
+  "verification": {
+    "owner_batch_signer_CI_run_id": 40238387328,
+    "workflow_commit_sha": "42d4826205065a23698e04ea9d87877332dc005b",
+    "original_GitHub_to_VPS_MCP_loopback": "PASS",
+    "original_catalog_verified": 208,
+    "unit_regression_tests_passed": 16,
+    "batch_sign_one_prompt_two_different_sensitive_signatures": "PASS_TEST_EPHEMERAL_KEY",
+    "batch_tamper_rejected_before_owner_prompt": true,
+    "batch_duplicate_nonce_rejected": true,
+    "batch_existing_output_refuses_overwrite": true,
+    "all_step_review_including_workspace_printed": true,
+    "real_owner_key_used_in_tests": false,
+    "real_sensitive_MCP_execution_this_phase": false,
+    "real_signed_batches_created_this_phase": 0,
+    "tool_certifications_added": 0
+  },
+  "gates": {
+    "case_test_plans_and_schemas_for_all_70": "NOT_READY",
+    "exact_unsigned_manifest_for_all_70": "NOT_READY",
+    "owner_approval_for_batches": "NOT_REQUESTED",
+    "third_party_vendors_licenses": "NOT_BYPASSED",
+    "high_impact_adb_install_remove_push_and_live_session_operations": "MUST_REMAIN_SEPARATELY_REVIEWED_WITH_CONFIRMED_TARGETS",
+    "runtime_generated_dynamic_ids": "CANNOT_PRE_SIGN_WITH_UNKNOWN_ARGS",
+    "ghidra_jadx_kuna": "PREVIOUSLY_AVAILABLE_SCOPE",
+    "ida": "NOT_CONFIGURED",
+    "global_provider_doctor_healthy": false,
+    "evidence_baseline_count": 11,
+    "unknown_baseline_count": 1,
+    "evidence_canonical_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380"
+  },
+  "next_safe_operation": "Prepare bounded positive/negative original MCP test fixture plus exact schemas for ready subset of the 70 pending sensitive names, put up to 12 full steps in each unsigned sealed request; owner sees one explicit manifest review and signs ready requests together locally immediately before execution; run original GitHub Actions sequentially, verify Evidence integrity, record each actual tool positive and negative, hygiene each one-use request. Leave missing target/provider and dynamic IDs unsigned until resolved.",
+  "hygiene": {
+    "no_secret_committed": true,
+    "no_legacy_retest": true,
+    "no_signature_reuse": true,
+    "no_provider_change": true,
+    "no_original_service_restart": true,
+    "no_evidence_deleted": true,
+    "no_other_project_touched": true
+  }
+}
