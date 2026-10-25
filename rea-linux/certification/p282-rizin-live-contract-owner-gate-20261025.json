@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "project": "Engenharia Reversa - original REA Linux MCP only",
+  "phase_id": "LINUX-P282-RIZIN-LIVE-CONTRACT-OWNER-GATE-20261025",
+  "date_utc": "2026-10-25",
+  "status": "P282_RUNTIME_DESCRIPTOR_AUTHENTICATED__CONTROLLED_SIGNED_POSITIVE_NEGATIVE_PREPARED__AWAITING_OWNER_ED25519__NO_NEW_CERTIFICATION",
+  "route": "Existing Engenharia Reversa Skill -> GitHub Actions -> pinned SSH -> original REA 127.0.0.1:8765/mcp -> encrypted authenticated response",
+  "git": {
+    "repository": "martaxi-boss/VPS",
+    "branch": "rea/one-skill-bridge-20261023",
+    "workflow": ".github/workflows/rea-android-bridge-20261022.yml"
+  },
+  "original_mcp": {
+    "catalog": 208,
+    "tool": "execute_rizin_command",
+    "run_id": 40246049452,
+    "artifact_id": 12619066139,
+    "conclusion": "SUCCESS",
+    "response_request_sha256_verified": true,
+    "response_result_sha256_verified": true,
+    "encrypted_reply_decrypted_locally": true,
+    "authenticated_descriptor_sha256": "419524c6cd02afa54c328e635750dda768e49be3857a5b37c96db407186af419",
+    "input_schema": {
+      "type": "object",
+      "required": [
+        "path",
+        "command"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "command": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    }
+  },
+  "provider": {
+    "name": "Rizin",
+    "source_owned_binary": "/usr/bin/true",
+    "service_configured_in_P280": true,
+    "actual_sensitive_tool_positive_executed": false,
+    "installation_not_changed": true
+  },
+  "owner_gate": {
+    "risk": "sensitive",
+    "exact_positive_arguments": {
+      "path": "/usr/bin/true",
+      "command": "iI"
+    },
+    "exact_negative_profile": "fresh unique nonexistent path under /opt/rea-reversa/rea/.rea-private with command iI, generated at owner signing",
+    "owner_device_private_key": "~/.rea-owner/rea-owner-private.pem",
+    "owner_public_der_sha256": "99580a4806703661ca38f75a3cb95e47d46e32228cf89d5aa7ab55e95a4e25b4",
+    "one_review_two_individual_ed25519_signatures": true,
+    "owner_actual_signed_batch_received": false,
+    "signature_reuse_forbidden": true,
+    "per_operation_nonce_fresh": true,
+    "offline_signer_smoke": {
+      "synthetic_temporary_test_key": true,
+      "denial_without_confirmation": "PASS",
+      "two_signatures_verified": "PASS",
+      "private_key_absent_from_zip": "PASS",
+      "synthetic_test_material_discarded": true
+    },
+    "expected_signed_zip_prefix": "REA_P282_LOTE_ASSINADO_"
+  },
+  "retention": {
+    "baseline_phase": "P281",
+    "evidence": 15,
+    "unknowns": 1,
+    "sha256": "b82b7e0d6024bbb0c6e96f014405c7470d4cc1a8d2d3a99bb1afa6efcb71a31b",
+    "no_session_opened_in_P282": true,
+    "no_evidence_mutated_in_P282": true
+  },
+  "hygiene": {
+    "consumed_descriptor_request_paths_removed": [
+      "rea-linux/requests/p282_rizin_live_contract_20261025.json",
+      "rea-linux/requests/p282_describe_rizin_20261025.json"
+    ],
+    "cleanup_commit": "53e7069e320bccbb520e8dbd418dc723f6b74735",
+    "original_gitHub_action_proofs_retained": true,
+    "no_new_plugins_skills_mcp_servers": true,
+    "no_Codex": true,
+    "no_restart": true,
+    "no_other_projects_touched": true
+  },
+  "ledger": {
+    "file": "rea-linux/certification/functional-ledger.json",
+    "certified": 124,
+    "remaining": 84,
+    "sensitive_pending": 67,
+    "workspace_pending": 17,
+    "changed": false
+  },
+  "next": "Receive the exact owner-signed ZIP from existing Android Termux key, cryptographically check both signed steps and schema/paths before sealing. Run positive/negative through original MCP, independent Evidence/Unknown readback, verify sessions and SHA; certify only if both scenarios pass. If absent, do not spend nonce, claim execution, or alter ledger."
+}
