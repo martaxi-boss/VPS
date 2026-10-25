@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "project": "Engenharia Reversa — original REA permanent Linux MCP 6.7.0",
+  "phase": "LINUX-P264-SOURCE-COMPILED-PACKAGE-READY-OWNER-GATE-20261025",
+  "date_utc": "2026-10-25",
+  "status": "SOURCE_COMPILED_CANDIDATE_PASS_PRIVATE_LIBRARY_VERIFIED__NOT_DEPLOYED__OWNER_RESTORE_SIGNED_GATE_PENDING",
+  "scope": "Only original REA engine source patch and 121 historically scoped certified tools; no Codex/plugin/new MCP/other project.",
+  "source": {
+    "repo": "martaxi-boss/Engenheira-reversa",
+    "original_main_commit": "781b975e96c2889e6133fb686ac8f032db2a29d8",
+    "staging_branch": "rea/p261-preserve-investigation-records-20261025",
+    "source_branch_head_after_hygiene": "9c18892dddd0762deb199643709ec88a096bd2c7",
+    "compiled_CI_run_id": 40232767297,
+    "compiled_CI_job_id": 121287822308,
+    "compiled_CI_commit": "c2e13a51cd00409d521cfd8b38db10e8b26fee28",
+    "original_v6_7_0_package": true,
+    "target": "compiled original REA, including dist/mcp bundled source with P261 investigation retention fix",
+    "no_published_changes_to_main": true,
+    "tests": {
+      "run_id": 40231650672,
+      "passed": 159,
+      "format": "PASS",
+      "typecheck": "PASS",
+      "lint": "PASS",
+      "original_unpatched_defect_reproduced": true
+    },
+    "compile": {
+      "status": "PASS",
+      "command": "npm run compile in disposable GitHub Actions runner",
+      "MCP_entry": "dist/mcp/main.js",
+      "output_has_clearTransientSessionState": true,
+      "module_binarySession_sha256": "06194e106c791c652f5eaed5c1d5327cacff9f9f4491156e43a75baecfbf4f17",
+      "module_binarySessionRecords_sha256": "cfa157e47e030ea945b80b5ee5e88a651fb03f35f6f882b4cb1f28ee79f4af69",
+      "module_mcpMain_sha256": "3ab3bee473a77ed4d52cc530e92c5df28e8da9deb61e925cb59c8271ca5ec907",
+      "output_dist_tar_sha256": "1bb99b70f4d2e45dc8ef70fdef507553f78a8a8fef78f4830a320bdc84b1ed98",
+      "output_tar_bytes": 6041757,
+      "dist_members": 1927,
+      "tar_paths_safe": true,
+      "tar_symlinks": 0
+    },
+    "persistent_delivery": {
+      "original_GitHub_actions_artifact_id": 12613074407,
+      "original_GitHub_actions_artifact_temporary": true,
+      "private_ChatGPT_Library_path": "engenharia reversa/REA_P264_REA_6_7_0_Candidato_Compilado_SHA1bb99b70.tar.gz",
+      "private_ChatGPT_Library_upload_and_materialize_roundtrip_sha256": "1bb99b70f4d2e45dc8ef70fdef507553f78a8a8fef78f4830a320bdc84b1ed98",
+      "private_Library_roundtrip_verified": true,
+      "source_bundle_has_no_private_Evidence": true
+    },
+    "CI_cleanup": {
+      "temporary_P264_workflow_deleted": true,
+      "cleanup_commit": "9c18892dddd0762deb199643709ec88a096bd2c7",
+      "no_new_persistent_workflow": true
+    }
+  },
+  "original_production_status": {
+    "installed_version": "6.7.0",
+    "running_before_and_after_checks": true,
+    "catalog": 208,
+    "certified": 121,
+    "remaining": 87,
+    "read": 5,
+    "service_lifecycle_changes": false,
+    "compiled_candidate_installed": false,
+    "service_private_checkpoint_exact_path": "/opt/rea-reversa/rea/.rea-private/p262-live-evidence-11-8b17734c.json",
+    "service_private_checkpoint_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+    "service_owned_checkpoint_verified_runs": [
+      40231957305,
+      40232100820
+    ],
+    "original_installed_CLI_archive_validation_run_id": 40232521450,
+    "original_installed_CLI_archive_validation_counts": {
+      "imported": 11,
+      "unknowns_added": 1,
+      "total": 11
+    },
+    "private_owner_Library_archive": "engenharia reversa/REA_P261_Evidence_11_Backup_Verificado.zip",
+    "original_true_MCP_import_after_restart_completed": false,
+    "original_code_bug_fixed_in_running_service": false
+  },
+  "remaining_exact_gate": {
+    "owner_private_key_resides_on_Android_Termux": true,
+    "signature_owner_ed25519_received_for_P263_import": false,
+    "sensitive_tool": "import_evidence_bundle",
+    "exact_args": {
+      "path": "/opt/rea-reversa/rea/.rea-private/p262-live-evidence-11-8b17734c.json"
+    },
+    "signed_request_human_ack": "AUTORIZO_OPERACAO_SENSIVEL",
+    "signer_source": "/mnt/data/rea_p263_owner_import.py (local ChatGPT source; do not assume downloadable Android sandbox link)",
+    "signer_tested_fake_ephemeral_key": true,
+    "session_restart_not_authorized_without_owner_signed_restoration_path": true,
+    "p232_p246_hold_active": true,
+    "binary_session_dependent_historical_tools_still_restricted": 42,
+    "unconditional_121_tools_live_pass": false,
+    "notes": "The tested compiled production candidate and exact verified restoration archive make safe rollout possible, but do not independently authorize the sensitive MCP import. Never bypass Ed25519 or restart before a new owner-signed request can be executed."
+  },
+  "hygiene": {
+    "source_CI_only_workflow_removed": true,
+    "original_VPS_bridge_byte_exact_restored_sha": "81ec4fb4677e2e4c7b11b2d0550fee8cef9400e7",
+    "temporary_P262_P263_requests_removed": true,
+    "local_extracted_private_archive_copy_removed": true,
+    "private_Library_persistent_archives_retained": true,
+    "no_recertification": true,
+    "no_loss_of_existing_Evidence": true,
+    "no_service_restart": true
+  }
+}
