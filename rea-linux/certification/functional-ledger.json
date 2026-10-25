@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_119_CERTIFIED__P214_SIX_PRESERVED__P232_RETENTION_HOLD_ACTIVE",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_120_CERTIFIED__P214_SIX_PRESERVED__P232_RETENTION_HOLD_ACTIVE",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -7539,21 +7539,72 @@
         "No signature reuse: P254 one-use owner Ed25519 proof was validated for these two precise steps, then nonce spent and GitHub ciphertext deleted; future sensitive operations require distinct approval."
       ],
       "hygiene": "Exactly three P254 used GitHub request paths removed; original secure protocol policy byte-identical to pre-P254. Retain P232/P246 hold, original REA service and ten live Evidence."
+    },
+    {
+      "phase_id": "LINUX-P258-READ-VERIFY-UNKNOWN-RESOLUTION-ORIGINAL-MCP-20261025",
+      "date_utc": "2026-10-25",
+      "status": "ONE_NEW_READ_TOOL_FULLY_CERTIFIED_SCOPED_ORIGINAL_PERMANENT_MCP_POSITIVE_EXISTING_OPEN_UNKNOWN_AND_INDEPENDENT_EVIDENCE_READBACK",
+      "tools": [
+        {
+          "name": "verify_unknown_resolution",
+          "risk": "read",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Live original permanent REA MCP: owner-signed preexisting valid open Unknown revision 1, normal isError=false with correct valid=false/truthVerified=false; P255 nonexistent Unknown negative isError=true. No verified-resolved status true covered.",
+          "positive_calls": 2,
+          "negative_cases": [
+            "P255 unknown ID not found"
+          ],
+          "negative_isError_true": true
+        }
+      ],
+      "proof": {
+        "owner_signed_run_id": 40224058765,
+        "owner_signed_commit": "6bdca6d803b705990839fbaacb23e9fe8252d5fc",
+        "independent_readback_run_id": 40224253679,
+        "independent_readback_commit": "7f8d6a818aab78f555559373b663d73ddb346e05",
+        "signed_result_sha256": "265cc3f950f888d10971fc8dccea84ab70b6f4ec65731ce56cca182bb5ff6601",
+        "readback_result_sha256": "b3459b465b4c16afbcb03b53250b595a276a3feecedb6e0f16d39106108e2384",
+        "before10_bundle_sha256": "8ddc202430af04e5da8c53521211d7a8968021316b9abc1c8d063c9c72066bc5",
+        "after11_bundle_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+        "ten_old_evidence_unchanged": true,
+        "unknown_id": "unk_d5c246e30df98b45f41fc7a558a820d5599c32dc181b7e705e94af7516d992e0",
+        "open_unknown_valid": false,
+        "open_unknown_truthVerified": false,
+        "real_mcp_isError": false,
+        "prior_unknown_not_found_negative_run_id": 40222183647,
+        "exact_owner_signature_policy_pass": true,
+        "consumed_request_encrypted_deleted": true,
+        "readback_request_encrypted_deleted": true,
+        "report": "rea-linux/certification/read-p258-verify-unknown-resolution-certified-20261025.json"
+      },
+      "new_certifications": 1,
+      "fully_certified_total": 120,
+      "pending": 88,
+      "read_fully_certified_total": 4,
+      "read_pending": 1,
+      "retained_evidence_records": 11,
+      "retention_hold_active": true,
+      "limitations": [
+        "Only existing open Unknown was successfully read; valid=true/truthVerified=true on resolved Unknown not demonstrated.",
+        "One new original-motor mutation Evidence and one retained open Unknown; original ten Evidence unchanged.",
+        "GDB read still requires genuine active owner-approved session with exact separately signed cleanup.",
+        "Restoration from archive untested; P232/P246 hold remains."
+      ]
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 119,
-    "awaiting_canonical_individual_review": 89,
+    "functional_pass_scoped_distinct": 120,
+    "awaiting_canonical_individual_review": 88,
     "read_group_tested_distinct": 5,
-    "read_group_positive_scoped": 3,
-    "read_group_missing_positive": 2,
+    "read_group_positive_scoped": 4,
+    "read_group_missing_positive": 1,
     "workspace_newly_passed_distinct": 48,
     "read_group_positive_some_original_mcp_mode": 5,
-    "read_group_positive_permanent_mcp": 3,
-    "fully_certified_distinct": 119,
+    "read_group_positive_permanent_mcp": 4,
+    "fully_certified_distinct": 120,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 89,
-    "remaining_full_certification_distinct": 89
+    "not_functionally_positive_distinct": 88,
+    "remaining_full_certification_distinct": 88
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -7583,7 +7634,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P254-SIGNED-EXTRACT-FIRMWARE-ORIGINAL-MCP-20261025",
+  "latest_phase": "LINUX-P258-READ-VERIFY-UNKNOWN-RESOLUTION-ORIGINAL-MCP-20261025",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -7646,20 +7697,20 @@
       "gdb_session_status"
     ],
     "mcp_calls": 9,
-    "successful_scoped": 3,
-    "negative_only": 1,
+    "successful_scoped": 4,
+    "negative_only": 0,
     "blocked_positive": 1,
-    "status": "THREE_POSITIVE_PERMANENT_MCP_TWO_POSITIVE_ISOLATED_ORIGINAL_MCP_PERMANENT_CLOSE_PENDING",
+    "status": "FOUR_REAL_PERMANENT_MCP_SCOPED_READ_POSITIVES; ONLY_GDB_SESSION_STATUS_REAL_POSITIVE_PENDING",
     "provider_preflight_run": 39959287285,
     "missing_prerequisites": {
-      "verify_unknown_resolution": "No legitimate retained unknown in session; cannot fabricate one as read-only",
+      "verify_unknown_resolution": "RESOLVED P258: original permanent MCP has one real owner-signed open Unknown; read returned isError=false, valid=false/truthVerified=false as expected; independent readback verified.",
       "gdb_session_status": "Provider permanently installed and confirmed inside original daemon environment; owner-signed sensitive session start and cleanup necessary to prove positive in this PERMANENT endpoint."
     },
     "additional_isolated_regression": {
       "tool": "verify_unknown_resolution",
       "run_id": 39966736430,
       "status": "SOURCE_FUNCTIONAL_PASS_ONLY",
-      "live_mcp_positive_still_pending": true
+      "live_mcp_positive_still_pending": false
     },
     "additional_gdb_source_conformance": {
       "run_id": 39967011323,
@@ -7672,10 +7723,10 @@
       "passes": 4,
       "tool": "verify_unknown_resolution",
       "positive_status": "ISOLATED_MCP_POSITIVE_VERIFIED",
-      "live_endpoint_positive_unverified": true
+      "live_endpoint_positive_unverified": false
     },
     "verified_isolated_mcp_distinct": 4,
-    "verified_real_linux_mcp_live_scoped": 3,
+    "verified_real_linux_mcp_live_scoped": 4,
     "verified_real_linux_mcp_in_memory_scoped_extra": 2,
     "additional_gdb_ready_and_diagnostics": {
       "run_id": 39969907326,
@@ -7703,8 +7754,10 @@
       },
       {
         "name": "verify_unknown_resolution",
-        "live_mcp": "NEGATIVE_ONLY",
-        "isolated_mcp": "POSITIVE_PASS_GENUINE_SEEDED_EVIDENCE"
+        "live_mcp": "FUNCTIONAL_PASS_SCOPED_REAL_OPEN_UNKNOWN_P258_NORMAL_NO_ERROR",
+        "isolated_mcp": "POSITIVE_PASS_GENUINE_SEEDED_EVIDENCE",
+        "independent_live_mcp_run_id": 40224253679,
+        "limitations": "Open unknown expected valid=false and truthVerified=false; verified-resolved positive not claimed."
       },
       {
         "name": "gdb_session_status",
@@ -9669,6 +9722,17 @@
         "Ten live Evidence are not proven restorable independently; P232/P246 retention hold remains, forbidding open_binary/close_binary and REA service restarts.",
         "No signature reuse: P254 one-use owner Ed25519 proof was validated for these two precise steps, then nonce spent and GitHub ciphertext deleted; future sensitive operations require distinct approval."
       ]
+    },
+    "verify_unknown_resolution": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Original permanent REA Linux MCP, successful normal read on a real original registry Unknown (owner-signed record_unknown P250); isError absent, returns expected valid=false/truthVerified=false because Unknown remains open. Separate independently authenticated MCP readback returns same answer, preserved ten baseline Evidence and exactly one new signed mutation Evidence. Prior P255 negative unknown-not-found returned isError=true. Does not assert valid=true on resolved Unknown.",
+      "run_ids": [
+        40222183647,
+        40224058765,
+        40224253679
+      ],
+      "evidence_digest": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+      "phase_id": "LINUX-P258-READ-VERIFY-UNKNOWN-RESOLUTION-ORIGINAL-MCP-20261025"
     }
   },
   "transport_incidents": [
@@ -9824,26 +9888,31 @@
     "as_of_utc": "2026-10-25",
     "scope": "Pending tool blockers plus the latest fully certified scoped tool for anti-repeat; P254 raised canonical fully certified count to 119/208.",
     "verify_unknown_resolution": {
-      "phase": "P250",
-      "status": "PENDING_POSITIVE",
-      "blocking": "Original permanent REA MCP currently holds zero Unknowns. P250 exact owner-signed record_unknown packet was not published due platform security refusal; no mutation and no sensitive authorization reuse.",
-      "positive_readiness": {
-        "descriptor_run_id": 40211388837,
-        "normal_read_transport": "PASS"
+      "phase": "P258",
+      "status": "FULLY_CERTIFIED_SCOPED_EXISTING_OPEN_UNKNOWN_P258",
+      "proof": {
+        "owner_signed_run_id": 40224058765,
+        "owner_signed_commit": "6bdca6d803b705990839fbaacb23e9fe8252d5fc",
+        "independent_readback_run_id": 40224253679,
+        "independent_readback_commit": "7f8d6a818aab78f555559373b663d73ddb346e05",
+        "signed_result_sha256": "265cc3f950f888d10971fc8dccea84ab70b6f4ec65731ce56cca182bb5ff6601",
+        "readback_result_sha256": "b3459b465b4c16afbcb03b53250b595a276a3feecedb6e0f16d39106108e2384",
+        "before10_bundle_sha256": "8ddc202430af04e5da8c53521211d7a8968021316b9abc1c8d063c9c72066bc5",
+        "after11_bundle_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+        "ten_old_evidence_unchanged": true,
+        "unknown_id": "unk_d5c246e30df98b45f41fc7a558a820d5599c32dc181b7e705e94af7516d992e0",
+        "open_unknown_valid": false,
+        "open_unknown_truthVerified": false,
+        "real_mcp_isError": false,
+        "prior_unknown_not_found_negative_run_id": 40222183647,
+        "exact_owner_signature_policy_pass": true,
+        "consumed_request_encrypted_deleted": true,
+        "readback_request_encrypted_deleted": true,
+        "report": "rea-linux/certification/read-p258-verify-unknown-resolution-certified-20261025.json"
       },
-      "retention_report": "rea-linux/certification/p250-readonly-evidence-retention-snapshot-20261025.json",
-      "p255_negative_recheck": {
-        "date_utc": "2026-10-25",
-        "run_id": 40222183647,
-        "commit": "4e1fe52e4e23ebbbf6984a3d9848e3df71c2b827",
-        "mcp_isError": true,
-        "reason": "not-found",
-        "active_unknowns": 0,
-        "readback_evidence_records": 10,
-        "baseline_semantic_sha256": "8ddc202430af04e5da8c53521211d7a8968021316b9abc1c8d063c9c72066bc5",
-        "status": "NEGATIVE_ONLY_REAL_POSITIVE_STILL_PENDING",
-        "report": "rea-linux/certification/p255-readonly-two-real-mcp-negative-preconditions-20261025.json"
-      }
+      "read_scope": "P258 original permanent MCP normal success on genuine open Unknown, expected valid=false/truthVerified=false; tested missing-Unknown negative P255; resolved-true branch remains untested.",
+      "report": "rea-linux/certification/read-p258-verify-unknown-resolution-certified-20261025.json",
+      "not_pending_anymore": true
     },
     "inspect_plist": {
       "phase": "P251",
@@ -9892,10 +9961,11 @@
       "P232_hold_active": true,
       "P250_nine_evidence_snapshot_verified": true,
       "independent_archive_restore_tested": false,
-      "current_live_evidence_count": 10,
-      "latest_prepared_zip_sha256": "3c73eb8ebf635db1309e88cd24f80e1053ff40744783d9a167491baa57a7b682",
+      "current_live_evidence_count": 11,
+      "latest_prepared_zip_sha256": "8f9842efd89816ac313d5004d83d7926b0e933bfadff4be92e431b07b59ea636",
       "independent_archive_restoration_tested": false,
-      "owner_download_confirmed": false
+      "owner_download_confirmed": false,
+      "current_live_unknowns": 1
     },
     "no_new_certifications": false,
     "gdb_session_status": {
@@ -9929,6 +9999,23 @@
       "ten_evidence_semantic_sha256": "8ddc202430af04e5da8c53521211d7a8968021316b9abc1c8d063c9c72066bc5",
       "used_encrypted_requests_deleted": true,
       "no_owner_sensitive_operations": true
+    },
+    "last_new_tool_certified": "verify_unknown_resolution",
+    "latest_read_progress": {
+      "phase": "P258",
+      "count_before": 119,
+      "count_after": 120,
+      "remaining": 88,
+      "read_positive_permanent_mcp": 4,
+      "read_missing_positive": 1,
+      "remaining_tool": "gdb_session_status",
+      "unknown_records": 1,
+      "evidence_count": 11,
+      "full_evidence_semantic_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+      "owner_signature_used": "preexisting unused P250 original exact one-time signature only",
+      "owner_keys_unchanged": true,
+      "readback_run_id": 40224253679,
+      "report": "rea-linux/certification/read-p258-verify-unknown-resolution-certified-20261025.json"
     }
   }
 }
