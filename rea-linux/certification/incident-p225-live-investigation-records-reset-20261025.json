@@ -4,7 +4,7 @@
   "incident_id": "P225-LIVE-SESSION-RECORDS-RESET-AFTER-SOURCE-OWNED-BINARY-CLOSE-20261025",
   "date_utc": "2026-10-25",
   "severity": "critical",
-  "status": "OPEN__P229_POLICY_PRESERVING_RECOVERY_PREPARED__AWAITING_OWNER_STAGING_AND_EXACT_SIGNATURE",
+  "status": "OPEN__P214_SIX_EVIDENCE_RESTORED_P229__P217_P218_RECORDS_AND_RETENTION_FIX_PENDING",
   "title": "Live investigation Evidence and Unknown records are empty after controlled Ghidra session close",
   "baseline_from_prior_certification": {
     "p217_record_unknown_run": 40182623467,
@@ -200,7 +200,7 @@
       }
     },
     "p229_policy_preserving_staging": {
-      "status": "PREPARED__REQUIRES_OWNER_VPS_STAGING_AND_NEW_ANDROID_ED25519_SIGNATURE",
+      "status": "PASS_SIX_RECORD_IMPORT_AND_INDEPENDENT_LIVE_MCP_READBACK",
       "preflight_live_github_run": 40189016294,
       "preflight_job_id": 121155826716,
       "preflight_request_sha": "78701376fbe2d3b74312cbca51278ef28da2c9ff",
@@ -237,15 +237,26 @@
         "creation_commit": "684e80b043a2292b54c6b0343fa91801f478d3da"
       },
       "source_archive_moved_or_deleted": false,
-      "stage_copy_created": false,
-      "new_signature_received": false,
-      "original_mcp_import_executed": false,
+      "stage_copy_created": true,
+      "new_signature_received": true,
+      "original_mcp_import_executed": true,
       "next_steps": [
         "Owner stage exact file with SHA256 and chmod/ownership checks on VPS",
         "Owner run offline P229 signer in Android and upload signed JSON",
         "Encrypted original bridge and original Ed25519 verifier must enforce one exact import and authenticated readback",
         "Only after positive readback delete staged file; do not touch persistent P214 backup"
-      ]
+      ],
+      "restored_evidence_records": 6,
+      "currently_retained_evidence_records": 6,
+      "currently_retained_unknowns": 0,
+      "original_MCP_import_run": 40189757896,
+      "independent_MCP_readback_run": 40189898588,
+      "report_path": "rea-linux/certification/incident-p229-p214-evidence-partially-restored-20261025.json",
+      "report_blob_sha": "9df6938d39cb0c8ddce8ec711334144622b7b9dd",
+      "policy_bridge_workflow_unchanged": true,
+      "owner_private_key_stayed_android": true,
+      "exact_evidence_ids_verified": true,
+      "staged_copy_cleanup_pending_owner": true
     }
   },
   "constraints": [
@@ -264,11 +275,11 @@
     "historical_certification_count_not_incremented_or_decremented_without_review": true
   },
   "next_safe_actions": [
-    "P229 avoids prohibited StateDirectory security-policy relaxation. Existing SSH runner sudo capacity and original REA service confirmed by GitHub Actions 40189016294.",
-    "Owner-operated minimum VPS human gate: execute exact staging readbook under rea-linux/owner/P229-RESTORE-STATE-RUNBOOK.md; checksum verification must PASS, file mode 0600, original backup retained.",
-    "Owner must issue a *new* exact Ed25519 signature on Android using sign_restore_p229_staged_evidence_android.py; do not reuse P228 for a different path.",
-    "Only after a fresh correctly signed request and verified staged copy, submit encrypted one-tool original MCP import via unchanged bridge/policy and authenticate six Evidence postcheck; maintain separate P217/P218 unrecovered gap.",
-    "Do not run open_binary or close_binary until retention safeguards independently certified; do not increment historical count due recovery."
+    "COMPLETED P229: Exact owner-signed import_evidence_bundle restored six authentic P214 Evidence; second original MCP readback verified six identical IDs and zero Unknowns (runs 40189757896, 40189898588).",
+    "Preserve original P214 archive and do not open/close binaries in permanent MCP while BinarySession.closeActive default clearSessionRecords would reset restored in-memory Evidence; fix retention with separate owner-controlled review and regression checks before resuming stateful tool certifications.",
+    "Recover exact original P217/P218 later two Evidence bodies and Unknown revision history only from full authenticated sources, never reconstruct by guessing.",
+    "Owner-controlled removal of only the staged copy under /opt/rea-reversa/rea after readback and rechecking original P214 archive SHA; original archive must remain.",
+    "Continue remaining historical 92 tool certifications only where not risky to current recovered state; no replay of any used nonce or sensitive owner signature."
   ],
   "hygiene": {
     "owner_key_android_only": true,
@@ -276,5 +287,19 @@
     "other_projects_untouched": true,
     "source_owned_ghidra_ephemeral_target_closed": true,
     "workflow_bridge_policy_unchanged": true
+  },
+  "live_recovery_p229": {
+    "status": "SIX_OF_EIGHT_HISTORIC_EVIDENCE_RESTORED",
+    "restored_evidence": 6,
+    "unknowns": 0,
+    "missing_p217_record_unknown_evidence": 1,
+    "missing_p218_update_unknown_evidence": 1,
+    "current_unknown_revisions": 0,
+    "lost_unknown_revision_history": 2,
+    "authenticated_run": 40189757896,
+    "independent_authenticated_run": 40189898588,
+    "no_unauthorized_owner_signature_reuse": true,
+    "not_a_new_tool_certification": true,
+    "root_cause_remains_unfixed": true
   }
 }
