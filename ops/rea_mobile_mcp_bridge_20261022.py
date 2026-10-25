@@ -520,7 +520,14 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SDIAG_PID_ENV_READ",
         "REA_SDIAG_PID_ENV_SIZE",
         "REA_SDIAG_PID_PROVIDER_KEYS",
-        "REA_SDIAG_STATUS"
+        "REA_SDIAG_STATUS",
+        "REA_P262_PRIVATE_CHECKPOINT",
+        "REA_P262_PRIVATE_CHECKPOINT_KIND",
+        "REA_P262_PRIVATE_CHECKPOINT_COUNT",
+        "REA_P262_PRIVATE_CHECKPOINT_UNKNOWNS",
+        "REA_P262_PRIVATE_CHECKPOINT_SHA256",
+        "REA_P262_PRIVATE_CHECKPOINT_SERVICE_PID_UNCHANGED",
+        "REA_P262_PRIVATE_CHECKPOINT_ORIGINAL_MCP_UNMODIFIED"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
