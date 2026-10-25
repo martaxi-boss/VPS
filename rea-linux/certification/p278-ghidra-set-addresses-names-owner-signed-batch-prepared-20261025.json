@@ -51,7 +51,9 @@
     "existing_authorization_policy_unchanged": true,
     "requires_owner_exact_sensitive_signature": true,
     "original_GitHub_encrypted_request_only": true,
-    "no_old_P270_P267_nonce_replayed": true
+    "no_old_P270_P267_nonce_replayed": true,
+    "android_no_download_inline_signer": "REA_P278_COLAR_DIRETO_TERMUX.txt",
+    "android_no_download_inline_sha256": "c410a43cd607bcd44ea6e04c4952cdba19a82dfa9e4f3093adeae28fd1d80d49"
   },
   "offline_quality": {
     "bash_syntax_pass": true,
@@ -64,7 +66,10 @@
     "all_seven_steps_visible_before_owner_confirm": true,
     "no_owner_live_signed_requests_created": true,
     "no_real_MCP_sensitive_tool_calls_this_phase": true,
-    "no_new_certifications": true
+    "no_new_certifications": true,
+    "inline_python_compression_integrity_roundtrip": true,
+    "inline_signer_contains_original_confirmed_logic": true,
+    "android_requires_no_library_or_zip_input": true
   },
   "next_operation": "After the owner explicitly reviews and signs exact 2-request P278 batch once in Android, upload only signed ZIP; validate signature and expiry; execute one encrypted request per commit through existing bridge. Compare before/after Evidence against immutable P276 archive and update ledger only after authenticated positive and controlled negative results. If any tool fails, preserve 123 certified.",
   "hygiene": {
