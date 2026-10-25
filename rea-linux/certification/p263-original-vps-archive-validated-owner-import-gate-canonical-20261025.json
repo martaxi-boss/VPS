@@ -1,0 +1,179 @@
+{
+  "schema_version": 1,
+  "project": "Engenharia Reversa - original REA Linux MCP (owner-only)",
+  "date_utc": "2026-10-25",
+  "phase_id": "LINUX-P263-ORIGINAL-CLI-LIVE-ARCHIVE-VALIDATED-OWNER-RESTORE-GATE",
+  "status": "CANONICAL_OWNER_RESTORE_HUMAN_GATE_REQUIRED_FOR_LIVE_SOURCE_PATCH_ACTIVATION__BACKUP_TWICE_VERIFIED",
+  "objective": "Correct real retention defect for 121 historically certified tools, preserve original REA engine/security, verify exact eleven live Evidence and one Unknown before any service restart and sensitive import.",
+  "historical_certifications": {
+    "certified_distinct": 121,
+    "total_original_catalog": 208,
+    "read_complete": 5,
+    "workspace_historical": 103,
+    "sensitive_historical": 13,
+    "pending": 87,
+    "new_certifications": 0,
+    "revoked_certifications": 0
+  },
+  "real_live_original_VPS": {
+    "service": "rea-reversa-mcp.service",
+    "original_engine": "/opt/rea-reversa/rea",
+    "original_version": "6.7.0",
+    "mcp_endpoint": "127.0.0.1:8765/mcp",
+    "catalog_tools": 208,
+    "runtime_services_altered": false,
+    "source_code_reinstalled": false,
+    "runtime_restart_performed": false,
+    "live_original_evidence_count": 11,
+    "live_original_unknown_count": 1,
+    "semantic_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+    "original_service_PID_unchanged_in_all_operations": true,
+    "service_owned_checkpoint": {
+      "status": "PASS_PHYSICALLY_SAVED_AND_INDEPENDENTLY_READ_BACK",
+      "exact_path": "/opt/rea-reversa/rea/.rea-private/p262-live-evidence-11-8b17734c.json",
+      "private_owner": "rea-reversa",
+      "directory_mode": "0700",
+      "file_mode": "0600",
+      "sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+      "records": 11,
+      "unknowns": 1,
+      "created_run_id": 40231957305,
+      "readback_run_id": 40232100820,
+      "readback_marker": "REA_P262_PRIVATE_CHECKPOINT=PASS; KIND=EXISTING_MATCH; PID_UNCHANGED=true",
+      "verified_read_access_by_original_service_user": true,
+      "raw_user_Evidence_not_written_to_GitHub": true
+    },
+    "read_only_installed_release_preflight": {
+      "run_id": 40232287301,
+      "status": "PASS_READ_ONLY",
+      "version": "6.7.0",
+      "free_disk_gib": 31,
+      "paths_found": [
+        "src/application/binary/BinarySession.ts",
+        "src/application/binary/BinarySessionRecords.ts",
+        "dist/application/binary/BinarySession.js",
+        "dist/application/binary/BinarySessionRecords.js",
+        "scripts/rea.mjs",
+        "package.json"
+      ],
+      "installed_sha256": {
+        "src_BinarySession": "435fb7bd138af990d4a4bf37e19fefd17c156d082b8a916b5f6eaf2d581fdd5e",
+        "src_BinarySessionRecords": "ac779677a286c480a14ef313b1df543c5218a10c9f64f9682f2f778f4fa03d99",
+        "dist_BinarySession": "0e74d6b0b47a35eac6a3ec6afd954006fc86c5e869777834c256f7b8f3a258d3",
+        "dist_BinarySessionRecords": "ec1913fd02ea3fabf684ffc13659e8b4d3d86efa44a3ae2dc9f2a1f02efde3fd"
+      },
+      "installed_modules_patched": false
+    },
+    "original_installed_cli_bundle_read_only_validator": {
+      "run_id": 40232521450,
+      "status": "PASS_ORIGINAL_CLI_VALIDATION_ONLY",
+      "operation": "node scripts/rea.mjs evidence-import <exact fixed private archive path> --json",
+      "result": {
+        "imported": 11,
+        "unknowns_added": 1,
+        "total": 11
+      },
+      "backup_sha256_verified_before_after": true,
+      "service_main_PID_unchanged": true,
+      "does_not_mutate_live_investigation": true,
+      "real_sensitive_MCP_import_untested": true
+    }
+  },
+  "independent_private_archive_check": {
+    "archive": "REA_P258_Evidence_11_Copia_20261025.zip",
+    "user_private_Library_copy": "engenharia reversa/REA_P261_Evidence_11_Backup_Verificado.zip",
+    "zip_sha256": "8f9842efd89816ac313d5004d83d7926b0e933bfadff4be92e431b07b59ea636",
+    "original_archived_bundle_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+    "private_original_record_import_test": {
+      "status": "PASS",
+      "source": "Unmodified original REA 6.7.0 InvestigationRecords.ts compiled in disposable isolated GitHub runner",
+      "ci_run": 40231650672,
+      "ci_artifact_id": 12613631791,
+      "private_archive_never_uploaded_to_GitHub": true,
+      "imported_records": 11,
+      "imported_unknowns": 1,
+      "deep_content_identical": true,
+      "repeated_import_records_added": 0,
+      "repeated_import_unknowns_added": 0,
+      "brand_new_instance_again_matches_exact_bundle": true,
+      "live_VPS_unchanged": true
+    }
+  },
+  "source_retention_patch": {
+    "origin": "martaxi-boss/Engenheira-reversa",
+    "branch": "rea/p261-preserve-investigation-records-20261025",
+    "branch_head": "9532f852cb41d1ae0a1640128681508aa07edade",
+    "original_main_unchanged": true,
+    "status": "VALIDATED_SOURCE_PATCH_STAGED_ONLY_NOT_INSTALLED_IN_RUNNING_VPS",
+    "change": "BinarySession#closeActive closes provider and clears only transient snapshots, not InvestigationRecords Evidence or Unknown history. Explicit full-reset method remains.",
+    "regression_negative_control": "PASS: old source reproduces Evidence loss in test",
+    "isolated_CI_runs": [
+      40230724635,
+      40231521336,
+      40231650672
+    ],
+    "isolated_regression_tests_passed": 159,
+    "format": "PASS",
+    "typescript_typecheck": "PASS",
+    "lint": "PASS",
+    "specific_11_record_1_unknown_roundtrip": "PASS",
+    "temporary_CI_workflows_deleted": true,
+    "no_MCP_or_additional_engine_created": true
+  },
+  "legacy_sensitive_current_policy": {
+    "names": [
+      "inspect_web_network_capture",
+      "inspect_adb_client"
+    ],
+    "policy_unit_test_run_id": 40231576542,
+    "total_policy_tests_passed": 12,
+    "both_sensitive_enforced": true,
+    "unsigned_approval_rejected": true,
+    "cross_tool_signature_substitution_rejected": true,
+    "ephemeral_test_key_only": true,
+    "owner_private_key_remains_only_on_Android": true,
+    "live_P263_owner_ED25519_signed_import_authorization_received": false,
+    "legacy_tool_live_signed_positive_retest_done": false
+  },
+  "retention_hold_and_release_gate": {
+    "P232_P246_hold_remains_active": true,
+    "current_historically_certified_binary_session_dependent_tools_blocked": 42,
+    "release_requires_owner_signed_sensitive_import": true,
+    "sensitive_tool": "import_evidence_bundle",
+    "exact_arguments": {
+      "path": "/opt/rea-reversa/rea/.rea-private/p262-live-evidence-11-8b17734c.json"
+    },
+    "signature_scope": "sensitive",
+    "owner_ack": "AUTORIZO_OPERACAO_SENSIVEL",
+    "owner_signature_has_not_been_received": true,
+    "signed_request_P263_local_offline_builder_tested_with_ephemeral_fake_key": true,
+    "pre_release_conditions": [
+      "Owner signature must arrive before original service restart; do not use a consumed P259 authorization.",
+      "Build/release tested P261 source without changing original 6.7.0 package or the 208-tool catalog.",
+      "Preserve server-side SHA-verified P262 archive, owner private Library backup and raw source/dist rollback copies before any restart.",
+      "Only after signed restore and independent readback of same SHA + 11/1 may the P232/P246 hold be lifted and fixed source binary session lifecycle smoke-tested."
+    ],
+    "not_permitted_in_this_state": [
+      "restart original rea-reversa-mcp.service",
+      "call open_binary/close_binary in original production service",
+      "reuse owner signed P259 signatures",
+      "run sensitive import without exact fresh owner Ed25519 signature",
+      "claim 121 unconditionally operational or 100 percent original service fixed"
+    ]
+  },
+  "hygiene": {
+    "P262_three_consumed_one_shot_request_files_deleted": true,
+    "P263_one_consumed_CLI_readonly_request_file_deleted": true,
+    "requests_folder_absent_after_cleanups": true,
+    "temporary_bridge_checkpoint_action_removed": true,
+    "temporary_bridge_CLI_validator_action_removed": true,
+    "original_bridge_restored_exact_blob": "81ec4fb4677e2e4c7b11b2d0550fee8cef9400e7",
+    "original_secure_policy_unchanged": true,
+    "original_workflow_unchanged": true,
+    "original_git_main_unmodified": true,
+    "private_Evidence_backup_on_VPS_preserved": true,
+    "eleven_living_records_preserved": true,
+    "no_other_project_touched": true
+  },
+  "next_exact_phase": "P264: owner-signed exact-import recovery gate followed by checksum-pinned source bundle release with rollback and independent permanent original MCP Evidence readback; no new certifications until the 121 historic tools are safe for use."
+}
