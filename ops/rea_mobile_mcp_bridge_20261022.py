@@ -69,6 +69,37 @@ def error(msg):
     raise ValueError(msg)
 
 
+
+# P246: mandatory P232 operator hold at the EXISTING GitHub-to-permanent-MCP
+# transport boundary. This does not grant authority and does not change
+# the original motor, secure policy or existing owner Ed25519 verifier.
+P232_BLOCKED_MCP_TOOLS = frozenset(("open_binary", "close_binary"))
+
+
+def p232_guard_live_call(payload):
+    """Fail closed before HTTP for either data-destructive binary lifecycle tool."""
+    if not isinstance(payload, dict):
+        raise ValueError("P232_RETENTION_HOLD: malformed MCP payload")
+    if payload.get("method") != "tools/call":
+        return
+    params = payload.get("params")
+    if not isinstance(params, dict) or not isinstance(params.get("name"), str):
+        raise ValueError("P232_RETENTION_HOLD: malformed tools/call")
+    if params["name"] in P232_BLOCKED_MCP_TOOLS:
+        raise ValueError("P232_RETENTION_HOLD: original binary lifecycle is blocked")
+
+
+def p232_guard_inner_batch(body):
+    """Reject WHOLE batch before nonce claim and before even the first MCP call."""
+    if not isinstance(body, dict) or not isinstance(body.get("steps"), list):
+        raise ValueError("P232_RETENTION_HOLD: malformed sealed steps")
+    for step in body["steps"]:
+        if not isinstance(step, dict) or not isinstance(step.get("tool"), str):
+            raise ValueError("P232_RETENTION_HOLD: malformed sealed tool")
+        if step["tool"] in P232_BLOCKED_MCP_TOOLS:
+            raise ValueError("P232_RETENTION_HOLD: original binary lifecycle is blocked")
+
+
 def require_rsa_response_key(encoded):
     """Fail fast before SSH: validate full RSA DER, not just base64 shape."""
     if (not isinstance(encoded, str) or len(encoded) > 1800 or
@@ -97,7 +128,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_retention_p246", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -186,6 +217,7 @@ def parse_mcp(raw):
 
 
 def request_mcp(payload, session=None, protocol=None, timeout=55):
+    p232_guard_live_call(payload)
     headers = {
         "Content-Type": "application/json",
         "Accept": "application/json, text/event-stream",
@@ -259,6 +291,8 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_LINUX_READ5_NODE_PRESENT", "REA_LINUX_READ5_REGRESSION",
         "REA_LINUX_READ5_EXIT_CODE", "REA_LINUX_READ5_TEST_OUTPUT_SHA256",
         "REA_LINUX_READ5_TEST_NAME", "REA_LINUX_READ5_TEST_DIAGNOSTIC",
+        "REA_P246_TEST_EXIT", "REA_P246_TEST_LOG_SHA256", "REA_P246_TEST_COUNT",
+        "REA_P246_TEST_STATUS", "REA_P246_TEST_FAILURE", "REA_P246_STATUS",
         "REA_LINUX_GDB_CONFORMANCE_SOURCE", "REA_LINUX_GDB_CONFORMANCE_COUNT",
         "REA_LINUX_GDB_CONFORMANCE_STATUS", "REA_LINUX_GDB_CONFORMANCE_WORKTREE",
         "REA_LINUX_GDB_MANAGER_EXIT", "REA_LINUX_GDB_MANAGER_RESULT",
@@ -630,6 +664,42 @@ def main():
     print("REA_MOBILE_CATALOG_SAMPLE=" + json.dumps(
         list(tool_by_name)[:14], ensure_ascii=True
     ))
+    if data["action"] == "fixture_linux_retention_p246":
+        # P246: isolated Python unit tests for the existing bridge's mandatory
+        # preflight and universal outbound tools/call lifecycle guard.
+        # No actual REA mutation: all test HTTP is mocked.
+        import tempfile
+        fixture_text = "#!/usr/bin/env python3\n\"\"\"P246: original REA bridge P232 permanent-MCP lifecycle hold regression.\n\nRun only against the bridge module given as an argument; all HTTP I/O mocked.\nNo actual MCP tool execution and no owner signing.\n\"\"\"\nimport importlib.util\nimport inspect\nimport io\nimport json\nfrom pathlib import Path\nimport sys\nimport unittest\nfrom unittest import mock\n\nif len(sys.argv) != 2:\n    raise SystemExit(\"Expected exact original bridge module path\")\nsource = Path(sys.argv[1]).resolve(strict=True)\nsys.path.insert(0, str(source.parent))\nspec = importlib.util.spec_from_file_location(\"rea_p246_guarded_bridge\", source)\nif spec is None or spec.loader is None:\n    raise SystemExit(\"Unable to load staged original bridge\")\nbridge = importlib.util.module_from_spec(spec)\nspec.loader.exec_module(bridge)\n\n\nclass FakeHTTP:\n    def __init__(self, data=None):\n        if data is None:\n            data = {\"jsonrpc\": \"2.0\", \"id\": 9, \"result\": {\"tools\": []}}\n        self.data = json.dumps(data).encode(\"utf-8\")\n        self.headers = {}\n\n    def __enter__(self):\n        return self\n\n    def __exit__(self, kind, error, tb):\n        return False\n\n    def read(self, max_size):\n        return self.data\n\n\nclass P246RetentionHold(unittest.TestCase):\n    def test_blocked_names_exact(self):\n        self.assertEqual(bridge.P232_BLOCKED_MCP_TOOLS,\n                         frozenset({\"open_binary\", \"close_binary\"}))\n\n    def test_open_binary_never_reaches_network(self):\n        with mock.patch.object(bridge.urllib.request, \"urlopen\") as network:\n            with self.assertRaisesRegex(ValueError, \"P232_RETENTION_HOLD\"):\n                bridge.request_mcp({\"jsonrpc\": \"2.0\", \"id\": 3,\n                                    \"method\": \"tools/call\",\n                                    \"params\": {\"name\": \"open_binary\",\n                                               \"arguments\": {\"path\": \"/usr/bin/true\"}}})\n            network.assert_not_called()\n\n    def test_close_binary_never_reaches_network(self):\n        with mock.patch.object(bridge.urllib.request, \"urlopen\") as network:\n            with self.assertRaisesRegex(ValueError, \"P232_RETENTION_HOLD\"):\n                bridge.request_mcp({\"jsonrpc\": \"2.0\", \"id\": 4,\n                                    \"method\": \"tools/call\",\n                                    \"params\": {\"name\": \"close_binary\",\n                                               \"arguments\": {}}})\n            network.assert_not_called()\n\n    def test_open_binary_any_auth_context_is_blocked(self):\n        for args in ({}, {\"path\": \"/usr/bin/true\"}):\n            with self.subTest(args=args):\n                bridge.p232_guard_live_call({\"method\": \"tools/call\",\n                                             \"params\": {\"name\": \"open_binary\",\n                                                        \"arguments\": args,\n                                                        \"authorization\": \"ignored\"}})\n\n    def test_nonbinary_read_can_reach_mock_network(self):\n        with mock.patch.object(bridge.urllib.request, \"urlopen\",\n                               return_value=FakeHTTP()) as network:\n            _, result = bridge.request_mcp({\"jsonrpc\": \"2.0\", \"id\": 9,\n                                            \"method\": \"tools/call\",\n                                            \"params\": {\"name\": \"list_unknowns\",\n                                                       \"arguments\": {}}})\n            self.assertIn(\"result\", result)\n            network.assert_called_once()\n\n    def test_initialize_does_not_break(self):\n        with mock.patch.object(bridge.urllib.request, \"urlopen\",\n                               return_value=FakeHTTP()) as network:\n            bridge.request_mcp({\"jsonrpc\": \"2.0\", \"method\": \"initialize\",\n                                \"params\": {}})\n            network.assert_called_once()\n\n    def test_catalog_does_not_break(self):\n        with mock.patch.object(bridge.urllib.request, \"urlopen\",\n                               return_value=FakeHTTP()) as network:\n            bridge.request_mcp({\"jsonrpc\": \"2.0\", \"method\": \"tools/list\",\n                                \"params\": {}})\n            network.assert_called_once()\n\n    def test_missing_params_rejected_before_network(self):\n        with mock.patch.object(bridge.urllib.request, \"urlopen\") as network:\n            with self.assertRaisesRegex(ValueError, \"P232_RETENTION_HOLD\"):\n                bridge.request_mcp({\"method\": \"tools/call\"})\n            network.assert_not_called()\n\n    def test_wrong_params_type_rejected_before_network(self):\n        with mock.patch.object(bridge.urllib.request, \"urlopen\") as network:\n            with self.assertRaisesRegex(ValueError, \"P232_RETENTION_HOLD\"):\n                bridge.request_mcp({\"method\": \"tools/call\", \"params\": \"close_binary\"})\n            network.assert_not_called()\n\n    def test_wrong_tool_name_type_rejected(self):\n        with self.assertRaisesRegex(ValueError, \"P232_RETENTION_HOLD\"):\n            bridge.p232_guard_live_call({\"method\": \"tools/call\",\n                                         \"params\": {\"name\": [\"close_binary\"]}})\n\n    def test_readonly_batch_stays_eligible(self):\n        batch = {\"protocol\": 1, \"steps\": [{\"tool\": \"list_unknowns\", \"arguments\": {}},\n                                          {\"tool\": \"get_evidence_bundle\",\n                                           \"arguments\": {\"detail\": \"summary\"}}]}\n        self.assertIsNone(bridge.p232_guard_inner_batch(batch))\n\n    def test_lifecycle_first_step_blocked(self):\n        with self.assertRaisesRegex(ValueError, \"P232_RETENTION_HOLD\"):\n            bridge.p232_guard_inner_batch({\"steps\": [\n                {\"tool\": \"close_binary\", \"arguments\": {}},\n                {\"tool\": \"list_unknowns\", \"arguments\": {}}]})\n\n    def test_lifecycle_second_step_blocked_atomically(self):\n        with self.assertRaisesRegex(ValueError, \"P232_RETENTION_HOLD\"):\n            bridge.p232_guard_inner_batch({\"steps\": [\n                {\"tool\": \"list_unknowns\", \"arguments\": {}},\n                {\"tool\": \"open_binary\", \"arguments\": {\"path\": \"/usr/bin/true\"}}]})\n\n    def test_invalid_batch_structure_rejected(self):\n        for value in (None, [], {\"steps\": \"open_binary\"}, {\"steps\": [None]},\n                      {\"steps\": [{\"tool\": []}]}):\n            with self.subTest(value=value):\n                with self.assertRaisesRegex(ValueError, \"P232_RETENTION_HOLD\"):\n                    bridge.p232_guard_inner_batch(value)\n\n    def test_sealed_preflight_before_nonce_claim_and_first_call(self):\n        code = inspect.getsource(bridge.main)\n        start = code.index('if data[\"action\"] == \"sealed_batch\"')\n        body = code[start:]\n        before = body.index(\"secure.validate_inner(\")\n        hold = body.index(\"p232_guard_inner_batch(body)\")\n        nonce = body.index(\"secure.claim_one_use_nonce(\")\n        call = body.index(\"for idx, (step, risk) in enumerate(\")\n        self.assertLess(before, hold)\n        self.assertLess(hold, nonce)\n        self.assertLess(nonce, call)\n\n    def test_live_gate_is_before_urllib_request(self):\n        code = inspect.getsource(bridge.request_mcp)\n        self.assertLess(code.index(\"p232_guard_live_call(payload)\"),\n                        code.index(\"urllib.request.Request(\"))\n\n    def test_guard_never_requires_private_key_or_approval(self):\n        code = inspect.getsource(bridge.p232_guard_inner_batch)\n        self.assertNotIn(\"owner_signature\", code)\n        self.assertNotIn(\"rea-owner-private\", code)\n\n\nif __name__ == \"__main__\":\n    unittest.main(verbosity=1, argv=[sys.argv[0]])\n"
+        with tempfile.TemporaryDirectory(prefix="rea-p246-", dir="/dev/shm") as root:
+            fixture = Path(root) / "test_bridge_p232.py"
+            fixture.write_text(fixture_text, encoding="utf-8")
+            fixture.chmod(0o600)
+            try:
+                p = subprocess.run(
+                    [sys.executable, str(fixture), str(Path(__file__).resolve())],
+                    capture_output=True, text=True, timeout=55, check=False,
+                    env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
+            except subprocess.TimeoutExpired:
+                print("REA_P246_TEST_STATUS=TIMEOUT")
+                return
+            logs = p.stdout + "\n" + p.stderr
+            print("REA_P246_TEST_EXIT=" + str(p.returncode))
+            print("REA_P246_TEST_LOG_SHA256=" +
+                  hashlib.sha256(logs.encode()).hexdigest())
+            match = re.search(r"Ran (\d+) tests?", logs)
+            print("REA_P246_TEST_COUNT=" + (match.group(1) if match else "0"))
+            print("REA_P246_TEST_STATUS=" +
+                  ("PASS" if p.returncode == 0 and match and int(match.group(1)) >= 15
+                   else "FAIL"))
+            if p.returncode != 0:
+                # Only bounded unit-test diagnostic; no request arguments.
+                print("REA_P246_TEST_FAILURE=" +
+                      re.sub(r"[^A-Za-z0-9 .,_:;=()/#-]", " ", logs[-950:]))
+        print("REA_P246_STATUS=" +
+              ("MANDATORY_BRIDGE_P232_LIFECYCLE_HOLD_TESTED"
+               if p.returncode == 0 and match and int(match.group(1)) >= 15
+               else "INCOMPLETE"))
+        return
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
               secure.request_public_key_b64(create=True))
@@ -3078,6 +3148,7 @@ def main():
         # No plaintext request parameters/results are printed to public logs.
         body = secure.unseal(data["sealed"], data["response_key"])
         profiles = secure.validate_inner(body, tool_by_name, set(safe_callable))
+        p232_guard_inner_batch(body)
         secure.claim_one_use_nonce(body["nonce"])
         print("REA_SEALED_POLICY=PASS")
         print("REA_SEALED_STEPS_TOTAL=" + str(len(body["steps"])))
