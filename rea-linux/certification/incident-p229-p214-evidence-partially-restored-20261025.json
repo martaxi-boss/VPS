@@ -1,0 +1,139 @@
+{
+  "schema_version": 1,
+  "project": "Engenharia Reversa — original REA Linux MCP",
+  "phase_id": "P229-OWNER-SIGNED-EXACT-P214-RESTORE-AND-INDEPENDENT-READBACK-20261025",
+  "status": "PASS_SIX_HISTORIC_EVIDENCE_RESTORED_IN_LIVE_MCP__P217_P218_AND_RENTENTION_ROOT_CAUSE_PENDING",
+  "date_utc": "2026-10-25",
+  "preconditions": {
+    "source_owned_backup": "/var/lib/rea-reversa/rea-p214-evidence-backup-7c5e1ad42fe74b121f3e2c4fe830c6c7.json",
+    "backup_sha256": "daa7bcc15a6cb1adf4fb46563100b2d67ff8b6694b191ef762d3cd2d8e61f3c4",
+    "original_backup_records": 6,
+    "original_backup_unknowns": 0,
+    "previous_sha_validation_runs": [
+      40187442883,
+      40187827609
+    ],
+    "owner_manually_staged_exact_copy_at": "/opt/rea-reversa/rea/.rea-p229-restore-p214-7c5e1ad42fe74b121f3e2c4fe830c6c7.json",
+    "staged_owner": "rea-reversa",
+    "staged_mode": "0600",
+    "staging_evidence": "Owner screenshot of VPS console with chained source/staged SHA256 equality checks and REA_P229_STAGE=PASS permissions=600 owner=rea-reversa",
+    "previous_live_empty_state_run": 40188519274
+  },
+  "owner_authorization": {
+    "source": "User-uploaded exact signed JSON on current conversation, no owner private key uploaded",
+    "request_sha256": "372cf53d94fb67a37ab4997a5520aad47288be615aa3d80accba1e0914245cb8",
+    "nonce": "57888666a6af73a1b4584686ff8a68cb",
+    "expires_utc": "2026-10-25T12:20:23Z",
+    "tool": "import_evidence_bundle",
+    "arguments_sha256": "c629bcab3407bb982e1690007b3c746cdbf5d699707024d543673d294fbf6f09",
+    "precise_scope": "One import of only the named previously SHA-verified P214 staged copy",
+    "signature_validated_by_vps_independent_verifier": true,
+    "owner_fingerprint_sha256_der": "99580a4806703661ca38f75a3cb95e47d46e32228cf89d5aa7ab55e95a4e25b4",
+    "no_private_key_or_signature_in_public_report": true
+  },
+  "original_mcp_execution": {
+    "run": 40189757896,
+    "job": 121158041982,
+    "request_commit": "8cefcd2bfbad415bfefd03c9980d9f4561317856",
+    "request_git_blob": "bf2f3e946d1a82b662bb7d972c41974f0400ec76",
+    "encrypted_request_sha256": "82f0679004a358077151643433323621a89dc0830adf12fdb0cf579902318ab4",
+    "encrypted_response_artifact_id": 12597309397,
+    "encrypted_response_archive_sha256": "e1c0167f072993ffad48429a02642fdeafc94e74c80571ec4bb4adafe90f37c6",
+    "authenticated_mcp_output_sha256": "e7aedf78ae0fb6c2eb88880b053aba4625a47deb364a148cb953d276dbee16d5",
+    "authenticated_mcp_output_bytes": 8787,
+    "response_authenticated_and_request_sha_matched": true,
+    "actions_success": true,
+    "ssh_pinned_host": "PASS",
+    "original_mcp_count": 208,
+    "sensitive_policy": "PASS",
+    "tool_calls": [
+      {
+        "tool": "import_evidence_bundle",
+        "risk": "sensitive",
+        "mcp_isError": false,
+        "imported": 6,
+        "total": 6,
+        "unknowns_added": 0
+      },
+      {
+        "tool": "get_evidence_bundle",
+        "risk": "read",
+        "mcp_isError": false,
+        "records": 6,
+        "matching": 6,
+        "unknown_revisions": 0
+      },
+      {
+        "tool": "list_unknowns",
+        "risk": "read",
+        "mcp_isError": false,
+        "total": 0
+      }
+    ],
+    "executed_steps": 3,
+    "expected_steps": 3,
+    "first_consumed_request_cleanup_commit": "02f51db704f2cb5a0f65141ec4624ac4d4db56ee"
+  },
+  "independent_postcheck": {
+    "run": 40189898588,
+    "job": 121158461201,
+    "request_commit": "3076ca0642d75fed80df94b2fed70549064156a6",
+    "request_git_blob": "dec7bd77a85f0561bf431384d168183915201f95",
+    "encrypted_response_artifact_id": 12597119959,
+    "encrypted_response_archive_sha256": "4c9e7da69eec5322f6641fa564caa01286e56d93c5e8f551796453d6b9c80e26",
+    "authenticated_mcp_result_sha256": "6d15d3ddafb879e9b2f67bf6654489c6fbfebe676de50d68a6e7aeb03d4e4b1c",
+    "authenticated_mcp_output_bytes": 8447,
+    "independent_request_authenticated": true,
+    "tool_calls": [
+      {
+        "tool": "get_evidence_bundle",
+        "mcp_isError": false,
+        "matching_records": 6,
+        "total_retained_records": 6,
+        "unknown_revisions": 0
+      },
+      {
+        "tool": "list_unknowns",
+        "mcp_isError": false,
+        "total": 0
+      }
+    ],
+    "evidence_ids_exactly_equal_to_immediate_post_import": true,
+    "evidence_ids_sha256": "1edf82505c28b0b54e220faa5908030b35d4e1c9915fb4195eebfedfb465bef7",
+    "evidence_ids": [
+      "ev_56d664e51c37767552e16eaeda2be1bf2bf8c9aa624cc0054d7f463ce5ae1aae",
+      "ev_8cd349975d2bdf6490463aed2f8cd38d2590439ff58357090273f02a8f41e291",
+      "ev_8f0bfb7509a99d42dd3893537b27395cb3bbde12e61b6c4f702fedcb339ddd21",
+      "ev_93d22a158b5d5e27b00f0e11504372a8ba89ab45f89bcd35572c665add28a61e",
+      "ev_a49f7e35579b847403422fa8f1cd1f7b73845cdc1376a679c73183e61adc3d4c",
+      "ev_c29f20f4eb205e550954bcda4359101a90b783b6e2b3a34b3b2085f80156bb56"
+    ],
+    "independent_readback_request_cleanup_commit": "fc995b9cc0a13b7d7269315f193b2468bcdcc54e"
+  },
+  "remaining_limitations": [
+    "Historical P217/P218 evidence records (two) and related Unknown revisions were not in six-record P214 archive and remain absent from active MCP.",
+    "Evidence is in current live MCP process memory, but existing binary session close behavior can erase it again. Do not open/close binaries before fixing retention.",
+    "Original P214 backup remains canonical permanent preservation source. Temporary staged copy in engine directory was not removed in this phase; owner-controlled cleanup is a separate operation after matching original archive SHA.",
+    "No new tool certifications: historic fully-certified still 116/208 (including 10 sensitive); restore is not another tool certification.",
+    "No change to original REA source, secure bridge, GitHub workflow, owner Ed25519 policy, MCP binding or other projects."
+  ],
+  "canonical_state": {
+    "historically_fully_certified": 116,
+    "pending": 92,
+    "sensitive_certified": 10,
+    "sensitive_pending": 73,
+    "new_tool_certifications": 0,
+    "active_evidence_after_recovery": 6,
+    "active_unknowns": 0,
+    "active_unknown_revisions": 0
+  },
+  "security": {
+    "bridge_git_blob": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7",
+    "workflow_git_blob": "c81ef44d3f3e9dc3b3a819add5ff4f1a33d343df",
+    "policy_git_blob": "8757abb589a779eaeda1d0eeefc85e4476503a41",
+    "private_owner_key_never_transmitted": true,
+    "only_ciphertext_in_git_request": true,
+    "no_sudo_actions_by_assistant": true,
+    "staged_copy_cleanup_pending_owner": true
+  }
+}
