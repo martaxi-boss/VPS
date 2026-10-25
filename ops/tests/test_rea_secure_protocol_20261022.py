@@ -448,6 +448,11 @@ class ReaSecureProtocolTests(unittest.TestCase):
                       "authorization":approved("inspect_adb_client",{}, "sensitive")}]),
             request([
                 {"tool":"get_evidence_bundle","arguments":{"detail":"complete"}},
+                {"tool":"inspect_with_objdump","arguments":{
+                    "path":"/usr/bin/true","operation":"file_headers"
+                }, "authorization":approved("inspect_with_objdump", {
+                    "path":"/usr/bin/true","operation":"file_headers"
+                }, "workspace")},
                 {"tool":"inspect_web_network_capture","arguments":{"path":"/usr/bin/true"},
                  "authorization":approved("inspect_web_network_capture",
                      {"path":"/usr/bin/true"}, "sensitive")}
@@ -473,8 +478,15 @@ class ReaSecureProtocolTests(unittest.TestCase):
         def consent(prompt):
             prompts.append(prompt)
             return prompt.split("Type ",1)[1].split(" to sign",1)[0]
-        outcome = owner.sign_batch_requests(manifest, private, root,
-                                            confirm_callback=consent)
+        import io
+        from contextlib import redirect_stdout
+        shown = io.StringIO()
+        with redirect_stdout(shown):
+            outcome = owner.sign_batch_requests(manifest, private, root,
+                                                confirm_callback=consent)
+        self.assertIn("TOOL: get_evidence_bundle", shown.getvalue())
+        self.assertIn("TOOL: inspect_with_objdump SCOPE: workspace", shown.getvalue())
+        self.assertIn("TOOL: inspect_web_network_capture SCOPE: sensitive", shown.getvalue())
         self.assertEqual("SIGNED_EXACT_BATCH_OFFLINE",outcome["status"])
         self.assertEqual(2,outcome["signed_requests"])
         self.assertEqual(2,outcome["individually_signed_sensitive_steps"])
@@ -485,7 +497,7 @@ class ReaSecureProtocolTests(unittest.TestCase):
             self.assertEqual(signed["nonce"],unsigned["nonce"])
             self.assertEqual(signed["expires_at"],unsigned["expires_at"])
             self.assertEqual(len(signed["steps"]),len(unsigned["steps"]))
-            step_index = 0 if i == 0 else 1
+            step_index = 0 if i == 0 else 2
             step = signed["steps"][step_index]
             auth = step["authorization"]
             signed_message = {
