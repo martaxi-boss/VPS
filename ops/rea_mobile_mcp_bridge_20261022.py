@@ -1835,10 +1835,10 @@ print(json.dumps({'matched':len(items),'archives':items}, sort_keys=True, separa
         except (ValueError, TypeError):
             report = {}
         if not isinstance(report, dict) or not isinstance(report.get("archives"), list) or not isinstance(report.get("matched"), int):
-            print("REA_P227_ARCHIVE_SUMMARY=FAIL_READ_ONLY")
+            print("REA_SDIAG_STATUS=P227_ARCHIVES_FAIL_READ_ONLY")
         else:
-            print("REA_P227_ARCHIVE_SUMMARY="+json.dumps(report, sort_keys=True, separators=(",",":")))
-        print("REA_SDIAG_STATUS=PASS_READ_ONLY")
+            print("REA_SDIAG_STATUS=P227_ARCHIVES_"+json.dumps(report, sort_keys=True, separators=(",",":")))
+
         return
     if data["action"] == "fixture_linux_service_provider_activate":
         # Owner-requested REA ONLY integration, with rollback on any
