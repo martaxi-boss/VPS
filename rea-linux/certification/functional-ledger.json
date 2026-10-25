@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "P277_ORIGINAL_REA_123_OF_208__SWIFT_SESSION_GATE_VERIFIED__13_EVIDENCE_1_UNKNOWN_SHA_UNCHANGED__85_PENDING",
+  "status": "P278_ORIGINAL_REA_123_OF_208__TWO_FIXED_GHIDRA_REQUESTS_PREPARED_OWNER_APPROVAL_PENDING__P277_13_EVIDENCE_1_UNKNOWN_PRESERVED__85_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -8150,6 +8150,34 @@
         "Original service and 123 certifications untouched.",
         "Next controlled Ghidra candidate is set_addresses_names; any sensitive write and close need new exact Ed25519."
       ]
+    },
+    {
+      "phase_id": "LINUX-P278-GHIDRA_SET_ADDRESSES_NAMES_TWO_CASES_ONE_OWNER_REVIEW_PREPARED_20261025",
+      "date_utc": "2026-10-25",
+      "status": "OWNER_ANDROID_OFFLINE_BATCH_PREPARED_TESTED_NOT_SIGNED_NOT_DISPATCHED",
+      "new_certifications": 0,
+      "certified_total": 123,
+      "pending_total": 85,
+      "sensitive_tools_ready_for_owner_review": [
+        "set_addresses_names"
+      ],
+      "sensitive_signatures_required": 4,
+      "workspace_opens_required": 2,
+      "exact_signed_close_per_request": true,
+      "controlled_original_ghidra_fixture": true,
+      "bash_signer_test": "PASS_2_REQUESTS_4_DISTINCT_ED25519_SIGNATURES_EPHEMERAL_TEST_KEY",
+      "immutable_plan_sha256": "4232181c23847de31b367efd821b50be37d3b98f91e30706612b351a225ae6bf",
+      "owner_consent_status": "NOT_SIGNED",
+      "MCP_requests_dispatched": 0,
+      "baseline_evidence_count": 13,
+      "baseline_unknowns": 1,
+      "sha256": "98655f7309a8fe941e2c5687b331511942086ab57ecf63dc26c1877c2f7b201c",
+      "report": "rea-linux/certification/p278-ghidra-set-addresses-names-owner-signed-batch-prepared-20261025.json",
+      "tools": [],
+      "limits": [
+        "Two future signatures per request for sensitive Ghidra name write and exact close; source-owned test fixture only.",
+        "No sensitive tool newly certified; original service unchanged."
+      ]
     }
   ],
   "active_scope_counts": {
@@ -8194,7 +8222,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P277-SWIFT_DEMANGLE_REQUIRES_ACTIVE_SESSION__EVIDENCE_RETENTION_VERIFIED_20261025",
+  "latest_phase": "LINUX-P278-GHIDRA_SET_ADDRESSES_NAMES_TWO_CASES_ONE_OWNER_REVIEW_PREPARED_20261025",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -11397,6 +11425,23 @@
       "next_ready_ghidra_sensitive_candidate": "set_addresses_names",
       "next_operation_requires_exact_owner_confirmation": true,
       "report": "rea-linux/certification/p277-swift-demangle-original-mcp-session-gate-retention-20261025.json"
+    },
+    "p278_pending_ghidra_owner_batch": {
+      "status": "TESTED_OFFLINE_AWAITING_ONE_EXPLICIT_ANDROID_CONSENT",
+      "batch_plan_sha256": "4232181c23847de31b367efd821b50be37d3b98f91e30706612b351a225ae6bf",
+      "candidate_sensitive_tool": "set_addresses_names",
+      "total_original_certified": 123,
+      "remaining_full_certifications": 85,
+      "number_unsigned_requests": 2,
+      "number_sensitive_signatures_required": 4,
+      "signed_by_owner": false,
+      "tool_executed_original_MCP": false,
+      "certifications_added": 0,
+      "prior_record_count": 13,
+      "prior_unknown_count": 1,
+      "prior_semantic_sha256": "98655f7309a8fe941e2c5687b331511942086ab57ecf63dc26c1877c2f7b201c",
+      "report": "rea-linux/certification/p278-ghidra-set-addresses-names-owner-signed-batch-prepared-20261025.json",
+      "owner_key_private_remains_on_Termux": true
     }
   }
 }
