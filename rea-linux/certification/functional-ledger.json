@@ -9677,7 +9677,19 @@
       "owner_signature_scope": "exact P249 operation only, consumed and must not be reused",
       "current_fully_certified": 118,
       "current_pending": 90,
-      "p232_p246_bridge_hold_active": true
+      "p232_p246_bridge_hold_active": true,
+      "latest_readonly_snapshot": {
+        "run_id": 40211803209,
+        "report_path": "rea-linux/certification/p250-readonly-evidence-retention-snapshot-20261025.json",
+        "evidence_count": 9,
+        "unknown_count": 0,
+        "bundle_sha256": "a00cb128ab4daabe4acfe0f3a7d738972e9d65e3fb954f8b645e603790dbf6ec",
+        "matches_P249_baseline": true,
+        "archive_zip_sha256": "72d8eff92b2f8295827104b6e41d2872da924354481670216ef3f7eb4318ed52",
+        "restore_tested": false,
+        "owner_download_confirmed": false,
+        "independent_durable_archive_verified": false
+      }
     }
   }
 }
