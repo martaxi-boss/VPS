@@ -1,0 +1,737 @@
+{
+  "schema_version": 1,
+  "project": "Engenharia Reversa — REA original Linux MCP",
+  "phase_id": "LINUX-P270-AUTHENTICATED-208-RUNTIME-SCHEMAS-70-SENSITIVE-READY-MATRIX-20261025",
+  "date_utc": "2026-10-25",
+  "status": "ORIGINAL_MCP_RUNTIME_CONTRACTS_AUTHENTICATED_208__70_PENDING_SENSITIVE_CONTRACTS_INDEXED__TWO_GHIDRA_TEST_PLANS_PREPARED_UNSIGNED__NO_CERTIFICATIONS_ADDED",
+  "execution_source": {
+    "repo": "martaxi-boss/VPS",
+    "branch": "rea/one-skill-bridge-20261023",
+    "workflow": ".github/workflows/rea-android-bridge-20261022.yml",
+    "run_id": 40238685797,
+    "artifact_id": 12615589537,
+    "original_mcp_transport": "GitHub Actions / SSH pin / original localhost 127.0.0.1:8765/mcp",
+    "response_decrypted_aes256gcm_authenticated": true,
+    "rsa_response_private_ephemeral_local": true,
+    "response_request_binding": true,
+    "request_digest_sha256": "e29b5d927ac11d17c81815f63cdd2cdf37dc7c11d05e26729de0844a80492ee9",
+    "original_mcp_output_sha256": "49f8c83a3b9861c8a21d03b5fab7bd66bb9176567bbaacb8e65f117ae8cbd088",
+    "authenticated_original_catalog_tools": 208,
+    "authenticated_original_risk_profiles": 208,
+    "private_readonly_response_not_committed_to_public_GitHub": true
+  },
+  "scope": {
+    "catalog_total": 208,
+    "historical_certified": 121,
+    "historical_uncertified": 87,
+    "sensitive_total": 83,
+    "historical_sensitive_certified": 13,
+    "sensitive_pending": 70,
+    "non_sensitive_pending": 17,
+    "no_recertifications_performed": true,
+    "no_sensitive_calls_performed": true
+  },
+  "offline_authorization_plan": {
+    "current_candidate_tools": [
+      "annotate_native_function",
+      "set_address_name"
+    ],
+    "request_templates_count": 4,
+    "test_profiles": [
+      "set_address_name known mapped positive and valid-schema unmapped negative",
+      "annotate_native_function known Ghidra function positive and valid-schema unmapped negative"
+    ],
+    "fixture_existing_original_mcp_target": "/usr/bin/true",
+    "fixture_known_target_sha256": "8a63c98320173f79e263115e10cefc170155e47d1fd4b5a70e4429d2699cae28",
+    "candidate_input_schemas_validated_by_local_jsonschema": true,
+    "requests_with_seven_steps_each": true,
+    "combined_expected_sensitive_signatures": 8,
+    "owner_unique_Ed25519_signature_per_sensitive_step": true,
+    "owner_consent_pending": true,
+    "owner_private_key_never_collected": true,
+    "original_repo_signature_verifier_unchanged": true,
+    "offline_candidate_unsigned_manifest_sha256": "7a1398063065320cc75726d0e21ff1b8b4e09bf7dda54b8c61f8bab23998fb48",
+    "durable_local_signer_immutable_plan_sha256": "c2c8e86d79428b6db67dc4219e9fca3346fcb3677e0587c17e4813b7a1c62c6a",
+    "isolated_Termux_signing_simulation": "PASS_4_REQUESTS_8_INDIVIDUAL_ED25519_SIGNATURES_VERIFIED",
+    "isolated_test_owner_key_deleted": true,
+    "one_owner_review_for_8_signatures": true,
+    "proposal_template_private_library": "engenharia reversa/REA_P270_Lote_Assinatura_Sensivel_Nao_Assinado.zip",
+    "not_signed_or_executed": true
+  },
+  "risk_index": [
+    {
+      "tool": "analyze_web_bundle",
+      "schema_sha256_live_audited": "f0f8a978841e9efc9bf84d9dd9482fa2c66ab895764e67c10ef452cc158a709b",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "browser_or_network_target_preflight"
+      ]
+    },
+    {
+      "tool": "annotate_native_function",
+      "schema_sha256_live_audited": "3e23e3ec4210d82a31ce783b90302ebebe4c67c95f43d2ccab8e7bcc1ec9f89b",
+      "risk": "sensitive",
+      "status": "SCHEMA_VALIDATED_CONTROLLED_GHIDRA_POSITIVE_NEGATIVE_UNSIGNED",
+      "readiness_gate": [
+        "changes_state_or_process_strict_explicit_approval"
+      ]
+    },
+    {
+      "tool": "capture_adb_screen",
+      "schema_sha256_live_audited": "fa693bd87be92715bc3802adc65bacfd2e5f18df00fe078863a7041382996a9e",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "device_or_adb_state_must_be_verified"
+      ]
+    },
+    {
+      "tool": "capture_browser_scenario",
+      "schema_sha256_live_audited": "4c6ba6d9c1fdee7012a0d1ed02597d97d26147d6d69611951331cbdb98402281",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "browser_or_network_target_preflight"
+      ]
+    },
+    {
+      "tool": "capture_electron_scenario",
+      "schema_sha256_live_audited": "4430605d7b881dce7aee8d1510c3f875bd61b91533eeac27656f73e2905c5934",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "browser_or_network_target_preflight"
+      ]
+    },
+    {
+      "tool": "capture_native_ui_scenario",
+      "schema_sha256_live_audited": "d4079b64fcbab79a6fde23efbe2ba5efc5c677316a443a23a1d024b783b24cfc",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "exact_original_schema_controlled_fixture_preflight"
+      ]
+    },
+    {
+      "tool": "capture_process_scenario",
+      "schema_sha256_live_audited": "52ab748f5d680c62cd40fd2825a1aece9d64e67334a7cbe27a65f8dbe0c726d9",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "exact_original_schema_controlled_fixture_preflight"
+      ]
+    },
+    {
+      "tool": "capture_web_screenshot",
+      "schema_sha256_live_audited": "b3b19f72c8a47770e81d22345df0401e7690662856b3b45fc48823350e6e0af1",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "browser_or_network_target_preflight"
+      ]
+    },
+    {
+      "tool": "close_binary",
+      "schema_sha256_live_audited": "7c3ec5b8da0b299cb07225898da552ae08d3beab891728da751e6e6210ab784d",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "exact_original_schema_controlled_fixture_preflight"
+      ]
+    },
+    {
+      "tool": "close_frida_session",
+      "schema_sha256_live_audited": "a00f83b4677653238dfd6ecd99877d1a51e505c0703e42db40901f9d78054b6a",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "live_provider_or_dynamic_session_preflight"
+      ]
+    },
+    {
+      "tool": "close_gdb_session",
+      "schema_sha256_live_audited": "a00f83b4677653238dfd6ecd99877d1a51e505c0703e42db40901f9d78054b6a",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "live_provider_or_dynamic_session_preflight"
+      ]
+    },
+    {
+      "tool": "close_rizin_debug_session",
+      "schema_sha256_live_audited": "a00f83b4677653238dfd6ecd99877d1a51e505c0703e42db40901f9d78054b6a",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "live_provider_or_dynamic_session_preflight"
+      ]
+    },
+    {
+      "tool": "collect_adb_bugreport",
+      "schema_sha256_live_audited": "937ca33fac6c28f93cb111301973376ed5cbffbbff7d1f1f6a91d998bf01dca2",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "device_or_adb_state_must_be_verified"
+      ]
+    },
+    {
+      "tool": "cutter_command",
+      "schema_sha256_live_audited": "ac65a80467beb9a82de6a4316b36f954411b199edc809e3f77b93153ce6aab99",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "live_provider_or_dynamic_session_preflight"
+      ]
+    },
+    {
+      "tool": "decompile_jeb_item",
+      "schema_sha256_live_audited": "d5fe01c01e13185dad0610f932b58285a80f8a104fc8bf9e7ba571f152406f87",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "live_provider_or_dynamic_session_preflight"
+      ]
+    },
+    {
+      "tool": "discover_webmcp_tools",
+      "schema_sha256_live_audited": "524e457055e70fde32d14d7c5410a0719dd75a8883ade632d51eb67407a8b44d",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "browser_or_network_target_preflight"
+      ]
+    },
+    {
+      "tool": "execute_rizin_command",
+      "schema_sha256_live_audited": "7fbb8cb5ef8c4f043a63f24cda0b6008c47e9faa12dc2260d3a3b338b175793b",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "live_provider_or_dynamic_session_preflight"
+      ]
+    },
+    {
+      "tool": "extract_artifact",
+      "schema_sha256_live_audited": "144995ec4835eb26a5f0bbf3783a18edc6a9740e1c97b474e8b24d59dd7132c3",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "exact_original_schema_controlled_fixture_preflight"
+      ]
+    },
+    {
+      "tool": "gdb_console",
+      "schema_sha256_live_audited": "4bf2fd8d741c4a68a2f535e2737c44a6d366bdb968353ecdca6243d115608f06",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "live_provider_or_dynamic_session_preflight"
+      ]
+    },
+    {
+      "tool": "goto_address",
+      "schema_sha256_live_audited": "dbeefa8be34d7fbbd00062b41dbe24c309938eb6eb441463b7c703b50af9d6e5",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "live_provider_or_dynamic_session_preflight"
+      ]
+    },
+    {
+      "tool": "inspect_adb_device",
+      "schema_sha256_live_audited": "4d4c7a6f87aec3c9511b9d31ae60b2e75abf4537332cc7c0d3f9158a226919ff",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "device_or_adb_state_must_be_verified"
+      ]
+    },
+    {
+      "tool": "inspect_adb_display",
+      "schema_sha256_live_audited": "4d4c7a6f87aec3c9511b9d31ae60b2e75abf4537332cc7c0d3f9158a226919ff",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "device_or_adb_state_must_be_verified"
+      ]
+    },
+    {
+      "tool": "inspect_adb_package",
+      "schema_sha256_live_audited": "4259240e348208d1ac74ee396b167375127412d03c03b21d9d80e605dffc36ae",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "device_or_adb_state_must_be_verified"
+      ]
+    },
+    {
+      "tool": "inspect_adb_window",
+      "schema_sha256_live_audited": "4d4c7a6f87aec3c9511b9d31ae60b2e75abf4537332cc7c0d3f9158a226919ff",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "device_or_adb_state_must_be_verified"
+      ]
+    },
+    {
+      "tool": "inspect_electron_page",
+      "schema_sha256_live_audited": "c3e09dfc4fc8a7a9ebdbc0ad35ba3e1e9df699a8786824e960803b66f7febfe0",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "browser_or_network_target_preflight"
+      ]
+    },
+    {
+      "tool": "inspect_jeb_client",
+      "schema_sha256_live_audited": "c0cd46452db6c33ae1672c165c78e593f6bc472932b6b0370130b9d1d3e57fe5",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "live_provider_or_dynamic_session_preflight"
+      ]
+    },
+    {
+      "tool": "inspect_web_event_listeners",
+      "schema_sha256_live_audited": "da4c867a88c3734e77bf83d2c12255827e07aeeaefa25185b7ca342e7bb5d38c",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "browser_or_network_target_preflight"
+      ]
+    },
+    {
+      "tool": "inspect_web_page",
+      "schema_sha256_live_audited": "cc7fba713e576e4f593e9b666b91ed456fe8d9c16335dcd27751107c061656f8",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "browser_or_network_target_preflight"
+      ]
+    },
+    {
+      "tool": "install_adb_package",
+      "schema_sha256_live_audited": "8024346ea52304ef4284b18bada22713b94aee09b40d00e89a7ee2b8fb9dd8e4",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "device_or_adb_state_must_be_verified",
+        "changes_state_or_process_strict_explicit_approval"
+      ]
+    },
+    {
+      "tool": "instrument_with_frida",
+      "schema_sha256_live_audited": "af7d59d37aa753f91b86d968d61f9e7fbc7aed111e1c57cf2818eaa4509e82e3",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "live_provider_or_dynamic_session_preflight",
+        "changes_state_or_process_strict_explicit_approval"
+      ]
+    },
+    {
+      "tool": "list_adb_directory",
+      "schema_sha256_live_audited": "17b44ef1bd94b7164800d6a6e6f0297853ba7062f13c3b4b6ef09ff785d0bd1f",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "device_or_adb_state_must_be_verified"
+      ]
+    },
+    {
+      "tool": "list_adb_features",
+      "schema_sha256_live_audited": "4d4c7a6f87aec3c9511b9d31ae60b2e75abf4537332cc7c0d3f9158a226919ff",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "device_or_adb_state_must_be_verified"
+      ]
+    },
+    {
+      "tool": "list_adb_packages",
+      "schema_sha256_live_audited": "e765f5a3a3b086ce67df270906aa4971e95d35d50554eef0b3f17c0578c32478",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "device_or_adb_state_must_be_verified"
+      ]
+    },
+    {
+      "tool": "list_adb_processes",
+      "schema_sha256_live_audited": "4d4c7a6f87aec3c9511b9d31ae60b2e75abf4537332cc7c0d3f9158a226919ff",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "device_or_adb_state_must_be_verified"
+      ]
+    },
+    {
+      "tool": "list_adb_services",
+      "schema_sha256_live_audited": "4d4c7a6f87aec3c9511b9d31ae60b2e75abf4537332cc7c0d3f9158a226919ff",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "device_or_adb_state_must_be_verified"
+      ]
+    },
+    {
+      "tool": "list_browser_targets",
+      "schema_sha256_live_audited": "1712bb1f3e255d34389012ed6b9b9b4c3548f755bd7a3e5984237f75fb443881",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "browser_or_network_target_preflight"
+      ]
+    },
+    {
+      "tool": "list_electron_targets",
+      "schema_sha256_live_audited": "0cca9b812bfaf745d43e5a94ccb8165cf61d4d984be4aae7848a97db7f1a99be",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "browser_or_network_target_preflight"
+      ]
+    },
+    {
+      "tool": "list_javascript_runtime_targets",
+      "schema_sha256_live_audited": "8b9cc299f78560e170f4a9d48a9a8d3a4eed8cd78a2238f5a4d1deb0dfd6e09b",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "browser_or_network_target_preflight"
+      ]
+    },
+    {
+      "tool": "list_jeb_units",
+      "schema_sha256_live_audited": "d8027a9e10501e46833eab429dcc4bd7ea78ac1a6f599a3fb350d33222eab6c4",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "live_provider_or_dynamic_session_preflight"
+      ]
+    },
+    {
+      "tool": "load_frida_script",
+      "schema_sha256_live_audited": "740655868d1dce0d7734f295cb655ac6c53dd22a14282873fc58be95f491689d",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "live_provider_or_dynamic_session_preflight",
+        "changes_state_or_process_strict_explicit_approval"
+      ]
+    },
+    {
+      "tool": "observe_javascript_runtime",
+      "schema_sha256_live_audited": "c34cf031856d7213a17dd9fee6c304e64ccf46bbfc719e773aca506f4fd0a1a3",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "browser_or_network_target_preflight"
+      ]
+    },
+    {
+      "tool": "observe_native_calls",
+      "schema_sha256_live_audited": "8336111949551086b4ae5f56209e84678911a9f9621082920971fc9ccd3d1bcc",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "exact_original_schema_controlled_fixture_preflight"
+      ]
+    },
+    {
+      "tool": "observe_native_ui",
+      "schema_sha256_live_audited": "d2c7477ad4f64c87c51ce79f1b8aea87636680eddf8852a4b8cac2d3c03529aa",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "exact_original_schema_controlled_fixture_preflight"
+      ]
+    },
+    {
+      "tool": "observe_web_execution",
+      "schema_sha256_live_audited": "7da523fa54a6162c3f97df4889cc256f1e9d374bd53ecc269e3e816d21452bb5",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "browser_or_network_target_preflight"
+      ]
+    },
+    {
+      "tool": "observe_web_session",
+      "schema_sha256_live_audited": "ea0806bc3649c5fa3dbb8f71d3cda3633bce13fe010b9845ba157a2a683a006c",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "live_provider_or_dynamic_session_preflight",
+        "browser_or_network_target_preflight"
+      ]
+    },
+    {
+      "tool": "open_jeb_project",
+      "schema_sha256_live_audited": "5fe2eceda149eecaa43dfdf72ad7b9df0463053432c840321b0a95afa505a235",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "live_provider_or_dynamic_session_preflight"
+      ]
+    },
+    {
+      "tool": "pull_adb_file",
+      "schema_sha256_live_audited": "573f6c59a57b46ef955a496fa83343ef00c1a2b20ff4538c78d08364e8f75a40",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "device_or_adb_state_must_be_verified"
+      ]
+    },
+    {
+      "tool": "pull_adb_package",
+      "schema_sha256_live_audited": "58442651c390da8ede0ff75d4e62dd94e1ab4453a81cf4015cf1c086253d9d78",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "device_or_adb_state_must_be_verified"
+      ]
+    },
+    {
+      "tool": "push_adb_file",
+      "schema_sha256_live_audited": "1d5f09c443afe30a4b0fab1d79be5576b5e9e02dad0c6202d662cd46c3d87443",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "device_or_adb_state_must_be_verified",
+        "changes_state_or_process_strict_explicit_approval"
+      ]
+    },
+    {
+      "tool": "read_adb_logcat",
+      "schema_sha256_live_audited": "e9967b95c1511cade6ff8f90a2add6bf39eb768f88f1bdef04c1d2404e28f31e",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "device_or_adb_state_must_be_verified"
+      ]
+    },
+    {
+      "tool": "read_adb_setting",
+      "schema_sha256_live_audited": "c1d26a9459ce7ecef478a9efb898e277691920abc21c441b4f52f4b8504b8bd7",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "device_or_adb_state_must_be_verified"
+      ]
+    },
+    {
+      "tool": "recover_javascript_sources",
+      "schema_sha256_live_audited": "07d89af24ff731f7ac85dd411a497988d3f40a840bd7299ebc3aac3159a49be2",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "exact_original_schema_controlled_fixture_preflight"
+      ]
+    },
+    {
+      "tool": "resolve_adb_packages",
+      "schema_sha256_live_audited": "bd54a8d55d1726a0caf20058b884acc6e344aea521b492ac33cda5128feae91c",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "device_or_adb_state_must_be_verified"
+      ]
+    },
+    {
+      "tool": "resume_frida_session",
+      "schema_sha256_live_audited": "a00f83b4677653238dfd6ecd99877d1a51e505c0703e42db40901f9d78054b6a",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "live_provider_or_dynamic_session_preflight",
+        "changes_state_or_process_strict_explicit_approval"
+      ]
+    },
+    {
+      "tool": "rizin_debug_command",
+      "schema_sha256_live_audited": "73a8e4af94ed72247f8fb59196c6a87c524a4cdde63c09fa3064c04ca298db96",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "live_provider_or_dynamic_session_preflight"
+      ]
+    },
+    {
+      "tool": "set_address_name",
+      "schema_sha256_live_audited": "bae239e4f75b997e8bef838aa52b039dad28c58a86bf2f80705365be98ebec2f",
+      "risk": "sensitive",
+      "status": "SCHEMA_VALIDATED_CONTROLLED_GHIDRA_POSITIVE_NEGATIVE_UNSIGNED",
+      "readiness_gate": [
+        "changes_state_or_process_strict_explicit_approval"
+      ]
+    },
+    {
+      "tool": "set_addresses_names",
+      "schema_sha256_live_audited": "63b38f6dc97e0a8da59895a96afa4cc13b2631ad269845b588edd9d93e80ab13",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "changes_state_or_process_strict_explicit_approval"
+      ]
+    },
+    {
+      "tool": "set_bookmark",
+      "schema_sha256_live_audited": "6133b8c4c653f8d1b472d6019b11e9778bb3eac640b7f70dbea53cffcedda901",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "changes_state_or_process_strict_explicit_approval"
+      ]
+    },
+    {
+      "tool": "set_comment",
+      "schema_sha256_live_audited": "fac961568e5fe0006376c67f462c79ba375299cbef52f8c52a740a0e21200f21",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "changes_state_or_process_strict_explicit_approval"
+      ]
+    },
+    {
+      "tool": "set_inline_comment",
+      "schema_sha256_live_audited": "9f7f582544d8b537e6831b8ec7acff6cd64c6249bbc255fa7aeae9e9d3ea816e",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "changes_state_or_process_strict_explicit_approval"
+      ]
+    },
+    {
+      "tool": "start_adb_activity",
+      "schema_sha256_live_audited": "da5fa654f586b62b85a3b0171536bcede43afe21a76a9b9642b6d8e4d0950675",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "device_or_adb_state_must_be_verified",
+        "changes_state_or_process_strict_explicit_approval"
+      ]
+    },
+    {
+      "tool": "start_adb_app",
+      "schema_sha256_live_audited": "ff66055d3cdc46a0a3f2a7440d3de065dc24cf51dd0e95a37d708d3644ef04c1",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "device_or_adb_state_must_be_verified",
+        "changes_state_or_process_strict_explicit_approval"
+      ]
+    },
+    {
+      "tool": "start_frida_session",
+      "schema_sha256_live_audited": "961d770c3a60309ff7270d5517753f627308e448a59ea83f03ec1f37180b2a6c",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "live_provider_or_dynamic_session_preflight",
+        "changes_state_or_process_strict_explicit_approval"
+      ]
+    },
+    {
+      "tool": "start_gdb_session",
+      "schema_sha256_live_audited": "f570af50a7ecefac605e90e7da081ca041e2047557212671c875293841e35213",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "live_provider_or_dynamic_session_preflight",
+        "changes_state_or_process_strict_explicit_approval"
+      ]
+    },
+    {
+      "tool": "start_rizin_debug_session",
+      "schema_sha256_live_audited": "14e45c27cca2b361326bdeedf41243d4fbee9b2711fef503208b99498b735913",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "live_provider_or_dynamic_session_preflight",
+        "changes_state_or_process_strict_explicit_approval"
+      ]
+    },
+    {
+      "tool": "stop_adb_app",
+      "schema_sha256_live_audited": "f3c8c5b7a77e9a96ce18302a4fa1b44e13418c1edf7dc622d89db2407ddfccd9",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "device_or_adb_state_must_be_verified",
+        "changes_state_or_process_strict_explicit_approval"
+      ]
+    },
+    {
+      "tool": "trace_web_module_imports",
+      "schema_sha256_live_audited": "3e73cc74c53abdca504d9d8bdfcbd802e21dfb354d6440fdf05bd840fe2d36b6",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "browser_or_network_target_preflight"
+      ]
+    },
+    {
+      "tool": "uninstall_adb_package",
+      "schema_sha256_live_audited": "3bcb639c20177dcedf63cd62d7f64e4f5098074bde002b5bc0d07b0364de900b",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "device_or_adb_state_must_be_verified",
+        "changes_state_or_process_strict_explicit_approval"
+      ]
+    },
+    {
+      "tool": "unload_frida_script",
+      "schema_sha256_live_audited": "5630216b79d5ac3b8d2c0a3521d472e8099bacfb715fd543a27e2dd238353aca",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "live_provider_or_dynamic_session_preflight",
+        "changes_state_or_process_strict_explicit_approval"
+      ]
+    },
+    {
+      "tool": "unset_bookmark",
+      "schema_sha256_live_audited": "dbeefa8be34d7fbbd00062b41dbe24c309938eb6eb441463b7c703b50af9d6e5",
+      "risk": "sensitive",
+      "status": "PRECONDITION_OR_PROVIDER_REVIEW_BEFORE_PRECISE_SIGNATURE",
+      "readiness_gate": [
+        "changes_state_or_process_strict_explicit_approval"
+      ]
+    }
+  ],
+  "readiness_summary": {
+    "groups_are_readiness_hints_not_provider_functional_proofs": true,
+    "candidate_count": 2,
+    "waiting_on_explicit_owner_confirmation": 2,
+    "other_pending_count": 68,
+    "explicit_blockers": [
+      "No source-approved connected Android device serial verified for 22 related contracts",
+      "No verified owner-approved CDP or Inspector session for 12 related contracts",
+      "Dynamic session IDs must be taken from real sessions; do not pre-sign unknown UUIDs",
+      "Hopper GUI absent; some navigation/bookmark operations not supported by available Ghidra",
+      "JEB and other optional third-party clients may not be configured; original doctor healthy=false",
+      "Potential foreign code execution, device mutations, process launch and network effects require separate target-specific review",
+      "No blanket authorization, no software-license bypass and no claim that 70 signed tools are automatically certified."
+    ],
+    "next_bounded_action": "Have the existing owner key approve one reviewed four-request, eight-sensitive-signature Ghidra test batch locally. Dispatch each signed request individually and encrypted; verify actual per-step isError, negative expected refusal and independent 11+1 Evidence retention; then certify only tool scopes with complete evidence."
+  },
+  "original_state_preserved": {
+    "evidence_count": 11,
+    "unknown_revisions": 1,
+    "canonical_semantic_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+    "p268_signed_session_gate_unchanged": true,
+    "other_projects_untouched": true
+  },
+  "hygiene": {
+    "runtime_contracts_one_use_request_deleted": true,
+    "no_private_key_uploaded": true,
+    "no_sensitive_effect_executed": true,
+    "no_tools_certified_without_proof": true,
+    "retained_reports_and_Action_IDs": true
+  }
+}
