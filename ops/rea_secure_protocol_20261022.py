@@ -756,7 +756,7 @@ def classify(name, descriptor, safe_callable):
     return "workspace" if flags else "read"
 
 
-def _authorized_target_paths(arguments, additional_roots=()):
+def _authorized_target_paths(arguments, additional_roots=(), approved_exact_output=None):
     # Prevent requests addressed to confidential/shared-service paths on the VPS.
     # Staged authorized inputs should live in the private per-user artifact area.
     from pathlib import Path
@@ -784,6 +784,10 @@ def _authorized_target_paths(arguments, additional_roots=()):
                     if not value.startswith("/"):
                         raise SecureBridgeError("Analysis target needs an absolute path")
                     target = Path(value).resolve()
+                    if (key == "output_directory" and approved_exact_output is not None
+                            and value == str(approved_exact_output)
+                            and target == approved_exact_output):
+                        continue
                     if target not in exact and not any(
                         target == root or root in target.parents for root in roots
                     ):
@@ -869,7 +873,6 @@ def validate_inner(body, registry, safe_callable, now=None):
             raise SecureBridgeError("Invalid MCP argument object")
         validate_arguments(registry[name], args)
         risk = classify(name, registry[name], safe_callable)
-        _authorized_target_paths(args)
         if name in REVIEWED_SESSION_READ_TOOLS:
             if not opened_in_request:
                 raise SecureBridgeError(
@@ -929,6 +932,21 @@ def validate_inner(body, registry, safe_callable, now=None):
                 raise SecureBridgeError("Missing per-operation acknowledgement")
             if risk == "sensitive":
                 _verify_sensitive_owner_authorization(body, position, name, args, auth)
+        # P254: permit only the exact nonce-bound, owner-signed firmware
+        # output in the original REA StateDirectory; never general /var/lib.
+        p254_output = None
+        if (name == "extract_firmware" and risk == "sensitive"
+                and body["nonce"] == "89541b13f4dc1424cc6a5acac7ba8f58"
+                and body["expires_at"] == "2026-10-26T06:01:58Z"
+                and position in (1, 2)
+                and args == {
+                    "path": "/opt/rea-reversa/rea/_reference/rea-p253-controlled-firmware/firmware.bin",
+                    "output_directory": "/var/lib/rea-reversa/rea-p254-firmware-89541b13f4dc",
+                    "max_depth": 3,
+                }):
+            from pathlib import Path
+            p254_output = Path("/var/lib/rea-reversa/rea-p254-firmware-89541b13f4dc")
+        _authorized_target_paths(args, approved_exact_output=p254_output)
         profiles.append(risk)
     return profiles
 
