@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "project": "Engenharia Reversa — original REA Linux MCP only",
+  "phase_id": "P241-TWO-OS-PROCESS-NATIVE-DURABLE-EVIDENCE-BUNDLE-RETENTION-20261025",
+  "date_utc": "2026-10-25",
+  "status": "PASS_2_OF_2_NATIVE_SEPARATE_PROCESS_RECOVERY__PERMANENT_MCP_HOLD_REMAINS",
+  "scope": "Carry forward P240 exact full-bundle restoration by executing phases in two distinct Node/Vitest OS processes in the existing staged copy of original REA. No installed permanent daemon mutation/restart.",
+  "canonical_start": {
+    "base_commit": "665a3dc0bdd6ee65c1931075207f9aef61d8dc2d",
+    "p240_report_blob": "548915fe7b13486c825b399d643fc42590373b93",
+    "ledger_blob": "b09a56ed4d401d150f99836844622a96b89523c8",
+    "historically_certified": 116,
+    "pending": 92,
+    "sensitive_certified": 10,
+    "evidence_latest_authenticated_permanent_readback": 6,
+    "unknown_heads_latest_authenticated_permanent_readback": 0,
+    "historical_p217_p218_evidence_bodies_still_missing": 2,
+    "latest_existing_live_read_mcp_run": 40192227404
+  },
+  "real_execution": {
+    "transport": "Existing GitHub Actions -> pinned SSH -> original REA local tools/list and isolated source-owned native test, not permanent tools/call",
+    "run_id": 40194868631,
+    "job_id": 121173434471,
+    "request_commit": "4fdbef6c1a3f085798a5519614ff81e724338587",
+    "url": "https://github.com/martaxi-boss/VPS/actions/runs/40194868631",
+    "workflow_conclusion": "success",
+    "ssh_pin": "PASS",
+    "mcp_loopback": "PASS",
+    "mcp_catalog_count": 208,
+    "original_staged_source_sha": "8e9a7ee295667f8e23aea9d18af6eee4363d2032",
+    "production_package_json_sha256": "3864d3d94127955f12eda0f2f6e0e77117ab8cb3430e7cf8f56d2ae2aa51befe",
+    "staged_package_json_sha256": "3864d3d94127955f12eda0f2f6e0e77117ab8cb3430e7cf8f56d2ae2aa51befe",
+    "package_manifest_parity": "PASS_ONLY_PACKAGE_JSON_NOT_FULL_CODE",
+    "native_fixture_blob_verified": "PASS",
+    "fixture_file": "rea-linux/certification/tests/rea_p241_isolated_process_retention.test.ts",
+    "fixture_git_blob": "44044239412d025e0da263ad763ae0716afe37cb",
+    "phase_A_process": {
+      "exit_code": 0,
+      "test_result": "PASS",
+      "output_sha256": "7b41d2dbb3659384202c9aaa18919d40ccd601c0f8dd9045e8b5efa5200cbd30",
+      "effect": "In-memory original REA MCP records Evidence and two Unknown revisions, exports complete original deterministic archive in a private mode 0600 temporary directory."
+    },
+    "phase_B_new_process": {
+      "exit_code": 0,
+      "test_result": "PASS",
+      "output_sha256": "43dbeb43d6b8042870df337cb8e326397db7904b4941e80dfe2551a828c78800",
+      "effect": "Independent fresh original REA MCP in second Vitest OS process initially empty; rejects missing, tampered Evidence and missing Unknown revision archives; imports complete archive; validates exact bodies, IDs, manifests, revision chain and repeated idempotent import; reexports identical bytes."
+    },
+    "synthetic_archive": {
+      "path_scope": "Only private /dev/shm temporary directory used for isolated fixture, cleaned by TemporaryDirectory",
+      "sha256": "38f84340cc22d83723ffb8efd13b8c5f92f3b176fbe5d53cc7a93d0c4177848c",
+      "bytes": 4963,
+      "record_count": 4,
+      "unknown_revision_count": 2,
+      "distinct_unknown_heads": 1,
+      "private_mode": "PASS",
+      "export_import_reexport_exact_bytes": "PASS",
+      "evidence_id_preservation": "PASS",
+      "unknown_revision_history_preservation": "PASS",
+      "negative_imports_refused_without_mutation": [
+        "missing_file",
+        "tampered_evidence_body",
+        "unknown_revision_gap"
+      ]
+    },
+    "staged_source_clean": "PASS",
+    "private_temporary_artifacts_cleanup": "PASS",
+    "p232_production_binary_lifecycle_hold_preserved": true,
+    "permanent_mcp_sensitive_calls": 0,
+    "permanent_mcp_session_open_close_calls": 0,
+    "owner_ed25519_signature_count": 0,
+    "new_tool_certifications": 0
+  },
+  "hygiene": {
+    "restore_original_bridge_blob": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7",
+    "preserve_original_workflow_blob": "c81ef44d3f3e9dc3b3a819add5ff4f1a33d343df",
+    "preserve_original_security_blob": "8757abb589a779eaeda1d0eeefc85e4476503a41",
+    "remove_consumed_request": "rea-linux/requests/p241-two-process-recovery-20261025-a.json",
+    "preserve_previously_certified_ledger": true,
+    "preserve_original_P214_backup_at_VPS": true,
+    "no_other_projects_touched": true
+  },
+  "limitations": [
+    "Two separate OS processes each hosted an ephemeral in-memory instance of the original REA MCP implementation. This was NOT an actual systemd service restart or restart of the installed permanent daemon.",
+    "A matching installed/staged package.json SHA-256 does not prove compiled runtime or source commit parity. Staged original source revision remains distinct from repository main.",
+    "No fresh owner Ed25519 grant or live signed export/import has been requested. Live P214 original archive hash was not rechecked in this phase.",
+    "P217/P218 missing original evidence and Unknown revision history cannot be recovered from a synthetic fixture.",
+    "P232 remains a local preseal guard rather than a server-enforced automatic retention guarantee.",
+    "116 historically certified tools remain unchanged: P241 proves an isolated safety path, not individual live MCP functionality for new tools."
+  ],
+  "next_safe_work": [
+    "Keep P232 open_binary/close_binary hold until a fully isolated service-restart test verifies persistence and original source parity.",
+    "Confirm deployed original MCP runtime code fingerprint and compare to staged version without changing/restarting it.",
+    "Only with fresh exact owner Ed25519 signature evaluate full live export with durable SHA-protected backup and independent readback; never replay P229.",
+    "Do not touch P214 permanent archive or guess absent P217/P218 evidence."
+  ]
+}
