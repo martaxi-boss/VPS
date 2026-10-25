@@ -9691,5 +9691,51 @@
         "independent_durable_archive_verified": false
       }
     }
+  },
+  "pending_tool_followups": {
+    "as_of_utc": "2026-10-25",
+    "scope": "Non-certifying readiness and blocker index; DOES NOT increase 118/208",
+    "verify_unknown_resolution": {
+      "phase": "P250",
+      "status": "PENDING_POSITIVE",
+      "blocking": "Original permanent REA MCP currently holds zero Unknowns. P250 exact owner-signed record_unknown packet was not published due platform security refusal; no mutation and no sensitive authorization reuse.",
+      "positive_readiness": {
+        "descriptor_run_id": 40211388837,
+        "normal_read_transport": "PASS"
+      },
+      "retention_report": "rea-linux/certification/p250-readonly-evidence-retention-snapshot-20261025.json"
+    },
+    "inspect_plist": {
+      "phase": "P251",
+      "status": "UNSUPPORTED_HOST_IN_ORIGINAL_LINUX_SERVICE",
+      "proof": {
+        "descriptor_run_id": 40212824643,
+        "source_provider": "native-macos",
+        "reason": "Native macOS utilities require macOS"
+      },
+      "report": "rea-linux/certification/p251-inspect-plist-linux-capability-gate-20261025.json",
+      "resume_only_if": "genuine original supported provider and fully authorized target; do not retry Linux macOS-only code"
+    },
+    "extract_firmware": {
+      "phase": "P252",
+      "status": "LINUX_UNBLOB_PROVIDER_READY_POSITIVE_EXTRACTION_NOT_YET_CERTIFIED",
+      "proof": {
+        "descriptor_run_id": 40213273134,
+        "original_service_doctor_run_id": 40213343117,
+        "unblob_probe_run_id": 40213477453,
+        "unblob_present_and_runnable": true,
+        "binwalk_present": true,
+        "original_mcp_catalog_count": 208
+      },
+      "next": "First identify/stage one genuine source-owned Unblob compatible fixture at an allowed VPS path and absent output directory; then obtain a new owner Ed25519 signature exactly bound to extract_firmware arguments; use before/after readback of all nine Evidence. P250 owner signature cannot authorize a different operation.",
+      "report": "rea-linux/certification/p252-extract-firmware-live-readiness-20261025.json",
+      "caution": "Global REA doctor healthy=false/environment_healthy=false; no blanket provider-health claim."
+    },
+    "retention": {
+      "P232_hold_active": true,
+      "P250_nine_evidence_snapshot_verified": true,
+      "independent_archive_restore_tested": false
+    },
+    "no_new_certifications": true
   }
 }
