@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "project": "REA Original — Engenharia Reversa",
+  "phase_id": "LINUX-P215-SENSITIVE-IMPORT-EVIDENCE-IDEMPOTENT-READINESS-20261025",
+  "date_utc": "2026-10-25",
+  "status": "SOURCE_OWNED_EVIDENCE_ARCHIVE_READ_ONLY_PRECHECK_PASS__MCP_DESCRIBE_PASS__OFFLINE_OWNER_ED25519_SIGNATURE_PENDING__NO_CERTIFICATION_YET",
+  "canonical_baseline": {
+    "ledger_path": "rea-linux/certification/functional-ledger.json",
+    "ledger_sha": "d44c9bbd31c78ea3ba2b97b4d868d2e3ec4032b1",
+    "fully_certified": 113,
+    "pending": 95,
+    "sensitive_certified": 7,
+    "sensitive_pending": 76,
+    "last_certified_tool": "export_evidence_bundle"
+  },
+  "original_mcp_descriptor": {
+    "tool": "import_evidence_bundle",
+    "github_actions_run": 40180621130,
+    "github_actions_job": 121130719964,
+    "request_commit": "229023d3c2948353848ea1bf7d9a50defe849231",
+    "workflow_conclusion": "success",
+    "mcp_original_loopback": "PASS",
+    "catalog_tools": 208,
+    "descriptor_sha256": "a8aa50aa9d8442f2012484bfc4eb56a7670dffc9c276e23f995a7b1e06afb0bd",
+    "input_required": [
+      "path"
+    ],
+    "input_properties": [
+      "path"
+    ],
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "historical_source_contract": "rea/src/server/registerSessionRecordTools.ts: import tool calls readImmutableEvidenceBundle then BinarySessionRecords.importEvidenceBundle; EvidenceLedger.import atomically validates before merging",
+    "request_cleaned": true,
+    "cleanup_commit": "a46851ea8bcf83000e6e51167852454a828911c9"
+  },
+  "authentic_read_only_archived_bundle_preflight": {
+    "github_actions_run_id": 40180712811,
+    "job_id": 121131038111,
+    "request_commit": "b4cb1f349846e0b04cbdbb1f0b6a10fa05a228ae",
+    "result": "REA_SDIAG_STATUS=P215_ARCHIVE_PASS",
+    "original_loopback_mcp_tools": 208,
+    "original_service_user": "rea-reversa",
+    "source_only": "/var/lib/rea-reversa/rea-p214-evidence-backup-7c5e1ad42fe74b121f3e2c4fe830c6c7.json",
+    "file_metadata": {
+      "bytes": 17563,
+      "records": 6,
+      "unknowns": 0,
+      "sha256": "daa7bcc15a6cb1adf4fb46563100b2d67ff8b6694b191ef762d3cd2d8e61f3c4"
+    },
+    "regular_file_not_symlink": true,
+    "read_test_without_writes": true,
+    "material_source_reference": "P214 certified original MCP export 40164639070 and postcheck 40164725697",
+    "diagnostic_request_removed": true,
+    "removal_commit": "b65e886ce56a03e82434696a076ad9e4dc802872",
+    "diagnostic_temp_bridge_restored": true,
+    "restoration_commit": "ac85b1c7aff17dfcc011b094823e9cb2d88f2c5b"
+  },
+  "next_owner_signed_batch": {
+    "signer_script": "rea-linux/owner/sign_import_evidence_p215_android.py",
+    "signer_blob_sha": "c4dc5ad51e1cf654cc05d010999d6a394ec56668",
+    "signer_commit": "825e12443a27674fad7c673741b43223f8a8c761",
+    "existing_owner_key_public_fingerprint_sha256_der": "99580a4806703661ca38f75a3cb95e47d46e32228cf89d5aa7ab55e95a4e25b4",
+    "script_does_not_regenerate_private_key": true,
+    "private_key_remains_android_only": true,
+    "individual_signatures_required": 2,
+    "valid_for_minutes": 45,
+    "step1": {
+      "tool": "import_evidence_bundle",
+      "exact_arguments": {
+        "path": "/var/lib/rea-reversa/rea-p214-evidence-backup-7c5e1ad42fe74b121f3e2c4fe830c6c7.json"
+      },
+      "scope": "sensitive",
+      "expected": "MCP isError false, imported=0 unknowns_added=0 total=6, SHA of retained original MCP Evidence unchanged",
+      "limitations": "Import is a stateful operation; if archive metadata differs it may change existing local metadata. Explicit owner authorization is required."
+    },
+    "step2": {
+      "tool": "import_evidence_bundle",
+      "arguments_template": {
+        "path": "/var/lib/rea-reversa/rea-p215-missing-<fresh-request-nonce>.json"
+      },
+      "scope": "sensitive",
+      "expected": "MCP isError=true and no alteration to retained Evidence; signed with distinct owner signature"
+    },
+    "automatic_json_downloads_export": true
+  },
+  "security_gate": {
+    "original_secure_protocol_blob": "8757abb589a779eaeda1d0eeefc85e4476503a41",
+    "original_bridge_blob": "f8009ad372a2cd936201ef02c0e1ae40832d1ab7",
+    "original_workflow_blob": "c81ef44d3f3e9dc3b3a819add5ff4f1a33d343df",
+    "requested_paths_under_current_approved_roots": false,
+    "specific_required_transport_exception": "After reviewing signed JSON, a temporary allowlist for SHA256-exact signed StateDirectory paths limited to import_evidence_bundle, with time expiry and exact path & arguments checks; original Ed25519 verifier untouched; restore protocol immediately after test regardless of result.",
+    "no_blanket_authorization": true
+  },
+  "work_completed_this_phase": {
+    "real_mcp_sensitive_import_calls": 0,
+    "new_certifications": 0,
+    "read_only_real_mcp_describe_calls": 1,
+    "rea_service_archive_preflight_calls": 1,
+    "bridge_restored": true,
+    "consumed_requests_deleted": true,
+    "owner_private_key_untouched": true,
+    "other_projects_untouched": true,
+    "no_codex_no_extra_plugins_or_mcp": true
+  },
+  "counts_after": {
+    "certified": 113,
+    "pending": 95,
+    "sensitive_certified": 7,
+    "sensitive_pending": 76
+  },
+  "next": "User signs each P215 operation offline; receive original JSON file within expiration, then execute through existing sealed GitHub Actions MCP transport and recover authenticated positive/negative plus six Evidence postcheck. Do not credit P215 before validated live MCP result."
+}
