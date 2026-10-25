@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "project": "Engenharia Reversa / original REA Linux MCP",
+  "phase_id": "LINUX-P258-READ-VERIFY-UNKNOWN-RESOLUTION-20261025",
+  "date_utc": "2026-10-25",
+  "status": "ONE_NEW_SCOPED_FULL_CERTIFICATION_READ_TOOL_ORIGINAL_PERMANENT_MCP",
+  "tool": "verify_unknown_resolution",
+  "risk": "read",
+  "approval": {
+    "origin": "Previously signed P250 JSON supplied by the owner and unconsumed until P258",
+    "nonce": "d488977b3ecdae74dd544f2b1d1cb65d",
+    "expires_at": "2026-10-26T04:12:51Z",
+    "signed_request_sha256": "0ea3ec6f2ef3a66bd6788a17ed4337d25b9bfdd3b33c602cf8f343e7f2f8d8f9",
+    "owner_public_der_sha256": "99580a4806703661ca38f75a3cb95e47d46e32228cf89d5aa7ab55e95a4e25b4",
+    "sensitive_tool_exact": "record_unknown",
+    "signed_steps": 1,
+    "rea_sealed_policy": "PASS",
+    "signature_used_once": true,
+    "private_key_uploaded": false
+  },
+  "live_mcp": {
+    "run_id": 40224058765,
+    "job_id": 121261588976,
+    "commit_sha": "6bdca6d803b705990839fbaacb23e9fe8252d5fc",
+    "mcp_catalog": 208,
+    "steps": [
+      "get_evidence_bundle",
+      "record_unknown",
+      "list_unknowns",
+      "verify_unknown_resolution",
+      "get_evidence_bundle"
+    ],
+    "transport": "PASS",
+    "owner_policy": "PASS",
+    "rea_mobile_tool_error": false,
+    "encrypted_request_sha256": "145afa9c66949adb47a0ad10b506e5e4d03987caf465ebd9e48b2e84af126590",
+    "authenticated_result_sha256": "265cc3f950f888d10971fc8dccea84ab70b6f4ec65731ce56cca182bb5ff6601",
+    "artifact_id": 12610825653,
+    "positive_read": {
+      "mcp_isError": false,
+      "unknown_id": "unk_d5c246e30df98b45f41fc7a558a820d5599c32dc181b7e705e94af7516d992e0",
+      "revision": 1,
+      "status": "open",
+      "valid": false,
+      "truthVerified": false
+    },
+    "prior_negative": {
+      "run_id": 40222183647,
+      "mcp_isError": true,
+      "reason": "not-found"
+    }
+  },
+  "independent_readback": {
+    "run_id": 40224253679,
+    "job_id": 121262163136,
+    "commit_sha": "7f8d6a818aab78f555559373b663d73ddb346e05",
+    "artifact_id": 12610915330,
+    "encrypted_request_sha256": "aaadc109ca50838cd705f1f179351b7129c33e9912ad9a15f43f242ef106309f",
+    "authenticated_result_sha256": "b3459b465b4c16afbcb03b53250b595a276a3feecedb6e0f16d39106108e2384",
+    "mcp_steps": [
+      "get_evidence_bundle",
+      "list_unknowns",
+      "verify_unknown_resolution",
+      "get_evidence_bundle"
+    ],
+    "all_isError_false": true,
+    "unknowns": 1,
+    "valid": false,
+    "truthVerified": false,
+    "evidence_records_before_and_after": 11
+  },
+  "retention": {
+    "original_evidence_count": 10,
+    "new_count": 11,
+    "previous_ten_exactly_unchanged": true,
+    "one_new_evidence_id": "ev_a5605f82cce418e828c8d6963a94eb5d6abafd98237291119d4c7e46c7c78947",
+    "original_ten_semantic_sha256": "8ddc202430af04e5da8c53521211d7a8968021316b9abc1c8d063c9c72066bc5",
+    "eleven_semantic_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+    "backup_name": "REA_P258_Evidence_11_Copia_20261025.zip",
+    "backup_bytes": 12838,
+    "backup_zip_sha256": "8f9842efd89816ac313d5004d83d7926b0e933bfadff4be92e431b07b59ea636",
+    "zip_integrity_verified": true,
+    "restore_tested": false,
+    "owner_download_confirmed": false,
+    "P232_P246_retention_hold_active": true
+  },
+  "certification": {
+    "status": "FULLY_CERTIFIED_SCOPED",
+    "fully_certified_before": 119,
+    "fully_certified_after": 120,
+    "remaining_after": 88,
+    "read_positive_permanent_before": 3,
+    "read_positive_permanent_after": 4,
+    "read_missing_positive_after": 1,
+    "scope": "Live original permanent Linux MCP: existing owner-approved open Unknown, successful read isError=false, expected valid=false/truthVerified=false, matching registry and independent authenticated readback. Previous unknown-not-found negative tested in P255.",
+    "limitation": "A resolved Unknown yielding valid=true and truthVerified=true has NOT been tested. This scoped certification verifies normal handling of a real open Unknown, not evidence of resolved truth."
+  },
+  "hygiene": {
+    "consumed_owner_signed_encrypted_request_deleted": true,
+    "deletion_commit": "039e62c045399644aaa1fcfc5de1392b9316904f",
+    "independent_readback_request_deleted": true,
+    "readback_deletion_commit": "0848775c3ef24fcb96f9caecbf37cddc0a160070",
+    "no_service_restart": true,
+    "no_binary_open_or_close": true,
+    "no_original_bridge_or_policy_change": true,
+    "no_new_plugin_skill_or_mcp": true,
+    "no_plaintext_published_to_public_github": true
+  },
+  "remaining_read": {
+    "name": "gdb_session_status",
+    "status": "PENDING_REAL_GDB_SESSION",
+    "reason": "An active owned GDB session UUID is required; creating and closing it require exact fresh owner Ed25519 signatures, not available in P258. No GDB session was left running."
+  },
+  "limitations": [
+    "One genuine owner-approved open retention Unknown is now kept by the original MCP until its question is legitimately resolved; do not silently erase it.",
+    "Ten old Evidence and one new mutation Evidence preserved; recovery of historical lost P217/P218 records is not claimed.",
+    "Archive restore not tested; retention hold remains."
+  ]
+}
