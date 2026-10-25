@@ -126,5 +126,18 @@
     "Historical 11 Evidence original SHA remains canonical to original subset; complete active Evidence bundle has new 13-record SHA.",
     "68 sensitive tools and 17 non-sensitive tools remain uncertified. Each further sensitive call requires new exact owner Ed25519 authorization."
   ],
-  "next_safe_operation": "Continue with 85 pending (68 sensitive + 17 others). Prepare schemas/fixtures with real original MCP and use one-review multi-sign owner batches only for known exact per-tool arguments; preserve 13 Evidence and one Unknown, recheck final SHA after each phase."
+  "next_safe_operation": "Continue with 85 pending (68 sensitive + 17 others). Prepare schemas/fixtures with real original MCP and use one-review multi-sign owner batches only for known exact per-tool arguments; preserve 13 Evidence and one Unknown, recheck final SHA after each phase.",
+  "private_checkpoint": {
+    "status": "OFFSITE_LIBRARY_COPIED_AND_ARCHIVE_INTEGRITY_VERIFIED",
+    "library_path": "engenharia reversa/REA_P276_Evidence_13_Backup_Verificado.zip",
+    "zip_sha256": "640fb5fc2805f658e3a5dcf5c3f8420fcaa997e48687d42721c9d129ab1882d6",
+    "bundle_semantic_sha256": "98655f7309a8fe941e2c5687b331511942086ab57ecf63dc26c1877c2f7b201c",
+    "records": 13,
+    "unknowns": 1,
+    "offline_readback_match": true,
+    "import_restore_tested": false,
+    "previous_11_offsite_backup_preserved": true,
+    "github_contains_private_backup": false,
+    "requires_fresh_exact_owner_signature_for_future_import": true
+  }
 }
