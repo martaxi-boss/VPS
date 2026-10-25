@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "P279_ORIGINAL_REA_124_OF_208__P278_OWNER_SIGNED_GHIDRA_MULTI_NAME_CERTIFIED_SCOPED__15_EVIDENCE_1_UNKNOWN_PRESERVED__84_PENDING",
+  "status": "P280_ORIGINAL_REA_124_OF_208__SERVICE_GHIDRA_JADX_KUNA_CONFIRMED__NO_MISSING_VENDOR_FALSE_REINSTALL__15_EVIDENCE_1_UNKNOWN_LAST_VERIFIED_P279__84_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -8214,6 +8214,56 @@
       "limitations": [
         "Original REA unchanged. Only the controlled Ghidra fixture and expected negative semantics were proved; global provider doctor status not changed."
       ]
+    },
+    {
+      "phase_id": "LINUX-P280-AUTHENTICATED_ORIGINAL_SERVICE_PROVIDER_READINESS_20261025",
+      "date_utc": "2026-10-25",
+      "status": "THREE_READ_ONLY_ORIGINAL_VPS_PROVIDER_TESTS_PASS_SERVICE_IDENTITY_RESOLVES_SSH_ENV_FALSE_NEGATIVES__IDA_HOPPER_UNAVAILABLE__NO_NEW_CERTIFICATIONS",
+      "new_certifications": 0,
+      "tools": [],
+      "original_mcp_catalog": 208,
+      "live_runs": [
+        40244258025,
+        40244355837,
+        40244449007
+      ],
+      "original_ssh_user_doctor": {
+        "health": false,
+        "ghidra": false,
+        "jadx": false,
+        "kuna": false,
+        "environment_mismatched": true
+      },
+      "original_systemd_service_doctor": {
+        "service_user": "rea-reversa",
+        "health": false,
+        "ghidra": true,
+        "jadx": true,
+        "kuna": true,
+        "ida": false,
+        "configured_rizin_file": true
+      },
+      "optional_binaries_browser_local": false,
+      "optional_binaries_frida_local": false,
+      "existing_service_available_ghidra_jadx_kuna": true,
+      "original_engine_changes": 0,
+      "scoped_certifications": 124,
+      "remaining": 84,
+      "sensitive_certified": 16,
+      "sensitive_pending": 67,
+      "workspace_pending": 17,
+      "evidence_last_verified": 15,
+      "unknowns_last_verified": 1,
+      "last_verified_evidence_sha256": "b82b7e0d6024bbb0c6e96f014405c7470d4cc1a8d2d3a99bb1afa6efcb71a31b",
+      "evidence_contents_not_refetched": true,
+      "consumed_diagnostic_requests_deleted": true,
+      "report": "rea-linux/certification/p280-original-service-provider-readiness-124-of-208-20261025.json",
+      "limits": [
+        "No new tools executed in this phase; REA doctor was called read-only via original SSH bridge and MCP catalog confirmed 208.",
+        "Missing executables in SSH PATH do not imply absent service-configured vendors.",
+        "Owner approval required for any new sensitive operation or dynamic provider session.",
+        "IDA proprietary and Hopper macOS GUI remain unavailable; global doctor stays unhealthy."
+      ]
     }
   ],
   "active_scope_counts": {
@@ -8258,7 +8308,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P279-P278-SCOPED-CERTIFICATION-20261025",
+  "latest_phase": "LINUX-P280-AUTHENTICATED_ORIGINAL_SERVICE_PROVIDER_READINESS_20261025",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -11546,6 +11596,34 @@
         40243479358,
         40243600652
       ]
+    },
+    "p280_original_provider_readiness": {
+      "status": "LIVE_P280_ORIGINAL_SERVICE_DOCTOR_READ_ONLY_VERIFIED_208_TOOLS_NO_NEW_CERTIFICATIONS",
+      "diagnostic_runs": [
+        40244258025,
+        40244355837,
+        40244449007
+      ],
+      "service_provider_status": {
+        "ghidra": "AVAILABLE_CONFIGURED",
+        "jadx": "AVAILABLE_CONFIGURED",
+        "kuna": "AVAILABLE_CONFIGURED",
+        "ida": "NOT_CONFIGURED"
+      },
+      "service_rizin_binary_configured": true,
+      "ssh_missing_local_chrome_frida": true,
+      "native_Hopper_GUI_missing_on_Linux": true,
+      "global_healthy": false,
+      "owner_fresh_signature_required_for_sensitive_session_tests": true,
+      "previous_124_certifications_preserved": true,
+      "remaining_uncertified": 84,
+      "sensitive_remaining": 67,
+      "workspace_remaining": 17,
+      "prior_live_evidence_baseline": 15,
+      "prior_unknown_count": 1,
+      "prior_live_semantic_sha256": "b82b7e0d6024bbb0c6e96f014405c7470d4cc1a8d2d3a99bb1afa6efcb71a31b",
+      "next_safe_target": "Prepare source-owned safe fixture for extract_artifact or bounded Rizin controlled debug start with exact fresh authorization, no dynamic-ID pre-signing.",
+      "report": "rea-linux/certification/p280-original-service-provider-readiness-124-of-208-20261025.json"
     }
   }
 }
