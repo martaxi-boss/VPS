@@ -1,0 +1,128 @@
+name: REA P265 synchronize original patched source with active release
+on:
+  push:
+    branches:
+      - rea/one-skill-bridge-20261023
+    paths:
+      - ".github/workflows/rea-p265-sync-source.yml"
+permissions:
+  contents: read
+concurrency:
+  group: rea-one-skill-bridge
+  cancel-in-progress: false
+jobs:
+  align-original-source:
+    if: github.actor == 'martaxi-boss'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact previously verified original REA patched source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/Engenheira-reversa
+          ref: c2e13a51cd00409d521cfd8b38db10e8b26fee28
+          persist-credentials: false
+      - name: Verify intended source patch and archive only two TypeScript modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd rea
+          grep -q 'if (clearRecords) this.clearTransientSessionState();' src/application/binary/BinarySession.ts
+          grep -q 'protected clearTransientSessionState()' src/application/binary/BinarySessionRecords.ts
+          ! grep -q 'if (clearRecords) this.clearSessionRecords();' src/application/binary/BinarySession.ts
+          tar -cf "$RUNNER_TEMP/rea-p265-reviewed-sources.tar" src/application/binary/BinarySession.ts src/application/binary/BinarySessionRecords.ts
+          echo REA_P265_PATCHED_ORIGINAL_TWO_SOURCES=PASS
+      - name: Authenticate same owner-pinned SSH server
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/rea-p265-known"
+          chmod 600 "$RUNNER_TEMP/rea-p265-known"
+          observed="$(ssh-keygen -lf "$RUNNER_TEMP/rea-p265-known" -E sha256 | awk '{print $2}')"
+          test "$observed" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          echo REA_P265_SSH_PIN=PASS
+      - name: Install existing encrypted SSH password client
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass > /dev/null
+      - name: Sync only sources with exact rollback; do not restart REA
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh_args=(-T -o PreferredAuthentications=password -o PubkeyAuthentication=no
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/rea-p265-known"
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519
+            -o ConnectTimeout=15 -o ServerAliveInterval=10 -o ServerAliveCountMax=5)
+          destination='/opt/rea-reversa/rea/.rea-private/p265-reviewed-sources.tar'
+          sshpass -e ssh "${ssh_args[@]}" ubuntu@146.59.145.3 "sudo -n -u rea-reversa /bin/sh -c 'umask 077; cat > $destination'" < "$RUNNER_TEMP/rea-p265-reviewed-sources.tar"
+          cat > "$RUNNER_TEMP/rea-p265-source-patcher.py" <<'PY'
+          import hashlib, os, pathlib, shutil, stat, subprocess, tarfile, tempfile
+          root=pathlib.Path('/opt/rea-reversa/rea'); private=root/'.rea-private'
+          filename=private/'p265-reviewed-sources.tar'
+          backup=private/'p265-original-source-rollback'
+          work=private/'p265-source-extracted'
+          checks={
+           'src/application/binary/BinarySession.ts':'435fb7bd138af990d4a4bf37e19fefd17c156d082b8a916b5f6eaf2d581fdd5e',
+           'src/application/binary/BinarySessionRecords.ts':'ac779677a286c480a14ef313b1df543c5218a10c9f64f9682f2f778f4fa03d99',
+          }
+          expected_dist={
+           'dist/application/binary/BinarySession.js':'06194e106c791c652f5eaed5c1d5327cacff9f9f4491156e43a75baecfbf4f17',
+           'dist/application/binary/BinarySessionRecords.js':'cfa157e47e030ea945b80b5ee5e88a651fb03f35f6f882b4cb1f28ee79f4af69',
+          }
+          def sha(path):
+            h=hashlib.sha256()
+            with open(path,'rb') as stream:
+             for b in iter(lambda:stream.read(1048576),b''):h.update(b)
+            return h.hexdigest()
+          check=private/'p262-live-evidence-11-8b17734c.json'
+          assert sha(check)=='8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380'
+          for f,h in expected_dist.items():assert sha(root/f)==h, 'compiled code drift'
+          for f,h in checks.items():assert sha(root/f)==h, 'original source changed'
+          assert not backup.exists() and not work.exists()
+          pid=subprocess.check_output(['systemctl','show','rea-reversa-mcp.service','-p','MainPID','--value'],text=True).strip()
+          assert pid.isdigit() and int(pid)>1
+          work.mkdir(mode=0o700)
+          try:
+            with tarfile.open(filename,'r') as z:
+              m=z.getmembers()
+              assert {i.name for i in m}==set(checks)
+              assert all(i.isfile() and not i.issym() for i in m)
+              z.extractall(work,filter='data')
+            src=(work/'src/application/binary/BinarySession.ts').read_text()
+            helper=(work/'src/application/binary/BinarySessionRecords.ts').read_text()
+            assert 'if (clearRecords) this.clearTransientSessionState();' in src
+            assert 'protected clearTransientSessionState()' in helper
+            backup.mkdir(mode=0o700)
+            for f in checks:
+              target=root/f
+              store=backup/target.name
+              shutil.copy2(target,store)
+            try:
+              for f in checks:
+                target=root/f
+                new=work/f
+                tmp=target.with_suffix(target.suffix+'.p265-staged')
+                shutil.copy2(new,tmp)
+                os.chown(tmp,target.stat().st_uid,target.stat().st_gid)
+                os.chmod(tmp,stat.S_IMODE(target.stat().st_mode))
+                os.replace(tmp,target)
+            except Exception:
+              for f in checks:
+                target=root/f
+                shutil.copy2(backup/target.name,target)
+              raise
+            pid_after=subprocess.check_output(['systemctl','show','rea-reversa-mcp.service','-p','MainPID','--value'],text=True).strip()
+            assert pid_after==pid and sha(check)=='8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380'
+            print('REA_P265_ORIGINAL_INSTALLED_SOURCE_ALIGNED=PASS',flush=True)
+            print('REA_P265_PRODUCTION_SERVICE_PID_UNCHANGED=PASS',flush=True)
+            print('REA_P265_EVIDENCE_ARCHIVE_INTACT=PASS',flush=True)
+          finally:
+            if work.exists():shutil.rmtree(work)
+            if filename.exists():filename.unlink()
+          PY
+          sshpass -e ssh "${ssh_args[@]}" ubuntu@146.59.145.3 'sudo -n python3 -' < "$RUNNER_TEMP/rea-p265-source-patcher.py"
