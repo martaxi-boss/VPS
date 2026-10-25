@@ -4,7 +4,7 @@
   "incident_id": "P225-LIVE-SESSION-RECORDS-RESET-AFTER-SOURCE-OWNED-BINARY-CLOSE-20261025",
   "date_utc": "2026-10-25",
   "severity": "critical",
-  "status": "OPEN__P228_SIGNED_REQUEST_RECEIVED__SIGNED_RESTORATION_NOT_EXECUTED_PLATFORM_WRITE_BLOCK",
+  "status": "OPEN__P229_POLICY_PRESERVING_RECOVERY_PREPARED__AWAITING_OWNER_STAGING_AND_EXACT_SIGNATURE",
   "title": "Live investigation Evidence and Unknown records are empty after controlled Ghidra session close",
   "baseline_from_prior_certification": {
     "p217_record_unknown_run": 40182623467,
@@ -198,6 +198,54 @@
         "isError_false_both": true,
         "request_cleanup_commit": "de3f46861df67f38a15339594069552cd9a74ba6"
       }
+    },
+    "p229_policy_preserving_staging": {
+      "status": "PREPARED__REQUIRES_OWNER_VPS_STAGING_AND_NEW_ANDROID_ED25519_SIGNATURE",
+      "preflight_live_github_run": 40189016294,
+      "preflight_job_id": 121155826716,
+      "preflight_request_sha": "78701376fbe2d3b74312cbca51278ef28da2c9ff",
+      "preflight_result": {
+        "mcp_loopback": "PASS",
+        "catalog": 208,
+        "ssh_pinned_host": "PASS",
+        "sudo_noninteractive": true,
+        "operator_uid": 1000,
+        "engine_directory_owner_uid": 0,
+        "operator_engine_write": false,
+        "service_user": "rea-reversa"
+      },
+      "path_access_fix": "No security policy change. Stage a private copy of the exact sha256-verified P214 backup inside already-approved /opt/rea-reversa/rea.",
+      "manual_staging_operation": "Only authenticated owner in existing VPS console; exact fixed-path sudo install mode 0600 owner rea-reversa; original archive preserved.",
+      "original_backup": {
+        "path": "/var/lib/rea-reversa/rea-p214-evidence-backup-7c5e1ad42fe74b121f3e2c4fe830c6c7.json",
+        "sha256": "daa7bcc15a6cb1adf4fb46563100b2d67ff8b6694b191ef762d3cd2d8e61f3c4",
+        "records": 6,
+        "unknowns": 0
+      },
+      "staged_file_destination": "/opt/rea-reversa/rea/.rea-p229-restore-p214-7c5e1ad42fe74b121f3e2c4fe830c6c7.json",
+      "signer": {
+        "path": "rea-linux/owner/sign_restore_p229_staged_evidence_android.py",
+        "blob_sha": "4702b5cf35706ed7b5309a4788464cf5b1c5a215",
+        "creation_commit": "8e29fc48a6e2a01e9ecc400e5a619d9fb262fe6a",
+        "owner_ed25519_per_step_required": true,
+        "android_only": true,
+        "expiry_after_signing_min": 45
+      },
+      "runbook": {
+        "path": "rea-linux/owner/P229-RESTORE-STATE-RUNBOOK.md",
+        "blob_sha": "e4de63b499ae2d06c4e2cef792c39c757089469a",
+        "creation_commit": "684e80b043a2292b54c6b0343fa91801f478d3da"
+      },
+      "source_archive_moved_or_deleted": false,
+      "stage_copy_created": false,
+      "new_signature_received": false,
+      "original_mcp_import_executed": false,
+      "next_steps": [
+        "Owner stage exact file with SHA256 and chmod/ownership checks on VPS",
+        "Owner run offline P229 signer in Android and upload signed JSON",
+        "Encrypted original bridge and original Ed25519 verifier must enforce one exact import and authenticated readback",
+        "Only after positive readback delete staged file; do not touch persistent P214 backup"
+      ]
     }
   },
   "constraints": [
@@ -216,10 +264,11 @@
     "historical_certification_count_not_incremented_or_decremented_without_review": true
   },
   "next_safe_actions": [
-    "Preserve historical 116/208 certifications. Current active state remains empty, verified original MCP P228 preflight 40188519274.",
-    "P214 six-record archive is original SHA256 verified and retained. The one-step exact owner-signed P228 import request was received and structurally inspected but was NOT executed. Platform security check blocked the attempted write of a temporary narrow file-path allowance; do not bypass or misrepresent this as success.",
-    "Use an explicitly approved, platform-supported owner-controlled recovery workflow without changing the bridge security boundary in response to tool denial, or wait for appropriately authorized configuration remediation. A new owner signature will be required if request expiration passes or arguments change.",
-    "Any successful restoration must be independently verified with get_evidence_bundle and list_unknowns. Do not recreate two later Evidence bodies or P217/P218 Unknown history from metadata; do not open/close binary while state is unresolved."
+    "P229 avoids prohibited StateDirectory security-policy relaxation. Existing SSH runner sudo capacity and original REA service confirmed by GitHub Actions 40189016294.",
+    "Owner-operated minimum VPS human gate: execute exact staging readbook under rea-linux/owner/P229-RESTORE-STATE-RUNBOOK.md; checksum verification must PASS, file mode 0600, original backup retained.",
+    "Owner must issue a *new* exact Ed25519 signature on Android using sign_restore_p229_staged_evidence_android.py; do not reuse P228 for a different path.",
+    "Only after a fresh correctly signed request and verified staged copy, submit encrypted one-tool original MCP import via unchanged bridge/policy and authenticate six Evidence postcheck; maintain separate P217/P218 unrecovered gap.",
+    "Do not run open_binary or close_binary until retention safeguards independently certified; do not increment historical count due recovery."
   ],
   "hygiene": {
     "owner_key_android_only": true,
