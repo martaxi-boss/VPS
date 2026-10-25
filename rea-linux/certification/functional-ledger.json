@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_120_CERTIFIED__P214_SIX_PRESERVED__P232_RETENTION_HOLD_ACTIVE",
+  "status": "IN_PROGRESS_LINUX_ORIGINAL_MCP_121_CERTIFIED__ALL_FIVE_READ_DONE__P214_SIX_PRESERVED__P232_RETENTION_HOLD_ACTIVE",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -7664,21 +7664,81 @@
         "The original owner-signed start cannot be reused for close. No private key stored in repository.",
         "P232/P246 Evidence retention hold remains; no engine restart or binary lifecycle actions."
       ]
+    },
+    {
+      "phase_id": "LINUX-P259-OWNER-SIGNED-GDB-SESSION-STATUS-FULL-CERTIFICATION-20261025",
+      "date_utc": "2026-10-25",
+      "status": "ONE_NEW_READ_TOOL_FULLY_CERTIFIED_REAL_GDB_MI3_POSITIVE_DOUBLE_READ_AND_EXACT_OWNER_SIGNED_CLOSE_WITH_POSTCLOSE_NEGATIVE",
+      "tools": [
+        {
+          "name": "gdb_session_status",
+          "risk": "read",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Real owned GNU GDB MI3 no-target session on original permanent MCP, two status ready positive results (isError=false) and expected postclose invalid_input negative after exact owner-authorized close_gdb_session.",
+          "positive_calls": 2,
+          "negative_cases": [
+            "P255 unowned UUID",
+            "P259 closed exact owned UUID"
+          ],
+          "negative_isError_true": true
+        }
+      ],
+      "proof": {
+        "owner_signed_start_run_id": 40226954283,
+        "real_gdb_status_positive_run_id": 40227115182,
+        "owner_signed_close_run_id": 40227769313,
+        "postclose_readback_run_id": 40227930817,
+        "signed_close_commit": "b341dc19d3fa8baab449eefb6a24ca79a851bf16",
+        "postclose_readback_commit": "a8a2afb0e447e9d59abe5a1f54536e5c1324ef3f",
+        "signed_close_auth_result_sha256": "82ad22b9cfc4547af79ad6c2935e71190b195c75a661704fa8cc8fccfc47c976",
+        "postclose_auth_result_sha256": "22154c574a526bf303f18f380982bad0abab9599a0f9568dca43c9634849ee7d",
+        "session_id_sha256": "36cff7daa028375f0c9fc3ce001b2e6323468283167b8e68e2f4bc3e4d2e1697",
+        "start_owner_policy": "PASS",
+        "close_owner_policy": "PASS",
+        "mi_version": "mi3",
+        "two_live_positive_status_calls": true,
+        "both_live_status_isError_false": true,
+        "read_state": "ready",
+        "signed_close_isError_false": true,
+        "signed_close_target_state": "none_observed",
+        "postclose_status_isError_true_expected": true,
+        "postclose_error_code": "invalid_request",
+        "postclose_error_category": "invalid_input",
+        "live_evidence_count": 11,
+        "live_unknown_count": 1,
+        "baseline_and_final_evidence_semantic_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+        "original_eleven_records_preserved": true,
+        "report": "rea-linux/certification/read-p259-gdb-session-status-certified-20261025.json"
+      },
+      "new_certifications": 1,
+      "fully_certified_total": 121,
+      "pending": 87,
+      "read_group_fully_certified_total": 5,
+      "read_group_pending": 0,
+      "retained_evidence_records": 11,
+      "retained_unknown_records": 1,
+      "retention_hold_active": true,
+      "limitations": [
+        "Scope limited to original permanent GDB MI3 empty/no-inferior session; other attached targets not tested.",
+        "Eleven previous Evidence unchanged, one open Unknown preserved; P232/P246 retention hold remains.",
+        "Previous missing P217/P218 records not claimed restored.",
+        "Postclose read-only Actions marker REA_MOBILE_TOOL_ERROR=true is the expected negative tool assertion, not a transport failure."
+      ]
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 120,
-    "awaiting_canonical_individual_review": 88,
+    "functional_pass_scoped_distinct": 121,
+    "awaiting_canonical_individual_review": 87,
     "read_group_tested_distinct": 5,
-    "read_group_positive_scoped": 4,
-    "read_group_missing_positive": 1,
+    "read_group_positive_scoped": 5,
+    "read_group_missing_positive": 0,
     "workspace_newly_passed_distinct": 48,
     "read_group_positive_some_original_mcp_mode": 5,
-    "read_group_positive_permanent_mcp": 4,
-    "fully_certified_distinct": 120,
+    "read_group_positive_permanent_mcp": 5,
+    "fully_certified_distinct": 121,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 88,
-    "remaining_full_certification_distinct": 88
+    "not_functionally_positive_distinct": 87,
+    "remaining_full_certification_distinct": 87
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -7708,7 +7768,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P259-OWNER-SIGNED-GDB-REAL-STATUS-POSITIVE-PENDING-OWNER-CLEANUP-20261025",
+  "latest_phase": "LINUX-P259-OWNER-SIGNED-GDB-SESSION-STATUS-FULL-CERTIFICATION-20261025",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -7771,14 +7831,14 @@
       "gdb_session_status"
     ],
     "mcp_calls": 9,
-    "successful_scoped": 4,
+    "successful_scoped": 5,
     "negative_only": 0,
-    "blocked_positive": 1,
-    "status": "FOUR_REAL_PERMANENT_MCP_SCOPED_READ_POSITIVES; ONLY_GDB_SESSION_STATUS_REAL_POSITIVE_PENDING",
+    "blocked_positive": 0,
+    "status": "FIVE_OF_FIVE_READ_TOOLS_FULLY_CERTIFIED_SCOPED_PERMANENT_ORIGINAL_LINUX_MCP_20261025",
     "provider_preflight_run": 39959287285,
     "missing_prerequisites": {
       "verify_unknown_resolution": "RESOLVED P258: original permanent MCP has one real owner-signed open Unknown; read returned isError=false, valid=false/truthVerified=false as expected; independent readback verified.",
-      "gdb_session_status": "Provider permanently installed and confirmed inside original daemon environment; owner-signed sensitive session start and cleanup necessary to prove positive in this PERMANENT endpoint."
+      "gdb_session_status": "RESOLVED P259: owner-signed GDB/MI3 no-target start, real gdb_session_status ready positive twice, separately signed exact UUID close and independent post-close negative; 11 Evidence preserved."
     },
     "additional_isolated_regression": {
       "tool": "verify_unknown_resolution",
@@ -7800,7 +7860,7 @@
       "live_endpoint_positive_unverified": false
     },
     "verified_isolated_mcp_distinct": 4,
-    "verified_real_linux_mcp_live_scoped": 4,
+    "verified_real_linux_mcp_live_scoped": 5,
     "verified_real_linux_mcp_in_memory_scoped_extra": 2,
     "additional_gdb_ready_and_diagnostics": {
       "run_id": 39969907326,
@@ -7835,8 +7895,13 @@
       },
       {
         "name": "gdb_session_status",
-        "live_mcp": "NO_REAL_GDB_AVAILABLE",
-        "isolated_mcp": "CONTRACT_PASS_EMULATED_MI_ONLY"
+        "live_mcp": "FULLY_CERTIFIED_SCOPED_P259_REAL_GNU_GDB_MI3_READY_AND_SIGNED_CLOSE",
+        "isolated_mcp": "CONTRACT_PASS_EMULATED_MI_ONLY",
+        "live_positive_run_id": 40227115182,
+        "postclose_readback_run_id": 40227930817,
+        "positive_calls": 2,
+        "closed_uuid_error": "isError=true invalid_request invalid_input",
+        "limits": "No attached inferior tested; original 11 Evidence unchanged"
       }
     ],
     "gdb_live_supplier_prerequisite_resolved": {
@@ -7874,7 +7939,20 @@
       ],
       "limitation": "True positive in isolated original contract; not a live state from persistent REA systemd MCP; start/close via permanent endpoint still requires independently owner-signed authorization."
     },
-    "read_tools_with_real_non_emulated_positive_in_some_original_mcp_mode": 5
+    "read_tools_with_real_non_emulated_positive_in_some_original_mcp_mode": 5,
+    "gdb_live_original_permanent_positive": {
+      "phase": "P259",
+      "status": "FULLY_CERTIFIED_SCOPED",
+      "start_owner_signed_run_id": 40226954283,
+      "two_real_status_positive_run_id": 40227115182,
+      "close_owner_signed_run_id": 40227769313,
+      "independent_postclose_readback_run_id": 40227930817,
+      "postclose_session_gone": true,
+      "evidence_count": 11,
+      "unknown_count": 1,
+      "evidence_semantic_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+      "report": "rea-linux/certification/read-p259-gdb-session-status-certified-20261025.json"
+    }
   },
   "installation_readiness": {
     "status": "CORE_LINUX_PROVIDERS_PERSISTENT_ACTIVE_TOOL_CERTIFICATION_INCOMPLETE",
@@ -9807,6 +9885,19 @@
       ],
       "evidence_digest": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
       "phase_id": "LINUX-P258-READ-VERIFY-UNKNOWN-RESOLUTION-ORIGINAL-MCP-20261025"
+    },
+    "gdb_session_status": {
+      "status": "FULLY_CERTIFIED",
+      "scope": "Original permanent REA Linux MCP: genuine owner-signed GNU GDB MI3 no-target session; two gdb_session_status reads returned isError=false and ready; separate exact UUID owner Ed25519-signed close_gdb_session isError=false, target_state none_observed; independent postclose read returns expected invalid_request isError=true, with 11 Evidence unchanged and 1 Unknown retained. No attached inferior tested.",
+      "run_ids": [
+        40222203784,
+        40226954283,
+        40227115182,
+        40227769313,
+        40227930817
+      ],
+      "evidence_digest": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+      "phase_id": "LINUX-P259-OWNER-SIGNED-GDB-SESSION-STATUS-FULL-CERTIFICATION-20261025"
     }
   },
   "transport_incidents": [
@@ -10043,9 +10134,9 @@
     },
     "no_new_certifications": false,
     "gdb_session_status": {
-      "phase": "P255",
-      "status": "LIVE_POSITIVE_VERIFIED_CLEANUP_SIGNED_OWNER_PENDING",
-      "blocking": "Owner must sign fresh exact UUID-bound close_gdb_session request to close the active GDB process. No restart/close_binary permitted. Do not count fifth read fully certified until proper cleanup and retention readback.",
+      "phase": "P259",
+      "status": "FULLY_CERTIFIED_SCOPED_REAL_GDB_LIFECYCLE_CLOSED",
+      "blocking": null,
       "proof": {
         "run_id": 40222203784,
         "commit": "17fc93aaedea9262cc23a55c0437a57a035eaea2",
@@ -10070,14 +10161,16 @@
         "baseline_live_evidence_count": 11,
         "baseline_unknown_count": 1,
         "baseline_evidence_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
-        "do_not_reuse_superseded_p256_android_plan": true
+        "do_not_reuse_superseded_p256_android_plan": true,
+        "superseded_by_live_signed_start_run_id": 40226954283,
+        "superseded_by_live_signed_close_run_id": 40227769313
       },
       "p259_live_positive": {
         "phase": "P259",
-        "status": "REAL_ORIGINAL_MCP_POSITIVE_TWICE__ACTIVE_SESSION_OWNER_SIGNED_CLOSE_REQUIRED",
+        "status": "REAL_ORIGINAL_MCP_GDB_POSITIVE_AND_AUTHORIZED_CLOSE_CONFIRMED",
         "tool": "gdb_session_status",
         "risk": "read",
-        "certification_state": "POSITIVE_FUNCTIONAL_EVIDENCE_OBTAINED_NOT_COUNTED_UNTIL_OWNER_APPROVED_GDB_CLEANUP",
+        "certification_state": "FULLY_CERTIFIED_SCOPED_P259",
         "owner_signed_start": {
           "run_id": 40226954283,
           "job_id": 121270236279,
@@ -10099,11 +10192,12 @@
           "inferior_tty": null
         },
         "running_session": {
-          "active": true,
+          "active": false,
           "exact_uuid_known_to_owner_in_chat": true,
           "session_id_sha256": "36cff7daa028375f0c9fc3ce001b2e6323468283167b8e68e2f4bc3e4d2e1697",
-          "owner_approval_for_close": "PENDING",
-          "do_not_restart_original_service": true
+          "owner_approval_for_close": "EXACT_ED25519_SIGNED_AND_VERIFIED_BY_ORIGINAL_BRIDGE",
+          "do_not_restart_original_service": true,
+          "closed_by_run_id": 40227769313
         },
         "retention": {
           "live_evidence_count": 11,
@@ -10119,6 +10213,39 @@
           "original_bridge_unchanged": true
         },
         "report": "rea-linux/certification/p259-gdb-real-read-positive-awaiting-owner-closure-20261025.json"
+      },
+      "final_certification": {
+        "phase": "LINUX-P259-OWNER-SIGNED-GDB-SESSION-STATUS-FULL-CERTIFICATION-20261025",
+        "status": "FULLY_CERTIFIED",
+        "proof": {
+          "owner_signed_start_run_id": 40226954283,
+          "real_gdb_status_positive_run_id": 40227115182,
+          "owner_signed_close_run_id": 40227769313,
+          "postclose_readback_run_id": 40227930817,
+          "signed_close_commit": "b341dc19d3fa8baab449eefb6a24ca79a851bf16",
+          "postclose_readback_commit": "a8a2afb0e447e9d59abe5a1f54536e5c1324ef3f",
+          "signed_close_auth_result_sha256": "82ad22b9cfc4547af79ad6c2935e71190b195c75a661704fa8cc8fccfc47c976",
+          "postclose_auth_result_sha256": "22154c574a526bf303f18f380982bad0abab9599a0f9568dca43c9634849ee7d",
+          "session_id_sha256": "36cff7daa028375f0c9fc3ce001b2e6323468283167b8e68e2f4bc3e4d2e1697",
+          "start_owner_policy": "PASS",
+          "close_owner_policy": "PASS",
+          "mi_version": "mi3",
+          "two_live_positive_status_calls": true,
+          "both_live_status_isError_false": true,
+          "read_state": "ready",
+          "signed_close_isError_false": true,
+          "signed_close_target_state": "none_observed",
+          "postclose_status_isError_true_expected": true,
+          "postclose_error_code": "invalid_request",
+          "postclose_error_category": "invalid_input",
+          "live_evidence_count": 11,
+          "live_unknown_count": 1,
+          "baseline_and_final_evidence_semantic_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+          "original_eleven_records_preserved": true,
+          "report": "rea-linux/certification/read-p259-gdb-session-status-certified-20261025.json"
+        },
+        "report": "rea-linux/certification/read-p259-gdb-session-status-certified-20261025.json",
+        "original_session_closed": true
       }
     },
     "latest_readonly_two_tools_probe": {
@@ -10137,20 +10264,23 @@
       "used_encrypted_requests_deleted": true,
       "no_owner_sensitive_operations": true
     },
-    "last_new_tool_certified": "verify_unknown_resolution",
+    "last_new_tool_certified": "gdb_session_status",
     "latest_read_progress": {
-      "phase": "P259",
-      "fully_certified": 120,
-      "remaining": 88,
+      "phase": "P259_FINAL",
+      "fully_certified": 121,
+      "remaining": 87,
       "read_positive_permanent_mcp_observed": 5,
-      "read_fully_certified_permanent_mcp": 4,
-      "read_pending_full_closure": 1,
+      "read_fully_certified_permanent_mcp": 5,
+      "read_pending_full_closure": 0,
       "gdb_real_positive_run_id": 40227115182,
-      "owned_gdb_session_active": true,
-      "owner_signature_for_close_received": false,
+      "gdb_owner_signed_close_run_id": 40227769313,
+      "independent_closed_status_run_id": 40227930817,
+      "owned_gdb_session_active": false,
+      "owner_signature_for_close_received_and_verified": true,
       "retained_evidence": 11,
       "unknowns": 1,
-      "report": "rea-linux/certification/p259-gdb-real-read-positive-awaiting-owner-closure-20261025.json"
+      "evidence_semantic_sha256": "8b17734cba53e5332e4780ce8ad4dad068a394fe3e52227274ab7c43712f5380",
+      "report": "rea-linux/certification/read-p259-gdb-session-status-certified-20261025.json"
     },
     "latest_preparation_phase": "P259-GDB-ONLY-OWNER-SIGNER-READY-NO_CERTIFICATION_20261025"
   }
