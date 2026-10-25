@@ -288,7 +288,7 @@
   },
   "next_safe_actions": [
     "COMPLETED P229: Exact owner-signed import_evidence_bundle restored six authentic P214 Evidence; second original MCP readback verified six identical IDs and zero Unknowns (runs 40189757896, 40189898588).",
-    "P230 source/test analysis confirmed cleanup is intentional close_binary behavior. Keep permanent REA binary session operations suspended until an owner-approved, independently tested Evidence+Unknown retention boundary protects all live records. Do not alter source semantics or disable Ed25519 protections.",
+    "P232 non-invasive offline operator preseal retention guard TESTED (12/12) prevents prepared open_binary/close_binary calls, including implicit cleanup, when explicitly invoked. It is NOT enforced inside the original MCP server/bridge; automatic runtime retention remains unfixed. Keep permanent binary-session certification on HOLD until signed durable retention and isolated readback are proven.",
     "Recover exact original P217/P218 later two Evidence bodies and Unknown revision history only from full authenticated sources, never reconstruct by guessing.",
     "COMPLETED per owner VPS terminal evidence: P229 staged copy removed after checking SHA256 of original and stage against canonical digest; do not repeat deletion, and preserve P214 source archive.",
     "Continue remaining historical 92 tool certifications only where not risky to current recovered state; no replay of any used nonce or sensitive owner signature."
@@ -325,5 +325,25 @@
     "report_creation_commit": "ec2c1bcfea8fdd7b156bbd25ce32a6d76bbea162",
     "safe_guard_active_at_operator_level": true,
     "production_runtime_fix_applied": false
+  },
+  "operator_retention_guard_p232": {
+    "status": "P232_LOCAL_GUARD_TESTED_12_12__NOT_ORIGINAL_MCP_RUNTIME_GUARD",
+    "guard_file": "rea-linux/owner/rea_p232_retention_guard.py",
+    "guard_git_sha": "0a7bc2b2669cff774e8fc301a7d3f372c6b9473a",
+    "test_file": "rea-linux/certification/tests/test_p232_retention_guard.py",
+    "tests_passed": 12,
+    "report_file": "rea-linux/certification/p232-retention-guard-operator-tested-20261025.json",
+    "report_git_sha": "a6c8801dd61c3c8b9de29679145bb9a0e1a1bf6b",
+    "blocked_preseal_operations": [
+      "open_binary",
+      "close_binary"
+    ],
+    "requires_opt_in_use_by_operator": true,
+    "source_original_unchanged": true,
+    "runtime_original_mcp_unchanged": true,
+    "p231_unblocked_without_app": false,
+    "p231_report_git_sha": "5490a1f8b22f40b86b7b66703174183eb63a0b81",
+    "p231_live_run": 40191036602,
+    "p231_positive": "not observed"
   }
 }
