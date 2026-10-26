@@ -486,7 +486,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_P303_STATUS","REA_P303_CUTTER_LAYOUT","REA_P303_PACKAGE_EXIT","REA_P303_SERVICE_PID_UNCHANGED",
         "REA_P302_STATUS","REA_P302_LIVE_CUTTER_SESSION","REA_P302_VENDOR_VERSION",
         "REA_P302_LAUNCH_PRE_CLEANUP","REA_P302_LAUNCH_LOG_CATEGORIES",
-        "REA_P302_MISSING_KNOWN_MODULES","REA_P302_PROCESS_GROUP_CLEAN","REA_P302_IMPORT_DETAILS",
+        "REA_P302_MISSING_KNOWN_MODULES","REA_P302_PROCESS_GROUP_CLEAN","REA_P302_IMPORT_DETAILS","REA_P302_MAX_SESSIONS_SEEN",
         "REA_P302_INPUT_UNCHANGED","REA_P302_SESSION_CLEAN","REA_P302_SERVICE_PID_UNCHANGED",
         "REA_P301_STATUS","REA_P301_ORIGINAL_CUTTER_BRIDGE",
         "REA_P301_SOURCE_VERIFIED","REA_P301_SERVICE_PID_UNCHANGED","REA_P301_BLOCK_CODE","REA_P301_ROOT_MANAGED_CODE","REA_P301_ROOT_SAFE_BLOCK","REA_P301_EXISTING_META",
@@ -946,7 +946,7 @@ except Exception as e:
             or not app.is_file() or not target.is_file()):
             print("REA_P302_STATUS=BLOCKED_SERVICE_OR_TARGET")
             return
-        link=Path(pwd.getpwnam(user).pw_dir)/".local/share/rizin/cutter/plugins/python/rea_bridge.py"
+        link=Path(pwd.getpwnam(user).pw_dir)/".local/share/rizin/cutter/plugins/python/rea_bridge/__init__.py"
         source=base/"bridge/cutter/rea_bridge.py"
         valid_link=sp.run(["sudo","-n","-u",user,"test","-L",str(link)],
                           capture_output=True,timeout=10,check=False)
@@ -1004,14 +1004,16 @@ except Exception as e:
         discovered=False
         version=""
         before_cleanup="UNOBSERVED"
+        max_seen=0
         logbuffer=tempfile.TemporaryFile(mode="w+t")
         try:
             proc=sp.Popen(launch,cwd=base,stdin=sp.DEVNULL,
                 stdout=logbuffer,stderr=sp.STDOUT,start_new_session=True)
-            for _ in range(5):
+            for _ in range(13):
                 time.sleep(3)
                 try:
                     observed=sessions()
+                    max_seen=max(max_seen,len(observed))
                     match=[item for item in observed
                         if isinstance(item,dict) and
                         (item.get("current_file")==str(target) or
@@ -1092,6 +1094,7 @@ except Exception as e:
             clean_sessions=sessions()==[]
         except (OSError,ValueError,RuntimeError,TypeError,sp.TimeoutExpired):
             pass
+        print("REA_P302_MAX_SESSIONS_SEEN="+str(max_seen))
         print("REA_P302_LIVE_CUTTER_SESSION="+str(discovered).lower())
         print("REA_P302_VENDOR_VERSION="+version)
         print("REA_P302_INPUT_UNCHANGED="+str(oldhash==afterhash).lower())
