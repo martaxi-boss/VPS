@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_cutter_original_bridge_p301"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_cutter_original_bridge_p301", "fixture_linux_cutter_live_readonly_p302"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -483,6 +483,8 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_APPLY_STATE_SAVED",
         "REA_APPLY_FAILURE",
         "REA_APPLY_RESULT",
+        "REA_P302_STATUS","REA_P302_LIVE_CUTTER_SESSION","REA_P302_VENDOR_VERSION",
+        "REA_P302_INPUT_UNCHANGED","REA_P302_SESSION_CLEAN","REA_P302_SERVICE_PID_UNCHANGED",
         "REA_P301_STATUS","REA_P301_ORIGINAL_CUTTER_BRIDGE",
         "REA_P301_SOURCE_VERIFIED","REA_P301_SERVICE_PID_UNCHANGED","REA_P301_BLOCK_CODE","REA_P301_ROOT_MANAGED_CODE","REA_P301_ROOT_SAFE_BLOCK","REA_P301_EXISTING_META",
         "REA_SERVICE_DOCTOR_STATUS",
@@ -914,6 +916,132 @@ except Exception as e:
         print("REA_P301_SOURCE_VERIFIED=UPSTREAM_680")
         print("REA_P301_SERVICE_PID_UNCHANGED="+str(pid==prop("MainPID")).lower())
         print("REA_P301_STATUS=PASS_ORIGINAL_LINK")
+        return
+    if data["action"] == "fixture_linux_cutter_live_readonly_p302":
+        # Read-only disposable UI smoke of the bundled upstream REA 6.8 Cutter
+        # plugin. Uses a system binary as input, never executes cutter_command,
+        # never alters target files, and closes only the test-owned process.
+        import os as pyos
+        import signal
+        import subprocess as sp
+        import time
+        import pwd
+        import tempfile
+        svc="rea-reversa-mcp.service"
+        def unit(name):
+            v=sp.run(["systemctl","show",svc,"-p",name,"--value"],
+                     capture_output=True,text=True,timeout=12,check=False)
+            return v.stdout.strip() if v.returncode==0 else ""
+        pid=unit("MainPID")
+        user=unit("User")
+        base=Path("/opt/rea-reversa/rea")
+        app=Path("/opt/rea-reversa/providers/cutter-2.5.0/bin/Cutter-v2.5.0-Linux-Qt5-x86_64.AppImage")
+        target=Path("/usr/bin/true")
+        if (not pid.isdecimal() or int(pid)<1 or user!="rea-reversa"
+            or unit("ActiveState")!="active"
+            or json.loads((base/"package.json").read_text()).get("version")!="6.8.0"
+            or not app.is_file() or not target.is_file()):
+            print("REA_P302_STATUS=BLOCKED_SERVICE_OR_TARGET")
+            return
+        link=Path(pwd.getpwnam(user).pw_dir)/".local/share/rizin/cutter/plugins/python/rea_bridge.py"
+        source=base/"bridge/cutter/rea_bridge.py"
+        if not link.is_symlink() or link.resolve()!=source.resolve():
+            print("REA_P302_STATUS=BLOCKED_PLUGIN_LINK")
+            return
+        for needed in (str(app),"/usr/bin/xvfb-run"):
+            if sp.run(["sudo","-n","-u",user,"test","-x",needed],
+                      capture_output=True,timeout=10,check=False).returncode:
+                print("REA_P302_STATUS=BLOCKED_VENDOR_EXEC")
+                return
+        def sessions():
+            _,out=request_mcp({"jsonrpc":"2.0","id":3021,"method":"tools/call",
+                    "params":{"name":"list_cutter_sessions","arguments":{}}},
+                    session,protocol,timeout=25)
+            result=out.get("result",{})
+            found=result.get("structuredContent",{}).get("sessions")
+            if "error" in out or result.get("isError") or not isinstance(found,list):
+                raise RuntimeError("REA_P302_DISCOVERY_FAILED")
+            return found
+        try:
+            previous=sessions()
+            if previous:
+                print("REA_P302_STATUS=BLOCKED_PREEXISTING_SESSIONS")
+                return
+        except (OSError,ValueError,RuntimeError,TypeError,sp.TimeoutExpired):
+            print("REA_P302_STATUS=BLOCKED_DISCOVERY")
+            return
+        oldhash=hashlib.sha256(target.read_bytes()).hexdigest()
+        home=pwd.getpwnam(user).pw_dir
+        made=sp.run(["sudo","-n","-u",user,"mktemp","-d",
+                   "/tmp/rea-p302-cutter.XXXXXXXX"],capture_output=True,
+                   text=True,timeout=14,check=False)
+        if made.returncode or not re.fullmatch(
+             r"/tmp/rea-p302-cutter\\.[A-Za-z0-9]{8}",made.stdout.strip()):
+            print("REA_P302_STATUS=BLOCKED_TEMP_DIR")
+            return
+        temp=made.stdout.strip()
+        exe=sp.run(["sudo","-n","readlink","-f",f"/proc/{int(pid)}/exe"],
+                   capture_output=True,text=True,timeout=10,check=False).stdout.strip()
+        launch=[
+            "sudo","-n","-u",user,"env","-i",
+            "HOME="+home,"PATH="+str(Path(exe).parent)+":/usr/local/bin:/usr/bin:/bin",
+            "DISPLAY=","QT_QPA_PLATFORM=xcb",
+            "XDG_CONFIG_HOME="+temp+"/config",
+            "XDG_STATE_HOME="+temp+"/state",
+            "APPIMAGE_EXTRACT_AND_RUN=1",
+            "PYTHONDONTWRITEBYTECODE=1","NO_COLOR=1",
+            "/usr/bin/xvfb-run","-a","-s","-screen 0 1280x800x24",
+            str(app),str(target)]
+        proc=None
+        discovered=False
+        version=""
+        try:
+            proc=sp.Popen(launch,cwd=base,stdin=sp.DEVNULL,
+                stdout=sp.DEVNULL,stderr=sp.DEVNULL,start_new_session=True)
+            for _ in range(13):
+                time.sleep(3)
+                try:
+                    observed=sessions()
+                    match=[item for item in observed
+                        if isinstance(item,dict) and
+                        (item.get("current_file")==str(target) or
+                         Path(str(item.get("current_file") or "")).name=="true")]
+                    if match:
+                        discovered=True
+                        version=str(match[0].get("cutter_version") or "")[:45]
+                        break
+                except (OSError,ValueError,RuntimeError,TypeError,sp.TimeoutExpired):
+                    pass
+                if proc.poll() is not None:
+                    break
+        finally:
+            if proc is not None:
+                try:
+                    sp.run(["sudo","-n","kill","-TERM","--","-"+str(proc.pid)],
+                        capture_output=True,timeout=12,check=False)
+                    try:
+                        proc.wait(timeout=9)
+                    except sp.TimeoutExpired:
+                        sp.run(["sudo","-n","kill","-KILL","--","-"+str(proc.pid)],
+                            capture_output=True,timeout=12,check=False)
+                        proc.wait(timeout=6)
+                except (OSError,sp.TimeoutExpired):
+                    pass
+            sp.run(["sudo","-n","-u",user,"rm","-r","--",temp],
+                capture_output=True,timeout=13,check=False)
+        afterhash=hashlib.sha256(target.read_bytes()).hexdigest()
+        clean_sessions=False
+        try:
+            clean_sessions=sessions()==[]
+        except (OSError,ValueError,RuntimeError,TypeError,sp.TimeoutExpired):
+            pass
+        print("REA_P302_LIVE_CUTTER_SESSION="+str(discovered).lower())
+        print("REA_P302_VENDOR_VERSION="+version)
+        print("REA_P302_INPUT_UNCHANGED="+str(oldhash==afterhash).lower())
+        print("REA_P302_SESSION_CLEAN="+str(clean_sessions).lower())
+        print("REA_P302_SERVICE_PID_UNCHANGED="+str(pid==unit("MainPID")).lower())
+        print("REA_P302_STATUS="+("PASS_READ_ONLY" if discovered and clean_sessions and oldhash==afterhash
+              and pid==unit("MainPID") else "INCOMPLETE"))
         return
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
