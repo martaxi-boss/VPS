@@ -484,7 +484,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_APPLY_FAILURE",
         "REA_APPLY_RESULT",
         "REA_P301_STATUS","REA_P301_ORIGINAL_CUTTER_BRIDGE",
-        "REA_P301_SOURCE_VERIFIED","REA_P301_SERVICE_PID_UNCHANGED",
+        "REA_P301_SOURCE_VERIFIED","REA_P301_SERVICE_PID_UNCHANGED","REA_P301_BLOCK_CODE",
         "REA_SERVICE_DOCTOR_STATUS",
         "REA_SERVICE_DOCTOR_UNIT_USER",
         "REA_SERVICE_DOCTOR_CONFIG_KEYS",
@@ -795,6 +795,7 @@ print(status)
         states={"ALREADY_LINKED","ALREADY_IDENTICAL","LINKED_OFFICIAL_SOURCE"}
         status=output.stdout.strip()
         if output.returncode or status not in states:
+            print("REA_P301_BLOCK_CODE="+str(output.returncode))
             print("REA_P301_STATUS=BLOCKED_PLUGIN_USER_PATH")
             return
         print("REA_P301_ORIGINAL_CUTTER_BRIDGE="+status)
