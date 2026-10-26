@@ -565,7 +565,8 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_P296_STATUS","REA_P296_WAKARU","REA_P296_MITMDUMP",
         "REA_P296_WABT","REA_P296_PWNTOOLS","REA_P296_BROWSER",
         "REA_P296_HOPPER_DRYRUN_EXIT","REA_P296_HOPPER_DRYRUN_STATUS",
-        "REA_P296_HOPPER_ACTIONS","REA_P296_SERVICE_PID_UNCHANGED"
+        "REA_P296_HOPPER_ACTIONS","REA_P296_SERVICE_PID_UNCHANGED",
+        "REA_P296_HOPPER_INSTALL_PLANNED","REA_P296_HOPPER_CLIENT_OR_SKILL_ACTIONS"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -898,7 +899,7 @@ def main():
           ("WABT", (environment.get("REA_WABT_BIN_DIRECTORY","")+"/wasm-validate")
                    if environment.get("REA_WABT_BIN_DIRECTORY") else None,["--version"]),
           ("PWNTOOLS", environment.get("REA_PWNTOOLS_PYTHON"),
-                 ["-c","import pwnlib.version; print(pwnlib.version.__version__)"])]
+                 ["-c","from pwnlib.util.packing import p32; assert len(p32(305419896))==4; print(\'PWNLIB_READY\')"])]
         for name,executable,args in cases:
             if not executable or not executable.startswith("/"):
                 print("REA_P296_"+name+"=NOT_CONFIGURED")
@@ -940,13 +941,15 @@ try {
                 obj=json.loads(plan.stdout)
                 print("REA_P296_HOPPER_DRYRUN_STATUS="+
                       str(obj.get("status","unknown"))[:40])
-                acts=obj.get("actions",obj.get("steps",[]))
+                acts=obj.get("plannedActions",obj.get("actions",obj.get("steps",[])))
                 if isinstance(acts,list):
                     safe=[]
                     for action in acts[:30]:
                         if isinstance(action,dict):
                             safe.append(str(action.get("kind",action.get("id","unknown")))[:50])
                     print("REA_P296_HOPPER_ACTIONS="+json.dumps(safe)[:280])
+                    print("REA_P296_HOPPER_INSTALL_PLANNED="+str("install_hopper" in safe).lower())
+                    print("REA_P296_HOPPER_CLIENT_OR_SKILL_ACTIONS="+str(any(name in ("configure_client","install_skill") for name in safe)).lower())
             elif plan.returncode:
                 print("REA_P296_HOPPER_DRYRUN_STATUS=NO_JSON_REPORT")
         except (subprocess.TimeoutExpired,ValueError,TypeError):
