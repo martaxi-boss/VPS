@@ -126,10 +126,6 @@ jobs:
                 "$REA_P311_REVIEW_RUNNER_TOKEN"
               printf 'import base64,sys,types\n_rea_gate=types.ModuleType("ops.rea_p311_owner_gate_20261026")\nexec(base64.b64decode("%s"),_rea_gate.__dict__)\nsys.modules["ops.rea_p311_owner_gate_20261026"]=_rea_gate\n_rea_pkg.rea_p311_owner_gate_20261026=_rea_gate\n' \
                 "$(base64 -w0 ops/rea_p311_owner_gate_20261026.py)"
-              # Legacy module name holds immutable GitHub REST evidence code;
-              # no JWT/OIDC identity is requested by the button-only flow.
-              printf 'import base64,sys,types\n_rea_evidence=types.ModuleType("ops.rea_p311_github_oidc_20261026")\nexec(base64.b64decode("%s"),_rea_evidence.__dict__)\nsys.modules["ops.rea_p311_github_oidc_20261026"]=_rea_evidence\n_rea_pkg.rea_p311_github_oidc_20261026=_rea_evidence\n' \
-                "$(base64 -w0 ops/rea_p311_github_oidc_20261026.py)"
             fi
             cat ops/rea_mobile_mcp_bridge_20261022.py
           } > "$RUNNER_TEMP/rea-mobile-remote.py"

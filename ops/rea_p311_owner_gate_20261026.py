@@ -9,6 +9,7 @@ workflow run waiting for a protected environment.
 The workflow runs only on the isolated P311 review branch, with no VPS secrets.
 """
 import argparse
+import base64
 import hashlib
 from datetime import datetime, timezone
 import json
@@ -208,13 +209,145 @@ def verify_and_bind_github_owner_review(
 
 
 
-def enroll_owner_task_by_github_buttons_offline_only(
+
+def _p311_github_read(resource, *, token):
+    """Fixed-origin read-only GitHub REST; no redirects, duplicate JSON or logs."""
+    if (not isinstance(resource, str) or
+            not re.fullmatch(
+                r"/(?:actions/runs/[1-9][0-9]{0,19}(?:/approvals)?"
+                r"|commits/[0-9a-f]{40}|git/blobs/[0-9a-f]{40})",
+                resource) or not isinstance(token, str) or
+            not 20 <= len(token) <= 4096):
+        raise ApprovalGateError("Invalid trusted GitHub REST review request")
+    url = "https://api.github.com/repos/" + REPO + resource
+
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            raise ApprovalGateError("Untrusted GitHub REST redirect")
+
+    req = urllib.request.Request(url, headers={
+        "Accept": "application/vnd.github+json",
+        "Authorization": "Bearer " + token,
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "rea-p311-approval-button-only",
+    })
+    try:
+        with urllib.request.build_opener(NoRedirect()).open(
+                req, timeout=12) as stream:
+            if stream.geturl() != url:
+                raise ApprovalGateError("GitHub REST response changed origin")
+            raw = stream.read(250001)
+        if not 0 < len(raw) <= 250000:
+            raise ApprovalGateError("GitHub REST response size exceeded")
+        return json.loads(raw, object_pairs_hook=_parse_no_duplicates)
+    except (OSError, ValueError, urllib.error.URLError) as exc:
+        raise ApprovalGateError("Trusted GitHub review unavailable") from exc
+
+
+def _fetch_real_github_button_review(run_id, request_id, *,
+                                     github_token, now=None):
+    """One GitHub Approve/Reject: verify immutable single-file SHA and reviewer.
+
+    Use ONLY the trusted Actions read token. No JWT, OIDC, encrypted identity
+    artifact or second confirmation. Never trust caller-supplied review data.
+    """
+    if (type(run_id) is not int or not 0 < run_id < 10**20 or
+            not isinstance(request_id, str) or not HEX32.fullmatch(request_id)):
+        raise ApprovalGateError("Invalid review run or request")
+    run = _p311_github_read(
+        "/actions/runs/" + str(run_id), token=github_token)
+    if (not isinstance(run, dict) or run.get("id") != run_id or
+            run.get("status") != "completed" or
+            run.get("conclusion") != "success"):
+        raise ApprovalGateError("GitHub approval run is not successful")
+    for field in ("repository", "head_repository"):
+        repo = run.get(field)
+        if (not isinstance(repo, dict) or
+                repo.get("full_name") != REPO or
+                type(repo.get("id")) is not int or
+                repo["id"] != 1386634013):
+            raise ApprovalGateError("Wrong GitHub repository identity")
+    actor = run.get("triggering_actor")
+    if (not isinstance(actor, dict) or
+            actor.get("login") != OWNER_LOGIN or
+            actor.get("id") != OWNER_ID):
+        raise ApprovalGateError("GitHub re-run by another identity")
+    sha = run.get("head_sha")
+    if not isinstance(sha, str) or not HEX40.fullmatch(sha):
+        raise ApprovalGateError("Invalid GitHub commit identity")
+    context = {
+        "repository": REPO, "actor": run.get("actor", {}).get("login")
+            if isinstance(run.get("actor"), dict) else None,
+        "triggering_actor": actor["login"], "event": run.get("event"),
+        "ref": "refs/heads/" + BRANCH, "sha": sha,
+        "run_id": str(run_id), "attempt": str(run.get("run_attempt")),
+    }
+    reviews = _p311_github_read(
+        "/actions/runs/" + str(run_id) + "/approvals",
+        token=github_token)
+    if not isinstance(reviews, list) or not 1 <= len(reviews) <= 100:
+        raise ApprovalGateError("Missing authenticated GitHub owner approval")
+    commit = _p311_github_read("/commits/" + sha, token=github_token)
+    path = REQUEST_DIRECTORY + "/" + request_id + ".json"
+    if (not isinstance(commit, dict) or commit.get("sha") != sha or
+            not isinstance(commit.get("parents"), list) or
+            len(commit["parents"]) != 1 or
+            not isinstance(commit.get("files"), list) or
+            len(commit["files"]) != 1):
+        raise ApprovalGateError("GitHub review commit is not isolated")
+    entry = commit["files"][0]
+    if (not isinstance(entry, dict) or entry.get("filename") != path or
+            entry.get("status") != "added" or
+            not isinstance(entry.get("sha"), str) or
+            not HEX40.fullmatch(entry["sha"])):
+        raise ApprovalGateError("GitHub review commit contains another change")
+    stats = commit.get("stats")
+    if (not isinstance(stats, dict) or
+            any(type(x) is not int for x in
+                (entry.get("additions"), entry.get("deletions"),
+                 entry.get("changes"), stats.get("additions"),
+                 stats.get("deletions"), stats.get("total"))) or
+            entry["additions"] < 1 or entry["deletions"] != 0 or
+            entry["changes"] != entry["additions"] or
+            stats["total"] != entry["changes"] or
+            stats["additions"] != entry["additions"] or
+            stats["deletions"] != 0):
+        raise ApprovalGateError("Review commit had extra modifications")
+    blob = _p311_github_read(
+        "/git/blobs/" + entry["sha"], token=github_token)
+    if (not isinstance(blob, dict) or
+            blob.get("sha") != entry["sha"] or
+            blob.get("encoding") != "base64" or
+            type(blob.get("size")) is not int or
+            not 0 < blob["size"] <= 2000 or
+            not isinstance(blob.get("content"), str) or
+            len(blob["content"]) > 4000):
+        raise ApprovalGateError("GitHub review blob is untrusted")
+    try:
+        raw = base64.b64decode(
+            blob["content"].replace("\n", ""), validate=True)
+    except (ValueError, base64.binascii.Error) as exc:
+        raise ApprovalGateError("GitHub review blob has invalid encoding") from exc
+    calculated = hashlib.sha1(
+        b"blob " + str(len(raw)).encode("ascii") + b"\x00" + raw).hexdigest()
+    if len(raw) != blob["size"] or calculated != entry["sha"]:
+        raise ApprovalGateError("GitHub reviewed SHA differs from public challenge")
+    try:
+        public = json.loads(raw.decode("utf-8"),
+                            object_pairs_hook=_parse_no_duplicates)
+    except (ValueError, UnicodeError) as exc:
+        raise ApprovalGateError("GitHub reviewed challenge JSON is invalid") from exc
+    return verify_github_review(
+        context, run, reviews, public, request_path=path, now=now)
+
+
+def register_task_after_github_approval(
         run_id, request_id, signed_task, owner_public_pem,
         trusted_contracts, *, github_token, private_registry_dir,
         revocation_dir, now=None):
     """One GitHub Approve/Reject click + an EXISTING scoped owner signature.
 
-    This is an offline-tested entry point; it is NOT enabled in the live MCP.
+    Only enabled in the existing sealed SSH bridge for a server opt-in.
     GitHub REST, not user input, proves the exact run, owner, environment,
     reviewed commit and digest-only challenge. The existing Ed25519 verifier
     STILL checks the signed task, audited tool effects, expiry and revocation.
@@ -227,18 +360,20 @@ def enroll_owner_task_by_github_buttons_offline_only(
     # The registry may be provisioned only AFTER GitHub's independent
     # completed/success review and Ed25519 source-scope proof are both valid.
     # A public challenge by itself never creates the private store.
-    # Reuse the existing verified REST+immutable-blob adapter; its name is
-    # historical, but no OIDC token is requested or verified here.
-    from ops import rea_p311_github_oidc_20261026 as github_evidence
-    evidence = github_evidence.fetch_trusted_owner_review_evidence(
+    # GitHub is the ONLY button authority. REST checks the completed run,
+    # owner approval, protected environment and immutable challenge.
+    proof = _fetch_real_github_button_review(
         run_id, request_id, github_token=github_token, now=now)
-    context, run, reviews, public, path, _commit, _blob = evidence
-    bound = verify_and_bind_github_owner_review(
-        context, run, reviews, public, signed_task,
-        request_path=path, now=now)
-    # Fully validate owner signature, audited effects and revocation BEFORE
-    # provisioning the owner-only registry. This removes a separate manual
-    # bootstrap while preserving the original security boundary.
+    bound = match_verified_review_to_signed_task(proof, signed_task)
+    # Only sensitive tools can use the GitHub button. Ordinary read and
+    # workspace tools stay on the unchanged existing REA policy.
+    chosen = signed_task.get("grant", {}).get("allowed_tools", [])
+    if (not isinstance(chosen, list) or not chosen or
+            any(tool not in trusted_contracts or
+                trusted_contracts[tool][1] != "sensitive" for tool in chosen)):
+        raise ApprovalGateError("GitHub button grant is sensitive-only")
+    # Independently verify the owner Ed25519 scope and revocation before
+    # creating any new private approval state.
     scoped._verify_registration_contracts(
         signed_task, owner_public_pem, trusted_contracts,
         now=now, revocation_dir=revocation_dir)

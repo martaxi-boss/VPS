@@ -5,6 +5,8 @@ GET workflow-run and GET review-history APIs over TLS, never from JSON uploaded
 by the requester. No real approvals or REA operations occur in these tests.
 """
 import base64
+import hashlib
+import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -52,6 +54,85 @@ class P311GitHubButtonVerificationTests(unittest.TestCase):
             self.review if reviews is None else reviews,
             self.request if request is None else request,
             request_path=self.path if path is None else path, now=self.now)
+
+
+    def _real_button_rest_fixtures(self):
+        committed = (json.dumps(
+            self.request, sort_keys=True, separators=(",", ":")) + "\n").encode()
+        sha = hashlib.sha1(
+            b"blob " + str(len(committed)).encode() + b"\x00" +
+            committed).hexdigest()
+        run = {**self.run, "status": "completed", "conclusion": "success",
+               "repository": {"full_name": gate.REPO, "id": 1386634013},
+               "head_repository": {"full_name": gate.REPO,
+                                   "id": 1386634013},
+               "triggering_actor": {"login": gate.OWNER_LOGIN,
+                                    "id": gate.OWNER_ID}}
+        commit = {
+            "sha": self.run["head_sha"],
+            "parents": [{"sha": "d" * 40}],
+            "files": [{"filename": self.path, "sha": sha, "status": "added",
+                       "additions": 1, "deletions": 0, "changes": 1}],
+            "stats": {"additions": 1, "deletions": 0, "total": 1},
+        }
+        blob = {"sha": sha, "encoding": "base64",
+                "size": len(committed),
+                "content": base64.b64encode(committed).decode()}
+        return [run, self.review, commit, blob]
+
+    def test_real_button_rest_requires_successful_exact_owner_review(self):
+        with mock.patch.object(gate, "_p311_github_read",
+                               side_effect=self._real_button_rest_fixtures()) as get:
+            proof = gate._fetch_real_github_button_review(
+                int(self.context["run_id"]), self.request["request_id"],
+                github_token="g" * 48, now=self.now)
+        self.assertEqual(proof["request_id"], self.request["request_id"])
+        self.assertEqual(proof["run_id"], int(self.context["run_id"]))
+        self.assertEqual(4, get.call_count)
+
+    def test_real_button_rest_rejects_failed_review_and_modified_blob(self):
+        fixtures = self._real_button_rest_fixtures()
+        fixtures[0] = {**fixtures[0], "conclusion": "failure"}
+        with mock.patch.object(gate, "_p311_github_read",
+                               return_value=fixtures[0]) as get, \
+             self.assertRaisesRegex(gate.ApprovalGateError,
+                                    "not successful"):
+            gate._fetch_real_github_button_review(
+                int(self.context["run_id"]), self.request["request_id"],
+                github_token="g" * 48, now=self.now)
+        get.assert_called_once()
+        fixtures = self._real_button_rest_fixtures()
+        fixtures[3] = {**fixtures[3], "content": base64.b64encode(
+            b"malicious public challenge").decode(),
+                        "size": len(b"malicious public challenge")}
+        with mock.patch.object(gate, "_p311_github_read",
+                               side_effect=fixtures), \
+             self.assertRaises(gate.ApprovalGateError):
+            gate._fetch_real_github_button_review(
+                int(self.context["run_id"]), self.request["request_id"],
+                github_token="g" * 48, now=self.now)
+
+    def test_github_button_never_grants_workspace_normal_tools(self):
+        signed = self._signed_task_fixture()
+        digest = gate.signed_task_review_digest(
+            signed, request_id=self.request["request_id"])
+        verified = {"verified_preview": True,
+                    "request_id": self.request["request_id"],
+                    "operation_sha256": digest,
+                    "run_id": int(self.context["run_id"]),
+                    "review_environment": gate.REVIEW_ENVIRONMENT}
+        with tempfile.TemporaryDirectory() as home, \
+             mock.patch.object(gate, "_fetch_real_github_button_review",
+                               return_value=verified), \
+             self.assertRaisesRegex(gate.ApprovalGateError,
+                                    "sensitive-only"):
+            gate.register_task_after_github_approval(
+                int(self.context["run_id"]), self.request["request_id"],
+                signed, b"not-needed", {
+                    "inspect_with_objdump": (frozenset(), "workspace")},
+                github_token="g" * 48,
+                private_registry_dir=Path(home) / "registry",
+                revocation_dir=Path(home) / "revoked", now=self.now)
 
     def test_one_owner_clicked_approve_for_exact_run_preview_passes(self):
         result = self.check()

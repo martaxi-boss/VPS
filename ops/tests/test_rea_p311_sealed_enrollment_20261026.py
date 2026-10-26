@@ -91,7 +91,8 @@ class P311SealedEnrollmentTests(unittest.TestCase):
         patch.start()
         self.addCleanup(patch.stop)
         root = "/opt/rea-reversa/rea/.rea-private/jobs/p311-sealed-enrollment"
-        tools = ["import_managed_reconstruction", "inspect_with_objdump"]
+        # The GitHub button is ONLY for tools classified sensitive.
+        tools = ["import_managed_reconstruction"]
         effects = sorted(set().union(*(secure.AUDITED_EFFECTS[n] for n in tools)))
         self.grant = {
             "purpose": scoped.PURPOSE, "grant_id": "9" * 32,
@@ -205,7 +206,7 @@ class P311SealedEnrollmentTests(unittest.TestCase):
         self.assertIn('test "$request_action" = "sealed_task_enroll"', flow)
         self.assertIn('os.environ["REA_P311_GITHUB_API_TOKEN"]', flow)
         self.assertIn("rea_p311_owner_gate_20261026.py", flow)
-        self.assertIn("rea_p311_github_oidc_20261026.py", flow)
+        self.assertNotIn("rea_p311_github_oidc_20261026.py", flow)
         self.assertIn("trap 'rm -f", flow)
         self.assertNotIn("id-token: write", flow)
         self.assertIn('test "$request_action" = "sealed_task_enroll"', flow)

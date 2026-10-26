@@ -18,8 +18,6 @@ on:
       - "ops/tests/test_rea_p311_sealed_enrollment_20261026.py"
       - "ops/tests/test_rea_p311_owner_gate_20261026.py"
       - "ops/rea_p311_owner_gate_20261026.py"
-      - "ops/rea_p311_github_oidc_20261026.py"
-      - "ops/tests/test_rea_p311_github_oidc_20261026.py"
       - ".github/workflows/rea-p311-owner-review-preview-20261026.yml"
       - "ops/rea_mobile_mcp_bridge_20261022.py"
       - "rea-linux/owner/p311_sign_task_grant.py"
@@ -41,7 +39,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq python3-cryptography python3-jsonschema > /dev/null
       - name: Check Python syntax
-        run: python3 -m py_compile ops/rea_scoped_approval_20261026.py ops/rea_secure_protocol_20261022.py ops/tests/test_rea_scoped_approval_20261026.py ops/tests/test_rea_p311_scoped_integration_20261026.py rea-linux/owner/p311_sign_task_grant.py ops/tests/test_rea_p311_owner_signer_20261026.py ops/tests/test_rea_p311_runtime_proposal_20261026.py ops/tests/test_rea_p311_release680_proposal_20261026.py ops/tests/test_rea_p311_grant_registry_20261026.py ops/tests/test_rea_p311_registered_runtime_20261026.py ops/tests/test_rea_p311_sealed_enrollment_20261026.py ops/tests/test_rea_p311_owner_gate_20261026.py ops/rea_p311_owner_gate_20261026.py ops/rea_p311_github_oidc_20261026.py ops/tests/test_rea_p311_github_oidc_20261026.py ops/rea_mobile_mcp_bridge_20261022.py
+        run: python3 -m py_compile ops/rea_scoped_approval_20261026.py ops/rea_secure_protocol_20261022.py ops/tests/test_rea_scoped_approval_20261026.py ops/tests/test_rea_p311_scoped_integration_20261026.py rea-linux/owner/p311_sign_task_grant.py ops/tests/test_rea_p311_owner_signer_20261026.py ops/tests/test_rea_p311_runtime_proposal_20261026.py ops/tests/test_rea_p311_release680_proposal_20261026.py ops/tests/test_rea_p311_grant_registry_20261026.py ops/tests/test_rea_p311_registered_runtime_20261026.py ops/tests/test_rea_p311_sealed_enrollment_20261026.py ops/tests/test_rea_p311_owner_gate_20261026.py ops/rea_p311_owner_gate_20261026.py ops/rea_mobile_mcp_bridge_20261022.py
       - name: Existing security plus scoped approval regressions
         env:
           REA_P311_SCOPED_TASKS: disabled
@@ -56,5 +54,4 @@ jobs:
             ops.tests.test_rea_p311_grant_registry_20261026 \
             ops.tests.test_rea_p311_registered_runtime_20261026 \
             ops.tests.test_rea_p311_sealed_enrollment_20261026 \
-            ops.tests.test_rea_p311_owner_gate_20261026 \
-            ops.tests.test_rea_p311_github_oidc_20261026
+            ops.tests.test_rea_p311_owner_gate_20261026

@@ -221,7 +221,7 @@ def p311_enroll_sealed_owner_task(data, tool_by_name, safe_callable, *, now=None
     # Spend the request nonce before any durable grant registration.
     secure.claim_one_use_nonce(body["nonce"])
     from ops import rea_p311_owner_gate_20261026 as owner_gate
-    approved = owner_gate.enroll_owner_task_by_github_buttons_offline_only(
+    approved = owner_gate.register_task_after_github_approval(
         run_id, review_id, signed_task, verifier.read_bytes(), contracts,
         github_token=github_token,
         private_registry_dir=private_dir / "approved-p311-tasks",
