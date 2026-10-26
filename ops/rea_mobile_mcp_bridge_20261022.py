@@ -731,6 +731,12 @@ def main():
             tree.stdout.strip()!="15e6fec513dcce08cefdbcf441200986397e2793"):
             print("REA_P301_STATUS=BLOCKED_UPSTREAM_IDENTITY")
             return
+        clean=sp.run(["git","-C",str(base),"diff","--quiet","HEAD","--",
+                      "bridge/cutter/rea_bridge.py"],
+                      capture_output=True,timeout=12,check=False)
+        if clean.returncode!=0:
+            print("REA_P301_STATUS=BLOCKED_UPSTREAM_SOURCE_CHANGED")
+            return
         ready=sp.run(["sudo","-n","-u",user,"test","-x",str(cutter)],
             capture_output=True,timeout=10,check=False).returncode==0
         if not ready:
