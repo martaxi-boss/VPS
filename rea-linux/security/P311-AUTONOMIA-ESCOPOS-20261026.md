@@ -116,3 +116,17 @@ real sensivel permanecem pendentes. O REA original nao foi modificado.
   https://github.com/martaxi-boss/VPS/actions/runs/40375847498
 - Chamada MCP read real e higienizacao do pedido/trigger continuam provadas
   pelos commits e run anteriores. Nao houve qualquer ativacao na VPS.
+
+## P311 - prova de assinatura unica com chave existente (26/10/2026)
+
+**61/61 testes PASS** (sem VPS/SSH/segredos em producao): https://github.com/martaxi-boss/VPS/actions/runs/40377570368
+
+- Foi preparado o helper offline `rea-linux/owner/p311_sign_task_grant.py`, que usa a MESMA chave Ed25519 do proprietario no dispositivo Android, sem gerar ou exportar uma nova chave.
+- O utilizador ve um resumo de projeto, tarefa, raiz, ferramentas e validade e pode responder `sim` ou `nao`. Apenas `sim` gera a assinatura e o ficheiro JSON privado, com permissoes `0600` e escrita exclusiva.
+- Foi preparada a funcao `prepare_unsigned_task_grant` que seleciona ferramentas a partir da proposta interna do planificador REA, do catalogo MCP e das politicas de efeitos e schema SHA-pinned. O proprietario nao precisa de indicar nomes das ferramentas.
+- Os testes cobrem `sim`/`nao`, assinaturas existentes e falsas, chave com modo inseguro, root fora do projeto, expiracao, efeitos proibidos, ferramentas inseguras, selecao de ferramentas e revogacao.
+- Um teste usa a assinatura do helper no validador experimental MCP para uma ferramenta de classe sensivel e confirma a recusa apos revogacao. Nao se trata de execucao real sensivel na VPS.
+
+**Nao concluido:** a autorizacao pelo botao autenticado do ChatGPT/GitHub ainda nao foi implementada. O `sim` do helper e dado no dispositivo do proprietario, nao no chat. A delegacao experimental dura no maximo sete dias, nao e uma permissao permanente. A flag de producao continua DESLIGADA e nao foi registado um grant do proprietario real.
+
+Higienizacao: nenhum pedido temporario novo publicado, nenhuma chave privada copiada, nenhum motor original alterado, nenhum deploy ou service restart. PR #305 continua DRAFT, ramo ativo em `2f5573be27302f22aca5b9b3e20d78244f3ad0dc`.
