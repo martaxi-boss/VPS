@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_optional_vendor_diag"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -323,12 +323,6 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_FIXTURE_ANDROID_CLASSES", "REA_FIXTURE_ANDROID_CLASS",
         "REA_FIXTURE_ANDROID_METHOD", "REA_FIXTURE_ANDROID_XREFS",
         "REA_STAGE_NODE", "REA_STAGE_WABT", "REA_STAGE_NO_SERVICE_CHANGES",
-        "REA_P286_OPTIONAL_STATE","REA_P286_OPTIONAL_SERVICE_ENV",
-        "REA_P286_OPTIONAL_SERVICE_ACTIVE","REA_P286_OPTIONAL_XVFB",
-        "REA_P286_OPTIONAL_FUSE2","REA_P286_OPTIONAL_WAKARU",
-        "REA_P286_OPTIONAL_MITMDUMP","REA_P286_OPTIONAL_CHROMIUM",
-        "REA_P286_OPTIONAL_IDA_PLUGIN","REA_P286_OPTIONAL_JEB_JAR",
-        "REA_P286_OPTIONAL_CUTTER_GUI",
         "REA_LINUX_READ5_SOURCE_PRESENT", "REA_LINUX_READ5_VITEST_PRESENT",
         "REA_LINUX_READ5_NODE_PRESENT", "REA_LINUX_READ5_REGRESSION",
         "REA_LINUX_READ5_EXIT_CODE", "REA_LINUX_READ5_TEST_OUTPUT_SHA256",
@@ -2392,90 +2386,6 @@ def main():
             1 for line in result.stdout.splitlines() if line.split()[-1:] in
             (["node"],["nodejs"]))))
         print("REA_PREFLIGHT_COMPLETE=PASS_READ_ONLY")
-        return
-    if data["action"] == "fixture_linux_optional_vendor_diag":
-        # P286 read-only original provider smoke with bounded CLI sub-processes.
-        # No daemon restart, no external target and no proprietary activation.
-        import shutil
-        import pwd
-        base=Path("/opt/rea-reversa/providers")
-        user="rea-reversa"
-        home=Path(pwd.getpwnam(user).pw_dir)
-        pid=subprocess.run(["systemctl","show","rea-reversa-mcp.service",
-            "-p","MainPID","--value"],capture_output=True,text=True,timeout=10,check=False).stdout.strip()
-        if not pid.isdecimal() or int(pid)<1 or not Path("/opt/rea-reversa/rea/package.json").is_file():
-            print("REA_P286_OPTIONAL_STATE=BLOCKED_MISSING_ORIGINAL")
-            return
-        probe_env=subprocess.run(["sudo","-n","cat",f"/proc/{int(pid)}/environ"],
-            capture_output=True,timeout=16,check=False)
-        names=set()
-        if probe_env.returncode==0:
-            names={chunk.split(b"=",1)[0].decode("ascii","ignore")
-                   for chunk in probe_env.stdout.split(b"\0") if b"=" in chunk}
-        print("REA_P286_OPTIONAL_SERVICE_ENV="+json.dumps({
-            k:k in names for k in ("REA_WAKARU_COMMAND","REA_MITMDUMP_COMMAND",
-                                  "PLAYWRIGHT_BROWSERS_PATH","REA_JEB_MCP_URL",
-                                  "REA_IDA_MCP_CONFIG")},sort_keys=True))
-        print("REA_P286_OPTIONAL_SERVICE_ACTIVE="+str(subprocess.run(
-            ["systemctl","is-active","--quiet","rea-reversa-mcp.service"],
-            check=False,timeout=10).returncode==0).lower())
-        print("REA_P286_OPTIONAL_XVFB="+str(bool(shutil.which("xvfb-run"))).lower())
-        print("REA_P286_OPTIONAL_FUSE2="+str(Path("/usr/lib/x86_64-linux-gnu/libfuse.so.2").is_file()).lower())
-        wakaru=base/"wakaru-1.14.0/bin/wakaru"
-        mitmdump=base/"mitmproxy-12.2.3/bin/mitmdump"
-        cutter=base/"cutter-2.5.0/bin/Cutter-v2.5.0-Linux-Qt5-x86_64.AppImage"
-        ida=base/"ida-free-mcp-1.1.3/ida_mcp-linux-x64.so"
-        jeb=base/"jeb-ce-5.48.0.202610071539/bin/app/jeb.jar"
-        browser=base/"chromium-playwright-1.58.2"
-        candidates=list(browser.glob("chromium-*/chrome-linux64/chrome"))
-        candidates+=list(browser.glob("chromium_headless_shell-*/chrome-linux/headless_shell"))
-        sources={"WAKARU":(wakaru,["--version"]),
-                 "MITMDUMP":(mitmdump,["--version"]),
-                 "CHROMIUM":(candidates[0] if candidates else Path("/rea-no-chromium"),["--version"])}
-        for name,(executable,args) in sources.items():
-            if not executable.is_file() or executable.is_symlink():
-                print("REA_P286_OPTIONAL_"+name+"=MISSING")
-                continue
-            try:
-                test=subprocess.run(["sudo","-n","-u",user,str(executable),*args],
-                    capture_output=True,text=True,timeout=22,check=False)
-                print("REA_P286_OPTIONAL_"+name+"="+("PASS" if test.returncode==0
-                   else "FAIL_EXIT_"+str(test.returncode)))
-            except (OSError,subprocess.TimeoutExpired):
-                print("REA_P286_OPTIONAL_"+name+"=FAIL_EXEC")
-        for name,path in (("IDA_PLUGIN",ida),("JEB_JAR",jeb)):
-            check=subprocess.run(["sudo","-n","-u",user,"test","-f",path],
-                capture_output=True,timeout=14,check=False)
-            print("REA_P286_OPTIONAL_"+name+"="+
-                  ("PRESENT" if check.returncode==0 else "MISSING"))
-        if cutter.is_file() and shutil.which("xvfb-run") and shutil.which("timeout"):
-            try:
-                cli=subprocess.run(["sudo","-n","-u",user,"env",
-                    "QT_QPA_PLATFORM=xcb","/usr/bin/timeout","-k","4s","12s",
-                    shutil.which("xvfb-run"),"-a",str(cutter),"--version"],
-                    capture_output=True,text=True,timeout=24,check=False)
-                if cli.returncode==0:
-                    state="PASS"
-                elif cli.returncode in (124,137):
-                    state="TIMEOUT"
-                else:
-                    msg=(cli.stdout+cli.stderr).lower()
-                    if "could not load the qt platform plugin" in msg:
-                        state="QT_PLATFORM_PLUGIN_MISSING"
-                    elif "libxcb-cursor.so.0" in msg:
-                        state="LIBXCB_CURSOR_MISSING"
-                    elif "libfuse.so.2" in msg:
-                        state="LIBFUSE_MISSING"
-                    elif "permission denied" in msg:
-                        state="PERMISSION_DENIED"
-                    else:
-                        state="EXIT_"+str(cli.returncode)
-                print("REA_P286_OPTIONAL_CUTTER_GUI="+state)
-            except (OSError,subprocess.TimeoutExpired):
-                print("REA_P286_OPTIONAL_CUTTER_GUI=FAIL_BOUNDED_EXEC")
-        else:
-            print("REA_P286_OPTIONAL_CUTTER_GUI=PREREQUISITE_MISSING")
-        print("REA_P286_OPTIONAL_STATE=PASS_READ_ONLY")
         return
     if data["action"] == "fixture_linux_install_inventory":
         # Audit original Linux REA installation; no installation, no restart.
