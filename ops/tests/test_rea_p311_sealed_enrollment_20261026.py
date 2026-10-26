@@ -28,6 +28,7 @@ if str(OPS) not in sys.path:
 import rea_mobile_mcp_bridge_20261022 as bridge
 import rea_secure_protocol_20261022 as secure
 from ops import rea_scoped_approval_20261026 as scoped
+from ops import rea_p311_owner_gate_20261026 as owner_gate
 
 
 class P311SealedEnrollmentTests(unittest.TestCase):
@@ -109,6 +110,9 @@ class P311SealedEnrollmentTests(unittest.TestCase):
         }
         self.nonce = "c" * 32
         self.registry_dir = self.private / "approved-p311-tasks"
+        self.registry_dir.mkdir(mode=0o700)
+        self.run_id = 40385975218
+        self.review_id = "b" * 32
 
     def build(self, *, task=None, nonce=None, expiry=None):
         inner = {
@@ -117,6 +121,7 @@ class P311SealedEnrollmentTests(unittest.TestCase):
             "expires_at": self.format_time(self.now + timedelta(minutes=25))
                 if expiry is None else expiry,
             "signed_task": self.task if task is None else task,
+            "review_run_id": self.run_id, "review_request_id": self.review_id,
         }
         return {
             "version": 1, "action": "sealed_task_enroll",
@@ -124,10 +129,88 @@ class P311SealedEnrollmentTests(unittest.TestCase):
             "response_key": self.response_key,
         }
 
-    def enroll(self, data=None):
-        return bridge.p311_enroll_sealed_owner_task(
-            self.build() if data is None else data, self.registry,
-            {"list_unknowns"}, now=self.now)
+    def enroll(self, data=None, *, catalog=None):
+        # The GitHub REST validation itself has its own explicit negative
+        # tests. In bridge-only tests the trusted approval helper is mocked
+        # and still must perform an independently verified owner registration.
+        def trusted_review(run_id, request_id, signed_task, public, contracts,
+                           *, github_token, private_registry_dir,
+                           revocation_dir, now):
+            self.assertEqual(self.run_id, run_id)
+            self.assertEqual(self.review_id, request_id)
+            self.assertEqual("g" * 48, github_token)
+            grant_id = scoped.register_signed_task_grant(
+                signed_task, public, private_registry_dir=private_registry_dir,
+                revocation_dir=revocation_dir, trusted_contracts=contracts,
+                now=now)
+            return {"registered_button_only_offline_stage": True,
+                    "grant_id": grant_id}
+        with mock.patch.dict(os.environ, {
+                "REA_P311_GITHUB_API_TOKEN": "g" * 48}), \
+             mock.patch.object(owner_gate,
+                               "enroll_owner_task_by_github_buttons_offline_only",
+                               side_effect=trusted_review):
+            return bridge.p311_enroll_sealed_owner_task(
+                self.build() if data is None else data,
+                self.registry if catalog is None else catalog,
+                {"list_unknowns"}, now=self.now)
+
+
+    def test_git_review_is_mandatory_even_for_valid_ed25519(self):
+        with mock.patch.dict(os.environ, {
+                "REA_P311_SCOPED_TASKS": "enabled",
+                "REA_P311_GITHUB_API_TOKEN": ""},
+                clear=False), \
+             self.assertRaisesRegex(ValueError, "GitHub Actions read credential"):
+            bridge.p311_enroll_sealed_owner_task(
+                self.build(), self.registry, {"list_unknowns"}, now=self.now)
+        self.assertEqual([], list(self.registry_dir.iterdir()))
+        self.assertFalse((self.private / "consumed" / self.nonce).exists())
+
+    def test_cannot_inject_untrusted_github_token_inside_encrypted_request(self):
+        signed = self.build()
+        with mock.patch.dict(os.environ, {
+                "REA_P311_SCOPED_TASKS": "enabled",
+                "REA_P311_GITHUB_API_TOKEN": ""},
+                clear=False), \
+             self.assertRaisesRegex(ValueError, "Invalid encrypted owner-task"):
+            payload = secure.unseal(signed["sealed"], signed["response_key"])
+            payload["github_token"] = "attacker-token"
+            attack = dict(signed, sealed=secure.seal_for_client(
+                payload, self.recipient_key, self.response_key))
+            bridge.p311_enroll_sealed_owner_task(
+                attack, self.registry, {"list_unknowns"}, now=self.now)
+        self.assertEqual([], list(self.registry_dir.iterdir()))
+
+    def test_wrong_review_id_rejected_before_any_nonce_spend(self):
+        payload = secure.unseal(self.build()["sealed"], self.response_key)
+        payload["review_request_id"] = "wrong"
+        data = self.build()
+        data["sealed"] = secure.seal_for_client(
+            payload, self.recipient_key, self.response_key)
+        with mock.patch.dict(os.environ, {
+                "REA_P311_SCOPED_TASKS": "enabled",
+                "REA_P311_GITHUB_API_TOKEN": "g"*48}), \
+             self.assertRaisesRegex(ValueError, "review identity"):
+            bridge.p311_enroll_sealed_owner_task(
+                data, self.registry, {"list_unknowns"}, now=self.now)
+        self.assertFalse((self.private / "consumed" / self.nonce).exists())
+
+
+    def test_p311_workflow_passes_review_token_only_by_private_ssh_pipe(self):
+        flow = (Path(__file__).resolve().parents[2] /
+                ".github/workflows/rea-android-bridge-20261022.yml").read_text()
+        self.assertIn("actions: read", flow)
+        self.assertIn("REA_P311_REVIEW_RUNNER_TOKEN: $" + "{{ github.token }}", flow)
+        self.assertIn('test "$request_action" = "sealed_task_enroll"', flow)
+        self.assertIn('os.environ["REA_P311_GITHUB_API_TOKEN"]', flow)
+        self.assertIn("rea_p311_owner_gate_20261026.py", flow)
+        self.assertIn("rea_p311_github_oidc_20261026.py", flow)
+        self.assertIn("trap 'rm -f", flow)
+        self.assertNotIn("id-token: write", flow)
+        self.assertNotIn("REA_P311_SCOPED_TASKS=enabled", flow)
+        self.assertIn("StrictHostKeyChecking=yes", flow)
+        self.assertIn("127.0.0.1", bridge.URL)
 
     def test_one_owner_signature_registers_encrypted_task_once(self):
         request = self.build()
@@ -149,21 +232,21 @@ class P311SealedEnrollmentTests(unittest.TestCase):
                 "REA_MOBILE_ENVELOPE_CAPTURE": "0"}):
             with self.assertRaisesRegex(ValueError, "Encrypted enrollment"):
                 self.enroll(request)
-        self.assertFalse(self.registry_dir.exists())
+        self.assertEqual([], list(self.registry_dir.iterdir()))
         self.assertFalse((self.private / "consumed" / self.nonce).exists())
 
     def test_default_off_cannot_register_even_with_valid_crypto(self):
         with mock.patch.dict(os.environ, {"REA_P311_SCOPED_TASKS": "disabled"}):
             with self.assertRaises(ValueError):
                 self.enroll()
-        self.assertFalse(self.registry_dir.exists())
+        self.assertEqual([], list(self.registry_dir.iterdir()))
 
     def test_invalid_or_forged_owner_signature_rejected_before_nonce_claim(self):
         tampered = dict(self.task, owner_signature="A" * 88)
         with mock.patch.dict(os.environ, {"REA_P311_SCOPED_TASKS": "enabled"}):
             with self.assertRaises(scoped.ScopedApprovalError):
                 self.enroll(self.build(task=tampered))
-        self.assertFalse(self.registry_dir.exists())
+        self.assertEqual([], list(self.registry_dir.iterdir()))
         self.assertFalse((self.private / "consumed" / self.nonce).exists())
 
     def test_nonce_replay_denied_and_existing_owner_task_never_replaced(self):
@@ -184,7 +267,7 @@ class P311SealedEnrollmentTests(unittest.TestCase):
         with mock.patch.dict(os.environ, {"REA_P311_SCOPED_TASKS": "enabled"}):
             with self.assertRaises(scoped.ScopedApprovalError):
                 self.enroll()
-        self.assertFalse(self.registry_dir.exists())
+        self.assertEqual([], list(self.registry_dir.iterdir()))
         marker.unlink()
         self.revocations.rmdir()
         with mock.patch.dict(os.environ, {"REA_P311_SCOPED_TASKS": "enabled"}):
@@ -251,8 +334,7 @@ class P311SealedEnrollmentTests(unittest.TestCase):
         with mock.patch.object(secure, "RELEASE_680_MANIFEST_PATH", manifest), mock.patch.object(
                 secure, "RELEASE_680_MANIFEST_SHA256", signature_hash), mock.patch.dict(
                 os.environ, {"REA_P311_SCOPED_TASKS": "enabled"}):
-            registered = bridge.p311_enroll_sealed_owner_task(
-                self.build(), catalog, {"list_unknowns"}, now=self.now)
+            registered = self.enroll(catalog=catalog)
         self.assertEqual(self.grant["grant_id"], registered["grant_id"])
         self.assertEqual(0o600, (self.registry_dir /
                          (self.grant["grant_id"]+".json")).stat().st_mode & 0o777)
@@ -265,9 +347,8 @@ class P311SealedEnrollmentTests(unittest.TestCase):
                 secure, "RELEASE_680_MANIFEST_SHA256", original_digest), mock.patch.dict(
                 os.environ, {"REA_P311_SCOPED_TASKS": "enabled"}):
             with self.assertRaises(secure.SecureBridgeError):
-                bridge.p311_enroll_sealed_owner_task(
-                    self.build(), catalog, {"list_unknowns"}, now=self.now)
-        self.assertFalse(self.registry_dir.exists())
+                self.enroll(catalog=catalog)
+        self.assertEqual([], list(self.registry_dir.iterdir()))
 
     def test_success_result_is_encrypted_on_existing_actions_return(self):
         request = self.build()

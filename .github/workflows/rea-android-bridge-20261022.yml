@@ -12,6 +12,7 @@ on:
       - "rea-linux/requests/*.json"
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: rea-one-skill-bridge
   cancel-in-progress: false
@@ -90,11 +91,15 @@ jobs:
       - name: Talk to existing REA over VPS loopback
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+          REA_P311_REVIEW_RUNNER_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
           test -n "$SSHPASS"
           umask 077
+          # One ephemeral server-side REST credential only for scoped enrollment.
+          trap 'rm -f "$RUNNER_TEMP/rea-mobile-remote.py" "$RUNNER_TEMP/rea-mobile-private-output.txt"' EXIT
+          request_action="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["action"])' "$REA_JOB_PATH")"
           request64="$(base64 -w0 "$REA_JOB_PATH")"
           raw="$RUNNER_TEMP/rea-mobile-private-output.txt"
           # Feed the same reviewed source files over the existing authenticated SSH.
@@ -109,6 +114,23 @@ jobs:
             # no extra daemon/MCP, no REA modification, default grant mode OFF.
             printf 'import base64,sys,types\n_rea_pkg=types.ModuleType("ops")\n_rea_pkg.__path__=[]\nsys.modules["ops"]=_rea_pkg\n_rea_scope=types.ModuleType("ops.rea_scoped_approval_20261026")\nexec(base64.b64decode("%s"),_rea_scope.__dict__)\nsys.modules["ops.rea_scoped_approval_20261026"]=_rea_scope\n_rea_pkg.rea_scoped_approval_20261026=_rea_scope\n' \
               "$(base64 -w0 ops/rea_scoped_approval_20261026.py)"
+            # P311: the existing SSH pipe transfers only the trusted runner's
+            # short-lived GitHub REST read token, never a requester credential.
+            if test "$request_action" = "sealed_task_enroll"; then
+              test -n "$REA_P311_REVIEW_RUNNER_TOKEN"
+              if [[ ! "$REA_P311_REVIEW_RUNNER_TOKEN" =~ ^[A-Za-z0-9_]{20,4096}$ ]]; then
+                echo "REA_P311_GITHUB_READ_TOKEN=INVALID" >&2
+                exit 2
+              fi
+              printf 'import os\nos.environ["REA_P311_GITHUB_API_TOKEN"]="%s"\n' \
+                "$REA_P311_REVIEW_RUNNER_TOKEN"
+              printf 'import base64,sys,types\n_rea_gate=types.ModuleType("ops.rea_p311_owner_gate_20261026")\nexec(base64.b64decode("%s"),_rea_gate.__dict__)\nsys.modules["ops.rea_p311_owner_gate_20261026"]=_rea_gate\n_rea_pkg.rea_p311_owner_gate_20261026=_rea_gate\n' \
+                "$(base64 -w0 ops/rea_p311_owner_gate_20261026.py)"
+              # Legacy module name holds immutable GitHub REST evidence code;
+              # no JWT/OIDC identity is requested by the button-only flow.
+              printf 'import base64,sys,types\n_rea_evidence=types.ModuleType("ops.rea_p311_github_oidc_20261026")\nexec(base64.b64decode("%s"),_rea_evidence.__dict__)\nsys.modules["ops.rea_p311_github_oidc_20261026"]=_rea_evidence\n_rea_pkg.rea_p311_github_oidc_20261026=_rea_evidence\n' \
+                "$(base64 -w0 ops/rea_p311_github_oidc_20261026.py)"
+            fi
             cat ops/rea_mobile_mcp_bridge_20261022.py
           } > "$RUNNER_TEMP/rea-mobile-remote.py"
           sshpass -e ssh -T \

@@ -137,12 +137,13 @@ def p232_guard_inner_batch(body):
 
 
 def p311_enroll_sealed_owner_task(data, tool_by_name, safe_callable, *, now=None):
-    """Stage-only: register ONE owner-signed task from existing sealed SSH bridge.
+    """Register one owner-signed task AFTER its real GitHub Approve button.
 
-    No new server, no changes to REA original, no ChatGPT text-as-signature.
-    The owner has already signed the bounded grant with their device key.
-    This action is unavailable unless the VPS operator opted in. Nothing is
-    permitted by merely adding a request file or setting a request boolean.
+    The already-protected GitHub Actions runner supplies an ephemeral read
+    credential over the EXISTING SSH pipe. The VPS independently checks the
+    completed owner-reviewed run, exact challenge and immutable GitHub blob,
+    then verifies the pre-signed scope before registration. No OIDC and no
+    ChatGPT text-as-signature. Disabled without the trusted server opt-in.
     """
     from datetime import datetime, timezone
     import stat
@@ -157,7 +158,8 @@ def p311_enroll_sealed_owner_task(data, tool_by_name, safe_callable, *, now=None
         raise ValueError("Encrypted enrollment result capture is required")
     body = secure.unseal(data["sealed"], data["response_key"])
     if (not isinstance(body, dict) or set(body) != {
-            "protocol", "nonce", "expires_at", "signed_task"
+            "protocol", "nonce", "expires_at", "signed_task",
+            "review_run_id", "review_request_id"
         } or body["protocol"] != 1):
         raise ValueError("Invalid encrypted owner-task envelope")
     if (not isinstance(body["nonce"], str) or
@@ -165,6 +167,16 @@ def p311_enroll_sealed_owner_task(data, tool_by_name, safe_callable, *, now=None
             not isinstance(body["expires_at"], str) or
             not secure.TIME_RE.fullmatch(body["expires_at"])):
         raise ValueError("Invalid owner-task enrollment nonce or expiry")
+    run_id, review_id = body["review_run_id"], body["review_request_id"]
+    if (type(run_id) is not int or not 0 < run_id < 10**20 or
+            not isinstance(review_id, str) or
+            not re.fullmatch(r"[0-9a-f]{32}", review_id)):
+        raise ValueError("GitHub button review identity is required")
+    # The credential is obtained from the trusted Actions runner over the
+    # EXISTING host-pinned SSH channel, NEVER from request JSON or GitHub files.
+    github_token = os.environ.get("REA_P311_GITHUB_API_TOKEN")
+    if not isinstance(github_token, str) or not 20 <= len(github_token) <= 4096:
+        raise ValueError("Trusted GitHub Actions read credential is unavailable")
     now = now or datetime.now(timezone.utc)
     expiry = datetime.strptime(body["expires_at"], "%Y-%m-%dT%H:%M:%SZ").replace(
         tzinfo=timezone.utc)
@@ -204,17 +216,26 @@ def p311_enroll_sealed_owner_task(data, tool_by_name, safe_callable, *, now=None
     scoped._verify_registration_contracts(
         signed_task, verifier.read_bytes(), contracts,
         now=now, revocation_dir=private_dir / "revoked-p311-grants")
+    # Provisioning is an explicit operator action; no public request can
+    # create the private registry. Deny before spending the one-use nonce.
+    scoped._check_private_grant_directory(
+        private_dir / "approved-p311-tasks", create=False)
     secure.claim_one_use_nonce(body["nonce"])
-    grant_id = scoped.register_signed_task_grant(
-        signed_task, verifier.read_bytes(),
+    from ops import rea_p311_owner_gate_20261026 as owner_gate
+    approved = owner_gate.enroll_owner_task_by_github_buttons_offline_only(
+        run_id, review_id, signed_task, verifier.read_bytes(), contracts,
+        github_token=github_token,
         private_registry_dir=private_dir / "approved-p311-tasks",
-        revocation_dir=private_dir / "revoked-p311-grants",
-        trusted_contracts=contracts, now=now)
+        revocation_dir=private_dir / "revoked-p311-grants", now=now)
+    if (approved.get("registered_button_only_offline_stage") is not True or
+            approved.get("grant_id") != signed_task["grant"]["grant_id"]):
+        raise ValueError("GitHub button review did not register the signed task")
     return {
         "protocol": 1, "registered": True,
-        "grant_id": grant_id,
+        "grant_id": approved["grant_id"],
         "task_id": signed_task["task_id"],
         "expires_at": signed_task["grant"]["expires_at"],
+        "review_run_id": run_id,
     }
 
 
