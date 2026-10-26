@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_rea_680_preflight", "fixture_linux_rea_680_stage", "fixture_linux_rea_680_npm_diagnose", "fixture_linux_rea_680_resume_build", "fixture_linux_rea_680_rehearse", "fixture_linux_rea_680_contract_delta", "fixture_linux_rea_680_prepare_restore", "fixture_linux_rea_680_service_doctor", "fixture_linux_rea_680_policy_manifest"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_rea_680_preflight", "fixture_linux_rea_680_stage", "fixture_linux_rea_680_npm_diagnose", "fixture_linux_rea_680_resume_build", "fixture_linux_rea_680_rehearse", "fixture_linux_rea_680_contract_delta", "fixture_linux_rea_680_prepare_restore", "fixture_linux_rea_680_service_doctor", "fixture_linux_rea_680_policy_manifest", "fixture_linux_rea_680_policy_test"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -314,7 +314,8 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_U680_DELTA_STATE",
         "REA_U680_RESTORE_STATUS",
         "REA_U680_DOCTOR_STATUS",
-        "REA_U680_MANIFEST_STATUS", "REA_U680_MANIFEST_STORAGE", "REA_U680_MANIFEST_SHA256", "REA_U680_MANIFEST_BYTES", "REA_U680_MANIFEST_COUNT", "REA_U680_MANIFEST_NEW_COUNT", "REA_U680_MANIFEST_EFFECT_CHANGED_COUNT", "REA_U680_DOCTOR_VERSION_EXIT", "REA_U680_DOCTOR_VERSION_MATCH", "REA_U680_DOCTOR_DOCTOR_EXIT", "REA_U680_DOCTOR_JSON", "REA_U680_DOCTOR_REPORT_FIELDS", "REA_U680_DOCTOR_HEALTHY", "REA_U680_DOCTOR_OK", "REA_U680_DOCTOR_EVIDENCE_READABLE", "REA_U680_DOCTOR_OLD_SERVICE_ACTIVE", "REA_U680_RESTORE_FILE", "REA_U680_RESTORE_FILE_BYTES", "REA_U680_RESTORE_SHA256", "REA_U680_RESTORE_RECORD_COUNT", "REA_U680_RESTORE_UNKNOWN_COUNT", "REA_U680_RESTORE_ARGS_SHA256", "REA_U680_DELTA_OLD_COUNT", "REA_U680_DELTA_NEW_COUNT", "REA_U680_DELTA_ADDED", "REA_U680_DELTA_REMOVED", "REA_U680_DELTA_CHANGED_EFFECTS", "REA_U680_DELTA_EFFECT_NAMES", "REA_U680_DELTA_MUTATING_COUNT", "REA_U680_DELTA_IMPORTANCE", "REA_U680_REHEARSAL_CATALOG_COUNT", "REA_U680_REHEARSAL_CATALOG_NAMES", "REA_U680_REHEARSAL_BACKUP_RESPONSE_FIELDS", "REA_U680_REHEARSAL_ARCHIVE_PARSE", "REA_U680_REHEARSAL_ARCHIVE_RECORD_COUNT", "REA_U680_REHEARSAL_ARCHIVE_UNKNOWN_COUNT", "REA_U680_REHEARSAL_IMPORT_RESULT", "REA_U680_REHEARSAL_POST_RECORD_COUNT", "REA_U680_REHEARSAL_POST_UNKNOWN_COUNT",
+        "REA_U680_MANIFEST_STATUS",
+        "REA_U680_POLICY_TEST", "REA_U680_POLICY_SCHEMA_MATCH_COUNT", "REA_U680_POLICY_READ_COUNT", "REA_U680_POLICY_WORKSPACE_COUNT", "REA_U680_POLICY_SENSITIVE_COUNT", "REA_U680_POLICY_ADDED_COUNT", "REA_U680_POLICY_NEW_WORKSPACE", "REA_U680_POLICY_NEW_READ", "REA_U680_POLICY_NEW_SENSITIVE", "REA_U680_MANIFEST_STORAGE", "REA_U680_MANIFEST_SHA256", "REA_U680_MANIFEST_BYTES", "REA_U680_MANIFEST_COUNT", "REA_U680_MANIFEST_NEW_COUNT", "REA_U680_MANIFEST_EFFECT_CHANGED_COUNT", "REA_U680_DOCTOR_VERSION_EXIT", "REA_U680_DOCTOR_VERSION_MATCH", "REA_U680_DOCTOR_DOCTOR_EXIT", "REA_U680_DOCTOR_JSON", "REA_U680_DOCTOR_REPORT_FIELDS", "REA_U680_DOCTOR_HEALTHY", "REA_U680_DOCTOR_OK", "REA_U680_DOCTOR_EVIDENCE_READABLE", "REA_U680_DOCTOR_OLD_SERVICE_ACTIVE", "REA_U680_RESTORE_FILE", "REA_U680_RESTORE_FILE_BYTES", "REA_U680_RESTORE_SHA256", "REA_U680_RESTORE_RECORD_COUNT", "REA_U680_RESTORE_UNKNOWN_COUNT", "REA_U680_RESTORE_ARGS_SHA256", "REA_U680_DELTA_OLD_COUNT", "REA_U680_DELTA_NEW_COUNT", "REA_U680_DELTA_ADDED", "REA_U680_DELTA_REMOVED", "REA_U680_DELTA_CHANGED_EFFECTS", "REA_U680_DELTA_EFFECT_NAMES", "REA_U680_DELTA_MUTATING_COUNT", "REA_U680_DELTA_IMPORTANCE", "REA_U680_REHEARSAL_CATALOG_COUNT", "REA_U680_REHEARSAL_CATALOG_NAMES", "REA_U680_REHEARSAL_BACKUP_RESPONSE_FIELDS", "REA_U680_REHEARSAL_ARCHIVE_PARSE", "REA_U680_REHEARSAL_ARCHIVE_RECORD_COUNT", "REA_U680_REHEARSAL_ARCHIVE_UNKNOWN_COUNT", "REA_U680_REHEARSAL_IMPORT_RESULT", "REA_U680_REHEARSAL_POST_RECORD_COUNT", "REA_U680_REHEARSAL_POST_UNKNOWN_COUNT",
         "REA_U680_RESUME_SELECTED_NODE","REA_U680_RESUME_NODE_ENV",
         "REA_U680_RESUME_NPM_CI_EXIT","REA_U680_RESUME_OFFICIAL_BUILD_EXIT",
         "REA_U680_RESUME_CLI",
@@ -3158,6 +3159,67 @@ def main():
         print("REA_U680_MANIFEST_NEW_COUNT="+str(len(new)))
         print("REA_U680_MANIFEST_EFFECT_CHANGED_COUNT="+str(len(diff)))
         print("REA_U680_MANIFEST_STATUS=PASS_PINNED_OFFICIAL_PRIVATE")
+        return
+    if data["action"] == "fixture_linux_rea_680_policy_test":
+        # Verify release-attested manifest against every new advertised input
+        # contract using the existing bridge policy, without new MCP process.
+        import collections
+        stage=Path("/opt/rea-reversa/upgrades/rea-6.8.0-160d821ac9a0")
+        if not (stage/"dist/contracts/toolContracts.js").is_file():
+            print("REA_U680_POLICY_TEST=BLOCKED_SOURCE")
+            return
+        pid=subprocess.run(["systemctl","show","rea-reversa-mcp.service",
+             "-p","MainPID","--value"],capture_output=True,text=True,timeout=12).stdout.strip()
+        if not pid.isdecimal() or int(pid)<1:
+            print("REA_U680_POLICY_TEST=BLOCKED_CURRENT_SERVICE")
+            return
+        p=subprocess.run(["sudo","-n","readlink","-f",f"/proc/{int(pid)}/exe"],
+             capture_output=True,text=True,timeout=12,check=False)
+        if p.returncode or not p.stdout.strip().endswith("/node"):
+            print("REA_U680_POLICY_TEST=BLOCKED_NODE")
+            return
+        env={"PATH":str(Path(p.stdout.strip()).parent)+":"+os.environ.get("PATH","/usr/bin:/bin"),
+             "HOME":str(Path.home()),"NO_COLOR":"1"}
+        js="import { TOOL_CONTRACTS } from \"./dist/contracts/toolContracts.js\";\nimport { advertisedInputJsonSchema } from \"./dist/contracts/toolSchemaMetadata.js\";\nimport { presentAdvertisedInputSchema } from \"./dist/contracts/compactInputSchema.js\";\nimport { compactPresentationForMcpInputSchemaProfile } from \"./dist/config/mcpInputSchemaProfile.js\";\nconst p=compactPresentationForMcpInputSchemaProfile(undefined);\nfor(const c of TOOL_CONTRACTS) {\n process.stdout.write(JSON.stringify({name:c.name, inputSchema:presentAdvertisedInputSchema(advertisedInputJsonSchema(c),p), annotations:c.annotations})+\"\\n\");\n}"
+        out=subprocess.run(["node","--input-type=module","--eval",js],
+                           cwd=stage,env=env,capture_output=True,text=True,
+                           timeout=100,check=False)
+        if out.returncode:
+            print("REA_U680_POLICY_TEST=BLOCKED_JS")
+            return
+        definitions=[json.loads(z) for z in out.stdout.splitlines()]
+        registry={x["name"]:x for x in definitions}
+        if len(registry)!=229:
+            print("REA_U680_POLICY_TEST=BLOCKED_TOOL_COUNT")
+            return
+        audit=secure._release680_verified_policy(registry)
+        counts=collections.Counter()
+        matches=0
+        risks={}
+        for name,desc in registry.items():
+            if secure.arguments_sha256(desc["inputSchema"])==audit[1][name]:
+                matches+=1
+            risk=secure.classify(name,desc,set(safe_callable),audit)
+            risks[name]=risk
+            counts[risk]+=1
+        if matches!=229:
+            print("REA_U680_POLICY_TEST=BLOCKED_SCHEMA_MISMATCH_"+str(matches))
+            return
+        for name in ("install_adb_package","cutter_command","gdb_console",
+                     "import_evidence_bundle","close_binary"):
+            if risks.get(name)!="sensitive":
+                print("REA_U680_POLICY_TEST=BLOCKED_MUTATION_UNPROTECTED")
+                return
+        print("REA_U680_POLICY_SCHEMA_MATCH_COUNT="+str(matches))
+        print("REA_U680_POLICY_READ_COUNT="+str(counts["read"]))
+        print("REA_U680_POLICY_WORKSPACE_COUNT="+str(counts["workspace"]))
+        print("REA_U680_POLICY_SENSITIVE_COUNT="+str(counts["sensitive"]))
+        new=sorted(set(registry)-set(tool_by_name))
+        print("REA_U680_POLICY_ADDED_COUNT="+str(len(new)))
+        print("REA_U680_POLICY_NEW_WORKSPACE="+str(sum(risks[n]=="workspace" for n in new)))
+        print("REA_U680_POLICY_NEW_READ="+str(sum(risks[n]=="read" for n in new)))
+        print("REA_U680_POLICY_NEW_SENSITIVE="+str(sum(risks[n]=="sensitive" for n in new)))
+        print("REA_U680_POLICY_TEST=PASS_PINNED_ORIGINAL_229_ALL_SCHEMAS")
         return
     if data["action"] == "fixture_linux_install_inventory":
         # Audit original Linux REA installation; no installation, no restart.
