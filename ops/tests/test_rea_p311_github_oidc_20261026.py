@@ -4,6 +4,9 @@ No OIDC token from the real owner's GitHub account is captured, uploaded or
 printed. No environment rules are changed and no SSH or MCP calls occur.
 """
 import base64
+from contextlib import redirect_stdout
+import io
+import os
 from datetime import datetime, timedelta, timezone
 import json
 import unittest
@@ -122,6 +125,120 @@ class P311GithubOIDCReviewTests(unittest.TestCase):
             self.signed if task is None else task,
             self.mint() if jwt is None else jwt, self.jwks,
             request_path=self.path, now=self.now)
+
+    def test_runner_oidc_token_url_pinned_to_github_shards(self):
+        examples = (
+            "https://pipelines.actions.githubusercontent.com/job/path/idtoken?api-version=2.0",
+            "https://pipelinesghubeus6.actions.githubusercontent.com/job/idtoken?api-version=2.0",
+        )
+        for source in examples:
+            with self.subTest(source=source):
+                got = oidc._actions_audience_request_url(source, self.request)
+                self.assertIn("audience=rea-p311-consent%3A", got)
+                self.assertIn("api-version=2.0", got)
+                self.assertEqual(source.split("?")[0], got.split("?")[0])
+        for malicious in (
+            "http://pipelines.actions.githubusercontent.com/job/idtoken?api-version=2.0",
+            "https://pipelines.actions.githubusercontent.com.attacker.test/x/idtoken?api-version=2.0",
+            "https://pipelines.actions.githubusercontent.com@evil.test/idtoken?api-version=2.0",
+            "https://pipelines.actions.githubusercontent.com:8443/idtoken?api-version=2.0",
+            "https://pipelines.actions.githubusercontent.com/x/idtoken?api-version=2.0&audience=evil",
+            "https://pipelines.actions.githubusercontent.com/x/idtoken?api-version=1.0",
+            "https://pipelines.actions.githubusercontent.com/x/idtoken?api-version=2.0#fragment",
+            "https://token.actions.githubusercontent.com/.well-known/jwks",
+        ):
+            with self.subTest(malicious=malicious), self.assertRaises(
+                    oidc.GithubOIDCError):
+                oidc._actions_audience_request_url(malicious, self.request)
+
+    def test_runner_token_exchange_never_uses_untrusted_provider(self):
+        endpoint = ("https://pipelinesghubeus6.actions.githubusercontent.com/"
+                    "fake/job/idtoken?api-version=2.0")
+        jwt = self.mint()
+        class Response:
+            def __init__(self, url):
+                self.url = url
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                return False
+            def geturl(self):
+                return self.url
+            def read(self, size):
+                return json.dumps({"value": jwt}).encode()
+        class Opener:
+            def open(self, req, timeout):
+                self.req = req
+                self.timeout = timeout
+                return Response(req.full_url)
+        opener = Opener()
+        with mock.patch.object(oidc.urlrequest, "build_opener",
+                               return_value=opener):
+            token = oidc.request_actions_oidc_jwt(
+                public_request=self.request, endpoint=endpoint,
+                bearer="t"*120)
+        self.assertEqual(jwt, token)
+        self.assertIn("Authorization", dict(opener.req.header_items()))
+        self.assertIn("audience=rea-p311-consent", opener.req.full_url)
+
+    def test_token_exchange_without_job_identity_fails_without_network(self):
+        endpoint = ("https://pipelines.actions.githubusercontent.com/"
+                    "somejob/idtoken?api-version=2.0")
+        with mock.patch.object(oidc.urlrequest, "build_opener") as opener:
+            with self.assertRaises(oidc.GithubOIDCError):
+                oidc.request_actions_oidc_jwt(
+                    public_request=self.request, endpoint=endpoint, bearer="")
+            opener.assert_not_called()
+
+    def test_preview_runtime_validates_real_review_and_jwt_without_vps(self):
+        with mock.patch.object(gate, "_runtime_context", return_value=self.ctx), \
+             mock.patch.object(gate, "selected_request_from_commit",
+                               return_value=self.path), \
+             mock.patch.object(gate, "_load_request", return_value=self.request), \
+             mock.patch.object(gate, "_get_github_api",
+                               side_effect=[self.run, self.review]), \
+             mock.patch.object(oidc, "request_actions_oidc_jwt",
+                               return_value=self.mint()), \
+             mock.patch.object(oidc, "load_official_github_jwks",
+                               return_value=self.jwks):
+            with mock.patch.object(oidc, "verify_github_oidc_jwt",
+                                   wraps=oidc.verify_github_oidc_jwt) as verify:
+                result = oidc.preview_real_oidc_owner_button(
+                    request_path=self.path)
+                verify.assert_called_once()
+        self.assertTrue(result["oidc_review_preview_only"])
+        self.assertEqual(self.run["id"], result["run_id"])
+        self.assertNotIn("jwt", result)
+        self.assertNotIn("signed_task", result)
+
+    def test_preview_runtime_requires_genuine_human_approval(self):
+        with mock.patch.object(gate, "_runtime_context", return_value=self.ctx), \
+             mock.patch.object(gate, "selected_request_from_commit",
+                               return_value=self.path), \
+             mock.patch.object(gate, "_load_request", return_value=self.request), \
+             mock.patch.object(gate, "_get_github_api",
+                               side_effect=[self.run, []]), \
+             mock.patch.object(oidc, "request_actions_oidc_jwt") as mint:
+            with self.assertRaises(gate.ApprovalGateError):
+                oidc.preview_real_oidc_owner_button(
+                    request_path=self.path)
+            mint.assert_not_called()
+
+    def test_oidc_preview_job_never_runs_mcp_and_minimizes_token_scope(self):
+        from pathlib import Path
+        workflow = (Path(__file__).resolve().parents[2] /
+                    gate.WORKFLOW).read_text(encoding="utf-8")
+        self.assertIn("id-token: write", workflow)
+        self.assertEqual(workflow.count("id-token: write"), 1)
+        protected = workflow.split("  wait-for-real-owner-button:", 1)[1]
+        self.assertIn("environment:\n      name: rea-p311-owner-consent", protected)
+        self.assertIn("id-token: write", protected.split("environment:", 1)[0])
+        self.assertIn("python\" -m ops.rea_p311_github_oidc_20261026", protected)
+        for dangerous in ("VPS_SSH_PASSWORD", "sshpass", "tools/call",
+                          "REA_P311_SCOPED_TASKS", "contents: write",
+                          "deployments: write", "sudo ", "workflow_dispatch"):
+            with self.subTest(dangerous=dangerous):
+                self.assertNotIn(dangerous, workflow)
 
     def test_joint_owner_button_and_oidc_signature_are_required(self):
         receipt = self.full()
