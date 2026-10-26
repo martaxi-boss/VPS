@@ -289,7 +289,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_MOBILE_READONLY_HINT_COUNT", "REA_MOBILE_STATIC_INSPECT_COUNT",
         "REA_MOBILE_SAFE_QUERY_COUNT", "REA_MOBILE_SAFE_CALLABLE_COUNT",
         "REA_MOBILE_LEGACY_NAME_COUNT", "REA_MOBILE_WORKSPACE_CALLABLE_COUNT",
-        "REA_TRIO_PLATFORM", "REA_TRIO_SERVICE_HOME_AVAILABLE", "REA_TRIO_ENGINE_SOURCE", "REA_TRIO_CUTTER_BRIDGE_GIT_BLOB", "REA_TRIO_CUTTER_BINARY", "REA_TRIO_IDA_PLUGIN_PRESENT", "REA_TRIO_JEB_PRESENT", "REA_TRIO_PRIVILEGED_INSTALL", "REA_TRIO_STORAGE_GIB", "REA_TRIO_JAVA_PRESENT", "REA_TRIO_JEB_HEAD_HTTP", "REA_TRIO_JEB_HEAD_BYTES", "REA_TRIO_PREFLIGHT",
+        "REA_TRIO_PLATFORM", "REA_TRIO_SERVICE_HOME_AVAILABLE", "REA_TRIO_ENGINE_SOURCE", "REA_TRIO_CUTTER_BRIDGE_GIT_BLOB", "REA_TRIO_CUTTER_BINARY", "REA_TRIO_IDA_PLUGIN_PRESENT", "REA_TRIO_JEB_PRESENT", "REA_TRIO_PRIVILEGED_INSTALL", "REA_TRIO_STORAGE_GIB", "REA_TRIO_JAVA_PRESENT", "REA_TRIO_JEB_HEAD_HTTP", "REA_TRIO_JEB_HEAD_BYTES", "REA_TRIO_PREFLIGHT", "REA_TRIO_CUTTER_RUNTIME_REASON", "REA_TRIO_FUSE2_PRESENT", "REA_TRIO_FUSE2_APT_CANDIDATE",
         "REA_TRIO_CUTTER_STATUS", "REA_TRIO_CUTTER_SOURCE_BLOB", "REA_TRIO_CUTTER_GUI_PROBE", "REA_TRIO_IDA_STATUS", "REA_TRIO_IDA_HOST", "REA_TRIO_JEB_SHA256", "REA_TRIO_JEB_STATUS", "REA_TRIO_JEB_FIRST_USE", "REA_TRIO_SERVICE_ACTIVE", "REA_TRIO_NO_REA_RESTART", "REA_TRIO_RESULT",
         "REA_MOBILE_SIGNATURE_REQUIRED_COUNT", "REA_MOBILE_VALIDATED_SCHEMA_COUNT",
         "REA_MOBILE_AUDITED_SCHEMA_MATCH_COUNT",
@@ -2416,6 +2416,31 @@ def main():
              stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=10).returncode==0).lower())
         print("REA_TRIO_STORAGE_GIB="+str(shutil.disk_usage(root).free//(1024**3)))
         print("REA_TRIO_JAVA_PRESENT="+str(shutil.which("java") is not None).lower())
+        cutter_probe=subprocess.run(["sudo","-n","-u","rea-reversa","env",
+           "QT_QPA_PLATFORM=offscreen",str(cutter),"--version"],
+           capture_output=True,text=True,timeout=18,check=False)
+        diag=(cutter_probe.stderr+"\n"+cutter_probe.stdout).lower()
+        if "libfuse.so.2" in diag or "fuse" in diag:
+            problem="FUSE_RUNTIME_MISSING"
+        elif "qt.qpa" in diag or "xcb" in diag:
+            problem="QT_DISPLAY_RUNTIME"
+        elif "permission denied" in diag:
+            problem="EXECUTION_PERMISSION"
+        elif cutter_probe.returncode==0:
+            problem="CLI_OK"
+        else:
+            problem="OTHER_EXIT_"+str(cutter_probe.returncode)
+        print("REA_TRIO_CUTTER_RUNTIME_REASON="+problem)
+        fuse=subprocess.run(["ldconfig","-p"],capture_output=True,
+                             text=True,timeout=15,check=False)
+        print("REA_TRIO_FUSE2_PRESENT="+str("libfuse.so.2" in fuse.stdout).lower())
+        candidate=subprocess.run(["apt-cache","policy","libfuse2t64"],capture_output=True,
+                                  text=True,timeout=15,check=False)
+        present=[v.strip().split(":",1)[1].strip() for v in candidate.stdout.splitlines()
+                 if v.strip().startswith("Candidate:")]
+        print("REA_TRIO_FUSE2_APT_CANDIDATE="+str(bool(present) and
+             present[0] not in ("(none)","none")).lower())
+
         try:
             req=urlrequest.Request(jid,method="HEAD",headers={"User-Agent":"REA-original-JEBCE-setup/1"})
             with urlrequest.urlopen(req,timeout=20) as reply:
