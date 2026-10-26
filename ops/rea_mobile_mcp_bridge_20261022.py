@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_rea_680_preflight"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -286,6 +286,17 @@ def encrypt_result(raw_path, request_path, envelope_path):
     private = None
     allowed_markers = {
         "REA_MOBILE_LOOPBACK_MCP", "REA_MOBILE_MCP_TOOL_COUNT",
+        "REA_U680_SOURCE_IS_DIR", "REA_U680_SOURCE_GIT", "REA_U680_SOURCE_OWNER",
+        "REA_U680_INSTALLED_VERSION", "REA_U680_NODE_PRESENT", "REA_U680_NPM_PRESENT",
+        "REA_U680_GIT_PRESENT", "REA_U680_DISK_GIB", "REA_U680_EXISTING_DEPENDENCIES",
+        "REA_U680_EXISTING_BUILD", "REA_U680_SERVICE_USER_CORRECT",
+        "REA_U680_SERVICE_ACTIVE", "REA_U680_SERVICE_PID_VALID",
+        "REA_U680_EXEC_SOURCE_PATH", "REA_U680_SERVICE_ENVFILE",
+        "REA_U680_SERVICE_DROPINS", "REA_U680_STAGE_EXISTS", "REA_U680_CAN_ADMIN",
+        "REA_U680_ORIGINAL_GIT_SHA", "REA_U680_MCP_COUNT",
+        "REA_U680_GET_EVIDENCE_BUNDLE_READ", "REA_U680_GET_EVIDENCE_BUNDLE_BYTES",
+        "REA_U680_LIST_UNKNOWNS_READ", "REA_U680_LIST_UNKNOWNS_BYTES",
+        "REA_U680_MCP_PREFLIGHT", "REA_U680_PREFLIGHT",
         "REA_MOBILE_READONLY_HINT_COUNT", "REA_MOBILE_STATIC_INSPECT_COUNT",
         "REA_MOBILE_SAFE_QUERY_COUNT", "REA_MOBILE_SAFE_CALLABLE_COUNT",
         "REA_MOBILE_LEGACY_NAME_COUNT", "REA_MOBILE_WORKSPACE_CALLABLE_COUNT",
@@ -2386,6 +2397,83 @@ def main():
             1 for line in result.stdout.splitlines() if line.split()[-1:] in
             (["node"],["nodejs"]))))
         print("REA_PREFLIGHT_COMPLETE=PASS_READ_ONLY")
+        return
+    if data["action"] == "fixture_linux_rea_680_preflight":
+        # Exact one-use read-only release staging preflight.
+        # Do not mutate original source, REA process, signing keys or Evidence.
+        import shutil
+        import pwd
+        root=Path("/opt/rea-reversa/rea")
+        svc="rea-reversa-mcp.service"
+        owner=pwd.getpwnam("rea-reversa")
+        def sysprop(n):
+            z=subprocess.run(["systemctl","show",svc,"-p",n,"--value"],
+                 capture_output=True,text=True,timeout=12,check=False)
+            return z.stdout.strip() if z.returncode==0 else ""
+        node=shutil.which("node")
+        npm=shutil.which("npm")
+        git=shutil.which("git")
+        print("REA_U680_SOURCE_IS_DIR="+str(root.is_dir() and not root.is_symlink()).lower())
+        print("REA_U680_SOURCE_GIT="+str((root/".git").exists()).lower())
+        print("REA_U680_SOURCE_OWNER="+str(root.stat().st_uid==owner.pw_uid).lower())
+        pkg=root/"package.json"
+        if not pkg.is_file():
+            print("REA_U680_PREFLIGHT=BLOCKED_NO_ORIGINAL")
+            return
+        try:
+            m=json.loads(pkg.read_text())
+            print("REA_U680_INSTALLED_VERSION="+str(m.get("version","unknown"))[:30])
+        except (OSError,ValueError):
+            print("REA_U680_INSTALLED_VERSION=UNREADABLE")
+        print("REA_U680_NODE_PRESENT="+str(bool(node)).lower())
+        print("REA_U680_NPM_PRESENT="+str(bool(npm)).lower())
+        print("REA_U680_GIT_PRESENT="+str(bool(git)).lower())
+        print("REA_U680_DISK_GIB="+str(shutil.disk_usage("/opt/rea-reversa").free//1073741824))
+        print("REA_U680_EXISTING_DEPENDENCIES="+str((root/"node_modules").is_dir()).lower())
+        print("REA_U680_EXISTING_BUILD="+str((root/"dist").is_dir()).lower())
+        print("REA_U680_SERVICE_USER_CORRECT="+str(sysprop("User")=="rea-reversa").lower())
+        print("REA_U680_SERVICE_ACTIVE="+str(sysprop("ActiveState")=="active").lower())
+        print("REA_U680_SERVICE_PID_VALID="+str(sysprop("MainPID").isdigit() and int(sysprop("MainPID"))>0).lower())
+        print("REA_U680_EXEC_SOURCE_PATH="+str(str(root) in sysprop("ExecStart")).lower())
+        print("REA_U680_SERVICE_ENVFILE="+str(bool(sysprop("EnvironmentFiles"))).lower())
+        print("REA_U680_SERVICE_DROPINS="+str(len(sysprop("DropInPaths").split())))
+        stage=Path("/opt/rea-reversa/upgrades/rea-6.8.0-160d821ac9a0")
+        print("REA_U680_STAGE_EXISTS="+str(stage.exists() or stage.is_symlink()).lower())
+        checks=subprocess.run(["sudo","-n","true"],capture_output=True,timeout=15,check=False)
+        print("REA_U680_CAN_ADMIN="+str(checks.returncode==0).lower())
+        if git and (root/".git").exists():
+            g=subprocess.run(["sudo","-n","-u","rea-reversa","git","-C",str(root),"rev-parse","HEAD"],
+                    capture_output=True,text=True,timeout=15,check=False)
+            if g.returncode==0 and re.fullmatch(r"[0-9a-f]{40}",g.stdout.strip()):
+                print("REA_U680_ORIGINAL_GIT_SHA="+g.stdout.strip())
+        try:
+            init={"jsonrpc":"2.0","id":9680,"method":"initialize",
+              "params":{"protocolVersion":"2025-06-18","capabilities":{},
+                        "clientInfo":{"name":"REA official upgrade read-only preflight","version":"1"}}}
+            h,hello=request_mcp(init,timeout=18)
+            session=h.get("Mcp-Session-Id")
+            pv=hello.get("result",{}).get("protocolVersion")
+            request_mcp({"jsonrpc":"2.0","method":"notifications/initialized"},
+                        session,pv,timeout=10)
+            _,x=request_mcp({"jsonrpc":"2.0","id":9681,"method":"tools/list",
+                             "params":{}},session,pv,timeout=16)
+            print("REA_U680_MCP_COUNT="+str(len(x.get("result",{}).get("tools",[]))))
+            for name,arg in (("get_evidence_bundle",{"detail":"complete"}),
+                             ("list_unknowns",{})):
+                try:
+                    _,out=request_mcp({"jsonrpc":"2.0","id":9682,
+                       "method":"tools/call","params":{"name":name,"arguments":arg}},
+                       session,pv,timeout=25)
+                    result=out.get("result",{})
+                    print("REA_U680_"+name.upper()+"_READ="+
+                          ("ERROR" if "error" in out or result.get("isError") else "OK"))
+                    print("REA_U680_"+name.upper()+"_BYTES="+
+                          str(len(json.dumps(result))))
+                except (OSError,RuntimeError,ValueError,TypeError):
+                    print("REA_U680_"+name.upper()+"_READ=UNAVAILABLE")
+        except (OSError,RuntimeError,ValueError,TypeError):
+            print("REA_U680_MCP_PREFLIGHT=UNAVAILABLE")
+        print("REA_U680_PREFLIGHT=READ_ONLY_FINISHED")
         return
     if data["action"] == "fixture_linux_install_inventory":
         # Audit original Linux REA installation; no installation, no restart.
