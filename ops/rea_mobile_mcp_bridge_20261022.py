@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_frida_binding_p306"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -701,6 +701,68 @@ def main():
     print("REA_MOBILE_CATALOG_SAMPLE=" + json.dumps(
         list(tool_by_name)[:14], ensure_ascii=True
     ))
+    if data["action"] == "fixture_linux_frida_binding_p306":
+        # Single-use P306: prove the original REA 6.8.0 optional Frida binding
+        # loads under the existing service identity. No device discovery,
+        # installation, script injection, target attach, or MCP risk bypass.
+        def unit_value(key):
+            probe = subprocess.run(["systemctl", "show", "rea-reversa-mcp.service",
+                "-p", key, "--value"], capture_output=True, text=True,
+                timeout=10, check=False)
+            return probe.stdout.strip() if probe.returncode == 0 else ""
+        service_pid = unit_value("MainPID")
+        service_user = unit_value("User")
+        root = Path("/opt/rea-reversa/rea")
+        package_file = root / "package.json"
+        if (service_user != "rea-reversa" or unit_value("ActiveState") != "active"
+            or not service_pid.isdecimal() or int(service_pid) < 1
+            or not package_file.is_file()):
+            print("REA_P306_STATUS=BLOCKED_WRONG_RUNTIME")
+            return
+        upstream = json.loads(package_file.read_text())
+        pin = (upstream.get("optionalDependencies") or {}).get("frida")
+        if upstream.get("version") != "6.8.0" or pin != "17.23.2":
+            print("REA_P306_STATUS=BLOCKED_PIN_MISMATCH")
+            return
+        print("REA_P306_ORIGINAL_PIN=frida@17.23.2")
+        installed_file = root / "node_modules" / "frida" / "package.json"
+        installed = installed_file.is_file()
+        print("REA_P306_NODE_MODULE_PRESENT=" + str(installed).lower())
+        if not installed:
+            print("REA_P306_SERVICE_PID_UNCHANGED=" +
+                  str(service_pid == unit_value("MainPID")).lower())
+            print("REA_P306_STATUS=MISSING_OPTIONAL_BINDING")
+            return
+        installed_version = json.loads(installed_file.read_text()).get("version")
+        print("REA_P306_VERSION_MATCH=" + str(installed_version == pin).lower())
+        if installed_version != pin:
+            print("REA_P306_STATUS=INSTALLED_VERSION_MISMATCH")
+            return
+        inspect_js = (
+            "import('frida').then(m=>{const f=m.default??m;"
+            "const names=['enumerateDevices','attach','spawn','getDeviceManager'];"
+            "const funcs=Object.fromEntries(names.map(n=>[n,typeof f[n]==='function']));"
+            "console.log(JSON.stringify({functional_exports:funcs}));"
+            "}).catch(()=>process.exit(31));"
+        )
+        trial = subprocess.run(["sudo", "-n", "-u", service_user, "node",
+            "--input-type=module", "-e", inspect_js], cwd=str(root),
+            capture_output=True, text=True, timeout=35, check=False)
+        print("REA_P306_IMPORT_EXIT=" + str(trial.returncode))
+        try:
+            exports = json.loads(trial.stdout.strip()).get("functional_exports")
+        except (ValueError, AttributeError):
+            exports = None
+        healthy = (trial.returncode == 0 and isinstance(exports, dict)
+                   and exports.get("enumerateDevices") is True
+                   and exports.get("attach") is True
+                   and exports.get("spawn") is True)
+        print("REA_P306_API_EXPORTS_VALID=" + str(healthy).lower())
+        unchanged = service_pid == unit_value("MainPID")
+        print("REA_P306_SERVICE_PID_UNCHANGED=" + str(unchanged).lower())
+        print("REA_P306_STATUS=" +
+              ("PASS_NATIVE_BINDING" if healthy and unchanged else "BINDING_FAILED"))
+        return
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
               secure.request_public_key_b64(create=True))
