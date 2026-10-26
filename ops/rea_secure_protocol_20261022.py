@@ -1065,6 +1065,7 @@ def validate_inner(body, registry, safe_callable, now=None, *, scoped_task=None)
         raise SecureBridgeError("Invalid secure step count")
     verified_policy = _release680_verified_policy(registry)
     profiles = []
+    scoped_grant_was_verified = False
     opened_in_request = False
     for position, step in enumerate(steps):
         if not isinstance(step, dict) or set(step) not in (
@@ -1120,6 +1121,7 @@ def validate_inner(body, registry, safe_callable, now=None, *, scoped_task=None)
             # session checks above have passed. Defaults to legacy behaviour.
             if auth is None and scoped_task is not None and _p311_owner_scoped_grant(
                     scoped_task, name, args, risk, verified_policy, now):
+                scoped_grant_was_verified = True
                 profiles.append(risk)
                 continue
             required = {
@@ -1146,6 +1148,10 @@ def validate_inner(body, registry, safe_callable, now=None, *, scoped_task=None)
             if risk == "sensitive":
                 _verify_sensitive_owner_authorization(body, position, name, args, auth)
         profiles.append(risk)
+    if scoped_task is not None and not scoped_grant_was_verified:
+        # A stray grant on read-only or individually authorized batches must
+        # never masquerade as owner-verified task authorization.
+        raise SecureBridgeError("Scoped task approval was not used or verified")
     return profiles
 
 
