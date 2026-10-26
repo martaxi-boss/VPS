@@ -32,6 +32,7 @@ class ScopedTaskAuthorizationTests(unittest.TestCase):
             "tool": "recover_javascript_sources",
             "audited_effects": frozenset({"launchesProcess", "writesFilesystem", "mutatesSession"}),
             "current_risk": "sensitive", "now": now,
+            "arguments": {"path": self.grant["artifact_root"] + "/sample.bin"},
         }
 
     def signed(self, grant=None):
@@ -97,6 +98,30 @@ class ScopedTaskAuthorizationTests(unittest.TestCase):
         longer["expires_at"] = (self.params["now"] + timedelta(days=10)).strftime("%Y-%m-%dT%H:%M:%SZ")
         with self.assertRaises(a.ScopedApprovalError):
             self.check(grant=longer, sig=self.signed(longer))
+
+    def test_scoped_paths_fail_closed_for_foreign_targets_and_traversal(self):
+        root = self.grant["artifact_root"]
+        for value in ("/etc/passwd", "/usr/bin/true", root + "/../../secrets",
+                      "/opt/rea-reversa/rea/.rea-private/jobs/another-project/item",
+                      "relative.bin"):
+            with self.subTest(value=value), self.assertRaises(a.ScopedApprovalError):
+                self.check(arguments={"path": value})
+
+    def test_unbound_sessions_and_unconfined_signed_roots_denied(self):
+        for args in ({}, {"document": "foreign-document"},
+                     {"source_paths": ["/etc/passwd"]}):
+            with self.subTest(args=args), self.assertRaises(a.ScopedApprovalError):
+                self.check(arguments=args)
+        arbitrary = dict(self.grant, artifact_root="/etc")
+        with self.assertRaises(a.ScopedApprovalError):
+            self.check(grant=arbitrary, sig=self.signed(arbitrary), artifact_root="/etc")
+
+    def test_nested_paths_checked(self):
+        root = self.grant["artifact_root"]
+        self.assertTrue(self.check(arguments={"artifacts": [{"file": root + "/a"}]}))
+        with self.assertRaises(a.ScopedApprovalError):
+            self.check(arguments={"artifacts": [{"file": root + "/a"},
+                                               {"output_path": "/tmp/escape"}]})
 
     def test_missing_or_corrupt_signature_denied(self):
         for signature in ("", "****", "AAAA"):
