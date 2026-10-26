@@ -428,7 +428,8 @@ class P311GithubOIDCReviewTests(unittest.TestCase):
 
 
     def _trusted_github_responses(self):
-        run = {**self.run, "repository": {
+        run = {**self.run, "status": "completed", "conclusion": "success",
+            "repository": {
             "full_name": oidc.REPO, "id": int(oidc.REPOSITORY_ID)},
             "head_repository": {
                 "full_name": oidc.REPO, "id": int(oidc.REPOSITORY_ID)},
@@ -468,6 +469,48 @@ class P311GithubOIDCReviewTests(unittest.TestCase):
              "/git/blobs/" + self.commit["files"][0]["sha"]])
         self.assertNotIn("owner_signature", receipt)
         self.assertNotIn("jwt", receipt)
+
+
+    def test_rest_adapter_rejects_approved_but_failed_or_pending_run(self):
+        self._prepare_private_consumption()
+        valid_run = self._trusted_github_responses()[0]
+        cases = (
+            ("in_progress", None),
+            ("queued", None),
+            ("completed", "failure"),
+            ("completed", "cancelled"),
+            ("completed", "skipped"),
+            ("completed", None),
+            (None, "success"),
+        )
+        for status, conclusion in cases:
+            run = {**valid_run, "status": status, "conclusion": conclusion}
+            with self.subTest(status=status, conclusion=conclusion), \
+                 mock.patch.object(oidc, "_p311_github_rest_get",
+                                   return_value=run) as fetch, \
+                 self.assertRaisesRegex(
+                     oidc.GithubOIDCError, "completed successfully"):
+                oidc.fetch_trusted_owner_review_evidence(
+                    self.run["id"], self.request["request_id"],
+                    github_token="g"*48, now=self.now)
+            fetch.assert_called_once()
+            self.assertEqual([], list(self.spent.iterdir()))
+        # An owner approval from a cancelled workflow is not reusable.
+        with mock.patch.object(oidc, "_p311_github_rest_get",
+                               return_value={**valid_run,
+                                             "status": "completed",
+                                             "conclusion": "cancelled"}) as fetch, \
+             mock.patch.object(oidc, "load_official_github_jwks",
+                               return_value=self.jwks), \
+             self.assertRaises(oidc.GithubOIDCError):
+            oidc.verify_trusted_owner_review_oidc_and_consume_once(
+                self.run["id"], self.request["request_id"],
+                self.signed, self.mint(), self.owner_public,
+                self.trusted_contracts, github_token="g"*48,
+                revocation_dir=self.revocations,
+                private_spent_dir=self.spent, now=self.now)
+        fetch.assert_called_once()
+        self.assertFalse(list(self.spent.iterdir()))
 
     def test_rest_adapter_rejects_cross_repo_proof_without_spending(self):
         self._prepare_private_consumption()

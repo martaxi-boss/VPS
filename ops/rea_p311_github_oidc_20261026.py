@@ -504,6 +504,12 @@ def fetch_trusted_owner_review_evidence(
         "/actions/runs/" + str(run_id), token=github_token)
     if not isinstance(run, dict) or run.get("id") != run_id:
         raise GithubOIDCError("GitHub returned a different workflow run")
+    # ONLY the future server-side consumption path requires a finished,
+    # successful job. The in-job OIDC preview remains independently usable
+    # while its own workflow is still in progress.
+    if run.get("status") != "completed" or run.get("conclusion") != "success":
+        raise GithubOIDCError(
+            "Owner-review workflow has not completed successfully")
     sha = run.get("head_sha")
     if not isinstance(sha, str) or not gate.HEX40.fullmatch(sha):
         raise GithubOIDCError("GitHub reviewed run SHA malformed")
