@@ -746,6 +746,113 @@ class P311GithubOIDCReviewTests(unittest.TestCase):
         self.assertEqual([], list(self.spent.iterdir()))
         self.assertEqual([], list(private_registry.iterdir()))
 
+
+    def test_protected_job_captures_only_verified_encrypted_oidc(self):
+        secure, key, pub = self._temporary_transport_key()
+        jwt = self.mint()
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.dict(os.environ, {"RUNNER_TEMP": tmp}), \
+             mock.patch.object(gate, "_runtime_context", return_value=self.ctx), \
+             mock.patch.object(gate, "selected_request_from_commit",
+                               return_value=self.path), \
+             mock.patch.object(gate, "_load_request", return_value=self.request), \
+             mock.patch.object(gate, "_get_github_api",
+                               side_effect=[self.run, self.review]), \
+             mock.patch.object(oidc, "request_actions_oidc_jwt",
+                               return_value=jwt), \
+             mock.patch.object(oidc, "load_official_github_jwks",
+                               return_value=self.jwks):
+            receipt = oidc.preview_real_oidc_owner_button(
+                request_path=self.path, recipient_public_key_b64=pub)
+            artifact = Path(tmp) / oidc.SEALED_PREVIEW_NAME
+            self.assertTrue(artifact.is_file())
+            self.assertEqual(0o600, artifact.stat().st_mode & 0o777)
+            raw = artifact.read_text()
+            self.assertNotIn(jwt, raw)
+            self.assertNotIn(self.signed["owner_signature"], raw)
+            with mock.patch.object(secure, "private_key", return_value=key), \
+                 mock.patch.object(secure, "request_public_key_b64",
+                                   return_value=pub):
+                self.assertEqual(
+                    jwt, oidc.open_sealed_oidc_using_existing_vps_key(
+                        json.loads(raw), expected_run_id=self.run["id"],
+                        expected_request_id=self.request["request_id"]))
+        self.assertTrue(receipt["encrypted_transport_preview_only"])
+        self.assertNotIn("jwt", receipt)
+
+    def test_protected_job_rejection_never_mints_or_writes_transport(self):
+        _, _, pub = self._temporary_transport_key()
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.dict(os.environ, {"RUNNER_TEMP": tmp}), \
+                 mock.patch.object(gate, "_runtime_context", return_value=self.ctx), \
+                 mock.patch.object(gate, "selected_request_from_commit",
+                                   return_value=self.path), \
+                 mock.patch.object(gate, "_load_request", return_value=self.request), \
+                 mock.patch.object(gate, "_get_github_api",
+                                   side_effect=[self.run, []]), \
+                 mock.patch.object(oidc, "request_actions_oidc_jwt") as minted, \
+                 self.assertRaises(gate.ApprovalGateError):
+                oidc.preview_real_oidc_owner_button(
+                    request_path=self.path, recipient_public_key_b64=pub)
+            minted.assert_not_called()
+            self.assertFalse((Path(tmp) / oidc.SEALED_PREVIEW_NAME).exists())
+
+    def test_protected_job_rejects_expired_jwt_without_ciphertext_artifact(self):
+        _, _, pub = self._temporary_transport_key()
+        expired = {**self.claims,
+                   "iat": int(self.now.timestamp()) - 1000,
+                   "exp": int(self.now.timestamp()) - 500}
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.dict(os.environ, {"RUNNER_TEMP": tmp}), \
+                 mock.patch.object(gate, "_runtime_context", return_value=self.ctx), \
+                 mock.patch.object(gate, "selected_request_from_commit",
+                                   return_value=self.path), \
+                 mock.patch.object(gate, "_load_request", return_value=self.request), \
+                 mock.patch.object(gate, "_get_github_api",
+                                   side_effect=[self.run, self.review]), \
+                 mock.patch.object(oidc, "request_actions_oidc_jwt",
+                                   return_value=self.mint(claims=expired)), \
+                 mock.patch.object(oidc, "load_official_github_jwks",
+                                   return_value=self.jwks), \
+                 self.assertRaises(oidc.GithubOIDCError):
+                oidc.preview_real_oidc_owner_button(
+                    request_path=self.path, recipient_public_key_b64=pub)
+            self.assertFalse((Path(tmp) / oidc.SEALED_PREVIEW_NAME).exists())
+
+    def test_protected_job_cannot_overwrite_an_existing_artifact(self):
+        _, _, pub = self._temporary_transport_key()
+        with tempfile.TemporaryDirectory() as tmp:
+            expected = Path(tmp) / oidc.SEALED_PREVIEW_NAME
+            expected.write_text("preserve", encoding="utf-8")
+            with mock.patch.dict(os.environ, {"RUNNER_TEMP": tmp}), \
+                 mock.patch.object(gate, "_runtime_context", return_value=self.ctx), \
+                 mock.patch.object(gate, "selected_request_from_commit",
+                                   return_value=self.path), \
+                 mock.patch.object(gate, "_load_request", return_value=self.request), \
+                 mock.patch.object(gate, "_get_github_api",
+                                   side_effect=[self.run, self.review]), \
+                 mock.patch.object(oidc, "request_actions_oidc_jwt",
+                                   return_value=self.mint()), \
+                 mock.patch.object(oidc, "load_official_github_jwks",
+                                   return_value=self.jwks), \
+                 self.assertRaisesRegex(oidc.GithubOIDCError, "already exists"):
+                oidc.preview_real_oidc_owner_button(
+                    request_path=self.path, recipient_public_key_b64=pub)
+            self.assertEqual("preserve", expected.read_text())
+
+    def test_workflow_ciphertext_only_behind_protected_recipient(self):
+        workflow = (Path(__file__).resolve().parents[2] /
+                    gate.WORKFLOW).read_text(encoding="utf-8")
+        self.assertIn("secrets.REA_P311_VPS_RECIPIENT_PUBLIC_B64", workflow)
+        self.assertIn("steps.oidc.outputs.sealed == 'true'", workflow)
+        self.assertIn("rea-p311-oidc-encrypted.json", workflow)
+        self.assertIn("retention-days: 1", workflow)
+        self.assertIn("actions/upload-artifact@", workflow)
+        for forbidden in (
+                "VPS_SSH_PASSWORD", "sshpass", "tools/call",
+                "REA_P311_SCOPED_TASKS", "contents: write"):
+            self.assertNotIn(forbidden, workflow)
+
     def test_joint_owner_button_and_oidc_signature_are_required(self):
         receipt = self.full()
         self.assertTrue(receipt["owner_button_and_oidc_preview_only"])

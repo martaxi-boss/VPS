@@ -52,7 +52,11 @@ jobs:
           REA_REQUEST_FILE: ${{ needs.check-preview-request.outputs.request_file }}
         run: python3 ops/rea_p311_owner_gate_20261026.py --mode verify-review --request "$REA_REQUEST_FILE"
       - name: Validate GitHub-signed OIDC token for this approved job (preview)
+        id: oidc
         env:
+          # Public key, stored by the owner in this PROTECTED environment.
+          # Missing means review-only; NEVER fetch an untrusted key from a request.
+          REA_P311_VPS_RECIPIENT_PUBLIC_B64: ${{ secrets.REA_P311_VPS_RECIPIENT_PUBLIC_B64 }}
           GITHUB_TOKEN: ${{ github.token }}
           REA_REQUEST_FILE: ${{ needs.check-preview-request.outputs.request_file }}
         run: |
@@ -60,6 +64,17 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/rea-p311-oidc-only"
           "$RUNNER_TEMP/rea-p311-oidc-only/bin/python" -m pip install --quiet --disable-pip-version-check cryptography==46.0.3
           "$RUNNER_TEMP/rea-p311-oidc-only/bin/python" -m ops.rea_p311_github_oidc_20261026 --request "$REA_REQUEST_FILE"
+          if test -f "$RUNNER_TEMP/rea-p311-oidc-encrypted.json"; then
+            echo "sealed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Upload ONLY encrypted owner OIDC preview, if recipient provisioned
+        if: steps.oidc.outputs.sealed == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: rea-p311-oidc-encrypted-preview
+          path: ${{ runner.temp }}/rea-p311-oidc-encrypted.json
+          if-no-files-found: error
+          retention-days: 1
       - name: Preview confirmation only - no REA or VPS execution
         run: |
           echo "REA_P311_OWNER_BUTTON_PREVIEW_ONLY=PASS"

@@ -802,7 +802,54 @@ def request_actions_oidc_jwt(*, public_request, endpoint=None, bearer=None):
     return token
 
 
-def preview_real_oidc_owner_button(*, request_path):
+
+SEALED_PREVIEW_NAME = "rea-p311-oidc-encrypted.json"
+
+
+def _write_verified_sealed_oidc_preview(sealed):
+    """Save ciphertext ONLY in the preexisting GitHub runner temp directory.
+
+    The file is never plaintext. Refuse a preexisting path/symlink; do not
+    publish JWTs, GitHub bearer tokens, Ed25519 grants or private RSA keys.
+    """
+    temp = os.environ.get("RUNNER_TEMP")
+    if not isinstance(temp, str) or not temp.startswith("/") or len(temp) > 1024:
+        raise GithubOIDCError("Trusted GitHub runner temp directory unavailable")
+    parent = Path(temp)
+    if parent.is_symlink() or not parent.is_dir():
+        raise GithubOIDCError("Untrusted protected-job temporary directory")
+    raw = (json.dumps(sealed, sort_keys=True, separators=(",", ":"),
+                      ensure_ascii=True) + "\n").encode("ascii")
+    if not 100 < len(raw) <= 90000:
+        raise GithubOIDCError("Invalid encrypted OIDC proof output size")
+    try:
+        dirfd = os.open(parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        try:
+            meta = os.fstat(dirfd)
+            if not stat.S_ISDIR(meta.st_mode) or meta.st_uid != os.geteuid():
+                raise GithubOIDCError("Untrusted runner output ownership")
+            try:
+                fd = os.open(SEALED_PREVIEW_NAME,
+                             os.O_WRONLY | os.O_CREAT | os.O_EXCL |
+                             os.O_NOFOLLOW, 0o600, dir_fd=dirfd)
+            except FileExistsError as exc:
+                raise GithubOIDCError(
+                    "Encrypted owner review preview already exists") from exc
+            with os.fdopen(fd, "wb") as stream:
+                stream.write(raw)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.fsync(dirfd)
+        finally:
+            os.close(dirfd)
+    except OSError as exc:
+        raise GithubOIDCError(
+            "Encrypted owner review artifact write failed") from exc
+    return True
+
+
+def preview_real_oidc_owner_button(*, request_path,
+                                   recipient_public_key_b64=None):
     """Actual GitHub-runner OIDC check, preview ONLY (no owner permission).
 
     This job verifies GitHub REST approval and source context independently.
@@ -836,7 +883,15 @@ def preview_real_oidc_owner_button(*, request_path):
             identity["review_id"] != proof["request_id"] or
             identity["operation_sha256"] != proof["operation_sha256"]):
         raise GithubOIDCError("GitHub button and token disagree")
+    if recipient_public_key_b64 is not None:
+        if not isinstance(recipient_public_key_b64, str) or not recipient_public_key_b64:
+            raise GithubOIDCError("Trusted recipient key must be provisioned")
+        packet = seal_protected_job_oidc_for_existing_bridge(
+            run_id=proof["run_id"], request_id=proof["request_id"],
+            jwt=jwt, recipient_public_key_b64=recipient_public_key_b64)
+        _write_verified_sealed_oidc_preview(packet)
     return {"oidc_review_preview_only": True,
+            "encrypted_transport_preview_only": recipient_public_key_b64 is not None,
             "run_id": proof["run_id"], "request_id": proof["request_id"]}
 
 
@@ -844,7 +899,12 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="REA P311 OIDC preview - no VPS")
     parser.add_argument("--request", required=True)
     args = parser.parse_args(argv)
-    result = preview_real_oidc_owner_button(request_path=args.request)
+    # The recipient key can ONLY be supplied by the owner-controlled,
+    # GitHub-protected environment secret. Missing key means verify-only:
+    # no ciphertext is produced and no recipient may be guessed.
+    recipient = os.environ.get("REA_P311_VPS_RECIPIENT_PUBLIC_B64") or None
+    result = preview_real_oidc_owner_button(
+        request_path=args.request, recipient_public_key_b64=recipient)
     # Never print JWT, jti, signed grant, cryptographic keys or bearer.
     if result["oidc_review_preview_only"] is not True:
         raise GithubOIDCError("Owner button validation did not complete")
