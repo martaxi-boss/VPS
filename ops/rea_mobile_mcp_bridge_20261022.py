@@ -136,6 +136,83 @@ def p232_guard_inner_batch(body):
     return grants
 
 
+def p311_enroll_sealed_owner_task(data, tool_by_name, safe_callable, *, now=None):
+    """Stage-only: register ONE owner-signed task from existing sealed SSH bridge.
+
+    No new server, no changes to REA original, no ChatGPT text-as-signature.
+    The owner has already signed the bounded grant with their device key.
+    This action is unavailable unless the VPS operator opted in. Nothing is
+    permitted by merely adding a request file or setting a request boolean.
+    """
+    from datetime import datetime, timezone
+    import stat
+    if os.environ.get("REA_P311_SCOPED_TASKS") != "enabled":
+        raise ValueError("P311 owner-task enrollment is disabled")
+    if not isinstance(data, dict) or data.get("action") != "sealed_task_enroll":
+        raise ValueError("Unexpected owner-task action")
+    body = secure.unseal(data["sealed"], data["response_key"])
+    if (not isinstance(body, dict) or set(body) != {
+            "protocol", "nonce", "expires_at", "signed_task"
+        } or body["protocol"] != 1):
+        raise ValueError("Invalid encrypted owner-task envelope")
+    if (not isinstance(body["nonce"], str) or
+            not secure.NONCE_RE.fullmatch(body["nonce"]) or
+            not isinstance(body["expires_at"], str) or
+            not secure.TIME_RE.fullmatch(body["expires_at"])):
+        raise ValueError("Invalid owner-task enrollment nonce or expiry")
+    now = now or datetime.now(timezone.utc)
+    expiry = datetime.strptime(body["expires_at"], "%Y-%m-%dT%H:%M:%SZ").replace(
+        tzinfo=timezone.utc)
+    if not 0 < (expiry - now).total_seconds() <= 3600:
+        raise ValueError("Expired or overly long-lived owner enrollment")
+    # The same official SHA-pinned REA source policy and live schemas used
+    # for tool execution are mandatory when registering a reusable grant.
+    verified_policy = secure._release680_verified_policy(tool_by_name)
+    if verified_policy is None and (
+            len(tool_by_name) != 208 or
+            set(tool_by_name) != set(secure.AUDITED_EFFECTS)):
+        raise ValueError("Enrollment requires the complete source-pinned catalog")
+    effects = (secure.AUDITED_EFFECTS if verified_policy is None
+               else verified_policy[0])
+    pins = (secure.AUDITED_SCHEMA_SHA256 if verified_policy is None
+            else verified_policy[1])
+    from ops import rea_scoped_approval_20261026 as scoped
+    eligible = scoped.propose_task_tools(
+        tool_by_name, effects, pins, schema_digest=secure.arguments_sha256,
+        classify_tool=lambda name, descriptor: secure.classify(
+            name, descriptor, safe_callable, verified_policy))
+    contracts = {name: (
+        effects[name], secure.classify(
+            name, tool_by_name[name], safe_callable, verified_policy)
+    ) for name in eligible}
+    private_dir = secure._private_directory()
+    verifier = private_dir / "owner-approval-public.pem"
+    if verifier.is_symlink() or not verifier.is_file():
+        raise ValueError("Owner verifier has not been enrolled")
+    meta = verifier.stat()
+    if (meta.st_uid != os.geteuid() or
+            stat.S_IMODE(meta.st_mode) != 0o600):
+        raise ValueError("Owner verifier owner/mode is unsafe")
+    signed_task = body["signed_task"]
+    # Check the owner signature, effects, expiry and private revocation store
+    # before consuming a nonce or touching the owner-task registry.
+    scoped._verify_registration_contracts(
+        signed_task, verifier.read_bytes(), contracts,
+        now=now, revocation_dir=private_dir / "revoked-p311-grants")
+    secure.claim_one_use_nonce(body["nonce"])
+    grant_id = scoped.register_signed_task_grant(
+        signed_task, verifier.read_bytes(),
+        private_registry_dir=private_dir / "approved-p311-tasks",
+        revocation_dir=private_dir / "revoked-p311-grants",
+        trusted_contracts=contracts, now=now)
+    return {
+        "protocol": 1, "registered": True,
+        "grant_id": grant_id,
+        "task_id": signed_task["task_id"],
+        "expires_at": signed_task["grant"]["expires_at"],
+    }
+
+
 def require_rsa_response_key(encoded):
     """Fail fast before SSH: validate full RSA DER, not just base64 shape."""
     if (not isinstance(encoded, str) or len(encoded) > 1800 or
@@ -190,9 +267,9 @@ def validate(data):
                 or not re.fullmatch(r"[A-Za-z0-9+/=]{340,1800}",
                                     data["response_key"])):
             error("Android fixture requires a public RSA reply key")
-    elif action == "sealed_batch":
+    elif action in ("sealed_batch", "sealed_task_enroll"):
         if set(data) != {"version", "action", "sealed", "response_key"}:
-            error("Sealed batch must carry a public reply key and sealed request")
+            error("Sealed requests must carry a public reply key and sealed request")
         secure.validate_public_envelope(data["sealed"])
         key = data["response_key"]
         if (not isinstance(key, str) or len(key) > 1800 or
@@ -574,7 +651,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         if private is not None:
             error("Unexpected private response")
         return
-    if request["action"] not in ("call", "sealed_batch", "fixture_apkdemos", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump") or private is None:
+    if request["action"] not in ("call", "sealed_batch", "sealed_task_enroll", "fixture_apkdemos", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump") or private is None:
         error("Missing encrypted-return payload from REA")
     public = serialization.load_der_public_key(
         base64.b64decode(request["response_key"], validate=True)
@@ -3142,6 +3219,19 @@ def main():
                 print("REA_MOBILE_TOOL_DESCRIPTOR_TRUNCATED=NO")
             else:
                 print("REA_MOBILE_TOOL_DESCRIPTOR_TRUNCATED=NEEDS_ENCRYPTED_REPLY")
+        return
+    if data["action"] == "sealed_task_enroll":
+        # Independent owner Ed25519 signature, encrypted transit, SHA-pinned
+        # live MCP catalog, scoped data-only private registration. No tools/call.
+        result = p311_enroll_sealed_owner_task(
+            data, tool_by_name, set(safe_callable))
+        if os.environ.get("REA_MOBILE_ENVELOPE_CAPTURE") != "1":
+            raise RuntimeError("Owner-task registration needs encrypted result capture")
+        raw = json.dumps(result, sort_keys=True, ensure_ascii=True).encode()
+        print("REA_P311_OWNER_ENROLLMENT=PASS")
+        print("REA_MOBILE_OUTPUT_BYTES=" + str(len(raw)))
+        print("REA_MOBILE_OUTPUT_SHA256=" + hashlib.sha256(raw).hexdigest())
+        print("REA_MOBILE_PRIVATE_RESULT_B64=" + base64.b64encode(raw).decode("ascii"))
         return
     if data["action"] == "sealed_batch":
         # All advertised official names can be routed, but each operation is
