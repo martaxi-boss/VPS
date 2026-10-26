@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_rea_680_preflight"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_rea_680_preflight", "fixture_linux_rea_680_stage"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -297,6 +297,14 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_U680_GET_EVIDENCE_BUNDLE_READ", "REA_U680_GET_EVIDENCE_BUNDLE_BYTES",
         "REA_U680_LIST_UNKNOWNS_READ", "REA_U680_LIST_UNKNOWNS_BYTES",
         "REA_U680_MCP_PREFLIGHT", "REA_U680_PREFLIGHT",
+        "REA_U680_STAGE_STATUS","REA_U680_EVIDENCE_BACKUP",
+        "REA_U680_EVIDENCE_BACKUP_BYTES","REA_U680_EVIDENCE_BACKUP_SHA256",
+        "REA_U680_EVIDENCE_BACKUP_PRIVACY","REA_U680_GIT_INIT_EXIT",
+        "REA_U680_OFFICIAL_FETCH_EXIT","REA_U680_SOURCE_CHECKOUT_EXIT",
+        "REA_U680_SOURCE_COMMIT","REA_U680_SOURCE_TREE",
+        "REA_U680_SOURCE_VERIFIED","REA_U680_NPM_CI_EXIT",
+        "REA_U680_BUILD_EXIT","REA_U680_COMPILED_CLI",
+        "REA_U680_STAGING_COMPLETE",
         "REA_MOBILE_READONLY_HINT_COUNT", "REA_MOBILE_STATIC_INSPECT_COUNT",
         "REA_MOBILE_SAFE_QUERY_COUNT", "REA_MOBILE_SAFE_CALLABLE_COUNT",
         "REA_MOBILE_LEGACY_NAME_COUNT", "REA_MOBILE_WORKSPACE_CALLABLE_COUNT",
@@ -2474,6 +2482,151 @@ def main():
         except (OSError,RuntimeError,ValueError,TypeError):
             print("REA_U680_MCP_PREFLIGHT=UNAVAILABLE")
         print("REA_U680_PREFLIGHT=READ_ONLY_FINISHED")
+        return
+    if data["action"] == "fixture_linux_rea_680_stage":
+        # Owner-approved original 6.8.0 release candidate installation ONLY.
+        # No replacement, signal, restart, extra daemon, key changes or import.
+        import pwd
+        import shutil
+        import tempfile
+        import time
+        pinned="160d821ac9a0310afcb8d1fc427862dd6508add5"
+        expected_tree="15e6fec513dcce08cefdbcf441200986397e2793"
+        base=Path("/opt/rea-reversa")
+        active=base/"rea"
+        parent=base/"upgrades"
+        stage=parent/"rea-6.8.0-160d821ac9a0"
+        identity=pwd.getpwnam("ubuntu")
+        if (not active.is_dir() or active.is_symlink() or
+            base.is_symlink() or not base.is_dir() or parent.is_symlink() or
+            stage.exists() or stage.is_symlink()):
+            print("REA_U680_STAGE_STATUS=BLOCKED_EXISTING_PATH")
+            return
+        installed=json.loads((active/"package.json").read_text())
+        if installed.get("version")!="6.7.0":
+            print("REA_U680_STAGE_STATUS=BLOCKED_UNEXPECTED_ACTIVE_VERSION")
+            return
+        health=subprocess.run(["systemctl","is-active","--quiet","rea-reversa-mcp.service"],
+            capture_output=True,timeout=12,check=False)
+        if health.returncode or shutil.disk_usage(base).free<8500000000:
+            print("REA_U680_STAGE_STATUS=BLOCKED_HEALTH_OR_SPACE")
+            return
+        def rootcmd(*args,timeout=30):
+            p=subprocess.run(["sudo","-n",*map(str,args)],capture_output=True,
+                             timeout=timeout,check=False)
+            if p.returncode:
+                raise RuntimeError("Owner-authorized staged install path admin operation failed")
+        # Durable offline backup of complete authenticated READ responses.
+        # The Evidence/Unknown content is never printed or published in GitHub.
+        init={"jsonrpc":"2.0","id":9801,"method":"initialize",
+              "params":{"protocolVersion":"2025-06-18","capabilities":{},
+              "clientInfo":{"name":"rea-stable-upgrade-evidence-archive","version":"1"}}}
+        headers,hello=request_mcp(init,timeout=22)
+        if "result" not in hello:
+            raise RuntimeError("Original MCP not reachable for backup")
+        ses=headers.get("Mcp-Session-Id")
+        pv=hello["result"].get("protocolVersion")
+        request_mcp({"jsonrpc":"2.0","method":"notifications/initialized"},ses,pv,timeout=12)
+        states={}
+        for index,(name,args) in enumerate((
+            ("get_evidence_bundle",{"detail":"complete"}),
+            ("list_unknowns",{}))):
+            _,result=request_mcp({"jsonrpc":"2.0","id":9810+index,"method":"tools/call",
+               "params":{"name":name,"arguments":args}},ses,pv,timeout=55)
+            content=result.get("result",{})
+            if "error" in result or not isinstance(content,dict) or content.get("isError"):
+                raise RuntimeError("Original retained state could not be backed up")
+            states[name]={"arguments":args,"response":content}
+        saved={"schema_version":1,"source_version":"6.7.0",
+               "official_target_version":"6.8.0",
+               "source_release_commit":pinned,
+               "retain":"complete original response; no auto-import or fabricated ledger",
+               "calls":states}
+        canonical=json.dumps(saved,sort_keys=True,ensure_ascii=True,
+                             separators=(",",":")).encode()
+        if len(canonical)>4800000:
+            raise RuntimeError("Evidence backup exceeded bounded safe size")
+        archive=Path.home()/".local/share/rea-chatgpt-trial/upgrade-backups"
+        if archive.is_symlink():
+            raise RuntimeError("Untrusted upgrade backup directory")
+        archive.mkdir(mode=0o700,parents=True,exist_ok=True)
+        if archive.is_symlink() or (archive.stat().st_mode & 0o077):
+            raise RuntimeError("Upgrade archive permission mismatch")
+        backup=archive/"rea-6.7.0-retained-evidence-before-6.8.0-20261026.json"
+        if backup.exists() or backup.is_symlink():
+            if backup.is_symlink() or hashlib.sha256(backup.read_bytes()).digest()!=hashlib.sha256(canonical).digest():
+                raise RuntimeError("Existing Evidence backup differs; never overwrite")
+            print("REA_U680_EVIDENCE_BACKUP=ALREADY_VERIFIED")
+        else:
+            fd=os.open(backup,os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600)
+            with os.fdopen(fd,"wb") as writer:
+                writer.write(canonical)
+                writer.flush()
+                os.fsync(writer.fileno())
+            if hashlib.sha256(backup.read_bytes()).digest()!=hashlib.sha256(canonical).digest():
+                raise RuntimeError("Evidence backup readback mismatch")
+            print("REA_U680_EVIDENCE_BACKUP=WRITTEN_VERIFIED")
+        print("REA_U680_EVIDENCE_BACKUP_BYTES="+str(len(canonical)))
+        print("REA_U680_EVIDENCE_BACKUP_SHA256="+hashlib.sha256(canonical).hexdigest())
+        print("REA_U680_EVIDENCE_BACKUP_PRIVACY=MODE_0600_LOCAL_ONLY")
+        if not parent.exists():
+            rootcmd("install","-d","-m","0755","-o","root","-g","root",parent)
+        if not parent.is_dir() or parent.is_symlink() or stage.exists() or stage.is_symlink():
+            print("REA_U680_STAGE_STATUS=BLOCKED_EXISTING_STAGE")
+            return
+        rootcmd("install","-d","-m","0755","-o",str(identity.pw_uid),
+                "-g",str(identity.pw_gid),stage)
+        def step(name,cmd,seconds,env=None):
+            # Under ubuntu, only fresh staging checkout; NEVER execute as root.
+            p=subprocess.run(list(map(str,cmd)),cwd=stage,
+              stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,
+              timeout=seconds,check=False,env=env)
+            print("REA_U680_"+name+"_EXIT="+str(p.returncode))
+            if p.returncode:
+                raise RuntimeError("Pinned release "+name+" failed")
+        try:
+            step("GIT_INIT",["git","init","-q"],20)
+            step("OFFICIAL_FETCH",["git","fetch","--no-tags","--depth=1",
+                 "https://github.com/morluto/rea.git",pinned],240)
+            verify=subprocess.run(["git","rev-parse","FETCH_HEAD"],cwd=stage,
+                   capture_output=True,text=True,timeout=20,check=False)
+            if verify.returncode or verify.stdout.strip()!=pinned:
+                raise RuntimeError("Upstream SHA not pinned")
+            step("SOURCE_CHECKOUT",["git","checkout","-q","--detach","FETCH_HEAD"],85)
+            tree=subprocess.run(["git","rev-parse","HEAD^{tree}"],cwd=stage,
+                    capture_output=True,text=True,timeout=20,check=False)
+            if tree.returncode or tree.stdout.strip()!=expected_tree:
+                raise RuntimeError("Upstream source Git tree mismatch")
+            release=json.loads((stage/"package.json").read_text())
+            if release.get("version")!="6.8.0":
+                raise RuntimeError("Not official version 6.8.0")
+            print("REA_U680_SOURCE_COMMIT="+pinned)
+            print("REA_U680_SOURCE_TREE="+expected_tree)
+            print("REA_U680_SOURCE_VERIFIED=PASS")
+            env={"HOME":str(Path.home()),"PATH":os.environ.get("PATH","/usr/bin:/bin"),
+                 "CI":"1","NPM_CONFIG_FUND":"false","NPM_CONFIG_AUDIT":"false"}
+            step("NPM_CI",["npm","ci","--ignore-scripts","--no-audit","--no-fund"],
+                 340,env)
+            step("BUILD",["npm","run","build"],350,env)
+            state=subprocess.run(["git","diff","--quiet","--exit-code"],cwd=stage,
+                         capture_output=True,timeout=35,check=False)
+            if state.returncode:
+                raise RuntimeError("Official build altered tracked upstream code")
+            entry=stage/"scripts/rea.mjs"
+            if not entry.is_file():
+                raise RuntimeError("Official CLI launcher missing")
+            call=subprocess.run(["node",str(entry),"--version"],
+                         cwd=stage,capture_output=True,text=True,timeout=45,
+                         check=False,env=env)
+            version=(call.stdout+"\n"+call.stderr).strip()
+            if call.returncode or "6.8.0" not in version:
+                raise RuntimeError("Original v6.8.0 compiled CLI cannot announce version")
+            print("REA_U680_COMPILED_CLI=PASS_VERSION_6_8_0")
+            # Staged source only; no new MCP service and no process reconfiguration.
+            print("REA_U680_STAGING_COMPLETE=PASS_OFFICIAL_BUILD_NO_RESTART")
+        except (OSError,RuntimeError,ValueError,subprocess.TimeoutExpired) as exc:
+            print("REA_U680_STAGE_STATUS=INCOMPLETE_"+type(exc).__name__)
+            return
         return
     if data["action"] == "fixture_linux_install_inventory":
         # Audit original Linux REA installation; no installation, no restart.
