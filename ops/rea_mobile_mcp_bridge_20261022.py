@@ -190,6 +190,10 @@ def validate(data):
                 or not re.fullmatch(r"[A-Za-z0-9+/=]{340,1800}",
                                     data["response_key"])):
             error("Android fixture requires a public RSA reply key")
+    elif action == "fixture_linux_rea_680_owner_signature_preflight":
+        if set(data) != {"version", "action", "sealed", "response_key"}:
+            error("Encrypted owner authorization preflight requires sealed payload and public reply key")
+        secure.validate_public_envelope(data["sealed"])
     elif action == "sealed_batch":
         if set(data) != {"version", "action", "sealed", "response_key"}:
             error("Sealed batch must carry a public reply key and sealed request")
@@ -557,7 +561,9 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SDIAG_PID_ENV_READ",
         "REA_SDIAG_PID_ENV_SIZE",
         "REA_SDIAG_PID_PROVIDER_KEYS",
-        "REA_SDIAG_STATUS"
+        "REA_SDIAG_STATUS",
+        "REA_U680_OWNER_SIGNATURE_VERIFIED", "REA_U680_OWNER_SIGNED_PROFILES",
+        "REA_U680_OWNER_REPLAY_CHECK", "REA_U680_OWNER_RESTORE_READY"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -574,7 +580,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         if private is not None:
             error("Unexpected private response")
         return
-    if request["action"] not in ("call", "sealed_batch", "fixture_apkdemos", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump") or private is None:
+    if request["action"] not in ("call", "sealed_batch", "fixture_apkdemos", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump", "fixture_linux_rea_680_owner_signature_preflight") or private is None:
         error("Missing encrypted-return payload from REA")
     public = serialization.load_der_public_key(
         base64.b64decode(request["response_key"], validate=True)
@@ -698,6 +704,49 @@ def main():
     print("REA_MOBILE_CATALOG_SAMPLE=" + json.dumps(
         list(tool_by_name)[:14], ensure_ascii=True
     ))
+    if data["action"] == "fixture_linux_rea_680_owner_signature_preflight":
+        # One-use, read-only preflight. Signed payload remains encrypted,
+        # no nonce claimed, no import, no service restart or filesystem writes.
+        if os.environ.get("REA_MOBILE_ENVELOPE_CAPTURE") != "1":
+            raise RuntimeError("Encrypted result capture required")
+        body = secure.unseal(data["sealed"], data["response_key"])
+        if (len(body.get("steps", [])) != 3 or
+              [x.get("tool") for x in body["steps"]] !=
+              ["import_evidence_bundle","get_evidence_bundle","list_unknowns"] or
+              body["steps"][0].get("arguments") !=
+              {"path":"/opt/rea-reversa/rea/.rea-migration/evidence-restore.json"} or
+              body["steps"][1].get("arguments") != {"detail":"complete"} or
+              body["steps"][2].get("arguments") != {}):
+            raise RuntimeError("Signed request is not the exact 6.8.0 evidence transfer")
+        profiles = secure.validate_inner(body, tool_by_name, set(safe_callable))
+        if profiles != ["sensitive","read","read"]:
+            raise RuntimeError("Owner signed import must remain sensitive and both verifications read-only")
+        p232_guard_inner_batch(body)
+        consumed = secure.key_directory() / "consumed" / body["nonce"]
+        if consumed.exists() or consumed.is_symlink():
+            raise RuntimeError("Owner approval nonce previously used")
+        stage = Path("/opt/rea-reversa/upgrades/rea-6.8.0-160d821ac9a0")
+        restore = stage / ".rea-migration/evidence-restore.json"
+        backup = Path.home() / ".local/share/rea-chatgpt-trial/upgrade-backups/rea-6.7.0-retained-evidence-before-6.8.0-20261026.json"
+        if (stage.is_symlink() or not (stage/"dist/mcp/main.js").is_file()
+              or not backup.is_file() or backup.is_symlink()
+              or hashlib.sha256(backup.read_bytes()).hexdigest() !=
+              "baa448b25c2f1f2a5c76589b0a1eb4f586e20d733335eef76a9f5ed29f76b936"):
+            raise RuntimeError("Pinned official staging or owner backup not ready")
+        check = subprocess.run(["sudo","-n","-u","rea-reversa","sha256sum",str(restore)],
+                                capture_output=True,text=True,timeout=20,check=False)
+        if check.returncode or not check.stdout.startswith("f8178b2c3db0d093fa65864d9c12be9a1afe3c6d66fc93603769761bd9400f3b "):
+            raise RuntimeError("Service-owned restoration checksum failed")
+        print("REA_U680_OWNER_SIGNATURE_VERIFIED=PASS")
+        print("REA_U680_OWNER_SIGNED_PROFILES=SIGNED_IMPORT_READ_READ")
+        print("REA_U680_OWNER_REPLAY_CHECK=UNUSED")
+        print("REA_U680_OWNER_RESTORE_READY=PASS")
+        safe = {"owner_cryptographic_signature_verified":True,
+                "profiles":profiles,"restore_sha256_verified":True,
+                "one_use_nonce_unconsumed":True,"changes_applied":False}
+        print("REA_MOBILE_PRIVATE_RESULT_B64="+
+              base64.b64encode(json.dumps(safe,sort_keys=True).encode()).decode())
+        return
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
               secure.request_public_key_b64(create=True))
