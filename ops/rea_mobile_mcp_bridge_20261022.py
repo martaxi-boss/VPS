@@ -485,7 +485,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_APPLY_RESULT",
         "REA_P302_STATUS","REA_P302_LIVE_CUTTER_SESSION","REA_P302_VENDOR_VERSION",
         "REA_P302_LAUNCH_PRE_CLEANUP","REA_P302_LAUNCH_LOG_CATEGORIES",
-        "REA_P302_MISSING_KNOWN_MODULES","REA_P302_PROCESS_GROUP_CLEAN",
+        "REA_P302_MISSING_KNOWN_MODULES","REA_P302_PROCESS_GROUP_CLEAN","REA_P302_IMPORT_DETAILS",
         "REA_P302_INPUT_UNCHANGED","REA_P302_SESSION_CLEAN","REA_P302_SERVICE_PID_UNCHANGED",
         "REA_P301_STATUS","REA_P301_ORIGINAL_CUTTER_BRIDGE",
         "REA_P301_SOURCE_VERIFIED","REA_P301_SERVICE_PID_UNCHANGED","REA_P301_BLOCK_CODE","REA_P301_ROOT_MANAGED_CODE","REA_P301_ROOT_SAFE_BLOCK","REA_P301_EXISTING_META",
@@ -1007,7 +1007,7 @@ except Exception as e:
         try:
             proc=sp.Popen(launch,cwd=base,stdin=sp.DEVNULL,
                 stdout=logbuffer,stderr=sp.STDOUT,start_new_session=True)
-            for _ in range(13):
+            for _ in range(5):
                 time.sleep(3)
                 try:
                     observed=sessions()
@@ -1062,6 +1062,16 @@ except Exception as e:
         known=("cutter","pyside2","pyside6","pyqt5","shiboken2","rizin","qtpy","shiboken6","requests","packaging")
         matched=sorted(set(x.strip(chr(34)+chr(39)) for x in missing if x.strip(chr(34)+chr(39)) in known))
         print("REA_P302_MISSING_KNOWN_MODULES="+json.dumps(matched,separators=(",",":")))
+        importer=[]
+        for rawline in output.splitlines():
+            if "importerror:" not in rawline and "modulenotfounderror:" not in rawline:
+                continue
+            after=rawline.split(":",1)[-1].strip()
+            after=re.sub(r"/[^\\s:,()]+","[path]",after)
+            after="".join(ch if ch.isalnum() or ch in " .,:_-()'[]" else "?" for ch in after)
+            if after:
+                importer.append(after[:150])
+        print("REA_P302_IMPORT_DETAILS="+json.dumps(importer[:6],separators=(",",":")))
         process_group_clean=True
         if proc is not None:
             group="-"+str(proc.pid)
