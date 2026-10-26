@@ -152,6 +152,52 @@ class OwnerTaskConsentTests(unittest.TestCase):
                 "--output", str(output)]))
         self.assertFalse(output.exists())
 
+    def test_owner_one_sim_signed_grant_passes_existing_sealed_policy(self):
+        from ops import rea_secure_protocol_20261022 as secure
+        source = secure.AUDITED_EFFECTS["import_managed_reconstruction"]
+        self.assertEqual(frozenset({"mutatesSession"}), source)
+        grant = {**self.grant, "allowed_tools": ["import_managed_reconstruction"]}
+        signed = self.sign(grant)
+        target = {"path": grant["artifact_root"] + "/sample.bin"}
+        descriptor = {
+            "inputSchema": {"type": "object"},
+            "annotations": {
+                "readOnlyHint": False,
+                "destructiveHint": False,
+                "openWorldHint": False,
+            },
+        }
+        with mock.patch("pathlib.Path.home", return_value=self.folder):
+            public_path = secure._private_directory() / "owner-approval-public.pem"
+            public_path.write_bytes(self.pub)
+            public_path.chmod(0o600)
+            revoked = secure._private_directory() / "revoked-p311-grants"
+            revoked.mkdir(mode=0o700)
+            with mock.patch.dict(secure.AUDITED_SCHEMA_SHA256, {
+                "import_managed_reconstruction":
+                    secure.arguments_sha256(descriptor["inputSchema"])}), mock.patch.dict(
+                        os.environ, {"REA_P311_SCOPED_TASKS": "enabled"}):
+                body = {
+                    "protocol": 1,
+                    "nonce": "e" * 32,
+                    "expires_at": (self.now + timedelta(minutes=30)).strftime(
+                        signer.TIME_FORMAT),
+                    "steps": [{
+                        "tool": "import_managed_reconstruction",
+                        "arguments": target,
+                    }],
+                    "scoped_task": signed,
+                }
+                self.assertEqual(["sensitive"], secure.validate_inner(
+                    body, {"import_managed_reconstruction": descriptor},
+                    set(), now=self.now))
+                (revoked / (grant["grant_id"] + ".revoked")).write_text("no\n")
+                (revoked / (grant["grant_id"] + ".revoked")).chmod(0o600)
+                with self.assertRaises(secure.SecureBridgeError):
+                    secure.validate_inner(body, {
+                        "import_managed_reconstruction": descriptor}, set(),
+                        now=self.now)
+
     def test_private_output_directory_required(self):
         dest = self.folder / "signed.json"
         self.folder.chmod(0o755)
