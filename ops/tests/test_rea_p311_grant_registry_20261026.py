@@ -6,9 +6,11 @@ new service. All keys here are ephemeral fixtures, not owner credentials.
 import base64
 from datetime import datetime, timedelta, timezone
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -79,6 +81,46 @@ class P311PrivateOwnerGrantRegistryTests(unittest.TestCase):
         self.assertEqual(self.approved, self.read())
         self.assertNotIn("private_key", file.read_text())
         self.assertNotIn("BEGIN PRIVATE KEY", file.read_text())
+
+
+    def test_registry_creation_fsyncs_file_and_directory(self):
+        real_fsync = os.fsync
+        real_open = os.open
+        with mock.patch.object(scoped.os, "fsync", wraps=real_fsync) as synced, \
+             mock.patch.object(scoped.os, "open", wraps=real_open) as opened:
+            self.assertEqual(self.grant["grant_id"], self.enroll())
+        self.assertEqual(2, synced.call_count)
+        self.assertNotEqual(synced.call_args_list[0].args[0],
+                            synced.call_args_list[1].args[0])
+        relative_file_open = [
+            call for call in opened.call_args_list
+            if call.args and call.args[0] == self.grant["grant_id"] + ".json"
+        ]
+        self.assertEqual(1, len(relative_file_open))
+        self.assertIn("dir_fd", relative_file_open[0].kwargs)
+        self.assertEqual(self.approved, self.read())
+
+    def test_registry_read_uses_pinned_directory_and_not_mutable_path(self):
+        self.enroll()
+        real_open = os.open
+        with mock.patch.object(scoped.os, "open", wraps=real_open) as opened:
+            self.assertEqual(self.approved, self.read())
+        relative_file_open = [
+            call for call in opened.call_args_list
+            if call.args and call.args[0] == self.grant["grant_id"] + ".json"
+        ]
+        self.assertEqual(1, len(relative_file_open))
+        self.assertIn("dir_fd", relative_file_open[0].kwargs)
+
+    def test_pinned_registry_rejects_leaf_symlink_even_after_precheck(self):
+        legitimate = self.home / "legitimate-private"
+        legitimate.mkdir(mode=0o700)
+        alias = self.home / "alias-private"
+        alias.symlink_to(legitimate, target_is_directory=True)
+        # Simulate an attacker racing the initial pathname validation.
+        with self.assertRaises(scoped.ScopedApprovalError):
+            scoped._open_pinned_private_grant_directory(alias)
+        self.assertEqual([], list(legitimate.iterdir()))
 
     def test_same_grant_is_never_overwritten(self):
         self.enroll()

@@ -351,6 +351,40 @@ def _check_private_grant_directory(directory, *, create=False):
     return folder
 
 
+
+def _open_pinned_private_grant_directory(folder):
+    """Open an owner-private registry by descriptor, not a mutable path.
+
+    Caller must first use _check_private_grant_directory. This second,
+    descriptor-based check closes the race between the pathname check and
+    the file operation. The caller MUST close the returned directory fd.
+    """
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    try:
+        parentfd = os.open(folder.parent, flags)
+        try:
+            parent = os.fstat(parentfd)
+            if (not stat.S_ISDIR(parent.st_mode) or
+                    parent.st_uid != os.geteuid() or
+                    stat.S_IMODE(parent.st_mode) != 0o700):
+                raise ScopedApprovalError("Unsafe pinned grant registry parent")
+            dirfd = os.open(folder.name, flags, dir_fd=parentfd)
+            try:
+                child = os.fstat(dirfd)
+                if (not stat.S_ISDIR(child.st_mode) or
+                        child.st_uid != os.geteuid() or
+                        stat.S_IMODE(child.st_mode) != 0o700):
+                    raise ScopedApprovalError("Unsafe pinned grant registry")
+                return dirfd
+            except BaseException:
+                os.close(dirfd)
+                raise
+        finally:
+            os.close(parentfd)
+    except OSError as exc:
+        raise ScopedApprovalError("Private grant registry directory is unsafe") from exc
+
+
 def _verify_registration_contracts(signed_task, owner_public_pem,
                                    trusted_contracts, *, now, revocation_dir):
     """No caller-chosen policies: trusted_contracts must come from source pins.
@@ -408,13 +442,24 @@ def register_signed_task_grant(signed_task, owner_public_pem, *,
     if len(blob) > MAX_REGISTERED_GRANT_BYTES:
         raise ScopedApprovalError("Signed owner task exceeds private registry budget")
     root = _check_private_grant_directory(private_registry_dir, create=True)
-    target = root / (grant["grant_id"] + ".json")
+    dirfd = _open_pinned_private_grant_directory(root)
     try:
-        fd = os.open(target, os.O_WRONLY | os.O_EXCL | os.O_CREAT | os.O_NOFOLLOW, 0o600)
-    except FileExistsError as exc:
-        raise ScopedApprovalError("Owner task already enrolled; no overwrite") from exc
-    with os.fdopen(fd, "wb") as stream:
-        stream.write(blob)
+        # The grant ID was already validated as exactly 32 lowercase hex.
+        name = grant["grant_id"] + ".json"
+        try:
+            fd = os.open(name, os.O_WRONLY | os.O_EXCL | os.O_CREAT |
+                         os.O_NOFOLLOW, 0o600, dir_fd=dirfd)
+        except FileExistsError as exc:
+            raise ScopedApprovalError("Owner task already enrolled; no overwrite") from exc
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(blob)
+            stream.flush()
+            os.fsync(stream.fileno())
+        # Both the file and the registry directory must reach stable storage
+        # before acknowledging a successful owner authorization enrollment.
+        os.fsync(dirfd)
+    finally:
+        os.close(dirfd)
     return grant["grant_id"]
 
 
@@ -429,23 +474,27 @@ def read_registered_task_grant(grant_id, owner_public_pem, *,
     if not isinstance(grant_id, str) or not HEX.fullmatch(grant_id):
         raise ScopedApprovalError("Invalid registered task identifier")
     root = _check_private_grant_directory(private_registry_dir)
-    file = root / (grant_id + ".json")
+    dirfd = _open_pinned_private_grant_directory(root)
     try:
-        fd = os.open(file, os.O_RDONLY | os.O_NOFOLLOW)
-    except OSError as exc:
-        raise ScopedApprovalError("Registered owner grant is not available") from exc
-    try:
-        meta = os.fstat(fd)
-        if (not stat.S_ISREG(meta.st_mode) or meta.st_uid != os.geteuid() or
-                stat.S_IMODE(meta.st_mode) != 0o600 or
-                not 0 < meta.st_size <= MAX_REGISTERED_GRANT_BYTES):
-            raise ScopedApprovalError("Unsafe registered owner task file")
-        with os.fdopen(fd, "rb", closefd=False) as source:
-            raw = source.read(MAX_REGISTERED_GRANT_BYTES + 1)
-        if len(raw) != meta.st_size:
-            raise ScopedApprovalError("Registered grant size mismatch")
+        try:
+            fd = os.open(grant_id + ".json", os.O_RDONLY | os.O_NOFOLLOW,
+                         dir_fd=dirfd)
+        except OSError as exc:
+            raise ScopedApprovalError("Registered owner grant is not available") from exc
+        try:
+            meta = os.fstat(fd)
+            if (not stat.S_ISREG(meta.st_mode) or meta.st_uid != os.geteuid() or
+                    stat.S_IMODE(meta.st_mode) != 0o600 or
+                    not 0 < meta.st_size <= MAX_REGISTERED_GRANT_BYTES):
+                raise ScopedApprovalError("Unsafe registered owner task file")
+            with os.fdopen(fd, "rb", closefd=False) as source:
+                raw = source.read(MAX_REGISTERED_GRANT_BYTES + 1)
+            if len(raw) != meta.st_size:
+                raise ScopedApprovalError("Registered grant size mismatch")
+        finally:
+            os.close(fd)
     finally:
-        os.close(fd)
+        os.close(dirfd)
     try:
         signed_task = json.loads(raw)
         if canonical_bytes(signed_task) != raw:
