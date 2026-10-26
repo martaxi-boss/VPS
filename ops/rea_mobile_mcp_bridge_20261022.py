@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_frida_binding_p306"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_frida_binding_p306", "fixture_linux_frida_loader_p307"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -566,6 +566,12 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_P306_VERSION_MATCH", "REA_P306_IMPORT_EXIT",
         "REA_P306_API_EXPORTS_VALID",
     })
+    allowed_markers.update({
+        "REA_P307_NODE_EXIT", "REA_P307_RESOLUTION_OK",
+        "REA_P307_MODULE_LOADED", "REA_P307_NODE_VERSION",
+        "REA_P307_ERROR_CODE", "REA_P307_FAILURE_FLAGS",
+        "REA_P307_SERVICE_PID_UNCHANGED", "REA_P307_STATUS",
+    })
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
         if line.startswith("REA_MOBILE_PRIVATE_RESULT_B64="):
@@ -769,6 +775,64 @@ def main():
         print("REA_P306_SERVICE_PID_UNCHANGED=" + str(unchanged).lower())
         print("REA_P306_STATUS=" +
               ("PASS_NATIVE_BINDING" if healthy and unchanged else "BINDING_FAILED"))
+        return
+    if data["action"] == "fixture_linux_frida_loader_p307":
+        # Only classify the native Frida module loader failure already seen at P306.
+        # No installation, scanning, device contact, process attach or REA restart.
+        def unit_value(key):
+            p = subprocess.run(["systemctl", "show", "rea-reversa-mcp.service",
+                "-p", key, "--value"], capture_output=True, text=True,
+                timeout=10, check=False)
+            return p.stdout.strip() if p.returncode == 0 else ""
+        service_pid = unit_value("MainPID")
+        user = unit_value("User")
+        root = Path("/opt/rea-reversa/rea")
+        pkg = root / "node_modules/frida/package.json"
+        if (user != "rea-reversa" or unit_value("ActiveState") != "active"
+            or not service_pid.isdecimal() or not pkg.is_file()
+            or json.loads(pkg.read_text()).get("version") != "17.23.2"):
+            print("REA_P307_STATUS=PRECONDITION_FAILED")
+            return
+        test_js = (
+            "import {createRequire} from 'node:module';"
+            "const req=createRequire(import.meta.url);"
+            "let resolved=false;try{req.resolve('frida');resolved=true;}catch{}"
+            "const codes=['ERR_MODULE_NOT_FOUND','MODULE_NOT_FOUND','ERR_DLOPEN_FAILED',"
+            "'ERR_PACKAGE_PATH_NOT_EXPORTED','ERR_UNKNOWN_FILE_EXTENSION'];"
+            "try{await import('frida');"
+            "console.log(JSON.stringify({resolved,loaded:true,node:process.versions.node}));"
+            "}catch(e){const s=String(e?.message??'');"
+            "const code=String(e?.code??'');"
+            "console.log(JSON.stringify({resolved,loaded:false,"
+            "code:codes.includes(code)?code:'OTHER',"
+            "node:process.versions.node,"
+            "glibc:/GLIBC_|GLIBCXX_|CXXABI_/.test(s),"
+            "missing_shared_library:/cannot open shared object file|\\.so[.:]/i.test(s),"
+            "missing_dependency:/Cannot find module|Cannot find package/.test(s),"
+            "architecture:/ELFCLASS|wrong ELF class|invalid ELF/i.test(s),"
+            "module_abi:/NODE_MODULE_VERSION|Module version mismatch/i.test(s),"
+            "permission:/EACCES|EPERM|Permission denied/i.test(s)}));}"
+        )
+        trial = subprocess.run(["sudo", "-n", "-u", user, "node",
+            "--input-type=module", "-e", test_js], cwd=str(root),
+            capture_output=True, text=True, timeout=35, check=False)
+        print("REA_P307_NODE_EXIT=" + str(trial.returncode))
+        try:
+            details = json.loads(trial.stdout.strip())
+        except (ValueError, AttributeError):
+            print("REA_P307_STATUS=NO_STRUCTURED_RESULT")
+            return
+        print("REA_P307_RESOLUTION_OK=" + str(details.get("resolved") is True).lower())
+        print("REA_P307_MODULE_LOADED=" + str(details.get("loaded") is True).lower())
+        print("REA_P307_NODE_VERSION=" + str(details.get("node", ""))[:22])
+        print("REA_P307_ERROR_CODE=" + str(details.get("code", "NONE"))[:55])
+        flags = ("glibc", "missing_shared_library", "missing_dependency",
+                 "architecture", "module_abi", "permission")
+        print("REA_P307_FAILURE_FLAGS=" + json.dumps(
+            {name: details.get(name) is True for name in flags}, sort_keys=True))
+        print("REA_P307_SERVICE_PID_UNCHANGED=" +
+              str(service_pid == unit_value("MainPID")).lower())
+        print("REA_P307_STATUS=PASS_SCOPED_CLASSIFICATION")
         return
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
