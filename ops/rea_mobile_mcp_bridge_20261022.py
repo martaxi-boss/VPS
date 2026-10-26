@@ -2273,6 +2273,208 @@ def main():
             print("REA_APPLY_FAILURE="+regex.sub(r"[^A-Za-z0-9 .,:;=/()+~-]",
                                     " ",output[-700:]))
         print("REA_APPLY_RESULT="+outcome)
+        if outcome == "PASS_INSTALLED":
+            # One-shot bounded additions from original REA documented optional toolchains.
+            # No original engine files, MCP authorization, service unit, or restart change.
+            import urllib.request as urlrequest
+            import tarfile as tar
+            import tempfile as temporary
+            import shutil as shutil_vendor
+            import pwd as pwd_vendor
+            provider_root=Path("/opt/rea-reversa/providers")
+            temp_root=Path.home()/".local/share/rea-chatgpt-trial/artifacts"
+            temp_root.mkdir(mode=0o700,parents=True,exist_ok=True)
+            if temp_root.is_symlink() or provider_root.is_symlink() or not provider_root.is_dir():
+                error("Refusing supplier work in untrusted provider directories")
+            service_name="rea-reversa"
+            if pwd_vendor.getpwnam(service_name).pw_uid < 1:
+                error("Original REA service identity missing")
+            def vend_sudo(*args,timeout=80):
+                return subprocess.run(["sudo","-n",*map(str,args)],capture_output=True,text=True,
+                                      timeout=timeout,check=False)
+            def vend_digest(path):
+                h=hashlib.sha256()
+                with Path(path).open("rb") as f:
+                    for chunk in iter(lambda:f.read(262144),b""):
+                        h.update(chunk)
+                return h.hexdigest()
+            def vend_download(label,url,expected_sha,maxsize,temp):
+                result=temp/"official-download"
+                digest=hashlib.sha256()
+                size=0
+                with urlrequest.urlopen(urlrequest.Request(url,headers={
+                     "User-Agent":"REA-original-provider-pinned-install/1"}),timeout=100) as remote:
+                    with result.open("xb") as output:
+                        while True:
+                            chunk=remote.read(262144)
+                            if not chunk:
+                                break
+                            size+=len(chunk)
+                            if size>maxsize:
+                                raise RuntimeError(label+" exceeded fixed asset size")
+                            digest.update(chunk)
+                            output.write(chunk)
+                if digest.hexdigest()!=expected_sha:
+                    raise RuntimeError(label+" official SHA256 mismatch")
+                print("REA_EXTRA_"+label+"_DOWNLOAD_SHA256="+digest.hexdigest())
+                return result
+            def vend_install_binary(label,version,url,digest,limit,filename,kind,inner_sha=None):
+                base=provider_root/(label.lower()+"-"+version)
+                dest=base/"bin"/filename
+                try:
+                    if base.is_symlink() or dest.is_symlink():
+                        raise RuntimeError("untrusted existing provider path")
+                    expect=inner_sha if inner_sha else digest
+                    if dest.is_file():
+                        if vend_digest(dest)!=expect:
+                            raise RuntimeError("existing provider path has unexpected digest")
+                        check=vend_sudo("-u",service_name,"test","-x",dest,timeout=14)
+                        if check.returncode:
+                            raise RuntimeError("existing provider not executable to service")
+                        print("REA_EXTRA_"+label+"_STATUS=ALREADY_INSTALLED_VERIFIED")
+                        return
+                    if base.exists():
+                        raise RuntimeError("existing incomplete provider dir not overwritten")
+                    with temporary.TemporaryDirectory(prefix="rea-"+label.lower()+"-",dir=str(temp_root)) as td:
+                        work=Path(td)
+                        asset=vend_download(label,url,digest,limit,work)
+                        source=work/filename
+                        if kind=="tar":
+                            with tar.open(asset,"r:gz") as archive:
+                                matches=[m for m in archive.getmembers()
+                                         if m.isfile() and Path(m.name).name==filename
+                                         and len(Path(m.name).parts)<=2 and m.size<90000000]
+                                if len(matches)!=1:
+                                    raise RuntimeError("unexpected official archive member layout")
+                                stream=archive.extractfile(matches[0])
+                                if stream is None:
+                                    raise RuntimeError("cannot extract pinned tool")
+                                with source.open("xb") as out:
+                                    shutil_vendor.copyfileobj(stream,out)
+                            if vend_digest(source)!=expect:
+                                raise RuntimeError("extracted executable SHA256 mismatch")
+                        else:
+                            shutil_vendor.copyfile(asset,source)
+                        source.chmod(0o755)
+                        if vend_sudo("install","-d","-m","0755","-o","root","-g","root",
+                                     base,base/"bin",timeout=25).returncode:
+                            raise RuntimeError("dedicated provider directory creation failed")
+                        if vend_sudo("install","-m","0755","-o","root","-g","root",
+                                     source,dest,timeout=40).returncode:
+                            raise RuntimeError("dedicated provider executable copy failed")
+                    if vend_digest(dest)!=expect or vend_sudo(
+                        "-u",service_name,"test","-x",dest,timeout=14).returncode:
+                        raise RuntimeError("post-install service provider integrity failed")
+                    if label=="WAKARU":
+                        probe=vend_sudo("-u",service_name,dest,"--version",timeout=22)
+                        if probe.returncode!=0 or "1.14.0" not in (probe.stdout+probe.stderr):
+                            raise RuntimeError("Wakaru real version probe failed")
+                        print("REA_EXTRA_WAKARU_VERSION=1.14.0")
+                    print("REA_EXTRA_"+label+"_STATUS=INSTALLED_VERIFIED")
+                except (OSError,RuntimeError,ValueError,subprocess.TimeoutExpired) as exc:
+                    print("REA_EXTRA_"+label+"_STATUS=BLOCKED_"+type(exc).__name__)
+            vend_install_binary(
+                "WAKARU","1.14.0",
+                "https://github.com/pionxzh/wakaru/releases/download/v1.14.0/wakaru-linux-x64.tar.gz",
+                "db0e620034723195ab426e94d00d55dbd8fd0106a928ada2563f1103196d09fa",
+                20000000,"wakaru","tar",
+                "664fa06782a61eda7ed15885134b52525fd565dd77607e642062ceb6cd927c38")
+            vend_install_binary(
+                "CUTTER","2.5.0",
+                "https://github.com/rizinorg/cutter/releases/download/v2.5.0/Cutter-v2.5.0-Linux-Qt5-x86_64.AppImage",
+                "c796077954b419bd6ac36fafd0a0df36f21c8c90219dbfcfb486b34e0ad4bbc0",
+                155000000,"Cutter-v2.5.0-Linux-Qt5-x86_64.AppImage","raw")
+            # mitmdump: fixed upstream 12.2.3, isolated service-owned Python venv.
+            mitm_final=provider_root/"mitmproxy-12.2.3"
+            mitm_stage=provider_root/".rea-mitmdump-12.2.3-staging"
+            mitm_created=False
+            try:
+                if mitm_final.is_symlink() or mitm_stage.is_symlink():
+                    raise RuntimeError("untrusted mitmproxy installation path")
+                if (mitm_final/"bin/mitmdump").is_file():
+                    p=vend_sudo("-u",service_name,mitm_final/"bin/mitmdump",
+                                "--version",timeout=25)
+                    if p.returncode or "12.2.3" not in (p.stdout+p.stderr):
+                        raise RuntimeError("existing mitmdump is not expected version")
+                    print("REA_EXTRA_MITMDUMP_STATUS=ALREADY_INSTALLED_VERIFIED")
+                else:
+                    if mitm_final.exists() or mitm_stage.exists():
+                        raise RuntimeError("existing mitmdump installation/stage not overwritten")
+                    if vend_sudo("install","-d","-m","0755","-o",service_name,"-g",service_name,
+                                 mitm_stage,timeout=25).returncode:
+                        raise RuntimeError("mitmproxy venv staging directory refused")
+                    mitm_created=True
+                    init=vend_sudo("-u",service_name,"/usr/bin/python3","-m","venv",
+                                   mitm_stage,timeout=90)
+                    if init.returncode:
+                        raise RuntimeError("mitmproxy venv creation failed")
+                    installed=vend_sudo("-u",service_name,mitm_stage/"bin/pip","install",
+                        "--disable-pip-version-check","--no-input","--no-cache-dir",
+                        "--only-binary=:all:","mitmproxy==12.2.3",timeout=370)
+                    if installed.returncode:
+                        raise RuntimeError("mitmproxy pinned-version wheel install failed")
+                    check=vend_sudo("-u",service_name,mitm_stage/"bin/mitmdump",
+                                   "--version",timeout=35)
+                    if check.returncode or "12.2.3" not in (check.stdout+check.stderr):
+                        raise RuntimeError("installed mitmdump version mismatch")
+                    if vend_sudo("mv","--",mitm_stage,mitm_final,timeout=35).returncode:
+                        raise RuntimeError("mitmdump venv atomic activation failed")
+                    mitm_created=False
+                    print("REA_EXTRA_MITMDUMP_STATUS=INSTALLED_VERIFIED")
+            except (OSError,RuntimeError,ValueError,subprocess.TimeoutExpired) as exc:
+                print("REA_EXTRA_MITMDUMP_STATUS=BLOCKED_"+type(exc).__name__)
+            finally:
+                if mitm_created:
+                    res=vend_sudo("rm","-rf","--",mitm_stage,timeout=40)
+                    print("REA_EXTRA_MITMDUMP_STAGE_CLEAN="+str(res.returncode==0).lower())
+            # Chromium: install Playwright-matched browser only under REA prefix.
+            chromium_final=provider_root/"chromium-playwright-1.58.2"
+            chromium_stage=provider_root/".rea-chromium-playwright-1.58.2-staging"
+            chromium_created=False
+            try:
+                cli=Path("/opt/rea-reversa/rea/node_modules/playwright-core/cli.js")
+                node=shutil_vendor.which("node")
+                if chromium_final.is_symlink() or chromium_stage.is_symlink():
+                    raise RuntimeError("untrusted Chromium installation path")
+                if not cli.is_file() or not node:
+                    raise RuntimeError("installed original Playwright CLI or Node missing")
+                existing=list(chromium_final.glob("chromium-*/chrome-linux64/chrome"))
+                existing+=list(chromium_final.glob("chromium_headless_shell-*/chrome-linux/headless_shell"))
+                if existing:
+                    v=vend_sudo("-u",service_name,existing[0],"--version",timeout=25)
+                    if v.returncode or not v.stdout.strip():
+                        raise RuntimeError("existing Chromium executable does not run")
+                    print("REA_EXTRA_CHROMIUM_STATUS=ALREADY_INSTALLED_VERIFIED")
+                else:
+                    if chromium_final.exists() or chromium_stage.exists():
+                        raise RuntimeError("existing Chromium installation/stage not overwritten")
+                    if vend_sudo("install","-d","-m","0755","-o",service_name,"-g",service_name,
+                                 chromium_stage,timeout=25).returncode:
+                        raise RuntimeError("Chromium installation directory failed")
+                    chromium_created=True
+                    p=vend_sudo("-u",service_name,"env",
+                        "PLAYWRIGHT_BROWSERS_PATH="+str(chromium_stage),
+                        node,cli,"install","chromium",timeout=425)
+                    if p.returncode:
+                        raise RuntimeError("Playwright-pinned Chromium download/install failed")
+                    found=list(chromium_stage.glob("chromium-*/chrome-linux64/chrome"))
+                    found+=list(chromium_stage.glob("chromium_headless_shell-*/chrome-linux/headless_shell"))
+                    if not found:
+                        raise RuntimeError("Chromium installed without recognized executable")
+                    v=vend_sudo("-u",service_name,found[0],"--version",timeout=30)
+                    if v.returncode or not v.stdout.strip():
+                        raise RuntimeError("Chromium installed binary cannot run")
+                    if vend_sudo("mv","--",chromium_stage,chromium_final,timeout=40).returncode:
+                        raise RuntimeError("Chromium atomic directory activation failed")
+                    chromium_created=False
+                    print("REA_EXTRA_CHROMIUM_STATUS=INSTALLED_VERIFIED")
+            except (OSError,RuntimeError,ValueError,subprocess.TimeoutExpired) as exc:
+                print("REA_EXTRA_CHROMIUM_STATUS=BLOCKED_"+type(exc).__name__)
+            finally:
+                if chromium_created:
+                    res=vend_sudo("rm","-rf","--",chromium_stage,timeout=55)
+                    print("REA_EXTRA_CHROMIUM_STAGE_CLEAN="+str(res.returncode==0).lower())
+            print("REA_EXTRA_SUPPLIERS_NO_SERVICE_RESTART=PASS")
         return
     if data["action"] == "fixture_linux_provider_install_simulate":
         # Simulation only; never apt-get update/install, no restart/edits.
