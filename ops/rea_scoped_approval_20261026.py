@@ -6,10 +6,11 @@ never signs on behalf of the owner and never permits destructive tool effects.
 """
 import base64
 import binascii
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
 import os
 from pathlib import Path
+import secrets
 import re
 import stat
 
@@ -209,6 +210,55 @@ def propose_task_tools(registry, audited_effects, schema_pins, *,
             continue
         selection.append(name)
     return sorted(selection)
+
+
+def prepare_unsigned_task_grant(project, task_id, artifact_root, registry,
+                                audited_effects, schema_pins, *, chosen_tools,
+                                schema_digest, classify_tool, now=None,
+                                lifetime_seconds=86400, grant_id=None):
+    """Build an owner-reviewable permission from live MCP tools selected by REA.
+
+    The person requests a TASK, not individual tool names. REA's planner passes
+    the necessary tool names internally. Only matching source-audited, schema-
+    pinned, low-impact tools reach this unsigned proposal. No signature/authority
+    is generated here; the existing owner's trusted device signs later.
+    """
+    if not isinstance(project, str) or not project.strip() or len(project) > 256:
+        raise ScopedApprovalError("A valid project is needed")
+    if not isinstance(task_id, str) or not task_id.strip() or len(task_id) > 256:
+        raise ScopedApprovalError("A valid task identifier is needed")
+    if (not isinstance(chosen_tools, (list, tuple)) or not chosen_tools or
+            any(not isinstance(name, str) or not NAME.fullmatch(name)
+                for name in chosen_tools)):
+        raise ScopedApprovalError("Invalid internal tool selection")
+    chosen = set(chosen_tools)
+    if len(chosen) != len(chosen_tools):
+        raise ScopedApprovalError("Duplicate proposed tool")
+    eligible = set(propose_task_tools(registry, audited_effects, schema_pins,
+                                     schema_digest=schema_digest,
+                                     classify_tool=classify_tool))
+    if not chosen.issubset(eligible):
+        raise ScopedApprovalError("Selected tool not safe or source attested")
+    _validate_job_paths(artifact_root, {"path": artifact_root})
+    if (type(lifetime_seconds) is not int or
+            not 60 <= lifetime_seconds <= MAX_SECONDS - 2):
+        raise ScopedApprovalError("Task grant lifetime out of range")
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        raise ScopedApprovalError("Timezone-aware current time is required")
+    identifier = grant_id if grant_id is not None else secrets.token_hex(16)
+    if not isinstance(identifier, str) or not HEX.fullmatch(identifier):
+        raise ScopedApprovalError("Invalid proposed grant identifier")
+    start = now - timedelta(seconds=1)
+    end = now + timedelta(seconds=lifetime_seconds)
+    fmt = lambda value: value.strftime("%Y-%m-%dT%H:%M:%SZ")
+    effects = sorted(set().union(*(audited_effects[name] for name in chosen)))
+    return {
+        "purpose": PURPOSE, "grant_id": identifier, "project": project,
+        "task_id": task_id, "origin": ORIGIN, "artifact_root": artifact_root,
+        "not_before": fmt(start), "expires_at": fmt(end),
+        "allowed_tools": sorted(chosen), "permitted_effects": effects,
+    }
 
 
 def verify_task_grant(grant, owner_signature_b64, owner_public_pem, *,
