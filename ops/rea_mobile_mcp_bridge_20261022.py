@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_cutter_ida_jeb_preflight", "fixture_linux_cutter_ida_jeb_setup", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -2386,6 +2386,44 @@ def main():
             1 for line in result.stdout.splitlines() if line.split()[-1:] in
             (["node"],["nodejs"]))))
         print("REA_PREFLIGHT_COMPLETE=PASS_READ_ONLY")
+        return
+    if data["action"] == "fixture_linux_cutter_ida_jeb_preflight":
+        import pwd
+        import platform
+        import shutil
+        import urllib.request as urlrequest
+        identity=pwd.getpwnam("rea-reversa")
+        root=Path("/opt/rea-reversa/providers")
+        engine=Path("/opt/rea-reversa/rea")
+        src=engine/"bridge/cutter/rea_bridge.py"
+        cutter=root/"cutter-2.5.0/bin/Cutter-v2.5.0-Linux-Qt5-x86_64.AppImage"
+        ida=root/"ida-free-mcp-1.1.3/ida_mcp-linux-x64.so"
+        jeb=root/"jeb-ce-5.48.0.202610071539/bin/app/jeb.jar"
+        jid="https://jebbuilds2.s3.amazonaws.com/jeb4ce/jeb-ce-5.48.0.202610071539-JEBDecompiler-624458483834837192.zip"
+        print("REA_TRIO_PLATFORM="+platform.system()+"-"+platform.machine())
+        print("REA_TRIO_SERVICE_HOME_AVAILABLE="+str(Path(identity.pw_dir).is_dir()).lower())
+        print("REA_TRIO_ENGINE_SOURCE="+str(src.is_file() and not src.is_symlink()).lower())
+        if src.is_file() and not src.is_symlink():
+            raw=src.read_bytes()
+            proof=hashlib.sha1(b"blob "+str(len(raw)).encode("ascii")+b"\x00"+raw).hexdigest()
+            print("REA_TRIO_CUTTER_BRIDGE_GIT_BLOB="+proof)
+        print("REA_TRIO_CUTTER_BINARY="+str(cutter.is_file() and not cutter.is_symlink()).lower())
+        print("REA_TRIO_IDA_PLUGIN_PRESENT="+str(ida.is_file() and not ida.is_symlink()).lower())
+        print("REA_TRIO_JEB_PRESENT="+str(jeb.is_file() and not jeb.is_symlink()).lower())
+        print("REA_TRIO_PRIVILEGED_INSTALL="+str(subprocess.run(["sudo","-n","true"],
+             stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=10).returncode==0).lower())
+        print("REA_TRIO_STORAGE_GIB="+str(shutil.disk_usage(root).free//(1024**3)))
+        print("REA_TRIO_JAVA_PRESENT="+str(shutil.which("java") is not None).lower())
+        try:
+            req=urlrequest.Request(jid,method="HEAD",headers={"User-Agent":"REA-original-JEBCE-setup/1"})
+            with urlrequest.urlopen(req,timeout=20) as reply:
+                code=reply.status
+                length=reply.headers.get("Content-Length") or "UNKNOWN"
+                print("REA_TRIO_JEB_HEAD_HTTP="+str(code))
+                print("REA_TRIO_JEB_HEAD_BYTES="+str(length)[:32])
+        except (OSError,ValueError,TimeoutError) as exc:
+            print("REA_TRIO_JEB_HEAD_HTTP=BLOCKED_"+type(exc).__name__)
+        print("REA_TRIO_PREFLIGHT=PASS_READ_ONLY")
         return
     if data["action"] == "fixture_linux_install_inventory":
         # Audit original Linux REA installation; no installation, no restart.
