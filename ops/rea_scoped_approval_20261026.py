@@ -148,7 +148,7 @@ def verify_not_revoked(grant_id, revocation_dir):
     if directory.is_symlink():
         raise ScopedApprovalError("Untrusted revocation directory")
     if not directory.exists():
-        return True
+        raise ScopedApprovalError("Owner revocation registry is not provisioned")
     info = directory.stat()
     if (not directory.is_dir() or info.st_uid != os.geteuid() or
             stat.S_IMODE(info.st_mode) != 0o700):
