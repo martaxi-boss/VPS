@@ -8,6 +8,7 @@ import base64
 import binascii
 from datetime import datetime, timezone
 import json
+from pathlib import Path
 import re
 
 from cryptography.exceptions import InvalidSignature
@@ -35,6 +36,13 @@ NEVER_STANDING_TOOLS = frozenset({
     "load_frida_script", "execute_rizin_command", "gdb_console",
     "cutter_command", "rizin_debug_command",
 })
+# Standing task grants may only touch a dedicated, project-specific job folder.
+# Broader paths remain behind the original per-operation authorization.
+JOBS_BASE = Path("/opt/rea-reversa/rea/.rea-private/jobs")
+PATH_ARG_KEYS = frozenset({
+    "path", "file", "filename", "input_path", "output_path", "target_path",
+    "source_path", "destination_path", "artifact_path", "binary_path",
+})
 FIELDS = frozenset({
     "purpose", "grant_id", "project", "task_id", "origin", "not_before",
     "expires_at", "allowed_tools", "permitted_effects", "artifact_root",
@@ -60,9 +68,54 @@ def _time(value):
         raise ScopedApprovalError("Invalid UTC grant timestamp") from exc
 
 
+def _validate_job_paths(artifact_root, arguments):
+    """Deny cross-project targets, path traversal and unbound sessions.
+
+    The signed root must be a dedicated child of the preapproved jobs tree.
+    The request must name at least one target inside that signed root; session
+    calls without a path need additional future session binding and are denied.
+    """
+    if not isinstance(arguments, dict):
+        raise ScopedApprovalError("Invalid arguments for scoped execution")
+    root = Path(artifact_root)
+    if (not root.is_absolute() or str(root) != str(root.resolve()) or
+            root == JOBS_BASE or JOBS_BASE not in root.parents):
+        raise ScopedApprovalError("Signed job root is not a confined job folder")
+    count = 0
+
+    def walk(obj):
+        nonlocal count
+        if isinstance(obj, dict):
+            for key, value in obj.items():
+                is_path = (isinstance(key, str) and
+                           (key in PATH_ARG_KEYS or key.endswith("_path")))
+                is_paths = isinstance(key, str) and key.endswith("_paths")
+                if is_path:
+                    if not isinstance(value, str) or not value.startswith("/"):
+                        raise ScopedApprovalError("Scoped target must be an absolute path")
+                    target = Path(value).resolve()
+                    if target != root and root not in target.parents:
+                        raise ScopedApprovalError("Target outside signed task folder")
+                    count += 1
+                elif is_paths:
+                    if not isinstance(value, list):
+                        raise ScopedApprovalError("Invalid scoped paths collection")
+                    for item in value:
+                        walk({"path": item})
+                else:
+                    walk(value)
+        elif isinstance(obj, list):
+            for value in obj:
+                walk(value)
+
+    walk(arguments)
+    if count == 0:
+        raise ScopedApprovalError("Scoped execution requires a bound job artifact")
+
+
 def verify_task_grant(grant, owner_signature_b64, owner_public_pem, *,
                       project, task_id, origin, artifact_root,
-                      tool, audited_effects, current_risk, now=None):
+                      tool, audited_effects, current_risk, arguments, now=None):
     """Check one sensitive/workspace tool against an independently owner-signed grant.
 
     This helper DOES NOT change secure.validate_inner or authorize live calls.
@@ -115,5 +168,6 @@ def verify_task_grant(grant, owner_signature_b64, owner_public_pem, *,
             not audited_effects.issubset(set(effects)) or
             audited_effects.intersection(FORBIDDEN_EFFECTS)):
         raise ScopedApprovalError("Operation has unapproved or dangerous effects")
+    _validate_job_paths(grant["artifact_root"], arguments)
     return True
 
