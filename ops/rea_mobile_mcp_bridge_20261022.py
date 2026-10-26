@@ -485,6 +485,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_APPLY_RESULT",
         "REA_P302_STATUS","REA_P302_LIVE_CUTTER_SESSION","REA_P302_VENDOR_VERSION",
         "REA_P302_LAUNCH_PRE_CLEANUP","REA_P302_LAUNCH_LOG_CATEGORIES",
+        "REA_P302_MISSING_KNOWN_MODULES","REA_P302_PROCESS_GROUP_CLEAN",
         "REA_P302_INPUT_UNCHANGED","REA_P302_SESSION_CLEAN","REA_P302_SERVICE_PID_UNCHANGED",
         "REA_P301_STATUS","REA_P301_ORIGINAL_CUTTER_BRIDGE",
         "REA_P301_SOURCE_VERIFIED","REA_P301_SERVICE_PID_UNCHANGED","REA_P301_BLOCK_CODE","REA_P301_ROOT_MANAGED_CODE","REA_P301_ROOT_SAFE_BLOCK","REA_P301_EXISTING_META",
@@ -1057,6 +1058,23 @@ except Exception as e:
         }
         print("REA_P302_LAUNCH_PRE_CLEANUP="+before_cleanup)
         print("REA_P302_LAUNCH_LOG_CATEGORIES="+json.dumps(categories,separators=(",",":")))
+        missing=re.findall(r"(?:modulenotfounderror|importerror):\\s*no module named ['\\\"]([^'\\\"]+)['\\\"]",output)
+        known=("cutter","pyside2","pyside6","pyqt5","shiboken2","rizin","qtpy","shiboken6","requests","packaging")
+        matched=sorted(set(x for x in missing if x in known))
+        print("REA_P302_MISSING_KNOWN_MODULES="+json.dumps(matched,separators=(",",":")))
+        process_group_clean=True
+        if proc is not None:
+            group="-"+str(proc.pid)
+            active=sp.run(["sudo","-n","kill","-0","--",group],
+                       capture_output=True,timeout=10,check=False).returncode==0
+            if active:
+                sp.run(["sudo","-n","kill","-KILL","--",group],
+                       capture_output=True,timeout=10,check=False)
+                time.sleep(1)
+                active=sp.run(["sudo","-n","kill","-0","--",group],
+                       capture_output=True,timeout=10,check=False).returncode==0
+            process_group_clean=not active
+        print("REA_P302_PROCESS_GROUP_CLEAN="+str(process_group_clean).lower())
         afterhash=hashlib.sha256(target.read_bytes()).hexdigest()
         clean_sessions=False
         try:
