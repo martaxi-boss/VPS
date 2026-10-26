@@ -190,6 +190,9 @@ def validate(data):
                 or not re.fullmatch(r"[A-Za-z0-9+/=]{340,1800}",
                                     data["response_key"])):
             error("Android fixture requires a public RSA reply key")
+    elif action == "fixture_linux_rea_680_session_gate":
+        if set(data) not in ({"version","action"}, {"version","action","response_key"}):
+            error("Session review accepts optional public encrypted reply key only")
     elif action == "fixture_linux_rea_680_owner_signature_preflight":
         if set(data) != {"version", "action", "sealed", "response_key"}:
             error("Encrypted owner authorization preflight requires sealed payload and public reply key")
@@ -587,7 +590,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         if private is not None:
             error("Unexpected private response")
         return
-    if request["action"] not in ("call", "sealed_batch", "fixture_apkdemos", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump", "fixture_linux_rea_680_owner_signature_preflight") or private is None:
+    if request["action"] not in ("call", "sealed_batch", "fixture_apkdemos", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump", "fixture_linux_rea_680_owner_signature_preflight", "fixture_linux_rea_680_session_gate") or private is None:
         error("Missing encrypted-return payload from REA")
     public = serialization.load_der_public_key(
         base64.b64decode(request["response_key"], validate=True)
@@ -756,6 +759,7 @@ def main():
         return
     if data["action"] == "fixture_linux_rea_680_session_gate":
         # Read-only bounded check before replacing a running service.
+        private_session_results={}
         names=("list_documents","list_cutter_sessions")
         for name in names:
             if name not in tool_by_name:
@@ -768,6 +772,7 @@ def main():
                 _,r=request_mcp({"jsonrpc":"2.0","id":6688,"method":"tools/call",
                    "params":{"name":name,"arguments":{}}},session,protocol,timeout=32)
                 value=r.get("result",{})
+                private_session_results[name]=r
                 if "error" in r or value.get("isError") is True:
                     print("REA_U680_SESSION_"+name.upper()+"=MCP_ERROR")
                 else:
@@ -783,6 +788,13 @@ def main():
                     print("REA_U680_SESSION_"+name.upper()+"=PASS_READ_ONLY")
             except (OSError,RuntimeError,ValueError,TypeError,subprocess.TimeoutExpired) as e:
                 print("REA_U680_SESSION_"+name.upper()+"=PROBE_FAILED")
+        if "response_key" in data:
+            if os.environ.get("REA_MOBILE_ENVELOPE_CAPTURE") != "1":
+                raise RuntimeError("Session responses require authenticated encryption")
+            output=json.dumps(private_session_results,ensure_ascii=True,sort_keys=True).encode()
+            if len(output)>100000:
+                raise RuntimeError("Session response exceeds sealed size")
+            print("REA_MOBILE_PRIVATE_RESULT_B64="+base64.b64encode(output).decode())
         return
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
