@@ -370,6 +370,59 @@ class P311GitHubButtonVerificationTests(unittest.TestCase):
         self.assertEqual(32, len(one["request_id"]))
         self.assertEqual(64, len(one["operation_sha256"]))
 
+    def test_complete_real_review_and_signed_task_binding_preview(self):
+        task = self._signed_task_fixture()
+        digest = gate.signed_task_review_digest(
+            task, request_id=self.request["request_id"])
+        public = {**self.request, "operation_sha256": digest}
+        result = gate.verify_and_bind_github_owner_review(
+            self.context, self.run, self.review, public, task,
+            request_path=self.path, now=self.now)
+        self.assertEqual("a"*32, result["request_id"])
+        self.assertTrue(result["bound_preview_only"])
+        self.assertEqual(int(self.context["run_id"]), result["run_id"])
+        self.assertNotIn("owner_signature", result)
+
+    def test_real_historical_demo_does_not_approve_an_unrelated_grant(self):
+        # Actual 26 October GitHub Actions owner button event; the uploaded
+        # preview used an arbitrary digest, NOT an Ed25519 task signature.
+        task = self._signed_task_fixture()
+        old_request = {
+            "purpose": gate.PURPOSE,
+            "request_id": "9e5a52a1742b2e0b8146f5293bfa0e1a",
+            "operation_sha256":
+                "cb6305de4b0122c46399daa2c4bb236f4f2246ad13ae376761ef9ea47822218c",
+            "project": "Engenharia Reversa",
+            "expires_at": (self.now + timedelta(minutes=10)).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"),
+        }
+        path = (gate.REQUEST_DIRECTORY + "/" + old_request["request_id"] + ".json")
+        with self.assertRaisesRegex(gate.ApprovalGateError, "DIFFERENT operation"):
+            gate.verify_and_bind_github_owner_review(
+                self.context, self.run, self.review, old_request, task,
+                request_path=path, now=self.now)
+
+    def test_full_review_binding_denies_wrong_reviewer_even_with_matching_hash(self):
+        task = self._signed_task_fixture()
+        public = {**self.request, "operation_sha256":
+                  gate.signed_task_review_digest(
+                      task, request_id=self.request["request_id"])}
+        reviewer = {**self.review[0], "user": {"login": "other", "id": 234}}
+        with self.assertRaises(gate.ApprovalGateError):
+            gate.verify_and_bind_github_owner_review(
+                self.context, self.run, [reviewer], public, task,
+                request_path=self.path, now=self.now)
+
+    def test_full_review_binding_denies_matching_task_after_expiration(self):
+        task = self._signed_task_fixture()
+        public = {**self.request, "operation_sha256":
+                  gate.signed_task_review_digest(
+                      task, request_id=self.request["request_id"])}
+        with self.assertRaises(gate.ApprovalGateError):
+            gate.verify_and_bind_github_owner_review(
+                self.context, self.run, self.review, public, task,
+                request_path=self.path, now=self.now + timedelta(days=1))
+
     def test_duplicate_json_keys_are_rejected(self):
         with self.assertRaises(gate.ApprovalGateError):
             gate._parse_no_duplicates([("request_id", "a"), ("request_id", "b")])
