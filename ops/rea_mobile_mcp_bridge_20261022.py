@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_frida_binding_p306", "fixture_linux_frida_loader_p307", "fixture_linux_frida_service_node_p308"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_frida_binding_p306", "fixture_linux_frida_loader_p307", "fixture_linux_frida_service_node_p308", "fixture_linux_frida_layout_p309"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -579,6 +579,11 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_P308_ERROR_CODE", "REA_P308_ERROR_DIGEST",
         "REA_P308_LOADER_HINTS", "REA_P308_SERVICE_PID_UNCHANGED",
     })
+    allowed_markers.update({
+        "REA_P309_STATUS","REA_P309_LAYOUT","REA_P309_BUILD_NODE_COUNT",
+        "REA_P309_PLATFORM","REA_P309_MACHINE","REA_P309_INSTALL_SCRIPT_SHA256",
+        "REA_P309_SERVICE_PID_UNCHANGED",
+    })
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
         if line.startswith("REA_MOBILE_PRIVATE_RESULT_B64="):
@@ -927,6 +932,58 @@ def main():
             "PASS_NATIVE_API" if unchanged and trial.returncode == 0
             and observation.get("loaded") is True and
             observation.get("hasApi") is True else "NATIVE_IMPORT_FAILED"))
+        return
+    if data["action"] == "fixture_linux_frida_layout_p309":
+        # Only inspect the exact existing Frida 17.23.2 addon footprint.
+        # No install/rebuild, no device calls, no service changes.
+        import platform
+        def unit_value(prop):
+            p = subprocess.run(["systemctl","show","rea-reversa-mcp.service",
+                "-p",prop,"--value"],capture_output=True,text=True,timeout=10,
+                check=False)
+            return p.stdout.strip() if p.returncode==0 else ""
+        pid=unit_value("MainPID")
+        user=unit_value("User")
+        root=Path("/opt/rea-reversa/rea")
+        pkg=root/"node_modules/frida"
+        if (user!="rea-reversa" or unit_value("ActiveState")!="active" or
+            not pid.isdecimal() or not pkg.is_dir() or pkg.is_symlink() or
+            json.loads((pkg/"package.json").read_text()).get("version")!="17.23.2"):
+            print("REA_P309_STATUS=WRONG_RUNTIME_OR_PACKAGE")
+            return
+        addon=pkg/"build/frida_binding.node"
+        build=pkg/"build"
+        installer=pkg/"scripts/install.js"
+        prebuild=root/"node_modules/prebuild-install"
+        flags={
+            "addon_exists":addon.exists(),
+            "addon_file":addon.is_file() and not addon.is_symlink(),
+            "addon_nonempty":addon.is_file() and addon.stat().st_size>0,
+            "build_dir":build.is_dir() and not build.is_symlink(),
+            "installer_exists":installer.is_file() and not installer.is_symlink(),
+            "prebuild_package":prebuild.is_dir() and not prebuild.is_symlink(),
+            "original_package":(root/"package.json").is_file(),
+        }
+        canread = subprocess.run(["sudo","-n","-u",user,
+            "test","-r",str(addon)],capture_output=True,timeout=10,
+            check=False).returncode==0
+        canwrite = subprocess.run(["sudo","-n","-u",user,
+            "test","-w",str(pkg)],capture_output=True,timeout=10,
+            check=False).returncode==0
+        flags["service_can_read_addon"]=canread
+        flags["service_can_write_package"]=canwrite
+        native=[]
+        if build.is_dir():
+            native=[p for p in build.rglob("*.node") if p.is_file()][:12]
+        print("REA_P309_LAYOUT="+json.dumps(flags,sort_keys=True))
+        print("REA_P309_BUILD_NODE_COUNT="+str(len(native)))
+        print("REA_P309_PLATFORM="+platform.system())
+        print("REA_P309_MACHINE="+platform.machine())
+        if installer.is_file():
+            print("REA_P309_INSTALL_SCRIPT_SHA256="+hashlib.sha256(
+                installer.read_bytes()).hexdigest())
+        print("REA_P309_SERVICE_PID_UNCHANGED="+str(pid==unit_value("MainPID")).lower())
+        print("REA_P309_STATUS=PASS_READ_ONLY_LAYOUT")
         return
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
