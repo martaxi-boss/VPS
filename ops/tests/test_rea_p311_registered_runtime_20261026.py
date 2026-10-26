@@ -84,11 +84,15 @@ class P311RegisteredRuntimeAdmittanceTests(unittest.TestCase):
             revocation_dir=self.revoked, trusted_contracts=self.contracts,
             now=self.now)
         self.params = {"path": self.artifacts + "/inert-sample.bin"}
+        from ops.tests.test_rea_secure_protocol_20261022 import approved
+        # Workspace uses its existing independent authorization. Only
+        # the sensitive operation can reuse the GitHub-reviewed task grant.
         self.body = {
             "protocol": 1, "nonce": "a" * 32,
             "expires_at": fmt(self.now + timedelta(minutes=30)),
             "steps": [
-                {"tool": "inspect_with_objdump", "arguments": self.params},
+                {"tool": "inspect_with_objdump", "arguments": self.params,
+                 "authorization": approved("inspect_with_objdump", self.params)},
                 {"tool": "import_managed_reconstruction", "arguments": self.params},
             ],
             "scoped_task_id": self.grant["grant_id"],
@@ -99,7 +103,7 @@ class P311RegisteredRuntimeAdmittanceTests(unittest.TestCase):
             self.body if body is None else body, self.registry,
             {"list_unknowns"}, now=self.now)
 
-    def test_registered_reference_admits_workspace_and_sensitive_without_new_signing(self):
+    def test_github_registered_grant_applies_only_to_sensitive_not_workspace(self):
         with mock.patch.dict(os.environ, {"REA_P311_SCOPED_TASKS": "enabled"}):
             self.assertEqual(["workspace", "sensitive"], self.valid())
             # A later request with its own nonce can reuse owner consent.
@@ -107,6 +111,8 @@ class P311RegisteredRuntimeAdmittanceTests(unittest.TestCase):
             self.assertEqual(["workspace", "sensitive"], self.valid(another))
         self.assertNotIn("owner_signature", self.body)
         self.assertNotIn("grant", self.body)
+        self.assertIn("authorization", self.body["steps"][0])
+        self.assertNotIn("authorization", self.body["steps"][1])
 
     def test_inactive_policy_still_rejects_registered_reference(self):
         with mock.patch.dict(os.environ, {"REA_P311_SCOPED_TASKS": "disabled"}):

@@ -996,7 +996,10 @@ def _p311_owner_scoped_grant(scoped_task, name, args, risk, verified_policy, now
     Caller-supplied booleans or GitHub text are NEVER accepted as approval.
     The owner public verifier is read only from the existing VPS private area.
     """
-    if os.environ.get("REA_P311_SCOPED_TASKS") != "enabled":
+    # Only the verified registered grant can bypass a per-tool sensitive
+    # Ed25519 signature. Normal workspace/read tools keep existing policy.
+    if (os.environ.get("REA_P311_SCOPED_TASKS") != "enabled" or
+            risk != "sensitive"):
         return False
     required = {
         "grant", "owner_signature", "project", "task_id", "origin",
@@ -1084,15 +1087,13 @@ def validate_inner(body, registry, safe_callable, now=None, *, scoped_task=None)
     """
     fields = {"protocol", "nonce", "expires_at", "steps"}
     if (not isinstance(body, dict) or set(body) not in (
-            fields, fields | {"scoped_task"}, fields | {"scoped_task_id"}
+            fields, fields | {"scoped_task_id"}
         ) or body["protocol"] != 1):
         raise SecureBridgeError("Invalid secure request protocol")
-    if "scoped_task" in body:
-        if (scoped_task is not None or
-                not isinstance(body["scoped_task"], dict) or
-                os.environ.get("REA_P311_SCOPED_TASKS") != "enabled"):
-            raise SecureBridgeError("Scoped task envelope is not allowed")
-        scoped_task = body["scoped_task"]
+    # No inline signed-task shortcuts: all reusable sensitive approvals must
+    # first be registered after the authenticated GitHub Approve button.
+    if scoped_task is not None:
+        raise SecureBridgeError("Use a GitHub-approved registered task ID")
     reference_id = body.get("scoped_task_id")
     if "scoped_task_id" in body and (
             scoped_task is not None or
