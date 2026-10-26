@@ -757,7 +757,7 @@ def main():
         version=sp.run(["sudo","-n","-u",user,str(java),"-version"],
             capture_output=True,text=True,timeout=15,check=False)
         vertext=(version.stderr+" "+version.stdout)[:900]
-        numbers=regex.search(r'(?:version |openjdk )[" ]?(\\d+)',vertext,regex.I)
+        numbers=regex.search(r'(?:version |openjdk )[" ]?(\d+)',vertext,regex.I)
         major=int(numbers.group(1)) if numbers else None
         print("REA_P300_JAVA_MAJOR="+str(major if major else "UNKNOWN"))
         if version.returncode!=0 or major is None or major<21:
@@ -771,7 +771,7 @@ def main():
             print("REA_P300_STATUS=BLOCKED_TEMP_HOME")
             return
         tmp=created.stdout.strip()
-        if not regex.fullmatch(r"/tmp/rea-p300-jeb-help\\.[A-Za-z0-9]{8}",tmp):
+        if not regex.fullmatch(r"/tmp/rea-p300-jeb-help\.[A-Za-z0-9]{8}",tmp):
             print("REA_P300_STATUS=BLOCKED_UNEXPECTED_TEMP")
             return
         try:
@@ -802,7 +802,7 @@ def main():
             print("REA_P300_JEB_HELP_TIMED_OUT="+str(code==124).lower())
             print("REA_P300_JEB_HELP_BYTES="+str(len(stdout)+len(stderr)))
         finally:
-            if regex.fullmatch(r"/tmp/rea-p300-jeb-help\\.[A-Za-z0-9]{8}",tmp):
+            if regex.fullmatch(r"/tmp/rea-p300-jeb-help\.[A-Za-z0-9]{8}",tmp):
                 sp.run(["sudo","-n","-u",user,"rm","-r","--",tmp],
                     capture_output=True,timeout=15,check=False)
         print("REA_P300_SERVICE_PID_UNCHANGED="+str(pid==unit("MainPID")).lower())
