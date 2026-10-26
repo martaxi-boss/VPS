@@ -328,7 +328,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_EXTRA_WAKARU_VERSION", "REA_EXTRA_WAKARU_DOWNLOAD_SHA256",
         "REA_EXTRA_CUTTER_DOWNLOAD_SHA256",
         "REA_EXTRA_MITMDUMP_STAGE_CLEAN", "REA_EXTRA_CHROMIUM_STAGE_CLEAN",
-        "REA_EXTRA_SUPPLIERS_NO_SERVICE_RESTART",
+        "REA_EXTRA_SUPPLIERS_NO_SERVICE_RESTART", "REA_EXTRA_CONFIG_STATUS", "REA_EXTRA_CONFIG_ROLLBACK",
         "REA_LINUX_READ5_SOURCE_PRESENT", "REA_LINUX_READ5_VITEST_PRESENT",
         "REA_LINUX_READ5_NODE_PRESENT", "REA_LINUX_READ5_REGRESSION",
         "REA_LINUX_READ5_EXIT_CODE", "REA_LINUX_READ5_TEST_OUTPUT_SHA256",
@@ -2480,6 +2480,63 @@ def main():
                 if chromium_created:
                     res=vend_sudo("rm","-rf","--",chromium_stage,timeout=55)
                     print("REA_EXTRA_CHROMIUM_STAGE_CLEAN="+str(res.returncode==0).lower())
+            # Prepare only the original REA service environment for verified binaries.
+            # Do not restart: live retained Evidence/Unknown state must be preserved.
+            cfg_path=Path("/etc/systemd/system/rea-reversa-mcp.service.d/99-rea-optional-vendors.conf")
+            cfg_created=False
+            try:
+                vendor_paths={
+                    "REA_WAKARU_COMMAND":provider_root/"wakaru-1.14.0/bin/wakaru",
+                    "REA_MITMDUMP_COMMAND":provider_root/"mitmproxy-12.2.3/bin/mitmdump",
+                }
+                browser_path=provider_root/"chromium-playwright-1.58.2"
+                if cfg_path.is_symlink() or cfg_path.parent.is_symlink():
+                    raise RuntimeError("untrusted systemd override location")
+                if cfg_path.exists():
+                    print("REA_EXTRA_CONFIG_STATUS=ALREADY_PRESENT_UNCHANGED")
+                else:
+                    for name,binpath in vendor_paths.items():
+                        if vend_sudo("-u",service_name,"test","-x",binpath,timeout=12).returncode:
+                            raise RuntimeError("verified vendor absent: "+name)
+                    if not browser_path.is_dir() or browser_path.is_symlink():
+                        raise RuntimeError("verified Chromium installation absent")
+                    getpid=lambda:subprocess.run(["systemctl","show","rea-reversa-mcp.service",
+                          "-p","MainPID","--value"],capture_output=True,text=True,timeout=15).stdout.strip()
+                    pid_before=getpid()
+                    if not pid_before.isdecimal() or int(pid_before)<1:
+                        raise RuntimeError("original MCP service not active")
+                    content="[Service]\n"+ "".join(
+                      'Environment="'+key+"="+str(value)+'"\n'
+                      for key,value in sorted(vendor_paths.items()))
+                    content+='Environment="PLAYWRIGHT_BROWSERS_PATH='+str(browser_path)+'"\n'
+                    with temporary.TemporaryDirectory(prefix="rea-vendor-unit-",dir=str(temp_root)) as td:
+                        src=Path(td)/"99-rea-optional-vendors.conf"
+                        src.write_text(content,encoding="ascii")
+                        src.chmod(0o600)
+                        if vend_sudo("install","-d","-m","0755",cfg_path.parent,timeout=20).returncode:
+                            raise RuntimeError("service override directory unavailable")
+                        if vend_sudo("install","-m","0644","-o","root","-g","root",
+                                     src,cfg_path,timeout=25).returncode:
+                            raise RuntimeError("service override publication failed")
+                        cfg_created=True
+                        expected=hashlib.sha256(content.encode("ascii")).hexdigest()
+                        stored=vend_sudo("sha256sum",cfg_path,timeout=15)
+                        if stored.returncode or not stored.stdout.startswith(expected):
+                            raise RuntimeError("service override SHA mismatch")
+                    if vend_sudo("systemctl","daemon-reload",timeout=35).returncode:
+                        raise RuntimeError("service unit metadata reload failed")
+                    pid_after=getpid()
+                    if pid_after != pid_before or subprocess.run(
+                        ["systemctl","is-active","--quiet","rea-reversa-mcp.service"],
+                        timeout=12,check=False).returncode:
+                        raise RuntimeError("original service changed unexpectedly")
+                    print("REA_EXTRA_CONFIG_STATUS=PREPARED_NO_RESTART")
+            except (OSError,RuntimeError,ValueError,subprocess.TimeoutExpired) as exc:
+                print("REA_EXTRA_CONFIG_STATUS=BLOCKED_"+type(exc).__name__)
+                if cfg_created:
+                    rm=vend_sudo("rm","-f","--",cfg_path,timeout=20)
+                    reld=vend_sudo("systemctl","daemon-reload",timeout=30)
+                    print("REA_EXTRA_CONFIG_ROLLBACK="+str(rm.returncode==0 and reld.returncode==0).lower())
             print("REA_EXTRA_SUPPLIERS_NO_SERVICE_RESTART=PASS")
         return
     if data["action"] == "fixture_linux_provider_install_simulate":
