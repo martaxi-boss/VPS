@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_cutter_original_bridge_p301", "fixture_linux_cutter_live_readonly_p302", "fixture_linux_cutter_official_package_p303"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_cutter_original_bridge_p301", "fixture_linux_cutter_live_readonly_p302", "fixture_linux_cutter_official_package_p303", "fixture_linux_cutter_backup_relocate_p304"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -483,6 +483,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_APPLY_STATE_SAVED",
         "REA_APPLY_FAILURE",
         "REA_APPLY_RESULT",
+        "REA_P304_STATUS","REA_P304_EXIT","REA_P304_BACKUP","REA_P304_SERVICE_PID_UNCHANGED",
         "REA_P303_STATUS","REA_P303_CUTTER_LAYOUT","REA_P303_PACKAGE_EXIT","REA_P303_SERVICE_PID_UNCHANGED",
         "REA_P302_STATUS","REA_P302_LIVE_CUTTER_SESSION","REA_P302_VENDOR_VERSION",
         "REA_P302_LAUNCH_PRE_CLEANUP","REA_P302_LAUNCH_LOG_CATEGORIES",
@@ -1197,6 +1198,97 @@ except Exception:
         print("REA_P303_CUTTER_LAYOUT="+status)
         print("REA_P303_SERVICE_PID_UNCHANGED="+str(pid==unit("MainPID")).lower())
         print("REA_P303_STATUS=PASS_OFFICIAL_PACKAGE")
+        return
+    if data["action"] == "fixture_linux_cutter_backup_relocate_p304":
+        # Remove an old 6.7 backup from Cutter's executable plugin search
+        # directory without deleting it; keep the official 6.8 Python package.
+        import subprocess as sp
+        unit="rea-reversa-mcp.service"
+        def prop(name):
+            r=sp.run(["systemctl","show",unit,"-p",name,"--value"],
+                capture_output=True,text=True,timeout=12,check=False)
+            return r.stdout.strip() if r.returncode==0 else ""
+        pid=prop("MainPID")
+        base=Path("/opt/rea-reversa/rea")
+        if (not pid.isdecimal() or int(pid)<1 or prop("User")!="rea-reversa"
+            or prop("ActiveState")!="active"
+            or json.loads((base/"package.json").read_text()).get("version")!="6.8.0"):
+            print("REA_P304_STATUS=BLOCKED_SERVICE")
+            return
+        try:
+            _,data_mcp=request_mcp(
+                {"jsonrpc":"2.0","id":3041,"method":"tools/call",
+                 "params":{"name":"list_cutter_sessions","arguments":{}}},
+                session,protocol,timeout=27)
+            result=data_mcp.get("result",{})
+            if "error" in data_mcp or result.get("isError") or result.get("structuredContent",{}).get("sessions")!=[]:
+                print("REA_P304_STATUS=BLOCKED_EXISTING_SESSIONS")
+                return
+        except (OSError,ValueError,RuntimeError,TypeError,sp.TimeoutExpired):
+            print("REA_P304_STATUS=BLOCKED_DISCOVERY")
+            return
+        helper="""
+import hashlib,os,pwd,stat
+from pathlib import Path
+who=pwd.getpwnam('rea-reversa')
+source=Path('/opt/rea-reversa/rea/bridge/cutter/rea_bridge.py')
+previous=Path('/opt/rea-reversa/rollbacks/rea-6.7.0-20261026/bridge/cutter/rea_bridge.py')
+base=Path(who.pw_dir)
+parts=('.local','share','rizin','cutter','plugins','python')
+parent=base
+if not parent.is_dir() or parent.is_symlink() or parent.stat().st_uid!=who.pw_uid:
+    raise SystemExit(11)
+for part in parts:
+    parent=parent/part
+    if (not parent.is_dir() or parent.is_symlink()
+        or parent.stat().st_uid not in (0,who.pw_uid)
+        or stat.S_IMODE(parent.stat().st_mode)&0o022):
+        raise SystemExit(12)
+old=parent/'rea_bridge.py.p301-original-670.backup'
+package=parent/'rea_bridge'
+init=package/'__init__.py'
+root=Path('/opt/rea-reversa/rollbacks')
+destination=root/'rea-cutter-p301-legacy-bridge-20261026'
+moved=destination/'rea_bridge.py.p301-original-670.backup'
+if (not source.is_file() or not previous.is_file() or
+    not package.is_dir() or package.is_symlink() or not init.is_symlink() or
+    init.resolve()!=source or not root.is_dir() or root.is_symlink()):
+    raise SystemExit(13)
+digest='d834fa77830cd1877be889d46c07063a1a81adeb69280d16dc4b520db0fd6aa1'
+def verified(file):
+    return file.is_file() and not file.is_symlink() and hashlib.sha256(file.read_bytes()).hexdigest()==digest
+if not verified(previous):raise SystemExit(14)
+if not old.exists() and not old.is_symlink():
+    if destination.is_dir() and not destination.is_symlink() and verified(moved):
+        print('LEGACY_BACKUP_ALREADY_OUTSIDE_PLUGINS')
+        raise SystemExit(0)
+    raise SystemExit(15)
+if old.is_symlink() or not verified(old) or old.stat().st_uid!=who.pw_uid:
+    raise SystemExit(16)
+if destination.exists() or destination.is_symlink():raise SystemExit(17)
+destination.mkdir(mode=0o700)
+try:
+    os.rename(old,moved)
+    if not verified(moved):raise ValueError('checksum')
+    print('LEGACY_BACKUP_PRESERVED_OUTSIDE_PLUGINS')
+except Exception:
+    if moved.exists() and not old.exists():
+        os.rename(moved,old)
+    destination.rmdir()
+    raise SystemExit(18)
+"""
+        result=sp.run(["sudo","-n","python3","-c",helper],
+            capture_output=True,text=True,timeout=35,check=False)
+        output=result.stdout.strip()
+        if result.returncode or output not in (
+           "LEGACY_BACKUP_ALREADY_OUTSIDE_PLUGINS",
+           "LEGACY_BACKUP_PRESERVED_OUTSIDE_PLUGINS"):
+            print("REA_P304_EXIT="+str(result.returncode))
+            print("REA_P304_STATUS=BLOCKED_BACKUP_VALIDATION")
+            return
+        print("REA_P304_BACKUP="+output)
+        print("REA_P304_SERVICE_PID_UNCHANGED="+str(pid==prop("MainPID")).lower())
+        print("REA_P304_STATUS=PASS_BACKUP_RELOCATED")
         return
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
