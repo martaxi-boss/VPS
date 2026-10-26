@@ -289,3 +289,16 @@ Para ativar esta protecao na VPS e necessario emitir autorizacao REAL limitada e
 - O codigo continua num PR #305 DRAFT, isolado da ponte operacional. `REA_P311_SCOPED_TASKS` permanece OFF na VPS; nenhum merge, SSH, deploy, restart, chamada MCP sensivel, modificacao ao REA original, certificado, Evidence, Unknowns, ledger ou backup.
 - Antes de qualquer teste real, e indispensavel uma **concessao Ed25519 real e limitada** assinada no Android e um **novo** desafio SHA-256 correspondente, seguido de nova aprovacao autenticada no ambiente protegido e comprovacao JWT; a aprovacao historica nao serve. Nao publicar grant/JWT ou chave privada.
 - A integracao produtiva e rollback ainda nao estao comprovados. A proxima fase nao pode declarar operacionais as 47 ferramentas sensiveis por delegacao.
+
+
+## P311 - Fase C: registo Ed25519 privado ancorado e duravel (26/10/2026)
+
+- **176/176 testes offline PASS** no GitHub Actions: https://github.com/martaxi-boss/VPS/actions/runs/40399721148. Commit de codigo/testes dd455e7fe2b30a97abf29c81690ce9fc2ee03278. Antes estavam confirmados 173/173 no run 40398811668; nao repetir esses ensaios.
+- Apenas o modulo experimental ops/rea_scoped_approval_20261026.py e as regressões de registo privado foram modificados. A ponte ativa, o motor oficial REA 6.8.0 e a politica da VPS nao foram modificados.
+- _open_pinned_private_grant_directory fixa com descritores o diretorio-pai e o registo privado existente, exige ownership do SSH user e modo 0700, recusa symlinks via O_NOFOLLOW e caminhos inseguros. O diretorio passa por verificacao por caminho e nova verificacao baseada em fstat antes de cada operacao.
+- register_signed_task_grant continua a verificar Ed25519 e efeitos auditados, e escreve 0600 com O_CREAT/O_EXCL/O_NOFOLLOW relativo ao diretorio privado fixado. Confirma a escrita com fsync do ficheiro e fsync do diretorio antes de devolver sucesso. Nao substitui grants existentes.
+- read_registered_task_grant tambem abre o grant por dir_fd, verificando owner, modo, tamanho, canonizacao do JSON, assinatura, ferramenta/efeitos, prazo e revogacao a cada leitura.
+- As 3 regressões adicionais confirmam fsync(file)+fsync(directory), leitura por dir_fd e rejeicao de symlink mesmo apos simulacao de troca entre verificacoes. Todos os artefactos testados ficam em TemporaryDirectory do GitHub Actions, sem grants reais nem ficheiros temporarios publicados no repositorio.
+- As origens oficiais OIDC consultadas em leitura devolvem issuer https://token.actions.githubusercontent.com, jwks_uri https://token.actions.githubusercontent.com/.well-known/jwks e RS256, com os claims requeridos pelo verificador. Esta consulta publica NAO e prova de JWT de job protegido.
+- **PENDENTE:** um JWT OIDC real emitido em job aprovado, grant Ed25519 do proprietario e demonstracao segura do transporte ate ao verificador privado, com rollback e teste MCP reversivel. Nao aceitar a aprovacao antiga nem prolongar artificialmente a expiracao do JWT. Nao iniciar ensaio humano sem tarefa legitima, identificadores e material publico de transporte prontos.
+- PR #305 permanece DRAFT, flag REA_P311_SCOPED_TASKS OFF, sem merge, SSH, VPS, tools/call, chaves privadas ou alterações a Evidence/Unknowns/certificados/backups.
