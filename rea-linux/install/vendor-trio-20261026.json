@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "phase": "REA_ORIGINAL_VENDOR_TRIO_CUTTER_IDA_FREE_JEB_CE_20261026",
+  "scope": "Original REA 6.7.0 on existing Ubuntu 24.04 Linux VPS; upstream REA remains unmodified",
+  "completed_at_utc": "2026-10-26",
+  "original_engine": {
+    "path": "/opt/rea-reversa/rea",
+    "service": "rea-reversa-mcp.service",
+    "mcp_loopback": "127.0.0.1:8765/mcp",
+    "catalog_count_confirmed": 208,
+    "restarted": false,
+    "authorization_classes_preserved": {
+      "read": 5,
+      "workspace": 120,
+      "owner_ed25519_sensitive": 83
+    }
+  },
+  "supplier_outcomes": [
+    {
+      "name": "Cutter",
+      "version": "2.5.0",
+      "appimage_already_installed": true,
+      "bridge_source": "/opt/rea-reversa/rea/bridge/cutter/rea_bridge.py",
+      "source_git_blob_sha": "be229f081dfcfe552dd0fa96165bd4c673d6efab",
+      "bridge_install": "INSTALLED_VERIFIED",
+      "destination": "rea-reversa service user's private Cutter Python plugin directory",
+      "fuse2": "INSTALLED_VERIFIED",
+      "gui_runtime": "NOT_YET_FUNCTIONALLY_VERIFIED",
+      "mcp_live_session": "NOT_STARTED_OR_PROVED",
+      "evidence": {
+        "first_blocked_run": 40258130928,
+        "bridge_fixed_run": 40258385035,
+        "fuse_apt_sim_run": 40258720458,
+        "fuse_install_run": 40258765052
+      }
+    },
+    {
+      "name": "IDA Free",
+      "version": "IDA host missing; third-party MCP v1.1.3 staged",
+      "plugin": "0xshlomil/ida-free-mcp 1.1.3",
+      "artifact": "/opt/rea-reversa/providers/ida-free-mcp-1.1.3/ida_mcp-linux-x64.so",
+      "artifact_sha256": "6c0e48122cefbd0acf0ed876b8a17e8a26a07a2f2f53d1e2c131ec5ed2799427",
+      "status": "PLUGIN_PREPARED_VERIFIED__IDA_HOST_NOT_INSTALLED",
+      "required_owner_action": "Use My Hex-Rays account to download official IDA Free, request free named licence and complete activation; use within vendor non-commercial licence terms",
+      "security_note": "Do not launch native plugin that listens on 0.0.0.0 without restricting access; no additional exposed MCP was started",
+      "evidence_run": 40258130928
+    },
+    {
+      "name": "JEB Community",
+      "version": "5.48.0.202610071539",
+      "official_archive": "https://jebbuilds2.s3.amazonaws.com/jeb4ce/jeb-ce-5.48.0.202610071539-JEBDecompiler-624458483834837192.zip",
+      "bytes": 697549250,
+      "sha256": "709e7fe8e88bb0e9e2bc03b028f8b9fc78cec0289d04abe54fc26cda6369e175",
+      "installed_path": "/opt/rea-reversa/providers/jeb-ce-5.48.0.202610071539",
+      "installed_engine": "bin/app/jeb.jar",
+      "status": "OFFICIAL_LINUX_PACKAGE_PREPARED_VERIFIED__FIRST_USE_NOT_ACTIVATED",
+      "required_owner_action": "Review/accept vendor EULA and use permitted Community Edition first-use licence activation before any live JEB MCP session",
+      "no_new_service_created": true,
+      "evidence_run": 40258130928
+    }
+  ],
+  "hygiene": {
+    "all_temporary_git_request_files_deleted": true,
+    "original_bridge_restored_exact_sha": "e2405473eaff646be5952b785b57f41f906354b6",
+    "original_engine_source_modified": false,
+    "service_restart": false,
+    "proprietary_licence_bypassed": false,
+    "ed25519_owner_security_bypassed": false,
+    "prior_certificates_and_evidence_untouched": true
+  },
+  "qualification": "Installed/prepared vendor components are not blanket live-functional certification of all 208 original REA operations. JEB and IDA Free require owner/vendor activation; Cutter requires a real GUI/bridge session and further validation."
+}
