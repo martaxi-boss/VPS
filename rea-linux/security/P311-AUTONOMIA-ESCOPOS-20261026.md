@@ -101,3 +101,18 @@ nao valida uma ferramenta sensivel por delegacao. Os 46 testes de
 `scoped_task` continuam offline. O canal autentico de aprovacao por
 botao, autorizacao de owner real, ativacao da politica na VPS e teste
 real sensivel permanecem pendentes. O REA original nao foi modificado.
+
+## P311 final - fail-closed de revogacao
+
+- O diretorio privado `revoked-p311-grants` passou a ser **obrigatorio**
+  para qualquer tarefa autorizada com grant persistente. Se nao existir,
+  for symlink, nao pertencer ao utilizador SSH ou nao tiver modo 0700,
+  a autorizacao e recusada. Marcadores de revogacao com modo 0600 e
+  propriedade correta impedem o reuso do grant. O verificador nao cria
+  nem remove marcadores.
+- A preparacao inicial desse diretorio fara parte do futuro **registo
+  autenticado do proprietario**, nunca de um pedido publico GitHub.
+- Regression run PASS (46/46) apos esta correcao:
+  https://github.com/martaxi-boss/VPS/actions/runs/40375847498
+- Chamada MCP read real e higienizacao do pedido/trigger continuam provadas
+  pelos commits e run anteriores. Nao houve qualquer ativacao na VPS.
