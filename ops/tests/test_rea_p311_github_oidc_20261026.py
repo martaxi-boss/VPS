@@ -374,8 +374,18 @@ class P311GithubOIDCReviewTests(unittest.TestCase):
                       malicious, request_id=self.request["request_id"])}
         jwt = self.mint(claims={**self.claims,
                     "aud": oidc.audience_for_review(public)})
+        # This negative Ed25519 test must pass commit provenance first:
+        # simulate GitHub's immutable blob for the SAME malicious challenge.
+        committed = (json.dumps(
+            public, sort_keys=True, separators=(",", ":")) + "\n").encode()
+        blob_sha = hashlib.sha1(
+            b"blob " + str(len(committed)).encode() + b"\x00" +
+            committed).hexdigest()
+        bad_file = {**self.commit["files"][0], "sha": blob_sha}
+        reviewed_commit = {**self.commit, "files": [bad_file]}
         with self.assertRaises(scoped.ScopedApprovalError):
-            self.consume(task=malicious, public=public, jwt=jwt)
+            self.consume(task=malicious, public=public, jwt=jwt,
+                         commit=reviewed_commit, committed=committed)
         self.assertEqual([], list(self.spent.iterdir()))
 
     def test_owner_revocation_blocks_consumption_before_state_change(self):
