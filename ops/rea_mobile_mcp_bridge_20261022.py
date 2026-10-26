@@ -1067,7 +1067,7 @@ except Exception as e:
             if "importerror:" not in rawline and "modulenotfounderror:" not in rawline:
                 continue
             after=rawline.split(":",1)[-1].strip()
-            after=re.sub(r"/[^\\s:,()]+","[path]",after)
+            after=re.sub(r"/[^\s:,()]+","[path]",after)
             after="".join(ch if ch.isalnum() or ch in " .,:_-()'[]" else "?" for ch in after)
             if after:
                 importer.append(after[:150])
