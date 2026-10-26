@@ -954,6 +954,42 @@ def _verify_sensitive_owner_authorization(body, position, name, args, auth):
         raise SecureBridgeError("Invalid independent owner authorization") from exc
 
 
+def propose_p311_task_from_live_catalog(registry, safe_callable, *,
+                                      project, task_id, artifact_root,
+                                      chosen_tools, now=None,
+                                      lifetime_seconds=86400,
+                                      grant_id=None):
+    """Prepare a reviewable owner grant from ONLY the internally verified MCP.
+
+    Never accept a source-effects table or schema hashes from GitHub requests
+    or the task's model-generated metadata. They must come from this module's
+    pinned audit (208) or the exact SHA-checked original REA 6.8.0 manifest.
+    A result is an UNSIGNED proposal, not a permission to execute tools.
+    """
+    if not isinstance(registry, dict) or not isinstance(safe_callable, (set, frozenset, list, tuple)):
+        raise SecureBridgeError("Invalid live MCP tool catalog")
+    verified_policy = _release680_verified_policy(registry)
+    effects = AUDITED_EFFECTS if verified_policy is None else verified_policy[0]
+    pins = AUDITED_SCHEMA_SHA256 if verified_policy is None else verified_policy[1]
+    if verified_policy is None and len(registry) not in (208,):
+        # Full live 208 or 229 catalog is mandatory outside isolated tests.
+        if os.environ.get("REA_P311_TEST_FIXTURE") != "yes":
+            raise SecureBridgeError("Incomplete or unsupported live MCP catalog")
+    try:
+        from ops import rea_scoped_approval_20261026 as scoped
+        return scoped.prepare_unsigned_task_grant(
+            project, task_id, artifact_root, registry, effects, pins,
+            chosen_tools=chosen_tools,
+            schema_digest=arguments_sha256,
+            classify_tool=lambda name, desc: classify(
+                name, desc, safe_callable, verified_policy),
+            now=now, lifetime_seconds=lifetime_seconds,
+            grant_id=grant_id,
+        )
+    except (ImportError, ValueError, TypeError, KeyError) as exc:
+        raise SecureBridgeError("Cannot derive an owner task grant from the live source-audited catalog") from exc
+
+
 def _p311_owner_scoped_grant(scoped_task, name, args, risk, verified_policy, now):
     """Experimental signed task delegation. DISABLED unless server opts in.
 
