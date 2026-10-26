@@ -484,7 +484,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_APPLY_FAILURE",
         "REA_APPLY_RESULT",
         "REA_P301_STATUS","REA_P301_ORIGINAL_CUTTER_BRIDGE",
-        "REA_P301_SOURCE_VERIFIED","REA_P301_SERVICE_PID_UNCHANGED","REA_P301_BLOCK_CODE","REA_P301_ROOT_MANAGED_CODE","REA_P301_ROOT_SAFE_BLOCK",
+        "REA_P301_SOURCE_VERIFIED","REA_P301_SERVICE_PID_UNCHANGED","REA_P301_BLOCK_CODE","REA_P301_ROOT_MANAGED_CODE","REA_P301_ROOT_SAFE_BLOCK","REA_P301_EXISTING_META",
         "REA_SERVICE_DOCTOR_STATUS",
         "REA_SERVICE_DOCTOR_UNIT_USER",
         "REA_SERVICE_DOCTOR_CONFIG_KEYS",
@@ -800,7 +800,7 @@ print(status)
             # is not chowned. Install ONLY the original symlink if every parent
             # is safe root/service-owned, non-symlink and not group-writable.
             roothelper = """
-import ast,os,pwd,stat,sys
+import ast,hashlib,json,os,pwd,stat,sys
 from pathlib import Path
 who=pwd.getpwnam('rea-reversa')
 home=Path(who.pw_dir)
@@ -832,8 +832,20 @@ try:
         if dest.resolve()!=src.resolve():raise ValueError('foreign_link')
         status='ALREADY_OFFICIAL_LINK'
     elif dest.exists():
-        import hashlib
-        if not dest.is_file() or hashlib.sha256(dest.read_bytes()).digest()!=hashlib.sha256(data).digest():
+        if not dest.is_file():
+            raise ValueError('existing_different_plugin')
+        existing=dest.read_bytes()
+        if hashlib.sha256(existing).digest()!=hashlib.sha256(data).digest():
+            st=dest.stat()
+            previous=Path('/opt/rea-reversa/rollbacks/rea-6.7.0-20261026/bridge/cutter/rea_bridge.py')
+            prior=previous.is_file() and previous.read_bytes()==existing
+            meta={"owner": "service" if st.st_uid==who.pw_uid else "root" if st.st_uid==0 else "other",
+               "mode":oct(stat.S_IMODE(st.st_mode)),
+               "sha256":hashlib.sha256(existing).hexdigest(),
+               "bytes":len(existing),
+               "reabridge":b'class ReaCutterPlugin' in existing and b'create_cutter_plugin' in existing,
+               "matches_670":prior}
+            print('SAFE_META='+json.dumps(meta,separators=(",",":")))
             raise ValueError('existing_different_plugin')
         status='ALREADY_OFFICIAL_FILE'
     else:
@@ -868,6 +880,9 @@ except Exception as e:
                 message=rootresult.stdout.strip()
                 if message.startswith("SAFE_BLOCK=") and len(message)<90:
                     print("REA_P301_ROOT_SAFE_BLOCK="+message[11:])
+                for rawline in message.splitlines():
+                    if rawline.startswith("SAFE_META=") and len(rawline)<350:
+                        print("REA_P301_EXISTING_META="+rawline[len("SAFE_META="):])
         if output.returncode or status not in (
                "ALREADY_LINKED","ALREADY_IDENTICAL","LINKED_OFFICIAL_SOURCE",
                "ALREADY_OFFICIAL_LINK","ALREADY_OFFICIAL_FILE",
