@@ -8,6 +8,7 @@ from contextlib import redirect_stdout
 from datetime import datetime, timedelta, timezone
 import io
 import json
+import hashlib
 import os
 from pathlib import Path
 import sys
@@ -195,6 +196,63 @@ class P311SealedEnrollmentTests(unittest.TestCase):
                       {"sealed": {"algorithm": "plaintext"}}):
             with self.subTest(patch=patch), self.assertRaises(ValueError):
                 bridge.validate({**request, **patch})
+
+    def _synthetic_680_registry_and_manifest(self):
+        # A synthetic 229-tool fixture preserves the real original source
+        # release identity, but contains NO real new tool implementation.
+        catalog = dict(self.registry)
+        effects = dict(secure.AUDITED_EFFECTS)
+        for i in range(21):
+            name = "p311_only_test_680_tool_%02d" % i
+            flags = frozenset({"mutatesSession"})
+            effects[name] = flags
+            catalog[name] = {
+                "inputSchema": {"type": "object"},
+                "annotations": {
+                    "readOnlyHint": False, "destructiveHint": False,
+                    "openWorldHint": False,
+                },
+            }
+        self.assertEqual(229, len(catalog))
+        digest = secure.arguments_sha256({"type": "object"})
+        manifest = {
+            "release": "rea-agents-6.8.0",
+            "commit": "160d821ac9a0310afcb8d1fc427862dd6508add5",
+            "tree": "15e6fec513dcce08cefdbcf441200986397e2793",
+            "tools": {
+                name: {"effects": sorted(flags), "input_schema_sha256": digest}
+                for name, flags in effects.items()
+            },
+        }
+        path = self.root / "p311-simulated-680-contract.json"
+        path.write_bytes(json.dumps(manifest, sort_keys=True,
+                                    separators=(",", ":")).encode("utf-8"))
+        path.chmod(0o600)
+        return catalog, path
+
+    def test_680_229_source_pinned_enrollment_accepts_owner_signed_known_tool(self):
+        catalog, manifest = self._synthetic_680_registry_and_manifest()
+        signature_hash = hashlib.sha256(manifest.read_bytes()).hexdigest()
+        with mock.patch.object(secure, "RELEASE_680_MANIFEST_PATH", manifest), mock.patch.object(
+                secure, "RELEASE_680_MANIFEST_SHA256", signature_hash), mock.patch.dict(
+                os.environ, {"REA_P311_SCOPED_TASKS": "enabled"}):
+            registered = bridge.p311_enroll_sealed_owner_task(
+                self.build(), catalog, {"list_unknowns"}, now=self.now)
+        self.assertEqual(self.grant["grant_id"], registered["grant_id"])
+        self.assertEqual(0o600, (self.registry_dir /
+                         (self.grant["grant_id"]+".json")).stat().st_mode & 0o777)
+
+    def test_680_catalog_manifest_tampering_prevents_enrollment(self):
+        catalog, manifest = self._synthetic_680_registry_and_manifest()
+        original_digest = hashlib.sha256(manifest.read_bytes()).hexdigest()
+        manifest.write_bytes(manifest.read_bytes() + b"\n")
+        with mock.patch.object(secure, "RELEASE_680_MANIFEST_PATH", manifest), mock.patch.object(
+                secure, "RELEASE_680_MANIFEST_SHA256", original_digest), mock.patch.dict(
+                os.environ, {"REA_P311_SCOPED_TASKS": "enabled"}):
+            with self.assertRaises(secure.SecureBridgeError):
+                bridge.p311_enroll_sealed_owner_task(
+                    self.build(), catalog, {"list_unknowns"}, now=self.now)
+        self.assertFalse(self.registry_dir.exists())
 
     def test_success_result_is_encrypted_on_existing_actions_return(self):
         request = self.build()
