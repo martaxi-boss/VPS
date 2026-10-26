@@ -6,7 +6,10 @@ printed. No environment rules are changed and no SSH or MCP calls occur.
 import base64
 from contextlib import redirect_stdout
 import io
+import json
 import os
+from pathlib import Path
+import tempfile
 from datetime import datetime, timedelta, timezone
 import json
 import unittest
@@ -30,6 +33,7 @@ class P311GithubOIDCReviewTests(unittest.TestCase):
         self.now = datetime.now(timezone.utc).replace(microsecond=0)
         timestamp = lambda t: t.strftime("%Y-%m-%dT%H:%M:%SZ")
         key = Ed25519PrivateKey.generate()
+        self.owner_signer = key
         grant = {
             "purpose": scoped.PURPOSE, "grant_id": "7"*32,
             "project": "Engenharia Reversa", "task_id": "P311-CRYPTO-PREVIEW",
@@ -239,6 +243,120 @@ class P311GithubOIDCReviewTests(unittest.TestCase):
                           "deployments: write", "sudo ", "workflow_dispatch"):
             with self.subTest(dangerous=dangerous):
                 self.assertNotIn(dangerous, workflow)
+
+    def _prepare_private_consumption(self):
+        from ops import rea_secure_protocol_20261022 as secure
+        self.consumption_root = tempfile.TemporaryDirectory()
+        self.addCleanup(self.consumption_root.cleanup)
+        root = Path(self.consumption_root.name)
+        self.revocations = root / "revoked-p311-grants"
+        self.revocations.mkdir(mode=0o700)
+        self.spent = root / "spent-p311-oidc"
+        self.spent.mkdir(mode=0o700)
+        self.owner_public = self.owner_signer.public_key().public_bytes(
+            serialization.Encoding.PEM,
+            serialization.PublicFormat.SubjectPublicKeyInfo)
+        self.trusted_contracts = {
+            "inspect_with_objdump": (
+                secure.AUDITED_EFFECTS["inspect_with_objdump"], "workspace")
+        }
+
+    def consume(self, *, reviews=None, jwt=None, task=None, public=None):
+        public = self.request if public is None else public
+        with mock.patch.object(oidc, "load_official_github_jwks",
+                               return_value=self.jwks):
+            return oidc.verify_owner_review_oidc_and_consume_once(
+                self.ctx, self.run,
+                self.review if reviews is None else reviews,
+                public, self.signed if task is None else task,
+                self.mint() if jwt is None else jwt,
+                self.owner_public, self.trusted_contracts,
+                request_path=self.path, revocation_dir=self.revocations,
+                private_spent_dir=self.spent, now=self.now)
+
+    def test_real_signature_stack_consumes_approved_request_once(self):
+        self._prepare_private_consumption()
+        receipt = self.consume()
+        self.assertTrue(receipt["verified_spent_preview_only"])
+        marker = self.spent / (self.request["request_id"] + ".spent")
+        self.assertTrue(marker.is_file())
+        self.assertEqual(0o600, marker.stat().st_mode & 0o777)
+        contents = marker.read_text()
+        self.assertIn(self.request["operation_sha256"], contents)
+        self.assertNotIn(self.signed["owner_signature"], contents)
+        self.assertNotIn(self.mint(), contents)
+        self.assertNotIn(self.claims["jti"], contents)
+        with self.assertRaisesRegex(oidc.GithubOIDCError, "already been used"):
+            self.consume()
+        self.assertEqual(contents, marker.read_text())
+
+    def test_rejected_review_does_not_consume_one_use_marker(self):
+        self._prepare_private_consumption()
+        with self.assertRaises(gate.ApprovalGateError):
+            self.consume(reviews=[])
+        self.assertEqual([], list(self.spent.iterdir()))
+        self.assertTrue(self.consume()["verified_spent_preview_only"])
+
+    def test_expired_token_does_not_consume_authorization(self):
+        self._prepare_private_consumption()
+        expired = {**self.claims, "iat": int(self.now.timestamp()) - 800,
+                   "exp": int(self.now.timestamp()) - 500}
+        with self.assertRaises(oidc.GithubOIDCError):
+            self.consume(jwt=self.mint(claims=expired))
+        self.assertEqual([], list(self.spent.iterdir()))
+
+    def test_invalid_owner_key_rejected_even_with_valid_github_button(self):
+        self._prepare_private_consumption()
+        other_key = Ed25519PrivateKey.generate()
+        malicious = dict(self.signed, owner_signature=base64.b64encode(
+            other_key.sign(scoped.canonical_bytes(
+                self.signed["grant"]))).decode("ascii"))
+        public = {**self.request, "operation_sha256":
+                  gate.signed_task_review_digest(
+                      malicious, request_id=self.request["request_id"])}
+        jwt = self.mint(claims={**self.claims,
+                    "aud": oidc.audience_for_review(public)})
+        with self.assertRaises(scoped.ScopedApprovalError):
+            self.consume(task=malicious, public=public, jwt=jwt)
+        self.assertEqual([], list(self.spent.iterdir()))
+
+    def test_owner_revocation_blocks_consumption_before_state_change(self):
+        self._prepare_private_consumption()
+        marker = self.revocations / (
+            self.signed["grant"]["grant_id"] + ".revoked")
+        marker.write_text("revoked\n", encoding="ascii")
+        marker.chmod(0o600)
+        with self.assertRaises(scoped.ScopedApprovalError):
+            self.consume()
+        self.assertEqual([], list(self.spent.iterdir()))
+
+    def test_no_private_oneuse_store_blocks_all_proofs(self):
+        self._prepare_private_consumption()
+        self.spent.rmdir()
+        with self.assertRaises(scoped.ScopedApprovalError):
+            self.consume()
+        self.spent.mkdir(mode=0o700)
+        self.spent.chmod(0o777)
+        with self.assertRaises(scoped.ScopedApprovalError):
+            self.consume()
+        self.spent.chmod(0o700)
+        self.assertTrue(self.consume()["verified_spent_preview_only"])
+
+    def test_spent_store_symlink_and_preexisting_marker_cannot_be_overwritten(self):
+        self._prepare_private_consumption()
+        marker = self.spent / (self.request["request_id"] + ".spent")
+        marker.write_text("blocked", encoding="ascii")
+        marker.chmod(0o600)
+        with self.assertRaisesRegex(oidc.GithubOIDCError, "already been used"):
+            self.consume()
+        self.assertEqual("blocked", marker.read_text())
+        marker.unlink()
+        self.spent.rmdir()
+        fake = self.spent.parent / "another-private-dir"
+        fake.mkdir(mode=0o700)
+        self.spent.symlink_to(fake)
+        with self.assertRaises(scoped.ScopedApprovalError):
+            self.consume()
 
     def test_joint_owner_button_and_oidc_signature_are_required(self):
         receipt = self.full()
