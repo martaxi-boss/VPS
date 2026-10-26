@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_rea_680_preflight", "fixture_linux_rea_680_stage", "fixture_linux_rea_680_npm_diagnose", "fixture_linux_rea_680_resume_build", "fixture_linux_rea_680_rehearse", "fixture_linux_rea_680_contract_delta", "fixture_linux_rea_680_prepare_restore", "fixture_linux_rea_680_service_doctor"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_rea_680_preflight", "fixture_linux_rea_680_stage", "fixture_linux_rea_680_npm_diagnose", "fixture_linux_rea_680_resume_build", "fixture_linux_rea_680_rehearse", "fixture_linux_rea_680_contract_delta", "fixture_linux_rea_680_prepare_restore", "fixture_linux_rea_680_service_doctor", "fixture_linux_rea_680_policy_manifest"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -313,7 +313,8 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_U680_REHEARSAL_STATE",
         "REA_U680_DELTA_STATE",
         "REA_U680_RESTORE_STATUS",
-        "REA_U680_DOCTOR_STATUS", "REA_U680_DOCTOR_VERSION_EXIT", "REA_U680_DOCTOR_VERSION_MATCH", "REA_U680_DOCTOR_DOCTOR_EXIT", "REA_U680_DOCTOR_JSON", "REA_U680_DOCTOR_REPORT_FIELDS", "REA_U680_DOCTOR_HEALTHY", "REA_U680_DOCTOR_OK", "REA_U680_DOCTOR_EVIDENCE_READABLE", "REA_U680_DOCTOR_OLD_SERVICE_ACTIVE", "REA_U680_RESTORE_FILE", "REA_U680_RESTORE_FILE_BYTES", "REA_U680_RESTORE_SHA256", "REA_U680_RESTORE_RECORD_COUNT", "REA_U680_RESTORE_UNKNOWN_COUNT", "REA_U680_RESTORE_ARGS_SHA256", "REA_U680_DELTA_OLD_COUNT", "REA_U680_DELTA_NEW_COUNT", "REA_U680_DELTA_ADDED", "REA_U680_DELTA_REMOVED", "REA_U680_DELTA_CHANGED_EFFECTS", "REA_U680_DELTA_EFFECT_NAMES", "REA_U680_DELTA_MUTATING_COUNT", "REA_U680_DELTA_IMPORTANCE", "REA_U680_REHEARSAL_CATALOG_COUNT", "REA_U680_REHEARSAL_CATALOG_NAMES", "REA_U680_REHEARSAL_BACKUP_RESPONSE_FIELDS", "REA_U680_REHEARSAL_ARCHIVE_PARSE", "REA_U680_REHEARSAL_ARCHIVE_RECORD_COUNT", "REA_U680_REHEARSAL_ARCHIVE_UNKNOWN_COUNT", "REA_U680_REHEARSAL_IMPORT_RESULT", "REA_U680_REHEARSAL_POST_RECORD_COUNT", "REA_U680_REHEARSAL_POST_UNKNOWN_COUNT",
+        "REA_U680_DOCTOR_STATUS",
+        "REA_U680_MANIFEST_STATUS", "REA_U680_MANIFEST_STORAGE", "REA_U680_MANIFEST_SHA256", "REA_U680_MANIFEST_BYTES", "REA_U680_MANIFEST_COUNT", "REA_U680_MANIFEST_NEW_COUNT", "REA_U680_MANIFEST_EFFECT_CHANGED_COUNT", "REA_U680_DOCTOR_VERSION_EXIT", "REA_U680_DOCTOR_VERSION_MATCH", "REA_U680_DOCTOR_DOCTOR_EXIT", "REA_U680_DOCTOR_JSON", "REA_U680_DOCTOR_REPORT_FIELDS", "REA_U680_DOCTOR_HEALTHY", "REA_U680_DOCTOR_OK", "REA_U680_DOCTOR_EVIDENCE_READABLE", "REA_U680_DOCTOR_OLD_SERVICE_ACTIVE", "REA_U680_RESTORE_FILE", "REA_U680_RESTORE_FILE_BYTES", "REA_U680_RESTORE_SHA256", "REA_U680_RESTORE_RECORD_COUNT", "REA_U680_RESTORE_UNKNOWN_COUNT", "REA_U680_RESTORE_ARGS_SHA256", "REA_U680_DELTA_OLD_COUNT", "REA_U680_DELTA_NEW_COUNT", "REA_U680_DELTA_ADDED", "REA_U680_DELTA_REMOVED", "REA_U680_DELTA_CHANGED_EFFECTS", "REA_U680_DELTA_EFFECT_NAMES", "REA_U680_DELTA_MUTATING_COUNT", "REA_U680_DELTA_IMPORTANCE", "REA_U680_REHEARSAL_CATALOG_COUNT", "REA_U680_REHEARSAL_CATALOG_NAMES", "REA_U680_REHEARSAL_BACKUP_RESPONSE_FIELDS", "REA_U680_REHEARSAL_ARCHIVE_PARSE", "REA_U680_REHEARSAL_ARCHIVE_RECORD_COUNT", "REA_U680_REHEARSAL_ARCHIVE_UNKNOWN_COUNT", "REA_U680_REHEARSAL_IMPORT_RESULT", "REA_U680_REHEARSAL_POST_RECORD_COUNT", "REA_U680_REHEARSAL_POST_UNKNOWN_COUNT",
         "REA_U680_RESUME_SELECTED_NODE","REA_U680_RESUME_NODE_ENV",
         "REA_U680_RESUME_NPM_CI_EXIT","REA_U680_RESUME_OFFICIAL_BUILD_EXIT",
         "REA_U680_RESUME_CLI",
@@ -3062,6 +3063,101 @@ def main():
              ["systemctl","is-active","--quiet","rea-reversa-mcp.service"],
              timeout=12,check=False).returncode==0).lower())
         print("REA_U680_DOCTOR_STATUS=PASS_READ_ONLY_COMPLETE")
+        return
+    if data["action"] == "fixture_linux_rea_680_policy_manifest":
+        # Derive immutable 229-tool transport policy metadata from the exact
+        # official REA 6.8.0 build, for compatibility with old approved bridge.
+        import tempfile
+        import stat
+        stage=Path("/opt/rea-reversa/upgrades/rea-6.8.0-160d821ac9a0")
+        sha="160d821ac9a0310afcb8d1fc427862dd6508add5"
+        destination=Path.home()/".local/share/rea-chatgpt-trial/upgrade-backups/rea-6.8.0-mcp-contract-manifest.json"
+        if (not stage.is_dir() or stage.is_symlink() or
+             not (stage/"dist/contracts/toolContracts.js").is_file()):
+            print("REA_U680_MANIFEST_STATUS=BLOCKED_STAGE")
+            return
+        git=subprocess.run(["git","rev-parse","HEAD"],cwd=stage,
+            capture_output=True,text=True,timeout=15,check=False)
+        if git.returncode or git.stdout.strip()!=sha:
+            print("REA_U680_MANIFEST_STATUS=BLOCKED_SOURCE_COMMIT")
+            return
+        pid=subprocess.run(["systemctl","show","rea-reversa-mcp.service",
+            "-p","MainPID","--value"],capture_output=True,text=True,timeout=12).stdout.strip()
+        if not pid.isdecimal() or int(pid)<1:
+            print("REA_U680_MANIFEST_STATUS=BLOCKED_ORIGINAL_SERVICE")
+            return
+        p=subprocess.run(["sudo","-n","readlink","-f",f"/proc/{int(pid)}/exe"],
+            capture_output=True,text=True,timeout=12,check=False)
+        node=p.stdout.strip()
+        if p.returncode or not node.endswith("/node"):
+            print("REA_U680_MANIFEST_STATUS=BLOCKED_NODE_PATH")
+            return
+        env={"PATH":str(Path(node).parent)+":"+os.environ.get("PATH","/usr/bin:/bin"),
+             "HOME":str(Path.home()),"NO_COLOR":"1"}
+        js="import { TOOL_CONTRACTS } from \"./dist/contracts/toolContracts.js\";\nimport { advertisedInputJsonSchema } from \"./dist/contracts/toolSchemaMetadata.js\";\nimport { presentAdvertisedInputSchema } from \"./dist/contracts/compactInputSchema.js\";\nimport { compactPresentationForMcpInputSchemaProfile } from \"./dist/config/mcpInputSchemaProfile.js\";\nconst presentation=compactPresentationForMcpInputSchemaProfile(undefined);\nfor(const contract of TOOL_CONTRACTS) {\n const schema=presentAdvertisedInputSchema(advertisedInputJsonSchema(contract),presentation);\n process.stdout.write(JSON.stringify({name:contract.name,effects:contract.effects,annotations:contract.annotations,inputSchema:schema})+\"\\n\");\n}"
+        z=subprocess.run(["node","--input-type=module","--eval",js],
+           cwd=stage,capture_output=True,text=True,env=env,timeout=125,check=False)
+        if z.returncode or not 10000<len(z.stdout)<6000000:
+            print("REA_U680_MANIFEST_STATUS=BLOCKED_SOURCE_PROJECTION")
+            return
+        rows=[json.loads(line) for line in z.stdout.splitlines()]
+        names=[x["name"] for x in rows]
+        if len(names)!=229 or len(set(names))!=229 or not set(tool_by_name).issubset(names):
+            print("REA_U680_MANIFEST_STATUS=BLOCKED_TOOL_IDENTITY")
+            return
+        flags=frozenset(("mutatesTarget","mutatesSession","writesFilesystem",
+            "launchesProcess","accessesNetwork","changesUiState",
+            "mayDiscardData","executesForeignCode","mutatesDevice"))
+        build={}
+        for row in rows:
+            e=row["effects"]
+            if not isinstance(e,dict) or not flags.issubset(e) or not isinstance(row["inputSchema"],dict):
+                print("REA_U680_MANIFEST_STATUS=BLOCKED_INCOMPLETE_EFFECTS")
+                return
+            approved=sorted(k for k in flags if e[k] is True)
+            build[row["name"]]={
+                "effects":approved,
+                "input_schema_sha256":secure.arguments_sha256(row["inputSchema"]),
+                "annotations":{k:row["annotations"].get(k) for k in
+                     ("readOnlyHint","destructiveHint","openWorldHint","idempotentHint")}
+            }
+        manifest={"source":"morluto/rea","release":"rea-agents-6.8.0",
+                  "commit":sha,"tree":"15e6fec513dcce08cefdbcf441200986397e2793",
+                  "tools":build}
+        canonical=json.dumps(manifest,sort_keys=True,separators=(",",":"),
+                             ensure_ascii=True).encode()+b"\n"
+        if not 18000<len(canonical)<140000:
+            print("REA_U680_MANIFEST_STATUS=BLOCKED_MANIFEST_SIZE")
+            return
+        digest=hashlib.sha256(canonical).hexdigest()
+        if destination.is_symlink():
+            print("REA_U680_MANIFEST_STATUS=BLOCKED_LINK")
+            return
+        if destination.exists():
+            if destination.read_bytes()!=canonical:
+                print("REA_U680_MANIFEST_STATUS=BLOCKED_CONFLICT")
+                return
+            print("REA_U680_MANIFEST_STORAGE=ALREADY_VERIFIED")
+        else:
+            fd=os.open(destination,os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600)
+            with os.fdopen(fd,"wb") as writer:
+                writer.write(canonical)
+                writer.flush()
+                os.fsync(writer.fileno())
+            if destination.read_bytes()!=canonical:
+                print("REA_U680_MANIFEST_STATUS=BLOCKED_READBACK")
+                return
+            print("REA_U680_MANIFEST_STORAGE=WRITTEN_VERIFIED")
+        old=secure.AUDITED_EFFECTS
+        diff=sorted(k for k,v in build.items() if k in old and
+                    set(v["effects"])!=set(old[k]))
+        new=sorted(set(build)-set(old))
+        print("REA_U680_MANIFEST_SHA256="+digest)
+        print("REA_U680_MANIFEST_BYTES="+str(len(canonical)))
+        print("REA_U680_MANIFEST_COUNT="+str(len(build)))
+        print("REA_U680_MANIFEST_NEW_COUNT="+str(len(new)))
+        print("REA_U680_MANIFEST_EFFECT_CHANGED_COUNT="+str(len(diff)))
+        print("REA_U680_MANIFEST_STATUS=PASS_PINNED_OFFICIAL_PRIVATE")
         return
     if data["action"] == "fixture_linux_install_inventory":
         # Audit original Linux REA installation; no installation, no restart.
