@@ -149,7 +149,7 @@ class P311SealedEnrollmentTests(unittest.TestCase):
         with mock.patch.dict(os.environ, {
                 "REA_P311_GITHUB_API_TOKEN": "g" * 48}), \
              mock.patch.object(owner_gate,
-                               "enroll_owner_task_by_github_buttons_offline_only",
+                               "register_task_after_github_approval",
                                side_effect=trusted_review):
             return bridge.p311_enroll_sealed_owner_task(
                 self.build() if data is None else data,
