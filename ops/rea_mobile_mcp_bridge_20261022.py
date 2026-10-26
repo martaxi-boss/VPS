@@ -559,6 +559,13 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SDIAG_PID_PROVIDER_KEYS",
         "REA_SDIAG_STATUS"
     }
+    # P306 one-use explicitly reviewed metadata; no paths, credentials or payloads.
+    allowed_markers.update({
+        "REA_P306_STATUS", "REA_P306_ORIGINAL_PIN",
+        "REA_P306_NODE_MODULE_PRESENT", "REA_P306_SERVICE_PID_UNCHANGED",
+        "REA_P306_VERSION_MATCH", "REA_P306_IMPORT_EXIT",
+        "REA_P306_API_EXPORTS_VALID",
+    })
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
         if line.startswith("REA_MOBILE_PRIVATE_RESULT_B64="):
