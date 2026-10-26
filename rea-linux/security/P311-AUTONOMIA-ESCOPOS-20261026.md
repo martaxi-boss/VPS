@@ -67,3 +67,37 @@ uma permissao permanente. Para o uso autonomo duradouro pretendido pelo
 proprietario sera necessario um contrato de politica revogavel, confirmado
 por um canal que ateste o owner, sem expor a chave privada. Nao substituir
 esse requisito por um checkbox, booleano, mensagem ou ficheiro publico.
+
+## P311 reforco de seguranca e prova MCP real (26/10/2026)
+
+- **46/46 testes offline PASS**, incluindo round-trip da propria carga
+  `scoped_task` atraves de RSA-OAEP e AES-GCM, verificacao da assinatura
+  Ed25519 e rejeicao de adulteracao no ciphertext. Actions:
+  https://github.com/martaxi-boss/VPS/actions/runs/40374688244
+- Delegacoes de tarefa deixam de aceitar caminhos escondidos em argumentos
+  de texto/listas, aliases como `source_file`, chaves de execucao ou URI;
+  o acesso aos artefactos tem de permanecer no diretorio assinado.
+- Revogacao: `revoked-p311-grants/<grant_id>.revoked` no diretorio de
+  politica privada da conta SSH. O verificador apenas LE, recusa marcador
+  presente e tambem diretorios ou marcadores com ownership, modo ou
+  symlinks inseguros. Nao cria/remover marcadores automaticamente.
+- **Chamada MCP real de leitura PASS:**
+  https://github.com/martaxi-boss/VPS/actions/runs/40375171071
+  `REA_MOBILE_JOB_FILE=rea-linux/requests/p311-readonly-list-20261026.json`
+  `REA_MOBILE_REQUEST_ACTION=call`; SSH host pin PASS; MCP loopback PASS;
+  `REA_MOBILE_MCP_TOOL_COUNT=229`;
+  `REA_MOBILE_TOOL_CALL=PASS`; `REA_MOBILE_TOOL_NAME=list_unknowns`;
+  `REA_MOBILE_TOOL_ERROR=false`. Resposta privada nao foi impressa.
+- **Higienizacao comprovada:** o pedido de uso unico e o gatilho temporario
+  do ramo de testes foram eliminados no commit
+  `a24fa6b1846dd48585eb04c3b54262bdb9ece4c3`, com arvore final
+  `ddf61bd641f7b3e9b2fce25dcc0a406a1fa258bf`, identica a arvore
+  anterior ao ensaio. Ramo ativo sem mudancas.
+
+### Limitacoes deliberadas
+
+A chamada `list_unknowns` valida o **transporte e uma ferramenta read real**;
+nao valida uma ferramenta sensivel por delegacao. Os 46 testes de
+`scoped_task` continuam offline. O canal autentico de aprovacao por
+botao, autorizacao de owner real, ativacao da politica na VPS e teste
+real sensivel permanecem pendentes. O REA original nao foi modificado.
