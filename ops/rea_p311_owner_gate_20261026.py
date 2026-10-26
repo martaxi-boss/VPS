@@ -15,6 +15,7 @@ import json
 import os
 from pathlib import Path
 import re
+import secrets
 import subprocess
 import sys
 import urllib.error
@@ -123,6 +124,37 @@ def signed_task_review_digest(signed_task, *, request_id):
     except (TypeError, ValueError, UnicodeError) as exc:
         raise ApprovalGateError("Unsafe signed task for owner review") from exc
     return hashlib.sha256(b"REA_P311_GITHUB_TASK_REVIEW_V1\x00" + canonical).hexdigest()
+
+
+def prepare_owner_review_request(signed_task, *, expires_at,
+                                 request_id=None, now=None):
+    """Prepare ONLY a public SHA-256 challenge, not the owner-signed task.
+
+    This is used AFTER offline owner Ed25519 signing and BEFORE asking for a
+    GitHub button click. The full signed_task may ONLY travel in the existing
+    encrypted GitHub->SSH bridge; it must never appear in a public request.
+    """
+    now = now or datetime.now(timezone.utc)
+    rid = secrets.token_hex(16) if request_id is None else request_id
+    digest = signed_task_review_digest(signed_task, request_id=rid)
+    request = {
+        "purpose": PURPOSE,
+        "request_id": rid,
+        "operation_sha256": digest,
+        "project": "Engenharia Reversa",
+        "expires_at": expires_at,
+    }
+    path = f"{REQUEST_DIRECTORY}/{rid}.json"
+    validate_review_request(request, path=path, now=now)
+    grant = signed_task["grant"]
+    if not isinstance(grant["expires_at"], str):
+        raise ApprovalGateError("Owner grant expiry is missing")
+    # Approval must occur while the cryptographically signed task is valid.
+    signed_expires = _timestamp(grant["expires_at"])
+    signed_not_before = _timestamp(grant["not_before"])
+    if not signed_not_before <= now < _timestamp(expires_at) <= signed_expires:
+        raise ApprovalGateError("Review cannot outlive owner-signed task")
+    return path, request
 
 
 def match_verified_review_to_signed_task(preview_receipt, signed_task):
