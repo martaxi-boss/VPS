@@ -997,11 +997,22 @@ def _p311_owner_scoped_grant(scoped_task, name, args, risk, verified_policy, now
 
 
 def validate_inner(body, registry, safe_callable, now=None, *, scoped_task=None):
-    """Per-operation authorization, exact argument hash and expiration."""
-    if not isinstance(body, dict) or set(body) != {
-        "protocol", "nonce", "expires_at", "steps"
-    } or body["protocol"] != 1:
+    """Per-operation authorization, exact argument hash and expiration.
+
+    P311 adds an *optional* encrypted owner-signed task grant; an absent grant
+    follows the unchanged original admission path. Server opt-in is mandatory.
+    """
+    fields = {"protocol", "nonce", "expires_at", "steps"}
+    if (not isinstance(body, dict) or
+            set(body) not in (fields, fields | {"scoped_task"}) or
+            body["protocol"] != 1):
         raise SecureBridgeError("Invalid secure request protocol")
+    if "scoped_task" in body:
+        if (scoped_task is not None or
+                not isinstance(body["scoped_task"], dict) or
+                os.environ.get("REA_P311_SCOPED_TASKS") != "enabled"):
+            raise SecureBridgeError("Scoped task envelope is not allowed")
+        scoped_task = body["scoped_task"]
     if not isinstance(body["nonce"], str) or not NONCE_RE.fullmatch(body["nonce"]):
         raise SecureBridgeError("Invalid one-use nonce")
     if not isinstance(body["expires_at"], str) or not TIME_RE.fullmatch(body["expires_at"]):
