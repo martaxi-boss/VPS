@@ -165,3 +165,19 @@ Higienizacao: PR #305 ainda draft sem merge. Nenhum novo ficheiro de pedido cons
 ### Higienizacao e rollback
 
 O ramo ativo continua isolado. Manter o PR #305 como draft; nao fazer merge nem alterar a politica sem autorizacao real do proprietario e prova funcional de MCP. Preservar todos os certificados, Evidence, Unknowns, backups e ledger. Os testes offline nao criaram pedidos consumiveis no GitHub nem ficheiros persistentes na VPS. Os testes temporarios correram no runner do Actions.
+
+## P311 - botao GitHub autenticado: verificacao isolada, SEM ativacao na VPS
+
+- Foi preparado um **preview de aprovacao no proprio GitHub Actions**, usando a API oficial de revisoes de deployments e o ambiente `rea-p311-owner-consent`. Ficheiros: `ops/rea_p311_owner_gate_20261026.py`, `ops/tests/test_rea_p311_owner_gate_20261026.py` e `.github/workflows/rea-p311-owner-review-preview-20261026.yml`.
+- Este preview e acionado SOMENTE pelo commit de um unico pedido novo em `rea-linux/owner-review-requests/<32hex>.json` no ramo de revisao. O pedido publico possui apenas identificador aleatorio, hash SHA-256, projeto REA e expiracao ate uma hora. Nao contem chave privada, grant, alvo privado ou comando.
+- O workflow de revisao corre com `contents: read`, `actions: read`; nao contem SSH, segredo VPS, ferramentas REA, comandos de producao, permissoes de escrita ou motores adicionais.
+- O job de aprovacao exige `environment: rea-p311-owner-consent`. O validador consulta via GitHub REST o workflow run e o respetivo review history: run ID, SHA, nome e ID estavel da conta de proprietario, branch, caminho do workflow, tentativa numero 1, ambiente correto e UM `approved` explicito para a mesma execucao. Recusas, falta de revisao, identidade falsa, outros projetos, expiracao ou repeticoes sao rejeitados.
+- O resultado e **somente uma prova PREVIEW** e nunca e tratado como autorizacao de executar uma ferramenta sensivel ou como substituto da prova Ed25519 existente. A aprovacao pelo botao ainda NAO foi demonstrada ao vivo.
+
+### Configuracao unica necessaria no GitHub (ainda nao efetuada)
+
+Na pagina `https://github.com/martaxi-boss/VPS/settings/environments`, criar o ambiente `rea-p311-owner-consent`, definir `Required reviewers` para a conta `martaxi-boss` e desativar o bypass de administradores. Se a unica pessoa responsavel for tambem quem inicia o workflow, `Prevent self-review` NAO pode estar ligado; senao o proprio GitHub impede o seu botao de aprovar. Depois, o GitHub apresenta `Review deployments` e `Approve and deploy` ou a opcao de rejeitar. **Criar um ambiente sem `Required reviewers` NAO equivale a autorizacao.**
+
+Documentacao oficial: https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments e https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments.
+
+O conector GitHub disponivel nesta sessao nao tem operacoes de administracao de ambientes/protection rules; nao afirmar que a configuracao foi efetuada ou que o owner clicou no botao. O codigo permanece num PR draft, sem merge nem alteracoes na VPS; esta configuracao unica e indispensavel para a prova visual de aprovacao.
