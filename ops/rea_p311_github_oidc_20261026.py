@@ -440,6 +440,165 @@ def verify_owner_review_oidc_and_consume_once(
     }
 
 
+# Optional, read-only REST adapter for a FUTURE trusted server. It cannot
+# mint an OIDC token, sign for the owner, register a task or invoke MCP.
+GITHUB_API_REPO = "https://api.github.com/repos/" + REPO
+GITHUB_REST_MAX = 250000
+
+
+def _p311_github_rest_get(resource, *, token, max_bytes=GITHUB_REST_MAX):
+    """Read pinned repository evidence; reject redirects, large or duplicate JSON.
+
+    The token must be supplied by a trusted server/Actions job, NEVER by
+    arguments from a public challenge or an untrusted MCP tool.
+    """
+    if (not isinstance(resource, str) or
+            not re.fullmatch(
+                r"/(?:actions/runs/[1-9][0-9]{0,19}(?:/approvals)?"
+                r"|commits/[0-9a-f]{40}|git/blobs/[0-9a-f]{40})",
+                resource) or
+            not isinstance(token, str) or not 20 <= len(token) <= 4096 or
+            not isinstance(max_bytes, int) or not 0 < max_bytes <= GITHUB_REST_MAX):
+        raise GithubOIDCError("Unsafe or missing GitHub owner-review fetch parameters")
+    url = GITHUB_API_REPO + resource
+
+    class NoRedirect(urlrequest.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            raise GithubOIDCError("GitHub evidence request redirected")
+
+    req = urlrequest.Request(url, headers={
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "Authorization": "Bearer " + token,
+        "User-Agent": "rea-p311-owner-proof-read-only",
+    })
+    try:
+        with urlrequest.build_opener(NoRedirect()).open(req, timeout=12) as stream:
+            if stream.geturl() != url:
+                raise GithubOIDCError("GitHub evidence left pinned repository")
+            raw = stream.read(max_bytes + 1)
+    except (OSError, ValueError) as exc:
+        raise GithubOIDCError("Trusted GitHub owner-review evidence unavailable") from exc
+    if not 0 < len(raw) <= max_bytes:
+        raise GithubOIDCError("GitHub evidence response outside permitted size")
+    try:
+        return json.loads(raw, object_pairs_hook=_json_unique)
+    except (UnicodeError, ValueError) as exc:
+        raise GithubOIDCError("Invalid GitHub owner-review evidence JSON") from exc
+
+
+def fetch_trusted_owner_review_evidence(
+        run_id, request_id, *, github_token, now=None):
+    """Bind owner review and Git blob to fixed repo/run using live REST data.
+
+    Never read the changing branch tip and never trust a caller's workflow
+    context, reviewer list, commit metadata, request body or blob bytes.
+    The GitHub API token is read-only and never printed or returned.
+    """
+    if (type(run_id) is not int or not 0 < run_id < 10**20 or
+            not isinstance(request_id, str) or
+            not gate.HEX32.fullmatch(request_id)):
+        raise GithubOIDCError("Invalid pinned owner-review run/request ID")
+
+    run = _p311_github_rest_get(
+        "/actions/runs/" + str(run_id), token=github_token)
+    if not isinstance(run, dict) or run.get("id") != run_id:
+        raise GithubOIDCError("GitHub returned a different workflow run")
+    sha = run.get("head_sha")
+    if not isinstance(sha, str) or not gate.HEX40.fullmatch(sha):
+        raise GithubOIDCError("GitHub reviewed run SHA malformed")
+    for identity in ("repository", "head_repository"):
+        item = run.get(identity)
+        if (not isinstance(item, dict) or item.get("full_name") != REPO or
+                type(item.get("id")) is not int or
+                str(item["id"]) != REPOSITORY_ID):
+            raise GithubOIDCError("GitHub workflow run belongs to another repository")
+    triggering = run.get("triggering_actor")
+    if (not isinstance(triggering, dict) or
+            triggering.get("login") != OWNER_LOGIN or
+            triggering.get("id") != gate.OWNER_ID):
+        raise GithubOIDCError("GitHub review run was rerun by another actor")
+    ctx = {
+        "repository": REPO,
+        "actor": run.get("actor", {}).get("login") if isinstance(
+            run.get("actor"), dict) else None,
+        "triggering_actor": triggering["login"],
+        "event": run.get("event"),
+        "ref": "refs/heads/" + BRANCH,
+        "sha": sha,
+        "run_id": str(run_id),
+        "attempt": str(run.get("run_attempt")),
+    }
+    # The review API is queried for this exact run, never by author name.
+    reviews = _p311_github_rest_get(
+        "/actions/runs/" + str(run_id) + "/approvals",
+        token=github_token)
+    if not isinstance(reviews, list) or not 1 <= len(reviews) <= 100:
+        raise GithubOIDCError("Missing or excessive GitHub protected environment reviews")
+    commit = _p311_github_rest_get("/commits/" + sha, token=github_token)
+    if not isinstance(commit, dict) or commit.get("sha") != sha:
+        raise GithubOIDCError("GitHub commit does not match reviewed run SHA")
+    path = gate.REQUEST_DIRECTORY + "/" + request_id + ".json"
+    files = commit.get("files")
+    if (not isinstance(files, list) or len(files) != 1 or
+            not isinstance(files[0], dict) or
+            files[0].get("filename") != path or
+            files[0].get("status") != "added" or
+            not isinstance(files[0].get("sha"), str) or
+            not gate.HEX40.fullmatch(files[0]["sha"])):
+        raise GithubOIDCError("Reviewed commit is not a single added owner challenge")
+    blob = _p311_github_rest_get(
+        "/git/blobs/" + files[0]["sha"], token=github_token, max_bytes=12000)
+    if (not isinstance(blob, dict) or blob.get("sha") != files[0]["sha"] or
+            blob.get("encoding") != "base64" or
+            type(blob.get("size")) is not int or
+            not 0 < blob["size"] <= 2000 or
+            not isinstance(blob.get("content"), str) or
+            len(blob["content"]) > 4000):
+        raise GithubOIDCError("Invalid GitHub challenge blob wrapper")
+    encoded = blob["content"].replace("\n", "")
+    try:
+        committed = base64.b64decode(encoded, validate=True)
+    except (ValueError, base64.binascii.Error) as exc:
+        raise GithubOIDCError("Malformed GitHub challenge blob") from exc
+    if len(committed) != blob["size"]:
+        raise GithubOIDCError("GitHub challenge blob size mismatch")
+    try:
+        public = json.loads(committed.decode("utf-8"),
+                            object_pairs_hook=gate._parse_no_duplicates)
+    except (UnicodeError, ValueError) as exc:
+        raise GithubOIDCError("Invalid GitHub challenge body") from exc
+    verify_committed_review_request(
+        run, public, path, commit, committed, now=now)
+    # Re-verify independently on the server. No owner review, no JWT and
+    # no signed task is accepted on the basis of this object alone.
+    gate.verify_github_review(
+        ctx, run, reviews, public, request_path=path, now=now)
+    return ctx, run, reviews, public, path, commit, committed
+
+
+def verify_trusted_owner_review_oidc_and_consume_once(
+        run_id, request_id, signed_task, jwt, owner_public_pem,
+        trusted_contracts, *, github_token, revocation_dir,
+        private_spent_dir, now=None):
+    """Experimental trusted-entrypoint ONLY; NOT connected to tools/call.
+
+    Reads the review+commit+blob independently from GitHub and performs the
+    full existing JWT+Ed25519+revocation+one-use marker checks. Caller-supplied
+    review/commit fields are not accepted, only opaque run and request IDs.
+    A successful return is explicitly NOT a permission to use an MCP tool.
+    """
+    evidence = fetch_trusted_owner_review_evidence(
+        run_id, request_id, github_token=github_token, now=now)
+    ctx, run, reviews, public, path, commit, committed = evidence
+    return verify_owner_review_oidc_and_consume_once(
+        ctx, run, reviews, public, signed_task, jwt,
+        owner_public_pem, trusted_contracts, request_path=path,
+        reviewed_commit=commit, committed_request_bytes=committed,
+        revocation_dir=revocation_dir, private_spent_dir=private_spent_dir,
+        now=now)
+
+
 def _actions_audience_request_url(source_url, public_request):
     """Bind the GitHub-provided job token endpoint to the exact reviewed task.
 

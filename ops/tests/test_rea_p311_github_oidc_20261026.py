@@ -426,6 +426,114 @@ class P311GithubOIDCReviewTests(unittest.TestCase):
         with self.assertRaises(scoped.ScopedApprovalError):
             self.consume()
 
+
+    def _trusted_github_responses(self):
+        run = {**self.run, "repository": {
+            "full_name": oidc.REPO, "id": int(oidc.REPOSITORY_ID)},
+            "head_repository": {
+                "full_name": oidc.REPO, "id": int(oidc.REPOSITORY_ID)},
+            "triggering_actor": {
+                "login": gate.OWNER_LOGIN, "id": gate.OWNER_ID}}
+        return [run, self.review, self.commit, {
+            "sha": self.commit["files"][0]["sha"], "encoding": "base64",
+            "size": len(self.committed),
+            "content": base64.b64encode(self.committed).decode("ascii")}]
+
+    def test_trusted_rest_adapter_binds_actual_review_commit_and_jwt(self):
+        self._prepare_private_consumption()
+        endpoint_calls = []
+        fixtures = self._trusted_github_responses()
+
+        def fake_get(resource, *, token, **kwargs):
+            endpoint_calls.append(resource)
+            self.assertEqual(token, "g"*48)
+            return fixtures[len(endpoint_calls)-1]
+
+        with mock.patch.object(oidc, "_p311_github_rest_get",
+                               side_effect=fake_get), \
+             mock.patch.object(oidc, "load_official_github_jwks",
+                               return_value=self.jwks):
+            receipt = oidc.verify_trusted_owner_review_oidc_and_consume_once(
+                self.run["id"], self.request["request_id"],
+                self.signed, self.mint(), self.owner_public,
+                self.trusted_contracts, github_token="g"*48,
+                revocation_dir=self.revocations,
+                private_spent_dir=self.spent, now=self.now)
+        self.assertTrue(receipt["verified_spent_preview_only"])
+        self.assertEqual(
+            endpoint_calls,
+            ["/actions/runs/" + str(self.run["id"]),
+             "/actions/runs/" + str(self.run["id"]) + "/approvals",
+             "/commits/" + self.run["head_sha"],
+             "/git/blobs/" + self.commit["files"][0]["sha"]])
+        self.assertNotIn("owner_signature", receipt)
+        self.assertNotIn("jwt", receipt)
+
+    def test_rest_adapter_rejects_cross_repo_proof_without_spending(self):
+        self._prepare_private_consumption()
+        for mutation in (
+            {"repository": {"full_name": "attacker/VPS",
+                            "id": int(oidc.REPOSITORY_ID)}},
+            {"head_repository": {"full_name": oidc.REPO,
+                                 "id": 7}},
+            {"triggering_actor": {"login": "attacker", "id": 777}},
+        ):
+            run = {**self._trusted_github_responses()[0], **mutation}
+            with self.subTest(mutation=mutation), \
+                 mock.patch.object(oidc, "_p311_github_rest_get",
+                                   return_value=run), \
+                 self.assertRaises(oidc.GithubOIDCError):
+                oidc.fetch_trusted_owner_review_evidence(
+                    self.run["id"], self.request["request_id"],
+                    github_token="g"*48, now=self.now)
+            self.assertEqual(list(self.spent.iterdir()), [])
+
+    def test_rest_adapter_rejects_tampered_blob_and_wrong_review(self):
+        self._prepare_private_consumption()
+        base = self._trusted_github_responses()
+        for idx, bad_value in (
+            (1, []),
+            (2, {**self.commit, "sha": "f"*40}),
+            (3, {**base[3], "size": len(self.committed) + 1}),
+            (3, {**base[3], "content": "not-base64^"}),
+        ):
+            replies = [*base]
+            replies[idx] = bad_value
+            with self.subTest(idx=idx), \
+                 mock.patch.object(oidc, "_p311_github_rest_get",
+                                   side_effect=replies), \
+                 self.assertRaises((oidc.GithubOIDCError,
+                                    gate.ApprovalGateError)):
+                oidc.fetch_trusted_owner_review_evidence(
+                    self.run["id"], self.request["request_id"],
+                    github_token="g"*48, now=self.now)
+            self.assertEqual(list(self.spent.iterdir()), [])
+
+    def test_rest_fetch_rejects_untrusted_url_and_redirected_reply(self):
+        for resource in (
+            "/../../other-repo",
+            "/commits/" + "a"*40 + "?ref=main",
+            "//attacker.example/some",
+            "/git/blobs/" + "a"*39,
+        ):
+            with self.subTest(resource=resource), \
+                 self.assertRaises(oidc.GithubOIDCError):
+                oidc._p311_github_rest_get(resource, token="g"*48)
+        class RedirectedResponse:
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def geturl(self): return "https://attacker.example"
+            def read(self, _: int): return b'{"fake":true}'
+        with mock.patch.object(oidc.urlrequest, "build_opener") as build:
+            build.return_value.open.return_value = RedirectedResponse()
+            with self.assertRaises(oidc.GithubOIDCError):
+                oidc._p311_github_rest_get(
+                    "/commits/" + "a"*40, token="g"*48)
+            req = build.return_value.open.call_args.args[0]
+            self.assertEqual(req.full_url,
+                             oidc.GITHUB_API_REPO + "/commits/" + "a"*40)
+            self.assertEqual(req.get_header("Authorization"), "Bearer " + "g"*48)
+
     def test_joint_owner_button_and_oidc_signature_are_required(self):
         receipt = self.full()
         self.assertTrue(receipt["owner_button_and_oidc_preview_only"])
