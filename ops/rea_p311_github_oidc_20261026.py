@@ -605,6 +605,50 @@ def verify_trusted_owner_review_oidc_and_consume_once(
         now=now)
 
 
+def enroll_trusted_reviewed_task_offline_only(
+        run_id, request_id, signed_task, jwt, owner_public_pem,
+        trusted_contracts, *, github_token, private_registry_dir,
+        revocation_dir, private_spent_dir, now=None):
+    """Offline-only end-to-end staging; NEVER exposed by deployed MCP.
+
+    The real owner Ed25519 key stays OFF the server. This must be called by
+    trusted server code with the already-provisioned PUBLIC owner verifier,
+    source-pinned tool contracts and server-private directories; no caller
+    may provide an alternate key, project policy, or registry path.
+
+    Fail closed: refuse an unprovisioned grant registry BEFORE consuming the
+    GitHub proof. After a successful single-use proof, register exactly one
+    owner-signed scope. If disk or registration fails at that point, the proof
+    remains SPENT and requires explicit recovery, never an automatic retry.
+    This is not a transaction/production permission and performs no MCP call.
+    """
+    from ops import rea_scoped_approval_20261026 as scoped
+    timestamp = now or datetime.now(timezone.utc)
+    # No untrusted request can create a new authorization store.
+    scoped._check_private_grant_directory(private_registry_dir, create=False)
+    proof = verify_trusted_owner_review_oidc_and_consume_once(
+        run_id, request_id, signed_task, jwt, owner_public_pem,
+        trusted_contracts, github_token=github_token,
+        revocation_dir=revocation_dir, private_spent_dir=private_spent_dir,
+        now=timestamp)
+    if proof.get("verified_spent_preview_only") is not True:
+        raise GithubOIDCError("Reviewed task was not cryptographically consumed")
+    grant_id = scoped.register_signed_task_grant(
+        signed_task, owner_public_pem,
+        private_registry_dir=private_registry_dir,
+        revocation_dir=revocation_dir,
+        trusted_contracts=trusted_contracts, now=timestamp)
+    if grant_id != proof["grant_id"]:
+        raise GithubOIDCError("Registered grant did not match consumed consent")
+    return {
+        "registered_offline_stage_only": True,
+        "grant_id": grant_id,
+        "review_id": proof["request_id"],
+        "run_id": proof["run_id"],
+    }
+
+
+
 def _actions_audience_request_url(source_url, public_request):
     """Bind the GitHub-provided job token endpoint to the exact reviewed task.
 

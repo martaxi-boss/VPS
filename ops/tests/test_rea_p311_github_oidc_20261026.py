@@ -577,6 +577,69 @@ class P311GithubOIDCReviewTests(unittest.TestCase):
                              oidc.GITHUB_API_REPO + "/commits/" + "a"*40)
             self.assertEqual(req.get_header("Authorization"), "Bearer " + "g"*48)
 
+
+    def _stage_signed_enrollment(self, **kwargs):
+        with mock.patch.object(oidc, "_p311_github_rest_get",
+                               side_effect=self._trusted_github_responses()), \
+             mock.patch.object(oidc, "load_official_github_jwks",
+                               return_value=self.jwks):
+            return oidc.enroll_trusted_reviewed_task_offline_only(
+                self.run["id"], self.request["request_id"],
+                self.signed, self.mint(), self.owner_public,
+                self.trusted_contracts, github_token="g"*48,
+                private_registry_dir=self.private_grant_registry,
+                revocation_dir=self.revocations,
+                private_spent_dir=self.spent, now=self.now, **kwargs)
+
+    def test_offline_staging_binds_owner_button_oidc_and_private_grant(self):
+        self._prepare_private_consumption()
+        self.private_grant_registry = (
+            Path(self.consumption_root.name) / "approved-p311-tasks")
+        self.private_grant_registry.mkdir(mode=0o700)
+        receipt = self._stage_signed_enrollment()
+        self.assertIs(receipt["registered_offline_stage_only"], True)
+        self.assertEqual(receipt["grant_id"], self.signed["grant"]["grant_id"])
+        owner_file = self.private_grant_registry / (
+            self.signed["grant"]["grant_id"] + ".json")
+        self.assertTrue(owner_file.is_file())
+        self.assertEqual(0o600, owner_file.stat().st_mode & 0o777)
+        self.assertEqual(
+            scoped.read_registered_task_grant(
+                receipt["grant_id"], self.owner_public,
+                private_registry_dir=self.private_grant_registry,
+                revocation_dir=self.revocations,
+                trusted_contracts=self.trusted_contracts, now=self.now),
+            self.signed)
+        with self.assertRaisesRegex(oidc.GithubOIDCError, "already been used"):
+            self._stage_signed_enrollment()
+        self.assertEqual(1, len(list(self.private_grant_registry.iterdir())))
+
+    def test_offline_staging_requires_existing_secure_registry(self):
+        self._prepare_private_consumption()
+        self.private_grant_registry = (
+            Path(self.consumption_root.name) / "approved-p311-tasks")
+        with mock.patch.object(oidc, "_p311_github_rest_get") as network, \
+             self.assertRaises(scoped.ScopedApprovalError):
+            self._stage_signed_enrollment()
+        network.assert_not_called()
+        self.assertEqual([], list(self.spent.iterdir()))
+        self.assertFalse(self.private_grant_registry.exists())
+
+    def test_offline_staging_failed_registration_never_reopens_spent_proof(self):
+        self._prepare_private_consumption()
+        self.private_grant_registry = (
+            Path(self.consumption_root.name) / "approved-p311-tasks")
+        self.private_grant_registry.mkdir(mode=0o700)
+        with mock.patch.object(scoped, "register_signed_task_grant",
+                               side_effect=OSError("synthetic disk outage")), \
+             self.assertRaises(OSError):
+            self._stage_signed_enrollment()
+        spent = self.spent / (self.request["request_id"] + ".spent")
+        self.assertTrue(spent.is_file())
+        self.assertEqual([], list(self.private_grant_registry.iterdir()))
+        with self.assertRaisesRegex(oidc.GithubOIDCError, "already been used"):
+            self._stage_signed_enrollment()
+
     def test_joint_owner_button_and_oidc_signature_are_required(self):
         receipt = self.full()
         self.assertTrue(receipt["owner_button_and_oidc_preview_only"])
