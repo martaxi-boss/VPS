@@ -669,6 +669,9 @@ def main():
     if not isinstance(tools, list) or not tools:
         error("MCP tool catalogue empty")
     tool_by_name = {t.get("name"): t for t in tools}
+    # P290: for an exact, source-pinned REA 6.8.0 catalog, reuse the
+    # already verified 229-tool policy. The live 208-tool path is unchanged.
+    release_policy = secure._release680_verified_policy(tool_by_name)
     readonly = sorted(
         name for name, t in tool_by_name.items()
         if isinstance(name, str)
@@ -687,13 +690,13 @@ def main():
     print("REA_MOBILE_SAFE_QUERY_COUNT=" + str(len(permitted_query)))
     print("REA_MOBILE_LEGACY_NAME_COUNT=" + str(len(safe_callable)))
     safe_callable = sorted(name for name, descriptor in tool_by_name.items()
-                           if secure.classify(name, descriptor, ()) == "read")
+                           if secure.classify(name, descriptor, (), release_policy) == "read")
     print("REA_MOBILE_SAFE_CALLABLE_COUNT=" + str(len(safe_callable)))
     print("REA_MOBILE_WORKSPACE_CALLABLE_COUNT=" + str(sum(
-        secure.classify(name, descriptor, ()) == "workspace"
+        secure.classify(name, descriptor, (), release_policy) == "workspace"
         for name, descriptor in tool_by_name.items())))
     print("REA_MOBILE_SIGNATURE_REQUIRED_COUNT=" + str(sum(
-        secure.classify(name, descriptor, ()) == "sensitive"
+        secure.classify(name, descriptor, (), release_policy) == "sensitive"
         for name, descriptor in tool_by_name.items())))
     print("REA_MOBILE_CATALOG_SAMPLE=" + json.dumps(
         list(tool_by_name)[:14], ensure_ascii=True
@@ -3141,7 +3144,7 @@ def main():
                 print("REA_MOBILE_TOOL_DESCRIPTOR_TRUNCATED=NEEDS_ENCRYPTED_REPLY")
         return
     if data["action"] == "sealed_batch":
-        # All 208 advertised names can be routed, but each operation is
+        # All advertised official names can be routed, but each operation is
         # individually classified and must pass its risk-specific grant.
         # No plaintext request parameters/results are printed to public logs.
         body = secure.unseal(data["sealed"], data["response_key"])
@@ -3219,7 +3222,7 @@ def main():
         error("Requested tool is not in the explicit query/inspection allowlist")
     if (tool_by_name[name].get("annotations") or {}).get("destructiveHint") is True:
         error("Tool descriptor declares destructive side effects")
-    if secure.classify(name, tool_by_name[name], safe_callable) != "read":
+    if secure.classify(name, tool_by_name[name], safe_callable, release_policy) != "read":
         error("This operation requires the sealed per-operation authorization path")
     secure.validate_arguments(tool_by_name[name], data["arguments"])
     secure._authorized_target_paths(data["arguments"])
