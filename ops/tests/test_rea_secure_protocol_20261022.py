@@ -145,67 +145,74 @@ class ReaSecureProtocolTests(unittest.TestCase):
         with self.assertRaises(secure.SecureBridgeError):
             secure.validate_inner(altered, self.registry, {"list_unknowns"})
 
-    def test_P262_legacy_sensitive_names_require_exact_owner_signatures(self):
-        # These two historically certified tools predate current owner signatures.
-        # Verify the existing current policy enforces exact per-tool authorization
-        # using an ephemeral unit-test key only. No live owner key or tool call.
-        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-        from cryptography.hazmat.primitives import serialization
-        names = ("inspect_web_network_capture", "inspect_adb_client")
-        for name in names:
-            flags = secure.AUDITED_EFFECTS[name]
-            descriptor = {
-                "inputSchema": {"type": "object"},
-                "annotations": {
-                    "readOnlyHint": not bool(flags),
-                    "destructiveHint": bool(flags.intersection({
-                        "mayDiscardData", "executesForeignCode", "mutatesDevice"})),
-                    "openWorldHint": bool(flags.intersection({
-                        "launchesProcess", "accessesNetwork"})),
-                },
-            }
-            self.registry[name] = descriptor
-            secure.AUDITED_SCHEMA_SHA256[name] = secure.arguments_sha256(
-                descriptor["inputSchema"])
-        key = Ed25519PrivateKey.generate()
-        key_path = secure._private_directory() / "owner-approval-public.pem"
-        key_path.write_bytes(key.public_key().public_bytes(
-            serialization.Encoding.PEM,
-            serialization.PublicFormat.SubjectPublicKeyInfo))
-        for name in names:
-            with self.subTest(name=name):
-                self.assertEqual("sensitive", secure.classify(
-                    name, self.registry[name], {"list_unknowns"}))
-                arguments = {}
-                step = {"tool": name, "arguments": arguments,
-                        "authorization": approved(name, arguments, "sensitive")}
-                body = request([step])
-                with self.assertRaises(secure.SecureBridgeError):
-                    secure.validate_inner(body, self.registry, {"list_unknowns"})
-                auth = step["authorization"]
-                payload = {
-                    "purpose": "REA_OWNER_APPROVAL_V1",
-                    "nonce": body["nonce"],
-                    "expires_at": body["expires_at"],
-                    "step_index": 0,
-                    "tool": name,
-                    "arguments_sha256": secure.arguments_sha256(arguments),
-                    "scope": "sensitive",
-                    "reason": auth["reason"],
-                    "acknowledgement": auth["acknowledgement"],
+    def test_P286_scoped_passive_provider_calls_avoid_owner_signature(self):
+        # Reviewed effect-only calls use exact workspace approval, not Ed25519.
+        # Other operations retain their independent owner signature check.
+        names = secure.REVIEWED_SCOPED_WORKSPACE_OPERATIONS
+        self.assertEqual(36, len(names))
+        unsafe = secure.OWNER_SIGNATURE_EFFECTS
+        for name in sorted(names):
+            with self.subTest(tool=name):
+                flags = secure.AUDITED_EFFECTS[name]
+                self.assertFalse(flags.intersection(unsafe))
+                descriptor = {
+                    "inputSchema": {"type": "object"},
+                    "annotations": {
+                        "readOnlyHint": not bool(flags),
+                        "destructiveHint": bool(flags.intersection({
+                            "mayDiscardData", "executesForeignCode", "mutatesDevice"})),
+                        "openWorldHint": bool(flags.intersection({
+                            "launchesProcess", "accessesNetwork"})),
+                    },
                 }
-                auth["owner_signature"] = base64.b64encode(
-                    key.sign(secure.canonical_json(payload))).decode()
-                self.assertEqual(["sensitive"], secure.validate_inner(
-                    body, self.registry, {"list_unknowns"}))
-                other_name = names[1] if name == names[0] else names[0]
-                substitution = request([{"tool": other_name, "arguments": arguments,
-                                         "authorization": dict(auth)}])
-                substitution["nonce"] = body["nonce"]
-                substitution["expires_at"] = body["expires_at"]
+                self.registry[name] = descriptor
+                secure.AUDITED_SCHEMA_SHA256[name] = secure.arguments_sha256(
+                    descriptor["inputSchema"])
+                self.assertEqual("workspace", secure.classify(
+                    name, descriptor, {"list_unknowns"}))
+                args = {}
+                granted = request([{"tool": name, "arguments": args,
+                                    "authorization": approved(name, args)}])
+                self.assertEqual(["workspace"], secure.validate_inner(
+                    granted, self.registry, {"list_unknowns"}))
                 with self.assertRaises(secure.SecureBridgeError):
-                    secure.validate_inner(substitution, self.registry,
-                                          {"list_unknowns"})
+                    secure.validate_inner(request([{
+                        "tool": name, "arguments": args}]),
+                        self.registry, {"list_unknowns"})
+                with self.assertRaises(secure.SecureBridgeError):
+                    secure.validate_inner(request([{
+                        "tool": name, "arguments": args,
+                        "authorization": approved(name, args, "sensitive")}]),
+                        self.registry, {"list_unknowns"})
+                drift = {"inputSchema": {"type": "object",
+                    "properties": {"new_unknown": {"type": "string"}}},
+                    "annotations": descriptor["annotations"]}
+                self.assertEqual("sensitive", secure.classify(
+                    name, drift, {"list_unknowns"}))
+                bad_hint = {"inputSchema": descriptor["inputSchema"],
+                    "annotations": {**descriptor["annotations"],
+                                    "destructiveHint": True}}
+                self.assertEqual("sensitive", secure.classify(
+                    name, bad_hint, {"list_unknowns"}))
+        for name in ("install_adb_package", "push_adb_file",
+                     "close_binary", "start_gdb_session", "record_unknown",
+                     "import_evidence_bundle", "open_jeb_project",
+                     "cutter_command", "goto_address", "load_frida_script"):
+            with self.subTest(owner_protection=name):
+                flags = secure.AUDITED_EFFECTS[name]
+                descriptor = {"inputSchema": {"type": "object"},
+                    "annotations": {
+                        "readOnlyHint": not bool(flags),
+                        "destructiveHint": bool(flags.intersection({
+                            "mayDiscardData", "executesForeignCode", "mutatesDevice"})),
+                        "openWorldHint": bool(flags.intersection({
+                            "launchesProcess", "accessesNetwork"})),
+                    }}
+                secure.AUDITED_SCHEMA_SHA256[name] = secure.arguments_sha256(
+                    descriptor["inputSchema"])
+                self.assertEqual("sensitive", secure.classify(
+                    name, descriptor, {"list_unknowns"}))
+
 
     def test_reviewed_session_operations_require_open_and_exact_approval(self):
         examples = {
