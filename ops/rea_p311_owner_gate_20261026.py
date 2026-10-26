@@ -206,6 +206,51 @@ def verify_and_bind_github_owner_review(
     return result
 
 
+
+
+def enroll_owner_task_by_github_buttons_offline_only(
+        run_id, request_id, signed_task, owner_public_pem,
+        trusted_contracts, *, github_token, private_registry_dir,
+        revocation_dir, now=None):
+    """One GitHub Approve/Reject click + an EXISTING scoped owner signature.
+
+    This is an offline-tested entry point; it is NOT enabled in the live MCP.
+    GitHub REST, not user input, proves the exact run, owner, environment,
+    reviewed commit and digest-only challenge. The existing Ed25519 verifier
+    STILL checks the signed task, audited tool effects, expiry and revocation.
+
+    No GitHub OIDC JWT, OIDC artifact or second confirmation is needed.
+    The existing O_EXCL private grant registry serves as the one-use replay
+    boundary: a second review cannot enroll the same signed grant twice.
+    """
+    from ops import rea_scoped_approval_20261026 as scoped
+    # Never accept a public request as permission to create a private store.
+    scoped._check_private_grant_directory(private_registry_dir, create=False)
+
+    # Reuse the existing verified REST+immutable-blob adapter; its name is
+    # historical, but no OIDC token is requested or verified here.
+    from ops import rea_p311_github_oidc_20261026 as github_evidence
+    evidence = github_evidence.fetch_trusted_owner_review_evidence(
+        run_id, request_id, github_token=github_token, now=now)
+    context, run, reviews, public, path, _commit, _blob = evidence
+    bound = verify_and_bind_github_owner_review(
+        context, run, reviews, public, signed_task,
+        request_path=path, now=now)
+    # Registration is never a Github-only bypass: the registered grant must
+    # independently verify with the existing provisioned owner public key.
+    grant_id = scoped.register_signed_task_grant(
+        signed_task, owner_public_pem,
+        private_registry_dir=private_registry_dir,
+        revocation_dir=revocation_dir,
+        trusted_contracts=trusted_contracts, now=now)
+    return {
+        "registered_button_only_offline_stage": True,
+        "grant_id": grant_id,
+        "run_id": bound["run_id"],
+        "request_id": bound["request_id"],
+    }
+
+
 def selected_request_from_commit(commit, *, cwd="."):
     """Select a single NEW request; never execute deleted/modified files."""
     if not isinstance(commit, str) or not HEX40.fullmatch(commit):

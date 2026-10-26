@@ -242,21 +242,21 @@ class P311GithubOIDCReviewTests(unittest.TestCase):
                     request_path=self.path)
             mint.assert_not_called()
 
-    def test_oidc_preview_job_never_runs_mcp_and_minimizes_token_scope(self):
+    def test_active_owner_workflow_requires_only_github_review(self):
         from pathlib import Path
         workflow = (Path(__file__).resolve().parents[2] /
                     gate.WORKFLOW).read_text(encoding="utf-8")
-        self.assertIn("id-token: write", workflow)
-        self.assertEqual(workflow.count("id-token: write"), 1)
         protected = workflow.split("  wait-for-real-owner-button:", 1)[1]
         self.assertIn("environment:\n      name: rea-p311-owner-consent", protected)
-        self.assertIn("id-token: write", protected.split("environment:", 1)[0])
-        self.assertIn("python\" -m ops.rea_p311_github_oidc_20261026", protected)
-        for dangerous in ("VPS_SSH_PASSWORD", "sshpass", "tools/call",
-                          "REA_P311_SCOPED_TASKS", "contents: write",
-                          "deployments: write", "sudo ", "workflow_dispatch"):
-            with self.subTest(dangerous=dangerous):
-                self.assertNotIn(dangerous, workflow)
+        self.assertIn("ops/rea_p311_owner_gate_20261026.py --mode verify-review", protected)
+        self.assertIn("REA_P311_GITHUB_BUTTON=APPROVED", protected)
+        for unwanted in ("id-token: write", "rea_p311_github_oidc_20261026",
+                         "actions/upload-artifact", "JWT", "OIDC",
+                         "VPS_SSH_PASSWORD", "sshpass", "tools/call",
+                         "REA_P311_SCOPED_TASKS", "contents: write",
+                         "deployments: write", "sudo ", "workflow_dispatch"):
+            with self.subTest(unwanted=unwanted):
+                self.assertNotIn(unwanted, workflow)
 
     def _prepare_private_consumption(self):
         from ops import rea_secure_protocol_20261022 as secure
@@ -840,19 +840,16 @@ class P311GithubOIDCReviewTests(unittest.TestCase):
                     request_path=self.path, recipient_public_key_b64=pub)
             self.assertEqual("preserve", expected.read_text())
 
-    def test_workflow_ciphertext_only_behind_protected_recipient(self):
+    def test_button_only_workflow_has_no_token_or_artifact_transport(self):
         workflow = (Path(__file__).resolve().parents[2] /
                     gate.WORKFLOW).read_text(encoding="utf-8")
+        self.assertIn("REA_P311_GITHUB_BUTTON=APPROVED", workflow)
         self.assertNotIn("secrets.REA_P311_VPS_RECIPIENT_PUBLIC_B64", workflow)
-        self.assertNotIn("REA_P311_VPS_RECIPIENT_PUBLIC_B64:", workflow)
-        self.assertIn("steps.oidc.outputs.sealed == 'true'", workflow)
-        self.assertIn("rea-p311-oidc-encrypted.json", workflow)
-        self.assertIn("retention-days: 1", workflow)
-        self.assertIn("actions/upload-artifact@", workflow)
-        for forbidden in (
-                "VPS_SSH_PASSWORD", "sshpass", "tools/call",
-                "REA_P311_SCOPED_TASKS", "contents: write"):
-            self.assertNotIn(forbidden, workflow)
+        for unnecessary in ("id-token: write", "steps.oidc", "upload-artifact",
+                            "rea-p311-oidc-encrypted.json", "retention-days: 1",
+                            "VPS_SSH_PASSWORD", "sshpass", "tools/call",
+                            "REA_P311_SCOPED_TASKS", "contents: write"):
+            self.assertNotIn(unnecessary, workflow)
 
 
     def test_source_pinned_vps_recipient_key_is_valid_3072_bit_rsa(self):
@@ -875,6 +872,98 @@ class P311GithubOIDCReviewTests(unittest.TestCase):
         preview.assert_called_once_with(
             request_path=self.path,
             recipient_public_key_b64=oidc.PINNED_VPS_RECIPIENT_PUBLIC_B64)
+
+
+    def _simple_button_enrollment(self, **kwargs):
+        self._prepare_private_consumption()
+        self.private_grant_registry = (
+            Path(self.consumption_root.name) / "approved-p311-tasks")
+        self.private_grant_registry.mkdir(mode=0o700)
+        with mock.patch.object(oidc, "_p311_github_rest_get",
+                               side_effect=self._trusted_github_responses()), \
+             mock.patch.object(oidc, "load_official_github_jwks") as jwt_fetch:
+            result = gate.enroll_owner_task_by_github_buttons_offline_only(
+                self.run["id"], self.request["request_id"],
+                self.signed, self.owner_public, self.trusted_contracts,
+                github_token="g"*48,
+                private_registry_dir=self.private_grant_registry,
+                revocation_dir=self.revocations, now=self.now, **kwargs)
+            jwt_fetch.assert_not_called()
+        return result
+
+    def test_simple_github_buttons_enroll_one_signed_task_without_oidc(self):
+        result = self._simple_button_enrollment()
+        self.assertTrue(result["registered_button_only_offline_stage"])
+        self.assertEqual(self.signed["grant"]["grant_id"], result["grant_id"])
+        path = self.private_grant_registry / (result["grant_id"] + ".json")
+        self.assertEqual(0o600, path.stat().st_mode & 0o777)
+        self.assertEqual(
+            scoped.read_registered_task_grant(
+                result["grant_id"], self.owner_public,
+                private_registry_dir=self.private_grant_registry,
+                revocation_dir=self.revocations,
+                trusted_contracts=self.trusted_contracts, now=self.now),
+            self.signed)
+        self.assertNotIn("jwt", result)
+        self.assertNotIn("owner_signature", result)
+
+    def test_simple_buttons_refuse_replay_same_signed_grant(self):
+        result = self._simple_button_enrollment()
+        contents = (self.private_grant_registry /
+                    (result["grant_id"] + ".json")).read_bytes()
+        with mock.patch.object(oidc, "_p311_github_rest_get",
+                               side_effect=self._trusted_github_responses()), \
+             self.assertRaisesRegex(scoped.ScopedApprovalError,
+                                     "already enrolled"):
+            gate.enroll_owner_task_by_github_buttons_offline_only(
+                self.run["id"], self.request["request_id"],
+                self.signed, self.owner_public, self.trusted_contracts,
+                github_token="g"*48,
+                private_registry_dir=self.private_grant_registry,
+                revocation_dir=self.revocations, now=self.now)
+        self.assertEqual(contents, (self.private_grant_registry /
+                         (result["grant_id"] + ".json")).read_bytes())
+
+    def test_simple_buttons_wrong_scope_and_rejected_owner_are_denied(self):
+        self._prepare_private_consumption()
+        private_registry = Path(self.consumption_root.name) / "approved-p311-tasks"
+        private_registry.mkdir(mode=0o700)
+        for wrong in (self._trusted_github_responses(),
+                      [*self._trusted_github_responses()]):
+            wrong[1] = [{**self.review[0], "state": "rejected"}]
+            with mock.patch.object(oidc, "_p311_github_rest_get",
+                                   side_effect=wrong), \
+                 self.assertRaises((gate.ApprovalGateError,
+                                    oidc.GithubOIDCError)):
+                gate.enroll_owner_task_by_github_buttons_offline_only(
+                    self.run["id"], self.request["request_id"],
+                    self.signed, self.owner_public, self.trusted_contracts,
+                    github_token="g"*48, private_registry_dir=private_registry,
+                    revocation_dir=self.revocations, now=self.now)
+        with mock.patch.object(oidc, "_p311_github_rest_get",
+                               side_effect=self._trusted_github_responses()), \
+             self.assertRaises(gate.ApprovalGateError):
+            modified = {**self.signed, "task_id": "other-task"}
+            gate.enroll_owner_task_by_github_buttons_offline_only(
+                self.run["id"], self.request["request_id"],
+                modified, self.owner_public, self.trusted_contracts,
+                github_token="g"*48, private_registry_dir=private_registry,
+                revocation_dir=self.revocations, now=self.now)
+        self.assertEqual([], list(private_registry.iterdir()))
+
+    def test_simple_buttons_unprovisioned_private_registry_aborts_before_rest(self):
+        self._prepare_private_consumption()
+        missing = Path(self.consumption_root.name) / "approved-p311-tasks"
+        with mock.patch.object(oidc, "_p311_github_rest_get") as network, \
+             self.assertRaises(scoped.ScopedApprovalError):
+            gate.enroll_owner_task_by_github_buttons_offline_only(
+                self.run["id"], self.request["request_id"],
+                self.signed, self.owner_public, self.trusted_contracts,
+                github_token="g"*48,
+                private_registry_dir=missing,
+                revocation_dir=self.revocations, now=self.now)
+        network.assert_not_called()
+        self.assertFalse(missing.exists())
 
     def test_joint_owner_button_and_oidc_signature_are_required(self):
         receipt = self.full()
