@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_frida_binding_p306", "fixture_linux_frida_loader_p307", "fixture_linux_frida_service_node_p308", "fixture_linux_frida_layout_p309"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_frida_binding_p306", "fixture_linux_frida_loader_p307", "fixture_linux_frida_service_node_p308", "fixture_linux_frida_layout_p309", "fixture_linux_frida_recovery_p310"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -584,6 +584,13 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_P309_PLATFORM","REA_P309_MACHINE","REA_P309_INSTALL_SCRIPT_SHA256",
         "REA_P309_SERVICE_PID_UNCHANGED",
     })
+    allowed_markers.update({
+        "REA_P310_STATUS","REA_P310_RELEASE_BYTES","REA_P310_RELEASE_SHA256_MATCH",
+        "REA_P310_ARCHIVE_MEMBERS","REA_P310_ARCHIVE_LAYOUT","REA_P310_BINARY_BYTES",
+        "REA_P310_STAGE_EXIT","REA_P310_ATOMIC_LINK_EXIT",
+        "REA_P310_NATIVE_IMPORT","REA_P310_PROBE_NODE",
+        "REA_P310_SERVICE_PID_UNCHANGED","REA_P310_ADDON_SHA256","REA_P310_ROLLBACK_OK",
+    })
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
         if line.startswith("REA_MOBILE_PRIVATE_RESULT_B64="):
@@ -984,6 +991,180 @@ def main():
                 installer.read_bytes()).hexdigest())
         print("REA_P309_SERVICE_PID_UNCHANGED="+str(pid==unit_value("MainPID")).lower())
         print("REA_P309_STATUS=PASS_READ_ONLY_LAYOUT")
+        return
+    if data["action"] == "fixture_linux_frida_recovery_p310":
+        # Owner-requested official 17.23.2 native-addon recovery ONLY.
+        # Immutable REA source, vendor JS and lockfile; no service restart.
+        import tempfile, tarfile, urllib.request, urllib.parse, secrets, time
+        import platform
+        def status(v):
+            print("REA_P310_STATUS="+v)
+        def unit(prop):
+            p=subprocess.run(["systemctl","show","rea-reversa-mcp.service",
+                "-p",prop,"--value"],capture_output=True,text=True,
+                timeout=10,check=False)
+            return p.stdout.strip() if p.returncode==0 else ""
+        pid=unit("MainPID")
+        user=unit("User")
+        root=Path("/opt/rea-reversa/rea")
+        package=root/"package.json"
+        vendor=root/"node_modules/frida"
+        build=vendor/"build"
+        addon=build/"frida_binding.node"
+        if (user!="rea-reversa" or unit("ActiveState")!="active"
+            or not pid.isdecimal() or int(pid)<1 or
+            not package.is_file() or not vendor.is_dir() or
+            vendor.is_symlink() or not build.is_dir() or build.is_symlink()
+            or json.loads(package.read_text()).get("version")!="6.8.0"
+            or (json.loads(package.read_text()).get("optionalDependencies") or {}).get("frida")!="17.23.2"
+            or json.loads((vendor/"package.json").read_text()).get("version")!="17.23.2"
+            or platform.system()!="Linux" or platform.machine()!="x86_64"):
+            status("BLOCKED_WRONG_PACKAGE_OR_RUNTIME")
+            return
+        if addon.exists() or addon.is_symlink():
+            status("BLOCKED_ADDON_ALREADY_EXISTS")
+            return
+        p=subprocess.run(["sudo","-n","readlink","-f","/proc/"+pid+"/exe"],
+            capture_output=True,text=True,timeout=10,check=False)
+        node=Path(p.stdout.strip()) if p.returncode==0 else None
+        if (node is None or node.name!="node" or not node.is_file() or
+            not any(node==base or base in node.parents for base in (
+                Path("/usr/bin"),Path("/usr/local/bin"),
+                Path("/opt/rea-reversa"),Path("/home/rea-reversa"),
+                Path("/home/ubuntu/.local/share/rea-chatgpt-trial/tools")))):
+            status("BLOCKED_SERVICE_NODE_UNVERIFIED")
+            return
+        pinned_url=("https://github.com/frida/frida/releases/download/17.23.2/"
+                    "frida-v17.23.2-napi-v8-linux-x64.tar.gz")
+        pinned_digest="9fa8f668ce91eb03713e8564de4f8fbde232233ee91d729c16773fde11dbae95"
+        pinned_size=39443166
+        stage=build/(".frida_binding.node.p310-"+secrets.token_hex(8))
+        created=False
+        keep=False
+        downloaded=False
+        verified=False
+        try:
+            with tempfile.TemporaryDirectory(prefix="rea-frida-official-",dir="/tmp") as tmp:
+                archive=Path(tmp)/"official.tar.gz"
+                try:
+                    with urllib.request.urlopen(
+                        urllib.request.Request(pinned_url,headers={"User-Agent":"rea-official-dependency-restore"}),
+                        timeout=85) as response:
+                        dest=urllib.parse.urlsplit(response.url)
+                        if dest.scheme!="https" or dest.hostname not in (
+                            "github.com","release-assets.githubusercontent.com",
+                            "objects.githubusercontent.com"):
+                            status("BLOCKED_UNTRUSTED_RELEASE_HOST")
+                            return
+                        digest=hashlib.sha256()
+                        count=0
+                        with archive.open("xb") as output:
+                            while True:
+                                part=response.read(1048576)
+                                if not part:
+                                    break
+                                count+=len(part)
+                                if count>pinned_size:
+                                    status("BLOCKED_OVERSIZED_RELEASE")
+                                    return
+                                digest.update(part)
+                                output.write(part)
+                    downloaded=True
+                    verified=(count==pinned_size and
+                        digest.hexdigest()==pinned_digest)
+                    print("REA_P310_RELEASE_BYTES="+str(count))
+                    print("REA_P310_RELEASE_SHA256_MATCH="+str(verified).lower())
+                except (OSError,urllib.error.URLError,TimeoutError,ValueError):
+                    status("OFFICIAL_DOWNLOAD_UNAVAILABLE")
+                    return
+                if not verified:
+                    status("BLOCKED_RELEASE_CHECKSUM")
+                    return
+                with tarfile.open(archive,"r:gz") as tar:
+                    members=tar.getmembers()
+                    allowed=(
+                        "frida_binding.node","./frida_binding.node",
+                        "build/frida_binding.node","./build/frida_binding.node",
+                    )
+                    selected=[m for m in members if m.name in allowed and
+                        m.isfile() and 1000000<m.size<150000000]
+                    if len(members)>30 or len(selected)!=1:
+                        print("REA_P310_ARCHIVE_MEMBERS="+str(len(members)))
+                        status("BLOCKED_ARCHIVE_LAYOUT")
+                        return
+                    member=selected[0]
+                    source=tar.extractfile(member)
+                    if source is None:
+                        status("BLOCKED_ARCHIVE_MEMBER")
+                        return
+                    extracted=Path(tmp)/"frida_binding.node"
+                    with extracted.open("xb") as output:
+                        while True:
+                            part=source.read(1048576)
+                            if not part:
+                                break
+                            output.write(part)
+                    print("REA_P310_BINARY_BYTES="+str(extracted.stat().st_size))
+                    print("REA_P310_ARCHIVE_LAYOUT=PASS")
+                if unit("MainPID")!=pid or addon.exists() or addon.is_symlink():
+                    status("BLOCKED_CONCURRENT_CHANGE")
+                    return
+                install=subprocess.run(["sudo","-n","install","-m","0644",
+                    str(extracted),str(stage)],capture_output=True,timeout=45,
+                    check=False)
+                print("REA_P310_STAGE_EXIT="+str(install.returncode))
+                if install.returncode!=0:
+                    status("BLOCKED_PRIVILEGED_INSTALL")
+                    return
+                digest_left=hashlib.sha256()
+                with stage.open("rb") as f:
+                    for chunk in iter(lambda:f.read(1048576),b""):
+                        digest_left.update(chunk)
+                digest_right=hashlib.sha256(extracted.read_bytes()).digest()
+                if digest_left.digest()!=digest_right or addon.exists():
+                    status("BLOCKED_STAGE_INTEGRITY")
+                    return
+                link=subprocess.run(["sudo","-n","ln","--",str(stage),str(addon)],
+                    capture_output=True,timeout=15,check=False)
+                print("REA_P310_ATOMIC_LINK_EXIT="+str(link.returncode))
+                if link.returncode!=0:
+                    status("BLOCKED_ATOMIC_INSTALL")
+                    return
+                created=True
+                test_js=(
+                    "try{const m=await import('frida');const f=m.default??m;"
+                    "const ok=['enumerateDevices','attach','spawn'].every(k=>typeof f[k]==='function');"
+                    "console.log(JSON.stringify({loaded:true,api:ok,node:process.versions.node}));}"
+                    "catch(e){console.log(JSON.stringify({loaded:false,api:false,node:process.versions.node}));}"
+                )
+                probe=subprocess.run(["sudo","-n","-u",user,str(node),
+                    "--input-type=module","-e",test_js],cwd=str(root),
+                    capture_output=True,text=True,timeout=65,check=False)
+                try:
+                    observation=json.loads(probe.stdout.strip())
+                except ValueError:
+                    observation={}
+                works=(probe.returncode==0 and observation.get("loaded") is True
+                       and observation.get("api") is True)
+                print("REA_P310_NATIVE_IMPORT="+str(works).lower())
+                print("REA_P310_PROBE_NODE="+str(observation.get("node",""))[:25])
+                unchanged=unit("MainPID")==pid
+                print("REA_P310_SERVICE_PID_UNCHANGED="+str(unchanged).lower())
+                if not works or not unchanged:
+                    status("IMPORT_FAILED_ROLLBACK")
+                    return
+                print("REA_P310_ADDON_SHA256="+hashlib.sha256(addon.read_bytes()).hexdigest())
+                keep=True
+                print("REA_P310_STATUS=PASS_OFFICIAL_ADDON_INSTALLED")
+        finally:
+            if stage.exists() or stage.is_symlink():
+                subprocess.run(["sudo","-n","rm","-f","--",str(stage)],
+                    capture_output=True,timeout=15,check=False)
+            if created and not keep:
+                removed=subprocess.run(["sudo","-n","rm","-f","--",str(addon)],
+                    capture_output=True,timeout=15,check=False)
+                print("REA_P310_ROLLBACK_OK="+str(removed.returncode==0 and
+                    not addon.exists()).lower())
         return
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
