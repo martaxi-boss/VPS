@@ -37,6 +37,12 @@ class P311SimplifiedSensitiveOnlyTests(unittest.TestCase):
                     })),
                 },
             }
+        digest = secure.arguments_sha256({"type": "object"})
+        policy = mock.patch.dict(
+            secure.AUDITED_SCHEMA_SHA256,
+            {n: digest for n in self.registry})
+        policy.start()
+        self.addCleanup(policy.stop)
         self.now_text = (self.now + timedelta(minutes=15)).strftime(
             "%Y-%m-%dT%H:%M:%SZ")
         self.path = {"path": self.root + "/sample.bin"}

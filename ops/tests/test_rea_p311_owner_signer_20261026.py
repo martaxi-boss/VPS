@@ -152,7 +152,7 @@ class OwnerTaskConsentTests(unittest.TestCase):
                 "--output", str(output)]))
         self.assertFalse(output.exists())
 
-    def test_owner_one_sim_signed_grant_passes_existing_sealed_policy(self):
+    def test_owner_signature_alone_cannot_skip_github_button(self):
         from ops import rea_secure_protocol_20261022 as secure
         source = secure.AUDITED_EFFECTS["import_managed_reconstruction"]
         self.assertEqual(frozenset({"mutatesSession"}), source)
@@ -188,9 +188,11 @@ class OwnerTaskConsentTests(unittest.TestCase):
                     }],
                     "scoped_task": signed,
                 }
-                self.assertEqual(["sensitive"], secure.validate_inner(
-                    body, {"import_managed_reconstruction": descriptor},
-                    set(), now=self.now))
+                with self.assertRaisesRegex(
+                        secure.SecureBridgeError, "Invalid secure request protocol"):
+                    secure.validate_inner(
+                        body, {"import_managed_reconstruction": descriptor},
+                        set(), now=self.now)
                 (revoked / (grant["grant_id"] + ".revoked")).write_text("no\n")
                 (revoked / (grant["grant_id"] + ".revoked")).chmod(0o600)
                 with self.assertRaises(secure.SecureBridgeError):
