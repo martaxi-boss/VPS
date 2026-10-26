@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_rea_680_session_gate"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -563,7 +563,14 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SDIAG_PID_PROVIDER_KEYS",
         "REA_SDIAG_STATUS",
         "REA_U680_OWNER_SIGNATURE_VERIFIED", "REA_U680_OWNER_SIGNED_PROFILES",
-        "REA_U680_OWNER_REPLAY_CHECK", "REA_U680_OWNER_RESTORE_READY"
+        "REA_U680_OWNER_REPLAY_CHECK", "REA_U680_OWNER_RESTORE_READY",
+        "REA_U680_SESSION_LIST_DOCUMENTS", "REA_U680_SESSION_LIST_DOCUMENTS_REQUIRED",
+        "REA_U680_SESSION_LIST_DOCUMENTS_STRUCTURE", "REA_U680_SESSION_LIST_DOCUMENTS_TEXTCOUNT",
+        "REA_U680_SESSION_LIST_DOCUMENTS_COUNTS",
+        "REA_U680_SESSION_LIST_CUTTER_SESSIONS", "REA_U680_SESSION_LIST_CUTTER_SESSIONS_REQUIRED",
+        "REA_U680_SESSION_LIST_CUTTER_SESSIONS_STRUCTURE",
+        "REA_U680_SESSION_LIST_CUTTER_SESSIONS_TEXTCOUNT",
+        "REA_U680_SESSION_LIST_CUTTER_SESSIONS_COUNTS"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -746,6 +753,36 @@ def main():
                 "one_use_nonce_unconsumed":True,"changes_applied":False}
         print("REA_MOBILE_PRIVATE_RESULT_B64="+
               base64.b64encode(json.dumps(safe,sort_keys=True).encode()).decode())
+        return
+    if data["action"] == "fixture_linux_rea_680_session_gate":
+        # Read-only bounded check before replacing a running service.
+        names=("list_documents","list_cutter_sessions")
+        for name in names:
+            if name not in tool_by_name:
+                print("REA_U680_SESSION_"+name.upper()+"=UNAVAILABLE")
+                continue
+            descriptor=tool_by_name[name]
+            print("REA_U680_SESSION_"+name.upper()+"_REQUIRED="+
+                  json.dumps((descriptor.get("inputSchema") or {}).get("required",[]))[:400])
+            try:
+                _,r=request_mcp({"jsonrpc":"2.0","id":6688,"method":"tools/call",
+                   "params":{"name":name,"arguments":{}}},session,protocol,timeout=32)
+                value=r.get("result",{})
+                if "error" in r or value.get("isError") is True:
+                    print("REA_U680_SESSION_"+name.upper()+"=MCP_ERROR")
+                else:
+                    sc=value.get("structuredContent")
+                    print("REA_U680_SESSION_"+name.upper()+"_STRUCTURE="+
+                          json.dumps(sorted(sc) if isinstance(sc,dict) else
+                          type(sc).__name__)[:400])
+                    lines=value.get("content",[])
+                    print("REA_U680_SESSION_"+name.upper()+"_TEXTCOUNT="+str(len(lines) if isinstance(lines,list) else -1))
+                    if isinstance(sc,dict):
+                        print("REA_U680_SESSION_"+name.upper()+"_COUNTS="+json.dumps(
+                          {k:len(v) for k,v in sc.items() if isinstance(v,list)})[:400])
+                    print("REA_U680_SESSION_"+name.upper()+"=PASS_READ_ONLY")
+            except (OSError,RuntimeError,ValueError,TypeError,subprocess.TimeoutExpired) as e:
+                print("REA_U680_SESSION_"+name.upper()+"=PROBE_FAILED")
         return
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
