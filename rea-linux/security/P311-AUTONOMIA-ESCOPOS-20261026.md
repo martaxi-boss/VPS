@@ -181,3 +181,31 @@ Na pagina `https://github.com/martaxi-boss/VPS/settings/environments`, criar o a
 Documentacao oficial: https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments e https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments.
 
 O conector GitHub disponivel nesta sessao nao tem operacoes de administracao de ambientes/protection rules; nao afirmar que a configuracao foi efetuada ou que o owner clicou no botao. O codigo permanece num PR draft, sem merge nem alteracoes na VPS; esta configuracao unica e indispensavel para a prova visual de aprovacao.
+
+## P311 - comprovacao REAL do botao GitHub e vinculo SHA a tarefa (2026-10-26)
+
+**Este registo substitui as referencias anteriores de 'botao ainda nao demonstrado' e 'environment ainda nao configurado'.**
+
+### Aprovacao real, comprovada via GitHub
+
+- Run oficial: https://github.com/martaxi-boss/VPS/actions/runs/40385975218
+- GitHub API: `status=completed`, `conclusion=success`, `head_sha=702c232bf3840ad55aae5b3847c1129ea375209f`, `run_attempt=1`.
+- Review API: `state=approved`, `user.login=martaxi-boss`, `user.id=277365554`, `environment.name=rea-p311-owner-consent`, `environment.id=25387773772`.
+- O job privado de preview confirmou `REA_P311_AUTHENTICATED_GITHUB_BUTTON_PREVIEW=PASS`, `REA_P311_OWNER_PERMISSION_REGISTERED=false`, `REA_P311_VPS_CHANGED=false`.
+- Confirma que o owner clicou num botao real `Approve and deploy` e que a identidade foi revalidada no GitHub via API; NAO confirma Ed25519 assinado ou permissao operacional.
+- Higienizacao ja aplicada: commit `7aa536a52fd2e87d5ff32a46925dfdd0390e6434` removeu o unico pedido publico `rea-linux/owner-review-requests/9e5a52a1742b2e0b8146f5293bfa0e1a.json` sem apagar a prova do run; nenhum pedido pendente.
+
+### Vinculacao a um trabalho assinavel, ainda isolada
+
+- Com o codigo de revisao P311, `signed_task_review_digest` calcula SHA-256 com separacao de dominio sobre **o conteudo integral da autorizacao Ed25519** e o `request_id` unico, incluindo ferramentas, projeto, efeito, pasta, assinatura e expiracao.
+- `prepare_owner_review_request` devolve somente `purpose`, `request_id`, `operation_sha256`, projeto publico e validade curta. O grant e a assinatura nao sao enviados ao repositorio publico: so o hash da operacao entra no pedido de revisao.
+- `match_verified_review_to_signed_task` deteta tentativas de alterar o projeto, ferramentas, pasta, efeitos, expiracao, assinatura ou identificador do pedido APOS o clique. Esta funcao so devolve um **vinculo PREVIEW**, nao uma autorizacao de chamada MCP.
+- O verificador de historico oficial tambem exige o identificador imutavel do ambiente GitHub `25387773772`, alem do nome e da identidade do owner.
+- Prova em CI sem VPS ou credenciais reais: **132/132 testes PASS** em https://github.com/martaxi-boss/VPS/actions/runs/40388611358.
+
+### Estado e limites a respeitar
+
+- O modo P311 continua desligado na VPS; a ponte operacional permanece no commit original `2f5573be27302f22aca5b9b3e20d78244f3ad0dc`.
+- As 229 ferramentas originais e o estado Evidence/Unknowns/certificados/backups nao foram alterados.
+- O clique GitHub NAO gera uma assinatura Ed25519 e o 'recibo preview' nao e um token de permissao autenticado por si so. Antes da ligacao a `sealed_task_enroll` ou `tools/call` no ambiente ativo, validar o dono e a politica com garantia independente, confirmar uma assinatura real para o scope aprovado e fazer teste MCP seguro, verificando rollback.
+- PR #305 permanece draft e isolado, sem merge ou permissoes automáticas ativadas. Nao repetir ensaio do botao nem pedir nova confirmacao so para provar o mesmo passo.
