@@ -971,10 +971,10 @@ def propose_p311_task_from_live_catalog(registry, safe_callable, *,
     verified_policy = _release680_verified_policy(registry)
     effects = AUDITED_EFFECTS if verified_policy is None else verified_policy[0]
     pins = AUDITED_SCHEMA_SHA256 if verified_policy is None else verified_policy[1]
-    if verified_policy is None and len(registry) not in (208,):
-        # Full live 208 or 229 catalog is mandatory outside isolated tests.
-        if os.environ.get("REA_P311_TEST_FIXTURE") != "yes":
-            raise SecureBridgeError("Incomplete or unsupported live MCP catalog")
+    if verified_policy is None and (
+            len(registry) != 208 or set(registry) != set(AUDITED_EFFECTS)):
+        # No user-supplied partial/fabricated catalog can yield a task grant.
+        raise SecureBridgeError("Incomplete or unsupported live MCP catalog")
     try:
         from ops import rea_scoped_approval_20261026 as scoped
         return scoped.prepare_unsigned_task_grant(
