@@ -141,6 +141,59 @@ class P311SealedTaskAdmissionTests(unittest.TestCase):
                 self._validate(scope=self._scope(signed), steps=[
                     {"tool": "close_binary", "arguments": self.safe}])
 
+    def _embedded_request(self, scope=None, steps=None):
+        body = self._request(steps)
+        body["scoped_task"] = self.scope if scope is None else scope
+        return body
+
+    def test_encrypted_inner_envelope_accepts_signed_task_only_on_optin(self):
+        body = self._embedded_request()
+        with mock.patch.dict(os.environ, {"REA_P311_SCOPED_TASKS": "enabled"}):
+            self.assertEqual(["workspace", "sensitive"], secure.validate_inner(
+                body, self.registry, {"list_unknowns"}, now=self.now))
+        with mock.patch.dict(os.environ, {"REA_P311_SCOPED_TASKS": "disabled"}):
+            with self.assertRaises(secure.SecureBridgeError):
+                secure.validate_inner(body, self.registry, {"list_unknowns"},
+                                      now=self.now)
+
+    def test_embedded_scope_does_not_admit_forged_or_reused_grants(self):
+        forged = self._embedded_request(dict(self.scope, owner_signature="A" * 88))
+        swapped = self._embedded_request(dict(self.scope, task_id="OTHER"))
+        with mock.patch.dict(os.environ, {"REA_P311_SCOPED_TASKS": "enabled"}):
+            for body in (forged, swapped):
+                with self.subTest(body=body["scoped_task"]["task_id"]), self.assertRaises(
+                        secure.SecureBridgeError):
+                    secure.validate_inner(body, self.registry, {"list_unknowns"},
+                                          now=self.now)
+
+    def test_embedded_scope_rejects_malformed_and_duplicate_context(self):
+        bad = self._embedded_request("true")
+        extra = self._embedded_request()
+        extra["invented"] = True
+        with mock.patch.dict(os.environ, {"REA_P311_SCOPED_TASKS": "enabled"}):
+            for body in (bad, extra):
+                with self.subTest(body=body), self.assertRaises(
+                        secure.SecureBridgeError):
+                    secure.validate_inner(body, self.registry, {"list_unknowns"},
+                                          now=self.now)
+            with self.assertRaises(secure.SecureBridgeError):
+                secure.validate_inner(self._embedded_request(),
+                                      self.registry, {"list_unknowns"},
+                                      now=self.now, scoped_task=self.scope)
+
+    def test_legacy_signed_requests_unchanged_even_if_scoped_mode_opted_in(self):
+        with mock.patch.dict(os.environ, {"REA_P311_SCOPED_TASKS": "enabled"}):
+            # Enabling the feature never turns an unsigned request into consent.
+            with self.assertRaises(secure.SecureBridgeError):
+                secure.validate_inner(self._request(), self.registry,
+                                      {"list_unknowns"}, now=self.now)
+            from ops.tests.test_rea_secure_protocol_20261022 import approved
+            step = {"tool": "inspect_with_objdump", "arguments": self.safe,
+                    "authorization": approved("inspect_with_objdump", self.safe)}
+            self.assertEqual(["workspace"], secure.validate_inner(
+                self._request([step]), self.registry, {"list_unknowns"},
+                now=self.now))
+
     def test_expired_task_permission_and_unsupported_schema_fail_closed(self):
         stale = dict(self.grant)
         stale["expires_at"] = (self.now - timedelta(seconds=1)).strftime(
