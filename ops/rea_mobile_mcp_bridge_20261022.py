@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_rea680_validate_saved_bundle"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -557,7 +557,9 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SDIAG_PID_ENV_READ",
         "REA_SDIAG_PID_ENV_SIZE",
         "REA_SDIAG_PID_PROVIDER_KEYS",
-        "REA_SDIAG_STATUS"
+        "REA_SDIAG_STATUS", "REA_U680_BUNDLE_OFFICIAL_VALIDATOR",
+        "REA_U680_BUNDLE_RECORDS","REA_U680_BUNDLE_UNKNOWNS",
+        "REA_U680_BUNDLE_SERVICE_UNCHANGED"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -701,6 +703,89 @@ def main():
     print("REA_MOBILE_CATALOG_SAMPLE=" + json.dumps(
         list(tool_by_name)[:14], ensure_ascii=True
     ))
+    if data["action"] == "fixture_rea680_validate_saved_bundle":
+        # Read-only, one-use P291: authenticate the prepared 16/1 bundle using
+        # the OFFICIAL 6.8.0 validator as the existing service identity.
+        # Never import, mutate, restart or disclose record contents.
+        stage=Path("/opt/rea-reversa/upgrades/rea-6.8.0-160d821ac9a0")
+        active=Path("/opt/rea-reversa/rea")
+        source=stage/".rea-migration/evidence-restore.json"
+        validator=stage/"dist/domain/evidenceBundle.js"
+        service="rea-reversa-mcp.service"
+        if (stage.is_symlink() or not stage.is_dir() or
+                not validator.is_file() or source.is_symlink() or
+                not source.is_file() or active.is_symlink() or
+                json.loads((active/"package.json").read_text()).get("version")!="6.7.0" or
+                json.loads((stage/"package.json").read_text()).get("version")!="6.8.0"):
+            raise RuntimeError("REA 6.8 preflight expected paths not ready")
+        commit=subprocess.run(["git","rev-parse","HEAD"],cwd=stage,
+            capture_output=True,text=True,timeout=17,check=False)
+        tree=subprocess.run(["git","rev-parse","HEAD^{tree}"],cwd=stage,
+            capture_output=True,text=True,timeout=17,check=False)
+        if (commit.returncode or commit.stdout.strip()!="160d821ac9a0310afcb8d1fc427862dd6508add5" or
+            tree.returncode or tree.stdout.strip()!="15e6fec513dcce08cefdbcf441200986397e2793"):
+            raise RuntimeError("REA 6.8 source identity mismatch")
+        verified=subprocess.run(["sudo","-n","-u","rea-reversa","sha256sum",str(source)],
+            capture_output=True,text=True,timeout=16,check=False)
+        if (verified.returncode or
+                not verified.stdout.startswith("f8178b2c3db0d093fa65864d9c12be9a1afe3c6d66fc93603769761bd9400f3b ")):
+            raise RuntimeError("REA 6.8 private restore checksum mismatch")
+        proc=subprocess.run(["systemctl","show",service,"-p","MainPID","--value"],
+            capture_output=True,text=True,timeout=14,check=False)
+        pid=proc.stdout.strip()
+        if proc.returncode or not pid.isdecimal() or int(pid)<1:
+            raise RuntimeError("REA active service missing")
+        exe=subprocess.run(["sudo","-n","readlink","-f",f"/proc/{int(pid)}/exe"],
+            capture_output=True,text=True,timeout=14,check=False)
+        node=exe.stdout.strip()
+        if exe.returncode or not node.endswith("/node"):
+            raise RuntimeError("REA runtime Node.js missing")
+        checkjs = """
+import { readFileSync } from "node:fs";
+import { safeParseImmutableEvidenceBundle } from "./dist/domain/evidenceBundle.js";
+const input=JSON.parse(readFileSync(process.argv[1],"utf8"));
+const result=safeParseImmutableEvidenceBundle(input);
+if (!result.ok) {
+  process.stdout.write("NOT_AUTHENTICATED");
+  process.exitCode=2;
+} else {
+  const b=result.value;
+  const ok=b.records.length===16 && b.unknowns.length===1;
+  process.stdout.write(JSON.stringify({
+     valid:ok,
+     records:b.records.length,
+     unknowns:b.unknowns.length,
+     artifacts:b.artifacts.length,
+     providers:b.providers.length,
+     environments:b.environments.length,
+     scenarios:b.scenarios.length,
+     captures:b.captures.length
+  }));
+  if(!ok) process.exitCode=3;
+}
+"""
+        from pwd import getpwnam
+        who=getpwnam("rea-reversa")
+        call=subprocess.run(["sudo","-n","-u","rea-reversa","env",
+            "HOME="+who.pw_dir,"PATH="+str(Path(node).parent)+":/usr/local/bin:/usr/bin:/bin",
+            node,"--input-type=module","--eval",checkjs,str(source)],
+            cwd=stage,capture_output=True,text=True,timeout=90,check=False)
+        if call.returncode or not call.stdout.startswith("{") or len(call.stdout)>700:
+            print("REA_U680_BUNDLE_OFFICIAL_VALIDATOR=BLOCKED")
+            return
+        counts=json.loads(call.stdout)
+        if counts.get("valid") is not True or counts.get("records")!=16 or counts.get("unknowns")!=1:
+            print("REA_U680_BUNDLE_OFFICIAL_VALIDATOR=BLOCKED")
+            return
+        post=subprocess.run(["systemctl","show",service,"-p","MainPID","--value"],
+            capture_output=True,text=True,timeout=14,check=False)
+        if post.returncode or post.stdout.strip()!=pid:
+            raise RuntimeError("REA service changed during read-only verification")
+        print("REA_U680_BUNDLE_OFFICIAL_VALIDATOR=PASS")
+        print("REA_U680_BUNDLE_RECORDS=16")
+        print("REA_U680_BUNDLE_UNKNOWNS=1")
+        print("REA_U680_BUNDLE_SERVICE_UNCHANGED=PASS")
+        return
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
               secure.request_public_key_b64(create=True))
