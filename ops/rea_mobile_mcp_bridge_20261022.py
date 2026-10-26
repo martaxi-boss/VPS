@@ -150,6 +150,11 @@ def p311_enroll_sealed_owner_task(data, tool_by_name, safe_callable, *, now=None
         raise ValueError("P311 owner-task enrollment is disabled")
     if not isinstance(data, dict) or data.get("action") != "sealed_task_enroll":
         raise ValueError("Unexpected owner-task action")
+    # A successful registration must always produce a sealed response.
+    # Refuse BEFORE nonce consumption and BEFORE private file creation if
+    # the existing Actions result-ciphering layer is not enabled.
+    if os.environ.get("REA_MOBILE_ENVELOPE_CAPTURE") != "1":
+        raise ValueError("Encrypted enrollment result capture is required")
     body = secure.unseal(data["sealed"], data["response_key"])
     if (not isinstance(body, dict) or set(body) != {
             "protocol", "nonce", "expires_at", "signed_task"
