@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_vendor_activation_readiness_p299"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -483,6 +483,12 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_APPLY_STATE_SAVED",
         "REA_APPLY_FAILURE",
         "REA_APPLY_RESULT",
+        "REA_P299_STATUS","REA_P299_IDA_CONFIG","REA_P299_JEB_CONFIG",
+        "REA_P299_CUTTER_CONFIG","REA_P299_IDA_PLUGIN","REA_P299_JEB_CE",
+        "REA_P299_JEB_JAR","REA_P299_CUTTER_APPIMAGE",
+        "REA_P299_IDA_APP_OPT","REA_P299_IDA_APP_ALT",
+        "REA_P299_HOPPER","REA_P299_JEB_LOCAL_PORT",
+        "REA_P299_CUTTER_SESSIONS","REA_P299_SERVICE_PID_UNCHANGED",
         "REA_SERVICE_DOCTOR_STATUS",
         "REA_SERVICE_DOCTOR_UNIT_USER",
         "REA_SERVICE_DOCTOR_CONFIG_KEYS",
@@ -701,6 +707,73 @@ def main():
     print("REA_MOBILE_CATALOG_SAMPLE=" + json.dumps(
         list(tool_by_name)[:14], ensure_ascii=True
     ))
+    if data["action"] == "fixture_linux_vendor_activation_readiness_p299":
+        # One-use read-only probe of existing official vendor installations.
+        # Do not launch IDA/JEB, activate licenses or start a Cutter session.
+        import socket
+        unit="rea-reversa-mcp.service"
+        def read_unit(prop):
+            p=subprocess.run(["systemctl","show",unit,"-p",prop,"--value"],
+                capture_output=True,text=True,timeout=10,check=False)
+            return p.stdout.strip() if p.returncode==0 else ""
+        pid=read_unit("MainPID")
+        user=read_unit("User")
+        root=Path("/opt/rea-reversa")
+        if (user!="rea-reversa" or read_unit("ActiveState")!="active" or
+            not pid.isdecimal() or int(pid)<1 or
+            json.loads((root/"rea/package.json").read_text()).get("version")!="6.8.0"):
+            print("REA_P299_STATUS=BLOCKED_WRONG_RUNTIME")
+            return
+        proc=subprocess.run(["sudo","-n","cat",f"/proc/{int(pid)}/environ"],
+                            capture_output=True,timeout=16,check=False)
+        if proc.returncode or len(proc.stdout)>220000:
+            print("REA_P299_STATUS=BLOCKED_ENV_READ")
+            return
+        present=set()
+        for item in proc.stdout.split(bytes([0])):
+            if b"=" in item:
+                name=item.split(b"=",1)[0]
+                if name in (b"REA_IDA_MCP_CONFIG",b"REA_JEB_MCP_URL",b"REA_CUTTER_BRIDGE_DIR"):
+                    present.add(name.decode("ascii"))
+        print("REA_P299_IDA_CONFIG="+str("REA_IDA_MCP_CONFIG" in present).lower())
+        print("REA_P299_JEB_CONFIG="+str("REA_JEB_MCP_URL" in present).lower())
+        print("REA_P299_CUTTER_CONFIG="+str("REA_CUTTER_BRIDGE_DIR" in present).lower())
+        prov=root/"providers"
+        fixed={
+           "IDA_PLUGIN":prov/"ida-free-mcp-1.1.3",
+           "JEB_CE":prov/"jeb-ce-5.48.0.202610071539",
+           "JEB_JAR":prov/"jeb-ce-5.48.0.202610071539/bin/app/jeb.jar",
+           "CUTTER_APPIMAGE":prov/"cutter-2.5.0/bin/Cutter-v2.5.0-Linux-Qt5-x86_64.AppImage",
+           "IDA_APP_OPT":Path("/opt/ida-free"),
+           "IDA_APP_ALT":Path("/opt/ida"),
+           "HOPPER":Path("/opt/hopper/bin/Hopper")
+        }
+        for name,entry in fixed.items():
+            kind="-x" if name in ("CUTTER_APPIMAGE","HOPPER") else "-r"
+            ok=subprocess.run(["sudo","-n","-u",user,"test",kind,str(entry)],
+                capture_output=True,timeout=9,check=False).returncode==0
+            print("REA_P299_"+name+"="+str(ok).lower())
+        try:
+            with socket.create_connection(("127.0.0.1",8425),timeout=2):
+                jeb=True
+        except OSError:
+            jeb=False
+        print("REA_P299_JEB_LOCAL_PORT="+str(jeb).lower())
+        try:
+            _,reply=request_mcp({"jsonrpc":"2.0","id":2991,"method":"tools/call",
+                        "params":{"name":"list_cutter_sessions","arguments":{}}},
+                        session,protocol,timeout=30)
+            result=reply.get("result",{})
+            entries=result.get("structuredContent",{}).get("sessions")
+            status=("ERROR" if result.get("isError") is True or "error" in reply
+                    else "EMPTY" if entries==[] else
+                    "ACTIVE" if isinstance(entries,list) else "UNKNOWN")
+        except (OSError,ValueError,RuntimeError,TypeError,subprocess.TimeoutExpired):
+            status="UNAVAILABLE"
+        print("REA_P299_CUTTER_SESSIONS="+status)
+        print("REA_P299_SERVICE_PID_UNCHANGED="+str(pid==read_unit("MainPID")).lower())
+        print("REA_P299_STATUS=PASS_READ_ONLY")
+        return
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
               secure.request_public_key_b64(create=True))
