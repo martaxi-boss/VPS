@@ -8,8 +8,10 @@ import base64
 import binascii
 from datetime import datetime, timezone
 import json
+import os
 from pathlib import Path
 import re
+import stat
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import serialization
@@ -42,6 +44,13 @@ JOBS_BASE = Path("/opt/rea-reversa/rea/.rea-private/jobs")
 PATH_ARG_KEYS = frozenset({
     "path", "file", "filename", "input_path", "output_path", "target_path",
     "source_path", "destination_path", "artifact_path", "binary_path",
+    "directory", "root", "out_dir", "output_dir", "archive", "bundle",
+})
+# A grant is not a general-purpose command interpreter, browser or device token.
+BLOCKED_ARGUMENT_KEYS = frozenset({
+    "command", "shell", "script", "javascript", "code", "exec", "expression",
+    "device", "device_id", "host", "hostname", "endpoint", "url", "uri",
+    "target_url", "source_url", "remote_url", "process_id", "pid",
 })
 FIELDS = frozenset({
     "purpose", "grant_id", "project", "task_id", "origin", "not_before",
@@ -87,9 +96,13 @@ def _validate_job_paths(artifact_root, arguments):
         nonlocal count
         if isinstance(obj, dict):
             for key, value in obj.items():
-                is_path = (isinstance(key, str) and
-                           (key in PATH_ARG_KEYS or key.endswith("_path")))
-                is_paths = isinstance(key, str) and key.endswith("_paths")
+                if not isinstance(key, str):
+                    raise ScopedApprovalError("Invalid scoped argument key")
+                if (key.lower() in BLOCKED_ARGUMENT_KEYS or
+                        key.lower().endswith(("_url", "_uri", "_command", "_script"))):
+                    raise ScopedApprovalError("External or command argument forbidden by grant")
+                is_path = key in PATH_ARG_KEYS or key.endswith(("_path", "_file", "_dir"))
+                is_paths = key.endswith(("_paths", "_files", "_dirs"))
                 if is_path:
                     if not isinstance(value, str) or not value.startswith("/"):
                         raise ScopedApprovalError("Scoped target must be an absolute path")
@@ -107,10 +120,49 @@ def _validate_job_paths(artifact_root, arguments):
         elif isinstance(obj, list):
             for value in obj:
                 walk(value)
+        elif isinstance(obj, str):
+            # Even unrecognised string fields cannot hide an outside absolute
+            # pathname or a remote/file URL alongside a valid job-root path.
+            if "://" in obj or obj.startswith("/"):
+                if "://" in obj:
+                    raise ScopedApprovalError("URI not allowed in standing task")
+                target = Path(obj).resolve()
+                if target != root and root not in target.parents:
+                    raise ScopedApprovalError("Hidden path outside signed task folder")
 
     walk(arguments)
     if count == 0:
         raise ScopedApprovalError("Scoped execution requires a bound job artifact")
+
+
+
+def verify_not_revoked(grant_id, revocation_dir):
+    """Fail closed for an explicitly revoked grant ID in owner's private store.
+
+    Reading an absent directory is compatible with existing installations.
+    Removing/replacing revocation markers is never performed by this verifier.
+    """
+    if not isinstance(grant_id, str) or not HEX.fullmatch(grant_id):
+        raise ScopedApprovalError("Invalid grant identifier")
+    directory = Path(revocation_dir)
+    if directory.is_symlink():
+        raise ScopedApprovalError("Untrusted revocation directory")
+    if not directory.exists():
+        return True
+    info = directory.stat()
+    if (not directory.is_dir() or info.st_uid != os.geteuid() or
+            stat.S_IMODE(info.st_mode) != 0o700):
+        raise ScopedApprovalError("Unsafe revocation directory")
+    marker = directory / (grant_id + ".revoked")
+    if marker.is_symlink():
+        raise ScopedApprovalError("Unsafe revocation marker")
+    if marker.exists():
+        info = marker.stat()
+        if (not marker.is_file() or info.st_uid != os.geteuid() or
+                stat.S_IMODE(info.st_mode) != 0o600):
+            raise ScopedApprovalError("Unsafe revocation marker")
+        raise ScopedApprovalError("Owner has revoked this task grant")
+    return True
 
 
 def propose_task_tools(registry, audited_effects, schema_pins, *,
@@ -160,7 +212,8 @@ def propose_task_tools(registry, audited_effects, schema_pins, *,
 
 def verify_task_grant(grant, owner_signature_b64, owner_public_pem, *,
                       project, task_id, origin, artifact_root,
-                      tool, audited_effects, current_risk, arguments, now=None):
+                      tool, audited_effects, current_risk, arguments, now=None,
+                      revocation_dir=None):
     """Check one sensitive/workspace tool against an independently owner-signed grant.
 
     This helper DOES NOT change secure.validate_inner or authorize live calls.
@@ -214,5 +267,7 @@ def verify_task_grant(grant, owner_signature_b64, owner_public_pem, *,
             audited_effects.intersection(FORBIDDEN_EFFECTS)):
         raise ScopedApprovalError("Operation has unapproved or dangerous effects")
     _validate_job_paths(grant["artifact_root"], arguments)
+    if revocation_dir is not None:
+        verify_not_revoked(grant["grant_id"], revocation_dir)
     return True
 
