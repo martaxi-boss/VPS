@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "P280_ORIGINAL_REA_124_OF_208__SERVICE_GHIDRA_JADX_KUNA_CONFIRMED__NO_MISSING_VENDOR_FALSE_REINSTALL__15_EVIDENCE_1_UNKNOWN_LAST_VERIFIED_P279__84_PENDING",
+  "status": "P285_ORIGINAL_REA_125_OF_208__SIGNED_RIZIN_POSITIVE_NEGATIVE_PASS__16_EVIDENCE_1_UNKNOWN_INDEPENDENT_FULL_READBACK__83_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -8264,21 +8264,54 @@
         "Owner approval required for any new sensitive operation or dynamic provider session.",
         "IDA proprietary and Hopper macOS GUI remain unavailable; global doctor stays unhealthy."
       ]
+    },
+    {
+      "phase_id": "LINUX-P285-OWNER-SIGNED-RIZIN-ONESHOT-FULL-CERTIFICATION-20261026",
+      "date_utc": "2026-10-26",
+      "status": "PASS_ONE_ORIGINAL_MCP_OWNER_SIGNED_SENSITIVE_TOOL_FULLY_CERTIFIED_SCOPED_POSITIVE_NEGATIVE_INDEPENDENT_RETENTION",
+      "workflow_run_ids": [
+        40247899382,
+        40248022311
+      ],
+      "signed_commit": "2cf95f5643e922d5f4e9efc650037ac48baac93f",
+      "independent_readback_commit": "47e2a0c7a8dc98b12c4851c5bb6e1d2df446638f",
+      "original_mcp_tools_call_true": true,
+      "owner_ed25519_verified_by_original_vps": true,
+      "evidence_old": 15,
+      "evidence_new": 16,
+      "unknowns": 1,
+      "old_records_preserved": true,
+      "unknown_revision_preserved": true,
+      "tools": [
+        {
+          "name": "execute_rizin_command",
+          "risk": "sensitive",
+          "status": "FULLY_CERTIFIED",
+          "scope": "Rizin one-shot Linux ELF metadata iI and controlled missing-source negative"
+        }
+      ],
+      "report": "rea-linux/certification/p285-p282-owner-signed-rizin-one-shot-certified-125-of-208-20261026.json",
+      "limitations": [
+        "Full certification is for one scoped real original Linux MCP tool/provider/controlled target profile, not all Rizin shell/network/mutation commands or arbitrary binary formats.",
+        "The provider executable path includes Rizin v0.9.1; MCP Evidence version field is null because no independent version probe was performed.",
+        "The negative nonexistent target correctly returned invalid_input; no unrelated paths or production targets were accessed.",
+        "Future sensitive calls still require fresh individual Ed25519 owner signatures. No live Rizin persistent debugger session was opened or certified."
+      ]
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 124,
-    "awaiting_canonical_individual_review": 84,
+    "functional_pass_scoped_distinct": 125,
+    "awaiting_canonical_individual_review": 83,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 5,
     "read_group_missing_positive": 0,
     "workspace_newly_passed_distinct": 48,
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 5,
-    "fully_certified_distinct": 124,
+    "fully_certified_distinct": 125,
     "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 84,
-    "remaining_full_certification_distinct": 84
+    "not_functionally_positive_distinct": 83,
+    "remaining_full_certification_distinct": 83
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -8308,7 +8341,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P280-AUTHENTICATED_ORIGINAL_SERVICE_PROVIDER_READINESS_20261025",
+  "latest_phase": "LINUX-P285-OWNER-SIGNED-RIZIN-ONESHOT-FULL-CERTIFICATION-20261026",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -10646,6 +10679,61 @@
         "Fresh exact Ed25519 authorization required for every new sensitive call.",
         "Negative case returned a per-address false rather than MCP isError=true."
       ]
+    },
+    "execute_rizin_command": {
+      "status": "FULLY_CERTIFIED",
+      "risk": "sensitive",
+      "phase_id": "LINUX-P285-OWNER-SIGNED-RIZIN-ONESHOT-FULL-CERTIFICATION-20261026",
+      "scope": "Original permanent REA Linux x86_64 MCP with configured Rizin one-shot provider (/opt/rea-reversa/providers/rizin-v0.9.1/bin/rizin). Two independently Ed25519 owner-signed exact commands iI; controlled source-owned /usr/bin/true ELF64 positive with complete untruncated metadata, provider exit_code=0, no target modification and matching SHA-256; deliberate absent-root path rejected by real MCP with isError=true invalid_request/invalid_input. Independent full Evidence/Unknown readback preserved all 15 prior records and one Unknown and retained exactly one new Rizin Evidence. No arbitrary Rizin subcommands or debugger sessions certified.",
+      "run_ids": [
+        40247772471,
+        40247899382,
+        40248022311
+      ],
+      "positive_and_negative_run_id": 40247899382,
+      "signed_run_job_id": 121333360330,
+      "signed_commit": "2cf95f5643e922d5f4e9efc650037ac48baac93f",
+      "signed_encrypted_artifact_id": 12619416281,
+      "signed_request_sha256": "96b5d59575145b48f7782cea3494de274a742e43f241a53b906e1dd7fc925bba",
+      "authenticated_signed_result_sha256": "9f163158407269c74142cbbd4ab036e4d7c77c0bb11831840093ca52123c8707",
+      "signed_steps_requested": 4,
+      "signed_steps_executed": 4,
+      "individually_verified_owner_ed25519_authorizations": 2,
+      "signed_bridge_policy": "PASS",
+      "positive_tool_isError": false,
+      "positive_provider_exit_code": 0,
+      "positive_output_truncated": false,
+      "positive_completion_status": "complete",
+      "positive_source_unchanged": true,
+      "source_fixture_sha256": "8a63c98320173f79e263115e47d1fd4b5a70e4429d2699cae28",
+      "positive_evidence_id": "ev_19236a284558f25c16ec8847e44602d821b5f4e820633af73785713ad8f2083f",
+      "positive_evidence_canonical_sha256": "49dcd65f26be367f059ba1daa993cd874a98d776ac23afa2cc42979545fecb8b",
+      "negative_tool_isError": true,
+      "negative_code": "invalid_request",
+      "negative_category": "invalid_input",
+      "negative_one_use_dedicated_absent_target": true,
+      "post_readback_run_id": 40248022311,
+      "post_readback_job_id": 121333646308,
+      "post_readback_commit": "47e2a0c7a8dc98b12c4851c5bb6e1d2df446638f",
+      "post_readback_encrypted_artifact_id": 12619496121,
+      "post_readback_result_sha256": "9bf15287e60ce7a0b222035d110f848ae3d1c7b1eda0ec2bd85de04600b63b84",
+      "before_evidence_count": 15,
+      "after_evidence_count": 16,
+      "original_15_evidence_semantic_sha256": "b82b7e0d6024bbb0c6e96f014405c7470d4cc1a8d2d3a99bb1afa6efcb71a31b",
+      "final_16_evidence_semantic_sha256": "5650e69453d45935fe22833f08e40f29d9b3ee5700ebd691a16509af459d0ff4",
+      "original_15_full_records_preserved": true,
+      "original_unknown_revision_preserved": true,
+      "unknowns_before": 1,
+      "unknowns_after": 1,
+      "one_shot_no_session_opened": true,
+      "no_provider_install_or_restart": true,
+      "certification_report": "rea-linux/certification/p285-p282-owner-signed-rizin-one-shot-certified-125-of-208-20261026.json",
+      "limitations": [
+        "Full certification is for one scoped real original Linux MCP tool/provider/controlled target profile, not all Rizin shell/network/mutation commands or arbitrary binary formats.",
+        "The provider executable path includes Rizin v0.9.1; MCP Evidence version field is null because no independent version probe was performed.",
+        "The negative nonexistent target correctly returned invalid_input; no unrelated paths or production targets were accessed.",
+        "Future sensitive calls still require fresh individual Ed25519 owner signatures. No live Rizin persistent debugger session was opened or certified."
+      ]
     }
   },
   "transport_incidents": [
@@ -10961,13 +11049,13 @@
       "P232_hold_active": false,
       "P250_nine_evidence_snapshot_verified": true,
       "independent_archive_restore_tested": true,
-      "current_live_evidence_count": 13,
+      "current_live_evidence_count": 16,
       "latest_prepared_zip_sha256": "8f9842efd89816ac313d5004d83d7926b0e933bfadff4be92e431b07b59ea636",
       "independent_archive_restoration_tested": true,
       "owner_download_confirmed": false,
       "current_live_unknowns": 1,
-      "current_live_bundle_sha256": "98655f7309a8fe941e2c5687b331511942086ab57ecf63dc26c1877c2f7b201c",
-      "latest_readonly_check_run_id": 40241216212,
+      "current_live_bundle_sha256": "5650e69453d45935fe22833f08e40f29d9b3ee5700ebd691a16509af459d0ff4",
+      "latest_readonly_check_run_id": 40248022311,
       "external_private_archive_verified": true,
       "external_private_archive_restore_bytes_verified": true,
       "external_original_rea_import_tested": true,
@@ -11001,7 +11089,9 @@
       "p276_13_private_library_checkpoint": "engenharia reversa/REA_P276_Evidence_13_Backup_Verificado.zip",
       "p276_13_archive_zip_sha256": "640fb5fc2805f658e3a5dcf5c3f8420fcaa997e48687d42721c9d129ab1882d6",
       "p276_private_checkpoint_restore_tested": false,
-      "p276_report": "rea-linux/certification/p276-p270-four-signed-sensitives-two-scoped-certifications-13-evidence-20261025.json"
+      "p276_report": "rea-linux/certification/p276-p270-four-signed-sensitives-two-scoped-certifications-13-evidence-20261025.json",
+      "p285_full_16_retained_and_15_historical_unchanged": true,
+      "p285_new_evidence_id": "ev_19236a284558f25c16ec8847e44602d821b5f4e820633af73785713ad8f2083f"
     },
     "no_new_certifications": false,
     "gdb_session_status": {
@@ -11135,7 +11225,7 @@
       "used_encrypted_requests_deleted": true,
       "no_owner_sensitive_operations": true
     },
-    "last_new_tool_certified": "annotate_native_function",
+    "last_new_tool_certified": "execute_rizin_command",
     "latest_read_progress": {
       "phase": "P259_FINAL",
       "fully_certified": 121,
@@ -11624,6 +11714,36 @@
       "prior_live_semantic_sha256": "b82b7e0d6024bbb0c6e96f014405c7470d4cc1a8d2d3a99bb1afa6efcb71a31b",
       "next_safe_target": "Prepare source-owned safe fixture for extract_artifact or bounded Rizin controlled debug start with exact fresh authorization, no dynamic-ID pre-signing.",
       "report": "rea-linux/certification/p280-original-service-provider-readiness-124-of-208-20261025.json"
+    },
+    "p285_rizin_signed_one_shot": {
+      "phase": "P285",
+      "status": "FULLY_CERTIFIED_SCOPED_REAL_OWNER_SIGNED_MCP_ONE_SHOT",
+      "tool": "execute_rizin_command",
+      "signed_run_id": 40247899382,
+      "readback_run_id": 40248022311,
+      "signed_owner_signatures": 2,
+      "positive_mcp_isError_false": true,
+      "negative_isError_true_invalid_input": true,
+      "old_15_preserved": true,
+      "original_unknown_unchanged": true,
+      "now_16_evidence_sha256": "5650e69453d45935fe22833f08e40f29d9b3ee5700ebd691a16509af459d0ff4",
+      "count_certified": 125,
+      "count_remaining": 83,
+      "workspace_pending": 17,
+      "sensitive_pending": 66,
+      "report": "rea-linux/certification/p285-p282-owner-signed-rizin-one-shot-certified-125-of-208-20261026.json",
+      "no_new_signatures_needed_for_completed_test": true
+    },
+    "current_canonical_counts": {
+      "as_of_phase": "P285",
+      "total": 208,
+      "certified": 125,
+      "pending": 83,
+      "read_certified": 5,
+      "workspace_certified": 103,
+      "workspace_pending": 17,
+      "sensitive_certified": 17,
+      "sensitive_pending": 66
     }
   }
 }
