@@ -185,6 +185,27 @@ def match_verified_review_to_signed_task(preview_receipt, signed_task):
     }
 
 
+def verify_and_bind_github_owner_review(
+        github_context, workflow_run, review_history, public_request,
+        signed_task, *, request_path, now=None):
+    """Verify the real GitHub reviewer AND bind the exact Ed25519 task.
+
+    Both checks are indispensable. The workflow run, review history and
+    request must be fetched by a trusted GitHub API client, NEVER provided
+    by user-controlled workflow/request JSON. Does not grant MCP authority:
+    the VPS must still independently validate the Ed25519 signature and its
+    source-audited effects, expiry, nonce and revocation.
+
+    The earlier successful P311 demo proves the human button only; its
+    arbitrary digest must NOT unlock an unrelated signed task.
+    """
+    verified = verify_github_review(
+        github_context, workflow_run, review_history, public_request,
+        request_path=request_path, now=now)
+    result = match_verified_review_to_signed_task(verified, signed_task)
+    return result
+
+
 def selected_request_from_commit(commit, *, cwd="."):
     """Select a single NEW request; never execute deleted/modified files."""
     if not isinstance(commit, str) or not HEX40.fullmatch(commit):
