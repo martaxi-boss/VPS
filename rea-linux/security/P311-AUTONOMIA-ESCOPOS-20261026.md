@@ -209,3 +209,23 @@ O conector GitHub disponivel nesta sessao nao tem operacoes de administracao de 
 - As 229 ferramentas originais e o estado Evidence/Unknowns/certificados/backups nao foram alterados.
 - O clique GitHub NAO gera uma assinatura Ed25519 e o 'recibo preview' nao e um token de permissao autenticado por si so. Antes da ligacao a `sealed_task_enroll` ou `tools/call` no ambiente ativo, validar o dono e a politica com garantia independente, confirmar uma assinatura real para o scope aprovado e fazer teste MCP seguro, verificando rollback.
 - PR #305 permanece draft e isolado, sem merge ou permissoes automáticas ativadas. Nao repetir ensaio do botao nem pedir nova confirmacao so para provar o mesmo passo.
+
+## P311 — resultado desta continuidade: 150 testes e prova GitHub OIDC isolada
+
+- **150/150 testes PASS, no GitHub Actions**, run `40391492310`: https://github.com/martaxi-boss/VPS/actions/runs/40391492310. Foram testes offline com pares RSA/Ed25519 efemeros; nenhum JWT real do proprietario foi usado ou armazenado.
+- Ponto corrigido no bridge experimental: `sealed_task_enroll` agora exige a captura de resposta cifrada **ANTES** de validar/consumir nonce ou gravar a concessao assinada. Um erro neste ponto deixa a area privada intacta.
+- A nova funcao `verify_and_bind_github_owner_review` obriga a comprovar conjuntamente a identidade da revisao REAL via API do GitHub e a hash do documento Ed25519 do mesmo trabalho. O clique de demonstracao anterior (run `40385975218`) NAO e validado como autorizacao de qualquer outro grant.
+- Criado `ops/rea_p311_github_oidc_20261026.py` apenas no PR, ainda NAO integrado nos workflows de producao nem na ponte que executa o REA. Verifica assinatura RSA RS256 de OIDC JWT emitido pelo GitHub, issuer oficial, `kid` de JWKS oficial fixado, identidade imutavel do owner/repo, ambiente aprovado, workflow/ref, branch, run ID, SHA, audiencia ligada ao hash do mesmo trabalho e validade de poucos minutos.
+- Os testes de OIDC recusam assinatura adulterada, algoritmos alternativos, endereco de chaves externo em header, review falso, owner incorreto, repo ID diferente, ambiente diferente, outro commit/run, expiração, audiencia trocada e atividade de outro workflow.
+- O documento oficial de descoberta confirma issuer `https://token.actions.githubusercontent.com`, JWKS `https://token.actions.githubusercontent.com/.well-known/jwks` e `RS256`: https://token.actions.githubusercontent.com/.well-known/openid-configuration. Referencia de claims: https://docs.github.com/en/actions/reference/security/oidc.
+
+### Distincao de garantia (critica)
+
+- **Foi comprovado com a pessoa real:** botao GitHub `Approve and deploy`, identidade `martaxi-boss` e sucesso no run `40385975218`. Ja estava concluido e NAO foi repetido.
+- **Foi comprovado agora apenas em testes offline:** combinacao review + JWT OIDC assinado + hash do grant Ed25519; as chaves RSA e Ed25519 sao efemeras e sinteticas. Nenhum JWT OIDC real de um job protegido foi emitido nesta fase.
+- **Ainda nao se executou:** passar uma prova OIDC real no envelope cifrado para o servidor, autenticar e gastar `jti`/nonce exatamente uma vez, validar a autorizacao Ed25519 de politica e executar uma ferramenta sensivel real com rollback. Portanto, nao considerar o botao pronto para autorizar ferramentas de producao.
+- O verificador OIDC nao devolve permissoes de ferramentas e nao substitui Ed25519. O modo P311 continua desligado na VPS, nao houve deploy nem alteracao de Evidence, Unknowns, certificados, backups ou ledger.
+
+### Higienizacao
+
+O PR #305 permanece DRAFT no ramo de revisao. Nao foi publicado qualquer novo pedido de aprovacao, token, chave ou grant. O ultimo pedido publico demonstrativo ja tinha sido eliminado e a prova do Actions ficou preservada. Evitar novos ensaios reais do botao ate que a integracao OIDC + grant Ed25519 esteja testada e estritamente circunscrita.
