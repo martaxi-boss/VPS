@@ -954,7 +954,49 @@ def _verify_sensitive_owner_authorization(body, position, name, args, auth):
         raise SecureBridgeError("Invalid independent owner authorization") from exc
 
 
-def validate_inner(body, registry, safe_callable, now=None):
+def _p311_owner_scoped_grant(scoped_task, name, args, risk, verified_policy, now):
+    """Experimental signed task delegation. DISABLED unless server opts in.
+
+    Caller-supplied booleans or GitHub text are NEVER accepted as approval.
+    The owner public verifier is read only from the existing VPS private area.
+    """
+    if os.environ.get("REA_P311_SCOPED_TASKS") != "enabled":
+        return False
+    required = {
+        "grant", "owner_signature", "project", "task_id", "origin",
+        "artifact_root"
+    }
+    if not isinstance(scoped_task, dict) or set(scoped_task) != required:
+        raise SecureBridgeError("Malformed scoped task approval")
+    # The exact source-audited effects and SHA-pinned live schema must be used.
+    effects = (AUDITED_EFFECTS if verified_policy is None
+               else verified_policy[0]).get(name)
+    if not isinstance(effects, frozenset):
+        raise SecureBridgeError("Tool effects are not source-audited")
+    path = _private_directory() / "owner-approval-public.pem"
+    if path.is_symlink() or not path.is_file():
+        raise SecureBridgeError("Owner public verifier is not configured")
+    meta = path.stat()
+    if meta.st_uid != os.geteuid() or stat.S_IMODE(meta.st_mode) & 0o022:
+        raise SecureBridgeError("Unsafe owner verifier ownership/permissions")
+    # The scoped approval helper is NOT injected into the deployed SSH bridge
+    # yet: enabling before the authenticated integration fails CLOSED.
+    try:
+        from ops import rea_scoped_approval_20261026 as scoped
+        scoped.verify_task_grant(
+            scoped_task["grant"], scoped_task["owner_signature"],
+            path.read_bytes(), project=scoped_task["project"],
+            task_id=scoped_task["task_id"], origin=scoped_task["origin"],
+            artifact_root=scoped_task["artifact_root"], tool=name,
+            audited_effects=effects, current_risk=risk,
+            arguments=args, now=now,
+        )
+    except (ImportError, ValueError) as exc:
+        raise SecureBridgeError("Invalid owner-signed scoped authorization") from exc
+    return True
+
+
+def validate_inner(body, registry, safe_callable, now=None, *, scoped_task=None):
     """Per-operation authorization, exact argument hash and expiration."""
     if not isinstance(body, dict) or set(body) != {
         "protocol", "nonce", "expires_at", "steps"
@@ -1025,6 +1067,13 @@ def validate_inner(body, registry, safe_callable, now=None):
             if auth is not None:
                 raise SecureBridgeError("Read-only operation must omit authorization")
         else:
+            # Optional signed delegation is only allowed with an explicit
+            # server-side opt-in, and only after all original schema/path/
+            # session checks above have passed. Defaults to legacy behaviour.
+            if auth is None and scoped_task is not None and _p311_owner_scoped_grant(
+                    scoped_task, name, args, risk, verified_policy, now):
+                profiles.append(risk)
+                continue
             required = {
                 "tool", "arguments_sha256", "scope", "reason",
                 "confirmed_by_owner", "acknowledgement"
