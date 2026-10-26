@@ -649,6 +649,94 @@ def enroll_trusted_reviewed_task_offline_only(
 
 
 
+
+SEALED_OIDC_PURPOSE = "REA_P311_GITHUB_OIDC_ENCRYPTED_TRANSPORT_V1"
+
+
+def seal_protected_job_oidc_for_existing_bridge(
+        *, run_id, request_id, jwt, recipient_public_key_b64):
+    """Encrypt an ephemeral GitHub JWT to the existing VPS RSA public key.
+
+    This does NOT grant any MCP permission, persist the JWT or skip validation.
+    A protected job must first verify the GitHub reviewer and OIDC signature.
+    """
+    from ops import rea_secure_protocol_20261022 as secure
+    if (type(run_id) is not int or not 0 < run_id < 10**20 or
+            not isinstance(request_id, str) or
+            not gate.HEX32.fullmatch(request_id) or
+            not isinstance(jwt, str) or not 50 <= len(jwt) <= MAX_JWT_BYTES or
+            jwt.count(".") != 2):
+        raise GithubOIDCError("Invalid bounded OIDC transport identity")
+    body = {
+        "purpose": SEALED_OIDC_PURPOSE, "version": 1,
+        "run_id": run_id, "request_id": request_id, "jwt": jwt,
+    }
+    try:
+        ciphertext = secure.seal_for_client(
+            body, recipient_public_key_b64, recipient_public_key_b64)
+    except (secure.SecureBridgeError, ValueError, TypeError) as exc:
+        raise GithubOIDCError("Cannot seal GitHub job proof") from exc
+    return {"purpose": SEALED_OIDC_PURPOSE, "version": 1,
+            "encrypted": ciphertext}
+
+
+def open_sealed_oidc_using_existing_vps_key(
+        sealed_proof, *, expected_run_id, expected_request_id):
+    """Decrypt IN MEMORY using the EXISTING, never regenerated VPS key.
+
+    Encryption does not extend JWT expiration. No JWT or bearer in messages,
+    commits or logs. The JWT must still pass the official GitHub RS256 checks.
+    """
+    from ops import rea_secure_protocol_20261022 as secure
+    if (type(expected_run_id) is not int or
+            not 0 < expected_run_id < 10**20 or
+            not isinstance(expected_request_id, str) or
+            not gate.HEX32.fullmatch(expected_request_id) or
+            not isinstance(sealed_proof, dict) or
+            set(sealed_proof) != {"purpose", "version", "encrypted"} or
+            sealed_proof.get("purpose") != SEALED_OIDC_PURPOSE or
+            type(sealed_proof.get("version")) is not int or
+            sealed_proof["version"] != 1):
+        raise GithubOIDCError("Invalid encrypted OIDC transport wrapper")
+    try:
+        pinned_public = secure.request_public_key_b64(create=False)
+        clear = secure.unseal(sealed_proof["encrypted"], pinned_public)
+    except (secure.SecureBridgeError, OSError, ValueError, TypeError) as exc:
+        raise GithubOIDCError("Encrypted OIDC proof cannot be authenticated") from exc
+    if (not isinstance(clear, dict) or
+            set(clear) != {"purpose", "version", "run_id", "request_id", "jwt"} or
+            clear["purpose"] != SEALED_OIDC_PURPOSE or
+            type(clear["version"]) is not int or clear["version"] != 1 or
+            type(clear["run_id"]) is not int or
+            clear["run_id"] != expected_run_id or
+            clear["request_id"] != expected_request_id or
+            not isinstance(clear["jwt"], str) or
+            not 50 <= len(clear["jwt"]) <= MAX_JWT_BYTES or
+            clear["jwt"].count(".") != 2):
+        raise GithubOIDCError("Encrypted OIDC proof belongs to another request")
+    return clear["jwt"]
+
+
+def enroll_sealed_reviewed_task_offline_only(
+        run_id, request_id, signed_task, sealed_proof, owner_public_pem,
+        trusted_contracts, *, github_token, private_registry_dir,
+        revocation_dir, private_spent_dir, now=None):
+    """Staged encrypted ingress; NOT connected to deployed REA or tools/call.
+
+    Always enforce fresh GitHub REST run/reviewer, JWT, owner Ed25519 scope,
+    revocation and single-use checks before a private grant is registered.
+    """
+    jwt = open_sealed_oidc_using_existing_vps_key(
+        sealed_proof, expected_run_id=run_id,
+        expected_request_id=request_id)
+    return enroll_trusted_reviewed_task_offline_only(
+        run_id, request_id, signed_task, jwt, owner_public_pem,
+        trusted_contracts, github_token=github_token,
+        private_registry_dir=private_registry_dir,
+        revocation_dir=revocation_dir, private_spent_dir=private_spent_dir,
+        now=now)
+
+
 def _actions_audience_request_url(source_url, public_request):
     """Bind the GitHub-provided job token endpoint to the exact reviewed task.
 

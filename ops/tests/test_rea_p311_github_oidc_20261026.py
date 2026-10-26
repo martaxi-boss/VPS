@@ -640,6 +640,112 @@ class P311GithubOIDCReviewTests(unittest.TestCase):
         with self.assertRaisesRegex(oidc.GithubOIDCError, "already been used"):
             self._stage_signed_enrollment()
 
+
+    def _temporary_transport_key(self):
+        from ops import rea_secure_protocol_20261022 as secure
+        key = rsa.generate_private_key(public_exponent=65537, key_size=3072)
+        pub = base64.b64encode(key.public_key().public_bytes(
+            serialization.Encoding.DER,
+            serialization.PublicFormat.SubjectPublicKeyInfo)).decode("ascii")
+        return secure, key, pub
+
+    def test_oidc_transport_encrypted_by_existing_bridge_crypto(self):
+        secure, key, pub = self._temporary_transport_key()
+        jwt = self.mint()
+        envelope = oidc.seal_protected_job_oidc_for_existing_bridge(
+            run_id=self.run["id"], request_id=self.request["request_id"],
+            jwt=jwt, recipient_public_key_b64=pub)
+        self.assertNotIn(jwt, json.dumps(envelope))
+        with mock.patch.object(secure, "private_key", return_value=key), \
+             mock.patch.object(secure, "request_public_key_b64",
+                               return_value=pub) as requested:
+            recovered = oidc.open_sealed_oidc_using_existing_vps_key(
+                envelope, expected_run_id=self.run["id"],
+                expected_request_id=self.request["request_id"])
+        self.assertEqual(jwt, recovered)
+        requested.assert_called_once_with(create=False)
+
+    def test_oidc_transport_tampering_and_cross_run_binding_rejected(self):
+        secure, key, pub = self._temporary_transport_key()
+        packet = oidc.seal_protected_job_oidc_for_existing_bridge(
+            run_id=self.run["id"], request_id=self.request["request_id"],
+            jwt=self.mint(), recipient_public_key_b64=pub)
+        with mock.patch.object(secure, "private_key", return_value=key), \
+             mock.patch.object(secure, "request_public_key_b64",
+                               return_value=pub):
+            for run, rid in ((self.run["id"] + 1, self.request["request_id"]),
+                             (self.run["id"], "f"*32)):
+                with self.subTest(run=run, rid=rid), \
+                     self.assertRaises(oidc.GithubOIDCError):
+                    oidc.open_sealed_oidc_using_existing_vps_key(
+                        packet, expected_run_id=run, expected_request_id=rid)
+            for bad in (
+                {**packet, "purpose": "another-project"},
+                {**packet, "version": 2},
+                {**packet, "encrypted": {
+                    **packet["encrypted"], "ciphertext": "AAAA"}},
+            ):
+                with self.subTest(bad=list(bad)), \
+                     self.assertRaises(oidc.GithubOIDCError):
+                    oidc.open_sealed_oidc_using_existing_vps_key(
+                        bad, expected_run_id=self.run["id"],
+                        expected_request_id=self.request["request_id"])
+
+    def test_oidc_encrypted_transport_to_scoped_registry_staged_offline(self):
+        self._prepare_private_consumption()
+        private_registry = Path(self.consumption_root.name) / "approved-p311-tasks"
+        private_registry.mkdir(mode=0o700)
+        secure, key, pub = self._temporary_transport_key()
+        packet = oidc.seal_protected_job_oidc_for_existing_bridge(
+            run_id=self.run["id"], request_id=self.request["request_id"],
+            jwt=self.mint(), recipient_public_key_b64=pub)
+        with mock.patch.object(secure, "private_key", return_value=key), \
+             mock.patch.object(secure, "request_public_key_b64",
+                               return_value=pub), \
+             mock.patch.object(oidc, "_p311_github_rest_get",
+                               side_effect=self._trusted_github_responses()), \
+             mock.patch.object(oidc, "load_official_github_jwks",
+                               return_value=self.jwks):
+            receipt = oidc.enroll_sealed_reviewed_task_offline_only(
+                self.run["id"], self.request["request_id"], self.signed,
+                packet, self.owner_public, self.trusted_contracts,
+                github_token="g"*48, private_registry_dir=private_registry,
+                revocation_dir=self.revocations, private_spent_dir=self.spent,
+                now=self.now)
+        self.assertTrue(receipt["registered_offline_stage_only"])
+        self.assertTrue((private_registry /
+                         (self.signed["grant"]["grant_id"] + ".json")).is_file())
+        self.assertTrue(
+            (self.spent / (self.request["request_id"] + ".spent")).is_file())
+
+    def test_encrypted_oidc_artifact_does_not_extend_token_lifetime(self):
+        self._prepare_private_consumption()
+        private_registry = Path(self.consumption_root.name) / "approved-p311-tasks"
+        private_registry.mkdir(mode=0o700)
+        secure, key, pub = self._temporary_transport_key()
+        timestamp = int(self.now.timestamp())
+        jwt = self.mint(claims={**self.claims, "iat": timestamp-1000,
+                                "exp": timestamp-500})
+        packet = oidc.seal_protected_job_oidc_for_existing_bridge(
+            run_id=self.run["id"], request_id=self.request["request_id"],
+            jwt=jwt, recipient_public_key_b64=pub)
+        with mock.patch.object(secure, "private_key", return_value=key), \
+             mock.patch.object(secure, "request_public_key_b64",
+                               return_value=pub), \
+             mock.patch.object(oidc, "_p311_github_rest_get",
+                               side_effect=self._trusted_github_responses()), \
+             mock.patch.object(oidc, "load_official_github_jwks",
+                               return_value=self.jwks), \
+             self.assertRaises(oidc.GithubOIDCError):
+            oidc.enroll_sealed_reviewed_task_offline_only(
+                self.run["id"], self.request["request_id"], self.signed,
+                packet, self.owner_public, self.trusted_contracts,
+                github_token="g"*48, private_registry_dir=private_registry,
+                revocation_dir=self.revocations, private_spent_dir=self.spent,
+                now=self.now)
+        self.assertEqual([], list(self.spent.iterdir()))
+        self.assertEqual([], list(private_registry.iterdir()))
+
     def test_joint_owner_button_and_oidc_signature_are_required(self):
         receipt = self.full()
         self.assertTrue(receipt["owner_button_and_oidc_preview_only"])
