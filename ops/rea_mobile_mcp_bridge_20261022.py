@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_frida_binding_p306", "fixture_linux_frida_loader_p307"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_frida_binding_p306", "fixture_linux_frida_loader_p307", "fixture_linux_frida_service_node_p308"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -572,6 +572,13 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_P307_ERROR_CODE", "REA_P307_FAILURE_FLAGS",
         "REA_P307_SERVICE_PID_UNCHANGED", "REA_P307_STATUS",
     })
+    allowed_markers.update({
+        "REA_P308_STATUS", "REA_P308_NODE_EXIT",
+        "REA_P308_SERVICE_NODE_VERSION", "REA_P308_MODULE_LOADED",
+        "REA_P308_API_EXPORTS_VALID", "REA_P308_ERROR_NAME",
+        "REA_P308_ERROR_CODE", "REA_P308_ERROR_DIGEST",
+        "REA_P308_LOADER_HINTS", "REA_P308_SERVICE_PID_UNCHANGED",
+    })
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
         if line.startswith("REA_MOBILE_PRIVATE_RESULT_B64="):
@@ -833,6 +840,93 @@ def main():
         print("REA_P307_SERVICE_PID_UNCHANGED=" +
               str(service_pid == unit_value("MainPID")).lower())
         print("REA_P307_STATUS=PASS_SCOPED_CLASSIFICATION")
+        return
+    if data["action"] == "fixture_linux_frida_service_node_p308":
+        # One-use scoped service-node test for the already installed Frida 17.23.2.
+        # No REA service restart, package writes, device access or script attach.
+        def unit_value(name):
+            p = subprocess.run(["systemctl", "show", "rea-reversa-mcp.service",
+                "-p", name, "--value"], capture_output=True, text=True,
+                timeout=10, check=False)
+            return p.stdout.strip() if p.returncode == 0 else ""
+        user = unit_value("User")
+        pid = unit_value("MainPID")
+        root = Path("/opt/rea-reversa/rea")
+        package = root / "node_modules/frida/package.json"
+        if (user != "rea-reversa" or unit_value("ActiveState") != "active"
+            or not pid.isdecimal() or int(pid) < 1 or not package.is_file()
+            or json.loads(package.read_text()).get("version") != "17.23.2"):
+            print("REA_P308_STATUS=BLOCKED_RUNTIME_OR_PIN")
+            return
+        r = subprocess.run(["sudo", "-n", "readlink", "-f",
+            "/proc/" + pid + "/exe"], capture_output=True, text=True,
+            timeout=12, check=False)
+        nodepath = Path(r.stdout.strip()) if r.returncode == 0 else None
+        safe = (nodepath is not None and nodepath.name == "node" and
+            nodepath.is_file() and nodepath.is_absolute() and
+            any(nodepath == prefix or prefix in nodepath.parents for prefix in (
+                Path("/usr/bin"), Path("/usr/local/bin"),
+                Path("/opt/rea-reversa"), Path("/home/rea-reversa"),
+                Path("/home/ubuntu/.local/share/rea-chatgpt-trial/tools"))))
+        if not safe:
+            print("REA_P308_STATUS=SERVICE_EXECUTABLE_NOT_APPROVED_NODE")
+            return
+        js = (
+            "import{createHash}from'node:crypto';"
+            "let result={loaded:false,hasApi:false,node:process.versions.node};"
+            "try{const m=await import('frida');const f=m.default??m;"
+            "result.loaded=true;result.hasApi=['enumerateDevices','attach','spawn']"
+            ".every(k=>typeof f[k]==='function');}"
+            "catch(e){const v=String(e?.message??'');"
+            "const codes=['ERR_DLOPEN_FAILED','ERR_MODULE_NOT_FOUND',"
+            "'MODULE_NOT_FOUND','ERR_REQUIRE_ESM','ERR_PACKAGE_PATH_NOT_EXPORTED'];"
+            "const names=['Error','TypeError','RangeError','SyntaxError',"
+            "'ReferenceError','AggregateError'];"
+            "result.name=names.includes(e?.name)?e.name:'OTHER';"
+            "result.code=codes.includes(e?.code)?e.code:'OTHER';"
+            "result.messageDigest=createHash('sha256').update(v).digest('hex').slice(0,16);"
+            "result.hints={nodeAddon:/\\.node|native addon|binding/i.test(v),"
+            "noNative:/could not locate|failed to load|no native build/i.test(v),"
+            "missingFile:/no such file|cannot find|not found|ENOENT/i.test(v),"
+            "glibc:/GLIBC_|GLIBCXX_|CXXABI_/i.test(v),"
+            "permission:/EACCES|EPERM|permission denied/i.test(v),"
+            "abi:/NODE_MODULE_VERSION|module version mismatch/i.test(v),"
+            "moduleInit:/initializ|constructor|undefined|not a function/i.test(v),"
+            "unsupported:/unsupported|not supported/i.test(v),"
+            "loader:/load|dlopen|resolve/i.test(v)};}"
+            "console.log(JSON.stringify(result));"
+        )
+        trial = subprocess.run(["sudo", "-n", "-u", user, str(nodepath),
+            "--input-type=module", "-e", js], cwd=str(root),
+            capture_output=True, text=True, timeout=40, check=False)
+        print("REA_P308_NODE_EXIT=" + str(trial.returncode))
+        try:
+            observation = json.loads(trial.stdout.strip())
+        except (ValueError, AttributeError):
+            print("REA_P308_STATUS=NO_STRUCTURED_NODE_RESULT")
+            return
+        print("REA_P308_SERVICE_NODE_VERSION=" +
+              str(observation.get("node",""))[:20])
+        print("REA_P308_MODULE_LOADED=" +
+              str(observation.get("loaded") is True).lower())
+        print("REA_P308_API_EXPORTS_VALID=" +
+              str(observation.get("hasApi") is True).lower())
+        print("REA_P308_ERROR_NAME=" +
+              str(observation.get("name","NONE"))[:32])
+        print("REA_P308_ERROR_CODE=" +
+              str(observation.get("code","NONE"))[:40])
+        print("REA_P308_ERROR_DIGEST=" +
+              str(observation.get("messageDigest","NONE"))[:20])
+        hints = observation.get("hints")
+        if isinstance(hints, dict):
+            print("REA_P308_LOADER_HINTS=" + json.dumps(
+                {str(k): v is True for k,v in hints.items()}, sort_keys=True))
+        unchanged = pid == unit_value("MainPID")
+        print("REA_P308_SERVICE_PID_UNCHANGED=" + str(unchanged).lower())
+        print("REA_P308_STATUS=" + (
+            "PASS_NATIVE_API" if unchanged and trial.returncode == 0
+            and observation.get("loaded") is True and
+            observation.get("hasApi") is True else "NATIVE_IMPORT_FAILED"))
         return
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
