@@ -139,8 +139,9 @@ def _validate_job_paths(artifact_root, arguments):
 def verify_not_revoked(grant_id, revocation_dir):
     """Fail closed for an explicitly revoked grant ID in owner's private store.
 
-    Reading an absent directory is compatible with existing installations.
-    Removing/replacing revocation markers is never performed by this verifier.
+    An absent directory blocks ALL standing grants: initialize it securely
+    only during owner-approved enrollment. This verifier NEVER creates, edits
+    or deletes revocation markers.
     """
     if not isinstance(grant_id, str) or not HEX.fullmatch(grant_id):
         raise ScopedApprovalError("Invalid grant identifier")
@@ -216,9 +217,9 @@ def verify_task_grant(grant, owner_signature_b64, owner_public_pem, *,
                       revocation_dir=None):
     """Check one sensitive/workspace tool against an independently owner-signed grant.
 
-    This helper DOES NOT change secure.validate_inner or authorize live calls.
-    Integration must also preserve the original argument schemas, bounded paths,
-    nonce/replay checks and per-step Ed25519 fallback for excluded operations.
+    This verifier only returns a scoped decision. The opt-in sealed bridge
+    still enforces original MCP schemas, bounded paths, nonce/replay and
+    per-step Ed25519 fallback for excluded operations. Disabled by default.
     """
     if not isinstance(grant, dict) or set(grant) != FIELDS:
         raise ScopedApprovalError("Invalid standing grant schema")
