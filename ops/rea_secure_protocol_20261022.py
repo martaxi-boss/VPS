@@ -990,6 +990,7 @@ def _p311_owner_scoped_grant(scoped_task, name, args, risk, verified_policy, now
             artifact_root=scoped_task["artifact_root"], tool=name,
             audited_effects=effects, current_risk=risk,
             arguments=args, now=now,
+            revocation_dir=_private_directory() / "revoked-p311-grants",
         )
     except (ImportError, ValueError) as exc:
         raise SecureBridgeError("Invalid owner-signed scoped authorization") from exc
