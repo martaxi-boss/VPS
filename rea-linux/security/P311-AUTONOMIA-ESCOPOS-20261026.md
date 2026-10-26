@@ -249,3 +249,14 @@ O PR #305 permanece DRAFT no ramo de revisao. Nao foi publicado qualquer novo pe
 ### Proxima integracao
 
 Para ativar esta protecao na VPS e necessario emitir autorizacao REAL limitada e validada do proprietario, completar leitura autenticada do review/JWT pelo servidor e reconciliar o replay ledger com registro de grants sob revisao e rollback. Nao transformar o sucesso do preview num falso `approved=true`.
+
+
+## P311 - Fase A: origem do pedido GitHub e ledger antirreplay duravel (26/10/2026)
+
+- **165/165 testes offline PASS** em https://github.com/martaxi-boss/VPS/actions/runs/40396101036, para o commit de codigo e testes da4736df1983bcc197a1c5c0b2eb3847c14b8653. Nao houve SSH/VPS nem operacao MCP neste run.
+- verify_committed_review_request passou a ser obrigatoria antes de verify_owner_review_oidc_and_consume_once: o commit REST de origem confiavel tem de ser o mesmo head_sha do run, adicionar SOMENTE o ficheiro de desafio aprovado, e os bytes exatos do blob Git SHA-1 devem coincidir com o pedido publico e a pasta/ID. Adulteracoes e trocas de commit/blob/pedido falham antes de consumir a autorizacao.
+- O contexto do commit, os metadados e o blob devem ser obtidos futuramente por um cliente de API GitHub DE CONFIANCA, com SHA exato e repositorio fixado; nao aceitar objetos fornecidos por payloads MCP nem parametros do utilizador. O modulo isolado nao cria esse cliente na VPS nem demonstra esta ligacao real.
+- O marcador privado de uso unico usa descriptors ancorados ao diretorio-pai e filho 0700, O_DIRECTORY/O_NOFOLLOW, O_EXCL, ficheiro 0600, fsync do ficheiro e do diretorio. Testes validam estas chamadas, rejeicoes e consumo unico; nao constituem prova de recuperacao apos falha fisica do disco.
+- A primeira CI do commit 4eb6607f06c963fc805fd1255f419ed3128470ff identificou que um teste de assinatura invalida passou a ser barrado antes pela verificacao do blob. O caso foi ajustado para fornecer o commit e o desafio sinteticos coerentes e voltou a comprovar a rejeicao da assinatura Ed25519 falsa no CI verde posterior.
+- O modulo continua somente em PR DRAFT; as 165 verificacoes usam chaves sinteticas e fixtures temporarias do Actions. Nao foi emitido JWT OIDC real de job protegido, nao houve nova revisao humana, nao foi criado pedido publico de aprovacao, nao foi registado grant real, nao houve merge, deploy, restart nem alteracao ao motor REA original.
+- Proxima porta: ensaio OIDC real com novo pedido e aprovacao humana autenticada quando preparado e consentido; so depois integrar metadados GitHub confiaveis e assinatura Ed25519 real no registo seguro, preservar rollback e ensaiar MCP sensivel reversivel sob autorizacao.
