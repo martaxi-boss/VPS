@@ -486,6 +486,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_P304_STATUS","REA_P304_EXIT","REA_P304_BACKUP","REA_P304_SERVICE_PID_UNCHANGED",
         "REA_P303_STATUS","REA_P303_CUTTER_LAYOUT","REA_P303_PACKAGE_EXIT","REA_P303_SERVICE_PID_UNCHANGED",
         "REA_P302_STATUS","REA_P302_LIVE_CUTTER_SESSION","REA_P302_VENDOR_VERSION",
+        "REA_P305_SESSION_SUMMARY","REA_P305_FILE_STATES","REA_P305_AUTHENTICATED_SESSION",
         "REA_P302_LAUNCH_PRE_CLEANUP","REA_P302_LAUNCH_LOG_CATEGORIES",
         "REA_P302_MISSING_KNOWN_MODULES","REA_P302_PROCESS_GROUP_CLEAN","REA_P302_IMPORT_DETAILS","REA_P302_MAX_SESSIONS_SEEN",
         "REA_P302_INPUT_UNCHANGED","REA_P302_SESSION_CLEAN","REA_P302_SERVICE_PID_UNCHANGED",
@@ -1006,6 +1007,8 @@ except Exception as e:
         version=""
         before_cleanup="UNOBSERVED"
         max_seen=0
+        session_summary=None
+        file_states=set()
         logbuffer=tempfile.TemporaryFile(mode="w+t")
         try:
             proc=sp.Popen(launch,cwd=base,stdin=sp.DEVNULL,
@@ -1015,6 +1018,31 @@ except Exception as e:
                 try:
                     observed=sessions()
                     max_seen=max(max_seen,len(observed))
+                    for entry in observed:
+                        if not isinstance(entry,dict):
+                            continue
+                        current=entry.get("current_file")
+                        state=("NONE" if current is None else
+                               "TARGET" if current==str(target) or
+                                  Path(str(current)).name=="true"
+                               else "OTHER")
+                        file_states.add(state)
+                        if session_summary is None:
+                            valid_keys=("session_id","pid","document_generation",
+                                        "current_file","cutter_version",
+                                        "identity_status")
+                            clean_ver=entry.get("cutter_version")
+                            session_summary={
+                              "fields":[k for k in valid_keys if k in entry],
+                              "file_state":state,
+                              "uuid":bool(re.fullmatch(
+                                   r"[0-9a-fA-F-]{36}",str(entry.get("session_id") or ""))),
+                              "pid_valid":isinstance(entry.get("pid"),int) and
+                                           entry.get("pid")>0,
+                              "generation":isinstance(entry.get("document_generation"),int),
+                              "version":str(clean_ver)[:40] if clean_ver else "UNAVAILABLE",
+                              "identity":str(entry.get("identity_status") or "UNKNOWN")[:20]
+                            }
                     match=[item for item in observed
                         if isinstance(item,dict) and
                         (item.get("current_file")==str(target) or
@@ -1095,6 +1123,10 @@ except Exception as e:
             clean_sessions=sessions()==[]
         except (OSError,ValueError,RuntimeError,TypeError,sp.TimeoutExpired):
             pass
+        print("REA_P305_SESSION_SUMMARY="+json.dumps(session_summary or {},separators=(",",":")))
+        print("REA_P305_FILE_STATES="+json.dumps(sorted(file_states),separators=(",",":")))
+        print("REA_P305_AUTHENTICATED_SESSION="+str(bool(
+          session_summary and session_summary.get("uuid") and session_summary.get("pid_valid"))).lower())
         print("REA_P302_MAX_SESSIONS_SEEN="+str(max_seen))
         print("REA_P302_LIVE_CUTTER_SESSION="+str(discovered).lower())
         print("REA_P302_VENDOR_VERSION="+version)
