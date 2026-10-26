@@ -150,3 +150,18 @@ Mas um botao ilustrativo no ChatGPT nao fornece uma assinatura criptografica par
 A integracao de botoes continua nao concluida. A assinatura unica com a chave privada do Android e o unico procedimento Ed25519 real disponivel nesta fase. Nem o GitHub nem a VPS receberam a chave privada.
 
 Higienizacao: PR #305 ainda draft sem merge. Nenhum novo ficheiro de pedido consumivel foi introduzido nesta continuacao, a pasta temporaria de teste e exclusiva ao CI, os runs e provas foram preservados. Nao tocar Evidence, Unknowns ou certificados.
+
+## P311: registo cifrado no transporte existente (26/10/2026)
+
+- **106/106 testes offline PASS**: https://github.com/martaxi-boss/VPS/actions/runs/40381893124
+- Implementada em ramo de revisao, DESLIGADA: acao `sealed_task_enroll` no mesmo modulo `ops/rea_mobile_mcp_bridge_20261022.py` e workflow GitHub/SSH ja existentes. Nao cria outro MCP, plugin, servidor ou Skill.
+- Pedidos de registo contêm apenas `version=1`, `action=sealed_task_enroll`, `sealed` autenticado com RSA-OAEP/AES-GCM e uma chave publica de resposta. Os dados de aprovacao do proprietario circulam DENTRO do envelope cifrado, nunca em texto claro no GitHub.
+- A mensagem cifrada obrigatoriamente contem `protocol=1`, nonce de uso unico, validade de pedido ate 1 hora e `signed_task` com assinatura Ed25519 independente do proprietario. O servidor exige `REA_P311_SCOPED_TASKS=enabled`, chave publica original da conta SSH, catalogo MCP completo e manifesto oficial 6.8.0 SHA-pinned.
+- Antes de registar, a ponte verifica efeitos e schemas reais da origem, projeto/tarefa, duracao, root de artefactos e revogacao. Reclama o nonce uma vez e grava o grant privado apenas com criacao exclusiva `0600`. Responde com recibo cifrado; sem `tools/call` para este registo.
+- Testes de 208 nomes e 229 nomes (229 sinteticos, com compromisso SHA fiel ao formato 6.8.0): assinatura falsa, nonce repetido, expiracao, efeitos proibidos, revogacao, reply cifrado, adulteracao de manifesto, esquema e formato exterior. Chaves de teste sempre efemeras.
+- A flag de producao NAO esta ativa, nenhum grant real do proprietario foi emitido ou gravado na VPS e nenhum teste real de ferramenta sensivel aconteceu. A prova real MCP read-only existente permanece https://github.com/martaxi-boss/VPS/actions/runs/40375171071.
+- Uma revisao via botao no GitHub ou ChatGPT NAO equivale a Ed25519; a aprovacao por botao autenticada continua PENDENTE. O utilizador nao deve colocar a chave privada no GitHub, VPS ou ChatGPT.
+
+### Higienizacao e rollback
+
+O ramo ativo continua isolado. Manter o PR #305 como draft; nao fazer merge nem alterar a politica sem autorizacao real do proprietario e prova funcional de MCP. Preservar todos os certificados, Evidence, Unknowns, backups e ledger. Os testes offline nao criaram pedidos consumiveis no GitHub nem ficheiros persistentes na VPS. Os testes temporarios correram no runner do Actions.
