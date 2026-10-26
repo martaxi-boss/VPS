@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_hopper_scoped_doctor_p298"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -483,10 +483,6 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_APPLY_STATE_SAVED",
         "REA_APPLY_FAILURE",
         "REA_APPLY_RESULT",
-        "REA_P298_STATUS","REA_P298_DOCTOR_EXIT","REA_P298_SCOPED_HEALTH",
-        "REA_P298_ENVIRONMENT_HEALTH","REA_P298_SCOPE_CHECKS",
-        "REA_P298_SERVICE_CAN_LAUNCH_HOPPER","REA_P298_SERVICE_PID_UNCHANGED",
-        "REA_P298_CHECK_01","REA_P298_CHECK_02","REA_P298_CHECK_03","REA_P298_CHECK_04","REA_P298_CHECK_05","REA_P298_CHECK_06","REA_P298_CHECK_07","REA_P298_CHECK_08","REA_P298_CHECK_09","REA_P298_CHECK_10","REA_P298_CHECK_11","REA_P298_CHECK_12","REA_P298_CHECK_13","REA_P298_CHECK_14","REA_P298_CHECK_15","REA_P298_CHECK_16",
         "REA_SERVICE_DOCTOR_STATUS",
         "REA_SERVICE_DOCTOR_UNIT_USER",
         "REA_SERVICE_DOCTOR_CONFIG_KEYS",
@@ -705,89 +701,6 @@ def main():
     print("REA_MOBILE_CATALOG_SAMPLE=" + json.dumps(
         list(tool_by_name)[:14], ensure_ascii=True
     ))
-
-    if data["action"] == "fixture_linux_hopper_scoped_doctor_p298":
-        # Temporary read-only scoped REA 6.8 official Hopper doctor.
-        # Never expose service environment, raw doctor details, keys or paths.
-        import pwd
-        service="rea-reversa-mcp.service"
-        def prop(name):
-            p=subprocess.run(["systemctl","show",service,"-p",name,"--value"],
-                             capture_output=True,text=True,timeout=12,check=False)
-            return p.stdout.strip() if p.returncode==0 else ""
-        pid=prop("MainPID")
-        user=prop("User")
-        active=Path("/opt/rea-reversa/rea")
-        if (user!="rea-reversa" or prop("ActiveState")!="active"
-            or not pid.isdecimal() or int(pid)<1
-            or not (active/"scripts/rea.mjs").is_file()
-            or json.loads((active/"package.json").read_text()).get("version")!="6.8.0"):
-            print("REA_P298_STATUS=BLOCKED_SERVICE_VERSION")
-            return
-        exe=subprocess.run(["sudo","-n","readlink","-f",f"/proc/{int(pid)}/exe"],
-                           capture_output=True,text=True,timeout=12,check=False)
-        node=exe.stdout.strip()
-        if exe.returncode or not node.endswith("/node") or not Path(node).is_file():
-            print("REA_P298_STATUS=BLOCKED_NODE_RUNTIME")
-            return
-        process_env=subprocess.run(["sudo","-n","cat",f"/proc/{int(pid)}/environ"],
-                                   capture_output=True,timeout=12,check=False)
-        if process_env.returncode or len(process_env.stdout)>220000:
-            print("REA_P298_STATUS=BLOCKED_SERVICE_ENV")
-            return
-        safe=("PATH","NODE_OPTIONS","JAVA_HOME","HOPPER_LAUNCHER_PATH",
-              "XDG_CACHE_HOME","XDG_RUNTIME_DIR","DISPLAY",
-              "REA_HOPPER_STARTUP_TIMEOUT_MS")
-        values={}
-        for item in process_env.stdout.split(bytes([0])):
-            if b"=" in item:
-                k,v=item.split(b"=",1)
-                try:
-                    name=k.decode("ascii")
-                    if name in safe and len(v)<2500:
-                        values[name]=v.decode("utf-8")
-                except UnicodeDecodeError:
-                    pass
-        argv=["sudo","-n","-u",user,"env","-i",
-              "HOME="+pwd.getpwnam(user).pw_dir,
-              "PATH="+str(Path(node).parent)+":"+values.get("PATH","/usr/bin:/bin"),
-              "NO_COLOR=1","CI=1"]
-        argv += [k+"="+v for k,v in values.items() if k not in ("PATH",)]
-        argv += [node,str(active/"scripts/rea.mjs"),"doctor","--provider","hopper","--json"]
-        try:
-            check=subprocess.run(argv,cwd=active,capture_output=True,text=True,
-                                 timeout=135,check=False)
-        except subprocess.TimeoutExpired:
-            print("REA_P298_STATUS=BLOCKED_DOCTOR_TIMEOUT")
-            return
-        print("REA_P298_DOCTOR_EXIT="+str(check.returncode))
-        try:
-            report=json.loads(check.stdout)
-        except ValueError:
-            print("REA_P298_STATUS=BLOCKED_INVALID_DOCTOR_RESPONSE")
-            return
-        if not isinstance(report,dict) or not isinstance(report.get("scope_checks"),list):
-            print("REA_P298_STATUS=BLOCKED_INVALID_DOCTOR_SHAPE")
-            return
-        print("REA_P298_SCOPED_HEALTH="+str(report.get("healthy") is True).lower())
-        print("REA_P298_ENVIRONMENT_HEALTH="+str(report.get("environment_healthy") is True).lower())
-        checks=report["scope_checks"]
-        print("REA_P298_SCOPE_CHECKS="+str(len(checks)))
-        for idx,entry in enumerate(checks[:16]):
-            if not isinstance(entry,dict):continue
-            name=str(entry.get("name","unknown"))[:75]
-            code=str(entry.get("classification","unknown"))[:50]
-            result={"name":name,"ok":entry.get("ok") is True,"class":code}
-            print("REA_P298_CHECK_"+str(idx+1).zfill(2)+"="+
-                  json.dumps(result,sort_keys=True,separators=(",",":")))
-        probe=subprocess.run(["sudo","-n","-u",user,"test","-x",
-                              "/opt/hopper/bin/Hopper"],capture_output=True,
-                             timeout=10,check=False)
-        print("REA_P298_SERVICE_CAN_LAUNCH_HOPPER="+str(probe.returncode==0).lower())
-        after=prop("MainPID")
-        print("REA_P298_SERVICE_PID_UNCHANGED="+str(pid==after).lower())
-        print("REA_P298_STATUS=PASS_READ_ONLY")
-        return
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
               secure.request_public_key_b64(create=True))
