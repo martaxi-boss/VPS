@@ -9,6 +9,7 @@ workflow run waiting for a protected environment.
 The workflow runs only on the isolated P311 review branch, with no VPS secrets.
 """
 import argparse
+import hashlib
 from datetime import datetime, timezone
 import json
 import os
@@ -24,6 +25,8 @@ BRANCH = "rea/p311-autonomia-escopos-20261026"
 OWNER_LOGIN = "martaxi-boss"
 OWNER_ID = 277365554
 REVIEW_ENVIRONMENT = "rea-p311-owner-consent"
+# Stable environment identity observed on the successful authentic GitHub review.
+REVIEW_ENVIRONMENT_ID = 25387773772
 WORKFLOW = ".github/workflows/rea-p311-owner-review-preview-20261026.yml"
 REQUEST_DIRECTORY = "rea-linux/owner-review-requests"
 PURPOSE = "REA_GITHUB_REVIEW_PREVIEW_V1"
@@ -77,6 +80,79 @@ def validate_review_request(request, *, path, now=None):
     return request
 
 
+def signed_task_review_digest(signed_task, *, request_id):
+    """Bind a public button review digest to ONE exact owner-signed enrollment.
+
+    The public GitHub request stores ONLY this hash. The signed task must
+    travel separately inside the EXISTING RSA-OAEP/AES-GCM request envelope.
+    This function does NOT verify the Ed25519 signature or grant authority.
+    Source-pinned schema/effect/owner checks remain mandatory in the VPS.
+    """
+    if not isinstance(request_id, str) or not HEX32.fullmatch(request_id):
+        raise ApprovalGateError("Invalid owner review ID")
+    if not isinstance(signed_task, dict) or set(signed_task) != {
+            "grant", "owner_signature", "project", "task_id", "origin", "artifact_root"}:
+        raise ApprovalGateError("Malformed task attached to owner review")
+    grant = signed_task.get("grant")
+    signature = signed_task.get("owner_signature")
+    if (not isinstance(grant, dict) or
+            set(grant) != {
+                "purpose", "grant_id", "project", "task_id", "origin",
+                "not_before", "expires_at", "allowed_tools",
+                "permitted_effects", "artifact_root"} or
+            grant.get("purpose") != "REA_OWNER_SCOPED_TASK_V1" or
+            grant.get("origin") != "martaxi-boss/VPS:rea/one-skill-bridge-20261023" or
+            not isinstance(signature, str) or
+            not re.fullmatch(r"[A-Za-z0-9+/]{86}==", signature) or
+            not isinstance(grant.get("grant_id"), str) or
+            not HEX32.fullmatch(grant["grant_id"]) or
+            grant.get("project") != "Engenharia Reversa" or
+            any(signed_task.get(key) != grant.get(key) for key in (
+                "project", "task_id", "origin", "artifact_root"))):
+        raise ApprovalGateError("Task review does not match owner-signed project")
+    data = {
+        "purpose": "REA_P311_GITHUB_TASK_REVIEW_BINDING_V1",
+        "request_id": request_id,
+        "operation": "sealed_task_enroll",
+        "signed_task": signed_task,
+    }
+    try:
+        # Canonical bytes agree with the REA Ed25519 signature format.
+        canonical = json.dumps(data, sort_keys=True, separators=(",", ":"),
+                               ensure_ascii=True, allow_nan=False).encode("ascii")
+    except (TypeError, ValueError, UnicodeError) as exc:
+        raise ApprovalGateError("Unsafe signed task for owner review") from exc
+    return hashlib.sha256(b"REA_P311_GITHUB_TASK_REVIEW_V1\x00" + canonical).hexdigest()
+
+
+def match_verified_review_to_signed_task(preview_receipt, signed_task):
+    """Check the exact reviewed enrollment without granting permission.
+
+    Never accept a receipt from an untrusted request or tool argument. Only
+    call after independent GitHub REST validation of the same real run,
+    owner reviewer and protected environment, and then verify owner Ed25519.
+    """
+    if (not isinstance(preview_receipt, dict) or
+            set(preview_receipt) != {
+                "verified_preview", "request_id", "operation_sha256",
+                "run_id", "review_environment"} or
+            preview_receipt["verified_preview"] is not True or
+            preview_receipt["review_environment"] != REVIEW_ENVIRONMENT or
+            type(preview_receipt["run_id"]) is not int or
+            preview_receipt["run_id"] <= 0):
+        raise ApprovalGateError("Review proof has not been verified")
+    actual = signed_task_review_digest(
+        signed_task, request_id=preview_receipt["request_id"])
+    if actual != preview_receipt["operation_sha256"]:
+        raise ApprovalGateError("The GitHub click approved a DIFFERENT operation")
+    return {
+        "request_id": preview_receipt["request_id"],
+        "operation_sha256": actual,
+        "run_id": preview_receipt["run_id"],
+        "bound_preview_only": True,
+    }
+
+
 def selected_request_from_commit(commit, *, cwd="."):
     """Select a single NEW request; never execute deleted/modified files."""
     if not isinstance(commit, str) or not HEX40.fullmatch(commit):
@@ -103,7 +179,8 @@ def _review_environment(review):
     return [env for env in environments
             if isinstance(env, dict) and
             env.get("name") == REVIEW_ENVIRONMENT and
-            isinstance(env.get("id"), int) and env["id"] > 0]
+            type(env.get("id")) is int and
+            env["id"] == REVIEW_ENVIRONMENT_ID]
 
 
 def verify_github_review(context, workflow_run, review_history, request,
