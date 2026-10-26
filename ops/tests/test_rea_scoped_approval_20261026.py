@@ -46,6 +46,57 @@ class ScopedTaskAuthorizationTests(unittest.TestCase):
             self.public if public is None else public,
             **{**self.params, **override})
 
+    def _reviewable_mcp_catalog(self):
+        from ops import rea_secure_protocol_20261022 as secure
+        names = ("inspect_with_objdump", "recover_javascript_sources",
+                 "install_adb_package", "inspect_web_page",
+                 "close_binary", "list_unknowns", "undeclared_plugin")
+        source = secure.AUDITED_EFFECTS
+        registry = {}
+        for name in names:
+            flags = source.get(name, frozenset())
+            registry[name] = {
+                "inputSchema": {"type": "object", "properties": {}},
+                "annotations": {
+                    "readOnlyHint": not bool(flags),
+                    "destructiveHint": bool(flags.intersection({
+                        "mayDiscardData", "executesForeignCode", "mutatesDevice"})),
+                    "openWorldHint": bool(flags.intersection({
+                        "launchesProcess", "accessesNetwork"})),
+                },
+            }
+        pins = {n: secure.arguments_sha256(d["inputSchema"])
+                for n, d in registry.items() if n in source}
+        classifier = lambda n, d: ("read" if not source.get(n) else
+                                   "sensitive" if n in ("install_adb_package",
+                                                        "recover_javascript_sources") else
+                                   "workspace")
+        selection = lambda catalog, digests=pins: a.propose_task_tools(
+            catalog, source, digests, schema_digest=secure.arguments_sha256,
+            classify_tool=classifier)
+        return registry, pins, selection
+
+    def test_system_selects_only_safe_reviewable_tools_not_user_named(self):
+        registry, _pins, select = self._reviewable_mcp_catalog()
+        self.assertEqual(["inspect_with_objdump", "recover_javascript_sources"],
+                         select(registry))
+
+    def test_tool_selection_rejects_schema_or_annotations_drift(self):
+        registry, pins, select = self._reviewable_mcp_catalog()
+        bad_pins = dict(pins, inspect_with_objdump="0" * 64)
+        self.assertEqual(["recover_javascript_sources"],
+                         select(registry, bad_pins))
+        registry["recover_javascript_sources"]["annotations"]["openWorldHint"] = False
+        self.assertEqual(["inspect_with_objdump"], select(registry))
+
+    def test_tool_selection_rejects_unknown_and_destructive_effects(self):
+        registry, _pins, select = self._reviewable_mcp_catalog()
+        selected = select(registry)
+        for name in ("undeclared_plugin", "close_binary", "list_unknowns",
+                     "inspect_web_page", "install_adb_package"):
+            with self.subTest(tool=name):
+                self.assertNotIn(name, selected)
+
     def test_valid_scoped_signed_analysis(self):
         self.assertTrue(self.check())
 
