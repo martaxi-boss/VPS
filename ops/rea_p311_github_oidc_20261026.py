@@ -12,12 +12,16 @@ Security model (must ALL hold, never one OR the other):
   3. The VPS separately verifies owner-signed, revocable Ed25519 tool scope.
 This module only implements 1+2, offline-testable; it does NOT implement 3.
 """
+import argparse
 import base64
 import json
+import os
 import re
+import sys
 from datetime import datetime, timezone
 from urllib import request as urlrequest
-from urllib.parse import urlparse
+from urllib import error as urlerror
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
@@ -277,3 +281,129 @@ def verify_review_and_oidc_for_signed_task(
             "operation_sha256": bound["operation_sha256"],
             "jwt_jti": jwt_verified["jti"]}
 
+
+def _actions_audience_request_url(source_url, public_request):
+    """Bind the GitHub-provided job token endpoint to the exact reviewed task.
+
+    GitHub-hosted runner hosts are sharded (pipelines*, not necessarily only
+    pipelines). URLs, bearer credentials and JWT values are NEVER logged.
+    A caller-provided arbitrary host, redirect, custom port or query is denied.
+    """
+    if not isinstance(source_url, str) or len(source_url) > 4096:
+        raise GithubOIDCError("Missing trusted GitHub Actions token endpoint")
+    parts = urlsplit(source_url)
+    if (parts.scheme != "https" or parts.username is not None or
+            parts.password is not None or parts.port is not None or
+            parts.fragment or not isinstance(parts.hostname, str) or
+            not re.fullmatch(r"pipelines[a-z0-9-]*\.actions\.githubusercontent\.com",
+                             parts.hostname) or
+            not parts.path.endswith("/idtoken")):
+        raise GithubOIDCError("Unexpected GitHub Actions identity endpoint")
+    params = parse_qsl(parts.query, keep_blank_values=True)
+    if params != [("api-version", "2.0")]:
+        raise GithubOIDCError("Unexpected GitHub Actions OIDC query")
+    return urlunsplit((parts.scheme, parts.netloc, parts.path,
+                       urlencode(params + [("audience", audience_for_review(
+                           public_request))]), ""))
+
+
+def request_actions_oidc_jwt(*, public_request, endpoint=None, bearer=None):
+    """Get a fresh GitHub-signed JWT ONLY inside its approved Actions job.
+
+    Fetches from the runner's trusted env URL with an ephemeral bearer.
+    Never prints or writes the bearer or returned token to public logs.
+    """
+    endpoint = os.environ.get("ACTIONS_ID_TOKEN_REQUEST_URL") if endpoint is None else endpoint
+    bearer = os.environ.get("ACTIONS_ID_TOKEN_REQUEST_TOKEN") if bearer is None else bearer
+    if not isinstance(bearer, str) or not 50 <= len(bearer) <= 20000:
+        raise GithubOIDCError("GitHub Actions job identity is unavailable")
+    url = _actions_audience_request_url(endpoint, public_request)
+
+    class NoRedirect(urlrequest.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            raise GithubOIDCError("GitHub identity redirected to another endpoint")
+
+    req = urlrequest.Request(url, headers={
+        "Authorization": "Bearer " + bearer,
+        "Accept": "application/json",
+        "User-Agent": "rea-p311-protected-review-only",
+    })
+    try:
+        with urlrequest.build_opener(NoRedirect()).open(req, timeout=12) as stream:
+            if stream.geturl() != url:
+                raise GithubOIDCError("Unexpected OIDC identity endpoint")
+            raw = stream.read(MAX_JWT_BYTES + 2000)
+    except (OSError, ValueError) as exc:
+        raise GithubOIDCError("GitHub job identity request failed") from exc
+    if not 0 < len(raw) <= MAX_JWT_BYTES + 1000:
+        raise GithubOIDCError("OIDC response size limit")
+    try:
+        response = json.loads(raw, object_pairs_hook=_json_unique)
+    except (ValueError, UnicodeError) as exc:
+        raise GithubOIDCError("OIDC identity response invalid") from exc
+    token = response.get("value") if isinstance(response, dict) else None
+    if not isinstance(token, str) or len(token) > MAX_JWT_BYTES:
+        raise GithubOIDCError("GitHub did not issue a bounded identity JWT")
+    return token
+
+
+def preview_real_oidc_owner_button(*, request_path):
+    """Actual GitHub-runner OIDC check, preview ONLY (no owner permission).
+
+    This job verifies GitHub REST approval and source context independently.
+    The token's audience binds the public digest and review nonce, but without
+    the private Ed25519 grant it cannot confer any REA/MCP authority.
+    """
+    ctx = gate._runtime_context()
+    if not isinstance(ctx.get("sha"), str):
+        raise GithubOIDCError("Missing trusted checkout identity")
+    selected = gate.selected_request_from_commit(ctx["sha"])
+    if selected != request_path:
+        raise GithubOIDCError("Owner preview request changed during job")
+    public = gate._load_request(request_path)
+    gate.validate_review_request(public, path=request_path)
+    run_id = ctx.get("run_id")
+    if not isinstance(run_id, str) or not re.fullmatch(r"[1-9][0-9]{0,19}", run_id):
+        raise GithubOIDCError("Invalid GitHub workflow run identity")
+    token = os.environ.get("GITHUB_TOKEN")
+    workflow = gate._get_github_api(
+        "/repos/martaxi-boss/VPS/actions/runs/" + run_id, token=token)
+    reviews = gate._get_github_api(
+        "/repos/martaxi-boss/VPS/actions/runs/" + run_id + "/approvals",
+        token=token)
+    proof = gate.verify_github_review(ctx, workflow, reviews, public,
+                                      request_path=request_path)
+    jwt = request_actions_oidc_jwt(public_request=public)
+    jwks = load_official_github_jwks()
+    identity = verify_github_oidc_jwt(
+        jwt, jwks, public_request=public, workflow_run=workflow)
+    if (identity["run_id"] != proof["run_id"] or
+            identity["review_id"] != proof["request_id"] or
+            identity["operation_sha256"] != proof["operation_sha256"]):
+        raise GithubOIDCError("GitHub button and token disagree")
+    return {"oidc_review_preview_only": True,
+            "run_id": proof["run_id"], "request_id": proof["request_id"]}
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="REA P311 OIDC preview - no VPS")
+    parser.add_argument("--request", required=True)
+    args = parser.parse_args(argv)
+    result = preview_real_oidc_owner_button(request_path=args.request)
+    # Never print JWT, jti, signed grant, cryptographic keys or bearer.
+    if result["oidc_review_preview_only"] is not True:
+        raise GithubOIDCError("Owner button validation did not complete")
+    print("REA_P311_GITHUB_OIDC_OWNER_PREVIEW=PASS")
+    print("REA_P311_VPS_CHANGED=false")
+    print("REA_P311_OWNER_PERMISSION_REGISTERED=false")
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except (GithubOIDCError, gate.ApprovalGateError, KeyError, TypeError,
+            OSError, RuntimeError, ValueError) as exc:
+        print("REA_P311_GITHUB_OIDC_OWNER_PREVIEW=FAIL " +
+              type(exc).__name__, file=sys.stderr)
+        sys.exit(2)
