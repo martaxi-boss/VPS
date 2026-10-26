@@ -323,6 +323,12 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_FIXTURE_ANDROID_CLASSES", "REA_FIXTURE_ANDROID_CLASS",
         "REA_FIXTURE_ANDROID_METHOD", "REA_FIXTURE_ANDROID_XREFS",
         "REA_STAGE_NODE", "REA_STAGE_WABT", "REA_STAGE_NO_SERVICE_CHANGES",
+        "REA_EXTRA_WAKARU_STATUS", "REA_EXTRA_CUTTER_STATUS",
+        "REA_EXTRA_MITMDUMP_STATUS", "REA_EXTRA_CHROMIUM_STATUS",
+        "REA_EXTRA_WAKARU_VERSION", "REA_EXTRA_WAKARU_DOWNLOAD_SHA256",
+        "REA_EXTRA_CUTTER_DOWNLOAD_SHA256",
+        "REA_EXTRA_MITMDUMP_STAGE_CLEAN", "REA_EXTRA_CHROMIUM_STAGE_CLEAN",
+        "REA_EXTRA_SUPPLIERS_NO_SERVICE_RESTART",
         "REA_LINUX_READ5_SOURCE_PRESENT", "REA_LINUX_READ5_VITEST_PRESENT",
         "REA_LINUX_READ5_NODE_PRESENT", "REA_LINUX_READ5_REGRESSION",
         "REA_LINUX_READ5_EXIT_CODE", "REA_LINUX_READ5_TEST_OUTPUT_SHA256",
@@ -2616,6 +2622,10 @@ def main():
                   json.dumps({cmd: bool(shutil.which(cmd)) for cmd in commands},
                   sort_keys=True))
         vendor = {
+          "0_wakaru":Path("/opt/rea-reversa/providers/wakaru-1.14.0/bin/wakaru"),
+          "0_cutter":Path("/opt/rea-reversa/providers/cutter-2.5.0/bin/Cutter-v2.5.0-Linux-Qt5-x86_64.AppImage"),
+          "0_mitmdump":Path("/opt/rea-reversa/providers/mitmproxy-12.2.3/bin/mitmdump"),
+          "0_chromium":next(iter(Path("/opt/rea-reversa/providers/chromium-playwright-1.58.2").glob("chromium-*/chrome-linux64/chrome")),Path("/missing-rea-chromium")),
           "original_motor":Path("/opt/rea-reversa/rea/scripts/rea.mjs"),
           "original_package":Path("/opt/rea-reversa/rea/package.json"),
           "ghidra":base/"ghidra_12.1.4_PUBLIC/support/analyzeHeadless",
