@@ -2928,7 +2928,8 @@ def main():
         digest=hashlib.sha256(encoded).hexdigest()
         group=pwd.getpwnam("rea-reversa")
         migration_dir=installpath.parent
-        if migration_dir.is_symlink() or installpath.is_symlink():
+        if migration_dir.is_symlink() or subprocess.run(["sudo","-n","test","-L",installpath],
+                   capture_output=True,timeout=10,check=False).returncode==0:
             print("REA_U680_RESTORE_STATUS=BLOCKED_MIGRATION_SYMLINK")
             return
         def rootcmd(*args):
@@ -2943,7 +2944,8 @@ def main():
             else:
                 rootcmd("install","-d","-m","0700","-o",str(group.pw_uid),
                     "-g",str(group.pw_gid),migration_dir)
-            if installpath.exists():
+            if subprocess.run(["sudo","-n","-u","rea-reversa","test","-e",installpath],
+                    capture_output=True,timeout=10,check=False).returncode==0:
                 known=subprocess.run(["sudo","-n","sha256sum",installpath],
                    capture_output=True,text=True,timeout=15,check=False)
                 if known.returncode or not known.stdout.startswith(digest+" "):
