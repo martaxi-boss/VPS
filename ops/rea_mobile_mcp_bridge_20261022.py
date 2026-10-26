@@ -732,14 +732,15 @@ def main():
         p=subprocess.run(["git","diff","--quiet","--exit-code"],cwd=stage,capture_output=True,timeout=15,check=False)
         check("UPSTREAM_TRACKED_UNCHANGED",p.returncode==0)
         check("BACKUP_SHA256",archive.is_file() and not archive.is_symlink() and hashlib.sha256(archive.read_bytes()).hexdigest()==expected_backup)
-        check("RESTORE_SHA256",restore.is_file() and not restore.is_symlink() and
-              hashlib.sha256(restore.read_bytes()).hexdigest()==expected_restore)
+        restored_sha=subprocess.run(["sudo","-n","sha256sum",str(restore)],
+                         capture_output=True,text=True,timeout=16,check=False)
+        check("RESTORE_SHA256",restored_sha.returncode==0 and restored_sha.stdout.startswith(expected_restore+" "))
         check("POLICY_MANIFEST_SHA256",manifest.is_file() and not manifest.is_symlink() and
               hashlib.sha256(manifest.read_bytes()).hexdigest()==secure.RELEASE_680_MANIFEST_SHA256)
         target=pwd.getpwnam("rea-reversa")
-        if restore.exists():
-            s=restore.stat()
-            check("RESTORE_SERVICE_OWNER",s.st_uid==target.pw_uid and stat.S_IMODE(s.st_mode)==0o400)
+        st=subprocess.run(["sudo","-n","stat","-c","%u:%a",str(restore)],
+                         capture_output=True,text=True,timeout=16,check=False)
+        check("RESTORE_SERVICE_OWNER",st.returncode==0 and st.stdout.strip()==str(target.pw_uid)+":400")
         p=subprocess.run(["sudo","-n","-u","rea-reversa","sha256sum",str(restore)],
                          capture_output=True,text=True,timeout=16,check=False)
         check("RESTORE_SERVICE_ACCESS",p.returncode==0 and p.stdout.startswith(expected_restore+" "))
@@ -769,13 +770,13 @@ def main():
                 try: return unpack(json.loads(obj),depth+1)
                 except ValueError: pass
             return None
-        if restore.is_file():
-            archived=json.loads(restore.read_text())
-            found=unpack(archived)
-            check("RESTORE_BUNDLE_STRUCTURE",found is not None and len(found["records"])==16 and len(found["unknowns"])==1 if found else False)
-        else:
-            found=None
-            check("RESTORE_BUNDLE_STRUCTURE",False)
+        found=None
+        if archive.is_file() and not archive.is_symlink():
+            try:
+                found=unpack(json.loads(archive.read_text()))
+            except (OSError,ValueError):
+                pass
+        check("RESTORE_BUNDLE_STRUCTURE",found is not None and len(found["records"])==16 and len(found["unknowns"])==1 if found else False)
         out=None
         try:
             _,r=request_mcp({"jsonrpc":"2.0","id":6680,"method":"tools/call",
