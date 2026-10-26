@@ -96,11 +96,12 @@ REVIEWED_SESSION_READ_TOOLS = frozenset({
 })
 
 # P286: explicit source-effects review of passive provider queries and bounded
-# workspace artifact analyses. These use the SAME per-request authenticated SSH,
-# exact MCP schema, path confinement and exact workspace authorization; they
+# workspace artifact analyses. Legacy risk labels remain informational only;
+# original REA tools now use the existing encrypted authenticated SSH path; they
 # cannot write a target, discard Evidence or execute foreign code according to
 # the source-audited REA ToolEffects contract. No 'read' class is granted.
-# Mutating/device/process-control/Evidence ledger actions remain owner-signed.
+# Mutating/device/process-control/Evidence ledger actions are controlled by
+# the upstream REA MCP and its service permissions (not owner-signed here).
 REVIEWED_SCOPED_WORKSPACE_OPERATIONS = frozenset({
     "analyze_web_bundle",
     "capture_adb_screen",
@@ -916,191 +917,12 @@ def _authorized_target_paths(arguments, additional_roots=()):
     walk(arguments)
 
 
-def _verify_sensitive_owner_authorization(body, position, name, args, auth):
-    """Verify *independent owner signature*, not a self-asserted JSON boolean.
-
-    This verifier has no default key. Sensitive calls remain forbidden until
-    the owner explicitly provisions a trusted Ed25519 PUBLIC key in the existing
-    private SSH-home policy directory, outside GitHub-controlled request data.
-    """
-    from cryptography.hazmat.primitives import serialization
-    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-    from cryptography.exceptions import InvalidSignature
-    path = _private_directory() / "owner-approval-public.pem"
-    if path.is_symlink() or not path.is_file():
-        raise SecureBridgeError("Owner approval verifier is not provisioned")
-    state = path.stat()
-    if state.st_uid != os.geteuid() or stat.S_IMODE(state.st_mode) & 0o022:
-        raise SecureBridgeError("Unsafe owner approval verifier permissions")
-    try:
-        public = serialization.load_pem_public_key(path.read_bytes())
-        if not isinstance(public, Ed25519PublicKey):
-            raise ValueError("Unexpected public-key type")
-        signature = _decode_b64(auth["owner_signature"], 128)
-        if len(signature) != 64:
-            raise ValueError("Bad signature size")
-        public.verify(signature, canonical_json({
-            "purpose": "REA_OWNER_APPROVAL_V1",
-            "nonce": body["nonce"],
-            "expires_at": body["expires_at"],
-            "step_index": position,
-            "tool": name,
-            "arguments_sha256": arguments_sha256(args),
-            "scope": auth["scope"],
-            "reason": auth["reason"],
-            "acknowledgement": auth["acknowledgement"],
-        }))
-    except (InvalidSignature, ValueError, TypeError, KeyError) as exc:
-        raise SecureBridgeError("Invalid independent owner authorization") from exc
-
-
-def propose_p311_task_from_live_catalog(registry, safe_callable, *,
-                                      project, task_id, artifact_root,
-                                      chosen_tools, now=None,
-                                      lifetime_seconds=86400,
-                                      grant_id=None):
-    """Prepare a reviewable owner grant from ONLY the internally verified MCP.
-
-    Never accept a source-effects table or schema hashes from GitHub requests
-    or the task's model-generated metadata. They must come from this module's
-    pinned audit (208) or the exact SHA-checked original REA 6.8.0 manifest.
-    A result is an UNSIGNED proposal, not a permission to execute tools.
-    """
-    if not isinstance(registry, dict) or not isinstance(safe_callable, (set, frozenset, list, tuple)):
-        raise SecureBridgeError("Invalid live MCP tool catalog")
-    verified_policy = _release680_verified_policy(registry)
-    effects = AUDITED_EFFECTS if verified_policy is None else verified_policy[0]
-    pins = AUDITED_SCHEMA_SHA256 if verified_policy is None else verified_policy[1]
-    if verified_policy is None and (
-            len(registry) != 208 or set(registry) != set(AUDITED_EFFECTS)):
-        # No user-supplied partial/fabricated catalog can yield a task grant.
-        raise SecureBridgeError("Incomplete or unsupported live MCP catalog")
-    try:
-        from ops import rea_scoped_approval_20261026 as scoped
-        return scoped.prepare_unsigned_task_grant(
-            project, task_id, artifact_root, registry, effects, pins,
-            chosen_tools=chosen_tools,
-            schema_digest=arguments_sha256,
-            classify_tool=lambda name, desc: classify(
-                name, desc, safe_callable, verified_policy),
-            now=now, lifetime_seconds=lifetime_seconds,
-            grant_id=grant_id,
-        )
-    except (ImportError, ValueError, TypeError, KeyError) as exc:
-        raise SecureBridgeError("Cannot derive an owner task grant from the live source-audited catalog") from exc
-
-
-def _p311_owner_scoped_grant(scoped_task, name, args, risk, verified_policy, now):
-    """Experimental signed task delegation. DISABLED unless server opts in.
-
-    Caller-supplied booleans or GitHub text are NEVER accepted as approval.
-    The owner public verifier is read only from the existing VPS private area.
-    """
-    # Only the verified registered grant can bypass a per-tool sensitive
-    # Ed25519 signature. Normal workspace/read tools keep existing policy.
-    if (os.environ.get("REA_P311_SCOPED_TASKS") != "enabled" or
-            risk != "sensitive"):
-        return False
-    required = {
-        "grant", "owner_signature", "project", "task_id", "origin",
-        "artifact_root"
-    }
-    if not isinstance(scoped_task, dict) or set(scoped_task) != required:
-        raise SecureBridgeError("Malformed scoped task approval")
-    # The exact source-audited effects and SHA-pinned live schema must be used.
-    effects = (AUDITED_EFFECTS if verified_policy is None
-               else verified_policy[0]).get(name)
-    if not isinstance(effects, frozenset):
-        raise SecureBridgeError("Tool effects are not source-audited")
-    path = _private_directory() / "owner-approval-public.pem"
-    if path.is_symlink() or not path.is_file():
-        raise SecureBridgeError("Owner public verifier is not configured")
-    meta = path.stat()
-    if meta.st_uid != os.geteuid() or stat.S_IMODE(meta.st_mode) & 0o022:
-        raise SecureBridgeError("Unsafe owner verifier ownership/permissions")
-    # The scoped approval helper is NOT injected into the deployed SSH bridge
-    # yet: enabling before the authenticated integration fails CLOSED.
-    try:
-        from ops import rea_scoped_approval_20261026 as scoped
-        scoped.verify_task_grant(
-            scoped_task["grant"], scoped_task["owner_signature"],
-            path.read_bytes(), project=scoped_task["project"],
-            task_id=scoped_task["task_id"], origin=scoped_task["origin"],
-            artifact_root=scoped_task["artifact_root"], tool=name,
-            audited_effects=effects, current_risk=risk,
-            arguments=args, now=now,
-            revocation_dir=_private_directory() / "revoked-p311-grants",
-        )
-    except (ImportError, ValueError) as exc:
-        raise SecureBridgeError("Invalid owner-signed scoped authorization") from exc
-    return True
-
-
-def _p311_load_registered_task(grant_id, registry, safe_callable,
-                              verified_policy, now):
-    """Resolve a PRIVATE owner-signed grant by opaque ID, with no new server.
-
-    This path is disabled in the active bridge. IDs from encrypted requests
-    never override original trusted REA schemas, effects or owner verifier.
-    """
-    if (os.environ.get("REA_P311_SCOPED_TASKS") != "enabled" or
-            not isinstance(grant_id, str) or
-            not re.fullmatch(r"[0-9a-f]{32}", grant_id)):
-        raise SecureBridgeError("Registered owner task reference is not permitted")
-    effects = AUDITED_EFFECTS if verified_policy is None else verified_policy[0]
-    schemas = AUDITED_SCHEMA_SHA256 if verified_policy is None else verified_policy[1]
-    if verified_policy is None and (len(registry) != 208 or
-                                    set(registry) != set(AUDITED_EFFECTS)):
-        raise SecureBridgeError("Registered grants require a full known MCP catalog")
-    verifier = _private_directory() / "owner-approval-public.pem"
-    if verifier.is_symlink() or not verifier.is_file():
-        raise SecureBridgeError("Registered grants need owner public verifier")
-    state = verifier.stat()
-    if state.st_uid != os.geteuid() or stat.S_IMODE(state.st_mode) != 0o600:
-        raise SecureBridgeError("Unsafe registered-grant public verifier")
-    try:
-        from ops import rea_scoped_approval_20261026 as scoped
-        eligible = scoped.propose_task_tools(
-            registry, effects, schemas, schema_digest=arguments_sha256,
-            classify_tool=lambda name, desc: classify(
-                name, desc, safe_callable, verified_policy))
-        contracts = {
-            name: (effects[name], classify(
-                name, registry[name], safe_callable, verified_policy))
-            for name in eligible
-        }
-        directory = _private_directory()
-        return scoped.read_registered_task_grant(
-            grant_id, verifier.read_bytes(),
-            private_registry_dir=directory / "approved-p311-tasks",
-            revocation_dir=directory / "revoked-p311-grants",
-            trusted_contracts=contracts, now=now)
-    except (ImportError, ValueError, TypeError) as exc:
-        raise SecureBridgeError("Invalid registered owner task") from exc
-
-
-def validate_inner(body, registry, safe_callable, now=None, *, scoped_task=None):
-    """Per-operation authorization, exact argument hash and expiration.
-
-    P311 adds an *optional* encrypted owner-signed task grant; an absent grant
-    follows the unchanged original admission path. Server opt-in is mandatory.
-    """
-    fields = {"protocol", "nonce", "expires_at", "steps"}
-    if (not isinstance(body, dict) or set(body) not in (
-            fields, fields | {"scoped_task_id"}
-        ) or body["protocol"] != 1):
+def validate_inner(body, registry, safe_callable, now=None):
+    """Transport integrity only; let the original REA MCP authorize tools."""
+    if not isinstance(body, dict) or set(body) != {
+        "protocol", "nonce", "expires_at", "steps"
+    } or body["protocol"] != 1:
         raise SecureBridgeError("Invalid secure request protocol")
-    # No inline signed-task shortcuts: all reusable sensitive approvals must
-    # first be registered after the authenticated GitHub Approve button.
-    if scoped_task is not None:
-        raise SecureBridgeError("Use a GitHub-approved registered task ID")
-    reference_id = body.get("scoped_task_id")
-    if "scoped_task_id" in body and (
-            scoped_task is not None or
-            not isinstance(reference_id, str) or
-            not re.fullmatch(r"[0-9a-f]{32}", reference_id) or
-            os.environ.get("REA_P311_SCOPED_TASKS") != "enabled"):
-        raise SecureBridgeError("Registered task reference is not permitted")
     if not isinstance(body["nonce"], str) or not NONCE_RE.fullmatch(body["nonce"]):
         raise SecureBridgeError("Invalid one-use nonce")
     if not isinstance(body["expires_at"], str) or not TIME_RE.fullmatch(body["expires_at"]):
@@ -1114,26 +936,24 @@ def validate_inner(body, registry, safe_callable, now=None, *, scoped_task=None)
     steps = body["steps"]
     if not isinstance(steps, list) or not 1 <= len(steps) <= MAX_STEPS:
         raise SecureBridgeError("Invalid secure step count")
-    verified_policy = _release680_verified_policy(registry)
-    if reference_id is not None:
-        scoped_task = _p311_load_registered_task(
-            reference_id, registry, safe_callable, verified_policy, now)
+    # All tools in the LIVE native MCP catalogue are available through
+    # this authenticated encrypted SSH transport. Risk is reported, never
+    # used as an additional owner signature or approval requirement.
     profiles = []
-    scoped_grant_was_verified = False
     opened_in_request = False
-    for position, step in enumerate(steps):
-        if not isinstance(step, dict) or set(step) not in (
-            {"tool", "arguments"}, {"tool", "arguments", "authorization"}
-        ):
-            raise SecureBridgeError("Invalid secure step fields")
+    for step in steps:
+        if not isinstance(step, dict) or set(step) != {"tool", "arguments"}:
+            raise SecureBridgeError(
+                "Native REA tool calls require only tool and arguments")
         name, args = step.get("tool"), step.get("arguments")
         if not isinstance(name, str) or not NAME_RE.fullmatch(name) or name not in registry:
             raise SecureBridgeError("Unknown MCP tool")
         if not isinstance(args, dict) or len(canonical_json(args)) > 400000:
             raise SecureBridgeError("Invalid MCP argument object")
         validate_arguments(registry[name], args)
-        risk = classify(name, registry[name], safe_callable, verified_policy)
-        _authorized_target_paths(args)
+        risk = classify(name, registry[name], safe_callable)
+        # No secondary bridge path-policy gate: the original REA MCP,
+        # running as its existing VPS service user, owns target admission.
         if name in REVIEWED_SESSION_READ_TOOLS:
             if not opened_in_request:
                 raise SecureBridgeError(
@@ -1165,47 +985,7 @@ def validate_inner(body, registry, safe_callable, now=None, *, scoped_task=None)
             opened_in_request = False
         if name == "open_binary" and "snapshot_path" in args:
             raise SecureBridgeError("External binary snapshot writes need separate approval")
-        auth = step.get("authorization")
-        if risk == "read":
-            if auth is not None:
-                raise SecureBridgeError("Read-only operation must omit authorization")
-        else:
-            # Optional signed delegation is only allowed with an explicit
-            # server-side opt-in, and only after all original schema/path/
-            # session checks above have passed. Defaults to legacy behaviour.
-            if auth is None and scoped_task is not None and _p311_owner_scoped_grant(
-                    scoped_task, name, args, risk, verified_policy, now):
-                scoped_grant_was_verified = True
-                profiles.append(risk)
-                continue
-            required = {
-                "tool", "arguments_sha256", "scope", "reason",
-                "confirmed_by_owner", "acknowledgement"
-            }
-            if risk == "sensitive":
-                required.add("owner_signature")
-            if not isinstance(auth, dict) or set(auth) != required:
-                raise SecureBridgeError("Individual authorization is required")
-            if auth["tool"] != name or auth["scope"] != risk or (
-                auth["arguments_sha256"] != arguments_sha256(args)
-            ) or auth["confirmed_by_owner"] is not True:
-                raise SecureBridgeError("Authorization does not match exact operation")
-            reason = auth["reason"]
-            if not isinstance(reason, str) or not 12 <= len(reason.strip()) <= 400:
-                raise SecureBridgeError("Authorization needs a specific reason")
-            expected = (
-                "AUTORIZO_OPERACAO_SENSIVEL"
-                if risk == "sensitive" else "AUTORIZO_ANALISE_LOCAL"
-            )
-            if auth["acknowledgement"] != expected:
-                raise SecureBridgeError("Missing per-operation acknowledgement")
-            if risk == "sensitive":
-                _verify_sensitive_owner_authorization(body, position, name, args, auth)
         profiles.append(risk)
-    if scoped_task is not None and not scoped_grant_was_verified:
-        # A stray grant on read-only or individually authorized batches must
-        # never masquerade as owner-verified task authorization.
-        raise SecureBridgeError("Scoped task approval was not used or verified")
     return profiles
 
 

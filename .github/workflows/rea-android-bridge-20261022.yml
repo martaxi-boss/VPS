@@ -3,16 +3,16 @@ on:
   push:
     branches:
       - rea/one-skill-bridge-20261023
+      # Temporary isolated smoke branch for native REA access regression.
+      - rea/p311-autonomia-escopos-20261026
     paths:
       - ".github/workflows/rea-android-bridge-20261022.yml"
       - "ops/rea_mobile_mcp_bridge_20261022.py"
       - "ops/rea_secure_protocol_20261022.py"
-      - "ops/rea_scoped_approval_20261026.py"
       - "ops/tests/test_rea_secure_protocol_20261022.py"
       - "rea-linux/requests/*.json"
 permissions:
   contents: read
-  actions: read
 concurrency:
   group: rea-one-skill-bridge
   cancel-in-progress: false
@@ -91,15 +91,11 @@ jobs:
       - name: Talk to existing REA over VPS loopback
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
-          REA_P311_REVIEW_RUNNER_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
           test -n "$SSHPASS"
           umask 077
-          # One ephemeral server-side REST credential only for scoped enrollment.
-          trap 'rm -f "$RUNNER_TEMP/rea-mobile-remote.py" "$RUNNER_TEMP/rea-mobile-private-output.txt"' EXIT
-          request_action="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["action"])' "$REA_JOB_PATH")"
           request64="$(base64 -w0 "$REA_JOB_PATH")"
           raw="$RUNNER_TEMP/rea-mobile-private-output.txt"
           # Feed the same reviewed source files over the existing authenticated SSH.
@@ -110,31 +106,8 @@ jobs:
             printf 'import base64,sys,types,os\nos.environ["REA_MOBILE_JOB_B64"]="%s"\n_rea_secure=types.ModuleType("rea_secure_protocol_20261022")\nexec(base64.b64decode("%s"),_rea_secure.__dict__)\nsys.modules["rea_secure_protocol_20261022"]=_rea_secure\n' \
               "$request64" \
               "$(base64 -w0 ops/rea_secure_protocol_20261022.py)"
-            # P311 review only: load the offline-tested verifier in memory,
-            # no extra daemon/MCP, no REA modification, default grant mode OFF.
-            printf 'import base64,sys,types\n_rea_pkg=types.ModuleType("ops")\n_rea_pkg.__path__=[]\nsys.modules["ops"]=_rea_pkg\n_rea_scope=types.ModuleType("ops.rea_scoped_approval_20261026")\nexec(base64.b64decode("%s"),_rea_scope.__dict__)\nsys.modules["ops.rea_scoped_approval_20261026"]=_rea_scope\n_rea_pkg.rea_scoped_approval_20261026=_rea_scope\n' \
-              "$(base64 -w0 ops/rea_scoped_approval_20261026.py)"
-            # P311: the existing SSH pipe transfers only the trusted runner's
-            # short-lived GitHub REST read token, never a requester credential.
-            if test "$request_action" = "sealed_task_enroll"; then
-              test -n "$REA_P311_REVIEW_RUNNER_TOKEN"
-              if [[ ! "$REA_P311_REVIEW_RUNNER_TOKEN" =~ ^[A-Za-z0-9_]{20,4096}$ ]]; then
-                echo "REA_P311_GITHUB_READ_TOKEN=INVALID" >&2
-                exit 2
-              fi
-              printf 'import os\nos.environ["REA_P311_GITHUB_API_TOKEN"]="%s"\n' \
-                "$REA_P311_REVIEW_RUNNER_TOKEN"
-              printf 'import base64,sys,types\n_rea_gate=types.ModuleType("ops.rea_p311_owner_gate_20261026")\nexec(base64.b64decode("%s"),_rea_gate.__dict__)\nsys.modules["ops.rea_p311_owner_gate_20261026"]=_rea_gate\n_rea_pkg.rea_p311_owner_gate_20261026=_rea_gate\n' \
-                "$(base64 -w0 ops/rea_p311_owner_gate_20261026.py)"
-            fi
             cat ops/rea_mobile_mcp_bridge_20261022.py
           } > "$RUNNER_TEMP/rea-mobile-remote.py"
-          # Opt in per already sealed request, never change daemon-wide VPS
-          # settings or enable the P311 flag for normal catalog/fixture jobs.
-          runtime_command="REA_MOBILE_ENVELOPE_CAPTURE=1 python3 -"
-          if test "$request_action" = "sealed_task_enroll" || test "$request_action" = "sealed_batch"; then
-            runtime_command="REA_P311_SCOPED_TASKS=enabled REA_MOBILE_ENVELOPE_CAPTURE=1 python3 -"
-          fi
           sshpass -e ssh -T \
             -o PreferredAuthentications=password \
             -o PubkeyAuthentication=no \
@@ -145,7 +118,7 @@ jobs:
             -o ConnectTimeout=15 -o ServerAliveInterval=10 \
             -o ServerAliveCountMax=5 \
             ubuntu@146.59.145.3 \
-            "$runtime_command" \
+            "REA_MOBILE_ENVELOPE_CAPTURE=1 python3 -" \
             < "$RUNNER_TEMP/rea-mobile-remote.py" > "$raw"
           /usr/bin/python3 ops/rea_mobile_mcp_bridge_20261022.py \
             --envelope "$raw" "$REA_JOB_PATH" "$RUNNER_TEMP/rea-mobile-envelope.json"

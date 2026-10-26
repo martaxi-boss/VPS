@@ -69,11 +69,10 @@ def error(msg):
     raise ValueError(msg)
 
 
-# P268: Retention defect repaired in original REA (P265), and a real
-# owner-signed Ghidra open/close proved 11/1 Evidence preserved (P267).
-# The existing bridge still fail-closes for all non-sealed fixture/direct paths.
-# These TWO tools are released only within a batch already verified by
-# secure.validate_inner (workspace open, owner Ed25519 sensitive close).
+# P268: keep the previously proven lifecycle cleanup invariant.
+# The original REA now chooses tools freely through the sealed MCP route.
+# These lifecycle operations remain paired for one-use transport only; no
+# owner Ed25519 signatures or per-tool GitHub approvals are required.
 P232_BLOCKED_MCP_TOOLS = frozenset(("open_binary", "close_binary"))
 
 
@@ -92,15 +91,14 @@ def p232_guard_live_call(payload, lifecycle_grants=None):
         expected = lifecycle_grants.get(name) if isinstance(lifecycle_grants, dict) else None
         if (not isinstance(args, dict) or not isinstance(expected, str) or
                 secure.arguments_sha256(args) != expected):
-            raise ValueError("REA_RETENTION_GATE: exact signed session admission required")
+            raise ValueError("REA_RETENTION_GATE: unvalidated session operation")
 
 
 def p232_guard_inner_batch(body):
-    """Admission after validate_inner already checked owner Ed25519 and every schema.
+    """Retain session cleanup with native REA tools and no owner signatures.
 
-    An opened target must have exactly one later signed close inside the SAME
-    one-use sealed batch. Even emergency finally cleanup uses that validated
-    close authorization; never implicitly close an unsigned session.
+    An open must have a later close in this single encrypted batch.
+    Each session operation is bound to the EXACT validated tool arguments.
     """
     if not isinstance(body, dict) or not isinstance(body.get("steps"), list):
         raise ValueError("REA_RETENTION_GATE: malformed sealed batch")
@@ -116,126 +114,16 @@ def p232_guard_inner_batch(body):
     if opens and (len(closes) != 1 or closes[0] <= opens[0]):
         raise ValueError("REA_RETENTION_GATE: signed close must follow binary open")
     if opens and steps[closes[0]]["arguments"] != {}:
-        # Emergency cleanup has an already-signed no-snapshot close. A
-        # close_with_snapshot requires a separate, explicit signed batch.
+        # Emergency cleanup is a no-snapshot close. A target snapshot is
+        # a separate native REA operation, never hidden in cleanup.
         raise ValueError("REA_RETENTION_GATE: paired close must not write a snapshot")
     grants = {}
     for step in steps:
         name = step["tool"]
         if name not in P232_BLOCKED_MCP_TOOLS:
             continue
-        auth = step.get("authorization")
-        expected_scope = "sensitive" if name == "close_binary" else "workspace"
-        if (not isinstance(auth, dict) or auth.get("scope") != expected_scope or
-                auth.get("tool") != name or
-                auth.get("arguments_sha256") != secure.arguments_sha256(step["arguments"])
-                or auth.get("confirmed_by_owner") is not True or
-                (name == "close_binary" and not isinstance(auth.get("owner_signature"), str))):
-            raise ValueError("REA_RETENTION_GATE: exact individual authorization missing")
         grants[name] = secure.arguments_sha256(step["arguments"])
     return grants
-
-
-def p311_enroll_sealed_owner_task(data, tool_by_name, safe_callable, *, now=None):
-    """Register one owner-signed task AFTER its real GitHub Approve button.
-
-    The already-protected GitHub Actions runner supplies an ephemeral read
-    credential over the EXISTING SSH pipe. The VPS independently checks the
-    completed owner-reviewed run, exact challenge and immutable GitHub blob,
-    then verifies the pre-signed scope before registration. No OIDC and no
-    ChatGPT text-as-signature. Disabled without the trusted server opt-in.
-    """
-    from datetime import datetime, timezone
-    import stat
-    if os.environ.get("REA_P311_SCOPED_TASKS") != "enabled":
-        raise ValueError("P311 owner-task enrollment is disabled")
-    if not isinstance(data, dict) or data.get("action") != "sealed_task_enroll":
-        raise ValueError("Unexpected owner-task action")
-    # A successful registration must always produce a sealed response.
-    # Refuse BEFORE nonce consumption and BEFORE private file creation if
-    # the existing Actions result-ciphering layer is not enabled.
-    if os.environ.get("REA_MOBILE_ENVELOPE_CAPTURE") != "1":
-        raise ValueError("Encrypted enrollment result capture is required")
-    body = secure.unseal(data["sealed"], data["response_key"])
-    if (not isinstance(body, dict) or set(body) != {
-            "protocol", "nonce", "expires_at", "signed_task",
-            "review_run_id", "review_request_id"
-        } or body["protocol"] != 1):
-        raise ValueError("Invalid encrypted owner-task envelope")
-    if (not isinstance(body["nonce"], str) or
-            not secure.NONCE_RE.fullmatch(body["nonce"]) or
-            not isinstance(body["expires_at"], str) or
-            not secure.TIME_RE.fullmatch(body["expires_at"])):
-        raise ValueError("Invalid owner-task enrollment nonce or expiry")
-    run_id, review_id = body["review_run_id"], body["review_request_id"]
-    if (type(run_id) is not int or not 0 < run_id < 10**20 or
-            not isinstance(review_id, str) or
-            not re.fullmatch(r"[0-9a-f]{32}", review_id)):
-        raise ValueError("GitHub button review identity is required")
-    # The credential is obtained from the trusted Actions runner over the
-    # EXISTING host-pinned SSH channel, NEVER from request JSON or GitHub files.
-    github_token = os.environ.get("REA_P311_GITHUB_API_TOKEN")
-    if not isinstance(github_token, str) or not 20 <= len(github_token) <= 4096:
-        raise ValueError("Trusted GitHub Actions read credential is unavailable")
-    now = now or datetime.now(timezone.utc)
-    expiry = datetime.strptime(body["expires_at"], "%Y-%m-%dT%H:%M:%SZ").replace(
-        tzinfo=timezone.utc)
-    if not 0 < (expiry - now).total_seconds() <= 3600:
-        raise ValueError("Expired or overly long-lived owner enrollment")
-    # The same official SHA-pinned REA source policy and live schemas used
-    # for tool execution are mandatory when registering a reusable grant.
-    verified_policy = secure._release680_verified_policy(tool_by_name)
-    if verified_policy is None and (
-            len(tool_by_name) != 208 or
-            set(tool_by_name) != set(secure.AUDITED_EFFECTS)):
-        raise ValueError("Enrollment requires the complete source-pinned catalog")
-    effects = (secure.AUDITED_EFFECTS if verified_policy is None
-               else verified_policy[0])
-    pins = (secure.AUDITED_SCHEMA_SHA256 if verified_policy is None
-            else verified_policy[1])
-    from ops import rea_scoped_approval_20261026 as scoped
-    eligible = scoped.propose_task_tools(
-        tool_by_name, effects, pins, schema_digest=secure.arguments_sha256,
-        classify_tool=lambda name, descriptor: secure.classify(
-            name, descriptor, safe_callable, verified_policy))
-    contracts = {name: (
-        effects[name], secure.classify(
-            name, tool_by_name[name], safe_callable, verified_policy)
-    ) for name in eligible}
-    private_dir = secure._private_directory()
-    verifier = private_dir / "owner-approval-public.pem"
-    if verifier.is_symlink() or not verifier.is_file():
-        raise ValueError("Owner verifier has not been enrolled")
-    meta = verifier.stat()
-    if (meta.st_uid != os.geteuid() or
-            stat.S_IMODE(meta.st_mode) != 0o600):
-        raise ValueError("Owner verifier owner/mode is unsafe")
-    signed_task = body["signed_task"]
-    # Check the owner signature, effects, expiry and private revocation store
-    # before consuming a nonce or touching the owner-task registry.
-    scoped._verify_registration_contracts(
-        signed_task, verifier.read_bytes(), contracts,
-        now=now, revocation_dir=private_dir / "revoked-p311-grants")
-    # The authenticated button+signature verifier will provision the
-    # owner-only registry if needed, never an untrusted public request.
-    # Spend the request nonce before any durable grant registration.
-    secure.claim_one_use_nonce(body["nonce"])
-    from ops import rea_p311_owner_gate_20261026 as owner_gate
-    approved = owner_gate.register_task_after_github_approval(
-        run_id, review_id, signed_task, verifier.read_bytes(), contracts,
-        github_token=github_token,
-        private_registry_dir=private_dir / "approved-p311-tasks",
-        revocation_dir=private_dir / "revoked-p311-grants", now=now)
-    if (approved.get("registered_button_only_offline_stage") is not True or
-            approved.get("grant_id") != signed_task["grant"]["grant_id"]):
-        raise ValueError("GitHub button review did not register the signed task")
-    return {
-        "protocol": 1, "registered": True,
-        "grant_id": approved["grant_id"],
-        "task_id": signed_task["task_id"],
-        "expires_at": signed_task["grant"]["expires_at"],
-        "review_run_id": run_id,
-    }
 
 
 def require_rsa_response_key(encoded):
@@ -292,9 +180,9 @@ def validate(data):
                 or not re.fullmatch(r"[A-Za-z0-9+/=]{340,1800}",
                                     data["response_key"])):
             error("Android fixture requires a public RSA reply key")
-    elif action in ("sealed_batch", "sealed_task_enroll"):
+    elif action == "sealed_batch":
         if set(data) != {"version", "action", "sealed", "response_key"}:
-            error("Sealed requests must carry a public reply key and sealed request")
+            error("Sealed batch must carry a public reply key and sealed request")
         secure.validate_public_envelope(data["sealed"])
         key = data["response_key"]
         if (not isinstance(key, str) or len(key) > 1800 or
@@ -391,7 +279,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_MOBILE_READONLY_HINT_COUNT", "REA_MOBILE_STATIC_INSPECT_COUNT",
         "REA_MOBILE_SAFE_QUERY_COUNT", "REA_MOBILE_SAFE_CALLABLE_COUNT",
         "REA_MOBILE_LEGACY_NAME_COUNT", "REA_MOBILE_WORKSPACE_CALLABLE_COUNT",
-        "REA_MOBILE_SIGNATURE_REQUIRED_COUNT", "REA_MOBILE_VALIDATED_SCHEMA_COUNT",
+        "REA_MOBILE_NATIVE_SENSITIVE_RISK_COUNT", "REA_MOBILE_VALIDATED_SCHEMA_COUNT",
         "REA_MOBILE_AUDITED_SCHEMA_MATCH_COUNT",
         "REA_MOBILE_TOOL_CALL", "REA_MOBILE_TOOL_NAME",
         "REA_MOBILE_OUTPUT_BYTES", "REA_MOBILE_OUTPUT_SHA256",
@@ -676,7 +564,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         if private is not None:
             error("Unexpected private response")
         return
-    if request["action"] not in ("call", "sealed_batch", "sealed_task_enroll", "fixture_apkdemos", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump") or private is None:
+    if request["action"] not in ("call", "sealed_batch", "fixture_apkdemos", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump") or private is None:
         error("Missing encrypted-return payload from REA")
     public = serialization.load_der_public_key(
         base64.b64decode(request["response_key"], validate=True)
@@ -773,7 +661,11 @@ def main():
     tool_by_name = {t.get("name"): t for t in tools}
     # P290: for an exact, source-pinned REA 6.8.0 catalog, reuse the
     # already verified 229-tool policy. The live 208-tool path is unchanged.
-    release_policy = secure._release680_verified_policy(tool_by_name)
+    # Do not require the legacy bridge's 208/229-tool manifest to operate
+    # the ORIGINAL REA 6.8.0 MCP. Every advertised native tool uses its live
+    # input schema. Legacy fixture/direct-call behaviour remains unchanged.
+    release_policy = (None if data["action"] == "sealed_batch" else
+                      secure._release680_verified_policy(tool_by_name))
     readonly = sorted(
         name for name, t in tool_by_name.items()
         if isinstance(name, str)
@@ -797,7 +689,7 @@ def main():
     print("REA_MOBILE_WORKSPACE_CALLABLE_COUNT=" + str(sum(
         secure.classify(name, descriptor, (), release_policy) == "workspace"
         for name, descriptor in tool_by_name.items())))
-    print("REA_MOBILE_SIGNATURE_REQUIRED_COUNT=" + str(sum(
+    print("REA_MOBILE_NATIVE_SENSITIVE_RISK_COUNT=" + str(sum(
         secure.classify(name, descriptor, (), release_policy) == "sensitive"
         for name, descriptor in tool_by_name.items())))
     print("REA_MOBILE_CATALOG_SAMPLE=" + json.dumps(
@@ -3245,27 +3137,14 @@ def main():
             else:
                 print("REA_MOBILE_TOOL_DESCRIPTOR_TRUNCATED=NEEDS_ENCRYPTED_REPLY")
         return
-    if data["action"] == "sealed_task_enroll":
-        # Independent owner Ed25519 signature, encrypted transit, SHA-pinned
-        # live MCP catalog, scoped data-only private registration. No tools/call.
-        result = p311_enroll_sealed_owner_task(
-            data, tool_by_name, set(safe_callable))
-        if os.environ.get("REA_MOBILE_ENVELOPE_CAPTURE") != "1":
-            raise RuntimeError("Owner-task registration needs encrypted result capture")
-        raw = json.dumps(result, sort_keys=True, ensure_ascii=True).encode()
-        print("REA_P311_OWNER_ENROLLMENT=PASS")
-        print("REA_MOBILE_OUTPUT_BYTES=" + str(len(raw)))
-        print("REA_MOBILE_OUTPUT_SHA256=" + hashlib.sha256(raw).hexdigest())
-        print("REA_MOBILE_PRIVATE_RESULT_B64=" + base64.b64encode(raw).decode("ascii"))
-        return
     if data["action"] == "sealed_batch":
-        # All advertised official names can be routed, but each operation is
-        # individually classified and must pass its risk-specific grant.
-        # No plaintext request parameters/results are printed to public logs.
+        # Native REA: all tools advertised by tools/list are callable through
+        # the existing authenticated/ciphered SSH connection. No proprietary
+        # signing key, approvals or second authorization layer.
+        # No plaintext request parameters/results in public GitHub logs.
         body = secure.unseal(data["sealed"], data["response_key"])
         profiles = secure.validate_inner(body, tool_by_name, set(safe_callable))
-        # Individual workspace and owner-Ed25519 sensitive approvals have
-        # already been verified before releasing either lifecycle tool.
+        # Preserve the tested binary open/close lifecycle; no signatures.
         lifecycle_grants = p232_guard_inner_batch(body)
         secure.claim_one_use_nonce(body["nonce"])
         print("REA_SEALED_POLICY=PASS")
@@ -3273,12 +3152,12 @@ def main():
         records = []
         binary_open = False
         cleanup_ok = True
-        signed_close_attempted = False
+        close_attempted = False
         try:
             for idx, (step, risk) in enumerate(zip(body["steps"], profiles), start=1):
                 name = step["tool"]
                 if name == "close_binary" and "close_binary" in lifecycle_grants:
-                    signed_close_attempted = True
+                    close_attempted = True
                 _, reply = request_mcp(
                     {"jsonrpc": "2.0", "id": idx + 100, "method": "tools/call",
                      "params": {"name": name, "arguments": step["arguments"]}},
@@ -3286,7 +3165,7 @@ def main():
                     lifecycle_grants=lifecycle_grants
                 )
                 if "error" in reply or not isinstance(reply.get("result"), dict):
-                    raise RuntimeError("REA returned a protocol error for an authorized step")
+                    raise RuntimeError("REA returned a protocol error for a native step")
                 item = reply["result"]
                 ok = item.get("isError") is not True
                 records.append({"tool": name, "risk": risk, "result": item})
@@ -3298,9 +3177,9 @@ def main():
                     break
         finally:
             if binary_open:
-                if signed_close_attempted or "close_binary" not in lifecycle_grants:
-                    # Do not replay an ambiguous signed close. A missing
-                    # signed close is a hard error, never implicit permission.
+                if close_attempted or "close_binary" not in lifecycle_grants:
+                    # Do not replay an ambiguous close. A missing paired close
+                    # is an error and requires explicit cleanup.
                     cleanup_ok = False
                 else:
                     try:
@@ -3338,7 +3217,7 @@ def main():
     if (tool_by_name[name].get("annotations") or {}).get("destructiveHint") is True:
         error("Tool descriptor declares destructive side effects")
     if secure.classify(name, tool_by_name[name], safe_callable, release_policy) != "read":
-        error("This operation requires the sealed per-operation authorization path")
+        error("This operation requires the existing encrypted native REA tool path")
     secure.validate_arguments(tool_by_name[name], data["arguments"])
     secure._authorized_target_paths(data["arguments"])
     _, result = request_mcp(

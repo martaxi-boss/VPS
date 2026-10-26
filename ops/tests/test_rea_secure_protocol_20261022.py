@@ -81,211 +81,91 @@ class ReaSecureProtocolTests(unittest.TestCase):
         self.assertEqual("sensitive", secure.classify(
             "close_binary", self.registry["close_binary"], {"list_unknowns"}))
 
-    def test_individual_authorization_and_digest(self):
-        args = {"path": "/usr/bin/true", "provider_id": "ghidra"}
-        valid = request([{
-            "tool": "open_binary", "arguments": args,
-            "authorization": approved("open_binary", args),
-        }, {
-            "tool": "inspect_with_objdump",
-            "arguments": {"path": "/usr/bin/true", "operation": "file_headers"},
-            "authorization": approved("inspect_with_objdump",
-                {"path": "/usr/bin/true", "operation": "file_headers"}),
-        }])
-        self.assertEqual(["workspace", "workspace"],
-                         secure.validate_inner(valid, self.registry, {"list_unknowns"}))
-        altered = request([dict(valid["steps"][0])])
-        altered["steps"][0]["arguments"] = {"path": "/usr/bin/true", "provider_id": "other"}
-        with self.assertRaises(secure.SecureBridgeError):
-            secure.validate_inner(altered, self.registry, {"list_unknowns"})
 
-    def test_sensitive_is_explicit_and_exact(self):
-        args = {"path": "/usr/bin/true"}
-        bad = request([{"tool": "install_adb_package", "arguments": args,
-                        "authorization": approved("install_adb_package", args,
-                                                   "workspace")}])
-        with self.assertRaises(secure.SecureBridgeError):
-            secure.validate_inner(bad, self.registry, {"list_unknowns"})
-        # A user-editable confirmed_by_owner=true is *not* owner proof.
-        good = request([{"tool": "install_adb_package", "arguments": args,
-                         "authorization": approved("install_adb_package", args,
-                                                    "sensitive")}])
-        with self.assertRaises(secure.SecureBridgeError):
-            secure.validate_inner(good, self.registry, {"list_unknowns"})
-        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-        from cryptography.hazmat.primitives import serialization
-        key = Ed25519PrivateKey.generate()
-        path = secure._private_directory() / "owner-approval-public.pem"
-        path.write_bytes(key.public_key().public_bytes(
-            serialization.Encoding.PEM,
-            serialization.PublicFormat.SubjectPublicKeyInfo))
-        # Explicit owner-signed assertion covers tool, exact arguments, position,
-        # one-use nonce, expiration and risk in one canonical message.
-        auth = good["steps"][0]["authorization"]
-        payload = {
-            "purpose": "REA_OWNER_APPROVAL_V1",
-            "nonce": good["nonce"],
-            "expires_at": good["expires_at"],
-            "step_index": 0,
-            "tool": good["steps"][0]["tool"],
-            "arguments_sha256": secure.arguments_sha256(args),
-            "scope": auth["scope"], "reason": auth["reason"],
-            "acknowledgement": auth["acknowledgement"]
-        }
-        auth["owner_signature"] = base64.b64encode(
-            key.sign(secure.canonical_json(payload))).decode()
-        self.assertEqual(["sensitive"], secure.validate_inner(
-            good, self.registry, {"list_unknowns"}))
-        bad_sig = request([dict(good["steps"][0])])
-        with self.assertRaises(secure.SecureBridgeError):
-            secure.validate_inner(bad_sig, self.registry, {"list_unknowns"})
-        altered = request([dict(good["steps"][0])])
-        altered["nonce"] = good["nonce"]
-        altered["expires_at"] = expires(hours=2)
-        with self.assertRaises(secure.SecureBridgeError):
-            secure.validate_inner(altered, self.registry, {"list_unknowns"})
+    def test_all_native_risk_classes_without_owner_signatures(self):
+        # A single authenticated SSH+RSA sealed request may call any tool
+        # actually advertised by the original REA MCP.
+        operations = [
+            {"tool": "list_unknowns", "arguments": {}},
+            {"tool": "inspect_with_objdump",
+             "arguments": {"path": "/usr/bin/true", "operation": "file_headers"}},
+            {"tool": "install_adb_package",
+             "arguments": {"path": "/usr/bin/true"}},
+        ]
+        self.assertEqual(["read", "workspace", "sensitive"],
+                         secure.validate_inner(request(operations),
+                                               self.registry, {"list_unknowns"}))
+        self.assertFalse((secure.key_directory() /
+                          "owner-approval-public.pem").exists())
 
-    def test_P286_scoped_passive_provider_calls_avoid_owner_signature(self):
-        # Reviewed effect-only calls use exact workspace approval, not Ed25519.
-        # Other operations retain their independent owner signature check.
-        names = secure.REVIEWED_SCOPED_WORKSPACE_OPERATIONS
-        self.assertEqual(36, len(names))
-        unsafe = secure.OWNER_SIGNATURE_EFFECTS
-        for name in sorted(names):
-            with self.subTest(tool=name):
-                flags = secure.AUDITED_EFFECTS[name]
-                self.assertFalse(flags.intersection(unsafe))
-                descriptor = {
-                    "inputSchema": {"type": "object"},
-                    "annotations": {
-                        "readOnlyHint": not bool(flags),
-                        "destructiveHint": bool(flags.intersection({
-                            "mayDiscardData", "executesForeignCode", "mutatesDevice"})),
-                        "openWorldHint": bool(flags.intersection({
-                            "launchesProcess", "accessesNetwork"})),
-                    },
-                }
-                self.registry[name] = descriptor
-                secure.AUDITED_SCHEMA_SHA256[name] = secure.arguments_sha256(
-                    descriptor["inputSchema"])
-                self.assertEqual("workspace", secure.classify(
-                    name, descriptor, {"list_unknowns"}))
-                args = {}
-                granted = request([{"tool": name, "arguments": args,
-                                    "authorization": approved(name, args)}])
-                self.assertEqual(["workspace"], secure.validate_inner(
-                    granted, self.registry, {"list_unknowns"}))
-                with self.assertRaises(secure.SecureBridgeError):
-                    secure.validate_inner(request([{
-                        "tool": name, "arguments": args}]),
-                        self.registry, {"list_unknowns"})
-                with self.assertRaises(secure.SecureBridgeError):
-                    secure.validate_inner(request([{
-                        "tool": name, "arguments": args,
-                        "authorization": approved(name, args, "sensitive")}]),
-                        self.registry, {"list_unknowns"})
-                drift = {"inputSchema": {"type": "object",
-                    "properties": {"new_unknown": {"type": "string"}}},
-                    "annotations": descriptor["annotations"]}
-                self.assertEqual("sensitive", secure.classify(
-                    name, drift, {"list_unknowns"}))
-                bad_hint = {"inputSchema": descriptor["inputSchema"],
-                    "annotations": {**descriptor["annotations"],
-                                    "destructiveHint": True}}
-                self.assertEqual("sensitive", secure.classify(
-                    name, bad_hint, {"list_unknowns"}))
-        for name in ("install_adb_package", "push_adb_file",
-                     "close_binary", "start_gdb_session", "record_unknown",
-                     "import_evidence_bundle", "open_jeb_project",
-                     "cutter_command", "goto_address", "load_frida_script"):
-            with self.subTest(owner_protection=name):
-                flags = secure.AUDITED_EFFECTS[name]
-                descriptor = {"inputSchema": {"type": "object"},
-                    "annotations": {
-                        "readOnlyHint": not bool(flags),
-                        "destructiveHint": bool(flags.intersection({
-                            "mayDiscardData", "executesForeignCode", "mutatesDevice"})),
-                        "openWorldHint": bool(flags.intersection({
-                            "launchesProcess", "accessesNetwork"})),
-                    }}
-                secure.AUDITED_SCHEMA_SHA256[name] = secure.arguments_sha256(
-                    descriptor["inputSchema"])
-                self.assertEqual("sensitive", secure.classify(
-                    name, descriptor, {"list_unknowns"}))
+    def test_native_transport_does_not_accept_old_signing_fields(self):
+        for value in (
+            {"tool": "install_adb_package", "arguments": {},
+             "authorization": approved("install_adb_package", {}, "sensitive")},
+            {"tool": "list_unknowns", "arguments": {}, "owner_signature": "test"},
+        ):
+            with self.subTest(value=value), self.assertRaises(
+                    secure.SecureBridgeError):
+                secure.validate_inner(request([value]),
+                                      self.registry, {"list_unknowns"})
 
+    def test_native_680_new_tool_from_live_mcp_is_not_legacy_manifest_gated(self):
+        advertised = dict(self.registry)
+        advertised["REA_original_680_tool"] = {
+            "inputSchema": {"type": "object", "additionalProperties": False},
+            "annotations": {"readOnlyHint": False,
+                            "destructiveHint": False, "openWorldHint": False}}
+        # Unknown on the old hard-coded 208 list, but native tools/list
+        # and actual schema are the authority.
+        result = secure.validate_inner(request([
+            {"tool": "REA_original_680_tool", "arguments": {}}]),
+            advertised, {"list_unknowns"})
+        self.assertEqual(["sensitive"], result)
+        # Unknown names are never fabricated or admitted.
+        with self.assertRaises(secure.SecureBridgeError):
+            secure.validate_inner(request([
+                {"tool": "not_advertised", "arguments": {}}]),
+                advertised, {"list_unknowns"})
 
-    def test_reviewed_session_operations_require_open_and_exact_approval(self):
+    def test_native_session_reads_require_open_but_not_owner_signature(self):
         examples = {
             "read_bytes": {"address": "0x1019f0", "length": 16},
-            "resolve_containing_procedure": {"address": "0x1019f0"},
-            "inspect_native_instruction": {"address": "0x1019f0"},
             "read_function_instructions": {"procedure": "entry"},
             "xrefs": {"address": "0x1019f0"},
-            "analyze_function": {"procedure": "entry"},
         }
         registry = dict(self.registry)
-        registry.update({name: {"annotations": {"destructiveHint": False,
-                                               "readOnlyHint": False, "openWorldHint": False},
-                               "inputSchema": {"type": "object"}}
-                         for name in examples})
-        for name in examples:
-            secure.AUDITED_SCHEMA_SHA256[name] = secure.arguments_sha256({"type": "object"})
-        allowed = {"list_unknowns"}
-        open_args = {"path": "/usr/bin/true", "provider_id": "ghidra"}
-        for name, args in examples.items():
+        for name, arguments in examples.items():
+            registry[name] = {"inputSchema": {"type": "object"},
+                              "annotations": {"readOnlyHint": False,
+                                              "destructiveHint": False,
+                                              "openWorldHint": False}}
             with self.subTest(name=name):
-                step = {"tool": name, "arguments": args,
-                        "authorization": approved(name, args)}
-                without_open = request([step])
                 with self.assertRaises(secure.SecureBridgeError):
-                    secure.validate_inner(without_open, registry, allowed)
-                opened = request([
-                    {"tool": "open_binary", "arguments": open_args,
-                     "authorization": approved("open_binary", open_args)},
-                    step,
-                ])
-                self.assertEqual(
-                    ["workspace", "workspace"],
-                    secure.validate_inner(opened, registry, allowed))
-                unapproved = dict(step)
-                unapproved.pop("authorization")
-                with self.assertRaises(secure.SecureBridgeError):
-                    secure.validate_inner(
-                        request([opened["steps"][0], unapproved]), registry, allowed)
-                changed = dict(step)
-                changed["arguments"] = {**args, "document": "other-client"}
-                with self.assertRaises(secure.SecureBridgeError):
-                    secure.validate_inner(
-                        request([opened["steps"][0], changed]), registry, allowed)
-        long_read = {"address": "0x1019f0", "length": 8192}
-        with self.assertRaises(secure.SecureBridgeError):
-            secure.validate_inner(request([
-                {"tool": "open_binary", "arguments": open_args,
-                 "authorization": approved("open_binary", open_args)},
-                {"tool": "read_bytes", "arguments": long_read,
-                 "authorization": approved("read_bytes", long_read)},
-            ]), registry, allowed)
-        # Canonical annotations always override the reviewed-name allowlist.
-        dangerous = dict(registry)
-        dangerous["read_bytes"] = {"annotations": {"destructiveHint": True}}
-        with self.assertRaises(secure.SecureBridgeError):
-            secure.validate_inner(request([
-                {"tool": "open_binary", "arguments": open_args,
-                 "authorization": approved("open_binary", open_args)},
-                {"tool": "read_bytes", "arguments": examples["read_bytes"],
-                 "authorization": approved("read_bytes", examples["read_bytes"])}
-            ]), dangerous, allowed)
+                    secure.validate_inner(request([
+                        {"tool": name, "arguments": arguments}]),
+                        registry, {"list_unknowns"})
+                profiles = secure.validate_inner(request([
+                    {"tool": "open_binary", "arguments": {
+                        "path": "/usr/bin/true", "provider_id": "ghidra"}},
+                    {"tool": name, "arguments": arguments}]),
+                    registry, {"list_unknowns"})
+                self.assertEqual(2, len(profiles))
+                self.assertEqual("workspace", profiles[0])
 
-    def test_path_escape_and_expiry_fail_closed(self):
-        bad = request([{"tool": "open_binary", "arguments": {"path": "/etc/shadow"},
-                        "authorization": approved("open_binary", {
-                            "path": "/etc/shadow"})}])
+    def test_schema_expiry_and_replay_constraints_remain(self):
+        invalid = request([{"tool": "list_unknowns", "arguments": {}}])
+        invalid["expires_at"] = "2000-01-01T00:00:00Z"
         with self.assertRaises(secure.SecureBridgeError):
-            secure.validate_inner(bad, self.registry, {"list_unknowns"})
-        safe = request([{"tool": "list_unknowns", "arguments": {}}])
-        safe["expires_at"] = "2000-01-01T00:00:00Z"
+            secure.validate_inner(invalid, self.registry, {"list_unknowns"})
+        for nonce in ("invalid", "!" * 32):
+            bad = request([{"tool": "list_unknowns", "arguments": {}}])
+            bad["nonce"] = nonce
+            with self.assertRaises(secure.SecureBridgeError):
+                secure.validate_inner(bad, self.registry, {"list_unknowns"})
+        body = request([{"tool": "install_adb_package", "arguments": {}}])
+        body["steps"][0]["arguments"] = []
         with self.assertRaises(secure.SecureBridgeError):
-            secure.validate_inner(safe, self.registry, {"list_unknowns"})
+            secure.validate_inner(body, self.registry, {"list_unknowns"})
 
     def test_live_argument_contract_rejects_invalid_and_remote_schemas(self):
         descriptor = {"inputSchema": {
@@ -344,94 +224,64 @@ class ReaSecureProtocolTests(unittest.TestCase):
         key_path = secure.key_directory() / "request-private.pem"
         self.assertEqual(0o600, key_path.stat().st_mode & 0o777)
 
+
     def test_large_portable_evidence_remains_sealed_and_bounded(self):
         from cryptography.hazmat.primitives.asymmetric import rsa
         from cryptography.hazmat.primitives import serialization
         recipient = secure.request_public_key_b64(create=True)
         response = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         reply = base64.b64encode(response.public_key().public_bytes(
-            serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)).decode()
+            serialization.Encoding.DER,
+            serialization.PublicFormat.SubjectPublicKeyInfo)).decode("ascii")
         args = {"payload": "A" * 80000}
-        body = request([{"tool": "open_binary", "arguments": args,
-                         "authorization": approved("open_binary", args)}])
+        body = request([{"tool": "open_binary", "arguments": args}])
         sealed = secure.seal_for_client(body, recipient, reply)
         self.assertGreater(len(sealed["ciphertext"]), 95000)
         self.assertEqual(body, secure.unseal(sealed, reply))
-        self.assertEqual(["workspace"], secure.validate_inner(body, self.registry, set()))
-        too_large = request([{"tool": "open_binary", "arguments": {"payload": "A" * 512000}}])
+        self.assertEqual(["workspace"], secure.validate_inner(
+            body, self.registry, set()))
+        oversized = request([
+            {"tool": "open_binary", "arguments": {"payload": "A" * 512000}}])
         with self.assertRaises(secure.SecureBridgeError):
-            secure.seal_for_client(too_large, recipient, reply)
+            secure.seal_for_client(oversized, recipient, reply)
 
-
-    def test_P268_released_lifecycle_requires_owner_signed_close_and_exact_args(self):
-        # One-use owner signature has been checked by validate_inner before
-        # p232_guard_inner_batch returns grants. No actual MCP calls here.
+    def test_native_lifecycle_close_paired_and_argument_pinned(self):
         import sys
-        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-        from cryptography.hazmat.primitives import serialization
         sys.modules.setdefault("rea_secure_protocol_20261022", secure)
         from ops import rea_mobile_mcp_bridge_20261022 as bridge
-
-        key = Ed25519PrivateKey.generate()
-        verifier = secure._private_directory() / "owner-approval-public.pem"
-        verifier.write_bytes(key.public_key().public_bytes(
-            serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo))
-        verifier.chmod(0o600)
         op = {"path": "/usr/bin/true", "provider_id": "ghidra"}
         body = request([
-            {"tool": "open_binary", "arguments": op,
-             "authorization": approved("open_binary", op)},
-            {"tool": "close_binary", "arguments": {},
-             "authorization": approved("close_binary", {}, "sensitive")},
+            {"tool": "open_binary", "arguments": op},
+            {"tool": "close_binary", "arguments": {}},
         ])
-        auth = body["steps"][1]["authorization"]
-        payload = {
-            "purpose": "REA_OWNER_APPROVAL_V1",
-            "nonce": body["nonce"], "expires_at": body["expires_at"],
-            "step_index": 1, "tool": "close_binary",
-            "arguments_sha256": secure.arguments_sha256({}),
-            "scope": "sensitive", "reason": auth["reason"],
-            "acknowledgement": auth["acknowledgement"],
-        }
-        auth["owner_signature"] = base64.b64encode(
-            key.sign(secure.canonical_json(payload))).decode()
         self.assertEqual(["workspace", "sensitive"],
                          secure.validate_inner(body, self.registry, set()))
-        grants = bridge.p232_guard_inner_batch(body)
+        pins = bridge.p232_guard_inner_batch(body)
         self.assertEqual({"open_binary": secure.arguments_sha256(op),
-                          "close_binary": secure.arguments_sha256({})}, grants)
+                          "close_binary": secure.arguments_sha256({})}, pins)
         for name, args in (("open_binary", op), ("close_binary", {})):
-            method = {"method": "tools/call", "params": {
+            call = {"method": "tools/call", "params": {
                 "name": name, "arguments": args}}
             with self.assertRaises(ValueError):
-                bridge.p232_guard_live_call(method)
-            self.assertIsNone(
-                bridge.p232_guard_live_call(method, lifecycle_grants=grants))
+                bridge.p232_guard_live_call(call)
+            self.assertIsNone(bridge.p232_guard_live_call(
+                call, lifecycle_grants=pins))
         with self.assertRaises(ValueError):
             bridge.p232_guard_live_call(
                 {"method": "tools/call", "params": {
-                    "name": "open_binary", "arguments": {"path": "/usr/bin/false"}}},
-                lifecycle_grants=grants)
-        with self.assertRaises(ValueError):
-            bridge.p232_guard_inner_batch(request([body["steps"][0]]))
-        with self.assertRaises(ValueError):
-            bridge.p232_guard_inner_batch(request([
-                body["steps"][1], body["steps"][0]]))
-        snapshot_args = {"snapshot_path": "/opt/rea-reversa/rea/private-snapshot"}
-        with self.assertRaises(ValueError):
-            bridge.p232_guard_inner_batch(request([
-                body["steps"][0], {**body["steps"][1], "arguments": snapshot_args,
-                "authorization": {**auth,
-                    "arguments_sha256": secure.arguments_sha256(snapshot_args)}}
-            ]))
-        bad = request([body["steps"][0], {**body["steps"][1],
-                     "authorization": {**auth, "owner_signature": "A" * 88}}])
-        with self.assertRaises(secure.SecureBridgeError):
-            secure.validate_inner(bad, self.registry, set())
+                    "name": "open_binary",
+                    "arguments": {"path": "/usr/bin/false"}}},
+                lifecycle_grants=pins)
+        for pair in (
+            [body["steps"][0]],
+            [body["steps"][1], body["steps"][0]],
+            [body["steps"][0], {"tool": "close_binary",
+                                "arguments": {"snapshot_path": "/tmp/unsafe"}}],
+        ):
+            with self.subTest(steps=pair), self.assertRaises(ValueError):
+                bridge.p232_guard_inner_batch(request(pair))
         self.assertEqual({}, bridge.p232_guard_inner_batch(request([
-            {"tool": "list_unknowns", "arguments": {}}
-        ])))
-
+            {"tool": "list_unknowns", "arguments": {}}])))
 
     def _p269_signer_test_fixture(self):
         import importlib.util
