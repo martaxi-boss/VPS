@@ -327,7 +327,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_EXTRA_MITMDUMP_STATUS", "REA_EXTRA_CHROMIUM_STATUS",
         "REA_EXTRA_WAKARU_VERSION", "REA_EXTRA_WAKARU_DOWNLOAD_SHA256",
         "REA_EXTRA_CUTTER_DOWNLOAD_SHA256",
-        "REA_EXTRA_MITMDUMP_STAGE_CLEAN", "REA_EXTRA_CHROMIUM_STAGE_CLEAN",
+        "REA_EXTRA_MITMDUMP_STAGE_CLEAN", "REA_EXTRA_MITMDUMP_REBOUND", "REA_EXTRA_CHROMIUM_STAGE_CLEAN",
         "REA_EXTRA_SUPPLIERS_NO_SERVICE_RESTART", "REA_EXTRA_CONFIG_STATUS", "REA_EXTRA_CONFIG_ROLLBACK",
         "REA_LINUX_READ5_SOURCE_PRESENT", "REA_LINUX_READ5_VITEST_PRESENT",
         "REA_LINUX_READ5_NODE_PRESENT", "REA_LINUX_READ5_REGRESSION",
@@ -2400,6 +2400,37 @@ def main():
                 if (mitm_final/"bin/mitmdump").is_file():
                     p=vend_sudo("-u",service_name,mitm_final/"bin/mitmdump",
                                 "--version",timeout=25)
+                    if p.returncode or "12.2.3" not in (p.stdout+p.stderr):
+                        # Python venv entrypoints retain absolute shebangs after a
+                        # private staging-directory rename. Repair only that exact
+                        # known stale prefix, never arbitrary target files.
+                        repaired=0
+                        for script in sorted((mitm_final/"bin").iterdir()):
+                            if script.is_symlink() or not script.is_file() or script.stat().st_size>1000000:
+                                continue
+                            contents=script.read_bytes()
+                            if b"\n" not in contents:
+                                continue
+                            first,rest=contents.split(b"\n",1)
+                            oldprefix=("#!"+str(mitm_stage)+"/bin/python").encode("utf-8")
+                            if not first.startswith(oldprefix):
+                                continue
+                            replacement=first.replace(str(mitm_stage).encode("utf-8"),
+                                                     str(mitm_final).encode("utf-8"),1)
+                            rewritten=replacement+b"\n"+rest
+                            with temporary.TemporaryDirectory(prefix="rea-mitm-shebang-",
+                                                               dir=str(temp_root)) as td:
+                                temp=Path(td)/script.name
+                                temp.write_bytes(rewritten)
+                                temp.chmod(0o700)
+                                fixed=vend_sudo("install","-m","0755","-o",service_name,
+                                                "-g",service_name,temp,script,timeout=20)
+                                if fixed.returncode or vend_digest(script)!=hashlib.sha256(rewritten).hexdigest():
+                                    raise RuntimeError("mitmdump console script repair integrity failure")
+                            repaired+=1
+                        print("REA_EXTRA_MITMDUMP_REBOUND="+str(repaired))
+                        p=vend_sudo("-u",service_name,mitm_final/"bin/mitmdump",
+                                    "--version",timeout=25)
                     if p.returncode or "12.2.3" not in (p.stdout+p.stderr):
                         raise RuntimeError("existing mitmdump is not expected version")
                     print("REA_EXTRA_MITMDUMP_STATUS=ALREADY_INSTALLED_VERIFIED")
