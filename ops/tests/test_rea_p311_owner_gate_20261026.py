@@ -4,8 +4,10 @@ All platform evidence is synthetic. In real runs it comes from GitHub REST
 GET workflow-run and GET review-history APIs over TLS, never from JSON uploaded
 by the requester. No real approvals or REA operations occur in these tests.
 """
+import base64
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 import subprocess
 import tempfile
 import unittest
@@ -40,7 +42,7 @@ class P311GitHubButtonVerificationTests(unittest.TestCase):
         self.review = [{
             "state": "approved",
             "user": {"login": gate.OWNER_LOGIN, "id": gate.OWNER_ID},
-            "environments": [{"name": gate.REVIEW_ENVIRONMENT, "id": 121121}],
+            "environments": [{"name": gate.REVIEW_ENVIRONMENT, "id": gate.REVIEW_ENVIRONMENT_ID}],
         }]
 
     def check(self, context=None, run=None, reviews=None, request=None, path=None):
@@ -193,6 +195,117 @@ class P311GitHubButtonVerificationTests(unittest.TestCase):
         self.assertNotIn("approved_tools", receipt)
         self.assertNotIn("grant", receipt)
         self.assertNotEqual(scoped.PURPOSE, gate.PURPOSE)
+
+    def _signed_task_fixture(self):
+        from ops import rea_scoped_approval_20261026 as scoped
+        key = Ed25519PrivateKey.generate()
+        fmt = lambda dt: dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+        grant = {
+            "purpose": scoped.PURPOSE, "grant_id": "f"*32,
+            "project": "Engenharia Reversa", "task_id": "P311-SAMPLE-GRANT",
+            "origin": scoped.ORIGIN,
+            "artifact_root": "/opt/rea-reversa/rea/.rea-private/jobs/p311-review",
+            "not_before": fmt(self.now - timedelta(minutes=1)),
+            "expires_at": fmt(self.now + timedelta(minutes=40)),
+            "allowed_tools": ["inspect_with_objdump"],
+            "permitted_effects": ["launchesProcess", "mutatesSession"],
+        }
+        signature = base64.b64encode(
+            key.sign(scoped.canonical_bytes(grant))).decode("ascii")
+        return {
+            "grant": grant, "owner_signature": signature,
+            "project": grant["project"], "task_id": grant["task_id"],
+            "origin": grant["origin"], "artifact_root": grant["artifact_root"],
+        }
+
+    def test_signed_task_digest_matches_exact_real_owner_review(self):
+        task = self._signed_task_fixture()
+        digest = gate.signed_task_review_digest(
+            task, request_id=self.request["request_id"])
+        self.assertEqual(64, len(digest))
+        approved = self.check(request={**self.request, "operation_sha256": digest})
+        bound = gate.match_verified_review_to_signed_task(approved, task)
+        self.assertTrue(bound["bound_preview_only"])
+        self.assertEqual(self.context["run_id"], str(bound["run_id"]))
+        self.assertEqual(digest, bound["operation_sha256"])
+        self.assertNotIn("owner_signature", bound)
+        self.assertNotIn("grant", bound)
+
+    def test_owner_review_cannot_authorize_swapped_tool_or_scope(self):
+        task = self._signed_task_fixture()
+        digest = gate.signed_task_review_digest(
+            task, request_id=self.request["request_id"])
+        receipt = self.check(request={**self.request, "operation_sha256": digest})
+        grant = task["grant"]
+        for change in (
+            {"task_id": "OTHER-TASK"},
+            {"project": "Outro Projeto"},
+            {"allowed_tools": ["import_managed_reconstruction"]},
+            {"permitted_effects": ["mutatesDevice"]},
+            {"artifact_root": "/opt/rea-reversa/rea/.rea-private/jobs/other"},
+            {"expires_at": "2026-10-27T20:00:00Z"},
+        ):
+            altered = dict(task, grant={**grant, **change})
+            for key in ("project", "task_id", "artifact_root"):
+                if key in change:
+                    altered[key] = change[key]
+            with self.subTest(change=change), self.assertRaises(
+                    gate.ApprovalGateError):
+                gate.match_verified_review_to_signed_task(receipt, altered)
+
+    def test_signature_swap_and_review_request_id_replay_denied(self):
+        task = self._signed_task_fixture()
+        digest = gate.signed_task_review_digest(
+            task, request_id=self.request["request_id"])
+        receipt = self.check(request={**self.request, "operation_sha256": digest})
+        another = self._signed_task_fixture()
+        self.assertNotEqual(task["owner_signature"], another["owner_signature"])
+        with self.assertRaises(gate.ApprovalGateError):
+            gate.match_verified_review_to_signed_task(receipt, another)
+        self.assertNotEqual(
+            gate.signed_task_review_digest(task, request_id="9"*32),
+            digest)
+
+    def test_untrusted_or_unverified_preview_receipt_fails_closed(self):
+        task = self._signed_task_fixture()
+        digest = gate.signed_task_review_digest(
+            task, request_id=self.request["request_id"])
+        receipt = self.check(request={**self.request, "operation_sha256": digest})
+        for patch in (
+            {"verified_preview": False},
+            {"run_id": 0}, {"review_environment": "another-environment"},
+            {"operation_sha256": "0"*64},
+            {"request_id": "invalid"},
+            {"owner_signature": "forged"},
+        ):
+            altered = dict(receipt, **patch)
+            with self.subTest(patch=patch), self.assertRaises(
+                    gate.ApprovalGateError):
+                gate.match_verified_review_to_signed_task(altered, task)
+
+    def test_signed_review_rejects_nonowner_projects_or_malformed_structure(self):
+        task = self._signed_task_fixture()
+        for altered in (
+            {**task, "project": "IPTV"},
+            {**task, "owner_signature": "sim"},
+            {**task, "grant": {**task["grant"], "tool": "extra"}},
+            {**task, "grant": {**task["grant"],
+                               "purpose": "REA_OWNER_APPROVAL_V1"}},
+            {**task, "other_field": True},
+        ):
+            with self.subTest(altered=altered), self.assertRaises(
+                    gate.ApprovalGateError):
+                gate.signed_task_review_digest(
+                    altered, request_id=self.request["request_id"])
+
+    def test_same_name_different_environment_identity_denied(self):
+        altered = [{**self.review[0],
+                    "environments": [{
+                        "name": gate.REVIEW_ENVIRONMENT,
+                        "id": gate.REVIEW_ENVIRONMENT_ID + 1
+                    }]}]
+        with self.assertRaises(gate.ApprovalGateError):
+            self.check(reviews=altered)
 
     def test_duplicate_json_keys_are_rejected(self):
         with self.assertRaises(gate.ApprovalGateError):
