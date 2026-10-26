@@ -7,6 +7,7 @@ on:
       - ".github/workflows/rea-android-bridge-20261022.yml"
       - "ops/rea_mobile_mcp_bridge_20261022.py"
       - "ops/rea_secure_protocol_20261022.py"
+      - "ops/rea_scoped_approval_20261026.py"
       - "ops/tests/test_rea_secure_protocol_20261022.py"
       - "rea-linux/requests/*.json"
 permissions:
@@ -104,6 +105,10 @@ jobs:
             printf 'import base64,sys,types,os\nos.environ["REA_MOBILE_JOB_B64"]="%s"\n_rea_secure=types.ModuleType("rea_secure_protocol_20261022")\nexec(base64.b64decode("%s"),_rea_secure.__dict__)\nsys.modules["rea_secure_protocol_20261022"]=_rea_secure\n' \
               "$request64" \
               "$(base64 -w0 ops/rea_secure_protocol_20261022.py)"
+            # P311 review only: load the offline-tested verifier in memory,
+            # no extra daemon/MCP, no REA modification, default grant mode OFF.
+            printf 'import base64,sys,types\n_rea_pkg=types.ModuleType("ops")\n_rea_pkg.__path__=[]\nsys.modules["ops"]=_rea_pkg\n_rea_scope=types.ModuleType("ops.rea_scoped_approval_20261026")\nexec(base64.b64decode("%s"),_rea_scope.__dict__)\nsys.modules["ops.rea_scoped_approval_20261026"]=_rea_scope\n_rea_pkg.rea_scoped_approval_20261026=_rea_scope\n' \
+              "$(base64 -w0 ops/rea_scoped_approval_20261026.py)"
             cat ops/rea_mobile_mcp_bridge_20261022.py
           } > "$RUNNER_TEMP/rea-mobile-remote.py"
           sshpass -e ssh -T \
