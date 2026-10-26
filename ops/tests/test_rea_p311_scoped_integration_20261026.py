@@ -197,6 +197,38 @@ class P311SealedTaskAdmissionTests(unittest.TestCase):
                 self._request([step]), self.registry, {"list_unknowns"},
                 now=self.now))
 
+    def test_unverified_grant_cannot_be_smuggled_into_read_only_batch(self):
+        read_only = self._embedded_request(steps=[
+            {"tool": "list_unknowns", "arguments": {}}])
+        with mock.patch.dict(os.environ, {"REA_P311_SCOPED_TASKS": "enabled"}):
+            with self.assertRaisesRegex(secure.SecureBridgeError,
+                                        "not used or verified"):
+                secure.validate_inner(read_only, self.registry,
+                                      {"list_unknowns"}, now=self.now)
+
+    def test_stray_grant_cannot_hide_inside_individually_approved_batch(self):
+        from ops.tests.test_rea_secure_protocol_20261022 import approved
+        workspace = {"tool": "inspect_with_objdump", "arguments": self.safe,
+                     "authorization": approved("inspect_with_objdump", self.safe)}
+        body = self._embedded_request(steps=[workspace])
+        with mock.patch.dict(os.environ, {"REA_P311_SCOPED_TASKS": "enabled"}):
+            with self.assertRaisesRegex(secure.SecureBridgeError,
+                                        "not used or verified"):
+                secure.validate_inner(body, self.registry, {"list_unknowns"},
+                                      now=self.now)
+
+    def test_valid_mixed_legacy_and_scoped_authorization_still_works(self):
+        from ops.tests.test_rea_secure_protocol_20261022 import approved
+        steps = [
+            {"tool": "inspect_with_objdump", "arguments": self.safe,
+             "authorization": approved("inspect_with_objdump", self.safe)},
+            {"tool": "recover_javascript_sources", "arguments": self.safe},
+        ]
+        body = self._embedded_request(steps=steps)
+        with mock.patch.dict(os.environ, {"REA_P311_SCOPED_TASKS": "enabled"}):
+            self.assertEqual(["workspace", "sensitive"], secure.validate_inner(
+                body, self.registry, {"list_unknowns"}, now=self.now))
+
     def test_revocation_marker_blocks_future_scoped_batches(self):
         directory = secure._private_directory() / "revoked-p311-grants"
         self.assertEqual(directory, self.revocation_registry)
