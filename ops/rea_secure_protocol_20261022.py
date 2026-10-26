@@ -95,6 +95,55 @@ REVIEWED_SESSION_READ_TOOLS = frozenset({
     "read_function_instructions", "xrefs", "analyze_function",
 })
 
+# P286: explicit source-effects review of passive provider queries and bounded
+# workspace artifact analyses. These use the SAME per-request authenticated SSH,
+# exact MCP schema, path confinement and exact workspace authorization; they
+# cannot write a target, discard Evidence or execute foreign code according to
+# the source-audited REA ToolEffects contract. No 'read' class is granted.
+# Mutating/device/process-control/Evidence ledger actions remain owner-signed.
+REVIEWED_SCOPED_WORKSPACE_OPERATIONS = frozenset({
+    "analyze_web_bundle",
+    "capture_adb_screen",
+    "capture_web_screenshot",
+    "collect_adb_bugreport",
+    "decompile_jeb_item",
+    "discover_webmcp_tools",
+    "extract_artifact",
+    "extract_firmware",
+    "inspect_adb_client",
+    "inspect_adb_device",
+    "inspect_adb_display",
+    "inspect_adb_package",
+    "inspect_adb_window",
+    "inspect_electron_page",
+    "inspect_jeb_client",
+    "inspect_web_event_listeners",
+    "inspect_web_network_capture",
+    "inspect_web_page",
+    "list_adb_devices",
+    "list_adb_directory",
+    "list_adb_features",
+    "list_adb_packages",
+    "list_adb_processes",
+    "list_adb_services",
+    "list_browser_targets",
+    "list_cutter_sessions",
+    "list_electron_targets",
+    "list_frida_devices",
+    "list_frida_processes",
+    "list_javascript_runtime_targets",
+    "list_jeb_units",
+    "observe_web_session",
+    "read_adb_logcat",
+    "read_adb_setting",
+    "reconcile_javascript_runtime",
+    "resolve_adb_packages",
+})
+OWNER_SIGNATURE_EFFECTS = frozenset({
+    "mutatesTarget", "mayDiscardData", "changesUiState",
+    "executesForeignCode", "mutatesDevice",
+})
+
 # Canonical effect audit: Engenheira-reversa a29937e6, rea/src/contracts/toolEffects.ts.
 # All 208 names were matched to the complete live catalog on 2026-10-22.
 # Unknown names and incompatible live annotations remain sensitive.
@@ -748,10 +797,18 @@ def classify(name, descriptor, safe_callable):
     }
     if any(annotations.get(key) is not expected for key, expected in expected_hints.items()):
         return "sensitive"
+    # Never reduce owner protection for modifications, destructive effects,
+    # device mutation, foreign execution or GUI-side changes.
+    if flags.intersection(OWNER_SIGNATURE_EFFECTS):
+        return "sensitive"
+    # These individually reviewed, schema-bound commands are permitted only
+    # as workspace calls, NEVER unauthenticated reads. This also prevents an
+    # accidental network/process-only flag from requiring an Ed25519 signature.
+    if name in REVIEWED_SCOPED_WORKSPACE_OPERATIONS:
+        return "workspace"
     if name in HIGH_RISK_NAMES or any(name.startswith(p) for p in HIGH_RISK_PREFIXES):
         return "sensitive"
-    if flags.intersection({"mutatesTarget", "mayDiscardData", "changesUiState",
-                           "executesForeignCode", "mutatesDevice", "accessesNetwork"}):
+    if "accessesNetwork" in flags:
         return "sensitive"
     return "workspace" if flags else "read"
 
