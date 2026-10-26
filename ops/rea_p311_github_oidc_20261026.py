@@ -14,9 +14,12 @@ This module only implements 1+2, offline-testable; it does NOT implement 3.
 """
 import argparse
 import base64
+import hashlib
 import json
 import os
+from pathlib import Path
 import re
+import stat
 import sys
 from datetime import datetime, timezone
 from urllib import request as urlrequest
@@ -280,6 +283,81 @@ def verify_review_and_oidc_for_signed_task(
             "request_id": bound["request_id"],
             "operation_sha256": bound["operation_sha256"],
             "jwt_jti": jwt_verified["jti"]}
+
+
+def verify_owner_review_oidc_and_consume_once(
+        github_context, workflow_run, review_history, public_request,
+        signed_task, jwt, owner_public_pem, trusted_contracts, *,
+        request_path, revocation_dir, private_spent_dir, now=None):
+    """Preview-only atomic replay gate: owner approval + GitHub JWT + Ed25519.
+
+    Called ONLY by trusted server code that obtains review_history and
+    workflow_run directly from GitHub REST (never caller-supplied metadata),
+    derives trusted_contracts from pinned REA source and provisioned owner key,
+    and uses the GitHub issuer's pinned JWKS. This has NO connection to
+    active MCP and returns NO permission to execute tools.
+
+    A successful proof for a given request_id can be consumed once. Replays,
+    revoked owner scopes, unsafe private directories or invalid signatures
+    fail without rewriting any existing Evidence/Unknowns or grant files.
+    """
+    now = now or datetime.now(timezone.utc)
+    proof = verify_review_and_oidc_for_signed_task(
+        github_context, workflow_run, review_history, public_request,
+        signed_task, jwt, load_official_github_jwks(),
+        request_path=request_path, now=now)
+    from ops import rea_scoped_approval_20261026 as scoped
+    # Independent Ed25519 verification against source-pinned contract scope.
+    grant = scoped._verify_registration_contracts(
+        signed_task, owner_public_pem, trusted_contracts,
+        now=now, revocation_dir=revocation_dir)
+    if grant["project"] != "Engenharia Reversa":
+        raise GithubOIDCError("Unexpected owner-signed project")
+    # PREPROVISIONED server-private store: do not create a grant, nonce ledger,
+    # or review folder as a side effect of an untrusted request.
+    directory = scoped._check_private_grant_directory(private_spent_dir)
+    rid = proof["request_id"]   # Already strict 32-character lowercase hex.
+    if not gate.HEX32.fullmatch(rid):
+        raise GithubOIDCError("Invalid consumed approval identity")
+    record = {
+        "purpose": "REA_P311_SPENT_OWNER_OIDC_PREVIEW_V1",
+        "request_id": rid,
+        "run_id": proof["run_id"],
+        "grant_id": grant["grant_id"],
+        "operation_sha256": proof["operation_sha256"],
+        "oidc_jti_sha256": hashlib.sha256(
+            proof["jwt_jti"].encode("ascii")).hexdigest(),
+    }
+    marker = rid + ".spent"
+    raw = json.dumps(record, sort_keys=True,
+                     separators=(",", ":"), ensure_ascii=True).encode("ascii")
+    # Pin the directory inode and atomically create the marker; path traversal
+    # and symlink swaps are not able to redirect marker creation.
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    dirfd = os.open(directory, flags)
+    try:
+        meta = os.fstat(dirfd)
+        if (not stat.S_ISDIR(meta.st_mode) or
+                meta.st_uid != os.geteuid() or
+                stat.S_IMODE(meta.st_mode) != 0o700):
+            raise GithubOIDCError("Unsafe immutable owner review ledger")
+        try:
+            fd = os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_EXCL |
+                         os.O_NOFOLLOW, 0o600, dir_fd=dirfd)
+        except FileExistsError as exc:
+            raise GithubOIDCError("Owner button proof has already been used") from exc
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(raw)
+            stream.flush()
+            os.fsync(stream.fileno())
+    finally:
+        os.close(dirfd)
+    return {
+        "verified_spent_preview_only": True,
+        "request_id": rid,
+        "run_id": proof["run_id"],
+        "grant_id": grant["grant_id"],
+    }
 
 
 def _actions_audience_request_url(source_url, public_request):
