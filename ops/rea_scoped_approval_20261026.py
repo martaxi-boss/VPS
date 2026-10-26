@@ -113,6 +113,51 @@ def _validate_job_paths(artifact_root, arguments):
         raise ScopedApprovalError("Scoped execution requires a bound job artifact")
 
 
+def propose_task_tools(registry, audited_effects, schema_pins, *,
+                       schema_digest, classify_tool):
+    """Derive a conservative, reviewable tool list from the ACTUAL live MCP.
+
+    This is a proposal for the owner to sign, NOT an authorization. The user
+    describes the work; they do not need to name any tools. Schema drift,
+    missing audits, unknown effects and dangerous operations fail closed.
+    """
+    if not isinstance(registry, dict):
+        raise ScopedApprovalError("Missing live tool catalog")
+    selection = []
+    for name, descriptor in registry.items():
+        if (not isinstance(name, str) or not NAME.fullmatch(name) or
+                not isinstance(descriptor, dict) or name in NEVER_STANDING_TOOLS):
+            continue
+        flags = audited_effects.get(name)
+        expected_hash = schema_pins.get(name)
+        if (not isinstance(flags, frozenset) or
+                not flags or not flags.issubset(ALLOWED_EFFECTS) or
+                flags.intersection(FORBIDDEN_EFFECTS) or
+                not isinstance(expected_hash, str) or len(expected_hash) != 64):
+            continue
+        try:
+            if schema_digest(descriptor.get("inputSchema")) != expected_hash:
+                continue
+            hints = descriptor.get("annotations") or {}
+            if not isinstance(hints, dict) or any(
+                hints.get(key) is not expected for key, expected in {
+                    "readOnlyHint": not bool(flags),
+                    "destructiveHint": bool(flags.intersection({
+                        "mayDiscardData", "executesForeignCode", "mutatesDevice"})),
+                    "openWorldHint": bool(flags.intersection({
+                        "launchesProcess", "accessesNetwork"})),
+                }.items()
+            ):
+                continue
+            risk = classify_tool(name, descriptor)
+            if risk not in ("workspace", "sensitive"):
+                continue
+        except (ValueError, TypeError, KeyError):
+            continue
+        selection.append(name)
+    return sorted(selection)
+
+
 def verify_task_grant(grant, owner_signature_b64, owner_public_pem, *,
                       project, task_id, origin, artifact_root,
                       tool, audited_effects, current_risk, arguments, now=None):
