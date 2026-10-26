@@ -167,7 +167,7 @@ def validate(data):
                   "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
-    elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump", "fixture_linux_rea_680_doctor_detail"):
+    elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
         # Named system-owned ELF only; never an arbitrary caller-selected path.
         if set(data) != {"version", "action", "response_key"}:
             error("Ghidra inspection fixture accepts only a public reply key")
@@ -557,7 +557,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SDIAG_PID_ENV_READ",
         "REA_SDIAG_PID_ENV_SIZE",
         "REA_SDIAG_PID_PROVIDER_KEYS",
-        "REA_SDIAG_STATUS", "REA_U680_DOCTOR_DETAIL", "REA_U680_DOCTOR_EXIT"
+        "REA_SDIAG_STATUS"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -574,7 +574,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         if private is not None:
             error("Unexpected private response")
         return
-    if request["action"] not in ("call", "sealed_batch", "fixture_apkdemos", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump", "fixture_linux_rea_680_doctor_detail") or private is None:
+    if request["action"] not in ("call", "sealed_batch", "fixture_apkdemos", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump") or private is None:
         error("Missing encrypted-return payload from REA")
     public = serialization.load_der_public_key(
         base64.b64decode(request["response_key"], validate=True)
@@ -701,78 +701,6 @@ def main():
     print("REA_MOBILE_CATALOG_SAMPLE=" + json.dumps(
         list(tool_by_name)[:14], ensure_ascii=True
     ))
-    if data["action"] == "fixture_linux_rea_680_doctor_detail":
-        # P290 one-use read-only staged official doctor under the service identity.
-        # Results travel only in the existing RSA/AES encrypted response envelope.
-        if os.environ.get("REA_MOBILE_ENVELOPE_CAPTURE") != "1":
-            raise RuntimeError("Encrypted doctor response is required")
-        stage = Path("/opt/rea-reversa/upgrades/rea-6.8.0-160d821ac9a0")
-        if stage.is_symlink() or not (stage/"dist/mcp/main.js").is_file():
-            raise RuntimeError("Official staged release is absent")
-        manifest = json.loads((stage/"package.json").read_text())
-        if manifest.get("version") != "6.8.0":
-            raise RuntimeError("Unexpected staged release")
-        rev = subprocess.run(["git","rev-parse","HEAD"],cwd=stage,
-                             capture_output=True,text=True,timeout=15,check=False)
-        if rev.returncode or rev.stdout.strip() != "160d821ac9a0310afcb8d1fc427862dd6508add5":
-            raise RuntimeError("Unverified upstream release")
-        service="rea-reversa-mcp.service"
-        pid = subprocess.run(["systemctl","show",service,"-p","MainPID","--value"],
-                             capture_output=True,text=True,timeout=14,check=False).stdout.strip()
-        if not pid.isdecimal() or int(pid)<1:
-            raise RuntimeError("Original service must stay active")
-        found = subprocess.run(["sudo","-n","readlink","-f",f"/proc/{int(pid)}/exe"],
-                               capture_output=True,text=True,timeout=15,check=False)
-        node=found.stdout.strip()
-        if found.returncode or not node.endswith("/node"):
-            raise RuntimeError("Original service runtime not found")
-        raw = subprocess.run(["sudo","-n","cat",f"/proc/{int(pid)}/environ"],
-                             capture_output=True,timeout=14,check=False)
-        if raw.returncode or len(raw.stdout)>200000:
-            raise RuntimeError("Cannot read bounded original service environment")
-        keys={"PATH","JAVA_HOME","GHIDRA_INSTALL_DIR","REA_JADX_MCP_JAR",
-              "REA_JADX_HEAP_MIB","REA_JADX_ACTIVE_PROCESSOR_COUNT",
-              "REA_GDB_COMMAND","REA_BINWALK_COMMAND","REA_UNBLOB_COMMAND",
-              "REA_RIZIN_COMMAND","REA_KUNA_COMMAND","REA_KUNA_CACHE_DIR",
-              "REA_SIGROK_COMMAND","REA_TSHARK_COMMAND","REA_WABT_BIN_DIRECTORY",
-              "REA_PWNTOOLS_PYTHON","REA_WAKARU_COMMAND","REA_MITMDUMP_COMMAND",
-              "PLAYWRIGHT_BROWSERS_PATH","REA_MCP_INPUT_SCHEMA_PROFILE"}
-        environment={}
-        for item in raw.stdout.split(b"\x00"):
-            if b"=" in item:
-                k,v=item.split(b"=",1)
-                try:
-                    k=k.decode("utf8")
-                    if k in keys:
-                        environment[k]=v.decode("utf8")
-                except UnicodeDecodeError:
-                    pass
-        from pwd import getpwnam
-        environment["HOME"]=getpwnam("rea-reversa").pw_dir
-        environment["PATH"]=str(Path(node).parent)+":"+environment.get("PATH","/usr/bin:/bin")
-        params=[str(k)+"="+v for k,v in sorted(environment.items())]
-        command=["sudo","-n","-u","rea-reversa","env",*params,node,
-                 str(stage/"scripts/rea.mjs"),"doctor","--json"]
-        result=subprocess.run(command,cwd=stage,capture_output=True,text=True,
-                              timeout=145,check=False)
-        if result.returncode not in (0,1) or not 3<len(result.stdout)<250000:
-            raise RuntimeError("Staged official doctor failed to produce report")
-        report=json.loads(result.stdout)
-        if not isinstance(report,dict) or not {"checks","providerInspections","healthy"}.issubset(report):
-            raise RuntimeError("Unexpected official doctor report")
-        current=subprocess.run(["systemctl","show",service,"-p","MainPID","--value"],
-                               capture_output=True,text=True,timeout=15,check=False).stdout.strip()
-        if current!=pid:
-            raise RuntimeError("Running service changed during read-only doctor")
-        output=json.dumps({"release":"6.8.0","doctor_exit":result.returncode,
-                           "report":report,"service_pid_preserved":True},
-                          sort_keys=True,ensure_ascii=True).encode()
-        if len(output)>330000:
-            raise RuntimeError("Doctor report exceeds encrypted response cap")
-        print("REA_U680_DOCTOR_DETAIL=ENCRYPTED_READ_ONLY")
-        print("REA_U680_DOCTOR_EXIT="+str(result.returncode))
-        print("REA_MOBILE_PRIVATE_RESULT_B64="+base64.b64encode(output).decode())
-        return
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
               secure.request_public_key_b64(create=True))
