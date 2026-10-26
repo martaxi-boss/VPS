@@ -130,3 +130,23 @@ real sensivel permanecem pendentes. O REA original nao foi modificado.
 **Nao concluido:** a autorizacao pelo botao autenticado do ChatGPT/GitHub ainda nao foi implementada. O `sim` do helper e dado no dispositivo do proprietario, nao no chat. A delegacao experimental dura no maximo sete dias, nao e uma permissao permanente. A flag de producao continua DESLIGADA e nao foi registado um grant do proprietario real.
 
 Higienizacao: nenhum pedido temporario novo publicado, nenhuma chave privada copiada, nenhum motor original alterado, nenhum deploy ou service restart. PR #305 continua DRAFT, ramo ativo em `2f5573be27302f22aca5b9b3e20d78244f3ad0dc`.
+
+## P311 continuacao: autorizacao por referencia privada, 96 testes (26/10/2026)
+
+- **96/96 PASS** no CI exclusivamente offline: https://github.com/martaxi-boss/VPS/actions/runs/40380482852
+- `propose_p311_task_from_live_catalog`: aceita apenas o conjunto completo 208/229 de ferramentas MCP source-attested e schemas SHA-pinned. Contratos desconhecidos, ausentes, alterados ou manipulados nao produzem propostas de concessao.
+- `validate_inner` recusa um `scoped_task` presente mas nunca usado/verificado. Misturar validamente uma aprovacao tradicional com uma concessao assinada na mesma tarefa continua possivel.
+- Registro experimental: o proprietario assina UMA vez, o codigo de VPS valida todos os efeitos de ferramenta contra o catalogo original e grava apenas o grant assinado em `approved-p311-tasks/<32hex>.json` no diretorio privado, modo `0700/0600`, criacao exclusiva sem overwrite.
+- Em pedidos cifrados posteriores, `scoped_task_id` referencia essa concessao; cada pedido revalida Ed25519, projeto, tarefa, root, efeitos auditados, validade e registo de revogacao. Um ID sozinho nunca e comprovativo de autorizacao.
+- Os testes 208 e simulacoes do contrato 229 incluem reutilizacao multi-pedido, revogacao, symlinks, permissao insegura, adulteracao, falta de registo, grants expirados e ausencia da flag opt-in.
+- Nenhum grant real foi registado na VPS; nenhum comando MCP sensivel real foi executado durante estes testes. A producao continua na politica antiga.
+
+### Proxima porta de autenticacao simples
+
+GitHub Actions suporta `Environments` com `Required reviewers` e botoes `Review deployments` / `Approve and deploy` no GitHub autenticado. Este repositorio e publico, portanto o recurso e elegivel segundo a documentacao oficial: https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments e https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/review-deployments
+
+Mas um botao ilustrativo no ChatGPT nao fornece uma assinatura criptografica para a VPS. Uma `environment` sem revisores configurados no GitHub nao e um gate! Nao acrescentar `environment:` ao workflow de producao ate haver revisores explicitamente configurados, impedimento de bypass e uma verificacao no servidor que ligue a aprovacao ao hash do pedido concreto e ao projeto.
+
+A integracao de botoes continua nao concluida. A assinatura unica com a chave privada do Android e o unico procedimento Ed25519 real disponivel nesta fase. Nem o GitHub nem a VPS receberam a chave privada.
+
+Higienizacao: PR #305 ainda draft sem merge. Nenhum novo ficheiro de pedido consumivel foi introduzido nesta continuacao, a pasta temporaria de teste e exclusiva ao CI, os runs e provas foram preservados. Nao tocar Evidence, Unknowns ou certificados.
