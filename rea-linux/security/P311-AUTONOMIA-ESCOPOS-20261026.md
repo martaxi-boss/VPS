@@ -229,3 +229,23 @@ O conector GitHub disponivel nesta sessao nao tem operacoes de administracao de 
 ### Higienizacao
 
 O PR #305 permanece DRAFT no ramo de revisao. Nao foi publicado qualquer novo pedido de aprovacao, token, chave ou grant. O ultimo pedido publico demonstrativo ja tinha sido eliminado e a prova do Actions ficou preservada. Evitar novos ensaios reais do botao ate que a integracao OIDC + grant Ed25519 esteja testada e estritamente circunscrita.
+
+## P311 - verificacao real OIDC no proximo review, 163 testes offline
+
+- **CI P311 163/163 PASS** no run https://github.com/martaxi-boss/VPS/actions/runs/40393431413. Prova somente offline, sem uso do motor ou da VPS nesta execucao.
+- Foi preparada, no `rea-p311-owner-review-preview-20261026.yml`, a obtencao de um token OIDC GitHub autenticado **apenas depois** do botao num ambiente protegido. `id-token: write` esta no job protegido, nao no workflow todo; nao inclui SSH, acesso ao REA, chamada MCP, chave privada, grant ou permissao de escrita no repositorio.
+- A verificacao real via CLI `python -m ops.rea_p311_github_oidc_20261026` confere via REST HTTPS a aprovacao explicita do owner, confere `run_id`, commit SHA, branch, workflow, reviewer/ambiente, pede um token OIDC com AUDIENCE especifica por `request_id` + digest, valida JWT RSA RS256 com JWKS do emissor oficial e NAO imprime nem armazena token ou bearer em logs.
+- O URL para solicitar identidade aceita somente endpoints oficiais `https://pipelines*.actions.githubusercontent.com/.../idtoken?api-version=2.0`, sem redirecionamento, host alternativo, porta arbitraria, audiência preexistente ou credencial em URL. A versao Python de `cryptography` do venv do runner foi fixada em 46.0.3 para reduzir alteracoes externas.
+- O helper de replay `verify_owner_review_oidc_and_consume_once` so funciona apos validar JUNTAMENTE GitHub review + JWT do GitHub + concessao Ed25519 com os efeitos de ferramentas fonte-auditados + revogacao. Regista o `request_id` **uma unica vez** num diretorio privado PRE-provisionado (0700) com marcador de criacao atomica (0600) e O_EXCL/O_NOFOLLOW; nao grava o JWT nem a assinatura do owner.
+- Testes cobrem JWT forjado ou expirado, reviewer diferente, origem OIDC externa, consentimento de outro projeto, assinatura Ed25519 errada, revogacao, diretorio em falta/symlink/modo inseguro, replay de pedido e ausencia de leaks em recibos.
+
+### Separar claramente prova de teste, consentimento e producao
+
+- O clique **real** do owner continua comprovado no run https://github.com/martaxi-boss/VPS/actions/runs/40385975218. O OIDC **real** ainda nao foi emitido nem testado: a nova etapa OIDC de runner so correra com uma **futura** revisao autorizada pelo dono num novo pedido, nao podendo obter prova retroativa do run anterior.
+- Mesmo quando o OIDC de runner passar num futuro review, **nao substitui** a assinatura Ed25519 para autorizar ferramentas sensiveis; o owner assina uma concessao delimitada uma vez por tarefa na configuracao atual.
+- Nao foi criado novo pedido de GitHub review; nenhum novo clique foi pedido nesta continuacao. PR #305 continua DRAFT, o motor original 6.8.0 intacto, o ramo ativo sem deploy nem restart, e `REA_P311_SCOPED_TASKS` DESLIGADO.
+- A marcacao como consumido foi apenas ensaiada em ficheiros temporarios do Actions: ainda nao esta ligada a autorizacao de tools/call nem a persistencia real da VPS.
+
+### Proxima integracao
+
+Para ativar esta protecao na VPS e necessario emitir autorizacao REAL limitada e validada do proprietario, completar leitura autenticada do review/JWT pelo servidor e reconciliar o replay ledger com registro de grants sob revisao e rollback. Nao transformar o sucesso do preview num falso `approved=true`.
