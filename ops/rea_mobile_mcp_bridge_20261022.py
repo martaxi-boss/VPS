@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_rea_680_preflight", "fixture_linux_rea_680_stage", "fixture_linux_rea_680_npm_diagnose", "fixture_linux_rea_680_resume_build", "fixture_linux_rea_680_rehearse", "fixture_linux_rea_680_contract_delta"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_rea_680_preflight", "fixture_linux_rea_680_stage", "fixture_linux_rea_680_npm_diagnose", "fixture_linux_rea_680_resume_build", "fixture_linux_rea_680_rehearse", "fixture_linux_rea_680_contract_delta", "fixture_linux_rea_680_prepare_restore"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -311,7 +311,8 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_U680_DIAG_STATUS",
         "REA_U680_RESUME_STATUS","REA_U680_RESUME_BACKUP",
         "REA_U680_REHEARSAL_STATE",
-        "REA_U680_DELTA_STATE", "REA_U680_DELTA_OLD_COUNT", "REA_U680_DELTA_NEW_COUNT", "REA_U680_DELTA_ADDED", "REA_U680_DELTA_REMOVED", "REA_U680_DELTA_CHANGED_EFFECTS", "REA_U680_DELTA_EFFECT_NAMES", "REA_U680_DELTA_MUTATING_COUNT", "REA_U680_DELTA_IMPORTANCE", "REA_U680_REHEARSAL_CATALOG_COUNT", "REA_U680_REHEARSAL_CATALOG_NAMES", "REA_U680_REHEARSAL_BACKUP_RESPONSE_FIELDS", "REA_U680_REHEARSAL_ARCHIVE_PARSE", "REA_U680_REHEARSAL_ARCHIVE_RECORD_COUNT", "REA_U680_REHEARSAL_ARCHIVE_UNKNOWN_COUNT", "REA_U680_REHEARSAL_IMPORT_RESULT", "REA_U680_REHEARSAL_POST_RECORD_COUNT", "REA_U680_REHEARSAL_POST_UNKNOWN_COUNT",
+        "REA_U680_DELTA_STATE",
+        "REA_U680_RESTORE_STATUS", "REA_U680_RESTORE_FILE", "REA_U680_RESTORE_FILE_BYTES", "REA_U680_RESTORE_SHA256", "REA_U680_RESTORE_RECORD_COUNT", "REA_U680_RESTORE_UNKNOWN_COUNT", "REA_U680_RESTORE_ARGS_SHA256", "REA_U680_DELTA_OLD_COUNT", "REA_U680_DELTA_NEW_COUNT", "REA_U680_DELTA_ADDED", "REA_U680_DELTA_REMOVED", "REA_U680_DELTA_CHANGED_EFFECTS", "REA_U680_DELTA_EFFECT_NAMES", "REA_U680_DELTA_MUTATING_COUNT", "REA_U680_DELTA_IMPORTANCE", "REA_U680_REHEARSAL_CATALOG_COUNT", "REA_U680_REHEARSAL_CATALOG_NAMES", "REA_U680_REHEARSAL_BACKUP_RESPONSE_FIELDS", "REA_U680_REHEARSAL_ARCHIVE_PARSE", "REA_U680_REHEARSAL_ARCHIVE_RECORD_COUNT", "REA_U680_REHEARSAL_ARCHIVE_UNKNOWN_COUNT", "REA_U680_REHEARSAL_IMPORT_RESULT", "REA_U680_REHEARSAL_POST_RECORD_COUNT", "REA_U680_REHEARSAL_POST_UNKNOWN_COUNT",
         "REA_U680_RESUME_SELECTED_NODE","REA_U680_RESUME_NODE_ENV",
         "REA_U680_RESUME_NPM_CI_EXIT","REA_U680_RESUME_OFFICIAL_BUILD_EXIT",
         "REA_U680_RESUME_CLI",
@@ -2861,6 +2862,121 @@ def main():
         print("REA_U680_DELTA_MUTATING_COUNT="+str(len(mutators)))
         print("REA_U680_DELTA_IMPORTANCE="+("SCHEMA_REVIEW_REQUIRED" if added or removed or drift else "NO_EFFECT_DELTA"))
         print("REA_U680_DELTA_STATE=PASS_READ_ONLY")
+        return
+    if data["action"] == "fixture_linux_rea_680_prepare_restore":
+        # Prepare original REA's own import_evidence_bundle JSON in staging,
+        # privately and read-only to the service identity. No restart/import.
+        import pwd
+        import stat
+        import tempfile
+        stage=Path("/opt/rea-reversa/upgrades/rea-6.8.0-160d821ac9a0")
+        commit="160d821ac9a0310afcb8d1fc427862dd6508add5"
+        sha="baa448b25c2f1f2a5c76589b0a1eb4f586e20d733335eef76a9f5ed29f76b936"
+        archive=Path.home()/".local/share/rea-chatgpt-trial/upgrade-backups/rea-6.7.0-retained-evidence-before-6.8.0-20261026.json"
+        service="rea-reversa-mcp.service"
+        installpath=stage/".rea-migration/evidence-restore.json"
+        eventual=Path("/opt/rea-reversa/rea/.rea-migration/evidence-restore.json")
+        if (not stage.is_dir() or stage.is_symlink() or
+             not archive.is_file() or archive.is_symlink() or
+             hashlib.sha256(archive.read_bytes()).hexdigest()!=sha):
+            print("REA_U680_RESTORE_STATUS=BLOCKED_SOURCE_IDENTITY")
+            return
+        h=subprocess.run(["git","rev-parse","HEAD"],cwd=stage,
+              capture_output=True,text=True,timeout=15,check=False)
+        if h.returncode or h.stdout.strip()!=commit:
+            print("REA_U680_RESTORE_STATUS=BLOCKED_UPSTREAM_IDENTITY")
+            return
+        if subprocess.run(["systemctl","is-active","--quiet",service],
+           timeout=14,check=False).returncode:
+            print("REA_U680_RESTORE_STATUS=BLOCKED_SERVICE_NOT_RUNNING")
+            return
+        evidence=json.loads(archive.read_text())
+        root=evidence.get("calls",{}).get("get_evidence_bundle",{}).get("response",{})
+        def locate(obj,depth=0):
+            if depth>8:
+                return None
+            if isinstance(obj,dict):
+                if isinstance(obj.get("records"),list) and isinstance(obj.get("unknowns"),list):
+                    return obj
+                for value in obj.values():
+                    if isinstance(value,str) and value.lstrip().startswith("{") and len(value)<4500000:
+                        try:
+                            found=locate(json.loads(value),depth+1)
+                            if found is not None:
+                                return found
+                        except ValueError:
+                            pass
+                    elif isinstance(value,(dict,list)):
+                        found=locate(value,depth+1)
+                        if found is not None:
+                            return found
+            if isinstance(obj,list):
+                for value in obj[:30]:
+                    found=locate(value,depth+1)
+                    if found is not None:
+                        return found
+            return None
+        bundle=locate(root)
+        if not bundle or len(bundle["records"])!=16 or len(bundle["unknowns"])!=1:
+            print("REA_U680_RESTORE_STATUS=BLOCKED_UNVERIFIED_COUNTS")
+            return
+        encoded=json.dumps(bundle,sort_keys=True,separators=(",",":"),
+                           ensure_ascii=True).encode("utf8")+b"\n"
+        if not 1000<len(encoded)<2400000:
+            print("REA_U680_RESTORE_STATUS=BLOCKED_BUNDLE_BYTES")
+            return
+        digest=hashlib.sha256(encoded).hexdigest()
+        group=pwd.getpwnam("rea-reversa")
+        migration_dir=installpath.parent
+        if migration_dir.is_symlink() or installpath.is_symlink():
+            print("REA_U680_RESTORE_STATUS=BLOCKED_MIGRATION_SYMLINK")
+            return
+        def rootcmd(*args):
+            p=subprocess.run(["sudo","-n",*map(str,args)],capture_output=True,
+                   timeout=40,check=False)
+            if p.returncode:
+                raise RuntimeError("Private restore-file setup could not be verified")
+        try:
+            if migration_dir.exists():
+                if not migration_dir.is_dir():
+                    raise RuntimeError("Private migration directory collision")
+            else:
+                rootcmd("install","-d","-m","0700","-o",str(group.pw_uid),
+                    "-g",str(group.pw_gid),migration_dir)
+            if installpath.exists():
+                known=subprocess.run(["sudo","-n","sha256sum",installpath],
+                   capture_output=True,text=True,timeout=15,check=False)
+                if known.returncode or not known.stdout.startswith(digest+" "):
+                    raise RuntimeError("Existing protected migration archive mismatch")
+                print("REA_U680_RESTORE_FILE=ALREADY_VERIFIED")
+            else:
+                tmp=Path(tempfile.mkstemp(prefix="rea-release680-private-",dir=str(Path.home()))[1])
+                try:
+                    tmp.chmod(0o600)
+                    tmp.write_bytes(encoded)
+                    rootcmd("install","-m","0400","-o",str(group.pw_uid),
+                            "-g",str(group.pw_gid),tmp,installpath)
+                finally:
+                    tmp.unlink(missing_ok=True)
+                verified=subprocess.run(["sudo","-n","sha256sum",installpath],
+                    capture_output=True,text=True,timeout=20,check=False)
+                if verified.returncode or not verified.stdout.startswith(digest+" "):
+                    raise RuntimeError("Installed restore bundle readback mismatch")
+                print("REA_U680_RESTORE_FILE=WRITTEN_VERIFIED")
+            readable=subprocess.run(["sudo","-n","-u","rea-reversa",
+                     "sha256sum",installpath],capture_output=True,text=True,
+                     timeout=20,check=False)
+            if readable.returncode or not readable.stdout.startswith(digest+" "):
+                raise RuntimeError("New service identity cannot access archive")
+            print("REA_U680_RESTORE_FILE_BYTES="+str(len(encoded)))
+            print("REA_U680_RESTORE_SHA256="+digest)
+            print("REA_U680_RESTORE_RECORD_COUNT="+str(len(bundle["records"])))
+            print("REA_U680_RESTORE_UNKNOWN_COUNT="+str(len(bundle["unknowns"])))
+            print("REA_U680_RESTORE_ARGS_SHA256="+secure.arguments_sha256(
+              {"path":str(eventual)}))
+            print("REA_U680_RESTORE_STATUS=PASS_STAGED_FOR_OWNER_SIGNED_IMPORT")
+        except (OSError,ValueError,RuntimeError,subprocess.TimeoutExpired) as exc:
+            print("REA_U680_RESTORE_STATUS=BLOCKED_"+type(exc).__name__)
         return
     if data["action"] == "fixture_linux_install_inventory":
         # Audit original Linux REA installation; no installation, no restart.
