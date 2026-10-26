@@ -2214,7 +2214,7 @@ def main():
         import re as regex
         pkgs=("gdb","radare2","binwalk","tshark","adb","apktool",
               "sigrok-cli","python3-venv","python3-pip",
-              "llvm","unzip","p7zip-full")
+              "llvm","unzip","p7zip-full","libfuse2t64")
         if not Path("/opt/rea-reversa/rea/package.json").is_file():
             error("Original REA engine missing; refuse installation")
         if subprocess.run(["systemctl","is-active","--quiet","rea-reversa-mcp.service"],
@@ -2284,7 +2284,7 @@ def main():
         import re as regex
         approved=("gdb","radare2","binwalk","tshark","adb","apktool",
                   "sigrok-cli","python3-venv","python3-pip",
-                  "llvm","unzip","p7zip-full")
+                  "llvm","unzip","p7zip-full","libfuse2t64")
         available=[]
         unavailable=[]
         for name in approved:
