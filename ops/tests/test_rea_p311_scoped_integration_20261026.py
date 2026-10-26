@@ -26,6 +26,9 @@ class P311SealedTaskAdmissionTests(unittest.TestCase):
         verifier = secure._private_directory() / "owner-approval-public.pem"
         verifier.write_bytes(pub)
         verifier.chmod(0o600)
+        # A grant MUST NOT become active unless its revocation registry exists.
+        self.revocation_registry = secure._private_directory() / "revoked-p311-grants"
+        self.revocation_registry.mkdir(mode=0o700)
         self.job_root = "/opt/rea-reversa/rea/.rea-private/jobs/p311-readonly-analysis"
         self.registry = {}
         for name in ("list_unknowns", "inspect_with_objdump",
@@ -196,7 +199,7 @@ class P311SealedTaskAdmissionTests(unittest.TestCase):
 
     def test_revocation_marker_blocks_future_scoped_batches(self):
         directory = secure._private_directory() / "revoked-p311-grants"
-        directory.mkdir(mode=0o700)
+        self.assertEqual(directory, self.revocation_registry)
         marker = directory / (self.grant["grant_id"] + ".revoked")
         with mock.patch.dict(os.environ, {"REA_P311_SCOPED_TASKS": "enabled"}):
             self.assertEqual(["workspace", "sensitive"], self._validate())
