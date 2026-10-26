@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "phase": "REA_LINUX_ORIGINAL_EXTERNAL_DEPENDENCIES_20261026",
+  "project": "Engenharia Reversa — REA",
+  "platform": "Ubuntu 24.04 Linux x86_64",
+  "source": {
+    "upstream_repo": "morluto/rea",
+    "upstream_main_version_observed": "6.8.0",
+    "installed_owner_source_repo": "martaxi-boss/Engenheira-reversa",
+    "installed_source_version": "6.7.0",
+    "installed_original_path": "/opt/rea-reversa/rea",
+    "mcp_tools": 208,
+    "engine_updated": false
+  },
+  "original_service": {
+    "name": "rea-reversa-mcp.service",
+    "local_mcp": "127.0.0.1:8765/mcp",
+    "restarted_during_install": false,
+    "active_after_apt": true,
+    "owner_ed25519_rules_untouched": true,
+    "source_unchanged": true
+  },
+  "apt": {
+    "new_system_packages": 20,
+    "preflight_run": 40252838506,
+    "simulation_run": 40253079065,
+    "installation_run": 40253151195,
+    "result": "PASS_INSTALLED",
+    "package_manager_plan": "--no-install-recommends --no-remove --no-upgrade",
+    "examples": [
+      "gdb-multiarch",
+      "xvfb",
+      "libgbm1",
+      "libegl1",
+      "libgl1",
+      "Mesa graphics libraries"
+    ],
+    "removals_planned": 0
+  },
+  "new_external_suppliers": [
+    {
+      "name": "Wakaru",
+      "version": "1.14.0",
+      "installed_path": "/opt/rea-reversa/providers/wakaru-1.14.0/bin/wakaru",
+      "status": "INSTALLED_VERIFIED"
+    },
+    {
+      "name": "Cutter",
+      "version": "2.5.0",
+      "installed_path": "/opt/rea-reversa/providers/cutter-2.5.0/bin/Cutter-v2.5.0-Linux-Qt5-x86_64.AppImage",
+      "status": "FILE_INSTALLED_VERIFIED_GUI_BRIDGE_NOT_PROVED"
+    },
+    {
+      "name": "mitmdump/mitmproxy",
+      "version": "12.2.3",
+      "installed_path": "/opt/rea-reversa/providers/mitmproxy-12.2.3/bin/mitmdump",
+      "status": "INSTALLED_VERSION_VERIFIED_AFTER_REBOUND_8_ENTRYPOINTS"
+    },
+    {
+      "name": "Chromium",
+      "version": "original Playwright-core 1.58.2 pinned browser",
+      "installed_root": "/opt/rea-reversa/providers/chromium-playwright-1.58.2",
+      "status": "INSTALLED_EXECUTABLE_VERIFIED_CDP_TARGET_NOT_STARTED"
+    }
+  ],
+  "proof": {
+    "vendor_install_run": 40253384991,
+    "independent_inventory_run": 40253582629,
+    "environment_prepare_run": 40253738193,
+    "mitmdump_repair_run": 40253886052
+  },
+  "integration": {
+    "dropin": "/etc/systemd/system/rea-reversa-mcp.service.d/99-rea-optional-vendors.conf",
+    "keys": [
+      "REA_WAKARU_COMMAND",
+      "REA_MITMDUMP_COMMAND",
+      "PLAYWRIGHT_BROWSERS_PATH"
+    ],
+    "status": "PREPARED_NO_SERVICE_RESTART",
+    "warning": "Environment keys are staged for a future service start; the currently running MCP has not been restarted or shown to have adopted them."
+  },
+  "preexisting_reused": [
+    "Ghidra",
+    "JADX",
+    "Kuna",
+    "Rizin",
+    "GNU GDB",
+    "Binwalk 3.1.0",
+    "Unblob 26.6.4",
+    "ADB",
+    "Apktool",
+    "TShark",
+    "Sigrok offline",
+    "WABT",
+    "pwntools on original certified path",
+    "Node 24",
+    "Java",
+    "Frida optional Node binding local discovery"
+  ],
+  "remaining_external_requirements": [
+    {
+      "component": "IDA provider",
+      "state": "UNCONFIGURED_LICENSE_OR_PROPRIETARY_PROVIDER"
+    },
+    {
+      "component": "Hopper",
+      "state": "NOT_VERIFIED_INSTALLED_LICENSE_OR_DEMO_CONFIGURATION_REQUIRED"
+    },
+    {
+      "component": "JEB",
+      "state": "NOT_VERIFIED_RUNNING_VENDOR_EULA_LICENSE_AND_OWN_MCP_REQUIRED"
+    },
+    {
+      "component": "Cutter v2 GUI bridge",
+      "state": "APPLICATION_INSTALLED_NATIVE_UI_AND_AUTHENTICATED_V2_PLUGIN_SESSION_NOT_PROVED"
+    },
+    {
+      "component": "Browser CDP",
+      "state": "CHROMIUM_INSTALLED_NO_AUTHORIZED_ACTIVE_CDP_SESSION"
+    },
+    {
+      "component": "Apple specific tools",
+      "state": "REQUIRES_MACOS_FOR_NATIVE_CAPABILITIES"
+    },
+    {
+      "component": "Frida device/process",
+      "state": "NODE_BINDING_DISCOVERY_PREVIOUSLY_VERIFIED_BUT_NO_LIVE_USER_OWNED_TARGET"
+    },
+    {
+      "component": "Sigrok USB hardware",
+      "state": "OFFLINE_DECODERS_VERIFIED_USB_SANDBOX_LIMITATION_UNRESOLVED"
+    }
+  ],
+  "certification": {
+    "canonical_as_of": "P285",
+    "fully_certified": 125,
+    "still_pending": 83,
+    "changed_by_dependency_install": false
+  },
+  "hygiene": {
+    "temporary_install_requests_removed": true,
+    "bridge_exact_original_blob_sha": "e2405473eaff646be5952b785b57f41f906354b6",
+    "no_new_plugins_mcp_servers_skills": true,
+    "no_owner_private_key_accessed": true,
+    "no_other_project_changes_intended": true,
+    "prior_evidence_unknowns_not_cleared_or_rewritten": true,
+    "full_runtime_208_tool_positive_testing_not_performed": true
+  }
+}
