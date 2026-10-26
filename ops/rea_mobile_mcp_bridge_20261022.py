@@ -945,7 +945,12 @@ except Exception as e:
             return
         link=Path(pwd.getpwnam(user).pw_dir)/".local/share/rizin/cutter/plugins/python/rea_bridge.py"
         source=base/"bridge/cutter/rea_bridge.py"
-        if not link.is_symlink() or link.resolve()!=source.resolve():
+        valid_link=sp.run(["sudo","-n","-u",user,"test","-L",str(link)],
+                          capture_output=True,timeout=10,check=False)
+        pointed=sp.run(["sudo","-n","-u",user,"readlink","-f",str(link)],
+                       capture_output=True,text=True,timeout=10,check=False)
+        if (valid_link.returncode!=0 or pointed.returncode!=0
+            or pointed.stdout.strip()!=str(source)):
             print("REA_P302_STATUS=BLOCKED_PLUGIN_LINK")
             return
         for needed in (str(app),"/usr/bin/xvfb-run"):
