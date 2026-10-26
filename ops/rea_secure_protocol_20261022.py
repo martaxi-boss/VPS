@@ -783,12 +783,72 @@ def effect_category(name):
     return "read"
 
 
-def classify(name, descriptor, safe_callable):
+RELEASE_680_MANIFEST_SHA256 = (
+    "4aca2ddc92fc2d7dfc99a5097d5bf60cff0098d1c4ef64243117587fdfb8b713"
+)
+RELEASE_680_MANIFEST_PATH = (
+    Path.home() / ".local/share/rea-chatgpt-trial/upgrade-backups/"
+    "rea-6.8.0-mcp-contract-manifest.json"
+)
+REVIEWED_680_SCOPED_SETTINGS = frozenset({"update_analysis_settings"})
+
+
+def _release680_verified_policy(registry):
+    """The exact new release policy comes only from SHA-pinned official source.
+
+    Original 208-tool requests remain on the proven original policy. New
+    229-tool requests fail closed if the private independently checked source
+    manifest is missing, tampered with, or has drifted from live tools/list.
+    """
+    if len(registry) != 229:
+        return None
+    path = RELEASE_680_MANIFEST_PATH
+    if path.is_symlink() or not path.is_file():
+        raise SecureBridgeError("Official REA 6.8.0 policy manifest missing")
+    state = path.stat()
+    if state.st_uid != os.geteuid() or stat.S_IMODE(state.st_mode) & 0o077:
+        raise SecureBridgeError("Official release manifest permissions unsafe")
+    blob = path.read_bytes()
+    if (len(blob) > 140000 or
+            hashlib.sha256(blob).hexdigest() != RELEASE_680_MANIFEST_SHA256):
+        raise SecureBridgeError("Official release tool metadata SHA mismatch")
+    manifest = json.loads(blob)
+    if (manifest.get("release") != "rea-agents-6.8.0"
+            or manifest.get("commit") != "160d821ac9a0310afcb8d1fc427862dd6508add5"
+            or manifest.get("tree") != "15e6fec513dcce08cefdbcf441200986397e2793"):
+        raise SecureBridgeError("Unexpected REA 6.8.0 release identity")
+    catalogue = manifest.get("tools")
+    if not isinstance(catalogue, dict) or set(catalogue) != set(registry):
+        raise SecureBridgeError("Unexpected REA 6.8.0 live tool inventory")
+    allowed_effects = frozenset((
+        "mutatesTarget", "mutatesSession", "writesFilesystem",
+        "launchesProcess", "accessesNetwork", "changesUiState",
+        "mayDiscardData", "executesForeignCode", "mutatesDevice",
+    ))
+    flags = {}
+    schemas = {}
+    for name, data in catalogue.items():
+        effects = data.get("effects")
+        digest = data.get("input_schema_sha256")
+        if (not isinstance(effects, list) or
+                any(not isinstance(e, str) or e not in allowed_effects
+                    for e in effects) or
+                not isinstance(digest, str) or
+                not re.fullmatch(r"[0-9a-f]{64}", digest)):
+            raise SecureBridgeError("Invalid source-attested tool policy")
+        flags[name] = frozenset(effects)
+        schemas[name] = digest
+    return flags, schemas
+
+
+def classify(name, descriptor, safe_callable, verified_policy=None):
     """Use the explicit canonical effects audit, never catalog hints as grants."""
     annotations = descriptor.get("annotations") or {}
-    flags = AUDITED_EFFECTS.get(name)
+    audit_effects = AUDITED_EFFECTS if verified_policy is None else verified_policy[0]
+    audit_schemas = AUDITED_SCHEMA_SHA256 if verified_policy is None else verified_policy[1]
+    flags = audit_effects.get(name)
     if (flags is None or annotations.get("destructiveHint") is True or
-            arguments_sha256(descriptor.get("inputSchema")) != AUDITED_SCHEMA_SHA256.get(name)):
+            arguments_sha256(descriptor.get("inputSchema")) != audit_schemas.get(name)):
         return "sensitive"
     expected_hints = {
         "readOnlyHint": not bool(flags),
@@ -804,7 +864,8 @@ def classify(name, descriptor, safe_callable):
     # These individually reviewed, schema-bound commands are permitted only
     # as workspace calls, NEVER unauthenticated reads. This also prevents an
     # accidental network/process-only flag from requiring an Ed25519 signature.
-    if name in REVIEWED_SCOPED_WORKSPACE_OPERATIONS:
+    if (name in REVIEWED_SCOPED_WORKSPACE_OPERATIONS or
+            (verified_policy is not None and name in REVIEWED_680_SCOPED_SETTINGS)):
         return "workspace"
     if name in HIGH_RISK_NAMES or any(name.startswith(p) for p in HIGH_RISK_PREFIXES):
         return "sensitive"
@@ -912,6 +973,7 @@ def validate_inner(body, registry, safe_callable, now=None):
     steps = body["steps"]
     if not isinstance(steps, list) or not 1 <= len(steps) <= MAX_STEPS:
         raise SecureBridgeError("Invalid secure step count")
+    verified_policy = _release680_verified_policy(registry)
     profiles = []
     opened_in_request = False
     for position, step in enumerate(steps):
@@ -925,7 +987,7 @@ def validate_inner(body, registry, safe_callable, now=None):
         if not isinstance(args, dict) or len(canonical_json(args)) > 400000:
             raise SecureBridgeError("Invalid MCP argument object")
         validate_arguments(registry[name], args)
-        risk = classify(name, registry[name], safe_callable)
+        risk = classify(name, registry[name], safe_callable, verified_policy)
         _authorized_target_paths(args)
         if name in REVIEWED_SESSION_READ_TOOLS:
             if not opened_in_request:
