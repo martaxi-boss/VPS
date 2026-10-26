@@ -97,6 +97,62 @@ class ScopedTaskAuthorizationTests(unittest.TestCase):
             with self.subTest(tool=name):
                 self.assertNotIn(name, selected)
 
+    def _unsigned_auto_proposal(self, requested):
+        from ops import rea_secure_protocol_20261022 as secure
+        registry, pins, _ = self._reviewable_mcp_catalog()
+        source = secure.AUDITED_EFFECTS
+        classifier = lambda n, d: ("read" if not source.get(n) else
+                                   "sensitive" if n in ("install_adb_package",
+                                                        "recover_javascript_sources") else
+                                   "workspace")
+        return a.prepare_unsigned_task_grant(
+            self.grant["project"], self.grant["task_id"],
+            self.grant["artifact_root"], registry, source, pins,
+            chosen_tools=requested,
+            schema_digest=secure.arguments_sha256, classify_tool=classifier,
+            now=self.params["now"], lifetime_seconds=3600,
+            grant_id="a" * 32)
+
+    def test_task_proposal_selects_needed_tools_automatically(self):
+        proposal = self._unsigned_auto_proposal([
+            "inspect_with_objdump", "recover_javascript_sources"])
+        self.assertEqual(["inspect_with_objdump", "recover_javascript_sources"],
+                         proposal["allowed_tools"])
+        self.assertEqual(self.grant["project"], proposal["project"])
+        self.assertEqual(["launchesProcess", "mutatesSession", "writesFilesystem"],
+                         proposal["permitted_effects"])
+        self.assertTrue(self.check(grant=proposal, sig=self.signed(proposal)))
+
+    def test_task_proposal_rejects_unpinned_and_dangerous_tools(self):
+        for chosen in (["undeclared_plugin"], ["install_adb_package"],
+                       ["inspect_web_page"], ["close_binary"],
+                       ["list_unknowns"], ["unknown_tool"],
+                       ["inspect_with_objdump", "inspect_with_objdump"]):
+            with self.subTest(chosen=chosen), self.assertRaises(a.ScopedApprovalError):
+                self._unsigned_auto_proposal(chosen)
+
+    def test_task_proposal_rejects_long_lived_or_nonjob_root(self):
+        from ops import rea_secure_protocol_20261022 as secure
+        registry, pins, _ = self._reviewable_mcp_catalog()
+        source = secure.AUDITED_EFFECTS
+        kw = {
+            "chosen_tools": ["inspect_with_objdump"],
+            "schema_digest": secure.arguments_sha256,
+            "classify_tool": lambda n, d: "workspace",
+            "now": self.params["now"],
+        }
+        for root in ("/etc", "/opt/rea-reversa/rea",
+                     "/opt/rea-reversa/rea/.rea-private/jobs"):
+            with self.subTest(root=root), self.assertRaises(a.ScopedApprovalError):
+                a.prepare_unsigned_task_grant(
+                    self.grant["project"], self.grant["task_id"], root,
+                    registry, source, pins, **kw)
+        with self.assertRaises(a.ScopedApprovalError):
+            a.prepare_unsigned_task_grant(
+                self.grant["project"], self.grant["task_id"],
+                self.grant["artifact_root"], registry, source, pins,
+                lifetime_seconds=8 * 24 * 3600, **kw)
+
     def test_valid_scoped_signed_analysis(self):
         self.assertTrue(self.check())
 
