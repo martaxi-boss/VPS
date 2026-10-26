@@ -224,9 +224,9 @@ def enroll_owner_task_by_github_buttons_offline_only(
     boundary: a second review cannot enroll the same signed grant twice.
     """
     from ops import rea_scoped_approval_20261026 as scoped
-    # Never accept a public request as permission to create a private store.
-    scoped._check_private_grant_directory(private_registry_dir, create=False)
-
+    # The registry may be provisioned only AFTER GitHub's independent
+    # completed/success review and Ed25519 source-scope proof are both valid.
+    # A public challenge by itself never creates the private store.
     # Reuse the existing verified REST+immutable-blob adapter; its name is
     # historical, but no OIDC token is requested or verified here.
     from ops import rea_p311_github_oidc_20261026 as github_evidence
@@ -236,8 +236,14 @@ def enroll_owner_task_by_github_buttons_offline_only(
     bound = verify_and_bind_github_owner_review(
         context, run, reviews, public, signed_task,
         request_path=path, now=now)
-    # Registration is never a Github-only bypass: the registered grant must
-    # independently verify with the existing provisioned owner public key.
+    # Fully validate owner signature, audited effects and revocation BEFORE
+    # provisioning the owner-only registry. This removes a separate manual
+    # bootstrap while preserving the original security boundary.
+    scoped._verify_registration_contracts(
+        signed_task, owner_public_pem, trusted_contracts,
+        now=now, revocation_dir=revocation_dir)
+    scoped._check_private_grant_directory(private_registry_dir, create=True)
+    # Registration repeats the same checks; O_EXCL rejects replayed grants.
     grant_id = scoped.register_signed_task_grant(
         signed_task, owner_public_pem,
         private_registry_dir=private_registry_dir,

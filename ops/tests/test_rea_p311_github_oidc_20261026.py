@@ -951,19 +951,44 @@ class P311GithubOIDCReviewTests(unittest.TestCase):
                 revocation_dir=self.revocations, now=self.now)
         self.assertEqual([], list(private_registry.iterdir()))
 
-    def test_simple_buttons_unprovisioned_private_registry_aborts_before_rest(self):
+    def test_simple_buttons_provisions_registry_only_after_both_owner_proofs(self):
         self._prepare_private_consumption()
         missing = Path(self.consumption_root.name) / "approved-p311-tasks"
-        with mock.patch.object(oidc, "_p311_github_rest_get") as network, \
-             self.assertRaises(scoped.ScopedApprovalError):
+        # Rejected review: the private directory MUST remain absent.
+        rejected = self._trusted_github_responses()
+        rejected[1] = [{**self.review[0], "state": "rejected"}]
+        with mock.patch.object(oidc, "_p311_github_rest_get",
+                               side_effect=rejected), \
+             self.assertRaises((gate.ApprovalGateError, oidc.GithubOIDCError)):
             gate.enroll_owner_task_by_github_buttons_offline_only(
                 self.run["id"], self.request["request_id"],
                 self.signed, self.owner_public, self.trusted_contracts,
-                github_token="g"*48,
-                private_registry_dir=missing,
+                github_token="g"*48, private_registry_dir=missing,
                 revocation_dir=self.revocations, now=self.now)
-        network.assert_not_called()
         self.assertFalse(missing.exists())
+        # A fake Ed25519 signature does not provision a directory either.
+        forged = {**self.signed, "owner_signature": "A"*88}
+        with mock.patch.object(oidc, "_p311_github_rest_get",
+                               side_effect=self._trusted_github_responses()), \
+             self.assertRaises((scoped.ScopedApprovalError,
+                                gate.ApprovalGateError)):
+            gate.enroll_owner_task_by_github_buttons_offline_only(
+                self.run["id"], self.request["request_id"],
+                forged, self.owner_public, self.trusted_contracts,
+                github_token="g"*48, private_registry_dir=missing,
+                revocation_dir=self.revocations, now=self.now)
+        self.assertFalse(missing.exists())
+        # Both correct, signed proof and approved review: provision 0700 once.
+        with mock.patch.object(oidc, "_p311_github_rest_get",
+                               side_effect=self._trusted_github_responses()):
+            grant = gate.enroll_owner_task_by_github_buttons_offline_only(
+                self.run["id"], self.request["request_id"],
+                self.signed, self.owner_public, self.trusted_contracts,
+                github_token="g"*48, private_registry_dir=missing,
+                revocation_dir=self.revocations, now=self.now)
+        self.assertTrue(grant["registered_button_only_offline_stage"])
+        self.assertEqual(0o700, missing.stat().st_mode & 0o777)
+        self.assertEqual(0o600, (missing / (grant["grant_id"]+".json")).stat().st_mode & 0o777)
 
     def test_joint_owner_button_and_oidc_signature_are_required(self):
         receipt = self.full()

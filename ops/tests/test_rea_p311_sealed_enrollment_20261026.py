@@ -208,9 +208,21 @@ class P311SealedEnrollmentTests(unittest.TestCase):
         self.assertIn("rea_p311_github_oidc_20261026.py", flow)
         self.assertIn("trap 'rm -f", flow)
         self.assertNotIn("id-token: write", flow)
-        self.assertNotIn("REA_P311_SCOPED_TASKS=enabled", flow)
+        self.assertIn('test "$request_action" = "sealed_task_enroll"', flow)
+        self.assertIn("runtime_command=\"REA_P311_SCOPED_TASKS=enabled", flow)
+        self.assertIn('if test "$request_action" = "sealed_task_enroll" ||', flow)
         self.assertIn("StrictHostKeyChecking=yes", flow)
         self.assertIn("127.0.0.1", bridge.URL)
+
+
+    def test_private_registry_is_created_after_real_review_and_not_before(self):
+        # Use the same independent signed-grant verifier stub as other bridge
+        # tests, but start without the pre-existing private registry.
+        self.registry_dir.rmdir()
+        with mock.patch.dict(os.environ, {"REA_P311_SCOPED_TASKS": "enabled"}):
+            result = self.enroll()
+        self.assertEqual(self.grant["grant_id"], result["grant_id"])
+        self.assertEqual(0o700, self.registry_dir.stat().st_mode & 0o777)
 
     def test_one_owner_signature_registers_encrypted_task_once(self):
         request = self.build()

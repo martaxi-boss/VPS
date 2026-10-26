@@ -133,6 +133,12 @@ jobs:
             fi
             cat ops/rea_mobile_mcp_bridge_20261022.py
           } > "$RUNNER_TEMP/rea-mobile-remote.py"
+          # Opt in per already sealed request, never change daemon-wide VPS
+          # settings or enable the P311 flag for normal catalog/fixture jobs.
+          runtime_command="REA_MOBILE_ENVELOPE_CAPTURE=1 python3 -"
+          if test "$request_action" = "sealed_task_enroll" || test "$request_action" = "sealed_batch"; then
+            runtime_command="REA_P311_SCOPED_TASKS=enabled REA_MOBILE_ENVELOPE_CAPTURE=1 python3 -"
+          fi
           sshpass -e ssh -T \
             -o PreferredAuthentications=password \
             -o PubkeyAuthentication=no \
@@ -143,7 +149,7 @@ jobs:
             -o ConnectTimeout=15 -o ServerAliveInterval=10 \
             -o ServerAliveCountMax=5 \
             ubuntu@146.59.145.3 \
-            "REA_MOBILE_ENVELOPE_CAPTURE=1 python3 -" \
+            "$runtime_command" \
             < "$RUNNER_TEMP/rea-mobile-remote.py" > "$raw"
           /usr/bin/python3 ops/rea_mobile_mcp_bridge_20261022.py \
             --envelope "$raw" "$REA_JOB_PATH" "$RUNNER_TEMP/rea-mobile-envelope.json"

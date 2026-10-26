@@ -216,10 +216,9 @@ def p311_enroll_sealed_owner_task(data, tool_by_name, safe_callable, *, now=None
     scoped._verify_registration_contracts(
         signed_task, verifier.read_bytes(), contracts,
         now=now, revocation_dir=private_dir / "revoked-p311-grants")
-    # Provisioning is an explicit operator action; no public request can
-    # create the private registry. Deny before spending the one-use nonce.
-    scoped._check_private_grant_directory(
-        private_dir / "approved-p311-tasks", create=False)
+    # The authenticated button+signature verifier will provision the
+    # owner-only registry if needed, never an untrusted public request.
+    # Spend the request nonce before any durable grant registration.
     secure.claim_one_use_nonce(body["nonce"])
     from ops import rea_p311_owner_gate_20261026 as owner_gate
     approved = owner_gate.enroll_owner_task_by_github_buttons_offline_only(
