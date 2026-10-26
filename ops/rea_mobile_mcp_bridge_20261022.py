@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_cutter_original_bridge_p301"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -483,6 +483,8 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_APPLY_STATE_SAVED",
         "REA_APPLY_FAILURE",
         "REA_APPLY_RESULT",
+        "REA_P301_STATUS","REA_P301_ORIGINAL_CUTTER_BRIDGE",
+        "REA_P301_SOURCE_VERIFIED","REA_P301_SERVICE_PID_UNCHANGED",
         "REA_SERVICE_DOCTOR_STATUS",
         "REA_SERVICE_DOCTOR_UNIT_USER",
         "REA_SERVICE_DOCTOR_CONFIG_KEYS",
@@ -701,6 +703,99 @@ def main():
     print("REA_MOBILE_CATALOG_SAMPLE=" + json.dumps(
         list(tool_by_name)[:14], ensure_ascii=True
     ))
+
+    if data["action"] == "fixture_linux_cutter_original_bridge_p301":
+        # Existing official REA Cutter Python module only. No new plugin code,
+        # engine copies, MCPs, service restarts, or arbitrary caller-selected paths.
+        import subprocess as sp
+        base=Path("/opt/rea-reversa/rea")
+        cutter=Path("/opt/rea-reversa/providers/cutter-2.5.0/bin/Cutter-v2.5.0-Linux-Qt5-x86_64.AppImage")
+        user="rea-reversa"
+        unit="rea-reversa-mcp.service"
+        def prop(name):
+            call=sp.run(["systemctl","show",unit,"-p",name,"--value"],
+                capture_output=True,text=True,timeout=12,check=False)
+            return call.stdout.strip() if call.returncode==0 else ""
+        pid=prop("MainPID")
+        if (not pid.isdecimal() or int(pid)<1 or prop("User")!=user
+            or prop("ActiveState")!="active"
+            or json.loads((base/"package.json").read_text()).get("version")!="6.8.0"):
+            print("REA_P301_STATUS=BLOCKED_SERVICE")
+            return
+        commit=sp.run(["git","-C",str(base),"rev-parse","HEAD"],
+            capture_output=True,text=True,timeout=12,check=False)
+        tree=sp.run(["git","-C",str(base),"rev-parse","HEAD^{tree}"],
+            capture_output=True,text=True,timeout=12,check=False)
+        if (commit.returncode or tree.returncode or
+            commit.stdout.strip()!="160d821ac9a0310afcb8d1fc427862dd6508add5" or
+            tree.stdout.strip()!="15e6fec513dcce08cefdbcf441200986397e2793"):
+            print("REA_P301_STATUS=BLOCKED_UPSTREAM_IDENTITY")
+            return
+        ready=sp.run(["sudo","-n","-u",user,"test","-x",str(cutter)],
+            capture_output=True,timeout=10,check=False).returncode==0
+        if not ready:
+            print("REA_P301_STATUS=BLOCKED_CUTTER_INSTALL")
+            return
+        try:
+            _,reply=request_mcp(
+                {"jsonrpc":"2.0","id":3011,"method":"tools/call",
+                 "params":{"name":"list_cutter_sessions","arguments":{}}},
+                session,protocol,timeout=28)
+            state=reply.get("result",{})
+            existing=state.get("structuredContent",{}).get("sessions")
+            if "error" in reply or state.get("isError") is True or existing != []:
+                print("REA_P301_STATUS=BLOCKED_EXISTING_CUTTER_SESSION")
+                return
+        except (OSError,RuntimeError,ValueError,TypeError,sp.TimeoutExpired):
+            print("REA_P301_STATUS=BLOCKED_SESSION_DISCOVERY")
+            return
+        helper = """
+import ast,hashlib,os,pwd,sys
+from pathlib import Path
+src=Path('/opt/rea-reversa/rea/bridge/cutter/rea_bridge.py')
+if src.is_symlink() or not src.is_file(): raise SystemExit(9)
+blob=src.read_bytes()
+ast.parse(blob,filename=str(src))
+if b'def create_cutter_plugin()' not in blob:raise SystemExit(10)
+home=Path(pwd.getpwuid(os.getuid()).pw_dir)
+if not home.is_absolute() or home==Path('/') or not home.is_dir():raise SystemExit(11)
+dirs=('.local','share','rizin','cutter','plugins','python')
+path=home
+for component in dirs:
+    path=path/component
+    if path.is_symlink() or (path.exists() and not path.is_dir()):
+        raise SystemExit(12)
+    if path.exists() and path.stat().st_uid!=os.getuid():
+        raise SystemExit(13)
+path.mkdir(mode=0o700,parents=True,exist_ok=True)
+dest=path/'rea_bridge.py'
+if dest.is_symlink():
+    if dest.resolve()!=src.resolve():raise SystemExit(14)
+    status='ALREADY_LINKED'
+elif dest.exists():
+    if not dest.is_file() or hashlib.sha256(dest.read_bytes()).digest()!=hashlib.sha256(blob).digest():
+        raise SystemExit(15)
+    status='ALREADY_IDENTICAL'
+else:
+    dest.symlink_to(src)
+    if not dest.is_symlink() or dest.resolve()!=src.resolve():raise SystemExit(16)
+    status='LINKED_OFFICIAL_SOURCE'
+print(status)
+"""
+        output=sp.run(["sudo","-n","-u",user,"env",
+                       "PYTHONDONTWRITEBYTECODE=1",
+                       "python3","-c",helper],
+                      capture_output=True,text=True,timeout=35,check=False)
+        states={"ALREADY_LINKED","ALREADY_IDENTICAL","LINKED_OFFICIAL_SOURCE"}
+        status=output.stdout.strip()
+        if output.returncode or status not in states:
+            print("REA_P301_STATUS=BLOCKED_PLUGIN_USER_PATH")
+            return
+        print("REA_P301_ORIGINAL_CUTTER_BRIDGE="+status)
+        print("REA_P301_SOURCE_VERIFIED=UPSTREAM_680")
+        print("REA_P301_SERVICE_PID_UNCHANGED="+str(pid==prop("MainPID")).lower())
+        print("REA_P301_STATUS=PASS_ORIGINAL_LINK")
+        return
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
               secure.request_public_key_b64(create=True))
