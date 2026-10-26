@@ -765,14 +765,15 @@ ast.parse(blob,filename=str(src))
 if b'def create_cutter_plugin()' not in blob:raise SystemExit(10)
 home=Path(pwd.getpwuid(os.getuid()).pw_dir)
 if not home.is_absolute() or home==Path('/') or not home.is_dir():raise SystemExit(11)
+if home.stat().st_uid!=os.getuid():raise SystemExit(20)
 dirs=('.local','share','rizin','cutter','plugins','python')
 path=home
-for component in dirs:
+for index,component in enumerate(dirs):
     path=path/component
     if path.is_symlink() or (path.exists() and not path.is_dir()):
         raise SystemExit(12)
     if path.exists() and path.stat().st_uid!=os.getuid():
-        raise SystemExit(13)
+        raise SystemExit(30+index)
 path.mkdir(mode=0o700,parents=True,exist_ok=True)
 dest=path/'rea_bridge.py'
 if dest.is_symlink():
