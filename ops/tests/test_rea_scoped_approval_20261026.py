@@ -174,6 +174,59 @@ class ScopedTaskAuthorizationTests(unittest.TestCase):
             self.check(arguments={"artifacts": [{"file": root + "/a"},
                                                {"output_path": "/tmp/escape"}]})
 
+    def test_hidden_absolute_paths_and_path_aliases_rejected(self):
+        root = self.grant["artifact_root"]
+        for args in (
+            {"path": root + "/sample", "source_file": "/etc/passwd"},
+            {"path": root + "/sample", "metadata": ["/etc/shadow"]},
+            {"path": root + "/sample", "input_files": [root + "/ok", "/tmp/escape"]},
+            {"path": root + "/sample", "other": {"alternate_dir": "/root"}},
+            {"path": root + "/sample", "download": "file:///etc/passwd"},
+        ):
+            with self.subTest(args=args), self.assertRaises(a.ScopedApprovalError):
+                self.check(arguments=args)
+
+    def test_execution_and_network_argument_keys_rejected(self):
+        root = self.grant["artifact_root"]
+        for key in ("command", "script", "javascript", "code", "source_url",
+                    "host", "device_id", "process_id"):
+            with self.subTest(key=key), self.assertRaises(a.ScopedApprovalError):
+                self.check(arguments={"path": root + "/sample", key: "value"})
+
+    def test_revocation_marker_stops_approved_task(self):
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as base:
+            directory = Path(base) / "revoked-p311-grants"
+            self.assertTrue(self.check(revocation_dir=directory))
+            directory.mkdir(mode=0o700)
+            marker = directory / (self.grant["grant_id"] + ".revoked")
+            marker.write_text("revoked\\n", encoding="ascii")
+            marker.chmod(0o600)
+            with self.assertRaises(a.ScopedApprovalError):
+                self.check(revocation_dir=directory)
+
+    def test_revocation_symlinks_and_unsafe_permissions_fail_closed(self):
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as base:
+            root = Path(base)
+            directory = root / "revocations"
+            directory.mkdir(mode=0o700)
+            marker = directory / (self.grant["grant_id"] + ".revoked")
+            marker.symlink_to(root / "missing")
+            with self.assertRaises(a.ScopedApprovalError):
+                self.check(revocation_dir=directory)
+            marker.unlink()
+            directory.chmod(0o777)
+            with self.assertRaises(a.ScopedApprovalError):
+                self.check(revocation_dir=directory)
+            directory.chmod(0o700)
+            alias = root / "symlink-revocations"
+            alias.symlink_to(directory)
+            with self.assertRaises(a.ScopedApprovalError):
+                self.check(revocation_dir=alias)
+
     def test_missing_or_corrupt_signature_denied(self):
         for signature in ("", "****", "AAAA"):
             with self.subTest(signature=signature), self.assertRaises(a.ScopedApprovalError):
