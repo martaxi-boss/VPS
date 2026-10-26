@@ -1033,6 +1033,49 @@ def _p311_owner_scoped_grant(scoped_task, name, args, risk, verified_policy, now
     return True
 
 
+def _p311_load_registered_task(grant_id, registry, safe_callable,
+                              verified_policy, now):
+    """Resolve a PRIVATE owner-signed grant by opaque ID, with no new server.
+
+    This path is disabled in the active bridge. IDs from encrypted requests
+    never override original trusted REA schemas, effects or owner verifier.
+    """
+    if (os.environ.get("REA_P311_SCOPED_TASKS") != "enabled" or
+            not isinstance(grant_id, str) or
+            not re.fullmatch(r"[0-9a-f]{32}", grant_id)):
+        raise SecureBridgeError("Registered owner task reference is not permitted")
+    effects = AUDITED_EFFECTS if verified_policy is None else verified_policy[0]
+    schemas = AUDITED_SCHEMA_SHA256 if verified_policy is None else verified_policy[1]
+    if verified_policy is None and (len(registry) != 208 or
+                                    set(registry) != set(AUDITED_EFFECTS)):
+        raise SecureBridgeError("Registered grants require a full known MCP catalog")
+    verifier = _private_directory() / "owner-approval-public.pem"
+    if verifier.is_symlink() or not verifier.is_file():
+        raise SecureBridgeError("Registered grants need owner public verifier")
+    state = verifier.stat()
+    if state.st_uid != os.geteuid() or stat.S_IMODE(state.st_mode) != 0o600:
+        raise SecureBridgeError("Unsafe registered-grant public verifier")
+    try:
+        from ops import rea_scoped_approval_20261026 as scoped
+        eligible = scoped.propose_task_tools(
+            registry, effects, schemas, schema_digest=arguments_sha256,
+            classify_tool=lambda name, desc: classify(
+                name, desc, safe_callable, verified_policy))
+        contracts = {
+            name: (effects[name], classify(
+                name, registry[name], safe_callable, verified_policy))
+            for name in eligible
+        }
+        directory = _private_directory()
+        return scoped.read_registered_task_grant(
+            grant_id, verifier.read_bytes(),
+            private_registry_dir=directory / "approved-p311-tasks",
+            revocation_dir=directory / "revoked-p311-grants",
+            trusted_contracts=contracts, now=now)
+    except (ImportError, ValueError, TypeError) as exc:
+        raise SecureBridgeError("Invalid registered owner task") from exc
+
+
 def validate_inner(body, registry, safe_callable, now=None, *, scoped_task=None):
     """Per-operation authorization, exact argument hash and expiration.
 
@@ -1040,9 +1083,9 @@ def validate_inner(body, registry, safe_callable, now=None, *, scoped_task=None)
     follows the unchanged original admission path. Server opt-in is mandatory.
     """
     fields = {"protocol", "nonce", "expires_at", "steps"}
-    if (not isinstance(body, dict) or
-            set(body) not in (fields, fields | {"scoped_task"}) or
-            body["protocol"] != 1):
+    if (not isinstance(body, dict) or set(body) not in (
+            fields, fields | {"scoped_task"}, fields | {"scoped_task_id"}
+        ) or body["protocol"] != 1):
         raise SecureBridgeError("Invalid secure request protocol")
     if "scoped_task" in body:
         if (scoped_task is not None or
@@ -1050,6 +1093,13 @@ def validate_inner(body, registry, safe_callable, now=None, *, scoped_task=None)
                 os.environ.get("REA_P311_SCOPED_TASKS") != "enabled"):
             raise SecureBridgeError("Scoped task envelope is not allowed")
         scoped_task = body["scoped_task"]
+    reference_id = body.get("scoped_task_id")
+    if "scoped_task_id" in body and (
+            scoped_task is not None or
+            not isinstance(reference_id, str) or
+            not re.fullmatch(r"[0-9a-f]{32}", reference_id) or
+            os.environ.get("REA_P311_SCOPED_TASKS") != "enabled"):
+        raise SecureBridgeError("Registered task reference is not permitted")
     if not isinstance(body["nonce"], str) or not NONCE_RE.fullmatch(body["nonce"]):
         raise SecureBridgeError("Invalid one-use nonce")
     if not isinstance(body["expires_at"], str) or not TIME_RE.fullmatch(body["expires_at"]):
@@ -1064,6 +1114,9 @@ def validate_inner(body, registry, safe_callable, now=None, *, scoped_task=None)
     if not isinstance(steps, list) or not 1 <= len(steps) <= MAX_STEPS:
         raise SecureBridgeError("Invalid secure step count")
     verified_policy = _release680_verified_policy(registry)
+    if reference_id is not None:
+        scoped_task = _p311_load_registered_task(
+            reference_id, registry, safe_callable, verified_policy, now)
     profiles = []
     scoped_grant_was_verified = False
     opened_in_request = False
