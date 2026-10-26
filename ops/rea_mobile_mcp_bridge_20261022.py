@@ -729,7 +729,7 @@ def main():
             print("REA_P295_STATUS=BLOCKED_SERVICE_ENV_ACCESS")
             return
         live={}
-        for item in raw.stdout.split(b"\\0"):
+        for item in raw.stdout.split(bytes([0])):
             if b"=" in item:
                 k,v=item.split(b"=",1)
                 if len(k)<100 and len(v)<3000:
