@@ -198,8 +198,10 @@ class ScopedTaskAuthorizationTests(unittest.TestCase):
         from pathlib import Path
         with tempfile.TemporaryDirectory() as base:
             directory = Path(base) / "revoked-p311-grants"
-            self.assertTrue(self.check(revocation_dir=directory))
+            with self.assertRaises(a.ScopedApprovalError):
+                self.check(revocation_dir=directory)
             directory.mkdir(mode=0o700)
+            self.assertTrue(self.check(revocation_dir=directory))
             marker = directory / (self.grant["grant_id"] + ".revoked")
             marker.write_text("revoked\\n", encoding="ascii")
             marker.chmod(0o600)
