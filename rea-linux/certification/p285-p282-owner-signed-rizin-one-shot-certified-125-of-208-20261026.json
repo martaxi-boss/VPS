@@ -115,7 +115,23 @@
     "full_16_bundle_sha256": "5650e69453d45935fe22833f08e40f29d9b3ee5700ebd691a16509af459d0ff4",
     "private_backup_P278": "engenharia reversa/REA_P278_Evidence_15_Backup_Verificado.zip",
     "private_backup_P278_sha256": "5581b0aa735fd5ba88858588dfc7fe00dbb7dc423c2b9210333f800313b6ba9d",
-    "no_record_deleted_or_restored": true
+    "no_record_deleted_or_restored": true,
+    "latest_private_backup": {
+      "storage": "private personal ChatGPT Library, folder engenharia reversa (never public GitHub)",
+      "library_path": "/engenharia reversa/REA_P285_Evidence_16_Backup_Verificado.zip",
+      "filename": "REA_P285_Evidence_16_Backup_Verificado.zip",
+      "zip_sha256": "4b53691dd33119e665753ab2770f82c6beda16247239779a2630f664e0e91c2c",
+      "zip_bytes": 20226,
+      "original_evidence": 16,
+      "original_unknowns": 1,
+      "full_bundle_semantic_sha256": "5650e69453d45935fe22833f08e40f29d9b3ee5700ebd691a16509af459d0ff4",
+      "zip_roundtrip_byte_verification": "PASS",
+      "private_library_upload": "PASS",
+      "private_library_path_and_size_readback": "PASS",
+      "live_original_MCP_import_or_rollback_tested": false,
+      "owner_private_key_absent": true
+    },
+    "backup_scope_note": "Full 16 Evidence + 1 Unknown available in private Library, byte-identical round-trip local check; no live production import/restore attempted; this is an export/archive only."
   },
   "hygiene": {
     "operation_scope_only_original_REA": true,

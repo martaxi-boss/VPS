@@ -11091,7 +11091,22 @@
       "p276_private_checkpoint_restore_tested": false,
       "p276_report": "rea-linux/certification/p276-p270-four-signed-sensitives-two-scoped-certifications-13-evidence-20261025.json",
       "p285_full_16_retained_and_15_historical_unchanged": true,
-      "p285_new_evidence_id": "ev_19236a284558f25c16ec8847e44602d821b5f4e820633af73785713ad8f2083f"
+      "p285_new_evidence_id": "ev_19236a284558f25c16ec8847e44602d821b5f4e820633af73785713ad8f2083f",
+      "p285_private_16_evidence_archive": {
+        "storage": "private personal ChatGPT Library, folder engenharia reversa (never public GitHub)",
+        "library_path": "/engenharia reversa/REA_P285_Evidence_16_Backup_Verificado.zip",
+        "filename": "REA_P285_Evidence_16_Backup_Verificado.zip",
+        "zip_sha256": "4b53691dd33119e665753ab2770f82c6beda16247239779a2630f664e0e91c2c",
+        "zip_bytes": 20226,
+        "original_evidence": 16,
+        "original_unknowns": 1,
+        "full_bundle_semantic_sha256": "5650e69453d45935fe22833f08e40f29d9b3ee5700ebd691a16509af459d0ff4",
+        "zip_roundtrip_byte_verification": "PASS",
+        "private_library_upload": "PASS",
+        "private_library_path_and_size_readback": "PASS",
+        "live_original_MCP_import_or_rollback_tested": false,
+        "owner_private_key_absent": true
+      }
     },
     "no_new_certifications": false,
     "gdb_session_status": {
@@ -11732,7 +11747,9 @@
       "workspace_pending": 17,
       "sensitive_pending": 66,
       "report": "rea-linux/certification/p285-p282-owner-signed-rizin-one-shot-certified-125-of-208-20261026.json",
-      "no_new_signatures_needed_for_completed_test": true
+      "no_new_signatures_needed_for_completed_test": true,
+      "private_archive_sha256": "4b53691dd33119e665753ab2770f82c6beda16247239779a2630f664e0e91c2c",
+      "private_archive_library_uploaded": true
     },
     "current_canonical_counts": {
       "as_of_phase": "P285",
