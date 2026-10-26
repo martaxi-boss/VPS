@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_cutter_ida_jeb_preflight", "fixture_linux_cutter_ida_jeb_setup", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -289,8 +289,6 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_MOBILE_READONLY_HINT_COUNT", "REA_MOBILE_STATIC_INSPECT_COUNT",
         "REA_MOBILE_SAFE_QUERY_COUNT", "REA_MOBILE_SAFE_CALLABLE_COUNT",
         "REA_MOBILE_LEGACY_NAME_COUNT", "REA_MOBILE_WORKSPACE_CALLABLE_COUNT",
-        "REA_TRIO_PLATFORM", "REA_TRIO_SERVICE_HOME_AVAILABLE", "REA_TRIO_ENGINE_SOURCE", "REA_TRIO_CUTTER_BRIDGE_GIT_BLOB", "REA_TRIO_CUTTER_BINARY", "REA_TRIO_IDA_PLUGIN_PRESENT", "REA_TRIO_JEB_PRESENT", "REA_TRIO_PRIVILEGED_INSTALL", "REA_TRIO_STORAGE_GIB", "REA_TRIO_JAVA_PRESENT", "REA_TRIO_JEB_HEAD_HTTP", "REA_TRIO_JEB_HEAD_BYTES", "REA_TRIO_PREFLIGHT", "REA_TRIO_CUTTER_RUNTIME_REASON", "REA_TRIO_FUSE2_PRESENT", "REA_TRIO_FUSE2_APT_CANDIDATE",
-        "REA_TRIO_CUTTER_STATUS", "REA_TRIO_CUTTER_SOURCE_BLOB", "REA_TRIO_CUTTER_GUI_PROBE", "REA_TRIO_IDA_STATUS", "REA_TRIO_IDA_HOST", "REA_TRIO_JEB_SHA256", "REA_TRIO_JEB_STATUS", "REA_TRIO_JEB_FIRST_USE", "REA_TRIO_SERVICE_ACTIVE", "REA_TRIO_NO_REA_RESTART", "REA_TRIO_RESULT",
         "REA_MOBILE_SIGNATURE_REQUIRED_COUNT", "REA_MOBILE_VALIDATED_SCHEMA_COUNT",
         "REA_MOBILE_AUDITED_SCHEMA_MATCH_COUNT",
         "REA_MOBILE_TOOL_CALL", "REA_MOBILE_TOOL_NAME",
@@ -2214,7 +2212,7 @@ def main():
         import re as regex
         pkgs=("gdb","radare2","binwalk","tshark","adb","apktool",
               "sigrok-cli","python3-venv","python3-pip",
-              "llvm","unzip","p7zip-full","libfuse2t64")
+              "llvm","unzip","p7zip-full")
         if not Path("/opt/rea-reversa/rea/package.json").is_file():
             error("Original REA engine missing; refuse installation")
         if subprocess.run(["systemctl","is-active","--quiet","rea-reversa-mcp.service"],
@@ -2284,7 +2282,7 @@ def main():
         import re as regex
         approved=("gdb","radare2","binwalk","tshark","adb","apktool",
                   "sigrok-cli","python3-venv","python3-pip",
-                  "llvm","unzip","p7zip-full","libfuse2t64")
+                  "llvm","unzip","p7zip-full")
         available=[]
         unavailable=[]
         for name in approved:
@@ -2388,307 +2386,6 @@ def main():
             1 for line in result.stdout.splitlines() if line.split()[-1:] in
             (["node"],["nodejs"]))))
         print("REA_PREFLIGHT_COMPLETE=PASS_READ_ONLY")
-        return
-    if data["action"] == "fixture_linux_cutter_ida_jeb_preflight":
-        import pwd
-        import platform
-        import shutil
-        import urllib.request as urlrequest
-        identity=pwd.getpwnam("rea-reversa")
-        root=Path("/opt/rea-reversa/providers")
-        engine=Path("/opt/rea-reversa/rea")
-        src=engine/"bridge/cutter/rea_bridge.py"
-        cutter=root/"cutter-2.5.0/bin/Cutter-v2.5.0-Linux-Qt5-x86_64.AppImage"
-        ida=root/"ida-free-mcp-1.1.3/ida_mcp-linux-x64.so"
-        jeb=root/"jeb-ce-5.48.0.202610071539/bin/app/jeb.jar"
-        jid="https://jebbuilds2.s3.amazonaws.com/jeb4ce/jeb-ce-5.48.0.202610071539-JEBDecompiler-624458483834837192.zip"
-        print("REA_TRIO_PLATFORM="+platform.system()+"-"+platform.machine())
-        print("REA_TRIO_SERVICE_HOME_AVAILABLE="+str(Path(identity.pw_dir).is_dir()).lower())
-        print("REA_TRIO_ENGINE_SOURCE="+str(src.is_file() and not src.is_symlink()).lower())
-        if src.is_file() and not src.is_symlink():
-            raw=src.read_bytes()
-            proof=hashlib.sha1(b"blob "+str(len(raw)).encode("ascii")+b"\x00"+raw).hexdigest()
-            print("REA_TRIO_CUTTER_BRIDGE_GIT_BLOB="+proof)
-        print("REA_TRIO_CUTTER_BINARY="+str(cutter.is_file() and not cutter.is_symlink()).lower())
-        print("REA_TRIO_IDA_PLUGIN_PRESENT="+str(ida.is_file() and not ida.is_symlink()).lower())
-        print("REA_TRIO_JEB_PRESENT="+str(jeb.is_file() and not jeb.is_symlink()).lower())
-        print("REA_TRIO_PRIVILEGED_INSTALL="+str(subprocess.run(["sudo","-n","true"],
-             stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=10).returncode==0).lower())
-        print("REA_TRIO_STORAGE_GIB="+str(shutil.disk_usage(root).free//(1024**3)))
-        print("REA_TRIO_JAVA_PRESENT="+str(shutil.which("java") is not None).lower())
-        cutter_probe=subprocess.run(["sudo","-n","-u","rea-reversa","env",
-           "QT_QPA_PLATFORM=offscreen",str(cutter),"--version"],
-           capture_output=True,text=True,timeout=18,check=False)
-        diag=(cutter_probe.stderr+"\n"+cutter_probe.stdout).lower()
-        if "libfuse.so.2" in diag or "fuse" in diag:
-            problem="FUSE_RUNTIME_MISSING"
-        elif "qt.qpa" in diag or "xcb" in diag:
-            problem="QT_DISPLAY_RUNTIME"
-        elif "permission denied" in diag:
-            problem="EXECUTION_PERMISSION"
-        elif cutter_probe.returncode==0:
-            problem="CLI_OK"
-        else:
-            problem="OTHER_EXIT_"+str(cutter_probe.returncode)
-        print("REA_TRIO_CUTTER_RUNTIME_REASON="+problem)
-        fuse=subprocess.run(["ldconfig","-p"],capture_output=True,
-                             text=True,timeout=15,check=False)
-        print("REA_TRIO_FUSE2_PRESENT="+str("libfuse.so.2" in fuse.stdout).lower())
-        candidate=subprocess.run(["apt-cache","policy","libfuse2t64"],capture_output=True,
-                                  text=True,timeout=15,check=False)
-        present=[v.strip().split(":",1)[1].strip() for v in candidate.stdout.splitlines()
-                 if v.strip().startswith("Candidate:")]
-        print("REA_TRIO_FUSE2_APT_CANDIDATE="+str(bool(present) and
-             present[0] not in ("(none)","none")).lower())
-
-        try:
-            req=urlrequest.Request(jid,method="HEAD",headers={"User-Agent":"REA-original-JEBCE-setup/1"})
-            with urlrequest.urlopen(req,timeout=20) as reply:
-                code=reply.status
-                length=reply.headers.get("Content-Length") or "UNKNOWN"
-                print("REA_TRIO_JEB_HEAD_HTTP="+str(code))
-                print("REA_TRIO_JEB_HEAD_BYTES="+str(length)[:32])
-        except (OSError,ValueError,TimeoutError) as exc:
-            print("REA_TRIO_JEB_HEAD_HTTP=BLOCKED_"+type(exc).__name__)
-        print("REA_TRIO_PREFLIGHT=PASS_READ_ONLY")
-        return
-    if data["action"] == "fixture_linux_cutter_ida_jeb_setup":
-        # Single owner-requested, fixed-source provider installation; this is
-        # independent of protected REA tools/call and does not invoke one.
-        import pwd
-        import platform
-        import shutil
-        import stat
-        import tempfile
-        import time
-        import urllib.request as urlrequest
-        import urllib.parse as urlparse
-        import zipfile
-        from pathlib import PurePosixPath
-        if platform.system() != "Linux" or platform.machine() != "x86_64":
-            error("Trio deployment limited to observed original Linux x86_64 host")
-        svc="rea-reversa"
-        account=pwd.getpwnam(svc)
-        providers=Path("/opt/rea-reversa/providers")
-        engine=Path("/opt/rea-reversa/rea")
-        if (not (engine/"package.json").is_file() or providers.is_symlink()
-                or not providers.is_dir() or len(tools)!=208):
-            error("Original REA source/catalog/provider boundary differs")
-        if subprocess.run(["systemctl","is-active","--quiet","rea-reversa-mcp.service"],
-                          check=False,timeout=12).returncode:
-            error("Original REA service must remain running")
-        if subprocess.run(["sudo","-n","true"],check=False,timeout=12,
-                          stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode:
-            error("Safe non-interactive admin privilege unavailable")
-        temp_root=Path.home()/".local/share/rea-chatgpt-trial/artifacts"
-        temp_root.mkdir(mode=0o700,parents=True,exist_ok=True)
-        if temp_root.is_symlink() or not temp_root.is_dir():
-            error("Untrusted private extraction workspace")
-        def rootcmd(*argv,timeout=80):
-            p=subprocess.run(["sudo","-n",*map(str,argv)],
-                capture_output=True,text=True,timeout=timeout,check=False)
-            if p.returncode:
-                raise RuntimeError("Safe fixed-target administrator action failed")
-        def digest(path):
-            h=hashlib.sha256()
-            with Path(path).open("rb") as source:
-                for chunk in iter(lambda:source.read(1048576),b""):
-                    h.update(chunk)
-            return h.hexdigest()
-        def download(url,expected_bytes,expected_sha,target,deadline_seconds):
-            if target.exists() or target.is_symlink():
-                raise RuntimeError("Fresh download destination required")
-            p=urlparse.urlparse(url)
-            if p.scheme!="https" or p.hostname not in (
-                "github.com","jebbuilds2.s3.amazonaws.com"):
-                raise RuntimeError("Untrusted publisher host")
-            req=urlrequest.Request(url,headers={"User-Agent":
-                "REA-original-vendor-verified-install/20261026"})
-            start=time.monotonic()
-            h=hashlib.sha256()
-            total=0
-            with urlrequest.urlopen(req,timeout=65) as reply:
-                reached=urlparse.urlparse(reply.geturl())
-                if reached.scheme!="https" or reached.hostname not in (
-                     "github.com","release-assets.githubusercontent.com",
-                     "objects.githubusercontent.com","jebbuilds2.s3.amazonaws.com"):
-                    raise RuntimeError("Unexpected vendor redirect")
-                reported=reply.headers.get("Content-Length")
-                if reported and int(reported)!=expected_bytes:
-                    raise RuntimeError("Official upstream release size mismatch")
-                with target.open("xb") as out:
-                    while True:
-                        if time.monotonic()-start>deadline_seconds:
-                            raise RuntimeError("Bounded vendor download deadline reached")
-                        chunk=reply.read(1048576)
-                        if not chunk:
-                            break
-                        total+=len(chunk)
-                        if total>expected_bytes:
-                            raise RuntimeError("Vendor download exceeded exact size")
-                        h.update(chunk)
-                        out.write(chunk)
-            if total!=expected_bytes or h.hexdigest()!=expected_sha:
-                raise RuntimeError("Official upstream artifact checksum/size mismatch")
-            return h.hexdigest()
-        # Cutter is already installed: activate the same REA-owned Python plugin
-        # without replacing a different version or starting a persistent GUI.
-        try:
-            src=engine/"bridge/cutter/rea_bridge.py"
-            if not src.is_file() or src.is_symlink():
-                raise RuntimeError("Original REA Cutter plugin source missing")
-            data_src=src.read_bytes()
-            gitblob=hashlib.sha1(b"blob "+str(len(data_src)).encode("ascii")+
-                                  b"\x00"+data_src).hexdigest()
-            if gitblob!="be229f081dfcfe552dd0fa96165bd4c673d6efab":
-                raise RuntimeError("Original installed Cutter source differs from audited original")
-            compile(data_src,str(src),"exec")
-            home=Path(account.pw_dir)
-            if not home.is_dir() or home.is_symlink():
-                raise RuntimeError("Service user has no safe plugin home")
-            plugin_dir=home/".local/share/rizin/cutter/plugins/python"
-            def service_probe(*cmd,timeout=14):
-                return subprocess.run(["sudo","-n","-u",svc,*map(str,cmd)],
-                    capture_output=True,text=True,timeout=timeout,check=False)
-            for part in (home,home/".local",home/".local/share",
-                         home/".local/share/rizin",home/".local/share/rizin/cutter",
-                         home/".local/share/rizin/cutter/plugins",plugin_dir):
-                if service_probe("test","-L",part).returncode==0:
-                    raise RuntimeError("Untrusted Cutter plugin directory")
-            dst=plugin_dir/"rea_bridge.py"
-            cutter=providers/"cutter-2.5.0/bin/Cutter-v2.5.0-Linux-Qt5-x86_64.AppImage"
-            if not cutter.is_file() or cutter.is_symlink():
-                raise RuntimeError("Existing Cutter 2.5.0 is unavailable")
-            if service_probe("test","-L",dst).returncode==0:
-                raise RuntimeError("Untrusted existing Cutter plugin")
-            expected=hashlib.sha256(data_src).hexdigest()
-            if service_probe("test","-f",dst).returncode==0:
-                verified=service_probe("sha256sum",dst)
-                if verified.returncode or not verified.stdout.startswith(expected+" "):
-                    raise RuntimeError("Existing Cutter plugin differs; no replacement")
-                print("REA_TRIO_CUTTER_STATUS=ALREADY_PRESENT_VERIFIED")
-            else:
-                if service_probe("test","-e",dst).returncode==0:
-                    raise RuntimeError("Existing destination cannot be replaced")
-                rootcmd("install","-d","-m","0755","-o",str(account.pw_uid),
-                        "-g",str(account.pw_gid),plugin_dir,timeout=30)
-                rootcmd("install","-m","0644","-o",str(account.pw_uid),
-                        "-g",str(account.pw_gid),src,dst,timeout=30)
-                verified=service_probe("sha256sum",dst)
-                if verified.returncode or not verified.stdout.startswith(expected+" "):
-                    raise RuntimeError("Cutter installed plugin readback mismatch")
-                print("REA_TRIO_CUTTER_STATUS=INSTALLED_VERIFIED")
-            print("REA_TRIO_CUTTER_SOURCE_BLOB="+gitblob)
-            version=subprocess.run(["sudo","-n","-u",svc,"env",
-              "QT_QPA_PLATFORM=offscreen",str(cutter),"--version"],
-              capture_output=True,text=True,timeout=20,check=False)
-            print("REA_TRIO_CUTTER_GUI_PROBE="+
-                ("CLI_OK" if version.returncode==0 else "CLI_UNAVAILABLE"))
-        except (OSError,ValueError,RuntimeError,subprocess.TimeoutExpired) as exc:
-            print("REA_TRIO_CUTTER_STATUS=BLOCKED_"+type(exc).__name__)
-        # Download the third-party MIT MCP extension only. It is inert until
-        # an actual owner-licensed IDA Free application is independently present.
-        try:
-            base=providers/"ida-free-mcp-1.1.3"
-            dest=base/"ida_mcp-linux-x64.so"
-            sha="6c0e48122cefbd0acf0ed876b8a17e8a26a07a2f2f53d1e2c131ec5ed2799427"
-            if base.is_symlink() or dest.is_symlink():
-                raise RuntimeError("Untrusted existing IDA extension path")
-            if dest.is_file():
-                if digest(dest)!=sha:
-                    raise RuntimeError("Existing IDA extension has different checksum")
-                print("REA_TRIO_IDA_STATUS=ALREADY_PREPARED_VERIFIED")
-            else:
-                if base.exists():
-                    raise RuntimeError("Existing incomplete IDA directory not replaced")
-                with tempfile.TemporaryDirectory(prefix="rea-ida-",dir=str(temp_root)) as td:
-                    asset=Path(td)/"ida_mcp-linux-x64.so"
-                    download(
-                      "https://github.com/0xshlomil/ida-free-mcp/releases/download/v1.1.3/ida_mcp-linux-x64.so",
-                      8393736,sha,asset,160)
-                    with asset.open("rb") as binary:
-                        if binary.read(5)!=b"\x7fELF\x02":
-                            raise RuntimeError("Verified IDA plugin was not 64-bit ELF")
-                    rootcmd("install","-d","-m","0755","-o","root","-g","root",base)
-                    rootcmd("install","-m","0644","-o","root","-g","root",asset,dest)
-                if digest(dest)!=sha:
-                    raise RuntimeError("IDA plugin readback failed")
-                print("REA_TRIO_IDA_STATUS=PREPARED_VERIFIED_NO_LICENSE")
-            print("REA_TRIO_IDA_HOST=MY_HEX_RAYS_ACCOUNT_REQUIRED")
-        except (OSError,ValueError,RuntimeError,subprocess.TimeoutExpired) as exc:
-            print("REA_TRIO_IDA_STATUS=BLOCKED_"+type(exc).__name__)
-        # Official free JEB CE, exact archive known from original upstream REA
-        # real Linux verification. No EULA click/key generation, no new daemon.
-        try:
-            name="jeb-ce-5.48.0.202610071539"
-            final=providers/name
-            jar=final/"bin/app/jeb.jar"
-            if final.is_symlink() or jar.is_symlink():
-                raise RuntimeError("Untrusted JEB vendor installation")
-            if jar.is_file() and jar.stat().st_size>1000000:
-                print("REA_TRIO_JEB_STATUS=ALREADY_PREPARED_UNACTIVATED")
-            else:
-                if final.exists():
-                    raise RuntimeError("Existing incomplete JEB directory not overwritten")
-                if shutil.disk_usage(temp_root).free<6500000000:
-                    raise RuntimeError("Insufficient safe disk reserve for vendor archive")
-                with tempfile.TemporaryDirectory(prefix="rea-jeb-",dir=str(temp_root)) as td:
-                    work=Path(td)
-                    asset=work/"jeb-community-official.zip"
-                    observed=download(
-                      "https://jebbuilds2.s3.amazonaws.com/jeb4ce/jeb-ce-5.48.0.202610071539-JEBDecompiler-624458483834837192.zip",
-                      697549250,
-                      "709e7fe8e88bb0e9e2bc03b028f8b9fc78cec0289d04abe54fc26cda6369e175",
-                      asset,540)
-                    out=work/"unpacked"
-                    out.mkdir(mode=0o755)
-                    with zipfile.ZipFile(asset,"r") as zipf:
-                        infos=zipf.infolist()
-                        if not 1<=len(infos)<=30000:
-                            raise RuntimeError("Unexpected official JEB ZIP file count")
-                        if sum(i.file_size for i in infos)>3500000000:
-                            raise RuntimeError("JEB extraction size exceeded safe bound")
-                        for info in infos:
-                            name_raw=info.filename
-                            name_parts=PurePosixPath(name_raw).parts
-                            kind=(info.external_attr >> 16) & 0o170000
-                            if (not name_parts or name_raw.startswith("/") or
-                                "\\" in name_raw or ":" in name_raw or
-                                ".." in name_parts or kind==stat.S_IFLNK):
-                                raise RuntimeError("Unsafe JEB archive member")
-                        for info in infos:
-                            parts=PurePosixPath(info.filename).parts
-                            target=out.joinpath(*parts)
-                            if info.is_dir():
-                                target.mkdir(parents=True,exist_ok=True)
-                            else:
-                                target.parent.mkdir(parents=True,exist_ok=True)
-                                if target.exists() or target.is_symlink():
-                                    raise RuntimeError("Duplicate JEB ZIP entry")
-                                with zipf.open(info,"r") as read, target.open("xb") as write:
-                                    shutil.copyfileobj(read,write,1048576)
-                    matches=[p for p in out.rglob("jeb.jar")
-                             if p.parent.name=="app" and p.parent.parent.name=="bin"]
-                    if len(matches)!=1 or matches[0].stat().st_size<=1000000:
-                        raise RuntimeError("Official JEB archive lacks expected engine")
-                    extracted_root=matches[0].parent.parent.parent
-                    if extracted_root.is_symlink() or final.exists():
-                        raise RuntimeError("JEB publication path changed")
-                    rootcmd("mv","-T","--",extracted_root,final,timeout=80)
-                    rootcmd("chown","-R","root:root",final,timeout=140)
-                    if not jar.is_file() or jar.stat().st_size<=1000000:
-                        raise RuntimeError("JEB installed engine readback failed")
-                    print("REA_TRIO_JEB_SHA256="+observed)
-                    print("REA_TRIO_JEB_STATUS=PREPARED_OFFICIAL_UNACTIVATED")
-            print("REA_TRIO_JEB_FIRST_USE=OWNER_EULA_AND_LICENSE_REQUIRED")
-        except (OSError,ValueError,RuntimeError,zipfile.BadZipFile,
-                subprocess.TimeoutExpired) as exc:
-            print("REA_TRIO_JEB_STATUS=BLOCKED_"+type(exc).__name__)
-        active=subprocess.run(["systemctl","is-active","--quiet","rea-reversa-mcp.service"],
-                              check=False,timeout=15).returncode==0
-        print("REA_TRIO_SERVICE_ACTIVE="+str(active).lower())
-        print("REA_TRIO_NO_REA_RESTART=PASS")
-        print("REA_TRIO_RESULT=PROVIDER_INSTALL_ATTEMPT_COMPLETE")
         return
     if data["action"] == "fixture_linux_install_inventory":
         # Audit original Linux REA installation; no installation, no restart.
