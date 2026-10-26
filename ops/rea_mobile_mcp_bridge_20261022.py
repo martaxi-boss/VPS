@@ -2522,29 +2522,35 @@ def main():
             if not home.is_dir() or home.is_symlink():
                 raise RuntimeError("Service user has no safe plugin home")
             plugin_dir=home/".local/share/rizin/cutter/plugins/python"
+            def service_probe(*cmd,timeout=14):
+                return subprocess.run(["sudo","-n","-u",svc,*map(str,cmd)],
+                    capture_output=True,text=True,timeout=timeout,check=False)
             for part in (home,home/".local",home/".local/share",
                          home/".local/share/rizin",home/".local/share/rizin/cutter",
                          home/".local/share/rizin/cutter/plugins",plugin_dir):
-                if part.is_symlink():
+                if service_probe("test","-L",part).returncode==0:
                     raise RuntimeError("Untrusted Cutter plugin directory")
             dst=plugin_dir/"rea_bridge.py"
             cutter=providers/"cutter-2.5.0/bin/Cutter-v2.5.0-Linux-Qt5-x86_64.AppImage"
             if not cutter.is_file() or cutter.is_symlink():
                 raise RuntimeError("Existing Cutter 2.5.0 is unavailable")
-            if dst.is_symlink():
+            if service_probe("test","-L",dst).returncode==0:
                 raise RuntimeError("Untrusted existing Cutter plugin")
-            if dst.is_file():
-                if digest(dst)!=hashlib.sha256(data_src).hexdigest():
+            expected=hashlib.sha256(data_src).hexdigest()
+            if service_probe("test","-f",dst).returncode==0:
+                verified=service_probe("sha256sum",dst)
+                if verified.returncode or not verified.stdout.startswith(expected+" "):
                     raise RuntimeError("Existing Cutter plugin differs; no replacement")
                 print("REA_TRIO_CUTTER_STATUS=ALREADY_PRESENT_VERIFIED")
             else:
-                if dst.exists():
+                if service_probe("test","-e",dst).returncode==0:
                     raise RuntimeError("Existing destination cannot be replaced")
                 rootcmd("install","-d","-m","0755","-o",str(account.pw_uid),
                         "-g",str(account.pw_gid),plugin_dir,timeout=30)
                 rootcmd("install","-m","0644","-o",str(account.pw_uid),
                         "-g",str(account.pw_gid),src,dst,timeout=30)
-                if digest(dst)!=hashlib.sha256(data_src).hexdigest():
+                verified=service_probe("sha256sum",dst)
+                if verified.returncode or not verified.stdout.startswith(expected+" "):
                     raise RuntimeError("Cutter installed plugin readback mismatch")
                 print("REA_TRIO_CUTTER_STATUS=INSTALLED_VERIFIED")
             print("REA_TRIO_CUTTER_SOURCE_BLOB="+gitblob)
