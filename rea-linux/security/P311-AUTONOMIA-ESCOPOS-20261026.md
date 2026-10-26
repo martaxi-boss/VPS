@@ -29,3 +29,41 @@ O proprietario define o trabalho, nao a lista de ferramentas MCP. A ponte decide
 - No transporte definitivo manter RSA-OAEP/AES-GCM, SSH com host pin, MCP loopback, nonce de uso unico, limite de 12 passos e isolamento dos ficheiros.
 
 **NAO DECLARAR:** nem que as 47 operacoes ja sao automaticas, nem que o modulo isolado fornece aprovacao real por botoes, nem que oito testes offline sao prova de funcionamento na VPS.
+
+## Evidencia verificada desta continuacao (P311, 26/10/2026)
+
+- **40/40 testes offline:** Actions run 40373089872 PASS, contendo os testes
+  existentes de seguranca e verificacoes de delegacao, assinaturas falsas,
+  esquema alterado, efeitos proibidos, caminhos e origem de projeto.
+- **Integracao de envelope cifrado em revisao:** protocolo original 1 com campo
+  opcional `scoped_task`. Quando ausente, o comportamento anterior e mantido.
+  Quando presente mas a funcionalidade nao esta ativada, o pedido e recusado.
+  O valor nunca e tratado como aprovacao por si so: exige Ed25519 autentico.
+- **Selecao automatica de ferramentas:** funcao `propose_task_tools` prepara
+  uma lista de ferramentas elegiveis a partir do catalogo real e auditoria
+  fonte/schema; o proprietario nao precisa de nomear ferramentas. A proposta
+  NAO executa ferramentas nem cria uma autorizacao.
+- **Teste MCP real de transporte somente de leitura:** run 40372781885 PASS;
+  `REA_MOBILE_JOB_FILE=default-catalog`, SSH host pin PASS, MCP loopback PASS,
+  229 ferramentas, 176 workspace, 47 sensiveis, 229 schemas validados.
+  NENHUMA operacao MCP `tools/call` foi enviada nesse teste.
+- **Higienizacao:** disparador temporario do ramo P311 retirado do workflow;
+  nao existem ficheiros de pedidos nas pastas `rea-linux/requests` e
+  `rea-android/requests` verificadas. O ramo ativo conserva o HEAD
+  `2f5573be27302f22aca5b9b3e20d78244f3ad0dc`. Nenhum service restart,
+  manutencao de Evidence, Unknowns e certificacoes historicas intacta.
+
+## Distincao entre demonstracao e autorizacao operativa
+
+Esta fase ainda nao aplica autorizacoes automaticas na VPS: nao ha grant
+real do proprietario para este prototipo, a flag opt-in nao esta ativa, e
+nao existe backend para validar um botao do chat como identidade do owner.
+As operacoes normais podem continuar a usar o contrato anterior. As 47
+sensiveis mantem as assinaturas independentes quando nao houver um grant
+validado e autorizado pela politica de producao.
+
+O grant experimental dura **no maximo 7 dias** por desenho e NAO e ainda
+uma permissao permanente. Para o uso autonomo duradouro pretendido pelo
+proprietario sera necessario um contrato de politica revogavel, confirmado
+por um canal que ateste o owner, sem expor a chave privada. Nao substituir
+esse requisito por um checkbox, booleano, mensagem ou ficheiro publico.
