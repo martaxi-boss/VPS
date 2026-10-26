@@ -1,0 +1,39 @@
+name: REA P311 staged authorization offline tests
+on:
+  push:
+    branches:
+      - rea/p311-autonomia-escopos-20261026
+    paths:
+      - ".github/workflows/rea-p311-offline-20261026.yml"
+      - "ops/rea_secure_protocol_20261022.py"
+      - "ops/rea_scoped_approval_20261026.py"
+      - "ops/tests/test_rea_secure_protocol_20261022.py"
+      - "ops/tests/test_rea_scoped_approval_20261026.py"
+      - "ops/tests/test_rea_p311_scoped_integration_20261026.py"
+permissions:
+  contents: read
+jobs:
+  authorization-only-no-vps:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Checkout review branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Install offline test dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq python3-cryptography python3-jsonschema > /dev/null
+      - name: Check Python syntax
+        run: python3 -m py_compile ops/rea_scoped_approval_20261026.py ops/rea_secure_protocol_20261022.py ops/tests/test_rea_scoped_approval_20261026.py ops/tests/test_rea_p311_scoped_integration_20261026.py
+      - name: Existing security plus scoped approval regressions
+        env:
+          REA_P311_SCOPED_TASKS: disabled
+        run: |
+          python3 -m unittest -v \
+            ops.tests.test_rea_secure_protocol_20261022 \
+            ops.tests.test_rea_scoped_approval_20261026 \
+            ops.tests.test_rea_p311_scoped_integration_20261026
