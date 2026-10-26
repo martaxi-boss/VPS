@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_rea_680_cutover_preflight"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -698,6 +698,105 @@ def main():
     print("REA_MOBILE_CATALOG_SAMPLE=" + json.dumps(
         list(tool_by_name)[:14], ensure_ascii=True
     ))
+    if data["action"] == "fixture_linux_rea_680_cutover_preflight":
+        # One-use read-only 6.8.0 cutover gate. Never restart, swap, import,
+        # alter the service, access another project or expose retained evidence.
+        import pwd
+        import stat
+        import shutil
+        checks = []
+        def check(name, passed):
+            passed = bool(passed)
+            print("REA_U680_FINAL_" + name + "=" + ("PASS" if passed else "BLOCKED"))
+            checks.append((name, passed))
+        base = Path("/opt/rea-reversa")
+        active = base / "rea"
+        stage = base / "upgrades/rea-6.8.0-160d821ac9a0"
+        restore = stage / ".rea-migration/evidence-restore.json"
+        archive = Path.home() / ".local/share/rea-chatgpt-trial/upgrade-backups/rea-6.7.0-retained-evidence-before-6.8.0-20261026.json"
+        manifest = Path.home() / ".local/share/rea-chatgpt-trial/upgrade-backups/rea-6.8.0-mcp-contract-manifest.json"
+        expected_restore = "f8178b2c3db0d093fa65864d9c12be9a1afe3c6d66fc93603769761bd9400f3b"
+        expected_backup = "baa448b25c2f1f2a5c76589b0a1eb4f586e20d733335eef76a9f5ed29f76b936"
+        check("ACTIVE_ORIGINAL_PATH", active.is_dir() and not active.is_symlink() and (active/"package.json").is_file())
+        check("STAGING_PATH", stage.is_dir() and not stage.is_symlink() and (stage/"dist/mcp/main.js").is_file())
+        if not all(ok for _,ok in checks):
+            print("REA_U680_FINAL_STATUS=BLOCKED_BASE_PATHS")
+            return
+        check("ACTIVE_VERSION_670", json.loads((active/"package.json").read_text()).get("version") == "6.7.0")
+        check("STAGE_VERSION_680", json.loads((stage/"package.json").read_text()).get("version") == "6.8.0")
+        for label, ref, expected in (
+            ("STAGE_SOURCE_COMMIT", "HEAD", "160d821ac9a0310afcb8d1fc427862dd6508add5"),
+            ("STAGE_SOURCE_TREE", "HEAD^{tree}", "15e6fec513dcce08cefdbcf441200986397e2793")):
+            p=subprocess.run(["git","rev-parse",ref],cwd=stage,capture_output=True,text=True,timeout=14,check=False)
+            check(label,p.returncode==0 and p.stdout.strip()==expected)
+        p=subprocess.run(["git","diff","--quiet","--exit-code"],cwd=stage,capture_output=True,timeout=15,check=False)
+        check("UPSTREAM_TRACKED_UNCHANGED",p.returncode==0)
+        check("BACKUP_SHA256",archive.is_file() and not archive.is_symlink() and hashlib.sha256(archive.read_bytes()).hexdigest()==expected_backup)
+        check("RESTORE_SHA256",restore.is_file() and not restore.is_symlink() and
+              hashlib.sha256(restore.read_bytes()).hexdigest()==expected_restore)
+        check("POLICY_MANIFEST_SHA256",manifest.is_file() and not manifest.is_symlink() and
+              hashlib.sha256(manifest.read_bytes()).hexdigest()==secure.RELEASE_680_MANIFEST_SHA256)
+        target=pwd.getpwnam("rea-reversa")
+        if restore.exists():
+            s=restore.stat()
+            check("RESTORE_SERVICE_OWNER",s.st_uid==target.pw_uid and stat.S_IMODE(s.st_mode)==0o400)
+        p=subprocess.run(["sudo","-n","-u","rea-reversa","sha256sum",str(restore)],
+                         capture_output=True,text=True,timeout=16,check=False)
+        check("RESTORE_SERVICE_ACCESS",p.returncode==0 and p.stdout.startswith(expected_restore+" "))
+        def sysprop(name):
+            p=subprocess.run(["systemctl","show","rea-reversa-mcp.service","-p",name,"--value"],
+                              capture_output=True,text=True,timeout=15,check=False)
+            return p.stdout.strip() if p.returncode==0 else ""
+        pid=sysprop("MainPID")
+        check("EXISTING_SERVICE_ACTIVE",sysprop("ActiveState")=="active" and pid.isdigit() and int(pid)>0)
+        check("CORRECT_SERVICE_OWNER",sysprop("User")=="rea-reversa")
+        check("SERVICE_USES_CANONICAL_PATH",str(active) in sysprop("ExecStart"))
+        check("STAGE_DISK_RESERVE",shutil.disk_usage(base).free>3200000000)
+        rollback=base/"rollbacks/rea-6.7.0-20261026"
+        check("ROLLBACK_SLOT_FREE",not rollback.exists() and not rollback.is_symlink())
+        def unpack(obj,depth=0):
+            if depth>9: return None
+            if isinstance(obj,dict):
+                if isinstance(obj.get("records"),list) and isinstance(obj.get("unknowns"),list): return obj
+                for value in obj.values():
+                    found=unpack(value,depth+1)
+                    if found is not None:return found
+            elif isinstance(obj,list):
+                for value in obj[:35]:
+                    found=unpack(value,depth+1)
+                    if found is not None:return found
+            elif isinstance(obj,str) and obj.lstrip().startswith("{") and len(obj)<4500000:
+                try: return unpack(json.loads(obj),depth+1)
+                except ValueError: pass
+            return None
+        if restore.is_file():
+            archived=json.loads(restore.read_text())
+            found=unpack(archived)
+            check("RESTORE_BUNDLE_STRUCTURE",found is not None and len(found["records"])==16 and len(found["unknowns"])==1 if found else False)
+        else:
+            found=None
+            check("RESTORE_BUNDLE_STRUCTURE",False)
+        out=None
+        try:
+            _,r=request_mcp({"jsonrpc":"2.0","id":6680,"method":"tools/call",
+                            "params":{"name":"get_evidence_bundle","arguments":{"detail":"complete"}}},
+                            session,protocol,timeout=65)
+            out=unpack(r.get("result",{})) if "error" not in r and not r.get("result",{}).get("isError") else None
+        except (OSError,ValueError,RuntimeError,subprocess.TimeoutExpired):
+            pass
+        check("LIVE_BUNDLE_READ",out is not None)
+        if out is not None and found is not None:
+            check("LIVE_EVIDENCE_COUNT",len(out["records"])==16)
+            check("LIVE_UNKNOWN_COUNT",len(out["unknowns"])==1)
+            def stable(part):
+                return hashlib.sha256(json.dumps(part,sort_keys=True,separators=(",",":"),
+                       ensure_ascii=True).encode()).hexdigest()
+            check("LIVE_VS_RESTORE_RECORDS",stable(out["records"])==stable(found["records"]))
+            check("LIVE_VS_RESTORE_UNKNOWNS",stable(out["unknowns"])==stable(found["unknowns"]))
+        else:
+            check("LIVE_BUNDLE_MATCH",False)
+        print("REA_U680_FINAL_STATUS="+("READY_FOR_OWNER_SIGNED_MIGRATION" if all(ok for _,ok in checks) else "BLOCKED_FIX_REPORTED_CHECKS"))
+        return
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
               secure.request_public_key_b64(create=True))
