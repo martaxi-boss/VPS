@@ -1001,7 +1001,7 @@ except Exception as e:
             "APPIMAGE_EXTRACT_AND_RUN=1",
             "PYTHONDONTWRITEBYTECODE=1","NO_COLOR=1",
             "/usr/bin/xvfb-run","-a","-s","-screen 0 1280x800x24",
-            str(app),str(target)]
+            str(app),"-A","0",str(target)]
         proc=None
         discovered=False
         version=""
