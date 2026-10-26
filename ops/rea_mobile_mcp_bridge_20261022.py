@@ -484,7 +484,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_APPLY_FAILURE",
         "REA_APPLY_RESULT",
         "REA_P301_STATUS","REA_P301_ORIGINAL_CUTTER_BRIDGE",
-        "REA_P301_SOURCE_VERIFIED","REA_P301_SERVICE_PID_UNCHANGED","REA_P301_BLOCK_CODE",
+        "REA_P301_SOURCE_VERIFIED","REA_P301_SERVICE_PID_UNCHANGED","REA_P301_BLOCK_CODE","REA_P301_ROOT_MANAGED_CODE",
         "REA_SERVICE_DOCTOR_STATUS",
         "REA_SERVICE_DOCTOR_UNIT_USER",
         "REA_SERVICE_DOCTOR_CONFIG_KEYS",
@@ -795,7 +795,76 @@ print(status)
                       capture_output=True,text=True,timeout=35,check=False)
         states={"ALREADY_LINKED","ALREADY_IDENTICAL","LINKED_OFFICIAL_SOURCE"}
         status=output.stdout.strip()
-        if output.returncode or status not in states:
+        if output.returncode==32:
+            # rizin/ belongs to a different account. A system-owned directory
+            # is not chowned. Install ONLY the original symlink if every parent
+            # is safe root/service-owned, non-symlink and not group-writable.
+            roothelper = """
+import ast,os,pwd,stat,sys
+from pathlib import Path
+who=pwd.getpwnam('rea-reversa')
+home=Path(who.pw_dir)
+src=Path('/opt/rea-reversa/rea/bridge/cutter/rea_bridge.py')
+if (not home.is_dir() or home.is_symlink() or
+    home.stat().st_uid!=who.pw_uid or src.is_symlink() or not src.is_file()):
+    raise SystemExit(50)
+data=src.read_bytes()
+ast.parse(data,filename=str(src))
+if b'def create_cutter_plugin()' not in data:raise SystemExit(51)
+parts=('.local','share','rizin','cutter','plugins','python')
+created=[]
+newlink=False
+path=home
+try:
+    for name in parts:
+        path=path/name
+        if path.is_symlink():raise ValueError('parent_symlink')
+        if path.exists():
+            st=path.stat()
+            if (not path.is_dir() or st.st_uid not in (0,who.pw_uid)
+                or stat.S_IMODE(st.st_mode)&0o022):
+                raise ValueError('unsafe_parent')
+        else:
+            path.mkdir(mode=0o755)
+            created.append(path)
+    dest=path/'rea_bridge.py'
+    if dest.is_symlink():
+        if dest.resolve()!=src.resolve():raise ValueError('foreign_link')
+        status='ALREADY_OFFICIAL_LINK'
+    elif dest.exists():
+        import hashlib
+        if not dest.is_file() or hashlib.sha256(dest.read_bytes()).digest()!=hashlib.sha256(data).digest():
+            raise ValueError('existing_different_plugin')
+        status='ALREADY_OFFICIAL_FILE'
+    else:
+        dest.symlink_to(src)
+        newlink=True
+        if dest.resolve()!=src.resolve():raise ValueError('link_mismatch')
+        status='LINKED_OFFICIAL_IN_ROOT_MANAGED_DIR'
+    print(status)
+except Exception:
+    if newlink:
+        try:dest.unlink()
+        except OSError:pass
+    for entry in reversed(created):
+        try:entry.rmdir()
+        except OSError:pass
+    raise SystemExit(52)
+"""
+            rootresult=sp.run(["sudo","-n","env","PYTHONDONTWRITEBYTECODE=1",
+                               "python3","-c",roothelper],
+                capture_output=True,text=True,timeout=35,check=False)
+            if rootresult.returncode==0 and rootresult.stdout.strip() in (
+                 "ALREADY_OFFICIAL_LINK","ALREADY_OFFICIAL_FILE",
+                 "LINKED_OFFICIAL_IN_ROOT_MANAGED_DIR"):
+                status=rootresult.stdout.strip()
+                output=rootresult
+            else:
+                print("REA_P301_ROOT_MANAGED_CODE="+str(rootresult.returncode))
+        if output.returncode or status not in (
+               "ALREADY_LINKED","ALREADY_IDENTICAL","LINKED_OFFICIAL_SOURCE",
+               "ALREADY_OFFICIAL_LINK","ALREADY_OFFICIAL_FILE",
+               "LINKED_OFFICIAL_IN_ROOT_MANAGED_DIR"):
             print("REA_P301_BLOCK_CODE="+str(output.returncode))
             print("REA_P301_STATUS=BLOCKED_PLUGIN_USER_PATH")
             return
