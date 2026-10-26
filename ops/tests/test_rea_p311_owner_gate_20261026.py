@@ -307,6 +307,69 @@ class P311GitHubButtonVerificationTests(unittest.TestCase):
         with self.assertRaises(gate.ApprovalGateError):
             self.check(reviews=altered)
 
+    def test_review_proposal_publishes_only_digest_not_private_task(self):
+        task = self._signed_task_fixture()
+        expiry = (self.now + timedelta(minutes=10)).strftime(
+            "%Y-%m-%dT%H:%M:%SZ")
+        path, proposal = gate.prepare_owner_review_request(
+            task, expires_at=expiry, request_id="a"*32, now=self.now)
+        self.assertEqual(self.path, path)
+        self.assertEqual({
+            "purpose", "request_id", "operation_sha256",
+            "project", "expires_at"
+        }, set(proposal))
+        import json
+        serialized = json.dumps(proposal)
+        self.assertNotIn(task["owner_signature"], serialized)
+        self.assertNotIn(task["task_id"], serialized)
+        self.assertNotIn(task["artifact_root"], serialized)
+        receipt = self.check(request=proposal)
+        self.assertTrue(gate.match_verified_review_to_signed_task(
+            receipt, task)["bound_preview_only"])
+
+    def test_review_proposal_rejects_expiry_after_signed_permission(self):
+        task = self._signed_task_fixture()
+        expires = (self.now + timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        with self.assertRaises(gate.ApprovalGateError):
+            gate.prepare_owner_review_request(
+                task, expires_at=expires, request_id="a"*32, now=self.now)
+        expired = {**task, "grant": {
+            **task["grant"],
+            "expires_at": (self.now - timedelta(seconds=1)).strftime(
+                "%Y-%m-%dT%H:%M:%SZ")}}
+        soon = (self.now + timedelta(minutes=10)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        with self.assertRaises(gate.ApprovalGateError):
+            gate.prepare_owner_review_request(
+                expired, expires_at=soon, request_id="a"*32, now=self.now)
+
+    def test_review_request_ids_do_not_reuse_another_button(self):
+        task = self._signed_task_fixture()
+        expiry = (self.now + timedelta(minutes=12)).strftime(
+            "%Y-%m-%dT%H:%M:%SZ")
+        old_path, old = gate.prepare_owner_review_request(
+            task, expires_at=expiry, request_id="a"*32, now=self.now)
+        new_path, new = gate.prepare_owner_review_request(
+            task, expires_at=expiry, request_id="b"*32, now=self.now)
+        self.assertNotEqual(old_path, new_path)
+        self.assertNotEqual(old["operation_sha256"], new["operation_sha256"])
+        approved_old = self.check(request=old)
+        with self.assertRaises(gate.ApprovalGateError):
+            gate.match_verified_review_to_signed_task(
+                {**approved_old, "request_id": "b"*32}, task)
+
+    def test_review_nonce_generated_randomly_not_fixed(self):
+        task = self._signed_task_fixture()
+        expiry = (self.now + timedelta(minutes=10)).strftime(
+            "%Y-%m-%dT%H:%M:%SZ")
+        one_path, one = gate.prepare_owner_review_request(
+            task, expires_at=expiry, now=self.now)
+        two_path, two = gate.prepare_owner_review_request(
+            task, expires_at=expiry, now=self.now)
+        self.assertNotEqual(one_path, two_path)
+        self.assertNotEqual(one["request_id"], two["request_id"])
+        self.assertEqual(32, len(one["request_id"]))
+        self.assertEqual(64, len(one["operation_sha256"]))
+
     def test_duplicate_json_keys_are_rejected(self):
         with self.assertRaises(gate.ApprovalGateError):
             gate._parse_no_duplicates([("request_id", "a"), ("request_id", "b")])
