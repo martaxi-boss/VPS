@@ -1,0 +1,163 @@
+{
+  "schema_version": 1,
+  "phase": "P286_REA_SECURITY_FRICTION_REVIEW_AND_REAL_WORKSPACE_MCP_20261026",
+  "project": "Engenharia Reversa / original REA VPS Linux, existing MCP only",
+  "user_objective": "Restore REA-original usability without gratuitous owner Ed25519 prompts, complete safe provider readiness without duplicating engine or deleting retained state",
+  "changes": {
+    "source_repo": "martaxi-boss/VPS",
+    "branch": "rea/one-skill-bridge-20261023",
+    "audited_protocol": "ops/rea_secure_protocol_20261022.py",
+    "audited_protocol_blob": "f77606382b5c56616092724666f82c5905701f5b",
+    "test_suite": "ops/tests/test_rea_secure_protocol_20261022.py",
+    "test_suite_blob": "9c0157bd984cbe4ca9efa0c26b8005a5ab04de79",
+    "source_engine_repo_unchanged": "martaxi-boss/Engenheira-reversa",
+    "original_bridge_sha_restored": "e2405473eaff646be5952b785b57f41f906354b6",
+    "classification_before": {
+      "read": 5,
+      "workspace": 120,
+      "sensitive": 83
+    },
+    "classification_after": {
+      "read": 5,
+      "workspace": 156,
+      "sensitive": 47
+    },
+    "changed_tools": [
+      "analyze_web_bundle",
+      "capture_adb_screen",
+      "capture_web_screenshot",
+      "collect_adb_bugreport",
+      "decompile_jeb_item",
+      "discover_webmcp_tools",
+      "extract_artifact",
+      "extract_firmware",
+      "inspect_adb_client",
+      "inspect_adb_device",
+      "inspect_adb_display",
+      "inspect_adb_package",
+      "inspect_adb_window",
+      "inspect_electron_page",
+      "inspect_jeb_client",
+      "inspect_web_event_listeners",
+      "inspect_web_network_capture",
+      "inspect_web_page",
+      "list_adb_devices",
+      "list_adb_directory",
+      "list_adb_features",
+      "list_adb_packages",
+      "list_adb_processes",
+      "list_adb_services",
+      "list_browser_targets",
+      "list_cutter_sessions",
+      "list_electron_targets",
+      "list_frida_devices",
+      "list_frida_processes",
+      "list_javascript_runtime_targets",
+      "list_jeb_units",
+      "observe_web_session",
+      "read_adb_logcat",
+      "read_adb_setting",
+      "reconcile_javascript_runtime",
+      "resolve_adb_packages"
+    ],
+    "unchanged_security": [
+      "strict schema SHA256 and annotation match",
+      "exact arguments digest and scope-bound authorization for workspace operations",
+      "path confinement and 12-step bound",
+      "one-use nonce and expiry",
+      "RSA-OAEP / AES-GCM encrypted GitHub requests/results",
+      "SSH host pinning and MCP loopback only",
+      "Ed25519 for target/device mutation, foreign code execution, data-discard and unreviewed high-risk names",
+      "P232 signed open/close lifecycle protection",
+      "no private owner key accessed"
+    ],
+    "audit_scope": "Only explicit 36 effects-audited low-impact names were downgraded; 47 remain owner signed, no implicit permission for new names or schema drift."
+  },
+  "proof": {
+    "ci_run": 40302899378,
+    "ci_result": "SUCCESS 16 security tests",
+    "catalog_count": 208,
+    "runtime_proof_workflow": 40304302890,
+    "runtime_proof_tool": "inspect_adb_client",
+    "runtime_proof_risk": "workspace",
+    "runtime_proof_signature": "NO_OWNER_SIGNATURE_REQUIRED",
+    "runtime_proof": {
+      "policy": "PASS",
+      "steps_total": 1,
+      "steps_executed": 1,
+      "isError": false,
+      "request_and_response_cryptographically_matched": true,
+      "private_output_destroyed_after_validation": true
+    },
+    "final_clean_bridge_workflow": 40304649585,
+    "independent_service_doctor_run": 40303172767,
+    "original_service_doctor": {
+      "configured_and_available": [
+        "ghidra",
+        "jadx",
+        "kuna"
+      ],
+      "configured_ida": false,
+      "global_healthy": false
+    },
+    "installed_supplier_smoke_run": 40303575847,
+    "installed_supplier_smoke": {
+      "wakaru": "CLI_PASS",
+      "mitmdump": "CLI_PASS",
+      "chromium": "CLI_PASS",
+      "cutter_gui_with_xvfb": "CLI_PASS",
+      "ida_native_plugin": "FILE_PRESENT",
+      "jeb_ce": "JAR_PRESENT"
+    },
+    "current_service_process_env": {
+      "REA_WAKARU_COMMAND": false,
+      "REA_MITMDUMP_COMMAND": false,
+      "PLAYWRIGHT_BROWSERS_PATH": false,
+      "REA_IDA_MCP_CONFIG": false,
+      "REA_JEB_MCP_URL": false
+    },
+    "retained_canonical_ledger": "P285 125/208 certified, 83 pending; unchanged in P286"
+  },
+  "remaining_blockers": [
+    {
+      "name": "Restart-dependent optional supplier env",
+      "reason": "Drop-in prepared, but original service must be restarted to adopt Wakaru/mitmdump/Chromium environment; current process holds retained Evidence/Unknown state; no restart without verified safe recovery."
+    },
+    {
+      "name": "IDA Free",
+      "reason": "Free MCP extension installed, official IDA executable / named My Hex-Rays licence and activation not present; no bypass."
+    },
+    {
+      "name": "JEB Community",
+      "reason": "Official CE JAR installed, first-use EULA and permitted licence activation required before running its MCP; no bypass."
+    },
+    {
+      "name": "Cutter",
+      "reason": "AppImage, FUSE and original REA plugin installed, CLI GUI/Xvfb version passed; authenticated live Cutter plugin session not yet proven, requires bounded end-to-end session."
+    },
+    {
+      "name": "Hopper",
+      "reason": "Excluded by earlier user preference; no installation or licence change."
+    },
+    {
+      "name": "Version parity",
+      "reason": "Original installed REA remains 6.7.0; upstream main 6.8.0 not applied to preserve certification and working service. Two new npm dependencies belong to 6.8.0 only."
+    },
+    {
+      "name": "Other platform/hardware",
+      "reason": "macOS-only APIs and USB-dependent operations cannot be completed solely by installing Ubuntu packages."
+    }
+  ],
+  "hygiene": {
+    "original_engine_not_reinstalled": true,
+    "no_new_mcp_or_server": true,
+    "no_codex": true,
+    "no_owner_private_key_exported": true,
+    "ephemeral_local_request_and_response_keys_destroyed": true,
+    "consumed_github_request_files_deleted": true,
+    "exact_bridge_code_restored": true,
+    "certification_count_not_inflated": true,
+    "evidence_unknowns_backups_not_deleted": true,
+    "no_original_service_restart": true
+  }
+}
