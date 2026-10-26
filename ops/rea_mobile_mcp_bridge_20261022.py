@@ -976,7 +976,7 @@ except Exception as e:
                    "/tmp/rea-p302-cutter.XXXXXXXX"],capture_output=True,
                    text=True,timeout=14,check=False)
         if made.returncode or not re.fullmatch(
-             r"/tmp/rea-p302-cutter\\.[A-Za-z0-9]{8}",made.stdout.strip()):
+             r"/tmp/rea-p302-cutter\.[A-Za-z0-9]{8}",made.stdout.strip()):
             print("REA_P302_STATUS=BLOCKED_TEMP_DIR")
             return
         temp=made.stdout.strip()
