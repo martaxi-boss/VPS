@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_680_supplier_wiring_p295"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_680_supplier_wiring_p295", "fixture_linux_680_supplier_smoke_p296"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -561,7 +561,11 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_P295_SERVICE_PATH_TOOLS", "REA_P295_KNOWN_VENDOR_PATHS",
         "REA_P295_PROVIDER_NAMES", "REA_P295_ACTIVE_NODE_VERSION_CONFIRMED",
         "REA_P295_CONFIG_01", "REA_P295_CONFIG_02", "REA_P295_CONFIG_03", "REA_P295_CONFIG_04", "REA_P295_CONFIG_05", "REA_P295_CONFIG_06", "REA_P295_CONFIG_07", "REA_P295_CONFIG_08", "REA_P295_CONFIG_09",
-        "REA_P295_VENDOR_WAKARU", "REA_P295_VENDOR_MITMPROXY", "REA_P295_VENDOR_WABT", "REA_P295_VENDOR_CUTTER", "REA_P295_VENDOR_IDA", "REA_P295_VENDOR_JEB", "REA_P295_VENDOR_PWNTOOLS", "REA_P295_VENDOR_CHROMIUM"
+        "REA_P295_VENDOR_WAKARU", "REA_P295_VENDOR_MITMPROXY", "REA_P295_VENDOR_WABT", "REA_P295_VENDOR_CUTTER", "REA_P295_VENDOR_IDA", "REA_P295_VENDOR_JEB", "REA_P295_VENDOR_PWNTOOLS", "REA_P295_VENDOR_CHROMIUM",
+        "REA_P296_STATUS","REA_P296_WAKARU","REA_P296_MITMDUMP",
+        "REA_P296_WABT","REA_P296_PWNTOOLS","REA_P296_BROWSER",
+        "REA_P296_HOPPER_DRYRUN_EXIT","REA_P296_HOPPER_DRYRUN_STATUS",
+        "REA_P296_HOPPER_ACTIONS","REA_P296_SERVICE_PID_UNCHANGED"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -838,6 +842,117 @@ def main():
 
         print("REA_P295_ACTIVE_NODE_VERSION_CONFIRMED="+str(bool(pid==prop("MainPID"))).lower())
         print("REA_P295_STATUS=PASS_READ_ONLY")
+        return
+    if data["action"] == "fixture_linux_680_supplier_smoke_p296":
+        # Temporary read-only functional provider checks and official Hopper
+        # SETUP DRY RUN only: no installs, no registration, no service restart.
+        import pwd
+        unit="rea-reversa-mcp.service"
+        def prop(name):
+            p=subprocess.run(["systemctl","show",unit,"-p",name,"--value"],
+                             capture_output=True,text=True,timeout=12,check=False)
+            return p.stdout.strip() if p.returncode==0 else ""
+        pid=prop("MainPID")
+        identity=prop("User")
+        original=Path("/opt/rea-reversa/rea")
+        if (identity!="rea-reversa" or not pid.isdecimal() or int(pid)<1
+             or prop("ActiveState")!="active" or not (original/"scripts/rea.mjs").is_file()
+             or json.loads((original/"package.json").read_text()).get("version")!="6.8.0"):
+            print("REA_P296_STATUS=BLOCKED_WRONG_ACTIVE_SERVICE")
+            return
+        proc=subprocess.run(["sudo","-n","cat",f"/proc/{int(pid)}/environ"],
+                            capture_output=True,timeout=20,check=False)
+        if proc.returncode or len(proc.stdout)>220000:
+            print("REA_P296_STATUS=BLOCKED_PROC_ENV")
+            return
+        environment={}
+        keys={"PATH","JAVA_HOME","REA_WAKARU_COMMAND","REA_MITMDUMP_COMMAND",
+              "REA_WABT_BIN_DIRECTORY","REA_PWNTOOLS_PYTHON",
+              "PLAYWRIGHT_BROWSERS_PATH","HOME"}
+        for item in proc.stdout.split(bytes([0])):
+            if b"=" in item:
+                k,v=item.split(b"=",1)
+                try:
+                    key=k.decode("ascii")
+                    if key in keys and len(v)<1500:
+                        environment[key]=v.decode("utf-8")
+                except UnicodeDecodeError:
+                    pass
+        userhome=pwd.getpwnam(identity).pw_dir
+        exe=subprocess.run(["sudo","-n","readlink","-f",f"/proc/{int(pid)}/exe"],
+                           capture_output=True,text=True,timeout=12,check=False)
+        node=exe.stdout.strip()
+        if exe.returncode or not node.endswith("/node") or not Path(node).is_file():
+            print("REA_P296_STATUS=BLOCKED_NODE_RUNTIME")
+            return
+        common=["sudo","-n","-u",identity,"env",
+                "HOME="+userhome,
+                "PATH="+str(Path(node).parent)+":"+environment.get("PATH","/usr/bin:/bin"),
+                "NO_COLOR=1","CI=1","PYTHONDONTWRITEBYTECODE=1"]
+        for key in ("JAVA_HOME","PLAYWRIGHT_BROWSERS_PATH"):
+            if environment.get(key):
+                common.append(key+"="+environment[key])
+        cases=[
+          ("WAKARU", environment.get("REA_WAKARU_COMMAND"),["--version"]),
+          ("MITMDUMP",environment.get("REA_MITMDUMP_COMMAND"),["--version"]),
+          ("WABT", (environment.get("REA_WABT_BIN_DIRECTORY","")+"/wasm-validate")
+                   if environment.get("REA_WABT_BIN_DIRECTORY") else None,["--version"]),
+          ("PWNTOOLS", environment.get("REA_PWNTOOLS_PYTHON"),
+                 ["-c","import pwnlib.version; print(pwnlib.version.__version__)"])]
+        for name,executable,args in cases:
+            if not executable or not executable.startswith("/"):
+                print("REA_P296_"+name+"=NOT_CONFIGURED")
+                continue
+            if subprocess.run(["sudo","-n","-u",identity,"test","-x",executable],
+                    capture_output=True,timeout=12,check=False).returncode:
+                print("REA_P296_"+name+"=INACCESSIBLE")
+                continue
+            try:
+                r=subprocess.run([*common,executable,*args],
+                                 cwd=original,capture_output=True,text=True,
+                                 timeout=28,check=False)
+                print("REA_P296_"+name+"="+("PASS" if r.returncode==0 else "EXIT_"+str(r.returncode)))
+            except subprocess.TimeoutExpired:
+                print("REA_P296_"+name+"=TIMEOUT")
+        browserjs="""
+import { chromium } from 'playwright-core';
+const b=await chromium.launch({headless:true});
+try {
+ const page=await b.newPage();
+ await page.goto('about:blank');
+ console.log('REA_P296_BROWSER_OK');
+} finally { await b.close(); }
+"""
+        try:
+            r=subprocess.run([*common,node,"--input-type=module","--eval",browserjs],
+                             cwd=original,capture_output=True,text=True,timeout=65,check=False)
+            ok=r.returncode==0 and "REA_P296_BROWSER_OK" in r.stdout
+            print("REA_P296_BROWSER="+("PASS_HEADLESS" if ok else "UNAVAILABLE"))
+        except subprocess.TimeoutExpired:
+            print("REA_P296_BROWSER=TIMEOUT")
+        setup=[*common,node,str(original/"scripts/rea.mjs"),
+               "setup","--install-hopper","--skill=false","--yes","--dry-run","--json"]
+        try:
+            plan=subprocess.run(setup,cwd=original,capture_output=True,text=True,
+                                timeout=100,check=False)
+            print("REA_P296_HOPPER_DRYRUN_EXIT="+str(plan.returncode))
+            if len(plan.stdout)<300000 and plan.stdout.strip().startswith("{"):
+                obj=json.loads(plan.stdout)
+                print("REA_P296_HOPPER_DRYRUN_STATUS="+
+                      str(obj.get("status","unknown"))[:40])
+                acts=obj.get("actions",obj.get("steps",[]))
+                if isinstance(acts,list):
+                    safe=[]
+                    for action in acts[:30]:
+                        if isinstance(action,dict):
+                            safe.append(str(action.get("kind",action.get("id","unknown")))[:50])
+                    print("REA_P296_HOPPER_ACTIONS="+json.dumps(safe)[:280])
+            elif plan.returncode:
+                print("REA_P296_HOPPER_DRYRUN_STATUS=NO_JSON_REPORT")
+        except (subprocess.TimeoutExpired,ValueError,TypeError):
+            print("REA_P296_HOPPER_DRYRUN_STATUS=FAILED_OR_TIMED_OUT")
+        print("REA_P296_SERVICE_PID_UNCHANGED="+str(pid==prop("MainPID")).lower())
+        print("REA_P296_STATUS=PASS_READ_ONLY")
         return
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
