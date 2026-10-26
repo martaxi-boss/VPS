@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_rea_680_preflight", "fixture_linux_rea_680_stage", "fixture_linux_rea_680_npm_diagnose", "fixture_linux_rea_680_resume_build"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_rea_680_preflight", "fixture_linux_rea_680_stage", "fixture_linux_rea_680_npm_diagnose", "fixture_linux_rea_680_resume_build", "fixture_linux_rea_680_rehearse"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -310,6 +310,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_U680_DIAG_NPM_VERSION","REA_U680_DIAG_NPM_LOGS",
         "REA_U680_DIAG_STATUS",
         "REA_U680_RESUME_STATUS","REA_U680_RESUME_BACKUP",
+        "REA_U680_REHEARSAL_STATE", "REA_U680_REHEARSAL_CATALOG_COUNT", "REA_U680_REHEARSAL_CATALOG_NAMES", "REA_U680_REHEARSAL_BACKUP_RESPONSE_FIELDS", "REA_U680_REHEARSAL_ARCHIVE_PARSE", "REA_U680_REHEARSAL_ARCHIVE_RECORD_COUNT", "REA_U680_REHEARSAL_ARCHIVE_UNKNOWN_COUNT", "REA_U680_REHEARSAL_IMPORT_RESULT", "REA_U680_REHEARSAL_POST_RECORD_COUNT", "REA_U680_REHEARSAL_POST_UNKNOWN_COUNT",
         "REA_U680_RESUME_SELECTED_NODE","REA_U680_RESUME_NODE_ENV",
         "REA_U680_RESUME_NPM_CI_EXIT","REA_U680_RESUME_OFFICIAL_BUILD_EXIT",
         "REA_U680_RESUME_CLI",
@@ -2761,6 +2762,48 @@ def main():
             print("REA_U680_RESUME_STATUS=PASS_COMPILED_EXACT_SOURCE_NOT_ACTIVE")
         except (OSError,RuntimeError,ValueError,subprocess.TimeoutExpired) as exc:
             print("REA_U680_RESUME_STATUS=INCOMPLETE_"+type(exc).__name__)
+        return
+    if data["action"] == "fixture_linux_rea_680_rehearse":
+        # Read-only official compiled tool catalogue and off-line Evidence import:
+        # no service restart, no MCP calls, no writes to vendor source.
+        import pwd
+        stage=Path("/opt/rea-reversa/upgrades/rea-6.8.0-160d821ac9a0")
+        sha="160d821ac9a0310afcb8d1fc427862dd6508add5"
+        copy=Path.home()/".local/share/rea-chatgpt-trial/upgrade-backups/rea-6.7.0-retained-evidence-before-6.8.0-20261026.json"
+        if (not stage.is_dir() or stage.is_symlink() or
+            not (stage/"dist/contracts/toolContracts.js").is_file() or
+            not copy.is_file() or copy.is_symlink() or
+            hashlib.sha256(copy.read_bytes()).hexdigest()!="baa448b25c2f1f2a5c76589b0a1eb4f586e20d733335eef76a9f5ed29f76b936"):
+            print("REA_U680_REHEARSAL_STATE=BLOCKED_PREREQUISITES")
+            return
+        pinned=subprocess.run(["git","rev-parse","HEAD"],cwd=stage,
+                      capture_output=True,text=True,timeout=15,check=False)
+        if pinned.returncode or pinned.stdout.strip()!=sha:
+            print("REA_U680_REHEARSAL_STATE=BLOCKED_SOURCE_IDENTITY")
+            return
+        node_pid=subprocess.run(["systemctl","show","rea-reversa-mcp.service",
+                  "-p","MainPID","--value"],capture_output=True,text=True,timeout=12)
+        pid=node_pid.stdout.strip()
+        if not pid.isdecimal() or int(pid)<1:
+            print("REA_U680_REHEARSAL_STATE=BLOCKED_OLD_SERVICE")
+            return
+        path=subprocess.run(["sudo","-n","readlink","-f",f"/proc/{int(pid)}/exe"],
+                        capture_output=True,text=True,timeout=12,check=False)
+        if path.returncode or not path.stdout.strip().endswith("/node"):
+            print("REA_U680_REHEARSAL_STATE=BLOCKED_NODE_RUNTIME")
+            return
+        env={"PATH":str(Path(path.stdout.strip()).parent)+":"+os.environ.get("PATH","/usr/bin:/bin"),
+             "HOME":str(Path.home()),"NO_COLOR":"1"}
+        js="import fs from \"node:fs\";\nimport { TOOL_CONTRACTS } from \"./dist/contracts/toolContracts.js\";\nimport { EvidenceLedger } from \"./dist/application/investigation/EvidenceLedger.js\";\nconst input=JSON.parse(fs.readFileSync(\"/home/ubuntu/.local/share/rea-chatgpt-trial/upgrade-backups/rea-6.7.0-retained-evidence-before-6.8.0-20261026.json\",\"utf8\"));\nconst result=input.calls?.get_evidence_bundle?.response;\nconst report=(k,v)=>process.stdout.write(\"REA_U680_REHEARSAL_\"+k+\"=\"+String(v)+\"\\n\");\nreport(\"CATALOG_COUNT\",TOOL_CONTRACTS.length);\nreport(\"CATALOG_NAMES\",JSON.stringify(TOOL_CONTRACTS.map(x=>x.name).sort()));\nreport(\"BACKUP_RESPONSE_FIELDS\",JSON.stringify(Object.keys(result??{})));\nfunction explore(v,level){\n if(level>7 || v===null || typeof v!==\"object\")return null;\n if(Array.isArray(v))return null;\n if(Array.isArray(v.records) && Array.isArray(v.unknowns))return v;\n for(const [key,value] of Object.entries(v)){\n  if(level>=7) break;\n  if(typeof value===\"string\" && value.trim().startsWith(\"{\") && value.length<4500000){\n    try{const r=explore(JSON.parse(value),level+1);if(r)return r}catch{}\n  }else if(value && typeof value===\"object\" && !Array.isArray(value)){\n    const r=explore(value,level+1);if(r)return r;\n  }else if(Array.isArray(value)){\n    for(const element of value.slice(0,24)){const r=explore(element,level+1);if(r)return r}\n  }\n }\n return null;\n}\nconst bundle=explore(result,0);\nif(!bundle){report(\"ARCHIVE_PARSE\",\"BLOCKED_BUNDLE_NOT_FOUND\");process.exit(0)}\nreport(\"ARCHIVE_RECORD_COUNT\",bundle.records.length);\nreport(\"ARCHIVE_UNKNOWN_COUNT\",bundle.unknowns.length);\nconst ledger=new EvidenceLedger();\nconst test=ledger.import(bundle);\nif(!test.ok){report(\"IMPORT_RESULT\",\"REJECTED_\"+test.error?.constructor?.name);process.exit(0)}\nconst after=ledger.export();\nconst ids=a=>JSON.stringify(a.map(x=>x.evidence_id).sort());\nconst idsEqual=ids(bundle.records)===ids(after.records);\nconst unknownIDs=a=>JSON.stringify(a.map(x=>x.unknown_id+\":\"+x.revision_digest).sort());\nconst unknownsEqual=unknownIDs(bundle.unknowns)===unknownIDs(after.unknowns);\nconst second=ledger.import(bundle);\nreport(\"IMPORT_RESULT\",(idsEqual&&unknownsEqual&&second.ok&&!second.value.changed)?\"PASS_OFFLINE_EXACT_IDS_AND_IDEMPOTENT\":\"CHECK_REQUIRED\");\nreport(\"POST_RECORD_COUNT\",after.records.length);\nreport(\"POST_UNKNOWN_COUNT\",after.unknowns.length);"
+        p=subprocess.run(["node","--input-type=module","--eval",js],cwd=stage,
+            env=env,capture_output=True,text=True,timeout=100,check=False)
+        if p.returncode:
+            print("REA_U680_REHEARSAL_STATE=SCRIPT_FAILED_"+str(p.returncode))
+            return
+        for line in p.stdout.splitlines():
+            if line.startswith("REA_U680_REHEARSAL_") and len(line)<19000:
+                print(line)
+        print("REA_U680_REHEARSAL_STATE=PASS_READ_ONLY_ISOLATED")
         return
     if data["action"] == "fixture_linux_install_inventory":
         # Audit original Linux REA installation; no installation, no restart.
