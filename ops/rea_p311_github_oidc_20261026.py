@@ -285,11 +285,74 @@ def verify_review_and_oidc_for_signed_task(
             "jwt_jti": jwt_verified["jti"]}
 
 
+
+def verify_committed_review_request(
+        workflow_run, public_request, request_path, reviewed_commit,
+        committed_request_bytes, *, now=None):
+    """Require exact GitHub commit/blob provenance for the consent challenge.
+
+    A TRUSTED GitHub REST client must fetch commit metadata and blob from the
+    pinned repository at workflow_run['head_sha'], never from a mutable
+    branch tip or user-supplied request parameters. This is preview code,
+    not an MCP permission or a private GitHub credential.
+    """
+    sha = workflow_run.get("head_sha") if isinstance(workflow_run, dict) else None
+    if (not isinstance(sha, str) or not gate.HEX40.fullmatch(sha) or
+            not isinstance(reviewed_commit, dict) or
+            reviewed_commit.get("sha") != sha):
+        raise GithubOIDCError("Reviewed commit differs from approved run SHA")
+    parents, files, stats = (reviewed_commit.get("parents"),
+                             reviewed_commit.get("files"),
+                             reviewed_commit.get("stats"))
+    if (not isinstance(parents, list) or len(parents) != 1 or
+            not isinstance(parents[0], dict) or
+            not isinstance(parents[0].get("sha"), str) or
+            not gate.HEX40.fullmatch(parents[0]["sha"]) or
+            not isinstance(files, list) or len(files) != 1 or
+            not isinstance(stats, dict)):
+        raise GithubOIDCError("Reviewed commit must add exactly one request")
+    entry = files[0]
+    if (not isinstance(entry, dict) or
+            entry.get("filename") != request_path or
+            entry.get("status") != "added" or
+            not isinstance(entry.get("sha"), str) or
+            not gate.HEX40.fullmatch(entry["sha"])):
+        raise GithubOIDCError("Reviewed commit added a different file")
+    additions, deletions, changes = (
+        entry.get("additions"), entry.get("deletions"), entry.get("changes"))
+    if (any(type(value) is not int for value in (
+            additions, deletions, changes, stats.get("additions"),
+            stats.get("deletions"), stats.get("total"))) or
+            additions < 1 or deletions != 0 or changes != additions or
+            stats["additions"] != additions or
+            stats["deletions"] != deletions or stats["total"] != changes):
+        raise GithubOIDCError("Reviewed commit includes unapproved changes")
+    if (not isinstance(committed_request_bytes, bytes) or
+            not 0 < len(committed_request_bytes) <= 2000):
+        raise GithubOIDCError("Missing or oversized reviewed Git blob")
+    actual_blob_sha = hashlib.sha1(
+        b"blob " + str(len(committed_request_bytes)).encode("ascii") +
+        b"\x00" + committed_request_bytes).hexdigest()
+    if actual_blob_sha != entry["sha"]:
+        raise GithubOIDCError("Committed request blob SHA does not match")
+    try:
+        committed = json.loads(
+            committed_request_bytes.decode("utf-8"),
+            object_pairs_hook=gate._parse_no_duplicates)
+    except (UnicodeError, ValueError) as exc:
+        raise GithubOIDCError("Invalid committed owner-review JSON") from exc
+    if committed != public_request:
+        raise GithubOIDCError("Review challenge differs from committed Git blob")
+    gate.validate_review_request(
+        committed, path=request_path, now=now or datetime.now(timezone.utc))
+    return True
+
 def verify_owner_review_oidc_and_consume_once(
         github_context, workflow_run, review_history, public_request,
         signed_task, jwt, owner_public_pem, trusted_contracts, *,
-        request_path, revocation_dir, private_spent_dir, now=None):
-    """Preview-only atomic replay gate: owner approval + GitHub JWT + Ed25519.
+        request_path, reviewed_commit, committed_request_bytes,
+        revocation_dir, private_spent_dir, now=None):
+    """Preview-only replay gate: Git commit + owner approval + JWT + Ed25519.
 
     Called ONLY by trusted server code that obtains review_history and
     workflow_run directly from GitHub REST (never caller-supplied metadata),
@@ -302,6 +365,9 @@ def verify_owner_review_oidc_and_consume_once(
     fail without rewriting any existing Evidence/Unknowns or grant files.
     """
     now = now or datetime.now(timezone.utc)
+    verify_committed_review_request(
+        workflow_run, public_request, request_path, reviewed_commit,
+        committed_request_bytes, now=now)
     proof = verify_review_and_oidc_for_signed_task(
         github_context, workflow_run, review_history, public_request,
         signed_task, jwt, load_official_github_jwks(),
@@ -334,24 +400,38 @@ def verify_owner_review_oidc_and_consume_once(
     # Pin the directory inode and atomically create the marker; path traversal
     # and symlink swaps are not able to redirect marker creation.
     flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
-    dirfd = os.open(directory, flags)
+    # Pin the owner-private parent and child directory descriptors: an
+    # intervening symlink or rename cannot redirect the spent marker.
+    parentfd = os.open(directory.parent, flags)
     try:
-        meta = os.fstat(dirfd)
-        if (not stat.S_ISDIR(meta.st_mode) or
-                meta.st_uid != os.geteuid() or
-                stat.S_IMODE(meta.st_mode) != 0o700):
-            raise GithubOIDCError("Unsafe immutable owner review ledger")
+        parent_meta = os.fstat(parentfd)
+        if (not stat.S_ISDIR(parent_meta.st_mode) or
+                parent_meta.st_uid != os.geteuid() or
+                stat.S_IMODE(parent_meta.st_mode) != 0o700):
+            raise GithubOIDCError("Unsafe parent for immutable review ledger")
+        dirfd = os.open(directory.name, flags, dir_fd=parentfd)
         try:
-            fd = os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_EXCL |
-                         os.O_NOFOLLOW, 0o600, dir_fd=dirfd)
-        except FileExistsError as exc:
-            raise GithubOIDCError("Owner button proof has already been used") from exc
-        with os.fdopen(fd, "wb") as stream:
-            stream.write(raw)
-            stream.flush()
-            os.fsync(stream.fileno())
+            meta = os.fstat(dirfd)
+            if (not stat.S_ISDIR(meta.st_mode) or
+                    meta.st_uid != os.geteuid() or
+                    stat.S_IMODE(meta.st_mode) != 0o700):
+                raise GithubOIDCError("Unsafe immutable owner review ledger")
+            try:
+                fd = os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_EXCL |
+                             os.O_NOFOLLOW, 0o600, dir_fd=dirfd)
+            except FileExistsError as exc:
+                raise GithubOIDCError("Owner button proof has already been used") from exc
+            with os.fdopen(fd, "wb") as stream:
+                stream.write(raw)
+                stream.flush()
+                os.fsync(stream.fileno())
+            # Sync the directory entry too: fsync(file) alone cannot
+            # guarantee the antireplay marker persists after a crash.
+            os.fsync(dirfd)
+        finally:
+            os.close(dirfd)
     finally:
-        os.close(dirfd)
+        os.close(parentfd)
     return {
         "verified_spent_preview_only": True,
         "request_id": rid,

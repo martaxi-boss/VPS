@@ -7,11 +7,11 @@ import base64
 from contextlib import redirect_stdout
 import io
 import json
+import hashlib
 import os
 from pathlib import Path
 import tempfile
 from datetime import datetime, timedelta, timezone
-import json
 import unittest
 from unittest import mock
 
@@ -74,6 +74,20 @@ class P311GithubOIDCReviewTests(unittest.TestCase):
             "environments": [{"name": gate.REVIEW_ENVIRONMENT,
                               "id": gate.REVIEW_ENVIRONMENT_ID}],
         }]
+        self.committed = (json.dumps(
+            self.request, sort_keys=True, separators=(",", ":")) + "\n").encode()
+        blob_sha = hashlib.sha1(
+            b"blob " + str(len(self.committed)).encode() + b"\x00" +
+            self.committed).hexdigest()
+        number_of_lines = len(self.committed.splitlines())
+        self.commit = {
+            "sha": self.run["head_sha"], "parents": [{"sha": "b"*40}],
+            "files": [{"filename": self.path, "status": "added",
+                       "sha": blob_sha, "additions": number_of_lines,
+                       "deletions": 0, "changes": number_of_lines}],
+            "stats": {"additions": number_of_lines, "deletions": 0,
+                      "total": number_of_lines},
+        }
         self.private_rsa = rsa.generate_private_key(public_exponent=65537,
                                                     key_size=2048)
         nums = self.private_rsa.public_key().public_numbers()
@@ -261,7 +275,8 @@ class P311GithubOIDCReviewTests(unittest.TestCase):
                 secure.AUDITED_EFFECTS["inspect_with_objdump"], "workspace")
         }
 
-    def consume(self, *, reviews=None, jwt=None, task=None, public=None):
+    def consume(self, *, reviews=None, jwt=None, task=None, public=None,
+                commit=None, committed=None):
         public = self.request if public is None else public
         with mock.patch.object(oidc, "load_official_github_jwks",
                                return_value=self.jwks):
@@ -271,12 +286,23 @@ class P311GithubOIDCReviewTests(unittest.TestCase):
                 public, self.signed if task is None else task,
                 self.mint() if jwt is None else jwt,
                 self.owner_public, self.trusted_contracts,
-                request_path=self.path, revocation_dir=self.revocations,
+                request_path=self.path,
+                reviewed_commit=self.commit if commit is None else commit,
+                committed_request_bytes=(
+                    self.committed if committed is None else committed),
+                revocation_dir=self.revocations,
                 private_spent_dir=self.spent, now=self.now)
 
     def test_real_signature_stack_consumes_approved_request_once(self):
         self._prepare_private_consumption()
-        receipt = self.consume()
+        with mock.patch.object(oidc.os, "fsync", wraps=os.fsync) as sync, \
+             mock.patch.object(oidc.os, "open", wraps=os.open) as opened:
+            receipt = self.consume()
+        self.assertGreaterEqual(sync.call_count, 2)
+        self.assertNotEqual(
+            sync.call_args_list[0].args[0], sync.call_args_list[-1].args[0])
+        self.assertGreaterEqual(
+            sum(1 for call in opened.call_args_list if "dir_fd" in call.kwargs), 2)
         self.assertTrue(receipt["verified_spent_preview_only"])
         marker = self.spent / (self.request["request_id"] + ".spent")
         self.assertTrue(marker.is_file())
@@ -289,6 +315,38 @@ class P311GithubOIDCReviewTests(unittest.TestCase):
         with self.assertRaisesRegex(oidc.GithubOIDCError, "already been used"):
             self.consume()
         self.assertEqual(contents, marker.read_text())
+
+
+    def test_commit_origin_must_match_reviewed_run_before_spending(self):
+        self._prepare_private_consumption()
+        file = self.commit["files"][0]
+        variants = [
+            {**self.commit, "sha": "e"*40},
+            {**self.commit, "parents": []},
+            {**self.commit, "files": [{**file, "status": "modified"}]},
+            {**self.commit, "files": [file, {
+                "filename": "ops/unapproved.py", "status": "modified"}]},
+            {**self.commit, "stats": {
+                **self.commit["stats"], "total": file["changes"] + 1}},
+        ]
+        for invalid in variants:
+            with self.subTest(commit=invalid), self.assertRaises(
+                    oidc.GithubOIDCError):
+                self.consume(commit=invalid)
+            self.assertEqual([], list(self.spent.iterdir()))
+        self.assertTrue(self.consume()["verified_spent_preview_only"])
+
+    def test_commit_blob_and_public_challenge_cannot_be_substituted(self):
+        self._prepare_private_consumption()
+        for invalid_blob in (self.committed + b" ",
+                             b'{"request_id":"forged"}'):
+            with self.subTest(blob=invalid_blob), self.assertRaises(
+                    oidc.GithubOIDCError):
+                self.consume(committed=invalid_blob)
+        with self.assertRaises(oidc.GithubOIDCError):
+            self.consume(public={**self.request, "operation_sha256": "e"*64})
+        self.assertEqual([], list(self.spent.iterdir()))
+        self.assertTrue(self.consume()["verified_spent_preview_only"])
 
     def test_rejected_review_does_not_consume_one_use_marker(self):
         self._prepare_private_consumption()
