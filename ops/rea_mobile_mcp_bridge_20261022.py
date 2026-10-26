@@ -707,7 +707,6 @@ def main():
         # Temporary read-only diagnostics. Only names and booleans are emitted;
         # never print process environment values, credentials or filesystem data.
         import pwd
-        import re
         import shutil
         unit="rea-reversa-mcp.service"
         def prop(name):
