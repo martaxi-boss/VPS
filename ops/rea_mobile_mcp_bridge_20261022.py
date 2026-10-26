@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_rea_680_preflight", "fixture_linux_rea_680_stage", "fixture_linux_rea_680_npm_diagnose", "fixture_linux_rea_680_resume_build", "fixture_linux_rea_680_rehearse", "fixture_linux_rea_680_contract_delta", "fixture_linux_rea_680_prepare_restore"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_rea_680_preflight", "fixture_linux_rea_680_stage", "fixture_linux_rea_680_npm_diagnose", "fixture_linux_rea_680_resume_build", "fixture_linux_rea_680_rehearse", "fixture_linux_rea_680_contract_delta", "fixture_linux_rea_680_prepare_restore", "fixture_linux_rea_680_service_doctor"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -312,7 +312,8 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_U680_RESUME_STATUS","REA_U680_RESUME_BACKUP",
         "REA_U680_REHEARSAL_STATE",
         "REA_U680_DELTA_STATE",
-        "REA_U680_RESTORE_STATUS", "REA_U680_RESTORE_FILE", "REA_U680_RESTORE_FILE_BYTES", "REA_U680_RESTORE_SHA256", "REA_U680_RESTORE_RECORD_COUNT", "REA_U680_RESTORE_UNKNOWN_COUNT", "REA_U680_RESTORE_ARGS_SHA256", "REA_U680_DELTA_OLD_COUNT", "REA_U680_DELTA_NEW_COUNT", "REA_U680_DELTA_ADDED", "REA_U680_DELTA_REMOVED", "REA_U680_DELTA_CHANGED_EFFECTS", "REA_U680_DELTA_EFFECT_NAMES", "REA_U680_DELTA_MUTATING_COUNT", "REA_U680_DELTA_IMPORTANCE", "REA_U680_REHEARSAL_CATALOG_COUNT", "REA_U680_REHEARSAL_CATALOG_NAMES", "REA_U680_REHEARSAL_BACKUP_RESPONSE_FIELDS", "REA_U680_REHEARSAL_ARCHIVE_PARSE", "REA_U680_REHEARSAL_ARCHIVE_RECORD_COUNT", "REA_U680_REHEARSAL_ARCHIVE_UNKNOWN_COUNT", "REA_U680_REHEARSAL_IMPORT_RESULT", "REA_U680_REHEARSAL_POST_RECORD_COUNT", "REA_U680_REHEARSAL_POST_UNKNOWN_COUNT",
+        "REA_U680_RESTORE_STATUS",
+        "REA_U680_DOCTOR_STATUS", "REA_U680_DOCTOR_VERSION_EXIT", "REA_U680_DOCTOR_VERSION_MATCH", "REA_U680_DOCTOR_DOCTOR_EXIT", "REA_U680_DOCTOR_JSON", "REA_U680_DOCTOR_REPORT_FIELDS", "REA_U680_DOCTOR_HEALTHY", "REA_U680_DOCTOR_OK", "REA_U680_DOCTOR_EVIDENCE_READABLE", "REA_U680_DOCTOR_OLD_SERVICE_ACTIVE", "REA_U680_RESTORE_FILE", "REA_U680_RESTORE_FILE_BYTES", "REA_U680_RESTORE_SHA256", "REA_U680_RESTORE_RECORD_COUNT", "REA_U680_RESTORE_UNKNOWN_COUNT", "REA_U680_RESTORE_ARGS_SHA256", "REA_U680_DELTA_OLD_COUNT", "REA_U680_DELTA_NEW_COUNT", "REA_U680_DELTA_ADDED", "REA_U680_DELTA_REMOVED", "REA_U680_DELTA_CHANGED_EFFECTS", "REA_U680_DELTA_EFFECT_NAMES", "REA_U680_DELTA_MUTATING_COUNT", "REA_U680_DELTA_IMPORTANCE", "REA_U680_REHEARSAL_CATALOG_COUNT", "REA_U680_REHEARSAL_CATALOG_NAMES", "REA_U680_REHEARSAL_BACKUP_RESPONSE_FIELDS", "REA_U680_REHEARSAL_ARCHIVE_PARSE", "REA_U680_REHEARSAL_ARCHIVE_RECORD_COUNT", "REA_U680_REHEARSAL_ARCHIVE_UNKNOWN_COUNT", "REA_U680_REHEARSAL_IMPORT_RESULT", "REA_U680_REHEARSAL_POST_RECORD_COUNT", "REA_U680_REHEARSAL_POST_UNKNOWN_COUNT",
         "REA_U680_RESUME_SELECTED_NODE","REA_U680_RESUME_NODE_ENV",
         "REA_U680_RESUME_NPM_CI_EXIT","REA_U680_RESUME_OFFICIAL_BUILD_EXIT",
         "REA_U680_RESUME_CLI",
@@ -2979,6 +2980,88 @@ def main():
             print("REA_U680_RESTORE_STATUS=PASS_STAGED_FOR_OWNER_SIGNED_IMPORT")
         except (OSError,ValueError,RuntimeError,subprocess.TimeoutExpired) as exc:
             print("REA_U680_RESTORE_STATUS=BLOCKED_"+type(exc).__name__)
+        return
+    if data["action"] == "fixture_linux_rea_680_service_doctor":
+        # Stage-only read-only release doctor under the live unit's service user
+        # and allowlisted runtime env, no second server or process restart.
+        import pwd
+        import re as regex
+        stage=Path("/opt/rea-reversa/upgrades/rea-6.8.0-160d821ac9a0")
+        proof=stage/".rea-migration/evidence-restore.json"
+        if (not stage.is_dir() or stage.is_symlink()
+             or not (stage/"dist/mcp/main.js").is_file()):
+            print("REA_U680_DOCTOR_STATUS=BLOCKED_STAGE")
+            return
+        pid=subprocess.run(["systemctl","show","rea-reversa-mcp.service","-p",
+             "MainPID","--value"],capture_output=True,text=True,timeout=12,check=False).stdout.strip()
+        if not pid.isdecimal() or int(pid)<1:
+            print("REA_U680_DOCTOR_STATUS=BLOCKED_OLD_SERVICE")
+            return
+        bin=subprocess.run(["sudo","-n","readlink","-f",f"/proc/{int(pid)}/exe"],
+                          capture_output=True,text=True,timeout=12,check=False)
+        node=bin.stdout.strip()
+        if bin.returncode or not node.endswith("/node"):
+            print("REA_U680_DOCTOR_STATUS=BLOCKED_NODE")
+            return
+        raw=subprocess.run(["sudo","-n","cat",f"/proc/{int(pid)}/environ"],
+                    capture_output=True,timeout=14,check=False)
+        if raw.returncode or len(raw.stdout)>200000:
+            print("REA_U680_DOCTOR_STATUS=BLOCKED_ENV")
+            return
+        keys={"PATH","JAVA_HOME","GHIDRA_INSTALL_DIR","REA_JADX_MCP_JAR",
+          "REA_JADX_HEAP_MIB","REA_JADX_ACTIVE_PROCESSOR_COUNT",
+          "REA_GDB_COMMAND","REA_BINWALK_COMMAND","REA_UNBLOB_COMMAND",
+          "REA_RIZIN_COMMAND","REA_KUNA_COMMAND","REA_KUNA_CACHE_DIR",
+          "REA_SIGROK_COMMAND","REA_TSHARK_COMMAND","REA_WABT_BIN_DIRECTORY",
+          "REA_PWNTOOLS_PYTHON","REA_WAKARU_COMMAND","REA_MITMDUMP_COMMAND",
+          "PLAYWRIGHT_BROWSERS_PATH","REA_MCP_INPUT_SCHEMA_PROFILE"}
+        clean={}
+        for item in raw.stdout.split(b"\0"):
+            if b"=" not in item:
+                continue
+            key,val=item.split(b"=",1)
+            try:
+                key=key.decode("utf8")
+                if key in keys:
+                    clean[key]=val.decode("utf8")
+            except UnicodeDecodeError:
+                pass
+        service_user=pwd.getpwnam("rea-reversa")
+        clean["HOME"]=service_user.pw_dir
+        clean["PATH"]=str(Path(node).parent)+":"+clean.get("PATH","/usr/bin:/bin")
+        params=[str(k)+"="+v for k,v in sorted(clean.items())]
+        cli=str(stage/"scripts/rea.mjs")
+        def probe(name,extra,timeout):
+            cmd=["sudo","-n","-u","rea-reversa","env",*params,node,cli,*extra]
+            try:
+                p=subprocess.run(cmd,cwd=stage,capture_output=True,
+                        text=True,timeout=timeout,check=False)
+                print("REA_U680_DOCTOR_"+name+"_EXIT="+str(p.returncode))
+                if name=="VERSION":
+                    print("REA_U680_DOCTOR_VERSION_MATCH="+
+                      str(p.returncode==0 and "6.8.0" in p.stdout+p.stderr).lower())
+                elif name=="DOCTOR":
+                    try:
+                        content=json.loads(p.stdout)
+                        if isinstance(content,dict):
+                            print("REA_U680_DOCTOR_REPORT_FIELDS="+json.dumps(sorted(content)[:25]))
+                            for key in ("healthy","status","ok"):
+                                if key in content and isinstance(content[key],(str,bool,int)):
+                                    print("REA_U680_DOCTOR_"+key.upper()+"="+str(content[key])[:60])
+                        print("REA_U680_DOCTOR_JSON=PASS")
+                    except (TypeError,ValueError):
+                        print("REA_U680_DOCTOR_JSON=NOT_JSON")
+            except (OSError,subprocess.TimeoutExpired):
+                print("REA_U680_DOCTOR_"+name+"_EXIT=BLOCKED_PROCESS")
+        probe("VERSION",["--version"],40)
+        probe("DOCTOR",["doctor","--json"],120)
+        canread=subprocess.run(["sudo","-n","-u","rea-reversa","test","-r",proof],
+                        capture_output=True,timeout=14,check=False)
+        print("REA_U680_DOCTOR_EVIDENCE_READABLE="+str(canread.returncode==0).lower())
+        print("REA_U680_DOCTOR_OLD_SERVICE_ACTIVE="+str(subprocess.run(
+             ["systemctl","is-active","--quiet","rea-reversa-mcp.service"],
+             timeout=12,check=False).returncode==0).lower())
+        print("REA_U680_DOCTOR_STATUS=PASS_READ_ONLY_COMPLETE")
         return
     if data["action"] == "fixture_linux_install_inventory":
         # Audit original Linux REA installation; no installation, no restart.
