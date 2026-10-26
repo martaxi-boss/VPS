@@ -484,7 +484,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_APPLY_FAILURE",
         "REA_APPLY_RESULT",
         "REA_P301_STATUS","REA_P301_ORIGINAL_CUTTER_BRIDGE",
-        "REA_P301_SOURCE_VERIFIED","REA_P301_SERVICE_PID_UNCHANGED","REA_P301_BLOCK_CODE","REA_P301_ROOT_MANAGED_CODE",
+        "REA_P301_SOURCE_VERIFIED","REA_P301_SERVICE_PID_UNCHANGED","REA_P301_BLOCK_CODE","REA_P301_ROOT_MANAGED_CODE","REA_P301_ROOT_SAFE_BLOCK",
         "REA_SERVICE_DOCTOR_STATUS",
         "REA_SERVICE_DOCTOR_UNIT_USER",
         "REA_SERVICE_DOCTOR_CONFIG_KEYS",
@@ -842,7 +842,11 @@ try:
         if dest.resolve()!=src.resolve():raise ValueError('link_mismatch')
         status='LINKED_OFFICIAL_IN_ROOT_MANAGED_DIR'
     print(status)
-except Exception:
+except Exception as e:
+    reason=str(e) if str(e) in ('parent_symlink','unsafe_parent','foreign_link',
+                 'existing_different_plugin','link_mismatch') else 'other'
+    scope=name if name in parts else 'unknown'
+    print('SAFE_BLOCK='+reason+':'+scope)
     if newlink:
         try:dest.unlink()
         except OSError:pass
@@ -861,6 +865,9 @@ except Exception:
                 output=rootresult
             else:
                 print("REA_P301_ROOT_MANAGED_CODE="+str(rootresult.returncode))
+                message=rootresult.stdout.strip()
+                if message.startswith("SAFE_BLOCK=") and len(message)<90:
+                    print("REA_P301_ROOT_SAFE_BLOCK="+message[11:])
         if output.returncode or status not in (
                "ALREADY_LINKED","ALREADY_IDENTICAL","LINKED_OFFICIAL_SOURCE",
                "ALREADY_OFFICIAL_LINK","ALREADY_OFFICIAL_FILE",
