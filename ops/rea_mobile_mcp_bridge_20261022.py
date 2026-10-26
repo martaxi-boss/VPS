@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_rea_680_preflight", "fixture_linux_rea_680_stage"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_rea_680_preflight", "fixture_linux_rea_680_stage", "fixture_linux_rea_680_npm_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -305,6 +305,11 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_U680_SOURCE_VERIFIED","REA_U680_NPM_CI_EXIT",
         "REA_U680_BUILD_EXIT","REA_U680_COMPILED_CLI",
         "REA_U680_STAGING_COMPLETE",
+        "REA_U680_DIAG_STAGE_PRESENT","REA_U680_DIAG_LOCK_PRESENT",
+        "REA_U680_DIAG_PACKAGE_PRESENT","REA_U680_DIAG_NODE_VERSION",
+        "REA_U680_DIAG_NPM_VERSION","REA_U680_DIAG_NPM_LOGS",
+        "REA_U680_DIAG_STATUS",
+        "REA_U680_DIAG_NPM_ERROR_0", "REA_U680_DIAG_NPM_ERROR_1", "REA_U680_DIAG_NPM_ERROR_2", "REA_U680_DIAG_NPM_ERROR_3", "REA_U680_DIAG_NPM_ERROR_4", "REA_U680_DIAG_NPM_ERROR_5", "REA_U680_DIAG_NPM_ERROR_6", "REA_U680_DIAG_NPM_ERROR_7", "REA_U680_DIAG_NPM_ERROR_8", "REA_U680_DIAG_NPM_ERROR_9", "REA_U680_DIAG_NPM_ERROR_10", "REA_U680_DIAG_NPM_ERROR_11", "REA_U680_DIAG_NPM_ERROR_12", "REA_U680_DIAG_NPM_ERROR_13", "REA_U680_DIAG_NPM_ERROR_14", "REA_U680_DIAG_NPM_ERROR_15", "REA_U680_DIAG_NPM_ERROR_16", "REA_U680_DIAG_NPM_ERROR_17", "REA_U680_DIAG_NPM_ERROR_18", "REA_U680_DIAG_NPM_ERROR_19", "REA_U680_DIAG_NPM_ERROR_20", "REA_U680_DIAG_NPM_ERROR_21",
         "REA_MOBILE_READONLY_HINT_COUNT", "REA_MOBILE_STATIC_INSPECT_COUNT",
         "REA_MOBILE_SAFE_QUERY_COUNT", "REA_MOBILE_SAFE_CALLABLE_COUNT",
         "REA_MOBILE_LEGACY_NAME_COUNT", "REA_MOBILE_WORKSPACE_CALLABLE_COUNT",
@@ -2627,6 +2632,43 @@ def main():
         except (OSError,RuntimeError,ValueError,subprocess.TimeoutExpired) as exc:
             print("REA_U680_STAGE_STATUS=INCOMPLETE_"+type(exc).__name__)
             return
+        return
+    if data["action"] == "fixture_linux_rea_680_npm_diagnose":
+        # Read-only diagnostics: no version changes, no install, no restart.
+        import re as regex
+        stage=Path("/opt/rea-reversa/upgrades/rea-6.8.0-160d821ac9a0")
+        print("REA_U680_DIAG_STAGE_PRESENT="+str(stage.is_dir() and not stage.is_symlink()).lower())
+        print("REA_U680_DIAG_LOCK_PRESENT="+str((stage/"package-lock.json").is_file()).lower())
+        print("REA_U680_DIAG_PACKAGE_PRESENT="+str((stage/"package.json").is_file()).lower())
+        for n,cmd in (("NODE",["node","-v"]),("NPM",["npm","-v"])):
+            p=subprocess.run(cmd,capture_output=True,text=True,timeout=14,check=False)
+            print("REA_U680_DIAG_"+n+"_VERSION="+
+                  (p.stdout.strip()[:38] if p.returncode==0 else "NOT_AVAILABLE"))
+        logdir=Path.home()/".npm/_logs"
+        logs=sorted(logdir.glob("*debug-0.log"),key=lambda p:p.stat().st_mtime,reverse=True)[:3]
+        print("REA_U680_DIAG_NPM_LOGS="+str(len(logs)))
+        count=0
+        for log in logs:
+            if log.is_symlink() or log.stat().st_size>1400000:
+                continue
+            lines=log.read_text(errors="replace").splitlines()
+            errors=[]
+            for line in lines:
+                if not regex.search(r"^\d+\s+error\s+",line):
+                    continue
+                msg=regex.sub(r"^\d+\s+error\s+","",line).strip()
+                msg=regex.sub(r"https?://[^\s]+","<VENDOR_URL>",msg)
+                msg=regex.sub(r"(?i)(token|password|secret|authorization)[^\s:=]*[:=][^\s]+","<REDACTED>",msg)
+                if len(msg)<230 and not regex.search(r"(?i)(Bearer|_auth|npmrc|userconfig|otp|passwd)",msg):
+                    errors.append(msg)
+            if errors:
+                for msg in errors[:16]:
+                    if count>=22:
+                        break
+                    print("REA_U680_DIAG_NPM_ERROR_"+str(count)+"="+msg)
+                    count+=1
+                break
+        print("REA_U680_DIAG_STATUS=READ_ONLY_COMPLETE")
         return
     if data["action"] == "fixture_linux_install_inventory":
         # Audit original Linux REA installation; no installation, no restart.
