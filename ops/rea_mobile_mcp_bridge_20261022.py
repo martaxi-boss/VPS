@@ -2210,9 +2210,7 @@ def main():
     if data["action"] == "fixture_linux_provider_install_apply":
         # Owner-initiated: signed distro packages, no upgrades or removals.
         import re as regex
-        pkgs=("gdb","radare2","binwalk","tshark","adb","apktool",
-              "sigrok-cli","python3-venv","python3-pip",
-              "llvm","unzip","p7zip-full")
+        pkgs=("gdb","radare2","binwalk","tshark","adb","apktool","sigrok-cli","python3-venv","python3-pip","llvm","unzip","p7zip-full","gdb-multiarch","xvfb","xauth","libx11-6","libxtst6","libgbm1","libegl1","libgl1","libnss3","libasound2t64","libatk-bridge2.0-0","libxkbcommon0","libxcomposite1","libxdamage1","libxfixes3","libxrandr2","libxcb1","libpango-1.0-0","libcairo2")
         if not Path("/opt/rea-reversa/rea/package.json").is_file():
             error("Original REA engine missing; refuse installation")
         if subprocess.run(["systemctl","is-active","--quiet","rea-reversa-mcp.service"],
@@ -2280,9 +2278,7 @@ def main():
         # Simulation only; never apt-get update/install, no restart/edits.
         import shutil
         import re as regex
-        approved=("gdb","radare2","binwalk","tshark","adb","apktool",
-                  "sigrok-cli","python3-venv","python3-pip",
-                  "llvm","unzip","p7zip-full")
+        approved=("gdb","radare2","binwalk","tshark","adb","apktool","sigrok-cli","python3-venv","python3-pip","llvm","unzip","p7zip-full","gdb-multiarch","xvfb","xauth","libx11-6","libxtst6","libgbm1","libegl1","libgl1","libnss3","libasound2t64","libatk-bridge2.0-0","libxkbcommon0","libxcomposite1","libxdamage1","libxfixes3","libxrandr2","libxcb1","libpango-1.0-0","libcairo2")
         available=[]
         unavailable=[]
         for name in approved:
