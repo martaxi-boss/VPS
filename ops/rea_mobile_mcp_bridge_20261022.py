@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_cutter_original_bridge_p301", "fixture_linux_cutter_live_readonly_p302"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_cutter_original_bridge_p301", "fixture_linux_cutter_live_readonly_p302", "fixture_linux_cutter_official_package_p303"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -483,6 +483,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_APPLY_STATE_SAVED",
         "REA_APPLY_FAILURE",
         "REA_APPLY_RESULT",
+        "REA_P303_STATUS","REA_P303_CUTTER_LAYOUT","REA_P303_PACKAGE_EXIT","REA_P303_SERVICE_PID_UNCHANGED",
         "REA_P302_STATUS","REA_P302_LIVE_CUTTER_SESSION","REA_P302_VENDOR_VERSION",
         "REA_P302_LAUNCH_PRE_CLEANUP","REA_P302_LAUNCH_LOG_CATEGORIES",
         "REA_P302_MISSING_KNOWN_MODULES","REA_P302_PROCESS_GROUP_CLEAN","REA_P302_IMPORT_DETAILS",
@@ -1098,6 +1099,101 @@ except Exception as e:
         print("REA_P302_SERVICE_PID_UNCHANGED="+str(pid==unit("MainPID")).lower())
         print("REA_P302_STATUS="+("PASS_READ_ONLY" if discovered and clean_sessions and oldhash==afterhash
               and pid==unit("MainPID") else "INCOMPLETE"))
+        return
+    if data["action"] == "fixture_linux_cutter_official_package_p303":
+        # Cutter 2.5 supports Python package modules: package/__init__.py.
+        # Repackage ONLY existing upstream REA 6.8 source; retain 6.7 backup.
+        import subprocess as sp
+        service="rea-reversa-mcp.service"
+        def unit(name):
+            v=sp.run(["systemctl","show",service,"-p",name,"--value"],
+                     capture_output=True,text=True,timeout=11,check=False)
+            return v.stdout.strip() if v.returncode==0 else ""
+        pid=unit("MainPID")
+        src=Path("/opt/rea-reversa/rea/bridge/cutter/rea_bridge.py")
+        if (not pid.isdecimal() or int(pid)<1 or
+            unit("User")!="rea-reversa" or unit("ActiveState")!="active" or
+            json.loads(Path("/opt/rea-reversa/rea/package.json").read_text()).get("version")!="6.8.0"):
+            print("REA_P303_STATUS=BLOCKED_SERVICE")
+            return
+        git=sp.run(["git","-C","/opt/rea-reversa/rea","diff","--quiet","HEAD",
+                    "--","bridge/cutter/rea_bridge.py"],
+                   capture_output=True,timeout=12,check=False)
+        if git.returncode!=0:
+            print("REA_P303_STATUS=BLOCKED_SOURCE_DIRTY")
+            return
+        try:
+            _,reply=request_mcp({"jsonrpc":"2.0","id":3031,"method":"tools/call",
+                "params":{"name":"list_cutter_sessions","arguments":{}}},
+                session,protocol,timeout=28)
+            result=reply.get("result",{})
+            if "error" in reply or result.get("isError") or result.get("structuredContent",{}).get("sessions")!=[]:
+                print("REA_P303_STATUS=BLOCKED_ACTIVE_SESSIONS")
+                return
+        except (OSError,RuntimeError,ValueError,TypeError,sp.TimeoutExpired):
+            print("REA_P303_STATUS=BLOCKED_SESSION_DISCOVERY")
+            return
+        helper = """
+import ast,os,pwd,stat
+from pathlib import Path
+from hashlib import sha256
+owner=pwd.getpwnam('rea-reversa')
+base=Path(owner.pw_dir)
+source=Path('/opt/rea-reversa/rea/bridge/cutter/rea_bridge.py')
+previous=Path('/opt/rea-reversa/rollbacks/rea-6.7.0-20261026/bridge/cutter/rea_bridge.py')
+if not source.is_file() or source.is_symlink() or not previous.is_file():
+    raise SystemExit(10)
+ast.parse(source.read_bytes(),filename=str(source))
+directory=base
+for part in ('.local','share','rizin','cutter','plugins','python'):
+    directory=directory/part
+    if directory.is_symlink() or not directory.is_dir():raise SystemExit(11)
+    st=directory.stat()
+    if st.st_uid not in (0,owner.pw_uid) or stat.S_IMODE(st.st_mode)&0o022:
+        raise SystemExit(12)
+old=directory/'rea_bridge.py'
+backup=directory/'rea_bridge.py.p301-original-670.backup'
+package=directory/'rea_bridge'
+package_init=package/'__init__.py'
+if (package.is_dir() and not package.is_symlink()
+       and not old.exists() and not old.is_symlink()
+       and package_init.is_symlink() and package_init.resolve()==source):
+    print('ALREADY_OFFICIAL_PACKAGE')
+    raise SystemExit(0)
+if package.exists() or package.is_symlink():raise SystemExit(13)
+if not old.is_symlink() or old.resolve()!=source:raise SystemExit(14)
+if (not backup.is_file() or backup.is_symlink()
+    or backup.read_bytes()!=previous.read_bytes()):raise SystemExit(15)
+created=False
+removed=False
+try:
+    package.mkdir(mode=0o755)
+    created=True
+    package_init.symlink_to(source)
+    if not package_init.is_symlink() or package_init.resolve()!=source:
+        raise ValueError('package_error')
+    old.unlink()
+    removed=True
+    print('PACKAGED_OFFICIAL_680_BACKUP_RETAINED')
+except Exception:
+    if removed and not old.is_symlink() and not old.exists():
+        old.symlink_to(source)
+    if created:
+        if package_init.is_symlink():package_init.unlink()
+        package.rmdir()
+    raise SystemExit(16)
+"""
+        out=sp.run(["sudo","-n","python3","-c",helper],
+                capture_output=True,text=True,timeout=35,check=False)
+        status=out.stdout.strip()
+        if out.returncode!=0 or status not in (
+            "PACKAGED_OFFICIAL_680_BACKUP_RETAINED","ALREADY_OFFICIAL_PACKAGE"):
+            print("REA_P303_PACKAGE_EXIT="+str(out.returncode))
+            print("REA_P303_STATUS=BLOCKED_PACKAGE_INSTALL")
+            return
+        print("REA_P303_CUTTER_LAYOUT="+status)
+        print("REA_P303_SERVICE_PID_UNCHANGED="+str(pid==unit("MainPID")).lower())
+        print("REA_P303_STATUS=PASS_OFFICIAL_PACKAGE")
         return
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
