@@ -495,6 +495,11 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SERVICE_DOCTOR_CONFIG_REA_RIZIN_COMMAND",
         "REA_SERVICE_DOCTOR_EXIT",
         "REA_SERVICE_DOCTOR_HEALTH",
+        "REA_SERVICE_DOCTOR_FAILED_COUNT",
+        "REA_SERVICE_DOCTOR_FAILED_1",
+        "REA_SERVICE_DOCTOR_FAILED_2",
+        "REA_SERVICE_DOCTOR_FAILED_3",
+        "REA_SERVICE_DOCTOR_FAILED_4",
         "REA_SERVICE_DOCTOR_PROVIDERS",
         "REA_SERVICE_DOCTOR_BINARY_CHECK",
         "REA_RIZIN_STATUS",
@@ -2199,7 +2204,17 @@ def main():
             sort_keys=True))
         providers=doc.get("providerInspections",[])
         if isinstance(providers,list):
-            print("REA_SERVICE_DOCTOR_PROVIDERS="+json.dumps([
+            # Read-only diagnostic: names and classifications only. No raw
+        # environment, client paths, credentials or remediation text in logs.
+        failures=[{"name":str(v.get("name",""))[:58],
+                   "classification":str(v.get("classification",""))[:28]}
+                  for v in doc.get("checks",[])
+                  if isinstance(v,dict) and v.get("ok") is False]
+        print("REA_SERVICE_DOCTOR_FAILED_COUNT="+str(len(failures)))
+        for i in range(0,min(len(failures),12),3):
+            print("REA_SERVICE_DOCTOR_FAILED_"+str(i//3+1)+"="+
+                  json.dumps(failures[i:i+3],separators=(",",":")))
+        print("REA_SERVICE_DOCTOR_PROVIDERS="+json.dumps([
               {"id":str(v.get("id",""))[:45],
                "configured":v.get("configured") is True,
                "available":v.get("available") is True}
