@@ -190,13 +190,6 @@ def validate(data):
                 or not re.fullmatch(r"[A-Za-z0-9+/=]{340,1800}",
                                     data["response_key"])):
             error("Android fixture requires a public RSA reply key")
-    elif action == "fixture_linux_rea_680_session_gate":
-        if set(data) not in ({"version","action"}, {"version","action","response_key"}):
-            error("Session review accepts optional public encrypted reply key only")
-    elif action == "fixture_linux_rea_680_owner_signature_preflight":
-        if set(data) != {"version", "action", "sealed", "response_key"}:
-            error("Encrypted owner authorization preflight requires sealed payload and public reply key")
-        secure.validate_public_envelope(data["sealed"])
     elif action == "sealed_batch":
         if set(data) != {"version", "action", "sealed", "response_key"}:
             error("Sealed batch must carry a public reply key and sealed request")
@@ -564,16 +557,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SDIAG_PID_ENV_READ",
         "REA_SDIAG_PID_ENV_SIZE",
         "REA_SDIAG_PID_PROVIDER_KEYS",
-        "REA_SDIAG_STATUS",
-        "REA_U680_OWNER_SIGNATURE_VERIFIED", "REA_U680_OWNER_SIGNED_PROFILES",
-        "REA_U680_OWNER_REPLAY_CHECK", "REA_U680_OWNER_RESTORE_READY",
-        "REA_U680_SESSION_LIST_DOCUMENTS", "REA_U680_SESSION_LIST_DOCUMENTS_REQUIRED",
-        "REA_U680_SESSION_LIST_DOCUMENTS_STRUCTURE", "REA_U680_SESSION_LIST_DOCUMENTS_TEXTCOUNT",
-        "REA_U680_SESSION_LIST_DOCUMENTS_COUNTS",
-        "REA_U680_SESSION_LIST_CUTTER_SESSIONS", "REA_U680_SESSION_LIST_CUTTER_SESSIONS_REQUIRED",
-        "REA_U680_SESSION_LIST_CUTTER_SESSIONS_STRUCTURE",
-        "REA_U680_SESSION_LIST_CUTTER_SESSIONS_TEXTCOUNT",
-        "REA_U680_SESSION_LIST_CUTTER_SESSIONS_COUNTS"
+        "REA_SDIAG_STATUS"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -590,7 +574,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         if private is not None:
             error("Unexpected private response")
         return
-    if request["action"] not in ("call", "sealed_batch", "fixture_apkdemos", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump", "fixture_linux_rea_680_owner_signature_preflight", "fixture_linux_rea_680_session_gate") or private is None:
+    if request["action"] not in ("call", "sealed_batch", "fixture_apkdemos", "fixture_portable_formats", "fixture_ghidra_metadata", "fixture_ghidra_additional", "describe", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump") or private is None:
         error("Missing encrypted-return payload from REA")
     public = serialization.load_der_public_key(
         base64.b64decode(request["response_key"], validate=True)
@@ -714,88 +698,6 @@ def main():
     print("REA_MOBILE_CATALOG_SAMPLE=" + json.dumps(
         list(tool_by_name)[:14], ensure_ascii=True
     ))
-    if data["action"] == "fixture_linux_rea_680_owner_signature_preflight":
-        # One-use, read-only preflight. Signed payload remains encrypted,
-        # no nonce claimed, no import, no service restart or filesystem writes.
-        if os.environ.get("REA_MOBILE_ENVELOPE_CAPTURE") != "1":
-            raise RuntimeError("Encrypted result capture required")
-        body = secure.unseal(data["sealed"], data["response_key"])
-        if (len(body.get("steps", [])) != 3 or
-              [x.get("tool") for x in body["steps"]] !=
-              ["import_evidence_bundle","get_evidence_bundle","list_unknowns"] or
-              body["steps"][0].get("arguments") !=
-              {"path":"/opt/rea-reversa/rea/.rea-migration/evidence-restore.json"} or
-              body["steps"][1].get("arguments") != {"detail":"complete"} or
-              body["steps"][2].get("arguments") != {}):
-            raise RuntimeError("Signed request is not the exact 6.8.0 evidence transfer")
-        profiles = secure.validate_inner(body, tool_by_name, set(safe_callable))
-        if profiles != ["sensitive","read","read"]:
-            raise RuntimeError("Owner signed import must remain sensitive and both verifications read-only")
-        p232_guard_inner_batch(body)
-        consumed = secure.key_directory() / "consumed" / body["nonce"]
-        if consumed.exists() or consumed.is_symlink():
-            raise RuntimeError("Owner approval nonce previously used")
-        stage = Path("/opt/rea-reversa/upgrades/rea-6.8.0-160d821ac9a0")
-        restore = stage / ".rea-migration/evidence-restore.json"
-        backup = Path.home() / ".local/share/rea-chatgpt-trial/upgrade-backups/rea-6.7.0-retained-evidence-before-6.8.0-20261026.json"
-        if (stage.is_symlink() or not (stage/"dist/mcp/main.js").is_file()
-              or not backup.is_file() or backup.is_symlink()
-              or hashlib.sha256(backup.read_bytes()).hexdigest() !=
-              "baa448b25c2f1f2a5c76589b0a1eb4f586e20d733335eef76a9f5ed29f76b936"):
-            raise RuntimeError("Pinned official staging or owner backup not ready")
-        check = subprocess.run(["sudo","-n","-u","rea-reversa","sha256sum",str(restore)],
-                                capture_output=True,text=True,timeout=20,check=False)
-        if check.returncode or not check.stdout.startswith("f8178b2c3db0d093fa65864d9c12be9a1afe3c6d66fc93603769761bd9400f3b "):
-            raise RuntimeError("Service-owned restoration checksum failed")
-        print("REA_U680_OWNER_SIGNATURE_VERIFIED=PASS")
-        print("REA_U680_OWNER_SIGNED_PROFILES=SIGNED_IMPORT_READ_READ")
-        print("REA_U680_OWNER_REPLAY_CHECK=UNUSED")
-        print("REA_U680_OWNER_RESTORE_READY=PASS")
-        safe = {"owner_cryptographic_signature_verified":True,
-                "profiles":profiles,"restore_sha256_verified":True,
-                "one_use_nonce_unconsumed":True,"changes_applied":False}
-        print("REA_MOBILE_PRIVATE_RESULT_B64="+
-              base64.b64encode(json.dumps(safe,sort_keys=True).encode()).decode())
-        return
-    if data["action"] == "fixture_linux_rea_680_session_gate":
-        # Read-only bounded check before replacing a running service.
-        private_session_results={}
-        names=("list_documents","list_cutter_sessions")
-        for name in names:
-            if name not in tool_by_name:
-                print("REA_U680_SESSION_"+name.upper()+"=UNAVAILABLE")
-                continue
-            descriptor=tool_by_name[name]
-            print("REA_U680_SESSION_"+name.upper()+"_REQUIRED="+
-                  json.dumps((descriptor.get("inputSchema") or {}).get("required",[]))[:400])
-            try:
-                _,r=request_mcp({"jsonrpc":"2.0","id":6688,"method":"tools/call",
-                   "params":{"name":name,"arguments":{}}},session,protocol,timeout=32)
-                value=r.get("result",{})
-                private_session_results[name]=r
-                if "error" in r or value.get("isError") is True:
-                    print("REA_U680_SESSION_"+name.upper()+"=MCP_ERROR")
-                else:
-                    sc=value.get("structuredContent")
-                    print("REA_U680_SESSION_"+name.upper()+"_STRUCTURE="+
-                          json.dumps(sorted(sc) if isinstance(sc,dict) else
-                          type(sc).__name__)[:400])
-                    lines=value.get("content",[])
-                    print("REA_U680_SESSION_"+name.upper()+"_TEXTCOUNT="+str(len(lines) if isinstance(lines,list) else -1))
-                    if isinstance(sc,dict):
-                        print("REA_U680_SESSION_"+name.upper()+"_COUNTS="+json.dumps(
-                          {k:len(v) for k,v in sc.items() if isinstance(v,list)})[:400])
-                    print("REA_U680_SESSION_"+name.upper()+"=PASS_READ_ONLY")
-            except (OSError,RuntimeError,ValueError,TypeError,subprocess.TimeoutExpired) as e:
-                print("REA_U680_SESSION_"+name.upper()+"=PROBE_FAILED")
-        if "response_key" in data:
-            if os.environ.get("REA_MOBILE_ENVELOPE_CAPTURE") != "1":
-                raise RuntimeError("Session responses require authenticated encryption")
-            output=json.dumps(private_session_results,ensure_ascii=True,sort_keys=True).encode()
-            if len(output)>100000:
-                raise RuntimeError("Session response exceeds sealed size")
-            print("REA_MOBILE_PRIVATE_RESULT_B64="+base64.b64encode(output).decode())
-        return
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
               secure.request_public_key_b64(create=True))
