@@ -33,7 +33,11 @@ jobs:
     needs: check-preview-request
     if: github.actor == 'martaxi-boss'
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
     environment:
       name: rea-p311-owner-consent
     steps:
@@ -47,6 +51,15 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           REA_REQUEST_FILE: ${{ needs.check-preview-request.outputs.request_file }}
         run: python3 ops/rea_p311_owner_gate_20261026.py --mode verify-review --request "$REA_REQUEST_FILE"
+      - name: Validate GitHub-signed OIDC token for this approved job (preview)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REA_REQUEST_FILE: ${{ needs.check-preview-request.outputs.request_file }}
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/rea-p311-oidc-only"
+          "$RUNNER_TEMP/rea-p311-oidc-only/bin/python" -m pip install --quiet --disable-pip-version-check cryptography==46.0.3
+          "$RUNNER_TEMP/rea-p311-oidc-only/bin/python" -m ops.rea_p311_github_oidc_20261026 --request "$REA_REQUEST_FILE"
       - name: Preview confirmation only - no REA or VPS execution
         run: |
           echo "REA_P311_OWNER_BUTTON_PREVIEW_ONLY=PASS"
