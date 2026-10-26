@@ -484,6 +484,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_APPLY_FAILURE",
         "REA_APPLY_RESULT",
         "REA_P302_STATUS","REA_P302_LIVE_CUTTER_SESSION","REA_P302_VENDOR_VERSION",
+        "REA_P302_LAUNCH_PRE_CLEANUP","REA_P302_LAUNCH_LOG_CATEGORIES",
         "REA_P302_INPUT_UNCHANGED","REA_P302_SESSION_CLEAN","REA_P302_SERVICE_PID_UNCHANGED",
         "REA_P301_STATUS","REA_P301_ORIGINAL_CUTTER_BRIDGE",
         "REA_P301_SOURCE_VERIFIED","REA_P301_SERVICE_PID_UNCHANGED","REA_P301_BLOCK_CODE","REA_P301_ROOT_MANAGED_CODE","REA_P301_ROOT_SAFE_BLOCK","REA_P301_EXISTING_META",
@@ -1000,9 +1001,11 @@ except Exception as e:
         proc=None
         discovered=False
         version=""
+        before_cleanup="UNOBSERVED"
+        logbuffer=tempfile.TemporaryFile(mode="w+t")
         try:
             proc=sp.Popen(launch,cwd=base,stdin=sp.DEVNULL,
-                stdout=sp.DEVNULL,stderr=sp.DEVNULL,start_new_session=True)
+                stdout=logbuffer,stderr=sp.STDOUT,start_new_session=True)
             for _ in range(13):
                 time.sleep(3)
                 try:
@@ -1019,6 +1022,7 @@ except Exception as e:
                     pass
                 if proc.poll() is not None:
                     break
+            before_cleanup=str(proc.poll()) if proc.poll() is not None else "RUNNING"
         finally:
             if proc is not None:
                 try:
@@ -1034,6 +1038,25 @@ except Exception as e:
                     pass
             sp.run(["sudo","-n","-u",user,"rm","-r","--",temp],
                 capture_output=True,timeout=13,check=False)
+        logbuffer.flush()
+        logbuffer.seek(0)
+        output=logbuffer.read(150000).lower()
+        logbuffer.close()
+        categories={
+           "fuse": "fuse" in output,
+           "qt_xcb": "xcb" in output,
+           "python_plugin": "rea_bridge" in output or "reacutterplugin" in output,
+           "import_error": "modulenotfounderror" in output or "importerror" in output,
+           "permission": "permission denied" in output,
+           "display": "could not connect to display" in output,
+           "crash": "segmentation fault" in output or "fatal error" in output,
+           "appimage": "appimage" in output,
+           "qt_warning": "qt.qpa" in output,
+           "core_missing": "cannot load library" in output or "shared libraries" in output,
+           "load_plugin": "loading plugin" in output or "failed to load plugin" in output
+        }
+        print("REA_P302_LAUNCH_PRE_CLEANUP="+before_cleanup)
+        print("REA_P302_LAUNCH_LOG_CATEGORIES="+json.dumps(categories,separators=(",",":")))
         afterhash=hashlib.sha256(target.read_bytes()).hexdigest()
         clean_sessions=False
         try:
