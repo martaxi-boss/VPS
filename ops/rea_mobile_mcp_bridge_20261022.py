@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_680_supplier_wiring_p295"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -557,7 +557,9 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SDIAG_PID_ENV_READ",
         "REA_SDIAG_PID_ENV_SIZE",
         "REA_SDIAG_PID_PROVIDER_KEYS",
-        "REA_SDIAG_STATUS"
+        "REA_SDIAG_STATUS", "REA_P295_STATUS", "REA_P295_SERVICE_ENV",
+        "REA_P295_SERVICE_PATH_TOOLS", "REA_P295_KNOWN_VENDOR_PATHS",
+        "REA_P295_PROVIDER_NAMES", "REA_P295_ACTIVE_NODE_VERSION_CONFIRMED"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -701,6 +703,98 @@ def main():
     print("REA_MOBILE_CATALOG_SAMPLE=" + json.dumps(
         list(tool_by_name)[:14], ensure_ascii=True
     ))
+    if data["action"] == "fixture_linux_680_supplier_wiring_p295":
+        # Temporary read-only diagnostics. Only names and booleans are emitted;
+        # never print process environment values, credentials or filesystem data.
+        import pwd
+        import re
+        import shutil
+        unit="rea-reversa-mcp.service"
+        def prop(name):
+            p=subprocess.run(["systemctl","show",unit,"-p",name,"--value"],
+                             capture_output=True,text=True,timeout=13,check=False)
+            return p.stdout.strip() if p.returncode==0 else ""
+        user=prop("User")
+        pid=prop("MainPID")
+        source=Path("/opt/rea-reversa/rea/package.json")
+        if (user!="rea-reversa" or not pid.isdecimal() or int(pid)<1 or
+                not source.is_file() or json.loads(source.read_text()).get("version")!="6.8.0" or
+                prop("ActiveState")!="active"):
+            print("REA_P295_STATUS=BLOCKED_EXPECTED_SERVICE_680")
+            return
+        before=pid
+        raw=subprocess.run(["sudo","-n","cat",f"/proc/{int(pid)}/environ"],
+                           capture_output=True,timeout=15,check=False)
+        if raw.returncode or len(raw.stdout)>220000:
+            print("REA_P295_STATUS=BLOCKED_SERVICE_ENV_ACCESS")
+            return
+        live={}
+        for item in raw.stdout.split(b"\\0"):
+            if b"=" in item:
+                k,v=item.split(b"=",1)
+                if len(k)<100 and len(v)<3000:
+                    try:live[k.decode("ascii")]=v.decode("utf-8")
+                    except UnicodeDecodeError:pass
+        keys=("GHIDRA_INSTALL_DIR","JAVA_HOME","REA_JADX_MCP_JAR",
+              "REA_WAKARU_COMMAND","REA_MITMDUMP_COMMAND",
+              "REA_WABT_BIN_DIRECTORY","REA_PWNTOOLS_PYTHON",
+              "PLAYWRIGHT_BROWSERS_PATH","REA_IDA_MCP_CONFIG",
+              "REA_JEB_MCP_URL","REA_CUTTER_BRIDGE_DIR",
+              "HOPPER_LAUNCHER_PATH","REA_RIZIN_COMMAND",
+              "REA_UNBLOB_COMMAND","REA_GDB_COMMAND",
+              "REA_BINWALK_COMMAND","REA_TSHARK_COMMAND",
+              "REA_SIGROK_COMMAND")
+        present={}
+        for name in keys:
+            value=live.get(name)
+            record={"configured":bool(value)}
+            if value and value.startswith("/") and re.fullmatch(r"[A-Za-z0-9_./+~:=,-]{1,1000}",value):
+                p=Path(value)
+                record["service_can_read"]=subprocess.run(
+                    ["sudo","-n","-u",user,"test","-r",str(p)],
+                    capture_output=True,timeout=10,check=False).returncode==0
+                record["service_can_execute"]=subprocess.run(
+                    ["sudo","-n","-u",user,"test","-x",str(p)],
+                    capture_output=True,timeout=10,check=False).returncode==0
+            present[name]=record
+        print("REA_P295_SERVICE_ENV="+json.dumps(present,sort_keys=True,separators=(",",":")))
+        path=live.get("PATH","/usr/bin:/bin")
+        commands=("rizin","rz-bin","unblob","gdb","binwalk","tshark",
+                  "sigrok-cli","adb","apktool","cutter","Cutter",
+                  "wakaru","mitmdump","wasm2wat","wasm-validate",
+                  "wasm-objdump","frida","dotnet","mono","chromium",
+                  "chrome","google-chrome","Xvfb")
+        observed={}
+        for command in commands:
+            loc=shutil.which(command,path=path)
+            observed[command]=bool(loc and subprocess.run(
+                ["sudo","-n","-u",user,"test","-x",loc],
+                capture_output=True,timeout=8,check=False).returncode==0)
+        print("REA_P295_SERVICE_PATH_TOOLS="+json.dumps(observed,sort_keys=True,separators=(",",":")))
+        explicit={
+          "wabt_private":"/home/ubuntu/.local/share/rea-chatgpt-trial/tools/wabt-1.0.42/bin/wasm-objdump",
+          "hopper_system":"/opt/hopper/bin/Hopper",
+          "hopper_alternate":"/usr/bin/hopper",
+          "ida_free":"/opt/rea-reversa/providers/ida-free",
+          "pwntools_private":"/home/ubuntu/.local/share/rea-chatgpt-trial/tools/pwntools-4.15.0/bin/python",
+        }
+        result={}
+        for name,location in explicit.items():
+            obj=Path(location)
+            mode="-x" if name not in ("ida_free",) else "-r"
+            result[name]={"exists":obj.exists(),"service_access":subprocess.run(
+                ["sudo","-n","-u",user,"test",mode,location],
+                capture_output=True,timeout=9,check=False).returncode==0}
+        print("REA_P295_KNOWN_VENDOR_PATHS="+json.dumps(result,sort_keys=True,separators=(",",":")))
+        providers=Path("/opt/rea-reversa/providers")
+        found={}
+        for ident in ("jeb","ida","cutter","hopper","pwntools","wakaru","mitm","chromium","frida","wabt"):
+            found[ident]=bool(providers.is_dir() and any(
+                ident in p.name.lower() for p in list(providers.iterdir())[:150]))
+        print("REA_P295_PROVIDER_NAMES="+json.dumps(found,sort_keys=True,separators=(",",":")))
+        print("REA_P295_ACTIVE_NODE_VERSION_CONFIRMED="+str(bool(pid==prop("MainPID"))).lower())
+        print("REA_P295_STATUS=PASS_READ_ONLY")
+        return
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
               secure.request_public_key_b64(create=True))
