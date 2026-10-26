@@ -843,7 +843,8 @@ class P311GithubOIDCReviewTests(unittest.TestCase):
     def test_workflow_ciphertext_only_behind_protected_recipient(self):
         workflow = (Path(__file__).resolve().parents[2] /
                     gate.WORKFLOW).read_text(encoding="utf-8")
-        self.assertIn("secrets.REA_P311_VPS_RECIPIENT_PUBLIC_B64", workflow)
+        self.assertNotIn("secrets.REA_P311_VPS_RECIPIENT_PUBLIC_B64", workflow)
+        self.assertNotIn("REA_P311_VPS_RECIPIENT_PUBLIC_B64:", workflow)
         self.assertIn("steps.oidc.outputs.sealed == 'true'", workflow)
         self.assertIn("rea-p311-oidc-encrypted.json", workflow)
         self.assertIn("retention-days: 1", workflow)
@@ -852,6 +853,28 @@ class P311GithubOIDCReviewTests(unittest.TestCase):
                 "VPS_SSH_PASSWORD", "sshpass", "tools/call",
                 "REA_P311_SCOPED_TASKS", "contents: write"):
             self.assertNotIn(forbidden, workflow)
+
+
+    def test_source_pinned_vps_recipient_key_is_valid_3072_bit_rsa(self):
+        # This public key was obtained from TWO successful host-pinned
+        # bridge responses in Actions; no private key is stored in source.
+        key = serialization.load_der_public_key(base64.b64decode(
+            oidc.PINNED_VPS_RECIPIENT_PUBLIC_B64, validate=True))
+        self.assertIsInstance(key, rsa.RSAPublicKey)
+        self.assertEqual(key.key_size, 3072)
+        self.assertEqual(len(oidc.PINNED_VPS_RECIPIENT_PUBLIC_B64), 564)
+
+    def test_cli_pins_recipient_instead_of_accepting_mutable_environment_key(self):
+        with mock.patch.dict(os.environ, {
+                    "REA_P311_VPS_RECIPIENT_PUBLIC_B64": "malicious-override"
+                }), mock.patch.object(
+                    oidc, "preview_real_oidc_owner_button",
+                    return_value={"oidc_review_preview_only": True}) as preview, \
+             redirect_stdout(io.StringIO()):
+            self.assertEqual(0, oidc.main(["--request", self.path]))
+        preview.assert_called_once_with(
+            request_path=self.path,
+            recipient_public_key_b64=oidc.PINNED_VPS_RECIPIENT_PUBLIC_B64)
 
     def test_joint_owner_button_and_oidc_signature_are_required(self):
         receipt = self.full()

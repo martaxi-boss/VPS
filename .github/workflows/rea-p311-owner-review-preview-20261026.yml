@@ -54,9 +54,6 @@ jobs:
       - name: Validate GitHub-signed OIDC token for this approved job (preview)
         id: oidc
         env:
-          # Public key, stored by the owner in this PROTECTED environment.
-          # Missing means review-only; NEVER fetch an untrusted key from a request.
-          REA_P311_VPS_RECIPIENT_PUBLIC_B64: ${{ secrets.REA_P311_VPS_RECIPIENT_PUBLIC_B64 }}
           GITHUB_TOKEN: ${{ github.token }}
           REA_REQUEST_FILE: ${{ needs.check-preview-request.outputs.request_file }}
         run: |
@@ -67,7 +64,7 @@ jobs:
           if test -f "$RUNNER_TEMP/rea-p311-oidc-encrypted.json"; then
             echo "sealed=true" >> "$GITHUB_OUTPUT"
           fi
-      - name: Upload ONLY encrypted owner OIDC preview, if recipient provisioned
+      - name: Upload ONLY encrypted owner OIDC preview, using pinned public key
         if: steps.oidc.outputs.sealed == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:

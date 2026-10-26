@@ -805,6 +805,25 @@ def request_actions_oidc_jwt(*, public_request, endpoint=None, bearer=None):
 
 SEALED_PREVIEW_NAME = "rea-p311-oidc-encrypted.json"
 
+# Authenticated existing VPS RSA public key, never an owner Ed25519 key.
+# Read-only, SSH host-pin-verified successful Actions:
+# https://github.com/martaxi-boss/VPS/actions/runs/40317291548
+# https://github.com/martaxi-boss/VPS/actions/runs/40327987060
+# Both returned identical RSA public bytes before/after REA 6.8.0 cutover.
+# Only PUBLIC DER travels in source; existing private key never leaves VPS.
+PINNED_VPS_RECIPIENT_PUBLIC_B64 = (
+    "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAyE6rDE8YShktKDE2Tmu0PU7rzTQrexdq"
+    "fn480Q0eo3vYYFP7c+VGHj21ZlCnCdaywqah12ILGdcLvtU4Gn0zU15ACmYUGMw983s/OQYTjp/c"
+    "N62AMDLICXC9EoJFEQZ4FwnJ2bCLoUovEkrtT/DieeDE4yEGakiK73rsYjnMh6X0QvdtRPT8Gzhh"
+    "S3wXhxQ20V6xPfBlQQyu71vyd1GlESRksrg1C45V5xLxFrWvz2W5chkyFUI4blbCDAhQeKwJ78Mj"
+    "7pTeHTY7rln6Js4NNIIfzQRlgzTszHLLY5fy1inWLRorfjI1SRKF5DSsJZY8HsFl5j5eWoQoGPUS"
+    "GUCH8ICRZDedYN45MVRDiSs8PxpJyjoekEIO7Ty4Cn6vhn+V7sYsBVfICEijDFrnOk79XyMhXZ+9"
+    "NAqqAyHBtz3hFQw68d71n8lx3lGumBwTz9oM74xKID601RPTUFqnTXMfKdPXd5GuFqI8wNylHZPH"
+    "P246RMs8B/v4tOuM0+L16robAgMBAAE="
+)
+
+
+
 
 def _write_verified_sealed_oidc_preview(sealed):
     """Save ciphertext ONLY in the preexisting GitHub runner temp directory.
@@ -899,12 +918,11 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="REA P311 OIDC preview - no VPS")
     parser.add_argument("--request", required=True)
     args = parser.parse_args(argv)
-    # The recipient key can ONLY be supplied by the owner-controlled,
-    # GitHub-protected environment secret. Missing key means verify-only:
-    # no ciphertext is produced and no recipient may be guessed.
-    recipient = os.environ.get("REA_P311_VPS_RECIPIENT_PUBLIC_B64") or None
+    # Use the already-proven, source-PINNED VPS public key. No mutable
+    # GitHub secret, request payload or user parameter can redirect the JWT.
     result = preview_real_oidc_owner_button(
-        request_path=args.request, recipient_public_key_b64=recipient)
+        request_path=args.request,
+        recipient_public_key_b64=PINNED_VPS_RECIPIENT_PUBLIC_B64)
     # Never print JWT, jti, signed grant, cryptographic keys or bearer.
     if result["oidc_review_preview_only"] is not True:
         raise GithubOIDCError("Owner button validation did not complete")
