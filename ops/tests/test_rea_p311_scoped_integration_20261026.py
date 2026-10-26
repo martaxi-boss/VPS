@@ -194,6 +194,53 @@ class P311SealedTaskAdmissionTests(unittest.TestCase):
                 self._request([step]), self.registry, {"list_unknowns"},
                 now=self.now))
 
+    def test_revocation_marker_blocks_future_scoped_batches(self):
+        directory = secure._private_directory() / "revoked-p311-grants"
+        directory.mkdir(mode=0o700)
+        marker = directory / (self.grant["grant_id"] + ".revoked")
+        with mock.patch.dict(os.environ, {"REA_P311_SCOPED_TASKS": "enabled"}):
+            self.assertEqual(["workspace", "sensitive"], self._validate())
+            marker.write_text("revoked\\n", encoding="ascii")
+            marker.chmod(0o600)
+            with self.assertRaises(secure.SecureBridgeError):
+                self._validate()
+
+    def test_full_rsa_aes_authenticated_envelope_contains_signed_scope(self):
+        import json
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        request_private = rsa.generate_private_key(public_exponent=65537,
+                                                   key_size=3072)
+        destination = secure._private_directory() / "request-private.pem"
+        destination.write_bytes(request_private.private_bytes(
+            serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
+            serialization.NoEncryption()))
+        destination.chmod(0o600)
+        response_private = rsa.generate_private_key(public_exponent=65537,
+                                                    key_size=3072)
+        to_b64 = lambda key: base64.b64encode(key.public_key().public_bytes(
+            serialization.Encoding.DER,
+            serialization.PublicFormat.SubjectPublicKeyInfo)).decode("ascii")
+        request = self._embedded_request()
+        sealed = secure.seal_for_client(
+            request, to_b64(request_private), to_b64(response_private))
+        ciphertext = json.dumps(sealed, sort_keys=True)
+        self.assertNotIn(self.grant["project"], ciphertext)
+        self.assertNotIn(self.grant["task_id"], ciphertext)
+        recovered = secure.unseal(sealed, to_b64(response_private))
+        self.assertEqual(request, recovered)
+        with mock.patch.dict(os.environ, {"REA_P311_SCOPED_TASKS": "enabled"}):
+            self.assertEqual(["workspace", "sensitive"], secure.validate_inner(
+                recovered, self.registry, {"list_unknowns"}, now=self.now))
+        with self.assertRaises(secure.SecureBridgeError):
+            secure.unseal(sealed, to_b64(request_private))
+        swapped = dict(sealed)
+        swapped["ciphertext"] = base64.b64encode(
+            base64.b64decode(swapped["ciphertext"], validate=True)[:-1] +
+            bytes([base64.b64decode(swapped["ciphertext"], validate=True)[-1] ^ 1])
+        ).decode("ascii")
+        with self.assertRaises(secure.SecureBridgeError):
+            secure.unseal(swapped, to_b64(response_private))
+
     def test_expired_task_permission_and_unsupported_schema_fail_closed(self):
         stale = dict(self.grant)
         stale["expires_at"] = (self.now - timedelta(seconds=1)).strftime(
