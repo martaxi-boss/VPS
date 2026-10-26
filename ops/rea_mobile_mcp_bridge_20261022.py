@@ -713,8 +713,7 @@ def main():
         validator=stage/"dist/domain/evidenceBundle.js"
         service="rea-reversa-mcp.service"
         if (stage.is_symlink() or not stage.is_dir() or
-                not validator.is_file() or source.is_symlink() or
-                not source.is_file() or active.is_symlink() or
+                not validator.is_file() or active.is_symlink() or
                 json.loads((active/"package.json").read_text()).get("version")!="6.7.0" or
                 json.loads((stage/"package.json").read_text()).get("version")!="6.8.0"):
             raise RuntimeError("REA 6.8 preflight expected paths not ready")
