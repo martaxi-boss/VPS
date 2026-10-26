@@ -951,9 +951,8 @@ def validate_inner(body, registry, safe_callable, now=None):
         if not isinstance(args, dict) or len(canonical_json(args)) > 400000:
             raise SecureBridgeError("Invalid MCP argument object")
         validate_arguments(registry[name], args)
-        risk = classify(name, registry[name], safe_callable)
-        # No secondary bridge path-policy gate: the original REA MCP,
-        # running as its existing VPS service user, owns target admission.
+        # No secondary bridge risk classifier/path policy: the original REA
+        # service is the sole authority for this advertised native tool.
         if name in REVIEWED_SESSION_READ_TOOLS:
             if not opened_in_request:
                 raise SecureBridgeError(
@@ -985,7 +984,8 @@ def validate_inner(body, registry, safe_callable, now=None):
             opened_in_request = False
         if name == "open_binary" and "snapshot_path" in args:
             raise SecureBridgeError("External binary snapshot writes need separate approval")
-        profiles.append(risk)
+        # This is a delivery label, NOT an independent authorization class.
+        profiles.append("native")
     return profiles
 
 

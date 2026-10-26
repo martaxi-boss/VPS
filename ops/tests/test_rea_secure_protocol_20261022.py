@@ -92,7 +92,7 @@ class ReaSecureProtocolTests(unittest.TestCase):
             {"tool": "install_adb_package",
              "arguments": {"path": "/usr/bin/true"}},
         ]
-        self.assertEqual(["read", "workspace", "sensitive"],
+        self.assertEqual(["native", "native", "native"],
                          secure.validate_inner(request(operations),
                                                self.registry, {"list_unknowns"}))
         self.assertFalse((secure.key_directory() /
@@ -120,7 +120,7 @@ class ReaSecureProtocolTests(unittest.TestCase):
         result = secure.validate_inner(request([
             {"tool": "REA_original_680_tool", "arguments": {}}]),
             advertised, {"list_unknowns"})
-        self.assertEqual(["sensitive"], result)
+        self.assertEqual(["native"], result)
         # Unknown names are never fabricated or admitted.
         with self.assertRaises(secure.SecureBridgeError):
             secure.validate_inner(request([
@@ -150,7 +150,7 @@ class ReaSecureProtocolTests(unittest.TestCase):
                     {"tool": name, "arguments": arguments}]),
                     registry, {"list_unknowns"})
                 self.assertEqual(2, len(profiles))
-                self.assertEqual("workspace", profiles[0])
+                self.assertEqual("native", profiles[0])
 
     def test_schema_expiry_and_replay_constraints_remain(self):
         invalid = request([{"tool": "list_unknowns", "arguments": {}}])
@@ -238,7 +238,7 @@ class ReaSecureProtocolTests(unittest.TestCase):
         sealed = secure.seal_for_client(body, recipient, reply)
         self.assertGreater(len(sealed["ciphertext"]), 95000)
         self.assertEqual(body, secure.unseal(sealed, reply))
-        self.assertEqual(["workspace"], secure.validate_inner(
+        self.assertEqual(["native"], secure.validate_inner(
             body, self.registry, set()))
         oversized = request([
             {"tool": "open_binary", "arguments": {"payload": "A" * 512000}}])
@@ -254,7 +254,7 @@ class ReaSecureProtocolTests(unittest.TestCase):
             {"tool": "open_binary", "arguments": op},
             {"tool": "close_binary", "arguments": {}},
         ])
-        self.assertEqual(["workspace", "sensitive"],
+        self.assertEqual(["native", "native"],
                          secure.validate_inner(body, self.registry, set()))
         pins = bridge.p232_guard_inner_batch(body)
         self.assertEqual({"open_binary": secure.arguments_sha256(op),
