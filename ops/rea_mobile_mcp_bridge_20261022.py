@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_rea_680_preflight", "fixture_linux_rea_680_stage", "fixture_linux_rea_680_npm_diagnose", "fixture_linux_rea_680_resume_build", "fixture_linux_rea_680_rehearse"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_rea_680_preflight", "fixture_linux_rea_680_stage", "fixture_linux_rea_680_npm_diagnose", "fixture_linux_rea_680_resume_build", "fixture_linux_rea_680_rehearse", "fixture_linux_rea_680_contract_delta"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -310,7 +310,8 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_U680_DIAG_NPM_VERSION","REA_U680_DIAG_NPM_LOGS",
         "REA_U680_DIAG_STATUS",
         "REA_U680_RESUME_STATUS","REA_U680_RESUME_BACKUP",
-        "REA_U680_REHEARSAL_STATE", "REA_U680_REHEARSAL_CATALOG_COUNT", "REA_U680_REHEARSAL_CATALOG_NAMES", "REA_U680_REHEARSAL_BACKUP_RESPONSE_FIELDS", "REA_U680_REHEARSAL_ARCHIVE_PARSE", "REA_U680_REHEARSAL_ARCHIVE_RECORD_COUNT", "REA_U680_REHEARSAL_ARCHIVE_UNKNOWN_COUNT", "REA_U680_REHEARSAL_IMPORT_RESULT", "REA_U680_REHEARSAL_POST_RECORD_COUNT", "REA_U680_REHEARSAL_POST_UNKNOWN_COUNT",
+        "REA_U680_REHEARSAL_STATE",
+        "REA_U680_DELTA_STATE", "REA_U680_DELTA_OLD_COUNT", "REA_U680_DELTA_NEW_COUNT", "REA_U680_DELTA_ADDED", "REA_U680_DELTA_REMOVED", "REA_U680_DELTA_CHANGED_EFFECTS", "REA_U680_DELTA_EFFECT_NAMES", "REA_U680_DELTA_MUTATING_COUNT", "REA_U680_DELTA_IMPORTANCE", "REA_U680_REHEARSAL_CATALOG_COUNT", "REA_U680_REHEARSAL_CATALOG_NAMES", "REA_U680_REHEARSAL_BACKUP_RESPONSE_FIELDS", "REA_U680_REHEARSAL_ARCHIVE_PARSE", "REA_U680_REHEARSAL_ARCHIVE_RECORD_COUNT", "REA_U680_REHEARSAL_ARCHIVE_UNKNOWN_COUNT", "REA_U680_REHEARSAL_IMPORT_RESULT", "REA_U680_REHEARSAL_POST_RECORD_COUNT", "REA_U680_REHEARSAL_POST_UNKNOWN_COUNT",
         "REA_U680_RESUME_SELECTED_NODE","REA_U680_RESUME_NODE_ENV",
         "REA_U680_RESUME_NPM_CI_EXIT","REA_U680_RESUME_OFFICIAL_BUILD_EXIT",
         "REA_U680_RESUME_CLI",
@@ -2804,6 +2805,62 @@ def main():
             if line.startswith("REA_U680_REHEARSAL_") and len(line)<19000:
                 print(line)
         print("REA_U680_REHEARSAL_STATE=PASS_READ_ONLY_ISOLATED")
+        return
+    if data["action"] == "fixture_linux_rea_680_contract_delta":
+        # Compare public official release contracts against the current 208-tool
+        # process; do not restart or alter executable or policy.
+        import shutil
+        stage=Path("/opt/rea-reversa/upgrades/rea-6.8.0-160d821ac9a0")
+        if (not (stage/"dist/contracts/toolContracts.js").is_file() or
+             subprocess.run(["systemctl","is-active","--quiet",
+             "rea-reversa-mcp.service"],timeout=12,check=False).returncode):
+            print("REA_U680_DELTA_STATE=BLOCKED_MISSING_ORIGINAL")
+            return
+        pid=subprocess.run(["systemctl","show","rea-reversa-mcp.service",
+             "-p","MainPID","--value"],capture_output=True,text=True,timeout=12).stdout.strip()
+        if not pid.isdecimal() or int(pid)<1:
+            print("REA_U680_DELTA_STATE=BLOCKED_SERVICE_ID")
+            return
+        node=subprocess.run(["sudo","-n","readlink","-f",f"/proc/{int(pid)}/exe"],
+             capture_output=True,text=True,timeout=12,check=False)
+        if node.returncode or not node.stdout.strip().endswith("/node"):
+            print("REA_U680_DELTA_STATE=BLOCKED_NODE_PATH")
+            return
+        env={"PATH":str(Path(node.stdout.strip()).parent)+":"+os.environ.get("PATH","/usr/bin:/bin"),
+             "HOME":str(Path.home()),"NO_COLOR":"1"}
+        probe=subprocess.run(["node","--input-type=module","--eval","import { TOOL_CONTRACTS } from \"./dist/contracts/toolContracts.js\";\nprocess.stdout.write(JSON.stringify(TOOL_CONTRACTS.map(x=>({name:x.name,effects:x.effects}))))"],
+             cwd=stage,capture_output=True,text=True,env=env,timeout=60,check=False)
+        if probe.returncode:
+            print("REA_U680_DELTA_STATE=BLOCKED_OFFLINE_PROBE")
+            return
+        parsed=json.loads(probe.stdout)
+        old={x["name"] for x in tools}
+        current={x["name"]:x["effects"] for x in parsed}
+        names=set(current)
+        added=sorted(names-old)
+        removed=sorted(old-names)
+        print("REA_U680_DELTA_OLD_COUNT="+str(len(old)))
+        print("REA_U680_DELTA_NEW_COUNT="+str(len(names)))
+        print("REA_U680_DELTA_ADDED="+json.dumps(added))
+        print("REA_U680_DELTA_REMOVED="+json.dumps(removed))
+        from rea_secure_protocol_20261022 import AUDITED_EFFECTS
+        core_effects=("mutatesTarget","mutatesSession","writesFilesystem",
+            "launchesProcess","accessesNetwork","changesUiState",
+            "mayDiscardData","executesForeignCode","mutatesDevice")
+        drift=[]
+        mutators=[]
+        for name,flags in current.items():
+            active={key for key in core_effects if flags.get(key) is True}
+            oldflags=AUDITED_EFFECTS.get(name)
+            if oldflags is not None and active!=set(oldflags):
+                drift.append(name)
+            if flags.get("mutatesTarget") or flags.get("mayDiscardData") or flags.get("executesForeignCode") or flags.get("mutatesDevice") or flags.get("changesUiState"):
+                mutators.append(name)
+        print("REA_U680_DELTA_CHANGED_EFFECTS="+str(len(drift)))
+        print("REA_U680_DELTA_EFFECT_NAMES="+json.dumps(sorted(drift)[:70]))
+        print("REA_U680_DELTA_MUTATING_COUNT="+str(len(mutators)))
+        print("REA_U680_DELTA_IMPORTANCE="+("SCHEMA_REVIEW_REQUIRED" if added or removed or drift else "NO_EFFECT_DELTA"))
+        print("REA_U680_DELTA_STATE=PASS_READ_ONLY")
         return
     if data["action"] == "fixture_linux_install_inventory":
         # Audit original Linux REA installation; no installation, no restart.
