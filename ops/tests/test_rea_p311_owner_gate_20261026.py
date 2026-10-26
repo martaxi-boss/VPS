@@ -171,6 +171,29 @@ class P311GitHubButtonVerificationTests(unittest.TestCase):
             gate._get_github_api(
                 "/repos/martaxi-boss/VPS/actions/runs/1", token="bad")
 
+    def test_owner_preview_workflow_cannot_contact_vps_or_rea(self):
+        src = (Path(__file__).resolve().parents[2] /
+               gate.WORKFLOW).read_text(encoding="utf-8")
+        self.assertIn("environment:\n      name: rea-p311-owner-consent", src)
+        self.assertIn("ops/rea_p311_owner_gate_20261026.py --mode verify-review", src)
+        self.assertIn("permissions:\n  contents: read\n  actions: read", src)
+        self.assertIn('      - "rea-linux/owner-review-requests/*.json"', src)
+        for dangerous in ("sshpass", "VPS_SSH_PASSWORD", "REA_P311_SCOPED_TASKS",
+                          "tools/call", "sudo ", "curl ", "workflow_dispatch",
+                          "contents: write", "deployments: write",
+                          "GITHUB_TOKEN: $" + "{{ secrets."):
+            with self.subTest(dangerous=dangerous):
+                self.assertNotIn(dangerous, src)
+
+    def test_preview_gate_does_not_write_a_signature_or_authorize_mcp(self):
+        from ops import rea_scoped_approval_20261026 as scoped
+        receipt = self.check()
+        self.assertTrue(receipt["verified_preview"])
+        self.assertNotIn("owner_signature", receipt)
+        self.assertNotIn("approved_tools", receipt)
+        self.assertNotIn("grant", receipt)
+        self.assertNotEqual(scoped.PURPOSE, gate.PURPOSE)
+
     def test_duplicate_json_keys_are_rejected(self):
         with self.assertRaises(gate.ApprovalGateError):
             gate._parse_no_duplicates([("request_id", "a"), ("request_id", "b")])
