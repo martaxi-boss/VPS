@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_jeb_cli_help_p300"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -483,6 +483,10 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_APPLY_STATE_SAVED",
         "REA_APPLY_FAILURE",
         "REA_APPLY_RESULT",
+        "REA_P300_STATUS","REA_P300_JAVA_MAJOR","REA_P300_JEB_HELP_EXIT",
+        "REA_P300_JEB_HELP_SUPPORTS_MCP","REA_P300_JEB_HELP_SUPPORTS_INFILE",
+        "REA_P300_JEB_HELP_LICENSE_PROMPT","REA_P300_JEB_HELP_TIMED_OUT",
+        "REA_P300_JEB_HELP_BYTES","REA_P300_SERVICE_PID_UNCHANGED",
         "REA_SERVICE_DOCTOR_STATUS",
         "REA_SERVICE_DOCTOR_UNIT_USER",
         "REA_SERVICE_DOCTOR_CONFIG_KEYS",
@@ -701,6 +705,109 @@ def main():
     print("REA_MOBILE_CATALOG_SAMPLE=" + json.dumps(
         list(tool_by_name)[:14], ensure_ascii=True
     ))
+
+    if data["action"] == "fixture_linux_jeb_cli_help_p300":
+        # One-use original vendor help probe. No license acceptance,
+        # no MCP server start, no target loading and no persistent changes.
+        import os as pyos
+        import pwd
+        import re as regex
+        import signal
+        import subprocess as sp
+        import tempfile
+        service="rea-reversa-mcp.service"
+        def unit(key):
+            v=sp.run(["systemctl","show",service,"-p",key,"--value"],
+                capture_output=True,text=True,timeout=12,check=False)
+            return v.stdout.strip() if v.returncode==0 else ""
+        pid=unit("MainPID")
+        user=unit("User")
+        home=Path("/opt/rea-reversa/rea")
+        vendor=Path("/opt/rea-reversa/providers/jeb-ce-5.48.0.202610071539")
+        jar=vendor/"bin/app/jeb.jar"
+        if (user!="rea-reversa" or unit("ActiveState")!="active"
+                or not pid.isdecimal() or int(pid)<1
+                or not (home/"package.json").is_file()
+                or json.loads((home/"package.json").read_text()).get("version")!="6.8.0"):
+            print("REA_P300_STATUS=BLOCKED_WRONG_ENGINE")
+            return
+        ok=sp.run(["sudo","-n","-u",user,"test","-r",str(jar)],
+            capture_output=True,timeout=10,check=False).returncode==0
+        if not ok:
+            print("REA_P300_STATUS=BLOCKED_NO_JEB_JAR")
+            return
+        raw=sp.run(["sudo","-n","cat",f"/proc/{int(pid)}/environ"],
+            capture_output=True,timeout=13,check=False)
+        if raw.returncode or len(raw.stdout)>220000:
+            print("REA_P300_STATUS=BLOCKED_ENV")
+            return
+        java_home=None
+        for item in raw.stdout.split(bytes([0])):
+            if item.startswith(b"JAVA_HOME="):
+                try:java_home=item.split(b"=",1)[1].decode("utf8")
+                except UnicodeDecodeError:pass
+        if not java_home or not java_home.startswith("/"):
+            print("REA_P300_STATUS=BLOCKED_JAVA_HOME")
+            return
+        java=Path(java_home)/"bin/java"
+        if sp.run(["sudo","-n","-u",user,"test","-x",str(java)],
+                  capture_output=True,timeout=10,check=False).returncode:
+            print("REA_P300_STATUS=BLOCKED_JAVA")
+            return
+        version=sp.run(["sudo","-n","-u",user,str(java),"-version"],
+            capture_output=True,text=True,timeout=15,check=False)
+        vertext=(version.stderr+" "+version.stdout)[:900]
+        numbers=regex.search(r'(?:version |openjdk )[" ]?(\\d+)',vertext,regex.I)
+        major=int(numbers.group(1)) if numbers else None
+        print("REA_P300_JAVA_MAJOR="+str(major if major else "UNKNOWN"))
+        if version.returncode!=0 or major is None or major<21:
+            print("REA_P300_STATUS=BLOCKED_JAVA_BELOW_21")
+            return
+        # Temp service-user HOME: do not change the JEB installation or
+        # existing EULA/activation settings during command-line discovery.
+        created=sp.run(["sudo","-n","-u",user,"mktemp","-d","/tmp/rea-p300-jeb-help.XXXXXXXX"],
+            capture_output=True,text=True,timeout=15,check=False)
+        if created.returncode!=0:
+            print("REA_P300_STATUS=BLOCKED_TEMP_HOME")
+            return
+        tmp=created.stdout.strip()
+        if not regex.fullmatch(r"/tmp/rea-p300-jeb-help\\.[A-Za-z0-9]{8}",tmp):
+            print("REA_P300_STATUS=BLOCKED_UNEXPECTED_TEMP")
+            return
+        try:
+            params=["sudo","-n","-u",user,"env","-i",
+               "HOME="+tmp,"XDG_CONFIG_HOME="+tmp,"XDG_CACHE_HOME="+tmp,
+               "PATH="+str(java.parent)+":/usr/bin:/bin",
+               str(java),"-Xmx768m","-XX:ActiveProcessorCount=1",
+               "-Duser.home="+tmp,"-Djava.util.prefs.userRoot="+tmp,
+               "-jar",str(jar),"-c","--help"]
+            p=sp.Popen(params,cwd=vendor,stdin=sp.DEVNULL,stdout=sp.PIPE,
+                       stderr=sp.PIPE,text=True,start_new_session=True)
+            try:
+                stdout,stderr=p.communicate(timeout=38)
+                code=p.returncode
+            except sp.TimeoutExpired:
+                pyos.killpg(p.pid,signal.SIGKILL)
+                stdout,stderr=p.communicate()
+                code=124
+            stdout=stdout[:18000]
+            stderr=stderr[:18000]
+            output=(stdout+"\\n"+stderr).lower()
+            print("REA_P300_JEB_HELP_EXIT="+str(code))
+            print("REA_P300_JEB_HELP_SUPPORTS_MCP="+str("--mcp" in output).lower())
+            print("REA_P300_JEB_HELP_SUPPORTS_INFILE="+str("--infile" in output).lower())
+            print("REA_P300_JEB_HELP_LICENSE_PROMPT="+
+                str(any(term in output for term in ("license key","license activation",
+                                                  "license agreement","eula"))).lower())
+            print("REA_P300_JEB_HELP_TIMED_OUT="+str(code==124).lower())
+            print("REA_P300_JEB_HELP_BYTES="+str(len(stdout)+len(stderr)))
+        finally:
+            if regex.fullmatch(r"/tmp/rea-p300-jeb-help\\.[A-Za-z0-9]{8}",tmp):
+                sp.run(["sudo","-n","-u",user,"rm","-r","--",tmp],
+                    capture_output=True,timeout=15,check=False)
+        print("REA_P300_SERVICE_PID_UNCHANGED="+str(pid==unit("MainPID")).lower())
+        print("REA_P300_STATUS=PASS_LIMITED_READ_ONLY")
+        return
     if data["action"] == "secure_public_key":
         print("REA_SECURE_REQUEST_PUBLIC_KEY_B64=" +
               secure.request_public_key_b64(create=True))
