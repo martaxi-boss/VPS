@@ -260,3 +260,32 @@ Para ativar esta protecao na VPS e necessario emitir autorizacao REAL limitada e
 - A primeira CI do commit 4eb6607f06c963fc805fd1255f419ed3128470ff identificou que um teste de assinatura invalida passou a ser barrado antes pela verificacao do blob. O caso foi ajustado para fornecer o commit e o desafio sinteticos coerentes e voltou a comprovar a rejeicao da assinatura Ed25519 falsa no CI verde posterior.
 - O modulo continua somente em PR DRAFT; as 165 verificacoes usam chaves sinteticas e fixtures temporarias do Actions. Nao foi emitido JWT OIDC real de job protegido, nao houve nova revisao humana, nao foi criado pedido publico de aprovacao, nao foi registado grant real, nao houve merge, deploy, restart nem alteracao ao motor REA original.
 - Proxima porta: ensaio OIDC real com novo pedido e aprovacao humana autenticada quando preparado e consentido; so depois integrar metadados GitHub confiaveis e assinatura Ed25519 real no registo seguro, preservar rollback e ensaiar MCP sensivel reversivel sob autorizacao.
+
+
+## P311 - Fase A concluida offline: 169 -> 170 -> 173 testes (26/10/2026)
+
+### Ligacao GitHub REST de origem confiavel, 169/169 PASS
+
+- Commit `b41943a2ec346082ced68e27481d3b59ab84f371`, CI https://github.com/martaxi-boss/VPS/actions/runs/40397751220 : **169/169 testes offline PASS**.
+- O adaptador `fetch_trusted_owner_review_evidence` obtem a partir de URLs **fixadas ao repositorio VPS**: run por ID, revisoes por run, commit pelo `head_sha` aprovado, e blob por SHA do unico ficheiro de desafio adicionado. Verifica repo e ID imutavel, ator e triggering actor, dados REST, hash real dos bytes do blob e review no ambiente protegido. Nao aceita o branch tip ou metadados publicos escolhidos pelo pedido.
+- `verify_trusted_owner_review_oidc_and_consume_once` combina esta evidencia com o validador JWT do emissor fixado, scope Ed25519 auditado, revogacao e ledger de uso unico. Este novo ponto de entrada **nao** esta ligado a `tools/call`, SSH/VPS ou execucao de ferramentas REA.
+- A consulta read-only dos metadados historicos de `40385975218` confirmou que o GitHub devolve `repository/head_repository` com IDs corretos, owner, ambiente e review real. Aprovacao antiga **nao foi reutilizada** e o token OIDC real ainda nao foi emitido.
+
+### Workflow com falha nao autoriza: 170/170 PASS
+
+- Commit `3cb28151afd2967b7dd5d216864218254cde158d`, CI https://github.com/martaxi-boss/VPS/actions/runs/40398416021 : **170/170 PASS**.
+- O **consumo no servidor** exige `status=completed` e `conclusion=success` no run GitHub. Jobs pendentes, falhados, cancelados, skipped ou sem conclusao recusam antes de consultar reviews, emitir registos ou gastar uma prova. O preview OIDC dentro do job protegido mantem a sua validacao autonoma antes do final do workflow.
+
+### Registo privado apos consentimento: 173/173 PASS
+
+- Commit `dcc97f2cb2b1157ccaad007330f8906a64d2d9b9`, CI https://github.com/martaxi-boss/VPS/actions/runs/40398811668 : **173/173 PASS**.
+- `enroll_trusted_reviewed_task_offline_only` encadeia a leitura segura de provas GitHub, verificacao conjunta do JWT do job e grant Ed25519, comprovacao de nao revogacao, consumo unico e **registo privado experimental**. Exige registo privado PREEXISTENTE; nunca cria a pasta devido a um pedido publico.
+- A sequencia e deliberadamente fail-closed: um erro ao gravar o registo **apos** a prova ser marcada como consumida nao reabre a mesma autorizacao, nem cria permissao de ferramentas. Uma recuperacao exigira um novo pedido assinado e aprovado, nao um retry silencioso.
+- Testes negativos cobrem falta de diretorio privado, tentativa de repeticao e falha simulada de disco; o CI usa apenas ficheiros temporarios e chaves sinteticas. Nao foram escritos grants reais na VPS.
+
+### Fronteira de seguranca que continua obrigatoria
+
+- **OIDC real de job protegido: nao executado**. A demonstracao do botao real `40385975218` foi anterior e nao prova a nova emissao OIDC.
+- O codigo continua num PR #305 DRAFT, isolado da ponte operacional. `REA_P311_SCOPED_TASKS` permanece OFF na VPS; nenhum merge, SSH, deploy, restart, chamada MCP sensivel, modificacao ao REA original, certificado, Evidence, Unknowns, ledger ou backup.
+- Antes de qualquer teste real, e indispensavel uma **concessao Ed25519 real e limitada** assinada no Android e um **novo** desafio SHA-256 correspondente, seguido de nova aprovacao autenticada no ambiente protegido e comprovacao JWT; a aprovacao historica nao serve. Nao publicar grant/JWT ou chave privada.
+- A integracao produtiva e rollback ainda nao estao comprovados. A proxima fase nao pode declarar operacionais as 47 ferramentas sensiveis por delegacao.
