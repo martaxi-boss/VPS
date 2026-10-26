@@ -34,6 +34,11 @@ class P311SealedEnrollmentTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
+        # The existing Actions SSH bridge always captures encrypted results.
+        # Test this trusted server option explicitly, not as a JSON field.
+        capture = mock.patch.dict(os.environ, {"REA_MOBILE_ENVELOPE_CAPTURE": "1"})
+        capture.start()
+        self.addCleanup(capture.stop)
         self.root = Path(self.temp.name)
         home = mock.patch("pathlib.Path.home", return_value=self.root)
         home.start()
@@ -136,6 +141,16 @@ class P311SealedEnrollmentTests(unittest.TestCase):
         self.assertTrue(saved.is_file())
         self.assertEqual(0o600, saved.stat().st_mode & 0o777)
         self.assertEqual(self.task, json.loads(saved.read_text()))
+
+    def test_no_encrypted_response_never_creates_a_grant_or_claims_nonce(self):
+        request = self.build()
+        with mock.patch.dict(os.environ, {
+                "REA_P311_SCOPED_TASKS": "enabled",
+                "REA_MOBILE_ENVELOPE_CAPTURE": "0"}):
+            with self.assertRaisesRegex(ValueError, "Encrypted enrollment"):
+                self.enroll(request)
+        self.assertFalse(self.registry_dir.exists())
+        self.assertFalse((self.private / "consumed" / self.nonce).exists())
 
     def test_default_off_cannot_register_even_with_valid_crypto(self):
         with mock.patch.dict(os.environ, {"REA_P311_SCOPED_TASKS": "disabled"}):
