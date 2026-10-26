@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_rea_680_preflight", "fixture_linux_rea_680_stage", "fixture_linux_rea_680_npm_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose", "fixture_linux_rea_680_preflight", "fixture_linux_rea_680_stage", "fixture_linux_rea_680_npm_diagnose", "fixture_linux_rea_680_resume_build"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -309,6 +309,10 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_U680_DIAG_PACKAGE_PRESENT","REA_U680_DIAG_NODE_VERSION",
         "REA_U680_DIAG_NPM_VERSION","REA_U680_DIAG_NPM_LOGS",
         "REA_U680_DIAG_STATUS",
+        "REA_U680_RESUME_STATUS","REA_U680_RESUME_BACKUP",
+        "REA_U680_RESUME_SELECTED_NODE","REA_U680_RESUME_NODE_ENV",
+        "REA_U680_RESUME_NPM_CI_EXIT","REA_U680_RESUME_OFFICIAL_BUILD_EXIT",
+        "REA_U680_RESUME_CLI",
         "REA_U680_DIAG_NPM_ERROR_0", "REA_U680_DIAG_NPM_ERROR_1", "REA_U680_DIAG_NPM_ERROR_2", "REA_U680_DIAG_NPM_ERROR_3", "REA_U680_DIAG_NPM_ERROR_4", "REA_U680_DIAG_NPM_ERROR_5", "REA_U680_DIAG_NPM_ERROR_6", "REA_U680_DIAG_NPM_ERROR_7", "REA_U680_DIAG_NPM_ERROR_8", "REA_U680_DIAG_NPM_ERROR_9", "REA_U680_DIAG_NPM_ERROR_10", "REA_U680_DIAG_NPM_ERROR_11", "REA_U680_DIAG_NPM_ERROR_12", "REA_U680_DIAG_NPM_ERROR_13", "REA_U680_DIAG_NPM_ERROR_14", "REA_U680_DIAG_NPM_ERROR_15", "REA_U680_DIAG_NPM_ERROR_16", "REA_U680_DIAG_NPM_ERROR_17", "REA_U680_DIAG_NPM_ERROR_18", "REA_U680_DIAG_NPM_ERROR_19", "REA_U680_DIAG_NPM_ERROR_20", "REA_U680_DIAG_NPM_ERROR_21",
         "REA_MOBILE_READONLY_HINT_COUNT", "REA_MOBILE_STATIC_INSPECT_COUNT",
         "REA_MOBILE_SAFE_QUERY_COUNT", "REA_MOBILE_SAFE_CALLABLE_COUNT",
@@ -2669,6 +2673,94 @@ def main():
                     count+=1
                 break
         print("REA_U680_DIAG_STATUS=READ_ONLY_COMPLETE")
+        return
+    if data["action"] == "fixture_linux_rea_680_resume_build":
+        # Resume same pinned official source, with service-owned compatible Node,
+        # without installing another Node, touching production or restarting MCP.
+        import re as regex
+        stage=Path("/opt/rea-reversa/upgrades/rea-6.8.0-160d821ac9a0")
+        expected_commit="160d821ac9a0310afcb8d1fc427862dd6508add5"
+        expected_tree="15e6fec513dcce08cefdbcf441200986397e2793"
+        expected_backup="baa448b25c2f1f2a5c76589b0a1eb4f586e20d733335eef76a9f5ed29f76b936"
+        if not stage.is_dir() or stage.is_symlink():
+            print("REA_U680_RESUME_STATUS=BLOCKED_STAGE_MISSING")
+            return
+        for cmd,expected in (("HEAD",expected_commit),("HEAD^{tree}",expected_tree)):
+            g=subprocess.run(["git","rev-parse",cmd],cwd=stage,
+               capture_output=True,text=True,timeout=16,check=False)
+            if g.returncode or g.stdout.strip()!=expected:
+                print("REA_U680_RESUME_STATUS=BLOCKED_GIT_IDENTITY")
+                return
+        backup=Path.home()/".local/share/rea-chatgpt-trial/upgrade-backups/rea-6.7.0-retained-evidence-before-6.8.0-20261026.json"
+        if not backup.is_file() or backup.is_symlink() or hashlib.sha256(backup.read_bytes()).hexdigest()!=expected_backup:
+            print("REA_U680_RESUME_STATUS=BLOCKED_EVIDENCE_ARCHIVE")
+            return
+        print("REA_U680_RESUME_BACKUP=PASS_SHA256")
+        service="rea-reversa-mcp.service"
+        pid=subprocess.run(["systemctl","show",service,"-p","MainPID","--value"],
+          capture_output=True,text=True,timeout=12,check=False).stdout.strip()
+        if not pid.isdecimal() or int(pid)<1:
+            print("REA_U680_RESUME_STATUS=BLOCKED_SERVICE_PID")
+            return
+        binary=subprocess.run(["sudo","-n","readlink","-f",f"/proc/{int(pid)}/exe"],
+          capture_output=True,text=True,timeout=12,check=False)
+        node_path=Path(binary.stdout.strip())
+        if (binary.returncode or not node_path.is_file()
+             or node_path.name!="node"):
+            print("REA_U680_RESUME_STATUS=BLOCKED_SERVICE_NODE_PATH")
+            return
+        nodever=subprocess.run([str(node_path),"--version"],capture_output=True,
+          text=True,timeout=15,check=False)
+        ver=nodever.stdout.strip()
+        match=regex.fullmatch(r"v(22|24|2[6-9])\.(\d+)\.(\d+)",ver)
+        good=bool(match and
+          ((int(match[1])==22 and int(match[2])>=23 and
+            (int(match[2])>23 or int(match[3])>=4)) or
+           (int(match[1])==24 and int(match[2])>=22 and
+            (int(match[2])>22 or int(match[3])>=1)) or
+           (int(match[1])>=26 and (int(match[1])>26 or int(match[2])>=12))))
+        print("REA_U680_RESUME_SELECTED_NODE="+ver[:30])
+        if not good:
+            print("REA_U680_RESUME_STATUS=BLOCKED_NODE_ENGINE_INCOMPATIBLE")
+            return
+        env={"HOME":str(Path.home()),"PATH":str(node_path.parent)+":"+
+             os.environ.get("PATH","/usr/bin:/bin"),
+             "CI":"1","NPM_CONFIG_FUND":"false","NPM_CONFIG_AUDIT":"false"}
+        frombin=subprocess.run(["node","--version"],capture_output=True,
+                       text=True,env=env,timeout=12,check=False)
+        if frombin.stdout.strip()!=ver:
+            print("REA_U680_RESUME_STATUS=BLOCKED_NODE_PATH_MISMATCH")
+            return
+        print("REA_U680_RESUME_NODE_ENV=PASS")
+        if json.loads((stage/"package.json").read_text()).get("version")!="6.8.0":
+            print("REA_U680_RESUME_STATUS=BLOCKED_SOURCE_VERSION")
+            return
+        def step(name,cmd,timeout):
+            proc=subprocess.run(cmd,cwd=stage,env=env,
+                 stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,
+                 timeout=timeout,check=False)
+            print("REA_U680_RESUME_"+name+"_EXIT="+str(proc.returncode))
+            if proc.returncode:
+                raise RuntimeError(name+" could not finish")
+        try:
+            step("NPM_CI",["npm","ci","--ignore-scripts","--no-fund","--no-audit"],360)
+            step("OFFICIAL_BUILD",["npm","run","build"],385)
+            unchanged=subprocess.run(["git","diff","--quiet","--exit-code"],
+                    cwd=stage,capture_output=True,timeout=35,check=False)
+            if unchanged.returncode:
+                raise RuntimeError("Upstream tracked file modified by build")
+            entry=stage/"scripts/rea.mjs"
+            if not entry.is_file() or entry.is_symlink():
+                raise RuntimeError("Missing official cli")
+            test=subprocess.run(["node",str(entry),"--version"],
+                    cwd=stage,env=env,capture_output=True,text=True,
+                    timeout=40,check=False)
+            if test.returncode or "6.8.0" not in test.stdout+"\n"+test.stderr:
+                raise RuntimeError("Compiled official cli did not report release")
+            print("REA_U680_RESUME_CLI=VERSION_6_8_0")
+            print("REA_U680_RESUME_STATUS=PASS_COMPILED_EXACT_SOURCE_NOT_ACTIVE")
+        except (OSError,RuntimeError,ValueError,subprocess.TimeoutExpired) as exc:
+            print("REA_U680_RESUME_STATUS=INCOMPLETE_"+type(exc).__name__)
         return
     if data["action"] == "fixture_linux_install_inventory":
         # Audit original Linux REA installation; no installation, no restart.
