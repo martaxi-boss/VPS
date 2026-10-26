@@ -322,3 +322,139 @@ def verify_task_grant(grant, owner_signature_b64, owner_public_pem, *,
         verify_not_revoked(grant["grant_id"], revocation_dir)
     return True
 
+
+# The private registry is an optional P311 stage, not a new MCP/service.
+# Production integration must call it only after a fully source-verified live
+# MCP catalog and the existing provisioned owner public key are available.
+SIGNED_TASK_FIELDS = frozenset({
+    "grant", "owner_signature", "project", "task_id", "origin", "artifact_root",
+})
+MAX_REGISTERED_GRANT_BYTES = 65536
+
+
+def _check_private_grant_directory(directory, *, create=False):
+    folder = Path(directory)
+    parent = folder.parent
+    if (parent.is_symlink() or not parent.is_dir() or
+            parent.stat().st_uid != os.geteuid() or
+            stat.S_IMODE(parent.stat().st_mode) != 0o700):
+        raise ScopedApprovalError("Unsafe parent for private grant registry")
+    if folder.is_symlink():
+        raise ScopedApprovalError("Symlink grant registry forbidden")
+    if not folder.exists() and create:
+        folder.mkdir(mode=0o700)
+    if not folder.is_dir():
+        raise ScopedApprovalError("Owner-signed grant registry is not provisioned")
+    meta = folder.stat()
+    if meta.st_uid != os.geteuid() or stat.S_IMODE(meta.st_mode) != 0o700:
+        raise ScopedApprovalError("Unsafe private grant registry permissions")
+    return folder
+
+
+def _verify_registration_contracts(signed_task, owner_public_pem,
+                                   trusted_contracts, *, now, revocation_dir):
+    """No caller-chosen policies: trusted_contracts must come from source pins.
+
+    Each contract is (source-attested effects frozenset, classified MCP risk).
+    Nothing is executed: the sole argument path is an inert signed-root probe.
+    """
+    if not isinstance(signed_task, dict) or set(signed_task) != SIGNED_TASK_FIELDS:
+        raise ScopedApprovalError("Malformed signed owner task")
+    grant = signed_task["grant"]
+    if not isinstance(grant, dict) or not isinstance(grant.get("allowed_tools"), list):
+        raise ScopedApprovalError("Malformed signed grant")
+    names = grant["allowed_tools"]
+    if not isinstance(trusted_contracts, dict) or not names:
+        raise ScopedApprovalError("Missing trusted live tool effects")
+    all_effects = set()
+    for name in names:
+        item = trusted_contracts.get(name)
+        if (not isinstance(item, tuple) or len(item) != 2 or
+                not isinstance(item[0], frozenset) or
+                item[1] not in ("workspace", "sensitive")):
+            raise ScopedApprovalError("Selected tool not source attested")
+        effect_flags, risk = item
+        all_effects.update(effect_flags)
+        if any(signed_task.get(key) != grant.get(key) for key in (
+                "project", "task_id", "origin", "artifact_root")):
+            raise ScopedApprovalError("Signed grant metadata mismatch")
+        verify_task_grant(
+            grant, signed_task["owner_signature"], owner_public_pem,
+            project=grant["project"], task_id=grant["task_id"],
+            origin=grant["origin"], artifact_root=grant["artifact_root"],
+            tool=name, audited_effects=effect_flags, current_risk=risk,
+            arguments={"path": grant["artifact_root"] + "/.rea-signed-probe"},
+            now=now, revocation_dir=revocation_dir,
+        )
+    if set(grant.get("permitted_effects", ())) != all_effects:
+        raise ScopedApprovalError("Signed task effects differ from pinned tools")
+    return grant
+
+
+def register_signed_task_grant(signed_task, owner_public_pem, *,
+                               private_registry_dir, revocation_dir,
+                               trusted_contracts, now=None):
+    """Register EXACTLY one independently signed task; never overwrite.
+
+    User confirmation and signing are performed on the trusted owner device.
+    GitHub transports only the sealed signed JSON. This routine NEVER creates
+    an owner private key or silently accepts a yes/no/chat text as consent.
+    """
+    now = now or datetime.now(timezone.utc)
+    grant = _verify_registration_contracts(
+        signed_task, owner_public_pem, trusted_contracts,
+        now=now, revocation_dir=revocation_dir)
+    blob = canonical_bytes(signed_task)
+    if len(blob) > MAX_REGISTERED_GRANT_BYTES:
+        raise ScopedApprovalError("Signed owner task exceeds private registry budget")
+    root = _check_private_grant_directory(private_registry_dir, create=True)
+    target = root / (grant["grant_id"] + ".json")
+    try:
+        fd = os.open(target, os.O_WRONLY | os.O_EXCL | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+    except FileExistsError as exc:
+        raise ScopedApprovalError("Owner task already enrolled; no overwrite") from exc
+    with os.fdopen(fd, "wb") as stream:
+        stream.write(blob)
+    return grant["grant_id"]
+
+
+def read_registered_task_grant(grant_id, owner_public_pem, *,
+                               private_registry_dir, revocation_dir,
+                               trusted_contracts, now=None):
+    """Read only a 0600 signed file from a 0700 private directory, reverify.
+
+    Each use rechecks owner signature, original source-attested tool effects,
+    task expiry, and revocation; a grant ID alone never authorizes a tool.
+    """
+    if not isinstance(grant_id, str) or not HEX.fullmatch(grant_id):
+        raise ScopedApprovalError("Invalid registered task identifier")
+    root = _check_private_grant_directory(private_registry_dir)
+    file = root / (grant_id + ".json")
+    try:
+        fd = os.open(file, os.O_RDONLY | os.O_NOFOLLOW)
+    except OSError as exc:
+        raise ScopedApprovalError("Registered owner grant is not available") from exc
+    try:
+        meta = os.fstat(fd)
+        if (not stat.S_ISREG(meta.st_mode) or meta.st_uid != os.geteuid() or
+                stat.S_IMODE(meta.st_mode) != 0o600 or
+                not 0 < meta.st_size <= MAX_REGISTERED_GRANT_BYTES):
+            raise ScopedApprovalError("Unsafe registered owner task file")
+        with os.fdopen(fd, "rb", closefd=False) as source:
+            raw = source.read(MAX_REGISTERED_GRANT_BYTES + 1)
+        if len(raw) != meta.st_size:
+            raise ScopedApprovalError("Registered grant size mismatch")
+    finally:
+        os.close(fd)
+    try:
+        signed_task = json.loads(raw)
+        if canonical_bytes(signed_task) != raw:
+            raise ScopedApprovalError("Registered task is not canonical JSON")
+    except (UnicodeError, ValueError, TypeError) as exc:
+        raise ScopedApprovalError("Invalid signed task contents") from exc
+    grant = _verify_registration_contracts(
+        signed_task, owner_public_pem, trusted_contracts,
+        now=now or datetime.now(timezone.utc), revocation_dir=revocation_dir)
+    if grant["grant_id"] != grant_id:
+        raise ScopedApprovalError("Registered grant identity mismatch")
+    return signed_task
