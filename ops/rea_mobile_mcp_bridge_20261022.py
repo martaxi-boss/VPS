@@ -559,7 +559,9 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SDIAG_PID_PROVIDER_KEYS",
         "REA_SDIAG_STATUS", "REA_P295_STATUS", "REA_P295_SERVICE_ENV",
         "REA_P295_SERVICE_PATH_TOOLS", "REA_P295_KNOWN_VENDOR_PATHS",
-        "REA_P295_PROVIDER_NAMES", "REA_P295_ACTIVE_NODE_VERSION_CONFIRMED"
+        "REA_P295_PROVIDER_NAMES", "REA_P295_ACTIVE_NODE_VERSION_CONFIRMED",
+        "REA_P295_CONFIG_01", "REA_P295_CONFIG_02", "REA_P295_CONFIG_03", "REA_P295_CONFIG_04", "REA_P295_CONFIG_05", "REA_P295_CONFIG_06", "REA_P295_CONFIG_07", "REA_P295_CONFIG_08", "REA_P295_CONFIG_09",
+        "REA_P295_VENDOR_WAKARU", "REA_P295_VENDOR_MITMPROXY", "REA_P295_VENDOR_WABT", "REA_P295_VENDOR_CUTTER", "REA_P295_VENDOR_IDA", "REA_P295_VENDOR_JEB", "REA_P295_VENDOR_PWNTOOLS", "REA_P295_VENDOR_CHROMIUM"
     }
     markers = {}
     for line in Path(raw_path).read_text(encoding="utf-8").splitlines():
@@ -757,6 +759,20 @@ def main():
                     capture_output=True,timeout=10,check=False).returncode==0
             present[name]=record
         print("REA_P295_SERVICE_ENV="+json.dumps(present,sort_keys=True,separators=(",",":")))
+        compact_keys=("REA_WAKARU_COMMAND","REA_MITMDUMP_COMMAND",
+           "REA_WABT_BIN_DIRECTORY","REA_PWNTOOLS_PYTHON",
+           "PLAYWRIGHT_BROWSERS_PATH","REA_IDA_MCP_CONFIG",
+           "REA_JEB_MCP_URL","REA_CUTTER_BRIDGE_DIR",
+           "HOPPER_LAUNCHER_PATH","REA_RIZIN_COMMAND",
+           "REA_UNBLOB_COMMAND","REA_GDB_COMMAND",
+           "REA_BINWALK_COMMAND","REA_TSHARK_COMMAND",
+           "REA_SIGROK_COMMAND","GHIDRA_INSTALL_DIR",
+           "JAVA_HOME","REA_JADX_MCP_JAR")
+        for i in range(0,len(compact_keys),2):
+            group={k:present[k] for k in compact_keys[i:i+2]}
+            print("REA_P295_CONFIG_"+str(i//2+1).zfill(2)+"="+
+                json.dumps(group,sort_keys=True,separators=(",",":")))
+
         path=live.get("PATH","/usr/bin:/bin")
         commands=("rizin","rz-bin","unblob","gdb","binwalk","tshark",
                   "sigrok-cli","adb","apktool","cutter","Cutter",
@@ -791,6 +807,35 @@ def main():
             found[ident]=bool(providers.is_dir() and any(
                 ident in p.name.lower() for p in list(providers.iterdir())[:150]))
         print("REA_P295_PROVIDER_NAMES="+json.dumps(found,sort_keys=True,separators=(",",":")))
+        for label, words in (
+            ("WAKARU",("wakaru",)),("MITMPROXY",("mitm",)),
+            ("WABT",("wabt",)),("CUTTER",("cutter",)),
+            ("IDA",("ida",)),("JEB",("jeb",)),
+            ("PWNTOOLS",("pwntools",)),("CHROMIUM",("chromium",))):
+            subset=[p for p in providers.iterdir()
+                    if p.is_dir() and any(word in p.name.lower() for word in words)][:5]
+            selected=[]
+            names={"wakaru","mitmdump","wasm2wat","wasm-objdump",
+                   "wasm-validate","cutter","cutter.appimage","python",
+                   "jeb.jar","chrome","ida"}
+            for entry in subset:
+                if not re.fullmatch(r"[A-Za-z0-9_.+-]{1,120}",entry.name):
+                    continue
+                selected.append({"directory":entry.name,"service_read":subprocess.run(
+                    ["sudo","-n","-u",user,"test","-r",str(entry)],
+                    capture_output=True,timeout=10,check=False).returncode==0})
+                paths=list(entry.glob("bin/*"))[:50]+list(entry.glob("*/bin/*"))[:50]+list(entry.glob("*"))[:50]
+                for candidate in paths:
+                    if candidate.name.lower() in names or (
+                       label=="CUTTER" and "cutter" in candidate.name.lower() and candidate.is_file()
+                    ):
+                        if len(selected)>=7:break
+                        selected.append({"candidate":str(candidate.relative_to(providers))[:150],
+                           "service_exec":subprocess.run(
+                            ["sudo","-n","-u",user,"test","-x",str(candidate)],
+                            capture_output=True,timeout=10,check=False).returncode==0})
+            print("REA_P295_VENDOR_"+label+"="+json.dumps(selected[:7],separators=(",",":")))
+
         print("REA_P295_ACTIVE_NODE_VERSION_CONFIRMED="+str(bool(pid==prop("MainPID"))).lower())
         print("REA_P295_STATUS=PASS_READ_ONLY")
         return
