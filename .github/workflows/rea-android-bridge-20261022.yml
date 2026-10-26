@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - rea/one-skill-bridge-20261023
-      - rea/p311-autonomia-escopos-20261026
     paths:
       - ".github/workflows/rea-android-bridge-20261022.yml"
       - "ops/rea_mobile_mcp_bridge_20261022.py"
