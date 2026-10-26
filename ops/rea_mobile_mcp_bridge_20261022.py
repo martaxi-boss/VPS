@@ -1058,9 +1058,9 @@ except Exception as e:
         }
         print("REA_P302_LAUNCH_PRE_CLEANUP="+before_cleanup)
         print("REA_P302_LAUNCH_LOG_CATEGORIES="+json.dumps(categories,separators=(",",":")))
-        missing=re.findall(r"(?:modulenotfounderror|importerror):\\s*no module named ['\\\"]([^'\\\"]+)['\\\"]",output)
+        missing=re.findall(r"no module named ([^\s,;:]+)",output)
         known=("cutter","pyside2","pyside6","pyqt5","shiboken2","rizin","qtpy","shiboken6","requests","packaging")
-        matched=sorted(set(x for x in missing if x in known))
+        matched=sorted(set(x.strip(chr(34)+chr(39)) for x in missing if x.strip(chr(34)+chr(39)) in known))
         print("REA_P302_MISSING_KNOWN_MODULES="+json.dumps(matched,separators=(",",":")))
         process_group_clean=True
         if proc is not None:
