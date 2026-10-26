@@ -845,9 +845,27 @@ try:
                "bytes":len(existing),
                "reabridge":b'class ReaCutterPlugin' in existing and b'create_cutter_plugin' in existing,
                "matches_670":prior}
-            print('SAFE_META='+json.dumps(meta,separators=(",",":")))
-            raise ValueError('existing_different_plugin')
-        status='ALREADY_OFFICIAL_FILE'
+            if (prior and st.st_uid==who.pw_uid and
+                    stat.S_IMODE(st.st_mode)==0o644 and
+                    meta['reabridge']):
+                backup=dest.with_name('rea_bridge.py.p301-original-670.backup')
+                if backup.exists() or backup.is_symlink():
+                    raise ValueError('backup_already_exists')
+                os.rename(dest,backup)
+                try:
+                    dest.symlink_to(src)
+                    if not dest.is_symlink() or dest.resolve()!=src.resolve():
+                        raise ValueError('link_mismatch')
+                except Exception:
+                    if dest.is_symlink():dest.unlink()
+                    os.rename(backup,dest)
+                    raise
+                status='UPDATED_670_TO_680_BACKUP_RETAINED'
+            else:
+                print('SAFE_META='+json.dumps(meta,separators=(",",":")))
+                raise ValueError('existing_different_plugin')
+        else:
+            status='ALREADY_OFFICIAL_FILE'
     else:
         dest.symlink_to(src)
         newlink=True
@@ -872,7 +890,8 @@ except Exception as e:
                 capture_output=True,text=True,timeout=35,check=False)
             if rootresult.returncode==0 and rootresult.stdout.strip() in (
                  "ALREADY_OFFICIAL_LINK","ALREADY_OFFICIAL_FILE",
-                 "LINKED_OFFICIAL_IN_ROOT_MANAGED_DIR"):
+                 "LINKED_OFFICIAL_IN_ROOT_MANAGED_DIR",
+                 "UPDATED_670_TO_680_BACKUP_RETAINED"):
                 status=rootresult.stdout.strip()
                 output=rootresult
             else:
@@ -886,7 +905,8 @@ except Exception as e:
         if output.returncode or status not in (
                "ALREADY_LINKED","ALREADY_IDENTICAL","LINKED_OFFICIAL_SOURCE",
                "ALREADY_OFFICIAL_LINK","ALREADY_OFFICIAL_FILE",
-               "LINKED_OFFICIAL_IN_ROOT_MANAGED_DIR"):
+               "LINKED_OFFICIAL_IN_ROOT_MANAGED_DIR",
+               "UPDATED_670_TO_680_BACKUP_RETAINED"):
             print("REA_P301_BLOCK_CODE="+str(output.returncode))
             print("REA_P301_STATUS=BLOCKED_PLUGIN_USER_PATH")
             return
