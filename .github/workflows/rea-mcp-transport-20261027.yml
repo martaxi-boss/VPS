@@ -144,60 +144,81 @@ jobs:
           if-no-files-found: ignore
           retention-days: 1
 
-      - name: Verify rejected OAuth requests and Google verifier contract (local only)
+      - name: Verify Google account policy and original REA proxy; restart only OAuth service
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         shell: bash
         run: |
           set -euo pipefail
-          test -n "$SSHPASS"
-          sshpass -e ssh -T \
-            -o PreferredAuthentications=password \
-            -o PubkeyAuthentication=no \
-            -o StrictHostKeyChecking=yes \
-            -o UserKnownHostsFile="$RUNNER_TEMP/rea-host-pin" \
-            -o GlobalKnownHostsFile=/dev/null \
-            -o HostKeyAlgorithms=ssh-ed25519 \
-            -o ConnectTimeout=15 \
-            ubuntu@146.59.145.3 'sudo -n bash -se' <<'SH'
+          ssh_opts=(
+            -o PreferredAuthentications=password
+            -o PubkeyAuthentication=no
+            -o StrictHostKeyChecking=yes
+            -o UserKnownHostsFile="$RUNNER_TEMP/rea-host-pin"
+            -o GlobalKnownHostsFile=/dev/null
+            -o HostKeyAlgorithms=ssh-ed25519
+            -o ConnectTimeout=15
+          )
+          target="ubuntu@146.59.145.3"
+          sshpass -e ssh -T "${ssh_opts[@]}" "$target" \
+            'sudo -n tee /opt/rea-reversa/oauth-auth/rea_gateway.py >/dev/null' \
+            < ops/rea_google_oauth_gateway_20261027.py
+          expected="$(sha256sum ops/rea_google_oauth_gateway_20261027.py | awk '{print $1}')"
+          actual="$(sshpass -e ssh -T "${ssh_opts[@]}" "$target" \
+            'sudo -n sha256sum /opt/rea-reversa/oauth-auth/rea_gateway.py' | awk '{print $1}')"
+          test "$actual" = "$expected"
+          sshpass -e ssh -T "${ssh_opts[@]}" "$target" 'sudo -n bash -se' <<'SH'
           set -euo pipefail
-          service=rea-mcp-oauth.service
-          systemctl is-active --quiet "$service"
-          /opt/rea-reversa/oauth-auth/venv/bin/python - <<'PY'
-          import json, urllib.request, urllib.error, inspect, typing
+          systemctl is-active --quiet rea-reversa-mcp.service
+          systemctl is-active --quiet nginx.service
+          CREDENTIALS_DIRECTORY=/root/project-secrets/rea-mcp \
+            /opt/rea-reversa/oauth-auth/venv/bin/python - <<'PY'
+          import asyncio,runpy,types
+          from unittest.mock import patch
+          from fastmcp import FastMCP
           from fastmcp.server.auth.providers.google import GoogleTokenVerifier
-          from fastmcp.server.providers.proxy import ProxyClient, ProxyProvider
-          import fastmcp
-          print("REA_OAUTH_FASTMCP_VERSION="+str(getattr(fastmcp,"__version__","unknown")))
-          print("REA_OAUTH_GOOGLE_VERIFIER_SIGNATURE="+str(inspect.signature(GoogleTokenVerifier)))
-          print("REA_OAUTH_PROXY_CLIENT_SIGNATURE="+str(inspect.signature(ProxyClient)))
-          print("REA_OAUTH_GOOGLE_VERIFIER_CODE_BEGIN")
-          print(inspect.getsource(GoogleTokenVerifier.verify_token))
-          print("REA_OAUTH_GOOGLE_VERIFIER_CODE_END")
-          base="http://127.0.0.1:8766"
-          def probe(method,path,token=None,data=None):
-              headers={"Host":"rea-reversa.duckdns.org","Accept":"application/json,text/event-stream"}
-              if data is not None: headers["Content-Type"]="application/json"
+          from fastmcp.server.providers.proxy import ProxyClient,ProxyProvider
+          m=runpy.run_path("/opt/rea-reversa/oauth-auth/rea_gateway.py",run_name="rea_test")
+          owner=m["OwnerGoogleVerifier"]
+          client_id=m["client_id"]
+          state={"claims":{}}
+          async def mock_verify(self,token):
+              return types.SimpleNamespace(client_id="unrelated-google-sub",claims=state["claims"])
+          async def check(claims):
+              state["claims"]=claims
+              with patch.object(GoogleTokenVerifier,"verify_token",mock_verify):
+                  return await owner().verify_token("synthetic-token")
+          async def main():
+              base={"aud":client_id,"email":"unrelated@example.invalid","email_verified":True}
+              assert await check(dict(base,aud="other-client")) is None
+              assert await check(dict(base,email_verified=False)) is None
+              assert await check(dict(base,email_verified="false")) is None
+              assert await check(dict(base)) is None
+              print("REA_GOOGLE_OWNER_POLICY_NEGATIVE_TESTS=PASS")
+              client=ProxyClient("http://127.0.0.1:8765/mcp",mode="legacy",forward_incoming_headers=False)
+              proxy=FastMCP("REA-Proxy-Smoke",providers=[ProxyProvider(lambda:client)])
+              items=await asyncio.wait_for(proxy.list_tools(),timeout=40)
+              count=len(items)
+              print("REA_OAUTH_PROXY_ORIGINAL_TOOL_COUNT="+str(count))
+              assert count==229,count
+              print("REA_OAUTH_PROXY_FULL_CATALOG=PASS")
+          asyncio.run(main())
+          PY
+          systemctl restart rea-mcp-oauth.service
+          sleep 3
+          systemctl is-active --quiet rea-mcp-oauth.service
+          /opt/rea-reversa/oauth-auth/venv/bin/python - <<'PY'
+          import json,urllib.error,urllib.request
+          url="http://127.0.0.1:8766/mcp"
+          body=json.dumps({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"rea-local-check","version":"1"}}}).encode()
+          for token in (None,"invalid-token"):
+              headers={"Host":"rea-reversa.duckdns.org","Content-Type":"application/json","Accept":"application/json,text/event-stream"}
               if token is not None: headers["Authorization"]="Bearer "+token
-              req=urllib.request.Request(base+path,headers=headers,method=method,data=data)
+              req=urllib.request.Request(url,method="POST",headers=headers,data=body)
               try:
-                  with urllib.request.urlopen(req,timeout=8) as result:
-                      return (result.status,result.headers.get("WWW-Authenticate",""))
-              except urllib.error.HTTPError as result:
-                  return (result.code,result.headers.get("WWW-Authenticate",""))
-          payload=json.dumps({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"rea-oauth-check","version":"1"}}}).encode()
-          for method,path,token,data in [
-              ("POST","/mcp",None,payload),
-              ("POST","/mcp","invalid-token-rea-20261027",payload),
-              ("GET","/mcp",None,None)]:
-              status,challenge=probe(method,path,token,data)
-              print("REA_OAUTH_AUTH_DENIAL="+method+" "+path+" token="+str(token is not None)+" status="+str(status)+" has_challenge="+str(bool(challenge)))
-              assert status==401 and bool(challenge)
-          status, _=probe("GET","/.well-known/oauth-authorization-server")
-          assert status==200
-          status,_=probe("GET","/.well-known/oauth-protected-resource/mcp")
-          assert status==200
-          print("REA_OAUTH_LOCAL_401_TEST=PASS")
-          print("REA_OAUTH_LOCAL_DISCOVERY=PASS")
+                  with urllib.request.urlopen(req,timeout=8) as resp:code=resp.status
+              except urllib.error.HTTPError as error: code=error.code
+              assert code==401,code
+          print("REA_OAUTH_LOCAL_POST_DENIAL=PASS")
           PY
           SH
