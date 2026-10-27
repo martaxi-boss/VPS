@@ -402,6 +402,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_INSTALL_AUDIT_PROVIDER_CANDIDATES",
         "REA_INSTALL_AUDIT_PROVIDERS_JSON",
         "REA_INSTALL_AUDIT_MCP_TOOL_COUNT",
+        "REA_SSL_SCOPED_PREFLIGHT",
         "REA_INSTALL_AUDIT_COMPLETED",
         "REA_DOCTOR_LINUX_STATUS",
         "REA_DOCTOR_LINUX_EXIT",
@@ -2461,6 +2462,69 @@ def main():
                             print("REA_INSTALL_AUDIT_PROVIDER_CANDIDATES="+str(len(candidates)))
                 except ValueError:
                     print("REA_INSTALL_AUDIT_PROVIDERS_JSON=INVALID")
+        # Owner-approved, temporary read-only SSL endpoint diagnostic.
+        # Print only public certificate metadata and sanitized proxy routing.
+        import socket,ssl,shutil,re
+        host="rea-reversa.duckdns.org"
+        result={"host":host,"scope":"read_only_tls"}
+        try:
+            result["resolved_ips"]=sorted({x[4][0] for x in socket.getaddrinfo(host,443,type=socket.SOCK_STREAM)})
+        except OSError as exc:
+            result["dns_error"]=type(exc).__name__
+        try:
+            raw=socket.create_connection(("127.0.0.1",443),timeout=6)
+            ctx=ssl._create_unverified_context()
+            with ctx.wrap_socket(raw,server_hostname=host) as tls:
+                der=tls.getpeercert(binary_form=True)
+            cert=subprocess.run(["openssl","x509","-inform","DER","-noout","-subject","-issuer","-dates","-ext","subjectAltName"],
+                 input=der,capture_output=True,timeout=8)
+            out=cert.stdout.decode(errors="replace")
+            result["certificate_info"]=[l.strip()[:250] for l in out.splitlines() if l.strip()][:16]
+        except (OSError,ssl.SSLError,subprocess.TimeoutExpired) as exc:
+            result["certificate_read_error"]=type(exc).__name__
+        for unit in ("nginx","caddy","apache2","traefik","certbot.timer"):
+            try:
+                p=subprocess.run(["systemctl","is-active",unit],capture_output=True,text=True,timeout=4)
+                result[unit+"_active"]=p.stdout.strip()=="active"
+            except (OSError,subprocess.TimeoutExpired):
+                result[unit+"_active"]=False
+        try:
+            p=subprocess.run(["sudo","-n","ss","-ltnp"],capture_output=True,text=True,timeout=8)
+            ports=[]
+            if p.returncode==0:
+                for line in p.stdout.splitlines():
+                    if re.search(r"(?:^|\s)(?:\[[^\]]+\]|[^ \t]+):443\s",line):
+                        m=re.findall(r'\("([^"]+)"',line)
+                        ports.append({"programs":m[:4],"loopback_only":"127.0.0.1:443" in line or "[::1]:443" in line})
+            result["listener_443"]=ports[:6]
+        except (OSError,subprocess.TimeoutExpired):
+            result["listener_443"]=[]
+        result["certbot_installed"]=shutil.which("certbot") is not None
+        for fn in ("/etc/letsencrypt/live/rea-reversa.duckdns.org/fullchain.pem",
+                   "/etc/letsencrypt/live/rea-reversa.duckdns.org/privkey.pem"):
+            try:
+                p=subprocess.run(["sudo","-n","test","-e",fn],capture_output=True,timeout=5)
+                result["le_"+("cert" if fn.endswith("fullchain.pem") else "key")+"_present"]=p.returncode==0
+            except (OSError,subprocess.TimeoutExpired):
+                pass
+        # Nginx -T is captured privately, ONLY safe keys of matching server
+        # emitted; never print full Nginx config, tokens or other projects.
+        try:
+            p=subprocess.run(["sudo","-n","nginx","-T"],capture_output=True,text=True,timeout=10)
+            result["nginx_config_test_ok"]=p.returncode==0
+            if p.returncode==0:
+                source=""
+                entries=[]
+                for line in p.stdout.splitlines():
+                    if line.startswith("# configuration file "):
+                        source=line.split(":",1)[0].replace("# configuration file ","").strip()
+                    if host in line and re.search(r"\bserver_name\b",line):
+                        entries.append({"config_source":source[:160],"server_name_found":True})
+                result["nginx_named_vhosts"]=entries[:6]
+                result["nginx_ssl_cert_references"] = sorted(set(re.findall(r"\bssl_certificate\s+([^;\s]+);",p.stdout)))[:12]
+        except (OSError,subprocess.TimeoutExpired):
+            result["nginx_config_test_ok"]=False
+        print("REA_SSL_SCOPED_PREFLIGHT="+json.dumps(result,sort_keys=True))
         print("REA_INSTALL_AUDIT_MCP_TOOL_COUNT="+str(len(tools)))
         print("REA_INSTALL_AUDIT_COMPLETED=PASS_READ_ONLY")
         return
