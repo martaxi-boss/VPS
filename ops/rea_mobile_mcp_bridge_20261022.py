@@ -402,6 +402,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_INSTALL_AUDIT_PROVIDER_CANDIDATES",
         "REA_INSTALL_AUDIT_PROVIDERS_JSON",
         "REA_INSTALL_AUDIT_MCP_TOOL_COUNT",
+        "REA_F680_SOURCE_WORKTREE",
         "REA_INSTALL_AUDIT_COMPLETED",
         "REA_DOCTOR_LINUX_STATUS",
         "REA_DOCTOR_LINUX_EXIT",
@@ -569,7 +570,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         elif "=" in line:
             k, value = line.split("=", 1)
             if k in allowed_markers:
-                markers[k] = value[:1500] if k == "REA_SECURE_REQUEST_PUBLIC_KEY_B64" else value[:24000] if k == "REA_MOBILE_TOOL_DESCRIPTOR_B64" else (value[:1200] if k in ("REA_AUDIT_PROVIDER_SECTIONS", "REA_AUDIT_PROVIDER_NAMES") else value[:300])
+                markers[k] = value[:1500] if k == "REA_SECURE_REQUEST_PUBLIC_KEY_B64" else value[:24000] if k == "REA_MOBILE_TOOL_DESCRIPTOR_B64" else (value[:1200] if k in ("REA_AUDIT_PROVIDER_SECTIONS", "REA_AUDIT_PROVIDER_NAMES") else value[:400])
                 print(k + "=" + markers[k])
     if "response_key" not in request:
         if private is not None:
@@ -2461,6 +2462,24 @@ def main():
                             print("REA_INSTALL_AUDIT_PROVIDER_CANDIDATES="+str(len(candidates)))
                 except ValueError:
                     print("REA_INSTALL_AUDIT_PROVIDERS_JSON=INVALID")
+        # Final tracked-source purity verification against official git HEAD.
+        # No modifications, git fetch, submodule update, or network activity.
+        import subprocess as rea_git_proc
+        rea_path=Path("/opt/rea-reversa/rea")
+        head=rea_git_proc.run(["git","-C",str(rea_path),"rev-parse","HEAD"],
+            capture_output=True,text=True,timeout=18,check=False)
+        status=rea_git_proc.run(["git","-C",str(rea_path),"status","--porcelain",
+            "--untracked-files=no","--ignore-submodules=none"],
+            capture_output=True,text=True,timeout=75,check=False)
+        diff=rea_git_proc.run(["git","-C",str(rea_path),"diff","--quiet","HEAD","--"],
+            capture_output=True,timeout=75,check=False)
+        result={"head_matches_original":
+            head.returncode==0 and head.stdout.strip()=="160d821ac9a0310afcb8d1fc427862dd6508add5",
+            "status_exit":status.returncode,
+            "tracked_status_entries":len(status.stdout.splitlines()) if status.returncode==0 else -1,
+            "tracked_diff_exit":diff.returncode,
+            "tracked_clean":status.returncode==0 and not status.stdout.strip() and diff.returncode==0}
+        print("REA_F680_SOURCE_WORKTREE="+json.dumps(result,sort_keys=True))
         print("REA_INSTALL_AUDIT_MCP_TOOL_COUNT="+str(len(tools)))
         print("REA_INSTALL_AUDIT_COMPLETED=PASS_READ_ONLY")
         return
