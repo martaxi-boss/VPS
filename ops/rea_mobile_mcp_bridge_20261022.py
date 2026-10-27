@@ -495,6 +495,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SERVICE_DOCTOR_CONFIG_REA_RIZIN_COMMAND",
         "REA_SERVICE_DOCTOR_EXIT",
         "REA_SERVICE_DOCTOR_HEALTH",
+        "REA_SERVICE_DOCTOR_CHECKS",
         "REA_SERVICE_DOCTOR_PROVIDERS",
         "REA_SERVICE_DOCTOR_BINARY_CHECK",
         "REA_RIZIN_STATUS",
@@ -2212,9 +2213,7 @@ def main():
                 if cls not in ("healthy","missing_dependency","missing_analysis_engine","unsupported_host","config_drift","unknown","invalid_target","unavailable"):
                     cls="other"
                 public.append({"name":name,"ok":item.get("ok") is True,"classification":cls})
-            print("REA_SERVICE_DOCTOR_CHECK_COUNT="+str(len(checks)))
-            for i in range(0,len(public),3):
-                print("REA_SERVICE_DOCTOR_CHECK_GROUP"+str(i//3+1)+"="+json.dumps(public[i:i+3],separators=(",",":")))
+            print("REA_SERVICE_DOCTOR_CHECKS="+json.dumps(public,separators=(",",":")))
         providers=doc.get("providerInspections",[])
         if isinstance(providers,list):
             print("REA_SERVICE_DOCTOR_PROVIDERS="+json.dumps([
