@@ -405,6 +405,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_LINUX_FINAL_SOURCE","REA_LINUX_FINAL_SERVICE",
         "REA_LINUX_FINAL_CANDIDATES","REA_LINUX_FINAL_DISK","REA_LINUX_FINAL_STATUS",
         "REA_LINUX_FINAL_LEGACY","REA_LINUX_FINAL_GIT",
+        "REA_LINUX_FINAL_ROLLBACK","REA_LINUX_FINAL_DOCTOR",
         "REA_INSTALL_AUDIT_COMPLETED",
         "REA_DOCTOR_LINUX_STATUS",
         "REA_DOCTOR_LINUX_EXIT",
@@ -572,7 +573,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         elif "=" in line:
             k, value = line.split("=", 1)
             if k in allowed_markers:
-                markers[k] = value[:1500] if k == "REA_SECURE_REQUEST_PUBLIC_KEY_B64" else value[:24000] if k == "REA_MOBILE_TOOL_DESCRIPTOR_B64" else (value[:9200] if k in ("REA_LINUX_FINAL_CANDIDATES","REA_LINUX_FINAL_LEGACY") else (value[:1200] if k in ("REA_AUDIT_PROVIDER_SECTIONS", "REA_AUDIT_PROVIDER_NAMES") else value[:700]))
+                markers[k] = value[:1500] if k == "REA_SECURE_REQUEST_PUBLIC_KEY_B64" else value[:24000] if k == "REA_MOBILE_TOOL_DESCRIPTOR_B64" else (value[:9200] if k in ("REA_LINUX_FINAL_CANDIDATES","REA_LINUX_FINAL_LEGACY","REA_LINUX_FINAL_DOCTOR") else (value[:1200] if k in ("REA_AUDIT_PROVIDER_SECTIONS", "REA_AUDIT_PROVIDER_NAMES") else value[:700]))
                 print(k + "=" + markers[k])
     if "response_key" not in request:
         if private is not None:
@@ -2635,6 +2636,92 @@ def main():
             src_status["running_process_cwd_readable"]=p.returncode==0
         print("REA_LINUX_FINAL_LEGACY="+json.dumps(extra,sort_keys=True,separators=(",",":")))
         print("REA_LINUX_FINAL_GIT="+json.dumps(src_status,sort_keys=True))
+        # Exact old 6.7 rollback preflight; no removal or inspection of
+        # Evidence contents; never traverse arbitrary caller paths.
+        old=root/"rollbacks"/"rea-6.7.0-20261026"
+        old_info={"exists":old.exists(),"symlink":old.is_symlink(),
+                  "directory":old.is_dir(),"matched_version":False,
+                  "referenced_from_service":False,"sudo_size_bytes":None}
+        if old.is_dir() and not old.is_symlink():
+            try:
+                o=json.loads((old/"package.json").read_text())
+                old_info["matched_version"]=o.get("version")=="6.7.0"
+            except (OSError,ValueError):
+                pass
+            size_check=reasp.run(["sudo","-n","du","-sb","--",str(old)],
+                 capture_output=True,text=True,timeout=55,check=False)
+            if size_check.returncode==0:
+                try:
+                    old_info["sudo_size_bytes"]=int(size_check.stdout.split()[0])
+                except (IndexError,ValueError):
+                    pass
+            for marker_name in ("Evidence","Unknowns",".rea-migration","backups",
+                     "backup","certificates","ledger","state","evidence","unknowns"):
+                old_info["contains_"+marker_name.replace(".","_")]=(old/marker_name).exists()
+            for field in ("ExecStart","WorkingDirectory","EnvironmentFiles"):
+                setting=show(field)
+                if str(old) in setting:
+                    old_info["referenced_from_service"]=True
+            old_info["original_upstream_git_head"]=(reasp.run(
+               ["git","-C",str(old),"rev-parse","HEAD"],capture_output=True,
+               text=True,timeout=15,check=False).stdout.strip()==
+               "160d821ac9a0310afcb8d1fc427862dd6508add5")
+        # Inspect failure classes of official live REA doctor, preserving all
+        # environment values privately (only names/boolean outcomes printed).
+        doctor_info={"attempted":False}
+        if service_user=="rea-reversa" and service_info["pid_present"]:
+            envrun=reasp.run(["sudo","-n","cat",f"/proc/{service_pid}/environ"],
+                     capture_output=True,timeout=15,check=False)
+            if envrun.returncode==0:
+                allowed={"PATH","HOME","NODE_OPTIONS","JAVA_HOME",
+                         "GHIDRA_INSTALL_DIR","REA_JADX_MCP_JAR",
+                         "REA_JADX_HEAP_MIB","REA_GDB_COMMAND",
+                         "REA_BINWALK_COMMAND","REA_UNBLOB_COMMAND",
+                         "REA_RIZIN_COMMAND","REA_KUNA_COMMAND",
+                         "REA_KUNA_CACHE_DIR","REA_SIGROK_COMMAND",
+                         "REA_TSHARK_COMMAND","REA_WABT_BIN_DIRECTORY",
+                         "REA_PWNTOOLS_PYTHON","REA_MITMDUMP_COMMAND",
+                         "REA_WAKARU_COMMAND","PLAYWRIGHT_BROWSERS_PATH"}
+                env={}
+                for item in envrun.stdout.split(b"\0"):
+                    if b"=" not in item:continue
+                    k,v=item.split(b"=",1)
+                    try:
+                        name=k.decode("ascii")
+                        if name in allowed and len(v)<3000:
+                            env[name]=v.decode("utf-8")
+                    except UnicodeError:
+                        continue
+                if "PATH" not in env: env["PATH"]="/usr/local/bin:/usr/bin:/bin"
+                call=["sudo","-n","-u",service_user,"env",
+                      *[f"{k}={v}" for k,v in env.items()],
+                      f"/proc/{service_pid}/exe",str(app/"scripts/rea.mjs"),
+                      "doctor","--json"]
+                try:
+                    probe=reasp.run(call,capture_output=True,text=True,
+                           timeout=120,check=False,cwd=str(app))
+                    doctor_info={"attempted":True,"exit":probe.returncode}
+                    if len(probe.stdout)<750000:
+                        d=json.loads(probe.stdout)
+                        doctor_info["healthy"]=d.get("healthy") is True
+                        doctor_info["environment_healthy"]=d.get("environment_healthy") is True
+                        checks=d.get("checks",[])
+                        if isinstance(checks,list):
+                            doctor_info["failed_check_names"]=[
+                              str(c.get("name",""))[:55]
+                              for c in checks if isinstance(c,dict)
+                              and c.get("ok") is False][:30]
+                        providers=d.get("providerInspections",[])
+                        if isinstance(providers,list):
+                            doctor_info["providers"]=[
+                              {"id":str(p.get("id",""))[:45],
+                               "configured":p.get("configured") is True,
+                               "available":p.get("available") is True}
+                              for p in providers if isinstance(p,dict)][:15]
+                except (OSError,ValueError,reasp.TimeoutExpired) as exc:
+                    doctor_info["error_class"]=type(exc).__name__
+        print("REA_LINUX_FINAL_ROLLBACK="+json.dumps(old_info,sort_keys=True))
+        print("REA_LINUX_FINAL_DOCTOR="+json.dumps(doctor_info,sort_keys=True))
         print("REA_LINUX_FINAL_STATUS=PASS_READ_ONLY")
         print("REA_INSTALL_AUDIT_MCP_TOOL_COUNT="+str(len(tools)))
         print("REA_INSTALL_AUDIT_COMPLETED=PASS_READ_ONLY")
