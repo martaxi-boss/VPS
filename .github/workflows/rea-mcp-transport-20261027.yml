@@ -178,6 +178,7 @@ jobs:
           from fastmcp import FastMCP
           from fastmcp.server.auth.providers.google import GoogleTokenVerifier
           from fastmcp.server.providers.proxy import ProxyClient,ProxyProvider
+          from mcp.client.streamable_http import streamable_http_client
           m=runpy.run_path("/opt/rea-reversa/oauth-auth/rea_gateway.py",run_name="rea_test")
           owner=m["OwnerGoogleVerifier"]
           client_id=m["client_id"]
@@ -195,7 +196,7 @@ jobs:
               assert await check(dict(base,email_verified="false")) is None
               assert await check(dict(base)) is None
               print("REA_GOOGLE_OWNER_POLICY_NEGATIVE_TESTS=PASS")
-              client=ProxyClient("http://127.0.0.1:8765/mcp",mode="legacy",forward_incoming_headers=False)
+              client=ProxyClient(streamable_http_client("http://127.0.0.1:8765/mcp",max_sse_event_size=16*1024*1024),forward_incoming_headers=False)
               proxy=FastMCP("REA-Proxy-Smoke",providers=[ProxyProvider(lambda:client)])
               items=await asyncio.wait_for(proxy.list_tools(),timeout=40)
               count=len(items)
