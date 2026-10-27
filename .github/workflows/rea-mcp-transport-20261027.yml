@@ -144,7 +144,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 1
 
-      - name: Audit REA MCP tool definition size by field (read-only)
+      - name: Preflight compact original 229-tool proxy in-memory only
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         shell: bash
@@ -159,45 +159,44 @@ jobs:
             -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=15 \
             ubuntu@146.59.145.3 'sudo -n /opt/rea-reversa/oauth-auth/venv/bin/python -' <<'PY'
-          import asyncio,collections,dataclasses,inspect,json
+          import asyncio,inspect,json
           from fastmcp import FastMCP
           from fastmcp.server.providers.proxy import ProxyClient,ProxyProvider
           from fastmcp.client.transports import StreamableHttpTransport
-          def nbytes(v): return len(json.dumps(v,ensure_ascii=False,separators=(",",":"),default=str).encode())
+          class CompactProxy(ProxyProvider):
+              async def list_tools(self):
+                  original=await super().list_tools()
+                  return [t.model_copy(update={"output_schema":None,
+                      "description":str(t.description or "")[:260]}) for t in original]
           async def main():
-              p=ProxyProvider(lambda:ProxyClient(StreamableHttpTransport("http://127.0.0.1:8765/mcp",max_sse_event_size=16*1024*1024),forward_incoming_headers=False))
-              tools=await asyncio.wait_for(FastMCP("REA-Audit-Sizing",providers=[p]).list_tools(),timeout=60)
-              fields=collections.Counter()
-              projections=collections.Counter()
-              outs=[]
-              ins=[]
+              source=ProxyProvider(lambda:ProxyClient(StreamableHttpTransport(
+                  "http://127.0.0.1:8765/mcp",max_sse_event_size=16*1024*1024),forward_incoming_headers=False))
+              compact=CompactProxy(lambda:ProxyClient(StreamableHttpTransport(
+                  "http://127.0.0.1:8765/mcp",max_sse_event_size=16*1024*1024),forward_incoming_headers=False))
+              original=await FastMCP("Full-REA-Test",providers=[source]).list_tools()
+              test=FastMCP("Compact-REA-Test",providers=[compact])
+              tools=await test.list_tools()
+              assert len(tools)==len(original)==229
+              orig_names={t.name for t in original}
+              lean_names={t.name for t in tools}
+              assert orig_names==lean_names
+              assert all(t.output_schema is None for t in tools)
+              assert all(t.parameters == original[i].parameters for i,t in enumerate(tools))
+              declared=[]
               for tool in tools:
-                  v=tool.to_mcp_tool()
-                  if inspect.isawaitable(v):v=await v
-                  d=v.model_dump(mode="json",exclude_none=True)
-                  for k,value in d.items(): fields[k]+=nbytes(value)
-                  ins.append((d["name"],nbytes(d.get("input_schema"))))
-                  outs.append((d["name"],nbytes(d.get("output_schema"))))
-                  projections["full"]+=nbytes(d)
-                  d2=dict(d)
-                  d2.pop("output_schema",None)
-                  d2.pop("meta",None)
-                  d2.pop("annotations",None)
-                  d2["description"]=str(d2.get("description",""))[:260]
-                  projections["small_description_no_output"]+=nbytes(d2)
-                  projections["only_name_description_input"]+=nbytes({
-                      "name":d["name"],"description":str(d.get("description",""))[:180],"input_schema":d.get("input_schema")})
-              print("REA_SCHEMA_FIELDS="+json.dumps(fields.most_common()))
-              print("REA_SCHEMA_PROJECTIONS="+json.dumps(dict(projections)))
-              print("REA_SCHEMA_LARGEST_INPUTS="+json.dumps(sorted(ins,key=lambda x:x[1],reverse=True)[:10]))
-              print("REA_SCHEMA_LARGEST_OUTPUTS="+json.dumps(sorted(outs,key=lambda x:x[1],reverse=True)[:10]))
-              tool=tools[0]
-              print("REA_SCHEMA_PYTHON_TYPE="+type(tool).__module__+"."+type(tool).__name__)
-              print("REA_SCHEMA_IS_DATACLASS="+str(dataclasses.is_dataclass(tool)))
-              print("REA_SCHEMA_HAS_MODEL_COPY="+str(hasattr(tool,"model_copy")))
-              print("REA_SCHEMA_HAS_OUTPUT_SCHEMA="+str(hasattr(tool,"output_schema")))
-              print("REA_SCHEMA_PUBLIC_ATTRS="+json.dumps([n for n in dir(tool) if n in ("description","output_schema","parameters","input_schema","name","model_copy")]))
-              print("REA_SCHEMA_TOOL_COUNT="+str(len(tools)))
-              assert len(tools)==229
+                  w=tool.to_mcp_tool()
+                  if inspect.isawaitable(w):w=await w
+                  declared.append(w.model_dump(mode="json",exclude_none=True))
+              byte_count=len(json.dumps({"tools":declared},separators=(",",":"),ensure_ascii=False).encode())
+              print("REA_COMPACT_ALL_229_NAMES_SAME=PASS")
+              print("REA_COMPACT_ALL_229_INPUT_SCHEMAS_SAME=PASS")
+              print("REA_COMPACT_ALL_229_OUTPUT_SCHEMAS_OMITTED=PASS")
+              print("REA_COMPACT_WIRE_BYTES="+str(byte_count))
+              assert byte_count<260000
+              known=tools[0].name
+              selected=await test.get_tool(known)
+              assert selected is not None and selected.name==known
+              print("REA_COMPACT_TOOL_RESOLVE=PASS")
+              print("REA_COMPACT_LOCAL_TEST=PASS")
           asyncio.run(main())
           PY
