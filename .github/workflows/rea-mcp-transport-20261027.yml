@@ -143,10 +143,3 @@ jobs:
           path: ${{ runner.temp }}/rea-result.json
           if-no-files-found: ignore
           retention-days: 1
-
-      - name: Syntax check for REA OAuth HTTPS deployment helper (no writes)
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 -m py_compile ops/rea_oauth_https_activate_once_20261027.py
-          echo "REA_HTTPS_HELPER_SYNTAX=PASS"
