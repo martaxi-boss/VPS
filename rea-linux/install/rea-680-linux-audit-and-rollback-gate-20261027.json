@@ -32,7 +32,9 @@
     "dist_present": true,
     "node_modules_present": true,
     "process_working_directory_matches_root": false,
-    "systemd_working_directory_matches_root": false
+    "systemd_working_directory_matches_root": false,
+    "tracked_worktree_clean": true,
+    "tracked_worktree_status_entries": 0
   },
   "dependencies": {
     "direct_matched": 70,
@@ -123,21 +125,27 @@
     },
     "readme_bridge_requests_current": "rea-linux/requests/*.json",
     "update_needed": true,
-    "plugin_update_status": "EXISTING_INSTALLED_PLUGIN_NOT_YET_UPDATED"
+    "plugin_update_status": "EXISTING_INSTALLED_PLUGIN_NOT_YET_UPDATED",
+    "update_draft_prepared": true,
+    "update_draft_type": "only changed SKILL.md and references/bridge.md; not a full re-installable skill or an in-place plugin release",
+    "in_place_publish_blocker": "Editable plugin backend ID/release not exposed in current Plugin Creator discovery; existing installed Skill preserved"
   },
   "hygiene": {
     "original_bridge_blob": "09f8adfb836bcb1c4f858f9eb21be51dd038c27f",
     "temporary_diagnostics_restored": true,
     "consumed_requests_deleted": true,
     "dependencies_earlier_cleanup_bytes": 16349438,
-    "irreversible_old_rollback_cleanup_performed": false
+    "irreversible_old_rollback_cleanup_performed": false,
+    "additional_full_source_probe_restored": true,
+    "additional_one_shot_request_deleted": true
   },
   "proof": {
     "live_linux_version_run": 40476062098,
     "deep_old_rollback_inventory_run": 40476578897,
     "preflight_doctor_and_rollback_size_run": 40477221641,
     "real_mcp_objdump_run": 40476606367,
-    "previous_provider_inventory": 40472874652
+    "previous_provider_inventory": 40472874652,
+    "full_tracked_source_run": 40479115099
   },
-  "conclusion": "CORE_SOURCE_AND_LINUX_RUNTIME_PARITY_CONFIRMED; GLOBAL_ENVIRONMENT_DOCTOR_INCOMPLETE; LEGACY_6_7_ROLLBACK_PRESERVED_PER_OWNER_CONDITION"
+  "conclusion": "EXACT_OFFICIAL_LINUX_TRACKED_SOURCE_AND_REAL_MCP_SMOKE_TEST_PASS; GLOBAL_DOCTOR_STILL_FAILS_OPTIONAL_IDA_AND_SKILL_IDENTITY; OLD_6_7_ROLLBACK_NOT_REMOVED"
 }
