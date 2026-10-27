@@ -402,7 +402,6 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_INSTALL_AUDIT_PROVIDER_CANDIDATES",
         "REA_INSTALL_AUDIT_PROVIDERS_JSON",
         "REA_INSTALL_AUDIT_MCP_TOOL_COUNT",
-        "REA_DNS_TLS_RECHECK_20261027",
         "REA_INSTALL_AUDIT_COMPLETED",
         "REA_DOCTOR_LINUX_STATUS",
         "REA_DOCTOR_LINUX_EXIT",
@@ -2462,37 +2461,6 @@ def main():
                             print("REA_INSTALL_AUDIT_PROVIDER_CANDIDATES="+str(len(candidates)))
                 except ValueError:
                     print("REA_INSTALL_AUDIT_PROVIDERS_JSON=INVALID")
-        # Temporary no-credentials DNS/TLS probe requested by owner.
-        # No server mutation, no headers, no insecure TLS override.
-        import socket
-        import ssl
-        import http.client
-        result={"host":"rea-reversa.duckdns.org","port":443,"mcp_path":"/mcp"}
-        try:
-            resolved=socket.getaddrinfo(result["host"],443,
-                         type=socket.SOCK_STREAM)
-            result["dns_ok"]=bool(resolved)
-            result["addresses"]=sorted({record[4][0] for record in resolved})
-        except OSError as exc:
-            result["dns_ok"]=False
-            result["dns_error"]=type(exc).__name__
-        try:
-            connection=http.client.HTTPSConnection(result["host"],timeout=9,
-                                    context=ssl.create_default_context())
-            connection.request("HEAD","/mcp")
-            response=connection.getresponse()
-            result["https_verified"]=True
-            result["http_status"]=int(response.status)
-            connection.close()
-        except ssl.SSLCertVerificationError as exc:
-            result["https_verified"]=False
-            result["tls_error"]="SSLCertVerificationError"
-            result["verify_code"]=exc.verify_code
-            result["verify_message"]=exc.verify_message[:160]
-        except (OSError,ssl.SSLError,TimeoutError) as exc:
-            result["https_verified"]=False
-            result["tls_error"]=type(exc).__name__
-        print("REA_DNS_TLS_RECHECK_20261027="+json.dumps(result,sort_keys=True))
         print("REA_INSTALL_AUDIT_MCP_TOOL_COUNT="+str(len(tools)))
         print("REA_INSTALL_AUDIT_COMPLETED=PASS_READ_ONLY")
         return
