@@ -96,7 +96,22 @@
       "ida-registration",
       "skill:identity"
     ],
-    "interpretation": "IDA is an optional third-party integration; Skill identity must be resolved before claiming full global doctor health."
+    "interpretation": "IDA is an optional third-party integration; Skill identity must be resolved before claiming full global doctor health.",
+    "skill_identity_details": {
+      "observed_state": "missing",
+      "installed_skill_version": null,
+      "installed_skill_tool_count": null,
+      "issue_kinds": [],
+      "classification": "config_drift",
+      "source": "REA official CLI doctor in service environment"
+    },
+    "ida_registration_details": {
+      "configured": false,
+      "available": false,
+      "classification": "missing_analysis_engine",
+      "optionality": "upstream provider optional"
+    },
+    "final_identity_probe_run": 40482749340
   },
   "rollback_670": {
     "exact_path": "/opt/rea-reversa/rollbacks/rea-6.7.0-20261026",
@@ -128,7 +143,31 @@
     "plugin_update_status": "EXISTING_INSTALLED_PLUGIN_NOT_YET_UPDATED",
     "update_draft_prepared": true,
     "update_draft_type": "only changed SKILL.md and references/bridge.md; not a full re-installable skill or an in-place plugin release",
-    "in_place_publish_blocker": "Editable plugin backend ID/release not exposed in current Plugin Creator discovery; existing installed Skill preserved"
+    "in_place_publish_blocker": "Editable plugin backend ID/release not exposed in current Plugin Creator discovery; existing installed Skill preserved",
+    "package_update": {
+      "status": "COMPLETE_ZIP_PREPARED_AND_TESTED_NOT_PUBLISHED_IN_EXISTING_PLUGIN",
+      "archive_filename": "skill.zip",
+      "sha256": "45afc4094e5e724f0dbffde32a5b7ad94e4a2be400ef072c6ea18e86748289a0",
+      "contents": [
+        "SKILL.md",
+        "references/bridge.md",
+        "scripts/owner_approval.py",
+        "scripts/sealed_request.py",
+        "scripts/vps_bridge_crypto.py",
+        "tests/test_owner_approval.py",
+        "tests/test_sealed_request.py",
+        "tests/test_vps_bridge_crypto.py",
+        "agents/openai.yaml"
+      ],
+      "local_offline_tests": {
+        "count": 12,
+        "passed": 12,
+        "failed": 0
+      },
+      "validated_with": "skill-creator package_skill.py",
+      "publication_blocker": "Exact existing installed plugin backend ID and current release not discoverable through available connector; do not create a duplicate plugin or assert publication.",
+      "doctor_scope_note": "REA's local doctor checks its own installed client skill identity. The ChatGPT plugin skill update does not itself install/repair that local REA skill."
+    }
   },
   "hygiene": {
     "original_bridge_blob": "09f8adfb836bcb1c4f858f9eb21be51dd038c27f",
@@ -137,7 +176,9 @@
     "dependencies_earlier_cleanup_bytes": 16349438,
     "irreversible_old_rollback_cleanup_performed": false,
     "additional_full_source_probe_restored": true,
-    "additional_one_shot_request_deleted": true
+    "additional_one_shot_request_deleted": true,
+    "skill_identity_temporary_probe_removed": true,
+    "skill_identity_temporary_bridge_restored_blob": "09f8adfb836bcb1c4f858f9eb21be51dd038c27f"
   },
   "proof": {
     "live_linux_version_run": 40476062098,
@@ -145,7 +186,8 @@
     "preflight_doctor_and_rollback_size_run": 40477221641,
     "real_mcp_objdump_run": 40476606367,
     "previous_provider_inventory": 40472874652,
-    "full_tracked_source_run": 40479115099
+    "full_tracked_source_run": 40479115099,
+    "read_only_skill_identity_run": 40482749340
   },
-  "conclusion": "EXACT_OFFICIAL_LINUX_TRACKED_SOURCE_AND_REAL_MCP_SMOKE_TEST_PASS; GLOBAL_DOCTOR_STILL_FAILS_OPTIONAL_IDA_AND_SKILL_IDENTITY; OLD_6_7_ROLLBACK_NOT_REMOVED"
+  "conclusion": "SOURCE_AND_RUNTIME_PARITY_CONFIRMED_WITH_REAL_MCP_TEST; OPTIONAL_IDA_AND_LOCAL_REA_SKILL_IDENTITY_REMAIN_OPEN; EXISTING_CHATGPT_PLUGIN_SKILL_UPDATE_PACKAGED_NOT_PUBLISHED; 6_7_ROLLBACK_PRESERVED_PER_OWNER_CONDITION"
 }
