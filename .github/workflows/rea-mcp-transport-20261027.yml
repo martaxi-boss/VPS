@@ -201,3 +201,53 @@ jobs:
               except urllib.error.HTTPError as e:status=e.code
               print("REA_AUTH_LOCAL_DISCOVERY_"+("RESOURCE" if "protected" in p else "ISSUER")+"="+str(status))
           PY
+
+      - name: Identify OAuth callback exception classes without exposing codes or tokens
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sshpass -e ssh -T \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/rea-host-pin" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 \
+            ubuntu@146.59.145.3 'sudo -n python3 -' <<'PY'
+          import collections,re,subprocess
+          log=subprocess.run(["journalctl","-u","rea-mcp-oauth.service","--since","2026-10-27 16:25:00 UTC",
+                              "--no-pager","-o","cat","-n","2500"],
+                              capture_output=True,text=True,timeout=20)
+          assert log.returncode==0
+          kinds=collections.Counter()
+          frames=collections.Counter()
+          response=collections.Counter()
+          reason=collections.Counter()
+          keywords=[
+            "invalid_client","invalid_grant","invalid_request","redirect_uri_mismatch",
+            "state mismatch","state not found","invalid state","missing state",
+            "cookie","csrf","failed to verify","token verification",
+            "oauth callback","oauth flow","failed to exchange","oauth error",
+            "callback","google", "httpx", "unhandled exception",
+          ]
+          for line in log.stdout.splitlines():
+              if re.search(r'"GET /auth/callback',line):
+                  m=re.search(r'HTTP/1\.[01]"\s+(\d{3})',line)
+                  if m:response[m.group(1)]+=1
+              t=line.strip()
+              m=re.match(r'File "([^"]+)", line \d+, in ([\w<>]+)',t)
+              if m:
+                  frames[(m.group(1).split("/")[-1],m.group(2))]+=1
+              m=re.match(r'([A-Za-z_][\w]*(?:Error|Exception))\s*:',t)
+              if m:kinds[m.group(1)]+=1
+              for word in keywords:
+                  if word in t.lower():reason[word]+=1
+          print("REA_CALLBACK_STATUS_COUNT="+str(dict(response)))
+          print("REA_CALLBACK_EXCEPTION_TYPES="+str(dict(kinds)))
+          print("REA_CALLBACK_TRACE_FRAMES="+str(frames.most_common(30)))
+          print("REA_CALLBACK_REASON_MARKERS="+str(dict(reason)))
+          print("REA_CALLBACK_NO_QUERY_VALUES_EXPOSED=YES")
+          PY
