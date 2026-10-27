@@ -404,6 +404,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_INSTALL_AUDIT_MCP_TOOL_COUNT",
         "REA_LINUX_FINAL_SOURCE","REA_LINUX_FINAL_SERVICE",
         "REA_LINUX_FINAL_CANDIDATES","REA_LINUX_FINAL_DISK","REA_LINUX_FINAL_STATUS",
+        "REA_LINUX_FINAL_LEGACY","REA_LINUX_FINAL_GIT",
         "REA_INSTALL_AUDIT_COMPLETED",
         "REA_DOCTOR_LINUX_STATUS",
         "REA_DOCTOR_LINUX_EXIT",
@@ -571,7 +572,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         elif "=" in line:
             k, value = line.split("=", 1)
             if k in allowed_markers:
-                markers[k] = value[:1500] if k == "REA_SECURE_REQUEST_PUBLIC_KEY_B64" else value[:24000] if k == "REA_MOBILE_TOOL_DESCRIPTOR_B64" else (value[:9200] if k=="REA_LINUX_FINAL_CANDIDATES" else (value[:1200] if k in ("REA_AUDIT_PROVIDER_SECTIONS", "REA_AUDIT_PROVIDER_NAMES") else value[:700]))
+                markers[k] = value[:1500] if k == "REA_SECURE_REQUEST_PUBLIC_KEY_B64" else value[:24000] if k == "REA_MOBILE_TOOL_DESCRIPTOR_B64" else (value[:9200] if k in ("REA_LINUX_FINAL_CANDIDATES","REA_LINUX_FINAL_LEGACY") else (value[:1200] if k in ("REA_AUDIT_PROVIDER_SECTIONS", "REA_AUDIT_PROVIDER_NAMES") else value[:700]))
                 print(k + "=" + markers[k])
     if "response_key" not in request:
         if private is not None:
@@ -2572,6 +2573,68 @@ def main():
         print("REA_LINUX_FINAL_SERVICE="+json.dumps(service_info,sort_keys=True))
         print("REA_LINUX_FINAL_CANDIDATES="+json.dumps(all_items,sort_keys=True,separators=(",",":")))
         print("REA_LINUX_FINAL_DISK="+json.dumps(summary,sort_keys=True))
+        # Deep but non-destructive legacy inventory and source sanity.
+        import stat as libstat
+        extra={}
+        for folder in ("rollbacks","upgrades","bin","tools"):
+            base_path=root/folder
+            result={"present":base_path.exists(),"symlink":base_path.is_symlink()}
+            if not base_path.is_dir() or base_path.is_symlink():
+                extra[folder]=result
+                continue
+            try:
+                stat_base=base_path.stat()
+                result["owner_uid"]=stat_base.st_uid
+                result["mode"]=oct(libstat.S_IMODE(stat_base.st_mode))
+                entries=list(sorted(base_path.iterdir(),key=lambda x:x.name))[:40]
+                result["accessible"]=True
+                result["child_count_capped"]=len(entries)
+                result["entries"]=[]
+                for child in entries:
+                    if not re.fullmatch(r"[a-zA-Z0-9._-]{1,100}",child.name):
+                        result["entries"].append({"name":"UNSAFE_NAME_MASKED"})
+                        continue
+                    try:
+                        st=child.lstat()
+                        item={"name":child.name,"symlink":libstat.S_ISLNK(st.st_mode),
+                              "dir":libstat.S_ISDIR(st.st_mode)}
+                        if libstat.S_ISREG(st.st_mode):
+                            item["file_bytes"]=st.st_size
+                        if item["dir"] and ("6.7" in child.name or "6.8" in child.name):
+                            try:
+                                item["version"]=json.loads((child/"package.json").read_text()).get("version")
+                            except (OSError,ValueError):
+                                item["version"]="UNKNOWN"
+                            item["size_bytes"]=size_bytes(child)
+                            item["protected"]=any((child/n).exists() for n in
+                                ("Evidence","Unknowns",".rea-migration","backups","backup","ledger","evidence"))
+                        result["entries"].append(item)
+                    except OSError:
+                        result["entries"].append({"name":child.name,"stat":"UNAVAILABLE"})
+            except (OSError,PermissionError):
+                result["accessible"]=False
+            extra[folder]=result
+        # Never assume the versioned name is redundant just because it is old:
+        # migration backups and user Evidence require separate ownership checks.
+        p=reasp.run(["git","-C",str(app),"rev-parse","HEAD"],
+                     capture_output=True,text=True,timeout=14,check=False)
+        code_git=p.returncode
+        src_status={"git_metadata_available":code_git==0,
+                    "head_matches_upstream":p.stdout.strip()=="160d821ac9a0310afcb8d1fc427862dd6508add5"
+                     if code_git==0 else None}
+        if code_git==0:
+            changed=reasp.run(["git","-C",str(app),"diff","--quiet","--",
+                        "package.json","package-lock.json","scripts/rea.mjs"],
+                        capture_output=True,timeout=18,check=False)
+            src_status["official_key_files_git_clean"]=changed.returncode==0
+        if service_info["pid_present"]:
+            p=reasp.run(["sudo","-n","readlink",f"/proc/{service_pid}/cwd"],
+               capture_output=True,text=True,timeout=15,check=False)
+            src_status["running_process_cwd_is_rea"]=(
+                p.returncode==0 and p.stdout.strip()==str(app))
+            src_status["running_process_cwd_readable"]=p.returncode==0
+        print("REA_LINUX_FINAL_LEGACY="+json.dumps(extra,sort_keys=True,separators=(",",":")))
+        print("REA_LINUX_FINAL_GIT="+json.dumps(src_status,sort_keys=True))
         print("REA_LINUX_FINAL_STATUS=PASS_READ_ONLY")
         print("REA_INSTALL_AUDIT_MCP_TOOL_COUNT="+str(len(tools)))
         print("REA_INSTALL_AUDIT_COMPLETED=PASS_READ_ONLY")
