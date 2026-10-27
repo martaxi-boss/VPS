@@ -143,3 +143,56 @@ jobs:
           path: ${{ runner.temp }}/rea-result.json
           if-no-files-found: ignore
           retention-days: 1
+
+      - name: REA OAuth Google secret consistency (read-only; never prints secrets)
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sshpass -e ssh -T \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/rea-host-pin" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 \
+            ubuntu@146.59.145.3 'sudo -n python3 -' <<'PY'
+          from pathlib import Path
+          from urllib import request, parse, error
+          import json, re, stat, subprocess
+          d=Path("/root/project-secrets/rea-mcp")
+          client_id=(d/"google-client-id").read_text(encoding="utf-8").strip()
+          secret_file=d/"google-client-secret"
+          original=secret_file.read_text(encoding="utf-8")
+          secret=original.strip()
+          print("REA_OAUTH_CLIENT_ID_MATCH="+str(client_id=="167154566805-80sotv0mm9rqkvsa4muijd22fckbi3mp.apps.googleusercontent.com"))
+          print("REA_OAUTH_SECRET_GOOGLE_GOCSPX_FORMAT="+str(bool(re.fullmatch(r"GOCSPX-[A-Za-z0-9_-]{16,}",secret))))
+          print("REA_OAUTH_SECRET_SINGLELINE="+str(len(original.splitlines())<=1))
+          print("REA_OAUTH_SECRET_ROOT_ONLY="+str(secret_file.stat().st_uid==0 and stat.S_IMODE(secret_file.stat().st_mode)==0o600))
+          print("REA_OAUTH_SECRET_VALIDATION_REQUEST=GOOGLE_TOKEN_ENDPOINT_ONLY")
+          data=parse.urlencode({
+              "client_id":client_id,
+              "client_secret":secret,
+              "code":"REA_DIAGNOSTIC_FAKE_CODE_NO_TOKENS",
+              "grant_type":"authorization_code",
+              "redirect_uri":"https://rea-reversa.duckdns.org/auth/callback",
+          }).encode("utf-8")
+          req=request.Request("https://oauth2.googleapis.com/token",data=data,headers={"Content-Type":"application/x-www-form-urlencoded"},method="POST")
+          try:
+              with request.urlopen(req,timeout=18) as r:
+                  response_status=r.status
+                  result=json.loads(r.read(3000))
+          except error.HTTPError as e:
+              response_status=e.code
+              try: result=json.loads(e.read(3000))
+              except Exception: result={}
+          except Exception as e:
+              print("REA_OAUTH_GOOGLE_VALIDATION_NETWORK_ERROR="+type(e).__name__)
+              raise
+          print("REA_OAUTH_GOOGLE_TOKEN_RESPONSE_HTTP="+str(response_status))
+          print("REA_OAUTH_GOOGLE_TOKEN_RESPONSE_ERROR="+str(result.get("error","unknown"))[:45])
+          print("REA_OAUTH_MCP_SERVICE_STATUS="+subprocess.run(["systemctl","is-active","rea-mcp-oauth.service"],capture_output=True,text=True).stdout.strip())
+          print("REA_OAUTH_DIAGNOSTIC_COMPLETE=YES")
+          PY
