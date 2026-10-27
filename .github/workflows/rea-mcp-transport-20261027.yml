@@ -143,3 +143,66 @@ jobs:
           path: ${{ runner.temp }}/rea-result.json
           if-no-files-found: ignore
           retention-days: 1
+
+      - name: Verify deployed REA compact catalog and OAuth status without changes
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sshpass -e ssh -T \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/rea-host-pin" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 \
+            ubuntu@146.59.145.3 'sudo -n /opt/rea-reversa/oauth-auth/venv/bin/python -' <<'PY'
+          import asyncio, hashlib, inspect, json, os, runpy, subprocess
+          from pathlib import Path
+          import urllib.error, urllib.request
+          p=Path("/opt/rea-reversa/oauth-auth/rea_gateway.py")
+          data=p.read_bytes()
+          print("REA_LIVE_COMPACT_SHA256="+hashlib.sha256(data).hexdigest())
+          print("REA_LIVE_COMPACT_IMPLEMENTED="+str(b"class CompactCatalogProxyProvider" in data))
+          assert hashlib.sha256(data).hexdigest()=="7b4077d80e48b1b2390544db33724d3af8eec3c654dc39ce465f41a1839130df"
+          for unit in ("rea-reversa-mcp.service","rea-mcp-oauth.service","nginx.service"):
+              result=subprocess.run(["systemctl","is-active",unit],capture_output=True,text=True,timeout=10)
+              print("REA_LIVE_SERVICE_"+unit.replace("-","_").replace(".","_")+"="+result.stdout.strip())
+              assert result.stdout.strip()=="active"
+          for path in ("/.well-known/oauth-authorization-server","/.well-known/oauth-protected-resource/mcp"):
+              req=urllib.request.Request("http://127.0.0.1:8766"+path)
+              with urllib.request.urlopen(req,timeout=10) as r:assert r.status==200
+          print("REA_LIVE_OAUTH_METADATA=HTTP_200")
+          from urllib.parse import urlsplit
+          request=urllib.request.Request("http://127.0.0.1:8766/mcp",data=b'{}',
+            headers={"Accept":"application/json,text/event-stream","Content-Type":"application/json"},method="POST")
+          try:
+              with urllib.request.urlopen(request,timeout=10) as resp:code=resp.status
+          except urllib.error.HTTPError as e:code=e.code
+          print("REA_LIVE_UNAUTH_MCP_HTTP="+str(code))
+          assert code==401
+          os.environ["CREDENTIALS_DIRECTORY"]="/root/project-secrets/rea-mcp"
+          m=runpy.run_path(str(p),run_name="rea_readonly_verification")
+          async def verify():
+              listing=await asyncio.wait_for(m["gateway"].list_tools(),timeout=90)
+              names=[t.name for t in listing]
+              assert len(names)==len(set(names))==229
+              assert all(t.output_schema is None for t in listing)
+              rows=[]
+              for item in listing:
+                  desc=item.to_mcp_tool()
+                  if inspect.isawaitable(desc): desc=await desc
+                  rows.append(desc.model_dump(mode="json",exclude_none=True))
+              bytesize=len(json.dumps({"tools":rows},ensure_ascii=False,separators=(",",":")).encode())
+              print("REA_LIVE_229_TOOL_NAMES_UNIQUE=PASS")
+              print("REA_LIVE_OUTPUT_SCHEMAS_OMITTED=PASS")
+              print("REA_LIVE_COMPACT_TOOLS_LIST_BYTES="+str(bytesize))
+              print("REA_LIVE_REAL_TOOL_NAMES_FIRST_FIVE="+json.dumps(names[:5],ensure_ascii=False))
+              assert bytesize<300000
+          asyncio.run(verify())
+          print("REA_LIVE_READONLY_VERIFICATION=PASS")
+          PY
+          curl -fsS --max-time 15 -o /dev/null https://rea-reversa.duckdns.org/.well-known/oauth-authorization-server
+          echo REA_LIVE_PUBLIC_HTTPS=PASS
