@@ -495,6 +495,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SERVICE_DOCTOR_CONFIG_REA_RIZIN_COMMAND",
         "REA_SERVICE_DOCTOR_EXIT",
         "REA_SERVICE_DOCTOR_HEALTH",
+        "REA_SERVICE_DOCTOR_NODE_CHECK",
         "REA_SERVICE_DOCTOR_PROVIDERS",
         "REA_SERVICE_DOCTOR_BINARY_CHECK",
         "REA_RIZIN_STATUS",
@@ -2205,9 +2206,6 @@ def main():
             if len(nodechecks)==1:
                 print("REA_SERVICE_DOCTOR_NODE_CHECK="+
                       ("PASS" if nodechecks[0].get("ok") is True else "FAIL"))
-            failures=[{"name":c.get("name"),"classification":c.get("classification")}
-                      for c in checks if isinstance(c,dict) and c.get("ok") is False]
-            print("REA_SERVICE_DOCTOR_FAILED_CHECKS="+json.dumps(failures,sort_keys=True))
         providers=doc.get("providerInspections",[])
         if isinstance(providers,list):
             print("REA_SERVICE_DOCTOR_PROVIDERS="+json.dumps([
