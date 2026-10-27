@@ -234,8 +234,8 @@ jobs:
               auth_code,auth_body=probe(public+"/.well-known/oauth-authorization-server")
               unauth_code,_=probe(public+"/mcp",post=True)
               invalid_code,_=probe(public+"/mcp",post=True,token=True)
-              print("REA_HTTPS_DISCOVERY_HTTP_CODES="+','.join(map(str,[resource_code,auth_code,unauth_code,invalid_code])))
-          assert resource_code==200 and auth_code==200
+                  print("REA_HTTPS_DISCOVERY_HTTP_CODES="+','.join(map(str,[resource_code,auth_code,unauth_code,invalid_code])))
+              assert resource_code==200 and auth_code==200
               assert unauth_code==401 and invalid_code==401
               resource=json.loads(resource_body)
               auth=json.loads(auth_body)
