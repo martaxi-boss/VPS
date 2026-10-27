@@ -402,6 +402,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_INSTALL_AUDIT_PROVIDER_CANDIDATES",
         "REA_INSTALL_AUDIT_PROVIDERS_JSON",
         "REA_INSTALL_AUDIT_MCP_TOOL_COUNT",
+        "REA_OLD_DIRECT_ENDPOINT_READONLY",
         "REA_INSTALL_AUDIT_COMPLETED",
         "REA_DOCTOR_LINUX_STATUS",
         "REA_DOCTOR_LINUX_EXIT",
@@ -2461,6 +2462,53 @@ def main():
                             print("REA_INSTALL_AUDIT_PROVIDER_CANDIDATES="+str(len(candidates)))
                 except ValueError:
                     print("REA_INSTALL_AUDIT_PROVIDERS_JSON=INVALID")
+        # One-shot read-only inventory of historic direct MCP transport.
+        # Checks public TCP/DNS/TLS reachability WITHOUT passwords, Bearer
+        # tokens, or MCP tool calls, and never changes the active service.
+        import socket
+        import ssl
+        import http.client
+        stat={"host":"rea-reversa.duckdns.org","path":"/mcp",
+              "method":"HEAD","no_auth":True}
+        try:
+            records=socket.getaddrinfo("rea-reversa.duckdns.org",443,type=socket.SOCK_STREAM)
+            stat["dns_resolves"]=bool(records)
+        except socket.gaierror:
+            stat["dns_resolves"]=False
+        try:
+            con=http.client.HTTPSConnection("rea-reversa.duckdns.org",timeout=7,
+                   context=ssl.create_default_context())
+            con.request("HEAD","/mcp")
+            response=con.getresponse()
+            stat["https_status_code"]=response.status
+            stat["tls_connect"]=True
+            con.close()
+        except (OSError,ssl.SSLError,TimeoutError) as exc:
+            stat["tls_connect"]=False
+            stat["connection_error_class"]=type(exc).__name__
+        try:
+            proc=subprocess.run(["ss","-ltn"],capture_output=True,
+                        text=True,timeout=10,check=False)
+            if proc.returncode==0:
+                ports=[]
+                for line in proc.stdout.splitlines()[1:]:
+                    local=line.split()[3] if len(line.split())>3 else ""
+                    if local.endswith(":80"):ports.append("80")
+                    elif local.endswith(":443"):ports.append("443")
+                    elif local.endswith(":8765"):ports.append("8765")
+                stat["listening_ports_from_80_443_8765"]=sorted(set(ports))
+        except (OSError,subprocess.TimeoutExpired):
+            pass
+        for srv in ("nginx","caddy","apache2"):
+            try:
+                p=subprocess.run(["systemctl","is-active",srv],
+                      capture_output=True,text=True,timeout=7,check=False)
+                stat[srv+"_active"]=p.stdout.strip()=="active"
+            except (OSError,subprocess.TimeoutExpired):
+                stat[srv+"_active"]=False
+        stat["auth_tool_inventory_verified"]=False
+        stat["engine_instance_identity_verified"]=False
+        print("REA_OLD_DIRECT_ENDPOINT_READONLY="+json.dumps(stat,sort_keys=True))
         print("REA_INSTALL_AUDIT_MCP_TOOL_COUNT="+str(len(tools)))
         print("REA_INSTALL_AUDIT_COMPLETED=PASS_READ_ONLY")
         return
