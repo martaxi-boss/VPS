@@ -402,6 +402,8 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_INSTALL_AUDIT_PROVIDER_CANDIDATES",
         "REA_INSTALL_AUDIT_PROVIDERS_JSON",
         "REA_INSTALL_AUDIT_MCP_TOOL_COUNT",
+        "REA_LINUX_FINAL_SOURCE","REA_LINUX_FINAL_SERVICE",
+        "REA_LINUX_FINAL_CANDIDATES","REA_LINUX_FINAL_DISK","REA_LINUX_FINAL_STATUS",
         "REA_INSTALL_AUDIT_COMPLETED",
         "REA_DOCTOR_LINUX_STATUS",
         "REA_DOCTOR_LINUX_EXIT",
@@ -569,7 +571,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         elif "=" in line:
             k, value = line.split("=", 1)
             if k in allowed_markers:
-                markers[k] = value[:1500] if k == "REA_SECURE_REQUEST_PUBLIC_KEY_B64" else value[:24000] if k == "REA_MOBILE_TOOL_DESCRIPTOR_B64" else (value[:1200] if k in ("REA_AUDIT_PROVIDER_SECTIONS", "REA_AUDIT_PROVIDER_NAMES") else value[:300])
+                markers[k] = value[:1500] if k == "REA_SECURE_REQUEST_PUBLIC_KEY_B64" else value[:24000] if k == "REA_MOBILE_TOOL_DESCRIPTOR_B64" else (value[:9200] if k=="REA_LINUX_FINAL_CANDIDATES" else (value[:1200] if k in ("REA_AUDIT_PROVIDER_SECTIONS", "REA_AUDIT_PROVIDER_NAMES") else value[:700]))
                 print(k + "=" + markers[k])
     if "response_key" not in request:
         if private is not None:
@@ -2461,6 +2463,116 @@ def main():
                             print("REA_INSTALL_AUDIT_PROVIDER_CANDIDATES="+str(len(candidates)))
                 except ValueError:
                     print("REA_INSTALL_AUDIT_PROVIDERS_JSON=INVALID")
+        # REA 6.8.0 final Linux audit / legacy 6.7 cleanup inventory.
+        # Read-only, no install/remove/restart; never expose secrets.
+        import os as reaos
+        import subprocess as reasp
+        import hashlib as reahash
+        import pwd as reapwd
+        from pathlib import Path as ReaPath
+        def gitblob(p):
+            try:
+                b=p.read_bytes()
+                return reahash.sha1(b"blob "+str(len(b)).encode()+b"\0"+b).hexdigest()
+            except (OSError,ValueError):
+                return "UNREADABLE"
+        root=ReaPath("/opt/rea-reversa")
+        app=root/"rea"
+        baseline={
+          "package_json":("package.json","4d81d78fd9f4683a6b22e2a7eb11edcc36f024b7"),
+          "package_lock":("package-lock.json","7b00adf882ce403077eb8d95d37c169719f41236"),
+          "rea_cli":("scripts/rea.mjs","27f334994a21865da0fd09e0415148b6f09d9c6c")
+        }
+        same={k:{"present":(app/rel).is_file(),
+                 "match_official":gitblob(app/rel)==want}
+              for k,(rel,want) in baseline.items()}
+        try:
+            npm=json.loads((app/"package.json").read_text())
+            same["installed_package_version"]=str(npm.get("version",""))[:30]
+        except (OSError,ValueError):
+            same["installed_package_version"]="UNKNOWN"
+        same["dist_present"]=(app/"dist").is_dir()
+        same["node_modules_present"]=(app/"node_modules").is_dir()
+        def show(key):
+            p=reasp.run(["systemctl","show","rea-reversa-mcp.service",
+                  "-p",key,"--value"],capture_output=True,text=True,
+                  timeout=12,check=False)
+            return p.stdout.strip() if p.returncode==0 else ""
+        service_user=show("User")
+        service_pid=show("MainPID")
+        service_info={"active":show("ActiveState")=="active",
+                      "user_expected":service_user=="rea-reversa",
+                      "pid_present":service_pid.isdigit() and int(service_pid)>0,
+                      "working_directory_matches":show("WorkingDirectory")==str(app)}
+        if service_info["pid_present"] and service_info["user_expected"]:
+            node=f"/proc/{service_pid}/exe"
+            for label,args in (
+                ("node_version",[node,"--version"]),
+                ("rea_cli_version",[node,str(app/"scripts/rea.mjs"),"--version"])):
+                p=reasp.run(["sudo","-n","-u",service_user,*args],
+                       capture_output=True,text=True,timeout=28,check=False,cwd=str(app))
+                service_info[label+"_ok"]=p.returncode==0
+                service_info[label]=p.stdout.strip()[:75] if p.returncode==0 else "FAILED"
+        def size_bytes(target):
+            if target.is_symlink():
+                return None
+            if not target.exists():
+                return 0
+            try:
+                r=reasp.run(["du","-sb","--",str(target)],capture_output=True,
+                    text=True,timeout=28,check=False)
+                return int(r.stdout.split()[0]) if r.returncode==0 else None
+            except (OSError,IndexError,ValueError,reasp.TimeoutExpired):
+                return None
+        def candidate(dir,kind):
+            if not dir.is_dir() or dir.is_symlink():
+                return None
+            try:
+                vers=json.loads((dir/"package.json").read_text()).get("version")
+                if not isinstance(vers,str): vers=None
+            except (OSError,ValueError):
+                vers=None
+            protected_any=any((dir/name).exists() for name in (
+               "Evidence","Unknowns",".rea-evidence",".rea-migration",
+               "backups","backup","certification","certificates",
+               "ledger","evidence","unknowns","state"))
+            # Do not interpret a filename containing 6.7 as deletion approval.
+            return {"name":dir.name[:90],"kind":kind,
+                    "version":vers,"bytes":size_bytes(dir),
+                    "protected_markers":protected_any,
+                    "git":(dir/".git").exists(),
+                    "live_path":dir.resolve()==app.resolve()}
+        all_items=[]
+        for parent,kind in (
+                (root,"root"),
+                (root/"upgrades","upgrades"),
+                (root/"releases","releases"),
+                (root/"legacy","legacy"),
+                (root/"archive","archive"),
+                (root/"backups","backups")):
+            if not parent.is_dir() or parent.is_symlink():continue
+            try:
+                children=list(sorted(parent.iterdir(),key=lambda p:p.name))[:70]
+            except (OSError,PermissionError):continue
+            for dir in children:
+                if dir.is_dir() and not dir.is_symlink():
+                    item=candidate(dir,kind)
+                    if item is not None:
+                        all_items.append(item)
+        def related_refs():
+            refs={}
+            for p in (root/"rea",root/"upgrades",root/"releases",root/"backups"):
+                refs[p.name]={"exists":p.exists(),"symlink":p.is_symlink()}
+            return refs
+        disk=__import__("shutil").disk_usage(str(root))
+        summary={"total_entries":len(all_items),
+                 "disk_free_bytes":disk.free,
+                 "root_links":related_refs()}
+        print("REA_LINUX_FINAL_SOURCE="+json.dumps(same,sort_keys=True))
+        print("REA_LINUX_FINAL_SERVICE="+json.dumps(service_info,sort_keys=True))
+        print("REA_LINUX_FINAL_CANDIDATES="+json.dumps(all_items,sort_keys=True,separators=(",",":")))
+        print("REA_LINUX_FINAL_DISK="+json.dumps(summary,sort_keys=True))
+        print("REA_LINUX_FINAL_STATUS=PASS_READ_ONLY")
         print("REA_INSTALL_AUDIT_MCP_TOOL_COUNT="+str(len(tools)))
         print("REA_INSTALL_AUDIT_COMPLETED=PASS_READ_ONLY")
         return
