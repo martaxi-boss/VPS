@@ -283,3 +283,59 @@ jobs:
               print("REA_START_FILE_EXISTS="+path+"="+str(f.exists()))
           print("REA_START_READONLY=COMPLETE")
           PY
+
+      - name: Restore read access for existing REA OAuth systemd service and verify health
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sshpass -e ssh -T \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/rea-host-pin" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -se' <<'SH'
+          set -euo pipefail
+          live=/opt/rea-reversa/oauth-auth/rea_gateway.py
+          backup=/root/project-secrets/rea-mcp/rea_gateway_before_compact_20261027.py
+          test -f "$live" && test ! -L "$live"
+          test -f "$backup" && test ! -L "$backup"
+          cmp -s "$live" "$backup"
+          group="$(id -gn rea-mcp-oauth)"
+          test -n "$group"
+          chgrp "$group" "$live"
+          chmod 640 "$live"
+          if ! runuser -u rea-mcp-oauth -- test -r "$live"; then
+            echo "REA_OAUTH_REPAIR_READ_PERMISSION=FAILED"
+            exit 1
+          fi
+          echo "REA_OAUTH_REPAIR_READ_PERMISSION=PASS"
+          systemctl restart rea-mcp-oauth.service
+          for i in $(seq 1 40); do
+            if systemctl is-active --quiet rea-mcp-oauth.service &&
+              curl -fsS --max-time 3 -o /dev/null http://127.0.0.1:8766/.well-known/oauth-authorization-server; then
+                echo "REA_OAUTH_REPAIR_READY_ATTEMPT=$i"
+                break
+            fi
+            if [ "$i" -eq 40 ]; then
+              echo "REA_OAUTH_REPAIR_SERVICE_NOT_READY"
+              exit 1
+            fi
+            sleep 1
+          done
+          systemctl is-active --quiet rea-reversa-mcp.service
+          systemctl is-active --quiet nginx.service
+          test "$(curl -sS --max-time 8 -o /dev/null -w '%{http_code}' http://127.0.0.1:8766/.well-known/oauth-protected-resource/mcp)" = 200
+          test "$(curl -sS --max-time 8 -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -H 'Accept: application/json,text/event-stream' --data '{}' http://127.0.0.1:8766/mcp)" = 401
+          echo "REA_OAUTH_REPAIR_LOCAL_DISCOVERY_200=PASS"
+          echo "REA_OAUTH_REPAIR_LOCAL_UNAUTHENTICATED_401=PASS"
+          echo "REA_OAUTH_REPAIR_ORIGINAL_REA_SERVICE=ACTIVE"
+          echo "REA_OAUTH_REPAIR_COMPLETE=PASS"
+          SH
+          curl -fsS --max-time 20 -o /dev/null \
+            https://rea-reversa.duckdns.org/.well-known/oauth-authorization-server
+          echo "REA_OAUTH_REPAIR_PUBLIC_HTTPS=PASS"
