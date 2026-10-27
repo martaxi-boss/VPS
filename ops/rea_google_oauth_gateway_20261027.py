@@ -11,7 +11,7 @@ from fastmcp import FastMCP
 from fastmcp.server.auth import OAuthProxy
 from fastmcp.server.auth.providers.google import GoogleTokenVerifier
 from fastmcp.server.providers.proxy import ProxyClient, ProxyProvider
-from mcp.client.streamable_http import streamable_http_client
+from fastmcp.client.transports import StreamableHttpTransport
 
 PUBLIC_URL = "https://rea-reversa.duckdns.org"
 ORIGINAL_REA_MCP = "http://127.0.0.1:8765/mcp"
@@ -86,7 +86,7 @@ auth = OAuthProxy(
 # remains on the original REA 6.8.0 process at 127.0.0.1:8765.
 backend = ProxyProvider(
     lambda: ProxyClient(
-        streamable_http_client(
+        StreamableHttpTransport(
             ORIGINAL_REA_MCP,
             max_sse_event_size=16 * 1024 * 1024,
         ),
