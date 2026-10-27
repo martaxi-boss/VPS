@@ -42,18 +42,17 @@ class OwnerGoogleVerifier(GoogleTokenVerifier):
 
     async def verify_token(self, token: str):
         verified = await super().verify_token(token)
-        if verified is None or verified.client_id != client_id:
+        if verified is None:
             return None
+        # FastMCP GoogleTokenVerifier returns client_id=Google's user sub, not
+        # the OAuth application's ID. The validated audience is claims["aud"].
         claims = verified.claims or {}
-        profile = claims.get("google_user_data")
-        token_info = claims.get("google_token_info")
-        if not isinstance(profile, dict) or not isinstance(token_info, dict):
+        if claims.get("aud") != client_id:
             return None
-        if token_info.get("audience") != client_id:
+        # Google returns either bool True or the literal "true" for this claim.
+        if claims.get("email_verified") not in (True, "true"):
             return None
-        if profile.get("verified_email") is not True:
-            return None
-        email = profile.get("email")
+        email = claims.get("email")
         if not isinstance(email, str):
             return None
         fingerprint = hashlib.sha256(email.strip().casefold().encode("utf-8")).hexdigest()
@@ -68,7 +67,8 @@ auth = OAuthProxy(
     upstream_client_id=client_id,
     upstream_client_secret=client_secret,
     token_verifier=OwnerGoogleVerifier(
-        required_scopes=["openid", "https://www.googleapis.com/auth/userinfo.email"]
+        required_scopes=["openid", "https://www.googleapis.com/auth/userinfo.email"],
+        audience=client_id
     ),
     base_url=PUBLIC_URL,
     issuer_url=PUBLIC_URL,
