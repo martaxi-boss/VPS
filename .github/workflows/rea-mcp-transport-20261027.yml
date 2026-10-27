@@ -143,3 +143,38 @@ jobs:
           path: ${{ runner.temp }}/rea-result.json
           if-no-files-found: ignore
           retention-days: 1
+
+      - name: REA Google OAuth isolated build and prerequisites (temporary)
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ops/rea_google_oauth_gateway_20261027.py
+          python3 -m venv "$RUNNER_TEMP/rea-auth-venv"
+          "$RUNNER_TEMP/rea-auth-venv/bin/pip" -q install "fastmcp>=4,<5"
+          mkdir -m 700 "$RUNNER_TEMP/rea-auth-creds"
+          printf '%s\n' '167154566805-80sotv0mm9rqkvsa4muijd22fckbi3mp.apps.googleusercontent.com' > "$RUNNER_TEMP/rea-auth-creds/google-client-id"
+          printf '%s\n' 'dummy-for-syntax-check' > "$RUNNER_TEMP/rea-auth-creds/google-client-secret"
+          printf '%s\n' 'owner@example.invalid' > "$RUNNER_TEMP/rea-auth-creds/google-owner-email"
+          CREDENTIALS_DIRECTORY="$RUNNER_TEMP/rea-auth-creds" "$RUNNER_TEMP/rea-auth-venv/bin/python" - <<'PY'
+          import runpy
+          program=runpy.run_path("ops/rea_google_oauth_gateway_20261027.py",run_name="dry_run_import")
+          assert "gateway" in program
+          print("REA_AUTH_IMPORT=PASS")
+          print("REA_AUTH_SOURCE=COMPILED")
+          PY
+          sshpass -e ssh -T \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/rea-host-pin" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            ubuntu@146.59.145.3 'sudo -n python3 -' <<'PY'
+          from pathlib import Path
+          root=Path("/root/project-secrets/rea-mcp")
+          for fname in ("google-client-id","google-client-secret","google-owner-email"):
+              f=root/fname
+              print("REA_VAULT_"+fname.replace("-","_").upper()+"="+str(f.is_file() and f.stat().st_size>0))
+          PY
