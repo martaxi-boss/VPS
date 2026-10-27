@@ -509,6 +509,8 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SERVICE_DOCTOR_FAILED_GROUP11",
         "REA_SERVICE_DOCTOR_FAILED_GROUP12",
         "REA_SERVICE_DOCTOR_NODE_VERSION",
+        "REA_SERVICE_DOCTOR_LIVE_EXE_KIND",
+        "REA_SERVICE_DOCTOR_LIVE_NODE_VERSION",
         "REA_SERVICE_DOCTOR_PROVIDERS",
         "REA_SERVICE_DOCTOR_BINARY_CHECK",
         "REA_RIZIN_STATUS",
@@ -2144,6 +2146,18 @@ def main():
         if not user or not pidstr.isdigit() or int(pidstr)<1:
             print("REA_SERVICE_DOCTOR_STATUS=NO_SERVICE_PROCESS")
             return
+        # Distinguish the running service executable from PATH-selected doctor Node.
+        live_exe=subprocess.run(["sudo","-n","readlink","-f",f"/proc/{int(pidstr)}/exe"],
+                     capture_output=True,text=True,timeout=10,check=False)
+        live_name=Path(live_exe.stdout.strip()).name if live_exe.returncode==0 else ""
+        print("REA_SERVICE_DOCTOR_LIVE_EXE_KIND="+("node" if live_name=="node" else "OTHER_OR_UNKNOWN"))
+        if live_name=="node":
+            live_ver=subprocess.run(["sudo","-n","-u",user,f"/proc/{int(pidstr)}/exe","--version"],
+                           capture_output=True,text=True,timeout=12,check=False)
+            live_version=live_ver.stdout.strip()
+            if live_ver.returncode or not re.fullmatch(r"v?[0-9]+(?:\.[0-9]+){1,3}",live_version):
+                live_version="UNKNOWN"
+            print("REA_SERVICE_DOCTOR_LIVE_NODE_VERSION="+live_version)
         procenv=subprocess.run(["sudo","-n","cat",f"/proc/{int(pidstr)}/environ"],
                          capture_output=True,timeout=18,check=False)
         if procenv.returncode!=0:
