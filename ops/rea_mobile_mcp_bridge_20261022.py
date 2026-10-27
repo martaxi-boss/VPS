@@ -495,7 +495,20 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_SERVICE_DOCTOR_CONFIG_REA_RIZIN_COMMAND",
         "REA_SERVICE_DOCTOR_EXIT",
         "REA_SERVICE_DOCTOR_HEALTH",
-        "REA_SERVICE_DOCTOR_CHECKS",
+        "REA_SERVICE_DOCTOR_FAILED_CHECK_COUNT",
+        "REA_SERVICE_DOCTOR_FAILED_GROUP1",
+        "REA_SERVICE_DOCTOR_FAILED_GROUP2",
+        "REA_SERVICE_DOCTOR_FAILED_GROUP3",
+        "REA_SERVICE_DOCTOR_FAILED_GROUP4",
+        "REA_SERVICE_DOCTOR_FAILED_GROUP5",
+        "REA_SERVICE_DOCTOR_FAILED_GROUP6",
+        "REA_SERVICE_DOCTOR_FAILED_GROUP7",
+        "REA_SERVICE_DOCTOR_FAILED_GROUP8",
+        "REA_SERVICE_DOCTOR_FAILED_GROUP9",
+        "REA_SERVICE_DOCTOR_FAILED_GROUP10",
+        "REA_SERVICE_DOCTOR_FAILED_GROUP11",
+        "REA_SERVICE_DOCTOR_FAILED_GROUP12",
+        "REA_SERVICE_DOCTOR_NODE_VERSION",
         "REA_SERVICE_DOCTOR_PROVIDERS",
         "REA_SERVICE_DOCTOR_BINARY_CHECK",
         "REA_RIZIN_STATUS",
@@ -2213,7 +2226,16 @@ def main():
                 if cls not in ("healthy","missing_dependency","missing_analysis_engine","unsupported_host","config_drift","unknown","invalid_target","unavailable"):
                     cls="other"
                 public.append({"name":name,"ok":item.get("ok") is True,"classification":cls})
-            print("REA_SERVICE_DOCTOR_CHECKS="+json.dumps(public,separators=(",",":")))
+            failures=[entry for entry in public if not entry["ok"]]
+            print("REA_SERVICE_DOCTOR_FAILED_CHECK_COUNT="+str(len(failures)))
+            for i in range(0,len(failures),2):
+                print("REA_SERVICE_DOCTOR_FAILED_GROUP"+str(i//2+1)+"="+json.dumps(failures[i:i+2],separators=(",",":")))
+            node=next((item for item in checks if isinstance(item,dict) and item.get("name")=="node"),{})
+            details=node.get("details",{})
+            version=str(details.get("version","unknown")) if isinstance(details,dict) else "unknown"
+            if not re.fullmatch(r"v?[0-9]+(?:\.[0-9]+){1,3}",version):
+                version="UNKNOWN"
+            print("REA_SERVICE_DOCTOR_NODE_VERSION="+version)
         providers=doc.get("providerInspections",[])
         if isinstance(providers,list):
             print("REA_SERVICE_DOCTOR_PROVIDERS="+json.dumps([
