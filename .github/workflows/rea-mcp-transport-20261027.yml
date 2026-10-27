@@ -144,53 +144,46 @@ jobs:
           if-no-files-found: ignore
           retention-days: 1
 
-      - name: Stage isolated REA OAuth runtime on VPS without activation (temporary)
+      - name: Undo OAuth gateway staging on VPS (one-shot cleanup)
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         shell: bash
         run: |
           set -euo pipefail
           test -n "$SSHPASS"
-          ssh_opts=(
-            -o PreferredAuthentications=password
-            -o PubkeyAuthentication=no
-            -o StrictHostKeyChecking=yes
-            -o UserKnownHostsFile="$RUNNER_TEMP/rea-host-pin"
-            -o GlobalKnownHostsFile=/dev/null
-            -o HostKeyAlgorithms=ssh-ed25519
-            -o ConnectTimeout=15
-          )
-          target="ubuntu@146.59.145.3"
-          sshpass -e ssh -T "${ssh_opts[@]}" "$target" 'sudo -n bash -se' <<'SH'
-          set -euo pipefail
-          systemctl is-active --quiet rea-reversa-mcp.service
-          systemctl is-active --quiet nginx.service
-          test -f /root/project-secrets/rea-mcp/google-client-id
-          test -f /root/project-secrets/rea-mcp/google-client-secret
-          test ! -e /opt/rea-reversa/oauth-gateway/rea_oauth.py
-          space="$(df -Pk /opt/rea-reversa | awk 'NR==2 {print $4}')"
-          test "$space" -gt 1048576
-          install -d -m 755 -o root -g root /opt/rea-reversa/oauth-gateway
-          echo "REA_AUTH_STAGE_PREFLIGHT=PASS"
-          SH
-          sshpass -e ssh -T "${ssh_opts[@]}" "$target" \
-            'sudo -n tee /opt/rea-reversa/oauth-gateway/rea_oauth.py >/dev/null' \
-            < ops/rea_google_oauth_gateway_20261027.py
-          sshpass -e ssh -T "${ssh_opts[@]}" "$target" 'sudo -n bash -se' <<'SH'
-          set -euo pipefail
-          chmod 644 /opt/rea-reversa/oauth-gateway/rea_oauth.py
-          python3 -m venv /opt/rea-reversa/oauth-gateway/venv
-          /opt/rea-reversa/oauth-gateway/venv/bin/python -m pip -q install \
-            --disable-pip-version-check "fastmcp>=4,<5"
-          /opt/rea-reversa/oauth-gateway/venv/bin/python -m py_compile \
-            /opt/rea-reversa/oauth-gateway/rea_oauth.py
-          echo "REA_AUTH_STAGE_VENV=PASS"
-          echo "REA_AUTH_STAGE_NOT_STARTED=PASS"
-          echo "REA_AUTH_STAGE_NGINX_UNCHANGED=PASS"
-          SH
           expected="$(sha256sum ops/rea_google_oauth_gateway_20261027.py | awk '{print $1}')"
-          actual="$(sshpass -e ssh -T "${ssh_opts[@]}" "$target" \
-            'sudo -n sha256sum /opt/rea-reversa/oauth-gateway/rea_oauth.py' \
-            | awk '{print $1}')"
-          test "$actual" = "$expected"
-          echo "REA_AUTH_STAGE_HASH=PASS"
+          sshpass -e ssh -T \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/rea-host-pin" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 \
+            ubuntu@146.59.145.3 "sudo -n python3 - '$expected'" <<'PY'
+          import hashlib, pathlib, shutil, subprocess, sys
+          target=pathlib.Path("/opt/rea-reversa/oauth-gateway")
+          expected=sys.argv[1]
+          if not target.exists():
+              print("REA_OAUTH_STAGING=ALREADY_ABSENT")
+          else:
+              assert target.is_dir() and not target.is_symlink()
+              assert target.resolve()==target
+              contents={p.name for p in target.iterdir()}
+              assert contents.issubset({"rea_oauth.py","venv"})
+              assert "rea_oauth.py" in contents
+              script=target/"rea_oauth.py"
+              assert script.is_file() and not script.is_symlink()
+              digest=hashlib.sha256(script.read_bytes()).hexdigest()
+              assert digest==expected
+              if "venv" in contents:
+                  assert (target/"venv").is_dir() and not (target/"venv").is_symlink()
+              assert subprocess.run(["systemctl","is-active","rea-reversa-mcp.service"],stdout=subprocess.DEVNULL).returncode==0
+              assert subprocess.run(["systemctl","is-active","nginx.service"],stdout=subprocess.DEVNULL).returncode==0
+              assert subprocess.run(["systemctl","is-active","rea-oauth.service"],stdout=subprocess.DEVNULL).returncode!=0
+              shutil.rmtree(target)
+              print("REA_OAUTH_STAGING=REMOVED")
+          print("REA_OAUTH_GATEWAY_RUNNING=NO")
+          print("REA_NATIVE_MCP=UNCHANGED")
+          print("REA_NGINX_CONFIG=UNCHANGED")
+          PY
