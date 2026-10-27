@@ -224,3 +224,62 @@ jobs:
               print("REA_DIAG_LOCAL_"+("RESOURCE" if "protected" in path else "ISSUER")+"="+str(code))
           print("REA_DIAG_COMPLETE=READ_ONLY")
           PY
+
+      - name: Read-only identify exact OAuth service startup error, systemd ExecStart and file presence
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sshpass -e ssh -T \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/rea-host-pin" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 \
+            ubuntu@146.59.145.3 'sudo -n python3 -' <<'PY'
+          from pathlib import Path
+          import re,subprocess,json
+          unit="rea-mcp-oauth.service"
+          q=subprocess.run(["systemctl","cat",unit],capture_output=True,text=True,timeout=12)
+          assert q.returncode==0
+          sensitive=("Bearer","token","secret=","password=","Authorization", "client_secret")
+          for line in q.stdout.splitlines():
+              t=line.strip()
+              if t.startswith(("ExecStart=","WorkingDirectory=","User=","Group=","LoadCredential=")):
+                  if any(k.lower() in t.lower() for k in sensitive):continue
+                  print("REA_START_UNIT="+t[:300])
+          r=subprocess.run(["systemctl","show",unit,"-p","ExecStart","-p","User","-p","WorkingDirectory","-p","FragmentPath"],
+                            capture_output=True,text=True,timeout=12)
+          for line in r.stdout.splitlines():
+              if line.startswith("ExecStart="):
+                  filepaths=re.findall(r"/opt/rea-reversa/[A-Za-z0-9_./-]+",line)
+                  print("REA_START_EXECSTART_PATHS="+json.dumps(filepaths))
+              elif line.startswith(("User=","WorkingDirectory=","FragmentPath=")):
+                  print("REA_START_PROPERTY="+line[:250])
+          journal=subprocess.run(["journalctl","-u",unit,"--since","2026-10-27 18:32:00 UTC",
+              "--no-pager","-o","short-iso","-n","180"],capture_output=True,text=True,timeout=15)
+          assert journal.returncode==0
+          matches=[]
+          for line in journal.stdout.splitlines():
+              x=line.strip()
+              if ("can't open file" in x or "No such file or directory" in x or
+                  "unrecognized arguments" in x or "No module named" in x or
+                  "Permission denied" in x or "Traceback" in x or
+                  "Error: " in x or "error: " in x or
+                  "does not exist" in x):
+                  if any(s.lower() in x.lower() for s in sensitive):continue
+                  # Keep only the most recent two distinct messages, without secrets.
+                  matches.append(x[-350:])
+          print("REA_START_FAILURE_REASONS="+json.dumps(list(dict.fromkeys(matches))[-6:]))
+          for path in (
+              "/opt/rea-reversa/oauth-auth/rea_gateway.py",
+              "/opt/rea-reversa/oauth-auth/rea_google_oauth_gateway_20261027.py",
+              "/opt/rea-reversa/oauth-auth/venv/bin/python",
+          ):
+              f=Path(path)
+              print("REA_START_FILE_EXISTS="+path+"="+str(f.exists()))
+          print("REA_START_READONLY=COMPLETE")
+          PY
