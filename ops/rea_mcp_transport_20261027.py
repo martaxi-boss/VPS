@@ -297,13 +297,14 @@ def test_local():
     check_request(req)
     assert open_seal(req["sealed"], key, hashlib.sha256(unb64(pub)).digest()) == body
     assert not any("authorization" in call for call in body["calls"])
+    altered=dict(req["sealed"])
+    altered["ciphertext"]="AAAA"
     try:
-        altered=dict(req["sealed"])
-        altered["ciphertext"]="AAAA"
         open_seal(altered,key,hashlib.sha256(unb64(pub)).digest())
-        raise AssertionError("Tamper acceptance")
-    except (ValueError,Exception):
+    except Exception:
         pass
+    else:
+        raise AssertionError("Tamper acceptance")
     print("REA_TRANSPORT_SELFTEST=PASS")
 
 def cli(args):
@@ -320,7 +321,7 @@ def cli(args):
         directory=Path(args[1])
         save_key(fresh_key(), directory)
         print("REA_TRANSPORT_CLIENT_KEY=CREATED")
-    elif len(args)==9 and args[0]=="--seal" and args[2]=="--recipient" and \
+    elif len(args)==8 and args[0]=="--seal" and args[2]=="--recipient" and \
             args[4]=="--reply" and args[6]=="--output":
         body=json.loads(Path(args[1]).read_text())
         if set(body) != {"calls"}:
