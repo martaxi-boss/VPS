@@ -144,10 +144,10 @@ jobs:
           if-no-files-found: ignore
           retention-days: 1
 
-      - name: Measure original REA MCP tools manifest and gateway payload (read-only)
-        shell: bash
+      - name: Audit REA MCP tool definition size by field (read-only)
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
         run: |
           set -euo pipefail
           sshpass -e ssh -T \
@@ -159,47 +159,45 @@ jobs:
             -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=15 \
             ubuntu@146.59.145.3 'sudo -n /opt/rea-reversa/oauth-auth/venv/bin/python -' <<'PY'
-          import asyncio, json, statistics, time, subprocess
+          import asyncio,collections,dataclasses,inspect,json
           from fastmcp import FastMCP
           from fastmcp.server.providers.proxy import ProxyClient,ProxyProvider
           from fastmcp.client.transports import StreamableHttpTransport
+          def nbytes(v): return len(json.dumps(v,ensure_ascii=False,separators=(",",":"),default=str).encode())
           async def main():
-              provider=ProxyProvider(lambda: ProxyClient(StreamableHttpTransport(
-                  "http://127.0.0.1:8765/mcp",max_sse_event_size=16*1024*1024),forward_incoming_headers=False))
-              server=FastMCP("REA-AUDIT-CATALOG-READONLY",providers=[provider])
-              start=time.monotonic()
-              tools=await asyncio.wait_for(server.list_tools(),timeout=90)
-              names=[]
-              shapes=[]
+              p=ProxyProvider(lambda:ProxyClient(StreamableHttpTransport("http://127.0.0.1:8765/mcp",max_sse_event_size=16*1024*1024),forward_incoming_headers=False))
+              tools=await asyncio.wait_for(FastMCP("REA-Audit-Sizing",providers=[p]).list_tools(),timeout=60)
+              fields=collections.Counter()
+              projections=collections.Counter()
+              outs=[]
+              ins=[]
               for tool in tools:
-                  if hasattr(tool,"to_mcp_tool"):
-                      try:
-                          mcp_tool=tool.to_mcp_tool()
-                          if hasattr(mcp_tool,"__await__"):mcp_tool=await mcp_tool
-                          d=mcp_tool.model_dump(mode="json",exclude_none=True)
-                      except Exception:
-                          d=tool.model_dump(mode="json",exclude_none=True)
-                  elif hasattr(tool,"model_dump"):
-                      d=tool.model_dump(mode="json",exclude_none=True)
-                  else:
-                      d={"name":str(getattr(tool,"name","unknown")),
-                         "description":str(getattr(tool,"description","")),
-                         "inputSchema":getattr(tool,"parameters",{})}
-                  names.append(d.get("name",""))
-                  shapes.append(d)
-              items=[len(json.dumps(d,ensure_ascii=False,separators=(",",":")).encode()) for d in shapes]
-              total=sum(items)
-              elapsed=time.monotonic()-start
-              print("REA_CATALOG_COUNT="+str(len(tools)))
-              print("REA_CATALOG_JSON_BYTES="+str(total))
-              print("REA_CATALOG_JSON_KIB="+str(round(total/1024,1)))
-              print("REA_CATALOG_FOUR_CHARS_PER_TOKEN_ESTIMATE="+str(round(total/4)))
-              print("REA_CATALOG_TOP_8_TOOL_BYTES="+json.dumps(sorted(zip(names,items),key=lambda z:z[1],reverse=True)[:8]))
-              print("REA_CATALOG_MEDIAN_TOOL_BYTES="+str(round(statistics.median(items))))
-              print("REA_CATALOG_TOOLS_LIST_SECONDS="+str(round(elapsed,2)))
-              print("REA_CATALOG_TOOL_NAME_EXAMPLES="+json.dumps(names[:8]))
-              print("REA_CATALOG_TOOL_SCHEMA_KEYS="+json.dumps(sorted(shapes[0].keys()) if shapes else []))
-              print("REA_CATALOG_SERVICES="+json.dumps({s:subprocess.run(["systemctl","is-active",s],capture_output=True,text=True).stdout.strip() for s in ("rea-reversa-mcp.service","rea-mcp-oauth.service","nginx.service")}))
+                  v=tool.to_mcp_tool()
+                  if inspect.isawaitable(v):v=await v
+                  d=v.model_dump(mode="json",exclude_none=True)
+                  for k,value in d.items(): fields[k]+=nbytes(value)
+                  ins.append((d["name"],nbytes(d.get("input_schema"))))
+                  outs.append((d["name"],nbytes(d.get("output_schema"))))
+                  projections["full"]+=nbytes(d)
+                  d2=dict(d)
+                  d2.pop("output_schema",None)
+                  d2.pop("meta",None)
+                  d2.pop("annotations",None)
+                  d2["description"]=str(d2.get("description",""))[:260]
+                  projections["small_description_no_output"]+=nbytes(d2)
+                  projections["only_name_description_input"]+=nbytes({
+                      "name":d["name"],"description":str(d.get("description",""))[:180],"input_schema":d.get("input_schema")})
+              print("REA_SCHEMA_FIELDS="+json.dumps(fields.most_common()))
+              print("REA_SCHEMA_PROJECTIONS="+json.dumps(dict(projections)))
+              print("REA_SCHEMA_LARGEST_INPUTS="+json.dumps(sorted(ins,key=lambda x:x[1],reverse=True)[:10]))
+              print("REA_SCHEMA_LARGEST_OUTPUTS="+json.dumps(sorted(outs,key=lambda x:x[1],reverse=True)[:10]))
+              tool=tools[0]
+              print("REA_SCHEMA_PYTHON_TYPE="+type(tool).__module__+"."+type(tool).__name__)
+              print("REA_SCHEMA_IS_DATACLASS="+str(dataclasses.is_dataclass(tool)))
+              print("REA_SCHEMA_HAS_MODEL_COPY="+str(hasattr(tool,"model_copy")))
+              print("REA_SCHEMA_HAS_OUTPUT_SCHEMA="+str(hasattr(tool,"output_schema")))
+              print("REA_SCHEMA_PUBLIC_ATTRS="+json.dumps([n for n in dir(tool) if n in ("description","output_schema","parameters","input_schema","name","model_copy")]))
+              print("REA_SCHEMA_TOOL_COUNT="+str(len(tools)))
               assert len(tools)==229
           asyncio.run(main())
           PY
