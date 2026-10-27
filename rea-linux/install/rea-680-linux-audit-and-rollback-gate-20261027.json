@@ -1,0 +1,143 @@
+{
+  "schema_version": 1,
+  "phase": "REA_680_LINUX_FINAL_COMPARISON_AND_CONDITIONAL_LEGACY_CLEANUP_20261027",
+  "project": "Engenharia Reversa — REA",
+  "reference": {
+    "repo": "morluto/rea",
+    "tag": "rea-agents-6.8.0",
+    "commit": "160d821ac9a0310afcb8d1fc427862dd6508add5",
+    "official_source_tree": "15e6fec513dcce08cefdbcf441200986397e2793"
+  },
+  "mirror": {
+    "repo": "martaxi-boss/Engenheira-reversa",
+    "branch": "main",
+    "path": "rea",
+    "source_tree": "15e6fec513dcce08cefdbcf441200986397e2793",
+    "parity": "EXACT"
+  },
+  "linux_service": {
+    "root": "/opt/rea-reversa/rea",
+    "distribution": "Ubuntu 24.04 x86_64",
+    "node": "24.22.1",
+    "runtime_version": "6.8.0",
+    "active": true,
+    "service_user": "rea-reversa",
+    "mcp_loopback_reachable": true,
+    "mcp_catalog_size": 229,
+    "package_json_matches_original": true,
+    "package_lock_matches_original": true,
+    "cli_script_matches_original": true,
+    "installed_git_head_matches_official": true,
+    "installed_git_key_files_clean": true,
+    "dist_present": true,
+    "node_modules_present": true,
+    "process_working_directory_matches_root": false,
+    "systemd_working_directory_matches_root": false
+  },
+  "dependencies": {
+    "direct_matched": 70,
+    "linux_compatible_lock_entries": 744,
+    "installed_version_matched": 739,
+    "optional_wasm_branch_absent": 5,
+    "required_missing": 0,
+    "versions_divergent": 0,
+    "source": "rea-linux/install/dependency-hygiene-canonical-20261027.json"
+  },
+  "providers": {
+    "major_linux_providers_present": [
+      "ghidra",
+      "jadx",
+      "kuna",
+      "hopper",
+      "gdb",
+      "rizin",
+      "radare2",
+      "binwalk",
+      "unblob",
+      "wabt",
+      "wakaru",
+      "mitmdump",
+      "chromium",
+      "pwntools",
+      "tshark",
+      "sigrok-cli",
+      "adb",
+      "apktool"
+    ],
+    "optional_unready": [
+      "ida-registration",
+      "jeb",
+      "cutter-v2-session",
+      "pwndbg",
+      "frida-live-device",
+      "browser-cdp-live-target"
+    ],
+    "source": "rea-linux/install/provider-parity-observed-20261027.json"
+  },
+  "real_functional_test": {
+    "tool": "inspect_with_objdump",
+    "mcp": "original tools/call",
+    "target": "/usr/bin/true",
+    "operations": [
+      "file_headers",
+      "section_headers"
+    ],
+    "result": "PASS_PASS",
+    "run": 40476606367
+  },
+  "doctor": {
+    "command": "rea doctor --json under the live REA service identity and executable",
+    "exit_code": 1,
+    "healthy": false,
+    "environment_healthy": false,
+    "failed_check_names": [
+      "ida-registration",
+      "skill:identity"
+    ],
+    "interpretation": "IDA is an optional third-party integration; Skill identity must be resolved before claiming full global doctor health."
+  },
+  "rollback_670": {
+    "exact_path": "/opt/rea-reversa/rollbacks/rea-6.7.0-20261026",
+    "package_version": "6.7.0",
+    "size_bytes": 778502068,
+    "symlink": false,
+    "referenced_from_service": false,
+    "protected_evidence_backup_markers_present": false,
+    "deleted": false,
+    "reason_preserved": "Owner conditioned deletion on full conformance; global doctor still failed two checks, and one is Skill identity. Do not prematurely discard the available rollback."
+  },
+  "other_rollback": {
+    "name": "rea-cutter-p301-legacy-bridge-20261026",
+    "preserved": true,
+    "reason": "Not the same as the 6.7 package; may preserve Cutter recovery."
+  },
+  "skill": {
+    "installed_skill_uri": "skills://plugins/engenharia-reversa-github/engenharia-reversa/skill.md",
+    "exists": true,
+    "current_text_stale_tool_catalog": 208,
+    "real_current_catalog": 229,
+    "live_680_policy_counts": {
+      "read": 6,
+      "workspace": 176,
+      "sensitive": 47
+    },
+    "readme_bridge_requests_current": "rea-linux/requests/*.json",
+    "update_needed": true,
+    "plugin_update_status": "EXISTING_INSTALLED_PLUGIN_NOT_YET_UPDATED"
+  },
+  "hygiene": {
+    "original_bridge_blob": "09f8adfb836bcb1c4f858f9eb21be51dd038c27f",
+    "temporary_diagnostics_restored": true,
+    "consumed_requests_deleted": true,
+    "dependencies_earlier_cleanup_bytes": 16349438,
+    "irreversible_old_rollback_cleanup_performed": false
+  },
+  "proof": {
+    "live_linux_version_run": 40476062098,
+    "deep_old_rollback_inventory_run": 40476578897,
+    "preflight_doctor_and_rollback_size_run": 40477221641,
+    "real_mcp_objdump_run": 40476606367,
+    "previous_provider_inventory": 40472874652
+  },
+  "conclusion": "CORE_SOURCE_AND_LINUX_RUNTIME_PARITY_CONFIRMED; GLOBAL_ENVIRONMENT_DOCTOR_INCOMPLETE; LEGACY_6_7_ROLLBACK_PRESERVED_PER_OWNER_CONDITION"
+}
