@@ -143,3 +143,63 @@ jobs:
           path: ${{ runner.temp }}/rea-result.json
           if-no-files-found: ignore
           retention-days: 1
+
+      - name: REA OAuth return-flow diagnostics - sanitized request metadata (read-only)
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sshpass -e ssh -T \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/rea-host-pin" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 \
+            ubuntu@146.59.145.3 'sudo -n python3 -' <<'PY'
+          from __future__ import annotations
+          import collections, inspect, importlib, re, subprocess, urllib.parse, os
+          from pathlib import Path
+
+          cmd=["journalctl","-u","rea-mcp-oauth.service",
+               "--since","2026-10-27 16:25:00 UTC","--no-pager","-o","short-iso","-n","6000"]
+          p=subprocess.run(cmd,capture_output=True,text=True,timeout=25)
+          assert p.returncode==0
+          grouped=collections.Counter()
+          history=[]
+          regex=re.compile(r'"(GET|POST) (\S+) HTTP/1\.[01]"\s+(\d{3})\b')
+          for line in p.stdout.splitlines():
+              m=regex.search(line)
+              if m is None:continue
+              method,url,status=m.groups()
+              u=urllib.parse.urlsplit(url)
+              path=u.path
+              if not (path.startswith("/auth/") or path.startswith("/authorize") or
+                  path.startswith("/consent") or path.startswith("/register") or
+                  path.startswith("/token")):continue
+              qs=urllib.parse.parse_qs(u.query,keep_blank_values=True)
+              safe_keys=sorted(k for k in qs if k in ("code","state","error","iss","resource","redirect_uri","client_id","response_type"))
+              if "redirect_uri" in qs:
+                  callback=urllib.parse.urlsplit(qs["redirect_uri"][0])
+                  if callback.netloc=="chatgpt.com" and callback.path=="/connector_platform_oauth_redirect":
+                      redirect_type="stable"
+                  elif callback.netloc=="chatgpt.com" and callback.path.startswith("/connector/oauth/"):
+                      redirect_type="callback_id"
+                  else:redirect_type="other"
+              else:redirect_type="not_supplied"
+              stamp=line[:16]
+              rec=(stamp,method,path,status,",".join(safe_keys),redirect_type)
+              grouped[(path,method,status,redirect_type)]+=1
+              history.append(rec)
+          print("REA_OAUTH_PUBLIC_CALLBACK_HISTORY_START")
+          for v in history[-45:]:print("REA_OAUTH_FLOW="+"/".join(v))
+          print("REA_OAUTH_PUBLIC_CALLBACK_HISTORY_END")
+          print("REA_OAUTH_CALLBACK_TOTAL="+str(sum(v for (p,method,s,r),v in grouped.items() if p=="/auth/callback")))
+          print("REA_OAUTH_HTTP_STATUS_GROUPS="+repr(sorted(grouped.items())[:35]))
+          print("REA_OAUTH_NO_SECRET_OR_AUTH_CODE_VALUES=CONFIRMED")
+          for name in ["rea-mcp-oauth.service","rea-reversa-mcp.service","nginx.service"]:
+              q=subprocess.run(["systemctl","is-active",name],capture_output=True,text=True)
+              print("REA_SERVICE_"+name.replace("-","_").replace(".","_")+"="+q.stdout.strip())
+          PY
