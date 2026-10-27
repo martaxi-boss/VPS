@@ -159,6 +159,29 @@ jobs:
             -o GlobalKnownHostsFile=/dev/null \
             -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=15 \
+            ubuntu@146.59.145.3 \
+            'sudo -n tee /opt/rea-reversa/oauth-auth/rea_gateway.py >/dev/null' \
+            < ops/rea_google_oauth_gateway_20261027.py
+          expected="$(sha256sum ops/rea_google_oauth_gateway_20261027.py | cut -d' ' -f1)"
+          actual="$(sshpass -e ssh -T \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/rea-host-pin" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 \
+            ubuntu@146.59.145.3 \
+            'sudo -n sha256sum /opt/rea-reversa/oauth-auth/rea_gateway.py' | cut -d' ' -f1)"
+          test "$actual" = "$expected"
+          sshpass -e ssh -T \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/rea-host-pin" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 \
             ubuntu@146.59.145.3 'sudo -n bash -se' <<'SH'
           set -euo pipefail
           original=/opt/rea-reversa/oauth-auth
