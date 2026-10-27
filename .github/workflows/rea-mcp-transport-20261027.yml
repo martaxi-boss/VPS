@@ -144,147 +144,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 1
 
-      - name: REA OAuth deployment rollback postmortem read-only
-        env:
-          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          sshpass -e ssh -T \
-            -o PreferredAuthentications=password \
-            -o PubkeyAuthentication=no \
-            -o StrictHostKeyChecking=yes \
-            -o UserKnownHostsFile="$RUNNER_TEMP/rea-host-pin" \
-            -o GlobalKnownHostsFile=/dev/null \
-            -o HostKeyAlgorithms=ssh-ed25519 \
-            -o ConnectTimeout=15 \
-            ubuntu@146.59.145.3 'sudo -n python3 -' <<'PY'
-          import hashlib,re,subprocess,socket,urllib.request,urllib.error
-          from pathlib import Path
-          def run(*args):
-              q=subprocess.run(args,capture_output=True,text=True,timeout=15)
-              return q.stdout.strip()
-          for unit in ("rea-mcp-oauth.service","rea-reversa-mcp.service","nginx.service"):
-              props=run("systemctl","show",unit,"-p","ActiveState","-p","SubState","-p","Result","-p","ExecMainStatus","-p","NRestarts","-p","ActiveEnterTimestamp")
-              print("REA_DIAG_SERVICE="+unit+" "+props.replace("\n"," "))
-          for port in (8765,8766):
-              try:
-                  with socket.create_connection(("127.0.0.1",port),timeout=3):
-                      print("REA_DIAG_PORT_"+str(port)+"=LISTENING")
-              except Exception as exc:
-                  print("REA_DIAG_PORT_"+str(port)+"="+type(exc).__name__)
-          paths={
-              "live":"/opt/rea-reversa/oauth-auth/rea_gateway.py",
-              "saved":"/root/project-secrets/rea-mcp/rea_gateway_before_compact_20261027.py",
-              "candidate":"/opt/rea-reversa/oauth-auth/rea_gateway.compact-candidate.py",
-          }
-          for label,path in paths.items():
-              f=Path(path)
-              if not f.exists():
-                  print("REA_DIAG_FILE_"+label+"=ABSENT")
-                  continue
-              raw=f.read_bytes()
-              print("REA_DIAG_FILE_"+label+"_SHA256="+hashlib.sha256(raw).hexdigest())
-              print("REA_DIAG_FILE_"+label+"_COMPACT="+str(b"class CompactCatalogProxyProvider" in raw))
-          jl=subprocess.run(["journalctl","-u","rea-mcp-oauth.service",
-                 "--since","2026-10-27 18:25:00 UTC","--no-pager","-o","short-iso","-n","500"],
-                 capture_output=True,text=True,timeout=15)
-          print("REA_DIAG_JOURNAL_OK="+str(jl.returncode==0))
-          lines=jl.stdout.splitlines()
-          from collections import Counter
-          failures=Counter()
-          for x in lines:
-              m=re.search(r"\b([A-Za-z_][A-Za-z0-9_]*(?:Error|Exception))\b",x)
-              if m:failures[m.group(1)]+=1
-          print("REA_DIAG_ERROR_TYPES="+str(dict(failures)))
-          count=0
-          for x in lines:
-              if count>=35:break
-              s=x.strip()
-              if "File " in s and ", line " in s:
-                  m=re.search(r'File "([^"]+)", line (\d+), in ([A-Za-z_<>]+)',s)
-                  if m:
-                      print("REA_DIAG_FRAME="+m.group(1).split("/")[-1]+":"+m.group(2)+":"+m.group(3))
-                      count+=1
-              elif any(phrase in s for phrase in ("Failed with result","Main process exited","Started ","Stopping ","Starting ","Application startup complete","Uvicorn running","Waiting for application startup","Application shutdown complete","Connection in use","Address already in use")):
-                  s=re.sub(r"\bhttps?://[^\s]+","[url]",s)
-                  print("REA_DIAG_SYSTEM_EVENT="+s[-220:])
-                  count+=1
-              else:
-                  m=re.search(r"\b(ImportError|AttributeError|TypeError|RuntimeError|ModuleNotFoundError|ValidationError|SyntaxError):",s)
-                  if m:
-                      print("REA_DIAG_EXCEPTION="+m.group(1))
-                      count+=1
-          for path in ("/.well-known/oauth-protected-resource/mcp","/.well-known/oauth-authorization-server"):
-              req=urllib.request.Request("http://127.0.0.1:8766"+path,headers={"Accept":"application/json"})
-              try:
-                  with urllib.request.urlopen(req,timeout=5) as r: code=r.status
-              except urllib.error.HTTPError as e: code=e.code
-              except Exception as e: code=type(e).__name__
-              print("REA_DIAG_LOCAL_"+("RESOURCE" if "protected" in path else "ISSUER")+"="+str(code))
-          print("REA_DIAG_COMPLETE=READ_ONLY")
-          PY
-
-      - name: Read-only identify exact OAuth service startup error, systemd ExecStart and file presence
-        shell: bash
-        env:
-          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
-        run: |
-          set -euo pipefail
-          sshpass -e ssh -T \
-            -o PreferredAuthentications=password \
-            -o PubkeyAuthentication=no \
-            -o StrictHostKeyChecking=yes \
-            -o UserKnownHostsFile="$RUNNER_TEMP/rea-host-pin" \
-            -o GlobalKnownHostsFile=/dev/null \
-            -o HostKeyAlgorithms=ssh-ed25519 \
-            -o ConnectTimeout=15 \
-            ubuntu@146.59.145.3 'sudo -n python3 -' <<'PY'
-          from pathlib import Path
-          import re,subprocess,json
-          unit="rea-mcp-oauth.service"
-          q=subprocess.run(["systemctl","cat",unit],capture_output=True,text=True,timeout=12)
-          assert q.returncode==0
-          sensitive=("Bearer","token","secret=","password=","Authorization", "client_secret")
-          for line in q.stdout.splitlines():
-              t=line.strip()
-              if t.startswith(("ExecStart=","WorkingDirectory=","User=","Group=","LoadCredential=")):
-                  if any(k.lower() in t.lower() for k in sensitive):continue
-                  print("REA_START_UNIT="+t[:300])
-          r=subprocess.run(["systemctl","show",unit,"-p","ExecStart","-p","User","-p","WorkingDirectory","-p","FragmentPath"],
-                            capture_output=True,text=True,timeout=12)
-          for line in r.stdout.splitlines():
-              if line.startswith("ExecStart="):
-                  filepaths=re.findall(r"/opt/rea-reversa/[A-Za-z0-9_./-]+",line)
-                  print("REA_START_EXECSTART_PATHS="+json.dumps(filepaths))
-              elif line.startswith(("User=","WorkingDirectory=","FragmentPath=")):
-                  print("REA_START_PROPERTY="+line[:250])
-          journal=subprocess.run(["journalctl","-u",unit,"--since","2026-10-27 18:32:00 UTC",
-              "--no-pager","-o","short-iso","-n","180"],capture_output=True,text=True,timeout=15)
-          assert journal.returncode==0
-          matches=[]
-          for line in journal.stdout.splitlines():
-              x=line.strip()
-              if ("can't open file" in x or "No such file or directory" in x or
-                  "unrecognized arguments" in x or "No module named" in x or
-                  "Permission denied" in x or "Traceback" in x or
-                  "Error: " in x or "error: " in x or
-                  "does not exist" in x):
-                  if any(s.lower() in x.lower() for s in sensitive):continue
-                  # Keep only the most recent two distinct messages, without secrets.
-                  matches.append(x[-350:])
-          print("REA_START_FAILURE_REASONS="+json.dumps(list(dict.fromkeys(matches))[-6:]))
-          for path in (
-              "/opt/rea-reversa/oauth-auth/rea_gateway.py",
-              "/opt/rea-reversa/oauth-auth/rea_google_oauth_gateway_20261027.py",
-              "/opt/rea-reversa/oauth-auth/venv/bin/python",
-          ):
-              f=Path(path)
-              print("REA_START_FILE_EXISTS="+path+"="+str(f.exists()))
-          print("REA_START_READONLY=COMPLETE")
-          PY
-
-      - name: Restore read access for existing REA OAuth systemd service and verify health
+      - name: Recover existing REA OAuth service file read permission; retain original gateway
         shell: bash
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
@@ -305,37 +165,33 @@ jobs:
           test -f "$live" && test ! -L "$live"
           test -f "$backup" && test ! -L "$backup"
           cmp -s "$live" "$backup"
-          group="$(id -gn rea-mcp-oauth)"
-          test -n "$group"
-          chgrp "$group" "$live"
-          chmod 640 "$live"
-          if ! runuser -u rea-mcp-oauth -- test -r "$live"; then
-            echo "REA_OAUTH_REPAIR_READ_PERMISSION=FAILED"
-            exit 1
-          fi
-          echo "REA_OAUTH_REPAIR_READ_PERMISSION=PASS"
+          test "$(sha256sum "$live" | awk '{print $1}')" = 04f67971a4379612f8bd7a268208662c9a408b67b9dbef934cd347f555d6cb95
+          printf 'REA_RECOVERY_SYSTEMD_DYNAMIC_USER=%s\n' "$(systemctl show --value -p DynamicUser rea-mcp-oauth.service)"
+          printf 'REA_RECOVERY_SOURCE_MODE_BEFORE=%s\n' "$(stat -c '%a' "$live")"
+          # Only source code metadata is made readable. Google credentials remain
+          # in systemd LoadCredential and the root-only vault, unchanged.
+          chmod 644 "$live"
+          echo REA_RECOVERY_SOURCE_READABLE=PASS
           systemctl restart rea-mcp-oauth.service
-          for i in $(seq 1 40); do
+          ready=0
+          for attempt in $(seq 1 50); do
             if systemctl is-active --quiet rea-mcp-oauth.service &&
-              curl -fsS --max-time 3 -o /dev/null http://127.0.0.1:8766/.well-known/oauth-authorization-server; then
-                echo "REA_OAUTH_REPAIR_READY_ATTEMPT=$i"
-                break
-            fi
-            if [ "$i" -eq 40 ]; then
-              echo "REA_OAUTH_REPAIR_SERVICE_NOT_READY"
-              exit 1
+               curl -fsS --max-time 3 -o /dev/null http://127.0.0.1:8766/.well-known/oauth-authorization-server; then
+              echo "REA_RECOVERY_READY_ATTEMPT=$attempt"
+              ready=1
+              break
             fi
             sleep 1
           done
+          test "$ready" = 1
           systemctl is-active --quiet rea-reversa-mcp.service
           systemctl is-active --quiet nginx.service
-          test "$(curl -sS --max-time 8 -o /dev/null -w '%{http_code}' http://127.0.0.1:8766/.well-known/oauth-protected-resource/mcp)" = 200
-          test "$(curl -sS --max-time 8 -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -H 'Accept: application/json,text/event-stream' --data '{}' http://127.0.0.1:8766/mcp)" = 401
-          echo "REA_OAUTH_REPAIR_LOCAL_DISCOVERY_200=PASS"
-          echo "REA_OAUTH_REPAIR_LOCAL_UNAUTHENTICATED_401=PASS"
-          echo "REA_OAUTH_REPAIR_ORIGINAL_REA_SERVICE=ACTIVE"
-          echo "REA_OAUTH_REPAIR_COMPLETE=PASS"
+          test "$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' http://127.0.0.1:8766/.well-known/oauth-protected-resource/mcp)" = 200
+          test "$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' -H 'Accept: application/json,text/event-stream' -H 'Content-Type: application/json' --data '{}' http://127.0.0.1:8766/mcp)" = 401
+          echo REA_RECOVERY_AUTH_DISCOVERY_HTTP_200=PASS
+          echo REA_RECOVERY_NO_AUTH_HTTP_401=PASS
+          echo REA_RECOVERY_ORIGINAL_MOTOR_ACTIVE=PASS
+          echo REA_RECOVERY_OAUTH_SERVICE_ACTIVE=PASS
           SH
-          curl -fsS --max-time 20 -o /dev/null \
-            https://rea-reversa.duckdns.org/.well-known/oauth-authorization-server
-          echo "REA_OAUTH_REPAIR_PUBLIC_HTTPS=PASS"
+          curl -fsS --max-time 20 -o /dev/null https://rea-reversa.duckdns.org/.well-known/oauth-authorization-server
+          echo REA_RECOVERY_PUBLIC_HTTPS=PASS
