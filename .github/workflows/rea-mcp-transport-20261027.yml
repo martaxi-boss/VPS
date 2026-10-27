@@ -170,8 +170,10 @@ jobs:
               assert target.is_dir() and not target.is_symlink()
               assert target.resolve()==target
               contents={p.name for p in target.iterdir()}
-              assert contents.issubset({"rea_oauth.py","venv"})
+              assert contents.issubset({"rea_oauth.py","venv","__pycache__"})
               assert "rea_oauth.py" in contents
+              if "__pycache__" in contents:
+                  assert (target/"__pycache__").is_dir() and not (target/"__pycache__").is_symlink()
               script=target/"rea_oauth.py"
               assert script.is_file() and not script.is_symlink()
               digest=hashlib.sha256(script.read_bytes()).hexdigest()
