@@ -158,7 +158,7 @@ jobs:
             -o GlobalKnownHostsFile=/dev/null \
             -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=15 \
-            ubuntu@146.59.145.3 'sudo -n python3 -' <<'PY'
+            ubuntu@146.59.145.3 'sudo -n /opt/rea-reversa/oauth-auth/venv/bin/python -' <<'PY'
           import collections, subprocess, urllib.parse, re, json, inspect
           from datetime import datetime
           from pathlib import Path
@@ -183,7 +183,7 @@ jobs:
               if path in ("/auth/*","/authorize") and uri.query:
                   k=tuple(sorted(urllib.parse.parse_qs(uri.query,keep_blank_values=True)))
                   keys[(path,status,k)]+=1
-              if path in ("/auth/*","/token","/authorize","/consent"):
+              if path in ("/auth/*","/token","/authorize","/consent","/mcp"):
                   latest.append((line[:19],method,path,status))
           print("REA_FLOW_HTTP_COUNTS="+json.dumps({str(k):v for k,v in sorted(kinds.items())}))
           print("REA_FLOW_QUERY_KEY_CLASSES="+json.dumps({str(k):v for k,v in keys.items()}))
