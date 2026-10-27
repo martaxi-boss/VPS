@@ -143,3 +143,84 @@ jobs:
           path: ${{ runner.temp }}/rea-result.json
           if-no-files-found: ignore
           retention-days: 1
+
+      - name: REA OAuth deployment rollback postmortem read-only
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sshpass -e ssh -T \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/rea-host-pin" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 \
+            ubuntu@146.59.145.3 'sudo -n python3 -' <<'PY'
+          import hashlib,re,subprocess,socket,urllib.request,urllib.error
+          from pathlib import Path
+          def run(*args):
+              q=subprocess.run(args,capture_output=True,text=True,timeout=15)
+              return q.stdout.strip()
+          for unit in ("rea-mcp-oauth.service","rea-reversa-mcp.service","nginx.service"):
+              props=run("systemctl","show",unit,"-p","ActiveState","-p","SubState","-p","Result","-p","ExecMainStatus","-p","NRestarts","-p","ActiveEnterTimestamp")
+              print("REA_DIAG_SERVICE="+unit+" "+props.replace("\n"," "))
+          for port in (8765,8766):
+              try:
+                  with socket.create_connection(("127.0.0.1",port),timeout=3):
+                      print("REA_DIAG_PORT_"+str(port)+"=LISTENING")
+              except Exception as exc:
+                  print("REA_DIAG_PORT_"+str(port)+"="+type(exc).__name__)
+          paths={
+              "live":"/opt/rea-reversa/oauth-auth/rea_gateway.py",
+              "saved":"/root/project-secrets/rea-mcp/rea_gateway_before_compact_20261027.py",
+              "candidate":"/opt/rea-reversa/oauth-auth/rea_gateway.compact-candidate.py",
+          }
+          for label,path in paths.items():
+              f=Path(path)
+              if not f.exists():
+                  print("REA_DIAG_FILE_"+label+"=ABSENT")
+                  continue
+              raw=f.read_bytes()
+              print("REA_DIAG_FILE_"+label+"_SHA256="+hashlib.sha256(raw).hexdigest())
+              print("REA_DIAG_FILE_"+label+"_COMPACT="+str(b"class CompactCatalogProxyProvider" in raw))
+          jl=subprocess.run(["journalctl","-u","rea-mcp-oauth.service",
+                 "--since","2026-10-27 18:25:00 UTC","--no-pager","-o","short-iso","-n","500"],
+                 capture_output=True,text=True,timeout=15)
+          print("REA_DIAG_JOURNAL_OK="+str(jl.returncode==0))
+          lines=jl.stdout.splitlines()
+          from collections import Counter
+          failures=Counter()
+          for x in lines:
+              m=re.search(r"\b([A-Za-z_][A-Za-z0-9_]*(?:Error|Exception))\b",x)
+              if m:failures[m.group(1)]+=1
+          print("REA_DIAG_ERROR_TYPES="+str(dict(failures)))
+          count=0
+          for x in lines:
+              if count>=35:break
+              s=x.strip()
+              if "File " in s and ", line " in s:
+                  m=re.search(r'File "([^"]+)", line (\d+), in ([A-Za-z_<>]+)',s)
+                  if m:
+                      print("REA_DIAG_FRAME="+m.group(1).split("/")[-1]+":"+m.group(2)+":"+m.group(3))
+                      count+=1
+              elif any(phrase in s for phrase in ("Failed with result","Main process exited","Started ","Stopping ","Starting ","Application startup complete","Uvicorn running","Waiting for application startup","Application shutdown complete","Connection in use","Address already in use")):
+                  s=re.sub(r"\bhttps?://[^\s]+","[url]",s)
+                  print("REA_DIAG_SYSTEM_EVENT="+s[-220:])
+                  count+=1
+              else:
+                  m=re.search(r"\b(ImportError|AttributeError|TypeError|RuntimeError|ModuleNotFoundError|ValidationError|SyntaxError):",s)
+                  if m:
+                      print("REA_DIAG_EXCEPTION="+m.group(1))
+                      count+=1
+          for path in ("/.well-known/oauth-protected-resource/mcp","/.well-known/oauth-authorization-server"):
+              req=urllib.request.Request("http://127.0.0.1:8766"+path,headers={"Accept":"application/json"})
+              try:
+                  with urllib.request.urlopen(req,timeout=5) as r: code=r.status
+              except urllib.error.HTTPError as e: code=e.code
+              except Exception as e: code=type(e).__name__
+              print("REA_DIAG_LOCAL_"+("RESOURCE" if "protected" in path else "ISSUER")+"="+str(code))
+          print("REA_DIAG_COMPLETE=READ_ONLY")
+          PY
