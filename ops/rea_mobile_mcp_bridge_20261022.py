@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_rea_dependency_hygiene_apply", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -388,6 +388,8 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_LINUX_GDB_REAL_MISSING_LIBS",
         "REA_LINUX_GDB_REAL_STAGED_DEPS",
         "REA_LINUX_GDB_REAL_DEP_ERROR",
+        "REA_DEP_HYG_LIVE","REA_DEP_HYG_STAGED","REA_DEP_HYG_PARITY",
+        "REA_DEP_HYG_DISK_POST","REA_DEP_HYG_ENGINE","REA_DEP_HYG_RESULT",
         "REA_INSTALL_AUDIT_OS",
         "REA_INSTALL_AUDIT_ARCH",
         "REA_INSTALL_AUDIT_RELEASE",
@@ -2399,6 +2401,164 @@ def main():
             1 for line in result.stdout.splitlines() if line.split()[-1:] in
             (["node"],["nodejs"]))))
         print("REA_PREFLIGHT_COMPLETE=PASS_READ_ONLY")
+        return
+    if data["action"] == "fixture_linux_rea_dependency_hygiene_apply":
+        # One-shot, owner-requested cleanup of two exact regenerable Turbo
+        # build cache directories. Never touch npm caches, node_modules,
+        # Evidence, Unknowns, supplier binaries, original source or ledgers.
+        import shutil as hyg_shutil
+        import platform as hyg_platform
+        import pwd as hyg_pwd
+        import hashlib as hyg_hashlib
+        root=Path("/opt/rea-reversa/rea")
+        trial=Path.home()/".local/share/rea-chatgpt-trial/repository/rea"
+        def git_blob(path):
+            buf=path.read_bytes()
+            return hyg_hashlib.sha1(b"blob "+str(len(buf)).encode()+b"\x00"+buf).hexdigest()
+        manifest=root/"package.json"
+        lockfile=root/"package-lock.json"
+        if (not manifest.is_file() or not lockfile.is_file()
+                or git_blob(manifest)!="4d81d78fd9f4683a6b22e2a7eb11edcc36f024b7"
+                or git_blob(lockfile)!="7b00adf882ce403077eb8d95d37c169719f41236"):
+            print("REA_DEP_HYG_RESULT=BLOCKED_ORIGINAL_IDENTITY")
+            return
+        package=json.loads(manifest.read_text())
+        locked=json.loads(lockfile.read_text())
+        def parity():
+            direct_match=0
+            for group in ("dependencies","devDependencies","optionalDependencies"):
+                for name,want in package.get(group,{}).items():
+                    source=root/"node_modules"/name/"package.json"
+                    if not source.is_file():
+                        return {"error":"DIRECT_PACKAGE_MISSING","name":name[:60]}
+                    actual=json.loads(source.read_text()).get("version")
+                    expected=want.rsplit("@",1)[-1] if want.startswith("npm:") else want
+                    if actual!=expected:
+                        return {"error":"DIRECT_VERSION_DIFFERENT","name":name[:60]}
+                    direct_match+=1
+            def axis_ok(value,actual):
+                if not value:
+                    return True
+                vals=[value] if isinstance(value,str) else value
+                positives=[v for v in vals if isinstance(v,str) and not v.startswith("!")]
+                negatives=[v[1:] for v in vals if isinstance(v,str) and v.startswith("!")]
+                return actual not in negatives and (not positives or actual in positives)
+            os_name=hyg_platform.system().lower()
+            cpu={"x86_64":"x64","aarch64":"arm64"}.get(hyg_platform.machine(),hyg_platform.machine())
+            libc_name="glibc" if hyg_platform.libc_ver()[0] in ("glibc","libc") else hyg_platform.libc_ver()[0]
+            totals={"direct":direct_match,"matched":0,"optional_absent":0,
+                    "required_absent":0,"version_different":0}
+            for rel,item in locked["packages"].items():
+                if not rel.startswith("node_modules/") or item.get("link"):
+                    continue
+                if not (axis_ok(item.get("os"),os_name) and axis_ok(item.get("cpu"),cpu)
+                        and axis_ok(item.get("libc"),libc_name)):
+                    continue
+                pkg_file=root/rel/"package.json"
+                if not pkg_file.is_file():
+                    key="optional_absent" if item.get("optional") or item.get("devOptional") else "required_absent"
+                    totals[key]+=1
+                    continue
+                actual=json.loads(pkg_file.read_text()).get("version")
+                if actual==item.get("version"):
+                    totals["matched"]+=1
+                else:
+                    totals["version_different"]+=1
+            return totals
+        before=parity()
+        if (before.get("direct")!=70 or before.get("matched")!=739
+                or before.get("optional_absent")!=5 or before.get("required_absent")!=0
+                or before.get("version_different")!=0):
+            print("REA_DEP_HYG_PARITY="+json.dumps(before,sort_keys=True))
+            print("REA_DEP_HYG_RESULT=BLOCKED_DEPENDENCY_PARITY")
+            return
+        def service_pid():
+            r=subprocess.run(["systemctl","show","rea-reversa-mcp.service",
+                "-p","MainPID","--value"],capture_output=True,text=True,
+                timeout=12,check=False)
+            return int(r.stdout.strip()) if r.returncode==0 and r.stdout.strip().isdigit() else 0
+        pid_before=service_pid()
+        if pid_before<1:
+            print("REA_DEP_HYG_RESULT=BLOCKED_SERVICE_INACTIVE")
+            return
+        disk_before=hyg_shutil.disk_usage("/")
+        # Scoped subprocess uses its own filesystem identity; do not run a
+        # privileged generic shell/rm or accept user-selected paths.
+        child=String.raw`
+import json, os, shutil, stat, sys
+from pathlib import Path
+home=Path(sys.argv[1])
+target=home/".turbo/cache"
+if (not home.is_dir() or home.is_symlink()
+        or (home/".turbo").is_symlink() or target.is_symlink()):
+    print(json.dumps({"status":"SKIPPED_UNTRUSTED","bytes":0}));sys.exit(0)
+if not target.exists():
+    print(json.dumps({"status":"ALREADY_EMPTY","bytes":0}));sys.exit(0)
+if not target.is_dir():
+    print(json.dumps({"status":"SKIPPED_NOT_DIR","bytes":0}));sys.exit(0)
+count=0;size=0
+for folder, dirs, files in os.walk(target, topdown=True, followlinks=False):
+    for name in dirs+files:
+        p=Path(folder)/name
+        mode=p.lstat().st_mode
+        if (stat.S_ISLNK(mode) or
+                not (stat.S_ISDIR(mode) or stat.S_ISREG(mode)) or
+                any(term in name.casefold() for term in ("evidence","unknown","certificate","backup"))):
+            print(json.dumps({"status":"SKIPPED_PROTECTED_ENTRY","bytes":0}));sys.exit(0)
+        count+=1
+        if count>30000:
+            print(json.dumps({"status":"SKIPPED_TOO_MANY","bytes":0}));sys.exit(0)
+        size+=p.lstat().st_size
+        if size>150000000:
+            print(json.dumps({"status":"SKIPPED_SIZE_LIMIT","bytes":0}));sys.exit(0)
+try:
+    shutil.rmtree(target)
+    print(json.dumps({"status":"REMOVED","bytes":size,"entries":count}))
+except OSError:
+    print(json.dumps({"status":"SKIPPED_PERMISSION_OR_RACE","bytes":0}))
+`
+        def run_clean(home,identity=None):
+            cmd=["/usr/bin/python3","-c",child,str(home)]
+            if identity:
+                cmd=["sudo","-n","-u",identity,*cmd]
+            p=subprocess.run(cmd,capture_output=True,text=True,timeout=55,check=False)
+            if p.returncode:
+                return {"status":"UNAVAILABLE_IDENTITY","bytes":0}
+            try:
+                raw=json.loads(p.stdout.strip().splitlines()[-1])
+                if raw.get("status") not in (
+                    "REMOVED","ALREADY_EMPTY","SKIPPED_UNTRUSTED",
+                    "SKIPPED_NOT_DIR","SKIPPED_PROTECTED_ENTRY","SKIPPED_TOO_MANY",
+                    "SKIPPED_SIZE_LIMIT","SKIPPED_PERMISSION_OR_RACE"):
+                    return {"status":"INVALID_CHILD_REPLY","bytes":0}
+                return raw
+            except (ValueError,IndexError):
+                return {"status":"INVALID_CHILD_REPLY","bytes":0}
+        live=run_clean(root,"rea-reversa")
+        # The live cache may be owned by the SSH staging identity instead.
+        if live["status"]=="SKIPPED_PERMISSION_OR_RACE":
+            live=run_clean(root)
+        staged=run_clean(trial)
+        after=parity()
+        pid_after=service_pid()
+        disk_after=hyg_shutil.disk_usage("/")
+        same=(after==before and git_blob(manifest)=="4d81d78fd9f4683a6b22e2a7eb11edcc36f024b7"
+              and git_blob(lockfile)=="7b00adf882ce403077eb8d95d37c169719f41236")
+        service_ok=pid_before==pid_after and pid_after>0
+        print("REA_DEP_HYG_LIVE="+json.dumps(live,sort_keys=True))
+        print("REA_DEP_HYG_STAGED="+json.dumps(staged,sort_keys=True))
+        print("REA_DEP_HYG_PARITY="+json.dumps(after,sort_keys=True))
+        print("REA_DEP_HYG_DISK_POST="+json.dumps({
+              "free_before":disk_before.free,"free_after":disk_after.free,
+              "free_delta_bytes":disk_after.free-disk_before.free,
+              "declared_removed_bytes":live.get("bytes",0)+staged.get("bytes",0)},
+              sort_keys=True))
+        print("REA_DEP_HYG_ENGINE="+json.dumps({
+              "original_files_unchanged":same,"service_pid_unchanged":service_ok},
+              sort_keys=True))
+        ok=(same and service_ok and live.get("status") in ("REMOVED","ALREADY_EMPTY")
+            and staged.get("status") in ("REMOVED","ALREADY_EMPTY"))
+        print("REA_DEP_HYG_RESULT="+("PASS_CANONICAL_SCOPED" if ok else "PARTIAL_REVIEW_REQUIRED"))
         return
     if data["action"] == "fixture_linux_install_inventory":
         # Audit original Linux REA installation; no installation, no restart.
