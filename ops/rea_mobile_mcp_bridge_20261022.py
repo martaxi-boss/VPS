@@ -2484,7 +2484,7 @@ def main():
         disk_before=hyg_shutil.disk_usage("/")
         # Scoped subprocess uses its own filesystem identity; do not run a
         # privileged generic shell/rm or accept user-selected paths.
-        child=String.raw`
+        child="""
 import json, os, shutil, stat, sys
 from pathlib import Path
 home=Path(sys.argv[1])
@@ -2516,7 +2516,7 @@ try:
     print(json.dumps({"status":"REMOVED","bytes":size,"entries":count}))
 except OSError:
     print(json.dumps({"status":"SKIPPED_PERMISSION_OR_RACE","bytes":0}))
-`
+"""
         def run_clean(home,identity=None):
             cmd=["/usr/bin/python3","-c",child,str(home)]
             if identity:
