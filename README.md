@@ -24,6 +24,11 @@ Em ordens transmitidas ao REA/ChatGPT para projetos alojados na VPS:
    Um Secret do repositório VPS **não aparece automaticamente** nos Actions
    de outro repositório. A ausência dessa credencial num workflow novo
    não significa que a ligação anterior deixou de funcionar.
+   A utilização do repositório `VPS` como **executor central** não autoriza
+   alterações nos restantes projetos: código, diretórios, processos e serviços
+   continuam limitados ao projeto indicado. Alterar o próprio executor
+   partilhado exige âmbito e autoridade específicos; executar um workflow
+   central já existente não é o mesmo que alterar a sua configuração.
 3. Uma ordem de isolamento **nunca justifica por si só** criar workflows,
    chaves SSH, Secrets, OAuth, novas pontes, motores, Skills, Plugins,
    servidores ou coordenadores. Não copiar, revelar ou transferir credenciais
@@ -47,5 +52,11 @@ Em ordens transmitidas ao REA/ChatGPT para projetos alojados na VPS:
 
 Esta regra pertence à camada de coordenação/operação. O código original
 REA 6.8.0, o catálogo MCP e as dependências do autor permanecem inalterados.
+Esta preferência por GitHub Actions → SSH → VPS aplica-se às operações de
+instalação, atualização e administração que necessitem de acesso à VPS.
+**Não substitui o acesso normal às ferramentas MCP do REA**, incluindo a
+ligação autenticada por OAuth já existente. Não muda as permissões de
+qualquer agente nem transfere Secrets para outros repositórios.
+
 A regra deve ser lida pelo agente que planeia e altera workflows; não é uma
 alteração à autenticação do servidor REA nem ativa acesso SSH por si só.
