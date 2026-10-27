@@ -402,6 +402,8 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_INSTALL_AUDIT_PROVIDER_CANDIDATES",
         "REA_INSTALL_AUDIT_PROVIDERS_JSON",
         "REA_INSTALL_AUDIT_MCP_TOOL_COUNT",
+        "REA_DEPS_TRANSITIVE_SUMMARY",
+        "REA_DEPS_TRANSITIVE_EXCEPTIONS",
         "REA_INSTALL_AUDIT_COMPLETED",
         "REA_DOCTOR_LINUX_STATUS",
         "REA_DOCTOR_LINUX_EXIT",
@@ -2461,6 +2463,108 @@ def main():
                             print("REA_INSTALL_AUDIT_PROVIDER_CANDIDATES="+str(len(candidates)))
                 except ValueError:
                     print("REA_INSTALL_AUDIT_PROVIDERS_JSON=INVALID")
+        # Temporary read-only verification of every package-lock entry against
+        # actual node_modules. No installs, commands, writes or env disclosure.
+        import hashlib as hash_library
+        locked_path=Path("/opt/rea-reversa/rea/package-lock.json")
+        node_root=Path("/opt/rea-reversa/rea")
+        data=locked_path.read_bytes()
+        lock_sha=hash_library.sha1(b"blob "+str(len(data)).encode()+b"\x00"+data).hexdigest()
+        lock=json.loads(data)
+        rows=lock.get("packages",{})
+        host_os=platform.system().lower()
+        host_cpu={"x86_64":"x64","aarch64":"arm64"}.get(platform.machine(),platform.machine())
+        host_libc="glibc" if platform.libc_ver()[0] in ("glibc","libc") else platform.libc_ver()[0]
+        def axis_ok(value,actual):
+            if not value:
+                return True
+            values=[value] if isinstance(value,str) else value
+            if not isinstance(values,list):
+                return False
+            positive=[v for v in values if isinstance(v,str) and not v.startswith("!")]
+            negative=[v[1:] for v in values if isinstance(v,str) and v.startswith("!")]
+            return actual not in negative and (not positive or actual in positive)
+        counts={"locked_entries":0,"compatible_entries":0,"platform_incompatible":0,
+                "locked_links":0,"matched":0,"missing_required":0,
+                "missing_optional":0,"different_version":0,"unreadable":0}
+        examples={"missing_required":[],"missing_optional":[],
+                  "different_version":[],"unreadable":[]}
+        lock_names=set()
+        for rel,entry in sorted(rows.items()):
+            if not isinstance(rel,str) or not rel.startswith("node_modules/") or not isinstance(entry,dict):
+                continue
+            counts["locked_entries"]+=1
+            lock_names.add(rel)
+            if entry.get("link"):
+                counts["locked_links"]+=1
+                continue
+            eligible=(axis_ok(entry.get("os"),host_os) and
+                      axis_ok(entry.get("cpu"),host_cpu) and
+                      axis_ok(entry.get("libc"),host_libc))
+            if not eligible:
+                counts["platform_incompatible"]+=1
+                continue
+            counts["compatible_entries"]+=1
+            file=node_root/rel/"package.json"
+            if not file.is_file():
+                k="missing_optional" if (entry.get("optional") or entry.get("devOptional")) else "missing_required"
+                counts[k]+=1
+                if len(examples[k])<22:
+                    examples[k].append(rel)
+                continue
+            try:
+                actual=json.loads(file.read_text()).get("version")
+            except (OSError,ValueError):
+                counts["unreadable"]+=1
+                if len(examples["unreadable"])<22:
+                    examples["unreadable"].append(rel)
+                continue
+            if actual==entry.get("version"):
+                counts["matched"]+=1
+            else:
+                counts["different_version"]+=1
+                if len(examples["different_version"])<22:
+                    examples["different_version"].append({
+                        "name":rel,"expected":entry.get("version"),"actual":actual})
+        # Enumerate only npm package root directories, not files inside packages.
+        installed_names=set()
+        pending=[node_root/"node_modules"]
+        while pending and len(installed_names)<10000:
+            directory=pending.pop()
+            if not directory.is_dir() or directory.is_symlink():
+                continue
+            try:
+                children=list(directory.iterdir())
+            except OSError:
+                continue
+            roots=[]
+            for child in children:
+                if child.is_symlink() or not child.is_dir() or child.name.startswith("."):
+                    continue
+                if child.name.startswith("@"):
+                    try:
+                        roots.extend(pkg for pkg in child.iterdir() if pkg.is_dir() and not pkg.is_symlink())
+                    except OSError:
+                        continue
+                else:
+                    roots.append(child)
+            for pkg in roots:
+                if not (pkg/"package.json").is_file():
+                    continue
+                rel=pkg.relative_to(node_root).as_posix()
+                if rel in installed_names:
+                    continue
+                installed_names.add(rel)
+                nested=pkg/"node_modules"
+                if nested.is_dir() and not nested.is_symlink():
+                    pending.append(nested)
+        extras=sorted(installed_names-lock_names)
+        summary={**counts,"host_os":host_os,"host_cpu":host_cpu,
+                 "host_libc":host_libc,"original_lock_equal":lock_sha=="7b00adf882ce403077eb8d95d37c169719f41236",
+                 "installed_package_roots":len(installed_names),"unlisted_installed":len(extras)}
+        examples["unlisted_installed"]=extras[:22]
+        print("REA_DEPS_TRANSITIVE_SUMMARY="+json.dumps(summary,sort_keys=True))
+        print("REA_DEPS_TRANSITIVE_EXCEPTIONS="+json.dumps(examples,sort_keys=True))
         print("REA_INSTALL_AUDIT_MCP_TOOL_COUNT="+str(len(tools)))
         print("REA_INSTALL_AUDIT_COMPLETED=PASS_READ_ONLY")
         return
