@@ -89,7 +89,6 @@ backend = ProxyProvider(
         mode="legacy",
         forward_incoming_headers=False,
     ),
-    provider_error_strategy="raise",
 )
 gateway = FastMCP("REA 6.8.0", auth=auth, providers=[backend])
 
