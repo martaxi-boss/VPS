@@ -2197,6 +2197,24 @@ def main():
         print("REA_SERVICE_DOCTOR_HEALTH="+json.dumps(
             {"healthy":doc.get("healthy"),"environment_healthy":doc.get("environment_healthy")},
             sort_keys=True))
+        # Temporary read-only doctor diagnostic: fixed metadata only.
+        # Never expose check details, paths, env values, or CLI stderr.
+        checks=doc.get("checks",[])
+        if isinstance(checks,list):
+            public=[]
+            for item in checks[:60]:
+                if not isinstance(item,dict):
+                    continue
+                name=str(item.get("name",""))[:90]
+                if not re.fullmatch(r"[A-Za-z0-9_.:-]{1,90}",name):
+                    name="redacted_check_name"
+                cls=str(item.get("classification","unknown"))
+                if cls not in ("healthy","missing_dependency","missing_analysis_engine","unsupported_host","config_drift","unknown","invalid_target","unavailable"):
+                    cls="other"
+                public.append({"name":name,"ok":item.get("ok") is True,"classification":cls})
+            print("REA_SERVICE_DOCTOR_CHECK_COUNT="+str(len(checks)))
+            for i in range(0,len(public),3):
+                print("REA_SERVICE_DOCTOR_CHECK_GROUP"+str(i//3+1)+"="+json.dumps(public[i:i+3],separators=(",",":")))
         providers=doc.get("providerInspections",[])
         if isinstance(providers,list):
             print("REA_SERVICE_DOCTOR_PROVIDERS="+json.dumps([
