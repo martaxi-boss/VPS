@@ -402,6 +402,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_INSTALL_AUDIT_PROVIDER_CANDIDATES",
         "REA_INSTALL_AUDIT_PROVIDERS_JSON",
         "REA_INSTALL_AUDIT_MCP_TOOL_COUNT",
+        "REA_DEP_HYG_SCAN","REA_DEP_HYG_DISK","REA_DEP_HYG_ARTIFACTS","REA_DEP_HYG_CORE",
         "REA_INSTALL_AUDIT_COMPLETED",
         "REA_DOCTOR_LINUX_STATUS",
         "REA_DOCTOR_LINUX_EXIT",
@@ -569,7 +570,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         elif "=" in line:
             k, value = line.split("=", 1)
             if k in allowed_markers:
-                markers[k] = value[:1500] if k == "REA_SECURE_REQUEST_PUBLIC_KEY_B64" else value[:24000] if k == "REA_MOBILE_TOOL_DESCRIPTOR_B64" else (value[:1200] if k in ("REA_AUDIT_PROVIDER_SECTIONS", "REA_AUDIT_PROVIDER_NAMES") else value[:300])
+                markers[k] = value[:1500] if k == "REA_SECURE_REQUEST_PUBLIC_KEY_B64" else value[:24000] if k == "REA_MOBILE_TOOL_DESCRIPTOR_B64" else (value[:3500] if k=="REA_DEP_HYG_SCAN" else (value[:1200] if k in ("REA_AUDIT_PROVIDER_SECTIONS", "REA_AUDIT_PROVIDER_NAMES") else value[:300]))
                 print(k + "=" + markers[k])
     if "response_key" not in request:
         if private is not None:
@@ -2461,6 +2462,85 @@ def main():
                             print("REA_INSTALL_AUDIT_PROVIDER_CANDIDATES="+str(len(candidates)))
                 except ValueError:
                     print("REA_INSTALL_AUDIT_PROVIDERS_JSON=INVALID")
+        # REA-only dependency hygiene census; strictly read-only.
+        import pwd as dependency_pwd
+        import stat as dependency_stat
+        def dependency_measure(path):
+            if path.is_symlink():
+                return {"state":"symlink","bytes":0}
+            if not path.exists():
+                return {"state":"absent","bytes":0}
+            try:
+                meta=path.lstat()
+                if dependency_stat.S_ISREG(meta.st_mode):
+                    return {"state":"file","bytes":meta.st_size}
+                if not dependency_stat.S_ISDIR(meta.st_mode):
+                    return {"state":"other","bytes":0}
+                proc=subprocess.run(["du","-sb","--",str(path)],capture_output=True,
+                    text=True,timeout=28,check=False)
+                if proc.returncode!=0:
+                    return {"state":"du_failed","bytes":0}
+                return {"state":"directory","bytes":int(proc.stdout.split()[0])}
+            except (OSError,ValueError,subprocess.TimeoutExpired):
+                return {"state":"unknown","bytes":0}
+        rea=Path("/opt/rea-reversa/rea")
+        trial=Path.home()/".local/share/rea-chatgpt-trial"
+        try:
+            service_home=Path(dependency_pwd.getpwnam("rea-reversa").pw_dir)
+        except KeyError:
+            service_home=Path("/nonexistent-service-home")
+        candidates={
+            "rea_node_modules":rea/"node_modules",
+            "rea_build_dist_PROTECT":rea/"dist",
+            "rea_cache_dot":rea/".cache",
+            "rea_turbo_cache":rea/".turbo",
+            "rea_node_modules_cache":rea/"node_modules/.cache",
+            "rea_node_modules_vite":rea/"node_modules/.vite",
+            "rea_coverage":rea/"coverage",
+            "rea_test_results":rea/"test-results",
+            "rea_nyc_output":rea/".nyc_output",
+            "rea_npm_debug":rea/"npm-debug.log",
+            "trial_repository_node_modules_PROTECT":trial/"repository/rea/node_modules",
+            "trial_repository_cache":trial/"repository/rea/.cache",
+            "trial_repository_turbo":trial/"repository/rea/.turbo",
+            "trial_repository_node_modules_cache":trial/"repository/rea/node_modules/.cache",
+            "trial_repository_node_modules_vite":trial/"repository/rea/node_modules/.vite",
+            "trial_repository_coverage":trial/"repository/rea/coverage",
+            "trial_repository_test_results":trial/"repository/rea/test-results",
+            "trial_artifacts_PROTECT":trial/"artifacts",
+            "trial_tools_PROTECT":trial/"tools",
+            "service_npm_cache_PROTECT":service_home/".npm",
+            "service_npm_cacache_PROTECT":service_home/".npm/_cacache",
+            "ssh_user_npm_cache_PROTECT":Path.home()/".npm",
+            "ssh_user_npm_cacache_PROTECT":Path.home()/".npm/_cacache",
+        }
+        measured={k:dependency_measure(v) for k,v in candidates.items()}
+        print("REA_DEP_HYG_SCAN="+json.dumps(measured,sort_keys=True,separators=(",",":")))
+        rootdisk=shutil.disk_usage("/")
+        print("REA_DEP_HYG_DISK="+json.dumps({"free_bytes":rootdisk.free,
+            "used_bytes":rootdisk.used,"total_bytes":rootdisk.total},sort_keys=True))
+        artifacts=trial/"artifacts"
+        if artifacts.is_dir() and not artifacts.is_symlink():
+            inventory={"total_files":0,"total_direct_file_bytes":0,"recognized_temporary_bytes":0,
+                       "recognized_temporary_files":0,"directories":0,"symlinks":0}
+            for child in list(artifacts.iterdir())[:4000]:
+                try:
+                    info=child.lstat()
+                except OSError:
+                    continue
+                if dependency_stat.S_ISLNK(info.st_mode):
+                    inventory["symlinks"]+=1
+                elif dependency_stat.S_ISDIR(info.st_mode):
+                    inventory["directories"]+=1
+                elif dependency_stat.S_ISREG(info.st_mode):
+                    inventory["total_files"]+=1
+                    inventory["total_direct_file_bytes"]+=info.st_size
+                    if child.name.endswith((".tmp",".part",".download")):
+                        inventory["recognized_temporary_files"]+=1
+                        inventory["recognized_temporary_bytes"]+=info.st_size
+            print("REA_DEP_HYG_ARTIFACTS="+json.dumps(inventory,sort_keys=True))
+        core_ok=(rea/"node_modules").is_dir() and (rea/"package-lock.json").is_file()
+        print("REA_DEP_HYG_CORE="+("PASS" if core_ok else "FAIL"))
         print("REA_INSTALL_AUDIT_MCP_TOOL_COUNT="+str(len(tools)))
         print("REA_INSTALL_AUDIT_COMPLETED=PASS_READ_ONLY")
         return
