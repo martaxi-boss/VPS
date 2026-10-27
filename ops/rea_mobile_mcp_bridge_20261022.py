@@ -2181,8 +2181,10 @@ def main():
         envargs=[f"{k}={v}" for k,v in supplied.items()]
         if "PATH" not in supplied:
             envargs.append("PATH=/usr/local/bin:/usr/bin:/bin")
+        # Use the live REA daemon executable; SSH PATH may resolve an older Node.
+        live_node=f"/proc/{int(pidstr)}/exe"
         cmd=["sudo","-n","-u",user,"env",*envargs,
-             "node",str(original),"doctor","--json"]
+             live_node,str(original),"doctor","--json"]
         result=subprocess.run(cmd,capture_output=True,text=True,timeout=120,
                  cwd="/opt/rea-reversa/rea",check=False)
         print("REA_SERVICE_DOCTOR_EXIT="+str(result.returncode))
@@ -2197,6 +2199,15 @@ def main():
         print("REA_SERVICE_DOCTOR_HEALTH="+json.dumps(
             {"healthy":doc.get("healthy"),"environment_healthy":doc.get("environment_healthy")},
             sort_keys=True))
+        checks=doc.get("checks",[])
+        if isinstance(checks,list):
+            nodechecks=[c for c in checks if isinstance(c,dict) and c.get("name")=="node"]
+            if len(nodechecks)==1:
+                print("REA_SERVICE_DOCTOR_NODE_CHECK="+
+                      ("PASS" if nodechecks[0].get("ok") is True else "FAIL"))
+            failures=[{"name":c.get("name"),"classification":c.get("classification")}
+                      for c in checks if isinstance(c,dict) and c.get("ok") is False]
+            print("REA_SERVICE_DOCTOR_FAILED_CHECKS="+json.dumps(failures,sort_keys=True))
         providers=doc.get("providerInspections",[])
         if isinstance(providers,list):
             print("REA_SERVICE_DOCTOR_PROVIDERS="+json.dumps([
