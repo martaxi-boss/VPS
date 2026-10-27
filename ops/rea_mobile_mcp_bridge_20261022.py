@@ -402,6 +402,9 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_INSTALL_AUDIT_PROVIDER_CANDIDATES",
         "REA_INSTALL_AUDIT_PROVIDERS_JSON",
         "REA_INSTALL_AUDIT_MCP_TOOL_COUNT",
+        "REA_PARITY_PACKAGE_BLOB", "REA_PARITY_LOCK_BLOB",
+        "REA_PARITY_MANIFEST", "REA_PARITY_RUNTIME",
+        "REA_PARITY_DEVELOPMENT", "REA_PARITY_OPTIONAL",
         "REA_INSTALL_AUDIT_COMPLETED",
         "REA_DOCTOR_LINUX_STATUS",
         "REA_DOCTOR_LINUX_EXIT",
@@ -2461,6 +2464,61 @@ def main():
                             print("REA_INSTALL_AUDIT_PROVIDER_CANDIDATES="+str(len(candidates)))
                 except ValueError:
                     print("REA_INSTALL_AUDIT_PROVIDERS_JSON=INVALID")
+        # One-use parity inventory: no install, no mutation, no raw file output.
+        root=Path("/opt/rea-reversa/rea")
+        manifest=root/"package.json"
+        lockfile=root/"package-lock.json"
+        def blob_sha(path):
+            raw=path.read_bytes()
+            return hashlib.sha1(b"blob "+str(len(raw)).encode()+b"\x00"+raw).hexdigest()
+        if manifest.is_file() and lockfile.is_file():
+            try:
+                package=json.loads(manifest.read_text())
+                locked=json.loads(lockfile.read_text())
+                print("REA_PARITY_PACKAGE_BLOB="+blob_sha(manifest))
+                print("REA_PARITY_LOCK_BLOB="+blob_sha(lockfile))
+                locked_root=locked.get("packages",{}).get("",{})
+                print("REA_PARITY_MANIFEST="+json.dumps({
+                    "version":package.get("version"),
+                    "lock_version":locked.get("version"),
+                    "lockfile_version":locked.get("lockfileVersion"),
+                    "synchronized":all(
+                        package.get(field,{})==locked_root.get(field,{})
+                        for field in ("dependencies","devDependencies","optionalDependencies")),
+                    "node_modules_present":(root/"node_modules").is_dir()
+                },sort_keys=True))
+                for group,field in (("RUNTIME","dependencies"),
+                                    ("DEVELOPMENT","devDependencies"),
+                                    ("OPTIONAL","optionalDependencies")):
+                    declared=package.get(field,{})
+                    present=0;correct=0;missing=[];different=[]
+                    for name,spec in sorted(declared.items()):
+                        source=root/"node_modules"/name/"package.json"
+                        if not source.is_file():
+                            missing.append(name)
+                            continue
+                        try:
+                            version=json.loads(source.read_text()).get("version")
+                        except (OSError,ValueError):
+                            version=None
+                        present+=1
+                        wanted=spec.rsplit("@",1)[-1] if spec.startswith("npm:") else spec
+                        if version==wanted:
+                            correct+=1
+                        else:
+                            different.append({"name":name,"declared":spec,
+                                              "found":str(version)[:35]})
+                    print("REA_PARITY_"+group+"="+json.dumps({
+                        "declared":len(declared),"present":present,
+                        "version_matched":correct,"missing":missing[:90],
+                        "different":different[:90]
+                    },sort_keys=True))
+            except (OSError,ValueError,TypeError) as exc:
+                print("REA_PARITY_MANIFEST="+json.dumps({
+                    "error_type":type(exc).__name__},sort_keys=True))
+        else:
+            print("REA_PARITY_MANIFEST="+json.dumps({
+                "manifest_present":manifest.is_file(),"lock_present":lockfile.is_file()}))
         print("REA_INSTALL_AUDIT_MCP_TOOL_COUNT="+str(len(tools)))
         print("REA_INSTALL_AUDIT_COMPLETED=PASS_READ_ONLY")
         return
