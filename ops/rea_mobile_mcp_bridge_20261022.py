@@ -2450,15 +2450,21 @@ def main():
                 return None
             return service_home/".cache/rea/cutter-bridge"
         cutter=session_dir()
-        count=0
+        count=-1
         cutter_exists=False
-        if cutter is not None and cutter.is_dir() and not cutter.is_symlink():
-            cutter_exists=True
-            try:
-                count=sum(1 for child in list(cutter.iterdir())[:257]
-                          if child.is_file() and not child.is_symlink())
-            except OSError:
-                count=-1
+        if cutter is not None and service_user:
+            p=subprocess.run(["sudo","-n","-u",service_user,"test","-d",
+                              str(cutter)],capture_output=True,
+                              timeout=12,check=False)
+            cutter_exists=p.returncode==0
+            if cutter_exists:
+                try:
+                    if not cutter.is_symlink():
+                        count=sum(1 for child in list(cutter.iterdir())[:257]
+                                  if child.is_file() and not child.is_symlink())
+                except (PermissionError,OSError):
+                    # Private owner-only directory: report unknown, not empty.
+                    count=-1
         listener=False
         try:
             with socket.create_connection(("127.0.0.1",8425),timeout=1.2):
