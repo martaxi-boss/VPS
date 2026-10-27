@@ -7,6 +7,7 @@ import pathlib
 import stat
 import subprocess
 import tempfile
+import time
 
 DOMAIN = "rea-reversa.duckdns.org"
 PUBLIC = "https://" + DOMAIN
@@ -110,8 +111,18 @@ def main():
     try:
         checked("nginx", "-t")
         checked("systemctl", "reload", "nginx")
-        resource_code, resource_body = probe(PUBLIC + "/.well-known/oauth-protected-resource/mcp")
-        auth_code, auth_body = probe(PUBLIC + "/.well-known/oauth-authorization-server")
+        # A successful nginx reload command can return before the new workers
+        # receive traffic. Check readiness rather than racing the old 404 vhost.
+        for attempt in range(40):
+            resource_code, resource_body = probe(PUBLIC + "/.well-known/oauth-protected-resource/mcp")
+            auth_code, auth_body = probe(PUBLIC + "/.well-known/oauth-authorization-server")
+            if resource_code == 200 and auth_code == 200:
+                print("REA_HTTPS_RELOAD_READY_ATTEMPT=" + str(attempt + 1), flush=True)
+                break
+            time.sleep(0.3)
+        else:
+            print("REA_HTTPS_RELOAD_FINAL_CODES=" + str(resource_code) + "," + str(auth_code), flush=True)
+            raise RuntimeError("REA HTTPS discovery endpoints never became ready")
         anon_code, _ = probe(PUBLIC + "/mcp", post=True)
         wrong_code, _ = probe(PUBLIC + "/mcp", post=True, bad_token=True)
         print("REA_HTTPS_HTTP_CODES=" + ",".join(map(str, (
