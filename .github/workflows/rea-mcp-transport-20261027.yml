@@ -144,82 +144,116 @@ jobs:
           if-no-files-found: ignore
           retention-days: 1
 
-      - name: Verify Google account policy and original REA proxy; restart only OAuth service
+      - name: Activate existing HTTPS vhost for authenticated REA only with automatic rollback
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         shell: bash
         run: |
           set -euo pipefail
-          ssh_opts=(
-            -o PreferredAuthentications=password
-            -o PubkeyAuthentication=no
-            -o StrictHostKeyChecking=yes
-            -o UserKnownHostsFile="$RUNNER_TEMP/rea-host-pin"
-            -o GlobalKnownHostsFile=/dev/null
-            -o HostKeyAlgorithms=ssh-ed25519
-            -o ConnectTimeout=15
-          )
-          target="ubuntu@146.59.145.3"
-          sshpass -e ssh -T "${ssh_opts[@]}" "$target" \
-            'sudo -n tee /opt/rea-reversa/oauth-auth/rea_gateway.py >/dev/null' \
-            < ops/rea_google_oauth_gateway_20261027.py
-          expected="$(sha256sum ops/rea_google_oauth_gateway_20261027.py | awk '{print $1}')"
-          actual="$(sshpass -e ssh -T "${ssh_opts[@]}" "$target" \
-            'sudo -n sha256sum /opt/rea-reversa/oauth-auth/rea_gateway.py' | awk '{print $1}')"
-          test "$actual" = "$expected"
-          sshpass -e ssh -T "${ssh_opts[@]}" "$target" 'sudo -n bash -se' <<'SH'
-          set -euo pipefail
-          systemctl is-active --quiet rea-reversa-mcp.service
-          systemctl is-active --quiet nginx.service
-          CREDENTIALS_DIRECTORY=/root/project-secrets/rea-mcp \
-            /opt/rea-reversa/oauth-auth/venv/bin/python - <<'PY'
-          import asyncio,runpy,types
-          from unittest.mock import patch
-          from fastmcp import FastMCP
-          from fastmcp.server.auth.providers.google import GoogleTokenVerifier
-          from fastmcp.server.providers.proxy import ProxyClient,ProxyProvider
-          from fastmcp.client.transports import StreamableHttpTransport
-          m=runpy.run_path("/opt/rea-reversa/oauth-auth/rea_gateway.py",run_name="rea_test")
-          owner=m["OwnerGoogleVerifier"]
-          client_id=m["client_id"]
-          state={"claims":{}}
-          async def mock_verify(self,token):
-              return types.SimpleNamespace(client_id="unrelated-google-sub",claims=state["claims"])
-          async def check(claims):
-              state["claims"]=claims
-              with patch.object(GoogleTokenVerifier,"verify_token",mock_verify):
-                  return await owner().verify_token("synthetic-token")
-          async def main():
-              base={"aud":client_id,"email":"unrelated@example.invalid","email_verified":True}
-              assert await check(dict(base,aud="other-client")) is None
-              assert await check(dict(base,email_verified=False)) is None
-              assert await check(dict(base,email_verified="false")) is None
-              assert await check(dict(base)) is None
-              print("REA_GOOGLE_OWNER_POLICY_NEGATIVE_TESTS=PASS")
-              client=ProxyClient(StreamableHttpTransport("http://127.0.0.1:8765/mcp",max_sse_event_size=16*1024*1024),forward_incoming_headers=False)
-              proxy=FastMCP("REA-Proxy-Smoke",providers=[ProxyProvider(lambda:client)])
-              items=await asyncio.wait_for(proxy.list_tools(),timeout=40)
-              count=len(items)
-              print("REA_OAUTH_PROXY_ORIGINAL_TOOL_COUNT="+str(count))
-              assert count==229,count
-              print("REA_OAUTH_PROXY_FULL_CATALOG=PASS")
-          asyncio.run(main())
+          sshpass -e ssh -T \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/rea-host-pin" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 \
+            ubuntu@146.59.145.3 'sudo -n python3 -' <<'PY'
+          import hashlib,json,os,pathlib,stat,subprocess,tempfile
+          from urllib import request,error
+          domain="rea-reversa.duckdns.org"
+          public="https://"+domain
+          expected="4c548df03f415def9faa38b767c723f09ef18ce1df7a30892d490ff4e04b1148"
+          def active(name):
+              return subprocess.run(["systemctl","is-active","--quiet",name]).returncode==0
+          assert active("rea-reversa-mcp.service")
+          assert active("rea-mcp-oauth.service")
+          assert active("nginx.service")
+          path=pathlib.Path("/etc/nginx/sites-enabled/rea-reversa.duckdns.org.conf").resolve(strict=True)
+          before=path.read_bytes()
+          assert hashlib.sha256(before).hexdigest()==expected
+          text=before.decode("utf-8")
+          old="    location / {\n        return 404;\n    }\n"
+          assert text.count(old)==1
+          assert text.count("server_name rea-reversa.duckdns.org;")==2
+          replacement="""    access_log off;
+              location / {
+                  proxy_pass http://127.0.0.1:8766;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Forwarded-Proto https;
+                  proxy_set_header X-Forwarded-Host $host;
+                  proxy_set_header X-Forwarded-For $remote_addr;
+                  proxy_set_header Authorization $http_authorization;
+                  proxy_set_header Connection "";
+                  proxy_buffering off;
+                  proxy_request_buffering off;
+                  proxy_read_timeout 300s;
+                  proxy_send_timeout 300s;
+                  proxy_redirect off;
+                  add_header Cache-Control "no-store" always;
+              }
+          """.replace("              ","    ")
+          after=text.replace(old,replacement,1).encode("utf-8")
+          backup=pathlib.Path("/root/project-secrets/rea-mcp/rea-nginx-before-oauth-20261027.conf")
+          if backup.exists():
+              assert hashlib.sha256(backup.read_bytes()).hexdigest()==expected
+          else:
+              fd=os.open(backup,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
+              with os.fdopen(fd,"wb") as output:output.write(before)
+          def apply(payload):
+              st=path.stat()
+              fd,tmp=tempfile.mkstemp(prefix="rea-nginx-",dir=str(path.parent))
+              with os.fdopen(fd,"wb") as out:out.write(payload)
+              os.chown(tmp,st.st_uid,st.st_gid)
+              os.chmod(tmp,stat.S_IMODE(st.st_mode))
+              os.replace(tmp,path)
+          def run(*args):
+              p=subprocess.run(args,capture_output=True,text=True)
+              if p.returncode: raise RuntimeError("command failed: "+args[0]+" "+str(p.returncode))
+              return p.stdout
+          def probe(url,post=False,token=False):
+              args=["curl","--noproxy","*","--resolve",domain+":443:127.0.0.1",
+                    "-sS","--max-time","15","-w","\n__HTTP_STATUS__%{http_code}"]
+              if post:
+                  args+=["-X","POST","-H","Accept: application/json, text/event-stream",
+                         "-H","Content-Type: application/json",
+                         "--data-binary",json.dumps({"jsonrpc":"2.0","id":1,"method":"initialize",
+                                    "params":{"protocolVersion":"2025-11-25","capabilities":{},
+                                    "clientInfo":{"name":"rea-https-check","version":"1"}}})]
+              if token:args+=["-H","Authorization: Bearer invalid-rea-token"]
+              args.append(url)
+              value=run(*args)
+              content,code=value.rsplit("\n__HTTP_STATUS__",1)
+              return int(code.strip()),content
+          apply(after)
+          try:
+              run("nginx","-t")
+              run("systemctl","reload","nginx")
+              resource_code,resource_body=probe(public+"/.well-known/oauth-protected-resource/mcp")
+              auth_code,auth_body=probe(public+"/.well-known/oauth-authorization-server")
+              unauth_code,_=probe(public+"/mcp",post=True)
+              invalid_code,_=probe(public+"/mcp",post=True,token=True)
+              assert resource_code==200 and auth_code==200
+              assert unauth_code==401 and invalid_code==401
+              resource=json.loads(resource_body)
+              auth=json.loads(auth_body)
+              assert resource["resource"]==public+"/mcp"
+              assert auth["issuer"]==public+"/"
+              assert auth["issuer"] in resource["authorization_servers"]
+              assert "S256" in auth["code_challenge_methods_supported"]
+              assert auth["authorization_response_iss_parameter_supported"] is True
+              assert auth["registration_endpoint"].startswith(public+"/")
+              print("REA_HTTPS_GOOGLE_OAUTH_METADATA=PASS")
+              print("REA_HTTPS_PUBLIC_UNAUTH_401=PASS")
+              print("REA_HTTPS_PUBLIC_INVALID_TOKEN_401=PASS")
+              print("REA_HTTPS_SINGLE_ORIGINAL_MCP=UNCHANGED")
+          except Exception as e:
+              apply(before)
+              subprocess.run(["nginx","-t"],capture_output=True)
+              subprocess.run(["systemctl","reload","nginx"],capture_output=True)
+              print("REA_HTTPS_ROLLBACK=EXECUTED")
+              raise
           PY
-          systemctl restart rea-mcp-oauth.service
-          sleep 3
-          systemctl is-active --quiet rea-mcp-oauth.service
-          /opt/rea-reversa/oauth-auth/venv/bin/python - <<'PY'
-          import json,urllib.error,urllib.request
-          url="http://127.0.0.1:8766/mcp"
-          body=json.dumps({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"rea-local-check","version":"1"}}}).encode()
-          for token in (None,"invalid-token"):
-              headers={"Host":"rea-reversa.duckdns.org","Content-Type":"application/json","Accept":"application/json,text/event-stream"}
-              if token is not None: headers["Authorization"]="Bearer "+token
-              req=urllib.request.Request(url,method="POST",headers=headers,data=body)
-              try:
-                  with urllib.request.urlopen(req,timeout=8) as resp:code=resp.status
-              except urllib.error.HTTPError as error: code=error.code
-              assert code==401,code
-          print("REA_OAUTH_LOCAL_POST_DENIAL=PASS")
-          PY
-          SH
+          curl --max-time 20 -fsS https://rea-reversa.duckdns.org/.well-known/oauth-protected-resource/mcp \
+            | python3 -c 'import json,sys; a=json.load(sys.stdin); assert a["resource"]=="https://rea-reversa.duckdns.org/mcp"; print("REA_HTTPS_EXTERNAL_DISCOVERY=PASS")'
