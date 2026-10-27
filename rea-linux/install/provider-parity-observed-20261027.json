@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "project": "Engenharia Reversa — REA 6.8.0",
+  "phase": "provider_comparison_read_only_20261027",
+  "scope": "Original 6.8.0 supported vendor integrations vs actual Linux x64 VPS vendor installation and REA service visibility",
+  "original": {
+    "repository": "morluto/rea",
+    "tag": "rea-agents-6.8.0",
+    "commit": "160d821ac9a0310afcb8d1fc427862dd6508add5",
+    "interpretation": "Documentation defines supported/optional supplier integrations, NOT proof of tools physically installed on the upstream author's computer"
+  },
+  "our_environment": {
+    "platform": "Ubuntu 24.04 x86_64",
+    "root": "/opt/rea-reversa/rea",
+    "service": "rea-reversa-mcp.service",
+    "engine_original_source_untouched": true
+  },
+  "live_provider_doctor": {
+    "ghidra": {
+      "configured": true,
+      "available": true
+    },
+    "jadx": {
+      "configured": true,
+      "available": true
+    },
+    "kuna": {
+      "configured": true,
+      "available": true
+    },
+    "ida": {
+      "configured": false,
+      "available": false
+    },
+    "hopper": {
+      "launcher": "/opt/hopper/bin/Hopper",
+      "installed": true,
+      "service_executable": true,
+      "scoped_doctor_exit": 0,
+      "scoped_doctor_healthy": true,
+      "verified_live_analysis_session": false
+    }
+  },
+  "read_only_inventory": {
+    "engine": "ghidra,jdk,jadx,kuna,hopper service accessible; IDA unconfigured; JEB endpoint unconfigured",
+    "native": "rizin,radare2,gdb,gdb-multiarch,objdump,pwntools python service accessible; pwndbg environment not configured",
+    "android": "adb,apktool,frida Node package service accessible; frida command absent from PATH; no live device test",
+    "network_and_firmware": "binwalk,unblob,mitmdump,tshark,capinfos,sigrok-cli,tcpdump service accessible",
+    "auxiliary": "Wakaru,Cutter,Chromium/Playwright browser,WABT,ffmpeg service accessible; dotnet and mono commands absent",
+    "live_env_present": [
+      "REA_WAKARU_COMMAND",
+      "REA_MITMDUMP_COMMAND",
+      "PLAYWRIGHT_BROWSERS_PATH",
+      "REA_PWNTOOLS_PYTHON",
+      "REA_WABT_BIN_DIRECTORY"
+    ],
+    "live_env_absent": [
+      "REA_IDA_MCP_CONFIG",
+      "REA_JEB_MCP_URL",
+      "HOPPER_LAUNCHER_PATH",
+      "REA_PWNDBG_GDBINIT"
+    ],
+    "notes": [
+      "Hopper works by Linux launcher auto-detection despite HOPPER_LAUNCHER_PATH unset",
+      "Cutter application present but authenticated v2 plugin session not proven",
+      "Chromium present and prior headless smoke passed, but no active user-authorized CDP target tested",
+      "Frida Node binding installed and native import passed prior check, but no real device/process target tested",
+      "Vendor packages are not identical to a known upstream computer installation because that machine's inventory is private",
+      "No installs, updates, removals, service restarts or owner-auth bypass performed"
+    ]
+  },
+  "evidence": {
+    "live_full_doctor_run": 40427946722,
+    "read_only_vendor_inventory_run": 40472874652,
+    "hopper_scoped_doctor_run": 40473273886,
+    "prior_supplier_smoke_run": 40333682238,
+    "prior_frida_native_run": 40359029559
+  },
+  "hygiene": {
+    "temporary_bridge_restored_blob": "09f8adfb836bcb1c4f858f9eb21be51dd038c27f",
+    "consumed_request_files_removed": true,
+    "compare_with_starting_head_files_changed_before_report": 0
+  },
+  "status": "COMPARISON_COMPLETE_OPTIONAL_INTEGRATIONS_PENDING; do not treat inventory as operational certification of all vendors"
+}
