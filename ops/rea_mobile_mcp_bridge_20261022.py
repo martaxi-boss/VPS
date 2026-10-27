@@ -402,7 +402,6 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_INSTALL_AUDIT_PROVIDER_CANDIDATES",
         "REA_INSTALL_AUDIT_PROVIDERS_JSON",
         "REA_INSTALL_AUDIT_MCP_TOOL_COUNT",
-        "REA_SKILL_IDENTITY_SUMMARY",
         "REA_INSTALL_AUDIT_COMPLETED",
         "REA_DOCTOR_LINUX_STATUS",
         "REA_DOCTOR_LINUX_EXIT",
@@ -570,7 +569,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         elif "=" in line:
             k, value = line.split("=", 1)
             if k in allowed_markers:
-                markers[k] = value[:1500] if k == "REA_SECURE_REQUEST_PUBLIC_KEY_B64" else value[:24000] if k == "REA_MOBILE_TOOL_DESCRIPTOR_B64" else (value[:3000] if k=="REA_SKILL_IDENTITY_SUMMARY" else (value[:1200] if k in ("REA_AUDIT_PROVIDER_SECTIONS", "REA_AUDIT_PROVIDER_NAMES") else value[:300]))
+                markers[k] = value[:1500] if k == "REA_SECURE_REQUEST_PUBLIC_KEY_B64" else value[:24000] if k == "REA_MOBILE_TOOL_DESCRIPTOR_B64" else (value[:1200] if k in ("REA_AUDIT_PROVIDER_SECTIONS", "REA_AUDIT_PROVIDER_NAMES") else value[:300])
                 print(k + "=" + markers[k])
     if "response_key" not in request:
         if private is not None:
@@ -2462,74 +2461,6 @@ def main():
                             print("REA_INSTALL_AUDIT_PROVIDER_CANDIDATES="+str(len(candidates)))
                 except ValueError:
                     print("REA_INSTALL_AUDIT_PROVIDERS_JSON=INVALID")
-        # Targeted read-only classification of the two unresolved doctor
-        # findings. No setup/install; no paths, credentials, issue details or
-        # customer artifact contents emitted into logs.
-        import pwd as private_pwd
-        from pathlib import Path as PureReaPath
-        def sysvalue(field):
-            proc=subprocess.run(["systemctl","show","rea-reversa-mcp.service",
-                "-p",field,"--value"],capture_output=True,text=True,
-                timeout=12,check=False)
-            return proc.stdout.strip() if proc.returncode==0 else ""
-        pid=sysvalue("MainPID")
-        user=sysvalue("User")
-        status={"checked":False}
-        if user=="rea-reversa" and pid.isdigit() and int(pid)>0:
-            proc=subprocess.run(["sudo","-n","cat",f"/proc/{pid}/environ"],
-                                capture_output=True,timeout=14,check=False)
-            if proc.returncode==0:
-                accept={"PATH","HOME","NODE_OPTIONS","JAVA_HOME",
-                       "GHIDRA_INSTALL_DIR","REA_JADX_MCP_JAR",
-                       "REA_JADX_HEAP_MIB","REA_KUNA_COMMAND",
-                       "REA_KUNA_CACHE_DIR","REA_UNBLOB_COMMAND",
-                       "REA_RIZIN_COMMAND","REA_GDB_COMMAND",
-                       "REA_BINWALK_COMMAND","REA_TSHARK_COMMAND",
-                       "REA_SIGROK_COMMAND","REA_MITMDUMP_COMMAND",
-                       "REA_WABT_BIN_DIRECTORY","REA_WAKARU_COMMAND",
-                       "REA_PWNTOOLS_PYTHON","PLAYWRIGHT_BROWSERS_PATH"}
-                env={}
-                for part in proc.stdout.split(b"\x00"):
-                    if b"=" not in part:continue
-                    k,v=part.split(b"=",1)
-                    try:
-                        key=k.decode("ascii")
-                        if key in accept and len(v)<2000:
-                            env[key]=v.decode("utf-8")
-                    except UnicodeError:
-                        pass
-                if "PATH" not in env:env["PATH"]="/usr/local/bin:/usr/bin:/bin"
-                if "HOME" not in env:
-                    env["HOME"]=private_pwd.getpwnam(user).pw_dir
-                exe=f"/proc/{pid}/exe"
-                code=PureReaPath("/opt/rea-reversa/rea/scripts/rea.mjs")
-                try:
-                    d=subprocess.run(["sudo","-n","-u",user,"env",
-                        *[f"{k}={v}" for k,v in env.items()],exe,str(code),
-                        "doctor","--json"],capture_output=True,text=True,
-                        timeout=110,check=False,cwd="/opt/rea-reversa/rea")
-                    status={"checked":True,"exit":d.returncode}
-                    if d.stdout and len(d.stdout)<700000:
-                        raw=json.loads(d.stdout)
-                        identity=raw.get("identity",{})
-                        skill=identity.get("skill",{}) if isinstance(identity,dict) else {}
-                        issues=skill.get("issues",[]) if isinstance(skill,dict) else []
-                        status["skill_state"]=skill.get("state")
-                        status["skill_version"]=skill.get("installed_version")
-                        status["skill_tools"]=skill.get("installed_tool_count")
-                        status["issue_kinds"]=[{"kind":q.get("kind"),
-                            "client":q.get("client")} for q in issues[:16]
-                            if isinstance(q,dict)]
-                        status["failed_checks"]=[{"name":q.get("name"),
-                            "class":q.get("classification")} for q in
-                            raw.get("checks",[]) if isinstance(q,dict)
-                            and q.get("ok") is False][:20]
-                        status["provider_ids_unready"]=[
-                            x.get("id") for x in raw.get("providerInspections",[])
-                            if isinstance(x,dict) and x.get("available") is False]
-                except (OSError,ValueError,subprocess.TimeoutExpired) as exc:
-                    status={"checked":True,"error_class":type(exc).__name__}
-        print("REA_SKILL_IDENTITY_SUMMARY="+json.dumps(status,sort_keys=True))
         print("REA_INSTALL_AUDIT_MCP_TOOL_COUNT="+str(len(tools)))
         print("REA_INSTALL_AUDIT_COMPLETED=PASS_READ_ONLY")
         return
