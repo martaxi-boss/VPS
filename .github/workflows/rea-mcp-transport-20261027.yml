@@ -1,0 +1,145 @@
+name: REA 6.8 original MCP through GitHub SSH
+on:
+  push:
+    branches:
+      - rea/one-skill-bridge-20261023
+    paths:
+      - ".github/workflows/rea-mcp-transport-20261027.yml"
+      - "ops/rea_mcp_transport_20261027.py"
+      - "rea-linux/requests/*.json"
+permissions:
+  contents: read
+concurrency:
+  group: rea-one-skill-bridge
+  cancel-in-progress: false
+jobs:
+  rea-transport:
+    if: github.actor == 'martaxi-boss'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout existing isolated branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Prepare Python transport and select one request
+        env:
+          REA_COMMIT: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass python3-cryptography python3-jsonschema >/dev/null
+          python3 -m py_compile ops/rea_mcp_transport_20261027.py
+          /usr/bin/python3 ops/rea_mcp_transport_20261027.py --selftest
+          export REA_TRANSPORT_REQUEST_PATH="$RUNNER_TEMP/rea-transport-request.json"
+          python3 - <<'PY'
+          import os, pathlib, re, subprocess
+          diff = subprocess.run(
+              ["git", "diff-tree", "--no-commit-id", "--name-status", "-r", os.environ["REA_COMMIT"]],
+              capture_output=True, text=True, check=True).stdout.splitlines()
+          selected = []
+          for line in diff:
+              item = line.split("\t", 1)
+              if len(item) != 2:
+                  continue
+              status, path = item
+              if path.startswith("rea-linux/requests/"):
+                  if not re.fullmatch(r"rea-linux/requests/[a-zA-Z0-9_-]{1,64}\.json", path):
+                      raise RuntimeError("Invalid request filename")
+                  if status == "D":
+                      continue
+                  if status != "A":
+                      raise RuntimeError("Only new requests are executable")
+                  selected.append(path)
+          if len(selected) > 1:
+              raise RuntimeError("Exactly zero or one request per commit")
+          target = pathlib.Path(os.environ["REA_TRANSPORT_REQUEST_PATH"])
+          if selected:
+              target.write_bytes(pathlib.Path(selected[0]).read_bytes())
+              print("REA_TRANSPORT_REQUEST="+selected[0])
+          else:
+              target.write_text('{"version":1,"action":"catalog"}', encoding="utf-8")
+              print("REA_TRANSPORT_REQUEST=default-catalog")
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as out:
+              out.write("REA_TRANSPORT_REQUEST_PATH="+str(target)+"\n")
+          PY
+          /usr/bin/python3 ops/rea_mcp_transport_20261027.py --validate "$REA_TRANSPORT_REQUEST_PATH"
+      - name: Verify existing SSH server identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/rea-host-pin"
+          chmod 600 "$RUNNER_TEMP/rea-host-pin"
+          fingerprint="$(ssh-keygen -lf "$RUNNER_TEMP/rea-host-pin" -E sha256 | awk '{print $2}')"
+          test "$fingerprint" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
+          echo "REA_TRANSPORT_SSH_PIN=PASS"
+      - name: Execute existing REA MCP over authenticated SSH
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          umask 077
+          bootstrap="$RUNNER_TEMP/rea-transport-remote.py"
+          raw="$RUNNER_TEMP/rea-transport-private-output.txt"
+          trap 'rm -f "$bootstrap" "$raw"' EXIT
+          python3 - "$REA_TRANSPORT_REQUEST_PATH" > "$bootstrap" <<'PY'
+          import base64, pathlib, sys
+          encoded=base64.b64encode(pathlib.Path(sys.argv[1]).read_bytes()).decode("ascii")
+          print("import os")
+          print("os.environ['REA_TRANSPORT_JOB_B64']="+repr(encoded))
+          sys.stdout.write(pathlib.Path("ops/rea_mcp_transport_20261027.py").read_text())
+          PY
+          sshpass -e ssh -T \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/rea-host-pin" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 -o ServerAliveInterval=10 \
+            -o ServerAliveCountMax=5 \
+            ubuntu@146.59.145.3 "python3 - --run" \
+            < "$bootstrap" > "$raw"
+          python3 - "$raw" "$RUNNER_TEMP/rea-result.json" <<'PY'
+          import base64, json, pathlib, sys
+          lines=pathlib.Path(sys.argv[1]).read_text().splitlines()
+          meta=[line.split("=",1)[1] for line in lines if line.startswith("REA_TRANSPORT_META=")]
+          if len(meta)!=1:
+              raise RuntimeError("Transport did not return one valid status")
+          status=json.loads(meta[0])
+          if status.get("status")!="PASS":
+              raise RuntimeError("REA transport returned failure")
+          print("REA_TRANSPORT_STATUS=PASS")
+          if "tool_count" in status:
+              print("REA_TRANSPORT_TOOL_COUNT="+str(status["tool_count"]))
+          if "schema_count" in status:
+              print("REA_TRANSPORT_SCHEMA_COUNT="+str(status["schema_count"]))
+          if "smoke" in status:
+              print("REA_TRANSPORT_SMOKE="+status["smoke"])
+              print("REA_TRANSPORT_SMOKE_RESULTS="+json.dumps(status["results"]))
+          if "transport_public_key" in status:
+              print("REA_TRANSPORT_PUBLIC_KEY_B64="+status["transport_public_key"])
+          if "calls_executed" in status:
+              print("REA_TRANSPORT_CALLS_EXECUTED="+str(status["calls_executed"]))
+          sealed=[line.split("=",1)[1] for line in lines if line.startswith("REA_TRANSPORT_ENVELOPE_B64=")]
+          if sealed:
+              if len(sealed)!=1:
+                  raise RuntimeError("Unexpected encrypted artifact count")
+              artifact=json.loads(base64.b64decode(sealed[0], validate=True))
+              if set(artifact)!={"version","request_sha256","sealed"}:
+                  raise RuntimeError("Malformed result transport")
+              pathlib.Path(sys.argv[2]).write_text(json.dumps(artifact, separators=(",",":")))
+              print("REA_TRANSPORT_PRIVATE_ARTIFACT=ENCRYPTED")
+          PY
+      - name: Preserve encrypted result only
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: rea-680-encrypted-result
+          path: ${{ runner.temp }}/rea-result.json
+          if-no-files-found: ignore
+          retention-days: 1
