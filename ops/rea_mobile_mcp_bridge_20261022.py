@@ -404,7 +404,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_INSTALL_AUDIT_MCP_TOOL_COUNT",
         "REA_VPAR_ENGINE","REA_VPAR_NATIVE","REA_VPAR_ANDROID",
         "REA_VPAR_NETWORK","REA_VPAR_AUX","REA_VPAR_LIVE_ENV",
-        "REA_VPAR_STAGE_ENV","REA_VPAR_STATUS",
+        "REA_VPAR_STAGE_ENV","REA_VPAR_STATUS","REA_VPAR_HOPPER_DOCTOR",
         "REA_INSTALL_AUDIT_COMPLETED",
         "REA_DOCTOR_LINUX_STATUS",
         "REA_DOCTOR_LINUX_EXIT",
@@ -2615,6 +2615,56 @@ def main():
                             ("NETWORK",network),("AUX",aux),
                             ("LIVE_ENV",live_flags),("STAGE_ENV",staged_flags)):
             print("REA_VPAR_"+name+"="+json.dumps(items,sort_keys=True,separators=(",",":")))
+        # Exact Hopper launcher existence and scoped read-only upstream doctor.
+        hopper_match="NONE"
+        for label,candidate in (
+            ("explicit_env",configured_path("HOPPER_LAUNCHER_PATH")),
+            ("opt_hopper",Path("/opt/hopper/bin/Hopper")),
+            ("service_home",service_home/".local/share/rea/hopper/bin/Hopper"),
+            ("opt_hopper_v4",Path("/opt/hopper-v4/bin/hopper")),
+            ("usr_bin",Path("/usr/bin/hopper"))):
+            if candidate is None:
+                continue
+            check_file=subprocess.run(["sudo","-n","-u",service_user,
+                "test","-f",str(candidate)],capture_output=True,timeout=10,check=False)
+            check_exec=subprocess.run(["sudo","-n","-u",service_user,
+                "test","-x",str(candidate)],capture_output=True,timeout=10,check=False)
+            if check_file.returncode==0 and check_exec.returncode==0:
+                hopper_match=label
+                break
+        hopper_doctor={"launcher_file":hopper_match,
+            "executable_found":hopper_match!="NONE"}
+        if hopper_match!="NONE" and main_pid.isdigit() and int(main_pid)>0:
+            cmd=["sudo","-n","-u",service_user,"env",
+                "HOME="+str(service_home),"PATH=/usr/local/bin:/usr/bin:/bin",
+                f"/proc/{int(main_pid)}/exe",
+                "/opt/rea-reversa/rea/scripts/rea.mjs",
+                "doctor","--provider","hopper","--json"]
+            try:
+                p=subprocess.run(cmd,capture_output=True,text=True,
+                    cwd="/opt/rea-reversa/rea",timeout=100,check=False)
+                hopper_doctor["exit"]=p.returncode
+                if p.stdout and len(p.stdout)<550000:
+                    doc=json.loads(p.stdout)
+                    hopper_doctor["healthy"]=doc.get("healthy")
+                    hopper_doctor["environment_healthy"]=doc.get("environment_healthy")
+                    checks=doc.get("checks",[])
+                    if isinstance(checks,list):
+                        hopper_doctor["failed_checks"]=[str(c.get("name",""))[:70]
+                            for c in checks if isinstance(c,dict) and c.get("ok") is False][:12]
+                    providers=doc.get("providerInspections",[])
+                    if isinstance(providers,list):
+                        hopper_doctor["providers"]=[
+                            {"id":str(x.get("id",""))[:40],
+                             "configured":x.get("configured") is True,
+                             "available":x.get("available") is True}
+                            for x in providers if isinstance(x,dict)][:8]
+                else:
+                    hopper_doctor["result"]="NO_JSON"
+            except (OSError,ValueError,subprocess.TimeoutExpired) as exc:
+                hopper_doctor["error_class"]=type(exc).__name__
+        print("REA_VPAR_HOPPER_DOCTOR="+json.dumps(
+            hopper_doctor,sort_keys=True,separators=(",",":")))
         print("REA_VPAR_STATUS="+json.dumps({
             "service_pid_present":bool(main_pid.isdigit() and int(main_pid)>0),
             "service_env_read":bool(live_env),"repo_version":"6.8.0",
