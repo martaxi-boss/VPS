@@ -84,7 +84,22 @@ auth = OAuthProxy(
 
 # This is only an authentication/transport front door. The sole tool registry
 # remains on the original REA 6.8.0 process at 127.0.0.1:8765.
-backend = ProxyProvider(
+# The original MCP advertises ~4 MiB of optional output schemas. They need not
+# be included in tools/list for the ChatGPT client: the full results and the
+# exact original arguments are still handled by the REA process.
+class CompactCatalogProxyProvider(ProxyProvider):
+    async def list_tools(self):
+        tools = await super().list_tools()
+        return [
+            tool.model_copy(update={
+                "output_schema": None,
+                "description": str(tool.description or "")[:260],
+            })
+            for tool in tools
+        ]
+
+
+backend = CompactCatalogProxyProvider(
     lambda: ProxyClient(
         StreamableHttpTransport(
             ORIGINAL_REA_MCP,
