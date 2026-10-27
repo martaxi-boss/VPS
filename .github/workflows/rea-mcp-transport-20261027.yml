@@ -144,7 +144,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 1
 
-      - name: Diagnose isolated OAuth metadata and owner checks (read-only)
+      - name: Verify rejected OAuth requests and Google verifier contract (local only)
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         shell: bash
@@ -159,35 +159,45 @@ jobs:
             -o GlobalKnownHostsFile=/dev/null \
             -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=15 \
-            ubuntu@146.59.145.3 'sudo -n python3 -' <<'PY'
-          import json, subprocess, urllib.error, urllib.request
-          from pathlib import Path
-          def status(unit):
-              return subprocess.run(["systemctl","is-active",unit],capture_output=True,text=True).stdout.strip()
-          print("REA_AUTH_SERVICE_STATUS="+status("rea-mcp-oauth.service"))
-          for item in ["google-client-id","google-client-secret","google-owner-email"]:
-              print("REA_AUTH_CREDENTIAL_"+item.replace("-","_").upper()+"="+str(Path("/root/project-secrets/rea-mcp",item).is_file()))
-          for path in ("/.well-known/oauth-authorization-server", "/.well-known/oauth-protected-resource","/.well-known/oauth-protected-resource/mcp","/mcp"):
-              req=urllib.request.Request("http://127.0.0.1:8766"+path,headers={"Host":"rea-reversa.duckdns.org","Accept":"application/json"})
+            ubuntu@146.59.145.3 'sudo -n bash -se' <<'SH'
+          set -euo pipefail
+          service=rea-mcp-oauth.service
+          systemctl is-active --quiet "$service"
+          /opt/rea-reversa/oauth-auth/venv/bin/python - <<'PY'
+          import json, urllib.request, urllib.error, inspect, typing
+          from fastmcp.server.auth.providers.google import GoogleTokenVerifier
+          from fastmcp.server.providers.proxy import ProxyClient, ProxyProvider
+          import fastmcp
+          print("REA_OAUTH_FASTMCP_VERSION="+str(getattr(fastmcp,"__version__","unknown")))
+          print("REA_OAUTH_GOOGLE_VERIFIER_SIGNATURE="+str(inspect.signature(GoogleTokenVerifier)))
+          print("REA_OAUTH_PROXY_CLIENT_SIGNATURE="+str(inspect.signature(ProxyClient)))
+          print("REA_OAUTH_GOOGLE_VERIFIER_CODE_BEGIN")
+          print(inspect.getsource(GoogleTokenVerifier.verify_token))
+          print("REA_OAUTH_GOOGLE_VERIFIER_CODE_END")
+          base="http://127.0.0.1:8766"
+          def probe(method,path,token=None,data=None):
+              headers={"Host":"rea-reversa.duckdns.org","Accept":"application/json,text/event-stream"}
+              if data is not None: headers["Content-Type"]="application/json"
+              if token is not None: headers["Authorization"]="Bearer "+token
+              req=urllib.request.Request(base+path,headers=headers,method=method,data=data)
               try:
-                  with urllib.request.urlopen(req,timeout=4) as resp:
-                      code=resp.status;body=resp.read(40000);ww=resp.headers.get("WWW-Authenticate","")
-              except urllib.error.HTTPError as e:
-                  code=e.code;body=e.read(40000);ww=e.headers.get("WWW-Authenticate","")
-              except Exception as e:
-                  print("REA_AUTH_PROBE="+path+" ERROR_TYPE="+type(e).__name__)
-                  continue
-              print("REA_AUTH_PROBE="+path+" STATUS="+str(code))
-              if ww: print("REA_AUTH_WWW_AUTH_HEADER_PRESENT=YES")
-              if code==200 and "/.well-known/" in path:
-                  try:
-                      data=json.loads(body)
-                      print("REA_AUTH_META_PATH="+path+" KEYS="+",".join(sorted(data)))
-                      for key in ("issuer","resource","authorization_servers","code_challenge_methods_supported","token_endpoint_auth_methods_supported","registration_endpoint"):
-                          if key in data: print("REA_AUTH_META_"+key.upper()+"="+str(data[key])[:280])
-                  except Exception as e: print("REA_AUTH_META_PARSE="+type(e).__name__)
-          print("REA_AUTH_SYSTEMD_UNIT_PRESENT="+str(Path("/etc/systemd/system/rea-mcp-oauth.service").is_file()))
-          print("REA_AUTH_ORIGINAL_MCP_STATUS="+status("rea-reversa-mcp.service"))
-          print("REA_AUTH_NGINX_STATUS="+status("nginx.service"))
-          print("REA_AUTH_NGINX_VHOST_SHA256="+subprocess.check_output(["sha256sum","/etc/nginx/sites-enabled/rea-reversa.duckdns.org.conf"],text=True).split()[0])
+                  with urllib.request.urlopen(req,timeout=8) as result:
+                      return (result.status,result.headers.get("WWW-Authenticate",""))
+              except urllib.error.HTTPError as result:
+                  return (result.code,result.headers.get("WWW-Authenticate",""))
+          payload=json.dumps({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"rea-oauth-check","version":"1"}}}).encode()
+          for method,path,token,data in [
+              ("POST","/mcp",None,payload),
+              ("POST","/mcp","invalid-token-rea-20261027",payload),
+              ("GET","/mcp",None,None)]:
+              status,challenge=probe(method,path,token,data)
+              print("REA_OAUTH_AUTH_DENIAL="+method+" "+path+" token="+str(token is not None)+" status="+str(status)+" has_challenge="+str(bool(challenge)))
+              assert status==401 and bool(challenge)
+          status, _=probe("GET","/.well-known/oauth-authorization-server")
+          assert status==200
+          status,_=probe("GET","/.well-known/oauth-protected-resource/mcp")
+          assert status==200
+          print("REA_OAUTH_LOCAL_401_TEST=PASS")
+          print("REA_OAUTH_LOCAL_DISCOVERY=PASS")
           PY
+          SH
