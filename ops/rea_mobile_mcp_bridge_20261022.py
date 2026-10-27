@@ -164,7 +164,7 @@ def validate(data):
         error("Unsupported request version")
     action = data.get("action")
     if action in ("catalog", "health", "capability_audit", "fixture_ghidra", "fixture_ghidra_depth", "fixture_objdump",
-                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
+                  "secure_public_key", "stage_dependencies", "fixture_linux_read5_regression", "fixture_linux_gdb_conformance", "fixture_linux_read5_mcp_boundaries", "fixture_linux_gdb_read_status_states", "fixture_linux_gdb_provider_probe", "fixture_linux_gdb_real_provider", "fixture_linux_install_inventory", "fixture_linux_optional_vendor_readiness", "fixture_linux_doctor_readiness", "fixture_linux_service_install_preflight", "fixture_linux_provider_install_simulate", "fixture_linux_provider_install_apply", "fixture_linux_service_runtime_doctor", "fixture_linux_rizin_persistent", "fixture_linux_unblob_persistent", "fixture_linux_service_config_preflight", "fixture_linux_service_provider_activate", "fixture_linux_service_unit_diagnose"):
         if set(data) != {"version", "action"}:
             error("Catalog requests cannot have extra fields")
     elif action in ("fixture_ghidra_metadata", "fixture_ghidra_additional", "runtime_contracts", "fixture_isolated_suppliers", "fixture_isolated_pwntools", "fixture_static_files", "fixture_static_files_v2", "fixture_managed_inputs", "fixture_managed_inputs_v2", "fixture_linux_objdump"):
@@ -388,6 +388,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         "REA_LINUX_GDB_REAL_MISSING_LIBS",
         "REA_LINUX_GDB_REAL_STAGED_DEPS",
         "REA_LINUX_GDB_REAL_DEP_ERROR",
+        "REA_VENDOR_GAP_MCP","REA_VENDOR_GAP_HOST","REA_VENDOR_GAP_SERVICE",
         "REA_INSTALL_AUDIT_OS",
         "REA_INSTALL_AUDIT_ARCH",
         "REA_INSTALL_AUDIT_RELEASE",
@@ -569,7 +570,7 @@ def encrypt_result(raw_path, request_path, envelope_path):
         elif "=" in line:
             k, value = line.split("=", 1)
             if k in allowed_markers:
-                markers[k] = value[:1500] if k == "REA_SECURE_REQUEST_PUBLIC_KEY_B64" else value[:24000] if k == "REA_MOBILE_TOOL_DESCRIPTOR_B64" else (value[:1200] if k in ("REA_AUDIT_PROVIDER_SECTIONS", "REA_AUDIT_PROVIDER_NAMES") else value[:300])
+                markers[k] = value[:1500] if k == "REA_SECURE_REQUEST_PUBLIC_KEY_B64" else value[:24000] if k == "REA_MOBILE_TOOL_DESCRIPTOR_B64" else (value[:2300] if k.startswith("REA_VENDOR_GAP_") else (value[:1200] if k in ("REA_AUDIT_PROVIDER_SECTIONS", "REA_AUDIT_PROVIDER_NAMES") else value[:300]))
                 print(k + "=" + markers[k])
     if "response_key" not in request:
         if private is not None:
@@ -2398,6 +2399,128 @@ def main():
             1 for line in result.stdout.splitlines() if line.split()[-1:] in
             (["node"],["nodejs"]))))
         print("REA_PREFLIGHT_COMPLETE=PASS_READ_ONLY")
+        return
+    if data["action"] == "fixture_linux_optional_vendor_readiness":
+        # Owner-requested read-only checks for OPTIONAL provider gaps only.
+        # No target files, GUI launching, license activation, installation,
+        # service restarts or new MCPs. Responses never print target metadata.
+        import socket
+        import shutil as opt_shutil
+        import pwd as opt_pwd
+        def show(field):
+            p=subprocess.run(["systemctl","show","rea-reversa-mcp.service",
+                "-p",field,"--value"],capture_output=True,text=True,
+                timeout=12,check=False)
+            return p.stdout.strip() if p.returncode==0 else ""
+        service_user=show("User")
+        service_pid=show("MainPID")
+        service_home=Path("/nonexistent-rea-home")
+        try:
+            if service_user:
+                service_home=Path(opt_pwd.getpwnam(service_user).pw_dir)
+        except KeyError:
+            pass
+        wanted_env={"REA_CUTTER_BRIDGE_DIR","REA_JEB_MCP_URL",
+                    "REA_IDA_MCP_CONFIG","REA_PWNDBG_GDBINIT",
+                    "REA_PWNDBG_VENV_PATH","HOPPER_LAUNCHER_PATH"}
+        present={}
+        if service_pid.isdigit() and int(service_pid)>0:
+            p=subprocess.run(["sudo","-n","cat",
+                f"/proc/{int(service_pid)}/environ"],
+                capture_output=True,timeout=15,check=False)
+            if p.returncode==0:
+                for item in p.stdout.split(b"\x00"):
+                    if b"=" not in item:
+                        continue
+                    name,val=item.split(b"=",1)
+                    try:
+                        key=name.decode("ascii")
+                        if key in wanted_env:
+                            value=val.decode("utf-8")
+                            present[key]=value if len(value)<400 else ""
+                    except UnicodeError:
+                        pass
+        def session_dir():
+            val=present.get("REA_CUTTER_BRIDGE_DIR","")
+            if val:
+                if val.startswith("~/"):
+                    return service_home/val[2:]
+                if val.startswith("/"):
+                    return Path(val)
+                return None
+            return service_home/".cache/rea/cutter-bridge"
+        cutter=session_dir()
+        count=0
+        cutter_exists=False
+        if cutter is not None and cutter.is_dir() and not cutter.is_symlink():
+            cutter_exists=True
+            try:
+                count=sum(1 for child in list(cutter.iterdir())[:257]
+                          if child.is_file() and not child.is_symlink())
+            except OSError:
+                count=-1
+        listener=False
+        try:
+            with socket.create_connection(("127.0.0.1",8425),timeout=1.2):
+                listener=True
+        except OSError:
+            pass
+        host={
+          "ida_registration":bool(present.get("REA_IDA_MCP_CONFIG")),
+          "ida_command_visible":any(opt_shutil.which(name) for name in ("ida64","idat64","idat","ida")),
+          "jeb_endpoint_configured":bool(present.get("REA_JEB_MCP_URL")),
+          "jeb_default_loopback_tcp_listener":listener,
+          "pwndbg_gdbinit_configured":bool(present.get("REA_PWNDBG_GDBINIT")),
+          "pwndbg_venv_configured":bool(present.get("REA_PWNDBG_VENV_PATH")),
+          "hopper_launcher_explicitly_set":bool(present.get("HOPPER_LAUNCHER_PATH")),
+          "cutter_bridge_directory_present":cutter_exists,
+          "cutter_bridge_descriptor_files_capped":count
+        }
+        out={}
+        for name in ("list_cutter_sessions","list_frida_devices",
+                     "list_browser_targets"):
+            descriptor=tool_by_name.get(name)
+            state={"advertised":descriptor is not None}
+            if not isinstance(descriptor,dict):
+                out[name]=state
+                continue
+            classification=secure.classify(name,descriptor,(),release_policy)
+            state["read_allowed"]=classification=="read"
+            if classification!="read":
+                out[name]=state
+                continue
+            try:
+                secure.validate_arguments(descriptor,{})
+            except Exception:
+                state["empty_arguments_valid"]=False
+                out[name]=state
+                continue
+            state["empty_arguments_valid"]=True
+            try:
+                _,reply=request_mcp({"jsonrpc":"2.0","id":63,
+                    "method":"tools/call","params":{"name":name,"arguments":{}}},
+                    session,protocol,timeout=15)
+                body=reply.get("result",{})
+                state["transport_ok"]="error" not in reply
+                state["tool_error"]=body.get("isError") is True if isinstance(body,dict) else True
+                if isinstance(body,dict):
+                    structured=body.get("structuredContent")
+                    if isinstance(structured,dict):
+                        state["structured_keys"]=[k for k in
+                            ("sessions","devices","targets","status","ok")
+                            if k in structured]
+                        for k in ("sessions","devices","targets"):
+                            if isinstance(structured.get(k),list):
+                                state["reported_count"]=min(999,len(structured[k]))
+            except Exception as ex:
+                state["failed_stage"]=type(ex).__name__
+            out[name]=state
+        pid_after=show("MainPID")
+        service_state={"service_pid_unchanged":bool(service_pid and service_pid==pid_after),
+            "source":"LIVE_VPS_READONLY","scope":"OPTIONAL_INTEGRATIONS_ONLY"}
+        print("REA_VENDOR_GAP_MCP="+json.dumps(out,sort_keys=True,separators=(",",":")))
+        print("REA_VENDOR_GAP_HOST="+json.dumps(host,sort_keys=True,separators=(",",":")))
+        print("REA_VENDOR_GAP_SERVICE="+json.dumps(service_state,sort_keys=True,separators=(",",":")))
         return
     if data["action"] == "fixture_linux_install_inventory":
         # Audit original Linux REA installation; no installation, no restart.
