@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "project": "REA 6.8.0",
+  "date_utc": "2026-10-28",
+  "phase": "P4_LINUX_KERNEL_MODULE_REAL_MCP",
+  "status": "FUNCTIONAL_PASS_SCOPED_METADATA_ONLY__VERSIONS_DECODER_UNRESOLVED",
+  "baseline": {
+    "original_fully_certified": 125,
+    "new_additional_scoped_fully_certified": 9,
+    "previous_total_scoped": 134,
+    "overall_catalog": 229,
+    "canonical_ledger_unchanged": true
+  },
+  "tool": "inspect_kernel_module",
+  "input": {
+    "file": "/lib/modules/6.8.0-146-generic/kernel/drivers/char/ppdev.ko.zst",
+    "decompressed_transient_fixture": "/tmp/rea-p4-ppdev-6_8_0-146-20261028.ko",
+    "fixture_sha256": "2d302a6e96bd21a7db9f45165f8327d43f712b3477fe69e9aeffc3c85e4f145f",
+    "bytes": 38537,
+    "format": "ELF64 ET_REL x86_64",
+    "supplier": "Linux installed kernel modules and GNU readelf; no paid service"
+  },
+  "positive": {
+    "evidence_id": "ev_805441bdf15941a8de3848e86a4859b9f7a03241b460d1956b7612db0e269a67",
+    "modinfo_entries": 8,
+    "verified_fields": {
+      "license": "GPL",
+      "name": "ppdev",
+      "depends": "parport",
+      "vermagic_prefix": "6.8.0-146-generic"
+    },
+    "sections": [
+      ".modinfo",
+      "__versions",
+      ".init.text"
+    ],
+    "signature_trailer_reported": "present",
+    "warning": "__versions status malformed due versions_size_not_multiple; not certified as decoded"
+  },
+  "oracle": {
+    "method": "GNU readelf -W -S and -p .modinfo + SHA256 of exact fixture",
+    "evidence_id": "ev_f02ff7150fcd19ef472a9abf39a105a4118e2d3e9473bfda12d17bfb68766c66",
+    "matched_format_and_modinfo": true,
+    "signature_trailer_independently_confirmed": false
+  },
+  "negative": {
+    "path": "/usr/bin/true",
+    "evidence_id": "ev_4cb370d8d1365e9f48c61041f47b37286b4c30a25ac40f27591de8234b5a7b8e",
+    "expected": "not_applicable non-ET_REL ELF",
+    "observed": "not_applicable"
+  },
+  "hygiene": {
+    "fixture_cleanup_evidence": "ev_47585580c1b432b82a83e887f590eda8af7260a16fe2e0d84e695fefded114b9",
+    "removed": true,
+    "process_cleanup_verified": true,
+    "rea_original_modified": false,
+    "other_projects_modified": false,
+    "no_new_vendor": true
+  },
+  "counting": {
+    "new_tools_certified_scoped_metadata": 1,
+    "previous": 134,
+    "after": 135,
+    "remaining": 94,
+    "scope_limit": "Metadata path only: not full module signature verification, __versions decoding or all compiler/kernel variations"
+  },
+  "next": "Investigate __versions remainder and signature trailer with independent oracle before broader kernel-module certification."
+}
