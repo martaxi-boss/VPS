@@ -47,12 +47,14 @@ def verify_compiled_overlays(root=OVERLAY_ROOT, expected=OVERLAY_SHA256):
         path = root / name
         try:
             fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
-            with os.fdopen(fd, "rb") as stream:
-                if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+            try:
+                if not stat.S_ISREG(os.fstat(fd).st_mode):
                     raise ValueError("REA_OVERLAY_INTEGRITY=INVALID_TYPE")
                 digest = hashlib.sha256()
-                for block in iter(lambda: stream.read(65536), b""):
+                for block in iter(lambda: os.read(fd, 65536), b""):
                     digest.update(block)
+            finally:
+                os.close(fd)
         except (OSError, ValueError) as exc:
             if isinstance(exc, ValueError):
                 raise
@@ -98,9 +100,19 @@ def test_overlay_integrity():
         (root / "two.js").write_bytes(fixtures["two.js"])
         with redirect_stderr(io.StringIO()):
             verify_compiled_overlays(root, expected)
-    # One compromised module must block before even attempting MCP handshake.
-    with (mock.patch("builtins.open", side_effect=AssertionError("not expected"))):
-        assert len(OVERLAY_SHA256) == 2
+    # A compromised module blocks before any MCP handshake or tool call.
+    with (mock.patch(__name__ + ".verify_compiled_overlays",
+                     side_effect=ValueError("REA_OVERLAY_INTEGRITY=DRIFT")) as guard,
+          mock.patch.object(Client, "start",
+                            side_effect=AssertionError("MCP called")) as startup):
+        try:
+            remote_run({"version": 1, "action": "catalog"})
+        except ValueError as exc:
+            assert str(exc) == "REA_OVERLAY_INTEGRITY=DRIFT"
+        else:
+            raise AssertionError("MCP reached despite compromised module")
+    guard.assert_called_once_with()
+    startup.assert_not_called()
 
 
 def compact(obj):
