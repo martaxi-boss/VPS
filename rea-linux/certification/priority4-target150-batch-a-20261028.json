@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "project": "REA 6.8.0",
+  "date_utc": "2026-10-28",
+  "phase": "P4_TARGET_150_BATCH_A",
+  "status": "TWO_NEW_SCOPED_CERTIFICATIONS_PROVEN",
+  "baseline_certified": 139,
+  "new_certified": 2,
+  "after_certified": 141,
+  "target": 150,
+  "remaining_to_target": 9,
+  "total_tools": 229,
+  "scope": "Original Linux VPS, 6.8.0, no upstream changes",
+  "cases": [
+    {
+      "tool": "capture_process_scenario",
+      "status": "FULLY_CERTIFIED_SCOPED_EXIT_AND_CLEANUP",
+      "positive": {
+        "evidence": "ev_6074bbf0800f96cfa858125ab48fe142f3b4f9afb2b69dd1a074d3983bb0c5fa",
+        "command": "/usr/bin/printf controlled marker",
+        "exit_code": 0,
+        "marker": "REA_P4_CAPTURE_OK_8371",
+        "settlement": "quiesced",
+        "process_group": "verified",
+        "temporary_root": "removed"
+      },
+      "negative_behavior": {
+        "evidence": "ev_c330d786424dd51c1a569951c310ae022d383d337938bd9ee875b58eec09eeb6",
+        "command": "/usr/bin/false",
+        "exit_code": 1,
+        "process_group": "verified",
+        "temporary_root": "removed"
+      },
+      "limitation": "Only controlled short lived commands with explicit settle_ms=800, not every PTY or timeout/signal behavior."
+    },
+    {
+      "tool": "open_bundle_resources",
+      "status": "FULLY_CERTIFIED_SCOPED_RESOURCE_ONLY",
+      "fixture": {
+        "path": "/tmp/rea-p4-resource-fixture-20261028.app",
+        "sha256_info_plist": "c95352d0eddbfb51c0de2384f81dd0746d7ed6d56aa8adeeef021fe0779696c8",
+        "fixture_creation_evidence": "ev_d999bffb7ca7f495c5617a1ebbe8e7eeda5361155816d0c2785e485f3d45fb1b"
+      },
+      "positive": {
+        "caller_path": "/tmp/rea-p4-resource-fixture-20261028.app",
+        "canonical_path": "/tmp/rea-p4-resource-fixture-20261028.app",
+        "layout": "root",
+        "executable_sha256": null,
+        "session_kind": "bundle_resources",
+        "cleanup_pending": false
+      },
+      "negative_behavior": {
+        "target": "/usr/bin/true",
+        "error": "target_unavailable, unsupported resource layout"
+      },
+      "oracle": {
+        "tool": "Python plistlib SHA256 and bundle identifier",
+        "evidence": "ev_e9cfe41aa4280a4f6e25d151805db761a7607def65cf339953b4532162e112a5",
+        "fixture_removed": true
+      },
+      "session_close": "close_binary returned success",
+      "limitation": "Only small .app with root Info.plist, no executable identity and no Mac host execution."
+    }
+  ],
+  "hygiene": {
+    "original_208_ledger_unchanged": true,
+    "no_new_providers": true,
+    "no_new_workflows": true,
+    "no_codex": true,
+    "other_projects_unchanged": true,
+    "temporary_fixtures_removed": true
+  },
+  "remaining_scope": "9 more tools to 150 require separate eligible real positive/negative independent verification; untested tools must not be counted."
+}
