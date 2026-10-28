@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "project": "REA 6.8.0 — Engenharia Reversa",
+  "date_utc": "2026-10-28",
+  "phase": "P3_COMPILED_OVERLAY_INTEGRITY_GUARD",
+  "status": "PASS_SCOPED_EXISTING_GITHUB_SSH_TRANSPORT",
+  "scope": {
+    "repository": "martaxi-boss/VPS",
+    "branch": "rea/one-skill-bridge-20261023",
+    "original_engine_source_changes": 0,
+    "new_workflows": 0,
+    "new_services": 0,
+    "other_projects_changed": 0,
+    "rea_service_restarted": false
+  },
+  "guard": {
+    "path": "ops/rea_mcp_transport_20261027.py",
+    "sha_verified_before_any_mcp_handshake": true,
+    "behavior_on_drift": "fail closed; no automatic writes, restarts, or replay",
+    "checks": [
+      "regular file with O_NOFOLLOW",
+      "two exact sha256 digests",
+      "refuse absent, symlink or non-regular targets",
+      "refuse changed binary",
+      "original private backups remain unchanged"
+    ],
+    "actual_compiled_modules": [
+      {
+        "path": "/opt/rea-reversa/rea/dist/process/ProcessOwnershipObservation.js",
+        "sha256": "d96a5dd3d9482f15b09c610d942e849f3778264282c3111fe3d0f9f6ee5c67a2",
+        "backup": "/opt/rea-reversa/rea/.rea-local-fixes/ProcessOwnershipObservation.original-20261028.js",
+        "backup_sha256": "81b1aaeded14556d884adaffa570cef41909deb01f76fc25a2d7bd0f9a775655"
+      },
+      {
+        "path": "/opt/rea-reversa/rea/dist/process/ProcessOwnership.js",
+        "sha256": "181b899c6c6a29297a1987aff8f93eb8fd33fd93b748e298551219ba67ad9393",
+        "backup": "/opt/rea-reversa/rea/.rea-local-fixes/ProcessOwnership.original-20261028.js",
+        "backup_sha256": "2171c79dfa0e49c8836cef350c966746ceb90b246a2d678b2e98578167aff852"
+      }
+    ]
+  },
+  "live_vps_readonly_verification": {
+    "operation": "REA 6.8.0 native capture_process_scenario, root-owned file checks",
+    "evidence_id": "ev_cdfacd1c649be044988af61cce1b9e781d8a50150e79fe623757d481f8ec650f",
+    "result": "PASS_EXISTING_TWO_PATCHED_AND_TWO_VALID_BACKUPS"
+  },
+  "regression": {
+    "focused_tests": "positive+altered+missing+symlink+directory+MCP_NOT_CALLED_ON_DRIFT",
+    "initial_failure_run": 40770662958,
+    "initial_failure_reason": "FileIO on a directory raised IsADirectoryError before fstat; changed guard to fstat opened fd before reading",
+    "corrected_commit": "9847c16f9a0b2e316de1af48f70c5b25e91db46e",
+    "final_catalog_run": {
+      "run_id": 40770860370,
+      "status": "success",
+      "expected_log": [
+        "REA_TRANSPORT_SELFTEST=PASS",
+        "REA_OVERLAY_INTEGRITY=PASS;modules=2",
+        "REA_TRANSPORT_STATUS=PASS",
+        "REA_TRANSPORT_TOOL_COUNT=229"
+      ]
+    },
+    "real_tool_smoke_run": {
+      "run_id": 40770964229,
+      "status": "success",
+      "tool": "inspect_with_objdump",
+      "operations": [
+        "file_headers",
+        "section_headers"
+      ],
+      "results": [
+        true,
+        true
+      ],
+      "expected_log": [
+        "REA_OVERLAY_INTEGRITY=PASS;modules=2",
+        "REA_TRANSPORT_STATUS=PASS",
+        "REA_TRANSPORT_SMOKE_RESULTS=[true, true]"
+      ]
+    }
+  },
+  "recovery": {
+    "scripts_existing": [
+      "rea-linux/install/rea_kernel_thread_cleanup_fix_20261028.py",
+      "rea-linux/install/rea_process_ownership_kernel_guard_20261028.py"
+    ],
+    "policy": "After a rebuild, stop and inspect version and original/compiled hashes. Restore only recognized original binaries using both original SHA-guarded recovery scripts, verify backups, execute process capture and MCP real smoke. Restart only the existing service if deployed compiled code changed; never auto-mutate from a transport invocation."
+  },
+  "limitations": [
+    "This guard is executed by the existing GitHub Actions → SSH transport. Direct MCP clients or out-of-band service restarts are not covered by this particular gate.",
+    "This guard detects runtime drift; it does not prevent a build from changing files, and intentionally does not attempt automatic recovery.",
+    "Private backups are root-only and were verified via the native REA root-level observation, not by the SSH ubuntu transport guard.",
+    "The corrected compiled modules remain version 6.8.0-specific; any legitimate future version upgrade requires revisiting compatibility and hashes."
+  ]
+}
