@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "project": "REA 6.8.0",
+  "date_utc": "2026-10-28",
+  "phase": "P4_TARGET_150_BATCH_B_GDB",
+  "status": "THREE_ADDITIONAL_SCOPED_TOOL_CERTIFICATIONS",
+  "starting_scoped": 141,
+  "added": 3,
+  "ending_scoped": 144,
+  "remaining_to_target": 6,
+  "total_catalog": 229,
+  "certificates": [
+    {
+      "name": "start_gdb_session",
+      "scope": "Linux standalone GDB MI3 launch with no inferior, startup files suppressed and auto-loading disabled",
+      "positive": [
+        {
+          "session_id": "af7242c9-3aff-4bee-ad70-e29506b04af3",
+          "mi_version": "mi3"
+        },
+        {
+          "session_id": "d469db46-4ace-4e2d-80c3-89760c2985c0",
+          "mi_version": "mi3"
+        }
+      ],
+      "negative": "No inferior attached by design; launch failure paths untested",
+      "status": "FUNCTIONAL_PASS_SCOPED_NO_INFERIOR"
+    },
+    {
+      "name": "gdb_console",
+      "scope": "Read-only show version and show auto-load MI3 interpreter-exec console",
+      "positive_evidence": [
+        "ev_9f6a6e3b0169cd467e4fd906fe974315adac5ed1afcacc41a3264277119a5391",
+        "ev_8a1bae144d7d5103bc391915a0e2eb88a1ec6a78522be6bf71ac61953af41295"
+      ],
+      "verified": [
+        "GNU GDB 15.1 x86_64-linux-gnu",
+        "GDB auto-loading of scripts and python files is disabled",
+        "2^done and 3^done MI results"
+      ],
+      "negative": "Unrestricted GDB commands are not authorized/tested; no malicious commands or target executions",
+      "status": "FUNCTIONAL_PASS_SCOPED_READ_ONLY_CONSOLE"
+    },
+    {
+      "name": "close_gdb_session",
+      "scope": "Close REA-owned GDB MI3 sessions where no inferior exists and no TTY detach needed",
+      "positive": [
+        {
+          "session_id": "af7242c9-3aff-4bee-ad70-e29506b04af3",
+          "target_state": "none_observed"
+        },
+        {
+          "session_id": "d469db46-4ace-4e2d-80c3-89760c2985c0",
+          "target_state": "none_observed"
+        }
+      ],
+      "negative": "No running inferior detach/terminate paths tested",
+      "status": "FUNCTIONAL_PASS_SCOPED_NO_INFERIOR_CLOSE"
+    }
+  ],
+  "crosscheck": {
+    "tool": "gdb_session_status",
+    "already_certified_original": true,
+    "not_counted_again": true,
+    "observation": "ready state, MI3, no inferior TTY, no frame truncation, no stderr",
+    "session_id": "d469db46-4ace-4e2d-80c3-89760c2985c0"
+  },
+  "hygiene": {
+    "both_sessions_closed": true,
+    "original_engine_unchanged": true,
+    "tools_not_repeated": true,
+    "no_new_providers": true,
+    "other_projects_unmodified": true
+  },
+  "limitations": [
+    "These are independently tested scoped lifecycle contracts, not full debugging with an inferior.",
+    "The 150 target remains incomplete; only new distinct tool names count."
+  ]
+}
