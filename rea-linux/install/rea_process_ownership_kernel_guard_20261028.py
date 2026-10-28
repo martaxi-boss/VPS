@@ -20,6 +20,7 @@ ROOT = Path("/opt/rea-reversa/rea")
 TARGET = ROOT / "dist/process/ProcessOwnership.js"
 BACKUP = ROOT / ".rea-local-fixes/ProcessOwnership.original-20261028.js"
 ORIGINAL_SHA = "2171c79dfa0e49c8836cef350c966746ceb90b246a2d678b2e98578167aff852"
+LEGACY_PATCHED_SHA = "181b899c6c6a29297a1987aff8f93eb8fd33fd93b748e298551219ba67ad9393"
 OLD = '''        if (knownUnrelated &&
             environmentWithheldFromInspection(fact.token.reason, observed?.effectiveUid, observed?.environmentRestriction)) {'''
 NEW = '''        // A stable Linux kernel thread cannot belong to an owned PTY capture.
@@ -52,6 +53,9 @@ def transform(data):
         raise ValueError("expected unique, unchanged ownership decision")
     return source.replace(OLD, NEW, 1).encode("utf-8")
 
+def digest_guarded_legacy(data):
+    return hash_bytes(data) == LEGACY_PATCHED_SHA
+
 def inspect():
     if TARGET.is_symlink() or not TARGET.is_file() or BACKUP.is_symlink():
         raise ValueError("unsafe target or backup")
@@ -66,6 +70,9 @@ def inspect():
     elif valid_backup and data == transform(BACKUP.read_bytes()):
         patched = data
         state = "patched"
+    elif backup_valid and digest_guarded_legacy(data):
+        patched = transform(BACKUP.read_bytes())
+        state = "legacy_patched"
     else:
         raise ValueError("module differs from approved original or patch; refusing overwrite")
     return data, meta, patched, state, valid_backup
