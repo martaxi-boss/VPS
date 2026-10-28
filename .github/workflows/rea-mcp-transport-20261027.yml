@@ -119,6 +119,19 @@ jobs:
                   results.append({"pid":pid,"status":"absent"})
               except Exception as exc:
                   results.append({"pid":pid,"status":"unverified","error":type(exc).__name__})
+          from hashlib import sha256
+          compiled=pathlib.Path("/opt/rea-reversa/rea/dist/process/ProcessOwnershipObservation.js")
+          if compiled.is_file():
+              code=compiled.read_bytes()
+              text_code=code.decode("utf-8")
+              marker="pid: Number(match[1])"
+              i=text_code.find(marker)
+              print("REA_SCOPE_DIST_CODE_SHA="+sha256(code).hexdigest())
+              print("REA_SCOPE_DIST_MARKER_FOUND="+str(i>=0))
+              if i>=0:
+                  print("REA_SCOPE_DIST_CONTEXT="+json.dumps(text_code[max(0,i-350):i+580],separators=(",",":")))
+          else:
+              print("REA_SCOPE_DIST_MISSING=1")
           from collections import Counter
           print("REA_SCOPE_DIAGNOSTIC_VERSION=2")
           print("REA_SCOPE_PID_COUNTS="+json.dumps(dict(Counter(x["status"] for x in results)),sort_keys=True))
