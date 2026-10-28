@@ -120,6 +120,7 @@ jobs:
               except Exception as exc:
                   results.append({"pid":pid,"status":"unverified","error":type(exc).__name__})
           from collections import Counter
+          print("REA_SCOPE_DIAGNOSTIC_VERSION=2")
           print("REA_SCOPE_PID_COUNTS="+json.dumps(dict(Counter(x["status"] for x in results)),sort_keys=True))
           print("REA_SCOPE_PID_OBSERVATIONS="+json.dumps(results,separators=(",",":")))
           PY
