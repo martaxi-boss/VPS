@@ -1,0 +1,222 @@
+{
+  "schema_version": 1,
+  "project": "REA original 6.8.0",
+  "date_utc": "2026-10-28",
+  "purpose": "Evidence-backed process capture reliability regression matrix following prior authorized REA-only service restart; not a claim that all future runtime/environment/network cases are permanently error-free.",
+  "status": "CLEANUP_PASS_18_OF_18__SETTLEMENT_PARTIAL_14_OF_18__TRANSPORT_FLAP_CAUSE_NOT_PROVEN",
+  "baseline": {
+    "repository": "martaxi-boss/VPS",
+    "branch": "rea/one-skill-bridge-20261023",
+    "git_head_before_report": "984d58ff5d47dac0a05ee38a9de54a0f1eeb8c0f",
+    "engine_version": "6.8.0",
+    "available_mcp_tools": 229,
+    "service_started_at": "2026-10-28T16:11:55.113Z",
+    "active_binary_session": false,
+    "binary_session_cleanup_pending": false,
+    "workflow_restored_blob_sha": "9837a8e91ac1826fe89b5af2ecd1226f57862c49",
+    "existing_gh_actions_transport_success_run": 40725095696
+  },
+  "summary": {
+    "cases_executed": 18,
+    "distinct_profiles": 10,
+    "default_window_cases": 15,
+    "extended_observation_cases": 3,
+    "owned_group_cleanup_verified": 18,
+    "temporary_roots_removed": 18,
+    "settlement_quiesced": 14,
+    "settlement_unverifiable": 4,
+    "sse_errors_in_this_batch": 0,
+    "retained_preexisting_temp_root_count": 5
+  },
+  "cases": [
+    {
+      "case_name": "normal_sleep_0_2",
+      "evidence_id": "ev_840387fccec322809c44cb83bcdceb8c7bbed90e8abdcf25fac47d07ef209c10",
+      "cleanup": {
+        "owned_process_group": "verified",
+        "temporary_root": "removed"
+      },
+      "settlement": "quiesced"
+    },
+    {
+      "case_name": "nonzero_exit",
+      "evidence_id": "ev_f68f22963fc9a492a103eba897ead929a5b4160a1dfe892cb10c9a16f40f0d7d",
+      "cleanup": {
+        "owned_process_group": "verified",
+        "temporary_root": "removed"
+      },
+      "settlement": "quiesced"
+    },
+    {
+      "case_name": "stdout_stderr",
+      "evidence_id": "ev_ca7edcdb5a7be84cdc64453f3952a72203759a86d75db2422b95af792dc9975c",
+      "cleanup": {
+        "owned_process_group": "verified",
+        "temporary_root": "removed"
+      },
+      "settlement": "quiesced"
+    },
+    {
+      "case_name": "env_override",
+      "evidence_id": "ev_b1a5d0446a985cef0cc4a22f592f24416a9c6e2cb1b1d2b02f43aa2aec75a8ce",
+      "cleanup": {
+        "owned_process_group": "verified",
+        "temporary_root": "removed"
+      },
+      "settlement": "unverifiable"
+    },
+    {
+      "case_name": "forced_timeout",
+      "evidence_id": "ev_6a2a29ff8b9defe471e197a3f5d1c0beb841bd44e13435e4e0f2b6e75a4bc187",
+      "cleanup": {
+        "owned_process_group": "verified",
+        "temporary_root": "removed"
+      },
+      "settlement": "quiesced"
+    },
+    {
+      "case_name": "signal_sigterm",
+      "evidence_id": "ev_d7f6f5f0fb5da10a797852198c2a7d2aca791c55bbe09d04c721f218d6fa2f8d",
+      "cleanup": {
+        "owned_process_group": "verified",
+        "temporary_root": "removed"
+      },
+      "settlement": "quiesced"
+    },
+    {
+      "case_name": "terminal_resize",
+      "evidence_id": "ev_b670d6674e1b5d555d5184c9c1c0c696f3e63935a87da480bc9c24aa5a8d6ed4",
+      "cleanup": {
+        "owned_process_group": "verified",
+        "temporary_root": "removed"
+      },
+      "settlement": "quiesced"
+    },
+    {
+      "case_name": "descendant_spawn_and_wait",
+      "evidence_id": "ev_3a41807c4ace1c167380be4128ea39539ca4904aa95e747685adf3ebba19af1f",
+      "cleanup": {
+        "owned_process_group": "verified",
+        "temporary_root": "removed"
+      },
+      "settlement": "quiesced"
+    },
+    {
+      "case_name": "terminal_interactive_input",
+      "evidence_id": "ev_88c76411e43ef8162ff7bfd0641dfc17805e28ed6e5caa26c351a36c1b9c5c00",
+      "cleanup": {
+        "owned_process_group": "verified",
+        "temporary_root": "removed"
+      },
+      "settlement": "quiesced"
+    },
+    {
+      "case_name": "idle_timeout",
+      "evidence_id": "ev_25bbb96678f0f3e2f8470572db183f8e47ae85d188a71deaacca26e86d88583e",
+      "cleanup": {
+        "owned_process_group": "verified",
+        "temporary_root": "removed"
+      },
+      "settlement": "quiesced"
+    },
+    {
+      "case_name": "repeat_short_sleep_1",
+      "evidence_id": "ev_45a3ac2b7632d57bca6f6ce83fd4d789b98de91888133dea2fd86ad4797dc318",
+      "cleanup": {
+        "owned_process_group": "verified",
+        "temporary_root": "removed"
+      },
+      "settlement": "quiesced"
+    },
+    {
+      "case_name": "repeat_short_sleep_2",
+      "evidence_id": "ev_e4ca78dbf145da6a9512f7af743319631b3d1a11e0a44f4da62d50e880d93241",
+      "cleanup": {
+        "owned_process_group": "verified",
+        "temporary_root": "removed"
+      },
+      "settlement": "unverifiable"
+    },
+    {
+      "case_name": "repeat_short_sleep_3",
+      "evidence_id": "ev_29157d2e310b03648f2043a6e116c13e673ccafa97efc54bd85843e3c9365bd6",
+      "cleanup": {
+        "owned_process_group": "verified",
+        "temporary_root": "removed"
+      },
+      "settlement": "unverifiable"
+    },
+    {
+      "case_name": "repeat_short_sleep_4",
+      "evidence_id": "ev_059c8d3cea6499d00511ddfa5a6ef3e034695b395ee51f0227ca0a4599276eab",
+      "cleanup": {
+        "owned_process_group": "verified",
+        "temporary_root": "removed"
+      },
+      "settlement": "unverifiable"
+    },
+    {
+      "case_name": "repeat_short_sleep_5",
+      "evidence_id": "ev_581ed2a2b69039e589a858204a125cc51dc198cdeea6ecbf7595e62f82171747",
+      "cleanup": {
+        "owned_process_group": "verified",
+        "temporary_root": "removed"
+      },
+      "settlement": "quiesced"
+    },
+    {
+      "case_name": "extended_settlement_800ms_1",
+      "evidence_id": "ev_54c0b143c49065cefa638ad833a0a23cdf05a66dcb3b6b3519cc9088eed0e2a7",
+      "cleanup": {
+        "owned_process_group": "verified",
+        "temporary_root": "removed"
+      },
+      "settlement": "quiesced",
+      "settle_ms": 800
+    },
+    {
+      "case_name": "extended_settlement_800ms_2",
+      "evidence_id": "ev_cd8187485bdf332cdf2d5eaed20c43443b7e0c1fbecfc8bda5fa559615e4208a",
+      "cleanup": {
+        "owned_process_group": "verified",
+        "temporary_root": "removed"
+      },
+      "settlement": "quiesced",
+      "settle_ms": 800
+    },
+    {
+      "case_name": "extended_settlement_800ms_3",
+      "evidence_id": "ev_53cce316a08dde57f7a6cffa968d5f94ccb236c84ff549ae97f9edc656bf9549",
+      "cleanup": {
+        "owned_process_group": "verified",
+        "temporary_root": "removed"
+      },
+      "settlement": "quiesced",
+      "settle_ms": 800
+    }
+  ],
+  "interpretation": [
+    "All 18 bounded direct MCP calls returned Evidence and independently reported owned_process_group verified and temporary_root removed. Nonzero exit, explicit signal, runtime timeout and idle timeout are expected and not counted as failures when ownership cleanup is verified.",
+    "Four default-window trials returned settlement.state=unverifiable despite verified final cleanup. That state is NOT equivalent to process leak, but is not a proven quiescent pre-cleanup observation.",
+    "Source read: observeSettlement requires two consecutive empty owned-group observations and emits unverifiable if a group cannot be verified or its observation deadline ends without sufficient evidence. Extending the per-call observation bound to settle_ms=800 yielded three consecutive quiesced short-sleep runs. These three successes suggest an observation-window timing factor but do not eliminate other causes or prove the engine default safe.",
+    "The previous SSE stream-ended error was not reproduced within this test matrix; one-off transport failures must be diagnosed from MCP server, SSH, client/gateway logs and recent Evidence rather than labeled a process cleanup failure.",
+    "Five preexisting REA process temporary-root directories remain. Count observed stable before and after five additional tests and after the final extended checks. No manual deletion attempted; must prove ownership, absence of run tokens, and matching provenance before any removal.",
+    "REA direct binary_session showed no open analysis session, no binary cleanup pending, engine 6.8.0 and 229 catalog tools after regression."
+  ],
+  "acceptance_plan": [
+    "Keep direct MCP calls and GitHub Actions SSH path as separate test lanes. Distinguish service/tool cleanup_incomplete, settlement unverifiable, and SSE/no-response at the transport.",
+    "For every supported Linux scenario, require expected exit/timeout/signal, complete Evidence identity, owned_process_group=verified, temporary_root=removed, and absence of a new retained root. Record per-run Evidence ID and content SHA where available.",
+    "Add bounded repeat/soak runs under the same valid host and supplier context; include normal/abnormal exit, short-lived children, stdout/stderr, PTY input/resize, explicit signals, forced and idle timeouts, and controlled concurrent trials when no other sessions are active.",
+    "Investigate intermittent settlement=unverifiable with original source observations and an explicit per-request settle_ms bound (e.g. 800 ms in this environment) without weakening evidence requirements. Do not label unverifiable as quiesced.",
+    "Independently validate MCP streaming under normal operation and around an authorized safe restart. On no response, inspect liveness, operation Evidence and ownership before any justified retry to avoid duplicate side effects.",
+    "Classify five legacy retained /tmp roots by owner UID, exact run provenance, process generations and run token; do not rm blindly and do not signal unrelated services.",
+    "Retain positive, negative and recovery evidence in the existing VPS repo; do not alter original REA code or create extra workflows, suppliers, engines, plugins, skills, MCP servers."
+  ],
+  "hygiene": {
+    "original_REA_code_modified": false,
+    "new_workflow_created": false,
+    "other_projects_modified": false,
+    "extra_service_restart_in_this_matrix": false,
+    "temp_dirs_manually_removed": false
+  }
+}
