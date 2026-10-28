@@ -92,7 +92,7 @@ const knownUnrelated = ({same=true,retained=false,ppid=2,pgid=0,uid=0,
 const independent = (o) => o.platform==="linux" && knownUnrelated(o) &&
   o.ppid===2 && o.pgid===0 && o.uid===0 &&
   o.beforePpid===2 && o.beforePgid===0;
-const base={platform:"linux",ppid:2,pgid:0,uid:0};
+const base={platform:"linux",ppid:2,pgid:0,uid:0,beforePpid:2,beforePgid:0,afterPpid:2,afterPgid:0};
 if (!independent(base)) process.exit(1);
 for (const changed of [{platform:"darwin"},{ppid:1},{pgid:123},
                        {uid:1000},{retained:true},{same:false},
