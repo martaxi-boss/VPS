@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "project": "REA 6.8.0",
+  "date_utc": "2026-10-28",
+  "phase": "P4_LINUX_MODEL_ARTIFACT_SCOPED_SAFETENSORS",
+  "status": "FULLY_CERTIFIED_SCOPED_SAFETENSORS_DECLARATIONS",
+  "baseline": {
+    "prior_total_scoped": 135,
+    "previously_certified_tools_not_retested": true,
+    "canonical_ledger_208_unchanged": true,
+    "live_catalog": 229
+  },
+  "tool": "inspect_model_artifact",
+  "scope": "Read-only local safetensors header and tensor declarations with full-file hash; no execution, no runtime model inference, no GGUF certification",
+  "fixture": {
+    "path": "/tmp/rea-p4-safetensors-20261028.safetensors",
+    "sha256": "966f7b25ba7cec9aa1c9cac831843b3cbf698c4724cfc23723b178ef9c5c34c6",
+    "bytes": 117,
+    "header_bytes": 93,
+    "tensor": {
+      "name": "tensor",
+      "dtype": "F32",
+      "shape": [
+        2,
+        2
+      ],
+      "data_bytes": 16
+    }
+  },
+  "positive": {
+    "evidence_id": "ev_7fc72221a94df0d0843d7c51a6eec7a69dcac58177c677539bb61cbf6ac5957b",
+    "parent_evidence_id": "ev_9f3c68ece6df5dee486a95974b1515876a5de2d2cd9dd0a0acc0b2e3e30d4efc",
+    "format": "safetensors",
+    "tensor_count": 1,
+    "parameter_count": 4,
+    "full_file_sha_matched": true
+  },
+  "negative": {
+    "target": "/usr/bin/true",
+    "tool_error": "target_unavailable / unsupported_target / file_format_rejected",
+    "accepted": false
+  },
+  "independent_oracle": {
+    "method": "Python struct unpack, JSON declaration, SHA256 and tensor offset arithmetic on same exact bytes",
+    "evidence_id": "ev_26bb81132083c6905b920e1fc69a8ffb3c97bd56409b3f725654cf825feaff9b",
+    "matches": true
+  },
+  "cleanup": {
+    "temporary_fixture_removed": true,
+    "source_evidence": "ev_26bb81132083c6905b920e1fc69a8ffb3c97bd56409b3f725654cf825feaff9b",
+    "process_groups_verified": true,
+    "original_rea_source_unchanged": true,
+    "providers_added": 0,
+    "paid_providers_used": 0,
+    "other_projects_modified": false
+  },
+  "limitations": [
+    "Fixture is a small valid controlled safetensors file rather than a large real-world deployed model.",
+    "No GGUF, inference runtime or tensor values inspected.",
+    "Scope-limited certification; not proof of all model types."
+  ],
+  "counts": {
+    "original_scoped": 134,
+    "newly_certified_this_p4": 2,
+    "new_total": 136,
+    "remaining_unscoped": 93
+  },
+  "associated_report": "rea-linux/certification/priority4-kernel-module-scoped-20261028.json"
+}
