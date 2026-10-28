@@ -166,6 +166,18 @@ jobs:
               for line in run.stdout.splitlines():
                   if line.startswith("REA_SCOPE_RUNTIME_LIST="):print(line)
               if run.returncode!=0:print("REA_SCOPE_RUNTIME_ERR="+json.dumps(run.stderr[:300]))
+          owned=pathlib.Path("/opt/rea-reversa/rea/dist/process/ProcessOwnership.js")
+          if owned.is_file():
+              owned_code=owned.read_bytes()
+              owned_txt=owned_code.decode("utf-8")
+              needle="const knownUnrelated ="
+              pos=owned_txt.find(needle)
+              print("REA_SCOPE_OWNERSHIP_CODE_SHA="+sha256(owned_code).hexdigest())
+              print("REA_SCOPE_OWNERSHIP_MARKER_COUNT="+str(owned_txt.count(needle)))
+              if pos>=0:
+                  print("REA_SCOPE_OWNERSHIP_CONTEXT="+json.dumps(owned_txt[max(0,pos-200):pos+1220],separators=(",",":")))
+          else:
+              print("REA_SCOPE_OWNERSHIP_MISSING=1")
           from collections import Counter
           print("REA_SCOPE_DIAGNOSTIC_VERSION=2")
           print("REA_SCOPE_PID_COUNTS="+json.dumps(dict(Counter(x["status"] for x in results)),sort_keys=True))
