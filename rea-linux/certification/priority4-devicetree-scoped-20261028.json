@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "project": "REA 6.8.0",
+  "date_utc": "2026-10-28",
+  "phase": "P4_DEVICE_TREE_STATIC_SCOPED",
+  "status": "FULLY_CERTIFIED_SCOPED_FDT_V17_SIMPLE_ROOT",
+  "baseline": {
+    "prior_scoped": 137,
+    "new_scoped": 1,
+    "now_scoped": 138,
+    "available": 229,
+    "pending": 91
+  },
+  "tool": "inspect_devicetree",
+  "fixture": {
+    "path": "/tmp/rea-p4-simple-20261028.dtb",
+    "bytes": 153,
+    "sha256": "8e7ff0cd0aeef9153c3c908fc3f8f53e35e7430f36cf8e8282b689852f91abf4",
+    "format": "Flattened Device Tree version 17",
+    "root_properties": [
+      "compatible=rea,board",
+      "model=REA board"
+    ]
+  },
+  "positive": {
+    "evidence": "ev_7699bae3800b68837e74ccf459b308e7dd716bd52a9067760d401b677d374d74",
+    "nodes": 1,
+    "properties": 2,
+    "reservations": 1,
+    "coverage": "complete"
+  },
+  "independent_oracle": {
+    "evidence": "ev_d8f7e34ef46b690631846bddf0e879157b3565d348a83b51151237674050bb39",
+    "method": "Python independent struct.unpack 10 big endian words, strict size/magic/root token, property strings, SHA-256",
+    "passed": true
+  },
+  "negative": {
+    "target": "/usr/bin/true",
+    "observed": "unsupported_target Not a flattened devicetree blob",
+    "passed": true
+  },
+  "hygiene": {
+    "fixture_removed": true,
+    "process_cleanup_verified": true,
+    "original_engine_unchanged": true,
+    "additional_providers": 0,
+    "other_projects_changed": 0
+  },
+  "limitations": [
+    "Scoped to minimal FDT v17 with root properties and reservation; no phandle, reg or overlay complex traversal certification.",
+    "No execution or device interaction."
+  ],
+  "source": "REA original MCP direct via connected existing Linux service"
+}
