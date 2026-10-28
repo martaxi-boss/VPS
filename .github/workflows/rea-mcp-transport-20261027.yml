@@ -184,16 +184,16 @@ jobs:
           print("REA_SCOPE_PID_OBSERVATIONS="+json.dumps(results,separators=(",",":")))
           PY
 
-      - name: Apply REA priority1 kernel-thread cleanup overlay and functional verification
-        if: contains(github.event.head_commit.message, '[rea priority1 apply]')
+      - name: Apply REA priority1 retained-ownership guard (one-shot)
+        if: contains(github.event.head_commit.message, '[rea priority1 guard apply]')
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         shell: bash
         run: |
           set -euo pipefail
           test -n "$SSHPASS"
-          patch_script="rea-linux/install/rea_kernel_thread_cleanup_fix_20261028.py"
-          python3 -m py_compile "$patch_script"
+          script="rea-linux/install/rea_process_ownership_kernel_guard_20261028.py"
+          python3 -m py_compile "$script"
           ssh_flags=(-T
             -o PreferredAuthentications=password
             -o PubkeyAuthentication=no
@@ -208,73 +208,31 @@ jobs:
             sshpass -e ssh "${ssh_flags[@]}" ubuntu@146.59.145.3 "$@"
           }
           patch_action() {
-            ssh_remote "sudo -n python3 - $1" < "$patch_script"
+            ssh_remote "sudo -n python3 - $1" < "$script"
           }
-          applied=0
-          rollback_on_failure() {
-            local status=$?
-            trap - ERR
-            if (( applied == 1 )); then
-              state="$(patch_action check 2>/dev/null || true)"
-              if [[ "$state" == *'"state": "patched"'* ]]; then
-                patch_action rollback || echo "REA_PRIORITY1_ROLLBACK_FAILED"
-                ssh_remote "sudo -n systemctl restart rea-reversa-mcp.service" || echo "REA_PRIORITY1_ROLLBACK_RESTART_FAILED"
-              fi
-            fi
-            exit "$status"
-          }
-          trap rollback_on_failure ERR
-          before="$(ssh_remote "sudo -n systemctl show rea-reversa-mcp.service -p MainPID --value")"
-          [[ "$before" =~ ^[0-9]+$ ]] && (( before > 0 ))
-          test "$(ssh_remote "sudo -n systemctl is-active rea-reversa-mcp.service")" = active
-          echo "REA_PRIORITY1_SERVICE_BEFORE=ACTIVE"
+          current="$(ssh_remote 'sudo -n systemctl show rea-reversa-mcp.service -p MainPID --value')"
+          [[ "$current" =~ ^[0-9]+$ ]] && (( current > 0 ))
+          test "$(ssh_remote 'sudo -n systemctl is-active rea-reversa-mcp.service')" = active
           patch_action selftest
-          patch_action check
-          applied=1
+          patch_action check | grep -F "REA_PRIORITY1_OWNERSHIP_STATE=original"
           patch_action apply
-          patch_action check
-          ssh_remote "sudo -n systemctl restart rea-reversa-mcp.service"
-          after="$(ssh_remote "sudo -n systemctl show rea-reversa-mcp.service -p MainPID --value")"
-          [[ "$after" =~ ^[0-9]+$ ]] && (( after > 0 )) && [[ "$after" != "$before" ]]
-          test "$(ssh_remote "sudo -n systemctl is-active rea-reversa-mcp.service")" = active
-          echo "REA_PRIORITY1_SERVICE_RESTART=PASS"
-          smoke="$RUNNER_TEMP/rea-priority1-verified-smoke.py"
-          sed 's/^if __name__ == "__main__":$/if False:/' ops/rea_mcp_transport_20261027.py > "$smoke"
-          cat >> "$smoke" <<'PY'
-          def checked(name, arguments):
-              result = client.call_tool(registry[name], arguments)
-              if result.get("isError") is True:
-                  raise RuntimeError(name + " returned isError")
-              return result
-
-          client = Client()
-          registry = client.start()
-          if len(registry) != 229:
-              raise RuntimeError("REA MCP catalog mismatch after service restart")
-          print("REA_PRIORITY1_CATALOG=229")
-          checked("capture_process_scenario", {
-              "executable": "/usr/bin/true", "arguments": [],
-              "timeout_ms": 4000, "idle_timeout_ms": 4000,
-              "settle_ms": 50, "finalization_ms": 0,
-              "limits": {"output_bytes": 8192, "processes": 10,
-                         "files": 4, "file_bytes": 4096,
-                         "filesystem_depth": 1}
-          })
-          print("REA_PRIORITY1_CAPTURE=PASS")
-          checked("open_binary", {"path": "/usr/bin/true", "provider_id": "ghidra"})
-          checked("close_binary", {})
-          print("REA_PRIORITY1_OPEN_CLOSE=PASS")
-          session = checked("binary_session", {})
-          sc = session.get("structuredContent", session)
-          if isinstance(sc, dict) and "result" in sc: sc = sc["result"]
-          if isinstance(sc, dict) and sc.get("cleanup_pending") is True:
-              raise RuntimeError("REA cleanup is still pending")
-          print("REA_PRIORITY1_LIFECYCLE=PASS")
-          PY
-          ssh_remote "python3 -" < "$smoke"
-          patch_action check | grep -F '"state": "patched"'
-          echo "REA_PRIORITY1_FINAL=PASS"
-          trap - ERR
+          patch_action check | grep -F "REA_PRIORITY1_OWNERSHIP_STATE=patched"
+          if ! ssh_remote "sudo -n systemctl restart rea-reversa-mcp.service"; then
+            patch_action rollback || echo "REA_PRIORITY1_OWNERSHIP_ROLLBACK_FAILED"
+            ssh_remote "sudo -n systemctl restart rea-reversa-mcp.service" || true
+            exit 1
+          fi
+          next="$(ssh_remote 'sudo -n systemctl show rea-reversa-mcp.service -p MainPID --value')"
+          if [[ ! "$next" =~ ^[0-9]+$ || "$next" == "$current" ]] || \
+             [[ "$(ssh_remote 'sudo -n systemctl is-active rea-reversa-mcp.service')" != active ]]; then
+            patch_action rollback || echo "REA_PRIORITY1_OWNERSHIP_ROLLBACK_FAILED"
+            ssh_remote "sudo -n systemctl restart rea-reversa-mcp.service" || true
+            echo "REA_PRIORITY1_SERVICE_RESTART=FAIL"
+            exit 1
+          fi
+          patch_action check | grep -F "REA_PRIORITY1_OWNERSHIP_STATE=patched"
+          echo "REA_PRIORITY1_OWNERSHIP_SERVICE_RESTART=PASS"
+          echo "REA_PRIORITY1_OWNERSHIP_READY_FOR_MCP_REGRESSION=PASS"
 
       - name: Execute existing REA MCP over authenticated SSH
         env:
