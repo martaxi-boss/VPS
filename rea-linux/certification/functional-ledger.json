@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "REA_6_8_0__151_GREEN_SCOPED_OF_229__78_PENDING",
+  "status": "REA_6_8_0__159_GREEN_SCOPED_OF_229__70_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -8338,11 +8338,57 @@
       },
       "source": "rea-linux/certification/priority5-close-binary-scoped-20261028.json",
       "independent_evidence_id": "ev_d456d43ac06ae2422945d1621a956d3392d26db7d4133bf9f99e0436726e8a42"
+    },
+    {
+      "phase_id": "LINUX-P289-FRIDA-WAKARU-BATCH-20261028",
+      "status": "EIGHT_SCOPED_POSITIVE_MCP_OPERATIONS",
+      "source": "rea-linux/certification/priority7-frida-wakaru-batch-20261028.json",
+      "tools": [
+        {
+          "name": "instrument_with_frida",
+          "status": "FUNCTIONAL_PASS_SCOPED"
+        },
+        {
+          "name": "recover_javascript_sources",
+          "status": "FUNCTIONAL_PASS_SCOPED"
+        },
+        {
+          "name": "start_frida_session",
+          "status": "FUNCTIONAL_PASS_SCOPED"
+        },
+        {
+          "name": "frida_session_status",
+          "status": "FUNCTIONAL_PASS_SCOPED"
+        },
+        {
+          "name": "load_frida_script",
+          "status": "FUNCTIONAL_PASS_SCOPED"
+        },
+        {
+          "name": "unload_frida_script",
+          "status": "FUNCTIONAL_PASS_SCOPED"
+        },
+        {
+          "name": "resume_frida_session",
+          "status": "FUNCTIONAL_PASS_SCOPED"
+        },
+        {
+          "name": "close_frida_session",
+          "status": "FUNCTIONAL_PASS_SCOPED"
+        }
+      ],
+      "counts": {
+        "previous": 151,
+        "added": 8,
+        "green": 159,
+        "pending": 70,
+        "total": 229
+      }
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 151,
-    "awaiting_canonical_individual_review": 78,
+    "functional_pass_scoped_distinct": 159,
+    "awaiting_canonical_individual_review": 70,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 5,
     "read_group_missing_positive": 0,
@@ -8350,11 +8396,11 @@
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 5,
     "fully_certified_distinct": 125,
-    "scoped_positive_not_fully_certified_distinct": 26,
-    "not_functionally_positive_distinct": 78,
-    "remaining_full_certification_distinct": 103,
-    "green_scoped_distinct": 151,
-    "additional_6_8_0_scoped": 26
+    "scoped_positive_not_fully_certified_distinct": 34,
+    "not_functionally_positive_distinct": 70,
+    "remaining_full_certification_distinct": 95,
+    "green_scoped_distinct": 159,
+    "additional_6_8_0_scoped": 34
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -8384,7 +8430,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P287-CLOSE-BINARY-SCOPED-20261028",
+  "latest_phase": "LINUX-P289-FRIDA-WAKARU-BATCH-20261028",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -10968,6 +11014,104 @@
       "evidence_ids": [
         "ev_d456d43ac06ae2422945d1621a956d3392d26db7d4133bf9f99e0436726e8a42"
       ]
+    },
+    "instrument_with_frida": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Spawned local /usr/bin/true; observed inline send payload; session detached and cleanup_error null",
+      "source_report": "rea-linux/certification/priority7-frida-wakaru-batch-20261028.json",
+      "evidence_ids": [
+        "ev_23df6177e89e7ad0672a4879112363602b7876be01d92c8be0419462717631dd"
+      ],
+      "limitations": [
+        "Nonexistent local executable rejected without starting a session"
+      ]
+    },
+    "recover_javascript_sources": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Wakaru 1.14 structural recovery produced one module and manifest status complete; hash matched original fixture; output directory removed",
+      "source_report": "rea-linux/certification/priority7-frida-wakaru-batch-20261028.json",
+      "evidence_ids": [
+        "ev_7b05e5de6fe1390b804325e8ee3f49ee197b2722e9b3a69447d54fe373d0aeba",
+        "ev_db4ef55d92279e40f21b75884ebd9e2ad4540fe5a349359171bf6fcde29eee64"
+      ],
+      "limitations": [
+        "No malformed-input negative path proven; source transformation only, not runtime equivalence"
+      ]
+    },
+    "start_frida_session": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Spawned local /usr/bin/true, paused, session 32933470-8a0a-428d-a83b-772e9e5eb5b4",
+      "source_report": "rea-linux/certification/priority7-frida-wakaru-batch-20261028.json",
+      "evidence_ids": [
+        "ev_92b743db43f64f5d67f4036a0c0e1761b9c04f8af2e7dd847b2810870e4c4865"
+      ],
+      "limitations": [
+        "No unrelated target or attach mode tested"
+      ]
+    },
+    "frida_session_status": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Observed paused session before script and empty script list after unload",
+      "source_report": "rea-linux/certification/priority7-frida-wakaru-batch-20261028.json",
+      "evidence_ids": [
+        "ev_92b743db43f64f5d67f4036a0c0e1761b9c04f8af2e7dd847b2810870e4c4865",
+        "ev_a47755f39974e86340e80d9138256e2049974c67478206f0579c432643ef37cc"
+      ],
+      "limitations": [
+        "Post-close status rejected as invalid session"
+      ]
+    },
+    "load_frida_script": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Loaded inline script into paused session; matching sent payload rea680_cert=true observed",
+      "source_report": "rea-linux/certification/priority7-frida-wakaru-batch-20261028.json",
+      "evidence_ids": [
+        "ev_70acb3561e7c299c85c36c465e61eba5e719b965a1e4aa18d23a8a644b155ae4"
+      ],
+      "limitations": [
+        "Arbitrary script effects not certified"
+      ]
+    },
+    "unload_frida_script": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Returned unloaded=true and independent subsequent status showed scripts=[]",
+      "source_report": "rea-linux/certification/priority7-frida-wakaru-batch-20261028.json",
+      "evidence_ids": [
+        "ev_a47755f39974e86340e80d9138256e2049974c67478206f0579c432643ef37cc"
+      ],
+      "limitations": [
+        "Only a single already-loaded inline script tested"
+      ]
+    },
+    "resume_frida_session": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Resumed paused spawn session; returned state=running",
+      "source_report": "rea-linux/certification/priority7-frida-wakaru-batch-20261028.json",
+      "evidence_ids": [
+        "ev_92b743db43f64f5d67f4036a0c0e1761b9c04f8af2e7dd847b2810870e4c4865"
+      ],
+      "limitations": [
+        "No assertion of inferior exit status"
+      ]
+    },
+    "close_frida_session": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Close returned target_state=unknown; subsequent status rejected disposed session id",
+      "source_report": "rea-linux/certification/priority7-frida-wakaru-batch-20261028.json",
+      "evidence_ids": [
+        "ev_a47755f39974e86340e80d9138256e2049974c67478206f0579c432643ef37cc"
+      ],
+      "limitations": [
+        "No guarantee about target process exit; proves only session handle release"
+      ]
     }
   },
   "transport_incidents": [
@@ -12012,12 +12156,12 @@
     "index_file": "rea-linux/certification/rea-6.8.0-current-certifications.json"
   },
   "current_6_8_0_summary": {
-    "green_scoped": 151,
+    "green_scoped": 159,
     "original_125": 125,
-    "pending": 78,
+    "pending": 70,
     "not_global_certification": true,
     "index_file": "rea-linux/certification/rea-6.8.0-current-certifications.json",
-    "additional_26": 26,
-    "latest_increment_report": "rea-linux/certification/priority5-close-binary-scoped-20261028.json"
+    "latest_increment_report": "rea-linux/certification/priority7-frida-wakaru-batch-20261028.json",
+    "additional_34": 34
   }
 }
