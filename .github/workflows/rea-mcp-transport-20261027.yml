@@ -76,7 +76,7 @@ jobs:
           test "$fingerprint" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
           echo "REA_TRANSPORT_SSH_PIN=PASS"
       - name: REA_CLEANUP_PROBE read-only owner and process identity diagnostic
-        if: contains(github.event.head_commit.message, '[rea cleanup read-only diag]')
+        if: contains(github.event.head_commit.message, '[rea cleanup runtime host probe]')
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         shell: bash
@@ -142,6 +142,16 @@ jobs:
                   roots["owner_uid"][key]=roots["owner_uid"].get(key,0)+1
               except OSError:continue
           print("REA_CLEANUP_PROBE="+json.dumps({"service":service,"observer_uid":os.geteuid(),"process_count":len(rows),"groups":dict(counts),"positive_group_uids":dict(uids),"historic_pids":pids,"sample":sample[:24],"compiled_hashes":digest,"temporary_roots":roots},sort_keys=True,separators=(",",":")))
+          test_js = '''import {systemProcessOwnershipHost as h} from '/opt/rea-reversa/rea/dist/process/ProcessOwnershipObservation.js';
+          const p=await h.listProcesses();
+          const z=p.filter(x=>x.processGroupId===0);
+          console.log('REA_HOST_RUNTIME='+JSON.stringify({platform:h.platform,total:p.length,group_zero:z.length,group_zero_parent2:z.filter(x=>x.parentPid===2).length,group_zero_ids:z.slice(0,8).map(x=>x.pid)}));'''
+          for label,argv in (('user',['node','--input-type=module','-e',test_js]),('root',['sudo','-n','node','--input-type=module','-e',test_js])):
+              try:
+                  result=subprocess.run(argv,capture_output=True,text=True,timeout=25)
+                  print('REA_HOST_PROBE='+json.dumps({'who':label,'exit':result.returncode,'stdout':result.stdout.strip()[:1200],'stderr_type':result.stderr.strip()[:180]},sort_keys=True,separators=(',',':')))
+              except Exception as exc:
+                  print('REA_HOST_PROBE='+json.dumps({'who':label,'exception':type(exc).__name__},sort_keys=True))
           PY
       - name: Execute existing REA MCP over authenticated SSH
         env:
