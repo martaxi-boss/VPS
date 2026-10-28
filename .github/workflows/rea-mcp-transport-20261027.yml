@@ -75,6 +75,41 @@ jobs:
           fingerprint="$(ssh-keygen -lf "$RUNNER_TEMP/rea-host-pin" -E sha256 | awk '{print $2}')"
           test "$fingerprint" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
           echo "REA_TRANSPORT_SSH_PIN=PASS"
+      - name: Recover retained REA process-capture lifecycle (one-shot)
+        if: contains(github.event.head_commit.message, '[rea process cleanup recovery]')
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh_flags=(-T
+            -o PreferredAuthentications=password
+            -o PubkeyAuthentication=no
+            -o StrictHostKeyChecking=yes
+            -o UserKnownHostsFile="$RUNNER_TEMP/rea-host-pin"
+            -o GlobalKnownHostsFile=/dev/null
+            -o HostKeyAlgorithms=ssh-ed25519
+            -o ConnectTimeout=15
+            -o ServerAliveInterval=10
+            -o ServerAliveCountMax=5)
+          before="$(sshpass -e ssh "${ssh_flags[@]}" ubuntu@146.59.145.3             "sudo -n systemctl show rea-reversa-mcp.service -p MainPID --value")"
+          [[ "$before" =~ ^[0-9]+$ ]] && (( before > 0 ))
+          sshpass -e ssh "${ssh_flags[@]}" ubuntu@146.59.145.3             "sudo -n systemctl restart rea-reversa-mcp.service"
+          ok=0
+          for attempt in 1 2 3 4 5 6; do
+            state="$(sshpass -e ssh "${ssh_flags[@]}" ubuntu@146.59.145.3               "sudo -n systemctl is-active rea-reversa-mcp.service" || true)"
+            after="$(sshpass -e ssh "${ssh_flags[@]}" ubuntu@146.59.145.3               "sudo -n systemctl show rea-reversa-mcp.service -p MainPID --value" || true)"
+            if [[ "$state" == active && "$after" =~ ^[0-9]+$ ]] && (( after > 0 )) && [[ "$after" != "$before" ]]; then
+              ok=1
+              echo "REA_PROCESS_CAPTURE_LIFECYCLE_RESET=PASS"
+              echo "REA_SERVICE_PID_CHANGED=YES"
+              break
+            fi
+            sleep 2
+          done
+          (( ok == 1 ))
+
       - name: Execute existing REA MCP over authenticated SSH
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
