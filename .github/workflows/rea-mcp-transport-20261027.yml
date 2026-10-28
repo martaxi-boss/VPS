@@ -132,6 +132,23 @@ jobs:
                   print("REA_SCOPE_DIST_CONTEXT="+json.dumps(text_code[max(0,i-350):i+580],separators=(",",":")))
           else:
               print("REA_SCOPE_DIST_MISSING=1")
+          import time, stat
+          from collections import defaultdict
+          buckets=defaultdict(int)
+          now=time.time()
+          for entry in pathlib.Path("/tmp").iterdir():
+              if not entry.name.startswith("rea-process-"):
+                  continue
+              try:
+                  meta=entry.lstat()
+                  kind="directory" if stat.S_ISDIR(meta.st_mode) and not stat.S_ISLNK(meta.st_mode) else "non-directory"
+                  age="over_10m" if now-meta.st_mtime>=600 else "recent"
+                  buckets[str(meta.st_uid)+":"+kind+":"+age]+=1
+              except OSError:
+                  buckets["stat_failed"]+=1
+          print("REA_SCOPE_TEMP_ROOT_COUNTS="+json.dumps(dict(buckets),sort_keys=True))
+          account=subprocess.run(["systemctl","show","rea-reversa-mcp.service","-p","User"],capture_output=True,text=True)
+          print("REA_SCOPE_SERVICE_ACCOUNT="+json.dumps(account.stdout.strip()))
           from collections import Counter
           print("REA_SCOPE_DIAGNOSTIC_VERSION=2")
           print("REA_SCOPE_PID_COUNTS="+json.dumps(dict(Counter(x["status"] for x in results)),sort_keys=True))
