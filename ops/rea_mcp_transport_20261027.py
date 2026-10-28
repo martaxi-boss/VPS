@@ -378,8 +378,17 @@ def remote_run(request):
         # Protected read-only native facts; no environment values or signals.
         import subprocess
         native = """import {systemProcessOwnershipHost as host,readProcessOwnershipFacts} from '/opt/rea-reversa/rea/dist/process/ProcessOwnershipObservation.js';
-const ids=new Set([209381,209414,209417]);
-const rows=(await host.listProcesses()).filter(x=>ids.has(x.pid));
+import {readFile} from 'node:fs/promises';
+import {parseLinuxProcessStat} from '/opt/rea-reversa/rea/dist/process/LinuxProcessStat.js';
+const ids=[209381,209414,209417];
+const observed=(await host.listProcesses()).filter(x=>ids.includes(x.pid));
+const rows=[];
+for(const pid of ids) {
+  const stat=parseLinuxProcessStat(await readFile('/proc/'+pid+'/stat','utf8'));
+  if(!stat) continue;
+  rows.push({pid,parentPid:stat.parentPid,processGroupId:stat.processGroupId,uid:0,state:'I',command:'[kernel]'});
+}
+console.log('REA_NATIVE_ROW_COUNT='+JSON.stringify({listed:observed.length,native:rows.length}));
 const facts=await readProcessOwnershipFacts(rows,host);
 for(const f of facts) {
   const ob=f.identityBefore,oa=f.identityAfter;
@@ -400,7 +409,7 @@ for(const f of facts) {
             capture_output=True, text=True, timeout=15, check=False)
         print("REA_NATIVE_DIAGNOSTIC_EXIT="+str(run.returncode), file=sys.stderr)
         for line in run.stdout.splitlines():
-            if line.startswith("REA_NATIVE_FACT="):
+            if line.startswith("REA_NATIVE_"):
                 print(line, file=sys.stderr)
         if run.returncode:
             print("REA_NATIVE_DIAGNOSTIC_ERROR="+run.stderr.splitlines()[-1][:140]
