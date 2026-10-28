@@ -1,11 +1,10 @@
-# Estado REA 6.8.0 — certificações
+# REA 6.8.0 — certificações canónicas
 
-**150/229 ferramentas com certificado funcional no âmbito documentado (verde); 79 sem certificado (pendentes).**
+**151/229 ferramentas a verde no âmbito funcional comprovado; 78 pendentes.**
 
-- [Índice individual canónico de 229 ferramentas](rea-6.8.0-current-certifications.json)
-- [Registo funcional consolidado e fases históricas preservadas](functional-ledger.json)
-- [Relatório comprovativo das 150](priority4-target150-batch-f-final-20261028.json)
+- [Registo por ferramenta, exatamente 229 ferramentas](rea-6.8.0-current-certifications.json)
+- [Ledger atual e provas preservadas](functional-ledger.json)
+- [Nova certificação `close_binary`, execução MCP real + verificação independente](priority5-close-binary-scoped-20261028.json)
+- [Relatório de conclusão das primeiras 150](priority4-target150-batch-f-final-20261028.json)
 
-As 125 certificações anteriores são do REA 6.8.0. Mais 25 certificações por cenários específicos foram acrescentadas a partir dos relatórios `priority4-*.json`. **Não se importaram certificados de REA 6.7.0.**
-
-Verde significa apenas as capacidades demonstradas, não a totalidade das possibilidades da ferramenta. `inspect_kernel_module` limita-se aos metadados `.modinfo`; `__versions` e assinatura continuam pendentes. O catálogo 208/125 dos relatórios antigos fica como histórico, e não como contagem atual.
+Verde representa **somente as operações efetivamente comprovadas**, nunca capacidade universal ou fornecedor ausente. O motor e o transporte permanecem inalterados.

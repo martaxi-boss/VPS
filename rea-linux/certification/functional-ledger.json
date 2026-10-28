@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "REA_6_8_0__150_GREEN_SCOPED_OF_229__79_PENDING",
+  "status": "REA_6_8_0__151_GREEN_SCOPED_OF_229__78_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -8317,11 +8317,32 @@
       "method": "Historical proof re-indexed, no tool status upgraded without proof, no runtime changes",
       "source_repo": "martaxi-boss/Engenheira-reversa",
       "display_status": "Current 150/229; prior 125/208 history retained"
+    },
+    {
+      "phase_id": "LINUX-P287-CLOSE-BINARY-SCOPED-20261028",
+      "date_utc": "2026-10-28",
+      "status": "FUNCTIONAL_PASS_SCOPED_REAL_MCP",
+      "tools": [
+        {
+          "name": "close_binary",
+          "status": "FUNCTIONAL_PASS_SCOPED",
+          "scope": "Close a genuine Ghidra-opened local ELF64 x86_64 analysis session without snapshot; verify binary_session open -> false, cleanup_pending false, and safe repeat close with no active session. No snapshot saving, multiple concurrent clients or inferior-process detach claims."
+        }
+      ],
+      "counts": {
+        "prior_green": 150,
+        "new_green": 1,
+        "after_green": 151,
+        "pending_after": 78,
+        "total_catalog": 229
+      },
+      "source": "rea-linux/certification/priority5-close-binary-scoped-20261028.json",
+      "independent_evidence_id": "ev_d456d43ac06ae2422945d1621a956d3392d26db7d4133bf9f99e0436726e8a42"
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 150,
-    "awaiting_canonical_individual_review": 79,
+    "functional_pass_scoped_distinct": 151,
+    "awaiting_canonical_individual_review": 78,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 5,
     "read_group_missing_positive": 0,
@@ -8329,11 +8350,11 @@
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 5,
     "fully_certified_distinct": 125,
-    "scoped_positive_not_fully_certified_distinct": 25,
-    "not_functionally_positive_distinct": 79,
-    "remaining_full_certification_distinct": 104,
-    "green_scoped_distinct": 150,
-    "additional_6_8_0_scoped": 25
+    "scoped_positive_not_fully_certified_distinct": 26,
+    "not_functionally_positive_distinct": 78,
+    "remaining_full_certification_distinct": 103,
+    "green_scoped_distinct": 151,
+    "additional_6_8_0_scoped": 26
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -8363,7 +8384,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P286-CANONICAL-6.8.0-CERTIFICATION-UNIFICATION-20261028",
+  "latest_phase": "LINUX-P287-CLOSE-BINARY-SCOPED-20261028",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -10933,6 +10954,20 @@
       "scope": "Static IL2CPP metadata v39 fixture",
       "source_report": "rea-linux/certification/priority4-target150-batch-f-final-20261028.json",
       "limits": "Only the documented Linux controlled functional path, not all vendor/platform variants"
+    },
+    "close_binary": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Close a genuine Ghidra-opened local ELF64 x86_64 analysis session without snapshot; verify binary_session open -> false, cleanup_pending false, and safe repeat close with no active session. No snapshot saving, multiple concurrent clients or inferior-process detach claims.",
+      "source_report": "rea-linux/certification/priority5-close-binary-scoped-20261028.json",
+      "limitations": [
+        "Scoped positive and idempotent negative on one local ELF target, not all provider platforms or concurrent session teardown.",
+        "Closing a session returned null rather than standalone retained Evidence; lifecycle validated by independent immediate binary_session reads.",
+        "No snapshot_path or overwrite behavior certified."
+      ],
+      "evidence_ids": [
+        "ev_d456d43ac06ae2422945d1621a956d3392d26db7d4133bf9f99e0436726e8a42"
+      ]
     }
   },
   "transport_incidents": [
@@ -11977,11 +12012,12 @@
     "index_file": "rea-linux/certification/rea-6.8.0-current-certifications.json"
   },
   "current_6_8_0_summary": {
-    "green_scoped": 150,
+    "green_scoped": 151,
     "original_125": 125,
-    "additional_25": 25,
-    "pending": 79,
+    "pending": 78,
     "not_global_certification": true,
-    "index_file": "rea-linux/certification/rea-6.8.0-current-certifications.json"
+    "index_file": "rea-linux/certification/rea-6.8.0-current-certifications.json",
+    "additional_26": 26,
+    "latest_increment_report": "rea-linux/certification/priority5-close-binary-scoped-20261028.json"
   }
 }

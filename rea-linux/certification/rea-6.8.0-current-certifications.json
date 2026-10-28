@@ -3,7 +3,7 @@
   "project": "Engenharia Reversa",
   "engine": "REA 6.8.0",
   "date_utc": "2026-10-28",
-  "status": "150_GREEN_SCOPED_79_PENDING",
+  "status": "151_GREEN_SCOPED_78_PENDING",
   "provenance": {
     "repo": "martaxi-boss/VPS",
     "branch": "rea/one-skill-bridge-20261023",
@@ -20,10 +20,10 @@
   },
   "counts": {
     "total": 229,
-    "green_scoped": 150,
+    "green_scoped": 151,
     "previous_verified_6_8_0": 125,
-    "new_scoped_6_8_0": 25,
-    "pending": 79,
+    "new_scoped_6_8_0": 26,
+    "pending": 78,
     "duplicates": 0
   },
   "rule": "Green means functional proof for the exact recorded Linux scope only. Never certify untested functionality, vendors, macOS-only capability or REA 6.7 by historical association.",
@@ -227,9 +227,19 @@
     },
     {
       "name": "close_binary",
-      "indicator": "PENDING_NOT_GREEN",
-      "status": "NOT_CERTIFIED",
-      "availability": "available"
+      "indicator": "GREEN_SCOPED",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "scope": "Close a genuine Ghidra-opened local ELF64 x86_64 analysis session without snapshot; verify binary_session open -> false, cleanup_pending false, and safe repeat close with no active session. No snapshot saving, multiple concurrent clients or inferior-process detach claims.",
+      "source_report": "rea-linux/certification/priority5-close-binary-scoped-20261028.json",
+      "evidence_ids": [
+        "ev_d456d43ac06ae2422945d1621a956d3392d26db7d4133bf9f99e0436726e8a42"
+      ],
+      "availability": "available",
+      "limitations": [
+        "Scoped positive and idempotent negative on one local ELF target, not all provider platforms or concurrent session teardown.",
+        "Closing a session returned null rather than standalone retained Evidence; lifecycle validated by independent immediate binary_session reads.",
+        "No snapshot_path or overwrite behavior certified."
+      ]
     },
     {
       "name": "close_frida_session",

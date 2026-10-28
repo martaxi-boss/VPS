@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "project": "REA 6.8.0 Engenharia Reversa",
+  "date_utc": "2026-10-28",
+  "status": "FUNCTIONAL_PASS_SCOPED_REAL_MCP",
+  "phase": "LINUX-P287-CLOSE-BINARY-SCOPED-20261028",
+  "tool": "close_binary",
+  "scope": "Close a genuine Ghidra-opened local ELF64 x86_64 analysis session without snapshot; verify binary_session open -> false, cleanup_pending false, and safe repeat close with no active session. No snapshot saving, multiple concurrent clients or inferior-process detach claims.",
+  "host": "Linux VPS original MCP; direct installed REA 6.8.0 connector; no new workflow, provider or source edit",
+  "fixture": {
+    "path": "/usr/bin/true",
+    "format": "elf",
+    "architecture": "x86_64",
+    "sha256": "8a63c98320173f79e263115e10cefc170155e47d1fd4b5a70e4429d2699cae28",
+    "provider_id": "ghidra"
+  },
+  "positive": {
+    "operations": [
+      "binary_session (initial closed)",
+      "open_binary(path=/usr/bin/true,provider_id=ghidra)",
+      "binary_session (opened=true)",
+      "close_binary({})",
+      "binary_session (opened=false, cleanup_pending=false)"
+    ],
+    "open_result": {
+      "path": "/usr/bin/true",
+      "format": "elf",
+      "kind": "executable",
+      "architecture": "x86_64",
+      "sha256": "8a63c98320173f79e263115e10cefc170155e47d1fd4b5a70e4429d2699cae28"
+    },
+    "close_result": {
+      "result": null
+    },
+    "session_after": {
+      "open": false,
+      "cleanup_pending": false,
+      "server_version": "6.8.0"
+    }
+  },
+  "negative": {
+    "case": "close_binary on already-closed session, without any open target",
+    "result": {
+      "result": null
+    },
+    "behavior": "Idempotent no-op; binary_session still open=false and cleanup_pending=false"
+  },
+  "independent_oracle": {
+    "operation": "inspect_with_objdump on same fixture",
+    "provider": "GNU objdump",
+    "evidence_id": "ev_d456d43ac06ae2422945d1621a956d3392d26db7d4133bf9f99e0436726e8a42",
+    "format": "elf64-x86-64",
+    "exit_code": 0,
+    "input_unchanged": true,
+    "matching_sha256": "8a63c98320173f79e263115e10cefc170155e47d1fd4b5a70e4429d2699cae28"
+  },
+  "hygiene": {
+    "analysis_session_closed": true,
+    "cleanup_pending": false,
+    "original_source_modified": false,
+    "other_projects_modified": false,
+    "extra_workflows_created": 0,
+    "providers_installed": 0,
+    "tests_real": true
+  },
+  "counts": {
+    "prior_green": 150,
+    "new_green": 1,
+    "after_green": 151,
+    "pending_after": 78,
+    "total_catalog": 229
+  },
+  "limitations": [
+    "Scoped positive and idempotent negative on one local ELF target, not all provider platforms or concurrent session teardown.",
+    "Closing a session returned null rather than standalone retained Evidence; lifecycle validated by independent immediate binary_session reads.",
+    "No snapshot_path or overwrite behavior certified."
+  ],
+  "transport_unchanged": true
+}
