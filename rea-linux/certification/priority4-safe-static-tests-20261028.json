@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "project": "REA 6.8.0",
+  "priority": 4,
+  "date_utc": "2026-10-28",
+  "status": "PARTIAL_SCOPED_STATIC_PASS__MCP_TRANSPORT_SELFTEST_INCONCLUSIVE",
+  "baseline": {
+    "original_fully_certified": 125,
+    "original_catalog": 208,
+    "new_catalog": 229,
+    "source_commit": "c8d7eafd731be00296d093c701e0efbb781547c3",
+    "unchanged_certification_ledger": true
+  },
+  "tests": [
+    {
+      "name": "inspect_native_exports",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "fixture": "/usr/bin/true",
+      "fixture_sha256": "8a63c98320173f79e263115e10cefc170155e47d1fd4b5a70e4429d2699cae28",
+      "observation": "ELF64 amd64 complete dynsym examination, 45 entries, 0 defined public exports",
+      "evidence_id": "ev_67786cacf0d2eae67fee0dfc4b6f4a0aa352bc04027067c8d7d03b2f7e9574b1",
+      "limitation": "No positive nonempty export-set proof"
+    },
+    {
+      "name": "inspect_pe_imports",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "fixture": "/opt/rea-reversa/providers/unblob-26.6.4/lib/python3.12/site-packages/setuptools/gui.exe",
+      "fixture_sha256": "85dae1e95d77845f2cb59bcac3d4afe74bbe4c91a9bcc5bf4a71cd43104dbe7c",
+      "observation": "PE32 import table decoded including KERNEL32.dll CreateFileA and VCRUNTIME140.dll; delay imports not declared",
+      "evidence_id": "ev_da212d0b11f59f884cd7aebdca9a0490eb096ee6c1ae21a7d386f7656702e0b5",
+      "limitation": "Independent table validation and invalid inputs pending"
+    },
+    {
+      "name": "inspect_pe_load_config",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "fixture": "/opt/rea-reversa/providers/unblob-26.6.4/lib/python3.12/site-packages/setuptools/gui.exe",
+      "fixture_sha256": "85dae1e95d77845f2cb59bcac3d4afe74bbe4c91a9bcc5bf4a71cd43104dbe7c",
+      "observation": "PE32 load config decoded with SafeSEH table, security cookie and GuardFlags; no TLS directory",
+      "evidence_id": "ev_15ba55c2b462fa67f2bb2af70ef258c40a943477f403880acf7cd73f773ce36b",
+      "limitation": "GuardFlags are source claims, not enforced-mitigation proof"
+    },
+    {
+      "name": "inspect_pe_certificates",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "fixture": "/opt/rea-reversa/providers/unblob-26.6.4/lib/python3.12/site-packages/setuptools/gui.exe",
+      "fixture_sha256": "85dae1e95d77845f2cb59bcac3d4afe74bbe4c91a9bcc5bf4a71cd43104dbe7c",
+      "observation": "PE32 IMAGE_DIRECTORY_ENTRY_SECURITY absent; zero certificate entries",
+      "evidence_id": "ev_2c735791f470d836cb0a1c87cbb5561c4fe9382618c0bb580c0c8477fe4818c4",
+      "limitation": "No positive populated certificates; not a cryptographic signature check"
+    },
+    {
+      "name": "inspect_python_pyc",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "fixture": "/opt/rea-reversa/oauth-auth/venv/lib/python3.12/site-packages/__pycache__/jsonref.cpython-312.pyc",
+      "fixture_sha256": "790b18ddc4e1086596ee936417eeea7131b9df94c184082c86af94b4e963125e",
+      "observation": "CPython 3.12 .pyc declared, 39 code objects, 996 marshalled objects; complete within view",
+      "evidence_id": "ev_8f8c30f5efe284838280bf87e6b722e819930f3ce5680d175da5275b729cba13",
+      "limitation": "Header source-size and source-mtime not evidence of matching source; no negative tests"
+    },
+    {
+      "name": "inspect_gpu_code_objects",
+      "status": "FUNCTIONAL_PASS_SCOPED_NEGATIVE_INVENTORY",
+      "fixture": "/usr/bin/true",
+      "fixture_sha256": "8a63c98320173f79e263115e10cefc170155e47d1fd4b5a70e4429d2699cae28",
+      "observation": "ELF inventory complete, 30 sections checked, zero GPU objects found",
+      "evidence_id": "ev_9085dcab68119f9b1a66f1e96a1d05fd4c6856ef2ca9e43d012f57bb1e4c8630",
+      "limitation": "No positive GPU object payload fixture, cannot certify decoder"
+    }
+  ],
+  "integration_test": {
+    "name": "external_python_MCP_client_scenario",
+    "status": "INCONCLUSIVE",
+    "error": "capture_process_scenario SSE stream ended without a response",
+    "followup": "binary_session directly verified REA running with 229 tools and no pending cleanup; do not count scenario as pass or restart."
+  },
+  "hygiene": {
+    "no_service_restart": true,
+    "no_runtime_changes": true,
+    "no_codex": true,
+    "no_other_projects": true,
+    "no_new_mcp_servers": true,
+    "no_upgrades": true,
+    "no_repetition_of_prior_125": true
+  },
+  "remaining_work": "Complete focused positive+negative cases and independent oracles, and validate direct MCP transport separately; original ledger unchanged."
+}
