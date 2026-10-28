@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "project": "REA 6.8.0",
+  "date_utc": "2026-10-28",
+  "phase": "P4_TARGET150_BATCH_D_ENV_DRY_RUN",
+  "status": "FULLY_CERTIFIED_SCOPED_DRY_RUN",
+  "prior_certified": 145,
+  "new_certified": 1,
+  "after_certified": 146,
+  "remaining_to_target": 4,
+  "tool": "export_environment_bundle",
+  "scope": "Read-only dry-run planning from retained HAR evidence only; no real bundle export or Docker install claimed",
+  "producer": {
+    "tool": "inspect_web_network_capture",
+    "evidence_id": "ev_443da57aa236a84944288ca91cea9ef28baa25e8c471a89d749f5c80858b0aa3",
+    "har_sha256": "a54388c6a3ab5428cdedbff384492ae7276421b6ef26d42e5dd7d21fbf02356f",
+    "records": 1
+  },
+  "positive": {
+    "status": "planned",
+    "name": "rea-p4-env",
+    "directory": "/tmp/rea-p4-env-export-20261028",
+    "tool_count": 1,
+    "manifest_evidence_id": "ev_c18f2899d1481131482a99b87b1bb3184b748233295b5b56df862d0a0364f198",
+    "planned_files": 7,
+    "no_disk_write": true
+  },
+  "negative": {
+    "missing_evidence_id": "ev_0000000000000000000000000000000000000000000000000000000000000000",
+    "result": "evidence_integrity_mismatch / missing",
+    "passed": true
+  },
+  "independent_oracle": {
+    "evidence_id": "ev_58f3a4589c159141db8f7d8ede461fcf641631b37be6c50fb43ffb644f3ee467",
+    "har_records": 1,
+    "status": 200,
+    "output_dir_absent": true,
+    "source_fixture_removed": true
+  },
+  "limitations": [
+    "Does not certify actual bundle export, container build, replay or network traffic.",
+    "HAR is deliberately controlled metadata and is not a live browser replay."
+  ]
+}
