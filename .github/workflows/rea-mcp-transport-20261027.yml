@@ -93,7 +93,7 @@ jobs:
             -o ConnectTimeout=15 \
             ubuntu@146.59.145.3 "python3 -" <<'PY'
           import json, os, pathlib, subprocess
-          pids=(174896,178364,179278,179471,179827,179928,180177,180321,180324,180337,180599,180633,180851,180917,181026,181041,181073,181196,181208,181217,181265,181482,181503,181801)
+          pids=(183864,174896,178364,179278,179471,179827,179928,180177,180321,180324,180337,180599,180633,180851,180917,181026,181041,181073,181196,181208,181217,181265,181482,181503,181801)
           service=subprocess.run(["systemctl","show","rea-reversa-mcp.service","-p","ActiveState","-p","MainPID","-p","SubState"],capture_output=True,text=True,timeout=10)
           print("REA_SCOPE_SERVICE="+json.dumps(service.stdout.splitlines(),separators=(",",":")))
           results=[]
