@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "project": "REA 6.8.0",
+  "date_utc": "2026-10-28",
+  "phase": "P4_TARGET150_BATCH_E_SETTINGS",
+  "status": "FULLY_CERTIFIED_SCOPED_RUNTIME_SET_RESET",
+  "previous": 146,
+  "new": 1,
+  "after": 147,
+  "remaining_to_150": 3,
+  "tool": "update_analysis_settings",
+  "test": {
+    "setting": "regex.matching_deadline_ms",
+    "default": 5000,
+    "temporary": 5001,
+    "initial_revision": 0,
+    "set_result": {
+      "revision": 1,
+      "old_value": 5000,
+      "new_value": 5001,
+      "restart_required": false,
+      "active_work_changed": false
+    },
+    "reset_result": {
+      "revision": 2,
+      "old_value": 5001,
+      "new_value": 5000,
+      "source": "default",
+      "restart_required": false,
+      "active_work_changed": false
+    },
+    "independent_readback": "inspect_analysis_settings at revision 2 value 5000 source default"
+  },
+  "hygiene": {
+    "runtime_value_restored": true,
+    "no_restart": true,
+    "no_tool_source_changes": true,
+    "other_projects_unchanged": true
+  },
+  "limitations": [
+    "Only valid set/reset with optimistic revision tested; invalid bounds and concurrent writers not included.",
+    "Monotonic revision increments from 0 to 2 despite restored value."
+  ]
+}
