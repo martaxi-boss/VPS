@@ -1,117 +1,190 @@
-name: Stage Telegram Robot Leads (pinned, without activation)
+name: Deploy Telegram Robot Leads through central VPS SSH
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'ops/telegram_leads_stage_20261019.py'
-      - 'ops/test_telegram_leads_stage_20261019.py'
-      - '.github/workflows/telegram-leads-vps-stage-20261019.yml'
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
-      - 'ops/telegram_leads_stage_20261019.py'
-      - 'ops/test_telegram_leads_stage_20261019.py'
       - '.github/workflows/telegram-leads-vps-stage-20261019.yml'
 
 permissions:
   contents: read
 
 concurrency:
-  group: telegram-leads-stage-20261019
+  group: telegram-leads-central-deploy
   cancel-in-progress: false
 
-jobs:
-  offline-check:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          persist-credentials: false
-          fetch-depth: 2
-      - name: Verify safe staging script before any production change
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 -m py_compile ops/telegram_leads_stage_20261019.py ops/test_telegram_leads_stage_20261019.py
-          PYTHONPATH=ops python3 -m unittest -v ops/test_telegram_leads_stage_20261019.py
+env:
+  TELEGRAM_REPO: https://github.com/martaxi-boss/telegram-robot-leads.git
+  TARGET_SHA: 7c0ef8a1d9be5d18568a133bcfdb79e4e0bcd9aa
+  EXPECTED_INSTALLED: d8736bd359de795182ee717448c93df2977d0a44
+  VPS_HOST: 146.59.145.3
+  VPS_USER: ubuntu
 
-  stage:
-    if: github.event_name == 'push' && github.repository == 'martaxi-boss/VPS'
-    needs: offline-check
+jobs:
+  deploy:
+    if: github.repository == 'martaxi-boss/VPS'
     runs-on: ubuntu-24.04
-    timeout-minutes: 16
+    timeout-minutes: 25
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Checkout trusted central executor
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
           fetch-depth: 2
-      - name: Bound production operation to reviewed change set
+
+      - name: Bound this production change to the existing Telegram deploy workflow
+        if: github.event_name == 'push'
         shell: bash
-        run: |
-          set -euo pipefail
-          test "$GITHUB_REF" = refs/heads/main
-          python3 - <<'PY'
-          import os, subprocess
-          previous=os.environ["GITHUB_EVENT_BEFORE"]
-          current=os.environ["GITHUB_SHA"]
-          changed=set(subprocess.check_output(["git","diff","--name-only",previous,current],text=True).splitlines())
-          allowed={
-              "ops/telegram_leads_vps_readiness_20261019.py",
-              ".github/workflows/telegram-leads-vps-readiness-20261019.yml",
-              "ops/telegram_leads_stage_20261019.py",
-              "ops/test_telegram_leads_stage_20261019.py",
-              ".github/workflows/telegram-leads-vps-stage-20261019.yml",
-              "ops/telegram_leads_activate_20261020.py",
-              ".github/workflows/telegram-leads-prepare-activation-20261020.yml",
-              ".github/workflows/telegram-leads-post-activation-20261020.yml",
-          }
-          assert changed and changed <= allowed, changed-allowed
-          print("LEADS_STAGING_CHANGE_SCOPE=PASS")
-          PY
         env:
-          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
-      - name: Verify pinned SSH host key
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          changed="$(git diff --name-only "$BEFORE" "$GITHUB_SHA")"
+          test "$changed" = '.github/workflows/telegram-leads-vps-stage-20261019.yml'
+          echo 'TELEGRAM_LEADS_DEPLOY_CHANGE_SCOPE=PASS'
+
+      - name: Fetch and certify exact Telegram source
         shell: bash
         run: |
           set -euo pipefail
-          known="$RUNNER_TEMP/leads-stage-known-hosts"
-          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known"
+          target="$RUNNER_TEMP/telegram-robot-leads-source"
+          git init -q "$target"
+          git -C "$target" remote add origin "$TELEGRAM_REPO"
+          git -C "$target" fetch -q --depth=1 origin "$TARGET_SHA"
+          git -C "$target" checkout -q --detach FETCH_HEAD
+          test "$(git -C "$target" rev-parse HEAD)" = "$TARGET_SHA"
+
+          python3 -m venv "$RUNNER_TEMP/telegram-leads-test-venv"
+          "$RUNNER_TEMP/telegram-leads-test-venv/bin/python" -m pip install             --disable-pip-version-check --no-input -q -r "$target/requirements.txt"
+          (
+            cd "$target"
+            "$RUNNER_TEMP/telegram-leads-test-venv/bin/python" -m unittest discover -s tests -v
+            "$RUNNER_TEMP/telegram-leads-test-venv/bin/python" -m py_compile               scripts/deploy_project_only.py               scripts/activate_project_only.py               scripts/project_hygiene.py               scripts/organic_growth.py               scripts/safe_runtime.py               scripts/operation_policy.py               scripts/leads_operational_report.py               scripts/lead_health.py
+            bash -n scripts/telegram-robot-leads-status.sh
+          )
+          tar -C "$target" -czf "$RUNNER_TEMP/telegram-leads-runtime.tgz" --             scripts/lead_health.py             scripts/leads_operational_report.py             scripts/operation_policy.py             scripts/organic_growth.py             scripts/project_hygiene.py             scripts/safe_runtime.py             scripts/telegram-robot-leads-status.sh             scripts/deploy_project_only.py             scripts/activate_project_only.py
+          cp "$target/scripts/deploy_project_only.py" "$RUNNER_TEMP/deploy_project_only.py"
+          echo "TELEGRAM_LEADS_CERTIFIED_SOURCE=$TARGET_SHA"
+
+      - name: Verify pinned VPS SSH identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          known="$RUNNER_TEMP/telegram-leads-known-hosts"
+          ssh-keyscan -T 15 -t ed25519 "$VPS_HOST" 2>/dev/null > "$known"
           chmod 600 "$known"
           observed="$(ssh-keygen -lf "$known" -E sha256 | awk '{print $2}')"
           test "$observed" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
-          ssh-keygen -F 146.59.145.3 -f "$known" >/dev/null
-          echo SSH_HOST_KEY=VERIFIED
-      - name: Stage new runtime and archive legacy config via existing SSH credentials
-        shell: bash
+          ssh-keygen -F "$VPS_HOST" -f "$known" >/dev/null
+          echo 'TELEGRAM_LEADS_SSH_HOST_IDENTITY=VERIFIED'
+
+      - name: Install disposable SSH helper
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
         run: |
           set -euo pipefail
           test -n "${SSHPASS:-}"
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass >/dev/null
-          sshpass -e ssh -T \
-            -o PreferredAuthentications=password -o PubkeyAuthentication=no \
-            -o StrictHostKeyChecking=yes \
-            -o UserKnownHostsFile="$RUNNER_TEMP/leads-stage-known-hosts" \
-            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
-            -o ConnectTimeout=15 -o ServerAliveInterval=10 \
-            ubuntu@146.59.145.3 'sudo -n python3 -' \
-            < ops/telegram_leads_stage_20261019.py \
-            > "$RUNNER_TEMP/telegram-leads-stage.json" 2>/dev/null
+
+      - name: Deploy only Telegram Leads runtime and restart only its existing worker
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          known="$RUNNER_TEMP/telegram-leads-known-hosts"
+          ssh_flags=(-o PreferredAuthentications=password -o PubkeyAuthentication=no
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$known"
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519
+            -o ConnectTimeout=15 -o ServerAliveInterval=10 -o ServerAliveCountMax=5)
+          upload="/tmp/telegram-leads-runtime-$TARGET_SHA.tgz"
+          installer="/tmp/telegram-leads-installer-$TARGET_SHA.py"
+          project_bundle="/opt/telegram-robot-leads/.telegram-leads-release-$TARGET_SHA.tgz"
+          project_installer="/opt/telegram-robot-leads/.telegram-leads-installer-$TARGET_SHA.py"
+
+          trap 'sshpass -e ssh -T "${ssh_flags[@]}" "$VPS_USER@$VPS_HOST"             "sudo -n rm -f -- '''$upload''' '''$installer''' '''$project_bundle''' '''$project_installer'''"             >/dev/null 2>&1 || true' EXIT
+
+          sshpass -e scp -q "${ssh_flags[@]}"             "$RUNNER_TEMP/telegram-leads-runtime.tgz" "$VPS_USER@$VPS_HOST:$upload"
+          sshpass -e scp -q "${ssh_flags[@]}"             "$RUNNER_TEMP/deploy_project_only.py" "$VPS_USER@$VPS_HOST:$installer"
+
+          sshpass -e ssh -T "${ssh_flags[@]}" "$VPS_USER@$VPS_HOST"             "sudo -n install -o root -g root -m 600 '$upload' '$project_bundle' &&              sudo -n install -o root -g root -m 700 '$installer' '$project_installer' &&              sudo -n /usr/bin/python3 '$project_installer'                --bundle '$project_bundle'                --commit '$TARGET_SHA'                --expected-installed '$EXPECTED_INSTALLED'                --apply --confirm-telegram-only"             > "$RUNNER_TEMP/install-result.json"
+
           python3 - <<'PY'
-          from pathlib import Path
           import json, os
-          path=Path(os.environ["RUNNER_TEMP"])/"telegram-leads-stage.json"
-          data=json.loads(path.read_text())
-          assert data["status"]=="STAGED_NOT_STARTED",data.get("reason","unknown")
-          assert data["pinned_source"]=="d8736bd359de795182ee717448c93df2977d0a44"
-          assert data["telegram_actions"]==0
-          assert data["other_projects_touched"] is False
-          assert data["source_provenance_recorded"] is True
-          assert data["git_history_present_in_live_checkout"] is False
-          assert data["api_source"] in ("private_app_credentials", "published_android_fallback", "NOT_VERIFIED")
-          print("TELEGRAM_LEADS_STAGING_RESULT="+json.dumps(data,sort_keys=True))
+          from pathlib import Path
+          data=json.loads((Path(os.environ["RUNNER_TEMP"])/"install-result.json").read_text())
+          assert data["status"] in {"STAGED_NOT_ACTIVATED","ALREADY_INSTALLED"}, data
+          assert data["installed_sha"] == os.environ["TARGET_SHA"], data
+          if data["status"] == "STAGED_NOT_ACTIVATED":
+              assert data["sessions_preserved"] == 2, data
+              assert data["other_projects_modified"] is False, data
+          print("TELEGRAM_LEADS_INSTALL="+json.dumps(data,sort_keys=True))
           PY
+
+          sshpass -e ssh -T "${ssh_flags[@]}" "$VPS_USER@$VPS_HOST"             "sudo -n /usr/bin/python3 /opt/telegram-robot-leads/scripts/project_hygiene.py                --apply --confirm-telegram-only"             > "$RUNNER_TEMP/hygiene-result.json"
+
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          data=json.loads((Path(os.environ["RUNNER_TEMP"])/"hygiene-result.json").read_text())
+          assert data["status"] == "APPLIED", data
+          assert data["other_projects_modified"] is False, data
+          print("TELEGRAM_LEADS_HYGIENE="+json.dumps(data,sort_keys=True))
+          PY
+
+          sshpass -e ssh -T "${ssh_flags[@]}" "$VPS_USER@$VPS_HOST"             "sudo -n env PM2_HOME=/root/.pm2 pm2 jlist"             > "$RUNNER_TEMP/pm2.json"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          rows=json.loads((Path(os.environ["RUNNER_TEMP"])/"pm2.json").read_text())
+          matches=[r for r in rows if isinstance(r,dict) and r.get("name")=="telegram-robot-leads"]
+          assert len(matches)==1, "telegram worker missing or duplicate"
+          env=matches[0].get("pm2_env",{})
+          assert env.get("pm_cwd")=="/opt/telegram-robot-leads", env.get("pm_cwd")
+          assert env.get("pm_exec_path")=="/opt/telegram-robot-leads/main.py", env.get("pm_exec_path")
+          assert env.get("status")=="online", env.get("status")
+          print("TELEGRAM_LEADS_EXISTING_PM2_WORKER=VERIFIED")
+          PY
+
+          sshpass -e ssh -T "${ssh_flags[@]}" "$VPS_USER@$VPS_HOST"             "sudo -n /usr/bin/python3 /opt/telegram-robot-leads/scripts/activate_project_only.py                --pm2-home /root/.pm2 --expected-source '$TARGET_SHA'                --apply --confirm-telegram-only"             > "$RUNNER_TEMP/activation-result.json"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          data=json.loads((Path(os.environ["RUNNER_TEMP"])/"activation-result.json").read_text())
+          assert data["status"]=="PROJECT_WORKER_RESTARTED", data
+          assert data["installed_sha"]==os.environ["TARGET_SHA"], data
+          assert data["other_projects_modified"] is False, data
+          print("TELEGRAM_LEADS_ACTIVATION="+json.dumps(data,sort_keys=True))
+          PY
+
+          sshpass -e ssh -T "${ssh_flags[@]}" "$VPS_USER@$VPS_HOST"             "sudo -n env PM2_HOME=/root/.pm2                /opt/telegram-robot-leads/.venv/bin/python                /opt/telegram-robot-leads/scripts/leads_operational_report.py                --expected-source '$TARGET_SHA' --with-pm2"             > "$RUNNER_TEMP/report.json"
+
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          data=json.loads((Path(os.environ["RUNNER_TEMP"])/"report.json").read_text())
+          assert data["read_only"] is True, data
+          assert data["telegram_requests"] == 0, data
+          assert data["members_added"] == 0, data
+          assert data["source"]["verified"] is True, data
+          assert data["source"]["matches_expected"] is True, data
+          assert data["sessions"]["accounts"] == 2, data
+          assert data["pm2"]["status"] == "ONLINE", data
+          snapshot={
+            "status":data["status"],
+            "source_sha":data["source"].get("source_sha"),
+            "source_matches_expected":data["source"].get("matches_expected"),
+            "sessions":data["sessions"].get("accounts"),
+            "sessions_online_verified":data["sessions"].get("online_verified"),
+            "pm2":data["pm2"].get("status"),
+            "public_groups":data["public_discovery"].get("public_groups"),
+            "last_cycle":data["supervisor"].get("status"),
+          }
+          print("TELEGRAM_LEADS_POST_DEPLOY="+json.dumps(snapshot,sort_keys=True))
+          PY
+
+          sshpass -e ssh -T "${ssh_flags[@]}" "$VPS_USER@$VPS_HOST"             "sudo -n rm -f -- '$upload' '$installer' '$project_bundle' '$project_installer'"
+          trap - EXIT
