@@ -149,6 +149,23 @@ jobs:
           print("REA_SCOPE_TEMP_ROOT_COUNTS="+json.dumps(dict(buckets),sort_keys=True))
           account=subprocess.run(["systemctl","show","rea-reversa-mcp.service","-p","User"],capture_output=True,text=True)
           print("REA_SCOPE_SERVICE_ACCOUNT="+json.dumps(account.stdout.strip()))
+          command=subprocess.run(["ps","-axo","pid=,ppid=,pgid=,uid=,stat=,command="],capture_output=True,text=True,timeout=12)
+          matches=[line.strip() for line in command.stdout.splitlines() if line.lstrip().startswith("183864 ")]
+          print("REA_SCOPE_PS_EXACT="+json.dumps(matches[:2]))
+          import re
+          regex=re.compile(r"\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(.*)")
+          parsed=[regex.search(line) for line in command.stdout.splitlines()]
+          parsed=[x for x in parsed if x and x[1]=="183864"]
+          print("REA_SCOPE_PS_REGEX="+json.dumps([{"pid":x[1],"ppid":x[2],"pgid":x[3],"platform_pass":int(x[3])>0} for x in parsed]))
+          executable=subprocess.run(["node","--version"],capture_output=True,text=True,timeout=5)
+          print("REA_SCOPE_NODE_VERSION="+json.dumps(executable.stdout.strip() if executable.returncode==0 else "not-in-path"))
+          if executable.returncode==0:
+              script="""import {systemProcessOwnershipHost as h} from '/opt/rea-reversa/rea/dist/process/ProcessOwnershipObservation.js';const p=await h.listProcesses();console.log('REA_SCOPE_RUNTIME_LIST='+JSON.stringify({platform:h.platform,count:p.length,zeroGroups:p.filter(x=>x.processGroupId===0).length,match:p.filter(x=>x.pid===183864)}));"""
+              run=subprocess.run(["node","--input-type=module","-e",script],capture_output=True,text=True,timeout=25)
+              print("REA_SCOPE_RUNTIME_EXIT="+str(run.returncode))
+              for line in run.stdout.splitlines():
+                  if line.startswith("REA_SCOPE_RUNTIME_LIST="):print(line)
+              if run.returncode!=0:print("REA_SCOPE_RUNTIME_ERR="+json.dumps(run.stderr[:300]))
           from collections import Counter
           print("REA_SCOPE_DIAGNOSTIC_VERSION=2")
           print("REA_SCOPE_PID_COUNTS="+json.dumps(dict(Counter(x["status"] for x in results)),sort_keys=True))
