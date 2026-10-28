@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "P285_ORIGINAL_REA_125_OF_208__SIGNED_RIZIN_POSITIVE_NEGATIVE_PASS__16_EVIDENCE_1_UNKNOWN_INDEPENDENT_FULL_READBACK__83_PENDING",
+  "status": "REA_6_8_0__150_GREEN_SCOPED_OF_229__79_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -15,7 +15,7 @@
     "gdb_in_active_runtime_path": true,
     "gdb_activation_basis": "Live service systemd command and MainPID environment contain REA_GDB_COMMAND=/usr/bin/gdb; package installed and readable as service identity"
   },
-  "tool_catalog_count": 208,
+  "tool_catalog_count": 229,
   "certification_policy": {
     "per_tool_individual_contracted_behavior": true,
     "test_source": "authorized controlled input on Linux filesystem",
@@ -8300,8 +8300,8 @@
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 125,
-    "awaiting_canonical_individual_review": 83,
+    "functional_pass_scoped_distinct": 150,
+    "awaiting_canonical_individual_review": 79,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 5,
     "read_group_missing_positive": 0,
@@ -8309,9 +8309,11 @@
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 5,
     "fully_certified_distinct": 125,
-    "scoped_positive_not_fully_certified_distinct": 0,
-    "not_functionally_positive_distinct": 83,
-    "remaining_full_certification_distinct": 83
+    "scoped_positive_not_fully_certified_distinct": 25,
+    "not_functionally_positive_distinct": 79,
+    "remaining_full_certification_distinct": 104,
+    "green_scoped_distinct": 150,
+    "additional_6_8_0_scoped": 25
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -8383,7 +8385,9 @@
         "test_plan"
       ],
       "note": "Downloadable conversation artifact; regenerated deterministically from encrypted live catalog; tool acceptance still in individual phases"
-    }
+    },
+    "historical": true,
+    "superseded_by": "current_catalog_snapshot"
   },
   "legacy_hygiene": {
     "linux_only_active_request_path": "rea-linux/requests/*.json",
@@ -10734,6 +10738,181 @@
         "The negative nonexistent target correctly returned invalid_input; no unrelated paths or production targets were accessed.",
         "Future sensitive calls still require fresh individual Ed25519 owner signatures. No live Rizin persistent debugger session was opened or certified."
       ]
+    },
+    "inspect_analysis_settings": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Read-only settings and filter contract",
+      "source_report": "rea-linux/certification/priority4-ten-tools-certification-20261028.json",
+      "limits": "Only the documented Linux controlled functional path, not all vendor/platform variants"
+    },
+    "inspect_byte_entropy": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Static ELF64 byte entropy; not encryption",
+      "source_report": "rea-linux/certification/priority4-ten-tools-certification-20261028.json",
+      "limits": "Only the documented Linux controlled functional path, not all vendor/platform variants"
+    },
+    "inspect_elf_notes": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Static ELF64 notes/build-id",
+      "source_report": "rea-linux/certification/priority4-ten-tools-certification-20261028.json",
+      "limits": "Only the documented Linux controlled functional path, not all vendor/platform variants"
+    },
+    "inspect_apk_signature": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Declared APK signatures, not cryptographic verification",
+      "source_report": "rea-linux/certification/priority4-ten-tools-certification-20261028.json",
+      "limits": "Only the documented Linux controlled functional path, not all vendor/platform variants"
+    },
+    "inspect_native_exports": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Static ELF64/PE32 exports",
+      "source_report": "rea-linux/certification/priority4-ten-tools-certification-20261028.json",
+      "limits": "Only the documented Linux controlled functional path, not all vendor/platform variants"
+    },
+    "inspect_pe_imports": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Static PE32 imports",
+      "source_report": "rea-linux/certification/priority4-ten-tools-certification-20261028.json",
+      "limits": "Only the documented Linux controlled functional path, not all vendor/platform variants"
+    },
+    "inspect_pe_load_config": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Static PE32 load configuration",
+      "source_report": "rea-linux/certification/priority4-ten-tools-certification-20261028.json",
+      "limits": "Only the documented Linux controlled functional path, not all vendor/platform variants"
+    },
+    "inspect_python_pyc": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Static CPython 3.12 pyc declarations",
+      "source_report": "rea-linux/certification/priority4-ten-tools-certification-20261028.json",
+      "limits": "Only the documented Linux controlled functional path, not all vendor/platform variants"
+    },
+    "inspect_model_artifact": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Safetensors declarations only",
+      "source_report": "rea-linux/certification/priority4-model-artifact-scoped-20261028.json",
+      "limits": "Only the documented Linux controlled functional path, not all vendor/platform variants"
+    },
+    "inspect_kernel_module": {
+      "status": "FUNCTIONAL_PASS_SCOPED_METADATA_ONLY",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Linux kernel module .modinfo only; __versions/signatures not certified",
+      "source_report": "rea-linux/certification/priority4-kernel-module-scoped-20261028.json",
+      "limits": "Only the documented Linux controlled functional path, not all vendor/platform variants"
+    },
+    "inspect_erlang_beam": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Static Erlang OTP29 BEAM fixture",
+      "source_report": "rea-linux/certification/priority4-erlang-beam-scoped-20261028.json",
+      "limits": "Only the documented Linux controlled functional path, not all vendor/platform variants"
+    },
+    "inspect_devicetree": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Static FDT v17 fixture",
+      "source_report": "rea-linux/certification/priority4-devicetree-scoped-20261028.json",
+      "limits": "Only the documented Linux controlled functional path, not all vendor/platform variants"
+    },
+    "inspect_apple_ips": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Static Apple IPS 309 parser on Linux",
+      "source_report": "rea-linux/certification/priority4-apple-ips-scoped-20261028.json",
+      "limits": "Only the documented Linux controlled functional path, not all vendor/platform variants"
+    },
+    "match_native_functions": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Ghidra exact unique symbol matches on ELF; no equivalence",
+      "source_report": "rea-linux/certification/priority4-match-native-functions-scoped-20261028.json",
+      "limits": "Only the documented Linux controlled functional path, not all vendor/platform variants"
+    },
+    "capture_process_scenario": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Controlled Linux process-exit, ownership and cleanup",
+      "source_report": "rea-linux/certification/priority4-target150-batch-a-20261028.json",
+      "limits": "Only the documented Linux controlled functional path, not all vendor/platform variants"
+    },
+    "open_bundle_resources": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Small resource-only .app bundle without executable identity",
+      "source_report": "rea-linux/certification/priority4-target150-batch-a-20261028.json",
+      "limits": "Only the documented Linux controlled functional path, not all vendor/platform variants"
+    },
+    "start_gdb_session": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "GDB MI3 without inferior",
+      "source_report": "rea-linux/certification/priority4-target150-batch-b-gdb-20261028.json",
+      "limits": "Only the documented Linux controlled functional path, not all vendor/platform variants"
+    },
+    "gdb_console": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "GDB MI3 read-only console",
+      "source_report": "rea-linux/certification/priority4-target150-batch-b-gdb-20261028.json",
+      "limits": "Only the documented Linux controlled functional path, not all vendor/platform variants"
+    },
+    "close_gdb_session": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Close GDB session without inferior",
+      "source_report": "rea-linux/certification/priority4-target150-batch-b-gdb-20261028.json",
+      "limits": "Only the documented Linux controlled functional path, not all vendor/platform variants"
+    },
+    "inspect_gpu_code_objects": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Static PTX declarations; no GPU execution",
+      "source_report": "rea-linux/certification/priority4-target150-batch-c-gpu-20261028.json",
+      "limits": "Only the documented Linux controlled functional path, not all vendor/platform variants"
+    },
+    "export_environment_bundle": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "HAR dry-run planning only, not real export",
+      "source_report": "rea-linux/certification/priority4-target150-batch-d-environment-scoped-20261028.json",
+      "limits": "Only the documented Linux controlled functional path, not all vendor/platform variants"
+    },
+    "update_analysis_settings": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Controlled runtime set/readback/reset",
+      "source_report": "rea-linux/certification/priority4-target150-batch-e-settings-20261028.json",
+      "limits": "Only the documented Linux controlled functional path, not all vendor/platform variants"
+    },
+    "decompile_all": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Ghidra decompile one function of ELF64",
+      "source_report": "rea-linux/certification/priority4-target150-batch-f-final-20261028.json",
+      "limits": "Only the documented Linux controlled functional path, not all vendor/platform variants"
+    },
+    "inspect_pe_certificates": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Synthetic PE32 PKCS7 certificate structure only",
+      "source_report": "rea-linux/certification/priority4-target150-batch-f-final-20261028.json",
+      "limits": "Only the documented Linux controlled functional path, not all vendor/platform variants"
+    },
+    "inspect_il2cpp_metadata": {
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "indicator": "GREEN_SCOPED",
+      "scope": "Static IL2CPP metadata v39 fixture",
+      "source_report": "rea-linux/certification/priority4-target150-batch-f-final-20261028.json",
+      "limits": "Only the documented Linux controlled functional path, not all vendor/platform variants"
     }
   },
   "transport_incidents": [
@@ -11761,6 +11940,28 @@
       "workspace_pending": 17,
       "sensitive_certified": 17,
       "sensitive_pending": 66
-    }
+    },
+    "historical_208_record": true
+  },
+  "historical_208_baseline": {
+    "status": "P285_ORIGINAL_REA_125_OF_208__SIGNED_RIZIN_POSITIVE_NEGATIVE_PASS__16_EVIDENCE_1_UNKNOWN_INDEPENDENT_FULL_READBACK__83_PENDING",
+    "catalog": 208,
+    "certified": 125,
+    "registry_blob_sha": "234bc60e1944bd674031de6ef2fa593dd0879ac5",
+    "phase_count": 129
+  },
+  "current_catalog_snapshot": {
+    "source": "Live original REA 6.8.0 MCP",
+    "catalog_tools": 229,
+    "tools_sha256": "a98940ba69acd9c1781d180cee362d4ddab18f77eefdd3e3216f10e1bf98e5e9",
+    "index_file": "rea-linux/certification/rea-6.8.0-current-certifications.json"
+  },
+  "current_6_8_0_summary": {
+    "green_scoped": 150,
+    "original_125": 125,
+    "additional_25": 25,
+    "pending": 79,
+    "not_global_certification": true,
+    "index_file": "rea-linux/certification/rea-6.8.0-current-certifications.json"
   }
 }
