@@ -213,6 +213,7 @@ jobs:
           current="$(ssh_remote 'sudo -n systemctl show rea-reversa-mcp.service -p MainPID --value')"
           [[ "$current" =~ ^[0-9]+$ ]] && (( current > 0 ))
           test "$(ssh_remote 'sudo -n systemctl is-active rea-reversa-mcp.service')" = active
+          echo "REA_PRIORITY1_OWNERSHIP_SELFTEST_FIXTURE_REV=2"
           patch_action selftest
           patch_action check | grep -F "REA_PRIORITY1_OWNERSHIP_STATE=original"
           patch_action apply
