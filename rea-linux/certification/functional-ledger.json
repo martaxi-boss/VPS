@@ -8297,6 +8297,26 @@
         "The negative nonexistent target correctly returned invalid_input; no unrelated paths or production targets were accessed.",
         "Future sensitive calls still require fresh individual Ed25519 owner signatures. No live Rizin persistent debugger session was opened or certified."
       ]
+    },
+    {
+      "phase_id": "LINUX-P286-CANONICAL-6.8.0-CERTIFICATION-UNIFICATION-20261028",
+      "status": "REGISTRY_RECONCILED_150_SCOPE_GREEN_OF_229_NO_NEW_CERTIFICATION",
+      "date_utc": "2026-10-28",
+      "tools": [],
+      "counting": {
+        "previous_original": 125,
+        "new_scoped": 25,
+        "green_scoped_total": 150,
+        "pending_not_green": 79,
+        "live_catalog": 229
+      },
+      "sources": [
+        "rea-linux/certification/rea-6.8.0-current-certifications.json",
+        "rea-linux/certification/priority4-target150-batch-f-final-20261028.json"
+      ],
+      "method": "Historical proof re-indexed, no tool status upgraded without proof, no runtime changes",
+      "source_repo": "martaxi-boss/Engenheira-reversa",
+      "display_status": "Current 150/229; prior 125/208 history retained"
     }
   ],
   "active_scope_counts": {
@@ -8343,7 +8363,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P285-OWNER-SIGNED-RIZIN-ONESHOT-FULL-CERTIFICATION-20261026",
+  "latest_phase": "LINUX-P286-CANONICAL-6.8.0-CERTIFICATION-UNIFICATION-20261028",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",

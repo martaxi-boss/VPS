@@ -1,5 +1,10 @@
 # Certificação funcional do motor REA em Linux
 
+> **ESTADO CANÓNICO ATUAL — REA 6.8.0 (28/10/2026): 150 de 229 ferramentas com certificação funcional no âmbito comprovado; 79 pendentes.** Consultar [o índice de 229 ferramentas](rea-6.8.0-current-certifications.json) e [o estado resumido](STATUS_6_8_0.md). As referências a 125/208, workflows legados e pedidos de assinaturas mais abaixo são **registos históricos**, não ordens atuais nem a versão ativa.
+>
+> O workflow operacional da ponte GitHub é `.github/workflows/rea-mcp-transport-20261027.yml`; utiliza o ramo `rea/one-skill-bridge-20261023`. O REA 6.7.0 não integra o motor nem a certificação atual. Não criar novos mecanismos nem marcar a verde ferramentas sem evidência.
+
+
 **Âmbito vinculativo:** o único motor REA continua instalado no servidor Linux existente, em `/opt/rea-reversa/rea`. Todas as operações de análise, fornecedores, resultados e testes de certificação são executados no Linux, sem dependência obrigatória de uma distribuição específica.
 
 A ligação existente `ChatGPT -> GitHub Actions -> SSH -> VPS Linux -> MCP em 127.0.0.1:8765/mcp` é apenas transporte para comandar o motor instalado. A nomenclatura legada de certos ficheiros da ponte não determina o sistema operativo do motor. Não mudar ou remover a ponte operacional durante esta normalização.
