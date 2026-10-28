@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "project": "REA 6.8.0",
+  "date_utc": "2026-10-28",
+  "phase": "P4_ERLANG_BEAM_REAL_SCOPED",
+  "status": "FULLY_CERTIFIED_SCOPED_OTP29_STATIC",
+  "baseline": {
+    "old_certified": 136,
+    "new_certified": 1,
+    "now_certified": 137,
+    "total_catalog": 229,
+    "remaining": 92
+  },
+  "tool": "inspect_erlang_beam",
+  "host": "existing Ubuntu VPS",
+  "provider": "REA original pure static parser; Erlang runtime not needed",
+  "source": {
+    "repo": "martaxi-boss/Engenheira-reversa",
+    "branch": "main",
+    "path": "rea/src/erlang/Beam.fixture.ts",
+    "blob_sha": "dd921624e2027421fd3123159b0110dba5971f14",
+    "type": "compiler-produced OTP 29 BEAM included in upstream tests"
+  },
+  "fixture": {
+    "path": "/tmp/rea-p4-otp29-20261028.beam",
+    "size": 564,
+    "sha256": "0def81708a6d20d2960f63e4520ad8497373f6409150b215f0a0cacae6c36177"
+  },
+  "positive": {
+    "evidence": "ev_6e5ee18329d3b7feec104940011b7d9ca7deda813dfd5e07053e2de2ec6a537c",
+    "format": "FOR1/BEAM",
+    "chunks": 12,
+    "atoms": 7,
+    "exports": 3,
+    "imports": 3,
+    "module": "rea_beam_fixture"
+  },
+  "oracle": {
+    "evidence": "ev_c3d384dd6a04306be19f2b3b27d67d3e4823a13eec7fd0340d8b166f0f3bad74",
+    "method": "Python independent IFF FOR1 chunk walk, exact length, SHA256 and Code/AtU8 boundaries",
+    "match": true
+  },
+  "negative": {
+    "input": "/usr/bin/true",
+    "expected_error": "invalid_format / Expected a FOR1 IFF container",
+    "observed": true
+  },
+  "hygiene": {
+    "fixture_removed": true,
+    "process_cleanup_verified": true,
+    "original_rea_source_unchanged": true,
+    "providers_installed": 0,
+    "other_projects_unchanged": true
+  },
+  "limits": [
+    "No Erlang code execution, no LitT decompression, no Attr/CInf external term decoding.",
+    "Certification is a scoped static OTP29 BEAM parser proof, not all BEAM variations."
+  ],
+  "next": "Continue only tools with supported Linux fixture and real supplier; preserve existing ledger."
+}
