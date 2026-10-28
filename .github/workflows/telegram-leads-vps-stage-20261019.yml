@@ -16,8 +16,8 @@ concurrency:
 
 env:
   TELEGRAM_REPO: https://github.com/martaxi-boss/telegram-robot-leads.git
-  TARGET_SHA: 7c0ef8a1d9be5d18568a133bcfdb79e4e0bcd9aa
-  EXPECTED_INSTALLED: d8736bd359de795182ee717448c93df2977d0a44
+  TARGET_SHA: 655a911595fd49b0eaeb4feec4dc5a0fb4ac61e0
+  EXPECTED_INSTALLED: 7c0ef8a1d9be5d18568a133bcfdb79e4e0bcd9aa
   VPS_HOST: 146.59.145.3
   VPS_USER: ubuntu
 
@@ -60,10 +60,10 @@ jobs:
           (
             cd "$target"
             "$RUNNER_TEMP/telegram-leads-test-venv/bin/python" -m unittest discover -s tests -v
-            "$RUNNER_TEMP/telegram-leads-test-venv/bin/python" -m py_compile               scripts/deploy_project_only.py               scripts/activate_project_only.py               scripts/project_hygiene.py               scripts/organic_growth.py               scripts/safe_runtime.py               scripts/operation_policy.py               scripts/leads_operational_report.py               scripts/lead_health.py
+            "$RUNNER_TEMP/telegram-leads-test-venv/bin/python" -m py_compile               scripts/deploy_project_only.py               scripts/activate_project_only.py               scripts/project_hygiene.py               scripts/organic_growth.py               scripts/growth_radar.py               scripts/safe_runtime.py               scripts/operation_policy.py               scripts/leads_operational_report.py               scripts/lead_health.py
             bash -n scripts/telegram-robot-leads-status.sh
           )
-          tar -C "$target" -czf "$RUNNER_TEMP/telegram-leads-runtime.tgz" --             scripts/lead_health.py             scripts/leads_operational_report.py             scripts/operation_policy.py             scripts/organic_growth.py             scripts/project_hygiene.py             scripts/safe_runtime.py             scripts/telegram-robot-leads-status.sh             scripts/deploy_project_only.py             scripts/activate_project_only.py
+          tar -C "$target" -czf "$RUNNER_TEMP/telegram-leads-runtime.tgz" --             scripts/lead_health.py             scripts/leads_operational_report.py             scripts/operation_policy.py             scripts/organic_growth.py             scripts/growth_radar.py             scripts/project_hygiene.py             scripts/safe_runtime.py             scripts/telegram-robot-leads-status.sh             scripts/deploy_project_only.py             scripts/activate_project_only.py
           cp "$target/scripts/deploy_project_only.py" "$RUNNER_TEMP/deploy_project_only.py"
           echo "TELEGRAM_LEADS_CERTIFIED_SOURCE=$TARGET_SHA"
 
