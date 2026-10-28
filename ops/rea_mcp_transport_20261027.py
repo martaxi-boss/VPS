@@ -347,6 +347,18 @@ def one_use(nonce):
 def remote_run(request):
     check_request(request)
     verify_compiled_overlays()
+    if request["action"] == "catalog":
+        # One REA-only restart to recover interrupted process cleanup;
+        # no change to other services, code, credentials or workflows.
+        import subprocess
+        active = subprocess.run(["sudo", "-n", "systemctl", "is-active",
+            "rea-reversa-mcp.service"], text=True, capture_output=True, timeout=10)
+        if active.returncode != 0 or active.stdout.strip() != "active":
+            raise ValueError("REA_SERVICE_RESTART=ABORT_NOT_ACTIVE")
+        subprocess.run(["sudo", "-n", "systemctl", "restart",
+            "rea-reversa-mcp.service"], text=True, capture_output=True,
+            timeout=45, check=True)
+        print("REA_SERVICE_RESTART_SCOPED=PASS", file=sys.stderr)
     client = Client()
     registry = client.start()
     public = public64(server_key())
