@@ -17,6 +17,7 @@ import secrets
 import stat
 import sys
 import tempfile
+import time
 import urllib.error
 import urllib.request
 
@@ -189,16 +190,37 @@ class Client:
         return payload.get("result", {})
 
     def start(self):
-        init = self.rpc("initialize", {"protocolVersion": "2025-06-18",
-            "capabilities": {}, "clientInfo": {"name": "rea-github-transport", "version": "1.0"}})
-        self.protocol = init.get("protocolVersion")
-        if not self.protocol:
-            raise ValueError("MCP initialization failed")
-        self.rpc("notifications/initialized")
-        tools = self.rpc("tools/list").get("tools")
-        if not isinstance(tools, list) or not tools:
-            raise ValueError("MCP catalog unavailable")
-        return {item["name"]: item for item in tools if isinstance(item, dict) and "name" in item}
+        # Retry only the non-mutating MCP handshake and catalog discovery.
+        # Never retry tools/call: its outcome can be ambiguous on network failure.
+        deadline = time.monotonic() + 30.0
+        for attempt in range(1, 9):
+            self.session = None
+            self.protocol = None
+            try:
+                def readiness_timeout(cap):
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise urllib.error.URLError("MCP readiness deadline reached")
+                    return min(cap, remaining)
+
+                init = self.rpc("initialize", {"protocolVersion": "2025-06-18",
+                    "capabilities": {}, "clientInfo": {"name": "rea-github-transport", "version": "1.0"}},
+                    timeout=readiness_timeout(10.0))
+                self.protocol = init.get("protocolVersion")
+                if not self.protocol:
+                    raise ValueError("MCP initialization failed")
+                self.rpc("notifications/initialized", timeout=readiness_timeout(10.0))
+                tools = self.rpc("tools/list", timeout=readiness_timeout(15.0)).get("tools")
+                if not isinstance(tools, list) or not tools:
+                    raise ValueError("MCP catalog unavailable")
+                print("REA_MCP_READINESS=PASS;attempts=" + str(attempt), file=sys.stderr)
+                return {item["name"]: item for item in tools
+                        if isinstance(item, dict) and "name" in item}
+            except urllib.error.URLError:
+                if attempt == 8 or time.monotonic() >= deadline:
+                    print("REA_MCP_READINESS=FAIL;attempts=" + str(attempt), file=sys.stderr)
+                    raise ValueError("REA MCP unavailable after bounded readiness attempts") from None
+                time.sleep(min(1.0, max(0.0, deadline - time.monotonic())))
 
     def call_tool(self, descriptor, arguments):
         from jsonschema.validators import validator_for
@@ -285,6 +307,81 @@ def remote_run(request):
           "calls_executed":len(results),"result_encrypted":True}))
     print("REA_TRANSPORT_ENVELOPE_B64=" + b64(compact(envelope)))
 
+
+def test_readiness():
+    """Bounded startup retries, strict protocol errors, and no replay of real tools."""
+    from contextlib import redirect_stderr
+    from unittest import mock
+    import io
+
+    client = Client()
+    client.session = "stale-session"
+    client.protocol = "stale-protocol"
+    calls = []
+
+    def fake_rpc(method, params=None, timeout=90):
+        calls.append(method)
+        if method == "initialize":
+            assert client.session is None and client.protocol is None
+            if calls.count("initialize") <= 2:
+                raise urllib.error.URLError("connection refused")
+            return {"protocolVersion": "2025-11-25"}
+        if method == "notifications/initialized":
+            return {}
+        if method == "tools/list":
+            return {"tools": [{"name": "list_unknowns", "inputSchema": {}}]}
+        raise AssertionError("Unexpected MCP call during readiness")
+
+    with (mock.patch.object(client, "rpc", side_effect=fake_rpc),
+          mock.patch.object(time, "sleep") as sleeps,
+          redirect_stderr(io.StringIO()) as messages):
+        tools = client.start()
+    assert list(tools) == ["list_unknowns"]
+    assert calls == ["initialize", "initialize", "initialize",
+                     "notifications/initialized", "tools/list"]
+    assert sleeps.call_count == 2
+    assert "REA_MCP_READINESS=PASS;attempts=3" in messages.getvalue()
+
+    client = Client()
+    with (mock.patch.object(client, "rpc",
+                            side_effect=urllib.error.URLError("connection refused")) as rpc,
+          mock.patch.object(time, "sleep") as sleeps,
+          redirect_stderr(io.StringIO()) as messages):
+        try:
+            client.start()
+        except ValueError as exc:
+            assert "bounded readiness" in str(exc)
+        else:
+            raise AssertionError("Readiness outage accepted")
+    assert rpc.call_count == 8 and sleeps.call_count == 7
+    assert "REA_MCP_READINESS=FAIL;attempts=8" in messages.getvalue()
+
+    client = Client()
+    with (mock.patch.object(client, "rpc", return_value={}) as rpc,
+          mock.patch.object(time, "sleep") as sleeps):
+        try:
+            client.start()
+        except ValueError as exc:
+            assert "initialization" in str(exc)
+        else:
+            raise AssertionError("Invalid MCP protocol accepted")
+    assert rpc.call_count == 1
+    sleeps.assert_not_called()
+
+    client = Client()
+    with mock.patch.object(client, "rpc",
+                           side_effect=urllib.error.URLError("connection reset")) as rpc:
+        try:
+            client.call_tool({"name": "list_unknowns",
+                              "inputSchema": {"type": "object"}}, {})
+        except urllib.error.URLError:
+            pass
+        else:
+            raise AssertionError("Ambiguous tools/call was retried or swallowed")
+    assert rpc.call_count == 1
+    assert rpc.call_args.args[0] == "tools/call"
+
+
 def test_local():
     key = fresh_key()
     pub = public64(key)
@@ -305,6 +402,7 @@ def test_local():
         pass
     else:
         raise AssertionError("Tamper acceptance")
+    test_readiness()
     print("REA_TRANSPORT_SELFTEST=PASS")
 
 def cli(args):
