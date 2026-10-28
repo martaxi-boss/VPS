@@ -75,6 +75,74 @@ jobs:
           fingerprint="$(ssh-keygen -lf "$RUNNER_TEMP/rea-host-pin" -E sha256 | awk '{print $2}')"
           test "$fingerprint" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
           echo "REA_TRANSPORT_SSH_PIN=PASS"
+      - name: REA_CLEANUP_PROBE read-only owner and process identity diagnostic
+        if: contains(github.event.head_commit.message, '[rea cleanup read-only diag]')
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sshpass -e ssh -T \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/rea-host-pin" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 \
+            ubuntu@146.59.145.3 "python3 -" <<'PY'
+          import collections, errno, hashlib, json, os, pathlib, re, subprocess, time
+          targets=(191222,191328,191372,191461,191654,192273,192615,192664,192998,193278,193465,193491,193671,193700,193702)
+          def run(argv):
+              p=subprocess.run(argv,capture_output=True,text=True,timeout=12)
+              return {"code":p.returncode,"lines":p.stdout.strip().splitlines()[:8]}
+          service=run(["systemctl","show","rea-reversa-mcp.service","-p","MainPID","-p","User","-p","ActiveState","-p","SubState"])
+          ps=subprocess.run(["ps","-axo","pid=,ppid=,pgid=,uid=,stat=,command="],capture_output=True,text=True,timeout=12,check=True)
+          rows={}
+          pattern=re.compile(r"^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+")
+          for line in ps.stdout.splitlines():
+              m=pattern.match(line)
+              if m:
+                  pid,ppid,pgid,uid=map(int,m.groups()[:4])
+                  rows[pid]={"pid":pid,"ppid":ppid,"pgid":pgid,"uid":uid,"state":m.group(5)[:2]}
+          def native(pid):
+              p=pathlib.Path("/proc")/str(pid)
+              try:
+                  data=(p/"stat").read_text()
+                  tail=data.rsplit(")",1)[-1].split()
+                  stat={"exists":True,"ppid":int(tail[1]),"pgid":int(tail[2]),"state":tail[0],"starttime":tail[19]}
+                  try:
+                      env=(p/"environ").stat()
+                      stat["environ"]={"exists":True,"owner":env.st_uid,"mode":oct(env.st_mode & 0o777)}
+                  except OSError as error:
+                      stat["environ"]={"exists":False,"errno":error.errno}
+                  return stat
+              except OSError as error:
+                  return {"exists":False,"errno":error.errno}
+          pids=[]
+          for pid in targets:
+              pids.append({"pid":pid,"listed":rows.get(pid),"proc":native(pid)})
+          counts=collections.Counter("kernel-group-zero" if x["pgid"]==0 else "other" for x in rows.values())
+          uids=collections.Counter(str(x["uid"]) for x in rows.values() if x["pgid"]>0)
+          paths=("/opt/rea-reversa/rea/dist/process/ProcessOwnershipObservation.js","/opt/rea-reversa/rea/dist/process/ProcessOwnership.js")
+          digest={}
+          for p in paths:
+              try:digest[pathlib.Path(p).name]=hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest()
+              except OSError as e:digest[pathlib.Path(p).name]="ERROR_"+str(e.errno)
+          sample=[{"pid":x["pid"],"ppid":x["ppid"],"pgid":x["pgid"],"uid":x["uid"],"proc":native(x["pid"])} for x in list(rows.values())[:35] if x["pgid"]>0]
+          roots={"count":0,"older_than_10_minutes":0,"owner_uid":{}}
+          for path in pathlib.Path("/tmp").glob("rea-process-*"):
+              try:
+                  st=path.lstat()
+                  if path.is_symlink() or not path.is_dir():continue
+                  roots["count"]+=1
+                  if time.time()-st.st_mtime>600:roots["older_than_10_minutes"]+=1
+                  key=str(st.st_uid)
+                  roots["owner_uid"][key]=roots["owner_uid"].get(key,0)+1
+              except OSError:continue
+          print("REA_CLEANUP_PROBE="+json.dumps({"service":service,"observer_uid":os.geteuid(),"process_count":len(rows),"groups":dict(counts),"positive_group_uids":dict(uids),"historic_pids":pids,"sample":sample[:24],"compiled_hashes":digest,"temporary_roots":roots},sort_keys=True,separators=(",",":")))
+          PY
       - name: Execute existing REA MCP over authenticated SSH
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
