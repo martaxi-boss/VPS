@@ -87,6 +87,84 @@
   },
   "limitations": [
     "Validated four representative capture scenarios; does not establish that every possible process tree or concurrent race is fixed.",
-    "Original upstream source intentionally left unchanged; compiled overlay remains guarded by fixed SHA and requires revalidation after a rebuild."
-  ]
+    "Original upstream source intentionally left unchanged; compiled overlay remains guarded by fixed SHA and requires revalidation after a rebuild.",
+    "After a later recurrence, a scoped restart restored four real captures; do not infer indefinite process-race immunity."
+  ],
+  "post_restart_regression": {
+    "verified_utc": "2026-10-28",
+    "original_reproduction": {
+      "outcome": "FAIL_REAL_CAPTURE__CLEANUP_INCOMPLETE",
+      "error": "environment_errno_ESRCH for live kernel tasks",
+      "pids": [
+        209381,
+        209414,
+        209417
+      ],
+      "read_only_probes": [
+        {
+          "run_id": 40787792032,
+          "facts": "/proc states I; ppid 2; pgid 0; original runtime overlays verified"
+        },
+        {
+          "run_id": 40787979119,
+          "facts": "root native REA inspection of process ownership attempted"
+        },
+        {
+          "run_id": 40788129461,
+          "facts": "three stable same-generation root-owned Linux kernel threads; no readable process run token"
+        }
+      ],
+      "no_claim": "The first cleanup error was real but did not establish ownership of the kernel tasks by REA."
+    },
+    "recovery": {
+      "action": "Restart only rea-reversa-mcp.service over existing pinned SSH workflow",
+      "verified_github_run_id": 40788362758,
+      "workflow_result": "SUCCESS",
+      "service_restarted_at": "2026-10-28T23:35:20.833Z",
+      "original_upstream_source_changed": false,
+      "other_services_changed": false,
+      "overlay_changes": false
+    },
+    "real_mcp_tests": [
+      {
+        "name": "true",
+        "outcome": "PASS",
+        "exit_code": 0,
+        "process_group": "verified",
+        "temp_root": "removed",
+        "settlement": "quiesced",
+        "evidence_id": "ev_cef950dff9ab6213dbe90a687b091519e2dbd3d4b2ce2654f5d466469720ec55"
+      },
+      {
+        "name": "false",
+        "outcome": "PASS_EXPECTED_NONZERO",
+        "exit_code": 1,
+        "process_group": "verified",
+        "temp_root": "removed",
+        "settlement": "quiesced",
+        "evidence_id": "ev_35cb2d89d03f1cdf21698f4a9901b255a71e83614a18cbba68b6a9eb2e8be699"
+      },
+      {
+        "name": "python_child",
+        "outcome": "PASS",
+        "exit_code": 0,
+        "stdout": "CHILD_EXIT=0",
+        "process_group": "verified",
+        "temp_root": "removed",
+        "settlement": "quiesced",
+        "evidence_id": "ev_efe177c2a777fe0b1ce83a53eee3dbe8387525b51b33de18a2403ab4438146fc"
+      },
+      {
+        "name": "true_repeat",
+        "outcome": "PASS",
+        "exit_code": 0,
+        "process_group": "verified",
+        "temp_root": "removed",
+        "settlement": "quiesced",
+        "evidence_id": "ev_e5ecfb277f10d4745294363dae4732d23c2bcc983064fbd31ca8c714dcbf4b32"
+      }
+    ],
+    "result": "FOUR_OF_FOUR_REAL_CAPTURES_PASS_AFTER_SERVICE_RESTART",
+    "limitation": "A restart cleared this occurrence. The possibility of the same kernel-thread ownership misclassification returning in other process races is not disproven by four controlled test cases."
+  }
 }

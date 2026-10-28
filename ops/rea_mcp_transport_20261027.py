@@ -347,86 +347,10 @@ def one_use(nonce):
 def remote_run(request):
     check_request(request)
     verify_compiled_overlays()
-    if request["action"] == "catalog":
-        # One REA-only restart to recover interrupted process cleanup;
-        # no change to other services, code, credentials or workflows.
-        import subprocess
-        active = subprocess.run(["sudo", "-n", "systemctl", "is-active",
-            "rea-reversa-mcp.service"], text=True, capture_output=True, timeout=10)
-        if active.returncode != 0 or active.stdout.strip() != "active":
-            raise ValueError("REA_SERVICE_RESTART=ABORT_NOT_ACTIVE")
-        subprocess.run(["sudo", "-n", "systemctl", "restart",
-            "rea-reversa-mcp.service"], text=True, capture_output=True,
-            timeout=45, check=True)
-        print("REA_SERVICE_RESTART_SCOPED=PASS", file=sys.stderr)
     client = Client()
     registry = client.start()
     public = public64(server_key())
     if request["action"] == "catalog":
-        # One-shot read-only Linux process identity diagnostics. No environment
-        # content, command arguments, credentials or process signalling.
-        for pid in (209381, 209414, 209417):
-            item = {"pid": pid, "state": "absent"}
-            try:
-                raw = Path("/proc/%d/stat" % pid).read_text()
-                fields = raw.rsplit(") ", 1)[-1].split()
-                item.update({"state": fields[0], "ppid": int(fields[1]),
-                             "pgid": int(fields[2]), "session": int(fields[3]),
-                             "starttime_ticks": fields[19]})
-                try:
-                    fd = os.open("/proc/%d/environ" % pid, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
-                    try:
-                        os.read(fd, 1)
-                    finally:
-                        os.close(fd)
-                    item["environment_status"] = "readable"
-                except OSError as exc:
-                    item["environment_status"] = "errno_%s" % (getattr(exc, "errno", "unknown"),)
-            except FileNotFoundError:
-                pass
-            except Exception as exc:
-                item["state"] = "probe_error_" + type(exc).__name__
-            print("REA_PROCESS_STATE_DIAG=" + json.dumps(item, sort_keys=True), file=sys.stderr)
-        # Protected read-only native facts; no environment values or signals.
-        import subprocess
-        native = """import {systemProcessOwnershipHost as host,readProcessOwnershipFacts} from '/opt/rea-reversa/rea/dist/process/ProcessOwnershipObservation.js';
-import {readFile} from 'node:fs/promises';
-import {parseLinuxProcessStat} from '/opt/rea-reversa/rea/dist/process/LinuxProcessStat.js';
-const ids=[209381,209414,209417];
-const observed=(await host.listProcesses()).filter(x=>ids.includes(x.pid));
-const rows=[];
-for(const pid of ids) {
-  const stat=parseLinuxProcessStat(await readFile('/proc/'+pid+'/stat','utf8'));
-  if(!stat) continue;
-  rows.push({pid,parentPid:stat.parentPid,processGroupId:stat.processGroupId,uid:0,state:'I',command:'[kernel]'});
-}
-console.log('REA_NATIVE_ROW_COUNT='+JSON.stringify({listed:observed.length,native:rows.length}));
-const facts=await readProcessOwnershipFacts(rows,host);
-for(const f of facts) {
-  const ob=f.identityBefore,oa=f.identityAfter;
-  console.log('REA_NATIVE_FACT='+JSON.stringify({
-    pid:f.process.pid,state:f.state,table_state:f.process.state,
-    token_state:f.token.state,token_reason:f.token.state==='unavailable'?f.token.reason:undefined,
-    before_state:ob.state,after_state:oa.state,
-    before_relation:ob.state==='readable'?ob.relation:undefined,
-    after_relation:oa.state==='readable'?oa.relation:undefined,
-    after_uid:oa.state==='readable'?oa.effectiveUid:undefined,
-    after_lifecycle:oa.state==='readable'?oa.lifecycle:undefined,
-    identity_stable:ob.state==='readable'&&oa.state==='readable'&&ob.identity===oa.identity
-  }));
-}"""
-        run = subprocess.run(["sudo", "-n",
-            "/opt/rea-reversa/providers/node-v24.22.1/bin/node",
-            "--input-type=module", "-e", native],
-            capture_output=True, text=True, timeout=15, check=False)
-        print("REA_NATIVE_DIAGNOSTIC_EXIT="+str(run.returncode), file=sys.stderr)
-        for line in run.stdout.splitlines():
-            if line.startswith("REA_NATIVE_"):
-                print(line, file=sys.stderr)
-        if run.returncode:
-            print("REA_NATIVE_DIAGNOSTIC_ERROR="+run.stderr.splitlines()[-1][:140]
-                  if run.stderr.splitlines() else "REA_NATIVE_DIAGNOSTIC_ERROR=unavailable",
-                  file=sys.stderr)
         from jsonschema.validators import validator_for
         for t in registry.values():
             validator_for(t["inputSchema"]).check_schema(t["inputSchema"])
