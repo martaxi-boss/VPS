@@ -26,14 +26,21 @@ NEW = '''        // A stable Linux kernel thread cannot belong to an owned PTY c
         // Require the original scoped ownership check and verified native relation;
         // record uncertainty without signaling any unrelated kernel process.
         const unrelatedKernelThread = process.platform === "linux" &&
-            knownUnrelated &&
-            fact.process.parentPid === 2 &&
-            fact.process.processGroupId === 0 &&
-            fact.process.uid === 0 &&
-            relationBefore?.parentPid === 2 &&
-            relationBefore?.processGroupId === 0;
-        if (knownUnrelated &&
-            (unrelatedKernelThread ||
+            relation !== undefined &&
+            retainedCandidate === undefined &&
+            fact.state === "same-generation" &&
+            fact.identityBefore.state === "readable" &&
+            fact.identityAfter.state === "readable" &&
+            fact.identityBefore.identity === fact.identityAfter.identity &&
+            observed?.effectiveUid === 0 &&
+            relationBefore?.state === "observed" &&
+            relationAfter?.state === "observed" &&
+            relationBefore.parentPid === 2 &&
+            relationAfter.parentPid === 2 &&
+            relationBefore.processGroupId === 0 &&
+            relationAfter.processGroupId === 0;
+        if (unrelatedKernelThread ||
+            (knownUnrelated &&
                 environmentWithheldFromInspection(fact.token.reason, observed?.effectiveUid, observed?.environmentRestriction))) {'''
 
 def hash_bytes(data):
