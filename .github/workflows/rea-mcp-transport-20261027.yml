@@ -78,7 +78,7 @@ jobs:
       - name: Read-only verify stale REA process-capture PIDs (one-shot)
         if: contains(github.event.head_commit.message, '[rea cleanup scope diagnostic]')
         env:
-          SSHPASS: \${{ secrets.VPS_SSH_PASSWORD }}
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         shell: bash
         run: |
           set -euo pipefail
