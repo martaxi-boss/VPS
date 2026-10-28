@@ -70,7 +70,7 @@ def inspect():
     elif valid_backup and data == transform(BACKUP.read_bytes()):
         patched = data
         state = "patched"
-    elif backup_valid and digest_guarded_legacy(data):
+    elif valid_backup and digest_guarded_legacy(data):
         patched = transform(BACKUP.read_bytes())
         state = "legacy_patched"
     else:
