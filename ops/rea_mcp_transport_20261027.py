@@ -351,6 +351,30 @@ def remote_run(request):
     registry = client.start()
     public = public64(server_key())
     if request["action"] == "catalog":
+        # One-shot read-only Linux process identity diagnostics. No environment
+        # content, command arguments, credentials or process signalling.
+        for pid in (209381, 209414, 209417):
+            item = {"pid": pid, "state": "absent"}
+            try:
+                raw = Path("/proc/%d/stat" % pid).read_text()
+                fields = raw.rsplit(") ", 1)[-1].split()
+                item.update({"state": fields[0], "ppid": int(fields[1]),
+                             "pgid": int(fields[2]), "session": int(fields[3]),
+                             "starttime_ticks": fields[19]})
+                try:
+                    fd = os.open("/proc/%d/environ" % pid, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+                    try:
+                        os.read(fd, 1)
+                    finally:
+                        os.close(fd)
+                    item["environment_status"] = "readable"
+                except OSError as exc:
+                    item["environment_status"] = "errno_%s" % (getattr(exc, "errno", "unknown"),)
+            except FileNotFoundError:
+                pass
+            except Exception as exc:
+                item["state"] = "probe_error_" + type(exc).__name__
+            print("REA_PROCESS_STATE_DIAG=" + json.dumps(item, sort_keys=True), file=sys.stderr)
         from jsonschema.validators import validator_for
         for t in registry.values():
             validator_for(t["inputSchema"]).check_schema(t["inputSchema"])
