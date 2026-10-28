@@ -375,6 +375,37 @@ def remote_run(request):
             except Exception as exc:
                 item["state"] = "probe_error_" + type(exc).__name__
             print("REA_PROCESS_STATE_DIAG=" + json.dumps(item, sort_keys=True), file=sys.stderr)
+        # Protected read-only native facts; no environment values or signals.
+        import subprocess
+        native = """import {systemProcessOwnershipHost as host,readProcessOwnershipFacts} from '/opt/rea-reversa/rea/dist/process/ProcessOwnershipObservation.js';
+const ids=new Set([209381,209414,209417]);
+const rows=(await host.listProcesses()).filter(x=>ids.has(x.pid));
+const facts=await readProcessOwnershipFacts(rows,host);
+for(const f of facts) {
+  const ob=f.identityBefore,oa=f.identityAfter;
+  console.log('REA_NATIVE_FACT='+JSON.stringify({
+    pid:f.process.pid,state:f.state,table_state:f.process.state,
+    token_state:f.token.state,token_reason:f.token.state==='unavailable'?f.token.reason:undefined,
+    before_state:ob.state,after_state:oa.state,
+    before_relation:ob.state==='readable'?ob.relation:undefined,
+    after_relation:oa.state==='readable'?oa.relation:undefined,
+    after_uid:oa.state==='readable'?oa.effectiveUid:undefined,
+    after_lifecycle:oa.state==='readable'?oa.lifecycle:undefined,
+    identity_stable:ob.state==='readable'&&oa.state==='readable'&&ob.identity===oa.identity
+  }));
+}"""
+        run = subprocess.run(["sudo", "-n",
+            "/opt/rea-reversa/providers/node-v24.22.1/bin/node",
+            "--input-type=module", "-e", native],
+            capture_output=True, text=True, timeout=15, check=False)
+        print("REA_NATIVE_DIAGNOSTIC_EXIT="+str(run.returncode), file=sys.stderr)
+        for line in run.stdout.splitlines():
+            if line.startswith("REA_NATIVE_FACT="):
+                print(line, file=sys.stderr)
+        if run.returncode:
+            print("REA_NATIVE_DIAGNOSTIC_ERROR="+run.stderr.splitlines()[-1][:140]
+                  if run.stderr.splitlines() else "REA_NATIVE_DIAGNOSTIC_ERROR=unavailable",
+                  file=sys.stderr)
         from jsonschema.validators import validator_for
         for t in registry.values():
             validator_for(t["inputSchema"]).check_schema(t["inputSchema"])
