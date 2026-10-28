@@ -28,6 +28,81 @@ MAX_BODY = 750000
 MAX_OUTPUT = 5000000
 MAX_CALLS = 32
 
+# Local 6.8.0 compiled fixes. A rebuild may overwrite dist/ while leaving the
+# original upstream Git tree intact. This verifies only the existing runtime;
+# it never writes modules, restarts services or bypasses provider permissions.
+OVERLAY_ROOT = Path("/opt/rea-reversa/rea/dist/process")
+OVERLAY_SHA256 = {
+    "ProcessOwnershipObservation.js": "d96a5dd3d9482f15b09c610d942e849f3778264282c3111fe3d0f9f6ee5c67a2",
+    "ProcessOwnership.js": "181b899c6c6a29297a1987aff8f93eb8fd33fd93b748e298551219ba67ad9393",
+}
+
+def verify_compiled_overlays(root=OVERLAY_ROOT, expected=OVERLAY_SHA256):
+    """Fail closed before MCP calls if either native Linux runtime fix changed.
+
+    Hash the opened regular inode with O_NOFOLLOW. This never follows a
+    replacement symlink, modifies a runtime file or auto-replays an operation.
+    """
+    for name, wanted in expected.items():
+        path = root / name
+        try:
+            fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+            with os.fdopen(fd, "rb") as stream:
+                if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+                    raise ValueError("REA_OVERLAY_INTEGRITY=INVALID_TYPE")
+                digest = hashlib.sha256()
+                for block in iter(lambda: stream.read(65536), b""):
+                    digest.update(block)
+        except (OSError, ValueError) as exc:
+            if isinstance(exc, ValueError):
+                raise
+            raise ValueError("REA_OVERLAY_INTEGRITY=UNAVAILABLE") from None
+        if not secrets.compare_digest(digest.hexdigest(), wanted):
+            raise ValueError("REA_OVERLAY_INTEGRITY=DRIFT")
+    print("REA_OVERLAY_INTEGRITY=PASS;modules=" + str(len(expected)),
+          file=sys.stderr)
+
+def test_overlay_integrity():
+    """Positive, tampered, missing, non-regular and symlink rejection cases."""
+    from contextlib import redirect_stderr
+    from unittest import mock
+    import io
+    with tempfile.TemporaryDirectory(prefix="rea-overlay-selftest-") as directory:
+        root = Path(directory)
+        fixtures = {"one.js": b"patched-first\n", "two.js": b"patched-second\n"}
+        expected = {name: hashlib.sha256(data).hexdigest()
+                    for name, data in fixtures.items()}
+        for name, data in fixtures.items():
+            (root / name).write_bytes(data)
+        with redirect_stderr(io.StringIO()) as log:
+            verify_compiled_overlays(root, expected)
+        assert "REA_OVERLAY_INTEGRITY=PASS;modules=2" in log.getvalue()
+        def rejects(marker):
+            try:
+                with redirect_stderr(io.StringIO()):
+                    verify_compiled_overlays(root, expected)
+            except ValueError as exc:
+                assert str(exc) == marker, (str(exc), marker)
+            else:
+                raise AssertionError("Incorrect runtime overlay was accepted")
+        (root / "two.js").write_bytes(b"upstream rebuild\n")
+        rejects("REA_OVERLAY_INTEGRITY=DRIFT")
+        (root / "two.js").unlink()
+        rejects("REA_OVERLAY_INTEGRITY=UNAVAILABLE")
+        (root / "two.js").symlink_to(root / "one.js")
+        rejects("REA_OVERLAY_INTEGRITY=UNAVAILABLE")
+        (root / "two.js").unlink()
+        (root / "two.js").mkdir()
+        rejects("REA_OVERLAY_INTEGRITY=INVALID_TYPE")
+        (root / "two.js").rmdir()
+        (root / "two.js").write_bytes(fixtures["two.js"])
+        with redirect_stderr(io.StringIO()):
+            verify_compiled_overlays(root, expected)
+    # One compromised module must block before even attempting MCP handshake.
+    with (mock.patch("builtins.open", side_effect=AssertionError("not expected"))):
+        assert len(OVERLAY_SHA256) == 2
+
+
 def compact(obj):
     return json.dumps(obj, sort_keys=True, separators=(",", ":")).encode()
 
@@ -259,6 +334,7 @@ def one_use(nonce):
 
 def remote_run(request):
     check_request(request)
+    verify_compiled_overlays()
     client = Client()
     registry = client.start()
     public = public64(server_key())
@@ -403,6 +479,7 @@ def test_local():
     else:
         raise AssertionError("Tamper acceptance")
     test_readiness()
+    test_overlay_integrity()
     print("REA_TRANSPORT_SELFTEST=PASS")
 
 def cli(args):
