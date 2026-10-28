@@ -75,6 +75,55 @@ jobs:
           fingerprint="$(ssh-keygen -lf "$RUNNER_TEMP/rea-host-pin" -E sha256 | awk '{print $2}')"
           test "$fingerprint" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
           echo "REA_TRANSPORT_SSH_PIN=PASS"
+      - name: Read-only verify stale REA process-capture PIDs (one-shot)
+        if: contains(github.event.head_commit.message, '[rea cleanup scope diagnostic]')
+        env:
+          SSHPASS: \${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sshpass -e ssh -T \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/rea-host-pin" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 \
+            ubuntu@146.59.145.3 "python3 -" <<'PY'
+          import json, os, pathlib, subprocess
+          pids=(174896,178364,179278,179471,179827,179928,180177,180321,180324,180337,180599,180633,180851,180917,181026,181041,181073,181196,181208,181217,181265,181482,181503,181801)
+          service=subprocess.run(["systemctl","show","rea-reversa-mcp.service","-p","ActiveState","-p","MainPID","-p","SubState"],capture_output=True,text=True,timeout=10)
+          print("REA_SCOPE_SERVICE="+json.dumps(service.stdout.splitlines(),separators=(",",":")))
+          results=[]
+          for pid in pids:
+              p=pathlib.Path("/proc")/str(pid)
+              try:
+                  fields=p.joinpath("stat").read_text().rsplit(")",1)[1].split()
+                  state=fields[0]
+                  ppid=int(fields[1])
+                  pgid=int(fields[2])
+                  readable=os.access(p/"environ",os.R_OK)
+                  try:
+                      os.kill(pid,0)
+                      exists="yes"
+                  except ProcessLookupError:
+                      exists="no"
+                  except PermissionError:
+                      exists="permission-denied"
+                  results.append({"pid":pid,"status":"present","state":state,"ppid":ppid,"pgid":pgid,"environ_readable":readable,"kill0":exists})
+              except FileNotFoundError:
+                  results.append({"pid":pid,"status":"absent"})
+              except ProcessLookupError:
+                  results.append({"pid":pid,"status":"absent"})
+              except Exception as exc:
+                  results.append({"pid":pid,"status":"unverified","error":type(exc).__name__})
+          from collections import Counter
+          print("REA_SCOPE_PID_COUNTS="+json.dumps(dict(Counter(x["status"] for x in results)),sort_keys=True))
+          print("REA_SCOPE_PID_OBSERVATIONS="+json.dumps(results,separators=(",",":")))
+          PY
+
       - name: Execute existing REA MCP over authenticated SSH
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
