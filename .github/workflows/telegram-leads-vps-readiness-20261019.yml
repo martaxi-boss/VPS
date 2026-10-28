@@ -1,6 +1,12 @@
 name: Telegram Leads VPS scoped read-only readiness 20261019
 
 on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/telegram-leads-vps-readiness-20261019.yml'
+      - 'ops/telegram_leads_vps_readiness_20261019.py'
   pull_request:
     branches: [main]
     paths:
@@ -16,11 +22,11 @@ concurrency:
 
 jobs:
   inspect:
-    if: github.event.pull_request.head.repo.full_name == 'martaxi-boss/VPS'
+    if: github.repository == 'martaxi-boss/VPS' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'martaxi-boss/VPS')
     runs-on: ubuntu-24.04
     timeout-minutes: 12
     steps:
-      - name: Checkout exact PR snapshot
+      - name: Checkout exact event snapshot
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
@@ -47,7 +53,7 @@ jobs:
           test "$observed" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
           ssh-keygen -F 146.59.145.3 -f "$known" >/dev/null
           echo 'SSH_HOST_IDENTITY=VERIFIED'
-      - name: Run non-mutating live VPS inventory
+      - name: Run non-mutating live VPS inventory through existing SSH credentials
         shell: bash
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
