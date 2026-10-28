@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "engine": "REA 6.8.0",
+  "date_utc": "2026-10-28",
+  "phase": "LINUX-P289-FRIDA-WAKARU-BATCH-20261028",
+  "classification": "REAL_MCP_SCOPED_POSITIVE_ONLY",
+  "baseline": {
+    "catalog": 229,
+    "green": 151,
+    "pending": 78
+  },
+  "scope": "One controlled /usr/bin/true Frida target and one controlled 140-byte JavaScript fixture on Linux; no paid providers, no unrelated projects, no source edits",
+  "tools": [
+    {
+      "name": "instrument_with_frida",
+      "positive": "Spawned local /usr/bin/true; observed inline send payload; session detached and cleanup_error null",
+      "evidence": [
+        "ev_23df6177e89e7ad0672a4879112363602b7876be01d92c8be0419462717631dd"
+      ],
+      "negative": "Nonexistent local executable rejected without starting a session"
+    },
+    {
+      "name": "recover_javascript_sources",
+      "positive": "Wakaru 1.14 structural recovery produced one module and manifest status complete; hash matched original fixture; output directory removed",
+      "evidence": [
+        "ev_7b05e5de6fe1390b804325e8ee3f49ee197b2722e9b3a69447d54fe373d0aeba",
+        "ev_db4ef55d92279e40f21b75884ebd9e2ad4540fe5a349359171bf6fcde29eee64"
+      ],
+      "negative": "No malformed-input negative path proven; source transformation only, not runtime equivalence"
+    },
+    {
+      "name": "start_frida_session",
+      "positive": "Spawned local /usr/bin/true, paused, session 32933470-8a0a-428d-a83b-772e9e5eb5b4",
+      "evidence": [
+        "ev_92b743db43f64f5d67f4036a0c0e1761b9c04f8af2e7dd847b2810870e4c4865"
+      ],
+      "negative": "No unrelated target or attach mode tested"
+    },
+    {
+      "name": "frida_session_status",
+      "positive": "Observed paused session before script and empty script list after unload",
+      "evidence": [
+        "ev_92b743db43f64f5d67f4036a0c0e1761b9c04f8af2e7dd847b2810870e4c4865",
+        "ev_a47755f39974e86340e80d9138256e2049974c67478206f0579c432643ef37cc"
+      ],
+      "negative": "Post-close status rejected as invalid session"
+    },
+    {
+      "name": "load_frida_script",
+      "positive": "Loaded inline script into paused session; matching sent payload rea680_cert=true observed",
+      "evidence": [
+        "ev_70acb3561e7c299c85c36c465e61eba5e719b965a1e4aa18d23a8a644b155ae4"
+      ],
+      "negative": "Arbitrary script effects not certified"
+    },
+    {
+      "name": "unload_frida_script",
+      "positive": "Returned unloaded=true and independent subsequent status showed scripts=[]",
+      "evidence": [
+        "ev_a47755f39974e86340e80d9138256e2049974c67478206f0579c432643ef37cc"
+      ],
+      "negative": "Only a single already-loaded inline script tested"
+    },
+    {
+      "name": "resume_frida_session",
+      "positive": "Resumed paused spawn session; returned state=running",
+      "evidence": [
+        "ev_92b743db43f64f5d67f4036a0c0e1761b9c04f8af2e7dd847b2810870e4c4865"
+      ],
+      "negative": "No assertion of inferior exit status"
+    },
+    {
+      "name": "close_frida_session",
+      "positive": "Close returned target_state=unknown; subsequent status rejected disposed session id",
+      "evidence": [
+        "ev_a47755f39974e86340e80d9138256e2049974c67478206f0579c432643ef37cc"
+      ],
+      "negative": "No guarantee about target process exit; proves only session handle release"
+    }
+  ],
+  "outcome": {
+    "scoped_positive_count": 8,
+    "registered_currently": 0,
+    "admitted_total_if_published": 159,
+    "remaining_if_published": 70
+  },
+  "hygiene": {
+    "frida_session_closed": true,
+    "wakaru_temp_removed": true,
+    "original_6_8_0_source_untouched": true
+  },
+  "caveat": "No tool is universally certified. Each green applies only to the positive scope described. Failed CDP browser tests remain pending."
+}
