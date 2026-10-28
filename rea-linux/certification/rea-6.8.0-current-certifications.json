@@ -3,7 +3,7 @@
   "project": "Engenharia Reversa",
   "engine": "REA 6.8.0",
   "date_utc": "2026-10-28",
-  "status": "151_GREEN_SCOPED_78_PENDING",
+  "status": "159_GREEN_SCOPED_70_PENDING",
   "provenance": {
     "repo": "martaxi-boss/VPS",
     "branch": "rea/one-skill-bridge-20261023",
@@ -20,10 +20,10 @@
   },
   "counts": {
     "total": 229,
-    "green_scoped": 151,
+    "green_scoped": 159,
     "previous_verified_6_8_0": 125,
-    "new_scoped_6_8_0": 26,
-    "pending": 78,
+    "new_scoped_6_8_0": 34,
+    "pending": 70,
     "duplicates": 0
   },
   "rule": "Green means functional proof for the exact recorded Linux scope only. Never certify untested functionality, vendors, macOS-only capability or REA 6.7 by historical association.",
@@ -243,9 +243,17 @@
     },
     {
       "name": "close_frida_session",
-      "indicator": "PENDING_NOT_GREEN",
-      "status": "NOT_CERTIFIED",
-      "availability": "available"
+      "indicator": "GREEN_SCOPED",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "scope": "Close returned target_state=unknown; subsequent status rejected disposed session id",
+      "source_report": "rea-linux/certification/priority7-frida-wakaru-batch-20261028.json",
+      "evidence_ids": [
+        "ev_a47755f39974e86340e80d9138256e2049974c67478206f0579c432643ef37cc"
+      ],
+      "availability": "available",
+      "limitations": [
+        "No guarantee about target process exit; proves only session handle release"
+      ]
     },
     {
       "name": "close_gdb_session",
@@ -637,9 +645,18 @@
     },
     {
       "name": "frida_session_status",
-      "indicator": "PENDING_NOT_GREEN",
-      "status": "NOT_CERTIFIED",
-      "availability": "available"
+      "indicator": "GREEN_SCOPED",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "scope": "Observed paused session before script and empty script list after unload",
+      "source_report": "rea-linux/certification/priority7-frida-wakaru-batch-20261028.json",
+      "evidence_ids": [
+        "ev_92b743db43f64f5d67f4036a0c0e1761b9c04f8af2e7dd847b2810870e4c4865",
+        "ev_a47755f39974e86340e80d9138256e2049974c67478206f0579c432643ef37cc"
+      ],
+      "availability": "available",
+      "limitations": [
+        "Post-close status rejected as invalid session"
+      ]
     },
     {
       "name": "gdb_console",
@@ -1508,9 +1525,17 @@
     },
     {
       "name": "instrument_with_frida",
-      "indicator": "PENDING_NOT_GREEN",
-      "status": "NOT_CERTIFIED",
-      "availability": "available"
+      "indicator": "GREEN_SCOPED",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "scope": "Spawned local /usr/bin/true; observed inline send payload; session detached and cleanup_error null",
+      "source_report": "rea-linux/certification/priority7-frida-wakaru-batch-20261028.json",
+      "evidence_ids": [
+        "ev_23df6177e89e7ad0672a4879112363602b7876be01d92c8be0419462717631dd"
+      ],
+      "availability": "available",
+      "limitations": [
+        "Nonexistent local executable rejected without starting a session"
+      ]
     },
     {
       "name": "list_adb_devices",
@@ -1723,9 +1748,17 @@
     },
     {
       "name": "load_frida_script",
-      "indicator": "PENDING_NOT_GREEN",
-      "status": "NOT_CERTIFIED",
-      "availability": "available"
+      "indicator": "GREEN_SCOPED",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "scope": "Loaded inline script into paused session; matching sent payload rea680_cert=true observed",
+      "source_report": "rea-linux/certification/priority7-frida-wakaru-batch-20261028.json",
+      "evidence_ids": [
+        "ev_70acb3561e7c299c85c36c465e61eba5e719b965a1e4aa18d23a8a644b155ae4"
+      ],
+      "availability": "available",
+      "limitations": [
+        "Arbitrary script effects not certified"
+      ]
     },
     {
       "name": "match_native_functions",
@@ -2046,9 +2079,18 @@
     },
     {
       "name": "recover_javascript_sources",
-      "indicator": "PENDING_NOT_GREEN",
-      "status": "NOT_CERTIFIED",
-      "availability": "available"
+      "indicator": "GREEN_SCOPED",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "scope": "Wakaru 1.14 structural recovery produced one module and manifest status complete; hash matched original fixture; output directory removed",
+      "source_report": "rea-linux/certification/priority7-frida-wakaru-batch-20261028.json",
+      "evidence_ids": [
+        "ev_7b05e5de6fe1390b804325e8ee3f49ee197b2722e9b3a69447d54fe373d0aeba",
+        "ev_db4ef55d92279e40f21b75884ebd9e2ad4540fe5a349359171bf6fcde29eee64"
+      ],
+      "availability": "available",
+      "limitations": [
+        "No malformed-input negative path proven; source transformation only, not runtime equivalence"
+      ]
     },
     {
       "name": "resolve_adb_packages",
@@ -2084,9 +2126,17 @@
     },
     {
       "name": "resume_frida_session",
-      "indicator": "PENDING_NOT_GREEN",
-      "status": "NOT_CERTIFIED",
-      "availability": "available"
+      "indicator": "GREEN_SCOPED",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "scope": "Resumed paused spawn session; returned state=running",
+      "source_report": "rea-linux/certification/priority7-frida-wakaru-batch-20261028.json",
+      "evidence_ids": [
+        "ev_92b743db43f64f5d67f4036a0c0e1761b9c04f8af2e7dd847b2810870e4c4865"
+      ],
+      "availability": "available",
+      "limitations": [
+        "No assertion of inferior exit status"
+      ]
     },
     {
       "name": "rizin_debug_command",
@@ -2216,9 +2266,17 @@
     },
     {
       "name": "start_frida_session",
-      "indicator": "PENDING_NOT_GREEN",
-      "status": "NOT_CERTIFIED",
-      "availability": "available"
+      "indicator": "GREEN_SCOPED",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "scope": "Spawned local /usr/bin/true, paused, session 32933470-8a0a-428d-a83b-772e9e5eb5b4",
+      "source_report": "rea-linux/certification/priority7-frida-wakaru-batch-20261028.json",
+      "evidence_ids": [
+        "ev_92b743db43f64f5d67f4036a0c0e1761b9c04f8af2e7dd847b2810870e4c4865"
+      ],
+      "availability": "available",
+      "limitations": [
+        "No unrelated target or attach mode tested"
+      ]
     },
     {
       "name": "start_gdb_session",
@@ -2376,9 +2434,17 @@
     },
     {
       "name": "unload_frida_script",
-      "indicator": "PENDING_NOT_GREEN",
-      "status": "NOT_CERTIFIED",
-      "availability": "available"
+      "indicator": "GREEN_SCOPED",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "scope": "Returned unloaded=true and independent subsequent status showed scripts=[]",
+      "source_report": "rea-linux/certification/priority7-frida-wakaru-batch-20261028.json",
+      "evidence_ids": [
+        "ev_a47755f39974e86340e80d9138256e2049974c67478206f0579c432643ef37cc"
+      ],
+      "availability": "available",
+      "limitations": [
+        "Only a single already-loaded inline script tested"
+      ]
     },
     {
       "name": "unset_bookmark",
