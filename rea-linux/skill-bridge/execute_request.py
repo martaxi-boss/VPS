@@ -680,6 +680,14 @@ def perform(req):
     if not result["engine"].get("ready"):
         result["status"] = "BLOCKED_ENGINE_INCORRECT"
         return result
+    # Fail closed: never execute the FINAL motor using a provider in the old project.
+    if any(details.get("shared_with_legacy") for details in result["suppliers"].values()):
+        result["status"] = "BLOCKED_LEGACY_PROVIDER_REFERENCE"
+        return result
+    if any(str(path).startswith("/home/ubuntu/.local/share/rea-optional-")
+           for path in PROGRAMS.values()):
+        result["status"] = "BLOCKED_NON_PRIVATE_OPTIONAL_PROVIDER"
+        return result
     if req["operation"] == "optional_source_symlinks":
         result["optional_source_symlinks"]=optional_source_symlink_audit()
         result["status"]="PASS"

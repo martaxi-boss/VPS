@@ -2,6 +2,6 @@
   "schema_version": 1,
   "project": "engenharia-reversa-final",
   "engine_commit": "160d821ac9a0310afcb8d1fc427862dd6508add5",
-  "request_id": "final-strict-apk-20261029-a3",
-  "operation": "apk_demo"
+  "request_id": "final-guard-health-20261029-a4",
+  "operation": "health"
 }
