@@ -33,7 +33,7 @@ MAX_CALLS = 32
 # it never writes modules, restarts services or bypasses provider permissions.
 OVERLAY_ROOT = Path("/opt/rea-reversa/rea/dist/process")
 OVERLAY_SHA256 = {
-    "ProcessOwnershipObservation.js": "eaf1c4c6b6086d1adf3e3b89a4b2831eddef8e4dbbf82bc46b304ab1e0a2d8fd",
+    "ProcessOwnershipObservation.js": "05426e8e3f3c1b42a9ccaafee64ef562e5e587e3e15f8f68387d29b8b7237a06",
     "ProcessOwnership.js": "896032442deb6ee3aad314d5778e7310ff5598127a03d667387724085984cec6",
 }
 
