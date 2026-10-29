@@ -80,7 +80,7 @@ def execute(args, env=None, timeout=50):
             stdout, stderr = p.communicate(timeout=5)
             rc = 124
         return {"exit": rc, "seconds": round(time.monotonic()-start, 2),
-            "output": stdout[:250000], "error": stderr[:1000]}
+            "output": stdout[:(16 * 1024 * 1024)], "error": stderr[:1000]}
     except (OSError, subprocess.TimeoutExpired) as err:
         return {"exit": 126, "seconds": round(time.monotonic()-start, 2),
             "output": "", "error": type(err).__name__}
