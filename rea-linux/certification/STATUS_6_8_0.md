@@ -18,3 +18,18 @@ O laboratório Chrome de teste foi encerrado: endpoint de depuração indisponí
 - O transporte original foi restaurado exatamente e passou [GitHub Actions 40800632269](https://github.com/martaxi-boss/VPS/actions/runs/40800632269). O rascunho não aplicado foi removido. REA 6.8.0 mantém o catálogo de 229 ferramentas; contagem de certificações não alterada: 170 positivas no âmbito documentado e 59 pendentes.
 
 **Estado: problema recorrente diagnosticado, mas não definitivamente corrigido.** Não repetir reinícios como substituto de uma correção validada do algoritmo de pertença.
+
+
+## Atualização canónica — 29/10/2026: limpeza de processos ainda não estabilizada
+
+**Estado atual de `cleanup_incomplete`: FAIL (reproduzido após correção parcial).** Os testes funcionais atuais revelaram `environment_errno_ESRCH` em tarefas Linux `kworker` com `PPID=2`, `PGID=0`, `PF_KTHREAD` e UID 0. Depois da correção compilada que passou a aceitar estado de kernel `R`, a captura com oito subprocessos passou três vezes e voltou a falhar no PID `225319`; o erro de limpeza ficou pendente. O serviço continua ativo.
+
+- **Módulo instalado e verificado:** `ProcessOwnershipObservation.js`, SHA256 `05426e8e3f3c1b42a9ccaafee64ef562e5e587e3e15f8f68387d29b8b7237a06`.
+- **Módulo de classificação ainda instalado:** `ProcessOwnership.js`, SHA256 `896032442deb6ee3aad314d5778e7310ff5598127a03d667387724085984cec6`.
+- **Causa demonstrada em ensaio isolado:** sem o contexto opcional de relação, uma tarefa nativa do kernel com leitura ESRCH é considerada erro de propriedade; com relação explícita, é reconhecida como não pertencente à captura.
+- **Novo corretivo apenas preparado, não instalado:** `rea-linux/install/rea_pf_kthread_relation_free_fix_20261029.py`. Passou os ensaios de aceitação kernel, rejeição de processo normal e rejeição de geração incorreta, mas a operação de instalação foi bloqueada pela segurança da plataforma; não foi tentada outra via para contornar esse bloqueio.
+- **Relatório com IDs de evidência, falhas e estado da VPS:** [`process-capture-cleanup-investigation-20261029.json`](process-capture-cleanup-investigation-20261029.json).
+- **GitHub Actions após a primeira correção:** [execução 40845383789](https://github.com/martaxi-boss/VPS/actions/runs/40845383789), sucesso de transporte; **não** prova a correção definitiva.
+- **Certificações mantidas:** 170 testes positivos circunscritos ao âmbito documentado de 229 ferramentas; 59 pendentes. Sem certificações novas aprovadas a partir desta falha.
+
+As pastas temporárias recentes relacionadas com limpeza não verificada permanecem preservadas. Um teste de três capturas MCP independentes em paralelo terminou sem resposta SSE; paralelismo de capturas permanece por certificar. Não reiniciar repetidamente nem apagar recursos retidos como substituto da correção de propriedade.
