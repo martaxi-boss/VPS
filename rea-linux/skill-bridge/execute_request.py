@@ -62,7 +62,7 @@ def validate(raw):
         raise ValueError("PROJECT_DENIED")
     if not isinstance(value["request_id"], str) or not re.fullmatch(r"[A-Za-z0-9._-]{8,80}", value["request_id"]):
         raise ValueError("REQUEST_ID_DENIED")
-    if value["operation"] not in ("health", "providers", "inspect_elf", "apk_demo", "isolation_audit", "environment_audit", "provider_diagnostics"):
+    if value["operation"] not in ("health", "providers", "inspect_elf", "apk_demo", "isolation_audit", "environment_audit", "provider_diagnostics", "strict_separation_audit"):
         raise ValueError("OPERATION_DENIED")
     return value
 
@@ -560,11 +560,95 @@ def doctor_detail_audit():
             r["results"][name]=row
     return r
 
+
+def strict_separation_audit():
+    """Read-only audit of dependencies on OLD and of paths outside final project."""
+    import shutil
+    final=Path("/home/ubuntu/rea-final-runtime")
+    roots={"final_checkout":ROOT,"final_runtime":final}
+    report={"read_only":True,"source_commit":PIN,
+        "final_root":str(ROOT),"runtime_root":str(final),
+        "node_modules_target":str((ROOT/"node_modules").resolve(strict=False)),
+        "programs":{}, "file_reference_scan":{},"candidate_copies":{}}
+    for name,path in PROGRAMS.items():
+        real=path.resolve(strict=False)
+        report["programs"][name]={
+            "declared":str(path),"realpath":str(real),
+            "exists":path.is_file(),
+            "points_to_old":str(real).startswith("/opt/rea-reversa/"),
+            "project_owned":real==ROOT or ROOT in real.parents or real==final or final in real.parents,
+            "host_os_tool":str(real).startswith(("/usr/","/bin/")),
+            "user_local_tool":str(real).startswith("/home/ubuntu/.local/"),
+            "standalone_external":str(real).startswith("/opt/") and not str(real).startswith("/opt/rea-reversa/")}
+    for label,path in roots.items():
+        report["file_reference_scan"][label]={
+            "present":path.is_dir(), "scanned_entries":0,"symlinks":0,
+            "symlinks_to_old":0,"symlinks_to_old_samples":[],
+            "old_reference_launchers":0,"old_reference_launcher_samples":[],
+            "limit_reached":False}
+        x=report["file_reference_scan"][label]
+        if not path.is_dir(): continue
+        for root,dirs,files in os.walk(path,followlinks=False):
+            if label=="final_checkout":
+                dirs[:]=[a for a in dirs if a not in (".git","_reference","node_modules")]
+            for name in list(dirs)+files:
+                p=Path(root)/name
+                x["scanned_entries"]+=1
+                if x["scanned_entries"]>160000:
+                    x["limit_reached"]=True
+                    dirs[:]=[]
+                    break
+                if p.is_symlink():
+                    x["symlinks"]+=1
+                    target=p.resolve(strict=False)
+                    if str(target).startswith("/opt/rea-reversa/"):
+                        x["symlinks_to_old"]+=1
+                        if len(x["symlinks_to_old_samples"])<20:
+                            x["symlinks_to_old_samples"].append(str(p.relative_to(path))[:160])
+                if not p.is_file() or p.is_symlink(): continue
+                if not (p.suffix.lower() in (".pth",".cfg",".ini",".sh",".py",".toml") or
+                        name in ("unblob","binwalk","rizin","kuna","mitmdump","wakaru","java","node")):
+                    continue
+                try:
+                    if p.stat().st_size>48*1024:continue
+                    data=p.read_bytes()
+                    if b"/opt/rea-reversa/" in data:
+                        x["old_reference_launchers"]+=1
+                        if len(x["old_reference_launcher_samples"])<24:
+                            x["old_reference_launcher_samples"].append(str(p.relative_to(path))[:160])
+                except OSError: pass
+            if x["limit_reached"]: break
+    for alias,pstr in {
+        "chromium":"/opt/rea-reversa/providers/chromium-playwright-1.58.2",
+        "ilspy":"/home/ubuntu/.local/share/rea-optional-ilspycmd-11.2.0",
+        "pwndbg":"/home/ubuntu/.local/share/rea-optional-pwndbg-2026.09.15",
+        "pwntools":"/home/ubuntu/.local/share/rea-optional-pwntools-4.15.0",
+        "hopper":"/opt/hopper",
+        }.items():
+        p=Path(pstr)
+        info={"path":pstr,"exists":p.exists(),"symlink":p.is_symlink()}
+        if p.exists() and not p.is_symlink():
+            try:
+                res=subprocess.run(["sudo","-n","du","-s","-B1",str(p)],
+                  stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,
+                  stderr=subprocess.DEVNULL,text=True,timeout=95,check=False)
+                info["allocated_bytes"]=int(res.stdout.split()[0]) if res.returncode==0 else None
+            except (OSError,ValueError,subprocess.TimeoutExpired): pass
+        report["candidate_copies"][alias]=info
+    report["old_active_provider_refs"]=[k for k,v in report["programs"].items() if v["points_to_old"]]
+    report["non_project_installed_providers"]=[k for k,v in report["programs"].items()
+      if not v["project_owned"]]
+    return report
+
 def perform(req):
     result = {"bridge": "original-final-cli-v1", "request_id": req["request_id"],
               "operation": req["operation"], "engine": engine_state(), "suppliers": supplier_state()}
     if not result["engine"].get("ready"):
         result["status"] = "BLOCKED_ENGINE_INCORRECT"
+        return result
+    if req["operation"] == "strict_separation_audit":
+        result["strict_separation_audit"] = strict_separation_audit()
+        result["status"] = "PASS"
         return result
     if req["operation"] == "provider_diagnostics":
         result["provider_diagnostics"] = doctor_detail_audit()
