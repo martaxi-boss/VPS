@@ -287,10 +287,24 @@ def main():
         y,r,n=execute("ghidra-native-procedure-search",[
             "search",str(NATIVE),".","--kind","procedures","--mode","regex","--provider","ghidra"
         ],env,timeout=510)
-        match_count=len(n.get("matches",[])) if isinstance(n.get("matches"),list) else -1
-        positive("Ghidra_real_procedure_search",y,n,
-                 lambda k:match_count>0,
-                 {"matches":match_count,"keys":y["normalized_keys"][:20]})
+        # The official search_procedures contract returns an array of
+        # {value, address} entries as normalized_result, not an object with
+        # a nested "matches" key. The generic object-only parser above is
+        # intentionally retained for the other command families.
+        raw_matches=r.get("normalized_result") if isinstance(r,dict) else None
+        matches=raw_matches if isinstance(raw_matches,list) else []
+        valid=[item for item in matches
+               if isinstance(item,dict)
+               and isinstance(item.get("value"),str)
+               and item["value"].strip()
+               and item.get("address") is not None]
+        search_pass=(y["return_code"]==0 and y["json_evidence"]
+                     and not y["cleanup_incomplete"] and len(valid)>0)
+        record("Ghidra_real_procedure_search",
+               "PASS" if search_pass else "FAIL",
+               {"result_type":type(raw_matches).__name__,
+                "total_matches":len(matches),
+                "named_address_matches":len(valid)})
     else:
         record("Ghidra_real_procedure_search","SKIPPED_PREREQUISITE")
     # Real JADX on a publicly hash-pinned APK; no Android device required.
