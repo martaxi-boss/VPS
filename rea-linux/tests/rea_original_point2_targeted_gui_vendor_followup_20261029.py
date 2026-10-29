@@ -231,6 +231,26 @@ def hopper_probe():
 
 def main():
     check_source()
+    old=EVID/"summary.json"
+    if old.is_file():
+        previous=json.loads(old.read_text())
+        for name in ("cutter","chromium","hopper"):
+            data=previous.get(name,{})
+            if name=="hopper":
+                data={k:v for k,v in data.items() if k not in ("installed_sha256",)}
+            print("REA_P2_READBACK_"+name.upper()+"="+json.dumps(data,sort_keys=True),flush=True)
+        for name in ("cutter-owned.stderr.log","cutter-owned.stdout.log"):
+            p=EVID/name
+            if p.is_file():
+                lines=p.read_text(encoding="utf8",errors="replace").splitlines()
+                terms=("error","qt","appimage","fuse","python","plugin","bridge","cannot","failed","cutter","xcb","DISPLAY")
+                selected=[x[:240] for x in lines if any(t in x.lower() for t in terms)]
+                print("REA_P2_READBACK_"+name.replace(".","_").replace("-","_").upper()+
+                      "="+json.dumps(selected[-32:]),flush=True)
+                print("REA_P2_READBACK_"+name.replace(".","_").replace("-","_").upper()+
+                      "_TOTAL_LINES="+str(len(lines)),flush=True)
+        print("REA_P2_READBACK_ONLY=PASS;no_rerun=true",flush=True)
+        return
     try:cutter_probe()
     except Exception as e:
         summary["cutter"]={"result":"EXCEPTION","reason":type(e).__name__+":"+str(e)[:180]}
