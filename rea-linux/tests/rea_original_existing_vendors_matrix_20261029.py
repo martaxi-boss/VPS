@@ -122,11 +122,44 @@ def existing_vendor_env(plain):
     home = installed_path(roots,
         lambda p:p.is_dir() and (p/"support/analyzeHeadless").is_file()
             and (p/"Ghidra/application.properties").is_file())
+    # Discover existing, non-standard vendor locations by scanning only
+    # bounded /opt supplier roots. Never load the old REA daemon's environment,
+    # read its credential files or add any provider package.
+    vendor_bases = [pathlib.Path("/opt/rea-reversa/providers")]
+    for entry in sorted(pathlib.Path("/opt").glob("*ghidra*")):
+        if entry.is_dir():vendor_bases.append(entry)
+    for entry in sorted(pathlib.Path("/opt").glob("*jadx*")):
+        if entry.is_dir():vendor_bases.append(entry)
+    jar=None
+    examined=0
+    for base in vendor_bases:
+        if not base.is_dir():continue
+        for current,dirs,files in os.walk(base,followlinks=False):
+            examined+=1
+            if examined > 25000:break
+            dirs[:]=[d for d in dirs if d not in (".git","node_modules","__pycache__",".turbo")]
+            folder=pathlib.Path(current)
+            if home is None and folder.name=="support" and "analyzeHeadless" in files:
+                possible=folder.parent
+                if (possible/"Ghidra/application.properties").is_file():
+                    home=possible.resolve()
+            for filename in files:
+                if filename=="jadx-headless-mcp-0.7.1-all.jar":
+                    candidate=folder/filename
+                    if jar is None and candidate.is_file() and os.access(candidate,os.R_OK):
+                        jar=candidate.resolve()
+        if examined>25000:break
+    if jar is not None:
+        env["REA_JADX_MCP_JAR"]=str(jar)
+        candidates["jadx_headless_mcp_jar"]=str(jar)
+    else:
+        candidates["jadx_headless_mcp_jar"]=None
+    print("REA_VENDOR_SCANNED_DIRECTORIES="+str(examined),flush=True)
     if home is not None:
         env["GHIDRA_INSTALL_DIR"]=str(home)
         candidates["ghidra"]=str(home)
     else:
-        # Ghidra may still be discoverable on PATH; do not borrow a service env.
+        # No old daemon environment or custom bridge is imported.
         candidates["ghidra"]=None
     for name,env_key,patterns in [
         ("kuna","REA_KUNA_COMMAND",
