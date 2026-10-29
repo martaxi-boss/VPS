@@ -2,6 +2,6 @@
   "schema_version": 1,
   "project": "engenharia-reversa-final",
   "engine_commit": "160d821ac9a0310afcb8d1fc427862dd6508add5",
-  "request_id": "strict-final-separation-20261029-01",
-  "operation": "strict_separation_audit"
+  "request_id": "optional-source-symlinks-20261029-01",
+  "operation": "optional_source_symlinks"
 }

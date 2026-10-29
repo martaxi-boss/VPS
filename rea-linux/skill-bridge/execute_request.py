@@ -62,7 +62,7 @@ def validate(raw):
         raise ValueError("PROJECT_DENIED")
     if not isinstance(value["request_id"], str) or not re.fullmatch(r"[A-Za-z0-9._-]{8,80}", value["request_id"]):
         raise ValueError("REQUEST_ID_DENIED")
-    if value["operation"] not in ("health", "providers", "inspect_elf", "apk_demo", "isolation_audit", "environment_audit", "provider_diagnostics", "strict_separation_audit"):
+    if value["operation"] not in ("health", "providers", "inspect_elf", "apk_demo", "isolation_audit", "environment_audit", "provider_diagnostics", "strict_separation_audit", "optional_source_symlinks"):
         raise ValueError("OPERATION_DENIED")
     return value
 
@@ -640,11 +640,46 @@ def strict_separation_audit():
       if not v["project_owned"]]
     return report
 
+
+def optional_source_symlink_audit():
+    """Source link inventory, no writes and no arbitrary user paths."""
+    paths={
+      "chromium":Path("/opt/rea-reversa/providers/chromium-playwright-1.58.2"),
+      "ilspy":Path("/home/ubuntu/.local/share/rea-optional-ilspycmd-11.2.0"),
+      "pwndbg":Path("/home/ubuntu/.local/share/rea-optional-pwndbg-2026.09.15"),
+      "pwntools":Path("/home/ubuntu/.local/share/rea-optional-pwntools-4.15.0"),
+    }
+    out={}
+    for alias,src in paths.items():
+        row={"count":0,"kinds":{},"examples":[]}
+        for root,dirs,files in os.walk(src,followlinks=False):
+            for name in dirs+files:
+                p=Path(root)/name
+                if not p.is_symlink():continue
+                row["count"]+=1
+                target=os.readlink(p)
+                resolved=p.resolve(strict=False)
+                kind=("inside_source" if resolved==src or src in resolved.parents
+                       else "system" if str(resolved).startswith(("/usr/","/bin/","/lib/"))
+                       else "legacy" if str(resolved).startswith("/opt/rea-reversa")
+                       else "user_local_other" if str(resolved).startswith("/home/ubuntu/.local")
+                       else "other_external")
+                row["kinds"][kind]=row["kinds"].get(kind,0)+1
+                if len(row["examples"])<25:
+                    row["examples"].append({"path":str(p.relative_to(src))[:110],
+                        "target":target[:180],"kind":kind,
+                        "exists":resolved.exists()})
+        out[alias]=row
+    return {"read_only":True,"sources":out}
 def perform(req):
     result = {"bridge": "original-final-cli-v1", "request_id": req["request_id"],
               "operation": req["operation"], "engine": engine_state(), "suppliers": supplier_state()}
     if not result["engine"].get("ready"):
         result["status"] = "BLOCKED_ENGINE_INCORRECT"
+        return result
+    if req["operation"] == "optional_source_symlinks":
+        result["optional_source_symlinks"]=optional_source_symlink_audit()
+        result["status"]="PASS"
         return result
     if req["operation"] == "strict_separation_audit":
         result["strict_separation_audit"] = strict_separation_audit()
