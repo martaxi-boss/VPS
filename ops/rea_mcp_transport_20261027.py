@@ -34,7 +34,7 @@ MAX_CALLS = 32
 OVERLAY_ROOT = Path("/opt/rea-reversa/rea/dist/process")
 OVERLAY_SHA256 = {
     "ProcessOwnershipObservation.js": "05426e8e3f3c1b42a9ccaafee64ef562e5e587e3e15f8f68387d29b8b7237a06",
-    "ProcessOwnership.js": "896032442deb6ee3aad314d5778e7310ff5598127a03d667387724085984cec6",
+    "ProcessOwnership.js": "7289ce076a2f4886ce6e1f1eb47e32eb4ccfc9971792bde918e3bd32641a60f8",
 }
 
 def verify_compiled_overlays(root=OVERLAY_ROOT, expected=OVERLAY_SHA256):
