@@ -347,6 +347,40 @@ def one_use(nonce):
 def remote_run(request):
     check_request(request)
     verify_compiled_overlays()
+    if request["action"] == "catalog":
+        # One-shot read-only REA Linux diagnostics; no credentials or process content.
+        from pathlib import Path
+        import errno
+        import hashlib
+        file = Path("/opt/rea-reversa/rea/dist/process/ProcessOwnershipObservation.js")
+        data = file.read_bytes()
+        textfile = data.decode("utf-8")
+        marker = "async environment(pid, signal)"
+        at = textfile.find(marker)
+        print("REA_KTHREAD_DIAG_OBSERVATION_SHA="+hashlib.sha256(data).hexdigest(), file=sys.stderr)
+        print("REA_KTHREAD_DIAG_ANCHOR_COUNT="+str(textfile.count(marker)), file=sys.stderr)
+        if at >= 0:
+            print("REA_KTHREAD_DIAG_ANCHOR="+repr(textfile[at:at+430]), file=sys.stderr)
+        shown = 0
+        for proc in sorted(Path("/proc").iterdir(), key=lambda p: p.name):
+            if not proc.name.isdigit():continue
+            try:
+                s = (proc/"stat").read_text().rsplit(") ",1)[1].split()
+                state,ppid,pgid,flags,start = s[0],int(s[1]),int(s[2]),int(s[6]),s[19]
+                if ppid != 2 or pgid != 0: continue
+                err = "readable"
+                try:
+                    fd = os.open(str(proc/"environ"),os.O_RDONLY|os.O_NOFOLLOW)
+                    os.close(fd)
+                except OSError as x:
+                    err = str(x.errno)
+                print("REA_KTHREAD_DIAG_SAMPLE="+json.dumps({"pid":int(proc.name),
+                   "state":state,"ppid":ppid,"pgid":pgid,"flags":flags,
+                   "pf_kthread":bool(flags & 0x00200000),"environ_errno":err,
+                   "starttime_ticks":start}),file=sys.stderr)
+                shown += 1
+                if shown >= 6:break
+            except (OSError,ValueError,IndexError):continue
     client = Client()
     registry = client.start()
     public = public64(server_key())
