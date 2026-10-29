@@ -1,4 +1,4 @@
-name: REA original optional free supplier install preflight via pinned GitHub SSH
+name: REA original optional .NET and ILSpy installation via pinned GitHub SSH
 on:
   push:
     branches:
@@ -47,7 +47,7 @@ jobs:
           fingerprint="$(ssh-keygen -lf "$RUNNER_TEMP/rea-host-pin" -E sha256 | awk '{print $2}')"
           test "$fingerprint" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
           echo "REA_ORIGINAL_SSH_PIN=PASS"
-      - name: Check available space, Ubuntu packages, GDB Python and install rights
+      - name: Install official .NET 10 and pinned isolated ILSpy; verify C sharp decompile
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         shell: bash
@@ -63,5 +63,5 @@ jobs:
             -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=15 -o ServerAliveInterval=10 \
             -o ServerAliveCountMax=5 \
-            ubuntu@146.59.145.3 "python3 -" \
+            ubuntu@146.59.145.3 "python3 - install-ilspy" \
             < rea-linux/install/rea_original_optional_free_suppliers_20261029.py
