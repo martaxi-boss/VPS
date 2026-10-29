@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "purpose": "Canonical functional certification of the original REA MCP engine on the Linux VPS only",
-  "status": "REA_6_8_0__162_GREEN_SCOPED_OF_229__67_PENDING",
+  "status": "REA_6_8_0__164_GREEN_SCOPED_OF_229__65_PENDING",
   "environment": {
     "host_os_family": "Linux",
     "distro_agnostic_requirement": true,
@@ -8420,11 +8420,31 @@
         "pending": 67,
         "total": 229
       }
+    },
+    {
+      "phase_id": "LINUX-P292-NODE-RUNTIME-RECOVERY-20261029",
+      "status": "TWO_FUNCTIONAL_PASS_SCOPED",
+      "source": "rea-linux/certification/priority10-node-runtime-cleanup-20261029.json",
+      "tools": [
+        {
+          "name": "list_javascript_runtime_targets",
+          "status": "FUNCTIONAL_PASS_SCOPED"
+        },
+        {
+          "name": "observe_javascript_runtime",
+          "status": "FUNCTIONAL_PASS_SCOPED"
+        }
+      ],
+      "counts": {
+        "green": 164,
+        "pending": 65,
+        "total": 229
+      }
     }
   ],
   "active_scope_counts": {
-    "functional_pass_scoped_distinct": 162,
-    "awaiting_canonical_individual_review": 67,
+    "functional_pass_scoped_distinct": 164,
+    "awaiting_canonical_individual_review": 65,
     "read_group_tested_distinct": 5,
     "read_group_positive_scoped": 5,
     "read_group_missing_positive": 0,
@@ -8432,11 +8452,11 @@
     "read_group_positive_some_original_mcp_mode": 5,
     "read_group_positive_permanent_mcp": 5,
     "fully_certified_distinct": 125,
-    "scoped_positive_not_fully_certified_distinct": 37,
-    "not_functionally_positive_distinct": 67,
-    "remaining_full_certification_distinct": 92,
-    "green_scoped_distinct": 162,
-    "additional_6_8_0_scoped": 37
+    "scoped_positive_not_fully_certified_distinct": 39,
+    "not_functionally_positive_distinct": 65,
+    "remaining_full_certification_distinct": 104,
+    "green_scoped_distinct": 164,
+    "additional_6_8_0_scoped": 39
   },
   "verified_prior_linux_host_runs_pending_individual_reconciliation": [
     {
@@ -8466,7 +8486,7 @@
     }
   ],
   "canonical_acceptance": "Recorded is a partial functional certification for a specified input and host; not a blanket 208/208 approval",
-  "latest_phase": "LINUX-P291-WEB-MODULE-COMPUTED-20261029",
+  "latest_phase": "LINUX-P292-NODE-RUNTIME-RECOVERY-20261029",
   "live_catalog_snapshot": {
     "status": "CONTRACTS_VERIFIED_NOT_208_FUNCTIONAL_PASSES",
     "source": "original REA MCP tools/list on existing Linux VPS",
@@ -11174,6 +11194,22 @@
         "ev_16d56210abfc8144e89ed3f6340b3a7979fea26f9108361133c4544994c80c2a",
         "ev_e0bf34a37852c52676749537d74cc34b2c751cfb7f02da3f2f0eb82a9d730350"
       ]
+    },
+    "list_javascript_runtime_targets": {
+      "indicator": "GREEN_SCOPED",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "source_report": "rea-linux/certification/priority10-node-runtime-cleanup-20261029.json",
+      "evidence_ids": [
+        "ev_dd869004ebaea49df8dc76f637fc782200047bd9a61ca0270e3b7b35a6d0b444"
+      ]
+    },
+    "observe_javascript_runtime": {
+      "indicator": "GREEN_SCOPED",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "source_report": "rea-linux/certification/priority10-node-runtime-cleanup-20261029.json",
+      "evidence_ids": [
+        "ev_252c218b30aa14e276720fe4e7812c4e8520a720f55624a0f71bf20a8d4e89e0"
+      ]
     }
   },
   "transport_incidents": [
@@ -12218,12 +12254,12 @@
     "index_file": "rea-linux/certification/rea-6.8.0-current-certifications.json"
   },
   "current_6_8_0_summary": {
-    "green_scoped": 162,
+    "green_scoped": 164,
     "original_125": 125,
-    "pending": 67,
+    "pending": 65,
     "not_global_certification": true,
     "index_file": "rea-linux/certification/rea-6.8.0-current-certifications.json",
-    "latest_increment_report": "rea-linux/certification/priority9-web-module-computed-20261029.json",
-    "additional_37": 37
+    "latest_increment_report": "rea-linux/certification/priority10-node-runtime-cleanup-20261029.json",
+    "additional_39": 39
   }
 }
