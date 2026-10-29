@@ -1,0 +1,54 @@
+{
+  "phase_id": "LINUX-P293-CHROME-CDP-BATCH-20261029",
+  "status": "SIX_FUNCTIONAL_PASS_SCOPED",
+  "tools": [
+    {
+      "name": "list_browser_targets",
+      "evidence": "ev_99d3a3efb5df8d552090fb6411076deed5cdbe76d58106580c4da0319da7de55",
+      "scope": "CDP list confirmed controlled Chrome 145 page ID, title and origin"
+    },
+    {
+      "name": "inspect_web_page",
+      "evidence": "ev_8dfed3fcd88ca61409df1d1aab33fd0242d14fd56f9cbd07616498f268635029",
+      "scope": "Passive page inspection of controlled HTML/script source; completeness policy filtered"
+    },
+    {
+      "name": "inspect_web_event_listeners",
+      "evidence": "ev_194ce1696dc2810714991cd0c7705bc0cb17550604b71fe964026dd496ad47e1",
+      "scope": "Recovered click listener on controlled #launch button with script ownership"
+    },
+    {
+      "name": "capture_web_screenshot",
+      "evidence": "ev_1d14c09dcaf2d27adfb0d88d45dce0f9b3b1ebfcaf7240a5fb53925bd5e675f0",
+      "scope": "Content-addressed PNG of controlled Chrome page (780x437, 10652 bytes)"
+    },
+    {
+      "name": "observe_web_execution",
+      "evidence": "ev_605b4ad38b2cfc7cc6e06eb8de31e020eacc418d042dadacfdc871863364371a",
+      "scope": "Precise coverage observed tickProbe function from controlled JavaScript (2 hits)"
+    },
+    {
+      "name": "observe_web_session",
+      "evidence": "ev_11a41b168619dafee541ccf0c3afa143f9fa8ff06b6086c344b1b76671dd4e04",
+      "scope": "Bounded 160ms passive session observation on controlled page; empty timeline is expected with no external navigation; attach-limited"
+    }
+  ],
+  "environment": "controlled local HTTP fixture with Chrome 145 on Linux VPS",
+  "browser_launch_evidence": "ev_2b1b55207a6af5c6f7a3615002b02d82806f74311ccc3e7981e0ba328c079235",
+  "cleanup": {
+    "browser_endpoint": "unreachable after fixture shutdown",
+    "fixture_file": "absent",
+    "session_open": false,
+    "cleanup_pending": false,
+    "process_capture": "cleanup_incomplete returned environment_errno_ESRCH for unrelated transient PID 216468; do not claim capture tool verified cleanup"
+  },
+  "negative": {
+    "discover_webmcp_tools": "unavailable in Chromium provider, NOT certified",
+    "analyze_web_bundle": "invalid advertised input view mismatch, NOT certified"
+  },
+  "limitations": [
+    "Only scoped test behaviors are green, not global certification.",
+    "No user site, production service or Android target was inspected.",
+    "A separate process-capture cleanup call reported an ownership-token error, while independent fixture closure was confirmed."
+  ]
+}
