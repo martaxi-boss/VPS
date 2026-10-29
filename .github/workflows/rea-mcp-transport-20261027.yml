@@ -1,4 +1,4 @@
-name: REA original existing supplier point 2 diagnostic through pinned GitHub SSH
+name: REA original point 2 focused Hopper and Frida verification through pinned SSH
 on:
   push:
     branches:
@@ -16,6 +16,7 @@ on:
       - "rea-linux/install/rea_original_optional_free_suppliers_20261029.py"
       - "rea-linux/tests/rea_original_optional_free_supplier_acceptance_20261029.py"
       - "rea-linux/tests/rea_original_existing_optional_suppliers_point2_20261029.py"
+      - "rea-linux/tests/rea_original_existing_suppliers_point2_followup_20261029.py"
 permissions:
   contents: read
 concurrency:
@@ -36,7 +37,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m py_compile rea-linux/tests/rea_original_existing_optional_suppliers_point2_20261029.py
+          python3 -m py_compile rea-linux/tests/rea_original_existing_suppliers_point2_followup_20261029.py
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass >/dev/null
           echo 'REA_ORIGINAL_MODE=STANDALONE_CLI_NO_MCP'
@@ -49,7 +50,7 @@ jobs:
           fingerprint="$(ssh-keygen -lf "$RUNNER_TEMP/rea-host-pin" -E sha256 | awk '{print $2}')"
           test "$fingerprint" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
           echo "REA_ORIGINAL_SSH_PIN=PASS"
-      - name: Diagnose original REA Binwalk Cutter Chromium Frida Hopper and cleanup
+      - name: Verify real controlled Frida spawn and isolate Hopper readiness
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         shell: bash
@@ -66,4 +67,4 @@ jobs:
             -o ConnectTimeout=15 -o ServerAliveInterval=10 \
             -o ServerAliveCountMax=5 \
             ubuntu@146.59.145.3 "python3 -" \
-            < rea-linux/tests/rea_original_existing_optional_suppliers_point2_20261029.py
+            < rea-linux/tests/rea_original_existing_suppliers_point2_followup_20261029.py
