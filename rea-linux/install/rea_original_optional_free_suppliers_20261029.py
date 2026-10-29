@@ -120,10 +120,184 @@ def preflight():
         print("REA_OPT_"+k.upper()+"="+pre["system"][k]["out"].replace("\n"," | ")[:210],flush=True)
     print("REA_OPT_PREFLIGHT=PASS",flush=True)
 
+
+def run_record(name,cmd,env=None,timeout=420):
+    """A provider command with bounded stdout and private full evidence."""
+    print("REA_OPT_STAGE_START="+name,flush=True)
+    try:
+        p=subprocess.run(cmd,stdin=subprocess.DEVNULL,cwd=ROOT,env=env,
+            timeout=timeout,stdout=subprocess.PIPE,stderr=subprocess.PIPE,
+            text=True,encoding="utf-8",errors="replace",check=False)
+        status=p.returncode
+        out=p.stdout
+        err=p.stderr
+    except subprocess.TimeoutExpired as e:
+        status=124
+        out=(e.stdout or b"").decode("utf8",errors="replace") if isinstance(e.stdout,bytes) else (e.stdout or "")
+        err=(e.stderr or b"").decode("utf8",errors="replace") if isinstance(e.stderr,bytes) else (e.stderr or "")
+        err+="\nTIMEOUT_EXCEEDED"
+    except OSError as e:
+        status=126
+        out=""
+        err=type(e).__name__+":"+str(e)[:250]
+    # The install commands use explicit approved public package sources only.
+    (EVID/(name+".stdout.txt")).write_text(out[:5*1024*1024],encoding="utf8",errors="replace")
+    (EVID/(name+".stderr.txt")).write_text(err[:5*1024*1024],encoding="utf8",errors="replace")
+    print("REA_OPT_STAGE_END="+name+";exit="+str(status),flush=True)
+    return {"rc":status,"out":out,"err":err}
+
+def disk_preflight():
+    space=shutil.disk_usage("/home/ubuntu")
+    check(space.free>=4*1024**3,"INSUFFICIENT_DISK_FOR_OPTIONAL_INSTALL")
+    check((EVID.parent).is_dir() and os.access(EVID.parent,os.W_OK),"EVIDENCE_STORAGE_NOT_WRITABLE")
+    print("REA_OPT_AVAILABLE_GIB="+str(round(space.free/1024**3,1)),flush=True)
+
+def tool_env():
+    home=EVID/"dotnet-cli-home"
+    home.mkdir(parents=True,exist_ok=True,mode=0o700)
+    env=dict(os.environ)
+    for key in tuple(env):
+        if key.startswith("REA_") or key.startswith("NUGET_") or key in (
+           "DOTNET_ROOT","DOTNET_CLI_HOME","DOTNET_TOOLS_PATH",
+           "DOTNET_MULTILEVEL_LOOKUP","PLAYWRIGHT_BROWSERS_PATH",
+           "GHIDRA_INSTALL_DIR","JAVA_HOME","HOPPER_LAUNCHER_PATH"):
+            env.pop(key,None)
+    env.update({
+      "DOTNET_CLI_HOME":str(home),
+      "DOTNET_CLI_TELEMETRY_OPTOUT":"1",
+      "DOTNET_SKIP_FIRST_TIME_EXPERIENCE":"1",
+      "DOTNET_NOLOGO":"1",
+      "NUGET_PACKAGES":str(EVID/"nuget-packages"),
+      "HOME":str(Path("/home/ubuntu")),
+      "CI":"1"})
+    return env
+
+def install_dotnet_ilspy():
+    verify_original()
+    disk_preflight()
+    arch=run(["dpkg","--print-architecture"])
+    check(arch.returncode==0 and arch.stdout.strip()=="amd64","UBUNTU_AMD64_REQUIRED")
+    pkg="dotnet-sdk-10.0"
+    sdk=Path("/usr/bin/dotnet")
+    # Install only the official Ubuntu 24.04 packages; no third-party apt feed,
+    # no removals or upgrades, and no install if already present.
+    if not sdk.is_file():
+        sudo=run(["sudo","-n","/usr/bin/id","-u"],timeout=10)
+        check(sudo.returncode==0 and sudo.stdout.strip()=="0","ROOT_AUTHORIZATION_NOT_AVAILABLE")
+        update=run_record("apt-update",["sudo","-n","/usr/bin/apt-get","update","-qq"],timeout=210)
+        check(update["rc"]==0,"UBUNTU_APT_INDEX_UPDATE_FAILED")
+        simulation=run_record("apt-dotnet-simulation",["/usr/bin/apt-get","-s","-o",
+           "Debug::NoLocking=1","install","--no-install-recommends","--no-remove",
+           "--no-upgrade",pkg],timeout=60)
+        check(simulation["rc"]==0,"DOTNET_APT_SIMULATION_FAILED")
+        lines=simulation["out"].splitlines()
+        check(not any(row.startswith(("Remv ","Purg ")) for row in lines),
+              "DOTNET_APT_REQUIRES_REMOVAL")
+        # Ubuntu package resolver may add brand-new dependencies, but is explicitly
+        # forbidden from upgrading or removing any pre-existing package.
+        for row in lines:
+            if row.startswith("Inst ") and " [" in row.split("(",1)[0]:
+                raise RuntimeError("DOTNET_APT_ATTEMPTED_EXISTING_PACKAGE_UPGRADE")
+        print("REA_OPT_APT_POLICY=NO_EXISTING_PACKAGE_UPGRADES_OR_REMOVALS",flush=True)
+        real=run_record("apt-dotnet-install",["sudo","-n","/usr/bin/env",
+              "DEBIAN_FRONTEND=noninteractive","NEEDRESTART_MODE=l",
+              "/usr/bin/apt-get","install","-y","-qq","--no-install-recommends",
+              "--no-remove","--no-upgrade",pkg],timeout=720)
+        check(real["rc"]==0,"OFFICIAL_UBUNTU_DOTNET_SDK_INSTALL_FAILED")
+    else:
+        print("REA_OPT_DOTNET_SDK_ALREADY_PRESENT=YES",flush=True)
+    check(sdk.is_file() and os.access(sdk,os.X_OK),"DOTNET_SDK_NOT_ACCESSIBLE")
+    e=tool_env()
+    versions=run_record("dotnet-list-sdks",[str(sdk),"--list-sdks"],e,timeout=50)
+    check(versions["rc"]==0 and any(v.strip().startswith("10.0.") for v in versions["out"].splitlines()),
+          "DOTNET_SDK_10_NOT_READY")
+    print("REA_OPT_DOTNET_10=PASS",flush=True)
+    target=Path("/home/ubuntu/.local/share/rea-optional-ilspycmd-11.2.0")
+    cli=target/"ilspycmd"
+    desired="11.2.0.10050"
+    if cli.is_file() and os.access(cli,os.X_OK):
+        ver=run_record("ilspy-existing-version",[str(cli),"--version"],e,timeout=30)
+        check(ver["rc"]==0 and desired in ver["out"]+ver["err"],"EXISTING_ILSPY_VERSION_CONFLICT")
+        print("REA_OPT_ILSPY_ALREADY_INSTALLED=YES",flush=True)
+    else:
+        check(not target.exists() or (target.is_dir() and not any(target.iterdir())),
+              "ILSPY_TOOL_DIR_ALREADY_NONEMPTY_CANNOT_OVERWRITE")
+        target.parent.mkdir(parents=True,exist_ok=True)
+        # NuGet official signed client package pinned; never a global dotnet
+        # tool install and never touches another project or old REA source.
+        r=run_record("ilspy-tool-install",[str(sdk),"tool","install",
+             "--tool-path",str(target),"--version",desired,
+             "--source","https://api.nuget.org/v3/index.json","ilspycmd"],e,timeout=500)
+        check(r["rc"]==0,"PINNED_ILSPYCMD_NUGET_INSTALL_FAILED")
+    check(cli.is_file() and os.access(cli,os.X_OK),"ILSPY_EXECUTABLE_MISSING")
+    r=run_record("ilspy-version",[str(cli),"--version"],e,timeout=40)
+    check(r["rc"]==0 and desired in r["out"]+r["err"],"ILSPY_PINNED_VERSION_MISMATCH")
+    print("REA_OPT_ILSPYCMD_VERSION="+desired,flush=True)
+    # This completely local test builds an inert C# library in the test-only
+    # directory and checks that ILSpy recovers the exact answer from its IL.
+    project=EVID/"ilspy-controlled-probe"
+    project.mkdir(exist_ok=True,mode=0o700)
+    empty=EVID/"offline-nuget-source"
+    empty.mkdir(exist_ok=True,mode=0o700)
+    proj=project/"REAIlspyProbe.csproj"
+    cs=project/"Verification.cs"
+    proj.write_text(
+        '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup>'+
+        '<TargetFramework>net10.0</TargetFramework>'+
+        '<AssemblyName>REAIlspyProbe</AssemblyName>'+
+        '<EnableDefaultCompileItems>true</EnableDefaultCompileItems>'+
+        '</PropertyGroup></Project>',encoding="utf8")
+    cs.write_text('namespace REAControlledFixture; public static class Verification { public static int Answer() => 42; }',encoding="utf8")
+    restore=run_record("ilspy-probe-restore",[str(sdk),"restore",
+                    str(proj),"--source",str(empty),"--ignore-failed-sources"],e,timeout=150)
+    check(restore["rc"]==0,"DOTNET_OFFLINE_TEST_PROJECT_RESTORE_FAILED")
+    build=run_record("ilspy-probe-build",[str(sdk),"build",str(proj),
+             "-c","Release","--no-restore","--nologo"],e,timeout=150)
+    check(build["rc"]==0,"DOTNET_INERT_TEST_ASSEMBLY_BUILD_FAILED")
+    assembly=project/"bin/Release/net10.0/REAIlspyProbe.dll"
+    check(assembly.is_file(),"DOTNET_INERT_ASSEMBLY_NOT_FOUND")
+    decompile=run_record("ilspy-real-decompile",[str(cli),"-t",
+             "REAControlledFixture.Verification",str(assembly)],e,timeout=100)
+    check(decompile["rc"]==0 and "Answer()" in decompile["out"] and
+          "42" in decompile["out"],"ILSPY_REAL_DECOMPILATION_NOT_VERIFIED")
+    print("REA_OPT_ILSPY_REAL_DECOMPILE=PASS",flush=True)
+    # Baseline official REA already includes a managed metadata parser.
+    original_e=e.copy()
+    original_e["PATH"]=str(NODE.parent)+":"+original_e.get("PATH","")
+    original_e["REA_ILSPY_CMD_PATH"]=str(cli)
+    # This environment affects only this invocation; no persistent changes.
+    official=run_record("rea-managed-original-cli",
+        [str(NODE),"scripts/rea.mjs","inspect-managed-artifact",
+         str(assembly),"--json"],original_e,timeout=100)
+    try:
+        j=json.loads(official["out"])
+        if isinstance(j,dict) and isinstance(j.get("result"),dict):j=j["result"]
+        normalized=j.get("normalized_result",{}) if isinstance(j,dict) else {}
+    except (ValueError,TypeError):
+        normalized={}
+    check(official["rc"]==0 and isinstance(normalized,dict)
+          and bool(normalized),"ORIGINAL_REA_MANAGED_INSPECTION_FAILED")
+    print("REA_OPT_OFFICIAL_REA_MANAGED_INSPECTION=PASS",flush=True)
+    info={"dotnet_sdk":versions["out"].strip().splitlines(),
+          "ilspy_version":desired,
+          "ilspy_path":str(cli),
+          "ilspy_decoded_controlled_assembly_sha256":hashlib.sha256(assembly.read_bytes()).hexdigest(),
+          "rea_official_managed_inspection":"PASS",
+          "dotnet_install_scope":"official Ubuntu dotnet-sdk-10.0 only",
+          "ilspy_install_scope":"user-owned isolated tool path",
+          "new_mcp":0,"changes_to_original_rea":0,"service_changes":0,
+          "status":"PASS"}
+    (EVID/"ilspy-install-result.json").write_text(json.dumps(info,sort_keys=True,indent=2),encoding="utf8")
+    print("REA_OPT_DOTNET_ILSPY_STATUS=PASS",flush=True)
+
 if __name__=="__main__":
     try:
-        if len(sys.argv)>1:raise RuntimeError("ONLY_PREFLIGHT_CURRENTLY_SUPPORTED")
-        preflight()
+        if len(sys.argv)==1:
+            preflight()
+        elif len(sys.argv)==2 and sys.argv[1]=="install-ilspy":
+            install_dotnet_ilspy()
+        else:
+            raise RuntimeError("INVALID_PHASE")
     except Exception as exc:
         print("REA_OPT_FATAL="+type(exc).__name__+":"+str(exc)[:180],flush=True)
         sys.exit(44)
