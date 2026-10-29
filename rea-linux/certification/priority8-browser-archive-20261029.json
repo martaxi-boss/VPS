@@ -1,0 +1,34 @@
+{
+  "project": "REA 6.8.0",
+  "phase": "LINUX-P290-BROWSER-ARCHIVE-20261029",
+  "status": "TWO_FUNCTIONAL_PASS_SCOPED",
+  "tools": [
+    {
+      "name": "capture_browser_scenario",
+      "evidence_ids": [
+        "ev_49e6eda8bc7b72319dbbcbb88b6c561779b83c72a03da718d07db5d2a7c5b002"
+      ],
+      "scope": "Chromium 145 launch mode with an owned temporary profile; live navigation to example.org, a wait action, captured URL and DOM, owned-browser termination. Missing executable rejected. Web content is untrusted and this test is not a general browser guarantee."
+    },
+    {
+      "name": "extract_artifact",
+      "evidence_ids": [
+        "ev_6b482516520dd9fef00be9aa506bee1dd68777b9d16bd06dc40d76e49abec16b",
+        "ev_dccb2dc9354a6858db1ed073de4449a751b9ed0f0a8418908eaac6b889aa556e"
+      ],
+      "scope": "Extracted two regular files from a local controlled ZIP; REA reported verified containment and complete covered entries; independent Python ZIP byte/hash oracle passed; cleanup verified. Negative no active archive returns target_unavailable."
+    }
+  ],
+  "counts": {
+    "previous": 159,
+    "new": 2,
+    "green": 161,
+    "pending": 68,
+    "total": 229
+  },
+  "limitations": [
+    "Browser tested on a public documentation example domain; do not use that destination for recurring monitoring.",
+    "Archive test does not establish handling of ZIP non-entry bytes.",
+    "Neither tool is universally certified."
+  ]
+}
