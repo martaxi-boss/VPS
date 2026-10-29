@@ -3,7 +3,7 @@
   "project": "Engenharia Reversa",
   "engine": "REA 6.8.0",
   "date_utc": "2026-10-28",
-  "status": "164_GREEN_SCOPED_65_PENDING",
+  "status": "170_GREEN_SCOPED_59_PENDING",
   "provenance": {
     "repo": "martaxi-boss/VPS",
     "branch": "rea/one-skill-bridge-20261023",
@@ -20,10 +20,10 @@
   },
   "counts": {
     "total": 229,
-    "green_scoped": 164,
+    "green_scoped": 170,
     "previous_verified_6_8_0": 125,
-    "new_scoped_6_8_0": 39,
-    "pending": 65,
+    "new_scoped_6_8_0": 45,
+    "pending": 59,
     "duplicates": 0
   },
   "rule": "Green means functional proof for the exact recorded Linux scope only. Never certify untested functionality, vendors, macOS-only capability or REA 6.7 by historical association.",
@@ -226,9 +226,11 @@
     },
     {
       "name": "capture_web_screenshot",
-      "indicator": "PENDING_NOT_GREEN",
-      "status": "NOT_CERTIFIED",
-      "availability": "available"
+      "indicator": "GREEN_SCOPED",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "availability": "available",
+      "scope": "Controlled local Chromium 145 CDP fixture; tested operation only",
+      "source_report": "rea-linux/certification/priority11-chrome-cdp-20261029.json"
     },
     {
       "name": "close_binary",
@@ -1489,9 +1491,11 @@
     },
     {
       "name": "inspect_web_event_listeners",
-      "indicator": "PENDING_NOT_GREEN",
-      "status": "NOT_CERTIFIED",
-      "availability": "available"
+      "indicator": "GREEN_SCOPED",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "availability": "available",
+      "scope": "Controlled local Chromium 145 CDP fixture; tested operation only",
+      "source_report": "rea-linux/certification/priority11-chrome-cdp-20261029.json"
     },
     {
       "name": "inspect_web_network_capture",
@@ -1508,9 +1512,11 @@
     },
     {
       "name": "inspect_web_page",
-      "indicator": "PENDING_NOT_GREEN",
-      "status": "NOT_CERTIFIED",
-      "availability": "available"
+      "indicator": "GREEN_SCOPED",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "availability": "available",
+      "scope": "Controlled local Chromium 145 CDP fixture; tested operation only",
+      "source_report": "rea-linux/certification/priority11-chrome-cdp-20261029.json"
     },
     {
       "name": "inspect_with_objdump",
@@ -1607,9 +1613,11 @@
     },
     {
       "name": "list_browser_targets",
-      "indicator": "PENDING_NOT_GREEN",
-      "status": "NOT_CERTIFIED",
-      "availability": "available"
+      "indicator": "GREEN_SCOPED",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "availability": "available",
+      "scope": "Controlled local Chromium 145 CDP fixture; tested operation only",
+      "source_report": "rea-linux/certification/priority11-chrome-cdp-20261029.json"
     },
     {
       "name": "list_cutter_sessions",
@@ -1816,15 +1824,19 @@
     },
     {
       "name": "observe_web_execution",
-      "indicator": "PENDING_NOT_GREEN",
-      "status": "NOT_CERTIFIED",
-      "availability": "available"
+      "indicator": "GREEN_SCOPED",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "availability": "available",
+      "scope": "Controlled local Chromium 145 CDP fixture; tested operation only",
+      "source_report": "rea-linux/certification/priority11-chrome-cdp-20261029.json"
     },
     {
       "name": "observe_web_session",
-      "indicator": "PENDING_NOT_GREEN",
-      "status": "NOT_CERTIFIED",
-      "availability": "available"
+      "indicator": "GREEN_SCOPED",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "availability": "available",
+      "scope": "Controlled local Chromium 145 CDP fixture; tested operation only",
+      "source_report": "rea-linux/certification/priority11-chrome-cdp-20261029.json"
     },
     {
       "name": "open_binary",
