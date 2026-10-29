@@ -20,6 +20,7 @@ NODE=Path("/opt/rea-reversa/providers/node-v24.22.1/bin/node")
 EVID=Path("/home/ubuntu/rea-original-upstream-680-evidence/optional-free-suppliers-20261029")
 PWN=Path("/home/ubuntu/.local/share/rea-optional-pwndbg-2026.09.15/tools/pwndbg")
 ILSPY=Path("/home/ubuntu/.local/share/rea-optional-ilspycmd-11.2.0/ilspycmd")
+PWNTOOLS_PYTHON=Path("/home/ubuntu/.local/share/rea-optional-pwntools-4.15.0/bin/python")
 GDB=Path("/usr/bin/gdb")
 REV="160d821ac9a0310afcb8d1fc427862dd6508add5"
 os.umask(0o077)
@@ -69,7 +70,7 @@ def original_check():
            stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=12,text=True)
     check(r.returncode==0 and r.stdout.strip()==REV,"REA_OFFICIAL_COMMIT_CHANGED")
     check(EVID.is_dir(),"EARLIER_INSTALL_EVIDENCE_MISSING")
-    for n in ("ilspy-install-result.json","pwndbg-install-result.json"):
+    for n in ("ilspy-install-result.json","pwndbg-install-result.json","pwntools-install-result.json"):
         p=EVID/n
         check(p.is_file() and json.loads(p.read_text()).get("status")=="PASS",
               "PROVIDER_INSTALL_NOT_CERTIFIED_"+n)
@@ -98,7 +99,7 @@ def environment():
       "REA_PWNDBG_GDB":str(GDB),
       "REA_PWNDBG_GDBINIT":str(PWN/"share/pwndbg/gdbinit.py"),
       "REA_PWNDBG_VENV_PATH":str(PWN),
-      "REA_PWNTOOLS_PYTHON":str(PWN/"bin/python"),
+      "REA_PWNTOOLS_PYTHON":str(PWNTOOLS_PYTHON),
       "REA_ILSPY_CMD_PATH":str(ILSPY),
       "PWNDBG_NO_UPDATE":"1","CI":"1","TERM":"dumb","NO_COLOR":"1",
       "DOTNET_CLI_TELEMETRY_OPTOUT":"1"})
