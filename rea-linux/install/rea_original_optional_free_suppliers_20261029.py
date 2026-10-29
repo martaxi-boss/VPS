@@ -418,6 +418,67 @@ def install_pwndbg():
     (EVID/"pwndbg-install-result.json").write_text(json.dumps(info,indent=2,sort_keys=True),encoding="utf8")
     print("REA_OPT_PWNDBG_STATUS=PASS",flush=True)
 
+
+def install_scoped_pwntools():
+    """Install only the original REA core adapter's pinned pwntools 4.15.0.
+
+    Keep pwndbg's own compatible 4.14.1 wheel untouched inside its separate
+    private tool venv. The adapter requires the exact 4.15.0 producer version.
+    """
+    verify_original()
+    disk_preflight()
+    for receipt in ("ilspy-install-result.json","pwndbg-install-result.json"):
+        p=EVID/receipt
+        check(p.is_file() and json.loads(p.read_text()).get("status")=="PASS",
+              "PRIOR_OPTIONAL_VENDOR_PHASE_NOT_COMPLETE:"+receipt)
+    uv=Path("/home/ubuntu/.local/share/rea-optional-uv-0.13.6/bin/uv")
+    check(uv.is_file() and os.access(uv,os.X_OK),"PREVIOUS_PINNED_UV_UNAVAILABLE")
+    target=Path("/home/ubuntu/.local/share/rea-optional-pwntools-4.15.0")
+    python=target/"bin/python"
+    version="4.15.0"
+    env=dict(os.environ)
+    for k in tuple(env):
+        if k.startswith("UV_") or k.startswith("REA_") or k in (
+             "VIRTUAL_ENV","PIP_INDEX_URL","PIP_EXTRA_INDEX_URL",
+             "PYTHONHOME","PYTHONPATH","JAVA_HOME","GHIDRA_INSTALL_DIR"):
+            env.pop(k,None)
+    env.update({
+       "HOME":"/home/ubuntu","UV_CACHE_DIR":str(EVID/"uv-cache"),
+       "UV_NO_MANAGED_PYTHON":"1","UV_NO_CONFIG":"1",
+       "UV_NO_PROGRESS":"1","UV_PYTHON_DOWNLOADS":"never",
+       "CI":"1"})
+    if not python.is_file():
+        check(not target.exists(),"PWNTOOLS_SCOPED_VENV_PARTIAL_OR_UNEXPECTED")
+        target.parent.mkdir(parents=True,exist_ok=True)
+        z=run_record("pwntools-isolated-venv",[
+           str(uv),"venv","--python","/usr/bin/python3",
+           "--no-managed-python","--no-python-downloads",str(target)],env,timeout=60)
+        check(z["rc"]==0,"PWNTOOLS_ISOLATED_VENV_FAILED")
+    z=run_record("pwntools-existing-version",[str(python),"-I","-c",
+              "import importlib.metadata as m;print(m.version('pwntools'))"],env,timeout=25)
+    already=z["rc"]==0 and z["out"].strip()==version
+    if not already:
+        z=run_record("pwntools-pypi-4_15_0",[
+            str(uv),"pip","install","--python",str(python),
+            "--index-url","https://pypi.org/simple",
+            "pwntools=="+version],env,timeout=340)
+        check(z["rc"]==0,"PINNED_PWNTOOLS_VENV_INSTALL_FAILED")
+    z=run_record("pwntools-final-version",[str(python),"-I","-c",
+          "import importlib.metadata as m;print(m.version('pwntools'))"],env,timeout=25)
+    check(z["rc"]==0 and z["out"].strip()==version,
+          "PWNTOOLS_REQUIRED_VERSION_NOT_AVAILABLE")
+    z=run_record("pwntools-real-import",[str(python),"-I","-c",
+          "from pwn import context;print('PWNTOOLS_REAL_IMPORT_PASS')"],env,timeout=35)
+    check(z["rc"]==0 and "PWNTOOLS_REAL_IMPORT_PASS" in z["out"],
+          "PWNTOOLS_REAL_IMPORT_FAILED")
+    info={"status":"PASS","version":version,"interpreter_path":str(python),
+          "REA_PWNTOOLS_PYTHON":str(python),
+          "pwndbg_existing_env_untouched":True,
+          "modified_original":False,"changed_services":False,"new_mcp":0}
+    (EVID/"pwntools-install-result.json").write_text(
+          json.dumps(info,indent=2,sort_keys=True),encoding="utf8")
+    print("REA_OPT_PWNTOOLS_4_15=PASS;path="+str(python),flush=True)
+
 if __name__=="__main__":
     try:
         if len(sys.argv)==1:
@@ -426,6 +487,8 @@ if __name__=="__main__":
             install_dotnet_ilspy()
         elif len(sys.argv)==2 and sys.argv[1]=="install-pwndbg":
             install_pwndbg()
+        elif len(sys.argv)==2 and sys.argv[1]=="install-pwntools":
+            install_scoped_pwntools()
         else:
             raise RuntimeError("INVALID_PHASE")
     except Exception as exc:
