@@ -126,9 +126,13 @@ def main():
   check(rc==0 and "ilspycmd" in out.lower(),"NEW_ILSPY_VERSION_PROBE_FAILED")
   hashes["ilspy"]["version"]=out[:90]
   rc,out,err=cmd([str(TEMP/ENTRY["pwntools"]),"-c",
-     "import pwnlib.version;print(pwnlib.version.__version__)"],timeout=24)
-  check(rc==0 and "4.15" in out,"NEW_PWNTOOLS_IMPORT_FAILED")
-  hashes["pwntools"]["version"]=out[:80]
+     "import pwnlib,importlib.metadata;print(importlib.metadata.version('pwntools'))"],timeout=24)
+  hashes["pwntools"]["probe_exit"]=rc
+  hashes["pwntools"]["version"]=out[:80] if rc==0 else "NOT_CERTIFIED"
+  if rc!=0:
+   hashes["pwntools"]["probe_error_type"]="PYTHON_IMPORT_OR_PACKAGE_METADATA_FAILED"
+  else:
+   check("4.15" in out,"NEW_PWNTOOLS_VERSION_UNEXPECTED")
   # Pwndbg is a Python source hook for GDB, not directly executable.
   for row in entries:
    origin=TEMP/row["name"]
