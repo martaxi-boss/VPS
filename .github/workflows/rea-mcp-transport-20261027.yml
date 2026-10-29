@@ -15,7 +15,7 @@ on:
       - "rea-linux/tests/rea_original_external_supplier_gap_audit_20261029.py"
       - "rea-linux/install/rea_original_optional_free_suppliers_20261029.py"
       - "rea-linux/tests/rea_original_optional_free_supplier_acceptance_20261029.py"
-      - "rea-linux/tests/rea_original_point2_targeted_gui_vendor_followup_20261029.py"
+      - "rea-linux/tests/rea_original_existing_optional_suppliers_point2_20261029.py"
       - "rea-linux/tests/rea_original_existing_suppliers_point2_followup_20261029.py"
       - "rea-linux/tests/rea_original_chromium_owned_session_point2_20261029.py"
       - "rea-linux/tests/rea_original_point2_failing_supplier_readback_20261029.py"
@@ -39,7 +39,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m py_compile rea-linux/tests/rea_original_point2_targeted_gui_vendor_followup_20261029.py
+          python3 -m py_compile rea-linux/tests/rea_original_existing_optional_suppliers_point2_20261029.py
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass >/dev/null
           echo 'REA_ORIGINAL_MODE=STANDALONE_CLI_NO_MCP'
@@ -69,4 +69,4 @@ jobs:
             -o ConnectTimeout=15 -o ServerAliveInterval=10 \
             -o ServerAliveCountMax=5 \
             ubuntu@146.59.145.3 "python3 -" \
-            < rea-linux/tests/rea_original_point2_targeted_gui_vendor_followup_20261029.py
+            < rea-linux/tests/rea_original_existing_optional_suppliers_point2_20261029.py
