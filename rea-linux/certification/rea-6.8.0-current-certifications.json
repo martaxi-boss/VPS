@@ -3,7 +3,7 @@
   "project": "Engenharia Reversa",
   "engine": "REA 6.8.0",
   "date_utc": "2026-10-28",
-  "status": "159_GREEN_SCOPED_70_PENDING",
+  "status": "161_GREEN_SCOPED_68_PENDING",
   "provenance": {
     "repo": "martaxi-boss/VPS",
     "branch": "rea/one-skill-bridge-20261023",
@@ -20,10 +20,10 @@
   },
   "counts": {
     "total": 229,
-    "green_scoped": 159,
+    "green_scoped": 161,
     "previous_verified_6_8_0": 125,
-    "new_scoped_6_8_0": 34,
-    "pending": 70,
+    "new_scoped_6_8_0": 36,
+    "pending": 68,
     "duplicates": 0
   },
   "rule": "Green means functional proof for the exact recorded Linux scope only. Never certify untested functionality, vendors, macOS-only capability or REA 6.7 by historical association.",
@@ -194,9 +194,14 @@
     },
     {
       "name": "capture_browser_scenario",
-      "indicator": "PENDING_NOT_GREEN",
-      "status": "NOT_CERTIFIED",
-      "availability": "available"
+      "indicator": "GREEN_SCOPED",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "availability": "available",
+      "scope": "Chromium 145 launch mode with an owned temporary profile; live navigation to example.org, a wait action, captured URL and DOM, owned-browser termination. Missing executable rejected. Web content is untrusted and this test is not a general browser guarantee.",
+      "source_report": "rea-linux/certification/priority8-browser-archive-20261029.json",
+      "evidence_ids": [
+        "ev_49e6eda8bc7b72319dbbcbb88b6c561779b83c72a03da718d07db5d2a7c5b002"
+      ]
     },
     {
       "name": "capture_electron_scenario",
@@ -598,9 +603,15 @@
     },
     {
       "name": "extract_artifact",
-      "indicator": "PENDING_NOT_GREEN",
-      "status": "NOT_CERTIFIED",
-      "availability": "target_required"
+      "indicator": "GREEN_SCOPED",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "availability": "target_required",
+      "scope": "Extracted two regular files from a local controlled ZIP; REA reported verified containment and complete covered entries; independent Python ZIP byte/hash oracle passed; cleanup verified. Negative no active archive returns target_unavailable.",
+      "source_report": "rea-linux/certification/priority8-browser-archive-20261029.json",
+      "evidence_ids": [
+        "ev_6b482516520dd9fef00be9aa506bee1dd68777b9d16bd06dc40d76e49abec16b",
+        "ev_dccb2dc9354a6858db1ed073de4449a751b9ed0f0a8418908eaac6b889aa556e"
+      ]
     },
     {
       "name": "extract_firmware",
