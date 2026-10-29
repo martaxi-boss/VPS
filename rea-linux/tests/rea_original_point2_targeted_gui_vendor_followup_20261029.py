@@ -121,15 +121,16 @@ def cutter_probe():
             if process.poll() is not None:break
             time.sleep(2)
             rc,response,cleanup=cli(["list-cutter-sessions"],env,"cutter-sessions-"+str(idx),timeout=18)
-            normalized=response.get("normalized_result",{})
+            normalized=response.get("normalized_result",response)
             if isinstance(normalized,dict):
                 found=normalized.get("sessions",[])
                 if not isinstance(found,list):found=[]
                 if normalized.get("discovery_status")=="sessions_found" and found and rc==0 and not cleanup:
                     break
         result["process_exit_before_cleanup"]=process.poll()
-        result["discovery_status"]=response.get("normalized_result",{}).get("discovery_status") if isinstance(response.get("normalized_result"),dict) else None
+        result["discovery_status"]=normalized.get("discovery_status") if isinstance(normalized,dict) else None
         result["sessions_found"]=len(found)
+        print("REA_P2_CUTTER_AUTHENTICATED_SESSIONS="+str(len(found))+";discovery="+str(result["discovery_status"]),flush=True)
         if found:
             ss=found[0]
             sid=ss.get("session_id") if isinstance(ss,dict) else None
@@ -138,7 +139,7 @@ def cutter_probe():
             result["current_file_present"]=bool(ss.get("current_file"))
             if isinstance(sid,str) and isinstance(generation,int):
                 rc, data, incomplete=cli(["cutter-command",sid,str(generation),"ij","--json-output"],env,"cutter-real-ij",timeout=35)
-                norm=data.get("normalized_result",{})
+                norm=data.get("raw_result",data.get("normalized_result",{}))
                 result["cli_cutter_analysis"]="PASS" if rc==0 and isinstance(norm,dict) and isinstance(norm.get("bin"),dict) and isinstance(norm["bin"].get("arch"),str) and not incomplete else "NOT_PROVEN"
                 result["result"]="PASS_BRIDGE_V2" if rc==0 and not incomplete else "BRIDGE_COMMAND_FAILED"
             else:result["result"]="DISCOVERY_NO_VALID_SESSION_ID"
@@ -215,7 +216,7 @@ def hopper_probe():
                         for value in x.values():
                             if isinstance(value,(list,dict)):yield from rows(value)
             releases=[v for v in rows(feed) if isinstance(v.get("filename"),str)
-                and v["filename"].startswith("https://www.hopperapp.com/") and "Linux-demo" in v["filename"]]
+                and v["filename"].startswith(("https://www.hopperapp.com/","https://www.hopperapp.com:443/")) and "Linux-demo" in v["filename"]]
             info["official_linux_demo_entries"]=len(releases)
             matches=[v for v in releases if v.get("main_exe_hash")==info["installed_sha256"]]
             info["installed_matches_current_feed"]=bool(matches)
@@ -225,47 +226,26 @@ def hopper_probe():
         except Exception as e:
             info["publisher_error"]=type(e).__name__+":"+str(e)[:120]
     summary["hopper"]=info
+    print("REA_P2_HOPPER_OFFICIAL_DEB_VERSIONS="+str(info.get("official_deb_versions",[])),flush=True)
     print("REA_P2_HOPPER_PUBLISHER_FEED="+str(info["publisher_feed_checked"]).lower()+
           ";match="+str(info["installed_matches_current_feed"]).lower()+
           ";owner="+str(info.get("package_owner")),flush=True)
 
 def main():
     check_source()
-    old=EVID/"summary.json"
-    if old.is_file():
-        previous=json.loads(old.read_text())
-        for name in ("cutter","chromium","hopper"):
-            data=previous.get(name,{})
-            if name=="hopper":
-                data={k:v for k,v in data.items() if k not in ("installed_sha256",)}
-            print("REA_P2_READBACK_"+name.upper()+"="+json.dumps(data,sort_keys=True),flush=True)
-        for name in ("cutter-owned.stderr.log","cutter-owned.stdout.log"):
-            p=EVID/name
-            if p.is_file():
-                lines=p.read_text(encoding="utf8",errors="replace").splitlines()
-                terms=("error","qt","appimage","fuse","python","plugin","bridge","cannot","failed","cutter","xcb","DISPLAY")
-                selected=[x[:240] for x in lines if any(t in x.lower() for t in terms)]
-                print("REA_P2_READBACK_"+name.replace(".","_").replace("-","_").upper()+
-                      "="+json.dumps(selected[-32:]),flush=True)
-                print("REA_P2_READBACK_"+name.replace(".","_").replace("-","_").upper()+
-                      "_TOTAL_LINES="+str(len(lines)),flush=True)
-        for index in (0,10):
-            f=EVID/("cutter-sessions-"+str(index)+".stdout.json")
-            if f.is_file():
-                data=json.loads(f.read_text())
-                print("REA_P2_READBACK_CUTTER_SCHEMA_"+str(index)+"="+json.dumps({
-                    "top_keys": list(data)[:24] if isinstance(data,dict) else [],
-                    "has_result": isinstance(data,dict) and isinstance(data.get("result"),dict),
-                    "normalized_keys":list(data.get("normalized_result",{}))[:20] if isinstance(data,dict) and isinstance(data.get("normalized_result"),dict) else [],
-                    "discovery_status": data.get("discovery_status") if isinstance(data,dict) else None,
-                    "normalized_discovery":data.get("normalized_result",{}).get("discovery_status") if isinstance(data,dict) and isinstance(data.get("normalized_result"),dict) else None
-                }),flush=True)
-        print("REA_P2_READBACK_ONLY=PASS;no_rerun=true",flush=True)
-        return
-    try:cutter_probe()
-    except Exception as e:
-        summary["cutter"]={"result":"EXCEPTION","reason":type(e).__name__+":"+str(e)[:180]}
-        print("REA_P2_CUTTER_DIAGNOSTIC_EXCEPTION="+str(summary["cutter"]),flush=True)
+    # Retain the evidence from the first run; it proved that the prior parser
+    # misread a direct CLI response as a wrapped normalized_result.
+    for name in ("summary.json","cutter-owned.stdout.log","cutter-owned.stderr.log"):
+        original=EVID/name
+        saved=EVID/("attempt1-"+name)
+        if original.is_file() and not saved.exists():original.rename(saved)
+    for old in EVID.glob("cutter-sessions-*.stdout.json"):
+        saved=old.with_name("attempt1-"+old.name)
+        if not saved.exists():old.rename(saved)
+    for old in EVID.glob("cutter-sessions-*.stderr.log"):
+        saved=old.with_name("attempt1-"+old.name)
+        if not saved.exists():old.rename(saved)
+    cutter_probe()
     chrome_probe()
     hopper_probe()
     (EVID/"summary.json").write_text(json.dumps(summary,indent=2,sort_keys=True))
