@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "project": "Engenharia Reversa / REA 6.8.0",
+  "date_utc": "2026-10-29",
+  "status": "FAIL_CLEANUP_INCOMPLETE_REPRODUCED_POST_PATCH",
+  "scope": "VPS OVH Linux, actual REA MCP and only compiled runtime overlays; no upstream REA source changes",
+  "baseline": {
+    "repository": "martaxi-boss/VPS",
+    "branch": "rea/one-skill-bridge-20261023",
+    "upstream_code_untouched": true,
+    "canonical_workflow": ".github/workflows/rea-mcp-transport-20261027.yml",
+    "cert_green_scoped": 170,
+    "cert_pending": 59,
+    "catalog_tools": 229
+  },
+  "live_runtime": {
+    "service": "rea-reversa-mcp.service",
+    "observed_service_state": "active/running",
+    "main_pid_observed": 225154,
+    "service_start_utc": "2026-10-29T08:53:31Z",
+    "n_restarts_reported_by_systemctl": 0,
+    "process_ownership_compiled_sha256": "896032442deb6ee3aad314d5778e7310ff5598127a03d667387724085984cec6",
+    "process_ownership_observation_compiled_sha256": "05426e8e3f3c1b42a9ccaafee64ef562e5e587e3e15f8f68387d29b8b7237a06",
+    "live_hash_readback_evidence": "ev_92bb7f4e5ff0188274c8487f10dc57765531a50c9f0cec9f63153bed98a607b4",
+    "service_status_evidence": "ev_34e7f9cf4df0dcdf6ad94e43fe66925d13774fc02b5146bf0fae4bbd8d7e405b"
+  },
+  "git_workflow": {
+    "compiled_state_R_installer_commit": "eb2a30fc960cbacf7137fb2cfc888a7e3e9d4db5",
+    "pinned_observation_sha_commit": "576baf592e0dd92b5f0319acf13aa1a3f3f5e2d9",
+    "workflow_run": 40845383789,
+    "workflow_conclusion": "success",
+    "note": "Workflow success confirms transport and overlay hash, NOT cleanup reliability."
+  },
+  "regression": {
+    "direct_capture_scenario_calls_positive_observed": 26,
+    "direct_capture_scenario_cleanup_incomplete_errors": 7,
+    "nested_concurrent_MCP_SSE_failure": 1,
+    "count_scope": "Includes baseline process probes, diagnostic read-only captures, filesystem fixture lifecycle, and process regression cases in this conversation, not earlier historical tests.",
+    "original_failure": {
+      "code": "cleanup_incomplete",
+      "diagnostics": "environment_errno_ESRCH=2",
+      "pids": [
+        224689,
+        224690
+      ],
+      "kernel_identity": "PPID=2, PGID=0, state=I, PF_KTHREAD, real/effective UID=0",
+      "ps_evidence": "ev_d52274b784acb556c1008afbb0bcbe682e4ac071ea9eb5c51d13fc26fd1337a3",
+      "stat_environment_evidence": "ev_27d4cf92607f09430b6b646c672eec3d831485440b46c6da842668d518f43272"
+    },
+    "after_state_R_patch": {
+      "first_8_children_pass": "ev_12ae0cb19a0873c3c0c71ff9d820e2bd7e01cc3537b5de66c34572c5b4827d1b",
+      "second_8_children_pass": "ev_6345557b7d6332f993e401a18dd64e406089d3a6ff5fdcde21aaed8e4d919b60",
+      "third_8_children_pass": "ev_d891e4fd5bf2c54cbc725ed23e35775e4b486ecebaae305baf6b41e1ee8eaebc",
+      "next_8_children": "FAIL cleanup_incomplete environment_errno_ESRCH=1 pid=225319",
+      "later_calls": "Retained cleanup lease prevents new captures, so subsequent tests also returned cleanup_incomplete.",
+      "new_pid": 225319,
+      "new_pid_native_verification": "kworker/u11:1 PPID2 PGID0 state I PF_KTHREAD=0x00200000 UID0",
+      "new_pid_ps_evidence": "ev_fe1c5645c4e03bdb79c76cba9ef21a4ef4c1fd6be685859b08b68d2d5e1353ce",
+      "new_pid_stat_evidence": "ev_a6aacbb40dc233af1e2034f07aa98971b1257be08c28af4c57d7d10c57c54817"
+    },
+    "stress_pre_state_R": {
+      "four_children": "ev_4b416395e4afa4937e8f2667502607538ffb574056b3087033ce7c39daac4e6f",
+      "twelve_simultaneous_worker_children": "ev_d618656c560909be26eaaf13c11567e1f9950f5a6d9b243c2268d4c26a4af7a9",
+      "thirty_fast_children": "ev_c77687c63109857da1a676ddfd730c930285ed406b57fb55a642acca0d51ae8a",
+      "expected_nonzero_exit": "ev_017954b411c3720f98462951e0c4fbd80b2b3cd469685d190c0b2c5fe5465b7e",
+      "forced_timeout": "ev_f3200bbdc145242a9e0bfd89f8b7e439c272a9c41a3939bc8c9933b530416b01",
+      "forced_sigkill": "ev_7f22d19b85b74416db33f15525eb717b20127c36ff10b8982bd55ed7adc1c422",
+      "limitation": "Concurrent workers were actually overlapping within one capture; multiple independent MCP captures in parallel were not certified."
+    },
+    "isolated_reproduction": {
+      "description": "Controlled fake process table with real native kernel PID and forced ESRCH, no process signals.",
+      "without_relation": "FAIL with same error code",
+      "with_relation": "PASS with unrelated-kernel unverified note",
+      "evidence": "ev_80098012e4515c76d4471d7482beef32056cb2a92e9725779de9579c4de067cb",
+      "interpretation": "Demonstrates a specific cleanup classification gap when optional relation is missing; exact occurrence of that branch in every live failure is not independently proven."
+    }
+  },
+  "next_candidate": {
+    "staged_file": "rea-linux/install/rea_pf_kthread_relation_free_fix_20261029.py",
+    "staged_commit": "3226633bf78a8cd00d2bfbc2741c3339086b9c64",
+    "expected_patched_ProcessOwnership_sha256": "a8bbd613666419b09eeb86535ce2a56c29bf9bbce1268ed066c764ab5a0b1642",
+    "positive_isolated_test": "Native PF_KTHREAD recognized without capture relation, double stat/status reads, stable starttime, uid=0 and group=0, with no ownership signal.",
+    "negatives_isolated_test": "Normal user process rejected fail closed; wrong native generation rejected fail closed.",
+    "isolated_test_evidence": "ev_51c804aec03ee5a7316c7c3f7700cc6b4188a95ae776aa2fe2a91d1ddb6de31f",
+    "installation_state": "NOT_APPLIED",
+    "installation_blocker": "Deployment operation was blocked by OpenAI platform security checks. No alternate route was used to circumvent the block.",
+    "update_transport_sha_guard_only_after": "Live runtime sha256 readback and authorized deployment",
+    "required_followup": "Install and restart once only when allowed; run repeated default eight-child, short-lived, failures, timeouts, concurrent capture and ownership-negative tests, then inspect retained resources."
+  },
+  "hygiene": {
+    "prior_old_empty_root_cleanup_evidence": "ev_77640155f3dc7675adbf8375d0e6d1b792d0237a3367ce6284bc6034837b987a",
+    "safe_old_empty_dirs_removed": [
+      "rea-process-5KJvuH",
+      "rea-process-AE8lFW",
+      "rea-process-Sr4sTp",
+      "rea-process-sLTooF"
+    ],
+    "fixture_created_evidence": "ev_f3a84ae8555b1863223aa3b0d7a60163d832513667de156de659fd3338e370a4",
+    "fixture_removed_evidence": "ev_bd543b2a2c1a1721e7999d7bee89d60354944a110773db7d54c00d35360ca021",
+    "test_marker_processes_remaining": 0,
+    "current_empty_temporal_roots_retained_for_conservative_ownership": [
+      "rea-process-Dax0x7",
+      "rea-process-ydJsn3"
+    ],
+    "final_read_only_evidence": "ev_b1ffa8258766e67b13e9b73da070c7c45eb7974089b7e9de7256afedd72fbe91",
+    "note": "New empty roots retained because unresolved owned-process cleanup requires conservative preservation, not blind deletion."
+  },
+  "prohibited_actions": {
+    "codex_used": false,
+    "android_used": false,
+    "original_upstream_source_modified": false,
+    "unrelated_projects_modified": false,
+    "new_workflows_created": false,
+    "new_plugins_servers_created": false,
+    "paid_providers_installed": false
+  }
+}
