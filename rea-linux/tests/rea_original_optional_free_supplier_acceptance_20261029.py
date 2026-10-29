@@ -170,7 +170,7 @@ def verification():
             raw=json.loads(out)
             if isinstance(raw,dict) and isinstance(raw.get("result"),dict):
                 raw=raw["result"]
-            error=raw.get("error",{}) if isinstance(raw,dict) else {}
+            error=(raw.get("error",raw) if isinstance(raw,dict) else {})
             if not isinstance(error,dict):error={}
             details=error.get("details",{})
             if not isinstance(details,dict):details={}
