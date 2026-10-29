@@ -38,7 +38,7 @@ PROGRAMS = {
     "mitmdump": Path("/opt/rea-reversa/providers/mitmproxy-12.2.3/bin/mitmdump"),
     "dotnet": Path("/usr/bin/dotnet"),
     "ilspy": Path("/home/ubuntu/.local/share/rea-optional-ilspycmd-11.2.0/ilspycmd"),
-    "pwndbg": Path("/home/ubuntu/.local/share/rea-optional-pwndbg-2026.09.15/tools/pwndbg"),
+    "pwndbg_gdbinit": Path("/home/ubuntu/.local/share/rea-optional-pwndbg-2026.09.15/tools/pwndbg/share/pwndbg/gdbinit.py"),
     "pwntools": Path("/home/ubuntu/.local/share/rea-optional-pwntools-4.15.0/bin/python"),
     "cutter": Path("/opt/rea-reversa/providers/cutter-2.5.0/bin/Cutter-v2.5.0-Linux-Qt5-x86_64.AppImage"),
     "hopper": Path("/opt/hopper/bin/Hopper"),
@@ -62,7 +62,7 @@ def validate(raw):
         raise ValueError("PROJECT_DENIED")
     if not isinstance(value["request_id"], str) or not re.fullmatch(r"[A-Za-z0-9._-]{8,80}", value["request_id"]):
         raise ValueError("REQUEST_ID_DENIED")
-    if value["operation"] not in ("health", "providers", "inspect_elf"):
+    if value["operation"] not in ("health", "providers", "inspect_elf", "apk_demo"):
         raise ValueError("OPERATION_DENIED")
     return value
 
@@ -185,6 +185,28 @@ def perform(req):
         if req["operation"] in ("health", "inspect_elf"):
             tasks.extend([("inspect_artifact", ["inspect-artifact", "/usr/bin/true"]),
                          ("inspect_elf_notes", ["inspect-elf-notes", "/usr/bin/true"])])
+        if req["operation"] == "apk_demo":
+            # Only use the already-tested public APK with its pinned digest.
+            apk_sha = "a9eecf37b26cd084855c530db81c2bb1b91f4c1b095a04f47aa7c20e2791f686"
+            candidates = (
+                ROOT/"_reference/apk-integration/ApiDemos-debug.apk",
+                Path("/home/ubuntu/rea-original-upstream-680-evidence/functional-suppliers-step2-20261029/ApiDemos-debug.apk"),
+                OLD/"_reference/apk-integration/ApiDemos-debug.apk",
+            )
+            fixture = None
+            for path in candidates:
+                if path.is_file() and sha256(path) == apk_sha:
+                    fixture = str(path)
+                    break
+            if fixture is None:
+                result["status"] = "BLOCKED_VERIFIED_APK_FIXTURE_MISSING"
+                return result
+            result["apk_fixture_sha256_verified"] = True
+            tasks.extend([
+                ("inspect_android_package", ["inspect-android-package", fixture]),
+                ("inspect_android_class", ["inspect-android-class", fixture, "io.appium.android.apis.ApiDemos"]),
+                ("inspect_android_method", ["inspect-android-method", fixture, "io.appium.android.apis.ApiDemos", "onCreate"])
+            ])
         result["tools"] = [cli_summary(name, args, env) for name,args in tasks]
         result["status"] = "PASS" if all(t["exit"] == 0 and t["json"] and not t["cleanup_incomplete"] for t in result["tools"]) else "PARTIAL"
     return result
