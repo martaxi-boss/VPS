@@ -3,7 +3,7 @@
   "project": "Engenharia Reversa",
   "engine": "REA 6.8.0",
   "date_utc": "2026-10-28",
-  "status": "162_GREEN_SCOPED_67_PENDING",
+  "status": "164_GREEN_SCOPED_65_PENDING",
   "provenance": {
     "repo": "martaxi-boss/VPS",
     "branch": "rea/one-skill-bridge-20261023",
@@ -20,10 +20,10 @@
   },
   "counts": {
     "total": 229,
-    "green_scoped": 162,
+    "green_scoped": 164,
     "previous_verified_6_8_0": 125,
-    "new_scoped_6_8_0": 37,
-    "pending": 67,
+    "new_scoped_6_8_0": 39,
+    "pending": 65,
     "duplicates": 0
   },
   "rule": "Green means functional proof for the exact recorded Linux scope only. Never certify untested functionality, vendors, macOS-only capability or REA 6.7 by historical association.",
@@ -1675,9 +1675,14 @@
     },
     {
       "name": "list_javascript_runtime_targets",
-      "indicator": "PENDING_NOT_GREEN",
-      "status": "NOT_CERTIFIED",
-      "availability": "available"
+      "indicator": "GREEN_SCOPED",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "availability": "available",
+      "scope": "Discover one controlled local Node 24 Inspector target",
+      "source_report": "rea-linux/certification/priority10-node-runtime-cleanup-20261029.json",
+      "evidence_ids": [
+        "ev_dd869004ebaea49df8dc76f637fc782200047bd9a61ca0270e3b7b35a6d0b444"
+      ]
     },
     {
       "name": "list_jeb_units",
@@ -1788,9 +1793,14 @@
     },
     {
       "name": "observe_javascript_runtime",
-      "indicator": "PENDING_NOT_GREEN",
-      "status": "NOT_CERTIFIED",
-      "availability": "available"
+      "indicator": "GREEN_SCOPED",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "availability": "available",
+      "scope": "Passively observe a controlled Node 24 Inspector target, 122 retained events and zero dropped",
+      "source_report": "rea-linux/certification/priority10-node-runtime-cleanup-20261029.json",
+      "evidence_ids": [
+        "ev_252c218b30aa14e276720fe4e7812c4e8520a720f55624a0f71bf20a8d4e89e0"
+      ]
     },
     {
       "name": "observe_native_calls",
