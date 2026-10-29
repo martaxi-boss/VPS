@@ -244,6 +244,9 @@ jobs:
 
   engenharia-reversa-skill:
     # Triggered by a bounded request committed using the GitHub connector.
+    permissions:
+      contents: read
+      statuses: write
     if: github.actor == 'martaxi-boss' && startsWith(github.event.head_commit.message, 'skill-request:')
     runs-on: ubuntu-24.04
     timeout-minutes: 22
@@ -292,3 +295,24 @@ jobs:
             -o ServerAliveCountMax=5 \
             ubuntu@146.59.145.3 "python3 - --base64 $request_b64" \
             < rea-linux/skill-bridge/execute_request.py
+      - name: Publish bridge run link for read-back verification
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REA_JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          case "$REA_JOB_STATUS" in
+            success|failure) state="$REA_JOB_STATUS" ;;
+            cancelled) state=error ;;
+            *) state=error ;;
+          esac
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          payload="$(printf '{"state":"%s","context":"rea-final-bridge","target_url":"%s","description":"Verified REA final bridge job"}' "$state" "$run_url")"
+          curl --fail-with-body -fsS -o /dev/null -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            --data "$payload" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}"
