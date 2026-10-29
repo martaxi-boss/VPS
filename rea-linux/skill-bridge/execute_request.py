@@ -37,12 +37,11 @@ PROGRAMS = {
     "wakaru": Path("/home/ubuntu/rea-final-runtime/vendors/providers/wakaru-1.14.0/bin/wakaru"),
     "mitmdump": Path("/home/ubuntu/rea-final-runtime/vendors/providers/mitmproxy-12.2.3/bin/mitmdump"),
     "dotnet": Path("/usr/bin/dotnet"),
-    "ilspy": Path("/home/ubuntu/.local/share/rea-optional-ilspycmd-11.2.0/ilspycmd"),
-    "pwndbg_gdbinit": Path("/home/ubuntu/.local/share/rea-optional-pwndbg-2026.09.15/tools/pwndbg/share/pwndbg/gdbinit.py"),
-    "pwntools": Path("/home/ubuntu/.local/share/rea-optional-pwntools-4.15.0/bin/python"),
+    "ilspy": Path("/home/ubuntu/rea-final-runtime/optional/rea-optional-ilspycmd-11.2.0/ilspycmd"),
+    "pwndbg_gdbinit": Path("/home/ubuntu/rea-final-runtime/optional/rea-optional-pwndbg-2026.09.15/tools/pwndbg/share/pwndbg/gdbinit.py"),
+    "pwntools": Path("/home/ubuntu/rea-final-runtime/optional/rea-optional-pwntools-4.15.0/bin/python"),
     "cutter": Path("/home/ubuntu/rea-final-runtime/vendors/providers/cutter-2.5.0/bin/Cutter-v2.5.0-Linux-Qt5-x86_64.AppImage"),
-    "hopper": Path("/opt/hopper/bin/Hopper"),
-    "chromium": Path("/opt/rea-reversa/providers/chromium-playwright-1.58.2/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell"),
+    "chromium": Path("/home/ubuntu/rea-final-runtime/vendors/providers/chromium-playwright-1.58.2/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell"),
     "adb": Path("/usr/bin/adb"),
     "tshark": Path("/usr/bin/tshark"),
     "sigrok": Path("/usr/bin/sigrok-cli"),
@@ -121,12 +120,16 @@ def engine_state():
     status["ready"] = status["commit_correct"] and status["package_correct"] and status["compiled_hashes_correct"] and status["dependencies"] == "ISOLATED_FINAL_RUNTIME"
     return status
 
+# Paid Hopper is not installed as a provider of this FINAL project.
+# Its host-level /opt installation is unrelated and must never be reused implicitly.
 def supplier_state():
     values = {}
     for name, path in PROGRAMS.items():
         exists = path.is_file()
         values[name] = {"present": exists, "usable_executable": exists and os.access(path, os.X_OK),
-                        "shared_with_legacy": str(path).startswith("/opt/rea-reversa/")}
+                        "shared_with_legacy": str(path.resolve(strict=False)).startswith("/opt/rea-reversa/"),
+                        "owned_by_final": str(path.resolve(strict=False)).startswith(("/home/ubuntu/rea-final-runtime/", "/home/ubuntu/rea-original-upstream-680/")),
+                        "host_os_tool": str(path.resolve(strict=False)).startswith(("/usr/", "/bin/"))}
     values["frida_node_binding"] = {"present": (ROOT/"node_modules"/"frida").exists(),
                                     "shared_with_legacy": (ROOT/"node_modules").resolve(strict=False).is_relative_to(OLD)}
     return values
