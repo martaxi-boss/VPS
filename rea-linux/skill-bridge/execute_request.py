@@ -62,7 +62,7 @@ def validate(raw):
         raise ValueError("PROJECT_DENIED")
     if not isinstance(value["request_id"], str) or not re.fullmatch(r"[A-Za-z0-9._-]{8,80}", value["request_id"]):
         raise ValueError("REQUEST_ID_DENIED")
-    if value["operation"] not in ("health", "providers", "inspect_elf", "apk_demo"):
+    if value["operation"] not in ("health", "providers", "inspect_elf", "apk_demo", "isolation_audit"):
         raise ValueError("OPERATION_DENIED")
     return value
 
@@ -155,11 +155,91 @@ def cli_summary(name, args, env):
         row["json"] = False
     return row
 
+
+def isolation_inventory():
+    """Read-only facts about disk, paths and likely consumers. No content dumps."""
+    import shutil
+    state = {"read_only": True, "engine_path": str(ROOT)}
+    disk = shutil.disk_usage(str(ROOT))
+    state["disk_bytes"] = {"total": disk.total, "used": disk.used, "free": disk.free}
+    nm = ROOT/"node_modules"
+    state["node_modules"] = {"is_symlink": nm.is_symlink(),
+       "target": str(nm.resolve(strict=False)),
+       "target_exists": nm.exists(),
+       "same_device_as_root": nm.exists() and nm.stat().st_dev == ROOT.stat().st_dev}
+    units = {
+       "engine": ROOT,
+       "engine_evidence": Path("/home/ubuntu/rea-original-upstream-680-evidence"),
+       "legacy_engine": OLD,
+       "legacy_node_modules": OLD/"node_modules",
+       "legacy_providers": Path("/opt/rea-reversa/providers"),
+       "legacy_tools": Path("/opt/rea-reversa/tools"),
+       "ghidra": Path("/opt/rea-reversa/tools/ghidra_12.1.4_PUBLIC"),
+       "jdk21": Path("/opt/rea-reversa/tools/jdk-21"),
+       "node24": Path("/opt/rea-reversa/providers/node-v24.22.1"),
+       "cutter": Path("/opt/rea-reversa/providers/cutter-2.5.0"),
+       "chromium": Path("/opt/rea-reversa/providers/chromium-playwright-1.58.2"),
+       "unblob": Path("/opt/rea-reversa/providers/unblob-26.6.4"),
+       "binwalk": Path("/opt/rea-reversa/providers/binwalk-3.1.0"),
+       "rizin": Path("/opt/rea-reversa/providers/rizin-v0.9.1"),
+       "kuna": Path("/opt/rea-reversa/providers/kuna-v1.833"),
+       "wakaru": Path("/opt/rea-reversa/providers/wakaru-1.14.0"),
+       "mitmproxy": Path("/opt/rea-reversa/providers/mitmproxy-12.2.3"),
+       "jadx": Path("/opt/rea-reversa/tools/jadx-headless-mcp-0.7.1-all.jar")
+    }
+    sizes = {}
+    for key,path in units.items():
+        if not path.exists():
+            sizes[key]={"present":False}
+            continue
+        try:
+            stat=path.stat()
+            entry={"present":True,"is_symlink":path.is_symlink(),
+                "owner_uid":stat.st_uid, "same_device_as_engine":stat.st_dev == ROOT.stat().st_dev}
+            p=subprocess.run(["du","-s","-B1",str(path)],stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True,timeout=55,check=False)
+            if p.returncode==0:
+                entry["allocated_bytes"]=int(p.stdout.split()[0])
+            else:entry["du_rc"]=p.returncode
+            sizes[key]=entry
+        except (OSError, ValueError, subprocess.TimeoutExpired) as e:
+            sizes[key]={"present":True,"error":type(e).__name__}
+    state["units"]=sizes
+    try:
+        state["root_entries"]=sorted(x.name for x in ROOT.iterdir()
+            if x.name in ("node_modules","package.json","package-lock.json","dist","scripts","src","_reference",".git"))
+        state["legacy_entries"]=sorted(x.name for x in OLD.iterdir()
+            if x.name in ("node_modules","package.json","package-lock.json","dist","scripts","src","_reference",".git"))
+    except OSError:
+        pass
+    # Process evidence is only a hint: unreadable processes are not enumerated.
+    users=[]
+    for item in Path("/proc").iterdir():
+        if not item.name.isdigit():continue
+        try:
+            raw=(item/"cmdline").read_bytes()
+            if b"/opt/rea-reversa" in raw or b"/home/ubuntu/rea-original-upstream-680" in raw:
+                parts=raw.split(b"\0")
+                users.append({"pid":int(item.name),
+                    "binary":Path(os.fsdecode(parts[0])).name[:70],
+                    "references_old":b"/opt/rea-reversa" in raw,
+                    "references_final":b"/home/ubuntu/rea-original-upstream-680" in raw})
+        except (OSError, UnicodeError):
+            pass
+        if len(users)>=45:break
+    state["matching_processes"]=users
+    state["observed_process_count"]=len(users)
+    return state
+
 def perform(req):
     result = {"bridge": "original-final-cli-v1", "request_id": req["request_id"],
               "operation": req["operation"], "engine": engine_state(), "suppliers": supplier_state()}
     if not result["engine"].get("ready"):
         result["status"] = "BLOCKED_ENGINE_INCORRECT"
+        return result
+    if req["operation"] == "isolation_audit":
+        result["isolation_audit"] = isolation_inventory()
+        result["status"] = "PASS" if result["isolation_audit"]["node_modules"]["target_exists"] else "PARTIAL"
         return result
     with tempfile.TemporaryDirectory(prefix="rea-skill-probe-", dir="/tmp") as home:
         env = dict(os.environ)
