@@ -3,7 +3,7 @@
   "project": "Engenharia Reversa",
   "engine": "REA 6.8.0",
   "date_utc": "2026-10-28",
-  "status": "161_GREEN_SCOPED_68_PENDING",
+  "status": "162_GREEN_SCOPED_67_PENDING",
   "provenance": {
     "repo": "martaxi-boss/VPS",
     "branch": "rea/one-skill-bridge-20261023",
@@ -20,10 +20,10 @@
   },
   "counts": {
     "total": 229,
-    "green_scoped": 161,
+    "green_scoped": 162,
     "previous_verified_6_8_0": 125,
-    "new_scoped_6_8_0": 36,
-    "pending": 68,
+    "new_scoped_6_8_0": 37,
+    "pending": 67,
     "duplicates": 0
   },
   "rule": "Green means functional proof for the exact recorded Linux scope only. Never certify untested functionality, vendors, macOS-only capability or REA 6.7 by historical association.",
@@ -2420,9 +2420,15 @@
     },
     {
       "name": "trace_web_module_imports",
-      "indicator": "PENDING_NOT_GREEN",
-      "status": "NOT_CERTIFIED",
-      "availability": "available"
+      "indicator": "GREEN_SCOPED",
+      "status": "FUNCTIONAL_PASS_SCOPED",
+      "availability": "available",
+      "scope": "Computed dynamic import in synthetic local manifest; literal native resolution not certified",
+      "source_report": "rea-linux/certification/priority9-web-module-computed-20261029.json",
+      "evidence_ids": [
+        "ev_16d56210abfc8144e89ed3f6340b3a7979fea26f9108361133c4544994c80c2a",
+        "ev_e0bf34a37852c52676749537d74cc34b2c751cfb7f02da3f2f0eb82a9d730350"
+      ]
     },
     {
       "name": "trace_web_source_location",
