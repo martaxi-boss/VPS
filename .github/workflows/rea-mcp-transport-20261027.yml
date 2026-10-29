@@ -1,4 +1,4 @@
-name: REA original isolated Pwntools 4.15 install via pinned GitHub SSH
+name: REA original optional vendor integration final acceptance through pinned SSH
 on:
   push:
     branches:
@@ -35,7 +35,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m py_compile rea-linux/install/rea_original_optional_free_suppliers_20261029.py
+          python3 -m py_compile rea-linux/tests/rea_original_optional_free_supplier_acceptance_20261029.py
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass >/dev/null
           echo 'REA_ORIGINAL_MODE=STANDALONE_CLI_NO_MCP'
@@ -48,7 +48,7 @@ jobs:
           fingerprint="$(ssh-keygen -lf "$RUNNER_TEMP/rea-host-pin" -E sha256 | awk '{print $2}')"
           test "$fingerprint" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
           echo "REA_ORIGINAL_SSH_PIN=PASS"
-      - name: Install exact pwntools 4.15 in dedicated Ubuntu Python environment
+      - name: Verify ILSpy and Pwndbg against official REA core with process cleanup
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         shell: bash
@@ -64,5 +64,5 @@ jobs:
             -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=15 -o ServerAliveInterval=10 \
             -o ServerAliveCountMax=5 \
-            ubuntu@146.59.145.3 "python3 - install-pwntools" \
-            < rea-linux/install/rea_original_optional_free_suppliers_20261029.py
+            ubuntu@146.59.145.3 "python3 -" \
+            < rea-linux/tests/rea_original_optional_free_supplier_acceptance_20261029.py
