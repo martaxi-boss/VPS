@@ -59,6 +59,24 @@ def verify_links(where):
    if not dest.exists():broken.append(str(p.relative_to(where))[:110])
  return {"symlinks":n,"links_old":old[:15],"links_userlocal":userlocal[:15],
          "broken":broken[:15],"count_old":len(old),"count_userlocal":len(userlocal),"count_broken":len(broken)}
+
+def relink_inside_copied_provider(stage_dir,source_dir,final_dir):
+ """Rewrite only symlinks into the same source tree; do not follow external links."""
+ changed=[]
+ for current,dirs,files in os.walk(stage_dir,followlinks=False):
+  for name in dirs+files:
+   p=Path(current)/name
+   if not p.is_symlink():continue
+   target=os.readlink(p)
+   if target==str(source_dir) or target.startswith(str(source_dir)+"/"):
+    inside=Path(target).relative_to(source_dir)
+    new=final_dir/inside
+    # These are newly staged files only. A symlink cannot be used to overwrite a target.
+    p.unlink()
+    p.symlink_to(new)
+    changed.append(str(p.relative_to(stage_dir))[:120])
+ return changed
+
 def main():
  check(pwd.getpwuid(os.geteuid()).pw_name=="ubuntu","NOT_UBUNTU")
  check(ROOT.is_dir() and not ROOT.is_symlink(),"FINAL_CODE_MISSING")
@@ -89,6 +107,7 @@ def main():
    copied=size(target)
    check(abs(copied-row["bytes"])<max(12*1024**2,row["bytes"]//25),"COPY_SIZE_DIFF:"+row["name"])
    row["copied_bytes"]=copied
+   row["rewired_local_symlinks"]=relink_inside_copied_provider(target,Path(row["source"]),FINAL/row["name"])
    links=verify_links(target)
    check(links["count_old"]==0 and links["count_userlocal"]==0,
         "COPY_SYMLINK_DEPENDS_ON_OLD_INSTALLATION:"+row["name"])
