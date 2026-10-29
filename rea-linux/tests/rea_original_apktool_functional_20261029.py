@@ -166,6 +166,8 @@ def main():
                tuple(map(int,matched.groups())) >= (2,7,0))
     check("preinstalled_apktool_launcher",supported,
           {"launcher":str(launcher),"version":version[:100],"exit":version_rc})
+    print("REA_APKTOOL_SELECTED_LAUNCHER="+str(launcher),flush=True)
+    print("REA_APKTOOL_DETECTED_VERSION="+version[:50],flush=True)
     if not supported:return
     # Informative disclosure, not a fabricated audit of binary patches.
     nums=tuple(map(int,matched.groups()))
