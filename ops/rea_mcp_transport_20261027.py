@@ -360,6 +360,10 @@ def remote_run(request):
             if ln.startswith("REA_KTHREAD"):
                 print(ln, file=sys.stderr)
         if result.returncode != 0:
+            # Return only bounded diagnostic excerpts from the owned repair script.
+            for ln in result.stderr.splitlines()[-10:]:
+                if ln.strip():
+                    print("REA_KTHREAD_REPAIR_ERROR="+ln[:400], file=sys.stderr)
             raise ValueError("REA_KTHREAD_ONE_SHOT_APPLY=FAILED")
         print("REA_KTHREAD_ONE_SHOT_APPLY=PASS", file=sys.stderr)
     client = Client()
