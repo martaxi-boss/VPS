@@ -111,7 +111,12 @@ def existing_vendor_env(plain):
     env=plain.copy()
     candidates = {}
     roots = [
-        "/opt/ghidra*","/opt/rea-reversa/providers/ghidra*",
+        "/opt/ghidra*","/opt/ghidra*/ghidra*",
+        "/opt/rea-reversa/providers/ghidra*",
+        "/opt/rea-reversa/providers/ghidra*/ghidra*",
+        "/opt/rea-reversa/providers/*/ghidra*",
+        "/opt/rea-reversa/providers/*/*/ghidra*",
+        "/opt/rea-reversa/ghidra*",
         "/usr/share/ghidra","/usr/local/share/ghidra*",
     ]
     home = installed_path(roots,
@@ -148,6 +153,29 @@ def existing_vendor_env(plain):
         candidates["chromium_playwright"]=str(browser_root)
     else:
         candidates["chromium_playwright"]=None
+    # For executables installed outside the Ubuntu login PATH, locate only
+    # existing bounded provider paths. Do not copy or install anything.
+    missing_execs = {
+      "jadx": ["/opt/rea-reversa/providers/jadx*/bin/jadx",
+               "/opt/rea-reversa/providers/jadx*/jadx",
+               "/opt/rea-reversa/providers/*/jadx/bin/jadx"],
+      "rizin": ["/opt/rea-reversa/providers/rizin*/bin/rizin",
+                "/opt/rea-reversa/providers/rizin*/bin/rz-bin"],
+      "unblob": ["/opt/rea-reversa/providers/unblob*/bin/unblob"],
+      "wabt": ["/opt/rea-reversa/providers/wabt*/bin/wasm2wat"],
+    }
+    discovered_bins=[]
+    for name, patterns in missing_execs.items():
+        p=installed_path(patterns,lambda x:x.is_file() and os.access(x,os.X_OK))
+        if p is not None:
+            discovered_bins.append(str(p.parent))
+    for directory in dict.fromkeys(discovered_bins):
+        env["PATH"] += ":"+directory
+    javac = shutil.which("javac",path=env["PATH"])
+    if home is not None and javac:
+        jdk = pathlib.Path(javac).resolve().parent.parent
+        if (jdk/"bin/java").is_file() and (jdk/"bin/javac").is_file():
+            env["JAVA_HOME"] = str(jdk)
     # Existing binary dependencies are exposed by PATH in child processes only.
     for label,commands in [
         ("gdb",["gdb"]),("rizin",["rizin","rz-bin"]),("radare2",["radare2"]),
@@ -272,7 +300,7 @@ def main():
     gh=next((x for x in doctor if x["label"]=="doctor-existing-ghidra"),None)
     if gh and gh["exit_code"]==0:
         v=cli("ghidra-original-analyze-true",
-              ["analyze","/usr/bin/true","--provider","ghidra"],320)
+              ["analyze","/usr/bin/true","--provider","ghidra"],vendor,320)
         v["status"]="PASS" if v["exit_code"]==0 and v["valid_json"] and not v["cleanup_incomplete"] else "FAIL"
         real.append(v)
         print("REA_VENDOR_REAL_GHIDRA="+v["status"]+
@@ -284,7 +312,7 @@ def main():
     kn=next((x for x in doctor if x["label"]=="doctor-existing-kuna"),None)
     if kn and kn["exit_code"]==0:
         v=cli("kuna-original-inspect-true",
-              ["analyze","/usr/bin/true","--provider","kuna"],210)
+              ["analyze","/usr/bin/true","--provider","kuna"],vendor,210)
         v["status"]="PASS" if v["exit_code"]==0 and v["valid_json"] and not v["cleanup_incomplete"] else "FAIL"
         real.append(v)
         print("REA_VENDOR_REAL_KUNA="+v["status"],flush=True)
