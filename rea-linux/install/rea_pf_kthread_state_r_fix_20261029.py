@@ -45,7 +45,7 @@ def selftest():
 const isKernel=(o)=>["I","S","D","R"].includes(o.state)
  && Number.isSafeInteger(o.flags) && (o.flags&0x00200000)===0x00200000
  && o.ppid===2 && o.pgid===0 && o.realUid===0 && o.effectiveUid===0
- && o.before===o.after && /^\\d+$/u.test(o.before);
+ && o.before===o.after && /^\d+$/u.test(o.before);
 const ok={state:"R",flags:69238880,ppid:2,pgid:0,realUid:0,effectiveUid:0,before:"42978957",after:"42978957"};
 if(!isKernel(ok))process.exit(1);
 for(const change of [{state:"Z"},{flags:0},{ppid:1},{pgid:1},{realUid:1000},{effectiveUid:1000},{after:"123456"},{before:"not-a-generation"}]){
