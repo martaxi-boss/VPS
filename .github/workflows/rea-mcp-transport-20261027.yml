@@ -1,4 +1,4 @@
-name: REA original supplier functional tests through GitHub SSH
+name: REA original Apktool functional verification via GitHub SSH
 on:
   push:
     branches:
@@ -11,6 +11,7 @@ on:
       - "rea-linux/tests/rea_original_existing_provider_paths_20261029.py"
       - "rea-linux/tests/rea_original_unblob_access_fix_20261029.py"
       - "rea-linux/tests/rea_original_functional_suppliers_step2_20261029.py"
+      - "rea-linux/tests/rea_original_apktool_functional_20261029.py"
 permissions:
   contents: read
 concurrency:
@@ -31,7 +32,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m py_compile rea-linux/tests/rea_original_functional_suppliers_step2_20261029.py
+          python3 -m py_compile rea-linux/tests/rea_original_apktool_functional_20261029.py
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass >/dev/null
           echo 'REA_ORIGINAL_MODE=STANDALONE_CLI_NO_MCP'
@@ -44,7 +45,7 @@ jobs:
           fingerprint="$(ssh-keygen -lf "$RUNNER_TEMP/rea-host-pin" -E sha256 | awk '{print $2}')"
           test "$fingerprint" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
           echo "REA_ORIGINAL_SSH_PIN=PASS"
-      - name: Real CLI test of existing Ghidra JADX and Unblob on official original
+      - name: Verify preinstalled Apktool with real static APK resource decoding
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         shell: bash
@@ -61,4 +62,4 @@ jobs:
             -o ConnectTimeout=15 -o ServerAliveInterval=10 \
             -o ServerAliveCountMax=5 \
             ubuntu@146.59.145.3 "python3 -" \
-            < rea-linux/tests/rea_original_functional_suppliers_step2_20261029.py
+            < rea-linux/tests/rea_original_apktool_functional_20261029.py
