@@ -30,17 +30,40 @@ test "$(git -C "$ROOT" describe --tags --exact-match HEAD)" = "rea-agents-6.8.0"
 echo "REA_ORIGINAL_SOURCE_COMMIT=$EXPECTED"
 cd "$ROOT"
 test "$(node -p "require('./package.json').version")" = "6.8.0"
-# Install dependencies from the official lockfile, never link the other REA's modules.
+# Fresh original source and build; reuse only verified installed dependencies.
+# No reuse of compiled REA modules, local patches, services, credentials or MCP.
+INSTALLED="/opt/rea-reversa/rea"
 if [ ! -f "$EVIDENCE/build-pass-for-$EXPECTED" ]; then
-  npm ci --no-audit --no-fund > "$EVIDENCE/npm-ci.log" 2>&1 || {
-    echo "REA_ORIGINAL_NPM_CI=FAIL"
-    tail -n 35 "$EVIDENCE/npm-ci.log" | sed -E 's#(https?://)[^ ]+#\1[URL_REDACTED]#g'
-    exit 31
+  if [ ! -e node_modules ]; then
+    if [ -f "$INSTALLED/package-lock.json" ] &&
+       [ -d "$INSTALLED/node_modules" ] &&
+       [ -f "$INSTALLED/node_modules/.package-lock.json" ] &&
+       cmp -s package-lock.json "$INSTALLED/package-lock.json"; then
+      ln -s "$INSTALLED/node_modules" node_modules
+      if node scripts/check-dependency-install.mjs > "$EVIDENCE/dependency-check.log" 2>&1; then
+        echo "REA_ORIGINAL_DEPENDENCIES=REUSED_VERIFIED_LOCK"
+      else
+        unlink node_modules
+        echo "REA_ORIGINAL_DEPENDENCIES=INCOMPATIBLE_LOCK_INSTALL_OWN"
+      fi
+    fi
+  fi
+  if [ ! -e node_modules ]; then
+    npm ci --no-audit --no-fund > "$EVIDENCE/npm-ci.log" 2>&1 || {
+      echo "REA_ORIGINAL_NPM_CI=FAIL"
+      tail -n 20 "$EVIDENCE/npm-ci.log" | sed -E 's#(https?://)[^ ]+#\1[URL_REDACTED]#g'
+      exit 31
+    }
+    echo "REA_ORIGINAL_DEPENDENCIES=INSTALLED_OWN_LOCK"
+  fi
+  node scripts/check-dependency-install.mjs > "$EVIDENCE/dependency-check.log" 2>&1 || {
+    echo "REA_ORIGINAL_DEPENDENCIES=FAIL_VERIFICATION"
+    exit 34
   }
-  echo "REA_ORIGINAL_NPM_CI=PASS"
+  echo "REA_ORIGINAL_DEPENDENCY_CHECK=PASS"
   npm run build:cached > "$EVIDENCE/build.log" 2>&1 || {
     echo "REA_ORIGINAL_BUILD=FAIL"
-    tail -n 35 "$EVIDENCE/build.log"
+    tail -n 25 "$EVIDENCE/build.log"
     exit 32
   }
   touch "$EVIDENCE/build-pass-for-$EXPECTED"
