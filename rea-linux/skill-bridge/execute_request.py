@@ -62,7 +62,7 @@ def validate(raw):
         raise ValueError("PROJECT_DENIED")
     if not isinstance(value["request_id"], str) or not re.fullmatch(r"[A-Za-z0-9._-]{8,80}", value["request_id"]):
         raise ValueError("REQUEST_ID_DENIED")
-    if value["operation"] not in ("health", "providers", "inspect_elf", "apk_demo", "isolation_audit", "environment_audit"):
+    if value["operation"] not in ("health", "providers", "inspect_elf", "apk_demo", "isolation_audit", "environment_audit", "provider_diagnostics"):
         raise ValueError("OPERATION_DENIED")
     return value
 
@@ -504,11 +504,71 @@ def environment_audit():
     }
     return r
 
+
+def doctor_detail_audit():
+    """Precisely explain scoped official doctor's results, with no env or secrets logged."""
+    r={"read_only":True,"engine_commit":PIN,"results":{}}
+    root="/home/ubuntu/rea-final-runtime/vendors"
+    with tempfile.TemporaryDirectory(prefix="rea-doctor-audit-",dir="/tmp") as temp:
+        env=dict(os.environ)
+        for k in tuple(env):
+            if k.startswith("REA_") or k in ("JAVA_HOME","GHIDRA_INSTALL_DIR",
+                "VIRTUAL_ENV","PYTHONPATH","PYTHONHOME","HOPPER_LAUNCHER_PATH"):
+                env.pop(k,None)
+        env.update({"HOME":temp,"TMPDIR":temp,"XDG_CONFIG_HOME":temp+"/.config",
+            "XDG_CACHE_HOME":temp+"/.cache","JAVA_HOME":root+"/tools/jdk-21",
+            "GHIDRA_INSTALL_DIR":root+"/tools/ghidra_12.1.4_PUBLIC",
+            "REA_JADX_MCP_JAR":root+"/tools/jadx-headless-mcp-0.7.1-all.jar",
+            "REA_KUNA_COMMAND":root+"/providers/kuna-v1.833/bin/kuna",
+            "PATH":root+"/tools/jdk-21/bin:"+str(NODE.parent)+":"+env.get("PATH",""),
+            "CI":"1"})
+        def compact_check(v):
+            if isinstance(v,str):return v[:135]
+            if not isinstance(v,dict):return str(type(v).__name__)
+            keys=("name","id","provider","provider_id","status","healthy","passed",
+                "ok","severity","code","reason","detail","description","message",
+                "summary","available","ready","result")
+            row={}
+            for key in keys:
+                val=v.get(key)
+                if isinstance(val,(bool,int,float)):row[key]=val
+                elif isinstance(val,str):row[key]=val[:200]
+            if len(row)<2:
+                row["keys"]=list(v)[:24]
+            return row
+        for name in ("hopper","ida","ghidra","jadx","kuna"):
+            p=execute([str(NODE),"scripts/rea.mjs","doctor","--provider",name,"--json"],
+                    env=env,timeout=55)
+            row={"exit":p["exit"],"seconds":p["seconds"]}
+            try:
+                doc=json.loads(p["output"])
+                norm=doc.get("normalized_result",doc)
+                row["healthy"]=bool(norm.get("healthy",False))
+                row["environment_healthy"]=norm.get("environment_healthy")
+                for prop in ("scope","scope_checks","informational_checks","checks","providerInspections"):
+                    value=norm.get(prop)
+                    if isinstance(value,list):
+                        row[prop]=[compact_check(item) for item in value[:45]]
+                    elif isinstance(value,dict):
+                        row[prop]={str(k)[:90]:compact_check(v) for k,v in list(value.items())[:40]}
+                for prop in ("reason","message","error","code"):
+                    if isinstance(norm.get(prop),str):row[prop]=norm[prop][:200]
+                row["json"]=True
+            except (ValueError,TypeError,AttributeError) as e:
+                row["json"]=False
+                row["parse_error"]=type(e).__name__
+            r["results"][name]=row
+    return r
+
 def perform(req):
     result = {"bridge": "original-final-cli-v1", "request_id": req["request_id"],
               "operation": req["operation"], "engine": engine_state(), "suppliers": supplier_state()}
     if not result["engine"].get("ready"):
         result["status"] = "BLOCKED_ENGINE_INCORRECT"
+        return result
+    if req["operation"] == "provider_diagnostics":
+        result["provider_diagnostics"] = doctor_detail_audit()
+        result["status"] = "PASS"
         return result
     if req["operation"] == "environment_audit":
         result["environment_audit"] = environment_audit()

@@ -2,6 +2,6 @@
   "schema_version": 1,
   "project": "engenharia-reversa-final",
   "engine_commit": "160d821ac9a0310afcb8d1fc427862dd6508add5",
-  "request_id": "original-env-audit-20261029-2314",
-  "operation": "environment_audit"
+  "request_id": "original-doctor-detail-20261029-01",
+  "operation": "provider_diagnostics"
 }
