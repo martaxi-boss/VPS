@@ -1,0 +1,32 @@
+{
+  "phase_id": "LINUX-P292-NODE-RUNTIME-RECOVERY-20261029",
+  "status": "TWO_FUNCTIONAL_PASS_SCOPED",
+  "tools": [
+    {
+      "name": "list_javascript_runtime_targets",
+      "evidence": "ev_dd869004ebaea49df8dc76f637fc782200047bd9a61ca0270e3b7b35a6d0b444",
+      "scope": "Node 24 local inspector returned one live target, ID and file location."
+    },
+    {
+      "name": "observe_javascript_runtime",
+      "evidence": "ev_252c218b30aa14e276720fe4e7812c4e8520a720f55624a0f71bf20a8d4e89e0",
+      "scope": "Observed selected Node Inspector for 300ms, 122 events, zero dropped, no source content inferred."
+    }
+  ],
+  "cleanup": {
+    "restart_workflow": 40798536463,
+    "restart_sha": "83fb13dc1c4bcc3bb6474a9e31c7a4a26e927c6d",
+    "clean_capture_evidence": [
+      "ev_1b6ccef487487131f9ec3a3dcfeb6db76deaca6d01ddf83005eba0e01b08ccc9",
+      "ev_19bfdb0ab526223ba0ae9c512f44676d24bf6baf8296a3895006286f4306eac9",
+      "ev_5b623f5fc1573bb8bbb8a343701d201f9eb2b84cfafc12d5b62de40b687c3de9"
+    ],
+    "independent_laboratory_cleanup": "ev_37c81a845f469547631af831a1d90f6044b640fad90580859529f8c6944ed830",
+    "transport_original_blob": "15157b00d02a582e3ff67f978948ea96b8cb7037",
+    "status": "VERIFIED_FOR_TESTED_CASES"
+  },
+  "limitations": [
+    "A previous capture hit cleanup_incomplete on Linux kernel threads; recurrence beyond current three successful captures not ruled out.",
+    "Runtime script events are passive metadata, not code-execution traces."
+  ]
+}
