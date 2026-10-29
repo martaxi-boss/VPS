@@ -138,7 +138,8 @@ def main():
    origin=TEMP/row["name"]
    target=FINAL/row["name"]
    target.parent.mkdir(parents=True,exist_ok=True)
-   os.replace(origin,target)
+   rc,_,err=cmd(["sudo","-n","mv","-T","--",str(origin),str(target)],timeout=120)
+   check(rc==0,"STAGE_ACTIVATION_FAILED:"+row["name"]+":"+err)
    created.append(str(target))
   data={"status":"PASS_COPIED_INDEPENDENT_OPTIONAL_PROVIDER_FILES",
      "source_commit":PIN,"runtime":str(FINAL),"entries":entries,
