@@ -165,6 +165,32 @@ def verification():
     correct=(isinstance(dbg,dict) and
              str(dbg.get("pwndbg_version","")).startswith("2026.09.15") and
              dbg.get("connection")=="core")
+    if not (r["rc"]==0 and correct and not r["cleanup_incomplete"]):
+        try:
+            raw=json.loads(out)
+            if isinstance(raw,dict) and isinstance(raw.get("result"),dict):
+                raw=raw["result"]
+            error=raw.get("error",{}) if isinstance(raw,dict) else {}
+            if not isinstance(error,dict):error={}
+            details=error.get("details",{})
+            if not isinstance(details,dict):details={}
+            print("REA_OPT_ACCEPT_PWNDBG_CLI_RESPONSE_KEYS="+
+                  str(list(raw)[:18] if isinstance(raw,dict) else type(raw).__name__),flush=True)
+            print("REA_OPT_ACCEPT_PWNDBG_CLI_ERROR="+json.dumps({
+                 "code":error.get("code"),"message":str(error.get("message",""))[:350],
+                 "reason":str(error.get("reason",""))[:100],
+                 "details_keys":list(details)[:28],
+                 "remediation":str(error.get("remediation",""))[:250],
+                 "normalized_keys":list(data)[:30],
+                 "debugger_keys":list(dbg) if isinstance(dbg,dict) else []
+                },ensure_ascii=False),flush=True)
+        except Exception as diag:
+            print("REA_OPT_ACCEPT_PWNDBG_DIAGNOSTIC_PARSE_ERROR="+
+                  type(diag).__name__,flush=True)
+        saved_err=(EVID/"rea-original-pwndbg-core-debug.stderr.txt")
+        if saved_err.is_file():
+            print("REA_OPT_ACCEPT_PWNDBG_STDERR_PREFIX="+
+                  saved_err.read_text(encoding="utf8",errors="replace")[:450].replace("\n"," "),flush=True)
     check(r["rc"]==0 and correct and not r["cleanup_incomplete"],
          "REA_ORIGINAL_PWNDBG_RECORDED_CORE_UNVERIFIED")
     check(sha(core)==core_hash,"ORIGINAL_CONTROLLED_CORE_BYTES_CHANGED")
