@@ -111,7 +111,7 @@ def cutter_probe():
     process=None
     try:
         process=subprocess.Popen([launcher,"-a","-s","-screen 0 1280x800x24 -nolisten tcp",
-                     str(CUTTER),"/usr/bin/true"],
+                     str(CUTTER),"-A","0","/usr/bin/true"],
                      cwd=str(EVID),env=env,stdin=subprocess.DEVNULL,
                      stdout=stdout_file,stderr=stderr_file,start_new_session=True)
         result["result"]="PROCESS_LAUNCHED"
@@ -233,29 +233,27 @@ def hopper_probe():
 
 def main():
     check_source()
-    for filename in ("cutter-real-ij.stdout.json","cutter-real-ij.stderr.log"):
-        f=EVID/filename
-        if not f.is_file():continue
-        s=f.read_text(encoding="utf8",errors="replace")
-        if filename.endswith(".json"):
-            try:
-                v=json.loads(s)
-                def clean(v):
-                    if isinstance(v,str):return v[:380]
-                    if isinstance(v,(int,float,bool)) or v is None:return v
-                    if isinstance(v,dict):
-                        return {k:clean(z) for k,z in v.items() if k in ("code","message","error",
-                         "reason","boundary","diagnostics","details","predicate_type","execution_state","cleanup")}
-                    return type(v).__name__
-                safe={"top_keys":list(v)[:22] if isinstance(v,dict) else [],
-                      "status":clean(v)}
-                print("REA_P2_CUTTER_FAILED_COMMAND="+json.dumps(safe)[:3500],flush=True)
-            except ValueError:print("REA_P2_CUTTER_FAILED_COMMAND=UNPARSEABLE",flush=True)
-        else:
-            print("REA_P2_CUTTER_FAILED_STDERR="+json.dumps(s.splitlines()[-15:])[:2200],flush=True)
-    rc,out,err=run(["/usr/bin/dpkg-query","-W","-f=${Version}","hopper"])
-    print("REA_P2_HOPPER_INSTALLED_PACKAGE_VERSION="+(out.strip()[:45] if rc==0 else "UNKNOWN"),flush=True)
-    print("REA_P2_READBACK_ONLY=PASS",flush=True)
+    # Previous invocation authenticated v2 but the GUI opened a modal load
+    # dialog; -A 0 is Cutter's documented option to open without the dialog.
+    # Preserve previous CLI evidence before this changed-condition retest.
+    previous=("summary.json","cutter-owned.stdout.log","cutter-owned.stderr.log",
+              "cutter-real-ij.stdout.json","cutter-real-ij.stderr.log")
+    for name in previous:
+        original=EVID/name
+        saved=EVID/("attempt2-"+name)
+        if original.is_file() and not saved.exists():original.rename(saved)
+    for old in EVID.glob("cutter-sessions-*.stdout.json"):
+        saved=old.with_name("attempt2-"+old.name)
+        if not saved.exists():old.rename(saved)
+    for old in EVID.glob("cutter-sessions-*.stderr.log"):
+        saved=old.with_name("attempt2-"+old.name)
+        if not saved.exists():old.rename(saved)
+    cutter_probe()
+    chrome_probe()
+    hopper_probe()
+    (EVID/"summary.json").write_text(json.dumps(summary,indent=2,sort_keys=True))
+    print("REA_P2_FOLLOWUP_REPORT="+str(EVID/"summary.json"),flush=True)
+    print("REA_P2_FOLLOWUP_FINISHED=YES",flush=True)
 
 if __name__=="__main__":
     try:main()
