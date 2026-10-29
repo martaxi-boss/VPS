@@ -290,12 +290,142 @@ def install_dotnet_ilspy():
     (EVID/"ilspy-install-result.json").write_text(json.dumps(info,sort_keys=True,indent=2),encoding="utf8")
     print("REA_OPT_DOTNET_ILSPY_STATUS=PASS",flush=True)
 
+
+def install_pwndbg():
+    """Install only isolated Python venvs, do not change system GDB or gdbinit."""
+    verify_original()
+    disk_preflight()
+    ready=EVID/"ilspy-install-result.json"
+    check(ready.is_file(),"FIRST_ILSPY_PHASE_NOT_COMPLETED")
+    installed=json.loads(ready.read_text(encoding="utf8"))
+    check(installed.get("status")=="PASS","FIRST_ILSPY_PHASE_NOT_VERIFIED")
+    gdb=Path("/usr/bin/gdb")
+    check(gdb.is_file(),"EXISTING_GDB_MISSING")
+    res=run([str(gdb),"-nx","--batch","-ex",
+               "python import sysconfig;print(sysconfig.get_config_var('VERSION'))"],timeout=18)
+    check(res.returncode==0 and res.stdout.strip()=="3.12",
+          "GDB_PYTHON_NOT_SYSTEM_3_12")
+    source_sha="55596aa676a2756efb8d67034f31675170eabe48"
+    version="2026.09.15"
+    uv_version="0.13.6"
+    uvhome=Path("/home/ubuntu/.local/share/rea-optional-uv-0.13.6")
+    uvpy=uvhome/"bin/python3"
+    uv=uvhome/"bin/uv"
+    installbase=Path("/home/ubuntu/.local/share/rea-optional-pwndbg-2026.09.15")
+    toolroot=installbase/"tools"
+    binroot=installbase/"bin"
+    venv=toolroot/"pwndbg"
+    gdbinit=venv/"share/pwndbg/gdbinit.py"
+    python=venv/"bin/python"
+    cache=EVID/"uv-cache"
+    exclusions=EVID/"pwndbg-nonessential-exclusions.txt"
+    exclusions.write_text("ziglang\ndecomp2dbg\nipython\n",encoding="utf8")
+    ue=dict(os.environ)
+    for key in tuple(ue):
+        if key.startswith("REA_") or key.startswith("UV_") or key in (
+            "VIRTUAL_ENV","PYTHONPATH","PYTHONHOME","PIP_INDEX_URL",
+            "PIP_EXTRA_INDEX_URL","PIP_CONFIG_FILE","GHIDRA_INSTALL_DIR",
+            "JAVA_HOME","HOPPER_LAUNCHER_PATH","PLAYWRIGHT_BROWSERS_PATH"):
+            ue.pop(key,None)
+    ue.update({
+      "HOME":"/home/ubuntu",
+      "UV_TOOL_DIR":str(toolroot),
+      "UV_TOOL_BIN_DIR":str(binroot),
+      "UV_CACHE_DIR":str(cache),
+      "UV_NO_CONFIG":"1",
+      "UV_NO_PROGRESS":"1",
+      "UV_NO_MANAGED_PYTHON":"1",
+      "UV_PYTHON_DOWNLOADS":"never",
+      "CI":"1",
+      "PIP_NO_INPUT":"1",
+      "PIP_DISABLE_PIP_VERSION_CHECK":"1"})
+    if not uv.is_file():
+        check(not uvhome.exists(),"UV_ISOLATED_DIRECTORY_EXISTS_BUT_UV_MISSING")
+        uvhome.parent.mkdir(parents=True,exist_ok=True)
+        r=run_record("uv-isolated-venv",["/usr/bin/python3","-m","venv",
+                        str(uvhome)],timeout=65)
+        check(r["rc"]==0,"ISOLATED_UV_BOOTSTRAP_VENV_FAILED")
+        r=run_record("uv-pypi-pin",[str(uvpy),"-m","pip","install","--no-input",
+             "--disable-pip-version-check","--no-cache-dir","--index-url",
+             "https://pypi.org/simple","uv=="+uv_version],ue,timeout=260)
+        check(r["rc"]==0,"PINNED_UV_INSTALL_FAILED")
+    check(uv.is_file() and os.access(uv,os.X_OK),"ISOLATED_UV_MISSING")
+    r=run_record("uv-version",[str(uv),"--version"],ue,timeout=30)
+    check(r["rc"]==0 and (" "+uv_version) in r["out"],"ISOLATED_UV_VERSION_NOT_PINNED")
+    print("REA_OPT_UV_BOOTSTRAP=PASS;version="+uv_version,flush=True)
+    if not gdbinit.is_file():
+        check(not venv.exists(),"PWNDBG_VENV_EXISTS_WITHOUT_GDBINIT_DO_NOT_OVERWRITE")
+        installbase.mkdir(parents=True,exist_ok=True)
+        source="git+https://github.com/pwndbg/pwndbg@"+source_sha
+        # Git SHA pin (upstream verified 2026.09.15); no GDB/LLDB extras,
+        # no package-manager writes to system, no user profile changes.
+        r=run_record("pwndbg-pinned-uv-install",[
+             str(uv),"tool","install","--python","/usr/bin/python3",
+             "--no-managed-python","--no-python-downloads",
+             "--excludes",str(exclusions),source],ue,timeout=1050)
+        check(r["rc"]==0,"PINNED_PWNDBG_UV_INSTALL_FAILED")
+    check(gdbinit.is_file() and python.is_file(),"PWNDBG_VENV_OR_GDBINIT_UNAVAILABLE")
+    metadata=run_record("pwndbg-wheel-version",[str(python),"-c",
+        "import importlib.metadata as m;print(m.version('pwndbg'))"],ue,timeout=30)
+    check(metadata["rc"]==0 and version in metadata["out"],
+          "PWNDBG_PACKAGE_VERSION_UNEXPECTED")
+    print("REA_OPT_PWNDBG_PINNED_VERSION="+version,flush=True)
+    # Validate actual Pwndbg inside a fresh GDB 15.1 process: -nx prevents
+    # any inherited ~/.gdbinit; no target process is attached or modified.
+    ge=ue.copy()
+    ge["PWNDBG_VENV_PATH"]=str(venv)
+    ge["XDG_CACHE_HOME"]=str(EVID/"gdb-cache")
+    ge["XDG_CONFIG_HOME"]=str(EVID/"gdb-config")
+    ge["XDG_DATA_HOME"]=str(EVID/"gdb-data")
+    ge["NO_COLOR"]="1"
+    ge["TERM"]="dumb"
+    ge["PWNDBG_NO_UPDATE"]="1"
+    ge["PATH"]=str(venv/"bin")+":"+ge.get("PATH","")
+    smoke=run_record("pwndbg-real-gdb-import",[
+        str(gdb),"-nx","--quiet","--batch",
+        "-ex","set pagination off",
+        "-ex","source "+str(gdbinit),
+        "-ex","python import pwndbg; print('REA_PWNDBG_REAL_GDB_LOADED')"],ge,timeout=150)
+    check(smoke["rc"]==0 and "REA_PWNDBG_REAL_GDB_LOADED" in smoke["out"] and
+          not ("Traceback" in smoke["out"]+smoke["err"]),
+          "PWNDBG_REAL_GDB_PLUGIN_IMPORT_FAILED")
+    print("REA_OPT_PWNDBG_REAL_GDB_IMPORT=PASS",flush=True)
+    # Check the same GDB import against an actual Linux ELF listing.
+    native=run_record("pwndbg-native-elf-probe",[
+        str(gdb),"-nx","--quiet","--batch",
+        "-ex","set pagination off",
+        "-ex","source "+str(gdbinit),
+        "-ex","file /usr/bin/true",
+        "-ex","info files"],ge,timeout=120)
+    check(native["rc"]==0 and
+          ("Symbols from" in native["out"] or "Local exec file" in native["out"]),
+          "PWNDBG_GDB_NATIVE_ELF_PROBE_FAILED")
+    print("REA_OPT_PWNDBG_NATIVE_ELF_PROBE=PASS",flush=True)
+    info={"pwndbg_version":version,
+          "pwndbg_source_git_sha":source_sha,
+          "gdb_version":"15.1", "gdb_python_version":"3.12",
+          "gdbinit":str(gdbinit),"venv":str(venv),
+          "uv_bootstrap_version":uv_version,
+          "user_isolated_paths_only":True,
+          "no_global_gdbinit_edit":True,
+          "gdb_plugin_import":"PASS",
+          "native_elf_listing":"PASS",
+          "rea_pwndbg_gdb":str(gdb),
+          "rea_pwndbg_gdbinit":str(gdbinit),
+          "rea_pwndbg_venv_path":str(venv),
+          "new_mcp":0,"changes_to_original_rea":0,"service_changes":0,
+          "status":"PASS"}
+    (EVID/"pwndbg-install-result.json").write_text(json.dumps(info,indent=2,sort_keys=True),encoding="utf8")
+    print("REA_OPT_PWNDBG_STATUS=PASS",flush=True)
+
 if __name__=="__main__":
     try:
         if len(sys.argv)==1:
             preflight()
         elif len(sys.argv)==2 and sys.argv[1]=="install-ilspy":
             install_dotnet_ilspy()
+        elif len(sys.argv)==2 and sys.argv[1]=="install-pwndbg":
+            install_pwndbg()
         else:
             raise RuntimeError("INVALID_PHASE")
     except Exception as exc:
