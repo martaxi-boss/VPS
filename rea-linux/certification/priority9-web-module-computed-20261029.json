@@ -1,0 +1,18 @@
+{
+  "project": "REA 6.8.0",
+  "phase": "LINUX-P291-WEB-MODULE-COMPUTED-20261029",
+  "tool": "trace_web_module_imports",
+  "status": "FUNCTIONAL_PASS_SCOPED",
+  "scope": "Only local synthetic manifest: inspect computed dynamic import(), source hash verified and unknown resolution correctly retained. Native literal import resolution remains blocked because REA_BROWSER_EXECUTABLE not configured.",
+  "positive_evidence": "ev_16d56210abfc8144e89ed3f6340b3a7979fea26f9108361133c4544994c80c2a",
+  "oracle_evidence": "ev_e0bf34a37852c52676749537d74cc34b2c751cfb7f02da3f2f0eb82a9d730350",
+  "negative": "Out-of-range index 99 on 3-item fixture rejected with invalid_request; literal import case reported missing_browser_executable",
+  "source_hash": "cac4bc9fafbfce777f4e73e7f115aa582b5e2d98bca7e94ec85140750baa5c57",
+  "cleanup": "verified owned temporary directory removed",
+  "counts": {
+    "before": 161,
+    "after": 162,
+    "pending": 67,
+    "total": 229
+  }
+}
