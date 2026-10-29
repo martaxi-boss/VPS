@@ -249,6 +249,17 @@ def main():
                       "="+json.dumps(selected[-32:]),flush=True)
                 print("REA_P2_READBACK_"+name.replace(".","_").replace("-","_").upper()+
                       "_TOTAL_LINES="+str(len(lines)),flush=True)
+        for index in (0,10):
+            f=EVID/("cutter-sessions-"+str(index)+".stdout.json")
+            if f.is_file():
+                data=json.loads(f.read_text())
+                print("REA_P2_READBACK_CUTTER_SCHEMA_"+str(index)+"="+json.dumps({
+                    "top_keys": list(data)[:24] if isinstance(data,dict) else [],
+                    "has_result": isinstance(data,dict) and isinstance(data.get("result"),dict),
+                    "normalized_keys":list(data.get("normalized_result",{}))[:20] if isinstance(data,dict) and isinstance(data.get("normalized_result"),dict) else [],
+                    "discovery_status": data.get("discovery_status") if isinstance(data,dict) else None,
+                    "normalized_discovery":data.get("normalized_result",{}).get("discovery_status") if isinstance(data,dict) and isinstance(data.get("normalized_result"),dict) else None
+                }),flush=True)
         print("REA_P2_READBACK_ONLY=PASS;no_rerun=true",flush=True)
         return
     try:cutter_probe()
