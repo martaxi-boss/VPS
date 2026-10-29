@@ -1,4 +1,4 @@
-name: REA original isolated Pwndbg install with system GDB smoke over pinned SSH
+name: REA original real ILSpy and Pwndbg acceptance through pinned GitHub SSH
 on:
   push:
     branches:
@@ -14,6 +14,7 @@ on:
       - "rea-linux/tests/rea_original_apktool_functional_20261029.py"
       - "rea-linux/tests/rea_original_external_supplier_gap_audit_20261029.py"
       - "rea-linux/install/rea_original_optional_free_suppliers_20261029.py"
+      - "rea-linux/tests/rea_original_optional_free_supplier_acceptance_20261029.py"
 permissions:
   contents: read
 concurrency:
@@ -34,7 +35,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m py_compile rea-linux/install/rea_original_optional_free_suppliers_20261029.py
+          python3 -m py_compile rea-linux/tests/rea_original_optional_free_supplier_acceptance_20261029.py
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass >/dev/null
           echo 'REA_ORIGINAL_MODE=STANDALONE_CLI_NO_MCP'
@@ -47,7 +48,7 @@ jobs:
           fingerprint="$(ssh-keygen -lf "$RUNNER_TEMP/rea-host-pin" -E sha256 | awk '{print $2}')"
           test "$fingerprint" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
           echo "REA_ORIGINAL_SSH_PIN=PASS"
-      - name: Install git-pinned pwndbg in isolated Python venv and verify system GDB
+      - name: Verify installed ILSpy C sharp and Pwndbg GDB REA core with complete cleanup
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         shell: bash
@@ -63,5 +64,5 @@ jobs:
             -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=15 -o ServerAliveInterval=10 \
             -o ServerAliveCountMax=5 \
-            ubuntu@146.59.145.3 "python3 - install-pwndbg" \
-            < rea-linux/install/rea_original_optional_free_suppliers_20261029.py
+            ubuntu@146.59.145.3 "python3 -" \
+            < rea-linux/tests/rea_original_optional_free_supplier_acceptance_20261029.py
