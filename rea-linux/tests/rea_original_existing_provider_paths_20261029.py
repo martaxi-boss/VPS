@@ -117,13 +117,14 @@ def read_provider_hints_only():
     return result
 
 def walk_for_candidates():
-    candidates={"ghidra":[],"jadx":[],"unblob":[]}
+    candidates={"ghidra":[],"jadx":[],"unblob":[],"java_jdk":[]}
     dirs_scanned=0
     skipped_access=0
     bases=[
       pathlib.Path("/opt/rea-reversa"),pathlib.Path("/opt/ghidra"),
       pathlib.Path("/opt"),pathlib.Path("/usr/local"),
-      pathlib.Path("/usr/share"),pathlib.Path("/home/ubuntu"),
+      pathlib.Path("/usr/share"),pathlib.Path("/usr/lib/jvm"),
+      pathlib.Path("/home/ubuntu"),
       pathlib.Path("/srv"),
     ]
     # Avoid rescanning nested paths, and avoid globbing unreadable /root.
@@ -155,6 +156,11 @@ def walk_for_candidates():
                    ".venv-cache","proc","sys","dev","postgresql",
                    "lost+found",
                 } and not (d.startswith(".") and d not in {".venv",".local"})]
+            # A full JDK has java and javac, unlike a JRE-only directory.
+            if (current_dir/"release").is_file() and (
+                current_dir/"bin/java").is_file() and (
+                current_dir/"bin/javac").is_file():
+                candidates["java_jdk"].append(str(current_dir))
             # Official Ghidra root is the parent of Ghidra/application.properties.
             if current_dir.name=="Ghidra" and "application.properties" in files:
                 p=current_dir.parent
@@ -253,6 +259,44 @@ def unblob_test(path):
             result["note"]="EXECUTE_PERMISSION_PRESENT_BUT_READING_HEADER_BLOCKED"
     return result
 
+def jdk_test(path):
+    p=pathlib.Path(path)
+    java=p/"bin/java"
+    javac=p/"bin/javac"
+    result={"path":str(p),"java_executable":safe_is_file(java) and safe_access(java,os.X_OK),
+            "javac_executable":safe_is_file(javac) and safe_access(javac,os.X_OK),
+            "major":None}
+    release=p/"release"
+    if safe_is_file(release) and safe_access(release,os.R_OK):
+        try:
+            text=release.read_text(encoding="utf-8",errors="replace")[:10000]
+            match=re.search(r'(?m)^JAVA_VERSION="?(\d+)(?:\.|")',text)
+            if match:result["major"]=int(match.group(1))
+        except (OSError,PermissionError):
+            pass
+    result["usable_for_ghidra"]=(result["java_executable"] and
+                                result["javac_executable"] and
+                                result["major"] is not None and result["major"] >= 21)
+    return result
+
+def unblob_permission_chain(path):
+    # List only exact provider path components and their POSIX metadata;
+    # no parent directory enumeration, permissions changes or process signals.
+    p=pathlib.Path(path)
+    chain=[]
+    curr=pathlib.Path("/")
+    for component in p.parts[1:]:
+        curr=curr/component
+        try:
+            st=curr.lstat()
+            chain.append({"path":str(curr),"mode":oct(st.st_mode & 0o777),
+                          "uid":st.st_uid,"gid":st.st_gid,
+                          "ubuntu_can_traverse":safe_access(curr,os.X_OK)})
+        except (OSError,PermissionError) as e:
+            chain.append({"path":str(curr),"error":type(e).__name__})
+            break
+    return chain
+
 def scoped_doctor(label,env,provider):
     output=run([str(NODE),"scripts/rea.mjs","doctor","--provider",provider,"--json"],
                env=env,timeout=85)
@@ -288,6 +332,7 @@ def main():
       "ghidra":[ghidra_test(x) for x in dict.fromkeys(scanned["ghidra"])][:15],
       "jadx":[jadx_test(x) for x in dict.fromkeys(scanned["jadx"])][:20],
       "unblob":[unblob_test(x) for x in dict.fromkeys(scanned["unblob"])][:20],
+      "jdk":[jdk_test(x) for x in dict.fromkeys(scanned["java_jdk"])][:20],
     }
     # Check only own user's read-only CLI environment.
     isolated=EVID/"isolated-home"
@@ -308,11 +353,20 @@ def main():
                      c.get("shebang_interpreter_exists",True) is not False),None)
     if goodgh:env["GHIDRA_INSTALL_DIR"]=goodgh
     if goodjadx:env["REA_JADX_MCP_JAR"]=goodjadx
-    javac=shutil.which("javac",path=env["PATH"])
-    if javac:
-        java_home=pathlib.Path(javac).resolve().parent.parent
-        if (java_home/"bin/java").is_file():
-            env["JAVA_HOME"]=str(java_home)
+    # Existing JDK 21+ is required for official Ghidra 12.1.4.
+    selected_jdk=next((c["path"] for c in info["jdk"] if c["usable_for_ghidra"]),None)
+    if selected_jdk:
+        env["JAVA_HOME"]=selected_jdk
+    else:
+        javac=shutil.which("javac",path=env["PATH"])
+        if javac:
+            java_home=pathlib.Path(javac).resolve().parent.parent
+            if safe_is_file(java_home/"bin/java"):
+                env["JAVA_HOME"]=str(java_home)
+    info["unblob_permission_chain"]=[
+        unblob_permission_chain(c["path"])
+        for c in info["unblob"] if not c["executable"]
+    ][:4]
     info["selected_paths"]={
       "ghidra":goodgh,"jadx_jar":goodjadx,"unblob":goodunblob,
       "java_home":env.get("JAVA_HOME")
@@ -327,6 +381,18 @@ def main():
     print("REA_P1_GHIDRA_CANDIDATES="+str(len(info["ghidra"])),flush=True)
     print("REA_P1_JADX_CANDIDATES="+str(len(info["jadx"])),flush=True)
     print("REA_P1_UNBLOB_CANDIDATES="+str(len(info["unblob"])),flush=True)
+    print("REA_P1_JDK_CANDIDATES="+str(len(info["jdk"])),flush=True)
+    for candidate in info["jdk"][:12]:
+        print("REA_P1_JDK="+candidate["path"]+";major="+
+              str(candidate["major"])+";ghidra_compatible="+
+              str(candidate["usable_for_ghidra"]).lower(),flush=True)
+    for chain in info["unblob_permission_chain"]:
+        problem=next((q for q in chain if not q.get("ubuntu_can_traverse",False)),None)
+        if problem:
+            print("REA_P1_UNBLOB_FIRST_DENIED="+problem["path"]+
+                  ";mode="+str(problem.get("mode","UNKNOWN"))+
+                  ";uid="+str(problem.get("uid","UNKNOWN")),flush=True)
+
     for kind,records,checkfield in [
        ("GHIDRA",info["ghidra"],"accessible_for_ubuntu"),
        ("JADX",info["jadx"],"official_bridge_classes_present"),
