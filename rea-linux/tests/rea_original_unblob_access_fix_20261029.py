@@ -48,6 +48,9 @@ def command(args,env=None,timeout=30):
         return subprocess.CompletedProcess(args,124,
             (e.stdout or b"").decode("utf8",errors="replace") if isinstance(e.stdout,bytes) else (e.stdout or ""),
             (e.stderr or b"").decode("utf8",errors="replace") if isinstance(e.stderr,bytes) else (e.stderr or ""))
+    except (OSError,PermissionError) as e:
+        return subprocess.CompletedProcess(args,126,"",
+            type(e).__name__+":"+str(e)[:180])
 
 def save(label,data):
     (EVID/label).write_text(data,encoding="utf8",errors="replace")
