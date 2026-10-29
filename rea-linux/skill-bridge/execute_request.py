@@ -62,7 +62,7 @@ def validate(raw):
         raise ValueError("PROJECT_DENIED")
     if not isinstance(value["request_id"], str) or not re.fullmatch(r"[A-Za-z0-9._-]{8,80}", value["request_id"]):
         raise ValueError("REQUEST_ID_DENIED")
-    if value["operation"] not in ("health", "providers", "inspect_elf", "apk_demo", "isolation_audit"):
+    if value["operation"] not in ("health", "providers", "inspect_elf", "apk_demo", "isolation_audit", "environment_audit"):
         raise ValueError("OPERATION_DENIED")
     return value
 
@@ -285,11 +285,234 @@ def isolation_inventory():
     state["observed_process_count"]=len(users)
     return state
 
+
+def environment_audit():
+    """Read-only audit against the pinned author's package and selected Linux providers.
+
+    Presence and --version probes do NOT certify the function. No network, installs,
+    service starts/stops, target file execution, arbitrary commands, or file writes.
+    """
+    import platform
+    import shutil
+    r={"read_only":True,"source_commit":PIN,"source_root":str(ROOT),
+       "runtime_modules_path":str((ROOT/"node_modules").resolve(strict=False)),
+       "host":{"platform":sys.platform,"arch":platform.machine(),"kernel":platform.release()},
+       "package":{},"host_prerequisites":{},"programs":{},"doctor":{},
+       "not_for_linux":[],"policy":{"installation_requested":False,"legacy_modified":False}}
+    if Path("/etc/os-release").is_file():
+        try:
+            osr={}
+            for ln in Path("/etc/os-release").read_text(encoding="utf-8").splitlines():
+                if "=" in ln:
+                    k,v=ln.split("=",1)
+                    if k in ("ID","VERSION_ID","PRETTY_NAME","ID_LIKE"):
+                        osr[k]=v.strip().strip('"')
+            r["host"]["distro"]=osr
+        except OSError:
+            pass
+    try:
+        mem=Path("/proc/meminfo").read_text(encoding="utf-8").splitlines()
+        vals={}
+        for line in mem:
+            if line.startswith(("MemTotal:","MemAvailable:")):
+                key,raw=line.split(":",1); vals[key]=int(raw.split()[0])*1024
+        r["host"]["memory_bytes"]=vals
+    except (OSError,ValueError):
+        pass
+    d=shutil.disk_usage(str(ROOT))
+    r["host"]["disk_free_bytes"]=d.free
+    def small(argv,timeout=11,environment=None):
+        t=execute(argv,env=environment,timeout=timeout)
+        out=(t["output"]+"\n"+t["error"]).strip().splitlines()
+        return {"exit":t["exit"],"first_line":out[0][:170] if out else "",
+                "duration_seconds":t["seconds"]}
+    try:
+        pkg=json.loads((ROOT/"package.json").read_text(encoding="utf8"))
+        lock=json.loads((ROOT/"package-lock.json").read_text(encoding="utf8"))
+        pinned=execute(["git","-C",str(ROOT),"show",PIN+":package.json"],timeout=12)
+        upstream=json.loads(pinned["output"]) if pinned["exit"]==0 else {}
+        lock_root=lock.get("packages",{}).get("",{})
+        r["package"]["upstream_package_exact"]=pkg==upstream
+        r["package"]["name"]=pkg.get("name")
+        r["package"]["version"]=pkg.get("version")
+        r["package"]["node_engines"]=pkg.get("engines",{}).get("node")
+        r["package"]["lock_has_root_package"]=bool(lock_root)
+        r["package"]["lock_root_declared_required_matches"]=lock_root.get("dependencies",{})==pkg.get("dependencies",{})
+        r["package"]["lock_root_declared_optional_matches"]=lock_root.get("optionalDependencies",{})==pkg.get("optionalDependencies",{})
+        root=ROOT/"node_modules"
+        r["package"]["modules_root"]=str(root.resolve(strict=False))
+        r["package"]["modules_present"]=root.is_dir()
+        r["package"]["modules_is_symlink"]=root.is_symlink()
+        installed={}
+        for group,label in (("dependencies","required"),("optionalDependencies","optional"),("devDependencies","development")):
+            names=pkg.get(group,{})
+            if not isinstance(names,dict):names={}
+            present=[]; missing=[]; mismatch=[];unreadable=[]
+            for name,declared in sorted(names.items()):
+                location=root/name/"package.json"
+                try:
+                    installed_pkg=json.loads(location.read_text(encoding="utf8"))
+                    version=installed_pkg.get("version")
+                    if not isinstance(version,str):unreadable.append(name);continue
+                    present.append(name)
+                    if version!=declared:
+                        mismatch.append({"name":name,"declared":declared,"installed":version})
+                    installed[name]=version
+                except (OSError,ValueError,TypeError):
+                    if location.exists():unreadable.append(name)
+                    else:missing.append(name)
+            r["package"][label]={"declared":len(names),"present":len(present),"missing":missing,
+                "unreadable":unreadable,"versions_different":mismatch}
+        r["package"]["optional_frida_version"]=installed.get("frida")
+        # Verify checked-out source is identical to the pinned author's commit
+        check=small(["git","-C",str(ROOT),"diff","--exit-code",PIN,"--","package.json","package-lock.json","scripts/rea.mjs"],timeout=10)
+        r["package"]["key_source_files_unchanged"]=check["exit"]==0
+        deps_check=small([str(NODE),"scripts/check-dependency-install.mjs"],timeout=30)
+        r["package"]["official_dependency_check"]=deps_check
+    except (OSError,ValueError,KeyError,TypeError) as err:
+        r["package"]["error_type"]=type(err).__name__
+    ps=shutil.which("ps")
+    r["host_prerequisites"]["procps_ps"]={"present":bool(ps),
+        "path":ps,"version":small([ps,"--version"],timeout=9) if ps else None}
+    if ps:
+        test=small([ps,"-o","pid=","-p",str(os.getpid())],timeout=9)
+        r["host_prerequisites"]["procps_ps"]["ownership_flag_test_exit"]=test["exit"]
+    r["host_prerequisites"]["python3"]={"path":shutil.which("python3"),
+        "version":small(["python3","--version"],timeout=9)}
+    for name,command in (("npm",["npm","--version"]),("git",["git","--version"]),
+                          ("dpkg",["dpkg-query","--version"]),("gcc",["gcc","--version"]),
+                          ("cmake",["cmake","--version"]),("xvfb",["Xvfb","-help"])):
+        p=shutil.which(command[0])
+        r["host_prerequisites"][name]={"present":bool(p),"path":p}
+        if p and name!="xvfb":
+            r["host_prerequisites"][name]["version"]=small([p,*command[1:]],timeout=9)
+    r["host_prerequisites"]["graphics"]={"has_display":bool(os.environ.get("DISPLAY")),
+        "has_wayland":bool(os.environ.get("WAYLAND_DISPLAY")),
+        "xvfb_run_present":bool(shutil.which("xvfb-run"))}
+    # More analysis tools supported by the official source, but not prerequisites for all operations.
+    for name,binname in (("ida","ida"),("ida64","ida64"),("jeb","jeb"),
+       ("lldb","lldb"),("strace","strace"),("ltrace","ltrace"),
+       ("objdump","objdump"),("readelf","readelf"),("file","file"),
+       ("gpp","g++"),("clang","clang"),("radare2","r2")):
+        location=shutil.which(binname)
+        r["host_prerequisites"][name]={"present":bool(location),"path":location}
+    # These checks are target-free CLI versions. GUI products are only inspected for presence.
+    version_argv={
+       "node":["--version"],"java21":["-version"],"unblob":["--version"],
+       "binwalk":["--version"],"apktool":["--version"],"gdb":["--version"],
+       "rizin":["-v"],"kuna":["--version"],"wakaru":["--version"],
+       "mitmdump":["--version"],"dotnet":["--version"],
+       "ilspy":["--version"],"adb":["version"],"tshark":["--version"],
+       "sigrok":["--version"],"ffmpeg":["-version"],
+       "wasm2wat":["--version"],"chromium":["--version"],
+       "pwntools":["--version"],"7z":["-version"],
+    }
+    no_execute={"ghidra","jadx","frida_node_binding","cutter","hopper","pwndbg_gdbinit"}
+    for name,path in PROGRAMS.items():
+        exists=path.is_file()
+        row={"present":exists,"path":str(path),"executable":bool(exists and os.access(path,os.X_OK)),
+             "old_tree":str(path).startswith("/opt/rea-reversa/")}
+        if exists and name in version_argv and name not in no_execute:
+            row["version_probe"]=small([str(path),*version_argv[name]],timeout=12)
+        else:row["version_probe"]="NOT_RUN_FILE_OR_GUI"
+        r["programs"][name]=row
+    if "frida_node_binding" not in r["programs"]:
+        binding=ROOT/"node_modules/frida/package.json"
+        try:
+            f=json.loads(binding.read_text(encoding="utf8"))
+            r["programs"]["frida_node_binding"]={"present":True,"package_version":f.get("version"),
+                "independent_modules":binding.resolve(strict=False).is_relative_to(Path("/home/ubuntu/rea-final-runtime/node_modules"))}
+        except (OSError,ValueError):
+            r["programs"]["frida_node_binding"]={"present":False}
+    # Official doctor checks deep provider readiness; do not infer readiness from file existence.
+    with tempfile.TemporaryDirectory(prefix="rea-original-audit-",dir="/tmp") as temp:
+        e=dict(os.environ)
+        for k in tuple(e):
+            if k.startswith("REA_") or k in ("JAVA_HOME","GHIDRA_INSTALL_DIR",
+              "VIRTUAL_ENV","PYTHONPATH","PYTHONHOME","HOPPER_LAUNCHER_PATH"):
+                e.pop(k,None)
+        vendor="/home/ubuntu/rea-final-runtime/vendors"
+        e.update({"HOME":temp,"TMPDIR":temp,"XDG_CONFIG_HOME":temp+"/.config",
+            "XDG_CACHE_HOME":temp+"/.cache",
+            "JAVA_HOME":vendor+"/tools/jdk-21",
+            "GHIDRA_INSTALL_DIR":vendor+"/tools/ghidra_12.1.4_PUBLIC",
+            "REA_JADX_MCP_JAR":vendor+"/tools/jadx-headless-mcp-0.7.1-all.jar",
+            "REA_UNBLOB_COMMAND":"/home/ubuntu/rea-final-runtime/bin/unblob",
+            "REA_BINWALK_COMMAND":vendor+"/providers/binwalk-3.1.0/bin/binwalk",
+            "REA_KUNA_COMMAND":vendor+"/providers/kuna-v1.833/bin/kuna",
+            "PATH":vendor+"/tools/jdk-21/bin:"+str(NODE.parent)+":"+
+                  vendor+"/providers/binwalk-3.1.0/bin:"+e.get("PATH",""),
+            "CI":"1"})
+        def doctor(name):
+            t=execute([str(NODE),"scripts/rea.mjs","doctor","--provider",name,"--json"],
+                      env=e,timeout=42)
+            result={"exit":t["exit"],"duration_seconds":t["seconds"],
+                "cleanup_incomplete":"cleanup_incomplete" in (t["output"]+t["error"]).lower()}
+            try:
+                obj=json.loads(t["output"])
+                norm=obj.get("normalized_result",obj) if isinstance(obj,dict) else obj
+                if isinstance(norm,dict):
+                    result["healthy"]=norm.get("healthy",obj.get("healthy") if isinstance(obj,dict) else None)
+                    result["keys"]=list(norm)[:20]
+                    for key in ("status","provider","provider_id","message","code"):
+                        if isinstance(norm.get(key),(str,int,bool)):
+                            result[key]=norm[key][:240] if isinstance(norm[key],str) else norm[key]
+                    for prop in ("checks","providerInspections","provider_inspections"):
+                        value=norm.get(prop)
+                        if isinstance(value,list):
+                            result[prop+"_summary"]=[{k:item[k] for k in ("name","status","healthy","id")
+                                if k in item and isinstance(item[k],(str,int,bool))} for item in value[:18] if isinstance(item,dict)]
+                else:result["json_type"]=type(obj).__name__
+                result["json"]=True
+            except ValueError:
+                result["json"]=False
+                result["error_first_line"]=t["error"].strip().splitlines()[0][:170] if t["error"].strip() else ""
+            return result
+        for provider in ("ghidra","jadx","kuna","ida","hopper"):
+            r["doctor"][provider]=doctor(provider)
+        # Detector supports other documented capabilities without requiring a paid provider.
+        for operation,args in (("providers",["providers"]),("capabilities",["capabilities"])):
+            t=execute([str(NODE),"scripts/rea.mjs",*args,"--json"],env=e,timeout=35)
+            summary={"exit":t["exit"],"duration_seconds":t["seconds"],
+                "cleanup_incomplete":"cleanup_incomplete" in (t["output"]+t["error"]).lower()}
+            try:
+                obj=json.loads(t["output"])
+                norm=obj.get("normalized_result",obj) if isinstance(obj,dict) else obj
+                summary["json"]=True
+                if isinstance(norm,dict):
+                    summary["fields"]=list(norm)[:22]
+                    for key in ("healthy","status","provider_count","capability_count"):
+                        if isinstance(norm.get(key),(str,bool,int)):
+                            summary[key]=norm[key]
+            except ValueError:summary["json"]=False
+            r["doctor"][operation]=summary
+    r["not_for_linux"]=[
+        {"id":"Xcode/macOS-framework-runtime","reason":"macOS-only runtime not on Ubuntu"},
+        {"id":"Windows-native-tools","reason":"Windows-only APIs and UI not on Ubuntu"},
+        {"id":"iOS live device analysis","reason":"requires device and Apple-specific environment; not needed for server"}
+    ]
+    r["summary"]={
+        "required_total":r["package"].get("required",{}).get("declared"),
+        "required_installed":r["package"].get("required",{}).get("present"),
+        "required_missing":r["package"].get("required",{}).get("missing",[]),
+        "required_version_differences":r["package"].get("required",{}).get("versions_different",[]),
+        "optional_missing":r["package"].get("optional",{}).get("missing",[]),
+        "frida_version":r["package"].get("optional_frida_version"),
+        "programs_present":sum(bool(v.get("present")) for v in r["programs"].values()),
+        "programs_total":len(r["programs"]),
+        "programs_in_old_tree":[n for n,v in r["programs"].items() if v.get("old_tree")]
+    }
+    return r
+
 def perform(req):
     result = {"bridge": "original-final-cli-v1", "request_id": req["request_id"],
               "operation": req["operation"], "engine": engine_state(), "suppliers": supplier_state()}
     if not result["engine"].get("ready"):
         result["status"] = "BLOCKED_ENGINE_INCORRECT"
+        return result
+    if req["operation"] == "environment_audit":
+        result["environment_audit"] = environment_audit()
+        result["status"] = "PASS"
         return result
     if req["operation"] == "isolation_audit":
         result["isolation_audit"] = isolation_inventory()
