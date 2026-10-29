@@ -33,3 +33,12 @@ O laboratório Chrome de teste foi encerrado: endpoint de depuração indisponí
 - **Certificações mantidas:** 170 testes positivos circunscritos ao âmbito documentado de 229 ferramentas; 59 pendentes. Sem certificações novas aprovadas a partir desta falha.
 
 As pastas temporárias recentes relacionadas com limpeza não verificada permanecem preservadas. Um teste de três capturas MCP independentes em paralelo terminou sem resposta SSE; paralelismo de capturas permanece por certificar. Não reiniciar repetidamente nem apagar recursos retidos como substituto da correção de propriedade.
+
+
+## 29/10/2026 — regressão após instalação (PID 231464)
+
+**Estado: FAIL / não certificado.** Instalador aplicado pelo proprietário via Termux, com comprovativos `REA_NATIVE_APPLY=PASS` e `REA_FIX_INSTALLED=PASS`; módulo compilado SHA256 `7289ce076a2f4886ce6e1f1eb47e32eb4ccfc9971792bde918e3bd32641a60f8`. Serviço ativo, MainPID 231243, sem reinícios automáticos.
+
+A captura de 8 subprocessos passou (`ev_0eb72add77680a959f0fbb6725cd533b3fd473e869111b3f0b9e0bba5b36bb35` e `ev_f5f6124a9f49795d59a514daf3ec448759247e8153e45510599a6bb3b7816d48`), mas a captura posterior de 30 subprocessos voltou a devolver `cleanup_incomplete`, `environment_errno_ESRCH=1`, PID 231464. Inspeção: `kworker/u12:2`, PPID 2, PGID 0, estado I (`ev_1a25c7c70b0192d6aaf360eb10d0c18e3327008049d9b16d904e2463da411887`). A verificação isolada do mesmo PID com token ESRCH forçado passou 20/20 (`ev_3f764c0b772185fc6d3b7dbb2ed505d2a0abf7bddc7e4ad72b7a12b5d8074e99`), pelo que a causa residual é intermitente, não demonstrada definitivamente. Não reclassificar a falha como PASS.
+
+O transporte GitHub teve hash alinhado no commit `50f79442b6b6294b408af0371a978020130515db`; workflow 40887663449 SUCCESS confirma o transporte, não a limpeza. Código original do REA preservado. Não foram introduzidos novos módulos em produção nesta observação. Contagem canónica prévia: 170/229 certificações, 59 pendentes.
