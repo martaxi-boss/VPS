@@ -174,6 +174,9 @@ def isolation_inventory():
        "legacy_node_modules": OLD/"node_modules",
        "legacy_providers": Path("/opt/rea-reversa/providers"),
        "legacy_tools": Path("/opt/rea-reversa/tools"),
+       "final_runtime": Path("/home/ubuntu/rea-final-runtime"),
+       "final_vendor_copies": Path("/home/ubuntu/rea-final-runtime/vendors"),
+       "final_unblob_wrapper": Path("/home/ubuntu/rea-final-runtime/bin/unblob"),
        "ghidra": Path("/opt/rea-reversa/tools/ghidra_12.1.4_PUBLIC"),
        "jdk21": Path("/opt/rea-reversa/tools/jdk-21"),
        "node24": Path("/opt/rea-reversa/providers/node-v24.22.1"),
@@ -200,7 +203,19 @@ def isolation_inventory():
                 stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True,timeout=55,check=False)
             if p.returncode==0:
                 entry["allocated_bytes"]=int(p.stdout.split()[0])
-            else:entry["du_rc"]=p.returncode
+            else:
+                # Size-only privileged read when a service-owned cache blocks du.
+                try:
+                    elevated=subprocess.run(["sudo","-n","du","-s","-B1",str(path)],
+                        stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,
+                        text=True,timeout=115,check=False)
+                    if elevated.returncode==0:
+                        entry["allocated_bytes"]=int(elevated.stdout.split()[0])
+                        entry["measurement"]="sudo_read_only"
+                    else:
+                        entry["du_rc"]=elevated.returncode
+                except (OSError,ValueError,subprocess.TimeoutExpired):
+                    entry["du_rc"]=p.returncode
             sizes[key]=entry
         except (OSError, ValueError, subprocess.TimeoutExpired) as e:
             sizes[key]={"present":True,"error":type(e).__name__}
@@ -223,6 +238,9 @@ def isolation_inventory():
                 users.append({"pid":int(item.name),
                     "binary":Path(os.fsdecode(parts[0])).name[:70],
                     "references_old":b"/opt/rea-reversa" in raw,
+                    "references_old_engine":b"/opt/rea-reversa/rea/" in raw,
+                    "references_old_providers":b"/opt/rea-reversa/providers/" in raw,
+                    "references_old_tools":b"/opt/rea-reversa/tools/" in raw,
                     "references_final":b"/home/ubuntu/rea-original-upstream-680" in raw})
         except (OSError, UnicodeError):
             pass
@@ -262,6 +280,7 @@ def isolation_inventory():
             process["parent_pid"]=int(parent) if parent else None
         except (OSError,ValueError):
             pass
+    state["known_legacy_engine_process_count"]=sum(x.get("references_old_engine",False) for x in users)
     state["matching_processes"]=users
     state["observed_process_count"]=len(users)
     return state
