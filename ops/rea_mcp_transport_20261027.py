@@ -347,44 +347,6 @@ def one_use(nonce):
 def remote_run(request):
     check_request(request)
     verify_compiled_overlays()
-    if request["action"] == "catalog":
-        # One-shot REA-only cleanup recovery. Inspect only kernel-thread
-        # identities of PIDs reported by the current real capture error.
-        # Never signal a PID; restart only the known REA service if safe.
-        import subprocess
-        rows = []
-        for pid in (215317, 215318, 215321, 215416):
-            try:
-                raw = Path("/proc/%d/stat" % pid).read_text()
-            except FileNotFoundError:
-                rows.append({"pid": pid, "state": "absent"})
-                continue
-            tail = raw.rsplit(") ", 1)[1].split()
-            if len(tail) < 20:
-                raise ValueError("REA_CLEANUP_PROBE=BAD_PROC_STAT")
-            state, ppid, pgid = tail[0], int(tail[1]), int(tail[2])
-            row = {"pid": pid, "state": state, "ppid": ppid,
-                   "pgid": pgid, "starttime_ticks": tail[19]}
-            rows.append(row)
-        print("REA_CLEANUP_NATIVE_PID_FACTS=" + json.dumps(rows, sort_keys=True),
-              file=sys.stderr)
-        if not all(row["state"] == "absent" or
-                   (row["state"] in ("I", "S", "D") and
-                    row["ppid"] == 2 and row["pgid"] == 0)
-                   for row in rows):
-            raise ValueError("REA_SCOPED_RESTART=ABORT_NOT_KERNEL_THREADS")
-        active = subprocess.run(["sudo", "-n", "systemctl", "is-active",
-            "rea-reversa-mcp.service"], text=True, capture_output=True, timeout=12)
-        if active.returncode != 0 or active.stdout.strip() != "active":
-            raise ValueError("REA_SCOPED_RESTART=ABORT_SERVICE_NOT_ACTIVE")
-        subprocess.run(["sudo", "-n", "systemctl", "restart",
-            "rea-reversa-mcp.service"], text=True, capture_output=True,
-            timeout=45, check=True)
-        check = subprocess.run(["sudo", "-n", "systemctl", "is-active",
-            "rea-reversa-mcp.service"], text=True, capture_output=True, timeout=12)
-        if check.returncode != 0 or check.stdout.strip() != "active":
-            raise ValueError("REA_SCOPED_RESTART=SERVICE_NOT_HEALTHY")
-        print("REA_SCOPED_RESTART=PASS", file=sys.stderr)
     client = Client()
     registry = client.start()
     public = public64(server_key())
