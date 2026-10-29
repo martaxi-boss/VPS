@@ -38,7 +38,7 @@ HELPER=r'''
 /** No relation-free exceptions without two stable Linux native observations. */
 const reaVerifiedNativeKernelTask = async (fact, retainedCandidate) => {
     if (process.platform !== "linux" ||
-        retainedCandidate?.applicability === "token-verified" ||
+        retainedCandidate !== undefined ||
         fact.state !== "same-generation" ||
         fact.identityBefore.state !== "readable" ||
         fact.identityAfter.state !== "readable" ||
@@ -127,7 +127,19 @@ const badNativeHost={...base,listProcesses:async()=>[{pid:success.pid,parentPid:
 const wrongGeneration=await verifyNoTokenOwnedProcesses("rea680-kthread-negative-scope",badNativeHost,[],undefined);
 if(wrongGeneration.cleaned!==false)
  throw Error("REA_KTHREAD_CHANGED_GENERATION_FALSE_ACCEPTANCE");
-console.log(JSON.stringify({native_kernel_pass:true,verified_pid:success.pid,normal_user_fail_closed:true,wrong_generation_fail_closed:true,unverified_count:success.result.unverified.length}));
+const retainedRow={pid:success.pid,parentPid:2,processGroupId:0,uid:0,state:"I",command:"kworker"};
+const retainedHost={...base,listProcesses:async()=>[retainedRow],environment:forced};
+const retainedRecord={pid:success.pid,process:retainedRow,identity:undefined,applicability:"related-ownership-unresolved",scopeEvidence:"previously-related-generation"};
+const retainedOwner={
+ candidates:[retainedRecord],
+ rowsForObservation:(rows)=>rows,
+ reconcile:()=>[retainedRecord]
+};
+const retained=await verifyNoTokenOwnedProcesses("rea680-kthread-negative-scope",retainedHost,[],
+ {leaderPid:900000,processGroupId:900000,evidenceOwner:retainedOwner});
+if(retained.cleaned!==false || !retained.reason?.includes("environment_errno_ESRCH"))
+ throw Error("REA_KTHREAD_RETAINED_CANDIDATE_FALSE_ACCEPTANCE");
+console.log(JSON.stringify({native_kernel_pass:true,verified_pid:success.pid,normal_user_fail_closed:true,wrong_generation_fail_closed:true,retained_owner_fail_closed:true,unverified_count:success.result.unverified.length}));
 '''
 def sha(data):return hashlib.sha256(data).hexdigest()
 def safe_read(path):
