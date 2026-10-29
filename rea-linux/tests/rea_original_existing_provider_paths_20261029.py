@@ -186,46 +186,71 @@ def walk_for_candidates():
     return candidates,{"directories_scanned":dirs_scanned,
                        "access_skipped":skipped_access,"limit_reached":False}
 
+def safe_is_file(path):
+    try:
+        return path.is_file()
+    except (OSError,PermissionError):
+        return False
+
+def safe_exists(path):
+    try:
+        return path.exists()
+    except (OSError,PermissionError):
+        return False
+
+def safe_access(path,mode):
+    try:
+        return os.access(path,mode)
+    except (OSError,PermissionError):
+        return False
+
 def ghidra_test(path):
     p=pathlib.Path(path)
     props=p/"Ghidra/application.properties"
     headless=p/"support/analyzeHeadless"
-    return {"path":str(p),"exists":p.exists(),
-            "readable_metadata":props.is_file() and os.access(props,os.R_OK),
-            "headless_exists":headless.is_file(),
-            "headless_executable":headless.is_file() and os.access(headless,os.X_OK),
-            "accessible_for_ubuntu":props.is_file() and os.access(props,os.R_OK)
-               and headless.is_file() and os.access(headless,os.X_OK)}
+    metadata=safe_is_file(props) and safe_access(props,os.R_OK)
+    launcher=safe_is_file(headless) and safe_access(headless,os.X_OK)
+    return {"path":str(p),"exists":safe_exists(p),
+            "readable_metadata":metadata,
+            "headless_exists":safe_is_file(headless),
+            "headless_executable":launcher,
+            "accessible_for_ubuntu":metadata and launcher}
 
 def jadx_test(path):
     p=pathlib.Path(path)
-    data={"path":str(p),"is_file":p.is_file(),
-          "readable":p.is_file() and os.access(p,os.R_OK),
+    is_file=safe_is_file(p)
+    readable=is_file and safe_access(p,os.R_OK)
+    data={"path":str(p),"is_file":is_file,
+          "readable":readable,
           "official_bridge_classes_present":False}
-    if data["readable"]:
+    if readable:
         try:
             with zipfile.ZipFile(p) as z:
                 # ZIP index only; never extract, run Java or modify the JAR.
                 names=set(z.namelist())
                 data["official_bridge_classes_present"]=JADX_CLASSES.issubset(names)
                 data["missing_class_count"]=len(JADX_CLASSES-names)
-        except (zipfile.BadZipFile,OSError):
-            data["archive_invalid"]=True
+        except (zipfile.BadZipFile,OSError,PermissionError):
+            data["archive_invalid_or_unreadable"]=True
     return data
 
 def unblob_test(path):
     p=pathlib.Path(path)
-    executable=p.is_file() and os.access(p,os.X_OK)
-    result={"path":str(p),"is_file":p.is_file(),"executable":executable}
+    is_file=safe_is_file(p)
+    executable=is_file and safe_access(p,os.X_OK)
+    result={"path":str(p),"is_file":is_file,"executable":executable}
+    if not is_file:
+        result["note"]="NOT_VISIBLE_AS_REGULAR_FILE_TO_UBUNTU_OR_NOT_FOUND"
     if executable:
         try:
             with p.open("rb") as f:
                 first=f.readline(300)
             if first.startswith(b"#!"):
                 target=first[2:].decode("utf-8",errors="replace").strip().split(" ")[0]
-                result["shebang_interpreter_exists"]=pathlib.Path(target).is_file() if target.startswith("/") else None
-        except OSError:
+                result["shebang_interpreter_exists"]=safe_is_file(pathlib.Path(target)) if target.startswith("/") else None
+        except (OSError,PermissionError):
             result["shebang_interpreter_exists"]=None
+            result["note"]="EXECUTE_PERMISSION_PRESENT_BUT_READING_HEADER_BLOCKED"
     return result
 
 def scoped_doctor(label,env,provider):
