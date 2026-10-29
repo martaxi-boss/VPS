@@ -22,6 +22,7 @@ on:
       - "rea-linux/skill-bridge/execute_request.py"
       - "rea-linux/skill-requests/current.json"
       - "rea-linux/migration/stage_final_runtime_deps_20261029.py"
+      - "rea-linux/migration/switch_final_runtime_deps_20261029.py"
 permissions:
   contents: read
 concurrency:
@@ -44,6 +45,7 @@ jobs:
           set -euo pipefail
           python3 -m py_compile rea-linux/tests/rea_original_existing_optional_suppliers_point2_20261029.py
           python3 -m py_compile rea-linux/migration/stage_final_runtime_deps_20261029.py
+          python3 -m py_compile rea-linux/migration/switch_final_runtime_deps_20261029.py
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass >/dev/null
           echo 'REA_ORIGINAL_MODE=STANDALONE_CLI_NO_MCP'
@@ -75,8 +77,27 @@ jobs:
             -o ServerAliveCountMax=5 \
             ubuntu@146.59.145.3 "python3 -" \
             < rea-linux/migration/stage_final_runtime_deps_20261029.py
+      - name: Switch final dependencies and run 8 regression tests
+        if: startsWith(github.event.head_commit.message, 'migration-switch:')
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sshpass -e ssh -T \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/rea-host-pin" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 -o ServerAliveInterval=10 \
+            -o ServerAliveCountMax=5 \
+            ubuntu@146.59.145.3 "python3 -" \
+            < rea-linux/migration/switch_final_runtime_deps_20261029.py
       - name: Verify existing compatible suppliers and original REA process cleanup
-        if: "!startsWith(github.event.head_commit.message, 'migration-stage:')"
+        if: "!startsWith(github.event.head_commit.message, 'migration-stage:') && !startsWith(github.event.head_commit.message, 'migration-switch:')"
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         shell: bash
