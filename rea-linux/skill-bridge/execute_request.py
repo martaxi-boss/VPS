@@ -227,6 +227,41 @@ def isolation_inventory():
         except (OSError, UnicodeError):
             pass
         if len(users)>=45:break
+    # Non-destructive access probe. No escalation is performed.
+    access={}
+    for key,path in units.items():
+        if not path.exists():continue
+        access[key]={"read":os.access(path,os.R_OK),"traverse":os.access(path,os.X_OK),
+                     "list":False,"sample_bad":[]}
+        if path.is_dir():
+            try:
+                children=list(path.iterdir())
+                access[key]["list"]=True
+                for p in children[:20]:
+                    if not os.access(p,os.R_OK):
+                        access[key]["sample_bad"].append(p.name[:70])
+            except OSError:
+                pass
+        else:
+            access[key]["list"]=None
+        if "du_rc" in sizes.get(key,{}):
+            access[key]["du_rc"]=sizes[key]["du_rc"]
+    state["path_access"]=access
+    try:
+        p=subprocess.run(["sudo","-n","true"],stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=7,check=False)
+        state["sudo_non_interactive_available"]=(p.returncode==0)
+    except (OSError,subprocess.TimeoutExpired):
+        state["sudo_non_interactive_available"]=False
+    for process in users:
+        pid=process["pid"]
+        try:
+            process["cwd_is_old"]=str((Path("/proc")/str(pid)/"cwd").resolve(strict=False)).startswith("/opt/rea-reversa")
+            stat_data=(Path("/proc")/str(pid)/"status").read_text(encoding="utf-8",errors="replace")
+            parent=next((z.split()[1] for z in stat_data.splitlines() if z.startswith("PPid:")),None)
+            process["parent_pid"]=int(parent) if parent else None
+        except (OSError,ValueError):
+            pass
     state["matching_processes"]=users
     state["observed_process_count"]=len(users)
     return state
