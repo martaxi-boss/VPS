@@ -18,36 +18,36 @@ import time
 PIN = "160d821ac9a0310afcb8d1fc427862dd6508add5"
 ROOT = Path("/home/ubuntu/rea-original-upstream-680")
 OLD = Path("/opt/rea-reversa/rea")
-NODE = Path("/opt/rea-reversa/providers/node-v24.22.1/bin/node")
+NODE = Path("/home/ubuntu/rea-final-runtime/vendors/providers/node-v24.22.1/bin/node")
 DIGESTS = {
     "dist/process/ProcessOwnership.js": "2171c79dfa0e49c8836cef350c966746ceb90b246a2d678b2e98578167aff852",
     "dist/process/ProcessOwnershipObservation.js": "81b1aaeded14556d884adaffa570cef41909deb01f76fc25a2d7bd0f9a775655",
 }
 PROGRAMS = {
     "node": NODE,
-    "java21": Path("/opt/rea-reversa/tools/jdk-21/bin/java"),
-    "ghidra": Path("/opt/rea-reversa/tools/ghidra_12.1.4_PUBLIC/support/analyzeHeadless"),
-    "jadx": Path("/opt/rea-reversa/tools/jadx-headless-mcp-0.7.1-all.jar"),
-    "unblob": Path("/opt/rea-reversa/providers/unblob-26.6.4/bin/unblob"),
-    "binwalk": Path("/opt/rea-reversa/providers/binwalk-3.1.0/bin/binwalk"),
+    "java21": Path("/home/ubuntu/rea-final-runtime/vendors/tools/jdk-21/bin/java"),
+    "ghidra": Path("/home/ubuntu/rea-final-runtime/vendors/tools/ghidra_12.1.4_PUBLIC/support/analyzeHeadless"),
+    "jadx": Path("/home/ubuntu/rea-final-runtime/vendors/tools/jadx-headless-mcp-0.7.1-all.jar"),
+    "unblob": Path("/home/ubuntu/rea-final-runtime/bin/unblob"),
+    "binwalk": Path("/home/ubuntu/rea-final-runtime/vendors/providers/binwalk-3.1.0/bin/binwalk"),
     "apktool": Path("/usr/bin/apktool"),
     "gdb": Path("/usr/bin/gdb"),
-    "rizin": Path("/opt/rea-reversa/providers/rizin-v0.9.1/bin/rizin"),
-    "kuna": Path("/opt/rea-reversa/providers/kuna-v1.833/bin/kuna"),
-    "wakaru": Path("/opt/rea-reversa/providers/wakaru-1.14.0/bin/wakaru"),
-    "mitmdump": Path("/opt/rea-reversa/providers/mitmproxy-12.2.3/bin/mitmdump"),
+    "rizin": Path("/home/ubuntu/rea-final-runtime/vendors/providers/rizin-v0.9.1/bin/rizin"),
+    "kuna": Path("/home/ubuntu/rea-final-runtime/vendors/providers/kuna-v1.833/bin/kuna"),
+    "wakaru": Path("/home/ubuntu/rea-final-runtime/vendors/providers/wakaru-1.14.0/bin/wakaru"),
+    "mitmdump": Path("/home/ubuntu/rea-final-runtime/vendors/providers/mitmproxy-12.2.3/bin/mitmdump"),
     "dotnet": Path("/usr/bin/dotnet"),
     "ilspy": Path("/home/ubuntu/.local/share/rea-optional-ilspycmd-11.2.0/ilspycmd"),
     "pwndbg_gdbinit": Path("/home/ubuntu/.local/share/rea-optional-pwndbg-2026.09.15/tools/pwndbg/share/pwndbg/gdbinit.py"),
     "pwntools": Path("/home/ubuntu/.local/share/rea-optional-pwntools-4.15.0/bin/python"),
-    "cutter": Path("/opt/rea-reversa/providers/cutter-2.5.0/bin/Cutter-v2.5.0-Linux-Qt5-x86_64.AppImage"),
+    "cutter": Path("/home/ubuntu/rea-final-runtime/vendors/providers/cutter-2.5.0/bin/Cutter-v2.5.0-Linux-Qt5-x86_64.AppImage"),
     "hopper": Path("/opt/hopper/bin/Hopper"),
     "chromium": Path("/opt/rea-reversa/providers/chromium-playwright-1.58.2/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell"),
     "adb": Path("/usr/bin/adb"),
     "tshark": Path("/usr/bin/tshark"),
     "sigrok": Path("/usr/bin/sigrok-cli"),
     "ffmpeg": Path("/usr/bin/ffmpeg"),
-    "wasm2wat": Path("/opt/rea-reversa/providers/wabt-1.0.42/bin/wasm2wat"),
+    "wasm2wat": Path("/home/ubuntu/rea-final-runtime/vendors/providers/wabt-1.0.42/bin/wasm2wat"),
     "7z": Path("/usr/bin/7z"),
 }
 
@@ -113,12 +113,12 @@ def engine_state():
         "compiled_hashes_correct": all(checks.values())}
     modules = ROOT/"node_modules"
     if modules.is_symlink():
-        status["dependencies"] = "SHARED_LEGACY" if modules.resolve(strict=False) == (OLD/"node_modules").resolve(strict=False) else "OTHER_SYMLINK"
+        status["dependencies"] = ("ISOLATED_FINAL_RUNTIME" if modules.resolve(strict=False) == Path("/home/ubuntu/rea-final-runtime/node_modules") else ("SHARED_LEGACY" if modules.resolve(strict=False) == (OLD/"node_modules").resolve(strict=False) else "OTHER_SYMLINK"))
     elif modules.is_dir():
         status["dependencies"] = "LOCAL_NOT_VERIFIED"
     else:
         status["dependencies"] = "MISSING"
-    status["ready"] = status["commit_correct"] and status["package_correct"] and status["compiled_hashes_correct"]
+    status["ready"] = status["commit_correct"] and status["package_correct"] and status["compiled_hashes_correct"] and status["dependencies"] == "ISOLATED_FINAL_RUNTIME"
     return status
 
 def supplier_state():
@@ -128,7 +128,7 @@ def supplier_state():
         values[name] = {"present": exists, "usable_executable": exists and os.access(path, os.X_OK),
                         "shared_with_legacy": str(path).startswith("/opt/rea-reversa/")}
     values["frida_node_binding"] = {"present": (ROOT/"node_modules"/"frida").exists(),
-                                    "shared_with_legacy": True}
+                                    "shared_with_legacy": (ROOT/"node_modules").resolve(strict=False).is_relative_to(OLD)}
     return values
 
 def cli_summary(name, args, env):
@@ -283,11 +283,12 @@ def perform(req):
                 env.pop(k, None)
         env.update({"HOME": home, "TMPDIR": home,
             "XDG_CONFIG_HOME": home+"/.config", "XDG_CACHE_HOME": home+"/.cache",
-            "PATH": "/opt/rea-reversa/tools/jdk-21/bin:"+str(NODE.parent)+":"+env.get("PATH",""),
-            "JAVA_HOME": "/opt/rea-reversa/tools/jdk-21",
-            "GHIDRA_INSTALL_DIR": "/opt/rea-reversa/tools/ghidra_12.1.4_PUBLIC",
-            "REA_JADX_MCP_JAR": "/opt/rea-reversa/tools/jadx-headless-mcp-0.7.1-all.jar",
-            "REA_UNBLOB_COMMAND": "/opt/rea-reversa/providers/unblob-26.6.4/bin/unblob",
+            "PATH": "/home/ubuntu/rea-final-runtime/vendors/tools/jdk-21/bin:"+str(NODE.parent)+":"+"/home/ubuntu/rea-final-runtime/vendors/providers/binwalk-3.1.0/bin:"+env.get("PATH",""),
+            "JAVA_HOME": "/home/ubuntu/rea-final-runtime/vendors/tools/jdk-21",
+            "GHIDRA_INSTALL_DIR": "/home/ubuntu/rea-final-runtime/vendors/tools/ghidra_12.1.4_PUBLIC",
+            "REA_JADX_MCP_JAR": "/home/ubuntu/rea-final-runtime/vendors/tools/jadx-headless-mcp-0.7.1-all.jar",
+            "REA_UNBLOB_COMMAND": "/home/ubuntu/rea-final-runtime/bin/unblob",
+            "REA_BINWALK_COMMAND": "/home/ubuntu/rea-final-runtime/vendors/providers/binwalk-3.1.0/bin/binwalk",
             "CI":"1"})
         version = execute([str(NODE), "scripts/rea.mjs", "--version"], env, timeout=25)
         result["cli_version"] = {"exit": version["exit"], "version": version["output"].strip()[:20]}
@@ -306,7 +307,6 @@ def perform(req):
             candidates = (
                 ROOT/"_reference/apk-integration/ApiDemos-debug.apk",
                 Path("/home/ubuntu/rea-original-upstream-680-evidence/functional-suppliers-step2-20261029/ApiDemos-debug.apk"),
-                OLD/"_reference/apk-integration/ApiDemos-debug.apk",
             )
             fixture = None
             for path in candidates:
