@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-telegram-leads-audit-logic-20261030-1618",
+  "request_id": "rea-telegram-leads-audit-state-tests-20261030-1621",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,48 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\necho LOGIC_AUDIT_BEGIN\nsudo -n /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nimport ast,re,json,subprocess\np=Path('/opt/telegram-robot-leads')\nfor name in ('main.py','scripts/safe_runtime.py','scripts/production_gate.py','scripts/public_group_discovery.py','scripts/growth_tracking.py'):\n q=p/name\n print('SOURCE_FILE',name,'PRESENT',q.is_file())\n if not q.is_file():continue\n t=q.read_text()\n try:tree=ast.parse(t)\n except Exception as e:print('AST_ERROR',type(e).__name__,str(e));continue\n print('SIZE',len(t.splitlines()),'LINES')\n print('SYMBOLS',[(n.name,n.lineno) for n in tree.body if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef,ast.ClassDef))])\n if name=='main.py':print('MAIN_CONTENT',t)\n pats=['join_request_status','members_added','joined','approval','consent','explicit','blocked','dry_run','InviteToChannel','JoinChannel','GetParticipants','addchatuser','get_participants','safe_mode','ENABLE','TELEGRAM_','ACCOUNT','GROUP','LIMIT','max_daily','min_delay','sleep','rate','interval','database','sqlite','permission','optin','os.getenv','environ','bot_token','members_not_addable','guard']\n hits=[(i,l.strip()) for i,l in enumerate(t.splitlines(),1) if any(k.lower() in l.lower() for k in pats)]\n print('CODE_MATCHES_TOTAL',len(hits))\n for i,l in hits[:95]:\n  if len(l)>155:l=l[:155]+'...'\n  l=re.sub(r'@[A-Za-z0-9_]+','@MASK',l)\n  print('LINE',i,l)\n print('---')\nprint('SCRIPT_FILES',','.join(x.name for x in (p/'scripts').glob('*.py')))\nprint('TEST_SUMMARY')\nfor q in sorted((p/'tests').glob('test_*.py')):\n try:\n  tree=ast.parse(q.read_text())\n  names=[n.name for n in ast.walk(tree) if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef)) and n.name.startswith('test_')]\n  print(q.name,len(names),'TESTS',','.join(names[:12]))\n except Exception as e:print(q.name,type(e).__name__)\nsecret=Path('/root/project-secrets/telegram-robot-leads/.env')\nif secret.exists():\n keys=[l.split('=',1)[0].strip() for l in secret.read_text().splitlines() if '=' in l and not l.strip().startswith('#')]\n print('ENV_KEY_NAMES',','.join(keys))\nsrc=p/'.telegram-leads-source-7c0ef8a1d9be'\nout=subprocess.run(['git','-C',str(src),'status','--porcelain=v1'],capture_output=True,text=True,timeout=8)\nprint('SOURCEREPO_CLEAN',out.returncode==0 and not out.stdout.strip())\nfor file in ('requirements.txt','main.py','scripts/safe_runtime.py'):\n a=src/file;b=p/file\n if a.is_file() and b.is_file():\n  import hashlib\n  print('DEPLOY_VS_SOURCE',file,hashlib.sha256(a.read_bytes()).hexdigest()==hashlib.sha256(b.read_bytes()).hexdigest())\nprint('LOGIC_AUDIT_END')\nPY"
+            "set -Eeuo pipefail\necho CODE_AND_CONFIG_BEGIN\nsudo -n /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nimport re,os,subprocess,ast\np=Path('/opt/telegram-robot-leads')\nfor name,starts in {'scripts/safe_runtime.py':[(367,493),(519,574),(589,633)],'scripts/operation_policy.py':[(1,145)],'scripts/lead_health.py':[(1,110)],'scripts/leads_operational_report.py':[(1,105)],'ecosystem.config.js':[(1,90)]}.items():\n f=p/name\n if not f.is_file():print('MISSING',name);continue\n lines=f.read_text().splitlines()\n print('FILE',name,'LINES',len(lines))\n for a,b in starts:\n  print('LINES_RANGE',a,b)\n  for n in range(a,min(b,len(lines))+1):\n   s=lines[n-1].rstrip()\n   if re.search(r'(?i)(token|api_hash|password|secret|session_string)\\s*[:=]\\s*[\"\\x27][^\"\\x27]+',s):\n    s='[REDACTED CONFIG LINE]'\n   print(f'{n:04d}: {s[:155]}')\nfor k in ('TELEGRAM_GROUP_ALLOWLIST','TELEGRAM_APPROVED_USERS','TELEGRAM_PUBLIC_DISCOVERY_ENABLED','TELEGRAM_TZ','TELEGRAM_OPERATION_STATE','TELEGRAM_EVENT_JOURNAL','TELEGRAM_REGION_SPLIT','TELEGRAM_UNIFIED_HUMAN_SCHEDULE'):\n print('CONFIG_KEY',k,'in_app',sum(k in (q.read_text(errors='replace')) for q in p.glob('scripts/*.py')),'in_env',k in (Path('/root/project-secrets/telegram-robot-leads/.env').read_text()))\nsrc=p/'.telegram-leads-source-7c0ef8a1d9be'\nz=subprocess.run(['git','-C',str(src),'ls-remote','origin','refs/heads/main'],capture_output=True,text=True,timeout=15)\nprint('REMOTE_MAIN_CHECK',z.returncode,z.stdout.strip()[:80],z.stderr.strip()[:180])\nprint('CODE_AND_CONFIG_END')\nPY"
           ],
-          "timeout_ms": 75000,
-          "idle_timeout_ms": 22000,
+          "timeout_ms": 140000,
+          "idle_timeout_ms": 60000,
           "limits": {
-            "output_bytes": 22000
+            "output_bytes": 26000
+          }
+        }
+      }
+    },
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/bin/bash",
+          "arguments": [
+            "-lc",
+            "set -Eeuo pipefail\necho READONLY_STATE_BEGIN\nsudo -n /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nimport sqlite3,json,os,re,stat\nroots=[Path('/var/lib/telegram-robot-leads'),Path('/root/project-secrets/telegram-robot-leads')]\nfor p in roots:\n print('ROOT',str(p),'EXISTS',p.is_dir())\n if not p.is_dir():continue\n for q in sorted(p.iterdir()):\n  if q.is_symlink():print('FILE',q.name,'SYMLINK');continue\n  s=q.stat();kind='dir' if q.is_dir() else 'file'\n  print('ITEM',q.name,'TYPE',kind,'BYTES',s.st_size,'MODE',oct(stat.S_IMODE(s.st_mode)))\n  if q.is_file() and q.suffix in ('.json','.jsonl') and 'account' not in q.name.lower() and s.st_size<3000000:\n   try:\n    if q.suffix=='.json':\n     data=json.loads(q.read_text());print('JSON_KEYS',q.name,list(data.keys())[:30] if isinstance(data,dict) else 'list')\n     if isinstance(data,dict):\n      for k,v in data.items():\n       if k in ('groups','joined_groups','approved_users','added_members','member_actions','members','pending_member_actions','pending_group_actions','accounts','blocked_accounts','group_actions','members_added','groups_joined','new_public_groups','last_scan_at','day','date','total_public_groups'):\n        print('METRIC',q.name,k,'size',len(v) if isinstance(v,(dict,list)) else v if isinstance(v,(str,int,float,bool)) and k not in ('accounts','approved_users') else 'present')\n    else:\n     lines=q.read_text(errors='replace').splitlines()\n     counts={}\n     for line in lines:\n      try:\n       d=json.loads(line)\n       k=next((d[n] for n in ('kind','event','type','action') if isinstance(d.get(n),str)),'unknown')\n       counts[k]=counts.get(k,0)+1\n      except: counts['unparseable']=counts.get('unparseable',0)+1\n     print('JSONL_TOTAL',q.name,len(lines),'EVENT_TYPES',counts)\n   except Exception as e:print('JSON_READ_ERROR',q.name,type(e).__name__)\n  if q.is_file() and q.suffix in ('.db','.sqlite','.sqlite3') and s.st_size<100000000 and not q.name.endswith('.session'):\n   try:\n    u=sqlite3.connect('file:'+str(q)+'?mode=ro',uri=True)\n    print('DB_TABLES',q.name,[x[0] for x in u.execute(\"select name from sqlite_master where type='table'\")][:30]);u.close()\n   except Exception as e:print('DB_READ_ERROR',q.name,type(e).__name__)\nprint('READONLY_STATE_END')\nPY"
+          ],
+          "timeout_ms": 140000,
+          "idle_timeout_ms": 60000,
+          "limits": {
+            "output_bytes": 26000
+          }
+        }
+      }
+    },
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/bin/bash",
+          "arguments": [
+            "-lc",
+            "set -Eeuo pipefail\necho OFFLINE_TESTS_BEGIN\ncd /opt/telegram-robot-leads\nif test -x .venv/bin/python; then TEST_PY=.venv/bin/python; else TEST_PY=/usr/bin/python3; fi\n\"$TEST_PY\" - <<'PY'\nimport sys,importlib.util\nprint('PYTHON',sys.version.split()[0])\nfor n in ('pytest','telethon','aiosqlite','dotenv'):\n print('MODULE',n,'AVAILABLE',bool(importlib.util.find_spec(n)))\nPY\nif \"$TEST_PY\" -c 'import pytest' 2>/dev/null; then\n \"$TEST_PY\" -m pytest tests -q --disable-warnings --maxfail=3\nelse\n echo PYTEST_UNAVAILABLE\n \"$TEST_PY\" -m unittest discover -s tests -p 'test_*.py' -q\nfi\necho OFFLINE_TESTS_PASS"
+          ],
+          "timeout_ms": 140000,
+          "idle_timeout_ms": 60000,
+          "limits": {
+            "output_bytes": 26000
           }
         }
       }
