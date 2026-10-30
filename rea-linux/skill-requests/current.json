@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-plcodex-postmerge-preflight-20261030-2316-a1",
+  "request_id": "rea-plcodex-postmerge-cloud-supervisor-inspect-20261030-a2",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nexport GIT_PAGER=cat PAGER=cat GIT_TERMINAL_PROMPT=0 PYTHONDONTWRITEBYTECODE=1\ntmp=\"$(mktemp -d /tmp/rea-plcodex-close.XXXXXX)\"\ntrap 'rm -rf \"$tmp\"' EXIT\ngit clone --quiet --depth 1 --branch main https://github.com/martaxi-boss/Project-leader-codex.git \"$tmp/repo\"\ncd \"$tmp/repo\"\necho \"PREFLIGHT_OS=$(uname -s)\"\necho \"PREFLIGHT_USER=$(id -un)\"\necho \"PREFLIGHT_REPO=$(git rev-parse --show-toplevel)\"\necho \"PREFLIGHT_MAIN_SHA=$(git rev-parse HEAD)\"\ntest \"$(git rev-parse HEAD)\" = c7996a41c22d99f52f25d4c12e793bb3b3a8917d\npython3 - <<'PY'\nfrom pathlib import Path\nimport re\npaths=[p for p in Path('.').rglob('*') if p.is_file() and '.git' not in p.parts and '__pycache__' not in p.parts]\nprint('TOTAL_FILES',len(paths))\nfor p in paths:\n s=str(p)\n if (re.search(r'(?i)(supervisor|telegram|codex|coordina|cloud|smoke|e2e|auth|notification|gate|doctor|control)',s) and (s.endswith(('.py','.md','.yml','.yaml','.toml','.json','.sh'))) and len(s)<125):\n  print('RELEVANT',s)\nPY\nif command -v codex >/dev/null 2>&1; then echo \"CODEX_CLI=$(command -v codex)\"; codex --version; else echo \"CODEX_CLI_NOT_INSTALLED_ON_REA_HOST\"; fi\necho \"PREFLIGHT_READY\"\n"
+            "set -Eeuo pipefail\nexport GIT_PAGER=cat PAGER=cat GIT_TERMINAL_PROMPT=0 PYTHONDONTWRITEBYTECODE=1\ntmp=\"$(mktemp -d /tmp/rea-plcodex-cap.XXXXXX)\"\ntrap 'rm -rf \"$tmp\"' EXIT\ngit clone --quiet --depth 1 --branch main https://github.com/martaxi-boss/Project-leader-codex.git \"$tmp/repo\"\ncd \"$tmp/repo\"\ntest \"$(git rev-parse HEAD)\" = c7996a41c22d99f52f25d4c12e793bb3b3a8917d\npython3 - <<'PY'\nfrom pathlib import Path\nimport re\ntargets=['README_CODEX.md','CODEX_COORDINATION.md','SMOKE_TESTS.md','roles/SUPERVISOR.md','codex/cloud_bridge.py','codex/owner_coordinator_ingress.py','.codex/config.toml']\nfor name in targets:\n p=Path(name)\n if not p.exists():continue\n lines=p.read_text(errors='replace').splitlines()\n print('FILE',name,'LINES',len(lines),flush=True)\n matches=[(i+1,line.strip()) for i,line in enumerate(lines) if re.search(r'(?i)(telegram|supervisor|codex.cloud|cloud|credential|agent|coordinator|coordenador|ingress|auth|proof|smoke|e2e|notify|webhook|human.gate|status)',line)]\n for i,line in matches[:12]:\n  print('LINE',i,re.sub(r'(token|password|secret)[^ ]*','[REDACTED]',line,flags=re.I)[:190],flush=True)\nprint('WORKFLOWS',','.join(p.name for p in sorted(Path('.github/workflows').glob('*.yml')))[:1800])\nprint('CODEX_TESTS',','.join(p.name for p in sorted(Path('codex/tests').glob('test_*.py')))[:1800])\nPY\nif command -v codex >/dev/null 2>&1; then codex --version; else echo CODEX_BINARY_ABSENT_ON_REA_HOST; fi\nif command -v pm2 >/dev/null 2>&1; then pm2 jlist | python3 -c 'import json,sys; print(\"PM2_NAMES_STATUSES\",[(x.get(\"name\"),x.get(\"pm2_env\",{}).get(\"status\")) for x in json.load(sys.stdin)])'; else echo PM2_NOT_IN_REA_USER_PATH; fi\necho REA_TARGETED_INSPECTION_COMPLETE\n"
           ],
           "timeout_ms": 160000,
-          "idle_timeout_ms": 105000,
+          "idle_timeout_ms": 110000,
           "limits": {
-            "output_bytes": 12000
+            "output_bytes": 11000
           }
         }
       }
