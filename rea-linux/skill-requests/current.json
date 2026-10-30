@@ -1,20 +1,25 @@
 {
-  "request_id": "rea-native-apk-inspect-20261030-003",
+  "request_id": "rea-lowcost-deep-20261030-1017-a1",
   "mcp_requests": [
     {
       "method": "tools/call",
       "params": {
-        "name": "open_binary",
+        "name": "binary_session",
         "arguments": {
-          "path": "/home/ubuntu/rea-original-upstream-680-evidence/functional-suppliers-step2-20261029/ApiDemos-debug.apk"
+          "expected_package_version": "6.8.0"
         }
       }
     },
     {
       "method": "tools/call",
       "params": {
-        "name": "inspect_artifact",
+        "name": "analyze_javascript_application",
         "arguments": {
+          "input_path": "/srv/lowcost-europa/apps/storefront/static/storefront",
+          "source_paths": [
+            "catalog-explorer.js",
+            "product-images.js"
+          ],
           "detail": "summary"
         }
       }
