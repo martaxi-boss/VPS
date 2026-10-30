@@ -757,6 +757,25 @@ def hygiene_inventory():
             except OSError:
                 continue
     report["private_runtime_references"]["scanned_entries"] = count
+    # Extra read-only sizing of other explicitly REA-named directories.
+    report["extra_staging"] = {}
+    for alias, p in {
+        "uv_staging": Path("/home/ubuntu/.local/share/rea-optional-uv-0.13.6"),
+        "runtime_optional": private/"optional",
+        "runtime_node_modules": private/"node_modules",
+        "runtime_vendors": private/"vendors",
+    }.items():
+        item = {"present": p.exists(), "symlink": p.is_symlink()}
+        if p.exists() and not p.is_symlink():
+            try:
+                size = subprocess.run(["du","-s","-B1",str(p)],
+                    stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL, text=True, timeout=35, check=False)
+                if size.returncode == 0:
+                    item["allocated_bytes"] = int(size.stdout.split()[0])
+            except (OSError, ValueError, subprocess.TimeoutExpired):
+                item["size_unverified"] = True
+        report["extra_staging"][alias] = item
     # Look at process cmdlines/maps/cwd without exposing arguments or secrets.
     for p in Path("/proc").iterdir():
         if not p.name.isdigit():
