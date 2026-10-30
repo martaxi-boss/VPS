@@ -55,14 +55,32 @@ def validate(raw):
         raise ValueError("TOO_LARGE")
     value = json.loads(raw)
     required = {"schema_version", "project", "engine_commit", "request_id", "operation"}
+    if isinstance(value, dict) and value.get("operation") == "analyze_project_javascript":
+        required |= {"source_repo", "revision", "javascript_dir", "source_paths"}
     if not isinstance(value, dict) or set(value) != required:
         raise ValueError("SCHEMA_DENIED")
     if value["schema_version"] != 1 or value["project"] != "engenharia-reversa-final" or value["engine_commit"] != PIN:
         raise ValueError("PROJECT_DENIED")
     if not isinstance(value["request_id"], str) or not re.fullmatch(r"[A-Za-z0-9._-]{8,80}", value["request_id"]):
         raise ValueError("REQUEST_ID_DENIED")
-    if value["operation"] not in ("health", "providers", "inspect_elf", "apk_demo", "isolation_audit", "environment_audit", "provider_diagnostics", "strict_separation_audit", "optional_source_symlinks", "hygiene_inventory"):
+    if value["operation"] not in ("health", "providers", "inspect_elf", "apk_demo", "isolation_audit", "environment_audit", "provider_diagnostics", "strict_separation_audit", "optional_source_symlinks", "hygiene_inventory", "analyze_project_javascript"):
         raise ValueError("OPERATION_DENIED")
+    if value["operation"] == "analyze_project_javascript":
+        if not isinstance(value["source_repo"], str) or re.fullmatch(r"martaxi-boss/[A-Za-z0-9_-]{1,65}", value["source_repo"]) is None:
+            raise ValueError("SOURCE_REPO_DENIED")
+        if not isinstance(value["revision"], str) or re.fullmatch(r"[0-9a-f]{40}", value["revision"]) is None:
+            raise ValueError("SOURCE_REVISION_DENIED")
+        def safe_path(p):
+            return (isinstance(p, str) and len(p) <= 220 and not p.startswith("/")
+                    and all(re.fullmatch(r"[A-Za-z0-9_.-]{1,90}", s) and s not in (".", "..")
+                            for s in p.split("/")))
+        if not safe_path(value["javascript_dir"]):
+            raise ValueError("SOURCE_DIR_DENIED")
+        sources = value["source_paths"]
+        if not isinstance(sources, list) or not 1 <= len(sources) <= 5 or len(set(map(str, sources))) != len(sources):
+            raise ValueError("SOURCE_FILES_DENIED")
+        if not all(safe_path(s) and s.endswith((".js", ".mjs", ".cjs")) for s in sources):
+            raise ValueError("SOURCE_FILENAME_DENIED")
     return value
 
 def execute(args, env=None, timeout=50):
@@ -801,6 +819,128 @@ def hygiene_inventory():
             pass
     return report
 
+
+def analyze_project_javascript(req, env):
+    """One bounded, read-only source inspection by the installed author's CLI.
+
+    Repository is pinned to a 40-hex main HEAD under the owner's GitHub
+    namespace, fetched without credentials, hooks, submodules, or executing
+    code from the target. No writes to other projects or the production VPS.
+    This is JavaScript static analysis, not a Python/Django security audit.
+    """
+    import shutil
+    out = {"project": req["source_repo"], "revision": req["revision"],
+           "analysis": "original_author_cli_static_javascript",
+           "provider_used": "REA built-in JavaScript analyzer via private Node",
+           "cli_command": "analyze-javascript-application",
+           "selected_sources": req["source_paths"], "status": "BLOCKED"}
+    if shutil.disk_usage("/tmp").free < 750 * 1024 * 1024:
+        out["reason"] = "INSUFFICIENT_TEMP_SPACE"
+        return out
+    with tempfile.TemporaryDirectory(prefix="rea-skill-project-js-", dir="/tmp") as temp:
+        repository = Path(temp)/"repo"
+        url = "https://github.com/"+req["source_repo"]+".git"
+        fetch = subprocess.run(
+            ["git", "-c", "core.hooksPath=/dev/null", "-c", "protocol.file.allow=never",
+             "clone", "--quiet", "--depth", "1", "--filter=blob:none",
+             "--single-branch", "--branch", "main", "--no-checkout",
+             "--", url, str(repository)],
+            cwd=temp, env={**env, "GIT_CONFIG_NOSYSTEM":"1", "GIT_CONFIG_GLOBAL":"/dev/null",
+                           "GIT_TERMINAL_PROMPT":"0", "GIT_LFS_SKIP_SMUDGE":"1"},
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE, text=True, timeout=95, check=False)
+        if fetch.returncode:
+            out["reason"] = "SOURCE_FETCH_FAILED"
+            out["git_exit"] = fetch.returncode
+            return out
+        actual = subprocess.run(["git", "-C", str(repository), "rev-parse", "HEAD"],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL, text=True, timeout=15, check=False)
+        if actual.returncode or actual.stdout.strip() != req["revision"]:
+            out["reason"] = "SOURCE_REVISION_CHANGED_OR_MISMATCH"
+            return out
+        checkout = subprocess.run(["git", "-C", str(repository),
+            "-c", "core.hooksPath=/dev/null",
+            "checkout", "--quiet", "--force", "--detach", req["revision"]],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE, text=True, timeout=55, check=False)
+        if checkout.returncode:
+            out["reason"] = "SOURCE_CHECKOUT_FAILED"
+            return out
+        parent = repository
+        for segment in req["javascript_dir"].split("/"):
+            parent = parent/segment
+            if parent.is_symlink():
+                out["reason"] = "SOURCE_SYMLINK_DIR_DENIED"
+                return out
+        if not parent.is_dir() or not parent.resolve(strict=True).is_relative_to(repository.resolve(strict=True)):
+            out["reason"] = "SOURCE_DIRECTORY_NOT_FOUND"
+            return out
+        files = []
+        total_bytes = 0
+        for relative in req["source_paths"]:
+            selected = parent
+            for segment in relative.split("/"):
+                selected = selected/segment
+                if selected.is_symlink():
+                    out["reason"] = "SOURCE_SYMLINK_FILE_DENIED"
+                    return out
+            if not selected.is_file() or not selected.resolve(strict=True).is_relative_to(parent.resolve(strict=True)):
+                out["reason"] = "SOURCE_FILE_NOT_FOUND"
+                return out
+            size = selected.stat().st_size
+            total_bytes += size
+            if size > 1024*1024 or total_bytes > 3*1024*1024:
+                out["reason"] = "SOURCE_TOO_LARGE"
+                return out
+            files.append({"path": relative, "size_bytes": size, "sha256": sha256(selected)})
+        out["source_files"] = files
+        args = [str(NODE), "scripts/rea.mjs", "analyze-javascript-application",
+                str(parent), "--detail", "summary"]
+        for relative in req["source_paths"]:
+            args += ["--source-path", relative]
+        args.append("--json")
+        # A source analysis can be larger than a health call, but no code from
+        # the target is launched. Captured stdout is never returned verbatim.
+        try:
+            trial = execute(args, env, timeout=150)
+        except (OSError, ValueError, subprocess.TimeoutExpired):
+            out["reason"] = "ANALYZER_COULD_NOT_START"
+            return out
+        out["cli_exit"] = trial["exit"]
+        out["seconds"] = trial["seconds"]
+        out["cleanup_incomplete"] = "cleanup_incomplete" in (trial["output"]+trial["error"]).lower()
+        if len(trial["output"]) > 12 * 1024 * 1024:
+            out["reason"] = "ANALYSIS_OUTPUT_TOO_LARGE"
+            return out
+        try:
+            doc = json.loads(trial["output"])
+        except (TypeError, ValueError):
+            out["reason"] = "ANALYSIS_OUTPUT_NOT_JSON"
+            return out
+        if not isinstance(doc, dict):
+            out["reason"] = "ANALYSIS_OUTPUT_NOT_OBJECT"
+            return out
+        result = doc.get("result", doc)
+        result = result.get("normalized_result", result) if isinstance(result, dict) else result
+        out["json"] = True
+        out["evidence_id"] = doc.get("evidence_id") if isinstance(doc.get("evidence_id"), str) else None
+        out["result_fields"] = list(result)[:28] if isinstance(result, dict) else []
+        for key in ("status", "format", "application_type"):
+            if isinstance(result, dict) and isinstance(result.get(key), (str, bool, int)):
+                out[key] = result[key]
+        if isinstance(result, dict):
+            for key in ("statistics", "coverage", "summary"):
+                data = result.get(key)
+                if isinstance(data, dict):
+                    out[key] = {k:v for k,v in list(data.items())[:12]
+                                if isinstance(v, (str,int,float,bool)) and len(str(v)) < 120}
+        if trial["exit"] != 0 or out["cleanup_incomplete"]:
+            out["reason"] = "CLI_ANALYSIS_FAILED"
+            return out
+        out["status"] = "PASS"
+        return out
+
 def perform(req):
     result = {"bridge": "original-final-cli-v1", "request_id": req["request_id"],
               "operation": req["operation"], "engine": engine_state(), "suppliers": supplier_state()}
@@ -857,6 +997,11 @@ def perform(req):
         result["cli_version"] = {"exit": version["exit"], "version": version["output"].strip()[:20]}
         if version["exit"] != 0 or version["output"].strip() != "6.8.0":
             result["status"] = "BLOCKED_CLI_VERSION"
+            return result
+        if req["operation"] == "analyze_project_javascript":
+            report = analyze_project_javascript(req, env)
+            result["project_analysis"] = report
+            result["status"] = "PASS" if report["status"] == "PASS" else "PARTIAL"
             return result
         tasks = []
         if req["operation"] in ("health", "providers"):
