@@ -1,21 +1,11 @@
 {
-  "schema_version": 1,
-  "project": "engenharia-reversa-final",
-  "engine_commit": "160d821ac9a0310afcb8d1fc427862dd6508add5",
-  "request_id": "rea-dynamic-mcp-artifact-session-20261030-p1",
-  "operation": "mcp_sequence",
-  "tool_name": "open_binary",
-  "calls": [
+  "request_id": "rea-simple-native-mcp-20261030-1",
+  "mcp_requests": [
     {
-      "tool_name": "open_binary",
-      "arguments": {
-        "path": "/home/ubuntu/rea-original-upstream-680-evidence/functional-suppliers-step2-20261029/ApiDemos-debug.apk"
-      }
-    },
-    {
-      "tool_name": "inspect_artifact",
-      "arguments": {
-        "detail": "summary"
+      "method": "tools/call",
+      "params": {
+        "name": "inspect_analysis_settings",
+        "arguments": {}
       }
     }
   ]
