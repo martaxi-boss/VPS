@@ -1,37 +1,26 @@
 {
-  "request_id": "rea-lowcost-correcao-baseline-20261030-01",
+  "request_id": "rea-lowcost-readonly-preflight-20261030-02",
   "mcp_requests": [
     {
       "method": "tools/call",
       "params": {
-        "name": "binary_session",
+        "name": "capture_process_scenario",
         "arguments": {
-          "expected_package_version": "6.8.0"
-        }
-      }
-    },
-    {
-      "method": "tools/call",
-      "params": {
-        "name": "inspect_desktop_application",
-        "arguments": {
-          "path": "/srv/lowcost-europa/apps/storefront",
-          "max_entries": 300,
-          "detail": "summary"
-        }
-      }
-    },
-    {
-      "method": "tools/call",
-      "params": {
-        "name": "analyze_javascript_application",
-        "arguments": {
-          "input_path": "/srv/lowcost-europa/apps/storefront/static/storefront",
-          "source_paths": [
-            "catalog-explorer.js",
-            "product-images.js"
+          "executable": "/bin/bash",
+          "arguments": [
+            "-c",
+            "set -eu\nprintf 'USER='; id -un\nprintf 'CWD='; pwd\nprintf 'DEPLOYED_SHA='; git rev-parse HEAD\nprintf 'TRACKED_WORKTREE='; if [ -z \"$(git status --porcelain --untracked-files=no)\" ]; then echo clean; else echo dirty; fi\nprintf 'BRANCH='; git branch --show-current\nprintf 'SERVICE='; systemctl is-active lowcost-europa.service || true\nprintf 'READY_LOCAL='; curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://127.0.0.1:8001/health/ready/ || true; echo\nprintf 'VENV='; if [ -x .venv/bin/python ]; then .venv/bin/python --version; else echo absent; fi\nprintf 'BACKUP_FILE='; find /var/backups/lowcost-europa/daily -maxdepth 1 -type f -name 'lowcost-europa-*.dump' -printf '%f\\n' 2>/dev/null | sort | tail -n 1 || true\nprintf 'DISK_FREE='; df -P . | tail -n 1 | awk '{print $4}'"
           ],
-          "detail": "summary"
+          "working_directory": "/srv/lowcost-europa",
+          "timeout_ms": 30000,
+          "terminal": {
+            "columns": 105,
+            "rows": 32,
+            "scrollback": 150
+          },
+          "limits": {
+            "output_bytes": 16000
+          }
         }
       }
     }
