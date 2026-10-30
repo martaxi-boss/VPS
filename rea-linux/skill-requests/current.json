@@ -1,6 +1,10 @@
 {
-  "request_id": "rea-lowcost-audit-20261030-1559-pages",
+  "request_id": "rea-final-readonly-smoke-20261030-01",
   "mcp_requests": [
+    {
+      "method": "tools/list",
+      "params": {}
+    },
     {
       "method": "tools/call",
       "params": {
@@ -9,12 +13,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nbase=https://lowcost-europa.duckdns.org\necho \"PAGES_BEGIN\"\nfor p in / /pesquisar/?q=hifu /products/cavitacao-rf-vacuum-corpo/ /products/hydrodermoabrasao-aqua-facial-multifuncoes/ /products/pressoterapia-vacuum-drenagem/ /products/hifu/ /products/diodo-laser-remocao-tatuagens-pigmentacao/ /como-funciona/ /afiliados/ /privacidade/ /termos/ /contacto/ /sitemap.xml /robots.txt;do\n code=$(curl -sSL --max-time 12 -o /dev/null -w '%{http_code}' \"$base$p\")\n printf 'PAGE=%s CODE=%s\\n' \"$p\" \"$code\"\n test \"$code\" = 200\ndone\necho \"AFFILIATE_INVALID_GUARD\"\ngo_code=$(curl -sS --max-time 12 -o /dev/null -w '%{http_code}' \"$base/go/0/\")\necho \"INVALID_GO_CODE=$go_code\"\ntest \"$go_code\" = 404\necho \"NOINDEX\"\ncurl -sSI --max-time 12 \"$base/\" | grep -iq '^X-Robots-Tag: noindex'\necho \"NOINDEX_HEADER=PASS\"\necho \"PAGES_END\""
+            "set -Eeuo pipefail; echo REA_READONLY_SMOKE_BEGIN; uname -s; python3 -c 'print(\"PYTHON_PASS\")'; echo REA_READONLY_SMOKE_END"
           ],
-          "timeout_ms": 95000,
-          "idle_timeout_ms": 27000,
+          "timeout_ms": 30000,
+          "idle_timeout_ms": 10000,
           "limits": {
-            "output_bytes": 5000
+            "output_bytes": 3000
           }
         }
       }
