@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-plcodex-probes-and-workflows-20261030-1703",
+  "request_id": "rea-plcodex-final-certification-20261030-1707",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,30 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nexport PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/tmp/rea-audit-plcodex-20261030-1647 GIT_PAGER=cat PAGER=cat\ncd /tmp/rea-audit-plcodex-20261030-1647\ntest \"$(git rev-parse HEAD)\" = \"4a5c5ba5876bad079ec4edf401416804c18bc521\"\npython3 - <<'PY'\nfrom pathlib import Path\nimport sys,os,re,json,ast,subprocess\np=Path.cwd()\nitems=json.loads((p/'.agents/plugins/marketplace.json').read_text())['plugins']\nregistered={x['name'] for x in items}\ndirs={x.name for x in (p/'plugins').iterdir() if x.is_dir() and (x/'plugin.json').exists()}\nprint('PLUGIN_REGISTERED',sorted(registered))\nprint('PLUGIN_SOURCE_DIRS',sorted(dirs))\nprint('PLUGIN_NOT_REGISTERED',sorted(dirs-registered))\npkg=(p/'scripts/package_plugins.py').read_text().splitlines()\nfor i,x in enumerate(pkg,1):\n if 'project-leader-codex' in x or 'recovery-guardian' in x or 'project-leader' in x or re.search(r'PLUGINS|plugin_names|build\\(',x):\n  print('PACKAGE_CODE',i,x.strip()[:240])\ncode=Path('codex/cloud_bridge.py').read_text().splitlines()\nfor i,x in enumerate(code,1):\n if i<=60:print('CLOUD_HEADER',i,x[:180])\nsub=[]\nfor f in p.rglob('*.py'):\n if '.project-leader' in f.parts:continue\n z=f.read_text(errors='replace')\n if re.search(r'class\\s+\\w+\\(\\s*CloudHost\\s*\\)',z):sub.append(str(f.relative_to(p)))\nprint('CLOUDHOST_SUBCLASSES',sub)\nfor f in [p/'codex/agent_policy.py',p/'codex/smart.py',p/'codex/cloud_bridge.py']:\n z=f.read_text()\n for key in ['SOFT_LIMIT_DEFAULT','no_attested_provider','CODEX_EXECUTOR_UNAVAILABLE','passive_notify']:\n  print('CODE_PATTERN',str(f.relative_to(p)),key,z.count(key))\nres=(p/'codex/resource_budget.py').read_text().splitlines()\nfor i,l in enumerate(res[:38],1):print('BUDGET_HEADER',i,l[:200])\ntests=(p/'codex/tests/test_agent_policy.py').read_text().splitlines()\nfor i,l in enumerate(tests[:90],1):print('PLAN_TEST_SAMPLE',i,l[:200])\nfrom codex.dual import _invoke_codex\nos.environ['PL_AUDIT_NON_SECRET_CANARY']='read_only_canary_20261030'\nout=_invoke_codex([sys.executable,'-c','import os; print(os.getenv(\"PL_AUDIT_NON_SECRET_CANARY\",\"MISSING\"))'],'',10)\nprint('CHILD_ENV_INHERITANCE',out[0],out[1].strip()=='read_only_canary_20261030','termination',out[3])\ndel os.environ['PL_AUDIT_NON_SECRET_CANARY']\nprint('AUDIT_PROBES_COMPLETE')\nPY"
+            "set -Eeuo pipefail\nexport PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/tmp/rea-audit-plcodex-20261030-1647 GIT_PAGER=cat PAGER=cat\ncd /tmp/rea-audit-plcodex-20261030-1647\ntest \"$(git rev-parse HEAD)\" = \"4a5c5ba5876bad079ec4edf401416804c18bc521\"\npython3 - <<'PY'\nfrom pathlib import Path\nimport tempfile,subprocess,sys,json,os\nfrom codex.agent_policy import plan\nrepo='martaxi-boss/Project-leader-codex'\nfor title,task,pth in [('HIGH_SECURITY','Corrige falha grave de segurança com testes independentes','codex/agent_policy.py'),('LOW_DOCUMENTATION','Corrige um typo no README','README.md')]:\n row=plan({'request':task,'target_repository':repo,'work_items':[{'id':'one','task':task,'paths':[pth]}]})\n print('LIVE_ROUTER',title,'status',row['status'],'mode',row['mode'],'agents',row['agent_count'])\n for item in row.get('tasks',[]):print('LIVE_ROUTER_SELECTION',title,item['selection'])\nroot=Path.cwd()\nwith tempfile.TemporaryDirectory(prefix='rea-plcodex-package-review-') as d:\n cmd=[sys.executable,'scripts/package_plugins.py','--output-dir',str(Path(d)/'dist'),\n '--source-revision','4a5c5ba5876bad079ec4edf401416804c18bc521',\n '--build-revision','4a5c5ba5876bad079ec4edf401416804c18bc521',\n '--build-run-id','41094124701']\n run=subprocess.run(cmd,cwd=root,capture_output=True,text=True,timeout=70)\n print('PACKAGE_BUILD_EXIT',run.returncode)\n if run.returncode:print('PACKAGE_BUILD_ERROR',(run.stdout+run.stderr)[-1500:]);sys.exit(1)\n m=json.loads((Path(d)/'dist/plugin-manifest.json').read_text())\n print('PACKAGE_PROVENANCE',m.get('provenance'))\n print('PACKAGE_PLUGINS',[x.get('name') for x in m.get('plugins',[])])\n print('PACKAGE_ARTIFACTS',sorted(x.name for x in (Path(d)/'dist').iterdir()))\n print('SOURCE_REPOSITORY_DIFFERENCE',m.get('provenance',{}).get('repository')!=repo)\nq=subprocess.run(['git','status','--porcelain','--untracked-files=normal'],capture_output=True,text=True)\nprint('FINAL_SOURCE_CLEAN',q.returncode==0 and not q.stdout.strip(), 'status_returncode',q.returncode,'untracked_or_modified',len(q.stdout.splitlines()))\ncheck=subprocess.run(['git','diff','--check'],capture_output=True,text=True)\nprint('FINAL_DIFF_CHECK',check.returncode)\nassert q.returncode==0 and not q.stdout.strip() and check.returncode==0\nprint('FINAL_TARGET_CHECK_PASS')\nPY"
           ],
-          "timeout_ms": 90000,
-          "idle_timeout_ms": 45000,
+          "timeout_ms": 120000,
+          "idle_timeout_ms": 65000,
           "limits": {
-            "output_bytes": 36000
-          }
-        }
-      }
-    },
-    {
-      "method": "tools/call",
-      "params": {
-        "name": "capture_process_scenario",
-        "arguments": {
-          "executable": "/bin/bash",
-          "arguments": [
-            "-lc",
-            "set -Eeuo pipefail\nexport PYTHONDONTWRITEBYTECODE=1\ncd /tmp/rea-audit-plcodex-20261030-1647\ntest \"$(git rev-parse HEAD)\" = \"4a5c5ba5876bad079ec4edf401416804c18bc521\"\npython3 - <<'PY'\nfrom pathlib import Path\nfor name in ['.github/workflows/repository-hygiene.yml','.github/workflows/package-plugins.yml','.github/workflows/trusted-pr-gate.yml']:\n s=Path(name).read_text().splitlines()\n print('WORKFLOW_CONTENT_START',name,'LINES',len(s))\n selected=range(1,min(len(s)+1,180)) if 'repository-hygiene' in name else range(1,len(s)+1)\n for i in selected:print(f'{i:04d} {s[i-1][:200]}')\n print('WORKFLOW_CONTENT_END',name)\nprint('GITHUB_REVIEW_COMPLETE')\nPY"
-          ],
-          "timeout_ms": 80000,
-          "idle_timeout_ms": 40000,
-          "limits": {
-            "output_bytes": 59000
+            "output_bytes": 15500
           }
         }
       }
