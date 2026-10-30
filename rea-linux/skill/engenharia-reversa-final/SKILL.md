@@ -1,6 +1,6 @@
 ---
 name: engenharia-reversa-final
-description: Porta de entrada da caixa de ferramentas pessoal REA FINAL em Ubuntu Linux. Usar automaticamente quando disponivel e o pedido envolver auditoria, analise, programacao, websites, criativos ou outras tarefas tecnicas para a caixa de ferramentas, mesmo sem @REA explicito. A IA externa planeia e conduz; consultar primeiro o catalogo MCP real e executar prioritariamente pelo motor REA; recorrer a ferramentas proprias da IA somente quando nao houver capacidade REA apropriada e disponivel, identificando a diferenca.
+description: Porta de entrada da caixa de ferramentas pessoal REA FINAL no Ubuntu Linux. Usar automaticamente quando disponivel para auditorias, engenharia reversa, programacao, criativos, websites e continuacao de trabalhos tecnicos neste projeto, mesmo sem invocar @REA. A IA externa compreende e coordena; priorizar execucao tecnica pelo REA e o seu catalogo MCP real. Usar ferramentas da IA so perante falta comprovada de capacidade REA, identificando a alternativa. Nunca criar outro motor ou colocar regras na ponte.
 ---
 
 # Engenharia Reversa FINAL - uma Skill, um motor, competencias crescentes
@@ -49,5 +49,6 @@ description: Porta de entrada da caixa de ferramentas pessoal REA FINAL em Ubunt
 
 - [41051659568](https://github.com/martaxi-boss/VPS/actions/runs/41051659568): arranque local autonomo REA MCP, catalogo de 229 ferramentas anunciadas, chamada real e exit zero.
 - [41055616293](https://github.com/martaxi-boss/VPS/actions/runs/41055616293): auditoria REA ao Low Cost Europa, incluindo teste negativo em que Actions e MCP responderam mas o comando interno terminou com exit 17; nao confundir os estados.
+- [41059587838](https://github.com/martaxi-boss/VPS/actions/runs/41059587838): validacao de ponta a ponta de 229 ferramentas anunciadas, chamadas MCP reais, fornecedores locais e exit 0; a ponte e o workflow nao foram alterados.
 
 Ver `references/metodologia.md`, `references/ambiente_final.md`, `references/ponte_operacional.md` e `references/relatorio.md`.
