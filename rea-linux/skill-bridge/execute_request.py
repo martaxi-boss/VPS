@@ -1005,7 +1005,7 @@ def run_original_mcp(req, env):
     """Use the already installed author's MCP stdio, one session per request."""
     operation = req["operation"]
     tool_name = req["tool_name"]
-    arguments = req.get("arguments", {})
+    arguments = req.get("arguments", {"calls": req.get("calls", [])})
     js = r'''
 import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
@@ -1044,6 +1044,36 @@ try {
     process.stdout.write(JSON.stringify({status:"PASS",tool:name,
       description:String(found.description||"").slice(0,1000),
       input_schema:found.inputSchema,effects,kind:contract.kind}));
+  } else if (mode === "mcp_sequence") {
+    const steps=[];
+    for (const item of args.calls) {
+      const selected=TOOL_CONTRACTS.find(x=>x.name===item.tool_name);
+      if (!selected) {
+        steps.push({tool:item.tool_name,status:"BLOCKED",reason:"NOT_IN_ORIGINAL_CATALOG"});
+        break;
+      }
+      const bad=["mutatesTarget","writesFilesystem","executesForeignCode",
+                 "mutatesDevice","mayDiscardData","changesUiState"]
+                 .filter(key=>selected.effects?.[key]===true);
+      if (bad.length) {
+        steps.push({tool:item.tool_name,status:"BLOCKED",
+                    reason:"REQUIRES_SPECIFIC_MUTATION_AUTHORIZATION",effects:bad});
+        break;
+      }
+      const output = await client.callTool({
+        name:item.tool_name,arguments:item.arguments
+      });
+      const structured=output.structuredContent;
+      const data=structured?.normalized_result??structured??{};
+      const text=output.content?.find(x=>x.type==="text")?.text??"";
+      steps.push({tool:item.tool_name,status:output.isError?"FAIL":"PASS",
+        isError:output.isError===true,evidence_id:structured?.evidence_id??null,
+        result_fields:(data&&typeof data==="object")?Object.keys(data).slice(0,20):[],
+        content_length:text.length,content_digest:await digest(text)});
+      if (output.isError) break;
+    }
+    process.stdout.write(JSON.stringify({status:steps.every(x=>x.status==="PASS")?"PASS":"BLOCKED",
+      transport:"original-mcp-stdio",tool:name,steps}));
   } else {
     const out = await client.callTool({name,arguments:args});
     const structured = out.structuredContent;
@@ -1159,7 +1189,7 @@ def perform(req):
             result["mcp_catalog"] = catalog
             result["status"] = catalog["status"]
             return result
-        if req["operation"] in ("mcp_describe", "mcp_call"):
+        if req["operation"] in ("mcp_describe", "mcp_call", "mcp_sequence"):
             operation = run_original_mcp(req, env)
             result["mcp_operation"] = operation
             result["status"] = operation["status"]
