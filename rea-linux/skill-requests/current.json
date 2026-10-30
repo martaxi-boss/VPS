@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-portable-launcher-install-20261030-p1",
+  "request_id": "rea-portable-launcher-install-20261030-p2",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,7 +9,7 @@
           "executable": "/bin/bash",
           "arguments": [
             "-c",
-            "set -euo pipefail\ntarget=\"$HOME/rea-final-runtime/bin/rea-mcp\"\nurl=\"https://raw.githubusercontent.com/martaxi-boss/VPS/2457c61763b2114333617e2eda273e46bff7451b/rea-linux/runtime/rea-mcp\"\ntemp=\"$(mktemp)\"\ntrap 'rm -f \"$temp\"' EXIT\ncurl -fsSL --max-time 25 \"$url\" -o \"$temp\"\necho \"245bc006ede264724f218df5ba2f65ceead2889067de2342f9b58c48110856c2  $temp\" | sha256sum -c - >/dev/null\nbash -n \"$temp\"\ntest -d \"$HOME/rea-final-runtime\"\ninstall -D -m 755 \"$temp\" \"$target\"\ntest -x \"$target\"\necho 'REA_PORTABLE_ENTRYPOINT_INSTALLED=pass'\necho \"REA_PORTABLE_RUNTIME=$HOME/rea-final-runtime\"\n"
+            "set -euo pipefail\nruntime_dir=\"$(pwd -P)\"\ntarget=\"$runtime_dir/bin/rea-mcp\"\nurl=\"https://raw.githubusercontent.com/martaxi-boss/VPS/2457c61763b2114333617e2eda273e46bff7451b/rea-linux/runtime/rea-mcp\"\ntemp=\"$(mktemp)\"\ntrap 'rm -f \"$temp\"' EXIT\necho 'REA_RUNTIME_INSTALL_START=pass'\ncurl -fsSL --max-time 25 \"$url\" -o \"$temp\"\necho 'REA_RUNTIME_DOWNLOAD=pass'\necho \"245bc006ede264724f218df5ba2f65ceead2889067de2342f9b58c48110856c2  $temp\" | sha256sum -c - >/dev/null\necho 'REA_RUNTIME_SOURCE_SHA256=pass'\nbash -n \"$temp\"\ntest -d \"$runtime_dir\"\ninstall -D -m 755 \"$temp\" \"$target\"\ntest -x \"$target\"\necho 'REA_PORTABLE_ENTRYPOINT_INSTALLED=pass'\necho \"REA_PORTABLE_RUNTIME=$runtime_dir\"\n"
           ],
           "working_directory": "/home/ubuntu/rea-final-runtime",
           "timeout_ms": 65000,
