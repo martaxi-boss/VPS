@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-lowcost-preflight-hsts-20261030",
+  "request_id": "rea-lowcost-safe-deploy-readonly-precheck-20261030",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,18 +9,18 @@
           "executable": "/bin/bash",
           "arguments": [
             "-c",
-            "set -Eeuo pipefail\necho CONFIG_PRECHECK_START=1\nsudo -n bash -c '\nset -a\n. /etc/lowcost-europa/lowcost-europa.env\nset +a\nexport DJANGO_SETTINGS_MODULE=config.settings.production\ncd /srv/lowcost-europa\nrunuser -u le001_1789265592 -- .venv/bin/python manage.py shell -c '\"'\"'\nfrom django.conf import settings\nimport os\nprint(\"DJANGO_HSTS_EFFECTIVE=\"+str(settings.SECURE_HSTS_SECONDS))\nprint(\"DJANGO_HSTS_ENV_DEFINED=\"+str(\"DJANGO_SECURE_HSTS_SECONDS\" in os.environ))\nprint(\"DJANGO_HSTS_INCLUDE_SUBDOMAINS=\"+str(settings.SECURE_HSTS_INCLUDE_SUBDOMAINS))\nprint(\"DJANGO_HSTS_PRELOAD=\"+str(settings.SECURE_HSTS_PRELOAD))\nprint(\"DJANGO_SECURE_SSL_REDIRECT=\"+str(settings.SECURE_SSL_REDIRECT))\nprint(\"DJANGO_PUBLIC_INDEXING_ENABLED=\"+str(settings.PUBLIC_INDEXING_ENABLED))\nprint(\"DEBUG=\"+str(settings.DEBUG))\n'\"'\"'\n'\necho CONFIG_PRECHECK_END=PASS"
+            "set -Eeuo pipefail\necho STAGING_DEPLOY_PREFLIGHT=BEGIN\nAPP=/srv/lowcost-europa\nACCT=le001_1789265592\ntest -x \"$APP/.venv/bin/python\"\nsudo -n -u \"$ACCT\" git -C \"$APP\" rev-parse HEAD | sed 's/^/LIVE_SHA=/'\nsudo -n -u \"$ACCT\" git -C \"$APP\" symbolic-ref --short -q HEAD | sed 's/^/LIVE_BRANCH=/' || true\ntest -z \"$(sudo -n -u \"$ACCT\" git -C \"$APP\" status --porcelain=v1 --untracked-files=normal)\" && echo LIVE_WORKTREE=CLEAN\nsudo -n -u \"$ACCT\" git -C \"$APP\" remote -v | sed -E 's#://[^ @]+@#://[REDACTED]@#g' | head -2\nfor u in lowcost-europa.service lowcost-europa-backup.service lowcost-europa-offsite-backup.service lowcost-europa-offsite-backup-health.service; do\n echo \"UNIT=$u\"\n systemctl show \"$u\" -p Result -p ExecMainStatus -p ExecMainExitTimestamp -p ActiveState | grep -E '^(Result|ExecMainStatus|ExecMainExitTimestamp|ActiveState)=' || true\ndone\necho \"ENV_CONFIG_PRESENT=$(test -f /etc/lowcost-europa/lowcost-europa.env && echo yes || echo no)\"\necho \"ENV_CONFIG_BACKUP_CAN_WRITE=$(sudo -n test -w /etc/lowcost-europa && echo yes || echo no)\"\necho STAGING_DEPLOY_PREFLIGHT=END"
           ],
           "working_directory": "/srv/lowcost-europa",
-          "timeout_ms": 75000,
-          "idle_timeout_ms": 75000,
+          "timeout_ms": 120000,
+          "idle_timeout_ms": 120000,
           "terminal": {
-            "columns": 100,
-            "rows": 40,
-            "scrollback": 100
+            "columns": 110,
+            "rows": 50,
+            "scrollback": 150
           },
           "limits": {
-            "output_bytes": 10000
+            "output_bytes": 12000
           }
         }
       }
