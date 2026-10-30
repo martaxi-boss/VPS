@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-telegram-leads-online-prereqs-20261030-1730",
+  "request_id": "rea-telegram-leads-sessions-live-check-20261030-1735",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n -H /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\np=Path('/opt/telegram-robot-leads')\ndef lines(name,a,b):\n t=(p/name).read_text().splitlines()\n print('SECTION',name,a,b)\n for i in range(a,min(b,len(t))+1):\n  line=t[i-1]\n  if any(k in line.lower() for k in ('api_hash=', 'api_id=', 'bot_token=', 'password=', 'secret=')):line='[REDACTED CONFIG]'\n  print(str(i)+': '+line[:155])\nlines('scripts/telethon_sessions.py',128,286)\nlines('scripts/organic_growth.py',42,116)\nlines('scripts/public_group_discovery.py',258,308)\nlines('scripts/telegram-robot-leads-status.sh',1,25)\nprint('READ_CODE_PASS')\nPY"
+            "set -Eeuo pipefail\nsudo -n -H /usr/bin/python3 - <<'PY'\nimport os,json,subprocess\npath='/opt/telegram-robot-leads'\ncmd=[path+'/.venv/bin/python',path+'/scripts/telethon_sessions.py','--online','--vault','/root/project-secrets/telegram-robot-leads']\nprint('TELETHON_READONLY_ONLINE_CHECK_BEGIN',flush=True)\nrun=subprocess.run(cmd,capture_output=True,text=True,timeout=140,env={**os.environ,'PYTHONDONTWRITEBYTECODE':'1'})\nprint('TELETHON_CHECK_EXIT',run.returncode)\ntry:\n data=json.loads(run.stdout)\n print('TELETHON_CHECK_STATUS',data.get('status'),'MODE',data.get('mode'),'API_SOURCE',data.get('api_source'))\n print('TELETHON_CHECK_ACCOUNT_COUNT',len(data.get('accounts',[])))\n for row in data.get('accounts',[]):\n  print('ACCOUNT',row.get('account'),'status',row.get('status'),'connected',row.get('connected'),'authorized',row.get('authorized'),'identity_verified',row.get('identity_verified'),'phone_matches',row.get('phone_matches'),'error_type',row.get('error_type'))\n print('READ_ONLY_ASSERTIONS','messages_sent',data.get('messages_sent'),'users_added',data.get('users_added'),'session_files_modified',data.get('session_files_modified'))\nexcept (ValueError,TypeError):\n print('INVALID_JSON_RESPONSE',type(run.stdout).__name__)\nprint('TELETHON_READONLY_ONLINE_CHECK_END')\nif run.returncode!=0:raise SystemExit(run.returncode)\nPY"
           ],
-          "timeout_ms": 85000,
-          "idle_timeout_ms": 26000,
+          "timeout_ms": 190000,
+          "idle_timeout_ms": 120000,
           "limits": {
-            "output_bytes": 22500
+            "output_bytes": 7000
           }
         }
       }
