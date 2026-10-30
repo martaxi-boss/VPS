@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-plcodex-fixture-inspection-20261030-7",
+  "request_id": "rea-plcodex-fixture-fix-20261030-8",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\ncd /tmp/rea-audit-plcodex-20261030-1647\necho 'FIXTURE_SETUP'\nsed -n '1,130p' tests/test_audit_p1_regressions.py\necho 'FIXTURE_FAILURE_REGION'\nsed -n '280,365p' tests/test_audit_p1_regressions.py\necho 'POSSIBLE_RELATED_ASSERTS'\ngrep -R -n 'source_revision\\|Project-leader\"\\|PLUGINS\\|recovery-guardian' tests/test_audit_p1_regressions.py tests/test_packaging.py | head -n 70\necho 'READ_DONE'"
+            "set -Eeuo pipefail\ncd /tmp/rea-audit-plcodex-20261030-1647\ntest \"$(git branch --show-current)\" = fix/rea-plcodex-audit-20261030\npython3 - <<'PY'\nfrom pathlib import Path\np=Path(\"tests/test_audit_p1_regressions.py\")\ns=p.read_text()\nold='(skill / \"references\" / \"recovery-protocol.md\").write_text('\nnew='(skill / \"references\" / (\"operational-routes.md\" if name == \"project-leader-codex\" else \"recovery-protocol.md\")).write_text('\nassert s.count(old)==1\ns=s.replace(old,new,1)\nold='            write_plugin(root, \"recovery-guardian\")\\n            manifest = build('\nnew='            write_plugin(root, \"recovery-guardian\")\\n            write_plugin(root, \"project-leader-codex\")\\n            manifest = build('\nassert s.count(old)==1\np.write_text(s.replace(old,new,1))\nprint(\"FIXTURE_ADAPTED\")\nPY\ngit --no-pager diff --check\npython3 -m unittest discover -s tests -p test_audit_p1_regressions.py -q\necho 'FIXTURE_PASS'"
           ],
-          "timeout_ms": 70000,
-          "idle_timeout_ms": 30000,
+          "timeout_ms": 90000,
+          "idle_timeout_ms": 45000,
           "limits": {
-            "output_bytes": 19000
+            "output_bytes": 9000
           }
         }
       }
