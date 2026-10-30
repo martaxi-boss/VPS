@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-plcodex-security-source-20261030-1659",
+  "request_id": "rea-plcodex-probes-and-workflows-20261030-1703",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,30 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nexport PYTHONDONTWRITEBYTECODE=1 GIT_PAGER=cat PAGER=cat\ncd /tmp/rea-audit-plcodex-20261030-1647\ntest \"$(git rev-parse HEAD)\" = \"4a5c5ba5876bad079ec4edf401416804c18bc521\"\npython3 - <<'PY'\nimport ast,re,json\nfrom pathlib import Path\np=Path.cwd()\ntargets={\n'codex/agent_policy.py':['load_registry','_select_model','plan','next_phase_action'],\n'codex/smart.py':['_execute_solo','execute','execute_coordinator_phases'],\n'codex/cloud_bridge.py':['execute_cloud','execute_cloud_coordinator_phases'],\n'codex/dual.py':['_preflight','_private_clone','_invoke_codex','_trusted_bwrap','_validator_sandbox_cmd','_worker','run'],\n'codex/owner_coordinator_ingress.py':['verify_owner_read_access','submit_owner_order'],\n'codex/phase_cycle.py':['execute_until_terminal'],\n'codex/resource_budget.py':['reserve_batch','settle_batch']\n}\nfor path,fnames in targets.items():\n z=p/path; lines=z.read_text().splitlines();tree=ast.parse(z.read_text());byname={n.name:n for n in tree.body if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef))}\n print('SOURCE_BEGIN',path,'TOTAL',len(lines),flush=True)\n for name in fnames:\n  n=byname.get(name)\n  if not n: print('MISSING_FUNC',name);continue\n  part=list(range(n.lineno,min(n.end_lineno+1,n.lineno+54)))\n  if n.end_lineno-n.lineno>=70:part += list(range(max(n.lineno+54,n.end_lineno-10),n.end_lineno+1))\n  print('FUNCTION',name,'lines',n.lineno,'-',n.end_lineno)\n  for ix in part:print(f'{ix:04d} {lines[ix-1][:220]}')\n print('SOURCE_END',path)\nfor path in ['codex/providers.json','.agents/plugins/marketplace.json','plugins/project-leader-codex/plugin.json','plugins/project-leader-codex/skills/project-leader-codex/SKILL.md','roles/SUPERVISOR.md']:\n z=p/path; print('CONFIG_BEGIN',path)\n for ix,line in enumerate(z.read_text(errors='replace').splitlines()[:90],1):print(f'{ix:03d} {line[:240]}')\n print('CONFIG_END',path)\nprint('WORKFLOW_SECURITY_START')\nfor w in sorted((p/'.github/workflows').glob('*.yml')):\n lines=w.read_text().splitlines()\n print('WORKFLOW',w.name,'lines',len(lines))\n for i,l in enumerate(lines,1):\n  if re.search(r'^on:|^  (push|pull_request|pull_request_target|workflow_run|issues|issue_comment|workflow_dispatch|schedule|repository_dispatch):|^permissions:|^  (contents|actions|issues|pull-requests|id-token):|^  [a-zA-Z_-]+:|\\$\\{\\{.*(secrets\\.|github\\.event\\.|github\\.head_ref)|gh (issue|api)|curl|token:|uses:|run:|git push|pull_request_target',l,re.I) and i<260:\n   print(f'{i:04d} {l[:240]}')\nprint('WORKFLOW_SECURITY_END')\nprint('CROSS_LINKS_START')\nfor x in ['codex','plugins/project-leader-codex','roles']:\n for f in (p/x).rglob('*'):\n  if f.is_file() and f.suffix in ('.py','.md','.json'):\n   t=f.read_text(errors='replace')\n   for key in ['telegram','supervisor','CODEX_EXECUTOR_UNAVAILABLE','owner_coordinator_ingress','issue-']:\n    hits=len(re.findall(re.escape(key),t,re.I))\n    if hits:print('LINK',str(f.relative_to(p)),key,hits)\nprint('CROSS_LINKS_END')\nprint('SOURCE_REVIEW_PASS')\nPY"
+            "set -Eeuo pipefail\nexport PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/tmp/rea-audit-plcodex-20261030-1647 GIT_PAGER=cat PAGER=cat\ncd /tmp/rea-audit-plcodex-20261030-1647\ntest \"$(git rev-parse HEAD)\" = \"4a5c5ba5876bad079ec4edf401416804c18bc521\"\npython3 - <<'PY'\nfrom pathlib import Path\nimport sys,os,re,json,ast,subprocess\np=Path.cwd()\nitems=json.loads((p/'.agents/plugins/marketplace.json').read_text())['plugins']\nregistered={x['name'] for x in items}\ndirs={x.name for x in (p/'plugins').iterdir() if x.is_dir() and (x/'plugin.json').exists()}\nprint('PLUGIN_REGISTERED',sorted(registered))\nprint('PLUGIN_SOURCE_DIRS',sorted(dirs))\nprint('PLUGIN_NOT_REGISTERED',sorted(dirs-registered))\npkg=(p/'scripts/package_plugins.py').read_text().splitlines()\nfor i,x in enumerate(pkg,1):\n if 'project-leader-codex' in x or 'recovery-guardian' in x or 'project-leader' in x or re.search(r'PLUGINS|plugin_names|build\\(',x):\n  print('PACKAGE_CODE',i,x.strip()[:240])\ncode=Path('codex/cloud_bridge.py').read_text().splitlines()\nfor i,x in enumerate(code,1):\n if i<=60:print('CLOUD_HEADER',i,x[:180])\nsub=[]\nfor f in p.rglob('*.py'):\n if '.project-leader' in f.parts:continue\n z=f.read_text(errors='replace')\n if re.search(r'class\\s+\\w+\\(\\s*CloudHost\\s*\\)',z):sub.append(str(f.relative_to(p)))\nprint('CLOUDHOST_SUBCLASSES',sub)\nfor f in [p/'codex/agent_policy.py',p/'codex/smart.py',p/'codex/cloud_bridge.py']:\n z=f.read_text()\n for key in ['SOFT_LIMIT_DEFAULT','no_attested_provider','CODEX_EXECUTOR_UNAVAILABLE','passive_notify']:\n  print('CODE_PATTERN',str(f.relative_to(p)),key,z.count(key))\nres=(p/'codex/resource_budget.py').read_text().splitlines()\nfor i,l in enumerate(res[:38],1):print('BUDGET_HEADER',i,l[:200])\ntests=(p/'codex/tests/test_agent_policy.py').read_text().splitlines()\nfor i,l in enumerate(tests[:90],1):print('PLAN_TEST_SAMPLE',i,l[:200])\nfrom codex.dual import _invoke_codex\nos.environ['PL_AUDIT_NON_SECRET_CANARY']='read_only_canary_20261030'\nout=_invoke_codex([sys.executable,'-c','import os; print(os.getenv(\"PL_AUDIT_NON_SECRET_CANARY\",\"MISSING\"))'],'',10)\nprint('CHILD_ENV_INHERITANCE',out[0],out[1].strip()=='read_only_canary_20261030','termination',out[3])\ndel os.environ['PL_AUDIT_NON_SECRET_CANARY']\nprint('AUDIT_PROBES_COMPLETE')\nPY"
+          ],
+          "timeout_ms": 90000,
+          "idle_timeout_ms": 45000,
+          "limits": {
+            "output_bytes": 36000
+          }
+        }
+      }
+    },
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/bin/bash",
+          "arguments": [
+            "-lc",
+            "set -Eeuo pipefail\nexport PYTHONDONTWRITEBYTECODE=1\ncd /tmp/rea-audit-plcodex-20261030-1647\ntest \"$(git rev-parse HEAD)\" = \"4a5c5ba5876bad079ec4edf401416804c18bc521\"\npython3 - <<'PY'\nfrom pathlib import Path\nfor name in ['.github/workflows/repository-hygiene.yml','.github/workflows/package-plugins.yml','.github/workflows/trusted-pr-gate.yml']:\n s=Path(name).read_text().splitlines()\n print('WORKFLOW_CONTENT_START',name,'LINES',len(s))\n selected=range(1,min(len(s)+1,180)) if 'repository-hygiene' in name else range(1,len(s)+1)\n for i in selected:print(f'{i:04d} {s[i-1][:200]}')\n print('WORKFLOW_CONTENT_END',name)\nprint('GITHUB_REVIEW_COMPLETE')\nPY"
           ],
           "timeout_ms": 80000,
           "idle_timeout_ms": 40000,
           "limits": {
-            "output_bytes": 90000
+            "output_bytes": 59000
           }
         }
       }
