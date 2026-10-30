@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-lowcost-continue-20261030-03",
+  "request_id": "rea-lowcost-continue-20261030-04",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,11 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -eu\nrepo=/srv/lowcost-europa\necho \"GIT_SHA_BEGIN\"\nsudo -n -u le001_1789265592 git -C \"$repo\" rev-parse HEAD\necho \"COUNTRY_REFERENCES_FRONTEND\"\nsudo -n -u le001_1789265592 git -C \"$repo\" grep -nE 'ship_from_country|is_ship_from_verified|ALLOWED_SHIP_FROM_COUNTRIES' -- apps/storefront || echo \"NO_EXPLICIT_FRONTEND_COUNTRY_QUERY\"\necho \"COUNTRY_REFERENCES_BACKEND\"\nsudo -n -u le001_1789265592 git -C \"$repo\" grep -lE 'ship_from_country|is_ship_from_verified|ALLOWED_SHIP_FROM_COUNTRIES' -- apps/catalog | head -n 30\necho \"PROMISE_REFERENCES\"\nsudo -n -u le001_1789265592 git -C \"$repo\" grep -nEi '5 dias|2.?5 dias|pa[ií]ses permitidos|armaz[eé]m|stock garantido' -- apps/storefront/templates | head -n 45 || echo \"NO_MATCH\"\necho \"SCHEDULE_STATE\"\nfor unit in lowcost-europa-catalog-maintenance.timer lowcost-europa-weekly-discovery.timer; do\nsystemctl is-active \"$unit\"\nsystemctl show \"$unit\" -p NextElapseUSecRealtime -p LastTriggerUSec --no-pager\ndone\necho \"GIT_SHA_END\""
+            "set -eu\nrepo=/srv/lowcost-europa\necho \"STATIC_BEGIN\"\nsudo -n -u le001_1789265592 git -C \"$repo\" rev-parse HEAD\necho \"PUBLIC_TEMPLATE_ORIGIN_FIELDS\"\nif sudo -n -u le001_1789265592 grep -nE 'ship_from_country|is_ship_from_verified|ALLOWED_SHIP_FROM_COUNTRIES' \"$repo/apps/storefront/templates/storefront/components/offer_card.html\" \"$repo/apps/storefront/templates/storefront/home.html\"; then echo \"FRONTEND_REFERENCE=YES\"; else echo \"FRONTEND_REFERENCE=NO\"; fi\necho \"PUBLIC_ELIGIBILITY\"\nsudo -n -u le001_1789265592 grep -n -E 'is_ship_from_verified|public_eligibility_q|is_active|affiliate_promotion_status|ship_from_country' \"$repo/apps/catalog/services/public_eligibility.py\"\necho \"WEEKLY_CAP\"\nsudo -n -u le001_1789265592 grep -n -E 'PENDING_CAP_PER_FAMILY|pending_before >=' \"$repo/apps/catalog/services/weekly_discovery.py\"\necho \"DISCOVERY_TIMER\"\nsystemctl is-active lowcost-europa-weekly-discovery.timer\necho \"MAINTENANCE_TIMER\"\nsystemctl is-active lowcost-europa-catalog-maintenance.timer\necho \"STATIC_END\""
           ],
-          "timeout_ms": 80000,
+          "timeout_ms": 70000,
+          "idle_timeout_ms": 18000,
           "limits": {
-            "output_bytes": 8000
+            "output_bytes": 5000
           }
         }
       }
