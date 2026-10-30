@@ -1,42 +1,20 @@
 {
-  "request_id": "rea-lowcost-audit-20261030-1556-final-coverage",
+  "request_id": "rea-lowcost-audit-20261030-1559-pages",
   "mcp_requests": [
     {
       "method": "tools/call",
       "params": {
         "name": "capture_process_scenario",
         "arguments": {
-          "executable": "/usr/bin/sudo",
+          "executable": "/bin/bash",
           "arguments": [
-            "-n",
-            "/bin/bash",
             "-lc",
-            "set -Eeuo pipefail\ncd /srv/lowcost-europa\nset -a\n. /etc/lowcost-europa/lowcost-europa.env\nset +a\nexport DJANGO_SETTINGS_MODULE=config.settings.production PYTHONDONTWRITEBYTECODE=1\nowner=le001_1789265592\necho \"CATEGORY_DB_BEGIN\"\nrunuser -u \"$owner\" --preserve-environment -- .venv/bin/python - <<'PY'\nimport django\ndjango.setup()\nfrom django.db.models import Count, Q\nfrom apps.catalog.models import OfferCandidate, ProductFamily, OfferFamilyPlacement, Offer\nfrom apps.catalog.services.public_eligibility import public_eligibility_q\nfrom django.utils import timezone\nq=Offer.objects.filter(public_eligibility_q(timezone.now()))\npending=OfferCandidate.objects.filter(status=OfferCandidate.Status.PENDING)\nprint(\"PENDING_TOTAL\",pending.count())\nfor f in ProductFamily.objects.all().order_by(\"display_order\",\"slug\"):\n  n=pending.filter(product_family=f).count()\n  public=OfferFamilyPlacement.objects.filter(product_family=f,offer__in=q).values(\"offer_id\").distinct().count()\n  print(\"FAMILY\",f.slug,\"STATUS\",f.status,\"PENDING\",n,\"ELIGIBLE_PLACEMENTS\",public,\"CAP20_HIT\",n>=20)\nprint(\"RETIRED_PENDING\",pending.filter(product_family__status=ProductFamily.Status.RETIRED).count())\nprint(\"LIVE_CATEGORIES\",ProductFamily.objects.exclude(status=ProductFamily.Status.RETIRED).count())\nprint(\"ACTIVE_WITHOUT_ELIGIBLE\",Offer.objects.filter(is_active=True).exclude(pk__in=q).count())\nprint(\"CATEGORY_DB_END\")\nPY"
+            "set -Eeuo pipefail\nbase=https://lowcost-europa.duckdns.org\necho \"PAGES_BEGIN\"\nfor p in / /pesquisar/?q=hifu /products/cavitacao-rf-vacuum-corpo/ /products/hydrodermoabrasao-aqua-facial-multifuncoes/ /products/pressoterapia-vacuum-drenagem/ /products/hifu/ /products/diodo-laser-remocao-tatuagens-pigmentacao/ /como-funciona/ /afiliados/ /privacidade/ /termos/ /contacto/ /sitemap.xml /robots.txt;do\n code=$(curl -sSL --max-time 12 -o /dev/null -w '%{http_code}' \"$base$p\")\n printf 'PAGE=%s CODE=%s\\n' \"$p\" \"$code\"\n test \"$code\" = 200\ndone\necho \"AFFILIATE_INVALID_GUARD\"\ngo_code=$(curl -sS --max-time 12 -o /dev/null -w '%{http_code}' \"$base/go/0/\")\necho \"INVALID_GO_CODE=$go_code\"\ntest \"$go_code\" = 404\necho \"NOINDEX\"\ncurl -sSI --max-time 12 \"$base/\" | grep -iq '^X-Robots-Tag: noindex'\necho \"NOINDEX_HEADER=PASS\"\necho \"PAGES_END\""
           ],
-          "timeout_ms": 110000,
-          "idle_timeout_ms": 40000,
+          "timeout_ms": 95000,
+          "idle_timeout_ms": 27000,
           "limits": {
-            "output_bytes": 14500
-          }
-        }
-      }
-    },
-    {
-      "method": "tools/call",
-      "params": {
-        "name": "capture_process_scenario",
-        "arguments": {
-          "executable": "/usr/bin/sudo",
-          "arguments": [
-            "-n",
-            "/bin/bash",
-            "-lc",
-            "set -Eeuo pipefail\ncd /srv/lowcost-europa\necho \"ROUTES_BEGIN\"\nsed -n '1,130p' apps/storefront/urls.py\necho \"DISCOVERY_FIRST35\"\nsed -n '1,36p' apps/catalog/services/weekly_discovery.py\necho \"ROBOTS_CONFIGURATION\"\ngrep -R -nE 'PUBLIC_INDEXING_ENABLED|robots.txt|noindex|X-Robots-Tag' apps/storefront/views.py apps/core/views.py apps/catalog/middleware.py config/urls.py | head -55\necho \"AFFILIATE_LINK_GUARD\"\ngrep -nE -C 2 'affiliate_url|is_active|eligible|is_ship_from' apps/storefront/views.py | head -95\necho \"ROUTES_END\""
-          ],
-          "timeout_ms": 110000,
-          "idle_timeout_ms": 40000,
-          "limits": {
-            "output_bytes": 14500
+            "output_bytes": 5000
           }
         }
       }
