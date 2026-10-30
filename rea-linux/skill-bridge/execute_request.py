@@ -1146,6 +1146,11 @@ def perform(req):
             result["mcp_catalog"] = catalog
             result["status"] = catalog["status"]
             return result
+        if req["operation"] in ("mcp_describe", "mcp_call"):
+            operation = run_original_mcp(req, env)
+            result["mcp_operation"] = operation
+            result["status"] = operation["status"]
+            return result
         tasks = []
         if req["operation"] in ("health", "providers"):
             tasks.extend([("providers", ["providers"]), ("capabilities", ["capabilities"])])
