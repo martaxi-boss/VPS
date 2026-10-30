@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-lowcost-audit-20261030-1550-envprobe",
+  "request_id": "rea-lowcost-audit-20261030-1552-db-correct",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -11,12 +11,32 @@
             "-n",
             "/bin/bash",
             "-lc",
-            "set -Eeuo pipefail\necho \"ENV_PROBE_BEGIN\"\necho \"IDENTITY=$(id -un)\"\nstat -c 'ENV_OWNER=%U:%G MODE=%a' /etc/lowcost-europa/lowcost-europa.env\necho \"ENV_KEYS\"\ngrep -E '^[[:space:]]*[A-Za-z_][A-Za-z_0-9]*=' /etc/lowcost-europa/lowcost-europa.env | cut -d= -f1 | sort\ncd /srv/lowcost-europa\nset -a\n. /etc/lowcost-europa/lowcost-europa.env\nset +a\necho \"DB_CONFIG_PROPERTIES\"\n.venv/bin/python - <<'PY'\nimport os\nfor k in (\"DJANGO_SETTINGS_MODULE\",\"POSTGRES_HOST\",\"POSTGRES_PORT\",\"POSTGRES_DB\",\"POSTGRES_USER\"):\n    v=os.environ.get(k)\n    print(k,\"SET=\"+str(v is not None),\"NONEMPTY=\"+str(bool(v)),\"HOST_IS_SOCKET=\"+str(bool(v and v.startswith(\"/\"))) if k==\"POSTGRES_HOST\" else \"\")\nprint(\"PASSWORD_SET\", bool(os.environ.get(\"POSTGRES_PASSWORD\")))\nPY\necho \"SERVICE_ENVIRONMENT\"\nsystemctl show lowcost-europa.service -p Environment -p EnvironmentFiles --no-pager | sed -E 's/(PASSWORD|TOKEN|KEY|SECRET)[^ ]*/REDACTED/g'\necho \"ENV_PROBE_END\""
+            "set -Eeuo pipefail\ncd /srv/lowcost-europa\nset -a\n. /etc/lowcost-europa/lowcost-europa.env\nset +a\nexport DJANGO_SETTINGS_MODULE=config.settings.production PYTHONDONTWRITEBYTECODE=1\nowner=le001_1789265592\necho \"DJANGO_DB_CHECK_BEGIN\"\nrunuser -u \"$owner\" --preserve-environment -- .venv/bin/python manage.py check\nrunuser -u \"$owner\" --preserve-environment -- .venv/bin/python manage.py check --deploy\nrunuser -u \"$owner\" --preserve-environment -- .venv/bin/python manage.py makemigrations --check --dry-run\nrunuser -u \"$owner\" --preserve-environment -- .venv/bin/python manage.py showmigrations catalog | tail -22\necho \"DJANGO_DB_CHECK_END\""
           ],
-          "timeout_ms": 75000,
-          "idle_timeout_ms": 25000,
+          "timeout_ms": 120000,
+          "idle_timeout_ms": 40000,
           "limits": {
-            "output_bytes": 5500
+            "output_bytes": 15000
+          }
+        }
+      }
+    },
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/usr/bin/sudo",
+          "arguments": [
+            "-n",
+            "/bin/bash",
+            "-lc",
+            "set -Eeuo pipefail\ncd /srv/lowcost-europa\nset -a\n. /etc/lowcost-europa/lowcost-europa.env\nset +a\nexport DJANGO_SETTINGS_MODULE=config.settings.production PYTHONDONTWRITEBYTECODE=1\nowner=le001_1789265592\necho \"DB_SNAPSHOT_BEGIN\"\nrunuser -u \"$owner\" --preserve-environment -- .venv/bin/python - <<'PY'\nimport django\ndjango.setup()\nfrom datetime import timedelta\nfrom django.db.models import Q, OuterRef, Subquery, Exists, Count\nfrom django.db.models.functions import Trim\nfrom django.utils import timezone\nfrom apps.catalog.models import Offer, OfferCandidate, OfferObservation, ProductFamily, OfferFamilyPlacement\nfrom apps.catalog.services.public_eligibility import public_eligibility_q\nnow=timezone.now()\nqs=Offer.objects.filter(public_eligibility_q(now))\nprint(\"OFFERS_TOTAL\", Offer.objects.count())\nprint(\"OFFERS_ACTIVE\", Offer.objects.filter(is_active=True).count())\nprint(\"PUBLIC_ELIGIBLE\", qs.count())\nprint(\"ELIGIBLE_NO_INDIVIDUAL_ORIGIN\",qs.filter(Q(ship_from_country__isnull=True)|Q(ship_from_verified_at__isnull=True)).count())\nprint(\"ELIGIBLE_ORIGIN_COUNTS\",list(qs.values(\"ship_from_country\").annotate(total=Count(\"id\")).order_by(\"ship_from_country\")))\nlatest=OfferObservation.objects.filter(offer_id=OuterRef(\"pk\")).order_by(\"-observed_at\",\"-pk\")\nprice=(OfferObservation.objects.filter(offer_id=OuterRef(\"pk\"),price__isnull=False,currency__isnull=False).annotate(clean_currency=Trim(\"currency\")).exclude(clean_currency=\"\").order_by(\"-observed_at\",\"-pk\"))\ndelivery=OfferObservation.objects.filter(offer_id=OuterRef(\"pk\")).filter(Q(delivery_days__isnull=False)|Q(search_delivery_days__isnull=False))\ne=qs.annotate(last_availability=Subquery(latest.values(\"availability\")[:1]),last_observed_at=Subquery(latest.values(\"observed_at\")[:1]),price_at=Subquery(price.values(\"observed_at\")[:1]),has_days=Exists(delivery))\nprint(\"LATEST_AVAILABILITY_COUNTS\",list(e.values(\"last_availability\").annotate(total=Count(\"id\")).order_by(\"last_availability\")))\nprint(\"ELIGIBLE_OLD_LAST_OBSERVATION_24H\",e.filter(Q(last_observed_at__lt=now-timedelta(hours=24))|Q(last_observed_at__isnull=True)).count())\nprint(\"ELIGIBLE_PRICE_UNVERIFIED_24H\",e.filter(Q(price_at__lt=now-timedelta(hours=24))|Q(price_at__isnull=True)).count())\nprint(\"ELIGIBLE_WITHOUT_DELIVERY_DAYS\",e.filter(has_days=False).count())\nprint(\"PENDING_TOTAL\",OfferCandidate.objects.filter(status=OfferCandidate.Status.PENDING).count())\nfor f in ProductFamily.objects.all().order_by(\"display_order\",\"slug\"):\n p=OfferCandidate.objects.filter(product_family=f,status=OfferCandidate.Status.PENDING).count()\n public=OfferFamilyPlacement.objects.filter(product_family=f,offer__in=qs).values(\"offer_id\").distinct().count()\n print(\"FAMILY\",f.slug,\"status=\"+str(f.status),\"pending=\"+str(p),\"public=\"+str(public),\"discovery_paused=\"+str(p>=20 and f.status==ProductFamily.Status.ACTIVE))\nprint(\"DB_SNAPSHOT_END\")\nPY"
+          ],
+          "timeout_ms": 120000,
+          "idle_timeout_ms": 40000,
+          "limits": {
+            "output_bytes": 15000
           }
         }
       }
