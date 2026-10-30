@@ -930,7 +930,8 @@ def analyze_project_javascript(req, env):
             out["diagnostic"] = {
                 "code": result["code"][:80],
                 "category": str(result.get("category", ""))[:60],
-                "message": str(result.get("message", ""))[:500]
+                "message": str(result.get("message", ""))[:500],
+                "details": json.dumps(result.get("details", {}), ensure_ascii=True)[:1800]
             }
         for key in ("status", "format", "application_type"):
             if isinstance(result, dict) and isinstance(result.get(key), (str, bool, int)):
