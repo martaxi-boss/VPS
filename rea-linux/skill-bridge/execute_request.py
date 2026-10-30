@@ -63,7 +63,7 @@ def validate(raw):
         raise ValueError("PROJECT_DENIED")
     if not isinstance(value["request_id"], str) or not re.fullmatch(r"[A-Za-z0-9._-]{8,80}", value["request_id"]):
         raise ValueError("REQUEST_ID_DENIED")
-    if value["operation"] not in ("health", "providers", "inspect_elf", "apk_demo", "isolation_audit", "environment_audit", "provider_diagnostics", "strict_separation_audit", "optional_source_symlinks", "hygiene_inventory", "analyze_project_javascript"):
+    if value["operation"] not in ("health", "providers", "inspect_elf", "apk_demo", "isolation_audit", "environment_audit", "provider_diagnostics", "strict_separation_audit", "optional_source_symlinks", "hygiene_inventory", "analyze_project_javascript", "mcp_catalog"):
         raise ValueError("OPERATION_DENIED")
     if value["operation"] == "analyze_project_javascript":
         if not isinstance(value["source_repo"], str) or re.fullmatch(r"martaxi-boss/[A-Za-z0-9_-]{1,65}", value["source_repo"]) is None:
@@ -949,6 +949,28 @@ def analyze_project_javascript(req, env):
         out["status"] = "PASS"
         return out
 
+def original_mcp_catalog(env):
+    """Read the tool contracts bundled with the pinned original author build."""
+    js = ("import {TOOL_CONTRACTS} from './dist/contracts/toolContracts.js';"
+          "import {MANAGED_WORKFLOW_TOOL_CONTRACTS} from "
+          "'./dist/contracts/managed/managedWorkflowToolContracts.js';"
+          "const all=[...TOOL_CONTRACTS,...MANAGED_WORKFLOW_TOOL_CONTRACTS];"
+          "process.stdout.write(JSON.stringify(all.map(x=>({name:x.name,kind:x.kind,effects:x.effects}))));")
+    trial = execute([str(NODE), "--input-type=module", "-e", js], env, timeout=50)
+    if trial["exit"] != 0:
+        return {"status":"BLOCKED", "reason":"CATALOG_LOAD_FAILED",
+                "exit":trial["exit"],"error":trial["error"][:180]}
+    try:
+        rows = json.loads(trial["output"])
+    except ValueError:
+        return {"status":"BLOCKED","reason":"CATALOG_INVALID_JSON"}
+    names = [x.get("name") for x in rows if isinstance(x,dict)]
+    if not names or len(set(names)) != len(names):
+        return {"status":"BLOCKED","reason":"CATALOG_INVALID_NAMES"}
+    return {"status":"PASS","catalog_source":"original_build_contracts",
+            "total":len(names),"names":sorted(names),
+            "note":"Catalog discovery is not proof of execution or provider readiness"}
+
 def perform(req):
     result = {"bridge": "original-final-cli-v1", "request_id": req["request_id"],
               "operation": req["operation"], "engine": engine_state(), "suppliers": supplier_state()}
@@ -1010,6 +1032,11 @@ def perform(req):
             report = analyze_project_javascript(req, env)
             result["project_analysis"] = report
             result["status"] = "PASS" if report["status"] == "PASS" else "PARTIAL"
+            return result
+        if req["operation"] == "mcp_catalog":
+            catalog = original_mcp_catalog(env)
+            result["mcp_catalog"] = catalog
+            result["status"] = catalog["status"]
             return result
         tasks = []
         if req["operation"] in ("health", "providers"):
