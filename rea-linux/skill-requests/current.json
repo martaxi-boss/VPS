@@ -2,6 +2,6 @@
   "schema_version": 1,
   "project": "engenharia-reversa-final",
   "engine_commit": "160d821ac9a0310afcb8d1fc427862dd6508add5",
-  "request_id": "rea-final-post-deletion-verify-20261030-p7",
-  "operation": "hygiene_inventory"
+  "request_id": "rea-final-plugin-setup-health-20261030-k1",
+  "operation": "health"
 }
