@@ -61,7 +61,7 @@ def validate(raw):
         raise ValueError("PROJECT_DENIED")
     if not isinstance(value["request_id"], str) or not re.fullmatch(r"[A-Za-z0-9._-]{8,80}", value["request_id"]):
         raise ValueError("REQUEST_ID_DENIED")
-    if value["operation"] not in ("health", "providers", "inspect_elf", "apk_demo", "isolation_audit", "environment_audit", "provider_diagnostics", "strict_separation_audit", "optional_source_symlinks"):
+    if value["operation"] not in ("health", "providers", "inspect_elf", "apk_demo", "isolation_audit", "environment_audit", "provider_diagnostics", "strict_separation_audit", "optional_source_symlinks", "hygiene_inventory"):
         raise ValueError("OPERATION_DENIED")
     return value
 
@@ -674,6 +674,114 @@ def optional_source_symlink_audit():
                         "exists":resolved.exists()})
         out[alias]=row
     return {"read_only":True,"sources":out}
+
+def hygiene_inventory():
+    """Read-only inventory of superseded optional supplier copies and their consumers.
+
+    This function never deletes, edits, loads or executes a supplier. Its output
+    is bounded and names only these three explicitly project-owned locations.
+    """
+    import shutil
+    import stat
+    home = Path("/home/ubuntu/.local/share")
+    private = Path("/home/ubuntu/rea-final-runtime")
+    candidates = {
+        "ilspy": ("rea-optional-ilspycmd-11.2.0", "rea-optional-ilspycmd-11.2.0/ilspycmd"),
+        "pwndbg": ("rea-optional-pwndbg-2026.09.15", "rea-optional-pwndbg-2026.09.15/tools/pwndbg/share/pwndbg/gdbinit.py"),
+        "pwntools": ("rea-optional-pwntools-4.15.0", "rea-optional-pwntools-4.15.0/bin/python"),
+    }
+    targets = {k: home/name for k, (name, executable) in candidates.items()}
+    mount_points = []
+    try:
+        for ln in Path("/proc/self/mountinfo").read_text(encoding="utf8").splitlines():
+            mount_points.append(ln.split()[4])
+    except (OSError, UnicodeError, IndexError):
+        mount_points.append("MOUNT_TABLE_UNREADABLE")
+    report = {"read_only": True, "disk_before_bytes": shutil.disk_usage(str(ROOT)).free,
+              "paths": {}, "private_runtime_references": {"symlinks": [], "small_launchers": []},
+              "process_references": [], "unreadable_processes": 0, "other_project_temp_names": []}
+    for alias, (name, executable) in candidates.items():
+        source = targets[alias]
+        final_file = private/"optional"/executable
+        final_real = final_file.resolve(strict=False)
+        row = {"source": str(source), "source_exists": source.exists(),
+               "source_symlink": source.is_symlink(),
+               "final_file": str(final_file), "final_file_exists": final_file.is_file(),
+               "final_file_private": final_real == private or private in final_real.parents,
+               "allocated_bytes": None, "source_owner_uid": None, "source_writeable": False,
+               "nested_mounts": []}
+        if source.exists() and not source.is_symlink():
+            try:
+                st = source.lstat()
+                row["source_owner_uid"] = st.st_uid
+                row["source_writeable"] = os.access(source, os.W_OK)
+                row["source_is_directory"] = stat.S_ISDIR(st.st_mode)
+                row["nested_mounts"] = [m for m in mount_points
+                    if m == str(source) or m.startswith(str(source)+"/")][:12]
+                p = subprocess.run(["du", "-s", "-B1", str(source)],
+                    stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL, text=True, timeout=25, check=False)
+                if p.returncode == 0:
+                    row["allocated_bytes"] = int(p.stdout.split()[0])
+            except (OSError, ValueError, subprocess.TimeoutExpired) as exc:
+                row["read_error"] = type(exc).__name__
+        report["paths"][alias] = row
+    # Check every symlink and small launcher inside the active private runtime.
+    # Do not follow symlinked directories; never open binary files.
+    source_bytes = {k: str(v).encode() for k, v in targets.items()}
+    count = 0
+    for root, dirs, files in os.walk(private, followlinks=False):
+        for name in dirs+files:
+            count += 1
+            path = Path(root)/name
+            if path.is_symlink():
+                link = str(path.resolve(strict=False))
+                for alias, source in targets.items():
+                    if link == str(source) or link.startswith(str(source)+"/"):
+                        report["private_runtime_references"]["symlinks"].append(
+                            {"supplier": alias, "path": str(path.relative_to(private))[:180]})
+            if len(report["private_runtime_references"]["small_launchers"]) >= 20:
+                continue
+            if not path.is_file() or path.is_symlink():
+                continue
+            if path.suffix.lower() not in (".pth", ".ini", ".cfg", ".toml", ".sh", ".py") and name not in ("ilspycmd","pwndbg","python","python3"):
+                continue
+            try:
+                if path.stat().st_size > 65536:
+                    continue
+                data = path.read_bytes()
+                for alias, marker in source_bytes.items():
+                    if marker in data:
+                        report["private_runtime_references"]["small_launchers"].append(
+                            {"supplier": alias, "path": str(path.relative_to(private))[:180]})
+            except OSError:
+                continue
+    report["private_runtime_references"]["scanned_entries"] = count
+    # Look at process cmdlines/maps/cwd without exposing arguments or secrets.
+    for p in Path("/proc").iterdir():
+        if not p.name.isdigit():
+            continue
+        try:
+            raw = (p/"cmdline").read_bytes() + (p/"maps").read_bytes()[:2097152]
+            cwd = str((p/"cwd").resolve(strict=False)).encode()
+            raw += cwd
+            for alias, marker in source_bytes.items():
+                if marker in raw:
+                    report["process_references"].append({"pid": int(p.name), "supplier": alias})
+        except (OSError, PermissionError):
+            report["unreadable_processes"] += 1
+    # Discover only names, never content, for additional candidate paths.
+    for directory in (home, Path("/tmp"), Path("/var/tmp")):
+        try:
+            for p in sorted(directory.iterdir(), key=lambda x:x.name):
+                if p.name.startswith(("rea-optional-", "rea-skill-probe-", "rea-doctor-audit-")):
+                    report["other_project_temp_names"].append(str(p)[:180])
+                if len(report["other_project_temp_names"]) >= 75:
+                    break
+        except OSError:
+            pass
+    return report
+
 def perform(req):
     result = {"bridge": "original-final-cli-v1", "request_id": req["request_id"],
               "operation": req["operation"], "engine": engine_state(), "suppliers": supplier_state()}
@@ -691,6 +799,10 @@ def perform(req):
     if req["operation"] == "optional_source_symlinks":
         result["optional_source_symlinks"]=optional_source_symlink_audit()
         result["status"]="PASS"
+        return result
+    if req["operation"] == "hygiene_inventory":
+        result["hygiene_inventory"] = hygiene_inventory()
+        result["status"] = "PASS"
         return result
     if req["operation"] == "strict_separation_audit":
         result["strict_separation_audit"] = strict_separation_audit()
