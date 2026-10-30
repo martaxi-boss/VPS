@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-plcodex-postmerge-final-cleanliness-20261030-a12",
+  "request_id": "rea-plcodex-cli-preflight-20261030-b01",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nexport GIT_PAGER=cat PAGER=cat GIT_TERMINAL_PROMPT=0 PYTHONDONTWRITEBYTECODE=1\ntmp=\"$(mktemp -d /tmp/rea-plcodex-hygiene-final.XXXXXX)\"\ntrap 'rm -rf \"$tmp\"' EXIT\ngit clone --quiet --depth 3 --branch main https://github.com/martaxi-boss/Project-leader-codex.git \"$tmp/repo\"\ncd \"$tmp/repo\"\ntest \"$(git rev-parse HEAD)\" = e0bd29c5136b32a02e6513df8e87648b6a3d355f\npython3 - <<'PY'\nfrom pathlib import Path\nimport hashlib,subprocess\nchecks={\n'README_CODEX.md':'32159b7425aec45a1fa2a8283528297f45d30fc22ab03b70d857e8b9c87968e2',\n'codex/tests/test_coordination_contract.py':'5d64f483fbd7fda9e79dc200ff8bec84c6ce0673f1e47f1024bd54b127053b27'}\nfor path,digest in checks.items():\n assert hashlib.sha256(Path(path).read_bytes()).hexdigest()==digest,'POSTMERGE_SHA256_CHANGED '+path\n print('POSTMERGE_BLOB_MATCH',path,flush=True)\nassert not Path('codex/owner_coordinator_ingress.py').exists()\nassert not Path('codex/tests/test_owner_coordinator_ingress.py').exists()\nassert Path('AGENTS.md').exists() and Path('CODEX_COORDINATION.md').exists()\nprint('SINGLE_COORDINATOR_CODE_AND_RETIRED_RELAY_CONFIRMED',flush=True)\ntracked=subprocess.check_output(['git','ls-files'],text=True).splitlines()\nprint('POSTMERGE_TRACKED_FILE_COUNT',len(tracked),flush=True)\nprint('HISTORICAL_CONTROL_RECORDS_PRESERVED',sum(p.startswith('.project-leader/') for p in tracked),flush=True)\nPY\npython3 -m unittest codex.tests.test_coordination_contract -q\necho POSTMERGE_POLICY_REGRESSION_PASS\npython3 -m unittest tests.test_trusted_gate -q\necho POSTMERGE_TRUST_REGRESSION_PASS\ngit diff --check HEAD^ HEAD\ntest -z \"$(git status --porcelain)\"\necho POSTMERGE_REA_CLEAN_VERIFIED\n"
+            "set -Eeuo pipefail\nexport GIT_PAGER=cat PAGER=cat GIT_TERMINAL_PROMPT=0 PYTHONDONTWRITEBYTECODE=1\necho REA_PREFLIGHT_TARGET=Project-leader-codex\nid\nprintf 'SHELL_HOME=%s\\n' \"$HOME\"\ncommand -v python3\nif command -v codex >/dev/null 2>&1; then echo CODEX_CLI_PRESENT; else echo CODEX_CLI_ABSENT_ON_REA_HOST; fi\ntmp=\"$(mktemp -d /tmp/rea-plcodex-cli-diagnostic.XXXXXX)\"\ntrap 'rm -rf \"$tmp\"' EXIT\ngit clone --quiet --depth 2 --branch main https://github.com/martaxi-boss/Project-leader-codex.git \"$tmp/repo\"\ncd \"$tmp/repo\"\nprintf 'REPO_HEAD='\ngit rev-parse HEAD\npython3 - <<'PY'\nfrom pathlib import Path\nfor p in ['codex/smart.py','codex/dual.py','codex/tests/test_smart.py','codex/tests/test_dual.py']:\n f=Path(p); print('FILE',p,'EXISTS',f.exists())\n if f.exists():\n  lines=f.read_text().splitlines()\n  for i,line in enumerate(lines):\n   if any(s in line for s in ['def _worker(', 'def _private_clone(', 'codex', 'run_directory', 'CODEX_HOME', 'TMPDIR', 'Read-only file system']):\n    if ('def ' in line or 'CODEX_HOME' in line or 'TMPDIR' in line or 'subprocess.run(' in line or '[\"codex\"' in line or 'which(\"codex\")' in line or 'Read-only file system' in line):\n     print('INSPECT',p,i+1,line[:200])\nPY\ngit diff --check\necho REA_PREFLIGHT_COMPLETE"
           ],
           "timeout_ms": 150000,
-          "idle_timeout_ms": 100000,
+          "idle_timeout_ms": 90000,
           "limits": {
-            "output_bytes": 9500
+            "output_bytes": 16000
           }
         }
       }
