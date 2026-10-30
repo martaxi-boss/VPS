@@ -57,14 +57,30 @@ def validate(raw):
     required = {"schema_version", "project", "engine_commit", "request_id", "operation"}
     if isinstance(value, dict) and value.get("operation") == "analyze_project_javascript":
         required |= {"source_repo", "revision", "javascript_dir", "source_paths"}
+    if isinstance(value, dict) and value.get("operation") in ("mcp_describe", "mcp_call"):
+        required.add("tool_name")
+        if value["operation"] == "mcp_call":
+            required.add("arguments")
     if not isinstance(value, dict) or set(value) != required:
         raise ValueError("SCHEMA_DENIED")
     if value["schema_version"] != 1 or value["project"] != "engenharia-reversa-final" or value["engine_commit"] != PIN:
         raise ValueError("PROJECT_DENIED")
     if not isinstance(value["request_id"], str) or not re.fullmatch(r"[A-Za-z0-9._-]{8,80}", value["request_id"]):
         raise ValueError("REQUEST_ID_DENIED")
-    if value["operation"] not in ("health", "providers", "inspect_elf", "apk_demo", "isolation_audit", "environment_audit", "provider_diagnostics", "strict_separation_audit", "optional_source_symlinks", "hygiene_inventory", "analyze_project_javascript", "mcp_catalog"):
+    if value["operation"] not in ("health", "providers", "inspect_elf", "apk_demo", "isolation_audit", "environment_audit", "provider_diagnostics", "strict_separation_audit", "optional_source_symlinks", "hygiene_inventory", "analyze_project_javascript", "mcp_catalog", "mcp_describe", "mcp_call"):
         raise ValueError("OPERATION_DENIED")
+    if value["operation"] in ("mcp_describe", "mcp_call"):
+        name = value["tool_name"]
+        if not isinstance(name, str) or re.fullmatch(r"[a-z][a-z0-9_]{2,90}", name) is None:
+            raise ValueError("TOOL_NAME_DENIED")
+        if value["operation"] == "mcp_call":
+            args = value["arguments"]
+            if not isinstance(args, dict) or len(json.dumps(args)) > 1400:
+                raise ValueError("TOOL_ARGUMENTS_DENIED")
+            # Fail closed on host paths or shell/process directives from a request.
+            for key, entry in args.items():
+                if not isinstance(key, str) or key.startswith("__"):
+                    raise ValueError("TOOL_ARGUMENT_KEY_DENIED")
     if value["operation"] == "analyze_project_javascript":
         if not isinstance(value["source_repo"], str) or re.fullmatch(r"martaxi-boss/[A-Za-z0-9_-]{1,65}", value["source_repo"]) is None:
             raise ValueError("SOURCE_REPO_DENIED")
