@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-telegram-leads-audit-preflight-20261030-1611",
+  "request_id": "rea-telegram-leads-audit-locate-20261030-1613",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,10 +9,10 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\necho \"PREFLIGHT_BEGIN\"\npython3 - <<'PY'\nimport os,subprocess\nroots=['/srv','/opt','/home/ubuntu','/home','/root','/var/www']\nseen=set()\nfor base in roots:\n if not os.path.isdir(base):continue\n for root,dirs,files in os.walk(base,topdown=True,followlinks=False):\n  depth=len(os.path.relpath(root,base).split(os.sep)) if root!=base else 0\n  if depth>3:dirs[:]=[];continue\n  dirs[:]=[x for x in dirs if x not in ('.git','node_modules','.venv','venv','__pycache__','dist','build','.cache','.npm','.local')]\n  name=os.path.basename(root).lower()\n  if ('telegram' in name and ('lead' in name or 'robot' in name)) or name in ('telegram-robot-leads','telegram-iptvpn'):\n   if root in seen:continue\n   seen.add(root)\n   st=os.stat(root)\n   import pwd\n   print('PROJECT_CANDIDATE',root,'OWNER',pwd.getpwuid(st.st_uid).pw_name)\n   print('ROOT_FILES',','.join(sorted(os.listdir(root))[:55]))\n   for path in ('package.json','requirements.txt','pyproject.toml','docker-compose.yml','ecosystem.config.js','ecosystem.config.cjs'):\n    if os.path.isfile(os.path.join(root,path)):print('STACK_MARKER',path)\nprint('CANDIDATES_TOTAL',len(seen))\nprint('CURRENT_USER',subprocess.check_output(['id','-un'],text=True).strip())\nPY\necho \"PROCESS_NAMES\"\nps -eo user=,comm= | grep -Ei 'telegram|telethon|pm2|python|node' | sort | uniq -c | head -35 || test ${PIPESTATUS[1]} -eq 1\necho \"PREFLIGHT_END\""
+            "set -Eeuo pipefail\necho AUDIT_LOCATE_BEGIN\nif sudo -n true 2>/dev/null; then echo SUDO_AVAILABLE=yes; else echo SUDO_AVAILABLE=no; fi\npython3 - <<'PY'\nimport subprocess,json\ncmd=['sudo','-n','/usr/bin/python3','-c',\"\"\"import os,pwd\nroots=['/srv','/opt','/root','/home','/var/www']\nfound=[]\nfor base in roots:\n if not os.path.isdir(base):continue\n for path,dirs,files in os.walk(base):\n  dep=0 if path==base else len(os.path.relpath(path,base).split('/'))\n  if dep>5: dirs[:]=[];continue\n  dirs[:]=[d for d in dirs if d not in ['.git','.venv','venv','node_modules','.cache','.local','__pycache__','site-packages']]\n  name=os.path.basename(path).lower()\n  if ('telegram' in name and any(w in name for w in ('lead','robot','iptvpn'))) or ('leads' in name and dep<=4):\n   st=os.stat(path);found.append((path,pwd.getpwuid(st.st_uid).pw_name,','.join(sorted(os.listdir(path))[:40])))\nfor path,owner,items in found[:30]:print('DIR',path,'OWNER',owner,'FILES',items)\nprint('FIND_TOTAL',len(found))\n\"\"\"]\np=subprocess.run(cmd,capture_output=True,text=True,timeout=20)\nprint('ROOT_SCAN_EXIT',p.returncode)\nprint((p.stdout or p.stderr)[:7000])\nfor c in [['sudo','-n','pm2','jlist'],['sudo','-n','systemctl','list-units','--type=service','--all','--no-pager','--no-legend']]:\n try:\n  p=subprocess.run(c,capture_output=True,text=True,timeout=15)\n  print('CHECK',c[-1],'EXIT',p.returncode)\n  if c[-1]=='jlist' and p.returncode==0:\n   arr=json.loads(p.stdout)\n   for x in arr:\n    e=x.get('pm2_env',{})\n    print('PM2_APP',x.get('name'),'status',e.get('status'),'cwd',e.get('pm_cwd'),'exec',e.get('pm_exec_path'),'restarts',e.get('restart_time'))\n  elif c[-1]!='jlist' and p.returncode==0:\n   for line in p.stdout.splitlines():\n    if any(w in line.lower() for w in ('telegram','lead','robot')): print('SERVICE',line[:200])\n  else:print('ERROR',p.stderr[:350])\n except Exception as e:print('CHECK_EXCEPTION',str(e)[:100])\nPY\necho AUDIT_LOCATE_END"
           ],
           "timeout_ms": 70000,
-          "idle_timeout_ms": 20000,
+          "idle_timeout_ms": 23000,
           "limits": {
             "output_bytes": 11000
           }
