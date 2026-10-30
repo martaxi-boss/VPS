@@ -1,6 +1,10 @@
 {
-  "request_id": "rea-telegram-leads-group-privileges-retry-20261030",
+  "request_id": "rea-plcodex-continued-preflight-20261030-1747",
   "mcp_requests": [
+    {
+      "method": "tools/list",
+      "params": {}
+    },
     {
       "method": "tools/call",
       "params": {
@@ -9,12 +13,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n -H /opt/telegram-robot-leads/.venv/bin/python - <<'PY'\nimport asyncio,sys\nfrom pathlib import Path\nsys.path.insert(0,'/opt/telegram-robot-leads/scripts')\nfrom telethon_sessions import inspect,make_memory_client\nfrom telethon.tl.functions.channels import GetParticipantRequest\nfrom telethon.tl.types import ChannelParticipantAdmin,ChannelParticipantCreator\nconfig=inspect(Path('/root/project-secrets/telegram-robot-leads'))\nasync def check(entry):\n client=make_memory_client(entry,config)\n number=entry['index']\n try:\n  await asyncio.wait_for(client.connect(),25)\n  auth=await asyncio.wait_for(client.is_user_authorized(),20)\n  if not auth:\n   print('GROUP_ACCESS',number,'authorized',False);return False\n  group=await asyncio.wait_for(client.get_entity(config['group']),25)\n  me=await asyncio.wait_for(client.get_me(),20)\n  obj=await asyncio.wait_for(client(GetParticipantRequest(channel=group,participant=me)),25)\n  part=obj.participant;admin=isinstance(part,(ChannelParticipantAdmin,ChannelParticipantCreator))\n  rights=getattr(part,'admin_rights',None)\n  print('GROUP_ACCESS',number,'authorized',True,'group_access',True,'role',type(part).__name__,'admin_or_owner',admin,'can_invite',bool(getattr(rights,'invite_users',False)) if rights else admin)\n  return True\n except Exception as exc:\n  print('GROUP_ACCESS',number,'verified',False,'error_type',type(exc).__name__)\n  return False\n finally:\n  if client.is_connected():\n   await client.disconnect()\nasync def main():\n results=[]\n for entry in config['entries']:results.append(await check(entry))\n print('GROUP_READONLY_SUMMARY','verified',sum(results),'of',len(results))\nasyncio.run(main())\nPY"
+            "set -Eeuo pipefail\nexport GIT_PAGER=cat PAGER=cat GIT_TERMINAL_PROMPT=0 PYTHONDONTWRITEBYTECODE=1\necho 'REA_PLCODEX_PREFLIGHT_BEGIN'\nid\npython3 --version\ncd /tmp/rea-audit-plcodex-20261030-1647\necho 'SOURCE_ROOT' \"$(pwd)\"\necho 'HEAD' \"$(git rev-parse HEAD)\"\necho 'BRANCH' \"$(git branch --show-current)\"\necho 'STATUS_START'\ngit status --short\necho 'STATUS_END'\npython3 - <<'PY'\nfrom pathlib import Path\nimport json\nroot=Path.cwd()\np=root/'projects/policies/project-leader.json'\ndata=json.loads(p.read_text())\nprint('POLICY_ID',data['policy_id'],'REPO',data['repository'])\nprint('E3_ALLOWED',data['effect_policies']['E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED']['allowed_actions'])\nprint('E3_CI',data['effect_policies']['E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED']['required_ci'])\nprint('E3_VALIDATION',data['effect_policies']['E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED']['required_validation'])\nfound=[]\nfor x in sorted((root/'.project-leader/tasks').glob('*.json')):\n try: row=json.loads(x.read_text())\n except Exception:continue\n if row.get('effect_class')=='E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED': found.append((x,row))\nprint('E3_TASKS',len(found))\nfor x,r in found[-3:]:\n print('SAMPLE_BEGIN',str(x.relative_to(root)))\n print(json.dumps(r,ensure_ascii=True,indent=2)[:9500])\n print('SAMPLE_END')\nfor name in ('control/validate_records.py','control/trusted_gate.py'):\n text=(root/name).read_text().splitlines()\n for needle in ('def validate_task(', 'def validate_pair(', 'def verify_task_against_base_policy('):\n  for i,line in enumerate(text):\n   if needle in line:\n    print('FUNCTION_LOC',name,needle,i+1)\nprint('PREFLIGHT_OK')\nPY"
           ],
-          "timeout_ms": 150000,
-          "idle_timeout_ms": 85000,
+          "timeout_ms": 90000,
+          "idle_timeout_ms": 42000,
           "limits": {
-            "output_bytes": 5500
+            "output_bytes": 25000
           }
         }
       }
