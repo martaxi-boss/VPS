@@ -926,6 +926,12 @@ def analyze_project_javascript(req, env):
         out["json"] = True
         out["evidence_id"] = doc.get("evidence_id") if isinstance(doc.get("evidence_id"), str) else None
         out["result_fields"] = list(result)[:28] if isinstance(result, dict) else []
+        if isinstance(result, dict) and isinstance(result.get("code"), str):
+            out["diagnostic"] = {
+                "code": result["code"][:80],
+                "category": str(result.get("category", ""))[:60],
+                "message": str(result.get("message", ""))[:500]
+            }
         for key in ("status", "format", "application_type"):
             if isinstance(result, dict) and isinstance(result.get(key), (str, bool, int)):
                 out[key] = result[key]
