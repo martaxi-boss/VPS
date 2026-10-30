@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-final-postupdate-109-certification-20261030",
+  "request_id": "rea-telegram-leads-audit-preflight-20261030-1611",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,34 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\necho FINAL_PREFLIGHT_BEGIN\ncd /srv/lowcost-europa\npython3 - <<'PY'\nimport ast\nfrom pathlib import Path\nt=ast.parse(Path('apps/catalog/models.py').read_text())\nfamily=next(x for x in t.body if isinstance(x,ast.ClassDef) and x.name=='ProductFamily')\nstatus=next(x for x in family.body if isinstance(x,ast.ClassDef) and x.name=='Status')\nlabels=[x.targets[0].id for x in status.body if isinstance(x,ast.Assign) and len(x.targets)==1 and isinstance(x.targets[0],ast.Name)]\nassert 'RETIRED' in labels\nassert 'ACTIVE' not in labels\nprint(\"MODEL_OK\",\",\".join(labels))\nPY\nbase=https://lowcost-europa.duckdns.org\nfor path in / /products/hifu/ /robots.txt /sitemap.xml; do\n code=$(curl -sSL --max-time 12 -o /dev/null -w '%{http_code}' \"$base$path\")\n echo \"HTTP_$path=$code\"\n test \"$code\" = 200\ndone\nbad=$(curl -sS --max-time 12 -o /dev/null -w '%{http_code}' \"$base/go/0/\")\necho \"INVALID_LINK=$bad\"\ntest \"$bad\" = 404\ncurl -sSI --max-time 12 \"$base/\" | grep -iq '^X-Robots-Tag: noindex'\necho FINAL_PREFLIGHT_PASS"
+            "set -Eeuo pipefail\necho \"PREFLIGHT_BEGIN\"\npython3 - <<'PY'\nimport os,subprocess\nroots=['/srv','/opt','/home/ubuntu','/home','/root','/var/www']\nseen=set()\nfor base in roots:\n if not os.path.isdir(base):continue\n for root,dirs,files in os.walk(base,topdown=True,followlinks=False):\n  depth=len(os.path.relpath(root,base).split(os.sep)) if root!=base else 0\n  if depth>3:dirs[:]=[];continue\n  dirs[:]=[x for x in dirs if x not in ('.git','node_modules','.venv','venv','__pycache__','dist','build','.cache','.npm','.local')]\n  name=os.path.basename(root).lower()\n  if ('telegram' in name and ('lead' in name or 'robot' in name)) or name in ('telegram-robot-leads','telegram-iptvpn'):\n   if root in seen:continue\n   seen.add(root)\n   st=os.stat(root)\n   import pwd\n   print('PROJECT_CANDIDATE',root,'OWNER',pwd.getpwuid(st.st_uid).pw_name)\n   print('ROOT_FILES',','.join(sorted(os.listdir(root))[:55]))\n   for path in ('package.json','requirements.txt','pyproject.toml','docker-compose.yml','ecosystem.config.js','ecosystem.config.cjs'):\n    if os.path.isfile(os.path.join(root,path)):print('STACK_MARKER',path)\nprint('CANDIDATES_TOTAL',len(seen))\nprint('CURRENT_USER',subprocess.check_output(['id','-un'],text=True).strip())\nPY\necho \"PROCESS_NAMES\"\nps -eo user=,comm= | grep -Ei 'telegram|telethon|pm2|python|node' | sort | uniq -c | head -35 || test ${PIPESTATUS[1]} -eq 1\necho \"PREFLIGHT_END\""
           ],
-          "timeout_ms": 90000,
-          "idle_timeout_ms": 25000,
+          "timeout_ms": 70000,
+          "idle_timeout_ms": 20000,
           "limits": {
-            "output_bytes": 6000
-          }
-        }
-      }
-    },
-    {
-      "method": "tools/call",
-      "params": {
-        "name": "capture_process_scenario",
-        "arguments": {
-          "executable": "/usr/bin/sudo",
-          "arguments": [
-            "-n",
-            "-u",
-            "le001_1789265592",
-            "/bin/bash",
-            "-lc",
-            "set -Eeuo pipefail; cd /srv/lowcost-europa; echo FINAL_GIT_BEGIN; GIT_PAGER=cat PAGER=cat git --no-pager rev-parse --short HEAD; git --no-pager diff --check; git --no-pager status --short; echo FINAL_GIT_PASS"
-          ],
-          "timeout_ms": 50000,
-          "idle_timeout_ms": 15000,
-          "limits": {
-            "output_bytes": 4500
+            "output_bytes": 11000
           }
         }
       }
