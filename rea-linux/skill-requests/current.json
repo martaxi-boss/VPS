@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-plcodex-read-staged-20261030-5",
+  "request_id": "rea-plcodex-packaging-tests-20261030-6",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "cd /tmp/rea-audit-plcodex-20261030-1647 && git status --short && git diff --check && git diff --stat"
+            "set -Eeuo pipefail\nexport PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/tmp/rea-audit-plcodex-20261030-1647 GIT_PAGER=cat PAGER=cat\ncd /tmp/rea-audit-plcodex-20261030-1647\ntest \"$(git branch --show-current)\" = \"fix/rea-plcodex-audit-20261030\"\necho 'FOCUSED_TESTS_START'\npython3 -m unittest discover -s tests -p test_packaging.py -q\necho 'FOCUSED_TESTS_PASS'\npython3 -m unittest discover -s tests -p test_*.py -q\necho 'CONTROL_TESTS_PASS'\npython3 -m unittest discover -s codex/tests -p test_*.py -q\necho 'CODEX_TESTS_PASS'\ngit --no-pager diff --check\necho 'CORRECTIONS_TESTED_PASS'"
           ],
-          "timeout_ms": 45000,
-          "idle_timeout_ms": 20000,
+          "timeout_ms": 190000,
+          "idle_timeout_ms": 130000,
           "limits": {
-            "output_bytes": 6000
+            "output_bytes": 13000
           }
         }
       }
