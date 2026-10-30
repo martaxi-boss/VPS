@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-lowcost-readonly-preflight-20261030-02",
+  "request_id": "rea-lowcost-owner-preflight-20261030-03",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,17 +9,17 @@
           "executable": "/bin/bash",
           "arguments": [
             "-c",
-            "set -eu\nprintf 'USER='; id -un\nprintf 'CWD='; pwd\nprintf 'DEPLOYED_SHA='; git rev-parse HEAD\nprintf 'TRACKED_WORKTREE='; if [ -z \"$(git status --porcelain --untracked-files=no)\" ]; then echo clean; else echo dirty; fi\nprintf 'BRANCH='; git branch --show-current\nprintf 'SERVICE='; systemctl is-active lowcost-europa.service || true\nprintf 'READY_LOCAL='; curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://127.0.0.1:8001/health/ready/ || true; echo\nprintf 'VENV='; if [ -x .venv/bin/python ]; then .venv/bin/python --version; else echo absent; fi\nprintf 'BACKUP_FILE='; find /var/backups/lowcost-europa/daily -maxdepth 1 -type f -name 'lowcost-europa-*.dump' -printf '%f\\n' 2>/dev/null | sort | tail -n 1 || true\nprintf 'DISK_FREE='; df -P . | tail -n 1 | awk '{print $4}'"
+            "set -eu\nAPP=/srv/lowcost-europa\nACCOUNT=$(stat -c %U \"$APP\")\nprintf 'APP_OWNER=%s\\n' \"$ACCOUNT\"\nprintf 'DEPLOYED_SHA='; sudo -n -u \"$ACCOUNT\" git -C \"$APP\" rev-parse HEAD\nprintf 'WORKTREE='; if [ -z \"$(sudo -n -u \"$ACCOUNT\" git -C \"$APP\" status --porcelain=v1 --untracked-files=normal)\" ]; then echo clean; else echo dirty; fi\nprintf 'SERVICE='; systemctl is-active lowcost-europa.service\nprintf 'NGINX='; systemctl is-active nginx.service\nprintf 'POSTGRES='; systemctl is-active postgresql.service\nprintf 'REPORT_TIMER='; systemctl is-active lowcost-europa-affiliate-report.timer\nprintf 'READY_LOCAL='; curl -sS --max-time 5 -H 'Host: lowcost-europa.duckdns.org' -H 'X-Forwarded-Proto: https' -o /dev/null -w '%{http_code}' http://127.0.0.1:8001/health/ready/; echo\nprintf 'VENV='; if [ -x \"$APP/.venv/bin/python\" ]; then echo present; else echo absent; fi\nprintf 'BACKUP_LATEST='; sudo -n find /var/backups/lowcost-europa/daily -maxdepth 1 -type f -name 'lowcost-europa-*.dump' -printf '%T@ %f\\n' | sort -nr | head -n 1 | cut -d' ' -f2-\nprintf 'OFFSITE_MARKER='; if sudo -n test -f /var/lib/lowcost-europa/offsite-backup.last-success; then echo present; else echo absent; fi\nprintf 'FREE_MB='; df -Pm \"$APP\" | awk 'NR==2{print $4}'"
           ],
           "working_directory": "/srv/lowcost-europa",
-          "timeout_ms": 30000,
+          "timeout_ms": 45000,
           "terminal": {
-            "columns": 105,
-            "rows": 32,
-            "scrollback": 150
+            "columns": 110,
+            "rows": 35,
+            "scrollback": 200
           },
           "limits": {
-            "output_bytes": 16000
+            "output_bytes": 12000
           }
         }
       }
