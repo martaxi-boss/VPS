@@ -1,6 +1,10 @@
 {
-  "request_id": "rea-telegram-leads-sync-tests-and-doc-20261030",
+  "request_id": "rea-plcodex-preflight-20261030-1644",
   "mcp_requests": [
+    {
+      "method": "tools/list",
+      "params": {}
+    },
     {
       "method": "tools/call",
       "params": {
@@ -9,12 +13,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n -H /bin/bash -lc 'set -Eeuo pipefail\nexport PYTHONDONTWRITEBYTECODE=1 GIT_PAGER=cat PAGER=cat\npython3 - <<\"PY\"\nimport os,subprocess,sys,shutil,stat,tempfile,hashlib\nfrom pathlib import Path\nlive=Path(\"/opt/telegram-robot-leads\")\nsrc=live/\".rea-fix-status-20261030\"\nbackup=live/\".rea-tests-backup-655a9115-20261030\"\ntarget=live/\"tests\"\nsource=src/\"tests\"\nexpected=\"655a911595fd49b0eaeb4feec4dc5a0fb4ac61e0\"\nsha=subprocess.check_output([\"git\",\"-C\",str(src),\"rev-parse\",\"HEAD\"],text=True).strip()\nassert sha==expected==(live/\".verified-source-commit\").read_text().strip()\nassert backup.is_dir() and not backup.is_symlink()\nassert target.is_dir() and not target.is_symlink()\nassert source.is_dir() and not source.is_symlink()\ndef snapshot(path):\n return {p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in path.iterdir() if p.is_file() and p.suffix==\".py\"}\nassert snapshot(target)==snapshot(backup), \"rollback from first attempt is incomplete\"\nfiles=list(source.glob(\"*.py\"))\nassert len(files)>=15\nfor p in files:\n assert p.is_file() and not p.is_symlink() and p.stat().st_size<=3_000_000\ndoc_rel=Path(\"docs/TELEGRAM_ONLY_INSTALLATION.md\")\ndoc_src=src/doc_rel\ndoc_dst=live/doc_rel\nassert doc_src.is_file() and not doc_src.is_symlink() and doc_src.stat().st_size<2_000_000\nassert doc_dst.parent.is_dir() and not doc_dst.parent.is_symlink()\nassert not doc_dst.is_symlink()\ndoc_before=doc_dst.read_bytes() if doc_dst.is_file() else None\ndoc_mode=stat.S_IMODE(doc_dst.stat().st_mode) if doc_before is not None else 0o644\nchanged=[];removed=[]\ndef put(dst,data,mode=0o644):\n fd,tmp=tempfile.mkstemp(prefix=\".rea-sync-\",dir=str(dst.parent))\n try:\n  with os.fdopen(fd,\"wb\") as w:w.write(data)\n  os.chmod(tmp,mode)\n  os.replace(tmp,dst)\n finally:\n  if os.path.exists(tmp):os.unlink(tmp)\ntry:\n for p in files:\n  t=target/p.name\n  if not t.exists() or t.read_bytes()!=p.read_bytes():\n   assert not t.is_symlink()\n   put(t,p.read_bytes(),stat.S_IMODE(p.stat().st_mode))\n   changed.append(p.name)\n for p in target.glob(\"test_*.py\"):\n  if not (source/p.name).exists():\n   p.unlink();removed.append(p.name)\n put(doc_dst,doc_src.read_bytes())\n run=subprocess.run([str(live/\".venv/bin/python\"),\"-m\",\"unittest\",\"discover\",\"-s\",\"tests\",\"-p\",\"test_*.py\",\"-q\"],cwd=live,capture_output=True,text=True,timeout=90,env={**os.environ,\"PYTHONDONTWRITEBYTECODE\":\"1\"})\n print(\"SUITE_EXIT\",run.returncode,flush=True)\n print(\"SUITE_OUTPUT\",(run.stdout+run.stderr)[-2000:],flush=True)\n assert run.returncode==0 and \"Ran 221 tests\" in (run.stdout+run.stderr) and \"OK\" in (run.stdout+run.stderr)\n assert snapshot(target)==snapshot(source),\"test mismatch after copy\"\n assert doc_dst.read_bytes()==doc_src.read_bytes(),\"documentation mismatch\"\n print(\"RESULT_PASS_221\",flush=True)\n print(\"UPDATED_TEST_FILES\",len(changed),\",\".join(sorted(changed)),flush=True)\n print(\"ARCHIVED_OBSOLETE_FILES\",len(removed),\",\".join(removed),flush=True)\n print(\"DOC_COPIED\",doc_rel,flush=True)\n print(\"BACKUP\",backup,flush=True)\nexcept Exception as e:\n print(\"TEST_SYNC_FAIL\",type(e).__name__,str(e)[:180],flush=True)\n orig_names={p.name for p in backup.glob(\"*.py\")}\n for p in target.glob(\"*.py\"):\n  if p.name not in orig_names:p.unlink()\n for p in backup.glob(\"*.py\"):\n  put(target/p.name,p.read_bytes(),stat.S_IMODE(p.stat().st_mode))\n if doc_before is None:\n  if doc_dst.exists():doc_dst.unlink()\n else:put(doc_dst,doc_before,doc_mode)\n assert snapshot(target)==snapshot(backup),\"rollback verify failed\"\n print(\"ROLLBACK_COMPLETE\",flush=True)\n raise\nPY\necho PM2_STATUS_CHECK\npm2 jlist | python3 -c '\"'\"'import json,sys; a=json.load(sys.stdin); print([(x[\"name\"],x[\"pm2_env\"].get(\"status\"),x[\"pm2_env\"].get(\"restart_time\")) for x in a if x[\"name\"]==\"telegram-robot-leads\"])'\"'\"'\necho SYNCHRONIZE_COMPLETE\n'"
+            "set -Eeuo pipefail\nexport GIT_PAGER=cat PAGER=cat GIT_TERMINAL_PROMPT=0\necho 'REA_PREFLIGHT_START'\necho \"UTC: $(date -u +%Y-%m-%dT%H:%M:%SZ)\"\nid\ngit --version\npython3 --version\npython3 - <<'PY'\nfrom pathlib import Path\nfor base in (Path('/home/ubuntu'),Path('/opt'),Path('/srv')):\n if base.is_dir():\n  print('ROOT',str(base),'owner',base.stat().st_uid,'isdir',True)\n  for d in sorted(base.iterdir()):\n   if d.is_dir() and any(x in d.name.lower() for x in ('project','codex','leader')):\n    print('CANDIDATE',str(d),'owner_uid',d.stat().st_uid)\nPY\necho 'REMOTE_MAIN_REF'\ngit -c credential.helper= ls-remote https://github.com/martaxi-boss/Project-leader-codex.git refs/heads/main\necho 'REA_PREFLIGHT_COMPLETE'"
           ],
-          "timeout_ms": 150000,
-          "idle_timeout_ms": 45000,
+          "timeout_ms": 90000,
+          "idle_timeout_ms": 30000,
           "limits": {
-            "output_bytes": 14000
+            "output_bytes": 12000
           }
         }
       }
