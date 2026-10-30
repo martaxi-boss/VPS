@@ -1,28 +1,9 @@
 {
-  "request_id": "rea-portable-docs-install-20261030-p5",
+  "request_id": "rea-final-standby-portable-20261030",
   "mcp_requests": [
     {
-      "method": "tools/call",
-      "params": {
-        "name": "capture_process_scenario",
-        "arguments": {
-          "executable": "/bin/bash",
-          "arguments": [
-            "-c",
-            "set -euo pipefail\nruntime=\"$(pwd -P)\"\nbase=\"https://raw.githubusercontent.com/martaxi-boss/VPS/8bc1687abafd125746caf546a343bdc229d01141/rea-linux/runtime\"\nmkdir -p \"$runtime/docs\"\nfor item in README.md OPERATIONS.md; do\n    tmp=\"$(mktemp)\"\n    trap 'rm -f \"$tmp\"' EXIT\n    curl -fsSL --max-time 25 \"$base/$item\" -o \"$tmp\"\n    case \"$item\" in\n        README.md) expected=\"2d422c02220f8fed49c71a14abed4c342ced5e07\" ;;\n        OPERATIONS.md) expected=\"ec7fd5dde7365746ae71f63b205ca468fcdadc2b\" ;;\n    esac\n    actual=\"$(git hash-object \"$tmp\")\"\n    test \"$actual\" = \"$expected\"\n    install -m 644 \"$tmp\" \"$runtime/docs/$item\"\n    rm -f \"$tmp\"\n    trap - EXIT\n    echo \"REA_FINAL_LOCAL_DOC_$item=pass\"\ndone\ntest -x \"$runtime/bin/rea-mcp\"\necho \"REA_FINAL_PORTABLE_LOCAL_LAYOUT=pass\""
-          ],
-          "working_directory": "/home/ubuntu/rea-final-runtime",
-          "timeout_ms": 85000,
-          "terminal": {
-            "columns": 110,
-            "rows": 32,
-            "scrollback": 100
-          },
-          "limits": {
-            "output_bytes": 12000
-          }
-        }
-      }
+      "method": "tools/list",
+      "params": {}
     }
   ]
 }
