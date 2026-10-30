@@ -2,13 +2,6 @@
   "schema_version": 1,
   "project": "engenharia-reversa-final",
   "engine_commit": "160d821ac9a0310afcb8d1fc427862dd6508add5",
-  "request_id": "rea-final-lowcost-js-real-20261030-e4",
-  "operation": "analyze_project_javascript",
-  "source_repo": "martaxi-boss/lowcost-europa",
-  "revision": "28c998e88bb723424c8ed36d4ba93904339ec877",
-  "javascript_dir": "apps/storefront/static/storefront",
-  "source_paths": [
-    "catalog-explorer.js",
-    "product-images.js"
-  ]
+  "request_id": "rea-final-full-contract-catalog-20261030-v1",
+  "operation": "mcp_catalog"
 }
