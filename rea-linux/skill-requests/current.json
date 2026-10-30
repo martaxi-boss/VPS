@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-lowcost-deep-audit-products-security-20261030",
+  "request_id": "rea-lowcost-final-stock-backup-evidence-20261030",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,63 +9,15 @@
           "executable": "/bin/bash",
           "arguments": [
             "-c",
-            "set -Eeuo pipefail\necho CATALOG_DEEP_START=1\napp_manage() { sudo -n bash -c '\n set -a\n . /etc/lowcost-europa/lowcost-europa.env\n set +a\n export DJANGO_SETTINGS_MODULE=config.settings.production\n cd /srv/lowcost-europa\n runuser -u le001_1789265592 -- .venv/bin/python manage.py \"$@\"\n ' bash \"$@\"; }\napp_manage shell -c '\nfrom datetime import timedelta\nfrom django.db.models import OuterRef,Subquery\nfrom django.utils import timezone\nfrom apps.catalog.models import Offer,OfferObservation,OfferFamilyPlacement,OfferCandidate,ProductFamily\nfrom apps.catalog.services.public_eligibility import public_eligibility_q\nnow=timezone.now()\nfamilies=ProductFamily.objects.exclude(status=\"RETIRED\")\nbase=Offer.objects.filter(public_eligibility_q(now),is_active=True,owner_hidden=False,family_placements__product_family__in=families).distinct()\nlatest=OfferObservation.objects.filter(offer_id=OuterRef(\"pk\")).order_by(\"-observed_at\",\"-pk\")\nq=base.annotate(latest_availability=Subquery(latest.values(\"availability\")[:1]),latest_at=Subquery(latest.values(\"observed_at\")[:1]),latest_price=Subquery(latest.values(\"price\")[:1]),latest_delivery=Subquery(latest.values(\"delivery_days\")[:1]),latest_destination=Subquery(latest.values(\"destination_country\")[:1]))\nprint(\"ELIGIBLE=\"+str(q.count()))\nfor k in [\"AVAILABLE\",\"UNKNOWN\",\"UNAVAILABLE\",None]:\n print(\"LATEST_AVAILABILITY_\"+str(k)+\"=\"+str(q.filter(latest_availability=k).count()))\nprint(\"OBSERVATIONS_MISSING=\"+str(q.filter(latest_at__isnull=True).count()))\nprint(\"OBSERVATIONS_STALE_24H=\"+str(q.filter(latest_at__lt=now-timedelta(hours=24)).count()))\nprint(\"OBSERVATIONS_STALE_7D=\"+str(q.filter(latest_at__lt=now-timedelta(days=7)).count()))\nprint(\"LATEST_PRICE_MISSING=\"+str(q.filter(latest_price__isnull=True).count()))\nprint(\"LATEST_DELIVERY_GT_5=\"+str(q.filter(latest_delivery__gt=5).count()))\nprint(\"LATEST_DELIVERY_UNKNOWN=\"+str(q.filter(latest_delivery__isnull=True).count()))\nprint(\"LATEST_DEST_OTHER_THAN_PT=\"+str(q.exclude(latest_destination=\"PT\").count()))\nprint(\"ELIGIBLE_AFFILIATE_LINK_EMPTY=\"+str(q.filter(affiliate_url=\"\").count()))\nprint(\"ELIGIBLE_IMAGE_MISSING=\"+str(q.filter(image_url=\"\").count()))\nprint(\"ELIGIBLE_PROTOCOL_NULL=\"+str(q.filter(protocol_verified_at__isnull=True).count()))\nfor family in families.order_by(\"display_order\"):\n n=OfferFamilyPlacement.objects.filter(product_family=family,offer__in=base).count()\n print(\"FAMILY_PUBLIC=\"+str(family.slug)+\";OFFERS=\"+str(n))\nprint(\"PENDING_CANDIDATES=\"+str(OfferCandidate.objects.filter(status=\"PENDING\").count()))\nprint(\"CANDIDATE_PENDING_IMAGE_MISSING=\"+str(OfferCandidate.objects.filter(status=\"PENDING\",image_url=\"\").count()))\nprint(\"CATALOG_DEEP_READ=PASS\")\n'\necho CATALOG_DEEP_END=PASS"
+            "set -Eeuo pipefail\necho FINAL_EVIDENCE_START=1\nfor unit in lowcost-europa-backup.service lowcost-europa-offsite-backup.service lowcost-europa-offsite-backup-health.service; do\n echo \"UNIT=$unit\"\n systemctl show \"$unit\" --property=Result,ExecMainStatus,ExecMainExitTimestamp --no-pager | grep -E '^(Result|ExecMainStatus|ExecMainExitTimestamp)=' || true\ndone\napp_manage() { sudo -n bash -c '\n set -a\n . /etc/lowcost-europa/lowcost-europa.env\n set +a\n export DJANGO_SETTINGS_MODULE=config.settings.production\n cd /srv/lowcost-europa\n runuser -u le001_1789265592 -- .venv/bin/python manage.py \"$@\"\n ' bash \"$@\"; }\napp_manage shell -c '\nfrom django.db.models import OuterRef,Subquery,Exists,Q,Count\nfrom django.utils import timezone\nfrom apps.catalog.models import Offer,OfferObservation\nfrom apps.catalog.services.public_eligibility import public_eligibility_q\nnow=timezone.now()\nq=Offer.objects.filter(public_eligibility_q(now),is_active=True,owner_hidden=False)\nlatest=OfferObservation.objects.filter(offer_id=OuterRef(\"pk\")).order_by(\"-observed_at\",\"-pk\")\nanyavailable=OfferObservation.objects.filter(offer_id=OuterRef(\"pk\"),availability=\"AVAILABLE\")\nanypriced=OfferObservation.objects.filter(offer_id=OuterRef(\"pk\"),price__isnull=False,currency__isnull=False)\nanydelivery=OfferObservation.objects.filter(offer_id=OuterRef(\"pk\")).filter(Q(delivery_days__isnull=False)|Q(search_delivery_days__isnull=False))\nq=q.annotate(latest_availability=Subquery(latest.values(\"availability\")[:1]),last_observed=Subquery(latest.values(\"observed_at\")[:1]),has_historical_available=Exists(anyavailable),has_any_price=Exists(anypriced),has_any_delivery_days=Exists(anydelivery)).distinct()\nprint(\"ELIGIBLE=\"+str(q.count()))\nprint(\"LATEST_UNKNOWN=\"+str(q.filter(latest_availability=\"UNKNOWN\").count()))\nprint(\"HISTORICALLY_AVAILABLE=\"+str(q.filter(has_historical_available=True).count()))\nprint(\"ANY_PRICE_AVAILABLE=\"+str(q.filter(has_any_price=True).count()))\nprint(\"ANY_DELIVERY_DAYS=\"+str(q.filter(has_any_delivery_days=True).count()))\nprint(\"OBSERVATION_NEWEST=\"+str(q.order_by(\"-last_observed\").values_list(\"last_observed\",flat=True).first()))\nprint(\"OBSERVATION_OLDEST=\"+str(q.order_by(\"last_observed\").values_list(\"last_observed\",flat=True).first()))\nprint(\"CROSSCHECK_DB=PASS\")\n'\necho FINAL_EVIDENCE_END=PASS"
           ],
           "working_directory": "/srv/lowcost-europa",
           "timeout_ms": 150000,
           "idle_timeout_ms": 150000,
           "terminal": {
             "columns": 100,
-            "rows": 50,
-            "scrollback": 150
-          },
-          "limits": {
-            "output_bytes": 18000
-          }
-        }
-      }
-    },
-    {
-      "method": "tools/call",
-      "params": {
-        "name": "capture_process_scenario",
-        "arguments": {
-          "executable": "/bin/bash",
-          "arguments": [
-            "-c",
-            "set -Eeuo pipefail\necho OPS_DEEP_START=1\nfor unit in lowcost-europa-catalog-maintenance.service lowcost-europa-weekly-discovery.service lowcost-europa-affiliate-report.service; do\n echo \"UNIT=$unit\"\n systemctl show \"$unit\" --property=Result,ExecMainStatus,ActiveState,InactiveExitTimestamp,ExecMainExitTimestamp,ExecMainStartTimestamp --no-pager 2>/dev/null | grep -E '^(Result|ExecMainStatus|ActiveState|InactiveExitTimestamp|ExecMainExitTimestamp|ExecMainStartTimestamp)=' || true\ndone\nsystemctl list-timers --all --no-pager | grep -E 'lowcost-europa|restic' | cut -c 1-180 || true\nfor p in /srv/lowcost-europa /var/log /var/lib; do test -d \"$p\" && echo \"PATH_EXISTS=$p\"; done\necho OPS_DEEP_END=PASS"
-          ],
-          "working_directory": "/srv/lowcost-europa",
-          "timeout_ms": 150000,
-          "idle_timeout_ms": 150000,
-          "terminal": {
-            "columns": 100,
-            "rows": 50,
-            "scrollback": 150
-          },
-          "limits": {
-            "output_bytes": 18000
-          }
-        }
-      }
-    },
-    {
-      "method": "tools/call",
-      "params": {
-        "name": "capture_process_scenario",
-        "arguments": {
-          "executable": "/bin/bash",
-          "arguments": [
-            "-c",
-            "set -Eeuo pipefail\necho SECURITY_HTTP_START=1\nbase=https://lowcost-europa.duckdns.org\nheaders=\"$(curl -fsS -I --max-time 20 \"$base/\" | tr -d '\\r')\"\nfor h in strict-transport-security x-frame-options x-content-type-options referrer-policy content-security-policy x-robots-tag; do\n v=\"$(printf '%s\\n' \"$headers\" | grep -i \"^$h:\" | head -1 || true)\"\n if test -n \"$v\"; then echo \"HEADER_$h=PRESENT\"; else echo \"HEADER_$h=ABSENT\"; fi\ndone\nfor p in /painel/ /admin/; do\n code=\"$(curl -sS --max-time 15 -o /dev/null -w '%{http_code}' \"$base$p\")\"\n echo \"PRIVATE_PATH=$p;HTTP=$code\"\ndone\necho SECURITY_HTTP_END=PASS"
-          ],
-          "working_directory": "/srv/lowcost-europa",
-          "timeout_ms": 150000,
-          "idle_timeout_ms": 150000,
-          "terminal": {
-            "columns": 100,
-            "rows": 50,
-            "scrollback": 150
+            "rows": 45,
+            "scrollback": 130
           },
           "limits": {
             "output_bytes": 18000
