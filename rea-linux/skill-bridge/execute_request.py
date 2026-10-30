@@ -987,6 +987,98 @@ def original_mcp_catalog(env):
             "total":len(names),"names":sorted(names),
             "note":"Catalog discovery is not proof of execution or provider readiness"}
 
+
+def run_original_mcp(req, env):
+    """Use the already installed author's MCP stdio, one session per request."""
+    operation = req["operation"]
+    tool_name = req["tool_name"]
+    arguments = req.get("arguments", {})
+    js = r'''
+import { Client } from "@modelcontextprotocol/client";
+import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
+import { TOOL_CONTRACTS } from "./dist/contracts/toolContracts.js";
+const name = process.argv[1];
+const mode = process.argv[2];
+const args = JSON.parse(process.argv[3] || "{}");
+const contract = TOOL_CONTRACTS.find(x => x.name === name);
+if (!contract) {
+  process.stdout.write(JSON.stringify({status:"BLOCKED",reason:"NOT_IN_ORIGINAL_CATALOG"}));
+  process.exit(0);
+}
+const effects = contract.effects ?? {};
+const disallowed = ["mutatesTarget","writesFilesystem","executesForeignCode",
+                    "mutatesDevice","mayDiscardData","changesUiState"].filter(x=>effects[x]===true);
+if (mode === "mcp_call" && disallowed.length) {
+  process.stdout.write(JSON.stringify({status:"BLOCKED",reason:"REQUIRES_SPECIFIC_MUTATION_AUTHORIZATION",tool:name,effects:disallowed}));
+  process.exit(0);
+}
+const transport = new StdioClientTransport({
+  command:process.execPath,args:["scripts/rea.mjs","mcp"],
+  cwd:process.cwd(),env:process.env,stderr:"pipe"
+});
+const client = new Client({name:"engenharia-reversa-final-github-bridge",version:"1.0.1"});
+try {
+  await client.connect(transport);
+  let cursor, found;
+  for (let page=0;page<10;page++) {
+    const list = await client.listTools(cursor ? {cursor} : {});
+    found = list.tools?.find(x => x.name === name) ?? found;
+    cursor = list.nextCursor;
+    if (found || !cursor) break;
+  }
+  if (!found) throw new Error("MCP_TOOL_NOT_ADVERTISED");
+  if (mode === "mcp_describe") {
+    process.stdout.write(JSON.stringify({status:"PASS",tool:name,
+      description:String(found.description||"").slice(0,1000),
+      input_schema:found.inputSchema,effects,kind:contract.kind}));
+  } else {
+    const out = await client.callTool({name,arguments:args});
+    const structured = out.structuredContent;
+    let data = structured?.normalized_result ?? structured ?? {};
+    if (!data || typeof data !== "object") data={};
+    const summary={};
+    for (const key of ["scope","status","format","revision","healthy","provider","version","path"]) {
+      if (["string","boolean","number"].includes(typeof data[key])) summary[key]=data[key];
+    }
+    for (const key of ["settings","items","records","providers","entries"]) {
+      if (Array.isArray(data[key])) summary[key+"_count"]=data[key].length;
+    }
+    const text = out.content?.find(x=>x.type==="text")?.text??"";
+    process.stdout.write(JSON.stringify({status:out.isError?"FAIL":"PASS",
+      tool:name,transport:"original-mcp-stdio",isError:out.isError===true,
+      evidence_id:structured?.evidence_id??null,
+      result_fields:Object.keys(data).slice(0,24),
+      summary,content_digest:await digest(text),
+      content_length:text.length}));
+  }
+} catch (error) {
+  process.stdout.write(JSON.stringify({status:"BLOCKED",
+    reason:"ORIGINAL_MCP_CALL_FAILED",
+    error:String(error?.message||error).slice(0,480),tool:name}));
+} finally {
+  await client.close().catch(()=>{});
+}
+async function digest(text) {
+  const {createHash}=await import("node:crypto");
+  return createHash("sha256").update(text).digest("hex");
+}
+'''
+    trial = execute([str(NODE), "--input-type=module", "-e", js,
+                    tool_name, operation, json.dumps(arguments, separators=(",",":"))],
+                    env, timeout=120)
+    if trial["exit"] != 0:
+        return {"status":"BLOCKED","reason":"MCP_CLIENT_PROCESS_FAILED",
+                "exit":trial["exit"],"stderr":trial["error"][:350]}
+    try:
+        doc = json.loads(trial["output"])
+    except ValueError:
+        return {"status":"BLOCKED","reason":"MCP_CLIENT_INVALID_RESPONSE",
+                "stdout_length":len(trial["output"]),
+                "stderr":trial["error"][:300]}
+    doc["elapsed_seconds"] = trial["seconds"]
+    return doc
+
+
 def perform(req):
     result = {"bridge": "original-final-cli-v1", "request_id": req["request_id"],
               "operation": req["operation"], "engine": engine_state(), "suppliers": supplier_state()}
