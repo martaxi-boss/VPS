@@ -1,9 +1,41 @@
 {
-  "request_id": "rea-lowcost-audit-20261030-1436-toolcheck",
+  "request_id": "rea-lowcost-audit-20261030-1439-live",
   "mcp_requests": [
     {
-      "method": "tools/list",
-      "params": {}
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/bin/bash",
+          "arguments": [
+            "-lc",
+            "set -u\necho \"CHECK_START UTC=$(date -u +%FT%TZ)\"\nrun_check() { name=\"$1\"; shift; out=\"$(\"$@\" 2>&1)\"; rc=$?; printf \"CHECK:%s:EXIT:%s\\n\" \"$name\" \"$rc\"; printf \"%s\\n\" \"$out\" | head -c 1100; printf \"\\n\"; }\nrun_check repo_head sudo -n -u le001_1789265592 git -C /srv/lowcost-europa rev-parse HEAD\nrun_check repo_status sudo -n -u le001_1789265592 git -C /srv/lowcost-europa status --porcelain\nrun_check django_service systemctl is-active lowcost-europa.service\nrun_check nginx_service systemctl is-active nginx.service\nrun_check postgres_service systemctl is-active postgresql.service\nrun_check discovery_timer systemctl is-enabled lowcost-europa-weekly-discovery.timer\nrun_check maintenance_timer systemctl is-enabled lowcost-europa-catalog-maintenance.timer\nrun_check backup_timer systemctl is-enabled lowcost-europa-backup.timer\nrun_check offsite_timer systemctl is-enabled lowcost-europa-offsite-backup.timer\nrun_check https_headers curl -sSIL --max-time 18 https://lowcost-europa.duckdns.org/\nrun_check robots curl -sSL --max-time 15 https://lowcost-europa.duckdns.org/robots.txt\nrun_check nginx_config sudo -n nginx -t\necho \"CHECK_END\""
+          ],
+          "timeout_ms": 105000,
+          "limits": {
+            "output_bytes": 12000
+          }
+        }
+      }
+    },
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/bin/bash",
+          "arguments": [
+            "-lc",
+            "set -u\nif ! sudo -n test -f /etc/lowcost-europa/lowcost-europa.env; then echo \"ENV_PRESENT=NO\"; exit 42; fi\nsudo -n bash -c 'set -ae; . /etc/lowcost-europa/lowcost-europa.env; set +a; cd /srv/lowcost-europa; export DJANGO_SETTINGS_MODULE=config.settings.production; runuser -u le001_1789265592 -- /srv/lowcost-europa/.venv/bin/python manage.py check'\na=$?; echo \"DJANGO_CHECK_EXIT=$a\"\nsudo -n bash -c 'set -ae; . /etc/lowcost-europa/lowcost-europa.env; set +a; cd /srv/lowcost-europa; export DJANGO_SETTINGS_MODULE=config.settings.production; runuser -u le001_1789265592 -- /srv/lowcost-europa/.venv/bin/python manage.py makemigrations --check --dry-run'\nb=$?; echo \"MIGRATION_DRIFT_EXIT=$b\"\nsudo -n bash -c 'set -ae; . /etc/lowcost-europa/lowcost-europa.env; set +a; cd /srv/lowcost-europa; export DJANGO_SETTINGS_MODULE=config.settings.production; runuser -u le001_1789265592 -- /srv/lowcost-europa/.venv/bin/python manage.py shell -c \"$1\"' bash \"$1\"\nc=$?; echo \"CATALOG_QUERY_EXIT=$c\"\nif [ \"$a\" -eq 0 ] && [ \"$b\" -eq 0 ] && [ \"$c\" -eq 0 ]; then exit 0; else exit 43; fi",
+            "rea-metrics",
+            "import json\nfrom django.utils import timezone\nfrom django.db.models import Count\nfrom apps.catalog.models import Offer,OfferObservation,OfferCandidate,ProductFamily\nfrom apps.catalog.services.public_eligibility import public_eligibility_q,is_ship_from_verified\nfrom apps.catalog.services.weekly_discovery import WEEKLY_FAMILY_SLUGS,PENDING_CAP_PER_FAMILY\nqs=Offer.objects.filter(public_eligibility_q()).distinct()\neligible=list(qs.only(\"id\",\"ship_from_country\",\"ship_from_verified_at\"))\nfamilies=list(ProductFamily.objects.filter(slug__in=WEEKLY_FAMILY_SLUGS))\npending={x[\"product_family__slug\"]:x[\"total\"] for x in OfferCandidate.objects.filter(status=\"PENDING\").values(\"product_family__slug\").annotate(total=Count(\"id\"))}\nlast={}\nfor obs in OfferObservation.objects.filter(offer_id__in=[o.id for o in eligible]).order_by(\"offer_id\",\"-observed_at\",\"-id\").only(\"id\",\"offer_id\",\"availability\",\"observed_at\"):\n    if obs.offer_id not in last:last[obs.offer_id]=obs\nans={\"date_utc\":timezone.now().isoformat(),\"family_names\":[f.slug for f in families],\"offer_total\":Offer.objects.count(),\"offer_active\":Offer.objects.filter(is_active=True).count(),\"public_eligible\":len(eligible),\"public_origin_verified\":sum(is_ship_from_verified(x) for x in eligible),\"public_origin_unverified\":sum(not is_ship_from_verified(x) for x in eligible),\"latest_unknown_count\":sum((last.get(o.id) is None or last[o.id].availability==\"UNKNOWN\") for o in eligible),\"pending_by_operational_family\":{s:pending.get(s,0) for s in WEEKLY_FAMILY_SLUGS},\"paused_families\":[s for s in WEEKLY_FAMILY_SLUGS if pending.get(s,0)>=PENDING_CAP_PER_FAMILY],\"pending_total\":OfferCandidate.objects.filter(status=\"PENDING\").count(),\"pending_retired\":OfferCandidate.objects.filter(status=\"PENDING\",product_family__status=\"RETIRED\").count()}\nprint(\"CATALOG_JSON=\"+json.dumps(ans,sort_keys=True))\n"
+          ],
+          "timeout_ms": 105000,
+          "limits": {
+            "output_bytes": 9000
+          }
+        }
+      }
     }
   ]
 }
