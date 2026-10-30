@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-lowcost-audit-gaps-20261030-1452",
+  "request_id": "rea-lowcost-audit-tls-static-20261030",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,18 +9,18 @@
           "executable": "/bin/bash",
           "arguments": [
             "-c",
-            "set -Eeuo pipefail\necho DEEP_CATALOG_CHECK_START=1\nsudo -n bash -c '\nset -a\n. /etc/lowcost-europa/lowcost-europa.env\nset +a\nexport DJANGO_SETTINGS_MODULE=config.settings.production\ncd /srv/lowcost-europa\nrunuser -u le001_1789265592 -- .venv/bin/python manage.py shell -c '\"'\"'\nfrom datetime import timedelta\nfrom django.db.models import Count,OuterRef,Subquery,Exists,Q\nfrom django.utils import timezone\nfrom apps.catalog.models import Offer,OfferObservation,OfferCandidate,ProductFamily\nfrom apps.catalog.services.public_eligibility import public_eligibility_q\nnow=timezone.now()\nactive_slugs={\"cavitacao-rf-vacuum-corpo\",\"hydrodermoabrasao-aqua-facial-multifuncoes\",\"pressoterapia-vacuum-drenagem\",\"hifu\",\"diodo-laser-remocao-tatuagens-pigmentacao\"}\nprint(\"PENDING_TOTAL=\"+str(OfferCandidate.objects.filter(status=\"PENDING\").count()))\nprint(\"PENDING_IN_ACTIVE_5=\"+str(OfferCandidate.objects.filter(status=\"PENDING\",product_family__slug__in=active_slugs).count()))\nprint(\"PENDING_OTHER=\"+str(OfferCandidate.objects.filter(status=\"PENDING\").exclude(product_family__slug__in=active_slugs).count()))\nfor row in OfferCandidate.objects.filter(status=\"PENDING\").values(\"product_family__slug\",\"product_family__status\").annotate(n=Count(\"pk\")).order_by(\"-n\",\"product_family__slug\"):\n print(\"PENDING_GROUP=\"+str(row[\"product_family__slug\"])+\";FAMILY_STATUS=\"+str(row[\"product_family__status\"])+\";N=\"+str(row[\"n\"]))\nlatest=OfferObservation.objects.filter(offer_id=OuterRef(\"pk\")).order_by(\"-observed_at\",\"-pk\")\nprices=OfferObservation.objects.filter(offer_id=OuterRef(\"pk\"),price__isnull=False,currency__isnull=False).order_by(\"-observed_at\",\"-pk\")\noffers=Offer.objects.filter(public_eligibility_q(now),is_active=True,owner_hidden=False).annotate(last_availability=Subquery(latest.values(\"availability\")[:1]),last_observed=Subquery(latest.values(\"observed_at\")[:1]),price_at=Subquery(prices.values(\"observed_at\")[:1])).distinct()\nprint(\"ELIGIBLE=\"+str(offers.count()))\nfor d in (1,7,30):\n print(\"LAST_VALID_PRICE_OLDER_\"+str(d)+\"D=\"+str(offers.filter(price_at__lt=now-timedelta(days=d)).count()))\nprint(\"LAST_VALID_PRICE_MISSING=\"+str(offers.filter(price_at__isnull=True).count()))\nprint(\"LATEST_AVAIL_UNKNOWN=\"+str(offers.filter(last_availability=\"UNKNOWN\").count()))\nprint(\"LATEST_OBSERVATION_OLDER_24H=\"+str(offers.filter(last_observed__lt=now-timedelta(hours=24)).count()))\nprint(\"PENDING_LIST_REQUIRES_REVIEW=YES\")\nprint(\"DEEP_CATALOG_CHECK=PASS\")\n'\"'\"'\n'\necho DEEP_CATALOG_CHECK_END=PASS"
+            "set -Eeuo pipefail\necho TLS_CHECK_START=1\nB=lowcost-europa.duckdns.org\nset +e\nv=\"$(curl -sS --max-time 18 -o /dev/null -w 'https_code=%{http_code};ssl_verify=%{ssl_verify_result};connect=%{time_connect};tls=%{time_appconnect}' \"https://$B/\")\"\nrc=$?\nset -e\necho \"TLS_STRICT=$v;CURL_EXIT=$rc\"\nset +e\nhttp=\"$(curl -sS --max-time 18 -D - -o /dev/null \"http://$B/\" | tr -d '\\r' | grep -Ei '^(HTTP/|location:)' | head -4)\"\nh_rc=$?\nset -e\nprintf 'HTTP_TO_HTTPS_HEADERS=%s;CODE=%s\\n' \"$http\" \"$h_rc\"\nfor f in product-images.js catalog-explorer.js; do\n code=\"$(curl -sS --max-time 18 -o /dev/null -w '%{http_code}' \"https://$B/static/storefront/$f\" || true)\"\n echo \"STATIC=$f;HTTP=$code\"\ndone\nif command -v openssl >/dev/null; then\n echo | openssl s_client -connect \"$B:443\" -servername \"$B\" -verify_return_error 2>&1 | grep -E '^Verification:|^Verify return code:' | head -3 || true\nfi\necho TLS_CHECK_END=PASS"
           ],
           "working_directory": "/srv/lowcost-europa",
-          "timeout_ms": 150000,
-          "idle_timeout_ms": 150000,
+          "timeout_ms": 130000,
+          "idle_timeout_ms": 130000,
           "terminal": {
-            "columns": 110,
-            "rows": 50,
-            "scrollback": 130
+            "columns": 100,
+            "rows": 40,
+            "scrollback": 110
           },
           "limits": {
-            "output_bytes": 18000
+            "output_bytes": 12000
           }
         }
       }
@@ -33,42 +33,18 @@
           "executable": "/bin/bash",
           "arguments": [
             "-c",
-            "set -Eeuo pipefail\necho HTTP_DEEP_CHECK_START=1\nB=https://lowcost-europa.duckdns.org\nfor p in / /pesquisar/?q=HIFU /products/hifu/ /health/live/ /health/ready/ /admin/ /painel/; do\n set +e\n out=\"$(curl -sS -k --max-time 18 --max-redirs 0 --output /dev/null --write-out 'code=%{http_code};time_total=%{time_total};size=%{size_download};ssl_verify=%{ssl_verify_result}' \"$B$p\")\"\n rc=$?\n set -e\n printf 'ROUTE=%s;%s;CURL_EXIT=%s\\n' \"$p\" \"$out\" \"$rc\"\ndone\nfor p in / /painel/; do\n echo \"HEADER_PATH=$p\"\n curl -sS --max-time 16 -D - -o /dev/null \"$B$p\" | tr -d '\\r' | grep -iE '^(HTTP/|cache-control:|content-security-policy:|strict-transport-security:|x-content-type-options:|x-frame-options:|referrer-policy:|x-robots-tag:|location:)' | cut -c 1-220\ndone\necho HTTP_DEEP_CHECK_END=PASS"
+            "set -Eeuo pipefail\necho SOURCE_STATIC_CHECK_START=1\ncd /srv/lowcost-europa\ntest \"$(git rev-parse HEAD)\" = \"8b8bdaeaeb49f01def64b127f1b0c1459d5cf24e\" && echo STAGING_SHA=PASS\nfor f in apps/storefront/static/storefront/product-images.js apps/storefront/static/storefront/catalog-explorer.js; do\n if test -s \"$f\"; then echo \"JS_FILE=$f;PRESENT=YES\"; else echo \"JS_FILE=$f;PRESENT=NO\"; fi\n if command -v node >/dev/null; then\n  node --check \"$f\" && echo \"JS_SYNTAX=$f;PASS\" || echo \"JS_SYNTAX=$f;FAIL\"\n fi\ndone\necho SOURCE_STATIC_CHECK_END=PASS"
           ],
           "working_directory": "/srv/lowcost-europa",
-          "timeout_ms": 150000,
-          "idle_timeout_ms": 150000,
+          "timeout_ms": 130000,
+          "idle_timeout_ms": 130000,
           "terminal": {
-            "columns": 110,
-            "rows": 50,
-            "scrollback": 130
+            "columns": 100,
+            "rows": 40,
+            "scrollback": 110
           },
           "limits": {
-            "output_bytes": 18000
-          }
-        }
-      }
-    },
-    {
-      "method": "tools/call",
-      "params": {
-        "name": "capture_process_scenario",
-        "arguments": {
-          "executable": "/bin/bash",
-          "arguments": [
-            "-c",
-            "set -Eeuo pipefail\necho LOGS_DEEP_CHECK_START=1\nfor u in lowcost-europa.service nginx.service postgresql.service lowcost-europa-catalog-maintenance.service lowcost-europa-weekly-discovery.service; do\n n=\"$(sudo -n journalctl --no-pager --since '2 hours ago' -u \"$u\" --output=cat 2>/dev/null | grep -Eic 'Traceback \\(most recent call last\\)|Internal Server Error|OperationalError|ProgrammingError|Segmentation fault|FATAL:' || true)\"\n echo \"SERVICE=$u;FATAL_PATTERN_HITS_LAST_2H=$n\"\ndone\necho LOGS_DEEP_CHECK_END=PASS"
-          ],
-          "working_directory": "/srv/lowcost-europa",
-          "timeout_ms": 150000,
-          "idle_timeout_ms": 150000,
-          "terminal": {
-            "columns": 110,
-            "rows": 50,
-            "scrollback": 130
-          },
-          "limits": {
-            "output_bytes": 18000
+            "output_bytes": 12000
           }
         }
       }
