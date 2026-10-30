@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-lowcost-deep-audit-readonly-verify-20261030-1343",
+  "request_id": "rea-lowcost-deep-audit-products-security-20261030",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,19 +9,66 @@
           "executable": "/bin/bash",
           "arguments": [
             "-c",
-            "set +e\necho EXACT_REVISION\ngit -c safe.directory=/srv/lowcost-europa -C /srv/lowcost-europa rev-parse HEAD\necho GIT_STATUS\ngit -c safe.directory=/srv/lowcost-europa -C /srv/lowcost-europa status --porcelain=v1 | head -n 12\necho REPO_OWNER\nstat -c '%U:%G' /srv/lowcost-europa\necho SERVICE_RECENT_RESULT\nfor svc in lowcost-europa.service lowcost-europa-catalog-maintenance.service lowcost-europa-weekly-discovery.service lowcost-europa-affiliate-report.service lowcost-europa-backup.service lowcost-europa-offsite-backup.service lowcost-europa-offsite-backup-health.service; do printf '%s ' \"$svc\"; systemctl show \"$svc\" --no-pager -p Result -p ExecMainStatus -p ActiveState 2>/dev/null | tr '\\n' ' '; echo; done\necho ROUTES\nfor path in / /health/live/ /health/ready/ /painel/ /robots.txt /products/hifu/ /products/cavitacao-rf-vacuum-corpo/ /products/hydrodermoabrasao-aqua-facial-multifuncoes/ /products/pressoterapia-vacuum-drenagem/ /products/diodo-laser-remocao-tatuagens-pigmentacao/; do printf '%s ' \"$path\"; curl -sS -o /dev/null --max-time 6 -w '%{http_code} %{time_total}s\\n' \"https://lowcost-europa.duckdns.org$path\"; done\necho INDEX_HEADERS\ncurl -sSI --max-time 6 https://lowcost-europa.duckdns.org/ | grep -Ei '^(HTTP/|x-robots-tag:|strict-transport-security:|content-security-policy:)' | head -n 10\necho ROBOTS_TEXT\ncurl -sS --max-time 6 https://lowcost-europa.duckdns.org/robots.txt | head -n 4\necho REA_VERIFY_END"
+            "set -Eeuo pipefail\necho CATALOG_DEEP_START=1\napp_manage() { sudo -n bash -c '\n set -a\n . /etc/lowcost-europa/lowcost-europa.env\n set +a\n export DJANGO_SETTINGS_MODULE=config.settings.production\n cd /srv/lowcost-europa\n runuser -u le001_1789265592 -- .venv/bin/python manage.py \"$@\"\n ' bash \"$@\"; }\napp_manage shell -c '\nfrom datetime import timedelta\nfrom django.db.models import OuterRef,Subquery\nfrom django.utils import timezone\nfrom apps.catalog.models import Offer,OfferObservation,OfferFamilyPlacement,OfferCandidate,ProductFamily\nfrom apps.catalog.services.public_eligibility import public_eligibility_q\nnow=timezone.now()\nfamilies=ProductFamily.objects.exclude(status=\"RETIRED\")\nbase=Offer.objects.filter(public_eligibility_q(now),is_active=True,owner_hidden=False,family_placements__product_family__in=families).distinct()\nlatest=OfferObservation.objects.filter(offer_id=OuterRef(\"pk\")).order_by(\"-observed_at\",\"-pk\")\nq=base.annotate(latest_availability=Subquery(latest.values(\"availability\")[:1]),latest_at=Subquery(latest.values(\"observed_at\")[:1]),latest_price=Subquery(latest.values(\"price\")[:1]),latest_delivery=Subquery(latest.values(\"delivery_days\")[:1]),latest_destination=Subquery(latest.values(\"destination_country\")[:1]))\nprint(\"ELIGIBLE=\"+str(q.count()))\nfor k in [\"AVAILABLE\",\"UNKNOWN\",\"UNAVAILABLE\",None]:\n print(\"LATEST_AVAILABILITY_\"+str(k)+\"=\"+str(q.filter(latest_availability=k).count()))\nprint(\"OBSERVATIONS_MISSING=\"+str(q.filter(latest_at__isnull=True).count()))\nprint(\"OBSERVATIONS_STALE_24H=\"+str(q.filter(latest_at__lt=now-timedelta(hours=24)).count()))\nprint(\"OBSERVATIONS_STALE_7D=\"+str(q.filter(latest_at__lt=now-timedelta(days=7)).count()))\nprint(\"LATEST_PRICE_MISSING=\"+str(q.filter(latest_price__isnull=True).count()))\nprint(\"LATEST_DELIVERY_GT_5=\"+str(q.filter(latest_delivery__gt=5).count()))\nprint(\"LATEST_DELIVERY_UNKNOWN=\"+str(q.filter(latest_delivery__isnull=True).count()))\nprint(\"LATEST_DEST_OTHER_THAN_PT=\"+str(q.exclude(latest_destination=\"PT\").count()))\nprint(\"ELIGIBLE_AFFILIATE_LINK_EMPTY=\"+str(q.filter(affiliate_url=\"\").count()))\nprint(\"ELIGIBLE_IMAGE_MISSING=\"+str(q.filter(image_url=\"\").count()))\nprint(\"ELIGIBLE_PROTOCOL_NULL=\"+str(q.filter(protocol_verified_at__isnull=True).count()))\nfor family in families.order_by(\"display_order\"):\n n=OfferFamilyPlacement.objects.filter(product_family=family,offer__in=base).count()\n print(\"FAMILY_PUBLIC=\"+str(family.slug)+\";OFFERS=\"+str(n))\nprint(\"PENDING_CANDIDATES=\"+str(OfferCandidate.objects.filter(status=\"PENDING\").count()))\nprint(\"CANDIDATE_PENDING_IMAGE_MISSING=\"+str(OfferCandidate.objects.filter(status=\"PENDING\",image_url=\"\").count()))\nprint(\"CATALOG_DEEP_READ=PASS\")\n'\necho CATALOG_DEEP_END=PASS"
           ],
-          "working_directory": "/tmp",
-          "timeout_ms": 125000,
-          "idle_timeout_ms": 125000,
-          "settle_ms": 200,
+          "working_directory": "/srv/lowcost-europa",
+          "timeout_ms": 150000,
+          "idle_timeout_ms": 150000,
           "terminal": {
-            "columns": 120,
-            "rows": 45,
-            "scrollback": 140
+            "columns": 100,
+            "rows": 50,
+            "scrollback": 150
           },
           "limits": {
-            "output_bytes": 19000
+            "output_bytes": 18000
+          }
+        }
+      }
+    },
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/bin/bash",
+          "arguments": [
+            "-c",
+            "set -Eeuo pipefail\necho OPS_DEEP_START=1\nfor unit in lowcost-europa-catalog-maintenance.service lowcost-europa-weekly-discovery.service lowcost-europa-affiliate-report.service; do\n echo \"UNIT=$unit\"\n systemctl show \"$unit\" --property=Result,ExecMainStatus,ActiveState,InactiveExitTimestamp,ExecMainExitTimestamp,ExecMainStartTimestamp --no-pager 2>/dev/null | grep -E '^(Result|ExecMainStatus|ActiveState|InactiveExitTimestamp|ExecMainExitTimestamp|ExecMainStartTimestamp)=' || true\ndone\nsystemctl list-timers --all --no-pager | grep -E 'lowcost-europa|restic' | cut -c 1-180 || true\nfor p in /srv/lowcost-europa /var/log /var/lib; do test -d \"$p\" && echo \"PATH_EXISTS=$p\"; done\necho OPS_DEEP_END=PASS"
+          ],
+          "working_directory": "/srv/lowcost-europa",
+          "timeout_ms": 150000,
+          "idle_timeout_ms": 150000,
+          "terminal": {
+            "columns": 100,
+            "rows": 50,
+            "scrollback": 150
+          },
+          "limits": {
+            "output_bytes": 18000
+          }
+        }
+      }
+    },
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/bin/bash",
+          "arguments": [
+            "-c",
+            "set -Eeuo pipefail\necho SECURITY_HTTP_START=1\nbase=https://lowcost-europa.duckdns.org\nheaders=\"$(curl -fsS -I --max-time 20 \"$base/\" | tr -d '\\r')\"\nfor h in strict-transport-security x-frame-options x-content-type-options referrer-policy content-security-policy x-robots-tag; do\n v=\"$(printf '%s\\n' \"$headers\" | grep -i \"^$h:\" | head -1 || true)\"\n if test -n \"$v\"; then echo \"HEADER_$h=PRESENT\"; else echo \"HEADER_$h=ABSENT\"; fi\ndone\nfor p in /painel/ /admin/; do\n code=\"$(curl -sS --max-time 15 -o /dev/null -w '%{http_code}' \"$base$p\")\"\n echo \"PRIVATE_PATH=$p;HTTP=$code\"\ndone\necho SECURITY_HTTP_END=PASS"
+          ],
+          "working_directory": "/srv/lowcost-europa",
+          "timeout_ms": 150000,
+          "idle_timeout_ms": 150000,
+          "terminal": {
+            "columns": 100,
+            "rows": 50,
+            "scrollback": 150
+          },
+          "limits": {
+            "output_bytes": 18000
           }
         }
       }
