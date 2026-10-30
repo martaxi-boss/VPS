@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# REA FINAL native MCP entry point. Belongs to the installation, never to SSH.
+set -euo pipefail
+
+# Expected layout: <home>/rea-final-runtime/bin/rea-mcp and
+#                  <home>/rea-original-upstream-680/scripts/rea.mjs.
+# A moved engine may be selected with REA_FINAL_ENGINE_DIR.
+this_script="$(readlink -f -- "$0")"
+runtime_dir="$(cd -- "$(dirname -- "$this_script")/.." && pwd -P)"
+engine_dir="${REA_FINAL_ENGINE_DIR:-$(dirname -- "$runtime_dir")/rea-original-upstream-680}"
+
+if [[ ! -f "$engine_dir/scripts/rea.mjs" ]]; then
+  printf 'REA_FINAL_ENGINE_NOT_FOUND: %s\n' "$engine_dir/scripts/rea.mjs" >&2
+  exit 2
+fi
+
+# The pinned Node provider is part of this independent runtime, not the bridge.
+node_bin="$runtime_dir/vendors/providers/node-v24.22.1/bin/node"
+if [[ ! -x "$node_bin" ]]; then
+  shopt -s nullglob
+  candidates=("$runtime_dir"/vendors/providers/node-v*/bin/node)
+  shopt -u nullglob
+  if (( ${#candidates[@]} != 1 )) || [[ ! -x "${candidates[0]:-}" ]]; then
+    printf 'REA_FINAL_NODE_NOT_FOUND: %s\n' "$runtime_dir/vendors/providers" >&2
+    exit 2
+  fi
+  node_bin="${candidates[0]}"
+fi
+
+# Runtime-owned supplier environment. A transport must never set these.
+unset JAVA_HOME GHIDRA_INSTALL_DIR REA_JADX_MCP_JAR REA_UNBLOB_COMMAND REA_BINWALK_COMMAND
+unset VIRTUAL_ENV PYTHONPATH PYTHONHOME HOPPER_LAUNCHER_PATH
+jdk="$runtime_dir/vendors/tools/jdk-21"
+if [[ -d "$jdk" ]]; then
+  export JAVA_HOME="$jdk"
+  PATH="$jdk/bin:$PATH"
+fi
+PATH="$(dirname -- "$node_bin"):$PATH"
+binwalk="$runtime_dir/vendors/providers/binwalk-3.1.0/bin/binwalk"
+if [[ -x "$binwalk" ]]; then
+  export REA_BINWALK_COMMAND="$binwalk"
+  PATH="$(dirname -- "$binwalk"):$PATH"
+fi
+if [[ -d "$runtime_dir/vendors/tools/ghidra_12.1.4_PUBLIC" ]]; then
+  export GHIDRA_INSTALL_DIR="$runtime_dir/vendors/tools/ghidra_12.1.4_PUBLIC"
+fi
+if [[ -f "$runtime_dir/vendors/tools/jadx-headless-mcp-0.7.1-all.jar" ]]; then
+  export REA_JADX_MCP_JAR="$runtime_dir/vendors/tools/jadx-headless-mcp-0.7.1-all.jar"
+fi
+if [[ -x "$runtime_dir/bin/unblob" ]]; then
+  export REA_UNBLOB_COMMAND="$runtime_dir/bin/unblob"
+fi
+export PATH
+export CI="${CI:-1}"
+cd -- "$engine_dir"
+exec "$node_bin" scripts/rea.mjs mcp
