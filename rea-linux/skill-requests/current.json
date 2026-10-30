@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-plcodex-regression-20261030-1653",
+  "request_id": "rea-plcodex-regression-correct-20261030-1656",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nexport PYTHONDONTWRITEBYTECODE=1 GIT_PAGER=cat PAGER=cat GIT_TERMINAL_PROMPT=0\ncd /tmp/rea-audit-plcodex-20261030-1647\ntest \"$(git rev-parse HEAD)\" = \"4a5c5ba5876bad079ec4edf401416804c18bc521\"\npython3 - <<'PY'\nimport os,subprocess,shutil,sys,time\nroot=os.getcwd()\ntests=[\n('AST_SYNTAX_CHECK',[sys.executable,'-c','import ast,subprocess,pathlib; files=[pathlib.Path(x) for x in subprocess.check_output([\"git\",\"ls-files\"],text=True).splitlines() if x.endswith(\".py\")]; [ast.parse(x.read_text(),filename=str(x)) for x in files]; print(\"AST_FILES\",len(files))']),\n('CODEX_TESTS',[sys.executable,'-m','unittest','discover','-s','codex/tests','-t','.','-p','test_*.py','-q']),\n('CONTROL_TESTS',[sys.executable,'-m','unittest','discover','-s','tests','-t','.','-p','test_*.py','-q']),\n('GIT_DIFF_CHECK',['git','--no-pager','diff','--check'])\n]\nfail=0\nfor name,cmd in tests:\n t=time.monotonic()\n try:\n  q=subprocess.run(cmd,cwd=root,env={**os.environ,'PYTHONDONTWRITEBYTECODE':'1','GIT_PAGER':'cat'},text=True,capture_output=True,timeout=125)\n  print('TEST',name,'exit',q.returncode,'seconds',round(time.monotonic()-t,2),flush=True)\n  if q.stdout:print('STDOUT',name,q.stdout[-2500:],flush=True)\n  if q.stderr:print('STDERR',name,q.stderr[-5000:],flush=True)\n  if q.returncode:fail+=1\n except Exception as e:fail+=1;print('TEST_EXCEPTION',name,type(e).__name__,str(e)[:250],flush=True)\nprint('CODEX_BINARY',shutil.which('codex') or 'NOT_FOUND')\nprint('GIT_STATUS',repr(subprocess.run(['git','status','--porcelain'],capture_output=True,text=True).stdout[:1000]))\nprint('AUDIT_TESTS_FAILED',fail,flush=True)\nsys.exit(1 if fail else 0)\nPY"
+            "set -Eeuo pipefail\nexport PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/tmp/rea-audit-plcodex-20261030-1647 GIT_PAGER=cat PAGER=cat\ncd /tmp/rea-audit-plcodex-20261030-1647\ntest \"$(git rev-parse HEAD)\" = \"4a5c5ba5876bad079ec4edf401416804c18bc521\"\npython3 - <<'PY'\nimport sys,os,subprocess,time\ntests=[('CODEX_TESTS',['python3','-m','unittest','discover','-s','codex/tests','-p','test_*.py','-q']),('CONTROL_TESTS',['python3','-m','unittest','discover','-s','tests','-p','test_*.py','-q'])]\nfail=0\nfor name,command in tests:\n print('TEST_BEGIN',name,flush=True);start=time.monotonic()\n try:\n  r=subprocess.run(command,cwd=os.getcwd(),env=dict(os.environ),text=True,capture_output=True,timeout=125)\n  print('TEST_END',name,'code',r.returncode,'duration_s',round(time.monotonic()-start,2),flush=True)\n  if r.stdout:print('STDOUT',name,r.stdout[-3500:],flush=True)\n  if r.stderr:print('STDERR',name,r.stderr[-5500:],flush=True)\n  if r.returncode:fail+=1\n except Exception as e:fail+=1;print('TEST_EXCEPTION',name,type(e).__name__,str(e)[:450],flush=True)\nprint('RESULT_FAIL_COUNT',fail,flush=True)\nsys.exit(1 if fail else 0)\nPY"
           ],
-          "timeout_ms": 250000,
-          "idle_timeout_ms": 140000,
+          "timeout_ms": 260000,
+          "idle_timeout_ms": 150000,
           "limits": {
-            "output_bytes": 27000
+            "output_bytes": 26000
           }
         }
       }
