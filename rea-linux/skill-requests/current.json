@@ -1,10 +1,6 @@
 {
-  "request_id": "rea-plcodex-preflight-20261030-1644",
+  "request_id": "rea-plcodex-inventory-20261030-1647",
   "mcp_requests": [
-    {
-      "method": "tools/list",
-      "params": {}
-    },
     {
       "method": "tools/call",
       "params": {
@@ -13,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nexport GIT_PAGER=cat PAGER=cat GIT_TERMINAL_PROMPT=0\necho 'REA_PREFLIGHT_START'\necho \"UTC: $(date -u +%Y-%m-%dT%H:%M:%SZ)\"\nid\ngit --version\npython3 --version\npython3 - <<'PY'\nfrom pathlib import Path\nfor base in (Path('/home/ubuntu'),Path('/opt'),Path('/srv')):\n if base.is_dir():\n  print('ROOT',str(base),'owner',base.stat().st_uid,'isdir',True)\n  for d in sorted(base.iterdir()):\n   if d.is_dir() and any(x in d.name.lower() for x in ('project','codex','leader')):\n    print('CANDIDATE',str(d),'owner_uid',d.stat().st_uid)\nPY\necho 'REMOTE_MAIN_REF'\ngit -c credential.helper= ls-remote https://github.com/martaxi-boss/Project-leader-codex.git refs/heads/main\necho 'REA_PREFLIGHT_COMPLETE'"
+            "set -Eeuo pipefail\nexport GIT_TERMINAL_PROMPT=0 GIT_PAGER=cat PAGER=cat\nTARGET=/tmp/rea-audit-plcodex-20261030-1647\ntest ! -e \"$TARGET\"\ngit -c credential.helper= clone --quiet --depth 1 --branch main https://github.com/martaxi-boss/Project-leader-codex.git \"$TARGET\"\ntest \"$(git -C \"$TARGET\" rev-parse HEAD)\" = \"4a5c5ba5876bad079ec4edf401416804c18bc521\"\npython3 - \"$TARGET\" <<'PY'\nimport sys,subprocess,collections\nfrom pathlib import Path\np=Path(sys.argv[1]); a=subprocess.check_output(['git','-C',str(p),'ls-files','-z']).decode().split('\\x00');a=[x for x in a if x]\nprint('INVENTORY_REPO',p,'FILES',len(a),flush=True)\next=collections.Counter(Path(x).suffix or '(none)' for x in a)\nprint('FILE_TYPES',dict(ext.most_common(20)),flush=True)\nprint('TREE_START')\nfor x in a[:340]:\n z=p/x\n print(f'{x} [{z.stat().st_size if z.is_file() else \"?\"} bytes]')\nprint('TREE_END')\nif len(a)>340:print('FILES_OMITTED',len(a)-340)\nfor name in ['README.md','AGENTS.md','package.json','pyproject.toml','requirements.txt','Makefile','Dockerfile','.github/CODEOWNERS','SECURITY.md']:\n z=p/name\n if z.is_file():\n  s=z.read_text(errors='replace').splitlines()\n  print('FILE_PREVIEW_BEGIN',name,'TOTAL_LINES',len(s))\n  for i,x in enumerate(s[:125],1):print(f'{i:04d} {x[:450]}')\n  print('FILE_PREVIEW_END',name)\nprint('CANDIDATE_CODE_FILES',*[x for x in a if any(y in x.lower() for y in ('coordinat','supervis','agent','worker','human','dispatch','planner','selection','policy','workflow','codex','test','security'))][:110],sep='\\n')\nprint('INVENTORY_PASS')\nPY"
           ],
-          "timeout_ms": 90000,
-          "idle_timeout_ms": 30000,
+          "timeout_ms": 120000,
+          "idle_timeout_ms": 50000,
           "limits": {
-            "output_bytes": 12000
+            "output_bytes": 54000
           }
         }
       }
