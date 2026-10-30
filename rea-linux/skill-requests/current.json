@@ -1,9 +1,23 @@
 {
-  "request_id": "rea-final-readonly-smoke-20261030-01",
+  "request_id": "rea-final-candidate-preflight-20261030-02",
   "mcp_requests": [
     {
-      "method": "tools/list",
-      "params": {}
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/bin/bash",
+          "arguments": [
+            "-lc",
+            "set -Eeuo pipefail\necho MODEL_PREFLIGHT_BEGIN\ncd /srv/lowcost-europa\ntest -r apps/catalog/models.py\npython3 - <<'PY'\nimport ast\nfrom pathlib import Path\np = Path('apps/catalog/models.py')\ntree = ast.parse(p.read_text())\nclasses = {c.name:c for c in tree.body if isinstance(c,ast.ClassDef)}\nassert 'ProductFamily' in classes, \"ProductFamily missing\"\nfamily=classes['ProductFamily']\nstatuses=[c for c in family.body if isinstance(c, ast.ClassDef) and c.name=='Status']\nassert statuses, \"Status enum missing\"\nmembers=[node.targets[0].id for node in statuses[0].body if isinstance(node,ast.Assign) and node.targets and isinstance(node.targets[0],ast.Name)]\nprint(\"MODEL_STATUS_VALUES\", \",\".join(members))\nassert 'RETIRED' in members, \"RETIRED enum missing\"\nassert 'ACTIVE' not in members, \"Unexpected enum shape\"\nprint(\"PY_AST_PASS\")\nPY\necho MODEL_PREFLIGHT_END"
+          ],
+          "timeout_ms": 55000,
+          "idle_timeout_ms": 17000,
+          "limits": {
+            "output_bytes": 5000
+          }
+        }
+      }
     },
     {
       "method": "tools/call",
@@ -13,12 +27,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail; echo REA_READONLY_SMOKE_BEGIN; uname -s; python3 -c 'print(\"PYTHON_PASS\")'; echo REA_READONLY_SMOKE_END"
+            "set -Eeuo pipefail\necho HTTP_SMOKE_BEGIN\nbase=https://lowcost-europa.duckdns.org\nfor path in / /products/hifu/ /robots.txt /sitemap.xml; do\n code=$(curl -sSL --max-time 12 -o /dev/null -w '%{http_code}' \"$base$path\")\n echo \"ROUTE=$path CODE=$code\"\n test \"$code\" = 200\ndone\ncode=$(curl -sS --max-time 12 -o /dev/null -w '%{http_code}' \"$base/go/0/\")\necho \"BAD_AFFILIATE=$code\"\ntest \"$code\" = 404\ncurl -sSI --max-time 12 \"$base/\" | grep -iq '^X-Robots-Tag: noindex'\necho NOINDEX_CONFIRMED\necho HTTP_SMOKE_END"
           ],
-          "timeout_ms": 30000,
-          "idle_timeout_ms": 10000,
+          "timeout_ms": 80000,
+          "idle_timeout_ms": 23000,
           "limits": {
-            "output_bytes": 3000
+            "output_bytes": 5000
           }
         }
       }
