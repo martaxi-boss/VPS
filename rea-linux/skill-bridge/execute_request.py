@@ -954,7 +954,7 @@ def original_mcp_catalog(env):
     js = ("import {TOOL_CONTRACTS} from './dist/contracts/toolContracts.js';"
           "import {MANAGED_WORKFLOW_TOOL_CONTRACTS} from "
           "'./dist/contracts/managed/managedWorkflowToolContracts.js';"
-          "const all=[...TOOL_CONTRACTS,...MANAGED_WORKFLOW_TOOL_CONTRACTS];"
+          "const all=TOOL_CONTRACTS;"
           "process.stdout.write(JSON.stringify(all.map(x=>({name:x.name,kind:x.kind,effects:x.effects}))));")
     trial = execute([str(NODE), "--input-type=module", "-e", js], env, timeout=50)
     if trial["exit"] != 0:
