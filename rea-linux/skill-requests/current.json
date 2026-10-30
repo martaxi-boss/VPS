@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-lowcost-audit-tls-static-20261030",
+  "request_id": "rea-lowcost-preflight-hsts-20261030",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,42 +9,18 @@
           "executable": "/bin/bash",
           "arguments": [
             "-c",
-            "set -Eeuo pipefail\necho TLS_CHECK_START=1\nB=lowcost-europa.duckdns.org\nset +e\nv=\"$(curl -sS --max-time 18 -o /dev/null -w 'https_code=%{http_code};ssl_verify=%{ssl_verify_result};connect=%{time_connect};tls=%{time_appconnect}' \"https://$B/\")\"\nrc=$?\nset -e\necho \"TLS_STRICT=$v;CURL_EXIT=$rc\"\nset +e\nhttp=\"$(curl -sS --max-time 18 -D - -o /dev/null \"http://$B/\" | tr -d '\\r' | grep -Ei '^(HTTP/|location:)' | head -4)\"\nh_rc=$?\nset -e\nprintf 'HTTP_TO_HTTPS_HEADERS=%s;CODE=%s\\n' \"$http\" \"$h_rc\"\nfor f in product-images.js catalog-explorer.js; do\n code=\"$(curl -sS --max-time 18 -o /dev/null -w '%{http_code}' \"https://$B/static/storefront/$f\" || true)\"\n echo \"STATIC=$f;HTTP=$code\"\ndone\nif command -v openssl >/dev/null; then\n echo | openssl s_client -connect \"$B:443\" -servername \"$B\" -verify_return_error 2>&1 | grep -E '^Verification:|^Verify return code:' | head -3 || true\nfi\necho TLS_CHECK_END=PASS"
+            "set -Eeuo pipefail\necho CONFIG_PRECHECK_START=1\nsudo -n bash -c '\nset -a\n. /etc/lowcost-europa/lowcost-europa.env\nset +a\nexport DJANGO_SETTINGS_MODULE=config.settings.production\ncd /srv/lowcost-europa\nrunuser -u le001_1789265592 -- .venv/bin/python manage.py shell -c '\"'\"'\nfrom django.conf import settings\nimport os\nprint(\"DJANGO_HSTS_EFFECTIVE=\"+str(settings.SECURE_HSTS_SECONDS))\nprint(\"DJANGO_HSTS_ENV_DEFINED=\"+str(\"DJANGO_SECURE_HSTS_SECONDS\" in os.environ))\nprint(\"DJANGO_HSTS_INCLUDE_SUBDOMAINS=\"+str(settings.SECURE_HSTS_INCLUDE_SUBDOMAINS))\nprint(\"DJANGO_HSTS_PRELOAD=\"+str(settings.SECURE_HSTS_PRELOAD))\nprint(\"DJANGO_SECURE_SSL_REDIRECT=\"+str(settings.SECURE_SSL_REDIRECT))\nprint(\"DJANGO_PUBLIC_INDEXING_ENABLED=\"+str(settings.PUBLIC_INDEXING_ENABLED))\nprint(\"DEBUG=\"+str(settings.DEBUG))\n'\"'\"'\n'\necho CONFIG_PRECHECK_END=PASS"
           ],
           "working_directory": "/srv/lowcost-europa",
-          "timeout_ms": 130000,
-          "idle_timeout_ms": 130000,
+          "timeout_ms": 75000,
+          "idle_timeout_ms": 75000,
           "terminal": {
             "columns": 100,
             "rows": 40,
-            "scrollback": 110
+            "scrollback": 100
           },
           "limits": {
-            "output_bytes": 12000
-          }
-        }
-      }
-    },
-    {
-      "method": "tools/call",
-      "params": {
-        "name": "capture_process_scenario",
-        "arguments": {
-          "executable": "/bin/bash",
-          "arguments": [
-            "-c",
-            "set -Eeuo pipefail\necho SOURCE_STATIC_CHECK_START=1\ncd /srv/lowcost-europa\ntest \"$(git rev-parse HEAD)\" = \"8b8bdaeaeb49f01def64b127f1b0c1459d5cf24e\" && echo STAGING_SHA=PASS\nfor f in apps/storefront/static/storefront/product-images.js apps/storefront/static/storefront/catalog-explorer.js; do\n if test -s \"$f\"; then echo \"JS_FILE=$f;PRESENT=YES\"; else echo \"JS_FILE=$f;PRESENT=NO\"; fi\n if command -v node >/dev/null; then\n  node --check \"$f\" && echo \"JS_SYNTAX=$f;PASS\" || echo \"JS_SYNTAX=$f;FAIL\"\n fi\ndone\necho SOURCE_STATIC_CHECK_END=PASS"
-          ],
-          "working_directory": "/srv/lowcost-europa",
-          "timeout_ms": 130000,
-          "idle_timeout_ms": 130000,
-          "terminal": {
-            "columns": 100,
-            "rows": 40,
-            "scrollback": 110
-          },
-          "limits": {
-            "output_bytes": 12000
+            "output_bytes": 10000
           }
         }
       }
