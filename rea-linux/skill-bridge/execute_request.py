@@ -896,7 +896,8 @@ def analyze_project_javascript(req, env):
             files.append({"path": relative, "size_bytes": size, "sha256": sha256(selected)})
         out["source_files"] = files
         args = [str(NODE), "scripts/rea.mjs", "analyze-javascript-application",
-                str(parent), "--detail", "summary"]
+                str(parent), "--detail", "summary", "--evidence_output",
+                str(Path(temp)/"full-evidence.json")]
         for relative in req["source_paths"]:
             args += ["--source-path", relative]
         args.append("--json")
