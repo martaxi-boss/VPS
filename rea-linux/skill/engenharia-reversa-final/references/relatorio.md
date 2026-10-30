@@ -2,10 +2,10 @@
 
 - Pedido, objetivo, alvo, commit/projeto e ambiente de execucao.
 - Capacidades REA consultadas e disponibilidade efetivamente confirmada.
-- Ferramentas MCP realmente usadas, porque foram escolhidas, e fornecedor/dependencia realmente executados; diferenciar ferramenta REA especializada de processo Linux executado pelo REA.
+- Ferramentas MCP realmente usadas, adequacao do contrato ao alvo e fornecedor/dependencia efetivamente executados; diferenciar ferramenta REA especializada de processo Linux executado pelo REA. Em Django/Python/Git, um processo Linux dentro do REA e execucao legitima. Para alteracoes de codigo, demonstrar diff, testes e estado final; nao atribuir ao REA alteracoes feitas so pelo GitHub ou pela IA.
 - Se houver fallback: qual a capacidade em falta no REA, tentativa de correccao do uso quando cabivel, comparacao com alternativa, qual a ferramenta propria da IA usada e resultado concreto; nunca chamar a esse trecho execucao REA.
 - IDs de pedido MCP, commits e runs de transporte; diferenciar transporte, MCP e operacao tecnica.
-- Para `capture_process_scenario`: `normalized_result.exit.code`, `settlement`, `cleanup`, `frames` e `truncation_details` (bruto vs renderizado). Verificar o sucesso de cada subcomando relevante; exit global zero nao torna subtestes falhados em PASS.
+- Para `capture_process_scenario`: `normalized_result.exit.code`, `exit.signal`, `exit.reason`, `settlement`, `cleanup`, `frames` e `truncation_details.raw_terminal` (bruto vs renderizado). `exit.code` diferente de zero, sinal ou `idle_timeout`/timeout => FALHA; ausencia de codigo sem sucesso comprovado => nao PASS. Mesmo codigo zero exige comprovar cada subteste. Tentativa recuperada fica registada como falha anterior mais nova tentativa PASS, nao como se nunca tivesse falhado.
 - Evidencia, cobertura, resultados PASS/PARCIAL/FALHA, limites e proximas lacunas.
 
 `tools/list` anunciar 229 ferramentas nao significa certificar 229 ferramentas. Uma dependencia ou executavel instalado nao demonstra que o REA o utilizou.
