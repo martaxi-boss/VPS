@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-lowcost-audit-20261030-1441-deep",
+  "request_id": "rea-lowcost-continue-20261030-01",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,13 +9,13 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -u\nsudo -n bash -c 'set -ae; . /etc/lowcost-europa/lowcost-europa.env; set +a; cd /srv/lowcost-europa; export DJANGO_SETTINGS_MODULE=config.settings.production; runuser -u le001_1789265592 -- /srv/lowcost-europa/.venv/bin/python manage.py check --deploy'\na=$?; echo \"DEPLOY_CHECK_EXIT=$a\"\nsudo -n bash -c 'set -ae; . /etc/lowcost-europa/lowcost-europa.env; set +a; cd /srv/lowcost-europa; export DJANGO_SETTINGS_MODULE=config.settings.production; runuser -u le001_1789265592 -- /srv/lowcost-europa/.venv/bin/python manage.py shell -c \"$1\"' bash \"$1\"\nb=$?; echo \"DEEP_CATALOG_QUERY_EXIT=$b\"\nif [ \"$a\" -eq 0 ] && [ \"$b\" -eq 0 ]; then exit 0; else exit 44; fi",
-            "rea-deep",
-            "import json\nfrom datetime import timedelta\nfrom django.utils import timezone\nfrom django.db.models import Count\nfrom apps.catalog.models import Offer,OfferCandidate,OfferObservation,OfferFamilyPlacement,ProductFamily\nfrom apps.catalog.services.public_eligibility import public_eligibility_q\nfrom apps.catalog.services.weekly_discovery import WEEKLY_FAMILY_SLUGS\nnow=timezone.now()\noffers=list(Offer.objects.filter(public_eligibility_q()).distinct())\nids=[o.id for o in offers]\nobservations=list(OfferObservation.objects.filter(offer_id__in=ids).order_by(\"offer_id\",\"-observed_at\",\"-id\").only(\"id\",\"offer_id\",\"observed_at\",\"price\",\"currency\",\"delivery_days\",\"search_delivery_days\",\"availability\"))\nlast={}\nlatest_price={}\never_numeric=set()\nfor o in observations:\n    if o.offer_id not in last:last[o.offer_id]=o\n    if o.price is not None and (o.currency or \"\").strip() and o.offer_id not in latest_price:latest_price[o.offer_id]=o\n    if o.delivery_days is not None or o.search_delivery_days is not None:ever_numeric.add(o.offer_id)\nplaced=OfferFamilyPlacement.objects.filter(offer_id__in=ids).values(\"product_family__slug\").annotate(total=Count(\"offer_id\",distinct=True))\nresult={\"time\":now.isoformat(),\"public_total\":len(offers),\"public_price_not_fresh_24h\":sum((i not in latest_price or latest_price[i].observed_at < now-timedelta(hours=24)) for i in ids),\"public_without_any_numeric_delivery\":sum(i not in ever_numeric for i in ids),\"public_with_some_numeric_delivery\":sum(i in ever_numeric for i in ids),\"eligible_by_family_placements\":{x[\"product_family__slug\"]:x[\"total\"] for x in placed},\"latest_observations_older_than_24h\":sum(i not in last or last[i].observed_at < now-timedelta(hours=24) for i in ids)}\nprint(\"DEEP_CATALOG_JSON=\"+json.dumps(result,sort_keys=True))\n"
+            "set -eu\ntest -f /etc/lowcost-europa/lowcost-europa.env\nsudo -n bash -c 'set -ae; . /etc/lowcost-europa/lowcost-europa.env; set +a; cd /srv/lowcost-europa; export DJANGO_SETTINGS_MODULE=config.settings.production; runuser -u le001_1789265592 -- /srv/lowcost-europa/.venv/bin/python manage.py shell -c \"$1\"' bash \"$1\"",
+            "rea-data",
+            "import json\nfrom collections import defaultdict, Counter\nfrom datetime import timedelta\nfrom django.utils import timezone\nfrom django.db.models import Count\nfrom apps.catalog.models import Offer, OfferObservation, OfferCandidate, OfferFamilyPlacement, ProductFamily\nfrom apps.catalog.services.public_eligibility import public_eligibility_q, is_ship_from_verified\nfrom apps.catalog.services.weekly_discovery import WEEKLY_FAMILY_SLUGS, PENDING_CAP_PER_FAMILY\nnow=timezone.now()\noffers=list(Offer.objects.filter(public_eligibility_q()).distinct().only(\"id\",\"ship_from_country\",\"ship_from_verified_at\",\"affiliate_promotion_status\",\"is_active\",\"owner_hidden\"))\nids=[o.id for o in offers]\nby_id={o.id:o for o in offers}\nhistory=list(OfferObservation.objects.filter(offer_id__in=ids).order_by(\"offer_id\",\"-observed_at\",\"-id\").only(\"offer_id\",\"observed_at\",\"availability\",\"price\",\"currency\",\"delivery_days\",\"search_delivery_days\"))\nlatest={}\nprice={}\nnumeric=set()\nfor row in history:\n    latest.setdefault(row.offer_id,row)\n    if row.price is not None and (row.currency or \"\").strip(): price.setdefault(row.offer_id,row)\n    if row.delivery_days is not None or row.search_delivery_days is not None: numeric.add(row.offer_id)\nfam=defaultdict(set)\nfor p in OfferFamilyPlacement.objects.filter(offer_id__in=ids).values(\"offer_id\",\"product_family__slug\"): fam[p[\"product_family__slug\"]].add(p[\"offer_id\"])\nout=[]\nfor slug in WEEKLY_FAMILY_SLUGS:\n    subset=fam[slug]\n    validorigin=sum(is_ship_from_verified(by_id[i],as_of=now) for i in subset)\n    pending=OfferCandidate.objects.filter(product_family__slug=slug,status=\"PENDING\").count()\n    out.append({\"family\":slug,\"public_eligible\":len(subset),\"origin_verified\":validorigin,\"origin_missing\":len(subset)-validorigin,\"last_stock_unknown\":sum(latest.get(i) is None or latest[i].availability==\"UNKNOWN\" for i in subset),\"numeric_delivery_ever\":len(subset & numeric),\"price_unconfirmed_24h\":sum(i not in price or price[i].observed_at<now-timedelta(hours=24) for i in subset),\"pending\":pending,\"new_discovery_paused\":pending>=PENDING_CAP_PER_FAMILY})\nprint(\"REA_DEEP_CATALOG=\"+json.dumps({\"utc\":now.isoformat(),\"total_offers\":Offer.objects.count(),\"public_eligible\":len(offers),\"public_by_family\":out,\"country_stored\":dict(Counter((o.ship_from_country or \"MISSING\") for o in offers)),\"recent_last_observation_count\":sum(i in latest and latest[i].observed_at>=now-timedelta(hours=24) for i in ids),\"retired_pending\":OfferCandidate.objects.filter(status=\"PENDING\",product_family__status=\"RETIRED\").count()},sort_keys=True))\n"
           ],
-          "timeout_ms": 115000,
+          "timeout_ms": 110000,
           "limits": {
-            "output_bytes": 9500
+            "output_bytes": 6500
           }
         }
       }
@@ -28,11 +28,11 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -u\nfor service in lowcost-europa-backup.service lowcost-europa-offsite-backup.service lowcost-europa-offsite-backup-health.service lowcost-europa-catalog-maintenance.service lowcost-europa-weekly-discovery.service; do echo \"SERVICE=$service\"; systemctl show \"$service\" -p Result -p ExecMainStatus -p ActiveEnterTimestamp -p InactiveExitTimestamp --no-pager | head -n 8; done\nfor path in / /health/live/ /health/ready/ /painel/ /robots.txt /sitemap.xml /products/cavitacao-rf-vacuum-corpo/ /products/hydrodermoabrasao-aqua-facial-multifuncoes/ /products/pressoterapia-vacuum-drenagem/ /products/hifu/ /products/diodo-laser-remocao-tatuagens-pigmentacao/; do echo \"URL_CHECK=$path\"; curl -sS -o /dev/null --max-time 15 -w \"HTTP_CODE=%{http_code} SSL_VERIFY=%{ssl_verify_result}\\n\" \"https://lowcost-europa.duckdns.org$path\"; echo \"CURL_EXIT=$?\"; done"
+            "set -eu\necho \"REA_STATIC_BEGIN\"\nsudo -n -u le001_1789265592 git -C /srv/lowcost-europa rev-parse HEAD\nfor p in apps/catalog/services/public_eligibility.py apps/catalog/services/weekly_discovery.py apps/storefront/views.py apps/catalog/services/observation_display.py; do echo \"FILE=$p\"; sudo -n -u le001_1789265592 git -C /srv/lowcost-europa ls-files --error-unmatch \"$p\" >/dev/null; done\ncd /srv/lowcost-europa\ngrep -n -E 'is_ship_from_verified|public_eligibility_q|availability|price_observation|def offer_go|def publish_offer_to_storefront' apps/catalog/services/public_eligibility.py apps/storefront/views.py apps/catalog/services/owner_editorial.py | head -n 65\necho \"REA_STATIC_END\""
           ],
-          "timeout_ms": 150000,
+          "timeout_ms": 50000,
           "limits": {
-            "output_bytes": 11000
+            "output_bytes": 5000
           }
         }
       }
