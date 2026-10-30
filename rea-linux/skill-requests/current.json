@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-plcodex-env-fix-20261030-9",
+  "request_id": "rea-plcodex-test-and-certify-20261030-10",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nexport PYTHONDONTWRITEBYTECODE=1\ncd /tmp/rea-audit-plcodex-20261030-1647\ntest \"$(git branch --show-current)\" = fix/rea-plcodex-audit-20261030\npython3 - <<'PY'\nfrom pathlib import Path\np=Path(\"codex/dual.py\")\ns=p.read_text()\nold=\"def _invoke_codex(\"\nassert s.count(old)==1\nnew='''_CODEX_ENV_NAMES = frozenset({\n    \"PATH\", \"HOME\", \"USER\", \"LOGNAME\", \"SHELL\", \"LANG\",\n    \"LC_ALL\", \"LC_CTYPE\", \"TERM\", \"COLORTERM\", \"TMPDIR\", \"TZ\",\n    \"XDG_CONFIG_HOME\", \"XDG_CACHE_HOME\", \"XDG_DATA_HOME\",\n    \"XDG_STATE_HOME\", \"XDG_RUNTIME_DIR\",\n    \"CODEX_HOME\", \"CODEX_API_KEY\", \"OPENAI_API_KEY\", \"OPENAI_BASE_URL\",\n    \"OPENAI_ORG_ID\", \"OPENAI_PROJECT_ID\",\n    \"HTTP_PROXY\", \"HTTPS_PROXY\", \"ALL_PROXY\", \"NO_PROXY\",\n    \"http_proxy\", \"https_proxy\", \"all_proxy\", \"no_proxy\",\n    \"SSL_CERT_FILE\", \"SSL_CERT_DIR\", \"REQUESTS_CA_BUNDLE\",\n})\n\n\ndef _child_environment(explicit: dict[str, str] | None) -> dict[str, str]:\n    # Avoid forwarding unrelated inherited project and CI variables to Codex.\n    # A host-supplied explicit environment remains caller-controlled.\n    if explicit is not None:\n        return dict(explicit)\n    return {name: value for name, value in os.environ.items()\n            if name in _CODEX_ENV_NAMES}\n\n\n'''\ns=s.replace(old,new+old,1)\nold=\"cwd=str(cwd) if cwd is not None else None, env=env,\"\nassert s.count(old)==1\ns=s.replace(old,\"cwd=str(cwd) if cwd is not None else None, env=_child_environment(env),\",1)\np.write_text(s)\nprint(\"CODEX_ENV_GUARD_APPLIED\")\nPY\ngit --no-pager diff --check\npython3 -m compileall -q codex/dual.py\necho 'ENV_EDIT_PASS'"
+            "set -Eeuo pipefail\nexport PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/tmp/rea-audit-plcodex-20261030-1647\ncd /tmp/rea-audit-plcodex-20261030-1647\ntest \"$(git branch --show-current)\" = fix/rea-plcodex-audit-20261030\npython3 - <<'PY'\nfrom pathlib import Path\np=Path(\"codex/tests/test_worker_environment.py\")\nif p.exists(): raise RuntimeError(\"already exists\")\np.write_text('''\"\"\"Real subprocess regression for Codex host-environment isolation.\"\"\"\nimport os\nimport sys\nimport unittest\nfrom unittest.mock import patch\n\nfrom codex.dual import _invoke_codex\n\n\nclass WorkerEnvironmentTests(unittest.TestCase):\n    def test_implicit_host_environment_is_filtered(self):\n        values = {\n            \"PL_OTHER_PROJECT_CANARY\": \"dont-share\",\n            \"GITHUB_TOKEN\": \"unrelated\",\n            \"CODEX_HOME\": \"/tmp/rea-codex-home\",\n        }\n        source = (\"import os; \"\n                  \"print(os.getenv('PL_OTHER_PROJECT_CANARY', 'ABSENT')); \"\n                  \"print(os.getenv('GITHUB_TOKEN', 'ABSENT')); \"\n                  \"print(os.getenv('CODEX_HOME', 'ABSENT'))\")\n        with patch.dict(os.environ, values):\n            code, output, error, status = _invoke_codex(\n                [sys.executable, \"-c\", source], \"\", timeout=10\n            )\n        self.assertEqual((code, status), (0, \"finished\"), error)\n        self.assertEqual(output.strip().splitlines(),\n                         [\"ABSENT\", \"ABSENT\", \"/tmp/rea-codex-home\"])\n\n    def test_explicit_host_environment_stays_explicit(self):\n        source = \"import os; print(os.getenv('PL_EXPLICIT_CANARY', 'ABSENT'))\"\n        code, output, error, status = _invoke_codex(\n            [sys.executable, \"-c\", source], \"\", timeout=10,\n            env={\"PATH\": \"/usr/bin:/bin\", \"PL_EXPLICIT_CANARY\": \"HOST_SET\"}\n        )\n        self.assertEqual((code, status), (0, \"finished\"), error)\n        self.assertEqual(output.strip(), \"HOST_SET\")\n\n\nif __name__ == \"__main__\":\n    unittest.main()\n''')\nprint(\"REGRESSION_TEST_CREATED\",p,flush=True)\nPY\ngit --no-pager diff --check\necho 'FOCUSED_ENV_TEST'\npython3 -m unittest discover -s codex/tests -p test_worker_environment.py -q\necho 'FULL_CONTROL_TEST'\npython3 -m unittest discover -s tests -p 'test_*.py' -q\necho 'FULL_CODEX_TEST'\npython3 -m unittest discover -s codex/tests -p 'test_*.py' -q\ngit --no-pager diff --check\necho 'FULL_REGRESSION_PASS'\ngit status --short"
           ],
-          "timeout_ms": 80000,
-          "idle_timeout_ms": 35000,
+          "timeout_ms": 210000,
+          "idle_timeout_ms": 140000,
           "limits": {
-            "output_bytes": 11000
+            "output_bytes": 18000
           }
         }
       }
