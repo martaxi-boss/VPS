@@ -1,6 +1,10 @@
 {
-  "request_id": "rea-lowcost-continue-20261030-04",
+  "request_id": "rea-lowcost-audit-20261030-1535-a",
   "mcp_requests": [
+    {
+      "method": "tools/list",
+      "params": {}
+    },
     {
       "method": "tools/call",
       "params": {
@@ -9,12 +13,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -eu\nrepo=/srv/lowcost-europa\necho \"STATIC_BEGIN\"\nsudo -n -u le001_1789265592 git -C \"$repo\" rev-parse HEAD\necho \"PUBLIC_TEMPLATE_ORIGIN_FIELDS\"\nif sudo -n -u le001_1789265592 grep -nE 'ship_from_country|is_ship_from_verified|ALLOWED_SHIP_FROM_COUNTRIES' \"$repo/apps/storefront/templates/storefront/components/offer_card.html\" \"$repo/apps/storefront/templates/storefront/home.html\"; then echo \"FRONTEND_REFERENCE=YES\"; else echo \"FRONTEND_REFERENCE=NO\"; fi\necho \"PUBLIC_ELIGIBILITY\"\nsudo -n -u le001_1789265592 grep -n -E 'is_ship_from_verified|public_eligibility_q|is_active|affiliate_promotion_status|ship_from_country' \"$repo/apps/catalog/services/public_eligibility.py\"\necho \"WEEKLY_CAP\"\nsudo -n -u le001_1789265592 grep -n -E 'PENDING_CAP_PER_FAMILY|pending_before >=' \"$repo/apps/catalog/services/weekly_discovery.py\"\necho \"DISCOVERY_TIMER\"\nsystemctl is-active lowcost-europa-weekly-discovery.timer\necho \"MAINTENANCE_TIMER\"\nsystemctl is-active lowcost-europa-catalog-maintenance.timer\necho \"STATIC_END\""
+            "set -Eeuo pipefail\nexport GIT_PAGER=cat PAGER=cat\nrepo=/srv/lowcost-europa\nowner=le001_1789265592\necho \"AUDIT_BEGIN\"\necho \"UTC=$(date -u +%FT%TZ)\"\necho \"HOST=$(hostname)\"\necho \"PROJECT_DIR\"\ntest -d \"$repo\" && stat -c '%U:%G %a %n' \"$repo\"\necho \"GIT_SHA_AND_BRANCH\"\nsudo -n -u \"$owner\" git -C \"$repo\" rev-parse HEAD\nsudo -n -u \"$owner\" git -C \"$repo\" branch --show-current\necho \"GIT_STATUS\"\nsudo -n -u \"$owner\" git -C \"$repo\" status --porcelain=v1\necho \"APP_FILES\"\nfind \"$repo/apps\" -maxdepth 3 -type f \\( -name '*.py' -o -name '*.html' \\) | sed \"s#$repo/##\" | sort | head -85\necho \"PYTHON\"\npython3 --version\necho \"ENV_DIRS\"\nfind \"$repo\" -maxdepth 2 -type d \\( -name venv -o -name .venv \\) -print\necho \"SERVICES\"\nfor s in lowcost-europa lowcost-europa-weekly-discovery.timer lowcost-europa-catalog-maintenance.timer; do printf '%s=' \"$s\"; systemctl is-active \"$s\" || :; done\necho \"TIMERS\"\nsystemctl list-timers --all --no-pager --no-legend | grep -E 'lowcost-europa' || :\necho \"RECENT_COMMITS\"\nsudo -n -u \"$owner\" git -C \"$repo\" --no-pager log -5 --format='%h %ad %s' --date=iso-strict\necho \"AUDIT_END\""
           ],
-          "timeout_ms": 70000,
-          "idle_timeout_ms": 18000,
+          "timeout_ms": 90000,
+          "idle_timeout_ms": 30000,
           "limits": {
-            "output_bytes": 5000
+            "output_bytes": 12000
           }
         }
       }
