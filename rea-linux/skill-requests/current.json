@@ -1,29 +1,9 @@
 {
-  "request_id": "rea-lowcost-independent-postdeploy-20261030",
+  "request_id": "rea-final-idle-lowcost-20261030-hygiene",
   "mcp_requests": [
     {
-      "method": "tools/call",
-      "params": {
-        "name": "capture_process_scenario",
-        "arguments": {
-          "executable": "/bin/bash",
-          "arguments": [
-            "-c",
-            "set -Eeuo pipefail\nAPP=/srv/lowcost-europa\nACCT=le001_1789265592\nEXPECTED=388860c6a167686a378b89f4282304bce89c25de\nBASE=https://lowcost-europa.duckdns.org\necho \"FINAL_VERIFY_START=1\"\ntest \"$(sudo -n -u \"$ACCT\" git -C \"$APP\" rev-parse HEAD)\" = \"$EXPECTED\"\ntest -z \"$(sudo -n -u \"$ACCT\" git -C \"$APP\" status --porcelain=v1 --untracked-files=normal)\"\necho \"FINAL_GIT_SHA=$EXPECTED\"\necho \"GIT_WORKTREE=CLEAN\"\nfor u in lowcost-europa.service nginx.service postgresql.service lowcost-europa-catalog-maintenance.timer lowcost-europa-weekly-discovery.timer lowcost-europa-affiliate-report.timer; do\n systemctl is-active --quiet \"$u\"\n echo \"UNIT_ACTIVE=$u\"\ndone\nfor u in lowcost-europa-backup.service lowcost-europa-offsite-backup.service lowcost-europa-offsite-backup-health.service; do\n test \"$(systemctl show -P Result \"$u\")\" = success\n test \"$(systemctl show -P ExecMainStatus \"$u\")\" = 0\n echo \"BACKUP_SERVICE_LAST_RESULT=PASS:$u\"\ndone\ntest ! -e /etc/lowcost-europa/.lowcost-recovery-20261030-leftover\necho \"HSTS_RUNTIME_SECURE_CHECK=START\"\nH=\"$(curl -fsS -D - -o /dev/null --max-time 20 \"$BASE/\" | tr -d '\\r')\"\nprintf '%s\\n' \"$H\" | grep -iq '^strict-transport-security: max-age=3600'\nprintf '%s\\n' \"$H\" | grep -iq '^x-robots-tag: noindex, nofollow'\ncurl -fsS --max-time 20 \"$BASE/robots.txt\" | grep -Fq 'Disallow: /'\necho \"HTTPS_HSTS_NOINDEX=PASS\"\nsudo -n bash -c '\n set -a\n . /etc/lowcost-europa/lowcost-europa.env\n set +a\n export DJANGO_SETTINGS_MODULE=config.settings.production\n cd /srv/lowcost-europa\n runuser -u le001_1789265592 -- .venv/bin/python manage.py shell -c '\"'\"'\nfrom django.conf import settings\nfrom apps.catalog.models import Offer,OfferCandidate,ProductFamily\nfrom django.db.models import Count\nassert settings.SECURE_HSTS_SECONDS == 3600 and not settings.PUBLIC_INDEXING_ENABLED\nprint(\"SETTINGS_STAGING=PASS\")\nprint(\"OFFERS_TOTAL=\"+str(Offer.objects.count()))\nprint(\"OFFERS_ACTIVE=\"+str(Offer.objects.filter(is_active=True).count()))\nprint(\"PENDING_CANDIDATES=\"+str(OfferCandidate.objects.filter(status=\"PENDING\").count()))\nfor x in OfferCandidate.objects.filter(status=\"PENDING\",product_family__status=\"RETIRED\").values(\"product_family__slug\").annotate(n=Count(\"pk\")).order_by(\"product_family__slug\"):\n print(\"LEGACY_PENDING=\"+x[\"product_family__slug\"]+\";N=\"+str(x[\"n\"]))\n'\"'\"'\n'\necho \"FINAL_VERIFY=PASS\""
-          ],
-          "working_directory": "/srv/lowcost-europa",
-          "timeout_ms": 135000,
-          "idle_timeout_ms": 135000,
-          "terminal": {
-            "columns": 105,
-            "rows": 50,
-            "scrollback": 140
-          },
-          "limits": {
-            "output_bytes": 12000
-          }
-        }
-      }
+      "method": "tools/list",
+      "params": {}
     }
   ]
 }
