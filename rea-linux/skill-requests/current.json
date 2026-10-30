@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-lowcost-audit-20261030-1539-b",
+  "request_id": "rea-lowcost-audit-20261030-1541-c",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nrepo=/srv/lowcost-europa\necho \"STATIC_AUDIT_BEGIN\"\necho \"ENVIRONMENTFILES\"\nsystemctl show lowcost-europa.service -p EnvironmentFiles -p WorkingDirectory -p User --no-pager\necho \"CRITICAL_SOURCE_NAMES\"\nfind \"$repo/apps\" -maxdepth 3 -type f \\( -name '*views.py' -o -name '*eligibility.py' -o -name '*weekly_discovery.py' -o -name '*maintenance.py' \\) | sed \"s#$repo/##\" | head -35\necho \"PUBLIC_ELIGIBILITY_CODE\"\nsed -n '1,180p' \"$repo/apps/catalog/services/public_eligibility.py\"\necho \"WEEKLY_DISCOVERY_RULES\"\ngrep -nE -C 2 'PENDING_CAP_PER_FAMILY|pending_before|20|allow|candidate|cap' \"$repo/apps/catalog/services/weekly_discovery.py\" | head -85\necho \"SECURITY_SETTINGS\"\ngrep -nE 'SECURE_|SESSION_COOKIE|CSRF_COOKIE|DEBUG|ALLOWED_HOSTS|X_FRAME|CONTENT_SECURITY' \"$repo/config/settings/production.py\" | head -65\necho \"STATIC_AUDIT_END\""
+            "set -Eeuo pipefail\ncd /srv/lowcost-europa\nset -a\n. /etc/lowcost-europa/lowcost-europa.env\nset +a\nexport DJANGO_SETTINGS_MODULE=config.settings.production PYTHONDONTWRITEBYTECODE=1\necho \"DJANGO_AUDIT_BEGIN\"\n.venv/bin/python manage.py check\n.venv/bin/python manage.py check --deploy\n.venv/bin/python manage.py makemigrations --check --dry-run\necho \"MIGRATION_PLAN_LAST\"\n.venv/bin/python manage.py showmigrations catalog | tail -24\necho \"DJANGO_AUDIT_END\""
           ],
-          "timeout_ms": 100000,
-          "idle_timeout_ms": 30000,
+          "timeout_ms": 120000,
+          "idle_timeout_ms": 35000,
           "limits": {
-            "output_bytes": 16000
+            "output_bytes": 14000
           }
         }
       }
@@ -27,12 +27,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\necho \"LIVE_HTTP_BEGIN\"\nbase=https://lowcost-europa.duckdns.org\nfor path in / /robots.txt /health/live/ /health/ready/ /painel/ /admin/; do \n  printf 'PATH=%s ' \"$path\"\n  curl -sS --max-time 15 -o /dev/null -w 'CODE=%{http_code} TLS=%{ssl_verify_result} TIME=%{time_total}\\n' \"$base$path\"\ndone\necho \"ROOT_HEADERS\"\ncurl -sSI --max-time 15 \"$base/\" | grep -iE '^(HTTP/|strict-transport-security:|content-security-policy:|x-frame-options:|x-content-type-options:|referrer-policy:|x-robots-tag:|location:)' || :\necho \"HTTP_REDIRECT\"\ncurl -sSI --max-time 15 \"http://lowcost-europa.duckdns.org/\" | grep -iE '^(HTTP/|location:)' || :\necho \"SERVICES_LAST_RUNS\"\nfor svc in lowcost-europa-weekly-discovery.service lowcost-europa-catalog-maintenance.service lowcost-europa-backup.service lowcost-europa-offsite-backup.service lowcost-europa-offsite-backup-health.service;do printf '%s ' \"$svc\";systemctl show \"$svc\" -p Result -p ExecMainStatus -p ActiveEnterTimestamp --no-pager | tr '\\n' ' ';echo;done\necho \"LIVE_HTTP_END\""
+            "set -Eeuo pipefail\ncd /srv/lowcost-europa\nset -a\n. /etc/lowcost-europa/lowcost-europa.env\nset +a\nexport DJANGO_SETTINGS_MODULE=config.settings.production PYTHONDONTWRITEBYTECODE=1\necho \"DATABASE_AUDIT_BEGIN\"\n.venv/bin/python - <<'PY'\nimport django\ndjango.setup()\nfrom datetime import timedelta\nfrom django.db.models import Q, OuterRef, Subquery, Exists\nfrom django.db.models.functions import Trim\nfrom django.utils import timezone\nfrom apps.catalog.models import Offer, OfferCandidate, OfferObservation, ProductFamily, OfferFamilyPlacement\nfrom apps.catalog.services.public_eligibility import public_eligibility_q\nnow=timezone.now()\nqs=Offer.objects.filter(public_eligibility_q(now))\nprint(\"OFFERS_TOTAL\", Offer.objects.count())\nprint(\"OFFERS_ACTIVE\", Offer.objects.filter(is_active=True).count())\nprint(\"PUBLIC_ELIGIBLE\", qs.count())\nprint(\"ELIGIBLE_NO_INDIVIDUAL_ORIGIN\",qs.filter(Q(ship_from_country__isnull=True)|Q(ship_from_verified_at__isnull=True)).count())\nprint(\"ELIGIBLE_ORIGIN_COUNTS\",list(qs.values(\"ship_from_country\").order_by(\"ship_from_country\").annotate(total=__import__(\"django\").db.models.Count(\"id\"))))\nlatest=OfferObservation.objects.filter(offer_id=OuterRef(\"pk\")).order_by(\"-observed_at\",\"-pk\")\nprice=(OfferObservation.objects.filter(offer_id=OuterRef(\"pk\"),price__isnull=False,currency__isnull=False).annotate(clean_currency=Trim(\"currency\")).exclude(clean_currency=\"\").order_by(\"-observed_at\",\"-pk\"))\ndelivery=OfferObservation.objects.filter(offer_id=OuterRef(\"pk\")).filter(Q(delivery_days__isnull=False)|Q(search_delivery_days__isnull=False))\ne=qs.annotate(last_availability=Subquery(latest.values(\"availability\")[:1]),last_observed_at=Subquery(latest.values(\"observed_at\")[:1]),price_at=Subquery(price.values(\"observed_at\")[:1]),has_days=Exists(delivery))\nprint(\"LATEST_AVAILABILITY_COUNTS\",list(e.values(\"last_availability\").annotate(total=__import__(\"django\").db.models.Count(\"id\")).order_by(\"last_availability\")))\nprint(\"ELIGIBLE_OLD_LAST_OBSERVATION_24H\",e.filter(Q(last_observed_at__lt=now-timedelta(hours=24))|Q(last_observed_at__isnull=True)).count())\nprint(\"ELIGIBLE_PRICE_UNVERIFIED_24H\",e.filter(Q(price_at__lt=now-timedelta(hours=24))|Q(price_at__isnull=True)).count())\nprint(\"ELIGIBLE_WITHOUT_DELIVERY_DAYS\",e.filter(has_days=False).count())\nprint(\"PENDING_TOTAL\",OfferCandidate.objects.filter(status=\"PENDING\").count())\nfor f in ProductFamily.objects.all().order_by(\"display_order\",\"slug\"):\n p=OfferCandidate.objects.filter(product_family=f,status=\"PENDING\").count()\n public=OfferFamilyPlacement.objects.filter(product_family=f,offer__in=qs).values(\"offer_id\").distinct().count()\n print(\"FAMILY\",f.slug,\"status=\"+str(f.status),\"pending=\"+str(p),\"public=\"+str(public),\"discovery_paused=\"+str(p>=20 and f.status==\"ACTIVE\"))\nprint(\"DATABASE_AUDIT_END\")\nPY"
           ],
-          "timeout_ms": 100000,
-          "idle_timeout_ms": 30000,
+          "timeout_ms": 120000,
+          "idle_timeout_ms": 35000,
           "limits": {
-            "output_bytes": 16000
+            "output_bytes": 14000
           }
         }
       }
