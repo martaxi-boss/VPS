@@ -1,9 +1,23 @@
 {
-  "request_id": "rea-lowcost-audit-20261030-1535-a",
+  "request_id": "rea-lowcost-audit-20261030-1539-b",
   "mcp_requests": [
     {
-      "method": "tools/list",
-      "params": {}
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/bin/bash",
+          "arguments": [
+            "-lc",
+            "set -Eeuo pipefail\nrepo=/srv/lowcost-europa\necho \"STATIC_AUDIT_BEGIN\"\necho \"ENVIRONMENTFILES\"\nsystemctl show lowcost-europa.service -p EnvironmentFiles -p WorkingDirectory -p User --no-pager\necho \"CRITICAL_SOURCE_NAMES\"\nfind \"$repo/apps\" -maxdepth 3 -type f \\( -name '*views.py' -o -name '*eligibility.py' -o -name '*weekly_discovery.py' -o -name '*maintenance.py' \\) | sed \"s#$repo/##\" | head -35\necho \"PUBLIC_ELIGIBILITY_CODE\"\nsed -n '1,180p' \"$repo/apps/catalog/services/public_eligibility.py\"\necho \"WEEKLY_DISCOVERY_RULES\"\ngrep -nE -C 2 'PENDING_CAP_PER_FAMILY|pending_before|20|allow|candidate|cap' \"$repo/apps/catalog/services/weekly_discovery.py\" | head -85\necho \"SECURITY_SETTINGS\"\ngrep -nE 'SECURE_|SESSION_COOKIE|CSRF_COOKIE|DEBUG|ALLOWED_HOSTS|X_FRAME|CONTENT_SECURITY' \"$repo/config/settings/production.py\" | head -65\necho \"STATIC_AUDIT_END\""
+          ],
+          "timeout_ms": 100000,
+          "idle_timeout_ms": 30000,
+          "limits": {
+            "output_bytes": 16000
+          }
+        }
+      }
     },
     {
       "method": "tools/call",
@@ -13,12 +27,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nexport GIT_PAGER=cat PAGER=cat\nrepo=/srv/lowcost-europa\nowner=le001_1789265592\necho \"AUDIT_BEGIN\"\necho \"UTC=$(date -u +%FT%TZ)\"\necho \"HOST=$(hostname)\"\necho \"PROJECT_DIR\"\ntest -d \"$repo\" && stat -c '%U:%G %a %n' \"$repo\"\necho \"GIT_SHA_AND_BRANCH\"\nsudo -n -u \"$owner\" git -C \"$repo\" rev-parse HEAD\nsudo -n -u \"$owner\" git -C \"$repo\" branch --show-current\necho \"GIT_STATUS\"\nsudo -n -u \"$owner\" git -C \"$repo\" status --porcelain=v1\necho \"APP_FILES\"\nfind \"$repo/apps\" -maxdepth 3 -type f \\( -name '*.py' -o -name '*.html' \\) | sed \"s#$repo/##\" | sort | head -85\necho \"PYTHON\"\npython3 --version\necho \"ENV_DIRS\"\nfind \"$repo\" -maxdepth 2 -type d \\( -name venv -o -name .venv \\) -print\necho \"SERVICES\"\nfor s in lowcost-europa lowcost-europa-weekly-discovery.timer lowcost-europa-catalog-maintenance.timer; do printf '%s=' \"$s\"; systemctl is-active \"$s\" || :; done\necho \"TIMERS\"\nsystemctl list-timers --all --no-pager --no-legend | grep -E 'lowcost-europa' || :\necho \"RECENT_COMMITS\"\nsudo -n -u \"$owner\" git -C \"$repo\" --no-pager log -5 --format='%h %ad %s' --date=iso-strict\necho \"AUDIT_END\""
+            "set -Eeuo pipefail\necho \"LIVE_HTTP_BEGIN\"\nbase=https://lowcost-europa.duckdns.org\nfor path in / /robots.txt /health/live/ /health/ready/ /painel/ /admin/; do \n  printf 'PATH=%s ' \"$path\"\n  curl -sS --max-time 15 -o /dev/null -w 'CODE=%{http_code} TLS=%{ssl_verify_result} TIME=%{time_total}\\n' \"$base$path\"\ndone\necho \"ROOT_HEADERS\"\ncurl -sSI --max-time 15 \"$base/\" | grep -iE '^(HTTP/|strict-transport-security:|content-security-policy:|x-frame-options:|x-content-type-options:|referrer-policy:|x-robots-tag:|location:)' || :\necho \"HTTP_REDIRECT\"\ncurl -sSI --max-time 15 \"http://lowcost-europa.duckdns.org/\" | grep -iE '^(HTTP/|location:)' || :\necho \"SERVICES_LAST_RUNS\"\nfor svc in lowcost-europa-weekly-discovery.service lowcost-europa-catalog-maintenance.service lowcost-europa-backup.service lowcost-europa-offsite-backup.service lowcost-europa-offsite-backup-health.service;do printf '%s ' \"$svc\";systemctl show \"$svc\" -p Result -p ExecMainStatus -p ActiveEnterTimestamp --no-pager | tr '\\n' ' ';echo;done\necho \"LIVE_HTTP_END\""
           ],
-          "timeout_ms": 90000,
+          "timeout_ms": 100000,
           "idle_timeout_ms": 30000,
           "limits": {
-            "output_bytes": 12000
+            "output_bytes": 16000
           }
         }
       }
