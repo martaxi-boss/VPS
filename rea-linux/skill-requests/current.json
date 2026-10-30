@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-lowcost-deep-20261030-1017-a1",
+  "request_id": "rea-lowcost-auditoria-profunda-20261030-b2",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -7,6 +7,17 @@
         "name": "binary_session",
         "arguments": {
           "expected_package_version": "6.8.0"
+        }
+      }
+    },
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "inspect_desktop_application",
+        "arguments": {
+          "path": "/srv/lowcost-europa/apps/storefront",
+          "max_entries": 300,
+          "detail": "summary"
         }
       }
     },
