@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-plcodex-e3-evidence-commit-push-20261030-2003",
+  "request_id": "rea-plcodex-vps-cli-preflight-20261030-2051",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nexport GIT_TERMINAL_PROMPT=0 GIT_PAGER=cat PAGER=cat PYTHONDONTWRITEBYTECODE=1\ncd /tmp/rea-plcodex-real-smoke-20261030-1957/e3\ntest \"$(git rev-parse HEAD)\" = 986f0876966b9ed33c51e0d55123fa1ee1b38624\ntest \"$(git branch --show-current)\" = fix/rea-plcodex-e3-distribution-20261030\necho 'REMOTE_TARGET_CHECK'\nremote_sha=\"$(git ls-remote origin refs/heads/fix/rea-plcodex-e3-distribution-20261030 | cut -f1)\"\ntest \"$remote_sha\" = 986f0876966b9ed33c51e0d55123fa1ee1b38624\necho 'REMOTE_BASE_MATCH'\ntest -f .project-leader/results/PL-CODEX-PLUGIN-DISTRIBUTION-20261030.json\npython3 - <<'PY'\nimport json\nfrom pathlib import Path\nfrom control.validate_records import validate_pair\nt=json.loads(Path(\".project-leader/tasks/PL-CODEX-PLUGIN-DISTRIBUTION-20261030.json\").read_text())\nr=json.loads(Path(\".project-leader/results/PL-CODEX-PLUGIN-DISTRIBUTION-20261030.json\").read_text())\nvalidate_pair(t,r)\nassert r[\"implementation_head_sha\"]==\"986f0876966b9ed33c51e0d55123fa1ee1b38624\"\nprint(\"E3_REVALIDATED_BEFORE_COMMIT\")\nPY\ngit add -- .project-leader/results/PL-CODEX-PLUGIN-DISTRIBUTION-20261030.json\ngit --no-pager diff --cached --check\ntest \"$(git --no-pager diff --cached --name-only)\" = .project-leader/results/PL-CODEX-PLUGIN-DISTRIBUTION-20261030.json\ngit -c user.name='REA FINAL' -c user.email='rea-final@users.noreply.github.com' commit -m 'control: certify E3 plugin distribution with exact-CI worker result'\necho \"REA_COMMIT_SHA=$(git rev-parse HEAD)\"\necho 'REA_PUSH_ATTEMPT'\ntimeout 50s git push origin HEAD:refs/heads/fix/rea-plcodex-e3-distribution-20261030\necho 'REA_PUSH_SUCCESS'"
+            "set -Eeuo pipefail\nexport GIT_PAGER=cat PAGER=cat GIT_TERMINAL_PROMPT=0 PYTHONDONTWRITEBYTECODE=1\nprintf 'REAL_CODEX_VPS_PREFLIGHT_BEGIN\\n'\nid\ndate -u '+UTC=%Y-%m-%dT%H:%M:%SZ'\npython3 - <<'PY'\nimport os,sys,shutil,subprocess,pathlib\nprint(\"PYTHON\",sys.version.split()[0])\nprint(\"HOME\",os.path.expanduser(\"~\"))\nfor k in (\"codex\",\"node\",\"npm\",\"git\",\"bwrap\",\"timeout\",\"sudo\"):\n print(\"EXE\",k,shutil.which(k) or \"MISSING\")\nfor p in (\"/tmp/rea-audit-plcodex-20261030-1647\",\"/tmp/rea-plcodex-real-smoke-20261030-1957/security\",\"/home/ubuntu/Project-leader-codex\",\"/root/Project-leader-codex\",\"/home/ubuntu/.codex\",\"/root/.codex\",\"/home/ubuntu/.nvm\",\"/root/.nvm\"):\n q=pathlib.Path(p)\n print(\"PATH_PRESENT\",p,int(q.exists()),\"OWNER\",q.stat().st_uid if q.exists() else \"-\")\nfor root in (\"/home/ubuntu\",\"/root\",\"/opt\"):\n p=pathlib.Path(root)\n if not p.exists() or not os.access(root,os.R_OK):continue\n matches=[]\n try:\n  for q in p.rglob(\"codex\"):\n   if len(q.parts)>len(p.parts)+6:continue\n   if q.is_file() and q.name==\"codex\":matches.append(str(q))\n   if len(matches)>=10:break\n except (PermissionError,OSError) as e:\n  print(\"SCAN_NOTE\",root,type(e).__name__)\n print(\"CLI_FILES\",root,matches[:10])\ndef run(label,args,timeout=12):\n try:\n  p=subprocess.run(args,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,timeout=timeout,check=False)\n  print(label+\"_RC\",p.returncode)\n  if label in {\"CODEX_VERSION\",\"CODEX_HELP\"}:\n   lines=(p.stdout+\"\\n\"+p.stderr).splitlines()\n   print(label+\"_OUTPUT\",\" | \".join(lines[:64 if label==\"CODEX_HELP\" else 5])[:6300])\n  elif label==\"CODEX_LOGIN\":print(\"CODEX_LOGIN_AUTHENTICATED\",p.returncode==0)\n except Exception as e:print(label+\"_ERROR\",type(e).__name__,str(e)[:180])\nexe=shutil.which(\"codex\")\nif exe:\n run(\"CODEX_VERSION\",[exe,\"--version\"])\n run(\"CODEX_HELP\",[exe,\"--help\"])\n run(\"CODEX_LOGIN\",[exe,\"login\",\"status\"])\nprint(\"PREFLIGHT_END\")\nPY\necho 'REAL_CODEX_VPS_PREFLIGHT_DONE'"
           ],
-          "timeout_ms": 125000,
-          "idle_timeout_ms": 90000,
+          "timeout_ms": 120000,
+          "idle_timeout_ms": 80000,
           "limits": {
-            "output_bytes": 10500
+            "output_bytes": 15000
           }
         }
       }
