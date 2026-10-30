@@ -1,10 +1,6 @@
 {
-  "request_id": "rea-plcodex-continued-preflight-20261030-1747",
+  "request_id": "rea-plcodex-real-pr44-pr45-smoke-20261030-1957",
   "mcp_requests": [
-    {
-      "method": "tools/list",
-      "params": {}
-    },
     {
       "method": "tools/call",
       "params": {
@@ -13,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nexport GIT_PAGER=cat PAGER=cat GIT_TERMINAL_PROMPT=0 PYTHONDONTWRITEBYTECODE=1\necho 'REA_PLCODEX_PREFLIGHT_BEGIN'\nid\npython3 --version\ncd /tmp/rea-audit-plcodex-20261030-1647\necho 'SOURCE_ROOT' \"$(pwd)\"\necho 'HEAD' \"$(git rev-parse HEAD)\"\necho 'BRANCH' \"$(git branch --show-current)\"\necho 'STATUS_START'\ngit status --short\necho 'STATUS_END'\npython3 - <<'PY'\nfrom pathlib import Path\nimport json\nroot=Path.cwd()\np=root/'projects/policies/project-leader.json'\ndata=json.loads(p.read_text())\nprint('POLICY_ID',data['policy_id'],'REPO',data['repository'])\nprint('E3_ALLOWED',data['effect_policies']['E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED']['allowed_actions'])\nprint('E3_CI',data['effect_policies']['E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED']['required_ci'])\nprint('E3_VALIDATION',data['effect_policies']['E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED']['required_validation'])\nfound=[]\nfor x in sorted((root/'.project-leader/tasks').glob('*.json')):\n try: row=json.loads(x.read_text())\n except Exception:continue\n if row.get('effect_class')=='E3_DESTRUCTIVE_EXTERNAL_PRIVILEGED': found.append((x,row))\nprint('E3_TASKS',len(found))\nfor x,r in found[-3:]:\n print('SAMPLE_BEGIN',str(x.relative_to(root)))\n print(json.dumps(r,ensure_ascii=True,indent=2)[:9500])\n print('SAMPLE_END')\nfor name in ('control/validate_records.py','control/trusted_gate.py'):\n text=(root/name).read_text().splitlines()\n for needle in ('def validate_task(', 'def validate_pair(', 'def verify_task_against_base_policy('):\n  for i,line in enumerate(text):\n   if needle in line:\n    print('FUNCTION_LOC',name,needle,i+1)\nprint('PREFLIGHT_OK')\nPY"
+            "set -Eeuo pipefail\nexport GIT_PAGER=cat PAGER=cat GIT_TERMINAL_PROMPT=0 PYTHONDONTWRITEBYTECODE=1\nROOT=/tmp/rea-plcodex-real-smoke-20261030-1957\ntest ! -e \"$ROOT\"\nmkdir \"$ROOT\"\ngit clone --quiet --depth 3 --branch fix/rea-plcodex-e3-distribution-20261030 https://github.com/martaxi-boss/Project-leader-codex.git \"$ROOT/e3\"\ngit clone --quiet --depth 2 --branch fix/rea-codex-worker-env-20261030 https://github.com/martaxi-boss/Project-leader-codex.git \"$ROOT/security\"\ncd \"$ROOT/e3\"\ntest \"$(git rev-parse HEAD)\" = 986f0876966b9ed33c51e0d55123fa1ee1b38624\necho \"E3_SOURCE_SHA=$(git rev-parse HEAD)\"\nexport PYTHONPATH=\"$ROOT/e3\"\npython3 - <<'PY'\nimport json,hashlib,subprocess\nfrom pathlib import Path\nfrom control.trusted_gate import verify_task_against_base_policy\nfrom control.validate_records import validate_task\nroot=Path.cwd()\ntask_path='.project-leader/tasks/PL-CODEX-PLUGIN-DISTRIBUTION-20261030.json'\ntask=json.loads((root/task_path).read_text())\npolicy_path='projects/policies/project-leader.json'\npolicy_raw=(root/policy_path).read_bytes()\npolicy=json.loads(policy_raw)\nfiles=subprocess.check_output(['git','diff','--name-only','4a5c5ba5876bad079ec4edf401416804c18bc521','HEAD'],text=True).splitlines() if False else None\nfiles=[task_path,'.agents/plugins/marketplace.json','.github/workflows/package-plugins.yml','README.md','plugins/project-leader-codex/.app.json','plugins/project-leader-codex/plugin.json','scripts/package_plugins.py','tests/test_audit_p1_regressions.py','tests/test_packaging.py']\nassert len(set(files)) == 9\nvalidate_task(task)\nverify_task_against_base_policy(task,policy,policy_raw,'4a5c5ba5876bad079ec4edf401416804c18bc521',files,policy_path,actual_task_path=task_path)\nactual=hashlib.sha256(policy_raw).hexdigest()\nassert actual==task['policy']['sha256']\nprint('E3_BASE_POLICY_PASS',actual)\nprint('E3_TRUSTED_SCOPE_PASS',len(files))\nprint('E3_EFFECT',task['effect_class'])\nPY\necho \"RUN_E3_CONTROL\"\npython3 -m unittest discover -s tests -p 'test_*.py' -q\necho \"E3_CONTROL_TESTS_PASS\"\necho \"RUN_E3_CODEX\"\npython3 -m unittest discover -s codex/tests -p 'test_*.py' -q\necho \"E3_CODEX_TESTS_PASS\"\necho \"RUN_PACKAGE_CHECK\"\npython3 - <<'PY'\nimport tempfile,json\nfrom pathlib import Path\nfrom scripts.package_plugins import build,sha256_file\nwith tempfile.TemporaryDirectory() as temp:\n out=Path(temp)\n d=build(Path.cwd(),out)\n assert d['provenance']['repository']=='martaxi-boss/Project-leader-codex'\n names={v['name'] for v in d['plugins']}\n assert names=={'project-leader','recovery-guardian','project-leader-codex'}, names\n assert all(sha256_file(out/x['file'])==x['sha256'] for x in d['plugins'])\n print('E3_PACKAGING_PASS',','.join(sorted(names)))\nPY\ngit diff --check\ntest -z \"$(git status --porcelain)\"\necho \"RUN_SECURITY_SHA\"\ncd \"$ROOT/security\"\ntest \"$(git rev-parse HEAD)\" = 902079f6559880eaab8e6948b7c125c5b486de1c\nexport PYTHONPATH=\"$ROOT/security\"\npython3 -m unittest discover -s codex/tests -p 'test_worker_environment.py' -q\necho \"WORKER_ENV_ISOLATION_PASS\"\npython3 -m unittest discover -s codex/tests -p 'test_*.py' -q\necho \"SECURITY_CODEX_TESTS_PASS\"\ngit diff --check\ntest -z \"$(git status --porcelain)\"\necho \"REA_REAL_TEST_ALL_PASS\""
           ],
-          "timeout_ms": 90000,
-          "idle_timeout_ms": 42000,
+          "timeout_ms": 245000,
+          "idle_timeout_ms": 180000,
           "limits": {
-            "output_bytes": 25000
+            "output_bytes": 22000
           }
         }
       }
