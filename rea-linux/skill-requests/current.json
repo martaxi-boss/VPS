@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-plcodex-inventory-20261030-1647",
+  "request_id": "rea-plcodex-code-map-20261030-1650",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nexport GIT_TERMINAL_PROMPT=0 GIT_PAGER=cat PAGER=cat\nTARGET=/tmp/rea-audit-plcodex-20261030-1647\ntest ! -e \"$TARGET\"\ngit -c credential.helper= clone --quiet --depth 1 --branch main https://github.com/martaxi-boss/Project-leader-codex.git \"$TARGET\"\ntest \"$(git -C \"$TARGET\" rev-parse HEAD)\" = \"4a5c5ba5876bad079ec4edf401416804c18bc521\"\npython3 - \"$TARGET\" <<'PY'\nimport sys,subprocess,collections\nfrom pathlib import Path\np=Path(sys.argv[1]); a=subprocess.check_output(['git','-C',str(p),'ls-files','-z']).decode().split('\\x00');a=[x for x in a if x]\nprint('INVENTORY_REPO',p,'FILES',len(a),flush=True)\next=collections.Counter(Path(x).suffix or '(none)' for x in a)\nprint('FILE_TYPES',dict(ext.most_common(20)),flush=True)\nprint('TREE_START')\nfor x in a[:340]:\n z=p/x\n print(f'{x} [{z.stat().st_size if z.is_file() else \"?\"} bytes]')\nprint('TREE_END')\nif len(a)>340:print('FILES_OMITTED',len(a)-340)\nfor name in ['README.md','AGENTS.md','package.json','pyproject.toml','requirements.txt','Makefile','Dockerfile','.github/CODEOWNERS','SECURITY.md']:\n z=p/name\n if z.is_file():\n  s=z.read_text(errors='replace').splitlines()\n  print('FILE_PREVIEW_BEGIN',name,'TOTAL_LINES',len(s))\n  for i,x in enumerate(s[:125],1):print(f'{i:04d} {x[:450]}')\n  print('FILE_PREVIEW_END',name)\nprint('CANDIDATE_CODE_FILES',*[x for x in a if any(y in x.lower() for y in ('coordinat','supervis','agent','worker','human','dispatch','planner','selection','policy','workflow','codex','test','security'))][:110],sep='\\n')\nprint('INVENTORY_PASS')\nPY"
+            "set -Eeuo pipefail\nexport PYTHONDONTWRITEBYTECODE=1 GIT_PAGER=cat PAGER=cat\ncd /tmp/rea-audit-plcodex-20261030-1647\ntest \"$(git rev-parse HEAD)\" = \"4a5c5ba5876bad079ec4edf401416804c18bc521\"\necho CODEMAP_START\npython3 - <<'PY'\nfrom pathlib import Path\nimport subprocess,ast,collections,re\np=Path.cwd(); files=[x for x in subprocess.check_output(['git','ls-files'],text=True).splitlines()]\nnonhist=[x for x in files if not x.startswith('.project-leader/')]\nprint('NONHISTORY_FILES',len(nonhist))\nfor x in nonhist:print('SRC',x,'bytes',(p/x).stat().st_size)\nprint('CONTROL_HISTORY_FILES',len(files)-len(nonhist))\nfor name in ['.codex/config.toml','CODEX_COORDINATION.md','codex/README.md','SMOKE_TESTS.md']:\n f=p/name\n if not f.is_file():continue\n lines=f.read_text(errors='replace').splitlines()\n print('DOC_START',name,'lines',len(lines))\n for i,l in enumerate(lines[:190],1):print(f'{i:03d}: {l[:250]}')\n print('DOC_END',name)\nprint('PYTHON_API_START')\nfor x in files:\n if not x.endswith('.py') or x.startswith('.project-leader/'):continue\n f=p/x\n try:t=ast.parse(f.read_text())\n except Exception as e:print('AST_FAIL',x,str(e));continue\n functions=[]; classes=[]\n for n in t.body:\n  if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef)):functions.append(n.name)\n  if isinstance(n,ast.ClassDef):classes.append(n.name)\n print('PY',x,'classes',','.join(classes[:15]),'funcs',','.join(functions[:32]))\nprint('PYTHON_API_END')\nprint('PATTERN_START')\npat=re.compile(r'CODEX_EXECUTOR_UNAVAILABLE|VPS|coordinator|Supervisor|human.gate|codex\\.agent_policy|codex\\.smart|dispatch|exec\\(|subprocess|shell=True|token|quota|retry|auth|GITHUB_TOKEN|issue',re.I)\nfor x in nonhist:\n if not (x.startswith('codex/') or x.startswith('.github/workflows/') or x.startswith('plugins/') or x in ('AGENTS.md','CODEX_COORDINATION.md')):continue\n f=p/x\n if not f.is_file() or f.stat().st_size>50000:continue\n lines=f.read_text(errors='replace').splitlines();matches=[(i,l) for i,l in enumerate(lines,1) if pat.search(l)]\n if matches:print('PATTERNS',x,'LINES',len(lines),'HITS',len(matches),'SAMPLE',' | '.join(f'{i}:{l.strip()[:100]}' for i,l in matches[:8]))\nprint('PATTERN_END')\nPY\ngit --no-pager diff --check\necho CODEMAP_PASS"
           ],
-          "timeout_ms": 120000,
-          "idle_timeout_ms": 50000,
+          "timeout_ms": 75000,
+          "idle_timeout_ms": 35000,
           "limits": {
-            "output_bytes": 54000
+            "output_bytes": 65000
           }
         }
       }
