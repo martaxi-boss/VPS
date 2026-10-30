@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-telegram-leads-correction-precheck-20261030-a",
+  "request_id": "rea-telegram-leads-fix-status-test-20261030-a",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n -H /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nimport subprocess, re, json\np=Path('/opt/telegram-robot-leads')\nq=p/'.telegram-leads-source-7c0ef8a1d9be'\nfiles=['AGENTS.md','scripts/telegram-robot-leads-status.sh','scripts/telegram-iptvpn-status.sh','scripts/deploy_project_only.py','scripts/project_hygiene.py','tests/test_safe_growth.py','.github/workflows/deploy.yml']\nfor file in files:\n path=p/file\n if not path.is_file():\n  print('MISSING',file); continue\n lines=path.read_text(errors='replace').splitlines()\n print('FILE',file,'LINE_COUNT',len(lines))\n if file=='AGENTS.md': chunks=[(1,min(130,len(lines)))]\n elif 'status.sh' in file: chunks=[(1,min(100,len(lines)))]\n elif file=='tests/test_safe_growth.py': chunks=[(90,min(120,len(lines)))]\n else: chunks=[(1,min(58,len(lines)))]\n for start,stop in chunks:\n  for i in range(start,stop+1):\n   text=lines[i-1]\n   if re.search(r'(?i)(token|secret|api_hash|password)\\s*[:=]\\s*[\"\\x27][^\"\\x27]+',text):text='[REDACTED]'\n   print('%s:%s:%s'%(file,i,text[:170]))\nfor args in [['rev-parse','HEAD'],['branch','--show-current'],['status','--short'],['remote','-v']]:\n z=subprocess.run(['git','-C',str(q),'--no-pager',*args],capture_output=True,text=True,timeout=12)\n result=z.stdout.strip()\n if args[0]=='remote':result=','.join(sorted(set(t.split()[0] for t in result.splitlines())))\n print('LOCAL_GIT',args[0],z.returncode,result[:500],z.stderr[:150])\nz=subprocess.run(['git','-C',str(q),'ls-remote','origin','refs/heads/main'],capture_output=True,text=True,timeout=20)\nprint('REMOTE_GIT',z.returncode,z.stdout.strip()[:90],z.stderr.strip()[:160])\nprint('PRECHECK_COMPLETE')\nPY"
+            "set -Eeuo pipefail\nsudo -n -H /bin/bash -lc '\nset -Eeuo pipefail\nexport GIT_PAGER=cat PAGER=cat PYTHONDONTWRITEBYTECODE=1\nsrc=/opt/telegram-robot-leads/.telegram-leads-source-7c0ef8a1d9be\nwork=/opt/telegram-robot-leads/.rea-fix-status-20261030\nbranch=fix/20261030-status-readonly-test\necho CORRECTION_BEGIN\ntest -d \"$src/.git\"\ntest ! -e \"$work\"\ngit -C \"$src\" --no-pager status --short\ngit -C \"$src\" fetch origin main\nbase=$(git -C \"$src\" rev-parse origin/main)\necho BASE_SHA=\"$base\"\ntest \"$base\" = \"655a911595fd49b0eaeb4feec4dc5a0fb4ac61e0\"\ngit -C \"$src\" worktree add -b \"$branch\" \"$work\" origin/main\npython3 - \"$work\" <<'\"'\"'PY'\"'\"'\nfrom pathlib import Path\nimport sys\np=Path(sys.argv[1])/\"tests/test_safe_growth.py\"\ns=p.read_text()\nbefore=\"        self.assertNotIn(\\x27--no-pm2\\x27, current)\\n\"\nafter=\"        self.assertIn(\\x27--no-pm2\\x27, current)\\n        self.assertNotIn(\\x27--with-pm2\\x27, current)\\n\"\nassert s.count(before)==1, \"unexpected_test_content\"\np.write_text(s.replace(before, after, 1))\nprint(\"TEST_EXPECTATION_PATCHED\",p)\nPY\ngit -C \"$work\" --no-pager diff --check\ngit -C \"$work\" --no-pager diff -- tests/test_safe_growth.py\ncd \"$work\"\n/opt/telegram-robot-leads/.venv/bin/python -m unittest discover -s tests -p \"test_*.py\" -q\nbash -n scripts/telegram-robot-leads-status.sh\necho REGRESSION_TESTS_PASS\ngit -C \"$work\" add tests/test_safe_growth.py\ngit -C \"$work\" -c user.name=\"REA Project Maintenance\" -c user.email=\"martaxi-boss@users.noreply.github.com\" commit -m \"test: align readonly status assertion with explicit no-pm2 guard\"\ngit -C \"$work\" --no-pager status --short\necho CORRECTION_COMMIT_SHA=$(git -C \"$work\" rev-parse HEAD)\necho CORRECTION_END\n'"
           ],
-          "timeout_ms": 90000,
-          "idle_timeout_ms": 22000,
+          "timeout_ms": 150000,
+          "idle_timeout_ms": 60000,
           "limits": {
-            "output_bytes": 22000
+            "output_bytes": 15000
           }
         }
       }
