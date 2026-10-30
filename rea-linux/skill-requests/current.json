@@ -1,6 +1,10 @@
 {
-  "request_id": "rea-simple-native-mcp-20261030-1",
+  "request_id": "rea-simple-mcp-two-steps-20261030-2",
   "mcp_requests": [
+    {
+      "method": "tools/list",
+      "params": {}
+    },
     {
       "method": "tools/call",
       "params": {
