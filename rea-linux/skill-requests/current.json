@@ -1,6 +1,13 @@
 {
-  "request_id": "rea-lowcost-deep-audit-vps-check-20261030-1340",
+  "request_id": "rea-lowcost-deep-audit-live-20261030-1430",
   "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "inspect_analysis_settings",
+        "arguments": {}
+      }
+    },
     {
       "method": "tools/call",
       "params": {
@@ -9,19 +16,66 @@
           "executable": "/bin/bash",
           "arguments": [
             "-c",
-            "set +e\necho REA_LOW_COST_AUDIT_BEGIN\necho AUDIT_USER=$(id -un)\necho APP_DIR_STATUS\ntest -d /srv/lowcost-europa; echo app_directory_exists=$?\ngit -C /srv/lowcost-europa rev-parse HEAD 2>&1 | head -c 180\necho\ngit -C /srv/lowcost-europa status --porcelain=v1 2>&1 | head -n 10\necho LOWCOST_SERVICES\nsystemctl list-units --all --type=service --no-pager --no-legend 2>/dev/null | grep -Ei 'lowcost|gunicorn|nginx|postgresql' | head -n 24\necho LOWCOST_TIMERS\nsystemctl list-timers --all --no-pager --no-legend 2>/dev/null | grep -Ei 'lowcost|restic' | head -n 20\necho HTTPS_SMOKE\ncurl --max-time 12 --silent --show-error --output /dev/null --write-out 'root=%{http_code} sslverify=%{ssl_verify_result}\\n' https://lowcost-europa.duckdns.org/ 2>&1\ncurl --max-time 12 --silent --show-error --output /dev/null --write-out 'readiness=%{http_code}\\n' https://lowcost-europa.duckdns.org/health/ready/ 2>&1\ncurl --max-time 12 --silent --show-error --output /dev/null --write-out 'robots=%{http_code}\\n' https://lowcost-europa.duckdns.org/robots.txt 2>&1\necho REA_LOW_COST_AUDIT_END"
+            "set -Eeuo pipefail\nAPP=/srv/lowcost-europa\nACCOUNT=le001_1789265592\necho AUDIT_BACKEND_START=1\ntest -d \"$APP\" && test -x \"$APP/.venv/bin/python\"\nsha=\"$(sudo -n -u \"$ACCOUNT\" git -C \"$APP\" rev-parse HEAD)\"\nprintf 'DEPLOY_SHA=%s\\n' \"$sha\"\nif test -z \"$(sudo -n -u \"$ACCOUNT\" git -C \"$APP\" status --porcelain=v1 --untracked-files=normal)\"; then echo DEPLOY_WORKTREE=CLEAN; else echo DEPLOY_WORKTREE=DIRTY; fi\napp_manage() {\n sudo -n bash -c '\n set -a\n . /etc/lowcost-europa/lowcost-europa.env\n set +a\n export DJANGO_SETTINGS_MODULE=config.settings.production\n cd /srv/lowcost-europa\n runuser -u le001_1789265592 -- .venv/bin/python manage.py \"$@\"\n ' bash \"$@\"\n}\napp_manage check >/dev/null 2>&1 && echo DJANGO_CHECK=PASS\napp_manage check --deploy >/dev/null 2>&1 && echo DJANGO_DEPLOY_CHECK=PASS\napp_manage makemigrations --check --dry-run >/dev/null 2>&1 && echo MIGRATION_DRIFT=NONE\napp_manage shell -c '\nfrom datetime import timedelta\nfrom django.db.models import Q\nfrom django.utils import timezone\nfrom django.conf import settings\nfrom apps.catalog.models import Offer, OfferCandidate, ProductFamily, ExternalMetricsSnapshot\nfrom apps.catalog.services.public_eligibility import public_eligibility_q\nfrom apps.catalog.services.weekly_discovery import PENDING_CAP_PER_FAMILY\nnow=timezone.now()\nprint(\"DEBUG=\"+str(settings.DEBUG))\nprint(\"INDEXING=\"+str(settings.PUBLIC_INDEXING_ENABLED))\nfamilies=list(ProductFamily.objects.exclude(status=ProductFamily.Status.RETIRED).order_by(\"display_order\",\"name\",\"pk\"))\nprint(\"FAMILIES=\"+str(len(families)))\neligible=Offer.objects.filter(public_eligibility_q(now),is_active=True,owner_hidden=False,family_placements__product_family__in=families).distinct()\nprint(\"OFFERS_TOTAL=\"+str(Offer.objects.count()))\nprint(\"OFFERS_ACTIVE=\"+str(Offer.objects.filter(is_active=True).count()))\nprint(\"OFFERS_ELIGIBLE=\"+str(eligible.count()))\nprint(\"ELIGIBLE_ORIGIN_UNPROVEN=\"+str(eligible.filter(Q(ship_from_country__isnull=True)|Q(ship_from_verified_at__isnull=True)).count()))\nfor f in families:\n n=OfferCandidate.objects.filter(product_family=f,status=OfferCandidate.Status.PENDING).count()\n print(\"QUEUE=\"+str(f.slug)+\";PENDING=\"+str(n)+\";PAUSED=\"+str(int(n>=PENDING_CAP_PER_FAMILY)))\nfor source in (\"ALIEXPRESS\",\"META\"):\n snap=ExternalMetricsSnapshot.objects.filter(source=source).first()\n state=\"missing\" if snap is None else (\"fresh\" if snap.checked_at<=now and now-snap.checked_at<=timedelta(hours=12) else \"stale\")\n print(\"STORED_METRICS_\"+source+\"=\"+state)\nprint(\"DATABASE_READ=PASS\")\n'\necho AUDIT_BACKEND_END=PASS"
           ],
-          "working_directory": "/tmp",
-          "timeout_ms": 65000,
-          "idle_timeout_ms": 65000,
-          "settle_ms": 200,
+          "working_directory": "/srv/lowcost-europa",
+          "timeout_ms": 180000,
+          "idle_timeout_ms": 180000,
           "terminal": {
             "columns": 100,
-            "rows": 40,
-            "scrollback": 120
+            "rows": 48,
+            "scrollback": 210
           },
           "limits": {
-            "output_bytes": 16000
+            "output_bytes": 22000
+          }
+        }
+      }
+    },
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/bin/bash",
+          "arguments": [
+            "-c",
+            "set -Eeuo pipefail\nBASE=https://lowcost-europa.duckdns.org\necho AUDIT_WEB_START=1\nfor svc in lowcost-europa.service nginx.service postgresql.service lowcost-europa-affiliate-report.timer; do\n if systemctl is-active --quiet \"$svc\"; then echo \"SERVICE_$svc=active\"; else echo \"SERVICE_$svc=NOT_ACTIVE\"; fi\ndone\nfor p in / /health/live/ /health/ready/ /robots.txt /painel/ /pesquisar/?q=HIFU; do\n status=\"$(curl -sS -L --max-redirs 0 --max-time 15 -o /dev/null -w '%{http_code}' \"$BASE$p\" || true)\"\n echo \"HTTP_PATH=$p;STATUS=$status\"\ndone\nfor slug in cavitacao-rf-vacuum-corpo hydrodermoabrasao-aqua-facial-multifuncoes pressoterapia-vacuum-drenagem hifu diodo-laser-remocao-tatuagens-pigmentacao; do\n status=\"$(curl -sS --max-time 15 -o /dev/null -w '%{http_code}' \"$BASE/products/$slug/\" || true)\"\n echo \"FAMILY=$slug;HTTP=$status\"\ndone\ncurl -fsS --max-time 15 -D /tmp/lowcost-audit-headers-$$ -o /dev/null \"$BASE/\"\nif grep -qi '^x-robots-tag:.*noindex' /tmp/lowcost-audit-headers-$$; then echo X_ROBOTS_NOINDEX=PASS; else echo X_ROBOTS_NOINDEX=FAIL; fi\nrm -f /tmp/lowcost-audit-headers-$$\nif curl -fsS --max-time 15 \"$BASE/robots.txt\" | grep -Fq 'Disallow: /'; then echo ROBOTS_DISALLOW=PASS; else echo ROBOTS_DISALLOW=FAIL; fi\necho AUDIT_WEB_END=PASS"
+          ],
+          "working_directory": "/srv/lowcost-europa",
+          "timeout_ms": 180000,
+          "idle_timeout_ms": 180000,
+          "terminal": {
+            "columns": 100,
+            "rows": 48,
+            "scrollback": 210
+          },
+          "limits": {
+            "output_bytes": 22000
+          }
+        }
+      }
+    },
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/bin/bash",
+          "arguments": [
+            "-c",
+            "set -Eeuo pipefail\necho AUDIT_INFRA_START=1\nfor unit in lowcost-europa.service lowcost-europa-catalog-maintenance.timer lowcost-europa-weekly-discovery.timer lowcost-europa-affiliate-report.timer nginx.service postgresql.service; do\n printf 'UNIT=%s;ACTIVE=%s;ENABLED=%s\\n' \"$unit\" \"$(systemctl is-active \"$unit\" 2>/dev/null || true)\" \"$(systemctl is-enabled \"$unit\" 2>/dev/null || true)\"\ndone\ndf -P /srv/lowcost-europa | tail -1 | awk '{print \"DISK_USAGE_PERCENT=\"$5}'\necho AUDIT_INFRA_END=PASS"
+          ],
+          "working_directory": "/srv/lowcost-europa",
+          "timeout_ms": 180000,
+          "idle_timeout_ms": 180000,
+          "terminal": {
+            "columns": 100,
+            "rows": 48,
+            "scrollback": 210
+          },
+          "limits": {
+            "output_bytes": 22000
           }
         }
       }
