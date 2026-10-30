@@ -2,6 +2,6 @@
   "schema_version": 1,
   "project": "engenharia-reversa-final",
   "engine_commit": "160d821ac9a0310afcb8d1fc427862dd6508add5",
-  "request_id": "rea-final-full-contract-catalog-20261030-v1",
-  "operation": "mcp_catalog"
+  "request_id": "rea-final-existing-providers-20261030-v2",
+  "operation": "providers"
 }
