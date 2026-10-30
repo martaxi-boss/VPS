@@ -2,6 +2,6 @@
   "schema_version": 1,
   "project": "engenharia-reversa-final",
   "engine_commit": "160d821ac9a0310afcb8d1fc427862dd6508add5",
-  "request_id": "final-postcleanup-strict-20261030-a3",
-  "operation": "strict_separation_audit"
+  "request_id": "rea-final-deep-clean-inventory-20261030-p1",
+  "operation": "isolation_audit"
 }
