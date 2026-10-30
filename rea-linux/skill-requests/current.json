@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-plcodex-final-certification-20261030-1707",
+  "request_id": "rea-plcodex-correction-inspect-20261030-v2",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nexport PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/tmp/rea-audit-plcodex-20261030-1647 GIT_PAGER=cat PAGER=cat\ncd /tmp/rea-audit-plcodex-20261030-1647\ntest \"$(git rev-parse HEAD)\" = \"4a5c5ba5876bad079ec4edf401416804c18bc521\"\npython3 - <<'PY'\nfrom pathlib import Path\nimport tempfile,subprocess,sys,json,os\nfrom codex.agent_policy import plan\nrepo='martaxi-boss/Project-leader-codex'\nfor title,task,pth in [('HIGH_SECURITY','Corrige falha grave de segurança com testes independentes','codex/agent_policy.py'),('LOW_DOCUMENTATION','Corrige um typo no README','README.md')]:\n row=plan({'request':task,'target_repository':repo,'work_items':[{'id':'one','task':task,'paths':[pth]}]})\n print('LIVE_ROUTER',title,'status',row['status'],'mode',row['mode'],'agents',row['agent_count'])\n for item in row.get('tasks',[]):print('LIVE_ROUTER_SELECTION',title,item['selection'])\nroot=Path.cwd()\nwith tempfile.TemporaryDirectory(prefix='rea-plcodex-package-review-') as d:\n cmd=[sys.executable,'scripts/package_plugins.py','--output-dir',str(Path(d)/'dist'),\n '--source-revision','4a5c5ba5876bad079ec4edf401416804c18bc521',\n '--build-revision','4a5c5ba5876bad079ec4edf401416804c18bc521',\n '--build-run-id','41094124701']\n run=subprocess.run(cmd,cwd=root,capture_output=True,text=True,timeout=70)\n print('PACKAGE_BUILD_EXIT',run.returncode)\n if run.returncode:print('PACKAGE_BUILD_ERROR',(run.stdout+run.stderr)[-1500:]);sys.exit(1)\n m=json.loads((Path(d)/'dist/plugin-manifest.json').read_text())\n print('PACKAGE_PROVENANCE',m.get('provenance'))\n print('PACKAGE_PLUGINS',[x.get('name') for x in m.get('plugins',[])])\n print('PACKAGE_ARTIFACTS',sorted(x.name for x in (Path(d)/'dist').iterdir()))\n print('SOURCE_REPOSITORY_DIFFERENCE',m.get('provenance',{}).get('repository')!=repo)\nq=subprocess.run(['git','status','--porcelain','--untracked-files=normal'],capture_output=True,text=True)\nprint('FINAL_SOURCE_CLEAN',q.returncode==0 and not q.stdout.strip(), 'status_returncode',q.returncode,'untracked_or_modified',len(q.stdout.splitlines()))\ncheck=subprocess.run(['git','diff','--check'],capture_output=True,text=True)\nprint('FINAL_DIFF_CHECK',check.returncode)\nassert q.returncode==0 and not q.stdout.strip() and check.returncode==0\nprint('FINAL_TARGET_CHECK_PASS')\nPY"
+            "set -Eeuo pipefail\ncd /tmp/rea-audit-plcodex-20261030-1647\nprintf 'SOURCE_SHA='\ngit rev-parse HEAD\nprintf 'STAGED_CHANGES='\ngit status --porcelain\nprintf 'PACKAGE_HEAD\\n'\nsed -n '1,90p' scripts/package_plugins.py\nprintf 'TEST_PACKAGING\\n'\nsed -n '1,90p' tests/test_packaging.py\nprintf 'WORKER_ENV\\n'\nsed -n '370,402p' codex/dual.py\nprintf 'READ_COMPLETE\\n'"
           ],
-          "timeout_ms": 120000,
-          "idle_timeout_ms": 65000,
+          "timeout_ms": 75000,
+          "idle_timeout_ms": 35000,
           "limits": {
-            "output_bytes": 15500
+            "output_bytes": 21000
           }
         }
       }
