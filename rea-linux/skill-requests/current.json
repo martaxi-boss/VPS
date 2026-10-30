@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-telegram-leads-audit-root-tests-20261030-1624",
+  "request_id": "rea-telegram-leads-audit-health-20261030-1628",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n -H /bin/bash -lc '\nset -Eeuo pipefail\ncd /opt/telegram-robot-leads\necho ROOT_TESTS_BEGIN\nif test -x .venv/bin/python; then TEST_PY=.venv/bin/python; else TEST_PY=/usr/bin/python3; fi\n\"$TEST_PY\" - <<'\"'\"'PY'\"'\"'\nimport sys,importlib.util\nprint(\"PYTHON\",sys.version.split()[0])\nfor n in (\"pytest\",\"telethon\",\"aiosqlite\",\"dotenv\"):\n print(\"MODULE\",n,\"AVAILABLE\",bool(importlib.util.find_spec(n)))\nPY\nexport PYTHONDONTWRITEBYTECODE=1\nif \"$TEST_PY\" -c \"import pytest\" 2>/dev/null; then\n \"$TEST_PY\" -m pytest tests -q -p no:cacheprovider --disable-warnings --maxfail=4\nelse\n echo PYTEST_UNAVAILABLE\n \"$TEST_PY\" -m unittest discover -s tests -p \"test_*.py\" -q\nfi\necho ROOT_TESTS_PASS\n'"
+            "set -Eeuo pipefail\necho OPERATIONAL_REPORT_BEGIN\nsudo -n -H /usr/bin/python3 - <<'PY'\nimport subprocess,json,re\nbase='/opt/telegram-robot-leads/'\npython=base+'.venv/bin/python'\nsha=open(base+'.verified-source-commit').read().strip()\njobs=[\n('operational',[python,base+'scripts/leads_operational_report.py','--vault','/root/project-secrets/telegram-robot-leads','--checkout',base,'--expected-source',sha,'--with-pm2']),\n('health',[python,base+'scripts/lead_health.py','--root','/root/project-secrets/telegram-robot-leads','--with-pm2'])\n]\ndef cleanse(obj,key=''):\n if isinstance(obj,dict):\n  out={}\n  for k,v in obj.items():\n   if re.search(r'(?i)(secret|token|hash|password|api_id|username|account_id|user_id|phone|invite_url|group_handle|target_group|session_key|auth_key)',k):continue\n   out[k]=cleanse(v,k)\n  return out\n if isinstance(obj,list):return [cleanse(x,key) for x in obj[:12]]\n if isinstance(obj,str):\n  if len(obj)>350:return obj[:350]+'...'\n  obj=re.sub(r'@[A-Za-z0-9_]+','@REDACTED',obj)\n  obj=re.sub(r'\\b\\d{9,15}\\b','[ID]',obj)\n  return obj\n return obj\nfor name,cmd in jobs:\n p=subprocess.run(cmd,text=True,capture_output=True,timeout=25)\n print('REPORT',name,'EXIT',p.returncode,'STDERR',cleanse(p.stderr[-300:]))\n try:\n  o=json.loads(p.stdout)\n  print('REPORT_JSON',name,json.dumps(cleanse(o),ensure_ascii=True)[:10500])\n except Exception as e:print('REPORT_JSON_ERROR',name,type(e).__name__,'OUT',cleanse(p.stdout[:1200]))\nprint('OPERATIONAL_REPORT_END')\nPY"
           ],
-          "timeout_ms": 160000,
-          "idle_timeout_ms": 60000,
+          "timeout_ms": 90000,
+          "idle_timeout_ms": 25000,
           "limits": {
-            "output_bytes": 21000
+            "output_bytes": 16000
           }
         }
       }
@@ -27,12 +27,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n -H /bin/bash -lc '\nset -Eeuo pipefail\ncd /opt/telegram-robot-leads\necho RUNTIME_HELP_BEGIN\n.venv/bin/python scripts/leads_operational_report.py --help\n.venv/bin/python scripts/lead_health.py --help\necho FILE_GATES\nfor p in /root/project-secrets/telegram-robot-leads/group_allowlist.txt /root/project-secrets/telegram-robot-leads/approved_users.txt /root/project-secrets/telegram-robot-leads/growth_model.json /var/lib/telegram-robot-leads/operation-state.json; do\n if test -f \"$p\"; then stat -c \"PRESENT %n %s %a %U\" \"$p\"; else echo \"ABSENT $p\"; fi\ndone\necho RUNTIME_HELP_PASS\n'"
+            "set -Eeuo pipefail\necho COVERAGE_HYGIENE_BEGIN\nsudo -n -H /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nimport subprocess,os,re,ast\np=Path('/opt/telegram-robot-leads')\nfor f in [p/'tests/test_safe_growth.py',p/'scripts/status.sh',p/'scripts/project_hygiene.py']:\n print('FILE',f.name,'PRESENT',f.is_file())\n if not f.exists():continue\n lines=f.read_text(errors='replace').splitlines()\n for i,line in enumerate(lines,1):\n  if (f.name=='test_safe_growth.py' and 85<=i<=123) or (f.name=='status.sh' and i<=35):\n   print('LINE',i,line[:170])\nprint('ACTIVE_GIT_MARKER',(p/'.verified-source-commit').read_text().strip())\nprev=sorted(Path('/opt').glob('.telegram-leads-previous-*'))\nprint('PREVIOUS_RELEASES',len(prev))\nfor q in prev:\n z=subprocess.run(['du','-sk',str(q)],capture_output=True,text=True,timeout=8)\n print('ARCHIVED_RELEASE',q.name,'KB',z.stdout.split()[0] if z.returncode==0 else 'unknown')\nfor k in ['scripts/safe_runtime.py','scripts/organic_growth.py','scripts/public_group_discovery.py','scripts/operation_policy.py']:\n q=p/k\n print('PY_COMPILE',k,ast.parse(q.read_text()).__class__.__name__)\nprint('COVERAGE_HYGIENE_END')\nPY"
           ],
-          "timeout_ms": 160000,
-          "idle_timeout_ms": 60000,
+          "timeout_ms": 90000,
+          "idle_timeout_ms": 25000,
           "limits": {
-            "output_bytes": 21000
+            "output_bytes": 16000
           }
         }
       }
