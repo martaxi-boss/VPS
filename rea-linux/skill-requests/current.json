@@ -1,9 +1,87 @@
 {
-  "request_id": "rea-final-standby-portable-20261030",
+  "request_id": "rea-lowcost-real-audit-20261030-r2",
   "mcp_requests": [
     {
-      "method": "tools/list",
-      "params": {}
+      "method": "tools/call",
+      "params": {
+        "name": "analyze_javascript_application",
+        "arguments": {
+          "input_path": "/srv/lowcost-europa/apps/storefront/static/storefront",
+          "detail": "summary"
+        }
+      }
+    },
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/bin/bash",
+          "arguments": [
+            "-c",
+            "set -Eeuo pipefail\nAPP=/srv/lowcost-europa\nACCOUNT=le001_1789265592\necho 'BACKEND_AUDIT=begin'\ntest -d \"$APP\" && test -x \"$APP/.venv/bin/python\"\nsha=\"$(sudo -n -u \"$ACCOUNT\" git -C \"$APP\" rev-parse HEAD)\"\ntest -z \"$(sudo -n -u \"$ACCOUNT\" git -C \"$APP\" status --porcelain=v1 --untracked-files=normal)\"\nprintf 'GIT_SHA=%s\\nGIT_WORKTREE=clean\\n' \"$sha\"\nsudo -n -u \"$ACCOUNT\" \"$APP/.venv/bin/python\" - \"$APP\" <<'PY'\nimport ast,pathlib,subprocess,sys\nroot=pathlib.Path(sys.argv[1])\nfiles=[x.decode() for x in subprocess.check_output([\"git\",\"-C\",str(root),\"ls-files\",\"-z\"]).split(b\"\\0\") if x]\npy=[p for p in files if p.endswith(\".py\")]\njs=[p for p in files if p.endswith(\".js\")]\nhtml=[p for p in files if p.endswith(\".html\")]\nsections={\"models\":0,\"views\":0,\"urls\":0,\"tests\":0,\"services\":0,\"migrations\":0}\nstats={\"functions\":0,\"classes\":0,\"imports\":0}\nerrors=[]\nfor rel in py:\n  key=rel.lower()\n  for sect in sections:\n    if sect in key: sections[sect]+=1\n  try:\n    tree=ast.parse((root/rel).read_text(encoding=\"utf-8-sig\"),filename=rel)\n    stats[\"functions\"]+=sum(isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef)) for n in ast.walk(tree))\n    stats[\"classes\"]+=sum(isinstance(n,ast.ClassDef) for n in ast.walk(tree))\n    stats[\"imports\"]+=sum(isinstance(n,(ast.Import,ast.ImportFrom)) for n in ast.walk(tree))\n  except (SyntaxError,UnicodeError,OSError) as e:errors.append((rel,type(e).__name__))\nfor name,n in [(\"TRACKED_FILES\",len(files)),(\"PYTHON_FILES\",len(py)),(\"JS_FILES\",len(js)),(\"TEMPLATE_FILES\",len(html)),(\"AST_ERRORS\",len(errors))]:\n  print(name+\"=\"+str(n))\nfor d in (sections,stats):\n  for key,n in d.items(): print(\"PY_\"+key.upper()+\"=\"+str(n))\nfor name,reason in errors[:5]:print(\"AST_ERROR=\"+name+\";TYPE=\"+reason)\nif errors:sys.exit(15)\nprint(\"ALL_PYTHON_AST_PARSED=pass\")\nPY\napp_manage() {\n  sudo -n bash -c '\n    set -a\n    . /etc/lowcost-europa/lowcost-europa.env\n    set +a\n    export DJANGO_SETTINGS_MODULE=config.settings.production\n    cd /srv/lowcost-europa\n    runuser -u le001_1789265592 -- .venv/bin/python manage.py \"$@\"\n  ' bash \"$@\"\n}\napp_manage check >/dev/null 2>&1\necho 'DJANGO_CHECK=pass'\napp_manage check --deploy >/dev/null 2>&1\necho 'DJANGO_DEPLOY_CHECK=pass'\napp_manage makemigrations --check --dry-run >/dev/null 2>&1\necho 'DJANGO_MIGRATION_CHECK=pass'\napp_manage shell -c '\nfrom datetime import timedelta\nfrom django.db.models import Q\nfrom django.utils import timezone\nfrom django.conf import settings\nfrom apps.catalog.models import Offer,OfferCandidate,ProductFamily,ExternalMetricsSnapshot\nfrom apps.catalog.services.public_eligibility import public_eligibility_q\nfrom apps.catalog.services.weekly_discovery import PENDING_CAP_PER_FAMILY\nnow=timezone.now()\nassert settings.DEBUG is False and settings.PUBLIC_INDEXING_ENABLED is False\nfamilies=list(ProductFamily.objects.exclude(status=ProductFamily.Status.RETIRED).order_by(\"display_order\",\"name\",\"pk\"))\neligible=Offer.objects.filter(public_eligibility_q(now),is_active=True,owner_hidden=False,family_placements__product_family__in=families).distinct()\nprint(\"FAMILIES=\"+str(len(families)))\nprint(\"ELIGIBLE_OFFERS=\"+str(eligible.count()))\nprint(\"ORIGIN_UNPROVEN=\"+str(eligible.filter(Q(ship_from_country__isnull=True)|Q(ship_from_verified_at__isnull=True)).count()))\nfor f in families:\n n=OfferCandidate.objects.filter(product_family=f,status=OfferCandidate.Status.PENDING).count()\n print(\"QUEUE=\"+f.slug+\";PENDING=\"+str(n)+\";PAUSED=\"+str(int(n>=PENDING_CAP_PER_FAMILY)))\nfor source in (\"ALIEXPRESS\",\"META\"):\n snap=ExternalMetricsSnapshot.objects.filter(source=source).first()\n state=\"missing\" if snap is None else (\"fresh\" if snap.checked_at<=now and now-snap.checked_at<=timedelta(hours=12) else \"stale\")\n print(\"STORED_\"+source+\"_METRICS=\"+state)\nprint(\"DJANGO_DATABASE_READ=pass\")\n'\necho 'BACKEND_AUDIT=pass'"
+          ],
+          "working_directory": "/srv/lowcost-europa",
+          "timeout_ms": 150000,
+          "idle_timeout_ms": 150000,
+          "terminal": {
+            "columns": 100,
+            "rows": 40,
+            "scrollback": 170
+          },
+          "limits": {
+            "output_bytes": 32000
+          }
+        }
+      }
+    },
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/bin/bash",
+          "arguments": [
+            "-c",
+            "set -Eeuo pipefail\nBASE=https://lowcost-europa.duckdns.org\necho 'WEB_AUDIT=begin'\nfor svc in lowcost-europa.service nginx.service postgresql.service lowcost-europa-affiliate-report.timer; do\n  systemctl is-active --quiet \"$svc\"\n  printf 'SERVICE_%s=active\\n' \"$svc\"\ndone\nheader=\"$(curl -fsS --max-time 18 -D - -o /dev/null \"$BASE/\")\"\ngrep -qi '^x-robots-tag: noindex, nofollow' <<< \"$header\"\necho 'HTTPS_NOINDEX=pass'\nhome=\"$(curl -fsS --max-time 18 \"$BASE/\")\"\ngrep -Fq 'name=\"robots\" content=\"noindex, nofollow\"' <<< \"$home\"\ngrep -Fq 'action=\"/pesquisar/\"' <<< \"$home\"\necho 'HOME_SEARCH_MARKUP=pass'\nrobots=\"$(curl -fsS --max-time 18 \"$BASE/robots.txt\")\"\ngrep -Fq 'Disallow: /' <<< \"$robots\"\necho 'ROBOTS_TXT=pass'\nfor slug in cavitacao-rf-vacuum-corpo hydrodermoabrasao-aqua-facial-multifuncoes pressoterapia-vacuum-drenagem hifu diodo-laser-remocao-tatuagens-pigmentacao; do\n  status=\"$(curl -sS --max-time 18 -o /dev/null -w '%{http_code}' \"$BASE/products/$slug/\")\"\n  printf 'PUBLIC_CATEGORY_%s=%s\\n' \"$slug\" \"$status\"\n  test \"$status\" = 200\ndone\nsearch=\"$(curl -fsS --max-time 18 \"$BASE/pesquisar/?q=HIFU\")\"\ngrep -Fq 'data-catalog-explorer' <<< \"$search\"\necho 'PUBLIC_SEARCH=pass'\nheaders=\"$(curl -sS --max-time 18 -D - -o /dev/null \"$BASE/painel/\")\"\ngrep -Eq '^HTTP/[0-9.]+ 302' <<< \"$headers\"\ngrep -qi '^cache-control: private, no-store' <<< \"$headers\"\ngrep -qi '^x-robots-tag: noindex, nofollow' <<< \"$headers\"\necho 'OWNER_PRIVATE_REDIRECT=pass'\necho 'WEB_AUDIT=pass'"
+          ],
+          "working_directory": "/srv/lowcost-europa",
+          "timeout_ms": 150000,
+          "idle_timeout_ms": 150000,
+          "terminal": {
+            "columns": 100,
+            "rows": 40,
+            "scrollback": 170
+          },
+          "limits": {
+            "output_bytes": 32000
+          }
+        }
+      }
+    },
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/bin/bash",
+          "arguments": [
+            "-c",
+            "printf 'EXPECTED_NEGATIVE_TEST=17\\n'; exit 17"
+          ],
+          "working_directory": "/tmp",
+          "timeout_ms": 15000,
+          "idle_timeout_ms": 15000,
+          "terminal": {
+            "columns": 100,
+            "rows": 40,
+            "scrollback": 170
+          },
+          "limits": {
+            "output_bytes": 32000
+          }
+        }
+      }
     }
   ]
 }
