@@ -16,9 +16,11 @@ import sys
 import tempfile
 import time
 
-ROOT = Path('/home/ubuntu/rea-original-upstream-680')
-RUNTIME = Path('/home/ubuntu/rea-final-runtime')
-NODE = RUNTIME / 'vendors/providers/node-v24.22.1/bin/node'
+# A transport knows only the local MCP endpoint, never engine/vendor paths.
+# The self-contained REA installation supplies its own runtime configuration.
+MCP_EXECUTABLE = os.environ.get('REA_MCP_EXECUTABLE') or str(
+    Path.home() / 'rea-final-runtime' / 'bin' / 'rea-mcp'
+)
 
 
 def read_request(raw):
@@ -42,29 +44,18 @@ def read_request(raw):
 
 def run_mcp(request):
     with tempfile.TemporaryDirectory(prefix='rea-final-mcp-', dir='/tmp') as home:
+        # Session-local scratch belongs to the MCP exchange, not supplier setup.
         env = dict(os.environ)
-        for key in list(env):
-            if key.startswith('REA_') or key in ('JAVA_HOME', 'GHIDRA_INSTALL_DIR', 'VIRTUAL_ENV', 'PYTHONPATH', 'PYTHONHOME', 'HOPPER_LAUNCHER_PATH'):
-                env.pop(key, None)
         env.update({
             'HOME': home, 'TMPDIR': home,
             'XDG_CONFIG_HOME': home + '/.config',
             'XDG_CACHE_HOME': home + '/.cache',
-            'PATH': str(RUNTIME / 'vendors/tools/jdk-21/bin') + ':' + str(NODE.parent)
-                    + ':' + str(RUNTIME / 'vendors/providers/binwalk-3.1.0/bin') + ':' + env.get('PATH', ''),
-            'JAVA_HOME': str(RUNTIME / 'vendors/tools/jdk-21'),
-            'GHIDRA_INSTALL_DIR': str(RUNTIME / 'vendors/tools/ghidra_12.1.4_PUBLIC'),
-            'REA_JADX_MCP_JAR': str(RUNTIME / 'vendors/tools/jadx-headless-mcp-0.7.1-all.jar'),
-            'REA_UNBLOB_COMMAND': str(RUNTIME / 'bin/unblob'),
-            'REA_BINWALK_COMMAND': str(RUNTIME / 'vendors/providers/binwalk-3.1.0/bin/binwalk'),
-            'CI': '1',
         })
         with tempfile.TemporaryFile(mode='w+b') as stderr:
             process = subprocess.Popen(
-                [str(NODE), 'scripts/rea.mjs', 'mcp'],
-                cwd=str(ROOT), env=env, stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE, stderr=stderr,
-                start_new_session=True,
+                [MCP_EXECUTABLE],
+                env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                stderr=stderr, start_new_session=True,
             )
             pending = bytearray()
             with selectors.DefaultSelector() as selector:
