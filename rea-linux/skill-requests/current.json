@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-plcodex-supervisor-readonly-inventory-20261030-a6",
+  "request_id": "rea-plcodex-vps-observer-and-telegram-flow-20261030-a7",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nexport GIT_PAGER=cat PAGER=cat GIT_TERMINAL_PROMPT=0 PYTHONDONTWRITEBYTECODE=1\ntmp=\"$(mktemp -d /tmp/rea-plcodex-supervisor.XXXXXX)\"\ntrap 'rm -rf \"$tmp\"' EXIT\ngit clone --quiet --depth 1 --branch main https://github.com/martaxi-boss/VPS.git \"$tmp/vps\"\npython3 - \"$tmp/vps\" <<'PY'\nimport pathlib,subprocess,sys,re\nroot=pathlib.Path(sys.argv[1])\nfiles=subprocess.check_output(['git','-C',str(root),'ls-files'],text=True).splitlines()\nnames=[x for x in files if re.search(r'(?i)(supervisor|telegram|notify|codex.*(monitor|event)|watcher)',x) and not x.startswith('rea-linux/')]\nprint('SUPERVISOR_RELATED_TRACKED',len(names),flush=True)\nfor x in names[:75]:print('FILE',x[:170],flush=True)\nsource=[x for x in files if x.endswith(('.service','.sh','.py','.js','.yml','.yaml')) and not x.startswith('rea-linux/') and not x.startswith('node_modules/')]\nhits=[]\nfor x in source[:3000]:\n p=root/x\n if not p.is_file() or p.stat().st_size>180000:continue\n try:s=p.read_text(errors='replace')\n except OSError:continue\n for i,line in enumerate(s.splitlines(),1):\n  if re.search(r'(?i)(telegram.{0,35}supervisor|supervisor.{0,35}telegram|TELEGRAM_(BOT|CHAT)_|sendMessage)',line):\n   hits.append((x,i))\nprint('CODE_REFERENCES_COUNT',len(hits),flush=True)\nfor x,i in hits[:35]:print('REFERENCE',x,i,flush=True)\nPY\necho 'SYSTEMD_MATCHES_BEGIN'\nsystemctl list-units --all --no-pager --plain --type=service --no-legend | awk 'BEGIN{IGNORECASE=1} /supervisor|project.leader|pl.codex|telegram|codex/ {print $1,$3,$4}' | head -n 25\necho 'SYSTEMD_MATCHES_END'\necho 'SUPERVISOR_READONLY_INVENTORY_COMPLETE'\n"
+            "set -Eeuo pipefail\nexport GIT_PAGER=cat PAGER=cat GIT_TERMINAL_PROMPT=0 PYTHONDONTWRITEBYTECODE=1\ntmp=\"$(mktemp -d /tmp/rea-plcodex-vpsflows.XXXXXX)\"\ntrap 'rm -rf \"$tmp\"' EXIT\ngit clone --quiet --depth 1 --branch main https://github.com/martaxi-boss/VPS.git \"$tmp/vps\"\ncd \"$tmp/vps\"\npython3 - <<'PY'\nfrom pathlib import Path\nimport re\nnames=['.github/workflows/cloud-supervisor-observation.yml','.github/workflows/telegram-codex-gateway.yml','.github/workflows/telegram-coordinator-owner.yml','.github/workflows/coordinator-owner-order.yml','.github/workflows/codex-chatgpt-bridge.yml','ops/coordinator_supervisor.py','ops/telegram_gateway.py','ops/supervisor_cloud_source.py']\nfor name in names:\n p=Path(name)\n if not p.exists():continue\n lines=p.read_text(errors='replace').splitlines()\n print('FILE',name,'LINES',len(lines),flush=True)\n needles=r'(?i)(^on:|^  (push|issues|workflow_run|schedule|workflow_dispatch|repository_dispatch|pull_request):|telegram|supervisor|coordinator|codex|workflow|api.github|send_message|sendMessage|issue|actor|gh api)'\n choices=[(i+1,line) for i,line in enumerate(lines) if re.search(needles,line)]\n for i,line in choices[:17]:print('L',i,line.strip()[:160],flush=True)\nPY\npython3 -m unittest ops.tests.test_supervisor_passive_notifications ops.tests.test_supervisor_cloud_source -q\necho SUPERVISOR_OFFLINE_TESTS_PASS\necho SUPERVISOR_GATEWAY_AUDIT_PASS\n"
           ],
-          "timeout_ms": 150000,
+          "timeout_ms": 165000,
           "idle_timeout_ms": 105000,
           "limits": {
-            "output_bytes": 11000
+            "output_bytes": 17000
           }
         }
       }
