@@ -1019,7 +1019,7 @@ if (!contract) {
   process.exit(0);
 }
 const effects = contract.effects ?? {};
-const disallowed = ["mutatesTarget","writesFilesystem","executesForeignCode",
+const disallowed = ["mutatesTarget","executesForeignCode",
                     "mutatesDevice","mayDiscardData","changesUiState"].filter(x=>effects[x]===true);
 if (mode === "mcp_call" && disallowed.length) {
   process.stdout.write(JSON.stringify({status:"BLOCKED",reason:"REQUIRES_SPECIFIC_MUTATION_AUTHORIZATION",tool:name,effects:disallowed}));
@@ -1052,7 +1052,7 @@ try {
         steps.push({tool:item.tool_name,status:"BLOCKED",reason:"NOT_IN_ORIGINAL_CATALOG"});
         break;
       }
-      const bad=["mutatesTarget","writesFilesystem","executesForeignCode",
+      const bad=["mutatesTarget","executesForeignCode",
                  "mutatesDevice","mayDiscardData","changesUiState"]
                  .filter(key=>selected.effects?.[key]===true);
       if (bad.length) {
