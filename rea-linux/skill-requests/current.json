@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-lowcost-owner-preflight-20261030-03",
+  "request_id": "rea-lowcost-backup-git-preflight-20261030-04",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,17 +9,18 @@
           "executable": "/bin/bash",
           "arguments": [
             "-c",
-            "set -eu\nAPP=/srv/lowcost-europa\nACCOUNT=$(stat -c %U \"$APP\")\nprintf 'APP_OWNER=%s\\n' \"$ACCOUNT\"\nprintf 'DEPLOYED_SHA='; sudo -n -u \"$ACCOUNT\" git -C \"$APP\" rev-parse HEAD\nprintf 'WORKTREE='; if [ -z \"$(sudo -n -u \"$ACCOUNT\" git -C \"$APP\" status --porcelain=v1 --untracked-files=normal)\" ]; then echo clean; else echo dirty; fi\nprintf 'SERVICE='; systemctl is-active lowcost-europa.service\nprintf 'NGINX='; systemctl is-active nginx.service\nprintf 'POSTGRES='; systemctl is-active postgresql.service\nprintf 'REPORT_TIMER='; systemctl is-active lowcost-europa-affiliate-report.timer\nprintf 'READY_LOCAL='; curl -sS --max-time 5 -H 'Host: lowcost-europa.duckdns.org' -H 'X-Forwarded-Proto: https' -o /dev/null -w '%{http_code}' http://127.0.0.1:8001/health/ready/; echo\nprintf 'VENV='; if [ -x \"$APP/.venv/bin/python\" ]; then echo present; else echo absent; fi\nprintf 'BACKUP_LATEST='; sudo -n find /var/backups/lowcost-europa/daily -maxdepth 1 -type f -name 'lowcost-europa-*.dump' -printf '%T@ %f\\n' | sort -nr | head -n 1 | cut -d' ' -f2-\nprintf 'OFFSITE_MARKER='; if sudo -n test -f /var/lib/lowcost-europa/offsite-backup.last-success; then echo present; else echo absent; fi\nprintf 'FREE_MB='; df -Pm \"$APP\" | awk 'NR==2{print $4}'"
+            "set -Eeuo pipefail\nAPP=/srv/lowcost-europa\nACCOUNT=\"$(stat -c %U \"$APP\")\"\nOLD=\"$(sudo -n -u \"$ACCOUNT\" git -C \"$APP\" rev-parse HEAD)\"\ntest \"$OLD\" = \"28c998e88bb723424c8ed36d4ba93904339ec877\"\ntest -z \"$(sudo -n -u \"$ACCOUNT\" git -C \"$APP\" status --porcelain=v1 --untracked-files=normal)\"\nfor unit in lowcost-europa.service nginx.service postgresql.service; do systemctl is-active --quiet \"$unit\"; done\nsystemctl is-active --quiet lowcost-europa-affiliate-report.timer\ntest -x \"$APP/.venv/bin/python\"\ntest \"$(df -Pm \"$APP\" | awk 'NR==2{print $4}')\" -gt 1024\nlatest=\"$(sudo -n find /var/backups/lowcost-europa/daily -maxdepth 1 -type f -name 'lowcost-europa-*.dump' -printf '%T@ %f\\n' | sort -nr | head -1 | cut -d' ' -f2-)\"\n[[ \"$latest\" =~ ^lowcost-europa-[0-9]{8}T[0-9]{6}Z\\.dump$ ]]\ndump=\"/var/backups/lowcost-europa/daily/$latest\"\nage=$(( ($(date -u +%s)-$(sudo -n stat -c %Y \"$dump\"))/3600 ))\ntest \"$age\" -ge 0 && test \"$age\" -lt 36\nsudo -n bash -c 'cd /var/backups/lowcost-europa/daily && sha256sum --status -c \"$1.sha256\"' bash \"$latest\" >/dev/null 2>&1\nsudo -n pg_restore --list \"$dump\" >/dev/null 2>&1\nsudo -n test -f /var/lib/lowcost-europa/offsite-backup.last-success\nmarker_age=$(( ($(date -u +%s)-$(sudo -n stat -c %Y /var/lib/lowcost-europa/offsite-backup.last-success))/3600 ))\ntest \"$marker_age\" -ge 0 && test \"$marker_age\" -lt 36\necho \"BACKUP_PREFLIGHT=pass age_hours=$age offsite_hours=$marker_age\"\nsudo -n -u \"$ACCOUNT\" git -C \"$APP\" fetch --no-tags --no-recurse-submodules https://github.com/martaxi-boss/lowcost-europa.git refs/heads/main >/dev/null 2>&1\ntest \"$(sudo -n -u \"$ACCOUNT\" git -C \"$APP\" rev-parse FETCH_HEAD)\" = \"8b8bdaeaeb49f01def64b127f1b0c1459d5cf24e\"\nsudo -n -u \"$ACCOUNT\" git -C \"$APP\" merge-base --is-ancestor \"$OLD\" \"8b8bdaeaeb49f01def64b127f1b0c1459d5cf24e\"\nchanges=\"$(sudo -n -u \"$ACCOUNT\" git -C \"$APP\" diff --name-only \"$OLD\" FETCH_HEAD)\"\nfor path in requirements/ config/settings/ apps/catalog/migrations/ apps/storefront/migrations/ deploy/nginx/ deploy/scripts/; do test -z \"$(sudo -n -u \"$ACCOUNT\" git -C \"$APP\" diff --name-only \"$OLD\" FETCH_HEAD -- \"$path\")\"; done\necho \"EXACT_GIT_PREFLIGHT=pass\"\nprintf \"CHANGED_FILES_BEGIN\\n%s\\nCHANGED_FILES_END\\n\" \"$changes\"\nprintf \"TARGET_SHA=%s\\n\" \"$(sudo -n -u \"$ACCOUNT\" git -C \"$APP\" rev-parse FETCH_HEAD)\""
           ],
           "working_directory": "/srv/lowcost-europa",
-          "timeout_ms": 45000,
+          "timeout_ms": 90000,
+          "idle_timeout_ms": 90000,
           "terminal": {
-            "columns": 110,
-            "rows": 35,
-            "scrollback": 200
+            "columns": 112,
+            "rows": 36,
+            "scrollback": 180
           },
           "limits": {
-            "output_bytes": 12000
+            "output_bytes": 22000
           }
         }
       }
