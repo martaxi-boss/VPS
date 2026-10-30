@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-telegram-leads-audit-health-20261030-1628",
+  "request_id": "rea-telegram-leads-correction-precheck-20261030-a",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,30 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\necho OPERATIONAL_REPORT_BEGIN\nsudo -n -H /usr/bin/python3 - <<'PY'\nimport subprocess,json,re\nbase='/opt/telegram-robot-leads/'\npython=base+'.venv/bin/python'\nsha=open(base+'.verified-source-commit').read().strip()\njobs=[\n('operational',[python,base+'scripts/leads_operational_report.py','--vault','/root/project-secrets/telegram-robot-leads','--checkout',base,'--expected-source',sha,'--with-pm2']),\n('health',[python,base+'scripts/lead_health.py','--root','/root/project-secrets/telegram-robot-leads','--with-pm2'])\n]\ndef cleanse(obj,key=''):\n if isinstance(obj,dict):\n  out={}\n  for k,v in obj.items():\n   if re.search(r'(?i)(secret|token|hash|password|api_id|username|account_id|user_id|phone|invite_url|group_handle|target_group|session_key|auth_key)',k):continue\n   out[k]=cleanse(v,k)\n  return out\n if isinstance(obj,list):return [cleanse(x,key) for x in obj[:12]]\n if isinstance(obj,str):\n  if len(obj)>350:return obj[:350]+'...'\n  obj=re.sub(r'@[A-Za-z0-9_]+','@REDACTED',obj)\n  obj=re.sub(r'\\b\\d{9,15}\\b','[ID]',obj)\n  return obj\n return obj\nfor name,cmd in jobs:\n p=subprocess.run(cmd,text=True,capture_output=True,timeout=25)\n print('REPORT',name,'EXIT',p.returncode,'STDERR',cleanse(p.stderr[-300:]))\n try:\n  o=json.loads(p.stdout)\n  print('REPORT_JSON',name,json.dumps(cleanse(o),ensure_ascii=True)[:10500])\n except Exception as e:print('REPORT_JSON_ERROR',name,type(e).__name__,'OUT',cleanse(p.stdout[:1200]))\nprint('OPERATIONAL_REPORT_END')\nPY"
+            "set -Eeuo pipefail\nsudo -n -H /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nimport subprocess, re, json\np=Path('/opt/telegram-robot-leads')\nq=p/'.telegram-leads-source-7c0ef8a1d9be'\nfiles=['AGENTS.md','scripts/telegram-robot-leads-status.sh','scripts/telegram-iptvpn-status.sh','scripts/deploy_project_only.py','scripts/project_hygiene.py','tests/test_safe_growth.py','.github/workflows/deploy.yml']\nfor file in files:\n path=p/file\n if not path.is_file():\n  print('MISSING',file); continue\n lines=path.read_text(errors='replace').splitlines()\n print('FILE',file,'LINE_COUNT',len(lines))\n if file=='AGENTS.md': chunks=[(1,min(130,len(lines)))]\n elif 'status.sh' in file: chunks=[(1,min(100,len(lines)))]\n elif file=='tests/test_safe_growth.py': chunks=[(90,min(120,len(lines)))]\n else: chunks=[(1,min(58,len(lines)))]\n for start,stop in chunks:\n  for i in range(start,stop+1):\n   text=lines[i-1]\n   if re.search(r'(?i)(token|secret|api_hash|password)\\s*[:=]\\s*[\"\\x27][^\"\\x27]+',text):text='[REDACTED]'\n   print('%s:%s:%s'%(file,i,text[:170]))\nfor args in [['rev-parse','HEAD'],['branch','--show-current'],['status','--short'],['remote','-v']]:\n z=subprocess.run(['git','-C',str(q),'--no-pager',*args],capture_output=True,text=True,timeout=12)\n result=z.stdout.strip()\n if args[0]=='remote':result=','.join(sorted(set(t.split()[0] for t in result.splitlines())))\n print('LOCAL_GIT',args[0],z.returncode,result[:500],z.stderr[:150])\nz=subprocess.run(['git','-C',str(q),'ls-remote','origin','refs/heads/main'],capture_output=True,text=True,timeout=20)\nprint('REMOTE_GIT',z.returncode,z.stdout.strip()[:90],z.stderr.strip()[:160])\nprint('PRECHECK_COMPLETE')\nPY"
           ],
           "timeout_ms": 90000,
-          "idle_timeout_ms": 25000,
+          "idle_timeout_ms": 22000,
           "limits": {
-            "output_bytes": 16000
-          }
-        }
-      }
-    },
-    {
-      "method": "tools/call",
-      "params": {
-        "name": "capture_process_scenario",
-        "arguments": {
-          "executable": "/bin/bash",
-          "arguments": [
-            "-lc",
-            "set -Eeuo pipefail\necho COVERAGE_HYGIENE_BEGIN\nsudo -n -H /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nimport subprocess,os,re,ast\np=Path('/opt/telegram-robot-leads')\nfor f in [p/'tests/test_safe_growth.py',p/'scripts/status.sh',p/'scripts/project_hygiene.py']:\n print('FILE',f.name,'PRESENT',f.is_file())\n if not f.exists():continue\n lines=f.read_text(errors='replace').splitlines()\n for i,line in enumerate(lines,1):\n  if (f.name=='test_safe_growth.py' and 85<=i<=123) or (f.name=='status.sh' and i<=35):\n   print('LINE',i,line[:170])\nprint('ACTIVE_GIT_MARKER',(p/'.verified-source-commit').read_text().strip())\nprev=sorted(Path('/opt').glob('.telegram-leads-previous-*'))\nprint('PREVIOUS_RELEASES',len(prev))\nfor q in prev:\n z=subprocess.run(['du','-sk',str(q)],capture_output=True,text=True,timeout=8)\n print('ARCHIVED_RELEASE',q.name,'KB',z.stdout.split()[0] if z.returncode==0 else 'unknown')\nfor k in ['scripts/safe_runtime.py','scripts/organic_growth.py','scripts/public_group_discovery.py','scripts/operation_policy.py']:\n q=p/k\n print('PY_COMPILE',k,ast.parse(q.read_text()).__class__.__name__)\nprint('COVERAGE_HYGIENE_END')\nPY"
-          ],
-          "timeout_ms": 90000,
-          "idle_timeout_ms": 25000,
-          "limits": {
-            "output_bytes": 16000
+            "output_bytes": 22000
           }
         }
       }
