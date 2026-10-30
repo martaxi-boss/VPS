@@ -1,15 +1,29 @@
 {
-  "request_id": "rea-lowcost-deep-audit-discovery-20261030-1330",
+  "request_id": "rea-lowcost-deep-audit-vps-check-20261030-1340",
   "mcp_requests": [
-    {
-      "method": "tools/list",
-      "params": {}
-    },
     {
       "method": "tools/call",
       "params": {
-        "name": "inspect_analysis_settings",
-        "arguments": {}
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/bin/bash",
+          "arguments": [
+            "-c",
+            "set +e\necho REA_LOW_COST_AUDIT_BEGIN\necho AUDIT_USER=$(id -un)\necho APP_DIR_STATUS\ntest -d /srv/lowcost-europa; echo app_directory_exists=$?\ngit -C /srv/lowcost-europa rev-parse HEAD 2>&1 | head -c 180\necho\ngit -C /srv/lowcost-europa status --porcelain=v1 2>&1 | head -n 10\necho LOWCOST_SERVICES\nsystemctl list-units --all --type=service --no-pager --no-legend 2>/dev/null | grep -Ei 'lowcost|gunicorn|nginx|postgresql' | head -n 24\necho LOWCOST_TIMERS\nsystemctl list-timers --all --no-pager --no-legend 2>/dev/null | grep -Ei 'lowcost|restic' | head -n 20\necho HTTPS_SMOKE\ncurl --max-time 12 --silent --show-error --output /dev/null --write-out 'root=%{http_code} sslverify=%{ssl_verify_result}\\n' https://lowcost-europa.duckdns.org/ 2>&1\ncurl --max-time 12 --silent --show-error --output /dev/null --write-out 'readiness=%{http_code}\\n' https://lowcost-europa.duckdns.org/health/ready/ 2>&1\ncurl --max-time 12 --silent --show-error --output /dev/null --write-out 'robots=%{http_code}\\n' https://lowcost-europa.duckdns.org/robots.txt 2>&1\necho REA_LOW_COST_AUDIT_END"
+          ],
+          "working_directory": "/tmp",
+          "timeout_ms": 65000,
+          "idle_timeout_ms": 65000,
+          "settle_ms": 200,
+          "terminal": {
+            "columns": 100,
+            "rows": 40,
+            "scrollback": 120
+          },
+          "limits": {
+            "output_bytes": 16000
+          }
+        }
       }
     }
   ]
