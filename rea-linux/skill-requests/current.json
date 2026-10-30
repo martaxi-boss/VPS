@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-telegram-leads-final-readback-20261030-1755",
+  "request_id": "rea-telegram-leads-group-privileges-retry-20261030",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,30 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n -H /usr/bin/python3 - <<'PY'\nimport asyncio,sys,os\nsys.path.insert(0,'/opt/telegram-robot-leads/scripts')\nfrom telethon_sessions import inspect,make_memory_client\nfrom telethon.tl.functions.channels import GetParticipantRequest\nfrom telethon.tl.types import ChannelParticipantAdmin,ChannelParticipantCreator\nconfig=inspect(__import__('pathlib').Path('/root/project-secrets/telegram-robot-leads'))\nasync def check(entry):\n client=make_memory_client(entry,config)\n number=entry['index']\n try:\n  await asyncio.wait_for(client.connect(),25)\n  auth=await asyncio.wait_for(client.is_user_authorized(),20)\n  if not auth:\n   print('GROUP_PRIVILEGES',number,'authorized',False);return False\n  group=await asyncio.wait_for(client.get_entity(config['group']),25)\n  me=await asyncio.wait_for(client.get_me(),20)\n  obj=await asyncio.wait_for(client(GetParticipantRequest(channel=group,participant=me)),25)\n  participant=obj.participant\n  role=type(participant).__name__\n  admin=isinstance(participant,(ChannelParticipantAdmin,ChannelParticipantCreator))\n  rights=getattr(participant,'admin_rights',None)\n  print('GROUP_PRIVILEGES',number,'authorized',True,'group_access',True,'role',role,'admin_or_owner',admin,'invite_users',bool(getattr(rights,'invite_users',False)) if rights else admin)\n  return True\n except Exception as exc:\n  print('GROUP_PRIVILEGES',number,'status','UNVERIFIED','error_type',type(exc).__name__);return False\n finally:\n  if client.is_connected():\n   await client.disconnect()\nasync def main():\n statuses=[]\n for row in config['entries']:statuses.append(await check(row))\n print('GROUP_ACCESS_READONLY_FINISHED',statuses)\nasyncio.run(main())\nPY"
+            "set -Eeuo pipefail\nsudo -n -H /opt/telegram-robot-leads/.venv/bin/python - <<'PY'\nimport asyncio,sys\nfrom pathlib import Path\nsys.path.insert(0,'/opt/telegram-robot-leads/scripts')\nfrom telethon_sessions import inspect,make_memory_client\nfrom telethon.tl.functions.channels import GetParticipantRequest\nfrom telethon.tl.types import ChannelParticipantAdmin,ChannelParticipantCreator\nconfig=inspect(Path('/root/project-secrets/telegram-robot-leads'))\nasync def check(entry):\n client=make_memory_client(entry,config)\n number=entry['index']\n try:\n  await asyncio.wait_for(client.connect(),25)\n  auth=await asyncio.wait_for(client.is_user_authorized(),20)\n  if not auth:\n   print('GROUP_ACCESS',number,'authorized',False);return False\n  group=await asyncio.wait_for(client.get_entity(config['group']),25)\n  me=await asyncio.wait_for(client.get_me(),20)\n  obj=await asyncio.wait_for(client(GetParticipantRequest(channel=group,participant=me)),25)\n  part=obj.participant;admin=isinstance(part,(ChannelParticipantAdmin,ChannelParticipantCreator))\n  rights=getattr(part,'admin_rights',None)\n  print('GROUP_ACCESS',number,'authorized',True,'group_access',True,'role',type(part).__name__,'admin_or_owner',admin,'can_invite',bool(getattr(rights,'invite_users',False)) if rights else admin)\n  return True\n except Exception as exc:\n  print('GROUP_ACCESS',number,'verified',False,'error_type',type(exc).__name__)\n  return False\n finally:\n  if client.is_connected():\n   await client.disconnect()\nasync def main():\n results=[]\n for entry in config['entries']:results.append(await check(entry))\n print('GROUP_READONLY_SUMMARY','verified',sum(results),'of',len(results))\nasyncio.run(main())\nPY"
           ],
-          "timeout_ms": 140000,
-          "idle_timeout_ms": 75000,
+          "timeout_ms": 150000,
+          "idle_timeout_ms": 85000,
           "limits": {
-            "output_bytes": 11000
-          }
-        }
-      }
-    },
-    {
-      "method": "tools/call",
-      "params": {
-        "name": "capture_process_scenario",
-        "arguments": {
-          "executable": "/bin/bash",
-          "arguments": [
-            "-lc",
-            "set -Eeuo pipefail\nsudo -n -H /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nimport os,subprocess,json,re,stat\nbase=Path('/opt/telegram-robot-leads')\nvault=Path('/root/project-secrets/telegram-robot-leads')\nexpected=(base/'.verified-source-commit').read_text().strip()\nassert re.fullmatch(r'[0-9a-f]{40}',expected)\ntest=subprocess.run([str(base/'.venv/bin/python'),'-m','unittest','discover','-s','tests','-p','test_*.py','-q'],cwd=str(base),capture_output=True,text=True,timeout=75,env={**os.environ,'PYTHONDONTWRITEBYTECODE':'1'})\nprint('FINAL_TEST_EXIT',test.returncode,'FINAL_TEST_REPORT',(test.stderr+test.stdout)[-1500:])\nassert test.returncode==0 and 'Ran 221 tests' in test.stdout+test.stderr and 'OK' in test.stdout+test.stderr\ndiag=subprocess.run([str(base/'.venv/bin/python'),str(base/'scripts/leads_operational_report.py'),'--checkout',str(base),'--expected-source',expected,'--vault',str(vault),'--with-pm2'],capture_output=True,text=True,timeout=20)\nassert diag.returncode==0\ndata=json.loads(diag.stdout)\nprint('FINAL_STATUS',data.get('status'),'PM2',data.get('pm2'),'DISCOVERY',data.get('public_discovery'),'MEMBERS_ADDED',data.get('members_added'))\nprint('FINAL_READINESS_GAPS',','.join(data.get('readiness_indicators',[])))\nprint('SOURCE_MATCH',data.get('source',{}).get('matches_expected'))\nassert data.get('source',{}).get('matches_expected') is True\nassert data.get('pm2',{}).get('status')=='ONLINE'\nassert len(list(Path('/opt').glob('.telegram-leads-previous-*')))==1\nassert not (base/'.rea-fix-status-20261030').exists()\nraw=(vault/'.env').read_text()\nassert 'TELEGRAM_REGION_SPLIT=' not in raw\nprint('HYGIENE_CHECK','old_archives',1,'scratch_removed',True,'legacy_env_clean',True)\nprint('BACKUP_PRESENT',(vault/'.env.backup.rea-final-hygiene-20261030').is_file())\nprint('FINAL_VERIFICATION_PASS')\nPY"
-          ],
-          "timeout_ms": 140000,
-          "idle_timeout_ms": 75000,
-          "limits": {
-            "output_bytes": 11000
+            "output_bytes": 5500
           }
         }
       }
