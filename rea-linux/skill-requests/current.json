@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-plcodex-offline-routing-validation-20261030-a4",
+  "request_id": "rea-plcodex-mixed-path-scope-fix-20261030-a5",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nexport GIT_PAGER=cat PAGER=cat GIT_TERMINAL_PROMPT=0 PYTHONDONTWRITEBYTECODE=1\ntmp=\"$(mktemp -d /tmp/rea-plcodex-route.XXXXXX)\"\ntrap 'rm -rf \"$tmp\"' EXIT\ngit clone --quiet --depth 1 --branch main https://github.com/martaxi-boss/Project-leader-codex.git \"$tmp/repo\"\ncd \"$tmp/repo\"\ntest \"$(git rev-parse HEAD)\" = c7996a41c22d99f52f25d4c12e793bb3b3a8917d\npython3 - <<'PY'\nfrom pathlib import Path\nimport subprocess,re\ntracked=subprocess.check_output(['git','ls-files'],text=True).splitlines()\nneedles=('owner_coordinator_ingress','CODEx_CLOUD_COORDINATOR_SUBMITTED','submit_owner_order(','/VPS/issues','independent VPS Coordinator')\nhits=[]\nfor name in tracked:\n if name.startswith(('.project-leader/','codex/tests/')):continue\n p=Path(name)\n if not p.is_file() or p.stat().st_size>200000 or p.suffix not in ('.py','.md','.sh','.yml','.yaml','.toml','.json'):continue\n text=p.read_text(errors='replace')\n for i,line in enumerate(text.splitlines(),1):\n  if any(n.lower() in line.lower() for n in needles):\n   hits.append((name,i,line[:175]))\nprint('LEGACY_REFERENCE_COUNT',len(hits),flush=True)\nfor name,lineno,line in hits[:45]:print('REF',name,lineno,line,flush=True)\nprint('PROJECT_COORDINATOR_RUNTIME',Path('codex/smart.py').exists(),Path('codex/agent_policy.py').exists())\nPY\npython3 -m unittest codex.tests.test_cloud_bridge codex.tests.test_coordination_contract codex.tests.test_owner_coordinator_ingress -q\necho CLOUD_BRIDGE_COORDINATION_AND_LEGACY_TESTS_PASS\npython3 -m unittest discover -s codex/tests -p 'test_*.py' -q\necho ALL_CODEX_OFFLINE_TESTS_PASS\nif command -v codex >/dev/null 2>&1; then echo CODEX_CLI_AVAILABLE; else echo CODEX_CLI_UNAVAILABLE_ON_REA_HOST; fi\necho ROUTING_INSPECTION_COMPLETE\n"
+            "set -Eeuo pipefail\nexport GIT_PAGER=cat PAGER=cat GIT_TERMINAL_PROMPT=0 PYTHONDONTWRITEBYTECODE=1\ntmp=\"$(mktemp -d /tmp/rea-plcodex-pathpatch.XXXXXX)\"\ntrap 'rm -rf \"$tmp\"' EXIT\ngit clone --quiet --depth 1 --branch main https://github.com/martaxi-boss/Project-leader-codex.git \"$tmp/repo\"\ncd \"$tmp/repo\"\ntest \"$(git rev-parse HEAD)\" = c7996a41c22d99f52f25d4c12e793bb3b3a8917d\npython3 - <<'PY'\nfrom pathlib import Path\np=Path('codex/scope_discovery.py')\ns=p.read_text()\nold='    if mentioned:\\n        if len(mentioned) != 1:\\n            return order\\n'\nnew='''    # Reject mixed existing and missing explicit paths; never silently drop\n    # an explicit file from a multi-file Owner instruction.\n    explicit_paths = {m.group(0) for m in EXPLICIT_PATH_TOKEN.finditer(request)}\n    if explicit_paths and (\n        len(explicit_paths) != 1 or len(mentioned) != 1\n        or next(iter(explicit_paths)) != mentioned[0]\n    ):\n        return order\n    if mentioned:\n        if len(mentioned) != 1:\n            return order\n'''\nassert s.count(old)==1,'SOURCE_ANCHOR_DRIFT'\np.write_text(s.replace(old,new,1))\np=Path('codex/tests/test_scope_discovery.py')\ns=p.read_text()\nanchor='    def test_untracked_explicit_filename_cannot_fall_back_to_tests(self):\\n'\naddition='''    def test_existing_and_missing_explicit_paths_need_scoping(self):\n        self._add_tracked_codex_files()\n        order = dict(self.order,\n                     request=\"Corrige codex/smart.py e codex/missing.py e executa os testes\")\n        self.assertNotIn(\"work_items\", discover_work_items(order, self.repo))\n        self.assertEqual(plan(order)[\"status\"], \"needs_scoping\")\n\n'''\nassert s.count(anchor)==1,'TEST_ANCHOR_DRIFT'\np.write_text(s.replace(anchor,addition+anchor,1))\nPY\npython3 -m unittest codex.tests.test_scope_discovery -q\necho FOCUSED_MIXED_PATH_REGRESSION_PASS\npython3 -m unittest discover -s codex/tests -p 'test_*.py' -q\necho FULL_CODEX_REGRESSION_PASS\ngit diff --check\ntest \"$(git status --short | wc -l)\" -eq 2\necho CHANGED_FILE_SHA256\nsha256sum codex/scope_discovery.py codex/tests/test_scope_discovery.py\ngit --no-pager diff -- codex/scope_discovery.py codex/tests/test_scope_discovery.py\necho REA_SCOPE_PATCH_VALIDATED\n"
           ],
-          "timeout_ms": 175000,
-          "idle_timeout_ms": 115000,
+          "timeout_ms": 190000,
+          "idle_timeout_ms": 130000,
           "limits": {
-            "output_bytes": 13000
+            "output_bytes": 11000
           }
         }
       }
