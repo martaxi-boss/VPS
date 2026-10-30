@@ -1,9 +1,47 @@
 {
-  "request_id": "rea-final-idle-toolbox-ready-20261030",
+  "request_id": "rea-final-skill-real-readonly-test-20261030",
   "mcp_requests": [
     {
       "method": "tools/list",
       "params": {}
+    },
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "binary_session",
+        "arguments": {}
+      }
+    },
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "inspect_analysis_settings",
+        "arguments": {}
+      }
+    },
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/bin/bash",
+          "arguments": [
+            "-c",
+            "set -euo pipefail\nR=/home/ubuntu/rea-final-runtime\nE=/home/ubuntu/rea-original-upstream-680\ntest -x \"$R/bin/rea-mcp\"\ntest -f \"$E/scripts/rea.mjs\"\ntest -f \"$R/docs/OPERATIONS.md\"\nprintf 'REA_LOCAL_ENTRYPOINT=pass\\n'\nprintf 'REA_ORIGINAL_ENGINE=pass\\n'\nexpected=d033dc2c947c601d9161b2a48d3f34b5f488a769\nactual=\"$(git hash-object \"$R/docs/OPERATIONS.md\")\"\nprintf 'REA_RUNTIME_OPERATIONS_BLOB=%s\\n' \"$actual\"\ntest \"$actual\" = \"$expected\"\necho 'REA_RUNTIME_OPERATIONS_SYNC=pass'\nfor f in \"$R/vendors/providers/node-v24.22.1/bin/node\" \"$R/vendors/tools/jdk-21/bin/java\" \"$R/vendors/tools/ghidra_12.1.4_PUBLIC\" \"$R/vendors/tools/jadx-headless-mcp-0.7.1-all.jar\" \"$R/vendors/providers/binwalk-3.1.0/bin/binwalk\"; do\n if test -e \"$f\"; then printf 'PROVIDER_PATH_PRESENT=%s\\n' \"$(basename \"$f\")\"; else printf 'PROVIDER_PATH_NOT_PRESENT=%s\\n' \"$(basename \"$f\")\"; fi\ndone\necho 'REA_PORTABLE_READONLY_CHECK=pass'"
+          ],
+          "working_directory": "/home/ubuntu/rea-final-runtime",
+          "timeout_ms": 25000,
+          "idle_timeout_ms": 25000,
+          "terminal": {
+            "columns": 100,
+            "rows": 28,
+            "scrollback": 100
+          },
+          "limits": {
+            "output_bytes": 12000
+          }
+        }
+      }
     }
   ]
 }
