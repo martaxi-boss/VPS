@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-plcodex-fixture-fix-20261030-8",
+  "request_id": "rea-plcodex-env-fix-20261030-9",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\ncd /tmp/rea-audit-plcodex-20261030-1647\ntest \"$(git branch --show-current)\" = fix/rea-plcodex-audit-20261030\npython3 - <<'PY'\nfrom pathlib import Path\np=Path(\"tests/test_audit_p1_regressions.py\")\ns=p.read_text()\nold='(skill / \"references\" / \"recovery-protocol.md\").write_text('\nnew='(skill / \"references\" / (\"operational-routes.md\" if name == \"project-leader-codex\" else \"recovery-protocol.md\")).write_text('\nassert s.count(old)==1\ns=s.replace(old,new,1)\nold='            write_plugin(root, \"recovery-guardian\")\\n            manifest = build('\nnew='            write_plugin(root, \"recovery-guardian\")\\n            write_plugin(root, \"project-leader-codex\")\\n            manifest = build('\nassert s.count(old)==1\np.write_text(s.replace(old,new,1))\nprint(\"FIXTURE_ADAPTED\")\nPY\ngit --no-pager diff --check\npython3 -m unittest discover -s tests -p test_audit_p1_regressions.py -q\necho 'FIXTURE_PASS'"
+            "set -Eeuo pipefail\nexport PYTHONDONTWRITEBYTECODE=1\ncd /tmp/rea-audit-plcodex-20261030-1647\ntest \"$(git branch --show-current)\" = fix/rea-plcodex-audit-20261030\npython3 - <<'PY'\nfrom pathlib import Path\np=Path(\"codex/dual.py\")\ns=p.read_text()\nold=\"def _invoke_codex(\"\nassert s.count(old)==1\nnew='''_CODEX_ENV_NAMES = frozenset({\n    \"PATH\", \"HOME\", \"USER\", \"LOGNAME\", \"SHELL\", \"LANG\",\n    \"LC_ALL\", \"LC_CTYPE\", \"TERM\", \"COLORTERM\", \"TMPDIR\", \"TZ\",\n    \"XDG_CONFIG_HOME\", \"XDG_CACHE_HOME\", \"XDG_DATA_HOME\",\n    \"XDG_STATE_HOME\", \"XDG_RUNTIME_DIR\",\n    \"CODEX_HOME\", \"CODEX_API_KEY\", \"OPENAI_API_KEY\", \"OPENAI_BASE_URL\",\n    \"OPENAI_ORG_ID\", \"OPENAI_PROJECT_ID\",\n    \"HTTP_PROXY\", \"HTTPS_PROXY\", \"ALL_PROXY\", \"NO_PROXY\",\n    \"http_proxy\", \"https_proxy\", \"all_proxy\", \"no_proxy\",\n    \"SSL_CERT_FILE\", \"SSL_CERT_DIR\", \"REQUESTS_CA_BUNDLE\",\n})\n\n\ndef _child_environment(explicit: dict[str, str] | None) -> dict[str, str]:\n    # Avoid forwarding unrelated inherited project and CI variables to Codex.\n    # A host-supplied explicit environment remains caller-controlled.\n    if explicit is not None:\n        return dict(explicit)\n    return {name: value for name, value in os.environ.items()\n            if name in _CODEX_ENV_NAMES}\n\n\n'''\ns=s.replace(old,new+old,1)\nold=\"cwd=str(cwd) if cwd is not None else None, env=env,\"\nassert s.count(old)==1\ns=s.replace(old,\"cwd=str(cwd) if cwd is not None else None, env=_child_environment(env),\",1)\np.write_text(s)\nprint(\"CODEX_ENV_GUARD_APPLIED\")\nPY\ngit --no-pager diff --check\npython3 -m compileall -q codex/dual.py\necho 'ENV_EDIT_PASS'"
           ],
-          "timeout_ms": 90000,
-          "idle_timeout_ms": 45000,
+          "timeout_ms": 80000,
+          "idle_timeout_ms": 35000,
           "limits": {
-            "output_bytes": 9000
+            "output_bytes": 11000
           }
         }
       }
