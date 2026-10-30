@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-plcodex-code-map-20261030-1650",
+  "request_id": "rea-plcodex-regression-20261030-1653",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nexport PYTHONDONTWRITEBYTECODE=1 GIT_PAGER=cat PAGER=cat\ncd /tmp/rea-audit-plcodex-20261030-1647\ntest \"$(git rev-parse HEAD)\" = \"4a5c5ba5876bad079ec4edf401416804c18bc521\"\necho CODEMAP_START\npython3 - <<'PY'\nfrom pathlib import Path\nimport subprocess,ast,collections,re\np=Path.cwd(); files=[x for x in subprocess.check_output(['git','ls-files'],text=True).splitlines()]\nnonhist=[x for x in files if not x.startswith('.project-leader/')]\nprint('NONHISTORY_FILES',len(nonhist))\nfor x in nonhist:print('SRC',x,'bytes',(p/x).stat().st_size)\nprint('CONTROL_HISTORY_FILES',len(files)-len(nonhist))\nfor name in ['.codex/config.toml','CODEX_COORDINATION.md','codex/README.md','SMOKE_TESTS.md']:\n f=p/name\n if not f.is_file():continue\n lines=f.read_text(errors='replace').splitlines()\n print('DOC_START',name,'lines',len(lines))\n for i,l in enumerate(lines[:190],1):print(f'{i:03d}: {l[:250]}')\n print('DOC_END',name)\nprint('PYTHON_API_START')\nfor x in files:\n if not x.endswith('.py') or x.startswith('.project-leader/'):continue\n f=p/x\n try:t=ast.parse(f.read_text())\n except Exception as e:print('AST_FAIL',x,str(e));continue\n functions=[]; classes=[]\n for n in t.body:\n  if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef)):functions.append(n.name)\n  if isinstance(n,ast.ClassDef):classes.append(n.name)\n print('PY',x,'classes',','.join(classes[:15]),'funcs',','.join(functions[:32]))\nprint('PYTHON_API_END')\nprint('PATTERN_START')\npat=re.compile(r'CODEX_EXECUTOR_UNAVAILABLE|VPS|coordinator|Supervisor|human.gate|codex\\.agent_policy|codex\\.smart|dispatch|exec\\(|subprocess|shell=True|token|quota|retry|auth|GITHUB_TOKEN|issue',re.I)\nfor x in nonhist:\n if not (x.startswith('codex/') or x.startswith('.github/workflows/') or x.startswith('plugins/') or x in ('AGENTS.md','CODEX_COORDINATION.md')):continue\n f=p/x\n if not f.is_file() or f.stat().st_size>50000:continue\n lines=f.read_text(errors='replace').splitlines();matches=[(i,l) for i,l in enumerate(lines,1) if pat.search(l)]\n if matches:print('PATTERNS',x,'LINES',len(lines),'HITS',len(matches),'SAMPLE',' | '.join(f'{i}:{l.strip()[:100]}' for i,l in matches[:8]))\nprint('PATTERN_END')\nPY\ngit --no-pager diff --check\necho CODEMAP_PASS"
+            "set -Eeuo pipefail\nexport PYTHONDONTWRITEBYTECODE=1 GIT_PAGER=cat PAGER=cat GIT_TERMINAL_PROMPT=0\ncd /tmp/rea-audit-plcodex-20261030-1647\ntest \"$(git rev-parse HEAD)\" = \"4a5c5ba5876bad079ec4edf401416804c18bc521\"\npython3 - <<'PY'\nimport os,subprocess,shutil,sys,time\nroot=os.getcwd()\ntests=[\n('AST_SYNTAX_CHECK',[sys.executable,'-c','import ast,subprocess,pathlib; files=[pathlib.Path(x) for x in subprocess.check_output([\"git\",\"ls-files\"],text=True).splitlines() if x.endswith(\".py\")]; [ast.parse(x.read_text(),filename=str(x)) for x in files]; print(\"AST_FILES\",len(files))']),\n('CODEX_TESTS',[sys.executable,'-m','unittest','discover','-s','codex/tests','-t','.','-p','test_*.py','-q']),\n('CONTROL_TESTS',[sys.executable,'-m','unittest','discover','-s','tests','-t','.','-p','test_*.py','-q']),\n('GIT_DIFF_CHECK',['git','--no-pager','diff','--check'])\n]\nfail=0\nfor name,cmd in tests:\n t=time.monotonic()\n try:\n  q=subprocess.run(cmd,cwd=root,env={**os.environ,'PYTHONDONTWRITEBYTECODE':'1','GIT_PAGER':'cat'},text=True,capture_output=True,timeout=125)\n  print('TEST',name,'exit',q.returncode,'seconds',round(time.monotonic()-t,2),flush=True)\n  if q.stdout:print('STDOUT',name,q.stdout[-2500:],flush=True)\n  if q.stderr:print('STDERR',name,q.stderr[-5000:],flush=True)\n  if q.returncode:fail+=1\n except Exception as e:fail+=1;print('TEST_EXCEPTION',name,type(e).__name__,str(e)[:250],flush=True)\nprint('CODEX_BINARY',shutil.which('codex') or 'NOT_FOUND')\nprint('GIT_STATUS',repr(subprocess.run(['git','status','--porcelain'],capture_output=True,text=True).stdout[:1000]))\nprint('AUDIT_TESTS_FAILED',fail,flush=True)\nsys.exit(1 if fail else 0)\nPY"
           ],
-          "timeout_ms": 75000,
-          "idle_timeout_ms": 35000,
+          "timeout_ms": 250000,
+          "idle_timeout_ms": 140000,
           "limits": {
-            "output_bytes": 65000
+            "output_bytes": 27000
           }
         }
       }
