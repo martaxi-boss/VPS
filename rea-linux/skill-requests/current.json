@@ -1,9 +1,16 @@
 {
-  "request_id": "rea-final-idle-after-hygiene-20261030",
+  "request_id": "rea-lowcost-deep-audit-discovery-20261030-1330",
   "mcp_requests": [
     {
       "method": "tools/list",
       "params": {}
+    },
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "inspect_analysis_settings",
+        "arguments": {}
+      }
     }
   ]
 }
