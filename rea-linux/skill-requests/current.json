@@ -1,29 +1,9 @@
 {
-  "request_id": "rea-final-quick-hygiene-audit-20261030",
+  "request_id": "rea-final-idle-after-hygiene-20261030",
   "mcp_requests": [
     {
-      "method": "tools/call",
-      "params": {
-        "name": "capture_process_scenario",
-        "arguments": {
-          "executable": "/bin/bash",
-          "arguments": [
-            "-c",
-            "set -Eeuo pipefail\nR=/home/ubuntu/rea-final-runtime\nE=/home/ubuntu/rea-original-upstream-680\necho 'REA_HYGIENE_PHASE=read_only'\nprintf 'HOST=%s USER=%s\\n' \"$(hostname)\" \"$(id -un)\"\nif test -x \"$R/bin/rea-mcp\"; then echo 'MCP_ENTRYPOINT=present'; else echo 'MCP_ENTRYPOINT=MISSING'; fi\nif test -f \"$E/scripts/rea.mjs\"; then echo 'REA_ORIGINAL_SOURCE=present'; else echo 'REA_ORIGINAL_SOURCE=MISSING'; fi\nif test -f \"$E/package.json\"; then\n node_ver=\"$(command -v node || true)\"\n printf 'REA_ENGINE_PACKAGE_VERSION=%s\\n' \"$(grep -m1 '\"version\"' \"$E/package.json\" | sed 's/^[[:space:]]*//')\"\nfi\nfor spec in \\\n  \"$R/bin/rea-mcp:fbea5e89bf11248a81ee6cefc8ff19cc6612dacf:LAUNCHER\" \\\n  \"$R/docs/OPERATIONS.md:d033dc2c947c601d9161b2a48d3f34b5f488a769:OPERATIONS\" \\\n  \"$R/docs/README.md:2d422c02220f8fed49c71a14abed4c342ced5e07:README\"; do\n  IFS=: read -r file expected label <<< \"$spec\"\n  if test -f \"$file\"; then\n    actual=\"$(git hash-object \"$file\")\"\n    if test \"$actual\" = \"$expected\"; then printf '%s_VERSION=SYNC\\n' \"$label\"; else printf '%s_VERSION=DRIFT expected=%s actual=%s\\n' \"$label\" \"$expected\" \"$actual\"; fi\n  else\n    printf '%s_VERSION=MISSING\\n' \"$label\"\n  fi\ndone\nbash -n \"$R/bin/rea-mcp\" && echo 'LAUNCHER_BASH_SYNTAX=pass'\nfor dir in \"$E\" \"$R\"; do\n  printf 'DIRECTORY=%s\\n' \"$dir\"\n  if git -C \"$dir\" rev-parse --is-inside-work-tree >/dev/null 2>&1; then\n    printf 'GIT_HEAD=%s\\n' \"$(git -C \"$dir\" rev-parse HEAD)\"\n    dirty=\"$(git -C \"$dir\" status --porcelain --untracked-files=no | wc -l)\"\n    printf 'GIT_TRACKED_MODIFICATIONS=%s\\n' \"$dirty\"\n  else\n    echo 'GIT_WORKTREE=not_a_repository'\n  fi\ndone\necho 'REA_HOME_CANDIDATE_DIRECTORIES_START'\nfind /home/ubuntu -mindepth 1 -maxdepth 1 -type d \\( -iname '*rea*' -o -iname '*reversa*' \\) -printf '%f\\n' | sort\necho 'REA_HOME_CANDIDATE_DIRECTORIES_END'\necho 'REA_TMP_CANDIDATES_START'\nfind /tmp -mindepth 1 -maxdepth 1 -type d -name 'rea-final-mcp-*' -user ubuntu -printf '%TY-%Tm-%TdT%TH:%TM %f\\n' | sort\necho 'REA_TMP_CANDIDATES_END'\necho 'REA_DUPLICATE_PROCESS_INSTANCES_START'\nps -eo user=,pid=,comm=,args= | awk '$1==\"ubuntu\" && ($3==\"node\" || $3==\"python3\") && index($0,\"rea.mjs\") > 0 { print $2,$3 }' | head -15\necho 'REA_DUPLICATE_PROCESS_INSTANCES_END'\necho 'REA_HYGIENE_READ_ONLY_COMPLETE=pass'"
-          ],
-          "working_directory": "/home/ubuntu/rea-final-runtime",
-          "timeout_ms": 90000,
-          "idle_timeout_ms": 60000,
-          "terminal": {
-            "columns": 120,
-            "rows": 32,
-            "scrollback": 220
-          },
-          "limits": {
-            "output_bytes": 22000
-          }
-        }
-      }
+      "method": "tools/list",
+      "params": {}
     }
   ]
 }
