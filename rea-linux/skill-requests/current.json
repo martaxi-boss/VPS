@@ -2,6 +2,13 @@
   "schema_version": 1,
   "project": "engenharia-reversa-final",
   "engine_commit": "160d821ac9a0310afcb8d1fc427862dd6508add5",
-  "request_id": "rea-final-plugin-setup-health-20261030-k1",
-  "operation": "health"
+  "request_id": "rea-final-lowcost-js-real-20261030-e1",
+  "operation": "analyze_project_javascript",
+  "source_repo": "martaxi-boss/lowcost-europa",
+  "revision": "28c998e88bb723424c8ed36d4ba93904339ec877",
+  "javascript_dir": "apps/storefront/static/storefront",
+  "source_paths": [
+    "catalog-explorer.js",
+    "product-images.js"
+  ]
 }
