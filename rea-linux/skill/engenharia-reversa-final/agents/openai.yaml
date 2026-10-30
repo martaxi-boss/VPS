@@ -1,3 +1,4 @@
 interface:
-  display_name: Engenharia Reversa FINAL
-  short_description: Caixa de ferramentas REA primeiro, IA orienta e complementa
+  display_name: "Engenharia Reversa FINAL"
+  short_description: "Motor original na VPS, utilizado com provas e IDs reais"
+  default_prompt: "Engenharia Reversa FINAL: apresenta-te e executa uma análise real com o motor original na VPS, através da ponte GitHub Actions existente; mostra o run ID, os fornecedores usados e os resultados."

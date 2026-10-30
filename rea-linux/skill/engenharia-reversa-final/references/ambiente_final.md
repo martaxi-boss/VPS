@@ -1,15 +1,16 @@
 # Ambiente FINAL preservado
 
-**Código original do autor:** `morluto/rea`, commit `160d821ac9a0310afcb8d1fc427862dd6508add5`, pacote com versão oficial `6.8.0`.
+Motor do autor: `morluto/rea`, commit `160d821ac9a0310afcb8d1fc427862dd6508add5`, pacote `rea-agents 6.8.0`.
 
-VPS: `/home/ubuntu/rea-original-upstream-680`.
-Runtime Node e dependências exclusivo: `/home/ubuntu/rea-final-runtime/node_modules`.
-Fornecedores: `/home/ubuntu/rea-final-runtime/vendors` e `/home/ubuntu/rea-final-runtime/optional`.
-A instalação antiga em `/opt/rea-reversa` foi eliminada em 30/10/2026.
+VPS Linux atual:
+- Motor: `/home/ubuntu/rea-original-upstream-680`.
+- Runtime independente: `/home/ubuntu/rea-final-runtime`.
+- Arranque autonomo: `/home/ubuntu/rea-final-runtime/bin/rea-mcp`.
 
-GitHub fonte: `martaxi-boss/Engenheira-reversa/engenharia-reversa/original`, submódulo fixado no commit do autor.
-GitHub transporte: `martaxi-boss/VPS`, branch `rea/one-skill-bridge-20261023`.
+A configuracao dos fornecedores Node, JDK, Ghidra, JADX, Binwalk e outros programas compativeis faz parte da instalacao REA, e nunca do ficheiro do transporte. A migracao para workstation Ubuntu requer copiar/reinstalar as dependencias compativeis e comprovar o MCP diretamente. Nao misturar com a instalacao antiga em `/opt/rea-reversa`.
 
-Prova da separação: runs 40974645346, 40980322799. Saúde 4/4 operações: 41016478406. Primeiro teste de análise JavaScript de um projeto real através do motor: 41022019825, `analyze-javascript-application` com fontes do Low Cost Europa, `PASS`.
+GitHub: `martaxi-boss/VPS`, branch `rea/one-skill-bridge-20261023`, pasta `rea-linux/runtime/` para o arranque portatil e guias.
 
-A utilização de uma ferramenta de análise estática de JavaScript não prova que tenham sido usados Ghidra, JADX, fornecedores pagos, instrumentação, nem que toda a aplicação Python/Django tenha sido auditada.
+Prova local pela VPS: Actions 41051659568, REA_DIRECT_LOCAL_MCP=pass, REA_DIRECT_TOOLS=229, REA_DIRECT_CALL=pass, codigo de saida 0. A prova foi desencadeada remotamente, mas o segundo processo MCP foi aberto pelo comando local instalado, sem configuracao de fornecedores do transporte.
+
+Uma analise JavaScript estatica nao equivale a auditoria de Django/Python, nem comprova uso de Ghidra, JADX, fornecedores pagos ou todas as ferramentas listadas.
