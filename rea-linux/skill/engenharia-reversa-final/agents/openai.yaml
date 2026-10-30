@@ -1,4 +1,4 @@
 interface:
   display_name: "Engenharia Reversa FINAL"
-  short_description: "Motor original na VPS, utilizado com provas e IDs reais"
-  default_prompt: "Engenharia Reversa FINAL: apresenta-te e executa uma análise real com o motor original na VPS, através da ponte GitHub Actions existente; mostra o run ID, os fornecedores usados e os resultados."
+  short_description: "ChatGPT orienta e o REA executa as tarefas tecnicas"
+  default_prompt: "Trata o meu pedido normalmente. Usa primeiro as ferramentas reais do motor REA para executar o trabalho; recorre a ferramentas proprias apenas se o REA nao tiver essa capacidade. Mostra as provas reais."
