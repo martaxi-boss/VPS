@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-plcodex-packaging-tests-20261030-6",
+  "request_id": "rea-plcodex-fixture-inspection-20261030-7",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nexport PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/tmp/rea-audit-plcodex-20261030-1647 GIT_PAGER=cat PAGER=cat\ncd /tmp/rea-audit-plcodex-20261030-1647\ntest \"$(git branch --show-current)\" = \"fix/rea-plcodex-audit-20261030\"\necho 'FOCUSED_TESTS_START'\npython3 -m unittest discover -s tests -p test_packaging.py -q\necho 'FOCUSED_TESTS_PASS'\npython3 -m unittest discover -s tests -p test_*.py -q\necho 'CONTROL_TESTS_PASS'\npython3 -m unittest discover -s codex/tests -p test_*.py -q\necho 'CODEX_TESTS_PASS'\ngit --no-pager diff --check\necho 'CORRECTIONS_TESTED_PASS'"
+            "set -Eeuo pipefail\ncd /tmp/rea-audit-plcodex-20261030-1647\necho 'FIXTURE_SETUP'\nsed -n '1,130p' tests/test_audit_p1_regressions.py\necho 'FIXTURE_FAILURE_REGION'\nsed -n '280,365p' tests/test_audit_p1_regressions.py\necho 'POSSIBLE_RELATED_ASSERTS'\ngrep -R -n 'source_revision\\|Project-leader\"\\|PLUGINS\\|recovery-guardian' tests/test_audit_p1_regressions.py tests/test_packaging.py | head -n 70\necho 'READ_DONE'"
           ],
-          "timeout_ms": 190000,
-          "idle_timeout_ms": 130000,
+          "timeout_ms": 70000,
+          "idle_timeout_ms": 30000,
           "limits": {
-            "output_bytes": 13000
+            "output_bytes": 19000
           }
         }
       }
