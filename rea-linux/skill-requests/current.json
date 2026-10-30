@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-plcodex-correction-inspect-20261030-v2",
+  "request_id": "rea-plcodex-correction-details-20261030-a",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\ncd /tmp/rea-audit-plcodex-20261030-1647\nprintf 'SOURCE_SHA='\ngit rev-parse HEAD\nprintf 'STAGED_CHANGES='\ngit status --porcelain\nprintf 'PACKAGE_HEAD\\n'\nsed -n '1,90p' scripts/package_plugins.py\nprintf 'TEST_PACKAGING\\n'\nsed -n '1,90p' tests/test_packaging.py\nprintf 'WORKER_ENV\\n'\nsed -n '370,402p' codex/dual.py\nprintf 'READ_COMPLETE\\n'"
+            "set -Eeuo pipefail\nexport GIT_PAGER=cat PAGER=cat\ncd /tmp/rea-audit-plcodex-20261030-1647\ntest \"$(git rev-parse HEAD)\" = \"4a5c5ba5876bad079ec4edf401416804c18bc521\"\necho 'PACKAGE_TAIL'\nsed -n '90,250p' scripts/package_plugins.py\necho 'SPECIALIZED_PLUGIN'\ncat plugins/project-leader-codex/plugin.json\necho 'SPECIALIZED_SKILL_TOP'\nsed -n '1,85p' plugins/project-leader-codex/skills/project-leader-codex/SKILL.md\necho 'UNIVERSAL_APP'\ncat plugins/project-leader/.app.json\necho 'UNIVERSAL_PLUGIN_HEAD'\nsed -n '1,75p' plugins/project-leader/plugin.json\necho 'SPECIALIZED_MARKETPLACE_TESTS'\ngrep -Rn -e 'marketplace.json' -e 'SOURCE_REPOSITORY' -e 'project-leader.zip' -e 'PLUGINS' tests codex/tests .github/workflows/package-plugins.yml scripts/package_plugins.py | head -n 95\necho 'TEST_ENV_INVOCATION'\ngrep -n -e '_invoke_codex' -e 'patch(\"codex.dual' -e 'Popen' -e 'env=' codex/tests/test_dual.py | head -n 95\necho 'DETAILS_END'"
           ],
-          "timeout_ms": 75000,
-          "idle_timeout_ms": 35000,
+          "timeout_ms": 90000,
+          "idle_timeout_ms": 40000,
           "limits": {
-            "output_bytes": 21000
+            "output_bytes": 32000
           }
         }
       }
