@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-telegram-leads-forensic-timeline-20261031",
+  "request_id": "rea-telegram-leads-forensic-full-git-history-20261031",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n -H /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nimport os,re,subprocess,datetime,json,hashlib\np=Path('/opt/telegram-robot-leads'); s=p/'.telegram-leads-source-7c0ef8a1d9be';v=Path('/root/project-secrets/telegram-robot-leads')\nprint('PROJECT_EXISTS',p.is_dir(),'SOURCE_EXISTS',s.is_dir(),'SOURCE_GIT',(s/'.git').exists())\nassert p.is_dir() and s.is_dir() and v.is_dir()\ndef git(*args,limit=12000,timeout=28):\n r=subprocess.run(['git','-C',str(s),'--no-pager',*args],capture_output=True,text=True,timeout=timeout,env={**os.environ,'GIT_PAGER':'cat','PAGER':'cat'})\n print('GIT_COMMAND', ' '.join(args[:6]),'EXIT',r.returncode)\n if r.returncode:print('GIT_ERROR',r.stderr.strip()[-500:])\n if r.stdout:print(r.stdout.strip()[:limit])\n return r\nprint('RUNTIME_SHA',(p/'.verified-source-commit').read_text().strip())\ngit('status','--short','--branch')\ngit('rev-parse','--is-shallow-repository')\ngit('remote','-v',limit=550)\ngit('branch','-a','-vv',limit=2500)\ngit('tag','-l',limit=2000)\ngit('log','--all','--date=short','--format=%h | %ad | %s','-n','90',limit=12000)\ngit('log','--all','--date=short','--format=%h | %ad | %s','-n','75','-G','InviteToChannelRequest|GetParticipantsRequest|iter_participants|scrape|MemberAdd|join_request|approved_users','--','.',limit=9500)\ngit('reflog','-n','25','--date=short',limit=2500)\nprint('ARCHIVES_COUNT',len(list(Path('/opt').glob('.telegram-leads-previous-*'))))\nfor a in sorted(Path('/opt').glob('.telegram-leads-previous-*')):\n print('ARCHIVE',a.name,'marker',((a/'.verified-source-commit').read_text().strip()[:16] if (a/'.verified-source-commit').is_file() else 'none'),'runtime_main', (a/'main.py').is_file())\nprint('CONFIG_FILES_EXIST',[(x,(v/x).is_file()) for x in ('accounts.json','conta1.session','conta2.session','growth_model.json','group_allowlist.txt','approved_users.txt')])\nprint('FORENSIC_PREFLIGHT_COMPLETE')\nPY"
+            "set -Eeuo pipefail\nsudo -n -H /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nimport subprocess,os,re,sys\ns=Path('/opt/telegram-robot-leads/.telegram-leads-source-7c0ef8a1d9be')\nlive=Path('/opt/telegram-robot-leads')\nassert s.is_dir() and (live/'.verified-source-commit').read_text().strip()=='655a911595fd49b0eaeb4feec4dc5a0fb4ac61e0'\ndef run(args,timeout=50,limit=13000,check=False):\n p=subprocess.run(['git','-C',str(s),'--no-pager',*args],capture_output=True,text=True,timeout=timeout,env={**os.environ,'GIT_PAGER':'cat','PAGER':'cat','GIT_TERMINAL_PROMPT':'0'})\n print('GIT',str(args[:8]),'EXIT',p.returncode,flush=True)\n if p.stderr and p.returncode:print('STDERR',p.stderr.strip()[-400:])\n if p.stdout:print('STDOUT_BEGIN\\n'+p.stdout.strip()[:limit]+'\\nSTDOUT_END')\n if check:assert p.returncode==0\n return p\nprint('SHALLOW_BEFORE',run(['rev-parse','--is-shallow-repository'],limit=100).stdout.strip())\nprint('FETCH_HISTORY_START',flush=True)\nr=run(['fetch','--deepen=300','origin','main'],timeout=115,limit=1000)\nprint('FETCH_SUCCESS',r.returncode==0,flush=True)\nprint('SHALLOW_AFTER',run(['rev-parse','--is-shallow-repository'],limit=100).stdout.strip())\nrun(['rev-list','--count','--all'],limit=100)\nrun(['log','--all','--date=short','--format=%h | %ad | %s','-n','85'],limit=14000)\nfor pattern in ['iter_participants|GetParticipantsRequest|InviteToChannelRequest','TELEGRAM_REGION_SPLIT|TELEGRAM_ACCOUNT_REGIONS|GEOGRAPHY|PORTUGAL','JoinChannelRequest|load_approved_users|approved_user_requires_explicit_marker']:\n print('HISTORY_MATCH_FOR',pattern)\n run(['log','--all','--regexp-ignore-case','--date=short','--format=%h | %ad | %s','-G',pattern,'--','*.py','scripts/*.py','*.js','*.ts'],limit=12000,timeout=35)\nprint('FIRST_COMMITS')\nrun(['log','--all','--reverse','--date=short','--format=%h | %ad | %s','-n','15'],limit=3500)\nprint('GIT_HISTORY_RETRIEVAL_DONE')\nPY"
           ],
-          "timeout_ms": 110000,
-          "idle_timeout_ms": 35000,
+          "timeout_ms": 175000,
+          "idle_timeout_ms": 85000,
           "limits": {
-            "output_bytes": 22000
+            "output_bytes": 26000
           }
         }
       }
