@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-telegram-leads-growth-readonly-20261031-1450",
+  "request_id": "rea-telegram-leads-growth-approval-contract-20261031",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n -H /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nimport os, re, json, stat, subprocess, ast\np=Path('/opt/telegram-robot-leads')\nvault=Path('/root/project-secrets/telegram-robot-leads')\nprint('PREFLIGHT',p.is_dir(),vault.is_dir())\ndata={}\nfor line in (vault/'.env').read_text().splitlines():\n m=re.match(r'^\\s*(?:export\\s+)?([A-Z][A-Z0-9_]*)\\s*=\\s*(.*)$',line)\n if m and m.group(1) in ('TARGET_GROUP','TELEGRAM_API_ID','TELEGRAM_API_HASH','TELEGRAM_USE_PUBLISHED_ANDROID_API','TELEGRAM_PUBLIC_DISCOVERY_ENABLED'):\n  k,v=m.group(1),m.group(2).strip().strip('\"\\x27')\n  data[k]=v if k=='TARGET_GROUP' else ('SET' if v else 'EMPTY')\nprint('ENV_METADATA',json.dumps(data,sort_keys=True))\nprint('GROWTH_FILE_EXISTS',(vault/'growth_model.json').exists())\nfor fn in ['scripts/organic_growth.py','scripts/safe_runtime.py','scripts/telethon_sessions.py']:\n lines=(p/fn).read_text().splitlines()\n print('FILE',fn,'LINES',len(lines))\n for i,line in enumerate(lines,1):\n  if 'def read_model' in line or 'def preview' in line or 'def promote_owned_channel' in line or 'def approve_pending_join_request' in line or 'def _run_once_unlocked' in line or 'async def run' in line or 'organic_growth' in line or 'growth_model' in line or 'owned_channel' in line or 'join_request_status' in line or 'approve_join_requests' in line or 'def _load' in line:\n   print('CODE_REF',fn,i,line.strip()[:170])\nfor filename,start,end in [('scripts/organic_growth.py',60,162),('scripts/organic_growth.py',175,265),('scripts/safe_runtime.py',365,470),('scripts/telethon_sessions.py',224,252)]:\n lines=(p/filename).read_text().splitlines()\n print('EXCERPT',filename,start,end)\n for i in range(start,min(len(lines),end)+1):print('%s:%s'%(i,lines[i-1][:175]))\nprint('README_FILES',','.join(x.name for x in (p/'docs').glob('*GROW*')))\nprint('READONLY_GROWTH_AUDIT_DONE')\nPY"
+            "set -Eeuo pipefail\nsudo -n -H /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nimport os,sys,subprocess\nroot=Path('/opt/telegram-robot-leads')\nfor fname,start,end in [('scripts/organic_growth.py',229,338),('docs/OPT_IN_GROWTH.md',1,170),('scripts/safe_runtime.py',489,572)]:\n p=root/fname\n lines=p.read_text().splitlines()\n print('FILE_SECTION',fname,start,end,'length',len(lines))\n for i in range(start,min(end,len(lines))+1):print(str(i)+': '+lines[i-1][:200])\nprint('GROWTH_DRAFT_TEST',flush=True)\nscript=\"import sys;sys.path.insert(0,'/opt/telegram-robot-leads/scripts');from organic_growth import preview;from pathlib import Path;print(preview(Path('/root/project-secrets/telegram-robot-leads'),'@iptvpncode'))\"\np=subprocess.run([str(root/'.venv/bin/python'),'-c',script],capture_output=True,text=True,timeout=15,env={**os.environ,'PYTHONDONTWRITEBYTECODE':'1'})\nprint('PREVIEW_EXIT',p.returncode,'PREVIEW_RESULT',p.stdout.strip()[:300])\nif p.returncode:print('PREVIEW_ERROR_CLASS',p.stderr.splitlines()[-1][:120])\nprint('DONE')\nPY"
           ],
-          "timeout_ms": 100000,
-          "idle_timeout_ms": 25000,
+          "timeout_ms": 90000,
+          "idle_timeout_ms": 23000,
           "limits": {
-            "output_bytes": 24000
+            "output_bytes": 19500
           }
         }
       }
