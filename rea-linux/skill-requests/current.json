@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-telegram-leads-legacy-region-contract-20261031",
+  "request_id": "rea-leads-pr41-preflight-20261031-b",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n -H /usr/bin/python3 - <<'PY'\nimport ast,os,re,subprocess,json\nfrom pathlib import Path\nrepo=Path('/opt/telegram-robot-leads/.telegram-leads-source-7c0ef8a1d9be')\nlive=Path('/opt/telegram-robot-leads')\nassert repo.is_dir() and (repo/'.git').exists()\nassert (live/'.verified-source-commit').read_text().strip()=='655a911595fd49b0eaeb4feec4dc5a0fb4ac61e0'\ndef run(*args):\n  p=subprocess.run(['git','-C',str(repo),'--no-pager',*args],capture_output=True,text=True,timeout=22,env={**os.environ,'GIT_PAGER':'cat','PAGER':'cat','GIT_TERMINAL_PROMPT':'0'})\n  assert p.returncode==0,('git_failed',args[:2],p.stderr[-200:])\n  return p.stdout\nlegacy=run('show','d274186^:main.py')\ntree=ast.parse(legacy)\nfuncs={n.name:n for n in ast.walk(tree) if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef))}\nkeys=['_parse_account_regions','session_region','keywords_for_region','discover_groups','_source_group_admin_user_ids','_extract_from_group_usernames','scrape_users','run_scrape_for_session','adder_worker','adder_worker_guarded','_telegram_api_credentials']\nfor name in keys:\n node=funcs.get(name)\n if node is None:\n  print('FUNCTION',name,'MISSING');continue\n segment='\\n'.join(legacy.splitlines()[node.lineno-1:node.end_lineno])\n values={'PT':bool(re.search(r'\\bPT\\b|\\bportugal\\b',segment,re.I)),\n         'ES':bool(re.search(r'\\bES\\b|\\bespanha\\b|\\bspain\\b',segment,re.I)),\n         'EU':bool(re.search(r'\\bEU\\b|\\beurope\\b|\\beuropa\\b',segment,re.I)),\n         'admin_filter':bool(re.search(r'admin|creator|owner',segment,re.I)),\n         'username_filter':bool(re.search(r'username|\\bhandle\\b|@',segment,re.I)),\n         'explicit_consent':bool(re.search(r'consent|opt.in|authoriz',segment,re.I)),\n         'region_config':bool(re.search(r'region|country|keyword',segment,re.I))}\n calls=[]\n for n in ast.walk(node):\n  if isinstance(n,ast.Call):\n   fn=n.func\n   if isinstance(fn,ast.Name):call=fn.id\n   elif isinstance(fn,ast.Attribute):call=fn.attr\n   else:continue\n   if re.search(r'join|invite|add|participant|member|search|discover|channel|scrape|group|filter|request',call,re.I):\n    calls.append(call)\n print('FUNCTION',name,'lines',node.end_lineno-node.lineno+1,'FEATURES',json.dumps(values,sort_keys=True),'CALLS',','.join(sorted(set(calls))[:25]))\ntop=legacy.splitlines()\nfor needle in ('TELEGRAM_ACCOUNT_REGIONS','TELEGRAM_REGION_SPLIT','REGION_KEYWORDS','REGION_PT','REGION_EU','JoinChannelRequest','ImportChatInviteRequest','GetParticipantsRequest','InviteToChannelRequest','iter_participants','\\.join_chat','join_group','user_can_join','is_admin','is_creator'):\n matches=[i+1 for i,line in enumerate(top) if re.search(needle,line,re.I)]\n print('SOURCE_MARKER',needle,'COUNT',len(matches),'LINES',','.join(map(str,matches[:15])))\n# Read only nonsecret historical .env.example region settings; do not print credentials.\nfor rev in ('d274186^','655a911'):\n try:\n  env_example=run('show',rev+':.env.example')\n except AssertionError:\n  print('PUBLIC_EXAMPLE',rev,'MISSING')\n  continue\n for line in env_example.splitlines():\n  key=line.split('=',1)[0].strip()\n  if key in ('TELEGRAM_ACCOUNT_REGIONS','TELEGRAM_REGION_SPLIT','TELEGRAM_FIXED_SCRAPE_GROUPS','TELEGRAM_UNIFIED_HUMAN_SCHEDULE'):\n   print('PUBLIC_EXAMPLE',rev,key,'PRESENT',True,'NO_VALUE_SHARED')\nprint('REGION_FORENSIC_COMPLETED')\nPY"
+            "set -Eeuo pipefail; sudo -n /usr/bin/python3 -c 'from pathlib import Path; p=Path(\"/opt/telegram-robot-leads\"); print(\"PROJECT_PRESENT\",p.is_dir()); print(\"DEPLOYED_SOURCE\",(p/\".verified-source-commit\").read_text().strip()); print(\"SOURCE_DIR_PRESENT\",(p/\".telegram-leads-source-7c0ef8a1d9be\").is_dir()); print(\"INSTALLER_PRESENT\",(p/\"scripts/deploy_project_only.py\").is_file())'"
           ],
-          "timeout_ms": 85000,
-          "idle_timeout_ms": 28000,
+          "timeout_ms": 45000,
+          "idle_timeout_ms": 10000,
           "limits": {
-            "output_bytes": 11500
+            "output_bytes": 3500
           }
         }
       }
