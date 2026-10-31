@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-bootstrap-exact-main-20261031-f8c1",
+  "request_id": "rea-leads-scope-preflight-install-hygiene-20261031-x5h2",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\ntmp=$(mktemp -d /tmp/leads-bootstrap-main-final.XXXXXX)\ntrap 'rm -rf \"$tmp\"' EXIT\ngit -c credential.helper= clone -q --depth 1 https://github.com/martaxi-boss/telegram-robot-leads.git \"$tmp/repo\"\ncd \"$tmp/repo\"\ncommit=$(git rev-parse HEAD)\ntest \"$commit\" = \"58a206a6746e86ebcb8ed53f1fabbf9d45ff01a5\"\necho VERIFIED_MAIN_SHA \"$commit\"\npython3 -B - <<'PY'\nfrom pathlib import Path\nfor name in ('AGENTS.md','docs/BOOTSTRAP.md','docs/PROJECT-STATE.md','docs/README.md','docs/PUBLIC_GROUP_DISCOVERY.md','docs/OPERATIONS_AND_REVIEW.md','docs/OWNER-PROTOCOL-20261019.md'):\n t=Path(name).read_text(encoding='utf-8')\n assert 'BOOTSTRAP.md' in t, name\n print('BOOTSTRAP_REFERENCE_PASS',name)\nboot=Path('docs/BOOTSTRAP.md').read_text()\nassert 'PT_ES' in boot and 'EU_OTHER' in boot\nassert '(conta, grupo)' in boot\nassert 'quota fixa' in boot\nassert 'fonte' in boot\nprint('BOOTSTRAP_AS_SOURCE_PASS')\nPY\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B -m unittest discover -s tests -q\necho EXACT_MAIN_CERTIFIED"
+            "set -Eeuo pipefail\nsudo -n /usr/bin/python3 - <<'PY'\nimport json,subprocess,os,stat\nfrom pathlib import Path\nroot=Path('/opt/telegram-robot-leads')\nvault=Path('/root/project-secrets/telegram-robot-leads')\nstate=Path('/var/lib/telegram-robot-leads')\nassert root.is_dir() and not root.is_symlink()\nassert vault.is_dir() and not vault.is_symlink()\nassert state.is_dir() and not state.is_symlink()\ninstalled=(root/'.verified-source-commit').read_text().strip()\nprint('INSTALLED_SHA',installed)\nprint('ROOT_OWNED_BY_CURRENT_UID',root.stat().st_uid==os.geteuid())\nprint('SESSION_COUNT',len(list(vault.glob('*.session'))))\nprint('SESSION_FILES_PRIVATE',all((not p.is_symlink()) and stat.S_IMODE(p.stat().st_mode)&0o077==0 for p in vault.glob('*.session')))\nprint('STATE_EXISTS',(state/'operation-state.json').is_file())\nprint('BACKUP_DIRECTORIES',sum(p.is_dir() for p in (root/'.telegram-leads-release-backups').iterdir()))\np=subprocess.run(['/usr/bin/python3',str(root/'scripts/project_hygiene.py')],capture_output=True,text=True,timeout=15)\nprint('HYGIENE_DRY_RUN_EXIT',p.returncode)\nprint('HYGIENE_DRY_RUN',p.stdout.strip()[:500])\nassert p.returncode==0\nq=subprocess.run(['/usr/bin/python3',str(root/'scripts/activate_project_only.py'),'--pm2-home','/root/.pm2','--expected-source',installed],capture_output=True,text=True,timeout=18)\nprint('ACTIVATION_PREFLIGHT_EXIT',q.returncode)\nprint('ACTIVATION_PREFLIGHT',q.stdout.strip()[:500])\nassert q.returncode==0\npm=subprocess.run(['pm2','jlist'],env={**os.environ,'PM2_HOME':'/root/.pm2'},capture_output=True,text=True,timeout=9)\nassert pm.returncode==0\nworkers=[a for a in json.loads(pm.stdout) if a.get('name')=='telegram-robot-leads']\nassert len(workers)==1\ninfo=workers[0].get('pm2_env',{})\nenv=info.get('env',{}) if isinstance(info.get('env'),dict) else info\nprint('WORKER_STATUS',info.get('status'))\nprint('WORKER_CWD',info.get('pm_cwd'))\nfor k in ('TELEGRAM_PUBLIC_DISCOVERY_ENABLED','TELEGRAM_REGIONAL_PUBLIC_DISCOVERY_ENABLED'):\n print('WORKER_SETTING_'+k,str(env.get(k,'unset')).lower())\nprint('PREFLIGHT_SCOPE_PASS')\nPY"
           ],
-          "timeout_ms": 160000,
-          "idle_timeout_ms": 115000,
+          "timeout_ms": 95000,
+          "idle_timeout_ms": 65000,
           "limits": {
-            "output_bytes": 7500
+            "output_bytes": 8000
           }
         }
       }
