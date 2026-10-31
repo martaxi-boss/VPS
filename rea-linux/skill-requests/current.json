@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-cache-clean-only-20261031-r7a8",
+  "request_id": "rea-leads-post-clean-readback-20261031-e3n2",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,10 +9,10 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\necho TELEGRAM_LEADS_CACHE_CLEAN_START\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B - <<'PY'\nimport hashlib,json,subprocess,sys\nfrom pathlib import Path\nroot=Path('/opt/telegram-robot-leads')\nstate=Path('/var/lib/telegram-robot-leads/operation-state.json')\nmarker=root/'.verified-source-commit'\nvault=Path('/root/project-secrets/telegram-robot-leads')\nsessions=sorted(vault.glob('*.session'))\nassert len(sessions)==2\ndef digest():\n h=hashlib.sha256()\n for path in (state,marker,*sessions):\n  assert path.is_file()\n  h.update(path.read_bytes())\n return h.digest()\nbefore=digest()\ncmd=[sys.executable,'-B',str(root/'scripts/project_hygiene.py'),'--root',str(root),'--apply','--confirm-telegram-only']\nresult=subprocess.run(cmd,capture_output=True,text=True,timeout=25)\nprint('CLEAN_EXIT',result.returncode)\nassert result.returncode==0\nobj=json.loads(result.stdout)\nprint('CLEAN_STATUS',obj.get('status'))\nprint('REMOVED_CACHE_FILES',obj.get('removed_files'))\nassert obj['status']=='APPLIED'\nassert digest()==before\nprint('PRIVATE_STATE_SESSIONS_AND_VERSION_UNCHANGED')\nprint('TELEGRAM_LEADS_CACHE_CLEAN_PASS')\nPY"
+            "set -Eeuo pipefail\necho LEADS_POST_CLEAN_READBACK_BEGIN\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B - <<'PY'\nimport subprocess,json,sys\nfrom pathlib import Path\nroot=Path('/opt/telegram-robot-leads')\nstate=Path('/var/lib/telegram-robot-leads/operation-state.json')\nmarker=root/'.verified-source-commit'\nsessions=list(Path('/root/project-secrets/telegram-robot-leads').glob('*.session'))\nreport=subprocess.run([sys.executable,'-B',str(root/'scripts/project_hygiene.py'),'--root',str(root)],capture_output=True,text=True,check=True,timeout=15)\nr=json.loads(report.stdout)\nassert r['status']=='DRY_RUN' and r['eligible_python_cache_files']==0\nobj=json.loads(state.read_text())\nassert len(sessions)==2\nprint('ELIGIBLE_CACHE_FILES_AFTER',r['eligible_python_cache_files'])\nprint('INSTALLED_COMMIT',marker.read_text().strip())\nprint('SESSION_COUNT',len(sessions))\nprint('PROCESSED_AUTHORISED_IDENTITIES',len(obj.get('approved_user_ids_done',{})))\nprint('PROCESSED_VOLUNTARY_IDENTITIES',len(obj.get('approved_join_requests_done',{})))\nprint('POST_CLEAN_READBACK_PASS')\nPY"
           ],
-          "timeout_ms": 105000,
-          "idle_timeout_ms": 66000,
+          "timeout_ms": 95000,
+          "idle_timeout_ms": 62000,
           "limits": {
             "output_bytes": 6000
           }
