@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-branch-verify-fixed-shallow-20261031-g8d4",
+  "request_id": "rea-leads-bootstrap-regional-final-tests-20261031-w5q7",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nwork=$(mktemp -d /tmp/rea-leads-group-verify.XXXXXX)\ntrap 'rm -rf \"$work\"' EXIT\ngit -c credential.helper= clone -q --depth 1 --branch fix/dual-account-groups-bootstrap-20261031 https://github.com/martaxi-boss/telegram-robot-leads.git \"$work/repo\"\ncd \"$work/repo\"\necho TESTED_BRANCH $(git rev-parse --abbrev-ref HEAD)\necho TESTED_SHA $(git rev-parse HEAD)\ngit -c credential.helper= fetch -q --depth 20 origin main:refs/remotes/origin/main\ngit diff --check origin/main HEAD\ntest -s docs/BOOTSTRAP.md\ntest -s tests/test_group_membership_per_account.py\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B -m unittest discover -s tests -q\necho GITHUB_SAVED_GROUP_BOOTSTRAP_TESTS_PASS"
+            "set -Eeuo pipefail\nwork=$(mktemp -d /tmp/rea-leads-regional-verify.XXXXXX)\ntrap 'rm -rf \"$work\"' EXIT\ngit -c credential.helper= clone -q --depth 1 --branch fix/dual-account-groups-bootstrap-20261031 https://github.com/martaxi-boss/telegram-robot-leads.git \"$work/repo\"\ncd \"$work/repo\"\necho SOURCE_SHA $(git rev-parse HEAD)\ngit -c credential.helper= fetch -q --depth 20 origin main:refs/remotes/origin/main\ngit diff --check origin/main HEAD\ntest -s docs/BOOTSTRAP.md\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B -m unittest discover -s tests -q\necho FINAL_REGIONAL_BOOTSTRAP_VALIDATED"
           ],
-          "timeout_ms": 150000,
+          "timeout_ms": 160000,
           "idle_timeout_ms": 110000,
           "limits": {
-            "output_bytes": 7000
+            "output_bytes": 7500
           }
         }
       }
