@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-telegram-leads-read-two-phones-encrypted-20261031-1430",
+  "request_id": "rea-telegram-leads-growth-readonly-20261031-1450",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n -H /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nimport os,sys,base64,re,tempfile,subprocess\nsys.path.insert(0, '/opt/telegram-robot-leads/scripts')\nfrom telethon_sessions import inspect\nvault=Path('/root/project-secrets/telegram-robot-leads')\nconf=inspect(vault)\nentries=conf['entries']\nassert len(entries)==2\npub=\"-----BEGIN PUBLIC KEY-----\\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAh2QoN29hGwtjsk/0zTwP\\n8g/WCmoPgwkbsOpy6/U7ZTpLg0l13BCWbgZNEs1UkITA1zTX3BgeceMqiQSlKT7B\\nUEPGjLv+9TBQwv8eVLwdHp9pj66xiybNUVRaTPKTvY5WPPEGdpenfwCipvFlTkPR\\nikx0LQlw+aM3vTOfat0NpLDV2QsNU9/Ikf3DnQO0GBkl60K0F6DfjcA7/6dZp9LY\\nMHAOdIW05xMlYQp3qzX0vJugz/lDsN7M3pfpRylNUUpSVo76p40b7qDz4vRv7NBm\\nEDPyPtd/oYdejFP8Ut1de/c32M3j51vmUWLI9Zkodx9rr7bj/WXs4QGJBoJGusHk\\niwIDAQAB\\n-----END PUBLIC KEY-----\\n\"\nwith tempfile.TemporaryDirectory(prefix=\"rea-telegram-verify-\",dir=\"/tmp\") as folder:\n key=Path(folder)/\"public.pem\"\n key.write_text(pub)\n for entry in entries:\n  number=entry['index']\n  phone=str(entry['phone'])\n  if not re.fullmatch(r'\\+?[0-9 \\-()]{7,24}',phone):\n   raise RuntimeError('phone_format_not_verified')\n  v=subprocess.run(['openssl','pkeyutl','-encrypt','-pubin','-inkey',str(key),\n     '-pkeyopt','rsa_padding_mode:oaep','-pkeyopt','rsa_oaep_md:sha256'],\n     input=phone.encode(),capture_output=True,check=True,timeout=10)\n  print('ACCOUNT',number,'ENCRYPTED_PHONE',base64.b64encode(v.stdout).decode(),flush=True)\nprint('ACCOUNT_COUNT',len(entries),'PASSWORDS_EXPOSED',False,'READ_ONLY',True)\nPY"
+            "set -Eeuo pipefail\nsudo -n -H /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nimport os, re, json, stat, subprocess, ast\np=Path('/opt/telegram-robot-leads')\nvault=Path('/root/project-secrets/telegram-robot-leads')\nprint('PREFLIGHT',p.is_dir(),vault.is_dir())\ndata={}\nfor line in (vault/'.env').read_text().splitlines():\n m=re.match(r'^\\s*(?:export\\s+)?([A-Z][A-Z0-9_]*)\\s*=\\s*(.*)$',line)\n if m and m.group(1) in ('TARGET_GROUP','TELEGRAM_API_ID','TELEGRAM_API_HASH','TELEGRAM_USE_PUBLISHED_ANDROID_API','TELEGRAM_PUBLIC_DISCOVERY_ENABLED'):\n  k,v=m.group(1),m.group(2).strip().strip('\"\\x27')\n  data[k]=v if k=='TARGET_GROUP' else ('SET' if v else 'EMPTY')\nprint('ENV_METADATA',json.dumps(data,sort_keys=True))\nprint('GROWTH_FILE_EXISTS',(vault/'growth_model.json').exists())\nfor fn in ['scripts/organic_growth.py','scripts/safe_runtime.py','scripts/telethon_sessions.py']:\n lines=(p/fn).read_text().splitlines()\n print('FILE',fn,'LINES',len(lines))\n for i,line in enumerate(lines,1):\n  if 'def read_model' in line or 'def preview' in line or 'def promote_owned_channel' in line or 'def approve_pending_join_request' in line or 'def _run_once_unlocked' in line or 'async def run' in line or 'organic_growth' in line or 'growth_model' in line or 'owned_channel' in line or 'join_request_status' in line or 'approve_join_requests' in line or 'def _load' in line:\n   print('CODE_REF',fn,i,line.strip()[:170])\nfor filename,start,end in [('scripts/organic_growth.py',60,162),('scripts/organic_growth.py',175,265),('scripts/safe_runtime.py',365,470),('scripts/telethon_sessions.py',224,252)]:\n lines=(p/filename).read_text().splitlines()\n print('EXCERPT',filename,start,end)\n for i in range(start,min(len(lines),end)+1):print('%s:%s'%(i,lines[i-1][:175]))\nprint('README_FILES',','.join(x.name for x in (p/'docs').glob('*GROW*')))\nprint('READONLY_GROWTH_AUDIT_DONE')\nPY"
           ],
-          "timeout_ms": 80000,
-          "idle_timeout_ms": 24000,
+          "timeout_ms": 100000,
+          "idle_timeout_ms": 25000,
           "limits": {
-            "output_bytes": 4400
+            "output_bytes": 24000
           }
         }
       }
