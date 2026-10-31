@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-20261031-readonly-health-l5c7",
+  "request_id": "rea-leads-offline-diagnostics-20261031-v4m8",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\necho LEADS_READ_ONLY_HEALTH_BEGIN\nsudo -n /usr/bin/python3 -B - <<'PY'\nfrom pathlib import Path\nimport json\nroot=Path('/opt/telegram-robot-leads')\nstate=Path('/var/lib/telegram-robot-leads/operation-state.json')\nmarker=root/'.verified-source-commit'\nprint('INSTALLED_COMMIT',marker.read_text().strip() if marker.is_file() else 'MISSING')\nprint('SAFE_RUNTIME_EXISTS',(root/'scripts/safe_runtime.py').is_file())\nprint('ACTIVATOR_EXISTS',(root/'scripts/activate_project_only.py').is_file())\nprint('STATE_PRESENT',state.is_file())\nif state.is_file():\n obj=json.loads(state.read_text())\n for key in ('accounts','approved_user_ids_done','approved_join_requests_done','pending_member_ids','pending_join_requests','processed_groups'):\n  v=obj.get(key)\n  print('STATE_COUNTER',key,len(v) if isinstance(v,(list,dict)) else 'NOT_PRESENT')\nvault=Path('/root/project-secrets/telegram-robot-leads')\nprint('SESSION_FILE_COUNT',len(list(vault.glob('*.session'))) if vault.is_dir() else 'VAULT_NOT_FOUND')\nbackups=root/'.telegram-leads-release-backups'\nif backups.is_dir():\n dirs=[p for p in backups.iterdir() if p.is_dir() and not p.is_symlink()]\n print('CODE_RELEASE_BACKUP_COUNT',len(dirs))\n print('CODE_RELEASE_MANIFEST_COUNT',sum((p/'manifest.json').is_file() for p in dirs))\nelse: print('CODE_RELEASE_BACKUP_COUNT',0)\nprint('READ_ONLY_HEALTH_PASS')\nPY\necho LEADS_READ_ONLY_HEALTH_END"
+            "set -Eeuo pipefail\necho LEADS_OFFLINE_DIAGNOSTICS_BEGIN\nsudo -n /usr/bin/python3 -B - <<'PY'\nimport json,subprocess\nfrom pathlib import Path\nroot=Path('/opt/telegram-robot-leads')\ncommands=[\n ('report',['/usr/bin/python3','-B',str(root/'scripts/leads_operational_report.py'),'--no-pm2','--expected-source','9596a0687aeed20e03bcd1f91ae2ad6d830cd523']),\n ('health',['/usr/bin/python3','-B',str(root/'scripts/lead_health.py'),'--no-pm2']),\n ('hygiene',['/usr/bin/python3','-B',str(root/'scripts/project_hygiene.py'),'--root',str(root)])\n]\nfor label,cmd in commands:\n p=subprocess.run(cmd,capture_output=True,text=True,timeout=28)\n print('CHECK',label,'EXIT',p.returncode)\n if p.returncode!=0:\n  print('CHECK_ERROR',label,'nonzero_exit')\n  raise SystemExit(4)\n try: obj=json.loads(p.stdout)\n except ValueError: print('CHECK_ERROR',label,'json_invalid');raise SystemExit(5)\n print('CHECK_STATUS',label,obj.get('status','UNSPECIFIED'))\n if label=='report':\n  print('REPORT_READ_ONLY',obj.get('read_only'))\n  print('REPORT_READINESS',sorted(str(v) for v in obj.get('readiness_indicators',[])))\n  for part in ('source','sessions','action_queue','operation_state','pm2','supervisor'):\n   v=obj.get(part)\n   if isinstance(v,dict):\n    print('REPORT_SECTION',part,'status',v.get('status','UNKNOWN'))\n    for key in ('distinct_processed_member_identities','pending_identity_reconciliation','processed_authorised_add_identity_records','processed_voluntary_request_identity_records'):\n     if key in v: print('REPORT_COUNT',key,v[key])\n if label=='health':\n  for part in ('runtime','legacy_database_read_only'):\n   v=obj.get(part)\n   if isinstance(v,dict):print('HEALTH_SECTION',part,'status',v.get('status','UNKNOWN'),'keys',sorted(v.keys())[:18])\n if label=='hygiene':\n  print('HYGIENE_DRY_RUN',obj.get('status'),obj.get('eligible_python_cache_files'),obj.get('removed_files'))\nprint('LEADS_OFFLINE_DIAGNOSTICS_PASS')\nPY"
           ],
-          "timeout_ms": 100000,
-          "idle_timeout_ms": 60000,
+          "timeout_ms": 125000,
+          "idle_timeout_ms": 72000,
           "limits": {
-            "output_bytes": 8500
+            "output_bytes": 10000
           }
         }
       }
