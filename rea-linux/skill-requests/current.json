@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-health-hygiene-preview-20261031-h2g4",
+  "request_id": "rea-leads-cache-clean-only-20261031-r7a8",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\necho LEADS_OFFLINE_CHECKS_BEGIN\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B - <<'PY'\nimport json,subprocess,sys\nroot='/opt/telegram-robot-leads'\nchecks=[\n ('health',[sys.executable,'-B',root+'/scripts/lead_health.py','--no-pm2']),\n ('hygiene_preview',[sys.executable,'-B',root+'/scripts/project_hygiene.py','--root',root])\n]\nfor label,cmd in checks:\n proc=subprocess.run(cmd,capture_output=True,text=True,timeout=20)\n print('CHECK',label,'EXIT',proc.returncode)\n if proc.returncode:raise SystemExit('CHECK_'+label+'_FAILED')\n obj=json.loads(proc.stdout)\n if label=='health':\n  print('HEALTH_STATUS',obj.get('status','UNSPECIFIED'))\n  for key in ('runtime','legacy_database_read_only','accounts'):\n   part=obj.get(key,{})\n   if isinstance(part,dict):\n    print('HEALTH',key,'STATUS',part.get('status','UNSPECIFIED'))\n    if key=='legacy_database_read_only': print('LEGACY_DB_PRESENT',part.get('present','UNKNOWN'))\n if label=='hygiene_preview':\n  print('HYGIENE_STATUS',obj.get('status'))\n  print('ELIGIBLE_CACHE_FILES',obj.get('eligible_python_cache_files'))\n  print('REMOVED_FILES',obj.get('removed_files'))\nprint('LEADS_OFFLINE_CHECKS_PASS')\nPY"
+            "set -Eeuo pipefail\necho TELEGRAM_LEADS_CACHE_CLEAN_START\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B - <<'PY'\nimport hashlib,json,subprocess,sys\nfrom pathlib import Path\nroot=Path('/opt/telegram-robot-leads')\nstate=Path('/var/lib/telegram-robot-leads/operation-state.json')\nmarker=root/'.verified-source-commit'\nvault=Path('/root/project-secrets/telegram-robot-leads')\nsessions=sorted(vault.glob('*.session'))\nassert len(sessions)==2\ndef digest():\n h=hashlib.sha256()\n for path in (state,marker,*sessions):\n  assert path.is_file()\n  h.update(path.read_bytes())\n return h.digest()\nbefore=digest()\ncmd=[sys.executable,'-B',str(root/'scripts/project_hygiene.py'),'--root',str(root),'--apply','--confirm-telegram-only']\nresult=subprocess.run(cmd,capture_output=True,text=True,timeout=25)\nprint('CLEAN_EXIT',result.returncode)\nassert result.returncode==0\nobj=json.loads(result.stdout)\nprint('CLEAN_STATUS',obj.get('status'))\nprint('REMOVED_CACHE_FILES',obj.get('removed_files'))\nassert obj['status']=='APPLIED'\nassert digest()==before\nprint('PRIVATE_STATE_SESSIONS_AND_VERSION_UNCHANGED')\nprint('TELEGRAM_LEADS_CACHE_CLEAN_PASS')\nPY"
           ],
-          "timeout_ms": 100000,
+          "timeout_ms": 105000,
           "idle_timeout_ms": 66000,
           "limits": {
-            "output_bytes": 6500
+            "output_bytes": 6000
           }
         }
       }
