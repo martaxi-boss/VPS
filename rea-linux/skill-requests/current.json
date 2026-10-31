@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-ci-final-hygiene-dry-run-20261031",
+  "request_id": "rea-leads-merged-release-preflight-20261031",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail; testroot=$(mktemp -d /tmp/rea-leads-ci.XXXXXX); trap 'rm -rf -- \"$testroot\"' EXIT; git clone -q --depth 1 --branch fix/20261031-regional-public-discovery https://github.com/martaxi-boss/telegram-robot-leads.git \"$testroot\"; cd \"$testroot\"; git --no-pager log -1 --format='CHECKED_SHA=%H'; git --no-pager diff --check HEAD; sudo -n -H /opt/telegram-robot-leads/.venv/bin/python -B -m unittest discover -s tests -q; sudo -n -H /usr/bin/python3 -B -c 'import ast; from pathlib import Path; paths=[Path(\"scripts/public_group_discovery.py\"),Path(\"scripts/safe_runtime.py\"),Path(\"scripts/deploy_project_only.py\")]; [ast.parse(path.read_text()) for path in paths]; print(\"AST_OK\",len(paths))'; node --check ecosystem.config.js; sudo -n -H /usr/bin/python3 -B scripts/project_hygiene.py --root /opt/telegram-robot-leads; echo ALL_CHECKS_PASSED"
+            "set -Eeuo pipefail\nwork=$(mktemp -d /tmp/rea-leads-release.XXXXXX)\nbundle=/opt/telegram-robot-leads/.telegram-leads-release-45b085c788814c481d6c7922cf7789c144109f9c.tgz\ntrap 'sudo -n rm -f -- \"$bundle\"; rm -rf -- \"$work\"' EXIT\ngit clone -q --depth 1 https://github.com/martaxi-boss/telegram-robot-leads.git \"$work\"\ntest \"$(git -C \"$work\" rev-parse HEAD)\" = \"45b085c788814c481d6c7922cf7789c144109f9c\"\nsudo -n -H /opt/telegram-robot-leads/.venv/bin/python -B -m unittest discover -s \"$work/tests\" -q\npython3 - \"$work\" <<'PY'\nfrom pathlib import Path\nimport importlib.util,sys,tarfile\nroot=Path(sys.argv[1])\nspec=importlib.util.spec_from_file_location(\"release_installer\",root/\"scripts/deploy_project_only.py\")\nmodule=importlib.util.module_from_spec(spec)\nspec.loader.exec_module(module)\nassert \"scripts/public_group_discovery.py\" in module.RUNTIME_FILES\nassert len(module.RUNTIME_FILES)==len(set(module.RUNTIME_FILES))\nwith tarfile.open(root/\"release.tgz\",\"w:gz\") as tar:\n for name in module.RUNTIME_FILES:\n  file=root/name\n  assert file.is_file() and not file.is_symlink()\n  tar.add(file,arcname=name,recursive=False)\nprint(\"BUNDLE_FILES\",len(module.RUNTIME_FILES))\nPY\nsudo -n install -o root -g root -m 600 \"$work/release.tgz\" \"$bundle\"\nsudo -n /usr/bin/python3 \"$work/scripts/deploy_project_only.py\" --bundle \"$bundle\" --commit \"45b085c788814c481d6c7922cf7789c144109f9c\" --expected-installed \"655a911595fd49b0eaeb4feec4dc5a0fb4ac61e0\"\nsudo -n env PM2_HOME=/root/.pm2 pm2 jlist | python3 -c 'import json,sys; rows=json.load(sys.stdin); jobs=[x for x in rows if x.get(\"name\")==\"telegram-robot-leads\"]; assert len(jobs)==1; m=jobs[0][\"pm2_env\"]; assert m[\"status\"]==\"online\" and m[\"pm_exec_path\"]==\"/opt/telegram-robot-leads/main.py\"; print(\"PM2_TARGET_ONLINE\",True,\"REGIONAL_ENV\",m.get(\"TELEGRAM_REGIONAL_PUBLIC_DISCOVERY_ENABLED\",\"unset\"))'\necho READY_FOR_SAFE_STAGE"
           ],
-          "timeout_ms": 120000,
-          "idle_timeout_ms": 80000,
+          "timeout_ms": 155000,
+          "idle_timeout_ms": 100000,
           "limits": {
-            "output_bytes": 6000
+            "output_bytes": 9500
           }
         }
       }
