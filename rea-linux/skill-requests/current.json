@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-membership-supervisor-proof-20261031",
+  "request_id": "rea-telegram-leads-official-optin-preflight-20261031",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail; sudo -n -H /usr/bin/python3 - <<'PY'\nimport json\nfrom pathlib import Path\np=Path('/var/lib/telegram-robot-leads/supervisor-events.jsonl')\nassert p.is_file()\nwith p.open('rb') as f:\n f.seek(max(0,p.stat().st_size-32768)); lines=f.read().splitlines()\nfor l in reversed(lines):\n try: event=json.loads(l)\n except (ValueError,UnicodeDecodeError):continue\n e=event.get('event') or {}\n if e.get('kind')!='cycle':continue\n a=e.get('group_memberships') or {}\n print('MEMBERSHIP_WORKER',json.dumps({'status':a.get('status'),'accounts':a.get('accounts')},sort_keys=True))\n d=e.get('public_discovery') or {}\n print('PUBLIC_DISCOVERY',d.get('status'))\n break\nelse: raise RuntimeError('no_cycle_event')\nprint('SUPERVISOR_MEMBERSHIP_CHECK_PASS')\nPY"
+            "set -Eeuo pipefail\nsudo -n -H /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nimport ast,os,json\nroot=Path('/opt/telegram-robot-leads')\nvault=Path('/root/project-secrets/telegram-robot-leads')\nprint('INSTALLED_SHA',(root/'.verified-source-commit').read_text().strip())\nprint('PROJECT_ROOT',root.is_dir(),'VAULT',vault.is_dir(),'SESSIONS',len(list(vault.glob('*.session'))))\nfor name in ('scripts/organic_growth.py','scripts/safe_runtime.py','scripts/operation_policy.py','scripts/growth_tracker.py'):\n p=root/name\n s=p.read_text()\n tree=ast.parse(s)\n print('CODE',name,'LINES',len(s.splitlines()),'FUNCTIONS',[(x.name,x.lineno,x.end_lineno) for x in tree.body if isinstance(x,(ast.FunctionDef,ast.AsyncFunctionDef))][:50])\n if name=='scripts/organic_growth.py':\n  lines=s.splitlines()\n  for a,b in ((1,100),(100,185),(185,290),(290,430)):\n   print('SOURCE_SPAN',a,b)\n   for i in range(a-1,min(b,len(lines))):\n    line=lines[i]\n    print(str(i+1)+':'+line[:165])\nfor filename in ('growth_model.json','approved_users.txt','group_allowlist.txt','api.json'):\n p=vault/filename\n print('PRIVATE_FILE_PRESENT',filename,p.is_file())\nif (vault/'growth_model.json').is_file():\n try:\n  x=json.loads((vault/'growth_model.json').read_text())\n  print('MODEL_CONFIG_KEYS',sorted(x) if isinstance(x,dict) else 'not-object')\n except Exception: print('MODEL_CONFIG_PARSE','invalid')\nprint('PREFLIGHT_FINISHED')\nPY"
           ],
-          "timeout_ms": 60000,
-          "idle_timeout_ms": 12000,
+          "timeout_ms": 100000,
+          "idle_timeout_ms": 21000,
           "limits": {
-            "output_bytes": 4600
+            "output_bytes": 29000
           }
         }
       }
