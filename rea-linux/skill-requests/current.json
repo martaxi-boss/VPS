@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-installer-diagnose-20261031-2019-f4h3",
+  "request_id": "rea-leads-20261031-readonly-health-l5c7",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nexport GIT_TERMINAL_PROMPT=0 GIT_PAGER=cat PAGER=cat\necho LEADS_INSTALLER_DIAGNOSTIC_BEGIN\nsudo -n /usr/bin/python3 -B - <<'PY'\nfrom pathlib import Path\np=Path('/opt/telegram-robot-leads/scripts/deploy_project_only.py')\nfor i,l in enumerate(p.read_text().splitlines(),1):\n if 79<=i<=117: print('VALIDATION_SOURCE',i,l[:210])\nPY\nroot=/opt/telegram-robot-leads\ntarget=9596a0687aeed20e03bcd1f91ae2ad6d830cd523\nbefore=$(sudo -n cat \"$root/.verified-source-commit\" | tr -d '\\r\\n')\necho \"INSTALLED_MARKER=$before\"\nwork=$(mktemp -d /tmp/rea-leads-installer-diagnostic.XXXXXX)\ntrap 'rm -rf -- \"$work\"' EXIT\ngit clone -q --depth 1 --branch main https://github.com/martaxi-boss/telegram-robot-leads.git \"$work/repo\"\ntest \"$(git -C \"$work/repo\" rev-parse HEAD)\" = \"$target\"\ncd \"$work/repo\"\nfiles=(scripts/lead_health.py scripts/leads_operational_report.py scripts/operation_policy.py scripts/organic_growth.py scripts/public_group_discovery.py scripts/member_groups.py scripts/growth_radar.py scripts/activate_project_only.py scripts/project_hygiene.py scripts/safe_runtime.py scripts/telegram-robot-leads-status.sh scripts/deploy_project_only.py)\ntar -czf \"$work/release.tgz\" \"${files[@]}\"\necho \"BUNDLE_FILE_COUNT=$(tar -tzf \"$work/release.tgz\" | wc -l)\"\nset +e\noutput=$(sudo -n /usr/bin/python3 -B \"$root/scripts/deploy_project_only.py\" --bundle \"$work/release.tgz\" --commit \"$target\" --expected-installed \"$before\" 2>&1)\nrc=$?\nset -e\necho \"DRY_RUN_EXIT=$rc\"\necho \"DRY_RUN_OUTPUT=$output\"\nif [ \"$rc\" -ne 0 ];then echo LEADS_INSTALLER_DIAGNOSTIC_IDENTIFIED_BLOCK;exit \"$rc\";fi\necho LEADS_INSTALLER_DIAGNOSTIC_PASS"
+            "set -Eeuo pipefail\necho LEADS_READ_ONLY_HEALTH_BEGIN\nsudo -n /usr/bin/python3 -B - <<'PY'\nfrom pathlib import Path\nimport json\nroot=Path('/opt/telegram-robot-leads')\nstate=Path('/var/lib/telegram-robot-leads/operation-state.json')\nmarker=root/'.verified-source-commit'\nprint('INSTALLED_COMMIT',marker.read_text().strip() if marker.is_file() else 'MISSING')\nprint('SAFE_RUNTIME_EXISTS',(root/'scripts/safe_runtime.py').is_file())\nprint('ACTIVATOR_EXISTS',(root/'scripts/activate_project_only.py').is_file())\nprint('STATE_PRESENT',state.is_file())\nif state.is_file():\n obj=json.loads(state.read_text())\n for key in ('accounts','approved_user_ids_done','approved_join_requests_done','pending_member_ids','pending_join_requests','processed_groups'):\n  v=obj.get(key)\n  print('STATE_COUNTER',key,len(v) if isinstance(v,(list,dict)) else 'NOT_PRESENT')\nvault=Path('/root/project-secrets/telegram-robot-leads')\nprint('SESSION_FILE_COUNT',len(list(vault.glob('*.session'))) if vault.is_dir() else 'VAULT_NOT_FOUND')\nbackups=root/'.telegram-leads-release-backups'\nif backups.is_dir():\n dirs=[p for p in backups.iterdir() if p.is_dir() and not p.is_symlink()]\n print('CODE_RELEASE_BACKUP_COUNT',len(dirs))\n print('CODE_RELEASE_MANIFEST_COUNT',sum((p/'manifest.json').is_file() for p in dirs))\nelse: print('CODE_RELEASE_BACKUP_COUNT',0)\nprint('READ_ONLY_HEALTH_PASS')\nPY\necho LEADS_READ_ONLY_HEALTH_END"
           ],
-          "timeout_ms": 145000,
-          "idle_timeout_ms": 85000,
+          "timeout_ms": 100000,
+          "idle_timeout_ms": 60000,
           "limits": {
-            "output_bytes": 20000
+            "output_bytes": 8500
           }
         }
       }
