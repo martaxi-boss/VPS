@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-telegram-compare-legacy-current-20261031-n8r5",
+  "request_id": "rea-leads-queue-preflight-20261031-l1q7",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\ntmp=$(mktemp -d /tmp/tg-compare.XXXXXX)\ntrap 'rm -rf \"$tmp\"' EXIT\ngit -c credential.helper= clone -q --depth 1 https://github.com/martaxi-boss/telegram-robot-leads.git \"$tmp/repo\"\ncd \"$tmp/repo\"\necho REPOSITORY_SHA=$(git rev-parse HEAD)\necho VPS_SHA=$(cat /opt/telegram-robot-leads/.verified-source-commit)\npython3 -B - <<'PY'\nfrom pathlib import Path\nimport ast,subprocess\nnames=('scripts/safe_runtime.py','scripts/operation_policy.py','scripts/member_groups.py','scripts/approval_store.py')\nfor name in names:\n p=Path(name)\n if not p.is_file():continue\n src=p.read_text()\n t=ast.parse(src)\n funcs=[(n.name,n.lineno) for n in ast.walk(t) if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef))]\n print('ACTIVE_MODULE',name,'LINES',len(src.splitlines()),'FUNCTIONS',funcs[:95])\n for i,line in enumerate(src.splitlines(),1):\n  if any(x in line for x in ('approved_users_done','approved_user_ids_done','approved_users.txt','def process','def record','def load_state','def read','status =','status ==','member_added','member_actions','member_adds','record_success')):\n   print('ACTIVE_MATCH',name,i,line.strip()[:165])\n  if i>1350:break\nlegacy=subprocess.run(['git','show','1862998844782764d263ee8e49a1476a7f86beac:main.py'],capture_output=True,text=True)\nif legacy.returncode:print('LEGACY_COMMIT_NOT_IN_SHALLOW')\nelse:\n src=legacy.stdout;t=ast.parse(src)\n print('LEGACY_ENG_FUNCS',[(n.name,n.lineno) for n in ast.walk(t) if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef)) and any(w in n.name for w in ('scrape','invite','adder','user','group','filter','active','worth'))][:85])\nprint('TEST_FILES',len(list(Path('tests').glob('test_*.py'))))\nprint('PREFLIGHT_PASS')\nPY"
+            "set -Eeuo pipefail\nprintf 'PROJECT_SCOPE=telegram-robot-leads\\n'\ntest -d /opt/telegram-robot-leads\nsudo -n /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\np=Path('/opt/telegram-robot-leads')\nprint('RUNTIME_SCRIPTS',*(n for n in ('scripts/safe_runtime.py','scripts/operation_policy.py','docs/BOOTSTRAP.md') if (p/n).is_file()))\nprint('STATE_PRESENT',Path('/var/lib/telegram-robot-leads/operation-state.json').is_file())\nprint('PREFLIGHT_PASS')\nPY"
           ],
-          "timeout_ms": 115000,
-          "idle_timeout_ms": 82000,
+          "timeout_ms": 50000,
+          "idle_timeout_ms": 40000,
           "limits": {
-            "output_bytes": 19000
+            "output_bytes": 3000
           }
         }
       }
