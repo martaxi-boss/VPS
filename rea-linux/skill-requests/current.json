@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-telegram-leads-growth-final-health-20261031",
+  "request_id": "rea-telegram-leads-channel-permissions-20261031-vpncodeiptv",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n -H /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nimport subprocess,json,os,sys\nroot=Path('/opt/telegram-robot-leads')\nvault=Path('/root/project-secrets/telegram-robot-leads')\nmarker=(root/'.verified-source-commit').read_text().strip()\np=subprocess.run([str(root/'.venv/bin/python'),str(root/'scripts/leads_operational_report.py'),'--checkout',str(root),'--expected-source',marker,'--vault',str(vault),'--with-pm2'],capture_output=True,text=True,timeout=25,env={**os.environ,'PYTHONDONTWRITEBYTECODE':'1'})\nprint('OPERATIONAL_REPORT_EXIT',p.returncode)\nassert p.returncode==0,p.stderr[-300:]\nd=json.loads(p.stdout)\nprint('RUNTIME_STATUS',d.get('status'))\nprint('RUNTIME_PM2',json.dumps({k:d.get('pm2',{}).get(k) for k in ('status','restart_count')},sort_keys=True))\nprint('MODEL_REPORT',json.dumps(d.get('organic_growth_model'),sort_keys=True))\nprint('READINESS',json.dumps(d.get('readiness_indicators',[]),sort_keys=True))\nprint('SUPERVISOR',json.dumps({k:d.get('supervisor',{}).get(k) for k in ('status','event_kind','age_seconds','join_request_status','approvals_in_last_cycle','owned_promotion_status')},sort_keys=True))\nprint('MEMBERS_ADDED',d.get('members_added'),'APPROVAL_COUNT_UNKNOWN',d.get('operation_state',{}).get('status'))\nprint('MODEL_PRIVATE',vault.joinpath('growth_model.json').is_file())\nassert d.get('pm2',{}).get('status')=='ONLINE','worker_not_online'\nassert d.get('source',{}).get('matches_expected') is True\nprint('POSTFLIGHT_PASS')\nPY"
+            "set -Eeuo pipefail\nsudo -n -H /opt/telegram-robot-leads/.venv/bin/python - <<'PY'\nimport asyncio,json,os,sys,stat\nfrom pathlib import Path\nsys.path.insert(0,'/opt/telegram-robot-leads/scripts')\nfrom telethon_sessions import inspect,make_memory_client\nfrom organic_growth import read_model\nvault=Path('/root/project-secrets/telegram-robot-leads')\nconfig=inspect(vault)\nmodel=read_model(vault,config['group'])\nprint('MODEL_BEFORE',json.dumps({k:model.get(k) for k in ('schema','target_group','approve_join_requests','owned_channel','publish_in_owned_channel','publisher_account')},sort_keys=True),flush=True)\nprint('SESSION_AUTH_SOURCE',config['api_source'],'COUNT',len(config['entries']),flush=True)\nasync def check(entry):\n number=entry['index']\n client=make_memory_client(entry,config)\n try:\n  await asyncio.wait_for(client.connect(),timeout=25)\n  authorized=await asyncio.wait_for(client.is_user_authorized(),timeout=20)\n  if not authorized:\n   print('ACCOUNT',number,'AUTHORIZED',False,flush=True);return\n  channel=await asyncio.wait_for(client.get_entity('@VPNCODEIPTV'),timeout=25)\n  label=str(getattr(channel,'username','') or '')\n  isbroadcast=getattr(channel,'broadcast',False) is True\n  isgroup=getattr(channel,'megagroup',False) is True\n  rights=getattr(channel,'admin_rights',None)\n  creator=getattr(channel,'creator',False) is True\n  canpost=bool(creator or getattr(rights,'post_messages',False) is True)\n  print('CHANNEL',number,'HANDLE',label,'BROADCAST',isbroadcast,'MEGAGROUP',isgroup,'CREATOR',creator,'CAN_POST',canpost,flush=True)\n  try:\n   perm=await asyncio.wait_for(client.get_permissions(channel,'me'),timeout=20)\n   print('MEMBER_PERMISSION',number,'IS_ADMIN',getattr(perm,'is_admin',None),'IS_CREATOR',getattr(perm,'is_creator',None),'CAN_POST',getattr(perm,'post_messages',None),flush=True)\n  except Exception as exc:\n   print('MEMBER_PERMISSION',number,'UNVERIFIED',type(exc).__name__,flush=True)\n except Exception as exc:\n  print('ACCOUNT',number,'CHANNEL_CHECK_FAILED',type(exc).__name__,flush=True)\n finally:\n  if client.is_connected():await asyncio.wait_for(client.disconnect(),timeout=10)\nasync def main():\n for e in config['entries']:\n  await check(e)\nasyncio.run(main())\nprint('READ_ONLY_CHANNEL_INSPECTION_DONE',flush=True)\nPY"
           ],
-          "timeout_ms": 90000,
-          "idle_timeout_ms": 25000,
+          "timeout_ms": 150000,
+          "idle_timeout_ms": 80000,
           "limits": {
-            "output_bytes": 6500
+            "output_bytes": 8000
           }
         }
       }
