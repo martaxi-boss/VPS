@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-group-registry-readback-20261031",
+  "request_id": "rea-leads-membership-supervisor-proof-20261031",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n -H /usr/bin/python3 - <<'PY'\nimport json,os,subprocess\nfrom pathlib import Path\nroot=Path('/opt/telegram-robot-leads')\nexpected='28640b23189ec554bbf578a17351a8b73a191de2'\nassert (root/'.verified-source-commit').read_text().strip()==expected\nenv={**os.environ,'PM2_HOME':'/root/.pm2','PYTHONDONTWRITEBYTECODE':'1'}\nreport=subprocess.run([str(root/'.venv/bin/python'),str(root/'scripts/leads_operational_report.py'),'--expected-source',expected,'--with-pm2'],capture_output=True,text=True,timeout=35,check=True,env=env)\nr=json.loads(report.stdout)\nassert r['source']['matches_expected'] is True\nassert r['sessions']['accounts']==2\nassert r['pm2']['status']=='ONLINE'\nprint('SOURCE',r['source']['source_sha'])\nprint('CATALOG',json.dumps(r['public_discovery'],sort_keys=True))\nprint('MEMBERSHIPS',json.dumps(r.get('group_memberships',{}),sort_keys=True))\nprint('SUPERVISOR',json.dumps({k:v for k,v in r.get('supervisor',{}).items() if k in ('status','event_kind','age_seconds','public_discovery_status','blocked_action_count','authorized_member_action_count')},sort_keys=True))\nprint('MEMBER_QUEUE',json.dumps(r.get('action_queue',{}),sort_keys=True))\nprint('STATE',json.dumps(r.get('operation_state',{}),sort_keys=True))\np=subprocess.run(['pm2','jlist'],capture_output=True,text=True,timeout=18,check=True,env=env)\njobs=json.loads(p.stdout)\nfor x in jobs:\n if x.get('name') in ('telegram-robot-leads','iptvpn_bot'):\n  e=x['pm2_env'];print('PROCESS',x['name'],e.get('status'),e.get('restart_time'))\nclean=subprocess.run(['/usr/bin/python3','-B',str(root/'scripts/project_hygiene.py'),'--apply','--confirm-telegram-only'],capture_output=True,text=True,timeout=18,check=True,env=env)\nprint('FINAL_CLEANUP',clean.stdout.strip())\nprint('FINAL_READBACK_PASS')\nPY"
+            "set -Eeuo pipefail; sudo -n -H /usr/bin/python3 - <<'PY'\nimport json\nfrom pathlib import Path\np=Path('/var/lib/telegram-robot-leads/supervisor-events.jsonl')\nassert p.is_file()\nwith p.open('rb') as f:\n f.seek(max(0,p.stat().st_size-32768)); lines=f.read().splitlines()\nfor l in reversed(lines):\n try: event=json.loads(l)\n except (ValueError,UnicodeDecodeError):continue\n e=event.get('event') or {}\n if e.get('kind')!='cycle':continue\n a=e.get('group_memberships') or {}\n print('MEMBERSHIP_WORKER',json.dumps({'status':a.get('status'),'accounts':a.get('accounts')},sort_keys=True))\n d=e.get('public_discovery') or {}\n print('PUBLIC_DISCOVERY',d.get('status'))\n break\nelse: raise RuntimeError('no_cycle_event')\nprint('SUPERVISOR_MEMBERSHIP_CHECK_PASS')\nPY"
           ],
-          "timeout_ms": 105000,
-          "idle_timeout_ms": 35000,
+          "timeout_ms": 60000,
+          "idle_timeout_ms": 12000,
           "limits": {
-            "output_bytes": 9000
+            "output_bytes": 4600
           }
         }
       }
