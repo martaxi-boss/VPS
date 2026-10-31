@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-pm2-activation-preview-20261031-b5p8",
+  "request_id": "rea-leads-readonly-status-and-legacy-inventory-20261031-z2c6",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\necho PM2_ACTIVATION_DRY_RUN_BEGIN\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B /opt/telegram-robot-leads/scripts/activate_project_only.py --pm2-home /root/.pm2 --expected-source 3d53bf473fc0a37a4d8905f58a5bfff0948b3177\necho PM2_ACTIVATION_DRY_RUN_PASS"
+            "set -Eeuo pipefail\necho LEADS_STATUS_AND_ARCHIVE_BEGIN\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B - <<'PY'\nimport json,subprocess,sys,os,stat,collections\nfrom pathlib import Path\nroot=Path('/opt/telegram-robot-leads')\nreport=subprocess.run([sys.executable,'-B',str(root/'scripts/leads_operational_report.py'),'--with-pm2','--expected-source','9596a0687aeed20e03bcd1f91ae2ad6d830cd523'],capture_output=True,text=True,timeout=25)\nprint('REPORT_EXIT',report.returncode)\nif report.returncode!=0:\n print('REPORT_FAILURE_TYPE','runtime_nonzero')\n raise SystemExit(3)\nr=json.loads(report.stdout)\nprint('REPORT_STATUS',r.get('status'))\nprint('READINESS_INDICATORS',json.dumps(r.get('readiness_indicators',[])))\nfor key in ('source','sessions','operation_state','public_discovery','pm2','supervisor'):\n v=r.get(key)\n if isinstance(v,dict):\n  print('REPORT_SECTION',key,'STATUS',v.get('status','UNSPECIFIED'))\n  for field in ('public_groups','distinct_processed_member_identities','pending_member_actions','authorized_member_action_count','last_cycle_no_direct_member_actions'):\n   if field in v:print('REPORT_FIELD',key,field,v[field])\nprevious=Path('/opt/.telegram-leads-previous-08ffc99ae8b1')\nprint('LEGACY_BACKUP_PRESENT',previous.is_dir() and not previous.is_symlink())\nif previous.is_dir() and not previous.is_symlink():\n counters=collections.Counter()\n candidate=[]\n scanned=0\n for folder,dirs,files in os.walk(previous,followlinks=False):\n  depth=len(Path(folder).relative_to(previous).parts)\n  dirs[:]=[d for d in dirs if depth<3 and not (Path(folder)/d).is_symlink()]\n  for name in files:\n   scanned+=1\n   p=Path(folder)/name\n   if p.is_symlink():continue\n   try:\n    m=p.stat()\n   except OSError:continue\n   if not stat.S_ISREG(m.st_mode):continue\n   suffix=p.suffix.lower()\n   if suffix in ('.db','.sqlite','.sqlite3','.json','.jsonl','.csv'):\n    counters[suffix]+=1\n    if suffix in ('.db','.sqlite','.sqlite3'):\n     candidate.append(str(p.relative_to(previous)))\n   if scanned>=2000:break\n  if scanned>=2000:break\n print('LEGACY_FILES_SCANNED',scanned)\n print('LEGACY_FORMAT_COUNTS',json.dumps(counters,sort_keys=True))\n print('LEGACY_DATABASE_PATHS',json.dumps(candidate[:12]))\nprint('LEADS_STATUS_AND_ARCHIVE_READONLY_PASS')\nPY"
           ],
-          "timeout_ms": 90000,
-          "idle_timeout_ms": 65000,
+          "timeout_ms": 110000,
+          "idle_timeout_ms": 70000,
           "limits": {
-            "output_bytes": 5500
+            "output_bytes": 10000
           }
         }
       }
