@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-plcodex-vps-supervisor-readiness-20261031-01",
+  "request_id": "rea-plcodex-current-main-version-proof-20261031-01",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nexport GIT_PAGER=cat PAGER=cat GIT_TERMINAL_PROMPT=0 PYTHONDONTWRITEBYTECODE=1\necho \"SUPERVISOR_VPS_READINESS\"\nid -un\nif sudo -n true 2>/dev/null; then echo \"SUDO_NONINTERACTIVE=AVAILABLE\"; else echo \"SUDO_NONINTERACTIVE=UNAVAILABLE\"; fi\nif command -v systemctl >/dev/null; then echo \"SYSTEMD=AVAILABLE\"; else echo \"SYSTEMD=ABSENT\"; fi\necho \"SERVICE_CANDIDATES\"\nsystemctl list-unit-files --type=service --no-pager --no-legend 2>/dev/null | grep -Ei 'project.leader|supervisor|codex|telegram' || :\necho \"TIMER_CANDIDATES\"\nsystemctl list-unit-files --type=timer --no-pager --no-legend 2>/dev/null | grep -Ei 'project.leader|supervisor|codex|telegram' || :\necho \"PRESENT_DEPLOY_PATHS\"\nfor p in /home/ubuntu/VPS /root/VPS /opt/VPS /srv/VPS /home/ubuntu/Project-leader-codex /home/ubuntu/project-leader-codex /root/project-secrets /home/ubuntu/project-secrets /root/.config; do\n  if test -d \"$p\"; then printf 'DIR_PRESENT=%s\\n' \"$p\"; fi\ndone\necho \"PYTHON_MODULES\"\npython3 - <<'PY'\nimport importlib.util\nfor m in (\"requests\",\"httpx\",\"psutil\"):\n print(\"MODULE_%s=%s\"%(m, bool(importlib.util.find_spec(m))))\nPY\ntmp=\"$(mktemp -d /tmp/rea-plcodex-readiness.XXXXXX)\"\ntrap 'rm -rf \"$tmp\"' EXIT\ngit clone -q --depth 1 https://github.com/martaxi-boss/VPS.git \"$tmp/vps\"\ncd \"$tmp/vps\"\necho \"SUPERVISOR_ENTRYPOINT\"\nsed -n '325,442p' ops/supervisor_live.py | sed -E 's/(token|secret|password|key)=.*/\\1=<redacted>/' | head -n 125\necho \"CLOUD_WORKFLOW_STEPS\"\nsed -n '1,105p' .github/workflows/cloud-supervisor-observation.yml | sed -E 's/(token|secret|password|key)=.*/\\1=<redacted>/'\necho \"SUPERVISOR_DEPENDENCIES\"\ngrep -R -n --include='*.py' -E 'import (requests|httpx|telegram)|from (requests|httpx|telegram)|TELEGRAM_BOT_TOKEN|TELEGRAM_CHAT_ID|GITHUB_TOKEN|GH_TOKEN|STATE_HOME|STATE_DIR|SUPERVISOR' ops/supervisor_live.py ops/supervisor_cloud_source.py ops/telegram_gateway.py | sed -E 's/(=).*/=<suppressed>/' | head -n 48\necho \"READINESS_FINISHED\"\n"
+            "set -Eeuo pipefail\nexport GIT_TERMINAL_PROMPT=0 GIT_PAGER=cat PAGER=cat PYTHONDONTWRITEBYTECODE=1\ntmp=\"$(mktemp -d /tmp/rea-plcodex-main-preflight.XXXXXX)\"\ntrap 'rm -rf \"$tmp\"' EXIT\ngit clone -q --depth 1 --branch main https://github.com/martaxi-boss/Project-leader-codex.git \"$tmp/project\"\ncd \"$tmp/project\"\necho \"REAL_MAIN_HEAD=$(git rev-parse HEAD)\"\npython3 -m codex.runtime_sync\ngit diff --check\ntest -z \"$(git status --porcelain --untracked-files=all)\"\necho \"REA_MAIN_SOURCE_PREFLIGHT=PASS\"\n"
           ],
-          "timeout_ms": 105000,
-          "idle_timeout_ms": 75000,
+          "timeout_ms": 85000,
+          "idle_timeout_ms": 60000,
           "limits": {
-            "output_bytes": 15500
+            "output_bytes": 12500
           }
         }
       }
