@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-plcodex-final-consolidated-main-20261031-01",
+  "request_id": "rea-plcodex-vps-passive-preflight-20261031-1205",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nexport GIT_TERMINAL_PROMPT=0 GIT_PAGER=cat PAGER=cat PYTHONDONTWRITEBYTECODE=1\ntmp=\"$(mktemp -d /tmp/rea-plcodex-final-main-20261031.XXXXXX)\"\ntrap 'rm -rf \"$tmp\"' EXIT\ngit clone --quiet --depth 1 --branch main https://github.com/martaxi-boss/Project-leader-codex.git \"$tmp/project\"\ncd \"$tmp/project\"\nexpected=dfccac1613b6217e94236b008a5a42f15d8dca83\nactual=\"$(git rev-parse HEAD)\"\nprintf 'REAL_MAIN_SHA=%s\\n' \"$actual\"\ntest \"$actual\" = \"$expected\"\npython3 -m codex.runtime_sync\necho MAIN_PREFLIGHT=PASS\necho MAIN_SECURITY_REGRESSIONS\npython3 -m unittest discover -s codex/tests -p 'test_*.py' -q\necho MAIN_CODEX_TESTS=PASS\npython3 -m unittest discover -s tests -p 'test_*.py' -q\necho MAIN_CONTROL_TESTS=PASS\ngit diff --check\ntest -z \"$(git status --porcelain --untracked-files=all)\"\necho MAIN_FINAL_CLEAN=PASS\necho MAIN_FINAL_AUDIT=PASS\n"
+            "set -Eeuo pipefail\nexport GIT_PAGER=cat PAGER=cat GIT_TERMINAL_PROMPT=0 PYTHONDONTWRITEBYTECODE=1\nprintf 'VPS_PASSIVE_PREFLIGHT_START\\n'\nprintf 'USER=%s\\n' \"$(id -un)\"\nuname -s\nif sudo -n true 2>/dev/null; then echo SUDO_NONINTERACTIVE=AVAILABLE; else echo SUDO_NONINTERACTIVE=UNAVAILABLE; fi\nif command -v systemctl >/dev/null; then echo SYSTEMD=AVAILABLE; else echo SYSTEMD=NOT_FOUND; fi\necho SERVICE_UNIT_NAMES\nsystemctl list-unit-files --all --type=service --no-pager --no-legend 2>/dev/null | grep -Ei 'supervisor|project.leader|codex|telegram' || :\necho TIMER_UNIT_NAMES\nsystemctl list-unit-files --all --type=timer --no-pager --no-legend 2>/dev/null | grep -Ei 'supervisor|project.leader|codex|telegram' || :\necho SUPERVISOR_PROCESS_MATCHES\npython3 - <<'PY'\nimport os\nmatches=[]\nfor name in os.listdir('/proc'):\n if not name.isdigit(): continue\n try:\n  argv=open('/proc/'+name+'/cmdline','rb').read(12000).replace(b'\\0',b' ').decode('utf-8','replace')\n except (OSError,PermissionError): continue\n if 'supervisor_live' not in argv and 'passive_supervisor' not in argv: continue\n if any(x in argv for x in ('VPS_PASSIVE_PREFLIGHT_START', 'capture_process_scenario', 'SSH ', 'git clone')):continue\n if 'bash -lc' in argv: continue\n matches.append(name)\nprint('RESIDENT_SUPERVISOR_PROCESS_COUNT='+str(len(matches)))\nPY\necho RELEVANT_DEPLOYMENT_ROOTS\nfor p in /opt/project-leader-supervisor /srv/project-leader-supervisor /home/ubuntu/VPS /root/VPS /opt/VPS /srv/VPS /home/ubuntu/Project-leader-codex /home/ubuntu/project-leader-codex /root/project-secrets /etc/systemd/system; do\n if test -d \"$p\"; then printf 'EXISTS=%s\\n' \"$p\"; fi\ndone\necho SUPERVISOR_RELATED_FILES\nsudo -n python3 - <<'PY'\nfrom pathlib import Path\nroots=['/etc/systemd/system','/etc/cron.d','/opt','/srv','/home/ubuntu','/root/project-secrets']\nfor root in roots:\n p=Path(root)\n if not p.exists():continue\n try:\n  entries=list(p.iterdir())[:200]\n except (OSError,PermissionError):continue\n for e in entries:\n  n=e.name.lower()\n  if any(w in n for w in ('supervisor','codex','project-leader','project_leader')):\n   print('TOP_PATH='+str(e))\nPY\necho REA_RUNTIME_HEALTH\ntest -x /home/ubuntu/rea-final-runtime/bin/rea-mcp && echo REA_MCP_PRESENT=YES\necho VPS_PASSIVE_PREFLIGHT_FINISHED\n"
           ],
-          "timeout_ms": 160000,
-          "idle_timeout_ms": 115000,
+          "timeout_ms": 90000,
+          "idle_timeout_ms": 65000,
           "limits": {
-            "output_bytes": 14000
+            "output_bytes": 9500
           }
         }
       }
