@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-catalog-typeerror-test-20261031-n7q2",
+  "request_id": "rea-leads-hotfix-last-cycle-proof-20261031-m4g8",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nwork=$(mktemp -d /tmp/rea-leads-catalog-fix.XXXXXX)\ntrap 'rm -rf \"$work\"' EXIT\ngit -c credential.helper= clone -q --depth 1 --branch fix/catalog-path-typeerror-20261031 https://github.com/martaxi-boss/telegram-robot-leads.git \"$work/repo\"\ncd \"$work/repo\"\necho TESTED_SHA $(git rev-parse HEAD)\ngit -c credential.helper= fetch -q --depth 20 origin main:refs/remotes/origin/main\ngit diff --check origin/main HEAD\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B -m unittest discover -s tests -q\necho CATALOG_FIX_TESTS_PASS"
+            "set -Eeuo pipefail\nsudo -n /usr/bin/python3 - <<'PY'\nimport os,json,subprocess\nfrom pathlib import Path\nroot=Path('/opt/telegram-robot-leads');data=Path('/var/lib/telegram-robot-leads')\nexpected='8298503f7b21466ebf14b9f164f9e103c9c781e7'\nassert (root/'.verified-source-commit').read_text().strip()==expected\npm=subprocess.run(['pm2','jlist'],env={**os.environ,'PM2_HOME':'/root/.pm2'},capture_output=True,text=True,timeout=11)\nassert pm.returncode==0\njobs=[x for x in json.loads(pm.stdout) if x.get('name')=='telegram-robot-leads']\nassert len(jobs)==1\nmeta=jobs[0]['pm2_env'];assert meta.get('status')=='online'\nprint('INSTALLED_SOURCE_PASS',expected)\nprint('WORKER_STATUS',meta.get('status'))\nuptime=int(meta.get('pm_uptime',0))\nlogfile=Path(meta.get('pm_out_log_path',''))\nassert logfile.is_file() and not logfile.is_symlink()\nprint('NEW_LOG_AFTER_RESTART',int(logfile.stat().st_mtime*1000)>=uptime)\nwith logfile.open('rb') as f:\n end=f.seek(0,2);f.seek(max(0,end-25000));lines=f.read().decode('utf-8','replace').splitlines()\nentries=[]\nfor line in lines[-24:]:\n try:d=json.loads(line)\n except ValueError:continue\n if not isinstance(d,dict):continue\n if d.get('status') not in ('CYCLE','BLOCKED'):continue\n entries.append({k:d[k] for k in ('status','reason','public_discovery_status','groups_joined','group_actions_recorded','blocked_actions','member_actions_recorded') if k in d})\nprint('RECENT_CYCLES_SANITIZED',json.dumps(entries[-8:],sort_keys=True))\nif entries: print('LATEST_CYCLE_STATUS',entries[-1].get('status'))\ncatalog=json.loads((data/'public-groups.json').read_text())\ngroups=catalog.get('groups',{})\nprint('PUBLIC_GROUPS_IN_CATALOG',len(groups))\nfor region in ('PT_ES','EU_OTHER'):\n print('REGION_TAGGED_GROUP_COUNT_'+region,sum(isinstance(x,dict) and region in x.get('matched_regions',[]) for x in groups.values()))\nstate=json.loads((data/'operation-state.json').read_text())\nprint('ACCOUNT_BLOCKED',{k:state['accounts'][k]['blocked'] for k in ('1','2')})\nprint('JOINED_RECORDS_COUNT',len(state.get('joined_groups',{})))\nprint('PENDING_GROUP_ACTIONS_COUNT',len(state.get('pending_group_actions',{})))\nprint('POST_DEPLOY_READ_ONLY_VALIDATION_COMPLETE')\nPY"
           ],
-          "timeout_ms": 140000,
-          "idle_timeout_ms": 90000,
+          "timeout_ms": 96000,
+          "idle_timeout_ms": 66000,
           "limits": {
-            "output_bytes": 9500
+            "output_bytes": 10500
           }
         }
       }
