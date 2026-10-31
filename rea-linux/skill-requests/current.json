@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-actual-operation-config-readonly-20261031-z8m3",
+  "request_id": "rea-leads-owner-join-queue-readonly-20261031-u7s2",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B - <<'PY'\nfrom pathlib import Path\nimport sys, json\nsys.path.insert(0, '/opt/telegram-robot-leads/scripts')\nfrom telethon_sessions import inspect\nfrom safe_runtime import load_group_allowlist, load_approved_users\nfrom organic_growth import preview\nfrom operation_policy import load_state\nvault=Path('/root/project-secrets/telegram-robot-leads')\nconfig=inspect(vault)\nprint('ACCOUNT_COUNT',len(config['entries']))\nprint('APP_CREDENTIALS_OWN',config['api_source']=='private_app_credentials')\nfor label,operation in [\n ('APPROVED_USERS',lambda:len(load_approved_users(vault))),\n ('GROUP_ALLOWLIST',lambda:len(load_group_allowlist(vault)))\n]:\n try:print(label+'_COUNT',operation())\n except Exception as e:print(label+'_READ_STATUS',type(e).__name__)\ntry:\n model=preview(vault,config['group'])\n print('VOLUNTARY_MODEL_STATUS',model.get('status'))\n print('VOLUNTARY_JOIN_APPROVAL_ENABLED',model.get('join_request_approval',False))\n print('OWNED_CHANNEL_PROMOTION_ENABLED',model.get('owned_channel_promotion',False))\nexcept Exception as e:print('VOLUNTARY_MODEL_READ_STATUS',type(e).__name__)\ntry:\n state=load_state(Path('/var/lib/telegram-robot-leads/operation-state.json'))\n for name in ('pending_member_actions','pending_join_requests','approved_user_ids_done','approved_join_requests_done'):\n  data=state.get(name,{})\n  print('STATE_COUNTER',name,len(data) if isinstance(data,dict) else 'INVALID')\nexcept Exception as e:print('STATE_READ_STATUS',type(e).__name__)\nprint('CONFIGURATION_CHECK_READONLY_FINISHED')\nPY"
+            "set -Eeuo pipefail\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B - <<'PY'\nimport asyncio,sys,hashlib\nfrom pathlib import Path\nsys.path.insert(0,'/opt/telegram-robot-leads/scripts')\nfrom telethon_sessions import inspect,make_memory_client\nfrom telethon.tl.functions.messages import GetChatInviteImportersRequest\nfrom telethon.tl.types import InputUserEmpty\nvault=Path('/root/project-secrets/telegram-robot-leads')\nfiles=sorted(vault.glob('*.session'))\nbefore=[hashlib.sha256(p.read_bytes()).digest() for p in files]\nconfig=inspect(vault)\nasync def run():\n client=make_memory_client(config['entries'][0],config)\n try:\n  await asyncio.wait_for(client.connect(),timeout=25)\n  if not await asyncio.wait_for(client.is_user_authorized(),timeout=20):\n   print('OWNER_ACCOUNT_AUTHORISED',False)\n   return\n  print('OWNER_ACCOUNT_AUTHORISED',True)\n  group=await asyncio.wait_for(client.get_entity(config['group']),timeout=20)\n  print('TARGET_GROUP_IS_SUPERGROUP',bool(getattr(group,'megagroup',False)))\n  rights=await asyncio.wait_for(client.get_permissions(group,'me'),timeout=20)\n  admin=bool(getattr(rights,'is_creator',False) or (getattr(rights,'is_admin',False) and getattr(rights,'invite_users',False)))\n  print('OWNER_CAN_MANAGE_JOIN_REQUESTS',admin)\n  if admin:\n   result=await asyncio.wait_for(client(GetChatInviteImportersRequest(peer=group,requested=True,offset_date=0,offset_user=InputUserEmpty(),limit=1)),timeout=25)\n   count=getattr(result,'count',None)\n   print('PENDING_JOIN_REQUESTS_TOTAL',count if type(count) is int else 'UNKNOWN')\n except Exception as e:\n  print('OWNER_QUEUE_CHECK_STATUS',type(e).__name__)\n finally:\n  if client.is_connected():await asyncio.wait_for(client.disconnect(),timeout=12)\nasyncio.run(run())\nassert before==[hashlib.sha256(p.read_bytes()).digest() for p in files],'session_mutated'\nprint('SESSION_FILES_UNCHANGED',True)\nprint('OWNER_JOIN_QUEUE_READ_ONLY_COMPLETE')\nPY"
           ],
-          "timeout_ms": 85000,
-          "idle_timeout_ms": 60000,
+          "timeout_ms": 150000,
+          "idle_timeout_ms": 115000,
           "limits": {
-            "output_bytes": 5000
+            "output_bytes": 4500
           }
         }
       }
