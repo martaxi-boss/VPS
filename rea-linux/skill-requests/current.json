@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-owner-join-queue-readonly-20261031-u7s2",
+  "request_id": "rea-leads-voluntary-link-inspect-20261031-m2v7",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B - <<'PY'\nimport asyncio,sys,hashlib\nfrom pathlib import Path\nsys.path.insert(0,'/opt/telegram-robot-leads/scripts')\nfrom telethon_sessions import inspect,make_memory_client\nfrom telethon.tl.functions.messages import GetChatInviteImportersRequest\nfrom telethon.tl.types import InputUserEmpty\nvault=Path('/root/project-secrets/telegram-robot-leads')\nfiles=sorted(vault.glob('*.session'))\nbefore=[hashlib.sha256(p.read_bytes()).digest() for p in files]\nconfig=inspect(vault)\nasync def run():\n client=make_memory_client(config['entries'][0],config)\n try:\n  await asyncio.wait_for(client.connect(),timeout=25)\n  if not await asyncio.wait_for(client.is_user_authorized(),timeout=20):\n   print('OWNER_ACCOUNT_AUTHORISED',False)\n   return\n  print('OWNER_ACCOUNT_AUTHORISED',True)\n  group=await asyncio.wait_for(client.get_entity(config['group']),timeout=20)\n  print('TARGET_GROUP_IS_SUPERGROUP',bool(getattr(group,'megagroup',False)))\n  rights=await asyncio.wait_for(client.get_permissions(group,'me'),timeout=20)\n  admin=bool(getattr(rights,'is_creator',False) or (getattr(rights,'is_admin',False) and getattr(rights,'invite_users',False)))\n  print('OWNER_CAN_MANAGE_JOIN_REQUESTS',admin)\n  if admin:\n   result=await asyncio.wait_for(client(GetChatInviteImportersRequest(peer=group,requested=True,offset_date=0,offset_user=InputUserEmpty(),limit=1)),timeout=25)\n   count=getattr(result,'count',None)\n   print('PENDING_JOIN_REQUESTS_TOTAL',count if type(count) is int else 'UNKNOWN')\n except Exception as e:\n  print('OWNER_QUEUE_CHECK_STATUS',type(e).__name__)\n finally:\n  if client.is_connected():await asyncio.wait_for(client.disconnect(),timeout=12)\nasyncio.run(run())\nassert before==[hashlib.sha256(p.read_bytes()).digest() for p in files],'session_mutated'\nprint('SESSION_FILES_UNCHANGED',True)\nprint('OWNER_JOIN_QUEUE_READ_ONLY_COMPLETE')\nPY"
+            "set -Eeuo pipefail\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B - <<'PY'\nimport sys,asyncio\nfrom pathlib import Path\nsys.path.insert(0,\"/opt/telegram-robot-leads/scripts\")\nfrom telethon_sessions import inspect,make_memory_client\nfrom organic_growth import (_read_voluntary_link,_request_required_invite,VOLUNTARY_LINK_TITLE,MAX_EXISTING_INVITES)\nfrom telethon.tl.functions.messages import GetExportedChatInviteRequest,GetExportedChatInvitesRequest\nfrom telethon.tl.types import InputUserSelf\nvault=Path('/root/project-secrets/telegram-robot-leads')\nconfig=inspect(vault)\nsaved=_read_voluntary_link(vault,config['group'])\nprint('LOCAL_VOLUNTARY_LINK_PRESENT',saved is not None)\nasync def verify():\n client=make_memory_client(config['entries'][0],config)\n try:\n  await asyncio.wait_for(client.connect(),timeout=25)\n  assert await asyncio.wait_for(client.is_user_authorized(),timeout=20)\n  group=await asyncio.wait_for(client.get_entity(config['group']),timeout=20)\n  if saved is not None:\n   result=await asyncio.wait_for(client(GetExportedChatInviteRequest(peer=group,link=saved)),timeout=25)\n   try:\n    verified=_request_required_invite(getattr(result,'invite',None))==saved\n    print('EXISTING_LINK_VALID',verified)\n   except Exception as ex:\n    print('EXISTING_LINK_VALID',False)\n    print('INVALID_LINK_REASON',type(ex).__name__)\n  else:\n   response=await asyncio.wait_for(client(GetExportedChatInvitesRequest(peer=group,admin_id=InputUserSelf(),revoked=False,limit=MAX_EXISTING_INVITES)),timeout=25)\n   invites=getattr(response,'invites',[])\n   named=[i for i in invites if getattr(i,'title',None)==VOLUNTARY_LINK_TITLE]\n   print('NAMED_LINKS_FOUND',len(named))\n   print('INVITE_LIST_COMPLETE',len(invites)<MAX_EXISTING_INVITES)\n   if len(named)==1:\n    try:\n     _request_required_invite(named[0])\n     print('NAMED_LINK_VALID',True)\n    except Exception as ex:\n     print('NAMED_LINK_VALID',False)\n     print('INVALID_LINK_REASON',type(ex).__name__)\n finally:\n  if client.is_connected():await asyncio.wait_for(client.disconnect(),timeout=12)\nasyncio.run(verify())\nprint('VOLUNTARY_LINK_INSPECTION_READONLY_COMPLETE')\nPY"
           ],
-          "timeout_ms": 150000,
-          "idle_timeout_ms": 115000,
+          "timeout_ms": 145000,
+          "idle_timeout_ms": 110000,
           "limits": {
-            "output_bytes": 4500
+            "output_bytes": 5500
           }
         }
       }
