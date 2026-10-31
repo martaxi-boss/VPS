@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-workflow-manifest-recheck-20261031",
+  "request_id": "rea-leads-pr44-two-admin-optin-verify-20261031",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nwork=$(mktemp -d /tmp/rea-leads-deploy-workflow-verify.XXXXXX)\ntrap 'rm -rf -- \"$work\"' EXIT\ngit clone -q --depth 1 --branch fix/telegram-leads-central-workflow-20261031 https://github.com/martaxi-boss/VPS.git \"$work/vps\"\ngit clone -q --depth 1 https://github.com/martaxi-boss/telegram-robot-leads.git \"$work/leads\"\ntest \"$(git -C \"$work/vps\" rev-parse HEAD)\" = \"a321835fd2c1a71de7ab7fb87e82b203056e1d2f\"\ntest \"$(git -C \"$work/leads\" rev-parse HEAD)\" = \"06651386feaccbd528378aae4fc1469751afa57d\"\ngit -C \"$work/vps\" --no-pager diff --check HEAD\nsudo -n -H /usr/bin/python3 -B - \"$work/vps\" \"$work/leads\" <<'PY'\nfrom pathlib import Path\nimport importlib.util,re,sys,fnmatch\nvps,leads=map(Path,sys.argv[1:])\nname='telegram-leads-vps-stage-20261019.yml'\nfile=vps/'.github/workflows'/name\ndata=file.read_text()\nassert re.search(r'^  TARGET_SHA: 06651386feaccbd528378aae4fc1469751afa57d$',data,re.M)\nassert re.search(r'^  EXPECTED_INSTALLED: 06651386feaccbd528378aae4fc1469751afa57d$',data,re.M)\nspec=importlib.util.spec_from_file_location('leads_installer',leads/'scripts/deploy_project_only.py')\nmod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)\nfiles=set(mod.RUNTIME_FILES)\nassert len(files)==12 and len(files)==len(mod.RUNTIME_FILES)\ncompile_line=next(x for x in data.splitlines() if '-m py_compile' in x)\ntar_line=next(x for x in data.splitlines() if 'tar -C \"$target\" -czf' in x)\nextract=lambda line: set(re.findall(r'scripts/[a-z0-9_-]+\\.(?:py|sh)',line))\ncompile_set=extract(compile_line)\narchive_set=extract(tar_line)\nassert archive_set==files,{'missing':files-archive_set,'extra':archive_set-files}\npy={x for x in files if x.endswith('.py')}\nassert compile_set==py,{'missing':py-compile_set,'extra':compile_set-py}\nprint('CANONICAL_RUNTIME_FILES',len(files),flush=True)\nprint('ARCHIVE_MANIFEST_EXACT',archive_set==files,flush=True)\nprint('PY_COMPILE_MANIFEST_EXACT',compile_set==py,flush=True)\nprint('PINNED_INSTALLED_SHA_MATCH',True,flush=True)\ntry:\n import yaml\nexcept ImportError:\n print('YAML_PARSER_NOT_AVAILABLE',flush=True)\nelse:\n parsed=yaml.safe_load(data)\n assert isinstance(parsed,dict) and isinstance(parsed.get('jobs'),dict)\n print('YAML_PARSE_PASS',flush=True)\n for path in sorted((vps/'.github/workflows').glob('*.yml')):\n  if path.name==name:continue\n  try:\n   w=yaml.safe_load(path.read_text())\n  except Exception:\n   continue\n  if not isinstance(w,dict):continue\n  triggers=w.get('on',w.get(True))\n  if not isinstance(triggers,dict) or 'push' not in triggers:continue\n  push=triggers['push']\n  if push is None:push={}\n  if not isinstance(push,dict):continue\n  branches=push.get('branches')\n  if branches and not any(fnmatch.fnmatch('main',str(b)) for b in branches):continue\n  paths=push.get('paths')\n  matching=[] if paths else ['NO_PATH_FILTER']\n  if paths:\n   matching=[str(p) for p in paths if fnmatch.fnmatch('.github/workflows/'+name,str(p))]\n  if matching:print('ANOTHER_MAIN_PUSH_WORKFLOW',path.name,','.join(matching),flush=True)\nprint('TELEGRAM_ONLY_WORKFLOW_VALIDATION_PASS',flush=True)\nPY"
+            "set -Eeuo pipefail\nwork=$(mktemp -d /tmp/rea-leads-optin-pr44.XXXXXX)\ntrap 'rm -rf -- \"$work\"' EXIT\ngit clone -q --depth 1 --branch fix/20261031-two-admin-optin-intake https://github.com/martaxi-boss/telegram-robot-leads.git \"$work\"\ncd \"$work\"\ntest \"$(git rev-parse HEAD)\" = \"e9c6620fdd81c3e9c9f38fa18f1b3c31bbc06d90\"\ngit --no-pager diff --check HEAD\nsudo -n -H /opt/telegram-robot-leads/.venv/bin/python -B -m unittest discover -s tests -q\nsudo -n -H /usr/bin/python3 -B -c 'import ast,pathlib; fs=[\"scripts/organic_growth.py\",\"scripts/safe_runtime.py\",\"scripts/operation_policy.py\"]; [ast.parse(pathlib.Path(x).read_text()) for x in fs]; print(\"AST_VERIFIED\",len(fs))'\nnode --check ecosystem.config.js\ngrep -Fq '\"join_requests\", approve_pending_join_request,' scripts/safe_runtime.py\ngrep -Fq 'select_intake_account(state)' scripts/organic_growth.py\necho PR44_REMOTE_TESTS_PASS"
           ],
-          "timeout_ms": 145000,
-          "idle_timeout_ms": 95000,
+          "timeout_ms": 120000,
+          "idle_timeout_ms": 75000,
           "limits": {
-            "output_bytes": 11200
+            "output_bytes": 9000
           }
         }
       }
