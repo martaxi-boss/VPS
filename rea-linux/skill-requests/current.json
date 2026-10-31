@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-service-readiness-20261031-y7n4",
+  "request_id": "rea-leads-pm2-activation-preview-20261031-b5p8",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\necho SERVICE_READINESS_BEGIN\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B - <<'PY'\nfrom pathlib import Path\nimport os,json,stat\nroot=Path('/opt/telegram-robot-leads')\nmarker=root/'.verified-source-commit'\nprint('INSTALLED_SHA',marker.read_text().strip())\nprint('PYTHON_VENV',Path('/opt/telegram-robot-leads/.venv/bin/python').exists())\nfor name in ('telethon','aiosqlite','dotenv','langdetect'):\n try:\n  mod=__import__(name)\n  print('DEPENDENCY',name,'OK')\n except ImportError:\n  print('DEPENDENCY',name,'MISSING')\nfor name in ('/root/.pm2','/home/ubuntu/.pm2'):\n p=Path(name)\n print('PM2_HOME',name,'EXISTS',p.is_dir() and not p.is_symlink())\n if p.is_dir() and not p.is_symlink():\n  print('PM2_SOCKET',name,(p/'rpc.sock').exists())\n  print('PM2_PID_FILE',name,(p/'pm2.pid').is_file())\nrunning=0\npm2_daemons=0\nfor p in Path('/proc').iterdir():\n if not p.name.isdecimal():\n  continue\n try:\n  b=(p/'cmdline').read_bytes()\n  u=(p/'status').read_text().splitlines()\n except (OSError,PermissionError):\n  continue\n if b'python' in b and b'/opt/telegram-robot-leads/' in b:\n  running+=1\n if b'PM2' in b and b'God Daemon' in b:\n  pm2_daemons+=1\nprint('LEADS_PYTHON_PROCESSES',running)\nprint('PM2_DAEMON_PROCESS_COUNT',pm2_daemons)\nfor key in ('operation-state.json','public-groups.json','supervisor-events.jsonl'):\n p=Path('/var/lib/telegram-robot-leads')/key\n print('STATE_FILE',key,'PRESENT',p.is_file(),'BYTES',p.stat().st_size if p.is_file() else 0)\nbackups=root/'.telegram-leads-release-backups'\nprint('CODE_BACKUP_DIRS',sum(p.is_dir() for p in backups.iterdir()) if backups.is_dir() else 0)\nprint('SERVICE_READINESS_READ_ONLY_PASS')\nPY"
+            "set -Eeuo pipefail\necho PM2_ACTIVATION_DRY_RUN_BEGIN\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B /opt/telegram-robot-leads/scripts/activate_project_only.py --pm2-home /root/.pm2 --expected-source 3d53bf473fc0a37a4d8905f58a5bfff0948b3177\necho PM2_ACTIVATION_DRY_RUN_PASS"
           ],
-          "timeout_ms": 105000,
-          "idle_timeout_ms": 70000,
+          "timeout_ms": 90000,
+          "idle_timeout_ms": 65000,
           "limits": {
-            "output_bytes": 9000
+            "output_bytes": 5500
           }
         }
       }
