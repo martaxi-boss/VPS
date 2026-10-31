@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-telegram-leads-predeploy-20261031-j3x7",
+  "request_id": "rea-telegram-leads-postdeploy-queue-20261031-t9n2",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nimport json,subprocess\nroot=Path('/opt/telegram-robot-leads')\nprivate=Path('/root/project-secrets/telegram-robot-leads')\nstate=Path('/var/lib/telegram-robot-leads/operation-state.json')\nprint('ROOT_EXISTS',root.is_dir())\nverified=root/'.verified-source-commit'\nprint('INSTALLED_SHA',verified.read_text().strip())\nprint('SESSION_COUNT',len(list(private.glob('*.session'))))\nprint('STATE_PRESENT',state.is_file())\nif state.is_file():\n    d=json.loads(state.read_text())\n    print('RECORDED_ADDITIONS',[(k,d.get('accounts',{}).get(k,{}).get('member_adds')) for k in ('1','2')])\n    print('PENDING_MEMBERS',len(d.get('pending_member_actions',{})))\n    print('RECORDED_MEMBER_IDS',len(d.get('approved_user_ids_done',{})))\nr=subprocess.run(['pm2','jlist'],env={'PM2_HOME':'/root/.pm2','PATH':'/usr/local/bin:/usr/bin:/bin'},capture_output=True,text=True,timeout=18)\nprint('PM2_CALL_OK',r.returncode==0)\nif r.returncode==0:\n    rows=json.loads(r.stdout)\n    workers=[x for x in rows if x.get('name')=='telegram-robot-leads']\n    print('TELEGRAM_WORKERS',len(workers))\n    if len(workers)==1:\n        print('TELEGRAM_STATUS',workers[0].get('pm2_env',{}).get('status'))\nprint('READ_ONLY_PREFLIGHT_COMPLETE')\nPY"
+            "set -Eeuo pipefail\nsudo -n /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nimport json,subprocess,datetime\nroot=Path('/opt/telegram-robot-leads')\nvault=Path('/root/project-secrets/telegram-robot-leads')\nlog=Path('/var/lib/telegram-robot-leads/supervisor-events.jsonl')\nprint('CURRENT_SHA',(root/'.verified-source-commit').read_text().strip())\nprint('ACCOUNT_SESSIONS',len(list(vault.glob('*.session'))))\nsrc=(root/'scripts/safe_runtime.py').read_text()\nprint('QUEUE_METRICS_CODE_PRESENT', 'approved_queue_snapshot' in src and 'approved_queue_waiting' in src)\nentries=[]\nif log.is_file():\n for line in log.open(encoding='utf-8'):\n  try: obj=json.loads(line)\n  except ValueError: continue\n  event=obj.get('event') if isinstance(obj,dict) else None\n  if isinstance(event,dict) and event.get('kind')=='cycle':\n   entries.append((obj.get('ts'),event))\n print('TOTAL_CYCLES',len(entries))\n for ts,event in entries[-5:]:\n  queue=event.get('approved_queue')\n  print('RECENT_CYCLE',ts,'QUEUE_KEYS',sorted(queue.keys()) if isinstance(queue,dict) else None,'QUEUE_TOTALS',queue if isinstance(queue,dict) else None,'ACTION_COUNTS',len(event.get('member_actions',[]) or []))\nr=subprocess.run(['pm2','jlist'],capture_output=True,text=True,timeout=15,env={'PATH':'/usr/local/bin:/usr/bin:/bin','PM2_HOME':'/root/.pm2'})\nif r.returncode:\n print('PM2_READ_FAILED',r.returncode)\nelse:\n workers=[x for x in json.loads(r.stdout) if x.get('name')=='telegram-robot-leads']\n print('PM2_MATCHES',len(workers))\n if len(workers)==1:print('PM2_STATUS',workers[0].get('pm2_env',{}).get('status'))\nprint('READONLY_POSTDEPLOY_COMPLETE')\nPY"
           ],
           "timeout_ms": 70000,
-          "idle_timeout_ms": 48000,
+          "idle_timeout_ms": 50000,
           "limits": {
-            "output_bytes": 4000
+            "output_bytes": 5800
           }
         }
       }
