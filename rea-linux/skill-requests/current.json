@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-two-admins-intake-review-20261031",
+  "request_id": "rea-leads-complete-postlink-healthy-20261031",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nroot=$(mktemp -d /tmp/rea-leads-account-routing.XXXXXX)\ntrap 'rm -rf -- \"$root\"' EXIT\ngit clone -q --depth 1 https://github.com/martaxi-boss/telegram-robot-leads.git \"$root\"\npython3 -B - \"$root\" <<'PY'\nfrom pathlib import Path\nimport sys\nroot=Path(sys.argv[1])\nfor file,ranges in (\n ('scripts/organic_growth.py',[(228,345)]),\n ('scripts/safe_runtime.py',[(505,550),(568,612),(620,673)]),\n ('scripts/operation_policy.py',[(1,66),(205,270)]),\n ('tests/test_organic_growth.py',[(219,285)]),\n):\n p=root/file; ls=p.read_text().splitlines()\n print('FILE',file,'TOTAL_LINES',len(ls))\n for start,end in ranges:\n  for i in range(start-1,min(len(ls),end)):\n   print(f'{i+1}:{ls[i]}')\nprint('ROOT_SHA_FILE_VERSION')\nPY\nprintf 'REPO_SHA='; git -C \"$root\" rev-parse HEAD\ngrep -R -n -E 'supervisor|notif|telegram' \"$root\"/scripts/operation_policy.py \"$root\"/scripts/leads_operational_report.py \"$root\"/scripts/safe_runtime.py | tail -n 45\n"
+            "set -Eeuo pipefail\nsudo -n -H /usr/bin/python3 - <<'PY'\nimport json,os,subprocess\nfrom pathlib import Path\nroot=Path('/opt/telegram-robot-leads')\nsha=(root/'.verified-source-commit').read_text().strip()\nassert sha=='06651386feaccbd528378aae4fc1469751afa57d'\nenv={**os.environ,'PM2_HOME':'/root/.pm2','PYTHONDONTWRITEBYTECODE':'1'}\nr=subprocess.run([str(root/'.venv/bin/python'),str(root/'scripts/leads_operational_report.py'),'--expected-source',sha,'--with-pm2'],capture_output=True,text=True,timeout=25,check=True,env=env)\ndata=json.loads(r.stdout)\nassert data['source']['matches_expected'] is True\nassert data['pm2']['status']=='ONLINE'\nassert data['sessions']['accounts']==2\nprint('SOURCE_VERIFIED',sha)\nprint('OWN_SESSIONS',data['sessions']['accounts'])\nprint('PUBLIC_GROUPS',data.get('public_discovery',{}).get('public_groups'))\nprint('MEMBERSHIP_REGISTRY',data.get('group_memberships',{}).get('status'),data.get('group_memberships',{}).get('confirmed_total'))\nprint('GROWTH_MODEL',json.dumps(data.get('organic_growth_model',{}),sort_keys=True))\ns=data.get('operation_state',{})\nprint('ACTIONS',json.dumps({k:s.get(k) for k in ('accounts_blocked','join_request_approvals_today','member_additions_today_authorized','pending_member_actions','pending_join_request_outcomes')},sort_keys=True))\nsup=data.get('supervisor',{})\nprint('SUPERVISOR',json.dumps({k:sup.get(k) for k in ('status','event_kind','age_seconds','join_request_status','approvals_in_last_cycle','authorized_member_action_count')},sort_keys=True))\npath=Path('/var/lib/telegram-robot-leads/supervisor-events.jsonl')\nif path.exists():\n lines=path.read_bytes().splitlines()[-32:]\n summaries=[]\n for raw in lines:\n  try: obj=json.loads(raw)\n  except (ValueError,UnicodeError):continue\n  event=obj.get('event') or {}\n  if not isinstance(event,dict) or event.get('kind')!='cycle':continue\n  growth=event.get('organic_growth') or {}\n  if not isinstance(growth,dict):growth={}\n  request=growth.get('join_requests') or {}\n  summaries.append({'approval_status':request.get('status'),'approvals_accepted':request.get('approvals_accepted',0)})\n print('RECENT_EVENTS',json.dumps(summaries[-5:],sort_keys=True))\nprint('NO_PERSONAL_DATA_OR_INVITE_LINK_RETURNED')\nPY"
           ],
-          "timeout_ms": 90000,
-          "idle_timeout_ms": 35000,
+          "timeout_ms": 65000,
+          "idle_timeout_ms": 25000,
           "limits": {
-            "output_bytes": 26000
+            "output_bytes": 8600
           }
         }
       }
