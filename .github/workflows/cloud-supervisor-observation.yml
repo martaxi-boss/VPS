@@ -2,7 +2,8 @@ name: Existing passive Supervisor - Cloud GitHub evidence
 
 # Transport trigger ONLY. The Supervisor remains ops/supervisor_live.py,
 # the already-configured private Telegram bot, and the same VPS GitHub Actions.
-# No Cloud worker, new supervisor, incoming Telegram command, SSH or API billing.
+# Read-only observation executes in VPS over existing pinned SSH; GitHub runner
+# uses existing Telegram egress. No new Supervisor, AI planner, or SSH bridge.
 on:
   schedule:
     - cron: '7,17,27,37,47,57 * * * *'
@@ -38,7 +39,7 @@ jobs:
     name: Read-only Cloud PR/CI observations via existing Supervisor
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - name: Load pinned existing Supervisor from main
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -47,12 +48,131 @@ jobs:
           persist-credentials: false
       - name: Verify existing observer syntax
         run: python3 -m py_compile ops/supervisor_live.py ops/supervisor_cloud_source.py ops/supervisor_audit.py ops/telegram_gateway.py
-      - name: Observe published Cloud PR/CI and notify Owner privately
+      - name: Run existing passive Supervisor on VPS and relay via Telegram
+        shell: bash
         env:
-          GH_TOKEN: ${{ github.token }}
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python3 -m ops.supervisor_live cloud
+        run: |
+          set -Eeuo pipefail
+          test -n "$SSHPASS" && test -n "$TELEGRAM_BOT_TOKEN" && test -n "$TELEGRAM_CHAT_ID"
+          if ! command -v sshpass >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq sshpass >/dev/null
+          fi
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/supervisor-vps-host"
+          chmod 600 "$RUNNER_TEMP/supervisor-vps-host"
+          fingerprint="$(ssh-keygen -lf "$RUNNER_TEMP/supervisor-vps-host" -E sha256 | awk '{print $2}')"
+          test "$fingerprint" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
+          echo 'SUPERVISOR_VPS_SSH_PIN=PASS'
+          sshpass -e ssh -T \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/supervisor-vps-host" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=15 \
+            -o ServerAliveInterval=10 \
+            -o ServerAliveCountMax=5 \
+            ubuntu@146.59.145.3 'python3 -' <<'PYREMOTE' > "$RUNNER_TEMP/supervisor-vps-observation"
+          import json
+          import subprocess
+          import sys
+          import tempfile
+          from pathlib import Path
+          from datetime import datetime, timezone
+          from urllib.request import Request, urlopen
+          from urllib.error import HTTPError, URLError
+          with tempfile.TemporaryDirectory(prefix="project-leader-existing-supervisor-") as directory:
+              root = Path(directory) / "VPS"
+              clone = subprocess.run(
+                  ["git", "clone", "--quiet", "--depth", "1", "--branch", "main",
+                   "https://github.com/martaxi-boss/VPS.git", str(root)],
+                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                  timeout=45, check=False)
+              if clone.returncode:
+                  raise RuntimeError("Supervisor source unavailable")
+              sha = subprocess.run(
+                  ["git", "-C", str(root), "rev-parse", "HEAD"], capture_output=True,
+                  text=True, check=True, timeout=10).stdout.strip()
+              sys.path.insert(0, str(root))
+              from ops import supervisor_cloud_source as cloud
+              from ops import supervisor_audit as audit
+              def read_public(which, path):
+                  if which == "vps":
+                      if path != "actions/workflows/cloud-supervisor-observation.yml/runs?status=success&per_page=50":
+                          raise RuntimeError("Unexpected VPS GitHub path")
+                      name, maximum = "martaxi-boss/VPS", 4000000
+                  elif which == "project":
+                      if path != cloud.PULLS_PATH and not cloud.CHECKS_PATH.fullmatch(path):
+                          raise RuntimeError("Unexpected Cloud GitHub path")
+                      name, maximum = cloud.CLOUD_REPOSITORY, 1000000
+                  else:
+                      raise RuntimeError("Unexpected repository")
+                  req = Request("https://api.github.com/repos/" + name + "/" + path,
+                                headers={"Accept":"application/vnd.github+json",
+                                         "User-Agent":"Existing-Passive-Supervisor",
+                                         "X-GitHub-Api-Version":"2022-11-28"},
+                                method="GET")
+                  try:
+                      with urlopen(req, timeout=22) as response:
+                          raw = response.read(maximum + 1)
+                      if len(raw) > maximum:
+                          raise RuntimeError("GitHub public payload exceeded limit")
+                      return json.loads(raw.decode("utf-8"))
+                  except (HTTPError, URLError, TimeoutError, ValueError):
+                      raise RuntimeError("Public GitHub observation failed") from None
+              now = datetime.now(timezone.utc)
+              since = cloud.last_observed_start(
+                  lambda method, path: read_public("vps", path) if method == "GET" else None,
+                  now)
+              notices = cloud.messages(lambda path: read_public("project", path),
+                                       since, now, limit=5)
+              audited = [audit.observation(message, source="cloud") for message in notices]
+              print("SUPERVISOR_EXECUTION_HOST=VPS")
+              print("SUPERVISOR_SOURCE_SHA=" + sha)
+              print("SUPERVISOR_NOTICES=" + str(len(audited)))
+              for message in audited:
+                  print("SUPERVISOR_AUDITED_JSON=" +
+                        json.dumps(message, ensure_ascii=True))
+              print("SUPERVISOR_PUBLIC_AUDIT=PASS")
+          PYREMOTE
+          python3 - <<'PYDELIVERY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+          from ops import telegram_gateway as gateway
+          path = Path(os.environ["RUNNER_TEMP"]) / "supervisor-vps-observation"
+          lines = path.read_text(encoding="utf-8").splitlines()
+          if lines.count("SUPERVISOR_EXECUTION_HOST=VPS") != 1:
+              raise RuntimeError("VPS Supervisor execution was not confirmed")
+          if lines.count("SUPERVISOR_PUBLIC_AUDIT=PASS") != 1:
+              raise RuntimeError("VPS Supervisor audit was not certified")
+          sources = [line.partition("=")[2] for line in lines
+                     if line.startswith("SUPERVISOR_SOURCE_SHA=")]
+          if len(sources) != 1 or not re.fullmatch(r"[0-9a-f]{40}", sources[0]):
+              raise RuntimeError("VPS Supervisor source identity missing")
+          if sources[0] != os.environ["GITHUB_SHA"]:
+              raise RuntimeError("VPS Supervisor source is not current main")
+          counts = [line.partition("=")[2] for line in lines
+                    if line.startswith("SUPERVISOR_NOTICES=")]
+          messages = [json.loads(line.partition("=")[2]) for line in lines
+                      if line.startswith("SUPERVISOR_AUDITED_JSON=")]
+          if len(counts) != 1 or not counts[0].isdigit() or int(counts[0]) != len(messages) or len(messages) > 5:
+              raise RuntimeError("VPS Supervisor audit count mismatch")
+          for message in messages:
+              if not isinstance(message, str) or not message.startswith("👁️ SUPERVISOR — AUDITORIA OPERACIONAL"):
+                  raise RuntimeError("VPS Supervisor unverified audit message")
+              gateway.say(message)
+          if not messages and os.environ.get("GITHUB_EVENT_NAME") == "push":
+              gateway.say("👁️ Supervisor passivo na VPS: teste real de observação GitHub concluído. Nenhuma nova PR/CI foi encontrada neste intervalo; não foi executada qualquer ordem Codex.")
+          print("SUPERVISOR_EXECUTION_HOST=VPS")
+          print("SUPERVISOR_VPS=" + ("FORWARDED" if messages else "NO_CHANGE") +
+                "; COUNT=" + str(len(messages)))
+          PYDELIVERY
 
   offline-contract:
     name: Cloud observer offline security and identity tests
