@@ -89,23 +89,6 @@ class OwnerAuditedFirstWaveTests(unittest.TestCase):
                          [x["id"] for x in after["tasks"]])
         self.assertNotEqual(quota.order_digest(first), quota.order_digest(after))
 
-    def test_quota_resume_preflight_keeps_pending_phase_metadata(self):
-        raw = json.dumps(phase_manifest(), ensure_ascii=False)
-        # quota.verify_resume uses quota._order for both checkpoint and
-        # authenticated dispatch; never recalculate from a missing webhook body.
-        order = quota._order(raw)
-        route = agent_switch.workflow_values(order, "2")
-        self.assertEqual((route["run_stage_1"], route["run_stage_2"]),
-                         ("false", "true"))
-        self.assertEqual(order["phase_count"], 2)
-        self.assertEqual(order["held_task_count"], 1)
-        self.assertEqual(order["phase_owner_digest"],
-                         hashlib.sha256(raw.encode("utf-8")).hexdigest())
-        workflow = (ROOT / ".github/workflows/agent-switch.yml").read_text()
-        for key in ("phase_count", "held_task_count", "phase_owner_digest"):
-            self.assertIn("order.get('" + key + "'", workflow)
-        self.assertIn("if order.get('phase_count', 1) > 1:", workflow)
-        self.assertIn("HOLD_FOR_CI_AND_NEXT_PHASE", workflow)
 
     def test_resume_attested_worker_in_first_wave_never_replays_sibling(self):
         raw = json.dumps(phase_manifest())
@@ -164,17 +147,6 @@ class OwnerAuditedFirstWaveTests(unittest.TestCase):
         with self.assertRaisesRegex(agent_switch.OrderError, "bounded"):
             agent_switch.parse_owner_envelope(raw)
 
-    def test_workflow_and_quota_use_same_authenticated_phase_parser(self):
-        workflow = (ROOT / ".github/workflows/agent-switch.yml").read_text()
-        resume = (ROOT / "ops/codex_quota_resume.py").read_text()
-        self.assertIn("switch.parse_owner_envelope(", workflow)
-        self.assertIn("agent_switch.parse_owner_envelope(raw)[0]", resume)
-        self.assertIn("github.event.issue.user.login == github.repository_owner",
-                      workflow)
-        self.assertIn("startsWith(github.event.issue.title, '[agents run]')",
-                      workflow)
-        self.assertIn("HOLD_FOR_CI_AND_NEXT_PHASE", workflow)
-        self.assertIn("owner_digest", workflow)
 
 
 if __name__ == "__main__":

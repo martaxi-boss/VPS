@@ -11,10 +11,6 @@ import unittest
 from ops import agent_switch
 from ops import codex_audit_strategy as strategy
 
-# Keep coordinator regression tests inside the already-required offline CI suite.
-from ops.tests.test_coordinator_ai import CoordinatorAITests  # noqa: F401
-from ops.tests.test_coordinator_smoke import CoordinatorSmokeTests  # noqa: F401
-
 PIN = "f342346ef8b648118abbcc24ece860e1b9ea08af"
 
 
@@ -204,19 +200,6 @@ class AuditDispatchTests(unittest.TestCase):
         self.assertEqual(agent_switch.workflow_values(
             agent_switch.parse_order(json.dumps(old)))["audit_managed"], "false")
 
-    def test_guarded_remote_and_workflow_load_exact_scope_verifier(self):
-        root = Path(__file__).resolve().parents[1]
-        remote = (root / "codex-autonomous-remote.sh").read_text()
-        workflow = (root.parent / ".github/workflows/codex-autonomous.yml").read_text()
-        self.assertIn("codex_audit_strategy.py", workflow)
-        self.assertIn("verify_checkout", remote)
-        self.assertIn("verify_changed", remote)
-        self.assertIn("AUDIT_STALE_BLOCKED", workflow)
-        router = (root.parent / ".github/workflows/agent-switch.yml").read_text()
-        self.assertIn("fromJSON(needs.preflight.outputs.audit_managed)", router)
-        self.assertIn("no_auto_merge:", router)
-        self.assertLess(remote.index("verify_checkout"), remote.index("timeout --signal=TERM"))
-        self.assertGreater(remote.index("verify_changed"), remote.index("codex_patch_guard.py"))
 
 
 

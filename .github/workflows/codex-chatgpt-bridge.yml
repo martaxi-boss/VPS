@@ -3,41 +3,9 @@ name: Codex - ChatGPT bridge
 # Owner-authored [codex audit] Issues trigger the existing VPS Codex login.
 # No ChatGPT auth tokens leave the VPS. No deploys, edits or PRs in phase one.
 on:
-  issues:
-    types: [opened]
-  workflow_dispatch:
-    inputs:
-      task:
-        description: Read-only audit prompt for the VPS repository
-        required: true
-        type: string
-      mode:
-        description: Read-only audit (fix is not enabled)
-        required: false
-        default: audit
-        type: choice
-        options: [audit]
-      source:
-        description: Task source, default manual
-        required: false
-        default: manual
-        type: choice
-        options: [manual, telegram]
-      issue_number:
-        description: Telegram-created GitHub issue for result reporting
-        required: false
-        default: ''
-        type: string
-      image_file_id:
-        description: Telegram image reference for a private authorized screenshot
-        required: false
-        default: ''
-        type: string
-      image_ext:
-        description: Image file type jpg, png, or webp
-        required: false
-        default: ''
-        type: string
+  pull_request:
+    paths:
+      - '.github/workflows/codex-chatgpt-bridge.yml'
 
 permissions:
   contents: read

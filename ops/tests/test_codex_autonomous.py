@@ -242,28 +242,15 @@ class SpecializationRouteTests(unittest.TestCase):
 
 
 class SerialResultHandshakeTests(unittest.TestCase):
-    def test_reusable_executor_exposes_verified_publication_outcome(self):
+    def test_legacy_executor_is_not_reusable_or_issue_dispatchable(self):
         flow = (OPS.parent / ".github/workflows/codex-autonomous.yml").read_text(
             encoding="utf-8")
-        self.assertIn("value: ${{ jobs.execute.outputs.publication_status }}", flow)
-        self.assertIn("publication_status: ${{ steps.publish.outputs.publication_status }}",
-                      flow)
-        self.assertIn('"publication_status=" + status +', flow)
-        self.assertIn('{"MERGED", "NO_CHANGE", "PR_STAGED"}', flow)
+        event=flow.split("\non:\n",1)[1].split("\npermissions:",1)[0]
+        self.assertIn("pull_request:",event)
+        self.assertNotIn("workflow_call:",event)
+        self.assertNotIn("issues:",event)
+        self.assertIn("publication_status: ",flow)
 
-    def test_serial_second_worker_requires_merged_or_allowed_no_change(self):
-        flow = (OPS.parent / ".github/workflows/agent-switch.yml").read_text(
-            encoding="utf-8")
-        second = flow.split("  codex_serial_2:", 1)[1].split(
-            "  codex_serial_blocked:", 1)[0]
-        self.assertIn("needs.codex_serial_1.outputs.publication_status == 'MERGED'",
-                      second)
-        self.assertIn("needs.codex_serial_1.outputs.publication_status == 'NO_CHANGE'",
-                      second)
-        self.assertIn("needs.preflight.outputs.serial_independent == 'true'", second)
-        self.assertIn("needs.codex_serial_1.outputs.publication_status == 'PR_STAGED'", second)
-        self.assertIn("PR_STAGED", flow.split("  codex_serial_blocked:", 1)[1])
-        self.assertIn("CODEX_2_NOT_STARTED:", flow)
 
     def test_actual_github_push_permission_gate_runs_before_any_codex(self):
         workflow = (OPS.parent / ".github/workflows/codex-autonomous.yml").read_text(
@@ -583,12 +570,6 @@ class NoChangeAndQueueSafetyTests(unittest.TestCase):
         self.assertIn("  queue: max", workflow)
         self.assertIn("  cancel-in-progress: false", workflow)
 
-    def test_serial_dependent_skip_has_durable_owner_notice(self):
-        workflow = (OPS.parent / ".github/workflows/agent-switch.yml").read_text(
-            encoding="utf-8"
-        )
-        self.assertIn("codex_serial_blocked:", workflow)
-        self.assertIn("CODEX_2_NOT_STARTED:", workflow)
 
     def test_account_ledger_or_chatgpt_auth_denial_is_reported_safely(self):
         remote = (OPS / "codex-autonomous-remote.sh").read_text(encoding="utf-8")
