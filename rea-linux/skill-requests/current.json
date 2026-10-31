@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-plcodex-current-main-version-proof-20261031-01",
+  "request_id": "rea-plcodex-finish-pr52-merge-20261031-01",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nexport GIT_TERMINAL_PROMPT=0 GIT_PAGER=cat PAGER=cat PYTHONDONTWRITEBYTECODE=1\ntmp=\"$(mktemp -d /tmp/rea-plcodex-main-preflight.XXXXXX)\"\ntrap 'rm -rf \"$tmp\"' EXIT\ngit clone -q --depth 1 --branch main https://github.com/martaxi-boss/Project-leader-codex.git \"$tmp/project\"\ncd \"$tmp/project\"\necho \"REAL_MAIN_HEAD=$(git rev-parse HEAD)\"\npython3 -m codex.runtime_sync\ngit diff --check\ntest -z \"$(git status --porcelain --untracked-files=all)\"\necho \"REA_MAIN_SOURCE_PREFLIGHT=PASS\"\n"
+            "set -Eeuo pipefail\nexport GIT_TERMINAL_PROMPT=0 GIT_PAGER=cat PAGER=cat PYTHONDONTWRITEBYTECODE=1\ntmp=\"$(mktemp -d /tmp/rea-plcodex-pr52-merge.XXXXXX)\"\ntrap 'rm -rf \"$tmp\"' EXIT\necho \"PR52_LIVE_REBASE_START\"\ngit clone -q --branch fix/codex-ignored-scope-audit-20261031 https://github.com/martaxi-boss/Project-leader-codex.git \"$tmp/project\"\ncd \"$tmp/project\"\ntest \"$(git rev-parse HEAD)\" = aff5624746e981c47bab16facb9ddc6cde371672\ngit fetch -q origin main\ntest \"$(git rev-parse origin/main)\" = 945549620cc63f6ffc4c21db4778450064f137ec\necho \"PR52_EXACT_REVISIONS=PASS\"\ngit -c user.name=\"REA authorized integration\" -c user.email=\"rea-merge@example.invalid\" -c commit.gpgsign=false merge --no-ff -m \"Merge current main into PR52 security fix\" origin/main\necho \"PR52_LOCAL_MERGE=PASS\"\ngit diff --check origin/main...HEAD\npython3 -m unittest discover -s codex/tests -p 'test_*.py' -q\npython3 -m unittest discover -s tests -p 'test_*.py' -q\necho \"PR52_MERGED_REGRESSIONS=PASS\"\ntest -z \"$(git status --porcelain --untracked-files=all)\"\necho \"PR52_NEW_SHA=$(git rev-parse HEAD)\"\necho \"PR52_DRY_PUSH_CHECK\"\nif git push --dry-run --quiet origin HEAD:refs/heads/fix/codex-ignored-scope-audit-20261031 >\"$tmp/drypush.log\" 2>&1; then\n  echo \"PR52_GIT_PUSH_AUTHORIZED=YES\"\nelse\n  echo \"PR52_GIT_PUSH_AUTHORIZED=NO\"\n  echo \"PR52_WRITE_NOT_PERFORMED\"\n  exit 55\nfi\ntest \"$(git ls-remote origin refs/heads/fix/codex-ignored-scope-audit-20261031 | cut -f1)\" = aff5624746e981c47bab16facb9ddc6cde371672\ngit push --quiet origin HEAD:refs/heads/fix/codex-ignored-scope-audit-20261031 >\"$tmp/push.log\" 2>&1\necho \"PR52_BRANCH_UPDATED=$(git rev-parse HEAD)\"\necho \"PR52_REA_COMPLETE\"\n"
           ],
-          "timeout_ms": 85000,
-          "idle_timeout_ms": 60000,
+          "timeout_ms": 150000,
+          "idle_timeout_ms": 110000,
           "limits": {
-            "output_bytes": 12500
+            "output_bytes": 9000
           }
         }
       }
