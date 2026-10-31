@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-plcodex-cwd-postpublication-20261031-e03",
+  "request_id": "rea-plcodex-cwd-postmerge-20261031-e04",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nexport GIT_PAGER=cat PAGER=cat GIT_TERMINAL_PROMPT=0 PYTHONDONTWRITEBYTECODE=1\ntmp=\"$(mktemp -d /tmp/rea-plcodex-cwd-published.XXXXXX)\"\ntrap 'rm -rf \"$tmp\"' EXIT\ngit clone --quiet --depth 2 --branch fix/codex-worker-private-cwd-20261031 https://github.com/martaxi-boss/Project-leader-codex.git \"$tmp/repo\"\ncd \"$tmp/repo\"\ntest \"$(git rev-parse HEAD)\" = 48d19832cfc44f47605f62e1cb1cab60864ab174\ntest \"$(git rev-parse HEAD^)\" = c39ee2add4862e902d6fb9c0ac6bfaa1d867a6ed\npython3 - <<'PY'\nimport hashlib,subprocess\nfrom pathlib import Path\nexpected={\n\"codex/dual.py\":\"56ce220f8a852f1c0d7d03e3bee17b6dd16c7bde944e5df14468e74ef66f4763\",\n\"codex/tests/test_smart.py\":\"c9f1cda7b115993b3d616d90ecdf1cc38b3b628fb7c4e3823f1d86ad7ea293a1\"\n}\nfor path,sha in expected.items():\n got=hashlib.sha256(Path(path).read_bytes()).hexdigest()\n assert got==sha,(\"TESTED_BYTES_MISMATCH\",path,got)\n print(\"PUBLISHED_MATCHES_REA_TESTED_SHA256\",path,flush=True)\nchanged=subprocess.check_output([\"git\",\"diff\",\"--name-only\",\"HEAD^\",\"HEAD\"],text=True).splitlines()\nassert set(changed)==set(expected),changed\nprint(\"PUBLISHED_MINIMAL_SCOPE=2\",flush=True)\nPY\ngit diff --check HEAD^ HEAD\npython3 -m unittest codex.tests.test_smart.SmartRunTests.test_codex_cli_child_starts_inside_independent_writable_clone -q\ntest -z \"$(git status --porcelain)\"\necho REA_PUBLISHED_CLI_CWD_RECHECK=PASS"
+            "set -Eeuo pipefail\nexport GIT_PAGER=cat PAGER=cat GIT_TERMINAL_PROMPT=0 PYTHONDONTWRITEBYTECODE=1\ntmp=\"$(mktemp -d /tmp/rea-plcodex-cwd-postmerge.XXXXXX)\"\ntrap 'rm -rf \"$tmp\"' EXIT\ngit clone --quiet --depth 2 --branch main https://github.com/martaxi-boss/Project-leader-codex.git \"$tmp/repo\"\ncd \"$tmp/repo\"\ntest \"$(git rev-parse HEAD)\" = 3ecdcd79573104c39ed644dbfd1bd57596e51d06\nprintf 'FINAL_MAIN_SHA='; git rev-parse HEAD\npython3 - <<'PY'\nimport hashlib\nfrom pathlib import Path\nexpected={\n\"codex/dual.py\":\"56ce220f8a852f1c0d7d03e3bee17b6dd16c7bde944e5df14468e74ef66f4763\",\n\"codex/tests/test_smart.py\":\"c9f1cda7b115993b3d616d90ecdf1cc38b3b628fb7c4e3823f1d86ad7ea293a1\",\n}\nfor p,v in expected.items():\n assert hashlib.sha256(Path(p).read_bytes()).hexdigest()==v,p\n print(\"POSTMERGE_TESTED_BYTES_MATCH\",p,flush=True)\nassert \"one portable\" in Path(\"AGENTS.md\").read_text().lower()\nprint(\"COORDINATOR_POLICY_PRESERVED=YES\",flush=True)\nPY\ngit diff --check HEAD^ HEAD\npython3 -m unittest codex.tests.test_smart.SmartRunTests.test_codex_cli_child_starts_inside_independent_writable_clone -q\ntest -z \"$(git status --porcelain)\"\necho POSTMERGE_REA_CWD_REGRESSION_PASS"
           ],
-          "timeout_ms": 115000,
+          "timeout_ms": 125000,
           "idle_timeout_ms": 80000,
           "limits": {
-            "output_bytes": 6500
+            "output_bytes": 6800
           }
         }
       }
