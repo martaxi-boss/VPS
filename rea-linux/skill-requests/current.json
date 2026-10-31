@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-readonly-status-and-legacy-inventory-20261031-z2c6",
+  "request_id": "rea-leads-legacy-source-inventory-20261031-q3v2",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\necho LEADS_STATUS_AND_ARCHIVE_BEGIN\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B - <<'PY'\nimport json,subprocess,sys,os,stat,collections\nfrom pathlib import Path\nroot=Path('/opt/telegram-robot-leads')\nreport=subprocess.run([sys.executable,'-B',str(root/'scripts/leads_operational_report.py'),'--with-pm2','--expected-source','9596a0687aeed20e03bcd1f91ae2ad6d830cd523'],capture_output=True,text=True,timeout=25)\nprint('REPORT_EXIT',report.returncode)\nif report.returncode!=0:\n print('REPORT_FAILURE_TYPE','runtime_nonzero')\n raise SystemExit(3)\nr=json.loads(report.stdout)\nprint('REPORT_STATUS',r.get('status'))\nprint('READINESS_INDICATORS',json.dumps(r.get('readiness_indicators',[])))\nfor key in ('source','sessions','operation_state','public_discovery','pm2','supervisor'):\n v=r.get(key)\n if isinstance(v,dict):\n  print('REPORT_SECTION',key,'STATUS',v.get('status','UNSPECIFIED'))\n  for field in ('public_groups','distinct_processed_member_identities','pending_member_actions','authorized_member_action_count','last_cycle_no_direct_member_actions'):\n   if field in v:print('REPORT_FIELD',key,field,v[field])\nprevious=Path('/opt/.telegram-leads-previous-08ffc99ae8b1')\nprint('LEGACY_BACKUP_PRESENT',previous.is_dir() and not previous.is_symlink())\nif previous.is_dir() and not previous.is_symlink():\n counters=collections.Counter()\n candidate=[]\n scanned=0\n for folder,dirs,files in os.walk(previous,followlinks=False):\n  depth=len(Path(folder).relative_to(previous).parts)\n  dirs[:]=[d for d in dirs if depth<3 and not (Path(folder)/d).is_symlink()]\n  for name in files:\n   scanned+=1\n   p=Path(folder)/name\n   if p.is_symlink():continue\n   try:\n    m=p.stat()\n   except OSError:continue\n   if not stat.S_ISREG(m.st_mode):continue\n   suffix=p.suffix.lower()\n   if suffix in ('.db','.sqlite','.sqlite3','.json','.jsonl','.csv'):\n    counters[suffix]+=1\n    if suffix in ('.db','.sqlite','.sqlite3'):\n     candidate.append(str(p.relative_to(previous)))\n   if scanned>=2000:break\n  if scanned>=2000:break\n print('LEGACY_FILES_SCANNED',scanned)\n print('LEGACY_FORMAT_COUNTS',json.dumps(counters,sort_keys=True))\n print('LEGACY_DATABASE_PATHS',json.dumps(candidate[:12]))\nprint('LEADS_STATUS_AND_ARCHIVE_READONLY_PASS')\nPY"
+            "set -Eeuo pipefail\necho LEGACY_SOURCE_INVENTORY_START\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B - <<'PY'\nimport os,stat,json\nfrom pathlib import Path\nroots=[\n Path('/opt/.telegram-leads-previous-08ffc99ae8b1'),\n Path('/opt/telegram-leads-optin'),\n Path('/opt/telegram-robot-leads'),\n Path('/var/lib/telegram-robot-leads')\n]\nfor root in roots:\n if not root.is_dir() or root.is_symlink():\n  print('PROJECT_PATH',root.name,'ABSENT')\n  continue\n files=0\n matches=[]\n for base,dirs,names in os.walk(root,followlinks=False):\n  depth=len(Path(base).relative_to(root).parts)\n  dirs[:]=[name for name in dirs if depth<7 and not (Path(base)/name).is_symlink() and name not in ('.git','.venv','node_modules','__pycache__','.telegram-leads-release-backups')]\n  for name in names:\n   files+=1\n   p=Path(base)/name\n   if p.is_symlink():continue\n   suffix=p.suffix.lower()\n   if suffix in ('.db','.sqlite','.sqlite3','.csv','.json','.jsonl'):\n    try:\n     st=p.stat()\n    except OSError:\n     continue\n    if stat.S_ISREG(st.st_mode):\n     matches.append({'extension':suffix,'relative_path':str(p.relative_to(root))[:100],'bytes':st.st_size})\n  if files>9000:break\n print('PROJECT_PATH',root.name,'SCANNED',files,'MATCHED',len(matches))\n print('DATA_CANDIDATES',json.dumps(matches[:25]))\nprint('LEGACY_SOURCE_INVENTORY_PASS')\nPY"
           ],
-          "timeout_ms": 110000,
-          "idle_timeout_ms": 70000,
+          "timeout_ms": 102000,
+          "idle_timeout_ms": 68000,
           "limits": {
-            "output_bytes": 10000
+            "output_bytes": 9500
           }
         }
       }
