@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-member-actions-journal-audit-20261031-x7v2",
+  "request_id": "rea-leads-bootstrap-memory-recovery-verify-20261031-c8r4",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nfrom collections import Counter\nimport json\npath=Path('/var/lib/telegram-robot-leads/supervisor-events.jsonl')\nstats=Counter();groupstats=Counter();byaccount=Counter();misc=Counter()\nfor line in path.open(encoding='utf-8'):\n try: o=json.loads(line)\n except ValueError:continue\n e=o.get('event') if isinstance(o,dict) else None\n if not isinstance(e,dict):continue\n actions=e.get('member_actions',[])\n if isinstance(actions,list):\n  stats['cycles_with_member_actions']+=bool(actions)\n  for a in actions:\n   if not isinstance(a,dict):continue\n   status=str(a.get('status','MISSING'))\n   stats['member_action_'+status]+=1\n   if status.casefold() in ('added','success','invite_ok','member_added','approved','already_member'):\n    acc=a.get('account')\n    label='account_'+str(acc) if str(acc) in ('1','2') else 'UNATTRIBUTED'\n    byaccount[(label,status)]+=1\n groups=e.get('group_actions',[])\n if isinstance(groups,list):\n  for a in groups:\n   if isinstance(a,dict):\n    groupstats[str(a.get('status','MISSING'))]+=1\n growth=e.get('organic_growth')\n if isinstance(growth,dict):\n  for k,v in growth.items():\n   if not isinstance(v,dict):continue\n   status=str(v.get('status','MISSING'))\n   if status in ('APPROVED_REQUEST','SUCCESS','ADDED','added'):\n    misc[(str(k),status)]+=1\nprint('MEMBER_ACTIONS',stats.most_common(30))\nprint('SUCCESS_LIKE_MEMBER_ACTIONS_BY_ACCOUNT',sorted([(a,b,n) for (a,b),n in byaccount.items()]))\nprint('GROUP_ACTION_STATUSES',groupstats.most_common(12))\nprint('GROWTH_ACTION_SUCCESSES',[(a,b,n) for (a,b),n in misc.items()])\nprint('AUDIT_COMPLETED')\nPY"
+            "set -Eeuo pipefail\ntemp=$(mktemp -d /tmp/leads-bootstrap-memory-test.XXXXXX)\ntrap 'rm -rf \"$temp\"' EXIT\ngit -c credential.helper= clone -q --depth 1 --branch docs/bootstrap-historical-engine-recovery-20261031 https://github.com/martaxi-boss/telegram-robot-leads.git \"$temp/repo\"\ncd \"$temp/repo\"\necho CHECKED_BRANCH=$(git branch --show-current)\necho CHECKED_COMMIT=$(git rev-parse HEAD)\ngit -c credential.helper= fetch -q --depth 12 origin main:refs/remotes/origin/main\ngit diff --check origin/main HEAD\necho CHANGED_FILES\ngit diff --name-only origin/main HEAD\npython3 -B - <<'PY'\nfrom pathlib import Path\nboot=Path('docs/BOOTSTRAP.md').read_text()\nstate=Path('docs/PROJECT-STATE.md').read_text()\nmandatory={\n  'legacy source':'1862998844782764d263ee8e49a1476a7f86beac',\n  'shared history':'histórico global durável',\n  'account 1 region':'PT_ES',\n  'account 2 region':'EU_OTHER',\n  'group joined':'1 adesão a grupo',\n  'installed SHA':'8298503f7b21466ebf14b9f164f9e103c9c781e7',\n  'recent audit':'41250971838',\n  'no historic proof':'não é possível',\n  'consent distinction':'Não reativar recolha indiscriminada',\n}\nfor k,v in mandatory.items():\n assert v in (boot+state),k\n print('DOC_CONTRACT_PASS',k)\nassert '## Motor antigo: recuperação do conhecimento' in boot\nassert 'próximo passo' in boot.lower()\nassert '## Situação verificada e prioridade seguinte' in state\nprint('DOCUMENTS_CONSISTENT_PASS')\nPY\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B -m unittest discover -s tests -q\necho BOOTSTRAP_MEMORY_TESTS_PASS"
           ],
-          "timeout_ms": 90000,
-          "idle_timeout_ms": 64000,
+          "timeout_ms": 140000,
+          "idle_timeout_ms": 100000,
           "limits": {
-            "output_bytes": 4700
+            "output_bytes": 8800
           }
         }
       }
