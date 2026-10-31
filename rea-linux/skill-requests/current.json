@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-telegram-leads-queue-final-cert-20261031-t6a9",
+  "request_id": "rea-telegram-leads-predeploy-20261031-j3x7",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\ntmp=$(mktemp -d /tmp/leads-final-verify.XXXXXX)\ntrap 'rm -rf \"$tmp\"' EXIT\ngit -c credential.helper= clone -q --depth 1 --branch feature/approved-queue-observability-20261031 https://github.com/martaxi-boss/telegram-robot-leads.git \"$tmp/repo\"\ncd \"$tmp/repo\"\necho CANDIDATE_SHA=$(git rev-parse HEAD)\ngit -c credential.helper= fetch -q --depth 20 origin main:refs/remotes/origin/main\nGIT_PAGER=cat git --no-pager diff --check origin/main HEAD\necho DIFF_PASS\necho CHANGED_FILES\nGIT_PAGER=cat git --no-pager diff --name-only origin/main HEAD\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B -m unittest discover -s tests -q\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B - <<'PY'\nfrom pathlib import Path\nboot=Path(\"docs/BOOTSTRAP.md\").read_text()\nstate=Path(\"docs/PROJECT-STATE.md\").read_text()\nreport=Path(\"docs/HISTORICAL-ENGINE-COMPARISON-20261031.md\").read_text()\nruntime=Path(\"scripts/safe_runtime.py\").read_text()\nfor p in (boot,state,report):\n assert '41252089850' in p\nassert 'approved_queue_snapshot' in runtime\nassert 'approved_queue' in runtime\nassert 'sem deploy' in boot.lower() or 'não houve deploy' in boot.lower()\nassert 'não houve deploy' in state.lower()\nassert 'não' in report.lower()\nprint('DOCUMENTS_AND_RUNTIME_CHECK_PASS')\nPY\necho FINAL_CERTIFICATION_COMPLETE"
+            "set -Eeuo pipefail\nsudo -n /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nimport json,subprocess\nroot=Path('/opt/telegram-robot-leads')\nprivate=Path('/root/project-secrets/telegram-robot-leads')\nstate=Path('/var/lib/telegram-robot-leads/operation-state.json')\nprint('ROOT_EXISTS',root.is_dir())\nverified=root/'.verified-source-commit'\nprint('INSTALLED_SHA',verified.read_text().strip())\nprint('SESSION_COUNT',len(list(private.glob('*.session'))))\nprint('STATE_PRESENT',state.is_file())\nif state.is_file():\n    d=json.loads(state.read_text())\n    print('RECORDED_ADDITIONS',[(k,d.get('accounts',{}).get(k,{}).get('member_adds')) for k in ('1','2')])\n    print('PENDING_MEMBERS',len(d.get('pending_member_actions',{})))\n    print('RECORDED_MEMBER_IDS',len(d.get('approved_user_ids_done',{})))\nr=subprocess.run(['pm2','jlist'],env={'PM2_HOME':'/root/.pm2','PATH':'/usr/local/bin:/usr/bin:/bin'},capture_output=True,text=True,timeout=18)\nprint('PM2_CALL_OK',r.returncode==0)\nif r.returncode==0:\n    rows=json.loads(r.stdout)\n    workers=[x for x in rows if x.get('name')=='telegram-robot-leads']\n    print('TELEGRAM_WORKERS',len(workers))\n    if len(workers)==1:\n        print('TELEGRAM_STATUS',workers[0].get('pm2_env',{}).get('status'))\nprint('READ_ONLY_PREFLIGHT_COMPLETE')\nPY"
           ],
-          "timeout_ms": 140000,
-          "idle_timeout_ms": 100000,
+          "timeout_ms": 70000,
+          "idle_timeout_ms": 48000,
           "limits": {
-            "output_bytes": 9000
+            "output_bytes": 4000
           }
         }
       }
