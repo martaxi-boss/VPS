@@ -3,8 +3,9 @@ name: Codex Project Leader scoped proposal
 # Explicit owner Issue is the only trigger. Codex edits a disposable clone on VPS,
 # then returns a small diff for independent review; it has NO GitHub write token.
 on:
-  issues:
-    types: [opened]
+  pull_request:
+    paths:
+      - '.github/workflows/codex-project-leader-safe-fix.yml'
 
 permissions: {}
 

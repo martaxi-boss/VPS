@@ -3,51 +3,9 @@ name: Codex autonomous execution (Owner-authorized)
 # A single Owner-authored Issue starts the entire bounded implementation path.
 # The VPS holds the Codex login. GitHub write credentials stay on the runner.
 on:
-  issues:
-    types: [opened]
-  workflow_call:
-    outputs:
-      publication_status:
-        description: Trusted first worker publication result for dependent serial tasks
-        value: ${{ jobs.execute.outputs.publication_status }}
-      publication_pr:
-        description: Trusted publisher PR URL; never model text
-        value: ${{ jobs.execute.outputs.publication_pr }}
-      publication_sha:
-        description: Trusted publisher exact SHA
-        value: ${{ jobs.execute.outputs.publication_sha }}
-      publication_canonical_sha:
-        description: Canonical Project Leader revision verified for this worker
-        value: ${{ jobs.execute.outputs.publication_canonical_sha }}
-    inputs:
-      task_b64:
-        description: Validated owner task, encoded to avoid multiline output injection
-        required: true
-        type: string
-      issue_number:
-        description: Original Owner issue that stores this job and receives reports
-        required: true
-        type: number
-      instance_id:
-        description: Trusted bounded worker identity for explicit jobs
-        required: false
-        type: string
-        default: ''
-      no_auto_merge:
-        description: Return a validated PR without merging parallel changes
-        required: false
-        type: boolean
-        default: false
-      allow_no_change:
-        description: Owner explicitly permits a read-only, no-diff task result
-        required: false
-        type: boolean
-        default: false
-      reasoning_effort:
-        description: Offline validated reasoning for this exact Codex worker
-        required: false
-        type: string
-        default: medium
+  pull_request:
+    paths:
+      - '.github/workflows/codex-autonomous.yml'
 
 permissions: {}
 

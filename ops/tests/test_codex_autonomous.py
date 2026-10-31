@@ -242,14 +242,14 @@ class SpecializationRouteTests(unittest.TestCase):
 
 
 class SerialResultHandshakeTests(unittest.TestCase):
-    def test_reusable_executor_exposes_verified_publication_outcome(self):
+    def test_legacy_executor_is_not_reusable_or_issue_dispatchable(self):
         flow = (OPS.parent / ".github/workflows/codex-autonomous.yml").read_text(
             encoding="utf-8")
-        self.assertIn("value: ${{ jobs.execute.outputs.publication_status }}", flow)
-        self.assertIn("publication_status: ${{ steps.publish.outputs.publication_status }}",
-                      flow)
-        self.assertIn('"publication_status=" + status +', flow)
-        self.assertIn('{"MERGED", "NO_CHANGE", "PR_STAGED"}', flow)
+        event=flow.split("\non:\n",1)[1].split("\npermissions:",1)[0]
+        self.assertIn("pull_request:",event)
+        self.assertNotIn("workflow_call:",event)
+        self.assertNotIn("issues:",event)
+        self.assertIn("publication_status: ",flow)
 
     def test_serial_second_worker_requires_merged_or_allowed_no_change(self):
         flow = (OPS.parent / ".github/workflows/agent-switch.yml").read_text(

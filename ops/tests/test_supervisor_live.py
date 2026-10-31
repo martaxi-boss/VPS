@@ -13,21 +13,21 @@ class SupervisorLiveTests(unittest.TestCase):
     def test_quota_observer_has_one_canonical_workflow_identity(self):
         root = Path(__file__).resolve().parents[2]
         quota = (root / ".github/workflows/codex-quota-watch.yml").read_text()
-        gateway = (root / ".github/workflows/telegram-codex-gateway.yml").read_text()
+        cloud = (root / ".github/workflows/cloud-supervisor-observation.yml").read_text()
         name = "Supervisor - Real ChatGPT quota watch (Owner notifications only)"
         self.assertEqual(quota.splitlines()[0], "name: " + name)
-        self.assertIn('      - "' + name + '"', gateway)
+        self.assertIn('      - "' + name + '"', cloud)
         self.assertEqual(live.WORKFLOWS[name], "Vigilância da quota real")
-        self.assertNotIn("Codex quota continuation (Owner checkpoints only)", gateway)
-        self.assertNotIn("Codex quota continuation (Owner checkpoints only)", live.WORKFLOWS)
+        self.assertFalse((root / ".github/workflows/telegram-codex-gateway.yml").exists())
+        self.assertNotIn("Codex quota continuation (Owner checkpoints only)", cloud)
 
     def test_no_status_fanout_per_workflow_start(self):
         root = Path(__file__).resolve().parents[2]
-        gateway = (root / ".github/workflows/telegram-codex-gateway.yml").read_text()
-        listener = gateway.split("  workflow_run:", 1)[1].split("  pull_request:", 1)[0]
+        cloud = (root / ".github/workflows/cloud-supervisor-observation.yml").read_text()
+        listener = cloud.split("  workflow_run:", 1)[1].split("  push:", 1)[0]
         self.assertIn("types: [completed]", listener)
         self.assertNotIn("types: [requested, in_progress, completed]", listener)
-        self.assertIn("Coordinator to existing Codex router (Owner order)", listener)
+        self.assertNotIn("Coordinator to existing Codex router (Owner order)", listener)
         self.assertIn("Supervisor - Real ChatGPT quota watch", listener)
 
     def test_commands_are_read_only_and_usable_by_voice(self):

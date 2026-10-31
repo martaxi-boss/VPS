@@ -3,68 +3,9 @@ name: Agent switch (Owner GitHub order)
 # Names select the executor; an authenticated Owner Issue is the durable task.
 # Unsupported providers fail BEFORE any Codex tokens are consumed.
 on:
-  workflow_call:
-    outputs:
-      task_count:
-        description: Verified number of routed Codex workers
-        value: ${{ jobs.preflight.outputs.task_count }}
-      phase_count:
-        description: Validated DAG phases, including held phases
-        value: ${{ jobs.preflight.outputs.phase_count }}
-      worker_1_status:
-        description: First executor verified result
-        value: ${{ jobs.codex.outputs.publication_status || jobs.codex_parallel_1.outputs.publication_status || jobs.codex_serial_1.outputs.publication_status }}
-      worker_1_pr:
-        description: First worker trusted PR locator
-        value: ${{ jobs.codex.outputs.publication_pr || jobs.codex_parallel_1.outputs.publication_pr || jobs.codex_serial_1.outputs.publication_pr }}
-      worker_1_sha:
-        description: First worker trusted implementation SHA
-        value: ${{ jobs.codex.outputs.publication_sha || jobs.codex_parallel_1.outputs.publication_sha || jobs.codex_serial_1.outputs.publication_sha }}
-      worker_1_canonical_sha:
-        description: Project Leader SHA verified by first worker publisher
-        value: ${{ jobs.codex.outputs.publication_canonical_sha || jobs.codex_parallel_1.outputs.publication_canonical_sha || jobs.codex_serial_1.outputs.publication_canonical_sha }}
-      worker_2_status:
-        description: Second executor verified result
-        value: ${{ jobs.codex_parallel_2.outputs.publication_status || jobs.codex_serial_2.outputs.publication_status }}
-      worker_2_pr:
-        description: Second worker trusted PR locator
-        value: ${{ jobs.codex_parallel_2.outputs.publication_pr || jobs.codex_serial_2.outputs.publication_pr }}
-      worker_2_sha:
-        description: Second worker trusted implementation SHA
-        value: ${{ jobs.codex_parallel_2.outputs.publication_sha || jobs.codex_serial_2.outputs.publication_sha }}
-      worker_2_canonical_sha:
-        description: Project Leader SHA verified by second worker publisher
-        value: ${{ jobs.codex_parallel_2.outputs.publication_canonical_sha || jobs.codex_serial_2.outputs.publication_canonical_sha }}
-    inputs:
-      coordinator_plan_b64:
-        description: Authenticated Owner Coordinator audit; consumed by existing bounded router
-        required: true
-        type: string
-      phase_number:
-        description: Trusted original Owner DAG phase number (local caller only)
-        required: false
-        type: number
-        default: 1
-  issues:
-    types: [opened]
-  # A fresh authenticated Owner Issue is required after a quota hold.
   pull_request:
     paths:
       - '.github/workflows/agent-switch.yml'
-      - '.github/workflows/codex-autonomous.yml'
-      - 'ops/agent_switch.py'
-      - 'ops/codex_audit_strategy.py'
-      - 'ops/tests/test_codex_audit_strategy.py'
-      - 'ops/tests/test_audited_owner_phase.py'
-      - 'ops/tests/test_agent_switch.py'
-      - 'ops/codex_resource_policy.py'
-      - 'ops/tests/test_codex_resource_policy.py'
-      - 'ops/codex_quota_resume.py'
-      - 'ops/codex_quota_workspace.py'
-      - 'ops/tests/test_codex_quota_resume.py'
-      - 'ops/tests/test_codex_quota_workspace.py'
-      - '.github/workflows/coordinator-owner-order.yml'
-      - 'ops/tests/test_coordinator_owner_routing.py'
 
 permissions: {}
 
@@ -91,7 +32,6 @@ jobs:
           python3 -m unittest discover -s ops/tests -p test_codex_quota_resume.py -v
           python3 -m unittest discover -s ops/tests -p test_codex_quota_workspace.py -v
           python3 -m unittest discover -s ops/tests -p test_codex_resume_stage_routing.py -v
-          python3 -m unittest discover -s ops/tests -p test_coordinator_owner_routing.py -v
 
   preflight:
     if: >-

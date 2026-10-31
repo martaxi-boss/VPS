@@ -410,7 +410,7 @@ class QuotaLifecycleTests(unittest.TestCase):
         self.assertIn("      contents: read", worker)
         self.assertNotIn("      actions: write", worker)
 
-    def test_all_five_reusable_codex_callers_propagate_actions_read(self):
+    def test_legacy_coordinator_callers_are_retired_with_worker_permissions_preserved(self):
         root = Path(__file__).resolve().parents[2]
         child = (root / ".github/workflows/codex-autonomous.yml").read_text()
         router = (root / ".github/workflows/agent-switch.yml").read_text()
@@ -424,13 +424,13 @@ class QuotaLifecycleTests(unittest.TestCase):
             self.assertIn("contents: read", perms, f"Codex caller {idx}")
             self.assertIn("issues: write", perms, f"Codex caller {idx}")
             self.assertNotIn("actions: write", perms, f"Codex caller {idx}")
-        for path in (".github/workflows/coordinator-owner-order.yml",
-                     ".github/workflows/coordinator-phase-cycle.yml"):
-            source = (root / path).read_text()
-            chunks = source.split("uses: ./.github/workflows/agent-switch.yml")
-            self.assertGreaterEqual(len(chunks), 2)
-            for block in chunks[:-1]:
-                self.assertIn("actions: read", block.rsplit("    permissions:", 1)[-1])
+        for name in ("coordinator-owner-order.yml", "coordinator-phase-cycle.yml"):
+            self.assertFalse((root / ".github/workflows" / name).exists())
+        for name in ("agent-switch.yml", "codex-autonomous.yml"):
+            flow=(root / ".github/workflows" / name).read_text()
+            event=flow.split("\non:\n",1)[1].split("\npermissions:",1)[0]
+            self.assertNotIn("workflow_call:",event)
+            self.assertNotIn("issues:",event)
 
     def test_quota_safe_hold_happens_before_private_owner_notice(self):
         root = Path(__file__).resolve().parents[2]

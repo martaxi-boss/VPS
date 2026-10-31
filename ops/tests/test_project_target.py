@@ -8,7 +8,7 @@ import subprocess
 import sys
 import unittest
 
-from ops import agent_switch, coordinator_phase_continuation, project_target
+from ops import project_target
 
 ROOT = Path(__file__).resolve().parents[2]
 REVISION = "a" * 40
@@ -77,40 +77,6 @@ class TargetIdentityTests(unittest.TestCase):
             self.assertEqual(result.returncode == 0, accepted)
             self.assertEqual(result.stdout, b"")
 
-
-class GenericCoordinatorTests(unittest.TestCase):
-    def test_new_project_plan_routes_one_worker_with_real_target(self):
-        target = "martaxi-boss/future-project-42"
-        plan, phases = agent_switch.parse_coordinator_envelope(encoded(audit(target)))
-        self.assertEqual(plan["target_repository"], target)
-        self.assertEqual(phases["phase_count"], 1)
-        self.assertEqual(agent_switch.workflow_values(plan)["task_count"], "1")
-
-    def test_next_phase_cannot_change_target(self):
-        target = "martaxi-boss/future-project-42"
-        base = encoded(audit(target, phased=True))
-        next_phase = coordinator_phase_continuation.prepared_phase(base, 2, "b" * 40)
-        self.assertEqual(next_phase["target_repository"], target)
-        plan = json.loads(base64.b64decode(next_phase["coordinator_plan_b64"]))
-        self.assertEqual(plan["target_repository"], target)
-        self.assertEqual(plan["audit"]["revision"], "b" * 40)
-
-    def test_gateway_binds_model_to_owner_issue_and_scope(self):
-        owner = (ROOT / ".github/workflows/coordinator-owner-order.yml").read_text()
-        switch = (ROOT / ".github/workflows/agent-switch.yml").read_text()
-        phase = (ROOT / ".github/workflows/coordinator-phase-cycle.yml").read_text()
-        worker = (ROOT / ".github/workflows/codex-autonomous.yml").read_text()
-        remote = (ROOT / "ops/coordinator-smoke-remote.sh").read_text()
-        self.assertIn("from_owner_order(body)", owner)
-        self.assertIn("order['target_repository'] != expected_target", owner)
-        self.assertIn("order['target_repository'] != issue_target", switch)
-        self.assertIn("plan['target_repository'] != target", phase)
-        self.assertIn("info.get('permissions', {}).get('push') is not True", owner)
-        self.assertIn("info.get('default_branch') != 'main'", owner)
-        self.assertIn("info.get('private') is not False", owner)
-        self.assertIn("from_owner_order(task)", worker)
-        self.assertIn('python3 "$control/ops/project_target.py" validate "$slug"', remote)
-        self.assertNotIn("StrictHostKeyChecking=no", owner)
 
 
 if __name__ == "__main__":
