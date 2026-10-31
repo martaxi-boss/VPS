@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-legacy-backups-events-readonly-20261031-p4h7",
+  "request_id": "rea-leads-journal-historical-success-summary-20261031-n9c4",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nfrom collections import Counter\nimport json,os,stat\ntargets=[Path('/opt/telegram-robot-leads'),Path('/root/project-secrets/telegram-robot-leads'),Path('/var/lib/telegram-robot-leads')]\ninteresting={'users.db','estado_bot.json','telethon_adder.log','supervisor-events.jsonl','operation-state.json'}\nsuffixes={'.db','.db3','.sqlite','.sqlite3','.jsonl','.log','.tgz','.gz','.zip'}\nfor base in targets:\n print('SCOPED_ROOT',str(base))\n found=[];visited=0\n for root,dirs,files in os.walk(base,followlinks=False):\n  here=Path(root); rel=here.relative_to(base)\n  if len(rel.parts)>=4:\n   dirs[:]=[]\n  else:\n   dirs[:]=[d for d in dirs if d not in ('.venv','node_modules','.git','__pycache__') and not (here/d).is_symlink()]\n  for name in files:\n   visited+=1\n   p=here/name\n   if p.is_symlink():continue\n   if name in interesting or p.suffix.lower() in suffixes or 'backup' in name.lower():\n    try: size=p.stat().st_size\n    except OSError:continue\n    found.append((str(p),size))\n print('FILES_SCANNED',visited)\n print('HISTORY_CANDIDATES',found[:75])\n print('CANDIDATE_COUNT',len(found))\njournal=Path('/var/lib/telegram-robot-leads/supervisor-events.jsonl')\nif journal.is_file() and not journal.is_symlink():\n schema=Counter();typings=Counter();type_values=Counter();total=0;first=None;last=None\n for line in journal.open(encoding='utf-8'):\n  total+=1\n  try: v=json.loads(line)\n  except ValueError: continue\n  if not isinstance(v,dict):continue\n  if first is None:first=v\n  last=v\n  schema[','.join(sorted(v.keys()))]+=1\n  for field in ('status','event','event_type','kind','type','action'):\n   if field not in v:continue\n   val=v[field]\n   if isinstance(val,str) and len(val)<95:type_values[(field,val)]+=1\n   else:typings[(field,type(val).__name__)]+=1\n print('JOURNAL_COUNT',total)\n print('JOURNAL_SCHEMAS',schema.most_common(7))\n print('JOURNAL_EVENT_FIELDS',type_values.most_common(35))\n print('JOURNAL_VALUE_TYPES',typings.most_common(12))\n print('FIRST_FIELD_NAMES',sorted(first.keys()) if first else [])\n print('LAST_FIELD_NAMES',sorted(last.keys()) if last else [])\nprint('EVIDENCE_AUDIT_COMPLETE')\nPY"
+            "set -Eeuo pipefail\nsudo -n /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nfrom collections import Counter\nimport json\np=Path('/var/lib/telegram-robot-leads/supervisor-events.jsonl')\ncounts=Counter();kind_sources=Counter();success=Counter();dates=[]\nfor line in p.open(encoding='utf-8'):\n try:row=json.loads(line)\n except (ValueError,UnicodeError):continue\n if not isinstance(row,dict):continue\n event=row.get('event')\n if not isinstance(event,dict):continue\n typ=str(event.get('kind',event.get('status',event.get('event_type','MISSING'))))\n counts[typ]+=1\n for k in ('member_added','members_added','invite_ok','adds_ok','approved_user_ids_done'):\n  val=event.get(k)\n  if val and isinstance(val,int):success[k]+=val\n  elif isinstance(val,str) and val.casefold() in ('true','success','yes'):success[k]+=1\n for k in ('account','session'):\n  if k in event:kind_sources[k]+=1\n if isinstance(row.get('ts'),(str,int,float)):dates.append(row['ts'])\nprint('NESTED_EVENT_KINDS',counts.most_common(45))\nprint('SUCCESS_RELATED_SUM',dict(success))\nprint('ACCOUNT_ATTRIBUTION_FIELDS_COUNT',dict(kind_sources))\nprint('TS_FIRST_LAST',str(dates[0])[:40] if dates else None,str(dates[-1])[:40] if dates else None)\nprint('EXACT_EVENT_FIELDS',sorted(event.keys()) if isinstance(event,dict) else [])\nfor directory in ('/root/TELEGRAM-IPTVPN','/opt/TELEGRAM-IPTVPN','/root/telegram-robot-leads','/opt/telegram-iptvpn','/home/ubuntu/TELEGRAM-IPTVPN'):\n d=Path(directory)\n if not d.is_dir() or d.is_symlink():continue\n print('LEGACY_DIRECTORY_EXISTS',directory)\n for name in ('users.db','estado_bot.json','telethon_adder.log'):\n  file=d/name\n  if file.is_file() and not file.is_symlink():print('LEGACY_HISTORICAL_FILE',name,'BYTES',file.stat().st_size)\nprint('HISTORICAL_EVENT_AUDIT_COMPLETE')\nPY"
           ],
-          "timeout_ms": 110000,
-          "idle_timeout_ms": 80000,
+          "timeout_ms": 90000,
+          "idle_timeout_ms": 70000,
           "limits": {
-            "output_bytes": 14000
+            "output_bytes": 5500
           }
         }
       }
