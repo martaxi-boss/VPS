@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-bootstrap-memory-recovery-verify-20261031-c8r4",
+  "request_id": "rea-telegram-compare-legacy-current-20261031-n8r5",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\ntemp=$(mktemp -d /tmp/leads-bootstrap-memory-test.XXXXXX)\ntrap 'rm -rf \"$temp\"' EXIT\ngit -c credential.helper= clone -q --depth 1 --branch docs/bootstrap-historical-engine-recovery-20261031 https://github.com/martaxi-boss/telegram-robot-leads.git \"$temp/repo\"\ncd \"$temp/repo\"\necho CHECKED_BRANCH=$(git branch --show-current)\necho CHECKED_COMMIT=$(git rev-parse HEAD)\ngit -c credential.helper= fetch -q --depth 12 origin main:refs/remotes/origin/main\ngit diff --check origin/main HEAD\necho CHANGED_FILES\ngit diff --name-only origin/main HEAD\npython3 -B - <<'PY'\nfrom pathlib import Path\nboot=Path('docs/BOOTSTRAP.md').read_text()\nstate=Path('docs/PROJECT-STATE.md').read_text()\nmandatory={\n  'legacy source':'1862998844782764d263ee8e49a1476a7f86beac',\n  'shared history':'histórico global durável',\n  'account 1 region':'PT_ES',\n  'account 2 region':'EU_OTHER',\n  'group joined':'1 adesão a grupo',\n  'installed SHA':'8298503f7b21466ebf14b9f164f9e103c9c781e7',\n  'recent audit':'41250971838',\n  'no historic proof':'não é possível',\n  'consent distinction':'Não reativar recolha indiscriminada',\n}\nfor k,v in mandatory.items():\n assert v in (boot+state),k\n print('DOC_CONTRACT_PASS',k)\nassert '## Motor antigo: recuperação do conhecimento' in boot\nassert 'próximo passo' in boot.lower()\nassert '## Situação verificada e prioridade seguinte' in state\nprint('DOCUMENTS_CONSISTENT_PASS')\nPY\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B -m unittest discover -s tests -q\necho BOOTSTRAP_MEMORY_TESTS_PASS"
+            "set -Eeuo pipefail\ntmp=$(mktemp -d /tmp/tg-compare.XXXXXX)\ntrap 'rm -rf \"$tmp\"' EXIT\ngit -c credential.helper= clone -q --depth 1 https://github.com/martaxi-boss/telegram-robot-leads.git \"$tmp/repo\"\ncd \"$tmp/repo\"\necho REPOSITORY_SHA=$(git rev-parse HEAD)\necho VPS_SHA=$(cat /opt/telegram-robot-leads/.verified-source-commit)\npython3 -B - <<'PY'\nfrom pathlib import Path\nimport ast,subprocess\nnames=('scripts/safe_runtime.py','scripts/operation_policy.py','scripts/member_groups.py','scripts/approval_store.py')\nfor name in names:\n p=Path(name)\n if not p.is_file():continue\n src=p.read_text()\n t=ast.parse(src)\n funcs=[(n.name,n.lineno) for n in ast.walk(t) if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef))]\n print('ACTIVE_MODULE',name,'LINES',len(src.splitlines()),'FUNCTIONS',funcs[:95])\n for i,line in enumerate(src.splitlines(),1):\n  if any(x in line for x in ('approved_users_done','approved_user_ids_done','approved_users.txt','def process','def record','def load_state','def read','status =','status ==','member_added','member_actions','member_adds','record_success')):\n   print('ACTIVE_MATCH',name,i,line.strip()[:165])\n  if i>1350:break\nlegacy=subprocess.run(['git','show','1862998844782764d263ee8e49a1476a7f86beac:main.py'],capture_output=True,text=True)\nif legacy.returncode:print('LEGACY_COMMIT_NOT_IN_SHALLOW')\nelse:\n src=legacy.stdout;t=ast.parse(src)\n print('LEGACY_ENG_FUNCS',[(n.name,n.lineno) for n in ast.walk(t) if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef)) and any(w in n.name for w in ('scrape','invite','adder','user','group','filter','active','worth'))][:85])\nprint('TEST_FILES',len(list(Path('tests').glob('test_*.py'))))\nprint('PREFLIGHT_PASS')\nPY"
           ],
-          "timeout_ms": 140000,
-          "idle_timeout_ms": 100000,
+          "timeout_ms": 115000,
+          "idle_timeout_ms": 82000,
           "limits": {
-            "output_bytes": 8800
+            "output_bytes": 19000
           }
         }
       }
