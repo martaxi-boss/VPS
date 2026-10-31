@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-plcodex-supervisor-config-20261031-02",
+  "request_id": "rea-plcodex-final-consolidated-main-20261031-01",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nexport PYTHONDONTWRITEBYTECODE=1\necho \"SUPERVISOR_VPS_CONFIG_PROBE\"\nsudo -n python3 - <<'PY'\nfrom pathlib import Path\nimport re\nroot=Path('/root/project-secrets')\nmatches=[]\nif root.is_dir():\n for p in sorted(root.rglob('*')):\n  if not p.is_file() or p.is_symlink():continue\n  rel=str(p.relative_to(root))\n  if len(p.parts)>len(root.parts)+4:continue\n  if not any(x in rel.lower() for x in ('supervisor','project-leader','project_leader','codex','telegram-notif','github')):continue\n  try:\n   if p.stat().st_size>100000:continue\n   txt=p.read_text(encoding='utf8',errors='ignore')\n   flags={k:bool(re.search(r'(?m)^\\s*(?:export\\s+)?'+k+r'\\s*=\\s*\\S+',txt)) for k in ('GH_TOKEN','GITHUB_TOKEN','TELEGRAM_BOT_TOKEN','TELEGRAM_CHAT_ID')}\n   matches.append((rel,flags))\n  except (OSError,PermissionError):\n   pass\nprint(\"CANDIDATE_FILES=%d\"%len(matches))\nfor rel,flags in matches[:35]:\n print(\"CANDIDATE=%s FLAGS=%s\"%(rel,','.join(k for k,v in flags.items() if v) or 'none'))\nprint(\"DEDICATED_SUPERVISOR_CREDENTIAL_PAIR=%s\"%(\"YES\" if any(v.get('TELEGRAM_BOT_TOKEN') and v.get('TELEGRAM_CHAT_ID') for _,v in matches) else \"NO\"))\nprint(\"GITHUB_READ_CREDENTIAL=%s\"%(\"YES\" if any(v.get('GH_TOKEN') or v.get('GITHUB_TOKEN') for _,v in matches) else \"NO\"))\nPY\necho \"SUPERVISOR_EXISTING_UNITS\"\nsystemctl list-unit-files --type=service --no-pager --no-legend | grep -Ei 'project-leader|supervisor|codex' || :\necho \"CONFIG_PROBE_FINISHED\"\n"
+            "set -Eeuo pipefail\nexport GIT_TERMINAL_PROMPT=0 GIT_PAGER=cat PAGER=cat PYTHONDONTWRITEBYTECODE=1\ntmp=\"$(mktemp -d /tmp/rea-plcodex-final-main-20261031.XXXXXX)\"\ntrap 'rm -rf \"$tmp\"' EXIT\ngit clone --quiet --depth 1 --branch main https://github.com/martaxi-boss/Project-leader-codex.git \"$tmp/project\"\ncd \"$tmp/project\"\nexpected=dfccac1613b6217e94236b008a5a42f15d8dca83\nactual=\"$(git rev-parse HEAD)\"\nprintf 'REAL_MAIN_SHA=%s\\n' \"$actual\"\ntest \"$actual\" = \"$expected\"\npython3 -m codex.runtime_sync\necho MAIN_PREFLIGHT=PASS\necho MAIN_SECURITY_REGRESSIONS\npython3 -m unittest discover -s codex/tests -p 'test_*.py' -q\necho MAIN_CODEX_TESTS=PASS\npython3 -m unittest discover -s tests -p 'test_*.py' -q\necho MAIN_CONTROL_TESTS=PASS\ngit diff --check\ntest -z \"$(git status --porcelain --untracked-files=all)\"\necho MAIN_FINAL_CLEAN=PASS\necho MAIN_FINAL_AUDIT=PASS\n"
           ],
-          "timeout_ms": 70000,
-          "idle_timeout_ms": 50000,
+          "timeout_ms": 160000,
+          "idle_timeout_ms": 115000,
           "limits": {
-            "output_bytes": 5000
+            "output_bytes": 14000
           }
         }
       }
