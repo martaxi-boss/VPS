@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-release-bundle-inspection-20261031-k4n5",
+  "request_id": "rea-leads-verify-existing-sessions-20261031-o9q2",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B - <<'PY'\nimport tarfile,hashlib\nfrom pathlib import Path\nroot=Path('/opt/telegram-robot-leads')\nbundles=sorted(root.glob('.telegram-leads-*.tgz'))\nfor p in bundles:\n if not p.is_file() or p.is_symlink():continue\n print('BUNDLE_NAME',p.name)\n print('BUNDLE_BYTES',p.stat().st_size)\n try:\n  with tarfile.open(p,'r:gz') as tar:\n   names=tar.getnames()\n   print('BUNDLE_MEMBERS',len(names))\n   print('BUNDLE_HAS_SAFE_RUNTIME','scripts/safe_runtime.py' in names)\n   print('BUNDLE_HAS_INSTALLER','scripts/deploy_project_only.py' in names)\n   f=tar.extractfile('scripts/safe_runtime.py')\n   if f:\n    data=f.read()\n    active=(root/'scripts/safe_runtime.py').read_bytes()\n    print('BUNDLE_SAFE_RUNTIME_MATCHES_INSTALLED',hashlib.sha256(data).digest()==hashlib.sha256(active).digest())\n except (tarfile.TarError,KeyError,OSError):\n  print('BUNDLE_VALID',False)\nprint('BUNDLE_INSPECTION_READONLY_COMPLETE')\nPY"
+            "set -Eeuo pipefail\necho LEADS_TWO_SESSIONS_READ_ONLY_START\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B - <<'PY'\nfrom pathlib import Path\nimport hashlib,subprocess,json,sys\nvault=Path('/root/project-secrets/telegram-robot-leads')\nsessions=sorted(vault.glob('*.session'))\nassert len(sessions)==2, 'two_existing_sessions_required'\nbefore=[hashlib.sha256(p.read_bytes()).digest() for p in sessions]\np=subprocess.run([sys.executable,'-B','/opt/telegram-robot-leads/scripts/telethon_sessions.py','--online'],capture_output=True,text=True,timeout=170)\nprint('SESSION_PROBE_EXIT',p.returncode)\ntry:\n d=json.loads(p.stdout)\nexcept ValueError:\n print('SESSION_PROBE_OUTPUT_UNREADABLE')\n raise SystemExit(3)\nprint('SESSION_PROBE_STATUS',d.get('status','UNKNOWN'))\nprint('SESSION_PROBE_MODE',d.get('mode','UNKNOWN'))\nprint('API_SOURCE',d.get('api_source','UNKNOWN'))\nfor a in d.get('accounts',[]):\n print('ACCOUNT',a.get('account'),'STATUS',a.get('status'),'CONNECTED',a.get('connected'),'AUTHORIZED',a.get('authorized'),'IDENTITY_VERIFIED',a.get('identity_verified'),'PHONE_MATCHES',a.get('phone_matches'),'ERROR_TYPE',a.get('error_type','NONE'))\nafter=[hashlib.sha256(p.read_bytes()).digest() for p in sessions]\nassert before==after,'session_file_changed'\nprint('SESSION_FILES_UNCHANGED',True)\nprint('TWO_SESSIONS_DIAGNOSTIC_COMPLETE')\nif p.returncode:raise SystemExit(p.returncode)\nPY"
           ],
-          "timeout_ms": 100000,
-          "idle_timeout_ms": 65000,
+          "timeout_ms": 220000,
+          "idle_timeout_ms": 186000,
           "limits": {
-            "output_bytes": 4600
+            "output_bytes": 7500
           }
         }
       }
