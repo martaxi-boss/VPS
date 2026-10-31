@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-plcodex-final-diagnostic-20261031-a01",
+  "request_id": "rea-plcodex-bwrap-diagnostic-20261031-a02",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,19 +9,15 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nexport GIT_PAGER=cat PAGER=cat GIT_TERMINAL_PROMPT=0 PYTHONDONTWRITEBYTECODE=1\necho \"REA_PREFLIGHT_BEGIN\"\nprintf 'HOST_USER='; id -un\nprintf 'HOST_OS='; uname -s\nprintf 'PYTHON_VERSION='; python3 --version\nprintf 'CODEX_PATH='; command -v codex || echo absent\nprintf 'BWRAP_PATH='; command -v bwrap || echo absent\nif command -v bwrap >/dev/null 2>&1; then bwrap --version; stat -c 'BWRAP_OWNER=%U MODE=%a' \"$(command -v bwrap)\"; fi\ntmp=\"$(mktemp -d /tmp/rea-plcodex-audit.XXXXXX)\"\ntrap 'rm -rf \"$tmp\"' EXIT\ngit clone --quiet --depth 1 --branch main https://github.com/martaxi-boss/Project-leader-codex.git \"$tmp/repo\"\ncd \"$tmp/repo\"\nprintf 'MAIN_SHA='; git rev-parse HEAD\nprintf 'TREE_FILES='; git ls-files | wc -l\nprintf 'CONTROLS='; ls AGENTS.md CODEX_COORDINATION.md codex/dual.py codex/smart.py 2>&1\necho \"TARGET_REFS:\"\ngrep -R -n -E 'bwrap|sandbox|app-server|CODEX_HOME|_invoke_codex|read.only|Read.only|single|parallel|serial' codex/dual.py codex/smart.py codex/agent_policy.py 2>/dev/null | sed -n '1,88p'\necho \"REPO_CLEAN_BEGIN\"\ngit status --porcelain\necho \"REA_PREFLIGHT_END\""
+            "set -Eeuo pipefail\nexport GIT_PAGER=cat PAGER=cat GIT_TERMINAL_PROMPT=0 PYTHONDONTWRITEBYTECODE=1\ntmp=\"$(mktemp -d /tmp/rea-plcodex-bwrap.XXXXXX)\"\ntrap 'rm -rf \"$tmp\"' EXIT\ngit clone --quiet --depth 1 --branch main https://github.com/martaxi-boss/Project-leader-codex.git \"$tmp/repo\"\ncd \"$tmp/repo\"\ntest \"$(git rev-parse HEAD)\" = 3ecdcd79573104c39ed644dbfd1bd57596e51d06\necho 'BWRAP_SOURCE_BEGIN'\nsed -n '425,520p' codex/dual.py\necho 'BWRAP_TEST_REFERENCE_BEGIN'\ngrep -R -n -E 'trusted_bwrap|bwrap.*(owner|mode|uid|gid|writ|trusted)|serial.*sandbox|validator.*preflight' codex/tests | sed -n '1,75p'\necho 'BWRAP_RUNTIME_DIAGNOSTIC_BEGIN'\npython3 - <<'PY'\nimport subprocess\nfrom codex.dual import _trusted_bwrap\ntry:\n p=_trusted_bwrap()\n print(\"TRUST_GUARD=ACCEPT\",str(p),flush=True)\nexcept Exception as e:\n print(\"TRUST_GUARD=REJECT\",type(e).__name__,str(e),flush=True)\nargs=[\"/usr/bin/bwrap\",\"--die-with-parent\",\"--unshare-all\",\"--new-session\",\"--ro-bind\",\"/\",\"/\",\"--proc\",\"/proc\",\"--tmpfs\",\"/tmp\",\"--\",\"/bin/true\"]\ntry:\n p=subprocess.run(args,capture_output=True,text=True,timeout=10)\n print(\"BWRAP_USERNS_PROBE_CODE\",p.returncode,flush=True)\n print(\"BWRAP_USERNS_PROBE_ERROR\",p.stderr[:500].replace(\"\\n\",\" \"),flush=True)\nexcept Exception as e:\n print(\"BWRAP_USERNS_PROBE_EXCEPTION\",type(e).__name__,str(e),flush=True)\nPY\ngit diff --check\ntest -z \"$(git status --porcelain)\"\necho 'BWRAP_DIAGNOSTIC_FINISHED'"
           ],
           "timeout_ms": 120000,
-          "idle_timeout_ms": 80000,
+          "idle_timeout_ms": 60000,
           "limits": {
-            "output_bytes": 12200
+            "output_bytes": 18000
           }
         }
       }
-    },
-    {
-      "method": "tools/list",
-      "params": {}
     }
   ]
 }
