@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-regions-postdeploy-status-20261031",
+  "request_id": "rea-leads-final-session-cleanup-20261031",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n -H /usr/bin/python3 - <<'PY'\nimport json,os,subprocess,pathlib,shutil\nroot=pathlib.Path('/opt/telegram-robot-leads')\npy=root/'.venv/bin/python'\nexpected='45b085c788814c481d6c7922cf7789c144109f9c'\nassert (root/'.verified-source-commit').read_text().strip()==expected\nenv=dict(os.environ,PM2_HOME='/root/.pm2',PYTHONDONTWRITEBYTECODE='1')\np=subprocess.run([str(py),str(root/'scripts/leads_operational_report.py'),'--expected-source',expected,'--with-pm2'],capture_output=True,text=True,timeout=30,env=env,check=True)\nr=json.loads(p.stdout)\nassert r['source']['matches_expected'] and r['sessions']['accounts']==2 and r['pm2']['status']=='ONLINE'\nprint('LATEST_SOURCE',r['source']['source_sha'])\nprint('REGION_CATALOG',json.dumps(r.get('public_discovery',{}),sort_keys=True))\nprint('SUPERVISOR_STATUS',json.dumps({k:r.get('supervisor',{}).get(k) for k in ('status','age_seconds','event_kind','public_discovery_status','join_request_status','authorized_member_action_count')},sort_keys=True))\nprint('ACTION_QUEUE',json.dumps(r.get('action_queue',{}),sort_keys=True))\nprint('STATE_COUNTERS',json.dumps(r.get('operation_state',{}),sort_keys=True))\nq=subprocess.run(['pm2','jlist'],capture_output=True,text=True,timeout=14,check=True,env=env)\nrows=json.loads(q.stdout)\nfor entry in rows:\n m=entry.get('pm2_env',{})\n if entry.get('name') in ('telegram-robot-leads','iptvpn_bot'):\n  print('PM2_PROCESS',entry['name'],'online',m.get('status')=='online','restarts',m.get('restart_time'),'regional',m.get('TELEGRAM_REGIONAL_PUBLIC_DISCOVERY_ENABLED','not_configured'))\nold=pathlib.Path('/tmp/rea-leads-pr41.JpSm3c')\nif old.exists():\n assert old.is_dir() and not old.is_symlink() and old.name=='rea-leads-pr41.JpSm3c'\n shutil.rmtree(old)\n print('FAILED_VALIDATION_TEMP_REMOVED',True)\nelse:\n print('FAILED_VALIDATION_TEMP_REMOVED','already_absent')\nprint('POST_DEPLOY_READONLY_PASS')\nPY"
+            "set -Eeuo pipefail\nsudo -n -H /usr/bin/python3 - <<'PY'\nimport json,os,subprocess\nfrom pathlib import Path\nroot=Path('/opt/telegram-robot-leads'); py=str(root/'.venv/bin/python')\nenv={**os.environ,'PYTHONDONTWRITEBYTECODE':'1'}\nauth=subprocess.run([py,str(root/'scripts/telethon_sessions.py'),'--online','--vault','/root/project-secrets/telegram-robot-leads'],capture_output=True,text=True,timeout=110,env=env)\nprint('ONLINE_CHECK_EXIT',auth.returncode,flush=True)\nassert auth.returncode==0,'online_read_only_check_failed'\nd=json.loads(auth.stdout)\nprint('ONLINE_STATUS',d.get('status'),'API_SOURCE',d.get('api_source'),'ACCOUNT_COUNT',len(d.get('accounts',[])),flush=True)\nassert d.get('status')=='PASS' and len(d.get('accounts',[]))==2\nfor i,item in enumerate(d['accounts'],1):\n print('ACCOUNT',i,'CONNECTED',item.get('connected'),'AUTHORIZED',item.get('authorized'),'IDENTITY',item.get('identity_verified'),'PHONE_MATCH',item.get('phone_matches'),flush=True)\n assert all(item.get(k) is True for k in ('connected','authorized','identity_verified','phone_matches'))\nclean=subprocess.run(['/usr/bin/python3','-B',str(root/'scripts/project_hygiene.py'),'--apply','--confirm-telegram-only'],capture_output=True,text=True,timeout=20,env=env)\nprint('CLEANUP_EXIT',clean.returncode,clean.stdout.strip(),flush=True)\nassert clean.returncode==0 and json.loads(clean.stdout)['other_projects_modified'] is False\nprint('POST_DEPLOY_ACCOUNTS_AND_CLEANUP_PASS',flush=True)\nPY"
           ],
-          "timeout_ms": 95000,
-          "idle_timeout_ms": 33000,
+          "timeout_ms": 160000,
+          "idle_timeout_ms": 110000,
           "limits": {
-            "output_bytes": 8900
+            "output_bytes": 5500
           }
         }
       }
