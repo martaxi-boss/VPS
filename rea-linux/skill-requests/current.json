@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-plcodex-bwrap-diagnostic-20261031-a02",
+  "request_id": "rea-plcodex-serial-observer-20261031-a03",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nexport GIT_PAGER=cat PAGER=cat GIT_TERMINAL_PROMPT=0 PYTHONDONTWRITEBYTECODE=1\ntmp=\"$(mktemp -d /tmp/rea-plcodex-bwrap.XXXXXX)\"\ntrap 'rm -rf \"$tmp\"' EXIT\ngit clone --quiet --depth 1 --branch main https://github.com/martaxi-boss/Project-leader-codex.git \"$tmp/repo\"\ncd \"$tmp/repo\"\ntest \"$(git rev-parse HEAD)\" = 3ecdcd79573104c39ed644dbfd1bd57596e51d06\necho 'BWRAP_SOURCE_BEGIN'\nsed -n '425,520p' codex/dual.py\necho 'BWRAP_TEST_REFERENCE_BEGIN'\ngrep -R -n -E 'trusted_bwrap|bwrap.*(owner|mode|uid|gid|writ|trusted)|serial.*sandbox|validator.*preflight' codex/tests | sed -n '1,75p'\necho 'BWRAP_RUNTIME_DIAGNOSTIC_BEGIN'\npython3 - <<'PY'\nimport subprocess\nfrom codex.dual import _trusted_bwrap\ntry:\n p=_trusted_bwrap()\n print(\"TRUST_GUARD=ACCEPT\",str(p),flush=True)\nexcept Exception as e:\n print(\"TRUST_GUARD=REJECT\",type(e).__name__,str(e),flush=True)\nargs=[\"/usr/bin/bwrap\",\"--die-with-parent\",\"--unshare-all\",\"--new-session\",\"--ro-bind\",\"/\",\"/\",\"--proc\",\"/proc\",\"--tmpfs\",\"/tmp\",\"--\",\"/bin/true\"]\ntry:\n p=subprocess.run(args,capture_output=True,text=True,timeout=10)\n print(\"BWRAP_USERNS_PROBE_CODE\",p.returncode,flush=True)\n print(\"BWRAP_USERNS_PROBE_ERROR\",p.stderr[:500].replace(\"\\n\",\" \"),flush=True)\nexcept Exception as e:\n print(\"BWRAP_USERNS_PROBE_EXCEPTION\",type(e).__name__,str(e),flush=True)\nPY\ngit diff --check\ntest -z \"$(git status --porcelain)\"\necho 'BWRAP_DIAGNOSTIC_FINISHED'"
+            "set -Eeuo pipefail\nexport GIT_PAGER=cat PAGER=cat GIT_TERMINAL_PROMPT=0 PYTHONDONTWRITEBYTECODE=1\ntmp=\"$(mktemp -d /tmp/rea-plcodex-serial-audit.XXXXXX)\"\ntrap 'rm -rf \"$tmp\"' EXIT\ngit clone --quiet --depth 1 --branch main https://github.com/martaxi-boss/Project-leader-codex.git \"$tmp/project\"\ntest \"$(git -C \"$tmp/project\" rev-parse HEAD)\" = 3ecdcd79573104c39ed644dbfd1bd57596e51d06\nprintf '#!/bin/sh\\nexit 0\\n' > \"$tmp/host-validator\"\nchmod 700 \"$tmp/host-validator\"\ncd \"$tmp/project\"\npython3 - \"$tmp/host-validator\" \"$tmp/project\" <<'PY'\nfrom pathlib import Path\nfrom codex.dual import trusted_phase_one_validator\nimport sys\ncb=trusted_phase_one_validator(Path(sys.argv[1]),Path(sys.argv[2]),20)\nassert callable(cb)\nprint(\"SERIAL_SANDBOX_PREFLIGHT=PASS_NO_MODEL\",flush=True)\nPY\ngit diff --check\ntest -z \"$(git status --porcelain)\"\ncd \"$tmp\"\ngit clone --quiet --depth 1 --branch main https://github.com/martaxi-boss/VPS.git \"$tmp/vps\"\necho 'SUPERVISOR_SOURCE_REFERENCE'\ngrep -R -n -E 'NO_CHANGE|FORWARDED|COUNT=|dedup|notifi|telegram|cursor|poll|event' \"$tmp/vps/ops/supervisor_cloud_source.py\" \"$tmp/vps/ops/supervisor_live.py\" \"$tmp/vps/ops/telegram_gateway.py\" | sed -n '1,85p'\necho 'SUPERVISOR_WORKFLOW_REFERENCE'\nfind \"$tmp/vps/.github/workflows\" -maxdepth 1 -type f -iname '*supervisor*' -print\necho 'SERIAL_AND_OBSERVER_AUDIT_DONE'"
           ],
-          "timeout_ms": 120000,
-          "idle_timeout_ms": 60000,
+          "timeout_ms": 110000,
+          "idle_timeout_ms": 85000,
           "limits": {
-            "output_bytes": 18000
+            "output_bytes": 14300
           }
         }
       }
