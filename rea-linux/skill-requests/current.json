@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-queue-preflight-20261031-l1q7",
+  "request_id": "rea-telegram-queue-regression-20261031-k6p2",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nprintf 'PROJECT_SCOPE=telegram-robot-leads\\n'\ntest -d /opt/telegram-robot-leads\nsudo -n /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\np=Path('/opt/telegram-robot-leads')\nprint('RUNTIME_SCRIPTS',*(n for n in ('scripts/safe_runtime.py','scripts/operation_policy.py','docs/BOOTSTRAP.md') if (p/n).is_file()))\nprint('STATE_PRESENT',Path('/var/lib/telegram-robot-leads/operation-state.json').is_file())\nprint('PREFLIGHT_PASS')\nPY"
+            "set -Eeuo pipefail\ntemp=$(mktemp -d /tmp/telegram-leads-queue-tests.XXXXXX)\ntrap 'rm -rf \"$temp\"' EXIT\ngit -c credential.helper= clone -q --depth 1 --branch feature/approved-queue-observability-20261031 https://github.com/martaxi-boss/telegram-robot-leads.git \"$temp/repo\"\ncd \"$temp/repo\"\necho CANDIDATE_SHA=$(git rev-parse HEAD)\ngit -c credential.helper= fetch -q --depth 8 origin main:refs/remotes/origin/main\nGIT_PAGER=cat git --no-pager diff --check origin/main HEAD\necho DIFF_CHECK_PASS\necho CHANGED_FILES_BEGIN\nGIT_PAGER=cat git --no-pager diff --name-only origin/main HEAD\necho CHANGED_FILES_END\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B -m unittest discover -s tests -q\necho ALL_UNIT_TESTS_PASS"
           ],
-          "timeout_ms": 50000,
-          "idle_timeout_ms": 40000,
+          "timeout_ms": 140000,
+          "idle_timeout_ms": 100000,
           "limits": {
-            "output_bytes": 3000
+            "output_bytes": 9000
           }
         }
       }
