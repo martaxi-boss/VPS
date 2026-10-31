@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-final-session-cleanup-20261031",
+  "request_id": "rea-leads-group-association-design-20261031",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n -H /usr/bin/python3 - <<'PY'\nimport json,os,subprocess\nfrom pathlib import Path\nroot=Path('/opt/telegram-robot-leads'); py=str(root/'.venv/bin/python')\nenv={**os.environ,'PYTHONDONTWRITEBYTECODE':'1'}\nauth=subprocess.run([py,str(root/'scripts/telethon_sessions.py'),'--online','--vault','/root/project-secrets/telegram-robot-leads'],capture_output=True,text=True,timeout=110,env=env)\nprint('ONLINE_CHECK_EXIT',auth.returncode,flush=True)\nassert auth.returncode==0,'online_read_only_check_failed'\nd=json.loads(auth.stdout)\nprint('ONLINE_STATUS',d.get('status'),'API_SOURCE',d.get('api_source'),'ACCOUNT_COUNT',len(d.get('accounts',[])),flush=True)\nassert d.get('status')=='PASS' and len(d.get('accounts',[]))==2\nfor i,item in enumerate(d['accounts'],1):\n print('ACCOUNT',i,'CONNECTED',item.get('connected'),'AUTHORIZED',item.get('authorized'),'IDENTITY',item.get('identity_verified'),'PHONE_MATCH',item.get('phone_matches'),flush=True)\n assert all(item.get(k) is True for k in ('connected','authorized','identity_verified','phone_matches'))\nclean=subprocess.run(['/usr/bin/python3','-B',str(root/'scripts/project_hygiene.py'),'--apply','--confirm-telegram-only'],capture_output=True,text=True,timeout=20,env=env)\nprint('CLEANUP_EXIT',clean.returncode,clean.stdout.strip(),flush=True)\nassert clean.returncode==0 and json.loads(clean.stdout)['other_projects_modified'] is False\nprint('POST_DEPLOY_ACCOUNTS_AND_CLEANUP_PASS',flush=True)\nPY"
+            "set -Eeuo pipefail\nsudo -n -H /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nimport os,ast,subprocess,json\np=Path('/opt/telegram-robot-leads')\nassert (p/'.verified-source-commit').read_text().strip()=='45b085c788814c481d6c7922cf7789c144109f9c'\nfor filename in ['scripts/safe_runtime.py','scripts/operation_policy.py','scripts/public_group_discovery.py','scripts/telethon_sessions.py']:\n path=p/filename\n t=path.read_text(encoding='utf8')\n lines=t.splitlines()\n parsed=ast.parse(t)\n print('FILE',filename,'LINES',len(lines))\n choices=['_join_one','_run_once_unlocked','load_group_allowlist','assigned_group_account','empty_state','load_state','save_state','check_action','read_catalog','discover_daily','make_memory_client','inspect']\n for n in ast.walk(parsed):\n  if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef)) and n.name in choices:\n   print('FUNCTION',n.name,'START',n.lineno,'END',n.end_lineno)\n   if n.name in ('_join_one','assigned_group_account','make_memory_client','empty_state','load_state','save_state'):\n    for i in range(n.lineno-1,min(n.end_lineno,len(lines))):print('%d: %s'%(i+1,lines[i][:210]))\n for i,line in enumerate(lines,1):\n  if any(mark in line for mark in ['joined_groups','pending_group_actions','group_actions','public_discovery','await _join_one','discover_daily(']) and filename=='scripts/safe_runtime.py':\n   print('MARKER',i,line[:170])\nprint('TESTS',sorted(x.name for x in (p/'tests').glob('test_*group*.py')))\nprint('CURRENT_GIT',subprocess.run(['git','-C',str(p/'.telegram-leads-source-7c0ef8a1d9be'),'rev-parse','HEAD'],capture_output=True,text=True).stdout.strip()[:14])\nPY"
           ],
-          "timeout_ms": 160000,
-          "idle_timeout_ms": 110000,
+          "timeout_ms": 90000,
+          "idle_timeout_ms": 20000,
           "limits": {
-            "output_bytes": 5500
+            "output_bytes": 25000
           }
         }
       }
