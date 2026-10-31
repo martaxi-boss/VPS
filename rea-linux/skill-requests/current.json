@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-notification-review-20261031",
+  "request_id": "rea-leads-two-admins-intake-review-20261031",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n -H /usr/bin/python3 - <<'PY'\nimport ast,glob,json,os,pathlib,re\np=pathlib.Path('/opt/telegram-robot-leads')\nassert p.is_dir()\nfiles=['main.py','scripts/safe_runtime.py','scripts/organic_growth.py','scripts/telegram_supervisor.py','scripts/growth_tracker.py','scripts/leads_operational_report.py','ecosystem.config.js']\nfor name in files:\n q=p/name\n if not q.exists():\n  print('FILE',name,'absent');continue\n source=q.read_text(encoding='utf8')\n print('FILE',name,'lines',len(source.splitlines()))\n if name.endswith('.py'):\n  tree=ast.parse(source)\n  print('FUNCTIONS',','.join(n.name for n in tree.body if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef)))[:650])\n words=('notify','notification','supervisor','telegram_send','bot.send','send_message','join_requests_approved','group_actions','member_actions')\n hits=[(i+1,line.strip()[:180]) for i,line in enumerate(source.splitlines()) if any(w in line.lower() for w in words)]\n for ln,s in hits[:36]:print('MATCH',name,ln,s)\nroot=pathlib.Path('/root/project-secrets/telegram-robot-leads')\nnames=[x.name for x in root.iterdir() if x.is_file() and not x.is_symlink()]\nprint('VAULT_CONFIG_NAMES_PRESENT',[x for x in ('growth_model.json','voluntary_group_join_link.json','accounts.json','group_allowlist.txt','approved_users.txt') if x in names])\nprint('NO_PRIVATE_VALUES_DISCLOSED')\nPY"
+            "set -Eeuo pipefail\nroot=$(mktemp -d /tmp/rea-leads-account-routing.XXXXXX)\ntrap 'rm -rf -- \"$root\"' EXIT\ngit clone -q --depth 1 https://github.com/martaxi-boss/telegram-robot-leads.git \"$root\"\npython3 -B - \"$root\" <<'PY'\nfrom pathlib import Path\nimport sys\nroot=Path(sys.argv[1])\nfor file,ranges in (\n ('scripts/organic_growth.py',[(228,345)]),\n ('scripts/safe_runtime.py',[(505,550),(568,612),(620,673)]),\n ('scripts/operation_policy.py',[(1,66),(205,270)]),\n ('tests/test_organic_growth.py',[(219,285)]),\n):\n p=root/file; ls=p.read_text().splitlines()\n print('FILE',file,'TOTAL_LINES',len(ls))\n for start,end in ranges:\n  for i in range(start-1,min(len(ls),end)):\n   print(f'{i+1}:{ls[i]}')\nprint('ROOT_SHA_FILE_VERSION')\nPY\nprintf 'REPO_SHA='; git -C \"$root\" rev-parse HEAD\ngrep -R -n -E 'supervisor|notif|telegram' \"$root\"/scripts/operation_policy.py \"$root\"/scripts/leads_operational_report.py \"$root\"/scripts/safe_runtime.py | tail -n 45\n"
           ],
           "timeout_ms": 90000,
-          "idle_timeout_ms": 30000,
+          "idle_timeout_ms": 35000,
           "limits": {
-            "output_bytes": 14500
+            "output_bytes": 26000
           }
         }
       }
