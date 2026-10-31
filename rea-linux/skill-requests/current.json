@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-global-dedup-pr46-certificate-20261031",
+  "request_id": "rea-leads-recovery-preflight-20261031-1912-q7m2",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nexport GIT_TERMINAL_PROMPT=0 GIT_PAGER=cat PAGER=cat\nwork=$(mktemp -d /tmp/rea-leads-global-dedup-pr46.XXXXXX)\ntrap 'rm -rf -- \"$work\"' EXIT\ngit clone -q --depth 1 --branch fix/20261031-cross-flow-member-dedup https://github.com/martaxi-boss/telegram-robot-leads.git \"$work\"\ncd \"$work\"\ntest \"$(git rev-parse HEAD)\" = \"ec32f8b27883fce20c491db4425a210eb2cc5e76\"\nsudo -n -H /opt/telegram-robot-leads/.venv/bin/python -B -m unittest discover -s tests -q\nsudo -n -H /usr/bin/python3 -B - <<'PY'\nimport ast\nfrom pathlib import Path\npaths=['scripts/safe_runtime.py','scripts/organic_growth.py','scripts/leads_operational_report.py','tests/test_safe_runtime_policy.py','tests/test_organic_growth.py','tests/test_leads_operational_report.py']\nfor path in paths:\n ast.parse(Path(path).read_text())\n print('AST_OK',path)\na=Path('scripts/safe_runtime.py').read_text()\nb=Path('scripts/organic_growth.py').read_text()\nc=Path('scripts/leads_operational_report.py').read_text()\nassert 'stable_id in state[\"approved_join_requests_done\"]' in a\nassert 'key in state[\"approved_user_ids_done\"]' in b\nassert 'key in state[\"pending_member_ids\"]' in b\nassert 'distinct_processed_member_identities' in c\nprint('SHARED_LEDGER_TESTS_PRESENT')\nPY\nnode --check ecosystem.config.js\ngit --no-pager status --short\necho PR46_REA_FULL_VALIDATION_PASS"
+            "set -Eeuo pipefail\nexport GIT_TERMINAL_PROMPT=0 GIT_PAGER=cat PAGER=cat\necho \"LEADS_PREFLIGHT_BEGIN\"\ntarget=/opt/telegram-robot-leads\nif [ -d \"$target\" ]; then\n  stat -c 'INSTALL_DIR_OWNER=%U GROUP=%G' \"$target\"\n  owner=$(stat -c '%U' \"$target\")\n  if [ -d \"$target/.git\" ]; then\n    sudo -n -u \"$owner\" git -C \"$target\" rev-parse HEAD | sed 's/^/DEPLOYED_GIT_HEAD=/'\n    sudo -n -u \"$owner\" git -C \"$target\" status --porcelain=v1 | awk 'END {print \"DEPLOYED_WORKTREE_CHANGE_LINES=\" NR}'\n    sudo -n -u \"$owner\" git -C \"$target\" branch --show-current | sed 's/^/DEPLOYED_BRANCH=/'\n  else\n    echo \"DEPLOYED_GIT_DIR=NOT_PRESENT\"\n  fi\nelse\n  echo \"INSTALL_DIR=NOT_FOUND\"\nfi\npython3 -B - <<'PY'\nimport os,json,stat,datetime\nfrom pathlib import Path\nroots=[Path('/opt'),Path('/home/ubuntu')]\nfor root in roots:\n    if not root.exists():continue\n    try: dirs=list(root.iterdir())\n    except PermissionError:\n        print('ROOT_UNREADABLE',str(root)); continue\n    for d in sorted(dirs,key=lambda p:p.name):\n        if not d.is_dir() or d.is_symlink():continue\n        name=d.name.lower()\n        if not any(s in name for s in ('telegram','robot','leads','backup','archive')):continue\n        try: st=d.stat()\n        except OSError:continue\n        print('CANDIDATE_DIR',str(d),'mtime',datetime.datetime.fromtimestamp(st.st_mtime,datetime.timezone.utc).strftime('%Y-%m-%d'),'owner_uid',st.st_uid)\n        for sub in ('data','state','backups','backup','logs','.'):\n            p=d if sub=='.' else d/sub\n            if not p.is_dir() or p.is_symlink():continue\n            try: entries=sorted(p.iterdir(),key=lambda e:e.name)[:80]\n            except (OSError,PermissionError):continue\n            for f in entries:\n                if not f.is_file() or f.is_symlink():continue\n                if f.suffix.lower() not in ('.json','.db','.sqlite','.sqlite3','.bak','.old','.zip','.gz','.tar','.csv'):continue\n                st=f.stat()\n                print('DATA_CANDIDATE',str(f),'bytes',st.st_size,'mtime',datetime.datetime.fromtimestamp(st.st_mtime,datetime.timezone.utc).strftime('%Y-%m-%d'))\nPY\necho \"LEADS_PREFLIGHT_END\""
           ],
-          "timeout_ms": 145000,
-          "idle_timeout_ms": 83000,
+          "timeout_ms": 125000,
+          "idle_timeout_ms": 65000,
           "limits": {
-            "output_bytes": 11300
+            "output_bytes": 16000
           }
         }
       }
