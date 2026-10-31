@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-official-link-idempotence-20261031",
+  "request_id": "rea-leads-notification-review-20261031",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n -H /opt/telegram-robot-leads/.venv/bin/python -B - <<'PY'\nimport asyncio,json,stat,sys\nfrom pathlib import Path\nsys.path.insert(0,\"/opt/telegram-robot-leads/scripts\")\nfrom telethon_sessions import DEFAULT_VAULT,inspect\nfrom organic_growth import read_model,ensure_voluntary_request_link,VOLUNTARY_LINK_FILE\nfrom safe_runtime import _connected_client\nfrom operation_policy import load_state\nsource=Path(\"/opt/telegram-robot-leads/.verified-source-commit\").read_text().strip()\nassert source==\"06651386feaccbd528378aae4fc1469751afa57d\"\nconfig=inspect(DEFAULT_VAULT)\nmodel=read_model(DEFAULT_VAULT,config[\"group\"])\nassert model[\"approve_join_requests\"] is True\nresult=asyncio.run(ensure_voluntary_request_link(config,model,DEFAULT_VAULT,_connected_client))\nassert result[\"status\"]==\"EXISTING_VERIFIED\" and result[\"created\"]==0\nassert result[\"request_needed\"] is True and result[\"members_added\"]==0\np=DEFAULT_VAULT/VOLUNTARY_LINK_FILE\nassert stat.S_IMODE(p.stat().st_mode)==0o600\nprint(\"TELEGRAM_LIVE_SECOND_LOOKUP\",json.dumps(result,sort_keys=True),flush=True)\nstate=load_state(Path(\"/var/lib/telegram-robot-leads/operation-state.json\"))\nprint(\"JOIN_REQUEST_LEDGER\",json.dumps({\"approvals_today\":sum(a.get(\"join_request_approvals\",0) for a in state[\"accounts\"].values()),\"ambiguous_pending\":len(state[\"pending_join_requests\"]),\"approved_request_history_count\":len(state[\"approved_join_requests_done\"]),\"blocked_accounts\":sum(bool(a.get(\"blocked\")) for a in state[\"accounts\"].values())},sort_keys=True),flush=True)\nprint(\"SECOND_PASS_NO_DUPLICATE_LINK\",True,flush=True)\nPY\nsudo -n env PM2_HOME=/root/.pm2 pm2 jlist | python3 -c 'import json,sys; jobs=json.load(sys.stdin); names=[\"telegram-robot-leads\",\"iptvpn_bot\"]; out={n:[j for j in jobs if j.get(\"name\")==n] for n in names}; assert all(len(v)==1 for v in out.values()); assert all(v[0][\"pm2_env\"][\"status\"]==\"online\" for v in out.values()); print(\"LIVE_WORKERS\",json.dumps({n:{\"status\":v[0][\"pm2_env\"][\"status\"],\"restarts\":v[0][\"pm2_env\"].get(\"restart_time\")} for n,v in out.items()},sort_keys=True))'\necho OFFICIAL_JOIN_MODEL_VALIDATED"
+            "set -Eeuo pipefail\nsudo -n -H /usr/bin/python3 - <<'PY'\nimport ast,glob,json,os,pathlib,re\np=pathlib.Path('/opt/telegram-robot-leads')\nassert p.is_dir()\nfiles=['main.py','scripts/safe_runtime.py','scripts/organic_growth.py','scripts/telegram_supervisor.py','scripts/growth_tracker.py','scripts/leads_operational_report.py','ecosystem.config.js']\nfor name in files:\n q=p/name\n if not q.exists():\n  print('FILE',name,'absent');continue\n source=q.read_text(encoding='utf8')\n print('FILE',name,'lines',len(source.splitlines()))\n if name.endswith('.py'):\n  tree=ast.parse(source)\n  print('FUNCTIONS',','.join(n.name for n in tree.body if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef)))[:650])\n words=('notify','notification','supervisor','telegram_send','bot.send','send_message','join_requests_approved','group_actions','member_actions')\n hits=[(i+1,line.strip()[:180]) for i,line in enumerate(source.splitlines()) if any(w in line.lower() for w in words)]\n for ln,s in hits[:36]:print('MATCH',name,ln,s)\nroot=pathlib.Path('/root/project-secrets/telegram-robot-leads')\nnames=[x.name for x in root.iterdir() if x.is_file() and not x.is_symlink()]\nprint('VAULT_CONFIG_NAMES_PRESENT',[x for x in ('growth_model.json','voluntary_group_join_link.json','accounts.json','group_allowlist.txt','approved_users.txt') if x in names])\nprint('NO_PRIVATE_VALUES_DISCLOSED')\nPY"
           ],
-          "timeout_ms": 155000,
-          "idle_timeout_ms": 94000,
+          "timeout_ms": 90000,
+          "idle_timeout_ms": 30000,
           "limits": {
-            "output_bytes": 8200
+            "output_bytes": 14500
           }
         }
       }
