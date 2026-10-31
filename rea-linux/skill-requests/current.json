@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-release-target-tests-20261031-c2k8",
+  "request_id": "rea-leads-release-preconditions-readonly-20261031-v3x8",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nexport GIT_TERMINAL_PROMPT=0 GIT_PAGER=cat PYTHONDONTWRITEBYTECODE=1\ncheckout=$(mktemp -d /tmp/rea-leads-release-qa.XXXXXX)\ntrap 'rm -rf -- \"$checkout\"' EXIT\ngit clone -q --depth 1 --branch main https://github.com/martaxi-boss/telegram-robot-leads.git \"$checkout/source\"\ntest \"$(git -C \"$checkout/source\" rev-parse HEAD)\" = 9596a0687aeed20e03bcd1f91ae2ad6d830cd523\necho VERIFIED_RELEASE_SHA=9596a0687aeed20e03bcd1f91ae2ad6d830cd523\ncd \"$checkout/source\"\nsudo -n env PYTHONDONTWRITEBYTECODE=1 /opt/telegram-robot-leads/.venv/bin/python -B -m unittest discover -s tests > \"$checkout/test-output.txt\" 2>&1 || { tail -n 25 \"$checkout/test-output.txt\"; exit 7; }\ntail -n 7 \"$checkout/test-output.txt\"\necho TESTS_ON_VPS_PASSED\necho ACTIVE_INSTALLATION_NOT_MODIFIED"
+            "set -Eeuo pipefail\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B - <<'PY'\nfrom pathlib import Path\nimport os,stat\nroot=Path('/opt/telegram-robot-leads')\ntarget='9596a0687aeed20e03bcd1f91ae2ad6d830cd523'\nprior='3d53bf473fc0a37a4d8905f58a5bfff0948b3177'\nprint('CHECK_PROJECT_SCOPED_ONLY')\nprint('INSTALL_ROOT_VALID',root.is_dir() and not root.is_symlink() and root.resolve()==root)\nprint('MARKER_VALID',(root/'.verified-source-commit').is_file())\ncurrent=(root/'.verified-source-commit').read_text().strip()\nprint('CURRENT_SOURCE',current)\nprint('SOURCE_EXPECTED',current==prior)\nvault=Path('/root/project-secrets/telegram-robot-leads')\nsessions=list(vault.glob('*.session'))\nprint('VAULT_OWNER_ROOT',vault.is_dir() and vault.stat().st_uid==os.geteuid())\nprint('SESSION_COUNT',len(sessions))\nprint('SESSION_PRIVATE',all(p.is_file() and not p.is_symlink() and p.stat().st_uid==os.geteuid() and (stat.S_IMODE(p.stat().st_mode)&0o077)==0 for p in sessions))\nbackups=root/'.telegram-leads-release-backups'\nname='from-'+current[:12]+'-to-'+target[:12]\nprint('TARGET_BACKUP_ALREADY_EXISTS',(backups/name).exists())\nprint('TARGET_RELEASE_BUNDLES_PRESENT',len([p for p in root.glob('.telegram-leads-*.tgz') if p.is_file() and not p.is_symlink()]))\nprint('VENV_PRESENT',(root/'.venv/bin/python').is_file())\nprint('TARGET_INSTALLED',current==target)\nprint('PRECONDITIONS_READ_ONLY_COMPLETE')\nPY"
           ],
-          "timeout_ms": 195000,
-          "idle_timeout_ms": 145000,
+          "timeout_ms": 100000,
+          "idle_timeout_ms": 60000,
           "limits": {
-            "output_bytes": 9000
+            "output_bytes": 7000
           }
         }
       }
