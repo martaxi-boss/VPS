@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-report-venv-diagnosis-20261031-a4p9",
+  "request_id": "rea-leads-health-hygiene-preview-20261031-h2g4",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\necho REPORT_DIAGNOSTIC_START\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B - <<'PY'\nimport json,subprocess,sys,re\nfrom pathlib import Path\np=Path('/opt/telegram-robot-leads/scripts/leads_operational_report.py')\ncmd=[sys.executable,'-B',str(p),'--no-pm2','--expected-source','9596a0687aeed20e03bcd1f91ae2ad6d830cd523']\nresult=subprocess.run(cmd,capture_output=True,text=True,timeout=25)\nprint('REPORT_EXIT_CODE',result.returncode)\nif result.returncode==0:\n data=json.loads(result.stdout)\n print('REPORT_STATUS',data.get('status'))\n print('READINESS',json.dumps(data.get('readiness_indicators',[])))\n for key in ('source','sessions','operation_state','pm2'):\n  section=data.get(key)\n  print('SECTION',key,section.get('status','UNSPECIFIED') if isinstance(section,dict) else 'UNAVAILABLE')\nelse:\n lines=[x.strip() for x in result.stderr.splitlines() if x.strip()]\n types=re.findall(r'(?:ModuleNotFoundError|ImportError|PermissionError|FileNotFoundError|ValueError|KeyError|AttributeError|TypeError|RuntimeError|OSError)',result.stderr)\n print('REPORT_EXCEPTION_TYPES',','.join(types[-4:]) if types else 'UNCLASSIFIED')\n for module in ('telethon','dotenv','langdetect','aiosqlite','lead_health','organic_growth','telethon_sessions','safe_runtime'):\n  if \"No module named '\"+module+\"'\" in result.stderr:print('MISSING_MODULE',module)\nprint('DIAGNOSTIC_COMPLETED')\nPY"
+            "set -Eeuo pipefail\necho LEADS_OFFLINE_CHECKS_BEGIN\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B - <<'PY'\nimport json,subprocess,sys\nroot='/opt/telegram-robot-leads'\nchecks=[\n ('health',[sys.executable,'-B',root+'/scripts/lead_health.py','--no-pm2']),\n ('hygiene_preview',[sys.executable,'-B',root+'/scripts/project_hygiene.py','--root',root])\n]\nfor label,cmd in checks:\n proc=subprocess.run(cmd,capture_output=True,text=True,timeout=20)\n print('CHECK',label,'EXIT',proc.returncode)\n if proc.returncode:raise SystemExit('CHECK_'+label+'_FAILED')\n obj=json.loads(proc.stdout)\n if label=='health':\n  print('HEALTH_STATUS',obj.get('status','UNSPECIFIED'))\n  for key in ('runtime','legacy_database_read_only','accounts'):\n   part=obj.get(key,{})\n   if isinstance(part,dict):\n    print('HEALTH',key,'STATUS',part.get('status','UNSPECIFIED'))\n    if key=='legacy_database_read_only': print('LEGACY_DB_PRESENT',part.get('present','UNKNOWN'))\n if label=='hygiene_preview':\n  print('HYGIENE_STATUS',obj.get('status'))\n  print('ELIGIBLE_CACHE_FILES',obj.get('eligible_python_cache_files'))\n  print('REMOVED_FILES',obj.get('removed_files'))\nprint('LEADS_OFFLINE_CHECKS_PASS')\nPY"
           ],
-          "timeout_ms": 90000,
-          "idle_timeout_ms": 60000,
+          "timeout_ms": 100000,
+          "idle_timeout_ms": 66000,
           "limits": {
-            "output_bytes": 6000
+            "output_bytes": 6500
           }
         }
       }
