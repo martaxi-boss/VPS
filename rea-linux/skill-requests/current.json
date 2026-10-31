@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-status-readonly-20261031-2234-d3q9",
+  "request_id": "rea-leads-group2-public-readonly-20261031-t4b7",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nfrom datetime import datetime, timezone\nimport json, os, subprocess\nroot=Path('/opt/telegram-robot-leads')\nstate=Path('/var/lib/telegram-robot-leads')\nvault=Path('/root/project-secrets/telegram-robot-leads')\nprint('CHECKED_AT_UTC',datetime.now(timezone.utc).isoformat(timespec='seconds'))\ninstalled=(root/'.verified-source-commit').read_text().strip()\nprint('SOURCE_SHA',installed)\nprint('SESSIONS_PRESENT',len(list(vault.glob('*.session'))))\np=subprocess.run(['pm2','jlist'],env={**os.environ,'PM2_HOME':'/root/.pm2'},capture_output=True,text=True,timeout=12)\nassert p.returncode==0\nworkers=[w for w in json.loads(p.stdout) if w.get('name')=='telegram-robot-leads']\nassert len(workers)==1\nenv=workers[0]['pm2_env']\nprint('PM2_STATUS',env.get('status'))\nprint('PM2_RESTART_COUNT',env.get('restart_time'))\nfor k in ('TELEGRAM_PUBLIC_DISCOVERY_ENABLED','TELEGRAM_REGIONAL_PUBLIC_DISCOVERY_ENABLED'):\n print(k,env.get(k,'NOT_SET'))\noper=json.loads((state/'operation-state.json').read_text())\nfor i in ('1','2'):\n a=oper['accounts'][i]\n print('ACCOUNT_'+i+'_BLOCKED',a.get('blocked'))\n print('ACCOUNT_'+i+'_GROUP_JOINS_TODAY',a.get('group_joins'))\nprint('JOINED_GROUP_HISTORY',len(oper.get('joined_groups',{})))\nprint('PENDING_GROUP_ACTIONS',len(oper.get('pending_group_actions',{})))\nprint('APPROVED_USER_COMPLETIONS',len(oper.get('approved_users_done',{})))\ncatalog=json.loads((state/'public-groups.json').read_text())\ngroups=catalog.get('groups',{})\nprint('CATALOG_GROUP_COUNT',len(groups))\nfor region in ('PT_ES','EU_OTHER'):\n print('CATALOG_REGION_'+region,sum(isinstance(x,dict) and region in x.get('matched_regions',[]) for x in groups.values()))\npath=Path(env.get('pm_out_log_path',''))\nassert path.is_file() and not path.is_symlink()\nwith path.open('rb') as file:\n end=file.seek(0,2);file.seek(max(0,end-140000))\n chunk=file.read().decode('utf-8','replace')\nlines=chunk.splitlines()\nrecords=[]\nfor line in lines:\n try: data=json.loads(line)\n except ValueError: continue\n if not isinstance(data,dict) or data.get('status') not in ('CYCLE','BLOCKED'):continue\n rec={key:data[key] for key in (\n  'status','reason','public_discovery_status','groups_joined',\n  'group_actions_recorded','blocked_actions','member_actions_recorded',\n  'members_added','join_requests_approved') if key in data}\n records.append(rec)\nprint('RECENT_CYCLES_SANITIZED',json.dumps(records[-12:],sort_keys=True))\nprint('RECENT_CYCLES_TOTAL',len(records))\nprint('CYCLES_WITH_SUCCESSFUL_GROUP_JOINS_IN_TAIL',sum(int(x.get('groups_joined',0)) for x in records))\nprint('CYCLES_WITH_MEMBERS_ADDED_IN_TAIL',sum(int(x.get('members_added',0)) for x in records))\nprint('RECENT_BLOCKED_CYCLES_IN_LAST_12',sum(x.get('status')=='BLOCKED' for x in records[-12:]))\nprint('STATUS_READ_ONLY_COMPLETE')\nPY"
+            "set -Eeuo pipefail\nsudo -n /usr/bin/python3 - <<'PY'\nimport json\nfrom pathlib import Path\ndata=Path('/var/lib/telegram-robot-leads')\nst=json.loads((data/'operation-state.json').read_text(encoding='utf-8'))\ncat=json.loads((data/'public-groups.json').read_text(encoding='utf-8')).get('groups',{})\nout=[]\nfor key,val in st.get('joined_groups',{}).items():\n if not isinstance(val,dict) or val.get('account')!=2: continue\n handle=key[2:] if key.startswith('2:') else key\n item=cat.get(handle,cat.get(handle.casefold(),{}))\n out.append({'handle':handle,'title':item.get('title') if isinstance(item,dict) else None,'join_status':val.get('status'),'dialog_confirmed':val.get('status')=='verified_existing_member'})\nprint('ACCOUNT_TWO_GROUPS',json.dumps(out,ensure_ascii=False,sort_keys=True))\nprint('READ_ONLY_DONE')\nPY"
           ],
-          "timeout_ms": 100000,
-          "idle_timeout_ms": 70000,
+          "timeout_ms": 85000,
+          "idle_timeout_ms": 55000,
           "limits": {
-            "output_bytes": 10500
+            "output_bytes": 3500
           }
         }
       }
