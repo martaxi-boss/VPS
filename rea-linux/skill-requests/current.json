@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-cleanup-scope-20261031-s9k5",
+  "request_id": "rea-leads-groups-bootstrap-preflight-20261031-b6r8",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B - <<'PY'\nfrom pathlib import Path\nimport os,tarfile,json\nroot=Path('/opt/telegram-robot-leads')\nstate=Path('/var/lib/telegram-robot-leads')\nvault=Path('/root/project-secrets/telegram-robot-leads')\nassert root.is_dir() and not root.is_symlink()\nassert state.is_dir() and not state.is_symlink()\nassert vault.is_dir() and not vault.is_symlink()\nprint('INSTALLED_SHA',(root/'.verified-source-commit').read_text().strip())\nprint('SESSION_COUNT',len(list(vault.glob('*.session'))))\nprint('BACKUPS_PRESERVED',sum(x.is_dir() for x in (root/'.telegram-leads-release-backups').iterdir()))\nfor p in sorted(root.glob('.telegram-leads-*.tgz')):\n if not p.is_file() or p.is_symlink():continue\n try:\n  with tarfile.open(p,'r:gz') as t:\n   print('RELEASE_BUNDLE',p.name,'FILE_COUNT',len(t.getmembers()),'BYTES',p.stat().st_size)\n except (OSError,tarfile.TarError):\n  print('INVALID_ARCHIVE_NAME',p.name)\np=state/'self-notification-test-20261031.json'\nprint('TEST_NOTIFICATION_MARKER_EXISTS',p.is_file() and not p.is_symlink())\nprint('TEST_NOTIFICATION_MARKER_BYTES',p.stat().st_size if p.is_file() else 0)\nmatch=[]\nfor folder in (root/'scripts',root/'main.py'):\n candidates=[folder] if folder.is_file() else folder.glob('*.py')\n for file in candidates:\n  if file.is_symlink() or not file.is_file():continue\n  if b'self-notification-test-20261031.json' in file.read_bytes():\n   match.append(file.name)\nprint('TEST_MARKER_REFERENCED',len(match))\nprint('STAGING_FILE_COUNT',sum(1 for p in root.glob('.telegram-leads-stage-*') if p.is_file()))\nprint('BUNDLE_AND_MARKER_CLEANUP_INVENTORY_COMPLETE')\nPY"
+            "set -Eeuo pipefail\nscratch=$(mktemp -d /tmp/leads-group-preflight.XXXXXX)\ntrap 'rm -rf \"$scratch\"' EXIT\ngit -c credential.helper= clone -q --depth 1 https://github.com/martaxi-boss/telegram-robot-leads.git \"$scratch/repo\"\ncd \"$scratch/repo\"\necho SOURCE_SHA $(git rev-parse HEAD)\necho SOURCE_FILES\nfind scripts tests docs -maxdepth 2 -type f | sort | grep -E 'discovery|group|policy|runtime|bootstrap|readme' | head -70\necho SOURCE_DISCOVERY_SEGMENT\nsed -n '1,115p' scripts/public_group_discovery.py\necho SOURCE_RUNTIME_DISCOVERY\nsed -n '365,460p' scripts/safe_runtime.py\necho SOURCE_POLICY_JOIN\nsed -n '208,272p' scripts/operation_policy.py\necho MATCHING_TESTS\ngrep -R -n -E 'assigned_group_account|joined_groups|pending_group_actions|GROUP_JOINS|group_daily_limit|discover_daily|groups_joined|load_group_allowlist' tests/ | head -100\necho PREFLIGHT_COMPLETED"
           ],
-          "timeout_ms": 94000,
-          "idle_timeout_ms": 65000,
+          "timeout_ms": 100000,
+          "idle_timeout_ms": 70000,
           "limits": {
-            "output_bytes": 6500
+            "output_bytes": 19000
           }
         }
       }
