@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-voluntary-link-inspect-20261031-m2v7",
+  "request_id": "rea-leads-cleanup-scope-20261031-s9k5",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B - <<'PY'\nimport sys,asyncio\nfrom pathlib import Path\nsys.path.insert(0,\"/opt/telegram-robot-leads/scripts\")\nfrom telethon_sessions import inspect,make_memory_client\nfrom organic_growth import (_read_voluntary_link,_request_required_invite,VOLUNTARY_LINK_TITLE,MAX_EXISTING_INVITES)\nfrom telethon.tl.functions.messages import GetExportedChatInviteRequest,GetExportedChatInvitesRequest\nfrom telethon.tl.types import InputUserSelf\nvault=Path('/root/project-secrets/telegram-robot-leads')\nconfig=inspect(vault)\nsaved=_read_voluntary_link(vault,config['group'])\nprint('LOCAL_VOLUNTARY_LINK_PRESENT',saved is not None)\nasync def verify():\n client=make_memory_client(config['entries'][0],config)\n try:\n  await asyncio.wait_for(client.connect(),timeout=25)\n  assert await asyncio.wait_for(client.is_user_authorized(),timeout=20)\n  group=await asyncio.wait_for(client.get_entity(config['group']),timeout=20)\n  if saved is not None:\n   result=await asyncio.wait_for(client(GetExportedChatInviteRequest(peer=group,link=saved)),timeout=25)\n   try:\n    verified=_request_required_invite(getattr(result,'invite',None))==saved\n    print('EXISTING_LINK_VALID',verified)\n   except Exception as ex:\n    print('EXISTING_LINK_VALID',False)\n    print('INVALID_LINK_REASON',type(ex).__name__)\n  else:\n   response=await asyncio.wait_for(client(GetExportedChatInvitesRequest(peer=group,admin_id=InputUserSelf(),revoked=False,limit=MAX_EXISTING_INVITES)),timeout=25)\n   invites=getattr(response,'invites',[])\n   named=[i for i in invites if getattr(i,'title',None)==VOLUNTARY_LINK_TITLE]\n   print('NAMED_LINKS_FOUND',len(named))\n   print('INVITE_LIST_COMPLETE',len(invites)<MAX_EXISTING_INVITES)\n   if len(named)==1:\n    try:\n     _request_required_invite(named[0])\n     print('NAMED_LINK_VALID',True)\n    except Exception as ex:\n     print('NAMED_LINK_VALID',False)\n     print('INVALID_LINK_REASON',type(ex).__name__)\n finally:\n  if client.is_connected():await asyncio.wait_for(client.disconnect(),timeout=12)\nasyncio.run(verify())\nprint('VOLUNTARY_LINK_INSPECTION_READONLY_COMPLETE')\nPY"
+            "set -Eeuo pipefail\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B - <<'PY'\nfrom pathlib import Path\nimport os,tarfile,json\nroot=Path('/opt/telegram-robot-leads')\nstate=Path('/var/lib/telegram-robot-leads')\nvault=Path('/root/project-secrets/telegram-robot-leads')\nassert root.is_dir() and not root.is_symlink()\nassert state.is_dir() and not state.is_symlink()\nassert vault.is_dir() and not vault.is_symlink()\nprint('INSTALLED_SHA',(root/'.verified-source-commit').read_text().strip())\nprint('SESSION_COUNT',len(list(vault.glob('*.session'))))\nprint('BACKUPS_PRESERVED',sum(x.is_dir() for x in (root/'.telegram-leads-release-backups').iterdir()))\nfor p in sorted(root.glob('.telegram-leads-*.tgz')):\n if not p.is_file() or p.is_symlink():continue\n try:\n  with tarfile.open(p,'r:gz') as t:\n   print('RELEASE_BUNDLE',p.name,'FILE_COUNT',len(t.getmembers()),'BYTES',p.stat().st_size)\n except (OSError,tarfile.TarError):\n  print('INVALID_ARCHIVE_NAME',p.name)\np=state/'self-notification-test-20261031.json'\nprint('TEST_NOTIFICATION_MARKER_EXISTS',p.is_file() and not p.is_symlink())\nprint('TEST_NOTIFICATION_MARKER_BYTES',p.stat().st_size if p.is_file() else 0)\nmatch=[]\nfor folder in (root/'scripts',root/'main.py'):\n candidates=[folder] if folder.is_file() else folder.glob('*.py')\n for file in candidates:\n  if file.is_symlink() or not file.is_file():continue\n  if b'self-notification-test-20261031.json' in file.read_bytes():\n   match.append(file.name)\nprint('TEST_MARKER_REFERENCED',len(match))\nprint('STAGING_FILE_COUNT',sum(1 for p in root.glob('.telegram-leads-stage-*') if p.is_file()))\nprint('BUNDLE_AND_MARKER_CLEANUP_INVENTORY_COMPLETE')\nPY"
           ],
-          "timeout_ms": 145000,
-          "idle_timeout_ms": 110000,
+          "timeout_ms": 94000,
+          "idle_timeout_ms": 65000,
           "limits": {
-            "output_bytes": 5500
+            "output_bytes": 6500
           }
         }
       }
