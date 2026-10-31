@@ -272,28 +272,6 @@ class AgentSwitchTests(unittest.TestCase):
 
 
 
-    def test_serial_phase_two_is_blocked_for_unmerged_first_phase(self):
-        workflow = (SOURCE.parents[1] / ".github/workflows/agent-switch.yml").read_text(
-            encoding="utf-8")
-        serial = workflow.split("  codex_serial_2:", 1)[1].split(
-            "  codex_serial_blocked:", 1)[0]
-        self.assertIn("publication_status == 'MERGED'", serial)
-        self.assertIn("publication_status == 'NO_CHANGE'", serial)
-        self.assertIn("publication_status == 'PR_STAGED'", serial)
-        self.assertIn("serial_independent == 'true'", serial)
-        self.assertIn("serial_independent != 'true'", workflow)
-        # Serial and audit-managed tasks retain their original PR-only
-        # safety gate; the old quota replay event can no longer bypass it.
-        self.assertEqual(workflow.count(
-            "no_auto_merge: ${{ fromJSON(needs.preflight.outputs.serial_independent) || "
-            "fromJSON(needs.preflight.outputs.audit_managed) }}"), 2)
-        self.assertIn("outputs.run_stage_2 == 'true'", serial)
-        self.assertIn("needs.codex_serial_1.result == 'success'", serial)
-        self.assertNotIn("outputs.resume_stage", serial)
-        self.assertNotIn("repository_dispatch", workflow)
-        self.assertIn("always()", serial)
-        self.assertIn("FIRST_PUBLICATION:", workflow)
-        self.assertIn("CODEX_2_NOT_STARTED", workflow)
 
     def test_no_change_permission_requires_exact_boolean(self):
         read_only = self.task("codex-read", allow_no_change=True)

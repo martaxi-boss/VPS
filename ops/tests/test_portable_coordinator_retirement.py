@@ -8,10 +8,10 @@ OBSOLETE = (
     "coordinator-owner-order.yml", "coordinator-ai-smoke.yml",
     "coordinator-phase-cycle.yml", "coordinator-private-media-relay.yml",
     "telegram-coordinator-owner.yml", "telegram-codex-gateway.yml",
-    "codex-autonomous-validation.yml",
+    "codex-autonomous-validation.yml", "agent-switch.yml",
 )
 INERT_WORKERS = (
-    "agent-switch.yml", "codex-autonomous.yml",
+    "codex-autonomous.yml",
     "codex-chatgpt-bridge.yml", "codex-project-leader-safe-fix.yml",
 )
 

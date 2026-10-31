@@ -336,15 +336,6 @@ class QuotaLifecycleTests(unittest.TestCase):
                 q.schedule_due(now=self.clock)
             api.assert_not_called()
 
-    def test_workflow_no_repository_dispatch_trigger_after_quota_reset(self):
-        source = (Path(__file__).resolve().parents[2] /
-                  ".github/workflows/agent-switch.yml").read_text()
-        trigger = source.split("on:", 1)[1].split("permissions:", 1)[0]
-        self.assertNotIn("repository_dispatch:", trigger)
-        watcher = (Path(__file__).resolve().parents[2] /
-                   ".github/workflows/codex-quota-watch.yml").read_text()
-        self.assertNotIn("/dispatches", watcher)
-        self.assertIn("quota-watch:", watcher)
 
 
     def test_owner_only_coordinator_stage_hold_writes_one_durable_record(self):
@@ -410,27 +401,6 @@ class QuotaLifecycleTests(unittest.TestCase):
         self.assertIn("      contents: read", worker)
         self.assertNotIn("      actions: write", worker)
 
-    def test_legacy_coordinator_callers_are_retired_with_worker_permissions_preserved(self):
-        root = Path(__file__).resolve().parents[2]
-        child = (root / ".github/workflows/codex-autonomous.yml").read_text()
-        router = (root / ".github/workflows/agent-switch.yml").read_text()
-        self.assertIn("actions: read  # Verify genuine originating workflow", child)
-        marker = "uses: ./.github/workflows/codex-autonomous.yml"
-        chunks = router.split(marker)
-        self.assertEqual(len(chunks) - 1, 5)
-        for idx, block in enumerate(chunks[:-1], 1):
-            perms = block.rsplit("    permissions:", 1)[-1]
-            self.assertIn("actions: read", perms, f"Codex caller {idx}")
-            self.assertIn("contents: read", perms, f"Codex caller {idx}")
-            self.assertIn("issues: write", perms, f"Codex caller {idx}")
-            self.assertNotIn("actions: write", perms, f"Codex caller {idx}")
-        for name in ("coordinator-owner-order.yml", "coordinator-phase-cycle.yml"):
-            self.assertFalse((root / ".github/workflows" / name).exists())
-        for name in ("agent-switch.yml", "codex-autonomous.yml"):
-            flow=(root / ".github/workflows" / name).read_text()
-            event=flow.split("\non:\n",1)[1].split("\npermissions:",1)[0]
-            self.assertNotIn("workflow_call:",event)
-            self.assertNotIn("issues:",event)
 
     def test_quota_safe_hold_happens_before_private_owner_notice(self):
         root = Path(__file__).resolve().parents[2]
