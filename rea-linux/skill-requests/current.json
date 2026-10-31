@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-telegram-official-consent-link-20261031",
+  "request_id": "rea-leads-official-link-idempotence-20261031",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n -H /opt/telegram-robot-leads/.venv/bin/python -B - <<'PY'\nimport asyncio,json,stat,sys\nfrom pathlib import Path\nsys.path.insert(0,\"/opt/telegram-robot-leads/scripts\")\nfrom telethon_sessions import DEFAULT_VAULT,inspect\nfrom organic_growth import read_model,ensure_voluntary_request_link,VOLUNTARY_LINK_FILE\nfrom safe_runtime import _connected_client\np=Path(\"/opt/telegram-robot-leads/.verified-source-commit\")\nexpected=\"06651386feaccbd528378aae4fc1469751afa57d\"\nassert p.read_text().strip()==expected\nconfig=inspect(DEFAULT_VAULT)\nmodel=read_model(DEFAULT_VAULT,config[\"group\"])\nassert model is not None and model[\"approve_join_requests\"] is True and model[\"publish_in_owned_channel\"] is False\noutcome=asyncio.run(ensure_voluntary_request_link(config,model,DEFAULT_VAULT,_connected_client))\nassert outcome[\"status\"] in {\"CREATED\",\"REUSED\",\"EXISTING_VERIFIED\"}\nassert outcome[\"request_needed\"] is True and outcome[\"link_recorded\"] is True\nassert outcome[\"members_added\"]==0\npath=DEFAULT_VAULT/VOLUNTARY_LINK_FILE\nmetadata=path.stat()\nassert stat.S_ISREG(metadata.st_mode) and stat.S_IMODE(metadata.st_mode)==0o600\nprint(\"OFFICIAL_JOIN_LINK\",json.dumps(outcome,sort_keys=True),flush=True)\nprint(\"PRIVATE_LINK_STORED_WITH_OWNER_ONLY_ACCESS\",True,flush=True)\nprint(\"NO_MEMBERS_CONTACTED\",True,flush=True)\nprint(\"NO_UNSOLICITED_MESSAGES\",True,flush=True)\nprint(\"VOLUNTARY_JOIN_LINK_VERIFIED\",flush=True)\nPY"
+            "set -Eeuo pipefail\nsudo -n -H /opt/telegram-robot-leads/.venv/bin/python -B - <<'PY'\nimport asyncio,json,stat,sys\nfrom pathlib import Path\nsys.path.insert(0,\"/opt/telegram-robot-leads/scripts\")\nfrom telethon_sessions import DEFAULT_VAULT,inspect\nfrom organic_growth import read_model,ensure_voluntary_request_link,VOLUNTARY_LINK_FILE\nfrom safe_runtime import _connected_client\nfrom operation_policy import load_state\nsource=Path(\"/opt/telegram-robot-leads/.verified-source-commit\").read_text().strip()\nassert source==\"06651386feaccbd528378aae4fc1469751afa57d\"\nconfig=inspect(DEFAULT_VAULT)\nmodel=read_model(DEFAULT_VAULT,config[\"group\"])\nassert model[\"approve_join_requests\"] is True\nresult=asyncio.run(ensure_voluntary_request_link(config,model,DEFAULT_VAULT,_connected_client))\nassert result[\"status\"]==\"EXISTING_VERIFIED\" and result[\"created\"]==0\nassert result[\"request_needed\"] is True and result[\"members_added\"]==0\np=DEFAULT_VAULT/VOLUNTARY_LINK_FILE\nassert stat.S_IMODE(p.stat().st_mode)==0o600\nprint(\"TELEGRAM_LIVE_SECOND_LOOKUP\",json.dumps(result,sort_keys=True),flush=True)\nstate=load_state(Path(\"/var/lib/telegram-robot-leads/operation-state.json\"))\nprint(\"JOIN_REQUEST_LEDGER\",json.dumps({\"approvals_today\":sum(a.get(\"join_request_approvals\",0) for a in state[\"accounts\"].values()),\"ambiguous_pending\":len(state[\"pending_join_requests\"]),\"approved_request_history_count\":len(state[\"approved_join_requests_done\"]),\"blocked_accounts\":sum(bool(a.get(\"blocked\")) for a in state[\"accounts\"].values())},sort_keys=True),flush=True)\nprint(\"SECOND_PASS_NO_DUPLICATE_LINK\",True,flush=True)\nPY\nsudo -n env PM2_HOME=/root/.pm2 pm2 jlist | python3 -c 'import json,sys; jobs=json.load(sys.stdin); names=[\"telegram-robot-leads\",\"iptvpn_bot\"]; out={n:[j for j in jobs if j.get(\"name\")==n] for n in names}; assert all(len(v)==1 for v in out.values()); assert all(v[0][\"pm2_env\"][\"status\"]==\"online\" for v in out.values()); print(\"LIVE_WORKERS\",json.dumps({n:{\"status\":v[0][\"pm2_env\"][\"status\"],\"restarts\":v[0][\"pm2_env\"].get(\"restart_time\")} for n,v in out.items()},sort_keys=True))'\necho OFFICIAL_JOIN_MODEL_VALIDATED"
           ],
-          "timeout_ms": 145000,
-          "idle_timeout_ms": 85000,
+          "timeout_ms": 155000,
+          "idle_timeout_ms": 94000,
           "limits": {
-            "output_bytes": 7000
+            "output_bytes": 8200
           }
         }
       }
