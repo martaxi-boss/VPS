@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-notification-pipeline-readonly-20261031",
+  "request_id": "rea-leads-own-saved-message-transport-test-20261031",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n -H /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nimport json,os,subprocess,re\nroot=Path('/opt/telegram-robot-leads')\nfor file,a,b in [('scripts/safe_runtime.py',145,207),('scripts/safe_runtime.py',493,595),('scripts/safe_runtime.py',675,744),('scripts/leads_operational_report.py',230,307),('scripts/organic_growth.py',235,365),('ecosystem.config.js',1,55),('main.py',1,45)]:\n p=root/file\n print('SOURCE_START',file,a,b)\n lines=p.read_text().splitlines()\n for n in range(a,min(b,len(lines))+1):\n  print('%d:%s'%(n,lines[n-1][:220]))\nprint('FILES_WITH_NOTIFICATION_TERMS')\nfor p in (root/'scripts').glob('*.py'):\n s=p.read_text(errors='replace')\n matches=[(i,l[:130]) for i,l in enumerate(s.splitlines(),1) if re.search(r'notify|notification|supervisor|sendMessage|send_message|bot_token',l,re.I)]\n if matches:\n  print(p.name,len(matches),matches[:15])\nprint('JOURNAL_EVENT_SHAPE')\np=Path('/var/lib/telegram-robot-leads/supervisor-events.jsonl')\nwith p.open('rb') as f:\n f.seek(max(0,p.stat().st_size-12000));lines=f.read().splitlines()\nfor line in reversed(lines):\n try:\n  o=json.loads(line)\n  print('ENVELOPE_KEYS',sorted(o))\n  e=o.get('event')\n  if isinstance(e,dict):\n   print('INNER_KEYS',sorted(e))\n   print('LAST_ORGANIC',e.get('organic_growth'))\n  break\n except (ValueError,UnicodeDecodeError):continue\nprint('OPTIONAL_ENV_VAR_NAMES')\nenv={**os.environ,'PM2_HOME':'/root/.pm2'}\nr=subprocess.run(['pm2','jlist'],env=env,timeout=12,capture_output=True,text=True,check=True)\nfor x in json.loads(r.stdout):\n if x.get('name')=='telegram-robot-leads':\n  d=x['pm2_env']; names=[k for k in d if any(i in k.upper() for i in ('SUPERVISOR','NOTIFY','BOT','TELEGRAM','METRIC'))]\n  print('WORKER_ENV_NAMES',sorted(names))\nprint('SUPERVISOR_CHANNEL_FILES')\nfor p in (root/'scripts').glob('*supervisor*'):print('FILE',p.name)\nfor p in (root/'scripts').glob('*notify*'):print('FILE',p.name)\nprint('READONLY_DETAILS_PASS')\nPY"
+            "set -Eeuo pipefail\nsudo -n -H /opt/telegram-robot-leads/.venv/bin/python -B - <<'PY'\nimport asyncio, json, sys, os, stat\nfrom pathlib import Path\nsys.path.insert(0,\"/opt/telegram-robot-leads/scripts\")\nfrom safe_runtime import _connected_client\nfrom telethon_sessions import DEFAULT_VAULT, inspect\nmarker=Path(\"/var/lib/telegram-robot-leads/self-notification-test-20261031.json\")\nconfig=inspect(DEFAULT_VAULT)\nif marker.is_symlink(): raise SystemExit(\"MARKER_SYMLINK_BLOCKED\")\nif marker.exists():\n print(\"SELF_NOTIFICATION_TEST_ALREADY_ATTEMPTED_NO_REPLAY\",marker.stat().st_size)\n raise SystemExit(0)\nfd=os.open(marker,os.O_CREAT|os.O_EXCL|os.O_WRONLY|os.O_NOFOLLOW,0o600)\nwith os.fdopen(fd,\"w\") as w:\n json.dump({\"attempted\":[1,2],\"purpose\":\"voluntary_approval_notification_transport_test\"},w)\n w.flush();os.fsync(w.fileno())\nasync def check(number):\n client=await _connected_client(config,number)\n try:\n  message=f\"TESTE — Telegram Robot Leads, conta {number}. Verificação da entrega de notificações. Não foi adicionado nenhum membro.\"\n  result=await asyncio.wait_for(client.send_message(\"me\",message,link_preview=False),timeout=27)\n  sent_id=getattr(result,\"id\",None)\n  if type(sent_id) is not int or sent_id<=0:\n   return {\"account\":number,\"send_status\":\"UNCERTAIN\",\"received\":False}\n  check=await asyncio.wait_for(client.get_messages(\"me\",ids=sent_id),timeout=20)\n  matched=getattr(check,\"message\",None)==message\n  return {\"account\":number,\"send_status\":\"ACCEPTED\",\"readback\":matched,\"id_positive\":True}\n finally:\n  if client.is_connected():\n   await client.disconnect()\nasync def main():\n for number in (1,2):\n  try: print(\"OWN_SAVED_MESSAGES\",json.dumps(await check(number),sort_keys=True),flush=True)\n  except Exception as exc: print(\"OWN_SAVED_MESSAGES\",json.dumps({\"account\":number,\"status\":\"ERROR\",\"class\":type(exc).__name__}),flush=True)\nasyncio.run(main())\nprint(\"NO_EXTERNAL_RECIPIENTS_USED\")\nPY"
           ],
-          "timeout_ms": 105000,
-          "idle_timeout_ms": 30000,
+          "timeout_ms": 130000,
+          "idle_timeout_ms": 80000,
           "limits": {
-            "output_bytes": 33000
+            "output_bytes": 6200
           }
         }
       }
