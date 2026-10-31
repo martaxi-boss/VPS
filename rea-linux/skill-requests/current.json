@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-legacy-one-account-vs-two-history-20261031",
+  "request_id": "rea-leads-official-optin-fixed-validation-20261031",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n -H /usr/bin/python3 - <<'PY'\nimport ast, collections, os, pathlib, re, subprocess\nroot=pathlib.Path('/opt/telegram-robot-leads')\nclone=root/'.telegram-leads-source-7c0ef8a1d9be'\nassert root.is_dir() and clone.is_dir()\nprint('CURRENT_VERSION',(root/'.verified-source-commit').read_text().strip()[:14])\nenv={**os.environ,'GIT_PAGER':'cat','PAGER':'cat','GIT_TERMINAL_PROMPT':'0'}\ndef git(*args):\n r=subprocess.run(['git','-C',str(clone),'--no-pager',*args],env=env,capture_output=True,text=True,timeout=30,check=True)\n return r.stdout\nold=git('show','d274186^:main.py')\nnew=git('show','d274186:main.py')\nprint('REGRESSION_COMMIT','d274186')\nprint('BEFORE_AFTER_LINES',len(old.splitlines()),len(new.splitlines()))\nprint('OLD_FUNCTIONS_COUNT',len([n for n in ast.parse(old).body if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef))]))\ntree=ast.parse(old)\nfuncs={n.name:n for n in tree.body if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef))}\nfor name in ('_parse_account_regions','session_region','keywords_for_region','discover_groups','scrape_users','run_scrape_for_session','adder_worker','adder_worker_guarded'):\n n=funcs.get(name)\n if n is None:\n  print('HISTORIC_FUNCTION',name,'absent')\n  continue\n body=ast.get_source_segment(old,n) or ''\n literal_labels=[x for x in ('TELEGRAM_REGION_SPLIT','TELEGRAM_ACCOUNT_REGIONS','REGION_PT','REGION_ES','REGION_EU','PeerFloodError','FloodWaitError','UserPrivacyRestrictedError','UserNotMutualContactError','InviteToChannelRequest','JoinChannelRequest','send_message','notify','notifier','telegram_bot','bot_token','account_number','session_index','session_region') if x in body]\n print('HISTORIC_FUNCTION',name,'lines',n.end_lineno-n.lineno+1,'relevant_symbols',','.join(literal_labels))\n for_node_calls=collections.Counter()\n branches=0\n for x in ast.walk(n):\n  if isinstance(x,(ast.If,ast.IfExp,ast.Try,ast.Match)):branches+=1\n  if isinstance(x,ast.Call):\n   fn=x.func\n   k=fn.id if isinstance(fn,ast.Name) else fn.attr if isinstance(fn,ast.Attribute) else '<other>'\n   for_node_calls[k]+=1\n print('STRUCTURE',name,'conditional_nodes',branches,'call_counts',{k:v for k,v in for_node_calls.items() if k in ('session_region','_parse_account_regions','run_scrape_for_session','discover_groups','adder_worker','send_message','_notify','save_db','send_notification','check_action','sleep','uniform','random')})\nprint('PREVIOUS_COMMITS',git('log','--format=%h %s','-n','7','d274186^','--','main.py').strip().replace('\\n',' | ')[:1000])\nprint('REGRESSION_DIFFSTAT',git('diff','--stat','d274186^','d274186','--','main.py').strip())\nprint('JOIN_RPC_LEGACY_MAIN',sum('JoinChannelRequest' in l for l in old.splitlines()))\nprint('DIRECT_ADD_RPC_LEGACY_MAIN',sum('InviteToChannelRequest' in l for l in old.splitlines()))\nprint('ACCOUNT_SESSION_REGION_RULE', 'session_region' in old and 'TELEGRAM_REGION_SPLIT' in old)\nprint('NO_PERSONAL_DATA_DISCLOSED')\nPY"
+            "set -Eeuo pipefail\nwork=$(mktemp -d /tmp/rea-leads-optin-check.XXXXXX)\ntrap 'rm -rf -- \"$work\"' EXIT\ngit clone -q --depth 1 --branch feat/official-optin-approval-20261031 https://github.com/martaxi-boss/telegram-robot-leads.git \"$work\"\ncd \"$work\"\nsha=$(git rev-parse HEAD)\ntest \"$sha\" = \"41fe3c1de033294910ef50616855f1cd3da39873\"\nprintf 'CHECKED_SHA=%s\\n' \"$sha\"\ngit --no-pager diff --check HEAD\nsudo -n -H /opt/telegram-robot-leads/.venv/bin/python -B -m unittest discover -s tests -q\nsudo -n -H /usr/bin/python3 -B -c 'import ast,pathlib; fs=(\"scripts/organic_growth.py\",\"scripts/safe_runtime.py\"); [ast.parse(pathlib.Path(p).read_text()) for p in fs]; print(\"SOURCE_AST_PASS\")'\nnode --check ecosystem.config.js\necho OFFICIAL_OPTIN_REGRESSION_PASS"
           ],
-          "timeout_ms": 95000,
-          "idle_timeout_ms": 24000,
+          "timeout_ms": 145000,
+          "idle_timeout_ms": 90000,
           "limits": {
-            "output_bytes": 12500
+            "output_bytes": 8800
           }
         }
       }
