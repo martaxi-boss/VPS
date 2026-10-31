@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-bootstrap-align-audit-20261031-k6p3",
+  "request_id": "rea-leads-bootstrap-docs-verify-20261031-y3r8",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\ntmp=$(mktemp -d /tmp/leads-docs-alignment.XXXXXX)\ntrap 'rm -rf \"$tmp\"' EXIT\ngit -c credential.helper= clone -q --depth 1 https://github.com/martaxi-boss/telegram-robot-leads.git \"$tmp/repo\"\ncd \"$tmp/repo\"\necho COMMIT=$(git rev-parse HEAD)\necho DOCUMENT_FILES\ngit ls-files '*.md' '*.yml' '*.yaml' '*.json' | head -95\necho BOOTSTRAP\nsed -n '1,160p' docs/BOOTSTRAP.md\necho CONFLICT_CANDIDATES\ngrep -RInE 'um grupo por dia|1 grupo por dia|one group per day|group[_ -]joins.*[12]|group[_ -]daily[_ -]limit|MAX_GROUP_JOINS|por conta por dia|group per account per day|rotativ|join request|ades[aã]o|volunt[aá]ri' --include='*.md' --exclude='BOOTSTRAP.md' README* docs/ 2>/dev/null | head -100\necho ENTRYPOINT_REFERENCES\ngrep -RInE 'BOOTSTRAP|FRAMEWORK|source.of.truth|fonte de verdade|source of truth' --include='*.md' README* docs/ 2>/dev/null | head -60\necho DONE"
+            "set -Eeuo pipefail\ntmp=$(mktemp -d /tmp/leads-bootstrap-docs-verify.XXXXXX)\ntrap 'rm -rf \"$tmp\"' EXIT\ngit -c credential.helper= clone -q --depth 1 --branch docs/bootstrap-single-source-20261031 https://github.com/martaxi-boss/telegram-robot-leads.git \"$tmp/repo\"\ncd \"$tmp/repo\"\necho CHECKED_SHA $(git rev-parse HEAD)\ngit -c credential.helper= fetch -q --depth 20 origin main:refs/remotes/origin/main\ngit diff --check origin/main HEAD\necho CHANGED_FILES\ngit diff --name-only origin/main HEAD\npython3 -B - <<'PY'\nfrom pathlib import Path\nfiles=['AGENTS.md','docs/BOOTSTRAP.md','docs/PROJECT-STATE.md',\n       'docs/README.md','docs/PUBLIC_GROUP_DISCOVERY.md',\n       'docs/OPERATIONS_AND_REVIEW.md','docs/OWNER-PROTOCOL-20261019.md']\nfor name in files:\n txt=Path(name).read_text()\n assert txt.strip(),f'{name}:empty'\n assert 'BOOTSTRAP.md' in txt,f'{name}:bootstrap_reference_missing'\n print('DOC_LINK_OK',name)\nboot=Path('docs/BOOTSTRAP.md').read_text()\nassert 'PT_ES' in boot and 'EU_OTHER' in boot\nassert 'um grupo por dia' in boot\nassert '(conta, grupo)' in boot\nstate=Path('docs/PROJECT-STATE.md').read_text()\nassert 'Deploy e ensaio real desta revisão continuam pendentes' in state\nprint('DOC_CONTRACT_PASS')\nPY\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B -m unittest discover -s tests -q\necho DOCS_TESTS_COMPLETE"
           ],
-          "timeout_ms": 130000,
-          "idle_timeout_ms": 90000,
+          "timeout_ms": 160000,
+          "idle_timeout_ms": 120000,
           "limits": {
-            "output_bytes": 19000
+            "output_bytes": 9000
           }
         }
       }
