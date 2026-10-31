@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-pr41-test-owner-20261031",
+  "request_id": "rea-leads-ci-final-hygiene-dry-run-20261031",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail; work=$(mktemp -d /tmp/rea-leads-pr41.XXXXXX); trap 'rm -rf -- \"$work\"' EXIT; git clone -q --depth 1 --branch fix/20261031-regional-public-discovery https://github.com/martaxi-boss/telegram-robot-leads.git \"$work\"; cd \"$work\"; git --no-pager log -1 --format='SOURCE=%H'; git --no-pager diff --check HEAD; sudo -n -H /opt/telegram-robot-leads/.venv/bin/python -B -m unittest discover -s tests -q; sudo -n -H /opt/telegram-robot-leads/.venv/bin/python -B -m py_compile scripts/public_group_discovery.py scripts/safe_runtime.py scripts/deploy_project_only.py; node --check ecosystem.config.js; sudo -n -H /usr/bin/python3 -B scripts/project_hygiene.py --root /opt/telegram-robot-leads; echo REAL_REA_CI_PASS"
+            "set -Eeuo pipefail; testroot=$(mktemp -d /tmp/rea-leads-ci.XXXXXX); trap 'rm -rf -- \"$testroot\"' EXIT; git clone -q --depth 1 --branch fix/20261031-regional-public-discovery https://github.com/martaxi-boss/telegram-robot-leads.git \"$testroot\"; cd \"$testroot\"; git --no-pager log -1 --format='CHECKED_SHA=%H'; git --no-pager diff --check HEAD; sudo -n -H /opt/telegram-robot-leads/.venv/bin/python -B -m unittest discover -s tests -q; sudo -n -H /usr/bin/python3 -B -c 'import ast; from pathlib import Path; paths=[Path(\"scripts/public_group_discovery.py\"),Path(\"scripts/safe_runtime.py\"),Path(\"scripts/deploy_project_only.py\")]; [ast.parse(path.read_text()) for path in paths]; print(\"AST_OK\",len(paths))'; node --check ecosystem.config.js; sudo -n -H /usr/bin/python3 -B scripts/project_hygiene.py --root /opt/telegram-robot-leads; echo ALL_CHECKS_PASSED"
           ],
           "timeout_ms": 120000,
           "idle_timeout_ms": 80000,
           "limits": {
-            "output_bytes": 10500
+            "output_bytes": 6000
           }
         }
       }
