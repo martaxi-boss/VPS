@@ -16,8 +16,8 @@ concurrency:
 
 env:
   TELEGRAM_REPO: https://github.com/martaxi-boss/telegram-robot-leads.git
-  TARGET_SHA: 8298503f7b21466ebf14b9f164f9e103c9c781e7
-  EXPECTED_INSTALLED: 58a206a6746e86ebcb8ed53f1fabbf9d45ff01a5
+  TARGET_SHA: d1accce671254d233ccbdc7e8bc5adcc69b7c347
+  EXPECTED_INSTALLED: 8298503f7b21466ebf14b9f164f9e103c9c781e7
   VPS_HOST: 146.59.145.3
   VPS_USER: ubuntu
 
