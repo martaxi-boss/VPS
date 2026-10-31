@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-pr41-preflight-20261031-b",
+  "request_id": "rea-leads-pr41-test-and-hygiene-20261031",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail; sudo -n /usr/bin/python3 -c 'from pathlib import Path; p=Path(\"/opt/telegram-robot-leads\"); print(\"PROJECT_PRESENT\",p.is_dir()); print(\"DEPLOYED_SOURCE\",(p/\".verified-source-commit\").read_text().strip()); print(\"SOURCE_DIR_PRESENT\",(p/\".telegram-leads-source-7c0ef8a1d9be\").is_dir()); print(\"INSTALLER_PRESENT\",(p/\"scripts/deploy_project_only.py\").is_file())'"
+            "set -Eeuo pipefail; work=$(mktemp -d /tmp/rea-leads-pr41-check.XXXXXX); trap 'rm -rf -- \"$work\"' EXIT; git clone --quiet --depth 1 --branch fix/20261031-regional-public-discovery https://github.com/martaxi-boss/telegram-robot-leads.git \"$work\"; cd \"$work\"; GIT_PAGER=cat git --no-pager log -1 --format='PR41_SHA=%H'; GIT_PAGER=cat git --no-pager diff --check HEAD^ HEAD 2>/dev/null || git --no-pager diff --check HEAD; /opt/telegram-robot-leads/.venv/bin/python -B -m unittest discover -s tests -q; /opt/telegram-robot-leads/.venv/bin/python -B -m py_compile scripts/public_group_discovery.py scripts/safe_runtime.py scripts/deploy_project_only.py; node --check ecosystem.config.js; /usr/bin/python3 -B scripts/project_hygiene.py --root /opt/telegram-robot-leads; echo PR41_READONLY_VALIDATION_PASS"
           ],
-          "timeout_ms": 45000,
-          "idle_timeout_ms": 10000,
+          "timeout_ms": 120000,
+          "idle_timeout_ms": 85000,
           "limits": {
-            "output_bytes": 3500
+            "output_bytes": 9000
           }
         }
       }
