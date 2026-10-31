@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-optin-mtproto-api-preflight-20261031",
+  "request_id": "rea-leads-official-optin-ci-20261031",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n -H /opt/telegram-robot-leads/.venv/bin/python -B - <<'PY'\nimport inspect,sys,asyncio,json\nsys.path.insert(0,'/opt/telegram-robot-leads/scripts')\nfrom telethon_sessions import inspect as auth_inspect,make_memory_client\nfrom telethon.tl.functions.messages import (ExportChatInviteRequest,GetExportedChatInvitesRequest,GetChatInviteImportersRequest)\nfrom telethon.tl.types import InputUserEmpty\nfor cls in (ExportChatInviteRequest,GetExportedChatInvitesRequest,GetChatInviteImportersRequest):\n print('METHOD_SIGNATURE',cls.__name__,str(inspect.signature(cls)),flush=True)\nconfig=auth_inspect(__import__('pathlib').Path('/root/project-secrets/telegram-robot-leads'))\nasync def main():\n c=make_memory_client(config['entries'][0],config)\n try:\n  await asyncio.wait_for(c.connect(),timeout=27)\n  assert await asyncio.wait_for(c.is_user_authorized(),timeout=18)\n  g=await asyncio.wait_for(c.get_entity(config['group']),timeout=19)\n  resp=await asyncio.wait_for(c(GetChatInviteImportersRequest(peer=g,requested=True,offset_date=0,offset_user=InputUserEmpty(),limit=8)),timeout=25)\n  users=getattr(resp,'users',None); importers=getattr(resp,'importers',None)\n  print('PENDING_REQUEST_QUERY',json.dumps({'valid_shape':isinstance(users,(list,tuple)) and isinstance(importers,(list,tuple)),'count':len(importers) if isinstance(importers,(list,tuple)) else None,'target_group':config['group']},sort_keys=True),flush=True)\n finally:\n  if c.is_connected():await c.disconnect()\nasyncio.run(main())\nprint('READ_ONLY_REQUEST_API_PASS')\nPY"
+            "set -Eeuo pipefail\nwork=$(mktemp -d /tmp/rea-telegram-optin.XXXXXX)\ntrap 'rm -rf -- \"$work\"' EXIT\ngit clone -q --depth 1 --branch feat/official-optin-approval-20261031 https://github.com/martaxi-boss/telegram-robot-leads.git \"$work\"\ncd \"$work\"\ngit --no-pager log -1 --format='CANDIDATE_SHA=%H'\ngit --no-pager diff --check HEAD\nsudo -n -H /opt/telegram-robot-leads/.venv/bin/python -B -m unittest discover -s tests -q\nsudo -n -H /usr/bin/python3 -B -c 'import ast; from pathlib import Path; p=Path(\"scripts/organic_growth.py\"); ast.parse(p.read_text()); print(\"OPTIN_SOURCE_AST_PASS\")'\nnode --check ecosystem.config.js\necho OPTIN_CANDIDATE_VALIDATED"
           ],
-          "timeout_ms": 125000,
-          "idle_timeout_ms": 85000,
+          "timeout_ms": 120000,
+          "idle_timeout_ms": 80000,
           "limits": {
-            "output_bytes": 7500
+            "output_bytes": 10500
           }
         }
       }
