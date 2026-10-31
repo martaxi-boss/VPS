@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-telegram-leads-membership-ci-20261031",
+  "request_id": "rea-leads-ledger-release-cert-20261031",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nwork=$(mktemp -d /tmp/rea-leads-membership.XXXXXX)\ntrap 'rm -rf -- \"$work\"' EXIT\ngit clone -q --depth 1 --branch feat/membership-registry-20261031 https://github.com/martaxi-boss/telegram-robot-leads.git \"$work\"\ncd \"$work\"\ngit --no-pager log -1 --format='MEMBERSHIP_COMMIT=%H'\ngit --no-pager diff --check HEAD\nsudo -n -H /opt/telegram-robot-leads/.venv/bin/python -B -m unittest discover -s tests -q\nsudo -n -H /usr/bin/python3 -B -c 'import ast; from pathlib import Path; paths=[Path(\"scripts/member_groups.py\"),Path(\"scripts/safe_runtime.py\"),Path(\"scripts/leads_operational_report.py\"),Path(\"scripts/deploy_project_only.py\")]; [ast.parse(p.read_text()) for p in paths]; print(\"SYNTAX_CHECKS\",len(paths))'\nnode --check ecosystem.config.js\necho MEMBERSHIP_REGISTRY_TESTS_PASS"
+            "set -Eeuo pipefail\nwork=$(mktemp -d /tmp/rea-leads-ledger-release.XXXXXX)\ntrap 'rm -rf -- \"$work\"' EXIT\ngit clone -q --depth 1 --branch feat/membership-registry-20261031 https://github.com/martaxi-boss/telegram-robot-leads.git \"$work\"\ncd \"$work\"\ntest \"$(git rev-parse HEAD)\" = \"73af059c9a552227ecbdbd5b38757178d82015e1\"\ngit --no-pager diff --check HEAD\nsudo -n -H /opt/telegram-robot-leads/.venv/bin/python -B -m unittest discover -s tests -q\nsudo -n -H /usr/bin/python3 -B -c 'import ast; from pathlib import Path; fs=[\"scripts/member_groups.py\",\"scripts/safe_runtime.py\",\"scripts/leads_operational_report.py\",\"scripts/deploy_project_only.py\"]; [ast.parse(Path(f).read_text()) for f in fs]; print(\"LEDGER_SYNTAX_OK\",len(fs))'\nnode --check ecosystem.config.js\necho TESTED_RELEASE_245_PASS"
           ],
-          "timeout_ms": 150000,
-          "idle_timeout_ms": 95000,
+          "timeout_ms": 120000,
+          "idle_timeout_ms": 80000,
           "limits": {
-            "output_bytes": 13000
+            "output_bytes": 7000
           }
         }
       }
