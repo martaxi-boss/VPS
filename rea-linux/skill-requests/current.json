@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-pr44-two-admin-optin-verify-20261031",
+  "request_id": "rea-leads-final-two-account-after-central-deploy-20261031",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nwork=$(mktemp -d /tmp/rea-leads-optin-pr44.XXXXXX)\ntrap 'rm -rf -- \"$work\"' EXIT\ngit clone -q --depth 1 --branch fix/20261031-two-admin-optin-intake https://github.com/martaxi-boss/telegram-robot-leads.git \"$work\"\ncd \"$work\"\ntest \"$(git rev-parse HEAD)\" = \"e9c6620fdd81c3e9c9f38fa18f1b3c31bbc06d90\"\ngit --no-pager diff --check HEAD\nsudo -n -H /opt/telegram-robot-leads/.venv/bin/python -B -m unittest discover -s tests -q\nsudo -n -H /usr/bin/python3 -B -c 'import ast,pathlib; fs=[\"scripts/organic_growth.py\",\"scripts/safe_runtime.py\",\"scripts/operation_policy.py\"]; [ast.parse(pathlib.Path(x).read_text()) for x in fs]; print(\"AST_VERIFIED\",len(fs))'\nnode --check ecosystem.config.js\ngrep -Fq '\"join_requests\", approve_pending_join_request,' scripts/safe_runtime.py\ngrep -Fq 'select_intake_account(state)' scripts/organic_growth.py\necho PR44_REMOTE_TESTS_PASS"
+            "set -Eeuo pipefail\nsudo -n -H /opt/telegram-robot-leads/.venv/bin/python -B - <<'PY'\nimport asyncio,json,sys,stat\nfrom pathlib import Path\nsys.path.insert(0,\"/opt/telegram-robot-leads/scripts\")\nfrom telethon_sessions import DEFAULT_VAULT,inspect,make_memory_client\nfrom organic_growth import read_model,_read_voluntary_link,ensure_voluntary_request_link\nfrom safe_runtime import _connected_client\nroot=Path('/opt/telegram-robot-leads')\nsha=(root/'.verified-source-commit').read_text().strip()\nassert sha=='06651386feaccbd528378aae4fc1469751afa57d'\nconfig=inspect(DEFAULT_VAULT)\nmodel=read_model(DEFAULT_VAULT,config['group'])\nassert model and model['approve_join_requests'] is True\nasync def check():\n for number in (1,2):\n  c=make_memory_client(config['entries'][number-1],config)\n  try:\n   await asyncio.wait_for(c.connect(),timeout=28)\n   authorized=await asyncio.wait_for(c.is_user_authorized(),timeout=20)\n   g=await asyncio.wait_for(c.get_entity(config['group']),timeout=18)\n   p=await asyncio.wait_for(c.get_permissions(g,'me'),timeout=20)\n   admin=bool(p.is_creator or (p.is_admin and p.invite_users))\n   print('ACCOUNT_STATUS',json.dumps({'account':number,'authorized':bool(authorized),'group_admin':admin,'target_group_available':bool(g)},sort_keys=True),flush=True)\n   assert authorized and admin\n  finally:\n   if c.is_connected(): await c.disconnect()\nasyncio.run(check())\nresult=asyncio.run(ensure_voluntary_request_link(config,model,DEFAULT_VAULT,_connected_client))\nassert result['status']=='EXISTING_VERIFIED' and result['created']==0\nprint('OWNER_LINK_RECHECK',json.dumps(result,sort_keys=True),flush=True)\nprint('TWO_ACCOUNTS_AND_REQUEST_LINK_PASS',flush=True)\nPY\nsudo -n env PM2_HOME=/root/.pm2 pm2 jlist | python3 -c 'import json,sys; items=json.load(sys.stdin); procs={name:[p for p in items if p.get(\"name\")==name] for name in (\"telegram-robot-leads\",\"iptvpn_bot\")}; assert all(len(p)==1 and p[0][\"pm2_env\"].get(\"status\")==\"online\" for p in procs.values()); print(\"PM2_LEADS_AND_OTHER_ONLINE\",True)'\necho COMPLIANT_TELEGRAM_LEADS_FINAL_HEALTH_PASS"
           ],
-          "timeout_ms": 120000,
-          "idle_timeout_ms": 75000,
+          "timeout_ms": 170000,
+          "idle_timeout_ms": 105000,
           "limits": {
-            "output_bytes": 9000
+            "output_bytes": 6600
           }
         }
       }
