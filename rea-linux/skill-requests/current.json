@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-group2-public-readonly-20261031-t4b7",
+  "request_id": "rea-leads-legacy-filter-readonly-20261031-r9m2",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n /usr/bin/python3 - <<'PY'\nimport json\nfrom pathlib import Path\ndata=Path('/var/lib/telegram-robot-leads')\nst=json.loads((data/'operation-state.json').read_text(encoding='utf-8'))\ncat=json.loads((data/'public-groups.json').read_text(encoding='utf-8')).get('groups',{})\nout=[]\nfor key,val in st.get('joined_groups',{}).items():\n if not isinstance(val,dict) or val.get('account')!=2: continue\n handle=key[2:] if key.startswith('2:') else key\n item=cat.get(handle,cat.get(handle.casefold(),{}))\n out.append({'handle':handle,'title':item.get('title') if isinstance(item,dict) else None,'join_status':val.get('status'),'dialog_confirmed':val.get('status')=='verified_existing_member'})\nprint('ACCOUNT_TWO_GROUPS',json.dumps(out,ensure_ascii=False,sort_keys=True))\nprint('READ_ONLY_DONE')\nPY"
+            "set -Eeuo pipefail\ntmp=$(mktemp -d /tmp/leads-legacy-audit.XXXXXX)\ntrap 'rm -rf \"$tmp\"' EXIT\ngit -c credential.helper= clone -q --depth 140 https://github.com/martaxi-boss/telegram-robot-leads.git \"$tmp/repo\"\ncd \"$tmp/repo\"\necho SOURCE_READONLY_SHA $(git rev-parse HEAD)\npython3 -B - <<'PY'\nimport re,subprocess\ndef run(*a):\n p=subprocess.run(a,check=True,capture_output=True,text=True,timeout=50)\n return p.stdout\nlog=run('git','log','--format=%H','--','main.py').splitlines()\nprint('REVISIONS_CHECKED',len(log))\nkeywords=('InviteToChannelRequest','GetParticipantsRequest','ChannelParticipants','UserPrivacyRestricted','UserNotMutualContact','UserChannelsTooMuch','PeerFlood','FloodWait','username','bot','admin','creator','participant','blacklist','whitelist','eligible')\nchosen=None\nfor sha in reversed(log):\n try: src=run('git','show',sha+':main.py')\n except subprocess.CalledProcessError:continue\n if 'InviteToChannelRequest' in src and len(src.splitlines())>500:\n  chosen=(sha,src)\n  break\nif chosen is None:\n print('LEGACY_ENGINE_NOT_FOUND_IN_DEPTH')\nelse:\n sha,src=chosen\n lines=src.splitlines()\n print('LEGACY_ENGINE_COMMIT',sha)\n print('LEGACY_LINES',len(lines))\n print('FUNCTIONS_RELEVANT')\n funs=[]\n for i,line in enumerate(lines,1):\n  if re.match(r'^\\s*(?:async )?def ',line) and re.search(r'group|member|user|filter|invite|add|scrape|participant|eligible|privacy|permission|queue',line,re.I):\n   funs.append((i,line.strip()[:100]))\n print(funs[:75])\n print('KEY_LOGIC_NAMES_AND_CONDITIONS')\n count=0\n for i,line in enumerate(lines,1):\n  s=line.strip()\n  if any(w.casefold() in s.casefold() for w in keywords):\n   if any(marker in s for marker in ('=', 'if ', 'except ', 'from ', 'import ', 'def ', 'continue','raise ')):\n    print(f'{i}: {s[:180]}')\n    count+=1\n    if count>=115:break\n print('KEYWORD_PRESENT',[(k,k in src) for k in keywords])\nPY\necho INSPECTION_ONLY_COMPLETE"
           ],
-          "timeout_ms": 85000,
-          "idle_timeout_ms": 55000,
+          "timeout_ms": 120000,
+          "idle_timeout_ms": 90000,
           "limits": {
-            "output_bytes": 3500
+            "output_bytes": 12000
           }
         }
       }
