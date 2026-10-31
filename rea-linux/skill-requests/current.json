@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-journal-historical-success-summary-20261031-n9c4",
+  "request_id": "rea-leads-member-actions-journal-audit-20261031-x7v2",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nfrom collections import Counter\nimport json\np=Path('/var/lib/telegram-robot-leads/supervisor-events.jsonl')\ncounts=Counter();kind_sources=Counter();success=Counter();dates=[]\nfor line in p.open(encoding='utf-8'):\n try:row=json.loads(line)\n except (ValueError,UnicodeError):continue\n if not isinstance(row,dict):continue\n event=row.get('event')\n if not isinstance(event,dict):continue\n typ=str(event.get('kind',event.get('status',event.get('event_type','MISSING'))))\n counts[typ]+=1\n for k in ('member_added','members_added','invite_ok','adds_ok','approved_user_ids_done'):\n  val=event.get(k)\n  if val and isinstance(val,int):success[k]+=val\n  elif isinstance(val,str) and val.casefold() in ('true','success','yes'):success[k]+=1\n for k in ('account','session'):\n  if k in event:kind_sources[k]+=1\n if isinstance(row.get('ts'),(str,int,float)):dates.append(row['ts'])\nprint('NESTED_EVENT_KINDS',counts.most_common(45))\nprint('SUCCESS_RELATED_SUM',dict(success))\nprint('ACCOUNT_ATTRIBUTION_FIELDS_COUNT',dict(kind_sources))\nprint('TS_FIRST_LAST',str(dates[0])[:40] if dates else None,str(dates[-1])[:40] if dates else None)\nprint('EXACT_EVENT_FIELDS',sorted(event.keys()) if isinstance(event,dict) else [])\nfor directory in ('/root/TELEGRAM-IPTVPN','/opt/TELEGRAM-IPTVPN','/root/telegram-robot-leads','/opt/telegram-iptvpn','/home/ubuntu/TELEGRAM-IPTVPN'):\n d=Path(directory)\n if not d.is_dir() or d.is_symlink():continue\n print('LEGACY_DIRECTORY_EXISTS',directory)\n for name in ('users.db','estado_bot.json','telethon_adder.log'):\n  file=d/name\n  if file.is_file() and not file.is_symlink():print('LEGACY_HISTORICAL_FILE',name,'BYTES',file.stat().st_size)\nprint('HISTORICAL_EVENT_AUDIT_COMPLETE')\nPY"
+            "set -Eeuo pipefail\nsudo -n /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nfrom collections import Counter\nimport json\npath=Path('/var/lib/telegram-robot-leads/supervisor-events.jsonl')\nstats=Counter();groupstats=Counter();byaccount=Counter();misc=Counter()\nfor line in path.open(encoding='utf-8'):\n try: o=json.loads(line)\n except ValueError:continue\n e=o.get('event') if isinstance(o,dict) else None\n if not isinstance(e,dict):continue\n actions=e.get('member_actions',[])\n if isinstance(actions,list):\n  stats['cycles_with_member_actions']+=bool(actions)\n  for a in actions:\n   if not isinstance(a,dict):continue\n   status=str(a.get('status','MISSING'))\n   stats['member_action_'+status]+=1\n   if status.casefold() in ('added','success','invite_ok','member_added','approved','already_member'):\n    acc=a.get('account')\n    label='account_'+str(acc) if str(acc) in ('1','2') else 'UNATTRIBUTED'\n    byaccount[(label,status)]+=1\n groups=e.get('group_actions',[])\n if isinstance(groups,list):\n  for a in groups:\n   if isinstance(a,dict):\n    groupstats[str(a.get('status','MISSING'))]+=1\n growth=e.get('organic_growth')\n if isinstance(growth,dict):\n  for k,v in growth.items():\n   if not isinstance(v,dict):continue\n   status=str(v.get('status','MISSING'))\n   if status in ('APPROVED_REQUEST','SUCCESS','ADDED','added'):\n    misc[(str(k),status)]+=1\nprint('MEMBER_ACTIONS',stats.most_common(30))\nprint('SUCCESS_LIKE_MEMBER_ACTIONS_BY_ACCOUNT',sorted([(a,b,n) for (a,b),n in byaccount.items()]))\nprint('GROUP_ACTION_STATUSES',groupstats.most_common(12))\nprint('GROWTH_ACTION_SUCCESSES',[(a,b,n) for (a,b),n in misc.items()])\nprint('AUDIT_COMPLETED')\nPY"
           ],
           "timeout_ms": 90000,
-          "idle_timeout_ms": 70000,
+          "idle_timeout_ms": 64000,
           "limits": {
-            "output_bytes": 5500
+            "output_bytes": 4700
           }
         }
       }
