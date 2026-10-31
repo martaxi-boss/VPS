@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-after-deploy-blocked-diagnosis-20261031-s3v8",
+  "request_id": "rea-leads-catalog-typeerror-test-20261031-n7q2",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,10 +9,10 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n /usr/bin/python3 - <<'PY'\nimport os,json,subprocess\nfrom pathlib import Path\nroot=Path('/opt/telegram-robot-leads')\nj=subprocess.run(['pm2','jlist'],env={**os.environ,'PM2_HOME':'/root/.pm2'},capture_output=True,text=True,timeout=10)\nassert j.returncode==0\napp=[x for x in json.loads(j.stdout) if x.get('name')=='telegram-robot-leads']\nassert len(app)==1\nmeta=app[0]['pm2_env']\nprint('STATUS',meta.get('status'),'PM2_UNSTABLE_RESTARTS',meta.get('unstable_restarts'),'RESTART_TIME',meta.get('restart_time'))\nfor stream_name,log_name in [('OUT','pm_out_log_path'),('ERROR','pm_err_log_path')]:\n p=Path(meta.get(log_name,''))\n if not p.is_file() or p.is_symlink():continue\n with p.open('rb') as h:\n  n=h.seek(0,2);h.seek(max(0,n-30000));lines=h.read().decode('utf-8','replace').splitlines()\n print('STREAM',stream_name,'TAIL_LINE_COUNT',len(lines))\n for line in lines[-20:]:\n  try: entry=json.loads(line)\n  except ValueError:continue\n  if isinstance(entry,dict):\n   allowed={k:entry.get(k) for k in ('status','reason','public_discovery_status','group_actions_recorded','groups_joined','blocked_actions') if k in entry}\n   print('SANITIZED_CYCLE',json.dumps(allowed,ensure_ascii=True,sort_keys=True)[:550])\nstate=Path('/var/lib/telegram-robot-leads/operation-state.json')\nd=json.loads(state.read_text())\nfor account in ('1','2'):\n acc=d['accounts'][account]\n print('ACCOUNT',account,'BLOCKED',acc.get('blocked'),'REASON',str(acc.get('reason'))[:120],'JOIN_COUNT',acc.get('group_joins'))\nprint('PENDING_GROUPS_COUNT',len(d.get('pending_group_actions',{})))\nprint('JOINED_GROUPS_COUNT',len(d.get('joined_groups',{})))\nprint('DIAGNOSIS_COMPLETE')\nPY"
+            "set -Eeuo pipefail\nwork=$(mktemp -d /tmp/rea-leads-catalog-fix.XXXXXX)\ntrap 'rm -rf \"$work\"' EXIT\ngit -c credential.helper= clone -q --depth 1 --branch fix/catalog-path-typeerror-20261031 https://github.com/martaxi-boss/telegram-robot-leads.git \"$work/repo\"\ncd \"$work/repo\"\necho TESTED_SHA $(git rev-parse HEAD)\ngit -c credential.helper= fetch -q --depth 20 origin main:refs/remotes/origin/main\ngit diff --check origin/main HEAD\nsudo -n /opt/telegram-robot-leads/.venv/bin/python -B -m unittest discover -s tests -q\necho CATALOG_FIX_TESTS_PASS"
           ],
-          "timeout_ms": 94000,
-          "idle_timeout_ms": 65000,
+          "timeout_ms": 140000,
+          "idle_timeout_ms": 90000,
           "limits": {
             "output_bytes": 9500
           }
