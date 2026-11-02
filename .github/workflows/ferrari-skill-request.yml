@@ -1,0 +1,108 @@
+name: Ferrari Skill - authenticated request delivery
+# Ferrari-only job transport. Does not alter the existing SSH bridge.
+# All validation and execution logic lives in martaxi-boss/skill-universal.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ferrari-requests/job-*.json'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ferrari-skill-vps-jobs
+  cancel-in-progress: false
+
+jobs:
+  ferrari-skill:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Fetch authorized GitHub commit with new request
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Fetch pinned independent Ferrari engine
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: 1ff6e472b5ea4eab95785be224155f400c51aeaa
+          path: ferrari
+          persist-credentials: false
+
+      - name: Ask Ferrari to select and validate one committed job envelope
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          cd ferrari
+          python3 -m engine.skill_request_pick \
+            --repo "$GITHUB_WORKSPACE" \
+            --before "$BEFORE_SHA" \
+            --after "$AFTER_SHA" \
+            --output "$RUNNER_TEMP/ferrari-job.json"
+          echo 'FERRARI_SKILL_REQUEST_PICK=PASS'
+
+      - name: Reuse pinned existing VPS SSH identity without changing the bridge
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS" || { echo 'FERRARI_VPS_SSH_SECRET_MISSING'; exit 2; }
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/ferrari-skill-known-hosts"
+          chmod 600 "$RUNNER_TEMP/ferrari-skill-known-hosts"
+          fingerprint="$(ssh-keygen -lf "$RUNNER_TEMP/ferrari-skill-known-hosts" -E sha256 | awk '{print $2}')"
+          test "$fingerprint" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc" ||
+            { echo 'FERRARI_VPS_HOST_KEY_MISMATCH'; exit 3; }
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          echo 'FERRARI_SKILL_EXISTING_SSH_PIN=PASS'
+
+      - name: Transport Ferrari job to VPS and retrieve response ZIP
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_RUN_ID" =~ ^[0-9]+$ ]] || exit 4
+          opts=(-o PreferredAuthentications=password -o PubkeyAuthentication=no
+                -o StrictHostKeyChecking=yes
+                -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-skill-known-hosts"
+                -o GlobalKnownHostsFile=/dev/null
+                -o HostKeyAlgorithms=ssh-ed25519
+                -o ConnectTimeout=20 -o ServerAliveInterval=15)
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
+            'mkdir -p "$HOME/.local/share/motor-ferrari/.runtime/skill-requests" "$HOME/.local/share/motor-ferrari/.runtime/skill-results"'
+          sshpass -e scp "${opts[@]}" "$RUNNER_TEMP/ferrari-job.json" \
+            "ubuntu@146.59.145.3:.local/share/motor-ferrari/.runtime/skill-requests/request-$GITHUB_RUN_ID.json"
+          # Task selection and execution happen only inside the Ferrari motor.
+          set +e
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
+            "cd \"\$HOME/.local/share/motor-ferrari/current\" && python3 -m engine.skill_job --request \"\$HOME/.local/share/motor-ferrari/.runtime/skill-requests/request-$GITHUB_RUN_ID.json\" --output \"\$HOME/.local/share/motor-ferrari/.runtime/skill-results/$GITHUB_RUN_ID\""
+          engine_exit=$?
+          set -e
+          sshpass -e scp "${opts[@]}" \
+            "ubuntu@146.59.145.3:.local/share/motor-ferrari/.runtime/skill-results/$GITHUB_RUN_ID/response.zip" \
+            "$RUNNER_TEMP/ferrari-response.zip"
+          test -s "$RUNNER_TEMP/ferrari-response.zip"
+          echo "FERRARI_SKILL_RESPONSE_ZIP=PASS"
+          if (( engine_exit != 0 )); then
+            echo "FERRARI_SKILL_ENGINE_ERROR=$engine_exit"
+            exit "$engine_exit"
+          fi
+          echo 'FERRARI_SKILL_END_TO_END=PASS'
+
+      - name: Preserve returned Ferrari files as GitHub Actions artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ferrari-skill-result-${{ github.run_id }}
+          path: ${{ runner.temp }}/ferrari-response.zip
+          if-no-files-found: warn
+          retention-days: 7
