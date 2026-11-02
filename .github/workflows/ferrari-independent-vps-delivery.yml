@@ -24,7 +24,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: 21735c20baa163cded0551144c9f8f7ef8db7431
+          ref: d7708a825797cc40b8726b32cbe00673929f3e4c
           persist-credentials: false
           path: ferrari
       - name: Validate Ferrari delivery scripts and engine tests on runner
@@ -72,13 +72,13 @@ jobs:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         run: |
           set -euo pipefail
-          SHA="21735c20baa163cded0551144c9f8f7ef8db7431"
+          SHA="d7708a825797cc40b8726b32cbe00673929f3e4c"
           opts=(-o PreferredAuthentications=password -o PubkeyAuthentication=no
                 -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-pinned-host"
                 -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519
                 -o ConnectTimeout=20 -o ServerAliveInterval=15)
           tar --exclude=.git --exclude=.runtime --exclude=__pycache__             -czf "$RUNNER_TEMP/ferrari-source.tar.gz" -C ferrari .
-          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3             'mkdir -p "$HOME/.local/share/motor-ferrari/releases/21735c20baa163cded0551144c9f8f7ef8db7431"'
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3             'mkdir -p "$HOME/.local/share/motor-ferrari/releases/d7708a825797cc40b8726b32cbe00673929f3e4c"'
           sshpass -e scp "${opts[@]}" "$RUNNER_TEMP/ferrari-source.tar.gz"             "ubuntu@146.59.145.3:.local/share/motor-ferrari/releases/$SHA/source.tar.gz"
           sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3             "bash -s -- '$SHA'" < ferrari/install/vps-delivery.sh
           echo 'FERRARI_APT_DELIVERY=PASS'
@@ -91,4 +91,9 @@ jobs:
           # CAD/3D/office installation logic lives only in the Ferrari repository.
           sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
             'cd "$HOME/.local/share/motor-ferrari/current" && bash install/vps-cad-3d.sh'
+          # Ferrari-only release housekeeping; preserve active and one fallback.
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
+            'cd "$HOME/.local/share/motor-ferrari/current" && python3 install/ferrari-hygiene.py'
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
+            'cd "$HOME/.local/share/motor-ferrari/current" && python3 install/ferrari-hygiene.py --apply'
           echo 'FERRARI_DEPLOY_TRANSPORT=PASS'
