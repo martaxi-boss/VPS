@@ -24,7 +24,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: 0d1403a41f7692f5d0a04d1e110dbe6134a8a6b5
+          ref: f3b9dbceea390959dd48143039cf557c411f11e1
           persist-credentials: false
           path: ferrari
       - name: Validate Ferrari delivery scripts and engine tests on runner
@@ -72,13 +72,17 @@ jobs:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         run: |
           set -euo pipefail
-          SHA="0d1403a41f7692f5d0a04d1e110dbe6134a8a6b5"
+          SHA="f3b9dbceea390959dd48143039cf557c411f11e1"
           opts=(-o PreferredAuthentications=password -o PubkeyAuthentication=no
                 -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-pinned-host"
                 -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519
                 -o ConnectTimeout=20 -o ServerAliveInterval=15)
           tar --exclude=.git --exclude=.runtime --exclude=__pycache__             -czf "$RUNNER_TEMP/ferrari-source.tar.gz" -C ferrari .
-          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3             'mkdir -p "$HOME/.local/share/motor-ferrari/releases/0d1403a41f7692f5d0a04d1e110dbe6134a8a6b5"'
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3             'mkdir -p "$HOME/.local/share/motor-ferrari/releases/f3b9dbceea390959dd48143039cf557c411f11e1"'
           sshpass -e scp "${opts[@]}" "$RUNNER_TEMP/ferrari-source.tar.gz"             "ubuntu@146.59.145.3:.local/share/motor-ferrari/releases/$SHA/source.tar.gz"
           sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3             "bash -s -- '$SHA'" < ferrari/install/vps-delivery.sh
+          echo 'FERRARI_APT_DELIVERY=PASS'
+          # Transport only: all runtime logic stays in Ferrari's install script.
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
+            'cd "$HOME/.local/share/motor-ferrari/current" && bash install/vps-external-agents.sh'
           echo 'FERRARI_DEPLOY_TRANSPORT=PASS'
