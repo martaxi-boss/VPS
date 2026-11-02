@@ -1,0 +1,84 @@
+name: Ferrari Ubuntu - independent VPS installation
+# Ferrari engine logic lives only in martaxi-boss/skill-universal.
+# This is a one-purpose transport using the EXISTING VPS SSH credential and host pin.
+# Do not alter the existing SSH bridge, Supervisor or projects.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ferrari-independent-vps-delivery.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: isolated-ferrari-vps-delivery
+  cancel-in-progress: false
+
+jobs:
+  ferrari:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - name: Load pinned Ferrari release from its independent repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: b7f1b8dae6be28c66ddc2c9f46c2a226383cd6e5
+          persist-credentials: false
+          path: ferrari
+      - name: Validate Ferrari delivery scripts and engine tests on runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ferrari
+          bash -n install/vps-preflight.sh
+          bash -n install/ferrari-ubuntu.sh
+          bash -n install/vps-delivery.sh
+          python3 -m unittest discover -s tests -v
+          echo 'FERRARI_RUNNER_RELEASE_VALIDATION=PASS'
+      - name: Verify existing VPS SSH host fingerprint and install disposable helper
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS" || { echo 'EXISTING_VPS_SSH_PASSWORD_MISSING'; exit 2; }
+          known_hosts="$RUNNER_TEMP/ferrari-pinned-host"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$known_hosts" ||
+            { echo 'FERRARI_VPS_HOST_KEY_UNAVAILABLE'; exit 2; }
+          chmod 600 "$known_hosts"
+          fingerprint="$(ssh-keygen -lf "$known_hosts" -E sha256 | awk '{print $2}')"
+          test "$fingerprint" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc" ||
+            { echo 'FERRARI_VPS_HOST_KEY_MISMATCH'; exit 2; }
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          echo 'FERRARI_EXISTING_SSH_PIN=PASS'
+      - name: Live Ubuntu read-only precheck through existing SSH
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          opts=(-T -o PreferredAuthentications=password -o PubkeyAuthentication=no
+                -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-pinned-host"
+                -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519
+                -o ConnectTimeout=20 -o ServerAliveInterval=15)
+          sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'bash -s' < ferrari/install/vps-preflight.sh
+          echo 'FERRARI_LIVE_VPS_PREFLIGHT=PASS'
+      - name: Copy pinned Ferrari source and run local installer on VPS
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          SHA="b7f1b8dae6be28c66ddc2c9f46c2a226383cd6e5"
+          opts=(-o PreferredAuthentications=password -o PubkeyAuthentication=no
+                -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-pinned-host"
+                -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519
+                -o ConnectTimeout=20 -o ServerAliveInterval=15)
+          tar --exclude=.git --exclude=.runtime --exclude=__pycache__             -czf "$RUNNER_TEMP/ferrari-source.tar.gz" -C ferrari .
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3             'mkdir -p "$HOME/.local/share/motor-ferrari/releases/b7f1b8dae6be28c66ddc2c9f46c2a226383cd6e5"'
+          sshpass -e scp "${opts[@]}" "$RUNNER_TEMP/ferrari-source.tar.gz"             "ubuntu@146.59.145.3:.local/share/motor-ferrari/releases/$SHA/source.tar.gz"
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3             "bash -s -- '$SHA'" < ferrari/install/vps-delivery.sh
+          echo 'FERRARI_DEPLOY_TRANSPORT=PASS'
