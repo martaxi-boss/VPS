@@ -24,7 +24,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: b8a7de8695b16bf064e0796c3cb9276d3a8254ed
+          ref: 0c949350ed36137b28721886443fff8bca8ba1ac
           persist-credentials: false
           path: ferrari
       - name: Validate Ferrari delivery scripts and engine tests on runner
@@ -72,13 +72,13 @@ jobs:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         run: |
           set -euo pipefail
-          SHA="b8a7de8695b16bf064e0796c3cb9276d3a8254ed"
+          SHA="0c949350ed36137b28721886443fff8bca8ba1ac"
           opts=(-o PreferredAuthentications=password -o PubkeyAuthentication=no
                 -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-pinned-host"
                 -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519
                 -o ConnectTimeout=20 -o ServerAliveInterval=15)
           tar --exclude=.git --exclude=.runtime --exclude=__pycache__             -czf "$RUNNER_TEMP/ferrari-source.tar.gz" -C ferrari .
-          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3             'mkdir -p "$HOME/.local/share/motor-ferrari/releases/b8a7de8695b16bf064e0796c3cb9276d3a8254ed"'
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3             'mkdir -p "$HOME/.local/share/motor-ferrari/releases/0c949350ed36137b28721886443fff8bca8ba1ac"'
           sshpass -e scp "${opts[@]}" "$RUNNER_TEMP/ferrari-source.tar.gz"             "ubuntu@146.59.145.3:.local/share/motor-ferrari/releases/$SHA/source.tar.gz"
           sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3             "bash -s -- '$SHA'" < ferrari/install/vps-delivery.sh
           echo 'FERRARI_APT_DELIVERY=PASS'
@@ -88,4 +88,7 @@ jobs:
           # Isolated JDK25/JADX/Ghidra logic remains in Ferrari, not this transport.
           sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
             'cd "$HOME/.local/share/motor-ferrari/current" && bash install/vps-specialist-engines.sh'
+          # CAD/3D/office installation logic lives only in the Ferrari repository.
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
+            'cd "$HOME/.local/share/motor-ferrari/current" && bash install/vps-cad-3d.sh'
           echo 'FERRARI_DEPLOY_TRANSPORT=PASS'
