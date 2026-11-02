@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "id": "skill-auto-20261102-0002",
+  "kind": "auto",
+  "request": "Converter markdown para docx",
+  "input": {
+    "name": "documento.md",
+    "content_base64": "IyBGZXJyYXJpIFNraWxsCgpUZXN0ZSByZW1vdG8gZGUgZG9jdW1lbnRvIGVtIFVidW50dS4K"
+  }
+}
