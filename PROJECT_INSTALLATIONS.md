@@ -201,6 +201,16 @@ Quatro workflows Telegram antigos e o respetivo ativador de origem foram preserv
 
 Limpeza adicional confirmada: a cache de compilacao node-gyp `/home/ubuntu/.cache/node-gyp` foi eliminada apos verificacao de processos; **67 747 840 bytes** realmente libertados, restantes servicos inalterados. [REA #41722827037](https://github.com/martaxi-boss/VPS/actions/runs/41722827037).
 
+## Verificacao conjunta apos limpeza — 2026-11-03 21:42 UTC
+
+A auditoria real [REA/GitHub Actions #41724074992](https://github.com/martaxi-boss/VPS/actions/runs/41724074992), com processo interno exit zero e `settlement=quiesced`, confirmou **sete pastas fisicas reais** em `/srv/projects/`: `telegram-robot-leads`, `iptvpn-bot`, `pink-iptv`, `lowcost-europa`, `fadego`, `skill-universal` e `Engenheira-reversa` (Trial, NAO o REA FINAL).
+
+Para o Telegram Robot Leads, `data/`, `private/` e `archive/legacy/20261020-activation/` existem fisicamente na raiz do projeto. As antigas diretorias externas de estado e sessoes nao existem. As **duas sessoes** estao presentes, o PM2 usa `/srv/projects/telegram-robot-leads` (PID **606651**) e o IPTV PN Bot permanece online (PID **1120**). O temporizador expirado e o servico antigo estao inativos, e os cinco ficheiros GitHub historicos foram arquivados em `docs/archive/legacy-telegram-202610/`.
+
+Servicos verificados ativos: `fadego-staging`, `lowcost-europa`, `pink-iptv-backend`, `pink-vpn`, `nginx`, `postgresql@16-main`, `pm2-root` e `ssh`. Estado arredondado do disco: **72G total, 56G usados, 16G livres, 78%**.
+
+**Pendencias reais (nao confundir com organizacao completa):** o PM2 global continua partilhado pelos dois bots, `iptvpn-bot` ainda tem configuracoes privadas externas e arranque num alias antigo, o REA FINAL (`/home/ubuntu/rea-final-runtime`) e os componentes Codex (`/home/ubuntu/codex-agent`) ainda nao foram reorganizados, e o Android SDK e integracoes Ubuntu exigem atribuicao de propriedade. Preservar aliases historicos ate confirmar todos os deployments/restarts. A independencia de desinstalacao com remocao de uma unica pasta **ainda nao esta certificada**.
+
 ## Requisitos de instalacao e desinstalacao por projeto
 
 Um projeto so esta **PRONTO PARA DESINSTALAR** quando possui um procedimento versionado que:
