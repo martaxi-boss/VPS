@@ -34,57 +34,75 @@ jobs:
             -o ConnectTimeout=20 -o ServerAliveInterval=20 \
             ubuntu@146.59.145.3 'sudo -n bash -s' > "$RUNNER_TEMP/vps-project-inventory.txt" <<'REMOTE'
           set -u
+          echo '=== DATE_UTC ==='
+          date -u +%FT%TZ
           echo '=== DISK_USAGE ==='
-          df -hT
-          echo '=== TOPLEVEL_AND_SECONDLEVEL_BYTES ==='
-          for root in /home /root /opt /srv /var/www /var/lib/docker /var/lib/postgresql /var/lib/containers /usr/local/share /mnt /data /workspace; do
+          df -hT /
+          echo '=== BIG_ROOT_DIRECTORIES_BYTES ==='
+          for root in /home /opt /srv /root /var /usr/local; do
+            echo "--- $root ---"
+            timeout 180 du -x -B1 --max-depth=1 "$root" 2>/dev/null || echo "INCOMPLETE $root"
+          done
+          echo '=== PROJECT_DIRECTORIES_BYTES ==='
+          for root in /home/ubuntu /home/ubuntu/.local/share /home/ubuntu/.local/share/motor-ferrari /home/ubuntu/.local/share/rea-chatgpt-trial /opt /srv /var/www /root /var/lib /var/cache /var/log; do
             if [ -d "$root" ]; then
               echo "--- $root ---"
-              timeout 240 du -x -B1 -d 2 "$root" 2>/dev/null || echo "DU_INCOMPLETE $root"
+              timeout 120 du -x -B1 --max-depth=1 "$root" 2>/dev/null || echo "INCOMPLETE $root"
             fi
           done
-          echo '=== NESTED_PROJECT_DIRECTORY_BYTES ==='
-          for root in /home/ubuntu/.local/share /home/ubuntu/projects /home/ubuntu/workspace /home/ubuntu/workspaces /home/ubuntu/repos /home/ubuntu/apps /home/ubuntu/operational_tests /root/projects /root/operational_tests /srv/apps /var/lib/docker/volumes; do
-            if [ -d "$root" ]; then
-              echo "--- $root ---"
-              timeout 240 du -x -B1 -d 2 "$root" 2>/dev/null || echo "DU_INCOMPLETE $root"
-            fi
+          echo '=== TELEGRAM_PROJECT_DIRECTORY_BYTES ==='
+          for root in /root/iptvpn_bot /opt/telegram-robot-leads /opt/.telegram-leads-previous-08ffc99ae8b1 /opt/telegram-leads-optin /home/ubuntu/telegram-leads-venv /root/migration-preserved /root/migration-20260923 /root/project-secrets/telegram-robot-leads /root/project-secrets/iptvpn_bot /home/ubuntu/.pm2 /root/.pm2; do
+            if [ -d "$root" ]; then du -x -B1 -s "$root" 2>/dev/null; fi
           done
-          echo '=== DOCKER_CONTAINERS ==='
-          if command -v docker >/dev/null 2>&1; then
-            docker ps -a --format '{{.Names}}|{{.Image}}|{{.Status}}' || true
-          fi
-          echo '=== DOCKER_IMAGES_AND_VOLUMES ==='
-          if command -v docker >/dev/null 2>&1; then
-            docker system df || true
-            docker volume ls --format '{{.Name}}' || true
-          fi
-          echo '=== RUNNING_SYSTEMD_UNITS ==='
-          systemctl list-units --type=service --state=running --no-legend --no-pager --plain 2>/dev/null | awk '{print $1}' || true
-          echo '=== PM2_SAVED_PROCESS_NAMES_NOT_LIVE ==='
+          echo '=== PROJECT_SYSTEMD_ACTIVE ==='
+          systemctl --no-legend --no-pager --plain list-units --type=service --state=running 2>/dev/null | awk '{print $1}'
+          echo '=== PROJECT_SYSTEMD_INSTALLED ==='
+          systemctl --no-legend --no-pager --plain list-unit-files --type=service 2>/dev/null | grep -Ei 'telegram|iptv|leads|pink|ferrari|lowcost|fadego|rea|codex|vpn|supervisor|agent|project|pm2' || :
+          echo '=== PM2_SAVED_CONFIGURATION ==='
           python3 - <<'PY'
           from pathlib import Path
           import json
-          for user in ("ubuntu", "root"):
-              home = Path("/home/ubuntu") if user == "ubuntu" else Path("/root")
-              f = home / ".pm2" / "dump.pm2"
-              if not f.is_file():
+          for user,home in (('root', '/root'),('ubuntu','/home/ubuntu')):
+              fp=Path(home)/'.pm2'/'dump.pm2'
+              if not fp.is_file():
+                  print(user + '|no saved dump')
                   continue
               try:
-                  apps = json.loads(f.read_text())
-                  for a in apps:
-                      env = a.get("pm2_env", {})
-                      print(user, str(a.get("name", env.get("name","?"))), str(env.get("pm_cwd", a.get("pm_cwd","?"))), sep="|")
-              except Exception:
-                  print(user + "|PM2_DUMP_UNREADABLE")
+                  apps=json.loads(fp.read_text())
+                  for app in apps:
+                      env=app.get('pm2_env') or {}
+                      print('|'.join((user,str(app.get('name',env.get('name','?'))),str(env.get('pm_cwd',app.get('pm_cwd','?'))),str(env.get('status','unknown_in_saved_dump')))))
+              except Exception: print(user+'|dump unreadable')
           PY
-          echo '=== GIT_PROJECT_ROOTS ==='
-          for root in /home/ubuntu /root /opt /srv /var/www; do
-            if [ -d "$root" ]; then
-              find "$root" -xdev -maxdepth 5 \
-                \( -name node_modules -o -name .cache -o -name .npm -o -name .venv -o -name venv -o -name site-packages -o -name .cargo -o -name .rustup -o -name releases \) -prune -o \
-                -type d -name .git -printf '%h\n' 2>/dev/null || true
-            fi
+          echo '=== LIVE_RELEVANT_PROCESSES_SANITIZED ==='
+          python3 - <<'PY'
+          from pathlib import Path
+          import os,pwd
+          keywords=('telegram','iptvpn','leads','pink','fadego','lowcost','pm2','ferrari','rea','codex','supervisor','wg-quick','wireguard','valkey','prometheus','postgres','nginx','php-fpm')
+          for p in Path('/proc').iterdir():
+              if not p.name.isdigit(): continue
+              try:
+                  comm=(p/'comm').read_text().strip()
+                  raw=(p/'cmdline').read_bytes().split(b'\0')
+                  args=[s.decode('utf8','replace') for s in raw if s]
+                  cwd=os.readlink(p/'cwd')
+                  matching=[a for a in args[:4] if any(k in a.lower() for k in keywords) and not ('=' in a and not a.startswith('/'))]
+                  tagged=any(k in cwd.lower() for k in keywords) or any(k in comm.lower() for k in keywords) or bool(matching)
+                  if not tagged: continue
+                  name=pwd.getpwuid(p.stat().st_uid).pw_name
+                  print('|'.join((p.name,name,comm,cwd)))
+              except (OSError,PermissionError,KeyError): pass
+          PY
+          echo '=== DOCKER_CONTAINERS_AND_SPACE ==='
+          if command -v docker >/dev/null 2>&1; then
+            docker ps -a --format '{{.Names}}|{{.Image}}|{{.Status}}' 2>/dev/null || :
+            docker system df 2>/dev/null || :
+          fi
+          echo '=== ALL_APT_PACKAGES_NAME_VERSION_KIB ==='
+          dpkg-query -W -f='${binary:Package}\t${Version}\t${Installed-Size}\n' 2>/dev/null | sort
+          echo '=== NODE_PYTHON_RUNTIMES ==='
+          for p in python3 node npm pm2 java git ffmpeg docker pip3 pandoc jadx apktool; do
+            if command -v "$p" >/dev/null 2>&1; then printf '%s|%s\n' "$p" "$(command -v "$p")"; else printf '%s|NOT_ON_PATH\n' "$p"; fi
           done
           echo '=== FINISHED ==='
           REMOTE
