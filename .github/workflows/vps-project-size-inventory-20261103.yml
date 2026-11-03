@@ -50,6 +50,40 @@ jobs:
               timeout 120 du -x -B1 --max-depth=1 "$root" 2>/dev/null || echo "INCOMPLETE $root"
             fi
           done
+          echo '=== FERRARI_NESTED_USAGE_BYTES ==='
+          FERRARI=/home/ubuntu/.local/share/motor-ferrari
+          for root in "$FERRARI/.runtime" "$FERRARI/.runtime/venvs" "$FERRARI/.runtime/venvs/extended" "$FERRARI/.runtime/npm" "$FERRARI/.runtime/npm-cache" "$FERRARI/.runtime/browsers" "$FERRARI/tools" "$FERRARI/runtimes" "$FERRARI/releases"; do
+            if [ -d "$root" ]; then
+              echo "--- $root ---"
+              timeout 160 du -x -B1 --max-depth=1 "$root" 2>/dev/null || echo "INCOMPLETE $root"
+            fi
+          done
+          echo '=== FERRARI_CURRENT_RELEASE ==='
+          if [ -L "$FERRARI/current" ]; then readlink -f "$FERRARI/current"; fi
+          echo '=== FERRARI_RUNTIME_LARGEST_FILES ==='
+          if [ -d "$FERRARI/.runtime" ]; then
+            timeout 180 find "$FERRARI/.runtime" -xdev -type f -size +100M -printf '%s|%p\n' 2>/dev/null | sort -nr | head -n 35 || :
+          fi
+          echo '=== FERRARI_PYTHON_ENV_PACKAGE_VERSIONS ==='
+          python3 - <<'PY_FERRARI'
+          from pathlib import Path
+          from importlib import metadata
+          root=Path('/home/ubuntu/.local/share/motor-ferrari/.runtime/venvs/extended')
+          chosen=('torch','torchvision','torchaudio','numpy','transformers','docling','gradio','faster-whisper','prefect','pydantic','opencv-python','streamlit','polars','duckdb')
+          if root.is_dir():
+              for v in sorted(root.iterdir()):
+                  if not v.is_dir() or v.is_symlink(): continue
+                  found=[]
+                  for site in list(v.glob('lib/python*/site-packages'))[:2]:
+                      for dist in site.glob('*.dist-info'):
+                          try:
+                              nm=(dist/'METADATA').read_text(errors='replace').splitlines()[:10]
+                              name=next((t.split(':',1)[1].strip().lower() for t in nm if t.lower().startswith('name:')),None)
+                              version=next((t.split(':',1)[1].strip() for t in nm if t.lower().startswith('version:')),None)
+                              if name in chosen:found.append(name+'='+str(version))
+                          except (OSError, UnicodeError): pass
+                  print(v.name+'|'+','.join(sorted(set(found))))
+          PY_FERRARI
           echo '=== TELEGRAM_PROJECT_DIRECTORY_BYTES ==='
           for root in /root/iptvpn_bot /opt/telegram-robot-leads /opt/.telegram-leads-previous-08ffc99ae8b1 /opt/telegram-leads-optin /home/ubuntu/telegram-leads-venv /root/migration-preserved /root/migration-20260923 /root/project-secrets/telegram-robot-leads /root/project-secrets/iptvpn_bot /home/ubuntu/.pm2 /root/.pm2; do
             if [ -d "$root" ]; then du -x -B1 -s "$root" 2>/dev/null; fi
