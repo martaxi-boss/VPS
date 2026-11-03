@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-ferrari-isolated-npm-cache-dry-run-20261103-x89",
+  "request_id": "rea-ferrari-private-npm-cache-clean-20261103-x90",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,10 +9,10 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\ntest -L /home/ubuntu/.local/share/motor-ferrari\ntest -f /srv/projects/skill-universal/current/install/ferrari-cache-hygiene.py\nsudo -n -u ubuntu /usr/bin/python3 /srv/projects/skill-universal/current/install/ferrari-cache-hygiene.py\n"
+            "set -Eeuo pipefail\ntest -L /home/ubuntu/.local/share/motor-ferrari\ntest -f /srv/projects/skill-universal/current/install/ferrari-cache-hygiene.py\nsudo -n -u ubuntu /usr/bin/python3 /srv/projects/skill-universal/current/install/ferrari-cache-hygiene.py --apply\n"
           ],
-          "timeout_ms": 180000,
-          "idle_timeout_ms": 135000,
+          "timeout_ms": 200000,
+          "idle_timeout_ms": 140000,
           "limits": {
             "output_bytes": 7000
           }
