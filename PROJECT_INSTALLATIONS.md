@@ -193,6 +193,14 @@ A verificacao das pastas fisicas em [#41720574656](https://github.com/martaxi-bo
 
 O teste proposto de reinicio controlado do backend PINK foi bloqueado **antes de ser enviado a VPS** e nao foi executado. As unidades systemd estao configuradas para os caminhos canonicos e passaram validacao estatica, mas a certificacao de arranque apos reinicio continua pendente.
 
+## Arquivo de integracoes Telegram obsoletas (2026-11-03)
+
+O ativador de 20-10-2026 tinha uma janela temporal ja expirada e o timer `telegram-leads-activate-20261020.timer` permanecia ativo. Foi desativado, e o script + unit + timer foram movidos sem perda de ficheiros para `/srv/projects/telegram-robot-leads/archive/legacy/20261020-activation`. O processo Telegram Robot Leads permaneceu com PID 606651 e o IPTV PN Bot com PID 1120. **Prova:** [REA #41723648731](https://github.com/martaxi-boss/VPS/actions/runs/41723648731).
+
+Quatro workflows Telegram antigos e o respetivo ativador de origem foram preservados em `docs/archive/legacy-telegram-202610/` e retirados das pastas executaveis do repo `VPS`. O workflow de deploy antigo usava `/opt/telegram-robot-leads` e SHAs historicos. O REA, o Supervisor e os workflows de outros projetos nao foram alterados.
+
+Limpeza adicional confirmada: a cache de compilacao node-gyp `/home/ubuntu/.cache/node-gyp` foi eliminada apos verificacao de processos; **67 747 840 bytes** realmente libertados, restantes servicos inalterados. [REA #41722827037](https://github.com/martaxi-boss/VPS/actions/runs/41722827037).
+
 ## Requisitos de instalacao e desinstalacao por projeto
 
 Um projeto so esta **PRONTO PARA DESINSTALAR** quando possui um procedimento versionado que:
