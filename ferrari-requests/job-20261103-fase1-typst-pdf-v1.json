@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "id": "ferrari-fase1-typst-pdf-v1",
+  "kind": "invoke",
+  "action": "typst-compile-pdf",
+  "input": {
+    "name": "ferrari.typ",
+    "content_base64": "I3NldCBwYWdlKHdpZHRoOiAxMmNtLCBoZWlnaHQ6IDhjbSkKI3NldCB0ZXh0KHNpemU6IDE2cHQpCj0gTW90b3IgRmVycmFyaQpGYXNlIDE6IFR5cHN0IHBhcmEgUERGLgo="
+  }
+}
