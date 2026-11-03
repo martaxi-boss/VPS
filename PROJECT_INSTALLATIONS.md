@@ -19,7 +19,7 @@
 | Repositorio GitHub | Pasta principal atual | Componentes fora da pasta | Estado de alinhamento |
 | --- | --- | --- | --- |
 | `telegram-robot-leads` | `/opt/telegram-robot-leads` | `/var/lib/telegram-robot-leads`, `/root/project-secrets/telegram-robot-leads`, PM2 global | Nome correto; instalacao ainda dispersa. Opt-in e ambiente Python antigo ja foram integrados na pasta do projeto. |
-| `iptvpn-bot` | `/root/iptvpn_bot` | `/etc/iptvpn-bot`, `/root/project-secrets/iptvpn_bot`, PM2 global | Nome diferente; dados privados externos. |
+| `iptvpn-bot` | `/srv/projects/iptvpn-bot` | `/root/iptvpn_bot` (ligacao temporaria), `/etc/iptvpn-bot`, `/root/project-secrets/iptvpn_bot`, PM2 global | Nome canonico atingido fisicamente; arranque PM2 e dados privados ainda externos. |
 | `pink-iptv` | `/srv/pink-iptv` | Configuracao VPN e unidades do Ubuntu; provas de testes ja integradas em `/srv/pink-iptv/tests/device-proof/` | Nome correto; 4,56 GB de testes consolidados em 03-11-2026. Checkout com alteracoes locais, preservado. |
 | `fadego` | `/srv/fadego-staging` | `/var/www/fadego-preview`, unidade systemd e servicos partilhados | Nome diferente; versoes em `releases/`, `current` aponta para uma release ativa. |
 | `lowcost-europa` | `/srv/lowcost-europa` | `/var/lib/lowcost-europa`, `/var/www/lowcost-europa`, utilizador de administracao e timers | Nome correto; algumas dependencias e configuracoes externas. |
@@ -47,7 +47,7 @@
 
 - **Confirmado:** Telegram Robot Leads `/opt/telegram-robot-leads/optin` e `archive/previous-telegram-python-env` ja dentro da instalacao. Os dois robots estavam `online` no PM2.
 - **Confirmado:** PINK IPTV integrou a antiga pasta de provas `/srv/pink-iptv-device-proof` (4 558 049 280 bytes) em `/srv/pink-iptv/tests/device-proof/` sem alterar o estado dos servicos nem as 6 modificacoes locais de Git. Git local configurado para ignorar esse diretorio; o `.gitignore` no GitHub foi alinhado. [Execucao #41702791325](https://github.com/martaxi-boss/VPS/actions/runs/41702791325).
-- **Pendente:** integracao/referenciacao segura dos dados e credenciais privadas do Telegram Robot Leads; alinhamento do `iptvpn-bot`; separacao e migracao de pastas do PINK, FADEGO, Ferrari, REA e Codex; validacao dos instaladores e desinstaladores.
+- **Pendente:** integracao/referenciacao segura dos dados e credenciais privadas do Telegram Robot Leads; atualizacao final do PM2 e dados privados de `iptvpn-bot`; separacao e migracao de pastas do PINK, FADEGO, Ferrari, REA e Codex; validacao dos instaladores e desinstaladores.
 - **Nao executar por atalho:** mover ou apagar pastas sem actualizar os caminhos de arranque, systemd/PM2, reverse proxies, backups, CI, permissões e referencias. Nao copiar segredos para GitHub.
 
 ## Higienizacao real verificada em 2026-11-03
@@ -70,12 +70,22 @@ Foram identificados por conteudo e movidos **sem apagar dados**, mantendo servi�
 | Projeto | Origem anterior na VPS | Destino dentro do projeto | Bytes reorganizados |
 | --- | --- | --- | ---: |
 | `pink-iptv` | `/srv/android002-validator-final-46fea6e` | `/srv/pink-iptv/tests/archive/android002-validator-final-46fea6e` | 1 314 816 |
-| `iptvpn-bot` | `/root/migration-20260923/iptvpn-bot-pre-final` | `/root/iptvpn_bot/archive/migration-20260923/iptvpn-bot-pre-final` | 12 288 |
+| `iptvpn-bot` | `/root/migration-20260923/iptvpn-bot-pre-final` | `/srv/projects/iptvpn-bot/archive/migration-20260923/iptvpn-bot-pre-final` | 12 288 |
 | `lowcost-europa` | `/root/migration-preserved/home-lowcost-admin` | `/srv/lowcost-europa/archive/migration-preserved/home-lowcost-admin` | 40 960 |
 
 **Total reorganizado neste passo:** 1 368 064 bytes. **Espaco libertado por estas movimentacoes: 0 bytes** (mesmo disco). Fontes: [preflight e identificacao #41706859286](https://github.com/martaxi-boss/VPS/actions/runs/41706859286) e [execucao #41707116287](https://github.com/martaxi-boss/VPS/actions/runs/41707116287).
 
 Os arquivos ficam ignorados no Git tanto na VPS como nos respetivos repositorios. As pastas raiz de migracao de 2026-09 continuam a existir com conteudo de outros projetos: NAO declarar que foram limpas por completo. Foi adicionado `docs/VPS_INSTALLATION.md` em `iptvpn-bot` e `lowcost-europa`; `pink-iptv` ja possuia documentacao, agora ampliada.
+
+## Migracao fisica para pasta canonica — IPTV PN Bot
+
+Em 2026-11-03, o checkout e os seus 82 612 224 bytes foram movidos fisicamente para `/srv/projects/iptvpn-bot`. O antigo `/root/iptvpn_bot` ficou apenas como **symlink temporario** para preservar as referencias antigas. O Python executou a partir do caminho canonico, os ficheiros Git permaneceram intactos e os dois processos Telegram mantiveram os mesmos PID e estado online. **Prova:** [Actions #41708170046](https://github.com/martaxi-boss/VPS/actions/runs/41708170046).
+
+Uma primeira tentativa com teste de biblioteca inadequada falhou e foi revertida: [Actions #41707923562](https://github.com/martaxi-boss/VPS/actions/runs/41707923562). A repeticao corrigida terminou com codigo interno zero. A migracao **nao libertou bytes** por ter sido um rename no mesmo disco.
+
+Ainda falta apontar a configuracao PM2 para o novo caminho, confirmar o arranque apos restart controlado e remover o symlink antigo. Os ficheiros privados em `/etc/iptvpn-bot` e `/root/project-secrets/iptvpn_bot` permanecem intactos e ainda externos. Nao considerar a desinstalacao apenas com remocao da pasta certificada.
+
+O projeto `lowcost-europa` continua fisicamente em `/srv/lowcost-europa`. A tentativa [#41708496093](https://github.com/martaxi-boss/VPS/actions/runs/41708496093) detetou alteracao do estado Git durante a migracao e fez **rollback**. Nao contabilizar como migracao concluida.
 
 ## Requisitos de instalacao e desinstalacao por projeto
 
