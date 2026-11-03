@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "id": "ferrari-fase1-inkscape-pos-fix-v2",
+  "kind": "invoke",
+  "action": "inkscape-svg-png",
+  "input": {
+    "name": "ferrari.svg",
+    "content_base64": "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMjAiIGhlaWdodD0iMTYwIiB2aWV3Qm94PSIwIDAgMzIwIDE2MCI+PHJlY3Qgd2lkdGg9IjMyMCIgaGVpZ2h0PSIxNjAiIGZpbGw9IiNlYmY4ZmYiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjgwIiByPSI0MCIgZmlsbD0iIzE4NzdhYiIvPjx0ZXh0IHg9IjEyOCIgeT0iOTIiIGZvbnQtc2l6ZT0iMjciIGZpbGw9IiMxNjMyNGMiPkZlcnJhcmk8L3RleHQ+PC9zdmc+"
+  }
+}
