@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "id": "ferrari-rea-mcp-apktool-client-20261103-v1",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "inspect_apktool_client",
+        "arguments": {}
+      }
+    }
+  ]
+}
