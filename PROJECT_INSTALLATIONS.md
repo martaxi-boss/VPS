@@ -177,6 +177,22 @@ O codigo e a documentacao do GitHub `telegram-robot-leads` foram alinhados num c
 
 **Ainda nao certificado como isolamento integral:** o PM2 daemon global `/root/.pm2` e usado pelos dois bots; ha um script legado em `/usr/local/sbin/telegram_leads_activate_20261020.py`, e um workflow VPS historico com caminhos antigos. Estes componentes exigem corte controlado antes de se retirar `/opt/telegram-robot-leads`.
 
+## Higienizacao adicional verificada — cache pip e Ferrari npm (2026-11-03)
+
+Duas operacoes de limpeza **distintas, medidas no filesystem** foram executadas via motor REA FINAL nesta continuacao, sem remover instalacoes:
+
+| Origem | Limpeza | Disco efetivamente libertado | Prova |
+| --- | --- | ---: | --- |
+| Caches pip do utilizador `ubuntu` e do utilizador `root` | `python3 -m pip cache purge`, com validacao previa de identidade e caminho; nao elimina `.venv` | **75 702 272 bytes** | [Actions #41722028636](https://github.com/martaxi-boss/VPS/actions/runs/41722028636) |
+| Ferrari `/srv/projects/skill-universal/.runtime/npm-cache/_cacache` | Script proprio `install/ferrari-cache-hygiene.py --apply`, executado como `ubuntu`; runtimes/REA/Apktool/Node/Java/Ruflo preservados | **326 848 512 bytes** | [Actions #41722397677](https://github.com/martaxi-boss/VPS/actions/runs/41722397677) |
+| **Total desta continuacao** | **Caches regeneraveis apenas** | **402 550 784 bytes** | REA MCP: exit 0, settlement quiesced |
+
+A cache Ferrari tinha sido limpa noutra fase e voltou a crescer devido a instalacoes/testes posteriores; **nao confundir esta limpeza de 326 MB com a primeira de 984 MB como se fossem o mesmo saldo final**. Espaco livre medido depois da limpeza Ferrari: **16 888 692 736 bytes** (valor pontual, pode mudar).
+
+A verificacao das pastas fisicas em [#41720574656](https://github.com/martaxi-boss/VPS/actions/runs/41720574656) encontrou sete instalacoes em `/srv/projects/` e os servicos principais ativos. No momento da leitura, os dados e vault do Telegram ainda estavam fora; **foram migrados posteriormente** pelo cutover [#41721810190](https://github.com/martaxi-boss/VPS/actions/runs/41721810190), com duas sessoes preservadas. Usar sempre a verificacao mais recente, nao uma fotografia antiga.
+
+O teste proposto de reinicio controlado do backend PINK foi bloqueado **antes de ser enviado a VPS** e nao foi executado. As unidades systemd estao configuradas para os caminhos canonicos e passaram validacao estatica, mas a certificacao de arranque apos reinicio continua pendente.
+
 ## Requisitos de instalacao e desinstalacao por projeto
 
 Um projeto so esta **PRONTO PARA DESINSTALAR** quando possui um procedimento versionado que:
