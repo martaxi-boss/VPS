@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-vps-complete-inventory-20261103-k6m",
+  "request_id": "rea-vps-fadego-usage-followup-20261103-a7f",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,30 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\necho \"=== CURRENT_DISK ===\"\ndf -hT /\necho \"=== CURRENT_DIRS ===\"\nfor p in /home /opt /srv /root /var /usr /home/ubuntu/.local/share/motor-ferrari /home/ubuntu/.local/share/motor-ferrari/.runtime /opt/android-sdk /opt/android-sdk/system-images /srv/pink-iptv-device-proof /srv/fadego-staging /srv/fadego-staging/releases /home/ubuntu/rea-final-runtime /home/ubuntu/.local/share/rea-chatgpt-trial /home/ubuntu/.local/share/rea-chatgpt-trial/tools /root/.android /root/.gradle /root/.cache /root/.npm /home/ubuntu/.cache /home/ubuntu/.npm /home/ubuntu/.claude-server-commander /root/.claude-server-commander /root/.cursor /root/.vscode /var/cache/apt /var/log /var/log/journal /home/ubuntu/rea-original-upstream-680-evidence /home/ubuntu/codex-agent /home/ubuntu/codex-bridge /opt/telegram-leads-optin /opt/telegram-robot-leads /root/iptvpn_bot /var/lib/telegram-robot-leads /var/lib/postgresql; do\n  if sudo -n test -e \"$p\"; then\n    echo \">> $p\"\n    sudo -n timeout 70 du -x -B1 --max-depth=1 \"$p\" 2>/dev/null | sort -nr | head -16\n  fi\ndone\necho \"=== REMOVED_TARGETS ===\"\nfor p in /root/.cursor-server /root/.vscode-server /opt/.telegram-leads-previous-08ffc99ae8b1; do\n if sudo -n test -e \"$p\"; then echo \"PRESENT $p\"; else echo \"ABSENT $p\"; fi\ndone\necho \"=== SNAP_PACKAGES ===\"\nif command -v snap >/dev/null 2>&1; then snap list 2>/dev/null | head -20; else echo \"snap_cli_absent\"; fi\necho \"=== DISK_DONE ===\""
+            "set -Eeuo pipefail\necho \"=== FADEGO_ACTIVE_RELEASE ===\"\np=$(systemctl show -p MainPID --value fadego-staging.service)\necho \"main_pid=$p\"\nif test \"$p\" -gt 1 2>/dev/null; then\n sudo -n readlink /proc/\"$p\"/cwd || :\n sudo -n ps -o pid,ppid,comm -p \"$p\"\nfi\necho \"=== FADEGO_ALL_RELEASES ===\"\nsudo -n find /srv/fadego-staging/releases -mindepth 1 -maxdepth 1 -type d -printf '%f\\n' | sort\necho \"=== FADEGO_LINK_SHARED_SAMPLE ===\"\nsudo -n find /srv/fadego-staging/releases -xdev -type f -links +1 -printf '%n %p\\n' 2>/dev/null | head -8 || :\necho \"=== ANDROID_RUNNING ===\"\nsudo -n ps -eo pid,comm,etime,args --no-headers | grep -E '[/](emulator|qemu-system|gradle-daemon)' | cut -c 1-150 || :\necho \"=== PROJECT_TIMERS ===\"\nsystemctl --no-pager --no-legend list-timers --all | grep -Ei 'lowcost|fadego|pink|telegr|project|backup' | head -22 || :\necho \"=== GRAPHIC_APPS_APT_MANUAL ===\"\na=$(apt-mark showmanual)\nfor p in blender krita gimp kdenlive openshot-qt qgis inkscape darktable audacity obs-studio synfigstudio scribus calibre freecad librecad openscad ansible pandoc libreoffice dotnet-sdk-10.0; do\n if dpkg-query -W -f='${Status}' \"$p\" 2>/dev/null | grep -q 'install ok installed'; then\n  if printf '%s\\n' \"$a\" | grep -qxF \"$p\"; then echo \"$p|manual\"; else echo \"$p|auto\"; fi\n fi\ndone\necho \"=== DONE ===\""
           ],
-          "timeout_ms": 180000,
-          "idle_timeout_ms": 135000,
+          "timeout_ms": 110000,
+          "idle_timeout_ms": 90000,
           "limits": {
-            "output_bytes": 19000
-          }
-        }
-      }
-    },
-    {
-      "method": "tools/call",
-      "params": {
-        "name": "capture_process_scenario",
-        "arguments": {
-          "executable": "/bin/bash",
-          "arguments": [
-            "-lc",
-            "set -Eeuo pipefail\nsudo -n python3 - <<'PY'\nfrom pathlib import Path\nimport os,subprocess,json\ndef cmd(args,timeout=15):\n try:\n  p=subprocess.run(args,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,timeout=timeout)\n  return p.returncode,p.stdout.strip()\n except Exception as e:\n  return -1,str(type(e).__name__)\nprint('=== SERVICE_RUNTIME ===')\nfor name in ('pink-iptv-backend','pink-vpn','fadego-staging','lowcost-europa','pm2-root','postgresql@16-main','nginx','php8.3-fpm','telegram-leads-activate-20261020'):\n rc,o=cmd(['systemctl','is-active',name+'.service'])\n print(name,'|',o or 'unknown')\nprint('=== PM2_RUNTIME ===')\nrc,out=cmd(['pm2','jlist'])\nif rc==0:\n for a in json.loads(out):\n  env=a.get('pm2_env') or {}\n  print(a.get('name'),'|status',env.get('status'),'|cwd',env.get('pm_cwd'),'|script',env.get('pm_exec_path'))\nelse: print('pm2_query_failed',rc)\nprint('=== GIT_CLONES ===')\nbases=('/home/ubuntu/rea-original-upstream-680','/home/ubuntu/.local/share/rea-chatgpt-trial/repository','/home/ubuntu/codex-bridge','/home/ubuntu/codex-agent','/srv/pink-iptv','/srv/lowcost-europa','/srv/fadego-staging','/root/iptvpn_bot','/opt/telegram-robot-leads','/home/ubuntu/.local/share/motor-ferrari','/home/ubuntu/rea-final-runtime')\nfor root in bases:\n p=Path(root)\n if not p.exists():continue\n for path in ([p]+[s for s in p.iterdir() if s.is_dir() and not s.is_symlink()][:80]):\n  if not ((path/'.git').exists() or (path/'.git').is_file()):continue\n  rc,remote=cmd(['git','-C',str(path),'config','--get','remote.origin.url'])\n  if 'github.com' in remote:\n   repo=remote.rsplit('github.com',1)[-1].lstrip(':/').removesuffix('.git')\n  elif not remote:repo='none'\n  else:repo='external_or_private'\n  rc,sha=cmd(['git','-C',str(path),'rev-parse','--short','HEAD'])\n  print(str(path),'|repo',repo,'|sha',sha[:30])\nprint('=== PROJECT_RUNTIME_DIRECTORY ===')\nfor p in ['/home/ubuntu/.local/share/motor-ferrari','/home/ubuntu/rea-final-runtime','/home/ubuntu/.local/share/rea-chatgpt-trial','/home/ubuntu/rea-original-upstream-680','/root/iptvpn_bot','/opt/telegram-robot-leads','/srv/lowcost-europa','/srv/fadego-staging','/srv/pink-iptv','/srv/pink-iptv-device-proof','/opt/telegram-leads-optin','/home/ubuntu/codex-agent']:\n print(p,'|',Path(p).exists())\nprint('=== EDITOR_SERVER_PROCESSES ===')\nfor p in Path('/proc').iterdir():\n if not p.name.isdigit(): continue\n try:\n  cwd=os.readlink(p/'cwd')\n  if any(s in cwd for s in ('cursor-server','vscode-server')):print(p.name,cwd)\n except OSError:pass\nprint('=== CONTAINERS ===')\nrc,out=cmd(['/usr/bin/which','docker'])\nprint('docker_command',out if rc==0 else 'no')\nprint('=== APT_COUNT ===')\nrc,out=cmd(['/bin/bash','-lc','dpkg-query -W -f=\"x\\\\n\" | wc -l'])\nprint('dpkg',out)\nprint('=== SYSTEM_STATE_DONE ===')\nPY"
-          ],
-          "timeout_ms": 130000,
-          "idle_timeout_ms": 105000,
-          "limits": {
-            "output_bytes": 12000
+            "output_bytes": 7000
           }
         }
       }
