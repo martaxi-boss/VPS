@@ -24,7 +24,7 @@
 | `fadego` | `/srv/projects/fadego` | `/srv/fadego-staging` (compatibilidade temporaria), `/var/www/fadego-preview`, unidade systemd | Instalacao fisica com nome correto e versao ativa interna; servico ainda aponta ao caminho anterior. |
 | `lowcost-europa` | `/srv/projects/lowcost-europa` | `/srv/lowcost-europa` (ligacao temporaria), `/var/lib/lowcost-europa`, `/var/www/lowcost-europa`, segredos e timers | Instalacao fisica no nome canonico; servico e backups ainda usam caminho antigo. |
 | `skill-universal` (Ferrari) | `/srv/projects/skill-universal` | `/home/ubuntu/.local/share/motor-ferrari` (compatibilidade temporaria), programas APT do Ubuntu | Instalacao fisica com nome correto, runtimes e ferramentas privadas integrados e motor importado com sucesso. |
-| `Engenheira-reversa` | `/home/ubuntu/.local/share/rea-chatgpt-trial` (clone em `repository/`) | `/home/ubuntu/rea-final-runtime`, `rea-original-upstream-680`, `rea-original-upstream-680-evidence`, `/var/lib/rea-reversa` | Instalacoes diferentes, incluindo o upstream `morluto/rea`. Nao unir sem comprovar a propriedade e independencia de cada runtime. |
+| `Engenheira-reversa` | `/srv/projects/Engenheira-reversa` (Trial) | `/home/ubuntu/.local/share/rea-chatgpt-trial` (symlink temporario). REA FINAL e upstream 6.8.0 permanecem instalacoes distintas. | Trial fisicamente organizado, sem alteracao do motor REA FINAL. Os outros runtimes requerem identificacao separada. |
 | `Project-leader-codex` | Clone do repo nao confirmado na VPS | `/home/ubuntu/codex-agent`, `codex-bridge`, `.codex` | Componentes de Codex identificados; a relacao com o projeto precisa de verificacao. Nao criar coordenador na VPS; supervisor e passivo. |
 | `VPS` | Repositorio no GitHub e execucoes temporarias Actions/SSH | Ficheiros do sistema, unidades systemd e observacao Telegram | Infraestrutura partilhada; Supervisor Telegram sem servico residente independente confirmado. |
 
@@ -128,6 +128,14 @@ FADEGO: `/srv/projects/fadego` (3 840 331 776 bytes). Ligacao `current` alterada
 Ferrari `skill-universal`: `/srv/projects/skill-universal` (13 517 766 656 bytes). Ambientes Python, ferramentas e runtimes privados mantidos; importacao do motor bem-sucedida com utilizador proprietario. [Prova #41714161162](https://github.com/martaxi-boss/VPS/actions/runs/41714161162).
 
 Em ambos os casos os diretórios antigos sao symlinks temporarios para os instaladores existentes. Migracoes dentro do mesmo disco, **nenhum espaco libertado**. Ainda falta converter os caminhos de arranque e instalacao antes da eliminacao dos aliases.
+
+## Instalação Trial REA e limpeza temporaria — 2026-11-03
+
+O clone Trial do repositorio `martaxi-boss/Engenheira-reversa` e as suas ferramentas (2 529 660 928 bytes) foram movidos para `/srv/projects/Engenheira-reversa`. O caminho original e uma ligacao de compatibilidade; o Git mantem o mesmo origin, estado e dados. REA FINAL, original upstream e evidencias **nao foram movidos nem misturados com o Trial**. [Prova #41715190029](https://github.com/martaxi-boss/VPS/actions/runs/41715190029), exit zero com settlement observacional `unverifiable`.
+
+Foi limpa uma extracao AppImage antiga, nao utilizada, em `/tmp`. Medicao de espaco livre: **356 188 160 bytes recuperados**, servicos e robos preservados. [Prova #41715432425](https://github.com/martaxi-boss/VPS/actions/runs/41715432425).
+
+As releases antigas do FADEGO **nao foram eliminadas**: a primeira tentativa abortou sem alteracoes porque as verificacoes confundiram templates e codigo-fonte com potenciais dados privados. Nao contabilizar poupanca nessa area.
 
 ## Requisitos de instalacao e desinstalacao por projeto
 
