@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "id": "rea-mcp-catalog-verify-20261103",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/list"
+    }
+  ]
+}
