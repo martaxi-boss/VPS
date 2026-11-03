@@ -21,9 +21,9 @@
 | `telegram-robot-leads` | `/srv/projects/telegram-robot-leads` | `/opt/telegram-robot-leads` (symlink temporario), `/var/lib/telegram-robot-leads`, `/root/project-secrets/telegram-robot-leads`, PM2 global | Raiz e scripts migrados fisicamente; dados, duas sessoes e processo PM2 ainda por migrar. |
 | `iptvpn-bot` | `/srv/projects/iptvpn-bot` | `/root/iptvpn_bot` (ligacao temporaria), `/etc/iptvpn-bot`, `/root/project-secrets/iptvpn_bot`, PM2 global | Nome canonico atingido fisicamente; arranque PM2 e dados privados ainda externos. |
 | `pink-iptv` | `/srv/projects/pink-iptv` | `/srv/pink-iptv` (ligacao temporaria), configuracao VPN e unidades do Ubuntu; provas em `/srv/projects/pink-iptv/tests/device-proof/` | Nome canonico atingido fisicamente; backend ativo, 6 alteracoes locais preservadas. |
-| `fadego` | `/srv/fadego-staging` | `/var/www/fadego-preview`, unidade systemd e servicos partilhados | Nome diferente; versoes em `releases/`, `current` aponta para uma release ativa. |
+| `fadego` | `/srv/projects/fadego` | `/srv/fadego-staging` (compatibilidade temporaria), `/var/www/fadego-preview`, unidade systemd | Instalacao fisica com nome correto e versao ativa interna; servico ainda aponta ao caminho anterior. |
 | `lowcost-europa` | `/srv/projects/lowcost-europa` | `/srv/lowcost-europa` (ligacao temporaria), `/var/lib/lowcost-europa`, `/var/www/lowcost-europa`, segredos e timers | Instalacao fisica no nome canonico; servico e backups ainda usam caminho antigo. |
-| `skill-universal` (Ferrari) | `/home/ubuntu/.local/share/motor-ferrari` | Programas e pacotes Ubuntu partilhados | Nome diferente; runtime instalado nao comprovado como clone direto do repo. |
+| `skill-universal` (Ferrari) | `/srv/projects/skill-universal` | `/home/ubuntu/.local/share/motor-ferrari` (compatibilidade temporaria), programas APT do Ubuntu | Instalacao fisica com nome correto, runtimes e ferramentas privadas integrados e motor importado com sucesso. |
 | `Engenheira-reversa` | `/home/ubuntu/.local/share/rea-chatgpt-trial` (clone em `repository/`) | `/home/ubuntu/rea-final-runtime`, `rea-original-upstream-680`, `rea-original-upstream-680-evidence`, `/var/lib/rea-reversa` | Instalacoes diferentes, incluindo o upstream `morluto/rea`. Nao unir sem comprovar a propriedade e independencia de cada runtime. |
 | `Project-leader-codex` | Clone do repo nao confirmado na VPS | `/home/ubuntu/codex-agent`, `codex-bridge`, `.codex` | Componentes de Codex identificados; a relacao com o projeto precisa de verificacao. Nao criar coordenador na VPS; supervisor e passivo. |
 | `VPS` | Repositorio no GitHub e execucoes temporarias Actions/SSH | Ficheiros do sistema, unidades systemd e observacao Telegram | Infraestrutura partilhada; Supervisor Telegram sem servico residente independente confirmado. |
@@ -120,6 +120,14 @@ Pendencias e precaucoes:
 - Nao duplicar nem eliminar as sessoes; nao publicar arquivos privados no GitHub.
 
 **Prova real REA:** [GitHub Actions #41711090273](https://github.com/martaxi-boss/VPS/actions/runs/41711090273) — exit zero, settlement quiesced e verificacoes de integridade. A mudança de pasta nao libertou espaco, apenas reorganizou dados existentes.
+
+## Mudancas de pasta de FADEGO e Ferrari em 2026-11-03
+
+FADEGO: `/srv/projects/fadego` (3 840 331 776 bytes). Ligacao `current` alterada de absoluta para relativa dentro do projeto. Processo PID 1144 e servicos sem interrupcao. [Prova #41713861548](https://github.com/martaxi-boss/VPS/actions/runs/41713861548).
+
+Ferrari `skill-universal`: `/srv/projects/skill-universal` (13 517 766 656 bytes). Ambientes Python, ferramentas e runtimes privados mantidos; importacao do motor bem-sucedida com utilizador proprietario. [Prova #41714161162](https://github.com/martaxi-boss/VPS/actions/runs/41714161162).
+
+Em ambos os casos os diretórios antigos sao symlinks temporarios para os instaladores existentes. Migracoes dentro do mesmo disco, **nenhum espaco libertado**. Ainda falta converter os caminhos de arranque e instalacao antes da eliminacao dos aliases.
 
 ## Requisitos de instalacao e desinstalacao por projeto
 
