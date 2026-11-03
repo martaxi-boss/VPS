@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-ferrari-private-npm-cache-clean-20261103-x90",
+  "request_id": "rea-vps-safe-global-cache-classification-20261103-r205",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\ntest -L /home/ubuntu/.local/share/motor-ferrari\ntest -f /srv/projects/skill-universal/current/install/ferrari-cache-hygiene.py\nsudo -n -u ubuntu /usr/bin/python3 /srv/projects/skill-universal/current/install/ferrari-cache-hygiene.py --apply\n"
+            "set -Eeuo pipefail\nsudo -n /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nimport subprocess,os,time,json\nfor p in ['/home/ubuntu/.cache','/root/.cache','/root/.gradle/caches','/tmp','/var/cache/apt/archives']:\n x=Path(p)\n if not x.is_dir():continue\n r=subprocess.run(['du','-x','-B1','--max-depth=1',p],capture_output=True,text=True,timeout=50)\n print('CACHE_ROOT',p,'RC',r.returncode)\n sizes=[]\n for line in r.stdout.splitlines():\n  try:s,name=line.split('\\t',1);sizes.append((int(s),name))\n  except ValueError:pass\n for size,name in sorted(sizes,reverse=True)[:28]:print('CACHE_DIR',p,name,size)\nprint('===RUNNING_INSTALLERS===')\nfor p in Path('/proc').iterdir():\n if not p.name.isdigit():continue\n try:\n  cmd=(p/'cmdline').read_bytes().replace(b'\\0',b' ').decode(errors='replace')\n  if 'python3 -' in cmd:continue\n  if any(word in cmd for word in ('pip install','npm install','apt-get','gradle build','./gradlew','uv pip','pip cache purge')):\n   print('INSTALLER_PROCESS',p.name,cmd[:200])\n except OSError:pass\nprint('===SERVICES===')\nfor name in ['fadego-staging','lowcost-europa','pink-iptv-backend','pink-vpn','nginx','postgresql@16-main','pm2-root']:\n r=subprocess.run(['systemctl','is-active',name+'.service'],capture_output=True,text=True,timeout=9)\n print('SERVICE',name,r.stdout.strip())\nprint('===DISK===')\nr=subprocess.run(['df','-h','/'],capture_output=True,text=True,timeout=10)\nprint(r.stdout.replace('\\n',' | '))\nprint('CACHE_PREFLIGHT=PASS')\nPY"
           ],
-          "timeout_ms": 200000,
-          "idle_timeout_ms": 140000,
+          "timeout_ms": 170000,
+          "idle_timeout_ms": 110000,
           "limits": {
-            "output_bytes": 7000
+            "output_bytes": 14500
           }
         }
       }
