@@ -48,6 +48,11 @@ jobs:
           summary={'uid':os.geteuid(),'home_matches_ubuntu':str(Path.home())=='/home/ubuntu',
                    'paths':{k:{'exists':p.exists(),'is_dir':p.is_dir(),'is_file':p.is_file(),
                       'is_symlink':p.is_symlink()} for k,p in paths.items()}}
+          summary['resolved_ferrari_root']=str(root.resolve())
+          summary['resolved_current_release']=str((root/'current').resolve())
+          summary['resolved_cli']=str((root/'.runtime/npm/rea/node_modules/.bin/rea').resolve())
+          summary['root_owner_uid']=root.stat().st_uid if root.exists() else None
+          summary['root_parent_resolved']=str(root.parent.resolve())
           sys.path.insert(0,str(root/'current'))
           try:
             from engine import rea_mcp
