@@ -257,6 +257,69 @@ jobs:
                 except (OSError,subprocess.TimeoutExpired) as e:
                   print(name+'|error='+type(e).__name__)
           PY_REA_COMPARE
+          echo '=== REA_PROVIDER_RETRY_DIAGNOSTIC ==='
+          sudo -n -u ubuntu python3 - <<'PY_REA_DIAG'
+          import json,os,subprocess,tempfile,time
+          from pathlib import Path
+          ferrari=Path('/home/ubuntu/.local/share/motor-ferrari')
+          original=Path('/home/ubuntu/rea-final-runtime/bin/rea-mcp')
+          cli=ferrari/'.runtime/npm/rea/node_modules/.bin/rea'
+          cmds=[('ferrari_help',[str(cli),'--help']),
+                ('ferrari_mcp_help',[str(cli),'mcp','--help']),
+                ('old_mcp_launch',[str(original)]),
+                ('ferrari_mcp_launch',[str(cli),'mcp']),
+                ('ferrari_doctor',[str(cli),'doctor','--provider','ghidra','--json']),
+                ('ferrari_providers',[str(cli),'providers','--json'])]
+          for label,args in cmds:
+            if not Path(args[0]).is_file():
+              print(label+'|executable_absent');continue
+            with tempfile.TemporaryDirectory(prefix='rea-provider-check-') as tmp:
+              env=dict(os.environ)
+              env.update({'HOME':tmp,'TMPDIR':tmp,'XDG_CONFIG_HOME':tmp+'/.config','XDG_CACHE_HOME':tmp+'/.cache',
+                'PATH':str(ferrari/'runtimes/node-22.23.4/bin')+':'+str(ferrari/'runtimes/jdk-25.0.5_8/bin')+':'+env.get('PATH',''),
+                'JAVA_HOME':str(ferrari/'runtimes/jdk-25.0.5_8'),
+                'GHIDRA_JAVA_HOME':str(ferrari/'runtimes/jdk-25.0.5_8'),
+                'GHIDRA_INSTALL_DIR':str(ferrari/'tools/ghidra-12.2')})
+              if label.endswith('_launch'):
+                try:
+                  p=subprocess.Popen(args,env=env,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+                  time.sleep(3)
+                  code=p.poll()
+                  if code is None:
+                    p.terminate()
+                    try:p.communicate(timeout=3)
+                    except subprocess.TimeoutExpired:p.kill();p.communicate()
+                    print(label+'|stayed_alive=true')
+                    continue
+                  out,err=p.communicate(timeout=2)
+                  s=err.decode('utf-8','replace').lower()
+                  patterns=('cannot find','module not found','enoent','eacces','err_require_esm','err_module_not_found','permission denied','node.js','error','usage','unknown command','mcp','missing','invalid','not found','unsupported')
+                  tags=[t for t in patterns if t in s]
+                  print(label+'|exit='+str(code)+'|stderr_bytes='+str(len(err))+'|stdout_bytes='+str(len(out))+'|error_tags='+','.join(tags[:10]))
+                except (OSError,subprocess.TimeoutExpired) as e:
+                  print(label+'|exception='+type(e).__name__)
+              else:
+                try:
+                  p=subprocess.run(args,env=env,text=True,capture_output=True,timeout=55)
+                  print(label+'|exit='+str(p.returncode)+'|stdout_bytes='+str(len(p.stdout))+'|stderr_bytes='+str(len(p.stderr)))
+                  if 'doctor' in label or 'providers' in label:
+                    try:
+                      data=json.loads(p.stdout)
+                      if isinstance(data,dict):
+                        print(label+'|json_keys='+','.join(sorted(data)[:30]))
+                        for k in ('status','ok','ready','healthy','success'):
+                          if k in data:print(label+'|'+k+'='+str(data[k])[:80])
+                        for k in ('providers','items','checks','capabilities'):
+                          if isinstance(data.get(k),list):
+                            print(label+'|'+k+'_count='+str(len(data[k])))
+                            for item in data[k][:15]:
+                              if isinstance(item,dict):
+                                vals=[key+':'+str(item[key])[:35] for key in ('id','name','status','ready','available','ok') if key in item and isinstance(item[key],(str,bool,int))]
+                                if vals:print(label+'|item|'+','.join(vals))
+                    except (ValueError,TypeError):print(label+'|not_json')
+                except (OSError,subprocess.TimeoutExpired) as e:
+                  print(label+'|exception='+type(e).__name__)
+          PY_REA_DIAG
           echo '=== TELEGRAM_PROJECT_DIRECTORY_BYTES ==='
           for root in /root/iptvpn_bot /opt/telegram-robot-leads /opt/.telegram-leads-previous-08ffc99ae8b1 /opt/telegram-leads-optin /home/ubuntu/telegram-leads-venv /root/migration-preserved /root/migration-20260923 /root/project-secrets/telegram-robot-leads /root/project-secrets/iptvpn_bot /home/ubuntu/.pm2 /root/.pm2; do
             if [ -d "$root" ]; then du -x -B1 -s "$root" 2>/dev/null; fi
