@@ -18,7 +18,7 @@
 
 | Repositorio GitHub | Pasta principal atual | Componentes fora da pasta | Estado de alinhamento |
 | --- | --- | --- | --- |
-| `telegram-robot-leads` | `/opt/telegram-robot-leads` | `/var/lib/telegram-robot-leads`, `/root/project-secrets/telegram-robot-leads`, PM2 global | Nome correto; instalacao ainda dispersa. Opt-in e ambiente Python antigo ja foram integrados na pasta do projeto. |
+| `telegram-robot-leads` | `/srv/projects/telegram-robot-leads` | `/opt/telegram-robot-leads` (symlink temporario), `/var/lib/telegram-robot-leads`, `/root/project-secrets/telegram-robot-leads`, PM2 global | Raiz e scripts migrados fisicamente; dados, duas sessoes e processo PM2 ainda por migrar. |
 | `iptvpn-bot` | `/srv/projects/iptvpn-bot` | `/root/iptvpn_bot` (ligacao temporaria), `/etc/iptvpn-bot`, `/root/project-secrets/iptvpn_bot`, PM2 global | Nome canonico atingido fisicamente; arranque PM2 e dados privados ainda externos. |
 | `pink-iptv` | `/srv/projects/pink-iptv` | `/srv/pink-iptv` (ligacao temporaria), configuracao VPN e unidades do Ubuntu; provas em `/srv/projects/pink-iptv/tests/device-proof/` | Nome canonico atingido fisicamente; backend ativo, 6 alteracoes locais preservadas. |
 | `fadego` | `/srv/fadego-staging` | `/var/www/fadego-preview`, unidade systemd e servicos partilhados | Nome diferente; versoes em `releases/`, `current` aponta para uma release ativa. |
@@ -106,6 +106,20 @@ O motor REA confirmou em leitura o estado atual, com `normalized_result.exit.cod
 Os servicos PINK backend, PINK VPN, FADEGO, Low Cost, PM2, Nginx, PostgreSQL e SSH foram observados ativos. Os dois robos Telegram estavam `online`. `df -hT /`: **72G total, 57G ocupados, 16G livres, 79%**, valores arredondados.
 
 Ainda existe `/opt/telegram-robot-leads` com componentes privados externos; FADEGO, Ferrari, REA e Codex nao foram migrados para a raiz canonica. As ligacoes antigas dos tres projetos sao **temporarias**: servicos e ferramentas de deploy ainda as referenciam. O utilizador nao deve fazer `rm` dessas pastas, nem declarar reinstalacao/desinstalacao independente pronta. Foram organizados arquivos adicionais e limpas apenas caches regeneraveis; nunca dados privados ou sessoes.
+
+## Telegram Robot Leads — migracao da pasta canonica 03-11-2026
+
+O projeto `telegram-robot-leads` foi fisicamente movido para `/srv/projects/telegram-robot-leads`. `/opt/telegram-robot-leads` passou a symlink temporario para os processos antigos. A instalacao inicial tinha 72 630 272 bytes; apos a substituicao dos caminhos locais e compilacao dos scripts, a pasta tinha 72 695 808 bytes. As duas sessoes e os dados de estado nao foram alterados. O PM2 permaneceu online com o PID **430721** e o bot independente `iptvpn_bot` com PID **1120**. Todos os servicos principais continuaram ativos.
+
+Foram atualizados sete ficheiros do runtime (ecosystem, scripts de ativacao, higienizacao, relatorio, status, radar e instalador), sem alterar a logica de operacao. O codigo-fonte e a documentacao do repositorio GitHub `telegram-robot-leads` foram alinhados atraves do conector GitHub (separadamente da execucao pelo REA). A raiz fisica esta organizada, mas **a migracao nao esta completa**.
+
+Pendencias e precaucoes:
+- `/var/lib/telegram-robot-leads` (estado operacional) e `/root/project-secrets/telegram-robot-leads` (duas sessoes) continuam pastas reais exteriores; os modulos de runtime validam ausencia de symlink para essas pastas.
+- O PM2 ainda utiliza a raiz antiga e os caminhos antigos de estado e vault; sera preciso um cutover coordenado com reinicio e verificacao de sessao, antes de remover a compatibilidade.
+- O workflow de deploy legado do repo `VPS` contem os caminhos anteriores e SHA pinned; editar o proprio workflow em main desencadeia automaticamente deploy. **Nao ativar esse deploy desatualizado ate corrigir os caminhos e conferir o SHA.**
+- Nao duplicar nem eliminar as sessoes; nao publicar arquivos privados no GitHub.
+
+**Prova real REA:** [GitHub Actions #41711090273](https://github.com/martaxi-boss/VPS/actions/runs/41711090273) — exit zero, settlement quiesced e verificacoes de integridade. A mudança de pasta nao libertou espaco, apenas reorganizou dados existentes.
 
 ## Requisitos de instalacao e desinstalacao por projeto
 
