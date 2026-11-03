@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-vps-pip-regenerable-cache-clean-20261103-x88",
+  "request_id": "rea-ferrari-isolated-npm-cache-dry-run-20261103-x89",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n /usr/bin/python3 - <<'PY'\nimport os,subprocess,shutil,pwd\nfrom pathlib import Path\ndef run(args,timeout=35):\n return subprocess.run(args,capture_output=True,text=True,timeout=timeout)\ndef service(name):\n return run(['systemctl','is-active',name+'.service'],8).stdout.strip()\nservices=['fadego-staging','lowcost-europa','pink-iptv-backend','pink-vpn','nginx','pm2-root','postgresql@16-main']\nbaseline={n:service(n) for n in services}\nif any(s!='active' for s in baseline.values()):raise RuntimeError('A protected service is inactive')\ntargets=[('root',Path('/root/.cache/pip')),('ubuntu',Path('/home/ubuntu/.cache/pip'))]\nfor user,p in targets:\n if not p.is_dir() or p.is_symlink():raise RuntimeError('pip cache path unexpectedly absent or linked '+user)\n if p.stat().st_uid!=pwd.getpwnam(user).pw_uid:raise RuntimeError('pip cache owner unexpected '+user)\n pdir=p.parent\n if pdir.is_symlink() or not pdir.is_dir():raise RuntimeError('Parent cache directory is symlink')\n cmd=['/usr/bin/python3','-m','pip','cache','dir'] if user=='root' else ['sudo','-n','-u',user,'/usr/bin/python3','-m','pip','cache','dir']\n v=run(cmd,25)\n if v.returncode or v.stdout.strip()!=str(p):raise RuntimeError('pip cache CLI does not match allowed home: '+user+' '+v.stderr.strip()[:150])\nfor process in Path('/proc').iterdir():\n if not process.name.isdigit():continue\n try:\n  raw=(process/'cmdline').read_bytes().replace(b'\\0',b' ').decode(errors='replace')\n  if 'python3 -' in raw:continue\n  if 'pip ' in raw or 'pip3 ' in raw or 'pip-compile' in raw:raise RuntimeError('pip operation active; preserve cache')\n except OSError:pass\ndef size(path):\n r=run(['du','-x','-s','-B1',str(path)],30)\n if r.returncode:raise RuntimeError('Cannot measure cache')\n return int(r.stdout.split()[0])\nbefore={user:size(path) for user,path in targets}\nfree0=shutil.disk_usage('/').free\nprint('PIP_CACHE_BEFORE='+','.join(user+':'+str(sz) for user,sz in before.items()))\nfor user,p in targets:\n cmd=['/usr/bin/python3','-m','pip','cache','purge'] if user=='root' else ['sudo','-n','-u',user,'/usr/bin/python3','-m','pip','cache','purge']\n v=run(cmd,95)\n if v.returncode:raise RuntimeError('pip cache cleanup failed for '+user+' '+v.stderr.strip()[:160])\n print('PIP_PURGED='+user)\nafter={user:size(path) for user,path in targets}\nprint('PIP_CACHE_AFTER='+','.join(user+':'+str(sz) for user,sz in after.items()))\nprint('PIP_CACHE_DIR_REDUCTION_BYTES='+str(sum(before.values())-sum(after.values())))\nprint('DISK_FREE_GAIN_BYTES='+str(shutil.disk_usage('/').free-free0))\nfor name,s in baseline.items():\n if service(name)!=s:raise RuntimeError('Service changed after pip cache cleanup: '+name)\nprint('INSTALLED_PYTHON_ENVIRONMENTS_UNTOUCHED=YES')\nprint('SERVICE_STATES_UNCHANGED=YES')\nprint('PIP_CACHE_CLEANUP=PASS')\nPY"
+            "set -Eeuo pipefail\ntest -L /home/ubuntu/.local/share/motor-ferrari\ntest -f /srv/projects/skill-universal/current/install/ferrari-cache-hygiene.py\nsudo -n -u ubuntu /usr/bin/python3 /srv/projects/skill-universal/current/install/ferrari-cache-hygiene.py\n"
           ],
-          "timeout_ms": 230000,
-          "idle_timeout_ms": 155000,
+          "timeout_ms": 180000,
+          "idle_timeout_ms": 135000,
           "limits": {
-            "output_bytes": 10000
+            "output_bytes": 7000
           }
         }
       }
