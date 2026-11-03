@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-iptvpn-ecosystem-canonical-prep-20261103-x91",
+  "request_id": "rea-telegram-leads-legacy-activator-readonly-20261103-r207",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nimport subprocess,json,os\nroot=Path('/srv/projects/iptvpn-bot')\np=root/'ecosystem.config.js'\nold=\"/root/iptvpn_bot\"\nnew=\"/srv/projects/iptvpn-bot\"\ndef cmd(args,t=15):\n return subprocess.run(args,capture_output=True,text=True,timeout=t)\ndef pm():\n r=cmd(['pm2','jlist'],15)\n if r.returncode:raise RuntimeError('PM2 state not accessible')\n return {a.get('name'):{'status':(a.get('pm2_env') or {}).get('status'),'pid':a.get('pid')} for a in json.loads(r.stdout) if a.get('name') in ('iptvpn_bot','telegram-robot-leads')}\nbefore=pm()\nif any(before.get(n,{}).get('status')!='online' for n in ('iptvpn_bot','telegram-robot-leads')):raise RuntimeError('Bot offline at start')\nif not root.is_dir() or root.is_symlink() or not p.is_file() or p.is_symlink():raise RuntimeError('IPTVPN project file mismatch')\nr=cmd(['git','-C',str(root),'remote','get-url','origin'],15)\nif r.returncode or 'martaxi-boss/iptvpn-bot' not in r.stdout:raise RuntimeError('Git origin unexpected')\noriginal=p.read_bytes()\na=original.count(old.encode());b=original.count(new.encode())\nif a==0 and b>0:\n print('IPTVPN_ECOSYSTEM_ALREADY_CANONICAL=YES')\nelif a==1 and b==0:\n try:\n  p.write_bytes(original.replace(old.encode(),new.encode()))\n  t=cmd(['node','--check',str(p)],14)\n  if t.returncode:raise RuntimeError('Syntax invalid after canonical path update')\n  t=cmd(['git','-C',str(root),'diff','--check','--','ecosystem.config.js'],15)\n  if t.returncode:raise RuntimeError('Git diff whitespace validation failed')\n  if pm()!=before:raise RuntimeError('PM2 bot status or PID changed')\n except Exception:\n  p.write_bytes(original)\n  print('IPTVPN_ECOSYSTEM_ROLLBACK=APPLIED')\n  raise\n print('IPTVPN_ECOSYSTEM_UPDATED_TO='+new)\nelse:raise RuntimeError('Unexpected number of hardcoded legacy/canonical references')\nif cmd(['node','--check',str(p)],14).returncode:raise RuntimeError('Final PM2 ecosystem syntax failed')\nprint('PM2_BOTS_PIDS_UNCHANGED=YES')\nprint('PM2_CONFIG_SYNTAX=PASS')\nprint('IPTVPN_ECOSYSTEM_CANONICAL=PASS')\nPY"
+            "set -Eeuo pipefail\nsudo -n /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nimport os,subprocess,stat\np=Path('/usr/local/sbin/telegram_leads_activate_20261020.py')\nprint('LEGACY_SCRIPT_PRESENT',p.is_file(),'SYMLINK',p.is_symlink())\nif p.is_file():\n print('FILE_BYTES',p.stat().st_size,'OWNER',p.stat().st_uid,'MODE',oct(p.stat().st_mode&0o777))\n lines=p.read_text(errors='replace').splitlines()\n print('TOTAL_LINES',len(lines))\n for i,line in enumerate(lines,1):\n  if any(w in line for w in ('/var/lib/telegram-robot-leads','/root/project-secrets/telegram-robot-leads','/srv/projects/telegram-robot-leads','/opt/telegram-robot-leads','PM2_HOME','pm2','--apply','--loop')):\n   print('SCRIPT_REF',i,line[:235])\nfor n in ('telegram-leads-activate-20261020.service','telegram-leads-activate-20261020.timer'):\n q=subprocess.run(['systemctl','show',n,'-p','LoadState','-p','ActiveState','-p','UnitFileState','-p','FragmentPath','-p','ExecStart','-p','OnCalendar','--no-pager'],capture_output=True,text=True,timeout=15)\n print('UNIT',n,'RC',q.returncode)\n for ln in q.stdout.splitlines():\n  if ln.startswith(('LoadState=','ActiveState=','UnitFileState=','FragmentPath=','OnCalendar=')):print('UNIT_META',ln[:210])\n  elif ln.startswith('ExecStart='):print('UNIT_COMMAND_CONTAINS_SCRIPT',p.name in ln,'UNIT_EXE_HAS_OLD_VAULT','/root/project-secrets/telegram-robot-leads' in ln)\nprint('===LEGACY REF CHECK===')\nfor root in ['/etc/systemd/system','/etc/cron.d','/usr/local/bin']:\n b=Path(root)\n if not b.is_dir():continue\n for f in b.rglob('*'):\n  try:\n   if not f.is_file() or f.is_symlink() or f.stat().st_size>500000:continue\n   if f.suffix not in ('.service','.timer','.sh','.py','.conf'):continue\n   text=f.read_text(errors='replace')\n   if str(p) in text:print('REFERENCE_TO_LEGACY',str(f))\n  except OSError:pass\nprint('LEGACY_ACTIVATOR_PREFLIGHT=PASS')\nPY"
           ],
-          "timeout_ms": 155000,
-          "idle_timeout_ms": 105000,
+          "timeout_ms": 150000,
+          "idle_timeout_ms": 100000,
           "limits": {
-            "output_bytes": 7500
+            "output_bytes": 8500
           }
         }
       }
