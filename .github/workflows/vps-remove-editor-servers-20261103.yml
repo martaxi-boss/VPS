@@ -1,0 +1,148 @@
+name: One-time Cursor and VS Code server removal from VPS
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/vps-remove-editor-servers-20261103.yml'
+permissions:
+  contents: read
+jobs:
+  remove-editor-servers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check pinned VPS SSH host
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/pinned-ssh"
+          chmod 600 "$RUNNER_TEMP/pinned-ssh"
+          fingerprint="$(ssh-keygen -lf "$RUNNER_TEMP/pinned-ssh" -E sha256 | awk '{print $2}')"
+          test "$fingerprint" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+      - name: Remove only Cursor Server and VS Code Server and check protected services
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/pinned-ssh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' > "$RUNNER_TEMP/editor-server-uninstall.txt" <<'REMOTE'
+          set -Eeuo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, os, pwd, shutil, signal, subprocess, time
+          
+          SERVER_NAMES = (".cursor-server", ".vscode-server", ".vscode-server-insiders")
+          PROTECTED_SERVICES = ("pink-iptv-backend.service", "pink-vpn.service", "fadego-staging.service", "lowcost-europa.service", "pm2-root.service", "nginx.service", "postgresql@16-main.service")
+          
+          def srvstate(service):
+              p=subprocess.run(("systemctl","is-active",service),text=True,capture_output=True,timeout=10)
+              return p.stdout.strip() or "unknown"
+          
+          def usage(path):
+              p=subprocess.run(("du","-s","-B1","--",str(path)),text=True,capture_output=True,timeout=120)
+              if p.returncode != 0: raise RuntimeError("du failed for "+str(path))
+              return int(p.stdout.split()[0])
+          
+          def match_path(value, targets):
+              if not value or not value.startswith("/"): return False
+              return any(value == base or value.startswith(base + "/") for base in targets)
+          
+          def matched_processes(targets):
+              result = []
+              for path in Path("/proc").iterdir():
+                  if not path.name.isdigit(): continue
+                  pid=int(path.name)
+                  if pid in (1,os.getpid(),os.getppid()): continue
+                  try:
+                      exe=os.readlink(path/"exe")
+                  except (OSError,PermissionError):
+                      exe=""
+                  try:
+                      cwd=os.readlink(path/"cwd")
+                  except (OSError,PermissionError):
+                      cwd=""
+                  try:
+                      raw=(path/"cmdline").read_bytes()
+                      args=[s.decode("utf-8","replace") for s in raw.split(b"\0") if s]
+                  except (OSError,PermissionError):
+                      args=[]
+                  if match_path(exe,targets) or match_path(cwd,targets) or any(match_path(s,targets) for s in args):
+                      result.append(pid)
+              return sorted(set(result))
+          
+          homes={Path("/root")}
+          home_root=Path("/home")
+          if home_root.exists():
+              homes.update(p for p in home_root.iterdir() if p.is_dir() and not p.is_symlink())
+          for user in pwd.getpwall():
+              h=Path(user.pw_dir)
+              if str(h)=="/root" or (h.parent == Path("/home") and h.is_dir() and not h.is_symlink()):
+                  homes.add(h)
+          targets=[h/n for h in sorted(homes) for n in SERVER_NAMES]
+          found=[p for p in targets if p.exists() or p.is_symlink()]
+          before={str(p):usage(p) for p in found}
+          free_before=shutil.disk_usage("/").free
+          services_before={s:srvstate(s) for s in PROTECTED_SERVICES}
+          print("EDITOR_SERVER_TARGETS="+str(len(found)))
+          for path in found:
+              print("EDITOR_SERVER_BEFORE="+str(path)+"|"+str(before[str(path)]))
+          print("DISK_FREE_BEFORE_BYTES="+str(free_before))
+          pids=matched_processes([str(p) for p in found])
+          print("EDITOR_SERVER_PROCESSES_BEFORE="+str(len(pids)))
+          for pid in pids:
+              try:
+                  os.kill(pid,signal.SIGTERM)
+              except ProcessLookupError: pass
+          time.sleep(2)
+          still=matched_processes([str(p) for p in found])
+          for pid in still:
+              try:
+                  os.kill(pid,signal.SIGKILL)
+              except ProcessLookupError: pass
+          time.sleep(1)
+          still=matched_processes([str(p) for p in found])
+          if still:
+              raise RuntimeError("Targeted editor-server process still running: count="+str(len(still)))
+          
+          for path in found:
+              if path.is_symlink():
+                  path.unlink()
+              elif path.is_dir():
+                  shutil.rmtree(path)
+              elif path.exists():
+                  path.unlink()
+              print("EDITOR_SERVER_REMOVED="+str(path))
+          remaining=[str(p) for p in targets if p.exists() or p.is_symlink()]
+          services_after={s:srvstate(s) for s in PROTECTED_SERVICES}
+          changed=[s for s in PROTECTED_SERVICES if services_before[s]=="active" and services_after[s]!="active"]
+          free_after=shutil.disk_usage("/").free
+          print("EDITOR_SERVER_REMOVED_TOTAL_BYTES="+str(sum(before.values())))
+          print("EDITOR_SERVER_REMAINING_PATHS="+json.dumps(remaining))
+          print("DISK_FREE_AFTER_BYTES="+str(free_after))
+          print("DISK_FREE_GAIN_BYTES="+str(free_after-free_before))
+          for s in PROTECTED_SERVICES:
+              print("PROTECTED_SERVICE="+s+"|before="+services_before[s]+"|after="+services_after[s])
+          print("EDITOR_SERVER_RUNNING_PROCESSES_AFTER="+str(len(matched_processes([str(p) for p in targets]))))
+          if remaining or changed:
+              print("EDITOR_SERVER_REMOVAL=FAIL")
+              raise RuntimeError("Residual directories or unrelated service lost active state")
+          print("EDITOR_SERVER_REMOVAL=PASS")
+          PY
+          REMOTE
+          cat "$RUNNER_TEMP/editor-server-uninstall.txt"
+          grep -q '^EDITOR_SERVER_REMOVAL=PASS$' "$RUNNER_TEMP/editor-server-uninstall.txt"
+      - name: Preserve before-after and verification record
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: editor-server-uninstall-${{ github.run_id }}
+          path: ${{ runner.temp }}/editor-server-uninstall.txt
+          retention-days: 7
+          if-no-files-found: warn
