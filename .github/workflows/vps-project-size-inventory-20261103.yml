@@ -1,0 +1,101 @@
+name: VPS Projects and Disk Sizes - read only
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/vps-project-size-inventory-20261103.yml'
+permissions:
+  contents: read
+jobs:
+  inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Verify pinned VPS SSH host key
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/known-hosts"
+          chmod 600 "$RUNNER_TEMP/known-hosts"
+          fingerprint="$(ssh-keygen -lf "$RUNNER_TEMP/known-hosts" -E sha256 | awk '{print $2}')"
+          test "$fingerprint" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+      - name: Fetch live VPS project and storage inventory without changing server files
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/known-hosts" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=20 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' > "$RUNNER_TEMP/vps-project-inventory.txt" <<'REMOTE'
+          set -u
+          echo '=== DISK_USAGE ==='
+          df -hT
+          echo '=== TOPLEVEL_AND_SECONDLEVEL_BYTES ==='
+          for root in /home /root /opt /srv /var/www /var/lib/docker /var/lib/postgresql /var/lib/containers /usr/local/share /mnt /data /workspace; do
+            if [ -d "$root" ]; then
+              echo "--- $root ---"
+              timeout 240 du -x -B1 -d 2 "$root" 2>/dev/null || echo "DU_INCOMPLETE $root"
+            fi
+          done
+          echo '=== NESTED_PROJECT_DIRECTORY_BYTES ==='
+          for root in /home/ubuntu/.local/share /home/ubuntu/projects /home/ubuntu/workspace /home/ubuntu/workspaces /home/ubuntu/repos /home/ubuntu/apps /home/ubuntu/operational_tests /root/projects /root/operational_tests /srv/apps /var/lib/docker/volumes; do
+            if [ -d "$root" ]; then
+              echo "--- $root ---"
+              timeout 240 du -x -B1 -d 2 "$root" 2>/dev/null || echo "DU_INCOMPLETE $root"
+            fi
+          done
+          echo '=== DOCKER_CONTAINERS ==='
+          if command -v docker >/dev/null 2>&1; then
+            docker ps -a --format '{{.Names}}|{{.Image}}|{{.Status}}' || true
+          fi
+          echo '=== DOCKER_IMAGES_AND_VOLUMES ==='
+          if command -v docker >/dev/null 2>&1; then
+            docker system df || true
+            docker volume ls --format '{{.Name}}' || true
+          fi
+          echo '=== RUNNING_SYSTEMD_UNITS ==='
+          systemctl list-units --type=service --state=running --no-legend --no-pager --plain 2>/dev/null | awk '{print $1}' || true
+          echo '=== PM2_SAVED_PROCESS_NAMES_NOT_LIVE ==='
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          for user in ("ubuntu", "root"):
+              home = Path("/home/ubuntu") if user == "ubuntu" else Path("/root")
+              f = home / ".pm2" / "dump.pm2"
+              if not f.is_file():
+                  continue
+              try:
+                  apps = json.loads(f.read_text())
+                  for a in apps:
+                      env = a.get("pm2_env", {})
+                      print(user, str(a.get("name", env.get("name","?"))), str(env.get("pm_cwd", a.get("pm_cwd","?"))), sep="|")
+              except Exception:
+                  print(user + "|PM2_DUMP_UNREADABLE")
+          PY
+          echo '=== GIT_PROJECT_ROOTS ==='
+          for root in /home/ubuntu /root /opt /srv /var/www; do
+            if [ -d "$root" ]; then
+              find "$root" -xdev -maxdepth 5 \
+                \( -name node_modules -o -name .cache -o -name .npm -o -name .venv -o -name venv -o -name site-packages -o -name .cargo -o -name .rustup -o -name releases \) -prune -o \
+                -type d -name .git -printf '%h\n' 2>/dev/null || true
+            fi
+          done
+          echo '=== FINISHED ==='
+          REMOTE
+          echo 'VPS_PROJECT_INVENTORY_RETURNED=PASS'
+          grep -q '^=== FINISHED ===' "$RUNNER_TEMP/vps-project-inventory.txt"
+          cat "$RUNNER_TEMP/vps-project-inventory.txt"
+      - name: Upload full live inventory
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vps-project-inventory-${{ github.run_id }}
+          path: ${{ runner.temp }}/vps-project-inventory.txt
+          if-no-files-found: warn
+          retention-days: 7
