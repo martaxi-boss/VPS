@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-leads-optin-inspect-readonly-20261103-r7",
+  "request_id": "rea-leads-optin-usage-readonly-20261103-m2",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,12 +9,12 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\np=/opt/telegram-leads-optin\nprintf 'PATH=%s\\n' \"$p\"\nif [ ! -d \"$p\" ]; then echo 'PATH_MISSING'; exit 0; fi\nprintf 'PATH_DETAILS\\n'\nsudo -n stat -c '%F|%a|%U:%G|%s|%y' \"$p\"\nsudo -n du -sh \"$p\"\nprintf 'FILES\\n'\nsudo -n find \"$p\" -maxdepth 3 -type f -printf '%P|%s bytes\\n' | head -80\nprintf 'DIRS\\n'\nsudo -n find \"$p\" -maxdepth 3 -type d -printf '%P\\n' | head -50\nprintf 'REFERENCES_SYSTEMD\\n'\nsudo -n grep -rIlF '/opt/telegram-leads-optin' /etc/systemd/system /etc/cron.d /etc/crontab 2>/dev/null || :\nprintf 'REFERENCES_PM2\\n'\nsudo -n grep -lF '/opt/telegram-leads-optin' /root/.pm2/dump.pm2 /home/ubuntu/.pm2/dump.pm2 2>/dev/null || :\nprintf 'REFERENCES_ACTIVE_ROBOT\\n'\nsudo -n grep -rlF '/opt/telegram-leads-optin' /opt/telegram-robot-leads --exclude-dir=.git --exclude='*.session' --exclude='*.log' 2>/dev/null | head -30 || :\nprintf 'ACTIVE_PROCESSES_BY_CWD\\n'\nfor f in /proc/[0-9]*/cwd; do x=$(sudo -n readlink \"$f\" 2>/dev/null || :); case \"$x\" in /opt/telegram-leads-optin*) echo \"$f\" ;; esac; done\nprintf 'ACTIVE_ROBOT_PRESENT\\n'\nsudo -n test -d /opt/telegram-robot-leads && echo yes || echo no\nprintf 'DONE=PASS\\n'"
+            "set -Eeuo pipefail\nsudo -n /usr/bin/python3 - <<'PY'\nfrom pathlib import Path\nimport re, json, subprocess, os\np=Path('/opt/telegram-leads-optin')\nactive=Path('/opt/telegram-robot-leads')\nprint('PROVENANCE_BEGIN')\ntry:\n for line in (p/'PROVENANCE.txt').read_text().splitlines()[:10]: print(line[:180])\nexcept OSError as e: print(type(e).__name__)\nprint('PROVENANCE_END')\nfor f in sorted((p/'scripts').glob('*')):\n if not f.is_file(): continue\n print('UTILITY',f.name)\n for line in f.read_text(errors='replace').splitlines()[:36]:\n  if any(t in line.lower() for t in ('argparse','def main','def ','import ','description=','usage:','opt-in','optin','growth','health','status')):\n   print(' ',line[:160])\nfor f in (active/'scripts/telegram-robot-leads-status.sh',active/'scripts/growth_radar.py',active/'docs/OPT_IN_GROWTH.md'):\n print('REFERENCE_FILE',str(f),f.exists())\n if not f.is_file(): continue\n lines=f.read_text(errors='replace').splitlines()\n for i,line in enumerate(lines):\n  if '/opt/telegram-leads-optin' in line:\n   print(' REFERENCE_LINE',i+1,line[:240])\n   for nextline in lines[i+1:i+3]: print(' NEXT_LINE',nextline[:200])\nprint('ACTIVE_SCRIPT_IMPORT_REFERENCES')\nfor f in [active/'scripts/growth_radar.py',active/'scripts/telegram-robot-leads-status.sh']:\n if f.exists():\n  t=f.read_text(errors='replace')\n  print(f.name,'fallback:', 'fallback' in t.lower(),'optin:', 'optin' in t.lower(),'growth_store:', 'growth_store' in t.lower())\nprint('PM2_LIVE')\ntry:\n r=subprocess.run(['pm2','jlist'],capture_output=True,text=True,timeout=12,env={**os.environ,'PM2_HOME':'/root/.pm2'})\n if r.returncode==0:\n  for app in json.loads(r.stdout):\n   name=app.get('name','')\n   if 'telegram' in name.lower() or 'iptvpn' in name.lower():\n    env=app.get('pm2_env') or {}\n    print(name,'status',env.get('status'),'cwd',env.get('pm_cwd'),'script',env.get('pm_exec_path'))\n else: print('PM2_QUERY_FAILED',r.returncode)\nexcept Exception as e: print('PM2_QUERY_EXCEPTION',type(e).__name__)\nprint('AUDIT_DONE')\nPY"
           ],
-          "timeout_ms": 100000,
-          "idle_timeout_ms": 80000,
+          "timeout_ms": 120000,
+          "idle_timeout_ms": 90000,
           "limits": {
-            "output_bytes": 12000
+            "output_bytes": 11000
           }
         }
       }
