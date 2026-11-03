@@ -84,6 +84,88 @@ jobs:
                           except (OSError, UnicodeError): pass
                   print(v.name+'|'+','.join(sorted(set(found))))
           PY_FERRARI
+          echo '=== CROSS_PROJECT_REA_IDENTITIES_AND_SIZES ==='
+          for root in /home/ubuntu/rea-final-runtime /home/ubuntu/rea-original-upstream-680 /home/ubuntu/rea-original-upstream-680-evidence /home/ubuntu/.local/share/rea-chatgpt-trial /home/ubuntu/.local/share/rea-optional-uv-0.13.6 /home/ubuntu/.local/share/motor-ferrari/.runtime/npm/rea /opt/android-sdk /root/.gradle /root/.android; do
+            if [ -d "$root" ]; then
+              echo "--- $root ---"
+              timeout 120 du -x -B1 --max-depth=1 "$root" 2>/dev/null | sort -nr | head -n 32 || echo "INCOMPLETE $root"
+            fi
+          done
+          echo '=== APT_MANUAL_MAIN_EXECUTABLES ==='
+          apt-mark showmanual 2>/dev/null | grep -Ei 'ghidra|jadx|apktool|rizin|binwalk|radare|frida|nodejs|java|openjdk|python|gimp|kdenlive|krita|blender|qgis|inkscape|audacity|openshot|ffmpeg|docker|dotnet|android|libreoffice|scribus|ansible|gradle' | head -n 100 || :
+          echo '=== CANDIDATE_GLOBAL_CACHE_USAGE_BYTES ==='
+          for root in /var/cache/apt /var/cache/apt/archives /home/ubuntu/.npm /root/.npm /home/ubuntu/.cache /root/.cache /root/.gradle/caches /root/.android/cache /home/ubuntu/.local/share/motor-ferrari/.runtime/npm-cache; do
+            if [ -d "$root" ]; then timeout 60 du -x -B1 -s "$root" 2>/dev/null || echo "INCOMPLETE $root"; fi
+          done
+          echo '=== SELECT_DUPLICATE_LIBRARY_HASHES ==='
+          FERRARI=/home/ubuntu/.local/share/motor-ferrari/.runtime/venvs/extended
+          for name in comfyui docling; do
+            fp="$FERRARI/$name/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so"
+            if [ -f "$fp" ]; then
+              stat -c "stat|%s|%d|%i|$name" "$fp"
+              timeout 60 sha256sum "$fp" | awk -v n="$name" '{print "sha256|"n"|"$1}' || echo "HASH_TIMEOUT $name"
+            fi
+          done
+          echo '=== REA_REFERENCES_IN_SYSTEM_CONFIG_NAMES_ONLY ==='
+          python3 - <<'PY_REFS'
+          from pathlib import Path
+          needles={"rea-final-runtime":b"rea-final-runtime","rea-chatgpt-trial":b"rea-chatgpt-trial","rea-original-upstream-680":b"rea-original-upstream-680","ferrari-private-rea":b"motor-ferrari/.runtime/npm/rea"}
+          places=[Path('/etc/systemd/system'),Path('/etc/cron.d'),Path('/etc/supervisor/conf.d'),Path('/root/.pm2/dump.pm2'),Path('/home/ubuntu/.pm2/dump.pm2'),Path('/home/ubuntu/.config')]
+          rows=[]
+          for root in places:
+              try:
+                  paths=[root] if root.is_file() else list(root.rglob('*'))[:4000]
+              except (OSError,PermissionError): continue
+              for p in paths:
+                  try:
+                      if p.is_symlink() or not p.is_file() or p.stat().st_size>2_000_000:continue
+                      data=p.read_bytes()
+                  except (OSError,PermissionError):continue
+                  for label,needle in needles.items():
+                      if needle in data:
+                          rows.append((label,str(p)))
+          for a,b in sorted(rows)[:120]:print(a+"|"+b)
+          if not rows:print("no references in audited config locations")
+          PY_REFS
+          echo '=== REA_PROCESSES_AND_OPEN_CWD ==='
+          python3 - <<'PY_PROC'
+          from pathlib import Path
+          names=('/home/ubuntu/rea-final-runtime/','/home/ubuntu/.local/share/rea-chatgpt-trial/','/home/ubuntu/rea-original-upstream-680/','/home/ubuntu/.local/share/motor-ferrari/')
+          counters={s:0 for s in names}
+          samples=[]
+          for p in Path('/proc').iterdir():
+              if not p.name.isdecimal():continue
+              for member in ('cwd','exe'):
+                  try:target=(p/member).readlink().as_posix()
+                  except (OSError,PermissionError):continue
+                  for base in names:
+                      if target.startswith(base):
+                          counters[base]+=1
+                          if len(samples)<55:
+                              try:comm=(p/'comm').read_text().strip()
+                              except OSError:comm='unknown'
+                              samples.append((p.name,comm,member,base))
+          print("counts|"+repr(counters))
+          for s in samples:print("|".join(s))
+          PY_PROC
+          echo '=== REA_AND_FERRARI_NPM_PACKAGE_VERSIONS ==='
+          for p in /home/ubuntu/.local/share/motor-ferrari/.runtime/npm/rea/node_modules/rea-agents/package.json /home/ubuntu/rea-final-runtime/package.json /home/ubuntu/.local/share/rea-chatgpt-trial/repository/package.json /home/ubuntu/rea-original-upstream-680/package.json; do
+            if [ -f "$p" ]; then
+              python3 - "$p" <<'PY_PKG'
+          import json,sys
+          from pathlib import Path
+          p=Path(sys.argv[1])
+          try:
+              j=json.loads(p.read_text())
+              print(str(p)+"|name="+str(j.get('name'))+"|version="+str(j.get('version'))+"|packageManager="+str(j.get('packageManager')))
+          except (OSError,ValueError):print(str(p)+"|unparseable")
+          PY_PKG
+            fi
+          done
+          echo '=== HOST_SYSTEM_TOOLS_VERSIONS ==='
+          for cmd in apktool jadx ghidra node npm java python3 ffmpeg; do
+            if command -v "$cmd" >/dev/null 2>&1;then echo "$cmd|$(command -v "$cmd")";fi
+          done
           echo '=== TELEGRAM_PROJECT_DIRECTORY_BYTES ==='
           for root in /root/iptvpn_bot /opt/telegram-robot-leads /opt/.telegram-leads-previous-08ffc99ae8b1 /opt/telegram-leads-optin /home/ubuntu/telegram-leads-venv /root/migration-preserved /root/migration-20260923 /root/project-secrets/telegram-robot-leads /root/project-secrets/iptvpn_bot /home/ubuntu/.pm2 /root/.pm2; do
             if [ -d "$root" ]; then du -x -B1 -s "$root" 2>/dev/null; fi
