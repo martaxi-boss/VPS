@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "id": "ferrari-krita-xvfb-readiness-20261103-v1",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/usr/bin/xvfb-run",
+          "arguments": [
+            "-a",
+            "/usr/bin/krita",
+            "--help"
+          ],
+          "timeout_ms": 20000,
+          "idle_timeout_ms": 11000
+        }
+      }
+    }
+  ]
+}
