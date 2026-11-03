@@ -63,6 +63,20 @@ A migracao de ficheiros PINK IPTV desta fase **nao libertou espaco**: foi uma mu
 
 Continuam pendentes outros residuos e localizacoes soltas, especialmente dados privados de Telegram, provas antigas PINK (agora dentro do projeto), bibliotecas Android/Gradle partilhadas e versoes anteriores de FADEGO. Preservar ate serem auditadas individualmente.
 
+## Arquivos adicionais organizados em 2026-11-03
+
+Foram identificados por conteudo e movidos **sem apagar dados**, mantendo serviços e dois robos Telegram ativos:
+
+| Projeto | Origem anterior na VPS | Destino dentro do projeto | Bytes reorganizados |
+| --- | --- | --- | ---: |
+| `pink-iptv` | `/srv/android002-validator-final-46fea6e` | `/srv/pink-iptv/tests/archive/android002-validator-final-46fea6e` | 1 314 816 |
+| `iptvpn-bot` | `/root/migration-20260923/iptvpn-bot-pre-final` | `/root/iptvpn_bot/archive/migration-20260923/iptvpn-bot-pre-final` | 12 288 |
+| `lowcost-europa` | `/root/migration-preserved/home-lowcost-admin` | `/srv/lowcost-europa/archive/migration-preserved/home-lowcost-admin` | 40 960 |
+
+**Total reorganizado neste passo:** 1 368 064 bytes. **Espaco libertado por estas movimentacoes: 0 bytes** (mesmo disco). Fontes: [preflight e identificacao #41706859286](https://github.com/martaxi-boss/VPS/actions/runs/41706859286) e [execucao #41707116287](https://github.com/martaxi-boss/VPS/actions/runs/41707116287).
+
+Os arquivos ficam ignorados no Git tanto na VPS como nos respetivos repositorios. As pastas raiz de migracao de 2026-09 continuam a existir com conteudo de outros projetos: NAO declarar que foram limpas por completo. Foi adicionado `docs/VPS_INSTALLATION.md` em `iptvpn-bot` e `lowcost-europa`; `pink-iptv` ja possuia documentacao, agora ampliada.
+
 ## Requisitos de instalacao e desinstalacao por projeto
 
 Um projeto so esta **PRONTO PARA DESINSTALAR** quando possui um procedimento versionado que:
