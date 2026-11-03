@@ -1,5 +1,5 @@
 {
-  "request_id": "rea-vps-safe-apt-clean-20261103-v1",
+  "request_id": "rea-project-secret-path-audit-20261103-g2",
   "mcp_requests": [
     {
       "method": "tools/call",
@@ -9,10 +9,10 @@
           "executable": "/bin/bash",
           "arguments": [
             "-lc",
-            "set -Eeuo pipefail\nsudo -n python3 - <<'PY'\nimport os,subprocess,shutil\nfrom pathlib import Path\nprotected=['pink-iptv-backend.service','pink-vpn.service','fadego-staging.service','lowcost-europa.service','pm2-root.service','nginx.service','postgresql@16-main.service']\ndef unit(s):\n r=subprocess.run(['systemctl','is-active',s],capture_output=True,text=True,timeout=10)\n return r.stdout.strip() or 'unknown'\nbefore={s:unit(s) for s in protected}\nfree1=shutil.disk_usage('/').free\ncache=Path('/var/cache/apt/archives')\nbefore_cache=subprocess.run(['du','-s','-B1',str(cache)],text=True,capture_output=True,check=True,timeout=30)\nprint('CLEANUP_APT_BEFORE_BYTES='+before_cache.stdout.split()[0])\nr=subprocess.run(['/usr/bin/apt-get','clean'],capture_output=True,text=True,timeout=80)\nprint('CLEANUP_APT_EXIT='+str(r.returncode))\nif r.returncode!=0:\n print('APT_ERROR_CLASS=nonzero')\n raise SystemExit(1)\nafter_cache=subprocess.run(['du','-s','-B1',str(cache)],text=True,capture_output=True,check=True,timeout=30)\nfree2=shutil.disk_usage('/').free\nprint('CLEANUP_APT_AFTER_BYTES='+after_cache.stdout.split()[0])\nprint('FREE_DISK_BEFORE_BYTES='+str(free1))\nprint('FREE_DISK_AFTER_BYTES='+str(free2))\nprint('GAIN_DISK_BYTES='+str(free2-free1))\nfor s in protected:\n old=before[s]\n now=unit(s)\n print('SERVICE_CHECK='+s+'|'+old+'|'+now)\n if old=='active' and now!='active':\n  raise RuntimeError('Protected service changed status: '+s)\nprint('CLEANUP_APT=PASS')\nPY"
+            "set -Eeuo pipefail\nsudo -n python3 - <<'PY'\nfrom pathlib import Path\nimport os,json,subprocess\nroots=[('/root/iptvpn_bot','/root/project-secrets/iptvpn_bot'),('/opt/telegram-robot-leads','/root/project-secrets/telegram-robot-leads')]\nfor code,vault in roots:\n print('PROJECT',code)\n names=[]\n for p in Path(vault).rglob('*'):\n  if p.is_file() and len(names)<35:\n   names.append((p.relative_to(vault).suffix or '<no-extension>',p.stat().st_size))\n print('VAULT_COUNT',len(names),'EXT_AND_SIZE',names)\n print('CODE_VAULT_PATH_REFERENCE_COUNT',end=' ')\n count=0\n paths=[]\n for f in Path(code).rglob('*'):\n  if not f.is_file() or f.is_symlink():continue\n  if len(f.parts)-len(Path(code).parts)>4:continue\n  try:\n   st=f.stat()\n   if st.st_size>800000 or st.st_size==0:continue\n   s=f.read_text(errors='replace')\n   if vault in s:\n    count+=1\n    if len(paths)<22:paths.append(str(f.relative_to(code)))\n  except (OSError,ValueError):pass\n print(count,'FILES',paths)\nprint('PM2_REFERENCES_TO_VAULT')\nr=subprocess.run(['pm2','jlist'],capture_output=True,text=True,timeout=25,env={**os.environ,'PM2_HOME':'/root/.pm2'})\nif r.returncode==0:\n for app in json.loads(r.stdout):\n  if app.get('name') not in ('iptvpn_bot','telegram-robot-leads'):continue\n  env=app.get('pm2_env') or {}\n  sensitive=[]\n  for k,v in env.items():\n   if isinstance(v,str):\n    for t in ['/root/project-secrets/iptvpn_bot','/root/project-secrets/telegram-robot-leads','/home/ubuntu/telegram-leads-venv','/opt/telegram-leads-optin']:\n     if t in v:sensitive.append(k)\n  print('PM2',app.get('name'),'PATH_REF_FIELDS',sensitive)\nelse:print('PM2_ERROR_CODE',r.returncode)\nprint('SYSTEMD_REFERENCES_TO_VAULT')\nfor service in ['pm2-root','telegram-leads-activate-20261020']:\n p=Path('/etc/systemd/system')/(service+'.service')\n if p.is_file():\n  t=p.read_text()\n  print('SYSTEMD',service,[(q,q in t) for q in ['/root/project-secrets','/opt/telegram-leads-optin']])\nprint('VAULT_AUDIT_PASS')\nPY"
           ],
-          "timeout_ms": 145000,
-          "idle_timeout_ms": 105000,
+          "timeout_ms": 130000,
+          "idle_timeout_ms": 100000,
           "limits": {
             "output_bytes": 9000
           }
