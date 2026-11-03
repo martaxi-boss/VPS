@@ -84,6 +84,35 @@ jobs:
                           except (OSError, UnicodeError): pass
                   print(v.name+'|'+','.join(sorted(set(found))))
           PY_FERRARI
+          echo '=== FERRARI_REA_GHIDRA_VERSION_DETAIL ==='
+          sudo -n -u ubuntu python3 - <<'PY_DIAG'
+          import os,json,subprocess
+          from pathlib import Path
+          r=Path('/home/ubuntu/.local/share/motor-ferrari')
+          cli=str(r/'.runtime/npm/rea/node_modules/.bin/rea')
+          env=dict(os.environ)
+          env.update({'JAVA_HOME':str(r/'runtimes/jdk-25.0.5_8'),
+              'GHIDRA_JAVA_HOME':str(r/'runtimes/jdk-25.0.5_8'),
+              'GHIDRA_INSTALL_DIR':str(r/'tools/ghidra-12.2'),
+              'PATH':str(r/'runtimes/node-22.23.4/bin')+':'+str(r/'runtimes/jdk-25.0.5_8/bin')+':'+env.get('PATH','')})
+          p=subprocess.run([cli,'doctor','--provider','ghidra','--json'],capture_output=True,text=True,env=env,timeout=70)
+          print('doctor_exit='+str(p.returncode))
+          try:
+              doc=json.loads(p.stdout)
+              print('doctor_healthy='+str(doc.get('healthy')))
+              for group in ('checks','informational_checks'):
+                for x in doc.get(group,[]):
+                  if not isinstance(x,dict):continue
+                  if x.get('name') in ('ghidra-version','jadx','ghidra-installation','ghidra-java'):
+                    info={k:x.get(k) for k in ('name','ok','code','detail','remediation') if k in x}
+                    print(group+'='+json.dumps(info,ensure_ascii=True)[:1000])
+              for x in doc.get('providerInspections',[]):
+                if isinstance(x,dict) and x.get('id') in ('ghidra','jadx'):
+                  info={k:x.get(k) for k in ('id','configured','available','providerVersion') if k in x}
+                  print('inspection='+json.dumps(info,ensure_ascii=True)[:500])
+          except (json.JSONDecodeError,TypeError):
+              print('doctor_json_invalid')
+          PY_DIAG
           echo '=== TELEGRAM_PROJECT_DIRECTORY_BYTES ==='
           for root in /root/iptvpn_bot /opt/telegram-robot-leads /opt/.telegram-leads-previous-08ffc99ae8b1 /opt/telegram-leads-optin /home/ubuntu/telegram-leads-venv /root/migration-preserved /root/migration-20260923 /root/project-secrets/telegram-robot-leads /root/project-secrets/iptvpn_bot /home/ubuntu/.pm2 /root/.pm2; do
             if [ -d "$root" ]; then du -x -B1 -s "$root" 2>/dev/null; fi
