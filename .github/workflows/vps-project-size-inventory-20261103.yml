@@ -166,6 +166,97 @@ jobs:
           for cmd in apktool jadx ghidra node npm java python3 ffmpeg; do
             if command -v "$cmd" >/dev/null 2>&1;then echo "$cmd|$(command -v "$cmd")";fi
           done
+          echo '=== REA_VENDOR_INDEPENDENCE_BREAKDOWN ==='
+          for root in /home/ubuntu/rea-final-runtime/vendors /home/ubuntu/rea-final-runtime/optional /home/ubuntu/.local/share/rea-chatgpt-trial/tools; do
+            if [ -d "$root" ];then
+              echo "--- $root ---"
+              timeout 120 du -x -B1 --max-depth=1 "$root" 2>/dev/null | sort -nr | head -n 30 || echo "INCOMPLETE $root"
+            fi
+          done
+          echo '=== REA_MCP_TOOL_PARITY_SANITIZED ==='
+          sudo -n -u ubuntu python3 - <<'PY_REA_COMPARE'
+          import json,os,selectors,subprocess,tempfile,time
+          from pathlib import Path
+          root=Path('/home/ubuntu/.local/share/motor-ferrari')
+          ferrari=str(root/'.runtime/npm/rea/node_modules/.bin/rea')
+          old='/home/ubuntu/rea-final-runtime/bin/rea-mcp'
+          def run_mcp(program):
+              if not Path(program[0]).is_file():
+                  return {'error':'executable_missing'}
+              with tempfile.TemporaryDirectory(prefix='ferrari-rea-audit-') as home:
+                  env=dict(os.environ)
+                  env.update({'HOME':home,'TMPDIR':home,'XDG_CONFIG_HOME':home+'/.config',
+                    'XDG_CACHE_HOME':home+'/.cache','JAVA_HOME':str(root/'runtimes/jdk-25.0.5_8'),
+                    'GHIDRA_JAVA_HOME':str(root/'runtimes/jdk-25.0.5_8'),
+                    'GHIDRA_INSTALL_DIR':str(root/'tools/ghidra-12.2'),
+                    'PATH':str(root/'runtimes/node-22.23.4/bin')+':'+str(root/'runtimes/jdk-25.0.5_8/bin')+':'+env.get('PATH',''),
+                    'REA_MCP_INPUT_SCHEMA_PROFILE':'compact','REA_MCP_OUTPUT_SCHEMA_PROFILE':'compact'})
+                  with tempfile.TemporaryFile() as stderr:
+                    p=subprocess.Popen(program,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=stderr,env=env,start_new_session=True)
+                    buffer=bytearray()
+                    try:
+                      with selectors.DefaultSelector() as selector:
+                        selector.register(p.stdout,selectors.EVENT_READ)
+                        def send(d):
+                          p.stdin.write(json.dumps(d,separators=(',',':')).encode()+b'\n')
+                          p.stdin.flush()
+                        def receive(id,seconds):
+                          deadline=time.monotonic()+seconds
+                          while time.monotonic()<deadline:
+                            while b'\n' in buffer:
+                              line,_,tail=buffer.partition(b'\n');buffer[:]=tail
+                              if not line.strip():continue
+                              m=json.loads(line)
+                              if isinstance(m,dict) and m.get('id')==id:return m
+                            if p.poll() is not None:return {'error':'server_exited'}
+                            if selector.select(timeout=min(1, max(.1,deadline-time.monotonic()))):
+                              block=os.read(p.stdout.fileno(),1048576)
+                              if not block:return {'error':'pipe_closed'}
+                              buffer.extend(block)
+                          return {'error':'timeout'}
+                        send({'jsonrpc':'2.0','id':1,'method':'initialize','params':{
+                          'protocolVersion':'2025-03-26','capabilities':{},
+                          'clientInfo':{'name':'ferrari-dependency-audit','version':'1.0'}}})
+                        init=receive(1,75)
+                        if init.get('error'):return {'error':'initialize_'+str(type(init['error']).__name__)}
+                        send({'jsonrpc':'2.0','method':'notifications/initialized'})
+                        send({'jsonrpc':'2.0','id':2,'method':'tools/list'})
+                        data=receive(2,85)
+                        if data.get('error'):return {'error':'tools_list_'+str(type(data['error']).__name__)}
+                        names={str(x.get('name')) for x in data.get('result',{}).get('tools',[]) if isinstance(x,dict)}
+                        return {'count':len(names),'names':names}
+                    except Exception as e:return {'error':type(e).__name__}
+                    finally:
+                      if p.poll() is None:
+                        p.terminate()
+                        try:p.wait(timeout=4)
+                        except subprocess.TimeoutExpired:p.kill()
+          old_result=run_mcp([old])
+          new_result=run_mcp([ferrari,'mcp'])
+          if 'error' in old_result or 'error' in new_result:
+              print('old_status='+old_result.get('error','ready')+'|ferrari_status='+new_result.get('error','ready'))
+          else:
+              missing=sorted(old_result['names']-new_result['names'])
+              added=sorted(new_result['names']-old_result['names'])
+              print('old_count='+str(old_result['count'])+'|ferrari_count='+str(new_result['count']))
+              print('exact_tool_name_parity='+str(not missing and not added))
+              print('missing_in_ferrari_count='+str(len(missing))+'|examples='+','.join(missing[:24]))
+              print('extra_in_ferrari_count='+str(len(added))+'|examples='+','.join(added[:24]))
+          for name,cmd in [('ferrari_ghidra_doctor',[ferrari,'doctor','--provider','ghidra','--json']),
+                           ('ferrari_provider_catalog',[ferrari,'providers','--json']),
+                           ('ferrari_capabilities',[ferrari,'capabilities','--json'])]:
+              with tempfile.TemporaryDirectory(prefix='ferrari-provider-audit-') as home:
+                env=dict(os.environ)
+                env.update({'HOME':home,'TMPDIR':home,'XDG_CONFIG_HOME':home+'/.config','XDG_CACHE_HOME':home+'/.cache',
+                  'JAVA_HOME':str(root/'runtimes/jdk-25.0.5_8'),'GHIDRA_JAVA_HOME':str(root/'runtimes/jdk-25.0.5_8'),
+                  'GHIDRA_INSTALL_DIR':str(root/'tools/ghidra-12.2'),
+                  'PATH':str(root/'runtimes/node-22.23.4/bin')+':'+str(root/'runtimes/jdk-25.0.5_8/bin')+':'+env.get('PATH','')})
+                try:
+                  p=subprocess.run(cmd,env=env,capture_output=True,text=True,timeout=55)
+                  print(name+'|exit='+str(p.returncode)+'|json_parse='+str(bool(p.stdout.strip().startswith('{') or p.stdout.strip().startswith('[')))+'|output_bytes='+str(len(p.stdout)))
+                except (OSError,subprocess.TimeoutExpired) as e:
+                  print(name+'|error='+type(e).__name__)
+          PY_REA_COMPARE
           echo '=== TELEGRAM_PROJECT_DIRECTORY_BYTES ==='
           for root in /root/iptvpn_bot /opt/telegram-robot-leads /opt/.telegram-leads-previous-08ffc99ae8b1 /opt/telegram-leads-optin /home/ubuntu/telegram-leads-venv /root/migration-preserved /root/migration-20260923 /root/project-secrets/telegram-robot-leads /root/project-secrets/iptvpn_bot /home/ubuntu/.pm2 /root/.pm2; do
             if [ -d "$root" ]; then du -x -B1 -s "$root" 2>/dev/null; fi
