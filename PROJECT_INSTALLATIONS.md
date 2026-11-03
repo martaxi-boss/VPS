@@ -137,6 +137,32 @@ Foi limpa uma extracao AppImage antiga, nao utilizada, em `/tmp`. Medicao de esp
 
 As releases antigas do FADEGO **nao foram eliminadas**: a primeira tentativa abortou sem alteracoes porque as verificacoes confundiram templates e codigo-fonte com potenciais dados privados. Nao contabilizar poupanca nessa area.
 
+## Auditoria consolidada de 7 projetos — 2026-11-03 20:57 UTC
+
+**Execucao REA read-only:** [Actions #41717303575](https://github.com/martaxi-boss/VPS/actions/runs/41717303575), `normalized_result.exit.code=0`, `settlement=quiesced`. A pasta `/srv/projects/` contem **sete instalacoes fisicas**, correspondentes aos seguintes nomes de repositorio, sem symlink na propria raiz:
+
+| Repositorio | Bytes da instalacao na auditoria |
+| --- | ---: |
+| `iptvpn-bot` | 82 673 664 |
+| `telegram-robot-leads` | 72 695 808 |
+| `pink-iptv` | 4 815 273 984 |
+| `lowcost-europa` | 117 411 840 |
+| `fadego` | 3 840 327 680 |
+| `skill-universal` | 13 652 721 664 |
+| `Engenheira-reversa` (Trial, nao REA FINAL) | 2 529 660 928 |
+
+Os **sete caminhos antigos ainda existem somente como ligacoes de compatibilidade** para preservar instaladores e processos antigos. Nao os remover nem declarar desinstalacao simples pronta ate verificar as referencias externas.
+
+`fadego-staging.service`, `lowcost-europa.service` e `pink-iptv-backend.service` foram atualizados para os novos caminhos sob `/srv/projects/` e verificados pelo `systemd-analyze verify`, seguido de `systemctl daemon-reload`, **sem reiniciar** os processos e mantendo os PID originais: [Actions #41716531862](https://github.com/martaxi-boss/VPS/actions/runs/41716531862). O ambiente Python PINK teve 17 launchers corrigidos ([#41716056823](https://github.com/martaxi-boss/VPS/actions/runs/41716056823)) e o Low Cost teve 6 launchers corrigidos ([#41716321831](https://github.com/martaxi-boss/VPS/actions/runs/41716321831)). Testes de ferramentas de cada ambiente passaram.
+
+Apos alteracoes de instalacao, Ferrari `current` passou a resolver para a release `c5b07ed225299ad80aa2d46c28441d17f281f695` na auditoria das 20:57 UTC. **Nao assumir que a release ativa e imutavel.** Os scripts de instalacao e o workflow manual `skill-universal` passaram a apontar para a pasta canonica, com CI [#41717025814](https://github.com/martaxi-boss/skill-universal/actions/runs/41717025814) SUCCESS. O workflow central Ferrari antigo ainda precisa de harmonizacao antes de eliminar compatibilidade.
+
+**Disco:** 72G totais, 57G ocupados, 16G disponiveis, 79% de ocupacao segundo `df -hT`; 16 486 625 280 bytes disponiveis na leitura binaria.
+
+**Limpeza adicional comprovada neste conjunto:** cache de extracao AppImage antiga sob `/tmp` eliminada, **356 188 160 bytes recuperados** em [Actions #41715432425](https://github.com/martaxi-boss/VPS/actions/runs/41715432425). **FADEGO mantem as nove releases originais**: o preflight de limpeza falhou e a tentativa posterior foi bloqueada; nao contabilizar poupanca das releases. Preservadas a versao ativa e as anteriores.
+
+**Pendencias nao escondidas:** sessoes e estado dos robos fora das pastas, configuracoes privadas dos projetos, PM2 global e scripts que referenciam os caminhos antigos, ficheiros web/proxy e backups, REA FINAL original e upstream fora de `/srv/projects/`, Codex agent/bridge e ferramenta Android SDK. Os servicos e robos foram observados ativos, mas **nenhum projeto foi ainda certificado para uma desinstalacao independente apenas com apagamento da pasta**.
+
 ## Requisitos de instalacao e desinstalacao por projeto
 
 Um projeto so esta **PRONTO PARA DESINSTALAR** quando possui um procedimento versionado que:
