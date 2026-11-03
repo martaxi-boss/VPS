@@ -24,7 +24,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: d4d4c3ce081477454e7dfce8fc64c9e49ecf4f77
+          ref: 227ee2c6a8487199cb4798f1eb9b1057f9658772
           persist-credentials: false
           path: ferrari
       - name: Validate Ferrari delivery scripts and engine tests on runner
@@ -72,13 +72,13 @@ jobs:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         run: |
           set -euo pipefail
-          SHA="d4d4c3ce081477454e7dfce8fc64c9e49ecf4f77"
+          SHA="227ee2c6a8487199cb4798f1eb9b1057f9658772"
           opts=(-o PreferredAuthentications=password -o PubkeyAuthentication=no
                 -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-pinned-host"
                 -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519
                 -o ConnectTimeout=20 -o ServerAliveInterval=15)
           tar --exclude=.git --exclude=.runtime --exclude=__pycache__             -czf "$RUNNER_TEMP/ferrari-source.tar.gz" -C ferrari .
-          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3             'mkdir -p "$HOME/.local/share/motor-ferrari/releases/d4d4c3ce081477454e7dfce8fc64c9e49ecf4f77"'
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3             'mkdir -p "$HOME/.local/share/motor-ferrari/releases/227ee2c6a8487199cb4798f1eb9b1057f9658772"'
           sshpass -e scp "${opts[@]}" "$RUNNER_TEMP/ferrari-source.tar.gz"             "ubuntu@146.59.145.3:.local/share/motor-ferrari/releases/$SHA/source.tar.gz"
           sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3             "bash -s -- '$SHA'" < ferrari/install/vps-delivery.sh
           echo 'FERRARI_APT_DELIVERY=PASS'
