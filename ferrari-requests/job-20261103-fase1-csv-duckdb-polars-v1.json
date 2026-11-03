@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "id": "ferrari-fase1-csv-duckdb-polars-20261103-v1",
+  "kind": "plan",
+  "max_parallel": 2,
+  "input": {
+    "name": "dados.csv",
+    "content_base64": "Y291bnRyeSxvcmRlcnMscmV2ZW51ZQpQb3J0dWdhbCw3LDE0Mi41MApFc3BhbmhhLDMsNzUuMjUKRnJhbmNhLDUsMTEwLjAwCg=="
+  },
+  "plan": {
+    "version": 1,
+    "steps": [
+      {
+        "id": "duckdb",
+        "operation": "tool",
+        "tool": "duckdb",
+        "action": "duckdb-csv-profile",
+        "input": "$input"
+      },
+      {
+        "id": "polars",
+        "operation": "tool",
+        "tool": "polars",
+        "action": "polars-csv-profile",
+        "input": "$input"
+      }
+    ]
+  }
+}
