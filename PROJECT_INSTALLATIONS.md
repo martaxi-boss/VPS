@@ -22,7 +22,7 @@
 | `iptvpn-bot` | `/srv/projects/iptvpn-bot` | `/root/iptvpn_bot` (ligacao temporaria), `/etc/iptvpn-bot`, `/root/project-secrets/iptvpn_bot`, PM2 global | Nome canonico atingido fisicamente; arranque PM2 e dados privados ainda externos. |
 | `pink-iptv` | `/srv/pink-iptv` | Configuracao VPN e unidades do Ubuntu; provas de testes ja integradas em `/srv/pink-iptv/tests/device-proof/` | Nome correto; 4,56 GB de testes consolidados em 03-11-2026. Checkout com alteracoes locais, preservado. |
 | `fadego` | `/srv/fadego-staging` | `/var/www/fadego-preview`, unidade systemd e servicos partilhados | Nome diferente; versoes em `releases/`, `current` aponta para uma release ativa. |
-| `lowcost-europa` | `/srv/lowcost-europa` | `/var/lib/lowcost-europa`, `/var/www/lowcost-europa`, utilizador de administracao e timers | Nome correto; algumas dependencias e configuracoes externas. |
+| `lowcost-europa` | `/srv/projects/lowcost-europa` | `/srv/lowcost-europa` (ligacao temporaria), `/var/lib/lowcost-europa`, `/var/www/lowcost-europa`, segredos e timers | Instalacao fisica no nome canonico; servico e backups ainda usam caminho antigo. |
 | `skill-universal` (Ferrari) | `/home/ubuntu/.local/share/motor-ferrari` | Programas e pacotes Ubuntu partilhados | Nome diferente; runtime instalado nao comprovado como clone direto do repo. |
 | `Engenheira-reversa` | `/home/ubuntu/.local/share/rea-chatgpt-trial` (clone em `repository/`) | `/home/ubuntu/rea-final-runtime`, `rea-original-upstream-680`, `rea-original-upstream-680-evidence`, `/var/lib/rea-reversa` | Instalacoes diferentes, incluindo o upstream `morluto/rea`. Nao unir sem comprovar a propriedade e independencia de cada runtime. |
 | `Project-leader-codex` | Clone do repo nao confirmado na VPS | `/home/ubuntu/codex-agent`, `codex-bridge`, `.codex` | Componentes de Codex identificados; a relacao com o projeto precisa de verificacao. Nao criar coordenador na VPS; supervisor e passivo. |
@@ -71,7 +71,7 @@ Foram identificados por conteudo e movidos **sem apagar dados**, mantendo servi√
 | --- | --- | --- | ---: |
 | `pink-iptv` | `/srv/android002-validator-final-46fea6e` | `/srv/pink-iptv/tests/archive/android002-validator-final-46fea6e` | 1 314 816 |
 | `iptvpn-bot` | `/root/migration-20260923/iptvpn-bot-pre-final` | `/srv/projects/iptvpn-bot/archive/migration-20260923/iptvpn-bot-pre-final` | 12 288 |
-| `lowcost-europa` | `/root/migration-preserved/home-lowcost-admin` | `/srv/lowcost-europa/archive/migration-preserved/home-lowcost-admin` | 40 960 |
+| `lowcost-europa` | `/root/migration-preserved/home-lowcost-admin` | `/srv/projects/lowcost-europa/archive/migration-preserved/home-lowcost-admin` | 40 960 |
 
 **Total reorganizado neste passo:** 1 368 064 bytes. **Espaco libertado por estas movimentacoes: 0 bytes** (mesmo disco). Fontes: [preflight e identificacao #41706859286](https://github.com/martaxi-boss/VPS/actions/runs/41706859286) e [execucao #41707116287](https://github.com/martaxi-boss/VPS/actions/runs/41707116287).
 
@@ -85,7 +85,7 @@ Uma primeira tentativa com teste de biblioteca inadequada falhou e foi revertida
 
 Ainda falta apontar a configuracao PM2 para o novo caminho, confirmar o arranque apos restart controlado e remover o symlink antigo. Os ficheiros privados em `/etc/iptvpn-bot` e `/root/project-secrets/iptvpn_bot` permanecem intactos e ainda externos. Nao considerar a desinstalacao apenas com remocao da pasta certificada.
 
-O projeto `lowcost-europa` continua fisicamente em `/srv/lowcost-europa`. A tentativa [#41708496093](https://github.com/martaxi-boss/VPS/actions/runs/41708496093) detetou alteracao do estado Git durante a migracao e fez **rollback**. Nao contabilizar como migracao concluida.
+O projeto `lowcost-europa` esta agora fisicamente em `/srv/projects/lowcost-europa` (117 411 840 bytes). As duas tentativas anteriores [#41708496093](https://github.com/martaxi-boss/VPS/actions/runs/41708496093) e [#41708984346](https://github.com/martaxi-boss/VPS/actions/runs/41708984346) fizeram rollback devido a Git exit 128 ao verificar com a identidade errada. A execucao [#41709236022](https://github.com/martaxi-boss/VPS/actions/runs/41709236022) verificou com a conta proprietaria e passou; o processo lowcost manteve PID 293428 e os dois robos mantiveram-se online. `/srv/lowcost-europa` e agora symlink de compatibilidade. Dados e segredos externos continuam pendentes.
 
 ## Requisitos de instalacao e desinstalacao por projeto
 
