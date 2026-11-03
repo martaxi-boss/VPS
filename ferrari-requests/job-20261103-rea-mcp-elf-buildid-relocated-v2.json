@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "id": "rea-mcp-elf-buildid-after-relocation-20261103",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "inspect_elf_notes",
+        "arguments": {
+          "path": "$input"
+        }
+      }
+    }
+  ],
+  "input": {
+    "name": "ferrari-build-id.elf",
+    "content_base64": "f0VMRgIBAQAAAAAAAAAAAAMAPgABAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAQAAAAEAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJAAAAAAAAAAkAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAUAAAAAwAAAEdOVQAAESIzRFVmd4iZqrvM3e7/ABEiMw=="
+  }
+}
