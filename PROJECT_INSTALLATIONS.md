@@ -18,7 +18,7 @@
 
 | Repositorio GitHub | Pasta principal atual | Componentes fora da pasta | Estado de alinhamento |
 | --- | --- | --- | --- |
-| `telegram-robot-leads` | `/srv/projects/telegram-robot-leads` | `/opt/telegram-robot-leads` (symlink temporario), `/var/lib/telegram-robot-leads`, `/root/project-secrets/telegram-robot-leads`, PM2 global | Raiz e scripts migrados fisicamente; dados, duas sessoes e processo PM2 ainda por migrar. |
+| `telegram-robot-leads` | `/srv/projects/telegram-robot-leads` (inclui `data/`, `private/`, `.venv/`, `optin/`) | `/opt/telegram-robot-leads` (symlink temporario), `/root/.pm2` (gestor global), script de ativacao antigo em `/usr/local/sbin` | Raiz, estado e as duas sessoes consolidados; PM2 usa raiz canonica, gestor PM2 ainda partilhado. |
 | `iptvpn-bot` | `/srv/projects/iptvpn-bot` | `/root/iptvpn_bot` (ligacao temporaria), `/etc/iptvpn-bot`, `/root/project-secrets/iptvpn_bot`, PM2 global | Nome canonico atingido fisicamente; arranque PM2 e dados privados ainda externos. |
 | `pink-iptv` | `/srv/projects/pink-iptv` | `/srv/pink-iptv` (ligacao temporaria), configuracao VPN e unidades do Ubuntu; provas em `/srv/projects/pink-iptv/tests/device-proof/` | Nome canonico atingido fisicamente; backend ativo, 6 alteracoes locais preservadas. |
 | `fadego` | `/srv/projects/fadego` | `/srv/fadego-staging` (compatibilidade temporaria), `/var/www/fadego-preview`, unidade systemd | Instalacao fisica com nome correto e versao ativa interna; servico ainda aponta ao caminho anterior. |
@@ -47,7 +47,7 @@
 
 - **Confirmado:** Telegram Robot Leads `/opt/telegram-robot-leads/optin` e `archive/previous-telegram-python-env` ja dentro da instalacao. Os dois robots estavam `online` no PM2.
 - **Confirmado:** PINK IPTV integrou a antiga pasta de provas `/srv/pink-iptv-device-proof` (4 558 049 280 bytes) em `/srv/projects/pink-iptv/tests/device-proof/` sem alterar o estado dos servicos nem as 6 modificacoes locais de Git. Git local configurado para ignorar esse diretorio; o `.gitignore` no GitHub foi alinhado. [Execucao #41702791325](https://github.com/martaxi-boss/VPS/actions/runs/41702791325).
-- **Pendente:** integracao/referenciacao segura dos dados e credenciais privadas do Telegram Robot Leads; atualizacao final do PM2 e dados privados de `iptvpn-bot`; separacao e migracao de pastas do PINK, FADEGO, Ferrari, REA e Codex; validacao dos instaladores e desinstaladores.
+- **Pendente:** isolamento do daemon PM2 entre os dois robos; migracao de dados privados do `iptvpn-bot`; remocao segura de links antigos; inventario dos runtimes REA FINAL e Codex, mais testes de reinicio e desinstalacao. As pastas fisicas PINK, FADEGO e Ferrari ja estao em `/srv/projects/`.
 - **Nao executar por atalho:** mover ou apagar pastas sem actualizar os caminhos de arranque, systemd/PM2, reverse proxies, backups, CI, permissões e referencias. Nao copiar segredos para GitHub.
 
 ## Higienizacao real verificada em 2026-11-03
@@ -105,7 +105,7 @@ O motor REA confirmou em leitura o estado atual, com `normalized_result.exit.cod
 
 Os servicos PINK backend, PINK VPN, FADEGO, Low Cost, PM2, Nginx, PostgreSQL e SSH foram observados ativos. Os dois robos Telegram estavam `online`. `df -hT /`: **72G total, 57G ocupados, 16G livres, 79%**, valores arredondados.
 
-Ainda existe `/opt/telegram-robot-leads` com componentes privados externos; FADEGO, Ferrari, REA e Codex nao foram migrados para a raiz canonica. As ligacoes antigas dos tres projetos sao **temporarias**: servicos e ferramentas de deploy ainda as referenciam. O utilizador nao deve fazer `rm` dessas pastas, nem declarar reinstalacao/desinstalacao independente pronta. Foram organizados arquivos adicionais e limpas apenas caches regeneraveis; nunca dados privados ou sessoes.
+Nota de auditoria historica: a instalacao de Telegram passou para raiz canonica e, posteriormente, o estado e as sessoes foram reunidos fisicamente em `data/` e `private/`. A pasta `/opt/telegram-robot-leads` e agora apenas symlink temporario. FADEGO e Ferrari tambem estao em `/srv/projects/`; REA FINAL e Codex ainda nao. Nao remover os links ate rever instaladores, servicos, backups e scripts de ativacao.
 
 ## Telegram Robot Leads — migracao da pasta canonica 03-11-2026
 
@@ -162,6 +162,20 @@ Apos alteracoes de instalacao, Ferrari `current` passou a resolver para a releas
 **Limpeza adicional comprovada neste conjunto:** cache de extracao AppImage antiga sob `/tmp` eliminada, **356 188 160 bytes recuperados** em [Actions #41715432425](https://github.com/martaxi-boss/VPS/actions/runs/41715432425). **FADEGO mantem as nove releases originais**: o preflight de limpeza falhou e a tentativa posterior foi bloqueada; nao contabilizar poupanca das releases. Preservadas a versao ativa e as anteriores.
 
 **Pendencias nao escondidas:** sessoes e estado dos robos fora das pastas, configuracoes privadas dos projetos, PM2 global e scripts que referenciam os caminhos antigos, ficheiros web/proxy e backups, REA FINAL original e upstream fora de `/srv/projects/`, Codex agent/bridge e ferramenta Android SDK. Os servicos e robos foram observados ativos, mas **nenhum projeto foi ainda certificado para uma desinstalacao independente apenas com apagamento da pasta**.
+
+## Atualizacao confirmada — Telegram Robot Leads (2026-11-03, 21h30 UTC)
+
+O robo ja inicia pelo caminho `/srv/projects/telegram-robot-leads/main.py`. A operacao REA [#41721220196](https://github.com/martaxi-boss/VPS/actions/runs/41721220196) substituiu **apenas** o processo PM2 deste projeto. O outro robo (`iptvpn_bot`, PID 1120) nao foi reiniciado.
+
+A operacao REA [#41721810190](https://github.com/martaxi-boss/VPS/actions/runs/41721810190) executou o cutover fisico de:
+- `/var/lib/telegram-robot-leads` → `/srv/projects/telegram-robot-leads/data`;
+- `/root/project-secrets/telegram-robot-leads` → `/srv/projects/telegram-robot-leads/private`.
+
+As duas sessoes foram verificadas por tamanho, inode e hash SHA-256 **sem imprimir conteudo nem valores**. Os arquivos externos originais deixaram de existir apos os `rename`; nao sao symlinks. Nove ficheiros ativos foram alterados apenas nos caminhos. O processo retomou `online` com PID 606651, PM2 guardou a configuracao, e o IPTV PN Bot permaneceu com o mesmo PID.
+
+O codigo e a documentacao do GitHub `telegram-robot-leads` foram alinhados num commit unico `1e8c4e024cc3` (16 ficheiros), com CI [#41722257390 — SUCCESS](https://github.com/martaxi-boss/telegram-robot-leads/actions/runs/41722257390). Nenhum segredo ou sessao foi enviado ao GitHub.
+
+**Ainda nao certificado como isolamento integral:** o PM2 daemon global `/root/.pm2` e usado pelos dois bots; ha um script legado em `/usr/local/sbin/telegram_leads_activate_20261020.py`, e um workflow VPS historico com caminhos antigos. Estes componentes exigem corte controlado antes de se retirar `/opt/telegram-robot-leads`.
 
 ## Requisitos de instalacao e desinstalacao por projeto
 
