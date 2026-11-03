@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "id": "ferrari-gimp-scribus-flags-20261103-v1",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/usr/bin/gimp-console-2.10",
+          "arguments": [
+            "--help"
+          ],
+          "timeout_ms": 12000,
+          "idle_timeout_ms": 5000
+        }
+      }
+    },
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/usr/bin/scribus",
+          "arguments": [
+            "--help"
+          ],
+          "timeout_ms": 12000,
+          "idle_timeout_ms": 5000
+        }
+      }
+    }
+  ]
+}
