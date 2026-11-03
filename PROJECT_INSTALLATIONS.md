@@ -93,6 +93,20 @@ O projeto `pink-iptv` esta fisicamente em `/srv/projects/pink-iptv` (4 815 273 9
 
 As unidades systemd, as configuracoes VPN e as referencias externas de deploy continuam a requerer atualizacao. Ate um novo arranque certificado, manter a ligacao antiga e nao declarar a desinstalacao integral pronta.
 
+## Validacao conjunta de organizacao — 2026-11-03 20:10 UTC
+
+O motor REA confirmou em leitura o estado atual, com `normalized_result.exit.code=0`, no [GitHub Actions #41709949401](https://github.com/martaxi-boss/VPS/actions/runs/41709949401).
+
+| Repositorio | Pasta fisica canonica | Bytes | Ligacao antiga mantida |
+| --- | --- | ---: | --- |
+| `iptvpn-bot` | `/srv/projects/iptvpn-bot` | 82 624 512 | `/root/iptvpn_bot` |
+| `lowcost-europa` | `/srv/projects/lowcost-europa` | 117 411 840 | `/srv/lowcost-europa` |
+| `pink-iptv` | `/srv/projects/pink-iptv` | 4 815 273 984 | `/srv/pink-iptv` |
+
+Os servicos PINK backend, PINK VPN, FADEGO, Low Cost, PM2, Nginx, PostgreSQL e SSH foram observados ativos. Os dois robos Telegram estavam `online`. `df -hT /`: **72G total, 57G ocupados, 16G livres, 79%**, valores arredondados.
+
+Ainda existe `/opt/telegram-robot-leads` com componentes privados externos; FADEGO, Ferrari, REA e Codex nao foram migrados para a raiz canonica. As ligacoes antigas dos tres projetos sao **temporarias**: servicos e ferramentas de deploy ainda as referenciam. O utilizador nao deve fazer `rm` dessas pastas, nem declarar reinstalacao/desinstalacao independente pronta. Foram organizados arquivos adicionais e limpas apenas caches regeneraveis; nunca dados privados ou sessoes.
+
 ## Requisitos de instalacao e desinstalacao por projeto
 
 Um projeto so esta **PRONTO PARA DESINSTALAR** quando possui um procedimento versionado que:
