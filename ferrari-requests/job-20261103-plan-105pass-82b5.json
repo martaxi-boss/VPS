@@ -1,0 +1,1 @@
+{"version":1,"id":"plan-ferrari-20261103-105pass-82b5","kind":"plan","max_parallel":2,"plan":{"version":1,"steps":[{"id":"site","operation":"web-template","layout":"store","title":"Ferrari Integracao Real 105PASS"},{"id":"extrair","operation":"binary-strings","depends_on":["site"],"input_from":"site"}]}}
