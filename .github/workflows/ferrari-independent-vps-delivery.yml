@@ -78,25 +78,25 @@ jobs:
                 -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519
                 -o ConnectTimeout=20 -o ServerAliveInterval=15)
           tar --exclude=.git --exclude=.runtime --exclude=__pycache__             -czf "$RUNNER_TEMP/ferrari-source.tar.gz" -C ferrari .
-          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3             'mkdir -p "$HOME/.local/share/motor-ferrari/releases/0a1a4c190a7d33752d6dc3f4418ed44735c8a7dd"'
-          sshpass -e scp "${opts[@]}" "$RUNNER_TEMP/ferrari-source.tar.gz"             "ubuntu@146.59.145.3:.local/share/motor-ferrari/releases/$SHA/source.tar.gz"
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3             'mkdir -p "/srv/projects/skill-universal/releases/0a1a4c190a7d33752d6dc3f4418ed44735c8a7dd"'
+          sshpass -e scp "${opts[@]}" "$RUNNER_TEMP/ferrari-source.tar.gz"             "ubuntu@146.59.145.3:/srv/projects/skill-universal/releases/$SHA/source.tar.gz"
           sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3             "bash -s -- '$SHA'" < ferrari/install/vps-delivery.sh
           echo 'FERRARI_APT_DELIVERY=PASS'
           # Transport only: all runtime logic stays in Ferrari's install script.
           sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
-            'cd "$HOME/.local/share/motor-ferrari/current" && bash install/vps-external-agents.sh'
+            'cd "/srv/projects/skill-universal/current" && bash install/vps-external-agents.sh'
           # Isolated JDK25/JADX/Ghidra logic remains in Ferrari, not this transport.
           sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
-            'cd "$HOME/.local/share/motor-ferrari/current" && bash install/vps-specialist-engines.sh'
+            'cd "/srv/projects/skill-universal/current" && bash install/vps-specialist-engines.sh'
           # CAD/3D/office installation logic lives only in the Ferrari repository.
           sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
-            'cd "$HOME/.local/share/motor-ferrari/current" && bash install/vps-cad-3d.sh'
+            'cd "/srv/projects/skill-universal/current" && bash install/vps-cad-3d.sh'
           # Universal tool discovery and real multidisciplinary work: all logic in Ferrari.
           sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
-            'cd "$HOME/.local/share/motor-ferrari/current" && bash install/vps-tool-runtime-smoke.sh'
+            'cd "/srv/projects/skill-universal/current" && bash install/vps-tool-runtime-smoke.sh'
           # Ferrari-only release housekeeping; preserve active and one fallback.
           sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
-            'cd "$HOME/.local/share/motor-ferrari/current" && python3 install/ferrari-hygiene.py'
+            'cd "/srv/projects/skill-universal/current" && python3 install/ferrari-hygiene.py'
           sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
-            'cd "$HOME/.local/share/motor-ferrari/current" && python3 install/ferrari-hygiene.py --apply'
+            'cd "/srv/projects/skill-universal/current" && python3 install/ferrari-hygiene.py --apply'
           echo 'FERRARI_DEPLOY_TRANSPORT=PASS'
