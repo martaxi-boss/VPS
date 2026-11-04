@@ -20,12 +20,12 @@ def audit():
     run('pg_isready', '-h', '127.0.0.1', '-p', '5432', '-t', '3')
     assert not run('wg', 'show', 'interfaces')
     assert not run('ss', '-H', '-lun', 'sport = :51820')
-    retained = Path('/etc/pink-vpn').exists()
+    retained = Path('/srv/projects/pink-iptv/vpn/gateway').exists()
     if retained:
-        backup = Path('/var/backups/pink-iptv/task052')
+        backup = Path('/srv/projects/pink-iptv/backups/task052')
         assert (backup/'rolled-back').is_file() and not (backup/'accepted').exists()
-        assert Path('/etc/pink-vpn/server.key').stat().st_mode & 0o777 == 0o600
-        assert Path('/etc/pink-vpn').stat().st_uid == 0
+        assert Path('/srv/projects/pink-iptv/vpn/gateway/server.key').stat().st_mode & 0o777 == 0o600
+        assert Path('/srv/projects/pink-iptv/vpn/gateway').stat().st_uid == 0
     subnet = ipaddress.ip_network('10.66.0.0/24')
     for row in json.loads(run('ip', '-j', '-4', 'route', 'show', 'table', 'all')):
         dst = row.get('dst', 'default')
