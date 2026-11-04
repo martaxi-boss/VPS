@@ -17,7 +17,7 @@ Cada repositorio GitHub implantado tem raiz fisica unica em `/srv/projects/<nome
 | `fadego/` | `martaxi-boss/fadego` | Releases, `current`, dependencias, `www/preview`, backup Nginx | Certificar restart, DB/backups e alias `/srv/fadego-staging` |
 | `skill-universal/` | `martaxi-boss/skill-universal` (Ferrari) | Motor, releases, ambientes, ferramentas, fornecedores privados | Validar consumidores do alias e apt global |
 | `Engenheira-reversa/` | `martaxi-boss/Engenheira-reversa` (FINAL) | `original`, `runtime`, `evidence` e arquivo; checkout original do autor | Validar todos os consumidores dos aliases REA; nao alterar ponte nem fundir com Trial |
-| `REA-Trial/` | Instalacao independente Trial | Checkout, ferramentas, evidencias e ficheiros privados proprios | Validar aliases apenas do Trial; nunca misturar com FINAL |
+| `REA-Trial/` | Instalacao independente Trial | Checkout, ferramentas, evidencias, arquivo inativo de `/var/lib` e `/var/www`, estado OAuth antigo em `private/` protegido | Validar recuperabilidade e elegibilidade para eliminar arquivos; nao misturar com FINAL |
 | `hopper/` | Ferramenta autonoma Hopper | `bin`, `lib` | Confirmar consumidores de `/opt/hopper` antes de remover alias |
 | `android-sdk/` | Ferramenta autonoma Android SDK | SDK, estado `state/root-android`, cache `cache/root-gradle` | Verificar consumidores e separar SDK por projeto quando exigido |
 | `Codex/` | `martaxi-boss/Codex` | Pacote Codex existente, `archive/legacy-bridge` | Remover aliases historicos apos atualizar workflows; nao criar coordenador VPS |
@@ -85,3 +85,11 @@ As unidades weekly discovery, catalog maintenance e affiliate report tambem fora
 **Low Cost (higiene adicional):** o Gunicorn reiniciou sem referencias ao antigo HOME [#41795057413](https://github.com/martaxi-boss/VPS/actions/runs/41795057413); quarto script de backup consolidado na pasta `bin` [#41795556638](https://github.com/martaxi-boss/VPS/actions/runs/41795556638) e alias externo retirado [#41796213331](https://github.com/martaxi-boss/VPS/actions/runs/41796213331). Falta restauracao de backup validada e eliminacao dos aliases de dados seguros.
 
 **Regra nao negociavel:** este mapa nao certifica desinstalacao independente de todos os projetos. Continuam pendentes o PM2 privado do Telegram Robot Leads, SDKs usados por mais de um projeto, os residuos REA nao classificados e os testes de restauro/reboot. Configuracoes Ubuntu em `/etc/systemd/system`, `/etc/nginx`, `/etc/wireguard` e sockets temporarios em `/run` sao integracoes do sistema, nao uma segunda instalacao do projeto.
+
+## REA Trial — residuos externos fisicamente arquivados em 04-11-2026
+
+A auditoria [#41808426095](https://github.com/martaxi-boss/VPS/actions/runs/41808426095) confirmou que os serviços antigos `rea-reversa-mcp` e `rea-mcp-oauth` estavam inativos, sem consumidores em Nginx/systemd/cron detetados para os caminhos que foram objeto desta migração. A execução [#41808880058](https://github.com/martaxi-boss/VPS/actions/runs/41808880058) moveu os dados históricos antes em `/var/lib/rea-reversa` para `/srv/projects/REA-Trial/archive/legacy-rea-reversa-state` e os ficheiros ACME antes em `/var/www/rea-reversa-acme` para `/srv/projects/REA-Trial/archive/legacy-rea-reversa-acme`, preservando propriedade, modos, inodes e serviços. **Nao foram apagados os dados nem deixadas ligacoes na origem.**
+
+A execução [#41809062170](https://github.com/martaxi-boss/VPS/actions/runs/41809062170) confirmou a transferência física do estado OAuth antigo e protegido para `/srv/projects/REA-Trial/private/legacy-rea-mcp-oauth`, com permissões e UID/GID originais; os caminhos anteriores `/var/lib/rea-mcp-oauth` e `/var/lib/private/rea-mcp-oauth` foram retirados. Nenhum segredo foi aberto ou exportado. O projeto `Engenheira-reversa` (REA FINAL) permanece separado.
+
+Os diretórios ficam preservados para auditoria/recuperação e **nao podem ser eliminados automaticamente** até certificação de que não contêm dados ou provas necessárias. Os movimentos no mesmo disco libertaram 0 bytes por remoção de ficheiros.
