@@ -4,6 +4,21 @@
 
 > Este ficheiro e um mapa de instalacoes, nao uma declaracao de que todas as migracoes ja ocorreram. Nunca copiar valores de credenciais ou sessoes para o GitHub.
 
+## Estado atualizado — 04/11/2026, após migração do REA FINAL
+
+**A regra é obrigatória:** cada instalação autónoma tem uma raiz física dentro de `/srv/projects`; os seus dados, dependências e fornecedores ficam dentro dela. O estado histórico das secções seguintes deve ser interpretado pela data, não como situação atual.
+
+- **REA FINAL:** `/srv/projects/Engenheira-reversa/{original,runtime,evidence}`. O Trial está separado em `/srv/projects/REA-Trial`. [Migração física #41785168890](https://github.com/martaxi-boss/VPS/actions/runs/41785168890) PASS, commit original `160d821ac9a0310afcb8d1fc427862dd6508add5`. [Correção localizada do lançador privado #41785849901](https://github.com/martaxi-boss/VPS/actions/runs/41785849901) PASS. [Skill original → GitHub Actions → SSH → MCP #41785984172](https://github.com/martaxi-boss/VPS/actions/runs/41785984172) **PASS**, sem alterações à ponte.
+- **Low Cost Europa:** código, `www/`, `data/`, `private/`, `backups/` consolidados; Nginx e unidade systemd utilizam caminhos canónicos. Os backups, tarefas e a remoção das ligações restantes ainda requerem certificação.
+- **FADEGO:** pasta pública `www/preview` dentro do projeto e Nginx atualizado; antigos aliases web/root eliminados. Testes de reinício e dependências externas PENDENTES.
+- **IPTV PN Bot:** `config/` e `private/` consolidados; PM2 global ainda gere dois robôs e conserva um caminho legado do IPTV PN Bot.
+- **Ferrari:** motor e REA privado próprios sob `/srv/projects/skill-universal`, independentes do REA FINAL.
+- **Codex, Android SDK, Hopper:** pastas principais físicas próprias em `/srv/projects/`; restantes aliases devem ser verificados antes da remoção.
+- **Higiene de caches:** [#41751404962](https://github.com/martaxi-boss/VPS/actions/runs/41751404962) retirou caches elegíveis sem tocar em sessões, dados de aplicações ou processos.
+
+**Não declarar nenhum projeto como totalmente desinstalável sem teste de arranque, inventário de serviços e ausência de referências externas.** O GitHub não inclui nem deve incluir tokens, sessões ou bases de dados privadas.
+
+
 ## Estado mais recente — 04-11-2026 (prevalece sobre tabelas historicas)
 
 **Prova conjunta:** [Ferrari/REA Actions #41753274718](https://github.com/martaxi-boss/VPS/actions/runs/41753274718). Dez pastas principais fisicas confirmadas em `/srv/projects/`: `telegram-robot-leads`, `iptvpn-bot`, `pink-iptv`, `lowcost-europa`, `fadego`, `skill-universal`, `Engenheira-reversa` (Trial), `hopper`, `android-sdk` e `Codex`. Os servicos principais estavam ativos; `nginx -t` passou.
@@ -40,12 +55,16 @@ O estado so e conforme quando cada instalacao autonoma tem uma **pasta principal
 | Repositorio GitHub | Pasta principal atual | Componentes fora da pasta | Estado de alinhamento |
 | --- | --- | --- | --- |
 | `telegram-robot-leads` | `/srv/projects/telegram-robot-leads` (inclui `data/`, `private/`, `.venv/`, `optin/`) | `/opt/telegram-robot-leads` (symlink temporario), `/root/.pm2` (gestor global), script de ativacao antigo em `/usr/local/sbin` | Raiz, estado e as duas sessoes consolidados; PM2 usa raiz canonica, gestor PM2 ainda partilhado. |
-| `iptvpn-bot` | `/srv/projects/iptvpn-bot` | `/root/iptvpn_bot` (ligacao temporaria), `/etc/iptvpn-bot`, `/root/project-secrets/iptvpn_bot`, PM2 global | Nome canonico atingido fisicamente; arranque PM2 e dados privados ainda externos. |
+| `iptvpn-bot` | `/srv/projects/iptvpn-bot` (código, `.venv/`, `config/`, `private/`) | Alias `/root/iptvpn_bot` e PM2 global `/root/.pm2` | **Dados privados consolidados** (#41751752478); isolamento PM2 e desinstalação PENDENTES. |
 | `pink-iptv` | `/srv/projects/pink-iptv` | `/srv/pink-iptv` (ligacao temporaria), configuracao VPN e unidades do Ubuntu; provas em `/srv/projects/pink-iptv/tests/device-proof/` | Nome canonico atingido fisicamente; backend ativo, 6 alteracoes locais preservadas. |
-| `fadego` | `/srv/projects/fadego` | `/srv/fadego-staging` (compatibilidade temporaria), `/var/www/fadego-preview`, unidade systemd | Instalacao fisica com nome correto e versao ativa interna; servico ainda aponta ao caminho anterior. |
-| `lowcost-europa` | `/srv/projects/lowcost-europa` | `/srv/lowcost-europa` (ligacao temporaria), `/var/lib/lowcost-europa`, `/var/www/lowcost-europa`, segredos e timers | Instalacao fisica no nome canonico; servico e backups ainda usam caminho antigo. |
+| `fadego` | `/srv/projects/fadego` (releases, runtime e `www/preview`) | Integrações Nginx/systemd; dependências de BD ainda por auditar | **Webroot e Nginx PASS**, aliases antigos de root e web removidos; reinício independente PENDENTE. |
+| `lowcost-europa` | `/srv/projects/lowcost-europa` (`.venv/`, `www/`, `data/`, `private/`, `backups/`) | Aliases de dados/backup/ambiente e tarefas ainda com referências antigas | **Pastas consolidadas**, Nginx e systemd atualizados; testes de restauro e eliminação dos aliases PENDENTES. |
 | `skill-universal` (Ferrari) | `/srv/projects/skill-universal` | `/home/ubuntu/.local/share/motor-ferrari` (compatibilidade temporaria), programas APT do Ubuntu | Instalacao fisica com nome correto, runtimes e ferramentas privadas integrados e motor importado com sucesso. |
-| `Engenheira-reversa` | `/srv/projects/Engenheira-reversa` (Trial) | `/home/ubuntu/.local/share/rea-chatgpt-trial` (symlink temporario). REA FINAL e upstream 6.8.0 permanecem instalacoes distintas. | Trial fisicamente organizado, sem alteracao do motor REA FINAL. Os outros runtimes requerem identificacao separada. |
+| `Engenheira-reversa` **FINAL** | `/srv/projects/Engenheira-reversa` (`original/`, `runtime/`, `evidence/`) | Antigos nomes em `/home/ubuntu/rea-*` são apenas aliases temporários | **Raiz física independente PASS**, motor original fixado; MCP Skill → SSH PASS #41785984172; restam aliases e desinstalação a certificar. |
+| `Codex` | `/srv/projects/Codex` (pacote npm, `archive/legacy-bridge`) | `/home/ubuntu/codex-agent` e `codex-bridge` aliases de compatibilidade | Raiz física reorganizada #41752751888; sem coordenador na VPS. Desinstalação PENDENTE. |
+| Instalação autónoma `REA-Trial` | `/srv/projects/REA-Trial` | `/home/ubuntu/.local/share/rea-chatgpt-trial` alias | Fisicamente separada do FINAL #41785168890. |
+| Instalação autónoma `android-sdk` | `/srv/projects/android-sdk` (SDK, `state/`, `cache/`) | `/opt/android-sdk`, `/root/.android`, `/root/.gradle` aliases | Instalação física consolidada #41752331633, #41752662613. |
+| Instalação autónoma `hopper` | `/srv/projects/hopper` (`bin/`, `lib/`) | `/opt/hopper` alias | Raiz física própria #41749540607. |
 | `Project-leader-codex` | Clone do repo nao confirmado na VPS | `/home/ubuntu/codex-agent`, `codex-bridge`, `.codex` | Componentes de Codex identificados; a relacao com o projeto precisa de verificacao. Nao criar coordenador na VPS; supervisor e passivo. |
 | `VPS` | Repositorio no GitHub e execucoes temporarias Actions/SSH | Ficheiros do sistema, unidades systemd e observacao Telegram | Infraestrutura partilhada; Supervisor Telegram sem servico residente independente confirmado. |
 
