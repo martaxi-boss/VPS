@@ -16,6 +16,14 @@
 
 As secoes anteriores abaixo mantem os resultados das auditorias em datas anteriores. Para o estado atual, usar o quadro acima e as evidencias mais recentes, nunca um caminho historico obsoleto.
 
+## Cortes adicionais e estado ainda pendente — 04-11-2026
+
+**Verificados fisicamente nesta continuacao:** o alias de pasta web da Low Cost `/var/www/lowcost-europa` foi removido [#41754197952](https://github.com/martaxi-boss/VPS/actions/runs/41754197952), o alias antigo de raiz FADEGO `/srv/fadego-staging` foi removido [#41754525784](https://github.com/martaxi-boss/VPS/actions/runs/41754525784), e os backups Low Cost passaram fisicamente para `/srv/projects/lowcost-europa/backups` [#41754735726](https://github.com/martaxi-boss/VPS/actions/runs/41754735726). Os ficheiros de backup nao foram eliminados. A origem antiga `/var/backups/lowcost-europa` e apenas alias ate corrigir as rotinas de backup e restauro.
+
+**Referencias existentes:** a auditoria [#41754384341](https://github.com/martaxi-boss/VPS/actions/runs/41754384341) encontrou 11 referencias a `/etc/lowcost-europa` e 19 a `/srv/lowcost-europa` em scripts, timers/unidades e arquivos de controlo. Nao eliminar esses aliases sem atualizar os consumidores. O PM2 dos dois robos continua partilhado e os tres diretorios do motor REA FINAL continuam externos. **Nao esta concluida a certificacao de desinstalacao independente de todos os projetos.**
+
+O relatorio de situacao e provas atualizado encontra-se em [docs/PROJECT_ROOTS_20261104.md](docs/PROJECT_ROOTS_20261104.md). Este aditamento prevalece sobre linhas historicas que ainda descrevem os caminhos antigos.
+
 ## Regra OBRIGATORIA do proprietario — uma pasta principal por instalacao
 
 **Aplica-se a todas as instalacoes, antigas e novas. Nao e apenas uma preferencia de nomenclatura.**
