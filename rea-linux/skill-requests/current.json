@@ -1,9 +1,20 @@
 {
-  "request_id": "rea-canonical-root-postfix-pass-20261104-0632",
+  "request_id": "rea-isolation-audit-20261104-1219-mcp1",
   "mcp_requests": [
     {
-      "method": "tools/list",
-      "params": {}
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/bin/bash",
+          "arguments": [
+            "-lc",
+            "set -euo pipefail\nprintf 'REA_ISOLATION_AUDIT=2026-11-04\\n'\nfor p in /home/ubuntu/rea-original-upstream-680 /home/ubuntu/rea-final-runtime /home/ubuntu/rea-final-runtime/bin/rea-mcp /opt/rea-reversa /srv/projects/rea-final /srv/projects/engenharia-reversa-final /srv/projects/skill-universal /home/ubuntu/.local/share/motor-ferrari /home/ubuntu/.local/share/motor-ferrari/.runtime/npm/rea /home/ubuntu/.local/share/motor-ferrari/.runtime/npm/rea/node_modules/.bin/rea; do\n  if [ -e \"$p\" ] || [ -L \"$p\" ]; then\n    printf 'PATH_PRESENT=%s\\n' \"$p\"\n    stat -c 'PATH_META=%F|%U|%G|%n' \"$p\"\n    readlink -f \"$p\" | sed 's/^/PATH_REAL=/'\n  else printf 'PATH_ABSENT=%s\\n' \"$p\"; fi\ndone\nfor p in /srv/projects /home/ubuntu; do\n  if [ -d \"$p\" ]; then find \"$p\" -mindepth 1 -maxdepth 2 \\( -iname '*rea*' -o -iname '*revers*' \\) -print | head -40 | sed 's/^/CANDIDATE=/' ; fi\ndone\nfor p in /etc/systemd/system /home/ubuntu/.config/systemd/user; do\n  if [ -d \"$p\" ]; then find \"$p\" -maxdepth 2 -type f \\( -name '*.service' -o -name '*.timer' \\) -print0 | xargs -0 -r grep -IlE '(/opt/rea-reversa|rea-original-upstream-680|rea-final-runtime|motor-ferrari)' | head -35 | sed 's/^/SYSTEMD_REFERENCER=/' ; fi\ndone\nps -eo comm= | grep -Ei '(rea|ferrari)' | sort -u | sed 's/^/ACTIVE_PROCESS_NAME=/' || :\nprintf 'REA_AUDIT_FINISHED=PASS\\n'"
+          ],
+          "timeout_ms": 30000,
+          "idle_timeout_ms": 15000
+        }
+      }
     }
   ]
 }
