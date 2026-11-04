@@ -18,7 +18,7 @@ def run(*args,check=True,timeout=30):
 
 
 def peer(public,operation='upsert',seconds=120):
-    result = subprocess.run(SSH+['sudo -n python3 /etc/pink-vpn/pink_vpn_052_peer.py'],
+    result = subprocess.run(SSH+['sudo -n python3 /srv/projects/pink-iptv/vpn/gateway/pink_vpn_052_peer.py'],
         input=json.dumps({'operation':operation,'public_key':public,'seconds':seconds}),
         capture_output=True,text=True,check=True,timeout=20)
     return json.loads(result.stdout)['server_public_key']
