@@ -231,3 +231,17 @@ Um projeto so esta **PRONTO PARA DESINSTALAR** quando possui um procedimento ver
 6. Permite reinstalar a partir do GitHub e restaurar os dados de backup sem depender de pastas abandonadas.
 
 Documento factual de acompanhamento. Atualizar apos cada migracao **validada** e nao mudar a arquitetura da ponte GitHub Actions/SSH nem instalar novos coordenadores.
+
+## Continuacao fisica — 2026-11-04 (instalacoes isoladas)
+
+**Migracao concluida de uma instalacao autonoma:** a ferramenta Hopper foi transferida fisicamente, por rename no mesmo filesystem, de `/opt/hopper` para **`/srv/projects/hopper`**, sem copiar a instalacao. Foram preservados `inode=4498967`, dispositivo `2049`, UID/GID e as duas pastas internas `bin/` e `lib/`. O caminho antigo `/opt/hopper` ficou como **symlink temporario**, apenas para compatibilidade. O comando de migracao confirmou `MOVED_AND_VERIFIED` e `rollback_needed=false` com exit zero.
+
+- Prova operacional pelo motor Ferrari/REA e GitHub Actions: [#41749540607](https://github.com/martaxi-boss/VPS/actions/runs/41749540607).
+- **Impacto no disco:** aproximadamente zero bytes libertados pela mudanca fisica (rename). Nao contabilizar como higienizacao de espaco.
+- **Ainda pendente:** testar referencias de todos os consumidores de Hopper e eliminar o alias historico apenas quando nao for utilizado; criar manifesto de propriedade e desinstalacao independente.
+- A mudanca do Hopper nao autoriza atualizar ou mexer em REA FINAL, Codex, Android SDK ou servicos de outros projetos.
+
+**Outros componentes ainda nao migrados:** `/home/ubuntu/rea-final-runtime`, `/home/ubuntu/rea-original-upstream-680`, `/home/ubuntu/rea-original-upstream-680-evidence`, `/home/ubuntu/codex-agent`, `/home/ubuntu/codex-bridge`, `/opt/android-sdk`, `/root/.android`, `/root/.gradle`, dados privados do IPTV PN Bot e dados web de outros projetos. O destino definitivo de cada componente exige confirmar se pertence a um repositorio ou e instalacao independente. A remocao do legado REA 6.8.0 deve respeitar a independencia e a preservacao de evidencia e do REA FINAL.
+
+**Tentativa nao executada:** o envio de uma operacao de migracao do REA original 6.8.0 e evidencias foi bloqueado antes de executar. Nenhuma alteracao fisica ao REA antigo ficou certificada nesta etapa. Nao inferir uma migracao concluida desse pedido.
+
