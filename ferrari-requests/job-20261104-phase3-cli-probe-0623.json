@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "id": "ferrari-phase3-cli-audit-20261104-0623",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/usr/bin/lmms",
+          "arguments": [
+            "--help"
+          ],
+          "timeout_ms": 9000,
+          "idle_timeout_ms": 4000
+        }
+      }
+    },
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/usr/bin/synfig",
+          "arguments": [
+            "--help"
+          ],
+          "timeout_ms": 9000,
+          "idle_timeout_ms": 4000
+        }
+      }
+    },
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/usr/bin/melt",
+          "arguments": [
+            "-help"
+          ],
+          "timeout_ms": 9000,
+          "idle_timeout_ms": 4000
+        }
+      }
+    }
+  ]
+}
