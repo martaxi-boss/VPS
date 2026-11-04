@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "id": "ferrari-phase3-cli-paths-20261104-r1",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/usr/bin/python3",
+          "arguments": [
+            "-c",
+            "import json,shutil,os\nnames=['lmms','synfig','synfigstudio','melt','kdenlive_render','kdenlive','audacity','obs','openshot-qt','yt-dlp','ffmpeg','ffprobe','sox']\nprint(json.dumps({x:shutil.which(x) for x in names},sort_keys=True))\n"
+          ],
+          "timeout_ms": 11000,
+          "idle_timeout_ms": 5500
+        }
+      }
+    }
+  ]
+}
