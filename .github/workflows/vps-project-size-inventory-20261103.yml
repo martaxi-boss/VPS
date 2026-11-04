@@ -44,14 +44,14 @@ jobs:
             timeout 180 du -x -B1 --max-depth=1 "$root" 2>/dev/null || echo "INCOMPLETE $root"
           done
           echo '=== PROJECT_DIRECTORIES_BYTES ==='
-          for root in /home/ubuntu /home/ubuntu/.local/share /home/ubuntu/.local/share/motor-ferrari /home/ubuntu/.local/share/rea-chatgpt-trial /opt /srv /var/www /root /var/lib /var/cache /var/log; do
+          for root in /home/ubuntu /home/ubuntu/.local/share /srv/projects/skill-universal /home/ubuntu/.local/share/rea-chatgpt-trial /opt /srv /var/www /root /var/lib /var/cache /var/log; do
             if [ -d "$root" ]; then
               echo "--- $root ---"
               timeout 120 du -x -B1 --max-depth=1 "$root" 2>/dev/null || echo "INCOMPLETE $root"
             fi
           done
           echo '=== FERRARI_NESTED_USAGE_BYTES ==='
-          FERRARI=/home/ubuntu/.local/share/motor-ferrari
+          FERRARI=/srv/projects/skill-universal
           for root in "$FERRARI/.runtime" "$FERRARI/.runtime/venvs" "$FERRARI/.runtime/venvs/extended" "$FERRARI/.runtime/npm" "$FERRARI/.runtime/npm-cache" "$FERRARI/.runtime/browsers" "$FERRARI/tools" "$FERRARI/runtimes" "$FERRARI/releases"; do
             if [ -d "$root" ]; then
               echo "--- $root ---"
@@ -68,7 +68,7 @@ jobs:
           python3 - <<'PY_FERRARI'
           from pathlib import Path
           from importlib import metadata
-          root=Path('/home/ubuntu/.local/share/motor-ferrari/.runtime/venvs/extended')
+          root=Path('/srv/projects/skill-universal/.runtime/venvs/extended')
           chosen=('torch','torchvision','torchaudio','numpy','transformers','docling','gradio','faster-whisper','prefect','pydantic','opencv-python','streamlit','polars','duckdb')
           if root.is_dir():
               for v in sorted(root.iterdir()):
@@ -88,7 +88,7 @@ jobs:
           sudo -n -u ubuntu python3 - <<'PY_DIAG'
           import os,json,subprocess
           from pathlib import Path
-          r=Path('/home/ubuntu/.local/share/motor-ferrari')
+          r=Path('/srv/projects/skill-universal')
           cli=str(r/'.runtime/npm/rea/node_modules/.bin/rea')
           env=dict(os.environ)
           env.update({'JAVA_HOME':str(r/'runtimes/jdk-25.0.5_8'),
