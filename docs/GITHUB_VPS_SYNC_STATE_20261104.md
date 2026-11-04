@@ -1,5 +1,31 @@
 # Sincronizacao GitHub ↔ VPS — 04/11/2026
 
+## Higienização profunda pós-migração — certificação final
+
+**Este é o estado factual mais recente e prevalece sobre os levantamentos históricos abaixo.** Limpeza conservadora e comprovada, sem reinstalar serviços ou impor um checkout sobre código alterado.
+
+### GitHub: limpeza real, sem quebrar a ponte
+- [Actions #41896323865](https://github.com/martaxi-boss/VPS/actions/runs/41896323865): **36 branches do `VPS`** removidas, de 243 para 207 naquele momento; todas correspondiam a PRs já integradas, não protegidas e sem execuções pendentes. Depois das PRs de higiene, foram observadas **209 branches**, várias preservadas por falta de prova de que eram descartáveis. Branches dos outros repositórios não foram apagadas.
+- [PR #328](https://github.com/martaxi-boss/VPS/pull/328): cinco workflows de Codex passaram a usar `/srv/projects/Codex/archive/legacy-bridge` em vez de `/home/ubuntu/codex-bridge`. CI de quota, validação da ponte, ensaio dual e SSH **PASS**. O script de teste de quota passou a executar contra pasta temporária equivalente; nenhuma lógica de produção ou coordenador foi acrescentado.
+- [PR #329](https://github.com/martaxi-boss/VPS/pull/329): o seletor Ferrari conserva os pedidos novos e ignora commits apenas com eliminações históricas. [Canário #41901092928](https://github.com/martaxi-boss/VPS/actions/runs/41901092928) PASS: **sem SSH, sem motor, sem job na VPS**.
+- No commit [`df0112a1`](https://github.com/martaxi-boss/VPS/commit/df0112a18d2ab2cff19f6dad0c05e49120140c4d) foram eliminados **284 JSONs de pedidos Ferrari já concluídos** da árvore GitHub, sem alterar qualquer outro ficheiro. O canário prévio removeu um primeiro JSON. Depois da certificação final, o pedido mais recente foi igualmente eliminado. **Estado final da árvore `VPS/main`: zero ficheiros `ferrari-requests/job-*`; 241 ficheiros de código/documentação permanecem.** Os conteúdos históricos continuam nos commits antigos, não foram reescritos.
+- [Actions #41901379690](https://github.com/martaxi-boss/VPS/actions/runs/41901379690) e [#41901769499](https://github.com/martaxi-boss/VPS/actions/runs/41901769499): as duas eliminações pós-guard terminaram **SUCCESS**, com as etapas SSH e REA ignoradas. Pedidos novos continuam compatíveis com o mesmo fluxo.
+
+### VPS: limpeza efetiva e preservação
+- [Actions #41896164178](https://github.com/martaxi-boss/VPS/actions/runs/41896164178): **542 ficheiros antigos** das sete pastas de cache autorizadas eliminados com controlo de descritores e de integridade, libertando **2 609 152 bytes de blocos alocados**; serviços intactos e **zero sessões, dados de aplicações e bases de dados apagados**.
+- [Actions #41897210590](https://github.com/martaxi-boss/VPS/actions/runs/41897210590): eliminadas apenas pastas **comprovadamente vazias** em `/root/.local/share/motor-ferrari`, `/home/ubuntu/.android`, `/home/ubuntu/codex-tests`, e o symlink quebrado `/home/ubuntu/codex-agent`. Não foi apagado nenhum runtime do Ferrari em funcionamento.
+- [Actions #41899482975](https://github.com/martaxi-boss/VPS/actions/runs/41899482975): symlink `/home/ubuntu/codex-bridge` eliminado após integração dos cinco workflows. A pasta real `/srv/projects/Codex/archive/legacy-bridge`, incluindo os sete elementos então identificados, permaneceu intacta.
+- [Actions #41900417846](https://github.com/martaxi-boss/VPS/actions/runs/41900417846): quatro modelos `deploy/systemd/*.service` do checkout local Low Cost atualizados para **igualar exatamente os ficheiros de `origin/main`**, incluindo o ambiente privado. O link `/srv/lowcost-europa` foi eliminado após auditoria de consumidores; serviço não reiniciado, `HEAD` e `git stash` anterior preservados. O [README operacional do Low Cost](https://github.com/martaxi-boss/lowcost-europa/blob/main/deploy/systemd/README.md) também ficou com caminho canónico.
+- [Certificação final #41901548138](https://github.com/martaxi-boss/VPS/actions/runs/41901548138): pedido novo GitHub Actions → SSH → Ferrari `292aeb7d` → REA MCP, **229 ferramentas disponíveis no catálogo**, oito raízes físicas exatas em `/srv/projects/`, **9/9 serviços ativos**, launchers Apktool e Valkey sem caminhos HOME, antigos aliases Ferrari/Codex/Low Cost ausentes, modelos Low Cost conferidos e **45,21 GiB livres**.
+
+### Conservação necessária; não declarar conclusão que não ocorreu
+- `/srv/pink-iptv` permanece symlink para `/srv/projects/pink-iptv` por ter um **processo `uvicorn` ativo** e referências num workflow GitHub. Remoção agora seria potencialmente disruptiva; antes é necessário migrar consumidores e testar o backend.
+- `iptvpn-bot` e `pink-iptv` continuam com seis alterações locais rastreadas cada; `lowcost-europa` tem cinco (quatro modelos alinhados ao GitHub, mais uma alteração anterior) e **um stash preservado**. Não foi feito `git reset`, `pull --force`, deploy ou troca de commits dessas aplicações.
+- A área privada do Ferrari continha cerca de **187 MB** de resultados recentes e o seu npm privado cerca de **2,37 GB** no levantamento anterior. Não foram apagados: os resultados são evidência recente e o npm é dependência privada do motor; não confundir com cache global livre para eliminar.
+- As versões de recuperação do Ferrari, dados privados de cada projeto, PostgreSQL, runtimes e o Supervisor passivo foram preservados. Catálogo de 229 ferramentas não equivale à certificação individual de 229 ferramentas. A organização física dos projetos não equivale a igualdade de todos os SHAs `main` e VPS.
+
+---
+
 ## Fecho definitivo Ferrari e alias — 04/11/2026, 19:06 UTC
 
 **ESTADO MAIS RECENTE (prevalece sobre os registos cronológicos abaixo):** Ferrari ativo no Ubuntu da VPS em `/srv/projects/skill-universal/current` → `releases/292aeb7d10eecef8c3ca84760cd579e84e4b97f3`. `martaxi-boss/skill-universal` `main` tem o mesmo SHA. Tanto o workflow GitHub→SSH→Ferrari como o instalador completo manual estão fixados nesse SHA. Nenhum outro projeto foi alterado.
