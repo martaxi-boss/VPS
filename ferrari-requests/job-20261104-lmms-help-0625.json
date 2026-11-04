@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "id": "ferrari-phase3-lmms-help-20261104-0625",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/usr/bin/lmms",
+          "arguments": [
+            "--help"
+          ],
+          "timeout_ms": 12000,
+          "idle_timeout_ms": 6000
+        }
+      }
+    }
+  ]
+}
