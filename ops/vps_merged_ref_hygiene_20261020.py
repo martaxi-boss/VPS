@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# 2026-11-04 re-audited owner-requested merged-branch hygiene; guards unchanged.
 """One-shot cleanup of *proved-merged* old GitHub VPS PR branches.
 
 Never deletes code, commits, releases, recovery refs, tags, files, logs, VPS
