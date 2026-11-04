@@ -4,6 +4,26 @@
 
 > Este ficheiro e um mapa de instalacoes, nao uma declaracao de que todas as migracoes ja ocorreram. Nunca copiar valores de credenciais ou sessoes para o GitHub.
 
+## Fotografia operacional mais recente — 04/11/2026 (não certificada a 100%)
+
+**Esta secção prevalece sobre todas as fotografias anteriores deste documento.** Auditorias reais por Ferrari/GitHub Actions: [raízes, serviços e symlinks #41925313028](https://github.com/martaxi-boss/VPS/actions/runs/41925313028), [configuração externa #41925605710](https://github.com/martaxi-boss/VPS/actions/runs/41925605710), [checkouts #41926467964](https://github.com/martaxi-boss/VPS/actions/runs/41926467964), [backups e aliases #41926713865](https://github.com/martaxi-boss/VPS/actions/runs/41926713865), [timer cruzado #41926778439](https://github.com/martaxi-boss/VPS/actions/runs/41926778439).
+
+**Confirmado:** 8 raízes físicas diretamente em `/srv/projects/`: `Codex`, `VPS`, `fadego`, `iptvpn-bot`, `lowcost-europa`, `pink-iptv`, `skill-universal`, `telegram-robot-leads`. Todas têm nomes iguais aos repositórios GitHub. Os 9 serviços principais continuam ativos. A verificação parcial de 6 643 diretórios, excluindo árvores profundas de dependências, encontrou **0 symlinks entre projetos**; isto não certifica todo o conteúdo binário. Disco com **45,12 GiB livres** na auditoria. REA FINAL e REA Trial independentes ausentes; Hopper APT global ausente; Hopper privado integra o REA exclusivo do Ferrari `skill-universal/current` → `releases/b2869e334d9d68a0c988905e71ce0badec6ba359`.
+
+**Corrigido depois da auditoria:** [PR #330](https://github.com/martaxi-boss/VPS/pull/330) substituiu no workflow histórico do PINK a referência a `/srv/pink-iptv` pela raiz canónica. [Execução #41926128943](https://github.com/martaxi-boss/VPS/actions/runs/41926128943) removeu efetivamente o symlink exterior `/srv/pink-iptv`, verificando 9/9 serviços ativos. A pasta do PINK e os dados não foram eliminados.
+
+**Desvios abertos — NÃO declarar 100%:**
+- FADEGO: `fadego-staging.service` ainda lê três ambientes em `/etc/fadego-staging` e `/root/project-secrets/fadego-gmail`. `/usr/local/sbin/fadego-password` também lê caminhos antigos. [PR FADEGO #17](https://github.com/martaxi-boss/fadego/pull/17) prepara unidade canónica, mas **não está integrada nem instalada**, porque os ficheiros privados ainda não foram migrados/validados.
+- PINK IPTV: `pink-iptv-backend.service` ainda lê `/etc/pink-iptv/{backend,secrets,vpn}.env` (incluindo drop-in). Requer cópias privadas, testes e troca controlada; não copiar valores para GitHub.
+- Segredos/aliases: `/root/project-secrets` mantém pastas reais de diferentes origens e uma ligação Low Cost; `/etc/lowcost-europa`, `/var/backups/lowcost-europa` e `/var/lib/lowcost-europa` são aliases, **não duplicados físicos**. A fonte do Low Cost deve ser alinhada aos caminhos internos antes da retirada de aliases. Não remover arquivos, segredos ou backups às cegas.
+- **Dependência entre projetos encontrada:** `project-secrets-offsite-backup.timer` está enabled/active (04:15 UTC) e executa um script em `/srv/projects/lowcost-europa/bin/` para guardar `/root/project-secrets` de vários projetos. Não cumpre isolamento absoluto e precisa de separação/verificação de restauro antes de desativação; a rotina foi preservada.
+- Checkouts Git localmente divergentes e preservados: `iptvpn-bot` (6 ficheiros rastreados alterados, branch `security/iptvpn-bot-secret-vault-001`), `lowcost-europa` (5, HEAD destacado), `pink-iptv` (6, branch `builder/android-shell-002`). `Codex`, `VPS`, `fadego`, `skill-universal` e `telegram-robot-leads` usam arquivos/releases/instalação operacional sem checkout Git na própria raiz; isto **não significa** que tenham o SHA do main. Não fazer reset ou reimplantação indiscriminada.
+- `/usr/bin/node`, `/usr/bin/python3`, `/usr/bin/pm2` e outras aplicações Ubuntu continuam presentes; não confundir componentes-base do sistema com instalações privadas de projeto. Alguns serviços de projeto ainda iniciam intérpretes globais e carecem de avaliação para independência estrita.
+
+**Regra do proprietário:** o runtime, as dependências específicas, dados, sessões, backups e segredos de cada projeto devem pertencer exclusivamente a `/srv/projects/<nome-exato-do-repositório>`. Não criar links entre projetos, não misturar fornecedores ou bases de dados, não alterar a ponte SSH e não eliminar dados ativos. As unidades mínimas do systemd, Nginx, PostgreSQL e componentes essenciais do Ubuntu são infraestrutura do próprio sistema, não pastas de projeto; eventual isolamento de instâncias deve ser feito projeto a projeto com testes reais.
+
+---
+
 ## Estado pós-higienização profunda — 04/11/2026
 
 **Este parágrafo prevalece sobre os inventários cronológicos abaixo.** [Certificação real #41901548138](https://github.com/martaxi-boss/VPS/actions/runs/41901548138): **8/8 projetos** nas pastas físicas exatas de `/srv/projects/`, **9/9 serviços ativos**, Ferrari em `skill-universal/current` → release `292aeb7d10eecef8c3ca84760cd579e84e4b97f3`, ponte GitHub→SSH→REA com 229 ferramentas listadas, **45,21 GiB livres** no instante da medição.
