@@ -130,7 +130,7 @@ jobs:
           PY
           set +e
           sshpass -e ssh "${opts[@]}" "$remote" \
-            'test -f /home/ubuntu/codex-bridge/.quota-monitor/last-sent && test ! -L /home/ubuntu/codex-bridge/.quota-monitor/last-sent && head -c 16 /home/ubuntu/codex-bridge/.quota-monitor/last-sent' \
+            'test -f /srv/projects/Codex/archive/legacy-bridge/.quota-monitor/last-sent && test ! -L /srv/projects/Codex/archive/legacy-bridge/.quota-monitor/last-sent && head -c 16 /srv/projects/Codex/archive/legacy-bridge/.quota-monitor/last-sent' \
             > "$RUNNER_TEMP/quota-previous.txt"
           prior=$?
           set -e
@@ -176,5 +176,5 @@ jobs:
             -o "UserKnownHostsFile=$RUNNER_TEMP/quota-known-hosts" \
             -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=20 ubuntu@146.59.145.3 \
-            "install -d -m 700 /home/ubuntu/codex-bridge/.quota-monitor && printf '%s\n' '$STATUS' > /home/ubuntu/codex-bridge/.quota-monitor/last-sent && chmod 600 /home/ubuntu/codex-bridge/.quota-monitor/last-sent"
+            "install -d -m 700 /srv/projects/Codex/archive/legacy-bridge/.quota-monitor && printf '%s\n' '$STATUS' > /srv/projects/Codex/archive/legacy-bridge/.quota-monitor/last-sent && chmod 600 /srv/projects/Codex/archive/legacy-bridge/.quota-monitor/last-sent"
           echo 'REAL_QUOTA_STATE_ACKNOWLEDGED'
