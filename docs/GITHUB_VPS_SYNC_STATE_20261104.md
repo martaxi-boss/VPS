@@ -78,3 +78,16 @@
 - [PR #60](https://github.com/martaxi-boss/skill-universal/pull/60): correção idempotente do instalador para converter com rollback o launcher do Apktool já instalado. Aguardar CI e testes reais antes de ativar; não confundir com remoção concluída de alias.
 - Não mudar `current` nem eliminar o symlink histórico sem: release nova isolada testada, rotas e operações REA/Apktool, inspeção dos launchers instalados, arranque/recovery e invariância dos demais serviços.
 
+
+## Ferrari — release ativa, ponte nova e launchers pendentes
+
+- [#41888432384](https://github.com/martaxi-boss/VPS/actions/runs/41888432384) PASS: GitHub Ferrari `70458fc1b44102b440d2d4c335b5e54f5279f25c` clonado para staging privado, **208/208 testes reais no Ubuntu**, scripts válidos, doctor e REA privado PASS.
+- [#41888861592](https://github.com/martaxi-boss/VPS/actions/runs/41888861592) PASS: candidata executou `engine.skill_job` e `tools/list` real do REA 6.8.0 no caminho privado canónico; release antiga e nove serviços preservados.
+- [#41889625183](https://github.com/martaxi-boss/VPS/actions/runs/41889625183) PASS: candidata movida para `releases/70458fc1...` sem mudar `current`.
+- [#41889881644](https://github.com/martaxi-boss/VPS/actions/runs/41889881644) PASS: `current` comutado atomicamente para release `70458fc1...`; doctor e MCP reais passaram; nove serviços intactos; release antiga `0a1a4c1...` preservada como fallback.
+- [#41890135962](https://github.com/martaxi-boss/VPS/actions/runs/41890135962) PASS: workflow de pedido GitHub passa a usar o commit ativo `70458fc1...` no selector e na VPS; `tools/list` devolveu **229 ferramentas**, erro MCP ausente. Catálogo disponível não significa 229 ferramentas certificadas funcionalmente.
+- O workflow de instalação completa `ferrari-independent-vps-delivery.yml` ficou **manual-only** para evitar reinstalações disparadas por alterações ao workflow.
+- [#41890497316](https://github.com/martaxi-boss/VPS/actions/runs/41890497316) PASS read-only: os launchers privados `tools/apktool-3.0.3/bin/apktool` e `tools/ferrari-services/valkey-server/bin/valkey-server` ainda têm UMA referência literal ao antigo `$HOME/.local/share/motor-ferrari` cada. O teste intencional como root falhou por resolver `/root/.local/...`; isso **não demonstra falha para o utilizador `ubuntu`**, mas prova que não são independentes do alias. Não apagar alias até migrar ambos e validar as versões como proprietário.
+- A tentativa de mutação do launcher Apktool não foi aceite pelo controlo da ferramenta e **não foi executada**. Não marcar launchers nem higienização final como concluídos.
+
+**Estado factual:** Ferrari ativo, REA e ponte atual sincronizados. O fallback antigo e alias temporário ficam preservados até migração dos launchers, testes reais e prova de ausência de consumidores.
