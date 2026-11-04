@@ -1,1 +1,0 @@
-{"version":1,"id":"vps-hopper-global-package-only-purge-20261104-2250","kind":"rea-mcp","mcp_requests":[{"method":"tools/call","params":{"name":"capture_process_scenario","arguments":{"executable":"/usr/bin/sudo","arguments":["-n","/usr/bin/apt-get","purge","-y","hopper"],"timeout_ms":170000,"idle_timeout_ms":170000}}}]}
