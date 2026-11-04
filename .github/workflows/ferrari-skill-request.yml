@@ -78,17 +78,17 @@ jobs:
                 -o HostKeyAlgorithms=ssh-ed25519
                 -o ConnectTimeout=20 -o ServerAliveInterval=15)
           sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
-            'mkdir -p "$HOME/.local/share/motor-ferrari/.runtime/skill-requests" "$HOME/.local/share/motor-ferrari/.runtime/skill-results"'
+            'mkdir -p "/srv/projects/skill-universal/.runtime/skill-requests" "/srv/projects/skill-universal/.runtime/skill-results"'
           sshpass -e scp "${opts[@]}" "$RUNNER_TEMP/ferrari-job.json" \
-            "ubuntu@146.59.145.3:.local/share/motor-ferrari/.runtime/skill-requests/request-$GITHUB_RUN_ID.json"
+            "ubuntu@146.59.145.3:/srv/projects/skill-universal/.runtime/skill-requests/request-$GITHUB_RUN_ID.json"
           # Task selection and execution happen only inside the Ferrari motor.
           set +e
           sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
-            "cd \"\$HOME/.local/share/motor-ferrari/current\" && python3 -m engine.skill_job --request \"\$HOME/.local/share/motor-ferrari/.runtime/skill-requests/request-$GITHUB_RUN_ID.json\" --output \"\$HOME/.local/share/motor-ferrari/.runtime/skill-results/$GITHUB_RUN_ID\""
+            "cd \"/srv/projects/skill-universal/current\" && python3 -m engine.skill_job --request \"/srv/projects/skill-universal/.runtime/skill-requests/request-$GITHUB_RUN_ID.json\" --output \"/srv/projects/skill-universal/.runtime/skill-results/$GITHUB_RUN_ID\""
           engine_exit=$?
           set -e
           sshpass -e scp "${opts[@]}" \
-            "ubuntu@146.59.145.3:.local/share/motor-ferrari/.runtime/skill-results/$GITHUB_RUN_ID/response.zip" \
+            "ubuntu@146.59.145.3:/srv/projects/skill-universal/.runtime/skill-results/$GITHUB_RUN_ID/response.zip" \
             "$RUNNER_TEMP/ferrari-response.zip"
           test -s "$RUNNER_TEMP/ferrari-response.zip"
           echo "FERRARI_SKILL_RESPONSE_ZIP=PASS"
