@@ -4,6 +4,17 @@
 
 > Este ficheiro e um mapa de instalacoes, nao uma declaracao de que todas as migracoes ja ocorreram. Nunca copiar valores de credenciais ou sessoes para o GitHub.
 
+## Estado pós-higienização profunda — 04/11/2026
+
+**Este parágrafo prevalece sobre os inventários cronológicos abaixo.** [Certificação real #41901548138](https://github.com/martaxi-boss/VPS/actions/runs/41901548138): **8/8 projetos** nas pastas físicas exatas de `/srv/projects/`, **9/9 serviços ativos**, Ferrari em `skill-universal/current` → release `292aeb7d10eecef8c3ca84760cd579e84e4b97f3`, ponte GitHub→SSH→REA com 229 ferramentas listadas, **45,21 GiB livres** no instante da medição.
+
+**Higiene efetuada:** [#41896164178](https://github.com/martaxi-boss/VPS/actions/runs/41896164178) retirou 542 caches (2,61 MB de blocos alocados); [#41897210590](https://github.com/martaxi-boss/VPS/actions/runs/41897210590) retirou apenas pastas vazias residuais e um link quebrado; [#41899482975](https://github.com/martaxi-boss/VPS/actions/runs/41899482975) removeu o alias Codex HOME após [PR #328](https://github.com/martaxi-boss/VPS/pull/328); [#41900417846](https://github.com/martaxi-boss/VPS/actions/runs/41900417846) alinhou os quatro modelos Low Cost com `origin/main` e removeu `/srv/lowcost-europa`. Ferrari HOME já ausente desde a certificação anterior.
+
+**GitHub:** [#41896323865](https://github.com/martaxi-boss/VPS/actions/runs/41896323865) eliminou 36 branches antigas estritamente integradas e sem consumidores; [PR #329](https://github.com/martaxi-boss/VPS/pull/329) permite eliminar pedidos Ferrari históricos sem disparar SSH; commit [`df0112a1`](https://github.com/martaxi-boss/VPS/commit/df0112a18d2ab2cff19f6dad0c05e49120140c4d) retirou 284 pedidos do `main`, ficando **zero ficheiros de pedidos antigos na árvore final**. Commits históricos continuam acessíveis.
+
+**Pendências preservadas deliberadamente:** link `/srv/pink-iptv` utilizado por `uvicorn`, checkouts `iptvpn-bot` e `pink-iptv` com seis alterações locais cada, checkout Low Cost com cinco alterações (quatro modelos agora canónicos) e um stash. Não apagar dados, runtimes, releases antigas, sessões, trabalhos Codex ou alterações de aplicação sem migração individual e testes. **Não confundir limpeza de resíduos com deploy ou alinhamento de todos os SHAs.** Relatório aprofundado em [docs/GITHUB_VPS_SYNC_STATE_20261104.md](docs/GITHUB_VPS_SYNC_STATE_20261104.md).
+
+---
 ## Estado canónico verificado — 04/11/2026, após sincronizações Git
 
 **Este bloco prevalece sobre os inventários históricos abaixo.** Última verificação física conjunta [#41874024612](https://github.com/martaxi-boss/VPS/actions/runs/41874024612): oito pastas reais em `/srv/projects/` (`Codex`, `VPS`, `fadego`, `iptvpn-bot`, `lowcost-europa`, `pink-iptv`, `skill-universal`, `telegram-robot-leads`) com nomes exatos dos repositórios GitHub. Cerca de **48,58 GB livres** na hora dessa auditoria; nove serviços essenciais ativos. Não apresentar instalações antigas REA FINAL, REA Trial, Hopper ou SDK como ainda presentes com base na secção histórica seguinte.
