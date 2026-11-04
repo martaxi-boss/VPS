@@ -3,10 +3,6 @@ name: Ferrari Ubuntu - independent VPS installation
 # This is a one-purpose transport using the EXISTING VPS SSH credential and host pin.
 # Do not alter the existing SSH bridge, Supervisor or projects.
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/ferrari-independent-vps-delivery.yml'
   workflow_dispatch:
 
 permissions:
