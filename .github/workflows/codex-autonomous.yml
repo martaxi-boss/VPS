@@ -178,7 +178,7 @@ jobs:
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT${CODEX_INSTANCE_ID:+-$CODEX_INSTANCE_ID}"
           [[ "$job" =~ ^[0-9]+-[0-9]+(-[12]|-p[2-8]-[12])?$ ]]
           remote='ubuntu@146.59.145.3'
-          dest="/home/ubuntu/codex-bridge/jobs/$job"
+          dest="/srv/projects/Codex/archive/legacy-bridge/jobs/$job"
           sshpass -e ssh -T -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
             "$remote" "install -d -m 700 '$dest'"
           sshpass -e scp -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
@@ -200,7 +200,7 @@ jobs:
           sshpass -e ssh -T -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=5 \
             ubuntu@146.59.145.3 \
-            "bash /home/ubuntu/codex-bridge/jobs/$job/codex-autonomous-remote.sh '$job'"
+            "bash /srv/projects/Codex/archive/legacy-bridge/jobs/$job/codex-autonomous-remote.sh '$job'"
 
       - name: Retrieve patch, provenance and private agent report
         id: collect
@@ -212,7 +212,7 @@ jobs:
           set -euo pipefail
           case "$CODEX_INSTANCE_ID" in ''|1|2|p[2-8]-[12]) ;; *) echo 'Invalid Codex worker identity' >&2; exit 12;; esac
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT${CODEX_INSTANCE_ID:+-$CODEX_INSTANCE_ID}"
-          remote="ubuntu@146.59.145.3:/home/ubuntu/codex-bridge/jobs/$job"
+          remote="ubuntu@146.59.145.3:/srv/projects/Codex/archive/legacy-bridge/jobs/$job"
           for file in patch.diff target.txt base-sha.txt codex-task.txt usage.json project-leader-runtime.json report.md codex-preflight-signal.txt provider-quota.json; do
             sshpass -e scp -q -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
               -o ConnectTimeout=20 "$remote/$file" "$RUNNER_TEMP/$file" || true
@@ -568,7 +568,7 @@ jobs:
           set -euo pipefail
           job="$1"
           [[ "$job" =~ ^[0-9]+-[0-9]+(-[12]|-p[2-8]-[12])?$ ]] || exit 2
-          base="$HOME/codex-bridge/jobs/$job"
+          base="/srv/projects/Codex/archive/legacy-bridge/jobs/$job"
           signal="$base/codex-preflight-signal.txt"
           # This marker comes from the trusted Codex CLI error classifier,
           # outside the model's sandboxed checkout. Keep tracked and
