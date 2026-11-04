@@ -4,6 +4,20 @@
 
 > Este ficheiro e um mapa de instalacoes, nao uma declaracao de que todas as migracoes ja ocorreram. Nunca copiar valores de credenciais ou sessoes para o GitHub.
 
+## Estado canónico verificado — 04/11/2026, após sincronizações Git
+
+**Este bloco prevalece sobre os inventários históricos abaixo.** Última verificação física conjunta [#41874024612](https://github.com/martaxi-boss/VPS/actions/runs/41874024612): oito pastas reais em `/srv/projects/` (`Codex`, `VPS`, `fadego`, `iptvpn-bot`, `lowcost-europa`, `pink-iptv`, `skill-universal`, `telegram-robot-leads`) com nomes exatos dos repositórios GitHub. Cerca de **48,58 GB livres** na hora dessa auditoria; nove serviços essenciais ativos. Não apresentar instalações antigas REA FINAL, REA Trial, Hopper ou SDK como ainda presentes com base na secção histórica seguinte.
+
+**Sincronização sem substituição de runtimes:** `iptvpn-bot`, `pink-iptv` e `lowcost-europa` receberam apenas `git fetch` e atualização de `origin/main` dentro da própria pasta, com `HEAD`, diferenças locais, ficheiros privados e serviços preservados ([#41881691025](https://github.com/martaxi-boss/VPS/actions/runs/41881691025), [#41882096256](https://github.com/martaxi-boss/VPS/actions/runs/41882096256)). `iptvpn-bot` teve nova sincronização da ref depois da correção do código [#41884875216](https://github.com/martaxi-boss/VPS/actions/runs/41884875216). Não confundir `fetch` com deploy.
+
+**FADEGO:** [PR #15](https://github.com/martaxi-boss/fadego/pull/15) integrada no `main` no commit `f786ddf5415ac2212bbf087642abb5d7b3ae2915`, CI de integração e pós-merge **PASS** ([#41883423966](https://github.com/martaxi-boss/fadego/actions/runs/41883423966), [#41884182654](https://github.com/martaxi-boss/fadego/actions/runs/41884182654)). Release de aplicação em execução permanece `2b3554ec...`, com os seus ficheiros funcionais preservados; ainda não houve redeploy.
+
+**Ferrari:** repositório `skill-universal`, raiz física `/srv/projects/skill-universal`. A ponte GitHub→SSH e o workflow de inventário foram alinhados com o caminho canónico e testados [#41879335553](https://github.com/martaxi-boss/VPS/actions/runs/41879335553). A [PR #58](https://github.com/martaxi-boss/skill-universal/pull/58) corrigiu as raízes de cinco módulos privados e foi integrada após duas CI **PASS**. A [PR #59](https://github.com/martaxi-boss/skill-universal/pull/59) trata instaladores; verificar a sua CI antes de a integrar. A release activa do Ferrari mantém-se fixada em `0a1a4c19...`; o alias antigo de HOME **ainda não pode ser removido** até certificar novo motor e consumidores locais.
+
+**Credenciais IPTV PN Bot:** o `main.py` no GitHub deixou de incluir a credencial Telegram fixa e voltou a consultar `IPTVPN_BOT_TOKEN` do ambiente privado, commit `a5b4861...`. O antigo valor ainda permanece no histórico Git e requer rotação pelo proprietário no BotFather e atualização privada na VPS. Não divulgar o valor, nem o colocar em Actions ou documentos.
+
+**Pendentes:** avaliar/conservar código local e versões de runtime dos bots, PINK e Low Cost; validar arranque, restauro, releases e dependências privadas de cada projeto; completar rollout seguro de Ferrari; confirmar ausência de consumidores de aliases antes da sua remoção. A situação final permanece **sincronização parcial, sem perda de dados confirmada nos testes realizados**, e não certificação de independência operacional absoluta.
+
 ## Estado atualizado — 04/11/2026 (raizes fisicas, PM2 autonomos e higiene)
 
 **A regra é obrigatória:** cada instalação autónoma tem uma raiz física dentro de `/srv/projects`; os seus dados, dependências e fornecedores ficam dentro dela. O estado histórico das secções seguintes deve ser interpretado pela data, não como situação atual.
