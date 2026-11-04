@@ -48,3 +48,15 @@
 5. Repetir auditoria real com SHA, espaco e nove servicos ativos; so entao marcar sincronizacao completa.
 
 **Estado atual:** caminhos GitHub do Ferrari alinhados; sincronizacao dos checkouts VPS e retirada de aliases ainda nao certificadas.
+
+
+## Leitura real de checkouts e releases apos os dois preflights
+- [#41878914110](https://github.com/martaxi-boss/VPS/actions/runs/41878914110): nove servicos ativos. `iptvpn-bot` tem branch `security/iptvpn-bot-secret-vault-001`, HEAD `6d26ea34a584...` e seis ficheiros tracked modificados; `pink-iptv` usa `builder/android-shell-002`, HEAD `ccccaf1eb25c...`, seis ficheiros tracked modificados e 16 nao rastreados. `lowcost-europa` apresentava validacao Git afetada por ownership no primeiro teste.
+- [#41880863118](https://github.com/martaxi-boss/VPS/actions/runs/41880863118): a verificacao Git com `safe.directory` explicito confirmou Low Cost com HEAD `388860c6a167...` detached, um ficheiro tracked modificado e origin acessivel; `iptvpn-bot` e PINK tambem alcancam os SHAs atuais remotos sem alterar os checkouts. Nenhuma destas tres pastas tem ainda o commit `main` mais recente no seu object store local. FADEGO e Ferrari usam releases, nao Git diretamente na raiz; o `current` FADEGO contem checkout `2b3554ec...`.
+- Comparacao GitHub `fadego` da release ativa para `main`: o diff final altera apenas `.gitignore` e adiciona `docs/VPS_INSTALLATION.md`. Nao ha alteracao do codigo da aplicacao nessa comparacao, apesar do historico divergente.
+- Comparacao `iptvpn-bot`: diferencas em `ecosystem.config.js`, `start.sh`, `stop.sh`, scripts PM2 e unidade systemd; nao aplicar reset ou pull sobre os seis ficheiros tracked modificados.
+- [#41879335553](https://github.com/martaxi-boss/VPS/actions/runs/41879335553): ponte Ferrari pelo caminho canonico testada com codigo de saida zero; nove servicos ativos. O executavel REA privado ainda e resolvido internamente pelo alias antigo, portanto preservar esse symlink por agora.
+- [#41879408970](https://github.com/martaxi-boss/VPS/actions/runs/41879408970): instalador Ferrari rejeitou repeticao da release existente com `FERRARI_RELEASE_NOT_FRESH`, codigo 2. Nao e certificacao de deploy ou de falha funcional do motor.
+- Foram preparados pedidos de fetch Git sem checkout/merge/reset, para `iptvpn-bot` e `pink-iptv` (commit `ce929323aba6...`) e separadamente para Low Cost com UID proprio (commit `1e68a3b3e860...`). Considerar executados apenas depois de existirem IDs Actions, resultados e read-back.
+
+**Regra de fecho reforcada:** um `fetch` apenas atualiza referencias; nao e sincronizacao da release nem autoriza alteracoes locais. Nenhum dos checkouts com ficheiros alterados pode ser marcado como `main` implantada sem reconciliacao explicita.
