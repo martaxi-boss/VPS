@@ -1,6 +1,23 @@
 # Sincronizacao GitHub ↔ VPS — 04/11/2026
 
-> Estado factual e plano de conciliacao, nao certificado de deploy. Atualizar com respostas reais da VPS antes de marcar cada linha CONFORME.
+## Fecho definitivo Ferrari e alias — 04/11/2026, 19:06 UTC
+
+**ESTADO MAIS RECENTE (prevalece sobre os registos cronológicos abaixo):** Ferrari ativo no Ubuntu da VPS em \`/srv/projects/skill-universal/current\` → \`releases/292aeb7d10eecef8c3ca84760cd579e84e4b97f3\`. \`martaxi-boss/skill-universal\` \`main\` tem o mesmo SHA. Tanto o workflow GitHub→SSH→Ferrari como o instalador completo manual estão fixados nesse SHA. Nenhum outro projeto foi alterado.
+
+- [PR #61](https://github.com/martaxi-boss/skill-universal/pull/61) integrou um único script de manutenção com testes de migração estrita para Apktool e Valkey, remoção segura apenas do link histórico e rollback. As CI da branch e PR e a [CI pós-merge #41892571161](https://github.com/martaxi-boss/skill-universal/actions/runs/41892571161) passaram.
+- [#41891510807](https://github.com/martaxi-boss/VPS/actions/runs/41891510807): último levantamento antes da migração, duas referências antigas em launchers e nove serviços ativos.
+- [#41892664915](https://github.com/martaxi-boss/VPS/actions/runs/41892664915): 212 testes unitários no Ubuntu, auditoria de propriedade da pasta e launchers, nenhum processo externo identificado a usar a ligação, nove serviços ativos.
+- [#41892883454](https://github.com/martaxi-boss/VPS/actions/runs/41892883454): **migração efetuada e certificada** dos launchers \`tools/apktool-3.0.3/bin/apktool\` e \`tools/ferrari-services/valkey-server/bin/valkey-server\`, ambos agora com caminhos absolutos dentro de \`skill-universal\`. **Symlink \`/home/ubuntu/.local/share/motor-ferrari\` eliminado**. Ferrari Doctor e chamada REA reais PASS, nove serviços ativos.
+- [#41893144445](https://github.com/martaxi-boss/VPS/actions/runs/41893144445): script certificado transferido de staging privado para uma nova release imutável e pasta \`.staging\` vazia removida.
+- [#41893374822](https://github.com/martaxi-boss/VPS/actions/runs/41893374822): \`current\` comutado atomicamente para \`292aeb7d...\`, com verificação dos dois launchers, Ferrari Doctor, REA MCP, alias ausente e 9/9 serviços ativos. A versão \`70458fc1...\` e a antiga \`0a1a4c1...\` continuam preservadas **dentro** do projeto, sem instalações duplicadas noutros diretórios.
+- [#41893641043](https://github.com/martaxi-boss/VPS/actions/runs/41893641043): **certificação final independente**, já com o GitHub Actions selecionando o novo SHA. \`tools/list\` real do REA 6.8.0 devolveu **229 ferramentas**; auditoria da release identificou **0 launchers por migrar, 0 processos externos com referência ao alias, symlink ausente, fallback preservado e 9/9 serviços ativos**.
+- O workflow \`.github/workflows/ferrari-independent-vps-delivery.yml\` permanece **manual-only**; não executar uma reinstalação da release existente apenas para certificar esta manutenção. A ponte \`ferrari-skill-request.yml\` permanece automática apenas para pedidos novos.
+
+**Conclusão Ferrari:** GitHub e VPS alinhados, launchers privados migrados, atalho eliminado, sem reinícios de serviços nem alterações a outros projetos. A listagem de 229 ferramentas comprova a ponte e o catálogo, não 229 certificações individuais. Os restantes projetos ainda têm as divergências de runtime indicadas na auditoria histórica abaixo; **não declarar sincronização completa da VPS inteira**.
+
+---
+
+> Histórico das fases de auditoria e sincronização. Para o estado atual do Ferrari, consultar o **Fecho definitivo** acima.
 
 ## Regra de instalacao
 - Raiz unica: `/srv/projects/<nome-exato-do-repositorio>`.
