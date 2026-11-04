@@ -79,7 +79,7 @@ jobs:
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           [[ "$job" =~ ^[0-9]+-[0-9]+$ ]]
           remote="ubuntu@146.59.145.3"
-          dest="/home/ubuntu/codex-bridge/jobs/$job"
+          dest="/srv/projects/Codex/archive/legacy-bridge/jobs/$job"
           sshpass -e ssh -T -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/codex-safe-fix-known-hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
             "$remote" "install -d -m 700 '$dest'"
           sshpass -e scp -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/codex-safe-fix-known-hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
@@ -97,7 +97,7 @@ jobs:
           sshpass -e ssh -T -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/codex-safe-fix-known-hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=5 \
             ubuntu@146.59.145.3 \
-            "bash /home/ubuntu/codex-bridge/jobs/$job/codex-project-leader-remote.sh '$job'"
+            "bash /srv/projects/Codex/archive/legacy-bridge/jobs/$job/codex-project-leader-remote.sh '$job'"
 
       - name: Collect proposal and report
         id: collect
@@ -108,7 +108,7 @@ jobs:
         run: |
           set -euo pipefail
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-          base="ubuntu@146.59.145.3:/home/ubuntu/codex-bridge/jobs/$job"
+          base="ubuntu@146.59.145.3:/srv/projects/Codex/archive/legacy-bridge/jobs/$job"
           sshpass -e scp -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/codex-safe-fix-known-hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
             "$base/report.md" "$RUNNER_TEMP/codex-report.md"
           if [ "${{ steps.codex.outcome }}" = 'success' ]; then
@@ -165,4 +165,4 @@ jobs:
           [[ "$job" =~ ^[0-9]+-[0-9]+$ ]]
           sshpass -e ssh -T -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/codex-safe-fix-known-hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
             ubuntu@146.59.145.3 \
-            "rm -rf -- '/home/ubuntu/codex-bridge/jobs/$job'"
+            "rm -rf -- '/srv/projects/Codex/archive/legacy-bridge/jobs/$job'"

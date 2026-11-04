@@ -235,7 +235,7 @@ jobs:
         run: |
           set -euo pipefail
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-dual"
-          destination="/home/ubuntu/codex-bridge/jobs/$job"
+          destination="/srv/projects/Codex/archive/legacy-bridge/jobs/$job"
           sshpass -e ssh -T -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=20 ubuntu@146.59.145.3 \
             "install -d -m 700 '$destination'"
@@ -254,7 +254,7 @@ jobs:
           sshpass -e ssh -T -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=5 \
             ubuntu@146.59.145.3 \
-            "bash '/home/ubuntu/codex-bridge/jobs/$job/codex-dual-vps-smoke.sh' '$job'"
+            "bash '/srv/projects/Codex/archive/legacy-bridge/jobs/$job/codex-dual-vps-smoke.sh' '$job'"
 
       - name: Collect strictly sanitized machine-readable proof
         id: collect
@@ -266,7 +266,7 @@ jobs:
           set -euo pipefail
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-dual"
           sshpass -e scp -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
-            "ubuntu@146.59.145.3:/home/ubuntu/codex-bridge/jobs/$job/proof.json" \
+            "ubuntu@146.59.145.3:/srv/projects/Codex/archive/legacy-bridge/jobs/$job/proof.json" \
             "$RUNNER_TEMP/codex-dual-smoke-proof.json"
 
       - name: Report bounded PASS or blocker to Owner Issue
@@ -355,4 +355,4 @@ jobs:
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-dual"
           sshpass -e ssh -T -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/vps_smoke_known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=20 ubuntu@146.59.145.3 \
-            "rm -rf -- '/home/ubuntu/codex-bridge/jobs/$job'"
+            "rm -rf -- '/srv/projects/Codex/archive/legacy-bridge/jobs/$job'"
