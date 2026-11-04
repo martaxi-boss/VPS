@@ -4,7 +4,7 @@
 
 > Este ficheiro e um mapa de instalacoes, nao uma declaracao de que todas as migracoes ja ocorreram. Nunca copiar valores de credenciais ou sessoes para o GitHub.
 
-## Estado atualizado — 04/11/2026, 09:40 UTC (raizes fisicas e higiene)
+## Estado atualizado — 04/11/2026 (raizes fisicas, PM2 autonomos e higiene)
 
 **A regra é obrigatória:** cada instalação autónoma tem uma raiz física dentro de `/srv/projects`; os seus dados, dependências e fornecedores ficam dentro dela. O estado histórico das secções seguintes deve ser interpretado pela data, não como situação atual.
 
@@ -13,9 +13,11 @@
 - **FADEGO:** pasta pública `www/preview` dentro do projeto e Nginx atualizado; antigos aliases web/root eliminados. Testes de reinício e dependências externas PENDENTES.
 - **IPTV PN Bot:** `config/`, `private/`, `data/`, `.pm2/` e `tools/pm2/` fisicamente proprios; o processo foi retirado do PM2 global [#41791449349](https://github.com/martaxi-boss/VPS/actions/runs/41791449349), o arranque privado testado [#41792220671](https://github.com/martaxi-boss/VPS/actions/runs/41792220671), os tres aliases exteriores removidos [#41792813752](https://github.com/martaxi-boss/VPS/actions/runs/41792813752) e os lancadores sincronizados com o GitHub [#41793256156](https://github.com/martaxi-boss/VPS/actions/runs/41793256156). Fonte integrada na [PR #4](https://github.com/martaxi-boss/iptvpn-bot/pull/4); falta certificacao de reboot e restauro.
 - **PINK IPTV:** gateway VPN e estado fisicamente em `/srv/projects/pink-iptv/vpn/{gateway,data}` [#41805861212](https://github.com/martaxi-boss/VPS/actions/runs/41805861212) e [#41794005160](https://github.com/martaxi-boss/VPS/actions/runs/41794005160). `pink-vpn.service` e scripts apontam para a pasta correta [#41806386638](https://github.com/martaxi-boss/VPS/actions/runs/41806386638); restart [#41806890747](https://github.com/martaxi-boss/VPS/actions/runs/41806890747) e remocao dos aliases externos [#41807754045](https://github.com/martaxi-boss/VPS/actions/runs/41807754045) PASS. Modelo systemd integrado na [PR #79](https://github.com/martaxi-boss/pink-iptv/pull/79); codigo operacional original do gateway e dependencia Android ainda precisam de auditoria de reprodutibilidade.
-- **Telegram Robot Leads:** unico robo remanescente no PM2 global `/root/.pm2`, pendente de gestor privado e remocao do alias `/opt/telegram-robot-leads`; nao alterar a logica operacional.
+- **Telegram Robot Leads:** PM2 e pacotes fisicos exclusivos em `/srv/projects/telegram-robot-leads/{tools/pm2,.pm2}` [#41812493196](https://github.com/martaxi-boss/VPS/actions/runs/41812493196); arranque preparado [#41813129459](https://github.com/martaxi-boss/VPS/actions/runs/41813129459) e **processo autonomo** com PID novo 687619 [#41813373759](https://github.com/martaxi-boss/VPS/actions/runs/41813373759). `pm2-telegram-robot-leads.service` esta ativo e enabled; a fonte foi integrada na [PR #54](https://github.com/martaxi-boss/telegram-robot-leads/pull/54) sem modificar o codigo do robo. O alias `/opt/telegram-robot-leads` permanece **pendente**; nao confundir com instalacao fisica.
 - **Ferrari:** motor e REA privado próprios sob `/srv/projects/skill-universal`, independentes do REA FINAL.
 - **Codex, Android SDK, Hopper:** pastas principais físicas próprias em `/srv/projects/`; restantes aliases devem ser verificados antes da remoção.
+- **REA Trial:** arquivos inativos de estado, ACME e OAuth fisicamente retidos em `/srv/projects/REA-Trial/{archive,private}`, sem manter os caminhos fisicos antigos [#41808880058](https://github.com/martaxi-boss/VPS/actions/runs/41808880058) e [#41809062170](https://github.com/martaxi-boss/VPS/actions/runs/41809062170).
+- **VPS (infraestrutura):** raiz fisica propria `/srv/projects/VPS/` para arquivo estritamente de infraestrutura. O gestor global antigo `/root/.pm2` foi parado/desativado, movido fisicamente para o arquivo [#41814206650](https://github.com/martaxi-boss/VPS/actions/runs/41814206650), com logs e snapshots historicos exclusivos separados por robo [#41814439051](https://github.com/martaxi-boss/VPS/actions/runs/41814439051); a unidade global obsoleta `pm2-root.service` foi retirada do Ubuntu e arquivada [#41814735028](https://github.com/martaxi-boss/VPS/actions/runs/41814735028). Logs sem proprietario comprovado continuam arquivados na infraestrutura, nao misturados com processos ativos.
 - **Higiene de caches:** [#41751404962](https://github.com/martaxi-boss/VPS/actions/runs/41751404962) retirou caches elegíveis sem tocar em sessões, dados de aplicações ou processos.
 
 **Não declarar nenhum projeto como totalmente desinstalável sem teste de arranque, inventário de serviços e ausência de referências externas.** O GitHub não inclui nem deve incluir tokens, sessões ou bases de dados privadas.
@@ -278,3 +280,10 @@ Documento factual de acompanhamento. Atualizar apos cada migracao **validada** e
 
 **Tentativa nao executada:** o envio de uma operacao de migracao do REA original 6.8.0 e evidencias foi bloqueado antes de executar. Nenhuma alteracao fisica ao REA antigo ficou certificada nesta etapa. Nao inferir uma migracao concluida desse pedido.
 
+## Pontos ainda por certificar sem criar falsas instalacoes
+
+1. **Aliases de compatibilidade:** `/opt/telegram-robot-leads`, `/opt/android-sdk`, `/opt/hopper`, `/home/ubuntu/codex-agent`, `/home/ubuntu/codex-bridge`, tres ligacoes REA FINAL em `/home/ubuntu/`, `/root/.android`, `/root/.gradle` e aliases Low Cost. Sao ligacoes, nao copias fisicas. So remover apos verificar cada consumidor real; a tentativa automatizada de remocao do alias Telegram foi bloqueada antes da execucao.
+2. **Ferramentas globais:** a copia historica `/usr/lib/node_modules/pm2` ainda requer inventario de consumidores. Os dois robos ativos ja usam binarios privados; nao remover pacotes do sistema sem verificar outros usos.
+3. **Independencia completa:** nao certificados reboot integral da VPS, restauracao e desinstalacao de cada projeto, nem divisao das dependencias de compilacao Android por aplicacao. Nao confundir a organizacao fisica com certificacao funcional total.
+
+O diretorio `/srv/projects/VPS` e arquivo da **infraestrutura**, nao um diretorio de dependencias utilizado por outros projetos. Nao copiar de volta para o GitHub dados privados nem logs historicos.
