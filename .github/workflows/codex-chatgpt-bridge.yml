@@ -150,7 +150,7 @@ jobs:
           set -euo pipefail
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           remote="ubuntu@146.59.145.3"
-          dest="/home/ubuntu/codex-bridge/jobs/$job"
+          dest="/srv/projects/Codex/archive/legacy-bridge/jobs/$job"
           sshpass -e ssh -T -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/codex-bridge-known-hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
             "$remote" "install -d -m 700 '$dest'"
           sshpass -e scp -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/codex-bridge-known-hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
@@ -176,7 +176,7 @@ jobs:
           sshpass -e ssh -T -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/codex-bridge-known-hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=5 \
             ubuntu@146.59.145.3 \
-            "bash /home/ubuntu/codex-bridge/jobs/$job/codex-vps-remote.sh '$job'"
+            "bash /srv/projects/Codex/archive/legacy-bridge/jobs/$job/codex-vps-remote.sh '$job'"
 
       - name: Retrieve audit report
         if: always() && steps.stage.outcome == 'success'
@@ -188,7 +188,7 @@ jobs:
           set -euo pipefail
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           sshpass -e scp -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/codex-bridge-known-hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
-            "ubuntu@146.59.145.3:/home/ubuntu/codex-bridge/jobs/$job/report.md" \
+            "ubuntu@146.59.145.3:/srv/projects/Codex/archive/legacy-bridge/jobs/$job/report.md" \
             "$RUNNER_TEMP/codex-report.md"
 
       - name: Upload report
@@ -251,7 +251,7 @@ jobs:
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           sshpass -e ssh -T -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/codex-bridge-known-hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
             ubuntu@146.59.145.3 \
-            "rm -f -- /home/ubuntu/codex-bridge/jobs/$job/codex-input.jpg /home/ubuntu/codex-bridge/jobs/$job/codex-input.png /home/ubuntu/codex-bridge/jobs/$job/codex-input.webp"
+            "rm -f -- /srv/projects/Codex/archive/legacy-bridge/jobs/$job/codex-input.jpg /srv/projects/Codex/archive/legacy-bridge/jobs/$job/codex-input.png /srv/projects/Codex/archive/legacy-bridge/jobs/$job/codex-input.webp"
 
       - name: Clean completed temporary VPS directory
         if: always() && steps.execute.outcome == 'success' && steps.collect.outcome == 'success'
@@ -263,4 +263,4 @@ jobs:
           job="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           sshpass -e ssh -T -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/codex-bridge-known-hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 \
             ubuntu@146.59.145.3 \
-            "rm -rf -- /home/ubuntu/codex-bridge/jobs/$job"
+            "rm -rf -- /srv/projects/Codex/archive/legacy-bridge/jobs/$job"
