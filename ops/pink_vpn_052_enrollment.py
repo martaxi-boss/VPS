@@ -7,7 +7,7 @@ import secrets
 import sys
 import urllib.request
 
-sys.path.insert(0, '/srv/pink-iptv/backend')
+sys.path.insert(0, '/srv/projects/pink-iptv/backend')
 os.environ['APP_ENV'] = 'test'
 os.environ['DATABASE_URL'] = 'sqlite+pysqlite:///:memory:'
 os.environ['SESSION_SIGNING_KEY'] = secrets.token_urlsafe(48)
