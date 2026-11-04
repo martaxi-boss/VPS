@@ -13,8 +13,8 @@ import subprocess
 import threading
 import time
 
-ROOT = Path('/etc/pink-vpn')
-STATE = Path('/var/lib/pink-vpn')
+ROOT = Path('/srv/projects/pink-iptv/vpn/gateway')
+STATE = Path('/srv/projects/pink-iptv/vpn/data')
 SOCKET = Path('/run/pink-vpn/control.sock')
 IFACE = 'pinkvpn'
 LEASE_MAX = 300
