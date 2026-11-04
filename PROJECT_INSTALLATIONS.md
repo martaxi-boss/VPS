@@ -4,6 +4,18 @@
 
 > Este ficheiro e um mapa de instalacoes, nao uma declaracao de que todas as migracoes ja ocorreram. Nunca copiar valores de credenciais ou sessoes para o GitHub.
 
+## Estado mais recente — 04-11-2026 (prevalece sobre tabelas historicas)
+
+**Prova conjunta:** [Ferrari/REA Actions #41753274718](https://github.com/martaxi-boss/VPS/actions/runs/41753274718). Dez pastas principais fisicas confirmadas em `/srv/projects/`: `telegram-robot-leads`, `iptvpn-bot`, `pink-iptv`, `lowcost-europa`, `fadego`, `skill-universal`, `Engenheira-reversa` (Trial), `hopper`, `android-sdk` e `Codex`. Os servicos principais estavam ativos; `nginx -t` passou.
+
+**Movimentacoes verificadas depois do inventario historico:** o IPTV PN Bot tem `config/` e `private/` internos; a Low Cost tem `data/`, `private/`, `www/` e configuracao ambiental interna; o FADEGO tem `www/preview/` interno; o Android SDK tem estado e cache internos; o Codex tem raiz com nome identico ao seu repo e o bridge antigo arquivado. As configuracoes ativas Nginx foram alteradas para os caminhos novos ([Low Cost #41753196864](https://github.com/martaxi-boss/VPS/actions/runs/41753196864), [FADEGO #41753229953](https://github.com/martaxi-boss/VPS/actions/runs/41753229953)). O alias web FADEGO foi removido [#41753564391](https://github.com/martaxi-boss/VPS/actions/runs/41753564391); o ficheiro de ambiente da Low Cost foi movido [#41753483523](https://github.com/martaxi-boss/VPS/actions/runs/41753483523) e a unidade systemd corrigida [#41753692430](https://github.com/martaxi-boss/VPS/actions/runs/41753692430).
+
+**Pendentes, sem declaracao falsa de independencia total:** o REA FINAL continua com codigo-fonte, dependencias e evidencias fisicamente externos; `/root/.pm2` ainda e partilhado. O nome `rea-original-upstream-680` corresponde ao motor FINAL do autor, apesar de este declarar versao de pacote 6.8.0; **nao apagar**. Existem ainda links historicos de compatibilidade a remover apos testes de reinicio. O Trial `Engenheira-reversa` nao e o motor FINAL. Nenhuma desinstalacao so com apagar a pasta foi certificada.
+
+**Inventario por repositorio e tarefa pendente:** [docs/PROJECT_ROOTS_20261104.md](docs/PROJECT_ROOTS_20261104.md). **Higiene segura** [#41751404962](https://github.com/martaxi-boss/VPS/actions/runs/41751404962) removeu 596 ficheiros de cache auditados; nenhum dado de aplicacao, sessao ou base de dados foi eliminado.
+
+As secoes anteriores abaixo mantem os resultados das auditorias em datas anteriores. Para o estado atual, usar o quadro acima e as evidencias mais recentes, nunca um caminho historico obsoleto.
+
 ## Regra OBRIGATORIA do proprietario — uma pasta principal por instalacao
 
 **Aplica-se a todas as instalacoes, antigas e novas. Nao e apenas uma preferencia de nomenclatura.**
