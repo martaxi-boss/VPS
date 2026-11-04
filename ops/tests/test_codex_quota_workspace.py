@@ -76,7 +76,13 @@ class WorktreeCheckpointTests(unittest.TestCase):
                 ".github/workflows/codex-autonomous.yml").read_text()
         section = flow.split("<<'REMOTE_QUOTA_SAFE_CLEANUP'\n", 1)[1].split(
             "\n          REMOTE_QUOTA_SAFE_CLEANUP", 1)[0]
-        script = textwrap.dedent(section) + "\n"
+        # Live workflows now address the physical Codex project directory.
+        # Substitute only that fixed root with the isolated test fixture so
+        # cleanup logic is exercised without touching a real VPS path.
+        canonical_root = "/srv/projects/Codex/archive/legacy-bridge"
+        self.assertIn(canonical_root + "/jobs/$job", section)
+        script = textwrap.dedent(section).replace(
+            canonical_root, str(self.home / "codex-bridge")) + "\n"
         result = subprocess.run(["bash", "-s", "--", self.base.name],
                                 input=script, text=True, capture_output=True,
                                 env={**os.environ, "HOME": str(self.home)},
