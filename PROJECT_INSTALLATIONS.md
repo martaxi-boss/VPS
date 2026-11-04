@@ -4,15 +4,24 @@
 
 > Este ficheiro e um mapa de instalacoes, nao uma declaracao de que todas as migracoes ja ocorreram. Nunca copiar valores de credenciais ou sessoes para o GitHub.
 
-## Regra do proprietario para novas instalacoes
+## Regra OBRIGATORIA do proprietario — uma pasta principal por instalacao
 
-- O nome da pasta principal da instalacao deve corresponder **exatamente** ao nome do repositorio GitHub (maiusculas/minusculas, hifens e tudo).
-- Para novas instalacoes, o local canonico proposto e `/srv/projects/<nome-exato-do-repositorio>/`. As instalacoes antigas nao devem ser movidas sem auditar e ajustar servicos, permissões e referencias.
-- Dentro do projeto devem ficar o seu codigo, dependencias exclusivas (por exemplo `.venv`, `node_modules`), configuracoes privadas e dados operacionais, logs, ficheiros temporarios, testes e artefactos, em subpastas identificadas e com permissoes proprias.
-- Codigo, manifesto de dependencias e templates de configuracao ficam **versionados no GitHub**. Segredos, sessoes, bases de dados, logs, venvs e artefactos gerados **nao devem ser publicados no GitHub**; precisam de backup ou exportacao proprio.
-- Excecoes tecnicas do Ubuntu: bibliotecas/apt globais, systemd em `/etc/systemd/system`, configuracoes Nginx, PM2 global, PostgreSQL, WireGuard e outros servicos partilhados. Devem ser documentados no projeto e removidos com o procedimento de desinstalacao, nao duplicados para cada projeto.
-- Nenhum projeto deve ser considerado desinstalavel apenas com `rm -rf` ate possuir procedimento testado que pare processos, timers e servicos, trate dados e segredos, e remova somente as suas proprias referencias.
-- Cada instalacao nova ou migrada requer **read-back**: caminho canonico, release/revision SHA, servico/processo ativo e validacao do funcionamento.
+**Aplica-se a todas as instalacoes, antigas e novas. Nao e apenas uma preferencia de nomenclatura.**
+O estado so e conforme quando cada instalacao autonoma tem uma **pasta principal fisica** em `/srv/projects/` e quando todos os componentes proprios estao dentro dela.
+
+- **Um repositorio GitHub = uma raiz fisica independente**: `/srv/projects/<nome-exato-do-repositorio>/`, respeitando maiusculas, minusculas e hifens. Cada ferramenta/programa autonomo sem repositorio proprio tambem precisa de uma raiz identificada em `/srv/projects/<nome-da-instalacao>/`, ou de pertencer inequivocamente a uma instalacao de projeto existente.
+- **Dentro da raiz**: codigo e releases, binarios/ferramentas exclusivas, fornecedores instalados, bibliotecas e dependencias especificas (`.venv`, `node_modules`, SDKs privados quando aplicavel), configuracoes e segredos do projeto, estado, sessoes, bases de dados proprias, ficheiros web/publicos do projeto, logs, backups, temporarios, caches, testes e artefactos. Organizar por subpastas, nao espalhar por `/opt`, `/home`, `/root`, `/var/www`, `/var/lib` ou outras localizacoes arbitrarias.
+- **Independencia real**: projetos nao devem apontar para dependencias, fornecedores, sessoes ou pastas privadas de outro projeto. Se dois projetos precisarem da mesma ferramenta autonoma, cada um tem a propria instalacao independente sob a respetiva raiz; nao apresentar uma instalacao partilhada como isolamento completo.
+- **Links e aliases historicos**: permitidos apenas temporariamente para compatibilidade durante migracoes auditadas. Nao contam como instalacoes principais, e nao podem ficar como solucao final. Remover so depois de atualizar todas as referencias e validar arranque/reinicio do processo respetivo.
+- **Unicas integracoes externas inevitaveis do Ubuntu**: caminhos geridos pelo proprio sistema, por exemplo executaveis e bibliotecas APT, ficheiros de unidades systemd em `/etc/systemd/system`, entradas Nginx em `/etc/nginx`, sockets, configuracoes de rede e servicos do sistema. **Sao integracoes do Ubuntu, nao outra instalacao da aplicacao**. Inventariar cada referencia com um proprietario. Nao colocar codigo, releases, runtime, segredos nem dados de aplicacoes nesses caminhos sob pretexto de excecao.
+- Se uma ferramenta so funcionar mediante instalacao global APT, **identificar explicitamente a dependencia de sistema e a impossibilidade de a recolocar**, em vez de inventar independencia ou alterar ficheiros geridos pelo Ubuntu. Um requisito nao executavel dessa forma fica assinalado como pendente tecnico.
+- Cada robo, quando usa PM2, deve ter estado/daemon e configuracoes independentes quando necessarios para garantir que arranque, paragem, reinicio e desinstalacao de um projeto nao afetam outro. Um PM2 global partilhado por dois robos nao cumpre a meta de independencia integral.
+- Codigo, manifestos de dependencias, instaladores e templates de configuracao ficam versionados no repositorio correspondente. **Nunca** publicar sessoes, tokens, credenciais, ficheiros de estado, backups ou bases de dados privadas no GitHub.
+- Nao efetuar `mv`, `rm -rf`, mudanca de unidade systemd, PM2 ou outro cutover em producao sem preflight e verificacao dos caminhos de arranque, permissoes, dependencias, rede, backups e integridade. Preservar dados e funcionamento. Migrar e validar **um projeto de cada vez**.
+- Cada migracao exige **read-back real na VPS**: raiz fisica sem symlink, diretorios proprios, release/SHA, processo/servico, testes de arranque e reinicio, ausencia de referencias aos caminhos antigos e ausencia de efeitos nos restantes projetos.
+- Um projeto so e declarado **CONFORME** quando nao subsistirem instalacoes autonomas nem dados proprios fora da sua pasta principal, salvo integracoes inevitaveis do Ubuntu explicitamente inventariadas. Ate la, o estado e **PENDENTE**, mesmo que o GitHub ou os testes CI estejam verdes.
+
+**Desvios concretos ainda pendentes (inventario de 03-11-2026; requerem nova verificacao antes de agir):** REA FINAL em `/home/ubuntu/rea-final-runtime`; REA 6.8.0/upstream e evidencias fora da raiz; componentes Codex em `/home/ubuntu/codex-agent` e `codex-bridge`; Android SDK em `/opt/android-sdk` e ferramentas em `/opt/hopper`; `/root/.android` e `/root/.gradle`; configuracoes privadas externas do `iptvpn-bot`; configuracoes web e dados de `fadego` e `lowcost-europa`; PM2 global ainda partilhado; aliases antigos. **Nao apagar nem fundir** estes elementos sem atribuir proprietario e validar a respetiva migracao.
 
 ## Mapa real de instalacoes identificadas (nao normalizadas)
 
