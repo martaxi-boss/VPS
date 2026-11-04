@@ -66,3 +66,13 @@ Auditoria [#41753274718](https://github.com/martaxi-boss/VPS/actions/runs/417532
 7. Marcar **PRONTO A DESINSTALAR** apenas com provas reais destas etapas. Hoje **nenhum projeto recebeu esta certificacao completa**.
 
 **Nao fazer `rm -rf` das pastas principais como atalho**. O objetivo final e precisamente nao deixar recursos orfaos nem danificar projetos vizinhos.
+
+## Higienizacao adicional posterior ao inventario base
+
+- [#41753883723](https://github.com/martaxi-boss/VPS/actions/runs/41753883723): o template Nginx instalado na pasta da Low Cost passou a apontar para os caminhos canonicos; foram removidas as referencias web/static antigas no template do checkout instalado.
+- [#41754197952](https://github.com/martaxi-boss/VPS/actions/runs/41754197952): o alias web `/var/www/lowcost-europa` foi removido apos verificacao de configuracoes, acesso do utilizador web e estabilidade de servicos. Os ficheiros fisicos permanecem em `/srv/projects/lowcost-europa/www`.
+- [#41754525784](https://github.com/martaxi-boss/VPS/actions/runs/41754525784): o alias de raiz `/srv/fadego-staging` foi removido apos confirmar que a unidade systemd e os processos nao dependiam dele. A raiz fisica FADEGO e `/srv/projects/fadego`.
+- [#41754735726](https://github.com/martaxi-boss/VPS/actions/runs/41754735726): o conjunto de backups locais Low Cost foi movido fisicamente de `/var/backups/lowcost-europa` para `/srv/projects/lowcost-europa/backups`, preservando inode, proprietario e acesso. O antigo caminho e **ainda um alias temporario**, porque scripts ativos de backup/restauro precisam de atualizacao e certificacao.
+- [#41754384341](https://github.com/martaxi-boss/VPS/actions/runs/41754384341): a varredura de 1 031 ficheiros de codigo/configuracao encontrou 11 referencias a `/etc/lowcost-europa` (incluindo 3 unidades systemd e scripts de copia/restauro), 19 referencias a `/srv/lowcost-europa` e referencias historicas do Telegram. **Nao apagar esses aliases**; os consumidores ainda nao estao alinhados.
+
+A correccao automatizada em bloco dos scripts de restauro/backups nao chegou a ser aplicada: a tentativa de publicacao foi bloqueada antes de criar commits. Os scripts atuais continuam com referencias externas. **Nao declarar restauro independente certificado.**
