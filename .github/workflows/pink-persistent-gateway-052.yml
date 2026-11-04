@@ -109,7 +109,7 @@ jobs:
           sshpass -e ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
           set -euo pipefail
           public=$(wg show pinkvpn public-key)
-          cd /srv/pink-iptv/backend
+          cd /srv/projects/pink-iptv/backend
           sudo -u pink-iptv env PINK052_SERVER_PUBLIC_KEY="$public" .venv/bin/python - < /etc/pink-vpn/pink_vpn_052_enrollment.py
           REMOTE
       - name: Independent real handshake, HTTPS NAT, expiry and restart proof
