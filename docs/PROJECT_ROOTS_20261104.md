@@ -1,6 +1,6 @@
 # VPS Ubuntu — mapa de instalacoes por pasta principal
 
-**Ultima atualizacao factual:** 04-11-2026, 07:05 UTC. A auditoria de 01:20 [#41753274718](https://github.com/martaxi-boss/VPS/actions/runs/41753274718) e historica; a separacao REA FINAL/Trial foi verificada novamente em [#41786948401](https://github.com/martaxi-boss/VPS/actions/runs/41786948401) e [#41787208865](https://github.com/martaxi-boss/VPS/actions/runs/41787208865). Este documento nao declara certificacao de desinstalacao.
+**Ultima atualizacao factual:** 04-11-2026, 09:40 UTC. A auditoria de 01:20 [#41753274718](https://github.com/martaxi-boss/VPS/actions/runs/41753274718) e historica; a separacao REA FINAL/Trial foi verificada novamente em [#41786948401](https://github.com/martaxi-boss/VPS/actions/runs/41786948401) e [#41787208865](https://github.com/martaxi-boss/VPS/actions/runs/41787208865). Este documento nao declara certificacao de desinstalacao.
 
 ## Regra vinculativa
 
@@ -10,10 +10,10 @@ Cada repositorio GitHub implantado tem raiz fisica unica em `/srv/projects/<nome
 
 | Pasta fisica em `/srv/projects/` | Origem/proprietario | Componentes integrados | Pendente antes da desinstalacao autonoma |
 | --- | --- | --- | --- |
-| `telegram-robot-leads/` | `martaxi-boss/telegram-robot-leads` | Codigo, `.venv`, `data`, `private`, arquivo antigo | PM2 ainda partilhado; links e arranque automatico |
-| `iptvpn-bot/` | `martaxi-boss/iptvpn-bot` | Codigo, `.venv`, `config`, `private` | PM2 global usa `/root/iptvpn_bot/start.sh`; aliases historicos |
-| `pink-iptv/` | `martaxi-boss/pink-iptv` | Backend, testes/dispositivo, dependencias proprias | Certificar restart, VPN/Android e aliases |
-| `lowcost-europa/` | `martaxi-boss/lowcost-europa` | Codigo, `.venv`, `data`, `private`, `www`, `backups`, `bin` com 3 scripts de backup | Scripts de backup ja internos; testar backup/restauro, retirar aliases de dados e configurar desinstalacao autonoma |
+| `telegram-robot-leads/` | `martaxi-boss/telegram-robot-leads` | Codigo, `.venv`, `data`, `private`, arquivo antigo | Unico app no PM2 global; migrar estado/servico de forma independente e testar arranque |
+| `iptvpn-bot/` | `martaxi-boss/iptvpn-bot` | Codigo, `.venv`, `config`, `private`, `data`, `.pm2`, `tools/pm2` privados | Teste de reboot da VPS, backup/restauro e desinstalacao autonoma; aliases externos ja retirados |
+| `pink-iptv/` | `martaxi-boss/pink-iptv` | Backend, testes, `vpn/gateway`, `vpn/data` exclusivos; sistema VPN reiniciado | Fonte de runtime gateway e dependencias SDK Android por certificar; dois aliases VPN externos eliminados |
+| `lowcost-europa/` | `martaxi-boss/lowcost-europa` | Codigo, `.venv`, `data`, `private`, `www`, `backups`, `bin` com 4 scripts de backup | Gunicorn reiniciado sem HOME antigo; testar backup/restauro, retirar aliases de dados e certificar desinstalacao |
 | `fadego/` | `martaxi-boss/fadego` | Releases, `current`, dependencias, `www/preview`, backup Nginx | Certificar restart, DB/backups e alias `/srv/fadego-staging` |
 | `skill-universal/` | `martaxi-boss/skill-universal` (Ferrari) | Motor, releases, ambientes, ferramentas, fornecedores privados | Validar consumidores do alias e apt global |
 | `Engenheira-reversa/` | `martaxi-boss/Engenheira-reversa` (FINAL) | `original`, `runtime`, `evidence` e arquivo; checkout original do autor | Validar todos os consumidores dos aliases REA; nao alterar ponte nem fundir com Trial |
@@ -75,3 +75,13 @@ A Low Cost deixou de ter fisicamente em `/usr/local/sbin` os tres scripts exclus
 As unidades weekly discovery, catalog maintenance e affiliate report tambem foram corrigidas para a raiz fisica [#41787555837](https://github.com/martaxi-boss/VPS/actions/runs/41787555837) e para o `EnvironmentFile` interno [#41787942887](https://github.com/martaxi-boss/VPS/actions/runs/41787942887). O repositorio fonte foi alinhado pelas PRs [#191](https://github.com/martaxi-boss/lowcost-europa/pull/191) e [#192](https://github.com/martaxi-boss/lowcost-europa/pull/192).
 
 **Nao certificado ainda:** restauracao real de backup, remocao dos aliases de `data/`, `private/` e `backups/` usados por utilitarios genericos, desinstalacao integral e separacao dos daemons PM2 dos dois robos.
+
+## Correcao posterior — 04-11-2026, 09:40 UTC
+
+**IPTV PN Bot (separado):** o gestor PM2 proprio `/srv/projects/iptvpn-bot/{tools/pm2,.pm2}` foi criado e o processo movido [#41791449349](https://github.com/martaxi-boss/VPS/actions/runs/41791449349). O arranque e o lock privados foram testados [#41792220671](https://github.com/martaxi-boss/VPS/actions/runs/41792220671), os tres aliases `/root/iptvpn_bot`, `/etc/iptvpn-bot` e `/root/project-secrets/iptvpn_bot` retirados [#41792813752](https://github.com/martaxi-boss/VPS/actions/runs/41792813752), e os ficheiros GitHub sincronizados com o runtime [#41793256156](https://github.com/martaxi-boss/VPS/actions/runs/41793256156). PR [#4](https://github.com/martaxi-boss/iptvpn-bot/pull/4) integrada. O PM2 global `/root/.pm2` ainda existe mas serve **apenas Telegram Robot Leads**, pelo que este ultimo continua pendente de migração privada.
+
+**PINK IPTV (VPN organizada):** dados de VPN em `vpn/data` [#41794005160](https://github.com/martaxi-boss/VPS/actions/runs/41794005160); codigo e configuracao privada do gateway fisicamente em `vpn/gateway` [#41805861212](https://github.com/martaxi-boss/VPS/actions/runs/41805861212). Os scripts e a unidade apontam para as pastas canonicas [#41806386638](https://github.com/martaxi-boss/VPS/actions/runs/41806386638). A VPN reiniciou e recuperou o socket de controlo [#41806890747](https://github.com/martaxi-boss/VPS/actions/runs/41806890747). Os aliases `/etc/pink-vpn` e `/var/lib/pink-vpn` foram removidos [#41807754045](https://github.com/martaxi-boss/VPS/actions/runs/41807754045), mantendo os servicos. A PR [#79](https://github.com/martaxi-boss/pink-iptv/pull/79) versionou o modelo da unidade. Scripts do gateway ainda estao excluidos do Git enquanto nao forem revistos para reproducibilidade sem segredos.
+
+**Low Cost (higiene adicional):** o Gunicorn reiniciou sem referencias ao antigo HOME [#41795057413](https://github.com/martaxi-boss/VPS/actions/runs/41795057413); quarto script de backup consolidado na pasta `bin` [#41795556638](https://github.com/martaxi-boss/VPS/actions/runs/41795556638) e alias externo retirado [#41796213331](https://github.com/martaxi-boss/VPS/actions/runs/41796213331). Falta restauracao de backup validada e eliminacao dos aliases de dados seguros.
+
+**Regra nao negociavel:** este mapa nao certifica desinstalacao independente de todos os projetos. Continuam pendentes o PM2 privado do Telegram Robot Leads, SDKs usados por mais de um projeto, os residuos REA nao classificados e os testes de restauro/reboot. Configuracoes Ubuntu em `/etc/systemd/system`, `/etc/nginx`, `/etc/wireguard` e sockets temporarios em `/run` sao integracoes do sistema, nao uma segunda instalacao do projeto.
