@@ -1,6 +1,6 @@
 # VPS Ubuntu — mapa de instalacoes por pasta principal
 
-**Ultima atualizacao factual:** 04-11-2026, 09:40 UTC. A auditoria de 01:20 [#41753274718](https://github.com/martaxi-boss/VPS/actions/runs/41753274718) e historica; a separacao REA FINAL/Trial foi verificada novamente em [#41786948401](https://github.com/martaxi-boss/VPS/actions/runs/41786948401) e [#41787208865](https://github.com/martaxi-boss/VPS/actions/runs/41787208865). Este documento nao declara certificacao de desinstalacao.
+**Ultima atualizacao factual:** 04-11-2026, apos migracao PM2 e arquivo historico. A auditoria de 01:20 [#41753274718](https://github.com/martaxi-boss/VPS/actions/runs/41753274718) e historica; a separacao REA FINAL/Trial foi verificada novamente em [#41786948401](https://github.com/martaxi-boss/VPS/actions/runs/41786948401) e [#41787208865](https://github.com/martaxi-boss/VPS/actions/runs/41787208865). Este documento nao declara certificacao de desinstalacao.
 
 ## Regra vinculativa
 
@@ -10,17 +10,18 @@ Cada repositorio GitHub implantado tem raiz fisica unica em `/srv/projects/<nome
 
 | Pasta fisica em `/srv/projects/` | Origem/proprietario | Componentes integrados | Pendente antes da desinstalacao autonoma |
 | --- | --- | --- | --- |
-| `telegram-robot-leads/` | `martaxi-boss/telegram-robot-leads` | Codigo, `.venv`, `data`, `private`, arquivo antigo | Unico app no PM2 global; migrar estado/servico de forma independente e testar arranque |
+| `telegram-robot-leads/` | `martaxi-boss/telegram-robot-leads` | Codigo, `.venv`, `data`, `private`, `tools/pm2`, `.pm2` e logs de processo proprios; unidade systemd com fonte dentro do projeto | PM2 proprio ativo e boot enabled; testar reboot e restauracao, retirar alias `/opt/telegram-robot-leads` |
 | `iptvpn-bot/` | `martaxi-boss/iptvpn-bot` | Codigo, `.venv`, `config`, `private`, `data`, `.pm2`, `tools/pm2` privados | Teste de reboot da VPS, backup/restauro e desinstalacao autonoma; aliases externos ja retirados |
 | `pink-iptv/` | `martaxi-boss/pink-iptv` | Backend, testes, `vpn/gateway`, `vpn/data` exclusivos; sistema VPN reiniciado | Fonte de runtime gateway e dependencias SDK Android por certificar; dois aliases VPN externos eliminados |
 | `lowcost-europa/` | `martaxi-boss/lowcost-europa` | Codigo, `.venv`, `data`, `private`, `www`, `backups`, `bin` com 4 scripts de backup | Gunicorn reiniciado sem HOME antigo; testar backup/restauro, retirar aliases de dados e certificar desinstalacao |
 | `fadego/` | `martaxi-boss/fadego` | Releases, `current`, dependencias, `www/preview`, backup Nginx | Certificar restart, DB/backups e alias `/srv/fadego-staging` |
 | `skill-universal/` | `martaxi-boss/skill-universal` (Ferrari) | Motor, releases, ambientes, ferramentas, fornecedores privados | Validar consumidores do alias e apt global |
 | `Engenheira-reversa/` | `martaxi-boss/Engenheira-reversa` (FINAL) | `original`, `runtime`, `evidence` e arquivo; checkout original do autor | Validar todos os consumidores dos aliases REA; nao alterar ponte nem fundir com Trial |
-| `REA-Trial/` | Instalacao independente Trial | Checkout, ferramentas, evidencias e ficheiros privados proprios | Validar aliases apenas do Trial; nunca misturar com FINAL |
+| `REA-Trial/` | Instalacao independente Trial | Checkout, ferramentas, evidencias, arquivos REA antigos e estado OAuth proprio em `private/` | Validar restauro isolado; nunca misturar com FINAL |
 | `hopper/` | Ferramenta autonoma Hopper | `bin`, `lib` | Confirmar consumidores de `/opt/hopper` antes de remover alias |
 | `android-sdk/` | Ferramenta autonoma Android SDK | SDK, estado `state/root-android`, cache `cache/root-gradle` | Verificar consumidores e separar SDK por projeto quando exigido |
 | `Codex/` | `martaxi-boss/Codex` | Pacote Codex existente, `archive/legacy-bridge` | Remover aliases historicos apos atualizar workflows; nao criar coordenador VPS |
+| `VPS/` | `martaxi-boss/VPS` (infraestrutura) | Arquivo retirado do PM2 global e unidade systemd obsoleta, sem dependencias partilhadas ativas | Atribuir historicos sem dono conhecido; nao usar esta pasta para instalar programas de outros projetos |
 
 **Provas dos novos movimentos (2026-11-04):**
 - Hopper [#41749540607](https://github.com/martaxi-boss/VPS/actions/runs/41749540607);
@@ -33,7 +34,7 @@ Cada repositorio GitHub implantado tem raiz fisica unica em `/srv/projects/<nome
 
 Todos os movimentos foram dentro do mesmo filesystem e **nao libertaram gigabytes**. Os links historicos nao sao copias fisicas da instalacao. As mudancas nao justificam reclamar independencia completa sem validar os reinicios e remover os links restantes.
 
-## Caminhos externos historicos e o unico runtime autonomo ainda partilhado
+## Caminhos externos historicos e integracoes restantes
 
 A auditoria anterior #41753274718 ainda encontrava os tres caminhos REA FINAL como diretorios fisicos fora da raiz. **Esse estado foi corrigido** em [#41785168890](https://github.com/martaxi-boss/VPS/actions/runs/41785168890). A leitura real [#41786948401](https://github.com/martaxi-boss/VPS/actions/runs/41786948401) confirmou que os tres caminhos anteriores sao agora apenas symlinks para o projeto FINAL. `/etc/lowcost-europa` e tambem alias para `private/systemd-env`.
 
@@ -42,7 +43,7 @@ A auditoria anterior #41753274718 ainda encontrava os tres caminhos REA FINAL co
 | `/home/ubuntu/rea-original-upstream-680` | Codigo do REA FINAL, pacote do autor versao 6.8.0 | **ALIAS**, fisico em `/srv/projects/Engenheira-reversa/original`; nao apagar o motor |
 | `/home/ubuntu/rea-final-runtime` | Dependencias/fornecedores exclusivos do FINAL | **ALIAS**, fisico em `/srv/projects/Engenheira-reversa/runtime` |
 | `/home/ubuntu/rea-original-upstream-680-evidence` | Evidencias do REA FINAL | **ALIAS**, fisico em `/srv/projects/Engenheira-reversa/evidence` |
-| `/root/.pm2` | Daemon PM2 partilhado pelos dois robos Telegram | **PENDENTE** separar daemons e unidades systemd, sem duplicar processos |
+| `/root/.pm2` | PM2 global antigo | **REMOVIDO FISICAMENTE** em [#41814206650](https://github.com/martaxi-boss/VPS/actions/runs/41814206650); arquivos por projeto [#41814439051](https://github.com/martaxi-boss/VPS/actions/runs/41814439051); unidade `pm2-root.service` retirada [#41814735028](https://github.com/martaxi-boss/VPS/actions/runs/41814735028). Ambos os robos usam PM2 privados |
 
 O REA FINAL original tem numero de pacote 6.8.0. **Nao e prova de uma instalacao legacy inutil**: o README atual de `Engenheira-reversa` identifica esse checkout como motor FINAL. O repositorio `Engenheira-reversa` identifica o FINAL; a instalacao `REA-Trial` e fisicamente independente.
 
@@ -85,3 +86,12 @@ As unidades weekly discovery, catalog maintenance e affiliate report tambem fora
 **Low Cost (higiene adicional):** o Gunicorn reiniciou sem referencias ao antigo HOME [#41795057413](https://github.com/martaxi-boss/VPS/actions/runs/41795057413); quarto script de backup consolidado na pasta `bin` [#41795556638](https://github.com/martaxi-boss/VPS/actions/runs/41795556638) e alias externo retirado [#41796213331](https://github.com/martaxi-boss/VPS/actions/runs/41796213331). Falta restauracao de backup validada e eliminacao dos aliases de dados seguros.
 
 **Regra nao negociavel:** este mapa nao certifica desinstalacao independente de todos os projetos. Continuam pendentes o PM2 privado do Telegram Robot Leads, SDKs usados por mais de um projeto, os residuos REA nao classificados e os testes de restauro/reboot. Configuracoes Ubuntu em `/etc/systemd/system`, `/etc/nginx`, `/etc/wireguard` e sockets temporarios em `/run` sao integracoes do sistema, nao uma segunda instalacao do projeto.
+
+## Isolamento real do PM2 dos dois robos e higiene REA — 04-11-2026
+
+- O **IPTV PN Bot** tem binarios, processos, logs, estado PM2 e ficheiros privados dentro de `/srv/projects/iptvpn-bot/`; `pm2-iptvpn-bot.service` esta ativo e enabled. Prova [#41791449349](https://github.com/martaxi-boss/VPS/actions/runs/41791449349), fonte [PR #4](https://github.com/martaxi-boss/iptvpn-bot/pull/4).
+- O **Telegram Robot Leads** tem PM2 7.0.4 privado [#41812493196](https://github.com/martaxi-boss/VPS/actions/runs/41812493196); preparacao isolada [#41813129459](https://github.com/martaxi-boss/VPS/actions/runs/41813129459); processo reiniciado para gestor proprio (PID 687619), serviço ativo e enabled, com global parado/disabled [#41813373759](https://github.com/martaxi-boss/VPS/actions/runs/41813373759). Fonte [PR #54](https://github.com/martaxi-boss/telegram-robot-leads/pull/54). A logica do robo nao foi editada.
+- O diretorio `/root/.pm2` foi movido sem perda de 17 ficheiros para o arquivo de infraestrutura `/srv/projects/VPS/archive/` [#41814206650](https://github.com/martaxi-boss/VPS/actions/runs/41814206650). Logs dos dois robos foram redistribuidos fisicamente por origem, e a copia mista do snapshot foi dividida e eliminada [#41814439051](https://github.com/martaxi-boss/VPS/actions/runs/41814439051). Registos de origem nao comprovada permanecem sob VPS, como arquivo inativo; a unidade global foi retirada e arquivada [#41814735028](https://github.com/martaxi-boss/VPS/actions/runs/41814735028).
+- O REA Trial recebeu exclusivamente os ficheiros de estado/acme [#41808880058](https://github.com/martaxi-boss/VPS/actions/runs/41808880058) e o OAuth antigo [#41809062170](https://github.com/martaxi-boss/VPS/actions/runs/41809062170). O REA FINAL continua fisicamente independente.
+
+**Pendentes:** o alias `/opt/telegram-robot-leads` continua presente: ha referencias em backups antigos do próprio projeto, embora não exista uma segunda instalação física. A remocao automatizada foi bloqueada antes de ser executada; nao declarar eliminado. Restam os aliases de Android/Gradle, Hopper, Codex, REA FINAL e Low Cost, e o pacote PM2 global `/usr/lib/node_modules/pm2`, que requer auditoria de consumidores antes de eventual remocao. Reboot completo, backup/restauro e testes de desinstalacao ainda nao certificam 100%.
