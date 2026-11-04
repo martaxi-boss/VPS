@@ -1,18 +1,20 @@
 {
-  "request_id": "rea-isolation-audit-20261104-1219-mcp1",
+  "request_id": "rea-isolation-audit-20261104-1220-mcp2",
   "mcp_requests": [
     {
       "method": "tools/call",
       "params": {
         "name": "capture_process_scenario",
         "arguments": {
-          "executable": "/bin/bash",
+          "executable": "/usr/bin/sudo",
           "arguments": [
-            "-lc",
-            "set -euo pipefail\nprintf 'REA_ISOLATION_AUDIT=2026-11-04\\n'\nfor p in /home/ubuntu/rea-original-upstream-680 /home/ubuntu/rea-final-runtime /home/ubuntu/rea-final-runtime/bin/rea-mcp /opt/rea-reversa /srv/projects/rea-final /srv/projects/engenharia-reversa-final /srv/projects/skill-universal /home/ubuntu/.local/share/motor-ferrari /home/ubuntu/.local/share/motor-ferrari/.runtime/npm/rea /home/ubuntu/.local/share/motor-ferrari/.runtime/npm/rea/node_modules/.bin/rea; do\n  if [ -e \"$p\" ] || [ -L \"$p\" ]; then\n    printf 'PATH_PRESENT=%s\\n' \"$p\"\n    stat -c 'PATH_META=%F|%U|%G|%n' \"$p\"\n    readlink -f \"$p\" | sed 's/^/PATH_REAL=/'\n  else printf 'PATH_ABSENT=%s\\n' \"$p\"; fi\ndone\nfor p in /srv/projects /home/ubuntu; do\n  if [ -d \"$p\" ]; then find \"$p\" -mindepth 1 -maxdepth 2 \\( -iname '*rea*' -o -iname '*revers*' \\) -print | head -40 | sed 's/^/CANDIDATE=/' ; fi\ndone\nfor p in /etc/systemd/system /home/ubuntu/.config/systemd/user; do\n  if [ -d \"$p\" ]; then find \"$p\" -maxdepth 2 -type f \\( -name '*.service' -o -name '*.timer' \\) -print0 | xargs -0 -r grep -IlE '(/opt/rea-reversa|rea-original-upstream-680|rea-final-runtime|motor-ferrari)' | head -35 | sed 's/^/SYSTEMD_REFERENCER=/' ; fi\ndone\nps -eo comm= | grep -Ei '(rea|ferrari)' | sort -u | sed 's/^/ACTIVE_PROCESS_NAME=/' || :\nprintf 'REA_AUDIT_FINISHED=PASS\\n'"
+            "-n",
+            "/usr/bin/python3",
+            "-c",
+            "import os,stat,json,subprocess\nfrom pathlib import Path\nwatch=['/srv/projects/Engenheira-reversa','/srv/projects/Engenheira-reversa/original','/srv/projects/Engenheira-reversa/runtime','/srv/projects/Engenheira-reversa/runtime/bin/rea-mcp','/srv/projects/REA-Trial','/srv/projects/REA-Trial/archive','/srv/projects/REA-Trial/private','/srv/projects/skill-universal','/srv/projects/skill-universal/.runtime/npm/rea','/home/ubuntu/.local/share/rea-chatgpt-trial','/home/ubuntu/rea-original-upstream-680','/home/ubuntu/rea-final-runtime','/home/ubuntu/.local/share/motor-ferrari','/opt/rea-reversa','/var/lib/rea-reversa','/var/www/rea-reversa-acme','/var/lib/rea-mcp-oauth','/var/lib/private/rea-mcp-oauth']\ndef meta(s):\n p=Path(s)\n try:\n  st=p.lstat();kind=('link' if stat.S_ISLNK(st.st_mode) else 'dir' if stat.S_ISDIR(st.st_mode) else 'file')\n  return {'exists':True,'kind':kind,'realpath':str(p.resolve()),'owner':st.st_uid,'gid':st.st_gid,'bytes':st.st_size}\n except FileNotFoundError:return {'exists':False}\n except OSError as e:return {'error':type(e).__name__}\nservices=['rea-reversa-mcp','rea-mcp-oauth','rea-final-mcp','rea-mcp','ferrari']\ndef service(name):\n p=subprocess.run(['/usr/bin/systemctl','show',name,'--property=LoadState,ActiveState,UnitFileState,FragmentPath','--no-pager'],capture_output=True,text=True,timeout=6)\n return {'exit':p.returncode,'properties':{k:v for k,v in (s.split('=',1) for s in p.stdout.strip().splitlines() if '=' in s)}}\npatterns=['/srv/projects/REA-Trial','/opt/rea-reversa','rea-chatgpt-trial','/var/lib/rea-reversa','rea-reversa-mcp','rea-mcp-oauth']\nfiles=[]\nfor root in ['/etc/systemd/system','/etc/nginx/sites-enabled','/etc/cron.d','/usr/local/bin','/usr/local/sbin']:\n if not os.path.isdir(root):continue\n for base,dirs,names in os.walk(root,followlinks=False):\n  depth=base[len(root):].count('/')\n  if depth>=2:dirs[:]=[]\n  for name in names:\n   p=Path(base)/name\n   try:\n    if p.is_symlink() or not p.is_file() or p.stat().st_size>100000:continue\n    data=p.read_bytes()\n    matched=[x for x in patterns if x.encode() in data]\n    if matched:files.append({'file':str(p),'markers':matched})\n   except (OSError,UnicodeError):pass\nchecks=['ssh','nginx','pink-vpn','lowcost-europa']\nout={'mode':'READ_ONLY','paths':{x:meta(x) for x in watch},'rea_services':{x:service(x) for x in services},'live_references':files[:40],'reference_count':len(files),'other_services':{x:service(x) for x in checks},'audit_done':'YES'}\nprint(json.dumps(out,ensure_ascii=True,sort_keys=True))"
           ],
-          "timeout_ms": 30000,
-          "idle_timeout_ms": 15000
+          "timeout_ms": 25000,
+          "idle_timeout_ms": 12000
         }
       }
     }
