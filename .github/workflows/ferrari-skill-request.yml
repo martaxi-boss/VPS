@@ -25,7 +25,26 @@ jobs:
           fetch-depth: 2
           persist-credentials: false
 
+      - name: Detect one newly added request; historical deletions are audit-only
+        id: new_request
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$BEFORE_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 2
+          [[ "$AFTER_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 2
+          added="$(git diff --name-only --diff-filter=A "$BEFORE_SHA" "$AFTER_SHA" -- ferrari-requests/)"
+          if [[ -z "$added" ]]; then
+            echo 'execute=false' >> "$GITHUB_OUTPUT"
+            echo 'FERRARI_REQUEST_HYGIENE_NO_JOB=PASS'
+          else
+            echo 'execute=true' >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Fetch pinned independent Ferrari engine
+        if: steps.new_request.outputs.execute == 'true'
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
@@ -34,6 +53,7 @@ jobs:
           persist-credentials: false
 
       - name: Ask Ferrari to select and validate one committed job envelope
+        if: steps.new_request.outputs.execute == 'true'
         shell: bash
         env:
           BEFORE_SHA: ${{ github.event.before }}
@@ -49,6 +69,7 @@ jobs:
           echo 'FERRARI_SKILL_REQUEST_PICK=PASS'
 
       - name: Reuse pinned existing VPS SSH identity without changing the bridge
+        if: steps.new_request.outputs.execute == 'true'
         shell: bash
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
@@ -65,6 +86,7 @@ jobs:
           echo 'FERRARI_SKILL_EXISTING_SSH_PIN=PASS'
 
       - name: Transport Ferrari job to VPS and retrieve response ZIP
+        if: steps.new_request.outputs.execute == 'true'
         shell: bash
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
@@ -99,7 +121,7 @@ jobs:
           echo 'FERRARI_SKILL_END_TO_END=PASS'
 
       - name: Preserve returned Ferrari files as GitHub Actions artifact
-        if: always()
+        if: always() && steps.new_request.outputs.execute == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ferrari-skill-result-${{ github.run_id }}
