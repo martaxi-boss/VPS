@@ -1,4 +1,9 @@
-"""Isolated staging installation with an exact additive inverse armed first."""
+"""Retired Task 052 implementation (historical evidence, never use for deployment).
+
+The maintained PINK deployment is owned by martaxi-boss/pink-iptv and uses
+/srv/projects/pink-iptv. This file retains old proof/inverse helpers for
+review and regression tests but deliberately refuses all CLI mutations.
+"""
 import hashlib
 import json
 import os
@@ -9,9 +14,10 @@ import subprocess
 import sys
 import time
 
-ROOT = Path('/etc/pink-vpn')
-BACKUP = Path('/var/backups/pink-iptv/task052')
-APP = Path('/srv/pink-iptv/backend')
+PROJECT = Path('/srv/projects/pink-iptv')
+ROOT = PROJECT / 'vpn/gateway'
+BACKUP = PROJECT / 'backups/task052'
+APP = PROJECT / 'backend'
 DROP = Path('/etc/systemd/system/pink-iptv-backend.service.d/052-vpn.conf')
 SYSCTL = Path('/etc/sysctl.d/90-pink-vpn.conf')
 UNIT = Path('/etc/systemd/system/pink-vpn.service')
@@ -74,7 +80,7 @@ def rollback():
     assert BACKUP.is_dir()
     run('systemctl','disable','--now','pink-vpn.service',check=False)
     network_down()
-    for p in (DROP, SYSCTL, UNIT, Path('/etc/pink-iptv/vpn.env')):
+    for p in (DROP, SYSCTL, UNIT, Path('/srv/projects/pink-iptv/private/systemd-env/vpn.env')):
         if p.exists(): p.unlink()
     meta = json.loads((BACKUP / 'baseline.json').read_text())
     run('sysctl','-qw','net.ipv4.ip_forward='+meta['forward'])
@@ -129,6 +135,7 @@ def network_up():
 
 
 def install(source):
+    raise RuntimeError('Task052 retired: deploy only through the maintained PINK IPTV project')
     from pink_vpn_052_audit import audit
     audit()
     retained = ROOT.exists()
@@ -156,7 +163,7 @@ def install(source):
     print('INDEPENDENT_ROLLBACK_ARMED=PASS')
     try:
         ROOT.mkdir(mode=0o700,exist_ok=retained)
-        Path('/var/lib/pink-vpn').mkdir(mode=0o700,exist_ok=retained)
+        (PROJECT / 'vpn/data').mkdir(mode=0o700,parents=True,exist_ok=retained)
         if not retained:
             key = run('wg','genkey')
             (ROOT/'server.key').write_text(key+'\n')
@@ -174,9 +181,9 @@ StartLimitIntervalSec=60
 StartLimitBurst=3
 [Service]
 Type=simple
-ExecStartPre=/usr/bin/python3 /etc/pink-vpn/pink_vpn_052_install.py up
-ExecStart=/usr/bin/python3 /etc/pink-vpn/pink_vpn_052_gateway.py
-ExecStopPost=/usr/bin/python3 /etc/pink-vpn/pink_vpn_052_install.py down
+ExecStartPre=/usr/bin/python3 /srv/projects/pink-iptv/vpn/gateway/pink_vpn_052_install.py up
+ExecStart=/usr/bin/python3 /srv/projects/pink-iptv/vpn/gateway/pink_vpn_052_gateway.py
+ExecStopPost=/usr/bin/python3 /srv/projects/pink-iptv/vpn/gateway/pink_vpn_052_install.py down
 Restart=on-failure
 RestartSec=5
 UMask=0077
@@ -210,14 +217,14 @@ WantedBy=multi-user.target
 import os
 from alembic import command
 from alembic.config import Config
-for p in ("/etc/pink-iptv/backend.env","/etc/pink-iptv/secrets.env"):
+for p in ("/srv/projects/pink-iptv/private/systemd-env/backend.env","/srv/projects/pink-iptv/private/systemd-env/secrets.env"):
     os.environ.update({k:v for k,v in dotenv_values(p).items() if v is not None})
 command.upgrade(Config("alembic.ini"),"head")
 '''
         subprocess.run([str(APP/'.venv/bin/python'),'-c',script],cwd=APP,capture_output=True,check=True,timeout=30)
-        Path('/etc/pink-iptv/vpn.env').write_text('VPN_ENABLED=true\nVPN_ENDPOINT=146.59.145.3:51820\nVPN_SERVER_PUBLIC_KEY='+public+'\n')
+        Path('/srv/projects/pink-iptv/private/systemd-env/vpn.env').write_text('VPN_ENABLED=true\nVPN_ENDPOINT=146.59.145.3:51820\nVPN_SERVER_PUBLIC_KEY='+public+'\n')
         DROP.parent.mkdir(parents=True,exist_ok=True)
-        DROP.write_text('[Service]\nEnvironmentFile=/etc/pink-iptv/vpn.env\n')
+        DROP.write_text('[Service]\nEnvironmentFile=/srv/projects/pink-iptv/private/systemd-env/vpn.env\n')
         run('systemctl','daemon-reload')
         run('systemctl','restart','pink-iptv-backend')
         wait_health()
@@ -234,15 +241,7 @@ command.upgrade(Config("alembic.ini"),"head")
 
 
 if __name__ == '__main__':
-    assert os.geteuid() == 0
-    mode = sys.argv[1]
-    if mode == 'install': install(sys.argv[2])
-    elif mode == 'up': network_up()
-    elif mode == 'down': network_down()
-    elif mode == 'rollback': rollback()
-    elif mode == 'accept':
-        health()
-        run('systemctl','is-active','--quiet','pink-vpn')
-        run('systemctl','stop','pink-vpn-052-rollback.timer')
-        (BACKUP/'accepted').write_text('protected staging gateway accepted after independent proof\n')
-        print('STAGING_GATEWAY_ACCEPTED=PASS')
+    raise SystemExit(
+        'Task052 is retired. Do not run legacy install/up/down/rollback/accept; '
+        'use martaxi-boss/pink-iptv with its isolated VPS deployment.'
+    )
