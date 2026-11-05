@@ -1,3 +1,3 @@
 project: skill-universal
-scope: 40 typed Ferrari action tests with private Ubuntu Python module JP2
-source_sha: eeb88944101341ff0af7255944643cd6569b0001
+mode: Ferrari-private Python dependency smoke only, no release activation
+source_sha: a92238bc19558814ff81a83ecb696347af37bd4d
