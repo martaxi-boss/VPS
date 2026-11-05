@@ -15,6 +15,8 @@ on:
       - 'ferrari-release-requests/phase6-post-audit-20261105.json'
       - 'ferrari-release-requests/phase6-full-audit-20261105.json'
       - 'ferrari-release-requests/phase6-certify-deep-20261105.json'
+      - 'ferrari-release-requests/phase6-hygiene-preview-20261105.json'
+      - 'ferrari-release-requests/phase6-hygiene-apply-20261105.json'
 
 permissions:
   contents: read
@@ -53,6 +55,8 @@ jobs:
             ferrari-release-requests/phase6-post-audit-20261105.json) MODE=--post-audit ;;
             ferrari-release-requests/phase6-full-audit-20261105.json) MODE=--full-audit ;;
             ferrari-release-requests/phase6-certify-deep-20261105.json) MODE=--deep-cert ;;
+            ferrari-release-requests/phase6-hygiene-preview-20261105.json) MODE=--hygiene-preview ;;
+            ferrari-release-requests/phase6-hygiene-apply-20261105.json) MODE=--hygiene-apply ;;
             *) echo 'FERRARI_PHASE5_REQUEST_NOT_SINGLE_OR_NOT_ALLOWED' >&2; exit 2 ;;
           esac
           python3 - "$changed" "$MODE" <<'PY'
@@ -60,7 +64,7 @@ jobs:
           path,mode=sys.argv[1:]
           with open(path,encoding="utf-8") as fh:
               payload=json.load(fh)
-          if mode.startswith("--phase6-") or mode in ("--post-audit","--full-audit","--deep-cert"):
+          if mode.startswith("--phase6-") or mode in ("--post-audit","--full-audit","--deep-cert","--hygiene-preview","--hygiene-apply"):
               expected={"version":1,"phase":6,"sha":"146145d5ada9c13e368df18727e4dbf4f5807664",
                         "mode":mode.removeprefix("--phase6-").removeprefix("--")}
           else:
@@ -117,6 +121,15 @@ jobs:
           path: ferrari-deep
           persist-credentials: false
 
+      - name: Checkout trusted Ferrari F6 bounded cleanup implementation
+        if: steps.request.outputs.mode == '--hygiene-preview' || steps.request.outputs.mode == '--hygiene-apply'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: fd985327dedf855042435ff7a4ce9aaa0b1a17b4
+          path: ferrari-clean
+          persist-credentials: false
+
       - name: Validate the project-owned release script
         shell: bash
         run: |
@@ -124,6 +137,11 @@ jobs:
           bash -n ferrari/install/vps-isolated-release.sh
           test -f ferrari/engine/tool_actions.json
           echo 'FERRARI_PHASE5_PINNED_SCRIPT_SYNTAX=PASS'
+          if [[ "${{ steps.request.outputs.mode }}" == '--hygiene-preview' ||
+                "${{ steps.request.outputs.mode }}" == '--hygiene-apply' ]]; then
+            python3 -m py_compile ferrari-clean/install/ferrari-hygiene.py
+            echo 'FERRARI_PHASE6_HYGIENE_SOURCE=VALID'
+          fi
           if [[ "${{ steps.request.outputs.mode }}" == '--deep-cert' ]]; then
             python3 -m py_compile ferrari-deep/install/vps-phase6-certify.py
             echo 'FERRARI_PHASE6_DEEP_SCRIPT=VALID'
@@ -166,7 +184,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           SHA="40c0e1cdf31b1fe9589ad8be90e5eac06eec2856"
-          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' ]] || exit 3
+          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' ]] || exit 3
           opts=(-T -o PreferredAuthentications=password -o PubkeyAuthentication=no
                 -o StrictHostKeyChecking=yes
                 -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-pinned-host"
@@ -174,6 +192,38 @@ jobs:
                 -o ConnectTimeout=20 -o ServerAliveInterval=15)
           BEFORE="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
           echo "FERRARI_PHASE5_CURRENT_BEFORE=$BEFORE"
+          if [[ "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' ]]; then
+            [[ "$BEFORE" == "/srv/projects/skill-universal/releases/146145d5ada9c13e368df18727e4dbf4f5807664" ]] ||
+              { echo 'FERRARI_PHASE6_HYGIENE_WRONG_ACTIVE' >&2; exit 9; }
+            APPLY_ARG=""
+            if [[ "$MODE" == '--hygiene-apply' ]]; then APPLY_ARG="--apply"; fi
+            sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+              "cd '/srv/projects/skill-universal/current' && '/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12' -B - $APPLY_ARG" \
+              < ferrari-clean/install/ferrari-hygiene.py \
+              > "$RUNNER_TEMP/ferrari-hygiene-report.txt"
+            python3 - "$RUNNER_TEMP/ferrari-hygiene-report.txt" "$MODE" <<'HYGIENE'
+          import json,sys
+          text=open(sys.argv[1],encoding="utf-8").read()
+          doc,end=json.JSONDecoder().raw_decode(text)
+          assert text[end:].strip()=="FERRARI_ONLY_HYGIENE=PASS"
+          assert doc["status"]=="PASS" and doc["outside_ferrari_touched"] is False
+          assert doc["active"]=="146145d5ada9c13e368df18727e4dbf4f5807664"
+          assert "40c0e1cdf31b1fe9589ad8be90e5eac06eec2856" in doc["preserved_releases"]
+          assert doc["mode"]==("apply" if sys.argv[2]=="--hygiene-apply" else "preview")
+          print("FERRARI_PHASE6_HYGIENE_MODE="+doc["mode"])
+          print("FERRARI_PHASE6_HYGIENE_CANDIDATE_RELEASES="+str(len(doc["eligible_old_releases"])))
+          print("FERRARI_PHASE6_HYGIENE_CANDIDATE_SMOKES="+str(len(doc["eligible_smoke_directories"])))
+          print("FERRARI_PHASE6_HYGIENE_REMOVED_RELEASES="+str(len(doc["removed_releases"])))
+          print("FERRARI_PHASE6_HYGIENE_RECLAIM_ESTIMATE="+str(doc["estimated_reclaim_bytes"]))
+          print("FERRARI_PHASE6_HYGIENE_FREE_DELTA="+str(doc["actual_free_delta_bytes"]))
+          HYGIENE
+            AFTER="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
+            [[ "$BEFORE" == "$AFTER" ]] || { echo 'FERRARI_PHASE6_HYGIENE_CHANGED_RELEASE' >&2; exit 9; }
+            sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+              'test -f /srv/projects/skill-universal/releases/40c0e1cdf31b1fe9589ad8be90e5eac06eec2856/engine/ferrari.py'
+            echo 'FERRARI_PHASE6_HYGIENE_PRODUCTION_AND_FALLBACK=PASS'
+            exit 0
+          fi
           if [[ "$MODE" == '--deep-cert' ]]; then
             [[ "$BEFORE" == "/srv/projects/skill-universal/releases/146145d5ada9c13e368df18727e4dbf4f5807664" ]] ||
               { echo 'FERRARI_PHASE6_DEEP_WRONG_ACTIVE' >&2; exit 8; }
@@ -318,6 +368,15 @@ jobs:
         with:
           name: ferrari-phase6-deep-${{ github.run_id }}
           path: ${{ runner.temp }}/ferrari-phase6-deep.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Return Ferrari-owned hygiene report
+        if: steps.request.outputs.mode == '--hygiene-preview' || steps.request.outputs.mode == '--hygiene-apply'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ferrari-phase6-hygiene-${{ github.run_id }}
+          path: ${{ runner.temp }}/ferrari-hygiene-report.txt
           if-no-files-found: error
           retention-days: 14
 
