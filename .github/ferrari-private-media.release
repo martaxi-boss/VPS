@@ -1,3 +1,5 @@
 repository: martaxi-boss/skill-universal
 source_commit: d3e0511dae90919761067e213a651c19a311a13a
 scope: Ferrari private FFmpeg FFprobe pdfinfo pdftotext binaries and libraries, no VPS apt
+
+retry_reason: extracted plain-text artifact shorter than generic size threshold
