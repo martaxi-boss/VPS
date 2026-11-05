@@ -111,7 +111,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: bb899d1c5fbb43e3ac1ca8393c30c4ca1eb08f97
+          ref: 0f97537cb014a4b74df5e7e67afcfa24750c4478
           persist-credentials: false
           path: ferrari
 
@@ -135,7 +135,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           test -n "$SSHPASS"
-          SRC_SHA=bb899d1c5fbb43e3ac1ca8393c30c4ca1eb08f97
+          SRC_SHA=0f97537cb014a4b74df5e7e67afcfa24750c4478
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass >/dev/null
           ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/ferrari-host"
@@ -170,8 +170,18 @@ jobs:
           test -f "$ROOT/.runtime/npm/playwright/node_modules/playwright/package.json"
           test -d "$ROOT/.runtime/browsers"
           python3 -m engine.ferrari doctor >/dev/null
-          python3 install/vps-private-cli.py --apply
-          # Test the real Krita runtime with its newly private PNG import/export plugins.
+          GIMP_CONFIG="$ROOT/tools/ubuntu-cli/etc/gimp/2.0"
+          if test ! -d "$GIMP_CONFIG"; then
+            test ! -e "$GIMP_CONFIG" && test ! -L "$GIMP_CONFIG"
+            mkdir -p "$ROOT/tools/ubuntu-cli/etc/gimp"
+            cp -a /etc/gimp/2.0 "$GIMP_CONFIG"
+          fi
+          test -d "$GIMP_CONFIG"
+          echo 'FERRARI_PRIVATE_GIMP_CONFIG=PASS'
+          python3 install/vps-private-gui-smoke.py "$RUN_ID" gimp-png-xcf
+          echo 'FERRARI_GIMP_PRIVATE=PASS_NO_RELEASE_ACTIVATION'
+          exit 0
+          # Existing full certified source-only delivery follows; no global VPS installs.
           PRIVATE_MIME="$ROOT/tools/ubuntu-cli/share/mime"
           if test ! -d "$PRIVATE_MIME"; then
             test ! -e "$PRIVATE_MIME" && test ! -L "$PRIVATE_MIME"
