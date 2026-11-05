@@ -10,6 +10,8 @@ on:
       - 'ferrari-release-requests/phase5-activate-20261105-r2.json'
       - 'ferrari-release-requests/phase5-rollback-cert-20261105.json'
       - 'ferrari-release-requests/phase6-audit-20261105.json'
+      - 'ferrari-release-requests/phase6-check-20261105.json'
+      - 'ferrari-release-requests/phase6-activate-20261105.json'
 
 permissions:
   contents: read
@@ -43,6 +45,8 @@ jobs:
             ferrari-release-requests/phase5-activate-20261105-r2.json) MODE=--activate ;;
             ferrari-release-requests/phase5-rollback-cert-20261105.json) MODE=--certify-rollback ;;
             ferrari-release-requests/phase6-audit-20261105.json) MODE=--audit ;;
+            ferrari-release-requests/phase6-check-20261105.json) MODE=--phase6-check ;;
+            ferrari-release-requests/phase6-activate-20261105.json) MODE=--phase6-activate ;;
             *) echo 'FERRARI_PHASE5_REQUEST_NOT_SINGLE_OR_NOT_ALLOWED' >&2; exit 2 ;;
           esac
           python3 - "$changed" "$MODE" <<'PY'
@@ -50,9 +54,13 @@ jobs:
           path,mode=sys.argv[1:]
           with open(path,encoding="utf-8") as fh:
               payload=json.load(fh)
-          expected={"version":1,"phase":6 if mode=="--audit" else 5,
-                    "sha":"40c0e1cdf31b1fe9589ad8be90e5eac06eec2856",
-                    "mode":mode.removeprefix("--")}
+          if mode.startswith("--phase6-"):
+              expected={"version":1,"phase":6,"sha":"146145d5ada9c13e368df18727e4dbf4f5807664",
+                        "mode":mode.removeprefix("--phase6-")}
+          else:
+              expected={"version":1,"phase":6 if mode=="--audit" else 5,
+                        "sha":"40c0e1cdf31b1fe9589ad8be90e5eac06eec2856",
+                        "mode":mode.removeprefix("--")}
           if payload != expected:
               raise SystemExit("FERRARI_PHASE5_REQUEST_MISMATCH")
           print("FERRARI_PHASE5_REQUEST_VALID=PASS")
@@ -85,6 +93,15 @@ jobs:
           persist-credentials: false
           path: ferrari-phase6
 
+      - name: Checkout pinned Ferrari phase-6 release for protected preflight
+        if: steps.request.outputs.mode == '--phase6-check' || steps.request.outputs.mode == '--phase6-activate'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: 146145d5ada9c13e368df18727e4dbf4f5807664
+          persist-credentials: false
+          path: ferrari-next
+
       - name: Validate the project-owned release script
         shell: bash
         run: |
@@ -92,6 +109,12 @@ jobs:
           bash -n ferrari/install/vps-isolated-release.sh
           test -f ferrari/engine/tool_actions.json
           echo 'FERRARI_PHASE5_PINNED_SCRIPT_SYNTAX=PASS'
+          if [[ "${{ steps.request.outputs.mode }}" == '--phase6-check' ||
+                "${{ steps.request.outputs.mode }}" == '--phase6-activate' ]]; then
+            bash -n ferrari-next/install/vps-isolated-release.sh
+            test -f ferrari-next/engine/tool_actions.json
+            echo 'FERRARI_PHASE6_PINNED_RELEASE_SYNTAX=PASS'
+          fi
           if [[ "${{ steps.request.outputs.mode }}" == '--audit' ]]; then
             test -f ferrari-phase6/install/vps-phase6-audit.py
             python3 -m py_compile ferrari-phase6/install/vps-phase6-audit.py
@@ -124,7 +147,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           SHA="40c0e1cdf31b1fe9589ad8be90e5eac06eec2856"
-          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' ]] || exit 3
+          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' ]] || exit 3
           opts=(-T -o PreferredAuthentications=password -o PubkeyAuthentication=no
                 -o StrictHostKeyChecking=yes
                 -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-pinned-host"
@@ -132,6 +155,27 @@ jobs:
                 -o ConnectTimeout=20 -o ServerAliveInterval=15)
           BEFORE="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
           echo "FERRARI_PHASE5_CURRENT_BEFORE=$BEFORE"
+          if [[ "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' ]]; then
+            [[ "$BEFORE" == "/srv/projects/skill-universal/releases/40c0e1cdf31b1fe9589ad8be90e5eac06eec2856" ]] ||
+              { echo 'FERRARI_PHASE6_UNEXPECTED_CURRENT_BEFORE' >&2; exit 8; }
+            NEXT_SHA="146145d5ada9c13e368df18727e4dbf4f5807664"
+            NEXT_MODE=--check
+            if [[ "$MODE" == '--phase6-activate' ]]; then NEXT_MODE=--activate; fi
+            sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+              "bash -s -- '$NEXT_SHA' '$NEXT_MODE'" < ferrari-next/install/vps-isolated-release.sh
+            AFTER="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
+            echo "FERRARI_PHASE6_CURRENT_AFTER=$AFTER"
+            if [[ "$NEXT_MODE" == '--check' ]]; then
+              [[ "$BEFORE" == "$AFTER" ]] || { echo 'FERRARI_PHASE6_CHECK_CHANGED_CURRENT' >&2; exit 8; }
+              echo 'FERRARI_PHASE6_CHECK=PASS'
+            else
+              [[ "$AFTER" == "/srv/projects/skill-universal/releases/$NEXT_SHA" ]] ||
+                { echo 'FERRARI_PHASE6_ACTIVATION_SHA_MISMATCH' >&2; exit 8; }
+              echo "FERRARI_PHASE6_FALLBACK_PRESERVED=$BEFORE"
+              echo 'FERRARI_PHASE6_ACTIVATION=PASS'
+            fi
+            exit 0
+          fi
           if [[ "$MODE" == '--audit' ]]; then
             [[ "$BEFORE" == "/srv/projects/skill-universal/releases/$SHA" ]] ||
               { echo 'FERRARI_PHASE6_BASELINE_SHA_CHANGED' >&2; exit 7; }
