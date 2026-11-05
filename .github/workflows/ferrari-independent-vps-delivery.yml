@@ -22,6 +22,9 @@ on:
       - 'ferrari-release-requests/phase6-venvs-apply-20261105.json'
       - 'ferrari-release-requests/phase6-final-preview-20261105.json'
       - 'ferrari-release-requests/phase6-final-apply-20261105.json'
+      - 'ferrari-release-requests/phase7-check-20261105.json'
+      - 'ferrari-release-requests/phase7-activate-20261105.json'
+      - 'ferrari-release-requests/phase7-certify-20261105.json'
 
 permissions:
   contents: read
@@ -67,6 +70,9 @@ jobs:
             ferrari-release-requests/phase6-venvs-apply-20261105.json) MODE=--venvs-apply ;;
             ferrari-release-requests/phase6-final-preview-20261105.json) MODE=--final-preview ;;
             ferrari-release-requests/phase6-final-apply-20261105.json) MODE=--final-apply ;;
+            ferrari-release-requests/phase7-check-20261105.json) MODE=--phase7-check ;;
+            ferrari-release-requests/phase7-activate-20261105.json) MODE=--phase7-activate ;;
+            ferrari-release-requests/phase7-certify-20261105.json) MODE=--phase7-certify ;;
             *) echo 'FERRARI_PHASE5_REQUEST_NOT_SINGLE_OR_NOT_ALLOWED' >&2; exit 2 ;;
           esac
           python3 - "$changed" "$MODE" <<'PY'
@@ -74,7 +80,10 @@ jobs:
           path,mode=sys.argv[1:]
           with open(path,encoding="utf-8") as fh:
               payload=json.load(fh)
-          if mode.startswith("--phase6-") or mode in ("--post-audit","--full-audit","--deep-cert","--deep-final","--hygiene-preview","--hygiene-apply","--venvs-preview","--venvs-apply","--final-preview","--final-apply"):
+          if mode.startswith("--phase7-"):
+              expected={"version":1,"phase":7,"sha":"758e1b435317fa26277b332b75bc47c67910be81",
+                        "mode":mode.removeprefix("--phase7-")}
+          elif mode.startswith("--phase6-") or mode in ("--post-audit","--full-audit","--deep-cert","--deep-final","--hygiene-preview","--hygiene-apply","--venvs-preview","--venvs-apply","--final-preview","--final-apply"):
               expected={"version":1,"phase":6,"sha":"146145d5ada9c13e368df18727e4dbf4f5807664",
                         "mode":mode.removeprefix("--phase6-").removeprefix("--")}
           else:
