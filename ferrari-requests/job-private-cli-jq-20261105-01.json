@@ -1,0 +1,1 @@
+{"version":1,"id":"private-cli-jq-20261105-01","kind":"invoke","action":"jq-format-json","input":{"name":"test.json","content_base64":"e30K"}}
