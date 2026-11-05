@@ -1,3 +1,3 @@
 project: skill-universal
-scope: Python-only test with privately installed Rich/Pygments module closure
-source_sha: 6b9f7c02f0eb495f74cec9d3538cf1593f5f68c2
+scope: private Calibre Python deps and launcher inspection
+source_sha: 41c90a9200bb697810dc3a3aa342646131d25979
