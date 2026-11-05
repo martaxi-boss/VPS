@@ -1,0 +1,1 @@
+{"version":1,"id":"f6-ansible-private-20261105-1919","kind":"invoke","action":"ansible-inventory-json","input":{"name":"inventory.ini","content_base64":"W2RlbW9dCmxvY2FsaG9zdCBhbnNpYmxlX2Nvbm5lY3Rpb249bG9jYWwK"}}
