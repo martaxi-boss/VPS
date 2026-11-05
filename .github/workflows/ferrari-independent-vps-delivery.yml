@@ -13,6 +13,7 @@ on:
       - 'ferrari-release-requests/phase6-check-20261105.json'
       - 'ferrari-release-requests/phase6-activate-20261105.json'
       - 'ferrari-release-requests/phase6-post-audit-20261105.json'
+      - 'ferrari-release-requests/phase6-full-audit-20261105.json'
 
 permissions:
   contents: read
@@ -49,6 +50,7 @@ jobs:
             ferrari-release-requests/phase6-check-20261105.json) MODE=--phase6-check ;;
             ferrari-release-requests/phase6-activate-20261105.json) MODE=--phase6-activate ;;
             ferrari-release-requests/phase6-post-audit-20261105.json) MODE=--post-audit ;;
+            ferrari-release-requests/phase6-full-audit-20261105.json) MODE=--full-audit ;;
             *) echo 'FERRARI_PHASE5_REQUEST_NOT_SINGLE_OR_NOT_ALLOWED' >&2; exit 2 ;;
           esac
           python3 - "$changed" "$MODE" <<'PY'
@@ -56,7 +58,7 @@ jobs:
           path,mode=sys.argv[1:]
           with open(path,encoding="utf-8") as fh:
               payload=json.load(fh)
-          if mode.startswith("--phase6-") or mode=="--post-audit":
+          if mode.startswith("--phase6-") or mode in ("--post-audit","--full-audit"):
               expected={"version":1,"phase":6,"sha":"146145d5ada9c13e368df18727e4dbf4f5807664",
                         "mode":mode.removeprefix("--phase6-").removeprefix("--")}
           else:
@@ -87,11 +89,11 @@ jobs:
           path: ferrari-cert
 
       - name: Checkout exact Ferrari phase-6 read-only audit script
-        if: steps.request.outputs.mode == '--audit' || steps.request.outputs.mode == '--post-audit'
+        if: steps.request.outputs.mode == '--audit' || steps.request.outputs.mode == '--post-audit' || steps.request.outputs.mode == '--full-audit'
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: 146145d5ada9c13e368df18727e4dbf4f5807664
+          ref: f648b7282f897f61242997f3ece6e14a3111b635
           persist-credentials: false
           path: ferrari-phase6
 
@@ -117,7 +119,7 @@ jobs:
             test -f ferrari-next/engine/tool_actions.json
             echo 'FERRARI_PHASE6_PINNED_RELEASE_SYNTAX=PASS'
           fi
-          if [[ "${{ steps.request.outputs.mode }}" == '--audit' || "${{ steps.request.outputs.mode }}" == '--post-audit' ]]; then
+          if [[ "${{ steps.request.outputs.mode }}" == '--audit' || "${{ steps.request.outputs.mode }}" == '--post-audit' || "${{ steps.request.outputs.mode }}" == '--full-audit' ]]; then
             test -f ferrari-phase6/install/vps-phase6-audit.py
             python3 -m py_compile ferrari-phase6/install/vps-phase6-audit.py
             echo 'FERRARI_PHASE6_AUDIT_SCRIPT_SYNTAX=PASS'
@@ -149,7 +151,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           SHA="40c0e1cdf31b1fe9589ad8be90e5eac06eec2856"
-          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' ]] || exit 3
+          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' ]] || exit 3
           opts=(-T -o PreferredAuthentications=password -o PubkeyAuthentication=no
                 -o StrictHostKeyChecking=yes
                 -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-pinned-host"
@@ -178,7 +180,7 @@ jobs:
             fi
             exit 0
           fi
-          if [[ "$MODE" == '--post-audit' ]]; then
+          if [[ "$MODE" == '--post-audit' || "$MODE" == '--full-audit' ]]; then
             [[ "$BEFORE" == "/srv/projects/skill-universal/releases/146145d5ada9c13e368df18727e4dbf4f5807664" ]] ||
               { echo 'FERRARI_PHASE6_POST_AUDIT_RELEASE_NOT_ACTIVE' >&2; exit 7; }
             sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
@@ -195,6 +197,14 @@ jobs:
           print("FERRARI_PHASE6_POST_PRIVATE_ACTIONS=40/40_PASS")
           print("FERRARI_PHASE6_POST_CATALOGUE_FOUND="+str(doc["selected_detected_in_active_release"])+"/56")
           print("FERRARI_PHASE6_POST_LDD_SAMPLES="+str(doc["shared_libraries"].get("sampled",0)))
+          external=sum(1 for row in doc["shared_libraries"]["records"]
+                       for lib in row.get("libraries",[])
+                       if lib["origin"]=="system_or_other_project_review")
+          missing=sum(1 for row in doc["shared_libraries"]["records"]
+                      for lib in row.get("libraries",[])
+                      if lib["origin"]=="missing")
+          print("FERRARI_PHASE6_LIBRARIES_EXTERNAL_REVIEW="+str(external))
+          print("FERRARI_PHASE6_LIBRARIES_MISSING="+str(missing))
           POST
             AFTER="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
             echo "FERRARI_PHASE6_CURRENT_AFTER=$AFTER"
@@ -263,7 +273,7 @@ jobs:
           fi
 
       - name: Return safe Ferrari-only phase-6 audit evidence
-        if: steps.request.outputs.mode == '--audit' || steps.request.outputs.mode == '--post-audit'
+        if: steps.request.outputs.mode == '--audit' || steps.request.outputs.mode == '--post-audit' || steps.request.outputs.mode == '--full-audit'
         uses: actions/upload-artifact@v4
         with:
           name: ferrari-phase6-audit-${{ github.run_id }}
