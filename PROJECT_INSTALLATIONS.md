@@ -10,6 +10,25 @@
 
 **Proteção obrigatória:** o proprietário determinou que o cofre, credenciais, permissões e backups não sejam alterados numa higienização. Esta auditoria não os alterou. Não desligar nem trocar o `ExecStart` do timer sem garantir uma implementação independente, prova de backup/restauro, preservação do material privado, rollback e autorização inequívoca para modificar a rotina de backups. **Isolamento total e desinstalação independente do Low Cost não certificados.**
 
+## Ponto 2 — correspondência GitHub ↔ VPS (05/11/2026)
+
+**Prova de auditoria REAL, sem alterações aos oito projetos:** [Ferrari/GitHub Actions #41940391283](https://github.com/martaxi-boss/VPS/actions/runs/41940391283), resultado de processo `exit=0`, 8/8 pastas físicas exatamente com os nomes dos repositórios GitHub, 9/9 serviços ativos, **0 symlinks entre projetos** na pesquisa de 4.516 diretórios (exclui árvores profundas de dependências, por isso não é certificação total), 45,11 GiB livres, cofre central existente, backup do cofre ativo. A consulta de SHA `main` do GitHub foi feita antes de criar o pedido de auditoria; `VPS/main` avança em cada pedido administrativo e a tabela reflete esse instante.
+
+| Repositório | Estado instalado na VPS | Referência GitHub `main` à data da consulta | Situação |
+| --- | --- | --- | --- |
+| `Codex` | Instalação autónoma, sem checkout Git na raiz | `31b0b0e6` | Nome certo, **proveniência do código não certificada** |
+| `VPS` | Pasta operacional sem checkout Git na raiz | `19abce5a` (antes desta auditoria) | Nome certo; o próprio GitHub é fonte do transporte, **não comparar raiz com SHA diretamente** |
+| `fadego` | `current` → release `2b3554ec6e075e36041e44178f99535e00961b2f` dentro da pasta; duas releases | `7b2aea33` | Versão ativa **difere do main**; preservar até validar atualização |
+| `iptvpn-bot` | Git checkout: branch `security/iptvpn-bot-secret-vault-001`, HEAD `6d26ea34`, **6 ficheiros rastreados alterados** | `a5b4861a` | **Divergência + alterações locais**, não executar `reset` |
+| `lowcost-europa` | Git checkout: HEAD destacado `388860c6`, **9 ficheiros rastreados alterados** | `72546fae` | **Divergência + alterações locais**, não executar `reset` |
+| `pink-iptv` | Git checkout: branch `builder/android-shell-002`, HEAD `ccccaf1e`, **6 ficheiros rastreados alterados**; mais entradas não rastreadas | `75312032` | **Divergência + alterações locais**, preservar APK/servidor/código |
+| `skill-universal` (Ferrari) | Release ativa `b2869e334d9d68a0c988905e71ce0badec6ba359` dentro da pasta | `b2869e33` | **SHA corresponde** ao main; sem checkout Git obrigatório na raiz |
+| `telegram-robot-leads` | Instalação autónoma sem checkout Git na raiz | `99c10602` | Nome certo; **proveniência do código não certificada** |
+
+**Resolução segura:** não houve alteração a código ou serviços dos oito projetos, nem `git reset`, `git pull`, `git clean` ou reinício. É preciso primeiro classificar e preservar as diferenças dos três checkouts com alterações locais, confirmar proveniência das instalações por bundle e só então alinhar SHA/branches por projeto, com testes de funcionamento separados. A tentativa de aprofundar a inspeção de diferenças no canal de execução foi **bloqueada pelas verificações de segurança**; não foi contornada. Não assumir que uma divergência é um erro, pois podem existir alterações válidas no runtime/branches. **Não declarar sincronização 8/8.**
+
+**Exceção protegida:** `/root/project-secrets` e o timer de backup permanecem intocados. O temporizador central ainda invoca o script do Low Cost: esta é uma pendência distinta da reconciliação de código GitHub ↔ VPS.
+
 ## Preparação do isolamento do backup central — 05/11/2026
 
 [Auditoria de dependências #41939462717](https://github.com/martaxi-boss/VPS/actions/runs/41939462717): o script ativo do backup do cofre tem 54 linhas e usa **três** caminhos físicos do Low Cost Europa: `data/`, `private/systemd-env/r2.env` e `private/systemd-env/restic-password`. O temporizador central continua active/enabled e os nove serviços principais foram observados ativos. O cofre central tem permissões `0700` e o seu conteúdo não foi lido nesta operação.
