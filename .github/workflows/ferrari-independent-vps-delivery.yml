@@ -20,6 +20,8 @@ on:
       - 'ferrari-release-requests/phase6-symlink-final-20261105.json'
       - 'ferrari-release-requests/phase6-venvs-preview-20261105.json'
       - 'ferrari-release-requests/phase6-venvs-apply-20261105.json'
+      - 'ferrari-release-requests/phase6-final-preview-20261105.json'
+      - 'ferrari-release-requests/phase6-final-apply-20261105.json'
 
 permissions:
   contents: read
@@ -63,6 +65,8 @@ jobs:
             ferrari-release-requests/phase6-symlink-final-20261105.json) MODE=--deep-final ;;
             ferrari-release-requests/phase6-venvs-preview-20261105.json) MODE=--venvs-preview ;;
             ferrari-release-requests/phase6-venvs-apply-20261105.json) MODE=--venvs-apply ;;
+            ferrari-release-requests/phase6-final-preview-20261105.json) MODE=--final-preview ;;
+            ferrari-release-requests/phase6-final-apply-20261105.json) MODE=--final-apply ;;
             *) echo 'FERRARI_PHASE5_REQUEST_NOT_SINGLE_OR_NOT_ALLOWED' >&2; exit 2 ;;
           esac
           python3 - "$changed" "$MODE" <<'PY'
@@ -70,7 +74,7 @@ jobs:
           path,mode=sys.argv[1:]
           with open(path,encoding="utf-8") as fh:
               payload=json.load(fh)
-          if mode.startswith("--phase6-") or mode in ("--post-audit","--full-audit","--deep-cert","--deep-final","--hygiene-preview","--hygiene-apply","--venvs-preview","--venvs-apply"):
+          if mode.startswith("--phase6-") or mode in ("--post-audit","--full-audit","--deep-cert","--deep-final","--hygiene-preview","--hygiene-apply","--venvs-preview","--venvs-apply","--final-preview","--final-apply"):
               expected={"version":1,"phase":6,"sha":"146145d5ada9c13e368df18727e4dbf4f5807664",
                         "mode":mode.removeprefix("--phase6-").removeprefix("--")}
           else:
@@ -145,6 +149,15 @@ jobs:
           path: ferrari-venvs
           persist-credentials: false
 
+      - name: Checkout immutable Ferrari final hygiene source
+        if: steps.request.outputs.mode == '--final-preview' || steps.request.outputs.mode == '--final-apply'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: f7cda3588a3f2a749e22fae240f4fe9c5d8a8190
+          path: ferrari-final
+          persist-credentials: false
+
       - name: Validate the project-owned release script
         shell: bash
         run: |
@@ -152,6 +165,11 @@ jobs:
           bash -n ferrari/install/vps-isolated-release.sh
           test -f ferrari/engine/tool_actions.json
           echo 'FERRARI_PHASE5_PINNED_SCRIPT_SYNTAX=PASS'
+          if [[ "${{ steps.request.outputs.mode }}" == '--final-preview' ||
+                "${{ steps.request.outputs.mode }}" == '--final-apply' ]]; then
+            python3 -m py_compile ferrari-final/install/vps-phase6-final-hygiene.py
+            echo 'FERRARI_PHASE6_FINAL_HYGIENE_SCRIPT=VALID'
+          fi
           if [[ "${{ steps.request.outputs.mode }}" == '--venvs-preview' ||
                 "${{ steps.request.outputs.mode }}" == '--venvs-apply' ]]; then
             python3 -m py_compile ferrari-venvs/install/vps-phase6-private-venvs.py
@@ -204,7 +222,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           SHA="40c0e1cdf31b1fe9589ad8be90e5eac06eec2856"
-          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--venvs-preview' || "$MODE" == '--venvs-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' ]] || exit 3
+          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--venvs-preview' || "$MODE" == '--venvs-apply' || "$MODE" == '--final-preview' || "$MODE" == '--final-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' ]] || exit 3
           opts=(-T -o PreferredAuthentications=password -o PubkeyAuthentication=no
                 -o StrictHostKeyChecking=yes
                 -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-pinned-host"
@@ -212,6 +230,41 @@ jobs:
                 -o ConnectTimeout=20 -o ServerAliveInterval=15)
           BEFORE="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
           echo "FERRARI_PHASE5_CURRENT_BEFORE=$BEFORE"
+          if [[ "$MODE" == '--final-preview' || "$MODE" == '--final-apply' ]]; then
+            [[ "$BEFORE" == "/srv/projects/skill-universal/releases/146145d5ada9c13e368df18727e4dbf4f5807664" ]] ||
+              { echo 'FERRARI_PHASE6_FINAL_WRONG_ACTIVE' >&2; exit 11; }
+            SCRIPT_MODE="--preview"
+            if [[ "$MODE" == '--final-apply' ]]; then SCRIPT_MODE="--apply"; fi
+            sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+              "cd '/srv/projects/skill-universal/current' && '/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12' -B - '$SCRIPT_MODE'" \
+              < ferrari-final/install/vps-phase6-final-hygiene.py \
+              > "$RUNNER_TEMP/ferrari-phase6-final.json"
+            python3 - "$RUNNER_TEMP/ferrari-phase6-final.json" "$MODE" <<'FINAL'
+          import json,sys
+          r=json.load(open(sys.argv[1],encoding="utf-8"))
+          assert r["release"]=="146145d5ada9c13e368df18727e4dbf4f5807664"
+          assert r["fallback"]=="40c0e1cdf31b1fe9589ad8be90e5eac06eec2856"
+          assert r["private_launchers_checked"]==4
+          assert r["packages_removed"]==0 and r["service_changes"]==0
+          assert r["other_projects_modified"] is False
+          if sys.argv[2]=="--final-preview":
+              assert r["mode"]=="preview" and r["private_files_changed"]==0
+              print("FERRARI_PHASE6_FINAL_PREVIEW=PASS")
+          else:
+              assert r["mode"]=="apply"
+              assert r["result"]=="private_launchers_and_dead_links_cleaned"
+              assert r["private_files_changed"]==17
+              print("FERRARI_PHASE6_FINAL_PRIVATE_CLEANUP=PASS")
+          print("FERRARI_PHASE6_FINAL_OLD_SHEBANGS="+str(r["launchers_with_global_shebang"]))
+          print("FERRARI_PHASE6_FINAL_DEADLINKS="+str(r["broken_private_resource_links"]))
+          FINAL
+            AFTER="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
+            [[ "$BEFORE" == "$AFTER" ]] || { echo 'FERRARI_PHASE6_FINAL_CHANGED_RELEASE' >&2; exit 11; }
+            sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+              'test -f /srv/projects/skill-universal/releases/40c0e1cdf31b1fe9589ad8be90e5eac06eec2856/engine/ferrari.py'
+            echo 'FERRARI_PHASE6_FINAL_CURRENT_AND_FALLBACK=PASS'
+            exit 0
+          fi
           if [[ "$MODE" == '--venvs-preview' || "$MODE" == '--venvs-apply' ]]; then
             [[ "$BEFORE" == "/srv/projects/skill-universal/releases/146145d5ada9c13e368df18727e4dbf4f5807664" ]] ||
               { echo 'FERRARI_PHASE6_VENV_WRONG_ACTIVE' >&2; exit 10; }
@@ -421,6 +474,15 @@ jobs:
         with:
           name: ferrari-phase6-deep-${{ github.run_id }}
           path: ${{ runner.temp }}/ferrari-phase6-deep.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Save Ferrari final private hygiene proof
+        if: steps.request.outputs.mode == '--final-preview' || steps.request.outputs.mode == '--final-apply'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ferrari-phase6-final-${{ github.run_id }}
+          path: ${{ runner.temp }}/ferrari-phase6-final.json
           if-no-files-found: error
           retention-days: 14
 
