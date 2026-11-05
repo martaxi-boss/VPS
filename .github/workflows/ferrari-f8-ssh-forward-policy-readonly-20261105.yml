@@ -59,7 +59,7 @@ jobs:
           import re,socket
           owner=subprocess.run(['sudo','-n','ss','-H','-ltpn','sport = :23989'],capture_output=True,text=True,timeout=8)
           print('F8_PORT_OWNER_COMMAND_EXIT='+str(owner.returncode))
-          processes=sorted(set(re.findall(r'users:\\(\\("([^"\\]+)',owner.stdout)))
+          processes=sorted(x for x in ('sshd','systemd','adb','python3') if ('"'+x+'"') in owner.stdout)
           print('F8_PORT_23989_PROCESS_NAMES='+(','.join(processes) if processes else 'unknown'))
           try:
             with socket.create_connection(('127.0.0.1',23989),timeout=4):
