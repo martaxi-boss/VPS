@@ -3,6 +3,10 @@ name: Ferrari Ubuntu - independent VPS installation
 # This is a one-purpose transport using the EXISTING VPS SSH credential and host pin.
 # Do not alter the existing SSH bridge, Supervisor or projects.
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/ferrari-private-cli.release'
   workflow_dispatch:
 
 permissions:
@@ -13,6 +17,7 @@ concurrency:
 
 jobs:
   ferrari:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 75
     steps:
@@ -96,3 +101,151 @@ jobs:
           sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
             'cd "/srv/projects/skill-universal/current" && python3 install/ferrari-hygiene.py --apply'
           echo 'FERRARI_DEPLOY_TRANSPORT=PASS'
+
+  private-cli-release:
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Fetch tested Ferrari source only
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: 3cfb54db941d480795cd99bfa39a54d899b7bf70
+          persist-credentials: false
+          path: ferrari
+
+      - name: Verify corrected browser and unit tests
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          cd ferrari
+          python3 -m unittest discover -s tests -p test_professional_tools.py -v
+          python3 -m unittest discover -s tests -p test_tool_runtime.py -v
+          python3 -m py_compile install/vps-private-cli.py
+          node --check engine/browser_check.js
+          grep -F '/srv/projects/skill-universal/.runtime/npm/playwright/node_modules/playwright' engine/browser_check.js
+          test ! -e .runtime
+          echo 'FERRARI_SOURCE_CHECK=PASS'
+
+      - name: Install corrected source only inside Ferrari project and run real browser smoke
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          test -n "$SSHPASS"
+          SRC_SHA=3cfb54db941d480795cd99bfa39a54d899b7bf70
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/ferrari-host"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/ferrari-host" -E sha256 | awk '{print $2}')" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
+          chmod 600 "$RUNNER_TEMP/ferrari-host"
+          opts=(-o PreferredAuthentications=password -o PubkeyAuthentication=no
+                -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-host"
+                -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519
+                -o ConnectTimeout=20 -o ServerAliveInterval=15)
+          tar -czf "$RUNNER_TEMP/ferrari-source.tar.gz" -C ferrari --exclude=.git --exclude=__pycache__ --exclude=.runtime .
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
+            "test -d /srv/projects/skill-universal && test ! -L /srv/projects/skill-universal && mkdir -p /srv/projects/skill-universal/releases/$SRC_SHA"
+          sshpass -e scp "${opts[@]}" "$RUNNER_TEMP/ferrari-source.tar.gz" \
+            "ubuntu@146.59.145.3:/srv/projects/skill-universal/releases/$SRC_SHA/source.tar.gz"
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 "bash -s -- '$SRC_SHA'" <<'REMOTE'
+          set -Eeuo pipefail
+          ROOT=/srv/projects/skill-universal
+          SHA="$1"
+          RELEASE="$ROOT/releases/$SHA"
+          cd "$RELEASE"
+          export PYTHONDONTWRITEBYTECODE=1
+          test -s source.tar.gz
+          tar -xzf source.tar.gz
+          rm source.tar.gz
+          test -f engine/browser_check.js
+          test ! -e "$RELEASE/.runtime"
+          python3 -m unittest discover -s tests -p test_professional_tools.py -v
+          NODE="$ROOT/runtimes/node-22.23.4/bin/node"
+          test -x "$NODE"
+          "$NODE" --check engine/browser_check.js
+          test -f "$ROOT/.runtime/npm/playwright/node_modules/playwright/package.json"
+          test -d "$ROOT/.runtime/browsers"
+          python3 -m engine.ferrari doctor >/dev/null
+          # Private Ferrari-only copies of six Ubuntu commands and their libraries.
+          python3 install/vps-private-cli.py --apply
+          python3 - "$ROOT" "$SHA" <<'PY_CLI'
+          import json,sys
+          from pathlib import Path
+          from engine import tool_runtime
+          root=Path(sys.argv[1])
+          private=(root/"tools/ubuntu-cli").resolve(strict=True)
+          cert=root/".runtime/private-cli-cert"/sys.argv[2]
+          cert.mkdir(parents=True,exist_ok=True)
+          samples={
+            "json":cert/"sample.json",
+            "text":cert/"sample.txt",
+            "elf":root/"runtimes/node-22.23.4/bin/node",
+          }
+          samples["json"].write_text('{"project":"Ferrari","independent":true}\n')
+          samples["text"].write_text('Ferrari independent project\n')
+          cases=[
+            ("file-mime","json",None),
+            ("jq-format-json","json",None),
+            ("ripgrep-find-text","text","Ferrari"),
+            ("readelf-header","elf",None),
+            ("objdump-file-header","elf",None),
+            ("strings-file-extract","elf",None),
+          ]
+          results=[]
+          for action,fixture,query in cases:
+              spec=tool_runtime.specs()[action]
+              exe=tool_runtime.executable(spec["tool"],spec["binary"])
+              assert exe and Path(exe).resolve().is_relative_to(private),{"action":action,"exe":exe}
+              output=cert/action
+              result=tool_runtime.invoke(action,str(samples[fixture]),str(output),query=query)
+              assert result["confirmed"],result
+              artifact=output/spec["artifact"]
+              assert artifact.is_file() and artifact.stat().st_size>3,artifact
+              results.append({"action":action,"executor":exe,"bytes":artifact.stat().st_size})
+          all_actions=tool_runtime.specs()
+          private_count=sum(bool(exe:=tool_runtime.executable(s["tool"],s["binary"])) and Path(exe).resolve().is_relative_to(root) for s in all_actions.values())
+          print("FERRARI_SIX_PRIVATE_CLI_ACTIONS=PASS")
+          print("FERRARI_PRIVATE_ACTIONS="+str(private_count))
+          print("FERRARI_PRIVATE_CLI_RESULTS="+json.dumps(results,sort_keys=True))
+          PY_CLI
+          TASK="$ROOT/.runtime/private-cli-release-smoke/$SHA"
+          mkdir -p "$TASK"
+          python3 - "$TASK/request.json" <<'PY'
+          import base64,io,json,sys,zipfile
+          from pathlib import Path
+          stream=io.BytesIO()
+          with zipfile.ZipFile(stream,"w",zipfile.ZIP_DEFLATED) as archive:
+              archive.writestr("index.html",'<!doctype html><html lang="pt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Ferrari</title></head><body><main id="app" data-ready="yes"><h1>Ferrari browser smoke</h1></main></body></html>')
+          job={"version":1,"id":"private-cli-release-smoke-20261105","kind":"operation","operation":"vite-build","input":{"name":"web.zip","content_base64":base64.b64encode(stream.getvalue()).decode("ascii")}}
+          Path(sys.argv[1]).write_text(json.dumps(job)+"\n",encoding="utf-8")
+          PY
+          python3 -m engine.skill_job --request "$TASK/request.json" --output "$TASK/result"
+          python3 - "$TASK/result" <<'PY'
+          import json,sys
+          from pathlib import Path
+          p=Path(sys.argv[1])
+          main=json.loads((p/"report.json").read_text())
+          browser=json.loads((p/"artifacts/browser-check.json").read_text())
+          build=json.loads((p/"artifacts/vite-build.json").read_text())
+          assert main["status"]=="completed",main
+          assert browser["status"]=="passed",browser
+          assert build["browser_test"]["status"]=="passed",build
+          assert (p/"artifacts/browser-screenshot.png").stat().st_size>100
+          assert (p/"artifacts/browser-mobile.png").stat().st_size>100
+          assert (p/"response.zip").stat().st_size>100
+          print("FERRARI_PLAYWRIGHT_REAL=PASS")
+          PY
+          PREVIOUS="$(readlink -f "$ROOT/current")"
+          test -d "$PREVIOUS"
+          ln -s "$RELEASE" "$ROOT/current.next-$SHA"
+          mv -Tf "$ROOT/current.next-$SHA" "$ROOT/current"
+          test "$(readlink -f "$ROOT/current")" = "$RELEASE"
+          printf 'FERRARI_PREVIOUS_RELEASE=%s\n' "$PREVIOUS"
+          printf 'FERRARI_CURRENT_RELEASE=%s\n' "$SHA"
+          echo 'FERRARI_ONLY_PRIVATE_PROJECT_WRITES=PASS'
+          echo 'FERRARI_RELEASE_UPDATE=PASS'
+          REMOTE
+          echo 'FERRARI_ISOLATED_SOURCE_ONLY_DEPLOY=PASS'
