@@ -1,3 +1,3 @@
 project: skill-universal
-scope: 40 typed actions with Ferrari private GUI dependencies, optional plugins reported
-source_sha: 91aa88be0c32575c99b79d9f82ba3ea0f13eda60
+scope: full 40 actions with private Python metadata and GUI executors
+source_sha: 0d23c463ff42fefb8f10a223b1b3984c7a965b29
