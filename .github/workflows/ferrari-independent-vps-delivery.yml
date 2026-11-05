@@ -555,6 +555,15 @@ jobs:
             echo "FERRARI_PHASE5_FALLBACK_PRESERVED=$BEFORE"
           fi
 
+      - name: Upload Ferrari phase-7 private DAG certification and uninstall footprint
+        if: steps.request.outputs.mode == '--phase7-certify'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ferrari-phase7-certificate-${{ github.run_id }}
+          path: ${{ runner.temp }}/ferrari-phase7-report.json
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Publish Ferrari F6 deep audit evidence only
         if: steps.request.outputs.mode == '--deep-cert' || steps.request.outputs.mode == '--deep-final'
         uses: actions/upload-artifact@v4
