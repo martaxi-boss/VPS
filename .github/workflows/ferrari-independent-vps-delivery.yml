@@ -111,7 +111,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: ba169718407bffe0e114ffede3aff51a222dc1c9
+          ref: 4636b1d357d0593ade143301c05a39122dd34354
           persist-credentials: false
           path: ferrari
 
@@ -135,7 +135,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           test -n "$SSHPASS"
-          SRC_SHA=ba169718407bffe0e114ffede3aff51a222dc1c9
+          SRC_SHA=4636b1d357d0593ade143301c05a39122dd34354
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass >/dev/null
           ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/ferrari-host"
