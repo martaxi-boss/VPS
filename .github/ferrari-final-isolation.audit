@@ -1,3 +1,4 @@
 project: skill-universal
-mode: isolated GIMP 2.10 Script-Fu xcf export, no release activation
-source_sha: 0f97537cb014a4b74df5e7e67afcfa24750c4478
+source_sha: 87969badbde0a77c2c181bb9605357d51a4a30c0
+scope: final forty private actions, real Vite, graphics, audio, video, CAD and Ferrari-only hygiene
+workflow: source-only; activate only after all tests PASS
