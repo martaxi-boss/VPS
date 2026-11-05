@@ -167,6 +167,15 @@ jobs:
           path: ferrari-final
           persist-credentials: false
 
+      - name: Checkout exactly pinned Ferrari phase-7 private release and certificate
+        if: steps.request.outputs.mode == '--phase7-check' || steps.request.outputs.mode == '--phase7-activate' || steps.request.outputs.mode == '--phase7-certify'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: 758e1b435317fa26277b332b75bc47c67910be81
+          persist-credentials: false
+          path: ferrari-f7
+
       - name: Validate the project-owned release script
         shell: bash
         run: |
@@ -174,6 +183,15 @@ jobs:
           bash -n ferrari/install/vps-isolated-release.sh
           test -f ferrari/engine/tool_actions.json
           echo 'FERRARI_PHASE5_PINNED_SCRIPT_SYNTAX=PASS'
+          if [[ "${{ steps.request.outputs.mode }}" == '--phase7-check' ||
+                "${{ steps.request.outputs.mode }}" == '--phase7-activate' ||
+                "${{ steps.request.outputs.mode }}" == '--phase7-certify' ]]; then
+            bash -n ferrari-f7/install/vps-isolated-release.sh
+            python3 -m py_compile ferrari-f7/install/vps-phase7-certify.py
+            test -f ferrari-f7/engine/orchestrator.py
+            test -f ferrari-f7/engine/tool_actions.json
+            echo 'FERRARI_PHASE7_PINNED_SOURCE=PASS'
+          fi
           if [[ "${{ steps.request.outputs.mode }}" == '--final-preview' ||
                 "${{ steps.request.outputs.mode }}" == '--final-apply' ]]; then
             python3 -m py_compile ferrari-final/install/vps-phase6-final-hygiene.py
