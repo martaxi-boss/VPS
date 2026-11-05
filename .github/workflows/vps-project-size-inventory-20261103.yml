@@ -167,6 +167,71 @@ jobs:
           for p in python3 node npm pm2 java git ffmpeg docker pip3 pandoc jadx apktool; do
             if command -v "$p" >/dev/null 2>&1; then printf '%s|%s\n' "$p" "$(command -v "$p")"; else printf '%s|NOT_ON_PATH\n' "$p"; fi
           done
+          echo '=== F9_PROJECT_GITHUB_MAPPING_READONLY ==='
+          python3 - <<'PY_F9_PROJECTS'
+          import os,pwd,re,subprocess
+          from pathlib import Path
+          root=Path('/srv/projects')
+          if root.is_dir():
+              for p in sorted(root.iterdir(),key=lambda x:x.name.lower()):
+                  try:
+                      st=p.lstat()
+                      kind='symlink' if p.is_symlink() else ('directory' if p.is_dir() else 'other')
+                      owner=pwd.getpwuid(st.st_uid).pw_name
+                      size='unknown'
+                      if kind=='directory':
+                          try:
+                              z=subprocess.run(['du','-x','-s','-B1',str(p)],text=True,capture_output=True,timeout=65)
+                              if z.returncode==0:size=z.stdout.split()[0]
+                          except (OSError,subprocess.TimeoutExpired,IndexError):pass
+                      github='unverified'
+                      for cfg in (p/'.git/config',p/'current/.git/config'):
+                          try:
+                              if not cfg.is_file() or cfg.is_symlink() or cfg.stat().st_size>50000:continue
+                              t=cfg.read_text(errors='replace')
+                              match=re.search(r'github\.com[:/]([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?)(?:\.git)?(?:\s|$)',t)
+                              if match:
+                                  github=match.group(1).removesuffix('.git')
+                                  break
+                          except OSError:pass
+                      print('|'.join((p.name,kind,owner,size,github)))
+                  except (OSError,KeyError):pass
+          PY_F9_PROJECTS
+          echo '=== F9_SYSTEMD_PROJECT_REFERENCES_READONLY ==='
+          python3 - <<'PY_F9_SYSTEMD'
+          import re,subprocess
+          units=('fadego-staging.service','lowcost-europa.service','pink-iptv-backend.service','pink-vpn.service','pm2-iptvpn-bot.service','pm2-telegram-robot-leads.service','nginx.service','postgresql@16-main.service')
+          for unit in units:
+              try:
+                  p=subprocess.run(['systemctl','show',unit,'-p','ActiveState','-p','SubState','-p','WorkingDirectory','-p','ExecStart','--no-pager'],capture_output=True,text=True,timeout=10)
+                  lines=dict(x.split('=',1) for x in p.stdout.splitlines() if '=' in x)
+                  dirs=set()
+                  for val in (lines.get('WorkingDirectory',''),lines.get('ExecStart','')):
+                      dirs.update(re.findall(r'/srv/projects/([A-Za-z0-9_.-]+)',val))
+                  print('|'.join((unit,lines.get('ActiveState','unknown'),lines.get('SubState','unknown'),','.join(sorted(dirs)) or 'unresolved')))
+              except (OSError,subprocess.TimeoutExpired):print(unit+'|unknown|unknown|probe_error')
+          PY_F9_SYSTEMD
+          echo '=== F9_PM2_PROCESS_CWD_READONLY ==='
+          python3 - <<'PY_F9_PM2'
+          from pathlib import Path
+          import os
+          for p in Path('/proc').iterdir():
+              if not p.name.isdigit():continue
+              try:
+                  name=(p/'comm').read_text(errors='replace').strip()
+                  cwd=os.readlink(p/'cwd')
+                  if ('PM2' in name or ' (deleted)' in cwd) and ('/srv/projects/' in cwd or name.startswith('PM2')):
+                      print('|'.join((p.name,name[:100],cwd[:220])))
+              except (OSError,PermissionError):pass
+          PY_F9_PM2
+          echo '=== F9_GLOBAL_APT_CANDIDATES_READONLY ==='
+          for pkg in libreoffice ansible yt-dlp gimp blender kdenlive darktable openscad librecad qgis audacity obs-studio solvespace synfigstudio openshot-qt calibre; do
+            dpkg-query -W "$pkg" 2>/dev/null || echo "$pkg|NOT_INSTALLED"
+          done
+          echo '=== F9_ROOT_LEGACY_CANDIDATE_SIZE_READONLY ==='
+          for d in /root/.cursor /root/.vscode /root/.claude-server-commander /home/ubuntu/.local/share/rea-github-transport /home/ubuntu/.local/share/hopper /root/migration-preserved /root/migration-20260923; do
+            if [ -e "$d" ] && [ ! -L "$d" ]; then du -x -s -B1 "$d" 2>/dev/null || echo "ERROR|$d"; else echo "ABSENT|$d"; fi
+          done
           echo '=== FINISHED ==='
           REMOTE
           echo 'VPS_PROJECT_INVENTORY_RETURNED=PASS'
