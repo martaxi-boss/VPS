@@ -286,6 +286,67 @@ jobs:
           for pkg in libreoffice ansible yt-dlp gimp blender kdenlive darktable openscad librecad qgis audacity obs-studio solvespace synfigstudio openshot-qt calibre; do
             if printf '%s\n' "$manual" | grep -qx "$pkg"; then echo "$pkg|manual"; else echo "$pkg|auto_or_unknown"; fi
           done
+          echo '=== F9_RELEASE_CONSUMER_REALCHECK ==='
+          python3 - <<'PY_F9_RELEASE'
+          import os,subprocess
+          from pathlib import Path
+          roots=('skill-universal','pink-iptv','fadego','lowcost-europa','telegram-robot-leads','iptvpn-bot','Codex','VPS')
+          root=Path('/srv/projects')
+          def cmd(args,timeout=15):
+              try:
+                  p=subprocess.run(args,capture_output=True,text=True,timeout=timeout,check=False,env={'PATH':'/usr/bin:/bin','LC_ALL':'C','GIT_OPTIONAL_LOCKS':'0'})
+                  return p.returncode,p.stdout.strip()
+              except (OSError,subprocess.TimeoutExpired):return 255,''
+          for name in roots:
+              base=root/name
+              if not base.is_dir() or base.is_symlink():
+                  print('PROJECT|'+name+'|NOT_ORDINARY_DIRECTORY')
+                  continue
+              rc,sha=cmd(['git','-C',str(base),'rev-parse','--verify','HEAD'],8)
+              sha=sha if rc==0 and len(sha)==40 else 'not_worktree'
+              rc,branch=cmd(['git','-C',str(base),'branch','--show-current'],8)
+              branch=branch if rc==0 and branch and len(branch)<90 else 'not_worktree_or_detached'
+              rc,changes=cmd(['git','-C',str(base),'status','--porcelain','--untracked-files=no'],25)
+              dirty=('unknown' if rc!=0 else str(len(changes.splitlines()) if changes else 0))
+              check=str(base/'current')
+              current='none'
+              if (base/'current').is_symlink():
+                  try:
+                      dest=(base/'current').resolve(strict=False)
+                      current=dest.name if str(dest).startswith(str(base)+'/') else 'outside'
+                  except OSError:current='broken'
+              owner_source='missing'
+              if sha!='not_worktree':
+                  rc,origin=cmd(['git','-C',str(base),'remote','get-url','origin'],10)
+                  if rc==0 and ('github.com/martaxi-boss/'+name) in origin.replace(':','/').replace('.git',''):
+                      owner_source='matching_github_origin'
+                  elif rc==0: owner_source='nonmatching_or_other_origin'
+              print('|'.join(('PROJECT',name,'git='+sha,'branch='+branch,
+                  'tracked_changes='+dirty,'current_release='+current,'origin='+owner_source)))
+          print('=== F9_EFFECTIVE_SYSTEMD_SERVICE_PATHS ===')
+          services=('fadego-staging.service','lowcost-europa.service','pink-iptv-backend.service','pink-vpn.service','pm2-iptvpn-bot.service','pm2-telegram-robot-leads.service','nginx.service','postgresql@16-main.service')
+          for unit in services:
+              rc,out=cmd(['systemctl','show',unit,'--no-pager','-p','MainPID','-p','WorkingDirectory','-p','ActiveState','-p','ExecMainStatus'],12)
+              fields=dict(l.split('=',1) for l in out.splitlines() if '=' in l)
+              pid=fields.get('MainPID','0')
+              actual='none'
+              try:
+                  if pid.isdigit() and int(pid)>0:
+                      cwd=os.readlink('/proc/'+pid+'/cwd')
+                      if cwd.startswith(str(root)+'/'):
+                          actual=cwd.removeprefix(str(root)+'/').split('/',1)[0]
+                      else:actual='outside_project_root'
+              except OSError:actual='unreadable'
+              declared=fields.get('WorkingDirectory','')
+              if declared.startswith(str(root)+'/'):
+                  declared=declared.removeprefix(str(root)+'/').split('/',1)[0]
+              elif declared:declared='outside_project_root'
+              else:declared='unset'
+              print('|'.join(('SERVICE',unit,fields.get('ActiveState','?'),
+                  'main_pid='+('present' if pid.isdigit() and int(pid)>0 else 'missing'),
+                  'cwd_project='+actual,'declared_project='+declared,
+                  'exit='+fields.get('ExecMainStatus','?'))))
+          PY_F9_RELEASE
           echo '=== FINISHED ==='
           REMOTE
           echo 'VPS_PROJECT_INVENTORY_RETURNED=PASS'
