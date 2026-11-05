@@ -17,7 +17,7 @@ jobs:
       - name: Read-only snapshot through existing pinned SSH identity (no APK transfer or installation)
         shell: bash
         env:
-          SSHPASS: \${{ secrets.VPS_SSH_PASSWORD }}
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         run: |
           set -euo pipefail
           test -n "$SSHPASS"
