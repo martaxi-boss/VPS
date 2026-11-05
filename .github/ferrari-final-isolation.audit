@@ -1,3 +1,3 @@
 project: skill-universal
-scope: private Calibre Python deps and launcher inspection
-source_sha: 41c90a9200bb697810dc3a3aa342646131d25979
+scope: Calibre private executable environment and own Python package closure
+source_sha: 567ec62c8dbcfce4c440c3cde9a74a48332d4489
