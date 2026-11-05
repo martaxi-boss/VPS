@@ -371,6 +371,15 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Return Ferrari-owned hygiene report
+        if: steps.request.outputs.mode == '--hygiene-preview' || steps.request.outputs.mode == '--hygiene-apply'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ferrari-phase6-hygiene-${{ github.run_id }}
+          path: ${{ runner.temp }}/ferrari-hygiene-report.txt
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Return safe Ferrari-only phase-6 audit evidence
         if: steps.request.outputs.mode == '--audit' || steps.request.outputs.mode == '--post-audit' || steps.request.outputs.mode == '--full-audit'
         uses: actions/upload-artifact@v4
