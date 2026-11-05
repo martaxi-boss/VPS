@@ -312,6 +312,15 @@ jobs:
             echo "FERRARI_PHASE5_FALLBACK_PRESERVED=$BEFORE"
           fi
 
+      - name: Publish Ferrari F6 deep audit evidence only
+        if: steps.request.outputs.mode == '--deep-cert'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ferrari-phase6-deep-${{ github.run_id }}
+          path: ${{ runner.temp }}/ferrari-phase6-deep.json
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Return safe Ferrari-only phase-6 audit evidence
         if: steps.request.outputs.mode == '--audit' || steps.request.outputs.mode == '--post-audit' || steps.request.outputs.mode == '--full-audit'
         uses: actions/upload-artifact@v4
