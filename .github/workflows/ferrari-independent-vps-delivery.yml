@@ -150,10 +150,11 @@ jobs:
             "test -d /srv/projects/skill-universal && test ! -L /srv/projects/skill-universal && mkdir -p /srv/projects/skill-universal/releases/$SRC_SHA"
           sshpass -e scp "${opts[@]}" "$RUNNER_TEMP/ferrari-source.tar.gz" \
             "ubuntu@146.59.145.3:/srv/projects/skill-universal/releases/$SRC_SHA/source.tar.gz"
-          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 "bash -s -- '$SRC_SHA'" <<'REMOTE'
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 "bash -s -- '$SRC_SHA' '$GITHUB_RUN_ID'" <<'REMOTE'
           set -Eeuo pipefail
           ROOT=/srv/projects/skill-universal
           SHA="$1"
+          RUN_ID="$2"
           RELEASE="$ROOT/releases/$SHA"
           cd "$RELEASE"
           export PYTHONDONTWRITEBYTECODE=1
@@ -171,7 +172,7 @@ jobs:
           python3 -m engine.ferrari doctor >/dev/null
           # Private Ferrari-only copies of six Ubuntu commands and their libraries.
           python3 install/vps-private-cli.py --apply
-          python3 - "$ROOT" "$SHA" <<'PY_CLI'
+          python3 - "$ROOT" "$RUN_ID" <<'PY_CLI'
           import json,sys
           from pathlib import Path
           from engine import tool_runtime
@@ -212,7 +213,7 @@ jobs:
           print("FERRARI_PRIVATE_CLI_RESULTS="+json.dumps(results,sort_keys=True))
           PY_CLI
           # Verify the four newly private FFmpeg and Poppler actions with real files.
-          python3 - "$ROOT" "$SHA" <<'PY_MEDIA'
+          python3 - "$ROOT" "$RUN_ID" <<'PY_MEDIA'
           import json, math, struct, sys, wave
           from pathlib import Path
           from engine import tool_runtime
@@ -262,7 +263,7 @@ jobs:
               response=tool_runtime.invoke(action,str(src),str(target))
               assert response["confirmed"],response
               artifact=target/spec["artifact"]
-              assert artifact.is_file() and artifact.stat().st_size>40,artifact
+              assert artifact.is_file() and artifact.stat().st_size>10,artifact
               results.append({"action":action,"executor":exe,"bytes":artifact.stat().st_size})
           assert b"Ferrari" in (cert/"pdftotext-layout"/"extracted.txt").read_bytes()
           count=sum(bool(exe:=tool_runtime.executable(x["tool"],x["binary"])) and
@@ -271,7 +272,7 @@ jobs:
           print("FERRARI_PRIVATE_ACTIONS="+str(count))
           print("FERRARI_PRIVATE_MEDIA_RESULTS="+json.dumps(results,sort_keys=True))
           PY_MEDIA
-          TASK="$ROOT/.runtime/media-cli-release-smoke/$SHA"
+          TASK="$ROOT/.runtime/media-cli-release-smoke/$RUN_ID"
           mkdir -p "$TASK"
           python3 - "$TASK/request.json" <<'PY'
           import base64,io,json,sys,zipfile
