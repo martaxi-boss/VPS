@@ -121,6 +121,15 @@ jobs:
           path: ferrari-deep
           persist-credentials: false
 
+      - name: Checkout trusted Ferrari F6 bounded cleanup implementation
+        if: steps.request.outputs.mode == '--hygiene-preview' || steps.request.outputs.mode == '--hygiene-apply'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: fd985327dedf855042435ff7a4ce9aaa0b1a17b4
+          path: ferrari-clean
+          persist-credentials: false
+
       - name: Validate the project-owned release script
         shell: bash
         run: |
@@ -128,6 +137,11 @@ jobs:
           bash -n ferrari/install/vps-isolated-release.sh
           test -f ferrari/engine/tool_actions.json
           echo 'FERRARI_PHASE5_PINNED_SCRIPT_SYNTAX=PASS'
+          if [[ "${{ steps.request.outputs.mode }}" == '--hygiene-preview' ||
+                "${{ steps.request.outputs.mode }}" == '--hygiene-apply' ]]; then
+            python3 -m py_compile ferrari-clean/install/ferrari-hygiene.py
+            echo 'FERRARI_PHASE6_HYGIENE_SOURCE=VALID'
+          fi
           if [[ "${{ steps.request.outputs.mode }}" == '--deep-cert' ]]; then
             python3 -m py_compile ferrari-deep/install/vps-phase6-certify.py
             echo 'FERRARI_PHASE6_DEEP_SCRIPT=VALID'
