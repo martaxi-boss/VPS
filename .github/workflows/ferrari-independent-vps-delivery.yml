@@ -136,6 +136,15 @@ jobs:
           path: ferrari-clean
           persist-credentials: false
 
+      - name: Checkout pinned Ferrari Python private venv migration
+        if: steps.request.outputs.mode == '--venvs-preview' || steps.request.outputs.mode == '--venvs-apply'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: 9e3be530f8c5d2f8374f956f1524c89bd78f6b1f
+          path: ferrari-venvs
+          persist-credentials: false
+
       - name: Validate the project-owned release script
         shell: bash
         run: |
@@ -143,6 +152,11 @@ jobs:
           bash -n ferrari/install/vps-isolated-release.sh
           test -f ferrari/engine/tool_actions.json
           echo 'FERRARI_PHASE5_PINNED_SCRIPT_SYNTAX=PASS'
+          if [[ "${{ steps.request.outputs.mode }}" == '--venvs-preview' ||
+                "${{ steps.request.outputs.mode }}" == '--venvs-apply' ]]; then
+            python3 -m py_compile ferrari-venvs/install/vps-phase6-private-venvs.py
+            echo 'FERRARI_PHASE6_VENV_SCRIPT=VALID'
+          fi
           if [[ "${{ steps.request.outputs.mode }}" == '--hygiene-preview' ||
                 "${{ steps.request.outputs.mode }}" == '--hygiene-apply' ]]; then
             python3 -m py_compile ferrari-clean/install/ferrari-hygiene.py
