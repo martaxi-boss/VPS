@@ -477,6 +477,15 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Save Ferrari final private hygiene proof
+        if: steps.request.outputs.mode == '--final-preview' || steps.request.outputs.mode == '--final-apply'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ferrari-phase6-final-${{ github.run_id }}
+          path: ${{ runner.temp }}/ferrari-phase6-final.json
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Save Ferrari F6 private Python venv migration evidence
         if: steps.request.outputs.mode == '--venvs-preview' || steps.request.outputs.mode == '--venvs-apply'
         uses: actions/upload-artifact@v4
