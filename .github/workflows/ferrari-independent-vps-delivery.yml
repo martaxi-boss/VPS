@@ -409,5 +409,8 @@ jobs:
           printf 'FERRARI_CURRENT_RELEASE=%s\n' "$SHA"
           echo 'FERRARI_ONLY_PRIVATE_PROJECT_WRITES=PASS'
           echo 'FERRARI_RELEASE_UPDATE=PASS'
+          python3 install/ferrari-hygiene.py --apply
+          python3 install/ferrari-cache-hygiene.py --apply
+          echo 'FERRARI_RELEASE_AND_HYGIENE=PASS'
           REMOTE
           echo 'FERRARI_ISOLATED_SOURCE_ONLY_DEPLOY=PASS'
