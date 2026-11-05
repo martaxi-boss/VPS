@@ -1,3 +1,3 @@
 project: skill-universal
-mode: Ferrari-private Python CLI and Calibre real smoke
-source_sha: ba169718407bffe0e114ffede3aff51a222dc1c9
+mode: private Python CLI retry
+source_sha: 4636b1d357d0593ade143301c05a39122dd34354
