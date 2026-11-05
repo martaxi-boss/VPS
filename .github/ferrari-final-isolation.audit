@@ -1,3 +1,3 @@
 project: skill-universal
-mode: private Krita socket path certification (no release switch)
-source_sha: 15e54275ba65be7ed28e7f207dc2db2fbb8b29ad
+mode: Krita private QT TMPDIR socket test
+source: 8d93c934fe538c0a1a5f43f529764e8c33c2d63e
