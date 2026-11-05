@@ -4,30 +4,35 @@
 
 > Este ficheiro e um mapa de instalacoes, nao uma declaracao de que todas as migracoes ja ocorreram. Nunca copiar valores de credenciais ou sessoes para o GitHub.
 
+## Estado atual — organização GitHub ↔ VPS (05/11/2026)
+
+**Organização dos serviços confirmada:** [auditoria real #41979333398](https://github.com/martaxi-boss/VPS/actions/runs/41979333398) — 8/8 raízes físicas exatamente com os nomes dos repositórios em `/srv/projects`, 9/9 serviços ativos, nenhuma raiz adicional diretamente em `/srv`, nenhuma ligação direta entre raízes identificada. Nginx, SSH, PostgreSQL, systemd, certificados TLS e binários do Ubuntu são infraestrutura de sistema e, por natureza, têm ficheiros em `/etc`, `/usr` e `/var`.
+
+**Resíduos antigos arquivados:** [execução #41980071798](https://github.com/martaxi-boss/VPS/actions/runs/41980071798) concluiu, com verificação de inode e rollback disponível, a migração sem alteração de conteúdo de **6 ficheiros históricos** de `/home/ubuntu`: 4 ficheiros do Telegram para `/srv/projects/telegram-robot-leads/archive/legacy-home-20261105/`, 1 utilitário antigo FADEGO para `/srv/projects/fadego/archive/legacy-home-20261105/`, 1 script REA para `/srv/projects/skill-universal/archive/legacy-home-20261105/`. Removeu uma pasta vazia de assinatura PINK antiga. Serviço e Nginx sem falhas.
+
+**Referências Git atualizadas sem destruir trabalho:** [execução #41981152670](https://github.com/martaxi-boss/VPS/actions/runs/41981152670) executou `git fetch --no-tags origin main` nos checkouts `iptvpn-bot`, `lowcost-europa` e `pink-iptv`. Os 3 `origin/main` coincidiram com os SHAs remotos consultados, os HEADs e estados locais não mudaram, e 9 serviços continuaram ativos. As alterações locais, branches e a versão ativa continuam deliberadamente preservadas; **fetch não é merge nem redeploy**.
+
+| Projeto GitHub | Estado físico/código na VPS |
+| --- | --- |
+| `Codex` | Raiz `/srv/projects/Codex`, sem checkout Git na própria raiz; CLI tem ainda configuração de utilizador em `/home/ubuntu/.codex`, não migrada para não interferir com autenticação |
+| `VPS` | Raiz correta, transportes/ops; não é um checkout Git normal na raiz |
+| `fadego` | Raiz correta e serviço privado; release ativa distinta do `main`, preservada |
+| `iptvpn-bot` | Raiz correta; HEAD `6d26ea34`, branch `security/iptvpn-bot-secret-vault-001`, alterações locais não descartadas |
+| `lowcost-europa` | Raiz correta; HEAD destacado `388860c6`, alterações locais não descartadas |
+| `pink-iptv` | Raiz correta; HEAD `ccccaf1e`, branch `builder/android-shell-002`, alterações locais não descartadas |
+| `skill-universal` | Raiz correta e release ativa `b2869e33`, coincidente com `main` na última certificação |
+| `telegram-robot-leads` | Raiz correta, PM2 privado, ficheiros legados arquivados; SHA da versão operacional ainda não certificado |
+
+**Exceções e pendências efetivas — NÃO declarar 100%:**
+- `/var/lib/pink-iptv-acme030` continua a ser o webroot de validação HTTP da renovação TLS do PINK, explicitamente usado pelo Nginx e pelo ficheiro de renovação Certbot. Duas tentativas de migração para dentro da pasta PINK falharam a verificação HTTP e **foram revertidas**, sem desligar serviços ([#41980514018](https://github.com/martaxi-boss/VPS/actions/runs/41980514018), [#41980851317](https://github.com/martaxi-boss/VPS/actions/runs/41980851317)); a verificação final [#41981152670](https://github.com/martaxi-boss/VPS/actions/runs/41981152670) confirmou o caminho original, os dois consumidores e a sintaxe válida do Nginx. **Não apagar nem mover sem teste de desafio HTTP bem-sucedido.**
+- `/root/project-secrets` é uma **exceção protegida expressa**. O backup central continua a usar o script dentro de `lowcost-europa`; existe um script alternativo preparado mas sem configuração privada independente validada. Não mover, copiar ou editar cofre, credenciais ou backups nesta higienização.
+- A configuração de utilizador `/home/ubuntu/.codex` contém estado da ferramenta e não deve ser movida às cegas. Os três checkouts Git acima ainda têm diferenças locais; **a reconciliação do código GitHub ↔ runtime não está concluída**. Não executar `git reset`, `git clean` ou merges forçados.
+
 ## Auditoria de independência do backup central — 05/11/2026
 
 [Execução Ferrari #41938948943](https://github.com/martaxi-boss/VPS/actions/runs/41938948943), leitura de metadados e do código do script sem abrir ficheiros do cofre: oito raízes `/srv/projects` com nomes GitHub exatos, nove serviços essenciais ativos, `/root/project-secrets` existente. Timer `project-secrets-offsite-backup.timer` **active/enabled**. A unidade `project-secrets-offsite-backup.service` está `inactive/static` fora da janela de execução, o que por si só não demonstra falha nem sucesso de cópia. O `ExecStart` da unidade aponta para `/srv/projects/lowcost-europa/bin/project-secrets-offsite-backup`; o script existe com permissões `0700`, contém referências ao próprio Low Cost, ao cofre e ao Restic. **Dependência operacional entre infraestrutura do cofre e o projeto Low Cost ainda presente.**
 
 **Proteção obrigatória:** o proprietário determinou que o cofre, credenciais, permissões e backups não sejam alterados numa higienização. Esta auditoria não os alterou. Não desligar nem trocar o `ExecStart` do timer sem garantir uma implementação independente, prova de backup/restauro, preservação do material privado, rollback e autorização inequívoca para modificar a rotina de backups. **Isolamento total e desinstalação independente do Low Cost não certificados.**
-
-## Ponto 2 — correspondência GitHub ↔ VPS (05/11/2026)
-
-**Prova de auditoria REAL, sem alterações aos oito projetos:** [Ferrari/GitHub Actions #41940391283](https://github.com/martaxi-boss/VPS/actions/runs/41940391283), resultado de processo `exit=0`, 8/8 pastas físicas exatamente com os nomes dos repositórios GitHub, 9/9 serviços ativos, **0 symlinks entre projetos** na pesquisa de 4.516 diretórios (exclui árvores profundas de dependências, por isso não é certificação total), 45,11 GiB livres, cofre central existente, backup do cofre ativo. A consulta de SHA `main` do GitHub foi feita antes de criar o pedido de auditoria; `VPS/main` avança em cada pedido administrativo e a tabela reflete esse instante.
-
-| Repositório | Estado instalado na VPS | Referência GitHub `main` à data da consulta | Situação |
-| --- | --- | --- | --- |
-| `Codex` | Instalação autónoma, sem checkout Git na raiz | `31b0b0e6` | Nome certo, **proveniência do código não certificada** |
-| `VPS` | Pasta operacional sem checkout Git na raiz | `19abce5a` (antes desta auditoria) | Nome certo; o próprio GitHub é fonte do transporte, **não comparar raiz com SHA diretamente** |
-| `fadego` | `current` → release `2b3554ec6e075e36041e44178f99535e00961b2f` dentro da pasta; duas releases | `7b2aea33` | Versão ativa **difere do main**; preservar até validar atualização |
-| `iptvpn-bot` | Git checkout: branch `security/iptvpn-bot-secret-vault-001`, HEAD `6d26ea34`, **6 ficheiros rastreados alterados** | `a5b4861a` | **Divergência + alterações locais**, não executar `reset` |
-| `lowcost-europa` | Git checkout: HEAD destacado `388860c6`, **9 ficheiros rastreados alterados** | `72546fae` | **Divergência + alterações locais**, não executar `reset` |
-| `pink-iptv` | Git checkout: branch `builder/android-shell-002`, HEAD `ccccaf1e`, **6 ficheiros rastreados alterados**; mais entradas não rastreadas | `75312032` | **Divergência + alterações locais**, preservar APK/servidor/código |
-| `skill-universal` (Ferrari) | Release ativa `b2869e334d9d68a0c988905e71ce0badec6ba359` dentro da pasta | `b2869e33` | **SHA corresponde** ao main; sem checkout Git obrigatório na raiz |
-| `telegram-robot-leads` | Instalação autónoma sem checkout Git na raiz | `99c10602` | Nome certo; **proveniência do código não certificada** |
-
-**Resolução segura:** não houve alteração a código ou serviços dos oito projetos, nem `git reset`, `git pull`, `git clean` ou reinício. É preciso primeiro classificar e preservar as diferenças dos três checkouts com alterações locais, confirmar proveniência das instalações por bundle e só então alinhar SHA/branches por projeto, com testes de funcionamento separados. A tentativa de aprofundar a inspeção de diferenças no canal de execução foi **bloqueada pelas verificações de segurança**; não foi contornada. Não assumir que uma divergência é um erro, pois podem existir alterações válidas no runtime/branches. **Não declarar sincronização 8/8.**
-
-**Exceção protegida:** `/root/project-secrets` e o timer de backup permanecem intocados. O temporizador central ainda invoca o script do Low Cost: esta é uma pendência distinta da reconciliação de código GitHub ↔ VPS.
 
 ## Preparação do isolamento do backup central — 05/11/2026
 
