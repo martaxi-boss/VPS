@@ -149,6 +149,15 @@ jobs:
           path: ferrari-venvs
           persist-credentials: false
 
+      - name: Checkout immutable Ferrari final hygiene source
+        if: steps.request.outputs.mode == '--final-preview' || steps.request.outputs.mode == '--final-apply'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: f7cda3588a3f2a749e22fae240f4fe9c5d8a8190
+          path: ferrari-final
+          persist-credentials: false
+
       - name: Validate the project-owned release script
         shell: bash
         run: |
@@ -156,6 +165,11 @@ jobs:
           bash -n ferrari/install/vps-isolated-release.sh
           test -f ferrari/engine/tool_actions.json
           echo 'FERRARI_PHASE5_PINNED_SCRIPT_SYNTAX=PASS'
+          if [[ "${{ steps.request.outputs.mode }}" == '--final-preview' ||
+                "${{ steps.request.outputs.mode }}" == '--final-apply' ]]; then
+            python3 -m py_compile ferrari-final/install/vps-phase6-final-hygiene.py
+            echo 'FERRARI_PHASE6_FINAL_HYGIENE_SCRIPT=VALID'
+          fi
           if [[ "${{ steps.request.outputs.mode }}" == '--venvs-preview' ||
                 "${{ steps.request.outputs.mode }}" == '--venvs-apply' ]]; then
             python3 -m py_compile ferrari-venvs/install/vps-phase6-private-venvs.py
