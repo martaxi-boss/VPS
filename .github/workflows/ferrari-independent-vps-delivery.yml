@@ -170,14 +170,6 @@ jobs:
           test -f "$ROOT/.runtime/npm/playwright/node_modules/playwright/package.json"
           test -d "$ROOT/.runtime/browsers"
           python3 -m engine.ferrari doctor >/dev/null
-          # Test Python package closure only; no release switch or global install.
-          python3 install/vps-private-cli.py --python-only
-          echo 'FERRARI_CALIBRE_LAUNCHER_SOURCE_BEGIN'
-          sed -n '1,36p' "$ROOT/tools/ubuntu-cli/bin/ebook-convert"
-          echo 'FERRARI_CALIBRE_LAUNCHER_SOURCE_END'
-          python3 install/vps-private-python-smoke.py "$RUN_ID"
-          echo 'FERRARI_FAST_PYTHON_PROBE=PASS_NO_RELEASE_SWITCH'
-          exit 0
           # Private Ferrari-only copies of six Ubuntu commands and their libraries.
           python3 install/vps-private-cli.py --apply
           python3 - "$ROOT" "$RUN_ID" <<'PY_CLI'
@@ -418,4 +410,4 @@ jobs:
           echo 'FERRARI_ONLY_PRIVATE_PROJECT_WRITES=PASS'
           echo 'FERRARI_RELEASE_UPDATE=PASS'
           REMOTE
-          echo 'FERRARI_PYTHON_DEPENDENCY_PROBE=PASS_NO_RELEASE_SWITCH'
+          echo 'FERRARI_ISOLATED_SOURCE_ONLY_DEPLOY=PASS'
