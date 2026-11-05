@@ -1,3 +1,3 @@
 project: skill-universal
-mode: Ferrari-private Python dependency smoke only, no release activation
-source_sha: a92238bc19558814ff81a83ecb696347af37bd4d
+scope: targeted Python-only dependency test with charset-normalizer
+source_sha: 9aa3d07bc1310ee0d0704d3e1e8e9f4ae138bc31
