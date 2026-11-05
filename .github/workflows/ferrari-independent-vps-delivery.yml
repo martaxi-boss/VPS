@@ -6,8 +6,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'ferrari-release-requests/phase5-check-20261105.json'
-      - 'ferrari-release-requests/phase5-activate-20261105.json'
+      - 'ferrari-release-requests/phase5-check-20261105-r2.json'
+      - 'ferrari-release-requests/phase5-activate-20261105-r2.json'
 
 permissions:
   contents: read
@@ -37,8 +37,8 @@ jobs:
           set -Eeuo pipefail
           changed="$(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")"
           case "$changed" in
-            ferrari-release-requests/phase5-check-20261105.json) MODE=--check ;;
-            ferrari-release-requests/phase5-activate-20261105.json) MODE=--activate ;;
+            ferrari-release-requests/phase5-check-20261105-r2.json) MODE=--check ;;
+            ferrari-release-requests/phase5-activate-20261105-r2.json) MODE=--activate ;;
             *) echo 'FERRARI_PHASE5_REQUEST_NOT_SINGLE_OR_NOT_ALLOWED' >&2; exit 2 ;;
           esac
           python3 - "$changed" "$MODE" <<'PY'
@@ -46,7 +46,7 @@ jobs:
           path,mode=sys.argv[1:]
           with open(path,encoding="utf-8") as fh:
               payload=json.load(fh)
-          expected={"version":1,"phase":5,"sha":"57f6a4ab1163269d88a7456ac3e4a1da631bb982","mode":mode.removeprefix("--")}
+          expected={"version":1,"phase":5,"sha":"40c0e1cdf31b1fe9589ad8be90e5eac06eec2856","mode":mode.removeprefix("--")}
           if payload != expected:
               raise SystemExit("FERRARI_PHASE5_REQUEST_MISMATCH")
           print("FERRARI_PHASE5_REQUEST_VALID=PASS")
@@ -57,7 +57,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: 57f6a4ab1163269d88a7456ac3e4a1da631bb982
+          ref: 40c0e1cdf31b1fe9589ad8be90e5eac06eec2856
           persist-credentials: false
           path: ferrari
 
@@ -94,7 +94,7 @@ jobs:
           MODE: ${{ steps.request.outputs.mode }}
         run: |
           set -Eeuo pipefail
-          SHA="57f6a4ab1163269d88a7456ac3e4a1da631bb982"
+          SHA="40c0e1cdf31b1fe9589ad8be90e5eac06eec2856"
           [[ "$MODE" == '--check' || "$MODE" == '--activate' ]] || exit 3
           opts=(-T -o PreferredAuthentications=password -o PubkeyAuthentication=no
                 -o StrictHostKeyChecking=yes
