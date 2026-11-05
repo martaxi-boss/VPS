@@ -1,3 +1,3 @@
 project: skill-universal
-mode: private Python CLI retry
-source_sha: 4636b1d357d0593ade143301c05a39122dd34354
+mode: all 40 actions isolated smoke and code-only release
+source_sha: eaeac8435acf32beb7916ddb6020cd675e5054f2
