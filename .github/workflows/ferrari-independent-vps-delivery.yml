@@ -152,5 +152,11 @@ jobs:
               except Exception as e:
                   print("FERRARI_REMAINING_MODULE="+module+"|"+type(e).__name__)
           PY
+          for name in binwalk ansible-core ocrmypdf calibre darktable krita gimp scribus lmms melt xvfb; do
+            dpkg-query -W -f='FERRARI_PACKAGE_NAME='\\'\x24\x7bPackage\x7d'\\'|VERSION='\\'\x24\x7bVersion\x7d'\\'\n' "$name" 2>/dev/null || true
+          done
+          for path in /usr/lib/python3/dist-packages/binwalk /usr/lib/python3/dist-packages/ansible /usr/lib/python3/dist-packages/ocrmypdf /usr/lib/calibre /usr/lib/x86_64-linux-gnu/calibre /usr/lib/x86_64-linux-gnu/darktable /usr/lib/x86_64-linux-gnu/krita /usr/lib/x86_64-linux-gnu/gimp /usr/lib/x86_64-linux-gnu/scribus /usr/lib/x86_64-linux-gnu/lmms /usr/share/mlt-7; do
+            if test -d "$path"; then echo "FERRARI_PACKAGE_DIR=$path|$(du -sh "$path" | awk '{print $1}')"; fi
+          done
           echo "FERRARI_FINAL_READONLY_AUDIT=PASS"
           REMOTE
