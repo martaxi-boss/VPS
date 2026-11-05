@@ -108,6 +108,15 @@ jobs:
           persist-credentials: false
           path: ferrari-next
 
+      - name: Checkout immutable Ferrari deep audit sources
+        if: steps.request.outputs.mode == '--deep-cert'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: 2a22b5b2534e8ebd1e39523a2dcf3203dcdeed04
+          path: ferrari-deep
+          persist-credentials: false
+
       - name: Validate the project-owned release script
         shell: bash
         run: |
@@ -115,6 +124,10 @@ jobs:
           bash -n ferrari/install/vps-isolated-release.sh
           test -f ferrari/engine/tool_actions.json
           echo 'FERRARI_PHASE5_PINNED_SCRIPT_SYNTAX=PASS'
+          if [[ "${{ steps.request.outputs.mode }}" == '--deep-cert' ]]; then
+            python3 -m py_compile ferrari-deep/install/vps-phase6-certify.py
+            echo 'FERRARI_PHASE6_DEEP_SCRIPT=VALID'
+          fi
           if [[ "${{ steps.request.outputs.mode }}" == '--phase6-check' ||
                 "${{ steps.request.outputs.mode }}" == '--phase6-activate' ]]; then
             bash -n ferrari-next/install/vps-isolated-release.sh
