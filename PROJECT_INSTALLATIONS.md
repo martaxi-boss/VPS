@@ -4,6 +4,12 @@
 
 > Este ficheiro e um mapa de instalacoes, nao uma declaracao de que todas as migracoes ja ocorreram. Nunca copiar valores de credenciais ou sessoes para o GitHub.
 
+## Auditoria de independência do backup central — 05/11/2026
+
+[Execução Ferrari #41938948943](https://github.com/martaxi-boss/VPS/actions/runs/41938948943), leitura de metadados e do código do script sem abrir ficheiros do cofre: oito raízes `/srv/projects` com nomes GitHub exatos, nove serviços essenciais ativos, `/root/project-secrets` existente. Timer `project-secrets-offsite-backup.timer` **active/enabled**. A unidade `project-secrets-offsite-backup.service` está `inactive/static` fora da janela de execução, o que por si só não demonstra falha nem sucesso de cópia. O `ExecStart` da unidade aponta para `/srv/projects/lowcost-europa/bin/project-secrets-offsite-backup`; o script existe com permissões `0700`, contém referências ao próprio Low Cost, ao cofre e ao Restic. **Dependência operacional entre infraestrutura do cofre e o projeto Low Cost ainda presente.**
+
+**Proteção obrigatória:** o proprietário determinou que o cofre, credenciais, permissões e backups não sejam alterados numa higienização. Esta auditoria não os alterou. Não desligar nem trocar o `ExecStart` do timer sem garantir uma implementação independente, prova de backup/restauro, preservação do material privado, rollback e autorização inequívoca para modificar a rotina de backups. **Isolamento total e desinstalação independente do Low Cost não certificados.**
+
 ## Fotografia operacional mais recente — 04/11/2026 (não certificada a 100%)
 
 **Esta secção prevalece sobre todas as fotografias anteriores deste documento.** Auditorias reais por Ferrari/GitHub Actions: [raízes, serviços e symlinks #41925313028](https://github.com/martaxi-boss/VPS/actions/runs/41925313028), [configuração externa #41925605710](https://github.com/martaxi-boss/VPS/actions/runs/41925605710), [checkouts #41926467964](https://github.com/martaxi-boss/VPS/actions/runs/41926467964), [backups e aliases #41926713865](https://github.com/martaxi-boss/VPS/actions/runs/41926713865), [timer cruzado #41926778439](https://github.com/martaxi-boss/VPS/actions/runs/41926778439).
