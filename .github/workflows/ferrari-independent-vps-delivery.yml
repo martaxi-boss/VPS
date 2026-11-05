@@ -111,7 +111,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: eeb88944101341ff0af7255944643cd6569b0001
+          ref: a92238bc19558814ff81a83ecb696347af37bd4d
           persist-credentials: false
           path: ferrari
 
@@ -135,7 +135,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           test -n "$SSHPASS"
-          SRC_SHA=eeb88944101341ff0af7255944643cd6569b0001
+          SRC_SHA=a92238bc19558814ff81a83ecb696347af37bd4d
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass >/dev/null
           ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/ferrari-host"
@@ -170,6 +170,11 @@ jobs:
           test -f "$ROOT/.runtime/npm/playwright/node_modules/playwright/package.json"
           test -d "$ROOT/.runtime/browsers"
           python3 -m engine.ferrari doctor >/dev/null
+          # Test Python package closure only; no release switch or global install.
+          python3 install/vps-private-cli.py --python-only
+          python3 install/vps-private-python-smoke.py "$RUN_ID"
+          echo 'FERRARI_FAST_PYTHON_PROBE=PASS_NO_RELEASE_SWITCH'
+          exit 0
           # Private Ferrari-only copies of six Ubuntu commands and their libraries.
           python3 install/vps-private-cli.py --apply
           python3 - "$ROOT" "$RUN_ID" <<'PY_CLI'
@@ -410,4 +415,4 @@ jobs:
           echo 'FERRARI_ONLY_PRIVATE_PROJECT_WRITES=PASS'
           echo 'FERRARI_RELEASE_UPDATE=PASS'
           REMOTE
-          echo 'FERRARI_ISOLATED_SOURCE_ONLY_DEPLOY=PASS'
+          echo 'FERRARI_PYTHON_DEPENDENCY_PROBE=PASS_NO_RELEASE_SWITCH'
