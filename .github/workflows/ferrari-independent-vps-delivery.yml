@@ -115,11 +115,11 @@ jobs:
           path: ferrari-next
 
       - name: Checkout immutable Ferrari deep audit sources
-        if: steps.request.outputs.mode == '--deep-cert'
+        if: steps.request.outputs.mode == '--deep-cert' || steps.request.outputs.mode == '--deep-final'
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: 2a22b5b2534e8ebd1e39523a2dcf3203dcdeed04
+          ref: ${{ steps.request.outputs.mode == '--deep-final' && '2a9e44918093cc86d2cb3f5ad04f40116c02171e' || '2a22b5b2534e8ebd1e39523a2dcf3203dcdeed04' }}
           path: ferrari-deep
           persist-credentials: false
 
@@ -144,7 +144,7 @@ jobs:
             python3 -m py_compile ferrari-clean/install/ferrari-hygiene.py
             echo 'FERRARI_PHASE6_HYGIENE_SOURCE=VALID'
           fi
-          if [[ "${{ steps.request.outputs.mode }}" == '--deep-cert' ]]; then
+          if [[ "${{ steps.request.outputs.mode }}" == '--deep-cert' || "${{ steps.request.outputs.mode }}" == '--deep-final' ]]; then
             python3 -m py_compile ferrari-deep/install/vps-phase6-certify.py
             echo 'FERRARI_PHASE6_DEEP_SCRIPT=VALID'
           fi
@@ -186,7 +186,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           SHA="40c0e1cdf31b1fe9589ad8be90e5eac06eec2856"
-          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' ]] || exit 3
+          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' ]] || exit 3
           opts=(-T -o PreferredAuthentications=password -o PubkeyAuthentication=no
                 -o StrictHostKeyChecking=yes
                 -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-pinned-host"
@@ -226,7 +226,7 @@ jobs:
             echo 'FERRARI_PHASE6_HYGIENE_PRODUCTION_AND_FALLBACK=PASS'
             exit 0
           fi
-          if [[ "$MODE" == '--deep-cert' ]]; then
+          if [[ "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' ]]; then
             [[ "$BEFORE" == "/srv/projects/skill-universal/releases/146145d5ada9c13e368df18727e4dbf4f5807664" ]] ||
               { echo 'FERRARI_PHASE6_DEEP_WRONG_ACTIVE' >&2; exit 8; }
             sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
@@ -365,7 +365,7 @@ jobs:
           fi
 
       - name: Publish Ferrari F6 deep audit evidence only
-        if: steps.request.outputs.mode == '--deep-cert'
+        if: steps.request.outputs.mode == '--deep-cert' || steps.request.outputs.mode == '--deep-final'
         uses: actions/upload-artifact@v4
         with:
           name: ferrari-phase6-deep-${{ github.run_id }}
