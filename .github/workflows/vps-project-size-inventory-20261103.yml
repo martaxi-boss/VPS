@@ -232,6 +232,60 @@ jobs:
           for d in /root/.cursor /root/.vscode /root/.claude-server-commander /home/ubuntu/.local/share/rea-github-transport /home/ubuntu/.local/share/hopper /root/migration-preserved /root/migration-20260923; do
             if [ -e "$d" ] && [ ! -L "$d" ]; then du -x -s -B1 "$d" 2>/dev/null || echo "ERROR|$d"; else echo "ABSENT|$d"; fi
           done
+          echo '=== F9_GIT_RELEASE_SHA_READONLY ==='
+          python3 - <<'PY_F9_SHA'
+          import subprocess
+          from pathlib import Path
+          root=Path('/srv/projects')
+          for p in sorted(root.iterdir(),key=lambda x:x.name.lower()):
+              if not p.is_dir() or p.is_symlink():continue
+              sha='not_git_worktree'
+              try:
+                  v=subprocess.run(['git','-C',str(p),'rev-parse','--verify','HEAD'],capture_output=True,text=True,timeout=6)
+                  if v.returncode==0 and len(v.stdout.strip())==40:sha=v.stdout.strip()
+              except (OSError,subprocess.TimeoutExpired):pass
+              current='none'
+              try:
+                  cur=p/'current'
+                  if cur.is_symlink():
+                      dest=cur.resolve(strict=False)
+                      current=dest.name if str(dest).startswith(str(p)+'/') else 'OUTSIDE_PROJECT'
+              except OSError:current='unreadable'
+              print('|'.join((p.name,sha,current)))
+          PY_F9_SHA
+          echo '=== F9_PM2_DESCENDANTS_READONLY ==='
+          python3 - <<'PY_F9_PIDS'
+          from pathlib import Path
+          import os,pwd
+          procs={}
+          for p in Path('/proc').iterdir():
+              if not p.name.isdigit():continue
+              try:
+                  n=(p/'comm').read_text().strip()
+                  stat=(p/'status').read_text(errors='replace')
+                  parent=next((int(x.split(':',1)[1].strip()) for x in stat.splitlines() if x.startswith('PPid:')),0)
+                  user=pwd.getpwuid(p.stat().st_uid).pw_name
+                  cwd=os.readlink(p/'cwd')
+                  exe=os.readlink(p/'exe')
+                  procs[int(p.name)]=(n,parent,user,cwd,exe)
+              except (OSError,PermissionError,KeyError,ValueError):pass
+          for pid,(name,parent,user,cwd,exe) in sorted(procs.items()):
+              if not name.startswith('PM2'):continue
+              found=[]
+              frontier=[pid]
+              while frontier:
+                  parent_id=frontier.pop()
+                  kids=[k for k,v in procs.items() if v[1]==parent_id and k not in found]
+                  found.extend(kids)
+                  frontier.extend(kids)
+              child=';'.join(str(k)+':'+procs[k][0][:32] for k in found[:40])
+              print('|'.join((str(pid),user,name,cwd[:220],exe[:180],str(len(found)),child)))
+          PY_F9_PIDS
+          echo '=== F9_GLOBAL_APT_MANUAL_READONLY ==='
+          manual="$(apt-mark showmanual 2>/dev/null || :)"
+          for pkg in libreoffice ansible yt-dlp gimp blender kdenlive darktable openscad librecad qgis audacity obs-studio solvespace synfigstudio openshot-qt calibre; do
+            if printf '%s\n' "$manual" | grep -qx "$pkg"; then echo "$pkg|manual"; else echo "$pkg|auto_or_unknown"; fi
+          done
           echo '=== FINISHED ==='
           REMOTE
           echo 'VPS_PROJECT_INVENTORY_RETURNED=PASS'
