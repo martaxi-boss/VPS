@@ -1,4 +1,3 @@
 repository: martaxi-boss/skill-universal
-source_sha: 46dcb5a42e3a226f1a787b7742beaf4b82b09f83
-retry: genuine ImageMagick module ABI discovery corrected
-scope: private Ferrari directory only
+source_sha: 62f862cdf9727842546a244a3e4ec19dd8bc82f4
+scope: Ferrari private Python 3.12 + DuckDB Polars, verified native executors
