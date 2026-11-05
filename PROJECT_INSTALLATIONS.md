@@ -10,6 +10,14 @@
 
 **Proteção obrigatória:** o proprietário determinou que o cofre, credenciais, permissões e backups não sejam alterados numa higienização. Esta auditoria não os alterou. Não desligar nem trocar o `ExecStart` do timer sem garantir uma implementação independente, prova de backup/restauro, preservação do material privado, rollback e autorização inequívoca para modificar a rotina de backups. **Isolamento total e desinstalação independente do Low Cost não certificados.**
 
+## Preparação do isolamento do backup central — 05/11/2026
+
+[Auditoria de dependências #41939462717](https://github.com/martaxi-boss/VPS/actions/runs/41939462717): o script ativo do backup do cofre tem 54 linhas e usa **três** caminhos físicos do Low Cost Europa: `data/`, `private/systemd-env/r2.env` e `private/systemd-env/restic-password`. O temporizador central continua active/enabled e os nove serviços principais foram observados ativos. O cofre central tem permissões `0700` e o seu conteúdo não foi lido nesta operação.
+
+[Staging real #41939865073](https://github.com/martaxi-boss/VPS/actions/runs/41939865073) **PASS (somente preparação):** foi criada uma cópia transformada do script em `/srv/projects/VPS/ops/project-secrets-offsite-backup`, com três referências atualizadas para a raiz exclusiva `/srv/projects/VPS`, sem referências ao projeto Low Cost. Script validado com `bash -n`; SHA-256 `5efe2452a43f97ede631c42d5e1385c38bf0a320fa18177582a0149b9d5dae76`. **O ficheiro preparado existe apenas na VPS, ainda não está versionado em código-fonte no GitHub.**
+
+**NÃO CONCLUÍDO / NÃO ATIVADO:** não foram copiadas nem configuradas credenciais independentes em `/srv/projects/VPS/private/systemd-env/` (o resultado indica `credentials_ready=false`). O serviço `project-secrets-offsite-backup.service` mantém `ExecStart` no Low Cost e o temporizador atual mantém-se ativo. Não executar a cópia em staging antes de ter credenciais privadas válidas, teste real de acesso/backup/restauro e reversão; não desinstalar o Low Cost enquanto existir esta dependência. Cofre `/root/project-secrets`, credenciais e backups não foram alterados.
+
 ## Fotografia operacional mais recente — 04/11/2026 (não certificada a 100%)
 
 **Esta secção prevalece sobre todas as fotografias anteriores deste documento.** Auditorias reais por Ferrari/GitHub Actions: [raízes, serviços e symlinks #41925313028](https://github.com/martaxi-boss/VPS/actions/runs/41925313028), [configuração externa #41925605710](https://github.com/martaxi-boss/VPS/actions/runs/41925605710), [checkouts #41926467964](https://github.com/martaxi-boss/VPS/actions/runs/41926467964), [backups e aliases #41926713865](https://github.com/martaxi-boss/VPS/actions/runs/41926713865), [timer cruzado #41926778439](https://github.com/martaxi-boss/VPS/actions/runs/41926778439).
