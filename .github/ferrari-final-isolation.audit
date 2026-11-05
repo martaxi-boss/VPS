@@ -1,4 +1,3 @@
-Ferrari canonical project: skill-universal
-Scope: read-only audit of 10 system-backed actions. No VPS writes.
-
-package_size_audit: 2026-11-05
+project: skill-universal
+mode: Ferrari-private Python CLI and Calibre real smoke
+source_sha: ba169718407bffe0e114ffede3aff51a222dc1c9
