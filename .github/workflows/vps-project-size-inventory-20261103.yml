@@ -286,6 +286,86 @@ jobs:
           for pkg in libreoffice ansible yt-dlp gimp blender kdenlive darktable openscad librecad qgis audacity obs-studio solvespace synfigstudio openshot-qt calibre; do
             if printf '%s\n' "$manual" | grep -qx "$pkg"; then echo "$pkg|manual"; else echo "$pkg|auto_or_unknown"; fi
           done
+          echo '=== F9_APT_CONSUMER_AUDIT_V2 ==='
+          python3 - <<'PY_F9'
+          import os,re,subprocess,time
+          from pathlib import Path
+          pkgs=('libreoffice','ansible','yt-dlp','gimp','blender','kdenlive','darktable','openscad','librecad','qgis','audacity','obs-studio','solvespace','synfigstudio','openshot-qt','calibre')
+          exenames={'libreoffice':('soffice','soffice.bin'),'ansible':('ansible','ansible-inventory'),'yt-dlp':('yt-dlp',),'gimp':('gimp','gimp-2.10'),'blender':('blender',),'kdenlive':('kdenlive',),'darktable':('darktable','darktable-cli'),'openscad':('openscad',),'librecad':('librecad',),'qgis':('qgis','qgis-bin'),'audacity':('audacity',),'obs-studio':('obs',),'solvespace':('solvespace',),'synfigstudio':('synfigstudio',),'openshot-qt':('openshot-qt',),'calibre':('ebook-convert','calibre')}
+          def run(a,timeout=20):
+              try:
+                  p=subprocess.run(a,text=True,capture_output=True,timeout=timeout,env={'PATH':'/usr/bin:/bin','LC_ALL':'C'})
+                  return (p.returncode,p.stdout)
+              except (OSError,subprocess.TimeoutExpired):return (255,'')
+          ps=[]
+          for p in Path('/proc').iterdir():
+              if not p.name.isdigit():continue
+              try:ps.append(((p/'comm').read_text().strip(),os.readlink(p/'exe').removesuffix(' (deleted)')))
+              except OSError:pass
+          roots=('skill-universal','pink-iptv','fadego','lowcost-europa','telegram-robot-leads','iptvpn-bot','Codex','VPS')
+          ignored={'.git','.runtime','node_modules','venv','.venv','vendor','dist','build','releases','__pycache__','.next','cache','storage','data','public','assets','tools','runtimes'}
+          ext={'.py','.js','.ts','.sh','.json','.yaml','.yml','.service','.toml','.ini','.conf','.go','.rs','.md'}
+          res={p:set() for p in pkgs}
+          pat={p:re.compile(r'(?<![A-Za-z0-9_])'+re.escape(p)+r'(?![A-Za-z0-9_-])',re.I) for p in pkgs}
+          scanned=0; capped=[]
+          for name in roots:
+              root=Path('/srv/projects')/name
+              if not root.is_dir() or root.is_symlink():continue
+              n=0
+              for folder,dirs,files in os.walk(root,followlinks=False):
+                  dirs[:]=[d for d in dirs if d not in ignored and not (Path(folder)/d).is_symlink()]
+                  if n>=1200:capped.append(name);break
+                  for fn in files:
+                      if n>=1200:break
+                      f=Path(folder)/fn
+                      if f.suffix.lower() not in ext and fn not in ('Dockerfile','Makefile'):continue
+                      try:
+                          if f.is_symlink() or f.stat().st_size>150000:continue
+                          text=f.read_text(errors='replace')
+                      except OSError:continue
+                      n+=1;scanned+=1
+                      for pkg in pkgs:
+                          if pat[pkg].search(text):res[pkg].add(name)
+          print('PROJECT_SOURCE_FILES_SCANNED='+str(scanned))
+          print('PROJECT_SCAN_CAPPED='+(','.join(capped) or 'none'))
+          for pkg in pkgs:
+              status,txt=run(['apt-get','-s','purge',pkg],timeout=35)
+              removed=[line.split()[1] for line in txt.splitlines() if line.startswith(('Remv ','Purg ')) and len(line.split())>1]
+              rc,rev=run(['apt-cache','rdepends','--installed',pkg],timeout=20)
+              deps=[line.strip().lstrip('|').strip() for line in rev.splitlines() if line.startswith('  ')]
+              rp=[(name,exe) for name,exe in ps if exe.startswith(('/usr/','/bin/')) and Path(exe).name in exenames[pkg]]
+              rci,inst=run(['dpkg-query','-W',pkg],timeout=8)
+              print('|'.join(('APT',pkg,'installed='+str(rci==0).lower(),'simulation_exit='+str(status),
+                   'simulation_removal_count='+str(len(removed)),'simulation_first='+(','.join(removed[:8]) or '-'),
+                   'reverse_deps_first='+(','.join(deps[:6]) or '-'),'active_system_proc='+str(len(rp)),
+                   'project_code_mentions='+(','.join(sorted(res[pkg])) or '-'))))
+          print('=== F9_LEGACY_TREE_OPEN_REFERENCES_V2 ===')
+          trees=('/root/.cursor','/root/.vscode','/root/.claude-server-commander','/home/ubuntu/.local/share/rea-github-transport','/home/ubuntu/.local/share/hopper','/root/migration-preserved','/root/migration-20260923')
+          opened=[]
+          for p in Path('/proc').iterdir():
+              if not p.name.isdigit():continue
+              try:
+                  opened.append(os.readlink(p/'cwd'));opened.append(os.readlink(p/'exe'))
+                  for f in (p/'fd').iterdir():
+                      try:opened.append(os.readlink(f))
+                      except OSError:pass
+              except (OSError,PermissionError):pass
+          for name in trees:
+              p=Path(name)
+              if p.is_symlink():print('LEGACY|'+name+'|SYMLINK_PRESERVED');continue
+              if not p.is_dir():print('LEGACY|'+name+'|ABSENT_OR_NONDIR');continue
+              count=0;size=0;latest=0;issues=0
+              for folder,dirs,files in os.walk(p,followlinks=False):
+                  for fn in files:
+                      try:
+                          st=(Path(folder)/fn).lstat()
+                          count+=1;size+=st.st_size;latest=max(latest,st.st_mtime)
+                      except OSError:issues+=1
+                  if count>30000:break
+              active=sum(x.startswith(name+'/') for x in opened)
+              age=(int((time.time()-latest)/86400) if latest else -1)
+              print('|'.join(('LEGACY',name,'files='+str(count),'bytes='+str(size),'newest_age_days='+str(age),'open_fd_or_process_references='+str(active),'scan_errors='+str(issues))))
+          PY_F9
           echo '=== FINISHED ==='
           REMOTE
           echo 'VPS_PROJECT_INVENTORY_RETURNED=PASS'
