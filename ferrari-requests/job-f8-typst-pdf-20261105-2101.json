@@ -1,0 +1,1 @@
+{"version":1,"id":"f8-typst-pdf-20261105-2101","kind":"plan","max_parallel":1,"input":{"name":"ferrari-f8.typ","content_base64":"I3NldCBwYWdlKHBhcGVyOiAiYTQiKQo9IEZlcnJhcmkgRmFzZSA4CgpUZXN0ZSBwcml2YWRvIGRlIGNvbXBpbGFjYW8gVHlwc3QgcGFyYSBQREYuCg=="},"plan":{"version":1,"steps":[{"id":"typst","operation":"tool","tool":"typst","action":"typst-compile-pdf","input":"$input"}]}}
