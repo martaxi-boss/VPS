@@ -111,7 +111,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: 6b9f7c02f0eb495f74cec9d3538cf1593f5f68c2
+          ref: 41c90a9200bb697810dc3a3aa342646131d25979
           persist-credentials: false
           path: ferrari
 
@@ -135,7 +135,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           test -n "$SSHPASS"
-          SRC_SHA=6b9f7c02f0eb495f74cec9d3538cf1593f5f68c2
+          SRC_SHA=41c90a9200bb697810dc3a3aa342646131d25979
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass >/dev/null
           ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/ferrari-host"
@@ -172,6 +172,9 @@ jobs:
           python3 -m engine.ferrari doctor >/dev/null
           # Test Python package closure only; no release switch or global install.
           python3 install/vps-private-cli.py --python-only
+          echo 'FERRARI_CALIBRE_LAUNCHER_SOURCE_BEGIN'
+          sed -n '1,36p' "$ROOT/tools/ubuntu-cli/bin/ebook-convert"
+          echo 'FERRARI_CALIBRE_LAUNCHER_SOURCE_END'
           python3 install/vps-private-python-smoke.py "$RUN_ID"
           echo 'FERRARI_FAST_PYTHON_PROBE=PASS_NO_RELEASE_SWITCH'
           exit 0
