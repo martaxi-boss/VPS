@@ -181,3 +181,5 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 # Owner-requested read-only Ferrari isolation and VPS inventory recheck: 2026-11-05
+
+# Ferrari F9 read-only audit triggered 2026-11-05 after physical Android certification
