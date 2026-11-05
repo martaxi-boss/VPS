@@ -22,6 +22,9 @@ on:
       - 'ferrari-release-requests/phase6-venvs-apply-20261105.json'
       - 'ferrari-release-requests/phase6-final-preview-20261105.json'
       - 'ferrari-release-requests/phase6-final-apply-20261105.json'
+      - 'ferrari-release-requests/phase7-check-20261105.json'
+      - 'ferrari-release-requests/phase7-activate-20261105.json'
+      - 'ferrari-release-requests/phase7-certify-20261105.json'
 
 permissions:
   contents: read
@@ -67,6 +70,9 @@ jobs:
             ferrari-release-requests/phase6-venvs-apply-20261105.json) MODE=--venvs-apply ;;
             ferrari-release-requests/phase6-final-preview-20261105.json) MODE=--final-preview ;;
             ferrari-release-requests/phase6-final-apply-20261105.json) MODE=--final-apply ;;
+            ferrari-release-requests/phase7-check-20261105.json) MODE=--phase7-check ;;
+            ferrari-release-requests/phase7-activate-20261105.json) MODE=--phase7-activate ;;
+            ferrari-release-requests/phase7-certify-20261105.json) MODE=--phase7-certify ;;
             *) echo 'FERRARI_PHASE5_REQUEST_NOT_SINGLE_OR_NOT_ALLOWED' >&2; exit 2 ;;
           esac
           python3 - "$changed" "$MODE" <<'PY'
@@ -74,7 +80,10 @@ jobs:
           path,mode=sys.argv[1:]
           with open(path,encoding="utf-8") as fh:
               payload=json.load(fh)
-          if mode.startswith("--phase6-") or mode in ("--post-audit","--full-audit","--deep-cert","--deep-final","--hygiene-preview","--hygiene-apply","--venvs-preview","--venvs-apply","--final-preview","--final-apply"):
+          if mode.startswith("--phase7-"):
+              expected={"version":1,"phase":7,"sha":"758e1b435317fa26277b332b75bc47c67910be81",
+                        "mode":mode.removeprefix("--phase7-")}
+          elif mode.startswith("--phase6-") or mode in ("--post-audit","--full-audit","--deep-cert","--deep-final","--hygiene-preview","--hygiene-apply","--venvs-preview","--venvs-apply","--final-preview","--final-apply"):
               expected={"version":1,"phase":6,"sha":"146145d5ada9c13e368df18727e4dbf4f5807664",
                         "mode":mode.removeprefix("--phase6-").removeprefix("--")}
           else:
@@ -158,6 +167,15 @@ jobs:
           path: ferrari-final
           persist-credentials: false
 
+      - name: Checkout exactly pinned Ferrari phase-7 private release and certificate
+        if: steps.request.outputs.mode == '--phase7-check' || steps.request.outputs.mode == '--phase7-activate' || steps.request.outputs.mode == '--phase7-certify'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: 758e1b435317fa26277b332b75bc47c67910be81
+          persist-credentials: false
+          path: ferrari-f7
+
       - name: Validate the project-owned release script
         shell: bash
         run: |
@@ -165,6 +183,15 @@ jobs:
           bash -n ferrari/install/vps-isolated-release.sh
           test -f ferrari/engine/tool_actions.json
           echo 'FERRARI_PHASE5_PINNED_SCRIPT_SYNTAX=PASS'
+          if [[ "${{ steps.request.outputs.mode }}" == '--phase7-check' ||
+                "${{ steps.request.outputs.mode }}" == '--phase7-activate' ||
+                "${{ steps.request.outputs.mode }}" == '--phase7-certify' ]]; then
+            bash -n ferrari-f7/install/vps-isolated-release.sh
+            python3 -m py_compile ferrari-f7/install/vps-phase7-certify.py
+            test -f ferrari-f7/engine/orchestrator.py
+            test -f ferrari-f7/engine/tool_actions.json
+            echo 'FERRARI_PHASE7_PINNED_SOURCE=PASS'
+          fi
           if [[ "${{ steps.request.outputs.mode }}" == '--final-preview' ||
                 "${{ steps.request.outputs.mode }}" == '--final-apply' ]]; then
             python3 -m py_compile ferrari-final/install/vps-phase6-final-hygiene.py
@@ -222,7 +249,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           SHA="40c0e1cdf31b1fe9589ad8be90e5eac06eec2856"
-          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--venvs-preview' || "$MODE" == '--venvs-apply' || "$MODE" == '--final-preview' || "$MODE" == '--final-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' ]] || exit 3
+          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--venvs-preview' || "$MODE" == '--venvs-apply' || "$MODE" == '--final-preview' || "$MODE" == '--final-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' || "$MODE" == '--phase7-check' || "$MODE" == '--phase7-activate' || "$MODE" == '--phase7-certify' ]] || exit 3
           opts=(-T -o PreferredAuthentications=password -o PubkeyAuthentication=no
                 -o StrictHostKeyChecking=yes
                 -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-pinned-host"
@@ -355,6 +382,66 @@ jobs:
             echo 'FERRARI_PHASE6_DEEP_AUDIT=PASS'
             exit 0
           fi
+          if [[ "$MODE" == '--phase7-check' || "$MODE" == '--phase7-activate' ]]; then
+            [[ "$BEFORE" == "/srv/projects/skill-universal/releases/146145d5ada9c13e368df18727e4dbf4f5807664" ]] ||
+              { echo 'FERRARI_PHASE7_UNEXPECTED_CURRENT_BEFORE' >&2; exit 12; }
+            NEXT_SHA="758e1b435317fa26277b332b75bc47c67910be81"
+            NEXT_MODE=--check
+            if [[ "$MODE" == '--phase7-activate' ]]; then NEXT_MODE=--activate; fi
+            sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+              "bash -s -- '$NEXT_SHA' '$NEXT_MODE'" < ferrari-f7/install/vps-isolated-release.sh
+            AFTER="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
+            echo "FERRARI_PHASE7_CURRENT_AFTER=$AFTER"
+            if [[ "$NEXT_MODE" == '--check' ]]; then
+              [[ "$BEFORE" == "$AFTER" ]] || { echo 'FERRARI_PHASE7_PRECHECK_CHANGED_CURRENT' >&2; exit 12; }
+              echo 'FERRARI_PHASE7_PRECHECK=PASS'
+            else
+              [[ "$AFTER" == "/srv/projects/skill-universal/releases/$NEXT_SHA" ]] ||
+                { echo 'FERRARI_PHASE7_ACTIVATION_SHA_MISMATCH' >&2; exit 12; }
+              sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+                'test -f /srv/projects/skill-universal/releases/146145d5ada9c13e368df18727e4dbf4f5807664/engine/ferrari.py'
+              echo 'FERRARI_PHASE7_F6_FALLBACK_PRESERVED=PASS'
+              echo 'FERRARI_PHASE7_ACTIVATION=PASS'
+            fi
+            exit 0
+          fi
+          if [[ "$MODE" == '--phase7-certify' ]]; then
+            [[ "$BEFORE" == "/srv/projects/skill-universal/releases/758e1b435317fa26277b332b75bc47c67910be81" ]] ||
+              { echo 'FERRARI_PHASE7_CERT_WRONG_ACTIVE' >&2; exit 13; }
+            sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+              "cd '/srv/projects/skill-universal/current' && '/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12' -B - '758e1b435317fa26277b332b75bc47c67910be81'" \
+              < ferrari-f7/install/vps-phase7-certify.py \
+              > "$RUNNER_TEMP/ferrari-phase7-out.txt"
+            python3 - "$RUNNER_TEMP/ferrari-phase7-out.txt" "$RUNNER_TEMP/ferrari-phase7-report.json" <<'PHASE7'
+          import json,sys
+          raw=open(sys.argv[1],encoding="utf-8").read()
+          report,end=json.JSONDecoder().raw_decode(raw)
+          assert raw[end:].strip()=="FERRARI_PHASE7_DAG_PRIVATE_CERT=PASS"
+          assert report["status"]=="completed"
+          assert report["release"]=="758e1b435317fa26277b332b75bc47c67910be81"
+          assert report["fallback"]=="146145d5ada9c13e368df18727e4dbf4f5807664"
+          dag=report["dag"]
+          assert dag["registered_private_actions"]==40
+          assert dag["sequential_checkpoint"]["first_status"]=="cancelled"
+          assert dag["sequential_checkpoint"]["resumed_status"]=="completed"
+          assert dag["sequential_checkpoint"]["independent_resume_process"] is True
+          assert dag["sequential_checkpoint"]["completed_replay_no_repeat"] is True
+          assert dag["parallel_dag"]["status"]=="completed"
+          assert dag["parallel_dag"]["steps_completed"]==3
+          assert dag["artifact_locations_private"] is True
+          assert report["prohibited_actions"]["global_apt_install"]==0
+          assert report["prohibited_actions"]["other_projects_written"]==0
+          assert report["uninstall_footprint"]["uninstall_executed"] is False
+          json.dump(report,open(sys.argv[2],"w",encoding="utf-8"),indent=2)
+          print("FERRARI_PHASE7_DAG_REAL_VPS=PASS")
+          print("FERRARI_PHASE7_UNINSTALL_HOOKS_FOUND="+str(len(report["uninstall_footprint"]["external_registrations_with_ferrari_references"])))
+          print("FERRARI_PHASE7_RUFLO_CLASS="+str(report["ruflo"]["classification"]))
+          PHASE7
+            AFTER="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
+            [[ "$BEFORE" == "$AFTER" ]] || { echo 'FERRARI_PHASE7_CERT_CHANGED_RELEASE' >&2; exit 13; }
+            echo 'FERRARI_PHASE7_CURRENT_RELEASE_READBACK=PASS'
+            exit 0
+          fi
           if [[ "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' ]]; then
             [[ "$BEFORE" == "/srv/projects/skill-universal/releases/40c0e1cdf31b1fe9589ad8be90e5eac06eec2856" ]] ||
               { echo 'FERRARI_PHASE6_UNEXPECTED_CURRENT_BEFORE' >&2; exit 8; }
@@ -467,6 +554,15 @@ jobs:
             echo "FERRARI_PHASE5_ACTIVATION=PASS"
             echo "FERRARI_PHASE5_FALLBACK_PRESERVED=$BEFORE"
           fi
+
+      - name: Upload Ferrari phase-7 private DAG certification and uninstall footprint
+        if: steps.request.outputs.mode == '--phase7-certify'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ferrari-phase7-certificate-${{ github.run_id }}
+          path: ${{ runner.temp }}/ferrari-phase7-report.json
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Publish Ferrari F6 deep audit evidence only
         if: steps.request.outputs.mode == '--deep-cert' || steps.request.outputs.mode == '--deep-final'
