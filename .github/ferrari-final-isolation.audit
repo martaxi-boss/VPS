@@ -1,3 +1,3 @@
 project: skill-universal
-source_sha: 5c31d2c0a832a1368fcd223d4edffa93531eeb0a
-scope: six private GUI/media action diagnostic, no release switch
+scope: targeted private GUI diagnostics Darktable Krita Scribus (no release switch)
+source_sha: 9508afb314c50832980b93dbf4f74597afb58467
