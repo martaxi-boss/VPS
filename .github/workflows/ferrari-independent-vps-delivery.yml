@@ -166,7 +166,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           SHA="40c0e1cdf31b1fe9589ad8be90e5eac06eec2856"
-          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' ]] || exit 3
+          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' ]] || exit 3
           opts=(-T -o PreferredAuthentications=password -o PubkeyAuthentication=no
                 -o StrictHostKeyChecking=yes
                 -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-pinned-host"
@@ -174,6 +174,31 @@ jobs:
                 -o ConnectTimeout=20 -o ServerAliveInterval=15)
           BEFORE="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
           echo "FERRARI_PHASE5_CURRENT_BEFORE=$BEFORE"
+          if [[ "$MODE" == '--deep-cert' ]]; then
+            [[ "$BEFORE" == "/srv/projects/skill-universal/releases/146145d5ada9c13e368df18727e4dbf4f5807664" ]] ||
+              { echo 'FERRARI_PHASE6_DEEP_WRONG_ACTIVE' >&2; exit 8; }
+            sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+              "cd '/srv/projects/skill-universal/current' && '/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12' -B -" \
+              < ferrari-deep/install/vps-phase6-certify.py \
+              > "$RUNNER_TEMP/ferrari-phase6-deep.json"
+            python3 - "$RUNNER_TEMP/ferrari-phase6-deep.json" <<'CHECK'
+          import json,sys
+          d=json.load(open(sys.argv[1],encoding="utf-8"))
+          a=d["executable_gate"]
+          assert a["actions_private"]==40 and not a["action_escapes_or_missing"]
+          assert all(a["runtime_private"].values()) and a["detected_shortlist"]>=47
+          assert d["global_packages_removed"]==0 and d["files_deleted"]==0
+          print("FERRARI_PHASE6_DEEP_EXECUTORS=PASS")
+          print("FERRARI_PHASE6_SYMLINKS="+str(d["symlinks"]["symlinks_checked"]))
+          print("FERRARI_PHASE6_SYMLINK_OUTSIDE="+str(d["symlinks"]["external_links_total"]))
+          print("FERRARI_PHASE6_SYMLINK_BROKEN="+str(d["symlinks"]["broken_links_total"]))
+          print("FERRARI_PHASE6_SYMLINK_SCAN_COMPLETE="+str(d["symlinks"]["complete_under_budget"]))
+          CHECK
+            AFTER="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
+            [[ "$BEFORE" == "$AFTER" ]] || exit 8
+            echo 'FERRARI_PHASE6_DEEP_AUDIT=PASS'
+            exit 0
+          fi
           if [[ "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' ]]; then
             [[ "$BEFORE" == "/srv/projects/skill-universal/releases/40c0e1cdf31b1fe9589ad8be90e5eac06eec2856" ]] ||
               { echo 'FERRARI_PHASE6_UNEXPECTED_CURRENT_BEFORE' >&2; exit 8; }
