@@ -1,4 +1,0 @@
-project: skill-universal
-source_sha: 87969badbde0a77c2c181bb9605357d51a4a30c0
-scope: final forty private actions, real Vite, graphics, audio, video, CAD and Ferrari-only hygiene
-workflow: source-only; activate only after all tests PASS
