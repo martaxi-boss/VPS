@@ -1,2 +1,4 @@
 Ferrari canonical project: skill-universal
 Scope: read-only audit of 10 system-backed actions. No VPS writes.
+
+package_size_audit: 2026-11-05
