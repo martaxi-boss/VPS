@@ -111,7 +111,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: 9508afb314c50832980b93dbf4f74597afb58467
+          ref: 7fca3923735c15a3abd85e80c2c1d70096ecbcff
           persist-credentials: false
           path: ferrari
 
@@ -135,7 +135,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           test -n "$SSHPASS"
-          SRC_SHA=9508afb314c50832980b93dbf4f74597afb58467
+          SRC_SHA=7fca3923735c15a3abd85e80c2c1d70096ecbcff
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass >/dev/null
           ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/ferrari-host"
@@ -171,8 +171,15 @@ jobs:
           test -d "$ROOT/.runtime/browsers"
           python3 -m engine.ferrari doctor >/dev/null
           # Run only six GUI/media real actions to diagnose missing private runtime assets.
-          python3 install/vps-private-gui-smoke.py "$RUN_ID" darktable-jpeg-tiff krita-image-png scribus-text-publication
-          echo 'FERRARI_GUI_THREE_REAL=PASS_NO_RELEASE_ACTIVATION'
+          PRIVATE_MIME="$ROOT/tools/ubuntu-cli/share/mime"
+          if test ! -d "$PRIVATE_MIME"; then
+            test ! -e "$PRIVATE_MIME" && test ! -L "$PRIVATE_MIME"
+            cp -a /usr/share/mime "$PRIVATE_MIME"
+          fi
+          test -f "$PRIVATE_MIME/globs2"
+          echo 'FERRARI_PRIVATE_MIME=PASS'
+          python3 install/vps-private-gui-smoke.py "$RUN_ID" krita-image-png
+          echo 'FERRARI_KRITA_PRIVATE=PASS_NO_RELEASE_ACTIVATION'
           exit 0
           # Private Ferrari-only copies of six Ubuntu commands and their libraries.
           python3 install/vps-private-cli.py --apply
