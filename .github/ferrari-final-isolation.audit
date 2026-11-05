@@ -1,3 +1,3 @@
 project: skill-universal
-scope: targeted Python-only dependency test with charset-normalizer
-source_sha: 9aa3d07bc1310ee0d0704d3e1e8e9f4ae138bc31
+scope: Python-only test with privately installed Rich/Pygments module closure
+source_sha: 6b9f7c02f0eb495f74cec9d3538cf1593f5f68c2
