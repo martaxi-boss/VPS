@@ -8,6 +8,7 @@ on:
     paths:
       - 'ferrari-release-requests/phase5-check-20261105-r2.json'
       - 'ferrari-release-requests/phase5-activate-20261105-r2.json'
+      - 'ferrari-release-requests/phase5-rollback-cert-20261105.json'
 
 permissions:
   contents: read
@@ -39,6 +40,7 @@ jobs:
           case "$changed" in
             ferrari-release-requests/phase5-check-20261105-r2.json) MODE=--check ;;
             ferrari-release-requests/phase5-activate-20261105-r2.json) MODE=--activate ;;
+            ferrari-release-requests/phase5-rollback-cert-20261105.json) MODE=--certify-rollback ;;
             *) echo 'FERRARI_PHASE5_REQUEST_NOT_SINGLE_OR_NOT_ALLOWED' >&2; exit 2 ;;
           esac
           python3 - "$changed" "$MODE" <<'PY'
@@ -60,6 +62,15 @@ jobs:
           ref: 40c0e1cdf31b1fe9589ad8be90e5eac06eec2856
           persist-credentials: false
           path: ferrari
+
+      - name: Checkout pinned Ferrari rollback-only test (no code promotion)
+        if: steps.request.outputs.mode == '--certify-rollback'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: ff5f52c2354ab5f4ba4fbe9e4e50bf3de443e16d
+          persist-credentials: false
+          path: ferrari-cert
 
       - name: Validate the project-owned release script
         shell: bash
@@ -95,7 +106,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           SHA="40c0e1cdf31b1fe9589ad8be90e5eac06eec2856"
-          [[ "$MODE" == '--check' || "$MODE" == '--activate' ]] || exit 3
+          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' ]] || exit 3
           opts=(-T -o PreferredAuthentications=password -o PubkeyAuthentication=no
                 -o StrictHostKeyChecking=yes
                 -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-pinned-host"
@@ -103,6 +114,24 @@ jobs:
                 -o ConnectTimeout=20 -o ServerAliveInterval=15)
           BEFORE="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
           echo "FERRARI_PHASE5_CURRENT_BEFORE=$BEFORE"
+          if [[ "$MODE" == '--certify-rollback' ]]; then
+            [[ "$BEFORE" == "/srv/projects/skill-universal/releases/$SHA" ]] ||
+              { echo 'FERRARI_PHASE5_ROLLBACK_CERT_WRONG_ACTIVE_SHA' >&2; exit 5; }
+            # No production symlink swap: execute the real active script's cleanup
+            # and atomic switching blocks against Ferrari-owned sandbox copies.
+            sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+              'test -f /srv/projects/skill-universal/releases/87969badbde0a77c2c181bb9605357d51a4a30c0/engine/ferrari.py && echo FERRARI_PHASE5_FALLBACK_INTACT=PASS'
+            test -f ferrari-cert/tests/test_phase5_isolated_rollback.py
+            sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+              'FERRARI_PHASE5_LIVE_ROOT=/srv/projects/skill-universal /srv/projects/skill-universal/runtimes/python3.12/bin/python3.12 -B -' \
+              < ferrari-cert/tests/test_phase5_isolated_rollback.py
+            AFTER="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
+            echo "FERRARI_PHASE5_CURRENT_AFTER=$AFTER"
+            [[ "$BEFORE" == "$AFTER" ]] ||
+              { echo 'FERRARI_PHASE5_CERT_CHANGED_PRODUCTION' >&2; exit 6; }
+            echo "FERRARI_PHASE5_ROLLBACK_CERTIFIED=PASS"
+            exit 0
+          fi
           sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
             "bash -s -- '$SHA' '$MODE'" < ferrari/install/vps-isolated-release.sh
           AFTER="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
