@@ -1,3 +1,3 @@
 project: skill-universal
-mode: all 40 actions isolated smoke and code-only release
-source_sha: eaeac8435acf32beb7916ddb6020cd675e5054f2
+mode: final native-private dependency verification and full 40-action functional smoke
+source_sha: 31bd7dd8c16c4c903fbbfb6f8516d99009a38a8b
