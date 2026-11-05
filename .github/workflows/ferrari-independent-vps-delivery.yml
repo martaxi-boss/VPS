@@ -14,6 +14,7 @@ on:
       - 'ferrari-release-requests/phase6-activate-20261105.json'
       - 'ferrari-release-requests/phase6-post-audit-20261105.json'
       - 'ferrari-release-requests/phase6-full-audit-20261105.json'
+      - 'ferrari-release-requests/phase6-certify-deep-20261105.json'
 
 permissions:
   contents: read
@@ -51,6 +52,7 @@ jobs:
             ferrari-release-requests/phase6-activate-20261105.json) MODE=--phase6-activate ;;
             ferrari-release-requests/phase6-post-audit-20261105.json) MODE=--post-audit ;;
             ferrari-release-requests/phase6-full-audit-20261105.json) MODE=--full-audit ;;
+            ferrari-release-requests/phase6-certify-deep-20261105.json) MODE=--deep-cert ;;
             *) echo 'FERRARI_PHASE5_REQUEST_NOT_SINGLE_OR_NOT_ALLOWED' >&2; exit 2 ;;
           esac
           python3 - "$changed" "$MODE" <<'PY'
@@ -58,7 +60,7 @@ jobs:
           path,mode=sys.argv[1:]
           with open(path,encoding="utf-8") as fh:
               payload=json.load(fh)
-          if mode.startswith("--phase6-") or mode in ("--post-audit","--full-audit"):
+          if mode.startswith("--phase6-") or mode in ("--post-audit","--full-audit","--deep-cert"):
               expected={"version":1,"phase":6,"sha":"146145d5ada9c13e368df18727e4dbf4f5807664",
                         "mode":mode.removeprefix("--phase6-").removeprefix("--")}
           else:
