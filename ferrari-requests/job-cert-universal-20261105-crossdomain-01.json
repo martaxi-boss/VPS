@@ -1,0 +1,1 @@
+{"version":1,"id":"cert-universal-20261105-crossdomain-01","kind":"plan","max_parallel":2,"plan":{"version":1,"steps":[{"id":"web","operation":"web-template","layout":"store","title":"Ferrari Loja Certificacao"},{"id":"poster","operation":"svg-poster","title":"Ferrari Cartaz Certificacao"},{"id":"casa","operation":"blender-house","title":"Ferrari Modelo 3D Certificacao"}]}}
