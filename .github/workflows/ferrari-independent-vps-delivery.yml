@@ -3,6 +3,10 @@ name: Ferrari Ubuntu - independent VPS installation
 # This is a one-purpose transport using the EXISTING VPS SSH credential and host pin.
 # Do not alter the existing SSH bridge, Supervisor or projects.
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/ferrari-final-isolation.audit'
   workflow_dispatch:
 
 permissions:
@@ -13,6 +17,7 @@ concurrency:
 
 jobs:
   ferrari:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 75
     steps:
@@ -96,3 +101,56 @@ jobs:
           sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
             'cd "/srv/projects/skill-universal/current" && python3 install/ferrari-hygiene.py --apply'
           echo 'FERRARI_DEPLOY_TRANSPORT=PASS'
+
+  private-audit:
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Read-only Ferrari remaining executable/runtime audit
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/ferrari-host"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/ferrari-host" -E sha256 | awk '{print $2}')" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
+          chmod 600 "$RUNNER_TEMP/ferrari-host"
+          opts=(-o PreferredAuthentications=password -o PubkeyAuthentication=no
+                -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-host"
+                -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519
+                -o ConnectTimeout=20 -o ServerAliveInterval=15)
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 "bash -s" <<'REMOTE'
+          set -Eeuo pipefail
+          ROOT=/srv/projects/skill-universal
+          test -d "$ROOT" && test ! -L "$ROOT" 
+          echo "FERRARI_ROOT_FREE_KIB=$(df -Pk "$ROOT" | awk 'END {print $4}')"
+          for name in binwalk ansible-inventory ocrmypdf ebook-convert darktable-cli krita gimp-console-2.10 scribus lmms melt xvfb-run Xvfb; do
+            binary="$(command -v "$name" || true)"
+            if [[ -z "$binary" ]]; then echo "FERRARI_REMAINING_COMMAND=$name|MISSING"; continue; fi
+            real="$(readlink -f "$binary")"
+            type="$(file -b "$real" | cut -c1-90)"
+            owner="$(dpkg-query -S "$real" 2>/dev/null | head -n 1 | cut -c1-100 || true)"
+            echo "FERRARI_REMAINING_COMMAND=$name|$real|$type|$owner"
+            if grep -Iq . "$real" 2>/dev/null; then 
+              head -n 1 "$real" | tr -d '\r' | cut -c1-100 | sed "s/^/FERRARI_REMAINING_SHEBANG=$name|/"
+            fi
+            ldd "$real" 2>/dev/null | grep 'not found' | head -n 3 | sed "s/^/FERRARI_MISSING_LIBRARY=$name|/" || true
+          done
+          for source in /usr/lib/python3/dist-packages /usr/local/lib/python3.12/dist-packages /usr/share/calibre /usr/share/darktable /usr/share/krita /usr/share/gimp /usr/share/scribus /usr/share/lmms /usr/share/mlt /usr/lib/gimp/2.0 /usr/lib/x86_64-linux-gnu/mlt-7 /usr/lib/x86_64-linux-gnu/krita /usr/lib/x86_64-linux-gnu/scribus; do
+            if [[ -d "$source" ]]; then echo "FERRARI_REMAINING_RESOURCE=$source|$(du -sh "$source" 2>/dev/null | awk '{print $1}')"; fi
+          done
+          python3 - <<'PY'
+          import importlib.util
+          for module in ("binwalk","ansible","ocrmypdf","calibre","gi","darktable"):
+              try:
+                  spec=importlib.util.find_spec(module)
+                  print("FERRARI_REMAINING_MODULE="+module+"|"+str(spec.origin if spec else None))
+              except Exception as e:
+                  print("FERRARI_REMAINING_MODULE="+module+"|"+type(e).__name__)
+          PY
+          echo "FERRARI_FINAL_READONLY_AUDIT=PASS"
+          REMOTE
