@@ -1,3 +1,3 @@
 project: skill-universal
-scope: full 40 actions with private Python metadata and GUI executors
-source_sha: 0d23c463ff42fefb8f10a223b1b3984c7a965b29
+scope: 40 typed Ferrari action tests with private Ubuntu Python module JP2
+source_sha: eeb88944101341ff0af7255944643cd6569b0001
