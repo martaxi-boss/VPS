@@ -1,6 +1,0 @@
-{
-  "version": 1,
-  "phase": 9,
-  "mode": "apt-simulate-private-alternatives",
-  "no_writes": true
-}
