@@ -1,8 +1,0 @@
-{
-  "version": 1,
-  "task": "private-faster-whisper-tiny-real-cpu-asr",
-  "root": "/srv/projects/skill-universal",
-  "ferrari_sha": "425433e543eca2a78f4037bf20d9b22248304f72",
-  "model_revision": "d90ca5fe260221311c53c58e660288d3deb8d356",
-  "test_audio_git_blob": "e44b7c13897eae7f78beb220c61fe77429a3961d"
-}
