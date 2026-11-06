@@ -81,6 +81,51 @@ jobs:
               print("F9_GLOBAL_EXEC_PROCESSES="+name+":"+str(matches))
           print("F9_CROSS_PROJECT_READ_ONLY=PASS")
           PY
+          echo F9_ROOT_READ_ONLY_CONSUMER_AUDIT
+          sudo -n python3 - <<'PY'
+          import os,re,json
+          from pathlib import Path
+          root=Path("/srv/projects")
+          patt=re.compile(r"(?i)(?<![a-z0-9])(?:yt-dlp|yt_dlp|librecad|qgis|audacity|obs-studio|openshot-qt|openshot|solvespace|synfigstudio|synfig)(?![a-z0-9])")
+          ignore={".git",".runtime","node_modules","vendor","venv",".venv",
+                  "__pycache__","dist","build","backups","backup","archives",
+                  "archive",".cache",".next"}
+          exts={".py",".sh",".js",".ts",".jsx",".tsx",".mjs",".cjs",
+                ".json",".yaml",".yml",".toml",".ini",".conf",".service",".env",".properties"}
+          summary=[]
+          for project in sorted(root.iterdir()):
+              if not project.is_dir() or project.is_symlink() or project.name=="skill-universal" or "secret" in project.name.lower():
+                  continue
+              issues=[];files_scanned=0;matches=0;large=0;examples=[]
+              def failure(e):
+                  issues.append(type(e).__name__)
+              for base,dirs,files in os.walk(project,topdown=True,onerror=failure,followlinks=False):
+                  dirs[:]=[d for d in dirs if d not in ignore and not (Path(base)/d).is_symlink()]
+                  for name in files:
+                      p=Path(base)/name
+                      if p.suffix.lower() not in exts or p.is_symlink():continue
+                      files_scanned+=1
+                      if files_scanned>60000:
+                          issues.append("file_limit");break
+                      try:
+                          n=p.stat().st_size
+                          if n>1000000:
+                              large+=1;continue
+                          found=sorted(set(x.group(0).lower() for x in patt.finditer(p.read_text("utf-8","replace"))))
+                      except OSError as e:
+                          issues.append(type(e).__name__);continue
+                      if found:
+                          matches+=1
+                          if len(examples)<15:
+                              examples.append({"relative_path":str(p.relative_to(project)),"terms":found})
+                  if files_scanned>60000:break
+              summary.append({"project":project.name,"source_files":files_scanned,
+                              "references":matches,"large_skipped":large,"errors":issues[:3],
+                              "examples":examples})
+          for item in summary:
+              print("F9_ROOT_PROJECT="+json.dumps(item,sort_keys=True))
+          print("F9_ROOT_SCAN_COMPLETE="+str(all(not s["errors"] and s["large_skipped"]==0 for s in summary)))
+          PY
           echo F9_SIMULATE_EIGHT_PURGE
           LC_ALL=C apt-get -s -o Debug::NoLocking=1 purge yt-dlp librecad qgis audacity obs-studio solvespace synfigstudio openshot-qt |
               grep -E '^(Remv|Purg) ' || true
