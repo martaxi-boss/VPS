@@ -47,6 +47,7 @@ on:
       - 'ferrari-release-requests/universal-f10-activate-20261106.json'
       - 'ferrari-release-requests/universal-f10-hygiene-preview-20261106.json'
       - 'ferrari-release-requests/universal-f10-hygiene-apply-20261106.json'
+      - 'ferrari-release-requests/universal-f10-legacy-state-audit-20261106.json'
 
 permissions:
   contents: read
@@ -117,6 +118,7 @@ jobs:
             ferrari-release-requests/universal-f10-activate-20261106.json) MODE=--universal-f10-activate ;;
             ferrari-release-requests/universal-f10-hygiene-preview-20261106.json) MODE=--universal-f10-hygiene-preview ;;
             ferrari-release-requests/universal-f10-hygiene-apply-20261106.json) MODE=--universal-f10-hygiene-apply ;;
+            ferrari-release-requests/universal-f10-legacy-state-audit-20261106.json) MODE=--universal-f10-legacy-state-audit ;;
             *) echo 'FERRARI_PHASE5_REQUEST_NOT_SINGLE_OR_NOT_ALLOWED' >&2; exit 2 ;;
           esac
           if [[ "$MODE" == --universal-* ]]; then
@@ -129,7 +131,8 @@ jobs:
           with open(path,encoding="utf-8") as fh:
               payload=json.load(fh)
           if mode in ("--universal-f10-precheck","--universal-f10-activate",
-                     "--universal-f10-hygiene-preview","--universal-f10-hygiene-apply"):
+                     "--universal-f10-hygiene-preview","--universal-f10-hygiene-apply",
+                     "--universal-f10-legacy-state-audit"):
               expected={"version":1,"phase":"universal-catalog",
                         "sha":"205c6f0e970259c79fa2111b6670c2fe1672fb27",
                         "mode":mode.removeprefix("--universal-")}
@@ -243,7 +246,7 @@ jobs:
           path: ferrari-universal
 
       - name: Checkout pinned Ferrari F10 modern universal release
-        if: steps.request.outputs.mode == '--universal-f10-precheck' || steps.request.outputs.mode == '--universal-f10-activate' || steps.request.outputs.mode == '--universal-f10-hygiene-preview' || steps.request.outputs.mode == '--universal-f10-hygiene-apply'
+        if: steps.request.outputs.mode == '--universal-f10-precheck' || steps.request.outputs.mode == '--universal-f10-activate' || steps.request.outputs.mode == '--universal-f10-hygiene-preview' || steps.request.outputs.mode == '--universal-f10-hygiene-apply' || steps.request.outputs.mode == '--universal-f10-legacy-state-audit'
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
@@ -357,7 +360,7 @@ jobs:
           bash -n ferrari/install/vps-isolated-release.sh
           test -f ferrari/engine/tool_actions.json
           echo 'FERRARI_PHASE5_PINNED_SCRIPT_SYNTAX=PASS'
-          if [[ "${{ steps.request.outputs.mode }}" == '--universal-f10-precheck' || "${{ steps.request.outputs.mode }}" == '--universal-f10-activate' || "${{ steps.request.outputs.mode }}" == '--universal-f10-hygiene-preview' || "${{ steps.request.outputs.mode }}" == '--universal-f10-hygiene-apply' ]]; then
+          if [[ "${{ steps.request.outputs.mode }}" == '--universal-f10-precheck' || "${{ steps.request.outputs.mode }}" == '--universal-f10-activate' || "${{ steps.request.outputs.mode }}" == '--universal-f10-hygiene-preview' || "${{ steps.request.outputs.mode }}" == '--universal-f10-hygiene-apply' || "${{ steps.request.outputs.mode }}" == '--universal-f10-legacy-state-audit' ]]; then
             bash -n ferrari-f10/install/vps-isolated-release.sh
             cmp -s ferrari-f10/engine/catalog.json ferrari-universal/engine/catalog.json
             python3 - <<'VALIDATE_F10_SOURCE'
@@ -499,7 +502,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           SHA="40c0e1cdf31b1fe9589ad8be90e5eac06eec2856"
-          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--venvs-preview' || "$MODE" == '--venvs-apply' || "$MODE" == '--final-preview' || "$MODE" == '--final-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' || "$MODE" == '--phase7-check' || "$MODE" == '--phase7-activate' || "$MODE" == '--phase7-certify' || "$MODE" == '--universal-check' || "$MODE" == '--universal-activate' || "$MODE" == '--universal-preview' || "$MODE" == '--universal-apply' || "$MODE" == '--universal-deep-audit' || "$MODE" == '--universal-empty-preview' || "$MODE" == '--universal-empty-apply' || "$MODE" == '--universal-f9-consumers' || "$MODE" == '--universal-f9-dpkg-confirm' || "$MODE" == '--universal-f9-qgis-native' || "$MODE" == '--universal-f9-qgis-ogr' || "$MODE" == '--universal-f9-qgis-geojson' || "$MODE" == '--universal-f9-providers-diagnose' || "$MODE" == '--universal-f9-hdf5-preview' || "$MODE" == '--universal-f9-hdf5-apply' || "$MODE" == '--universal-f9-pdal-runtime' || "$MODE" == '--universal-f9-librecad' || "$MODE" == '--universal-f10-precheck' || "$MODE" == '--universal-f10-activate' || "$MODE" == '--universal-f10-hygiene-preview' || "$MODE" == '--universal-f10-hygiene-apply' ]] || exit 3
+          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--venvs-preview' || "$MODE" == '--venvs-apply' || "$MODE" == '--final-preview' || "$MODE" == '--final-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' || "$MODE" == '--phase7-check' || "$MODE" == '--phase7-activate' || "$MODE" == '--phase7-certify' || "$MODE" == '--universal-check' || "$MODE" == '--universal-activate' || "$MODE" == '--universal-preview' || "$MODE" == '--universal-apply' || "$MODE" == '--universal-deep-audit' || "$MODE" == '--universal-empty-preview' || "$MODE" == '--universal-empty-apply' || "$MODE" == '--universal-f9-consumers' || "$MODE" == '--universal-f9-dpkg-confirm' || "$MODE" == '--universal-f9-qgis-native' || "$MODE" == '--universal-f9-qgis-ogr' || "$MODE" == '--universal-f9-qgis-geojson' || "$MODE" == '--universal-f9-providers-diagnose' || "$MODE" == '--universal-f9-hdf5-preview' || "$MODE" == '--universal-f9-hdf5-apply' || "$MODE" == '--universal-f9-pdal-runtime' || "$MODE" == '--universal-f9-librecad' || "$MODE" == '--universal-f10-precheck' || "$MODE" == '--universal-f10-activate' || "$MODE" == '--universal-f10-hygiene-preview' || "$MODE" == '--universal-f10-hygiene-apply' || "$MODE" == '--universal-f10-legacy-state-audit' ]] || exit 3
           opts=(-T -o PreferredAuthentications=password -o PubkeyAuthentication=no
                 -o StrictHostKeyChecking=yes
                 -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-pinned-host"
@@ -515,6 +518,93 @@ jobs:
             REPORT="$RUNNER_TEMP/ferrari-universal-report.json"
             echo "FERRARI_UNIVERSAL_MODE=$MODE"
             echo "FERRARI_UNIVERSAL_PREVIOUS=$BEFORE"
+            if [[ "$MODE" == '--universal-f10-legacy-state-audit' ]]; then
+              [[ "$BEFORE" == "/srv/projects/skill-universal/releases/205c6f0e970259c79fa2111b6670c2fe1672fb27" ]] ||
+                { echo 'FERRARI_F10_STATE_AUDIT_ACTIVE_MISMATCH' >&2; exit 23; }
+              sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+                "cd '/srv/projects/skill-universal/current' && '/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12' -B -" > "$REPORT" <<'F10_STATE_AUDIT'
+          import json,os
+          from pathlib import Path
+          root=Path("/srv/projects/skill-universal")
+          target="205c6f0e970259c79fa2111b6670c2fe1672fb27"
+          fallback="7bf6dcecf15da26502c5969b5eee54d5e116fc32"
+          legacy="952b0a75ba798471b07053677d53791bd078ed56"
+          old=root/"releases"/legacy
+          assert root.joinpath("current").resolve(strict=True)==root/"releases"/target
+          assert old.is_dir() and not old.is_symlink()
+          assert (root/"releases"/fallback/"engine/catalog.json").is_file()
+          def counts(path):
+              doc=json.loads(path.read_text())
+              return {"tools":len(doc.get("tools",[])),"functions":len(doc.get("functions",[])),"entries":doc.get("counts",{}).get("all_catalog_entries")}
+          assert counts(root/"current"/"engine/catalog.json")["entries"]==450
+          assert counts(root/"releases"/fallback/"engine/catalog.json")["entries"]==450
+          state=[]
+          for name in (".runtime","runtimes","tools","data","backups","results","outputs","secrets"):
+              p=old/name
+              if not(p.exists() or p.is_symlink()): continue
+              files=dirs=links=bytes_=0
+              if p.is_dir() and not p.is_symlink():
+                  for at,subdirs,fs in os.walk(p,followlinks=False):
+                      for fname in fs:
+                          x=Path(at)/fname
+                          if x.is_symlink(): links+=1
+                          else:
+                              files+=1
+                              try: bytes_+=x.stat().st_size
+                              except OSError: pass
+                      for dirname in subdirs:
+                          x=Path(at)/dirname
+                          if x.is_symlink(): links+=1
+                          else: dirs+=1
+              state.append({"name":name,"is_symlink":p.is_symlink(),"files":files,"directories":dirs,"links":links,"data_bytes":bytes_})
+          pointers=[]
+          for x in root.iterdir():
+              if x.is_symlink():
+                  try:
+                      if x.resolve(strict=True)==old: pointers.append(x.name)
+                  except (OSError,RuntimeError): pass
+          # Never print arguments, environment values or file contents.
+          procs=[]
+          for pr in Path("/proc").iterdir():
+              if not pr.name.isdecimal(): continue
+              refs=[]
+              for item in ("cwd","exe"):
+                  try: refs.append(os.readlink(pr/item))
+                  except (OSError,PermissionError): pass
+              try:
+                  refs += [v.decode("utf-8","replace") for v in (pr/"cmdline").read_bytes().split(b"\0")[:16]]
+              except (OSError,PermissionError): pass
+              if any(v==str(old) or str(old)+"/" in v for v in refs):
+                  procs.append(pr.name)
+          extras=sum(x.name not in {".github","BOOTSTRAP.md","LICENSE","README.md","docs","engine","examples","install","integrations","skill","templates","tests",".runtime"} for x in old.iterdir())
+          print(json.dumps({"status":"PASS","mode":"read_only","active":target,"fallback":fallback,
+             "legacy":legacy,"legacy_catalog":counts(old/"engine/catalog.json"),"state":state,
+             "legacy_root_unrecognized_count":extras,"legacy_pointers":pointers,
+             "matching_accessible_process_count":len(procs),"other_projects_modified":False,
+             "files_modified":False},sort_keys=True))
+          F10_STATE_AUDIT
+              python3 - "$REPORT" <<'F10_AUDIT_VALIDATE'
+          import json,sys
+          d=json.load(open(sys.argv[1]))
+          assert d["status"]=="PASS" and d["mode"]=="read_only"
+          assert d["active"]=="205c6f0e970259c79fa2111b6670c2fe1672fb27"
+          assert d["legacy"]=="952b0a75ba798471b07053677d53791bd078ed56"
+          assert d["other_projects_modified"] is False and d["files_modified"] is False
+          print("FERRARI_F10_LEGACY_STATE_READ_ONLY=PASS")
+          print("FERRARI_F10_LEGACY_STATE_COMPONENTS="+str(len(d["state"])))
+          F10_AUDIT_VALIDATE
+              AFTER="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
+              [[ "$AFTER" == "$BEFORE" ]] || { echo 'FERRARI_F10_STATE_AUDIT_CHANGED_CURRENT' >&2; exit 23; }
+              sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'bash -s' <<'F10_AUDIT_SERVICES'
+          set -Eeuo pipefail
+          for s in pink-iptv-backend pink-vpn fadego-staging lowcost-europa pm2-iptvpn-bot pm2-telegram-robot-leads nginx postgresql@16-main; do
+            systemctl is-active --quiet "$s" || exit 8
+          done
+          echo 'FERRARI_PROTECTED_SERVICES=8/8_PASS'
+          F10_AUDIT_SERVICES
+              echo 'FERRARI_F10_LEGACY_STATE_AUDIT=PASS'
+              exit 0
+            fi
             if [[ "$MODE" == '--universal-f10-hygiene-preview' || "$MODE" == '--universal-f10-hygiene-apply' ]]; then
               [[ "$BEFORE" == "/srv/projects/skill-universal/releases/205c6f0e970259c79fa2111b6670c2fe1672fb27" ]] ||
                 { echo 'FERRARI_F10_HYGIENE_ACTIVE_BASELINE_MISMATCH' >&2; exit 22; }
