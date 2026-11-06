@@ -324,7 +324,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: 7ed4bd1b1fe127973ab78e96ffd38fe14c37448e
+          ref: 69c9a94f03f07af3c16376f24aebc70772423a16
           persist-credentials: false
           path: ferrari-pdal-runtime
 
