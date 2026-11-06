@@ -3,7 +3,7 @@ on:
   push:
     branches: [main]
     paths:
-      - ferrari-release-requests/ferrari-f9-preserve-git-20261106.json
+      - ferrari-release-requests/ferrari-f9-preserve-git-root-20261106.json
 permissions:
   contents: read
 jobs:
@@ -23,11 +23,11 @@ jobs:
         run: |
           set -Eeuo pipefail
           p="$(git diff --name-only "$BEFORE" "$AFTER")"
-          test "$p" = ferrari-release-requests/ferrari-f9-preserve-git-20261106.json
+          test "$p" = ferrari-release-requests/ferrari-f9-preserve-git-root-20261106.json
           python3 - <<'PY'
           import json
           from pathlib import Path
-          d=json.loads(Path('ferrari-release-requests/ferrari-f9-preserve-git-20261106.json').read_text())
+          d=json.loads(Path('ferrari-release-requests/ferrari-f9-preserve-git-root-20261106.json').read_text())
           assert d=={'version':1,'phase':9,'mode':'preserve-dirty-git-local-only',
               'projects':['pink-iptv','iptvpn-bot'],'no_code_changes':True,
               'no_public_diff_uploads':True,'no_git_reset':True}
@@ -54,7 +54,7 @@ jobs:
                 -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/known"
                 -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519
                 -o ConnectTimeout=20 -o ServerAliveInterval=15)
-          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 '/usr/bin/python3 -' > "$RUNNER_TEMP/f9-project-git-preservation.json" <<'PY'
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 'sudo -n /usr/bin/python3 -' > "$RUNNER_TEMP/f9-project-git-preservation.json" <<'PY'
           import os,json,hashlib,subprocess
           from pathlib import Path
           ROOT=Path('/srv/projects')
@@ -65,7 +65,7 @@ jobs:
           SERVICES=('pink-iptv-backend','pink-vpn','fadego-staging','lowcost-europa',
                     'pm2-iptvpn-bot','pm2-telegram-robot-leads','nginx','postgresql@16-main')
           def run(repo,*args):
-            return subprocess.run(['git','-C',str(repo),*args],capture_output=True,check=False,timeout=22)
+            return subprocess.run(['git','-c','safe.directory='+str(repo),'-C',str(repo),*args],capture_output=True,check=False,timeout=22)
           def text(repo,*args):
             p=run(repo,*args)
             if p.returncode!=0:raise RuntimeError('GIT_PRECHECK_FAILED')
