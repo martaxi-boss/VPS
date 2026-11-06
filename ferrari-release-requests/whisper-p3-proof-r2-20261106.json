@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "task": "private-faster-whisper-cpu-asr-pyav19-r2",
+  "root": "/srv/projects/skill-universal",
+  "ferrari_sha": "4863c99cbd063d6dd17006c1c9dd67897316cc7e",
+  "model_revision": "d90ca5fe260221311c53c58e660288d3deb8d356",
+  "test_audio_git_blob": "e44b7c13897eae7f78beb220c61fe77429a3961d"
+}
