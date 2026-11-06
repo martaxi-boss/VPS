@@ -90,6 +90,47 @@ jobs:
             test "$(systemctl is-active "$service")" = active || { echo "F9_POST_SERVICE_FAILED:$service"; exit 8; }
           done
           test "$(readlink -f "$root/current")" = "$root/releases/f1f3b03525adec7018d7d629243e7b0fbb7f5087"
+          python3 - <<'PY'
+          import functools
+          from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+          import os
+          from pathlib import Path
+          import subprocess
+          import tempfile
+          import threading
+          root = Path("/srv/projects/skill-universal")
+          binary = root / "tools/yt-dlp-2026.10.26/yt-dlp"
+          with tempfile.TemporaryDirectory(prefix=".f9-ytdlp-local-download-", dir=root / ".runtime") as tmp:
+              base = Path(tmp)
+              payload = b"\x00\x00\x00\x18ftypisom" + b"\x00" * 256
+              (base / "clip.mp4").write_bytes(payload)
+              handler = functools.partial(SimpleHTTPRequestHandler, directory=str(base))
+              server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+              thread = threading.Thread(target=server.serve_forever, daemon=True)
+              thread.start()
+              try:
+                  port = server.server_port
+                  (base / "test.html").write_text(
+                      '<html><head><title>Ferrari F9 synthetic clip</title></head>'
+                      '<body><video controls><source src="clip.mp4" type="video/mp4"></video></body></html>',
+                      encoding="utf-8")
+                  output = base / "downloaded.mp4"
+                  env = os.environ.copy()
+                  for key in ("HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "TMPDIR"):
+                      env[key] = str(base)
+                  result = subprocess.run(
+                      [str(binary), "--ignore-config", "--no-playlist", "-o", str(output),
+                       f"http://127.0.0.1:{port}/test.html"],
+                      capture_output=True, text=True, timeout=65, env=env)
+                  if result.returncode != 0 or not output.is_file() or output.read_bytes() != payload:
+                      raise SystemExit("F9_YTDLP_LOCAL_MEDIA_DOWNLOAD_FAILED: "
+                                       + (result.stderr or result.stdout)[-450:])
+                  print("F9_YTDLP_LOCAL_MEDIA_EXTRACT_AND_DOWNLOAD=PASS")
+              finally:
+                  server.shutdown()
+                  server.server_close()
+                  thread.join(timeout=8)
+          PY
           echo 'F9_YTDLP_PRIVATE_BINARY_AND_EXTRACTORS=PASS'
           echo 'F9_GLOBAL_YTDLP_PRESERVED=PASS'
           echo 'F9_PROTECTED_SERVICES=8/8_PASS'
