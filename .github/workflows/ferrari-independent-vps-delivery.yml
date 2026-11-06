@@ -287,7 +287,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: 7b6dcbd12c62e77e11e71b591e3b3521d5d86452
+          ref: 2fc738b15de9d8f9bcc30a50d6e4a1e5b5851d68
           persist-credentials: false
           path: ferrari-qgis-providers
 
