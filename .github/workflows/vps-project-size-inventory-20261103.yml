@@ -167,6 +167,33 @@ jobs:
           for p in python3 node npm pm2 java git ffmpeg docker pip3 pandoc jadx apktool; do
             if command -v "$p" >/dev/null 2>&1; then printf '%s|%s\n' "$p" "$(command -v "$p")"; else printf '%s|NOT_ON_PATH\n' "$p"; fi
           done
+          echo '=== F9_HOPPER_SHAPE_READONLY ==='
+          python3 - <<'PY_F9_HOPPER_SHAPE'
+          import os,pwd,stat
+          from pathlib import Path
+          root=Path('/home/ubuntu/.local/share/hopper')
+          if not root.exists():
+              print('HOPPER=ABSENT')
+          else:
+              st=root.lstat()
+              print('HOPPER=EXISTS')
+              print('UID='+str(st.st_uid))
+              print('OWNER='+pwd.getpwuid(st.st_uid).pw_name)
+              print('ORDINARY_DIRECTORY='+str(stat.S_ISDIR(st.st_mode) and not root.is_symlink()))
+              print('MOUNTPOINT='+str(os.path.ismount(root)))
+              print('CANONICAL_PATH='+str(root.resolve()==root))
+              roots=list(root.iterdir()) if root.is_dir() and not root.is_symlink() else []
+              print('IMMEDIATE_CHILDREN='+str(len(roots)))
+              print('IMMEDIATE_DIRECTORIES='+str(sum(x.is_dir() and not x.is_symlink() for x in roots)))
+              print('IMMEDIATE_SYMLINKS='+str(sum(x.is_symlink() for x in roots)))
+              print('IMMEDIATE_REGULAR_FILES='+str(sum(x.is_file() and not x.is_symlink() for x in roots)))
+              all_dirs=0;all_files=0
+              for _,d,f in os.walk(root,followlinks=False):
+                  all_dirs+=len(d);all_files+=len(f)
+                  if all_dirs>250:break
+              print('RECURSIVE_DIRECTORY_COUNT='+str(all_dirs))
+              print('RECURSIVE_FILE_COUNT='+str(all_files))
+          PY_F9_HOPPER_SHAPE
           echo '=== FINISHED ==='
           REMOTE
           echo 'VPS_PROJECT_INVENTORY_RETURNED=PASS'
