@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "id": "ferrari-ruflo-host-single-intelligence-final-20261106",
+  "kind": "ruflo-host",
+  "host": "ChatGPT",
+  "max_parallel": 2,
+  "roles": [
+    {
+      "id": "coder",
+      "type": "coder"
+    },
+    {
+      "id": "reviewer",
+      "type": "reviewer"
+    }
+  ],
+  "input": {
+    "name": "ferrari-ruflo-synthetic.json",
+    "content_base64": "eyJob3N0IjoiQ2hhdEdQVCIsIm9uZV9tb2RlbCI6dHJ1ZSwiYWdlbnRzIjoyfQo="
+  },
+  "steps": [
+    {
+      "id": "format",
+      "role": "coder",
+      "kind": "invoke",
+      "action": "jq-format-json"
+    },
+    {
+      "id": "review",
+      "role": "reviewer",
+      "kind": "rea-mcp",
+      "mcp_requests": [
+        {
+          "method": "tools/call",
+          "params": {
+            "name": "inspect_analysis_settings",
+            "arguments": {}
+          }
+        }
+      ]
+    }
+  ]
+}
