@@ -3,7 +3,7 @@ on:
   push:
     branches: [main]
     paths:
-      - ferrari-release-requests/ferrari-ruflo-schema-20261106.json
+      - ferrari-release-requests/ferrari-ruflo-contracts-20261106.json
 permissions:
   contents: read
 jobs:
@@ -25,12 +25,12 @@ jobs:
           set -Eeuo pipefail
           added="$(git diff --name-only --diff-filter=A "$OLD" "$NEW")"
           changed="$(git diff --name-only "$OLD" "$NEW")"
-          test "$added" = 'ferrari-release-requests/ferrari-ruflo-schema-20261106.json'
+          test "$added" = 'ferrari-release-requests/ferrari-ruflo-contracts-20261106.json'
           test "$changed" = "$added"
           python3 - <<'PY'
           import json
           from pathlib import Path
-          x=json.loads(Path('ferrari-release-requests/ferrari-ruflo-schema-20261106.json').read_text())
+          x=json.loads(Path('ferrari-release-requests/ferrari-ruflo-contracts-20261106.json').read_text())
           assert x=={'version':1,'kind':'ruflo-mcp-tool-contracts','scope':'read-only','project':'skill-universal','no_external_models':True}
           print('RUFLO_SCOPE_GATE=PASS')
           PY
@@ -128,7 +128,7 @@ jobs:
           python3 - <<'PY'
           import json,os
           from pathlib import Path
-          d=json.loads((Path(os.environ['RUNNER_TEMP'])/'ruflo-introspection.json').read_text())
+          d=json.loads((Path(os.environ['RUNNER_TEMP'])/'ruflo-schema.json').read_text())
           print('RUFLO_PRIVATE_CLI_VERSION='+str(d['cli']['--version']['stdout'].strip()))
           print('RUFLO_MCP_INITIALIZE='+str(d['mcp']['initialize']))
           print('RUFLO_MCP_TOOLS='+str(d['mcp']['tools_count']))
@@ -138,6 +138,6 @@ jobs:
         if: always()
         with:
           name: ferrari-ruflo-introspect-${{ github.run_id }}
-          path: ${{ runner.temp }}/ruflo-introspection.json
+          path: ${{ runner.temp }}/ruflo-schema.json
           if-no-files-found: warn
           retention-days: 7
