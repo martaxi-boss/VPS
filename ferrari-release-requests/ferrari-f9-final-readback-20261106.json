@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "phase": 9,
+  "mode": "read-only-consumer-proof",
+  "project": "skill-universal",
+  "no_packages_changed": true,
+  "no_other_projects_changed": true
+}
