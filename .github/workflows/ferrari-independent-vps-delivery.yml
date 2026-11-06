@@ -41,6 +41,7 @@ on:
       - 'ferrari-release-requests/universal-f9-hdf5-preview-20261106.json'
       - 'ferrari-release-requests/universal-f9-hdf5-apply-20261106.json'
       - 'ferrari-release-requests/universal-f9-librecad-20261106.json'
+      - 'ferrari-release-requests/universal-f9-librecad-xvfb-20261106.json'
 
 permissions:
   contents: read
@@ -105,6 +106,7 @@ jobs:
             ferrari-release-requests/universal-f9-hdf5-preview-20261106.json) MODE=--universal-f9-hdf5-preview ;;
             ferrari-release-requests/universal-f9-hdf5-apply-20261106.json) MODE=--universal-f9-hdf5-apply ;;
             ferrari-release-requests/universal-f9-librecad-20261106.json) MODE=--universal-f9-librecad ;;
+            ferrari-release-requests/universal-f9-librecad-xvfb-20261106.json) MODE=--universal-f9-librecad ;;
             *) echo 'FERRARI_PHASE5_REQUEST_NOT_SINGLE_OR_NOT_ALLOWED' >&2; exit 2 ;;
           esac
           if [[ "$MODE" == --universal-* ]]; then
@@ -302,7 +304,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: 25544619dfb8633e1c1fb620ad2cbe9b6929390a
+          ref: 7792e914fad631175f9e831695ad6178bce2cc29
           persist-credentials: false
           path: ferrari-librecad
 
@@ -472,6 +474,8 @@ jobs:
           assert d["fallback_release"]=="952b0a75ba798471b07053677d53791bd078ed56"
           assert d["catalog_entries"]==450
           assert d["appimage_sha256_verified"] is True
+          assert d["preexisting_xvfb_qa_display"] is True
+          assert d["qt_platform"]=="xcb"
           assert d["global_apt_modified"] is False
           assert d["other_projects_modified"] is False
           assert d["active_release_changed"] is False
@@ -489,6 +493,7 @@ jobs:
           print("FERRARI_F9_LIBRECAD_REAL="+d["status"].upper())
           print("FERRARI_F9_LIBRECAD_PDF_BYTES="+str(d["pdf_evidence"].get("pdf_bytes",0)))
           print("FERRARI_F9_LIBRECAD_GUI_UNCERTIFIED=True")
+          print("FERRARI_F9_LIBRECAD_XVFB_EXISTING_QA=PASS")
           VERIFY_LIBRECAD
               AFTER="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
               [[ "$AFTER" == "$BEFORE" ]] || { echo 'F9_LIBRECAD_CHANGED_RELEASE' >&2; exit 19; }
