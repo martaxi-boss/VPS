@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "ferrari-openpencil-final-20261106-v1",
+  "kind": "operation",
+  "operation": "web-template",
+  "layout": "store",
+  "title": "Ferrari OpenPencil",
+  "input": {
+    "name": "design.html",
+    "content_base64": "PCFkb2N0eXBlIGh0bWw+PGh0bWw+PGJvZHk+PGgxPkZlcnJhcmk8L2gxPjwvYm9keT48L2h0bWw+"
+  }
+}
