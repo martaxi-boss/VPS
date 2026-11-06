@@ -279,7 +279,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           SHA="40c0e1cdf31b1fe9589ad8be90e5eac06eec2856"
-          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--venvs-preview' || "$MODE" == '--venvs-apply' || "$MODE" == '--final-preview' || "$MODE" == '--final-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' || "$MODE" == '--phase7-check' || "$MODE" == '--phase7-activate' || "$MODE" == '--phase7-certify' ]] || exit 3
+          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--venvs-preview' || "$MODE" == '--venvs-apply' || "$MODE" == '--final-preview' || "$MODE" == '--final-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' || "$MODE" == '--phase7-check' || "$MODE" == '--phase7-activate' || "$MODE" == '--phase7-certify' || "$MODE" == '--universal-check' || "$MODE" == '--universal-activate' || "$MODE" == '--universal-preview' || "$MODE" == '--universal-apply' ]] || exit 3
           opts=(-T -o PreferredAuthentications=password -o PubkeyAuthentication=no
                 -o StrictHostKeyChecking=yes
                 -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-pinned-host"
@@ -287,6 +287,85 @@ jobs:
                 -o ConnectTimeout=20 -o ServerAliveInterval=15)
           BEFORE="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
           echo "FERRARI_PHASE5_CURRENT_BEFORE=$BEFORE"
+          if [[ "$MODE" == --universal-* ]]; then
+            TARGET="7bf6dcecf15da26502c5969b5eee54d5e116fc32"
+            FALLBACK="952b0a75ba798471b07053677d53791bd078ed56"
+            OLD="/srv/projects/skill-universal/releases/$FALLBACK"
+            NEW="/srv/projects/skill-universal/releases/$TARGET"
+            REPORT="$RUNNER_TEMP/ferrari-universal-report.json"
+            echo "FERRARI_UNIVERSAL_MODE=$MODE"
+            echo "FERRARI_UNIVERSAL_PREVIOUS=$BEFORE"
+            if [[ "$MODE" == '--universal-check' || "$MODE" == '--universal-activate' ]]; then
+              [[ "$BEFORE" == "$OLD" ]] || {
+                echo 'FERRARI_UNIVERSAL_UNEXPECTED_ACTIVE_RELEASE' >&2; exit 15;
+              }
+              sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+                "bash -s -- '$TARGET' '--check'" \
+                < ferrari-universal/install/vps-isolated-release.sh
+              CHECK_AFTER="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
+              [[ "$CHECK_AFTER" == "$OLD" ]] || {
+                echo 'FERRARI_UNIVERSAL_CHECK_CHANGED_ACTIVE' >&2; exit 15;
+              }
+              echo 'FERRARI_UNIVERSAL_PRIVATE_PRECHECK=PASS'
+              if [[ "$MODE" == '--universal-activate' ]]; then
+                sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+                  "bash -s -- '$TARGET' '--activate'" \
+                  < ferrari-universal/install/vps-isolated-release.sh
+                AFTER="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
+                [[ "$AFTER" == "$NEW" ]] || {
+                  echo 'FERRARI_UNIVERSAL_ACTIVE_RELEASE_MISMATCH' >&2; exit 15;
+                }
+                sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+                  "cd '/srv/projects/skill-universal/current' && '/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12' -B -" <<'VERIFY_UNIVERSAL'
+          from engine import catalog_registry, tool_runtime
+          d=catalog_registry.read_catalog()
+          assert len(d["tools"])==173 and len(d["functions"])==272
+          assert d["counts"]["all_catalog_entries"]==450
+          assert len(d["actions"])==40 and len(d["mcp_capabilities"]["names"])==220
+          assert len(tool_runtime.specs())==40
+          print("FERRARI_UNIVERSAL_CATALOG_450_READBACK=PASS")
+          VERIFY_UNIVERSAL
+                echo 'FERRARI_UNIVERSAL_ACTIVATION=PASS'
+              else
+                AFTER="$OLD"
+              fi
+              printf '{"status":"PASS","mode":"%s","before":"%s","after":"%s","catalog_target":"%s","fallback_preserved":"%s"}\n' "$MODE" "$BEFORE" "$AFTER" "$TARGET" "$FALLBACK" > "$REPORT"
+            else
+              [[ "$BEFORE" == "$NEW" ]] || {
+                echo 'FERRARI_UNIVERSAL_HYGIENE_REQUIRES_NEW_RELEASE' >&2; exit 16;
+              }
+              FLAGS=""
+              if [[ "$MODE" == '--universal-apply' ]]; then FLAGS="--apply"; fi
+              sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+                "cd '/srv/projects/skill-universal/current' && '/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12' -B - --expected-active '$TARGET' --fallback '$FALLBACK' $FLAGS" \
+                < ferrari-universal/install/vps-universal-catalog-hygiene.py > "$REPORT"
+              python3 - "$REPORT" "$MODE" <<'VERIFY_HYGIENE'
+          import json,sys
+          d=json.load(open(sys.argv[1],encoding="utf-8"))
+          assert d["status"]=="PASS"
+          assert d["universal_catalog_active"] is True
+          assert d["active_catalog_entries"]==450
+          assert not d["legacy_catalog_files_in_active"]
+          assert d["other_projects_or_ubuntu_modified"] is False
+          assert d["mode"]==("apply" if sys.argv[2]=="--universal-apply" else "preview")
+          assert d["fallback_preserved"]=="952b0a75ba798471b07053677d53791bd078ed56"
+          print("FERRARI_UNIVERSAL_HYGIENE_REPORT_VALID=PASS")
+          VERIFY_HYGIENE
+              AFTER="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
+              [[ "$AFTER" == "$NEW" ]] || {
+                echo 'FERRARI_UNIVERSAL_HYGIENE_CHANGED_ACTIVE' >&2; exit 16;
+              }
+            fi
+            sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'bash -s' <<'SERVICES'
+          set -Eeuo pipefail
+          for s in pink-iptv-backend pink-vpn fadego-staging lowcost-europa pm2-iptvpn-bot pm2-telegram-robot-leads nginx postgresql@16-main; do
+            systemctl is-active --quiet "$s" || { echo "FERRARI_PROTECTED_SERVICE_NOT_ACTIVE=$s" >&2; exit 8; }
+          done
+          echo 'FERRARI_PROTECTED_SERVICES=8/8_PASS'
+          SERVICES
+            echo 'FERRARI_UNIVERSAL_WORKFLOW=PASS'
+            exit 0
+          fi
           if [[ "$MODE" == '--final-preview' || "$MODE" == '--final-apply' ]]; then
             [[ "$BEFORE" == "/srv/projects/skill-universal/releases/146145d5ada9c13e368df18727e4dbf4f5807664" ]] ||
               { echo 'FERRARI_PHASE6_FINAL_WRONG_ACTIVE' >&2; exit 11; }
@@ -584,6 +663,15 @@ jobs:
             echo "FERRARI_PHASE5_ACTIVATION=PASS"
             echo "FERRARI_PHASE5_FALLBACK_PRESERVED=$BEFORE"
           fi
+
+      - name: Publish Ferrari universal catalog precheck, activation or hygiene evidence
+        if: always() && startsWith(steps.request.outputs.mode, '--universal-')
+        uses: actions/upload-artifact@v4
+        with:
+          name: ferrari-universal-${{ github.run_id }}
+          path: ${{ runner.temp }}/ferrari-universal-report.json
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Upload Ferrari phase-7 private DAG certification and uninstall footprint
         if: steps.request.outputs.mode == '--phase7-certify'
