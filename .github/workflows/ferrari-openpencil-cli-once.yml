@@ -1,0 +1,126 @@
+name: Ferrari OpenPencil CLI private one-shot
+# Temporary single-purpose administrative validation; original Skill/SSH bridge unchanged.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ferrari-release-requests/openpencil-cli-20261106.json'
+permissions:
+  contents: read
+concurrency:
+  group: ferrari-openpencil-private-once
+  cancel-in-progress: false
+
+jobs:
+  openpencil-private:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Checkout request delta without persisted credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Validate one newly created, fixed OpenPencil request
+        id: gate
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          set -Eeuo pipefail
+          added="$(git diff --name-only --diff-filter=A "$BEFORE_SHA" "$AFTER_SHA")"
+          changed="$(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")"
+          if [[ -z "$added" ]]; then
+            echo "execute=false" >> "$GITHUB_OUTPUT"
+            echo "FERRARI_OPENPENCIL_REQUEST_HYGIENE_ONLY=PASS"
+            exit 0
+          fi
+          test "$added" = 'ferrari-release-requests/openpencil-cli-20261106.json'
+          test "$changed" = "$added"
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          doc=json.loads(Path('ferrari-release-requests/openpencil-cli-20261106.json').read_text())
+          expected={
+              "version":1,
+              "task":"install-and-certify-openpencil-cli-private",
+              "ferrari_sha":"a831a7e605f4efb6cc4561e4d533a10280956e8d",
+              "package":"@open-pencil/cli@0.16.0",
+              "root":"/srv/projects/skill-universal"
+          }
+          assert doc==expected, "FERRARI_OPENPENCIL_REQUEST_NOT_AUTHORIZED"
+          print('FERRARI_OPENPENCIL_REQUEST=VALID')
+          PY
+          echo "execute=true" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout pinned Ferrari source (not floating main)
+        if: steps.gate.outputs.execute == 'true'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: a831a7e605f4efb6cc4561e4d533a10280956e8d
+          path: ferrari
+          persist-credentials: false
+
+      - name: Check pinned installer and its policy tests on runner
+        if: steps.gate.outputs.execute == 'true'
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash -n ferrari/install/vps-openpencil-cli.sh
+          (cd ferrari && python3 -m unittest discover -s tests -p test_openpencil_private.py -v)
+          echo FERRARI_OPENPENCIL_INSTALLER_SOURCE=PASS
+
+      - name: Prepare existing SSH identity with pinned host fingerprint
+        if: steps.gate.outputs.execute == 'true'
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          test -n "$SSHPASS" || { echo FERRARI_OPENPENCIL_EXISTING_SSH_SECRET_MISSING; exit 3; }
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/ferrari-openpencil-host"
+          chmod 600 "$RUNNER_TEMP/ferrari-openpencil-host"
+          fingerprint="$(ssh-keygen -lf "$RUNNER_TEMP/ferrari-openpencil-host" -E sha256 | awk '{print $2}')"
+          test "$fingerprint" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc" || {
+            echo FERRARI_OPENPENCIL_SSH_HOST_MISMATCH; exit 3;
+          }
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          echo FERRARI_OPENPENCIL_EXISTING_SSH_IDENTITY=PASS
+
+      - name: Install and test solely under Ferrari, preserving active release
+        if: steps.gate.outputs.execute == 'true'
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          opts=(-o PreferredAuthentications=password -o PubkeyAuthentication=no
+                -o StrictHostKeyChecking=yes
+                -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-openpencil-host"
+                -o GlobalKnownHostsFile=/dev/null
+                -o HostKeyAlgorithms=ssh-ed25519
+                -o ConnectTimeout=20 -o ServerAliveInterval=15)
+          BEFORE="$(sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
+          [[ "$BEFORE" == /srv/projects/skill-universal/releases/* ]] || exit 4
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
+            'bash -s -- --apply' < ferrari/install/vps-openpencil-cli.sh
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
+            'bash -s -- --check' < ferrari/install/vps-openpencil-cli.sh
+          AFTER="$(sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
+          test "$BEFORE" = "$AFTER" || { echo FERRARI_OPENPENCIL_ACTIVE_RELEASE_CHANGED; exit 5; }
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 'python3 -' <<'PY'
+          from pathlib import Path
+          root=Path('/srv/projects/skill-universal').resolve(strict=True)
+          target=root/'.runtime/npm/openpencil'
+          assert target.is_dir() and not target.is_symlink()
+          for entry in target.rglob('*'):
+              if entry.is_symlink():
+                  assert entry.resolve(strict=True).is_relative_to(root),str(entry)
+          print('FERRARI_OPENPENCIL_ISOLATED_SYMLINK_AUDIT=PASS')
+          PY
+          echo FERRARI_OPENPENCIL_RELEASE_UNCHANGED=PASS
+          echo FERRARI_OPENPENCIL_VPS_CERTIFICATION=PASS
