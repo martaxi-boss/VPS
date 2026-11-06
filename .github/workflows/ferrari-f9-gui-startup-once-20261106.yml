@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: 417efb28897b2a0983e8e915942677dceebfca86
+          ref: 300bc068108cdae21f6acf4436905318f683f3fc
           persist-credentials: false
           path: ferrari
       - name: Verify GUI probe source and non-overclaim tests
