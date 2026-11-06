@@ -1,7 +1,0 @@
-{
-  "version": 1,
-  "task": "comfyui-private-tiny-sd-cpu-real-inference-r3",
-  "ferrari_sha": "010605b0567e2ae8059eb939aa88c4c9ad7191cb",
-  "model": "segmind/tiny-sd",
-  "model_revision": "3d25de3e8d5aacf94ce91176f204e6d11d120315"
-}
