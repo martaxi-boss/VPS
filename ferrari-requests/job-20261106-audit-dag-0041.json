@@ -1,0 +1,1 @@
+{"version":1,"id":"ferrari-audit-dag-0041","kind":"plan","max_parallel":2,"plan":{"version":1,"steps":[{"id":"poster","operation":"svg-poster","title":"Auditoria Ferrari"},{"id":"site","operation":"web-template","title":"Teste Ferrari","layout":"landing"}]}}
