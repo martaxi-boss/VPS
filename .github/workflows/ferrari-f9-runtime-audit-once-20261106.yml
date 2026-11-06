@@ -79,6 +79,20 @@ jobs:
           (timeout 12 /usr/bin/qgis_process --help 2>&1 | head -20) || true
           echo F9_SOLVESPACE_CLI_HELP_SAFE
           (timeout 8 /usr/bin/solvespace --help 2>&1 | head -15) || true
+          echo F9_QGIS_PRIVATE_BUNDLE_PREFLIGHT
+          dpkg-query -W -f='${Package}|${Version}|${Installed-Size}KiB\n' 'libqgis*' 'qgis*' 'python3-qgis*' 2>/dev/null | head -65 || true
+          for pkg in qgis qgis-common qgis-providers qgis-providers-common libqgis-core3.34.4 libqgis-analysis3.34.4 libqgis-gui3.34.4 libqgis-native3.34.4; do
+            echo "APT_DEPENDENCIES:$pkg"
+            (apt-cache depends "$pkg" 2>/dev/null | head -30) || true
+          done
+          echo QGIS_BIN_WRAPPER
+          head -30 /usr/bin/qgis_process 2>/dev/null || true
+          echo QGIS_PACKAGE_FILE_ROOT
+          dpkg -S /usr/bin/qgis_process.bin /usr/bin/qgis_process /usr/lib/qgis/ 2>/dev/null | head -15 || true
+          echo QGIS_PROCESS_BINARY_LIBS
+          (ldd /usr/bin/qgis_process.bin 2>&1 | grep -E 'libqgis|not found|libQt' | head -25) || true
+          echo F9_QGIS_PROCESS_VERSION
+          (timeout 12 /usr/bin/qgis_process --version 2>&1 | head -12) || true
           echo F9_PRIVATE_OBS_LIBRARY_CHECK
           python3 - <<'PY'
           import json,subprocess
