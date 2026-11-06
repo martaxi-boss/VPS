@@ -1,8 +1,0 @@
-{
-  "version": 1,
-  "task": "ruflo-local-route-and-ephemeral-memory-proof",
-  "root": "/srv/projects/skill-universal",
-  "no_agent_spawn": true,
-  "no_daemon": true,
-  "no_provider_credentials": true
-}
