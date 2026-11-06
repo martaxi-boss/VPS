@@ -1,0 +1,65 @@
+name: Ferrari F9 functional capabilities preflight (read-only)
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/ferrari-f9-functional-preflight-20261106.yml']
+permissions:
+  contents: read
+concurrency:
+  group: ferrari-f9-functional-preflight
+  cancel-in-progress: false
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    steps:
+      - name: Connect using existing pinned host
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/host"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/host" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          opts=(-T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/host" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 -o ServerAliveInterval=15)
+          sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          root=/srv/projects/skill-universal
+          test "$(id -un)" = ubuntu
+          test "$(readlink -f "$root/current")" = "$root/releases/fe1bb6e7073fdd8a963963909127cde6d570f253" || exit 5
+          echo F9_FUNC_RELEASE_CHECK=PASS
+          echo F9_FUNC_GLOBAL_PACKAGES
+          for p in librecad solvespace audacity openshot-qt synfigstudio obs-studio; do
+            dpkg-query -W -f='${Package} ${Status}\n' "$p" 2>/dev/null || true
+          done
+          echo F9_FUNC_APPIMAGE_COMPONENTS
+          for dir in librecad-2.2.1.6 audacity-4.0.2 openshot-4.1.1 synfig-1.5.5; do
+            echo "PACKAGE:$dir"
+            find "$root/tools/$dir" -maxdepth 4 -type f \
+              \( -iname '*libopenshot*' -o -name 'synfig' -o -iname '*audacity*' -o -name '*librecad*' -o -name '*.sif' -o -name '*.slvs' -o -name '*.py' -o -name '*pipe*' -o -name 'ffmpeg' \) -printf '%P\n' 2>/dev/null | head -22 || true
+          done
+          echo F9_FUNC_QA_TOOLS
+          for tool in Xvfb xdotool wmctrl ffprobe python3 file; do command -v "$tool" || true; done
+          echo F9_FUNC_SYNFIG_INTERNAL_PATHS
+          find "$root/tools/synfig-1.5.5" -maxdepth 3 -printf '%y %P\n' 2>/dev/null | head -45
+          echo F9_FUNC_AUDACITY_PYTHONS
+          find "$root/tools/audacity-4.0.2" -maxdepth 5 -iname '*scripting*' -o -iname '*pipe*' 2>/dev/null | head -25
+          echo F9_FUNC_SOLVESPACE_RESOURCE_CHECK
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/srv/projects/skill-universal')
+          for p in ('tools/solvespace-3.1-ubuntu24/usr/share/solvespace/threejs/three.js',
+                    'tools/solvespace-3.1-ubuntu24/usr/share/solvespace/fonts/unifont.hex',
+                    'tools/qgis-4.2.3-condaforge/bin/qgis_process'):
+              q=root/p
+              print('PRIVATE_RESOURCE',p, q.is_file(),q.resolve())
+          PY
+          echo F9_FUNC_EXISTING_RENDER_TOOLS
+          find "$root/tools" -maxdepth 5 -type f -name synfig -o -name ffprobe -o -name 'melt' 2>/dev/null | head -20
+          services=(pink-iptv-backend pink-vpn fadego-staging lowcost-europa pm2-iptvpn-bot pm2-telegram-robot-leads nginx postgresql@16-main)
+          for s in "${services[@]}"; do test "$(systemctl is-active "$s")" = active || exit 6; done
+          echo F9_FUNC_8_SERVICES=PASS
+          echo F9_FUNC_PRIVATE_PREFLIGHT=PASS
+          REMOTE
