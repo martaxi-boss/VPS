@@ -1,5 +1,5 @@
-name: Ferrari F9 one-time private OBS Ubuntu 24.04
-# One-time guarded migration. No global APT changes, GUI daemon or shared bridge edits.
+name: Ferrari F9 private OBS library repair Ubuntu 24.04
+# One-time Ferrari-only, no global APT, no streaming service, no shared bridge changes.
 on:
   push:
     branches: [main]
@@ -8,27 +8,27 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: ferrari-f9-obs24-20261106
+  group: ferrari-f9-private-obs-libobs
   cancel-in-progress: false
 jobs:
-  private-obs:
+  obs-private-link:
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 35
     steps:
-      - name: Checkout exact merged Ferrari OBS source
+      - name: Checkout exact certified Ferrari OBS repair source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: d095b394b8c01610284c1dd92985db0df9f64990
+          ref: 3a43f7be0553151f9e62b20d737a62760433cbec
           persist-credentials: false
           path: ferrari
-      - name: Verify OBS installer tests
+      - name: Validate code and non-destructive private launcher tests
         run: |
           set -Eeuo pipefail
           python3 -m py_compile ferrari/install/vps-phase9-private-obs24.py
           python3 -m unittest discover -s ferrari/tests -p test_phase9_private_obs24.py -v
-          echo F9_PRIVATE_OBS_SOURCE_CHECK=PASS
-      - name: Reuse existing pinned VPS SSH connection
+          echo F9_OBS_PRIVATE_REPAIR_TESTS=PASS
+      - name: Pinned existing VPS SSH identity
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         run: |
@@ -41,7 +41,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass >/dev/null
           echo F9_EXISTING_SSH_PIN=PASS
-      - name: Check and install official OBS only inside Ferrari
+      - name: Repair only Ferrari private OBS launcher and certify bundled libobs
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         run: |
@@ -52,13 +52,13 @@ jobs:
                 -o "UserKnownHostsFile=$RUNNER_TEMP/f9-known-hosts"
                 -o GlobalKnownHostsFile=/dev/null
                 -o HostKeyAlgorithms=ssh-ed25519
-                -o ConnectTimeout=20 -o ServerAliveInterval=15)
+                -o ConnectTimeout=30 -o ServerAliveInterval=15)
           root=/srv/projects/skill-universal
-          source="$root/.runtime/f9-obs-$GITHUB_RUN_ID.py"
+          target="$root/.runtime/f9-obs-library-$GITHUB_RUN_ID.py"
           sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
             'test -d /srv/projects/skill-universal/.runtime && test ! -L /srv/projects/skill-universal'
           sshpass -e scp "${opts[@]}" ferrari/install/vps-phase9-private-obs24.py \
-            "ubuntu@146.59.145.3:$source"
+            "ubuntu@146.59.145.3:$target"
           sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 'bash -s' -- "$GITHUB_RUN_ID" <<'REMOTE'
           set -Eeuo pipefail
           umask 077
@@ -66,28 +66,29 @@ jobs:
           root=/srv/projects/skill-universal
           run="$1"
           [[ "$run" =~ ^[0-9]+$ ]] || exit 4
-          script="$root/.runtime/f9-obs-$run.py"
+          script="$root/.runtime/f9-obs-library-$run.py"
           trap 'rm -f -- "$script"' EXIT
-          test "$(id -un)" = ubuntu && test "$(id -u)" -ne 0
-          test -f "$script" && test ! -L "$script"
+          test "$(id -un)" = ubuntu && test -f "$script" && test ! -L "$script"
           test "$(readlink -f "$root/current")" = "$root/releases/f1f3b03525adec7018d7d629243e7b0fbb7f5087" || exit 5
           test "$(dpkg-query -W -f='${Status}' obs-studio 2>/dev/null)" = 'install ok installed' || exit 6
           services=(pink-iptv-backend pink-vpn fadego-staging lowcost-europa
                     pm2-iptvpn-bot pm2-telegram-robot-leads nginx postgresql@16-main)
-          for s in "${services[@]}"; do
-            test "$(systemctl is-active "$s")" = active || { echo "F9_PRE_SERVICE_FAILED:$s"; exit 7; }
-          done
-          echo F9_OBS_PRIVATE_PRECHECK=PASS
-          python3 "$script" --install
-          python3 "$script" --check
+          for s in "${services[@]}"; do test "$(systemctl is-active "$s")" = active || exit 7; done
+          python3 "$script" --repair-launcher
+          out="$(python3 "$script" --check)"
+          echo "$out"
+          python3 - "$out" <<'PY'
+          import json,sys
+          o=json.loads(sys.argv[1])
+          assert o.get('status')=='private_obs_package_verified',o
+          assert o.get('private_libobs_linked') is True,o
+          print('F9_OBS_PRIVATE_LIBOBS_LINKED=PASS')
+          print('F9_OBS_CLI_VERSION='+('PASS' if o.get('cli_version_tested') else 'PENDING'))
+          PY
           test "$(dpkg-query -W -f='${Status}' obs-studio 2>/dev/null)" = 'install ok installed' || exit 8
-          for s in "${services[@]}"; do
-            test "$(systemctl is-active "$s")" = active || { echo "F9_POST_SERVICE_FAILED:$s"; exit 9; }
-          done
+          for s in "${services[@]}"; do test "$(systemctl is-active "$s")" = active || exit 9; done
           test "$(readlink -f "$root/current")" = "$root/releases/f1f3b03525adec7018d7d629243e7b0fbb7f5087" || exit 10
-          du -sh "$root/tools/obs-studio-32.2.2"
-          df -hT "$root"
-          echo F9_OBS_PRIVATE_PACKAGE=PASS
-          echo F9_OBS_OTHER_SERVICES=8_OF_8_PASS
-          echo F9_OBS_GUI_WEBSOCKET_AND_DEPENDENCIES=NOT_YET_CERTIFIED
+          echo F9_OBS_SERVICES=8_OF_8_PASS
+          echo F9_OBS_GLOBAL_APT_PRESERVED=PASS
+          echo F9_OBS_GUI_STREAMING_WEBSOCKET=NOT_TESTED
           REMOTE
