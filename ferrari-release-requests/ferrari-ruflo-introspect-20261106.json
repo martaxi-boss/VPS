@@ -1,7 +1,0 @@
-{
-  "version": 1,
-  "kind": "ruflo-local-mcp-introspection",
-  "scope": "read-only",
-  "project": "skill-universal",
-  "no_external_models": true
-}
