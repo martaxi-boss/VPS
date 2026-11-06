@@ -1,7 +1,0 @@
-{
-  "version": 1,
-  "task": "ferrari-point5-read-only-isolation-audit",
-  "release": "a266b25e06a9c8acf1fdc940d22b99070cd17ded",
-  "scope": "/srv/projects/skill-universal",
-  "no_deletions": true
-}
