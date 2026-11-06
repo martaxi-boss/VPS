@@ -1,7 +1,0 @@
-{
-  "version": 1,
-  "task": "ruflo-private-package-and-cli-readonly-audit",
-  "project_root": "/srv/projects/skill-universal",
-  "no_services": true,
-  "no_provider_calls": true
-}
