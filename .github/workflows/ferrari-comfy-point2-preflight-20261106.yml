@@ -1,0 +1,138 @@
+name: Ferrari ComfyUI point2 private preflight
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ferrari-release-requests/comfyui-point2-preflight-20261106.json'
+permissions:
+  contents: read
+concurrency:
+  group: ferrari-comfyui-point2
+  cancel-in-progress: false
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - name: Confirm exact single-use authorization
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Validate authorized one-shot path
+        id: gate
+        shell: bash
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          set -Eeuo pipefail
+          added="$(git diff --name-only --diff-filter=A "$BEFORE" "$AFTER")"
+          changed="$(git diff --name-only "$BEFORE" "$AFTER")"
+          if [[ -z "$added" ]]; then
+            echo "execute=false" >> "$GITHUB_OUTPUT"
+            echo FERRARI_COMFY_PREFLIGHT_HYGIENE=PASS
+            exit 0
+          fi
+          test "$added" = 'ferrari-release-requests/comfyui-point2-preflight-20261106.json'
+          test "$changed" = "$added"
+          python3 - <<'PY'
+          import json
+          assert json.load(open('ferrari-release-requests/comfyui-point2-preflight-20261106.json'))=={
+              'version':1,'task':'read-only-comfyui-cpu-model-preflight',
+              'root':'/srv/projects/skill-universal'}
+          PY
+          echo "execute=true" >> "$GITHUB_OUTPUT"
+          echo FERRARI_COMFY_PREFLIGHT_REQUEST=PASS
+
+      - name: Verify existing VPS SSH fingerprint and runner-only sshpass
+        if: steps.gate.outputs.execute == 'true'
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/host"
+          chmod 600 "$RUNNER_TEMP/host"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/host" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass > /dev/null
+
+      - name: Read bounded ComfyUI inventory only
+        if: steps.gate.outputs.execute == 'true'
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          opts=(-o PreferredAuthentications=password -o PubkeyAuthentication=no
+                -o StrictHostKeyChecking=yes
+                -o "UserKnownHostsFile=$RUNNER_TEMP/host" -o GlobalKnownHostsFile=/dev/null
+                -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 -o ServerAliveInterval=15)
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 'python3 -' > "$RUNNER_TEMP/summary.txt" <<'PY'
+          import os,sys,json,shutil,subprocess
+          from pathlib import Path
+          from importlib import metadata
+          p=Path('/srv/projects/skill-universal')
+          print('FERRARI_COMFY_PROJECT_EXISTS='+str(p.is_dir()))
+          print('FERRARI_COMFY_PROJECT_OWNER='+str(p.stat().st_uid if p.is_dir() else '?'))
+          print('FERRARI_COMFY_ACTIVE='+str((p/'current').resolve(strict=False)))
+          print('FERRARI_COMFY_MEMINFO')
+          for line in Path('/proc/meminfo').read_text().splitlines():
+              if line.split(':')[0] in {'MemTotal','MemAvailable','SwapTotal','SwapFree'}: print(line)
+          try:
+              print('FERRARI_COMFY_CPU_LOGICAL='+str(os.cpu_count()))
+              print('FERRARI_COMFY_ROOT_DISK_FREE_GIB=%.2f'%(shutil.disk_usage(p).free/2**30))
+          except OSError as exc: print('FERRARI_COMFY_DISK_ERROR='+str(exc))
+          paths=[
+              p/'tools/comfyui',p/'tools/ComfyUI',
+              p/'tools/comfy-ui',
+              p/'.runtime/comfyui',
+              p/'.runtime/venvs/comfyui',
+              p/'.runtime/venvs/extended/comfyui',
+              p/'.runtime/venvs/extended/torch',
+              p/'.runtime/models/comfyui',
+              p/'models/comfyui',
+              p/'containers/comfyui',
+          ]
+          for f in paths:
+              if f.exists():
+                  print('FERRARI_COMFY_PATH='+str(f)+' type='+('symlink' if f.is_symlink() else 'dir' if f.is_dir() else 'file'))
+                  if f.is_dir():
+                      print('FERRARI_COMFY_CHILDREN='+','.join(sorted(q.name for q in list(f.iterdir())[:45]))[:1400])
+                      if f.name=='comfyui':
+                          for sub in ('models/checkpoints','models/vae','models/loras','models/unet'):
+                              folder=f/sub
+                              if folder.is_dir():
+                                  for model in sorted(folder.iterdir())[:12]:
+                                      if model.is_file():print('FERRARI_COMFY_MODEL='+str(model.relative_to(p))+' bytes='+str(model.stat().st_size))
+          for base in (p/'tools',p/'.runtime/venvs/extended',p/'.runtime/venvs',p/'.runtime'):
+              if base.is_dir() and not base.is_symlink():
+                  matches=[x.name for x in list(base.iterdir())[:140] if any(k in x.name.lower() for k in ('comfy','diffusion','torch','sd','model'))]
+                  print('FERRARI_COMFY_MATCHES='+str(base)+':'+str(sorted(matches)[:30]))
+          for v in (p/'.runtime/venvs/extended/comfyui',p/'.runtime/venvs/comfyui'):
+              for s in v.glob('lib/python*/site-packages'):
+                  if s.is_dir():
+                      try:
+                          found={d.metadata.get('Name','').lower():d.version for d in metadata.distributions(path=[str(s)])}
+                          print('FERRARI_COMFY_VENV='+str(v)+' libs='+json.dumps({k:found.get(k) for k in ('torch','torchvision','comfyui-frontend-package','transformers','safetensors','diffusers')},sort_keys=True))
+                      except Exception as exc:print('FERRARI_COMFY_METADATA_ERROR='+str(type(exc).__name__))
+          for base in (p/'tools',p/'.runtime'):
+              if base.is_dir():
+                  matches=[]
+                  for f in base.glob('*/main.py'):
+                      if 'comfy' in str(f).lower():matches.append(str(f))
+                  print('FERRARI_COMFY_ENTRYPOINTS='+','.join(matches[:10]))
+          print('FERRARI_COMFY_PREFLIGHT=PASS_READ_ONLY')
+          PY
+          cat "$RUNNER_TEMP/summary.txt"
+
+      - name: Retain bounded operational evidence
+        if: steps.gate.outputs.execute == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ferrari-comfy-point2-preflight-${{ github.run_id }}
+          path: ${{ runner.temp }}/summary.txt
+          retention-days: 7
+          if-no-files-found: error
