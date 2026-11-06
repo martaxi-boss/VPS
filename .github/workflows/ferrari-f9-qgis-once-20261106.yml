@@ -1,0 +1,97 @@
+name: Ferrari F9 one-time QGIS conda-forge Ubuntu 24.04
+# Isolated conda-forge GIS runtime within Ferrari, no OS apt installation.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ferrari-f9-qgis-once-20261106.yml'
+permissions:
+  contents: read
+concurrency:
+  group: ferrari-f9-qgis-20261106
+  cancel-in-progress: false
+jobs:
+  qgis-private:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    steps:
+      - name: Checkout exact merged Ferrari QGIS installer
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: d00d8bc6bf776a35511b0af584d90ca43c7a7181
+          persist-credentials: false
+          path: ferrari
+      - name: Assert code integrity and no-APT installation tests
+        run: |
+          set -Eeuo pipefail
+          python3 -m py_compile ferrari/install/vps-phase9-private-qgis-conda.py
+          python3 -m unittest discover -s ferrari/tests -p test_phase9_private_qgis_conda.py -v
+          echo F9_QGIS_ISOLATED_INSTALLER_UNIT=PASS
+      - name: Pinned existing VPS SSH only
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          test -n "$SSHPASS" || exit 2
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/f9-known-hosts"
+          chmod 600 "$RUNNER_TEMP/f9-known-hosts"
+          fingerprint="$(ssh-keygen -lf "$RUNNER_TEMP/f9-known-hosts" -E sha256 | awk '{print $2}')"
+          test "$fingerprint" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' || exit 3
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          echo F9_EXISTING_SSH_PIN=PASS
+      - name: Preview and install QGIS 4.2.3 in Ferrari only
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$GITHUB_RUN_ID" =~ ^[0-9]+$ ]] || exit 2
+          opts=(-o PreferredAuthentications=password -o PubkeyAuthentication=no
+                -o StrictHostKeyChecking=yes
+                -o "UserKnownHostsFile=$RUNNER_TEMP/f9-known-hosts"
+                -o GlobalKnownHostsFile=/dev/null
+                -o HostKeyAlgorithms=ssh-ed25519
+                -o ConnectTimeout=30 -o ServerAliveInterval=15)
+          root=/srv/projects/skill-universal
+          target="$root/.runtime/f9-qgis-$GITHUB_RUN_ID.py"
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
+            'test -d /srv/projects/skill-universal/.runtime && test ! -L /srv/projects/skill-universal'
+          sshpass -e scp "${opts[@]}" ferrari/install/vps-phase9-private-qgis-conda.py \
+            "ubuntu@146.59.145.3:$target"
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 'bash -s' -- "$GITHUB_RUN_ID" <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          ulimit -c 0
+          root=/srv/projects/skill-universal
+          run="$1"
+          [[ "$run" =~ ^[0-9]+$ ]] || exit 4
+          script="$root/.runtime/f9-qgis-$run.py"
+          trap 'rm -f -- "$script"' EXIT
+          test "$(id -un)" = ubuntu && test "$(id -u)" -ne 0 && test -f "$script" && test ! -L "$script"
+          test "$(readlink -f "$root/current")" = "$root/releases/f1f3b03525adec7018d7d629243e7b0fbb7f5087" || exit 5
+          test "$(dpkg-query -W -f='${Status}' qgis 2>/dev/null)" = 'install ok installed' || exit 6
+          services=(pink-iptv-backend pink-vpn fadego-staging lowcost-europa
+                    pm2-iptvpn-bot pm2-telegram-robot-leads nginx postgresql@16-main)
+          for s in "${services[@]}"; do
+            test "$(systemctl is-active "$s")" = active || { echo "F9_PRE_SERVICE_FAILED:$s"; exit 7; }
+          done
+          df -hT "$root"
+          free -h
+          echo F9_QGIS_PRECHECK=PASS
+          python3 "$script" --preview
+          echo F9_QGIS_SOLVER_DRY_RUN=PASS
+          python3 "$script" --install
+          python3 "$script" --check
+          echo F9_QGIS_PRIVATE_INSTALL_AND_CHECK=PASS
+          test "$(dpkg-query -W -f='${Status}' qgis 2>/dev/null)" = 'install ok installed' || exit 8
+          for s in "${services[@]}"; do
+            test "$(systemctl is-active "$s")" = active || { echo "F9_POST_SERVICE_FAILED:$s"; exit 9; }
+          done
+          test "$(readlink -f "$root/current")" = "$root/releases/f1f3b03525adec7018d7d629243e7b0fbb7f5087" || exit 10
+          du -sh "$root/tools/qgis-4.2.3-condaforge" "$root/.runtime/mamba-qgis"
+          df -hT "$root"
+          echo F9_PROTECTED_SERVICES=8_OF_8_PASS
+          echo F9_QGIS_GLOBAL_APT_PRESERVED=PASS
+          echo F9_QGIS_GUI_RENDERING=NOT_CERTIFIED
+          REMOTE
