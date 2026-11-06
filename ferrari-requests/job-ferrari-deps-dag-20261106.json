@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "id": "ferrari-deps-dag-20261106",
+  "kind": "plan",
+  "max_parallel": 2,
+  "plan": {
+    "version": 1,
+    "steps": [
+      {
+        "id": "web",
+        "operation": "web-template",
+        "title": "Ferrari verificacao Ubuntu",
+        "layout": "landing"
+      },
+      {
+        "id": "svg",
+        "operation": "svg-poster",
+        "title": "Ferrari verificacao grafica"
+      }
+    ]
+  }
+}
