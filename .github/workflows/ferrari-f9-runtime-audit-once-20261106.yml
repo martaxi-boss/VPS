@@ -130,6 +130,18 @@ jobs:
           echo "OBS_PROBE_EXIT=$code"
           tail -c 850 "$probe/obs_stdout" || true
           tail -c 1000 "$probe/obs_stderr" || true
+          echo F9_SOLVESPACE_RESOURCES_PROVENANCE
+          echo F9_SOLVESPACE_PRIVATE_TREE
+          find "$root/tools/solvespace-3.1-ubuntu24/usr/share" -maxdepth 4 -type f 2>/dev/null | head -55 || true
+          echo F9_SOLVESPACE_PRIVATE_RESOURCE_STATS
+          ls -ld "$root/tools/solvespace-3.1-ubuntu24/usr/share/solvespace" /usr/share/solvespace /usr/bin/solvespace 2>&1 || true
+          echo F9_SOLVESPACE_GLOBAL_PACKAGE_FILES
+          dpkg -L solvespace | grep -E '/solvespace$|/solvespace/|/share/solvespace' | head -60 || true
+          echo F9_SOLVESPACE_RESOURCE_COUNTS
+          find /usr/share/solvespace -type f 2>/dev/null | wc -l || true
+          find "$root/tools/solvespace-3.1-ubuntu24/usr/share/solvespace" -type f 2>/dev/null | wc -l || true
+          echo F9_SOLVESPACE_RESOURCE_RELATIVE_PATHS
+          find /usr/share/solvespace -type f 2>/dev/null | head -16 || true
           services=(pink-iptv-backend pink-vpn fadego-staging lowcost-europa pm2-iptvpn-bot pm2-telegram-robot-leads nginx postgresql@16-main)
           for s in "${services[@]}"; do
             test "$(systemctl is-active "$s")" = active || { echo "F9_SERVICE_FAILED:$s"; exit 5; }
