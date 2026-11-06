@@ -110,6 +110,12 @@ jobs:
           for tool in Xvfb xvfb-run weston; do
             echo -n "$tool: "; command -v "$tool" || true
           done
+          echo F9_OBS_PRIVATE_LIBS_AND_LDD
+          payload="$root/tools/obs-studio-32.2.2/payload"
+          find "$payload" -maxdepth 7 -type f \\( -name '*libobs*.so*' -o -name '*frontend*.so*' -o -name '*obs*.so*' \\) -print | head -55 || true
+          obsbin="$payload/usr/local/bin/obs"
+          (ldd "$obsbin" | grep -E 'libobs|frontend|libQt|libavcodec|libavformat' | head -22) || true
+          (readelf -d "$obsbin" | grep -E 'NEEDED|RPATH|RUNPATH' | head -23) || true
           echo F9_PRIVATE_OBS_VERSION_PROBE
           probe="$root/.runtime/f9-gui-probe-$"
           mkdir -m 700 "$probe"
