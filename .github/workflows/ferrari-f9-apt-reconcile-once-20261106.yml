@@ -3,7 +3,7 @@ on:
   push:
     branches: [main]
     paths:
-      - ferrari-release-requests/ferrari-f9-apt-backup-retry-20261106.json
+      - ferrari-release-requests/ferrari-f9-apt-backup-final-20261106.json
       - ferrari-release-requests/ferrari-f9-apt-apply-20261106.json
 permissions:
   contents: read
@@ -31,7 +31,7 @@ jobs:
           changed="$(git diff --name-only "$BEFORE" "$AFTER")"
           test "$added" = "$changed"
           case "$changed" in
-            ferrari-release-requests/ferrari-f9-apt-backup-retry-20261106.json) mode=backup ;;
+            ferrari-release-requests/ferrari-f9-apt-backup-final-20261106.json) mode=backup ;;
             ferrari-release-requests/ferrari-f9-apt-apply-20261106.json) mode=apply ;;
             *) echo 'F9_REQUEST_UNAUTHORIZED'; exit 2 ;;
           esac
@@ -40,7 +40,7 @@ jobs:
           from pathlib import Path
           p,mode=sys.argv[1:]
           obj=json.loads(Path(p).read_text())
-          assert obj=={'version':1,'phase':9,'mode':mode,'sha':'c8fa4408e99d25206dc07154e4a9e31e729cdc89',
+          assert obj=={'version':1,'phase':9,'mode':mode,'sha':'60b6a338df7ed4d5be07934bb691fa592c4b0636',
                        'packages':8,'private_only':True,'other_projects':'untouched'}
           print('FERRARI_F9_SIGNED_SCOPE=PASS '+mode)
           PY
@@ -48,7 +48,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: c8fa4408e99d25206dc07154e4a9e31e729cdc89
+          ref: 60b6a338df7ed4d5be07934bb691fa592c4b0636
           persist-credentials: false
           path: ferrari
       - name: Pin existing VPS SSH host and prepare runner only
