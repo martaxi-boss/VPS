@@ -38,7 +38,7 @@ jobs:
               "ferrari_registry.json","ferrari_expansion.json"))
           print("FERRARI_ONE_CATALOG_SOURCE=PASS")
           PY
-          python3 -m unittest discover -s ferrari/tests -p test_one_tool_catalog.py -v
+          (cd ferrari && python3 -m unittest discover -s tests -p test_one_tool_catalog.py -v)
       - name: Pinned existing VPS SSH identity only
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
