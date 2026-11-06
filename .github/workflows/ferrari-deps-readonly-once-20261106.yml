@@ -3,7 +3,7 @@ on:
   push:
     branches: [main]
     paths:
-      - ferrari-release-requests/ferrari-deps-readonly-20261106-a.json
+      - ferrari-release-requests/ferrari-deps-readonly-20261106-b.json
 permissions:
   contents: read
 concurrency:
@@ -30,12 +30,12 @@ jobs:
           added="$(git diff --name-only --diff-filter=A "$BEFORE" "$AFTER")"
           changed="$(git diff --name-only "$BEFORE" "$AFTER")"
           if [[ -z "$added" ]]; then echo execute=false >> "$GITHUB_OUTPUT"; exit 0; fi
-          test "$added" = 'ferrari-release-requests/ferrari-deps-readonly-20261106-a.json'
+          test "$added" = 'ferrari-release-requests/ferrari-deps-readonly-20261106-b.json'
           test "$changed" = "$added"
           python3 - <<'PY'
           import json
           from pathlib import Path
-          d=json.loads(Path('ferrari-release-requests/ferrari-deps-readonly-20261106-a.json').read_text())
+          d=json.loads(Path('ferrari-release-requests/ferrari-deps-readonly-20261106-b.json').read_text())
           assert d=={'version':1,'mode':'read-only','task':'ferrari-real-linux-dependency-and-providers-audit','source_sha':'43345625de1a1b2f87bc652391a320342fa2e1c6','active_sha':'a266b25e06a9c8acf1fdc940d22b99070cd17ded','fallback_sha':'758e1b435317fa26277b332b75bc47c67910be81','other_projects':'untouched','apt_changes':False,'runtime_code_changes':False}
           print('FERRARI_REAL_DIAGNOSTIC_GATE=PASS')
           PY
@@ -88,7 +88,7 @@ jobs:
           print('FERRARI_DIAG_MISSING_LIBRARIES='+str(len(summary['ldd_not_found'])))
           print('FERRARI_DIAG_REVIEW_LIBRARIES='+str(len(summary['ldd_unresolved_review_libraries'])))
           print('FERRARI_DIAG_ESCAPE_SYMLINKS='+str(len(summary['symlink_escapes'])))
-          print('FERRARI_DIAG_UNDETECTED_CANDIDATES='+str(len(summary['selected_missing'])))
+          print('FERRARI_DIAG_UNDETECTED_CANDIDATES='+str(summary['selected_missing']))
           PY
       - name: Probe actual Ubuntu, private tool versions, global APT, REA and Ruflo binaries
         if: steps.gate.outputs.execute == 'true'
