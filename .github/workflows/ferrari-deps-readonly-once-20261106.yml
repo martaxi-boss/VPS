@@ -1,0 +1,204 @@
+name: Ferrari read-only Linux dependency and provider diagnostic once
+on:
+  push:
+    branches: [main]
+    paths:
+      - ferrari-release-requests/ferrari-deps-readonly-20261106-a.json
+permissions:
+  contents: read
+concurrency:
+  group: ferrari-deps-readonly-20261106
+  cancel-in-progress: false
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout one authorized VPS request
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Gate exact authorized new diagnostic request
+        id: gate
+        shell: bash
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          set -Eeuo pipefail
+          added="$(git diff --name-only --diff-filter=A "$BEFORE" "$AFTER")"
+          changed="$(git diff --name-only "$BEFORE" "$AFTER")"
+          if [[ -z "$added" ]]; then echo execute=false >> "$GITHUB_OUTPUT"; exit 0; fi
+          test "$added" = 'ferrari-release-requests/ferrari-deps-readonly-20261106-a.json'
+          test "$changed" = "$added"
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('ferrari-release-requests/ferrari-deps-readonly-20261106-a.json').read_text())
+          assert d=={'version':1,'mode':'read-only','task':'ferrari-real-linux-dependency-and-providers-audit','source_sha':'43345625de1a1b2f87bc652391a320342fa2e1c6','active_sha':'a266b25e06a9c8acf1fdc940d22b99070cd17ded','fallback_sha':'758e1b435317fa26277b332b75bc47c67910be81','other_projects':'untouched','apt_changes':False,'runtime_code_changes':False}
+          print('FERRARI_REAL_DIAGNOSTIC_GATE=PASS')
+          PY
+          echo execute=true >> "$GITHUB_OUTPUT"
+      - name: Checkout exact audited Ferrari source (runner only)
+        if: steps.gate.outputs.execute == 'true'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: 43345625de1a1b2f87bc652391a320342fa2e1c6
+          path: ferrari-source
+          persist-credentials: false
+      - name: Read pinned SSH fingerprint and runner-only tooling
+        if: steps.gate.outputs.execute == 'true'
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/known"
+          chmod 600 "$RUNNER_TEMP/known"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/known" -E sha256 | awk '{print $2}')" = SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass > /dev/null
+          echo FERRARI_PINNED_SSH_NO_CHANGES=PASS
+      - name: Execute original Ferrari F6 private isolation and ldd audit on current release
+        if: steps.gate.outputs.execute == 'true'
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          opts=(-o PreferredAuthentications=password -o PubkeyAuthentication=no
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/known"
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519
+            -o ConnectTimeout=20 -o ServerAliveInterval=15)
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3             '/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12 - a266b25e06a9c8acf1fdc940d22b99070cd17ded 758e1b435317fa26277b332b75bc47c67910be81'             < ferrari-source/install/vps-phase6-audit.py             > "$RUNNER_TEMP/ferrari-f6-audit.json"
+          python3 - <<'PY'
+          import json,os,collections
+          from pathlib import Path
+          d=json.loads((Path(os.environ['RUNNER_TEMP'])/'ferrari-f6-audit.json').read_text())
+          problems=d['missing_or_escaping_actions']
+          libs=[x for entry in d['shared_libraries']['records'] for x in entry['libraries']]
+          counts=collections.Counter(z['origin'] for z in libs)
+          summary={'type':'Ferrari active release read-only executable+ldd audit','active':d['active_release'],'fallback':d['fallback_preserved'],'actions_total':d['registered_actions'],'private_actions':d['private_actions_confirmed'],'missing_actions':problems,'private_bases':sorted(d['private_base_executors']),'runtimes':{k:v['private'] for k,v in d['private_runtime_executors'].items()},'selected_total':d['selected_candidates'],'selected_detected':d['selected_detected_in_active_release'],'selected_missing':d['selected_not_detected_in_active_release'],'symlink_escapes':d['symlink_audit']['external_or_broken_symlinks'],'ldd_elf_sampled':d['shared_libraries']['sampled'],'ldd_library_origin_counts':counts,'ldd_not_found':sorted(set(z['library'] for z in libs if z['origin']=='missing')),'ldd_unresolved_review_libraries':sorted(set(z['library'] for z in libs if z['origin']=='system_or_other_project_review')),'global_app_process_snapshot':d['global_app_process_snapshot']}
+          (Path(os.environ['RUNNER_TEMP'])/'ferrari-f6-summary.json').write_text(json.dumps(summary,indent=2,sort_keys=True,default=list))
+          print('FERRARI_DIAG_40_PRIVATE='+str(d['private_actions_confirmed'])+'/'+str(d['registered_actions']))
+          print('FERRARI_DIAG_BASE_PRIVATE='+str(len(d['private_base_executors'])))
+          print('FERRARI_DIAG_MISSING_LIBRARIES='+str(len(summary['ldd_not_found'])))
+          print('FERRARI_DIAG_REVIEW_LIBRARIES='+str(len(summary['ldd_unresolved_review_libraries'])))
+          print('FERRARI_DIAG_ESCAPE_SYMLINKS='+str(len(summary['symlink_escapes'])))
+          print('FERRARI_DIAG_UNDETECTED_CANDIDATES='+str(len(summary['selected_missing'])))
+          PY
+      - name: Probe actual Ubuntu, private tool versions, global APT, REA and Ruflo binaries
+        if: steps.gate.outputs.execute == 'true'
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          opts=(-o PreferredAuthentications=password -o PubkeyAuthentication=no
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/known"
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519
+            -o ConnectTimeout=20 -o ServerAliveInterval=15)
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 '/usr/bin/python3 -' > "$RUNNER_TEMP/ferrari-environment.json" <<'PY'
+          import json,os,sys,subprocess,platform,shutil
+          from pathlib import Path
+          root=Path('/srv/projects/skill-universal')
+          cur=root/'current'
+          assert cur.is_symlink() and cur.resolve(strict=True)==root/'releases/a266b25e06a9c8acf1fdc940d22b99070cd17ded'
+          osrel={}
+          for l in Path('/etc/os-release').read_text().splitlines():
+            if '=' in l:
+              k,v=l.split('=',1);osrel[k]=v.strip('"')
+          names={'libreoffice':'libreoffice','ansible':'ansible','yt-dlp':'yt-dlp','gimp':'gimp','blender':'blender','kdenlive':'kdenlive','darktable':'darktable','openscad':'openscad','librecad':'librecad','qgis':'qgis','audacity':'audacity','obs-studio':'obs-studio','solvespace':'solvespace','synfigstudio':'synfigstudio','openshot-qt':'openshot-qt','calibre':'calibre'}
+          apt={}
+          for k,pkg in names.items():
+            s=subprocess.run(['dpkg-query','-W','-f=${db:Status-Abbrev}',pkg],capture_output=True,text=True,timeout=7)
+            apt[k]=s.returncode==0 and s.stdout.startswith('ii ')
+          svcs={}
+          for s in ('pink-iptv-backend','pink-vpn','fadego-staging','lowcost-europa','pm2-iptvpn-bot','pm2-telegram-robot-leads','nginx','postgresql@16-main'):
+            z=subprocess.run(['systemctl','is-active',s],capture_output=True,text=True,timeout=7)
+            svcs[s]=z.stdout.strip() or 'unknown'
+          candidates={
+            'node':(root/'runtimes/node-22.23.4/bin/node',['--version']),
+            'java':(root/'runtimes/jdk-25.0.5_8/bin/java',['-version']),
+            'rea':(root/'.runtime/npm/rea/node_modules/.bin/rea',['--version']),
+            'ruflo':(root/'.runtime/npm/ruflo/node_modules/.bin/ruflo',['--version']),
+            'file':(root/'tools/ubuntu-cli/bin/file',['--version']),
+            'jq':(root/'tools/ubuntu-cli/bin/jq',['--version']),
+            'pandoc':(root/'tools/ubuntu-cli/bin/pandoc',['--version']),
+            'ffmpeg':(root/'tools/ubuntu-cli/bin/ffmpeg',['-version']),
+            'apktool':(root/'tools/apktool-3.0.3/bin/apktool',['--version']),
+          }
+          binaries={}
+          for name,(p,args) in candidates.items():
+            obj={'present':p.is_file(),'private':p.is_file() and p.resolve().is_relative_to(root)}
+            if obj['present'] and obj['private']:
+              try:
+                x=subprocess.run([str(p)]+args,capture_output=True,text=True,timeout=19,env={**os.environ,'PATH':str(root/'runtimes/node-22.23.4/bin')+':'+str(root/'runtimes/jdk-25.0.5_8/bin')+':/usr/bin:/bin','PYTHONNOUSERSITE':'1'})
+                obj.update(exit=x.returncode,first_line=(x.stdout+x.stderr).strip().splitlines()[0][:175] if (x.stdout+x.stderr).strip() else '')
+              except subprocess.TimeoutExpired:
+                obj.update(exit='timeout')
+              except OSError:
+                obj.update(exit='os_error')
+            binaries[name]=obj
+          # No daemon, model request, memory store, package install, chmod or services restart.
+          proc_ruid=os.getuid()
+          ruflo_daemons=0
+          for proc in Path('/proc').iterdir():
+            if not proc.name.isdigit(): continue
+            try:
+              if proc.stat().st_uid!=proc_ruid: continue
+              args=(proc/'cmdline').read_bytes().replace(b'\0',b' ').decode(errors='replace')
+              if '.runtime/npm/ruflo/' in args and any(x in args.lower() for x in ('daemon','swarm','autopilot','hive-mind')):ruflo_daemons+=1
+            except (OSError,PermissionError):pass
+          with Path('/proc/meminfo').open() as f:
+            mem={}
+            for l in f:
+              if l.startswith(('MemTotal:', 'MemAvailable:')):
+                k,v,*_=l.split();mem[k[:-1]]=round(int(v)/1024**2,2)
+          d={
+            'scope':'read-only-existing-Linux-and-Ferrari-external-dependencies',
+            'os':osrel.get('PRETTY_NAME'),
+            'architecture':platform.machine(),
+            'cpu_count':os.cpu_count(),
+            'memory_gib':mem,
+            'disk_free_gib':round(shutil.disk_usage(root).free/1024**3,2),
+            'private_binary_versions':binaries,
+            'global_apt_presence':apt,
+            'protected_services':svcs,
+            'active_release':cur.resolve().name,
+            'fallback_present':(root/'releases/758e1b435317fa26277b332b75bc47c67910be81').is_dir(),
+            'cgroup_v2':(Path('/sys/fs/cgroup')/'cgroup.controllers').exists(),
+            'ruflo_daemon_count':ruflo_daemons,
+            'changes':'none',
+          }
+          assert all(z=='active' for z in svcs.values())
+          assert d['ruflo_daemon_count']==0 and d['fallback_present']
+          assert d['os'] and d['architecture']
+          print(json.dumps(d,indent=2,sort_keys=True))
+          PY
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          d=json.loads((Path(os.environ['RUNNER_TEMP'])/'ferrari-environment.json').read_text())
+          print('FERRARI_DIAG_OS='+d['os'])
+          print('FERRARI_DIAG_CPU='+str(d['cpu_count']))
+          print('FERRARI_DIAG_GLOBAL_APT='+str(sum(d['global_apt_presence'].values()))+'/16')
+          print('FERRARI_DIAG_SERVICES='+str(sum(x=='active' for x in d['protected_services'].values()))+'/8')
+          print('FERRARI_DIAG_PRIVATE_BINARY_VERSIONS='+str(sum(z.get('exit')==0 for z in d['private_binary_versions'].values()))+'/'+str(len(d['private_binary_versions'])))
+          print('FERRARI_DIAG_RUFLO_DAEMONS='+str(d['ruflo_daemon_count']))
+          print('FERRARI_DIAG_READ_ONLY=PASS')
+          PY
+      - name: Retain factual read-only audit artifacts
+        if: steps.gate.outputs.execute == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ferrari-deps-real-audit-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/ferrari-f6-audit.json
+            ${{ runner.temp }}/ferrari-f6-summary.json
+            ${{ runner.temp }}/ferrari-environment.json
+          if-no-files-found: error
+          retention-days: 14
