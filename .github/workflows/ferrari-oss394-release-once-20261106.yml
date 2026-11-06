@@ -1,0 +1,157 @@
+name: Ferrari 394 local open-source-only catalog guarded VPS release
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ferrari-oss394-release-once-20261106.yml'
+permissions:
+  contents: read
+concurrency:
+  group: ferrari-oss394-release-20261106
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    steps:
+      - name: Checkout only tested Ferrari commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: 952b0a75ba798471b07053677d53791bd078ed56
+          persist-credentials: false
+          path: ferrari
+      - name: Assert source and catalog architecture
+        run: |
+          set -Eeuo pipefail
+          test "$(git -C ferrari rev-parse HEAD)" = '952b0a75ba798471b07053677d53791bd078ed56'
+          bash -n ferrari/install/vps-isolated-release.sh
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path("ferrari/engine")
+          doc=json.loads((root/"catalog.json").read_text(encoding="utf-8"))
+          assert doc["schema"] == 2 and len(doc["tools"]) == 174
+          assert len(doc["actions"]) == 40 and len(doc["providers"]) == 2
+          assert all(not (root/n).exists() for n in (
+              "tool_actions.json","ubuntu_selection.json","providers.json",
+              "ferrari_registry.json","ferrari_expansion.json"))
+          assert len(doc["mcp_capabilities"]["names"]) == 220
+          assert len(doc["mcp_capabilities"]["excluded_paid_or_demo_names"]) == 9
+          assert doc["counts"]["all_catalog_entries"] == 394
+          assert next(p for p in doc["providers"] if p["id"] == "imagemagick-local")["tool_id"] == "imagemagick"
+          assert {p["id"] for p in doc["providers"]} == {"imagemagick-local", "svg-local"}
+          assert not {"nmap", "vscode"} & {t["id"] for t in doc["tools"]}
+          print("FERRARI_ONE_CATALOG_SOURCE=PASS")
+          PY
+          (cd ferrari && python3 -m unittest discover -s tests -p test_one_tool_catalog.py -v)
+      - name: Pinned existing VPS SSH identity only
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          test -n "$SSHPASS" || exit 2
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/f9-known-hosts"
+          chmod 600 "$RUNNER_TEMP/f9-known-hosts"
+          fp="$(ssh-keygen -lf "$RUNNER_TEMP/f9-known-hosts" -E sha256 | awk '{print $2}')"
+          test "$fp" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' || exit 3
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          echo FERRARI_PINNED_SSH=PASS
+      - name: Run original guarded Ferrari release script on existing VPS
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          opts=(-o PreferredAuthentications=password -o PubkeyAuthentication=no
+                -o StrictHostKeyChecking=yes
+                -o "UserKnownHostsFile=$RUNNER_TEMP/f9-known-hosts"
+                -o GlobalKnownHostsFile=/dev/null
+                -o HostKeyAlgorithms=ssh-ed25519
+                -o ConnectTimeout=25 -o ServerAliveInterval=15)
+          root=/srv/projects/skill-universal
+          old=9d0deb5d9cd919d8bf468e8cfb501c056a64c664
+          new=952b0a75ba798471b07053677d53791bd078ed56
+          before="$(sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 'readlink -f /srv/projects/skill-universal/current')"
+          test "$before" = "$root/releases/$old" || { echo "FERRARI_UNEXPECTED_ACTIVE_RELEASE=$before"; exit 4; }
+          echo FERRARI_PREVIOUS_RELEASE="$before"
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 'bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          test "$(id -un)" = ubuntu && test "$(id -u)" -ne 0
+          for s in pink-iptv-backend pink-vpn fadego-staging lowcost-europa pm2-iptvpn-bot pm2-telegram-robot-leads nginx postgresql@16-main; do
+            test "$(systemctl is-active "$s")" = active || { echo "FERRARI_PRE_SERVICE_FAILED=$s"; exit 5; }
+          done
+          echo FERRARI_PRE_SERVICES=8_OF_8_PASS
+          REMOTE
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 'bash -s -- 952b0a75ba798471b07053677d53791bd078ed56 --check' < ferrari/install/vps-isolated-release.sh
+          echo FERRARI_ONE_CATALOG_RELEASE_CHECK=PASS
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 'bash -s -- 952b0a75ba798471b07053677d53791bd078ed56 --activate' < ferrari/install/vps-isolated-release.sh
+          echo FERRARI_ONE_CATALOG_RELEASE_ACTIVATED=PASS
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 'bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          root=/srv/projects/skill-universal
+          expected=952b0a75ba798471b07053677d53791bd078ed56
+          before="$root/releases/9d0deb5d9cd919d8bf468e8cfb501c056a64c664"
+          rollback() {
+            rc=$?
+            trap - EXIT
+            if test "$rc" -ne 0 && test "$(readlink -f "$root/current")" = "$root/releases/$expected"; then
+              link="$root/.current.one-catalog-revert-$$"
+              if test ! -e "$link" && test ! -L "$link"; then
+                ln -s "$before" "$link" && mv -Tf "$link" "$root/current"
+              fi
+              echo FERRARI_POST_RELEASE_ROLLBACK_ATTEMPTED
+            fi
+            exit "$rc"
+          }
+          trap rollback EXIT
+          test "$(readlink -f "$root/current")" = "$root/releases/$expected"
+          cd "$root/current"
+          "$root/runtimes/python3.12/bin/python3.12" - "$root" <<'PY'
+          import json,sys
+          from pathlib import Path
+          from engine import core,ferrari,tool_runtime,runtime_discovery
+          root=Path(sys.argv[1])
+          doc=json.loads(Path("engine/catalog.json").read_text(encoding="utf-8"))
+          assert doc["schema"] == 2
+          assert len(doc["tools"]) == 174
+          assert len(tool_runtime.specs()) == 40
+          assert len(ferrari.registry()) == 123
+          assert len(ferrari.ubuntu_selection()) == 56
+          assert len(core.inventory()) == 71
+          assert len(core.providers()) == 2
+          assert len(tool_runtime.ISOLATED) == 22
+          assert len(tool_runtime.PRIVATE_CLI) == 26
+          assert "rea" in tool_runtime.ISOLATED and "openpencil" in runtime_discovery.NPM_PACKAGES
+          for x in doc["dependencies"]:
+              q=root/x["relative_path"]
+              assert q.is_file() and q.resolve(strict=True).is_relative_to(root.resolve(strict=True)), (x["id"],q)
+              print("FERRARI_SHARED_RUNTIME="+x["id"]+"=PRESENT",flush=True)
+          for name in ("ytdlp","librecad","audacity","openshot","synfig","obs","solvespace","qgis","rea","ghidra","jadx"):
+              path=tool_runtime.ISOLATED[name]
+              assert path.is_file() and path.resolve(strict=True).is_relative_to(root.resolve(strict=True)),name
+          view=tool_runtime.unified_catalog()
+          assert view["counts"]["all_catalog_entries"] == 394, view["counts"]
+          assert view["counts"]["rea_mcp_discovered_now"] == 220, view["counts"]
+          assert view["counts"]["rea_mcp_advertised_raw"] == 229, view["counts"]
+          assert view["counts"]["rea_mcp_paid_excluded_now"] == 9, view["counts"]
+          assert view["rea"]["status"] == "rea_in_sync", view["rea"]
+          assert view["counts"]["actions_available_now"] == 40, view["counts"]
+          assert view["counts"]["no_cost_providers"] == 2, view["counts"]
+          assert {p["id"] for p in view["providers"]} == {"imagemagick-local", "svg-local"}
+          assert not {"nmap", "vscode", "rea:nmap", "rea:vscode"} & {t["id"] for t in view["entries"]}
+          local = next(p for p in view["providers"] if p["id"] == "imagemagick-local")
+          assert local["configured"] is True and local["availability_verified"] is True, local
+          print("FERRARI_LOCAL_IMAGEMAGICK_PROVIDER=PASS")
+          print("FERRARI_OSS_394_LIVE_REA=PASS")
+          print("FERRARI_ONE_CATALOG_174_TOOLS=PASS")
+          print("FERRARI_ONE_CATALOG_40_ACTIONS=PASS")
+          print("FERRARI_PRIVATE_MAPPING_AND_REA=PASS")
+          PY
+          for s in pink-iptv-backend pink-vpn fadego-staging lowcost-europa pm2-iptvpn-bot pm2-telegram-robot-leads nginx postgresql@16-main; do
+            test "$(systemctl is-active "$s")" = active || { echo "FERRARI_POST_SERVICE_FAILED=$s"; exit 8; }
+          done
+          echo FERRARI_PROTECTED_SERVICES=8_OF_8_PASS
+          echo FERRARI_ONE_CATALOG_ACTIVE_SHA=952b0a75ba798471b07053677d53791bd078ed56
+          echo FERRARI_NO_GLOBAL_INSTALL=PASS
+          REMOTE
