@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "mode": "read-only",
+  "task": "ferrari-real-linux-dependency-and-providers-audit",
+  "source_sha": "43345625de1a1b2f87bc652391a320342fa2e1c6",
+  "active_sha": "a266b25e06a9c8acf1fdc940d22b99070cd17ded",
+  "fallback_sha": "758e1b435317fa26277b332b75bc47c67910be81",
+  "other_projects": "untouched",
+  "apt_changes": false,
+  "runtime_code_changes": false
+}
