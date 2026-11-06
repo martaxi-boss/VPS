@@ -3,7 +3,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'ferrari-release-requests/comfyui-point2-model-20261106.json'
+      - 'ferrari-release-requests/comfyui-point2-proof-r2-20261106.json'
 permissions:
   contents: read
 concurrency:
@@ -36,13 +36,13 @@ jobs:
             echo FERRARI_COMFY_POINT2_HYGIENE=PASS
             exit 0
           fi
-          test "$added" = ferrari-release-requests/comfyui-point2-model-20261106.json
+          test "$added" = ferrari-release-requests/comfyui-point2-proof-r2-20261106.json
           test "$added" = "$changed"
           python3 - <<'PY'
           import json
           from pathlib import Path
-          req=json.loads(Path('ferrari-release-requests/comfyui-point2-model-20261106.json').read_text())
-          assert req=={'version':1,'task':'comfyui-private-tiny-sd-cpu-install-real-inference',
+          req=json.loads(Path('ferrari-release-requests/comfyui-point2-proof-r2-20261106.json').read_text())
+          assert req=={'version':1,'task':'comfyui-private-tiny-sd-cpu-real-inference-r2',
                       'ferrari_sha':'0685bf44c6f5e06dec02bf34bfc72548b8930ff1','model':'segmind/tiny-sd',
                       'model_revision':'3d25de3e8d5aacf94ce91176f204e6d11d120315'}
           PY
@@ -82,7 +82,7 @@ jobs:
           sudo apt-get install -y -qq sshpass > /dev/null
           echo FERRARI_COMFY_POINT2_EXISTING_SSH=PASS
 
-      - name: Install verified private model, no release switch, no global VPS packages
+      - name: Verify existing private model without changing release or global packages
         if: steps.gate.outputs.execute == 'true'
         shell: bash
         env:
@@ -98,9 +98,6 @@ jobs:
           previous="$(sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 "readlink -e '$ROOT/current'")"
           test "$previous" = "$ROOT/releases/a266b25e06a9c8acf1fdc940d22b99070cd17ded"
           echo FERRARI_COMFY_POINT2_RELEASE_UNCHANGED_BEFORE=PASS
-          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
-            "cd '$ROOT' && '$ROOT/runtimes/python3.12/bin/python3.12' - --apply" \
-            < ferrari/install/vps-comfyui-cpu-model.py
           sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
             "cd '$ROOT' && '$ROOT/runtimes/python3.12/bin/python3.12' - --check" \
             < ferrari/install/vps-comfyui-cpu-model.py
@@ -123,14 +120,22 @@ jobs:
                 -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519
                 -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=6)
           # Stage only within Ferrari; refuse to replace another user's file.
-          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
-            "test ! -e '$ROOT/.runtime/.ferrari-comfy-point2-proof.py'"
-          sshpass -e scp -q "${opts[@]}" ferrari/install/vps-comfyui-cpu-smoke.py \
-            "ubuntu@146.59.145.3:$ROOT/.runtime/.ferrari-comfy-point2-proof.py"
+          source_hash="$(sha256sum ferrari/install/vps-comfyui-cpu-smoke.py | cut -d' ' -f1)"
+          remote_hash="$(sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
+            "if test -f '$ROOT/.runtime/.ferrari-comfy-point2-proof.py' && test ! -L '$ROOT/.runtime/.ferrari-comfy-point2-proof.py'; then sha256sum '$ROOT/.runtime/.ferrari-comfy-point2-proof.py' | cut -d' ' -f1; fi")"
+          if [[ -n "$remote_hash" ]]; then
+            test "$remote_hash" = "$source_hash" || {
+              echo FERRARI_COMFY_UNKNOWN_STAGED_SCRIPT_BLOCKED; exit 4;
+            }
+            echo FERRARI_COMFY_REUSE_VERIFIED_STAGED_SMOKE=PASS
+          else
+            sshpass -e scp -q "${opts[@]}" ferrari/install/vps-comfyui-cpu-smoke.py \
+              "ubuntu@146.59.145.3:$ROOT/.runtime/.ferrari-comfy-point2-proof.py"
+          fi
           # A transient scope caps its own CPU/memory and cannot launch a service.
           set +e
           sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
-            "timeout 510 sudo -n systemd-run --scope --wait --collect -p MemoryMax=5G -p CPUQuota=150% -p TasksMax=256 -- /usr/sbin/runuser -u ubuntu -- '$ROOT/.runtime/venvs/extended/comfyui/bin/python' '$ROOT/.runtime/.ferrari-comfy-point2-proof.py'" \
+            "timeout 510 sudo -n systemd-run --scope -p MemoryMax=5G -p CPUQuota=150% -p TasksMax=256 -- /usr/sbin/runuser -u ubuntu -- '$ROOT/.runtime/venvs/extended/comfyui/bin/python' '$ROOT/.runtime/.ferrari-comfy-point2-proof.py'" \
             > "$RUNNER_TEMP/comfy-real-inference.txt" 2>&1
           result=$?
           set -e
