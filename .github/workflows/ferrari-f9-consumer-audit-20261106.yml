@@ -126,6 +126,40 @@ jobs:
               print("F9_ROOT_PROJECT="+json.dumps(item,sort_keys=True))
           print("F9_ROOT_SCAN_COMPLETE="+str(all(not s["errors"] and s["large_skipped"]==0 for s in summary)))
           PY
+          echo F9_FADEGO_LARGE_CODE_CHECK
+          sudo -n python3 - <<'PY'
+          import os,re,json
+          from pathlib import Path
+          root=Path("/srv/projects/fadego")
+          skipped={".git",".runtime","node_modules","vendor","venv",".venv",
+                   "__pycache__","dist","build","backups","backup","archives",
+                   "archive",".cache",".next"}
+          exts={".py",".sh",".js",".ts",".jsx",".tsx",".mjs",".cjs",".json",
+                ".yaml",".yml",".toml",".ini",".conf",".service",".env",".properties"}
+          terms=re.compile(rb"(?i)(?<![a-z0-9])(?:yt-dlp|yt_dlp|librecad|qgis|audacity|obs-studio|openshot-qt|openshot|solvespace|synfigstudio|synfig)(?![a-z0-9])")
+          tested=0;matched=0;bytes_read=0;errors=[]
+          def onerror(e): errors.append(type(e).__name__)
+          for base,dirs,files in os.walk(root,onerror=onerror,followlinks=False):
+              dirs[:]=[d for d in dirs if d not in skipped and not (Path(base)/d).is_symlink()]
+              for name in files:
+                  p=Path(base)/name
+                  if p.suffix.lower() not in exts or p.is_symlink():continue
+                  try:
+                      if p.stat().st_size<=1_000_000:continue
+                      tested+=1
+                      with p.open("rb") as fp:
+                          carry=b""
+                          while block:=fp.read(262144):
+                              bytes_read+=len(block)
+                              if terms.search(carry+block): matched+=1;break
+                              carry=block[-120:]
+                  except OSError as e:errors.append(type(e).__name__)
+          print("F9_FADEGO_LARGE_FILES="+str(tested))
+          print("F9_FADEGO_LARGE_MATCHES="+str(matched))
+          print("F9_FADEGO_LARGE_BYTES_READ="+str(bytes_read))
+          print("F9_FADEGO_LARGE_ERRORS="+json.dumps(errors))
+          print("F9_FADEGO_LARGE_SOURCE_SCAN="+("PASS" if tested==2 and matched==0 and not errors else "UNRESOLVED"))
+          PY
           echo F9_SIMULATE_EIGHT_PURGE
           LC_ALL=C apt-get -s -o Debug::NoLocking=1 purge yt-dlp librecad qgis audacity obs-studio solvespace synfigstudio openshot-qt |
               grep -E '^(Remv|Purg) ' || true
