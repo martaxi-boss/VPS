@@ -25,6 +25,10 @@ on:
       - 'ferrari-release-requests/phase7-check-20261105.json'
       - 'ferrari-release-requests/phase7-activate-20261105.json'
       - 'ferrari-release-requests/phase7-certify-20261105.json'
+      - 'ferrari-release-requests/universal-catalog-check-20261106.json'
+      - 'ferrari-release-requests/universal-catalog-activate-20261106.json'
+      - 'ferrari-release-requests/universal-catalog-preview-20261106.json'
+      - 'ferrari-release-requests/universal-catalog-apply-20261106.json'
 
 permissions:
   contents: read
@@ -73,14 +77,26 @@ jobs:
             ferrari-release-requests/phase7-check-20261105.json) MODE=--phase7-check ;;
             ferrari-release-requests/phase7-activate-20261105.json) MODE=--phase7-activate ;;
             ferrari-release-requests/phase7-certify-20261105.json) MODE=--phase7-certify ;;
+            ferrari-release-requests/universal-catalog-check-20261106.json) MODE=--universal-check ;;
+            ferrari-release-requests/universal-catalog-activate-20261106.json) MODE=--universal-activate ;;
+            ferrari-release-requests/universal-catalog-preview-20261106.json) MODE=--universal-preview ;;
+            ferrari-release-requests/universal-catalog-apply-20261106.json) MODE=--universal-apply ;;
             *) echo 'FERRARI_PHASE5_REQUEST_NOT_SINGLE_OR_NOT_ALLOWED' >&2; exit 2 ;;
           esac
+          if [[ "$MODE" == --universal-* ]]; then
+            added="$(git diff --name-only --diff-filter=A "$BEFORE_SHA" "$AFTER_SHA")"
+            [[ "$added" == "$changed" ]] || { echo 'FERRARI_UNIVERSAL_REQUEST_NOT_NEW' >&2; exit 2; }
+          fi
           python3 - "$changed" "$MODE" <<'PY'
           import json,sys
           path,mode=sys.argv[1:]
           with open(path,encoding="utf-8") as fh:
               payload=json.load(fh)
-          if mode.startswith("--phase7-"):
+          if mode.startswith("--universal-"):
+              expected={"version":1,"phase":"universal-catalog",
+                        "sha":"7bf6dcecf15da26502c5969b5eee54d5e116fc32",
+                        "mode":mode.removeprefix("--universal-")}
+          elif mode.startswith("--phase7-"):
               expected={"version":1,"phase":7,"sha":"758e1b435317fa26277b332b75bc47c67910be81",
                         "mode":mode.removeprefix("--phase7-")}
           elif mode.startswith("--phase6-") or mode in ("--post-audit","--full-audit","--deep-cert","--deep-final","--hygiene-preview","--hygiene-apply","--venvs-preview","--venvs-apply","--final-preview","--final-apply"):
@@ -176,6 +192,15 @@ jobs:
           persist-credentials: false
           path: ferrari-f7
 
+      - name: Checkout immutable universal Ferrari catalog and hygiene source
+        if: startsWith(steps.request.outputs.mode, '--universal-')
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: 7bf6dcecf15da26502c5969b5eee54d5e116fc32
+          persist-credentials: false
+          path: ferrari-universal
+
       - name: Validate the project-owned release script
         shell: bash
         run: |
@@ -183,6 +208,11 @@ jobs:
           bash -n ferrari/install/vps-isolated-release.sh
           test -f ferrari/engine/tool_actions.json
           echo 'FERRARI_PHASE5_PINNED_SCRIPT_SYNTAX=PASS'
+          if [[ "${{ steps.request.outputs.mode }}" == --universal-* ]]; then
+            bash -n ferrari-universal/install/vps-isolated-release.sh
+            python3 -m py_compile ferrari-universal/install/vps-universal-catalog-hygiene.py
+            python3 -c 'import json; d=json.load(open("ferrari-universal/engine/catalog.json")); assert len(d["tools"])==173 and len(d["functions"])==272 and len(d["dependencies"])==3 and len(d["providers"])==2 and d["counts"]["all_catalog_entries"]==450 and "actions" not in d and "names" not in d["mcp_capabilities"]; print("FERRARI_UNIVERSAL_SOURCE=PASS")'
+          fi
           if [[ "${{ steps.request.outputs.mode }}" == '--phase7-check' ||
                 "${{ steps.request.outputs.mode }}" == '--phase7-activate' ||
                 "${{ steps.request.outputs.mode }}" == '--phase7-certify' ]]; then
