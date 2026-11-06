@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "id": "f9-cad-stl-skill-20261106-001",
+  "kind": "operation",
+  "operation": "cad-stl",
+  "input": {
+    "name": "ferrari-synthetic-bracket.scad",
+    "content_base64": "JGZuPTQ4OwpkaWZmZXJlbmNlKCkgewogIGN1YmUoWzYwLCA0MCwgMTJdLCBjZW50ZXI9dHJ1ZSk7CiAgdHJhbnNsYXRlKFswLCAwLCAtMTBdKSBjeWxpbmRlcihoPTIwLCByPTYpOwp9Cg=="
+  }
+}
