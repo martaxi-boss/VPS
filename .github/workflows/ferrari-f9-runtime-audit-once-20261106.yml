@@ -208,6 +208,44 @@ jobs:
           print("F9_APT_SIMULATION_ONLY_EIGHT="+str(bool(planned) and not unexpected))
           assert planned, "APT simulation contained no removal or purge lines"
           PY
+          echo F9_OTHER_PROJECTS_GLOBAL_EXECUTABLE_REFERENCE_COUNTS
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+          root=Path("/srv/projects")
+          ferrari=root/"skill-universal"
+          binary=ferrari/"tools/ubuntu-cli/bin/rg"
+          assert binary.is_file() and binary.resolve(strict=True).is_relative_to(ferrari.resolve(strict=True))
+          assert root.is_dir()
+          pattern=r"(?i)(yt-dlp|yt_dlp|librecad|qgis|audacity|obs-studio|openshot-qt|openshot|solvespace|synfigstudio|synfig)"
+          ignored=["!**/.git/**","!**/node_modules/**","!**/vendor/**",
+                   "!**/dist/**","!**/build/**","!**/\.runtime/**",
+                   "!**/venv/**","!**/.venv/**","!**/secrets/**",
+                   "!**/*.lock","!**/*.svg","!**/*.ipynb",
+                   "!**/*.jsonl","!**/*.map","!**/backups/**",
+                   "!**/archive/**"]
+          source=["*.py","*.js","*.ts","*.json","*.yaml","*.yml",
+                  "*.sh","*.service","*.toml","*.md"]
+          total=0
+          for project in sorted(root.iterdir()):
+              if not project.is_dir() or project.is_symlink() or project==ferrari:
+                  continue
+              if "secret" in project.name.lower() or "vault" in project.name.lower():
+                  continue
+              cmd=[str(binary),"-l","--hidden","--no-messages","--max-filesize","1M"]
+              for item in ignored+source:
+                  cmd+=["-g",item]
+              cmd += ["-e",pattern,str(project)]
+              try:
+                  p=subprocess.run(cmd,capture_output=True,text=True,timeout=28)
+                  count=len(p.stdout.splitlines()) if p.returncode in (0,1) else -1
+              except subprocess.TimeoutExpired:
+                  count=-1
+              total+=max(count,0)
+              print("F9_NONFERRARI_PROJECT_REFERENCE_FILES="+project.name+":"+str(count))
+          print("F9_NONFERRARI_PROJECT_REFERENCES_TOTAL="+str(total))
+          print("F9_PROJECT_REFERENCE_SCAN_ONLY=PASS")
+          PY
           services=(pink-iptv-backend pink-vpn fadego-staging lowcost-europa pm2-iptvpn-bot pm2-telegram-robot-leads nginx postgresql@16-main)
           for s in "${services[@]}"; do
             test "$(systemctl is-active "$s")" = active || { echo "F9_SERVICE_FAILED:$s"; exit 5; }
