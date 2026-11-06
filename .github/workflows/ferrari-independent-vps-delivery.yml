@@ -32,6 +32,7 @@ on:
       - 'ferrari-release-requests/universal-catalog-deep-audit-20261106.json'
       - 'ferrari-release-requests/universal-catalog-empty-preview-20261106.json'
       - 'ferrari-release-requests/universal-catalog-empty-apply-20261106.json'
+      - 'ferrari-release-requests/universal-f9-apt-consumers-20261106.json'
 
 permissions:
   contents: read
@@ -87,6 +88,7 @@ jobs:
             ferrari-release-requests/universal-catalog-deep-audit-20261106.json) MODE=--universal-deep-audit ;;
             ferrari-release-requests/universal-catalog-empty-preview-20261106.json) MODE=--universal-empty-preview ;;
             ferrari-release-requests/universal-catalog-empty-apply-20261106.json) MODE=--universal-empty-apply ;;
+            ferrari-release-requests/universal-f9-apt-consumers-20261106.json) MODE=--universal-f9-consumers ;;
             *) echo 'FERRARI_PHASE5_REQUEST_NOT_SINGLE_OR_NOT_ALLOWED' >&2; exit 2 ;;
           esac
           if [[ "$MODE" == --universal-* ]]; then
@@ -225,6 +227,15 @@ jobs:
           persist-credentials: false
           path: ferrari-empty-hygiene
 
+      - name: Checkout pinned Ferrari F9 readonly APT consumer audit
+        if: steps.request.outputs.mode == '--universal-f9-consumers'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: 0ff8dcae8790600688ebbdd39a15e34aad146ec8
+          persist-credentials: false
+          path: ferrari-f9-apt
+
       - name: Validate the project-owned release script
         shell: bash
         run: |
@@ -236,6 +247,11 @@ jobs:
             bash -n ferrari-universal/install/vps-isolated-release.sh
             python3 -m py_compile ferrari-universal/install/vps-universal-catalog-hygiene.py
             python3 -c 'import json; d=json.load(open("ferrari-universal/engine/catalog.json")); assert len(d["tools"])==173 and len(d["functions"])==272 and len(d["dependencies"])==3 and len(d["providers"])==2 and d["counts"]["all_catalog_entries"]==450 and "actions" not in d and "names" not in d["mcp_capabilities"]; print("FERRARI_UNIVERSAL_SOURCE=PASS")'
+          fi
+          if [[ "${{ steps.request.outputs.mode }}" == '--universal-f9-consumers' ]]; then
+            python3 -m py_compile ferrari-f9-apt/install/vps-f9-final-apt-consumer-audit.py
+            test -f ferrari-f9-apt/tests/test_f9_final_apt_consumer_audit.py
+            echo 'FERRARI_F9_CONSUMER_SOURCE_VALID=PASS'
           fi
           if [[ "${{ steps.request.outputs.mode }}" == '--universal-empty-preview' || "${{ steps.request.outputs.mode }}" == '--universal-empty-apply' ]]; then
             python3 -m py_compile ferrari-empty-hygiene/install/vps-universal-catalog-hygiene.py
@@ -313,7 +329,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           SHA="40c0e1cdf31b1fe9589ad8be90e5eac06eec2856"
-          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--venvs-preview' || "$MODE" == '--venvs-apply' || "$MODE" == '--final-preview' || "$MODE" == '--final-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' || "$MODE" == '--phase7-check' || "$MODE" == '--phase7-activate' || "$MODE" == '--phase7-certify' || "$MODE" == '--universal-check' || "$MODE" == '--universal-activate' || "$MODE" == '--universal-preview' || "$MODE" == '--universal-apply' || "$MODE" == '--universal-deep-audit' || "$MODE" == '--universal-empty-preview' || "$MODE" == '--universal-empty-apply' ]] || exit 3
+          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--venvs-preview' || "$MODE" == '--venvs-apply' || "$MODE" == '--final-preview' || "$MODE" == '--final-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' || "$MODE" == '--phase7-check' || "$MODE" == '--phase7-activate' || "$MODE" == '--phase7-certify' || "$MODE" == '--universal-check' || "$MODE" == '--universal-activate' || "$MODE" == '--universal-preview' || "$MODE" == '--universal-apply' || "$MODE" == '--universal-deep-audit' || "$MODE" == '--universal-empty-preview' || "$MODE" == '--universal-empty-apply' || "$MODE" == '--universal-f9-consumers' ]] || exit 3
           opts=(-T -o PreferredAuthentications=password -o PubkeyAuthentication=no
                 -o StrictHostKeyChecking=yes
                 -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-pinned-host"
@@ -329,7 +345,34 @@ jobs:
             REPORT="$RUNNER_TEMP/ferrari-universal-report.json"
             echo "FERRARI_UNIVERSAL_MODE=$MODE"
             echo "FERRARI_UNIVERSAL_PREVIOUS=$BEFORE"
-            if [[ "$MODE" == '--universal-deep-audit' ]]; then
+            if [[ "$MODE" == '--universal-f9-consumers' ]]; then
+              [[ "$BEFORE" == "$NEW" ]] || { echo 'F9_UNEXPECTED_RELEASE' >&2; exit 19; }
+              sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+                "sudo -n /usr/bin/python3 -B -" \
+                < ferrari-f9-apt/install/vps-f9-final-apt-consumer-audit.py > "$REPORT"
+              python3 - "$REPORT" <<'VERIFY_F9_APT'
+          import json,sys
+          doc=json.load(open(sys.argv[1],encoding="utf-8"))
+          assert doc["status"]=="PASS" and doc["mode"]=="read_only"
+          assert doc["active"]=="7bf6dcecf15da26502c5969b5eee54d5e116fc32"
+          assert doc["fallback"]=="952b0a75ba798471b07053677d53791bd078ed56"
+          assert doc["catalog_entries"]==450
+          assert doc["apt_changes"]==0 and doc["file_changes"]==0
+          assert doc["other_projects_modified"] is False
+          assert doc["package_purge_authorized"] is False
+          assert doc["protected_service_count"]==8
+          print("FERRARI_F9_GLOBAL_APT_READONLY=PASS")
+          print("FERRARI_F9_GLOBAL_APT_SIMULATION_EXACT="+str(doc["apt_simulation_only_eight"]))
+          print("FERRARI_F9_PROJECT_SCAN_COMPLETE="+str(doc["scan_complete"]))
+          print("FERRARI_F9_PROJECT_SOURCE_MENTIONS="+str(doc["source_program_mentions"]))
+          print("FERRARI_F9_PRESERVED_APT_PACKAGES="+str(sum(x["installed"] for x in doc["packages"].values())))
+          print("FERRARI_F9_BLOCKERS="+",".join(doc["remaining_blockers"]))
+          VERIFY_F9_APT
+              AFTER="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
+              [[ "$AFTER" == "$BEFORE" ]] || {
+                echo 'F9_READONLY_RELEASE_CHANGED' >&2; exit 19;
+              }
+            elif [[ "$MODE" == '--universal-deep-audit' ]]; then
               [[ "$BEFORE" == "$NEW" ]] || {
                 echo 'FERRARI_UNIVERSAL_DEEP_AUDIT_EXPECTED_ACTIVE_MISSING' >&2; exit 16;
               }
