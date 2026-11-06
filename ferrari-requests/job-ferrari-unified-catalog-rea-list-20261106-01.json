@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "id": "ferrari-unified-catalog-rea-list-20261106-01",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/list",
+      "params": {}
+    }
+  ]
+}
