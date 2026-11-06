@@ -1,9 +1,0 @@
-{
-  "version": 1,
-  "task": "ferrari-p6-private-release-cert-readonly",
-  "release": "a266b25e06a9c8acf1fdc940d22b99070cd17ded",
-  "root": "/srv/projects/skill-universal",
-  "no_global_changes": true,
-  "no_other_projects": true,
-  "no_ruflo_daemon": true
-}
