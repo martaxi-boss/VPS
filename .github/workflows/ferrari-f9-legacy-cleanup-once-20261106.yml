@@ -1,0 +1,222 @@
+name: VPS F9 isolated legacy editor and REA bridge hygiene one-shot
+on:
+  push:
+    branches: [main]
+    paths:
+      - ferrari-release-requests/ferrari-f9-legacy-backup-20261106.json
+      - ferrari-release-requests/ferrari-f9-legacy-apply-20261106.json
+permissions:
+  contents: read
+concurrency:
+  group: f9-legacy-20261106
+  cancel-in-progress: false
+jobs:
+  cleanup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Require owner authorized exact one-shot target set
+        id: gate
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          p="$(git diff --name-only "$BEFORE" "$AFTER")"
+          case "$p" in
+            ferrari-release-requests/ferrari-f9-legacy-backup-20261106.json) mode=backup ;;
+            ferrari-release-requests/ferrari-f9-legacy-apply-20261106.json) mode=apply ;;
+            *) echo 'F9_LEGACY_UNAUTHORIZED';exit 2 ;;
+          esac
+          python3 - "$p" "$mode" <<'PY'
+          import json,sys
+          from pathlib import Path
+          p,mode=sys.argv[1:]
+          x=json.loads(Path(p).read_text())
+          assert x=={'version':1,'phase':9,'mode':mode,
+           'targets':['/root/.cursor','/root/.vscode','/home/ubuntu/.local/share/rea-github-transport'],
+           'exclude':['/root/.claude-server-commander','/root/migration-preserved','/root/migration-20260923'],
+           'archive_inside_project':'VPS','no_other_projects_changed':True}
+          print('F9_LEGACY_SCOPE=PASS '+mode)
+          PY
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+      - name: Use existing pinned SSH
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/known"
+          chmod 600 "$RUNNER_TEMP/known"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/known" -E sha256 | awk '{print $2}')" = SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc
+          sudo apt-get update -qq && sudo apt-get install -y -qq sshpass >/dev/null
+      - name: Prepare private rollback or remove exact obsolete external roots
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+          MODE: ${{ steps.gate.outputs.mode }}
+        run: |
+          set -Eeuo pipefail
+          opts=(-o PreferredAuthentications=password -o PubkeyAuthentication=no
+                -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/known"
+                -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519
+                -o ConnectTimeout=20 -o ServerAliveInterval=15)
+          set +e
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
+            "sudo -n /usr/bin/python3 - --$MODE" \
+            > "$RUNNER_TEMP/f9-legacy.json" <<'PY'
+          import hashlib,json,os,shutil,subprocess,sys,tarfile,tempfile
+          from pathlib import Path
+          ROOT=Path('/srv/projects/VPS')
+          BACK=ROOT/'.runtime/f9-legacy-snapshot-20261106'
+          ARCH=BACK/'exact-retired-roots.tar.gz'
+          META=BACK/'manifest.json'
+          TARGETS=(Path('/root/.cursor'),Path('/root/.vscode'),
+                   Path('/home/ubuntu/.local/share/rea-github-transport'))
+          SERVICES=('pink-iptv-backend','pink-vpn','fadego-staging','lowcost-europa',
+                    'pm2-iptvpn-bot','pm2-telegram-robot-leads','nginx','postgresql@16-main')
+          def need(ok,label):
+            if not ok:raise RuntimeError(label)
+          def digest(path):
+            h=hashlib.sha256()
+            with path.open('rb') as f:
+              for b in iter(lambda:f.read(1024*1024),b''):h.update(b)
+            return h.hexdigest()
+          def services():
+            active=0
+            for s in SERVICES:
+              p=subprocess.run(['systemctl','is-active',s],capture_output=True,text=True,timeout=8)
+              if p.stdout.strip()=='active':active+=1
+            need(active==8,'F9_LEGACY_SERVICE_DEGRADED')
+            return active
+          def references():
+            prefixes=[str(x) for x in TARGETS]
+            count=0
+            for proc in Path('/proc').iterdir():
+              if not proc.name.isdecimal():continue
+              try:
+                refs=[os.readlink(proc/'exe'),os.readlink(proc/'cwd')]
+                for fd in (proc/'fd').iterdir():
+                  try:refs.append(os.readlink(fd))
+                  except OSError:pass
+                if any(q==t or q.startswith(t+'/') for q in refs for t in prefixes):
+                  count+=1
+              except (OSError,PermissionError):pass
+            need(count==0,'F9_LEGACY_ACTIVE_PROCESS_REFERENCE')
+            for base in (Path('/etc/systemd/system'),Path('/etc/cron.d'),Path('/etc/cron.daily')):
+              if base.is_dir():
+                for p in base.rglob('*'):
+                  try:
+                    if p.is_file() and not p.is_symlink() and p.stat().st_size<200000:
+                      blob=p.read_bytes()
+                      if any(t.encode() in blob for t in prefixes):
+                        raise RuntimeError('F9_LEGACY_SCHEDULED_OR_SYSTEMD_REFERENCE')
+                  except (OSError,PermissionError):pass
+          def sizes_and_guards():
+            result={}
+            expect={str(TARGETS[0]):0,str(TARGETS[1]):0,str(TARGETS[2]):1000}
+            for path in TARGETS:
+              need(path.is_dir() and not path.is_symlink() and not os.path.ismount(path),
+                   'F9_LEGACY_EXPECTED_SOURCE_NOT_NORMAL_DIR')
+              need(path.lstat().st_uid==expect[str(path)],'F9_LEGACY_OWNER_MISMATCH')
+              files=0;size=0
+              for base,dirs,names in os.walk(path,followlinks=False):
+                for name in dirs+names:
+                  item=Path(base)/name
+                  need(not item.is_symlink() and not os.path.ismount(item),
+                       'F9_LEGACY_SYMLINK_OR_MOUNT_BLOCKED')
+                for name in names:
+                  p=Path(base)/name
+                  need(p.is_file(),'F9_LEGACY_NONFILE_BLOCKED')
+                  size+=p.stat().st_size;files+=1
+                  need(files<5000 and size<40000000,'F9_LEGACY_SIZE_CAP')
+              result[str(path)]={'uid':path.lstat().st_uid,'files':files,'bytes':size}
+            return result
+          def run():
+            mode=sys.argv[1] if len(sys.argv)==2 else ''
+            need(mode in ('--backup','--apply'),'F9_LEGACY_MODE')
+            need(os.getuid()==0,'F9_LEGACY_REQUIRES_ROOT')
+            need(ROOT.is_dir() and not ROOT.is_symlink() and ROOT.lstat().st_uid in (0,1000),
+                 'F9_LEGACY_OWNER_PROJECT')
+            ferrari=Path('/srv/projects/skill-universal/current')
+            need(ferrari.is_symlink() and ferrari.resolve().name=='f1f3b03525adec7018d7d629243e7b0fbb7f5087',
+                 'F9_LEGACY_FERRARI_RELEASE_CHANGED')
+            services()
+            references()
+            data=sizes_and_guards()
+            before=shutil.disk_usage('/').free
+            if mode=='--backup':
+              need(not BACK.exists() and not BACK.is_symlink(),'F9_LEGACY_BACKUP_EXISTS')
+              runtime=ROOT/'.runtime'
+              if not runtime.exists():runtime.mkdir(mode=0o700)
+              need(runtime.is_dir() and not runtime.is_symlink(),'F9_LEGACY_RUNTIME_UNSAFE')
+              BACK.mkdir(mode=0o700)
+              with tarfile.open(ARCH,'w:gz',dereference=False) as tar:
+                for p in TARGETS:tar.add(p,arcname=p.as_posix().lstrip('/'),recursive=True)
+              ARCH.chmod(0o600)
+              digest_value=digest(ARCH)
+              info={'schema':1,'scope':'F9_3_EXACT_LEGACY_DIRS','source_roots':data,
+                    'sha256':digest_value,'archive_bytes':ARCH.stat().st_size}
+              META.write_text(json.dumps(info,sort_keys=True,indent=2)+'\n')
+              META.chmod(0o600)
+              return {'phase':9,'status':'legacy_exact_archives_ready','sources':len(TARGETS),
+                      'files':sum(x['files'] for x in data.values()),
+                      'backup_bytes':ARCH.stat().st_size,'packages_changed':0,
+                      'protected_services':8,'source_paths_removed':0}
+            need(ARCH.is_file() and META.is_file() and not ARCH.is_symlink() and not META.is_symlink(),
+                 'F9_LEGACY_BACKUP_MISSING')
+            info=json.loads(META.read_text())
+            need(info.get('schema')==1 and info.get('source_roots')==data and
+                 info.get('sha256')==digest(ARCH),'F9_LEGACY_ARCHIVE_MISMATCH')
+            need(shutil.rmtree.avoids_symlink_attacks,'F9_LEGACY_SAFE_RMTREE_REQUIRED')
+            removed=[]
+            try:
+              for p in TARGETS:
+                shutil.rmtree(p);removed.append(str(p))
+              services()
+              need(all(not p.exists() and not p.is_symlink() for p in TARGETS),
+                   'F9_LEGACY_SOURCES_STILL_PRESENT')
+            except BaseException:
+              try:
+                with tarfile.open(ARCH,'r:gz') as tar:
+                  tar.extractall('/',filter='data')
+              except BaseException:pass
+              raise
+            return {'phase':9,'status':'legacy_three_roots_retired','sources_removed':len(removed),
+                    'files_removed':sum(x['files'] for x in data.values()),
+                    'source_bytes_removed':sum(x['bytes'] for x in data.values()),
+                    'archive_bytes_preserved':ARCH.stat().st_size,
+                    'disk_free_delta_bytes':shutil.disk_usage('/').free-before,
+                    'protected_services':8,'package_changes':0}
+          try:
+            print(json.dumps(run(),sort_keys=True))
+          except Exception as e:
+            print(json.dumps({'phase':9,'status':'blocked','reason':str(e)[:160]},sort_keys=True))
+            sys.exit(3)
+          PY
+          rc=$?
+          set -e
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          x=json.loads((Path(os.environ['RUNNER_TEMP'])/'f9-legacy.json').read_text())
+          print('F9_LEGACY_RESULT='+str(x['status']))
+          print('F9_LEGACY_PROTECTED_SERVICES='+str(x.get('protected_services')))
+          goal='legacy_exact_archives_ready' if os.environ['MODE']=='backup' else 'legacy_three_roots_retired'
+          if x['status']!=goal:raise SystemExit('F9_LEGACY_NOT_CERTIFIED')
+          PY
+          test "$rc" = 0
+          echo 'F9_LEGACY_EXACT_CLEANUP=PASS'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: f9-legacy-${{ steps.gate.outputs.mode }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/f9-legacy.json
+          if-no-files-found: warn
+          retention-days: 14
