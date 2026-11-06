@@ -19,7 +19,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: d00d8bc6bf776a35511b0af584d90ca43c7a7181
+          ref: 50c90298e47324e9af1dfca21d39b4a23c74b0e8
           persist-credentials: false
           path: ferrari
       - name: Assert code integrity and no-APT installation tests
