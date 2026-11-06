@@ -193,19 +193,20 @@ jobs:
             exit 10
           }
           echo F9_APT_SIMULATION_REMOVAL_LINES
-          grep '^Remv ' "$sim" | head -50 || true
+          grep -E '^(Remv|Purg) ' "$sim" | head -75 || true
           echo F9_APT_SIMULATION_AUTOREMOVE=NOT_INVOKED
           python3 - "$sim" <<'PY'
           import sys
           from pathlib import Path
           text=Path(sys.argv[1]).read_text()
-          planned=[s.split()[1] for s in text.splitlines() if s.startswith("Remv ")]
+          planned=[s.split()[1] for s in text.splitlines() if s.startswith(("Remv ","Purg "))]
           wanted={"yt-dlp","librecad","qgis","audacity","obs-studio",
                   "solvespace","synfigstudio","openshot-qt"}
           unexpected=sorted(set(planned)-wanted)
           print("F9_APT_SIMULATION_PACKAGES="+",".join(planned))
           print("F9_APT_SIMULATION_EXTRA="+",".join(unexpected))
-          print("F9_APT_SIMULATION_ONLY_EIGHT="+str(not unexpected))
+          print("F9_APT_SIMULATION_ONLY_EIGHT="+str(bool(planned) and not unexpected))
+          assert planned, "APT simulation contained no removal or purge lines"
           PY
           services=(pink-iptv-backend pink-vpn fadego-staging lowcost-europa pm2-iptvpn-bot pm2-telegram-robot-leads nginx postgresql@16-main)
           for s in "${services[@]}"; do
