@@ -104,6 +104,7 @@ jobs:
           activated=1
           test "$(readlink -f "$root/current")" = "$root/releases/$new" || exit 8
           test -f "$root/current/engine/tool_runtime.py" || exit 9
+          cd "$root/current"
           "$root/runtimes/python3.12/bin/python3.12" - "$root" <<'PY'
           from pathlib import Path
           import sys
@@ -112,7 +113,7 @@ jobs:
           assert len(tool_runtime.specs())==40
           for tool in ("ytdlp","librecad","audacity","openshot","synfig",
                        "obs","solvespace","qgis"):
-              path=tool_runtime.PRIVATE.get(tool)
+              path=tool_runtime.ISOLATED.get(tool)
               assert path is not None and path.exists(),(tool,path)
               assert path.resolve(strict=True).is_relative_to(root.resolve(strict=True)),(tool,path)
               print("F9_ACTIVE_PRIVATE_TOOL="+tool+"="+str(path),flush=True)
