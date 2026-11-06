@@ -1,0 +1,101 @@
+name: Ferrari F9 isolated CAD/GIS and GUI preflight (read-only)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ferrari-f9-runtime-audit-once-20261106.yml'
+permissions:
+  contents: read
+concurrency:
+  group: ferrari-f9-runtime-audit
+  cancel-in-progress: false
+jobs:
+  private-tool-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Reuse existing pinned SSH host
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          test -n "$SSHPASS" || exit 2
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/f9-known-hosts"
+          chmod 600 "$RUNNER_TEMP/f9-known-hosts"
+          fingerprint="$(ssh-keygen -lf "$RUNNER_TEMP/f9-known-hosts" -E sha256 | awk '{print $2}')"
+          test "$fingerprint" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' || exit 3
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          echo F9_SSH_PIN=PASS
+      - name: Inspect Ferrari-private and globally installed GUI software (no mutations)
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          opts=(-o PreferredAuthentications=password -o PubkeyAuthentication=no
+                -o StrictHostKeyChecking=yes
+                -o "UserKnownHostsFile=$RUNNER_TEMP/f9-known-hosts"
+                -o GlobalKnownHostsFile=/dev/null
+                -o HostKeyAlgorithms=ssh-ed25519
+                -o ConnectTimeout=20 -o ServerAliveInterval=15)
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 'bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          ulimit -c 0
+          root=/srv/projects/skill-universal
+          test "$(id -un)" = ubuntu && test -d "$root" && test ! -L "$root"
+          echo "F9_ACTIVE_RELEASE=$(readlink -f "$root/current")"
+          echo "F9_GITHUB_BASELINE=d095b394b8c01610284c1dd92985db0df9f64990"
+          echo "F9_DISK=$(df -h "$root" | tail -1)"
+          echo F9_PRIVATE_TOOL_DIRS
+          for t in yt-dlp-2026.10.26 librecad-2.2.1.6 audacity-4.0.2 synfig-1.5.5 openshot-4.1.1 obs-studio-32.2.2; do
+            if test -d "$root/tools/$t"; then du -sh "$root/tools/$t"; else echo "MISSING:$t"; fi
+          done
+          echo F9_GLOBAL_PACKAGE_METADATA
+          for pkg in qgis qgis-common qgis-providers python3-qgis solvespace obs-studio; do
+            dpkg-query -W -f='${Package}|version=${Version}|installed_size_kib=${Installed-Size}|status=${Status}\n' "$pkg" 2>/dev/null || true
+          done
+          echo F9_PRIVATE_OBS_ENTRY
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('/srv/projects/skill-universal/tools/obs-studio-32.2.2')
+          data=json.loads((root/'manifest.json').read_text())
+          exe=(root/'payload'/data['obs_relative_exe']).resolve()
+          print("obs_release=",data['version'],"executable=",exe)
+          print("obs_cli_version_tested=",data.get("cli_version_tested"))
+          print("obs_dep_isolation_certified=",data.get("dependency_isolation_certified"))
+          PY
+          echo F9_GLOBAL_BINARY_DEPENDENCIES
+          for exe in /usr/bin/solvespace /usr/bin/qgis /usr/bin/qgis_process; do
+            if test -f "$exe"; then
+              echo "BINARY:$exe"
+              file "$exe" || true
+              (ldd "$exe" 2>&1 | grep -E 'not found|libQt|libqgis|libslvs|libGL|libTK|libxcb|libwx' | head -18) || true
+            fi
+          done
+          echo F9_APT_DOWNLOAD_POLICY
+          apt-cache policy qgis qgis-common qgis-providers solvespace obs-studio | head -90
+          echo F9_QGIS_PROCESS_HELP_SAFE
+          (timeout 12 /usr/bin/qgis_process --help 2>&1 | head -20) || true
+          echo F9_SOLVESPACE_CLI_HELP_SAFE
+          (timeout 8 /usr/bin/solvespace --help 2>&1 | head -15) || true
+          echo F9_PRIVATE_OBS_LIBRARY_CHECK
+          python3 - <<'PY'
+          import json,subprocess
+          from pathlib import Path
+          root=Path('/srv/projects/skill-universal/tools/obs-studio-32.2.2')
+          data=json.loads((root/'manifest.json').read_text())
+          exe=(root/'payload'/data['obs_relative_exe']).resolve()
+          cp=subprocess.run(['ldd',str(exe)],capture_output=True,text=True,timeout=15)
+          print('obs_linker_status=',cp.returncode)
+          lines=cp.stdout.splitlines()+cp.stderr.splitlines()
+          missing=[line.strip() for line in lines if 'not found' in line]
+          print('obs_missing_runtime_libraries=',missing[:25])
+          PY
+          services=(pink-iptv-backend pink-vpn fadego-staging lowcost-europa pm2-iptvpn-bot pm2-telegram-robot-leads nginx postgresql@16-main)
+          for s in "${services[@]}"; do
+            test "$(systemctl is-active "$s")" = active || { echo "F9_SERVICE_FAILED:$s"; exit 5; }
+          done
+          echo F9_PROTECTED_SERVICES=8_OF_8_PASS
+          echo F9_READ_ONLY_AUDIT=PASS
+          REMOTE
