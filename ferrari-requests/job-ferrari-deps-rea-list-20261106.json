@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "id": "ferrari-deps-rea-list-20261106",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/list"
+    }
+  ]
+}
