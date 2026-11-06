@@ -170,6 +170,43 @@ jobs:
           done
           echo F9_THREEJS_PACKAGE_CONTENTS
           dpkg -L libjs-three | grep 'three.js' | head -25 || true
+          echo F9_FERRARI_CURRENT_RELEASE_AFTER_ALIGNMENT
+          readlink -f "$root/current"
+          echo F9_PRIVATE_RESOURCE_MANIFEST_CHECK
+          python3 - "$root" <<'PY'
+          import json,sys
+          from pathlib import Path
+          root=Path(sys.argv[1])
+          doc=json.loads((root/"tools/solvespace-3.1-ubuntu24/ferrari-private-resources.json").read_text())
+          for name in ("libjs-three","unifont"):
+              item=doc["resources"][name]
+              assert Path(item["private_path"]).is_file(),item
+              print("F9_SOLVESPACE_PRIVATE_RESOURCE="+name+"=PASS")
+          PY
+          echo F9_APT_EIGHT_GLOBAL_PACKAGES_PURGE_SIMULATION_ONLY
+          sim="$root/.runtime/.f9-apt-purge-sim-$BASHPID"
+          trap 'rm -f -- "$sim"' EXIT
+          packages=(yt-dlp librecad qgis audacity obs-studio solvespace synfigstudio openshot-qt)
+          LC_ALL=C apt-get -s -o Debug::NoLocking=1 purge "${packages[@]}" >"$sim" 2>&1 || {
+            echo F9_APT_SIMULATION_BLOCKED
+            tail -n 15 "$sim"
+            exit 10
+          }
+          echo F9_APT_SIMULATION_REMOVAL_LINES
+          grep '^Remv ' "$sim" | head -50 || true
+          echo F9_APT_SIMULATION_AUTOREMOVE=NOT_INVOKED
+          python3 - "$sim" <<'PY'
+          import sys
+          from pathlib import Path
+          text=Path(sys.argv[1]).read_text()
+          planned=[s.split()[1] for s in text.splitlines() if s.startswith("Remv ")]
+          wanted={"yt-dlp","librecad","qgis","audacity","obs-studio",
+                  "solvespace","synfigstudio","openshot-qt"}
+          unexpected=sorted(set(planned)-wanted)
+          print("F9_APT_SIMULATION_PACKAGES="+",".join(planned))
+          print("F9_APT_SIMULATION_EXTRA="+",".join(unexpected))
+          print("F9_APT_SIMULATION_ONLY_EIGHT="+str(not unexpected))
+          PY
           services=(pink-iptv-backend pink-vpn fadego-staging lowcost-europa pm2-iptvpn-bot pm2-telegram-robot-leads nginx postgresql@16-main)
           for s in "${services[@]}"; do
             test "$(systemctl is-active "$s")" = active || { echo "F9_SERVICE_FAILED:$s"; exit 5; }
