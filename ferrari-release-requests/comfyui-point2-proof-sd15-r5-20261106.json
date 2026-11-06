@@ -1,7 +1,0 @@
-{
-  "version": 1,
-  "task": "comfyui-private-sd15-cpu-tiled-vae-r5",
-  "ferrari_sha": "40574f81db501d7abb5621c1ae3d66c7bdab381d",
-  "model": "stable-diffusion-v1-5/stable-diffusion-v1-5",
-  "model_revision": "f03de327dd89b501a01da37fc5240cf4fdba85a1"
-}
