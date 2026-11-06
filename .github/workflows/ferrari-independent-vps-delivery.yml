@@ -35,6 +35,7 @@ on:
       - 'ferrari-release-requests/universal-f9-apt-consumers-20261106.json'
       - 'ferrari-release-requests/universal-f9-dpkg-confirm-20261106.json'
       - 'ferrari-release-requests/universal-f9-qgis-native-20261106.json'
+      - 'ferrari-release-requests/universal-f9-qgis-ogr-20261106.json'
 
 permissions:
   contents: read
@@ -93,6 +94,7 @@ jobs:
             ferrari-release-requests/universal-f9-apt-consumers-20261106.json) MODE=--universal-f9-consumers ;;
             ferrari-release-requests/universal-f9-dpkg-confirm-20261106.json) MODE=--universal-f9-dpkg-confirm ;;
             ferrari-release-requests/universal-f9-qgis-native-20261106.json) MODE=--universal-f9-qgis-native ;;
+            ferrari-release-requests/universal-f9-qgis-ogr-20261106.json) MODE=--universal-f9-qgis-ogr ;;
             *) echo 'FERRARI_PHASE5_REQUEST_NOT_SINGLE_OR_NOT_ALLOWED' >&2; exit 2 ;;
           esac
           if [[ "$MODE" == --universal-* ]]; then
@@ -258,6 +260,15 @@ jobs:
           persist-credentials: false
           path: ferrari-qgis-native
 
+      - name: Checkout corrected immutable QGIS OGR verification script
+        if: steps.request.outputs.mode == '--universal-f9-qgis-ogr'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: c98deda66b7fcc1c01cac27f1101302afd16856c
+          persist-credentials: false
+          path: ferrari-qgis-ogr
+
       - name: Validate the project-owned release script
         shell: bash
         run: |
@@ -269,6 +280,11 @@ jobs:
             bash -n ferrari-universal/install/vps-isolated-release.sh
             python3 -m py_compile ferrari-universal/install/vps-universal-catalog-hygiene.py
             python3 -c 'import json; d=json.load(open("ferrari-universal/engine/catalog.json")); assert len(d["tools"])==173 and len(d["functions"])==272 and len(d["dependencies"])==3 and len(d["providers"])==2 and d["counts"]["all_catalog_entries"]==450 and "actions" not in d and "names" not in d["mcp_capabilities"]; print("FERRARI_UNIVERSAL_SOURCE=PASS")'
+          fi
+          if [[ "${{ steps.request.outputs.mode }}" == '--universal-f9-qgis-ogr' ]]; then
+            python3 -m py_compile ferrari-qgis-ogr/install/vps-f9-qgis-native-processing-certify.py
+            test -f ferrari-qgis-ogr/tests/test_f9_qgis_native_processing_certify.py
+            echo 'FERRARI_F9_QGIS_REAL_OGR_SOURCE=VALID'
           fi
           if [[ "${{ steps.request.outputs.mode }}" == '--universal-f9-qgis-native' ]]; then
             python3 -m py_compile ferrari-qgis-native/install/vps-f9-qgis-native-processing-certify.py
@@ -361,7 +377,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           SHA="40c0e1cdf31b1fe9589ad8be90e5eac06eec2856"
-          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--venvs-preview' || "$MODE" == '--venvs-apply' || "$MODE" == '--final-preview' || "$MODE" == '--final-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' || "$MODE" == '--phase7-check' || "$MODE" == '--phase7-activate' || "$MODE" == '--phase7-certify' || "$MODE" == '--universal-check' || "$MODE" == '--universal-activate' || "$MODE" == '--universal-preview' || "$MODE" == '--universal-apply' || "$MODE" == '--universal-deep-audit' || "$MODE" == '--universal-empty-preview' || "$MODE" == '--universal-empty-apply' || "$MODE" == '--universal-f9-consumers' || "$MODE" == '--universal-f9-dpkg-confirm' || "$MODE" == '--universal-f9-qgis-native' ]] || exit 3
+          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--venvs-preview' || "$MODE" == '--venvs-apply' || "$MODE" == '--final-preview' || "$MODE" == '--final-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' || "$MODE" == '--phase7-check' || "$MODE" == '--phase7-activate' || "$MODE" == '--phase7-certify' || "$MODE" == '--universal-check' || "$MODE" == '--universal-activate' || "$MODE" == '--universal-preview' || "$MODE" == '--universal-apply' || "$MODE" == '--universal-deep-audit' || "$MODE" == '--universal-empty-preview' || "$MODE" == '--universal-empty-apply' || "$MODE" == '--universal-f9-consumers' || "$MODE" == '--universal-f9-dpkg-confirm' || "$MODE" == '--universal-f9-qgis-native' || "$MODE" == '--universal-f9-qgis-ogr' ]] || exit 3
           opts=(-T -o PreferredAuthentications=password -o PubkeyAuthentication=no
                 -o StrictHostKeyChecking=yes
                 -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-pinned-host"
@@ -377,7 +393,36 @@ jobs:
             REPORT="$RUNNER_TEMP/ferrari-universal-report.json"
             echo "FERRARI_UNIVERSAL_MODE=$MODE"
             echo "FERRARI_UNIVERSAL_PREVIOUS=$BEFORE"
-            if [[ "$MODE" == '--universal-f9-qgis-native' ]]; then
+            if [[ "$MODE" == '--universal-f9-qgis-ogr' ]]; then
+              [[ "$BEFORE" == "$NEW" ]] || { echo 'F9_QGIS_OGR_RELEASE_CHANGED' >&2; exit 19; }
+              sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+                "cd '/srv/projects/skill-universal/current' && '/usr/bin/python3' -B - --certify" \
+                < ferrari-qgis-ogr/install/vps-f9-qgis-native-processing-certify.py > "$REPORT"
+              python3 - "$REPORT" <<'VERIFY_QGIS_OGR'
+          import json,sys
+          d=json.load(open(sys.argv[1],encoding="utf-8"))
+          assert d["status"] in ("pass","partial_blocked")
+          assert d["active_release"]=="7bf6dcecf15da26502c5969b5eee54d5e116fc32"
+          assert d["fallback_preserved"]=="952b0a75ba798471b07053677d53791bd078ed56"
+          assert d["catalog_entries"]==450
+          assert d["other_projects_modified"] is False
+          assert d["ubuntu_apt_modified"] is False and d["test_artifacts_removed"] is True
+          assert d["gui_certified"] is False and d["all_providers_certified"] is False
+          if d["status"]=="pass":
+              assert d["native_processing_certified"] is True
+              assert d["native_processing"]["ogr_provider_geojson_readback"] is True
+              assert d["native_processing"]["native_buffer_algorithm_executed"] is True
+          else:
+              assert d["native_processing_certified"] is False
+          print("FERRARI_F9_QGIS_OGR_REAL="+d["status"].upper())
+          print("FERRARI_F9_QGIS_LOADER_MISSING="+",".join(d["ldd"]["unresolved_sonames"]))
+          print("FERRARI_F9_QGIS_ALL_PROVIDERS_UNCERTIFIED=True")
+          VERIFY_QGIS_OGR
+              AFTER="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
+              [[ "$AFTER" == "$BEFORE" ]] || {
+                echo 'F9_QGIS_OGR_CHECK_CHANGED_RELEASE' >&2; exit 19;
+              }
+            elif [[ "$MODE" == '--universal-f9-qgis-native' ]]; then
               [[ "$BEFORE" == "$NEW" ]] || { echo 'F9_QGIS_UNEXPECTED_RELEASE' >&2; exit 19; }
               # Execute only the immutable audited Ferrari script on the private QGIS runtime.
               sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
