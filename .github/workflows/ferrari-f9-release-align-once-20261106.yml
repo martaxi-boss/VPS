@@ -1,0 +1,131 @@
+name: Ferrari F9 real release alignment with rollback 20261106
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ferrari-f9-release-align-once-20261106.yml'
+permissions:
+  contents: read
+concurrency:
+  group: ferrari-f9-activation-single-switch
+  cancel-in-progress: false
+jobs:
+  release-align:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - name: Checkout exact tested Ferrari version and release script
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: 0b50e1d403deff8f3ccb421edd0b41c397d66b9b
+          persist-credentials: false
+          path: ferrari
+      - name: Verify release script and recorded HEAD
+        run: |
+          set -Eeuo pipefail
+          test -f ferrari/install/vps-isolated-release.sh
+          bash -n ferrari/install/vps-isolated-release.sh
+          test "$(git -C ferrari rev-parse HEAD)" = "0b50e1d403deff8f3ccb421edd0b41c397d66b9b"
+          echo F9_RELEASE_SOURCE_EXACT_HEAD=PASS
+      - name: Pinned VPS SSH and existing identity
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          test -n "$SSHPASS" || exit 2
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/f9-known-hosts"
+          chmod 600 "$RUNNER_TEMP/f9-known-hosts"
+          fingerprint="$(ssh-keygen -lf "$RUNNER_TEMP/f9-known-hosts" -E sha256 | awk '{print $2}')"
+          test "$fingerprint" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' || exit 3
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          echo F9_EXISTING_SSH_PIN=PASS
+      - name: Run Ferrari official isolated release preflight and atomic activation
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$GITHUB_RUN_ID" =~ ^[0-9]+$ ]] || exit 2
+          opts=(-o PreferredAuthentications=password -o PubkeyAuthentication=no
+                -o StrictHostKeyChecking=yes
+                -o "UserKnownHostsFile=$RUNNER_TEMP/f9-known-hosts"
+                -o GlobalKnownHostsFile=/dev/null
+                -o HostKeyAlgorithms=ssh-ed25519
+                -o ConnectTimeout=20 -o ServerAliveInterval=15)
+          root=/srv/projects/skill-universal
+          source="$root/.runtime/f9-release-$GITHUB_RUN_ID.sh"
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
+            'test -d /srv/projects/skill-universal/.runtime && test ! -L /srv/projects/skill-universal'
+          sshpass -e scp "${opts[@]}" ferrari/install/vps-isolated-release.sh \
+            "ubuntu@146.59.145.3:$source"
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 'bash -s' -- "$GITHUB_RUN_ID" <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          ulimit -c 0
+          root=/srv/projects/skill-universal
+          new=0b50e1d403deff8f3ccb421edd0b41c397d66b9b
+          run="$1"
+          [[ "$run" =~ ^[0-9]+$ ]] || exit 4
+          script="$root/.runtime/f9-release-$run.sh"
+          test "$(id -un)" = ubuntu && test "$(id -u)" -ne 0
+          test -f "$script" && test ! -L "$script"
+          bash -n "$script"
+          before="$(readlink -f "$root/current")"
+          test "$before" = "$root/releases/f1f3b03525adec7018d7d629243e7b0fbb7f5087" || { echo "F9_UNEXPECTED_ACTIVE_RELEASE=$before"; exit 5; }
+          services=(pink-iptv-backend pink-vpn fadego-staging lowcost-europa
+                    pm2-iptvpn-bot pm2-telegram-robot-leads nginx postgresql@16-main)
+          for s in "${services[@]}"; do
+            test "$(systemctl is-active "$s")" = active || { echo "F9_PRE_SERVICE_FAILED:$s"; exit 6; }
+          done
+          for app in yt-dlp librecad qgis audacity obs-studio solvespace synfigstudio openshot-qt; do
+            test "$(dpkg-query -W -f='${Status}' "$app" 2>/dev/null)" = 'install ok installed' || { echo "F9_LEGACY_APT_CHANGED:$app"; exit 7; }
+          done
+          activated=0
+          clean_and_rollback() {
+            rc=$?
+            trap - EXIT
+            if test "$activated" = 1 && test "$rc" -ne 0; then
+              echo F9_POST_ACTIVATION_FAILURE_ROLLING_BACK
+              back="$root/.current.rollback-f9-$run"
+              if test ! -e "$back" && test ! -L "$back"; then
+                ln -s "$before" "$back" && mv -Tf "$back" "$root/current"
+              fi
+              test "$(readlink -f "$root/current")" = "$before" && echo F9_SERVICE_ROLLBACK=PASS || echo F9_SERVICE_ROLLBACK=FAILED
+            fi
+            rm -f -- "$script"
+            exit "$rc"
+          }
+          trap clean_and_rollback EXIT
+          echo "F9_PREVIOUS_RELEASE=$before"
+          df -hT "$root"
+          echo F9_RELEASE_REAL_INSTALL_RUNNING
+          nice -n 10 bash "$script" "$new" --activate
+          activated=1
+          test "$(readlink -f "$root/current")" = "$root/releases/$new" || exit 8
+          test -f "$root/current/engine/tool_runtime.py" || exit 9
+          "$root/runtimes/python3.12/bin/python3.12" - "$root" <<'PY'
+          from pathlib import Path
+          import sys
+          from engine import tool_runtime
+          root=Path(sys.argv[1])
+          assert len(tool_runtime.specs())==40
+          for tool in ("ytdlp","librecad","audacity","openshot","synfig",
+                       "obs","solvespace","qgis"):
+              path=tool_runtime.PRIVATE.get(tool)
+              assert path is not None and path.exists(),(tool,path)
+              assert path.resolve(strict=True).is_relative_to(root.resolve(strict=True)),(tool,path)
+              print("F9_ACTIVE_PRIVATE_TOOL="+tool+"="+str(path),flush=True)
+          print("F9_EIGHT_PRIVATE_TOOLS_IN_ACTIVE_RELEASE=PASS",flush=True)
+          PY
+          for app in yt-dlp librecad qgis audacity obs-studio solvespace synfigstudio openshot-qt; do
+            test "$(dpkg-query -W -f='${Status}' "$app" 2>/dev/null)" = 'install ok installed' || { echo "F9_LEGACY_APT_CHANGED_POST:$app"; exit 10; }
+          done
+          for s in "${services[@]}"; do
+            test "$(systemctl is-active "$s")" = active || { echo "F9_POST_SERVICE_FAILED:$s"; exit 11; }
+          done
+          echo F9_RELEASE_SHA_ACTIVE=0b50e1d403deff8f3ccb421edd0b41c397d66b9b
+          echo F9_PROTECTED_SERVICES=8_OF_8_PASS
+          echo F9_GLOBAL_APT_PRESERVED=PASS
+          df -hT "$root"
+          REMOTE
