@@ -3,7 +3,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'ferrari-release-requests/comfyui-point2-proof-r3-20261106.json'
+      - 'ferrari-release-requests/comfyui-point2-proof-sd15-20261106.json'
 permissions:
   contents: read
 concurrency:
@@ -36,15 +36,15 @@ jobs:
             echo FERRARI_COMFY_POINT2_HYGIENE=PASS
             exit 0
           fi
-          test "$added" = ferrari-release-requests/comfyui-point2-proof-r3-20261106.json
+          test "$added" = ferrari-release-requests/comfyui-point2-proof-sd15-20261106.json
           test "$added" = "$changed"
           python3 - <<'PY'
           import json
           from pathlib import Path
-          req=json.loads(Path('ferrari-release-requests/comfyui-point2-proof-r3-20261106.json').read_text())
-          assert req=={'version':1,'task':'comfyui-private-tiny-sd-cpu-real-inference-r3',
-                      'ferrari_sha':'010605b0567e2ae8059eb939aa88c4c9ad7191cb','model':'segmind/tiny-sd',
-                      'model_revision':'3d25de3e8d5aacf94ce91176f204e6d11d120315'}
+          req=json.loads(Path('ferrari-release-requests/comfyui-point2-proof-sd15-20261106.json').read_text())
+          assert req=={'version':1,'task':'comfyui-private-sd15-cpu-install-real-inference',
+                      'ferrari_sha':'c88fc260d3aeffa209ba1fc8b5107331ddd4b019','model':'stable-diffusion-v1-5/stable-diffusion-v1-5',
+                      'model_revision':'f03de327dd89b501a01da37fc5240cf4fdba85a1'}
           PY
           echo 'execute=true' >> "$GITHUB_OUTPUT"
           echo FERRARI_COMFY_POINT2_REQUEST=PASS
@@ -54,7 +54,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: 010605b0567e2ae8059eb939aa88c4c9ad7191cb
+          ref: c88fc260d3aeffa209ba1fc8b5107331ddd4b019
           path: ferrari
           persist-credentials: false
 
@@ -63,7 +63,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          python3 -m py_compile ferrari/install/vps-comfyui-cpu-model.py ferrari/install/vps-comfyui-cpu-smoke.py
+          python3 -m py_compile ferrari/install/vps-comfyui-sd15-fp16-model.py ferrari/install/vps-comfyui-cpu-smoke.py
           (cd ferrari && python3 -m unittest discover -s tests -p test_comfyui_cpu_model.py -v)
           echo FERRARI_COMFY_POINT2_SOURCE=PASS
 
@@ -82,7 +82,7 @@ jobs:
           sudo apt-get install -y -qq sshpass > /dev/null
           echo FERRARI_COMFY_POINT2_EXISTING_SSH=PASS
 
-      - name: Verify existing private model without changing release or global packages
+      - name: Install pinned standard SD1.5 private model without release/global changes
         if: steps.gate.outputs.execute == 'true'
         shell: bash
         env:
@@ -99,8 +99,11 @@ jobs:
           test "$previous" = "$ROOT/releases/a266b25e06a9c8acf1fdc940d22b99070cd17ded"
           echo FERRARI_COMFY_POINT2_RELEASE_UNCHANGED_BEFORE=PASS
           sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
+            "cd '$ROOT' && '$ROOT/runtimes/python3.12/bin/python3.12' - --apply" \
+            < ferrari/install/vps-comfyui-sd15-fp16-model.py
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
             "cd '$ROOT' && '$ROOT/runtimes/python3.12/bin/python3.12' - --check" \
-            < ferrari/install/vps-comfyui-cpu-model.py
+            < ferrari/install/vps-comfyui-sd15-fp16-model.py
           actual="$(sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 "readlink -e '$ROOT/current'")"
           test "$previous" = "$actual"
           echo FERRARI_COMFY_POINT2_MODEL_PRIVATE_SHA256=PASS
@@ -122,7 +125,7 @@ jobs:
           # Stage only within Ferrari; refuse to replace another user's file.
           source_hash="$(sha256sum ferrari/install/vps-comfyui-cpu-smoke.py | cut -d' ' -f1)"
           remote_hash="$(sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
-            "if test -f '$ROOT/.runtime/.ferrari-comfy-point2-proof-r3.py' && test ! -L '$ROOT/.runtime/.ferrari-comfy-point2-proof-r3.py'; then sha256sum '$ROOT/.runtime/.ferrari-comfy-point2-proof-r3.py' | cut -d' ' -f1; fi")"
+            "if test -f '$ROOT/.runtime/.ferrari-comfy-point2-proof-sd15.py' && test ! -L '$ROOT/.runtime/.ferrari-comfy-point2-proof-sd15.py'; then sha256sum '$ROOT/.runtime/.ferrari-comfy-point2-proof-sd15.py' | cut -d' ' -f1; fi")"
           if [[ -n "$remote_hash" ]]; then
             test "$remote_hash" = "$source_hash" || {
               echo FERRARI_COMFY_UNKNOWN_STAGED_SCRIPT_BLOCKED; exit 4;
@@ -130,12 +133,12 @@ jobs:
             echo FERRARI_COMFY_REUSE_VERIFIED_STAGED_SMOKE=PASS
           else
             sshpass -e scp -q "${opts[@]}" ferrari/install/vps-comfyui-cpu-smoke.py \
-              "ubuntu@146.59.145.3:$ROOT/.runtime/.ferrari-comfy-point2-proof-r3.py"
+              "ubuntu@146.59.145.3:$ROOT/.runtime/.ferrari-comfy-point2-proof-sd15.py"
           fi
           # A transient scope caps its own CPU/memory and cannot launch a service.
           set +e
           sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
-            "timeout 510 sudo -n systemd-run --scope -p MemoryMax=5G -p CPUQuota=150% -p TasksMax=256 -- /usr/sbin/runuser -u ubuntu -- '$ROOT/.runtime/venvs/extended/comfyui/bin/python' '$ROOT/.runtime/.ferrari-comfy-point2-proof-r3.py'" \
+            "timeout 510 sudo -n systemd-run --scope -p MemoryMax=5G -p CPUQuota=150% -p TasksMax=256 -- /usr/sbin/runuser -u ubuntu -- '$ROOT/.runtime/venvs/extended/comfyui/bin/python' '$ROOT/.runtime/.ferrari-comfy-point2-proof-sd15.py'" \
             > "$RUNNER_TEMP/comfy-real-inference.txt" 2>&1
           result=$?
           set -e
@@ -145,7 +148,7 @@ jobs:
           grep -q '^FERRARI_COMFY_IMAGE_REAL=PASS' "$RUNNER_TEMP/comfy-real-inference.txt"
           mkdir -p "$RUNNER_TEMP/comfy-evidence"
           sshpass -e scp -q "${opts[@]}" \
-            "ubuntu@146.59.145.3:$ROOT/.runtime/comfyui-proof-20261106/comfyui-tiny-sd-proof.png" \
+            "ubuntu@146.59.145.3:$ROOT/.runtime/comfyui-proof-20261106/comfyui-sd15-proof.png" \
             "$RUNNER_TEMP/comfy-evidence/image.png"
           sshpass -e scp -q "${opts[@]}" \
             "ubuntu@146.59.145.3:$ROOT/.runtime/comfyui-proof-20261106/report.json" \
@@ -165,7 +168,7 @@ jobs:
           PY
           # Only temporary transport script removed; model and proof stay project-owned.
           sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
-            "test -f '$ROOT/.runtime/.ferrari-comfy-point2-proof-r3.py' && rm -f -- '$ROOT/.runtime/.ferrari-comfy-point2-proof-r3.py'"
+            "test -f '$ROOT/.runtime/.ferrari-comfy-point2-proof-sd15.py' && rm -f -- '$ROOT/.runtime/.ferrari-comfy-point2-proof-sd15.py'"
           # Remove only the exact old staging script from the previous failed
           # test if its bytes match the pinned Git blob. No arbitrary deletion.
           sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
