@@ -232,7 +232,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: 0ff8dcae8790600688ebbdd39a15e34aad146ec8
+          ref: 540aafd4617d064f347b7b72c99217c4e9168dd6
           persist-credentials: false
           path: ferrari-f9-apt
 
