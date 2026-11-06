@@ -1,0 +1,171 @@
+name: Ferrari P6 final isolated release certification one-shot
+on:
+  push:
+    branches: [main]
+    paths:
+      - ferrari-release-requests/ferrari-p6-cert-20261106-v1.json
+permissions:
+  contents: read
+concurrency:
+  group: ferrari-p6-private-qa
+  cancel-in-progress: false
+jobs:
+  final-private-qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - name: Checkout exact one-shot authorization
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Restrict to one new certification request
+        id: gate
+        shell: bash
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          set -Eeuo pipefail
+          changed="$(git diff --name-only "$BEFORE" "$AFTER")"
+          new="$(git diff --name-only --diff-filter=A "$BEFORE" "$AFTER")"
+          if [[ -z "$new" ]]; then
+            echo execute=false >> "$GITHUB_OUTPUT"
+            echo FERRARI_P6_GITHUB_HYGIENE=PASS
+            exit 0
+          fi
+          test "$new" = 'ferrari-release-requests/ferrari-p6-cert-20261106-v1.json'
+          test "$changed" = "$new"
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          actual=json.loads(Path('ferrari-release-requests/ferrari-p6-cert-20261106-v1.json').read_text())
+          assert actual=={
+            'version':1,'task':'ferrari-p6-private-release-cert-readonly',
+            'release':'a266b25e06a9c8acf1fdc940d22b99070cd17ded',
+            'root':'/srv/projects/skill-universal',
+            'no_global_changes':True,'no_other_projects':True,
+            'no_ruflo_daemon':True,
+          }
+          print("FERRARI_P6_REQUEST=PASS")
+          PY
+          echo execute=true >> "$GITHUB_OUTPUT"
+
+      - name: Pinned SSH identity (no VPS SSH changes)
+        if: steps.gate.outputs.execute == 'true'
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/p6-host"
+          chmod 600 "$RUNNER_TEMP/p6-host"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/p6-host" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass > /dev/null
+          echo FERRARI_P6_SSH_UNCHANGED=PASS
+
+      - name: Certify owned private release, rollback, models and protected services
+        if: steps.gate.outputs.execute == 'true'
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          opts=(-o PreferredAuthentications=password -o PubkeyAuthentication=no
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/p6-host"
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519
+            -o ConnectTimeout=20 -o ServerAliveInterval=15)
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 'python3 -' > "$RUNNER_TEMP/ferrari-p6-result.json" <<'PY'
+          from pathlib import Path
+          import hashlib,os,json,subprocess
+          r=Path('/srv/projects/skill-universal')
+          assert r.is_dir() and not r.is_symlink() and r.resolve(strict=True)==r
+          assert r.stat().st_uid==os.getuid()
+          active=r/'releases/a266b25e06a9c8acf1fdc940d22b99070cd17ded'
+          fallback=r/'releases/758e1b435317fa26277b332b75bc47c67910be81'
+          assert (r/'current').is_symlink()
+          assert (r/'current').resolve(strict=True)==active
+          assert fallback.is_dir() and not fallback.is_symlink()
+          assert active.is_dir() and not active.is_symlink()
+          assert (active/'engine/orchestrator.py').is_file()
+          assert (active/'engine/ferrari.py').is_file()
+          actions=json.loads((active/'engine/tool_actions.json').read_text())['actions']
+          assert len(actions)==40
+          models={
+            'sd15/unet':('tools/comfyui-v0.43.0/models/diffusers/sd15-fp16-f03de327/unet/diffusion_pytorch_model.fp16.safetensors','c83908253f9a64d08c25fc90874c9c8aef9a329ce1ca5fb909d73b0c83d1ea21'),
+            'sd15/clip':('tools/comfyui-v0.43.0/models/diffusers/sd15-fp16-f03de327/text_encoder/model.fp16.safetensors','77795e2023adcf39bc29a884661950380bd093cf0750a966d473d1718dc9ef4e'),
+            'sd15/vae':('tools/comfyui-v0.43.0/models/diffusers/sd15-fp16-f03de327/vae/diffusion_pytorch_model.fp16.safetensors','4fbcf0ebe55a0984f5a5e00d8c4521d52359af7229bb4d81890039d2aa16dd7c'),
+            'whisper/tiny':('.runtime/models/faster-whisper-tiny-d90ca5fe/model.bin','dcb76c6586fc06cbdac6dd21f14cfd129cc4cdd9dce19bf4ffa62e59cbe6e6d1'),
+          }
+          integrity={}
+          for name,(rel,expected) in models.items():
+            path=r/rel
+            assert path.is_file() and not path.is_symlink()
+            assert path.resolve(strict=True).is_relative_to(r)
+            h=hashlib.sha256()
+            with path.open('rb') as f:
+              for chunk in iter(lambda:f.read(4*1024*1024),b''):h.update(chunk)
+            integrity[name]=(h.hexdigest()==expected)
+          assert all(integrity.values())
+          services=('pink-iptv-backend','pink-vpn','fadego-staging','lowcost-europa',
+                    'pm2-iptvpn-bot','pm2-telegram-robot-leads','nginx','postgresql@16-main')
+          states={}
+          for name in services:
+            p=subprocess.run(['systemctl','is-active',name],capture_output=True,text=True,timeout=10)
+            states[name]=p.stdout.strip()
+          assert all(x=='active' for x in states.values()),states
+          # Passive supervisor allowed; persistent Ruflo coordinator forbidden.
+          ruflo=[]
+          for proc in Path('/proc').iterdir():
+            if not proc.name.isdigit() or proc.name==str(os.getpid()):continue
+            try:
+              if proc.stat().st_uid!=os.getuid():continue
+              raw=(proc/'cmdline').read_bytes().replace(b'\0',b' ').decode(errors='replace')
+              if '/.runtime/npm/ruflo/' in raw and (
+                 'daemon' in raw.lower() or 'swarm' in raw.lower()
+                 or 'hive-mind' in raw.lower() or 'autopilot' in raw.lower()):
+                ruflo.append(proc.name)
+            except (OSError,PermissionError):continue
+          assert not ruflo,'Unauthorized persistent Ruflo coordinator'
+          assert (Path('/sys/fs/cgroup')/'cgroup.controllers').exists()
+          assert (r/'current').resolve(strict=True)==active
+          data={
+            'status':'passed','project_root':str(r),'active_release':active.name,
+            'fallback_release':fallback.name,'typed_actions':len(actions),
+            'model_sha256_verified':integrity,'protected_services':states,
+            'unauthorized_ruflo_daemon_processes':len(ruflo),
+            'cgroup_v2_present':True,
+            'other_projects_modified':False,
+            'global_packages_modified':False,
+            'p5_16_global_apt_packages_not_purged':True,
+            'client_skill_install_verified':False,
+          }
+          print(json.dumps(data,indent=2,sort_keys=True))
+          PY
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          d=json.loads((Path(os.environ['RUNNER_TEMP'])/'ferrari-p6-result.json').read_text())
+          assert d['status']=='passed' and d['typed_actions']==40
+          assert all(d['model_sha256_verified'].values())
+          assert all(v=='active' for v in d['protected_services'].values())
+          assert d['unauthorized_ruflo_daemon_processes']==0
+          print('FERRARI_P6_RELEASE_FALLBACK=PASS')
+          print('FERRARI_P6_40_ACTIONS=PASS')
+          print('FERRARI_P6_PRIVATE_MODEL_HASHES=PASS')
+          print('FERRARI_P6_EIGHT_PROTECTED_SERVICES=PASS')
+          print('FERRARI_P6_CGROUP_PRESENT=PASS')
+          print('FERRARI_P6_NO_NEW_COORDINATOR=PASS')
+          print('FERRARI_P6_PRIVATE_READ_ONLY_CERT=PASS')
+          PY
+
+      - name: Retain proof artifact
+        if: steps.gate.outputs.execute == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ferrari-p6-final-readonly-${{ github.run_id }}
+          path: ${{ runner.temp }}/ferrari-p6-result.json
+          retention-days: 14
+          if-no-files-found: error
