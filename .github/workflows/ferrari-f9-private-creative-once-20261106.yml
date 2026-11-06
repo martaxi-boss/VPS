@@ -22,7 +22,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: 122f0e9bda21be5b04c59ee9d4ad18dc79e27204
+          ref: a29ba706205b21b199b26e4e943a99ff118721f3
           persist-credentials: false
           path: ferrari
       - name: Verify Ferrari private package installer and tests
@@ -85,7 +85,7 @@ jobs:
           done
           df -hT "$root"
           echo F9_PRIVATE_CREATIVE_PRECHECK=PASS
-          for tool in librecad audacity synfig openshot; do
+          for tool in librecad audacity openshot synfig; do
             echo "F9_INSTALLING:$tool"
             python3 "$script" --install "$tool"
             python3 "$script" --check "$tool"
@@ -103,6 +103,9 @@ jobs:
           df -hT "$root"
           echo F9_PRIVATE_CREATIVE_APT_PRESERVED=PASS
           echo F9_PRIVATE_CREATIVE_SERVICES=8_OF_8_PASS
-          echo F9_PRIVATE_CREATIVE_FOUR_APPS_EXTRACTED=PASS
+          echo F9_PRIVATE_CREATIVE_FOUR_APPS_PACKAGED=PASS
           echo F9_GUI_FUNCTIONAL_CERTIFICATION=PENDING
+          echo 'F9 remaining Ubuntu packages (read-only):'
+          dpkg-query -W -f='${Package} ${Version} ${Installed-Size}KiB\n' obs-studio qgis solvespace || true
+          for bin in obs qgis solvespace; do command -v "$bin" || true; done
           REMOTE
