@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "phase": 9,
+  "mode": "preserve-dirty-git-local-only",
+  "projects": [
+    "pink-iptv",
+    "iptvpn-bot"
+  ],
+  "no_code_changes": true,
+  "no_public_diff_uploads": true,
+  "no_git_reset": true
+}
