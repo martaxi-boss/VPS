@@ -3,7 +3,7 @@ on:
   push:
     branches: [main]
     paths:
-      - ferrari-release-requests/ferrari-f9-consumers-20261106.json
+      - ferrari-release-requests/ferrari-f9-final-readback-20261106.json
 permissions:
   contents: read
 concurrency:
@@ -27,12 +27,12 @@ jobs:
           set -Eeuo pipefail
           added="$(git diff --name-only --diff-filter=A "$BEFORE_SHA" "$AFTER_SHA")"
           changed="$(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")"
-          test "$added" = ferrari-release-requests/ferrari-f9-consumers-20261106.json
+          test "$added" = ferrari-release-requests/ferrari-f9-final-readback-20261106.json
           test "$changed" = "$added"
           python3 - <<'PY'
           import json
           from pathlib import Path
-          obj=json.loads(Path('ferrari-release-requests/ferrari-f9-consumers-20261106.json').read_text())
+          obj=json.loads(Path('ferrari-release-requests/ferrari-f9-final-readback-20261106.json').read_text())
           assert obj=={'version':1,'phase':9,'mode':'read-only-consumer-proof','project':'skill-universal','no_packages_changed':True,'no_other_projects_changed':True}
           print('FERRARI_F9_AUDIT_GATE=PASS')
           PY
@@ -202,6 +202,18 @@ jobs:
           r=json.loads((Path(os.environ['RUNNER_TEMP'])/'ferrari-f9-audit.json').read_text())
           assert r['schema']==1 and len(r['packages'])==16
           assert len(r['services'])==8 and r['ferrari']['root_present']
+          remaining={'yt-dlp','librecad','qgis','audacity','obs-studio','solvespace','synfigstudio','openshot-qt'}
+          installed={k for k,v in r['packages'].items() if v['installed']}
+          assert installed==remaining, 'F9_APT_EIGHT_REMAINING_ONLY'
+          assert all(x=='active' for x in r['services'].values()), 'F9_PROTECTED_SERVICES'
+          assert r['ferrari']['current_release']=='f1f3b03525adec7018d7d629243e7b0fbb7f5087', 'F9_FERRARI_RELEASE_CHANGED'
+          for path in ('/root/.cursor','/root/.vscode','/home/ubuntu/.local/share/rea-github-transport'):
+            assert r['external_roots'][path]['exists'] is False, 'F9_OBSOLETE_ROOT_STILL_EXISTS:'+path
+          for p in ('pink-iptv','iptvpn-bot'):
+            assert p in r['projects'] and r['projects'][p]['tracked_changes_count']==6, 'F9_WORKING_CHANGES_MODIFIED:'+p
+          print('FERRARI_F9_EIGHT_GLOBAL_REMAINING_VERIFIED=PASS')
+          print('FERRARI_F9_THREE_LEGACY_ROOTS_REMOVED_VERIFIED=PASS')
+          print('FERRARI_F9_PROJECT_LOCAL_CHANGES_UNCHANGED=PASS')
           print('FERRARI_F9_PROJECTS='+str(len(r['projects'])))
           print('FERRARI_F9_GLOBAL_APT_PRESENT='+str(sum(x['installed'] for x in r['packages'].values())))
           print('FERRARI_F9_PROTECTED_SERVICES='+str(sum(x=='active' for x in r['services'].values()))+'/8')
