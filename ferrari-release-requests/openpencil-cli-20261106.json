@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "task": "install-and-certify-openpencil-cli-private",
+  "ferrari_sha": "a831a7e605f4efb6cc4561e4d533a10280956e8d",
+  "package": "@open-pencil/cli@0.16.0",
+  "root": "/srv/projects/skill-universal"
+}
