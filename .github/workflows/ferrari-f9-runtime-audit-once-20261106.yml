@@ -142,6 +142,14 @@ jobs:
           find "$root/tools/solvespace-3.1-ubuntu24/usr/share/solvespace" -type f 2>/dev/null | wc -l || true
           echo F9_SOLVESPACE_RESOURCE_RELATIVE_PATHS
           find /usr/share/solvespace -type f 2>/dev/null | head -16 || true
+          echo F9_SOLVESPACE_PRIVATE_RESOURCE_DIFF
+          diff -qr "$root/tools/solvespace-3.1-ubuntu24/usr/share/solvespace" /usr/share/solvespace | head -25 || true
+          echo F9_SOLVESPACE_BINARY_IDENTITY
+          sha256sum /usr/bin/solvespace "$root/tools/solvespace-3.1-ubuntu24/usr/bin/solvespace"
+          echo F9_SOLVESPACE_TRACE_AVAILABLE
+          command -v strace || true
+          echo F9_SOLVESPACE_PRIVATE_PACKAGE_ROOT
+          find "$root/tools/solvespace-3.1-ubuntu24/usr/share/solvespace/fonts" -maxdepth 2 -type f | head -22
           services=(pink-iptv-backend pink-vpn fadego-staging lowcost-europa pm2-iptvpn-bot pm2-telegram-robot-leads nginx postgresql@16-main)
           for s in "${services[@]}"; do
             test "$(systemctl is-active "$s")" = active || { echo "F9_SERVICE_FAILED:$s"; exit 5; }
