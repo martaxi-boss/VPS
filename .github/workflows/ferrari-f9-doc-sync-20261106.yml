@@ -1,0 +1,47 @@
+name: Ferrari F9 final audited release sync
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/ferrari-f9-doc-sync-20261106.yml']
+permissions:
+  contents: read
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: fe1bb6e7073fdd8a963963909127cde6d570f253
+          persist-credentials: false
+      - name: Verify Ferrari source
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "fe1bb6e7073fdd8a963963909127cde6d570f253"
+          bash -n install/vps-isolated-release.sh
+          grep -q "Readback operacional" docs/FASE9_AUDITORIA_E_HIGIENIZACAO_20261105.md
+          echo F9_REVIEWED_SOURCE=PASS
+      - name: Use pinned existing VPS transport
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/host"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/host" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          opts=(-T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/host" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20)
+          before="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -f /srv/projects/skill-universal/current')"
+          test "$before" = '/srv/projects/skill-universal/releases/0b50e1d403deff8f3ccb421edd0b41c397d66b9b' || { echo F9_UNEXPECTED_BASELINE; exit 5; }
+          sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'bash -s -- fe1bb6e7073fdd8a963963909127cde6d570f253 --check' < install/vps-isolated-release.sh
+          sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'bash -s -- fe1bb6e7073fdd8a963963909127cde6d570f253 --activate' < install/vps-isolated-release.sh
+          after="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -f /srv/projects/skill-universal/current')"
+          test "$after" = '/srv/projects/skill-universal/releases/fe1bb6e7073fdd8a963963909127cde6d570f253'
+          sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 "grep -q 'Readback operacional' /srv/projects/skill-universal/current/docs/FASE9_AUDITORIA_E_HIGIENIZACAO_20261105.md"
+          for service in pink-iptv-backend pink-vpn fadego-staging lowcost-europa pm2-iptvpn-bot pm2-telegram-robot-leads nginx postgresql@16-main; do
+            test "$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 "systemctl is-active $service")" = active
+          done
+          echo F9_FINAL_RELEASE_ALIGNED=fe1bb6e7073fdd8a963963909127cde6d570f253
+          echo F9_PROTECTED_SERVICES=8_OF_8_PASS
