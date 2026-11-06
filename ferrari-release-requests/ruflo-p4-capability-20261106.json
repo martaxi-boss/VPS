@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "task": "ruflo-help-capability-survey-only",
+  "commands": [
+    "route",
+    "policy",
+    "workflow",
+    "task",
+    "agent",
+    "swarm",
+    "memory",
+    "providers",
+    "config",
+    "doctor",
+    "security"
+  ],
+  "no_daemons": true,
+  "no_model_provider": true
+}
