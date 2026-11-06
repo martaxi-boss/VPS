@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "task": "remove-only-verified-unsupported-tinysd-and-temporary-smokes",
+  "root": "/srv/projects/skill-universal",
+  "proof_sha256": "6941da15940f182e95e4b65c4e8fe58b7bf8d67756410efc27df3bb8465b64f9"
+}
