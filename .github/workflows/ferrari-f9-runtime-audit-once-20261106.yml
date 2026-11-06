@@ -161,6 +161,15 @@ jobs:
           apt-cache show libjs-three | grep -E '^(Package|Version|Architecture|Filename|Size|SHA256):' | head -10
           echo F9_SOLVESPACE_PRIVATE_SYMLINKS
           find "$root/tools/solvespace-3.1-ubuntu24/usr/share/solvespace" -type l -printf '%p -> %l\n' | head -35
+          echo F9_UNIFONT_PACKAGE_OWNER
+          dpkg -S /usr/share/unifont/unifont.hex || true
+          dpkg-query -W -f='${Package}|${Version}|${Status}\n' unifont fonts-unifont fonts-unifont-core libjs-three 2>/dev/null || true
+          for pkg in unifont fonts-unifont fonts-unifont-core; do
+            echo "APT_META:$pkg"
+            apt-cache show "$pkg" 2>/dev/null | grep -E '^(Package|Version|Architecture|Filename|Size|SHA256):' | head -10 || true
+          done
+          echo F9_THREEJS_PACKAGE_CONTENTS
+          dpkg -L libjs-three | grep 'three.js' | head -25 || true
           services=(pink-iptv-backend pink-vpn fadego-staging lowcost-europa pm2-iptvpn-bot pm2-telegram-robot-leads nginx postgresql@16-main)
           for s in "${services[@]}"; do
             test "$(systemctl is-active "$s")" = active || { echo "F9_SERVICE_FAILED:$s"; exit 5; }
