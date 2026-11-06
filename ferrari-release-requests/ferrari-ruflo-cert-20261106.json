@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "kind": "ruflo-single-host-team-certification",
+  "scope": "synthetic-private",
+  "host": "ChatGPT",
+  "external_model_calls": false,
+  "other_projects": "untouched"
+}
