@@ -106,6 +106,23 @@ jobs:
           missing=[line.strip() for line in lines if 'not found' in line]
           print('obs_missing_runtime_libraries=',missing[:25])
           PY
+          echo F9_GUI_DISPLAY_TOOLS
+          for tool in Xvfb xvfb-run weston; do
+            echo -n "$tool: "; command -v "$tool" || true
+          done
+          echo F9_PRIVATE_OBS_VERSION_PROBE
+          probe="$root/.runtime/f9-gui-probe-$"
+          mkdir -m 700 "$probe"
+          trap 'test -d "$probe" && python3 -c "from pathlib import Path; import shutil,sys; p=Path(sys.argv[1]); assert p.parent==Path(sys.argv[2]) and p.name.startswith(\"f9-gui-probe-\"); shutil.rmtree(p)" "$probe" "$root/.runtime"' EXIT
+          set +e
+          timeout 12 env HOME="$probe" XDG_CONFIG_HOME="$probe" XDG_CACHE_HOME="$probe" \
+              XDG_RUNTIME_DIR="$probe" TMPDIR="$probe" QT_QPA_PLATFORM=offscreen \
+              "$root/tools/obs-studio-32.2.2/run-obs" --version > "$probe/obs_stdout" 2> "$probe/obs_stderr"
+          code=$?
+          set -e
+          echo "OBS_PROBE_EXIT=$code"
+          tail -c 850 "$probe/obs_stdout" || true
+          tail -c 1000 "$probe/obs_stderr" || true
           services=(pink-iptv-backend pink-vpn fadego-staging lowcost-europa pm2-iptvpn-bot pm2-telegram-robot-leads nginx postgresql@16-main)
           for s in "${services[@]}"; do
             test "$(systemctl is-active "$s")" = active || { echo "F9_SERVICE_FAILED:$s"; exit 5; }
