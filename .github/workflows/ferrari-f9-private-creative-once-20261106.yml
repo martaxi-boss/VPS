@@ -1,37 +1,34 @@
-name: Ferrari F9 one-time private creative AppImages
-# Ferrari-only checked release; do not change host APT or shared VPS SSH workflows.
+name: Ferrari F9 one-time private OBS Ubuntu 24.04
+# One-time guarded migration. No global APT changes, GUI daemon or shared bridge edits.
 on:
   push:
     branches: [main]
     paths:
       - '.github/workflows/ferrari-f9-private-creative-once-20261106.yml'
-
 permissions:
   contents: read
-
 concurrency:
-  group: ferrari-f9-creative-appimages-20261106
+  group: ferrari-f9-obs24-20261106
   cancel-in-progress: false
-
 jobs:
-  install-and-certify:
+  private-obs:
     runs-on: ubuntu-24.04
-    timeout-minutes: 75
+    timeout-minutes: 40
     steps:
-      - name: Read merged immutable Ferrari source
+      - name: Checkout exact merged Ferrari OBS source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: a29ba706205b21b199b26e4e943a99ff118721f3
+          ref: d095b394b8c01610284c1dd92985db0df9f64990
           persist-credentials: false
           path: ferrari
-      - name: Verify Ferrari private package installer and tests
+      - name: Verify OBS installer tests
         run: |
           set -Eeuo pipefail
-          python3 -m py_compile ferrari/install/vps-phase9-private-appimages.py
-          python3 -m unittest discover -s ferrari/tests -p test_phase9_private_appimages.py -v
-          echo F9_PRIVATE_CREATIVE_SOURCE_AND_TESTS=PASS
-      - name: Reuse existing pinned VPS SSH access
+          python3 -m py_compile ferrari/install/vps-phase9-private-obs24.py
+          python3 -m unittest discover -s ferrari/tests -p test_phase9_private_obs24.py -v
+          echo F9_PRIVATE_OBS_SOURCE_CHECK=PASS
+      - name: Reuse existing pinned VPS SSH connection
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         run: |
@@ -44,7 +41,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass >/dev/null
           echo F9_EXISTING_SSH_PIN=PASS
-      - name: Install pinned official AppImages ONLY within Ferrari project
+      - name: Check and install official OBS only inside Ferrari
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         run: |
@@ -57,10 +54,10 @@ jobs:
                 -o HostKeyAlgorithms=ssh-ed25519
                 -o ConnectTimeout=20 -o ServerAliveInterval=15)
           root=/srv/projects/skill-universal
-          source="$root/.runtime/f9-creative-$GITHUB_RUN_ID.py"
+          source="$root/.runtime/f9-obs-$GITHUB_RUN_ID.py"
           sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
             'test -d /srv/projects/skill-universal/.runtime && test ! -L /srv/projects/skill-universal'
-          sshpass -e scp "${opts[@]}" ferrari/install/vps-phase9-private-appimages.py \
+          sshpass -e scp "${opts[@]}" ferrari/install/vps-phase9-private-obs24.py \
             "ubuntu@146.59.145.3:$source"
           sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 'bash -s' -- "$GITHUB_RUN_ID" <<'REMOTE'
           set -Eeuo pipefail
@@ -69,43 +66,28 @@ jobs:
           root=/srv/projects/skill-universal
           run="$1"
           [[ "$run" =~ ^[0-9]+$ ]] || exit 4
-          script="$root/.runtime/f9-creative-$run.py"
+          script="$root/.runtime/f9-obs-$run.py"
           trap 'rm -f -- "$script"' EXIT
           test "$(id -un)" = ubuntu && test "$(id -u)" -ne 0
           test -f "$script" && test ! -L "$script"
-          test "$(readlink -f "$root/current")" = "$root/releases/f1f3b03525adec7018d7d629243e7b0fbb7f5087" || { echo F9_CURRENT_RELEASE_MOVED; exit 5; }
+          test "$(readlink -f "$root/current")" = "$root/releases/f1f3b03525adec7018d7d629243e7b0fbb7f5087" || exit 5
+          test "$(dpkg-query -W -f='${Status}' obs-studio 2>/dev/null)" = 'install ok installed' || exit 6
           services=(pink-iptv-backend pink-vpn fadego-staging lowcost-europa
                     pm2-iptvpn-bot pm2-telegram-robot-leads nginx postgresql@16-main)
           for s in "${services[@]}"; do
-            test "$(systemctl is-active "$s")" = active || { echo "F9_PRE_SERVICE_FAILED:$s"; exit 6; }
+            test "$(systemctl is-active "$s")" = active || { echo "F9_PRE_SERVICE_FAILED:$s"; exit 7; }
           done
-          for app in librecad audacity synfigstudio openshot-qt; do
-            test "$(dpkg-query -W -f='${Status}' "$app" 2>/dev/null)" = 'install ok installed' ||
-              { echo "F9_APT_PACKAGE_NOT_PRESERVED:$app"; exit 7; }
-          done
-          df -hT "$root"
-          echo F9_PRIVATE_CREATIVE_PRECHECK=PASS
-          for tool in librecad audacity openshot synfig; do
-            echo "F9_INSTALLING:$tool"
-            python3 "$script" --install "$tool"
-            python3 "$script" --check "$tool"
-            echo "F9_PRIVATE_CREATIVE_VERIFIED:$tool"
-          done
-          for app in librecad audacity synfigstudio openshot-qt; do
-            test "$(dpkg-query -W -f='${Status}' "$app" 2>/dev/null)" = 'install ok installed' ||
-              { echo "F9_APT_CHANGED:$app"; exit 8; }
-          done
+          echo F9_OBS_PRIVATE_PRECHECK=PASS
+          python3 "$script" --install
+          python3 "$script" --check
+          test "$(dpkg-query -W -f='${Status}' obs-studio 2>/dev/null)" = 'install ok installed' || exit 8
           for s in "${services[@]}"; do
             test "$(systemctl is-active "$s")" = active || { echo "F9_POST_SERVICE_FAILED:$s"; exit 9; }
           done
           test "$(readlink -f "$root/current")" = "$root/releases/f1f3b03525adec7018d7d629243e7b0fbb7f5087" || exit 10
-          du -sh "$root"/tools/{librecad-2.2.1.6,audacity-4.0.2,synfig-1.5.5,openshot-4.1.1}
+          du -sh "$root/tools/obs-studio-32.2.2"
           df -hT "$root"
-          echo F9_PRIVATE_CREATIVE_APT_PRESERVED=PASS
-          echo F9_PRIVATE_CREATIVE_SERVICES=8_OF_8_PASS
-          echo F9_PRIVATE_CREATIVE_FOUR_APPS_PACKAGED=PASS
-          echo F9_GUI_FUNCTIONAL_CERTIFICATION=PENDING
-          echo 'F9 remaining Ubuntu packages (read-only):'
-          dpkg-query -W -f='${Package} ${Version} ${Installed-Size}KiB\n' obs-studio qgis solvespace || true
-          for bin in obs qgis solvespace; do command -v "$bin" || true; done
+          echo F9_OBS_PRIVATE_PACKAGE=PASS
+          echo F9_OBS_OTHER_SERVICES=8_OF_8_PASS
+          echo F9_OBS_GUI_WEBSOCKET_AND_DEPENDENCIES=NOT_YET_CERTIFIED
           REMOTE
