@@ -38,6 +38,8 @@ on:
       - 'ferrari-release-requests/universal-f9-qgis-ogr-20261106.json'
       - 'ferrari-release-requests/universal-f9-qgis-geojson-20261106.json'
       - 'ferrari-release-requests/universal-f9-providers-diagnose-20261106.json'
+      - 'ferrari-release-requests/universal-f9-hdf5-preview-20261106.json'
+      - 'ferrari-release-requests/universal-f9-hdf5-apply-20261106.json'
       - 'ferrari-release-requests/universal-f9-librecad-20261106.json'
 
 permissions:
@@ -100,6 +102,8 @@ jobs:
             ferrari-release-requests/universal-f9-qgis-ogr-20261106.json) MODE=--universal-f9-qgis-ogr ;;
             ferrari-release-requests/universal-f9-qgis-geojson-20261106.json) MODE=--universal-f9-qgis-geojson ;;
             ferrari-release-requests/universal-f9-providers-diagnose-20261106.json) MODE=--universal-f9-providers-diagnose ;;
+            ferrari-release-requests/universal-f9-hdf5-preview-20261106.json) MODE=--universal-f9-hdf5-preview ;;
+            ferrari-release-requests/universal-f9-hdf5-apply-20261106.json) MODE=--universal-f9-hdf5-apply ;;
             ferrari-release-requests/universal-f9-librecad-20261106.json) MODE=--universal-f9-librecad ;;
             *) echo 'FERRARI_PHASE5_REQUEST_NOT_SINGLE_OR_NOT_ALLOWED' >&2; exit 2 ;;
           esac
@@ -302,6 +306,15 @@ jobs:
           persist-credentials: false
           path: ferrari-librecad
 
+      - name: Checkout pinned Ferrari-only HDF5 ABI 320 sidecar installer
+        if: steps.request.outputs.mode == '--universal-f9-hdf5-preview' || steps.request.outputs.mode == '--universal-f9-hdf5-apply'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: 2068b22391c7fc469281842bd4281cabc8ef4487
+          persist-credentials: false
+          path: ferrari-hdf5-abi320
+
       - name: Validate the project-owned release script
         shell: bash
         run: |
@@ -318,6 +331,11 @@ jobs:
             python3 -m py_compile ferrari-librecad/install/vps-f9-librecad-dxf2pdf-certify.py
             test -f ferrari-librecad/tests/test_f9_librecad_dxf2pdf_certify.py
             echo 'FERRARI_F9_LIBRECAD_FUNCTION_SOURCE=VALID'
+          fi
+          if [[ "${{ steps.request.outputs.mode }}" == '--universal-f9-hdf5-preview' || "${{ steps.request.outputs.mode }}" == '--universal-f9-hdf5-apply' ]]; then
+            python3 -m py_compile ferrari-hdf5-abi320/install/vps-f9-pdal-hdf5-abi320.py
+            test -f ferrari-hdf5-abi320/tests/test_f9_pdal_hdf5_abi320.py
+            echo 'FERRARI_F9_HDF5_ABI320_SOURCE=VALID'
           fi
           if [[ "${{ steps.request.outputs.mode }}" == '--universal-f9-providers-diagnose' ]]; then
             python3 -m py_compile ferrari-qgis-providers/install/vps-f9-qgis-providers-diagnose.py
@@ -425,7 +443,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           SHA="40c0e1cdf31b1fe9589ad8be90e5eac06eec2856"
-          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--venvs-preview' || "$MODE" == '--venvs-apply' || "$MODE" == '--final-preview' || "$MODE" == '--final-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' || "$MODE" == '--phase7-check' || "$MODE" == '--phase7-activate' || "$MODE" == '--phase7-certify' || "$MODE" == '--universal-check' || "$MODE" == '--universal-activate' || "$MODE" == '--universal-preview' || "$MODE" == '--universal-apply' || "$MODE" == '--universal-deep-audit' || "$MODE" == '--universal-empty-preview' || "$MODE" == '--universal-empty-apply' || "$MODE" == '--universal-f9-consumers' || "$MODE" == '--universal-f9-dpkg-confirm' || "$MODE" == '--universal-f9-qgis-native' || "$MODE" == '--universal-f9-qgis-ogr' || "$MODE" == '--universal-f9-qgis-geojson' || "$MODE" == '--universal-f9-providers-diagnose' || "$MODE" == '--universal-f9-librecad' ]] || exit 3
+          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--venvs-preview' || "$MODE" == '--venvs-apply' || "$MODE" == '--final-preview' || "$MODE" == '--final-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' || "$MODE" == '--phase7-check' || "$MODE" == '--phase7-activate' || "$MODE" == '--phase7-certify' || "$MODE" == '--universal-check' || "$MODE" == '--universal-activate' || "$MODE" == '--universal-preview' || "$MODE" == '--universal-apply' || "$MODE" == '--universal-deep-audit' || "$MODE" == '--universal-empty-preview' || "$MODE" == '--universal-empty-apply' || "$MODE" == '--universal-f9-consumers' || "$MODE" == '--universal-f9-dpkg-confirm' || "$MODE" == '--universal-f9-qgis-native' || "$MODE" == '--universal-f9-qgis-ogr' || "$MODE" == '--universal-f9-qgis-geojson' || "$MODE" == '--universal-f9-providers-diagnose' || "$MODE" == '--universal-f9-hdf5-preview' || "$MODE" == '--universal-f9-hdf5-apply' || "$MODE" == '--universal-f9-librecad' ]] || exit 3
           opts=(-T -o PreferredAuthentications=password -o PubkeyAuthentication=no
                 -o StrictHostKeyChecking=yes
                 -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-pinned-host"
@@ -474,6 +492,43 @@ jobs:
           VERIFY_LIBRECAD
               AFTER="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
               [[ "$AFTER" == "$BEFORE" ]] || { echo 'F9_LIBRECAD_CHANGED_RELEASE' >&2; exit 19; }
+            elif [[ "$MODE" == '--universal-f9-hdf5-preview' || "$MODE" == '--universal-f9-hdf5-apply' ]]; then
+              [[ "$BEFORE" == "$NEW" ]] || { echo 'F9_HDF5_ACTIVE_RELEASE_CHANGED' >&2; exit 19; }
+              SIDE_MODE=--preview
+              [[ "$MODE" == '--universal-f9-hdf5-apply' ]] && SIDE_MODE=--install
+              sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+                "cd '/srv/projects/skill-universal/current' && '/usr/bin/python3' -B - '$SIDE_MODE'" \
+                < ferrari-hdf5-abi320/install/vps-f9-pdal-hdf5-abi320.py > "$REPORT"
+              python3 - "$REPORT" "$MODE" <<'VERIFY_HDF5_SIDECAR'
+          import json,sys
+          d=json.load(open(sys.argv[1],encoding="utf-8"))
+          mode=sys.argv[2]
+          expected="private_sidecar_loader_pass" if mode=="--universal-f9-hdf5-apply" else "preview_pass"
+          assert d["status"]==expected
+          assert d["hdf5_version"]=="2.2.0"
+          if mode=="--universal-f9-hdf5-apply":
+              assert d["original_qgis_core_pass"] is True
+              assert d["full_pdal_formats_certified"] is False
+              assert d["gui_certified"] is False
+              assert d["qgis_existing_prefix_untouched"] is True
+              assert all(d["required_files"].values())
+              assert len(d["pdal_plugin_linker"])==2
+              assert all(x["linked"] and x["direct_hdf5_cpp_320_resolved"]
+                         for x in d["pdal_plugin_linker"].values())
+              assert d["global_apt_changed"] is False and d["other_projects_changed"] is False
+              print("FERRARI_F9_HDF5_PRIVATE_PLUGIN_LINKER=PASS")
+              print("FERRARI_F9_HDF5_FORMATS_NOT_CERTIFIED=True")
+          else:
+              assert d["qgis_existing_prefix_untouched"] is True
+              assert d["abi_310_not_aliased_to_320"] is True
+              assert d["apt_modified"] is False
+              assert d["other_projects_modified"] is False
+              print("FERRARI_F9_HDF5_PRIVATE_SOLVE=PASS")
+              print("FERRARI_F9_HDF5_PLAN_PACKAGES="+str(d["conda_link_packages"]))
+              print("FERRARI_F9_HDF5_PLAN_BYTES="+str(d["download_bytes_estimate"]))
+          VERIFY_HDF5_SIDECAR
+              AFTER="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
+              [[ "$AFTER" == "$BEFORE" ]] || { echo 'F9_HDF5_CHANGED_RELEASE' >&2; exit 19; }
             elif [[ "$MODE" == '--universal-f9-providers-diagnose' ]]; then
               [[ "$BEFORE" == "$NEW" ]] || { echo 'F9_QGIS_PROVIDER_RELEASE_CHANGED' >&2; exit 19; }
               sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
