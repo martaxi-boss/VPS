@@ -572,7 +572,7 @@ jobs:
                   try: refs.append(os.readlink(pr/item))
                   except (OSError,PermissionError): pass
               try:
-                  refs += [v.decode("utf-8","replace") for v in (pr/"cmdline").read_bytes().split(b"\\0")[:16]]
+                  refs += [v.decode("utf-8","replace") for v in (pr/"cmdline").read_bytes().split(b"\0")[:16]]
               except (OSError,PermissionError): pass
               if any(v==str(old) or str(old)+"/" in v for v in refs):
                   procs.append(pr.name)
