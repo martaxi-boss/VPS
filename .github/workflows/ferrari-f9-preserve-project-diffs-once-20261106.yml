@@ -1,0 +1,137 @@
+name: VPS F9 project-local Git working-diff preservation once
+on:
+  push:
+    branches: [main]
+    paths:
+      - ferrari-release-requests/ferrari-f9-preserve-git-20261106.json
+permissions:
+  contents: read
+jobs:
+  preserve:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Authorize exact F9 local-only snapshots
+        shell: bash
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          set -Eeuo pipefail
+          p="$(git diff --name-only "$BEFORE" "$AFTER")"
+          test "$p" = ferrari-release-requests/ferrari-f9-preserve-git-20261106.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('ferrari-release-requests/ferrari-f9-preserve-git-20261106.json').read_text())
+          assert d=={'version':1,'phase':9,'mode':'preserve-dirty-git-local-only',
+              'projects':['pink-iptv','iptvpn-bot'],'no_code_changes':True,
+              'no_public_diff_uploads':True,'no_git_reset':True}
+          print('F9_LOCAL_GIT_SCOPE=PASS')
+          PY
+      - name: Reuse existing SSH pin
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/known"
+          chmod 600 "$RUNNER_TEMP/known"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/known" -E sha256 | awk '{print $2}')" = SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc
+          sudo apt-get update -qq && sudo apt-get install -y -qq sshpass >/dev/null
+      - name: Preserve tracked diffs inside their own Git metadata without exposing file contents
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          opts=(-o PreferredAuthentications=password -o PubkeyAuthentication=no
+                -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/known"
+                -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519
+                -o ConnectTimeout=20 -o ServerAliveInterval=15)
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 '/usr/bin/python3 -' > "$RUNNER_TEMP/f9-project-git-preservation.json" <<'PY'
+          import os,json,hashlib,subprocess
+          from pathlib import Path
+          ROOT=Path('/srv/projects')
+          CHOICES=(
+            ('pink-iptv','builder/android-shell-002','ccccaf1eb25ca80936763f7d6a17e4dd00347e8a'),
+            ('iptvpn-bot','security/iptvpn-bot-secret-vault-001','6d26ea34a5843dae1e3d48e276ad05b54f614d1b')
+          )
+          SERVICES=('pink-iptv-backend','pink-vpn','fadego-staging','lowcost-europa',
+                    'pm2-iptvpn-bot','pm2-telegram-robot-leads','nginx','postgresql@16-main')
+          def run(repo,*args):
+            return subprocess.run(['git','-C',str(repo),*args],capture_output=True,check=False,timeout=22)
+          def text(repo,*args):
+            p=run(repo,*args)
+            if p.returncode!=0:raise RuntimeError('GIT_PRECHECK_FAILED')
+            return p.stdout.decode('utf-8','replace').strip()
+          plans=[]
+          for name,branch,sha in CHOICES:
+            repo=ROOT/name
+            g=repo/'.git'
+            if repo.is_symlink() or not repo.is_dir() or g.is_symlink() or not g.is_dir():
+              raise RuntimeError('F9_GIT_DIRECTORY_GUARD')
+            if repo.stat().st_uid!=os.getuid() or g.stat().st_uid!=os.getuid():
+              raise RuntimeError('F9_GIT_OWNER_GUARD')
+            if text(repo,'branch','--show-current')!=branch or text(repo,'rev-parse','HEAD')!=sha:
+              raise RuntimeError('F9_GIT_HEAD_MOVED')
+            status=text(repo,'status','--porcelain','--untracked-files=no')
+            if len(status.splitlines())!=6:raise RuntimeError('F9_GIT_DIRTY_COUNT_CHANGED')
+            patch=run(repo,'diff','--binary','HEAD')
+            if patch.returncode!=0 or not patch.stdout:raise RuntimeError('F9_EMPTY_OR_FAILED_DIFF')
+            folder=g/'f9-tracked-changes-20261106'
+            if folder.exists() or folder.is_symlink():raise RuntimeError('F9_GIT_SNAPSHOT_ALREADY_EXISTS')
+            plans.append((name,repo,g,folder,branch,sha,status,patch.stdout))
+          answer={'phase':9,'status':'preserved_project_local','projects':{}}
+          for name,repo,g,folder,branch,sha,status,patch in plans:
+            folder.mkdir(mode=0o700)
+            saved=folder/'tracked-working-changes.patch'
+            fd=os.open(saved,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)
+            with os.fdopen(fd,'wb') as f:
+              f.write(patch);f.flush();os.fsync(f.fileno())
+            digest=hashlib.sha256(patch).hexdigest()
+            metadata={'branch':branch,'head':sha,'tracked_changes':6,'patch_sha256':digest,
+                      'patch_size':len(patch),'content_location':'private_git_metadata_only'}
+            meta=folder/'manifest.json'
+            fd=os.open(meta,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)
+            with os.fdopen(fd,'w') as f:
+              json.dump(metadata,f,sort_keys=True);f.write('\n')
+            if text(repo,'status','--porcelain','--untracked-files=no')!=status or text(repo,'rev-parse','HEAD')!=sha:
+              raise RuntimeError('F9_GIT_STATE_CHANGED_DURING_SNAPSHOT')
+            answer['projects'][name]={
+              'tracked_modifications_preserved':6,
+              'location':'inside project .git only',
+              'patch_bytes':len(patch),'sha256':digest,
+              'git_head_unchanged':True,'git_branch_unchanged':True}
+          active={}
+          for unit in SERVICES:
+            p=subprocess.run(['systemctl','is-active',unit],text=True,capture_output=True,timeout=8)
+            active[unit]=p.stdout.strip()
+          answer['protected_services_active']=sum(x=='active' for x in active.values())
+          if answer['protected_services_active']!=8:raise RuntimeError('F9_PROTECTED_SERVICE_CHANGED')
+          print(json.dumps(answer,sort_keys=True))
+          PY
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          o=json.loads((Path(os.environ['RUNNER_TEMP'])/'f9-project-git-preservation.json').read_text())
+          assert o['status']=='preserved_project_local'
+          assert len(o['projects'])==2 and o['protected_services_active']==8
+          assert all(r['tracked_modifications_preserved']==6 and r['git_head_unchanged']
+                     for r in o['projects'].values())
+          print('F9_TRACKED_CHANGES_PRESERVED=12')
+          print('F9_PROJECTS_NOT_RESET_OR_MERGED=PASS')
+          print('F9_PROTECTED_SERVICES=8/8')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: f9-local-diff-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/f9-project-git-preservation.json
+          if-no-files-found: warn
+          retention-days: 14
