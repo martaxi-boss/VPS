@@ -1,0 +1,82 @@
+name: Ferrari F9 six private GUI apps transient startup audit
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ferrari-f9-gui-startup-once-20261106.yml'
+permissions:
+  contents: read
+concurrency:
+  group: ferrari-f9-gui-startup-probe
+  cancel-in-progress: false
+jobs:
+  private-gui-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout tested Ferrari GUI audit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: 417efb28897b2a0983e8e915942677dceebfca86
+          persist-credentials: false
+          path: ferrari
+      - name: Verify GUI probe source and non-overclaim tests
+        run: |
+          set -Eeuo pipefail
+          python3 -m py_compile ferrari/install/vps-phase9-gui-startup-audit.py
+          python3 -m unittest discover -s ferrari/tests -p test_phase9_gui_startup_audit.py -v
+          echo F9_GUI_AUDIT_SOURCE=PASS
+      - name: Existing VPS SSH fingerprint
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          test -n "$SSHPASS" || exit 2
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/f9-known-hosts"
+          chmod 600 "$RUNNER_TEMP/f9-known-hosts"
+          fingerprint="$(ssh-keygen -lf "$RUNNER_TEMP/f9-known-hosts" -E sha256 | awk '{print $2}')"
+          test "$fingerprint" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' || exit 3
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          echo F9_EXISTING_SSH_PIN=PASS
+      - name: Probe private GUI executables with temporary display only
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$GITHUB_RUN_ID" =~ ^[0-9]+$ ]] || exit 2
+          opts=(-o PreferredAuthentications=password -o PubkeyAuthentication=no
+                -o StrictHostKeyChecking=yes
+                -o "UserKnownHostsFile=$RUNNER_TEMP/f9-known-hosts"
+                -o GlobalKnownHostsFile=/dev/null
+                -o HostKeyAlgorithms=ssh-ed25519
+                -o ConnectTimeout=20 -o ServerAliveInterval=15)
+          root=/srv/projects/skill-universal
+          source="$root/.runtime/f9-gui-audit-$GITHUB_RUN_ID.py"
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 \
+            'test -d /srv/projects/skill-universal/.runtime && test ! -L /srv/projects/skill-universal'
+          sshpass -e scp "${opts[@]}" ferrari/install/vps-phase9-gui-startup-audit.py \
+            "ubuntu@146.59.145.3:$source"
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 'bash -s' -- "$GITHUB_RUN_ID" <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          ulimit -c 0
+          root=/srv/projects/skill-universal
+          run="$1"
+          [[ "$run" =~ ^[0-9]+$ ]] || exit 4
+          script="$root/.runtime/f9-gui-audit-$run.py"
+          trap 'rm -f -- "$script"' EXIT
+          test "$(id -un)" = ubuntu && test "$(id -u)" -ne 0
+          test -f "$script" && test ! -L "$script"
+          test "$(readlink -f "$root/current")" = "$root/releases/f1f3b03525adec7018d7d629243e7b0fbb7f5087" || exit 5
+          services=(pink-iptv-backend pink-vpn fadego-staging lowcost-europa
+                    pm2-iptvpn-bot pm2-telegram-robot-leads nginx postgresql@16-main)
+          for s in "${services[@]}"; do test "$(systemctl is-active "$s")" = active || exit 6; done
+          python3 "$script" --audit
+          for s in "${services[@]}"; do test "$(systemctl is-active "$s")" = active || exit 7; done
+          test "$(readlink -f "$root/current")" = "$root/releases/f1f3b03525adec7018d7d629243e7b0fbb7f5087" || exit 8
+          echo F9_GUI_PROTECTED_SERVICES=8_OF_8_PASS
+          echo F9_GUI_NO_GLOBAL_INSTALL=PASS
+          echo F9_GUI_EDITING_RECORDING_STREAMING=NOT_CERTIFIED_BY_STARTUP
+          REMOTE
