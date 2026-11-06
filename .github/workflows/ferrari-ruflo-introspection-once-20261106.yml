@@ -1,9 +1,9 @@
-name: Ferrari Ruflo MCP local introspection one-shot
+name: Ferrari Ruflo MCP contracts one-shot
 on:
   push:
     branches: [main]
     paths:
-      - ferrari-release-requests/ferrari-ruflo-introspect-20261106.json
+      - ferrari-release-requests/ferrari-ruflo-schema-20261106.json
 permissions:
   contents: read
 jobs:
@@ -25,13 +25,13 @@ jobs:
           set -Eeuo pipefail
           added="$(git diff --name-only --diff-filter=A "$OLD" "$NEW")"
           changed="$(git diff --name-only "$OLD" "$NEW")"
-          test "$added" = 'ferrari-release-requests/ferrari-ruflo-introspect-20261106.json'
+          test "$added" = 'ferrari-release-requests/ferrari-ruflo-schema-20261106.json'
           test "$changed" = "$added"
           python3 - <<'PY'
           import json
           from pathlib import Path
-          x=json.loads(Path('ferrari-release-requests/ferrari-ruflo-introspect-20261106.json').read_text())
-          assert x=={'version':1,'kind':'ruflo-local-mcp-introspection','scope':'read-only','project':'skill-universal','no_external_models':True}
+          x=json.loads(Path('ferrari-release-requests/ferrari-ruflo-schema-20261106.json').read_text())
+          assert x=={'version':1,'kind':'ruflo-mcp-tool-contracts','scope':'read-only','project':'skill-universal','no_external_models':True}
           print('RUFLO_SCOPE_GATE=PASS')
           PY
       - name: Verify existing pinned SSH and runner transport
@@ -55,7 +55,7 @@ jobs:
                 -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/known"
                 -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519
                 -o ConnectTimeout=20 -o ServerAliveInterval=15)
-          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 '/usr/bin/python3 -' > "$RUNNER_TEMP/ruflo-introspection.json" <<'PY'
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 '/usr/bin/python3 -' > "$RUNNER_TEMP/ruflo-schema.json" <<'PY'
           import os,sys,json,subprocess,shutil,tempfile,selectors,time,signal,resource
           from pathlib import Path
           root=Path('/srv/projects/skill-universal')
@@ -83,7 +83,7 @@ jobs:
                   return {'exit':'timeout'}
           def mcp_probe(env,cwd):
               p=subprocess.Popen([str(node),str(cli),'mcp','start'],cwd=cwd,env=env,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,start_new_session=True,preexec_fn=limit,bufsize=0)
-              state={'initialize':False,'tools_count':0,'names':[],'errors':[]}
+              state={'initialize':False,'tools_count':0,'names':[],'schemas':{},'errors':[]}
               try:
                   p.stdin.write((json.dumps({'jsonrpc':'2.0','id':1,'method':'initialize','params':{'protocolVersion':'2025-03-26','capabilities':{},'clientInfo':{'name':'ferrari-audit','version':'1.0'}}})+'\n').encode());p.stdin.flush()
                   sel=selectors.DefaultSelector();sel.register(p.stdout,selectors.EVENT_READ)
@@ -109,6 +109,8 @@ jobs:
                                   state['tools_count']=len(tools)
                                   # Only benign public method names are exposed, not arbitrary tool output.
                                   state['names']=[x['name'] for x in tools if isinstance(x,dict) and isinstance(x.get('name'),str)][:400]
+                                  chosen={'swarm_init','swarm_status','swarm_shutdown','agent_spawn','agent_list','agent_status','task_create','task_assign','task_list','task_complete','agent_execute'}
+                                  state['schemas']={x['name']:x.get('inputSchema') for x in tools if isinstance(x,dict) and x.get('name') in chosen}
                                   return state
                       if p.poll() is not None: state['errors'].append('server_exited');return state
                   state['errors'].append('deadline')
