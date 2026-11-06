@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "task": "comfyui-private-sd15-cpu-install-real-inference",
+  "ferrari_sha": "c88fc260d3aeffa209ba1fc8b5107331ddd4b019",
+  "model": "stable-diffusion-v1-5/stable-diffusion-v1-5",
+  "model_revision": "f03de327dd89b501a01da37fc5240cf4fdba85a1"
+}
