@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "task": "comfyui-private-tiny-sd-cpu-install-real-inference",
+  "ferrari_sha": "0685bf44c6f5e06dec02bf34bfc72548b8930ff1",
+  "model": "segmind/tiny-sd",
+  "model_revision": "3d25de3e8d5aacf94ce91176f204e6d11d120315"
+}
