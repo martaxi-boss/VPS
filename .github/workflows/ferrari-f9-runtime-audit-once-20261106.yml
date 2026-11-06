@@ -150,6 +150,17 @@ jobs:
           command -v strace || true
           echo F9_SOLVESPACE_PRIVATE_PACKAGE_ROOT
           find "$root/tools/solvespace-3.1-ubuntu24/usr/share/solvespace/fonts" -maxdepth 2 -type f | head -22
+          echo F9_SOLVESPACE_THREEJS_SYMLINK_DIAG
+          for p in "$root/tools/solvespace-3.1-ubuntu24/usr/share/solvespace/threejs/three.js" "/usr/share/solvespace/threejs/three.js" "/usr/share/javascript/three/three.js"; do
+            ls -l "$p" 2>&1 || true
+            readlink "$p" || true
+            readlink -f "$p" || true
+          done
+          echo F9_SOLVESPACE_JS_APT_PACKAGE
+          dpkg-query -W -f='${Package}|${Version}|${Status}\n' libjs-three
+          apt-cache show libjs-three | grep -E '^(Package|Version|Architecture|Filename|Size|SHA256):' | head -10
+          echo F9_SOLVESPACE_PRIVATE_SYMLINKS
+          find "$root/tools/solvespace-3.1-ubuntu24/usr/share/solvespace" -type l -printf '%p -> %l\n' | head -35
           services=(pink-iptv-backend pink-vpn fadego-staging lowcost-europa pm2-iptvpn-bot pm2-telegram-robot-leads nginx postgresql@16-main)
           for s in "${services[@]}"; do
             test "$(systemctl is-active "$s")" = active || { echo "F9_SERVICE_FAILED:$s"; exit 5; }
