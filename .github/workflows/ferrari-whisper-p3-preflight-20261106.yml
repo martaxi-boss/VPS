@@ -1,0 +1,111 @@
+name: Ferrari faster-whisper P3 private preflight one-shot
+on:
+  push:
+    branches: [main]
+    paths:
+      - ferrari-release-requests/whisper-p3-preflight-20261106.json
+permissions:
+  contents: read
+concurrency:
+  group: ferrari-whisper-p3
+  cancel-in-progress: false
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - name: Checkout exact one-shot request
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Verify exact new request
+        id: gate
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          changed="$(git diff --name-only "$BEFORE" "$AFTER")"
+          new="$(git diff --name-only --diff-filter=A "$BEFORE" "$AFTER")"
+          if [[ -z "$new" ]]; then
+            echo execute=false >> "$GITHUB_OUTPUT"
+            echo FERRARI_WHISPER_HYGIENE=PASS
+            exit 0
+          fi
+          test "$changed" = "$new"
+          test "$changed" = ferrari-release-requests/whisper-p3-preflight-20261106.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          assert json.loads(Path("ferrari-release-requests/whisper-p3-preflight-20261106.json").read_text())=={
+            "version":1,"operation":"read-only-whisper-p3-preflight",
+            "root":"/srv/projects/skill-universal"}
+          PY
+          echo execute=true >> "$GITHUB_OUTPUT"
+          echo FERRARI_WHISPER_REQUEST=PASS
+      - name: Pinned existing SSH key and runner-only sshpass
+        if: steps.gate.outputs.execute == 'true'
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/known-hosts"
+          chmod 600 "$RUNNER_TEMP/known-hosts"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/known-hosts" -E sha256 | awk '{print $2}')" = "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass > /dev/null
+      - name: Inspect exactly Ferrari-owned CPU ASR runtime without changing VPS
+        if: steps.gate.outputs.execute == 'true'
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          opts=(-o PreferredAuthentications=password -o PubkeyAuthentication=no
+              -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/known-hosts"
+              -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519
+              -o ConnectTimeout=20 -o ServerAliveInterval=15)
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 "python3 -" > "$RUNNER_TEMP/report.txt" <<'PY'
+          import os,sys,json,shutil
+          from pathlib import Path
+          from importlib import metadata
+          r=Path('/srv/projects/skill-universal')
+          assert r.is_dir() and not r.is_symlink() and r.stat().st_uid==os.getuid()
+          print('FERRARI_WHISPER_CURRENT='+str((r/'current').resolve(strict=True)))
+          print('FERRARI_WHISPER_DISK_GIB=%.2f'%(shutil.disk_usage(r).free/1024**3))
+          for line in Path('/proc/meminfo').read_text().splitlines():
+            if line.split(':')[0] in ('MemTotal','MemAvailable','SwapTotal'):print(line)
+          print('FERRARI_WHISPER_CPU_COUNT='+str(os.cpu_count()))
+          v=r/'.runtime/venvs/extended/faster-whisper'
+          print('FERRARI_WHISPER_PRIVATE_VENV='+str(v.is_dir() and not v.is_symlink()))
+          py=v/'bin/python'
+          print('FERRARI_WHISPER_PYTHON_REAL='+str(py.resolve(strict=False)))
+          if py.is_file() and py.resolve(strict=True).is_relative_to(r.resolve(strict=True)):
+            for site in v.glob('lib/python*/site-packages'):
+              if not site.is_dir():continue
+              names=('faster-whisper','ctranslate2','av','numpy','tokenizers','huggingface-hub','soundfile')
+              ds={}
+              for dist in metadata.distributions(path=[str(site)]):
+                name=dist.metadata.get('Name','').lower()
+                if name in names:ds[name]=dist.version
+              print('FERRARI_WHISPER_PACKAGES='+json.dumps(ds,sort_keys=True))
+          for p in (r/'.runtime/models',r/'models',r/'.runtime/huggingface',r/'.runtime/venvs/extended/faster-whisper',r/'tools/ffmpeg'):
+            print('FERRARI_WHISPER_PATH='+str(p.relative_to(r))+' exists='+str(p.exists())+' symlink='+str(p.is_symlink()))
+            if p.is_dir() and not p.is_symlink():
+              print('FERRARI_WHISPER_PATH_CHILDREN='+','.join(sorted(x.name for x in list(p.iterdir())[:22]))[:500])
+          print('FERRARI_WHISPER_PREFLIGHT=PASS_READ_ONLY')
+          PY
+          cat "$RUNNER_TEMP/report.txt"
+          grep -q '^FERRARI_WHISPER_PREFLIGHT=PASS_READ_ONLY$' "$RUNNER_TEMP/report.txt"
+      - name: Store bounded read-only evidence
+        if: always() && steps.gate.outputs.execute == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ferrari-whisper-p3-preflight-${{ github.run_id }}
+          path: ${{ runner.temp }}/report.txt
+          retention-days: 7
+          if-no-files-found: warn
