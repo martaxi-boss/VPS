@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "task": "audit-and-stop-only-proven-ruflo-p4-ephemeral-test-daemon",
+  "project_root": "/srv/projects/skill-universal",
+  "test_temp_prefix": ".ruflo-functional-p4-",
+  "never_stop_other_projects": true
+}
