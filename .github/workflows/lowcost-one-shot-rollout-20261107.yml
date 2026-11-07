@@ -1,0 +1,65 @@
+name: Lowcost Europa safe staging one-shot 20261107
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-one-shot-rollout-20261107.yml'
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-one-shot-rollout-20261107
+  cancel-in-progress: false
+jobs:
+  rollout:
+    if: github.repository == 'martaxi-boss/VPS' && github.actor == 'martaxi-boss'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    steps:
+      - name: Verify pinned VPS SSH host identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/lowcost-known-hosts"
+          chmod 600 "$RUNNER_TEMP/lowcost-known-hosts"
+          observed="$(ssh-keygen -lf "$RUNNER_TEMP/lowcost-known-hosts" -E sha256 | awk '{print $2}')"
+          test "$observed" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          echo 'LOWCOST_PINNED_VPS=PASS'
+      - name: Verify and execute bounded rollback-safe deployment
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          printf '%s' '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' | base64 -d | gzip -dc > "$RUNNER_TEMP/lowcost-rollout-once.sh"
+          printf '%s  %s\n' '27e1e6409f7204e7d98dd2899d2fda1f30ad96db80da252b2c9463be96281c31' "$RUNNER_TEMP/lowcost-rollout-once.sh" | sha256sum -c - >/dev/null
+          bash -n "$RUNNER_TEMP/lowcost-rollout-once.sh"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/lowcost-known-hosts" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' < "$RUNNER_TEMP/lowcost-rollout-once.sh"
+      - name: Preserve audited rollout procedure (no credentials)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lowcost-one-shot-procedure-${{ github.run_id }}
+          path: ${{ runner.temp }}/lowcost-rollout-once.sh
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Verify external HTTPS and staging noindex
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=https://lowcost-europa.duckdns.org
+          headers="$(curl -fsSIL --max-time 35 "$base/")"
+          printf '%s\n' "$headers" | grep -Eiq '^x-robots-tag:.*noindex'
+          robots="$(curl -fsSL --max-time 35 "$base/robots.txt")"
+          [[ "$robots" == *'Disallow: /'* ]]
+          home="$(curl -fsSL --max-time 35 "$base/")"
+          [[ "$home" == *'Escolhas mais claras.'* ]]
+          js="$(curl -fsSL --max-time 35 "$base/static/storefront/catalog-explorer.js?v=ux-20261107")"
+          [[ "$js" == *'data-compare-dock'* ]]
+          echo 'LOWCOST_LIVE_HTTPS_AND_NOINDEX=PASS'
