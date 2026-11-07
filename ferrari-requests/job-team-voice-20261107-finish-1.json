@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "id": "team-voice-20261107-finish-1",
+  "kind": "ruflo-team",
+  "phase": "finish",
+  "team_id": "voice-presets-20261107-r1",
+  "revision": 6,
+  "approval": "Como anfitria ChatGPT, aprovo tecnicamente os dois perfis: Piper pt_PT-tugao-medium masculino original e Raquel pt-PT-RaquelNeural feminina. Plano, execucao do programador e reteste passaram por 3 revisoes por papel diferente; artefactos JSON verificaveis e SHA256 coincidente. Aceitacao limitada ao modo Ruflo assistido e metadados de voz; nao prova agentes autonomos nem direitos comerciais da Raquel."
+}
