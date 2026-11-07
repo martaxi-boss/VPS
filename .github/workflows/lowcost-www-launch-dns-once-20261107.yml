@@ -29,6 +29,7 @@ jobs:
           done
           echo "MAIL_MX=$(dig +time=3 +tries=1 +short @ns1.dyna-ns.net lowcost-europa.eu MX | tr '\n' ' ')"
           echo "MAIL_SPF_PRESENT=$(dig +time=3 +tries=1 +short @ns1.dyna-ns.net lowcost-europa.eu TXT | grep -Fq v=spf1 && echo yes || echo no)"
-          echo "MAIL_DKIM_PRESENT=$(dig +time=3 +tries=1 +short @ns1.dyna-ns.net default._domainkey.lowcost-europa.eu TXT | grep -Fq v=DKIM1 && echo yes || echo no)"
+          echo "MAIL_DKIM_CNAME=$(dig +time=3 +tries=1 +short @ns1.dyna-ns.net default._domainkey.lowcost-europa.eu CNAME | tr '\\n' ' ')"
+          echo "MAIL_DKIM_TXT_CHAIN=$(dig +time=3 +tries=1 +short @1.1.1.1 default._domainkey.lowcost-europa.eu TXT | grep -Fq v=DKIM1 && echo resolvable || echo not_resolved)"
           echo "MAIL_DMARC_PRESENT=$(dig +time=3 +tries=1 +short @ns1.dyna-ns.net _dmarc.lowcost-europa.eu TXT | grep -Fq v=DMARC1 && echo yes || echo no)"
           echo LOWCOST_WWW_LAUNCH_AUDIT_READ_ONLY=PASS
