@@ -49,6 +49,7 @@ on:
       - 'ferrari-release-requests/universal-f10-hygiene-apply-20261106.json'
       - 'ferrari-release-requests/universal-f10-legacy-state-audit-20261106.json'
       - 'ferrari-release-requests/universal-f11-pdal-las-20261107.json'
+      - 'ferrari-release-requests/universal-final-acceptance-20261107.json'
       - 'ferrari-release-requests/universal-f10-hygiene-preview-r2-20261106.json'
 
 permissions:
@@ -122,6 +123,7 @@ jobs:
             ferrari-release-requests/universal-f10-hygiene-apply-20261106.json) MODE=--universal-f10-hygiene-apply ;;
             ferrari-release-requests/universal-f10-legacy-state-audit-20261106.json) MODE=--universal-f10-legacy-state-audit ;;
             ferrari-release-requests/universal-f11-pdal-las-20261107.json) MODE=--universal-f11-pdal-las ;;
+            ferrari-release-requests/universal-final-acceptance-20261107.json) MODE=--universal-final-acceptance ;;
             ferrari-release-requests/universal-f10-hygiene-preview-r2-20261106.json) MODE=--universal-f10-hygiene-preview ;;
             *) echo 'FERRARI_PHASE5_REQUEST_NOT_SINGLE_OR_NOT_ALLOWED' >&2; exit 2 ;;
           esac
@@ -134,7 +136,11 @@ jobs:
           path,mode=sys.argv[1:]
           with open(path,encoding="utf-8") as fh:
               payload=json.load(fh)
-          if mode == "--universal-f11-pdal-las":
+          if mode == "--universal-final-acceptance":
+              expected={"version":1,"phase":"universal-catalog",
+                        "sha":"be0b94eec679940168c6c700b022e3b00afcc478",
+                        "mode":"final-acceptance"}
+          elif mode == "--universal-f11-pdal-las":
               expected={"version":1,"phase":"universal-catalog",
                         "sha":"1a7566c88ffd344ec3fb0e92ff6f8910162fdf24",
                         "mode":"f11-pdal-las"}
@@ -262,6 +268,15 @@ jobs:
           path: ferrari-f10
           persist-credentials: false
 
+      - name: Checkout immutable Ferrari final acceptance source
+        if: steps.request.outputs.mode == '--universal-final-acceptance'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: be0b94eec679940168c6c700b022e3b00afcc478
+          path: ferrari-accept
+          persist-credentials: false
+
       - name: Checkout pinned Ferrari F11 private PDAL LAS functional test
         if: steps.request.outputs.mode == '--universal-f11-pdal-las'
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -377,6 +392,12 @@ jobs:
           bash -n ferrari/install/vps-isolated-release.sh
           test -f ferrari/engine/tool_actions.json
           echo 'FERRARI_PHASE5_PINNED_SCRIPT_SYNTAX=PASS'
+          if [[ "${{ steps.request.outputs.mode }}" == '--universal-final-acceptance' ]]; then
+            python3 -m py_compile ferrari-accept/install/vps-final-acceptance.py
+            python3 -m unittest discover -s ferrari-accept/tests -p 'test_final_acceptance.py' -q
+            test -f ferrari-accept/engine/catalog.json
+            echo 'FERRARI_FINAL_ACCEPTANCE_SOURCE_AND_TESTS=PASS'
+          fi
           if [[ "${{ steps.request.outputs.mode }}" == '--universal-f11-pdal-las' ]]; then
             python3 -m py_compile ferrari-f11-pdal/install/vps-f11-pdal-las-certify.py
             python3 -m unittest discover -s ferrari-f11-pdal/tests -p 'test_f11_pdal_las.py' -q
@@ -525,7 +546,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           SHA="40c0e1cdf31b1fe9589ad8be90e5eac06eec2856"
-          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--venvs-preview' || "$MODE" == '--venvs-apply' || "$MODE" == '--final-preview' || "$MODE" == '--final-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' || "$MODE" == '--phase7-check' || "$MODE" == '--phase7-activate' || "$MODE" == '--phase7-certify' || "$MODE" == '--universal-check' || "$MODE" == '--universal-activate' || "$MODE" == '--universal-preview' || "$MODE" == '--universal-apply' || "$MODE" == '--universal-deep-audit' || "$MODE" == '--universal-empty-preview' || "$MODE" == '--universal-empty-apply' || "$MODE" == '--universal-f9-consumers' || "$MODE" == '--universal-f9-dpkg-confirm' || "$MODE" == '--universal-f9-qgis-native' || "$MODE" == '--universal-f9-qgis-ogr' || "$MODE" == '--universal-f9-qgis-geojson' || "$MODE" == '--universal-f9-providers-diagnose' || "$MODE" == '--universal-f9-hdf5-preview' || "$MODE" == '--universal-f9-hdf5-apply' || "$MODE" == '--universal-f9-pdal-runtime' || "$MODE" == '--universal-f9-librecad' || "$MODE" == '--universal-f10-precheck' || "$MODE" == '--universal-f10-activate' || "$MODE" == '--universal-f10-hygiene-preview' || "$MODE" == '--universal-f10-hygiene-apply' || "$MODE" == '--universal-f10-legacy-state-audit' || "$MODE" == '--universal-f11-pdal-las' ]] || exit 3
+          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--venvs-preview' || "$MODE" == '--venvs-apply' || "$MODE" == '--final-preview' || "$MODE" == '--final-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' || "$MODE" == '--phase7-check' || "$MODE" == '--phase7-activate' || "$MODE" == '--phase7-certify' || "$MODE" == '--universal-check' || "$MODE" == '--universal-activate' || "$MODE" == '--universal-preview' || "$MODE" == '--universal-apply' || "$MODE" == '--universal-deep-audit' || "$MODE" == '--universal-empty-preview' || "$MODE" == '--universal-empty-apply' || "$MODE" == '--universal-f9-consumers' || "$MODE" == '--universal-f9-dpkg-confirm' || "$MODE" == '--universal-f9-qgis-native' || "$MODE" == '--universal-f9-qgis-ogr' || "$MODE" == '--universal-f9-qgis-geojson' || "$MODE" == '--universal-f9-providers-diagnose' || "$MODE" == '--universal-f9-hdf5-preview' || "$MODE" == '--universal-f9-hdf5-apply' || "$MODE" == '--universal-f9-pdal-runtime' || "$MODE" == '--universal-f9-librecad' || "$MODE" == '--universal-f10-precheck' || "$MODE" == '--universal-f10-activate' || "$MODE" == '--universal-f10-hygiene-preview' || "$MODE" == '--universal-f10-hygiene-apply' || "$MODE" == '--universal-f10-legacy-state-audit' || "$MODE" == '--universal-f11-pdal-las' || "$MODE" == '--universal-final-acceptance' ]] || exit 3
           opts=(-T -o PreferredAuthentications=password -o PubkeyAuthentication=no
                 -o StrictHostKeyChecking=yes
                 -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-pinned-host"
@@ -541,6 +562,45 @@ jobs:
             REPORT="$RUNNER_TEMP/ferrari-universal-report.json"
             echo "FERRARI_UNIVERSAL_MODE=$MODE"
             echo "FERRARI_UNIVERSAL_PREVIOUS=$BEFORE"
+            if [[ "$MODE" == '--universal-final-acceptance' ]]; then
+              [[ "$BEFORE" == "/srv/projects/skill-universal/releases/205c6f0e970259c79fa2111b6670c2fe1672fb27" ]] ||
+                { echo 'FERRARI_FINAL_ACTIVE_RELEASE_DRIFT' >&2; exit 25; }
+              sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+                "cd '/srv/projects/skill-universal/current' && '/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12' -B - --audit" \
+                < ferrari-accept/install/vps-final-acceptance.py > "$REPORT"
+              python3 - "$REPORT" <<'VERIFY_FERRARI_FINAL'
+          import json,sys
+          d=json.load(open(sys.argv[1],encoding="utf-8"))
+          assert d["status"]=="PASS" and d["installation_certified"] is True,d
+          assert d["catalog"]["catalog_entries"]==450
+          assert d["catalog"]["old_catalog_release_removed"] is True
+          assert d["catalog"]["old_manifest_count"]==0
+          assert d["inventory"]["selected_detected"]==55
+          assert d["inventory"]["registered_actions"]==40
+          assert d["global_legacy_packages"]["legacy_installed"]==[]
+          assert d["global_apt_modified"] is False
+          assert d["other_projects_modified"] is False
+          assert d["catalog_modified"] is False
+          assert d["obs"]["obs_streaming_attempted"] is False
+          assert d["obs"]["temp_files_deleted"] is True
+          print("FERRARI_FINAL_INSTALLATION_ACCEPTANCE=PASS")
+          print("FERRARI_OBS_LOCAL_RECORDING="+
+                ("PASS" if d["obs"]["obs_local_recording_certified"] else "UNVERIFIED"))
+          VERIFY_FERRARI_FINAL
+              AFTER="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
+              [[ "$AFTER" == "$BEFORE" ]] ||
+                { echo 'FERRARI_FINAL_AUDIT_CHANGED_ACTIVE' >&2; exit 25; }
+              sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'bash -s' <<'FERRARI_FINAL_SERVICES'
+          set -Eeuo pipefail
+          for s in pink-iptv-backend pink-vpn fadego-staging lowcost-europa pm2-iptvpn-bot pm2-telegram-robot-leads nginx postgresql@16-main; do
+            systemctl is-active --quiet "$s" ||
+              { echo "FERRARI_PROTECTED_SERVICE_NOT_ACTIVE=$s" >&2; exit 8; }
+          done
+          echo 'FERRARI_PROTECTED_SERVICES=8/8_PASS'
+          FERRARI_FINAL_SERVICES
+              echo 'FERRARI_FINAL_PROTECTED_WORKFLOW=PASS'
+              exit 0
+            fi
             if [[ "$MODE" == '--universal-f11-pdal-las' ]]; then
               [[ "$BEFORE" == "/srv/projects/skill-universal/releases/205c6f0e970259c79fa2111b6670c2fe1672fb27" ]] ||
                 { echo 'FERRARI_F11_ACTIVE_RELEASE_CHANGED' >&2; exit 24; }
