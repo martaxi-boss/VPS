@@ -594,7 +594,7 @@ jobs:
           NEW=e0509d5370828869479069c99f2eace779960cad
           test "$(readlink -e "$ROOT/current")" = "$ROOT/releases/$NEW"
           test -f "$ROOT/releases/$PREV/engine/skill_job.py"
-          LINK="$ROOT/.ruflo-rollback-$"
+          LINK="$ROOT/.ruflo-rollback-$RANDOM"
           test ! -e "$LINK" && test ! -L "$LINK"
           ln -s "$ROOT/releases/$PREV" "$LINK"
           mv -Tf "$LINK" "$ROOT/current"
@@ -635,6 +635,10 @@ jobs:
               "ubuntu@146.59.145.3:$CERT/ruflo-team-certification.json" "$RUNNER_TEMP/ruflo-team-certification.json"
             sshpass -e scp "${opts[@]}" \
               "ubuntu@146.59.145.3:$CERT/certified-response.zip" "$RUNNER_TEMP/ruflo-team-response.zip"
+            sshpass -e scp "${opts[@]}" \
+              "ubuntu@146.59.145.3:$CERT/round-03/response.zip" "$RUNNER_TEMP/ruflo-coder-real-output.zip"
+            sshpass -e scp "${opts[@]}" \
+              "ubuntu@146.59.145.3:$CERT/round-05/response.zip" "$RUNNER_TEMP/ruflo-tester-real-output.zip"
             python3 - "$RUNNER_TEMP/ruflo-team-certification.json" <<'RUFLO_VERIFY_PROOF'
           import json,sys
           d=json.load(open(sys.argv[1],encoding="utf-8"))
@@ -1679,6 +1683,8 @@ jobs:
           path: |
             ${{ runner.temp }}/ruflo-team-certification.json
             ${{ runner.temp }}/ruflo-team-response.zip
+            ${{ runner.temp }}/ruflo-coder-real-output.zip
+            ${{ runner.temp }}/ruflo-tester-real-output.zip
           if-no-files-found: error
           retention-days: 14
 
