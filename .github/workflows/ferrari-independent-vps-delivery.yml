@@ -50,6 +50,8 @@ on:
       - 'ferrari-release-requests/universal-f10-legacy-state-audit-20261106.json'
       - 'ferrari-release-requests/universal-f11-pdal-las-20261107.json'
       - 'ferrari-release-requests/universal-final-acceptance-20261107.json'
+      - 'ferrari-release-requests/ruflo-team-precheck-20261107.json'
+      - 'ferrari-release-requests/ruflo-team-activate-20261107.json'
       - 'ferrari-release-requests/universal-f10-hygiene-preview-r2-20261106.json'
 
 permissions:
@@ -124,10 +126,12 @@ jobs:
             ferrari-release-requests/universal-f10-legacy-state-audit-20261106.json) MODE=--universal-f10-legacy-state-audit ;;
             ferrari-release-requests/universal-f11-pdal-las-20261107.json) MODE=--universal-f11-pdal-las ;;
             ferrari-release-requests/universal-final-acceptance-20261107.json) MODE=--universal-final-acceptance ;;
+            ferrari-release-requests/ruflo-team-precheck-20261107.json) MODE=--ruflo-team-precheck ;;
+            ferrari-release-requests/ruflo-team-activate-20261107.json) MODE=--ruflo-team-activate ;;
             ferrari-release-requests/universal-f10-hygiene-preview-r2-20261106.json) MODE=--universal-f10-hygiene-preview ;;
             *) echo 'FERRARI_PHASE5_REQUEST_NOT_SINGLE_OR_NOT_ALLOWED' >&2; exit 2 ;;
           esac
-          if [[ "$MODE" == --universal-* ]]; then
+          if [[ "$MODE" == --universal-* || "$MODE" == --ruflo-team-* ]]; then
             added="$(git diff --name-only --diff-filter=A "$BEFORE_SHA" "$AFTER_SHA")"
             [[ "$added" == "$changed" ]] || { echo 'FERRARI_UNIVERSAL_REQUEST_NOT_NEW' >&2; exit 2; }
           fi
@@ -136,7 +140,11 @@ jobs:
           path,mode=sys.argv[1:]
           with open(path,encoding="utf-8") as fh:
               payload=json.load(fh)
-          if mode == "--universal-final-acceptance":
+          if mode in ("--ruflo-team-precheck", "--ruflo-team-activate"):
+              expected={"version":1,"phase":"ruflo-team",
+                        "sha":"e0509d5370828869479069c99f2eace779960cad","mode":mode.removeprefix("--ruflo-team-"),
+                        "previous":"205c6f0e970259c79fa2111b6670c2fe1672fb27"}
+          elif mode == "--universal-final-acceptance":
               expected={"version":1,"phase":"universal-catalog",
                         "sha":"be0b94eec679940168c6c700b022e3b00afcc478",
                         "mode":"final-acceptance"}
@@ -385,6 +393,15 @@ jobs:
           persist-credentials: false
           path: ferrari-pdal-runtime
 
+      - name: Checkout immutable Ferrari Ruflo team release and QA script
+        if: steps.request.outputs.mode == '--ruflo-team-precheck' || steps.request.outputs.mode == '--ruflo-team-activate'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: e0509d5370828869479069c99f2eace779960cad
+          persist-credentials: false
+          path: ferrari-ruflo
+
       - name: Validate the project-owned release script
         shell: bash
         run: |
@@ -392,6 +409,13 @@ jobs:
           bash -n ferrari/install/vps-isolated-release.sh
           test -f ferrari/engine/tool_actions.json
           echo 'FERRARI_PHASE5_PINNED_SCRIPT_SYNTAX=PASS'
+          if [[ "${{ steps.request.outputs.mode }}" == --ruflo-team-* ]]; then
+            bash -n ferrari-ruflo/install/vps-isolated-release.sh
+            python3 -m py_compile ferrari-ruflo/install/vps-ruflo-team-real-certify.py
+            test -f ferrari-ruflo/engine/agent_team.py
+            test -f ferrari-ruflo/engine/catalog.json
+            echo 'FERRARI_RUFLO_IMMUTABLE_SOURCE_AND_SCRIPT=PASS'
+          fi
           if [[ "${{ steps.request.outputs.mode }}" == '--universal-final-acceptance' ]]; then
             python3 -m py_compile ferrari-accept/install/vps-final-acceptance.py
             python3 -m unittest discover -s ferrari-accept/tests -p 'test_final_acceptance.py' -q
@@ -546,7 +570,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           SHA="40c0e1cdf31b1fe9589ad8be90e5eac06eec2856"
-          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--venvs-preview' || "$MODE" == '--venvs-apply' || "$MODE" == '--final-preview' || "$MODE" == '--final-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' || "$MODE" == '--phase7-check' || "$MODE" == '--phase7-activate' || "$MODE" == '--phase7-certify' || "$MODE" == '--universal-check' || "$MODE" == '--universal-activate' || "$MODE" == '--universal-preview' || "$MODE" == '--universal-apply' || "$MODE" == '--universal-deep-audit' || "$MODE" == '--universal-empty-preview' || "$MODE" == '--universal-empty-apply' || "$MODE" == '--universal-f9-consumers' || "$MODE" == '--universal-f9-dpkg-confirm' || "$MODE" == '--universal-f9-qgis-native' || "$MODE" == '--universal-f9-qgis-ogr' || "$MODE" == '--universal-f9-qgis-geojson' || "$MODE" == '--universal-f9-providers-diagnose' || "$MODE" == '--universal-f9-hdf5-preview' || "$MODE" == '--universal-f9-hdf5-apply' || "$MODE" == '--universal-f9-pdal-runtime' || "$MODE" == '--universal-f9-librecad' || "$MODE" == '--universal-f10-precheck' || "$MODE" == '--universal-f10-activate' || "$MODE" == '--universal-f10-hygiene-preview' || "$MODE" == '--universal-f10-hygiene-apply' || "$MODE" == '--universal-f10-legacy-state-audit' || "$MODE" == '--universal-f11-pdal-las' || "$MODE" == '--universal-final-acceptance' ]] || exit 3
+          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--venvs-preview' || "$MODE" == '--venvs-apply' || "$MODE" == '--final-preview' || "$MODE" == '--final-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' || "$MODE" == '--phase7-check' || "$MODE" == '--phase7-activate' || "$MODE" == '--phase7-certify' || "$MODE" == '--universal-check' || "$MODE" == '--universal-activate' || "$MODE" == '--universal-preview' || "$MODE" == '--universal-apply' || "$MODE" == '--universal-deep-audit' || "$MODE" == '--universal-empty-preview' || "$MODE" == '--universal-empty-apply' || "$MODE" == '--universal-f9-consumers' || "$MODE" == '--universal-f9-dpkg-confirm' || "$MODE" == '--universal-f9-qgis-native' || "$MODE" == '--universal-f9-qgis-ogr' || "$MODE" == '--universal-f9-qgis-geojson' || "$MODE" == '--universal-f9-providers-diagnose' || "$MODE" == '--universal-f9-hdf5-preview' || "$MODE" == '--universal-f9-hdf5-apply' || "$MODE" == '--universal-f9-pdal-runtime' || "$MODE" == '--universal-f9-librecad' || "$MODE" == '--universal-f10-precheck' || "$MODE" == '--universal-f10-activate' || "$MODE" == '--universal-f10-hygiene-preview' || "$MODE" == '--universal-f10-hygiene-apply' || "$MODE" == '--universal-f10-legacy-state-audit' || "$MODE" == '--universal-f11-pdal-las' || "$MODE" == '--universal-final-acceptance' || "$MODE" == '--ruflo-team-precheck' || "$MODE" == '--ruflo-team-activate' ]] || exit 3
           opts=(-T -o PreferredAuthentications=password -o PubkeyAuthentication=no
                 -o StrictHostKeyChecking=yes
                 -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-pinned-host"
@@ -554,6 +578,88 @@ jobs:
                 -o ConnectTimeout=20 -o ServerAliveInterval=15)
           BEFORE="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
           echo "FERRARI_PHASE5_CURRENT_BEFORE=$BEFORE"
+          if [[ "$MODE" == --ruflo-team-* ]]; then
+            TARGET="e0509d5370828869479069c99f2eace779960cad"
+            FALLBACK="205c6f0e970259c79fa2111b6670c2fe1672fb27"
+            ROOT="/srv/projects/skill-universal"
+            [[ "$BEFORE" == "$ROOT/releases/$FALLBACK" ]] ||
+              { echo 'FERRARI_RUFLO_ACTIVE_BASELINE_CHANGED_NO_DEPLOY' >&2; exit 31; }
+            rollback_ruflo() {
+              live="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current' || true)"
+              if [[ "$live" == "$ROOT/releases/$TARGET" ]]; then
+                sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'bash -s' <<'RUFLO_ROLLBACK'
+          set -Eeuo pipefail
+          ROOT=/srv/projects/skill-universal
+          PREV=205c6f0e970259c79fa2111b6670c2fe1672fb27
+          NEW=e0509d5370828869479069c99f2eace779960cad
+          test "$(readlink -e "$ROOT/current")" = "$ROOT/releases/$NEW"
+          test -f "$ROOT/releases/$PREV/engine/skill_job.py"
+          LINK="$ROOT/.ruflo-rollback-$"
+          test ! -e "$LINK" && test ! -L "$LINK"
+          ln -s "$ROOT/releases/$PREV" "$LINK"
+          mv -Tf "$LINK" "$ROOT/current"
+          echo 'FERRARI_RUFLO_RECOVERED_PREVIOUS_RELEASE=PASS'
+          RUFLO_ROLLBACK
+              fi
+            }
+            trap 'rc=$?; if (( rc != 0 )); then rollback_ruflo || true; fi' EXIT
+            sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'bash -s' <<'RUFLO_SERVICES_BEFORE'
+          set -Eeuo pipefail
+          for s in pink-iptv-backend pink-vpn fadego-staging lowcost-europa pm2-iptvpn-bot pm2-telegram-robot-leads nginx postgresql@16-main; do
+            systemctl is-active --quiet "$s" || { echo "FERRARI_SERVICE_WAS_DOWN_BEFORE=$s" >&2; exit 8; }
+          done
+          echo 'FERRARI_RUFLO_BASELINE_SERVICES=8/8_PASS'
+          RUFLO_SERVICES_BEFORE
+            sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+              "bash -s -- '$TARGET' '--check'" < ferrari-ruflo/install/vps-isolated-release.sh
+            CHECK="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
+            [[ "$CHECK" == "$BEFORE" ]] ||
+              { echo 'FERRARI_RUFLO_PRECHECK_CHANGED_ACTIVE' >&2; exit 32; }
+            echo 'FERRARI_RUFLO_PRIVATE_PRECHECK=PASS'
+            if [[ "$MODE" == '--ruflo-team-precheck' ]]; then
+              trap - EXIT
+              echo 'FERRARI_RUFLO_PRECHECK_NO_DEPLOY=PASS'
+              exit 0
+            fi
+            sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+              "bash -s -- '$TARGET' '--activate'" < ferrari-ruflo/install/vps-isolated-release.sh
+            AFTER="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
+            [[ "$AFTER" == "$ROOT/releases/$TARGET" ]] ||
+              { echo 'FERRARI_RUFLO_ACTIVATION_READBACK_MISMATCH' >&2; exit 33; }
+            echo 'FERRARI_RUFLO_ISOLATED_RELEASE_ACTIVE=PASS'
+            CERT="$ROOT/.runtime/ruflo-team-cert-$GITHUB_RUN_ID"
+            TEAM="ruflo-cert-$GITHUB_RUN_ID"
+            sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+              "cd '$ROOT/current' && '$ROOT/runtimes/python3.12/bin/python3.12' -B install/vps-ruflo-team-real-certify.py --output '$CERT' --team-id '$TEAM'"
+            sshpass -e scp "${opts[@]}" \
+              "ubuntu@146.59.145.3:$CERT/ruflo-team-certification.json" "$RUNNER_TEMP/ruflo-team-certification.json"
+            sshpass -e scp "${opts[@]}" \
+              "ubuntu@146.59.145.3:$CERT/certified-response.zip" "$RUNNER_TEMP/ruflo-team-response.zip"
+            python3 - "$RUNNER_TEMP/ruflo-team-certification.json" <<'RUFLO_VERIFY_PROOF'
+          import json,sys
+          d=json.load(open(sys.argv[1],encoding="utf-8"))
+          assert d["result"]=="pass" and d["agents"]==4 and d["tasks"]==3
+          assert d["private_ferrari_tool_calls"]==2
+          assert d["independent_role_reviews"]==3
+          assert d["autonomous_agent_model_calls"]==0
+          assert d["artifacts_verified_sha256"] is True
+          print("FERRARI_RUFLO_REAL_HOST_ROUNDS_CERTIFICATE=PASS")
+          RUFLO_VERIFY_PROOF
+            sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'bash -s' <<'RUFLO_SERVICES_AFTER'
+          set -Eeuo pipefail
+          ROOT=/srv/projects/skill-universal
+          test "$(readlink -e "$ROOT/current")" = "$ROOT/releases/e0509d5370828869479069c99f2eace779960cad"
+          for s in pink-iptv-backend pink-vpn fadego-staging lowcost-europa pm2-iptvpn-bot pm2-telegram-robot-leads nginx postgresql@16-main; do
+            systemctl is-active --quiet "$s" || { echo "FERRARI_RUFLO_SERVICE_FAILED=$s" >&2; exit 8; }
+          done
+          echo 'FERRARI_RUFLO_PROTECTED_SERVICES=8/8_PASS'
+          RUFLO_SERVICES_AFTER
+            sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+              "test -d '$CERT' && test ! -L '$CERT' && rm -rf -- '$CERT' && echo FERRARI_RUFLO_QA_FILES_HYGIENIZED=PASS"
+            trap - EXIT
+            echo 'FERRARI_RUFLO_PRIVATE_ACTIVATION_AND_REAL_SMOKE=PASS'
+            exit 0
+          fi
           if [[ "$MODE" == --universal-* ]]; then
             TARGET="7bf6dcecf15da26502c5969b5eee54d5e116fc32"
             FALLBACK="952b0a75ba798471b07053677d53791bd078ed56"
@@ -1562,6 +1668,17 @@ jobs:
         with:
           name: ferrari-phase6-hygiene-${{ github.run_id }}
           path: ${{ runner.temp }}/ferrari-hygiene-report.txt
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Return Ruflo team private activation certificate (synthetic, no remote LLM)
+        if: steps.request.outputs.mode == '--ruflo-team-activate'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ferrari-ruflo-team-verified-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/ruflo-team-certification.json
+            ${{ runner.temp }}/ruflo-team-response.zip
           if-no-files-found: error
           retention-days: 14
 
