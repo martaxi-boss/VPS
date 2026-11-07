@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "hostteam-20261107-tester",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "team-chatgpt-20261107",
+  "revision": 4,
+  "turn": {
+    "task": "verification",
+    "role": "tester",
+    "kind": "invoke",
+    "message": "Reexecutar jq-format-json no artefacto transform aprovado pelo Revisor, nao no ficheiro original. Confirmar que o resultado e JSON valido, continua ok=true e tem evidencia SHA-256 verificavel dentro da pasta Ferrari.",
+    "action": "jq-format-json",
+    "input_from": "transform"
+  }
+}
