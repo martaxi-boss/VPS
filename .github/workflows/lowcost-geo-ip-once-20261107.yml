@@ -1,4 +1,4 @@
-name: Lowcost Europa - GeoIP read-only Python module diagnosis
+name: Lowcost Europa - IP language one-shot guarded rollout
 on:
   push:
     branches: [main]
@@ -9,9 +9,9 @@ concurrency:
   group: lowcost-geo-ip-staging-once
   cancel-in-progress: false
 jobs:
-  inspect:
+  rollout:
     runs-on: ubuntu-24.04
-    timeout-minutes: 12
+    timeout-minutes: 25
     permissions:
       contents: read
     steps:
@@ -19,7 +19,7 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
-      - name: Require one exact workflow-only change
+      - name: Authorize exactly one new workflow and verify audited script
         shell: bash
         env:
           BEFORE_SHA: ${{ github.event.before }}
@@ -27,25 +27,107 @@ jobs:
         run: |
           set -euo pipefail
           changed="$(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")"
-          [[ "$changed" == '.github/workflows/lowcost-geo-ip-once-20261107.yml' ]]
-          echo GEOIP_DIAGNOSTIC_SCOPE=PASS
-      - name: Verify existing pinned VPS identity
+          [[ "$changed" == '.github/workflows/lowcost-geo-ip-once-20261107.yml' ]] || exit 2
+          cat <<'PACKED_SCRIPT' | base64 -d | gzip -dc > "$RUNNER_TEMP/lowcost-geo-rollout.sh"
+          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
+          IXU8OHlMd3l1fnky+ElJ+X95Bo+cpiYAAA==
+          PACKED_SCRIPT
+          printf '%s  %s\n' 'd1131beb234dd77386825cd860bff56aebb2f47788e20595b63f3162b24863ff' "$RUNNER_TEMP/lowcost-geo-rollout.sh" | sha256sum -c -
+          test "$(grep -o 'aff22a5ca62516bc48590c930ffd60bed5b8c50c' "$RUNNER_TEMP/lowcost-geo-rollout.sh" | wc -l)" -eq 1
+          test "$(grep -o '/data/geoip' "$RUNNER_TEMP/lowcost-geo-rollout.sh" | wc -l)" -eq 3
+          sed -i 's/aff22a5ca62516bc48590c930ffd60bed5b8c50c/fefd5df92753382bb7ad191ee19e38b90d8167a3/; s#/data/geoip#/.geoip#g' "$RUNNER_TEMP/lowcost-geo-rollout.sh"
+          printf '%s  %s\n' '7279e27ef9b8c17f2bbe74d7d8b6127eaf40c0272603293aad0d0fbfbb69b0a6' "$RUNNER_TEMP/lowcost-geo-rollout.sh" | sha256sum -c -
+          python3 - "$RUNNER_TEMP/lowcost-geo-rollout.sh" <<'PY_PERMISSIONS'
+          from pathlib import Path
+          import sys
+          p=Path(sys.argv[1])
+          s=p.read_text(encoding="utf-8")
+          old='"$ROOT/.venv/bin/python" -m pip install --no-cache-dir --disable-pip-version-check -r "$ROOT/requirements/base.txt" >"$SAVE/pip-install.log" 2>&1 || fail pip_install'
+          new='''umask 022
+          "$ROOT/.venv/bin/python" -m pip install --no-cache-dir --disable-pip-version-check -r "$ROOT/requirements/base.txt" >"$SAVE/pip-install.log" 2>&1 || fail pip_install
+          umask 077
+          sitepkg="$("$ROOT/.venv/bin/python" -I -c 'import sysconfig; print(sysconfig.get_path("purelib"))')"
+          [[ "$sitepkg" == "$ROOT/.venv/"* ]] || fail unsafe_venv_path
+          [[ -f "$sitepkg/maxminddb/__init__.py" && ! -L "$sitepkg/maxminddb" ]] || fail maxminddb_install_incomplete
+          chmod -R a+rX "$sitepkg/maxminddb"
+          for dist in "$sitepkg"/maxminddb-*.dist-info; do
+           [[ -d "$dist" && ! -L "$dist" ]] || fail maxminddb_dist_info_missing
+           chmod -R a+rX "$dist"
+          done
+          runuser -u "$APP_USER" -- "$ROOT/.venv/bin/python" -I -c 'import maxminddb; assert callable(maxminddb.open_database)' || fail maxminddb_import_as_app_user
+          echo LOWCOST_GEO_MAXMINDB_IMPORT=PASS'''
+          if s.count(old)!=1: raise SystemExit("Expected exact package install command once")
+          p.write_text(s.replace(old,new),encoding="utf-8")
+          PY_PERMISSIONS
+          printf '%s  %s\n' '5b140ef1471fe364e25c5386bff36063d8585633755b48f065cf941fd9ff4a83' "$RUNNER_TEMP/lowcost-geo-rollout.sh" | sha256sum -c -
+          bash -n "$RUNNER_TEMP/lowcost-geo-rollout.sh"
+          echo LOWCOST_GEO_SCRIPT_SHA256=PASS
+      - name: Verify pinned authorized VPS SSH identity
         shell: bash
         run: |
           set -euo pipefail
           ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/lowcost-geo-known-hosts"
           chmod 600 "$RUNNER_TEMP/lowcost-geo-known-hosts"
           observed="$(ssh-keygen -lf "$RUNNER_TEMP/lowcost-geo-known-hosts" -E sha256 | awk '{print $2}')"
-          [[ "$observed" == "SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc" ]]
+          test "$observed" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
           ssh-keygen -F 146.59.145.3 -f "$RUNNER_TEMP/lowcost-geo-known-hosts" >/dev/null
-          echo GEOIP_DIAGNOSTIC_HOST_PIN=PASS
-      - name: Inspect imported Python module in place, no project writes
+          echo LOWCOST_GEO_HOST_PIN=PASS
+      - name: Apply guarded app-only staging change with automatic rollback
         shell: bash
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         run: |
           set -euo pipefail
-          test -n "$SSHPASS"
+          test -n "$SSHPASS" || exit 2
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass >/dev/null
           sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
@@ -53,36 +135,18 @@ jobs:
             -o "UserKnownHostsFile=$RUNNER_TEMP/lowcost-geo-known-hosts" \
             -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=20 -o ServerAliveInterval=15 \
-            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
-          set -Eeuo pipefail
-          ROOT=/srv/projects/lowcost-europa
-          APP_USER=le001_1789265592
-          [[ -d "$ROOT" && ! -L "$ROOT" ]] || exit 3
-          echo "GEOIP_LIVE_SHA=$(git -c "safe.directory=$ROOT" -C "$ROOT" rev-parse HEAD)"
-          echo "GEOIP_VENV_REALPATH=$(readlink -f "$ROOT/.venv")"
-          echo 'GEOIP_NORMAL_IMPORT_START'
-          cd "$ROOT"
-          runuser -u "$APP_USER" -- "$ROOT/.venv/bin/python" - <<'PY'
-          import importlib.metadata,importlib.util,maxminddb,sys
-          print("sys_executable",sys.executable)
-          print("module_path",getattr(maxminddb,"__file__",None))
-          print("module_namespace",list(getattr(maxminddb,"__path__",[])))
-          print("module_spec",maxminddb.__spec__)
-          print("open_database",hasattr(maxminddb,"open_database"))
-          print("module_attributes",[x for x in dir(maxminddb) if not x.startswith("_")][:30])
-          print("dist_version",importlib.metadata.version("maxminddb"))
-          print("sys_path_head",sys.path[:4])
-          PY
-          echo 'GEOIP_ISOLATED_IMPORT_START'
-          runuser -u "$APP_USER" -- "$ROOT/.venv/bin/python" -I - <<'PY'
-          import importlib.metadata,maxminddb,sys
-          print("module_path",getattr(maxminddb,"__file__",None))
-          print("module_namespace",list(getattr(maxminddb,"__path__",[])))
-          print("open_database",hasattr(maxminddb,"open_database"))
-          print("dist_version",importlib.metadata.version("maxminddb"))
-          print("sys_path_head",sys.path[:4])
-          PY
-          echo 'GEOIP_PACKAGE_FILES'
-          "$ROOT/.venv/bin/python" -m pip show -f maxminddb | head -n 35
-          echo 'GEOIP_DIAG_COMPLETE=PASS'
-          REMOTE
+            ubuntu@146.59.145.3 'sudo -n bash -s' \
+            < "$RUNNER_TEMP/lowcost-geo-rollout.sh"
+      - name: Verify public HTTPS and noindex without assuming runner country
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://lowcost-europa.duckdns.org'
+          headers="$(curl -fsSI --max-time 35 "$base/")"
+          printf '%s\n' "$headers" | grep -Eiq '^x-robots-tag:.*noindex'
+          home="$(curl -fsSL --max-time 35 -H 'Accept-Language: de-DE' "$base/")"
+          [[ "$home" == *'IP Geolocation by DB-IP'* ]]
+          [[ "$home" == *'id="familias"'* ]]
+          [[ "$home" == *'<html lang="'* ]]
+          [[ "$home" != *'class="locale-switch"'* ]]
+          echo LOWCOST_GEO_PUBLIC_HTTPS_NOINDEX=PASS
