@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "team-voice-20261107-review-format-1",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "voice-presets-20261107-r1",
+  "revision": 3,
+  "turn": {
+    "task": "format",
+    "role": "reviewer",
+    "kind": "review",
+    "message": "Inspecionei o evidence-1.json do artefacto real: masculino piper-original-ptpt corresponde a pt_PT-tugao-medium e feminino raquel-neural-ptpt corresponde a pt-PT-RaquelNeural. Ambos os campos preservados, nenhum Rui usado; ferramenta Ferrari executada.",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "758ec684fc3eec354d4f968e025483fd222e60985ae8d461c9669fab4ab9f46c"
+    ]
+  }
+}
