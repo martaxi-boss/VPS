@@ -1,0 +1,91 @@
+name: Lowcost Europa paid domain DNS and VPS preflight (read-only)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-domain-dns-audit-20261107.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Only accept this exact one-shot audit file
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          changed="$(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")"
+          test "$changed" = '.github/workflows/lowcost-domain-dns-audit-20261107.yml'
+          echo LOWCOST_DOMAIN_AUDIT_SCOPE=PASS
+      - name: Read actual public DNS without modifying Dynadot or mail
+        shell: bash
+        run: |
+          set -euo pipefail
+          domain=lowcost-europa.eu
+          ip=146.59.145.3
+          echo "DOMAIN=$domain"
+          for type in NS A AAAA MX TXT CAA; do
+            echo "DNS_APEX_$type=$(dig +time=3 +tries=1 +short "$domain" "$type" | tr '\n' ' ' | cut -c 1-600)"
+          done
+          for type in A AAAA CNAME; do
+            echo "DNS_WWW_$type=$(dig +time=3 +tries=1 +short "www.$domain" "$type" | tr '\n' ' ' | cut -c 1-250)"
+          done
+          for host in "_dmarc.$domain" "default._domainkey.$domain"; do
+            echo "DNS_MAIL_AUTH_$host=$(dig +time=3 +tries=1 +short "$host" TXT | tr '\n' ' ' | cut -c 1-250)"
+          done
+          if dig +time=3 +tries=1 +short "$domain" A | grep -Fxq "$ip"; then echo "DOMAIN_APEX_A_TARGET=PASS"; else echo "DOMAIN_APEX_A_TARGET=PENDING_DNS"; fi
+          if dig +time=3 +tries=1 +short "www.$domain" A | grep -Fxq "$ip"; then echo "DOMAIN_WWW_A_TARGET=PASS"; else echo "DOMAIN_WWW_A_TARGET=PENDING_DNS"; fi
+          if test -n "$(dig +time=3 +tries=1 +short "$domain" MX)"; then echo "DOMAIN_EMAIL_MX=EXISTS"; else echo "DOMAIN_EMAIL_MX=NOT_VISIBLE"; fi
+          if test -n "$(dig +time=3 +tries=1 +short "$domain" AAAA)"; then echo "DOMAIN_IPV6=VERIFY_BEFORE_TLS"; else echo "DOMAIN_IPV6=NONE"; fi
+      - name: Verify pinned VPS identity and read-only application preflight
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/lowcost-domain-known-hosts"
+          chmod 600 "$RUNNER_TEMP/lowcost-domain-known-hosts"
+          observed="$(ssh-keygen -lf "$RUNNER_TEMP/lowcost-domain-known-hosts" -E sha256 | awk '{print $2}')"
+          test "$observed" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          echo LOWCOST_DOMAIN_SSH_HOST_PIN=PASS
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes \
+            -o "UserKnownHostsFile=$RUNNER_TEMP/lowcost-domain-known-hosts" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          root=/srv/projects/lowcost-europa
+          test -d "$root"
+          echo "LOWCOST_GIT_SHA=$(git -c "safe.directory=$root" -C "$root" rev-parse HEAD)"
+          if systemctl is-active --quiet lowcost-europa.service; then echo LOWCOST_SERVICE=ACTIVE; else echo LOWCOST_SERVICE=INACTIVE; fi
+          if nginx -t >/dev/null 2>&1; then echo LOWCOST_NGINX_CONFIG=PASS; else echo LOWCOST_NGINX_CONFIG=FAIL; fi
+          if test -f /etc/letsencrypt/live/lowcost-europa.eu/fullchain.pem; then echo LOWCOST_NEW_CERT=ALREADY_PRESENT; else echo LOWCOST_NEW_CERT=NOT_INSTALLED; fi
+          if test -f /etc/letsencrypt/live/lowcost-europa.duckdns.org/fullchain.pem; then echo LOWCOST_OLD_CERT=PRESENT; else echo LOWCOST_OLD_CERT=UNKNOWN; fi
+          if grep -R -Fqs 'server_name lowcost-europa.eu' /etc/nginx/sites-enabled/; then echo LOWCOST_NEW_NGINX_VHOST=PRESENT; else echo LOWCOST_NEW_NGINX_VHOST=NOT_CONFIGURED; fi
+          envfile="$root/private/systemd-env/lowcost-europa.env"
+          if test -f "$envfile"; then
+            if grep -E '^DJANGO_ALLOWED_HOSTS=' "$envfile" | grep -Fq 'lowcost-europa.eu'; then echo LOWCOST_NEW_DJANGO_ALLOWED_HOST=YES; else echo LOWCOST_NEW_DJANGO_ALLOWED_HOST=NO; fi
+            if grep -E '^DJANGO_PUBLIC_SITE_URL=' "$envfile" | grep -Fq 'lowcost-europa.eu'; then echo LOWCOST_NEW_CANONICAL_URL=YES; else echo LOWCOST_NEW_CANONICAL_URL=NO; fi
+          else
+            echo LOWCOST_ENVFILE=NOT_FOUND
+          fi
+          if curl -fsSI --max-time 10 -H 'Host: lowcost-europa.duckdns.org' -H 'X-Forwarded-Proto: https' http://127.0.0.1:8001/ >/dev/null; then echo LOWCOST_OLD_APP_HEALTH=PASS; else echo LOWCOST_OLD_APP_HEALTH=FAIL; fi
+          REMOTE
+      - name: Final reminder
+        run: |
+          echo "PREFLIGHT_READ_ONLY=YES"
+          echo "DNS remains in Dynadot; do not touch MX/TXT/DKIM/DMARC or redirect before new TLS works."
