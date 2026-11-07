@@ -1,0 +1,86 @@
+name: Lowcost WWW cutover live VPS inventory (read-only)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-www-preflight-20261107.yml'
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-www-cutover-20261107
+  cancel-in-progress: false
+jobs:
+  inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Confirm limited one-file workflow change
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")" == '.github/workflows/lowcost-www-preflight-20261107.yml' ]]
+          echo LOWCOST_WWW_PREFLIGHT_SCOPE=PASS
+      - name: Check authoritative and public DNS; no changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          for host in lowcost-europa.eu www.lowcost-europa.eu; do
+            for resolver in ns1.dyna-ns.net 1.1.1.1; do
+              result="$(dig +tries=1 +time=3 +short @"$resolver" "$host" A | sort -u | tr '\n' ' ')"
+              echo "LOWCOST_DNS host=$host resolver=$resolver A=$result"
+            done
+          done
+          echo "LOWCOST_MAIL_MX=$(dig +short @ns1.dyna-ns.net lowcost-europa.eu MX | tr '\n' ' ')"
+      - name: Pinned SSH and safe live inventory
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/known-hosts"
+          chmod 600 "$RUNNER_TEMP/known-hosts"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/known-hosts" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          echo LOWCOST_WWW_PREFLIGHT_SSH_PIN=PASS
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes \
+            -o "UserKnownHostsFile=$RUNNER_TEMP/known-hosts" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          root=/srv/projects/lowcost-europa
+          target=bb3921b646102cba0af0f397bddfde8b2f37d39a
+          test -d "$root/.git"
+          echo "VPS_ROOT_SHA=$(git -c "safe.directory=$root" -C "$root" rev-parse HEAD)"
+          echo "TARGET_SHA=$target"
+          git -c "safe.directory=$root" -C "$root" status --porcelain=v1 --untracked-files=no | sed -e 's/^/TRACKED_STATUS /'
+          echo "TRACKED_DIFF_FILES_END"
+          if systemctl is-active --quiet lowcost-europa.service; then echo "APP_SERVICE=ACTIVE"; else echo "APP_SERVICE=INACTIVE"; fi
+          if nginx -t >/dev/null 2>&1; then echo "NGINX=PASS"; else echo "NGINX=FAIL"; fi
+          if test -f /etc/letsencrypt/live/lowcost-europa.eu/fullchain.pem; then echo "NEW_SSL=PRESENT"; else echo "NEW_SSL=PENDING"; fi
+          if test -f /etc/letsencrypt/live/lowcost-europa.duckdns.org/fullchain.pem; then echo "OLD_SSL=PRESENT"; else echo "OLD_SSL=MISSING"; fi
+          if grep -R -Fqs 'server_name www.lowcost-europa.eu' /etc/nginx/sites-enabled/; then echo "WWW_VHOST=FOUND"; else echo "WWW_VHOST=MISSING"; fi
+          if test -f "$root/private/systemd-env/lowcost-europa.env"; then
+            echo "APP_PRIVATE_ENV=PRESENT"
+            grep -Eq '^DJANGO_GEO_LANGUAGE_ENABLED=true$' "$root/private/systemd-env/lowcost-europa.env" && echo "GEO_IP=ON" || echo "GEO_IP=UNCONFIRMED"
+            grep -Eq '^DJANGO_PUBLIC_INDEXING_ENABLED=true$' "$root/private/systemd-env/lowcost-europa.env" && echo "INDEXING=ON" || echo "INDEXING=OFF_OR_UNSET"
+            grep -E '^DJANGO_PUBLIC_SITE_URL=' "$root/private/systemd-env/lowcost-europa.env" | sed -E 's#(https?://)[^ ]+#\1[redacted]#' | sed -e 's/^/CANONICAL_ENV_PRESENT /' || true
+          else echo "APP_PRIVATE_ENV=MISSING"; fi
+          if test -f "$root/.geoip/dbip-country-lite.mmdb"; then echo "GEO_MMDB=PRESENT"; else echo "GEO_MMDB=MISSING"; fi
+          if test -f "$root/deploy/scripts/offsite-restore-drill.sh"; then
+            echo "LOCAL_RESTORE_SCRIPT_SHA256=$(sha256sum "$root/deploy/scripts/offsite-restore-drill.sh" | awk '{print $1}')"
+          fi
+          if curl -fsSI --max-time 12 -H 'Host: lowcost-europa.duckdns.org' -H 'X-Forwarded-Proto: https' http://127.0.0.1:8001/ >/dev/null; then echo "OLD_APP=HEALTHY"; else echo "OLD_APP=FAIL"; fi
+          echo "DISK_AVAILABLE=$(df -Pk "$root" | awk 'NR==2{print $4}')"
+          echo LOWCOST_WWW_READ_ONLY_PREFLIGHT=PASS
+          REMOTE
