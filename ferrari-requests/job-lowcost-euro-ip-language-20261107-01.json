@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "id": "lowcost-euro-ip-language-20261107-01",
+  "kind": "invoke",
+  "action": "jq-format-json",
+  "input": {
+    "name": "lowcost-europe-country-languages.json",
+    "content_base64": "eyJwcm9qZWN0IjoiTG93Y29zdCBFdXJvcGEiLCJydWxlIjoidmlzaXRvci1wdWJsaWMtaXAtY291bnRyeS1vbmx5Iiwic291cmNlIjoicHVibGljIElQIGluY2x1ZGluZyBWUE47IG5vIGJyb3dzZXIgbGFuZ3VhZ2UsIG5vIEdQUywgbm8gY29va2llIG92ZXJyaWRlIiwic2NvcGUiOiJFdXJvcGUtbWFya2V0IHN0b3JlZnJvbnQiLCJtYXAiOnsiUFQiOiJwdC1wdCIsIkVTIjoiZXMiLCJGUiI6ImZyIiwiREUiOiJkZSIsIkdCIjoiZW4ifSwiZmFsbGJhY2siOiJlbiIsImV4YW1wbGVzIjpbeyJjb3VudHJ5IjoiUFQiLCJleHBlY3RlZCI6InB0LXB0In0seyJjb3VudHJ5IjoiRVMiLCJleHBlY3RlZCI6ImVzIn0seyJjb3VudHJ5IjoiRlIiLCJleHBlY3RlZCI6ImZyIn0seyJjb3VudHJ5IjoiREUiLCJleHBlY3RlZCI6ImRlIn0seyJjb3VudHJ5IjoiR0IiLCJleHBlY3RlZCI6ImVuIn0seyJjb3VudHJ5IjoiSVQiLCJleHBlY3RlZCI6ImVuIn0seyJjb3VudHJ5IjoiTkwiLCJleHBlY3RlZCI6ImVuIn0seyJjb3VudHJ5IjoiSFUiLCJleHBlY3RlZCI6ImVuIn0seyJjb3VudHJ5IjoiQlIiLCJleHBlY3RlZCI6ImVuIn0seyJjb3VudHJ5IjpudWxsLCJleHBlY3RlZCI6ImVuIn1dfQ=="
+  }
+}
