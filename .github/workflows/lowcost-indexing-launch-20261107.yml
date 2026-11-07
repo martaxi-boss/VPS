@@ -1,0 +1,197 @@
+name: Lowcost legal and public indexing guarded launch
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/lowcost-indexing-launch-20261107.yml']
+permissions:
+  contents: read
+jobs:
+  launch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Verify pinned VPS SSH host identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/khost"
+          chmod 600 "$RUNNER_TEMP/khost"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/khost" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          echo LOWCOST_INDEPENDENT_HOST_PIN=PASS
+      - name: Guarded private legal and public indexing activation
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/khost" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          root=/srv/projects/lowcost-europa
+          user=le001_1789265592
+          previous=bb3921b646102cba0af0f397bddfde8b2f37d39a
+          target=51bee8009492c3cd5855f4aae71de3597fd1965b
+          keydir="$root/private/launch-indexing-20261107"
+          rollback="$keydir/rollback"
+          envfile="$root/private/systemd-env/lowcost-europa.env"
+          appgit() { runuser -u "$user" -- git -c "safe.directory=$root" -C "$root" "$@"; }
+          [[ "$(appgit rev-parse HEAD)" == "$previous" ]]
+          [[ -z "$(appgit status --porcelain=v1 --untracked-files=no)" ]]
+          systemctl is-active --quiet lowcost-europa.service
+          nginx -t >/dev/null 2>&1
+          test -f "$keydir/legal-transport.pem"
+          test ! -e "$rollback"
+          install -d -m 700 "$rollback"
+          cp -a "$envfile" "$rollback/env.before"
+          if [[ -f "$root/.legal/operator.json" ]]; then
+            cp -a "$root/.legal/operator.json" "$rollback/operator.before"
+          else
+            touch "$rollback/operator.absent"
+          fi
+          success=0
+          revert() {
+            rc=$?
+            trap - EXIT
+            if [[ "$success" != 1 ]]; then
+              cp -a "$rollback/env.before" "$envfile"
+              if [[ -f "$rollback/operator.before" ]]; then
+                cp -a "$rollback/operator.before" "$root/.legal/operator.json"
+              else
+                rm -f "$root/.legal/operator.json"
+              fi
+              appgit checkout --detach "$previous" >/dev/null 2>&1 || true
+              systemctl restart lowcost-europa.service || true
+              if nginx -t >/dev/null 2>&1; then systemctl reload nginx || true; fi
+              echo LOWCOST_INDEXING_ROLLBACK=APPLIED
+            fi
+            exit "$rc"
+          }
+          trap revert EXIT
+          GIT_TERMINAL_PROMPT=0 appgit fetch origin main >/dev/null 2>&1
+          appgit merge-base --is-ancestor "$previous" "$target"
+          appgit checkout --detach "$target" >/dev/null 2>&1
+          install -d -m 700 -o "$user" -g "$user" "$root/.legal"
+          umask 077
+          printf '%s' 'ue6tdz0l1NcSUuq6kwLE+Kk1uRVjWNmHJtDZ/sfw2g/TDFo0k/a0OVKctCOn0vzHlaIlLcS1CgknCg2Kn8ULp2TKRSpefuDAszJNpMrKvdtThhRABNkCPDVoNxm2QRThor/kVSMzzJZjl2FOZVoGQnzW4h+vf7XPjbzy82y5JCK6uW05bJSgwu1HiUAGS74v56loHdCcZjokzeeojikn4tm/ZePcGNc4mgCQ5qzNGoGqVps6a4fkZgh+i/hJoAEGbtNzkle7rdY7Evi042UMlegVIswRStsuZHNGkqh/jcsnzDatRD/682WqNnwYF2n3i/YR2u6rx4YonEBtorPrPV7bFLpkg15gawi+uqv5Jy/JNSKInk9prCD28yomOhzbmLdQcu8ZqEN804O7RDErbLoIy5NqUaOlBfSkx410vR0B9ttqYVklW1U9x4ZSzkV/a3+qP/XKacZrp6sPXaMIbtQfQVgtsHZlf8wA9xr2JUH4ygqjBuz1qVS97+2gASE7' | base64 -d | openssl pkeyutl -decrypt -inkey "$keydir/legal-transport.pem" -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 -out "$root/.legal/operator.json"
+          chown "$user:$user" "$root/.legal/operator.json"
+          chmod 600 "$root/.legal/operator.json"
+          set_indexing() {
+            "$root/.venv/bin/python" - "$envfile" "$1" <<'ENVPY'
+          import os,re,sys
+          from pathlib import Path
+          path=Path(sys.argv[1]);value=sys.argv[2];s=path.stat();text=path.read_text()
+          line="DJANGO_PUBLIC_INDEXING_ENABLED="+value
+          if re.search(r"^DJANGO_PUBLIC_INDEXING_ENABLED=.*$",text,re.M):
+              text=re.sub(r"^DJANGO_PUBLIC_INDEXING_ENABLED=.*$",line,text,flags=re.M)
+          else: text=text.rstrip()+"\n"+line+"\n"
+          temp=path.with_suffix(".indexing-new")
+          temp.write_text(text)
+          os.chown(temp,s.st_uid,s.st_gid);os.chmod(temp,s.st_mode & 0o777)
+          temp.replace(path)
+          ENVPY
+          }
+          ready() {
+            for attempt in {1..25}; do
+              if curl -fsS --max-time 3 -H 'Host: www.lowcost-europa.eu' -H 'X-Forwarded-Proto: https' http://127.0.0.1:8001/health/ready/ >/dev/null; then return 0; fi
+              sleep 1
+            done
+            return 1
+          }
+          set_indexing false
+          systemctl restart lowcost-europa.service
+          ready
+          cd "$root"
+          export PYTHONDONTWRITEBYTECODE=1
+          "$root/.venv/bin/python" - <<'PREFLIGHTPY'
+          import os,shlex,pwd
+          from pathlib import Path
+          for line in Path("private/systemd-env/lowcost-europa.env").read_text().splitlines():
+              key,sep,value=line.partition("=")
+              if sep and not key.startswith("#"): os.environ[key]=" ".join(shlex.split(value))
+          a=pwd.getpwnam("le001_1789265592")
+          os.initgroups(a.pw_name,a.pw_gid);os.setgid(a.pw_gid);os.setuid(a.pw_uid)
+          os.environ.setdefault("DJANGO_SETTINGS_MODULE","config.settings.production")
+          import django;django.setup()
+          from django.conf import settings
+          from django.core.management import call_command
+          assert not settings.PUBLIC_INDEXING_ENABLED
+          assert all(settings.PUBLIC_OPERATOR.get(k) for k in ("name","address","tax_id"))
+          assert settings.PUBLIC_SITE_URL=="https://www.lowcost-europa.eu"
+          call_command("check",deploy=True)
+          call_command("makemigrations",check=True,dry_run=True)
+          call_command("migrate",plan=True)
+          print("LOWCOST_LEGAL_CONFIG_AND_DJANGO_PREFLIGHT=PASS")
+          PREFLIGHTPY
+          nginx -t >/dev/null 2>&1
+          set_indexing true
+          systemctl restart lowcost-europa.service
+          ready
+          systemctl reload nginx
+          "$root/.venv/bin/python" - <<'ACCEPTPY'
+          import json,urllib.request,urllib.error,xml.etree.ElementTree as ET
+          from pathlib import Path
+          legal=json.loads(Path(".legal/operator.json").read_text())
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self,*args):return None
+          opener=urllib.request.build_opener(NoRedirect)
+          def get(path):
+              req=urllib.request.Request("http://127.0.0.1:8001"+path,headers={"Host":"www.lowcost-europa.eu","X-Forwarded-Proto":"https"})
+              try:r=opener.open(req,timeout=20)
+              except urllib.error.HTTPError as e:r=e
+              return r.status,r.headers,r.read().decode()
+          categories=["cavitacao-rf-vacuum-corpo","hydrodermoabrasao-aqua-facial-multifuncoes","pressoterapia-vacuum-drenagem","hifu","diodo-laser-remocao-tatuagens-pigmentacao"]
+          paths=["/"]+["/products/"+slug+"/" for slug in categories]
+          for path in paths:
+              status,h,body=get(path)
+              assert status==200,(path,status)
+              assert "noindex" not in h.get("X-Robots-Tag","")
+              assert '<meta name="robots" content="index, follow">' in body
+              assert '<link rel="canonical" href="https://www.lowcost-europa.eu'+path+'">' in body
+              if path!="/": assert 'rel="sponsored nofollow"' in body
+          for path in ["/contacto/","/termos/","/privacidade/"]:
+              status,h,body=get(path);assert status==200
+              assert all(value in body for value in legal.values())
+          for path in ["/painel/","/admin/","/painel/entrar/","/admin/login/","/health/ready/","/ops/","/pesquisar/?q=hifu"]:
+              status,h,body=get(path)
+              assert "noindex" in h.get("X-Robots-Tag",""),path
+              assert "no-store" in h.get("Cache-Control",""),path
+              if path in ["/painel/","/admin/"]:assert status==302
+          status,h,body=get("/robots.txt")
+          assert status==200 and "Disallow: /" not in body.splitlines()
+          assert "Sitemap: https://www.lowcost-europa.eu/sitemap.xml" in body
+          assert "Disallow: /painel/" in body and "Disallow: /admin/" in body
+          status,h,body=get("/sitemap.xml");assert status==200
+          locs=[n.text for n in ET.fromstring(body).iter("{http://www.sitemaps.org/schemas/sitemap/0.9}loc")]
+          assert len(locs)==len(set(locs))==11
+          assert all(u.startswith("https://www.lowcost-europa.eu/") for u in locs)
+          assert all("https://www.lowcost-europa.eu"+p in locs for p in paths)
+          assert not any(any(t in u for t in ["/painel/","/admin/","/go/","/pesquisar/"]) for u in locs)
+          print("LOWCOST_INDEXING_SIX_PUBLIC_URLS=PASS")
+          print("LOWCOST_LEGAL_THREE_PAGES=PASS")
+          print("LOWCOST_PRIVATE_ROUTES_ROBOTS_SITEMAP=PASS")
+          ACCEPTPY
+          wwwhdr="$(curl -fsSI --max-time 30 https://www.lowcost-europa.eu/)"
+          ! printf '%s\n' "$wwwhdr" | grep -Eiq '^x-robots-tag:.*noindex'
+          oldhdr="$(curl -fsSI --max-time 30 https://lowcost-europa.duckdns.org/)"
+          printf '%s\n' "$oldhdr" | grep -Eiq '^x-robots-tag:.*noindex'
+          [[ -z "$(appgit status --porcelain=v1 --untracked-files=no)" ]]
+          [[ "$(appgit rev-parse HEAD)" == "$target" ]]
+          systemctl is-active --quiet lowcost-europa.service
+          nginx -t >/dev/null 2>&1
+          success=1
+          rm -f "$keydir/legal-transport.pem"
+          echo LOWCOST_LEGAL_TEMPORARY_KEY_HYGIENE=PASS
+          echo "LOWCOST_LIVE_REVISION=$target"
+          echo LOWCOST_INDEXING_GUARDED_LAUNCH=PASS
+          trap - EXIT
+          REMOTE
