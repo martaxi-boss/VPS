@@ -1,4 +1,4 @@
-name: Lowcost WWW cutover live VPS inventory (read-only)
+name: Lowcost WWW - guarded GitHub VPS alignment and HTTP ACME staging
 on:
   push:
     branches: [main]
@@ -10,15 +10,15 @@ concurrency:
   group: lowcost-www-cutover-20261107
   cancel-in-progress: false
 jobs:
-  inventory:
+  staging:
     runs-on: ubuntu-24.04
-    timeout-minutes: 12
+    timeout-minutes: 22
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 2
           persist-credentials: false
-      - name: Confirm limited one-file workflow change
+      - name: Authorize exact workflow-only change
         shell: bash
         env:
           BEFORE_SHA: ${{ github.event.before }}
@@ -26,61 +26,176 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")" == '.github/workflows/lowcost-www-preflight-20261107.yml' ]]
-          echo LOWCOST_WWW_PREFLIGHT_SCOPE=PASS
-      - name: Check authoritative and public DNS; no changes
+          echo LOWCOST_WWW_ROLLOUT_SCOPE=PASS
+      - name: Require trusted VPS host key
         shell: bash
         run: |
           set -euo pipefail
-          for host in lowcost-europa.eu www.lowcost-europa.eu; do
-            for resolver in ns1.dyna-ns.net 1.1.1.1; do
-              result="$(dig +tries=1 +time=3 +short @"$resolver" "$host" A | sort -u | tr '\n' ' ')"
-              echo "LOWCOST_DNS host=$host resolver=$resolver A=$result"
-            done
-          done
-          echo "LOWCOST_MAIL_MX=$(dig +short @ns1.dyna-ns.net lowcost-europa.eu MX | tr '\n' ' ')"
-      - name: Pinned SSH and safe live inventory
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/lowcost-known-hosts"
+          chmod 600 "$RUNNER_TEMP/lowcost-known-hosts"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/lowcost-known-hosts" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          echo LOWCOST_WWW_ROLLOUT_HOST_PIN=PASS
+      - name: Guarded app-only fast-forward with backup, checks, and rollback
         shell: bash
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         run: |
           set -euo pipefail
           test -n "$SSHPASS"
-          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/known-hosts"
-          chmod 600 "$RUNNER_TEMP/known-hosts"
-          test "$(ssh-keygen -lf "$RUNNER_TEMP/known-hosts" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
-          echo LOWCOST_WWW_PREFLIGHT_SSH_PIN=PASS
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass >/dev/null
           sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
             -o StrictHostKeyChecking=yes \
-            -o "UserKnownHostsFile=$RUNNER_TEMP/known-hosts" \
+            -o "UserKnownHostsFile=$RUNNER_TEMP/lowcost-known-hosts" \
             -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
             -o ConnectTimeout=20 -o ServerAliveInterval=15 \
             ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
           set -Eeuo pipefail
-          root=/srv/projects/lowcost-europa
-          target=bb3921b646102cba0af0f397bddfde8b2f37d39a
-          test -d "$root/.git"
-          echo "VPS_ROOT_SHA=$(git -c "safe.directory=$root" -C "$root" rev-parse HEAD)"
-          echo "TARGET_SHA=$target"
-          git -c "safe.directory=$root" -C "$root" status --porcelain=v1 --untracked-files=no | sed -e 's/^/TRACKED_STATUS /'
-          echo "TRACKED_DIFF_FILES_END"
-          if systemctl is-active --quiet lowcost-europa.service; then echo "APP_SERVICE=ACTIVE"; else echo "APP_SERVICE=INACTIVE"; fi
-          if nginx -t >/dev/null 2>&1; then echo "NGINX=PASS"; else echo "NGINX=FAIL"; fi
-          if test -f /etc/letsencrypt/live/lowcost-europa.eu/fullchain.pem; then echo "NEW_SSL=PRESENT"; else echo "NEW_SSL=PENDING"; fi
-          if test -f /etc/letsencrypt/live/lowcost-europa.duckdns.org/fullchain.pem; then echo "OLD_SSL=PRESENT"; else echo "OLD_SSL=MISSING"; fi
-          if grep -R -Fqs 'server_name www.lowcost-europa.eu' /etc/nginx/sites-enabled/; then echo "WWW_VHOST=FOUND"; else echo "WWW_VHOST=MISSING"; fi
-          if test -f "$root/private/systemd-env/lowcost-europa.env"; then
-            echo "APP_PRIVATE_ENV=PRESENT"
-            grep -Eq '^DJANGO_GEO_LANGUAGE_ENABLED=true$' "$root/private/systemd-env/lowcost-europa.env" && echo "GEO_IP=ON" || echo "GEO_IP=UNCONFIRMED"
-            grep -Eq '^DJANGO_PUBLIC_INDEXING_ENABLED=true$' "$root/private/systemd-env/lowcost-europa.env" && echo "INDEXING=ON" || echo "INDEXING=OFF_OR_UNSET"
-            grep -E '^DJANGO_PUBLIC_SITE_URL=' "$root/private/systemd-env/lowcost-europa.env" | sed -E 's#(https?://)[^ ]+#\1[redacted]#' | sed -e 's/^/CANONICAL_ENV_PRESENT /' || true
-          else echo "APP_PRIVATE_ENV=MISSING"; fi
-          if test -f "$root/.geoip/dbip-country-lite.mmdb"; then echo "GEO_MMDB=PRESENT"; else echo "GEO_MMDB=MISSING"; fi
-          if test -f "$root/deploy/scripts/offsite-restore-drill.sh"; then
-            echo "LOCAL_RESTORE_SCRIPT_SHA256=$(sha256sum "$root/deploy/scripts/offsite-restore-drill.sh" | awk '{print $1}')"
-          fi
-          if curl -fsSI --max-time 12 -H 'Host: lowcost-europa.duckdns.org' -H 'X-Forwarded-Proto: https' http://127.0.0.1:8001/ >/dev/null; then echo "OLD_APP=HEALTHY"; else echo "OLD_APP=FAIL"; fi
-          echo "DISK_AVAILABLE=$(df -Pk "$root" | awk 'NR==2{print $4}')"
-          echo LOWCOST_WWW_READ_ONLY_PREFLIGHT=PASS
+          umask 077
+          ROOT=/srv/projects/lowcost-europa
+          TARGET=bb3921b646102cba0af0f397bddfde8b2f37d39a
+          EXPECTED_OLD=fefd5df92753382bb7ad191ee19e38b90d8167a3
+          APP_USER=le001_1789265592
+          ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
+          LINK=/etc/nginx/sites-enabled/lowcost-europa-eu-acme.conf
+          NEW_SOURCE="$ROOT/deploy/nginx/lowcost-europa.eu-acme.conf"
+          BACKUP="$ROOT/private/deploy-rollbacks/www-domain-prestage-20261107-01"
+          OLD=""
+          CHANGED=0
+          LINK_CREATED=0
+          rollback() {
+            local exitcode=$?
+            trap - ERR
+            if [[ "$CHANGED" -eq 1 ]]; then
+              if [[ "$LINK_CREATED" -eq 1 && -L "$LINK" && "$(readlink "$LINK")" == "$NEW_SOURCE" ]]; then
+                rm -f -- "$LINK"
+              fi
+              if [[ -n "$OLD" ]]; then
+                git -c "safe.directory=$ROOT" -C "$ROOT" reset --hard "$OLD" >/dev/null 2>&1 || true
+              fi
+              [[ -f "$BACKUP/env.bak" ]] && cp -p "$BACKUP/env.bak" "$ENVFILE"
+              systemctl restart lowcost-europa.service || true
+              nginx -t >/dev/null 2>&1 && systemctl reload nginx || true
+              echo LOWCOST_WWW_AUTOMATIC_ROLLBACK=EXECUTED
+            else
+              echo LOWCOST_WWW_NO_LIVE_CHANGE=YES
+            fi
+            exit "$exitcode"
+          }
+          trap rollback ERR
+          [[ -d "$ROOT/.git" && -f "$ENVFILE" && ! -L "$ENVFILE" ]] || exit 2
+          [[ -d /var/www/letsencrypt ]] || { echo LOWCOST_ACME_WEBROOT=MISSING; exit 2; }
+          [[ ! -e "$LINK" && ! -L "$LINK" ]] || { echo LOWCOST_WWW_EXISTING_VHOST=REFUSE_OVERWRITE; exit 2; }
+          [[ ! -e "$BACKUP" ]] || { echo LOWCOST_WWW_EXISTING_BACKUP=REFUSE_OVERWRITE; exit 2; }
+          systemctl is-active --quiet lowcost-europa.service
+          nginx -t >/dev/null 2>&1
+          OLD="$(git -c "safe.directory=$ROOT" -C "$ROOT" rev-parse HEAD)"
+          [[ "$OLD" == "$EXPECTED_OLD" ]] || { echo LOWCOST_WWW_UNEXPECTED_OLD_SHA; exit 2; }
+          [[ "$(git -c "safe.directory=$ROOT" -C "$ROOT" symbolic-ref --short HEAD)" == main ]] || { echo LOWCOST_WWW_WRONG_BRANCH; exit 2; }
+          [[ -z "$(git -c "safe.directory=$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)" ]] || { echo LOWCOST_WWW_DIRTY_TRACKED_WORKTREE; exit 2; }
+          [[ ! -L "$ROOT/deploy/scripts/offsite-restore-drill.sh" ]] || exit 2
+          RESTORE_HASH_BEFORE="$(sha256sum "$ROOT/deploy/scripts/offsite-restore-drill.sh" | awk '{print $1}')"
+          [[ "$RESTORE_HASH_BEFORE" == fc8f18347f94013be9e52acd313c9eed29537a1831340d0c60ffb048ba8d6c02 ]] || { echo LOWCOST_PROTECTED_RESTORE_CHANGED; exit 2; }
+          echo LOWCOST_WWW_BACKUP_SAFETY_PREFLIGHT=PASS
+          git -c "safe.directory=$ROOT" -C "$ROOT" fetch -q https://github.com/martaxi-boss/lowcost-europa.git main
+          [[ "$(git -c "safe.directory=$ROOT" -C "$ROOT" rev-parse FETCH_HEAD)" == "$TARGET" ]] || { echo LOWCOST_WWW_FETCHED_SHA_MISMATCH; exit 2; }
+          [[ "$(git -c "safe.directory=$ROOT" -C "$ROOT" merge-base "$OLD" "$TARGET")" == "$OLD" ]] || { echo LOWCOST_WWW_NON_FAST_FORWARD; exit 2; }
+          changed_files="$(git -c "safe.directory=$ROOT" -C "$ROOT" diff --name-only "$OLD" "$TARGET")"
+          python3 - "$changed_files" <<'PYCHECK'
+          import sys
+          allowed={
+            ".env.example","PROJECT_STATE.md",
+            "apps/storefront/templates/storefront/contacto.html",
+            "apps/storefront/templates/storefront/privacidade.html",
+            "apps/storefront/tests/test_languages.py",
+            "apps/storefront/tests/test_views.py",
+            "apps/storefront/tests/test_visual_professional.py",
+            "apps/storefront/ui_translations.py",
+            "deploy/nginx/lowcost-europa.eu-acme.conf",
+            "deploy/nginx/lowcost-europa.eu.conf",
+            "docs/operations/custom-domain-dynadot-20261107.md",
+          }
+          changed=set(filter(None,sys.argv[1].splitlines()))
+          if changed!=allowed: raise SystemExit("Unexpected git rollout scope")
+          PYCHECK
+          mkdir -m 700 -p "$ROOT/private/deploy-rollbacks"
+          mkdir -m 700 "$BACKUP"
+          cp -p "$ENVFILE" "$BACKUP/env.bak"
+          printf '%s\n' "$OLD" > "$BACKUP/old-sha"
+          printf '%s\n' "$TARGET" > "$BACKUP/target-sha"
+          echo LOWCOST_WWW_PRIVATE_BACKUP=CREATED
+          CHANGED=1
+          git -c "safe.directory=$ROOT" -C "$ROOT" merge --ff-only -q FETCH_HEAD
+          [[ "$(git -c "safe.directory=$ROOT" -C "$ROOT" rev-parse HEAD)" == "$TARGET" ]]
+          [[ -f "$NEW_SOURCE" && ! -L "$NEW_SOURCE" ]]
+          [[ "$(sha256sum "$ROOT/deploy/scripts/offsite-restore-drill.sh" | awk '{print $1}')" == "$RESTORE_HASH_BEFORE" ]]
+          python3 - "$ENVFILE" <<'PYENV'
+          from pathlib import Path
+          import sys
+          p=Path(sys.argv[1])
+          text=p.read_text(encoding="utf-8")
+          lines=text.splitlines(keepends=True)
+          additions={
+            "DJANGO_ALLOWED_HOSTS":["www.lowcost-europa.eu","lowcost-europa.eu"],
+            "DJANGO_CSRF_TRUSTED_ORIGINS":["https://www.lowcost-europa.eu","https://lowcost-europa.eu"],
+          }
+          for key,extras in additions.items():
+              indices=[i for i,line in enumerate(lines) if line.startswith(key+"=")]
+              if len(indices)>1: raise SystemExit("Duplicate env key: "+key)
+              if indices:
+                  i=indices[0]
+                  raw=lines[i][len(key)+1:].strip()
+                  quote=raw[0] if len(raw)>=2 and raw[0] in ('"',"'") and raw[-1]==raw[0] else ""
+                  value=raw[1:-1] if quote else raw
+                  existing=[part.strip() for part in value.split(",") if part.strip()]
+                  if not all(" " not in x and "\n" not in x for x in existing):
+                      raise SystemExit("Unexpected format for env key: "+key)
+                  updated=existing+[x for x in extras if x not in existing]
+                  lines[i]=key+"="+quote+(",".join(updated))+quote+"\n"
+              else:
+                  lines.append(key+"="+",".join(extras)+"\n")
+          # Keep PUBLIC_SITE_URL and PUBLIC_INDEXING_ENABLED untouched until TLS, legal and mail gate.
+          p.write_text("".join(lines),encoding="utf-8")
+          PYENV
+          [[ "$(<"$BACKUP/old-sha")" == "$OLD" ]]
+          ln -s -- "$NEW_SOURCE" "$LINK"
+          LINK_CREATED=1
+          nginx -t >/dev/null 2>&1
+          systemctl reload nginx
+          systemctl restart lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa.service
+          appurl=http://127.0.0.1:8001
+          contact="$(curl -fsS --max-time 20 -H 'Host: lowcost-europa.duckdns.org' -H 'X-Forwarded-Proto: https' "$appurl/contacto/")"
+          [[ "$contact" == *'mailto:geral@lowcost-europa.eu'* ]] || exit 4
+          [[ "$contact" != *'help.onlinefuture@gmail.com'* ]] || exit 4
+          privacy="$(curl -fsS --max-time 20 -H 'Host: lowcost-europa.duckdns.org' -H 'X-Forwarded-Proto: https' "$appurl/privacidade/")"
+          [[ "$privacy" == *'mailto:geral@lowcost-europa.eu'* ]] || exit 4
+          home="$(curl -fsS --max-time 20 -H 'Host: lowcost-europa.duckdns.org' -H 'X-Forwarded-Proto: https' "$appurl/")"
+          [[ "$home" == *'id="familias"'* && "$home" == *'<meta name="robots" content="noindex, nofollow">'* ]] || exit 4
+          panel="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 12 -H 'Host: www.lowcost-europa.eu' -H 'X-Forwarded-Proto: https' "$appurl/painel/")"
+          [[ "$panel" == '302' ]] || { echo "LOWCOST_WWW_PANEL_STATUS=$panel"; exit 4; }
+          www_code="$(curl -sS -I -o /dev/null -w '%{http_code}' --max-time 12 -H 'Host: www.lowcost-europa.eu' http://127.0.0.1/)"
+          [[ "$www_code" == '302' ]] || { echo "LOWCOST_WWW_HTTP_CODE=$www_code"; exit 4; }
+          test -z "$(git -c "safe.directory=$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)"
+          [[ "$(sha256sum "$ROOT/deploy/scripts/offsite-restore-drill.sh" | awk '{print $1}')" == "$RESTORE_HASH_BEFORE" ]]
+          echo LOWCOST_WWW_DEPLOYED_SHA="$TARGET"
+          echo LOWCOST_WWW_GITHUB_VPS_ALIGNMENT=PASS
+          echo LOWCOST_WWW_PRIVATE_CONTACT=PASS
+          echo LOWCOST_WWW_PRIVATE_PRIVACY=PASS
+          echo LOWCOST_WWW_OWNER_PANEL_REDIRECT=PASS
+          echo LOWCOST_WWW_ACME_HTTP_PRESTAGE=PASS
+          echo LOWCOST_WWW_GEO_IP_PRESERVED=YES
+          echo LOWCOST_WWW_COMMERCIAL_NOINDEX_PRESERVED=YES
+          echo LOWCOST_WWW_SAFE_PRESTAGE=PASS
+          trap - ERR
           REMOTE
+      - name: Confirm old DuckDNS HTTPS remains accessible and private
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=https://lowcost-europa.duckdns.org
+          headers="$(curl -fsSI --max-time 30 "$base/")"
+          printf '%s\n' "$headers" | grep -Eiq '^x-robots-tag:.*noindex'
+          contact="$(curl -fsSL --max-time 30 "$base/contacto/")"
+          [[ "$contact" == *'mailto:geral@lowcost-europa.eu'* ]]
+          echo LOWCOST_WWW_OLD_HTTPS_NOINDEX=PASS
