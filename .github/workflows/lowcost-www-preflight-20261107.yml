@@ -1,4 +1,4 @@
-name: Lowcost WWW read-only Gunicorn deploy failure diagnosis
+name: Lowcost emergency scoped source-readable permission repair
 on:
   push:
     branches: [main]
@@ -10,31 +10,31 @@ concurrency:
   group: lowcost-www-cutover-20261107
   cancel-in-progress: false
 jobs:
-  diagnosis:
+  recovery:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 2
           persist-credentials: false
-      - name: Confirm exact workflow-only change
+      - name: Enforce workflow-only change
         env:
           BEFORE_SHA: ${{ github.event.before }}
           AFTER_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           [[ "$(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")" == '.github/workflows/lowcost-www-preflight-20261107.yml' ]]
-      - name: Read post-rollback service state and relevant error lines only
+      - name: Restore read rights on three public application files only
         shell: bash
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         run: |
           set -euo pipefail
+          test -n "$SSHPASS"
           ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
           chmod 600 "$RUNNER_TEMP/kh"
           [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
-          test -n "$SSHPASS"
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass >/dev/null
           sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
@@ -43,18 +43,43 @@ jobs:
             -o ConnectTimeout=20 -o ServerAliveInterval=15 \
             ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
           set -Eeuo pipefail
+          umask 022
           root=/srv/projects/lowcost-europa
-          echo "POST_ROLLBACK_SHA=$(git -c "safe.directory=$root" -C "$root" rev-parse HEAD)"
-          echo "POST_ROLLBACK_TRACKED_STATUS=$(git -c "safe.directory=$root" -C "$root" status --porcelain=v1 --untracked-files=no | wc -l)"
-          systemctl show lowcost-europa.service -p ActiveState -p SubState -p NRestarts -p ExecMainStatus
-          if ss -ltn | grep -q '127.0.0.1:8001'; then echo APP_LISTENING=YES; else echo APP_LISTENING=NO; fi
-          code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 -H 'Host: lowcost-europa.duckdns.org' -H 'X-Forwarded-Proto: https' http://127.0.0.1:8001/ || true)"
-          echo "POST_ROLLBACK_HTTP=$code"
-          if test -L /etc/nginx/sites-enabled/lowcost-europa-eu-acme.conf; then echo ACME_SYMLINK=STILL_PRESENT; else echo ACME_SYMLINK=ABSENT; fi
-          echo "--- FILTERED SYSTEMD/GUNICORN DIAGNOSTICS LAST 10 MINUTES ---"
-          journalctl -u lowcost-europa.service --since '2026-11-07 19:43:00 UTC' --utc --no-pager -n 300 2>/dev/null \
-            | grep -Ei 'Traceback|Error|Exception|failed|permission|worker|listening|bind|ModuleNotFound|ImportError|exited|address already in use|starting gunicorn' \
-            | tail -n 80 \
-            | sed -E 's/(password|token|secret)([^ ]{0,25})/REDACTED/Ig' || true
-          echo LOWCOST_WWW_FAILURE_DIAG_READ_ONLY=PASS
+          app_user=le001_1789265592
+          [[ "$(git -c "safe.directory=$root" -C "$root" rev-parse HEAD)" == fefd5df92753382bb7ad191ee19e38b90d8167a3 ]] || exit 2
+          [[ -z "$(git -c "safe.directory=$root" -C "$root" status --porcelain=v1 --untracked-files=no)" ]] || exit 2
+          for rel in apps/storefront/ui_translations.py apps/storefront/templates/storefront/contacto.html apps/storefront/templates/storefront/privacidade.html; do
+            p="$root/$rel"
+            [[ -f "$p" && ! -L "$p" ]] || exit 2
+            echo "BEFORE_MODE_$(basename "$rel")=$(stat -c %a "$p")"
+            chmod a+r "$p"
+            runuser -u "$app_user" -- test -r "$p"
+            echo "AFTER_MODE_$(basename "$rel")=$(stat -c %a "$p")"
+          done
+          systemctl restart lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa.service
+          ready=0
+          for i in $(seq 1 25); do
+            if curl -fsS --max-time 4 -H 'Host: lowcost-europa.duckdns.org' -H 'X-Forwarded-Proto: https' http://127.0.0.1:8001/ -o /dev/null 2>/dev/null; then
+              ready=1
+              echo "LOWCOST_OLD_APP_READY_ATTEMPT=$i"
+              break
+            fi
+            sleep 1
+          done
+          [[ "$ready" -eq 1 ]] || { echo LOWCOST_OLD_APP_REPAIR=FAIL; exit 4; }
+          [[ "$(git -c "safe.directory=$root" -C "$root" rev-parse HEAD)" == fefd5df92753382bb7ad191ee19e38b90d8167a3 ]]
+          [[ -z "$(git -c "safe.directory=$root" -C "$root" status --porcelain=v1 --untracked-files=no)" ]]
+          echo LOWCOST_PUBLIC_SOURCE_READABILITY=PASS
+          echo LOWCOST_OLD_APP_REPAIR=PASS
           REMOTE
+      - name: Verify old DuckDNS HTTPS noindex and content restored
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=https://lowcost-europa.duckdns.org
+          headers="$(curl -fsSI --max-time 30 "$base/")"
+          printf '%s\n' "$headers" | grep -Eiq '^x-robots-tag:.*noindex'
+          home="$(curl -fsSL --max-time 30 "$base/")"
+          [[ "$home" == *'id="familias"'* ]]
+          echo LOWCOST_OLD_PUBLIC_HTTPS_RECOVERY=PASS
