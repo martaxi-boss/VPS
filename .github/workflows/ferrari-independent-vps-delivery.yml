@@ -48,6 +48,7 @@ on:
       - 'ferrari-release-requests/universal-f10-hygiene-preview-20261106.json'
       - 'ferrari-release-requests/universal-f10-hygiene-apply-20261106.json'
       - 'ferrari-release-requests/universal-f10-legacy-state-audit-20261106.json'
+      - 'ferrari-release-requests/universal-f10-hygiene-preview-r2-20261106.json'
 
 permissions:
   contents: read
@@ -119,6 +120,7 @@ jobs:
             ferrari-release-requests/universal-f10-hygiene-preview-20261106.json) MODE=--universal-f10-hygiene-preview ;;
             ferrari-release-requests/universal-f10-hygiene-apply-20261106.json) MODE=--universal-f10-hygiene-apply ;;
             ferrari-release-requests/universal-f10-legacy-state-audit-20261106.json) MODE=--universal-f10-legacy-state-audit ;;
+            ferrari-release-requests/universal-f10-hygiene-preview-r2-20261106.json) MODE=--universal-f10-hygiene-preview ;;
             *) echo 'FERRARI_PHASE5_REQUEST_NOT_SINGLE_OR_NOT_ALLOWED' >&2; exit 2 ;;
           esac
           if [[ "$MODE" == --universal-* ]]; then
@@ -250,7 +252,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: 205c6f0e970259c79fa2111b6670c2fe1672fb27
+          ref: f6bb0d74f12ec18dcd700649a3c26b3b83caf9e9
           path: ferrari-f10
           persist-credentials: false
 
