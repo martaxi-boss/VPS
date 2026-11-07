@@ -80,7 +80,7 @@ jobs:
           +L+XrBNfXo2d48H1+PzjOSrPkw/O441Qz0yFYHmj/4XQtTnOrGChjClqpDjYExR+IdY8Yp3mgcJWUEVHs3qjfNMXiH/zPQS5On0h
           m7t/TbWrxMmaV6v3uMqGcf0STwbDi6tPuK/RWb/qGxcqPv4Q9eNw5FxjL9RpKIxjnWRweXpxPjpzPvZVQ+IJsuH1+Y/0AVV92rKP
           IXU8OHlMd3l1fnky+ElJ+X95Bo+cpiYAAA==
-PACKED_SCRIPT
+          PACKED_SCRIPT
           printf '%s  %s\n' 'd1131beb234dd77386825cd860bff56aebb2f47788e20595b63f3162b24863ff' "$RUNNER_TEMP/lowcost-geo-rollout.sh" | sha256sum -c -
           bash -n "$RUNNER_TEMP/lowcost-geo-rollout.sh"
           echo LOWCOST_GEO_SCRIPT_SHA256=PASS
