@@ -46,7 +46,8 @@ jobs:
           envfile="$root/private/systemd-env/lowcost-europa.env"
           appgit() { git -c "safe.directory=$root" -C "$root" "$@"; }
           [[ "$(appgit rev-parse HEAD)" == "$previous" ]]
-          worktree="$(appgit status --porcelain=v1 --untracked-files=no)"\n          [[ -z "$worktree" ]]
+          worktree="$(appgit status --porcelain=v1 --untracked-files=no)"
+          [[ -z "$worktree" ]]
           systemctl is-active --quiet lowcost-europa.service
           nginx -t >/dev/null 2>&1
           test -f "$keydir/legal-transport.pem"
@@ -77,9 +78,11 @@ jobs:
             exit "$rc"
           }
           trap revert EXIT
-          echo LOWCOST_ROLLOUT_BASE_AND_SERVICE=PASS\n          GIT_TERMINAL_PROMPT=0 appgit fetch origin main >/dev/null 2>&1
+          echo LOWCOST_ROLLOUT_BASE_AND_SERVICE=PASS
+          GIT_TERMINAL_PROMPT=0 appgit fetch origin main >/dev/null 2>&1
           appgit merge-base --is-ancestor "$previous" "$target"
-          appgit checkout --detach "$target" >/dev/null 2>&1\n          echo LOWCOST_ROLLOUT_CHECKOUT=PASS
+          appgit checkout --detach "$target" >/dev/null 2>&1
+          echo LOWCOST_ROLLOUT_CHECKOUT=PASS
           install -d -m 700 -o "$user" -g "$user" "$root/.legal"
           umask 077
           printf '%s' 'ue6tdz0l1NcSUuq6kwLE+Kk1uRVjWNmHJtDZ/sfw2g/TDFo0k/a0OVKctCOn0vzHlaIlLcS1CgknCg2Kn8ULp2TKRSpefuDAszJNpMrKvdtThhRABNkCPDVoNxm2QRThor/kVSMzzJZjl2FOZVoGQnzW4h+vf7XPjbzy82y5JCK6uW05bJSgwu1HiUAGS74v56loHdCcZjokzeeojikn4tm/ZePcGNc4mgCQ5qzNGoGqVps6a4fkZgh+i/hJoAEGbtNzkle7rdY7Evi042UMlegVIswRStsuZHNGkqh/jcsnzDatRD/682WqNnwYF2n3i/YR2u6rx4YonEBtorPrPV7bFLpkg15gawi+uqv5Jy/JNSKInk9prCD28yomOhzbmLdQcu8ZqEN804O7RDErbLoIy5NqUaOlBfSkx410vR0B9ttqYVklW1U9x4ZSzkV/a3+qP/XKacZrp6sPXaMIbtQfQVgtsHZlf8wA9xr2JUH4ygqjBuz1qVS97+2gASE7' | base64 -d | openssl pkeyutl -decrypt -inkey "$keydir/legal-transport.pem" -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 -out "$root/.legal/operator.json"
@@ -184,7 +187,8 @@ jobs:
           ! printf '%s\n' "$wwwhdr" | grep -Eiq '^x-robots-tag:.*noindex'
           oldhdr="$(curl -fsSI --max-time 30 https://lowcost-europa.duckdns.org/)"
           printf '%s\n' "$oldhdr" | grep -Eiq '^x-robots-tag:.*noindex'
-          [[ -z "$(appgit status --porcelain=v1 --untracked-files=no)" ]]
+          worktree="$(appgit status --porcelain=v1 --untracked-files=no)"
+          [[ -z "$worktree" ]]
           [[ "$(appgit rev-parse HEAD)" == "$target" ]]
           systemctl is-active --quiet lowcost-europa.service
           nginx -t >/dev/null 2>&1
