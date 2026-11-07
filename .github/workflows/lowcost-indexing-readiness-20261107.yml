@@ -153,6 +153,11 @@ jobs:
                   parts=shlex.split(raw, comments=False)
                   os.environ[key]=" ".join(parts) if parts else ""
           os.environ.setdefault("DJANGO_SETTINGS_MODULE","config.settings.production")
+          import pwd
+          account=pwd.getpwnam("le001_1789265592")
+          os.initgroups(account.pw_name,account.pw_gid)
+          os.setgid(account.pw_gid)
+          os.setuid(account.pw_uid)
           import django
           django.setup()
           from django.conf import settings
