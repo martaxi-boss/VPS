@@ -1,0 +1,144 @@
+name: Lowcost Dynadot resume DNS after user disables Email Settings
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-dynadot-resume-dns-20261107.yml'
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-dynadot-production-domain
+  cancel-in-progress: false
+jobs:
+  dns:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Authorize workflow-only change
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")" == '.github/workflows/lowcost-dynadot-resume-dns-20261107.yml' ]]
+          echo LOWCOST_DNS_CHANGE_SCOPE=PASS
+      - name: Use pinned VPS and existing private production API3 key
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          echo LOWCOST_DNS_PINNED_HOST=PASS
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          root=/srv/projects/lowcost-europa
+          test "$(git -c "safe.directory=$root" -C "$root" rev-parse HEAD)" = bb3921b646102cba0af0f397bddfde8b2f37d39a
+          systemctl is-active --quiet lowcost-europa.service
+          nginx -t >/dev/null 2>&1
+          test -L /etc/nginx/sites-enabled/lowcost-europa-eu-acme.conf
+          python3 - <<'PY'
+          import json, pathlib, urllib.parse, urllib.request, subprocess, time
+          from urllib.error import HTTPError,URLError
+          root=pathlib.Path("/srv/projects/lowcost-europa")
+          credentials=root/"private/dynadot/credentials.json"
+          assert credentials.is_file() and not credentials.is_symlink() and credentials.stat().st_mode & 0o777 == 0o600
+          data=json.loads(credentials.read_text())
+          key=data.get("api_key","").strip()
+          domain="lowcost-europa.eu"
+          assert key and data.get("domain")==domain
+          backup=root/"private/deploy-rollbacks/dynadot-dns-cutover-20261107/dns-before.json"
+          assert backup.is_file() and not backup.is_symlink()
+          saved=json.loads(backup.read_text())
+          assert saved["domain"]==domain and saved["intended_apex"]=="146.59.145.3"
+          spf="v=spf1 mx include:webhost-mail-out.dynadot.com include:spf.webhost.dynadot.com ~all"
+          dmarc="v=DMARC1; p=none; rua=mailto:client-dmarc@dynadot.com"
+          target="146.59.145.3"
+          expected_mail={
+            "MX": "0 webhost.dynadot.com.",
+            "SPF": '"'+spf+'"',
+            "DKIM": "clients._domainkey.webhost.dynadot.com.",
+            "DMARC": '"'+dmarc+'"',
+          }
+          def api3(command,params=None):
+              q={"key":key,"command":command,"domain":domain}
+              q.update(params or {})
+              req=urllib.request.Request("https://api.dynadot.com/api3.json?"+urllib.parse.urlencode(q),
+                                         headers={"Accept":"application/json"},method="GET")
+              try:
+                  with urllib.request.urlopen(req,timeout=25) as stream: payload=json.load(stream)
+              except (HTTPError,URLError) as exc: raise SystemExit("DYNADOT_API_TRANSPORT_FAILED") from None
+              response=payload.get({"get_dns":"GetDnsResponse","set_dns2":"SetDnsResponse"}[command],{})
+              code=str(response.get("ResponseCode",""))
+              if code!="0" or str(response.get("Status","")).lower()!="success":
+                  err=response.get("Error","")
+                  if isinstance(err,dict): err=err.get("Description",err.get("Message","validation"))
+                  if isinstance(err,str): err=err.replace(key,"[REDACTED]")
+                  print("DYNADOT_"+command.upper()+"_CODE="+code+" REASON="+str(err)[:240])
+                  raise SystemExit(4)
+              return response
+          def dig(resolver,name,typ):
+              proc=subprocess.run(["dig","+short","+time=3","+tries=1","@"+resolver,name,typ],
+                                  capture_output=True,text=True,check=True,timeout=8)
+              return proc.stdout.strip().splitlines()
+          names=("ns1.dyna-ns.net","ns2.dyna-ns.net")
+          current=api3("get_dns").get("GetDns",{})
+          mode=(current.get("NameServerSettings") or {}).get("Type")
+          print("DYNADOT_MODE_BEFORE="+str(mode))
+          assert mode in ("Dynadot Parking","Dynadot DNS","Dynadot SiteBuilder","Dynadot Website Builder"),"UNEXPECTED_DNS_MODE"
+          for resolver in names:
+              apex=dig(resolver,domain,"A")
+              www=dig(resolver,"www."+domain,"A")
+              print("BEFORE_DNS_"+resolver+"="+str(apex)+"|"+str(www))
+              assert apex in (["185.53.179.149"],[target],[]) and www in (["185.53.179.149"],[target],[]),"UNEXPECTED_EXTERNAL_DNS"
+          if mode!="Dynadot DNS" or any(dig(names[0],name,"A")!=[target] for name in (domain,"www."+domain)):
+              params={
+                "main_record_type0":"a","main_record0":target,
+                "main_record_type1":"mx","main_record1":"webhost.dynadot.com","main_recordx1":"0",
+                "main_record_type2":"txt","main_record2":spf,
+                "subdomain0":"www","sub_record_type0":"a","sub_record0":target,
+                "subdomain1":"default._domainkey","sub_record_type1":"cname","sub_record1":"clients._domainkey.webhost.dynadot.com",
+                "subdomain2":"_dmarc","sub_record_type2":"txt","sub_record2":dmarc,
+              }
+              api3("set_dns2",params)
+              print("DYNADOT_SET_DNS2=PASS")
+          else:
+              print("DYNADOT_SET_DNS2=ALREADY_CONFIGURED")
+          after=api3("get_dns").get("GetDns",{})
+          print("DYNADOT_MODE_AFTER="+str((after.get("NameServerSettings") or {}).get("Type")))
+          for attempt in range(1,21):
+              statuses=[]
+              for resolver in names:
+                  a=dig(resolver,domain,"A")==[target]
+                  w=dig(resolver,"www."+domain,"A")==[target]
+                  mx=dig(resolver,domain,"MX")==[expected_mail["MX"]]
+                  txt=expected_mail["SPF"] in dig(resolver,domain,"TXT")
+                  dk=dig(resolver,"default._domainkey."+domain,"CNAME")==[expected_mail["DKIM"]]
+                  dm=expected_mail["DMARC"] in dig(resolver,"_dmarc."+domain,"TXT")
+                  statuses.append((a,w,mx,txt,dk,dm))
+              if all(all(parts) for parts in statuses):
+                  print("DYNADOT_APEX_WWW=READY")
+                  print("DYNADOT_MX_SPF_DKIM_DMARC=PRESERVED")
+                  break
+              if attempt==20:
+                  print("DYNADOT_PROPAGATION=PENDING")
+                  print("AUTHORITATIVE_FLAGS="+str(statuses))
+              else: time.sleep(5)
+          print("DYNADOT_MAILBOX_FORWARDING=UNCHANGED")
+          PY
+          REMOTE
