@@ -65,7 +65,7 @@ jobs:
           LINK_CREATED=0
           rollback() {
             local exitcode=$?
-            trap - ERR
+            trap - EXIT
             if [[ "$CHANGED" -eq 1 ]]; then
               if [[ "$LINK_CREATED" -eq 1 && -L "$LINK" && "$(readlink "$LINK")" == "$NEW_SOURCE" ]]; then
                 rm -f -- "$LINK"
@@ -82,7 +82,7 @@ jobs:
             fi
             exit "$exitcode"
           }
-          trap rollback ERR
+          trap rollback EXIT
           [[ -d "$ROOT/.git" && -f "$ENVFILE" && ! -L "$ENVFILE" ]] || exit 2
           [[ -d /var/www/letsencrypt ]] || { echo LOWCOST_ACME_WEBROOT=MISSING; exit 2; }
           [[ ! -e "$LINK" && ! -L "$LINK" ]] || { echo LOWCOST_WWW_EXISTING_VHOST=REFUSE_OVERWRITE; exit 2; }
@@ -91,7 +91,9 @@ jobs:
           nginx -t >/dev/null 2>&1
           OLD="$(git -c "safe.directory=$ROOT" -C "$ROOT" rev-parse HEAD)"
           [[ "$OLD" == "$EXPECTED_OLD" ]] || { echo LOWCOST_WWW_UNEXPECTED_OLD_SHA; exit 2; }
-          [[ "$(git -c "safe.directory=$ROOT" -C "$ROOT" symbolic-ref --short HEAD)" == main ]] || { echo LOWCOST_WWW_WRONG_BRANCH; exit 2; }
+          branch="$(git -c "safe.directory=$ROOT" -C "$ROOT" symbolic-ref -q --short HEAD 2>/dev/null || true)"
+          [[ -z "$branch" || "$branch" == main ]] || { echo LOWCOST_WWW_UNEXPECTED_BRANCH; exit 2; }
+          if [[ -z "$branch" ]]; then echo LOWCOST_WWW_EXISTING_GIT_MODE=DETACHED_HEAD; else echo LOWCOST_WWW_EXISTING_GIT_MODE=MAIN; fi
           [[ -z "$(git -c "safe.directory=$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)" ]] || { echo LOWCOST_WWW_DIRTY_TRACKED_WORKTREE; exit 2; }
           [[ ! -L "$ROOT/deploy/scripts/offsite-restore-drill.sh" ]] || exit 2
           RESTORE_HASH_BEFORE="$(sha256sum "$ROOT/deploy/scripts/offsite-restore-drill.sh" | awk '{print $1}')"
@@ -125,7 +127,7 @@ jobs:
           printf '%s\n' "$TARGET" > "$BACKUP/target-sha"
           echo LOWCOST_WWW_PRIVATE_BACKUP=CREATED
           CHANGED=1
-          git -c "safe.directory=$ROOT" -C "$ROOT" merge --ff-only -q FETCH_HEAD
+          git -c "safe.directory=$ROOT" -C "$ROOT" checkout --detach -q "$TARGET"
           [[ "$(git -c "safe.directory=$ROOT" -C "$ROOT" rev-parse HEAD)" == "$TARGET" ]]
           [[ -f "$NEW_SOURCE" && ! -L "$NEW_SOURCE" ]]
           [[ "$(sha256sum "$ROOT/deploy/scripts/offsite-restore-drill.sh" | awk '{print $1}')" == "$RESTORE_HASH_BEFORE" ]]
@@ -187,7 +189,7 @@ jobs:
           echo LOWCOST_WWW_GEO_IP_PRESERVED=YES
           echo LOWCOST_WWW_COMMERCIAL_NOINDEX_PRESERVED=YES
           echo LOWCOST_WWW_SAFE_PRESTAGE=PASS
-          trap - ERR
+          trap - EXIT
           REMOTE
       - name: Confirm old DuckDNS HTTPS remains accessible and private
         shell: bash
