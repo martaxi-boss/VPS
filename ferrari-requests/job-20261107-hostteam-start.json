@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "id": "hostteam-20261107-start",
+  "kind": "ruflo-team",
+  "phase": "start",
+  "team_id": "team-chatgpt-20261107",
+  "host": "ChatGPT",
+  "mission": "Demonstrar pela ponte normal ChatGPT e Ruflo uma colaboracao comprovada em dados JSON sinteticos",
+  "roles": [
+    {
+      "id": "architect",
+      "type": "architect",
+      "actions": []
+    },
+    {
+      "id": "coder",
+      "type": "coder",
+      "actions": [
+        "jq-format-json"
+      ]
+    },
+    {
+      "id": "tester",
+      "type": "tester",
+      "actions": [
+        "jq-format-json"
+      ]
+    },
+    {
+      "id": "reviewer",
+      "type": "reviewer",
+      "actions": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "design",
+      "role": "architect",
+      "reviewer": "reviewer",
+      "goal": "Definir criterios objetivos de formato e verificacao de JSON",
+      "depends_on": []
+    },
+    {
+      "id": "transform",
+      "role": "coder",
+      "reviewer": "reviewer",
+      "goal": "Formatar JSON de entrada com ferramenta Ferrari real",
+      "depends_on": [
+        "design"
+      ]
+    },
+    {
+      "id": "verification",
+      "role": "tester",
+      "reviewer": "reviewer",
+      "goal": "Reexecutar jq no artefacto aprovado e verificar resultado",
+      "depends_on": [
+        "transform"
+      ]
+    }
+  ],
+  "input": {
+    "name": "sample.json",
+    "content_base64": "eyJvayI6dHJ1ZX0K"
+  }
+}
