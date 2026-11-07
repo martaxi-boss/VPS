@@ -1,0 +1,182 @@
+name: Lowcost EU HTTPS SAN and WWW guarded activation
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-eu-https-cutover-20261107.yml'
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-www-https-20261107
+  cancel-in-progress: false
+jobs:
+  tls:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 24
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: One exact workflow change, public DNS, HTTP staging
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")" == '.github/workflows/lowcost-eu-https-cutover-20261107.yml' ]]
+          for host in lowcost-europa.eu www.lowcost-europa.eu; do
+            for resolver in ns1.dyna-ns.net ns2.dyna-ns.net 1.1.1.1; do
+              [[ "$(dig +short +tries=1 +time=4 @"$resolver" "$host" A | sort -u)" == '146.59.145.3' ]]
+              [[ -z "$(dig +short +tries=1 +time=4 @"$resolver" "$host" AAAA)" ]]
+            done
+            location="$(curl -sSI --max-time 18 "http://$host/" | tr -d '\r' | grep -i '^location:' | tail -n 1)"
+            [[ "$location" == *"https://lowcost-europa.duckdns.org/"* ]] || { echo "PRECERT_HTTP_FALLBACK_FAIL=$host"; exit 3; }
+            echo "PRECERT_DNS_HTTP_$host=PASS"
+          done
+      - name: Verify pinned VPS SSH identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/lowcost-https-hosts"
+          chmod 600 "$RUNNER_TEMP/lowcost-https-hosts"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/lowcost-https-hosts" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          echo LOWCOST_TLS_HOST_PIN=PASS
+      - name: Certbot webroot issuance and Nginx WWW cutover with auto rollback
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/lowcost-https-hosts" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          ROOT=/srv/projects/lowcost-europa
+          ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
+          OLD_LINK=/etc/nginx/sites-enabled/lowcost-europa-eu-acme.conf
+          NEW_LINK=/etc/nginx/sites-enabled/lowcost-europa-eu.conf
+          OLD_TARGET="$ROOT/deploy/nginx/lowcost-europa.eu-acme.conf"
+          NEW_TARGET="$ROOT/deploy/nginx/lowcost-europa.eu.conf"
+          SAVE="$ROOT/private/deploy-rollbacks/www-https-20261107"
+          CHANGED=0
+          rollback() {
+             rc=$?
+             trap - EXIT
+             if [[ "$CHANGED" -eq 1 ]]; then
+                [[ -L "$NEW_LINK" && "$(readlink "$NEW_LINK")" == "$NEW_TARGET" ]] && rm -f "$NEW_LINK"
+                [[ -L "$OLD_LINK" ]] || ln -s "$OLD_TARGET" "$OLD_LINK"
+                [[ -f "$SAVE/env.bak" ]] && cp -p "$SAVE/env.bak" "$ENVFILE"
+                systemctl restart lowcost-europa.service || true
+                if nginx -t >/dev/null 2>&1; then systemctl reload nginx || true; fi
+                echo LOWCOST_TLS_CONFIG_ROLLBACK=EXECUTED
+             fi
+             exit "$rc"
+          }
+          trap rollback EXIT
+          [[ "$(git -c "safe.directory=$ROOT" -C "$ROOT" rev-parse HEAD)" == bb3921b646102cba0af0f397bddfde8b2f37d39a ]] || exit 2
+          [[ -z "$(git -c "safe.directory=$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)" ]] || exit 2
+          [[ -f "$ENVFILE" && ! -L "$ENVFILE" && -f "$NEW_TARGET" && ! -L "$NEW_TARGET" ]] || exit 2
+          [[ -L "$OLD_LINK" && "$(readlink "$OLD_LINK")" == "$OLD_TARGET" && ! -e "$NEW_LINK" && ! -L "$NEW_LINK" ]] || exit 2
+          [[ -d /var/www/letsencrypt && -f /etc/letsencrypt/options-ssl-nginx.conf && -f /etc/letsencrypt/ssl-dhparams.pem ]] || { echo LOWCOST_TLS_GLOBAL_PREREQUISITES=FAIL; exit 2; }
+          command -v certbot >/dev/null
+          systemctl is-active --quiet lowcost-europa.service
+          nginx -t >/dev/null 2>&1
+          for host in lowcost-europa.eu www.lowcost-europa.eu; do
+            a="$(dig +time=4 +tries=1 +short @1.1.1.1 "$host" A | sort -u)"
+            [[ "$a" == 146.59.145.3 ]]
+            code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 --resolve "$host:80:146.59.145.3" "http://$host/")"
+            [[ "$code" == 302 ]] || { echo "LOWCOST_TLS_HTTP_FALLBACK_$host=$code"; exit 3; }
+          done
+          echo LOWCOST_TLS_PRECONDITIONS=PASS
+          mkdir -m 700 -p "$ROOT/private/deploy-rollbacks"
+          [[ ! -e "$SAVE" ]] || { echo LOWCOST_TLS_PREEXISTING_BACKUP=REFUSE_OVERWRITE; exit 2; }
+          mkdir -m 700 "$SAVE"
+          cp -p "$ENVFILE" "$SAVE/env.bak"
+          printf '%s\n' "$OLD_TARGET" > "$SAVE/original-nginx-link-target"
+          echo LOWCOST_TLS_PRIVATE_BACKUP=CREATED
+          # Initial certificate only, webroot server already installed and checked.
+          certbot certonly --webroot -w /var/www/letsencrypt \
+            -d lowcost-europa.eu -d www.lowcost-europa.eu \
+            --cert-name lowcost-europa.eu --non-interactive --agree-tos \
+            --keep-until-expiring --preferred-challenges http \
+            >/dev/null 2>"$SAVE/certbot-error.log" \
+            || { echo LOWCOST_TLS_CERTBOT_ISSUE=FAIL; tail -n 10 "$SAVE/certbot-error.log" | sed -E 's/[^[:print:]]/ /g'; exit 4; }
+          CERT=/etc/letsencrypt/live/lowcost-europa.eu/fullchain.pem
+          KEY=/etc/letsencrypt/live/lowcost-europa.eu/privkey.pem
+          [[ -f "$CERT" && -f "$KEY" ]] || exit 4
+          cert_san="$(openssl x509 -in "$CERT" -noout -ext subjectAltName)"
+          [[ "$cert_san" == *"DNS:lowcost-europa.eu"* && "$cert_san" == *"DNS:www.lowcost-europa.eu"* ]] || exit 4
+          openssl x509 -in "$CERT" -checkend 86400 -noout >/dev/null
+          echo LOWCOST_TLS_CERTIFICATE_SAN=PASS
+          CHANGED=1
+          python3 - "$ENVFILE" <<'PYENV'
+          from pathlib import Path
+          import sys
+          p=Path(sys.argv[1])
+          s=p.read_text(encoding="utf8")
+          lines=s.splitlines()
+          key="DJANGO_PUBLIC_SITE_URL"
+          matches=[i for i,line in enumerate(lines) if line.startswith(key+"=")]
+          if len(matches)>1: raise SystemExit("DUPLICATE_CANONICAL_URL_KEY")
+          replacement=key+"=https://www.lowcost-europa.eu"
+          if matches: lines[matches[0]]=replacement
+          else: lines.append(replacement)
+          if any(line.startswith("DJANGO_PUBLIC_INDEXING_ENABLED=true") for line in lines):
+            raise SystemExit("COMMERCIAL_NOINDEX_MUST_REMAIN_OFF")
+          p.write_text("\n".join(lines)+"\n",encoding="utf8")
+          PYENV
+          rm -f "$OLD_LINK"
+          ln -s "$NEW_TARGET" "$NEW_LINK"
+          nginx -t >/dev/null 2>&1
+          systemctl reload nginx
+          systemctl restart lowcost-europa.service
+          ready=0
+          for attempt in $(seq 1 25); do
+             if curl -fsS --max-time 5 --resolve www.lowcost-europa.eu:443:146.59.145.3 https://www.lowcost-europa.eu/ -o "$SAVE/test-home.html" 2>/dev/null; then ready=1; break; fi
+             sleep 1
+          done
+          [[ "$ready" -eq 1 ]] || { echo LOWCOST_TLS_WWW_GUNICORN_NOT_READY; exit 5; }
+          grep -Fq 'id="familias"' "$SAVE/test-home.html" || exit 5
+          contact="$(curl -fsS --max-time 18 --resolve www.lowcost-europa.eu:443:146.59.145.3 https://www.lowcost-europa.eu/contacto/)"
+          [[ "$contact" == *'mailto:geral@lowcost-europa.eu'* ]] || exit 5
+          head="$(curl -fsSI --max-time 18 --resolve www.lowcost-europa.eu:443:146.59.145.3 https://www.lowcost-europa.eu/)"
+          printf '%s\n' "$head" | grep -Eiq '^x-robots-tag:.*noindex'
+          root_hdr="$(curl -fsSI --max-time 18 --resolve lowcost-europa.eu:443:146.59.145.3 https://lowcost-europa.eu/)"
+          printf '%s\n' "$root_hdr" | grep -Eq '^HTTP/.* 301'
+          printf '%s\n' "$root_hdr" | grep -Eiq '^location: https://www.lowcost-europa.eu/'
+          old="$(curl -fsSI --max-time 18 https://lowcost-europa.duckdns.org/)"
+          printf '%s\n' "$old" | grep -Eiq '^x-robots-tag:.*noindex'
+          [[ -z "$(git -c "safe.directory=$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)" ]]
+          echo LOWCOST_TLS_WWW_HTTPS_200=PASS
+          echo LOWCOST_TLS_APEX_301_WWW=PASS
+          echo LOWCOST_TLS_CONTACT_OFFICIAL=PASS
+          echo LOWCOST_TLS_DUCKDNS_PRESERVED=PASS
+          echo LOWCOST_TLS_NOINDEX_PRESERVED=PASS
+          echo LOWCOST_TLS_VPS_SHA_ALIGNED=PASS
+          echo LOWCOST_TLS_GUARDED_CUTOVER=PASS
+          trap - EXIT
+          REMOTE
+      - name: Independently check public HTTPS on both domain variants
+        shell: bash
+        run: |
+          set -euo pipefail
+          for host in lowcost-europa.eu www.lowcost-europa.eu; do
+            code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 "https://$host/" )"
+            if [[ "$host" == www.lowcost-europa.eu ]]; then [[ "$code" == 200 ]]; else [[ "$code" == 301 ]]; fi
+            echo "EXTERNAL_HTTPS_$host=$code"
+          done
+          for host in lowcost-europa.eu www.lowcost-europa.eu; do
+            a="$(dig +short +tries=1 +time=4 @1.1.1.1 "$host" A | sort -u)"
+            [[ "$a" == 146.59.145.3 ]]
+          done
+          mx="$(dig +short +tries=1 +time=4 @1.1.1.1 lowcost-europa.eu MX | tr '\n' ' ')"
+          [[ "$mx" == '0 webhost.dynadot.com. ' ]]
+          echo LOWCOST_TLS_EXTERNAL_DNS_MAIL=PASS
