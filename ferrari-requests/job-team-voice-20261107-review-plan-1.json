@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "team-voice-20261107-review-plan-1",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "voice-presets-20261107-r1",
+  "revision": 1,
+  "turn": {
+    "task": "plan",
+    "role": "reviewer",
+    "kind": "review",
+    "message": "A revisao confirma que o plano distingue ambos os perfis aprovados, recusa substituicao por Rui e define prova com formato, hashes e revisoes. Uso comercial da voz Raquel permanece fora da certificacao.",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "5310b54a7eeb263d540459324fdfe5a7281824b9cb24cbb74852aecee3d45ebe"
+    ]
+  }
+}
