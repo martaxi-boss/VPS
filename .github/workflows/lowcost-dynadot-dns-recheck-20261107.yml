@@ -1,0 +1,32 @@
+name: Lowcost Europa Dynadot DNS recheck read-only
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-dynadot-dns-recheck-20261107.yml'
+permissions:
+  contents: read
+jobs:
+  recheck:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Query Dynadot authoritative DNS for exact target only
+        shell: bash
+        run: |
+          set -euo pipefail
+          domain=lowcost-europa.eu
+          target=146.59.145.3
+          for hostname in "$domain" "www.$domain"; do
+            a="$(dig +short @ns1.dyna-ns.net "$hostname" A | sed '/^$/d' | sort -u)"
+            a_public="$(dig +short @1.1.1.1 "$hostname" A | sed '/^$/d' | sort -u)"
+            printf 'DOMAIN_HOST=%s AUTHORITATIVE_A=%s PUBLIC_A=%s\n' "$hostname" "$a" "$a_public"
+            if [[ "$a" == "$target" && "$a_public" == "$target" ]]; then
+              echo "DOMAIN_HOST_${hostname//./_}=READY"
+            else
+              echo "DOMAIN_HOST_${hostname//./_}=PENDING_DNS_CHANGE"
+            fi
+          done
+          printf 'DOMAIN_MX=%s\n' "$(dig +short @ns1.dyna-ns.net "$domain" MX | tr '\n' ' ')"
+          printf 'DOMAIN_NAMESERVERS=%s\n' "$(dig +short "$domain" NS | tr '\n' ' ')"
+          echo LOWCOST_DOMAIN_DNS_RECHECK_READ_ONLY=PASS
