@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "team-voice-20261107-review-verify-1",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "voice-presets-20261107-r1",
+  "revision": 5,
+  "turn": {
+    "task": "verify",
+    "role": "reviewer",
+    "kind": "review",
+    "message": "Comparei os artefactos do programador e do testador: os SHA256 correspondem exatamente a 758ec684fc3eec354d4f968e025483fd222e60985ae8d461c9669fab4ab9f46c; os identificadores masculino e feminino estao intactos, sem qualquer voz Rui. A ferramenta Ferrari produziu ambos os resultados.",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "758ec684fc3eec354d4f968e025483fd222e60985ae8d461c9669fab4ab9f46c"
+    ]
+  }
+}
