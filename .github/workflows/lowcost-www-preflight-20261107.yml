@@ -86,7 +86,12 @@ jobs:
           [[ -d "$ROOT/.git" && -f "$ENVFILE" && ! -L "$ENVFILE" ]] || exit 2
           [[ -d /var/www/letsencrypt ]] || { echo LOWCOST_ACME_WEBROOT=MISSING; exit 2; }
           [[ ! -e "$LINK" && ! -L "$LINK" ]] || { echo LOWCOST_WWW_EXISTING_VHOST=REFUSE_OVERWRITE; exit 2; }
-          [[ ! -e "$BACKUP" ]] || { echo LOWCOST_WWW_EXISTING_BACKUP=REFUSE_OVERWRITE; exit 2; }
+          if [[ -e "$BACKUP" ]]; then
+            [[ -d "$BACKUP" && ! -L "$BACKUP" && -f "$BACKUP/env.bak" && -f "$BACKUP/old-sha" && -f "$BACKUP/target-sha" ]] || exit 2
+            [[ "$(<"$BACKUP/old-sha")" == "$EXPECTED_OLD" && "$(<"$BACKUP/target-sha")" == "$TARGET" ]] || exit 2
+            cmp -s "$ENVFILE" "$BACKUP/env.bak" || { echo LOWCOST_WWW_ROLLBACK_ENV_DIFFERS; exit 2; }
+            echo LOWCOST_WWW_EXISTING_BACKUP=VERIFIED_SAFE_REUSE
+          fi
           systemctl is-active --quiet lowcost-europa.service
           nginx -t >/dev/null 2>&1
           OLD="$(git -c "safe.directory=$ROOT" -C "$ROOT" rev-parse HEAD)"
@@ -121,11 +126,15 @@ jobs:
           if changed!=allowed: raise SystemExit("Unexpected git rollout scope")
           PYCHECK
           mkdir -m 700 -p "$ROOT/private/deploy-rollbacks"
-          mkdir -m 700 "$BACKUP"
-          cp -p "$ENVFILE" "$BACKUP/env.bak"
-          printf '%s\n' "$OLD" > "$BACKUP/old-sha"
-          printf '%s\n' "$TARGET" > "$BACKUP/target-sha"
-          echo LOWCOST_WWW_PRIVATE_BACKUP=CREATED
+          if [[ ! -e "$BACKUP" ]]; then
+            mkdir -m 700 "$BACKUP"
+            cp -p "$ENVFILE" "$BACKUP/env.bak"
+            printf '%s\n' "$OLD" > "$BACKUP/old-sha"
+            printf '%s\n' "$TARGET" > "$BACKUP/target-sha"
+            echo LOWCOST_WWW_PRIVATE_BACKUP=CREATED
+          else
+            echo LOWCOST_WWW_PRIVATE_BACKUP=REUSED
+          fi
           CHANGED=1
           git -c "safe.directory=$ROOT" -C "$ROOT" checkout --detach -q "$TARGET"
           [[ "$(git -c "safe.directory=$ROOT" -C "$ROOT" rev-parse HEAD)" == "$TARGET" ]]
@@ -167,7 +176,15 @@ jobs:
           systemctl restart lowcost-europa.service
           systemctl is-active --quiet lowcost-europa.service
           appurl=http://127.0.0.1:8001
-          contact="$(curl -fsS --max-time 20 -H 'Host: lowcost-europa.duckdns.org' -H 'X-Forwarded-Proto: https' "$appurl/contacto/")"
+          contact=""
+          for attempt in $(seq 1 25); do
+            if contact="$(curl -fsS --max-time 4 -H 'Host: lowcost-europa.duckdns.org' -H 'X-Forwarded-Proto: https' "$appurl/contacto/" 2>/dev/null)"; then
+              echo "LOWCOST_WWW_GUNICORN_READY_AFTER_ATTEMPT=$attempt"
+              break
+            fi
+            sleep 1
+          done
+          [[ -n "$contact" ]] || { echo LOWCOST_WWW_GUNICORN_START_TIMEOUT; exit 4; }
           [[ "$contact" == *'mailto:geral@lowcost-europa.eu'* ]] || exit 4
           [[ "$contact" != *'help.onlinefuture@gmail.com'* ]] || exit 4
           privacy="$(curl -fsS --max-time 20 -H 'Host: lowcost-europa.duckdns.org' -H 'X-Forwarded-Proto: https' "$appurl/privacidade/")"
