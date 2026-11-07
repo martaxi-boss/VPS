@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "id": "team-voice-20261107-plan-1",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "voice-presets-20261107-r1",
+  "revision": 0,
+  "turn": {
+    "task": "plan",
+    "role": "arq",
+    "kind": "submit",
+    "message": "Plano: confirmar dois identificadores imutaveis no ficheiro JSON (masculino piper-original-ptpt -> pt_PT-tugao-medium; feminino raquel-neural-ptpt -> pt-PT-RaquelNeural); rejeitar Rui e modelos divergentes; executar jq-format-json com Ferrari privado e repetir o processamento; comparar SHA256 e rever por papel diferente. Risco: Raquel usa servico externo sem licenca comercial comprovada, por isso apenas preview. Nao alterar a ponte SSH nem partilhar dependencias."
+  }
+}
