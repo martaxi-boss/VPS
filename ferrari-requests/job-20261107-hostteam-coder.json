@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "hostteam-20261107-coder",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "team-chatgpt-20261107",
+  "revision": 2,
+  "turn": {
+    "task": "transform",
+    "role": "coder",
+    "kind": "invoke",
+    "message": "Executar a formatacao do JSON sintetico com jq-format-json privado do catalogo Ferrari, sem alterar o valor ok=true. Entregar ficheiro JSON verdadeiro e SHA-256 para revisao; nao aprovar o proprio resultado.",
+    "action": "jq-format-json",
+    "input_from": "$input"
+  }
+}
