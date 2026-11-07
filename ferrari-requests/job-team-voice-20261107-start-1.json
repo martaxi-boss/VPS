@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "id": "team-voice-20261107-start-1",
+  "kind": "ruflo-team",
+  "phase": "start",
+  "team_id": "voice-presets-20261107-r1",
+  "host": "ChatGPT",
+  "mission": "Verificar a integridade dos dois perfis de voz pt-PT aprovados pelo proprietario e certificar revisao por agentes sem alterar a ponte.",
+  "roles": [
+    {
+      "id": "arq",
+      "type": "architect",
+      "actions": []
+    },
+    {
+      "id": "coder",
+      "type": "coder",
+      "actions": [
+        "jq-format-json"
+      ]
+    },
+    {
+      "id": "tester",
+      "type": "tester",
+      "actions": [
+        "jq-format-json"
+      ]
+    },
+    {
+      "id": "reviewer",
+      "type": "reviewer",
+      "actions": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "plan",
+      "role": "arq",
+      "reviewer": "reviewer",
+      "goal": "Definir criterios auditaveis para manter Piper original masculino e Raquel feminino, sem trocar por Rui.",
+      "depends_on": []
+    },
+    {
+      "id": "format",
+      "role": "coder",
+      "reviewer": "reviewer",
+      "goal": "Formatar os dois perfis aprovados como JSON privado e verificar o nome dos modelos.",
+      "depends_on": [
+        "plan"
+      ]
+    },
+    {
+      "id": "verify",
+      "role": "tester",
+      "reviewer": "reviewer",
+      "goal": "Voltar a processar o JSON aprovado para confirmar estabilidade e integridade de ambos os IDs de voz.",
+      "depends_on": [
+        "format"
+      ]
+    }
+  ],
+  "input": {
+    "name": "voice-presets.json",
+    "content_base64": "eyJtYWxlIjp7InByb2ZpbGUiOiJwaXBlci1vcmlnaW5hbC1wdHB0IiwibW9kZWwiOiJwdF9QVC10dWdhby1tZWRpdW0ifSwiZmVtYWxlIjp7InByb2ZpbGUiOiJyYXF1ZWwtbmV1cmFsLXB0cHQiLCJtb2RlbCI6InB0LVBULVJhcXVlbE5ldXJhbCJ9fQ=="
+  }
+}
