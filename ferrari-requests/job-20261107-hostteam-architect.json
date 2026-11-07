@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "id": "hostteam-20261107-architect",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "team-chatgpt-20261107",
+  "revision": 0,
+  "turn": {
+    "task": "design",
+    "role": "architect",
+    "kind": "submit",
+    "message": "Plano de verificacao: usar apenas o JSON sintetico sample.json; o Programador executa a acao privada jq-format-json e conserva os valores. O Testador volta a executar a mesma ferramenta sobre o artefacto aprovado. Critérios de aceitacao: os dois resultados devem ser JSON valido, conter ok=true, ter ficheiros reais dentro do Ferrari, SHA-256 verificado e revisao por papel diferente. O Revisor rejeita qualquer resultado sem evidencia de ferramenta ou hash correspondente. Sem modificar outros projetos."
+  }
+}
