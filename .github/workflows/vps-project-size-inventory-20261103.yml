@@ -117,6 +117,23 @@ jobs:
           for root in /root/iptvpn_bot /opt/telegram-robot-leads /opt/.telegram-leads-previous-08ffc99ae8b1 /opt/telegram-leads-optin /home/ubuntu/telegram-leads-venv /root/migration-preserved /root/migration-20260923 /root/project-secrets/telegram-robot-leads /root/project-secrets/iptvpn_bot /home/ubuntu/.pm2 /root/.pm2; do
             if [ -d "$root" ]; then du -x -B1 -s "$root" 2>/dev/null; fi
           done
+          echo '=== LOWCOST_GITHUB_VPS_REVISION_READONLY ==='
+          LOWCOST_ROOT=/srv/projects/lowcost-europa
+          if [ -e "$LOWCOST_ROOT/.git" ]; then
+            echo 'LOWCOST_REPOSITORY_PRESENT=YES'
+            revision="$(git -c safe.directory="$LOWCOST_ROOT" -C "$LOWCOST_ROOT" rev-parse --verify HEAD 2>/dev/null || :)"
+            if [[ "$revision" =~ ^[a-f0-9]{40}$ ]]; then
+              echo "LOWCOST_VPS_SHA=$revision"
+              dirty="$(git -c safe.directory="$LOWCOST_ROOT" -C "$LOWCOST_ROOT" status --porcelain --untracked-files=no 2>/dev/null | wc -l)"
+              echo "LOWCOST_TRACKED_CHANGES=$dirty"
+            else
+              echo 'LOWCOST_VPS_SHA=UNAVAILABLE'
+            fi
+          else
+            echo 'LOWCOST_REPOSITORY_PRESENT=NO'
+          fi
+          service_state="$(systemctl is-active lowcost-europa.service 2>/dev/null || :)"
+          case "$service_state" in active|inactive|failed) echo "LOWCOST_SERVICE_STATE=$service_state" ;; *) echo 'LOWCOST_SERVICE_STATE=UNKNOWN' ;; esac
           echo '=== PROJECT_SYSTEMD_ACTIVE ==='
           systemctl --no-legend --no-pager --plain list-units --type=service --state=running 2>/dev/null | awk '{print $1}'
           echo '=== PROJECT_SYSTEMD_INSTALLED ==='
