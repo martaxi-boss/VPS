@@ -134,6 +134,47 @@ jobs:
           fi
           service_state="$(systemctl is-active lowcost-europa.service 2>/dev/null || :)"
           case "$service_state" in active|inactive|failed) echo "LOWCOST_SERVICE_STATE=$service_state" ;; *) echo 'LOWCOST_SERVICE_STATE=UNKNOWN' ;; esac
+          echo '=== LOWCOST_TRACKED_DIFF_BLOBS_READONLY ==='
+          python3 - <<'PY_LOW_DIFFERENCES'
+          from pathlib import Path
+          import subprocess
+          root = Path("/srv/projects/lowcost-europa")
+          if not (root / ".git").exists():
+              print("LOWCOST_DIFF_SCAN=REPOSITORY_NOT_FOUND")
+          else:
+              cmd = ["git", "-c", "safe.directory=" + str(root), "-C", str(root)]
+              changed = subprocess.run(
+                  cmd + ["diff", "HEAD", "--name-only", "-z"],
+                  capture_output=True, check=False, timeout=25
+              )
+              if changed.returncode:
+                  print("LOWCOST_DIFF_SCAN=UNAVAILABLE")
+              else:
+                  names = [p for p in changed.stdout.split(b"\0") if p]
+                  print("LOWCOST_DIFF_SCAN=PASS")
+                  print("LOWCOST_DIFF_ENTRIES=" + str(len(names)))
+                  allowed = ("apps/", "config/", "deploy/", "docs/", "tests/", ".github/")
+                  approved_files = {"README.md", "AGENTS.md", "PROJECT_STATE.md",
+                                    "PROJECT_CONSTITUTION.md", ".gitignore", "manage.py"}
+                  for raw in names:
+                      name = raw.decode("utf-8", "replace")
+                      file = root / name
+                      if (not (name.startswith(allowed) or name in approved_files)
+                              or file.is_symlink() or not file.is_file()):
+                          print("LOWCOST_DIRTY_BLOB=OTHER_OR_MISSING")
+                          continue
+                      hashed = subprocess.run(
+                          cmd + ["hash-object", str(file)],
+                          capture_output=True, text=True, check=False, timeout=10
+                      )
+                      hash_value = hashed.stdout.strip()
+                      if hashed.returncode or len(hash_value) != 40 or not all(
+                          c in "0123456789abcdef" for c in hash_value
+                      ):
+                          print("LOWCOST_DIRTY_BLOB=HASH_UNAVAILABLE")
+                      else:
+                          print("LOWCOST_DIRTY_BLOB=" + name + "|" + hash_value)
+          PY_LOW_DIFFERENCES
           echo '=== PROJECT_SYSTEMD_ACTIVE ==='
           systemctl --no-legend --no-pager --plain list-units --type=service --state=running 2>/dev/null | awk '{print $1}'
           echo '=== PROJECT_SYSTEMD_INSTALLED ==='
