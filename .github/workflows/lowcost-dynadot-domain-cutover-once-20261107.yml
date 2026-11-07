@@ -1,4 +1,4 @@
-name: Lowcost Europa Dynadot DNS cutover preserving mailbox (once)
+name: Lowcost DNS API3 rejection diagnosis and guarded retry
 on:
   push:
     branches: [main]
@@ -107,6 +107,11 @@ jobs:
               name={"get_dns":"GetDnsResponse","set_dns2":"SetDnsResponse"}[command]
               result=body.get(name,{})
               if str(result.get("ResponseCode"))!="0" or str(result.get("Status","")).lower()!="success":
+                  if command=="set_dns2":
+                      err=result.get("Error","")
+                      if isinstance(err,dict): err=err.get("Description",err.get("Message",err.get("message","validation error")))
+                      err=str(err).replace(key,"[REDACTED]").replace(data.get("api_secret",""),"[REDACTED]") if data.get("api_secret","") else str(err).replace(key,"[REDACTED]")
+                      print("DYNADOT_SET_DNS2_ERROR="+err[:300])
                   raise RuntimeError("DYNADOT_"+command.upper()+"_FAILED_CODE_"+str(result.get("ResponseCode")))
               return result
           original=api3("get_dns",{})
@@ -125,10 +130,10 @@ jobs:
           folder=root/"private/deploy-rollbacks"/"dynadot-dns-cutover-20261107"
           folder.mkdir(mode=0o700,parents=True,exist_ok=True)
           snapshot_file=folder/"dns-before.json"
-          assert not snapshot_file.exists(),"DNS_BACKUP_ALREADY_EXISTS_ABORT"
-          with snapshot_file.open("x") as h: json.dump(snapshot,h,indent=2)
-          snapshot_file.chmod(0o600)
-          print("DYNADOT_DNS_PRIVATE_BACKUP=PASS")
+          assert snapshot_file.exists() and not snapshot_file.is_symlink(),"MISSING_PREVIOUS_DNS_SNAPSHOT"
+          previous=json.loads(snapshot_file.read_text())
+          assert previous["previous_mode"]==mode and previous["authoritative_before"]==before and previous["intended_apex"]==apex,"DNS_SNAPSHOT_CHANGED"
+          print("DYNADOT_DNS_PRIVATE_BACKUP=REUSED_VERIFIED")
           params={
             "main_record_type0":"a","main_record0":apex,
             "main_record_type1":"mx","main_record1":mx,"main_recordx1":"0",
