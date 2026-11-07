@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "team-voice-20261107-format-1",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "voice-presets-20261107-r1",
+  "revision": 2,
+  "turn": {
+    "task": "format",
+    "role": "coder",
+    "kind": "invoke",
+    "message": "Executar jq-format-json no registo privado de voz e preservar os dois perfis originais sem substituir por Rui. A resposta deve ser prova de ferramenta real Ferrari.",
+    "action": "jq-format-json",
+    "input_from": "$input"
+  }
+}
