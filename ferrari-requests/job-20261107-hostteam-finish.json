@@ -1,9 +1,0 @@
-{
-  "version": 1,
-  "id": "hostteam-20261107-finish",
-  "kind": "ruflo-team",
-  "phase": "finish",
-  "team_id": "team-chatgpt-20261107",
-  "revision": 6,
-  "approval": "Aceitacao final do anfitriao ChatGPT: inspecionei os ZIPs dos dois executores privados, confirmei JSON valido ok=true e SHA-256 identico, plano e duas ferramentas reais aprovados por revisor distinto. Teste sintetico da hierarquia ChatGPT-Ruflo-Ferrari aprovado; nao certifica chamadas automaticas LLM na VPS."
-}
