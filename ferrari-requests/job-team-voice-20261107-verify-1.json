@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "team-voice-20261107-verify-1",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "voice-presets-20261107-r1",
+  "revision": 4,
+  "turn": {
+    "task": "verify",
+    "role": "tester",
+    "kind": "invoke",
+    "message": "Rerun jq-format-json on the approved format output, ensuring both exact pt-PT models survive unchanged; compare resulting artifact hash with the coder output as the acceptance test.",
+    "action": "jq-format-json",
+    "input_from": "format"
+  }
+}
