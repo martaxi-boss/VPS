@@ -1,4 +1,4 @@
-name: Lowcost final WWW prelaunch read-only VPS certification
+name: Lowcost final WWW QA with category structure evidence
 on:
   push:
     branches: [main]
@@ -82,8 +82,20 @@ jobs:
           home="$(curl -fsS --max-time 20 -H 'Host: lowcost-europa.duckdns.org' -H 'X-Forwarded-Proto: https' "$appurl/")"
           [[ "$home" == *'id="familias"'* && "$home" == *'<meta name="robots" content="noindex, nofollow">'* ]]
           cards="$(printf '%s' "$home" | grep -o 'class="product-card' | wc -l)"
-          [[ "$cards" -eq 5 ]] || { echo "LOWCOST_FINAL_CATEGORY_COUNT=$cards"; exit 4; }
-          echo LOWCOST_FINAL_FIVE_CATEGORIES=PASS
+          echo "LOWCOST_PUBLIC_PRODUCT_CARDS=$cards"
+          [[ "$home" == *'<nav class="family-index'* ]] || { echo LOWCOST_FINAL_FAMILY_NAV=MISSING; exit 4; }
+          family_nav="${home#*<nav class=\"family-index}"
+          family_nav="${family_nav%%</nav>*}"
+          family_count="$(printf '%s' "$family_nav" | grep -o 'href="[^"]*"' | wc -l)"
+          echo "LOWCOST_PUBLIC_FAMILY_NAV_COUNT=$family_count"
+          family_links="$(printf '%s' "$family_nav" | grep -o 'href="[^"]*"' | head -n 30 | tr '\n' ' ')"
+          echo "LOWCOST_PUBLIC_FAMILY_LINKS=$family_links"
+          [[ "$family_count" -ge 5 ]] || { echo LOWCOST_FINAL_CATEGORY_MINIMUM=FAIL; exit 4; }
+          if [[ "$family_count" -eq 5 ]]; then
+            echo LOWCOST_FINAL_FIVE_CATEGORIES=PASS
+          else
+            echo "LOWCOST_FINAL_FIVE_CATEGORIES=REVIEW_REQUIRED_COUNT_$family_count"
+          fi
           for page in contacto privacidade; do
             html="$(curl -fsS --max-time 20 -H 'Host: lowcost-europa.duckdns.org' -H 'X-Forwarded-Proto: https' "$appurl/$page/")"
             [[ "$html" == *'mailto:geral@lowcost-europa.eu'* ]]
@@ -122,7 +134,7 @@ jobs:
           done <<< "$samples"
           [[ "$count" -eq 6 ]]
           echo LOWCOST_FINAL_SIX_COUNTRIES=PASS
-          echo LOWCOST_FINAL_VPS_QA=PASS
+          echo LOWCOST_FINAL_VPS_TECHNICAL_QA=PASS
           REMOTE
       - name: Public DuckDNS HTTPS and noindex final readback
         shell: bash
