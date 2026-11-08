@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "id": "cert5-team-finish-20261108-a7e6",
+  "kind": "ruflo-team",
+  "phase": "finish",
+  "team_id": "cert5-team-20261108-a7e6",
+  "revision": 2,
+  "approval": "O anfitriao verificou evidence-1.json com ok=true e SHA-256 correcto, revisao aprovada por papel distinto e execucao privada jq. Aprovo apenas a certificacao desta equipa assistida; nao declaro autonomia LLM."
+}
