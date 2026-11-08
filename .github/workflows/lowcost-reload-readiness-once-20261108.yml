@@ -1,0 +1,54 @@
+name: Lowcost application reload readiness read only
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/lowcost-reload-readiness-once-20261108.yml']
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - name: Attribute outages and inspect safe graceful reload support
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          ROOT=/srv/projects/lowcost-europa
+          python3 - <<'PY'
+          import collections,datetime,json,subprocess
+          from pathlib import Path
+          def prop(k):return subprocess.check_output(['systemctl','show','lowcost-europa.service','--property='+k,'--value'],text=True).strip()
+          unit=Path(prop('FragmentPath')).resolve()
+          print('APP_UNIT_FRAGMENT='+str(unit))
+          print('APP_UNIT_MATCHES_SOURCE='+str(unit.read_bytes()==Path('/srv/projects/lowcost-europa/deploy/systemd/lowcost-europa.service').read_bytes()))
+          print('APP_CAN_RELOAD='+prop('CanReload'))
+          print('APP_RESTART_COUNT='+prop('NRestarts'))
+          r=subprocess.run(['journalctl','-u','lowcost-europa.service','--since','2026-11-08 00:00:00','--no-pager','-o','json'],capture_output=True,text=True,check=True)
+          events=[]
+          for raw in r.stdout.splitlines():
+              try:
+                  entry=json.loads(raw)
+                  if entry.get('SYSLOG_IDENTIFIER')!='systemd':continue
+                  message=entry.get('MESSAGE','')
+                  kind=next((k for k,token in [('stopping','Stopping '),('stopped','Stopped '),('started','Started '),('failed','Failed with result'),('exited','Main process exited'),('restart_scheduled','Scheduled restart')] if token in message),None)
+                  if kind:
+                      when=datetime.datetime.fromtimestamp(int(entry['__REALTIME_TIMESTAMP'])/1e6,datetime.timezone.utc).isoformat()
+                      events.append(dict(utc=when,event=kind))
+              except (ValueError,KeyError,TypeError):continue
+          print('APP_SYSTEMD_EVENTS='+json.dumps(events[-35:]))
+          PY
+          REMOTE
