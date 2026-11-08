@@ -1,4 +1,4 @@
-name: Lowcost independent IndexNow certification
+name: Lowcost final international search alignment and preservation
 on:
   push:
     branches: [main]
@@ -53,8 +53,18 @@ jobs:
             ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
           set -Eeuo pipefail
           root=/srv/projects/lowcost-europa
-          target=93c5dedcf0877eeff583b2863fe246d132c7225c
+          target=280fca9dd5ea1b99b734f33df78b8fdd985731e0
           g() { git -c "safe.directory=$root" -C "$root" "$@"; }
+          current=93c5dedcf0877eeff583b2863fe246d132c7225c
+          [[ "$(g rev-parse HEAD)" == "$current" ]]
+          changes="$(g status --porcelain=v1 --untracked-files=no)"
+          [[ -z "$changes" ]]
+          GIT_TERMINAL_PROMPT=0 g fetch origin main >/dev/null 2>&1
+          [[ "$(g rev-parse origin/main)" == "$target" ]]
+          g merge-base --is-ancestor "$current" "$target"
+          runtime_changes="$(g diff --name-only "$current" "$target" -- . ':(exclude)PROJECT_STATE.md' ':(exclude)docs/operations/international-*')"
+          [[ -z "$runtime_changes" ]]
+          g checkout --detach "$target" >/dev/null 2>&1
           [[ "$(g rev-parse HEAD)" == "$target" ]]
           changes="$(g status --porcelain=v1 --untracked-files=no)"
           [[ -z "$changes" ]]
