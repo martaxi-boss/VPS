@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "ferrari-v122-ruflo-svg-turn-20261108-2334",
+  "kind": "ruflo-team",
+  "team_id": "ferrari_v122_live_2334",
+  "phase": "turn",
+  "revision": 0,
+  "turn": {
+    "task": "cartaz",
+    "role": "executor",
+    "kind": "operation",
+    "operation": "svg-poster",
+    "title": "Ferrari v1.0.22 - prova real",
+    "message": "Gerar cartaz SVG em ferramenta Ferrari privada e submeter evidencias verificaveis a um revisor independente."
+  }
+}
