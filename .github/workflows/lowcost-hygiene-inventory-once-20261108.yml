@@ -94,6 +94,47 @@ jobs:
             fi
           done
 
+          echo LOWCOST_INVENTORY_LEGACY_NGINX_FILE_TYPE_BEGIN
+          for f in /etc/nginx/sites-enabled/lowcost-europa-temp /etc/nginx/sites-available/lowcost-europa-temp /etc/nginx/sites-enabled/lowcost-europa-eu.conf; do
+            if [[ -e "$f" ]]; then printf '%s=' "$f"; stat -c '%F' "$f"; fi
+          done
+          echo LOWCOST_INVENTORY_LEGACY_NGINX_FILE_TYPE_END
+          echo LOWCOST_INVENTORY_LEGACY_ENV_KEY_NAMES_BEGIN
+          for envfile in "$ROOT/private/systemd-env/lowcost-europa.env" /etc/lowcost-europa/lowcost-europa.env; do
+            if [[ -f "$envfile" ]]; then
+              grep -F 'lowcost-europa.duckdns.org' "$envfile" | cut -d= -f1 | grep -E '^[A-Za-z_][A-Za-z_0-9]*
+          if [[ -d /etc/letsencrypt/renewal ]]; then
+            find /etc/letsencrypt/renewal -mindepth 1 -maxdepth 1 -type f -printf '%f\\n' | grep -E 'lowcost|duckdns|sslip' || true
+          fi
+          echo LOWCOST_INVENTORY_CERTBOT_CERTIFICATES_END
+          echo LOWCOST_INVENTORY_DNS_TIMERS_BEGIN
+          systemctl list-unit-files --no-pager --no-legend | grep -Ei 'lowcost.*dns|lowcost.*domain|duckdns|sslip' | head -n 20 || true
+          echo LOWCOST_INVENTORY_DNS_TIMERS_END
+          printf 'LOWCOST_INVENTORY_NGINX_TEST='
+          nginx -t >/dev/null 2>&1 && echo PASS
+          echo LOWCOST_INVENTORY_LOW_COST_SYSTEMD_BEGIN
+          systemctl list-timers --all --no-pager --no-legend | grep 'lowcost-europa' | sed -E 's/^[^ ]+[[:space:]]+[^ ]+[[:space:]]+[^ ]+[[:space:]]+[^ ]+[[:space:]]+/TIMER /' | head -n 24 || true
+          echo LOWCOST_INVENTORY_LOW_COST_SYSTEMD_END
+          for service in lowcost-europa.service lowcost-europa-catalog-maintenance.timer lowcost-europa-weekly-discovery.timer lowcost-europa-indexnow.timer; do
+            printf 'LOWCOST_INVENTORY_%s=' "$service"
+            systemctl is-active "$service" || true
+          done
+          printf 'LOWCOST_INVENTORY_PYTHON_CACHE_COUNT='
+          find "$ROOT" -xdev \( -name .venv -o -name .git -o -name private \) -prune -o -type d \( -name __pycache__ -o -name .pytest_cache -o -name .ruff_cache \) -print | wc -l
+          printf 'LOWCOST_INVENTORY_TEMP_DIR_COUNT='
+          find "$ROOT" -xdev \( -name .venv -o -name .git -o -name private \) -prune -o -type d \( -name qa-artifacts -o -name test-results -o -name playwright-report \) -print | wc -l
+          printf 'LOWCOST_INVENTORY_ACTIVE_SERVICE='
+          systemctl is-active lowcost-europa.service
+          curl -fsSI --max-time 15 --resolve www.lowcost-europa.eu:443:146.59.145.3 https://www.lowcost-europa.eu/ | grep -Eq '^HTTP/.* 200'
+          echo LOWCOST_INVENTORY_PUBLIC_HTTPS=PASS
+          echo LOWCOST_INVENTORY_READ_ONLY=PASS
+          REMOTE
+ | sort -u || true
+              break
+            fi
+          done
+          echo LOWCOST_INVENTORY_LEGACY_ENV_KEY_NAMES_END
+          printf 'LOWCOST_INVENTORY_CERTBOT_TIMER='; systemctl is-active certbot.timer || true
           echo LOWCOST_INVENTORY_CERTBOT_CERTIFICATES_BEGIN
           if [[ -d /etc/letsencrypt/renewal ]]; then
             find /etc/letsencrypt/renewal -mindepth 1 -maxdepth 1 -type f -printf '%f\\n' | grep -E 'lowcost|duckdns|sslip' || true
