@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "ruflo-cad-direct-review-20261108-01",
+  "kind": "ruflo-team",
+  "team_id": "ruflo-cad-direct-20261108",
+  "phase": "turn",
+  "revision": 1,
+  "turn": {
+    "task": "produce-cad",
+    "role": "cad-reviewer",
+    "kind": "review",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "0c3e483d18ccce5efa19615e61964ec55588ee9045a571e8979221d1e76217d0"
+    ],
+    "message": "Independent mesh inspection of actual 61170-byte STL: closed and winding-consistent; 40x30x12 mm bounds, 9.99997 mm bore, 13458.20 mm3 volume, Euler 0. SHA-256 matches Ferrari Ruflo output. Approve direct catalog CAD execution."
+  }
+}
