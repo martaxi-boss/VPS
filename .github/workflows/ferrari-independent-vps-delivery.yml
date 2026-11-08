@@ -216,7 +216,7 @@ jobs:
               payload=json.load(fh)
           if mode == "--universal-f14-obs-r2":
               expected={"version":1,"phase":"universal-catalog",
-                        "sha":"966f3b4d766b13e038f032a65cc9341dde978d1a","mode":"f14-obs-r2"}
+                        "sha":"d7980190de188db5e8dd4cd32b50123e3d69aa8d","mode":"f14-obs-r2"}
           elif mode == "--universal-f14-closeout":
               expected={"version":1,"phase":"universal-catalog",
                         "sha":"fab51459fd1cc05b8c2f7d632cf846b2455066ac","mode":"f14-closeout"}
@@ -406,7 +406,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: 966f3b4d766b13e038f032a65cc9341dde978d1a
+          ref: d7980190de188db5e8dd4cd32b50123e3d69aa8d
           path: ferrari-f14-obs-r2
           persist-credentials: false
 
