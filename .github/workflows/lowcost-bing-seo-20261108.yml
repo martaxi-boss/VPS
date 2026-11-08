@@ -53,75 +53,30 @@ jobs:
             ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
           set -Eeuo pipefail
           root=/srv/projects/lowcost-europa
-          current=2d5a38acc80964535ae3658501d3ae1330e5936e
-          target=f1c1a3a8d3e6336721a201301cd43a7a8ac50cd1
+          current=f1c1a3a8d3e6336721a201301cd43a7a8ac50cd1
+          target=aa6f979aed08487ebe244d1207367946d6e67c3b
           g() { git -c "safe.directory=$root" -C "$root" "$@"; }
           [[ "$(g rev-parse HEAD)" == "$current" ]]
           changes="$(g status --porcelain=v1 --untracked-files=no)"
           [[ -z "$changes" ]]
-          private_before="$(sha256sum "$root/.legal/operator.json" "$root/private/systemd-env/lowcost-europa.env")"
-          rollback() {
-           set +e
-           g checkout --detach "$current" >/dev/null 2>&1
-           systemctl restart lowcost-europa.service
-           echo BING_SEO_ROLLBACK_EXECUTED
-          }
-          trap rollback ERR
           GIT_TERMINAL_PROMPT=0 g fetch origin main >/dev/null 2>&1
           [[ "$(g rev-parse origin/main)" == "$target" ]]
           g merge-base --is-ancestor "$current" "$target"
-          unexpected="$(g diff --name-only "$current" "$target" -- . ':(exclude)PROJECT_STATE.md' ':(exclude)apps/storefront/views.py' ':(exclude)apps/storefront/ui_translations.py' ':(exclude)apps/storefront/templates/storefront/home.html')"
+          unexpected="$(g diff --name-only "$current" "$target" -- . ':(exclude)PROJECT_STATE.md' ':(exclude)docs/operations/international-search-20261108.md')"
           [[ -z "$unexpected" ]]
           g checkout --detach "$target" >/dev/null 2>&1
-          systemctl restart lowcost-europa.service
-          ready=false
-          for attempt in $(seq 1 25); do
-           if curl -fsS --max-time 2 -H 'Host: www.lowcost-europa.eu' -H 'X-Forwarded-Proto: https' http://127.0.0.1:8001/health/ready/ >/dev/null; then ready=true; break; fi
-           sleep 1
-          done
-          [[ "$ready" == true ]]
-          python3 - <<'PY'
-          from html.parser import HTMLParser
-          import urllib.request,urllib.error
-          class Metadata(HTMLParser):
-           def __init__(self):
-            super().__init__();self.title='';self.in_title=False;self.images=[];self.canonical=[];self.robots=[]
-           def handle_starttag(self,tag,attrs):
-            a=dict(attrs)
-            if tag=='title':self.in_title=True
-            if tag=='img':self.images.append(a.get('alt','').strip())
-            if tag=='link' and a.get('rel')=='canonical':self.canonical.append(a.get('href'))
-            if tag=='meta' and a.get('name')=='robots':self.robots.append(a.get('content'))
-           def handle_endtag(self,tag):
-            if tag=='title':self.in_title=False
-           def handle_data(self,data):
-            if self.in_title:self.title+=data
-          class NoRedirect(urllib.request.HTTPRedirectHandler):
-           def redirect_request(self,*args):return None
-          base='https://www.lowcost-europa.eu'
-          with urllib.request.urlopen(base+'/',timeout=20) as r:
-           p=Metadata();p.feed(r.read().decode())
-           assert r.status==200 and 'noindex' not in r.headers.get('X-Robots-Tag','').lower()
-          assert 30<=len(p.title)<=65 and 'Lowcost Europa' in p.title
-          assert len(p.images)>=4 and all(p.images)
-          assert p.canonical==[base+'/'] and p.robots==['index, follow']
-          print('BING_SEO_EXTERNAL_HOME_TITLE='+p.title)
-          print('BING_SEO_EXTERNAL_IMAGE_ALTS='+str(len(p.images))+'/'+str(len(p.images)))
-          for path in ['/painel/','/admin/']:
-           try:r=urllib.request.build_opener(NoRedirect).open(urllib.request.Request(base+path,method='HEAD'),timeout=20)
-           except urllib.error.HTTPError as e:r=e
-           assert r.code==302 and 'noindex' in r.headers.get('X-Robots-Tag','') and 'private' in r.headers.get('Cache-Control','')
-          print('BING_SEO_PRIVATE_PANEL=PASS')
-          PY
-          [[ "$(sha256sum "$root/.legal/operator.json" "$root/private/systemd-env/lowcost-europa.env")" == "$private_before" ]]
-          nginx -t >/dev/null 2>&1
           systemctl is-active --quiet lowcost-europa.service
           systemctl is-active --quiet lowcost-europa-indexnow.timer
-          changes="$(g status --porcelain=v1 --untracked-files=no)"
-          [[ -z "$changes" ]]
-          echo "BING_SEO_DEPLOYED_SHA=$target"
-          echo BING_SEO_CANONICAL_HTTPS_PRIVATE_ENV_PRESERVED=PASS
-          trap - ERR
+          systemctl is-enabled --quiet lowcost-europa-indexnow.timer
+          nginx -t >/dev/null 2>&1
+          curl -fsS --max-time 20 -H 'Host: www.lowcost-europa.eu' -H 'X-Forwarded-Proto: https' http://127.0.0.1:8001/health/ready/ >/dev/null
+          [[ "$(stat -c %a "$root/.legal/operator.json")" == 600 ]]
+          test -f "$root/.indexnow/accepted.json"
           systemctl start lowcost-europa-indexnow.service
           journalctl -u lowcost-europa-indexnow.service --since '3 minutes ago' --no-pager -o cat | grep '^INDEXNOW_'
+          changes="$(g status --porcelain=v1 --untracked-files=no)"
+          [[ -z "$changes" ]]
+          echo "SEARCH_CLOSED_ALIGNED_SHA=$target"
+          echo SEARCH_CLOSED_INDEXNOW_ACCEPTED_STATE=PASS
+          echo SEARCH_CLOSED_SERVICE_TIMER_PRIVACY_HYGIENE=PASS
           REMOTE
