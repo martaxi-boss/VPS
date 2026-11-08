@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "qa-team-review-20261108-1255",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "qa-team-20261108-1247",
+  "revision": 1,
+  "turn": {
+    "task": "transform",
+    "role": "reviewer",
+    "kind": "review",
+    "message": "Revisei o ficheiro JSON real: parse valido, conteudo ok=true; 17 bytes, SHA-256 corresponde aos bytes extraidos do ZIP do trabalho. Aprovo o resultado do programador.",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "12b34da73b0c67a0319e6eddbd3582af66e3b558b4d44e4a6860e0cec20d726f"
+    ]
+  }
+}
