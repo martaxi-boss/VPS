@@ -1,9 +1,0 @@
-{
-  "version": 1,
-  "id": "qa-team-finish-20261108-1250",
-  "kind": "ruflo-team",
-  "phase": "finish",
-  "team_id": "qa-team-20261108-1247",
-  "revision": 2,
-  "approval": "Confirmo como IA anfitria a tarefa transform aprovada por papel revisor distinto, artefacto JSON real com ok=true e SHA-256 12b34da73b0c67a0319e6eddbd3582af66e3b558b4d44e4a6860e0cec20d726f. Sem inferencia LLM autonoma na VPS."
-}
