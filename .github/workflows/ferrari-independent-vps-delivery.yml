@@ -71,6 +71,8 @@ on:
       - 'ferrari-release-requests/universal-adapters-activate-20261108.json'
       - 'ferrari-release-requests/universal-adapters-precheck-r2-20261108.json'
       - 'ferrari-release-requests/universal-adapters-activate-r2-20261108.json'
+      - 'ferrari-release-requests/universal-adapters-precheck-r3-20261108.json'
+      - 'ferrari-release-requests/universal-adapters-activate-r3-20261108.json'
 
 permissions:
   contents: read
@@ -165,6 +167,8 @@ jobs:
             ferrari-release-requests/universal-adapters-activate-20261108.json) MODE=--universal-adapters-activate ;;
             ferrari-release-requests/universal-adapters-precheck-r2-20261108.json) MODE=--universal-adapters-precheck ;;
             ferrari-release-requests/universal-adapters-activate-r2-20261108.json) MODE=--universal-adapters-activate ;;
+            ferrari-release-requests/universal-adapters-precheck-r3-20261108.json) MODE=--universal-adapters-precheck ;;
+            ferrari-release-requests/universal-adapters-activate-r3-20261108.json) MODE=--universal-adapters-activate ;;
             *) echo 'FERRARI_PHASE5_REQUEST_NOT_SINGLE_OR_NOT_ALLOWED' >&2; exit 2 ;;
           esac
           if [[ "$MODE" == --universal-* ]]; then
@@ -178,7 +182,7 @@ jobs:
               payload=json.load(fh)
           if mode in ("--universal-adapters-precheck","--universal-adapters-activate"):
               expected={"version":1,"phase":"universal-catalog",
-                        "sha":"4af33aa882d9f5d4744d952119dd5912aaebed1f",
+                        "sha":"__ADAPTERS_R3_IMMUTABLE_SHA__",
                         "mode":mode.removeprefix("--universal-")}
           elif mode in ("--universal-opencv-precheck","--universal-opencv-activate"):
               expected={"version":1,"phase":"universal-catalog",
@@ -525,7 +529,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: 4af33aa882d9f5d4744d952119dd5912aaebed1f
+          ref: __ADAPTERS_R3_IMMUTABLE_SHA__
           persist-credentials: false
           path: ferrari-adapters
 
@@ -1192,7 +1196,7 @@ jobs:
             exit 0
           fi
           if [[ "$MODE" == '--universal-adapters-precheck' || "$MODE" == '--universal-adapters-activate' ]]; then
-            TARGET="4af33aa882d9f5d4744d952119dd5912aaebed1f"
+            TARGET="__ADAPTERS_R3_IMMUTABLE_SHA__"
             PREVIOUS="46b679f4304454e28a23aa779507af393f0c5258"
             REPORT="$RUNNER_TEMP/ferrari-universal-report.json"
             [[ "$BEFORE" == "/srv/projects/skill-universal/releases/$PREVIOUS" ]] ||
@@ -1216,7 +1220,7 @@ jobs:
           from pathlib import Path
           from engine import ferrari, tool_runtime, catalog_registry
           root=Path("/srv/projects/skill-universal")
-          target="4af33aa882d9f5d4744d952119dd5912aaebed1f"
+          target="__ADAPTERS_R3_IMMUTABLE_SHA__"
           previous="46b679f4304454e28a23aa779507af393f0c5258"
           assert (root/"current").resolve(strict=True)==root/"releases"/target
           assert (root/"releases"/previous/"engine/catalog.json").is_file()
