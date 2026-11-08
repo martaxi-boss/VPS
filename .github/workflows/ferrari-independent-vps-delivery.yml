@@ -190,7 +190,7 @@ jobs:
               payload=json.load(fh)
           if mode in ("--universal-docinv-precheck","--universal-docinv-activate"):
               expected={"version":1,"phase":"universal-catalog",
-                        "sha":"__FERRARI_DOCINV_IMMUTABLE_SHA__",
+                        "sha":"cde16ce5debfbd247decac800ce47bfeed36adaa",
                         "mode":mode.removeprefix("--universal-")}
           elif mode in ("--universal-doccache-precheck","--universal-doccache-activate"):
               expected={"version":1,"phase":"universal-catalog",
@@ -563,7 +563,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: __FERRARI_DOCINV_IMMUTABLE_SHA__
+          ref: cde16ce5debfbd247decac800ce47bfeed36adaa
           persist-credentials: false
           path: ferrari-docinv
 
@@ -1365,7 +1365,7 @@ jobs:
             exit 0
           fi
           if [[ "$MODE" == '--universal-docinv-precheck' || "$MODE" == '--universal-docinv-activate' ]]; then
-            TARGET="__FERRARI_DOCINV_IMMUTABLE_SHA__"
+            TARGET="cde16ce5debfbd247decac800ce47bfeed36adaa"
             PREVIOUS="a44bebc0018dec38f659a8ed859e92ba0522c365"
             REPORT="$RUNNER_TEMP/ferrari-universal-report.json"
             [[ "$BEFORE" == "/srv/projects/skill-universal/releases/$PREVIOUS" ]] ||
@@ -1389,7 +1389,7 @@ jobs:
           from pathlib import Path
           from engine import ferrari,tool_runtime,catalog_registry
           root=Path("/srv/projects/skill-universal")
-          target="__FERRARI_DOCINV_IMMUTABLE_SHA__"
+          target="cde16ce5debfbd247decac800ce47bfeed36adaa"
           previous="a44bebc0018dec38f659a8ed859e92ba0522c365"
           assert (root/"current").resolve(strict=True)==root/"releases"/target
           assert (root/"releases"/previous/"engine/catalog.json").is_file()
