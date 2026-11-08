@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "id": "f12dash-20261108-7fd2c9-correction-385",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "f12dashboard-20261108-7fd2c9",
+  "revision": 6,
+  "turn": {
+    "task": "validation",
+    "role": "tester",
+    "kind": "submit",
+    "message": "CORRECAO apos revisao changes_requested: total certo 385 EUR e nao 390 EUR. Soma linhas 50+40+45+40+60+40+50+60=385; categorias Eletronica 140, Casa 145, Moda 100; unidades 20; 8 linhas. Verifiquei outputs originais VPS: Vite/Playwright #42520450646 report.status completed, quality_gate passed, Chromium 1280x720 e 390x844, console_errors=[], page_errors=[], mobile horizontal_overflow_px=0, filtros botao Enter e Space passed; hashes browser-check 547fcd1d05c1894d0dc30b1ab0099d04137e21838d6963ca59f5fb37f1ad7d9c, desktop 82eff4bb20296c7795ed766c5f01a2a38e92ef34469e0ec4d609d8d22a56c09c, mobile 594dccdfe80e6c085df77b1d6aa33b914b6f38507e5c97415dcb7e695e19fa41. Ferrari Typst #42520631646 PDF SHA c3925899baa218ab2ccabf8a5fb8595b414e62c8f29b58b4966fbe7e26e0178c compilou contas com assercoes. Ferrari jq #42520672915 JSON SHA e26f1dea7f7085694db41e995a83f46ee6aa0dfb2c18635a2196f182caf8b330 com tot=385, qtd=20, rows=8. DuckDB #42520491290 perfil 8 rows. Afirmacao 390 rejeitada e corrigida, pede-se nova revisao por role reviewer."
+  }
+}
