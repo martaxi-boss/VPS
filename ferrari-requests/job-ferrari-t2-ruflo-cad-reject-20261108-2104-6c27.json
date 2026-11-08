@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "ferrari-t2-ruflo-cad-reject-20261108-2104-6c27",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "ferrari-t2-cad-20261108-6c27",
+  "revision": 3,
+  "turn": {
+    "task": "cad",
+    "role": "revisor",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "evidence_sha256": [
+      "aaf495fd3161a23f93520eca7829f0ec07e07017746785183996c6e069645341"
+    ],
+    "message": "REJEITADO COM PROVA: STL real da run 42522516902 SHA 2034e68f53468f26f42280a1861b1ddf4f7655d684ed457a3b785532ee87ecdb; diametro medido 7.999990 mm, exigido 10; volume 78995.09653 mm3 versus alvo 78429.20367, erro +565.893 >2. Alterar para diametro 10 e exportar NOVO STL sem modificar malha anteriormente rejeitada."
+  }
+}
