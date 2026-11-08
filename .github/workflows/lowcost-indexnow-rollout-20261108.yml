@@ -87,4 +87,22 @@ jobs:
           echo "LOWCOST_INDEXNOW_ALIGNED_SHA=$target"
           echo LOWCOST_INDEXNOW_SERVICE_TIMER_HTTPS_PRIVACY=PASS
           echo LOWCOST_INDEXNOW_TASK_HYGIENE=PASS
+          python3 - <<'PY'
+          import collections,re,subprocess
+          lines=subprocess.check_output(['tail','-n','20000','/var/log/nginx/access.log'],text=True).splitlines()
+          counts=collections.Counter()
+          for line in lines:
+              found=re.search(r'"(?:GET|HEAD) (/sitemap[.]xml|/robots[.]txt|/indexnow-[a-f0-9]+[.]txt)(?:[?][^ ]*)? HTTP/[^"]+" ([0-9]{3})',line)
+              if found:
+                  label='proof' if found[1].startswith('/indexnow-') else found[1]
+                  agent='claimed-bingbot' if 'bingbot' in line.lower() else ('claimed-googlebot' if 'googlebot' in line.lower() else 'other')
+                  counts[(label,found[2],agent)]+=1
+          for (path,status,agent),count in sorted(counts.items()):
+              print('LOWCOST_ACCESS_AGGREGATE',path,status,agent,count)
+          print('LOWCOST_LOG_NOTE=User-agent claims are not authenticated crawler identities')
+          PY
+          curl -fsS --max-time 25 -A 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)' https://www.lowcost-europa.eu/sitemap.xml -o /dev/null
+          echo LOWCOST_ORIGIN_BING_AGENT_SITEMAP_FETCH=PASS
+          openssl s_client -connect 146.59.145.3:443 -servername www.lowcost-europa.eu -verify_return_error </dev/null 2>&1 | grep -F 'Verify return code: 0 (ok)'
+          echo LOWCOST_ORIGIN_TLS_CHAIN=PASS
           REMOTE
