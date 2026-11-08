@@ -161,6 +161,15 @@ jobs:
                   print("LIVE_AFFILIATE_DETAIL_HAS_DELIVERY_TEXT="+str(bool(product.ship_to_days_raw)).upper())
               except Exception as exc:
                   print("LIVE_AFFILIATE_DETAIL_PROBE=UNAVAILABLE_"+type(exc).__name__)
+                  message=str(exc)
+                  classification=(
+                      "MISSING_WRAPPER" if "Missing response wrapper" in message else
+                      "MISSING_RESULT" if "Missing result for" in message else
+                      "MISSING_PRODUCT_ID" if "Missing required product identifier" in message else
+                      "BAD_DETAIL_LIST" if "Unexpected product detail response" in message else
+                      "OTHER_RESPONSE_ERROR"
+                  )
+                  print("LIVE_AFFILIATE_DETAIL_ERROR_CLASS="+classification)
           print("LIVE_OFFER_AUDIT_READ_ONLY=PASS")
           PYAUDIT
           REMOTE
