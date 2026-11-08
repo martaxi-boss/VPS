@@ -65,6 +65,8 @@ on:
       - 'ferrari-release-requests/universal-webdiag-activate-20261108.json'
       - 'ferrari-release-requests/universal-asr-precheck-20261108.json'
       - 'ferrari-release-requests/universal-asr-activate-20261108.json'
+      - 'ferrari-release-requests/universal-opencv-precheck-20261108.json'
+      - 'ferrari-release-requests/universal-opencv-activate-20261108.json'
 
 permissions:
   contents: read
@@ -153,6 +155,8 @@ jobs:
             ferrari-release-requests/universal-webdiag-activate-20261108.json) MODE=--universal-webdiag-activate ;;
             ferrari-release-requests/universal-asr-precheck-20261108.json) MODE=--universal-asr-precheck ;;
             ferrari-release-requests/universal-asr-activate-20261108.json) MODE=--universal-asr-activate ;;
+            ferrari-release-requests/universal-opencv-precheck-20261108.json) MODE=--universal-opencv-precheck ;;
+            ferrari-release-requests/universal-opencv-activate-20261108.json) MODE=--universal-opencv-activate ;;
             *) echo 'FERRARI_PHASE5_REQUEST_NOT_SINGLE_OR_NOT_ALLOWED' >&2; exit 2 ;;
           esac
           if [[ "$MODE" == --universal-* ]]; then
@@ -164,7 +168,11 @@ jobs:
           path,mode=sys.argv[1:]
           with open(path,encoding="utf-8") as fh:
               payload=json.load(fh)
-          if mode in ("--universal-asr-precheck","--universal-asr-activate"):
+          if mode in ("--universal-opencv-precheck","--universal-opencv-activate"):
+              expected={"version":1,"phase":"universal-catalog",
+                        "sha":"46b679f4304454e28a23aa779507af393f0c5258",
+                        "mode":mode.removeprefix("--universal-")}
+          elif mode in ("--universal-asr-precheck","--universal-asr-activate"):
               expected={"version":1,"phase":"universal-catalog",
                         "sha":"9004c7a605f15c65d31b08c24bb4511b38a55f92",
                         "mode":mode.removeprefix("--universal-")}
@@ -491,6 +499,15 @@ jobs:
           persist-credentials: false
           path: ferrari-asr
 
+      - name: Checkout SHA-pinned Ferrari OpenCV release candidate
+        if: steps.request.outputs.mode == '--universal-opencv-precheck' || steps.request.outputs.mode == '--universal-opencv-activate'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: 46b679f4304454e28a23aa779507af393f0c5258
+          persist-credentials: false
+          path: ferrari-opencv
+
       - name: Validate the project-owned release script
         shell: bash
         run: |
@@ -602,6 +619,24 @@ jobs:
           assert (root/"tests/test_quality_gate.py").is_file()
           print("FERRARI_ASR_PINNED_SOURCE_AND_CATALOG=PASS")
           ASR_SOURCE_CHECK
+          fi
+          if [[ "${{ steps.request.outputs.mode }}" == '--universal-opencv-precheck' || "${{ steps.request.outputs.mode }}" == '--universal-opencv-activate' ]]; then
+            bash -n ferrari-opencv/install/vps-isolated-release.sh
+            python3 -m py_compile ferrari-opencv/engine/image_tools.py
+            python3 - <<'OPENCV_SOURCE_CHECK'
+          import json
+          from pathlib import Path
+          root=Path("ferrari-opencv")
+          catalog=json.loads((root/"engine/catalog.json").read_text())
+          assert len(catalog["tools"])==173 and len(catalog["functions"])==274
+          assert catalog["counts"]["all_catalog_entries"]==452
+          assert (root/"engine/agent_team.py").is_file()
+          assert (root/"engine/audio_tools.py").is_file()
+          assert (root/"engine/image_tools.py").is_file()
+          assert (root/"tests/test_image_analyze.py").is_file()
+          assert (root/"engine/quality_gate.py").is_file()
+          print("FERRARI_OPENCV_PINNED_SOURCE_AND_CATALOG=PASS")
+          OPENCV_SOURCE_CHECK
           fi
           if [[ "${{ steps.request.outputs.mode }}" == '--universal-final-acceptance' ]]; then
             python3 -m py_compile ferrari-accept/install/vps-final-acceptance.py
@@ -757,7 +792,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           SHA="40c0e1cdf31b1fe9589ad8be90e5eac06eec2856"
-          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--venvs-preview' || "$MODE" == '--venvs-apply' || "$MODE" == '--final-preview' || "$MODE" == '--final-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' || "$MODE" == '--phase7-check' || "$MODE" == '--phase7-activate' || "$MODE" == '--phase7-certify' || "$MODE" == '--universal-check' || "$MODE" == '--universal-activate' || "$MODE" == '--universal-preview' || "$MODE" == '--universal-apply' || "$MODE" == '--universal-deep-audit' || "$MODE" == '--universal-empty-preview' || "$MODE" == '--universal-empty-apply' || "$MODE" == '--universal-f9-consumers' || "$MODE" == '--universal-f9-dpkg-confirm' || "$MODE" == '--universal-f9-qgis-native' || "$MODE" == '--universal-f9-qgis-ogr' || "$MODE" == '--universal-f9-qgis-geojson' || "$MODE" == '--universal-f9-providers-diagnose' || "$MODE" == '--universal-f9-hdf5-preview' || "$MODE" == '--universal-f9-hdf5-apply' || "$MODE" == '--universal-f9-pdal-runtime' || "$MODE" == '--universal-f9-librecad' || "$MODE" == '--universal-f10-precheck' || "$MODE" == '--universal-f10-activate' || "$MODE" == '--universal-f10-hygiene-preview' || "$MODE" == '--universal-f10-hygiene-apply' || "$MODE" == '--universal-f10-legacy-state-audit' || "$MODE" == '--universal-f11-pdal-las' || "$MODE" == '--universal-final-acceptance' || "$MODE" == '--universal-qa-precheck' || "$MODE" == '--universal-qa-activate' || "$MODE" == '--universal-runtime-precheck' || "$MODE" == '--universal-runtime-activate' || "$MODE" == '--universal-valkey-precheck' || "$MODE" == '--universal-valkey-activate' || "$MODE" == '--universal-webnav-precheck' || "$MODE" == '--universal-webnav-activate' || "$MODE" == '--universal-webdiag-precheck' || "$MODE" == '--universal-webdiag-activate' || "$MODE" == '--universal-asr-precheck' || "$MODE" == '--universal-asr-activate' ]] || exit 3
+          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--venvs-preview' || "$MODE" == '--venvs-apply' || "$MODE" == '--final-preview' || "$MODE" == '--final-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' || "$MODE" == '--phase7-check' || "$MODE" == '--phase7-activate' || "$MODE" == '--phase7-certify' || "$MODE" == '--universal-check' || "$MODE" == '--universal-activate' || "$MODE" == '--universal-preview' || "$MODE" == '--universal-apply' || "$MODE" == '--universal-deep-audit' || "$MODE" == '--universal-empty-preview' || "$MODE" == '--universal-empty-apply' || "$MODE" == '--universal-f9-consumers' || "$MODE" == '--universal-f9-dpkg-confirm' || "$MODE" == '--universal-f9-qgis-native' || "$MODE" == '--universal-f9-qgis-ogr' || "$MODE" == '--universal-f9-qgis-geojson' || "$MODE" == '--universal-f9-providers-diagnose' || "$MODE" == '--universal-f9-hdf5-preview' || "$MODE" == '--universal-f9-hdf5-apply' || "$MODE" == '--universal-f9-pdal-runtime' || "$MODE" == '--universal-f9-librecad' || "$MODE" == '--universal-f10-precheck' || "$MODE" == '--universal-f10-activate' || "$MODE" == '--universal-f10-hygiene-preview' || "$MODE" == '--universal-f10-hygiene-apply' || "$MODE" == '--universal-f10-legacy-state-audit' || "$MODE" == '--universal-f11-pdal-las' || "$MODE" == '--universal-final-acceptance' || "$MODE" == '--universal-qa-precheck' || "$MODE" == '--universal-qa-activate' || "$MODE" == '--universal-runtime-precheck' || "$MODE" == '--universal-runtime-activate' || "$MODE" == '--universal-valkey-precheck' || "$MODE" == '--universal-valkey-activate' || "$MODE" == '--universal-webnav-precheck' || "$MODE" == '--universal-webnav-activate' || "$MODE" == '--universal-webdiag-precheck' || "$MODE" == '--universal-webdiag-activate' || "$MODE" == '--universal-asr-precheck' || "$MODE" == '--universal-asr-activate' || "$MODE" == '--universal-opencv-precheck' || "$MODE" == '--universal-opencv-activate' ]] || exit 3
           opts=(-T -o PreferredAuthentications=password -o PubkeyAuthentication=no
                 -o StrictHostKeyChecking=yes
                 -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-pinned-host"
@@ -1062,6 +1097,58 @@ jobs:
           ASR_SERVICES
             printf '{"status":"PASS","mode":"%s","before":"%s","after":"%s","fallback":"%s","source":"%s"}\n' "$MODE" "$BEFORE" "$AFTER" "$PREVIOUS" "$TARGET" > "$REPORT"
             echo 'FERRARI_ASR_PROTECTED_WORKFLOW=PASS'
+            exit 0
+          fi
+          if [[ "$MODE" == '--universal-opencv-precheck' || "$MODE" == '--universal-opencv-activate' ]]; then
+            TARGET="46b679f4304454e28a23aa779507af393f0c5258"
+            PREVIOUS="9004c7a605f15c65d31b08c24bb4511b38a55f92"
+            REPORT="$RUNNER_TEMP/ferrari-universal-report.json"
+            [[ "$BEFORE" == "/srv/projects/skill-universal/releases/$PREVIOUS" ]] ||
+              { echo 'FERRARI_OPENCV_UNEXPECTED_CURRENT_RELEASE' >&2; exit 31; }
+            sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+              "bash -s -- '$TARGET' '--check'" \
+              < ferrari-opencv/install/vps-isolated-release.sh
+            AFTER="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
+            [[ "$AFTER" == "$BEFORE" ]] ||
+              { echo 'FERRARI_OPENCV_PRECHECK_CHANGED_CURRENT' >&2; exit 31; }
+            echo 'FERRARI_OPENCV_RELEASE_PRECHECK=PASS'
+            if [[ "$MODE" == '--universal-opencv-activate' ]]; then
+              sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+                "bash -s -- '$TARGET' '--activate'" \
+                < ferrari-opencv/install/vps-isolated-release.sh
+              AFTER="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
+              [[ "$AFTER" == "/srv/projects/skill-universal/releases/$TARGET" ]] ||
+                { echo 'FERRARI_OPENCV_WRONG_ACTIVE_RELEASE' >&2; exit 31; }
+              sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+                "cd '/srv/projects/skill-universal/current' && '/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12' -B -" <<'OPENCV_READBACK'
+          from pathlib import Path
+          from engine import ferrari, image_tools, tool_runtime, catalog_registry
+          root=Path("/srv/projects/skill-universal")
+          target="46b679f4304454e28a23aa779507af393f0c5258"
+          previous="9004c7a605f15c65d31b08c24bb4511b38a55f92"
+          assert (root/"current").resolve(strict=True)==root/"releases"/target
+          assert (root/"releases"/previous/"engine/catalog.json").is_file()
+          catalog=catalog_registry.read_catalog()
+          assert catalog["counts"]["all_catalog_entries"]==452
+          assert catalog["counts"]["functions"]==274
+          assert len(tool_runtime.specs())==40
+          assert "image-analyze" in ferrari.OPS
+          assert "image-analyze" in tool_runtime.BASE_OPERATIONS["opencv"]
+          assert image_tools.available(), "Ferrari private OpenCV interpreter and cv2 must exist"
+          print("FERRARI_OPENCV_ACTIVE_RELEASE_AND_FALLBACK=PASS")
+          OPENCV_READBACK
+              echo 'FERRARI_OPENCV_RELEASE_ACTIVATION=PASS'
+            fi
+            sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'bash -s' <<'OPENCV_SERVICES'
+          set -Eeuo pipefail
+          for s in pink-iptv-backend pink-vpn fadego-staging lowcost-europa pm2-iptvpn-bot pm2-telegram-robot-leads nginx postgresql@16-main; do
+            systemctl is-active --quiet "$s" ||
+              { echo "FERRARI_PROTECTED_SERVICE_NOT_ACTIVE=$s" >&2; exit 8; }
+          done
+          echo 'FERRARI_PROTECTED_SERVICES=8/8_PASS'
+          OPENCV_SERVICES
+            printf '{"status":"PASS","mode":"%s","before":"%s","after":"%s","fallback":"%s","source":"%s"}\n' "$MODE" "$BEFORE" "$AFTER" "$PREVIOUS" "$TARGET" > "$REPORT"
+            echo 'FERRARI_OPENCV_PROTECTED_WORKFLOW=PASS'
             exit 0
           fi
           if [[ "$MODE" == --universal-* ]]; then
