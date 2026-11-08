@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "id": "test-ruflo-correction-finish-20261108-n1",
+  "kind": "ruflo-team",
+  "phase": "finish",
+  "team_id": "ruflo-correction-20261108-n1",
+  "revision": 4,
+  "approval": "O anfitriao confirmou ciclo de rejeicao controlada, segunda execucao privada jq, verificacao independente do SHA256, dois tool calls e duas revisoes; aprova esta missao assistida e nao autonomia LLM."
+}
