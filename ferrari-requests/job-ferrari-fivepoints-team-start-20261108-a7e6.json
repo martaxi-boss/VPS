@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "cert5-team-start-20261108-a7e6",
+  "kind": "ruflo-team",
+  "phase": "start",
+  "team_id": "cert5-team-20261108-a7e6",
+  "host": "ChatGPT",
+  "mission": "Certificar coordenacao assistida Ruflo com trabalho real Ferrari, revisao independente e SHA-256; apenas dados sinteticos.",
+  "roles": [
+    {
+      "id": "coder",
+      "type": "coder",
+      "actions": [
+        "jq-format-json"
+      ]
+    },
+    {
+      "id": "reviewer",
+      "type": "reviewer",
+      "actions": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "format",
+      "role": "coder",
+      "reviewer": "reviewer",
+      "goal": "Formatar JSON sintetico autorizado e rever integridade e significado do resultado",
+      "depends_on": []
+    }
+  ],
+  "input": {
+    "name": "data.json",
+    "content_base64": "eyJvayI6dHJ1ZX0K"
+  }
+}
