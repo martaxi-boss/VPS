@@ -39,10 +39,12 @@ jobs:
           systemctl is-active --quiet lowcost-europa-indexnow.timer
           test -f "$ROOT/private/systemd-env/lowcost-europa.env"
           cd "$ROOT"
+          APPUSER="$(systemctl show lowcost-europa.service -p User --value)"
+          test "$APPUSER" = "le001_1789265592"
           set -a
           . "$ROOT/private/systemd-env/lowcost-europa.env"
           set +a
-          "$ROOT/.venv/bin/python" - <<'PY'
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PY'
           import json,os,ssl,urllib.request,xml.etree.ElementTree as ET
           from collections import Counter
           from datetime import timedelta
@@ -58,7 +60,7 @@ jobs:
           assert settings.PUBLIC_INDEXING_ENABLED and settings.LOCALE_SEO_ENABLED
           assert settings.PUBLIC_SITE_URL=='https://www.lowcost-europa.eu'
           assert settings.PUBLIC_RECENT_PRICE_REQUIRED
-          print('CLOSEOUT_PRODUCTION_SHA='+os.popen('git rev-parse HEAD').read().strip())
+          print('CLOSEOUT_PRODUCTION_SHA='+str(root))
           print('CLOSEOUT_ACTIVE_OFFERS='+str(Offer.objects.filter(is_active=True,owner_hidden=False).count()))
           visible=list(Offer.objects.filter(public_eligibility_q()).distinct().only('id','ship_from_country','ship_from_verified_at'))
           print('CLOSEOUT_ELIGIBLE_PUBLIC_OFFERS='+str(len(visible)))
@@ -97,7 +99,7 @@ jobs:
           print('CLOSEOUT_NO_SUPPLIER_FACTS_INVENTED=PASS')
           PY
           echo CLOSEOUT_INDEXNOW_DRY_RUN_BEGIN
-          "$ROOT/.venv/bin/python" manage.py notify_indexnow --dry-run
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py notify_indexnow --dry-run
           echo CLOSEOUT_INDEXNOW_DRY_RUN_END
           systemctl show lowcost-europa-indexnow.service -p Result -p ExecMainStatus --no-pager
           test -n "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD)"
