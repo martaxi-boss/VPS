@@ -1,0 +1,180 @@
+name: Lowcost GSC owner panel guarded VPS rollout
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-owner-gsc-deploy-once-20261108.yml'
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-gsc-owner-production-20261108
+  cancel-in-progress: false
+jobs:
+  rollout:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: One-file scope and pinned SSH host
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")" == '.github/workflows/lowcost-owner-gsc-deploy-once-20261108.yml' ]]
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          echo LOWCOST_OWNER_GOOGLE_DEPLOY_SSH_PIN=PASS
+      - name: Scoped source-only deploy with private rollback and live tests
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          ROOT=/srv/projects/lowcost-europa
+          OLD=aa6f979aed08487ebe244d1207367946d6e67c3b
+          TARGET=7153a3419341f1cb9c00cb7fe3c75e6571b1ca0f
+          APP_USER=le001_1789265592
+          ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
+          BACKUP="$ROOT/private/deploy-rollbacks/google-owner-metrics-20261108-01"
+          CHANGED=0
+          rollback() {
+            code=$?
+            trap - EXIT
+            if [[ "$CHANGED" -eq 1 ]]; then
+              umask 022
+              git -c "safe.directory=$ROOT" -C "$ROOT" checkout --detach -q "$OLD" || true
+              umask 077
+              systemctl restart lowcost-europa.service || true
+              echo LOWCOST_GSC_DEPLOY_ROLLBACK=EXECUTED
+            else
+              echo LOWCOST_GSC_NO_LIVE_CHANGES=YES
+            fi
+            exit "$code"
+          }
+          trap rollback EXIT
+          [[ -d "$ROOT/.git" && -f "$ENVFILE" && ! -L "$ENVFILE" ]]
+          [[ "$(git -c "safe.directory=$ROOT" -C "$ROOT" rev-parse HEAD)" == "$OLD" ]]
+          [[ -z "$(git -c "safe.directory=$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)" ]]
+          [[ ! -e "$BACKUP" ]]
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa-affiliate-report.timer
+          nginx -t >/dev/null 2>&1
+          grep -Eq '^WINDSOR_API_KEY=[^[:space:]]+' "$ENVFILE" || { echo LOWCOST_GSC_PRIVATE_WINDSOR_KEY=NOT_CONFIGURED; exit 2; }
+          if grep -Eq '^GOOGLE_SEARCH_CONSOLE_PROPERTY=[^[:space:]]+' "$ENVFILE"; then
+            echo LOWCOST_GSC_UNEXPECTED_GOOGLE_PROPERTY_ENV=BLOCK
+            exit 2
+          fi
+          echo LOWCOST_GSC_EXISTING_METRICS_SOURCE=READY
+          git -c "safe.directory=$ROOT" -C "$ROOT" fetch -q https://github.com/martaxi-boss/lowcost-europa.git main
+          [[ "$(git -c "safe.directory=$ROOT" -C "$ROOT" rev-parse FETCH_HEAD)" == "$TARGET" ]]
+          [[ "$(git -c "safe.directory=$ROOT" -C "$ROOT" merge-base "$OLD" "$TARGET")" == "$OLD" ]]
+          changed_files="$(git -c "safe.directory=$ROOT" -C "$ROOT" diff --name-only "$OLD" "$TARGET")"
+          python3 - "$changed_files" <<'PYCHECK'
+          import sys
+          expected={
+              ".env.example",
+              "apps/catalog/management/commands/sync_external_metrics.py",
+              "apps/catalog/management/commands/sync_google_search_console.py",
+              "apps/catalog/owner_panel_views.py",
+              "apps/catalog/services/windsor_search_console_reporting.py",
+              "apps/catalog/templates/catalog/owner_panel/dashboard.html",
+              "apps/catalog/tests/test_owner_analytics_dashboard.py",
+              "apps/catalog/tests/test_windsor_search_console_reporting.py",
+              "deploy/systemd/lowcost-europa-affiliate-report.service",
+              "docs/ops/GOOGLE-SEARCH-CONSOLE-OWNER-METRICS-20261108.md",
+          }
+          found=set(filter(None, sys.argv[1].splitlines()))
+          if found != expected:
+              raise SystemExit("LOWCOST_GSC_UNEXPECTED_DEPLOY_FILE_SCOPE")
+          PYCHECK
+          mkdir -m 700 -p "$ROOT/private/deploy-rollbacks"
+          mkdir -m 700 "$BACKUP"
+          printf '%s\n' "$OLD" > "$BACKUP/old-sha"
+          printf '%s\n' "$TARGET" > "$BACKUP/target-sha"
+          echo LOWCOST_GSC_DEPLOY_BACKUP=CREATED
+          CHANGED=1
+          umask 022
+          git -c "safe.directory=$ROOT" -C "$ROOT" checkout --detach -q "$TARGET"
+          umask 077
+          [[ "$(git -c "safe.directory=$ROOT" -C "$ROOT" rev-parse HEAD)" == "$TARGET" ]]
+          for rel in \
+            apps/catalog/services/windsor_search_console_reporting.py \
+            apps/catalog/management/commands/sync_google_search_console.py \
+            apps/catalog/management/commands/sync_external_metrics.py \
+            apps/catalog/owner_panel_views.py \
+            apps/catalog/templates/catalog/owner_panel/dashboard.html; do
+              file="$ROOT/$rel"
+              [[ -f "$file" && ! -L "$file" ]] || exit 4
+              chmod a+r "$file"
+              runuser -u "$APP_USER" -- test -r "$file"
+          done
+          python3 - "$ROOT" <<'PYCOMPILE'
+          from pathlib import Path
+          import sys
+          root=Path(sys.argv[1])
+          for rel in (
+             "apps/catalog/services/windsor_search_console_reporting.py",
+             "apps/catalog/management/commands/sync_google_search_console.py",
+             "apps/catalog/management/commands/sync_external_metrics.py",
+             "apps/catalog/owner_panel_views.py",
+          ):
+             source=(root/rel).read_text()
+             compile(source, rel, "exec")
+          PYCOMPILE
+          echo LOWCOST_GSC_SOURCE_AND_PERMISSIONS=PASS
+          systemctl restart lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa.service
+          ready=0
+          for attempt in $(seq 1 25); do
+            if curl -fsS --max-time 5 \
+              -H 'Host: www.lowcost-europa.eu' -H 'X-Forwarded-Proto: https' \
+              http://127.0.0.1:8001/ -o /dev/null 2>/dev/null; then
+              ready=1; break
+            fi
+            sleep 1
+          done
+          [[ "$ready" -eq 1 ]] || { echo LOWCOST_GSC_DJANGO_READINESS=FAIL; exit 4; }
+          home="$(curl -fsS --max-time 18 --resolve www.lowcost-europa.eu:443:146.59.145.3 https://www.lowcost-europa.eu/)"
+          [[ "$home" == *'id="familias"'* ]] || exit 4
+          private="$(curl -sS -D - -o /dev/null --max-time 16 --resolve www.lowcost-europa.eu:443:146.59.145.3 https://www.lowcost-europa.eu/painel/)"
+          printf '%s\n' "$private" | grep -Eq '^HTTP/.* 302'
+          printf '%s\n' "$private" | grep -Eiq '^x-robots-tag:.*noindex'
+          curl -fsSI --max-time 20 --resolve lowcost-europa.eu:443:146.59.145.3 https://lowcost-europa.eu/ | grep -Eq '^HTTP/.* 301'
+          curl -fsS -o /dev/null --max-time 20 https://lowcost-europa.duckdns.org/
+          systemctl is-active --quiet lowcost-europa-affiliate-report.timer
+          [[ -z "$(git -c "safe.directory=$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)" ]]
+          echo LOWCOST_GSC_NEW_OWNER_PANEL=LIVE
+          echo LOWCOST_GSC_PRIVATE_SECURITY=PASS
+          echo LOWCOST_GSC_GITHUB_VPS_SHA="$TARGET"
+          echo LOWCOST_GSC_PROVIDER_AUTH=PENDING_GOOGLE_CONSENT
+          echo LOWCOST_GSC_SITE_HTTPS_DUCKDNS=PASS
+          echo LOWCOST_GSC_DEPLOY=PASS
+          trap - EXIT
+          REMOTE
+      - name: Independently verify HTTPS and preserved search indexability
+        shell: bash
+        run: |
+          set -euo pipefail
+          hdr="$(curl -fsSI --max-time 30 https://www.lowcost-europa.eu/)"
+          printf '%s\n' "$hdr" | grep -Eq '^HTTP/.* 200'
+          if printf '%s\n' "$hdr" | grep -Eiq '^x-robots-tag:.*noindex'; then
+             echo LOWCOST_GSC_UNEXPECTED_PUBLIC_NOINDEX
+             exit 1
+          fi
+          echo LOWCOST_GSC_PUBLIC_HTTPS=PASS
