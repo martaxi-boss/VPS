@@ -95,6 +95,15 @@ jobs:
                   print("LOWCOST_AUTH_OWNER_PASSWORD_USABLE=" + str(bool(user.has_usable_password())).upper())
                   print("LOWCOST_AUTH_OWNER_HAS_PREVIOUS_LOGIN=" + str(user.last_login is not None).upper())
               print("LOWCOST_AUTH_STAFF_ACCOUNT_COUNT=" + str(User.objects.filter(is_staff=True).count()))
+              for source in ("ALIEXPRESS", "META", "GOOGLE_SEARCH_CONSOLE"):
+                  snapshot=ExternalMetricsSnapshot.objects.filter(source=source).first()
+                  print("LOWCOST_METRICS_"+source+"_SNAPSHOT=" + ("PRESENT" if snapshot else "ABSENT"))
+                  if snapshot:
+                      from django.utils import timezone
+                      from datetime import timedelta
+                      fresh=(timezone.now()-snapshot.checked_at)<=timedelta(hours=12)
+                      print("LOWCOST_METRICS_"+source+"_FRESH_12H="+str(fresh).upper())
+                      print("LOWCOST_METRICS_"+source+"_PAYLOAD_OBJECT="+str(isinstance(snapshot.payload,dict)).upper())
               print("LOWCOST_AUTH_GSC_SNAPSHOT_EXISTS=" + str(ExternalMetricsSnapshot.objects.filter(source="GOOGLE_SEARCH_CONSOLE").exists()).upper())
               # Compare any *existing private owner secret* in-memory to the
               # Django hash; never print passwords, hashes, paths or values.
