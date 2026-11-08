@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "test-ruflo-correction-reinvoke-20261108-n1",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "ruflo-correction-20261108-n1",
+  "revision": 2,
+  "turn": {
+    "task": "format",
+    "role": "coder",
+    "kind": "invoke",
+    "message": "Reexecutar jq privado apos rejeicao controlada e validar que JSON tem ok=true com mesmo SHA256.",
+    "action": "jq-format-json",
+    "input_from": "$input"
+  }
+}
