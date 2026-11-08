@@ -82,6 +82,9 @@ on:
       - 'ferrari-release-requests/universal-triage-precheck-r2-20261108.json'
       - 'ferrari-release-requests/universal-promrules-precheck-20261108.json'
       - 'ferrari-release-requests/universal-promrules-activate-20261108.json'
+      - 'ferrari-release-requests/universal-f12-preview-20261108.json'
+      - 'ferrari-release-requests/universal-f12-apply-20261108.json'
+      - 'ferrari-release-requests/universal-f12-certify-20261108.json'
 
 permissions:
   contents: read
@@ -187,6 +190,9 @@ jobs:
             ferrari-release-requests/universal-triage-precheck-r2-20261108.json) MODE=--universal-triage-precheck ;;
             ferrari-release-requests/universal-promrules-precheck-20261108.json) MODE=--universal-promrules-precheck ;;
             ferrari-release-requests/universal-promrules-activate-20261108.json) MODE=--universal-promrules-activate ;;
+            ferrari-release-requests/universal-f12-preview-20261108.json) MODE=--universal-f12-preview ;;
+            ferrari-release-requests/universal-f12-apply-20261108.json) MODE=--universal-f12-apply ;;
+            ferrari-release-requests/universal-f12-certify-20261108.json) MODE=--universal-f12-certify ;;
             *) echo 'FERRARI_PHASE5_REQUEST_NOT_SINGLE_OR_NOT_ALLOWED' >&2; exit 2 ;;
           esac
           if [[ "$MODE" == --universal-* ]]; then
@@ -198,7 +204,11 @@ jobs:
           path,mode=sys.argv[1:]
           with open(path,encoding="utf-8") as fh:
               payload=json.load(fh)
-          if mode in ("--universal-promrules-precheck","--universal-promrules-activate"):
+          if mode in ("--universal-f12-preview", "--universal-f12-apply",
+                       "--universal-f12-certify"):
+              expected={"version":1,"phase":"universal-catalog",
+                        "sha":"0cbca44be6670617732b22b48782e48ece2351f7","mode":mode.removeprefix("--universal-")}
+          elif mode in ("--universal-promrules-precheck","--universal-promrules-activate"):
               expected={"version":1,"phase":"universal-catalog",
                         "sha":"3f0ba44b7d8475a74a63c6010d1e27063c04bf1e",
                         "mode":mode.removeprefix("--universal-")}
@@ -368,6 +378,15 @@ jobs:
           ref: 7bf6dcecf15da26502c5969b5eee54d5e116fc32
           persist-credentials: false
           path: ferrari-universal
+
+      - name: Checkout pinned Ferrari F12 guarded project-only audit and certification
+        if: steps.request.outputs.mode == '--universal-f12-preview' || steps.request.outputs.mode == '--universal-f12-apply' || steps.request.outputs.mode == '--universal-f12-certify'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: 0cbca44be6670617732b22b48782e48ece2351f7
+          path: ferrari-f12
+          persist-credentials: false
 
       - name: Checkout pinned Ferrari F10 modern universal release
         if: steps.request.outputs.mode == '--universal-f10-precheck' || steps.request.outputs.mode == '--universal-f10-activate' || steps.request.outputs.mode == '--universal-f10-hygiene-preview' || steps.request.outputs.mode == '--universal-f10-hygiene-apply' || steps.request.outputs.mode == '--universal-f10-legacy-state-audit'
@@ -961,7 +980,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           SHA="40c0e1cdf31b1fe9589ad8be90e5eac06eec2856"
-          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--venvs-preview' || "$MODE" == '--venvs-apply' || "$MODE" == '--final-preview' || "$MODE" == '--final-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' || "$MODE" == '--phase7-check' || "$MODE" == '--phase7-activate' || "$MODE" == '--phase7-certify' || "$MODE" == '--universal-check' || "$MODE" == '--universal-activate' || "$MODE" == '--universal-preview' || "$MODE" == '--universal-apply' || "$MODE" == '--universal-deep-audit' || "$MODE" == '--universal-empty-preview' || "$MODE" == '--universal-empty-apply' || "$MODE" == '--universal-f9-consumers' || "$MODE" == '--universal-f9-dpkg-confirm' || "$MODE" == '--universal-f9-qgis-native' || "$MODE" == '--universal-f9-qgis-ogr' || "$MODE" == '--universal-f9-qgis-geojson' || "$MODE" == '--universal-f9-providers-diagnose' || "$MODE" == '--universal-f9-hdf5-preview' || "$MODE" == '--universal-f9-hdf5-apply' || "$MODE" == '--universal-f9-pdal-runtime' || "$MODE" == '--universal-f9-librecad' || "$MODE" == '--universal-f10-precheck' || "$MODE" == '--universal-f10-activate' || "$MODE" == '--universal-f10-hygiene-preview' || "$MODE" == '--universal-f10-hygiene-apply' || "$MODE" == '--universal-f10-legacy-state-audit' || "$MODE" == '--universal-f11-pdal-las' || "$MODE" == '--universal-final-acceptance' || "$MODE" == '--universal-qa-precheck' || "$MODE" == '--universal-qa-activate' || "$MODE" == '--universal-runtime-precheck' || "$MODE" == '--universal-runtime-activate' || "$MODE" == '--universal-valkey-precheck' || "$MODE" == '--universal-valkey-activate' || "$MODE" == '--universal-webnav-precheck' || "$MODE" == '--universal-webnav-activate' || "$MODE" == '--universal-webdiag-precheck' || "$MODE" == '--universal-webdiag-activate' || "$MODE" == '--universal-asr-precheck' || "$MODE" == '--universal-asr-activate' || "$MODE" == '--universal-opencv-precheck' || "$MODE" == '--universal-opencv-activate' || "$MODE" == '--universal-adapters-precheck' || "$MODE" == '--universal-adapters-activate' || "$MODE" == '--universal-doccache-precheck' || "$MODE" == '--universal-doccache-activate' || "$MODE" == '--universal-docinv-precheck' || "$MODE" == '--universal-docinv-activate' || "$MODE" == '--universal-triage-precheck' || "$MODE" == '--universal-triage-activate' || "$MODE" == '--universal-promrules-precheck' || "$MODE" == '--universal-promrules-activate' ]] || exit 3
+          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--venvs-preview' || "$MODE" == '--venvs-apply' || "$MODE" == '--final-preview' || "$MODE" == '--final-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' || "$MODE" == '--phase7-check' || "$MODE" == '--phase7-activate' || "$MODE" == '--phase7-certify' || "$MODE" == '--universal-check' || "$MODE" == '--universal-activate' || "$MODE" == '--universal-preview' || "$MODE" == '--universal-apply' || "$MODE" == '--universal-deep-audit' || "$MODE" == '--universal-empty-preview' || "$MODE" == '--universal-empty-apply' || "$MODE" == '--universal-f9-consumers' || "$MODE" == '--universal-f9-dpkg-confirm' || "$MODE" == '--universal-f9-qgis-native' || "$MODE" == '--universal-f9-qgis-ogr' || "$MODE" == '--universal-f9-qgis-geojson' || "$MODE" == '--universal-f9-providers-diagnose' || "$MODE" == '--universal-f9-hdf5-preview' || "$MODE" == '--universal-f9-hdf5-apply' || "$MODE" == '--universal-f9-pdal-runtime' || "$MODE" == '--universal-f9-librecad' || "$MODE" == '--universal-f10-precheck' || "$MODE" == '--universal-f10-activate' || "$MODE" == '--universal-f10-hygiene-preview' || "$MODE" == '--universal-f10-hygiene-apply' || "$MODE" == '--universal-f10-legacy-state-audit' || "$MODE" == '--universal-f11-pdal-las' || "$MODE" == '--universal-final-acceptance' || "$MODE" == '--universal-qa-precheck' || "$MODE" == '--universal-qa-activate' || "$MODE" == '--universal-runtime-precheck' || "$MODE" == '--universal-runtime-activate' || "$MODE" == '--universal-valkey-precheck' || "$MODE" == '--universal-valkey-activate' || "$MODE" == '--universal-webnav-precheck' || "$MODE" == '--universal-webnav-activate' || "$MODE" == '--universal-webdiag-precheck' || "$MODE" == '--universal-webdiag-activate' || "$MODE" == '--universal-asr-precheck' || "$MODE" == '--universal-asr-activate' || "$MODE" == '--universal-opencv-precheck' || "$MODE" == '--universal-opencv-activate' || "$MODE" == '--universal-adapters-precheck' || "$MODE" == '--universal-adapters-activate' || "$MODE" == '--universal-doccache-precheck' || "$MODE" == '--universal-doccache-activate' || "$MODE" == '--universal-docinv-precheck' || "$MODE" == '--universal-docinv-activate' || "$MODE" == '--universal-triage-precheck' || "$MODE" == '--universal-triage-activate' || "$MODE" == '--universal-promrules-precheck' || "$MODE" == '--universal-promrules-activate' || "$MODE" == '--universal-f12-preview' || "$MODE" == '--universal-f12-apply' || "$MODE" == '--universal-f12-certify' ]] || exit 3
           opts=(-T -o PreferredAuthentications=password -o PubkeyAuthentication=no
                 -o StrictHostKeyChecking=yes
                 -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-pinned-host"
@@ -969,6 +988,52 @@ jobs:
                 -o ConnectTimeout=20 -o ServerAliveInterval=15)
           BEFORE="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
           echo "FERRARI_PHASE5_CURRENT_BEFORE=$BEFORE"
+          if [[ "$MODE" == '--universal-f12-preview' || "$MODE" == '--universal-f12-apply' || "$MODE" == '--universal-f12-certify' ]]; then
+            REPORT="$RUNNER_TEMP/ferrari-universal-report.json"
+            EXPECTED="/srv/projects/skill-universal/releases/3f0ba44b7d8475a74a63c6010d1e27063c04bf1e"
+            [[ "$BEFORE" == "$EXPECTED" ]] || { echo 'FERRARI_F12_ACTIVE_MISMATCH' >&2; exit 35; }
+            python3 -m py_compile ferrari-f12/install/vps-f12-hygiene-and-programs-certify.py
+            F12_MODE="${MODE#--universal-f12-}"
+            sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+              "cd '/srv/projects/skill-universal/current' && '/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12' -B - --mode '$F12_MODE'" \
+              < ferrari-f12/install/vps-f12-hygiene-and-programs-certify.py > "$REPORT"
+            python3 - "$REPORT" "$F12_MODE" <<'F12_VALIDATE'
+          import json,sys
+          from pathlib import Path
+          path,mode=sys.argv[1:]
+          d=json.loads(Path(path).read_text(encoding="utf-8"))
+          assert d["status"]=="PASS",d
+          assert d["mode"]==mode,d
+          assert d["active"]=="3f0ba44b7d8475a74a63c6010d1e27063c04bf1e",d
+          assert d["fallback"]=="427e1c33c6d10ca8ecd2103861adccd3d552c381",d
+          assert d["protected_services"]=="8/8_PASS",d
+          assert d["global_apt_modified"] is False and d["other_projects_modified"] is False,d
+          if mode=="certify":
+              assert d["tested"]==2 and d["passed"]>=1,d
+              for name in ("yt-dlp","freecad"):
+                  item=d["tools"][name]
+                  print("FERRARI_F12_PROGRAM_"+name.upper().replace("-","_")+"="+item["status"].upper())
+              assert d["tools"]["yt-dlp"]["status"]=="pass",d
+              assert d["tools"]["yt-dlp"]["sha256_match"] is True,d
+              print("FERRARI_F12_REAL_LOCAL_MEDIA=PASS")
+          else:
+              assert d["removed_releases"]==0 and d["removed_user_jobs"]==0,d
+              print("FERRARI_F12_HYGIENE_"+mode.upper()+"=PASS")
+              print("FERRARI_F12_NPM_CACHE_BYTES="+str(d["npm_cache_bytes_before"]))
+              print("FERRARI_F12_GUI_SMOKE_RUNS="+str(len(d["eligible_gui_smoke_run_ids"])))
+          F12_VALIDATE
+            AFTER="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
+            [[ "$AFTER" == "$BEFORE" ]] || { echo 'FERRARI_F12_CHANGED_ACTIVE_RELEASE' >&2; exit 35; }
+            sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'bash -s' <<'F12_SERVICES'
+          set -Eeuo pipefail
+          for s in pink-iptv-backend pink-vpn fadego-staging lowcost-europa pm2-iptvpn-bot pm2-telegram-robot-leads nginx postgresql@16-main; do
+            systemctl is-active --quiet "$s" || exit 8
+          done
+          echo 'FERRARI_PROTECTED_SERVICES=8/8_PASS'
+          F12_SERVICES
+            echo 'FERRARI_F12_PROTECTED_WORKFLOW=PASS'
+            exit 0
+          fi
           if [[ "$MODE" == '--universal-qa-precheck' || "$MODE" == '--universal-qa-activate' ]]; then
             TARGET="e83ed6dff335459c0fb3526b56241768dbe3b635"
             PREVIOUS="e0509d5370828869479069c99f2eace779960cad"
