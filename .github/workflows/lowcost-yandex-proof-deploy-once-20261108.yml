@@ -33,101 +33,33 @@ jobs:
           umask 077
           ROOT=/srv/projects/lowcost-europa
           TASK="$ROOT/private/yandex-ownership-20261108"
-          OLD=f157e3b98786db21d6f541917ec7b545e9913485
-          NEW=ffbacda4c5c166e204a0bf2b8d621099480c8f7e
-          [[ -f "$TASK/transport.pem" && ! -e "$TASK/rollback2" ]]
+          OLD=ffbacda4c5c166e204a0bf2b8d621099480c8f7e
+          NEW=80e5544b8f3a510973beb63a44a791e4341f29c0
           [[ "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD)" == "$OLD" ]]
           [[ -z "$(git -c safe.directory="$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)" ]]
-          systemctl is-active --quiet lowcost-europa.service
-          systemctl is-active --quiet lowcost-europa-indexnow.timer
-          nginx -t >/dev/null 2>&1
-          CONF="$(python3 - <<'PY_CONF'
-          from pathlib import Path
-          paths={p.resolve() for p in Path('/etc/nginx/sites-enabled').iterdir() if p.is_file()}
-          found=[p for p in paths if 'server_name www.lowcost-europa.eu;' in p.read_text() and 'root /srv/projects/lowcost-europa/www;' in p.read_text()]
-          assert len(found)==1
-          p=found[0]
-          assert str(p)=='/srv/projects/lowcost-europa/deploy/nginx/lowcost-europa.eu.conf'
-          print(p)
-          PY_CONF
-          )"
-          cmp -s "$CONF" "$ROOT/deploy/nginx/lowcost-europa.eu.conf"
-          ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
-          LEGAL="$ROOT/.legal/operator.json"
-          ENVHASH="$(sha256sum "$ENVFILE" | cut -d' ' -f1)"
-          LEGALHASH="$(sha256sum "$LEGAL" | cut -d' ' -f1)"
+          CONF="$ROOT/deploy/nginx/lowcost-europa.eu.conf"
+          CONFHASH="$(sha256sum "$CONF" | cut -d' ' -f1)"
           git -c safe.directory="$ROOT" -C "$ROOT" fetch -q https://github.com/martaxi-boss/lowcost-europa.git main
           [[ "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse FETCH_HEAD)" == "$NEW" ]]
           [[ "$(git -c safe.directory="$ROOT" -C "$ROOT" merge-base "$OLD" "$NEW")" == "$OLD" ]]
-          [[ "$(git -c safe.directory="$ROOT" -C "$ROOT" diff --name-only "$OLD" "$NEW" | sort)" == "$(printf '%s\n' apps/storefront/tests/test_visual_professional.py deploy/nginx/lowcost-europa.eu.conf | sort)" ]]
-          printf '%s' 'F0cFe81nHXbGRiIA4nBoks52cfHNOzyIOnvwIWOZV35GldHJM+tRz4iLp1yu27J+cuXGg+p1UZ1xxSZGLLeChbPsJmNvwBs0yLHkRQRQrNNj3VdLjY/mw8+PHTBKixtXMtnRMorFZZGMNMKEuSJ4d37TpQ/iECkXMcUayd3QwmHD+jrj5B0B2Tk4oxgGeQVwfRtNdpxWSwsLLm6EtWO7CzhNbAofEf+2PV8ZEPm5TvMnHhB0RqJWpTdTGM0K1mB3gprQleYlM9tFQNZRibYOYuZ2Rc3EiG8IeHX5APY3J4UZMEQcbm8mqJu6HRBJIGwsf4mEdV3ihnj+zGjyBqvAA0GhqHR2640LV25KmzB4RZFKxfvICrTml3hU0SpXvfL+f4NgK5B2150x5CV8MmSXJzch3kiNvUw0iFhqRtqMImrUrso3Jhvoooadbtdb6HK1dOEj9MsDl5/9FORzvtA9dSsj13k+SmMqttcWDYmfhx/p38VVUIUkJLuGmisoQoNX' | base64 -d > "$TASK/token.encrypted"
-          openssl pkeyutl -decrypt -inkey "$TASK/transport.pem" -in "$TASK/token.encrypted" -out "$TASK/token" -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 -pkeyopt rsa_mgf1_md:sha256
-          TOKEN="$(cat "$TASK/token")"
-          [[ "$TOKEN" =~ ^[a-f0-9]{16}$ ]]
-          PROOF="$ROOT/www/yandex_$TOKEN.html"
-          [[ ! -e "$PROOF" ]]
-          mkdir -m 700 "$TASK/rollback2"
-          cp -a "$CONF" "$TASK/rollback2/nginx.conf"
-          printf '%s\n' "$OLD" > "$TASK/rollback2/old-sha"
-          printf '%s\n' "$CONF" > "$TASK/rollback2/nginx-path"
-          MUTATED=0
-          rollback() {
-            result=$?
-            trap - EXIT
-            if [[ "$result" -ne 0 && "$MUTATED" == 1 ]]; then
-              git -c safe.directory="$ROOT" -C "$ROOT" checkout --detach -q "$OLD"
-              cmp -s "$TASK/rollback2/nginx.conf" "$CONF"
-              rm -f -- "$PROOF"
-              nginx -t >/dev/null 2>&1
-              systemctl reload nginx
-              echo LOWCOST_YANDEX_ROLLBACK=PASS
-            fi
-            exit "$result"
-          }
-          trap rollback EXIT
-          MUTATED=1
+          [[ "$(git -c safe.directory="$ROOT" -C "$ROOT" diff --name-only "$OLD" "$NEW" | sort)" == "$(printf '%s\n' PROJECT_STATE.md docs/operations/international-search-20261108.md | sort)" ]]
           umask 022
           git -c safe.directory="$ROOT" -C "$ROOT" checkout --detach -q "$NEW"
-          printf '<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"></head><body>Verification: %s</body></html>\n' "$TOKEN" > "$PROOF"
-          chmod 644 "$PROOF"
-          # The enabled vhost is a symlink to this tracked config; checkout updated it.
           umask 077
-          nginx -t >/dev/null 2>&1
-          systemctl reload nginx
-          curl -fsS --retry 6 --retry-delay 1 --retry-all-errors --retry-max-time 15 --max-time 20 --resolve www.lowcost-europa.eu:443:146.59.145.3 "https://www.lowcost-europa.eu/yandex_$TOKEN.html" -o "$TASK/proof-response.html"
-          cmp -s "$PROOF" "$TASK/proof-response.html"
-          [[ "$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 --resolve www.lowcost-europa.eu:443:146.59.145.3 https://www.lowcost-europa.eu/)" == 200 ]]
-          [[ "$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 --resolve lowcost-europa.eu:443:146.59.145.3 https://lowcost-europa.eu/)" == 301 ]]
-          for slug in cavitacao-rf-vacuum-corpo hydrodermoabrasao-aqua-facial-multifuncoes pressoterapia-vacuum-drenagem hifu diodo-laser-remocao-tatuagens-pigmentacao; do
-            [[ "$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 --resolve www.lowcost-europa.eu:443:146.59.145.3 "https://www.lowcost-europa.eu/products/$slug/")" == 200 ]]
-          done
-          for path in painel/ admin/; do
-            curl -sS -D "$TASK/private-headers" -o /dev/null --max-time 15 --resolve www.lowcost-europa.eu:443:146.59.145.3 "https://www.lowcost-europa.eu/$path"
-            grep -Eq '^HTTP/.* 302' "$TASK/private-headers"
-            grep -Eiq '^x-robots-tag:.*noindex' "$TASK/private-headers"
-            grep -Eiq '^cache-control:.*private' "$TASK/private-headers"
-          done
-          curl -fsS --max-time 15 --resolve www.lowcost-europa.eu:443:146.59.145.3 https://www.lowcost-europa.eu/sitemap.xml -o "$TASK/sitemap.xml"
-          [[ "$(sha256sum "$ENVFILE" | cut -d' ' -f1)" == "$ENVHASH" ]]
-          [[ "$(sha256sum "$LEGAL" | cut -d' ' -f1)" == "$LEGALHASH" ]]
+          [[ "$(sha256sum "$CONF" | cut -d' ' -f1)" == "$CONFHASH" ]]
           [[ -z "$(git -c safe.directory="$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)" ]]
+          [[ ! -e "$TASK/transport.pem" && ! -e "$TASK/token" && ! -e "$TASK/token.encrypted" ]]
+          # Drop only the redundant task checkpoint, after exact comparison.
+          for name in nginx.conf old-sha nginx-path; do
+            cmp -s "$TASK/rollback/$name" "$TASK/rollback2/$name"
+          done
+          for name in nginx.conf old-sha nginx-path; do rm -- "$TASK/rollback2/$name"; done
+          rmdir "$TASK/rollback2"
+          nginx -t >/dev/null 2>&1
           systemctl is-active --quiet lowcost-europa.service
           systemctl is-active --quiet lowcost-europa-indexnow.timer
-          systemctl is-active --quiet certbot.timer
-          STATEHASH="$(sha256sum "$ROOT/.indexnow/accepted.json" | cut -d' ' -f1)"
-          systemd-run --quiet --wait --pipe --collect --unit=lowcost-yandex-indexnow-audit-20261108 \
-            -p User=le001_1789265592 -p WorkingDirectory="$ROOT" \
-            -p EnvironmentFile="$ENVFILE" -p NoNewPrivileges=true -p PrivateTmp=true -p UMask=0077 \
-            "$ROOT/.venv/bin/python" manage.py notify_indexnow --dry-run > "$TASK/indexnow-audit"
-          grep -E '^INDEXNOW_DRY_RUN public=[0-9]+ changed=[0-9]+ removed=[0-9]+$' "$TASK/indexnow-audit"
-          [[ "$(sha256sum "$ROOT/.indexnow/accepted.json" | cut -d' ' -f1)" == "$STATEHASH" ]]
-          echo LOWCOST_INDEXNOW_NO_SUBMISSION_STATE_PRESERVED=PASS
-          echo LOWCOST_YANDEX_PROOF_HTTP_CONTENT=PASS
-          echo LOWCOST_YANDEX_CANONICAL_AND_CATEGORIES=PASS
-          echo LOWCOST_YANDEX_PANEL_PRIVACY=PASS
-          echo LOWCOST_YANDEX_PRIVATE_CONFIG_UNCHANGED=PASS
-          echo "LOWCOST_YANDEX_GITHUB_VPS_SHA=$NEW"
-          echo LOWCOST_YANDEX_DEPLOY=PASS
-          trap - EXIT
-          rm -f -- "$TASK/token" "$TASK/token.encrypted" "$TASK/transport.pem" "$TASK/transport-public.pem" "$TASK/proof-response.html" "$TASK/private-headers" "$TASK/sitemap.xml" "$TASK/indexnow-audit"
+          [[ "$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 --resolve www.lowcost-europa.eu:443:146.59.145.3 https://www.lowcost-europa.eu/)" == 200 ]]
+          echo "LOWCOST_SEARCH_EVIDENCE_GITHUB_VPS_SHA=$NEW"
+          echo LOWCOST_YANDEX_TASK_ONLY_HYGIENE=PASS
+          echo LOWCOST_SEARCH_EVIDENCE_ALIGNMENT=PASS
           REMOTE
