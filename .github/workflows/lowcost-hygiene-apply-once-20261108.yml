@@ -69,29 +69,39 @@ jobs:
             exit "$code"
           }
           trap restore_on_error EXIT
+          echo LOWCOST_PREFLIGHT_STAGE=PROJECT_FILES
           [[ -d "$ROOT/.git" && -d "$ROOT/private" && -f "$ENVFILE" ]]
+          echo LOWCOST_PREFLIGHT_STAGE=LEGACY_NGINX_FILES
           [[ -f "$OLD_ENABLED" && ! -L "$OLD_ENABLED" ]]
           [[ -f "$OLD_AVAILABLE" && ! -L "$OLD_AVAILABLE" ]]
+          echo LOWCOST_PREFLIGHT_STAGE=CANONICAL_NGINX_CERT
           [[ -f /etc/nginx/sites-enabled/lowcost-europa-eu.conf ]]
           [[ -f /etc/letsencrypt/live/lowcost-europa.eu/fullchain.pem ]]
+          echo LOWCOST_PREFLIGHT_STAGE=GIT_OLD_CLEAN
           [[ -z "$(git -c "safe.directory=$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)" ]]
           [[ "$(git -c "safe.directory=$ROOT" -C "$ROOT" rev-parse HEAD)" == "$OLD" ]]
           [[ ! -e "$BACK" ]]
+          echo LOWCOST_PREFLIGHT_STAGE=LEGACY_HOST_CONTENT
           for file in "$OLD_ENABLED" "$OLD_AVAILABLE"; do
+            echo "LOWCOST_PREFLIGHT_LEGACY_FILE=$file"
             grep -Fq 'lowcost-europa.duckdns.org' "$file"
             grep -Fq 'lowcost-europa.146-59-145-3.sslip.io' "$file"
             if grep -Fq 'www.lowcost-europa.eu' "$file"; then exit 3; fi
           done
           grep -Fq 'www.lowcost-europa.eu' /etc/nginx/sites-enabled/lowcost-europa-eu.conf
+          echo LOWCOST_PREFLIGHT_STAGE=CERT_VALIDITY
           openssl x509 -in /etc/letsencrypt/live/lowcost-europa.eu/fullchain.pem -noout -checkend 604800 >/dev/null
+          echo LOWCOST_PREFLIGHT_STAGE=SERVICE_TIMERS
           systemctl is-active --quiet lowcost-europa.service
           systemctl is-active --quiet lowcost-europa-catalog-maintenance.timer
           systemctl is-active --quiet lowcost-europa-weekly-discovery.timer
           systemctl is-active --quiet lowcost-europa-indexnow.timer
           nginx -t >/dev/null 2>&1
+          echo LOWCOST_PREFLIGHT_STAGE=GIT_FETCH
           git -c "safe.directory=$ROOT" -C "$ROOT" fetch -q https://github.com/martaxi-boss/lowcost-europa.git main
           [[ "$(git -c "safe.directory=$ROOT" -C "$ROOT" rev-parse FETCH_HEAD)" == "$NEW" ]]
           [[ "$(git -c "safe.directory=$ROOT" -C "$ROOT" merge-base "$OLD" "$NEW")" == "$OLD" ]]
+          echo LOWCOST_PREFLIGHT_STAGE=GIT_DIFF
           expected="$(cat <<'FILELIST'
           .github/workflows/closed-pr-branch-hygiene.yml
           .github/workflows/staging-browser-qa.yml
