@@ -67,6 +67,8 @@ on:
       - 'ferrari-release-requests/universal-asr-activate-20261108.json'
       - 'ferrari-release-requests/universal-opencv-precheck-20261108.json'
       - 'ferrari-release-requests/universal-opencv-activate-20261108.json'
+      - 'ferrari-release-requests/universal-adapters-precheck-20261108.json'
+      - 'ferrari-release-requests/universal-adapters-activate-20261108.json'
 
 permissions:
   contents: read
@@ -157,6 +159,8 @@ jobs:
             ferrari-release-requests/universal-asr-activate-20261108.json) MODE=--universal-asr-activate ;;
             ferrari-release-requests/universal-opencv-precheck-20261108.json) MODE=--universal-opencv-precheck ;;
             ferrari-release-requests/universal-opencv-activate-20261108.json) MODE=--universal-opencv-activate ;;
+            ferrari-release-requests/universal-adapters-precheck-20261108.json) MODE=--universal-adapters-precheck ;;
+            ferrari-release-requests/universal-adapters-activate-20261108.json) MODE=--universal-adapters-activate ;;
             *) echo 'FERRARI_PHASE5_REQUEST_NOT_SINGLE_OR_NOT_ALLOWED' >&2; exit 2 ;;
           esac
           if [[ "$MODE" == --universal-* ]]; then
@@ -168,7 +172,11 @@ jobs:
           path,mode=sys.argv[1:]
           with open(path,encoding="utf-8") as fh:
               payload=json.load(fh)
-          if mode in ("--universal-opencv-precheck","--universal-opencv-activate"):
+          if mode in ("--universal-adapters-precheck","--universal-adapters-activate"):
+              expected={"version":1,"phase":"universal-catalog",
+                        "sha":"__FERRARI_SPECIALIST_COMMIT__",
+                        "mode":mode.removeprefix("--universal-")}
+          elif mode in ("--universal-opencv-precheck","--universal-opencv-activate"):
               expected={"version":1,"phase":"universal-catalog",
                         "sha":"46b679f4304454e28a23aa779507af393f0c5258",
                         "mode":mode.removeprefix("--universal-")}
@@ -508,6 +516,15 @@ jobs:
           persist-credentials: false
           path: ferrari-opencv
 
+      - name: Checkout immutable Ferrari specialist-adapter release
+        if: steps.request.outputs.mode == '--universal-adapters-precheck' || steps.request.outputs.mode == '--universal-adapters-activate'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: __FERRARI_SPECIALIST_COMMIT__
+          persist-credentials: false
+          path: ferrari-adapters
+
       - name: Validate the project-owned release script
         shell: bash
         run: |
@@ -637,6 +654,25 @@ jobs:
           assert (root/"engine/quality_gate.py").is_file()
           print("FERRARI_OPENCV_PINNED_SOURCE_AND_CATALOG=PASS")
           OPENCV_SOURCE_CHECK
+          fi
+          if [[ "${{ steps.request.outputs.mode }}" == '--universal-adapters-precheck' || "${{ steps.request.outputs.mode }}" == '--universal-adapters-activate' ]]; then
+            bash -n ferrari-adapters/install/vps-isolated-release.sh
+            python3 -m py_compile ferrari-adapters/engine/program_adapters.py
+            python3 - <<'ADAPTERS_SOURCE_CHECK'
+          import json
+          from pathlib import Path
+          root=Path("ferrari-adapters")
+          doc=json.loads((root/"engine/catalog.json").read_text())
+          assert len(doc["tools"]) == 173 and len(doc["functions"]) == 277
+          assert doc["counts"]["all_catalog_entries"] == 455
+          assert len([x for x in doc["functions"] if x["kind"]=="operation"])==17
+          names={x["name"] for x in doc["functions"] if x["kind"]=="operation"}
+          assert {"librecad-dxf-pdf","qgis-buffer-5m","godot-starter"} <= names
+          script=(root/"install/vps-isolated-release.sh").read_text()
+          assert "FERRARI_PRIVATE_SPECIALIST_SMOKE=PASS" in script
+          assert (root/"tests/test_program_adapters.py").is_file()
+          print("FERRARI_SPECIALIST_PINNED_SOURCE_AND_CATALOG=PASS")
+          ADAPTERS_SOURCE_CHECK
           fi
           if [[ "${{ steps.request.outputs.mode }}" == '--universal-final-acceptance' ]]; then
             python3 -m py_compile ferrari-accept/install/vps-final-acceptance.py
@@ -792,7 +828,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           SHA="40c0e1cdf31b1fe9589ad8be90e5eac06eec2856"
-          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--venvs-preview' || "$MODE" == '--venvs-apply' || "$MODE" == '--final-preview' || "$MODE" == '--final-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' || "$MODE" == '--phase7-check' || "$MODE" == '--phase7-activate' || "$MODE" == '--phase7-certify' || "$MODE" == '--universal-check' || "$MODE" == '--universal-activate' || "$MODE" == '--universal-preview' || "$MODE" == '--universal-apply' || "$MODE" == '--universal-deep-audit' || "$MODE" == '--universal-empty-preview' || "$MODE" == '--universal-empty-apply' || "$MODE" == '--universal-f9-consumers' || "$MODE" == '--universal-f9-dpkg-confirm' || "$MODE" == '--universal-f9-qgis-native' || "$MODE" == '--universal-f9-qgis-ogr' || "$MODE" == '--universal-f9-qgis-geojson' || "$MODE" == '--universal-f9-providers-diagnose' || "$MODE" == '--universal-f9-hdf5-preview' || "$MODE" == '--universal-f9-hdf5-apply' || "$MODE" == '--universal-f9-pdal-runtime' || "$MODE" == '--universal-f9-librecad' || "$MODE" == '--universal-f10-precheck' || "$MODE" == '--universal-f10-activate' || "$MODE" == '--universal-f10-hygiene-preview' || "$MODE" == '--universal-f10-hygiene-apply' || "$MODE" == '--universal-f10-legacy-state-audit' || "$MODE" == '--universal-f11-pdal-las' || "$MODE" == '--universal-final-acceptance' || "$MODE" == '--universal-qa-precheck' || "$MODE" == '--universal-qa-activate' || "$MODE" == '--universal-runtime-precheck' || "$MODE" == '--universal-runtime-activate' || "$MODE" == '--universal-valkey-precheck' || "$MODE" == '--universal-valkey-activate' || "$MODE" == '--universal-webnav-precheck' || "$MODE" == '--universal-webnav-activate' || "$MODE" == '--universal-webdiag-precheck' || "$MODE" == '--universal-webdiag-activate' || "$MODE" == '--universal-asr-precheck' || "$MODE" == '--universal-asr-activate' || "$MODE" == '--universal-opencv-precheck' || "$MODE" == '--universal-opencv-activate' ]] || exit 3
+          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--venvs-preview' || "$MODE" == '--venvs-apply' || "$MODE" == '--final-preview' || "$MODE" == '--final-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' || "$MODE" == '--phase7-check' || "$MODE" == '--phase7-activate' || "$MODE" == '--phase7-certify' || "$MODE" == '--universal-check' || "$MODE" == '--universal-activate' || "$MODE" == '--universal-preview' || "$MODE" == '--universal-apply' || "$MODE" == '--universal-deep-audit' || "$MODE" == '--universal-empty-preview' || "$MODE" == '--universal-empty-apply' || "$MODE" == '--universal-f9-consumers' || "$MODE" == '--universal-f9-dpkg-confirm' || "$MODE" == '--universal-f9-qgis-native' || "$MODE" == '--universal-f9-qgis-ogr' || "$MODE" == '--universal-f9-qgis-geojson' || "$MODE" == '--universal-f9-providers-diagnose' || "$MODE" == '--universal-f9-hdf5-preview' || "$MODE" == '--universal-f9-hdf5-apply' || "$MODE" == '--universal-f9-pdal-runtime' || "$MODE" == '--universal-f9-librecad' || "$MODE" == '--universal-f10-precheck' || "$MODE" == '--universal-f10-activate' || "$MODE" == '--universal-f10-hygiene-preview' || "$MODE" == '--universal-f10-hygiene-apply' || "$MODE" == '--universal-f10-legacy-state-audit' || "$MODE" == '--universal-f11-pdal-las' || "$MODE" == '--universal-final-acceptance' || "$MODE" == '--universal-qa-precheck' || "$MODE" == '--universal-qa-activate' || "$MODE" == '--universal-runtime-precheck' || "$MODE" == '--universal-runtime-activate' || "$MODE" == '--universal-valkey-precheck' || "$MODE" == '--universal-valkey-activate' || "$MODE" == '--universal-webnav-precheck' || "$MODE" == '--universal-webnav-activate' || "$MODE" == '--universal-webdiag-precheck' || "$MODE" == '--universal-webdiag-activate' || "$MODE" == '--universal-asr-precheck' || "$MODE" == '--universal-asr-activate' || "$MODE" == '--universal-opencv-precheck' || "$MODE" == '--universal-opencv-activate' || "$MODE" == '--universal-adapters-precheck' || "$MODE" == '--universal-adapters-activate' ]] || exit 3
           opts=(-T -o PreferredAuthentications=password -o PubkeyAuthentication=no
                 -o StrictHostKeyChecking=yes
                 -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-pinned-host"
@@ -1149,6 +1185,56 @@ jobs:
           OPENCV_SERVICES
             printf '{"status":"PASS","mode":"%s","before":"%s","after":"%s","fallback":"%s","source":"%s"}\n' "$MODE" "$BEFORE" "$AFTER" "$PREVIOUS" "$TARGET" > "$REPORT"
             echo 'FERRARI_OPENCV_PROTECTED_WORKFLOW=PASS'
+            exit 0
+          fi
+          if [[ "$MODE" == '--universal-adapters-precheck' || "$MODE" == '--universal-adapters-activate' ]]; then
+            TARGET="__FERRARI_SPECIALIST_COMMIT__"
+            PREVIOUS="46b679f4304454e28a23aa779507af393f0c5258"
+            REPORT="$RUNNER_TEMP/ferrari-universal-report.json"
+            [[ "$BEFORE" == "/srv/projects/skill-universal/releases/$PREVIOUS" ]] ||
+              { echo 'FERRARI_SPECIALIST_UNEXPECTED_CURRENT_RELEASE' >&2; exit 33; }
+            sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+              "bash -s -- '$TARGET' '--check'" \
+              < ferrari-adapters/install/vps-isolated-release.sh
+            AFTER="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
+            [[ "$AFTER" == "$BEFORE" ]] ||
+              { echo 'FERRARI_SPECIALIST_PRECHECK_CHANGED_CURRENT' >&2; exit 33; }
+            echo 'FERRARI_SPECIALIST_REAL_PRECHECK=PASS'
+            if [[ "$MODE" == '--universal-adapters-activate' ]]; then
+              sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+                "bash -s -- '$TARGET' '--activate'" \
+                < ferrari-adapters/install/vps-isolated-release.sh
+              AFTER="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
+              [[ "$AFTER" == "/srv/projects/skill-universal/releases/$TARGET" ]] ||
+                { echo 'FERRARI_SPECIALIST_WRONG_ACTIVE_RELEASE' >&2; exit 33; }
+              sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+                "cd '/srv/projects/skill-universal/current' && '/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12' -B -" <<'ADAPTERS_READBACK'
+          from pathlib import Path
+          from engine import ferrari, tool_runtime, catalog_registry
+          root=Path("/srv/projects/skill-universal")
+          target="__FERRARI_SPECIALIST_COMMIT__"
+          previous="46b679f4304454e28a23aa779507af393f0c5258"
+          assert (root/"current").resolve(strict=True)==root/"releases"/target
+          assert (root/"releases"/previous/"engine/catalog.json").is_file()
+          catalog=catalog_registry.read_catalog()
+          assert catalog["counts"]["all_catalog_entries"]==455
+          assert catalog["counts"]["functions"]==277
+          assert len(tool_runtime.specs())==40
+          assert {"librecad-dxf-pdf","qgis-buffer-5m","godot-starter"} <= set(ferrari.OPS)
+          print("FERRARI_SPECIALIST_ACTIVE_RELEASE_AND_FALLBACK=PASS")
+          ADAPTERS_READBACK
+              echo 'FERRARI_SPECIALIST_RELEASE_ACTIVATION=PASS'
+            fi
+            sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'bash -s' <<'ADAPTERS_SERVICES'
+          set -Eeuo pipefail
+          for s in pink-iptv-backend pink-vpn fadego-staging lowcost-europa pm2-iptvpn-bot pm2-telegram-robot-leads nginx postgresql@16-main; do
+            systemctl is-active --quiet "$s" ||
+              { echo "FERRARI_PROTECTED_SERVICE_NOT_ACTIVE=$s" >&2; exit 8; }
+          done
+          echo 'FERRARI_PROTECTED_SERVICES=8/8_PASS'
+          ADAPTERS_SERVICES
+            printf '{"status":"PASS","mode":"%s","before":"%s","after":"%s","fallback":"%s","source":"%s"}\n' "$MODE" "$BEFORE" "$AFTER" "$PREVIOUS" "$TARGET" > "$REPORT"
+            echo 'FERRARI_SPECIALIST_PROTECTED_WORKFLOW=PASS'
             exit 0
           fi
           if [[ "$MODE" == --universal-* ]]; then
