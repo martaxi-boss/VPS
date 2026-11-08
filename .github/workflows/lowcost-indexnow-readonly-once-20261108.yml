@@ -57,13 +57,16 @@ jobs:
               print('INDEXNOW_READ_ONLY='+json.dumps(dict(public=len(second),accepted=len(accepted),changed=len(changed),removed=len(removed),snapshots_stable=True,accepted_state_unchanged=True)))
               print('INDEXNOW_CHANGED_PUBLIC_URLS='+json.dumps(changed))
               print('INDEXNOW_ACCEPTED_STATE_MTIME_UTC='+datetime.datetime.fromtimestamp(state.stat().st_mtime,datetime.timezone.utc).isoformat())
+          PY
+          chmod 644 "$TASK/check.py"
+          systemd-run --quiet --wait --pipe --collect --unit=lowcost-indexnow-readonly-20261108-1645 --property=User=le001_1789265592 --property=WorkingDirectory="$ROOT" --property=EnvironmentFile="$ROOT/private/systemd-env/lowcost-europa.env" "$ROOT/.venv/bin/python" -B -c "$(< "$TASK/check.py")"
+          python3 - <<'PY'
+          import json,re,subprocess
           r=subprocess.run(['journalctl','-u','lowcost-europa-indexnow.service','--since','2026-11-08 13:00:00','--no-pager','-o','cat'],capture_output=True,text=True,check=True)
           import re
           safe=[x for x in r.stdout.splitlines() if re.fullmatch(r'INDEXNOW_(?:RECEIVED http=(?:200|202) urls=\d+ key_verification=(?:pending|accepted) index_inclusion=unconfirmed|UNCHANGED public=\d+ changed=\d+ removed=\d+)',x)]
           print('INDEXNOW_SANITIZED_RECENT_EVENTS='+json.dumps(safe[-8:]))
           PY
-          chmod 644 "$TASK/check.py"
-          systemd-run --quiet --wait --pipe --collect --unit=lowcost-indexnow-readonly-20261108-1645 --property=User=le001_1789265592 --property=WorkingDirectory="$ROOT" --property=EnvironmentFile="$ROOT/private/systemd-env/lowcost-europa.env" "$ROOT/.venv/bin/python" -B -c "$(< "$TASK/check.py")"
           systemctl is-active --quiet lowcost-europa.service
           systemctl is-active --quiet lowcost-europa-indexnow.timer
           nginx -t >/dev/null 2>&1
