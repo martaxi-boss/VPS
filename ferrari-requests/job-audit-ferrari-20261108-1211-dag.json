@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "id": "audit-ferrari-dag-20261108-1211",
+  "kind": "plan",
+  "max_parallel": 2,
+  "plan": {
+    "version": 1,
+    "steps": [
+      {
+        "id": "site",
+        "operation": "web-template",
+        "layout": "store",
+        "title": "Ferrari Audit 2026"
+      },
+      {
+        "id": "poster",
+        "operation": "svg-poster",
+        "title": "Ferrari QA"
+      },
+      {
+        "id": "analysis",
+        "operation": "binary-strings",
+        "depends_on": [
+          "site"
+        ],
+        "input_from": "site"
+      }
+    ]
+  }
+}
