@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "test-ruflo-correction-approve-20261108-n1",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "ruflo-correction-20261108-n1",
+  "revision": 3,
+  "turn": {
+    "task": "format",
+    "role": "reviewer",
+    "kind": "review",
+    "message": "Aprovado apos segunda execucao real: conteudo JSON ok=true, 17 bytes, SHA256 corresponde ao artefacto privado, sem substituicao externa.",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "12b34da73b0c67a0319e6eddbd3582af66e3b558b4d44e4a6860e0cec20d726f"
+    ]
+  }
+}
