@@ -1,0 +1,204 @@
+name: Lowcost safe public EUR price observation gate rollout
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-offer-price-guard-deploy-once-20261108.yml'
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-offer-price-guard-rollout
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Verify only this new one-shot workflow and pinned host
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")" == '.github/workflows/lowcost-offer-price-guard-deploy-once-20261108.yml' ]]
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/known_hosts"
+          chmod 600 "$RUNNER_TEMP/known_hosts"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/known_hosts" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          echo LOWCOST_PRICE_GUARD_DEPLOY_SSH_PIN=PASS
+      - name: Scoped deploy, revert on failure and read-only production proof
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/known_hosts" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          ROOT=/srv/projects/lowcost-europa
+          OLD=7d01037bf9ac36a3cd163be6524d4b755b7181b2
+          NEW=a0a2f31dc39b1d6435fb34a01c6e8d1f7c039066
+          BACK="$ROOT/private/deploy-rollbacks/offer-price-24h-eur-gate-20261108-01"
+          ALTERED=0
+          rollback() {
+            code=$?
+            trap - EXIT
+            if [[ "$ALTERED" -eq 1 ]]; then
+              umask 022
+              git -c "safe.directory=$ROOT" -C "$ROOT" checkout --detach -q "$OLD" || true
+              umask 077
+              systemctl restart lowcost-europa.service || true
+              echo LOWCOST_PRICE_GUARD_ROLLBACK=EXECUTED
+            else
+              echo LOWCOST_PRICE_GUARD_NO_LIVE_CHANGES=YES
+            fi
+            exit "$code"
+          }
+          trap rollback EXIT
+          [[ -d "$ROOT/.git" && -d "$ROOT/private" ]]
+          [[ "$(git -c "safe.directory=$ROOT" -C "$ROOT" rev-parse HEAD)" == "$OLD" ]]
+          [[ -z "$(git -c "safe.directory=$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)" ]]
+          [[ ! -e "$BACK" ]]
+          [[ -f "$ROOT/private/systemd-env/lowcost-europa.env" ]]
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa-catalog-maintenance.timer
+          systemctl is-active --quiet lowcost-europa-affiliate-report.timer
+          nginx -t >/dev/null 2>&1
+          git -c "safe.directory=$ROOT" -C "$ROOT" fetch -q https://github.com/martaxi-boss/lowcost-europa.git main
+          [[ "$(git -c "safe.directory=$ROOT" -C "$ROOT" rev-parse FETCH_HEAD)" == "$NEW" ]]
+          [[ "$(git -c "safe.directory=$ROOT" -C "$ROOT" merge-base "$OLD" "$NEW")" == "$OLD" ]]
+          expected="$(printf '%s\n' \
+            '.env.example' \
+            'apps/catalog/owner_panel_views.py' \
+            'apps/catalog/services/public_eligibility.py' \
+            'apps/catalog/templates/catalog/owner_panel/dashboard.html' \
+            'apps/catalog/tests/test_owner_analytics_dashboard.py' \
+            'apps/storefront/tests/test_public_recent_price_gate.py' \
+            'config/settings/base.py' \
+            'config/settings/production.py' \
+            'docs/ops/PRICE-EVIDENCE-SAFEGUARD-20261108.md' | sort)"
+          actual="$(git -c "safe.directory=$ROOT" -C "$ROOT" diff --name-only "$OLD" "$NEW" | sort)"
+          [[ "$actual" == "$expected" ]] || { echo LOWCOST_PRICE_GUARD_DIFF_SCOPE=BLOCK; exit 5; }
+          mkdir -m 700 -p "$ROOT/private/deploy-rollbacks"
+          mkdir -m 700 "$BACK"
+          printf '%s\n' "$OLD" > "$BACK/old-sha"
+          printf '%s\n' "$NEW" > "$BACK/target-sha"
+          echo LOWCOST_PRICE_GUARD_PRIVATE_ROLLBACK_BACKUP=PASS
+          ALTERED=1
+          umask 022
+          git -c "safe.directory=$ROOT" -C "$ROOT" checkout --detach -q "$NEW"
+          umask 077
+          python3 - "$ROOT" <<'PYCOMPILE'
+          from pathlib import Path
+          import sys
+          root=Path(sys.argv[1])
+          for rel in (
+              "config/settings/base.py",
+              "config/settings/production.py",
+              "apps/catalog/owner_panel_views.py",
+              "apps/catalog/services/public_eligibility.py",
+          ):
+              compile((root/rel).read_text(),rel,"exec")
+          PYCOMPILE
+          systemctl restart lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa.service
+          ok=0
+          for try_id in $(seq 1 25); do
+            code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 --resolve www.lowcost-europa.eu:443:146.59.145.3 https://www.lowcost-europa.eu/ || true)"
+            if [[ "$code" == "200" ]]; then ok=1; break; fi
+            sleep 1
+          done
+          [[ "$ok" -eq 1 ]] || { echo LOWCOST_PRICE_GUARD_HTTP=FAIL; exit 5; }
+          ROOT="$ROOT" "$ROOT/.venv/bin/python" - <<'PYPROOF'
+          import os, pwd
+          from pathlib import Path
+          root=Path(os.environ["ROOT"])
+          for line in (root/"private/systemd-env/lowcost-europa.env").read_text().splitlines():
+              line=line.strip()
+              if not line or line.startswith("#") or "=" not in line: continue
+              key,value=line.split("=",1)
+              key=key.strip()
+              if key.isidentifier():
+                  value=value.strip()
+                  if len(value)>1 and value[0] in ("'",'"') and value[-1]==value[0]:
+                      value=value[1:-1]
+                  os.environ[key]=value
+          os.environ["DJANGO_SETTINGS_MODULE"]="config.settings.production"
+          os.chdir(root)
+          owner=pwd.getpwnam("le001_1789265592")
+          os.initgroups(owner.pw_name,owner.pw_gid)
+          os.setgid(owner.pw_gid)
+          os.setuid(owner.pw_uid)
+          import django
+          django.setup()
+          from django.conf import settings
+          from django.utils import timezone
+          from django.db.models import OuterRef
+          from apps.catalog.models import Offer,OfferObservation,ProductFamily,OfferFamilyPlacement
+          from apps.catalog.services.public_eligibility import public_eligibility_q
+          if settings.PUBLIC_RECENT_PRICE_REQUIRED is not True:
+              raise SystemExit("PRICE_GUARD_PRODUCTION_FLAG_NOT_ACTIVE")
+          now=timezone.now()
+          base=Offer.objects.filter(public_eligibility_q(now,require_recent_price=False))
+          allowed=Offer.objects.filter(public_eligibility_q(now))
+          before=base.count()
+          after=allowed.count()
+          held=base.exclude(public_eligibility_q(now)).count()
+          if not (before>0 and after>0 and before==after+held):
+              raise SystemExit("PRICE_GUARD_INVARIANT_FAIL")
+          recent_price=OfferObservation.objects.filter(
+              offer_id=OuterRef("pk"),
+              observed_at__gte=now-django.utils.timezone.timedelta(hours=24),
+              observed_at__lte=now,
+              price__gt=0,
+              currency__iexact="EUR",
+          )
+          valid=base.filter(pk__in=recent_price.values("offer_id")).count()
+          if valid!=after:
+              raise SystemExit("PRICE_GUARD_DERIVED_PRICE_COUNT_MISMATCH")
+          all_families=list(ProductFamily.objects.exclude(status=ProductFamily.Status.RETIRED))
+          if len(all_families)!=5:
+              raise SystemExit("PRICE_GUARD_FIVE_CATEGORIES_NOT_FOUND")
+          for family in all_families:
+              count=OfferFamilyPlacement.objects.filter(
+                  product_family=family
+              ).filter(public_eligibility_q(now,prefix="offer__")).count()
+              if count<1:
+                  raise SystemExit("PRICE_GUARD_EMPTY_FAMILY")
+              print("LOWCOST_PRICE_GUARD_FAMILY_"+family.slug+"="+str(count))
+          print("LOWCOST_PRICE_GUARD_TECHNICALLY_ELIGIBLE="+str(before))
+          print("LOWCOST_PRICE_GUARD_PUBLIC_PRICED="+str(after))
+          print("LOWCOST_PRICE_GUARD_HELD_STALE="+str(held))
+          print("LOWCOST_PRICE_GUARD_STOCK_NOT_ASSUMED=PASS")
+          print("LOWCOST_PRICE_GUARD_DJANGO_PRODUCTION=PASS")
+          PYPROOF
+          headers="$(curl -sS -D - -o /dev/null --max-time 15 --resolve www.lowcost-europa.eu:443:146.59.145.3 https://www.lowcost-europa.eu/painel/)"
+          printf '%s\n' "$headers" | grep -Eq '^HTTP/.* 302'
+          printf '%s\n' "$headers" | grep -Eiq '^x-robots-tag:.*noindex'
+          www="$(curl -sSI --max-time 18 --resolve www.lowcost-europa.eu:443:146.59.145.3 https://www.lowcost-europa.eu/)"
+          printf '%s\n' "$www" | grep -Eq '^HTTP/.* 200'
+          if printf '%s\n' "$www" | grep -Eiq '^x-robots-tag:.*noindex'; then exit 7; fi
+          curl -fsS --max-time 18 https://lowcost-europa.duckdns.org/ -o /dev/null
+          curl -fsS --max-time 18 --resolve www.lowcost-europa.eu:443:146.59.145.3 https://www.lowcost-europa.eu/robots.txt -o /dev/null
+          systemctl is-active --quiet lowcost-europa-catalog-maintenance.timer
+          systemctl is-active --quiet lowcost-europa-affiliate-report.timer
+          [[ -z "$(git -c "safe.directory=$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)" ]]
+          echo "LOWCOST_PRICE_GUARD_GITHUB_VPS_SHA=$NEW"
+          echo LOWCOST_PRICE_GUARD_OWNER_PRIVATE=PASS
+          echo LOWCOST_PRICE_GUARD_PUBLIC_HTTPS_INDEXABLE=PASS
+          echo LOWCOST_PRICE_GUARD_MAINTENANCE_TIMER=PASS
+          echo LOWCOST_PRICE_GUARD_NO_DB_MIGRATION=PASS
+          echo LOWCOST_PRICE_GUARD_DEPLOY=PASS
+          trap - EXIT
+          REMOTE
