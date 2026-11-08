@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "id": "ferrari-t2-ruflo-cad-defect-20261108-2103-6c27",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "ferrari-t2-cad-20261108-6c27",
+  "revision": 2,
+  "turn": {
+    "task": "cad",
+    "role": "executor",
+    "kind": "submit",
+    "message": "Variacao REAL exportada Ferrari cad-stl OpenSCAD run 42522516902; arquivo solid.stl SHA-256 2034e68f53468f26f42280a1861b1ddf4f7655d684ed457a3b785532ee87ecdb, 81274 bytes; tester anfitriao mediu diametro 7.999990 mm, volume 78995.09653 mm3, furo passante (40,25); FORA da exigencia de 10 mm e volume 78429.20367 +/- 2. Submeto para rejeicao, nao aprovo."
+  }
+}
