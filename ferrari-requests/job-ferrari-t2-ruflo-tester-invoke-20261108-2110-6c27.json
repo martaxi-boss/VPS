@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "ferrari-t2-ruflo-tester-invoke-20261108-2110-6c27",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "ferrari-t2-cad-20261108-6c27",
+  "revision": 6,
+  "turn": {
+    "task": "test",
+    "role": "tester",
+    "kind": "invoke",
+    "action": "jq-format-json",
+    "input_from": "$input",
+    "message": "Validar com Ferrari jq-format-json REAL os metadados SHA, tamanhos e medições previamente obtidas de ambos os STL pelo tester anfitriao; esta ferramenta nao mede a malha e nao substitui QA independente."
+  }
+}
