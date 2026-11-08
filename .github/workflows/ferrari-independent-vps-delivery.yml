@@ -174,7 +174,7 @@ jobs:
               payload=json.load(fh)
           if mode in ("--universal-adapters-precheck","--universal-adapters-activate"):
               expected={"version":1,"phase":"universal-catalog",
-                        "sha":"__FERRARI_SPECIALIST_COMMIT__",
+                        "sha":"c49f631d153a4724d48ba724853979ec31e5d38f",
                         "mode":mode.removeprefix("--universal-")}
           elif mode in ("--universal-opencv-precheck","--universal-opencv-activate"):
               expected={"version":1,"phase":"universal-catalog",
@@ -521,7 +521,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: __FERRARI_SPECIALIST_COMMIT__
+          ref: c49f631d153a4724d48ba724853979ec31e5d38f
           persist-credentials: false
           path: ferrari-adapters
 
@@ -1188,7 +1188,7 @@ jobs:
             exit 0
           fi
           if [[ "$MODE" == '--universal-adapters-precheck' || "$MODE" == '--universal-adapters-activate' ]]; then
-            TARGET="__FERRARI_SPECIALIST_COMMIT__"
+            TARGET="c49f631d153a4724d48ba724853979ec31e5d38f"
             PREVIOUS="46b679f4304454e28a23aa779507af393f0c5258"
             REPORT="$RUNNER_TEMP/ferrari-universal-report.json"
             [[ "$BEFORE" == "/srv/projects/skill-universal/releases/$PREVIOUS" ]] ||
@@ -1212,7 +1212,7 @@ jobs:
           from pathlib import Path
           from engine import ferrari, tool_runtime, catalog_registry
           root=Path("/srv/projects/skill-universal")
-          target="__FERRARI_SPECIALIST_COMMIT__"
+          target="c49f631d153a4724d48ba724853979ec31e5d38f"
           previous="46b679f4304454e28a23aa779507af393f0c5258"
           assert (root/"current").resolve(strict=True)==root/"releases"/target
           assert (root/"releases"/previous/"engine/catalog.json").is_file()
