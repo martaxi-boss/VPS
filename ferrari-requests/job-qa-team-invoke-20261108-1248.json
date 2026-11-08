@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "qa-team-invoke-20261108-1248",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "qa-team-20261108-1247",
+  "revision": 0,
+  "turn": {
+    "task": "transform",
+    "role": "coder",
+    "kind": "invoke",
+    "message": "Validar e formatar o JSON sintetico com jq Ferrari privado; preservar ok=true e devolver ficheiro real.",
+    "action": "jq-format-json",
+    "input_from": "$input"
+  }
+}
