@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "f12dash-20261108-7fd2c9-reject-390",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "f12dashboard-20261108-7fd2c9",
+  "revision": 5,
+  "turn": {
+    "task": "validation",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "evidence_sha256": [
+      "da51d444fd4a624ebd9139fef8149157d8339edbefe9f8d1b1f100a4106054f9"
+    ],
+    "message": "REJEITADO: 390 EUR e falso. Calculando linhas 50+40+45+40+60+40+50+60 = 385 EUR; por categoria 140+145+100 = 385 EUR. O HTML executado em Playwright devolve validated-385-20-8 e o JSON e PDF reais confirmam 385. Corrigir para 385 EUR, indicar os 20 artigos e 8 linhas e acrescentar evidencias SHA dos artefactos com nenhum erro de browser."
+  }
+}
