@@ -1,0 +1,197 @@
+name: Lowcost PT ES launch - guarded production rollout
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/lowcost-ptes-deploy-once-20261109.yml']
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-ptes-production-rollout
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - name: Pin the existing VPS SSH identity and deploy with rollback
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          ROOT=/srv/projects/lowcost-europa
+          OLD=d2afac642eac9b0d371855b5a387fdbc35b9fd99
+          NEW=2092e65bf394c0772a824ff13d35f05569a726bd
+          ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
+          TASK="$ROOT/private/ops/ptes-launch-20261109"
+          mkdir -p -m 700 "$ROOT/private/ops"
+          exec 9>"$ROOT/private/ops/ptes-deploy.lock"
+          flock -n 9 || { echo LOWCOST_DEPLOY_LOCK_BUSY; exit 9; }
+          test ! -e "$TASK"
+          test -f "$ENVFILE"
+          test -r "$ROOT/.geoip/dbip-country-lite.mmdb"
+          test "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD)" = "$OLD"
+          test -z "$(git -c safe.directory="$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)"
+          test "$(git -c safe.directory="$ROOT" -C "$ROOT" ls-remote https://github.com/martaxi-boss/lowcost-europa.git refs/heads/main | awk '{print $1}')" = "$NEW"
+          test "$(df -Pk "$ROOT" | awk 'END{print $4}')" -gt 500000
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa-indexnow.timer
+          systemctl is-active --quiet lowcost-europa-backup.timer
+          nginx -t >/dev/null 2>&1
+          grep -Fq 'proxy_set_header X-Real-IP $remote_addr;' "$ROOT/deploy/nginx/lowcost-europa.eu.conf"
+          grep -Eq '^DJANGO_GEO_LANGUAGE_ENABLED=true$' "$ENVFILE"
+          grep -Eq '^DJANGO_PUBLIC_INDEXING_ENABLED=true$' "$ENVFILE"
+          grep -Eq '^DJANGO_PUBLIC_SITE_URL=https://www.lowcost-europa.eu$' "$ENVFILE"
+          grep -Eq '^DJANGO_SETTINGS_MODULE=config.settings.production$' "$ENVFILE"
+          ! grep -q '^DJANGO_LOCALE_SEO_ENABLED=' "$ENVFILE"
+          test -x "$ROOT/.venv/bin/python"
+          test -f "$ROOT/backups/daily" || test -d "$ROOT/backups/daily"
+          echo LOWCOST_DEPLOY_PREFLIGHT=PASS
+          git -c safe.directory="$ROOT" -C "$ROOT" fetch -q https://github.com/martaxi-boss/lowcost-europa.git main
+          test "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse FETCH_HEAD)" = "$NEW"
+          while IFS= read -r file; do
+            case "$file" in
+              .github/workflows/closed-pr-branch-hygiene.yml|apps/storefront/geo_locale.py|apps/storefront/management/commands/notify_indexnow.py|apps/storefront/seo_locales.py|apps/storefront/templates/storefront/base.html|apps/storefront/templates/storefront/components/product_family_card.html|apps/storefront/templates/storefront/home.html|apps/storefront/templates/storefront/product_family_detail.html|apps/storefront/templatetags/storefront_i18n.py|apps/storefront/tests/test_seo_locale_core.py|apps/storefront/urls.py|apps/storefront/views.py|config/settings/base.py|docs/operations/seo-pt-es-core-20261108.md) ;;
+              *) echo "LOWCOST_UNEXPECTED_CHANGED_FILE=$file"; exit 12 ;;
+            esac
+          done < <(git -c safe.directory="$ROOT" -C "$ROOT" diff --name-only "$OLD" "$NEW")
+          test "$(git -c safe.directory="$ROOT" -C "$ROOT" diff --name-only "$OLD" "$NEW" -- 'requirements/' 'apps/catalog/models.py' 'deploy/' 'config/settings/production.py' | wc -l)" -eq 0
+          echo LOWCOST_PINNED_SOURCE_CHANGE=PASS
+          # Existing project-owned PostgreSQL backup script. No schema migrations.
+          sh "$ROOT/deploy/scripts/backup-postgres.sh"
+          BACKUP="$(find "$ROOT/backups/daily" -maxdepth 1 -type f -name '*.dump' -printf '%T@ %p\n' | sort -nr | head -n 1 | cut -d' ' -f2-)"
+          test -n "$BACKUP" && test -s "$BACKUP" && test -s "$BACKUP.sha256"
+          (cd "$ROOT/backups/daily" && sha256sum -c "$(basename "$BACKUP.sha256")" >/dev/null)
+          echo LOWCOST_NEW_PROJECT_BACKUP=PASS
+          mkdir -m 700 "$TASK"
+          cp -a "$ENVFILE" "$TASK/env.before"
+          printf '%s\n' "$OLD" > "$TASK/previous-source-sha"
+          rollback() {
+            result=$?
+            trap - EXIT
+            if test "$result" -ne 0; then
+              echo LOWCOST_PTES_ROLLBACK_STARTED=yes
+              cp -a "$TASK/env.before" "$ENVFILE"
+              git -c safe.directory="$ROOT" -C "$ROOT" checkout --detach -q "$OLD"
+              if systemctl restart lowcost-europa.service && systemctl is-active --quiet lowcost-europa.service; then
+                echo LOWCOST_PTES_ROLLBACK=PASS
+              else
+                echo LOWCOST_PTES_ROLLBACK=FAILED
+              fi
+            fi
+            exit "$result"
+          }
+          trap rollback EXIT
+          umask 022
+          git -c safe.directory="$ROOT" -C "$ROOT" checkout --detach -q "$NEW"
+          umask 077
+          printf '\nDJANGO_LOCALE_SEO_ENABLED=true\n' >> "$ENVFILE"
+          test "$(grep -c '^DJANGO_LOCALE_SEO_ENABLED=true$' "$ENVFILE")" -eq 1
+          # Environment changes require a protected restart, not a HUP reload.
+          systemctl restart lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa.service
+          ROOT="$ROOT" python3 - <<'PY'
+          import html.parser,json,re,ssl,time,urllib.error,urllib.request,xml.etree.ElementTree as ET
+          from urllib.parse import urlsplit
+          BASE='https://www.lowcost-europa.eu'
+          ctx=ssl.create_default_context()
+          def fetch(path):
+              req=urllib.request.Request(BASE+path,headers={'User-Agent':'Lowcost-PTES-Deployment-QA/1.0'})
+              try:
+                  with urllib.request.urlopen(req,timeout=18,context=ctx) as response:
+                      return response.status,response.headers,response.read(250000)
+              except urllib.error.HTTPError as error:
+                  return error.code,error.headers,error.read(250000)
+          for attempt in range(24):
+              try:
+                  status,_,body=fetch('/')
+                  if status==200:break
+              except Exception:pass
+              time.sleep(.5)
+          else:raise AssertionError('Homepage did not recover after restart')
+          status,_,body=fetch('/sitemap.xml')
+          assert status==200
+          root=ET.fromstring(body)
+          locs=[node.text for node in root.findall('{http://www.sitemaps.org/schemas/sitemap/0.9}url/{http://www.sitemaps.org/schemas/sitemap/0.9}loc')]
+          assert len(locs)==23 and len(set(locs))==23,(len(locs),len(set(locs)))
+          old=[x for x in locs if not x.startswith(BASE+'/pt/') and not x.startswith(BASE+'/es/')]
+          assert len(old)==11,old
+          families=sorted(x[len(BASE):] for x in old if '/products/' in x)
+          assert len(families)==5,families
+          expected=set(old)
+          for prefix in ('pt','es'):
+              expected.add(BASE+'/'+prefix+'/')
+              for family in families:expected.add(BASE+'/'+prefix+family)
+          assert set(locs)==expected
+          print('LOWCOST_PTES_SITEMAP_OLD=11')
+          print('LOWCOST_PTES_SITEMAP_TOTAL=23')
+          print('LOWCOST_PTES_SITEMAP_PRESERVATION=PASS')
+          for path in ('/','/pt/','/es/')+tuple(families)+tuple('/pt'+p for p in families)+tuple('/es'+p for p in families):
+              status,headers,body=fetch(path)
+              assert status==200,(path,status)
+              text=body.decode('utf-8')
+              assert '<link rel="canonical" href="'+BASE+path+'">' in text,('canonical',path)
+              basepath=path
+              if path.startswith('/pt/') or path.startswith('/es/'):basepath=path[3:]
+              if basepath=='':basepath='/'
+              for lang,href in (('pt-PT',BASE+'/pt'+basepath),('es-ES',BASE+'/es'+basepath),('x-default',BASE+basepath)):
+                  assert 'hreflang="'+lang+'" href="'+href+'"' in text,('hreflang',path,lang)
+              if path.startswith('/pt/'):
+                  assert '<html lang="pt-pt">' in text,('lang',path)
+              if path.startswith('/es/'):
+                  assert '<html lang="es">' in text,('lang',path)
+              assert '<meta name="robots" content="index, follow">' in text,('index',path)
+              assert 'noindex' not in (headers.get('X-Robots-Tag') or '').lower(),('header-robots',path)
+              assert 'application/ld+json' in text,('jsonld',path)
+              assert '"@context": "https://schema.org"' in text,('structured_data',path)
+          print('LOWCOST_PTES_18_MARKET_PAGES=PASS')
+          es=fetch('/es/')[2].decode('utf-8')
+          pt=fetch('/pt/')[2].decode('utf-8')
+          assert 'Decisiones más claras.' in es and 'Escolhas mais claras.' in pt
+          assert 'href="/es/products/' in es and 'href="/pt/products/' in pt
+          print('LOWCOST_PTES_LANGUAGE_AND_NAVIGATION=PASS')
+          for path in ('/painel/','/admin/'):
+              import http.client
+              connection=http.client.HTTPSConnection('www.lowcost-europa.eu',timeout=12,context=ctx)
+              connection.request('GET',path,headers={'User-Agent':'Lowcost-PTES-Deployment-QA/1.0'})
+              response=connection.getresponse()
+              assert response.status==302,(path,response.status)
+              assert 'noindex' in (response.getheader('X-Robots-Tag') or '').lower(),path
+              assert 'private' in (response.getheader('Cache-Control') or '').lower(),path
+              response.read();connection.close()
+          for path in ('/pesquisar/?q=teste','/go/0/'):
+              status,headers,body=fetch(path)
+              assert status in ((200,) if path.startswith('/pesquisar/') else (404,)),(path,status)
+              if path.startswith('/pesquisar/'):
+                  assert 'noindex' in (headers.get('X-Robots-Tag') or '').lower(),path
+          for path in ('/robots.txt','/sitemap.xml'):
+              assert fetch(path)[0]==200
+          print('LOWCOST_PTES_PRIVATE_AND_SEARCH=PASS')
+          print('LOWCOST_PTES_CANONICAL_HREFLANG=PASS')
+          print('LOWCOST_PTES_LIVE_QA=PASS')
+          PY
+          test "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD)" = "$NEW"
+          test -z "$(git -c safe.directory="$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)"
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa-indexnow.timer
+          systemctl is-active --quiet lowcost-europa-catalog-maintenance.timer
+          systemctl is-active --quiet lowcost-europa-backup.timer
+          nginx -t >/dev/null 2>&1
+          cmp -s "$ENVFILE" "$TASK/env.before" && { echo LOWCOST_PTES_FLAG_NOT_UPDATED; exit 16; }
+          echo "LOWCOST_PTES_DEPLOY_SHA=$NEW"
+          echo LOWCOST_PTES_DEPLOY=PASS
+          trap - EXIT
+          REMOTE
