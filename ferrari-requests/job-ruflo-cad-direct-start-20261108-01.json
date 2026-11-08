@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "ruflo-cad-direct-start-20261108-01",
+  "kind": "ruflo-team",
+  "team_id": "ruflo-cad-direct-20261108",
+  "phase": "start",
+  "host": "ChatGPT",
+  "mission": "Certify direct Ferrari cad-stl operation inside one Ruflo host-led team with private OpenSCAD geometry, SHA-256 evidence and independent role review.",
+  "roles": [
+    {
+      "id": "cad-worker",
+      "type": "coder",
+      "actions": [
+        "operation:cad-stl"
+      ]
+    },
+    {
+      "id": "cad-reviewer",
+      "type": "reviewer",
+      "actions": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "produce-cad",
+      "role": "cad-worker",
+      "reviewer": "cad-reviewer",
+      "goal": "Export real watertight 40x30x12 mm plate STL with 10 mm central bore using private OpenSCAD and Ferrari catalog cad-stl.",
+      "depends_on": []
+    }
+  ],
+  "input": {
+    "name": "plate.scad",
+    "content_base64": "JGZuPTk2OwpkaWZmZXJlbmNlKCkgewogIGN1YmUoWzQwLCAzMCwgMTJdKTsKICB0cmFuc2xhdGUoWzIwLCAxNSwgLTFdKSBjeWxpbmRlcihoPTE0LCBkPTEwKTsKfQo="
+  }
+}
