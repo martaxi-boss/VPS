@@ -32,6 +32,7 @@ jobs:
           TASK="$ROOT/private/indexing-check-20261108-1645"
           [[ ! -e "$TASK" ]]
           mkdir -m 700 "$TASK"
+          chown le001_1789265592 "$TASK"
           trap 'rm -f -- "$TASK/check.py"; rmdir -- "$TASK"' EXIT
           cat > "$TASK/check.py" <<'PY'
           import collections,datetime,fcntl,hashlib,json,os,subprocess,sys
