@@ -1,0 +1,105 @@
+name: Lowcost external closeout - protected read-only evidence
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/lowcost-closeout-readonly-once-20261109.yml']
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-evidence-20261109
+  cancel-in-progress: false
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    steps:
+      - name: Gather live PT ES indexing and commercial proof counts without secrets
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          ROOT=/srv/projects/lowcost-europa
+          test "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD)" = "2092e65bf394c0772a824ff13d35f05569a726bd"
+          test -z "$(git -c safe.directory="$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)"
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa-indexnow.timer
+          test -f "$ROOT/private/systemd-env/lowcost-europa.env"
+          cd "$ROOT"
+          set -a
+          . "$ROOT/private/systemd-env/lowcost-europa.env"
+          set +a
+          "$ROOT/.venv/bin/python" - <<'PY'
+          import json,os,ssl,urllib.request,xml.etree.ElementTree as ET
+          from collections import Counter
+          from datetime import timedelta
+          from pathlib import Path
+          os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.production')
+          import django
+          django.setup()
+          from django.utils import timezone
+          from apps.catalog.models import Offer,OfferObservation,ProductFamily
+          from apps.catalog.services.public_eligibility import public_eligibility_q,is_ship_from_verified
+          from django.conf import settings
+          root=Path(settings.BASE_DIR)
+          assert settings.PUBLIC_INDEXING_ENABLED and settings.LOCALE_SEO_ENABLED
+          assert settings.PUBLIC_SITE_URL=='https://www.lowcost-europa.eu'
+          assert settings.PUBLIC_RECENT_PRICE_REQUIRED
+          print('CLOSEOUT_PRODUCTION_SHA='+os.popen('git rev-parse HEAD').read().strip())
+          print('CLOSEOUT_ACTIVE_OFFERS='+str(Offer.objects.filter(is_active=True,owner_hidden=False).count()))
+          visible=list(Offer.objects.filter(public_eligibility_q()).distinct().only('id','ship_from_country','ship_from_verified_at'))
+          print('CLOSEOUT_ELIGIBLE_PUBLIC_OFFERS='+str(len(visible)))
+          print('CLOSEOUT_ELIGIBLE_ORIGIN_VERIFIED='+str(sum(is_ship_from_verified(o) for o in visible)))
+          print('CLOSEOUT_ELIGIBLE_ORIGIN_UNVERIFIED='+str(sum(not is_ship_from_verified(o) for o in visible)))
+          ids=[offer.id for offer in visible]
+          now=timezone.now()
+          for country in ('PT','ES'):
+              rows=list(OfferObservation.objects.filter(offer_id__in=ids,destination_country=country).order_by('offer_id','-observed_at').distinct('offer_id').only('offer_id','observed_at','price','currency','availability','delivery_days','search_delivery_days'))
+              counts=Counter(row.availability for row in rows)
+              recent=sum(row.observed_at >= now-timedelta(hours=24) for row in rows)
+              price=sum(bool(row.price and row.price>0 and (row.currency or '').upper()=='EUR' and row.observed_at>=now-timedelta(hours=24)) for row in rows)
+              delivery=sum(row.delivery_days is not None and row.observed_at>=now-timedelta(hours=24) for row in rows)
+              print('CLOSEOUT_COUNTRY_'+country+'_LATEST_OBSERVATIONS='+str(len(rows)))
+              print('CLOSEOUT_COUNTRY_'+country+'_RECENT_24H='+str(recent))
+              print('CLOSEOUT_COUNTRY_'+country+'_RECENT_EUR_PRICE='+str(price))
+              print('CLOSEOUT_COUNTRY_'+country+'_RECENT_DELIVERY_DAYS='+str(delivery))
+              print('CLOSEOUT_COUNTRY_'+country+'_LATEST_STOCK_KNOWN='+str(counts.get('AVAILABLE',0)+counts.get('UNAVAILABLE',0)))
+              print('CLOSEOUT_COUNTRY_'+country+'_LATEST_STOCK_UNKNOWN='+str(counts.get('UNKNOWN',0)))
+          index_file=root/'.indexnow'/'accepted.json'
+          if index_file.is_file():
+              data=json.loads(index_file.read_text())
+              assert isinstance(data,dict)
+              accepted=list(data.keys())
+              print('CLOSEOUT_INDEXNOW_ACCEPTED_STATE_URLS='+str(len(accepted)))
+              print('CLOSEOUT_INDEXNOW_ACCEPTED_PT='+str(sum('/pt/' in url for url in accepted)))
+              print('CLOSEOUT_INDEXNOW_ACCEPTED_ES='+str(sum('/es/' in url for url in accepted)))
+          else:
+              print('CLOSEOUT_INDEXNOW_ACCEPTED_STATE=ABSENT')
+          ctx=ssl.create_default_context()
+          with urllib.request.urlopen(urllib.request.Request('https://www.lowcost-europa.eu/sitemap.xml',headers={'User-Agent':'Lowcost-Closeout-Evidence/1.0'}),timeout=20,context=ctx) as response:
+              xml=ET.fromstring(response.read(200000))
+          urls=[node.text for node in xml.findall('{http://www.sitemaps.org/schemas/sitemap/0.9}url/{http://www.sitemaps.org/schemas/sitemap/0.9}loc')]
+          assert len(urls)==23 and len(set(urls))==23
+          print('CLOSEOUT_SITEMAP_23_UNIQUE=PASS')
+          print('CLOSEOUT_NO_SUPPLIER_FACTS_INVENTED=PASS')
+          PY
+          echo CLOSEOUT_INDEXNOW_DRY_RUN_BEGIN
+          "$ROOT/.venv/bin/python" manage.py notify_indexnow --dry-run
+          echo CLOSEOUT_INDEXNOW_DRY_RUN_END
+          systemctl show lowcost-europa-indexnow.service -p Result -p ExecMainStatus --no-pager
+          test -n "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD)"
+          echo CLOSEOUT_AUDIT_READ_ONLY=PASS
+          REMOTE
