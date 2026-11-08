@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "id": "ferrari-valkey-wave2-real-20261108",
+  "kind": "operation",
+  "operation": "valkey-kv-test",
+  "acceptance": {
+    "required_extensions": [
+      ".json"
+    ]
+  }
+}
