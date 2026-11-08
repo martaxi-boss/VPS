@@ -48,7 +48,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: e0509d5370828869479069c99f2eace779960cad
+          ref: e83ed6dff335459c0fb3526b56241768dbe3b635
           path: ferrari
           persist-credentials: false
 
