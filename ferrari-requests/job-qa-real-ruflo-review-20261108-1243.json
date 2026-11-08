@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "id": "qa-real-ruflo-review-20261108-1243",
+  "kind": "ruflo-host",
+  "host": "ChatGPT",
+  "roles": [
+    {
+      "id": "coder",
+      "type": "coder"
+    },
+    {
+      "id": "reviewer",
+      "type": "reviewer"
+    }
+  ],
+  "input": {
+    "name": "qa-synthetic.json",
+    "content_base64": "eyJvayI6dHJ1ZX0K"
+  },
+  "steps": [
+    {
+      "id": "transform",
+      "role": "coder",
+      "kind": "invoke",
+      "action": "jq-format-json"
+    },
+    {
+      "id": "review",
+      "role": "reviewer",
+      "kind": "review",
+      "input_from": "transform",
+      "acceptance": {
+        "required_extensions": [
+          ".json"
+        ]
+      }
+    }
+  ],
+  "acceptance": {
+    "required_extensions": [
+      ".json"
+    ]
+  }
+}
