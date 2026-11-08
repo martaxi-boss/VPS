@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "cert5-qgis-real-20261108-a7e6",
+  "kind": "operation",
+  "operation": "qgis-buffer-5m",
+  "input": {
+    "name": "synthetic-square.geojson",
+    "content_base64": "eyJ0eXBlIjoiRmVhdHVyZUNvbGxlY3Rpb24iLCJuYW1lIjoiZmVycmFyaS1zeW50aGV0aWMtMjAyNjExMDgiLCJjcnMiOnsidHlwZSI6Im5hbWUiLCJwcm9wZXJ0aWVzIjp7Im5hbWUiOiJFUFNHOjM4NTcifX0sImZlYXR1cmVzIjpbeyJ0eXBlIjoiRmVhdHVyZSIsInByb3BlcnRpZXMiOnsibmFtZSI6InRlc3Qtc3F1YXJlIn0sImdlb21ldHJ5Ijp7InR5cGUiOiJQb2x5Z29uIiwiY29vcmRpbmF0ZXMiOltbWzAsMF0sWzEwMCwwXSxbMTAwLDUwXSxbMCw1MF0sWzAsMF1dXX19XX0="
+  },
+  "acceptance": {
+    "required_extensions": [
+      ".geojson",
+      ".json"
+    ]
+  }
+}
