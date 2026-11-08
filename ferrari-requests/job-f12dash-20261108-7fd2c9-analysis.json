@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "id": "f12dash-20261108-7fd2c9-analysis",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "f12dashboard-20261108-7fd2c9",
+  "revision": 0,
+  "turn": {
+    "task": "analysis",
+    "role": "analyst",
+    "kind": "submit",
+    "message": "Plano de aceitação: ler apenas 8 linhas do CSV sintético; receita_linha = preco_eur * quantidade, agrupar por categoria, somar receita e unidades; exigir receita 385 EUR, unidades 20, Eletronica 140 EUR, Casa 145 EUR, Moda 100 EUR, registos 8. Executor corre DuckDB privado; produto web entregue por Ferrari vite-build + Chromium/Playwright reais, filtro select e controlo opt-in com assertions de linhas/valores, viewport 1280x720 e 390x844, zero console/page errors e zero overflow; JSON/PDF por ações Ferrari; verificar ficheiros, hashes e ZIP, não só Actions. Testar hipótese adversarial total 390 e rejeitar explicitamente, depois corrigir a 385. Sem instalações, publicações ou alterações de código/SSH."
+  }
+}
