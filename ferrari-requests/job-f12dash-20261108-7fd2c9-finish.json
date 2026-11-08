@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "id": "f12dash-20261108-7fd2c9-finish",
+  "kind": "ruflo-team",
+  "phase": "finish",
+  "team_id": "f12dashboard-20261108-7fd2c9",
+  "revision": 8,
+  "approval": "Aprovacao final EXCLUSIVAMENTE da missao funcional assistida F12: tres tarefas aprovadas por revisor distinto, uma acao DuckDB real verificada em equipa, rejeicao registada da hipotese 390 EUR seguida de correcao aprovada para 385 EUR. Vite/Playwright, Typst e jq testados na VPS por pedidos Ferrari reais e ZIPs integro. Nao certifica autonomia LLM na VPS nem a versao historica 1.0.16; a release canonicamente pinada e mais recente."
+}
