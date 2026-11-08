@@ -72,8 +72,14 @@ jobs:
           echo LOWCOST_PREFLIGHT_STAGE=PROJECT_FILES
           [[ -d "$ROOT/.git" && -d "$ROOT/private" && -f "$ENVFILE" ]]
           echo LOWCOST_PREFLIGHT_STAGE=LEGACY_NGINX_FILES
-          [[ -f "$OLD_ENABLED" && ! -L "$OLD_ENABLED" ]]
+          [[ -f "$OLD_ENABLED" ]]
           [[ -f "$OLD_AVAILABLE" && ! -L "$OLD_AVAILABLE" ]]
+          if [[ -L "$OLD_ENABLED" ]]; then
+            [[ "$(readlink -f "$OLD_ENABLED")" == "$OLD_AVAILABLE" ]]
+            echo LOWCOST_PREFLIGHT_LEGACY_ENABLED=EXPECTED_SYMLINK
+          else
+            echo LOWCOST_PREFLIGHT_LEGACY_ENABLED=REGULAR_FILE
+          fi
           echo LOWCOST_PREFLIGHT_STAGE=CANONICAL_NGINX_CERT
           [[ -f /etc/nginx/sites-enabled/lowcost-europa-eu.conf ]]
           [[ -f /etc/letsencrypt/live/lowcost-europa.eu/fullchain.pem ]]
