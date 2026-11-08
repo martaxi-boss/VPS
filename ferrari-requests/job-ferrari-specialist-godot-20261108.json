@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "id": "ferrari-specialist-godot-20261108",
+  "kind": "operation",
+  "operation": "godot-starter",
+  "acceptance": {
+    "required_extensions": [
+      ".tscn",
+      ".godot",
+      ".json"
+    ]
+  }
+}
