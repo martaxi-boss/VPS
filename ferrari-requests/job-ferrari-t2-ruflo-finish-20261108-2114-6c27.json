@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "id": "ferrari-t2-ruflo-finish-20261108-2114-6c27",
+  "kind": "ruflo-team",
+  "phase": "finish",
+  "team_id": "ferrari-t2-cad-20261108-6c27",
+  "revision": 8,
+  "approval": "APROVACAO FINAL DO ANFITRIAO ChatGPT baseada em duas exportacoes REAIS na VPS com cad-stl OpenSCAD, STL 8 mm rejeitado e STL 10 mm verificado externamente, volume final 78429.835804 mm3 vs 78429.203673 +/-2, SHA-256 ffb2e7fabb69ae8bf64477c07c25199e06ad6496fd9d7fef09d0a75d0a4f648a. A cadeia Ruflo documentou quatro revisoes por papel distinto incluindo changes_requested, corrigiu a declaracao e invocou jq real. Nao declarar medicao mesh na VPS por jq nem CAD cad-stl diretamente dentro de ruflo-team. A aprovacao e exclusiva a este teste sintetico."
+}
