@@ -53,18 +53,18 @@ jobs:
                       if not m: continue
                       ip,dt,method,url,status,size,ua=m.groups()
                       if url.split('?',1)[0] not in ('/sitemap.xml','/robots.txt','/'): continue
-                      if not re.search(r'googlebot|google-inspection|bingbot|msnbot',ua,re.I): continue
+                      if url.split('?',1)[0]!='/sitemap.xml' and not re.search(r'googlebot|google-inspection|bingbot|msnbot',ua,re.I): continue
                       try: when=datetime.datetime.strptime(dt,'%d/%b/%Y:%H:%M:%S %z')
                       except ValueError: continue
                       if when.date()!=datetime.date(2026,11,8): continue
-                      engine='Bing' if re.search(r'bingbot|msnbot',ua,re.I) else 'Google'
+                      engine='Bing' if re.search(r'bingbot|msnbot',ua,re.I) else ('Google' if re.search(r'googlebot|google-inspection',ua,re.I) else 'Other')
                       hits.append((when,ip,engine,url.split('?',1)[0],status,size))
           ips=list(dict.fromkeys((x[1],x[2]) for x in sorted(hits,reverse=True)))[:24]
           def verify(pair):
               ip,engine=pair
               try:
                   host=socket.gethostbyaddr(ip)[0].lower().rstrip('.')
-                  suffixes=('.search.msn.com',) if engine=='Bing' else ('.googlebot.com','.google.com')
+                  suffixes=('.search.msn.com',) if engine=='Bing' else (('.googlebot.com','.google.com') if engine=='Google' else ())
                   allowed=any(host.endswith(s) for s in suffixes)
                   forward={x[4][0] for x in socket.getaddrinfo(host,None)}
                   return pair,bool(allowed and ip in forward)
