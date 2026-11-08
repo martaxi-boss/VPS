@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "qa-vite-browser-real-20261108-1333",
+  "kind": "operation",
+  "operation": "vite-build",
+  "input": {
+    "name": "ferrari-web.zip",
+    "content_base64": "UEsDBBQAAAAIAC9CZV3hWyLlDQIAAFoDAAAKAAAAaW5kZXguaHRtbIWTwY7aMBCGX8U1F1YlhCxdlg1JpB66Ui+9dKueJ/YELBzbsidAuuKR+hR9sToEqq1UqZc4nvnzz/ibuHgnraDeIdtRq6tieDINZltyRzzuEWRVtEjAxA58QCr5t5fnZM2vUQMtlvyg8OisJ86ENYQmqo5K0q6UeFACk8tmxpRRpEAnQYDGMpsvogsp0lg9o/fgFfuONXvBQEU6xotAfVxqK/vXJlonDbRK93noA2GbdGrTgt8qky82DqRUZpvfe2w3NYj91tvOyHyC2Hxomo2w2vp8kj3c3y8fzy0o89rCaWwtX60X7nTzgo7sue6IrJnBq1TBaehzZbQymNTaiv1NOX8Yit0qzx8vpa2X6PPMnViwWkk2WS5Xq6enayLxIFUX8rU7nXfZeKigfmAuNLRuml0sZ6vDcbaML3fnIh0RFOk4iwFFZB/bZ0qWHJzjTAJB4mO6L3mPYZhbdkOaD0zjx1lVuGpAiywqNZPI6k5pOWO1t8eAPkbCnqybsdbWSiNDRhibknZepC4WvgAZazWjd0LRr+Rjhv+dAkHqAKSsCSVfcGaN0ErsS047FeaDNP5M86v64xvxV/IR5vRL19bop/9R373P7nj16YSiI/Bs6AeLdGyoKuBf3cYp7jnbeWxKPvEYOk3xjLz67BlY9idQpBCJXRi/EY0AxXCY7tfPG5p0GEdcxtmkl6v0G1BLAQIUAxQAAAAIAC9CZV3hWyLlDQIAAFoDAAAKAAAAAAAAAAAAAACAAQAAAABpbmRleC5odG1sUEsFBgAAAAABAAEAOAAAADUCAAAAAA=="
+  },
+  "acceptance": {
+    "required_extensions": [
+      ".html",
+      ".png",
+      ".json"
+    ],
+    "browser_evidence": true
+  }
+}
