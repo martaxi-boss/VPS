@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "id": "ferrari-t2-cad-correct-20261108-2058-6c27",
+  "kind": "operation",
+  "operation": "cad-stl",
+  "input": {
+    "name": "ferrari_t2_approved_10mm.scad",
+    "content_base64": "Ly8gRmVycmFyaSBUMiB8IGFwcHJvdmVkIGNhbmRpZGF0ZSB8IHVuaXRzOiBtbQovLyBTaW5nbGUgc29saWQgODAgeCA1MCB4IDIwIG1tIHdpdGggY2VudHJhbCB0aHJvdWdoIGJvcmUsIGRpYW1ldGVyIDEwIG1tLgpsZW5ndGhfbW0gPSA4MDsKd2lkdGhfbW0gPSA1MDsKaGVpZ2h0X21tID0gMjA7CmJvcmVfZGlhbWV0ZXJfbW0gPSAxMDsKYm9yZV94X21tID0gNDA7CmJvcmVfeV9tbSA9IDI1OwokZm4gPSAxMjg7CmRpZmZlcmVuY2UoKSB7CiAgY3ViZShbbGVuZ3RoX21tLCB3aWR0aF9tbSwgaGVpZ2h0X21tXSwgY2VudGVyID0gZmFsc2UpOwogIHRyYW5zbGF0ZShbYm9yZV94X21tLCBib3JlX3lfbW0sIC0xXSkKICAgIGN5bGluZGVyKGggPSBoZWlnaHRfbW0gKyAyLCBkID0gYm9yZV9kaWFtZXRlcl9tbSwgY2VudGVyID0gZmFsc2UpOwp9Cg=="
+  },
+  "acceptance": {
+    "required_extensions": [
+      ".stl"
+    ]
+  }
+}
