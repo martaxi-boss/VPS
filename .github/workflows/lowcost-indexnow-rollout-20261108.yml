@@ -1,4 +1,4 @@
-name: Lowcost guarded IndexNow rollout and preservation checks
+name: Lowcost independent IndexNow certification
 on:
   push:
     branches: [main]
@@ -37,7 +37,7 @@ jobs:
           chmod 600 "$RUNNER_TEMP/khost"
           [[ "$(ssh-keygen -lf "$RUNNER_TEMP/khost" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
           echo LOWCOST_INDEPENDENT_HOST_PIN=PASS
-      - name: Deploy tested IndexNow and verify unchanged public infrastructure
+      - name: Certify running IndexNow without repeating deployment
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         shell: bash
@@ -53,80 +53,38 @@ jobs:
             ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
           set -Eeuo pipefail
           root=/srv/projects/lowcost-europa
-          current=1ed66513bdd577282789f862c8b94284c12da167
           target=93c5dedcf0877eeff583b2863fe246d132c7225c
-          service_user=le001_1789265592
-          envfile="$root/private/systemd-env/lowcost-europa.env"
-          backup="$root/private/indexnow-rollout-20261108"
           g() { git -c "safe.directory=$root" -C "$root" "$@"; }
-          [[ "$(g rev-parse HEAD)" == "$current" ]]
-          changes="$(g status --porcelain=v1 --untracked-files=no)"
-          [[ -z "$changes" ]]
-          test ! -e "$backup"
-          test ! -e /etc/systemd/system/lowcost-europa-indexnow.service
-          test ! -e /etc/systemd/system/lowcost-europa-indexnow.timer
-          nginx_before="$(sha256sum "$root/deploy/nginx/lowcost-europa.eu.conf")"
-          cert_before="$(sha256sum /etc/letsencrypt/live/lowcost-europa.eu/fullchain.pem)"
-          install -d -m 700 "$backup"
-          cp -p "$envfile" "$backup/env.before"
-          rollback() {
-            set +e
-            systemctl disable --now lowcost-europa-indexnow.timer >/dev/null 2>&1
-            systemctl stop lowcost-europa-indexnow.service >/dev/null 2>&1
-            rm -f /etc/systemd/system/lowcost-europa-indexnow.service /etc/systemd/system/lowcost-europa-indexnow.timer
-            systemctl daemon-reload
-            cp -p "$backup/env.before" "$envfile"
-            g checkout --detach "$current" >/dev/null 2>&1
-            systemctl restart lowcost-europa.service
-            echo LOWCOST_INDEXNOW_ROLLBACK_EXECUTED
-          }
-          trap rollback ERR
-          GIT_TERMINAL_PROMPT=0 g fetch origin main >/dev/null 2>&1
-          [[ "$(g rev-parse origin/main)" == "$target" ]]
-          g merge-base --is-ancestor "$current" "$target"
-          g checkout --detach "$target" >/dev/null 2>&1
-          "$root/.venv/bin/pip" install --disable-pip-version-check --no-deps defusedxml==0.7.1 >/dev/null
-          python3 - "$envfile" "$backup/env.before" <<'PY'
-          import pathlib,secrets,sys
-          path=pathlib.Path(sys.argv[1]); before=pathlib.Path(sys.argv[2]).read_text()
-          assert 'DJANGO_INDEXNOW_KEY=' not in before
-          path.write_text(before.rstrip('\n')+'\nDJANGO_INDEXNOW_KEY='+secrets.token_hex(16)+'\n')
-          assert path.read_text().split('DJANGO_INDEXNOW_KEY=')[0].rstrip('\n') == before.rstrip('\n')
-          PY
-          chmod 600 "$envfile"
-          install -d -o "$service_user" -g "$service_user" -m 700 "$root/.indexnow"
-          ln -s "$root/deploy/systemd/lowcost-europa-indexnow.service" /etc/systemd/system/lowcost-europa-indexnow.service
-          ln -s "$root/deploy/systemd/lowcost-europa-indexnow.timer" /etc/systemd/system/lowcost-europa-indexnow.timer
-          systemctl daemon-reload
-          systemctl restart lowcost-europa.service
-          ready=false
-          for attempt in $(seq 1 25); do
-            if curl -fsS --max-time 2 -H 'Host: www.lowcost-europa.eu' -H 'X-Forwarded-Proto: https' http://127.0.0.1:8001/health/ready/ >/dev/null; then ready=true; break; fi
-            sleep 1
-          done
-          [[ "$ready" == true ]]
-          nginx -t >/dev/null 2>&1
-          [[ "$(sha256sum "$root/deploy/nginx/lowcost-europa.eu.conf")" == "$nginx_before" ]]
-          [[ "$(sha256sum /etc/letsencrypt/live/lowcost-europa.eu/fullchain.pem)" == "$cert_before" ]]
-          python3 - "$envfile" <<'PY'
-          import pathlib,sys,urllib.request
-          key=[line.split('=',1)[1] for line in pathlib.Path(sys.argv[1]).read_text().splitlines() if line.startswith('DJANGO_INDEXNOW_KEY=')][0]
-          with urllib.request.urlopen('https://www.lowcost-europa.eu/indexnow-'+key+'.txt',timeout=20) as response:
-              assert response.status==200 and response.read().decode().strip()==key
-          print('LOWCOST_INDEXNOW_EXTERNAL_PROOF=PASS')
-          PY
-          systemctl start lowcost-europa-indexnow.service
-          journalctl -u lowcost-europa-indexnow.service --since '5 minutes ago' --no-pager -o cat | grep '^INDEXNOW_'
-          systemctl enable --now lowcost-europa-indexnow.timer >/dev/null 2>&1
-          systemctl is-active --quiet lowcost-europa-indexnow.timer
-          systemctl is-active --quiet lowcost-europa.service
-          [[ "$(stat -c %a "$root/.legal/operator.json")" == 600 ]]
-          [[ "$(stat -c %a "$root/.indexnow")" == 700 ]]
           [[ "$(g rev-parse HEAD)" == "$target" ]]
           changes="$(g status --porcelain=v1 --untracked-files=no)"
           [[ -z "$changes" ]]
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa-indexnow.timer
+          systemctl is-enabled --quiet lowcost-europa-indexnow.timer
+          [[ "$(readlink -f /etc/systemd/system/lowcost-europa-indexnow.service)" == "$root/deploy/systemd/lowcost-europa-indexnow.service" ]]
+          nginx -t >/dev/null 2>&1
+          curl -fsS --max-time 20 -H 'Host: www.lowcost-europa.eu' -H 'X-Forwarded-Proto: https' http://127.0.0.1:8001/health/ready/ >/dev/null
+          [[ "$(stat -c %a "$root/.legal/operator.json")" == 600 ]]
+          [[ "$(stat -c %a "$root/.indexnow")" == 700 ]]
+          test -f "$root/private/indexnow-rollout-20261108/env.before"
+          python3 - "$root" <<'PY'
+          import pathlib,sys,urllib.request
+          root=pathlib.Path(sys.argv[1])
+          env=(root/'private/systemd-env/lowcost-europa.env').read_text()
+          before=(root/'private/indexnow-rollout-20261108/env.before').read_text()
+          assert env.split('DJANGO_INDEXNOW_KEY=')[0].rstrip('\n')==before.rstrip('\n')
+          key=[line.split('=',1)[1] for line in env.splitlines() if line.startswith('DJANGO_INDEXNOW_KEY=')][0]
+          try:
+              with urllib.request.urlopen('https://www.lowcost-europa.eu/indexnow-'+key+'.txt',timeout=20) as response:
+                  assert response.status==200 and response.read().decode().strip()==key
+          except Exception:
+              raise SystemExit('IndexNow proof verification failed (key redacted)') from None
+          print('LOWCOST_INDEXNOW_PROOF_AND_ENV_PRESERVATION=PASS')
+          state=root/'.indexnow/accepted.json'
+          print('LOWCOST_INDEXNOW_ACCEPTED_STATE='+('PRESENT' if state.exists() else 'PENDING'))
+          PY
+          journalctl -u lowcost-europa-indexnow.service --since '2026-11-08 00:00:00' --no-pager -o cat | grep '^INDEXNOW_'
           echo "LOWCOST_INDEXNOW_ALIGNED_SHA=$target"
-          echo LOWCOST_INDEXNOW_TIMER=PASS
-          echo LOWCOST_HTTPS_NGINX_LEGAL_PRESERVED=PASS
-          trap - ERR
-                    REMOTE
+          echo LOWCOST_INDEXNOW_SERVICE_TIMER_HTTPS_PRIVACY=PASS
+          echo LOWCOST_INDEXNOW_TASK_HYGIENE=PASS
+          REMOTE
