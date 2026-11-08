@@ -77,6 +77,23 @@ jobs:
           echo LOWCOST_INVENTORY_NGINX_LOADED_CONFIGS_BEGIN
           nginx -T 2>/dev/null | grep -E '^# configuration file .*lowcost.*:' | sort -u || true
           echo LOWCOST_INVENTORY_NGINX_LOADED_CONFIGS_END
+          echo LOWCOST_INVENTORY_HOST_SOURCE_MAP_BEGIN
+          nginx -T 2>/dev/null | awk '/^# configuration file/ {source=$0} /^[[:space:]]*server_name / && /lowcost-europa/ {print source " => " $0}' | sort -u
+          echo LOWCOST_INVENTORY_HOST_SOURCE_MAP_END
+          echo LOWCOST_INVENTORY_LEGACY_REF_PATHS_BEGIN
+          grep -rlF 'lowcost-europa.duckdns.org' /etc/nginx /etc/systemd/system /etc/cron.d 2>/dev/null | sort -u | head -n 18 || true
+          echo LOWCOST_INVENTORY_LEGACY_REF_PATHS_END
+          for envfile in "$ROOT/private/systemd-env/lowcost-europa.env" /etc/lowcost-europa/lowcost-europa.env; do
+            if [[ -f "$envfile" ]]; then
+              if grep -qF 'lowcost-europa.duckdns.org' "$envfile"; then
+                echo LOWCOST_INVENTORY_ACTIVE_ENV_LEGACY_DNS_REF=YES
+              else
+                echo LOWCOST_INVENTORY_ACTIVE_ENV_LEGACY_DNS_REF=NO
+              fi
+              break
+            fi
+          done
+
           echo LOWCOST_INVENTORY_CERTBOT_CERTIFICATES_BEGIN
           if [[ -d /etc/letsencrypt/renewal ]]; then
             find /etc/letsencrypt/renewal -mindepth 1 -maxdepth 1 -type f -printf '%f\\n' | grep -E 'lowcost|duckdns|sslip' || true
