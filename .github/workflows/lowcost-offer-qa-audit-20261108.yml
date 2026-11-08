@@ -124,6 +124,43 @@ jobs:
           for fam in ProductFamily.objects.exclude(status=ProductFamily.Status.RETIRED).order_by("display_order","pk"):
               in_fam=Offer.objects.filter(family_placements__product_family=fam).filter(public_eligibility_q(now)).distinct()
               print("LIVE_FAMILY_"+str(fam.slug)+"_PUBLIC="+str(in_fam.count()))
+          bad=list(visible.exclude(public_eligibility_q(now)).values(
+              "pk","affiliate_url","affiliate_promotion_status",
+              "affiliate_promotion_verified_at","protocol_verified_at"))
+          flags=Counter()
+          for row in bad:
+              if not str(row["affiliate_url"] or "").startswith("https://"):
+                  flags["NO_HTTPS_AFFILIATE_URL"]+=1
+              if row["affiliate_promotion_status"]!="ELIGIBLE":
+                  flags["PROMOTION_NOT_ELIGIBLE"]+=1
+              if row["affiliate_promotion_verified_at"] is None:
+                  flags["PROMOTION_NOT_VERIFIED"]+=1
+              if row["protocol_verified_at"] is None or row["protocol_verified_at"]>now:
+                  flags["HUMAN_PROTOCOL_NOT_VERIFIED"]+=1
+          print("LIVE_OFFER_BLOCKED_REASONS="+str(sorted(flags.items())))
+          print("LIVE_OFFER_BLOCKED_IDS="+",".join(str(row["pk"]) for row in bad[:35]))
+          for item in price_bad:
+              age=(now-item["price_at"]).total_seconds()/3600 if item["price_at"] else None
+              last_age=(now-item["latest_at"]).total_seconds()/3600 if item["latest_at"] else None
+              print("LIVE_PRICE_GAP_OFFER_"+str(item["pk"])+"_LAST_PRICE_AGE_HOURS="+(str(int(age)) if age is not None else "NEVER"))
+              print("LIVE_PRICE_GAP_OFFER_"+str(item["pk"])+"_LAST_OBS_AGE_HOURS="+(str(int(last_age)) if last_age is not None else "NEVER"))
+          # One authorized, strictly read-only product-detail call, to see whether
+          # the official API supplies stock, numeric delivery, price and currency.
+          # Do not print provider payload, IDs, URLs, errors or credentials.
+          if price_bad:
+              try:
+                  from apps.integrations.aliexpress.client import AliExpressClient
+                  target=Offer.objects.get(pk=price_bad[0]["pk"])
+                  product=AliExpressClient().get_product_detail(target.external_product_id,"PT","EUR")
+                  print("LIVE_AFFILIATE_DETAIL_PROBE=SUCCESS")
+                  print("LIVE_AFFILIATE_DETAIL_PRODUCT_MATCH="+str(str(product.product_id)==target.external_product_id).upper())
+                  print("LIVE_AFFILIATE_DETAIL_HAS_PRICE="+str(product.price is not None).upper())
+                  print("LIVE_AFFILIATE_DETAIL_HAS_CURRENCY="+str(bool(product.currency)).upper())
+                  print("LIVE_AFFILIATE_DETAIL_HAS_STOCK_STATUS="+str(bool(product.availability_raw)).upper())
+                  print("LIVE_AFFILIATE_DETAIL_HAS_DELIVERY_DAYS="+str(product.delivery_days is not None).upper())
+                  print("LIVE_AFFILIATE_DETAIL_HAS_DELIVERY_TEXT="+str(bool(product.ship_to_days_raw)).upper())
+              except Exception as exc:
+                  print("LIVE_AFFILIATE_DETAIL_PROBE=UNAVAILABLE_"+type(exc).__name__)
           print("LIVE_OFFER_AUDIT_READ_ONLY=PASS")
           PYAUDIT
           REMOTE
