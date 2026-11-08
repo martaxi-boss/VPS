@@ -1,0 +1,121 @@
+name: Lowcost obsolete certificate retirement - scoped once
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-retire-legacy-certificates-once-20261108.yml'
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-retire-legacy-certificates-20261108
+  cancel-in-progress: false
+jobs:
+  retire:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 17
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Verify one-file commit and pinned SSH host
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(git diff --name-only HEAD^ HEAD)" == '.github/workflows/lowcost-retire-legacy-certificates-once-20261108.yml' ]]
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+      - name: Back up and retire only three unused Lowcost test certificates
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          [[ -n "$SSHPASS" ]]
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          ROOT=/srv/projects/lowcost-europa
+          BACK="$ROOT/private/hygiene-rollbacks/lowcost-20261108-certificates-01"
+          CURRENT=c248f516078b6fd9c23927853972a2038dd29e62
+          [[ "$(git -c "safe.directory=$ROOT" -C "$ROOT" rev-parse HEAD)" == "$CURRENT" ]]
+          [[ -z "$(git -c "safe.directory=$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)" ]]
+          [[ ! -e "$BACK" ]]
+          [[ ! -e /etc/nginx/sites-enabled/lowcost-europa-temp ]]
+          [[ ! -e /etc/nginx/sites-available/lowcost-europa-temp ]]
+          [[ -f /etc/letsencrypt/renewal/lowcost-europa.eu.conf ]]
+          [[ -f /etc/letsencrypt/live/lowcost-europa.eu/fullchain.pem ]]
+          openssl x509 -in /etc/letsencrypt/live/lowcost-europa.eu/fullchain.pem -noout -checkend 604800 >/dev/null
+          san="$(openssl x509 -in /etc/letsencrypt/live/lowcost-europa.eu/fullchain.pem -noout -ext subjectAltName)"
+          [[ "$san" == *'DNS:lowcost-europa.eu'* && "$san" == *'DNS:www.lowcost-europa.eu'* ]]
+          systemctl is-active --quiet certbot.timer
+          systemctl is-active --quiet lowcost-europa.service
+          nginx -t >/dev/null 2>&1
+          if nginx -T 2>/dev/null | grep -Eiq '^[[:space:]]*server_name .*lowcost-europa\.(duckdns\.org|146-59-145-3\.sslip\.io|165-22-114-67\.sslip\.io)'; then
+            echo LOWCOST_CERT_RETIRE_BLOCK=LEGACY_VHOST_ACTIVE
+            exit 3
+          fi
+          for name in lowcost-europa.duckdns.org lowcost-europa.146-59-145-3.sslip.io lowcost-europa.165-22-114-67.sslip.io; do
+            [[ -f "/etc/letsencrypt/renewal/$name.conf" ]]
+            [[ -d "/etc/letsencrypt/live/$name" ]]
+            [[ -d "/etc/letsencrypt/archive/$name" ]]
+            for tree in /etc/nginx /etc/systemd/system /etc/cron.d; do
+              if grep -rlF "/etc/letsencrypt/live/$name/" "$tree" 2>/dev/null | grep -q .; then
+                echo "LOWCOST_CERT_RETIRE_BLOCK=ACTIVE_REFERENCE_$name"
+                exit 4
+              fi
+            done
+            if grep -Fq "$name" "$ROOT/private/systemd-env/lowcost-europa.env"; then
+              echo "LOWCOST_CERT_RETIRE_BLOCK=ENV_REFERENCE_$name"
+              exit 5
+            fi
+          done
+          others_before="$(find /etc/letsencrypt/renewal -mindepth 1 -maxdepth 1 -type f -name '*.conf' \
+            ! -name 'lowcost-europa.duckdns.org.conf' \
+            ! -name 'lowcost-europa.146-59-145-3.sslip.io.conf' \
+            ! -name 'lowcost-europa.165-22-114-67.sslip.io.conf' -printf '%f\n' | sort)"
+          echo LOWCOST_CERT_RETIRE_NO_ACTIVE_CONSUMERS=PASS
+          mkdir -m 700 "$BACK"
+          tar -C / -czf "$BACK/legacy-ssl-test-certificates.tar.gz" \
+            etc/letsencrypt/renewal/lowcost-europa.duckdns.org.conf \
+            etc/letsencrypt/live/lowcost-europa.duckdns.org \
+            etc/letsencrypt/archive/lowcost-europa.duckdns.org \
+            etc/letsencrypt/renewal/lowcost-europa.146-59-145-3.sslip.io.conf \
+            etc/letsencrypt/live/lowcost-europa.146-59-145-3.sslip.io \
+            etc/letsencrypt/archive/lowcost-europa.146-59-145-3.sslip.io \
+            etc/letsencrypt/renewal/lowcost-europa.165-22-114-67.sslip.io.conf \
+            etc/letsencrypt/live/lowcost-europa.165-22-114-67.sslip.io \
+            etc/letsencrypt/archive/lowcost-europa.165-22-114-67.sslip.io
+          chmod 600 "$BACK/legacy-ssl-test-certificates.tar.gz"
+          tar -tzf "$BACK/legacy-ssl-test-certificates.tar.gz" >/dev/null
+          echo LOWCOST_CERT_RETIRE_ROOT_ONLY_BACKUP=PASS
+          removed=0
+          for name in lowcost-europa.duckdns.org lowcost-europa.146-59-145-3.sslip.io lowcost-europa.165-22-114-67.sslip.io; do
+            certbot delete --cert-name "$name" --non-interactive >/dev/null
+            [[ ! -e "/etc/letsencrypt/renewal/$name.conf" ]]
+            removed=$((removed + 1))
+            echo "LOWCOST_CERT_RETIRED=$name"
+          done
+          [[ "$removed" -eq 3 ]]
+          others_after="$(find /etc/letsencrypt/renewal -mindepth 1 -maxdepth 1 -type f -name '*.conf' -printf '%f\n' | sort)"
+          [[ "$others_before" == "$others_after" ]]
+          [[ -f /etc/letsencrypt/renewal/lowcost-europa.eu.conf ]]
+          [[ -f /etc/letsencrypt/live/lowcost-europa.eu/fullchain.pem ]]
+          systemctl is-active --quiet certbot.timer
+          nginx -t >/dev/null 2>&1
+          [[ "$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 --resolve www.lowcost-europa.eu:443:146.59.145.3 https://www.lowcost-europa.eu/)" == 200 ]]
+          [[ "$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 --resolve lowcost-europa.eu:443:146.59.145.3 https://lowcost-europa.eu/)" == 301 ]]
+          systemctl is-active --quiet lowcost-europa-catalog-maintenance.timer
+          systemctl is-active --quiet lowcost-europa-indexnow.timer
+          echo LOWCOST_CERT_RETIRE_OFFICIAL_TLS=PASS
+          echo LOWCOST_CERT_RETIRE_OTHER_CERTS=UNCHANGED
+          echo LOWCOST_CERT_RETIRE_REMOVED_COUNT=3
+          echo LOWCOST_CERT_RETIRE=PASS
+          REMOTE
