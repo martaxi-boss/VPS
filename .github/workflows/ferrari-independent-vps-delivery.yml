@@ -54,6 +54,7 @@ on:
       - 'ferrari-release-requests/universal-qa-precheck-20261108.json'
       - 'ferrari-release-requests/universal-qa-activate-20261108.json'
       - 'ferrari-release-requests/universal-runtime-precheck-20261108.json'
+      - 'ferrari-release-requests/universal-runtime-precheck-r2-20261108.json'
       - 'ferrari-release-requests/universal-runtime-activate-20261108.json'
 
 permissions:
@@ -132,6 +133,7 @@ jobs:
             ferrari-release-requests/universal-qa-precheck-20261108.json) MODE=--universal-qa-precheck ;;
             ferrari-release-requests/universal-qa-activate-20261108.json) MODE=--universal-qa-activate ;;
             ferrari-release-requests/universal-runtime-precheck-20261108.json) MODE=--universal-runtime-precheck ;;
+            ferrari-release-requests/universal-runtime-precheck-r2-20261108.json) MODE=--universal-runtime-precheck ;;
             ferrari-release-requests/universal-runtime-activate-20261108.json) MODE=--universal-runtime-activate ;;
             *) echo 'FERRARI_PHASE5_REQUEST_NOT_SINGLE_OR_NOT_ALLOWED' >&2; exit 2 ;;
           esac
@@ -448,7 +450,7 @@ jobs:
             python3 - <<'RUNTIME_SOURCE_CHECK'
           import json
           from pathlib import Path
-          root=Path("ferrari-qa")
+          root=Path("ferrari-runtime")
           catalog=json.loads((root/"engine/catalog.json").read_text())
           assert len(catalog["tools"])==173 and len(catalog["functions"])==272
           assert catalog["counts"]["all_catalog_entries"]==450
