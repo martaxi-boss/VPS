@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "id": "f12dash-20261108-7fd2c9-team-start",
+  "kind": "ruflo-team",
+  "phase": "start",
+  "team_id": "f12dashboard-20261108-7fd2c9",
+  "host": "ChatGPT",
+  "mission": "Certificar dashboard de vendas sintéticas: CSV, totais e categoria, HTML móvel/desktop com filtros, Playwright, PDF e JSON, com rejeição comprovada da hipótese errada 390 EUR. Uma IA anfitriã, Ruflo efémero, ferramentas Ferrari reais; sem instalações nem modificações.",
+  "roles": [
+    {
+      "id": "analyst",
+      "type": "architect",
+      "actions": []
+    },
+    {
+      "id": "executor",
+      "type": "coder",
+      "actions": [
+        "duckdb-csv-profile"
+      ]
+    },
+    {
+      "id": "tester",
+      "type": "tester",
+      "actions": []
+    },
+    {
+      "id": "reviewer",
+      "type": "reviewer",
+      "actions": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "analysis",
+      "role": "analyst",
+      "reviewer": "reviewer",
+      "goal": "Especificar requisitos, dados, fórmulas, controlo adversarial e critérios de aceitação reais",
+      "depends_on": []
+    },
+    {
+      "id": "profile",
+      "role": "executor",
+      "reviewer": "reviewer",
+      "goal": "Executar DuckDB privado real no CSV e guardar perfil e hash de prova",
+      "depends_on": [
+        "analysis"
+      ]
+    },
+    {
+      "id": "validation",
+      "role": "tester",
+      "reviewer": "reviewer",
+      "goal": "Confrontar totais por categoria, dashboard Playwright desktop/mobile, JSON e PDF, incluindo a hipótese errada 390 EUR; corrigir e submeter revisão fundamentada",
+      "depends_on": [
+        "profile"
+      ]
+    }
+  ],
+  "input": {
+    "name": "f12-sales.csv",
+    "content_base64": "aWQsY2F0ZWdvcmlhLHByb2R1dG8scHJlY29fZXVyLHF1YW50aWRhZGUKMSxFbGV0cm9uaWNhLENhcnJlZ2Fkb3IsMjUsMgoyLEVsZXRyb25pY2EsQXVzY3VsdGFkb3Jlcyw0MCwxCjMsQ2FzYSxDYW5lY2EsMTUsMwo0LENhc2EsTHVtaW5hcmlhLDIwLDIKNSxNb2RhLENhbWlzb2xhLDMwLDIKNixNb2RhLE1laWFzLDEwLDQKNyxFbGV0cm9uaWNhLFRlY2xhZG8sNTAsMQo4LENhc2EsT3JnYW5pemFkb3IsMTIsNQo="
+  }
+}
