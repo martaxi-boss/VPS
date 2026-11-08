@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "f12dash-20261108-7fd2c9-profile",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "f12dashboard-20261108-7fd2c9",
+  "revision": 2,
+  "turn": {
+    "task": "profile",
+    "role": "executor",
+    "kind": "invoke",
+    "action": "duckdb-csv-profile",
+    "input_from": "$input",
+    "message": "Executar Ferrrari DuckDB privado real sobre CSV sintetico original (8 linhas), obter schema, contagem e amostra, guardar ficheiro calculado e SHA para auditoria do revisor."
+  }
+}
