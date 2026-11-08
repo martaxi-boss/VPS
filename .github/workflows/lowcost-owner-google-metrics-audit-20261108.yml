@@ -1,0 +1,64 @@
+name: Lowcost owner Google metrics VPS read-only discovery
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-owner-google-metrics-audit-20261108.yml'
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-owner-google-metrics-audit
+  cancel-in-progress: false
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Scope and SSH host identity
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")" == '.github/workflows/lowcost-owner-google-metrics-audit-20261108.yml' ]]
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          echo LOWCOST_AUDIT_SCOPE_AND_HOST=PASS
+      - name: Safe read-only metrics environment inventory on VPS
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          [[ -n "$SSHPASS" ]]
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          root=/srv/projects/lowcost-europa
+          [[ -d "$root/.git" ]]
+          echo "LOWCOST_VPS_HEAD=$(git -c "safe.directory=$root" -C "$root" rev-parse HEAD)"
+          echo "LOWCOST_TRACKED_DIRTY_COUNT=$(git -c "safe.directory=$root" -C "$root" status --porcelain=v1 --untracked-files=no | wc -l)"
+          systemctl is-active --quiet lowcost-europa.service && echo LOWCOST_SERVICE=ACTIVE
+          nginx -t >/dev/null 2>&1 && echo LOWCOST_NGINX=PASS
+          envfile="$root/private/systemd-env/lowcost-europa.env"
+          [[ -f "$envfile" && ! -L "$envfile" ]]
+          for key in WINDSOR_API_KEY GOOGLE_SEARCH_CONSOLE_PROPERTY GOOGLE_SEARCH_CONSOLE_ENABLED GSC_SERVICE_ACCOUNT_JSON GOOGLE_APPLICATION_CREDENTIALS GA4_MEASUREMENT_ID; do
+            if grep -Eq "^$key=[^[:space:]]+" "$envfile"; then echo "PRIVATE_ENV_$key=SET"; else echo "PRIVATE_ENV_$key=ABSENT_OR_EMPTY"; fi
+          done
+          [[ -f "$root/.venv/bin/python" ]] && echo LOWCOST_PYTHON=AVAILABLE
+          if systemctl is-active --quiet lowcost-europa-affiliate-report.timer; then echo LOWCOST_EXTERNAL_METRICS_TIMER=ACTIVE; else echo LOWCOST_EXTERNAL_METRICS_TIMER=INACTIVE; fi
+          if test -f "$root/apps/catalog/management/commands/sync_google_search_console.py"; then echo GOOGLE_COLLECTOR=FOUND; else echo GOOGLE_COLLECTOR=MISSING; fi
+          if test -f "$root/apps/catalog/services/windsor_search_console_reporting.py"; then echo GOOGLE_METRICS_ADAPTER=FOUND; else echo GOOGLE_METRICS_ADAPTER=MISSING; fi
+          echo LOWCOST_READ_ONLY_GOOGLE_METRICS_AUDIT=PASS
+          REMOTE
