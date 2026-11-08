@@ -28,59 +28,26 @@ jobs:
             ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
           set -Eeuo pipefail
           ROOT=/srv/projects/lowcost-europa
-          echo LOWCOST_SITEMAP_AUDIT_BEGIN
-          git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD
+          OLD=e8b269c7c5788b6a1b8f7a80c3f6c79ebbba60d0
+          NEW=e4d3797b447c14c55d277d2ff3dcbd27ec0b9a19
+          [[ "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD)" == "$OLD" ]]
+          [[ -z "$(git -c safe.directory="$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)" ]]
+          CONF="$ROOT/deploy/nginx/lowcost-europa.eu.conf"
+          CONFHASH="$(sha256sum "$CONF" | cut -d' ' -f1)"
+          git -c safe.directory="$ROOT" -C "$ROOT" fetch -q https://github.com/martaxi-boss/lowcost-europa.git main
+          [[ "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse FETCH_HEAD)" == "$NEW" ]]
+          [[ "$(git -c safe.directory="$ROOT" -C "$ROOT" merge-base "$OLD" "$NEW")" == "$OLD" ]]
+          [[ "$(git -c safe.directory="$ROOT" -C "$ROOT" diff --name-only "$OLD" "$NEW" | sort)" == "$(printf '%s\n' PROJECT_STATE.md docs/operations/international-search-20261108.md | sort)" ]]
+          umask 022
+          git -c safe.directory="$ROOT" -C "$ROOT" checkout --detach -q "$NEW"
+          [[ "$(sha256sum "$CONF" | cut -d' ' -f1)" == "$CONFHASH" ]]
           [[ -z "$(git -c safe.directory="$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)" ]]
           nginx -t >/dev/null 2>&1
           systemctl is-active --quiet lowcost-europa.service
-          python3 - <<'PY'
-          import collections,concurrent.futures,datetime,gzip,json,re,socket
-          from pathlib import Path
-          socket.setdefaulttimeout(4)
-          logs=sorted(Path('/var/log/nginx').glob('*lowcost*access*'))
-          scope='dedicated lowcost log'
-          if not logs:
-              logs=[p for p in (Path('/var/log/nginx/access.log'),Path('/var/log/nginx/access.log.1')) if p.exists()]
-              scope='shared combined log: host attribution unavailable'
-          print('CRAWLER_LOG_SCOPE='+scope)
-          pattern=re.compile(r'^(\S+) .*?\[([^]]+)\] "(\S+) ([^ ]+) [^"]+" (\d{3}) (\S+) "[^"]*" "([^"]*)"')
-          hits=[]
-          for path in logs[:8]:
-              opener=gzip.open if path.suffix=='.gz' else open
-              with opener(path,'rt',errors='replace') as f:
-                  for line in collections.deque(f,maxlen=100000):
-                      m=pattern.match(line)
-                      if not m: continue
-                      ip,dt,method,url,status,size,ua=m.groups()
-                      if url.split('?',1)[0] not in ('/sitemap.xml','/robots.txt','/'): continue
-                      if url.split('?',1)[0]!='/sitemap.xml' and not re.search(r'googlebot|google-inspection|bingbot|msnbot',ua,re.I): continue
-                      try: when=datetime.datetime.strptime(dt,'%d/%b/%Y:%H:%M:%S %z')
-                      except ValueError: continue
-                      if when.date()!=datetime.date(2026,11,8): continue
-                      engine='Bing' if re.search(r'bingbot|msnbot',ua,re.I) else ('Google' if re.search(r'googlebot|google-inspection',ua,re.I) else 'Other')
-                      hits.append((when,ip,engine,url.split('?',1)[0],status,size))
-          ips=list(dict.fromkeys((x[1],x[2]) for x in sorted(hits,reverse=True)))[:24]
-          def verify(pair):
-              ip,engine=pair
-              try:
-                  host=socket.gethostbyaddr(ip)[0].lower().rstrip('.')
-                  suffixes=('.search.msn.com',) if engine=='Bing' else (('.googlebot.com','.google.com') if engine=='Google' else ())
-                  allowed=any(host.endswith(s) for s in suffixes)
-                  forward={x[4][0] for x in socket.getaddrinfo(host,None)}
-                  return pair,bool(allowed and ip in forward)
-              except (OSError,ValueError): return pair,False
-          with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
-              verified=dict(pool.map(verify,ips))
-          groups=collections.defaultdict(list)
-          for when,ip,engine,path,status,size in hits:
-              label='dns_forward_reverse_verified' if verified.get((ip,engine)) else 'unverified_claim'
-              groups[(engine,label,path,status)].append((when,size))
-          for key,values in sorted(groups.items()):
-              last=max(values)
-              print('CRAWLER_AGGREGATE='+json.dumps(dict(engine=key[0],identity=key[1],path=key[2],http=key[3],count=len(values),latest_utc=last[0].astimezone(datetime.timezone.utc).isoformat(),last_response_bytes=last[1])))
-          print('CRAWLER_LOG_RAW_DATA_PUBLISHED=NO')
-          PY
-          echo LOWCOST_SITEMAP_AUDIT_END
+          systemctl is-active --quiet lowcost-europa-indexnow.timer
+          [[ "$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 --resolve www.lowcost-europa.eu:443:146.59.145.3 https://www.lowcost-europa.eu/)" == 200 ]]
+          echo "LOWCOST_SITEMAP_DIAGNOSIS_GITHUB_VPS_SHA=$NEW"
+          echo LOWCOST_SITEMAP_DIAGNOSIS_DOCS_ALIGNMENT=PASS
           REMOTE
 
 # Correlate newly observed homepage Live URL regression at 11:33; read only.
