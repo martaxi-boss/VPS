@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "ferrari-specialist-qgis-20261108",
+  "kind": "operation",
+  "operation": "qgis-buffer-5m",
+  "input": {
+    "name": "polygon-synthetic.geojson",
+    "content_base64": "eyJ0eXBlIjoiRmVhdHVyZUNvbGxlY3Rpb24iLCJjcnMiOnsidHlwZSI6Im5hbWUiLCJwcm9wZXJ0aWVzIjp7Im5hbWUiOiJFUFNHOjM4NTcifX0sImZlYXR1cmVzIjpbeyJ0eXBlIjoiRmVhdHVyZSIsInByb3BlcnRpZXMiOnt9LCJnZW9tZXRyeSI6eyJ0eXBlIjoiUG9seWdvbiIsImNvb3JkaW5hdGVzIjpbW1swLDBdLFsxMDAsMF0sWzEwMCw1MF0sWzAsNTBdLFswLDBdXV19fV19"
+  },
+  "acceptance": {
+    "required_extensions": [
+      ".geojson",
+      ".json"
+    ]
+  }
+}
