@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "id": "ferrari-t2-ruflo-start-20261108-2059-6c27",
+  "kind": "ruflo-team",
+  "phase": "start",
+  "team_id": "ferrari-t2-cad-20261108-6c27",
+  "host": "ChatGPT",
+  "mission": "Auditar uma unica peca CAD sintética: rejeitar STL com furo 8 mm, aceitar versao 10 mm, controlar provas reais OpenSCAD e QA independente.",
+  "roles": [
+    {
+      "id": "analista",
+      "type": "architect",
+      "actions": []
+    },
+    {
+      "id": "executor",
+      "type": "coder",
+      "actions": []
+    },
+    {
+      "id": "tester",
+      "type": "tester",
+      "actions": [
+        "jq-format-json"
+      ]
+    },
+    {
+      "id": "revisor",
+      "type": "reviewer",
+      "actions": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "spec",
+      "role": "analista",
+      "reviewer": "revisor",
+      "goal": "Definir criterios numericos: 80x50x20 mm, furo 10 mm em (40,25), passante, 128 segmentos, volume 78429.20367 +/-2 mm3.",
+      "depends_on": []
+    },
+    {
+      "id": "cad",
+      "role": "executor",
+      "reviewer": "revisor",
+      "goal": "Documentar primeiro o STL real com defeito de 8 mm e recusa fundamentada; depois documentar STL corrigido 10 mm com hashes.",
+      "depends_on": [
+        "spec"
+      ]
+    },
+    {
+      "id": "test",
+      "role": "tester",
+      "reviewer": "revisor",
+      "goal": "Executar jq-format-json em metadados de medicao independente e validar que os valores refletem os dois STL reais.",
+      "depends_on": [
+        "cad"
+      ]
+    }
+  ],
+  "input": {
+    "name": "ferrari_t2_verified_mesh_qa.json",
+    "content_base64": "ewogICJtaXNzaW9uX2lkIjogImZlcnJhcmktdDItY2FkLTIwMjYxMTA4LTZjMjciLAogICJnZW9tZXRyaWNfc3BlYyI6IHsKICAgICJ1bml0IjogIm1tIiwKICAgICJvdXRlciI6IFsKICAgICAgODAsCiAgICAgIDUwLAogICAgICAyMAogICAgXSwKICAgICJib3JlX2RpYW1ldGVyIjogMTAsCiAgICAiYm9yZV9jZW50ZXJfeHkiOiBbCiAgICAgIDQwLAogICAgICAyNQogICAgXSwKICAgICJ0aHJvdWdoX3oiOiBbCiAgICAgIDAsCiAgICAgIDIwCiAgICBdLAogICAgIm1pbl9zZWdtZW50cyI6IDEyOCwKICAgICJ2b2x1bWVfdG9sZXJhbmNlX21tMyI6IDIKICB9LAogICJkZWZlY3QiOiB7CiAgICAiYWN0aW9uX3J1biI6IDQyNTIyNTE2OTAyLAogICAgInNoYTI1NiI6ICIyMDM0ZTY4ZjUzNDY4ZjI2ZjQyMjgwYTE4NjFiMWRkZjRmNzY1NWQ2ODRlZDQ1N2EzYjc4NTUzMmVlODdlY2RiIiwKICAgICJieXRlcyI6IDgxMjc0LAogICAgIm1lYXN1cmVkX2JvcmVfbW0iOiA3Ljk5OTk5MDAzMDQ2MjUxMSwKICAgICJ2b2x1bWVfbW0zIjogNzg5OTUuMDk2NTMzNiwKICAgICJ2ZXJkaWN0IjogIlJFSkVDVEVEX0JZX0hPU1QiCiAgfSwKICAiY29ycmVjdGVkIjogewogICAgImFjdGlvbl9ydW4iOiA0MjUyMjY3MzczNCwKICAgICJzaGEyNTYiOiAiZmZiMmU3ZmFiYjY5YWU4YmY2NDQ3N2MwN2MyNTE5OWUwNmFkNjQ5NmZkOWQ3ZmVmMDlkMGE3NWQwYTRmNjQ4YSIsCiAgICAiYnl0ZXMiOiA4MTE0MiwKICAgICJtZWFzdXJlZF9ib3JlX21tIjogOS45OTk5OTU2MDA5MDUwNiwKICAgICJ2b2x1bWVfbW0zIjogNzg0MjkuODM1ODAzOCwKICAgICJ3YXRlcl90aWdodCI6IHRydWUsCiAgICAiY29tcG9uZW50cyI6IDEsCiAgICAidHJpYW5nbGVzIjogNTI4LAogICAgInZlcmRpY3QiOiAiUEFTU19JTkRFUEVOREVOVF9IT1NUX1FBIgogIH0KfQo="
+  }
+}
