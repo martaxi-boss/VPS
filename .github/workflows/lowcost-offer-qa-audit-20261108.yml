@@ -130,6 +130,7 @@ jobs:
           for fam in ProductFamily.objects.exclude(status=ProductFamily.Status.RETIRED).order_by("display_order","pk"):
               in_fam=Offer.objects.filter(family_placements__product_family=fam).filter(public_eligibility_q(now)).distinct()
               print("LIVE_FAMILY_"+str(fam.slug)+"_PUBLIC="+str(in_fam.count()))
+              print("LIVE_FAMILY_"+str(fam.slug)+"_RECENT_EUR_PRICE="+str(in_fam.filter(pk__in=recent_ok.values("offer_id")).count()))
           bad=list(visible.exclude(public_eligibility_q(now)).values(
               "pk","affiliate_url","affiliate_promotion_status",
               "affiliate_promotion_verified_at","protocol_verified_at"))
