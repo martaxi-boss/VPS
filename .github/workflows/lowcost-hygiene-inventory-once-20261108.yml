@@ -71,6 +71,20 @@ jobs:
           printf 'LOWCOST_INVENTORY_NGINX_HOSTS_BEGIN\n'
           nginx -T 2>/dev/null | awk '/^[[:space:]]*server_name / && /lowcost-europa|duckdns|sslip/ {print}' | sort -u
           printf 'LOWCOST_INVENTORY_NGINX_HOSTS_END\n'
+          echo LOWCOST_INVENTORY_NGINX_SITES_BEGIN
+          find /etc/nginx/sites-enabled -mindepth 1 -maxdepth 1 -type l -printf '%f=%l\\n' | grep -i lowcost || true
+          echo LOWCOST_INVENTORY_NGINX_SITES_END
+          echo LOWCOST_INVENTORY_NGINX_LOADED_CONFIGS_BEGIN
+          nginx -T 2>/dev/null | grep -E '^# configuration file .*lowcost.*:' | sort -u || true
+          echo LOWCOST_INVENTORY_NGINX_LOADED_CONFIGS_END
+          echo LOWCOST_INVENTORY_CERTBOT_CERTIFICATES_BEGIN
+          if [[ -d /etc/letsencrypt/renewal ]]; then
+            find /etc/letsencrypt/renewal -mindepth 1 -maxdepth 1 -type f -printf '%f\\n' | grep -E 'lowcost|duckdns|sslip' || true
+          fi
+          echo LOWCOST_INVENTORY_CERTBOT_CERTIFICATES_END
+          echo LOWCOST_INVENTORY_DNS_TIMERS_BEGIN
+          systemctl list-unit-files --no-pager --no-legend | grep -Ei 'lowcost.*dns|lowcost.*domain|duckdns|sslip' | head -n 20 || true
+          echo LOWCOST_INVENTORY_DNS_TIMERS_END
           printf 'LOWCOST_INVENTORY_NGINX_TEST='
           nginx -t >/dev/null 2>&1 && echo PASS
           echo LOWCOST_INVENTORY_LOW_COST_SYSTEMD_BEGIN
