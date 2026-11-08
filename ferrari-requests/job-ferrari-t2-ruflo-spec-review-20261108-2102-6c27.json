@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "ferrari-t2-ruflo-spec-review-20261108-2102-6c27",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "ferrari-t2-cad-20261108-6c27",
+  "revision": 1,
+  "turn": {
+    "task": "spec",
+    "role": "revisor",
+    "kind": "review",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "8595bef7a9880ace5fd2b8330f495c3f1822b5ba2710536d45594dd0c40f2a5e"
+    ],
+    "message": "Criterios definidos corretamente. A nota do analista nao certifica por si a geometria; a revisao CAD usa STL efetivo, volume triangulado e hashes."
+  }
+}
