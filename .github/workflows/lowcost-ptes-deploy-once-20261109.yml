@@ -36,7 +36,7 @@ jobs:
           OLD=d2afac642eac9b0d371855b5a387fdbc35b9fd99
           NEW=2092e65bf394c0772a824ff13d35f05569a726bd
           ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
-          TASK="$ROOT/private/ops/ptes-launch-20261109"
+          TASK="$ROOT/private/ops/ptes-launch-20261109-r2"
           mkdir -p -m 700 "$ROOT/private/ops"
           exec 9>"$ROOT/private/ops/ptes-deploy.lock"
           flock -n 9 || { echo LOWCOST_DEPLOY_LOCK_BUSY; exit 9; }
@@ -156,7 +156,7 @@ jobs:
               assert '<meta name="robots" content="index, follow">' in text,('index',path)
               assert 'noindex' not in (headers.get('X-Robots-Tag') or '').lower(),('header-robots',path)
               assert 'application/ld+json' in text,('jsonld',path)
-              assert '"@context": "https://schema.org"' in text,('structured_data',path)
+              assert '"@context":"https://schema.org"' in text,('structured_data',path)
           print('LOWCOST_PTES_18_MARKET_PAGES=PASS')
           es=fetch('/es/')[2].decode('utf-8')
           pt=fetch('/pt/')[2].decode('utf-8')
