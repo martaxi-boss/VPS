@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "test-ruflo-correction-invoke-20261108-n1",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "ruflo-correction-20261108-n1",
+  "revision": 0,
+  "turn": {
+    "task": "format",
+    "role": "coder",
+    "kind": "invoke",
+    "message": "Executar jq-format-json no JSON sintetico e disponibilizar bytes e SHA256 para revisao cruzada.",
+    "action": "jq-format-json",
+    "input_from": "$input"
+  }
+}
