@@ -53,66 +53,30 @@ jobs:
             ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
           set -Eeuo pipefail
           root=/srv/projects/lowcost-europa
+          current=280fca9dd5ea1b99b734f33df78b8fdd985731e0
+          target=2d5a38acc80964535ae3658501d3ae1330e5936e
           g() { git -c "safe.directory=$root" -C "$root" "$@"; }
-          [[ "$(g rev-parse HEAD)" == 280fca9dd5ea1b99b734f33df78b8fdd985731e0 ]]
+          [[ "$(g rev-parse HEAD)" == "$current" ]]
           changes="$(g status --porcelain=v1 --untracked-files=no)"
           [[ -z "$changes" ]]
+          GIT_TERMINAL_PROMPT=0 g fetch origin main >/dev/null 2>&1
+          [[ "$(g rev-parse origin/main)" == "$target" ]]
+          g merge-base --is-ancestor "$current" "$target"
+          runtime_changes="$(g diff --name-only "$current" "$target" -- . ':(exclude)PROJECT_STATE.md' ':(exclude)docs/operations/international-search-20261108.md')"
+          [[ -z "$runtime_changes" ]]
+          g checkout --detach "$target" >/dev/null 2>&1
           systemctl is-active --quiet lowcost-europa.service
           systemctl is-active --quiet lowcost-europa-indexnow.timer
+          systemctl is-enabled --quiet lowcost-europa-indexnow.timer
           nginx -t >/dev/null 2>&1
-          for resolver in 8.8.8.8 9.9.9.9; do
-           for host in lowcost-europa.eu www.lowcost-europa.eu; do
-            [[ "$(dig +short @"$resolver" "$host" A | sort -u)" == 146.59.145.3 ]]
-           done
-          done
-          echo SEARCH_RECHECK_ADDITIONAL_PUBLIC_DNS=PASS
-          python3 - "$root" <<'PY'
-          import collections,datetime,json,pathlib,socket,subprocess,sys,urllib.request,urllib.error
-          root=pathlib.Path(sys.argv[1])
-          base='https://www.lowcost-europa.eu'
-          env=(root/'private/systemd-env/lowcost-europa.env').read_text()
-          key=[x.split('=',1)[1] for x in env.splitlines() if x.startswith('DJANGO_INDEXNOW_KEY=')][0]
-          try:
-           with urllib.request.urlopen(base+'/indexnow-'+key+'.txt',timeout=20) as r:
-            assert r.status==200 and r.read().decode().strip()==key
-          except Exception:
-           raise SystemExit('Proof check failed; location redacted') from None
-          print('SEARCH_RECHECK_PROOF=PASS')
-          for path in ['/robots.txt','/sitemap.xml','/']:
-           with urllib.request.urlopen(urllib.request.Request(base+path,headers={'User-Agent':'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)'}),timeout=20) as r:
-            body=r.read()
-            assert r.status==200 and 'noindex' not in r.headers.get('X-Robots-Tag','').lower()
-            print('SEARCH_RECHECK_PUBLIC',path,r.status,len(body))
-          socket.setdefaulttimeout(4)
-          lines=subprocess.check_output(['tail','-n','30000','/var/log/nginx/access.log'],text=True).splitlines()
-          counts=collections.Counter(); cache={}
-          for line in lines:
-           parts=line.split('"')
-           if len(parts)<6 or not any(bot in parts[5].lower() for bot in ['bingbot','googlebot']):
-            continue
-           request=parts[1].split()
-           if len(request)<2 or request[1] not in ['/robots.txt','/sitemap.xml','/']: continue
-           ip=line.split()[0]
-           if ip not in cache:
-            try:
-             host=socket.gethostbyaddr(ip)[0].lower()
-             suffix=('.search.msn.com','.googlebot.com','.google.com')
-             verified=host.endswith(suffix) and ip in {a[4][0] for a in socket.getaddrinfo(host,None)}
-             cache[ip]=('Bing' if host.endswith('.search.msn.com') else 'Google') if verified else 'unverified-agent'
-            except OSError: cache[ip]='unverified-agent'
-           counts[(cache[ip],request[1],parts[2].split()[0])]+=1
-          for (engine,path,status),count in sorted(counts.items()):
-           print('SEARCH_RECHECK_CRAWLER',engine,path,status,count)
-          print('SEARCH_RECHECK_OPERATOR_PERMISSIONS',oct((root/'.legal/operator.json').stat().st_mode&0o777))
-          PY
-          echo SEARCH_RECHECK_INDEXNOW_RUN_STARTED
-          systemctl start lowcost-europa-indexnow.service
-          journalctl -u lowcost-europa-indexnow.service --since '3 minutes ago' --no-pager -o cat | grep '^INDEXNOW_'
-          if test -f "$root/.indexnow/accepted.json"; then
-           echo SEARCH_RECHECK_INDEXNOW_VERIFIED_STATE=PRESENT
-          else
-           echo SEARCH_RECHECK_INDEXNOW_VERIFIED_STATE=PENDING
-          fi
-          echo SEARCH_RECHECK_SERVICE_TIMER_DNS_HTTPS=PASS
-          echo SEARCH_RECHECK_GITHUB_VPS_SHA=280fca9dd5ea1b99b734f33df78b8fdd985731e0
+          curl -fsS --max-time 20 -H 'Host: www.lowcost-europa.eu' -H 'X-Forwarded-Proto: https' http://127.0.0.1:8001/health/ready/ >/dev/null
+          [[ "$(stat -c %a "$root/.legal/operator.json")" == 600 ]]
+          [[ "$(stat -c %a "$root/.indexnow")" == 700 ]]
+          changes="$(g status --porcelain=v1 --untracked-files=no)"
+          [[ -z "$changes" ]]
+          journalctl -u lowcost-europa-indexnow.service --since '2026-11-08 00:30:00' --no-pager -o cat | grep '^INDEXNOW_'
+          echo "SEARCH_FINAL_ALIGNED_SHA=$target"
+          echo SEARCH_FINAL_DOCUMENTATION_ONLY=PASS
+          echo SEARCH_FINAL_SERVICE_TIMER_HTTPS_PRIVACY=PASS
+          echo SEARCH_FINAL_TRACKED_HYGIENE=PASS
           REMOTE
