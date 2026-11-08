@@ -1752,6 +1752,56 @@ jobs:
             echo 'FERRARI_DOCUMENT_CACHE_PROTECTED_WORKFLOW=PASS'
             exit 0
           fi
+          if [[ "$MODE" == '--universal-ruflo-precheck' || "$MODE" == '--universal-ruflo-activate' ]]; then
+            TARGET="046126279a605d331b95683ece0a26d3c464d0eb"
+            PREVIOUS="3f0ba44b7d8475a74a63c6010d1e27063c04bf1e"
+            REPORT="$RUNNER_TEMP/ferrari-universal-report.json"
+            [[ "$BEFORE" == "/srv/projects/skill-universal/releases/$PREVIOUS" ]] ||
+              { echo 'FERRARI_RUFLO_UNEXPECTED_ACTIVE_RELEASE' >&2; exit 42; }
+            sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 "bash -s -- '$TARGET' '--check'" < ferrari-ruflo/install/vps-isolated-release.sh
+            AFTER="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
+            [[ "$AFTER" == "$BEFORE" ]] ||
+              { echo 'FERRARI_RUFLO_PRECHECK_CHANGED_CURRENT' >&2; exit 42; }
+            echo 'FERRARI_RUFLO_RELEASE_PRECHECK=PASS'
+            if [[ "$MODE" == '--universal-ruflo-activate' ]]; then
+              sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 "bash -s -- '$TARGET' '--activate'" < ferrari-ruflo/install/vps-isolated-release.sh
+              AFTER="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
+              [[ "$AFTER" == "/srv/projects/skill-universal/releases/$TARGET" ]] ||
+                { echo 'FERRARI_RUFLO_ACTIVE_RELEASE_MISMATCH' >&2; exit 42; }
+              sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 "cd '/srv/projects/skill-universal/current' && '/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12' -B -" <<'RUFLO_RELEASE_READBACK'
+          from pathlib import Path
+          from engine import ferrari,agent_team,tool_runtime,catalog_registry
+          root=Path("/srv/projects/skill-universal")
+          assert (root/"current").resolve(strict=True)==root/"releases"/"046126279a605d331b95683ece0a26d3c464d0eb"
+          assert (root/"releases"/"3f0ba44b7d8475a74a63c6010d1e27063c04bf1e"/"engine/ferrari.py").is_file()
+          catalog=catalog_registry.read_catalog()
+          assert catalog["counts"]["all_catalog_entries"]==458
+          assert catalog["counts"]["functions"]==280 and len(tool_runtime.specs())==40
+          assert "cad-stl" in ferrari.OPS
+          agent_team.validate_job({"version":1,"kind":"ruflo-team","id":"ruflo-release-readback",
+              "team_id":"ruflo-release-readback","phase":"start","host":"ChatGPT",
+              "mission":"Validate direct Ferrari CAD operation in Ruflo",
+              "roles":[{"id":"maker","type":"coder","actions":["operation:cad-stl"]},
+                       {"id":"reviewer","type":"reviewer","actions":[]}],
+              "tasks":[{"id":"cad","role":"maker","reviewer":"reviewer",
+                        "goal":"Export parametric STL using Ferrari","depends_on":[]}]})
+          print("FERRARI_RUFLO_DIRECT_OPERATION_ACTIVE=PASS")
+          RUFLO_RELEASE_READBACK
+              echo 'FERRARI_RUFLO_ACTIVATION_READBACK=PASS'
+            fi
+            sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'bash -s' <<'RUFLO_PROTECTED_SERVICES'
+          set -Eeuo pipefail
+          for service in pink-iptv-backend pink-vpn fadego-staging lowcost-europa pm2-iptvpn-bot pm2-telegram-robot-leads nginx postgresql@16-main; do
+            systemctl is-active --quiet "$service" ||
+              { echo "FERRARI_PROTECTED_SERVICE_NOT_ACTIVE=$service" >&2; exit 43; }
+          done
+          test -f /srv/projects/skill-universal/releases/3f0ba44b7d8475a74a63c6010d1e27063c04bf1e/engine/ferrari.py
+          echo 'FERRARI_RUFLO_PROTECTED_SERVICES=8/8_PASS'
+          RUFLO_PROTECTED_SERVICES
+            printf '{"status":"PASS","mode":"%s","before":"%s","after":"%s","fallback":"%s","source":"%s"}\n' "$MODE" "$BEFORE" "$AFTER" "$PREVIOUS" "$TARGET" > "$REPORT"
+            echo 'FERRARI_RUFLO_PROTECTED_RELEASE=PASS'
+            exit 0
+          fi
           if [[ "$MODE" == '--universal-promrules-precheck' || "$MODE" == '--universal-promrules-activate' ]]; then
             TARGET="3f0ba44b7d8475a74a63c6010d1e27063c04bf1e"
             PREVIOUS="427e1c33c6d10ca8ecd2103861adccd3d552c381"
