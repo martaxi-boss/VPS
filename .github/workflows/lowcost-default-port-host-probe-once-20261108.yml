@@ -1,0 +1,30 @@
+name: Lowcost canonical default HTTPS port eligibility probe
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/lowcost-default-port-host-probe-once-20261108.yml']
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Compare equivalent HTTPS host authorities without changing site
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json,re,subprocess,tempfile
+          from pathlib import Path
+          with tempfile.TemporaryDirectory() as d:
+              p=Path(d)
+              for host in ('www.lowcost-europa.eu','www.lowcost-europa.eu:443'):
+                  for route in ('/','/sitemap.xml','/robots.txt'):
+                      r=subprocess.run(['curl','-sS','--max-time','20','--http1.1','-H','Host: '+host,'-D',str(p/'headers'),'-o',str(p/'body'),'-w','%{http_code}','https://www.lowcost-europa.eu'+route],capture_output=True,text=True,timeout=25)
+                      assert r.returncode==0
+                      headers=(p/'headers').read_text()
+                      body=(p/'body').read_text()
+                      noindex=bool(re.search(r'^x-robots-tag:.*noindex',headers,re.I|re.M))
+                      canonical=bool(re.search(r'<link[^>]+rel=["\x27]canonical["\x27][^>]+href=["\x27]https://www.lowcost-europa.eu/["\x27]',body))
+                      print('DEFAULT_PORT_PROBE='+json.dumps(dict(host=host,route=route,http=r.stdout,header_noindex=noindex,canonical=canonical if route=='/' else None,robots_disallow_all=('Disallow: /\n' in body) if route=='/robots.txt' else None)))
+          PY
