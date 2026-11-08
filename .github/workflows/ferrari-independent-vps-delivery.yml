@@ -776,9 +776,9 @@ jobs:
               [[ "$AFTER" == "/srv/projects/skill-universal/releases/$TARGET" ]] ||
                 { echo 'FERRARI_VALKEY_WRONG_ACTIVE_RELEASE' >&2; exit 31; }
               sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
-                "cd '/srv/projects/skill-universal/current' && '/srv/projects/skill-universal/valkeys/python3.12/bin/python3.12' -B -" <<'VALKEY_READBACK'
+                "cd '/srv/projects/skill-universal/current' && '/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12' -B -" <<'VALKEY_READBACK'
           from pathlib import Path
-          from engine import quality_gate, tool_valkey, catalog_registry
+          from engine import quality_gate, tool_runtime, catalog_registry
           root=Path("/srv/projects/skill-universal")
           target="fc68bf215b2541a8295796ebe3d0ae7c7c95861e"
           previous="a2181ce589e9967546949c3e3c143e56e98095f0"
@@ -786,7 +786,7 @@ jobs:
           assert (root/"releases"/previous/"engine/catalog.json").is_file()
           catalog=catalog_registry.read_catalog()
           assert catalog["counts"]["all_catalog_entries"]==450
-          assert len(tool_valkey.specs())==40
+          assert len(tool_runtime.specs())==40
           assert quality_gate.validate({"required_extensions":[".mp4"],"audible_audio":True})
           print("FERRARI_VALKEY_RELEASE_ACTIVE_AND_FALLBACK=PASS")
           VALKEY_READBACK
