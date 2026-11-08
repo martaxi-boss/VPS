@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "qa-silent-video-reject-20261108-1245",
+  "kind": "invoke",
+  "action": "kdenlive-mlt-mp4",
+  "input": {
+    "name": "lowcost-promo.mlt",
+    "content_base64": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPG1sdCBMQ19OVU1FUklDPSJDIiBwcm9kdWNlcj0ibWFpbl9iaW4iIHZlcnNpb249IjcuMjIuMCI+CiAgPHByb2ZpbGUgZGVzY3JpcHRpb249Ikxvd2Nvc3QgRXVyb3BhIHNvY2lhbCB2ZXJ0aWNhbCIgd2lkdGg9IjcyMCIgaGVpZ2h0PSIxMjgwIiBwcm9ncmVzc2l2ZT0iMSIgZnJhbWVfcmF0ZV9udW09IjI1IiBmcmFtZV9yYXRlX2Rlbj0iMSIgc2FtcGxlX2FzcGVjdF9udW09IjEiIHNhbXBsZV9hc3BlY3RfZGVuPSIxIiBkaXNwbGF5X2FzcGVjdF9udW09IjkiIGRpc3BsYXlfYXNwZWN0X2Rlbj0iMTYiIGNvbG9yc3BhY2U9IjcwOSIvPgogIDxwcm9kdWNlciBpZD0iYmFja2dyb3VuZCIgaW49IjAiIG91dD0iNDk5Ij4KICAgIDxwcm9wZXJ0eSBuYW1lPSJtbHRfc2VydmljZSI+Y29sb3I8L3Byb3BlcnR5PgogICAgPHByb3BlcnR5IG5hbWU9InJlc291cmNlIj4jMjQyNjM4PC9wcm9wZXJ0eT4KICAgIDxmaWx0ZXIgaW49IjAiIG91dD0iNDk5Ij4KICAgICAgPHByb3BlcnR5IG5hbWU9Im1sdF9zZXJ2aWNlIj5xdGV4dDwvcHJvcGVydHk+CiAgICAgIDxwcm9wZXJ0eSBuYW1lPSJhcmd1bWVudCI+TE9XQ09TVCBFVVJPUEE8L3Byb3BlcnR5PgogICAgICA8cHJvcGVydHkgbmFtZT0iZ2VvbWV0cnkiPjAgMzUwIDcyMCAxNzAgMTwvcHJvcGVydHk+CiAgICAgIDxwcm9wZXJ0eSBuYW1lPSJzaXplIj43MjwvcHJvcGVydHk+CiAgICAgIDxwcm9wZXJ0eSBuYW1lPSJ3ZWlnaHQiPjcwMDwvcHJvcGVydHk+CiAgICAgIDxwcm9wZXJ0eSBuYW1lPSJmZ2NvbG91ciI+I2VjZTlmOGZmPC9wcm9wZXJ0eT4KICAgICAgPHByb3BlcnR5IG5hbWU9Im91dGxpbmUiPjA8L3Byb3BlcnR5PgogICAgPC9maWx0ZXI+CiAgPC9wcm9kdWNlcj4KICA8cGxheWxpc3QgaWQ9InYxIj48ZW50cnkgcHJvZHVjZXI9ImJhY2tncm91bmQiIGluPSIwIiBvdXQ9IjQ5OSIvPjwvcGxheWxpc3Q+CiAgPHRyYWN0b3IgaWQ9Im1haW5fYmluIiBpbj0iMCIgb3V0PSI0OTkiPjx0cmFjayBwcm9kdWNlcj0idjEiLz48L3RyYWN0b3I+CjwvbWx0Pg=="
+  },
+  "acceptance": {
+    "required_extensions": [
+      ".mp4"
+    ],
+    "audible_audio": true
+  }
+}
