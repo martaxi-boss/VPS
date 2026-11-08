@@ -82,15 +82,7 @@ on:
       - 'ferrari-release-requests/universal-triage-precheck-r2-20261108.json'
       - 'ferrari-release-requests/universal-promrules-precheck-20261108.json'
       - 'ferrari-release-requests/universal-promrules-activate-20261108.json'
-      - 'ferrari-release-requests/universal-f12-preview-20261108.json'
-      - 'ferrari-release-requests/universal-f12-apply-20261108.json'
-      - 'ferrari-release-requests/universal-f12-certify-20261108.json'
-      - 'ferrari-release-requests/universal-f13-probe-20261108.json'
-      - 'ferrari-release-requests/universal-f13-certify-20261108.json'
-      - 'ferrari-release-requests/universal-f13-certify-r2-20261108.json'
-      - 'ferrari-release-requests/universal-f14-closeout-20261108.json'
-      - 'ferrari-release-requests/universal-f14-obs-r2-20261108.json'
-      - 'ferrari-release-requests/universal-f14-obs-final-20261108.json'
+      # F12-F14 one-shot requests archived after certification; deletion-only changes must not dispatch VPS.
 
 permissions:
   contents: read
