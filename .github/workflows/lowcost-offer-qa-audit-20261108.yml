@@ -107,6 +107,12 @@ jobs:
           print("LIVE_OFFER_LAST_AVAILABILITY="+str(sorted(tally.items())))
           price_bad=[x for x in with_rel if not x["price_at"] or x["price_at"]<today]
           print("LIVE_OFFER_PRICE_STALE_24H="+str(len(price_bad)))
+          recent_ok=OfferObservation.objects.filter(offer_id=OuterRef("pk"),price__gt=0,currency="EUR",observed_at__gte=today)
+          print("LIVE_OFFER_RECENT_EUR_POSITIVE_PRICE="+str(eligible.filter(pk__in=recent_ok.values("offer_id")).count()))
+          recent_other=OfferObservation.objects.filter(offer_id=OuterRef("pk"),price__gt=0,observed_at__gte=today).exclude(currency="EUR")
+          print("LIVE_OFFER_RECENT_NON_EUR_PRICE="+str(eligible.filter(pk__in=recent_other.values("offer_id")).count()))
+          recent_zero=OfferObservation.objects.filter(offer_id=OuterRef("pk"),price=0,observed_at__gte=today)
+          print("LIVE_OFFER_RECENT_ZERO_PRICE="+str(eligible.filter(pk__in=recent_zero.values("offer_id")).count()))
           print("LIVE_OFFER_PRICE_NEVER_PROVEN="+str(sum(x["price_at"] is None for x in with_rel)))
           print("LIVE_OFFER_PRICE_STALE_IDS="+",".join(str(x["pk"]) for x in price_bad[:20]))
           print("LIVE_OFFER_LATEST_OBS_BEFORE_24H="+str(sum(not x["latest_at"] or x["latest_at"]<today for x in with_rel)))
@@ -170,6 +176,35 @@ jobs:
                       "OTHER_RESPONSE_ERROR"
                   )
                   print("LIVE_AFFILIATE_DETAIL_ERROR_CLASS="+classification)
+          # Inspect only response key names; never values, URLs or credentials.
+          if price_bad:
+              try:
+                  from apps.integrations.aliexpress.client import AliExpressClient
+                  target=Offer.objects.get(pk=price_bad[0]["pk"])
+                  client=AliExpressClient()
+                  data=client._result(client._call(client.DETAIL_METHOD,{
+                      "product_ids":target.external_product_id,
+                      "country":"PT",
+                      "target_currency":"EUR",
+                      "tracking_id":client.config.tracking_id,
+                  }),client.DETAIL_METHOD)
+                  if isinstance(data,dict):
+                      safe_fields=lambda d: ",".join(sorted(k for k in d if isinstance(k,str) and k.isidentifier() and len(k)<50))[:800]
+                      print("LIVE_AFFILIATE_DETAIL_SCHEMA_ROOT_KEYS="+safe_fields(data))
+                      products=data.get("products")
+                      if isinstance(products,dict):
+                          print("LIVE_AFFILIATE_DETAIL_SCHEMA_PRODUCTS_KEYS="+safe_fields(products))
+                          plist=products.get("product")
+                          if isinstance(plist,list):
+                              print("LIVE_AFFILIATE_DETAIL_SCHEMA_PRODUCT_COUNT="+str(len(plist)))
+                              if plist and isinstance(plist[0],dict):
+                                  print("LIVE_AFFILIATE_DETAIL_SCHEMA_FIRST_ITEM_KEYS="+safe_fields(plist[0]))
+                      else:
+                          print("LIVE_AFFILIATE_DETAIL_SCHEMA_NO_PRODUCTS_OBJECT=TRUE")
+                  else:
+                      print("LIVE_AFFILIATE_DETAIL_SCHEMA_RESULT_TYPE="+type(data).__name__)
+              except Exception as exc:
+                  print("LIVE_AFFILIATE_DETAIL_SCHEMA_UNAVAILABLE="+type(exc).__name__)
           print("LIVE_OFFER_AUDIT_READ_ONLY=PASS")
           PYAUDIT
           REMOTE
