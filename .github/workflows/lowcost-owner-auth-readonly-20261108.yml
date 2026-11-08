@@ -96,7 +96,43 @@ jobs:
                   print("LOWCOST_AUTH_OWNER_HAS_PREVIOUS_LOGIN=" + str(user.last_login is not None).upper())
               print("LOWCOST_AUTH_STAFF_ACCOUNT_COUNT=" + str(User.objects.filter(is_staff=True).count()))
               print("LOWCOST_AUTH_GSC_SNAPSHOT_EXISTS=" + str(ExternalMetricsSnapshot.objects.filter(source="GOOGLE_SEARCH_CONSOLE").exists()).upper())
+              # Compare any *existing private owner secret* in-memory to the
+              # Django hash; never print passwords, hashes, paths or values.
+              configured = [v for k,v in data.items()
+                            if "PASSWORD" in k.upper() and
+                            ("OWNER" in k.upper() or "ADMIN" in k.upper()) and v]
+              print("LOWCOST_AUTH_OWNER_SECRET_ENV_PRESENT=" + str(bool(configured)).upper())
+              if len(result)==1 and configured:
+                  print("LOWCOST_AUTH_OWNER_SECRET_ENV_MATCH=" +
+                        str(any(result[0].check_password(v) for v in configured)).upper())
+              candidate_files = []
+              priv = Path("/srv/projects/lowcost-europa/private")
+              for base, dirs, files in os.walk(priv):
+                  dirs[:] = [name for name in dirs if len(Path(base).relative_to(priv).parts) < 2]
+                  for filename in files:
+                      lower=filename.lower()
+                      if ("password" in lower or "owner" in lower) and not filename.endswith(".log"):
+                          candidate_files.append(filename)
+              print("LOWCOST_AUTH_OWNER_PRIVATE_SECRET_FILENAME_COUNT=" + str(len(candidate_files)))
               print("LOWCOST_AUTH_READ_ONLY_DB_INSPECTION=PASS")
+              # Strict, read-only probe using the pre-existing VPS Windsor key.
+              # The property is passed only to this one process, NOT persisted
+              # in systemd or in a public file.
+              try:
+                  from apps.catalog.services.windsor_search_console_reporting import (
+                      collect_search_console_report, SearchConsoleReportError
+                  )
+                  report, _, __ = collect_search_console_report(
+                      api_key=data.get("WINDSOR_API_KEY", ""),
+                      property_id="sc-domain:lowcost-europa.eu",
+                  )
+                  verified=(report.get("property")=="sc-domain:lowcost-europa.eu")
+                  print("LOWCOST_AUTH_EXISTING_WINSOR_GSC_PROBE=" +
+                        ("VERIFIED_ACCESS" if verified else "INVALID_IDENTITY"))
+              except SearchConsoleReportError as exc:
+                  print("LOWCOST_AUTH_EXISTING_WINSOR_GSC_PROBE=" +
+                        str(exc).replace(" ", "_")[:80])
+
           except Exception as exc:
               print("LOWCOST_AUTH_READ_ONLY_DB_INSPECTION=FAIL_"+type(exc).__name__)
               raise SystemExit(4)
