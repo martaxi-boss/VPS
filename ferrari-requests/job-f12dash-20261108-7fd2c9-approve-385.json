@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "f12dash-20261108-7fd2c9-approve-385",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "f12dashboard-20261108-7fd2c9",
+  "revision": 7,
+  "turn": {
+    "task": "validation",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "17263e8546bce76ce667752bf067fc4f8d8a6f5b12f6fbffda8e8e123789203e"
+    ],
+    "message": "APROVADO apos rejeicao verdadeira da ronda 390 e correcao. Conteudo da evidencia e hashes verificados: soma de 8 linhas = 385 EUR, categorias Eletronica140 Casa145 Moda100, 20 unidades. PDF Typst executado com asserts, JSON jq coerente, navegador Playwright real desktop e mobile PASS, sem erros de consola, overflow mobile=0, filtro teclado Enter/Espaco aprovado; ZIP/report.json integro. Nota: o perfil DuckDB verifica formato/8 linhas, nao SQL agregado; inteligencia host ChatGPT, swarm Ruflo efemero, zero LLMs residentes."
+  }
+}
