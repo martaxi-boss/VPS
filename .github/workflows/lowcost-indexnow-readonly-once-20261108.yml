@@ -1,4 +1,4 @@
-name: Lowcost IndexNow read-only stability certificate
+name: Lowcost guarded search follow-up documentation alignment
 on:
   push:
     branches: [main]
@@ -6,11 +6,11 @@ on:
 permissions:
   contents: read
 jobs:
-  inspect:
+  align:
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 7
     steps:
-      - name: Compare accepted state with stable snapshots without submissions
+      - name: Align verified documentation without restarting application
         shell: bash
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
@@ -27,49 +27,27 @@ jobs:
             -o ConnectTimeout=20 -o ServerAliveInterval=15 \
             ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
           set -Eeuo pipefail
-          umask 077
           ROOT=/srv/projects/lowcost-europa
-          TASK="$ROOT/private/indexing-check-20261108-1645"
-          [[ ! -e "$TASK" ]]
-          mkdir -m 700 "$TASK"
-          trap 'rm -f -- "$TASK/check.py"; rmdir -- "$TASK"' EXIT
-          cat > "$TASK/check.py" <<'PY'
-          import collections,datetime,fcntl,hashlib,json,os,subprocess,sys
-          from pathlib import Path
-          root=Path('/srv/projects/lowcost-europa')
-          sys.path.insert(0,str(root))
-          os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings')
-          import django
-          django.setup()
-          from django.conf import settings
-          from apps.storefront.management.commands.notify_indexnow import snapshot
-          state=root/'.indexnow/accepted.json'
-          with (root/'.indexnow/notify.lock').open('r') as lock:
-              fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
-              before=state.read_bytes()
-              accepted=json.loads(before)
-              first=snapshot(settings.PUBLIC_SITE_URL)
-              second=snapshot(settings.PUBLIC_SITE_URL)
-              assert first==second,'Snapshot instability reproduced'
-              assert state.read_bytes()==before,'Accepted state changed unexpectedly'
-              changed=[u for u in second if second[u]!=accepted.get(u)]
-              removed=sorted(set(accepted)-set(second))
-              print('INDEXNOW_READ_ONLY='+json.dumps(dict(public=len(second),accepted=len(accepted),changed=len(changed),removed=len(removed),snapshots_stable=True,accepted_state_unchanged=True)))
-              print('INDEXNOW_CHANGED_PUBLIC_URLS='+json.dumps(changed))
-              print('INDEXNOW_ACCEPTED_STATE_MTIME_UTC='+datetime.datetime.fromtimestamp(state.stat().st_mtime,datetime.timezone.utc).isoformat())
-          PY
-          chmod 644 "$TASK/check.py"
-          systemd-run --quiet --wait --pipe --collect --unit=lowcost-indexnow-readonly-20261108-1645 --property=User=le001_1789265592 --property=WorkingDirectory="$ROOT" --property=EnvironmentFile="$ROOT/private/systemd-env/lowcost-europa.env" "$ROOT/.venv/bin/python" -B -c "$(< "$TASK/check.py")"
-          python3 - <<'PY'
-          import json,re,subprocess
-          r=subprocess.run(['journalctl','-u','lowcost-europa-indexnow.service','--since','2026-11-08 13:00:00','--no-pager','-o','cat'],capture_output=True,text=True,check=True)
-          import re
-          safe=[x for x in r.stdout.splitlines() if re.fullmatch(r'INDEXNOW_(?:RECEIVED http=(?:200|202) urls=\d+ key_verification=(?:pending|accepted) index_inclusion=unconfirmed|UNCHANGED public=\d+ changed=\d+ removed=\d+)',x)]
-          print('INDEXNOW_SANITIZED_RECENT_EVENTS='+json.dumps(safe[-8:]))
-          PY
+          OLD=d29acbdf01e1b70ad37b0921bcd0211956094c02
+          NEW=262a85aa3991623af71906896da4aada14baf930
+          [[ "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD)" == "$OLD" ]]
+          [[ -z "$(git -c safe.directory="$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)" ]]
+          MASTER="$(systemctl show lowcost-europa.service -p MainPID --value)"
+          git -c safe.directory="$ROOT" -C "$ROOT" fetch -q https://github.com/martaxi-boss/lowcost-europa.git main
+          [[ "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse FETCH_HEAD)" == "$NEW" ]]
+          [[ "$(git -c safe.directory="$ROOT" -C "$ROOT" diff --name-only "$OLD" "$NEW" | sort)" == "$(printf '%s\n' PROJECT_STATE.md docs/operations/international-search-20261108.md | sort)" ]]
+          trap 'result=$?; if [[ "$result" -ne 0 ]]; then git -c safe.directory="$ROOT" -C "$ROOT" checkout --detach -q "$OLD"; fi; exit "$result"' EXIT
+          umask 022
+          git -c safe.directory="$ROOT" -C "$ROOT" checkout --detach -q "$NEW"
+          cmp -s /etc/systemd/system/lowcost-europa.service "$ROOT/deploy/systemd/lowcost-europa.service"
+          [[ "$(systemctl show lowcost-europa.service -p MainPID --value)" == "$MASTER" ]]
+          [[ ! -e "$ROOT/private/indexing-check-20261108-1645" ]]
           systemctl is-active --quiet lowcost-europa.service
           systemctl is-active --quiet lowcost-europa-indexnow.timer
           nginx -t >/dev/null 2>&1
-          echo "LOWCOST_READONLY_SHA=$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD)"
-          echo LOWCOST_READONLY_CERTIFICATE=PASS
+          [[ -z "$(git -c safe.directory="$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)" ]]
+          echo "LOWCOST_FINAL_SHA=$NEW"
+          echo LOWCOST_DOCUMENTATION_ALIGNMENT=PASS
+          echo LOWCOST_TASK_PRIVATE_SCRIPT_REMOVED=PASS
+          trap - EXIT
           REMOTE
