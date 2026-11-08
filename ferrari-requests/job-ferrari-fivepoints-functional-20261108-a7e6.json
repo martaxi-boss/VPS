@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "id": "cert5-functional-20261108-a7e6",
+  "kind": "plan",
+  "max_parallel": 2,
+  "plan": {
+    "version": 1,
+    "steps": [
+      {
+        "id": "site",
+        "operation": "web-template",
+        "title": "Ferrari QA real 2026",
+        "layout": "landing"
+      },
+      {
+        "id": "poster",
+        "operation": "svg-poster",
+        "title": "Ferrari QA real 2026"
+      },
+      {
+        "id": "strings",
+        "operation": "binary-strings",
+        "depends_on": [
+          "site"
+        ],
+        "input_from": "site"
+      }
+    ]
+  },
+  "acceptance": {
+    "required_extensions": [
+      ".html",
+      ".svg",
+      ".txt"
+    ]
+  }
+}
