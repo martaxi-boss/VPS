@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "ruflo-cad-direct-turn-20261108-01",
+  "kind": "ruflo-team",
+  "team_id": "ruflo-cad-direct-20261108",
+  "phase": "turn",
+  "revision": 0,
+  "turn": {
+    "task": "produce-cad",
+    "role": "cad-worker",
+    "kind": "operation",
+    "operation": "cad-stl",
+    "input_from": "$input",
+    "message": "Execute the authorized Ferrari cad-stl catalog operation inside my Ruflo worker turn using private OpenSCAD, return the real STL and cryptographic evidence."
+  }
+}
