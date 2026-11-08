@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "cert5-team-invoke-20261108-a7e6",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "cert5-team-20261108-a7e6",
+  "revision": 0,
+  "turn": {
+    "task": "format",
+    "role": "coder",
+    "kind": "invoke",
+    "message": "Executar jq-format-json sobre o JSON sintetico da equipa e entregar um ficheiro JSON valido para revisao.",
+    "action": "jq-format-json",
+    "input_from": "$input"
+  }
+}
