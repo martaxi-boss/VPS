@@ -1,0 +1,106 @@
+name: Lowcost TLS and actual engine fetch isolation read only
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/lowcost-tls-fetch-isolation-once-20261108.yml']
+permissions:
+  contents: read
+jobs:
+  isolate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Inspect private TLS failures and identify recent engine requests
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          ROOT=/srv/projects/lowcost-europa
+          git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD
+          nginx -t >/dev/null 2>&1
+          python3 - <<'PY'
+          import collections,concurrent.futures,datetime,json,re,socket,subprocess
+          from pathlib import Path
+          socket.setdefaulttimeout(4)
+          pattern=re.compile(r'^(\S+) .*?\[([^]]+)\] "(\S+) ([^ ]+) [^"]+" (\d{3}) (\S+) "[^"]*" "([^"]*)"')
+          hits=[]
+          for p in (Path('/var/log/nginx/access.log'),Path('/var/log/nginx/access.log.1')):
+              if not p.exists(): continue
+              with p.open(errors='replace') as f:
+                  for line in collections.deque(f,maxlen=120000):
+                      m=pattern.match(line)
+                      if not m: continue
+                      ip,dt,method,path,status,size,ua=m.groups()
+                      if path.split('?',1)[0] not in ('/','/robots.txt','/sitemap.xml'):continue
+                      try: when=datetime.datetime.strptime(dt,'%d/%b/%Y:%H:%M:%S %z')
+                      except ValueError:continue
+                      if when.astimezone(datetime.timezone.utc)<datetime.datetime(2026,11,8,11,25,tzinfo=datetime.timezone.utc):continue
+                      hits.append((when,ip,method,path.split('?',1)[0],status,size))
+          ips=list(dict.fromkeys(x[1] for x in sorted(hits,reverse=True)))[:40]
+          def identify(ip):
+              try:
+                  name=socket.gethostbyaddr(ip)[0].lower().rstrip('.')
+                  engine='Bing' if name.endswith('.search.msn.com') else ('Google' if name.endswith(('.googlebot.com','.google.com')) else None)
+                  if engine and ip in {a[4][0] for a in socket.getaddrinfo(name,None)}:return ip,engine
+              except OSError:pass
+              return ip,None
+          with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool: identities=dict(pool.map(identify,ips))
+          for when,ip,method,path,status,size in sorted(hits):
+              engine=identities.get(ip)
+              if engine:print('VERIFIED_ENGINE_EVENT='+json.dumps(dict(engine=engine,utc=when.astimezone(datetime.timezone.utc).isoformat(),method=method,path=path,http=status,bytes=size)))
+          print('EVENT_HOST_ATTRIBUTION=UNAVAILABLE_IN_SHARED_LOG')
+          error_counts=collections.Counter()
+          p=Path('/var/log/nginx/error.log')
+          if p.exists():
+              with p.open(errors='replace') as f:
+                  for line in collections.deque(f,maxlen=20000):
+                      if not line.startswith('2026/11/08 '):continue
+                      for kind,needle in [('tls_handshake','SSL_do_handshake() failed'),('upstream_timeout','upstream timed out'),('upstream_closed','upstream prematurely closed'),('connection_refused','connect() failed')]:
+                          if needle in line:error_counts[kind]+=1
+          print('SHARED_NGINX_ERROR_COUNTS='+json.dumps(error_counts))
+          nginx=subprocess.run(['nginx','-T'],capture_output=True,text=True,check=True).stdout
+          for line in nginx.splitlines():
+              if re.match(r'\s*(ssl_protocols|ssl_ciphers|ssl_ecdh_curve|http2|keepalive_timeout|client_header_timeout)\s',line):
+                  print('TLS_CONFIG='+line.strip())
+          print('PRIVATE_LOG_VALUES_PUBLISHED=NO')
+          PY
+          REMOTE
+      - name: Isolate TLS versions and actual negotiated HTTP versions from outside origin
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib,json,re,subprocess,tempfile
+          from pathlib import Path
+          with tempfile.TemporaryDirectory() as d:
+              p=Path(d)
+              for path in ('/','/robots.txt','/sitemap.xml'):
+                  for tls in ('1.2','1.3'):
+                      for protocol in ('--http1.1','--http2'):
+                          cmd=['curl','-sS','--compressed','--max-time','20',protocol,'--tlsv'+tls,'--tls-max',tls,'-A','Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)','-D',str(p/'headers'),'-o',str(p/'body'),'-w','%{http_code}|%{http_version}|%{ssl_verify_result}','https://www.lowcost-europa.eu'+path]
+                          r=subprocess.run(cmd,capture_output=True,text=True,timeout=25)
+                          row=dict(path=path,tls_requested=tls,protocol_requested=protocol,curl_exit=r.returncode)
+                          if r.returncode==0:
+                              code,actual,verify=r.stdout.split('|')
+                              body=(p/'body').read_bytes()
+                              h=(p/'headers').read_text()
+                              row.update(http=code,http_version=actual,tls_verify=verify,bytes=len(body),sha256=hashlib.sha256(body).hexdigest(),noindex_header=bool(re.search(r'^x-robots-tag:.*noindex',h,re.I|re.M)))
+                              if path=='/':
+                                  row['canonical_correct']=bool(re.search(rb'<link[^>]+rel=["\x27]canonical["\x27][^>]+href=["\x27]https://www.lowcost-europa.eu/["\x27]',body))
+                                  row['noindex_meta']=bool(re.search(rb'<meta[^>]+content=["\x27][^"\x27]*noindex',body,re.I))
+                              assert code=='200' and verify=='0'
+                          else:
+                              row['curl_error']=r.stderr.strip()[:160]
+                          print('TLS_HTTP_PROBE='+json.dumps(row))
+          PY
