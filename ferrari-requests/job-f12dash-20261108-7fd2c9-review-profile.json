@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "f12dash-20261108-7fd2c9-review-profile",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "f12dashboard-20261108-7fd2c9",
+  "revision": 3,
+  "turn": {
+    "task": "profile",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "75dcd87960aeec05d31b7130448709f0c539ad19aa8e5b6227eff3e2a315ad8d"
+    ],
+    "message": "Prova DuckDB real inspecionada: versao 2.0.0, rows 8, esquema id/categoria/produto/preco_eur/quantidade e cinco amostras corretas; SHA-256 conferido. Aprovar somente leitura e perfil CSV, nao atribuir a DuckDB somas que esta acao nao calcula."
+  }
+}
