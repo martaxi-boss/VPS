@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "cert5-team-review-20261108-a7e6",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "cert5-team-20261108-a7e6",
+  "revision": 1,
+  "turn": {
+    "task": "format",
+    "role": "reviewer",
+    "kind": "review",
+    "message": "Revisei os bytes de evidence-1.json: JSON valido, ok=true, SHA-256 igual ao manifesto e produzido por jq privado; aprovo apenas este caso sintetico.",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "12b34da73b0c67a0319e6eddbd3582af66e3b558b4d44e4a6860e0cec20d726f"
+    ]
+  }
+}
