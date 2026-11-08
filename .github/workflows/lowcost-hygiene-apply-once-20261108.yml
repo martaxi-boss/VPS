@@ -49,7 +49,7 @@ jobs:
           NEW=c248f516078b6fd9c23927853972a2038dd29e62
           OLD_ENABLED=/etc/nginx/sites-enabled/lowcost-europa-temp
           OLD_AVAILABLE=/etc/nginx/sites-available/lowcost-europa-temp
-          BACK="$ROOT/private/hygiene-rollbacks/lowcost-20261108-canonical-01"
+          BACK="$ROOT/private/hygiene-rollbacks/lowcost-20261108-canonical-02"
           MUTATED=0
           restore_on_error() {
             code=$?
@@ -209,10 +209,25 @@ jobs:
           PYENV
           rm -- "$OLD_ENABLED" "$OLD_AVAILABLE"
           echo LOWCOST_HYGIENE_LEGACY_NGINX_REMOVED=PASS
-          nginx -t >/dev/null 2>&1
+          echo LOWCOST_HYGIENE_RESTART_STAGE=NGINX_VALIDATE
+          if ! nginx -t >/dev/null 2>&1; then
+            echo LOWCOST_HYGIENE_NGINX_POSTCHANGE=FAIL
+            nginx -t 2>&1 | tail -n 10 || true
+            exit 9
+          fi
+          echo LOWCOST_HYGIENE_RESTART_STAGE=NGINX_RELOAD
           systemctl reload nginx
+          echo LOWCOST_HYGIENE_RESTART_STAGE=DJANGO_RESTART
           systemctl restart lowcost-europa.service
           systemctl is-active --quiet lowcost-europa.service
+          ready=0
+          for attempt in $(seq 1 25); do
+            code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 --resolve www.lowcost-europa.eu:443:146.59.145.3 https://www.lowcost-europa.eu/ || true)"
+            if [[ "$code" == 200 ]]; then ready=1; break; fi
+            sleep 1
+          done
+          [[ "$ready" -eq 1 ]] || { echo LOWCOST_HYGIENE_DJANGO_READINESS=FAIL; exit 10; }
+          echo LOWCOST_HYGIENE_DJANGO_READINESS=PASS
           for host in www.lowcost-europa.eu lowcost-europa.eu; do
             test "$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 --resolve "$host:443:146.59.145.3" "https://$host/")" = "$(test "$host" = www.lowcost-europa.eu && echo 200 || echo 301)"
           done
