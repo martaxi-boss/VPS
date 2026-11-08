@@ -1,19 +1,16 @@
-name: Lowcost guarded graceful reload rollout
+name: Lowcost final documentation alignment and IndexNow readback
 on:
   push:
     branches: [main]
     paths: ['.github/workflows/lowcost-graceful-reload-deploy-once-20261108.yml']
 permissions:
   contents: read
-concurrency:
-  group: lowcost-graceful-reload
-  cancel-in-progress: false
 jobs:
-  deploy:
+  verify:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 8
     steps:
-      - name: Deploy guarded unit and verify live continuity
+      - name: Align only documentation without restarting and inspect deduplication
         shell: bash
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
@@ -30,112 +27,25 @@ jobs:
             -o ConnectTimeout=20 -o ServerAliveInterval=15 \
             ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
           set -Eeuo pipefail
-          umask 077
           ROOT=/srv/projects/lowcost-europa
-          OLD=e4d3797b447c14c55d277d2ff3dcbd27ec0b9a19
-          NEW=4f59453306aeebbc37849f9face098f8a2133c50
-          TASK="$ROOT/private/graceful-reload-20261108"
-          UNIT=/etc/systemd/system/lowcost-europa.service
-          [[ ! -e "$TASK" ]]
-          cmp -s "$UNIT" "$ROOT/deploy/systemd/lowcost-europa.service"
+          OLD=4f59453306aeebbc37849f9face098f8a2133c50
+          NEW=d29acbdf01e1b70ad37b0921bcd0211956094c02
           [[ "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD)" == "$OLD" ]]
           [[ -z "$(git -c safe.directory="$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)" ]]
-          systemctl is-active --quiet lowcost-europa.service
-          MASTER="$(systemctl show lowcost-europa.service -p MainPID --value)"
-          ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
-          LEGAL="$ROOT/.legal/operator.json"
-          CONF="$ROOT/deploy/nginx/lowcost-europa.eu.conf"
-          ENVHASH="$(sha256sum "$ENVFILE" | cut -d' ' -f1)"
-          LEGALHASH="$(sha256sum "$LEGAL" | cut -d' ' -f1)"
-          CONFHASH="$(sha256sum "$CONF" | cut -d' ' -f1)"
           git -c safe.directory="$ROOT" -C "$ROOT" fetch -q https://github.com/martaxi-boss/lowcost-europa.git main
           [[ "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse FETCH_HEAD)" == "$NEW" ]]
-          [[ "$(git -c safe.directory="$ROOT" -C "$ROOT" diff --name-only "$OLD" "$NEW" | sort)" == "$(printf '%s\n' deploy/systemd/lowcost-europa.service docs/operations/international-search-20261108.md | sort)" ]]
-          mkdir -m 700 "$TASK"
-          cp -a "$UNIT" "$TASK/previous.service"
-          rollback() {
-          result=$?
-          trap - EXIT
-          if [[ "$result" -ne 0 ]]; then
-          install -m 644 "$TASK/previous.service" "$UNIT"
-          git -c safe.directory="$ROOT" -C "$ROOT" checkout --detach -q "$OLD"
-          systemctl daemon-reload
-          systemctl is-active --quiet lowcost-europa.service || systemctl start lowcost-europa.service
-          echo LOWCOST_GRACEFUL_RELOAD_ROLLBACK=PASS
-          fi
-          exit "$result"
-          }
-          trap rollback EXIT
+          [[ "$(git -c safe.directory="$ROOT" -C "$ROOT" diff --name-only "$OLD" "$NEW" | sort)" == "$(printf '%s\n' PROJECT_STATE.md docs/operations/international-search-20261108.md | sort)" ]]
           umask 022
           git -c safe.directory="$ROOT" -C "$ROOT" checkout --detach -q "$NEW"
-          umask 077
-          systemd-analyze verify "$ROOT/deploy/systemd/lowcost-europa.service" > "$TASK/unit-verify.log" 2>&1
-          install -m 644 "$ROOT/deploy/systemd/lowcost-europa.service" "$UNIT"
-          systemctl daemon-reload
+          cmp -s /etc/systemd/system/lowcost-europa.service "$ROOT/deploy/systemd/lowcost-europa.service"
           [[ "$(systemctl show lowcost-europa.service -p CanReload --value)" == yes ]]
-          python3 - <<'PY'
-          import collections,concurrent.futures,http.client,json,ssl,subprocess,time
-          from pathlib import Path
-          unit='lowcost-europa.service'
-          def master():
-              return int(subprocess.check_output(['systemctl','show',unit,'-p','MainPID','--value'],text=True))
-          def children(pid):
-              return set(Path('/proc/'+str(pid)+'/task/'+str(pid)+'/children').read_text().split())
-          before=master()
-          old=children(before)
-          ctx=ssl.create_default_context()
-          def probe(path):
-              results=[]
-              for n in range(25):
-                  try:
-                      c=http.client.HTTPSConnection('www.lowcost-europa.eu',timeout=5,context=ctx)
-                      c.request('GET',path,headers={'User-Agent':'Lowcost-Graceful-Reload-Check/1.0'})
-                      r=c.getresponse()
-                      r.read(100000)
-                      results.append(str(r.status))
-                      c.close()
-                  except Exception as exc:results.append(type(exc).__name__)
-                  time.sleep(.15)
-              return path,results
-          with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
-              fs=[pool.submit(probe,p) for p in ('/','/robots.txt','/sitemap.xml')]
-              time.sleep(1)
-              subprocess.run(['systemctl','reload',unit],check=True)
-              results=[f.result() for f in fs]
-          for path,statuses in results:
-              print('GRACEFUL_HTTP_SAMPLES='+json.dumps(dict(path=path,samples=len(statuses),statuses=dict(collections.Counter(statuses)))))
-              assert all(s=='200' for s in statuses),'Non-200 during reload'
-          assert master()==before
-          for i in range(30):
-              now=children(before)
-              if now and now.isdisjoint(old):break
-              time.sleep(.2)
-          else:raise RuntimeError('Workers did not rotate')
-          print('GRACEFUL_RELOAD_MASTER_UNCHANGED=PASS')
-          print('GRACEFUL_RELOAD_WORKERS_REPLACED=PASS')
-          print('GRACEFUL_RELOAD_75_HTTPS_REQUESTS=PASS')
-          for path in ('/painel/','/admin/'):
-              c=http.client.HTTPSConnection('www.lowcost-europa.eu',timeout=10,context=ctx)
-              c.request('GET',path)
-              r=c.getresponse()
-              assert r.status==302
-              assert 'noindex' in (r.getheader('X-Robots-Tag') or '')
-              assert 'private' in (r.getheader('Cache-Control') or '')
-              r.read(100000)
-              c.close()
-          print('GRACEFUL_RELOAD_PRIVATE_ROUTES=PASS')
-          PY
-          [[ "$(systemctl show lowcost-europa.service -p MainPID --value)" == "$MASTER" ]]
-          [[ "$(sha256sum "$ENVFILE" | cut -d' ' -f1)" == "$ENVHASH" ]]
-          [[ "$(sha256sum "$LEGAL" | cut -d' ' -f1)" == "$LEGALHASH" ]]
-          [[ "$(sha256sum "$CONF" | cut -d' ' -f1)" == "$CONFHASH" ]]
-          cmp -s "$UNIT" "$ROOT/deploy/systemd/lowcost-europa.service"
           systemctl is-active --quiet lowcost-europa.service
           systemctl is-active --quiet lowcost-europa-indexnow.timer
+          STATEHASH="$(sha256sum "$ROOT/.indexnow/accepted.json" | cut -d' ' -f1)"
+          systemd-run --quiet --wait --pipe --collect --unit=lowcost-indexnow-dryrun-20261108-1346 --property=User=le001_1789265592 --property=WorkingDirectory="$ROOT" --property=EnvironmentFile="$ROOT/private/systemd-env/lowcost-europa.env" "$ROOT/.venv/bin/python" manage.py notify_indexnow --dry-run
+          [[ "$(sha256sum "$ROOT/.indexnow/accepted.json" | cut -d' ' -f1)" == "$STATEHASH" ]]
           nginx -t >/dev/null 2>&1
-          echo GRACEFUL_RELOAD_PRIVATE_CONFIGURATION=UNCHANGED
-          echo "LOWCOST_GRACEFUL_RELOAD_DEPLOY_SHA=$NEW"
-          echo LOWCOST_GRACEFUL_RELOAD_DEPLOY=PASS
-          trap - EXIT
-          rm -f -- "$TASK/unit-verify.log"
+          echo LOWCOST_FINAL_ALIGNMENT=PASS
+          echo INDEXNOW_ACCEPTED_STATE=UNCHANGED
+          echo "LOWCOST_FINAL_SHA=$NEW"
           REMOTE
