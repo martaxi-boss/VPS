@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "promrules-live-ferrari-20261108-1801",
+  "kind": "operation",
+  "operation": "prometheus-rule-check",
+  "input": {
+    "name": "synthetic-rules.yml",
+    "content_base64": "Z3JvdXBzOgogIC0gbmFtZTogZmVycmFyaV9zeW50aGV0aWMKICAgIHJ1bGVzOgogICAgICAtIHJlY29yZDogZmVycmFyaV9zeW50aGV0aWNfbWV0cmljCiAgICAgICAgZXhwcjogdmVjdG9yKDEpCg=="
+  },
+  "acceptance": {
+    "required_extensions": [
+      ".txt",
+      ".json"
+    ]
+  }
+}
