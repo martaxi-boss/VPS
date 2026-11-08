@@ -87,6 +87,7 @@ on:
       - 'ferrari-release-requests/universal-f12-certify-20261108.json'
       - 'ferrari-release-requests/universal-f13-probe-20261108.json'
       - 'ferrari-release-requests/universal-f13-certify-20261108.json'
+      - 'ferrari-release-requests/universal-f13-certify-r2-20261108.json'
 
 permissions:
   contents: read
@@ -197,6 +198,7 @@ jobs:
             ferrari-release-requests/universal-f12-certify-20261108.json) MODE=--universal-f12-certify ;;
             ferrari-release-requests/universal-f13-probe-20261108.json) MODE=--universal-f13-probe ;;
             ferrari-release-requests/universal-f13-certify-20261108.json) MODE=--universal-f13-certify ;;
+            ferrari-release-requests/universal-f13-certify-r2-20261108.json) MODE=--universal-f13-certify-r2 ;;
             *) echo 'FERRARI_PHASE5_REQUEST_NOT_SINGLE_OR_NOT_ALLOWED' >&2; exit 2 ;;
           esac
           if [[ "$MODE" == --universal-* ]]; then
@@ -208,7 +210,10 @@ jobs:
           path,mode=sys.argv[1:]
           with open(path,encoding="utf-8") as fh:
               payload=json.load(fh)
-          if mode in ("--universal-f13-probe", "--universal-f13-certify"):
+          if mode == "--universal-f13-certify-r2":
+              expected={"version":1,"phase":"universal-catalog",
+                        "sha":"aa09466a1f5813733963c888daeab8d05eecdf6f","mode":"f13-certify-r2"}
+          elif mode in ("--universal-f13-probe", "--universal-f13-certify"):
               expected={"version":1,"phase":"universal-catalog",
                         "sha":"18400b5d5d357fc419a6f8297a885678d3133a18","mode":mode.removeprefix("--universal-")}
           elif mode in ("--universal-f12-preview", "--universal-f12-apply",
@@ -385,6 +390,15 @@ jobs:
           ref: 7bf6dcecf15da26502c5969b5eee54d5e116fc32
           persist-credentials: false
           path: ferrari-universal
+
+      - name: Checkout exact Ferrari F13 r2 correction of OpenShot nested CLI result ids
+        if: steps.request.outputs.mode == '--universal-f13-certify-r2'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: aa09466a1f5813733963c888daeab8d05eecdf6f
+          path: ferrari-f13-r2
+          persist-credentials: false
 
       - name: Checkout pinned Ferrari F13 private OpenShot headless certification
         if: steps.request.outputs.mode == '--universal-f13-probe' || steps.request.outputs.mode == '--universal-f13-certify'
@@ -996,7 +1010,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           SHA="40c0e1cdf31b1fe9589ad8be90e5eac06eec2856"
-          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--venvs-preview' || "$MODE" == '--venvs-apply' || "$MODE" == '--final-preview' || "$MODE" == '--final-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' || "$MODE" == '--phase7-check' || "$MODE" == '--phase7-activate' || "$MODE" == '--phase7-certify' || "$MODE" == '--universal-check' || "$MODE" == '--universal-activate' || "$MODE" == '--universal-preview' || "$MODE" == '--universal-apply' || "$MODE" == '--universal-deep-audit' || "$MODE" == '--universal-empty-preview' || "$MODE" == '--universal-empty-apply' || "$MODE" == '--universal-f9-consumers' || "$MODE" == '--universal-f9-dpkg-confirm' || "$MODE" == '--universal-f9-qgis-native' || "$MODE" == '--universal-f9-qgis-ogr' || "$MODE" == '--universal-f9-qgis-geojson' || "$MODE" == '--universal-f9-providers-diagnose' || "$MODE" == '--universal-f9-hdf5-preview' || "$MODE" == '--universal-f9-hdf5-apply' || "$MODE" == '--universal-f9-pdal-runtime' || "$MODE" == '--universal-f9-librecad' || "$MODE" == '--universal-f10-precheck' || "$MODE" == '--universal-f10-activate' || "$MODE" == '--universal-f10-hygiene-preview' || "$MODE" == '--universal-f10-hygiene-apply' || "$MODE" == '--universal-f10-legacy-state-audit' || "$MODE" == '--universal-f11-pdal-las' || "$MODE" == '--universal-final-acceptance' || "$MODE" == '--universal-qa-precheck' || "$MODE" == '--universal-qa-activate' || "$MODE" == '--universal-runtime-precheck' || "$MODE" == '--universal-runtime-activate' || "$MODE" == '--universal-valkey-precheck' || "$MODE" == '--universal-valkey-activate' || "$MODE" == '--universal-webnav-precheck' || "$MODE" == '--universal-webnav-activate' || "$MODE" == '--universal-webdiag-precheck' || "$MODE" == '--universal-webdiag-activate' || "$MODE" == '--universal-asr-precheck' || "$MODE" == '--universal-asr-activate' || "$MODE" == '--universal-opencv-precheck' || "$MODE" == '--universal-opencv-activate' || "$MODE" == '--universal-adapters-precheck' || "$MODE" == '--universal-adapters-activate' || "$MODE" == '--universal-doccache-precheck' || "$MODE" == '--universal-doccache-activate' || "$MODE" == '--universal-docinv-precheck' || "$MODE" == '--universal-docinv-activate' || "$MODE" == '--universal-triage-precheck' || "$MODE" == '--universal-triage-activate' || "$MODE" == '--universal-promrules-precheck' || "$MODE" == '--universal-promrules-activate' || "$MODE" == '--universal-f12-preview' || "$MODE" == '--universal-f12-apply' || "$MODE" == '--universal-f12-certify' || "$MODE" == '--universal-f13-probe' || "$MODE" == '--universal-f13-certify' ]] || exit 3
+          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--venvs-preview' || "$MODE" == '--venvs-apply' || "$MODE" == '--final-preview' || "$MODE" == '--final-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' || "$MODE" == '--phase7-check' || "$MODE" == '--phase7-activate' || "$MODE" == '--phase7-certify' || "$MODE" == '--universal-check' || "$MODE" == '--universal-activate' || "$MODE" == '--universal-preview' || "$MODE" == '--universal-apply' || "$MODE" == '--universal-deep-audit' || "$MODE" == '--universal-empty-preview' || "$MODE" == '--universal-empty-apply' || "$MODE" == '--universal-f9-consumers' || "$MODE" == '--universal-f9-dpkg-confirm' || "$MODE" == '--universal-f9-qgis-native' || "$MODE" == '--universal-f9-qgis-ogr' || "$MODE" == '--universal-f9-qgis-geojson' || "$MODE" == '--universal-f9-providers-diagnose' || "$MODE" == '--universal-f9-hdf5-preview' || "$MODE" == '--universal-f9-hdf5-apply' || "$MODE" == '--universal-f9-pdal-runtime' || "$MODE" == '--universal-f9-librecad' || "$MODE" == '--universal-f10-precheck' || "$MODE" == '--universal-f10-activate' || "$MODE" == '--universal-f10-hygiene-preview' || "$MODE" == '--universal-f10-hygiene-apply' || "$MODE" == '--universal-f10-legacy-state-audit' || "$MODE" == '--universal-f11-pdal-las' || "$MODE" == '--universal-final-acceptance' || "$MODE" == '--universal-qa-precheck' || "$MODE" == '--universal-qa-activate' || "$MODE" == '--universal-runtime-precheck' || "$MODE" == '--universal-runtime-activate' || "$MODE" == '--universal-valkey-precheck' || "$MODE" == '--universal-valkey-activate' || "$MODE" == '--universal-webnav-precheck' || "$MODE" == '--universal-webnav-activate' || "$MODE" == '--universal-webdiag-precheck' || "$MODE" == '--universal-webdiag-activate' || "$MODE" == '--universal-asr-precheck' || "$MODE" == '--universal-asr-activate' || "$MODE" == '--universal-opencv-precheck' || "$MODE" == '--universal-opencv-activate' || "$MODE" == '--universal-adapters-precheck' || "$MODE" == '--universal-adapters-activate' || "$MODE" == '--universal-doccache-precheck' || "$MODE" == '--universal-doccache-activate' || "$MODE" == '--universal-docinv-precheck' || "$MODE" == '--universal-docinv-activate' || "$MODE" == '--universal-triage-precheck' || "$MODE" == '--universal-triage-activate' || "$MODE" == '--universal-promrules-precheck' || "$MODE" == '--universal-promrules-activate' || "$MODE" == '--universal-f12-preview' || "$MODE" == '--universal-f12-apply' || "$MODE" == '--universal-f12-certify' || "$MODE" == '--universal-f13-probe' || "$MODE" == '--universal-f13-certify' || "$MODE" == '--universal-f13-certify-r2' ]] || exit 3
           opts=(-T -o PreferredAuthentications=password -o PubkeyAuthentication=no
                 -o StrictHostKeyChecking=yes
                 -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-pinned-host"
@@ -1004,15 +1018,20 @@ jobs:
                 -o ConnectTimeout=20 -o ServerAliveInterval=15)
           BEFORE="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
           echo "FERRARI_PHASE5_CURRENT_BEFORE=$BEFORE"
-          if [[ "$MODE" == '--universal-f13-probe' || "$MODE" == '--universal-f13-certify' ]]; then
+          if [[ "$MODE" == '--universal-f13-probe' || "$MODE" == '--universal-f13-certify' || "$MODE" == '--universal-f13-certify-r2' ]]; then
             F13_MODE="${MODE#--universal-f13-}"
+            F13_SOURCE="ferrari-f13"
+            if [[ "$F13_MODE" == 'certify-r2' ]]; then
+              F13_MODE="certify"
+              F13_SOURCE="ferrari-f13-r2"
+            fi
             REPORT="$RUNNER_TEMP/ferrari-universal-report.json"
             EXPECTED="/srv/projects/skill-universal/releases/3f0ba44b7d8475a74a63c6010d1e27063c04bf1e"
             [[ "$BEFORE" == "$EXPECTED" ]] || { echo 'FERRARI_F13_CURRENT_CHANGED' >&2; exit 36; }
-            python3 -m py_compile ferrari-f13/install/vps-f13-openshot-headless-certify.py
+            python3 -m py_compile $F13_SOURCE/install/vps-f13-openshot-headless-certify.py
             sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
               "cd '/srv/projects/skill-universal/current' && '/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12' -B - --mode '$F13_MODE'" \
-              < ferrari-f13/install/vps-f13-openshot-headless-certify.py > "$REPORT"
+              < $F13_SOURCE/install/vps-f13-openshot-headless-certify.py > "$REPORT"
             python3 - "$REPORT" "$F13_MODE" <<'F13_VERIFY'
           import json,sys
           from pathlib import Path
