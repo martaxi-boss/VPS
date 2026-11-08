@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "ferrari-v121-mime-turn-20261108-2217",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "ruflo-ferrari-v121-20261108-2214",
+  "revision": 2,
+  "turn": {
+    "task": "mime-verification",
+    "role": "file-checker",
+    "kind": "invoke",
+    "action": "file-mime",
+    "input_from": "cad-specimen",
+    "message": "As distinct Ruflo tester, invoke the real Ferrari-private file-mime tool against the previously approved, hash-verified CAD STL dependency and return the real detection result for independent reviewer inspection."
+  }
+}
