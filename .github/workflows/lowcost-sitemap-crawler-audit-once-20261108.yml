@@ -1,0 +1,84 @@
+name: Lowcost sitemap actual crawler diagnosis read only
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/lowcost-sitemap-crawler-audit-once-20261108.yml']
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Read sanitized actual crawler evidence without changing production
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          ROOT=/srv/projects/lowcost-europa
+          echo LOWCOST_SITEMAP_AUDIT_BEGIN
+          git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD
+          [[ -z "$(git -c safe.directory="$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)" ]]
+          nginx -t >/dev/null 2>&1
+          systemctl is-active --quiet lowcost-europa.service
+          python3 - <<'PY'
+          import collections,concurrent.futures,datetime,gzip,json,re,socket
+          from pathlib import Path
+          socket.setdefaulttimeout(4)
+          logs=sorted(Path('/var/log/nginx').glob('*lowcost*access*'))
+          scope='dedicated lowcost log'
+          if not logs:
+              logs=[p for p in (Path('/var/log/nginx/access.log'),Path('/var/log/nginx/access.log.1')) if p.exists()]
+              scope='shared combined log: host attribution unavailable'
+          print('CRAWLER_LOG_SCOPE='+scope)
+          pattern=re.compile(r'^(\S+) .*?\[([^]]+)\] "(\S+) ([^ ]+) [^"]+" (\d{3}) (\S+) "[^"]*" "([^"]*)"')
+          hits=[]
+          for path in logs[:8]:
+              opener=gzip.open if path.suffix=='.gz' else open
+              with opener(path,'rt',errors='replace') as f:
+                  for line in collections.deque(f,maxlen=100000):
+                      m=pattern.match(line)
+                      if not m: continue
+                      ip,dt,method,url,status,size,ua=m.groups()
+                      if url.split('?',1)[0] not in ('/sitemap.xml','/robots.txt','/'): continue
+                      if not re.search(r'googlebot|google-inspection|bingbot|msnbot',ua,re.I): continue
+                      try: when=datetime.datetime.strptime(dt,'%d/%b/%Y:%H:%M:%S %z')
+                      except ValueError: continue
+                      if when.date()!=datetime.date(2026,11,8): continue
+                      engine='Bing' if re.search(r'bingbot|msnbot',ua,re.I) else 'Google'
+                      hits.append((when,ip,engine,url.split('?',1)[0],status,size))
+          ips=list(dict.fromkeys((x[1],x[2]) for x in sorted(hits,reverse=True)))[:24]
+          def verify(pair):
+              ip,engine=pair
+              try:
+                  host=socket.gethostbyaddr(ip)[0].lower().rstrip('.')
+                  suffixes=('.search.msn.com',) if engine=='Bing' else ('.googlebot.com','.google.com')
+                  allowed=any(host.endswith(s) for s in suffixes)
+                  forward={x[4][0] for x in socket.getaddrinfo(host,None)}
+                  return pair,bool(allowed and ip in forward)
+              except (OSError,ValueError): return pair,False
+          with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+              verified=dict(pool.map(verify,ips))
+          groups=collections.defaultdict(list)
+          for when,ip,engine,path,status,size in hits:
+              label='dns_forward_reverse_verified' if verified.get((ip,engine)) else 'unverified_claim'
+              groups[(engine,label,path,status)].append((when,size))
+          for key,values in sorted(groups.items()):
+              last=max(values)
+              print('CRAWLER_AGGREGATE='+json.dumps(dict(engine=key[0],identity=key[1],path=key[2],http=key[3],count=len(values),latest_utc=last[0].astimezone(datetime.timezone.utc).isoformat(),last_response_bytes=last[1])))
+          print('CRAWLER_LOG_RAW_DATA_PUBLISHED=NO')
+          PY
+          echo LOWCOST_SITEMAP_AUDIT_END
+          REMOTE
