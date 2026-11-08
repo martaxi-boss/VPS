@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "ferrari-t2-ruflo-tester-review-20261108-2112-6c27",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "ferrari-t2-cad-20261108-6c27",
+  "revision": 7,
+  "turn": {
+    "task": "test",
+    "role": "revisor",
+    "kind": "review",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "a4e4e374b307e7419e8e37c7535889b3beb9fdbf7ca4320868d6c6b06f1de0ed"
+    ],
+    "message": "APROVADO: invocacao real Ferrari jq-format-json produziu JSON 923 bytes, SHA a4e4e374b307e7419e8e37c7535889b3beb9fdbf7ca4320868d6c6b06f1de0ed. Dados conferidos com dois STLs originais e respetivos hashes e QA independentemente calculado na IA anfitria. Esta invocacao valida metadados JSON; NAO calcula geometria no motor e NAO duplica o trabalho do verificador independente."
+  }
+}
