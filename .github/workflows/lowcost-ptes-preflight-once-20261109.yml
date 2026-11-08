@@ -80,3 +80,5 @@ jobs:
           print('LOWCOST_PREFLIGHT_READ_ONLY=PASS')
           PY
           REMOTE
+
+# Independent read-only post-deployment verification after guarded successful PT/ES rollout.
