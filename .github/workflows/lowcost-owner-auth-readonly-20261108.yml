@@ -1,0 +1,105 @@
+name: Lowcost owner login / Google connection read-only diagnosis
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-owner-auth-readonly-20261108.yml'
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-owner-auth-diagnosis
+  cancel-in-progress: false
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Verify single-file scope and SSH host
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")" == '.github/workflows/lowcost-owner-auth-readonly-20261108.yml' ]]
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          echo LOWCOST_AUTH_READONLY_PIN=PASS
+      - name: Diagnose production owner and provider state WITHOUT passwords or auth attempts
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          [[ -n "$SSHPASS" ]]
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          ROOT=/srv/projects/lowcost-europa
+          [[ -d "$ROOT/.git" ]]
+          echo "LOWCOST_AUTH_SITE_HEAD=$(git -c "safe.directory=$ROOT" -C "$ROOT" rev-parse HEAD)"
+          echo "LOWCOST_AUTH_TRACKED_DIRTY=$(git -c "safe.directory=$ROOT" -C "$ROOT" status --porcelain --untracked-files=no | wc -l)"
+          systemctl is-active --quiet lowcost-europa.service && echo LOWCOST_AUTH_APP_SERVICE=ACTIVE
+          systemctl is-active --quiet lowcost-europa-affiliate-report.timer && echo LOWCOST_AUTH_METRICS_TIMER=ACTIVE
+          [[ -f "$ROOT/private/systemd-env/lowcost-europa.env" && ! -L "$ROOT/private/systemd-env/lowcost-europa.env" ]]
+          echo "LOWCOST_AUTH_LOGIN_HTTP=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 18 --resolve www.lowcost-europa.eu:443:146.59.145.3 https://www.lowcost-europa.eu/painel/entrar/)"
+          echo "LOWCOST_AUTH_PANEL_HTTP=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 18 --resolve www.lowcost-europa.eu:443:146.59.145.3 https://www.lowcost-europa.eu/painel/)"
+          cd "$ROOT"
+          "$ROOT/.venv/bin/python" - <<'PYDIAG'
+          import os, sys, pwd
+          from pathlib import Path
+          env=Path("/srv/projects/lowcost-europa/private/systemd-env/lowcost-europa.env")
+          data={}
+          for raw in env.read_text().splitlines():
+              line=raw.strip()
+              if not line or line.startswith("#") or "=" not in line: continue
+              key,value=line.split("=",1)
+              key=key.strip()
+              if key.isidentifier():
+                  if len(value)>1 and value[0] in ("'",'"') and value[-1]==value[0]:
+                      value=value[1:-1]
+                  data[key]=value
+          print("LOWCOST_AUTH_PRIVATE_ENV_GSC_PROPERTY=" + ("PRESENT" if data.get("GOOGLE_SEARCH_CONSOLE_PROPERTY") else "NOT_SET"))
+          print("LOWCOST_AUTH_PRIVATE_ENV_GOOGLE_CREDENTIALS=" + ("PRESENT" if any(data.get(k) for k in ("GOOGLE_APPLICATION_CREDENTIALS","GSC_SERVICE_ACCOUNT_JSON")) else "NOT_SET"))
+          print("LOWCOST_AUTH_PRIVATE_ENV_WINDSOR_KEY=" + ("PRESENT" if data.get("WINDSOR_API_KEY") else "NOT_SET"))
+          os.environ.update(data)
+          os.environ["DJANGO_SETTINGS_MODULE"]="config.settings.production"
+          uid=pwd.getpwnam("le001_1789265592")
+          os.initgroups(uid.pw_name,uid.pw_gid)
+          os.setgid(uid.pw_gid)
+          os.setuid(uid.pw_uid)
+          try:
+              import django
+              django.setup()
+              from django.conf import settings
+              from django.contrib.auth import get_user_model
+              from apps.catalog.models import ExternalMetricsSnapshot
+              User=get_user_model()
+              expected=settings.OWNER_PANEL_USERNAME
+              result=list(User.objects.filter(username=expected).only("username","is_staff","is_active","password","last_login")[:2])
+              print("LOWCOST_AUTH_OWNER_ACCOUNT_COUNT=" + str(len(result)))
+              if len(result)==1:
+                  user=result[0]
+                  print("LOWCOST_AUTH_OWNER_IS_ACTIVE=" + str(bool(user.is_active)).upper())
+                  print("LOWCOST_AUTH_OWNER_IS_STAFF=" + str(bool(user.is_staff)).upper())
+                  print("LOWCOST_AUTH_OWNER_PASSWORD_USABLE=" + str(bool(user.has_usable_password())).upper())
+                  print("LOWCOST_AUTH_OWNER_HAS_PREVIOUS_LOGIN=" + str(user.last_login is not None).upper())
+              print("LOWCOST_AUTH_STAFF_ACCOUNT_COUNT=" + str(User.objects.filter(is_staff=True).count()))
+              print("LOWCOST_AUTH_GSC_SNAPSHOT_EXISTS=" + str(ExternalMetricsSnapshot.objects.filter(source="GOOGLE_SEARCH_CONSOLE").exists()).upper())
+              print("LOWCOST_AUTH_READ_ONLY_DB_INSPECTION=PASS")
+          except Exception as exc:
+              print("LOWCOST_AUTH_READ_ONLY_DB_INSPECTION=FAIL_"+type(exc).__name__)
+              raise SystemExit(4)
+          PYDIAG
+          echo LOWCOST_AUTH_PRODUCTION_READONLY_DIAGNOSIS=PASS
+          REMOTE
