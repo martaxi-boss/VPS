@@ -1,0 +1,84 @@
+name: Lowcost Git ownership normalize and safe GC once
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-git-owner-normalize-once-20261108.yml'
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-git-owner-normalize-20261108
+  cancel-in-progress: false
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 17
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Verify one-file scope and pinned VPS identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(git diff --name-only HEAD^ HEAD)" == '.github/workflows/lowcost-git-owner-normalize-once-20261108.yml' ]]
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+      - name: Normalize root-owned Git objects only, compact with project owner, verify
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          [[ -n "$SSHPASS" ]]
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          ROOT=/srv/projects/lowcost-europa
+          OWNER=le001_1789265592
+          [[ -d "$ROOT/.git" && ! -L "$ROOT/.git" ]]
+          [[ "$(stat -c %U "$ROOT/.git")" == "$OWNER" ]]
+          [[ "$(stat -c %U "$ROOT/.git/objects")" == "$OWNER" ]]
+          [[ "$(stat -c %U "$ROOT/.git/objects/pack")" == "$OWNER" ]]
+          [[ ! -e "$ROOT/.git/objects/info/alternates" ]]
+          [[ "$(find "$ROOT/.git" -xdev -type l | wc -l)" -eq 0 ]]
+          [[ "$(find "$ROOT/.git" -xdev -type f -name '*.lock' | wc -l)" -eq 0 ]]
+          [[ "$(git -c "safe.directory=$ROOT" -C "$ROOT" rev-parse HEAD)" == f157e3b98786db21d6f541917ec7b545e9913485 ]]
+          [[ -z "$(git -c "safe.directory=$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)" ]]
+          systemctl is-active --quiet lowcost-europa.service
+          printf 'LOWCOST_GIT_OWNER_BEFORE_KIB='
+          du -sk "$ROOT/.git" | awk '{print $1}'
+          files="$(find "$ROOT/.git" -xdev -uid 0 -type f | wc -l)"
+          dirs="$(find "$ROOT/.git" -xdev -uid 0 -type d | wc -l)"
+          echo "LOWCOST_GIT_OWNER_ROOT_FILES_FOUND=$files"
+          echo "LOWCOST_GIT_OWNER_ROOT_DIRS_FOUND=$dirs"
+          [[ "$files" -gt 0 && "$dirs" -gt 0 ]]
+          find "$ROOT/.git" -xdev -uid 0 \( -type f -o -type d \) -exec chown "$OWNER:$OWNER" {} +
+          remaining="$(find "$ROOT/.git" -xdev -uid 0 \( -type f -o -type d \) | wc -l)"
+          [[ "$remaining" -eq 0 ]]
+          echo LOWCOST_GIT_OWNER_NORMALIZED=PASS
+          runuser -u "$OWNER" -- git -c "safe.directory=$ROOT" -C "$ROOT" gc --prune=2.weeks.ago
+          echo LOWCOST_GIT_OWNER_GC=PASS
+          runuser -u "$OWNER" -- git -c "safe.directory=$ROOT" -C "$ROOT" fsck --connectivity-only --no-reflogs >/dev/null
+          echo LOWCOST_GIT_OWNER_FSCK=PASS
+          printf 'LOWCOST_GIT_OWNER_AFTER_KIB='
+          du -sk "$ROOT/.git" | awk '{print $1}'
+          git -c "safe.directory=$ROOT" -C "$ROOT" cat-file -e 'c248f516078b6fd9c23927853972a2038dd29e62^{commit}'
+          [[ "$(git -c "safe.directory=$ROOT" -C "$ROOT" rev-parse HEAD)" == f157e3b98786db21d6f541917ec7b545e9913485 ]]
+          [[ -z "$(git -c "safe.directory=$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)" ]]
+          systemctl is-active --quiet lowcost-europa.service
+          [[ "$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 --resolve www.lowcost-europa.eu:443:146.59.145.3 https://www.lowcost-europa.eu/)" == 200 ]]
+          printf 'LOWCOST_GIT_OWNER_PROJECT_KIB='
+          du -sk "$ROOT" | awk '{print $1}'
+          printf 'LOWCOST_GIT_OWNER_FREE_KIB='
+          df -Pk "$ROOT" | awk 'NR==2 {print $4}'
+          echo LOWCOST_GIT_OWNER_CANONICAL_SITE=PASS
+          echo LOWCOST_GIT_OWNER_PROJECT_ONLY=PASS
+          REMOTE
