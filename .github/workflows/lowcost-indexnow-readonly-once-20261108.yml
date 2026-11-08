@@ -32,7 +32,6 @@ jobs:
           TASK="$ROOT/private/indexing-check-20261108-1645"
           [[ ! -e "$TASK" ]]
           mkdir -m 700 "$TASK"
-          chown le001_1789265592 "$TASK"
           trap 'rm -f -- "$TASK/check.py"; rmdir -- "$TASK"' EXIT
           cat > "$TASK/check.py" <<'PY'
           import collections,datetime,fcntl,hashlib,json,os,subprocess,sys
@@ -64,7 +63,7 @@ jobs:
           print('INDEXNOW_SANITIZED_RECENT_EVENTS='+json.dumps(safe[-8:]))
           PY
           chmod 644 "$TASK/check.py"
-          systemd-run --quiet --wait --pipe --collect --unit=lowcost-indexnow-readonly-20261108-1645 --property=User=le001_1789265592 --property=WorkingDirectory="$ROOT" --property=EnvironmentFile="$ROOT/private/systemd-env/lowcost-europa.env" "$ROOT/.venv/bin/python" -B "$TASK/check.py"
+          systemd-run --quiet --wait --pipe --collect --unit=lowcost-indexnow-readonly-20261108-1645 --property=User=le001_1789265592 --property=WorkingDirectory="$ROOT" --property=EnvironmentFile="$ROOT/private/systemd-env/lowcost-europa.env" "$ROOT/.venv/bin/python" -B -c "$(< "$TASK/check.py")"
           systemctl is-active --quiet lowcost-europa.service
           systemctl is-active --quiet lowcost-europa-indexnow.timer
           nginx -t >/dev/null 2>&1
