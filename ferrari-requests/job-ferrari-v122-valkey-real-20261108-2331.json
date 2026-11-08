@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "id": "ferrari-v122-valkey-real-20261108-2331",
+  "kind": "operation",
+  "operation": "valkey-kv-test",
+  "acceptance": {
+    "required_extensions": [
+      ".json"
+    ]
+  }
+}
