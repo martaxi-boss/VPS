@@ -1,0 +1,113 @@
+name: Lowcost clean obsolete DuckDNS owner login hint
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-owner-remove-duckdns-hint-20261108.yml'
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-owner-login-cleanup
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Verify one-file scope and server key
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")" == '.github/workflows/lowcost-owner-remove-duckdns-hint-20261108.yml' ]]
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          echo LOWCOST_CLEANUP_HOST_KEY=PASS
+      - name: Guarded site-only update and real GET checks
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          [[ -n "$SSHPASS" ]]
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          ROOT=/srv/projects/lowcost-europa
+          OLD=0a3053aec800d6e90e538c1c23f1d07dd803d5ae
+          NEW=7d01037bf9ac36a3cd163be6524d4b755b7181b2
+          BACK="$ROOT/private/deploy-rollbacks/owner-login-hint-cleanup-20261108-01"
+          changed=0
+          revert() {
+            code=$?
+            trap - EXIT
+            if [[ "$changed" == 1 ]]; then
+              umask 022
+              git -c "safe.directory=$ROOT" -C "$ROOT" checkout -q --detach "$OLD" || true
+              umask 077
+              systemctl restart lowcost-europa.service || true
+              echo LOWCOST_CLEANUP_ROLLBACK=EXECUTED
+            fi
+            exit "$code"
+          }
+          trap revert EXIT
+          [[ "$(git -c "safe.directory=$ROOT" -C "$ROOT" rev-parse HEAD)" == "$OLD" ]]
+          [[ -z "$(git -c "safe.directory=$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)" ]]
+          [[ ! -e "$BACK" ]]
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa-affiliate-report.timer
+          git -c "safe.directory=$ROOT" -C "$ROOT" fetch -q https://github.com/martaxi-boss/lowcost-europa.git main
+          [[ "$(git -c "safe.directory=$ROOT" -C "$ROOT" rev-parse FETCH_HEAD)" == "$NEW" ]]
+          [[ "$(git -c "safe.directory=$ROOT" -C "$ROOT" merge-base "$OLD" "$NEW")" == "$OLD" ]]
+          expected="$(printf '%s\n' 'apps/catalog/templates/catalog/owner_panel/login.html' 'apps/catalog/tests/test_owner_panel.py' | sort)"
+          actual="$(git -c "safe.directory=$ROOT" -C "$ROOT" diff --name-only "$OLD" "$NEW" | sort)"
+          [[ "$actual" == "$expected" ]]
+          mkdir -m 700 -p "$ROOT/private/deploy-rollbacks"
+          mkdir -m 700 "$BACK"
+          printf '%s\n' "$OLD" > "$BACK/old-sha"
+          printf '%s\n' "$NEW" > "$BACK/target-sha"
+          changed=1
+          umask 022
+          git -c "safe.directory=$ROOT" -C "$ROOT" checkout -q --detach "$NEW"
+          umask 077
+          systemctl restart lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa.service
+          ok=0
+          for attempt in $(seq 1 20); do
+            response="$(curl -fsS --max-time 6 --resolve www.lowcost-europa.eu:443:146.59.145.3 https://www.lowcost-europa.eu/painel/entrar/ || true)"
+            if [[ "$response" == *'LOWCOST EUROPA'* && "$response" == *'Palavra-passe'* ]]; then ok=1; break; fi
+            sleep 1
+          done
+          [[ "$ok" == 1 ]]
+          [[ "$response" != *'lowcost-europa.duckdns.org'* ]]
+          [[ "$response" != *'mudança de domínio'* ]]
+          headers="$(curl -sS -D - -o /dev/null --max-time 16 --resolve www.lowcost-europa.eu:443:146.59.145.3 https://www.lowcost-europa.eu/painel/)"
+          printf '%s\n' "$headers" | grep -Eq '^HTTP/.* 302'
+          printf '%s\n' "$headers" | grep -Eiq '^x-robots-tag:.*noindex'
+          homepage="$(curl -sSI --max-time 16 --resolve www.lowcost-europa.eu:443:146.59.145.3 https://www.lowcost-europa.eu/)"
+          printf '%s\n' "$homepage" | grep -Eq '^HTTP/.* 200'
+          if printf '%s\n' "$homepage" | grep -Eiq '^x-robots-tag:.*noindex'; then exit 6; fi
+          systemctl is-active --quiet lowcost-europa-affiliate-report.timer
+          [[ -z "$(git -c "safe.directory=$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)" ]]
+          echo "LOWCOST_CLEANUP_GITHUB_VPS_SHA=$NEW"
+          echo LOWCOST_CLEANUP_OWNER_LOGIN_NO_DUCKDNS_HINT=PASS
+          echo LOWCOST_CLEANUP_HTTPS_PUBLIC_INDEXABLE=PASS
+          echo LOWCOST_CLEANUP_PRIVATE_OWNER_PANEL=PASS
+          echo LOWCOST_CLEANUP_METRICS_TIMER=PASS
+          echo LOWCOST_CLEANUP_NO_PASSWORD_CHANGE=PASS
+          echo LOWCOST_CLEANUP_DEPLOY=PASS
+          trap - EXIT
+          REMOTE
