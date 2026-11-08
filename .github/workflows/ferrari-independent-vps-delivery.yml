@@ -55,6 +55,7 @@ on:
       - 'ferrari-release-requests/universal-qa-activate-20261108.json'
       - 'ferrari-release-requests/universal-runtime-precheck-20261108.json'
       - 'ferrari-release-requests/universal-runtime-precheck-r2-20261108.json'
+      - 'ferrari-release-requests/universal-runtime-precheck-r3-20261108.json'
       - 'ferrari-release-requests/universal-runtime-activate-20261108.json'
 
 permissions:
@@ -134,6 +135,7 @@ jobs:
             ferrari-release-requests/universal-qa-activate-20261108.json) MODE=--universal-qa-activate ;;
             ferrari-release-requests/universal-runtime-precheck-20261108.json) MODE=--universal-runtime-precheck ;;
             ferrari-release-requests/universal-runtime-precheck-r2-20261108.json) MODE=--universal-runtime-precheck ;;
+            ferrari-release-requests/universal-runtime-precheck-r3-20261108.json) MODE=--universal-runtime-precheck ;;
             ferrari-release-requests/universal-runtime-activate-20261108.json) MODE=--universal-runtime-activate ;;
             *) echo 'FERRARI_PHASE5_REQUEST_NOT_SINGLE_OR_NOT_ALLOWED' >&2; exit 2 ;;
           esac
@@ -148,7 +150,7 @@ jobs:
               payload=json.load(fh)
           if mode in ("--universal-runtime-precheck", "--universal-runtime-activate"):
               expected={"version":1,"phase":"universal-catalog",
-                        "sha":"0850f90e53e2390490d9176ed8a6acb94842c623",
+                        "sha":"a2181ce589e9967546949c3e3c143e56e98095f0",
                         "mode":mode.removeprefix("--universal-")}
           elif mode in ("--universal-qa-precheck", "--universal-qa-activate"):
               expected={"version":1,"phase":"universal-catalog",
@@ -417,7 +419,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: 0850f90e53e2390490d9176ed8a6acb94842c623
+          ref: a2181ce589e9967546949c3e3c143e56e98095f0
           persist-credentials: false
           path: ferrari-runtime
 
@@ -672,7 +674,7 @@ jobs:
             exit 0
           fi
           if [[ "$MODE" == '--universal-runtime-precheck' || "$MODE" == '--universal-runtime-activate' ]]; then
-            TARGET="0850f90e53e2390490d9176ed8a6acb94842c623"
+            TARGET="a2181ce589e9967546949c3e3c143e56e98095f0"
             PREVIOUS="e83ed6dff335459c0fb3526b56241768dbe3b635"
             REPORT="$RUNNER_TEMP/ferrari-universal-report.json"
             [[ "$BEFORE" == "/srv/projects/skill-universal/releases/$PREVIOUS" ]] ||
@@ -696,7 +698,7 @@ jobs:
           from pathlib import Path
           from engine import quality_gate, tool_runtime, catalog_registry
           root=Path("/srv/projects/skill-universal")
-          target="0850f90e53e2390490d9176ed8a6acb94842c623"
+          target="a2181ce589e9967546949c3e3c143e56e98095f0"
           previous="e83ed6dff335459c0fb3526b56241768dbe3b635"
           assert (root/"current").resolve(strict=True)==root/"releases"/target
           assert (root/"releases"/previous/"engine/catalog.json").is_file()
