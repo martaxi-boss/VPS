@@ -200,7 +200,7 @@ jobs:
               payload=json.load(fh)
           if mode in ("--universal-promrules-precheck","--universal-promrules-activate"):
               expected={"version":1,"phase":"universal-catalog",
-                        "sha":"ac3de6ccbc308c241233a7938d192efed0560592",
+                        "sha":"3f0ba44b7d8475a74a63c6010d1e27063c04bf1e",
                         "mode":mode.removeprefix("--universal-")}
           elif mode in ("--universal-triage-precheck","--universal-triage-activate"):
               expected={"version":1,"phase":"universal-catalog",
@@ -599,7 +599,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: martaxi-boss/skill-universal
-          ref: ac3de6ccbc308c241233a7938d192efed0560592
+          ref: 3f0ba44b7d8475a74a63c6010d1e27063c04bf1e
           persist-credentials: false
           path: ferrari-promrules
 
@@ -1421,7 +1421,7 @@ jobs:
             exit 0
           fi
           if [[ "$MODE" == '--universal-promrules-precheck' || "$MODE" == '--universal-promrules-activate' ]]; then
-            TARGET="ac3de6ccbc308c241233a7938d192efed0560592"
+            TARGET="3f0ba44b7d8475a74a63c6010d1e27063c04bf1e"
             PREVIOUS="427e1c33c6d10ca8ecd2103861adccd3d552c381"
             REPORT="$RUNNER_TEMP/ferrari-universal-report.json"
             [[ "$BEFORE" == "/srv/projects/skill-universal/releases/$PREVIOUS" ]] ||
@@ -1445,7 +1445,7 @@ jobs:
           from pathlib import Path
           from engine import ferrari,tool_runtime,catalog_registry
           root=Path("/srv/projects/skill-universal")
-          target="ac3de6ccbc308c241233a7938d192efed0560592"
+          target="3f0ba44b7d8475a74a63c6010d1e27063c04bf1e"
           previous="427e1c33c6d10ca8ecd2103861adccd3d552c381"
           assert (root/"current").resolve(strict=True)==root/"releases"/target
           assert (root/"releases"/previous/"engine/catalog.json").is_file()
