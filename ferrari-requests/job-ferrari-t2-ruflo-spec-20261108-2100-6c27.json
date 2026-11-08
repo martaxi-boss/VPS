@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "id": "ferrari-t2-ruflo-spec-20261108-2100-6c27",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "ferrari-t2-cad-20261108-6c27",
+  "revision": 0,
+  "turn": {
+    "task": "spec",
+    "role": "analista",
+    "kind": "submit",
+    "message": "Aceitar apenas bloco 80x50x20 mm, uma componente fechada, furo centrado em (40,25), passante z=0..20, diametro 10, pelo menos 128 segmentos; conferir vertices, volume STL independente 78429.203673 +/- 2 mm3, hashes e ausencia de tampas. Declarar NOT_CERTIFIED quando falta prova."
+  }
+}
