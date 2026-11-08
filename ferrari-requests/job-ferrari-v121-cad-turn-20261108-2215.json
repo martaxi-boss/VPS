@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "ferrari-v121-cad-turn-20261108-2215",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "ruflo-ferrari-v121-20261108-2214",
+  "revision": 0,
+  "turn": {
+    "task": "cad-specimen",
+    "role": "cad-maker",
+    "kind": "operation",
+    "message": "Under ChatGPT host guidance, invoke actual private Ferrari cad-stl on supplied nonconfidential OpenSCAD source. Produce binary STL with 46x34x9mm envelope and two 6mm through holes; return actual bytes and SHA-256 for independent geometry audit.",
+    "operation": "cad-stl",
+    "input_from": "$input"
+  }
+}
