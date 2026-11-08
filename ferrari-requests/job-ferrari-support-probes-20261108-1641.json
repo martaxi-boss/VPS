@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "id": "audit-support-ytdlp-prometheus-20261108-1641",
+  "kind": "runtime-check",
+  "targets": [
+    "ytdlp",
+    "prometheus"
+  ]
+}
