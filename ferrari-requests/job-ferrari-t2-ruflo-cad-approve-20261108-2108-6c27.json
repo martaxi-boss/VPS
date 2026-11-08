@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "ferrari-t2-ruflo-cad-approve-20261108-2108-6c27",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "ferrari-t2-cad-20261108-6c27",
+  "revision": 5,
+  "turn": {
+    "task": "cad",
+    "role": "revisor",
+    "kind": "review",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "feaaa59e1e321974a5a335567430f41c614a046b758f1ada3268424315d6e263"
+    ],
+    "message": "APROVADO pela revisao com evidencias dos bytes STL: run 42522673734, hash ffb2e7fabb69ae8bf64477c07c25199e06ad6496fd9d7fef09d0a75d0a4f648a; 80x50x20, diametro 9.999996, centro 40/25, passante, 128 segmentos; volume real 78429.835804 contra 78429.203673, delta +0.632131 <=2, 528 triangulos, malha fechada, uma componente. Geometria host aprovada, qualidade Ferrari automatica so assinatura."
+  }
+}
