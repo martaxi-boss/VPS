@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "id": "ferrari-t2-ruflo-cad-correct-20261108-2106-6c27",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "ferrari-t2-cad-20261108-6c27",
+  "revision": 4,
+  "turn": {
+    "task": "cad",
+    "role": "executor",
+    "kind": "submit",
+    "message": "CORRECAO COM STL REAL: Ferrari cad-stl OpenSCAD privado run 42522673734, SHA-256 ffb2e7fabb69ae8bf64477c07c25199e06ad6496fd9d7fef09d0a75d0a4f648a, 81142 bytes; diametro medido 9.999996 mm, centro 40/25 mm, volume 78429.835804 mm3 vs analitico 78429.203673, erro +0.632131 <2. 528 triangulos, malha fechada, um componente, furo passante 128 segmentos. Requer-se revisao."
+  }
+}
