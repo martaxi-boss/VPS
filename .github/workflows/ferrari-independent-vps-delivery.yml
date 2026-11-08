@@ -73,6 +73,8 @@ on:
       - 'ferrari-release-requests/universal-adapters-activate-r2-20261108.json'
       - 'ferrari-release-requests/universal-adapters-precheck-r3-20261108.json'
       - 'ferrari-release-requests/universal-adapters-activate-r3-20261108.json'
+      - 'ferrari-release-requests/universal-doccache-precheck-20261108.json'
+      - 'ferrari-release-requests/universal-doccache-activate-20261108.json'
 
 permissions:
   contents: read
@@ -169,6 +171,8 @@ jobs:
             ferrari-release-requests/universal-adapters-activate-r2-20261108.json) MODE=--universal-adapters-activate ;;
             ferrari-release-requests/universal-adapters-precheck-r3-20261108.json) MODE=--universal-adapters-precheck ;;
             ferrari-release-requests/universal-adapters-activate-r3-20261108.json) MODE=--universal-adapters-activate ;;
+            ferrari-release-requests/universal-doccache-precheck-20261108.json) MODE=--universal-doccache-precheck ;;
+            ferrari-release-requests/universal-doccache-activate-20261108.json) MODE=--universal-doccache-activate ;;
             *) echo 'FERRARI_PHASE5_REQUEST_NOT_SINGLE_OR_NOT_ALLOWED' >&2; exit 2 ;;
           esac
           if [[ "$MODE" == --universal-* ]]; then
@@ -180,7 +184,11 @@ jobs:
           path,mode=sys.argv[1:]
           with open(path,encoding="utf-8") as fh:
               payload=json.load(fh)
-          if mode in ("--universal-adapters-precheck","--universal-adapters-activate"):
+          if mode in ("--universal-doccache-precheck","--universal-doccache-activate"):
+              expected={"version":1,"phase":"universal-catalog",
+                        "sha":"__FERRARI_DOCCACHE_IMMUTABLE_SHA__",
+                        "mode":mode.removeprefix("--universal-")}
+          elif mode in ("--universal-adapters-precheck","--universal-adapters-activate"):
               expected={"version":1,"phase":"universal-catalog",
                         "sha":"df0ac55dcb93003ea672abaa5deba8ea9e49ebe8",
                         "mode":mode.removeprefix("--universal-")}
@@ -533,6 +541,15 @@ jobs:
           persist-credentials: false
           path: ferrari-adapters
 
+      - name: Checkout immutable Ferrari Docling+Valkey candidate
+        if: steps.request.outputs.mode == '--universal-doccache-precheck' || steps.request.outputs.mode == '--universal-doccache-activate'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: martaxi-boss/skill-universal
+          ref: __FERRARI_DOCCACHE_IMMUTABLE_SHA__
+          persist-credentials: false
+          path: ferrari-doccache
+
       - name: Validate the project-owned release script
         shell: bash
         run: |
@@ -681,6 +698,25 @@ jobs:
           assert (root/"tests/test_program_adapters.py").is_file()
           print("FERRARI_SPECIALIST_PINNED_SOURCE_AND_CATALOG=PASS")
           ADAPTERS_SOURCE_CHECK
+          fi
+          if [[ "${{ steps.request.outputs.mode }}" == '--universal-doccache-precheck' || "${{ steps.request.outputs.mode }}" == '--universal-doccache-activate' ]]; then
+            bash -n ferrari-doccache/install/vps-isolated-release.sh
+            python3 -m py_compile ferrari-doccache/engine/document_tools.py ferrari-doccache/engine/cache_tools.py
+            python3 - <<'DOCCACHE_SOURCE_CHECK'
+          import json
+          from pathlib import Path
+          root=Path("ferrari-doccache")
+          catalog=json.loads((root/"engine/catalog.json").read_text())
+          assert len(catalog["tools"])==173 and len(catalog["functions"])==279
+          assert catalog["counts"]["all_catalog_entries"]==457
+          assert len([x for x in catalog["functions"] if x["kind"]=="operation"])==19
+          names={x["name"] for x in catalog["functions"] if x["kind"]=="operation"}
+          assert {"docling-docx-markdown","valkey-kv-test"} <= names
+          script=(root/"install/vps-isolated-release.sh").read_text()
+          assert "FERRARI_PRIVATE_DOCUMENT_CACHE_SMOKE=PASS" in script
+          assert (root/"tests/test_document_cache_adapters.py").is_file()
+          print("FERRARI_DOCUMENT_CACHE_PINNED_SOURCE=PASS")
+          DOCCACHE_SOURCE_CHECK
           fi
           if [[ "${{ steps.request.outputs.mode }}" == '--universal-final-acceptance' ]]; then
             python3 -m py_compile ferrari-accept/install/vps-final-acceptance.py
@@ -836,7 +872,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           SHA="40c0e1cdf31b1fe9589ad8be90e5eac06eec2856"
-          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--venvs-preview' || "$MODE" == '--venvs-apply' || "$MODE" == '--final-preview' || "$MODE" == '--final-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' || "$MODE" == '--phase7-check' || "$MODE" == '--phase7-activate' || "$MODE" == '--phase7-certify' || "$MODE" == '--universal-check' || "$MODE" == '--universal-activate' || "$MODE" == '--universal-preview' || "$MODE" == '--universal-apply' || "$MODE" == '--universal-deep-audit' || "$MODE" == '--universal-empty-preview' || "$MODE" == '--universal-empty-apply' || "$MODE" == '--universal-f9-consumers' || "$MODE" == '--universal-f9-dpkg-confirm' || "$MODE" == '--universal-f9-qgis-native' || "$MODE" == '--universal-f9-qgis-ogr' || "$MODE" == '--universal-f9-qgis-geojson' || "$MODE" == '--universal-f9-providers-diagnose' || "$MODE" == '--universal-f9-hdf5-preview' || "$MODE" == '--universal-f9-hdf5-apply' || "$MODE" == '--universal-f9-pdal-runtime' || "$MODE" == '--universal-f9-librecad' || "$MODE" == '--universal-f10-precheck' || "$MODE" == '--universal-f10-activate' || "$MODE" == '--universal-f10-hygiene-preview' || "$MODE" == '--universal-f10-hygiene-apply' || "$MODE" == '--universal-f10-legacy-state-audit' || "$MODE" == '--universal-f11-pdal-las' || "$MODE" == '--universal-final-acceptance' || "$MODE" == '--universal-qa-precheck' || "$MODE" == '--universal-qa-activate' || "$MODE" == '--universal-runtime-precheck' || "$MODE" == '--universal-runtime-activate' || "$MODE" == '--universal-valkey-precheck' || "$MODE" == '--universal-valkey-activate' || "$MODE" == '--universal-webnav-precheck' || "$MODE" == '--universal-webnav-activate' || "$MODE" == '--universal-webdiag-precheck' || "$MODE" == '--universal-webdiag-activate' || "$MODE" == '--universal-asr-precheck' || "$MODE" == '--universal-asr-activate' || "$MODE" == '--universal-opencv-precheck' || "$MODE" == '--universal-opencv-activate' || "$MODE" == '--universal-adapters-precheck' || "$MODE" == '--universal-adapters-activate' ]] || exit 3
+          [[ "$MODE" == '--check' || "$MODE" == '--activate' || "$MODE" == '--certify-rollback' || "$MODE" == '--audit' || "$MODE" == '--post-audit' || "$MODE" == '--full-audit' || "$MODE" == '--deep-cert' || "$MODE" == '--deep-final' || "$MODE" == '--hygiene-preview' || "$MODE" == '--hygiene-apply' || "$MODE" == '--venvs-preview' || "$MODE" == '--venvs-apply' || "$MODE" == '--final-preview' || "$MODE" == '--final-apply' || "$MODE" == '--phase6-check' || "$MODE" == '--phase6-activate' || "$MODE" == '--phase7-check' || "$MODE" == '--phase7-activate' || "$MODE" == '--phase7-certify' || "$MODE" == '--universal-check' || "$MODE" == '--universal-activate' || "$MODE" == '--universal-preview' || "$MODE" == '--universal-apply' || "$MODE" == '--universal-deep-audit' || "$MODE" == '--universal-empty-preview' || "$MODE" == '--universal-empty-apply' || "$MODE" == '--universal-f9-consumers' || "$MODE" == '--universal-f9-dpkg-confirm' || "$MODE" == '--universal-f9-qgis-native' || "$MODE" == '--universal-f9-qgis-ogr' || "$MODE" == '--universal-f9-qgis-geojson' || "$MODE" == '--universal-f9-providers-diagnose' || "$MODE" == '--universal-f9-hdf5-preview' || "$MODE" == '--universal-f9-hdf5-apply' || "$MODE" == '--universal-f9-pdal-runtime' || "$MODE" == '--universal-f9-librecad' || "$MODE" == '--universal-f10-precheck' || "$MODE" == '--universal-f10-activate' || "$MODE" == '--universal-f10-hygiene-preview' || "$MODE" == '--universal-f10-hygiene-apply' || "$MODE" == '--universal-f10-legacy-state-audit' || "$MODE" == '--universal-f11-pdal-las' || "$MODE" == '--universal-final-acceptance' || "$MODE" == '--universal-qa-precheck' || "$MODE" == '--universal-qa-activate' || "$MODE" == '--universal-runtime-precheck' || "$MODE" == '--universal-runtime-activate' || "$MODE" == '--universal-valkey-precheck' || "$MODE" == '--universal-valkey-activate' || "$MODE" == '--universal-webnav-precheck' || "$MODE" == '--universal-webnav-activate' || "$MODE" == '--universal-webdiag-precheck' || "$MODE" == '--universal-webdiag-activate' || "$MODE" == '--universal-asr-precheck' || "$MODE" == '--universal-asr-activate' || "$MODE" == '--universal-opencv-precheck' || "$MODE" == '--universal-opencv-activate' || "$MODE" == '--universal-adapters-precheck' || "$MODE" == '--universal-adapters-activate' || "$MODE" == '--universal-doccache-precheck' || "$MODE" == '--universal-doccache-activate' ]] || exit 3
           opts=(-T -o PreferredAuthentications=password -o PubkeyAuthentication=no
                 -o StrictHostKeyChecking=yes
                 -o "UserKnownHostsFile=$RUNNER_TEMP/ferrari-pinned-host"
@@ -1243,6 +1279,56 @@ jobs:
           ADAPTERS_SERVICES
             printf '{"status":"PASS","mode":"%s","before":"%s","after":"%s","fallback":"%s","source":"%s"}\n' "$MODE" "$BEFORE" "$AFTER" "$PREVIOUS" "$TARGET" > "$REPORT"
             echo 'FERRARI_SPECIALIST_PROTECTED_WORKFLOW=PASS'
+            exit 0
+          fi
+          if [[ "$MODE" == '--universal-doccache-precheck' || "$MODE" == '--universal-doccache-activate' ]]; then
+            TARGET="__FERRARI_DOCCACHE_IMMUTABLE_SHA__"
+            PREVIOUS="df0ac55dcb93003ea672abaa5deba8ea9e49ebe8"
+            REPORT="$RUNNER_TEMP/ferrari-universal-report.json"
+            [[ "$BEFORE" == "/srv/projects/skill-universal/releases/$PREVIOUS" ]] ||
+              { echo 'FERRARI_DOCUMENT_CACHE_UNEXPECTED_CURRENT_RELEASE' >&2; exit 34; }
+            sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+              "bash -s -- '$TARGET' '--check'" \
+              < ferrari-doccache/install/vps-isolated-release.sh
+            AFTER="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
+            [[ "$AFTER" == "$BEFORE" ]] ||
+              { echo 'FERRARI_DOCUMENT_CACHE_PRECHECK_CHANGED_CURRENT' >&2; exit 34; }
+            echo 'FERRARI_DOCUMENT_CACHE_REAL_PRECHECK=PASS'
+            if [[ "$MODE" == '--universal-doccache-activate' ]]; then
+              sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+                "bash -s -- '$TARGET' '--activate'" \
+                < ferrari-doccache/install/vps-isolated-release.sh
+              AFTER="$(sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'readlink -e /srv/projects/skill-universal/current')"
+              [[ "$AFTER" == "/srv/projects/skill-universal/releases/$TARGET" ]] ||
+                { echo 'FERRARI_DOCUMENT_CACHE_WRONG_ACTIVE_RELEASE' >&2; exit 34; }
+              sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 \
+                "cd '/srv/projects/skill-universal/current' && '/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12' -B -" <<'DOCCACHE_READBACK'
+          from pathlib import Path
+          from engine import ferrari,tool_runtime,catalog_registry
+          root=Path("/srv/projects/skill-universal")
+          target="__FERRARI_DOCCACHE_IMMUTABLE_SHA__"
+          previous="df0ac55dcb93003ea672abaa5deba8ea9e49ebe8"
+          assert (root/"current").resolve(strict=True)==root/"releases"/target
+          assert (root/"releases"/previous/"engine/catalog.json").is_file()
+          catalog=catalog_registry.read_catalog()
+          assert catalog["counts"]["all_catalog_entries"]==457
+          assert catalog["counts"]["functions"]==279
+          assert len(tool_runtime.specs())==40
+          assert {"docling-docx-markdown","valkey-kv-test"} <= set(ferrari.OPS)
+          print("FERRARI_DOCUMENT_CACHE_ACTIVE_RELEASE_AND_FALLBACK=PASS")
+          DOCCACHE_READBACK
+              echo 'FERRARI_DOCUMENT_CACHE_RELEASE_ACTIVATION=PASS'
+            fi
+            sshpass -e ssh "${opts[@]}" ubuntu@146.59.145.3 'bash -s' <<'DOCCACHE_SERVICES'
+          set -Eeuo pipefail
+          for s in pink-iptv-backend pink-vpn fadego-staging lowcost-europa pm2-iptvpn-bot pm2-telegram-robot-leads nginx postgresql@16-main; do
+            systemctl is-active --quiet "$s" ||
+              { echo "FERRARI_PROTECTED_SERVICE_NOT_ACTIVE=$s" >&2; exit 8; }
+          done
+          echo 'FERRARI_PROTECTED_SERVICES=8/8_PASS'
+          DOCCACHE_SERVICES
+            printf '{"status":"PASS","mode":"%s","before":"%s","after":"%s","fallback":"%s","source":"%s"}\n' "$MODE" "$BEFORE" "$AFTER" "$PREVIOUS" "$TARGET" > "$REPORT"
+            echo 'FERRARI_DOCUMENT_CACHE_PROTECTED_WORKFLOW=PASS'
             exit 0
           fi
           if [[ "$MODE" == --universal-* ]]; then
