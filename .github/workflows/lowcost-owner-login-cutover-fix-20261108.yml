@@ -1,0 +1,129 @@
+name: Lowcost owner login domain cutover guarded fix
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-owner-login-cutover-fix-20261108.yml'
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-owner-login-fix
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Verify single-file workflow scope and pinned SSH host
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")" == ".github/workflows/lowcost-owner-login-cutover-fix-20261108.yml" ]]
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          echo LOWCOST_OWNER_LOGIN_SSH_PIN=PASS
+      - name: Deploy exact code change with private rollback; preserve DB and passwords
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          [[ -n "$SSHPASS" ]]
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          ROOT=/srv/projects/lowcost-europa
+          OLD=7153a3419341f1cb9c00cb7fe3c75e6571b1ca0f
+          TARGET=0a3053aec800d6e90e538c1c23f1d07dd803d5ae
+          BACKUP="$ROOT/private/deploy-rollbacks/owner-login-cutover-20261108-01"
+          CHANGED=0
+          rollback() {
+            code=$?
+            trap - EXIT
+            if [[ "$CHANGED" -eq 1 ]]; then
+              umask 022
+              git -c "safe.directory=$ROOT" -C "$ROOT" checkout --detach -q "$OLD" || true
+              umask 077
+              systemctl restart lowcost-europa.service || true
+              echo LOWCOST_OWNER_LOGIN_ROLLBACK=EXECUTED
+            else
+              echo LOWCOST_OWNER_LOGIN_NO_LIVE_CHANGES=YES
+            fi
+            exit "$code"
+          }
+          trap rollback EXIT
+          [[ -d "$ROOT/.git" && -d "$ROOT/private" ]]
+          [[ "$(git -c "safe.directory=$ROOT" -C "$ROOT" rev-parse HEAD)" == "$OLD" ]]
+          [[ -z "$(git -c "safe.directory=$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)" ]]
+          [[ ! -e "$BACKUP" ]]
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa-affiliate-report.timer
+          git -c "safe.directory=$ROOT" -C "$ROOT" fetch -q https://github.com/martaxi-boss/lowcost-europa.git main
+          [[ "$(git -c "safe.directory=$ROOT" -C "$ROOT" rev-parse FETCH_HEAD)" == "$TARGET" ]]
+          [[ "$(git -c "safe.directory=$ROOT" -C "$ROOT" merge-base "$OLD" "$TARGET")" == "$OLD" ]]
+          expected="$(printf '%s\n' 'apps/catalog/owner_panel_views.py' 'apps/catalog/templates/catalog/owner_panel/login.html' 'apps/catalog/tests/test_owner_panel.py' 'apps/core/tests/test_private_login_rate_limit.py' | sort)"
+          actual="$(git -c "safe.directory=$ROOT" -C "$ROOT" diff --name-only "$OLD" "$TARGET" | sort)"
+          [[ "$actual" == "$expected" ]]
+          mkdir -m 700 -p "$ROOT/private/deploy-rollbacks"
+          mkdir -m 700 "$BACKUP"
+          printf '%s\n' "$OLD" > "$BACKUP/old-sha"
+          printf '%s\n' "$TARGET" > "$BACKUP/target-sha"
+          echo LOWCOST_OWNER_LOGIN_BACKUP=PASS
+          CHANGED=1
+          umask 022
+          git -c "safe.directory=$ROOT" -C "$ROOT" checkout --detach -q "$TARGET"
+          umask 077
+          python3 - "$ROOT" <<'PYCHECK'
+          import sys
+          from pathlib import Path
+          root=Path(sys.argv[1])
+          rel="apps/catalog/owner_panel_views.py"
+          source=(root/rel).read_text()
+          compile(source,rel,"exec")
+          assert 'destination = safe_next or reverse("owner-panel:dashboard")' in source
+          template=(root/"apps/catalog/templates/catalog/owner_panel/login.html").read_text()
+          assert "A mudança de domínio não alterou a palavra-passe do painel." in template
+          print("LOWCOST_OWNER_LOGIN_SOURCE_FIX=PASS")
+          PYCHECK
+          systemctl restart lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa.service
+          ready=0
+          for attempt in $(seq 1 20); do
+            code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 --resolve www.lowcost-europa.eu:443:146.59.145.3 https://www.lowcost-europa.eu/painel/entrar/ || true)"
+            if [[ "$code" == "200" ]]; then ready=1; break; fi
+            sleep 1
+          done
+          [[ "$ready" -eq 1 ]]
+          headers="$(curl -sS -D - -o /dev/null --max-time 18 --resolve www.lowcost-europa.eu:443:146.59.145.3 https://www.lowcost-europa.eu/painel/)"
+          printf '%s\n' "$headers" | grep -Eq '^HTTP/.* 302'
+          printf '%s\n' "$headers" | grep -Eiq '^location: /painel/entrar/'
+          printf '%s\n' "$headers" | grep -Eiq '^x-robots-tag:.*noindex'
+          login="$(curl -fsS --max-time 18 --resolve www.lowcost-europa.eu:443:146.59.145.3 https://www.lowcost-europa.eu/painel/entrar/)"
+          [[ "$login" == *'LOWCOST EUROPA'* && "$login" == *'Palavra-passe'* ]]
+          home_headers="$(curl -sSI --max-time 18 --resolve www.lowcost-europa.eu:443:146.59.145.3 https://www.lowcost-europa.eu/)"
+          printf '%s\n' "$home_headers" | grep -Eq '^HTTP/.* 200'
+          if printf '%s\n' "$home_headers" | grep -Eiq '^x-robots-tag:.*noindex'; then exit 5; fi
+          curl -fsS --max-time 18 https://lowcost-europa.duckdns.org/ -o /dev/null
+          systemctl is-active --quiet lowcost-europa-affiliate-report.timer
+          [[ -z "$(git -c "safe.directory=$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)" ]]
+          echo "LOWCOST_OWNER_LOGIN_GITHUB_VPS_SHA=$TARGET"
+          echo LOWCOST_OWNER_LOGIN_PUBLIC_HTTPS=PASS
+          echo LOWCOST_OWNER_LOGIN_PANEL_PRIVATE=PASS
+          echo LOWCOST_OWNER_LOGIN_DB_PASSWORDS_UNCHANGED=PASS
+          echo LOWCOST_OWNER_LOGIN_DEPLOY=PASS
+          trap - EXIT
+          REMOTE
