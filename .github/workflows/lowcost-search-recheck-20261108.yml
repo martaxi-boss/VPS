@@ -1,0 +1,118 @@
+name: Lowcost search recheck DNS crawler proof and live IndexNow
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/lowcost-search-recheck-20261108.yml']
+permissions:
+  contents: read
+jobs:
+  certify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Final authoritative DNS and email preservation
+        shell: bash
+        run: |
+          set -euo pipefail
+          for resolver in ns1.dyna-ns.net ns2.dyna-ns.net 1.1.1.1; do
+            for host in lowcost-europa.eu www.lowcost-europa.eu; do
+              [[ "$(dig +short @"$resolver" "$host" A | sort -u)" == 146.59.145.3 ]]
+              [[ -z "$(dig +short @"$resolver" "$host" AAAA)" ]]
+            done
+            [[ "$(dig +short @"$resolver" lowcost-europa.eu MX)" == '0 webhost.dynadot.com.' ]]
+            dig +short @"$resolver" lowcost-europa.eu TXT | grep -Fq 'v=spf1 mx include:webhost-mail-out.dynadot.com'
+            dig +short @"$resolver" lowcost-europa.eu TXT | grep -Fq 'google-site-verification='
+            dig +short @"$resolver" default._domainkey.lowcost-europa.eu CNAME | grep -Fq 'clients._domainkey.webhost.dynadot.com.'
+            dig +short @"$resolver" _dmarc.lowcost-europa.eu TXT | grep -Fq 'v=DMARC1; p=none'
+          done
+          echo LOWCOST_FINAL_DNS_AND_EMAIL=PASS
+      - name: Verify pinned VPS SSH host identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/khost"
+          chmod 600 "$RUNNER_TEMP/khost"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/khost" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          echo LOWCOST_INDEPENDENT_HOST_PIN=PASS
+      - name: Certify running IndexNow without repeating deployment
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/khost" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          root=/srv/projects/lowcost-europa
+          g() { git -c "safe.directory=$root" -C "$root" "$@"; }
+          [[ "$(g rev-parse HEAD)" == 280fca9dd5ea1b99b734f33df78b8fdd985731e0 ]]
+          changes="$(g status --porcelain=v1 --untracked-files=no)"
+          [[ -z "$changes" ]]
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa-indexnow.timer
+          nginx -t >/dev/null 2>&1
+          for resolver in 8.8.8.8 9.9.9.9; do
+           for host in lowcost-europa.eu www.lowcost-europa.eu; do
+            [[ "$(dig +short @"$resolver" "$host" A | sort -u)" == 146.59.145.3 ]]
+           done
+          done
+          echo SEARCH_RECHECK_ADDITIONAL_PUBLIC_DNS=PASS
+          python3 - "$root" <<'PY'
+          import collections,datetime,json,pathlib,socket,subprocess,sys,urllib.request,urllib.error
+          root=pathlib.Path(sys.argv[1])
+          base='https://www.lowcost-europa.eu'
+          env=(root/'private/systemd-env/lowcost-europa.env').read_text()
+          key=[x.split('=',1)[1] for x in env.splitlines() if x.startswith('DJANGO_INDEXNOW_KEY=')][0]
+          try:
+           with urllib.request.urlopen(base+'/indexnow-'+key+'.txt',timeout=20) as r:
+            assert r.status==200 and r.read().decode().strip()==key
+          except Exception:
+           raise SystemExit('Proof check failed; location redacted') from None
+          print('SEARCH_RECHECK_PROOF=PASS')
+          for path in ['/robots.txt','/sitemap.xml','/']:
+           with urllib.request.urlopen(urllib.request.Request(base+path,headers={'User-Agent':'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)'}),timeout=20) as r:
+            body=r.read()
+            assert r.status==200 and 'noindex' not in r.headers.get('X-Robots-Tag','').lower()
+            print('SEARCH_RECHECK_PUBLIC',path,r.status,len(body))
+          socket.setdefaulttimeout(4)
+          lines=subprocess.check_output(['tail','-n','30000','/var/log/nginx/access.log'],text=True).splitlines()
+          counts=collections.Counter(); cache={}
+          for line in lines:
+           parts=line.split('"')
+           if len(parts)<6 or not any(bot in parts[5].lower() for bot in ['bingbot','googlebot']):
+            continue
+           request=parts[1].split()
+           if len(request)<2 or request[1] not in ['/robots.txt','/sitemap.xml','/']: continue
+           ip=line.split()[0]
+           if ip not in cache:
+            try:
+             host=socket.gethostbyaddr(ip)[0].lower()
+             suffix=('.search.msn.com','.googlebot.com','.google.com')
+             verified=host.endswith(suffix) and ip in {a[4][0] for a in socket.getaddrinfo(host,None)}
+             cache[ip]=('Bing' if host.endswith('.search.msn.com') else 'Google') if verified else 'unverified-agent'
+            except OSError: cache[ip]='unverified-agent'
+           counts[(cache[ip],request[1],parts[2].split()[0])]+=1
+          for (engine,path,status),count in sorted(counts.items()):
+           print('SEARCH_RECHECK_CRAWLER',engine,path,status,count)
+          print('SEARCH_RECHECK_OPERATOR_PERMISSIONS',oct((root/'.legal/operator.json').stat().st_mode&0o777))
+          PY
+          echo SEARCH_RECHECK_INDEXNOW_RUN_STARTED
+          systemctl start lowcost-europa-indexnow.service
+          journalctl -u lowcost-europa-indexnow.service --since '3 minutes ago' --no-pager -o cat | grep '^INDEXNOW_'
+          if test -f "$root/.indexnow/accepted.json"; then
+           echo SEARCH_RECHECK_INDEXNOW_VERIFIED_STATE=PRESENT
+          else
+           echo SEARCH_RECHECK_INDEXNOW_VERIFIED_STATE=PENDING
+          fi
+          echo SEARCH_RECHECK_SERVICE_TIMER_DNS_HTTPS=PASS
+          echo SEARCH_RECHECK_GITHUB_VPS_SHA=280fca9dd5ea1b99b734f33df78b8fdd985731e0
+          REMOTE
