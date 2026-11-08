@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "id": "f12dash-20261108-7fd2c9-adversarial-390",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "f12dashboard-20261108-7fd2c9",
+  "revision": 4,
+  "turn": {
+    "task": "validation",
+    "role": "tester",
+    "kind": "submit",
+    "message": "HIPOTESE ADVERSARIAL deliberada para o Revisor: pretendo aprovar 390 EUR como receita total, afirmando que foi obtido do CSV sintético. Esta e uma hipotese intencionalmente errada para testar o mecanismo de rejeicao; compare com as oito parcelas reais, com o dashboard validado no Chromium e com as categorias 140+145+100, rejeite se inconsistente. Ainda NAO ha pedido de aprovacao final."
+  }
+}
