@@ -1,0 +1,82 @@
+name: Lowcost VPS exact merged-branch hygiene (one-shot)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-vps-exact-merged-ref-hygiene-20261109.yml'
+permissions:
+  contents: write
+  pull-requests: read
+concurrency:
+  group: lowcost-vps-github-branch-hygiene
+  cancel-in-progress: false
+jobs:
+  tidy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: main
+          persist-credentials: true
+          fetch-depth: 1
+      - name: Delete exclusively merged, same-repo, unchanged Lowcost refs
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const {owner, repo}=context.repo;
+            if (owner !== 'martaxi-boss' || repo !== 'VPS')
+              throw new Error('Wrong repository; refusing hygiene');
+            const fullName=owner+'/'+repo;
+            const branches=await github.paginate(github.rest.repos.listBranches,
+              {owner,repo,per_page:100});
+            const closedPulls=await github.paginate(github.rest.pulls.list,
+              {owner,repo,state:'closed',per_page:100});
+            const openPulls=await github.paginate(github.rest.pulls.list,
+              {owner,repo,state:'open',per_page:100});
+            const openHeads=new Set(openPulls.filter(p => p.head?.repo?.full_name===fullName)
+              .map(p => p.head.ref));
+            const merged=new Map();
+            for(const p of closedPulls){
+              if(p.merged_at && p.head?.repo?.full_name===fullName &&
+                p.head.ref!=='main'){
+                const heads=merged.get(p.head.ref)||new Set();
+                heads.add(p.head.sha);merged.set(p.head.ref,heads);
+              }
+            }
+            const exactlyLowcost=(name) => name.startsWith('ops/lowcost-')
+              || name.startsWith('docs/vps-lowcost-')
+              || name.startsWith('ops/hygiene-seo-pt-')
+              || [
+                'fix/20261109-commercial-audit-separate-pt-es',
+                'fix/20261109-local-seo-report-access',
+                'fix/20261109-referrers-nginx-verified-path'
+              ].includes(name);
+            const readLive=async name=>{
+              try{return (await github.rest.git.getRef({
+                owner,repo,ref:'heads/'+name})).data.object.sha;}
+              catch(e){if(e.status===404)return null;throw e;}
+            };
+            let removed=0,preserved=0,advanced=0;
+            for(const b of branches){
+              const name=b.name,sha=b.commit.sha;
+              if(name==='main' || !exactlyLowcost(name) ||
+                openHeads.has(name) || !merged.get(name)?.has(sha)){
+                preserved++;continue;
+              }
+              if(await readLive(name)!==sha){advanced++;continue;}
+              const result=await exec.getExecOutput('git',[
+                'push','--force-with-lease=refs/heads/'+name+':'+sha,
+                'origin',':refs/heads/'+name
+              ],{ignoreReturnCode:true,silent:true});
+              if(result.exitCode!==0){
+                const live=await readLive(name);
+                if(live===null){removed++;continue;}
+                if(live!==sha){advanced++;continue;}
+                throw new Error('Exact-lease deletion failed for '+name);
+              }
+              removed++;
+              core.info('LOWCOST_VPS_REMOVED='+name);
+            }
+            core.info('LOWCOST_VPS_BRANCH_HYGIENE=PASS removed='+removed+
+              ' preserved='+preserved+' advanced='+advanced);
