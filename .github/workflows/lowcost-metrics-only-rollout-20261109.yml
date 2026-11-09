@@ -1,0 +1,163 @@
+name: Lowcost metrics-only owner summary - guarded rollout
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/lowcost-metrics-only-rollout-20261109.yml']
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-metrics-only-production-rollout
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    steps:
+      - name: Deploy metrics-only owner summary with pinned SSH and rollback
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          ROOT=/srv/projects/lowcost-europa
+          OLD=070ee07fe8efe4fe4c4a00edf15246cf32995c3d
+          NEW=96f9bb23d1d8ce96c97d0b816ba2efc1e2196efe
+          TASK="$ROOT/private/ops/owner-metrics-only-20261109"
+          ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
+          mkdir -p -m 700 "$ROOT/private/ops"
+          exec 9>"$ROOT/private/ops/ptes-deploy.lock"
+          flock -n 9
+          test ! -e "$TASK"
+          test "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD)" = "$OLD"
+          test -z "$(git -c safe.directory="$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)"
+          test "$(git -c safe.directory="$ROOT" -C "$ROOT" ls-remote https://github.com/martaxi-boss/lowcost-europa.git refs/heads/main | awk '{print $1}')" = "$NEW"
+          test "$(df -Pk "$ROOT" | awk 'END{print $4}')" -gt 500000
+          APPUSER="$(systemctl show lowcost-europa.service -p User --value)"
+          test "$APPUSER" = le001_1789265592
+          for unit in lowcost-europa.service lowcost-europa-indexnow.timer lowcost-europa-catalog-maintenance.timer lowcost-europa-backup.timer lowcost-europa-affiliate-report.timer lowcost-europa-offsite-backup.timer lowcost-europa-offsite-backup-health.timer; do
+           systemctl is-active --quiet "$unit"
+          done
+          nginx -t >/dev/null 2>&1
+          git -c safe.directory="$ROOT" -C "$ROOT" fetch -q https://github.com/martaxi-boss/lowcost-europa.git main
+          test "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse FETCH_HEAD)" = "$NEW"
+          test "$(git -c safe.directory="$ROOT" -C "$ROOT" diff --name-only "$OLD" "$NEW" | wc -l)" -eq 9
+          while IFS= read -r file; do
+           case "$file" in
+           apps/catalog/templates/catalog/owner_panel/dashboard.html|apps/catalog/tests/test_commercial_evidence_owner.py|apps/catalog/tests/test_family_02_taxonomy_alignment.py|apps/catalog/tests/test_family_03_public_label_rename.py|apps/catalog/tests/test_owner_analytics_dashboard.py|apps/catalog/tests/test_owner_engine_comparison.py|apps/catalog/tests/test_owner_panel.py|apps/storefront/tests/test_owner_mode.py|apps/storefront/tests/test_public_recent_price_gate.py) ;;
+           *) echo "UNEXPECTED_SOURCE_PATH=$file"; exit 12;;
+           esac
+          done < <(git -c safe.directory="$ROOT" -C "$ROOT" diff --name-only "$OLD" "$NEW")
+          test -z "$(git -c safe.directory="$ROOT" -C "$ROOT" diff --name-only "$OLD" "$NEW" -- requirements deploy config apps/catalog/models.py apps/catalog/migrations apps/catalog/owner_panel_views.py apps/storefront/views.py)"
+          sh "$ROOT/deploy/scripts/backup-postgres.sh"
+          BACKUP="$(find "$ROOT/backups/daily" -maxdepth 1 -type f -name '*.dump' -printf '%T@ %p\n' | sort -nr | head -n 1 | cut -d' ' -f2-)"
+          test -n "$BACKUP" && test -s "$BACKUP" && test -s "$BACKUP.sha256"
+          (cd "$ROOT/backups/daily" && sha256sum -c "$(basename "$BACKUP.sha256")" >/dev/null)
+          echo METRICS_ONLY_BACKUP=PASS
+          mkdir -m 700 "$TASK"
+          cp -a "$ENVFILE" "$TASK/env.before"
+          printf '%s\n' "$OLD" > "$TASK/previous-source-sha"
+          rollback() {
+           result=$?
+           trap - EXIT
+           if test "$result" -ne 0; then
+            cp -a "$TASK/env.before" "$ENVFILE"
+            git -c safe.directory="$ROOT" -C "$ROOT" checkout --detach -q "$OLD"
+            if systemctl restart lowcost-europa.service && systemctl is-active --quiet lowcost-europa.service; then
+             echo METRICS_ONLY_ROLLBACK=PASS
+            else
+             echo METRICS_ONLY_ROLLBACK=FAILED
+            fi
+           fi
+           exit "$result"
+          }
+          trap rollback EXIT
+          umask 022
+          git -c safe.directory="$ROOT" -C "$ROOT" checkout --detach -q "$NEW"
+          umask 077
+          cd "$ROOT"
+          set -a
+          . "$ENVFILE"
+          set +a
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py check
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py check --deploy
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py makemigrations --check --dry-run
+          cmp -s "$ENVFILE" "$TASK/env.before"
+          systemctl reload lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa.service
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYQA'
+          import os,urllib.request,urllib.error
+          os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.production')
+          import django
+          django.setup()
+          from django.contrib.auth import get_user_model
+          from django.test import RequestFactory
+          from apps.catalog.owner_panel_views import dashboard
+          from apps.catalog.models import ExternalMetricsSnapshot,ProductFamily
+          from apps.storefront.views import product_family_detail
+          before=ExternalMetricsSnapshot.objects.count()
+          owner=get_user_model().objects.filter(is_staff=True,is_active=True).first()
+          assert owner
+          factory=RequestFactory()
+          req=factory.get('/painel/',secure=True,HTTP_HOST='www.lowcost-europa.eu')
+          req.user=owner
+          response=dashboard(req)
+          assert response.status_code==200
+          body=response.content.decode()
+          for text in ('Resumo de métricas','Cliques para parceiros','Evolução','Motores de pesquisa','Meta Ads','Google Search Console','VER LOJA'):
+           assert text in body,text
+          for forbidden in ('Validação comercial','Consultar 77 ofertas','Produtos mais clicados','Gestão por categoria','Links de afiliado e montra','A rever','Aprovados','Retirados'):
+           assert forbidden not in body,forbidden
+          assert 'noindex' in response['X-Robots-Tag'] and 'private' in response['Cache-Control']
+          print('METRICS_ONLY_OWNER_SUMMARY=PASS')
+          family=ProductFamily.objects.exclude(status=ProductFamily.Status.RETIRED).order_by('display_order','pk').first()
+          assert family
+          path=f'/products/{family.slug}/'
+          shop_request=factory.get(path+'?gestao=rever',secure=True,HTTP_HOST='www.lowcost-europa.eu')
+          shop_request.user=owner
+          shop_request.LANGUAGE_CODE='pt-pt'
+          shop_request.session={}
+          shop_response=product_family_detail(shop_request,family.slug)
+          assert shop_response.status_code==200
+          shop=shop_response.content.decode()
+          for text in ('Gestão ativa','A rever','Aprovados','Retirados','Revalidação'):
+           assert text in shop,text
+          print('METRICS_ONLY_STORE_MANAGEMENT_PRESERVED=PASS')
+          assert ExternalMetricsSnapshot.objects.count()==before
+          print('METRICS_ONLY_SNAPSHOTS_PRESERVED=PASS')
+          base='https://www.lowcost-europa.eu'
+          for path in ('/','/pt/','/es/','/sitemap.xml','/robots.txt'):
+           with urllib.request.urlopen(base+path,timeout=20) as r:assert r.status==200,path
+          print('METRICS_ONLY_PUBLIC_HTTP=PASS')
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+           def redirect_request(self,*args,**kwargs):return None
+          opener=urllib.request.build_opener(NoRedirect)
+          try:r=opener.open(base+'/painel/',timeout=20)
+          except urllib.error.HTTPError as exc:
+           assert exc.code==302 and 'noindex' in exc.headers['X-Robots-Tag'] and 'private' in exc.headers['Cache-Control']
+           exc.close()
+          else:raise AssertionError('private route exposed')
+          print('METRICS_ONLY_OWNER_AUTH=PASS')
+          PYQA
+          test "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD)" = "$NEW"
+          test -z "$(git -c safe.directory="$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)"
+          nginx -t >/dev/null 2>&1
+          for unit in lowcost-europa.service lowcost-europa-indexnow.timer lowcost-europa-catalog-maintenance.timer lowcost-europa-backup.timer lowcost-europa-affiliate-report.timer lowcost-europa-offsite-backup.timer lowcost-europa-offsite-backup-health.timer; do
+           systemctl is-active --quiet "$unit"
+          done
+          echo "LOWCOST_DEPLOYED_SHA=$NEW"
+          echo METRICS_ONLY_PRODUCTION_DEPLOY=PASS
+          trap - EXIT
+          REMOTE
