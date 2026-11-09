@@ -1,0 +1,134 @@
+name: Final mission Lowcost external closeout - independent readback and bounded ES observations
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/lowcost-final-mission-postflight-20261109.yml']
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-evidence-20261109
+  cancel-in-progress: false
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    steps:
+      - name: Gather live PT ES indexing and commercial proof counts without secrets
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          ROOT=/srv/projects/lowcost-europa
+          EXPECTED=253a946fb8f8dc91e9cfcc11739c6976b614b1ea
+          TASK="$ROOT/private/ops/final-mission-20261109-retry1"
+          test "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD)" = "$EXPECTED"
+          test -z "$(git -c safe.directory="$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)"
+          test "$(git -c safe.directory="$ROOT" -C "$ROOT" ls-remote https://github.com/martaxi-boss/lowcost-europa.git refs/heads/main | awk '{print $1}')" = "$EXPECTED"
+          test -s "$TASK/previous-source-sha" && test -s "$TASK/env.before"
+          test ! -e "$TASK/es-collection-completed"
+          APPUSER="$(systemctl show lowcost-europa.service -p User --value)"
+          test "$APPUSER" = le001_1789265592
+          for unit in lowcost-europa.service lowcost-europa-indexnow.timer lowcost-europa-catalog-maintenance.timer lowcost-europa-backup.timer; do systemctl is-active --quiet "$unit"; echo "$unit=active"; done
+          systemctl list-unit-files 'lowcost-europa*' --no-legend
+          nginx -t >/dev/null 2>&1
+          cd "$ROOT"
+          set -a
+          . "$ROOT/private/systemd-env/lowcost-europa.env"
+          set +a
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYAPP'
+          import os,json,hashlib,io
+          from pathlib import Path
+          os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.production')
+          import django
+          django.setup()
+          from django.utils import timezone
+          from datetime import timedelta
+          from django.core.management import call_command
+          from django.db.models import Q
+          from django.test import RequestFactory
+          from django.contrib.auth import get_user_model
+          from apps.catalog.models import Offer,OfferObservation,ExternalMetricsSnapshot
+          from apps.catalog.owner_panel_views import dashboard
+          from apps.catalog.services.market_observation import observe_market_offers
+          from apps.catalog.services.commercial_evidence import owner_commercial_evidence_rows
+          from apps.catalog.services.public_eligibility import public_eligibility_q
+          from apps.catalog.services.windsor_search_console_reporting import _fetch_rows,SearchConsoleReportError,EXPECTED_PROPERTY
+          from urllib.request import urlopen
+          from apps.integrations.aliexpress.exceptions import AliExpressError
+
+          def offers_digest():
+           data=list(Offer.objects.order_by('pk').values())
+           return hashlib.sha256(json.dumps(data,sort_keys=True,default=str).encode()).hexdigest()
+          before=offers_digest()
+          count_before=OfferObservation.objects.filter(destination_country='ES').count()
+          try:
+           result=observe_market_offers(country='ES',limit=5,persist=True)
+          except (AliExpressError,RuntimeError) as exc:
+           print('ES_COLLECTION_STOP='+type(exc).__name__)
+           raise SystemExit(3) from None
+          assert offers_digest()==before
+          assert result['persisted']==5
+          assert OfferObservation.objects.filter(destination_country='ES').count()==count_before+5
+          print('ES_COLLECTION='+json.dumps(result,sort_keys=True))
+          print('ALL_OFFER_FIELDS_UNCHANGED=PASS')
+          print('NO_AFFILIATE_GENERATION_OR_PUBLICATION=PASS')
+          now=timezone.now()
+          ptrows=owner_commercial_evidence_rows(as_of=now)
+          esrows=owner_commercial_evidence_rows(as_of=now,country='ES')
+          print('PRIVATE_COMMERCIAL_PT_ROWS='+str(len(ptrows)))
+          print('PRIVATE_COMMERCIAL_ES_WITH_PRICE='+str(sum(row.price is not None for row in esrows)))
+          print('PRIVATE_COMMERCIAL_ES_WITH_NUMERIC_DELIVERY='+str(sum(row.delivery_at is not None for row in esrows)))
+          eligible=Offer.objects.filter(public_eligibility_q())
+          technical=Offer.objects.filter(public_eligibility_q(require_recent_price=False))
+          print('PUBLIC_RECENT_PRICE_ELIGIBLE='+str(eligible.count()))
+          print('PUBLIC_TECHNICAL_ELIGIBLE='+str(technical.count()))
+          origin=eligible.filter(ship_from_country__in=['PL','CZ','FR','ES','DE'],ship_from_verified_at__lte=now).count()
+          print('PUBLIC_ELIGIBLE_EDITORIAL_ORIGIN='+str(origin))
+          print('PUBLIC_ELIGIBLE_ORIGIN_UNKNOWN='+str(eligible.count()-origin))
+          print('STOCK_SKU_VERIFICATION=NOT_CONFIRMED_BY_THIS_API')
+          print('GSC_PROPERTY_CONFIGURED='+str(os.environ.get('GOOGLE_SEARCH_CONSOLE_PROPERTY')==EXPECTED_PROPERTY))
+          try:
+           rows=_fetch_rows({'api_key':os.environ['WINDSOR_API_KEY'],'select_accounts':EXPECTED_PROPERTY,'date_preset':'last_30d','_renderer':'json','fields':'account_id,clicks,impressions,position'},opener=urlopen)
+           print('GSC_SERVER_SUMMARY_ROWS='+str(len(rows)))
+           if rows:
+            assert all(row.get('account_id')==EXPECTED_PROPERTY for row in rows)
+            call_command('sync_google_search_console')
+          except SearchConsoleReportError as exc:
+           safe={'provider_http_error','provider_transport_or_auth_error','provider_unavailable','invalid_provider_rows','invalid_provider_json','provider_payload_too_large'}
+           code=str(exc) if str(exc) in safe else type(exc).__name__
+           print('GSC_SERVER_DIAGNOSTIC='+code)
+          print('GSC_SNAPSHOT_COUNT='+str(ExternalMetricsSnapshot.objects.filter(source='GOOGLE_SEARCH_CONSOLE').count()))
+          request=RequestFactory().get('/painel/',secure=True,HTTP_HOST='www.lowcost-europa.eu')
+          request.user=get_user_model().objects.filter(is_staff=True,is_active=True).first()
+          response=dashboard(request)
+          assert response.status_code==200 and 'noindex' in response['X-Robots-Tag'] and 'private' in response['Cache-Control']
+          assert 'Espanha — apenas observações com destino ES'.encode() in response.content
+          print('PRIVATE_PANEL_PRODUCTION_RENDER=PASS')
+          accepted=Path('.indexnow/accepted.json')
+          before=hashlib.sha256(accepted.read_bytes()).hexdigest()
+          print('INDEXNOW_ACCEPTED_URLS='+str(len(json.loads(accepted.read_text()))))
+          out=io.StringIO();call_command('notify_indexnow',dry_run=True,stdout=out)
+          print(out.getvalue().strip())
+          assert before==hashlib.sha256(accepted.read_bytes()).hexdigest()
+          print('INDEXNOW_NO_MANUAL_SUBMISSION=PASS')
+          PYAPP
+          umask 077
+          printf '%s\n' completed > "$TASK/es-collection-completed"
+          test "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD)" = "$EXPECTED"
+          echo "LOWCOST_POSTFLIGHT_SHA=$EXPECTED"
+          echo LOWCOST_POSTFLIGHT=PASS
+          REMOTE
+
