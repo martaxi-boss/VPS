@@ -1,0 +1,106 @@
+name: Lowcost indexing - read-only transport and deduplication diagnosis
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/lowcost-indexing-readonly-20261109.yml']
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-evidence-20261109
+  cancel-in-progress: false
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    steps:
+      - name: Gather live PT ES indexing and commercial proof counts without secrets
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          ROOT=/srv/projects/lowcost-europa
+          EXPECTED=381c34adcff8f26fab3e60a86979c488e73a680f
+          test "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD)" = "$EXPECTED"
+          test -z "$(git -c safe.directory="$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)"
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl show lowcost-europa-indexnow.timer -p ActiveState -p LastTriggerUSec -p NextElapseUSecRealtime
+          systemctl show lowcost-europa-indexnow.service -p Result -p ExecMainStatus -p ExecMainStartTimestamp
+          ROOT="$ROOT" python3 - <<'PYLOG'
+          import os,re,json,datetime
+          from pathlib import Path
+          from collections import Counter
+          p=Path('/var/log/nginx/error.log')
+          counts=Counter();latest=None
+          if p.exists():
+           with p.open('rb') as f:
+            f.seek(max(0,p.stat().st_size-2000000));lines=f.read().decode(errors='replace').splitlines()
+           for line in lines:
+            if not re.search(r'(?:host: "(?:www\.)?lowcost-europa\.eu"|server: (?:www\.)?lowcost-europa\.eu[, ])',line):continue
+            m=re.match(r'(\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2})',line)
+            if not m:continue
+            stamp=datetime.datetime.strptime(m.group(1),'%Y/%m/%d %H:%M:%S')
+            if stamp<datetime.datetime(2026,11,9,0,24):continue
+            latest=m.group(1)
+            kind='upstream_connection' if 'connect() failed' in line else 'upstream_timeout' if 'timed out' in line else 'other'
+            counts[kind]+=1
+          print('OWN_HOST_NGINX_ERRORS_SINCE_FINAL_DEPLOY_LAST_2MB='+json.dumps(dict(counts),sort_keys=True))
+          print('OWN_HOST_LATEST_MATCHING_ERROR='+str(latest))
+          PYLOG
+          cd "$ROOT"
+          set -a
+          . "$ROOT/private/systemd-env/lowcost-europa.env"
+          set +a
+          APPUSER="$(systemctl show lowcost-europa.service -p User --value)"
+          test "$APPUSER" = le001_1789265592
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYAPP'
+          import os,json,hashlib,urllib.request,urllib.error
+          from pathlib import Path
+          os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.production')
+          import django
+          django.setup()
+          from apps.storefront.management.commands.notify_indexnow import snapshot,NoRedirect
+          from django.conf import settings
+          accepted=Path('.indexnow/accepted.json');before=hashlib.sha256(accepted.read_bytes()).hexdigest()
+          previous=json.loads(accepted.read_text())
+          first=snapshot(settings.PUBLIC_SITE_URL);second=snapshot(settings.PUBLIC_SITE_URL)
+          assert len(first)==len(second)==len(previous)==23
+          changed=sorted(url for url,digest in second.items() if digest!=previous.get(url))
+          unstable=sorted(url for url in first if first[url]!=second[url])
+          print('INDEXNOW_ACCEPTED_URLS='+str(len(previous)))
+          print('INDEXNOW_CURRENT_URLS='+str(len(second)))
+          print('INDEXNOW_CHANGED_VERSIONS='+str(len(changed)))
+          print('INDEXNOW_UNCHANGED_ACCEPTED_VERSIONS='+str(sum(second[u]==previous.get(u) for u in second)))
+          print('INDEXNOW_SNAPSHOT_UNSTABLE_COUNT='+str(len(unstable)))
+          print('INDEXNOW_NEW_URLS='+str(len(set(second)-set(previous))))
+          print('INDEXNOW_REMOVED_URLS='+str(len(set(previous)-set(second))))
+          assert before==hashlib.sha256(accepted.read_bytes()).hexdigest()
+          print('INDEXNOW_ACCEPTED_STATE_UNTOUCHED=PASS')
+          opener=urllib.request.build_opener(NoRedirect)
+          for url in ['https://www.lowcost-europa.eu/sitemap.xml','https://lowcost-europa.eu/sitemap.xml','http://www.lowcost-europa.eu/sitemap.xml','https://www.lowcost-europa.eu/robots.txt']:
+           for method in ['HEAD','GET']:
+            req=urllib.request.Request(url,method=method,headers={'User-Agent':'Lowcost-Indexing-ReadOnly-Diagnostic/1.0'})
+            try:r=opener.open(req,timeout=20)
+            except urllib.error.HTTPError as exc:r=exc
+            try:
+             data={'url':url,'method':method,'status':r.code,'type':r.headers.get('Content-Type'),'location':r.headers.get('Location'),'encoding':r.headers.get('Content-Encoding'),'vary':r.headers.get('Vary'),'robots':r.headers.get('X-Robots-Tag')}
+             print('SITEMAP_TRANSPORT='+json.dumps(data,sort_keys=True))
+             r.read(300000)
+            finally:r.close()
+          print('NO_SUBMISSION_OR_DATABASE_WRITE=PASS')
+          PYAPP
+          test "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD)" = "$EXPECTED"
+          echo LOWCOST_INDEXING_READONLY=PASS
+          REMOTE
