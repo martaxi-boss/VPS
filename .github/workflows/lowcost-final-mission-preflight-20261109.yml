@@ -32,13 +32,13 @@ jobs:
             ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
           set -Eeuo pipefail
           ROOT=/srv/projects/lowcost-europa
-          EXPECTED=2092e65bf394c0772a824ff13d35f05569a726bd
+          EXPECTED=253a946fb8f8dc91e9cfcc11739c6976b614b1ea
           test "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD)" = "$EXPECTED"
           test -z "$(git -c safe.directory="$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)"
           echo "LOWCOST_PREFLIGHT_SHA=$EXPECTED"
           APPUSER="$(systemctl show lowcost-europa.service -p User --value)"
           test "$APPUSER" = le001_1789265592
-          for unit in lowcost-europa.service lowcost-europa-indexnow.timer lowcost-europa-catalog-maintenance.timer lowcost-europa-backup.timer; do
+          for unit in lowcost-europa.service lowcost-europa-indexnow.timer lowcost-europa-catalog-maintenance.timer lowcost-europa-backup.timer lowcost-europa-affiliate-report.timer lowcost-europa-offsite-backup.timer lowcost-europa-offsite-backup-health.timer; do
            systemctl is-active --quiet "$unit"
            echo "$unit=active"
           done
@@ -73,7 +73,7 @@ jobs:
            print('GSC_EXISTING_SERVER_INTEGRATION=VERIFIED_DATA')
            print('GSC_VERIFIED_METRICS='+json.dumps({k:report[k] for k in ['property','clicks','impressions','ctr_percent','average_position']}))
           except SearchConsoleReportError as exc:
-           print('GSC_EXISTING_SERVER_INTEGRATION='+type(exc).__name__)
+           print('GSC_EXISTING_SERVER_INTEGRATION='+type(exc).__name__+':'+str(exc))
           print('GSC_SNAPSHOT_COUNT='+str(ExternalMetricsSnapshot.objects.filter(source='GOOGLE_SEARCH_CONSOLE').count()))
           print('ELIGIBLE_TECHNICAL='+str(Offer.objects.filter(public_eligibility_q(require_recent_price=False)).count()))
           print('ES_PERSISTED_OBSERVATIONS='+str(OfferObservation.objects.filter(destination_country='ES').count()))
