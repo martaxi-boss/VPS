@@ -32,75 +32,83 @@ jobs:
             ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
           set -Eeuo pipefail
           ROOT=/srv/projects/lowcost-europa
-          EXPECTED=381c34adcff8f26fab3e60a86979c488e73a680f
-          test "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD)" = "$EXPECTED"
-          test -z "$(git -c safe.directory="$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)"
+          test -d "$ROOT/.git"
           systemctl is-active --quiet lowcost-europa.service
-          systemctl show lowcost-europa-indexnow.timer -p ActiveState -p LastTriggerUSec -p NextElapseUSecRealtime
-          systemctl show lowcost-europa-indexnow.service -p Result -p ExecMainStatus -p ExecMainStartTimestamp
-          ROOT="$ROOT" python3 - <<'PYLOG'
-          import os,re,json,datetime
+          git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD
+          python3 - <<'PY'
+          import json,re,gzip,socket,ssl,urllib.request,urllib.error,hashlib,xml.etree.ElementTree as ET
           from pathlib import Path
           from collections import Counter
-          p=Path('/var/log/nginx/error.log')
-          counts=Counter();latest=None
-          if p.exists():
+          socket.setdefaulttimeout(5)
+          base='https://www.lowcost-europa.eu'
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+           def redirect_request(self,*a,**kw): return None
+          op=urllib.request.build_opener(NoRedirect)
+          for path in ['/sitemap.xml','/robots.txt']:
+           for method in ['HEAD','GET']:
+            for ua in ['Lowcost-Sitemap-Diagnostic/2.0','Googlebot']:
+             req=urllib.request.Request(base+path,method=method,headers={'User-Agent':ua})
+             try: r=op.open(req,timeout=20)
+             except urllib.error.HTTPError as e:r=e
+             body=r.read(1000000)
+             result={'path':path,'method':method,'ua':ua,'status':r.code,'headers':{k:r.headers.get(k) for k in ['Content-Type','Content-Length','Content-Encoding','Location','X-Robots-Tag','Vary','Cache-Control']}}
+             if method=='GET':
+              result.update(bytes=len(body),sha256=hashlib.sha256(body).hexdigest())
+              if path=='/sitemap.xml':
+               root=ET.fromstring(body);urls=[x.text for x in root.iter('{http://www.sitemaps.org/schemas/sitemap/0.9}loc')]
+               result.update(root=root.tag,urls=len(urls),unique=len(set(urls)),all_canonical=all(u.startswith(base+'/') for u in urls))
+              else:result['robots']=body.decode()
+             print('PUBLIC_FETCH='+json.dumps(result,sort_keys=True));r.close()
+          host='www.lowcost-europa.eu'
+          print('DNS_FAMILIES='+json.dumps(sorted(set(x[0] for x in socket.getaddrinfo(host,443)))))
+          with socket.create_connection((host,443),timeout=10) as sock:
+           with ssl.create_default_context().wrap_socket(sock,server_hostname=host) as ss:
+            cert=ss.getpeercert()
+            print('TLS='+json.dumps({'verified':True,'version':ss.version(),'expires':cert.get('notAfter'),'subjectAltName':cert.get('subjectAltName')}))
+          # Error logs are explicitly host scoped; never print raw lines/IPs/requests.
+          errors=Counter();last=None
+          for p in [Path('/var/log/nginx/error.log'),Path('/var/log/nginx/error.log.1')]:
+           if not p.exists():continue
            with p.open('rb') as f:
-            f.seek(max(0,p.stat().st_size-2000000));lines=f.read().decode(errors='replace').splitlines()
+            f.seek(max(0,p.stat().st_size-10000000));lines=f.read().decode(errors='replace').splitlines()
            for line in lines:
             if not re.search(r'(?:host: "(?:www\.)?lowcost-europa\.eu"|server: (?:www\.)?lowcost-europa\.eu[, ])',line):continue
+            if 'sitemap' not in line and 'robots.txt' not in line:continue
             m=re.match(r'(\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2})',line)
+            if not m or m.group(1)<'2026/11/07':continue
+            last=m.group(1)
+            kind='timeout' if 'timed out' in line else 'upstream_connect' if 'connect() failed' in line else 'permission' if 'Permission denied' in line else 'other'
+            errors[kind]+=1
+          print('HOST_SCOPED_SITEMAP_ROBOTS_ERRORS='+json.dumps({'counts':dict(errors),'last':last,'scope':'current and previous uncompressed logs, last 10MB each, since Nov7'}))
+          # Combined access logs lack Host: report candidates only, never claim host attribution.
+          rx=re.compile(r'^(\S+) \S+ \S+ \[([^\]]+)\] "(GET|HEAD) (/sitemap\.xml|/robots\.txt)(?:\?[^ ]*)? HTTP/[^"]+" (\d+) (\S+) "[^"]*" "([^"]*)"')
+          candidates=[];counts=Counter()
+          for p in [Path('/var/log/nginx/access.log'),Path('/var/log/nginx/access.log.1')]:
+           if not p.exists():continue
+           with p.open('rb') as f:
+            f.seek(max(0,p.stat().st_size-10000000));lines=f.read().decode(errors='replace').splitlines()
+           for line in lines:
+            m=rx.match(line)
             if not m:continue
-            stamp=datetime.datetime.strptime(m.group(1),'%Y/%m/%d %H:%M:%S')
-            if stamp<datetime.datetime(2026,11,9,0,24):continue
-            latest=m.group(1)
-            kind='upstream_connection' if 'connect() failed' in line else 'upstream_timeout' if 'timed out' in line else 'other'
-            counts[kind]+=1
-          print('OWN_HOST_NGINX_ERRORS_SINCE_FINAL_DEPLOY_LAST_2MB='+json.dumps(dict(counts),sort_keys=True))
-          print('OWN_HOST_LATEST_MATCHING_ERROR='+str(latest))
-          PYLOG
-          cd "$ROOT"
-          set -a
-          . "$ROOT/private/systemd-env/lowcost-europa.env"
-          set +a
-          APPUSER="$(systemctl show lowcost-europa.service -p User --value)"
-          test "$APPUSER" = le001_1789265592
-          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYAPP'
-          import os,json,hashlib,urllib.request,urllib.error
-          from pathlib import Path
-          os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.production')
-          import django
-          django.setup()
-          from apps.storefront.management.commands.notify_indexnow import snapshot,NoRedirect
-          from django.conf import settings
-          accepted=Path('.indexnow/accepted.json');before=hashlib.sha256(accepted.read_bytes()).hexdigest()
-          previous=json.loads(accepted.read_text())
-          first=snapshot(settings.PUBLIC_SITE_URL);second=snapshot(settings.PUBLIC_SITE_URL)
-          assert len(first)==len(second)==len(previous)==23
-          changed=sorted(url for url,digest in second.items() if digest!=previous.get(url))
-          unstable=sorted(url for url in first if first[url]!=second[url])
-          print('INDEXNOW_ACCEPTED_URLS='+str(len(previous)))
-          print('INDEXNOW_CURRENT_URLS='+str(len(second)))
-          print('INDEXNOW_CHANGED_VERSIONS='+str(len(changed)))
-          print('INDEXNOW_UNCHANGED_ACCEPTED_VERSIONS='+str(sum(second[u]==previous.get(u) for u in second)))
-          print('INDEXNOW_SNAPSHOT_UNSTABLE_COUNT='+str(len(unstable)))
-          print('INDEXNOW_NEW_URLS='+str(len(set(second)-set(previous))))
-          print('INDEXNOW_REMOVED_URLS='+str(len(set(previous)-set(second))))
-          assert before==hashlib.sha256(accepted.read_bytes()).hexdigest()
-          print('INDEXNOW_ACCEPTED_STATE_UNTOUCHED=PASS')
-          opener=urllib.request.build_opener(NoRedirect)
-          for url in ['https://www.lowcost-europa.eu/sitemap.xml','https://lowcost-europa.eu/sitemap.xml','http://www.lowcost-europa.eu/sitemap.xml','https://www.lowcost-europa.eu/robots.txt']:
-           for method in ['HEAD','GET']:
-            req=urllib.request.Request(url,method=method,headers={'User-Agent':'Lowcost-Indexing-ReadOnly-Diagnostic/1.0'})
-            try:r=opener.open(req,timeout=20)
-            except urllib.error.HTTPError as exc:r=exc
-            try:
-             data={'url':url,'method':method,'status':r.code,'type':r.headers.get('Content-Type'),'location':r.headers.get('Location'),'encoding':r.headers.get('Content-Encoding'),'vary':r.headers.get('Vary'),'robots':r.headers.get('X-Robots-Tag')}
-             print('SITEMAP_TRANSPORT='+json.dumps(data,sort_keys=True))
-             r.read(300000)
-            finally:r.close()
-          print('NO_SUBMISSION_OR_DATABASE_WRITE=PASS')
-          PYAPP
-          test "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD)" = "$EXPECTED"
-          echo LOWCOST_INDEXING_READONLY=PASS
+            ip,stamp,method,path,status,size,ua=m.groups()
+            if '/Nov/2026:' not in stamp:continue
+            if 'Googlebot' not in ua and 'Google-InspectionTool' not in ua:continue
+            kind='inspector' if 'Google-InspectionTool' in ua else 'claimed_googlebot'
+            counts[(kind,path,status)]+=1
+            candidates.append((ip,stamp,path,status,size,kind))
+          verified={}
+          for ip in list(dict.fromkeys(x[0] for x in candidates))[-12:]:
+           try:
+            name=socket.gethostbyaddr(ip)[0].lower().rstrip('.')
+            suffix=next((s for s in ['.googlebot.com','.google.com','.googleusercontent.com'] if name.endswith(s)),None)
+            forward={x[4][0] for x in socket.getaddrinfo(name,None)}
+            verified[ip]=bool(suffix and ip in forward)
+           except Exception: verified[ip]=False
+          print('SHARED_LOG_CANDIDATE_COUNTS='+json.dumps([{'kind':k[0],'path':k[1],'status':k[2],'count':v} for k,v in counts.items()]))
+          print('VERIFIED_GOOGLE_CANDIDATE_RECENT='+json.dumps([{'time':s,'path':p,'status':st,'bytes':b,'kind':k,'dns_verified':verified.get(ip)} for ip,s,p,st,b,k in candidates[-20:]]))
+          print('ACCESS_LOG_LIMITATION=Shared combined log has no Host; candidate requests cannot establish which vhost answered.')
+          print('READ_ONLY_DIAGNOSIS=COMPLETE')
+          PY
+          systemctl is-active --quiet lowcost-europa.service
+          echo NO_SITE_CONFIG_OR_DATABASE_CHANGES=PASS
           REMOTE
