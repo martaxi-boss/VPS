@@ -78,15 +78,27 @@ jobs:
               price_recent=sum(row.publication=='Na montra' and row.price_state.startswith('Observação recente') for row in rows)
               delivery_seen=sum(row.publication=='Na montra' and row.delivery_at is not None for row in rows)
               delivery_fresh=sum(row.publication=='Na montra' and row.delivery_state.startswith('Estimativa observada') for row in rows)
-              if any(row.publication=='Na montra' and row.price_state!='Observação recente (até 24 h)' for row in rows):
-                  raise AssertionError('public offer without fresh EUR price')
+              # Production publication gate uses PT-market positive EUR observations.
+              # An ES listing is visible but its PT price must never be described
+              # as an independently validated Spanish price. In ES, report exact
+              # evidence coverage and leave the gap visible for the owner.
+              if country=='PT' and price_recent!=visible:
+                  raise AssertionError('PT public offer without fresh EUR price')
+              if country=='PT' and visible!=sum(
+                  row.publication=='Na montra' and row.price_at is not None
+                  for row in rows
+              ):
+                  raise AssertionError('PT published offer missing observed price')
               print(f'{country}_ACTIVE_REVIEW_ROWS={len(rows)}')
-              print(f'{country}_PUBLIC_WITH_FRESH_EUR={visible}')
-              print(f'{country}_PUBLIC_ORIGIN_RECORDED={origin_known}')
-              print(f'{country}_PUBLIC_DELIVERY_OBSERVATIONS={delivery_seen}')
-              print(f'{country}_PUBLIC_RECENT_DELIVERY_ESTIMATES={delivery_fresh}')
-              print(f'{country}_RETAINED_OLD_PRICE={buckets.get("Retida — preço sem prova recente",0)}')
-              print(f'{country}_PRICE_RECENT_PUBLIC={price_recent}')
+              print(f'{country}_VISIBLE_USING_PT_PUBLICATION_GATE={visible}')
+              print(f'{country}_VISIBLE_INDIVIDUAL_ORIGIN_RECORDED={origin_known}')
+              print(f'{country}_VISIBLE_DELIVERY_OBSERVATIONS={delivery_seen}')
+              print(f'{country}_VISIBLE_RECENT_DELIVERY_ESTIMATES={delivery_fresh}')
+              print(f'{country}_RETAINED_PT_PRICE_GATE={buckets.get("Retida — preço sem prova recente",0)}')
+              print(f'{country}_VISIBLE_WITH_OWN_MARKET_RECENT_EUR_OBSERVATION={price_recent}')
+              print(f'{country}_VISIBLE_WITHOUT_OWN_MARKET_RECENT_EUR_OBSERVATION={visible-price_recent}')
+              if country=='ES':
+                  print('ES_DELIVERY_PRICE_AND_STOCK_MUST_BE_CONFIRMED_AT_SELLER=YES')
           clicks=OfferClick.objects.filter(clicked_at__gte=now-timedelta(days=7)).count()
           print('RAW_AFFILIATE_OUTBOUND_CLICKS_7D='+str(clicks))
           for source in ('ALIEXPRESS','GOOGLE_SEARCH_CONSOLE'):
