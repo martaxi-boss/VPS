@@ -40,7 +40,7 @@ jobs:
           LOG=/var/log/nginx/lowcost-europa.access.log
           REPORT="$ROOT/.local-metrics/search-referrers.json"
           test -s "$LOG" && test -d "$ROOT/.git"
-          git -c safe.directory="$ROOT" -C "$ROOT" merge-base --is-ancestor 05365018790110242e931101e27ecd11e654a7c7 HEAD
+          git -c safe.directory="$ROOT" -C "$ROOT" merge-base --is-ancestor 12cc13933e7d4a14d27debd51148dc2bb173ef3e HEAD
           test -z "$(git -c safe.directory="$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)"
           systemctl is-active --quiet lowcost-europa.service
           nginx -t >/dev/null 2>&1
