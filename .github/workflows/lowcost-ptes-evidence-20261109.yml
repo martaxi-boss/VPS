@@ -68,13 +68,13 @@ jobs:
           runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYLIVE'
           import django
           from datetime import timedelta
-          from django.db.models import Exists, OuterRef
+          from django.db.models import Exists, OuterRef, Q
           from django.utils import timezone
           django.setup()
           from apps.catalog.models import Offer, OfferObservation, ExternalMetricsSnapshot
           from apps.catalog.services.public_eligibility import public_eligibility_q, ALLOWED_SHIP_FROM_COUNTRIES
           from apps.catalog.services.market_observation import observe_market_offers
-          from apps.catalog.services.affiliate_order_reporting import collect_affiliate_order_report
+          from apps.catalog.services.affiliate_order_reporting import collect_affiliate_order_report, AffiliateOrderReportError
           from apps.integrations.aliexpress.exceptions import AliExpressError
 
           def audit(tag):
@@ -101,7 +101,7 @@ jobs:
                       offer_id=OuterRef('pk'), destination_country=country,
                       observed_at__gte=now-timedelta(hours=24),
                       observed_at__lte=now).filter(
-                      __import__('django').db.models.Q(delivery_days__isnull=False) |
+                      Q(delivery_days__isnull=False) |
                       __import__('django').db.models.Q(search_delivery_days__isnull=False))
                   print(f'{tag}_{country}_RECENT_NUMERIC_DELIVERY_COVERED={published.filter(Exists(delivery)).count()}')
               return n
@@ -126,7 +126,7 @@ jobs:
               print('ALIEXPRESS_SNAPSHOT_AGE_HOURS='+str(round((timezone.now()-snapshot.checked_at).total_seconds()/3600, 1)))
           try:
               report,_,_=collect_affiliate_order_report(days=30)
-          except (AliExpressError, RuntimeError, ValueError) as exc:
+          except (AffiliateOrderReportError, AliExpressError, RuntimeError, ValueError) as exc:
               print('LIVE_READONLY_AFFILIATE_ORDERS=UNVERIFIED_'+type(exc).__name__)
           else:
               print('LIVE_READONLY_AFFILIATE_ORDERS=PASS')
