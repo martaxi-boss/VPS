@@ -53,22 +53,22 @@ jobs:
           from apps.catalog.services.public_eligibility import public_eligibility_q
           from apps.catalog.services.manual_candidate_intake import resolve_aliexpress_product_url
           urls = """https://s.click.aliexpress.com/e/_c3UK1bHl
-https://s.click.aliexpress.com/e/_c4Lzgx43
-https://s.click.aliexpress.com/e/_c2wQDjzz
-https://s.click.aliexpress.com/e/_c2x0EOun
-https://s.click.aliexpress.com/e/_c4XeoZrp
-https://s.click.aliexpress.com/e/_c2zqdO91
-https://s.click.aliexpress.com/e/_c35duQBz
-https://s.click.aliexpress.com/e/_c376CCpt
-https://s.click.aliexpress.com/e/_c4FvGbQr
-https://s.click.aliexpress.com/e/_c4s7YOO7
-https://s.click.aliexpress.com/e/_c4BFwB5d
-https://s.click.aliexpress.com/e/_c35XTWT9
-https://s.click.aliexpress.com/e/_c4e7x4hh
-https://s.click.aliexpress.com/e/_c3dBLPzN
-https://s.click.aliexpress.com/e/_c2xHkkfH
-https://s.click.aliexpress.com/e/_c3ZOknZl
-https://s.click.aliexpress.com/e/_c3qslKyf""".splitlines()
+          https://s.click.aliexpress.com/e/_c4Lzgx43
+          https://s.click.aliexpress.com/e/_c2wQDjzz
+          https://s.click.aliexpress.com/e/_c2x0EOun
+          https://s.click.aliexpress.com/e/_c4XeoZrp
+          https://s.click.aliexpress.com/e/_c2zqdO91
+          https://s.click.aliexpress.com/e/_c35duQBz
+          https://s.click.aliexpress.com/e/_c376CCpt
+          https://s.click.aliexpress.com/e/_c4FvGbQr
+          https://s.click.aliexpress.com/e/_c4s7YOO7
+          https://s.click.aliexpress.com/e/_c4BFwB5d
+          https://s.click.aliexpress.com/e/_c35XTWT9
+          https://s.click.aliexpress.com/e/_c4e7x4hh
+          https://s.click.aliexpress.com/e/_c3dBLPzN
+          https://s.click.aliexpress.com/e/_c2xHkkfH
+          https://s.click.aliexpress.com/e/_c3ZOknZl
+          https://s.click.aliexpress.com/e/_c3qslKyf""".splitlines()
           assert len(urls)==17 and len(set(urls))==17
           family=ProductFamily.objects.get(slug="cavitacao-rf-vacuum-corpo",display_order=1)
           assert family.status!="RETIRED"
