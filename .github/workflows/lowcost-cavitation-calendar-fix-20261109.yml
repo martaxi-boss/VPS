@@ -1,0 +1,131 @@
+name: Lowcost Cavitation scheduled calendar timer correction 20261109
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/lowcost-cavitation-calendar-fix-20261109.yml']
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-cavitation-calendar-correction
+  cancel-in-progress: false
+jobs:
+  correct-timer:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Verify exact source, replace timer, certify nonempty next run
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          ROOT=/srv/projects/lowcost-europa
+          PREVIOUS=02b350b7f096af6845265ad99d7cd7e38b26d00b
+          NEW=a5c4a127a6a36b9b768c438cc5201c2a62568f6c
+          ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
+          TIMER=lowcost-europa-cavitation-availability.timer
+          SERVICE=lowcost-europa-cavitation-availability.service
+          TASK="$ROOT/private/ops/cavitation-calendar-20261109"
+          gitrepo() { git -c safe.directory="$ROOT" -C "$ROOT" "$@"; }
+          exec 9>"$ROOT/private/ops/ptes-deploy.lock"
+          flock -n 9
+          test "$(gitrepo rev-parse HEAD)" = "$PREVIOUS"
+          test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          test "$(gitrepo ls-remote https://github.com/martaxi-boss/lowcost-europa.git refs/heads/main | awk '{print $1}')" = "$NEW"
+          gitrepo fetch --no-tags -q https://github.com/martaxi-boss/lowcost-europa.git main
+          test "$(gitrepo rev-parse FETCH_HEAD)" = "$NEW"
+          gitrepo merge-base --is-ancestor "$PREVIOUS" "$NEW"
+          EXPECTED="$(printf '%s\n' apps/catalog/tests/test_catalog_maintenance_systemd.py deploy/systemd/lowcost-europa-cavitation-availability.timer docs/operations/cavitation-manual-only-availability-20261109.md | LC_ALL=C sort)"
+          test "$(gitrepo diff --name-only "$PREVIOUS" "$NEW" | LC_ALL=C sort)" = "$EXPECTED"
+          test -s "$ENVFILE" && test ! -L "$ENVFILE"
+          test "$(systemctl show lowcost-europa.service -p User --value)" = le001_1789265592
+          systemctl is-active --quiet "$TIMER"
+          systemctl is-enabled --quiet "$TIMER"
+          systemctl is-active --quiet lowcost-europa.service
+          test -s "/etc/systemd/system/$TIMER"
+          cmp -s "$ROOT/deploy/systemd/$TIMER" "/etc/systemd/system/$TIMER"
+          systemd-analyze calendar '*-*-* 00/2:00:00' >/dev/null
+          test ! -e "$TASK"
+          mkdir -m 700 "$TASK"
+          cp -p "/etc/systemd/system/$TIMER" "$TASK/$TIMER.pre-change"
+          test -s "$TASK/$TIMER.pre-change"
+          echo CAV_CALENDAR_OLD_UNIT_BACKUP=PASS
+          ENV_SHA="$(sha256sum "$ENVFILE" | awk '{print $1}')"
+          CHANGED=0
+          rollback() {
+            rc=$?
+            trap - EXIT
+            if test "$rc" -ne 0 && test "$CHANGED" = 1; then
+              systemctl disable --now "$TIMER" || true
+              cp -p "$TASK/$TIMER.pre-change" "/etc/systemd/system/$TIMER"
+              systemctl daemon-reload || true
+              systemctl enable --now "$TIMER" || true
+              umask 022
+              gitrepo checkout --detach -q "$PREVIOUS"
+              echo CAV_CALENDAR_TIMER_AND_SOURCE_ROLLBACK=PASS
+            fi
+            exit "$rc"
+          }
+          trap rollback EXIT
+          CHANGED=1
+          systemctl disable --now "$TIMER"
+          umask 022
+          gitrepo checkout --detach -q "$NEW"
+          install -m 644 "$ROOT/deploy/systemd/$TIMER" "/etc/systemd/system/$TIMER"
+          cmp -s "$ROOT/deploy/systemd/$TIMER" "/etc/systemd/system/$TIMER"
+          grep -Fx 'OnCalendar=*-*-* 00/2:00:00' "/etc/systemd/system/$TIMER"
+          systemctl daemon-reload
+          systemctl enable --now "$TIMER"
+          systemctl is-active --quiet "$TIMER"
+          systemctl is-enabled --quiet "$TIMER"
+          test "$(systemctl show -p LoadState --value "$TIMER")" = loaded
+          NEXT="$(systemctl show -p NextElapseUSecRealtime --value "$TIMER")"
+          test -n "$NEXT" && test "$NEXT" != n/a
+          echo "CAV_CALENDAR_NEXT_RUN=$NEXT"
+          systemctl list-timers --all --no-pager | grep -F "$TIMER"
+          echo CAV_CALENDAR_NEXT_RUN_SCHEDULED=PASS
+          cd "$ROOT"
+          set -a
+          . "$ENVFILE"
+          set +a
+          export DJANGO_SETTINGS_MODULE=config.settings.production
+          runuser -u le001_1789265592 -- "$ROOT/.venv/bin/python" manage.py check
+          runuser -u le001_1789265592 -- "$ROOT/.venv/bin/python" - <<'PY'
+          import django
+          django.setup()
+          from apps.catalog.models import ProductFamily,Offer,OfferFamilyPlacement
+          from apps.catalog.services.public_eligibility import public_eligibility_q
+          family=ProductFamily.objects.get(slug="cavitacao-rf-vacuum-corpo",display_order=1)
+          offers=list(Offer.objects.filter(source=Offer.Source.ALIEXPRESS_OWNER,
+              family_placements__product_family=family))
+          assert len(offers)==17
+          assert all(x.is_active and not x.owner_hidden and
+              x.affiliate_url.startswith("https://s.click.aliexpress.com/e/") for x in offers)
+          visible=OfferFamilyPlacement.objects.filter(product_family=family).filter(
+              public_eligibility_q(prefix="offer__")).count()
+          assert visible==17
+          print("CAV_CALENDAR_17_MANUAL_LINKS_UNCHANGED=PASS")
+          PY
+          test "$(sha256sum "$ENVFILE" | awk '{print $1}')" = "$ENV_SHA"
+          test "$(gitrepo rev-parse HEAD)" = "$NEW"
+          test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          for unit in lowcost-europa.service lowcost-europa-catalog-maintenance.timer lowcost-europa-indexnow.timer lowcost-europa-backup.timer lowcost-europa-offsite-backup.timer lowcost-europa-offsite-backup-health.timer lowcost-europa-affiliate-report.timer "$TIMER"; do systemctl is-active --quiet "$unit"; done
+          echo CAV_CALENDAR_GITHUB_VPS_SOURCE=PASS
+          echo CAV_CALENDAR_ENV_UNCHANGED=PASS
+          echo CAV_CALENDAR_EXISTING_SEVEN_UNITS=PASS
+          echo CAV_CALENDAR_GUARDED_CORRECTION=PASS
+          trap - EXIT
+          REMOTE
