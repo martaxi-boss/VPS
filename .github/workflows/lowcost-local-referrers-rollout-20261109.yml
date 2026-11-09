@@ -34,9 +34,9 @@ jobs:
           umask 077
           ROOT=/srv/projects/lowcost-europa
           OLD=8254a1fc5845233da4877cdf4af2ab3340873e54
-          NEW=05365018790110242e931101e27ecd11e654a7c7
+          NEW=12cc13933e7d4a14d27debd51148dc2bb173ef3e
           ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
-          TASK="$ROOT/private/ops/local-referrers-rollout-20261109"
+          TASK="$ROOT/private/ops/local-referrers-rollout-20261109-r2"
           gitrepo() { git -c safe.directory="$ROOT" -C "$ROOT" "$@"; }
           test -d "$ROOT/.git" && test -s "$ENVFILE" && test ! -L "$ENVFILE"
           exec 9>"$ROOT/private/ops/ptes-deploy.lock"
@@ -47,7 +47,7 @@ jobs:
           gitrepo fetch --no-tags -q https://github.com/martaxi-boss/lowcost-europa.git main
           test "$(gitrepo rev-parse FETCH_HEAD)" = "$NEW"
           gitrepo merge-base --is-ancestor "$OLD" "$NEW"
-          EXPECTED="$(printf '%s\n' apps/catalog/owner_panel_views.py apps/catalog/services/search_referral_metrics.py apps/catalog/templates/catalog/owner_panel/dashboard.html apps/catalog/tests/test_owner_analytics_dashboard.py apps/catalog/tests/test_search_referral_metrics.py deploy/nginx/lowcost-europa.eu.conf docs/operations/search-referrers-no-oauth-20261109.md | LC_ALL=C sort)"
+          EXPECTED="$(printf '%s\n' .gitignore apps/catalog/owner_panel_views.py apps/catalog/services/search_referral_metrics.py apps/catalog/templates/catalog/owner_panel/dashboard.html apps/catalog/tests/test_owner_analytics_dashboard.py apps/catalog/tests/test_search_referral_metrics.py deploy/nginx/lowcost-europa.eu.conf docs/operations/search-referrers-no-oauth-20261109.md | LC_ALL=C sort)"
           test "$(gitrepo diff --name-only "$OLD" "$NEW" | LC_ALL=C sort)" = "$EXPECTED"
           APPUSER="$(systemctl show lowcost-europa.service -p User --value)"
           test "$APPUSER" = le001_1789265592
@@ -171,7 +171,7 @@ jobs:
           PYHTTP
           # Prime the own-host log with a genuine HTTP visit; never seed a referral.
           test -s /var/log/nginx/lowcost-europa.access.log
-          METRICS="$ROOT/private/metrics"
+          METRICS="$ROOT/.local-metrics"
           install -d -m 0700 -o "$APPUSER" -g "$APPUSER" "$METRICS"
           python3 -m apps.catalog.services.search_referral_metrics \
             --log-dir /var/log/nginx \
@@ -180,7 +180,7 @@ jobs:
           runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYLOCAL'
           from pathlib import Path
           from apps.catalog.services.search_referral_metrics import read_private_report
-          p=Path('/srv/projects/lowcost-europa/private/metrics/search-referrers.json')
+          p=Path('/srv/projects/lowcost-europa/.local-metrics/search-referrers.json')
           assert read_private_report(p) is not None
           print('PRIVATE_LOCAL_SEARCH_REPORT=PASS')
           PYLOCAL
