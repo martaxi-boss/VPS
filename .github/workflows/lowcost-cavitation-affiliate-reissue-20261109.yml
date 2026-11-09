@@ -54,7 +54,8 @@ jobs:
           set +a
           export DJANGO_SETTINGS_MODULE=config.settings.production
           runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PY'
-          import os
+          import os, time
+          from dataclasses import replace
           from datetime import timedelta
           from urllib import error,request
           from urllib.parse import urlsplit
@@ -68,6 +69,7 @@ jobs:
           from apps.integrations.aliexpress.affiliate_url import is_https_affiliate_url
           from apps.integrations.aliexpress.client import AliExpressClient
           from apps.integrations.aliexpress.config import AliExpressConfig
+          from apps.integrations.aliexpress.exceptions import AliExpressAPIError
           slug='cavitacao-rf-vacuum-corpo'
           base='https://www.lowcost-europa.eu'
           with override('pt-pt'):
@@ -85,20 +87,33 @@ jobs:
               before[o.pk]={'url':o.affiliate_url,'verified_at':o.affiliate_promotion_verified_at,'product_url':o.product_url}
           config=AliExpressConfig.from_env()
           assert config.tracking_id and config.app_key and config.app_secret
-          client=AliExpressClient(config=config)
+          # AliExpress throttles all users of the app key; never hammer it.
+          # No global config, application source or timing defaults are changed.
+          client=AliExpressClient(config=replace(config,
+              min_interval_seconds=max(7.0,config.min_interval_seconds)))
+          def generate_guarded(source_url):
+              for attempt in range(4):
+                  try:
+                      return client.generate_affiliate_link(source_url)
+                  except AliExpressAPIError as exc:
+                      if 'ApiCallLimit' not in str(exc) or attempt==3:
+                          raise
+                      print('CAV_API_THROTTLE_BACKOFF=USED attempt='+str(attempt+1))
+                      time.sleep(10*(attempt+1))
+              raise AssertionError('Unreachable provider loop')
           print('CAV_REISSUE_AUTHENTICATED_TRACKING_CONFIG=PASS')
           fresh={}
           for o in offers:
               # Official link issuance signs the AliExpress request and sends
               # this app's own tracking_id. Never publish account tokens.
-              url=client.generate_affiliate_link(o.product_url)
+              url=generate_guarded(o.product_url)
               host=urlsplit(url).hostname
               assert is_https_affiliate_url(url) and host=='s.click.aliexpress.com', 'Unsafe official link'
               assert url not in fresh.values(), 'Duplicate affiliate link from provider'
               fresh[o.pk]=url
               print('CAV_REISSUE_GENERATED id='+str(o.pk)+' status=OFFICIAL_TRACKING_API_OK')
           assert len(fresh)==len(ids), 'Incomplete official reissue; no writes'
-          probe=client.generate_affiliate_link(offers[0].product_url)
+          probe=generate_guarded(offers[0].product_url)
           print('CAV_SHORT_LINKS_ROTATE_ON_REPEAT='+str(probe!=fresh[offers[0].pk]).upper())
           changed=sum(fresh[oid]!=before[oid]['url'] for oid in ids)
           print('CAV_OLD_VS_NEW_SHORT_KEY_DIFFERENCES='+str(changed))
