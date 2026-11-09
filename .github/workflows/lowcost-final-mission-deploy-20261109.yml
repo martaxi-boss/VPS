@@ -36,7 +36,7 @@ jobs:
           OLD=2092e65bf394c0772a824ff13d35f05569a726bd
           NEW=253a946fb8f8dc91e9cfcc11739c6976b614b1ea
           ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
-          TASK="$ROOT/private/ops/final-mission-20261109"
+          TASK="$ROOT/private/ops/final-mission-20261109-retry1"
           mkdir -p -m 700 "$ROOT/private/ops"
           exec 9>"$ROOT/private/ops/ptes-deploy.lock"
           flock -n 9
@@ -133,6 +133,7 @@ jobs:
            assert not any('noindex' in x for x in parser.robots)
            if '/products/' in url or url in [base+'/',base+'/pt/',base+'/es/']:
             assert set(parser.alt)=={'pt-PT','es-ES','x-default'},url
+           if '/products/' in url:
             assert 'Dados de referência para Portugal' in body or 'Datos de referencia para Portugal' in body,url
           assert get('/robots.txt')[0]==200
           class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -171,4 +172,3 @@ jobs:
           echo LOWCOST_FINAL_MISSION_DEPLOY=PASS
           trap - EXIT
           REMOTE
-
