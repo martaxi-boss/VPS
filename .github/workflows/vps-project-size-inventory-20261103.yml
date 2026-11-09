@@ -239,3 +239,4 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 # Owner-requested read-only Ferrari isolation and VPS inventory recheck: 2026-11-05
+# Read-only revalidation of active Ferrari release (2026-11-09); no runtime changes.
