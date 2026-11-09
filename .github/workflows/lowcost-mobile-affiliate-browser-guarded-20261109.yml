@@ -1,0 +1,203 @@
+name: Lowcost mobile affiliate browser guarded rollout 20261109
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-mobile-affiliate-browser-guarded-20261109.yml'
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-mobile-affiliate-browser-rollout
+  cancel-in-progress: false
+jobs:
+  rollout:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Pinned SSH, exact 17-link checks, static backup and safe rollout
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          ROOT=/srv/projects/lowcost-europa
+          OLD=a5c4a127a6a36b9b768c438cc5201c2a62568f6c
+          NEW=3c2a47408230ec62c8bd8bafe7cf2dbefe2a9dbb
+          APPUSER=le001_1789265592
+          ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
+          TASK="$ROOT/private/ops/mobile-affiliate-browser-20261109"
+          LIVE=https://www.lowcost-europa.eu
+          CSS="$ROOT/staticfiles/storefront/storefront.css"
+          JS="$ROOT/staticfiles/storefront/catalog-explorer.js"
+          gitrepo() { git -c safe.directory="$ROOT" -C "$ROOT" "$@"; }
+          test -d "$ROOT/.git" && test -s "$ENVFILE" && test ! -L "$ENVFILE"
+          exec 9>"$ROOT/private/ops/ptes-deploy.lock"
+          flock -n 9
+          test "$(gitrepo rev-parse HEAD)" = "$OLD"
+          test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          test "$(gitrepo ls-remote https://github.com/martaxi-boss/lowcost-europa.git refs/heads/main | awk '{print $1}')" = "$NEW"
+          gitrepo fetch --no-tags -q https://github.com/martaxi-boss/lowcost-europa.git main
+          test "$(gitrepo rev-parse FETCH_HEAD)" = "$NEW"
+          gitrepo merge-base --is-ancestor "$OLD" "$NEW"
+          EXPECTED="$(printf '%s\n' \
+            apps/storefront/static/storefront/catalog-explorer.js \
+            apps/storefront/static/storefront/storefront.css \
+            apps/storefront/templates/storefront/base.html \
+            apps/storefront/templates/storefront/components/offer_card.html \
+            apps/storefront/tests/test_offer_go.py \
+            apps/storefront/tests/test_views.py \
+            apps/storefront/tests/test_visual_professional.py \
+            apps/storefront/ui_translations.py \
+            tests/browser/seed-source-storefront-qa.py \
+            tests/browser/source-storefront-qa.cjs \
+            | LC_ALL=C sort)"
+          test "$(gitrepo diff --name-only "$OLD" "$NEW" | LC_ALL=C sort)" = "$EXPECTED"
+          test "$(systemctl show lowcost-europa.service -p User --value)" = "$APPUSER"
+          test -f "$CSS" && test -f "$JS" && test ! -L "$CSS" && test ! -L "$JS"
+          test ! -e "$TASK"
+          nginx -t >/dev/null 2>&1
+          for unit in lowcost-europa.service lowcost-europa-catalog-maintenance.timer lowcost-europa-indexnow.timer lowcost-europa-backup.timer lowcost-europa-offsite-backup.timer lowcost-europa-offsite-backup-health.timer lowcost-europa-affiliate-report.timer lowcost-europa-cavitation-availability.timer; do systemctl is-active --quiet "$unit"; done
+          ENV_SHA="$(sha256sum "$ENVFILE" | awk '{print $1}')"
+          sh "$ROOT/deploy/scripts/backup-postgres.sh"
+          BACKUP="$(find "$ROOT/backups/daily" -maxdepth 1 -type f -name '*.dump' -printf '%T@ %p\n' | sort -nr | head -n 1 | cut -d' ' -f2-)"
+          test -s "$BACKUP" && test -s "$BACKUP.sha256"
+          (cd "$ROOT/backups/daily" && sha256sum -c "$(basename "$BACKUP.sha256")" >/dev/null)
+          echo MOBILE_AFFILIATE_DB_BACKUP=PASS
+          mkdir -m 700 "$TASK"
+          cp -p "$CSS" "$TASK/storefront.css"
+          cp -p "$JS" "$TASK/catalog-explorer.js"
+          cd "$ROOT"
+          set -a
+          . "$ENVFILE"
+          set +a
+          export DJANGO_SETTINGS_MODULE=config.settings.production
+          snapshot() {
+            runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYLINK'
+          import django,hashlib
+          django.setup()
+          from apps.catalog.models import Offer
+          rows=sorted(Offer.objects.filter(
+              source=Offer.Source.ALIEXPRESS_OWNER,is_active=True,owner_hidden=False,
+              family_placements__product_family__slug="cavitacao-rf-vacuum-corpo"
+          ).values_list("external_product_id","affiliate_url"))
+          assert len(rows)==17 and len(set(x[0] for x in rows))==17
+          assert len(set(x[1] for x in rows))==17
+          assert all(x[1].startswith("https://s.click.aliexpress.com/e/") for x in rows)
+          target=dict(rows)["1005013070854347"]
+          assert hashlib.sha256(target.encode()).hexdigest()=="676e98c3d53e327bb6998a6ce805fdb11d9b6ebd6c6845ac9cdd394340fa73c3"
+          print(hashlib.sha256("\n".join(pid+"\t"+url for pid,url in rows).encode()).hexdigest())
+          PYLINK
+          }
+          snapshot > "$TASK/links-before.sha256"
+          PROMOTED=0
+          STATIC_UPDATED=0
+          rollback() {
+            rc=$?
+            trap - EXIT
+            if test "$rc" -ne 0 && test "$PROMOTED" = 1; then
+              umask 022
+              gitrepo checkout --detach -q "$OLD"
+              if test "$STATIC_UPDATED" = 1; then
+                cp -p "$TASK/storefront.css" "$CSS"
+                cp -p "$TASK/catalog-explorer.js" "$JS"
+              fi
+              systemctl reload lowcost-europa.service || true
+              echo MOBILE_AFFILIATE_ROLLBACK_APPLIED=PASS
+            fi
+            exit "$rc"
+          }
+          trap rollback EXIT
+          PROMOTED=1
+          umask 022
+          gitrepo checkout --detach -q "$NEW"
+          umask 077
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py check
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py makemigrations --check --dry-run
+          STATIC_UPDATED=1
+          install -m 644 "$ROOT/apps/storefront/static/storefront/storefront.css" "$CSS"
+          install -m 644 "$ROOT/apps/storefront/static/storefront/catalog-explorer.js" "$JS"
+          cmp -s "$ROOT/apps/storefront/static/storefront/storefront.css" "$CSS"
+          cmp -s "$ROOT/apps/storefront/static/storefront/catalog-explorer.js" "$JS"
+          systemctl reload lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa.service
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYHTTP'
+          import django,urllib.request,urllib.error
+          from html.parser import HTMLParser
+          django.setup()
+          from apps.catalog.models import Offer
+          from apps.catalog.services.public_eligibility import public_eligibility_q
+          rows=list(Offer.objects.filter(
+              source=Offer.Source.ALIEXPRESS_OWNER,is_active=True,owner_hidden=False,
+              family_placements__product_family__slug="cavitacao-rf-vacuum-corpo"
+          ).filter(public_eligibility_q()))
+          assert len(rows)==17
+          expected={x.affiliate_url for x in rows}
+          ids={str(x.pk) for x in rows}
+          class Parser(HTMLParser):
+              def __init__(self):
+                  super().__init__();self.urls=[];self.links=[];self.panels=0
+              def handle_starttag(self,tag,attrs):
+                  a=dict(attrs)
+                  if tag=="details" and "data-affiliate-copy" in a:
+                      self.panels+=1
+                  if tag=="input" and "data-affiliate-copy-value" in a:
+                      self.urls.append(a.get("value",""))
+                  if tag=="a" and a.get("href","").startswith("/go/"):
+                      self.links.append(a)
+          base="https://www.lowcost-europa.eu"
+          for prefix in ("","/pt","/es"):
+              with urllib.request.urlopen(base+prefix+"/products/cavitacao-rf-vacuum-corpo/",timeout=25) as r:
+                  assert r.status==200
+                  html=r.read(1300000).decode("utf-8")
+              assert "affiliate-browser-20261109" in html
+              p=Parser();p.feed(html)
+              assert p.panels==17 and len(p.urls)==17 and set(p.urls)==expected
+              assert len(p.links)==17 and {a["href"].split("/")[2] for a in p.links}==ids
+              assert all(a.get("target")=="_blank" and "noopener" in a.get("rel","") for a in p.links)
+              print("MOBILE_AFFILIATE_PUBLIC_"+(prefix.strip("/").upper() or "BASE")+"=PASS 17/17")
+          with urllib.request.urlopen(base+"/static/storefront/catalog-explorer.js?v=affiliate-browser-20261109",timeout=20) as r:
+              assert b"data-affiliate-copy-button" in r.read(800000)
+          with urllib.request.urlopen(base+"/static/storefront/storefront.css?v=affiliate-browser-20261109",timeout=20) as r:
+              assert b".offer-browser-help" in r.read(800000)
+          print("MOBILE_AFFILIATE_STATIC_ASSETS=PASS")
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self,*args,**kwargs):return None
+          opener=urllib.request.build_opener(NoRedirect)
+          for offer in rows:
+              for agent in (("Mozilla/5.0 (Linux; Android 14) Chrome/130 Mobile",
+                             "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Safari/604.1")
+                            if offer.external_product_id=="1005013070854347"
+                            else ("Mozilla/5.0 Desktop",)):
+                  req=urllib.request.Request(base+"/go/"+str(offer.pk)+"/",
+                      headers={"User-Agent":agent},method="HEAD")
+                  try:
+                      resp=opener.open(req,timeout=25)
+                  except urllib.error.HTTPError as exc:
+                      resp=exc
+                  assert resp.code==302 and resp.headers.get("Location")==offer.affiliate_url
+          print("MOBILE_AFFILIATE_302_EXACT=PASS 17/17 ANDROID_IOS")
+          PYHTTP
+          snapshot > "$TASK/links-after.sha256"
+          cmp -s "$TASK/links-before.sha256" "$TASK/links-after.sha256"
+          echo MOBILE_AFFILIATE_ORIGINAL_17_LINKS_PRESERVED=PASS
+          test "$(sha256sum "$ENVFILE" | awk '{print $1}')" = "$ENV_SHA"
+          test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          test "$(gitrepo rev-parse HEAD)" = "$NEW"
+          nginx -t >/dev/null 2>&1
+          for unit in lowcost-europa.service lowcost-europa-catalog-maintenance.timer lowcost-europa-indexnow.timer lowcost-europa-backup.timer lowcost-europa-offsite-backup.timer lowcost-europa-offsite-backup-health.timer lowcost-europa-affiliate-report.timer lowcost-europa-cavitation-availability.timer; do systemctl is-active --quiet "$unit"; done
+          echo MOBILE_AFFILIATE_DEPLOY=PASS
+          trap - EXIT
+          REMOTE
