@@ -33,10 +33,10 @@ jobs:
           set -Eeuo pipefail
           umask 077
           ROOT=/srv/projects/lowcost-europa
-          OLD=2092e65bf394c0772a824ff13d35f05569a726bd
-          NEW=253a946fb8f8dc91e9cfcc11739c6976b614b1ea
+          OLD=253a946fb8f8dc91e9cfcc11739c6976b614b1ea
+          NEW=8d1752c0f3dee38fc3dc3c8f0bd1c067d5f2f858
           ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
-          TASK="$ROOT/private/ops/final-mission-20261109-retry1"
+          TASK="$ROOT/private/ops/final-mission-20261109-final2"
           mkdir -p -m 700 "$ROOT/private/ops"
           exec 9>"$ROOT/private/ops/ptes-deploy.lock"
           flock -n 9
@@ -53,7 +53,7 @@ jobs:
           test "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse FETCH_HEAD)" = "$NEW"
           while IFS= read -r file; do
            case "$file" in
-           apps/catalog/owner_panel_views.py|apps/catalog/services/commercial_evidence.py|apps/catalog/services/observation_display.py|apps/catalog/services/offer_maintenance.py|apps/catalog/services/public_eligibility.py|apps/catalog/services/market_observation.py|apps/catalog/management/commands/observe_market_offers.py|apps/catalog/templates/catalog/owner_panel/dashboard.html|apps/catalog/templates/catalog/owner_panel/commercial_table.html|apps/catalog/tests/test_commercial_evidence_owner.py|apps/catalog/tests/test_market_observation.py|apps/catalog/tests/test_owner_analytics_dashboard.py|apps/storefront/templates/storefront/components/offer_card.html|apps/storefront/ui_translations.py|docs/operations/final-mission-pt-es-20261109.md|docs/operations/final-mission-public-preflight-20261108.json) ;;
+           apps/catalog/services/windsor_search_console_reporting.py|apps/catalog/management/commands/sync_google_search_console.py|apps/catalog/tests/test_windsor_search_console_reporting.py|apps/storefront/tests/test_visual_professional.py|apps/storefront/templates/storefront/product_family_detail.html|apps/storefront/templates/storefront/components/product_family_card.html|apps/catalog/owner_panel_views.py|apps/catalog/services/commercial_evidence.py|apps/catalog/services/observation_display.py|apps/catalog/services/offer_maintenance.py|apps/catalog/services/public_eligibility.py|apps/catalog/services/market_observation.py|apps/catalog/management/commands/observe_market_offers.py|apps/catalog/templates/catalog/owner_panel/dashboard.html|apps/catalog/templates/catalog/owner_panel/commercial_table.html|apps/catalog/tests/test_commercial_evidence_owner.py|apps/catalog/tests/test_market_observation.py|apps/catalog/tests/test_owner_analytics_dashboard.py|apps/storefront/templates/storefront/components/offer_card.html|apps/storefront/ui_translations.py|docs/operations/final-mission-pt-es-20261109.md|docs/operations/final-mission-public-preflight-20261108.json) ;;
            *) echo "UNEXPECTED_SOURCE_PATH=$file"; exit 12;;
            esac
           done < <(git -c safe.directory="$ROOT" -C "$ROOT" diff --name-only "$OLD" "$NEW")
@@ -96,7 +96,11 @@ jobs:
           runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py check
           runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py check --deploy
           runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py makemigrations --check --dry-run
-          systemctl restart lowcost-europa.service
+          if cmp -s "$ENVFILE" "$TASK/env.before"; then
+           systemctl reload lowcost-europa.service
+          else
+           systemctl restart lowcost-europa.service
+          fi
           systemctl is-active --quiet lowcost-europa.service
           runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYQA'
           import os,time,urllib.request,urllib.error,xml.etree.ElementTree as ET
@@ -164,6 +168,7 @@ jobs:
            print('GSC_SERVER_READ=VERIFIED_SNAPSHOT')
           print('NO_FABRICATED_METRICS=PASS')
           PYQA
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py sync_google_search_console
           test "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD)" = "$NEW"
           test -z "$(git -c safe.directory="$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)"
           nginx -t >/dev/null 2>&1
@@ -172,3 +177,4 @@ jobs:
           echo LOWCOST_FINAL_MISSION_DEPLOY=PASS
           trap - EXIT
           REMOTE
+
