@@ -47,7 +47,7 @@ jobs:
           gitrepo fetch --no-tags -q https://github.com/martaxi-boss/lowcost-europa.git main
           test "$(gitrepo rev-parse FETCH_HEAD)" = "$NEW"
           gitrepo merge-base --is-ancestor "$OLD" "$NEW"
-          EXPECTED="$(printf '%s\\n' .github/workflows/closed-pr-branch-hygiene.yml .github/workflows/source-storefront-browser-qa.yml .github/workflows/staging-browser-qa.yml apps/catalog/owner_panel_views.py apps/catalog/templates/catalog/owner_panel/dashboard.html apps/catalog/tests/test_commercial_evidence_owner.py apps/catalog/tests/test_owner_analytics_dashboard.py tests/browser/staging-browser-smoke.cjs | LC_ALL=C sort)"
+          EXPECTED="$(printf '%s\n' .github/workflows/closed-pr-branch-hygiene.yml .github/workflows/source-storefront-browser-qa.yml .github/workflows/staging-browser-qa.yml apps/catalog/owner_panel_views.py apps/catalog/templates/catalog/owner_panel/dashboard.html apps/catalog/tests/test_commercial_evidence_owner.py apps/catalog/tests/test_owner_analytics_dashboard.py tests/browser/staging-browser-smoke.cjs | LC_ALL=C sort)"
           test "$(gitrepo diff --name-only "$OLD" "$NEW" | LC_ALL=C sort)" = "$EXPECTED"
           APPUSER="$(systemctl show lowcost-europa.service -p User --value)"
           test "$APPUSER" = le001_1789265592
