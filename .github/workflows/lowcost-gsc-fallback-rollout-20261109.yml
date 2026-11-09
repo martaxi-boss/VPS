@@ -88,14 +88,14 @@ jobs:
           runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py check
           runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py makemigrations --check --dry-run
           runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYGSC'
-import os
-from apps.catalog.services.official_search_console_reporting import collect_official_search_console_report
-from apps.catalog.services.windsor_search_console_reporting import EXPECTED_PROPERTY
-assert callable(collect_official_search_console_report)
-assert EXPECTED_PROPERTY == 'sc-domain:lowcost-europa.eu'
-assert os.environ.get('GOOGLE_SEARCH_CONSOLE_PROVIDER', 'WINDSOR').upper() == 'WINDSOR'
-print('GSC_OFFICIAL_ADAPTER_PRESENT_EXISTING_SOURCE_UNCHANGED=PASS')
-PYGSC
+          import os
+          from apps.catalog.services.official_search_console_reporting import collect_official_search_console_report
+          from apps.catalog.services.windsor_search_console_reporting import EXPECTED_PROPERTY
+          assert callable(collect_official_search_console_report)
+          assert EXPECTED_PROPERTY == 'sc-domain:lowcost-europa.eu'
+          assert os.environ.get('GOOGLE_SEARCH_CONSOLE_PROVIDER', 'WINDSOR').upper() == 'WINDSOR'
+          print('GSC_OFFICIAL_ADAPTER_PRESENT_EXISTING_SOURCE_UNCHANGED=PASS')
+          PYGSC
           systemctl reload lowcost-europa.service
           runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYHTTP'
           import urllib.request,urllib.error,time,hashlib,json,xml.etree.ElementTree as ET
