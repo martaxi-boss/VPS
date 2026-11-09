@@ -1,0 +1,146 @@
+name: Lowcost guarded owner manual affiliate model deploy 20261109
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/lowcost-owner-manual-cat2-deploy-20261109.yml']
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-owner-manual-cat2-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Deploy exact checked code and schema with backup and rollback
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          ROOT=/srv/projects/lowcost-europa
+          PREVIOUS=19090664e63ab00ffca86947c5109f0a906bc4a7
+          NEW=415270332e570cae935cfc47fc1a824bf6609693
+          APPUSER=le001_1789265592
+          ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
+          gitrepo() { git -c safe.directory="$ROOT" -C "$ROOT" "$@"; }
+          test -d "$ROOT/.git" && test -s "$ENVFILE" && test ! -L "$ENVFILE"
+          exec 9>"$ROOT/private/ops/ptes-deploy.lock"
+          flock -n 9
+          test "$(gitrepo rev-parse HEAD)" = "$PREVIOUS"
+          test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          test "$(gitrepo ls-remote https://github.com/martaxi-boss/lowcost-europa.git refs/heads/main | awk '{print $1}')" = "$NEW"
+          gitrepo fetch --no-tags -q https://github.com/martaxi-boss/lowcost-europa.git main
+          test "$(gitrepo rev-parse FETCH_HEAD)" = "$NEW"
+          gitrepo merge-base --is-ancestor "$PREVIOUS" "$NEW"
+          EXPECTED="$(printf '%s\n' \
+            apps/catalog/models.py \
+            apps/catalog/services/public_eligibility.py \
+            apps/catalog/migrations/0022_owner_supplied_affiliate_source.py \
+            apps/catalog/management/commands/publish_owner_affiliate_link.py \
+            apps/catalog/tests/test_owner_affiliate_direct_publish.py | LC_ALL=C sort)"
+          test "$(gitrepo diff --name-only "$PREVIOUS" "$NEW" | LC_ALL=C sort)" = "$EXPECTED"
+          test "$(systemctl show lowcost-europa.service -p User --value)" = "$APPUSER"
+          for unit in lowcost-europa.service lowcost-europa-catalog-maintenance.timer lowcost-europa-indexnow.timer lowcost-europa-backup.timer lowcost-europa-offsite-backup.timer lowcost-europa-offsite-backup-health.timer lowcost-europa-affiliate-report.timer; do systemctl is-active --quiet "$unit"; done
+          nginx -t >/dev/null 2>&1
+          ENV_SHA="$(sha256sum "$ENVFILE" | awk '{print $1}')"
+          sh "$ROOT/deploy/scripts/backup-postgres.sh"
+          BACKUP="$(find "$ROOT/backups/daily" -maxdepth 1 -type f -name '*.dump' -printf '%T@ %p\n' | sort -nr | head -n 1 | cut -d' ' -f2-)"
+          test -n "$BACKUP" && test -s "$BACKUP" && test -s "$BACKUP.sha256"
+          (cd "$ROOT/backups/daily" && sha256sum -c "$(basename "$BACKUP.sha256")" >/dev/null)
+          echo MANUAL_MODEL_BACKUP_CHECKSUM=PASS
+          cd "$ROOT"
+          set -a
+          . "$ENVFILE"
+          set +a
+          export DJANGO_SETTINGS_MODULE=config.settings.production
+          PROMOTED=0
+          MIGRATED=0
+          rollback() {
+            rc=$?
+            trap - EXIT
+            if test "$rc" -ne 0 && test "$PROMOTED" = 1; then
+              if test "$MIGRATED" = 1; then
+                runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py migrate catalog 0021_purge_disconnected_meta_snapshot --noinput || true
+              fi
+              umask 022
+              gitrepo checkout --detach -q "$PREVIOUS"
+              systemctl reload lowcost-europa.service
+              systemctl is-active --quiet lowcost-europa.service
+              echo MANUAL_MODEL_SOURCE_ROLLBACK=PASS
+            fi
+            exit "$rc"
+          }
+          trap rollback EXIT
+          PROMOTED=1
+          umask 022
+          gitrepo checkout --detach -q "$NEW"
+          umask 077
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py check
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py makemigrations --check --dry-run
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py migrate catalog 0022_owner_supplied_affiliate_source --noinput
+          MIGRATED=1
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PY'
+          import django
+          django.setup()
+          from apps.catalog.models import Offer, OfferFamilyPlacement, ProductFamily
+          from apps.catalog.services.public_eligibility import public_eligibility_q
+          family=ProductFamily.objects.get(display_order=2)
+          assert family.slug=='hydrodermoabrasao-aqua-facial-multifuncoes'
+          total=OfferFamilyPlacement.objects.filter(product_family=family).count()
+          public=OfferFamilyPlacement.objects.filter(product_family=family).filter(
+              public_eligibility_q(prefix='offer__')).count()
+          assert total==31 and public>=1, (total,public)
+          assert not Offer.objects.filter(source=Offer.Source.ALIEXPRESS_OWNER).exists()
+          print('MANUAL_MODEL_CAT2_OLD_PLACEMENTS='+str(total))
+          print('MANUAL_MODEL_CAT2_OLD_PUBLIC='+str(public))
+          print('MANUAL_MODEL_SEPARATE_SOURCE_READY=PASS')
+          print('MANUAL_MODEL_NO_PRODUCT_CHANGES_YET=PASS')
+          PY
+          systemctl reload lowcost-europa.service
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PY'
+          from html.parser import HTMLParser
+          from urllib import request,error
+          root='https://www.lowcost-europa.eu'
+          slug='hydrodermoabrasao-aqua-facial-multifuncoes'
+          for path in ['/', '/pt/', '/es/']+[
+              prefix+'/products/'+slug+'/' for prefix in ('','/pt','/es')
+          ]:
+              with request.urlopen(root+path,timeout=25) as r:
+                  html=r.read(1000000).decode('utf-8')
+                  assert r.status==200
+              assert '<main' in html and 'rel="canonical"' in html, path
+          class NoRedirect(request.HTTPRedirectHandler):
+              def redirect_request(self,*a,**kw):return None
+          opener=request.build_opener(NoRedirect)
+          try:
+              opener.open(root+'/painel/',timeout=20)
+              raise AssertionError('Private owner panel exposed')
+          except error.HTTPError as exc:
+              assert exc.code==302
+          print('MANUAL_MODEL_PUBLIC_PAGES_AND_OWNER_PRIVATE=PASS')
+          PY
+          test "$(sha256sum "$ENVFILE" | awk '{print $1}')" = "$ENV_SHA"
+          test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          test "$(gitrepo rev-parse HEAD)" = "$NEW"
+          for unit in lowcost-europa.service lowcost-europa-catalog-maintenance.timer lowcost-europa-indexnow.timer lowcost-europa-backup.timer lowcost-europa-offsite-backup.timer lowcost-europa-offsite-backup-health.timer lowcost-europa-affiliate-report.timer; do systemctl is-active --quiet "$unit"; done
+          echo MANUAL_MODEL_GITHUB_VPS_SHA=PASS
+          echo MANUAL_MODEL_ENV_UNCHANGED=PASS
+          echo MANUAL_MODEL_SEVEN_UNITS=PASS
+          echo MANUAL_MODEL_GUARDED_DEPLOY=PASS
+          trap - EXIT
+          REMOTE
