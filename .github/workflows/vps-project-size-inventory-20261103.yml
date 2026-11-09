@@ -93,13 +93,19 @@ jobs:
           env=dict(os.environ)
           env.update({'JAVA_HOME':str(r/'runtimes/jdk-25.0.5_8'),
               'GHIDRA_JAVA_HOME':str(r/'runtimes/jdk-25.0.5_8'),
-              'GHIDRA_INSTALL_DIR':str(r/'tools/ghidra-12.2'),
-              'PATH':str(r/'runtimes/node-22.23.4/bin')+':'+str(r/'runtimes/jdk-25.0.5_8/bin')+':'+env.get('PATH','')})
+              'GHIDRA_INSTALL_DIR':str(r/'tools/rea-providers/ghidra-12.1.4'),
+              'REA_JADX_MCP_JAR':str(r/'tools/rea-providers/jadx-headless-mcp-0.7.1-all.jar'),
+              'REA_APKTOOL_COMMAND':str(r/'tools/apktool-3.0.3/bin/apktool'),
+              'XDG_CONFIG_HOME':str(r/'.runtime/rea-config'),
+              'XDG_CACHE_HOME':str(r/'.runtime/rea-cache'),
+              'XDG_DATA_HOME':str(r/'.runtime/rea-data'),
+              'PATH':str(r/'runtimes/node-22.23.4/bin')+':'+str(r/'runtimes/jdk-25.0.5_8/bin')+':'+str(r/'tools/apktool-3.0.3/bin')+':'+env.get('PATH','')})
           p=subprocess.run([cli,'doctor','--provider','ghidra','--json'],capture_output=True,text=True,env=env,timeout=70)
           print('doctor_exit='+str(p.returncode))
           try:
               doc=json.loads(p.stdout)
               print('doctor_healthy='+str(doc.get('healthy')))
+              print('FERRARI_REA_DOCTOR_STATUS='+('PASS' if p.returncode==0 and doc.get('healthy') is True else 'FAIL'))
               for group in ('checks','informational_checks'):
                 for x in doc.get(group,[]):
                   if not isinstance(x,dict):continue
@@ -112,6 +118,7 @@ jobs:
                   print('inspection='+json.dumps(info,ensure_ascii=True)[:500])
           except (json.JSONDecodeError,TypeError):
               print('doctor_json_invalid')
+              print('FERRARI_REA_DOCTOR_STATUS=FAIL')
           PY_DIAG
           echo '=== TELEGRAM_PROJECT_DIRECTORY_BYTES ==='
           for root in /root/iptvpn_bot /opt/telegram-robot-leads /opt/.telegram-leads-previous-08ffc99ae8b1 /opt/telegram-leads-optin /home/ubuntu/telegram-leads-venv /root/migration-preserved /root/migration-20260923 /root/project-secrets/telegram-robot-leads /root/project-secrets/iptvpn_bot /home/ubuntu/.pm2 /root/.pm2; do
@@ -230,6 +237,7 @@ jobs:
           echo 'VPS_PROJECT_INVENTORY_RETURNED=PASS'
           grep -q '^=== FINISHED ===' "$RUNNER_TEMP/vps-project-inventory.txt"
           cat "$RUNNER_TEMP/vps-project-inventory.txt"
+          grep -qx 'FERRARI_REA_DOCTOR_STATUS=PASS' "$RUNNER_TEMP/vps-project-inventory.txt" || { echo 'FERRARI_REA_DOCTOR_UNHEALTHY'; exit 3; }
       - name: Upload full live inventory
         if: always()
         uses: actions/upload-artifact@v4
