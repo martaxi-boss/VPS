@@ -1,0 +1,167 @@
+name: Lowcost official Search Console fallback guarded rollout
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/lowcost-gsc-fallback-rollout-20261109.yml']
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-ptes-production-rollout
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - name: Pinned SSH deploy, fixed scope, backup and rollback
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          ROOT=/srv/projects/lowcost-europa
+          OLD=f8a2165604c1a8eee015f1d5ff7a4626ce431e74
+          NEW=8254a1fc5845233da4877cdf4af2ab3340873e54
+          ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
+          TASK="$ROOT/private/ops/gsc-fallback-rollout-20261109"
+          gitrepo() { git -c safe.directory="$ROOT" -C "$ROOT" "$@"; }
+          test -d "$ROOT/.git" && test -s "$ENVFILE" && test ! -L "$ENVFILE"
+          exec 9>"$ROOT/private/ops/ptes-deploy.lock"
+          flock -n 9
+          test "$(gitrepo rev-parse HEAD)" = "$OLD"
+          test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          test "$(gitrepo ls-remote https://github.com/martaxi-boss/lowcost-europa.git refs/heads/main | awk '{print $1}')" = "$NEW"
+          gitrepo fetch --no-tags -q https://github.com/martaxi-boss/lowcost-europa.git main
+          test "$(gitrepo rev-parse FETCH_HEAD)" = "$NEW"
+          gitrepo merge-base --is-ancestor "$OLD" "$NEW"
+          EXPECTED="$(printf '%s\n' .env.example PROJECT_STATE.md apps/catalog/management/commands/sync_external_metrics.py apps/catalog/management/commands/sync_google_search_console.py apps/catalog/owner_panel_views.py apps/catalog/services/official_search_console_reporting.py apps/catalog/tests/test_official_search_console_reporting.py docs/operations/official-gsc-free-fallback-20261109.md docs/operations/seo-pt-es-core-20261108.md | LC_ALL=C sort)"
+          test "$(gitrepo diff --name-only "$OLD" "$NEW" | LC_ALL=C sort)" = "$EXPECTED"
+          APPUSER="$(systemctl show lowcost-europa.service -p User --value)"
+          test "$APPUSER" = le001_1789265592
+          for unit in lowcost-europa.service lowcost-europa-catalog-maintenance.timer lowcost-europa-indexnow.timer lowcost-europa-backup.timer lowcost-europa-offsite-backup.timer lowcost-europa-offsite-backup-health.timer lowcost-europa-affiliate-report.timer; do systemctl is-active --quiet "$unit"; done
+          nginx -t >/dev/null 2>&1
+          SECRET_BEFORE="$(sha256sum "$ENVFILE" | cut -d' ' -f1)"
+          test ! -e "$TASK"
+          sh "$ROOT/deploy/scripts/backup-postgres.sh"
+          BACKUP="$(find "$ROOT/backups/daily" -maxdepth 1 -type f -name '*.dump' -printf '%T@ %p\n' | sort -nr | head -n 1 | cut -d' ' -f2-)"
+          test -n "$BACKUP" && test -s "$BACKUP" && test -s "$BACKUP.sha256"
+          (cd "$ROOT/backups/daily" && sha256sum -c "$(basename "$BACKUP.sha256")" >/dev/null)
+          mkdir -m 700 "$TASK"
+          printf '%s\n' "$OLD" > "$TASK/previous-source-sha"
+          echo BACKUP_CHECKSUM=PASS
+          PROMOTED=0
+          rollback() {
+           rc=$?
+           trap - EXIT
+           if test "$rc" -ne 0 && test "$PROMOTED" = 1; then
+            umask 022
+            gitrepo checkout --detach -q "$OLD"
+            systemctl restart lowcost-europa.service
+            systemctl is-active --quiet lowcost-europa.service
+            echo GSC_FALLBACK_ROLLBACK=PASS
+           fi
+           exit "$rc"
+          }
+          trap rollback EXIT
+          PROMOTED=1
+          umask 022
+          gitrepo checkout --detach -q "$NEW"
+          umask 077
+          for rel in apps/storefront/seo_editorial.py apps/catalog/services/official_search_console_reporting.py apps/catalog/management/commands/sync_google_search_console.py apps/catalog/management/commands/sync_external_metrics.py apps/catalog/owner_panel_views.py; do runuser -u "$APPUSER" -- test -r "$ROOT/$rel"; done
+          cd "$ROOT"
+          set -a
+          . "$ENVFILE"
+          set +a
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py check
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py makemigrations --check --dry-run
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYGSC'
+          import os
+          from apps.catalog.services.official_search_console_reporting import collect_official_search_console_report
+          from apps.catalog.services.windsor_search_console_reporting import EXPECTED_PROPERTY
+          assert callable(collect_official_search_console_report)
+          assert EXPECTED_PROPERTY == 'sc-domain:lowcost-europa.eu'
+          assert os.environ.get('GOOGLE_SEARCH_CONSOLE_PROVIDER', 'WINDSOR').upper() == 'WINDSOR'
+          print('GSC_OFFICIAL_ADAPTER_PRESENT_EXISTING_SOURCE_UNCHANGED=PASS')
+          PYGSC
+          systemctl reload lowcost-europa.service
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYHTTP'
+          import urllib.request,urllib.error,time,hashlib,json,xml.etree.ElementTree as ET
+          from html.parser import HTMLParser
+          from apps.storefront.seo_editorial import PT_CATEGORY_GUIDES,ES_CATEGORY_GUIDES
+          base='https://www.lowcost-europa.eu'
+          def get(path):
+           with urllib.request.urlopen(base+path,timeout=20) as r:return r.status,r.headers,r.read()
+          for attempt in range(20):
+           status,_,body=get('/es/products/hifu/')
+           if b'Gu\xc3\xada de compra para Espa\xc3\xb1a' in body:break
+           time.sleep(1)
+          else:raise AssertionError('Spanish guide unavailable')
+          class Metadata(HTMLParser):
+           def __init__(self):
+            super().__init__();self.canonical=[];self.alternates={};self.description=[];self.title=[];self.in_title=False
+           def handle_starttag(self,tag,attrs):
+            d=dict(attrs)
+            if tag=='link' and d.get('rel')=='canonical':self.canonical.append(d.get('href'))
+            if tag=='link' and d.get('rel')=='alternate':self.alternates[d.get('hreflang')]=d.get('href')
+            if tag=='meta' and d.get('name')=='description':self.description.append(d.get('content'))
+            if tag=='title':self.in_title=True
+           def handle_endtag(self,tag):
+            if tag=='title':self.in_title=False
+           def handle_data(self,data):
+            if self.in_title:self.title.append(data)
+          count=0
+          for locale,guides in [('pt',PT_CATEGORY_GUIDES),('es',ES_CATEGORY_GUIDES)]:
+           for slug,guide in guides.items():
+            path='/'+locale+'/products/'+slug+'/'
+            status,headers,raw=get(path);body=raw.decode('utf-8')
+            assert status==200 and 'noindex' not in headers.get('X-Robots-Tag','')
+            assert guide['heading'] in body and all(check in body for check in guide['checks'])
+            assert ('Guía de compra para España' if locale=='es' else 'Guia de compra para Portugal') in body
+            if locale=='es':assert 'Guia de compra para Portugal' not in body and 'Antes de escolher uma oferta' not in body
+            parsed=Metadata();parsed.feed(body)
+            assert parsed.canonical==[base+path] and set(parsed.alternates)=={'pt-PT','es-ES','x-default'}
+            assert ''.join(parsed.title)==guide['title'] and parsed.description==[guide['description']]
+            assert 'href="/'+locale+'/#familias"' in body
+            count+=1
+          print('TEN_LOCALIZED_CATEGORY_GUIDES_AND_METADATA=PASS count='+str(count))
+          _,_,xml=get('/sitemap.xml');_,_,txt=get('/sitemap.txt')
+          assert hashlib.sha256(xml).hexdigest()=='db918094c963189fba30c6908c897eccd197857441d5ae6f6c3c3d97649982a6'
+          assert hashlib.sha256(txt).hexdigest()=='5b8e1907b8f6fd188e59df0360ce7ae69c7e17a970b7a702964e818ef4a7c560'
+          locs=[n.text for n in ET.fromstring(xml).iter('{http://www.sitemaps.org/schemas/sitemap/0.9}loc')]
+          assert len(locs)==23 and txt.decode().splitlines()==locs
+          status,_,robots=get('/robots.txt');robot=robots.decode()
+          assert status==200
+          assert 'Sitemap: '+base+'/sitemap.xml\n' in robot and 'Sitemap: '+base+'/sitemap.txt\n' in robot
+          assert 'Disallow: /painel/' in robot and 'Disallow: /admin/' in robot
+          print('BOTH_SITEMAPS_DISCOVERABLE_AND_UNCHANGED=PASS urls=23')
+          class NR(urllib.request.HTTPRedirectHandler):
+           def redirect_request(self,*args,**kwargs):return None
+          op=urllib.request.build_opener(NR)
+          for path in ['/painel/','/admin/']:
+           try:op.open(base+path,timeout=20)
+           except urllib.error.HTTPError as e:assert e.code==302 and 'noindex' in e.headers.get('X-Robots-Tag','') and 'private' in e.headers.get('Cache-Control','')
+           else:raise AssertionError('private route not protected')
+          print('PRIVATE_ROUTES=PASS')
+          PYHTTP
+          test "$(sha256sum "$ENVFILE" | cut -d' ' -f1)" = "$SECRET_BEFORE"
+          test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          test "$(gitrepo rev-parse HEAD)" = "$NEW"
+          for unit in lowcost-europa.service lowcost-europa-catalog-maintenance.timer lowcost-europa-indexnow.timer lowcost-europa-backup.timer lowcost-europa-offsite-backup.timer lowcost-europa-offsite-backup-health.timer lowcost-europa-affiliate-report.timer; do systemctl is-active --quiet "$unit"; done
+          echo SERVICE_AND_SIX_TIMERS=PASS
+          echo PRIVATE_ENV_UNCHANGED=PASS
+          echo LOWCOST_GSC_FALLBACK_ROLLOUT=PASS
+          trap - EXIT
+          REMOTE
