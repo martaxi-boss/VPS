@@ -57,7 +57,12 @@ jobs:
           mapfile -t paths < <(grep -El '^[[:space:]]*server_name[[:space:]]+www\.lowcost-europa\.eu;' /etc/nginx/sites-enabled/* /etc/nginx/conf.d/*.conf 2>/dev/null || :)
           test "${#paths[@]}" -eq 1
           VHOST="$(readlink -f "${paths[0]}")"
-          case "$VHOST" in /etc/nginx/sites-available/*|/etc/nginx/conf.d/*) ;; *) echo NGINX_PATH_UNEXPECTED; exit 2;; esac
+          VHOST_IS_GIT=NO
+          case "$VHOST" in
+            /etc/nginx/*) ;;
+            "$ROOT/deploy/nginx/lowcost-europa.eu.conf") VHOST_IS_GIT=YES ;;
+            *) echo "NGINX_PATH_UNEXPECTED=$VHOST"; exit 2 ;;
+          esac
           test -f "$VHOST" && test ! -L "$VHOST"
           cmp -s "$VHOST" "$ROOT/deploy/nginx/lowcost-europa.eu.conf"
           echo VHOST_VERIFIED_AGAINST_SOURCE=PASS
@@ -78,9 +83,11 @@ jobs:
            trap - EXIT
            if test "$rc" -ne 0 && test "$PROMOTED" = 1; then
             umask 022
-            cp "$TASK/nginx-before.conf" "$VHOST"
-            nginx -t && systemctl reload nginx || echo NGINX_RESTORE_NEEDS_ATTENTION=YES
+            if test "$VHOST_IS_GIT" = NO; then
+              cp "$TASK/nginx-before.conf" "$VHOST"
+            fi
             gitrepo checkout --detach -q "$OLD"
+            nginx -t && systemctl reload nginx || echo NGINX_RESTORE_NEEDS_ATTENTION=YES
             systemctl restart lowcost-europa.service
             systemctl is-active --quiet lowcost-europa.service
             echo LOCAL_REFERRERS_ROLLBACK=PASS
@@ -91,7 +98,7 @@ jobs:
           PROMOTED=1
           umask 022
           gitrepo checkout --detach -q "$NEW"
-          install -m 0644 "$ROOT/deploy/nginx/lowcost-europa.eu.conf" "$VHOST"
+          if test "$VHOST_IS_GIT" = NO; then install -m 0644 "$ROOT/deploy/nginx/lowcost-europa.eu.conf" "$VHOST"; fi
           nginx -t >/dev/null 2>&1
           systemctl reload nginx
           umask 077
