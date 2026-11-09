@@ -62,12 +62,18 @@ jobs:
           echo SEO_RANK_BACKUP_CHECKSUM=PASS
           mkdir -m 700 "$TASK"
           printf '%s\n' "$PREVIOUS" > "$TASK/previous-source-sha"
+          STYLE_LIVE="$ROOT/staticfiles/storefront/storefront.css"
+          STYLE_OLD="$TASK/storefront-styles-before.css"
+          test -s "$STYLE_LIVE" && test ! -L "$STYLE_LIVE"
+          cp -p "$STYLE_LIVE" "$STYLE_OLD"
+          test -s "$STYLE_OLD"
           PROMOTED=0
           rollback() {
             rc=$?
             trap - EXIT
             if test "$rc" -ne 0 && test "$PROMOTED" = 1; then
               umask 022
+              cp -p "$STYLE_OLD" "$STYLE_LIVE"
               gitrepo checkout --detach -q "$PREVIOUS"
               systemctl restart lowcost-europa.service
               systemctl is-active --quiet lowcost-europa.service
@@ -79,6 +85,11 @@ jobs:
           PROMOTED=1
           umask 022
           gitrepo checkout --detach -q "$NEW"
+          STYLE_SOURCE="$ROOT/apps/storefront/static/storefront/storefront.css"
+          test -s "$STYLE_SOURCE" && test ! -L "$STYLE_SOURCE"
+          install -m 644 "$STYLE_SOURCE" "$STYLE_LIVE"
+          test "$(sha256sum "$STYLE_SOURCE" | awk '{print $1}')" = "$(sha256sum "$STYLE_LIVE" | awk '{print $1}')"
+          echo RANK_STATIC_STYLES_SYNC=PASS
           umask 077
           for path in apps/storefront/views.py apps/storefront/ui_translations.py apps/storefront/templates/storefront/product_family_detail.html; do
             runuser -u "$APPUSER" -- test -r "$ROOT/$path"
@@ -222,6 +233,9 @@ jobs:
           assert 'Sitemap: '+base+'/sitemap.txt' in robots
           assert 'Disallow: /painel/' in robots
           print('RANK_LIVE_ROBOTS=PASS')
+          status,_,style=get('/static/storefront/storefront.css?v=seo-20261109')
+          assert status==200 and '.category-breadcrumb' in style and '.related-families-nav' in style
+          print('RANK_STATIC_CSS_PUBLIC=PASS')
           class NoRedirect(urllib.request.HTTPRedirectHandler):
             def redirect_request(self,*args,**kwargs):return None
           op=urllib.request.build_opener(NoRedirect)
