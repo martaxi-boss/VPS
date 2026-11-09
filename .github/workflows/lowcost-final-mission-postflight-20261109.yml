@@ -32,8 +32,8 @@ jobs:
             ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
           set -Eeuo pipefail
           ROOT=/srv/projects/lowcost-europa
-          EXPECTED=253a946fb8f8dc91e9cfcc11739c6976b614b1ea
-          TASK="$ROOT/private/ops/final-mission-20261109-retry1"
+          EXPECTED=8d1752c0f3dee38fc3dc3c8f0bd1c067d5f2f858
+          TASK="$ROOT/private/ops/final-mission-20261109-final2"
           test "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD)" = "$EXPECTED"
           test -z "$(git -c safe.directory="$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)"
           test "$(git -c safe.directory="$ROOT" -C "$ROOT" ls-remote https://github.com/martaxi-boss/lowcost-europa.git refs/heads/main | awk '{print $1}')" = "$EXPECTED"
@@ -41,8 +41,8 @@ jobs:
           test ! -e "$TASK/es-collection-completed"
           APPUSER="$(systemctl show lowcost-europa.service -p User --value)"
           test "$APPUSER" = le001_1789265592
-          for unit in lowcost-europa.service lowcost-europa-indexnow.timer lowcost-europa-catalog-maintenance.timer lowcost-europa-backup.timer; do systemctl is-active --quiet "$unit"; echo "$unit=active"; done
-          systemctl list-unit-files 'lowcost-europa*' --no-legend
+          for unit in lowcost-europa.service lowcost-europa-indexnow.timer lowcost-europa-catalog-maintenance.timer lowcost-europa-backup.timer lowcost-europa-affiliate-report.timer lowcost-europa-offsite-backup.timer lowcost-europa-offsite-backup-health.timer; do systemctl is-active --quiet "$unit"; echo "$unit=active"; done
+          systemctl show lowcost-europa-offsite-backup.service lowcost-europa-offsite-backup-health.service lowcost-europa-affiliate-report.service lowcost-europa-indexnow.service -p Id -p Result -p ExecMainStatus
           nginx -t >/dev/null 2>&1
           cd "$ROOT"
           set -a
@@ -103,6 +103,7 @@ jobs:
           try:
            rows=_fetch_rows({'api_key':os.environ['WINDSOR_API_KEY'],'select_accounts':EXPECTED_PROPERTY,'date_preset':'last_30d','_renderer':'json','fields':'account_id,clicks,impressions,position'},opener=urlopen)
            print('GSC_SERVER_SUMMARY_ROWS='+str(len(rows)))
+           call_command('sync_google_search_console')
            if rows:
             assert all(row.get('account_id')==EXPECTED_PROPERTY for row in rows)
             call_command('sync_google_search_console')
