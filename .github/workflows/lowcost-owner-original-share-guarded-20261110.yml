@@ -34,7 +34,7 @@ jobs:
           set -Eeuo pipefail
           umask 077
           ROOT=/srv/projects/lowcost-europa
-          OLD=3c2a47408230ec62c8bd8bafe7cf2dbefe2a9dbb
+          OLD=8386968266a2a6fa3b21fcb56250675adb059505
           NEW=2561a1d9e8243acc0fe846e3a0efefe8742cd606
           APPUSER=le001_1789265592
           ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
@@ -53,7 +53,6 @@ jobs:
           test "$(gitrepo rev-parse FETCH_HEAD)" = "$NEW"
           gitrepo merge-base --is-ancestor "$OLD" "$NEW"
           EXPECTED="$(printf '%s\n' \
-            PROJECT_STATE.md \
             apps/storefront/static/storefront/catalog-explorer.js \
             apps/storefront/static/storefront/storefront.css \
             apps/storefront/templates/storefront/base.html \
@@ -61,7 +60,6 @@ jobs:
             apps/storefront/tests/test_offer_go.py \
             apps/storefront/tests/test_visual_professional.py \
             apps/storefront/ui_translations.py \
-            docs/operations/seo-pt-es-core-20261108.md \
             tests/browser/source-storefront-qa.cjs \
             | LC_ALL=C sort)"
           test "$(gitrepo diff --name-only "$OLD" "$NEW" | LC_ALL=C sort)" = "$EXPECTED"
