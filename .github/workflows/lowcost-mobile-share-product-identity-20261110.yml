@@ -186,8 +186,8 @@ jobs:
               js=r.read(800000)
               assert b"data-affiliate-copy-button" in js
               assert b"data-affiliate-share-button" in js
-              assert b"data-share-product-title" in js
-              assert b"data-share-product-id" in js
+              assert b"shareProductTitle" in js
+              assert b"shareProductId" in js
               assert b"title: productTitle +" in js
               assert b"text: description" in js
               assert b"url: input.value" in js
