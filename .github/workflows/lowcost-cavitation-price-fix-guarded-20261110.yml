@@ -165,7 +165,7 @@ jobs:
               assert len(parsed.cards)==17 and set(parsed.cards)==set(expected)
               for pid,(price,currency) in parsed.cards.items():
                   assert currency=="EUR" and Decimal(price)>0, (prefix,pid,"missing displayed price")
-                  if prefix!="\/es" and prefix!="/es":
+                  if prefix!="/es":
                       assert Decimal(price)==expected[pid], (prefix,pid,"wrong PT price")
               print("CAV_PRICE_PUBLIC_"+(prefix.strip("/").upper() or "BASE")+"=PASS 17/17")
           class NoRedirect(urllib.request.HTTPRedirectHandler):
