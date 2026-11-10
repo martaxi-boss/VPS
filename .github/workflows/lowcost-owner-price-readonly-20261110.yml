@@ -1,0 +1,91 @@
+name: Lowcost owner Cavitation price history read-only audit 20261110
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-owner-price-readonly-20261110.yml'
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-owner-price-readonly
+  cancel-in-progress: false
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Inspect actual manual prices and age without writes
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          ROOT=/srv/projects/lowcost-europa
+          ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
+          APPUSER="$(systemctl show lowcost-europa.service -p User --value)"
+          test "$APPUSER" = le001_1789265592
+          test -d "$ROOT/.git" && test -s "$ENVFILE"
+          cd "$ROOT"
+          set -a
+          . "$ENVFILE"
+          set +a
+          export DJANGO_SETTINGS_MODULE=config.settings.production
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PY'
+          import django,subprocess
+          django.setup()
+          from django.conf import settings
+          from django.utils import timezone
+          from apps.catalog.models import Offer,OfferObservation
+          from apps.catalog.services.manual_storefront import MANUAL_ONLY_FAMILY_SLUG
+          now=timezone.now()
+          offers=list(Offer.objects.filter(
+              source=Offer.Source.ALIEXPRESS_OWNER,is_active=True,owner_hidden=False,
+              family_placements__product_family__slug=MANUAL_ONLY_FAMILY_SLUG
+          ).order_by("external_product_id"))
+          assert len(offers)==17
+          recent=0
+          historical=0
+          missing=[]
+          over7=0
+          for offer in offers:
+              prices=OfferObservation.objects.filter(offer=offer,price__gt=0,
+                  currency__iexact="EUR",observed_at__lte=now).exclude(
+                  destination_country="ES").order_by("-observed_at","-pk")
+              obs=prices.first()
+              if obs is None:
+                  missing.append(offer.external_product_id)
+                  print("CAV_PRICE "+offer.external_product_id+" MISSING_REAL_PT_EUR")
+              else:
+                  historical+=1
+                  age=(now-obs.observed_at).total_seconds()/3600
+                  if age<=24: recent+=1
+                  if age>24*7: over7+=1
+                  print("CAV_PRICE "+offer.external_product_id+
+                        " HISTORICAL_VALID_EUR="+str(obs.price)+
+                        " OBSERVED="+obs.observed_at.isoformat()+
+                        " AGE_HOURS="+str(round(age,1)))
+          print("CAV_PRICE_PROD_SOURCE="+subprocess.check_output(
+              ["git","-c","safe.directory=/srv/projects/lowcost-europa",
+               "rev-parse","HEAD"],text=True).strip())
+          print("CAV_PRICE_PUBLIC_RECENT_PRICE_REQUIRED="+str(settings.PUBLIC_RECENT_PRICE_REQUIRED))
+          print("CAV_PRICE_OFFERS=17")
+          print("CAV_PRICE_VALID_HISTORICAL="+str(historical))
+          print("CAV_PRICE_RECENT_24H="+str(recent))
+          print("CAV_PRICE_OLDER_7D="+str(over7))
+          print("CAV_PRICE_MISSING="+str(len(missing)))
+          print("CAV_PRICE_MISSING_IDS="+",".join(missing))
+          print("CAV_PRICE_READONLY=PASS")
+          PY
+          REMOTE
