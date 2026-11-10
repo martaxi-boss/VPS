@@ -1,0 +1,99 @@
+name: Lowcost proved merged branches one time cleanup 20261110
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-proved-merged-refs-clean-20261110.yml'
+permissions:
+  contents: write
+  pull-requests: read
+  actions: read
+concurrency:
+  group: lowcost-exact-merged-ref-hygiene
+  cancel-in-progress: false
+jobs:
+  prune-exact-merged-refs:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout main without persisted credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: GitHub refs only, verified merged PR branch and exact SHA
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          from urllib.error import HTTPError
+          from urllib.parse import quote, urlencode
+          from urllib.request import Request, urlopen
+          from pathlib import Path
+
+          REPO = "martaxi-boss/VPS"
+          TARGETS = (
+              ("audit/lowcost-affiliate-shortlink-redirect-probe-20261110",
+               "c42dc8c70561a67f89307be6c91cfb47e98b15ab", 466),
+              ("audit/lowcost-traffic-baseline-20261110",
+               "836b6505e0488b628763e8be62a2841dc2bf667d", 470),
+              ("chore/cleanup-lowcost-temporary-traffic-workflows-20261110",
+               "1c39d1dbf8604aa472da0ad8a5caa5479395fb35", 472),
+              ("audit/lowcost-github-vps-alignment-20261110",
+               "77665f192274f3f61fe44ce93e52f4bde4ebd842", 473),
+          )
+          assert os.getenv("GITHUB_REPOSITORY") == REPO
+          assert os.getenv("GITHUB_REF") == "refs/heads/main"
+          assert os.getenv("GITHUB_EVENT_NAME") == "push"
+          token = os.environ["GITHUB_TOKEN"]
+          def api(path, *, query=None, method="GET"):
+              assert path.startswith("/repos/" + REPO + "/")
+              url = "https://api.github.com" + path
+              if query:
+                  url += "?" + urlencode(query)
+              req = Request(url, method=method, headers={
+                  "Authorization": "Bearer " + token,
+                  "Accept": "application/vnd.github+json",
+                  "X-GitHub-Api-Version": "2022-11-28",
+                  "User-Agent": "lowcost-proved-merged-pr-ref-hygiene",
+              })
+              try:
+                  with urlopen(req, timeout=20) as response:
+                      body=response.read(2_000_000)
+                      return json.loads(body) if body else {}
+              except HTTPError as e:
+                  raise RuntimeError("github_api_http_"+str(e.code)) from None
+          open_prs=api("/repos/"+REPO+"/pulls",query={"state":"open","per_page":100})
+          assert isinstance(open_prs,list) and len(open_prs)<100
+          for name,sha,num in TARGETS:
+              assert name.startswith(("audit/lowcost-","chore/cleanup-lowcost-"))
+              for pr in open_prs:
+                  assert name not in (pr["head"]["ref"],pr["base"]["ref"])
+              for other in Path(".github/workflows").glob("*.yml"):
+                  if other.name=="lowcost-proved-merged-refs-clean-20261110.yml":
+                      continue
+                  assert name not in other.read_text(encoding="utf-8"), (name,other.name)
+              pr=api("/repos/"+REPO+"/pulls/"+str(num))
+              assert pr.get("state")=="closed" and pr.get("merged_at")
+              assert pr.get("head",{}).get("ref")==name
+              assert pr.get("head",{}).get("sha")==sha
+              assert pr.get("base",{}).get("ref")=="main"
+              assert (pr.get("head",{}).get("repo") or {}).get("full_name")==REPO
+              b=api("/repos/"+REPO+"/branches/"+quote(name,safe="/"))
+              assert b.get("protected") is False and b.get("commit",{}).get("sha")==sha
+              runs=api("/repos/"+REPO+"/actions/runs",
+                       query={"branch":name,"per_page":100})
+              assert runs.get("total_count",999)<=len(runs.get("workflow_runs",[]))
+              assert all(r.get("status")=="completed" for r in runs["workflow_runs"])
+              print("LOWCOST_MERGED_REF_PREFLIGHT=PASS "+name+" PR="+str(num))
+          for name,sha,num in TARGETS:
+              b=api("/repos/"+REPO+"/branches/"+quote(name,safe="/"))
+              assert b["protected"] is False and b["commit"]["sha"]==sha
+              api("/repos/"+REPO+"/git/refs/heads/"+quote(name,safe="/"),method="DELETE")
+              print("LOWCOST_PROVED_MERGED_REF_REMOVED=PASS "+name)
+          print("LOWCOST_PROVED_MERGED_REF_CLEANUP=PASS_4_OF_4")
+          print("LOWCOST_VPS_SSH_ACTIONS=0")
+          PY
