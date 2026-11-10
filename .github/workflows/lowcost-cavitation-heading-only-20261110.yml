@@ -78,8 +78,9 @@ jobs:
           runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py check
           systemctl reload lowcost-europa.service
           systemctl is-active --quiet lowcost-europa.service
+          sleep 4
           runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PY'
-          import re, urllib.request, urllib.error
+          import re, time, urllib.request, urllib.error
           from html.parser import HTMLParser
           import django
           django.setup()
@@ -95,9 +96,21 @@ jobs:
           print("CAVITATION_HEADING_PRODUCT_COUNT=PASS_17")
           for prefix in ("","/pt"):
               url="https://www.lowcost-europa.eu"+prefix+"/products/cavitacao-rf-vacuum-corpo/"
-              with urllib.request.urlopen(url,timeout=25) as response:
-                  assert response.status==200
-                  html=response.read(2000000).decode("utf-8")
+              last_error=None
+              for attempt in range(10):
+                  try:
+                      with urllib.request.urlopen(url, timeout=25) as response:
+                          assert response.status==200
+                          html=response.read(2000000).decode("utf-8")
+                      break
+                  except (urllib.error.HTTPError, urllib.error.URLError) as exc:
+                      last_error=exc
+                      if attempt==9:
+                          print("CAVITATION_HEADING_PUBLIC_HTTP=FAIL_"+str(getattr(exc,"code","NETWORK")))
+                          raise
+                      time.sleep(3)
+              else:
+                  raise AssertionError(str(last_error))
               assert html.count('class="offer-origin-heading"')==17
               assert html.count('class="offer-price-block offer-price-block--compact"')==17
               pairs=re.findall(
