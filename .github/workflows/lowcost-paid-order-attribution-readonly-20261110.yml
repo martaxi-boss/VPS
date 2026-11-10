@@ -1,0 +1,139 @@
+name: Lowcost check paid test order attribution read only 20261110
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-paid-order-attribution-readonly-20261110.yml'
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-paid-order-attribution-readonly-20261110
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    steps:
+      - name: Pinned SSH read only local clicks and AliExpress live affiliate orders
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          ROOT=/srv/projects/lowcost-europa
+          ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
+          test -d "$ROOT/.git" && test -s "$ENVFILE" && test ! -L "$ENVFILE"
+          test -z "$(git -c safe.directory="$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)"
+          test "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD)" = "7580bfa844aad2c9047c832b0446bd0ec8794e08"
+          systemctl is-active --quiet lowcost-europa.service
+          test "$(systemctl show lowcost-europa.service -p User --value)" = "le001_1789265592"
+          cd "$ROOT"
+          set -a
+          . "$ENVFILE"
+          set +a
+          export DJANGO_SETTINGS_MODULE=config.settings.production
+          runuser -u le001_1789265592 -- "$ROOT/.venv/bin/python" - <<'PY'
+          import django
+          from collections import Counter
+          from datetime import datetime, timedelta
+          from zoneinfo import ZoneInfo
+          django.setup()
+          from django.utils import timezone
+          from apps.catalog.models import Offer,OfferClick,OfferFamilyPlacement,ExternalMetricsSnapshot
+          from apps.catalog.services.affiliate_order_reporting import collect_affiliate_order_report
+          from apps.integrations.aliexpress.client import AliExpressClient
+
+          target="1005013114375206"
+          expected="https://s.click.aliexpress.com/e/_c3XC3lgL"
+          offer=Offer.objects.get(source=Offer.Source.ALIEXPRESS_OWNER,external_product_id=target)
+          assert offer.pk==212 and offer.affiliate_url==expected
+          assert OfferFamilyPlacement.objects.filter(
+              offer=offer,product_family__slug="cavitacao-rf-vacuum-corpo").exists()
+          now=timezone.now()
+          print("LIVE_CHECKED_AT_UTC="+now.strftime("%Y-%m-%dT%H:%M:%SZ"))
+          print("TEST_PRODUCT_ACTIVE="+str(offer.is_active and not offer.owner_hidden).upper())
+          print("TEST_LINK_IN_DATABASE_MATCH=TRUE")
+          clicks=OfferClick.objects.filter(offer=offer)
+          print("TEST_OFFER_CLICKS_TOTAL="+str(clicks.count()))
+          print("TEST_OFFER_CLICKS_LAST_2H="+str(clicks.filter(clicked_at__gte=now-timedelta(hours=2)).count()))
+          print("TEST_OFFER_CLICKS_LAST_15MIN="+str(clicks.filter(clicked_at__gte=now-timedelta(minutes=15)).count()))
+          times=list(clicks.order_by("-clicked_at").values_list("clicked_at",flat=True)[:6])
+          print("TEST_OFFER_RECENT_CLICK_MINUTES_LISBON="+(",".join(
+              t.astimezone(ZoneInfo("Europe/Lisbon")).strftime("%H:%M") for t in times) or "NONE"))
+          stored=ExternalMetricsSnapshot.objects.filter(source="ALIEXPRESS").first()
+          if stored and isinstance(stored.payload,dict):
+              print("STORED_REPORT_AGE_MINUTES="+str(round((now-stored.checked_at).total_seconds()/60)))
+              print("STORED_REPORT_PAID_COUNT="+str(stored.payload.get("paid_count","UNKNOWN")))
+              print("STORED_REPORT_RECEIVED_COUNT="+str(stored.payload.get("received_count","UNKNOWN")))
+              print("STORED_REPORT_BY_TRACKING="+",".join(
+                  str(g.get("tracking_id"))+":"+str(g.get("paid_count"))+"/"+str(g.get("received_count"))
+                  for g in stored.payload.get("by_tracking",[]) if isinstance(g,dict)))
+          else:
+              print("STORED_REPORT=UNAVAILABLE")
+
+          class ObserveProductFields(AliExpressClient):
+              def __init__(self):
+                  super().__init__()
+                  self.product_fields_present=set()
+                  self.product_matches=[]
+                  self.rows_seen=0
+              def _call(self,method,params):
+                  response=super()._call(method,params)
+                  if method=="aliexpress.affiliate.order.list":
+                      envelope=response.get("aliexpress_affiliate_order_list_response",{})
+                      result=envelope.get("resp_result",{}).get("result",{})
+                      orders=result.get("orders",{}).get("order",[]) if isinstance(result,dict) else []
+                      if isinstance(orders,list):
+                          for row in orders:
+                              if not isinstance(row,dict): continue
+                              self.rows_seen+=1
+                              for key in ("product_id","productId","product_id_str","item_id","itemId"):
+                                  if key in row:
+                                      self.product_fields_present.add(key)
+                                      if str(row[key]).strip()==target:
+                                          self.product_matches.append({
+                                              "status":str(row.get("order_status","UNKNOWN")),
+                                              "tracking":str(row.get("tracking_id","UNKNOWN")),
+                                              "effect":str(row.get("effect_detail_status","UNKNOWN")),
+                                          })
+                  return response
+          try:
+              client=ObserveProductFields()
+              report,begin,end=collect_affiliate_order_report(client=client,days=2,now=now)
+              print("LIVE_ALIEXPRESS_API=SUCCESS")
+              print("LIVE_ALIEXPRESS_WINDOW_DAYS=2")
+              print("LIVE_ALIEXPRESS_PAID_COUNT="+str(report["paid_count"]))
+              print("LIVE_ALIEXPRESS_RECEIVED_COUNT="+str(report["received_count"]))
+              print("LIVE_ALIEXPRESS_EXCLUDED_COUNT="+str(report["excluded_count"]))
+              for g in report["by_tracking"]:
+                  assert g["tracking_id"] in ("lowcost_europa","default","meus_links","outros")
+                  print("LIVE_ALIEXPRESS_TRACKING_"+g["tracking_id"]+
+                      "="+str(g["paid_count"])+"/"+str(g["received_count"]))
+              print("LIVE_PROVIDER_ORDER_ROWS="+str(client.rows_seen))
+              print("LIVE_PROVIDER_PRODUCT_ID_FIELD_PRESENT="+str(bool(client.product_fields_present)).upper())
+              print("LIVE_TEST_PRODUCT_MATCHED_ORDERS="+str(len(client.product_matches)))
+              for group,count in sorted(Counter(
+                  (m["status"],m["tracking"],m["effect"]) for m in client.product_matches
+              ).items()):
+                  status,tracking,effect=group
+                  print("LIVE_TEST_PRODUCT_MATCHED_SUMMARY="+
+                      str(count)+";status="+status+";tracking="+tracking+";effect="+effect)
+          except Exception as exc:
+              print("LIVE_ALIEXPRESS_API=UNAVAILABLE_"+type(exc).__name__)
+          print("READ_ONLY_PURCHASE_ATTRIBUTION_CHECK=PASS")
+          PY
+          echo LOWCOST_PURCHASE_CHECK_VPS=PASS
+          REMOTE
