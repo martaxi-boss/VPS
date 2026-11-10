@@ -38,7 +38,7 @@ jobs:
           NEW=6e8f4369556a4f03aa1916ba65938651b52fa88e
           APPUSER=le001_1789265592
           ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
-          TASK="$ROOT/private/ops/owner-product-identity-share-20261110"
+          TASK="$ROOT/private/ops/owner-product-identity-share-20261110-r2"
           LIVE=https://www.lowcost-europa.eu
           CSS="$ROOT/staticfiles/storefront/storefront.css"
           JS="$ROOT/staticfiles/storefront/catalog-explorer.js"
