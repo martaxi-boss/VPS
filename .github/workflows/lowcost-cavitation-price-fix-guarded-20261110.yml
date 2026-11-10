@@ -1,0 +1,196 @@
+name: Lowcost Cavitation manual observed price guarded rollout 20261110
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-cavitation-price-fix-guarded-20261110.yml'
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-cavitation-price-rollout
+  cancel-in-progress: false
+jobs:
+  rollout:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Protected deploy with historical-price 17/17 and immutable links checks
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          ROOT=/srv/projects/lowcost-europa
+          OLD=2561a1d9e8243acc0fe846e3a0efefe8742cd606
+          NEW=51176fe575514cdf2301e59495e9242fe9fe8295
+          APPUSER=le001_1789265592
+          ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
+          TASK="$ROOT/private/ops/cavitation-price-history-20261110"
+          CSS="$ROOT/staticfiles/storefront/storefront.css"
+          JS="$ROOT/staticfiles/storefront/catalog-explorer.js"
+          gitrepo() { git -c safe.directory="$ROOT" -C "$ROOT" "$@"; }
+          test -d "$ROOT/.git" && test -s "$ENVFILE" && test ! -L "$ENVFILE"
+          exec 9>"$ROOT/private/ops/ptes-deploy.lock"
+          flock -n 9
+          test "$(gitrepo rev-parse HEAD)" = "$OLD"
+          test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          test "$(gitrepo ls-remote https://github.com/martaxi-boss/lowcost-europa.git refs/heads/main | awk '{print $1}')" = "$NEW"
+          gitrepo fetch --no-tags -q https://github.com/martaxi-boss/lowcost-europa.git main
+          test "$(gitrepo rev-parse FETCH_HEAD)" = "$NEW"
+          gitrepo merge-base --is-ancestor "$OLD" "$NEW"
+          EXPECTED="$(printf '%s\n' \
+            apps/catalog/services/observation_display.py \
+            apps/catalog/tests/test_cavitation_manual_only.py \
+            apps/storefront/views.py \
+            docs/operations/cavitation-manual-only-availability-20261109.md \
+            | LC_ALL=C sort)"
+          test "$(gitrepo diff --name-only "$OLD" "$NEW" | LC_ALL=C sort)" = "$EXPECTED"
+          test "$(systemctl show lowcost-europa.service -p User --value)" = "$APPUSER"
+          test -f "$CSS" && test -f "$JS" && test ! -L "$CSS" && test ! -L "$JS"
+          test ! -e "$TASK"
+          for unit in lowcost-europa.service lowcost-europa-catalog-maintenance.timer lowcost-europa-indexnow.timer lowcost-europa-backup.timer lowcost-europa-offsite-backup.timer lowcost-europa-offsite-backup-health.timer lowcost-europa-affiliate-report.timer lowcost-europa-cavitation-availability.timer; do systemctl is-active --quiet "$unit"; done
+          nginx -t >/dev/null 2>&1
+          ENV_SHA="$(sha256sum "$ENVFILE" | awk '{print $1}')"
+          CSS_SHA="$(sha256sum "$CSS" | awk '{print $1}')"
+          JS_SHA="$(sha256sum "$JS" | awk '{print $1}')"
+          sh "$ROOT/deploy/scripts/backup-postgres.sh"
+          BACKUP="$(find "$ROOT/backups/daily" -maxdepth 1 -type f -name '*.dump' -printf '%T@ %p\n' | sort -nr | head -n 1 | cut -d' ' -f2-)"
+          test -s "$BACKUP" && test -s "$BACKUP.sha256"
+          (cd "$ROOT/backups/daily" && sha256sum -c "$(basename "$BACKUP.sha256")" >/dev/null)
+          echo CAV_PRICE_BACKUP_CHECKSUM=PASS
+          mkdir -m 700 "$TASK"
+          cd "$ROOT"
+          set -a
+          . "$ENVFILE"
+          set +a
+          export DJANGO_SETTINGS_MODULE=config.settings.production
+          snapshot() {
+            runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYLINK'
+          import django,hashlib
+          django.setup()
+          from django.utils import timezone
+          from apps.catalog.models import Offer,OfferObservation
+          now=timezone.now()
+          rows=list(Offer.objects.filter(
+              source=Offer.Source.ALIEXPRESS_OWNER,is_active=True,owner_hidden=False,
+              family_placements__product_family__slug="cavitacao-rf-vacuum-corpo"
+          ).values_list("external_product_id","affiliate_url"))
+          assert len(rows)==17 and len(set(pid for pid,_ in rows))==17
+          assert len(set(url for _,url in rows))==17
+          assert all(url.startswith("https://s.click.aliexpress.com/e/") for _,url in rows)
+          valid=0
+          for pid,url in rows:
+              offer=Offer.objects.get(source=Offer.Source.ALIEXPRESS_OWNER,
+                  external_product_id=pid)
+              if OfferObservation.objects.filter(offer=offer,price__gt=0,
+                  currency__iexact="EUR",observed_at__lte=now).exclude(
+                  destination_country="ES").exists():
+                  valid+=1
+          assert valid==17, "Historical prices missing; cannot claim restored"
+          print(hashlib.sha256("\n".join(pid+"\t"+url for pid,url in sorted(rows)).encode()).hexdigest())
+          PYLINK
+          }
+          snapshot > "$TASK/owner-links-before.sha256"
+          echo CAV_PRICE_REAL_HISTORY_PREDEPLOY=PASS 17/17
+          PROMOTED=0
+          rollback() {
+            rc=$?
+            trap - EXIT
+            if test "$rc" -ne 0 && test "$PROMOTED" = 1; then
+              umask 022
+              gitrepo checkout --detach -q "$OLD" || true
+              systemctl reload lowcost-europa.service || true
+              echo CAV_PRICE_SOURCE_ROLLBACK=PASS
+            fi
+            exit "$rc"
+          }
+          trap rollback EXIT
+          PROMOTED=1
+          umask 022
+          gitrepo checkout --detach -q "$NEW"
+          umask 077
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py check
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py makemigrations --check --dry-run
+          systemctl reload lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa.service
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYHTTP'
+          import django,urllib.request,urllib.error
+          from decimal import Decimal
+          from html.parser import HTMLParser
+          django.setup()
+          from django.utils import timezone
+          from apps.catalog.models import Offer,OfferObservation
+          from apps.catalog.services.public_eligibility import public_eligibility_q
+          now=timezone.now()
+          offers=list(Offer.objects.filter(
+              source=Offer.Source.ALIEXPRESS_OWNER,is_active=True,owner_hidden=False,
+              family_placements__product_family__slug="cavitacao-rf-vacuum-corpo"
+          ).filter(public_eligibility_q()))
+          assert len(offers)==17
+          expected={}
+          for offer in offers:
+              obs=(OfferObservation.objects.filter(offer=offer,price__gt=0,
+                   currency__iexact="EUR",observed_at__lte=now).exclude(
+                   destination_country="ES").order_by("-observed_at","-pk").first())
+              assert obs is not None
+              expected[str(offer.pk)]=obs.price
+          assert len(expected)==17
+          class Parser(HTMLParser):
+              def __init__(self):
+                  super().__init__();self.cards={}
+              def handle_starttag(self,tag,attrs):
+                  a=dict(attrs)
+                  if tag=="article" and "data-offer-card" in a:
+                      self.cards[a["data-offer-id"]]=(
+                          a.get("data-price",""),a.get("data-currency",""))
+          base="https://www.lowcost-europa.eu"
+          for prefix in ("","/pt","/es"):
+              with urllib.request.urlopen(base+prefix+"/products/cavitacao-rf-vacuum-corpo/",timeout=25) as r:
+                  assert r.status==200
+                  raw=r.read(1500000).decode("utf-8")
+              parsed=Parser();parsed.feed(raw)
+              assert len(parsed.cards)==17 and set(parsed.cards)==set(expected)
+              for pid,(price,currency) in parsed.cards.items():
+                  assert currency=="EUR" and Decimal(price)>0, (prefix,pid,"missing displayed price")
+                  if prefix!="\/es" and prefix!="/es":
+                      assert Decimal(price)==expected[pid], (prefix,pid,"wrong PT price")
+              print("CAV_PRICE_PUBLIC_"+(prefix.strip("/").upper() or "BASE")+"=PASS 17/17")
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self,*args,**kwargs):return None
+          opener=urllib.request.build_opener(NoRedirect)
+          for offer in offers:
+              req=urllib.request.Request(base+"/go/"+str(offer.pk)+"/",method="HEAD")
+              try:
+                  resp=opener.open(req,timeout=25)
+              except urllib.error.HTTPError as exc:
+                  resp=exc
+              assert resp.code==302 and resp.headers.get("Location")==offer.affiliate_url
+          print("CAV_PRICE_OWNER_REDIRECTS_EXACT=PASS 17/17")
+          PYHTTP
+          snapshot > "$TASK/owner-links-after.sha256"
+          cmp -s "$TASK/owner-links-before.sha256" "$TASK/owner-links-after.sha256"
+          echo CAV_PRICE_17_OWNER_LINKS_UNCHANGED=PASS
+          test "$(sha256sum "$ENVFILE" | awk '{print $1}')" = "$ENV_SHA"
+          test "$(sha256sum "$CSS" | awk '{print $1}')" = "$CSS_SHA"
+          test "$(sha256sum "$JS" | awk '{print $1}')" = "$JS_SHA"
+          test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          test "$(gitrepo rev-parse HEAD)" = "$NEW"
+          nginx -t >/dev/null 2>&1
+          for unit in lowcost-europa.service lowcost-europa-catalog-maintenance.timer lowcost-europa-indexnow.timer lowcost-europa-backup.timer lowcost-europa-offsite-backup.timer lowcost-europa-offsite-backup-health.timer lowcost-europa-affiliate-report.timer lowcost-europa-cavitation-availability.timer; do systemctl is-active --quiet "$unit"; done
+          echo CAV_PRICE_AUTOMATIC_FLOWS_AND_ASSETS_UNCHANGED=PASS
+          echo CAV_PRICE_GUARDED_DEPLOY=PASS
+          trap - EXIT
+          REMOTE
