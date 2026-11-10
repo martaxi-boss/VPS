@@ -54,7 +54,7 @@ jobs:
           for path in ("/","/products/cavitacao-rf-vacuum-corpo/","/pt/products/cavitacao-rf-vacuum-corpo/"):
               try:
                   response=Client(raise_request_exception=True).get(
-                      path,HTTP_HOST="www.lowcost-europa.eu",
+                      path,secure=True,HTTP_HOST="www.lowcost-europa.eu",
                       HTTP_USER_AGENT="Mozilla/5.0 (Linux; Android 14) Chrome/131 Mobile",
                   )
                   print("DJANGO_TEST_REQUEST="+path+"="+str(response.status_code))
