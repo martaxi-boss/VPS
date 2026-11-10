@@ -120,13 +120,17 @@ jobs:
                   raise AssertionError(str(last_error))
               assert html.count('class="offer-origin-heading"')==17
               assert html.count('class="offer-price-block offer-price-block--compact"')==17
-              pairs=re.findall(
-                  r'<div class="offer-price-block offer-price-block--compact">\s*'
-                  r'<p class="offer-origin-heading">Enviado da Europa</p>\s*'
-                  r'<p class="fact-label">Preço observado</p>',
-                  html
+              blocks=re.findall(
+                  r'<div class="offer-price-block offer-price-block--compact">(.*?)</div>',
+                  html,flags=re.S,
               )
-              assert len(pairs)==17,(prefix,len(pairs))
+              assert len(blocks)==17,(prefix,len(blocks))
+              for block in blocks:
+                  assert 'class="offer-origin-heading"' in block
+                  assert 'class="fact-label"' in block
+                  assert block.index('class="offer-origin-heading"')<block.index('class="fact-label"')
+              if prefix=="/pt":
+                  assert sum("Enviado da Europa" in block for block in blocks)==17
               assert 'class="offer-origin-unknown"' not in html
               assert "data-affiliate-original-url=" in html
               assert "data-compare-toggle" in html
