@@ -1,0 +1,94 @@
+name: Lowcost Affiliate Shortlink Public Redirect Audit 20261110
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-affiliate-shortlink-redirect-probe-20261110.yml'
+permissions:
+  contents: read
+jobs:
+  public-shortlink-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - name: Compare public HTTP redirect chains without credentials or writes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import re
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+          import ssl
+
+          URLS = {
+              "STOREFRONT_BUTTON": "https://www.lowcost-europa.eu/go/211/",
+              "ORIGINAL_OWNER": "https://s.click.aliexpress.com/e/_c3qslKyf",
+              "ALIEXPRESS_SHARE": "https://s.click.aliexpress.com/e/_EjyZoXc",
+          }
+          AGENTS = {
+              "WINDOWS_CHROME": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+              "ANDROID_CHROME": "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36",
+              "IPHONE_SAFARI": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
+          }
+          class StopRedirects(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, *args, **kwargs):
+                  return None
+
+          opener = urllib.request.build_opener(StopRedirects)
+          def summary(url):
+              p=urllib.parse.urlsplit(url)
+              params=urllib.parse.parse_qs(p.query)
+              item=re.search(r"/item/([0-9]+)",p.path)
+              codes={}
+              for key in ("aff_fsk","sk","aff_platform","tt"):
+                  if key in params:
+                      codes[key]=params[key][0][:80]
+              return {"host":p.hostname or "", "product": item.group(1) if item else "",
+                      "path":"/item/..." if item else p.path[:65], "tracking":codes}
+
+          for name,url in URLS.items():
+              for agent_name,ua in AGENTS.items():
+                  current=url
+                  seen=set()
+                  print(f"TRACE_BEGIN {name} {agent_name}",flush=True)
+                  for step in range(5):
+                      if current in seen:
+                          print(f"TRACE_RESULT {name} {agent_name} LOOP",flush=True)
+                          break
+                      seen.add(current)
+                      req=urllib.request.Request(
+                          current,headers={"User-Agent":ua,"Accept":"text/html,*/*",
+                          "Accept-Language":"pt-PT,pt;q=0.9","Cache-Control":"no-cache"},
+                          method="HEAD" if step==0 else "GET",
+                      )
+                      try:
+                          with opener.open(req, timeout=8) as resp:
+                              status=resp.status; location=resp.headers.get("Location")
+                      except urllib.error.HTTPError as exc:
+                          status=exc.code; location=exc.headers.get("Location")
+                      except Exception as exc:
+                          print(f"TRACE_RESULT {name} {agent_name} INDETERMINATE {type(exc).__name__}",flush=True)
+                          break
+                      print(f"TRACE_STEP {name} {agent_name} {step} HTTP={status} {summary(current)}",flush=True)
+                      if status in (301,302,303,307,308) and location:
+                          current=urllib.parse.urljoin(current,location)
+                          if step==4: print(f"TRACE_RESULT {name} {agent_name} INDETERMINATE_HOP_LIMIT {summary(current)}",flush=True)
+                          continue
+                      if status==405 and step==0:
+                          req=urllib.request.Request(current,headers={"User-Agent":ua},method="GET")
+                          try:
+                              with opener.open(req,timeout=8) as resp:
+                                  status=resp.status; location=resp.headers.get("Location")
+                              if status in (301,302,303,307,308) and location:
+                                  current=urllib.parse.urljoin(current,location)
+                                  continue
+                          except Exception:
+                              pass
+                      print(f"TRACE_RESULT {name} {agent_name} HTTP={status} {summary(current)}",flush=True)
+                      break
+                  print(f"TRACE_END {name} {agent_name}",flush=True)
+          print("TRACE_SCOPE=PUBLIC_HTTP_ONLY_NO_ANDROID_APP_ACCESS",flush=True)
+          print("TRACE_DONE=PASS",flush=True)
+          PY
