@@ -1,0 +1,203 @@
+name: Lowcost add owner cheap mobile test item guarded 20261110
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-owner-cheap-mobile-test-20261110.yml'
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-manual-owner-test-product-20261110
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Pinned SSH, DB backup, exact 17-link preservation and mobile offer 302
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          ROOT=/srv/projects/lowcost-europa
+          APPUSER=le001_1789265592
+          EXPECTED=7580bfa844aad2c9047c832b0446bd0ec8794e08
+          TASK="$ROOT/private/ops/owner-mobile-test-c3XC3lgL-20261110"
+          ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
+          URL='https://s.click.aliexpress.com/e/_c3XC3lgL'
+          PRODUCT=1005013114375206
+          FAMILY=cavitacao-rf-vacuum-corpo
+          gitrepo() { git -c safe.directory="$ROOT" -C "$ROOT" "$@"; }
+          test -d "$ROOT/.git" && test -s "$ENVFILE" && test ! -L "$ENVFILE"
+          exec 9>"$ROOT/private/ops/ptes-deploy.lock"
+          flock -n 9
+          test "$(gitrepo rev-parse HEAD)" = "$EXPECTED"
+          test "$(gitrepo ls-remote https://github.com/martaxi-boss/lowcost-europa.git refs/heads/main | awk '{print $1}')" = "$EXPECTED"
+          test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          test ! -e "$TASK"
+          test "$(systemctl show lowcost-europa.service -p User --value)" = "$APPUSER"
+          nginx -t >/dev/null 2>&1
+          for unit in lowcost-europa.service lowcost-europa-catalog-maintenance.timer lowcost-europa-indexnow.timer lowcost-europa-backup.timer lowcost-europa-offsite-backup.timer lowcost-europa-offsite-backup-health.timer lowcost-europa-affiliate-report.timer lowcost-europa-cavitation-availability.timer; do systemctl is-active --quiet "$unit"; done
+          ENV_SHA="$(sha256sum "$ENVFILE" | awk '{print $1}')"
+          cd "$ROOT"
+          set -a
+          . "$ENVFILE"
+          set +a
+          export DJANGO_SETTINGS_MODULE=config.settings.production
+          snapshot() {
+            runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYSNAP'
+          import django,hashlib
+          django.setup()
+          from apps.catalog.models import Offer,OfferFamilyPlacement
+          fam="cavitacao-rf-vacuum-corpo"
+          rows=sorted(Offer.objects.filter(
+              source=Offer.Source.ALIEXPRESS_OWNER,
+              is_active=True,owner_hidden=False,
+              family_placements__product_family__slug=fam,
+          ).exclude(external_product_id="1005013114375206").values_list("external_product_id","affiliate_url"))
+          assert len(rows)==17 and len({x[0] for x in rows})==17 and len({x[1] for x in rows})==17
+          assert all(url.startswith("https://s.click.aliexpress.com/e/") for _,url in rows)
+          assert hashlib.sha256(dict(rows)["1005013070854347"].encode()).hexdigest()=="676e98c3d53e327bb6998a6ce805fdb11d9b6ebd6c6845ac9cdd394340fa73c3"
+          print(hashlib.sha256("\n".join(pid+"\t"+url for pid,url in rows).encode()).hexdigest())
+          PYSNAP
+          }
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYPRE'
+          import django
+          django.setup()
+          from apps.catalog.models import Offer,OfferFamilyPlacement,ProductFamily
+          from apps.catalog.services.manual_candidate_intake import resolve_aliexpress_product_url
+          link="https://s.click.aliexpress.com/e/_c3XC3lgL"
+          family=ProductFamily.objects.get(slug="cavitacao-rf-vacuum-corpo")
+          assert OfferFamilyPlacement.objects.filter(product_family=family).count()==17
+          assert not Offer.objects.filter(external_product_id="1005013114375206").exists()
+          assert not Offer.objects.filter(affiliate_url=link).exists()
+          pid,_=resolve_aliexpress_product_url(link)
+          assert pid=="1005013114375206"
+          print("MOBILE_TEST_LINK_RESOLVED_PRODUCT=PASS "+pid)
+          PYPRE
+          echo OWNER_MOBILE_TEST_PRECHECK=PASS
+          sh "$ROOT/deploy/scripts/backup-postgres.sh"
+          BACKUP="$(find "$ROOT/backups/daily" -maxdepth 1 -type f -name '*.dump' -printf '%T@ %p\n' | sort -nr | head -n 1 | cut -d' ' -f2-)"
+          test -s "$BACKUP" && test -s "$BACKUP.sha256"
+          (cd "$ROOT/backups/daily" && sha256sum -c "$(basename "$BACKUP.sha256")" >/dev/null)
+          echo OWNER_MOBILE_TEST_DB_BACKUP=PASS
+          mkdir -m 700 "$TASK"
+          snapshot > "$TASK/old-17-links.sha256"
+          UPDATED=0
+          rollback() {
+            rc=$?
+            trap - EXIT
+            if test "$rc" -ne 0 && test "$UPDATED" = 1; then
+              runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYUNDO' || true
+          import django
+          django.setup()
+          from django.db import transaction
+          from apps.catalog.models import Offer,OfferObservation,OfferFamilyPlacement,OfferClick
+          with transaction.atomic():
+              offer=Offer.objects.select_for_update().filter(
+                  source=Offer.Source.ALIEXPRESS_OWNER,
+                  external_product_id="1005013114375206",
+                  affiliate_url="https://s.click.aliexpress.com/e/_c3XC3lgL",
+              ).first()
+              if offer:
+                  OfferFamilyPlacement.objects.filter(
+                      offer=offer, product_family__slug="cavitacao-rf-vacuum-corpo",
+                  ).delete()
+                  if OfferClick.objects.filter(offer=offer).exists():
+                      offer.owner_hidden=True
+                      offer.is_active=False
+                      offer.save(update_fields=["owner_hidden","is_active"])
+                      print("OWNER_TEST_PRODUCT_DISABLED_CLICKS_PRESERVED=PASS")
+                  else:
+                      OfferObservation.objects.filter(offer=offer).delete()
+                      offer.delete()
+                      print("OWNER_TEST_PRODUCT_ROLLBACK_REMOVED=PASS")
+          PYUNDO
+              echo OWNER_MOBILE_TEST_ROLLBACK_ATTEMPTED=TRUE
+            fi
+            exit "$rc"
+          }
+          trap rollback EXIT
+          UPDATED=1
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py publish_owner_affiliate_link \
+            --family "$FAMILY" "$URL"
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYVERIFY'
+          import django,urllib.request,urllib.error
+          from html.parser import HTMLParser
+          django.setup()
+          from apps.catalog.models import Offer,OfferFamilyPlacement,OfferClick
+          from apps.catalog.services.public_eligibility import public_eligibility_q
+          from django.utils import timezone
+          link="https://s.click.aliexpress.com/e/_c3XC3lgL"
+          pid="1005013114375206"
+          offer=Offer.objects.get(
+              source=Offer.Source.ALIEXPRESS_OWNER, external_product_id=pid,
+          )
+          assert offer.affiliate_url==link and offer.is_active and not offer.owner_hidden
+          assert OfferFamilyPlacement.objects.filter(
+              offer=offer,product_family__slug="cavitacao-rf-vacuum-corpo",
+          ).count()==1
+          assert OfferFamilyPlacement.objects.filter(
+              product_family__slug="cavitacao-rf-vacuum-corpo",
+          ).count()==18
+          assert Offer.objects.filter(pk=offer.pk).filter(public_eligibility_q()).exists()
+          assert OfferClick.objects.filter(offer=offer).count()==0
+          print("MOBILE_TEST_PRODUCT_PUBLISHED=PASS offer="+str(offer.pk))
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self,*args,**kwargs): return None
+          opener=urllib.request.build_opener(NoRedirect)
+          base="https://www.lowcost-europa.eu"
+          for ua in ("Mozilla/5.0 (Linux; Android 14) Chrome/131 Mobile",
+                     "Mozilla/5.0 (Windows NT 10.0) Chrome/131"):
+              req=urllib.request.Request(base+"/go/"+str(offer.pk)+"/",
+                  headers={"User-Agent":ua},method="HEAD")
+              try:
+                  res=opener.open(req,timeout=22)
+              except urllib.error.HTTPError as exc:
+                  res=exc
+              assert res.code==302 and res.headers.get("Location")==link
+          print("MOBILE_TEST_EXACT_OWNER_AFFILIATE_REDIRECT=PASS_MOBILE_AND_DESKTOP")
+          class Cards(HTMLParser):
+              def __init__(self): super().__init__();self.ids=[]
+              def handle_starttag(self,tag,attrs):
+                  if tag=="article":
+                      a=dict(attrs)
+                      if "data-offer-card" in a and "data-offer-id" in a:
+                          self.ids.append(a["data-offer-id"])
+          for prefix in ("","/pt","/es"):
+              with urllib.request.urlopen(
+                  base+prefix+"/products/cavitacao-rf-vacuum-corpo/",timeout=22,
+              ) as r:
+                  assert r.status==200
+                  body=r.read(1400000).decode("utf-8")
+              p=Cards();p.feed(body)
+              assert str(offer.pk) in p.ids,(prefix,p.ids)
+              assert len(p.ids)==18,(prefix,len(p.ids))
+              print("MOBILE_TEST_PRODUCT_VISIBLE_"+(prefix.strip("/").upper() or "BASE")+"=PASS_18")
+          print("MOBILE_TEST_PUBLIC_OFFER_PATH=/go/"+str(offer.pk)+"/")
+          PYVERIFY
+          snapshot > "$TASK/new-unchanged-17-links.sha256"
+          cmp -s "$TASK/old-17-links.sha256" "$TASK/new-unchanged-17-links.sha256"
+          echo MOBILE_TEST_PREVIOUS_17_LINKS_PRESERVED=PASS
+          test "$(sha256sum "$ENVFILE" | awk '{print $1}')" = "$ENV_SHA"
+          test "$(gitrepo rev-parse HEAD)" = "$EXPECTED"
+          test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          nginx -t >/dev/null 2>&1
+          for unit in lowcost-europa.service lowcost-europa-catalog-maintenance.timer lowcost-europa-indexnow.timer lowcost-europa-backup.timer lowcost-europa-offsite-backup.timer lowcost-europa-offsite-backup-health.timer lowcost-europa-affiliate-report.timer lowcost-europa-cavitation-availability.timer; do systemctl is-active --quiet "$unit"; done
+          echo MOBILE_TEST_PRODUCT_FINAL_HEALTH=PASS
+          trap - EXIT
+          REMOTE
