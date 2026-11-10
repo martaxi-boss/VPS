@@ -40,7 +40,7 @@ jobs:
           ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
           CSS="$ROOT/staticfiles/storefront/storefront.css"
           JS="$ROOT/staticfiles/storefront/catalog-explorer.js"
-          TASK="$ROOT/private/ops/cavitation-clean-card-and-hide-212-20261110"
+          TASK="$ROOT/private/ops/cavitation-clean-card-and-hide-212-r2-20261110"
           BASE=https://www.lowcost-europa.eu
           gitrepo() { git -c safe.directory="$ROOT" -C "$ROOT" "$@"; }
           test -d "$ROOT/.git" && test -s "$ENVFILE" && test ! -L "$ENVFILE"
@@ -126,14 +126,10 @@ jobs:
           cp -p "$CSS" "$TASK/old-storefront.css"
           cp -p "$JS" "$TASK/old-catalog-explorer.js"
           snap17 > "$TASK/old-17-links.sha256"
-          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYSNAP'
-          import django
-          django.setup()
-          from apps.catalog.models import OfferClick
-          from pathlib import Path
-          count=OfferClick.objects.filter(offer_id=212).count()
-          Path("/srv/projects/lowcost-europa/private/ops/cavitation-clean-card-and-hide-212-20261110/test-clicks-before").write_text(str(count))
-          PYSNAP
+          TEST_CLICKS_BEFORE="$(runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" -c 'import django; django.setup(); from apps.catalog.models import OfferClick; print(OfferClick.objects.filter(offer_id=212).count())')"
+          test "$TEST_CLICKS_BEFORE" -ge 2
+          export TEST_CLICKS_BEFORE
+          echo CAVITATION_TEST_CLICKS_SNAPSHOT=PASS
           SOURCE_CHANGED=0
           STATIC_CHANGED=0
           TEST_HIDDEN=0
@@ -197,8 +193,7 @@ jobs:
           systemctl reload lowcost-europa.service
           systemctl is-active --quiet lowcost-europa.service
           runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYVERIFY'
-          import django, urllib.request, urllib.error
-          from pathlib import Path
+          import django, urllib.request, urllib.error, os
           from html.parser import HTMLParser
           django.setup()
           from apps.catalog.models import Offer, OfferClick, OfferFamilyPlacement
@@ -208,8 +203,7 @@ jobs:
           test=Offer.objects.get(pk=212,source=Offer.Source.ALIEXPRESS_OWNER,
               external_product_id="1005013114375206")
           assert test.owner_hidden and test.is_active
-          assert OfferClick.objects.filter(offer=test).count()==int(
-              Path("/srv/projects/lowcost-europa/private/ops/cavitation-clean-card-and-hide-212-20261110/test-clicks-before").read_text())
+          assert OfferClick.objects.filter(offer=test).count()==int(os.environ["TEST_CLICKS_BEFORE"])
           assert OfferFamilyPlacement.objects.filter(
               product_family__slug="cavitacao-rf-vacuum-corpo",offer__in=Offer.objects.filter(
                   public_eligibility_q())).count()==17
