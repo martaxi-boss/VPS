@@ -1,0 +1,200 @@
+name: Lowcost local Meta and daily affiliate metrics guarded rollout 20261110
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-local-meta-metrics-rollout-20261110.yml'
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-meta-local-metrics-private
+  cancel-in-progress: false
+jobs:
+  rollout:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Pinned SSH safe deploy with DB backup and exact original affiliate links
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          ROOT=/srv/projects/lowcost-europa
+          OLD=6e8f4369556a4f03aa1916ba65938651b52fa88e
+          NEW=7580bfa844aad2c9047c832b0446bd0ec8794e08
+          APPUSER=le001_1789265592
+          ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
+          REPORT="$ROOT/.local-metrics/search-referrers.json"
+          JS="$ROOT/staticfiles/storefront/catalog-explorer.js"
+          TASK="$ROOT/private/ops/meta-local-rollout-20261110"
+          LIVE=https://www.lowcost-europa.eu
+          gitrepo() { git -c safe.directory="$ROOT" -C "$ROOT" "$@"; }
+          test -d "$ROOT/.git" && test -s "$ENVFILE" && test ! -L "$ENVFILE"
+          test -f "$JS" && test ! -L "$JS"
+          test -d "$ROOT/.local-metrics" && test ! -L "$ROOT/.local-metrics"
+          exec 9>"$ROOT/private/ops/ptes-deploy.lock"
+          flock -n 9
+          test "$(gitrepo rev-parse HEAD)" = "$OLD"
+          test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          test "$(gitrepo ls-remote https://github.com/martaxi-boss/lowcost-europa.git refs/heads/main | awk '{print $1}')" = "$NEW"
+          gitrepo fetch --no-tags -q https://github.com/martaxi-boss/lowcost-europa.git main
+          test "$(gitrepo rev-parse FETCH_HEAD)" = "$NEW"
+          gitrepo merge-base --is-ancestor "$OLD" "$NEW"
+          EXPECTED="$(printf '%s\n' \
+            apps/catalog/owner_panel_views.py \
+            apps/catalog/services/search_referral_metrics.py \
+            apps/catalog/templates/catalog/owner_panel/dashboard.html \
+            apps/catalog/tests/test_owner_analytics_dashboard.py \
+            apps/catalog/tests/test_search_referral_metrics.py \
+            apps/storefront/static/storefront/catalog-explorer.js \
+            apps/storefront/templates/storefront/base.html \
+            apps/storefront/tests/test_visual_professional.py \
+            tests/browser/source-storefront-qa.cjs \
+            | LC_ALL=C sort)"
+          test "$(gitrepo diff --name-only "$OLD" "$NEW" | LC_ALL=C sort)" = "$EXPECTED"
+          test "$(systemctl show lowcost-europa.service -p User --value)" = "$APPUSER"
+          nginx -t >/dev/null 2>&1
+          for unit in lowcost-europa.service lowcost-europa-catalog-maintenance.timer lowcost-europa-indexnow.timer lowcost-europa-backup.timer lowcost-europa-offsite-backup.timer lowcost-europa-offsite-backup-health.timer lowcost-europa-affiliate-report.timer lowcost-europa-cavitation-availability.timer; do systemctl is-active --quiet "$unit"; done
+          ENV_SHA="$(sha256sum "$ENVFILE" | awk '{print $1}')"
+          sh "$ROOT/deploy/scripts/backup-postgres.sh"
+          BACKUP="$(find "$ROOT/backups/daily" -maxdepth 1 -type f -name '*.dump' -printf '%T@ %p\n' | sort -nr | head -n 1 | cut -d' ' -f2-)"
+          test -s "$BACKUP" && test -s "$BACKUP.sha256"
+          (cd "$ROOT/backups/daily" && sha256sum -c "$(basename "$BACKUP.sha256")" >/dev/null)
+          echo META_LOCAL_DB_BACKUP=PASS
+          test ! -e "$TASK"
+          mkdir -m 700 "$TASK"
+          cp -p "$JS" "$TASK/catalog-explorer.js"
+          HAD_REPORT=0
+          if test -f "$REPORT"; then
+            test ! -L "$REPORT"
+            cp -p "$REPORT" "$TASK/search-referrers.json"
+            HAD_REPORT=1
+          fi
+          cd "$ROOT"
+          set -a
+          . "$ENVFILE"
+          set +a
+          export DJANGO_SETTINGS_MODULE=config.settings.production
+          snapshot() {
+            runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYLINK'
+          import django,hashlib
+          django.setup()
+          from apps.catalog.models import Offer
+          rows=sorted(Offer.objects.filter(
+              source=Offer.Source.ALIEXPRESS_OWNER,is_active=True,owner_hidden=False,
+              family_placements__product_family__slug="cavitacao-rf-vacuum-corpo"
+          ).values_list("external_product_id","affiliate_url"))
+          assert len(rows)==17 and len(set(x[0] for x in rows))==17
+          assert len(set(x[1] for x in rows))==17
+          assert all(x[1].startswith("https://s.click.aliexpress.com/e/") for x in rows)
+          target=dict(rows)["1005013070854347"]
+          assert hashlib.sha256(target.encode()).hexdigest()=="676e98c3d53e327bb6998a6ce805fdb11d9b6ebd6c6845ac9cdd394340fa73c3"
+          print(hashlib.sha256("\n".join(pid+"\t"+url for pid,url in rows).encode()).hexdigest())
+          PYLINK
+          }
+          snapshot > "$TASK/links-before.sha256"
+          PROMOTED=0
+          STATIC_UPDATED=0
+          REPORT_UPDATED=0
+          rollback() {
+            rc=$?
+            trap - EXIT
+            if test "$rc" -ne 0 && test "$PROMOTED" = 1; then
+              umask 022
+              gitrepo checkout --detach -q "$OLD" || true
+              if test "$STATIC_UPDATED" = 1; then cp -p "$TASK/catalog-explorer.js" "$JS" || true; fi
+              if test "$REPORT_UPDATED" = 1; then
+                if test "$HAD_REPORT" = 1; then cp -p "$TASK/search-referrers.json" "$REPORT" || true; else rm -f "$REPORT"; fi
+              fi
+              systemctl reload lowcost-europa.service || true
+              echo META_LOCAL_ROLLBACK_APPLIED=PASS
+            fi
+            exit "$rc"
+          }
+          trap rollback EXIT
+          PROMOTED=1
+          umask 022
+          gitrepo checkout --detach -q "$NEW"
+          umask 077
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py check
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py makemigrations --check --dry-run
+          STATIC_UPDATED=1
+          install -m 644 "$ROOT/apps/storefront/static/storefront/catalog-explorer.js" "$JS"
+          cmp -s "$ROOT/apps/storefront/static/storefront/catalog-explorer.js" "$JS"
+          REPORT_UPDATED=1
+          python3 -m apps.catalog.services.search_referral_metrics --log-dir /var/log/nginx --output "$REPORT"
+          chown "$APPUSER:$APPUSER" "$REPORT"
+          chmod 600 "$REPORT"
+          systemctl reload lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa.service
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYVERIFY'
+          import django,urllib.request,urllib.error
+          from pathlib import Path
+          from datetime import date, datetime, timedelta, time
+          from zoneinfo import ZoneInfo
+          django.setup()
+          from django.template.loader import get_template
+          from apps.catalog.services.search_referral_metrics import read_private_report
+          from apps.catalog.models import Offer, OfferClick
+          get_template("catalog/owner_panel/dashboard.html")
+          rpt=read_private_report(Path("/srv/projects/lowcost-europa/.local-metrics/search-referrers.json"))
+          assert rpt is not None and isinstance(rpt["meta"],dict)
+          m=rpt["meta"]
+          assert sum(m[k] for k in ("facebook","instagram","unspecified"))==m["total"]
+          print("META_LOCAL_NGINX_REPORT=PASS")
+          for day in ("2026-11-09","2026-11-10"):
+              observed=next((d["requests"] for d in m["daily"] if d["date"]==day),None)
+              assert observed is not None
+              print("META_LOCAL_ARRIVALS_"+day+"="+str(observed))
+          print("META_LOCAL_FACEBOOK_7D="+str(m["facebook"]))
+          print("META_LOCAL_INSTAGRAM_7D="+str(m["instagram"]))
+          print("META_LOCAL_UNSPECIFIED_7D="+str(m["unspecified"]))
+          print("META_LOCAL_EXPLICIT_PAID_UTM_7D="+str(m["paid_tagged"]))
+          z=ZoneInfo("Europe/Lisbon")
+          for day in (date(2026,11,9),date(2026,11,10)):
+              start=datetime.combine(day,time.min,tzinfo=z)
+              end=start+timedelta(days=1)
+              offers=OfferClick.objects.filter(clicked_at__gte=start,clicked_at__lt=end)
+              print("RAW_GO_CLICKS_"+day.isoformat()+"="+str(offers.count()))
+              print("OWNER_AFFILIATE_CLICKS_"+day.isoformat()+"="+str(offers.filter(offer__source=Offer.Source.ALIEXPRESS_OWNER).count()))
+          target=Offer.objects.get(external_product_id="1005013070854347",
+              source=Offer.Source.ALIEXPRESS_OWNER)
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self,*args,**kwargs): return None
+          opener=urllib.request.build_opener(NoRedirect)
+          for ua in ("Mozilla/5.0 (Linux; Android 14) Chrome/131 Mobile","Mozilla/5.0 (Windows NT 10.0) Chrome/131"):
+              req=urllib.request.Request(
+                  "https://www.lowcost-europa.eu/go/"+str(target.pk)+"/",
+                  headers={"User-Agent":ua},method="HEAD")
+              try:
+                  resp=opener.open(req,timeout=25)
+              except urllib.error.HTTPError as e:
+                  resp=e
+              assert resp.code==302 and resp.headers.get("Location")==target.affiliate_url
+          print("META_LOCAL_AFFILIATE_302_UNCHANGED=PASS")
+          PYVERIFY
+          snapshot > "$TASK/links-after.sha256"
+          cmp -s "$TASK/links-before.sha256" "$TASK/links-after.sha256"
+          echo META_LOCAL_ORIGINAL_17_LINKS_PRESERVED=PASS
+          test "$(sha256sum "$ENVFILE" | awk '{print $1}')" = "$ENV_SHA"
+          test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          test "$(gitrepo rev-parse HEAD)" = "$NEW"
+          nginx -t >/dev/null 2>&1
+          for unit in lowcost-europa.service lowcost-europa-catalog-maintenance.timer lowcost-europa-indexnow.timer lowcost-europa-backup.timer lowcost-europa-offsite-backup.timer lowcost-europa-offsite-backup-health.timer lowcost-europa-affiliate-report.timer lowcost-europa-cavitation-availability.timer; do systemctl is-active --quiet "$unit"; done
+          echo META_LOCAL_PRODUCTION_DEPLOY=PASS
+          trap - EXIT
+          REMOTE
