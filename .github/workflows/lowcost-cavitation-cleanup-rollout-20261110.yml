@@ -1,0 +1,275 @@
+name: Lowcost cavitation compact cards and remove test offer guarded 20261110
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-cavitation-cleanup-rollout-20261110.yml'
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-owner-cavitation-cleanup-20261110
+  cancel-in-progress: false
+jobs:
+  guarded-rollout:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 24
+    steps:
+      - name: Pinned SSH deploy, hide test product, preserve data and verify public cards
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          ROOT=/srv/projects/lowcost-europa
+          OLD=7580bfa844aad2c9047c832b0446bd0ec8794e08
+          NEW=71d2b7b749d0b74642e3d950d6c0e2275b12f395
+          APPUSER=le001_1789265592
+          ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
+          CSS="$ROOT/staticfiles/storefront/storefront.css"
+          JS="$ROOT/staticfiles/storefront/catalog-explorer.js"
+          TASK="$ROOT/private/ops/cavitation-clean-card-and-hide-212-20261110"
+          BASE=https://www.lowcost-europa.eu
+          gitrepo() { git -c safe.directory="$ROOT" -C "$ROOT" "$@"; }
+          test -d "$ROOT/.git" && test -s "$ENVFILE" && test ! -L "$ENVFILE"
+          test -s "$CSS" && test ! -L "$CSS"
+          test -s "$JS" && test ! -L "$JS"
+          test ! -e "$TASK"
+          exec 9>"$ROOT/private/ops/ptes-deploy.lock"
+          flock -n 9
+          test "$(gitrepo rev-parse HEAD)" = "$OLD"
+          test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          test "$(gitrepo ls-remote https://github.com/martaxi-boss/lowcost-europa.git refs/heads/main | awk '{print $1}')" = "$NEW"
+          gitrepo fetch --no-tags -q https://github.com/martaxi-boss/lowcost-europa.git main
+          test "$(gitrepo rev-parse FETCH_HEAD)" = "$NEW"
+          gitrepo merge-base --is-ancestor "$OLD" "$NEW"
+          EXPECTED="$(printf '%s\n' \
+            apps/catalog/tests/test_cavitation_manual_only.py \
+            apps/storefront/static/storefront/catalog-explorer.js \
+            apps/storefront/static/storefront/storefront.css \
+            apps/storefront/templates/storefront/base.html \
+            apps/storefront/templates/storefront/components/offer_card.html \
+            apps/storefront/tests/test_offer_go.py \
+            apps/storefront/tests/test_visual_professional.py \
+            tests/browser/source-storefront-qa.cjs \
+            | LC_ALL=C sort)"
+          ACTUAL="$(gitrepo diff --name-only "$OLD" "$NEW" | LC_ALL=C sort)"
+          test "$EXPECTED" = "$ACTUAL"
+          echo CAVITATION_ROLLOUT_EXACT_EIGHT_FILES=PASS
+          test "$(systemctl show lowcost-europa.service -p User --value)" = "$APPUSER"
+          nginx -t >/dev/null 2>&1
+          for unit in lowcost-europa.service lowcost-europa-catalog-maintenance.timer lowcost-europa-indexnow.timer lowcost-europa-backup.timer lowcost-europa-offsite-backup.timer lowcost-europa-offsite-backup-health.timer lowcost-europa-affiliate-report.timer lowcost-europa-cavitation-availability.timer; do systemctl is-active --quiet "$unit"; done
+          ENV_SHA="$(sha256sum "$ENVFILE" | awk '{print $1}')"
+          cd "$ROOT"
+          set -a
+          . "$ENVFILE"
+          set +a
+          export DJANGO_SETTINGS_MODULE=config.settings.production
+          snap17() {
+            runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PY'
+          import django,hashlib
+          django.setup()
+          from apps.catalog.models import Offer
+          rows=sorted(Offer.objects.filter(source=Offer.Source.ALIEXPRESS_OWNER,
+              is_active=True,owner_hidden=False,
+              family_placements__product_family__slug="cavitacao-rf-vacuum-corpo",
+          ).exclude(external_product_id="1005013114375206").values_list(
+              "external_product_id","affiliate_url"))
+          assert len(rows)==17 and len({x[0] for x in rows})==17
+          assert all(url.startswith("https://s.click.aliexpress.com/e/") for _,url in rows)
+          assert hashlib.sha256(dict(rows)["1005013070854347"].encode()).hexdigest()=="676e98c3d53e327bb6998a6ce805fdb11d9b6ebd6c6845ac9cdd394340fa73c3"
+          print(hashlib.sha256("\n".join(pid+"\t"+url for pid,url in rows).encode()).hexdigest())
+          PY
+          }
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYPRE'
+          import django
+          django.setup()
+          from apps.catalog.models import Offer, OfferClick, OfferFamilyPlacement
+          from apps.catalog.services.public_eligibility import is_ship_from_verified
+          offer=Offer.objects.get(pk=212,source=Offer.Source.ALIEXPRESS_OWNER,
+              external_product_id="1005013114375206")
+          assert offer.affiliate_url=="https://s.click.aliexpress.com/e/_c3XC3lgL"
+          assert offer.is_active and not offer.owner_hidden
+          assert OfferFamilyPlacement.objects.filter(
+              offer=offer,product_family__slug="cavitacao-rf-vacuum-corpo").count()==1
+          assert OfferFamilyPlacement.objects.filter(
+              product_family__slug="cavitacao-rf-vacuum-corpo").count()==18
+          assert OfferClick.objects.filter(offer=offer).count()>=2
+          older=Offer.objects.filter(
+              source=Offer.Source.ALIEXPRESS_OWNER,
+              family_placements__product_family__slug="cavitacao-rf-vacuum-corpo",
+          ).exclude(pk=212)
+          print("CAVITATION_VERIFIED_EU_ORIGIN_COUNT="+str(
+              sum(1 for offer in older if is_ship_from_verified(offer))))
+          print("CAVITATION_TEST_OFFER_CLICKS_BEFORE="+str(
+              OfferClick.objects.filter(offer=offer).count()))
+          PYPRE
+          echo CAVITATION_TEST_PRODUCT_212_PRECHECK=PASS
+          sh "$ROOT/deploy/scripts/backup-postgres.sh"
+          BACKUP="$(find "$ROOT/backups/daily" -maxdepth 1 -type f -name '*.dump' -printf '%T@ %p\n' | sort -nr | head -n 1 | cut -d' ' -f2-)"
+          test -s "$BACKUP" && test -s "$BACKUP.sha256"
+          (cd "$ROOT/backups/daily" && sha256sum -c "$(basename "$BACKUP.sha256")" >/dev/null)
+          echo CAVITATION_ROLLOUT_BACKUP=PASS
+          mkdir -m 700 "$TASK"
+          cp -p "$CSS" "$TASK/old-storefront.css"
+          cp -p "$JS" "$TASK/old-catalog-explorer.js"
+          snap17 > "$TASK/old-17-links.sha256"
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYSNAP'
+          import django
+          django.setup()
+          from apps.catalog.models import OfferClick
+          from pathlib import Path
+          count=OfferClick.objects.filter(offer_id=212).count()
+          Path("/srv/projects/lowcost-europa/private/ops/cavitation-clean-card-and-hide-212-20261110/test-clicks-before").write_text(str(count))
+          PYSNAP
+          SOURCE_CHANGED=0
+          STATIC_CHANGED=0
+          TEST_HIDDEN=0
+          rollback() {
+            rc=$?
+            trap - EXIT
+            if test "$rc" -ne 0; then
+              if test "$TEST_HIDDEN" = 1; then
+                runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYUNDO' || true
+          import django
+          django.setup()
+          from apps.catalog.models import Offer
+          offer=Offer.objects.get(pk=212, source=Offer.Source.ALIEXPRESS_OWNER,
+              external_product_id="1005013114375206",
+              affiliate_url="https://s.click.aliexpress.com/e/_c3XC3lgL")
+          offer.owner_hidden=False
+          offer.save(update_fields=["owner_hidden"])
+          print("CAVITATION_TEST_PRODUCT_212_UNHIDDEN_ON_ROLLBACK=PASS")
+          PYUNDO
+              fi
+              if test "$SOURCE_CHANGED" = 1; then
+                gitrepo checkout --detach -q "$OLD" || true
+              fi
+              if test "$STATIC_CHANGED" = 1; then
+                cp -p "$TASK/old-storefront.css" "$CSS" || true
+                cp -p "$TASK/old-catalog-explorer.js" "$JS" || true
+              fi
+              systemctl reload lowcost-europa.service || true
+              echo CAVITATION_ROLLOUT_ROLLBACK_ATTEMPTED=TRUE
+            fi
+            exit "$rc"
+          }
+          trap rollback EXIT
+          SOURCE_CHANGED=1
+          umask 022
+          gitrepo checkout --detach -q "$NEW"
+          umask 077
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py check
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py makemigrations --check --dry-run
+          STATIC_CHANGED=1
+          install -m 644 "$ROOT/apps/storefront/static/storefront/storefront.css" "$CSS"
+          install -m 644 "$ROOT/apps/storefront/static/storefront/catalog-explorer.js" "$JS"
+          cmp -s "$ROOT/apps/storefront/static/storefront/storefront.css" "$CSS"
+          cmp -s "$ROOT/apps/storefront/static/storefront/catalog-explorer.js" "$JS"
+          TEST_HIDDEN=1
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYHIDE'
+          import django
+          django.setup()
+          from django.db import transaction
+          from apps.catalog.models import Offer
+          with transaction.atomic():
+              offer=Offer.objects.select_for_update().get(pk=212,
+                  source=Offer.Source.ALIEXPRESS_OWNER,
+                  external_product_id="1005013114375206",
+                  affiliate_url="https://s.click.aliexpress.com/e/_c3XC3lgL")
+              assert offer.is_active and not offer.owner_hidden
+              offer.owner_hidden=True
+              offer.save(update_fields=["owner_hidden"])
+          print("CAVITATION_TEST_PRODUCT_212_HIDDEN=PASS")
+          PYHIDE
+          systemctl reload lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa.service
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYVERIFY'
+          import django, urllib.request, urllib.error
+          from pathlib import Path
+          from html.parser import HTMLParser
+          django.setup()
+          from apps.catalog.models import Offer, OfferClick, OfferFamilyPlacement
+          from apps.catalog.services.public_eligibility import public_eligibility_q
+          from django.template.loader import get_template
+          get_template("storefront/components/offer_card.html")
+          test=Offer.objects.get(pk=212,source=Offer.Source.ALIEXPRESS_OWNER,
+              external_product_id="1005013114375206")
+          assert test.owner_hidden and test.is_active
+          assert OfferClick.objects.filter(offer=test).count()==int(
+              Path("/srv/projects/lowcost-europa/private/ops/cavitation-clean-card-and-hide-212-20261110/test-clicks-before").read_text())
+          assert OfferFamilyPlacement.objects.filter(
+              product_family__slug="cavitacao-rf-vacuum-corpo",offer__in=Offer.objects.filter(
+                  public_eligibility_q())).count()==17
+          print("CAVITATION_TEST_OFFER_CLICKS_PRESERVED=PASS")
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self,*args,**kwargs):return None
+          opener=urllib.request.build_opener(NoRedirect)
+          for path in ("/go/212/","/go/211/"):
+              req=urllib.request.Request("https://www.lowcost-europa.eu"+path,
+                   method="HEAD",headers={"User-Agent":"Mozilla/5.0 (Linux; Android 14) Chrome/131 Mobile"})
+              try: res=opener.open(req,timeout=24)
+              except urllib.error.HTTPError as e: res=e
+              if path.endswith("/212/"):
+                  assert res.code==404,(path,res.code)
+                  print("CAVITATION_TEST_OFFER_212_REDIRECT_DISABLED=PASS")
+              else:
+                  target=Offer.objects.get(pk=211)
+                  assert res.code==302 and res.headers.get("Location")==target.affiliate_url
+                  print("CAVITATION_ORIGINAL_OFFER_211_REDIRECT=PASS")
+          class Cards(HTMLParser):
+              def __init__(self):super().__init__();self.ids=[]
+              def handle_starttag(self,tag,attrs):
+                  if tag=="article":
+                      v=dict(attrs)
+                      if "data-offer-card" in v:
+                          self.ids.append(v.get("data-offer-id"))
+          for prefix in ("","/pt","/es"):
+              url="https://www.lowcost-europa.eu"+prefix+"/products/cavitacao-rf-vacuum-corpo/"
+              with urllib.request.urlopen(url,timeout=24) as r:
+                  assert r.status==200
+                  body=r.read(1800000).decode("utf-8")
+              p=Cards();p.feed(body)
+              assert len(p.ids)==17 and "212" not in p.ids, (prefix,len(p.ids))
+              assert 'offer-price-block--compact' in body
+              assert 'data-affiliate-original-url=' in body
+              assert 'data-compare-toggle' in body
+              assert "offer-browser-help" not in body
+              assert "data-affiliate-copy" not in body
+              assert "Produto a partilhar" not in body
+              assert 'class="facts facts--primary"' not in body
+              print("CAVITATION_PUBLIC_CARDS_"+(prefix.strip("/").upper() or "BASE")+"=PASS_17")
+          for name,needle in (
+              ("storefront.css",b"offer-origin-heading"),
+              ("catalog-explorer.js",b"affiliateOriginalUrl"),
+          ):
+              with urllib.request.urlopen(
+                  "https://www.lowcost-europa.eu/static/storefront/"+name+"?v=cavitation-card-clean-20261110",
+                  timeout=24,
+              ) as r:
+                  assert r.status==200 and needle in r.read(350000)
+              print("CAVITATION_PUBLIC_STATIC_"+name+"=PASS")
+          PYVERIFY
+          snap17 > "$TASK/unchanged-17-links.sha256"
+          cmp -s "$TASK/old-17-links.sha256" "$TASK/unchanged-17-links.sha256"
+          echo CAVITATION_17_ORIGINAL_AFFILIATE_LINKS_UNCHANGED=PASS
+          test "$(sha256sum "$ENVFILE" | awk '{print $1}')" = "$ENV_SHA"
+          test "$(gitrepo rev-parse HEAD)" = "$NEW"
+          test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          nginx -t >/dev/null 2>&1
+          for unit in lowcost-europa.service lowcost-europa-catalog-maintenance.timer lowcost-europa-indexnow.timer lowcost-europa-backup.timer lowcost-europa-offsite-backup.timer lowcost-europa-offsite-backup-health.timer lowcost-europa-affiliate-report.timer lowcost-europa-cavitation-availability.timer; do systemctl is-active --quiet "$unit"; done
+          echo CAVITATION_CLEAN_CARD_AND_REMOVE_TEST_212=PASS
+          trap - EXIT
+          REMOTE
