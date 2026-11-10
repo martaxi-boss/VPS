@@ -40,6 +40,9 @@ jobs:
           ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
           gitrepo() { git -c safe.directory="$ROOT" -C "$ROOT" "$@"; }
           test -d "$ROOT/.git" && test -s "$ENVFILE" && test ! -L "$ENVFILE"
+          TEMPLATE="$ROOT/apps/storefront/templates/storefront/components/offer_card.html"
+          test -f "$TEMPLATE" && test ! -L "$TEMPLATE"
+          echo "CAVITATION_TEMPLATE_MODE_BEFORE=$(stat -c '%a' "$TEMPLATE")"
           exec 9>"$ROOT/private/ops/ptes-deploy.lock"
           flock -n 9
           test "$(gitrepo rev-parse HEAD)" = "$OLD"
@@ -62,6 +65,7 @@ jobs:
             trap - EXIT
             if test "$rc" -ne 0 && test "$SOURCE_CHANGED" = 1; then
               gitrepo checkout --detach -q "$OLD" || true
+              chmod 644 "$TEMPLATE" || true
               systemctl reload lowcost-europa.service || true
               echo CAVITATION_HEADING_ROLLBACK=ATTEMPTED
             fi
@@ -70,6 +74,9 @@ jobs:
           trap rollback EXIT
           SOURCE_CHANGED=1
           gitrepo checkout --detach -q "$NEW"
+          chmod 644 "$TEMPLATE"
+          runuser -u "$APPUSER" -- test -r "$TEMPLATE"
+          echo CAVITATION_TEMPLATE_READABILITY=PASS
           cd "$ROOT"
           set -a
           . "$ENVFILE"
@@ -140,6 +147,8 @@ jobs:
           PY
           test "$(gitrepo rev-parse HEAD)" = "$NEW"
           test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          test "$(stat -c '%a' "$TEMPLATE")" = 644
+          runuser -u "$APPUSER" -- test -r "$TEMPLATE"
           nginx -t >/dev/null 2>&1
           systemctl is-active --quiet lowcost-europa.service
           echo CAVITATION_HEADING_ONLY_PRODUCTION=PASS
