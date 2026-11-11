@@ -31,7 +31,7 @@ jobs:
             -o ConnectTimeout=20 -o ServerAliveInterval=15 \
             ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
           set -Eeuo pipefail
-          umask 077
+          umask 022
           ROOT=/srv/projects/lowcost-europa
           OLD=3900b0780978909637ba20f506c39717dadd44e7
           NEW=65732cd4185d8eedaa606a81da46f085ef0ad10e
@@ -70,6 +70,7 @@ jobs:
             apps/storefront/views.py \
             | LC_ALL=C sort)"
           test "$(gitrepo diff --name-only "$OLD" "$NEW" | LC_ALL=C sort)" = "$EXPECTED"
+          chmod 644 "$ROOT/apps/catalog/owner_panel_views.py" "$ROOT/apps/catalog/services/manual_storefront.py" "$ROOT/apps/catalog/services/offer_maintenance.py" "$ROOT/apps/catalog/services/weekly_discovery.py" "$ROOT/apps/storefront/views.py"
           echo MICRO_EXACT_SOURCE_FILE_DIFF=PASS_13
           test "$(systemctl show lowcost-europa.service -p User --value)" = "$APPUSER"
           nginx -t >/dev/null 2>&1
