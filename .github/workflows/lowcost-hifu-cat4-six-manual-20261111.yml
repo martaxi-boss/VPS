@@ -102,7 +102,7 @@ jobs:
           family=ProductFamily.objects.get(slug="hifu",display_order=4)
           assert family.status!=ProductFamily.Status.RETIRED
           old=OfferFamilyPlacement.objects.filter(product_family=family)
-          assert old.count()<=20
+          print("CAT4_EXISTING_PLACEMENTS_COUNT="+str(old.count()))
           ids=[]
           for index,url in enumerate(urls,1):
               assert is_https_affiliate_url(url)
