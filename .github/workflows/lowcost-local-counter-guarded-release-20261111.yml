@@ -81,7 +81,7 @@ jobs:
             if test "$rc" -ne 0 && test "$CHANGED" = 1; then
               cp -p "$BACKUP" "$ENVFILE" || true
               gitrepo checkout --detach -q "$OLD" || true
-              chmod 644 "$ROOT/apps/catalog/owner_panel_views.py" "$ROOT/apps/catalog/templates/catalog/owner_panel/dashboard.html" "$ROOT/apps/catalog/management/commands/sync_external_metrics.py" || true
+              fix_source_read_access || true
               systemctl restart lowcost-europa.service || true
               echo LOCAL_COUNTER_ROLLBACK=ATTEMPTED
             fi
@@ -107,18 +107,23 @@ jobs:
           test -n "$BEFORE_LINKS"
           CHANGED=1
           gitrepo checkout --detach -q "$NEW"
-          for rel in $(gitrepo diff --name-only --diff-filter=ACMR "$OLD" "$NEW"); do
-            case "$rel" in
-              apps/*.py|apps/*.html|apps/*/*.py|apps/*/*/*.py|apps/*/*/*/*.py|apps/*/*/*/*.html|docs/*.md|docs/*/*.md)
-                test ! -L "$ROOT/$rel"
-                chmod 644 "$ROOT/$rel"
-                ;;
-            esac
-          done
-          # Ensure private backend can import every updated source; not just owner views.
-          chmod 644 "$ROOT/apps/catalog/owner_panel_views.py" \
-            "$ROOT/apps/catalog/management/commands/sync_external_metrics.py" \
-            "$ROOT/apps/catalog/templates/catalog/owner_panel/dashboard.html"
+          # Recover read access to committed application source only. The
+          # previous failed microdermabrasion attempt left an unrelated Python
+          # source file unreadable to the app service. Never touch .env/private.
+          fix_source_read_access() {
+            while IFS= read -r -d '' rel; do
+              case "$rel" in
+                apps/*.py|apps/*.html|config/*.py|config/*.html)
+                  file="$ROOT/$rel"
+                  test -f "$file" && test ! -L "$file"
+                  chmod a+r "$file"
+                  ;;
+              esac
+            done < <(gitrepo ls-files -z -- apps config)
+          }
+          fix_source_read_access
+          runuser -u "$APPUSER" -- test -r "$ROOT/apps/catalog/services/manual_storefront.py"
+          echo LOCAL_COUNTER_COMMITTED_PYTHON_READ_ACCESS=PASS
           runuser -u "$APPUSER" -- test -r "$ROOT/apps/catalog/owner_panel_views.py"
           runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py check
           python3 - "$ENVFILE" <<'PYENV'
