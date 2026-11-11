@@ -56,15 +56,17 @@ jobs:
             apps/catalog/services/cavitation_availability.py \
             apps/catalog/services/manual_storefront.py \
             apps/catalog/templates/catalog/owner_panel/family_manual.html \
+            apps/catalog/tests/test_cavitation_manual_only.py \
             apps/catalog/tests/test_hifu_manual_only.py \
             apps/catalog/tests/test_manual_candidate_intake.py \
             apps/catalog/tests/test_owner_manual_product_intake_command.py \
             apps/catalog/tests/test_weekly_discovery.py \
+            apps/storefront/tests/test_seo_ranking_readiness.py \
             apps/storefront/templates/storefront/components/offer_card.html \
             | LC_ALL=C sort)"
           test "$(gitrepo diff --name-only "$OLD" "$NEW" | LC_ALL=C sort)" = "$EXPECTED"
           gitrepo show "$NEW:apps/catalog/services/manual_storefront.py" | grep -q 'HIFU_MANUAL_FAMILY_SLUG = "hifu"'
-          echo CAT4_EXACT_NINE_CODE_PATHS=PASS
+          echo CAT4_EXACT_ELEVEN_CODE_PATHS=PASS
           test "$(systemctl show lowcost-europa.service -p User --value)" = "$APPUSER"
           nginx -t >/dev/null 2>&1
           for unit in \
