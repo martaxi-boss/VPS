@@ -80,6 +80,10 @@ jobs:
                 print("ALIEXPRESS_PAID_COUNT="+str(p.get("paid_count","UNKNOWN")))
                 print("ALIEXPRESS_RECEIVED_COUNT="+str(p.get("received_count","UNKNOWN")))
                 print("ALIEXPRESS_TRACKING_GROUPS="+str(len(p.get("by_tracking",[]))))
+                for group in p.get("by_tracking",[]):
+                  if isinstance(group,dict) and (group.get("paid_count",0) or group.get("received_count",0)):
+                    print("ALIEXPRESS_NONZERO_TRACKING="+str(group.get("tracking_id","UNKNOWN"))+";paid="+str(group.get("paid_count",0))+";received="+str(group.get("received_count",0)))
+
               else:
                 print("GSC_PROVIDER_IN_SNAPSHOT="+str(p.get("provider","UNSPECIFIED")))
                 print("GSC_CLICKS="+str(p.get("clicks","UNKNOWN")))
@@ -98,6 +102,53 @@ jobs:
                 print("LOCAL_META_"+k.upper()+"="+str(meta.get(k,"UNKNOWN")))
           print("OUTBOUND_YESTERDAY="+str(OfferClick.objects.filter(clicked_at__date=timezone.localdate(now)-timedelta(days=1)).count()))
           print("OUTBOUND_TODAY="+str(OfferClick.objects.filter(clicked_at__date=timezone.localdate(now)).count()))
+          from apps.catalog.services.affiliate_order_reporting import collect_affiliate_order_report
+          from apps.integrations.aliexpress.client import AliExpressClient
+          class InspectSafeRows(AliExpressClient):
+            def __init__(self):
+              super().__init__()
+              self.total_rows = 0
+              self.product_id_fields_present = False
+              self.test_product_matches = 0
+              self.matched_tracking = []
+              self.date_field_names = set()
+              self.observed_order_dates = set()
+            def _call(self, method, params):
+              response = super()._call(method, params)
+              if method != "aliexpress.affiliate.order.list":
+                return response
+              result = response.get("aliexpress_affiliate_order_list_response",{}).get("resp_result",{}).get("result",{})
+              rows = result.get("orders",{}).get("order",[]) if isinstance(result,dict) else []
+              if not isinstance(rows,list):
+                return response
+              for row in rows:
+                if not isinstance(row,dict):
+                  continue
+                self.total_rows += 1
+                for key in ("product_id","productId","product_id_str","item_id","itemId"):
+                  if key in row:
+                    self.product_id_fields_present = True
+                    if str(row[key]).strip() == "1005013114375206":
+                      self.test_product_matches += 1
+                      self.matched_tracking.append(str(row.get("tracking_id","UNKNOWN")))
+                for key in ("order_time","order_date","payment_time","paid_time","created_at"):
+                  if key in row:
+                    self.date_field_names.add(key)
+                    self.observed_order_dates.add(str(row[key])[:10])
+              return response
+          try:
+            client=InspectSafeRows()
+            report,_,_=collect_affiliate_order_report(client=client,days=3,now=now)
+            print("ALIEXPRESS_LIVE_3D_API=SUCCESS")
+            print("ALIEXPRESS_LIVE_3D_PAID="+str(report["paid_count"]))
+            print("ALIEXPRESS_LIVE_ROWS="+str(client.total_rows))
+            print("ALIEXPRESS_LIVE_PRODUCT_ID_PRESENT="+str(client.product_id_fields_present).upper())
+            print("ALIEXPRESS_LIVE_TEST_PRODUCT_MATCH="+str(client.test_product_matches))
+            print("ALIEXPRESS_LIVE_TEST_TRACKINGS="+",".join(sorted(set(client.matched_tracking))) if client.matched_tracking else "ALIEXPRESS_LIVE_TEST_TRACKINGS=NONE")
+            print("ALIEXPRESS_LIVE_DATE_FIELD_NAMES="+",".join(sorted(client.date_field_names)))
+            print("ALIEXPRESS_LIVE_ORDER_DATES="+",".join(sorted(client.observed_order_dates)) if client.observed_order_dates else "ALIEXPRESS_LIVE_ORDER_DATES=UNAVAILABLE")
+          except Exception as exc:
+            print("ALIEXPRESS_LIVE_3D_API=UNAVAILABLE_"+type(exc).__name__)
           print("LOWCOST_METRICS_AUDIT_READONLY=PASS")
           PY
           REMOTE
