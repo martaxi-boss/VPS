@@ -31,7 +31,7 @@ jobs:
             -o ConnectTimeout=20 -o ServerAliveInterval=15 \
             ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
           set -Eeuo pipefail
-          umask 077
+          umask 022
           ROOT=/srv/projects/lowcost-europa
           OLD=3900b0780978909637ba20f506c39717dadd44e7
           NEW=65732cd4185d8eedaa606a81da46f085ef0ad10e
