@@ -1,0 +1,204 @@
+name: Lowcost traffic live read only audit 20261111
+on:
+  push:
+    paths:
+      - .github/workflows/lowcost-traffic-live-readonly-20261111-1636.yml
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-traffic-live-readonly-20261111-1636
+  cancel-in-progress: false
+jobs:
+  read:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Verify pinned VPS host
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+      - name: Inspect Nginx arrivals, outgoing affiliate clicks and live AliExpress API
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          ROOT=/srv/projects/lowcost-europa
+          test -d "$ROOT/.git"
+          test -s /var/log/nginx/lowcost-europa.access.log
+          test -s "$ROOT/private/systemd-env/lowcost-europa.env"
+          git -c safe.directory="$ROOT" -C "$ROOT" merge-base --is-ancestor 8dbfc6d9e091f96b6c6213a54811efc52bcf31da HEAD
+          test -z "$(git -c safe.directory="$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)"
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa-affiliate-report.timer
+          nginx -t >/dev/null 2>&1
+          cd "$ROOT"
+          python3 - <<'PYLOGS'
+          from collections import Counter
+          from datetime import datetime, timedelta, timezone
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+          from urllib.parse import urlsplit
+          from apps.catalog.services.search_referral_metrics import (
+              COMBINED, _log_files, _public_page, _engine, _meta_origin, summarize_logs
+          )
+          now=datetime.now(timezone.utc)
+          today=now.astimezone(ZoneInfo("Europe/Lisbon")).date()
+          yesterday=today-timedelta(days=1)
+          day_counts=Counter()
+          human_counts=Counter()
+          meta_counts=Counter()
+          search_counts=Counter()
+          origins=Counter()
+          home_counts=Counter()
+          log_lines=0
+          first=None
+          last=None
+          bot_tokens=("bot","crawl","spider","facebookexternalhit","meta-externalagent",
+                      "python-requests","python-urllib","curl/","wget/","headlesschrome",
+                      "gptbot","google-inspectiontool","uptimerobot","go-http-client",
+                      "httpclient","lighthouse","bytespider")
+          for file in _log_files(Path("/var/log/nginx")):
+              import gzip
+              opening=gzip.open if file.suffix==".gz" else open
+              with opening(file,"rt",encoding="utf-8",errors="replace") as src:
+                  for line in src:
+                      log_lines+=1
+                      if log_lines>2_000_000:raise ValueError("log_scan_exceeded_budget")
+                      m=COMBINED.match(line.rstrip("\n"))
+                      if m is None or m.group("status") not in {"200","304"}:continue
+                      request=m.group("request")
+                      if not _public_page(request):continue
+                      try:
+                          stamp=datetime.strptime(m.group("when"),"%d/%b/%Y:%H:%M:%S %z").astimezone(timezone.utc)
+                      except ValueError:continue
+                      if stamp>now or stamp<now-timedelta(days=8):continue
+                      d=stamp.astimezone(ZoneInfo("Europe/Lisbon")).date()
+                      if d not in {today,yesterday}:continue
+                      p=urlsplit(request.split(" ",2)[1]).path
+                      if p.lower().endswith((".js",".css",".png",".jpg",".jpeg",".gif",".webp",".svg",".ico",".xml",".txt",".woff",".woff2",".pdf",".json",".mp4",".webm",".map")):
+                          continue
+                      if not p.endswith("/") and not p.endswith(".html"):continue
+                      day_counts[d]+=1
+                      if p in {"/","/pt/","/es/"}:home_counts[d]+=1
+                      ua=line.rsplit('" "',1)[-1].split('"',1)[0].lower()
+                      if not any(word in ua for word in bot_tokens):human_counts[d]+=1
+                      if first is None or stamp<first:first=stamp
+                      if last is None or stamp>last:last=stamp
+                      meta=_meta_origin(request,m.group("referer"))
+                      if meta:
+                          meta_counts[d]+=1
+                          origins[(d,"meta_"+meta[0])]+=1
+                          if meta[1]:origins[(d,"paid_utm")]+=1
+                      eng=_engine(m.group("referer"))
+                      if eng:
+                          search_counts[d]+=1
+                          origins[(d,eng)]+=1
+          report=summarize_logs(Path("/var/log/nginx"),now=now)
+          print("CHECKED_AT_UTC="+now.strftime("%Y-%m-%dT%H:%M:%SZ"))
+          print("MEASUREMENT_DAYS="+yesterday.isoformat()+","+today.isoformat())
+          print("NGINX_DEDICATED_LOG=PASS")
+          print("NGINX_LAST_VALID_PAGE_REQUEST="+(last.isoformat() if last else "NONE"))
+          print("NGINX_PUBLIC_PAGE_REQUESTS_TODAY="+str(day_counts[today]))
+          print("NGINX_PUBLIC_PAGE_REQUESTS_YESTERDAY="+str(day_counts[yesterday]))
+          print("NGINX_NONBOT_UA_PAGE_REQUESTS_TODAY="+str(human_counts[today]))
+          print("NGINX_NONBOT_UA_PAGE_REQUESTS_YESTERDAY="+str(human_counts[yesterday]))
+          print("NGINX_HOME_REQUESTS_TODAY="+str(home_counts[today]))
+          print("NGINX_HOME_REQUESTS_YESTERDAY="+str(home_counts[yesterday]))
+          for d,name in ((today,"TODAY"),(yesterday,"YESTERDAY")):
+              print("META_ARRIVALS_"+name+"="+str(meta_counts[d]))
+              print("SEARCH_REFERRERS_"+name+"="+str(search_counts[d]))
+              for k in ("meta_facebook","meta_instagram","meta_unspecified","paid_utm","Google","Bing","Yahoo","DuckDuckGo","Brave","Seznam","Yandex"):
+                  if origins[(d,k)]>0:print("ORIGIN_"+name+"_"+k.upper()+"="+str(origins[(d,k)]))
+          print("META_7D_RAW="+str(report["meta"]["total"]))
+          print("SEARCH_7D_RAW="+str(report["observed_public_search_requests"]))
+          print("METRICS_LIVE_NGINX_READONLY=PASS")
+          PYLOGS
+          set -a
+          . "$ROOT/private/systemd-env/lowcost-europa.env"
+          set +a
+          export DJANGO_SETTINGS_MODULE=config.settings.production
+          runuser -u le001_1789265592 -- "$ROOT/.venv/bin/python" - <<'PYDATA'
+          from datetime import timedelta, datetime, time
+          from zoneinfo import ZoneInfo
+          from collections import Counter
+          import django
+          django.setup()
+          from django.utils import timezone
+          from apps.catalog.models import ExternalMetricsSnapshot,OfferClick,Offer
+          from apps.catalog.services.affiliate_order_reporting import collect_affiliate_order_report
+          from apps.integrations.aliexpress.client import AliExpressClient
+          now=timezone.now()
+          today=now.astimezone(ZoneInfo("Europe/Lisbon")).date()
+          yesterday=today-timedelta(days=1)
+          for day,name in ((today,"TODAY"),(yesterday,"YESTERDAY")):
+              a=datetime.combine(day,time.min,tzinfo=ZoneInfo("Europe/Lisbon"))
+              b=datetime.combine(day+timedelta(days=1),time.min,tzinfo=ZoneInfo("Europe/Lisbon"))
+              clicks=OfferClick.objects.filter(clicked_at__gte=a,clicked_at__lt=b)
+              print("ALIEXPRESS_OUTBOUND_CLICKS_"+name+"="+str(clicks.count()))
+              print("OWNER_MANUAL_AFFILIATE_CLICKS_"+name+"="+str(clicks.filter(offer__source=Offer.Source.ALIEXPRESS_OWNER).count()))
+              print("OUTBOUND_DISTINCT_PRODUCT_OFFERS_"+name+"="+str(clicks.values("offer_id").distinct().count()))
+          snap=ExternalMetricsSnapshot.objects.filter(source="ALIEXPRESS").first()
+          print("AFFILIATE_LAST_SNAPSHOT_PRESENT="+str(snap is not None).upper())
+          if snap and isinstance(snap.payload,dict):
+              print("AFFILIATE_SNAPSHOT_AGE_MINUTES="+str(int((now-snap.checked_at).total_seconds()//60)))
+              print("AFFILIATE_SNAPSHOT_PAID_COUNT="+str(snap.payload.get("paid_count","UNKNOWN")))
+              print("AFFILIATE_SNAPSHOT_RECEIVED_COUNT="+str(snap.payload.get("received_count","UNKNOWN")))
+          class ReadOnlySafeCounter(AliExpressClient):
+              def __init__(self):
+                  super().__init__()
+                  self.rows=[]
+              def _call(self,method,params):
+                  payload=super()._call(method,params)
+                  if method!="aliexpress.affiliate.order.list":return payload
+                  body=payload.get("aliexpress_affiliate_order_list_response",{}).get("resp_result",{})
+                  results=body.get("result",{})
+                  rows=results.get("orders",{}).get("order",[]) if isinstance(results,dict) else []
+                  if isinstance(rows,list):
+                      for row in rows:
+                          if isinstance(row,dict):
+                              self.rows.append((
+                                  str(row.get("order_id") or ""),
+                                  str(row.get("sub_order_id") or ""),
+                                  str(row.get("paid_time") or "")[:10],
+                                  str(row.get("tracking_id") or ""),
+                                  str(row.get("order_status") or ""),
+                              ))
+                  return payload
+          try:
+              c=ReadOnlySafeCounter()
+              report,_,_=collect_affiliate_order_report(client=c,days=3,now=now)
+              print("LIVE_ALIEXPRESS_API=SUCCESS")
+              print("LIVE_PAID_ORDERS_3D="+str(report["paid_count"]))
+              print("LIVE_RECEIVED_ORDERS_3D="+str(report["received_count"]))
+              groups=Counter()
+              for parent,sub,paid_time,tracking,status in set(c.rows):
+                  if not parent or not sub:continue
+                  if paid_time.startswith(str(today)):groups[("TODAY",tracking)]+=1
+                  if paid_time.startswith(str(yesterday)):groups[("YESTERDAY",tracking)]+=1
+              print("LIVE_ALIEXPRESS_PAID_DATED_TODAY="+str(sum(v for (day,_),v in groups.items() if day=="TODAY")))
+              print("LIVE_ALIEXPRESS_PAID_DATED_YESTERDAY="+str(sum(v for (day,_),v in groups.items() if day=="YESTERDAY")))
+              for key,val in sorted(groups.items()):
+                  print("LIVE_ALIEXPRESS_DATE_TRACKING="+key[0]+"/"+key[1]+"/"+str(val))
+              for group in report["by_tracking"]:
+                  if group["paid_count"] or group["received_count"]:
+                      print("LIVE_AFFILIATE_TRACKING="+group["tracking_id"]+";paid="+str(group["paid_count"])+";received="+str(group["received_count"]))
+          except Exception as exc:
+              print("LIVE_ALIEXPRESS_API=ERROR_"+type(exc).__name__)
+          print("LIVE_TRAFFIC_SALES_READONLY=PASS")
+          PYDATA
+          echo VPS_LOW_COST_TODAY_AUDIT=PASS
+          REMOTE
