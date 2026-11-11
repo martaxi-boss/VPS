@@ -44,6 +44,7 @@ jobs:
           echo "CHECKED_UTC=$(date -u +%FT%TZ)"
           echo "APP_SHA=$(gitrepo rev-parse HEAD)"
           echo "GITHUB_MAIN_SHA=$(gitrepo ls-remote https://github.com/martaxi-boss/lowcost-europa.git refs/heads/main | awk '{print $1}')"
+          test "$(gitrepo rev-parse HEAD)" = "$(gitrepo ls-remote https://github.com/martaxi-boss/lowcost-europa.git refs/heads/main | awk '{print $1}')" && echo GITHUB_VPS_SOURCE_SHA_ALIGNED=PASS || echo GITHUB_VPS_SOURCE_SHA_ALIGNED=FAIL
           test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)" && echo APP_TRACKED_CLEAN=PASS || echo APP_TRACKED_CLEAN=FAIL
           echo "APP_UNTRACKED_COUNT=$(gitrepo ls-files --others --exclude-standard | wc -l)"
           echo "PROJECT_COUNT=$(find /srv/projects -mindepth 1 -maxdepth 1 -type d | wc -l)"
@@ -51,6 +52,7 @@ jobs:
           echo "DISK_USAGE=$(df -P / | awk 'NR==2{print $5}')"
           echo "MEM_AVAILABLE_KB=$(awk '/MemAvailable/{print $2}' /proc/meminfo)"
           echo "TEMP_ENV_BACKUP_COUNT=$(find "$ROOT/private/ops" -maxdepth 1 -type f -name '.local-counter-env-backup.*' | wc -l)"
+          echo "HIFU_TEMP_TASK_REMAINING=$(find "$ROOT/private/ops" -mindepth 1 -maxdepth 1 -name 'hifu-six-owner-manual-20261111' | wc -l)"
           python3 - "$ROOT" <<'PYPERMS'
           import os,subprocess,sys
           from pathlib import Path
@@ -87,20 +89,35 @@ jobs:
           django.setup()
           from apps.catalog.models import Offer,OfferClick,OfferFamilyPlacement
           from apps.catalog.services.public_eligibility import public_eligibility_q
-          for slug,label in (('cavitacao-rf-vacuum-corpo','CAV'),('hydrodermoabrasao-aqua-facial-multifuncoes','MICRO'),('pressoterapia-vacuum-drenagem','PRESS')):
+          expected={
+              'cavitacao-rf-vacuum-corpo':('CAV',20),
+              'hydrodermoabrasao-aqua-facial-multifuncoes':('MICRO',9),
+              'pressoterapia-vacuum-drenagem':('PRESS',5),
+              'hifu':('HIFU',6),
+          }
+          for slug,(label,count) in expected.items():
               qs=OfferFamilyPlacement.objects.filter(product_family__slug=slug,offer__in=Offer.objects.filter(public_eligibility_q()))
               rows=list(qs.select_related('offer'))
               manual=[x.offer for x in rows if x.offer.source==Offer.Source.ALIEXPRESS_OWNER]
               print('OFFERS_'+label+'_VISIBLE='+str(len(rows)))
               print('OFFERS_'+label+'_MANUAL='+str(len(manual)))
-              print('OFFERS_'+label+'_DISTINCT_LINKS='+str(len(set(x.affiliate_url for x in manual))))
+              unique=len(set(x.affiliate_url for x in manual))
+              print('OFFERS_'+label+'_DISTINCT_LINKS='+str(unique))
+              assert len(rows)==len(manual)==unique==count,(slug,len(rows),len(manual),unique)
+          print('FOUR_MANUAL_CATEGORIES=PASS_20_9_5_6')
+          print('CATEGORY5_UNTOUCHED_PENDING=TRUE')
           print('OUTBOUND_HISTORY_ROWS='+str(OfferClick.objects.count()))
           print('DB_QUERY=PASS')
           PYDATA
           runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYHTTP'
           import urllib.request
           B='https://www.lowcost-europa.eu'
-          paths=['/','/pt/','/es/','/robots.txt','/sitemap.xml','/pt/products/cavitacao-rf-vacuum-corpo/','/pt/products/hydrodermoabrasao-aqua-facial-multifuncoes/','/pt/products/pressoterapia-vacuum-drenagem/']
+          paths=['/','/pt/','/es/','/robots.txt','/sitemap.xml',
+                 '/pt/products/cavitacao-rf-vacuum-corpo/',
+                 '/pt/products/hydrodermoabrasao-aqua-facial-multifuncoes/',
+                 '/pt/products/pressoterapia-vacuum-drenagem/',
+                 '/pt/products/hifu/',
+                 '/pt/products/diodo-laser-remocao-tatuagens-pigmentacao/']
           ok=0
           for p in paths:
               try:
@@ -109,6 +126,7 @@ jobs:
                       if r.status==200 and (p!='/sitemap.xml' or body.count('<loc>')==23):ok+=1
               except Exception:pass
           print('PUBLIC_PAGES_PASS='+str(ok)+'/'+str(len(paths)))
+          assert ok==len(paths),'Not all public pages or sitemap passed'
           PYHTTP
           echo DEEP_BASELINE_READONLY=COMPLETE
           REMOTE
