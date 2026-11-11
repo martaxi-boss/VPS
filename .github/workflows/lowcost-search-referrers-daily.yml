@@ -1,7 +1,10 @@
-name: Lowcost local SEO referrers - free private daily report
+name: Lowcost local referrers - free private hourly report
 on:
+  push:
+    paths:
+      - .github/workflows/lowcost-search-referrers-daily.yml
   schedule:
-    - cron: '29 5 * * *'
+    - cron: '31 * * * *'
   workflow_dispatch:
 permissions:
   contents: read
@@ -60,4 +63,5 @@ jobs:
           PYVERIFY
           systemctl is-active --quiet lowcost-europa.service
           echo LOCAL_SEO_REFERRER_DAILY=PASS
+          echo LOCAL_SEO_REFERRER_HOURLY=PASS
           REMOTE
