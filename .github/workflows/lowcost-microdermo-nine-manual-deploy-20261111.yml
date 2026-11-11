@@ -37,7 +37,7 @@ jobs:
           NEW=65732cd4185d8eedaa606a81da46f085ef0ad10e
           APPUSER=le001_1789265592
           ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
-          TASK="$ROOT/private/ops/microdermo-nine-owner-20261111"
+          TASK="$ROOT/private/ops/microdermo-nine-owner-20261111-r2"
           FAMILY=hydrodermoabrasao-aqua-facial-multifuncoes
           BASE=https://www.lowcost-europa.eu
           TEMPLATE1="$ROOT/apps/storefront/templates/storefront/components/offer_card.html"
@@ -339,4 +339,7 @@ jobs:
           echo MICRODERMABRASAO_GITHUB_VPS_NINE_MANUAL=PASS
           trap - EXIT
           rm -rf -- "$TASK"
+          if test -d "$ROOT/private/ops/microdermo-nine-owner-20261111"; then
+            rm -rf -- "$ROOT/private/ops/microdermo-nine-owner-20261111"
+          fi
           REMOTE
