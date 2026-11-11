@@ -61,28 +61,17 @@ jobs:
           EXPECTED="$(printf '%s\n' \
             apps/catalog/management/commands/discover_family_candidates.py \
             apps/catalog/management/commands/discover_family_deep.py \
-            apps/catalog/management/commands/sync_external_metrics.py \
-            apps/catalog/management/commands/sync_google_search_console.py \
             apps/catalog/owner_panel_views.py \
             apps/catalog/services/manual_storefront.py \
             apps/catalog/services/offer_maintenance.py \
-            apps/catalog/services/official_search_console_reporting.py \
             apps/catalog/services/weekly_discovery.py \
-            apps/catalog/services/windsor_search_console_reporting.py \
-            apps/catalog/templates/catalog/owner_panel/dashboard.html \
             apps/catalog/templates/catalog/owner_panel/family_manual.html \
             apps/catalog/tests/test_family_02_taxonomy_alignment.py \
-            apps/catalog/tests/test_meta_ads_reporting.py \
             apps/catalog/tests/test_microdermo_manual_only.py \
-            apps/catalog/tests/test_official_search_console_reporting.py \
-            apps/catalog/tests/test_owner_analytics_dashboard.py \
-            apps/catalog/tests/test_owner_engine_comparison.py \
             apps/catalog/tests/test_weekly_discovery.py \
-            apps/catalog/tests/test_windsor_search_console_reporting.py \
             apps/storefront/templates/storefront/components/offer_card.html \
             apps/storefront/templates/storefront/components/owner_family_tools.html \
             apps/storefront/views.py \
-            docs/operations/CONTADOR-LOCAL-SEM-GOOGLE-OAUTH-20261111.md \
             | LC_ALL=C sort)"
           ACTUAL_DIFF="$(gitrepo diff --name-only "$OLD" "$NEW" | LC_ALL=C sort)"
           echo "MICRO_GATE_DIFF_COUNTS=$(printf '%s\n' "$ACTUAL_DIFF" | wc -l)/$(printf '%s\n' "$EXPECTED" | wc -l)"
@@ -95,7 +84,7 @@ jobs:
             fi
           done <<< "$EXPECTED"
           echo MICRO_PRECHECK_CODE_READABLE=PASS
-          echo MICRO_EXACT_SOURCE_FILE_DIFF=PASS_24
+          echo MICRO_EXACT_SOURCE_FILE_DIFF=PASS_13
           test "$(systemctl show lowcost-europa.service -p User --value)" = "$APPUSER"
           nginx -t >/dev/null 2>&1
           for unit in \
@@ -221,7 +210,7 @@ jobs:
               runuser -u "$APPUSER" -- test -r "$ROOT/$changed"
             fi
           done <<< "$EXPECTED"
-          echo MICRO_TARGET_CODE_READABLE=PASS_24
+          echo MICRO_TARGET_CODE_READABLE=PASS_13
           runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py check
           runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py makemigrations --check --dry-run
           DATA_CHANGED=1
