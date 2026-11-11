@@ -1,0 +1,330 @@
+name: Lowcost Pressoterapia publish five owner links and manual panel guarded 20261111
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-pressoterapia-five-manual-publish-20261111.yml'
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-pressoterapia-five-manual-publication
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 27
+    steps:
+      - name: Pinned SSH publish five exact owner URLs after backup with rollback
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 022
+          ROOT=/srv/projects/lowcost-europa
+          OLD=b8a2e20aedcf1c3b88e2945b1913e69228c781f6
+          NEW=9b30e5156ed51ba8b3a578ec7311068d63d9587d
+          APPUSER=le001_1789265592
+          FAMILY=pressoterapia-vacuum-drenagem
+          ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
+          TASK="$ROOT/private/ops/pressoterapia-five-manual-20261111"
+          gitrepo() { git -c safe.directory="$ROOT" -C "$ROOT" "$@"; }
+          test -d "$ROOT/.git" && test -s "$ENVFILE" && test ! -L "$ENVFILE"
+          test ! -e "$TASK"
+          exec 9>"$ROOT/private/ops/ptes-deploy.lock"
+          flock -n 9
+          test "$(gitrepo rev-parse HEAD)" = "$OLD"
+          test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          test "$(gitrepo ls-remote https://github.com/martaxi-boss/lowcost-europa.git refs/heads/main | awk '{print $1}')" = "$NEW"
+          gitrepo fetch --no-tags -q https://github.com/martaxi-boss/lowcost-europa.git main
+          test "$(gitrepo rev-parse FETCH_HEAD)" = "$NEW"
+          gitrepo merge-base --is-ancestor "$OLD" "$NEW"
+          EXPECTED="$(printf '%s\n' \
+            apps/catalog/services/manual_storefront.py \
+            apps/catalog/tests/test_manual_candidate_intake.py \
+            apps/catalog/tests/test_pressoterapia_manual_only.py \
+            apps/catalog/tests/test_weekly_discovery.py \
+            apps/storefront/templates/storefront/components/offer_card.html \
+            | LC_ALL=C sort)"
+          test "$(gitrepo diff --name-only "$OLD" "$NEW" | LC_ALL=C sort)" = "$EXPECTED"
+          echo CAT3_EXACT_FIVE_SOURCE_FILES=PASS
+          test "$(systemctl show lowcost-europa.service -p User --value)" = "$APPUSER"
+          nginx -t >/dev/null 2>&1
+          for unit in \
+            lowcost-europa.service lowcost-europa-catalog-maintenance.timer \
+            lowcost-europa-indexnow.timer lowcost-europa-backup.timer \
+            lowcost-europa-offsite-backup.timer lowcost-europa-offsite-backup-health.timer \
+            lowcost-europa-affiliate-report.timer lowcost-europa-cavitation-availability.timer; do
+            systemctl is-active --quiet "$unit"
+          done
+          ENV_SHA="$(sha256sum "$ENVFILE" | awk '{print $1}')"
+          cd "$ROOT"
+          set -a
+          . "$ENVFILE"
+          set +a
+          export DJANGO_SETTINGS_MODULE=config.settings.production
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYPRE'
+          import django
+          django.setup()
+          from apps.catalog.models import ProductFamily,Offer,OfferFamilyPlacement,OfferClick
+          from apps.catalog.services.public_eligibility import public_eligibility_q
+          f=ProductFamily.objects.get(slug="pressoterapia-vacuum-drenagem",display_order=3)
+          placements=OfferFamilyPlacement.objects.filter(product_family=f)
+          old_ids=list(placements.values_list("offer_id",flat=True))
+          assert len(old_ids)==13
+          assert placements.filter(offer__in=Offer.objects.filter(public_eligibility_q())).count()==5
+          assert placements.filter(offer__source=Offer.Source.ALIEXPRESS_OWNER).count()==0
+          assert OfferClick.objects.filter(offer_id__in=old_ids).count()>=49
+          new_ids=(
+              "1005009861460652","1005013222978073","1005013211231892",
+              "1005012759761235","1005012943032084",
+          )
+          assert len(set(new_ids))==5
+          assert not Offer.objects.filter(source=Offer.Source.ALIEXPRESS_OWNER,
+                                          external_product_id__in=new_ids).exists()
+          print("CAT3_PRECHECK=PASS_13_OLD_5_VISIBLE_49_CLICKS")
+          PYPRE
+          sh "$ROOT/deploy/scripts/backup-postgres.sh"
+          BACKUP="$(find "$ROOT/backups/daily" -maxdepth 1 -type f -name '*.dump' -printf '%T@ %p\n' | sort -nr | head -n 1 | cut -d' ' -f2-)"
+          test -s "$BACKUP" && test -s "$BACKUP.sha256"
+          (cd "$ROOT/backups/daily" && sha256sum -c "$(basename "$BACKUP.sha256")" >/dev/null)
+          echo CAT3_BACKUP_POSTGRES_SHA256=PASS
+          mkdir -m 700 "$TASK"
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYSNAP' > "$TASK/old-placements.json"
+          import json,django
+          django.setup()
+          from apps.catalog.models import OfferClick,OfferFamilyPlacement,ProductFamily
+          f=ProductFamily.objects.get(slug="pressoterapia-vacuum-drenagem")
+          rows=list(OfferFamilyPlacement.objects.filter(product_family=f)
+              .values("offer_id","selection_position","display_order","selection_reason"))
+          assert len(rows)==13
+          count=OfferClick.objects.filter(offer_id__in=[r["offer_id"] for r in rows]).count()
+          assert count>=49
+          print(json.dumps({"placements":rows,"old_clicks":count},sort_keys=True))
+          PYSNAP
+          test -s "$TASK/old-placements.json"
+          chmod 600 "$TASK/old-placements.json"
+          echo CAT3_OLD_PLACEMENTS_SNAPSHOT=PASS_13
+          CODE_CHANGED=0
+          DATA_CHANGED=0
+          rollback() {
+            rc=$?
+            trap - EXIT
+            if test "$rc" -ne 0; then
+              if test "$DATA_CHANGED" = 1; then
+                cat "$TASK/old-placements.json" | runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" -c '
+          import django,json,sys
+          django.setup()
+          from django.db import transaction
+          from apps.catalog.models import Offer,OfferClick,OfferObservation,OfferFamilyPlacement,ProductFamily
+          data=json.load(sys.stdin)
+          ids=(
+              "1005009861460652","1005013222978073","1005013211231892",
+              "1005012759761235","1005012943032084",
+          )
+          with transaction.atomic():
+              f=ProductFamily.objects.select_for_update().get(slug="pressoterapia-vacuum-drenagem")
+              new=Offer.objects.filter(source=Offer.Source.ALIEXPRESS_OWNER,
+                                       external_product_id__in=ids)
+              OfferFamilyPlacement.objects.filter(product_family=f,offer__in=new).delete()
+              for row in data["placements"]:
+                  OfferFamilyPlacement.objects.get_or_create(
+                      product_family=f,offer_id=row["offer_id"],
+                      defaults={
+                          "selection_position":row["selection_position"],
+                          "display_order":row["display_order"],
+                          "selection_reason":row["selection_reason"],
+                      })
+              assert OfferFamilyPlacement.objects.filter(product_family=f).count()==13
+              for offer in new:
+                  if OfferClick.objects.filter(offer=offer).exists():
+                      offer.owner_hidden=True
+                      offer.save(update_fields=["owner_hidden"])
+                  elif not OfferFamilyPlacement.objects.filter(offer=offer).exists():
+                      OfferObservation.objects.filter(offer=offer).delete()
+                      offer.delete()
+          print("CAT3_ROLLBACK_LEGACY_RESTORED=PASS")
+          ' || true
+              fi
+              if test "$CODE_CHANGED" = 1; then
+                gitrepo checkout --detach -q "$OLD" || true
+                while IFS= read -r changed; do
+                  if test -f "$ROOT/$changed" && test ! -L "$ROOT/$changed"; then
+                    chmod 644 "$ROOT/$changed" || true
+                  fi
+                done <<< "$EXPECTED"
+                systemctl restart lowcost-europa.service || true
+              fi
+              echo CAT3_ROLLBACK_ATTEMPTED=TRUE
+            fi
+            exit "$rc"
+          }
+          trap rollback EXIT
+          CODE_CHANGED=1
+          gitrepo checkout --detach -q "$NEW"
+          while IFS= read -r changed; do
+            test -f "$ROOT/$changed" && test ! -L "$ROOT/$changed"
+            chmod 644 "$ROOT/$changed"
+            runuser -u "$APPUSER" -- test -r "$ROOT/$changed"
+          done <<< "$EXPECTED"
+          echo CAT3_CODE_AND_PANEL_READABLE=PASS_5
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py check
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py makemigrations --check --dry-run
+          DATA_CHANGED=1
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYPUBLISH'
+          import django
+          from django.db import transaction
+          from django.core.management import call_command
+          django.setup()
+          from apps.catalog.models import ProductFamily,Offer,OfferClick,OfferFamilyPlacement
+          from apps.catalog.services.public_eligibility import public_eligibility_q,MAX_PUBLIC_ELIGIBLE_OFFERS_PER_FAMILY
+          urls=(
+              ("1005009861460652","https://s.click.aliexpress.com/e/_c34qgvBt"),
+              ("1005013222978073","https://s.click.aliexpress.com/e/_c3mf6Dux"),
+              ("1005013211231892","https://s.click.aliexpress.com/e/_c3t2kQTz"),
+              ("1005012759761235","https://s.click.aliexpress.com/e/_c3VnQnsT"),
+              ("1005012943032084","https://s.click.aliexpress.com/e/_c4kKqTGx"),
+          )
+          assert len(urls)==len(set(x[0] for x in urls))==len(set(x[1] for x in urls))==5
+          assert MAX_PUBLIC_ELIGIBLE_OFFERS_PER_FAMILY==20
+          slug="pressoterapia-vacuum-drenagem"
+          with transaction.atomic():
+              fam=ProductFamily.objects.select_for_update().get(slug=slug,display_order=3)
+              old=OfferFamilyPlacement.objects.select_for_update().filter(product_family=fam)
+              assert old.count()==13
+              old_ids=list(old.values_list("offer_id",flat=True))
+              old_clicks=OfferClick.objects.filter(offer_id__in=old_ids).count()
+              assert old_clicks>=49
+              for n,(pid,link) in enumerate(urls,1):
+                  if n==1:
+                      call_command("publish_owner_affiliate_link",
+                                   "--family",slug,"--replace-family",link)
+                  else:
+                      call_command("publish_owner_affiliate_link",
+                                   "--family",slug,link)
+                  offer=Offer.objects.get(source=Offer.Source.ALIEXPRESS_OWNER,
+                                          external_product_id=pid)
+                  assert offer.affiliate_url==link and offer.is_active and not offer.owner_hidden
+                  assert OfferFamilyPlacement.objects.filter(product_family=fam,offer=offer).count()==1
+                  print("CAT3_MANUAL_LINK_"+str(n)+"=PASS offer="+str(offer.pk))
+              final=OfferFamilyPlacement.objects.filter(product_family=fam)
+              assert final.count()==5
+              assert final.filter(offer__source=Offer.Source.ALIEXPRESS_OWNER).count()==5
+              assert final.filter(offer__in=Offer.objects.filter(public_eligibility_q())).count()==5
+              assert OfferClick.objects.filter(offer_id__in=old_ids).count()==old_clicks
+              assert not final.filter(offer__source=Offer.Source.ALIEXPRESS).exists()
+          print("CAT3_ATOMIC_REPLACEMENT=PASS_5_MANUAL_0_LEGACY")
+          PYPUBLISH
+          systemctl restart lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa.service
+          sleep 3
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYVERIFY'
+          import django,urllib.request,urllib.error,time
+          from html.parser import HTMLParser
+          django.setup()
+          from apps.catalog.models import ProductFamily,Offer,OfferClick,OfferFamilyPlacement
+          from apps.catalog.services.public_eligibility import public_eligibility_q
+          from apps.catalog.services.manual_storefront import MANUAL_ONLY_FAMILY_SLUGS
+          from apps.catalog.services.cavitation_availability import select_manual_cavitation_batch
+          assert "pressoterapia-vacuum-drenagem" in MANUAL_ONLY_FAMILY_SLUGS
+          expected={
+              "1005009861460652":"https://s.click.aliexpress.com/e/_c34qgvBt",
+              "1005013222978073":"https://s.click.aliexpress.com/e/_c3mf6Dux",
+              "1005013211231892":"https://s.click.aliexpress.com/e/_c3t2kQTz",
+              "1005012759761235":"https://s.click.aliexpress.com/e/_c3VnQnsT",
+              "1005012943032084":"https://s.click.aliexpress.com/e/_c4kKqTGx",
+          }
+          f=ProductFamily.objects.get(slug="pressoterapia-vacuum-drenagem")
+          placements=OfferFamilyPlacement.objects.filter(product_family=f)
+          assert placements.count()==5
+          assert placements.filter(offer__source=Offer.Source.ALIEXPRESS_OWNER).count()==5
+          assert placements.filter(offer__in=Offer.objects.filter(public_eligibility_q())).count()==5
+          offers={}
+          for pid,link in expected.items():
+              o=Offer.objects.get(source=Offer.Source.ALIEXPRESS_OWNER,external_product_id=pid)
+              assert o.affiliate_url==link and o.is_active and not o.owner_hidden
+              assert placements.filter(offer=o).exists()
+              offers[o.pk]=link
+              assert OfferClick.objects.filter(offer=o).count()==0
+              print("CAT3_EXACT_MANUAL_URL_STORED=PASS product="+pid+" offer="+str(o.pk))
+          assert len(offers)==5
+          assert len(select_manual_cavitation_batch())<=5
+          print("CAT3_OWNER_PANEL_MANUAL_AND_MONITOR=PASS")
+          class Cards(HTMLParser):
+              def __init__(self):
+                  super().__init__();self.ids=[]
+              def handle_starttag(self,tag,attrs):
+                  if tag=="article":
+                      d=dict(attrs)
+                      if "data-offer-card" in d:
+                          self.ids.append(d.get("data-offer-id"))
+          base="https://www.lowcost-europa.eu"
+          for prefix in ("","/pt","/es"):
+              url=base+prefix+"/products/pressoterapia-vacuum-drenagem/"
+              html=None
+              for attempt in range(9):
+                  try:
+                      req=urllib.request.Request(url,headers={"Cache-Control":"no-cache"})
+                      with urllib.request.urlopen(req,timeout=22) as response:
+                          assert response.status==200
+                          html=response.read(2500000).decode("utf-8")
+                      break
+                  except (urllib.error.HTTPError,urllib.error.URLError):
+                      if attempt==8:raise
+                      time.sleep(3)
+              cards=Cards();cards.feed(html)
+              assert len(cards.ids)==5 and set(cards.ids)==set(str(pk) for pk in offers)
+              assert html.count('class="offer-price-block offer-price-block--compact"')==5
+              assert html.count("data-affiliate-share-button")==5
+              assert html.count("data-compare-toggle")==5
+              assert "data-affiliate-copy" not in html
+              assert "offer-browser-help" not in html
+              for link in expected.values():
+                  assert 'data-affiliate-original-url="'+link+'"' in html
+              if prefix=="/pt":
+                  assert html.count('class="offer-origin-heading"')==5
+              print("CAT3_PUBLIC_"+(prefix.strip("/").upper() or "BASE")+"=PASS_5")
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self,*a,**k):return None
+          opener=urllib.request.build_opener(NoRedirect)
+          for pk,link in offers.items():
+              req=urllib.request.Request(base+"/go/"+str(pk)+"/",method="HEAD",
+                   headers={"User-Agent":"Mozilla/5.0 (Linux; Android 14) Chrome Mobile"})
+              try:res=opener.open(req,timeout=24)
+              except urllib.error.HTTPError as exc:res=exc
+              assert res.code==302 and res.headers.get("Location")==link,(pk,res.code)
+              assert OfferClick.objects.filter(offer_id=pk).count()==0
+              print("CAT3_EXACT_302=PASS offer="+str(pk))
+          for path in ("/","/products/cavitacao-rf-vacuum-corpo/",
+                       "/products/hydrodermoabrasao-aqua-facial-multifuncoes/"):
+              with urllib.request.urlopen(base+path,timeout=24) as r:
+                  assert r.status==200
+          print("CAT3_OTHER_CATEGORIES_AND_HOME_HEALTH=PASS")
+          PYVERIFY
+          test "$(gitrepo rev-parse HEAD)" = "$NEW"
+          test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          test "$(sha256sum "$ENVFILE" | awk '{print $1}')" = "$ENV_SHA"
+          nginx -t >/dev/null 2>&1
+          for unit in \
+            lowcost-europa.service lowcost-europa-catalog-maintenance.timer \
+            lowcost-europa-indexnow.timer lowcost-europa-backup.timer \
+            lowcost-europa-offsite-backup.timer lowcost-europa-offsite-backup-health.timer \
+            lowcost-europa-affiliate-report.timer lowcost-europa-cavitation-availability.timer; do
+            systemctl is-active --quiet "$unit"
+          done
+          echo CAT3_PUBLISHED_OWNER_FIVE_WITH_MANUAL_PANEL=PASS
+          trap - EXIT
+          rm -rf -- "$TASK"
+          REMOTE
