@@ -35,7 +35,7 @@ jobs:
           umask 077
           ROOT=/srv/projects/lowcost-europa
           ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
-          EXPECTED=9b30e5156ed51ba8b3a578ec7311068d63d9587d
+          EXPECTED=bafcf1ad9fc24a976f9cf16151fe8d9c70e784cb
           APPUSER=le001_1789265592
           FAMILY=cavitacao-rf-vacuum-corpo
           URL='https://s.click.aliexpress.com/e/_c4lDhAoP'
