@@ -1,0 +1,154 @@
+name: Lowcost Microdermoabrasion availability monitor parity guarded 20261111
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/lowcost-microdermo-availability-parity-20261111.yml']
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-microdermo-availability-parity
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 17
+    steps:
+      - name: Pinned SSH two source files only with rollback and public checks
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 022
+          ROOT=/srv/projects/lowcost-europa
+          ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
+          APPUSER=le001_1789265592
+          OLD=6524b8ae0d7d244f7a6da8d5ed412bd55b944833
+          NEW=b8a2e20aedcf1c3b88e2945b1913e69228c781f6
+          SOURCE1="$ROOT/apps/catalog/services/cavitation_availability.py"
+          SOURCE2="$ROOT/apps/catalog/tests/test_microdermo_manual_only.py"
+          gitrepo() { git -c safe.directory="$ROOT" -C "$ROOT" "$@"; }
+          test -d "$ROOT/.git" && test -s "$ENVFILE" && test ! -L "$ENVFILE"
+          exec 9>"$ROOT/private/ops/ptes-deploy.lock"
+          flock -n 9
+          test "$(gitrepo rev-parse HEAD)" = "$OLD"
+          test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          test "$(systemctl show lowcost-europa.service -p User --value)" = "$APPUSER"
+          test "$(gitrepo ls-remote https://github.com/martaxi-boss/lowcost-europa.git refs/heads/main | awk '{print $1}')" = "$NEW"
+          gitrepo fetch --no-tags -q https://github.com/martaxi-boss/lowcost-europa.git main
+          test "$(gitrepo rev-parse FETCH_HEAD)" = "$NEW"
+          gitrepo merge-base --is-ancestor "$OLD" "$NEW"
+          EXPECTED="$(printf '%s\n' \
+             apps/catalog/services/cavitation_availability.py \
+             apps/catalog/tests/test_microdermo_manual_only.py \
+             | LC_ALL=C sort)"
+          test "$(gitrepo diff --name-only "$OLD" "$NEW" | LC_ALL=C sort)" = "$EXPECTED"
+          echo MICRO_MONITOR_SOURCE_DIFF_EXACT=PASS_2
+          for f in "$SOURCE1" "$SOURCE2"; do
+            test -f "$f" && test ! -L "$f"
+            chmod 644 "$f"
+            runuser -u "$APPUSER" -- test -r "$f"
+          done
+          for unit in \
+            lowcost-europa.service lowcost-europa-cavitation-availability.timer \
+            lowcost-europa-catalog-maintenance.timer lowcost-europa-affiliate-report.timer \
+            lowcost-europa-backup.timer lowcost-europa-indexnow.timer; do
+            systemctl is-active --quiet "$unit"
+          done
+          nginx -t >/dev/null 2>&1
+          ENV_SHA="$(sha256sum "$ENVFILE" | awk '{print $1}')"
+          cd "$ROOT"
+          set -a
+          . "$ENVFILE"
+          set +a
+          export DJANGO_SETTINGS_MODULE=config.settings.production
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYPRE'
+          import django
+          django.setup()
+          from apps.catalog.models import Offer,OfferFamilyPlacement,ProductFamily
+          family=ProductFamily.objects.get(slug="hydrodermoabrasao-aqua-facial-multifuncoes")
+          placed=OfferFamilyPlacement.objects.filter(product_family=family)
+          assert placed.count()==9 and placed.filter(offer__source=Offer.Source.ALIEXPRESS_OWNER).count()==9
+          print("MICRO_MONITOR_PRECHECK_NINE_MANUAL=PASS")
+          PYPRE
+          sh "$ROOT/deploy/scripts/backup-postgres.sh"
+          BACKUP="$(find "$ROOT/backups/daily" -maxdepth 1 -type f -name '*.dump' -printf '%T@ %p\n' | sort -nr | head -n 1 | cut -d' ' -f2-)"
+          test -s "$BACKUP" && test -s "$BACKUP.sha256"
+          (cd "$ROOT/backups/daily" && sha256sum -c "$(basename "$BACKUP.sha256")" >/dev/null)
+          echo MICRO_MONITOR_BACKUP=PASS
+          CHANGED=0
+          rollback() {
+            rc=$?
+            trap - EXIT
+            if test "$rc" -ne 0 && test "$CHANGED" = 1; then
+              gitrepo checkout --detach -q "$OLD" || true
+              chmod 644 "$SOURCE1" "$SOURCE2" || true
+              systemctl restart lowcost-europa.service || true
+              echo MICRO_MONITOR_SOURCE_ROLLBACK=ATTEMPTED
+            fi
+            exit "$rc"
+          }
+          trap rollback EXIT
+          CHANGED=1
+          gitrepo checkout --detach -q "$NEW"
+          chmod 644 "$SOURCE1" "$SOURCE2"
+          runuser -u "$APPUSER" -- test -r "$SOURCE1"
+          runuser -u "$APPUSER" -- test -r "$SOURCE2"
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py check
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py makemigrations --check --dry-run
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYVALIDATE'
+          import django
+          django.setup()
+          from apps.catalog.models import Offer, OfferFamilyPlacement, ProductFamily
+          from apps.catalog.services.cavitation_availability import select_manual_cavitation_batch
+          from apps.catalog.services.manual_storefront import MANUAL_ONLY_FAMILY_SLUGS
+          assert MANUAL_ONLY_FAMILY_SLUGS=={
+              "cavitacao-rf-vacuum-corpo",
+              "hydrodermoabrasao-aqua-facial-multifuncoes",
+          }
+          micro=ProductFamily.objects.get(slug="hydrodermoabrasao-aqua-facial-multifuncoes")
+          placed=OfferFamilyPlacement.objects.filter(product_family=micro)
+          assert placed.count()==9
+          assert placed.filter(offer__source=Offer.Source.ALIEXPRESS_OWNER).count()==9
+          assert all(o.affiliate_url.startswith("https://s.click.aliexpress.com/e/_")
+                     for o in Offer.objects.filter(
+                         source=Offer.Source.ALIEXPRESS_OWNER,
+                         family_placements__product_family=micro))
+          batch=select_manual_cavitation_batch()
+          assert len(batch)<=5
+          assert all(o.source==Offer.Source.ALIEXPRESS_OWNER and not o.owner_hidden
+                     for o in batch)
+          print("MICRO_MONITOR_SELECTOR_BOTH_MANUAL_FAMILIES=PASS")
+          print("MICRO_MONITOR_NINE_OWNER_LINKS_PRESERVED=PASS")
+          PYVALIDATE
+          systemctl restart lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa.service
+          for path in / /products/cavitacao-rf-vacuum-corpo/ /products/hydrodermoabrasao-aqua-facial-multifuncoes/; do
+            ok=0
+            for attempt in 1 2 3 4 5 6 7 8 9; do
+              code="$(curl --silent --show-error --output /dev/null --max-time 20 --write-out '%{http_code}' "https://www.lowcost-europa.eu$path" || true)"
+              if test "$code" = 200; then ok=1;break;fi
+              sleep 2
+            done
+            test "$ok" = 1
+            echo "MICRO_MONITOR_PUBLIC_HTTP_200=PASS $path"
+          done
+          test "$(gitrepo rev-parse HEAD)" = "$NEW"
+          test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          test "$(sha256sum "$ENVFILE" | awk '{print $1}')" = "$ENV_SHA"
+          systemctl is-active --quiet lowcost-europa-cavitation-availability.timer
+          echo MICRODERMO_BOTH_CATEGORIES_AVAILABILITY_MONITOR_DEPLOY=PASS
+          trap - EXIT
+          REMOTE
