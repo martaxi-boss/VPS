@@ -70,7 +70,7 @@ jobs:
             apps/storefront/views.py \
             | LC_ALL=C sort)"
           test "$(gitrepo diff --name-only "$OLD" "$NEW" | LC_ALL=C sort)" = "$EXPECTED"
-          chmod 644 "$ROOT/apps/catalog/owner_panel_views.py"
+          chmod 644 "$ROOT/apps/catalog/owner_panel_views.py" "$ROOT/apps/catalog/services/manual_storefront.py" "$ROOT/apps/catalog/services/offer_maintenance.py" "$ROOT/apps/catalog/services/weekly_discovery.py" "$ROOT/apps/storefront/views.py"
           echo MICRO_EXACT_SOURCE_FILE_DIFF=PASS_13
           test "$(systemctl show lowcost-europa.service -p User --value)" = "$APPUSER"
           nginx -t >/dev/null 2>&1
