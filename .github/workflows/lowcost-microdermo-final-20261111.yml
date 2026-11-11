@@ -46,14 +46,18 @@ jobs:
           gitrepo() { git -c safe.directory="$ROOT" -C "$ROOT" "$@"; }
           test -d "$ROOT/.git" && test -s "$ENVFILE" && test ! -L "$ENVFILE"
           test ! -e "$TASK"
+          echo MICRO_GATE_TASK=PASS
           exec 9>"$ROOT/private/ops/ptes-deploy.lock"
           flock -n 9
           test "$(gitrepo rev-parse HEAD)" = "$OLD"
           test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          echo MICRO_GATE_LIVE_HEAD_AND_WORKTREE=PASS
           test "$(gitrepo ls-remote https://github.com/martaxi-boss/lowcost-europa.git refs/heads/main | awk '{print $1}')" = "$NEW"
           gitrepo fetch --no-tags -q https://github.com/martaxi-boss/lowcost-europa.git main
           test "$(gitrepo rev-parse FETCH_HEAD)" = "$NEW"
+          echo MICRO_GATE_TARGET_MAIN=PASS
           gitrepo merge-base --is-ancestor 65732cd4185d8eedaa606a81da46f085ef0ad10e "$NEW"
+          echo MICRO_GATE_UI_ANCESTOR=PASS
           EXPECTED="$(printf '%s\n' \
             apps/catalog/management/commands/discover_family_candidates.py \
             apps/catalog/management/commands/discover_family_deep.py \
@@ -80,7 +84,10 @@ jobs:
             apps/storefront/views.py \
             docs/operations/CONTADOR-LOCAL-SEM-GOOGLE-OAUTH-20261111.md \
             | LC_ALL=C sort)"
-          test "$(gitrepo diff --name-only "$OLD" "$NEW" | LC_ALL=C sort)" = "$EXPECTED"
+          ACTUAL_DIFF="$(gitrepo diff --name-only "$OLD" "$NEW" | LC_ALL=C sort)"
+          echo "MICRO_GATE_DIFF_COUNTS=$(printf '%s\n' "$ACTUAL_DIFF" | wc -l)/$(printf '%s\n' "$EXPECTED" | wc -l)"
+          test "$ACTUAL_DIFF" = "$EXPECTED"
+          echo MICRO_GATE_DIFF_EXACT=PASS
           while IFS= read -r changed; do
             if test -f "$ROOT/$changed" && test ! -L "$ROOT/$changed"; then
               chmod 644 "$ROOT/$changed"
