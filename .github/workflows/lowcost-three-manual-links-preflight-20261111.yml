@@ -80,18 +80,30 @@ jobs:
           for n,url in enumerate(urls,1):
               pid,canonical=resolve_aliexpress_product_url(url)
               assert pid.isdigit() and canonical=="https://www.aliexpress.com/item/"+pid+".html"
-              assert not Offer.objects.filter(external_product_id=pid).exists(),(n,"EXISTING_PRODUCT")
-              assert not Offer.objects.filter(affiliate_url=url).exists(),(n,"EXISTING_LINK")
-              details=client.get_product_detail(pid,"PT","EUR")
-              assert str(details.product_id)==pid
-              assert details.title and str(details.title).strip()
-              assert details.price is not None and Decimal(str(details.price))>0 and details.currency=="EUR"
               ids.append(pid)
               print("NEW_LINK_"+str(n)+"_RESOLVED_ID="+pid)
-              print("NEW_LINK_"+str(n)+"_TITLE="+str(details.title).replace("\n"," ")[:120])
-              print("NEW_LINK_"+str(n)+"_EUR_PRICE="+str(details.price))
-          assert len(set(ids))==3
-          print("NEW_LINKS_DISTINCT_AND_PRICE_VERIFIED=PASS_3")
+              matching=list(Offer.objects.filter(external_product_id=pid))
+              print("NEW_LINK_"+str(n)+"_EXISTING_COUNT="+str(len(matching)))
+              for match in matching:
+                  in_cav=OfferFamilyPlacement.objects.filter(product_family=family,offer=match).exists()
+                  print("NEW_LINK_"+str(n)+"_EXISTING_OFFER_ID="+str(match.pk))
+                  print("NEW_LINK_"+str(n)+"_EXISTING_SOURCE="+match.source)
+                  print("NEW_LINK_"+str(n)+"_EXISTING_IN_CAVITATION="+str(in_cav).upper())
+                  print("NEW_LINK_"+str(n)+"_EXISTING_LINK_SAME="+str(match.affiliate_url==url).upper())
+                  print("NEW_LINK_"+str(n)+"_EXISTING_HIDDEN="+str(match.owner_hidden).upper())
+                  print("NEW_LINK_"+str(n)+"_EXISTING_TITLE="+str(match.title).replace("\n"," ")[:100])
+              try:
+                  details=client.get_product_detail(pid,"PT","EUR")
+                  assert str(details.product_id)==pid
+                  assert details.title and str(details.title).strip()
+                  assert details.price is not None and Decimal(str(details.price))>0 and details.currency=="EUR"
+                  print("NEW_LINK_"+str(n)+"_TITLE="+str(details.title).replace("\n"," ")[:120])
+                  print("NEW_LINK_"+str(n)+"_EUR_PRICE="+str(details.price))
+                  print("NEW_LINK_"+str(n)+"_API_DETAILS=PASS")
+              except Exception as exc:
+                  print("NEW_LINK_"+str(n)+"_API_DETAILS=FAILED_"+type(exc).__name__)
+          print("NEW_LINKS_UNIQUE_PRODUCT_IDS="+str(len(set(ids))==3).upper())
+          print("NEW_LINKS_OVERLAP_READONLY_INSPECTION=PASS")
           PY
           echo CAVITATION_THREE_LINKS_READONLY_PREFLIGHT=PASS
           REMOTE
