@@ -1,0 +1,182 @@
+name: Lowcost deep audit 20261111 read only
+on:
+  push:
+    paths:
+      - .github/workflows/lowcost-deep-audit-private-20261111.yml
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-deep-audit-20261111
+  cancel-in-progress: false
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    steps:
+      - name: Check original SSH identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+      - name: Inspect production services links metrics and pages
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          ROOT=/srv/projects/lowcost-europa
+          APPUSER=le001_1789265592
+          ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
+          test -d "$ROOT/.git" && test -s "$ENVFILE" && test ! -L "$ENVFILE"
+          test "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD)" = 060b072964fcf3523643206e94c4ad26807cdf48
+          test -z "$(git -c safe.directory="$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)"
+          echo REPO_HEAD=060b072964fcf3523643206e94c4ad26807cdf48
+          echo REPO_CLEAN_TRACKED=PASS
+          for unit in lowcost-europa.service lowcost-europa-affiliate-report.timer lowcost-europa-backup.timer lowcost-europa-offsite-backup.timer lowcost-europa-offsite-backup-health.timer lowcost-europa-cavitation-availability.timer lowcost-europa-indexnow.timer lowcost-europa-catalog-maintenance.timer lowcost-europa-weekly-discovery.timer; do
+            if systemctl is-active --quiet "$unit"; then echo "UNIT_$unit=ACTIVE"; else echo "UNIT_$unit=INACTIVE"; fi
+          done
+          for unit in lowcost-europa-affiliate-report.service lowcost-europa-backup.service lowcost-europa-offsite-backup.service lowcost-europa-offsite-backup-health.service lowcost-europa-cavitation-availability.service lowcost-europa-indexnow.service lowcost-europa-catalog-maintenance.service lowcost-europa-weekly-discovery.service; do
+            v="$(systemctl show "$unit" --property=Result --value 2>/dev/null || true)"
+            echo "LAST_RESULT_$unit=$v"
+          done
+          nginx -t >/dev/null 2>&1
+          echo NGINX_CONFIG=PASS
+          openssl x509 -in /etc/letsencrypt/live/lowcost-europa.eu/fullchain.pem -noout -checkend 604800 >/dev/null && echo TLS_VALID_NEXT_7D=PASS
+          cd "$ROOT"
+          set -a
+          . "$ENVFILE"
+          set +a
+          export DJANGO_SETTINGS_MODULE=config.settings.production
+          echo GOOGLE_PROVIDER="$(printenv GOOGLE_SEARCH_CONSOLE_PROVIDER || echo WINDSOR)"
+          if test -n "$(printenv WINDSOR_API_KEY || true)"; then echo WINDSOR_AUTH_PRESENT=TRUE; else echo WINDSOR_AUTH_PRESENT=FALSE; fi
+          if test -n "$(printenv GOOGLE_OAUTH_REFRESH_TOKEN || true)" && test -n "$(printenv GOOGLE_OAUTH_CLIENT_ID || true)" && test -n "$(printenv GOOGLE_OAUTH_CLIENT_SECRET || true)"; then echo GOOGLE_OFFICIAL_AUTH_PRESENT=TRUE; else echo GOOGLE_OFFICIAL_AUTH_PRESENT=FALSE; fi
+          if test "$(printenv GOOGLE_SEARCH_CONSOLE_PROPERTY || true)" = "sc-domain:lowcost-europa.eu"; then echo GSC_PROPERTY_MATCH=TRUE; else echo GSC_PROPERTY_MATCH=FALSE; fi
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py check
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PY'
+          from datetime import datetime, timedelta, time
+          from zoneinfo import ZoneInfo
+          import django
+          django.setup()
+          from django.utils import timezone
+          from django.test import Client
+          from apps.catalog.models import ProductFamily, Offer, OfferClick, ExternalMetricsSnapshot
+          from apps.catalog.services.public_eligibility import public_eligibility_q
+          from apps.catalog.services.search_referral_metrics import read_private_report
+          from apps.catalog.services.affiliate_order_reporting import collect_affiliate_order_report
+          from pathlib import Path
+          now=timezone.now()
+          pt=now.astimezone(ZoneInfo("Europe/Lisbon"))
+          print("AUDIT_TIME_UTC="+now.strftime("%Y-%m-%dT%H:%M:%SZ"))
+          print("PT_TODAY="+str(pt.date()))
+          families=list(ProductFamily.objects.exclude(status=ProductFamily.Status.RETIRED).values_list("slug",flat=True))
+          print("PUBLISHED_CATEGORY_COUNT="+str(len(families)))
+          cav=ProductFamily.objects.filter(slug="cavitacao-rf-vacuum-corpo").first()
+          cv_offers=list(Offer.objects.filter(family_placements__product_family=cav,source="ALIEXPRESS_OWNER").filter(public_eligibility_q()).distinct().order_by("pk")) if cav else []
+          print("CAVITATION_OWNER_PUBLISHED_OFFERS="+str(len(cv_offers)))
+          print("CAVITATION_OWNER_SHORTLINKS_PRESENT="+str(sum(bool(o.affiliate_url and o.affiliate_url.startswith("https://s.click.aliexpress.com/e/")) for o in cv_offers)))
+          daystart=datetime.combine(pt.date(),time.min,tzinfo=ZoneInfo("Europe/Lisbon"))
+          yesterdaystart=daystart-timedelta(days=1)
+          print("OUTBOUND_GO_TODAY="+str(OfferClick.objects.filter(clicked_at__gte=daystart).count()))
+          print("OUTBOUND_GO_YESTERDAY="+str(OfferClick.objects.filter(clicked_at__gte=yesterdaystart,clicked_at__lt=daystart).count()))
+          print("OUTBOUND_GO_7D="+str(OfferClick.objects.filter(clicked_at__gte=now-timedelta(days=7)).count()))
+          for source in ("ALIEXPRESS","GOOGLE_SEARCH_CONSOLE"):
+              snap=ExternalMetricsSnapshot.objects.filter(source=source).first()
+              print(source+"_SNAPSHOT_PRESENT="+str(bool(snap)).upper())
+              if snap:
+                  print(source+"_SNAPSHOT_AGE_MINUTES="+str(int((now-snap.checked_at).total_seconds()/60)))
+                  if isinstance(snap.payload,dict):
+                      print(source+"_SNAPSHOT_PROVIDER="+str(snap.payload.get("provider","NOT_APPLICABLE")))
+                      if source=="ALIEXPRESS":
+                          print("ALIEXPRESS_PAID_SNAPSHOT="+str(snap.payload.get("paid_count","UNKNOWN")))
+                          print("ALIEXPRESS_RECEIVED_SNAPSHOT="+str(snap.payload.get("received_count","UNKNOWN")))
+                          print("ALIEXPRESS_TRACKING_SNAPSHOT="+",".join(str(x.get("tracking_id"))+":"+str(x.get("paid_count"))+"/"+str(x.get("received_count")) for x in snap.payload.get("by_tracking",[]) if x.get("paid_count") or x.get("received_count")))
+                      else:
+                          print("GOOGLE_SEARCH_IMPRESSIONS_SNAPSHOT="+str(snap.payload.get("impressions","UNKNOWN")))
+                          print("GOOGLE_SEARCH_CLICKS_SNAPSHOT="+str(snap.payload.get("clicks","UNKNOWN")))
+          report=read_private_report(Path("/srv/projects/lowcost-europa/.local-metrics/search-referrers.json"),now=now)
+          print("LOCAL_REFERRERS_REPORT_PRESENT="+str(bool(report)).upper())
+          if report:
+              print("LOCAL_REFERRERS_AGE_MINUTES="+str(int((now-report["checked_at"]).total_seconds()/60)))
+              print("LOCAL_SEARCH_7D="+str(report["total"]))
+              meta=report["meta"]
+              if meta:
+                  print("LOCAL_META_TODAY="+str(meta["today"]))
+                  print("LOCAL_META_YESTERDAY="+str(meta["yesterday"]))
+                  print("LOCAL_META_7D="+str(meta["total"]))
+                  print("LOCAL_META_PAID_TAGGED_7D="+str(meta["paid_tagged"]))
+          c=Client(HTTP_HOST="www.lowcost-europa.eu")
+          before=OfferClick.objects.count()
+          good=0
+          for offer in cv_offers[:6]:
+              response=c.head("/go/"+str(offer.pk)+"/",secure=True)
+              if response.status_code==302 and response.get("Location")==offer.affiliate_url: good+=1
+          print("HEAD_TO_ORIGINAL_AFFILIATE="+str(good)+"/"+str(len(cv_offers[:6])))
+          print("HEAD_NO_COUNTER_SIDE_EFFECT="+str(OfferClick.objects.count()==before).upper())
+          try:
+              rep,_,_=collect_affiliate_order_report(days=3,now=now)
+              print("LIVE_ALIEXPRESS_READONLY=PASS")
+              print("LIVE_ALIEXPRESS_PAID_3D="+str(rep["paid_count"]))
+              print("LIVE_ALIEXPRESS_RECEIVED_3D="+str(rep["received_count"]))
+              print("LIVE_ALIEXPRESS_INVALID_3D="+str(rep["excluded_count"]))
+              print("LIVE_ALIEXPRESS_TRACKING="+",".join(x["tracking_id"]+":"+str(x["paid_count"])+"/"+str(x["received_count"]) for x in rep["by_tracking"] if x["paid_count"] or x["received_count"]))
+          except Exception as e:
+              print("LIVE_ALIEXPRESS_READONLY=ERROR_"+type(e).__name__)
+          print("DJANGO_PRIVATE_AUDIT=PASS")
+          PY
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PY'
+          import urllib.request, urllib.error
+          from urllib.parse import urlparse
+          from xml.etree import ElementTree as ET
+          B="https://www.lowcost-europa.eu"
+          def get(path):
+              req=urllib.request.Request(B+path,headers={"User-Agent":"LowcostOwnerPrivateHealthAudit/1.0"})
+              with urllib.request.urlopen(req,timeout=20) as r:
+                  return r.status,r.read(2500000).decode("utf-8","replace")
+          status,sitemap=get("/sitemap.xml")
+          root=ET.fromstring(sitemap)
+          ns={"sm":"http://www.sitemaps.org/schemas/sitemap/0.9"}
+          urls=[n.text for n in root.findall(".//sm:loc",ns)]
+          print("SITEMAP_HTTP="+str(status))
+          print("SITEMAP_URLS="+str(len(urls)))
+          s,t=get("/sitemap.txt")
+          print("SITEMAP_TXT_SAME="+str(sorted(urls)==sorted(line for line in t.splitlines() if line.startswith("https://"))).upper())
+          missing=[]
+          noindex=[]
+          badcanonical=[]
+          pages_ok=0
+          for u in urls:
+              p=urlparse(u).path
+              try:
+                  st,html=get(p)
+                  if st!=200: missing.append(p); continue
+                  if '<meta name="robots" content="noindex' in html: noindex.append(p)
+                  if '<link rel="canonical" href="'+u+'"' not in html: badcanonical.append(p)
+                  pages_ok+=1
+              except (urllib.error.URLError,TimeoutError):
+                  missing.append(p)
+          print("SITEMAP_PAGES_HTTP_200="+str(pages_ok)+"/"+str(len(urls)))
+          print("SITEMAP_NOINDEX_COUNT="+str(len(noindex)))
+          print("SITEMAP_CANONICAL_ISSUES="+str(len(badcanonical)))
+          print("SITEMAP_FAILED_COUNT="+str(len(missing)))
+          print("SITEMAP_FAILED_SAMPLE="+",".join(missing[:3]))
+          s,robots=get("/robots.txt")
+          print("ROBOTS_PUBLIC="+str(s==200 and "Sitemap:" in robots and "Disallow: /painel/" in robots).upper())
+          for p in ["/pt/","/es/","/pt/products/hifu/","/es/products/hifu/","/pt/products/cavitacao-rf-vacuum-corpo/","/es/products/cavitacao-rf-vacuum-corpo/"]:
+              _,h=get(p)
+              print("PAGE_"+p.replace("/","_")+"=BUYING_Q_"+str("buyer-question" in h)+",CANONICAL_"+str('<link rel="canonical" href="'+B+p+'"' in h))
+          print("SITE_PUBLIC_READONLY_AUDIT=PASS")
+          PY
+          echo LOWCOST_DEEP_AUDIT_READONLY=PASS
+          REMOTE
