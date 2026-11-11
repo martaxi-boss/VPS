@@ -1,0 +1,176 @@
+name: Lowcost SEO Portugal guarded production release 20261111
+on:
+  push:
+    paths:
+      - .github/workflows/lowcost-seo-pt-release-20261111.yml
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-seo-pt-guarded-release-20261111
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - name: Verify original pinned VPS SSH host
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          [[ "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" == 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc' ]]
+      - name: Apply audited PT-only code with guarded rollback
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          ROOT=/srv/projects/lowcost-europa
+          OLD=8dbfc6d9e091f96b6c6213a54811efc52bcf31da
+          NEW=060b072964fcf3523643206e94c4ad26807cdf48
+          APPUSER=le001_1789265592
+          ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
+          gitrepo() { git -c safe.directory="$ROOT" -C "$ROOT" "$@"; }
+          test -d "$ROOT/.git" && test -s "$ENVFILE" && test ! -L "$ENVFILE"
+          test -d "$ROOT/private/ops"
+          exec 9>"$ROOT/private/ops/ptes-deploy.lock"
+          flock -n 9
+          test "$(gitrepo rev-parse HEAD)" = "$OLD"
+          test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          test "$(gitrepo ls-remote https://github.com/martaxi-boss/lowcost-europa.git refs/heads/main | awk '{print $1}')" = "$NEW"
+          gitrepo fetch --no-tags -q https://github.com/martaxi-boss/lowcost-europa.git main
+          test "$(gitrepo rev-parse FETCH_HEAD)" = "$NEW"
+          gitrepo merge-base --is-ancestor "$OLD" "$NEW"
+          EXPECTED="$(printf '%s\n' \
+            apps/storefront/seo_editorial.py \
+            apps/storefront/views.py \
+            apps/storefront/templates/storefront/product_family_detail.html \
+            apps/storefront/tests/test_seo_editorial_pt.py \
+            docs/operations/seo-portugal-boost-20261111.md | LC_ALL=C sort)"
+          test "$(gitrepo diff --name-only "$OLD" "$NEW" | LC_ALL=C sort)" = "$EXPECTED"
+          echo SEO_PT_EXACT_FIVE_FILE_DIFF=PASS
+          test "$(systemctl show lowcost-europa.service -p User --value)" = "$APPUSER"
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa-affiliate-report.timer
+          nginx -t >/dev/null 2>&1
+          cd "$ROOT"
+          set -a
+          . "$ENVFILE"
+          set +a
+          export DJANGO_SETTINGS_MODULE=config.settings.production
+          affiliate_fingerprint() {
+            runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PY'
+          import hashlib
+          import json
+          import django
+          django.setup()
+          from apps.catalog.models import Offer
+          values = list(
+              Offer.objects.filter(source="ALIEXPRESS_OWNER")
+              .order_by("pk").values_list("pk", "affiliate_url")
+          )
+          print(hashlib.sha256(json.dumps(values, separators=(",", ":")).encode()).hexdigest())
+          PY
+          }
+          BEFORE_AFFILIATE="$(affiliate_fingerprint)"
+          test -n "$BEFORE_AFFILIATE"
+          CHANGED=0
+          rollback() {
+            rc=$?
+            trap - EXIT
+            if test "$rc" -ne 0 && test "$CHANGED" = 1; then
+              gitrepo checkout --detach -q "$OLD" || true
+              chmod 644 "$ROOT/apps/storefront/views.py" "$ROOT/apps/storefront/seo_editorial.py" "$ROOT/apps/storefront/templates/storefront/product_family_detail.html" || true
+              systemctl reload lowcost-europa.service || true
+              echo SEO_PT_ROLLBACK=ATTEMPTED
+            fi
+            exit "$rc"
+          }
+          trap rollback EXIT
+          CHANGED=1
+          gitrepo checkout --detach -q "$NEW"
+          chmod 644 "$ROOT/apps/storefront/views.py" "$ROOT/apps/storefront/seo_editorial.py" "$ROOT/apps/storefront/templates/storefront/product_family_detail.html"
+          runuser -u "$APPUSER" -- test -r "$ROOT/apps/storefront/seo_editorial.py"
+          runuser -u "$APPUSER" -- test -r "$ROOT/apps/storefront/templates/storefront/product_family_detail.html"
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py check
+          AFTER_AFFILIATE="$(affiliate_fingerprint)"
+          test "$BEFORE_AFFILIATE" = "$AFTER_AFFILIATE"
+          echo SEO_PT_MANUAL_AFFILIATE_LINKS_PRESERVED=PASS
+          systemctl reload lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa.service
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PY'
+          import re
+          import time
+          import urllib.error
+          import urllib.request
+          ROOT = "https://www.lowcost-europa.eu"
+          SLUGS = (
+              "cavitacao-rf-vacuum-corpo",
+              "hydrodermoabrasao-aqua-facial-multifuncoes",
+              "pressoterapia-vacuum-drenagem",
+              "hifu",
+              "diodo-laser-remocao-tatuagens-pigmentacao",
+          )
+          def read(path):
+              last = None
+              for attempt in range(8):
+                  try:
+                      with urllib.request.urlopen(ROOT + path, timeout=24) as response:
+                          assert response.status == 200, (path,response.status)
+                          return response.read(2500000).decode("utf-8")
+                  except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as err:
+                      last=err
+                      if attempt < 7:time.sleep(3)
+              raise AssertionError(("page_unavailable",path,type(last).__name__))
+          pt=read("/pt/")
+          es=read("/es/")
+          assert "Equipamentos de Estética Profissional em Portugal" in pt
+          assert "Equipamentos de Estética Profissional em Portugal" not in es
+          assert '<link rel="canonical" href="'+ROOT+'/pt/">' in pt
+          assert '<link rel="canonical" href="'+ROOT+'/es/">' in es
+          for slug in SLUGS:
+              pt_url="/pt/products/"+slug+"/"
+              es_url="/es/products/"+slug+"/"
+              pt_page=read(pt_url)
+              es_page=read(es_url)
+              assert pt_page.count('class="buyer-question"') == 3,slug
+              assert 'id="duvidas-compra-portugal"' in pt_page,slug
+              assert 'class="buyer-question"' not in es_page,slug
+              assert "Guía de compra para España" in es_page,slug
+              assert '<link rel="canonical" href="'+ROOT+pt_url+'">' in pt_page,slug
+              assert '<link rel="canonical" href="'+ROOT+es_url+'">' in es_page,slug
+              assert 'hreflang="pt-PT"' in pt_page and 'hreflang="es-ES"' in pt_page
+              assert 'hreflang="pt-PT"' in es_page and 'hreflang="es-ES"' in es_page
+              assert '"@type":"FAQPage"' not in pt_page
+              assert "content=\"noindex" not in pt_page
+          sitemap=read("/sitemap.xml")
+          assert sitemap.count("<loc>")==23,sitemap.count("<loc>")
+          txt=read("/sitemap.txt")
+          urls=[line for line in txt.splitlines() if line.strip().startswith("https://")]
+          assert len(urls)==23,len(urls)
+          print("SEO_PT_PRODUCTION_15_QUESTIONS=PASS")
+          print("SEO_ES_FIVE_CATEGORIES_UNCHANGED=PASS")
+          print("SEO_PT_ES_CANONICAL_HREFLANG=PASS")
+          print("SEO_XML_TXT_23_URLS=PASS")
+          print("SEO_PT_HOME_META_PRODUCTION=PASS")
+          PY
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa-affiliate-report.timer
+          nginx -t >/dev/null 2>&1
+          test "$(gitrepo rev-parse HEAD)" = "$NEW"
+          test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          echo SEO_PT_GITHUB_VPS_SHA_ALIGNED=PASS
+          echo SEO_PT_PUBLICATION_PRODUCTION=PASS
+          trap - EXIT
+          REMOTE
