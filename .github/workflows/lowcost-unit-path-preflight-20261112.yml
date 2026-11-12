@@ -1,0 +1,52 @@
+name: Lowcost legacy-off and availability unit path preflight 20261112
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-unit-path-preflight-20261112.yml'
+permissions:
+  contents: read
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Pinned SSH read-only systemd preflight
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          ROOT=/srv/projects/lowcost-europa
+          echo "PRECHECK_APP_SHA=$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD)"
+          for unit in lowcost-europa-cavitation-availability.timer lowcost-europa-cavitation-availability.service; do
+            fragment="$(systemctl show "$unit" -p FragmentPath --value)"
+            echo "FRAGMENT_$unit=$fragment"
+            test -f "$fragment"
+            if test -L "$fragment"; then echo "UNIT_LINK_$unit=YES"; else echo "UNIT_LINK_$unit=NO"; fi
+            sha256sum "$fragment" | awk '{print "UNIT_SHA256=" $1}'
+            echo "UNIT_MATCH_REPO_$unit=$(cmp -s "$fragment" "$ROOT/deploy/systemd/$unit" && echo YES || echo NO)"
+          done
+          for unit in lowcost-europa-weekly-discovery.timer lowcost-europa-catalog-maintenance.timer; do
+            state="$(systemctl is-enabled "$unit" 2>/dev/null || true)"
+            echo "LEGACY_TIMER_$unit=$state"
+            test "$state" = disabled
+            ! systemctl is-active --quiet "$unit"
+          done
+          systemd-analyze calendar '*-*-* *:0/10:00'
+          echo NEW_AVAILABILITY_CALENDAR_PARSE=PASS
+          nginx -t >/dev/null
+          echo LOWCOST_PREFLIGHT=PASS
+          REMOTE
