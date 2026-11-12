@@ -154,3 +154,4 @@ jobs:
           nginx -t >/dev/null 2>&1
           echo LOWCOST_SEO_TECHNICAL_CLOSURE_GATE=PASS
           REMOTE
+# Retest after restoring existing IndexNow service: VPS run 43281306161.
