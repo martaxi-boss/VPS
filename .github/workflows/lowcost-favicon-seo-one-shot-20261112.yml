@@ -1,0 +1,200 @@
+name: Lowcost favicon SEO guarded production rollout 20261112
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-favicon-seo-one-shot-20261112.yml'
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-prod-automation-controls
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Deploy exact tested SHA through existing pinned SSH; verify, backup, and roll back on failure
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          ROOT=/srv/projects/lowcost-europa
+          ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
+          APPUSER=le001_1789265592
+          OLD=dbed2cdead968118bcbd5c69486d679e65d0f90a
+          NEW=d4816fbcf5dabca6a27ba8288cd2abec50cb3733
+          TASK="$ROOT/private/ops/favicon-seo-guarded-rollout-20261112"
+          ICON="$ROOT/staticfiles/storefront/lowcost-europa-favicon.png"
+          gitrepo() { git -c safe.directory="$ROOT" -C "$ROOT" "$@"; }
+
+          test -d "$ROOT/.git" && test -x "$ROOT/.venv/bin/python"
+          test -s "$ENVFILE" && test ! -L "$ENVFILE"
+          test -d "$ROOT/private/ops" && test ! -L "$ROOT/private/ops"
+          test ! -e "$TASK"
+          exec 9>"$ROOT/private/ops/ptes-deploy.lock"
+          flock -n 9
+          test "$(gitrepo rev-parse HEAD)" = "$OLD"
+          test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          test "$(gitrepo ls-remote https://github.com/martaxi-boss/lowcost-europa.git refs/heads/main | awk '{print $1}')" = "$NEW"
+          gitrepo fetch --no-tags -q https://github.com/martaxi-boss/lowcost-europa.git main
+          test "$(gitrepo rev-parse FETCH_HEAD)" = "$NEW"
+          gitrepo merge-base --is-ancestor "$OLD" "$NEW"
+          EXPECTED="$(printf '%s\n' \
+              apps/storefront/static/storefront/lowcost-europa-favicon.png \
+              apps/storefront/templates/storefront/base.html \
+              apps/storefront/templates/storefront/components/offer_card.html \
+              apps/storefront/templates/storefront/components/product_family_card.html \
+              apps/storefront/templates/storefront/home.html \
+              apps/storefront/tests/test_favicon.py \
+              apps/storefront/tests/test_search_snippet_image_notices.py \
+              | LC_ALL=C sort)"
+          test "$(gitrepo diff --name-only "$OLD" "$NEW" | LC_ALL=C sort)" = "$EXPECTED"
+          gitrepo diff --check "$OLD" "$NEW"
+          echo LOWCOST_EXACT_SEVEN_SEO_FILES=PASS
+          test "$(systemctl show lowcost-europa.service -p User --value)" = "$APPUSER"
+          for unit in lowcost-europa.service lowcost-europa-affiliate-report.timer \
+                      lowcost-europa-backup.timer lowcost-europa-offsite-backup.timer \
+                      lowcost-europa-offsite-backup-health.timer lowcost-europa-indexnow.timer \
+                      lowcost-europa-cavitation-availability.timer; do
+            systemctl is-active --quiet "$unit"
+          done
+          for unit in lowcost-europa-weekly-discovery.timer lowcost-europa-catalog-maintenance.timer; do
+            test "$(systemctl is-enabled "$unit" 2>/dev/null || true)" = disabled
+            ! systemctl is-active --quiet "$unit"
+          done
+          nginx -t >/dev/null 2>&1
+          ENV_SHA="$(sha256sum "$ENVFILE" | awk '{print $1}')"
+          cd "$ROOT"
+          set -a
+          . "$ENVFILE"
+          set +a
+          export DJANGO_SETTINGS_MODULE=config.settings.production
+          sh "$ROOT/deploy/scripts/backup-postgres.sh"
+          BACKUP="$(find "$ROOT/backups/daily" -maxdepth 1 -type f -name '*.dump' -printf '%T@ %p\n' | sort -nr | head -n 1 | cut -d' ' -f2-)"
+          test -s "$BACKUP" && test -s "$BACKUP.sha256"
+          (cd "$ROOT/backups/daily" && sha256sum -c "$(basename "$BACKUP.sha256")" >/dev/null)
+          echo LOWCOST_PREDEPLOY_DB_BACKUP_VERIFIED=PASS
+
+          mkdir -m 700 "$TASK"
+          PREVIOUS_ICON=0
+          if test -e "$ICON"; then
+            test -f "$ICON" && test ! -L "$ICON"
+            cp -p "$ICON" "$TASK/favicon-before.png"
+            PREVIOUS_ICON=1
+          fi
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYSNAP' > "$TASK/before.json"
+          import django,json
+          django.setup()
+          from apps.catalog.models import OfferClick,OfferFamilyPlacement
+          from apps.catalog.services.manual_storefront import MANUAL_ONLY_FAMILY_SLUGS
+          rows=[]
+          for p in OfferFamilyPlacement.objects.filter(
+              product_family__slug__in=MANUAL_ONLY_FAMILY_SLUGS
+          ).select_related("product_family","offer"):
+              rows.append([p.product_family.slug,p.offer_id,p.offer.source,p.offer.affiliate_url])
+          print(json.dumps({"rows":sorted(rows),"clicks":OfferClick.objects.count()},sort_keys=True))
+          PYSNAP
+          test -s "$TASK/before.json"
+          chmod 600 "$TASK/before.json"
+          CODE_CHANGED=0
+          rollback() {
+            rc=$?
+            trap - EXIT
+            if test "$rc" -ne 0; then
+              if test "$CODE_CHANGED" = 1; then
+                gitrepo checkout --detach -q "$OLD" || true
+                runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py collectstatic --noinput >/dev/null 2>&1 || true
+                if test "$PREVIOUS_ICON" = 1; then
+                  cp -p "$TASK/favicon-before.png" "$ICON" || true
+                else
+                  rm -f -- "$ICON" || true
+                fi
+                systemctl restart lowcost-europa.service || true
+              fi
+              echo LOWCOST_ROLLBACK_ATTEMPTED=TRUE
+              echo LOWCOST_PROOF_DIRECTORY_RETAINED_FOR_DIAGNOSIS=TRUE
+            else
+              rm -rf -- "$TASK"
+            fi
+            exit "$rc"
+          }
+          trap rollback EXIT
+
+          CODE_CHANGED=1
+          gitrepo checkout --detach -q "$NEW"
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py check
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py makemigrations --check --dry-run
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py collectstatic --noinput
+          test -f "$ICON" && test ! -L "$ICON"
+          cmp -s "$ICON" "$ROOT/apps/storefront/static/storefront/lowcost-europa-favicon.png"
+          echo LOWCOST_STATIC_ICON_BYTE_IDENTICAL=PASS
+          systemctl restart lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa.service
+          nginx -t >/dev/null 2>&1
+          curl -fsS --max-time 25 --resolve www.lowcost-europa.eu:443:127.0.0.1 \
+              https://www.lowcost-europa.eu/ -o "$TASK/home.html"
+          curl -fsS --max-time 25 --resolve www.lowcost-europa.eu:443:127.0.0.1 \
+              https://www.lowcost-europa.eu/static/storefront/lowcost-europa-favicon.png \
+              -o "$TASK/favicon-http.png"
+          cmp -s "$TASK/favicon-http.png" "$ICON"
+          grep -Fq 'lowcost-europa-favicon.png' "$TASK/home.html"
+          grep -Fq 'data-nosnippet' "$TASK/home.html"
+          grep -Fq '<meta name="robots" content="index, follow">' "$TASK/home.html"
+          curl -fsS --max-time 25 --resolve www.lowcost-europa.eu:443:127.0.0.1 \
+              https://www.lowcost-europa.eu/robots.txt | grep -Fq 'Allow: /'
+          echo LOWCOST_HTTPS_FAVICON_SNIPPET_INDEXING=PASS
+
+          cat "$TASK/before.json" | runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" -c '
+          import django,json,sys
+          django.setup()
+          from apps.catalog.models import OfferClick,OfferFamilyPlacement
+          from apps.catalog.services.manual_storefront import MANUAL_ONLY_FAMILY_SLUGS
+          before=json.load(sys.stdin)
+          rows=[]
+          for p in OfferFamilyPlacement.objects.filter(
+              product_family__slug__in=MANUAL_ONLY_FAMILY_SLUGS
+          ).select_related("product_family","offer"):
+              rows.append([p.product_family.slug,p.offer_id,p.offer.source,p.offer.affiliate_url])
+          assert sorted(rows)==before["rows"],"Manual affiliate links/placements changed"
+          assert OfferClick.objects.count() >= before["clicks"],"Click history decreased"
+          print("LOWCOST_MANUAL_LINKS_BYTE_IDENTICAL=PASS count="+str(len(rows)))
+          print("LOWCOST_CLICK_HISTORY_PRESERVED=PASS")
+          '
+          for unit in lowcost-europa.service lowcost-europa-affiliate-report.timer \
+                      lowcost-europa-backup.timer lowcost-europa-offsite-backup.timer \
+                      lowcost-europa-offsite-backup-health.timer lowcost-europa-indexnow.timer \
+                      lowcost-europa-cavitation-availability.timer; do
+            systemctl is-active --quiet "$unit"
+          done
+          for unit in lowcost-europa-weekly-discovery.timer lowcost-europa-catalog-maintenance.timer; do
+            test "$(systemctl is-enabled "$unit" 2>/dev/null || true)" = disabled
+            ! systemctl is-active --quiet "$unit"
+          done
+          test "$(gitrepo rev-parse HEAD)" = "$NEW"
+          test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          test "$(gitrepo ls-remote https://github.com/martaxi-boss/lowcost-europa.git refs/heads/main | awk '{print $1}')" = "$NEW"
+          test "$(sha256sum "$ENVFILE" | awk '{print $1}')" = "$ENV_SHA"
+          nginx -t >/dev/null 2>&1
+          echo LOWCOST_GITHUB_VPS_IDENTICAL_SHA=PASS
+          echo LOWCOST_NONDESTRUCTIVE_HYGIENE=PASS
+          echo LOWCOST_SEVEN_SERVICE_TIMER_HEALTH=PASS
+          echo LOWCOST_LEGACY_DISCOVERY_REMAINS_OFF=PASS
+          trap - EXIT
+          rm -rf -- "$TASK"
+          REMOTE
+          echo LOWCOST_FAVICON_SEO_DEPLOY_END_TO_END=PASS
