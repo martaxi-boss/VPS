@@ -1,0 +1,41 @@
+name: Lowcost IndexNow existing service one-time retry 20261112
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-indexnow-single-retry-20261112.yml'
+permissions:
+  contents: read
+jobs:
+  retry:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Pinned SSH run existing IndexNow job once
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -euo pipefail
+          ROOT=/srv/projects/lowcost-europa
+          test "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD)" = '4c6e75e566dcf317624285fe4f92d5cbdd6ec2dc'
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa-indexnow.timer
+          nginx -t >/dev/null
+          systemctl start lowcost-europa-indexnow.service
+          test "$(systemctl show lowcost-europa-indexnow.service -p Result --value)" = success
+          systemctl is-active --quiet lowcost-europa-indexnow.timer
+          echo LOWCOST_INDEXNOW_RETRY=PASS
+          REMOTE
