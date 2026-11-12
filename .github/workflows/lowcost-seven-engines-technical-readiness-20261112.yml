@@ -1,0 +1,114 @@
+name: Lowcost seven engines technical readiness and disk footprint 20261112
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-seven-engines-technical-readiness-20261112.yml'
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-seven-engines-readonly-audit
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - name: Pinned-SSH live SEO and private disk usage audit
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          ROOT=/srv/projects/lowcost-europa
+          cd "$ROOT"
+          gitrepo() { git -c safe.directory="$ROOT" -C "$ROOT" "$@"; }
+          echo "APP_SHA=$(gitrepo rev-parse HEAD)"
+          test "$(gitrepo rev-parse HEAD)" = 'dbed2cdead968118bcbd5c69486d679e65d0f90a'
+          test "$(gitrepo ls-remote https://github.com/martaxi-boss/lowcost-europa.git refs/heads/main | awk '{print $1}')" = 'dbed2cdead968118bcbd5c69486d679e65d0f90a'
+          test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          echo SOURCE_GITHUB_VPS_ALIGNED=PASS
+          nginx -t >/dev/null 2>&1
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa-indexnow.timer
+          systemctl is-active --quiet lowcost-europa-affiliate-report.timer
+          systemctl is-active --quiet lowcost-europa-cavitation-availability.timer
+          systemctl is-enabled --quiet lowcost-europa-indexnow.timer
+          for unit in lowcost-europa-weekly-discovery.timer lowcost-europa-catalog-maintenance.timer; do
+            test "$(systemctl is-enabled "$unit" 2>/dev/null || true)" = disabled
+            ! systemctl is-active --quiet "$unit"
+          done
+          echo SEO_INDEXNOW_TIMER_ENABLED=PASS
+          echo "INDEXNOW_SERVICE_RESULT=$(systemctl show lowcost-europa-indexnow.service -p Result --value)"
+          echo "INDEXNOW_SERVICE_LAST_RUN=$(systemctl show lowcost-europa-indexnow.service -p InactiveEnterTimestamp --value)"
+          echo "INDEXNOW_TIMER_NEXT=$(systemctl show lowcost-europa-indexnow.timer -p NextElapseUSecRealtime --value)"
+          echo "INDEXNOW_TIMER_LAST_TRIGGER=$(systemctl show lowcost-europa-indexnow.timer -p LastTriggerUSec --value)"
+          echo INDEXNOW_RECENT_EVENTS_BEGIN
+          journalctl --no-pager -o cat -u lowcost-europa-indexnow.service --since '2026-11-11 00:00:00 UTC' | grep -E '^INDEXNOW_(RECEIVED|UNCHANGED|BUSY|DRY_RUN)' | tail -n 12 || true
+          echo INDEXNOW_RECENT_EVENTS_END
+          for f in "$ROOT/.indexnow" "$ROOT/.local-metrics" /var/log/nginx/lowcost-europa.access.log; do
+            if test -e "$f" && test ! -L "$f"; then
+              echo "DISK_BYTES_$(basename "$f")=$(du -sb "$f" | awk '{print $1}')"
+            fi
+          done
+          echo "DISK_BYTES_LOW_COST_LOG_ROTATIONS=$(find /var/log/nginx -maxdepth 1 -type f -name 'lowcost-europa.access.log.*' -printf '%s\n' | awk '{s+=$1} END {print s+0}')"
+          echo "DISK_FREE_BYTES=$(df -B1 --output=avail "$ROOT" | tail -n1 | tr -d ' ')"
+          test -f "$ROOT/.indexnow/accepted.json" && test ! -L "$ROOT/.indexnow/accepted.json"
+          python3 - <<'PY'
+          import json, pathlib
+          root=pathlib.Path('/srv/projects/lowcost-europa/.indexnow')
+          p=root/'accepted.json'
+          data=json.loads(p.read_text())
+          assert isinstance(data,dict) and len(data)==23
+          assert all(isinstance(k,str) and k.startswith('https://www.lowcost-europa.eu/') for k in data)
+          print('INDEXNOW_ACCEPTED_FINGERPRINTS='+str(len(data)))
+          print('INDEXNOW_PRIVATE_STATE=PASS')
+          PY
+          APPUSER="$(systemctl show lowcost-europa.service -p User --value)"
+          test "$APPUSER" = le001_1789265592
+          set -a
+          . "$ROOT/private/systemd-env/lowcost-europa.env"
+          set +a
+          export DJANGO_SETTINGS_MODULE=config.settings.production
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py notify_indexnow --dry-run
+          echo INDEXNOW_FULL_SITE_DRY_RUN=PASS
+          python3 - <<'PY'
+          import re,urllib.request,xml.etree.ElementTree as ET
+          from html.parser import HTMLParser
+          base='https://www.lowcost-europa.eu'
+          def get(path):
+              req=urllib.request.Request(base+path,headers={'User-Agent':'Lowcost-SEOTechnicalAudit/1.0'})
+              with urllib.request.urlopen(req,timeout=16) as r:
+                  assert r.status==200,(path,r.status)
+                  return r.read(1500000).decode('utf-8','replace')
+          robots=get('/robots.txt')
+          xml=get('/sitemap.xml')
+          txt=get('/sitemap.txt')
+          urls=[x.text for x in ET.fromstring(xml).iter() if x.tag.endswith('}loc')]
+          text_urls=[u.strip() for u in txt.splitlines() if u.strip().startswith('https://')]
+          assert len(urls)==23 and len(set(urls))==23
+          assert set(urls)==set(text_urls)
+          assert 'sitemap.xml' in robots.lower() and 'sitemap.txt' in robots.lower()
+          assert not re.search(r'(?mi)^disallow:\s*/\s*$',robots)
+          assert all(u.startswith(base+'/') for u in urls)
+          print('GOOGLE_XML_TEXT_SITEMAPS=PASS_23_OF_23')
+          print('ROBOTS_PUBLIC_INDEXABLE=PASS')
+          for slug in ('cavitacao-rf-vacuum-corpo','hydrodermoabrasao-aqua-facial-multifuncoes','pressoterapia-vacuum-drenagem','hifu','diodo-laser-remocao-tatuagens-pigmentacao'):
+              url=base+'/products/'+slug+'/'
+              assert url in urls,slug
+          print('FIVE_CATEGORIES_DISCOVERABLE=PASS')
+          PY
+          echo SEO_SEVEN_ENGINES_SITE_SIDE_READY=PASS
+          REMOTE
