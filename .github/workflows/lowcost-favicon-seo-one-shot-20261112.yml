@@ -159,8 +159,17 @@ jobs:
           systemctl restart lowcost-europa.service
           systemctl is-active --quiet lowcost-europa.service
           nginx -t >/dev/null 2>&1
-          curl -fsS --max-time 25 --resolve www.lowcost-europa.eu:443:127.0.0.1 \
-              https://www.lowcost-europa.eu/ -o "$TASK/home.html"
+          READY=0
+          for attempt in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+            if curl -fsS --max-time 12 --resolve www.lowcost-europa.eu:443:127.0.0.1 \
+                https://www.lowcost-europa.eu/ -o "$TASK/home.html" 2>/dev/null; then
+              READY=1
+              break
+            fi
+            sleep 2
+          done
+          test "$READY" = 1
+          echo LOWCOST_GUNICORN_HTTPS_READY_AFTER_RESTART=PASS
           curl -fsS --max-time 25 --resolve www.lowcost-europa.eu:443:127.0.0.1 \
               https://www.lowcost-europa.eu/static/storefront/lowcost-europa-favicon.png \
               -o "$TASK/favicon-http.png"
