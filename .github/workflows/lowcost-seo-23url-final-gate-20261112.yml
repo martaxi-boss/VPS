@@ -33,7 +33,7 @@ jobs:
             ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
           set -Eeuo pipefail
           ROOT=/srv/projects/lowcost-europa
-          APP_SHA=d4816fbcf5dabca6a27ba8288cd2abec50cb3733
+          APP_SHA=4c6e75e566dcf317624285fe4f92d5cbdd6ec2dc
           cd "$ROOT"
           gitrepo() { git -c safe.directory="$ROOT" -C "$ROOT" "$@"; }
           test "$(gitrepo rev-parse HEAD)" = "$APP_SHA"
