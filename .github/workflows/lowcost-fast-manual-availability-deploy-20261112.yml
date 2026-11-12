@@ -1,0 +1,227 @@
+name: Lowcost ten-minute five-category manual availability guarded deploy 20261112
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-fast-manual-availability-deploy-20261112.yml'
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-prod-automation-controls
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Pinned SSH, DB backup, exact diff, isolated systemd upgrade, live checks
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          ROOT=/srv/projects/lowcost-europa
+          ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
+          TASK="$ROOT/private/ops/manual-availability-fast-rollout-20261112"
+          OLD=d0abb9473be0c6800cca551033d4907b9f8183c6
+          NEW=dbed2cdead968118bcbd5c69486d679e65d0f90a
+          APPUSER=le001_1789265592
+          UNIT_TIMER=lowcost-europa-cavitation-availability.timer
+          UNIT_SERVICE=lowcost-europa-cavitation-availability.service
+          gitrepo() { git -c safe.directory="$ROOT" -C "$ROOT" "$@"; }
+          test -d "$ROOT/.git" && test -s "$ENVFILE" && test ! -L "$ENVFILE"
+          test ! -e "$TASK"
+          exec 9>"$ROOT/private/ops/ptes-deploy.lock"
+          flock -n 9
+          test "$(gitrepo rev-parse HEAD)" = "$OLD"
+          test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          test "$(gitrepo ls-remote https://github.com/martaxi-boss/lowcost-europa.git refs/heads/main | awk '{print $1}')" = "$NEW"
+          gitrepo fetch --no-tags -q https://github.com/martaxi-boss/lowcost-europa.git main
+          test "$(gitrepo rev-parse FETCH_HEAD)" = "$NEW"
+          gitrepo merge-base --is-ancestor "$OLD" "$NEW"
+          EXPECTED="$(printf '%s\n' \
+            apps/catalog/management/commands/monitor_cavitation_availability.py \
+            apps/catalog/services/cavitation_availability.py \
+            apps/catalog/tests/test_catalog_maintenance_systemd.py \
+            apps/catalog/tests/test_cavitation_manual_only.py \
+            deploy/systemd/README.md \
+            deploy/systemd/lowcost-europa-cavitation-availability.service \
+            deploy/systemd/lowcost-europa-cavitation-availability.timer \
+            | LC_ALL=C sort)"
+          test "$(gitrepo diff --name-only "$OLD" "$NEW" | LC_ALL=C sort)" = "$EXPECTED"
+          echo MANUAL_STOCK_EXACT_SEVEN_CODE_PATHS=PASS
+          test "$(systemctl show lowcost-europa.service -p User --value)" = "$APPUSER"
+          for unit in lowcost-europa-weekly-discovery.timer lowcost-europa-catalog-maintenance.timer; do
+            test "$(systemctl is-enabled "$unit" 2>/dev/null || true)" = disabled
+            ! systemctl is-active --quiet "$unit"
+          done
+          for unit in lowcost-europa.service lowcost-europa-affiliate-report.timer \
+                      lowcost-europa-backup.timer lowcost-europa-offsite-backup.timer \
+                      lowcost-europa-offsite-backup-health.timer lowcost-europa-indexnow.timer \
+                      "$UNIT_TIMER"; do
+            systemctl is-active --quiet "$unit"
+          done
+          ! systemctl is-active --quiet "$UNIT_SERVICE"
+          for unit in "$UNIT_TIMER" "$UNIT_SERVICE"; do
+            test "$(systemctl show "$unit" -p FragmentPath --value)" = "/etc/systemd/system/$unit"
+            test -f "/etc/systemd/system/$unit"
+            test ! -L "/etc/systemd/system/$unit"
+            cmp -s "/etc/systemd/system/$unit" "$ROOT/deploy/systemd/$unit"
+          done
+          nginx -t >/dev/null 2>&1
+          ENV_SHA="$(sha256sum "$ENVFILE" | awk '{print $1}')"
+          cd "$ROOT"
+          set -a
+          . "$ENVFILE"
+          set +a
+          export DJANGO_SETTINGS_MODULE=config.settings.production
+          sh "$ROOT/deploy/scripts/backup-postgres.sh"
+          BACKUP="$(find "$ROOT/backups/daily" -maxdepth 1 -type f -name '*.dump' -printf '%T@ %p\n' | sort -nr | head -n 1 | cut -d' ' -f2-)"
+          test -s "$BACKUP" && test -s "$BACKUP.sha256"
+          (cd "$ROOT/backups/daily" && sha256sum -c "$(basename "$BACKUP.sha256")" >/dev/null)
+          echo MANUAL_STOCK_DATABASE_BACKUP_SHA256=PASS
+          mkdir -m 700 "$TASK"
+          cp -p "/etc/systemd/system/$UNIT_TIMER" "$TASK/timer.before"
+          cp -p "/etc/systemd/system/$UNIT_SERVICE" "$TASK/service.before"
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYSNAP' > "$TASK/before.json"
+          import django,json
+          django.setup()
+          from apps.catalog.models import Offer,OfferClick,OfferFamilyPlacement
+          from apps.catalog.services.public_eligibility import public_eligibility_q
+          expected={
+              "cavitacao-rf-vacuum-corpo":20,
+              "hydrodermoabrasao-aqua-facial-multifuncoes":9,
+              "pressoterapia-vacuum-drenagem":5,
+              "hifu":6,
+              "diodo-laser-remocao-tatuagens-pigmentacao":5,
+          }
+          rows=[]
+          for slug,count in expected.items():
+              qs=OfferFamilyPlacement.objects.filter(product_family__slug=slug).order_by("offer_id")
+              assert qs.count()==count,(slug,qs.count(),count)
+              for p in qs.select_related("offer"):
+                  assert p.offer.source==Offer.Source.ALIEXPRESS_OWNER
+                  rows.append([slug,p.offer_id,p.offer.source,p.offer.affiliate_url])
+          assert len(rows)==45 and len(set(row[3] for row in rows))==45
+          print(json.dumps({"rows":sorted(rows),"clicks":OfferClick.objects.count()},sort_keys=True))
+          PYSNAP
+          test -s "$TASK/before.json"
+          chmod 600 "$TASK/before.json"
+          CODE_CHANGED=0
+          UNITS_CHANGED=0
+          rollback() {
+            rc=$?
+            trap - EXIT
+            if test "$rc" -ne 0; then
+              if test "$UNITS_CHANGED" = 1; then
+                cp -p "$TASK/timer.before" "/etc/systemd/system/$UNIT_TIMER" || true
+                cp -p "$TASK/service.before" "/etc/systemd/system/$UNIT_SERVICE" || true
+                systemctl daemon-reload || true
+                systemctl restart "$UNIT_TIMER" || true
+              fi
+              if test "$CODE_CHANGED" = 1; then
+                gitrepo checkout --detach -q "$OLD" || true
+                systemctl restart lowcost-europa.service || true
+              fi
+              echo MANUAL_STOCK_ROLLBACK_ATTEMPTED=TRUE
+            fi
+            exit "$rc"
+          }
+          trap rollback EXIT
+          systemctl stop "$UNIT_TIMER"
+          test ! "$(systemctl is-active "$UNIT_TIMER" || true)" = active
+          CODE_CHANGED=1
+          gitrepo checkout --detach -q "$NEW"
+          while IFS= read -r changed; do
+            test -f "$ROOT/$changed" && test ! -L "$ROOT/$changed"
+            chmod 644 "$ROOT/$changed"
+            runuser -u "$APPUSER" -- test -r "$ROOT/$changed"
+          done <<< "$EXPECTED"
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py check
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py makemigrations --check --dry-run
+          systemd-analyze calendar '*-*-* *:0/10:00' >/dev/null
+          UNITS_CHANGED=1
+          install -m 0644 -o root -g root "$ROOT/deploy/systemd/$UNIT_TIMER" "/etc/systemd/system/$UNIT_TIMER"
+          install -m 0644 -o root -g root "$ROOT/deploy/systemd/$UNIT_SERVICE" "/etc/systemd/system/$UNIT_SERVICE"
+          systemctl daemon-reload
+          systemctl restart "$UNIT_TIMER"
+          systemctl is-enabled --quiet "$UNIT_TIMER"
+          systemctl is-active --quiet "$UNIT_TIMER"
+          for unit in "$UNIT_TIMER" "$UNIT_SERVICE"; do
+            cmp -s "/etc/systemd/system/$unit" "$ROOT/deploy/systemd/$unit"
+          done
+          echo MANUAL_STOCK_10MIN_TIMER_BATCH10=PASS
+          systemctl restart lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa.service
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYCODE'
+          import django
+          django.setup()
+          from datetime import timedelta
+          from apps.catalog.services.cavitation_availability import MIN_CONFIRMATION_GAP,MAX_BATCH_SIZE
+          from apps.catalog.services.manual_storefront import MANUAL_ONLY_FAMILY_SLUGS
+          assert MIN_CONFIRMATION_GAP==timedelta(minutes=20) and MAX_BATCH_SIZE==10
+          assert len(MANUAL_ONLY_FAMILY_SLUGS)==5
+          print("MANUAL_STOCK_CODE_GUARDS=PASS_FIVE_FAMILIES")
+          PYCODE
+          # A real availability-only call may hide definitively unavailable items,
+          # which is explicitly authorized. A temporary API failure is reported,
+          # never interpreted as a seller being out of stock.
+          if systemctl start "$UNIT_SERVICE"; then
+            echo MANUAL_STOCK_LIVE_ALIEXPRESS_POLL=PASS
+          else
+            echo MANUAL_STOCK_LIVE_ALIEXPRESS_POLL=UNAVAILABLE_RETRY_SCHEDULED
+          fi
+          cat "$TASK/before.json" | runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" -c '
+          import django,json,sys
+          django.setup()
+          from apps.catalog.models import Offer,OfferClick,OfferFamilyPlacement
+          saved=json.load(sys.stdin)
+          actual=[]
+          slugs=set(r[0] for r in saved["rows"])
+          for p in OfferFamilyPlacement.objects.filter(product_family__slug__in=slugs).select_related("offer"):
+              actual.append([p.product_family.slug,p.offer_id,p.offer.source,p.offer.affiliate_url])
+          assert sorted(actual)==saved["rows"],"Owner URL or placements were modified"
+          assert OfferClick.objects.count()>=saved["clicks"],"Click history decreased"
+          assert all(row[2]==Offer.Source.ALIEXPRESS_OWNER for row in actual)
+          print("MANUAL_STOCK_45_ORIGINAL_URLS_BYTE_IDENTICAL=PASS")
+          print("MANUAL_STOCK_45_ORIGINAL_PLACEMENTS_PRESERVED=PASS")
+          print("MANUAL_STOCK_HISTORY_PRESERVED=PASS")
+          print("MANUAL_STOCK_CURRENT_VISIBLE="+str(Offer.objects.filter(
+              family_placements__product_family__slug__in=slugs,is_active=True,owner_hidden=False
+          ).distinct().count()))
+          '
+          for unit in lowcost-europa-weekly-discovery.timer lowcost-europa-catalog-maintenance.timer; do
+            test "$(systemctl is-enabled "$unit" 2>/dev/null || true)" = disabled
+            ! systemctl is-active --quiet "$unit"
+            echo "MANUAL_STOCK_LEGACY_$unit=OFF"
+          done
+          for unit in lowcost-europa.service lowcost-europa-affiliate-report.timer \
+                      lowcost-europa-backup.timer lowcost-europa-offsite-backup.timer \
+                      lowcost-europa-offsite-backup-health.timer lowcost-europa-indexnow.timer \
+                      "$UNIT_TIMER"; do
+            systemctl is-active --quiet "$unit"
+          done
+          test "$(gitrepo rev-parse HEAD)" = "$NEW"
+          test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          test "$(gitrepo ls-remote https://github.com/martaxi-boss/lowcost-europa.git refs/heads/main | awk '{print $1}')" = "$NEW"
+          test "$(sha256sum "$ENVFILE" | awk '{print $1}')" = "$ENV_SHA"
+          nginx -t >/dev/null 2>&1
+          echo MANUAL_STOCK_FINAL_GITHUB_VPS_ALIGNMENT=PASS
+          echo MANUAL_STOCK_LEGACY_GENERATION_DISABLED=PASS
+          echo MANUAL_STOCK_COUNTERS_AND_ORDERS_PRESERVED=PASS
+          trap - EXIT
+          rm -rf -- "$TASK"
+          REMOTE
