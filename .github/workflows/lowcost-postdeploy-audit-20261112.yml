@@ -1,0 +1,179 @@
+name: Lowcost five manual categories and counters final VPS audit 20261112
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/lowcost-postdeploy-audit-20261112.yml
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-five-manual-final-audit-20261112
+  cancel-in-progress: false
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    steps:
+      - name: Validate pinned host
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+      - name: Observe live VPS Git tree services source permissions and public site
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          ROOT=/srv/projects/lowcost-europa
+          ENVFILE="$ROOT/private/systemd-env/lowcost-europa.env"
+          gitrepo() { git -c safe.directory="$ROOT" -C "$ROOT" "$@"; }
+          test -d "$ROOT/.git" && test -s "$ENVFILE" && test ! -L "$ENVFILE"
+          echo "CHECKED_UTC=$(date -u +%FT%TZ)"
+          echo "APP_SHA=$(gitrepo rev-parse HEAD)"
+          test "$(gitrepo rev-parse HEAD)" = "d0abb9473be0c6800cca551033d4907b9f8183c6"
+          echo "GITHUB_MAIN_SHA=$(gitrepo ls-remote https://github.com/martaxi-boss/lowcost-europa.git refs/heads/main | awk '{print $1}')"
+          test "$(gitrepo rev-parse HEAD)" = "$(gitrepo ls-remote https://github.com/martaxi-boss/lowcost-europa.git refs/heads/main | awk '{print $1}')" && echo GITHUB_VPS_SOURCE_SHA_ALIGNED=PASS || echo GITHUB_VPS_SOURCE_SHA_ALIGNED=FAIL
+          test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)" && echo APP_TRACKED_CLEAN=PASS || echo APP_TRACKED_CLEAN=FAIL
+          echo "APP_UNTRACKED_COUNT=$(gitrepo ls-files --others --exclude-standard | wc -l)"
+          echo "PROJECT_COUNT=$(find /srv/projects -mindepth 1 -maxdepth 1 -type d | wc -l)"
+          echo "LOWCOST_DISK_BYTES=$(du -sx -B1 "$ROOT" 2>/dev/null | awk '{print $1}')"
+          echo "DISK_USAGE=$(df -P / | awk 'NR==2{print $5}')"
+          echo "MEM_AVAILABLE_KB=$(awk '/MemAvailable/{print $2}' /proc/meminfo)"
+          echo "TEMP_ENV_BACKUP_COUNT=$(find "$ROOT/private/ops" -maxdepth 1 -type f -name '.local-counter-env-backup.*' | wc -l)"
+          echo "DIODO_TEMP_TASK_REMAINING=$(find "$ROOT/private/ops" -mindepth 1 -maxdepth 1 -name 'diodo-five-owner-manual-20261112' | wc -l)"
+          python3 - "$ROOT" <<'PYPERMS'
+          import os,subprocess,sys
+          from pathlib import Path
+          root=Path(sys.argv[1])
+          names=subprocess.run(['git','-c','safe.directory='+str(root),'-C',str(root),'ls-files','-z','--','apps','config','deploy'],capture_output=True,check=True).stdout
+          unreadable=[]; symlinks=[]
+          for token in names.split(b'\0'):
+              if not token: continue
+              name=os.fsdecode(token); path=root/name
+              if path.is_symlink():symlinks.append(name);continue
+              if path.is_file() and path.suffix in ('.py','.html') and path.stat().st_mode & 0o444==0:unreadable.append(name)
+          print('TRACKED_APP_SOURCE_UNREADABLE='+str(len(unreadable)))
+          print('TRACKED_APP_SOURCE_UNREADABLE_SAMPLE='+','.join(unreadable[:12]))
+          print('TRACKED_APP_SYMLINKS='+str(len(symlinks)))
+          PYPERMS
+          for unit in lowcost-europa.service lowcost-europa-affiliate-report.timer lowcost-europa-backup.timer lowcost-europa-offsite-backup.timer lowcost-europa-offsite-backup-health.timer lowcost-europa-cavitation-availability.timer lowcost-europa-indexnow.timer lowcost-europa-catalog-maintenance.timer lowcost-europa-weekly-discovery.timer; do
+            if systemctl is-active --quiet "$unit"; then echo "UNIT_$unit=ACTIVE"; else echo "UNIT_$unit=INACTIVE"; fi
+          done
+          nginx -t >/dev/null 2>&1 && echo NGINX_CONFIG=PASS || echo NGINX_CONFIG=FAIL
+          openssl x509 -in /etc/letsencrypt/live/lowcost-europa.eu/fullchain.pem -noout -checkend 604800 >/dev/null 2>&1 && echo TLS_VALID_7D=PASS || echo TLS_VALID_7D=CHECK
+          cd "$ROOT"
+          set -a
+          . "$ENVFILE"
+          set +a
+          export DJANGO_SETTINGS_MODULE=config.settings.production
+          for key in WINDSOR_API_KEY GOOGLE_OAUTH_REFRESH_TOKEN GOOGLE_SEARCH_CONSOLE_PROVIDER GOOGLE_OAUTH_CLIENT_SECRET GOOGLE_OAUTH_CLIENT_ID; do
+            if printenv "$key" >/dev/null; then echo "ENV_$key=PRESENT"; else echo "ENV_$key=ABSENT"; fi
+          done
+          APPUSER="$(systemctl show lowcost-europa.service -p User --value)"
+          test "$APPUSER" = le001_1789265592 && echo APPUSER=PASS || echo APPUSER=MISMATCH
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py check >/dev/null 2>&1 && echo DJANGO_CHECK=PASS || echo DJANGO_CHECK=FAIL
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYDATA'
+          import django
+          django.setup()
+          from apps.catalog.models import Offer,OfferClick,OfferFamilyPlacement
+          from apps.catalog.services.public_eligibility import public_eligibility_q
+          expected={
+              'cavitacao-rf-vacuum-corpo':('CAV',20),
+              'hydrodermoabrasao-aqua-facial-multifuncoes':('MICRO',9),
+              'pressoterapia-vacuum-drenagem':('PRESS',5),
+              'hifu':('HIFU',6),
+              'diodo-laser-remocao-tatuagens-pigmentacao':('DIODO',5),
+          }
+          for slug,(label,count) in expected.items():
+              qs=OfferFamilyPlacement.objects.filter(product_family__slug=slug,offer__in=Offer.objects.filter(public_eligibility_q()))
+              rows=list(qs.select_related('offer'))
+              manual=[x.offer for x in rows if x.offer.source==Offer.Source.ALIEXPRESS_OWNER]
+              print('OFFERS_'+label+'_VISIBLE='+str(len(rows)))
+              print('OFFERS_'+label+'_MANUAL='+str(len(manual)))
+              unique=len(set(x.affiliate_url for x in manual))
+              print('OFFERS_'+label+'_DISTINCT_LINKS='+str(unique))
+              assert len(rows)==len(manual)==unique==count,(slug,len(rows),len(manual),unique)
+          print('FIVE_MANUAL_CATEGORIES=PASS_20_9_5_6_5')
+          links=[
+              "https://s.click.aliexpress.com/e/_c3Kp8qgr",
+              "https://s.click.aliexpress.com/e/_c3YhwkXN",
+              "https://s.click.aliexpress.com/e/_c3PsPq8r",
+              "https://s.click.aliexpress.com/e/_c3PvoFlz",
+              "https://s.click.aliexpress.com/e/_c4pZoraJ",
+          ]
+          actual=list(OfferFamilyPlacement.objects.filter(
+              product_family__slug='diodo-laser-remocao-tatuagens-pigmentacao'
+          ).values_list('offer__affiliate_url',flat=True))
+          assert sorted(actual)==sorted(links),'Category 5 exact owner URL mismatch'
+          print('CATEGORY5_OWNER_LINKS_EXACT=PASS_5_OF_5')
+          from datetime import timedelta
+          from django.utils import timezone
+          from django.conf import settings
+          from apps.catalog.models import ExternalMetricsSnapshot
+          from apps.catalog.services.search_referral_metrics import read_private_report
+          ref=read_private_report(settings.BASE_DIR/'.local-metrics/search-referrers.json')
+          if ref is None:
+              print('LOCAL_REFERRERS_REPORT=UNAVAILABLE')
+          else:
+              print('LOCAL_REFERRERS_REPORT=PASS')
+              print('LOCAL_REFERRERS_CHECKED_AT='+ref['checked_at'].isoformat())
+              print('LOCAL_GOOGLE_7D='+str(ref['rows'][0]['requests']))
+              if ref['meta'] is None:
+                  print('LOCAL_META=UNAVAILABLE_SCHEMA')
+              else:
+                  print('LOCAL_META_7D='+str(ref['meta']['total']))
+                  print('LOCAL_META_TODAY='+str(ref['meta']['today']))
+                  print('LOCAL_META_PAID_TAGGED_7D='+str(ref['meta']['paid_tagged']))
+          now=timezone.now()
+          print('ALIEXPRESS_SITE_GO_7D='+str(OfferClick.objects.filter(clicked_at__gte=now-timedelta(days=7)).count()))
+          print('ALIEXPRESS_SITE_GO_24H='+str(OfferClick.objects.filter(clicked_at__gte=now-timedelta(days=1)).count()))
+          snap=ExternalMetricsSnapshot.objects.filter(source='ALIEXPRESS').first()
+          if snap is None or not isinstance(snap.payload,dict):
+              print('ALIEXPRESS_ORDER_SNAPSHOT=UNAVAILABLE')
+          else:
+              print('ALIEXPRESS_ORDER_SNAPSHOT=PASS')
+              print('ALIEXPRESS_ORDER_SNAPSHOT_AT='+snap.checked_at.isoformat())
+              print('ALIEXPRESS_ORDER_PAID_COUNT='+str(snap.payload.get('paid_count','UNKNOWN')))
+              print('ALIEXPRESS_ORDER_RECEIVED_COUNT='+str(snap.payload.get('received_count','UNKNOWN')))
+          print('OUTBOUND_HISTORY_ROWS='+str(OfferClick.objects.count()))
+          print('DB_QUERY=PASS')
+          PYDATA
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PYHTTP'
+          import urllib.request
+          B='https://www.lowcost-europa.eu'
+          paths=['/','/pt/','/es/','/robots.txt','/sitemap.xml',
+                 '/pt/products/cavitacao-rf-vacuum-corpo/',
+                 '/pt/products/hydrodermoabrasao-aqua-facial-multifuncoes/',
+                 '/pt/products/pressoterapia-vacuum-drenagem/',
+                 '/pt/products/hifu/',
+                 '/pt/products/diodo-laser-remocao-tatuagens-pigmentacao/']
+          ok=0
+          for p in paths:
+              try:
+                  with urllib.request.urlopen(B+p,timeout=15) as r:
+                      body=r.read(2000000).decode('utf-8','replace')
+                      if r.status==200 and (p!='/sitemap.xml' or body.count('<loc>')==23):ok+=1
+              except Exception:pass
+          print('PUBLIC_PAGES_PASS='+str(ok)+'/'+str(len(paths)))
+          assert ok==len(paths),'Not all public pages or sitemap passed'
+          PYHTTP
+          if runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py sync_affiliate_orders --days 3 --dry-run; then
+            echo ALIEXPRESS_LIVE_DRY_RUN=PASS
+          else
+            echo ALIEXPRESS_LIVE_DRY_RUN=FAIL
+          fi
+          echo FINAL_FIVE_CATEGORY_AND_COUNTER_AUDIT=COMPLETE
+          REMOTE
