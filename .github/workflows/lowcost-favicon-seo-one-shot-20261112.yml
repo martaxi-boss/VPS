@@ -45,6 +45,13 @@ jobs:
           test -d "$ROOT/.git" && test -x "$ROOT/.venv/bin/python"
           test -s "$ENVFILE" && test ! -L "$ENVFILE"
           test -d "$ROOT/private/ops" && test ! -L "$ROOT/private/ops"
+          if test -d "$TASK" && test ! -L "$TASK"; then
+            test -s "$TASK/before.json"
+            test "$(gitrepo rev-parse HEAD)" = "$OLD"
+            test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+            rm -rf -- "$TASK"
+            echo LOWCOST_PRIOR_FAILED_JOB_PRIVATE_TEMP_CLEANUP=PASS
+          fi
           test ! -e "$TASK"
           exec 9>"$ROOT/private/ops/ptes-deploy.lock"
           flock -n 9
@@ -137,6 +144,12 @@ jobs:
 
           CODE_CHANGED=1
           gitrepo checkout --detach -q "$NEW"
+          while IFS= read -r changed; do
+            test -f "$ROOT/$changed" && test ! -L "$ROOT/$changed"
+            chmod 644 "$ROOT/$changed"
+            runuser -u "$APPUSER" -- test -r "$ROOT/$changed"
+          done <<< "$EXPECTED"
+          echo LOWCOST_READABLE_NEW_STATIC_ASSETS=PASS
           runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py check
           runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py makemigrations --check --dry-run
           runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" manage.py collectstatic --noinput
