@@ -1,0 +1,163 @@
+name: Lowcost seven search engines and Owner counters audit 20261112
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-metrics-search-seven-engines-audit-20261112.yml'
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-search-referrers-private
+  cancel-in-progress: false
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Pinned VPS refresh local report and read-only dashboard reconciliations
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          ROOT=/srv/projects/lowcost-europa
+          REPORT="$ROOT/.local-metrics/search-referrers.json"
+          gitrepo() { git -c safe.directory="$ROOT" -C "$ROOT" "$@"; }
+          test -d "$ROOT/.git"
+          test "$(gitrepo rev-parse HEAD)" = 'dbed2cdead968118bcbd5c69486d679e65d0f90a'
+          test -z "$(gitrepo status --porcelain=v1 --untracked-files=no)"
+          test "$(gitrepo ls-remote https://github.com/martaxi-boss/lowcost-europa.git refs/heads/main | awk '{print $1}')" = 'dbed2cdead968118bcbd5c69486d679e65d0f90a'
+          nginx -t >/dev/null 2>&1
+          for unit in lowcost-europa.service lowcost-europa-affiliate-report.timer \
+                      lowcost-europa-cavitation-availability.timer lowcost-europa-indexnow.timer \
+                      lowcost-europa-backup.timer lowcost-europa-offsite-backup.timer; do
+            systemctl is-active --quiet "$unit"
+          done
+          for unit in lowcost-europa-weekly-discovery.timer lowcost-europa-catalog-maintenance.timer; do
+            test "$(systemctl is-enabled "$unit" 2>/dev/null || true)" = disabled
+            ! systemctl is-active --quiet "$unit"
+          done
+          test -s /var/log/nginx/lowcost-europa.access.log
+          test -d "$ROOT/.local-metrics" && test ! -L "$ROOT/.local-metrics" && test ! -L "$REPORT"
+          APPUSER="$(systemctl show lowcost-europa.service -p User --value)"
+          test "$APPUSER" = le001_1789265592
+          cd "$ROOT"
+          echo "REPORT_REFRESHED_UTC=$(date -u +%FT%TZ)"
+          python3 -m apps.catalog.services.search_referral_metrics \
+            --log-dir /var/log/nginx --output "$REPORT"
+          chown "$APPUSER:$APPUSER" "$REPORT"
+          chmod 600 "$REPORT"
+          test "$(stat -c '%a' "$REPORT")" = 600
+          set -a
+          . "$ROOT/private/systemd-env/lowcost-europa.env"
+          set +a
+          export DJANGO_SETTINGS_MODULE=config.settings.production
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PY'
+          import django,json
+          from datetime import timedelta
+          from pathlib import Path
+          django.setup()
+          from django.conf import settings
+          from django.db.models import Count
+          from django.db.models.functions import TruncDate
+          from django.utils import timezone
+          from apps.catalog.models import OfferClick,ExternalMetricsSnapshot,Offer,OfferFamilyPlacement
+          from apps.catalog.services.search_referral_metrics import read_private_report,ENGINES
+          from apps.catalog.services.manual_storefront import MANUAL_ONLY_FAMILY_SLUGS
+          now=timezone.now()
+          report=read_private_report(settings.BASE_DIR/'.local-metrics/search-referrers.json',now=now)
+          assert report is not None
+          delta=(now-report['checked_at']).total_seconds()
+          assert 0<=delta<=180
+          assert [x['name'] for x in report['rows']]==list(ENGINES)
+          print('PANEL_METRICS_SOURCE=PRIVATE_NGINX_LOG')
+          print('PANEL_REFRESH_UTC='+report['checked_at'].isoformat())
+          print('PANEL_SOURCE_RECENT='+str(delta<=7200))
+          print('PANEL_ENGINE_COUNTS_7D='+','.join(x['name']+':'+str(x['requests']) for x in report['rows']))
+          print('PANEL_ENGINES_TOTAL_7D='+str(report['total']))
+          m=report['meta']
+          assert m is not None
+          for key in ('total','facebook','instagram','unspecified','paid_tagged','today','yesterday'):
+              print('PANEL_META_'+key.upper()+'='+str(m[key]))
+          print('PANEL_META_DAILY='+','.join(x['date']+':'+str(x['requests']) for x in m['daily']))
+          q=OfferClick.objects
+          today=timezone.localdate(now)
+          grouped=dict(q.filter(clicked_at__date__gte=today-timedelta(days=13))
+              .annotate(day=TruncDate('clicked_at',tzinfo=timezone.get_current_timezone()))
+              .values('day').annotate(total=Count('id')).values_list('day','total'))
+          print('PANEL_OUTBOUND_TODAY='+str(grouped.get(today,0)))
+          print('PANEL_OUTBOUND_YESTERDAY='+str(grouped.get(today-timedelta(days=1),0)))
+          print('PANEL_OUTBOUND_24H='+str(q.filter(clicked_at__gte=now-timedelta(days=1)).count()))
+          print('PANEL_OUTBOUND_7D='+str(q.filter(clicked_at__gte=now-timedelta(days=7)).count()))
+          print('PANEL_OUTBOUND_PREVIOUS_7D='+str(q.filter(clicked_at__gte=now-timedelta(days=14),clicked_at__lt=now-timedelta(days=7)).count()))
+          print('PANEL_OUTBOUND_30D='+str(q.filter(clicked_at__gte=now-timedelta(days=30)).count()))
+          print('PANEL_OUTBOUND_HISTORY_TOTAL='+str(q.count()))
+          snap=ExternalMetricsSnapshot.objects.filter(source='ALIEXPRESS').first()
+          if snap is None or not isinstance(snap.payload,dict):
+              print('PANEL_ALIEXPRESS_ORDER_REPORT=UNAVAILABLE')
+          else:
+              p=snap.payload
+              print('PANEL_ALIEXPRESS_SNAPSHOT_UTC='+snap.checked_at.isoformat())
+              print('PANEL_ALIEXPRESS_REPORT_FRESH='+str(
+                  timedelta(0)<=now-snap.checked_at<=timedelta(hours=12)))
+              print('PANEL_ALIEXPRESS_DAYS='+str(p.get('days','unknown')))
+              print('PANEL_ALIEXPRESS_PAID='+str(p.get('paid_count','unknown')))
+              print('PANEL_ALIEXPRESS_RECEIVED='+str(p.get('received_count','unknown')))
+              print('PANEL_ALIEXPRESS_EXCLUDED='+str(p.get('excluded_count','unknown')))
+              print('PANEL_ALIEXPRESS_MISSING_COMMISSION='+str(p.get('missing_commission_count','unknown')))
+              for row in p.get('by_tracking',[]):
+                  if row.get('tracking_id') in ('lowcost_europa','default','meus_links','outros'):
+                      print('PANEL_TRACKING_'+row['tracking_id']+'='+str(row.get('paid_count',0))+'/'+str(row.get('received_count',0)))
+          print('PANEL_FIVE_MANUAL_CATEGORIES='+','.join(
+              str(slug)+':'+str(OfferFamilyPlacement.objects.filter(
+                  product_family__slug=slug,offer__is_active=True,offer__owner_hidden=False,
+                  offer__source='ALIEXPRESS_OWNER').count()) for slug in sorted(MANUAL_ONLY_FAMILY_SLUGS)))
+          print('PANEL_LOCAL_REPORT_VALIDATED=PASS')
+          PY
+          python3 - <<'PY'
+          import json, pathlib
+          p=pathlib.Path('/srv/projects/lowcost-europa/.indexnow/accepted.json')
+          if p.is_file() and not p.is_symlink():
+              data=json.loads(p.read_text())
+              assert isinstance(data,dict)
+              print('INDEXNOW_ACCEPTED_URL_FINGERPRINTS='+str(len(data)))
+          else:
+              print('INDEXNOW_ACCEPTED_URL_FINGERPRINTS=UNAVAILABLE')
+          PY
+          python3 - <<'PY'
+          import urllib.request
+          base='https://www.lowcost-europa.eu'
+          for path in ('/robots.txt','/sitemap.xml','/sitemap.txt','/'):
+              req=urllib.request.Request(base+path,headers={'User-Agent':'LowcostReadOnlyOwnerAudit/1.0'})
+              with urllib.request.urlopen(req,timeout=18) as resp:
+                  status=resp.status
+                  data=resp.read(2000000).decode('utf-8','replace')
+              assert status==200,(path,status)
+              if path=='/sitemap.xml':
+                  count=data.count('<loc>')
+                  assert count==23,count
+                  print('SITE_XML_SITEMAP_URLS='+str(count))
+              elif path=='/sitemap.txt':
+                  count=sum(x.startswith('https://www.lowcost-europa.eu/') for x in data.splitlines())
+                  assert count==23,count
+                  print('SITE_TEXT_SITEMAP_URLS='+str(count))
+              else: print('SITE_HTTPS_'+path.replace('/','_').replace('.','_')+'=200')
+          print('SITE_SEARCH_DISCOVERY_TECHNICAL_READINESS=PASS')
+          PY
+          systemctl is-active --quiet lowcost-europa.service
+          nginx -t >/dev/null 2>&1
+          echo LOWCOST_OWNER_COUNTERS_SEVEN_ENGINE_AUDIT=PASS
+          REMOTE
