@@ -1,0 +1,101 @@
+name: Lowcost SEO HIFU EMS guarded source rollout 20261113
+on:
+  push:
+    paths:
+      - .github/workflows/lowcost-seo-hifu-ems-publish-20261113.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-seo-hifu-ems-source-rollout
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Verify pinned VPS SSH host
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+      - name: Deploy only the verified PT SEO copy with rollback
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+          export GIT_TERMINAL_PROMPT=0
+          ROOT=/srv/projects/lowcost-europa
+          TARGET=719738cbb80f366255c2adf1a6a60e445e6d9250
+          test -d "$ROOT/.git"
+          g() { git -c safe.directory="$ROOT" -C "$ROOT" "$@"; }
+          test "$(g symbolic-ref --short HEAD)" = main
+          test -z "$(g status --porcelain=v1 --untracked-files=no)"
+          systemctl is-active --quiet lowcost-europa.service
+          nginx -t >/dev/null 2>&1
+          case "$(g remote get-url origin)" in
+            https://github.com/martaxi-boss/lowcost-europa|https://github.com/martaxi-boss/lowcost-europa.git|git@github.com:martaxi-boss/lowcost-europa.git) ;;
+            *) echo 'SEO_ORIGIN_UNEXPECTED'; exit 1 ;;
+          esac
+          exec 9< "$ROOT/.git/HEAD"
+          flock -n 9
+          OLD="$(g rev-parse HEAD)"
+          g fetch -q --no-tags origin main
+          test "$(g rev-parse FETCH_HEAD)" = "$TARGET"
+          g merge-base --is-ancestor "$OLD" "$TARGET"
+          ACTUAL="$(g diff --name-only "$OLD" "$TARGET" | sort)"
+          EXPECTED="$(printf '%s\n' apps/storefront/seo_editorial.py apps/storefront/tests/test_seo_editorial_pt.py apps/storefront/views.py | sort)"
+          test "$ACTUAL" = "$EXPECTED"
+          echo "SEO_HIFU_EMS_PREFLIGHT=PASS"
+          DEPLOYED=0
+          rollback() {
+            local code=$?
+            if [ "$code" -ne 0 ] && [ "$DEPLOYED" = 1 ]; then
+              g reset --hard "$OLD" >/dev/null || true
+              systemctl restart lowcost-europa.service || true
+              echo 'SEO_HIFU_EMS_ROLLBACK_ATTEMPTED=YES'
+            fi
+            exit "$code"
+          }
+          trap rollback EXIT
+          g merge --ff-only "$TARGET" >/dev/null
+          DEPLOYED=1
+          systemctl restart lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa.service
+          nginx -t >/dev/null 2>&1
+          PT_HIFU="$(curl -fsS --max-time 20 --resolve www.lowcost-europa.eu:443:127.0.0.1 https://www.lowcost-europa.eu/pt/products/hifu/)"
+          [[ "$PT_HIFU" == *"Máquinas HIFU e EMS para Estética"* ]]
+          [[ "$PT_HIFU" == *"HIFU e EMS: como comparar tecnologias diferentes"* ]]
+          [[ "$PT_HIFU" == *'rel="canonical" href="https://www.lowcost-europa.eu/pt/products/hifu/"'* ]]
+          [[ "$PT_HIFU" == *'hreflang="es-ES"'* ]]
+          PT_HOME="$(curl -fsS --max-time 20 --resolve www.lowcost-europa.eu:443:127.0.0.1 https://www.lowcost-europa.eu/pt/)"
+          [[ "$PT_HOME" == *"HIFU/EMS, cavitação"* ]]
+          [[ "$PT_HOME" == *"pressoterapia/Tecar"* ]]
+          ES_HIFU="$(curl -fsS --max-time 20 --resolve www.lowcost-europa.eu:443:127.0.0.1 https://www.lowcost-europa.eu/es/products/hifu/)"
+          [[ "$ES_HIFU" == *"HIFU Profesional: Máquinas y Guía"* ]]
+          [[ "$ES_HIFU" != *"Máquinas HIFU e EMS para Estética"* ]]
+          XML="$(curl -fsS --max-time 20 --resolve www.lowcost-europa.eu:443:127.0.0.1 https://www.lowcost-europa.eu/sitemap.xml)"
+          test "$(grep -o '<loc>' <<<"$XML" | wc -l)" -eq 23
+          systemctl is-active --quiet lowcost-europa-indexnow.timer
+          systemctl is-active --quiet lowcost-europa-affiliate-report.timer
+          systemctl is-active --quiet lowcost-europa-cavitation-availability.timer
+          test "$(g rev-parse HEAD)" = "$TARGET"
+          test -z "$(g status --porcelain=v1 --untracked-files=no)"
+          echo "SEO_HIFU_EMS_PT_ES_23_URLS_READBACK=PASS"
+          echo "SEO_HIFU_EMS_APP_SHA=$TARGET"
+          echo "SEO_HIFU_EMS_GITHUB_VPS_ALIGNMENT=PASS"
+          DEPLOYED=0
+          REMOTE
