@@ -36,7 +36,8 @@ jobs:
             -o ConnectTimeout=20 -o ServerAliveInterval=15 \
             ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
           set -Eeuo pipefail
-          umask 077
+          # Tracked source must remain readable by the unprivileged Django worker.
+          umask 022
           export GIT_TERMINAL_PROMPT=0
           ROOT=/srv/projects/lowcost-europa
           TARGET=719738cbb80f366255c2adf1a6a60e445e6d9250
@@ -54,6 +55,12 @@ jobs:
           exec 9< "$ROOT/.git/HEAD"
           flock -n 9
           OLD="$(g rev-parse HEAD)"
+          APPUSER="$(systemctl show lowcost-europa.service -p User --value)"
+          test "$APPUSER" = le001_1789265592
+          for f in apps/storefront/views.py apps/storefront/seo_editorial.py apps/storefront/tests/test_seo_editorial_pt.py; do
+            test -f "$ROOT/$f" && test ! -L "$ROOT/$f"
+            runuser -u "$APPUSER" -- test -r "$ROOT/$f"
+          done
           g fetch -q --no-tags origin main
           test "$(g rev-parse FETCH_HEAD)" = "$TARGET"
           g merge-base --is-ancestor "$OLD" "$TARGET"
@@ -66,14 +73,20 @@ jobs:
             local code=$?
             if [ "$code" -ne 0 ] && [ "$DEPLOYED" = 1 ]; then
               g reset --hard "$OLD" >/dev/null || true
+              chmod 644 "$ROOT/apps/storefront/views.py" "$ROOT/apps/storefront/seo_editorial.py" "$ROOT/apps/storefront/tests/test_seo_editorial_pt.py" || true
               systemctl restart lowcost-europa.service || true
               echo 'SEO_HIFU_EMS_ROLLBACK_ATTEMPTED=YES'
             fi
             exit "$code"
           }
           trap rollback EXIT
-          g checkout --detach "$TARGET" >/dev/null
           DEPLOYED=1
+          g checkout --detach "$TARGET" >/dev/null
+          chmod 644 "$ROOT/apps/storefront/views.py" "$ROOT/apps/storefront/seo_editorial.py" "$ROOT/apps/storefront/tests/test_seo_editorial_pt.py"
+          for f in apps/storefront/views.py apps/storefront/seo_editorial.py apps/storefront/tests/test_seo_editorial_pt.py; do
+            runuser -u "$APPUSER" -- test -r "$ROOT/$f"
+          done
+          echo "SEO_HIFU_EMS_APPUSER_SOURCE_READ=PASS"
           systemctl restart lowcost-europa.service
           systemctl is-active --quiet lowcost-europa.service
           nginx -t >/dev/null 2>&1
