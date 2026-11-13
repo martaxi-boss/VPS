@@ -1,0 +1,124 @@
+name: Lowcost category four HIFU EMS owner-approved label change 20261113
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/lowcost-category4-hifu-ems-rename-20261113.yml]
+permissions: {contents: read}
+concurrency:
+  group: lowcost-prod-automation-controls
+  cancel-in-progress: false
+jobs:
+  rename:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Guarded SSH rename category 4 only with backup and public QA
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          ROOT=/srv/projects/lowcost-europa
+          cd "$ROOT"
+          EXPECTED=4c6e75e566dcf317624285fe4f92d5cbdd6ec2dc
+          test "$(git -c safe.directory="$ROOT" rev-parse HEAD)" = "$EXPECTED"
+          test -z "$(git -c safe.directory="$ROOT" status --porcelain=v1 --untracked-files=no)"
+          test "$(git -c safe.directory="$ROOT" ls-remote https://github.com/martaxi-boss/lowcost-europa.git refs/heads/main | awk '{print $1}')" = "$EXPECTED"
+          for unit in lowcost-europa.service lowcost-europa-indexnow.timer lowcost-europa-affiliate-report.timer lowcost-europa-cavitation-availability.timer; do
+            systemctl is-active --quiet "$unit"
+          done
+          sh deploy/scripts/backup-postgres.sh
+          BACKUP="$(find backups/daily -maxdepth 1 -type f -name 'lowcost-europa-*.dump' | sort | tail -n1)"
+          test -s "$BACKUP" && test -s "$BACKUP.sha256"
+          (cd backups/daily && sha256sum -c "$(basename "$BACKUP.sha256")" >/dev/null)
+          echo CATEGORY4_DATABASE_BACKUP_VERIFIED=PASS
+          set -a
+          . private/systemd-env/lowcost-europa.env
+          set +a
+          export DJANGO_SETTINGS_MODULE=config.settings.production
+          runuser -u le001_1789265592 -- .venv/bin/python - <<'PY'
+          import django
+          django.setup()
+          from django.db import transaction
+          from django.test import Client
+          from apps.catalog.models import OfferClick,OfferFamilyPlacement,ProductFamily
+          from apps.catalog.services.manual_storefront import MANUAL_ONLY_FAMILY_SLUGS
+          from apps.catalog.services.public_eligibility import public_eligibility_q
+          slug='hifu'
+          expected='HIFU / EMS'
+          old='HIFU'
+          family=ProductFamily.objects.get(slug=slug)
+          assert family.display_order==4
+          assert family.name in (old,expected),'Unexpected category name; abort'
+          def snapshot():
+              return {s:(f.name,f.display_order,f.status,tuple(
+                 OfferFamilyPlacement.objects.filter(product_family=f).order_by('pk')
+                   .values_list('pk','offer_id','offer__affiliate_url')))
+                 for f in ProductFamily.objects.filter(slug__in=MANUAL_ONLY_FAMILY_SLUGS)
+                 for s in [f.slug]}
+          before=snapshot()
+          assert len(before)==5
+          old_placements=before[slug][3]
+          assert len(old_placements)>0
+          before_clicks=OfferClick.objects.count()
+          before_pks={s:ProductFamily.objects.get(slug=s).pk for s in MANUAL_ONLY_FAMILY_SLUGS}
+          with transaction.atomic():
+              target=ProductFamily.objects.select_for_update().get(pk=family.pk)
+              assert target.display_order==4 and target.slug==slug
+              assert target.name in (old,expected)
+              if target.name!=expected:
+                  target.name=expected
+                  target.save(update_fields=['name','updated_at'])
+                  print('CATEGORY4_HIFU_EMS_LABEL_CHANGED=PASS')
+              else:
+                  print('CATEGORY4_HIFU_EMS_LABEL_ALREADY_SET=PASS')
+              assert target.name==expected
+          after=snapshot()
+          assert after[slug][0]==expected
+          assert after[slug][1:]==before[slug][1:]
+          for s in MANUAL_ONLY_FAMILY_SLUGS:
+              if s!=slug: assert after[s]==before[s],s
+          assert all(ProductFamily.objects.get(slug=s).pk==before_pks[s] for s in MANUAL_ONLY_FAMILY_SLUGS)
+          assert OfferClick.objects.count()==before_clicks
+          assert OfferFamilyPlacement.objects.filter(product_family=family).filter(public_eligibility_q(prefix='offer__')).count()>0
+          client=Client()
+          for url in ('/','/products/hifu/','/pt/','/pt/products/hifu/','/es/products/hifu/'):
+              resp=client.get(url,secure=True,HTTP_HOST='www.lowcost-europa.eu')
+              assert resp.status_code==200,(url,resp.status_code)
+              assert expected in resp.content.decode('utf-8','replace'),url
+          print('CATEGORY4_HIFU_EMS_MAIN_MENU_PT_ES_AND_DETAIL=PASS')
+          print('CATEGORY4_SLUG_AND_PRODUCT_LINKS_UNCHANGED=PASS')
+          print('CATEGORY4_OTHER_FOUR_CATEGORIES_UNCHANGED=PASS')
+          print('CATEGORY4_CLICKS_UNCHANGED=PASS')
+          print('CATEGORY4_EXISTING_PRODUCT_COUNT='+str(len(old_placements)))
+          print('CATEGORY4_RENAME_DATABASE_VERIFIED=PASS')
+          PY
+          "$ROOT/.venv/bin/python" - <<'PY'
+          import urllib.request
+          base='https://www.lowcost-europa.eu'
+          for path in ('/','/products/hifu/','/pt/products/hifu/','/es/products/hifu/'):
+              req=urllib.request.Request(base+path,headers={'User-Agent':'LowcostEuropaOwnerCategoryNameQA/1.0'})
+              with urllib.request.urlopen(req,timeout=20) as r:
+                  assert r.status==200,(path,r.status)
+                  text=r.read(1500000).decode('utf-8','replace')
+              assert 'HIFU / EMS' in text, 'Missing updated label in public page '+path
+              print('CATEGORY4_PUBLIC_LABEL_'+path+'=PASS')
+          print('CATEGORY4_PUBLIC_PRODUCTION_RENAME=PASS')
+          PY
+          test "$(git -c safe.directory="$ROOT" rev-parse HEAD)" = "$EXPECTED"
+          test -z "$(git -c safe.directory="$ROOT" status --porcelain=v1 --untracked-files=no)"
+          systemctl is-active --quiet lowcost-europa.service
+          echo CATEGORY4_GITHUB_VPS_CODE_ALIGNED=PASS
+          REMOTE
