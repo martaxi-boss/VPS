@@ -70,27 +70,44 @@ jobs:
               return set((p.pk,p.offer_id,p.offer.external_product_id,p.offer.source,p.offer.affiliate_url)
                  for p in OfferFamilyPlacement.objects.filter(product_family__slug=s).select_related('offer'))
           old={s:rows(s) for s in MANUAL_ONLY_FAMILY_SLUGS}
-          assert len(old[slug])==5 and len(old[laser.slug])==5
+          assert 5<=len(old[slug])<=18 and len(old[laser.slug])==5
           assert all(x[3]==Offer.Source.ALIEXPRESS_OWNER for x in old[slug])
           assert OfferFamilyPlacement.objects.filter(product_family=fam).filter(public_eligibility_q(prefix='offer__')).count()==5
           clicks=OfferClick.objects.count()
-          with transaction.atomic():
-              for i,url in enumerate(links,1):
-                  sleep(5)
+          from django.core.management.base import CommandError
+          errors=[]
+          for i,url in enumerate(links,1):
+              if OfferFamilyPlacement.objects.filter(product_family=fam,offer__affiliate_url=url).exists():
+                  print('CAT3_OWNER_LINK_'+str(i).zfill(2)+'_ALREADY_PRESENT=PASS',flush=True)
+                  continue
+              for attempt in (1,2):
+                  sleep(12 if attempt==1 else 25)
                   out=StringIO()
-                  call_command('publish_owner_affiliate_link',url,family=slug,stdout=out)
+                  try:
+                      call_command('publish_owner_affiliate_link',url,family=slug,stdout=out)
+                  except CommandError:
+                      if attempt==2:
+                          errors.append(i)
+                          print('CAT3_OWNER_LINK_'+str(i).zfill(2)+'_PARTNER_UNAVAILABLE=TRUE',flush=True)
+                      else:
+                          print('CAT3_OWNER_LINK_'+str(i).zfill(2)+'_ONE_BOUNDED_RETRY=TRUE',flush=True)
+                      continue
                   assert 'OWNER_MANUAL_AFFILIATE_PUBLISHED=PASS' in out.getvalue()
                   assert 'new_placement=TRUE' in out.getvalue()
                   print('CAT3_OWNER_LINK_'+str(i).zfill(2)+'_PUBLISHED=PASS',flush=True)
-              final=rows(slug)
-              assert len(final)==18
-              assert old[slug].issubset(final)
-              assert {x[4] for x in final}-{x[4] for x in old[slug]}==set(links)
-              assert all(x[3]==Offer.Source.ALIEXPRESS_OWNER for x in final)
-              assert OfferFamilyPlacement.objects.filter(product_family=fam).filter(public_eligibility_q(prefix='offer__')).count()==18
-              for s in MANUAL_ONLY_FAMILY_SLUGS:
-                  if s!=slug: assert rows(s)==old[s],s
-              print('CAT3_ATOMIC_18_LINKS_OTHER_FOUR_UNCHANGED=PASS',flush=True)
+                  break
+          final=rows(slug)
+          assert old[slug].issubset(final)
+          assert all(x[3]==Offer.Source.ALIEXPRESS_OWNER for x in final)
+          for s in MANUAL_ONLY_FAMILY_SLUGS:
+              if s!=slug: assert rows(s)==old[s],s
+          print('CAT3_STAGED_COUNT='+str(len(final)),flush=True)
+          print('CAT3_INDIVIDUAL_PUBLISH_ERRORS='+','.join(map(str,errors)),flush=True)
+          if errors: raise RuntimeError('The partner could not verify all owner products')
+          assert len(final)==18
+          assert set(links).issubset({x[4] for x in final})
+          assert OfferFamilyPlacement.objects.filter(product_family=fam).filter(public_eligibility_q(prefix='offer__')).count()==18
+          print('CAT3_18_MANUAL_ITEMS_OTHER_FOUR_UNCHANGED=PASS',flush=True)
           client=Client()
           for url in links:
               offer=Offer.objects.get(source=Offer.Source.ALIEXPRESS_OWNER,affiliate_url=url)
