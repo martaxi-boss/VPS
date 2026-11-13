@@ -1,0 +1,122 @@
+name: Lowcost category4 HIFU EMS publish five new owner links 20261113
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/lowcost-cat4-hifu-ems-five-owner-publish-20261113.yml]
+permissions: {contents: read}
+concurrency:
+  group: lowcost-prod-automation-controls
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    steps:
+      - name: Guarded SSH backup and paced owner-only publication
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          ROOT=/srv/projects/lowcost-europa
+          cd "$ROOT"
+          EXPECTED=4c6e75e566dcf317624285fe4f92d5cbdd6ec2dc
+          test "$(git -c safe.directory="$ROOT" rev-parse HEAD)" = "$EXPECTED"
+          test -z "$(git -c safe.directory="$ROOT" status --porcelain=v1 --untracked-files=no)"
+          for unit in lowcost-europa.service lowcost-europa-cavitation-availability.timer lowcost-europa-affiliate-report.timer lowcost-europa-indexnow.timer; do
+            systemctl is-active --quiet "$unit"
+          done
+          sh deploy/scripts/backup-postgres.sh
+          BACKUP="$(find backups/daily -maxdepth 1 -type f -name 'lowcost-europa-*.dump' | sort | tail -n1)"
+          test -s "$BACKUP" && test -s "$BACKUP.sha256"
+          (cd backups/daily && sha256sum -c "$(basename "$BACKUP.sha256")" >/dev/null)
+          echo CAT4_PREWRITE_DATABASE_BACKUP_VERIFIED=PASS
+          set -a
+          . private/systemd-env/lowcost-europa.env
+          set +a
+          export DJANGO_SETTINGS_MODULE=config.settings.production
+          runuser -u le001_1789265592 -- "$ROOT/.venv/bin/python" - <<'PY'
+          import django
+          django.setup()
+          from io import StringIO
+          from time import sleep
+          from django.core.management import call_command
+          from django.core.management.base import CommandError
+          from django.test import Client
+          from apps.catalog.models import Offer,OfferClick,OfferFamilyPlacement,ProductFamily
+          from apps.catalog.services.manual_storefront import MANUAL_ONLY_FAMILY_SLUGS
+          from apps.catalog.services.public_eligibility import public_eligibility_q
+          links=["https://s.click.aliexpress.com/e/_c43vIMZl","https://s.click.aliexpress.com/e/_c3c7kurZ","https://s.click.aliexpress.com/e/_c44ymfkJ","https://s.click.aliexpress.com/e/_c3ZyZiCL","https://s.click.aliexpress.com/e/_c2RbTg6B"]
+          slug='hifu'
+          family=ProductFamily.objects.get(slug=slug)
+          assert family.name=='HIFU / EMS' and family.display_order==4
+          assert len(links)==len(set(links))==5
+          def snapshot(s):
+              return set((p.pk,p.offer_id,p.offer.external_product_id,p.offer.source,p.offer.affiliate_url)
+                for p in OfferFamilyPlacement.objects.filter(product_family__slug=s).select_related('offer'))
+          initial={s:snapshot(s) for s in MANUAL_ONLY_FAMILY_SLUGS}
+          assert 6<=len(initial[slug])<=11
+          assert all(x[3]==Offer.Source.ALIEXPRESS_OWNER for x in initial[slug])
+          prior_clicks=OfferClick.objects.count()
+          failed=[]
+          for i,url in enumerate(links,1):
+              if OfferFamilyPlacement.objects.filter(product_family=family,offer__affiliate_url=url).exists():
+                  print('CAT4_NEW_LINK_'+str(i)+'_ALREADY_PRESENT=PASS',flush=True)
+                  continue
+              for attempt in (1,2):
+                  sleep(12 if attempt==1 else 25)
+                  out=StringIO()
+                  try:
+                      call_command('publish_owner_affiliate_link',url,family=slug,stdout=out)
+                  except CommandError:
+                      if attempt==2:
+                          failed.append(i)
+                          print('CAT4_NEW_LINK_'+str(i)+'_PARTNER_VERIFICATION_FAILED=TRUE',flush=True)
+                      else:
+                          print('CAT4_NEW_LINK_'+str(i)+'_ONE_BOUNDED_RETRY=TRUE',flush=True)
+                      continue
+                  assert 'OWNER_MANUAL_AFFILIATE_PUBLISHED=PASS' in out.getvalue()
+                  assert 'new_placement=TRUE' in out.getvalue()
+                  print('CAT4_NEW_LINK_'+str(i)+'_PUBLISHED=PASS',flush=True)
+                  break
+          actual=snapshot(slug)
+          assert initial[slug].issubset(actual)
+          assert all(x[3]==Offer.Source.ALIEXPRESS_OWNER for x in actual)
+          for s in MANUAL_ONLY_FAMILY_SLUGS:
+              if s!=slug:assert snapshot(s)==initial[s],s
+          print('CAT4_AFTER_PUBLICATION_COUNT='+str(len(actual)),flush=True)
+          print('CAT4_UNVERIFIED_INPUT_INDICES='+','.join(map(str,failed)),flush=True)
+          if failed:raise RuntimeError('AliExpress partner verification failed for some owner links')
+          assert len(actual)==11
+          assert {x[4] for x in actual}-{x[4] for x in initial[slug]}==set(links)
+          assert OfferFamilyPlacement.objects.filter(product_family=family).filter(public_eligibility_q(prefix='offer__')).count()==11
+          client=Client()
+          for url in links:
+              offer=Offer.objects.get(source=Offer.Source.ALIEXPRESS_OWNER,affiliate_url=url)
+              resp=client.head('/go/'+str(offer.pk)+'/',secure=True,HTTP_HOST='www.lowcost-europa.eu')
+              assert resp.status_code==302 and resp['Location']==url
+          assert OfferClick.objects.count()>=prior_clicks
+          print('CAT4_ALL_5_NEW_ORIGINAL_LINKS_EXACT_HEAD_REDIRECTS=PASS')
+          print('CAT4_EXISTING_6_LINKS_UNCHANGED=PASS')
+          print('CAT4_OTHER_FOUR_CATEGORIES_UNCHANGED=PASS')
+          print('CAT4_TOTAL_PRODUCTS='+str(len(actual)))
+          print('CAT4_ALL_FIVE_FAMILY_PLACEMENTS='+str(sum(len(snapshot(s)) for s in MANUAL_ONLY_FAMILY_SLUGS)))
+          print('CAT4_5_OWNER_LINKS_PUBLISHED=PASS')
+          PY
+          curl -fsS --max-time 20 'https://www.lowcost-europa.eu/products/hifu/' -o /dev/null
+          test "$(git -c safe.directory="$ROOT" rev-parse HEAD)" = "$EXPECTED"
+          systemctl is-active --quiet lowcost-europa.service
+          echo CAT4_LIVE_SITE_AND_GITHUB_VPS_CODE_SYNC=PASS
+          REMOTE
