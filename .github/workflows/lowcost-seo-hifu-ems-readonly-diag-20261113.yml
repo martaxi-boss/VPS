@@ -1,0 +1,51 @@
+name: Lowcost SEO 502 post-restart read-only diagnostic 20261113
+on:
+  push:
+    paths:
+      - .github/workflows/lowcost-seo-hifu-ems-readonly-diag-20261113.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Public HTTPS from independent runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in / /pt/ /pt/products/hifu/ /es/products/hifu/ /sitemap.xml; do
+            echo "RUNNER_HTTP_$path=$(curl -sS -L -o /dev/null -w '%{http_code}' --max-time 12 "https://www.lowcost-europa.eu$path" || true)"
+          done
+      - name: Read-only VPS application and Nginx health
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -euo pipefail
+          ROOT=/srv/projects/lowcost-europa
+          git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD | sed 's/^/APP_HEAD_SHA=/'
+          echo "APP_SERVICE_STATE=$(systemctl is-active lowcost-europa.service || true)"
+          systemctl show lowcost-europa.service -p MainPID -p SubState -p ExecMainStatus
+          nginx -t >/dev/null 2>&1 && echo NGINX_CONF=PASS
+          if ss -ltn | grep -q '127.0.0.1:8001'; then echo GUNICORN_8001=LISTENING; else echo GUNICORN_8001=NOT_LISTENING; fi
+          for path in / /pt/products/hifu/ /es/products/hifu/; do
+            echo "VPS_NGINX_HTTP_$path=$(curl -sS -k -o /dev/null --resolve www.lowcost-europa.eu:443:127.0.0.1 -w '%{http_code}' --max-time 10 "https://www.lowcost-europa.eu$path" || true)"
+            echo "VPS_GUNICORN_HTTP_$path=$(curl -sS -o /dev/null -H 'Host: www.lowcost-europa.eu' -H 'X-Forwarded-Proto: https' -w '%{http_code}' --max-time 10 "http://127.0.0.1:8001$path" || true)"
+          done
+          echo 'RECENT_GUNICORN_FAULTS_BEGIN'
+          journalctl --no-pager -u lowcost-europa.service --since '2026-11-13 15:43:00' -o cat 2>/dev/null | grep -Ei 'worker failed|worker exiting|error|traceback|failed to boot|module not found|ModuleNotFound|ImportError|listening at' | tail -30 || true
+          echo 'RECENT_GUNICORN_FAULTS_END'
+          REMOTE
