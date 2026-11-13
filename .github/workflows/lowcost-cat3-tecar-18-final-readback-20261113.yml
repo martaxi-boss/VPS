@@ -1,0 +1,82 @@
+name: Lowcost category3 Pressoterapia Tecar final 18 link readback 20261113
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/lowcost-cat3-tecar-18-final-readback-20261113.yml]
+permissions: {contents: read}
+concurrency:
+  group: lowcost-prod-automation-controls
+  cancel-in-progress: false
+jobs:
+  postcheck:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Pinned SSH verify live page and all original owner links
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          cd /srv/projects/lowcost-europa
+          test "$(git -c safe.directory="$PWD" rev-parse HEAD)" = '4c6e75e566dcf317624285fe4f92d5cbdd6ec2dc'
+          test -z "$(git -c safe.directory="$PWD" status --porcelain=v1 --untracked-files=no)"
+          for unit in lowcost-europa.service lowcost-europa-cavitation-availability.timer lowcost-europa-affiliate-report.timer lowcost-europa-indexnow.timer; do
+            systemctl is-active --quiet "$unit"
+          done
+          set -a
+          . private/systemd-env/lowcost-europa.env
+          set +a
+          export DJANGO_SETTINGS_MODULE=config.settings.production
+          runuser -u le001_1789265592 -- .venv/bin/python - <<'PY'
+          import django
+          django.setup()
+          from urllib.request import Request,urlopen
+          from django.test import Client
+          from apps.catalog.models import Offer,OfferClick,OfferFamilyPlacement,ProductFamily
+          from apps.catalog.services.manual_storefront import MANUAL_ONLY_FAMILY_SLUGS
+          from apps.catalog.services.public_eligibility import public_eligibility_q
+          slug='pressoterapia-vacuum-drenagem'
+          family=ProductFamily.objects.get(slug=slug)
+          laser=ProductFamily.objects.get(slug='diodo-laser-remocao-tatuagens-pigmentacao')
+          assert family.display_order==3 and laser.display_order==5
+          assert OfferFamilyPlacement.objects.filter(product_family=laser).count()==5
+          qs=OfferFamilyPlacement.objects.filter(product_family=family).select_related('offer')
+          rows=list(qs)
+          assert len(rows)==18
+          assert all(p.offer.source==Offer.Source.ALIEXPRESS_OWNER for p in rows)
+          assert qs.filter(public_eligibility_q(prefix='offer__')).count()==18
+          assert len({p.offer.external_product_id for p in rows})==18
+          old_clicks=OfferClick.objects.count()
+          with urlopen(Request('https://www.lowcost-europa.eu/products/'+slug+'/',headers={'User-Agent':'LowcostEuropaOwnerFinalQA/1.0'}),timeout=22) as response:
+              assert response.status==200
+              html=response.read(1500000).decode('utf-8','replace')
+          for p in rows: assert p.offer.affiliate_url in html,'Owner-supplied link not on public page'
+          assert html.count('data-affiliate-original-url=')>=18
+          c=Client()
+          for p in rows:
+              r=c.head('/go/'+str(p.offer_id)+'/',secure=True,HTTP_HOST='www.lowcost-europa.eu')
+              assert r.status_code==302 and r['Location']==p.offer.affiliate_url
+          assert OfferClick.objects.count()==old_clicks
+          print('CAT3_LIVE_18_OWNER_ORIGINAL_AFFILIATE_URLS_IN_HTML=PASS')
+          print('CAT3_HEAD_18_EXACT_REDIRECTS_WITHOUT_CLICK_EVENTS=PASS')
+          print('CAT3_LASER_ORDER5_STILL_FIVE_PRODUCTS=PASS')
+          print('CAT3_PUBLIC_18_OF_18_MANUAL_PRODUCTS=PASS')
+          print('CAT3_TOTAL_FIVE_CATEGORIES='+str(OfferFamilyPlacement.objects.filter(product_family__slug__in=MANUAL_ONLY_FAMILY_SLUGS).count()))
+          assert OfferFamilyPlacement.objects.filter(product_family__slug__in=MANUAL_ONLY_FAMILY_SLUGS).count()==65
+          print('CAT3_FINAL_PRODUCTION_QA=PASS')
+          PY
+          echo CAT3_GITHUB_VPS_CODE_ALIGNED_LIVE_SITE_OK=PASS
+          REMOTE
