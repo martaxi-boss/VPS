@@ -1,4 +1,4 @@
-name: Verify seven owner links against existing microdermo products 20261113
+name: Lowcost publish five unique owner microdermo links 20261113
 on:
   push:
     paths: [.github/workflows/lowcost-microdermo-owner-manual-seven-20261113.yml]
@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 22
     steps:
-      - name: Pinned SSH read-only check for owner link duplicate identities
+      - name: Pinned SSH guarded publish five new unique Owner affiliate links
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         shell: bash
@@ -28,7 +28,11 @@ jobs:
           cd /srv/projects/lowcost-europa
           test "$(git -c safe.directory="$PWD" rev-parse HEAD)" = '4c6e75e566dcf317624285fe4f92d5cbdd6ec2dc'
           systemctl is-active --quiet lowcost-europa.service
-          true # Read-only identification, no backup or DB mutation
+          sh deploy/scripts/backup-postgres.sh
+          BACKUP="$(find backups/daily -maxdepth 1 -type f -name 'lowcost-europa-*.dump' -printf '%T@ %p\\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
+          test -s "$BACKUP" && test -s "$BACKUP.sha256"
+          (cd backups/daily && sha256sum -c "$(basename "$BACKUP.sha256")" >/dev/null)
+          echo MICRODERMO_BACKUP_VERIFIED=PASS
           set -a
           . private/systemd-env/lowcost-europa.env
           set +a
@@ -36,45 +40,61 @@ jobs:
           runuser -u le001_1789265592 -- .venv/bin/python - <<'PY'
           import django
           django.setup()
-          from apps.catalog.models import Offer,OfferFamilyPlacement,ProductFamily
-          from apps.catalog.services.manual_candidate_intake import resolve_aliexpress_product_url,ManualCandidateIntakeError
+          from io import StringIO
+          from django.core.management import call_command
+          from django.db import transaction
+          from django.test import Client
+          from apps.catalog.models import Offer,OfferClick,OfferFamilyPlacement,ProductFamily
+          from apps.catalog.services.manual_storefront import MANUAL_ONLY_FAMILY_SLUGS
+          from apps.catalog.services.public_eligibility import public_eligibility_q
           urls=["https://s.click.aliexpress.com/e/_c4P5jWTZ","https://s.click.aliexpress.com/e/_c2uT3m6r","https://s.click.aliexpress.com/e/_c43RKiSf","https://s.click.aliexpress.com/e/_c4l6vclH","https://s.click.aliexpress.com/e/_c3DVjsYx","https://s.click.aliexpress.com/e/_c32VRUnv","https://s.click.aliexpress.com/e/_c341cEPZ"]
+          accepted=[(i,urls[i-1]) for i in (1,3,4,6,7)]
           slug='hydrodermoabrasao-aqua-facial-multifuncoes'
           family=ProductFamily.objects.get(slug=slug)
-          count=OfferFamilyPlacement.objects.filter(product_family=family).count()
-          assert count==9
-          print('CATEGORY_2_EXISTING_PLACEMENTS='+str(count))
-          seen=set()
-          unique_new=0
-          conflicts=0
-          failed=0
-          for i,url in enumerate(urls,1):
-              try:
-                  product_id,canonical=resolve_aliexpress_product_url(url)
-              except ManualCandidateIntakeError as exc:
-                  print('OWNER_LINK_'+str(i)+'=RESOLVE_FAILED')
-                  failed+=1
-                  continue
-              if product_id in seen:
-                  print('OWNER_LINK_'+str(i)+'=DUPLICATE_WITHIN_SEVEN')
-                  conflicts+=1
-                  continue
-              seen.add(product_id)
-              offer=Offer.objects.filter(source=Offer.Source.ALIEXPRESS_OWNER,external_product_id=product_id).first()
-              if offer and offer.affiliate_url!=url:
-                  status='DUPLICATE_EXISTING_CATEGORY_2' if OfferFamilyPlacement.objects.filter(product_family=family,offer=offer).exists() else 'DUPLICATE_OTHER_CATEGORY'
-                  print('OWNER_LINK_'+str(i)+'='+status)
-                  conflicts+=1
-              elif offer and OfferFamilyPlacement.objects.filter(product_family=family,offer=offer).exists():
-                  print('OWNER_LINK_'+str(i)+'=ALREADY_IN_CATEGORY')
-                  conflicts+=1
-              else:
-                  print('OWNER_LINK_'+str(i)+'=NEW_ELIGIBLE_PRODUCT_ID')
-                  unique_new+=1
-          print('OWNER_LINKS_NEW_POSSIBLE='+str(unique_new))
-          print('OWNER_LINKS_CONFLICTS='+str(conflicts))
-          print('OWNER_LINKS_RESOLUTION_ERRORS='+str(failed))
-          assert OfferFamilyPlacement.objects.filter(product_family=family).count()==9
-          print('OWNER_SEVEN_LINK_IDENTIFICATION_READ_ONLY=PASS')
+          def snapshot(family_slug):
+              return set((p.offer_id,p.offer.affiliate_url,p.offer.source,p.offer.external_product_id)
+                for p in OfferFamilyPlacement.objects.filter(product_family__slug=family_slug).select_related('offer'))
+          before={s:snapshot(s) for s in MANUAL_ONLY_FAMILY_SLUGS}
+          assert len(before[slug])==9
+          assert all(x[2]==Offer.Source.ALIEXPRESS_OWNER for x in before[slug])
+          original_clicks=OfferClick.objects.count()
+          with transaction.atomic():
+              for i,url in accepted:
+                  output=StringIO()
+                  call_command('publish_owner_affiliate_link',url,family=slug,stdout=output)
+                  result=output.getvalue()
+                  assert 'OWNER_MANUAL_AFFILIATE_PUBLISHED=PASS' in result
+                  assert 'new_placement=TRUE' in result
+                  print('MICRODERMO_LINK_'+str(i)+'=PUBLISHED_FROM_OWNER_URL')
+              after=snapshot(slug)
+              assert len(after)==14
+              assert before[slug].issubset(after)
+              assert {x[1] for x in after}-{x[1] for x in before[slug]}=={u for _,u in accepted}
+              assert all(x[2]==Offer.Source.ALIEXPRESS_OWNER for x in after)
+              assert OfferFamilyPlacement.objects.filter(product_family=family).filter(
+                  public_eligibility_q(prefix='offer__')).count()==14
+              for s in MANUAL_ONLY_FAMILY_SLUGS:
+                  if s!=slug:
+                      assert snapshot(s)==before[s],s
+              print('MICRODERMO_TRANSACTION_CHECKS=PASS')
+          client=Client()
+          for i,url in accepted:
+              offer=Offer.objects.get(source=Offer.Source.ALIEXPRESS_OWNER,affiliate_url=url)
+              response=client.head('/go/'+str(offer.pk)+'/',secure=True,
+                                   HTTP_HOST='www.lowcost-europa.eu')
+              assert response.status_code==302,(i,response.status_code)
+              assert response['Location']==url
+          assert snapshot(slug)==after
+          assert OfferClick.objects.count()>=original_clicks
+          print('MICRODERMO_FIVE_OWNER_REDIRECTS_EXACT=PASS')
+          print('MICRODERMO_EXISTING_NINE_UNCHANGED=PASS')
+          print('MICRODERMO_OTHER_FOUR_CATEGORIES_UNCHANGED=PASS')
+          print('MICRODERMO_CATEGORY_TWO_FINAL_COUNT='+str(len(after)))
+          print('MICRODERMO_TOTAL_FIVE_CATEGORIES='+str(sum(len(snapshot(s)) for s in MANUAL_ONLY_FAMILY_SLUGS)))
+          print('MICRODERMO_MANUAL_LINK_PUBLISH=PASS')
           PY
+          curl -fsS --max-time 20 'https://www.lowcost-europa.eu/products/hydrodermoabrasao-aqua-facial-multifuncoes/' -o /dev/null
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa-cavitation-availability.timer
+          echo MICRODERMO_PUBLIC_PAGE_HTTP_200=PASS
           REMOTE
