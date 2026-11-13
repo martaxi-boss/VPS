@@ -72,7 +72,7 @@ jobs:
           old={s:rows(s) for s in MANUAL_ONLY_FAMILY_SLUGS}
           assert 5<=len(old[slug])<=18 and len(old[laser.slug])==5
           assert all(x[3]==Offer.Source.ALIEXPRESS_OWNER for x in old[slug])
-          assert OfferFamilyPlacement.objects.filter(product_family=fam).filter(public_eligibility_q(prefix='offer__')).count()==5
+          assert OfferFamilyPlacement.objects.filter(product_family=fam).filter(public_eligibility_q(prefix='offer__')).count()==len(old[slug])
           clicks=OfferClick.objects.count()
           from django.core.management.base import CommandError
           errors=[]
