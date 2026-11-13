@@ -1,0 +1,89 @@
+name: Lowcost category4 HIFU EMS eleven owner links final live QA 20261113
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/lowcost-cat4-hifu-ems-eleven-postcheck-20261113.yml]
+permissions: {contents: read}
+concurrency:
+  group: lowcost-prod-automation-controls
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    steps:
+      - name: Pinned SSH verify 11 original affiliate links in live public page
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          ROOT=/srv/projects/lowcost-europa
+          cd "$ROOT"
+          test "$(git -c safe.directory="$ROOT" rev-parse HEAD)" = '4c6e75e566dcf317624285fe4f92d5cbdd6ec2dc'
+          test -z "$(git -c safe.directory="$ROOT" status --porcelain=v1 --untracked-files=no)"
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa-affiliate-report.timer
+          systemctl is-active --quiet lowcost-europa-cavitation-availability.timer
+          set -a
+          . "$ROOT/private/systemd-env/lowcost-europa.env"
+          set +a
+          export DJANGO_SETTINGS_MODULE=config.settings.production
+          runuser -u le001_1789265592 -- "$ROOT/.venv/bin/python" - <<'PY'
+          import django
+          django.setup()
+          from urllib.request import Request,urlopen
+          from django.test import Client
+          from apps.catalog.models import Offer,OfferClick,OfferFamilyPlacement,ProductFamily
+          from apps.catalog.services.manual_storefront import MANUAL_ONLY_FAMILY_SLUGS
+          from apps.catalog.services.public_eligibility import public_eligibility_q
+          family=ProductFamily.objects.get(slug='hifu')
+          assert family.name=='HIFU / EMS' and family.display_order==4
+          placements=OfferFamilyPlacement.objects.filter(product_family=family).select_related('offer')
+          rows=list(placements)
+          assert len(rows)==11
+          assert all(p.offer.source==Offer.Source.ALIEXPRESS_OWNER for p in rows)
+          assert len({p.offer.external_product_id for p in rows})==11
+          assert placements.filter(public_eligibility_q(prefix='offer__')).count()==11
+          before_clicks=OfferClick.objects.count()
+          with urlopen(Request('https://www.lowcost-europa.eu/products/hifu/',headers={'User-Agent':'LowcostEuropaOwnerCategory4Audit/1.0'}),timeout=20) as r:
+              assert r.status==200
+              html=r.read(1500000).decode('utf-8','replace')
+          assert 'HIFU / EMS' in html
+          for p in rows:
+              assert p.offer.affiliate_url in html, 'Manual affiliate link missing from live public HTML'
+          assert html.count('data-affiliate-original-url=')>=11
+          c=Client()
+          for p in rows:
+              r=c.head('/go/'+str(p.offer_id)+'/',secure=True,HTTP_HOST='www.lowcost-europa.eu')
+              assert r.status_code==302 and r['Location']==p.offer.affiliate_url
+          for path in ('/','/pt/products/hifu/','/es/products/hifu/'):
+              with urlopen(Request('https://www.lowcost-europa.eu'+path,headers={'User-Agent':'LowcostEuropaOwnerCategory4Audit/1.0'}),timeout=20) as r:
+                  assert r.status==200
+                  body=r.read(1500000).decode('utf-8','replace')
+                  assert 'HIFU / EMS' in body
+          assert OfferClick.objects.count()==before_clicks
+          assert OfferFamilyPlacement.objects.filter(product_family__slug='diodo-laser-remocao-tatuagens-pigmentacao').count()==5
+          assert OfferFamilyPlacement.objects.filter(product_family__slug__in=MANUAL_ONLY_FAMILY_SLUGS).count()==70
+          print('CAT4_FINAL_11_ORIGINAL_AFFILIATE_LINKS_PUBLIC_HTML=PASS')
+          print('CAT4_FINAL_11_EXACT_HEAD_REDIRECTS_NO_FAKE_CLICKS=PASS')
+          print('CAT4_FINAL_PT_ES_AND_HOME_LABEL=PASS')
+          print('CAT4_FINAL_LASER_CATEGORY_5_UNCHANGED=PASS')
+          print('CAT4_FINAL_ALL_FIVE_FAMILY_PLACEMENTS=70')
+          print('CAT4_FINAL_PUBLIC_11_OF_11_OWNER_PRODUCTS=PASS')
+          print('CAT4_FINAL_VERIFICATION=PASS')
+          PY
+          echo CAT4_FINAL_GITHUB_VPS_CODE_AND_SERVICES=PASS
+          REMOTE
