@@ -1,0 +1,113 @@
+name: Lowcost cat3 Pressoterapia Tecar publish 13 owner links 20261113
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/lowcost-cat3-tecar-13-manual-publish-20261113.yml]
+permissions: {contents: read}
+concurrency:
+  group: lowcost-prod-automation-controls
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 24
+    steps:
+      - name: Guarded SSH owner-authored Pressoterapia Tecar thirteen exact links
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          ROOT=/srv/projects/lowcost-europa
+          cd "$ROOT"
+          test "$(git -c safe.directory="$ROOT" rev-parse HEAD)" = '4c6e75e566dcf317624285fe4f92d5cbdd6ec2dc'
+          test -z "$(git -c safe.directory="$ROOT" status --porcelain=v1 --untracked-files=no)"
+          for unit in lowcost-europa.service lowcost-europa-indexnow.timer lowcost-europa-affiliate-report.timer lowcost-europa-cavitation-availability.timer; do
+            systemctl is-active --quiet "$unit"
+          done
+          sh deploy/scripts/backup-postgres.sh
+          BACKUP="$(find backups/daily -maxdepth 1 -type f -name 'lowcost-europa-*.dump' | sort | tail -n1)"
+          test -s "$BACKUP" && test -s "$BACKUP.sha256"
+          (cd backups/daily && sha256sum -c "$(basename "$BACKUP.sha256")" >/dev/null)
+          echo CAT3_BEFORE_PUBLISH_DB_BACKUP_VERIFIED=PASS
+          set -a
+          . private/systemd-env/lowcost-europa.env
+          set +a
+          export DJANGO_SETTINGS_MODULE=config.settings.production
+          runuser -u le001_1789265592 -- .venv/bin/python - <<'PY'
+          import django
+          django.setup()
+          from time import sleep
+          from io import StringIO
+          from urllib.parse import urlsplit
+          from django.db import transaction
+          from django.core.management import call_command
+          from django.test import Client
+          from apps.catalog.models import Offer,OfferClick,OfferFamilyPlacement,ProductFamily
+          from apps.catalog.services.manual_storefront import MANUAL_ONLY_FAMILY_SLUGS
+          from apps.catalog.services.public_eligibility import public_eligibility_q
+          from apps.integrations.aliexpress.affiliate_url import is_https_affiliate_url
+          links=["https://s.click.aliexpress.com/e/_c2uCee7h","https://s.click.aliexpress.com/e/_c30ce58J","https://s.click.aliexpress.com/e/_c4ceqGqf","https://s.click.aliexpress.com/e/_c2zpVqNz","https://s.click.aliexpress.com/e/_c4CWtJlD","https://s.click.aliexpress.com/e/_c3juNcH5","https://s.click.aliexpress.com/e/_c45ltKQP","https://s.click.aliexpress.com/e/_c4LfZjSb","https://s.click.aliexpress.com/e/_c3H4YA7p","https://s.click.aliexpress.com/e/_c4dyw9uR","https://s.click.aliexpress.com/e/_c369cND1","https://s.click.aliexpress.com/e/_c4rFM9AF","https://s.click.aliexpress.com/e/_c2IPvrZ1"]
+          slug='pressoterapia-vacuum-drenagem'
+          assert len(links)==len(set(links))==13
+          assert all(is_https_affiliate_url(u) and urlsplit(u).hostname=='s.click.aliexpress.com' for u in links)
+          fam=ProductFamily.objects.get(slug=slug)
+          laser=ProductFamily.objects.get(slug='diodo-laser-remocao-tatuagens-pigmentacao')
+          assert fam.display_order==3 and laser.display_order==5
+          def rows(s):
+              return set((p.pk,p.offer_id,p.offer.external_product_id,p.offer.source,p.offer.affiliate_url)
+                 for p in OfferFamilyPlacement.objects.filter(product_family__slug=s).select_related('offer'))
+          old={s:rows(s) for s in MANUAL_ONLY_FAMILY_SLUGS}
+          assert len(old[slug])==5 and len(old[laser.slug])==5
+          assert all(x[3]==Offer.Source.ALIEXPRESS_OWNER for x in old[slug])
+          assert OfferFamilyPlacement.objects.filter(product_family=fam).filter(public_eligibility_q(prefix='offer__')).count()==5
+          clicks=OfferClick.objects.count()
+          with transaction.atomic():
+              for i,url in enumerate(links,1):
+                  sleep(5)
+                  out=StringIO()
+                  call_command('publish_owner_affiliate_link',url,family=slug,stdout=out)
+                  assert 'OWNER_MANUAL_AFFILIATE_PUBLISHED=PASS' in out.getvalue()
+                  assert 'new_placement=TRUE' in out.getvalue()
+                  print('CAT3_OWNER_LINK_'+str(i).zfill(2)+'_PUBLISHED=PASS',flush=True)
+              final=rows(slug)
+              assert len(final)==18
+              assert old[slug].issubset(final)
+              assert {x[4] for x in final}-{x[4] for x in old[slug]}==set(links)
+              assert all(x[3]==Offer.Source.ALIEXPRESS_OWNER for x in final)
+              assert OfferFamilyPlacement.objects.filter(product_family=fam).filter(public_eligibility_q(prefix='offer__')).count()==18
+              for s in MANUAL_ONLY_FAMILY_SLUGS:
+                  if s!=slug: assert rows(s)==old[s],s
+              print('CAT3_ATOMIC_18_LINKS_OTHER_FOUR_UNCHANGED=PASS',flush=True)
+          client=Client()
+          for url in links:
+              offer=Offer.objects.get(source=Offer.Source.ALIEXPRESS_OWNER,affiliate_url=url)
+              r=client.head('/go/'+str(offer.pk)+'/',secure=True,HTTP_HOST='www.lowcost-europa.eu')
+              assert r.status_code==302 and r['Location']==url
+          assert OfferClick.objects.count()>=clicks
+          assert rows(slug)==final
+          assert rows(laser.slug)==old[laser.slug]
+          print('CAT3_NEW_13_EXACT_AFFILIATE_REDIRECTS=PASS')
+          print('CAT3_LASER_CATEGORY_5_UNCHANGED=PASS')
+          print('CAT3_EXISTING_5_LINKS_PRESERVED=PASS')
+          print('CAT3_FINAL_PRODUCTS='+str(len(final)))
+          print('CAT3_TOTAL_FIVE_CATEGORIES='+str(sum(len(rows(s)) for s in MANUAL_ONLY_FAMILY_SLUGS)))
+          print('CAT3_OWNER_13_LINKS_PUBLISHED=PASS')
+          PY
+          curl -fsS --max-time 20 'https://www.lowcost-europa.eu/products/pressoterapia-vacuum-drenagem/' -o /dev/null
+          test "$(git -c safe.directory="$ROOT" rev-parse HEAD)" = '4c6e75e566dcf317624285fe4f92d5cbdd6ec2dc'
+          systemctl is-active --quiet lowcost-europa.service
+          echo CAT3_PRESSOTERAPIA_LIVE_HTTPS_200_AND_GITHUB_VPS_ALIGNED=PASS
+          REMOTE
