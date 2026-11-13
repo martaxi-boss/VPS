@@ -77,18 +77,18 @@ jobs:
           systemctl restart lowcost-europa.service
           systemctl is-active --quiet lowcost-europa.service
           nginx -t >/dev/null 2>&1
-          PT_HIFU="$(curl -fsS --max-time 20 --resolve www.lowcost-europa.eu:443:127.0.0.1 https://www.lowcost-europa.eu/pt/products/hifu/)"
+          PT_HIFU="$(curl -fsS --retry 12 --retry-delay 2 --retry-connrefused --max-time 20 --resolve www.lowcost-europa.eu:443:127.0.0.1 https://www.lowcost-europa.eu/pt/products/hifu/)"
           [[ "$PT_HIFU" == *"Máquinas HIFU e EMS para Estética"* ]]
           [[ "$PT_HIFU" == *"HIFU e EMS: como comparar tecnologias diferentes"* ]]
           [[ "$PT_HIFU" == *'rel="canonical" href="https://www.lowcost-europa.eu/pt/products/hifu/"'* ]]
           [[ "$PT_HIFU" == *'hreflang="es-ES"'* ]]
-          PT_HOME="$(curl -fsS --max-time 20 --resolve www.lowcost-europa.eu:443:127.0.0.1 https://www.lowcost-europa.eu/pt/)"
+          PT_HOME="$(curl -fsS --retry 12 --retry-delay 2 --retry-connrefused --max-time 20 --resolve www.lowcost-europa.eu:443:127.0.0.1 https://www.lowcost-europa.eu/pt/)"
           [[ "$PT_HOME" == *"HIFU/EMS, cavitação"* ]]
           [[ "$PT_HOME" == *"pressoterapia/Tecar"* ]]
-          ES_HIFU="$(curl -fsS --max-time 20 --resolve www.lowcost-europa.eu:443:127.0.0.1 https://www.lowcost-europa.eu/es/products/hifu/)"
+          ES_HIFU="$(curl -fsS --retry 12 --retry-delay 2 --retry-connrefused --max-time 20 --resolve www.lowcost-europa.eu:443:127.0.0.1 https://www.lowcost-europa.eu/es/products/hifu/)"
           [[ "$ES_HIFU" == *"HIFU Profesional: Máquinas y Guía"* ]]
           [[ "$ES_HIFU" != *"Máquinas HIFU e EMS para Estética"* ]]
-          XML="$(curl -fsS --max-time 20 --resolve www.lowcost-europa.eu:443:127.0.0.1 https://www.lowcost-europa.eu/sitemap.xml)"
+          XML="$(curl -fsS --retry 12 --retry-delay 2 --retry-connrefused --max-time 20 --resolve www.lowcost-europa.eu:443:127.0.0.1 https://www.lowcost-europa.eu/sitemap.xml)"
           test "$(grep -o '<loc>' <<<"$XML" | wc -l)" -eq 23
           systemctl is-active --quiet lowcost-europa-indexnow.timer
           systemctl is-active --quiet lowcost-europa-affiliate-report.timer
