@@ -1,0 +1,89 @@
+name: Lowcost Cavitation owner link capacity preflight 20261113
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/lowcost-cavitation-single-link-preflight-20261113.yml'
+permissions:
+  contents: read
+concurrency:
+  group: lowcost-prod-automation-controls
+  cancel-in-progress: false
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Check real category one capacity and duplicate before any write
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          ROOT=/srv/projects/lowcost-europa
+          cd "$ROOT"
+          test "$(git -c safe.directory="$ROOT" rev-parse HEAD)" = '4c6e75e566dcf317624285fe4f92d5cbdd6ec2dc'
+          test -z "$(git -c safe.directory="$ROOT" status --porcelain=v1 --untracked-files=no)"
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa-cavitation-availability.timer
+          APPUSER="$(systemctl show lowcost-europa.service -p User --value)"
+          test "$APPUSER" = le001_1789265592
+          set -a
+          . "$ROOT/private/systemd-env/lowcost-europa.env"
+          set +a
+          export DJANGO_SETTINGS_MODULE=config.settings.production
+          runuser -u "$APPUSER" -- "$ROOT/.venv/bin/python" - <<'PY'
+          import django
+          django.setup()
+          from apps.catalog.models import Offer,OfferFamilyPlacement,ProductFamily
+          from apps.catalog.services.manual_storefront import MANUAL_ONLY_FAMILY_SLUGS
+          from apps.catalog.services.public_eligibility import MAX_PUBLIC_ELIGIBLE_OFFERS_PER_FAMILY,public_eligibility_q
+          from apps.catalog.services.manual_candidate_intake import resolve_aliexpress_product_url,ManualCandidateIntakeError
+          from apps.integrations.aliexpress.affiliate_url import is_https_affiliate_url
+          from urllib.parse import urlsplit
+          slug='cavitacao-rf-vacuum-corpo'
+          url='https://s.click.aliexpress.com/e/_c2yHtyBt'
+          assert slug in MANUAL_ONLY_FAMILY_SLUGS
+          assert is_https_affiliate_url(url) and urlsplit(url).hostname=='s.click.aliexpress.com'
+          family=ProductFamily.objects.get(slug=slug)
+          placements=OfferFamilyPlacement.objects.filter(product_family=family).select_related('offer')
+          total=placements.count()
+          public=placements.filter(public_eligibility_q(prefix='offer__')).count()
+          manual=placements.filter(offer__source=Offer.Source.ALIEXPRESS_OWNER).count()
+          assert MAX_PUBLIC_ELIGIBLE_OFFERS_PER_FAMILY==20
+          print('CATEGORY_1_NAME='+family.name)
+          print('CATEGORY_1_PLACEMENTS='+str(total))
+          print('CATEGORY_1_PUBLIC='+str(public))
+          print('CATEGORY_1_MANUAL='+str(manual))
+          print('CATEGORY_1_REMAINING_SLOTS='+str(20-total))
+          print('CATEGORY_1_LINK_ALREADY_PRESENT='+str(placements.filter(offer__affiliate_url=url).exists()).upper())
+          if total>=20:
+              print('CATEGORY_1_CAPACITY=FULL_NO_WRITE')
+          else:
+              print('CATEGORY_1_CAPACITY=OPEN_NO_WRITE')
+          try:
+              product_id,_=resolve_aliexpress_product_url(url)
+          except ManualCandidateIntakeError:
+              print('OWNER_LINK_RESOLVED=NO')
+          else:
+              print('OWNER_LINK_RESOLVED=YES')
+              prior=Offer.objects.filter(source=Offer.Source.ALIEXPRESS_OWNER,external_product_id=product_id).first()
+              print('OWNER_LINK_DUPLICATE_PRODUCT='+str(prior is not None).upper())
+              if prior:
+                  print('OWNER_LINK_SAME_AS_STORED='+str(prior.affiliate_url==url).upper())
+                  print('OWNER_LINK_PRODUCT_IN_CATEGORY='+str(placements.filter(offer=prior).exists()).upper())
+          print('CATEGORY_1_READ_ONLY_CHECK=PASS')
+          PY
+          REMOTE
