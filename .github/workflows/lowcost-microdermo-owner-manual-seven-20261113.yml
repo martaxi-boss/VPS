@@ -37,9 +37,9 @@ jobs:
           from io import StringIO
           from django.db import transaction
           from django.core.management import call_command
-          from apps.catalog.models import ProductFamily,OfferFamilyPlacement
           import django
           django.setup()
+          from apps.catalog.models import ProductFamily,OfferFamilyPlacement
           slug='hydrodermoabrasao-aqua-facial-multifuncoes'
           urls=["https://s.click.aliexpress.com/e/_c4P5jWTZ","https://s.click.aliexpress.com/e/_c2uT3m6r","https://s.click.aliexpress.com/e/_c43RKiSf","https://s.click.aliexpress.com/e/_c4l6vclH","https://s.click.aliexpress.com/e/_c3DVjsYx","https://s.click.aliexpress.com/e/_c32VRUnv","https://s.click.aliexpress.com/e/_c341cEPZ"]
           assert len(urls)==len(set(urls))==7
