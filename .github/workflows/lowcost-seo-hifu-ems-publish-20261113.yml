@@ -42,7 +42,8 @@ jobs:
           TARGET=719738cbb80f366255c2adf1a6a60e445e6d9250
           test -d "$ROOT/.git"
           g() { git -c safe.directory="$ROOT" -C "$ROOT" "$@"; }
-          test "$(g symbolic-ref --short HEAD)" = main
+          CURRENT_BRANCH="$(g symbolic-ref --short HEAD 2>/dev/null || true)"
+          test -z "$CURRENT_BRANCH" || test "$CURRENT_BRANCH" = main
           test -z "$(g status --porcelain=v1 --untracked-files=no)"
           systemctl is-active --quiet lowcost-europa.service
           nginx -t >/dev/null 2>&1
@@ -71,7 +72,7 @@ jobs:
             exit "$code"
           }
           trap rollback EXIT
-          g merge --ff-only "$TARGET" >/dev/null
+          g checkout --detach "$TARGET" >/dev/null
           DEPLOYED=1
           systemctl restart lowcost-europa.service
           systemctl is-active --quiet lowcost-europa.service
