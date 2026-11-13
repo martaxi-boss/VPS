@@ -1,4 +1,4 @@
-name: Lowcost cat3 owner eleven AliExpress links preflight 20261113
+name: Lowcost cat3 Pressoterapia Tecar 13 owner links safe preflight 20261113
 on:
   push:
     branches: [main]
@@ -51,9 +51,9 @@ jobs:
           from apps.catalog.services.public_eligibility import MAX_PUBLIC_ELIGIBLE_OFFERS_PER_FAMILY,public_eligibility_q
           from apps.integrations.aliexpress.affiliate_url import is_https_affiliate_url
           from urllib.parse import urlsplit
-          links=["https://s.click.aliexpress.com/e/_c2uCee7h","https://s.click.aliexpress.com/e/_c30ce58J","https://s.click.aliexpress.com/e/_c4ceqGqf","https://s.click.aliexpress.com/e/_c2zpVqNz","https://s.click.aliexpress.com/e/_c4CWtJlD","https://s.click.aliexpress.com/e/_c3juNcH5","https://s.click.aliexpress.com/e/_c45ltKQP","https://s.click.aliexpress.com/e/_c4LfZjSb","https://s.click.aliexpress.com/e/_c3H4YA7p","https://s.click.aliexpress.com/e/_c4dyw9uR","https://s.click.aliexpress.com/e/_c369cND1"]
-          slug='diodo-laser-remocao-tatuagens-pigmentacao'
-          assert len(links)==len(set(links))==11
+          links=["https://s.click.aliexpress.com/e/_c2uCee7h","https://s.click.aliexpress.com/e/_c30ce58J","https://s.click.aliexpress.com/e/_c4ceqGqf","https://s.click.aliexpress.com/e/_c2zpVqNz","https://s.click.aliexpress.com/e/_c4CWtJlD","https://s.click.aliexpress.com/e/_c3juNcH5","https://s.click.aliexpress.com/e/_c45ltKQP","https://s.click.aliexpress.com/e/_c4LfZjSb","https://s.click.aliexpress.com/e/_c3H4YA7p","https://s.click.aliexpress.com/e/_c4dyw9uR","https://s.click.aliexpress.com/e/_c369cND1","https://s.click.aliexpress.com/e/_c4rFM9AF","https://s.click.aliexpress.com/e/_c2IPvrZ1"]
+          slug='pressoterapia-vacuum-drenagem'
+          assert len(links)==len(set(links))==13
           assert all(is_https_affiliate_url(u) and urlsplit(u).hostname=='s.click.aliexpress.com' for u in links)
           assert slug in MANUAL_ONLY_FAMILY_SLUGS
           family=ProductFamily.objects.get(slug=slug)
@@ -62,11 +62,16 @@ jobs:
           public=placements.filter(public_eligibility_q(prefix='offer__')).count()
           manual=placements.filter(offer__source=Offer.Source.ALIEXPRESS_OWNER).count()
           print('CAT3_FAMILY='+family.name)
+          print('CAT3_ORDER='+str(family.display_order))
+          laser=ProductFamily.objects.get(slug='diodo-laser-remocao-tatuagens-pigmentacao')
+          print('LASER_CATEGORY_ORDER='+str(laser.display_order))
+          print('LASER_CATEGORY_EXISTING_PLACEMENTS='+str(OfferFamilyPlacement.objects.filter(product_family=laser).count()))
           print('CAT3_PLACEMENTS='+str(existing))
           print('CAT3_PUBLIC='+str(public))
           print('CAT3_MANUAL='+str(manual))
           print('CAT3_AVAILABLE_SLOTS='+str(MAX_PUBLIC_ELIGIBLE_OFFERS_PER_FAMILY-existing))
           assert existing==manual==public
+          assert family.display_order==3 and laser.display_order==5, 'Category order mismatch'
           assert family.status!=ProductFamily.Status.RETIRED
           ids=set()
           can_add=[]
