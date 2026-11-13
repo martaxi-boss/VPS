@@ -57,6 +57,7 @@ jobs:
           clicks=OfferClick.objects.count()
           with transaction.atomic():
               for i,url in enumerate(urls,1):
+                  __import__('time').sleep(4)
                   out=StringIO()
                   call_command('publish_owner_affiliate_link',url,family=slug,stdout=out)
                   assert 'new_placement=TRUE' in out.getvalue()
