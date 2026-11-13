@@ -1,0 +1,69 @@
+name: Lowcost emergency restore application file readability 20261113
+on:
+  push:
+    paths:
+      - .github/workflows/lowcost-app-permission-recovery-20261113.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  recover:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Recover exact tracked Python file read permissions on VPS
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          chmod 600 "$RUNNER_TEMP/kh"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          ROOT=/srv/projects/lowcost-europa
+          APPUSER="$(systemctl show lowcost-europa.service -p User --value)"
+          test "$APPUSER" = le001_1789265592
+          test "$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD)" = 4c6e75e566dcf317624285fe4f92d5cbdd6ec2dc
+          for relative in apps/storefront/views.py apps/storefront/seo_editorial.py apps/storefront/tests/test_seo_editorial_pt.py; do
+            f="$ROOT/$relative"
+            test -f "$f" && test ! -L "$f"
+            echo "PERM_BEFORE_$relative=$(stat -c %a "$f")"
+            chmod 644 "$f"
+            runuser -u "$APPUSER" -- test -r "$f"
+            echo "APP_READABLE_$relative=PASS"
+          done
+          test -z "$(git -c safe.directory="$ROOT" -C "$ROOT" status --porcelain=v1 --untracked-files=no)"
+          systemctl restart lowcost-europa.service
+          systemctl is-active --quiet lowcost-europa.service
+          nginx -t >/dev/null 2>&1
+          STATUS=000
+          for attempt in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+            STATUS="$(curl -sS --max-time 6 -o /dev/null -w '%{http_code}' --resolve www.lowcost-europa.eu:443:127.0.0.1 https://www.lowcost-europa.eu/pt/products/hifu/ || true)"
+            if [ "$STATUS" = 200 ]; then break; fi
+            sleep 1
+          done
+          echo "VPS_HTTP_PT_HIFU=$STATUS"
+          test "$STATUS" = 200
+          STATUS="$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' --resolve www.lowcost-europa.eu:443:127.0.0.1 https://www.lowcost-europa.eu/sitemap.xml)"
+          echo "VPS_HTTP_SITEMAP=$STATUS"
+          test "$STATUS" = 200
+          echo 'LOWCOST_FILE_PERMISSION_RECOVERY=PASS'
+          REMOTE
+      - name: Verify public HTTPS from independent GitHub runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in / /pt/ /pt/products/hifu/ /sitemap.xml; do
+            status="$(curl -sS -L --retry 3 --retry-delay 2 --max-time 15 -o /dev/null -w '%{http_code}' "https://www.lowcost-europa.eu$path")"
+            echo "POST_RECOVERY_PUBLIC_$path=$status"
+            test "$status" = 200
+          done
+          echo 'LOWCOST_PUBLIC_HTTPS_RECOVERY=PASS'
