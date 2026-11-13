@@ -49,3 +49,5 @@ jobs:
           journalctl --no-pager -u lowcost-europa.service --since '2026-11-13 15:43:00' -o cat 2>/dev/null | grep -Ei 'worker failed|worker exiting|error|traceback|failed to boot|module not found|ModuleNotFound|ImportError|listening at' | tail -30 || true
           echo 'RECENT_GUNICORN_FAULTS_END'
           REMOTE
+
+# Re-run: verify production after HIFU/EMS SEO guarded publish 719738c (read-only).
