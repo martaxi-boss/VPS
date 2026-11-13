@@ -29,7 +29,7 @@ jobs:
           test "$(git -c safe.directory="$PWD" rev-parse HEAD)" = '4c6e75e566dcf317624285fe4f92d5cbdd6ec2dc'
           systemctl is-active --quiet lowcost-europa.service
           sh deploy/scripts/backup-postgres.sh
-          BACKUP="$(find backups/daily -maxdepth 1 -type f -name 'lowcost-europa-*.dump' -printf '%T@ %p\\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
+          BACKUP="$(find backups/daily -maxdepth 1 -type f -name 'lowcost-europa-*.dump' | sort | tail -n1)"
           test -s "$BACKUP" && test -s "$BACKUP.sha256"
           (cd backups/daily && sha256sum -c "$(basename "$BACKUP.sha256")" >/dev/null)
           echo MICRODERMO_BACKUP_VERIFIED=PASS
