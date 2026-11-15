@@ -65,3 +65,58 @@ jobs:
           echo LOCAL_SEO_REFERRER_DAILY=PASS
           echo LOCAL_SEO_REFERRER_HOURLY=PASS
           REMOTE
+      - name: Public HTTPS and SEO canary - read only
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://www.lowcost-europa.eu'
+          # Lightweight external checks; do not read or publish private metrics.
+          for path in / /pt/ /es/ /pt/products/hifu/ /pt/products/pressoterapia-vacuum-drenagem/ /robots.txt /sitemap.xml /sitemap.txt /favicon.ico; do
+            if ! response="$(curl --fail --silent --show-error --location --retry 2 --retry-delay 2 --retry-all-errors --connect-timeout 10 --max-time 30 --output /dev/null --write-out '%{http_code} %{time_total}' "$origin$path")"; then
+              echo "::error::LOWCOST_PUBLIC_CONNECT_FAILURE path=$path"
+              exit 1
+            fi
+            read -r code elapsed <<< "$response"
+            if [[ "$code" != "200" ]]; then
+              echo "::error::LOWCOST_PUBLIC_HTTP_NOT_200 path=$path code=$code"
+              exit 1
+            fi
+            printf 'LOWCOST_PUBLIC path=%s http=%s seconds=%s\n' "$path" "$code" "$elapsed"
+          done
+          sitemap="$(mktemp)"
+          robots="$(mktemp)"
+          home="$(mktemp)"
+          trap 'rm -f "$sitemap" "$robots" "$home"' EXIT
+          curl --fail --silent --show-error --location --max-time 30 "$origin/sitemap.xml" -o "$sitemap"
+          curl --fail --silent --show-error --location --max-time 30 "$origin/robots.txt" -o "$robots"
+          curl --fail --silent --show-error --location --max-time 30 "$origin/pt/" -o "$home"
+          python3 - "$sitemap" "$robots" "$home" <<'PYCHECK'
+          from pathlib import Path
+          from sys import argv
+          from urllib.parse import urlsplit
+          from xml.etree import ElementTree
+
+          xml = ElementTree.parse(argv[1]).getroot()
+          locations = [
+              node.text.strip() for node in xml.iter()
+              if node.tag.rsplit('}', 1)[-1] == 'loc' and node.text
+          ]
+          if len(locations) != 23 or len(set(locations)) != 23:
+              raise SystemExit("LOWCOST_SITEMAP_23_URLS=FAIL")
+          if any(urlsplit(url).scheme != "https"
+                 or urlsplit(url).netloc != "www.lowcost-europa.eu"
+                 for url in locations):
+              raise SystemExit("LOWCOST_SITEMAP_CANONICAL_DOMAIN=FAIL")
+          robots = Path(argv[2]).read_text(encoding="utf-8")
+          if "sitemap" not in robots.lower():
+              raise SystemExit("LOWCOST_ROBOTS_SITEMAP=FAIL")
+          home = Path(argv[3]).read_text(encoding="utf-8")
+          if 'name="viewport"' not in home or 'rel="canonical"' not in home:
+              raise SystemExit("LOWCOST_MOBILE_META_CANONICAL=FAIL")
+          if '<meta name="robots" content="noindex' in home.lower():
+              raise SystemExit("LOWCOST_PUBLIC_PT_NOINDEX=FAIL")
+          print("LOWCOST_SITEMAP_23_URLS=PASS")
+          print("LOWCOST_ROBOTS_SITEMAP=PASS")
+          print("LOWCOST_MOBILE_META_CANONICAL=PASS")
+          print("LOWCOST_PUBLIC_SEO_CANARY=PASS")
+          PYCHECK
