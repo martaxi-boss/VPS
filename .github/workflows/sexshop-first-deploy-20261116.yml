@@ -1,0 +1,231 @@
+name: Sevelora Sexshop - first isolated HTTPS deployment
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/sexshop-first-deploy-20261116.yml
+permissions:
+  contents: read
+concurrency:
+  group: sexshop-first-deploy
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_PUBLIC_SITE_URL: "https://sexy-shop.duckdns.org"
+      NEXT_PUBLIC_LAUNCH: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: martaxi-boss/Sexshop
+          ref: ee600b7538799ef26c7cfe4270514f460b1a1d8c
+          persist-credentials: false
+      - name: Check reviewed source
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = ee600b7538799ef26c7cfe4270514f460b1a1d8c
+          test -f LICENSE.upstream
+          test -f apps/ecommerce-shop-demo/src/app/page.tsx
+          test ! -d apps/ecommerce-shop-demo/public/products
+          echo SEXSHOP_SOURCE=PASS
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.14.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "26"
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Build and test in ephemeral runner
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
+          pnpm --dir apps/ecommerce-shop-demo build
+          test -f apps/ecommerce-shop-demo/.next/standalone/apps/ecommerce-shop-demo/server.js
+          pnpm --dir apps/ecommerce-shop-demo exec next start --hostname 127.0.0.1 --port 3001 >/tmp/sevelora-build.log 2>&1 &
+          child=$!
+          trap 'kill "$child" || true' EXIT
+          for i in $(seq 1 40); do
+            curl -fsS http://127.0.0.1:3001/ -o /dev/null && break || sleep 1
+          done
+          node scripts/smoke.mjs
+          echo SEXSHOP_STANDALONE_AND_SMOKE=PASS
+      - name: Package runtime without global VPS dependencies
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/pkg/app" "$RUNNER_TEMP/publish"
+          cp -a apps/ecommerce-shop-demo/.next/standalone/. "$RUNNER_TEMP/pkg/app/"
+          mkdir -p "$RUNNER_TEMP/pkg/app/apps/ecommerce-shop-demo/.next"
+          cp -a apps/ecommerce-shop-demo/.next/static "$RUNNER_TEMP/pkg/app/apps/ecommerce-shop-demo/.next/static"
+          cp "$(command -v node)" "$RUNNER_TEMP/pkg/node"
+          test -f "$RUNNER_TEMP/pkg/app/apps/ecommerce-shop-demo/server.js"
+          tar -czf "$RUNNER_TEMP/publish/release.tgz" -C "$RUNNER_TEMP/pkg" .
+          cd "$RUNNER_TEMP/publish"
+          sha256sum release.tgz > release.sha256
+          echo "SEXSHOP_BUNDLE_BYTES=$(wc -c < release.tgz)"
+      - name: Verify pinned existing VPS SSH
+        run: |
+          set -euo pipefail
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          chmod 600 "$RUNNER_TEMP/kh"
+          echo SEXSHOP_SSH_PIN=PASS
+      - name: Upload only to Sexshop project directory
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -euo pipefail
+          ROOT=/srv/projects/Sexshop
+          test ! -e "$ROOT" && test ! -L "$ROOT"
+          test ! -e /etc/nginx/conf.d/sexshop.conf
+          test ! -e /etc/systemd/system/sexshop.service
+          test "$(getent ahostsv4 sexy-shop.duckdns.org | awk 'NR==1{print $1}')" = 146.59.145.3
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl is-active --quiet nginx
+          nginx -t
+          command -v certbot >/dev/null
+          test -z "$(ss -lnt '( sport = :3418 )' | grep ':3418' || true)"
+          install -d -m 755 -o ubuntu -g ubuntu "$ROOT/.incoming"
+          echo SEXSHOP_VPS_PREFLIGHT=PASS
+          REMOTE
+          sshpass -e scp -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 "$RUNNER_TEMP/publish/release.tgz" "$RUNNER_TEMP/publish/release.sha256" ubuntu@146.59.145.3:/srv/projects/Sexshop/.incoming/
+          echo SEXSHOP_UPLOAD=PASS
+      - name: Activate isolated service and trusted HTTPS
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          ROOT=/srv/projects/Sexshop
+          SHA=ee600b7538799ef26c7cfe4270514f460b1a1d8c
+          DOMAIN=sexy-shop.duckdns.org
+          rollback() {
+            echo SEXSHOP_DEPLOY=ROLLBACK
+            systemctl stop sexshop.service 2>/dev/null || :
+            systemctl disable sexshop.service 2>/dev/null || :
+            rm -f /etc/systemd/system/sexshop.service /etc/nginx/conf.d/sexshop.conf
+            systemctl daemon-reload 2>/dev/null || :
+            nginx -t >/dev/null 2>&1 && systemctl reload nginx 2>/dev/null || :
+          }
+          trap rollback ERR
+          cd "$ROOT/.incoming"
+          sha256sum -c release.sha256
+          install -d -m 755 "$ROOT/releases/$SHA" "$ROOT/runtimes/node26" "$ROOT/infra" "$ROOT/acme/.well-known/acme-challenge"
+          tar --no-same-owner -xzf release.tgz -C "$ROOT/releases/$SHA"
+          test -f "$ROOT/releases/$SHA/app/apps/ecommerce-shop-demo/server.js"
+          install -m 755 "$ROOT/releases/$SHA/node" "$ROOT/runtimes/node26/node"
+          rm -f "$ROOT/releases/$SHA/node"
+          chown -R ubuntu:ubuntu "$ROOT/releases" "$ROOT/runtimes"
+          "$ROOT/runtimes/node26/node" --version
+          ln -s "releases/$SHA/app" "$ROOT/current"
+          cat > "$ROOT/infra/sexshop.service" <<'UNIT'
+          [Unit]
+          Description=Sevelora isolated affiliate storefront
+          After=network-online.target
+          Wants=network-online.target
+          [Service]
+          Type=simple
+          User=ubuntu
+          Group=ubuntu
+          WorkingDirectory=/srv/projects/Sexshop/current/apps/ecommerce-shop-demo
+          ExecStart=/srv/projects/Sexshop/runtimes/node26/node /srv/projects/Sexshop/current/apps/ecommerce-shop-demo/server.js
+          Environment=NODE_ENV=production
+          Environment=HOSTNAME=127.0.0.1
+          Environment=PORT=3418
+          Environment=NEXT_PUBLIC_LAUNCH=false
+          Restart=on-failure
+          RestartSec=3
+          NoNewPrivileges=true
+          PrivateTmp=true
+          ProtectHome=true
+          ProtectSystem=full
+          UMask=0027
+          [Install]
+          WantedBy=multi-user.target
+          UNIT
+          install -m 644 "$ROOT/infra/sexshop.service" /etc/systemd/system/sexshop.service
+          systemctl daemon-reload
+          systemctl enable --now sexshop.service
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:3418/ -o "$ROOT/.incoming/check.html"; then break; fi
+            sleep 1
+          done
+          grep -iq 'sevelora' "$ROOT/.incoming/check.html"
+          grep -iq 'noindex' "$ROOT/.incoming/check.html"
+          curl -fsS http://127.0.0.1:3418/catalogo -o /dev/null
+          echo SEXSHOP_APP_LOCAL=PASS
+          cat > "$ROOT/infra/nginx-http.conf" <<'NGINX'
+          server {
+            listen 80;
+            server_name sexy-shop.duckdns.org;
+            location ^~ /.well-known/acme-challenge/ {
+              root /srv/projects/Sexshop/acme;
+              default_type text/plain;
+            }
+            location / {
+              proxy_pass http://127.0.0.1:3418;
+              proxy_set_header Host $host;
+              proxy_set_header X-Forwarded-Proto $scheme;
+            }
+          }
+          NGINX
+          install -m 644 "$ROOT/infra/nginx-http.conf" /etc/nginx/conf.d/sexshop.conf
+          nginx -t
+          nginx -T 2>/dev/null | grep -Fq "$DOMAIN"
+          systemctl reload nginx
+          echo SEXSHOP_HTTP_ROUTE=PASS
+          certbot certonly --non-interactive --agree-tos --register-unsafely-without-email             --webroot --webroot-path "$ROOT/acme" --cert-name "$DOMAIN"             --key-type ecdsa --elliptic-curve secp256r1             --deploy-hook "systemctl reload nginx" -d "$DOMAIN"
+          test -s "/etc/letsencrypt/live/$DOMAIN/fullchain.pem"
+          test -s "/etc/letsencrypt/live/$DOMAIN/privkey.pem"
+          echo SEXSHOP_ACME=PASS
+          cat > "$ROOT/infra/nginx-https.conf" <<'NGINX'
+          server {
+            listen 80;
+            server_name sexy-shop.duckdns.org;
+            location ^~ /.well-known/acme-challenge/ {
+              root /srv/projects/Sexshop/acme;
+              default_type text/plain;
+            }
+            location / { return 301 https://$host$request_uri; }
+          }
+          server {
+            listen 443 ssl;
+            server_name sexy-shop.duckdns.org;
+            ssl_certificate /etc/letsencrypt/live/sexy-shop.duckdns.org/fullchain.pem;
+            ssl_certificate_key /etc/letsencrypt/live/sexy-shop.duckdns.org/privkey.pem;
+            ssl_protocols TLSv1.2 TLSv1.3;
+            location / {
+              proxy_pass http://127.0.0.1:3418;
+              proxy_http_version 1.1;
+              proxy_set_header Host $host;
+              proxy_set_header X-Forwarded-Proto https;
+            }
+          }
+          NGINX
+          install -m 644 "$ROOT/infra/nginx-https.conf" /etc/nginx/conf.d/sexshop.conf
+          nginx -t
+          systemctl reload nginx
+          curl -fsS --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/" -o "$ROOT/.incoming/https.html"
+          grep -iq sevelora "$ROOT/.incoming/https.html"
+          systemctl is-active --quiet sexshop.service
+          systemctl is-active --quiet nginx
+          systemctl is-active --quiet lowcost-europa.service
+          echo LOWCOST_SERVICE_PRESERVED=PASS
+          echo SEXSHOP_VPS_HTTPS=PASS
+          trap - ERR
+          rm -rf "$ROOT/.incoming"
+          REMOTE
+          for path in / /catalogo /categoria/para-ela /guias /robots.txt; do
+            curl -fsS --connect-timeout 10 --max-time 25 --retry 2 "https://sexy-shop.duckdns.org$path" -o /dev/null
+            echo "SEXSHOP_PUBLIC_HTTP=PASS path=$path"
+          done
+          echo SEXSHOP_DEPLOY=PASS
