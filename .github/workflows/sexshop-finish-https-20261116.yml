@@ -1,0 +1,164 @@
+name: Sevelora Sexshop - resume TLS after certbot lock
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/sexshop-finish-https-20261116.yml
+permissions:
+  contents: read
+concurrency:
+  group: sexshop-first-deploy
+  cancel-in-progress: false
+jobs:
+  finish-https:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Verify pinned host, existing secret, and access
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          chmod 600 "$RUNNER_TEMP/kh"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          echo SEXSHOP_RESUME_SSH=PASS
+      - name: Restore only the Sevelora service and ACME challenge
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          ROOT=/srv/projects/Sexshop
+          SHA=ee600b7538799ef26c7cfe4270514f460b1a1d8c
+          test -d "$ROOT/releases/$SHA/app"
+          test -x "$ROOT/runtimes/node26/node"
+          test "$(readlink -f "$ROOT/current")" = "$ROOT/releases/$SHA/app"
+          test ! -e /etc/nginx/conf.d/sexshop.conf
+          test ! -e /etc/systemd/system/sexshop.service
+          test -s "$ROOT/infra/sexshop.service"
+          test -s "$ROOT/infra/nginx-http.conf"
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl is-active --quiet nginx
+          nginx -t
+          install -m 644 "$ROOT/infra/sexshop.service" /etc/systemd/system/sexshop.service
+          systemctl daemon-reload
+          systemctl enable --now sexshop.service
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3418/catalogo -o /dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:3418/ -o /dev/null
+          test ! -e "/etc/letsencrypt/live/sexy-shop.duckdns.org/fullchain.pem" || echo SEXSHOP_CERT_ALREADY_EXISTS=YES
+          install -m 644 "$ROOT/infra/nginx-http.conf" /etc/nginx/conf.d/sexshop.conf
+          nginx -t
+          systemctl reload nginx
+          echo 'SEVELORA_ACME_TEST_OK' > "$ROOT/acme/.well-known/acme-challenge/probe-20261116"
+          chmod 644 "$ROOT/acme/.well-known/acme-challenge/probe-20261116"
+          echo SEXSHOP_HTTP_READY=PASS
+          REMOTE
+          actual="$(curl --silent --show-error --fail --connect-timeout 15 --max-time 30 "http://sexy-shop.duckdns.org/.well-known/acme-challenge/probe-20261116")"
+          test "$actual" = "SEVELORA_ACME_TEST_OK"
+          echo SEXSHOP_EXTERNAL_ACME_ROUTE=PASS
+      - name: Respect concurrent certbot and enable trusted HTTPS
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          ROOT=/srv/projects/Sexshop
+          DOMAIN=sexy-shop.duckdns.org
+          onfail() {
+            echo SEXSHOP_TLS=FAILED_CLEANUP
+            systemctl stop sexshop.service 2>/dev/null || :
+            systemctl disable sexshop.service 2>/dev/null || :
+            rm -f /etc/systemd/system/sexshop.service /etc/nginx/conf.d/sexshop.conf
+            systemctl daemon-reload 2>/dev/null || :
+            nginx -t >/dev/null 2>&1 && systemctl reload nginx 2>/dev/null || :
+          }
+          trap onfail ERR
+          for i in $(seq 1 36); do
+            if pgrep -x certbot >/dev/null; then
+              sleep 5
+            else
+              break
+            fi
+          done
+          if pgrep -x certbot >/dev/null; then
+            echo SEXSHOP_CERTBOT_BUSY=YES
+            exit 7
+          fi
+          if test ! -s "/etc/letsencrypt/live/$DOMAIN/fullchain.pem"; then
+            mkdir -p "$ROOT/.certbot-diagnostics"
+            certok=no
+            for attempt in 1 2 3; do
+              if certbot certonly --non-interactive --agree-tos --register-unsafely-without-email \
+                  --webroot --webroot-path "$ROOT/acme" --cert-name "$DOMAIN" \
+                  --key-type ecdsa --elliptic-curve secp256r1 \
+                  --deploy-hook "systemctl reload nginx" -d "$DOMAIN" > "$ROOT/.certbot-diagnostics/output.log" 2>&1; then
+                certok=yes
+                break
+              fi
+              if grep -q 'Another instance of Certbot is already running' "$ROOT/.certbot-diagnostics/output.log"; then
+                echo SEXSHOP_CERTBOT_BUSY_RETRY=YES
+                sleep 10
+              else
+                echo SEXSHOP_ACME_ISSUANCE=FAILED
+                tail -n 9 "$ROOT/.certbot-diagnostics/output.log"
+                exit 8
+              fi
+            done
+            test "$certok" = yes
+          fi
+          test -s "/etc/letsencrypt/live/$DOMAIN/fullchain.pem"
+          test -s "/etc/letsencrypt/live/$DOMAIN/privkey.pem"
+          echo SEXSHOP_CERTIFICATE=PASS
+          cat > "$ROOT/infra/nginx-https.conf" <<'NGINX'
+          server {
+            listen 80;
+            server_name sexy-shop.duckdns.org;
+            location ^~ /.well-known/acme-challenge/ {
+              root /srv/projects/Sexshop/acme;
+              default_type text/plain;
+            }
+            location / { return 301 https://$host$request_uri; }
+          }
+          server {
+            listen 443 ssl;
+            server_name sexy-shop.duckdns.org;
+            ssl_certificate /etc/letsencrypt/live/sexy-shop.duckdns.org/fullchain.pem;
+            ssl_certificate_key /etc/letsencrypt/live/sexy-shop.duckdns.org/privkey.pem;
+            ssl_protocols TLSv1.2 TLSv1.3;
+            location / {
+              proxy_pass http://127.0.0.1:3418;
+              proxy_http_version 1.1;
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto https;
+            }
+          }
+          NGINX
+          install -m 644 "$ROOT/infra/nginx-https.conf" /etc/nginx/conf.d/sexshop.conf
+          nginx -t
+          systemctl reload nginx
+          curl -fsS --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/" -o "$ROOT/.certbot-diagnostics/https.html"
+          grep -iq sevelora "$ROOT/.certbot-diagnostics/https.html"
+          grep -iq noindex "$ROOT/.certbot-diagnostics/https.html"
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl is-active --quiet nginx
+          systemctl is-active --quiet sexshop.service
+          echo LOWCOST_SERVICE_PRESERVED=PASS
+          echo SEXSHOP_HTTPS_LOCAL=PASS
+          trap - ERR
+          REMOTE
+          for p in / /catalogo /categoria/para-ela /guias /robots.txt; do
+            curl -fsS --connect-timeout 15 --max-time 30 --retry 2 "https://sexy-shop.duckdns.org$p" -o /dev/null
+            echo "SEXSHOP_HTTPS_PUBLIC=PASS path=$p"
+          done
+          echo SEXSHOP_DEPLOY=PASS
