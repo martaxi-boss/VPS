@@ -1,0 +1,112 @@
+name: Site-comparador - restore HTTPS after Nginx TLS handover
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/comparador-finish-https-20261116.yml
+permissions:
+  contents: read
+concurrency:
+  group: site-comparador-staging-deploy
+  cancel-in-progress: false
+jobs:
+  restore:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Validate pinned SSH and configure isolated runner
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/known_hosts"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/known_hosts" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          chmod 600 "$RUNNER_TEMP/known_hosts"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          echo COMPARADOR_RECOVERY_HOST=PASS
+      - name: Restore only owned service and HTTPS config with certificate retry
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no             -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/known_hosts"             -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519             ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          ROOT=/srv/projects/Site-comparador
+          SHA=17cb6cff3ef4defcca3327adf03761d6448262df
+          DOMAIN=comparador-teste.duckdns.org
+          rollback() {
+            echo COMPARADOR_RECOVERY=ROLLBACK
+            systemctl stop site-comparador.service 2>/dev/null || :
+            systemctl disable site-comparador.service 2>/dev/null || :
+            rm -f /etc/systemd/system/site-comparador.service /etc/nginx/conf.d/site-comparador.conf
+            systemctl daemon-reload 2>/dev/null || :
+            nginx -t >/dev/null 2>&1 && systemctl reload nginx 2>/dev/null || :
+          }
+          trap rollback ERR
+          test -d "$ROOT/releases/$SHA/site"
+          test -f "$ROOT/releases/$SHA/site/server.mjs"
+          test -x "$ROOT/runtimes/node22/node"
+          test "$(readlink -f "$ROOT/current")" = "$ROOT/releases/$SHA/site"
+          test ! -e /etc/systemd/system/site-comparador.service
+          test ! -e /etc/nginx/conf.d/site-comparador.conf
+          test -s "$ROOT/infra/site-comparador.service"
+          test -s "$ROOT/infra/nginx-https.conf"
+          test -s "/etc/letsencrypt/live/$DOMAIN/fullchain.pem"
+          test -s "/etc/letsencrypt/live/$DOMAIN/privkey.pem"
+          openssl x509 -in "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" -noout -ext subjectAltName | grep -F "$DOMAIN"
+          test "$(getent ahostsv4 "$DOMAIN" | awk 'NR==1{print $1}')" = '146.59.145.3'
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl is-active --quiet sexshop.service
+          systemctl is-active --quiet nginx
+          nginx -t
+          install -m 644 "$ROOT/infra/site-comparador.service" /etc/systemd/system/site-comparador.service
+          systemctl daemon-reload
+          systemctl enable --now site-comparador.service
+          ok=no
+          for i in $(seq 1 30); do
+            if curl --noproxy '*' -fsS http://127.0.0.1:3422/health -o /dev/null; then ok=yes; break; fi
+            sleep 1
+          done
+          test "$ok" = yes
+          echo COMPARADOR_RESTORED_SERVICE=PASS
+          install -m 644 "$ROOT/infra/nginx-https.conf" /etc/nginx/conf.d/site-comparador.conf
+          nginx -t
+          systemctl reload nginx
+          echo COMPARADOR_NGINX_RELOAD=REQUESTED
+          ok=no
+          for i in $(seq 1 40); do
+            if curl --noproxy '*' -sSf --connect-timeout 3 --max-time 8                 --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/"                 -o "$ROOT/https-verify.tmp" 2>/dev/null; then
+              ok=yes
+              break
+            fi
+            sleep 1
+          done
+          if test "$ok" != yes; then
+            echo COMPARADOR_SERVED_CERT_BEGIN
+            (echo | openssl s_client -connect 127.0.0.1:443 -servername "$DOMAIN" 2>/dev/null |
+              openssl x509 -noout -subject -issuer -ext subjectAltName) || :
+            echo COMPARADOR_SERVED_CERT_END
+            exit 4
+          fi
+          grep -qi noindex "$ROOT/https-verify.tmp"
+          rm -f "$ROOT/https-verify.tmp"
+          curl --noproxy '*' -fsS --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/robots.txt" | grep -Fq 'Disallow: /'
+          curl --noproxy '*' -fsS --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/api/catalog?source=amazon" | grep -Fq '"mode":"demo"'
+          curl --noproxy '*' -fsS --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/api/catalog?source=awin" | grep -Fq '"mode":"demo"'
+          systemctl is-active --quiet site-comparador.service
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl is-active --quiet sexshop.service
+          systemctl is-active --quiet nginx
+          echo COMPARADOR_SITE_HTTPS_LOCAL=PASS
+          echo COMPARADOR_OTHER_SITES_UNCHANGED=PASS
+          trap - ERR
+          REMOTE
+          for p in / /health /robots.txt '/api/catalog?source=amazon' '/api/catalog?source=awin'; do
+            curl --noproxy '*' -fsS --connect-timeout 10 --max-time 25 --retry 3               "https://comparador-teste.duckdns.org$p" -o /dev/null
+            echo "COMPARADOR_PUBLIC_HTTPS=PASS path=$p"
+          done
+          echo COMPARADOR_DEPLOY=PASS
