@@ -54,7 +54,7 @@ jobs:
           echo COMPARADOR_V02_HOST_PIN=PASS
       - name: Remote preflight and upload only to Site-comparador
         env:
-          SSHPASS: \${{ secrets.VPS_SSH_PASSWORD }}
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         run: |
           set -euo pipefail
           test -n "$SSHPASS"
@@ -92,7 +92,7 @@ jobs:
           echo COMPARADOR_V02_UPLOAD=PASS
       - name: Atomically switch only comparador application with rollback guard
         env:
-          SSHPASS: \${{ secrets.VPS_SSH_PASSWORD }}
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         run: |
           set -euo pipefail
           sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
