@@ -1,0 +1,164 @@
+name: Site-comparador - upgrade verified professional v0.2
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/comparador-upgrade-v02-20261116.yml
+permissions:
+  contents: read
+concurrency:
+  group: site-comparador-staging-deploy
+  cancel-in-progress: false
+jobs:
+  upgrade:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: martaxi-boss/Site-comparador
+          ref: b4b3904af07508c6f6eaed8ecc7c8cfece6ebb22
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate reviewed source and simulated commercial safeguards
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 'b4b3904af07508c6f6eaed8ecc7c8cfece6ebb22'
+          node --check server.mjs
+          node --check public/pro.js
+          npm test
+          test ! -f data/active-amazon.json
+          test ! -f data/active-awin.json
+          grep -q noindex public/index.html
+          test -f THIRD_PARTY_NOTICES.md
+          echo COMPARADOR_V02_SOURCE=PASS
+      - name: Package reviewed build without global VPS dependencies
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/payload/site" "$RUNNER_TEMP/delivery"
+          tar --exclude=.git --exclude=.github --exclude=node_modules --exclude=.env \
+            --exclude='data/active-*.json' --exclude='data/draft-*.json' \
+            --exclude='data/approval-*.csv' -cf - . | tar -xf - -C "$RUNNER_TEMP/payload/site"
+          test -f "$RUNNER_TEMP/payload/site/src/search-index.mjs"
+          tar -czf "$RUNNER_TEMP/delivery/release.tgz" -C "$RUNNER_TEMP/payload" .
+          (cd "$RUNNER_TEMP/delivery" && sha256sum release.tgz > release.sha256)
+          echo "COMPARADOR_BUNDLE_BYTES=$(wc -c < "$RUNNER_TEMP/delivery/release.tgz")"
+      - name: Pin SSH host fingerprint
+        run: |
+          set -euo pipefail
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/known_hosts"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/known_hosts" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          chmod 600 "$RUNNER_TEMP/known_hosts"
+          echo COMPARADOR_V02_HOST_PIN=PASS
+      - name: Remote preflight and upload only to Site-comparador
+        env:
+          SSHPASS: \${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/known_hosts" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -euo pipefail
+          ROOT=/srv/projects/Site-comparador
+          OLD=17cb6cff3ef4defcca3327adf03761d6448262df
+          SHA=b4b3904af07508c6f6eaed8ecc7c8cfece6ebb22
+          test -d "$ROOT" && test ! -L "$ROOT"
+          test "$(readlink -f "$ROOT/current")" = "$ROOT/releases/$OLD/site"
+          test -f "$ROOT/releases/$OLD/site/server.mjs"
+          test ! -e "$ROOT/releases/$SHA"
+          test -x "$ROOT/runtimes/node22/node"
+          systemctl is-active --quiet site-comparador.service
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl is-active --quiet sexshop.service
+          systemctl is-active --quiet nginx
+          nginx -t
+          test "$(getent ahostsv4 comparador-teste.duckdns.org | awk 'NR==1{print $1}')" = 146.59.145.3
+          test -s /etc/letsencrypt/live/comparador-teste.duckdns.org/fullchain.pem
+          curl --noproxy '*' -fsS http://127.0.0.1:3422/health | grep -Fq '"version":"0.1.0"'
+          install -d -m 755 -o ubuntu -g ubuntu "$ROOT/.incoming/upgrade-$SHA"
+          echo COMPARADOR_V02_REMOTE_PREFLIGHT=PASS
+          REMOTE
+          sshpass -e scp -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/known_hosts" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            "$RUNNER_TEMP/delivery/release.tgz" "$RUNNER_TEMP/delivery/release.sha256" \
+            ubuntu@146.59.145.3:/srv/projects/Site-comparador/.incoming/upgrade-b4b3904af07508c6f6eaed8ecc7c8cfece6ebb22/
+          echo COMPARADOR_V02_UPLOAD=PASS
+      - name: Atomically switch only comparador application with rollback guard
+        env:
+          SSHPASS: \${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/known_hosts" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          ROOT=/srv/projects/Site-comparador
+          OLD=17cb6cff3ef4defcca3327adf03761d6448262df
+          SHA=b4b3904af07508c6f6eaed8ecc7c8cfece6ebb22
+          DOMAIN=comparador-teste.duckdns.org
+          switched=no
+          rollback(){
+            if [ "$switched" = yes ]; then
+              ln -s "releases/$OLD/site" "$ROOT/.rollback-old"
+              mv -Tf "$ROOT/.rollback-old" "$ROOT/current"
+              systemctl restart site-comparador.service
+              echo COMPARADOR_V02_ROLLBACK=RESTORED_OLD_RELEASE
+            fi
+          }
+          trap rollback ERR
+          (cd "$ROOT/.incoming/upgrade-$SHA" && sha256sum -c release.sha256)
+          install -d -m 755 "$ROOT/releases/$SHA/site"
+          tar --no-same-owner -xzf "$ROOT/.incoming/upgrade-$SHA/release.tgz" -C "$ROOT/releases/$SHA"
+          test -f "$ROOT/releases/$SHA/site/server.mjs"
+          test -f "$ROOT/releases/$SHA/site/public/pro.css"
+          test -f "$ROOT/releases/$SHA/site/public/pro.js"
+          test ! -e "$ROOT/releases/$SHA/site/data/active-amazon.json"
+          test ! -e "$ROOT/releases/$SHA/site/data/active-awin.json"
+          chown -R ubuntu:ubuntu "$ROOT/releases/$SHA"
+          ln -s "releases/$SHA/site" "$ROOT/.next-link"
+          mv -Tf "$ROOT/.next-link" "$ROOT/current"
+          switched=yes
+          systemctl restart site-comparador.service
+          ok=no
+          for i in $(seq 1 35); do
+            if curl --noproxy '*' -fsS http://127.0.0.1:3422/health | grep -Fq '"version":"0.2.0"'; then ok=yes; break; fi
+            sleep 1
+          done
+          test "$ok" = yes
+          echo COMPARADOR_V02_HEALTH=PASS
+          curl --noproxy '*' -fsS 'http://127.0.0.1:3422/api/categories?source=amazon' | grep -Fq '"total":55'
+          curl --noproxy '*' -fsS 'http://127.0.0.1:3422/api/search?source=amazon&q=fritadeira' | grep -Fq '"total":5'
+          curl --noproxy '*' -fsS "http://127.0.0.1:3422/" -o "$ROOT/releases/$SHA/check.html"
+          grep -qi noindex "$ROOT/releases/$SHA/check.html"
+          grep -Fq 'pro.js' "$ROOT/releases/$SHA/check.html"
+          rm -f "$ROOT/releases/$SHA/check.html"
+          curl --noproxy '*' -fsS --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/health" | grep -Fq '"version":"0.2.0"'
+          systemctl is-active --quiet site-comparador.service
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl is-active --quiet sexshop.service
+          systemctl is-active --quiet nginx
+          nginx -t
+          echo COMPARADOR_V02_HTTPS_LOCAL=PASS
+          echo COMPARADOR_V02_OTHER_PROJECTS=UNCHANGED
+          trap - ERR
+          rm -rf "$ROOT/.incoming/upgrade-$SHA"
+          echo COMPARADOR_V02_DEPLOY=PASS
+          REMOTE
+      - name: External trusted HTTPS and API checks
+        run: |
+          set -euo pipefail
+          DOMAIN=comparador-teste.duckdns.org
+          for path in / /health /robots.txt '/api/categories?source=amazon' '/api/search?source=amazon&q=fritadeira' '/api/search?source=awin&page=1&limit=12'; do
+            curl --noproxy '*' -fsS --connect-timeout 12 --max-time 30 --retry 3 "https://$DOMAIN$path" -o /dev/null
+            echo "COMPARADOR_V02_PUBLIC=PASS path=$path"
+          done
+          test "$(curl --noproxy '*' -fsS "https://$DOMAIN/health" | grep -o '"version":"0.2.0"')" = '"version":"0.2.0"'
+          echo COMPARADOR_V02_PUBLIC_COMPLETE=PASS
