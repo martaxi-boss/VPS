@@ -144,10 +144,28 @@ jobs:
             }
           }
           NGINX
+          openssl x509 -in "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" -noout -ext subjectAltName | grep -F "$DOMAIN"
           install -m 644 "$ROOT/infra/nginx-https.conf" /etc/nginx/conf.d/sexshop.conf
           nginx -t
+          test "$(nginx -T 2>/dev/null | grep -Fc 'server_name sexy-shop.duckdns.org;')" -eq 2
           systemctl reload nginx
-          curl -fsS --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/" -o "$ROOT/.certbot-diagnostics/https.html"
+          echo SEXSHOP_NGINX_TLS_RELOAD=REQUESTED
+          verified=no
+          for i in $(seq 1 25); do
+            if curl --silent --show-error --fail --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/" -o "$ROOT/.certbot-diagnostics/https.html" 2>/dev/null; then
+              verified=yes
+              break
+            fi
+            sleep 1
+          done
+          if test "$verified" != yes; then
+            echo SEXSHOP_TLS_SERVED_CERT_BEGIN
+            echo | openssl s_client -connect 127.0.0.1:443 -servername "$DOMAIN" 2>/dev/null | openssl x509 -noout -subject -ext subjectAltName || :
+            echo SEXSHOP_TLS_SERVED_CERT_END
+            onfail
+            trap - ERR
+            exit 9
+          fi
           grep -iq sevelora "$ROOT/.certbot-diagnostics/https.html"
           grep -iq noindex "$ROOT/.certbot-diagnostics/https.html"
           systemctl is-active --quiet lowcost-europa.service
