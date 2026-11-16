@@ -1,0 +1,247 @@
+name: Site-comparador - isolated staging HTTPS release
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/comparador-first-deploy-20261116.yml
+permissions:
+  contents: read
+concurrency:
+  group: site-comparador-staging-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: martaxi-boss/Site-comparador
+          ref: 17cb6cff3ef4defcca3327adf03761d6448262df
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify immutable source and demo safeguards
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = '17cb6cff3ef4defcca3327adf03761d6448262df'
+          node --check server.mjs
+          node --check public/app.js
+          npm test
+          test -f data/demo-amazon.json
+          test -f data/demo-awin.json
+          test ! -e data/active-amazon.json
+          test ! -e data/active-awin.json
+          grep -qi 'noindex' public/index.html
+          echo COMPARADOR_SOURCE_VERIFIED=PASS
+      - name: Package isolated server and Node runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/payload/site" "$RUNNER_TEMP/export"
+          tar --exclude=.git --exclude=.github --exclude=node_modules --exclude=.env --exclude='.env.*'             --exclude='data/active-*.json' --exclude='data/draft-*.json' -cf - .             | tar -xf - -C "$RUNNER_TEMP/payload/site"
+          cp "$(command -v node)" "$RUNNER_TEMP/payload/node"
+          test -f "$RUNNER_TEMP/payload/site/server.mjs"
+          tar -czf "$RUNNER_TEMP/export/release.tgz" -C "$RUNNER_TEMP/payload" .
+          (cd "$RUNNER_TEMP/export" && sha256sum release.tgz > release.sha256)
+          echo "COMPARADOR_ARCHIVE_BYTES=$(wc -c < "$RUNNER_TEMP/export/release.tgz")"
+      - name: Validate pinned VPS SSH host identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/known_hosts"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/known_hosts" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          chmod 600 "$RUNNER_TEMP/known_hosts"
+          echo COMPARADOR_SSH_HOST_PIN=PASS
+      - name: Remote no-collision gate and upload to project folder only
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no             -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/known_hosts"             -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519             ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -euo pipefail
+          ROOT=/srv/projects/Site-comparador
+          test ! -e "$ROOT" && test ! -L "$ROOT"
+          test ! -e /etc/nginx/conf.d/site-comparador.conf
+          test ! -e /etc/systemd/system/site-comparador.service
+          ! nginx -T 2>/dev/null | grep -Fq 'server_name comparador-teste.duckdns.org'
+          test "$(getent ahostsv4 comparador-teste.duckdns.org | awk 'NR==1{print $1}')" = 146.59.145.3
+          systemctl is-active --quiet nginx
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl is-active --quiet sexshop.service
+          nginx -t
+          command -v certbot >/dev/null
+          test -z "$(ss -lnt '( sport = :3422 )' | grep ':3422' || true)"
+          install -d -m 755 -o ubuntu -g ubuntu "$ROOT/.incoming"
+          echo COMPARADOR_REMOTE_ISOLATION=PASS
+          REMOTE
+          sshpass -e scp -o PreferredAuthentications=password -o PubkeyAuthentication=no             -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/known_hosts"             -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519             "$RUNNER_TEMP/export/release.tgz" "$RUNNER_TEMP/export/release.sha256"             ubuntu@146.59.145.3:/srv/projects/Site-comparador/.incoming/
+          echo COMPARADOR_UPLOAD=PASS
+      - name: Activate isolated Node service and HTTP ACME route
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no             -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/known_hosts"             -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519             ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          ROOT=/srv/projects/Site-comparador
+          SHA=17cb6cff3ef4defcca3327adf03761d6448262df
+          rollback() {
+            echo COMPARADOR_STAGING_ROLLBACK=START
+            systemctl stop site-comparador.service 2>/dev/null || :
+            systemctl disable site-comparador.service 2>/dev/null || :
+            rm -f /etc/systemd/system/site-comparador.service /etc/nginx/conf.d/site-comparador.conf
+            systemctl daemon-reload 2>/dev/null || :
+            nginx -t >/dev/null 2>&1 && systemctl reload nginx 2>/dev/null || :
+          }
+          trap rollback ERR
+          (cd "$ROOT/.incoming" && sha256sum -c release.sha256)
+          install -d -m 755 "$ROOT/releases/$SHA" "$ROOT/runtimes/node22" "$ROOT/infra" "$ROOT/acme/.well-known/acme-challenge"
+          tar --no-same-owner -xzf "$ROOT/.incoming/release.tgz" -C "$ROOT/releases/$SHA"
+          test -f "$ROOT/releases/$SHA/site/server.mjs"
+          install -m 755 "$ROOT/releases/$SHA/node" "$ROOT/runtimes/node22/node"
+          rm "$ROOT/releases/$SHA/node"
+          chown -R ubuntu:ubuntu "$ROOT/releases" "$ROOT/runtimes"
+          "$ROOT/runtimes/node22/node" --version
+          ln -s "releases/$SHA/site" "$ROOT/current"
+          cat > "$ROOT/infra/site-comparador.service" <<'UNIT'
+          [Unit]
+          Description=Independent Portuguese affiliate comparison staging
+          After=network-online.target
+          Wants=network-online.target
+          [Service]
+          Type=simple
+          User=ubuntu
+          Group=ubuntu
+          WorkingDirectory=/srv/projects/Site-comparador/current
+          ExecStart=/srv/projects/Site-comparador/runtimes/node22/node /srv/projects/Site-comparador/current/server.mjs
+          Environment=NODE_ENV=production
+          Environment=PORT=3422
+          Restart=on-failure
+          RestartSec=3
+          NoNewPrivileges=true
+          PrivateTmp=true
+          ProtectSystem=full
+          ProtectHome=true
+          UMask=0027
+          [Install]
+          WantedBy=multi-user.target
+          UNIT
+          install -m 644 "$ROOT/infra/site-comparador.service" /etc/systemd/system/site-comparador.service
+          systemctl daemon-reload
+          systemctl enable --now site-comparador.service
+          ok=no
+          for i in $(seq 1 35); do
+            if curl -fsS http://127.0.0.1:3422/health -o /dev/null; then ok=yes; break; fi
+            sleep 1
+          done
+          test "$ok" = yes
+          curl -fsS http://127.0.0.1:3422/ -o "$ROOT/.incoming/site-check.html"
+          grep -qi noindex "$ROOT/.incoming/site-check.html"
+          curl -fsS 'http://127.0.0.1:3422/api/catalog?source=amazon' | grep -q '"mode":"demo"'
+          curl -fsS 'http://127.0.0.1:3422/api/catalog?source=awin' | grep -q '"mode":"demo"'
+          echo COMPARADOR_SERVICE_HTTP=PASS
+          cat > "$ROOT/infra/nginx-http.conf" <<'NGINX'
+          server {
+            listen 80;
+            server_name comparador-teste.duckdns.org;
+            location ^~ /.well-known/acme-challenge/ {
+              root /srv/projects/Site-comparador/acme;
+              default_type text/plain;
+            }
+            location / {
+              proxy_pass http://127.0.0.1:3422;
+              proxy_set_header Host $host;
+              proxy_set_header X-Forwarded-Proto $scheme;
+            }
+          }
+          NGINX
+          install -m 644 "$ROOT/infra/nginx-http.conf" /etc/nginx/conf.d/site-comparador.conf
+          nginx -t
+          systemctl reload nginx
+          echo 'COMPARADOR_HTTP_CHALLENGE_OK' > "$ROOT/acme/.well-known/acme-challenge/probe-20261116"
+          chmod 644 "$ROOT/acme/.well-known/acme-challenge/probe-20261116"
+          echo COMPARADOR_PUBLIC_HTTP=READY
+          trap - ERR
+          REMOTE
+          test "$(curl --silent --show-error --fail --connect-timeout 10 --max-time 30 'http://comparador-teste.duckdns.org/.well-known/acme-challenge/probe-20261116')" = 'COMPARADOR_HTTP_CHALLENGE_OK'
+          echo COMPARADOR_EXTERNAL_ACME=PASS
+      - name: Issue certificate and activate trusted HTTPS
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no             -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/known_hosts"             -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519             ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          ROOT=/srv/projects/Site-comparador
+          DOMAIN=comparador-teste.duckdns.org
+          rollback() {
+            echo COMPARADOR_TLS_ROLLBACK=START
+            systemctl stop site-comparador.service 2>/dev/null || :
+            systemctl disable site-comparador.service 2>/dev/null || :
+            rm -f /etc/systemd/system/site-comparador.service /etc/nginx/conf.d/site-comparador.conf
+            systemctl daemon-reload 2>/dev/null || :
+            nginx -t >/dev/null 2>&1 && systemctl reload nginx 2>/dev/null || :
+          }
+          trap rollback ERR
+          for i in $(seq 1 24); do
+            pgrep -x certbot >/dev/null || break
+            sleep 5
+          done
+          ! pgrep -x certbot >/dev/null
+          if test ! -s "/etc/letsencrypt/live/$DOMAIN/fullchain.pem"; then
+            certbot certonly --non-interactive --agree-tos --register-unsafely-without-email               --webroot --webroot-path "$ROOT/acme" --cert-name "$DOMAIN"               --key-type ecdsa --elliptic-curve secp256r1               --deploy-hook "systemctl reload nginx" -d "$DOMAIN"
+          fi
+          test -s "/etc/letsencrypt/live/$DOMAIN/fullchain.pem"
+          test -s "/etc/letsencrypt/live/$DOMAIN/privkey.pem"
+          cat > "$ROOT/infra/nginx-https.conf" <<'NGINX'
+          server {
+            listen 80;
+            server_name comparador-teste.duckdns.org;
+            location ^~ /.well-known/acme-challenge/ {
+              root /srv/projects/Site-comparador/acme;
+              default_type text/plain;
+            }
+            location / { return 301 https://$host$request_uri; }
+          }
+          server {
+            listen 443 ssl;
+            server_name comparador-teste.duckdns.org;
+            ssl_certificate /etc/letsencrypt/live/comparador-teste.duckdns.org/fullchain.pem;
+            ssl_certificate_key /etc/letsencrypt/live/comparador-teste.duckdns.org/privkey.pem;
+            ssl_protocols TLSv1.2 TLSv1.3;
+            location / {
+              proxy_pass http://127.0.0.1:3422;
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto https;
+            }
+          }
+          NGINX
+          install -m 644 "$ROOT/infra/nginx-https.conf" /etc/nginx/conf.d/site-comparador.conf
+          nginx -t
+          systemctl reload nginx
+          curl -fsS --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/" -o "$ROOT/.incoming/https-check.html"
+          grep -qi noindex "$ROOT/.incoming/https-check.html"
+          systemctl is-active --quiet site-comparador.service
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl is-active --quiet sexshop.service
+          systemctl is-active --quiet nginx
+          echo COMPARADOR_VPS_HTTPS=PASS
+          trap - ERR
+          rm -rf "$ROOT/.incoming"
+          REMOTE
+          for p in / /health /robots.txt '/api/catalog?source=amazon' '/api/catalog?source=awin'; do
+            curl -fsS --connect-timeout 15 --max-time 30 --retry 2 "https://comparador-teste.duckdns.org$p" -o /dev/null
+            echo "COMPARADOR_PUBLIC_HTTPS=PASS path=$p"
+          done
+          echo COMPARADOR_STAGING_DEPLOY=PASS
