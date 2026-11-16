@@ -1,0 +1,72 @@
+name: Site-comparador - VPS safe preflight
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/comparador-preflight-20261116.yml
+permissions:
+  contents: read
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Verify pinned VPS host
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/known_hosts"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/known_hosts" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          chmod 600 "$RUNNER_TEMP/known_hosts"
+          echo COMPARADOR_HOST_PIN=PASS
+      - name: Read-only VPS inspection for isolated project
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS" || { echo COMPARADOR_SSH_SECRET_MISSING; exit 2; }
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no             -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/known_hosts"             -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519             -o ConnectTimeout=20 -o ServerAliveInterval=20             ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -euo pipefail
+          ROOT=/srv/projects/Site-comparador
+          DOMAIN=comparador-teste.duckdns.org
+          echo COMPARADOR_PREFLIGHT_BEGIN=YES
+          test -d /srv/projects
+          if test -e "$ROOT"; then
+            test ! -L "$ROOT" && echo COMPARADOR_ROOT=EXISTS_NOT_SYMLINK
+          else
+            test ! -L "$ROOT"
+            echo COMPARADOR_ROOT=ABSENT
+          fi
+          command -v nginx >/dev/null
+          nginx -t
+          systemctl is-active --quiet nginx
+          echo COMPARADOR_NGINX=PASS
+          command -v certbot >/dev/null
+          echo COMPARADOR_CERTBOT=AVAILABLE
+          if test -e /etc/nginx/conf.d/site-comparador.conf; then
+            echo COMPARADOR_NGINX_CONFIG=EXISTS
+          else
+            echo COMPARADOR_NGINX_CONFIG=ABSENT
+          fi
+          if test -e /etc/systemd/system/site-comparador.service; then
+            echo COMPARADOR_UNIT=EXISTS
+          else
+            echo COMPARADOR_UNIT=ABSENT
+          fi
+          if ss -lnt '( sport = :3422 )' | grep -Fq ':3422'; then
+            echo COMPARADOR_PORT3422=BUSY
+          else
+            echo COMPARADOR_PORT3422=FREE
+          fi
+          actual="$(getent ahostsv4 "$DOMAIN" | awk 'NR==1{print $1}')"
+          echo "COMPARADOR_DNS_IPV4=${actual:-MISSING}"
+          test "$actual" = '146.59.145.3'
+          echo COMPARADOR_DNS=PASS
+          systemctl is-active --quiet lowcost-europa.service && echo COMPARADOR_LOWCOST=ACTIVE || echo COMPARADOR_LOWCOST=INACTIVE
+          systemctl is-active --quiet sexshop.service && echo COMPARADOR_SEXSHOP=ACTIVE || echo COMPARADOR_SEXSHOP=INACTIVE
+          echo "COMPARADOR_FREE_MB=$(df -Pm /srv/projects | awk 'NR==2{print $4}')"
+          echo COMPARADOR_PREFLIGHT_END=PASS
+          REMOTE
