@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "lowcost-labels-20261118-team-format",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "lowcost-labels-20261118",
+  "revision": 0,
+  "turn": {
+    "task": "manifest",
+    "role": "copy",
+    "kind": "invoke",
+    "message": "Validate and format the four exact reviewed labels. Source code tests now also fix import spacing and JSON-LD matcher; translation content unchanged.",
+    "action": "jq-format-json",
+    "input_from": "$input"
+  }
+}
