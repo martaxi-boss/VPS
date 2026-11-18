@@ -9,7 +9,42 @@ concurrency:
   group: sexshop-catalog-deploy
   cancel-in-progress: false
 jobs:
+  feed-price-diagnostic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Inspect approved Diversual feed currencies without exposing credentials
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 ubuntu@146.59.145.3 'sudo -n -u ubuntu /srv/projects/Sexshop/runtimes/node26/node --input-type=module -' <<'JS'
+          import {readFile} from 'node:fs/promises';
+          import {gunzipSync} from 'node:zlib';
+          import {parseCsv} from '/srv/projects/Sexshop/infra/sync-diversual.mjs';
+          const secret=(await readFile('/srv/projects/Sexshop/.private/diversual-feed-url','utf8')).trim();
+          const url=new URL(secret);
+          if(url.protocol!=='https:'||url.hostname!=='productdata.awin.com'||!url.pathname.includes('/fid/78949/'))throw Error('invalid_feed_url');
+          const response=await fetch(url,{redirect:'error',signal:AbortSignal.timeout(90000)});
+          if(!response.ok)throw Error('feed_http_'+response.status);
+          const buffer=Buffer.from(await response.arrayBuffer());
+          if(buffer.byteLength>20000000)throw Error('feed_too_large');
+          const txt=(buffer[0]===31&&buffer[1]===139?gunzipSync(buffer,{maxOutputLength:50000000}):buffer).toString('utf8');
+          const rows=parseCsv(txt);
+          if(!rows.length||rows.length>20000||rows.some(x=>x.merchant_id!=='37722'||x.data_feed_id!=='78949'))throw Error('feed_scope_invalid');
+          const fields=['search_price','store_price','display_price','currency','rrp_price','product_price_old','merchant_deep_link','merchant_product_id'];
+          const freq={}; for(const r of rows){const k=(r.currency||'(empty)').trim();freq[k]=(freq[k]||0)+1;}
+          const chosen=[...rows.filter(x=>x.aw_product_id==='43428124436'),...rows.slice(0,3)];
+          const examples=[...new Map(chosen.map(r=>[r.aw_product_id,r])).values()].slice(0,4).map(r=>({id:r.aw_product_id,name:String(r.product_name||'').slice(0,70),search_price:r.search_price,currency:r.currency,store_price:r.store_price,display_price:r.display_price,rrp_price:r.rrp_price,old_price:r.product_price_old,merchant_url_present:!!r.merchant_deep_link,merchant_url_host:r.merchant_deep_link?new URL(r.merchant_deep_link).hostname:null}));
+          console.log('PRICE_FEED_DIAGNOSTIC='+JSON.stringify({count:rows.length,fieldsPresent:fields.filter(f=>f in rows[0]),currencyCounts:freq,displayEuroCount:rows.filter(r=>/€|EUR/.test(String(r.display_price||''))).length,displayPoundCount:rows.filter(r=>/£|GBP/.test(String(r.display_price||''))).length,examples}));
+          JS
   deploy:
+    if: ${{ false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
