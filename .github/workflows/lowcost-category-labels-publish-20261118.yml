@@ -169,4 +169,4 @@ jobs:
           echo "LABELS_GITHUB_VPS_ALIGNMENT=PASS"
           echo "LABELS_TIMERS_UNCHANGED=PASS"
           DEPLOYED=0
-                    REMOTE
+          REMOTE
