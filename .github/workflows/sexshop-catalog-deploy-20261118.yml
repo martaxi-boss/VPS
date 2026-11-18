@@ -9,55 +9,7 @@ concurrency:
   group: sexshop-catalog-deploy
   cancel-in-progress: false
 jobs:
-  feed-price-diagnostic:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 12
-    steps:
-      - name: Inspect approved Diversual feed currencies without exposing credentials
-        env:
-          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
-        run: |
-          set -euo pipefail
-          test -n "$SSHPASS"
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq sshpass >/dev/null
-          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
-          test "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
-          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 ubuntu@146.59.145.3 'sudo -n -u ubuntu /srv/projects/Sexshop/runtimes/node26/node --input-type=module -' <<'JS'
-          import {readFile} from 'node:fs/promises';
-          import {gunzipSync} from 'node:zlib';
-          import {parseCsv} from '/srv/projects/Sexshop/infra/sync-diversual.mjs';
-          const secret=(await readFile('/srv/projects/Sexshop/.private/diversual-feed-url','utf8')).trim();
-          const url=new URL(secret);
-          if(url.protocol!=='https:'||url.hostname!=='productdata.awin.com'||!url.pathname.includes('/fid/78949/'))throw Error('invalid_feed_url');
-          const response=await fetch(url,{redirect:'error',signal:AbortSignal.timeout(90000)});
-          if(!response.ok)throw Error('feed_http_'+response.status);
-          const buffer=Buffer.from(await response.arrayBuffer());
-          if(buffer.byteLength>20000000)throw Error('feed_too_large');
-          const txt=(buffer[0]===31&&buffer[1]===139?gunzipSync(buffer,{maxOutputLength:50000000}):buffer).toString('utf8');
-          const rows=parseCsv(txt);
-          if(!rows.length||rows.length>20000||rows.some(x=>x.merchant_id!=='37722'||x.data_feed_id!=='78949'))throw Error('feed_scope_invalid');
-          const fields=['search_price','store_price','display_price','currency','rrp_price','product_price_old','merchant_deep_link','merchant_product_id'];
-          const freq={}; for(const r of rows){const k=(r.currency||'(empty)').trim();freq[k]=(freq[k]||0)+1;}
-          const chosen=[...rows.filter(x=>x.aw_product_id==='43428124436'),...rows.slice(0,3)];
-          const examples=[...new Map(chosen.map(r=>[r.aw_product_id,r])).values()].slice(0,4).map(r=>({id:r.aw_product_id,name:String(r.product_name||'').slice(0,70),search_price:r.search_price,currency:r.currency,store_price:r.store_price,display_price:r.display_price,rrp_price:r.rrp_price,old_price:r.product_price_old,merchant_url_present:!!r.merchant_deep_link,merchant_url_host:r.merchant_deep_link?new URL(r.merchant_deep_link).hostname:null}));
-          console.log('PRICE_FEED_DIAGNOSTIC='+JSON.stringify({count:rows.length,fieldsPresent:fields.filter(f=>f in rows[0]),currencyCounts:freq,displayEuroCount:rows.filter(r=>/€|EUR/.test(String(r.display_price||''))).length,displayPoundCount:rows.filter(r=>/£|GBP/.test(String(r.display_price||''))).length,examples}));
-          const samples=[...rows.filter(x=>x.aw_product_id==='43428124436'),...rows.slice(0,10)];
-          for(const r of [...new Map(samples.map(x=>[x.aw_product_id,x])).values()].slice(0,11)){
-            const target=new URL(r.merchant_deep_link);
-            if(target.protocol!=='https:'||target.hostname!=='www.diversual.com'){console.log('MERCHANT_PRICE_CHECK='+JSON.stringify({id:r.aw_product_id,reason:'invalid_url'}));continue;}
-            try{
-              const res=await fetch(target,{redirect:'error',signal:AbortSignal.timeout(16000),headers:{'User-Agent':'Mozilla/5.0 (compatible; SeveloraPriceAudit/1.0)'}});
-              if(!res.ok){console.log('MERCHANT_PRICE_CHECK='+JSON.stringify({id:r.aw_product_id,http:res.status}));continue;}
-              const html=await res.text();
-              const positions=['priceCurrency','product:price:amount','itemprop="price"','"price"','€'].map(k=>({kind:k,pos:html.indexOf(k)}));
-              const snippet=(k)=>{const i=html.indexOf(k);return i<0?'':html.slice(Math.max(0,i-140),i+210).replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').slice(0,290);};
-              console.log('MERCHANT_PRICE_CHECK='+JSON.stringify({id:r.aw_product_id,feedPrice:r.search_price,htmlLength:html.length,status:res.status,positions,nearCurrency:snippet('priceCurrency'),nearPrice:snippet('product:price:amount'),nearEuro:snippet('€')}));
-            }catch(e){console.log('MERCHANT_PRICE_CHECK='+JSON.stringify({id:r.aw_product_id,error:String(e).slice(0,150)}));}
-          }
-          JS
   deploy:
-    if: ${{ false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
@@ -68,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: martaxi-boss/Sexshop
-          ref: 5f2581717695a1a9ca6ef8fba6409f6f5f3c9cbf
+          ref: b8cd987d3d5a6aee37ac318ebb9a961786498233
           persist-credentials: false
       - uses: pnpm/action-setup@v4
         with:
@@ -81,7 +33,7 @@ jobs:
       - name: Validate supplier isolation and build
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = 5f2581717695a1a9ca6ef8fba6409f6f5f3c9cbf
+          test "$(git rev-parse HEAD)" = b8cd987d3d5a6aee37ac318ebb9a961786498233
           node scripts/catalog-test.mjs
           pnpm install --frozen-lockfile
           pnpm --dir apps/ecommerce-shop-demo build
@@ -120,7 +72,7 @@ jobs:
           sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
           set -Eeuo pipefail
           ROOT=/srv/projects/Sexshop
-          SHA=5f2581717695a1a9ca6ef8fba6409f6f5f3c9cbf
+          SHA=b8cd987d3d5a6aee37ac318ebb9a961786498233
           OLD=$(readlink "$ROOT/current")
           test -n "$OLD"
           test -f "$ROOT/current/apps/ecommerce-shop-demo/server.js"
@@ -144,6 +96,7 @@ jobs:
           sudo -u ubuntu "$NODE" "$ROOT/infra/sync-diversual.mjs"
           test -s "$ROOT/data/catalog.json"
           "$NODE" -e 'const c=require("/srv/projects/Sexshop/data/catalog.json");if(!c.products.length||c.merchantId!=="37722")process.exit(1);console.log("VALIDATED_PRODUCTS="+c.products.length)'
+          "$NODE" -e 'const c=require("/srv/projects/Sexshop/data/catalog.json");const priced=c.products.filter(p=>p.price!==null);const bad=priced.filter(p=>p.currency!=="EUR"||!Number.isFinite(p.price)||p.price<=0);console.log("VERIFIED_EUR_PRICES="+priced.length+"/"+c.products.length);if(bad.length||priced.length<Math.ceil(c.products.length*0.9))process.exit(1)'
           rollback(){
             echo SEXSHOP_CATALOG_DEPLOY=ROLLBACK
             ln -s "$OLD" "$ROOT/current.rollback"
@@ -165,7 +118,8 @@ jobs:
           grep -q '3157353' "$ROOT/.incoming/catalog-check.html"
           grep -Eiq 'preço na loja|€' "$ROOT/.incoming/catalog-check.html"
           if grep -q '/apikey/' "$ROOT/.incoming/catalog-check.html"; then exit 1; fi
-          curl -fsS http://127.0.0.1:3418/produto/43428124436 -o /dev/null
+          curl -fsS http://127.0.0.1:3418/produto/43428124436 -o "$ROOT/.incoming/product-check.html"
+          grep -q '35,90' "$ROOT/.incoming/product-check.html"
           install -m 644 "$ROOT/releases/$SHA/ops/sexshop-catalog-sync.service" "$ROOT/infra/sexshop-catalog-sync.service"
           install -m 644 "$ROOT/releases/$SHA/ops/sexshop-catalog-sync.timer" "$ROOT/infra/sexshop-catalog-sync.timer"
           install -m 644 "$ROOT/infra/sexshop-catalog-sync.service" /etc/systemd/system/sexshop-catalog-sync.service
