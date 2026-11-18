@@ -42,6 +42,19 @@ jobs:
           const chosen=[...rows.filter(x=>x.aw_product_id==='43428124436'),...rows.slice(0,3)];
           const examples=[...new Map(chosen.map(r=>[r.aw_product_id,r])).values()].slice(0,4).map(r=>({id:r.aw_product_id,name:String(r.product_name||'').slice(0,70),search_price:r.search_price,currency:r.currency,store_price:r.store_price,display_price:r.display_price,rrp_price:r.rrp_price,old_price:r.product_price_old,merchant_url_present:!!r.merchant_deep_link,merchant_url_host:r.merchant_deep_link?new URL(r.merchant_deep_link).hostname:null}));
           console.log('PRICE_FEED_DIAGNOSTIC='+JSON.stringify({count:rows.length,fieldsPresent:fields.filter(f=>f in rows[0]),currencyCounts:freq,displayEuroCount:rows.filter(r=>/€|EUR/.test(String(r.display_price||''))).length,displayPoundCount:rows.filter(r=>/£|GBP/.test(String(r.display_price||''))).length,examples}));
+          const samples=[...rows.filter(x=>x.aw_product_id==='43428124436'),...rows.slice(0,10)];
+          for(const r of [...new Map(samples.map(x=>[x.aw_product_id,x])).values()].slice(0,11)){
+            const target=new URL(r.merchant_deep_link);
+            if(target.protocol!=='https:'||target.hostname!=='www.diversual.com'){console.log('MERCHANT_PRICE_CHECK='+JSON.stringify({id:r.aw_product_id,reason:'invalid_url'}));continue;}
+            try{
+              const res=await fetch(target,{redirect:'error',signal:AbortSignal.timeout(16000),headers:{'User-Agent':'Mozilla/5.0 (compatible; SeveloraPriceAudit/1.0)'}});
+              if(!res.ok){console.log('MERCHANT_PRICE_CHECK='+JSON.stringify({id:r.aw_product_id,http:res.status}));continue;}
+              const html=await res.text();
+              const positions=['priceCurrency','product:price:amount','itemprop="price"','"price"','€'].map(k=>({kind:k,pos:html.indexOf(k)}));
+              const snippet=(k)=>{const i=html.indexOf(k);return i<0?'':html.slice(Math.max(0,i-140),i+210).replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').slice(0,290);};
+              console.log('MERCHANT_PRICE_CHECK='+JSON.stringify({id:r.aw_product_id,feedPrice:r.search_price,htmlLength:html.length,status:res.status,positions,nearCurrency:snippet('priceCurrency'),nearPrice:snippet('product:price:amount'),nearEuro:snippet('€')}));
+            }catch(e){console.log('MERCHANT_PRICE_CHECK='+JSON.stringify({id:r.aw_product_id,error:String(e).slice(0,150)}));}
+          }
           JS
   deploy:
     if: ${{ false }}
