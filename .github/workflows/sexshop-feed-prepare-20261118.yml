@@ -1,0 +1,43 @@
+name: Sevelora - prepare private feed configuration
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/sexshop-feed-prepare-20261118.yml]
+permissions:
+  contents: read
+concurrency:
+  group: sexshop-catalog-deploy
+  cancel-in-progress: false
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Audit existing project and prepare encrypted transfer
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -euo pipefail
+          ROOT=/srv/projects/Sexshop
+          test -L "$ROOT/current"
+          systemctl is-active --quiet sexshop.service
+          systemctl is-active --quiet lowcost-europa.service
+          printf 'CURRENT_RELEASE=%s\n' "$(readlink "$ROOT/current")"
+          "$ROOT/runtimes/node26/node" --version
+          install -d -m 700 -o ubuntu -g ubuntu "$ROOT/.private"
+          if test ! -s "$ROOT/.private/feed-transfer.pem"; then
+            umask 077
+            openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out "$ROOT/.private/feed-transfer.pem" 2>/dev/null
+            chown ubuntu:ubuntu "$ROOT/.private/feed-transfer.pem"
+          fi
+          openssl pkey -in "$ROOT/.private/feed-transfer.pem" -pubout
+          test -f "$ROOT/infra/sexshop.service"
+          echo SEXSHOP_PRIVATE_TRANSFER_READY=PASS
+          REMOTE
