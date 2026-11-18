@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: martaxi-boss/Sexshop
-          ref: 144217abe752652d66acd297c61c96a02ca1a1c6
+          ref: 168b644afadb18acd989d51e9fac49bf60b626d7
           persist-credentials: false
       - uses: pnpm/action-setup@v4
         with:
@@ -33,7 +33,7 @@ jobs:
       - name: Validate supplier isolation and build
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = 144217abe752652d66acd297c61c96a02ca1a1c6
+          test "$(git rev-parse HEAD)" = 168b644afadb18acd989d51e9fac49bf60b626d7
           node scripts/catalog-test.mjs
           pnpm install --frozen-lockfile
           pnpm --dir apps/ecommerce-shop-demo build
@@ -72,7 +72,7 @@ jobs:
           sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
           set -Eeuo pipefail
           ROOT=/srv/projects/Sexshop
-          SHA=144217abe752652d66acd297c61c96a02ca1a1c6
+          SHA=168b644afadb18acd989d51e9fac49bf60b626d7
           OLD=$(readlink "$ROOT/current")
           test -n "$OLD"
           test -f "$ROOT/current/apps/ecommerce-shop-demo/server.js"
@@ -87,7 +87,9 @@ jobs:
           chown -R ubuntu:ubuntu "$ROOT/releases/$SHA"
           test -f "$ROOT/releases/$SHA/app/apps/ecommerce-shop-demo/server.js"
           NODE="$ROOT/runtimes/node26/node"
-          "$NODE" "$ROOT/releases/$SHA/ops/install-feed-secret.mjs" "$ROOT/releases/$SHA/ops/diversual-feed.encrypted.json"
+          if test ! -s "$ROOT/.private/diversual-feed-url"; then
+            "$NODE" "$ROOT/releases/$SHA/ops/install-feed-secret.mjs" "$ROOT/releases/$SHA/ops/diversual-feed.encrypted.json"
+          fi
           chown ubuntu:ubuntu "$ROOT/.private/diversual-feed-url"
           chmod 600 "$ROOT/.private/diversual-feed-url"
           install -m 644 -o ubuntu -g ubuntu "$ROOT/releases/$SHA/ops/sync-diversual.mjs" "$ROOT/infra/sync-diversual.mjs"
@@ -137,3 +139,4 @@ jobs:
             curl -fsS --connect-timeout 10 --max-time 30 "https://sexy-shop.duckdns.org$path" -o /dev/null
             echo "PUBLIC_HTTP=PASS path=$path"
           done
+
