@@ -67,7 +67,7 @@ jobs:
           test -f "$ROOT/$SOURCE" && test ! -L "$ROOT/$SOURCE"
           STAGE=source-version
           echo "LABELS_OLD_SOURCE_BLOB=$(g rev-parse HEAD:$SOURCE)"
-          test "$(g rev-parse HEAD:$SOURCE)" = 4c3a9235b220d3c27d0afe3f8463ee4f5bb3228f
+          test "$OLD" = "$TARGET" || test "$(g rev-parse HEAD:$SOURCE)" = 4c3a9235b220d3c27d0afe3f8463ee4f5bb3228f
           runuser -u "$APPUSER" -- test -r "$ROOT/$SOURCE"
           STAGE=fetch-target
           g fetch -q --no-tags origin main
@@ -87,7 +87,7 @@ jobs:
           "docs/operations/seo-trafego-verificado-20261113.md",
           }
           actual=set(sys.stdin.read().splitlines())
-          assert "apps/storefront/ui_translations.py" in actual
+          assert not actual or "apps/storefront/ui_translations.py" in actual
           assert actual <= allowed, "Unexpected source diff"
           print("LABELS_SOURCE_SCOPE=PASS")
           '
@@ -154,6 +154,15 @@ jobs:
           python3 "$BACKUP/check.py" before "$BACKUP/public-before.json"
           chmod 600 "$BACKUP/public-before.json"
           echo "LABELS_BACKUP=PASS"
+          if [ "$OLD" = "$TARGET" ]; then
+            python3 "$BACKUP/check.py" after "$BACKUP/public-before.json"
+            echo "LABELS_ALREADY_TARGET_READ_ONLY=PASS"
+            echo "LABELS_APP_SHA=$TARGET"
+            echo "LABELS_GITHUB_VPS_ALIGNMENT=PASS"
+            test "$TIMER_BEFORE" = "$(systemctl is-active lowcost-europa-indexnow.timer lowcost-europa-affiliate-report.timer lowcost-europa-cavitation-availability.timer)"
+            echo "LABELS_TIMERS_UNCHANGED=PASS"
+            exit 0
+          fi
           DEPLOYED=0
           rollback() {
             code=$?
