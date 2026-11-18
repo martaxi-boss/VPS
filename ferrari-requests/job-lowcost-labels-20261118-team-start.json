@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "lowcost-labels-20261118-team-start",
+  "kind": "ruflo-team",
+  "phase": "start",
+  "team_id": "lowcost-labels-20261118",
+  "host": "ChatGPT",
+  "mission": "Validate the public category translation manifest; application tests and deployment remain in Lowcost workflows.",
+  "roles": [
+    {
+      "id": "copy",
+      "type": "coder",
+      "actions": [
+        "jq-format-json"
+      ]
+    },
+    {
+      "id": "review",
+      "type": "reviewer",
+      "actions": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "manifest",
+      "role": "copy",
+      "reviewer": "review",
+      "goal": "Parse and format the four reviewed exact translations with private jq; reviewer verifies all four strings and scope against application patch.",
+      "depends_on": []
+    }
+  ],
+  "input": {
+    "name": "category-translations.json",
+    "content_base64": "eyJtaXNzaW9uIjoiTG93Y29zdCBFdXJvcGEgU3BhbmlzaCBjYXRlZ29yeSBwcmVzZW50YXRpb24gY29ycmVjdGlvbiIsInNvdXJjZV9jb21taXQiOiIzODkwMzEyODQ0MTU1ODJmMDc2YjQ0MmYxNzA5YWI5YjM4ZDIwMTg1IiwiY2F0ZWdvcmllcyI6W3sic291cmNlIjoiQ2F2aXRhw6fDo28gKyBSRiArIFZhY3V1bSIsImVzIjoiQ2F2aXRhY2nDs24gKyBSRiArIHZhY8OtbyJ9LHsic291cmNlIjoiTWljcm9kZXJtb2FicmFzw6NvIC8gSGlkcm9kZXJtb2FicmFzw6NvIC8gTXVsdGlmdW7Dp8O1ZXMgZmFjaWFpcyIsImVzIjoiTWljcm9kZXJtb2FicmFzacOzbiAvIEhpZHJvZGVybW9hYnJhc2nDs24gLyBNdWx0aWZ1bmNpw7NuIGZhY2lhbCJ9LHsic291cmNlIjoiUHJlc3NvdGVyYXBpYSAvIFJGIFRlY2FyIiwiZXMiOiJQcmVzb3RlcmFwaWEgLyBSRiBUZWNhciJ9LHsic291cmNlIjoiRGlvZG8gTGFzZXIgLyBSZW1vw6fDo28gZGUgdGF0dWFnZW5zIC8gUGlnbWVudGHDp8OjbyIsImVzIjoiTMOhc2VyIGRlIGRpb2RvIC8gRWxpbWluYWNpw7NuIGRlIHRhdHVhamVzIC8gUGlnbWVudGFjacOzbiJ9XSwiYWNjZXB0YW5jZSI6WyJFeGFjdCBuYW1lcyBvbmx5OyBubyBkYXRhYmFzZS9wcm9kdWN0L2FmZmlsaWF0ZSBjaGFuZ2VzIiwiRGphbmdvIENJIGNoZWNrcyBFUyBoZWFkaW5nLCBob21lcGFnZSBhbmQgQnJlYWRjcnVtYkxpc3QgcGx1cyBQVCBpbnZhcmlhbmNlIiwiRGVwbG95IGV4YWN0IHJldmlld2VkIFNIQSB3aXRoIGJhY2t1cCBhbmQgcm9sbGJhY2s7IHJldGFpbiAyMyBVUkxzIiwiTm8gcmFua2luZywgdHJhZmZpYyBvciBpbmRleGluZyBpbXByb3ZlbWVudCBjbGFpbWVkIGZyb20gY29weSBhbG9uZSJdfQ=="
+  }
+}
