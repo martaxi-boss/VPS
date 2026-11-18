@@ -1,0 +1,139 @@
+name: Sevelora - activate approved Diversual catalog
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/sexshop-catalog-deploy-20261118.yml]
+permissions:
+  contents: read
+concurrency:
+  group: sexshop-catalog-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      NEXT_PUBLIC_SITE_URL: https://sexy-shop.duckdns.org
+      NEXT_PUBLIC_LAUNCH: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: martaxi-boss/Sexshop
+          ref: 144217abe752652d66acd297c61c96a02ca1a1c6
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.14.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Validate supplier isolation and build
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 144217abe752652d66acd297c61c96a02ca1a1c6
+          node scripts/catalog-test.mjs
+          pnpm install --frozen-lockfile
+          pnpm --dir apps/ecommerce-shop-demo build
+          mkdir -p "$RUNNER_TEMP/pkg/app" "$RUNNER_TEMP/pkg/ops" "$RUNNER_TEMP/publish"
+          cp -a apps/ecommerce-shop-demo/.next/standalone/. "$RUNNER_TEMP/pkg/app/"
+          mkdir -p "$RUNNER_TEMP/pkg/app/apps/ecommerce-shop-demo/.next"
+          cp -a apps/ecommerce-shop-demo/.next/static "$RUNNER_TEMP/pkg/app/apps/ecommerce-shop-demo/.next/static"
+          if test -d apps/ecommerce-shop-demo/public; then cp -a apps/ecommerce-shop-demo/public "$RUNNER_TEMP/pkg/app/apps/ecommerce-shop-demo/public"; fi
+          cp scripts/sync-diversual.mjs scripts/install-feed-secret.mjs infra/diversual-feed.encrypted.json infra/sexshop-catalog-sync.service infra/sexshop-catalog-sync.timer "$RUNNER_TEMP/pkg/ops/"
+          PORT=3001 HOSTNAME=127.0.0.1 node "$RUNNER_TEMP/pkg/app/apps/ecommerce-shop-demo/server.js" >"$RUNNER_TEMP/server.log" 2>&1 &
+          child=$!
+          trap 'kill "$child" 2>/dev/null || true' EXIT
+          for i in $(seq 1 30); do if curl -fsS http://127.0.0.1:3001/ -o /dev/null; then break; fi; sleep 1; done
+          node scripts/smoke.mjs
+          tar -czf "$RUNNER_TEMP/publish/release.tgz" -C "$RUNNER_TEMP/pkg" .
+          cd "$RUNNER_TEMP/publish"
+          sha256sum release.tgz > release.sha256
+      - name: Verify existing VPS SSH host and upload project release
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          opts=(-o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519)
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 'test -L /srv/projects/Sexshop/current && mkdir -p /srv/projects/Sexshop/.incoming'
+          sshpass -e scp "${opts[@]}" "$RUNNER_TEMP/publish/release.tgz" "$RUNNER_TEMP/publish/release.sha256" ubuntu@146.59.145.3:/srv/projects/Sexshop/.incoming/
+      - name: Import official feed and activate only Sevelora with rollback
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          ROOT=/srv/projects/Sexshop
+          SHA=144217abe752652d66acd297c61c96a02ca1a1c6
+          OLD=$(readlink "$ROOT/current")
+          test -n "$OLD"
+          test -f "$ROOT/current/apps/ecommerce-shop-demo/server.js"
+          systemctl is-active --quiet sexshop.service
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl is-active --quiet nginx
+          cd "$ROOT/.incoming"
+          sha256sum -c release.sha256
+          test ! -e "$ROOT/releases/$SHA"
+          install -d -m 755 -o ubuntu -g ubuntu "$ROOT/releases/$SHA" "$ROOT/data"
+          tar --no-same-owner -xzf release.tgz -C "$ROOT/releases/$SHA"
+          chown -R ubuntu:ubuntu "$ROOT/releases/$SHA"
+          test -f "$ROOT/releases/$SHA/app/apps/ecommerce-shop-demo/server.js"
+          NODE="$ROOT/runtimes/node26/node"
+          "$NODE" "$ROOT/releases/$SHA/ops/install-feed-secret.mjs" "$ROOT/releases/$SHA/ops/diversual-feed.encrypted.json"
+          chown ubuntu:ubuntu "$ROOT/.private/diversual-feed-url"
+          chmod 600 "$ROOT/.private/diversual-feed-url"
+          install -m 644 -o ubuntu -g ubuntu "$ROOT/releases/$SHA/ops/sync-diversual.mjs" "$ROOT/infra/sync-diversual.mjs"
+          sudo -u ubuntu "$NODE" "$ROOT/infra/sync-diversual.mjs"
+          test -s "$ROOT/data/catalog.json"
+          "$NODE" -e 'const c=require("/srv/projects/Sexshop/data/catalog.json");if(!c.products.length||c.merchantId!=="37722")process.exit(1);console.log("VALIDATED_PRODUCTS="+c.products.length)'
+          rollback(){
+            echo SEXSHOP_CATALOG_DEPLOY=ROLLBACK
+            ln -s "$OLD" "$ROOT/current.rollback"
+            mv -Tf "$ROOT/current.rollback" "$ROOT/current"
+            systemctl restart sexshop.service
+          }
+          trap rollback ERR
+          printf '%s\n' "$OLD" > "$ROOT/infra/previous-release.txt"
+          ln -s "releases/$SHA/app" "$ROOT/current.next"
+          mv -Tf "$ROOT/current.next" "$ROOT/current"
+          systemctl restart sexshop.service
+          ready=0
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:3418/catalogo -o "$ROOT/.incoming/catalog-check.html"; then ready=1; break; fi
+            sleep 1
+          done
+          test "$ready" = 1
+          grep -q 'Chronos P-Spot Negro' "$ROOT/.incoming/catalog-check.html"
+          grep -q '3157353' "$ROOT/.incoming/catalog-check.html"
+          grep -q 'Preço na loja' "$ROOT/.incoming/catalog-check.html"
+          if grep -q '/apikey/' "$ROOT/.incoming/catalog-check.html"; then exit 1; fi
+          curl -fsS http://127.0.0.1:3418/produto/43428124436 -o /dev/null
+          install -m 644 "$ROOT/releases/$SHA/ops/sexshop-catalog-sync.service" "$ROOT/infra/sexshop-catalog-sync.service"
+          install -m 644 "$ROOT/releases/$SHA/ops/sexshop-catalog-sync.timer" "$ROOT/infra/sexshop-catalog-sync.timer"
+          install -m 644 "$ROOT/infra/sexshop-catalog-sync.service" /etc/systemd/system/sexshop-catalog-sync.service
+          install -m 644 "$ROOT/infra/sexshop-catalog-sync.timer" /etc/systemd/system/sexshop-catalog-sync.timer
+          systemctl daemon-reload
+          systemctl enable --now sexshop-catalog-sync.timer
+          systemctl start sexshop-catalog-sync.service
+          systemctl is-active --quiet sexshop-catalog-sync.timer
+          systemctl is-active --quiet sexshop.service
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl is-active --quiet nginx
+          systemctl list-timers sexshop-catalog-sync.timer --no-pager
+          rm -f "$ROOT/.private/feed-transfer.pem"
+          echo SEXSHOP_CATALOG_DEPLOY=PASS
+          echo OTHER_EXISTING_SERVICES=PASS
+          trap - ERR
+          REMOTE
+          for path in / /catalogo /categoria/para-ela /produto/43428124436 /afiliacao; do
+            curl -fsS --connect-timeout 10 --max-time 30 "https://sexy-shop.duckdns.org$path" -o /dev/null
+            echo "PUBLIC_HTTP=PASS path=$path"
+          done
