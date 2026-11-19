@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "id": "bootstrap-auto-20261119-mwo449k2",
+  "kind": "auto",
+  "request": "Converter markdown para docx",
+  "input": {
+    "name": "auditoria.md",
+    "content_base64": "IyBBdWRpdG9yaWEgRmVycmFyaQoKUGVkaWRvIHNpbnRldGljbyBwYXJhIHRlc3RhciBhIHNlbGVjYW8gYXV0b21hdGljYS4K"
+  },
+  "acceptance": {
+    "required_extensions": [
+      ".docx"
+    ]
+  }
+}
