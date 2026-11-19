@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "bootstrap-cad-20261119-mwo44lg1-mime",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "bootstrap-cad-20261119-mwo44lg1",
+  "revision": 2,
+  "turn": {
+    "task": "identificar",
+    "role": "testador",
+    "kind": "invoke",
+    "action": "file-mime",
+    "input_from": "peca",
+    "message": "Usar o mesmo STL aprovado por dependencia interna peca, sem reenviar ficheiro nem executar conversao no anfitriao; identificar MIME com ferramenta privada Ferrari."
+  }
+}
