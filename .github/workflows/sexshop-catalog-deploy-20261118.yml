@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: martaxi-boss/Sexshop
-          ref: cdd7044d5ea064e841e14bc5127b096ca05e7d3e
+          ref: 05812c6624b6b732988f2912357a245bde769740
           persist-credentials: false
       - uses: pnpm/action-setup@v4
         with:
@@ -33,7 +33,7 @@ jobs:
       - name: Validate supplier isolation and build
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = cdd7044d5ea064e841e14bc5127b096ca05e7d3e
+          test "$(git rev-parse HEAD)" = 05812c6624b6b732988f2912357a245bde769740
           node scripts/catalog-test.mjs
           pnpm install --frozen-lockfile
           pnpm --dir apps/ecommerce-shop-demo build
@@ -72,7 +72,7 @@ jobs:
           sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
           set -Eeuo pipefail
           ROOT=/srv/projects/Sexshop
-          SHA=cdd7044d5ea064e841e14bc5127b096ca05e7d3e
+          SHA=05812c6624b6b732988f2912357a245bde769740
           OLD=$(readlink "$ROOT/current")
           test -n "$OLD"
           test -f "$ROOT/current/apps/ecommerce-shop-demo/server.js"
@@ -120,7 +120,11 @@ jobs:
           grep -q 'Encontra o que procuras.' "$ROOT/.incoming/catalog-check.html"
           curl -fsS http://127.0.0.1:3418/ -o "$ROOT/.incoming/home-check.html"
           grep -q 'retail-photo-card' "$ROOT/.incoming/home-check.html"
-          grep -q 'retail-audience-card' "$ROOT/.incoming/home-check.html"
+          if grep -Eq 'retail-audiences|retail-audience-card|Explora à tua maneira|/categoria/para-(ela|ele|casais)' "$ROOT/.incoming/home-check.html"; then
+            echo REMOVED_AUDIENCE_MODULE=FAIL
+            exit 1
+          fi
+          echo REMOVED_AUDIENCE_MODULE=PASS
           grep -q 'Vibradores &amp; Dildos' "$ROOT/.incoming/home-check.html" || grep -q 'Vibradores' "$ROOT/.incoming/home-check.html"
           grep -q '3157353' "$ROOT/.incoming/catalog-check.html"
           grep -Eiq 'preço na loja|€' "$ROOT/.incoming/catalog-check.html"
@@ -144,8 +148,13 @@ jobs:
           echo OTHER_EXISTING_SERVICES=PASS
           trap - ERR
           REMOTE
-          for path in / /catalogo /categoria/para-ela /categoria/anal /categoria/estimuladores /categoria/masturbadores /categoria/casais /produto/43428124436 /afiliacao; do
+          for path in / /catalogo /categoria/estimuladores /categoria/anal /categoria/masturbadores /categoria/aneis /categoria/casais /categoria/bdsm /produto/43428124436 /afiliacao; do
             curl -fsS --connect-timeout 10 --max-time 30 "https://sexy-shop.duckdns.org$path" -o /dev/null
             echo "PUBLIC_HTTP=PASS path=$path"
+          done
+          for old in para-ela para-ele para-casais; do
+            status=$(curl -sS --connect-timeout 10 --max-time 30 -o /dev/null -w '%{http_code}' "https://sexy-shop.duckdns.org/categoria/$old")
+            test "$status" = 404
+            echo "REMOVED_SELECTION_ROUTE=PASS path=/categoria/$old status=404"
           done
 
