@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "audit-runtime-20261119-mwo3rscs",
+  "kind": "runtime-check",
+  "targets": [
+    "ytdlp",
+    "qgis",
+    "godot",
+    "prometheus",
+    "valkey"
+  ]
+}
