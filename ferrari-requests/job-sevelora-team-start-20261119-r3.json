@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "id": "sevelora-team-start-20261119-r3",
+  "kind": "ruflo-team",
+  "phase": "start",
+  "team_id": "sevelora-index-20261119",
+  "host": "ChatGPT",
+  "mission": "Diagnosticar bloqueios tecnicos publicos de rastreio do Sevelora apos a correcao de paginacao. Apenas leitura HTTPS de sevelora.eu; nao alterar DNS, credenciais, outros projetos ou o motor. Exigir resposta real do sitemap/robots e paginacao; rever evidencias antes do fecho. O teste publico nao certifica indexacao Google.",
+  "roles": [
+    {
+      "id": "webcheck",
+      "type": "debugger",
+      "actions": [
+        "rea-mcp"
+      ]
+    },
+    {
+      "id": "mobilecheck",
+      "type": "tester",
+      "actions": [
+        "rea-mcp"
+      ]
+    },
+    {
+      "id": "review",
+      "type": "reviewer",
+      "actions": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "public-response",
+      "role": "webcheck",
+      "reviewer": "review",
+      "goal": "Obter pelo browser privado as respostas GET de sitemap.xml, robots.txt e catalogo?pagina=2, incluindo status, cabecalhos e corpos. Confirmar XML162, robots sem bloqueio global e canonical da pagina2. Nenhuma escrita no site.",
+      "depends_on": []
+    },
+    {
+      "id": "mobile-nav",
+      "role": "mobilecheck",
+      "reviewer": "review",
+      "goal": "Verificar no browser privado viewport390x844, catalogo147, clique Mostrar mais e ausencia de erros de pagina. Capturar DOM e screenshot mobile para revisao do anfitriao; nunca inferir indexacao.",
+      "depends_on": [
+        "public-response"
+      ]
+    }
+  ]
+}
