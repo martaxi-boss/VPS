@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "seo-lowcost-team-review-20261119",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "seo_lowcost_review_20261119",
+  "revision": 1,
+  "turn": {
+    "task": "validate",
+    "role": "reviewer",
+    "kind": "review",
+    "message": "Confirmei o artefacto real evidence-1.json do Ferrari: JSON valido, 256 bytes, uma unica entrada id lowcost-europa, HTTPS www.lowcost-europa.eu e sitemap correto, sem Sevelora. Aprovo esta validacao de configuracao, nao certifica rankings ou resultados SEO.",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "a505c8433b64470a1c2b7adc4b7e1561f4ae1359d67f8c161fead1bf388ead75"
+    ]
+  }
+}
