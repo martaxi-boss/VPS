@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "bootstrap-cad-20261119-mwo44lg1-guard",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "bootstrap-cad-20261119-mwo44lg1",
+  "revision": 0,
+  "turn": {
+    "task": "identificar",
+    "role": "testador",
+    "kind": "invoke",
+    "message": "Ensaio negativo controlado: tentar consumir peca antes da execucao e aprovacao. Deve ser bloqueado sem chamada de ferramenta nem mudanca de revisao.",
+    "action": "file-mime",
+    "input_from": "peca"
+  }
+}
