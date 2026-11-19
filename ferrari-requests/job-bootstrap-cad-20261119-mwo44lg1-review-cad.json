@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "bootstrap-cad-20261119-mwo44lg1-review-cad",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "bootstrap-cad-20261119-mwo44lg1",
+  "revision": 1,
+  "turn": {
+    "task": "peca",
+    "role": "revisor",
+    "kind": "review",
+    "verdict": "approved",
+    "message": "STL descarregado e medido: ASCII, 61164 bytes, 404 triangulos, dimensoes 42x30x8 mm, arestas usadas duas vezes, Euler -2 e dois furos diametro6 com 48 vertices por circulo. Volume9628.9007 mm3, erro0.0134%; SHA256 recalculado identico. Aprovar e libertar dependencia.",
+    "evidence_sha256": [
+      "18ab019b703e8636842dc20b887cd7cf692569fb04ff07410e753907c03f3564"
+    ]
+  }
+}
