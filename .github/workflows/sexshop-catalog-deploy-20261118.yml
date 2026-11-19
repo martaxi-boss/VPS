@@ -283,7 +283,7 @@ jobs:
           assert "Allow: /" in robots and "Disallow: /\n" not in robots and base+"/sitemap.xml" in robots
           with urllib.request.urlopen(base+"/sitemap.xml") as r: sitemap=r.read().decode()
           urls=[el.text for el in ET.fromstring(sitemap).iter() if el.tag.endswith("loc")]
-          assert len(urls)>100 and all(u.startswith(base+"/") for u in urls)
+          assert len(urls)>100 and all(u == base or u.startswith(base+"/") for u in urls)
           assert any("/produto/" in u for u in urls) and "duckdns" not in sitemap
           print("PUBLIC_INDEXATION_READY=PASS sitemap_urls="+str(len(urls)))
           PY
