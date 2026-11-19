@@ -9,7 +9,53 @@ concurrency:
   group: sexshop-catalog-deploy
   cancel-in-progress: false
 jobs:
+  taxonomy-readonly:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Collect public product metadata without credentials
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 ubuntu@146.59.145.3 '/srv/projects/Sexshop/runtimes/node26/node --input-type=module -' <<'JS' > "$RUNNER_TEMP/catalog-taxonomy.json"
+          import {readFile} from 'node:fs/promises';
+          import {gunzipSync} from 'node:zlib';
+          import {parseCsv} from '/srv/projects/Sexshop/infra/sync-diversual.mjs';
+          const file='/srv/projects/Sexshop/.private/diversual-feed-url';
+          const url=new URL((await readFile(file,'utf8')).trim());
+          if(url.protocol!=='https:'||url.hostname!=='productdata.awin.com'||!url.pathname.includes('/fid/78949/'))throw Error('invalid_url');
+          const res=await fetch(url,{redirect:'error',signal:AbortSignal.timeout(90000)});
+          if(!res.ok)throw Error('feed_http_'+res.status);
+          const buffer=Buffer.from(await res.arrayBuffer());
+          if(buffer.length>20000000)throw Error('oversized_feed');
+          const body=(buffer[0]===31&&buffer[1]===139?gunzipSync(buffer,{maxOutputLength:50000000}):buffer).toString('utf8');
+          const rows=parseCsv(body);
+          if(rows.length!==151||rows.some(x=>x.merchant_id!=='37722'||x.data_feed_id!=='78949'))throw Error('wrong_feed');
+          const columns=Object.keys(rows[0]);
+          const picks=columns.filter(x=>/categor|type|gender|tag|material|color|colour|sku|description|product_name|brand/i.test(x));
+          const products=rows.map(r=>{
+            const props=Object.fromEntries(picks.map(k=>[k,String(r[k]||'').slice(0,1500)]));
+            return {id:r.aw_product_id,...props};
+          });
+          console.log(JSON.stringify({count:products.length,columns,picks,products}));
+          JS
+          test -s "$RUNNER_TEMP/catalog-taxonomy.json"
+          node -e 'const d=require(process.argv[1]);if(d.count!==151||d.products.length!==151)process.exit(1);console.log("TAXONOMY_DATA_PASS_COUNT="+d.count,"FIELDS="+d.picks.length)' "$RUNNER_TEMP/catalog-taxonomy.json"
+          mkdir -p audit
+          cp "$RUNNER_TEMP/catalog-taxonomy.json" audit/taxonomy-data.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sevelora-taxonomy-readonly
+          path: audit/taxonomy-data.json
+          retention-days: 1
   deploy:
+    if: ${{ false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
