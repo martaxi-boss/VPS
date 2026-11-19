@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "seo-lowcost-team-start-20261119",
+  "kind": "ruflo-team",
+  "phase": "start",
+  "team_id": "seo_lowcost_review_20261119",
+  "host": "ChatGPT",
+  "mission": "Verificar no Ferrari o ficheiro publico real sites.json do Core-sites, assegurar que o piloto audita apenas Low Cost Europa e que o JSON esta bem formado, com revisao por papel diferente; sem alterar VPS ou websites.",
+  "roles": [
+    {
+      "id": "auditor",
+      "type": "researcher",
+      "actions": [
+        "jq-format-json"
+      ]
+    },
+    {
+      "id": "reviewer",
+      "type": "reviewer",
+      "actions": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "validate",
+      "role": "auditor",
+      "reviewer": "reviewer",
+      "goal": "Validar e formatar a configuracao publica de sites.json no executor jq privado; confirmar que o unico dominio e www.lowcost-europa.eu, rejeitando Sevelora.",
+      "depends_on": []
+    }
+  ],
+  "input": {
+    "name": "sites.json",
+    "content_base64": "ewogICJzaXRlcyI6IFsKICAgIHsKICAgICAgImlkIjogImxvd2Nvc3QtZXVyb3BhIiwKICAgICAgImhvbWUiOiAiaHR0cHM6Ly93d3cubG93Y29zdC1ldXJvcGEuZXUiLAogICAgICAic2l0ZW1hcCI6ICJodHRwczovL3d3dy5sb3djb3N0LWV1cm9wYS5ldS9zaXRlbWFwLnhtbCIsCiAgICAgICJtYXhfcGFnZXMiOiAxODAsCiAgICAgICJmb2N1c19wYXRoX2NvbnRhaW5zIjogWwogICAgICAgICIvcHJvZHVjdHMvIgogICAgICBdCiAgICB9CiAgXQp9Cg=="
+  }
+}
