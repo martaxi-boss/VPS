@@ -77,10 +77,10 @@ jobs:
                   body=response.read().decode()
               canonical=re.search(r'<link rel="canonical" href="([^"]+)"',body)
               assert canonical and html.unescape(canonical[1])=='https://sevelora.eu'+path
-              ids=set(re.findall(r'href="/produto/(\\d+)"',body))
+              ids=set(re.findall(r'href="/produto/(\d+)"',body))
               assert ids and not (ids & found) and len(ids)<=24
               found.update(ids)
-              more=re.search(r'<a\\b[^>]*href="([^"]+)"[^>]*>Mostrar mais produtos',body)
+              more=re.search(r'<a\b[^>]*href="([^"]+)"[^>]*>Mostrar mais produtos',body)
               path=html.unescape(more[1]) if more else None
               assert len(visited)<=10
           assert found==set(p['id'] for p in cat['products'])
