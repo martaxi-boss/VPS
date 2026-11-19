@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "seo-lowcost-team-validate-20261119",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "seo_lowcost_review_20261119",
+  "revision": 0,
+  "turn": {
+    "task": "validate",
+    "role": "auditor",
+    "kind": "invoke",
+    "message": "O anfitriao determina que o auditor execute jq-format-json no sites.json publico do Core-sites. Critico: verificar JSON valido, uma unica entrada, id lowcost-europa, host HTTPS www.lowcost-europa.eu, sitemap certo, sem Sevelora nem dominio legado.",
+    "action": "jq-format-json",
+    "input_from": "$input"
+  }
+}
