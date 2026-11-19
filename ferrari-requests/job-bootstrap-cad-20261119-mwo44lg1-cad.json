@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "bootstrap-cad-20261119-mwo44lg1-cad",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "bootstrap-cad-20261119-mwo44lg1",
+  "revision": 0,
+  "turn": {
+    "task": "peca",
+    "role": "construtor",
+    "kind": "operation",
+    "operation": "cad-stl",
+    "input_from": "$input",
+    "message": "Converter o SCAD recebido com OpenSCAD privado pelo motor Ferrari; produzir STL real para revisao geometrica independente antes de libertar o teste dependente."
+  }
+}
