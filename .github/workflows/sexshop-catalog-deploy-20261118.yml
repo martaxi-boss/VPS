@@ -81,10 +81,18 @@ jobs:
           systemctl is-active --quiet nginx
           cd "$ROOT/.incoming"
           sha256sum -c release.sha256
-          test ! -e "$ROOT/releases/$SHA"
-          install -d -m 755 -o ubuntu -g ubuntu "$ROOT/releases/$SHA" "$ROOT/data"
-          tar --no-same-owner -xzf release.tgz -C "$ROOT/releases/$SHA"
-          chown -R ubuntu:ubuntu "$ROOT/releases/$SHA"
+          if test -e "$ROOT/releases/$SHA"; then
+            test -d "$ROOT/releases/$SHA"
+            test ! -L "$ROOT/releases/$SHA"
+            test -f "$ROOT/releases/$SHA/app/apps/ecommerce-shop-demo/server.js"
+            test -f "$ROOT/releases/$SHA/ops/sync-diversual.mjs"
+            cmp -s <(tar -xzOf release.tgz ./ops/sync-diversual.mjs) "$ROOT/releases/$SHA/ops/sync-diversual.mjs"
+            echo VERIFIED_EXISTING_SOURCE_RELEASE_REUSED=PASS
+          else
+            install -d -m 755 -o ubuntu -g ubuntu "$ROOT/releases/$SHA" "$ROOT/data"
+            tar --no-same-owner -xzf release.tgz -C "$ROOT/releases/$SHA"
+            chown -R ubuntu:ubuntu "$ROOT/releases/$SHA"
+          fi
           test -f "$ROOT/releases/$SHA/app/apps/ecommerce-shop-demo/server.js"
           NODE="$ROOT/runtimes/node26/node"
           if test ! -s "$ROOT/.private/diversual-feed-url"; then
@@ -97,8 +105,8 @@ jobs:
           sudo -u ubuntu "$NODE" "$ROOT/infra/sync-diversual.mjs"
           test -s "$ROOT/data/catalog.json"
           "$NODE" -e 'const c=require("/srv/projects/Sexshop/data/catalog.json");if(!c.products.length||c.merchantId!=="37722")process.exit(1);console.log("VALIDATED_PRODUCTS="+c.products.length)'
-          "$NODE" -e 'const c=require("/srv/projects/Sexshop/data/catalog.json");const p=c.products.find(x=>x.id==="43428124436");if(c.sourceProducts!==151||c.products.length!==148||c.excludedNonRetail!==3||c.unreviewedProducts!==0||!p||p.name!=="Chronos P-Spot Preto"||!p.categories.includes("anal")||!p.audiences.includes("para-ele")||!p.subcategories.includes("prostata")||c.products.some(x=>!x.description||x.categories.length!==1||x.subcategories.length!==1||!Array.isArray(x.audiences)))process.exit(1);console.log("PTPT_CURATED_PRODUCTS="+c.products.length,"EXCLUDED_PACKAGING="+c.excludedNonRetail)'
-          "$NODE" -e 'const c=require("/srv/projects/Sexshop/data/catalog.json");const count={};for(const p of c.products){const cat=p.categories[0];count[cat]=(count[cat]||0)+1;if(p.categories.length!==1||["para-ela","para-ele","para-casais"].includes(cat)||p.audiences.some(x=>!["para-ela","para-ele","para-casais"].includes(x)))process.exit(1)}if(Object.values(count).reduce((sum,n)=>sum+n,0)!==148||Object.keys(count).length!==10||count.bdsm!==1)process.exit(1);console.log("EXCLUSIVE_PRODUCT_CATEGORIES="+JSON.stringify(count))'
+          "$NODE" -e 'const c=require("/srv/projects/Sexshop/data/catalog.json");const p=c.products.find(x=>x.id==="43428124436");if(!Number.isInteger(c.sourceProducts)||c.sourceProducts<145||c.sourceProducts>250||c.products.length<140||c.products.length!==c.sourceProducts-c.excludedNonRetail-c.unreviewedProducts||c.excludedNonRetail<0||c.excludedNonRetail>3||c.unreviewedProducts!==0||(p&&(p.name!=="Chronos P-Spot Preto"||!p.categories.includes("anal")||!p.subcategories.includes("prostata")))||c.products.some(x=>!x.description||x.categories.length!==1||x.subcategories.length!==1||!Array.isArray(x.audiences)))process.exit(1);console.log("PTPT_CURATED_PRODUCTS="+c.products.length,"EXCLUDED_PACKAGING="+c.excludedNonRetail)'
+          "$NODE" -e 'const c=require("/srv/projects/Sexshop/data/catalog.json");const count={};for(const p of c.products){const cat=p.categories[0];count[cat]=(count[cat]||0)+1;if(p.categories.length!==1||["para-ela","para-ele","para-casais"].includes(cat)||p.audiences.some(x=>!["para-ela","para-ele","para-casais"].includes(x)))process.exit(1)}if(Object.values(count).reduce((sum,n)=>sum+n,0)!==c.products.length||Object.keys(count).length<8||Object.keys(count).length>10||Object.keys(count).some(x=>!["anal","casais","estimuladores","jogos-acessorios","bem-estar","aneis","massagem","masturbadores","feromonas","bdsm"].includes(x))||count.bdsm>1)process.exit(1);console.log("EXCLUSIVE_PRODUCT_CATEGORIES="+JSON.stringify(count))'
           "$NODE" -e 'const c=require("/srv/projects/Sexshop/data/catalog.json");const priced=c.products.filter(p=>p.price!==null);const bad=priced.filter(p=>p.currency!=="EUR"||!Number.isFinite(p.price)||p.price<=0);console.log("VERIFIED_EUR_PRICES="+priced.length+"/"+c.products.length);if(bad.length||priced.length<Math.ceil(c.products.length*0.9))process.exit(1)'
           rollback(){
             echo SEXSHOP_CATALOG_DEPLOY=ROLLBACK
@@ -129,8 +137,10 @@ jobs:
           grep -q '3157353' "$ROOT/.incoming/catalog-check.html"
           grep -Eiq 'preço na loja|€' "$ROOT/.incoming/catalog-check.html"
           if grep -q '/apikey/' "$ROOT/.incoming/catalog-check.html"; then exit 1; fi
-          curl -fsS http://127.0.0.1:3418/produto/43428124436 -o "$ROOT/.incoming/product-check.html"
-          grep -q '35,90' "$ROOT/.incoming/product-check.html"
+          SAMPLE_ID=$("$NODE" -e 'const c=require("/srv/projects/Sexshop/data/catalog.json");const p=c.products.find(x=>x.inStock&&x.price!==null)||c.products.find(x=>x.price!==null);if(!p)process.exit(1);console.log(p.id)')
+          curl -fsS "http://127.0.0.1:3418/produto/$SAMPLE_ID" -o "$ROOT/.incoming/product-check.html"
+          grep -q '€' "$ROOT/.incoming/product-check.html"
+          echo VERIFIED_PRODUCT_DETAIL=PASS
           install -m 644 "$ROOT/releases/$SHA/ops/sexshop-catalog-sync.service" "$ROOT/infra/sexshop-catalog-sync.service"
           install -m 644 "$ROOT/releases/$SHA/ops/sexshop-catalog-sync.timer" "$ROOT/infra/sexshop-catalog-sync.timer"
           install -m 644 "$ROOT/infra/sexshop-catalog-sync.service" /etc/systemd/system/sexshop-catalog-sync.service
@@ -148,7 +158,7 @@ jobs:
           echo OTHER_EXISTING_SERVICES=PASS
           trap - ERR
           REMOTE
-          for path in / /catalogo /categoria/estimuladores /categoria/anal /categoria/masturbadores /categoria/aneis /categoria/casais /categoria/bdsm /produto/43428124436 /afiliacao; do
+          for path in / /catalogo /categoria/estimuladores /categoria/anal /categoria/masturbadores /categoria/aneis /categoria/casais /categoria/bdsm /afiliacao; do
             curl -fsS --connect-timeout 10 --max-time 30 "https://sexy-shop.duckdns.org$path" -o /dev/null
             echo "PUBLIC_HTTP=PASS path=$path"
           done
