@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "sevelora-mobile-review-20261119-r7",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "sevelora-index-20261119",
+  "revision": 3,
+  "turn": {
+    "task": "mobile-nav",
+    "role": "review",
+    "kind": "review",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "70313cb48c9dc46dc2f7d71ccf7ca5dc6e039d3a9735e99850c0bafff10a23e8"
+    ],
+    "message": "Revistos ZIP, evidenciaSHA256, quatro DOMs e arvores de acessibilidade com hashes validados:24,24,48,48 cartoes. Total147 confirmado; todos os passos completados, zero eventos de erro/consola e zero perdas. PNG390x844 aberto e revisto: duas colunas alinhadas e botoes legiveis na zona capturada. Browser privado terminado. Aceitacao limitada ao cenario ensaiado; nao certifica indexacao Google nem paginas fora desta amostra."
+  }
+}
