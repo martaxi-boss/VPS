@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "id": "bootstrap-cad-20261119-mwo44lg1-start",
+  "kind": "ruflo-team",
+  "phase": "start",
+  "team_id": "bootstrap-cad-20261119-mwo44lg1",
+  "host": "ChatGPT",
+  "mission": "Verificar cumprimento BOOTSTRAP: equipa Ruflo, CAD privado e identificacao do resultado aprovado, revisoes por papel distinto e fecho com hashes reais.",
+  "roles": [
+    {
+      "id": "construtor",
+      "type": "coder",
+      "actions": [
+        "operation:cad-stl"
+      ]
+    },
+    {
+      "id": "testador",
+      "type": "tester",
+      "actions": [
+        "file-mime"
+      ]
+    },
+    {
+      "id": "revisor",
+      "type": "reviewer",
+      "actions": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "peca",
+      "role": "construtor",
+      "reviewer": "revisor",
+      "goal": "Converter SCAD sintetico para STL real: placa 42x30x8 mm, dois furos passantes diametro 6 mm em x=12 e x=30,y=15; validar malha, dimensoes e hash.",
+      "depends_on": []
+    },
+    {
+      "id": "identificar",
+      "role": "testador",
+      "reviewer": "revisor",
+      "goal": "Identificar por file-mime o mesmo STL aprovado, recebido por dependencia interna; verificar que MIME e consistente com codificacao ASCII ou binaria real.",
+      "depends_on": [
+        "peca"
+      ]
+    }
+  ],
+  "input": {
+    "name": "placa.scad",
+    "content_base64": "JGZuPTQ4OyBkaWZmZXJlbmNlKCl7Y3ViZShbNDIsMzAsOF0pOyB0cmFuc2xhdGUoWzEyLDE1LC0xXSkgY3lsaW5kZXIoaD0xMCxkPTYpOyB0cmFuc2xhdGUoWzMwLDE1LC0xXSkgY3lsaW5kZXIoaD0xMCxkPTYpO30K"
+  }
+}
