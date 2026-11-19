@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "audit-ferrari-20261119-mwo3rkjr-review",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "audit-ferrari-20261119-mwo3rkjr",
+  "revision": 1,
+  "turn": {
+    "task": "formatar",
+    "role": "revisor",
+    "kind": "review",
+    "message": "ZIP descarregado e JSON lido. Resultado valido de 65 bytes: ok=true, projeto=Ferrari, data=2026-11-19; sem campos perdidos. SHA256 recalculado localmente e identico ao journal.",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "9a4edd6e09c6b7b9524a6fb6742da28ac3ef9347fc07071e162878b04c84d189"
+    ]
+  }
+}
