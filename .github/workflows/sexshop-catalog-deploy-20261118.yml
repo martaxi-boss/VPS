@@ -229,27 +229,22 @@ jobs:
             }
           }
           NGINX
-          cat > "$ROOT/infra/sexshop.redirect.conf.next" <<'NGINX'
+          # Retired disposable test hostname: no content, redirect or TLS certificate.
+          cat > "$ROOT/infra/sexshop.retired.conf.next" <<'NGINX'
           server {
             listen 80;
             server_name sexy-shop.duckdns.org;
-            location ^~ /.well-known/acme-challenge/ {
-              root /srv/projects/Sexshop/acme;
-              default_type text/plain;
-            }
-            location / { return 301 https://sevelora.eu$request_uri; }
+            add_header X-Robots-Tag "noindex, nofollow" always;
+            return 410;
           }
           server {
             listen 443 ssl;
             server_name sexy-shop.duckdns.org;
-            ssl_certificate /etc/letsencrypt/live/sexy-shop.duckdns.org/fullchain.pem;
-            ssl_certificate_key /etc/letsencrypt/live/sexy-shop.duckdns.org/privkey.pem;
-            ssl_protocols TLSv1.2 TLSv1.3;
-            return 301 https://sevelora.eu$request_uri;
+            ssl_reject_handshake on;
           }
           NGINX
           mv "$ROOT/infra/sevelora.eu.conf.next" "$ROOT/infra/sevelora.eu.conf"
-          install -m 644 "$ROOT/infra/sexshop.redirect.conf.next" /etc/nginx/conf.d/sexshop.conf
+          install -m 644 "$ROOT/infra/sexshop.retired.conf.next" /etc/nginx/conf.d/sexshop.conf
           nginx -t
           systemctl reload nginx
           test "$LOWCOST_CONFIG_SHA" = "$(sha256sum /srv/projects/lowcost-europa/deploy/nginx/lowcost-europa.eu.conf | cut -d' ' -f1)"
@@ -260,11 +255,28 @@ jobs:
           done
           test "$HTTPS_READY" = 1
           grep -q 'href="https://sevelora.eu"' "$ROOT/.incoming/canonical-home-check.html"
-          test "$(curl -sS --resolve sexy-shop.duckdns.org:443:127.0.0.1 -o /dev/null -w '%{http_code}' https://sexy-shop.duckdns.org/catalogo)" = 301
-          echo SEVELORA_HTTPS_AND_REDIRECTS=PASS
+          test "$(curl -sS --resolve sexy-shop.duckdns.org:80:127.0.0.1 -o /dev/null -w '%{http_code}' http://sexy-shop.duckdns.org/catalogo)" = 410
+          if curl -fsS --max-time 10 --resolve sexy-shop.duckdns.org:443:127.0.0.1 https://sexy-shop.duckdns.org/ -o /dev/null; then
+            echo RETIRED_TEST_DOMAIN_TLS=FAIL
+            exit 1
+          fi
+          test "$(curl -sS --resolve www.sevelora.eu:443:127.0.0.1 -o /dev/null -w '%{http_code}' https://www.sevelora.eu/catalogo)" = 301
+          echo SEVELORA_HTTPS_AND_WWW_REDIRECT=PASS
+          echo RETIRED_TEST_DOMAIN_HTTP_410_AND_TLS_REJECTED=PASS
           echo SEXSHOP_CATALOG_DEPLOY=PASS
           echo OTHER_EXISTING_SERVICES=PASS
           trap - ERR
+          # Keep the retired renewal configuration privately recoverable, but inactive.
+          if test -f /etc/letsencrypt/renewal/sexy-shop.duckdns.org.conf; then
+            install -d -m 700 "$ROOT/.private/retired-domain"
+            mv /etc/letsencrypt/renewal/sexy-shop.duckdns.org.conf "$ROOT/.private/retired-domain/"
+            chmod 600 "$ROOT/.private/retired-domain/sexy-shop.duckdns.org.conf"
+          fi
+          test ! -e /etc/letsencrypt/renewal/sexy-shop.duckdns.org.conf
+          echo RETIRED_CERTIFICATE_RENEWAL_DISABLED=PASS
+          echo TEST_DOMAIN_UPDATER_REFERENCES_BEGIN
+          grep -rlF 'sexy-shop.duckdns.org' /etc/systemd/system /etc/cron.d /var/spool/cron/crontabs 2>/dev/null || true
+          echo TEST_DOMAIN_UPDATER_REFERENCES_END
           REMOTE
           for path in / /catalogo /categoria/estimuladores /categoria/anal /categoria/masturbadores /categoria/aneis /categoria/casais /categoria/bdsm /afiliacao; do
             curl -fsS --connect-timeout 10 --max-time 30 "https://sevelora.eu$path" -o /dev/null
