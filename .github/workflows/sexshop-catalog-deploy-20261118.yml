@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: martaxi-boss/Sexshop
-          ref: c1c1fc303ee257c074b8ff4133dadd32fb29051e
+          ref: a64d7d41af4e1a4cb56bbbb3a975cc81019cdda6
           persist-credentials: false
       - uses: pnpm/action-setup@v4
         with:
@@ -33,7 +33,7 @@ jobs:
       - name: Validate supplier isolation and build
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = c1c1fc303ee257c074b8ff4133dadd32fb29051e
+          test "$(git rev-parse HEAD)" = a64d7d41af4e1a4cb56bbbb3a975cc81019cdda6
           node scripts/catalog-test.mjs
           pnpm install --frozen-lockfile
           pnpm --dir apps/ecommerce-shop-demo build
@@ -72,7 +72,7 @@ jobs:
           sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
           set -Eeuo pipefail
           ROOT=/srv/projects/Sexshop
-          SHA=c1c1fc303ee257c074b8ff4133dadd32fb29051e
+          SHA=a64d7d41af4e1a4cb56bbbb3a975cc81019cdda6
           OLD=$(readlink "$ROOT/current")
           test -n "$OLD"
           test -f "$ROOT/current/apps/ecommerce-shop-demo/server.js"
@@ -125,17 +125,24 @@ jobs:
             sleep 1
           done
           test "$ready" = 1
-          grep -q 'Encontra o que procuras.' "$ROOT/.incoming/catalog-check.html"
+          grep -q 'Todos os produtos' "$ROOT/.incoming/catalog-check.html"
           curl -fsS http://127.0.0.1:3418/ -o "$ROOT/.incoming/home-check.html"
           grep -q 'retail-photo-card' "$ROOT/.incoming/home-check.html"
           if grep -Eq 'retail-showcase|retail-trust|NA NOSSA MONTRA|DIVERSUAL / AFILIADO' "$ROOT/.incoming/home-check.html"; then
             echo CROSSED_OUT_MODULE_REMOVED=FAIL
             exit 1
           fi
-          grep -q 'EXPLORAR SEX SHOP' "$ROOT/.incoming/home-check.html"
-          grep -q 'ESCOLHER CATEGORIA' "$ROOT/.incoming/home-check.html"
-          grep -q 'EXPLORA POR TIPO DE PRODUTO' "$ROOT/.incoming/home-check.html"
+          grep -q 'Explorar produtos' "$ROOT/.incoming/home-check.html"
+          grep -q 'Ver categorias' "$ROOT/.incoming/home-check.html"
+          grep -q 'Escolhe uma categoria' "$ROOT/.incoming/home-check.html"
           echo CROSSED_OUT_MODULE_REMOVED=PASS
+          if grep -Eq 'category-strip|product-chip' "$ROOT/.incoming/home-check.html"; then
+            echo VISUAL_SIMPLIFICATION=FAIL
+            exit 1
+          fi
+          grep -q 'retail-help' "$ROOT/.incoming/home-check.html"
+          grep -q 'Em destaque' "$ROOT/.incoming/home-check.html"
+          echo VISUAL_SIMPLIFICATION=PASS
           if grep -Eq 'retail-audiences|retail-audience-card|Explora à tua maneira|/categoria/para-(ela|ele|casais)' "$ROOT/.incoming/home-check.html"; then
             echo REMOVED_AUDIENCE_MODULE=FAIL
             exit 1
