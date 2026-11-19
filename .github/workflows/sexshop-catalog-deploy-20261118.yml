@@ -1,4 +1,4 @@
-name: Sevelora - activate approved Diversual catalog
+name: Sevelora - domain migration preflight
 on:
   push:
     branches: [main]
@@ -9,49 +9,11 @@ concurrency:
   group: sexshop-catalog-deploy
   cancel-in-progress: false
 jobs:
-  deploy:
+  preflight:
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
-    env:
-      NEXT_TELEMETRY_DISABLED: '1'
-      NEXT_PUBLIC_SITE_URL: https://sexy-shop.duckdns.org
-      NEXT_PUBLIC_LAUNCH: 'false'
+    timeout-minutes: 8
     steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: martaxi-boss/Sexshop
-          ref: f72809d275b34307659f7bb216c4b1e1f34a41e6
-          persist-credentials: false
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 12.14.0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '26'
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
-      - name: Validate supplier isolation and build
-        run: |
-          set -euo pipefail
-          test "$(git rev-parse HEAD)" = f72809d275b34307659f7bb216c4b1e1f34a41e6
-          node scripts/catalog-test.mjs
-          pnpm install --frozen-lockfile
-          pnpm --dir apps/ecommerce-shop-demo build
-          mkdir -p "$RUNNER_TEMP/pkg/app" "$RUNNER_TEMP/pkg/ops" "$RUNNER_TEMP/publish"
-          cp -a apps/ecommerce-shop-demo/.next/standalone/. "$RUNNER_TEMP/pkg/app/"
-          mkdir -p "$RUNNER_TEMP/pkg/app/apps/ecommerce-shop-demo/.next"
-          cp -a apps/ecommerce-shop-demo/.next/static "$RUNNER_TEMP/pkg/app/apps/ecommerce-shop-demo/.next/static"
-          if test -d apps/ecommerce-shop-demo/public; then cp -a apps/ecommerce-shop-demo/public "$RUNNER_TEMP/pkg/app/apps/ecommerce-shop-demo/public"; fi
-          cp scripts/sync-diversual.mjs scripts/diversual-ptpt*.mjs scripts/install-feed-secret.mjs infra/diversual-feed.encrypted.json infra/sexshop-catalog-sync.service infra/sexshop-catalog-sync.timer "$RUNNER_TEMP/pkg/ops/"
-          PORT=3001 HOSTNAME=127.0.0.1 node "$RUNNER_TEMP/pkg/app/apps/ecommerce-shop-demo/server.js" >"$RUNNER_TEMP/server.log" 2>&1 &
-          child=$!
-          trap 'kill "$child" 2>/dev/null || true' EXIT
-          for i in $(seq 1 30); do if curl -fsS http://127.0.0.1:3001/ -o /dev/null; then break; fi; sleep 1; done
-          node scripts/smoke.mjs
-          tar -czf "$RUNNER_TEMP/publish/release.tgz" -C "$RUNNER_TEMP/pkg" .
-          cd "$RUNNER_TEMP/publish"
-          sha256sum release.tgz > release.sha256
-      - name: Verify existing VPS SSH host and upload project release
+      - name: Inspect only Sevelora domain infrastructure
         env:
           SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
         run: |
@@ -61,134 +23,19 @@ jobs:
           sudo apt-get install -y -qq sshpass >/dev/null
           ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
           test "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
-          opts=(-o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519)
-          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 'test -L /srv/projects/Sexshop/current && mkdir -p /srv/projects/Sexshop/.incoming'
-          sshpass -e scp "${opts[@]}" "$RUNNER_TEMP/publish/release.tgz" "$RUNNER_TEMP/publish/release.sha256" ubuntu@146.59.145.3:/srv/projects/Sexshop/.incoming/
-      - name: Import official feed and activate only Sevelora with rollback
-        env:
-          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
-        run: |
-          set -euo pipefail
           sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
-          set -Eeuo pipefail
-          ROOT=/srv/projects/Sexshop
-          SHA=f72809d275b34307659f7bb216c4b1e1f34a41e6
-          OLD=$(readlink "$ROOT/current")
-          test -n "$OLD"
-          test -f "$ROOT/current/apps/ecommerce-shop-demo/server.js"
-          systemctl is-active --quiet sexshop.service
-          systemctl is-active --quiet lowcost-europa.service
-          systemctl is-active --quiet nginx
-          cd "$ROOT/.incoming"
-          sha256sum -c release.sha256
-          if test -e "$ROOT/releases/$SHA"; then
-            test -d "$ROOT/releases/$SHA"
-            test ! -L "$ROOT/releases/$SHA"
-            test -f "$ROOT/releases/$SHA/app/apps/ecommerce-shop-demo/server.js"
-            test -f "$ROOT/releases/$SHA/ops/sync-diversual.mjs"
-            cmp -s <(tar -xzOf release.tgz ./ops/sync-diversual.mjs) "$ROOT/releases/$SHA/ops/sync-diversual.mjs"
-            echo VERIFIED_EXISTING_SOURCE_RELEASE_REUSED=PASS
-          else
-            install -d -m 755 -o ubuntu -g ubuntu "$ROOT/releases/$SHA" "$ROOT/data"
-            tar --no-same-owner -xzf release.tgz -C "$ROOT/releases/$SHA"
-            chown -R ubuntu:ubuntu "$ROOT/releases/$SHA"
-          fi
-          test -f "$ROOT/releases/$SHA/app/apps/ecommerce-shop-demo/server.js"
-          NODE="$ROOT/runtimes/node26/node"
-          if test ! -s "$ROOT/.private/diversual-feed-url"; then
-            "$NODE" "$ROOT/releases/$SHA/ops/install-feed-secret.mjs" "$ROOT/releases/$SHA/ops/diversual-feed.encrypted.json"
-          fi
-          chown ubuntu:ubuntu "$ROOT/.private/diversual-feed-url"
-          chmod 600 "$ROOT/.private/diversual-feed-url"
-          install -m 644 -o ubuntu -g ubuntu "$ROOT/releases/$SHA/ops/sync-diversual.mjs" "$ROOT/infra/sync-diversual.mjs"
-          for f in diversual-ptpt.mjs diversual-ptpt-01.mjs diversual-ptpt-02.mjs; do install -m 644 -o ubuntu -g ubuntu "$ROOT/releases/$SHA/ops/$f" "$ROOT/infra/$f"; done
-          sudo -u ubuntu "$NODE" "$ROOT/infra/sync-diversual.mjs"
-          test -s "$ROOT/data/catalog.json"
-          "$NODE" -e 'const c=require("/srv/projects/Sexshop/data/catalog.json");if(!c.products.length||c.merchantId!=="37722")process.exit(1);console.log("VALIDATED_PRODUCTS="+c.products.length)'
-          "$NODE" -e 'const c=require("/srv/projects/Sexshop/data/catalog.json");const p=c.products.find(x=>x.id==="43428124436");if(!Number.isInteger(c.sourceProducts)||c.sourceProducts<145||c.sourceProducts>250||c.products.length<140||c.products.length!==c.sourceProducts-c.excludedNonRetail-c.unreviewedProducts||c.excludedNonRetail<0||c.excludedNonRetail>3||c.unreviewedProducts!==0||(p&&(p.name!=="Chronos P-Spot Preto"||!p.categories.includes("anal")||!p.subcategories.includes("prostata")))||c.products.some(x=>!x.description||x.categories.length!==1||x.subcategories.length!==1||!Array.isArray(x.audiences)))process.exit(1);console.log("PTPT_CURATED_PRODUCTS="+c.products.length,"EXCLUDED_PACKAGING="+c.excludedNonRetail)'
-          "$NODE" -e 'const c=require("/srv/projects/Sexshop/data/catalog.json");const count={};for(const p of c.products){const cat=p.categories[0];count[cat]=(count[cat]||0)+1;if(p.categories.length!==1||["para-ela","para-ele","para-casais"].includes(cat)||p.audiences.some(x=>!["para-ela","para-ele","para-casais"].includes(x)))process.exit(1)}if(Object.values(count).reduce((sum,n)=>sum+n,0)!==c.products.length||Object.keys(count).length<8||Object.keys(count).length>10||Object.keys(count).some(x=>!["anal","casais","estimuladores","jogos-acessorios","bem-estar","aneis","massagem","masturbadores","feromonas","bdsm"].includes(x))||count.bdsm>1)process.exit(1);console.log("EXCLUSIVE_PRODUCT_CATEGORIES="+JSON.stringify(count))'
-          "$NODE" -e 'const c=require("/srv/projects/Sexshop/data/catalog.json");const priced=c.products.filter(p=>p.price!==null);const bad=priced.filter(p=>p.currency!=="EUR"||!Number.isFinite(p.price)||p.price<=0);console.log("VERIFIED_EUR_PRICES="+priced.length+"/"+c.products.length);if(bad.length||priced.length<Math.ceil(c.products.length*0.9))process.exit(1)'
-          rollback(){
-            echo SEXSHOP_CATALOG_DEPLOY=ROLLBACK
-            ln -s "$OLD" "$ROOT/current.rollback"
-            mv -Tf "$ROOT/current.rollback" "$ROOT/current"
-            systemctl restart sexshop.service
-          }
-          trap rollback ERR
-          printf '%s\n' "$OLD" > "$ROOT/infra/previous-release.txt"
-          ln -s "releases/$SHA/app" "$ROOT/current.next"
-          mv -Tf "$ROOT/current.next" "$ROOT/current"
-          systemctl restart sexshop.service
-          ready=0
-          for i in $(seq 1 40); do
-            if curl -fsS http://127.0.0.1:3418/catalogo -o "$ROOT/.incoming/catalog-check.html"; then ready=1; break; fi
-            sleep 1
+          set -euo pipefail
+          systemctl is-active sexshop.service lowcost-europa.service nginx
+          readlink /srv/projects/Sexshop/current
+          ls -l /etc/nginx/sites-enabled
+          for f in /etc/nginx/sites-enabled/*; do
+            if grep -q 'sexy-shop.duckdns.org' "$f"; then
+              echo "SEVELORA_NGINX_CONFIG=$f"
+              cat "$f"
+            fi
           done
-          test "$ready" = 1
-          grep -q 'Todos os produtos' "$ROOT/.incoming/catalog-check.html"
-          curl -fsS http://127.0.0.1:3418/ -o "$ROOT/.incoming/home-check.html"
-          grep -q 'retail-photo-card' "$ROOT/.incoming/home-check.html"
-          if grep -Eq 'retail-showcase|retail-trust|NA NOSSA MONTRA|DIVERSUAL / AFILIADO' "$ROOT/.incoming/home-check.html"; then
-            echo CROSSED_OUT_MODULE_REMOVED=FAIL
-            exit 1
-          fi
-          grep -q 'Explorar produtos' "$ROOT/.incoming/home-check.html"
-          grep -q 'Ver categorias' "$ROOT/.incoming/home-check.html"
-          grep -q 'Escolhe uma categoria' "$ROOT/.incoming/home-check.html"
-          echo CROSSED_OUT_MODULE_REMOVED=PASS
-          if grep -Eq 'category-strip|product-chip' "$ROOT/.incoming/home-check.html"; then
-            echo VISUAL_SIMPLIFICATION=FAIL
-            exit 1
-          fi
-          grep -q 'retail-help' "$ROOT/.incoming/home-check.html"
-          grep -q 'Em destaque' "$ROOT/.incoming/home-check.html"
-          grep -q 'brand-wordmark' "$ROOT/.incoming/home-check.html"
-          grep -q '/brand/sevelora-mark.svg' "$ROOT/.incoming/home-check.html"
-          curl -fsS http://127.0.0.1:3418/brand/sevelora-mark.svg -o "$ROOT/.incoming/logo-check.svg"
-          grep -q 'viewBox="0 0 48 48"' "$ROOT/.incoming/logo-check.svg"
-          curl -fsS http://127.0.0.1:3418/icon.svg -o "$ROOT/.incoming/icon-check.svg"
-          grep -q '#ffb1d4' "$ROOT/.incoming/icon-check.svg"
-          echo COMPACT_LOGO_AND_FAVICON=PASS
-          grep -q 'href="mailto:geral@sevelora.eu"' "$ROOT/.incoming/home-check.html"
-          echo SEVELORA_CONTACT_EMAIL=PASS
-          echo VISUAL_SIMPLIFICATION=PASS
-          if grep -Eq 'retail-audiences|retail-audience-card|Explora à tua maneira|/categoria/para-(ela|ele|casais)' "$ROOT/.incoming/home-check.html"; then
-            echo REMOVED_AUDIENCE_MODULE=FAIL
-            exit 1
-          fi
-          echo REMOVED_AUDIENCE_MODULE=PASS
-          grep -q 'Vibradores &amp; Dildos' "$ROOT/.incoming/home-check.html" || grep -q 'Vibradores' "$ROOT/.incoming/home-check.html"
-          grep -q '3157353' "$ROOT/.incoming/catalog-check.html"
-          grep -Eiq 'preço na loja|€' "$ROOT/.incoming/catalog-check.html"
-          if grep -q '/apikey/' "$ROOT/.incoming/catalog-check.html"; then exit 1; fi
-          SAMPLE_ID=$("$NODE" -e 'const c=require("/srv/projects/Sexshop/data/catalog.json");const p=c.products.find(x=>x.inStock&&x.price!==null)||c.products.find(x=>x.price!==null);if(!p)process.exit(1);console.log(p.id)')
-          curl -fsS "http://127.0.0.1:3418/produto/$SAMPLE_ID" -o "$ROOT/.incoming/product-check.html"
-          grep -q '€' "$ROOT/.incoming/product-check.html"
-          echo VERIFIED_PRODUCT_DETAIL=PASS
-          install -m 644 "$ROOT/releases/$SHA/ops/sexshop-catalog-sync.service" "$ROOT/infra/sexshop-catalog-sync.service"
-          install -m 644 "$ROOT/releases/$SHA/ops/sexshop-catalog-sync.timer" "$ROOT/infra/sexshop-catalog-sync.timer"
-          install -m 644 "$ROOT/infra/sexshop-catalog-sync.service" /etc/systemd/system/sexshop-catalog-sync.service
-          install -m 644 "$ROOT/infra/sexshop-catalog-sync.timer" /etc/systemd/system/sexshop-catalog-sync.timer
-          systemctl daemon-reload
-          systemctl enable --now sexshop-catalog-sync.timer
-          systemctl start sexshop-catalog-sync.service
-          systemctl is-active --quiet sexshop-catalog-sync.timer
-          systemctl is-active --quiet sexshop.service
-          systemctl is-active --quiet lowcost-europa.service
-          systemctl is-active --quiet nginx
-          systemctl list-timers sexshop-catalog-sync.timer --no-pager
-          rm -f "$ROOT/.private/feed-transfer.pem"
-          echo SEXSHOP_CATALOG_DEPLOY=PASS
-          echo OTHER_EXISTING_SERVICES=PASS
-          trap - ERR
+          command -v certbot || true
+          certbot --version || true
+          ls /etc/letsencrypt/renewal
+          echo DOMAIN_PREFLIGHT=PASS
           REMOTE
-          for path in / /catalogo /categoria/estimuladores /categoria/anal /categoria/masturbadores /categoria/aneis /categoria/casais /categoria/bdsm /afiliacao; do
-            curl -fsS --connect-timeout 10 --max-time 30 "https://sexy-shop.duckdns.org$path" -o /dev/null
-            echo "PUBLIC_HTTP=PASS path=$path"
-          done
-          for old in para-ela para-ele para-casais; do
-            status=$(curl -sS --connect-timeout 10 --max-time 30 -o /dev/null -w '%{http_code}' "https://sexy-shop.duckdns.org/categoria/$old")
-            test "$status" = 404
-            echo "REMOVED_SELECTION_ROUTE=PASS path=/categoria/$old status=404"
-          done
-
