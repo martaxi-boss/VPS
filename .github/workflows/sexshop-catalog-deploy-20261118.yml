@@ -34,6 +34,8 @@ jobs:
               cat "$f"
             fi
           done
+          nginx -T 2>&1 | python3 -c 'import sys,re; d=sys.stdin.read(); parts=re.split(r"(?=# configuration file )",d); print("\n".join(p for p in parts if "sexy-shop.duckdns.org" in p or "/srv/projects/Sexshop" in p))'
+          systemctl show sexshop.service -p FragmentPath -p ExecStart
           command -v certbot || true
           certbot --version || true
           ls /etc/letsencrypt/renewal
