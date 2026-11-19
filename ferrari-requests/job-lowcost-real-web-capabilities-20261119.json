@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "id": "lowcost-real-web-capabilities-20261119",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/list"
+    }
+  ]
+}
