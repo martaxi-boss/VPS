@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "audit-ferrari-20261119-mwo3rkjr-start",
+  "kind": "ruflo-team",
+  "phase": "start",
+  "team_id": "audit-ferrari-20261119-mwo3rkjr",
+  "host": "ChatGPT",
+  "mission": "Auditar coordenacao Ruflo com JSON sintetico; executar jq privado; rever conteudo e hashes antes do fecho.",
+  "roles": [
+    {
+      "id": "executor",
+      "type": "coder",
+      "actions": [
+        "jq-format-json"
+      ]
+    },
+    {
+      "id": "revisor",
+      "type": "reviewer",
+      "actions": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "formatar",
+      "role": "executor",
+      "reviewer": "revisor",
+      "goal": "Produzir JSON valido com ok=true, projeto Ferrari e data 2026-11-19; conservar valores e validar SHA256.",
+      "depends_on": []
+    }
+  ],
+  "input": {
+    "name": "audit.json",
+    "content_base64": "eyJvayI6dHJ1ZSwicHJvamV0byI6IkZlcnJhcmkiLCJkYXRhIjoiMjAyNi0xMS0xOSJ9Cg=="
+  }
+}
