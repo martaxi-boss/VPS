@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: martaxi-boss/Sexshop
-          ref: efde6de35b7eb0dee0826ac5f0a1688d0ae655c6
+          ref: 4558edc5db874dc3a456c3facca97afcbb7c1102
           persist-credentials: false
       - uses: pnpm/action-setup@v4
         with:
@@ -33,7 +33,7 @@ jobs:
       - name: Validate supplier isolation and build
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = efde6de35b7eb0dee0826ac5f0a1688d0ae655c6
+          test "$(git rev-parse HEAD)" = 4558edc5db874dc3a456c3facca97afcbb7c1102
           node scripts/catalog-test.mjs
           pnpm install --frozen-lockfile
           pnpm --dir apps/ecommerce-shop-demo build
@@ -72,7 +72,7 @@ jobs:
           sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
           set -Eeuo pipefail
           ROOT=/srv/projects/Sexshop
-          SHA=efde6de35b7eb0dee0826ac5f0a1688d0ae655c6
+          SHA=4558edc5db874dc3a456c3facca97afcbb7c1102
           OLD=$(readlink "$ROOT/current")
           test -n "$OLD"
           test -f "$ROOT/current/apps/ecommerce-shop-demo/server.js"
@@ -97,7 +97,8 @@ jobs:
           sudo -u ubuntu "$NODE" "$ROOT/infra/sync-diversual.mjs"
           test -s "$ROOT/data/catalog.json"
           "$NODE" -e 'const c=require("/srv/projects/Sexshop/data/catalog.json");if(!c.products.length||c.merchantId!=="37722")process.exit(1);console.log("VALIDATED_PRODUCTS="+c.products.length)'
-          "$NODE" -e 'const c=require("/srv/projects/Sexshop/data/catalog.json");const p=c.products.find(x=>x.id==="43428124436");if(c.sourceProducts!==151||c.products.length!==148||c.excludedNonRetail!==3||c.unreviewedProducts!==0||!p||p.name!=="Chronos P-Spot Preto"||!p.categories.includes("para-ele")||!p.subcategories.includes("prostata")||c.products.some(x=>!x.description||!x.categories.length||!x.subcategories.length))process.exit(1);console.log("PTPT_CURATED_PRODUCTS="+c.products.length,"EXCLUDED_PACKAGING="+c.excludedNonRetail)'
+          "$NODE" -e 'const c=require("/srv/projects/Sexshop/data/catalog.json");const p=c.products.find(x=>x.id==="43428124436");if(c.sourceProducts!==151||c.products.length!==148||c.excludedNonRetail!==3||c.unreviewedProducts!==0||!p||p.name!=="Chronos P-Spot Preto"||!p.categories.includes("anal")||!p.audiences.includes("para-ele")||!p.subcategories.includes("prostata")||c.products.some(x=>!x.description||x.categories.length!==1||x.subcategories.length!==1||!Array.isArray(x.audiences)))process.exit(1);console.log("PTPT_CURATED_PRODUCTS="+c.products.length,"EXCLUDED_PACKAGING="+c.excludedNonRetail)'
+          "$NODE" -e 'const c=require("/srv/projects/Sexshop/data/catalog.json");const count={};for(const p of c.products){const cat=p.categories[0];count[cat]=(count[cat]||0)+1;if(p.categories.length!==1||["para-ela","para-ele","para-casais"].includes(cat)||p.audiences.some(x=>!["para-ela","para-ele","para-casais"].includes(x)))process.exit(1)}if(Object.values(count).reduce((sum,n)=>sum+n,0)!==148||Object.keys(count).length!==10||count.bdsm!==1)process.exit(1);console.log("EXCLUSIVE_PRODUCT_CATEGORIES="+JSON.stringify(count))'
           "$NODE" -e 'const c=require("/srv/projects/Sexshop/data/catalog.json");const priced=c.products.filter(p=>p.price!==null);const bad=priced.filter(p=>p.currency!=="EUR"||!Number.isFinite(p.price)||p.price<=0);console.log("VERIFIED_EUR_PRICES="+priced.length+"/"+c.products.length);if(bad.length||priced.length<Math.ceil(c.products.length*0.9))process.exit(1)'
           rollback(){
             echo SEXSHOP_CATALOG_DEPLOY=ROLLBACK
@@ -117,6 +118,10 @@ jobs:
           done
           test "$ready" = 1
           grep -q 'Encontra o que procuras.' "$ROOT/.incoming/catalog-check.html"
+          curl -fsS http://127.0.0.1:3418/ -o "$ROOT/.incoming/home-check.html"
+          grep -q 'retail-photo-card' "$ROOT/.incoming/home-check.html"
+          grep -q 'retail-audience-card' "$ROOT/.incoming/home-check.html"
+          grep -q 'Vibradores &amp; Dildos' "$ROOT/.incoming/home-check.html" || grep -q 'Vibradores' "$ROOT/.incoming/home-check.html"
           grep -q '3157353' "$ROOT/.incoming/catalog-check.html"
           grep -Eiq 'preço na loja|€' "$ROOT/.incoming/catalog-check.html"
           if grep -q '/apikey/' "$ROOT/.incoming/catalog-check.html"; then exit 1; fi
@@ -139,7 +144,7 @@ jobs:
           echo OTHER_EXISTING_SERVICES=PASS
           trap - ERR
           REMOTE
-          for path in / /catalogo /categoria/para-ela /produto/43428124436 /afiliacao; do
+          for path in / /catalogo /categoria/para-ela /categoria/anal /categoria/estimuladores /categoria/masturbadores /categoria/casais /produto/43428124436 /afiliacao; do
             curl -fsS --connect-timeout 10 --max-time 30 "https://sexy-shop.duckdns.org$path" -o /dev/null
             echo "PUBLIC_HTTP=PASS path=$path"
           done
