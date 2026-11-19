@@ -54,7 +54,12 @@ jobs:
           nginx -t
           systemctl reload nginx
           printf 'sevelora-domain-ready\n' > "$ROOT/acme/.well-known/acme-challenge/sevelora-check"
-          test "$(curl -fsS -H 'Host: sevelora.eu' http://127.0.0.1/.well-known/acme-challenge/sevelora-check)" = sevelora-domain-ready
+          READY=0
+          for n in $(seq 1 12); do
+            if test "$(curl -fsS -H 'Host: sevelora.eu' http://127.0.0.1/.well-known/acme-challenge/sevelora-check || true)" = sevelora-domain-ready; then READY=1; break; fi
+            sleep 1
+          done
+          test "$READY" = 1
           test "$BEFORE" = "$(sha256sum /srv/projects/lowcost-europa/deploy/nginx/lowcost-europa.eu.conf | cut -d' ' -f1)"
           systemctl is-active --quiet lowcost-europa.service
           echo SEVELORA_ACME_HTTP=PASS
