@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "id": "sevelora-mobile-check-20261119-r6",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "sevelora-index-20261119",
+  "revision": 2,
+  "turn": {
+    "task": "mobile-nav",
+    "role": "mobilecheck",
+    "kind": "rea-mcp",
+    "message": "Testar apenas o catalogo publico mobile390x844: capturar24 produtos iniciais, clicar Mostrar mais e esperar48 cartoes; capturar DOM, acessibilidade, screenshot e erros. Nao efetuar compras nem sair para links afiliados. Terminar o browser privado depois da captura.",
+    "mcp_requests": [
+      {
+        "method": "tools/call",
+        "params": {
+          "name": "capture_browser_scenario",
+          "arguments": {
+            "browser": {
+              "mode": "launch",
+              "executable_path": "/srv/projects/skill-universal/.runtime/browsers/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell"
+            },
+            "start_url": {
+              "url": "https://sevelora.eu/catalogo"
+            },
+            "environment": {
+              "viewport": {
+                "width": 390,
+                "height": 844,
+                "device_scale_factor": 1
+              },
+              "locale": "pt-PT",
+              "timezone": "Europe/Lisbon"
+            },
+            "actions": [
+              {
+                "step_id": "wait-catalog",
+                "action": "wait_for",
+                "locator": {
+                  "kind": "css",
+                  "selector": "a.retail-more[href='/catalogo?pagina=2']"
+                },
+                "state": "visible",
+                "timeout_ms": 15000
+              },
+              {
+                "step_id": "load-more",
+                "action": "click",
+                "locator": {
+                  "kind": "role",
+                  "role": "link",
+                  "name": "Mostrar mais produtos (123) ↓"
+                },
+                "timeout_ms": 15000
+              },
+              {
+                "step_id": "wait-48",
+                "action": "wait_for",
+                "locator": {
+                  "kind": "css",
+                  "selector": "article.real-product-card:nth-child(48)"
+                },
+                "state": "visible",
+                "timeout_ms": 15000
+              }
+            ],
+            "capture": {
+              "after_each_step": [
+                "dom",
+                "accessibility"
+              ],
+              "at_end": [
+                "screenshot",
+                "dom",
+                "accessibility",
+                "url"
+              ],
+              "events": [
+                "page-errors",
+                "console"
+              ]
+            },
+            "command_timeout_ms": 20000
+          }
+        }
+      }
+    ]
+  }
+}
