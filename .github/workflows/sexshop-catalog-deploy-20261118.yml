@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: martaxi-boss/Sexshop
-          ref: b2c690890a91956124152402f670cb2606498da0
+          ref: c21b9a45d34a14dd58ecb12186c306eca79c65af
           persist-credentials: false
       - uses: pnpm/action-setup@v4
         with:
@@ -33,7 +33,7 @@ jobs:
       - name: Validate supplier isolation and build
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = b2c690890a91956124152402f670cb2606498da0
+          test "$(git rev-parse HEAD)" = c21b9a45d34a14dd58ecb12186c306eca79c65af
           node scripts/catalog-test.mjs
           pnpm install --frozen-lockfile
           pnpm --dir apps/ecommerce-shop-demo build
@@ -72,7 +72,7 @@ jobs:
           sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
           set -Eeuo pipefail
           ROOT=/srv/projects/Sexshop
-          SHA=b2c690890a91956124152402f670cb2606498da0
+          SHA=c21b9a45d34a14dd58ecb12186c306eca79c65af
           OLD=$(readlink "$ROOT/current")
           test -n "$OLD"
           test -f "$ROOT/current/apps/ecommerce-shop-demo/server.js"
@@ -142,6 +142,13 @@ jobs:
           fi
           grep -q 'retail-help' "$ROOT/.incoming/home-check.html"
           grep -q 'Em destaque' "$ROOT/.incoming/home-check.html"
+          grep -q 'brand-wordmark' "$ROOT/.incoming/home-check.html"
+          grep -q '/brand/sevelora-mark.svg' "$ROOT/.incoming/home-check.html"
+          curl -fsS http://127.0.0.1:3418/brand/sevelora-mark.svg -o "$ROOT/.incoming/logo-check.svg"
+          grep -q 'viewBox="0 0 48 48"' "$ROOT/.incoming/logo-check.svg"
+          curl -fsS http://127.0.0.1:3418/icon.svg -o "$ROOT/.incoming/icon-check.svg"
+          grep -q '#ffb1d4' "$ROOT/.incoming/icon-check.svg"
+          echo COMPACT_LOGO_AND_FAVICON=PASS
           echo VISUAL_SIMPLIFICATION=PASS
           if grep -Eq 'retail-audiences|retail-audience-card|Explora à tua maneira|/categoria/para-(ela|ele|casais)' "$ROOT/.incoming/home-check.html"; then
             echo REMOVED_AUDIENCE_MODULE=FAIL
