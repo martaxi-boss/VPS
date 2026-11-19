@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "bootstrap-cad-20261119-mwo44lg1-review-mime",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "bootstrap-cad-20261119-mwo44lg1",
+  "revision": 3,
+  "turn": {
+    "task": "identificar",
+    "role": "revisor",
+    "kind": "review",
+    "verdict": "approved",
+    "message": "Evidencia descarregada: 11 bytes text/plain seguido de newline; SHA256 recalculado identico ao journal. Correto para o STL ASCII verificado. Tarefa consumiu peca aprovada pelo input_from interno, com segunda chamada real registada.",
+    "evidence_sha256": [
+      "51a74e08056080b9d9bfc8b4334795301d213e39a0fa7f2c213da37632a6d842"
+    ]
+  }
+}
