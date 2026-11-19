@@ -1,4 +1,4 @@
-name: Sevelora - domain migration preflight
+name: Sevelora - prepare definitive domain
 on:
   push:
     branches: [main]
@@ -25,19 +25,38 @@ jobs:
           test "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
           sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
           set -euo pipefail
-          systemctl is-active sexshop.service lowcost-europa.service nginx
-          readlink /srv/projects/Sexshop/current
-          ls -l /etc/nginx/sites-enabled
-          for f in /etc/nginx/sites-enabled/*; do
-            if grep -q 'sexy-shop.duckdns.org' "$f"; then
-              echo "SEVELORA_NGINX_CONFIG=$f"
-              cat "$f"
-            fi
-          done
-          nginx -T 2>&1 | python3 -c 'import sys,re; d=sys.stdin.read(); parts=re.split(r"(?=# configuration file )",d); print("\n".join(p for p in parts if "sexy-shop.duckdns.org" in p or "/srv/projects/Sexshop" in p))'
-          systemctl show sexshop.service -p FragmentPath -p ExecStart
-          command -v certbot || true
-          certbot --version || true
-          ls /etc/letsencrypt/renewal
-          echo DOMAIN_PREFLIGHT=PASS
+          ROOT=/srv/projects/Sexshop
+          systemctl is-active --quiet sexshop.service
+          systemctl is-active --quiet lowcost-europa.service
+          systemctl is-active --quiet nginx
+          mkdir -p "$ROOT/infra" "$ROOT/acme/.well-known/acme-challenge"
+          test -f /etc/nginx/conf.d/sexshop.conf
+          if test ! -f "$ROOT/infra/sexshop.before-sevelora-domain.conf"; then
+            cp -a /etc/nginx/conf.d/sexshop.conf "$ROOT/infra/sexshop.before-sevelora-domain.conf"
+          fi
+          BEFORE=$(sha256sum /srv/projects/lowcost-europa/deploy/nginx/lowcost-europa.eu.conf | cut -d' ' -f1)
+          cat > "$ROOT/infra/sevelora.eu.conf" <<'NGINX'
+          server {
+            listen 80;
+            server_name sevelora.eu www.sevelora.eu;
+            location ^~ /.well-known/acme-challenge/ {
+              root /srv/projects/Sexshop/acme;
+              default_type text/plain;
+            }
+            location / { return 503; }
+          }
+          NGINX
+          if test -e /etc/nginx/conf.d/sevelora.eu.conf; then
+            test "$(readlink /etc/nginx/conf.d/sevelora.eu.conf)" = "$ROOT/infra/sevelora.eu.conf"
+          else
+            ln -s "$ROOT/infra/sevelora.eu.conf" /etc/nginx/conf.d/sevelora.eu.conf
+          fi
+          nginx -t
+          systemctl reload nginx
+          printf 'sevelora-domain-ready\n' > "$ROOT/acme/.well-known/acme-challenge/sevelora-check"
+          test "$(curl -fsS -H 'Host: sevelora.eu' http://127.0.0.1/.well-known/acme-challenge/sevelora-check)" = sevelora-domain-ready
+          test "$BEFORE" = "$(sha256sum /srv/projects/lowcost-europa/deploy/nginx/lowcost-europa.eu.conf | cut -d' ' -f1)"
+          systemctl is-active --quiet lowcost-europa.service
+          echo SEVELORA_ACME_HTTP=PASS
+          echo LOWCOST_UNCHANGED=PASS
           REMOTE
