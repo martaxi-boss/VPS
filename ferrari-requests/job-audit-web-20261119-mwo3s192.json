@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "id": "audit-web-20261119-mwo3s192",
+  "kind": "operation",
+  "operation": "vite-build",
+  "title": "Auditoria Ferrari",
+  "acceptance": {
+    "required_extensions": [
+      ".html",
+      ".png",
+      ".json"
+    ],
+    "browser_evidence": true
+  }
+}
