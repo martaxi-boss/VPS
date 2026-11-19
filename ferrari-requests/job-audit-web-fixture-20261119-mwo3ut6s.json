@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "audit-web-fixture-20261119-mwo3ut6s",
+  "kind": "operation",
+  "operation": "vite-build",
+  "input": {
+    "name": "audit-site.zip",
+    "content_base64": "UEsDBBQAAAAIAHixc12UJbU0mgEAAJwCAAAKAAAAaW5kZXguaHRtbG1SXW/bMAz8K5rzWs+xWwyBIxsYBvR5GLa9MxJtE9UXZNmNEeS/j7HTYiv2Iumoo3g8Sn7SXqUloBiSNa28rcKA65sspIwxgm6lxQRCDRBHTE326+dzfsjuUQcWm2wmfA0+pkwo7xI6Zr2STkOjcSaF+QoeBDlKBCYfFRhsSn4jUTLYfp00JR8JxDPGCJFksV3IMS28nbxeLh2/XJeHcBbjMia0+URHC7EnV++PJ1AvffST0/Wue+yeui9H5Y2P9a48VGXVXS2Qu1g4b1Lqw34fzm/pMCV/DKA1ub6unsL5ChdNYzCw1OQMOcxPxquXd05ZcfI/JbvuOqJK5N3lTsqTD/UjE6+y2LqQxebmrRt2jwWxv+X/mueoDO13YHEgRmJHEykQASKIGSN1jCJbbQMZUOAfeAwz9rejQAEh4sgzWKHzIqFB62c0n2URWgliiNg12Y5Zk0mgfdb+xijeoSyAjd+6EaSb7C+iHKr2xxsUOAaMawaHWfG32/AnvjDYExcUaFeV040dWdoHKcW9Cp82O4rNm2L9jH8AUEsBAhQDFAAAAAgAeLFzXZQltTSaAQAAnAIAAAoAAAAAAAAAAAAAAIABAAAAAGluZGV4Lmh0bWxQSwUGAAAAAAEAAQA4AAAAwgEAAAAA"
+  },
+  "acceptance": {
+    "required_extensions": [
+      ".html",
+      ".png",
+      ".json"
+    ],
+    "browser_evidence": true
+  }
+}
