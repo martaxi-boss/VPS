@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "sevelora-public-review-20261119-r5",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "sevelora-index-20261119",
+  "revision": 1,
+  "turn": {
+    "task": "public-response",
+    "role": "review",
+    "kind": "review",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "8989f2ffec2a0cf8bd36671269887b8c1368cc7ea2d0dd7b3433f93424a2ceeb"
+    ],
+    "message": "Revisto o ZIP e o SHA256 exato. Todos os passos completados, sem eventos perdidos ou erros. Corpos recebidos e respetivos hashes verificados: XML162 URLs unicas oficiais; robots permite rastreio; pagina2 tem24 produtos e canonical proprio index/follow; rota inexistente404. Browser privado terminado. Prova tecnica de acesso publico; nao prova processamento/indexacao Google."
+  }
+}
