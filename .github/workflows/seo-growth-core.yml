@@ -1,0 +1,77 @@
+name: SEO Growth Core - multi-site organic opportunity backlog
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '21 7 * * *'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'ops/seo_growth_core.py'
+      - 'ops/seo_growth_sites.json'
+      - 'ops/tests/test_seo_growth_core.py'
+      - 'ops/SEO_GROWTH_CORE.md'
+      - '.github/workflows/seo-growth-core.yml'
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: seo-growth-core-controlled
+  cancel-in-progress: false
+
+jobs:
+  seo-growth:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run offline unit tests before any network request
+        run: python -m unittest discover -s ops/tests -p test_seo_growth_core.py -v
+      - name: Scan public canonical pages in two sites
+        if: github.event_name != 'pull_request'
+        run: |
+          python ops/seo_growth_core.py \
+            --config ops/seo_growth_sites.json \
+            --out reports \
+            --pause 0.15
+      - name: Archive read-only reports
+        if: always() && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: seo-growth-core-public-audits
+          path: reports/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Update one actionable issue per site without duplicate issues
+        if: always() && github.event_name != 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const config = JSON.parse(fs.readFileSync('ops/seo_growth_sites.json','utf8'));
+            const {owner,repo} = context.repo;
+            const open = await github.paginate(github.rest.issues.listForRepo, {
+              owner, repo, state: 'open', per_page: 100
+            });
+            for (const site of config.sites) {
+              const filename = 'reports/' + site.id + '.md';
+              if (!fs.existsSync(filename)) {
+                core.warning('Report unavailable: ' + site.id);
+                continue;
+              }
+              const title = 'SEO Growth Core - ' + site.id + ' (backlog)';
+              const body = fs.readFileSync(filename,'utf8').slice(0,60000);
+              const current = open.find(issue => !issue.pull_request && issue.title === title);
+              if (current) {
+                await github.rest.issues.update({owner,repo,issue_number:current.number,body});
+              } else {
+                await github.rest.issues.create({owner,repo,title,body});
+              }
+            }
