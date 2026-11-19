@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "id": "sevelora-public-check-20261119-r4",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "sevelora-index-20261119",
+  "revision": 0,
+  "turn": {
+    "task": "public-response",
+    "role": "webcheck",
+    "kind": "rea-mcp",
+    "message": "Executar apenas o cenario publico de leitura. Obter os corpos e cabecalhos reais, incluindo resposta404. Nao gravar configuracao ou credenciais, nao solicitar indexacao nem confundir HTTP200 com indexacao Google.",
+    "mcp_requests": [
+      {
+        "method": "tools/call",
+        "params": {
+          "name": "capture_browser_scenario",
+          "arguments": {
+            "browser": {
+              "mode": "launch",
+              "executable_path": "/srv/projects/skill-universal/.runtime/browsers/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell"
+            },
+            "start_url": {
+              "url": "https://sevelora.eu/sitemap.xml"
+            },
+            "actions": [
+              {
+                "step_id": "sitemap-fetch",
+                "action": "request",
+                "method": "GET",
+                "path": "/sitemap.xml",
+                "expected_status": [
+                  200
+                ],
+                "timeout_ms": 20000
+              },
+              {
+                "step_id": "robots-fetch",
+                "action": "request",
+                "method": "GET",
+                "path": "/robots.txt",
+                "expected_status": [
+                  200
+                ],
+                "timeout_ms": 20000
+              },
+              {
+                "step_id": "page-two-fetch",
+                "action": "request",
+                "method": "GET",
+                "path": "/catalogo?pagina=2",
+                "expected_status": [
+                  200
+                ],
+                "timeout_ms": 20000
+              },
+              {
+                "step_id": "missing-page",
+                "action": "request",
+                "method": "GET",
+                "path": "/auditoria-ferrari-inexistente-20261119",
+                "expected_status": [
+                  404
+                ],
+                "timeout_ms": 20000
+              }
+            ],
+            "capture": {
+              "at_end": [
+                "url"
+              ],
+              "events": [
+                "network",
+                "page-errors"
+              ],
+              "network": {
+                "response_body": true,
+                "header_values": true
+              },
+              "limits": {
+                "max_network_body_bytes": 300000,
+                "max_network_body_allocation_bytes": 4000000
+              }
+            },
+            "command_timeout_ms": 20000
+          }
+        }
+      }
+    ]
+  }
+}
