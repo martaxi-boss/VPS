@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "id": "sevelora-rea-tools-20261119-r1",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/list"
+    }
+  ]
+}
