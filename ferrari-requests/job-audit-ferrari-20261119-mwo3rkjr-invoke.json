@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "audit-ferrari-20261119-mwo3rkjr-invoke",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "audit-ferrari-20261119-mwo3rkjr",
+  "revision": 0,
+  "turn": {
+    "task": "formatar",
+    "role": "executor",
+    "kind": "invoke",
+    "message": "Formatar o JSON sintetico com jq privado; conservar exatamente os tres campos de entrada para revisao independente por papel.",
+    "action": "jq-format-json",
+    "input_from": "$input"
+  }
+}
