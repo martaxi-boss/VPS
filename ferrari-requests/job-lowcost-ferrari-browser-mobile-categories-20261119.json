@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "id": "lowcost-ferrari-browser-mobile-categories-20261119",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_browser_scenario",
+        "arguments": {
+          "browser": {
+            "mode": "launch",
+            "executable_path": "/srv/projects/skill-universal/.runtime/browsers/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell"
+          },
+          "start_url": {
+            "url": "https://www.lowcost-europa.eu/pt/products/hifu/"
+          },
+          "environment": {
+            "viewport": {
+              "width": 390,
+              "height": 844,
+              "device_scale_factor": 1
+            },
+            "locale": "pt-PT",
+            "timezone": "Europe/Lisbon"
+          },
+          "actions": [
+            {
+              "step_id": "settle",
+              "action": "wait_for_timeout",
+              "duration_ms": 600
+            }
+          ],
+          "capture": {
+            "at_end": [
+              "url",
+              "dom",
+              "accessibility",
+              "screenshot"
+            ]
+          },
+          "command_timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_browser_scenario",
+        "arguments": {
+          "browser": {
+            "mode": "launch",
+            "executable_path": "/srv/projects/skill-universal/.runtime/browsers/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell"
+          },
+          "start_url": {
+            "url": "https://www.lowcost-europa.eu/es/products/hifu/"
+          },
+          "environment": {
+            "viewport": {
+              "width": 390,
+              "height": 844,
+              "device_scale_factor": 1
+            },
+            "locale": "pt-PT",
+            "timezone": "Europe/Lisbon"
+          },
+          "actions": [
+            {
+              "step_id": "settle",
+              "action": "wait_for_timeout",
+              "duration_ms": 600
+            }
+          ],
+          "capture": {
+            "at_end": [
+              "url",
+              "dom",
+              "accessibility",
+              "screenshot"
+            ]
+          },
+          "command_timeout_ms": 20000
+        }
+      }
+    }
+  ]
+}
