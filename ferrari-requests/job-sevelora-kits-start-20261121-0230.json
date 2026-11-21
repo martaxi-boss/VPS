@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "id": "sevelora-kits-start-20261121-0230",
+  "kind": "ruflo-team",
+  "phase": "start",
+  "team_id": "sevelora-kits-20261121",
+  "host": "ChatGPT",
+  "mission": "O proprietario autorizou mover Kit BDSM Fantasy44625061400 para Kits e eliminar categoriaBDSM. Anfitriao altera fonte editorial e menus e publica pelo workflow existente; Ferrari verifica respostas reais apos deploy e papel distinto revê evidencia. Preservar produto, linkAwin e contador VPS.",
+  "roles": [
+    {
+      "id": "webcheck",
+      "type": "tester",
+      "actions": [
+        "rea-mcp"
+      ]
+    },
+    {
+      "id": "review",
+      "type": "reviewer",
+      "actions": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "kits-public",
+      "role": "webcheck",
+      "reviewer": "review",
+      "goal": "Verificar home sem ligacao/categoriaBDSM, Kits contem44625061400, produto conserva afiliado3157353/37722, sitemapsem/categoria/bdsm com mesmo totalprodutos, enderecoantigo encaminha para Kits.",
+      "depends_on": []
+    }
+  ]
+}
