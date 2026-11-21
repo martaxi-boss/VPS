@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "sevelora-kits-approve-20261121-0244",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "sevelora-kits-20261121",
+  "revision": 3,
+  "turn": {
+    "task": "kits-public",
+    "role": "review",
+    "kind": "review",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "1b6ee79a09a62e655efab3d8b9c21010be9673a00e3fd3b1d8e88a1bc5d11f58"
+    ],
+    "message": "ZIP/hashrevistos. Ferrari capturou home eKits sem/categoria/bdsm, Kit44625061400 emKits eroticos, sitemap161URLs/147produtos eDOM/screenshotmobile390x844 corretos. Corpo da ficha produto indisponivel na capturaFerrari; nao o certificar por esseartefacto. Anfitriao verificouHTTPpublico independente: ficha200, breadcrumbKits&Accessorios, hrefAwinp44625061400/a3157353/m37722; enderecoantigo308paraKits. Deploy44856607186 confirma dadosprivados classificadosKits econtadorpreservado. Aprovo alteracao solicitada com estalimitação de capturaexplicitada."
+  }
+}
