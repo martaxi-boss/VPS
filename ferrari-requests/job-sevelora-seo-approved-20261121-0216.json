@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "sevelora-seo-approved-20261121-0216",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "sevelora-seo-20261121",
+  "revision": 3,
+  "turn": {
+    "task": "crawlability",
+    "role": "review",
+    "kind": "review",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "cd581b9ce812cf29a219832c54f71839bd0551ca0ae18ae4546ec840eb247d94"
+    ],
+    "message": "Revistos ZIP e hash exato do artefacto, bem como SHA256 de cada corpo HTTP. XML/TXT contem mesmas162URLs unicas/147produtos; robots permite rastreio; HTML completo do catalogo e produto com index-follow e canonical correto; catalogo tem48ancoras de produto. A captura global de eventos de assets nas duas paginas e incompleta por orcamento, mas todos os cinco documentos de aceitacao estao presentes, integros e200. Aprovo apenas rastreabilidade/metadados destes documentos, nao auditoria integral de assets nem indexacao Google. Confirmacao SearchConsole separada: live21/11 02:08 produto disponivel/indexavel; submissaoTXT sucesso162; pedido individual devolve erro e nao foi aceite."
+  }
+}
