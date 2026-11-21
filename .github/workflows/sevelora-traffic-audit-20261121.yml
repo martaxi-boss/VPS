@@ -49,6 +49,7 @@ jobs:
               for p in re.findall(r'\baccess_log\s+([^\s;]+)',b):
                   if p.startswith('/var/log/nginx/') and '$' not in p:logs.add(p)
           print('EXPLICIT_ACCESS_LOGS',json.dumps(sorted(logs)))
+          if not logs and pathlib.Path('/var/log/nginx/access.log').exists(): logs.add('/var/log/nginx/access.log')
           print('DIRECT_AWIN_LINKS_NOTE outbound browser requests to awin cannot be inferred from nginx page requests')
           bot=re.compile(r'bot|crawl|spider|slurp|headless|playwright|puppeteer|curl|wget|python|httpclient|go-http|scanner|monitor|uptime|facebookexternalhit|preview|lighthouse|pagespeed|petal|bytespider',re.I)
           rx=re.compile(r'^(\S+) .*?\[([^\]]+)\] "([^"]*)" (\d{3}) \S+ "([^"]*)" "([^"]*)"')
@@ -56,8 +57,8 @@ jobs:
           total=0; parsed=0; earliest=None;latest=None; excluded=collections.Counter()
           for base in sorted(logs):
               # Only dedicated logs; shared paths cannot establish which host received a request.
-              if not re.search(r'sevelora|sexshop|sexy.shop',pathlib.Path(base).name,re.I):
-                  print('SHARED_LOG_SKIPPED',base);continue
+              shared=not bool(re.search(r'sevelora|sexshop|sexy.shop',pathlib.Path(base).name,re.I))
+              if shared: print('SHARED_LOG_FILTER self-referrer sevelora.eu only; excludes unidentifiable entry requests')
               for name in sorted(glob.glob(base+'*')):
                   if name in seen:continue
                   seen.add(name)
@@ -68,6 +69,9 @@ jobs:
                               total+=1;m=rx.match(line)
                               if not m:continue
                               ip,date,req,status,ref,ua=m.groups()
+                              try: refhost=(urllib.parse.urlsplit(ref).hostname or '').lower()
+                              except ValueError: continue
+                              if shared and refhost not in [domain,'www.'+domain]:continue
                               try:dt=datetime.datetime.strptime(date,'%d/%b/%Y:%H:%M:%S %z')
                               except ValueError:continue
                               day=dt.strftime('%Y-%m-%d')
@@ -92,7 +96,7 @@ jobs:
                               else:source='other_external'
                               refs[source]+=1
                   except (OSError,EOFError):print('LOG_READ_FAILURE',pathlib.Path(name).name)
-          print('TRAFFIC_SUMMARY',json.dumps({'period':['2026-11-16','2026-11-21'],'log_files_read':len(seen),'log_lines_read':total,'parsed_in_period':parsed,'available_dates':[earliest,latest],'daily':dict(daily),'approx_browser_client_days':len(clients),'referral_page_requests':dict(refs),'home_page_requests':paths['/'],'product_page_requests':sum(v for k,v in paths.items() if k.startswith('/produto/')),'limitations':['browser requests include owner and manual QA; counts are not verified unique people','bot filtering heuristic','direct Awin clicks require Awin reporting or an existing click collector']},sort_keys=True))
+          print('TRAFFIC_SUMMARY',json.dumps({'period':['2026-11-16','2026-11-21'],'log_files_read':len(seen),'log_lines_read':total,'parsed_in_period':parsed,'available_dates':[earliest,latest],'daily':dict(daily),'approx_browser_client_days':len(clients),'referral_page_requests':dict(refs),'home_page_requests':paths['/'],'product_page_requests':sum(v for k,v in paths.items() if k.startswith('/produto/')),'attribution':'only requests with exact Sevelora referrer when using shared access logs; partial counts, not total visits','limitations':['browser requests include owner and manual QA; counts are not verified unique people','bot filtering heuristic','direct Awin clicks require Awin reporting or an existing click collector']},sort_keys=True))
           root=pathlib.Path('/srv/projects/Sexshop')
           print('PROJECT_EXISTS',root.is_dir())
           for name in ['.local-metrics','data']:
