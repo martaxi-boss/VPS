@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "id": "sevelora-seo-public-20261121-0212",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "sevelora-seo-20261121",
+  "revision": 0,
+  "turn": {
+    "task": "crawlability",
+    "role": "webcheck",
+    "kind": "rea-mcp",
+    "message": "Obter respostas HTTPS reais pelo navegador privado e guardar corpos e cabecalhos. Somente leitura publica; nao confundir rastreabilidade com indexacao Google.",
+    "mcp_requests": [
+      {
+        "method": "tools/call",
+        "params": {
+          "name": "capture_browser_scenario",
+          "arguments": {
+            "browser": {
+              "mode": "launch",
+              "executable_path": "/srv/projects/skill-universal/.runtime/browsers/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell"
+            },
+            "start_url": {
+              "url": "https://sevelora.eu/sitemap.xml"
+            },
+            "actions": [
+              {
+                "step_id": "fetch-0",
+                "action": "request",
+                "method": "GET",
+                "path": "/sitemap.xml",
+                "expected_status": [
+                  200
+                ],
+                "timeout_ms": 20000
+              },
+              {
+                "step_id": "fetch-1",
+                "action": "request",
+                "method": "GET",
+                "path": "/sitemap.txt",
+                "expected_status": [
+                  200
+                ],
+                "timeout_ms": 20000
+              },
+              {
+                "step_id": "fetch-2",
+                "action": "request",
+                "method": "GET",
+                "path": "/robots.txt",
+                "expected_status": [
+                  200
+                ],
+                "timeout_ms": 20000
+              },
+              {
+                "step_id": "fetch-3",
+                "action": "request",
+                "method": "GET",
+                "path": "/catalogo",
+                "expected_status": [
+                  200
+                ],
+                "timeout_ms": 20000
+              },
+              {
+                "step_id": "fetch-4",
+                "action": "request",
+                "method": "GET",
+                "path": "/produto/43428124436",
+                "expected_status": [
+                  200
+                ],
+                "timeout_ms": 20000
+              }
+            ],
+            "capture": {
+              "at_end": [
+                "url"
+              ],
+              "events": [
+                "network",
+                "page-errors"
+              ],
+              "network": {
+                "response_body": true,
+                "header_values": true
+              },
+              "limits": {
+                "max_network_body_bytes": 400000,
+                "max_network_body_allocation_bytes": 5000000
+              }
+            },
+            "command_timeout_ms": 20000
+          }
+        }
+      }
+    ]
+  }
+}
