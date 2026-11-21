@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "id": "seo-rea-discovery-20261121-0210",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/list"
+    }
+  ]
+}
