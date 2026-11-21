@@ -1,0 +1,244 @@
+{
+  "version": 1,
+  "id": "sevelora-kits-recheck-20261121-0241",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "sevelora-kits-20261121",
+  "revision": 2,
+  "turn": {
+    "task": "kits-public",
+    "role": "webcheck",
+    "kind": "rea-mcp",
+    "message": "Verificar somente documentos publicos e screenshotmobile de Kits; localizador aponta para cartao unico. Encaminhamento308 validado separadamente pelo anfitriao. Nao abrirlinkafiliado.",
+    "mcp_requests": [
+      {
+        "method": "tools/call",
+        "params": {
+          "name": "capture_browser_scenario",
+          "arguments": {
+            "browser": {
+              "mode": "launch",
+              "executable_path": "/srv/projects/skill-universal/.runtime/browsers/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell"
+            },
+            "start_url": {
+              "url": "https://sevelora.eu/robots.txt"
+            },
+            "actions": [
+              {
+                "step_id": "public-fetch",
+                "action": "request",
+                "method": "GET",
+                "path": "/",
+                "expected_status": [
+                  200
+                ],
+                "timeout_ms": 20000
+              }
+            ],
+            "capture": {
+              "at_end": [
+                "url"
+              ],
+              "events": [
+                "network",
+                "page-errors"
+              ],
+              "network": {
+                "response_body": true,
+                "header_values": true
+              },
+              "limits": {
+                "max_network_body_bytes": 400000,
+                "max_network_body_allocation_bytes": 4000000
+              }
+            },
+            "command_timeout_ms": 20000
+          }
+        }
+      },
+      {
+        "method": "tools/call",
+        "params": {
+          "name": "capture_browser_scenario",
+          "arguments": {
+            "browser": {
+              "mode": "launch",
+              "executable_path": "/srv/projects/skill-universal/.runtime/browsers/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell"
+            },
+            "start_url": {
+              "url": "https://sevelora.eu/robots.txt"
+            },
+            "actions": [
+              {
+                "step_id": "public-fetch",
+                "action": "request",
+                "method": "GET",
+                "path": "/categoria/jogos-acessorios",
+                "expected_status": [
+                  200
+                ],
+                "timeout_ms": 20000
+              }
+            ],
+            "capture": {
+              "at_end": [
+                "url"
+              ],
+              "events": [
+                "network",
+                "page-errors"
+              ],
+              "network": {
+                "response_body": true,
+                "header_values": true
+              },
+              "limits": {
+                "max_network_body_bytes": 400000,
+                "max_network_body_allocation_bytes": 4000000
+              }
+            },
+            "command_timeout_ms": 20000
+          }
+        }
+      },
+      {
+        "method": "tools/call",
+        "params": {
+          "name": "capture_browser_scenario",
+          "arguments": {
+            "browser": {
+              "mode": "launch",
+              "executable_path": "/srv/projects/skill-universal/.runtime/browsers/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell"
+            },
+            "start_url": {
+              "url": "https://sevelora.eu/robots.txt"
+            },
+            "actions": [
+              {
+                "step_id": "public-fetch",
+                "action": "request",
+                "method": "GET",
+                "path": "/produto/44625061400",
+                "expected_status": [
+                  200
+                ],
+                "timeout_ms": 20000
+              }
+            ],
+            "capture": {
+              "at_end": [
+                "url"
+              ],
+              "events": [
+                "network",
+                "page-errors"
+              ],
+              "network": {
+                "response_body": true,
+                "header_values": true
+              },
+              "limits": {
+                "max_network_body_bytes": 400000,
+                "max_network_body_allocation_bytes": 4000000
+              }
+            },
+            "command_timeout_ms": 20000
+          }
+        }
+      },
+      {
+        "method": "tools/call",
+        "params": {
+          "name": "capture_browser_scenario",
+          "arguments": {
+            "browser": {
+              "mode": "launch",
+              "executable_path": "/srv/projects/skill-universal/.runtime/browsers/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell"
+            },
+            "start_url": {
+              "url": "https://sevelora.eu/robots.txt"
+            },
+            "actions": [
+              {
+                "step_id": "public-fetch",
+                "action": "request",
+                "method": "GET",
+                "path": "/sitemap.txt",
+                "expected_status": [
+                  200
+                ],
+                "timeout_ms": 20000
+              }
+            ],
+            "capture": {
+              "at_end": [
+                "url"
+              ],
+              "events": [
+                "network",
+                "page-errors"
+              ],
+              "network": {
+                "response_body": true,
+                "header_values": true
+              },
+              "limits": {
+                "max_network_body_bytes": 400000,
+                "max_network_body_allocation_bytes": 4000000
+              }
+            },
+            "command_timeout_ms": 20000
+          }
+        }
+      },
+      {
+        "method": "tools/call",
+        "params": {
+          "name": "capture_browser_scenario",
+          "arguments": {
+            "browser": {
+              "mode": "launch",
+              "executable_path": "/srv/projects/skill-universal/.runtime/browsers/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell"
+            },
+            "start_url": {
+              "url": "https://sevelora.eu/categoria/jogos-acessorios"
+            },
+            "environment": {
+              "viewport": {
+                "width": 390,
+                "height": 844,
+                "device_scale_factor": 1
+              },
+              "locale": "pt-PT",
+              "timezone": "Europe/Lisbon"
+            },
+            "actions": [
+              {
+                "step_id": "kit-visible",
+                "action": "wait_for",
+                "locator": {
+                  "kind": "css",
+                  "selector": "article.real-product-card:has(a[href='/produto/44625061400'])"
+                },
+                "state": "visible",
+                "timeout_ms": 15000
+              }
+            ],
+            "capture": {
+              "at_end": [
+                "screenshot",
+                "dom",
+                "accessibility",
+                "url"
+              ],
+              "events": [
+                "page-errors"
+              ]
+            },
+            "command_timeout_ms": 20000
+          }
+        }
+      }
+    ]
+  }
+}
