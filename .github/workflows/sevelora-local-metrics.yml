@@ -52,7 +52,12 @@ jobs:
           install -m 755 -o ubuntu -g ubuntu "$ROOT/.incoming/metrics/sevelora_metrics.py" "$ROOT/infra/sevelora_metrics.py"
           install -m 755 -o ubuntu -g ubuntu "$ROOT/.incoming/metrics/install_sevelora_metrics.py" "$ROOT/infra/install_sevelora_metrics.py"
           python3 "$ROOT/infra/install_sevelora_metrics.py"
-          curl -fsS --retry 2 --max-time 20 --resolve sevelora.eu:443:127.0.0.1 -A 'SeveloraMetricsCheck/1.0' https://sevelora.eu/ -o /dev/null
+          # Nginx gracefully replaces its workers after reload; wait for the new log.
+          for attempt in $(seq 1 10); do
+            curl -fsS --retry 2 --max-time 20 --resolve sevelora.eu:443:127.0.0.1 -A 'SeveloraMetricsCheck/1.0' https://sevelora.eu/ -o /dev/null
+            if grep -qF 'SeveloraMetricsCheck/1.0' /var/log/nginx/sevelora.access.log; then break; fi
+            sleep 1
+          done
           python3 - <<'VERIFY'
           from pathlib import Path
           assert b'SeveloraMetricsCheck/1.0' in Path('/var/log/nginx/sevelora.access.log').read_bytes()
