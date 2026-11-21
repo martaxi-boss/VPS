@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: martaxi-boss/Sexshop
-          ref: 7978a34a87ae7cd4325fdae748b1159ba91d4d1c
+          ref: 1dcce34ea0259de74a0ec73fb8ce6a84204d7265
           persist-credentials: false
       - uses: pnpm/action-setup@v4
         with:
@@ -33,7 +33,7 @@ jobs:
       - name: Validate supplier isolation and build
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = 7978a34a87ae7cd4325fdae748b1159ba91d4d1c
+          test "$(git rev-parse HEAD)" = 1dcce34ea0259de74a0ec73fb8ce6a84204d7265
           node scripts/catalog-test.mjs
           pnpm install --frozen-lockfile
           pnpm --dir apps/ecommerce-shop-demo build
@@ -73,7 +73,7 @@ jobs:
           sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
           set -Eeuo pipefail
           ROOT=/srv/projects/Sexshop
-          SHA=7978a34a87ae7cd4325fdae748b1159ba91d4d1c
+          SHA=1dcce34ea0259de74a0ec73fb8ce6a84204d7265
           OLD=$(readlink "$ROOT/current")
           test -n "$OLD"
           test -f "$ROOT/current/apps/ecommerce-shop-demo/server.js"
@@ -270,6 +270,7 @@ jobs:
           echo "SEVELORA_ROLLBACK_RELEASE=$OLD"
           test "$(curl -sS --resolve sevelora.eu:443:127.0.0.1 -o /dev/null -w '%{http_code}' https://sevelora.eu/categoria/bdsm)" = 308
           "$NODE" -e 'const c=require("/srv/projects/Sexshop/data/catalog.json");const p=c.products.find(x=>x.id==="44625061400");if(!p||p.categories.join(",")!=="jogos-acessorios"||p.subcategories.join(",")!=="kits"||c.products.some(x=>x.categories.includes("bdsm")))process.exit(1);console.log("BDSM_KIT_MOVED_AND_CATEGORY_RETIRED=PASS")'
+          "$NODE" -e 'const c=require("/srv/projects/Sexshop/data/catalog.json");const p=c.products.find(x=>x.id==="41817469190");if(!p||p.categories.join(",")!=="jogos-acessorios"||p.subcategories.join(",")!=="kits"||c.products.filter(x=>x.id==="41817469190").length!==1)process.exit(1);console.log("MASSAGE_KIT_MOVED_TO_KITS=PASS")'
           grep -Fq 'access_log /var/log/nginx/sevelora.access.log combined;' "$ROOT/infra/sevelora.eu.conf"
           echo SEXSHOP_CATALOG_DEPLOY=PASS
           echo OTHER_EXISTING_SERVICES=PASS
