@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: martaxi-boss/Sexshop
-          ref: 4d42b147f554b089678390ffa6ddeb642f7f407c
+          ref: a5849430d0aca086fa93ea978ad5cf028cfe4d6a
           persist-credentials: false
       - uses: pnpm/action-setup@v4
         with:
@@ -33,7 +33,7 @@ jobs:
       - name: Validate supplier isolation and build
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = 4d42b147f554b089678390ffa6ddeb642f7f407c
+          test "$(git rev-parse HEAD)" = a5849430d0aca086fa93ea978ad5cf028cfe4d6a
           node scripts/catalog-test.mjs
           pnpm install --frozen-lockfile
           pnpm --dir apps/ecommerce-shop-demo build
@@ -73,7 +73,7 @@ jobs:
           sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
           set -Eeuo pipefail
           ROOT=/srv/projects/Sexshop
-          SHA=4d42b147f554b089678390ffa6ddeb642f7f407c
+          SHA=a5849430d0aca086fa93ea978ad5cf028cfe4d6a
           OLD=$(readlink "$ROOT/current")
           test -n "$OLD"
           test -f "$ROOT/current/apps/ecommerce-shop-demo/server.js"
@@ -121,7 +121,7 @@ jobs:
           test -s "$ROOT/data/catalog.json"
           "$NODE" -e 'const c=require("/srv/projects/Sexshop/data/catalog.json");if(!c.products.length||c.merchantId!=="37722")process.exit(1);console.log("VALIDATED_PRODUCTS="+c.products.length)'
           "$NODE" -e 'const c=require("/srv/projects/Sexshop/data/catalog.json");const p=c.products.find(x=>x.id==="43428124436");if(!Number.isInteger(c.sourceProducts)||c.sourceProducts<145||c.sourceProducts>250||c.products.length<140||c.products.length!==c.sourceProducts-c.excludedNonRetail-c.unreviewedProducts||c.excludedNonRetail<0||c.excludedNonRetail>3||c.unreviewedProducts!==0||(p&&(p.name!=="Chronos P-Spot Preto"||!p.categories.includes("anal")||!p.subcategories.includes("prostata")))||c.products.some(x=>!x.description||x.categories.length!==1||x.subcategories.length!==1||!Array.isArray(x.audiences)))process.exit(1);console.log("PTPT_CURATED_PRODUCTS="+c.products.length,"EXCLUDED_PACKAGING="+c.excludedNonRetail)'
-          "$NODE" -e 'const c=require("/srv/projects/Sexshop/data/catalog.json");const count={};for(const p of c.products){const cat=p.categories[0];count[cat]=(count[cat]||0)+1;if(p.categories.length!==1||["para-ela","para-ele","para-casais"].includes(cat)||p.audiences.some(x=>!["para-ela","para-ele","para-casais"].includes(x)))process.exit(1)}if(Object.values(count).reduce((sum,n)=>sum+n,0)!==c.products.length||Object.keys(count).length<8||Object.keys(count).length>10||Object.keys(count).some(x=>!["anal","casais","estimuladores","jogos-acessorios","bem-estar","aneis","massagem","masturbadores","feromonas","bdsm"].includes(x))||count.bdsm>1)process.exit(1);console.log("EXCLUSIVE_PRODUCT_CATEGORIES="+JSON.stringify(count))'
+          "$NODE" -e 'const c=require("/srv/projects/Sexshop/data/catalog.json");const count={};for(const p of c.products){const cat=p.categories[0];count[cat]=(count[cat]||0)+1;if(p.categories.length!==1||["para-ela","para-ele","para-casais"].includes(cat)||p.audiences.some(x=>!["para-ela","para-ele","para-casais"].includes(x)))process.exit(1)}if(Object.values(count).reduce((sum,n)=>sum+n,0)!==c.products.length||Object.keys(count).length<8||Object.keys(count).length>10||Object.keys(count).some(x=>!["anal","casais","estimuladores","jogos-acessorios","bem-estar","aneis","massagem","masturbadores","feromonas"].includes(x))||count.bdsm)process.exit(1);console.log("EXCLUSIVE_PRODUCT_CATEGORIES="+JSON.stringify(count))'
           "$NODE" -e 'const c=require("/srv/projects/Sexshop/data/catalog.json");const priced=c.products.filter(p=>p.price!==null);const bad=priced.filter(p=>p.currency!=="EUR"||!Number.isFinite(p.price)||p.price<=0);console.log("VERIFIED_EUR_PRICES="+priced.length+"/"+c.products.length);if(bad.length||priced.length<Math.ceil(c.products.length*0.9))process.exit(1)'
           rollback(){
             echo SEXSHOP_CATALOG_DEPLOY=ROLLBACK
@@ -217,6 +217,7 @@ jobs:
           server {
             listen 443 ssl;
             server_name sevelora.eu;
+            access_log /var/log/nginx/sevelora.access.log combined;
             ssl_certificate /etc/letsencrypt/live/sevelora.eu/fullchain.pem;
             ssl_certificate_key /etc/letsencrypt/live/sevelora.eu/privkey.pem;
             ssl_protocols TLSv1.2 TLSv1.3;
@@ -267,6 +268,9 @@ jobs:
           test "$(readlink "$ROOT/current")" = "releases/$SHA/app"
           echo "SEVELORA_ACTIVE_COMMIT=$SHA"
           echo "SEVELORA_ROLLBACK_RELEASE=$OLD"
+          test "$(curl -sS --resolve sevelora.eu:443:127.0.0.1 -o /dev/null -w '%{http_code}' https://sevelora.eu/categoria/bdsm)" = 308
+          "$NODE" -e 'const c=require("/srv/projects/Sexshop/data/catalog.json");const p=c.products.find(x=>x.id==="44625061400");if(!p||p.categories.join(",")!=="jogos-acessorios"||p.subcategories.join(",")!=="kits"||c.products.some(x=>x.categories.includes("bdsm")))process.exit(1);console.log("BDSM_KIT_MOVED_AND_CATEGORY_RETIRED=PASS")'
+          grep -Fq 'access_log /var/log/nginx/sevelora.access.log combined;' "$ROOT/infra/sevelora.eu.conf"
           echo SEXSHOP_CATALOG_DEPLOY=PASS
           echo OTHER_EXISTING_SERVICES=PASS
           trap - ERR
@@ -282,7 +286,7 @@ jobs:
           grep -rlF 'sexy-shop.duckdns.org' /etc/systemd/system /etc/cron.d /var/spool/cron/crontabs 2>/dev/null || true
           echo TEST_DOMAIN_UPDATER_REFERENCES_END
           REMOTE
-          for path in / /catalogo /categoria/estimuladores /categoria/anal /categoria/masturbadores /categoria/aneis /categoria/casais /categoria/bdsm /afiliacao; do
+          for path in / /catalogo /categoria/estimuladores /categoria/anal /categoria/masturbadores /categoria/aneis /categoria/casais /categoria/jogos-acessorios /afiliacao; do
             curl -fsS --connect-timeout 10 --max-time 30 "https://sevelora.eu$path" -o /dev/null
             echo "PUBLIC_HTTP=PASS path=$path"
           done
