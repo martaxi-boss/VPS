@@ -1,0 +1,102 @@
+name: Sevelora traffic audit - read only 20261121
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/sevelora-traffic-audit-20261121.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Verify pinned VPS host
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+      - name: Read Sevelora logs and return aggregate counts only
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            ubuntu@146.59.145.3 'sudo -n python3 -' <<'PYTRAFFIC'
+          import collections, datetime, glob, gzip, json, pathlib, re, subprocess, urllib.parse
+          domain='sevelora.eu'
+          cfg=subprocess.run(['nginx','-T'],capture_output=True,text=True,check=True).stdout
+          blocks=[]
+          for m in re.finditer(r'\bserver\s*\{',cfg):
+              level=1;i=m.end()
+              while i<len(cfg) and level:
+                  level += (cfg[i]=='{')-(cfg[i]=='}');i+=1
+              b=cfg[m.end():i-1]
+              names=' '.join(re.findall(r'\bserver_name\s+([^;]+);',b)).split()
+              if domain in names or 'www.'+domain in names: blocks.append(b)
+          print('MATCHING_SERVER_BLOCKS',len(blocks))
+          logs=set()
+          for b in blocks:
+              for p in re.findall(r'\baccess_log\s+([^\s;]+)',b):
+                  if p.startswith('/var/log/nginx/') and '$' not in p:logs.add(p)
+          print('EXPLICIT_ACCESS_LOGS',json.dumps(sorted(logs)))
+          print('DIRECT_AWIN_LINKS_NOTE outbound browser requests to awin cannot be inferred from nginx page requests')
+          bot=re.compile(r'bot|crawl|spider|slurp|headless|playwright|puppeteer|curl|wget|python|httpclient|go-http|scanner|monitor|uptime|facebookexternalhit|preview|lighthouse|pagespeed|petal|bytespider',re.I)
+          rx=re.compile(r'^(\S+) .*?\[([^\]]+)\] "([^"]*)" (\d{3}) \S+ "([^"]*)" "([^"]*)"')
+          daily=collections.defaultdict(collections.Counter); refs=collections.Counter(); paths=collections.Counter();clients=set();seen=set()
+          total=0; parsed=0; earliest=None;latest=None; excluded=collections.Counter()
+          for base in sorted(logs):
+              # Only dedicated logs; shared paths cannot establish which host received a request.
+              if not re.search(r'sevelora|sexshop|sexy.shop',pathlib.Path(base).name,re.I):
+                  print('SHARED_LOG_SKIPPED',base);continue
+              for name in sorted(glob.glob(base+'*')):
+                  if name in seen:continue
+                  seen.add(name)
+                  try:
+                      f=gzip.open(name,'rt',errors='replace') if name.endswith('.gz') else open(name,errors='replace')
+                      with f:
+                          for line in f:
+                              total+=1;m=rx.match(line)
+                              if not m:continue
+                              ip,date,req,status,ref,ua=m.groups()
+                              try:dt=datetime.datetime.strptime(date,'%d/%b/%Y:%H:%M:%S %z')
+                              except ValueError:continue
+                              day=dt.strftime('%Y-%m-%d')
+                              if not '2026-11-16'<=day<='2026-11-21':continue
+                              parsed+=1;earliest=min(earliest or day,day);latest=max(latest or day,day)
+                              parts=req.split()
+                              if len(parts)<2:continue
+                              method,url=parts[:2];path=urllib.parse.urlsplit(url).path
+                              daily[day]['all_requests']+=1
+                              if bot.search(ua):daily[day]['identified_bot_or_tool_requests']+=1;continue
+                              if method!='GET' or not 200<=int(status)<400:continue
+                              if not re.fullmatch(r'/|/catalogo/?|/categoria/[^/]+/?|/produto/[^/]+/?|/guias/?|/sobre/?|/afiliacao/?',path):continue
+                              if not re.search(r'Mozilla/5\.0',ua):excluded['nonbrowser_page_requests']+=1;continue
+                              daily[day]['browser_page_requests']+=1
+                              clients.add((day,ip,ua));paths[path]+=1
+                              host=(urllib.parse.urlsplit(ref).hostname or '').lower() if ref!='-' else ''
+                              if not host:source='direct_or_unknown'
+                              elif host in [domain,'www.'+domain]:source='internal'
+                              elif 'google.' in host:source='google'
+                              elif any(x in host for x in ['facebook.com','instagram.com','fb.com']):source='meta'
+                              elif any(x in host for x in ['bing.com','duckduckgo.com','yahoo.']):source='other_search'
+                              else:source='other_external'
+                              refs[source]+=1
+                  except (OSError,EOFError):print('LOG_READ_FAILURE',pathlib.Path(name).name)
+          print('TRAFFIC_SUMMARY',json.dumps({'period':['2026-11-16','2026-11-21'],'log_files_read':len(seen),'log_lines_read':total,'parsed_in_period':parsed,'available_dates':[earliest,latest],'daily':dict(daily),'approx_browser_client_days':len(clients),'referral_page_requests':dict(refs),'home_page_requests':paths['/'],'product_page_requests':sum(v for k,v in paths.items() if k.startswith('/produto/')),'limitations':['browser requests include owner and manual QA; counts are not verified unique people','bot filtering heuristic','direct Awin clicks require Awin reporting or an existing click collector']},sort_keys=True))
+          root=pathlib.Path('/srv/projects/Sexshop')
+          print('PROJECT_EXISTS',root.is_dir())
+          for name in ['.local-metrics','data']:
+              p=root/name
+              if p.is_dir():print('METRICS_DIRECTORY',name,'json_file_names',json.dumps([x.name for x in p.glob('*.json') if re.search(r'metric|traffic|click|visit|analytic',x.name,re.I)]))
+          
+          PYTRAFFIC
