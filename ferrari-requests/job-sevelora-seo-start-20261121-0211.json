@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "id": "sevelora-seo-start-20261121-0211",
+  "kind": "ruflo-team",
+  "phase": "start",
+  "team_id": "sevelora-seo-20261121",
+  "host": "ChatGPT",
+  "mission": "Validar respostas publicas reais de sitemap XML/TXT, robots, catalogo e produto; rever corpos HTTP e metadados. Anfitriao resolve submissoes e pedidos no Search Console separadamente. Nao inferir indexacao de HTTP200 e nao modificar o site sem defeito demonstrado.",
+  "roles": [
+    {
+      "id": "webcheck",
+      "type": "debugger",
+      "actions": [
+        "rea-mcp"
+      ]
+    },
+    {
+      "id": "review",
+      "type": "reviewer",
+      "actions": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "crawlability",
+      "role": "webcheck",
+      "reviewer": "review",
+      "goal": "Provar XML/TXT com mesmas162URLs, robots permite rastreio, produto HTTP200 index/follow canonical correto, catalogo com ligacoes rastreaveis. Distinguir validacao tecnica da indexacao Google.",
+      "depends_on": []
+    }
+  ]
+}
