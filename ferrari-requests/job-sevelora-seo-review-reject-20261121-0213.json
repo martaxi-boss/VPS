@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "sevelora-seo-review-reject-20261121-0213",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "sevelora-seo-20261121",
+  "revision": 1,
+  "turn": {
+    "task": "crawlability",
+    "role": "review",
+    "kind": "review",
+    "verdict": "rejected",
+    "evidence_sha256": [
+      "5753c7aca1a48e9dbb6478bdbd8eb4d08caf8d7fde9d6e8a6e75813f2f021356"
+    ],
+    "message": "Os corpos XML/TXT tem hashes integros e162URLs identicos, robots permite rastreio e produto200/index-follow/canonical correto. Rejeito a completude do ensaio: corpo /catalogo indisponivel por net::ERR_ABORTED. Repetir em cenarios separados com a pagina HTML como ultima acao para terminar captura de corpo antes de fechar browser. Nao declarar defeito no site por aborto de captura."
+  }
+}
