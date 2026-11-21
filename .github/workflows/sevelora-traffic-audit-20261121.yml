@@ -84,6 +84,8 @@ jobs:
                               if bot.search(ua):daily[day]['identified_bot_or_tool_requests']+=1;continue
                               if method!='GET' or not 200<=int(status)<400:continue
                               if not re.fullmatch(r'/|/catalogo/?|/categoria/[^/]+/?|/produto/[^/]+/?|/guias/?|/sobre/?|/afiliacao/?',path):continue
+                              if '_rsc' in urllib.parse.parse_qs(urllib.parse.urlsplit(url).query):
+                                  daily[day]['nextjs_prefetch_or_rsc_requests']+=1;continue
                               if not re.search(r'Mozilla/5\.0',ua):excluded['nonbrowser_page_requests']+=1;continue
                               daily[day]['browser_page_requests']+=1
                               clients.add((day,ip,ua));paths[path]+=1
