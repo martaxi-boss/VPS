@@ -1,0 +1,102 @@
+name: Sevelora - contador local de visitas
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/sevelora-local-metrics.yml
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sevelora-local-metrics
+  cancel-in-progress: false
+jobs:
+  contador:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Fetch reviewed project scripts at fixed commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/source/scripts" "$RUNNER_TEMP/source/tests"
+          for file in scripts/sevelora_metrics.py scripts/install_sevelora_metrics.py tests/test_sevelora_metrics.py; do
+            curl -fsS --retry 2 --max-time 30 "https://raw.githubusercontent.com/martaxi-boss/Sexshop/2bb67e44dcf39779efd05347525272a80f648ceb/$file" -o "$RUNNER_TEMP/source/$file"
+          done
+          python3 -m unittest discover -s "$RUNNER_TEMP/source/tests" -p test_sevelora_metrics.py -v
+      - name: Verify existing pinned SSH host
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh-keyscan -T 15 -t ed25519 146.59.145.3 2>/dev/null > "$RUNNER_TEMP/kh"
+          test "$(ssh-keygen -lf "$RUNNER_TEMP/kh" -E sha256 | awk '{print $2}')" = 'SHA256:Q7y5zs6sXWHtznlMQS/IQjcqPKdr7YEku1hWlNLvdxc'
+      - name: Install isolated counter and verify a marked test request
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SSHPASS"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          opts=(-o PreferredAuthentications=password -o PubkeyAuthentication=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o ConnectTimeout=20 -o ServerAliveInterval=15)
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 'test -L /srv/projects/Sexshop/current && mkdir -p /srv/projects/Sexshop/.incoming/metrics'
+          sshpass -e scp "${opts[@]}" "$RUNNER_TEMP/source/scripts/sevelora_metrics.py" "$RUNNER_TEMP/source/scripts/install_sevelora_metrics.py" ubuntu@146.59.145.3:/srv/projects/Sexshop/.incoming/metrics/
+          sshpass -e ssh -T "${opts[@]}" ubuntu@146.59.145.3 'sudo -n bash -s' <<'REMOTE'
+          set -euo pipefail
+          ROOT=/srv/projects/Sexshop
+          ACTIVE=$(readlink "$ROOT/current")
+          LOWCOST=$(sha256sum /srv/projects/lowcost-europa/deploy/nginx/lowcost-europa.eu.conf | cut -d' ' -f1)
+          install -m 755 -o ubuntu -g ubuntu "$ROOT/.incoming/metrics/sevelora_metrics.py" "$ROOT/infra/sevelora_metrics.py"
+          install -m 755 -o ubuntu -g ubuntu "$ROOT/.incoming/metrics/install_sevelora_metrics.py" "$ROOT/infra/install_sevelora_metrics.py"
+          python3 "$ROOT/infra/install_sevelora_metrics.py"
+          curl -fsS --retry 2 --max-time 20 --resolve sevelora.eu:443:127.0.0.1 -A 'SeveloraMetricsCheck/1.0' https://sevelora.eu/ -o /dev/null
+          python3 - <<'VERIFY'
+          from pathlib import Path
+          assert b'SeveloraMetricsCheck/1.0' in Path('/var/log/nginx/sevelora.access.log').read_bytes()
+          print('REAL_DEDICATED_LOG_REQUEST=PASS')
+          assert '*.log' in Path('/etc/logrotate.d/nginx').read_text()
+          print('EXISTING_LOG_ROTATION_COVERS_SEVELORA=PASS')
+          VERIFY
+          test "$ACTIVE" = "$(readlink "$ROOT/current")"
+          test "$LOWCOST" = "$(sha256sum /srv/projects/lowcost-europa/deploy/nginx/lowcost-europa.eu.conf | cut -d' ' -f1)"
+          systemctl is-active --quiet sexshop.service
+          systemctl is-active --quiet lowcost-europa.service
+          echo PROJECT_ISOLATION=PASS
+          REMOTE
+      - name: Read sanitized private aggregate
+        shell: bash
+        env:
+          SSHPASS: ${{ secrets.VPS_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sshpass -e ssh -T -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$RUNNER_TEMP/kh" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 ubuntu@146.59.145.3 \
+            'sudo -n python3 /srv/projects/Sexshop/infra/sevelora_metrics.py --log-dir /var/log/nginx --output /srv/projects/Sexshop/.local-metrics/traffic.json --started-file /srv/projects/Sexshop/.local-metrics/recording-started.txt' > "$RUNNER_TEMP/report.json"
+          python3 - "$RUNNER_TEMP/report.json" <<'REPORT'
+          import json, os, sys
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          r=json.load(open(sys.argv[1]))
+          assert r['domain']=='sevelora.eu' and r['totals']['qa_requests']>=1
+          label=lambda x:datetime.fromisoformat(x).astimezone(ZoneInfo('Europe/Lisbon')).strftime('%d/%m/%Y %H:%M')
+          t=r['totals']
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as out:
+              out.write('# Contador Sevelora\n\n')
+              out.write('Atualizado: **'+label(r['checked_at'])+'** · Início da medição: **'+label(r['recording_started'])+'** (Portugal).\n\n')
+              out.write('Janela: últimos sete dias, limitada ao período desde a instalação. Atualização agendada de hora a hora.\n\n')
+              out.write('| Contagem | Pedidos observados |\n|---|---:|\n')
+              for title,key in [('Páginas (exclui robôs reconhecidos e testes marcados)','page_requests'),('Origem Google','google'),('Origem Facebook / Instagram / Meta','meta'),('Outros motores de pesquisa','other_search'),('Outras referências externas','other_external'),('Diretos / origem desconhecida','direct_unknown'),('Referências internas','internal'),('Next.js: navegação / pré-carregamento, separado','client_route_requests'),('Robôs / ferramentas reconhecidos, separado','bot_requests')]:
+                  out.write('| '+title+' | '+str(t[key])+' |\n')
+              out.write('\n| Dia (Portugal) | Páginas | Google | Meta | Outros motores | Next.js separado |\n|---|---:|---:|---:|---:|---:|\n')
+              for day in r['daily']:
+                  out.write('| '+day['date']+' | '+' | '.join(str(day[k]) for k in ['page_requests','google','meta','other_search','client_route_requests'])+' |\n')
+              out.write('\nEstes números são pedidos HTTP, não pessoas únicas ou clientes confirmados. As referências podem faltar ou ser falsificadas. Não reconstituem o histórico anterior à instalação. Cliques para a Diversual e vendas confirmam-se na Awin.\n\n')
+              out.write('Verificação real do registo dedicado, rotação, testes do contador e preservação dos serviços: **PASS**.\n')
+          print('SEVELORA_COUNTER_REPORT=PASS')
+          print(json.dumps({'recording_started':r['recording_started'],'checked_at':r['checked_at'],'totals':t},sort_keys=True))
+          REPORT
