@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "id": "sevelora-kits-recover-20261121-0240",
+  "kind": "ruflo-team",
+  "phase": "recover",
+  "team_id": "sevelora-kits-20261121",
+  "revision": 1,
+  "task": "kits-public",
+  "reason": "Captura REA falhou sem alterar o site. Restringir o locator do kit ao unico article.real-product-card, retirando ambiguidade das duasancoras. VerificacaoHTTP308 independente ja passou; nao repetir essefetchnaAPI.",
+  "acknowledge_risk": true
+}
