@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "ferrari-jellyfin-live-readonly-20261122e",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "live-readonly.txt",
+    "content_base64": "YXVkaXQ="
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import os,json,subprocess,urllib.request,urllib.error,socket,ssl\nR=\"/srv/projects/jellyfin-server\"; H=\"serveriptv.duckdns.org\"\nd={\"root\":os.path.isdir(R),\"unit\":os.path.isfile(\"/etc/systemd/system/jellyfin-pink.service\"),\"nginx_conf\":os.path.isfile(\"/etc/nginx/conf.d/jellyfin-serveriptv.conf\"),\"cert_present\":os.path.isfile(\"/etc/letsencrypt/live/\"+H+\"/fullchain.pem\"),\"install_tmp\":os.path.isdir(R+\"/.install-tmp\")}\nfor name,cmd in [(\"service\",[\"systemctl\",\"is-active\",\"jellyfin-pink.service\"]),(\"nginx\",[\"systemctl\",\"is-active\",\"nginx\"]),(\"listeners\",[\"ss\",\"-lntH\",\"sport = :8096\"]),(\"certbot\",[\"pgrep\",\"-a\",\"certbot\"])]:\n try:\n  p=subprocess.run(cmd,capture_output=True,text=True,timeout=3)\n  d[name]={\"code\":p.returncode,\"out\":p.stdout[:700]}\n except Exception as e:d[name]={\"error\":type(e).__name__}\ntry:\n with urllib.request.urlopen(\"http://127.0.0.1:8096/System/Info/Public\",timeout=3) as resp:\n  obj=json.loads(resp.read(2000))\n  d[\"local_api\"]={\"status\":resp.status,\"version\":obj.get(\"Version\"),\"startup_complete\":obj.get(\"StartupWizardCompleted\")}\nexcept Exception as e:d[\"local_api\"]={\"error\":type(e).__name__}\nprint(json.dumps(d,sort_keys=True))\n",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 35000,
+          "idle_timeout_ms": 35000,
+          "terminal": {
+            "columns": 130,
+            "rows": 30,
+            "scrollback": 100
+          },
+          "limits": {
+            "output_bytes": 13000
+          }
+        }
+      }
+    }
+  ]
+}
