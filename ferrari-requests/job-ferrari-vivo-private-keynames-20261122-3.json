@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "ferrari-vivo-private-keynames-20261122-3",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "read-only.txt",
+    "content_base64": "YXVkaXQ="
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,subprocess\nroot=r'''\nimport os,re,json,stat,subprocess\nfrom pathlib import Path\nout={\"source_keys\":{},\"vault_entries\":[],\"backup_timers\":[],\"checks\":{},\"disk_free_gib\":0}\np=Path(\"/srv/projects/pink-iptv/private/systemd-env\")\nfor file in sorted(p.glob(\"*.env\")):\n keys=[]\n for line in file.read_text(errors=\"replace\").splitlines():\n  line=line.strip()\n  if not line or line.startswith(\"#\") or \"=\" not in line:continue\n  key=line.split(\"=\",1)[0].removeprefix(\"export \").strip()\n  if re.fullmatch(r\"[A-Za-z_][A-Za-z0-9_]*\",key):keys.append(key)\n out[\"source_keys\"][file.name]=keys\nv=Path(\"/root/project-secrets/PINK-IPTV\")\nif v.is_dir():\n for a in sorted(v.rglob(\"*\"),key=lambda x:str(x)):\n  if len(out[\"vault_entries\"])>=75:break\n  if a.is_symlink():continue\n  rel=a.relative_to(v)\n  if len(rel.parts)>4:continue\n  st=a.stat()\n  out[\"vault_entries\"].append({\"name\":str(rel),\"kind\":\"dir\" if a.is_dir() else \"file\",\"mode\":oct(stat.S_IMODE(st.st_mode)),\"size\":st.st_size if a.is_file() else None})\nfor cmd,name in [([\"systemctl\",\"list-unit-files\",\"--type=timer\",\"--no-pager\",\"--no-legend\"],\"timers\"),([\"sudo\",\"-n\",\"-u\",\"postgres\",\"psql\",\"-tAc\",\"SELECT 1\"],\"postgres_local\")]:\n try:\n  r=subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True,timeout=10)\n  if name==\"timers\":\n   out[\"backup_timers\"]=[line.split()[0] for line in r.stdout.splitlines() if any(t in line.lower() for t in [\"backup\",\"secret\",\"vault\",\"cofre\"])]\n  else:out[\"checks\"][name]=(r.returncode==0 and r.stdout.strip()==\"1\")\n except Exception as e:out[\"checks\"][name]=type(e).__name__\nout[\"disk_free_gib\"]=round(__import__(\"shutil\").disk_usage(\"/srv/projects\").free/2**30,2)\nprint(json.dumps(out,sort_keys=True))\n'''\np=subprocess.run([\"sudo\",\"-n\",\"python3\",\"-c\",root],capture_output=True,text=True,timeout=40)\nif p.returncode!=0:\n print(json.dumps({\"error\":\"sudo_private_metadata_failed\",\"code\":p.returncode}));raise SystemExit(0)\ntry:\n print(json.dumps(json.loads(p.stdout),sort_keys=True))\nexcept Exception: print(json.dumps({\"error\":\"non_json_sudo_response\",\"bytes\":len(p.stdout)}))\n",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 85000,
+          "idle_timeout_ms": 85000,
+          "terminal": {
+            "columns": 145,
+            "rows": 28,
+            "scrollback": 210
+          },
+          "limits": {
+            "output_bytes": 14000
+          }
+        }
+      }
+    }
+  ]
+}
