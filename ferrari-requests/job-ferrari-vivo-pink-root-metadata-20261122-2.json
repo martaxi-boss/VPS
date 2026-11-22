@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "ferrari-vivo-pink-root-metadata-20261122-2",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "audit.txt",
+    "content_base64": "YXVkaXQ="
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,subprocess\npayload=r'''\nimport os,stat,json,re,subprocess\nfrom pathlib import Path\nout={\"usage_mib\":{},\"secrets\":{},\"vault\":{},\"units\":{},\"services\":{},\"folders\":[],\"python\":{}}\nfor path in [\"/srv/projects/pink-iptv\",\"/srv/projects/pink-iptv/tests/device-proof\",\"/srv/projects/pink-iptv/android\",\"/srv/projects/pink-iptv/backend\",\"/srv/projects/pink-iptv/vpn\",\"/srv/projects/pink-iptv/private\",\"/srv/projects/pink-iptv/.git\",\"/srv/projects/jellyfin-server\",\"/root/project-secrets\"]:\n if Path(path).exists():\n  try:\n   p=subprocess.run([\"du\",\"-sm\",\"--\",path],capture_output=True,text=True,timeout=50)\n   out[\"usage_mib\"][path]=int(p.stdout.split()[0]) if p.returncode==0 else \"unreadable\"\n  except Exception as e:out[\"usage_mib\"][path]=type(e).__name__\nfor name in [\"backend.env\",\"secrets.env\",\"vpn.env\"]:\n p=Path(\"/srv/projects/pink-iptv/private/systemd-env\")/name\n obj={\"exists\":p.is_file()}\n if p.is_file():\n  st=p.stat();obj[\"mode\"]=oct(stat.S_IMODE(st.st_mode));obj[\"size_bytes\"]=st.st_size\n  keys=[]\n  for line in p.read_text(errors=\"replace\").splitlines():\n   m=re.match(r\"^(?:export\\\\s+)?([A-Za-z_][A-Za-z0-9_]*)\\\\s*=\",line)\n   if m:keys.append(m.group(1))\n  obj[\"key_names\"]=keys[:100]\n out[\"secrets\"][name]=obj\np=Path(\"/root/project-secrets\")\nout[\"vault\"][\"present\"]=p.is_dir()\nif p.is_dir():\n out[\"vault\"][\"mode\"]=oct(stat.S_IMODE(p.stat().st_mode))\n out[\"vault\"][\"entries\"]=[{\"name\":x.name,\"type\":\"dir\" if x.is_dir() else \"file\",\"mode\":oct(stat.S_IMODE(x.stat().st_mode))} for x in sorted(p.iterdir(),key=lambda p:p.name) if not x.is_symlink()][:45]\nfor name in [\"pink-iptv-backend.service\",\"pink-vpn.service\",\"project-secrets-backup.timer\",\"postgresql.service\"]:\n p=subprocess.run([\"systemctl\",\"is-active\",name],capture_output=True,text=True,timeout=6)\n out[\"services\"][name]=p.stdout.strip() if p.returncode==0 else \"inactive_or_unknown\"\nfor name in [\"pink-iptv-backend.service\",\"pink-vpn.service\"]:\n p=subprocess.run([\"systemctl\",\"cat\",name],capture_output=True,text=True,timeout=7)\n rows=[]\n for line in p.stdout.splitlines():\n  s=line.strip()\n  if s.startswith(\"EnvironmentFile=\"):rows.append(s[:160])\n  if s.startswith(\"ExecStart=\"):\n   cmd=s.partition(\"=\")[2].split(\" \")[0]\n   rows.append(\"ExecStart_binary=\"+cmd[:150])\n out[\"units\"][name]=rows[:20]\nroot=Path(\"/srv/projects/pink-iptv\")\nif root.is_dir():\n out[\"folders\"]=[{\"name\":x.name,\"type\":\"dir\" if x.is_dir() else \"file\"} for x in sorted(root.iterdir(),key=lambda p:p.name) if not x.is_symlink()][:60]\nfor cmd in ([\"python3\",\"--version\"],[\"psql\",\"--version\"],[\"git\",\"--version\"]):\n try:\n  p=subprocess.run(cmd,capture_output=True,text=True,timeout=5)\n  out[\"python\"][cmd[0]]=p.stdout.strip()[:120] or p.stderr.strip()[:120]\n except Exception as e:out[\"python\"][cmd[0]]=type(e).__name__\nprint(json.dumps(out,sort_keys=True))\n'''\np=subprocess.run([\"sudo\",\"-n\",\"python3\",\"-c\",payload],capture_output=True,text=True,timeout=150)\nif p.returncode:\n print(json.dumps({\"sudo_audit_status\":\"failed\",\"returncode\":p.returncode,\"error_type\":\"permission_or_script_error\"}));raise SystemExit(0)\ntry:\n x=json.loads(p.stdout)\n print(json.dumps(x,sort_keys=True))\nexcept Exception:\n print(json.dumps({\"sudo_audit_status\":\"invalid_json\",\"bytes\":len(p.stdout)}))\n",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 190000,
+          "idle_timeout_ms": 190000,
+          "terminal": {
+            "columns": 160,
+            "rows": 32,
+            "scrollback": 350
+          },
+          "limits": {
+            "output_bytes": 24000
+          }
+        }
+      }
+    }
+  ]
+}
