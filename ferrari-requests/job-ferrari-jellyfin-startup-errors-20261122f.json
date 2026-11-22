@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "ferrari-jellyfin-startup-errors-20261122f",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "audit.txt",
+    "content_base64": "YXVkaXQ="
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import os,json,subprocess,re,glob\nR=\"/srv/projects/jellyfin-server\"\nd={\"log_files\":[],\"service\":{},\"java\":None}\nfor c,k in [([\"systemctl\",\"status\",\"jellyfin-pink.service\",\"--no-pager\",\"-l\"],\"systemctl\"),([\"journalctl\",\"-u\",\"jellyfin-pink.service\",\"-n\",\"130\",\"--no-pager\",\"-o\",\"cat\"],\"journal\"),([\"ldd\",R+\"/current/jellyfin\"],\"ldd\")]:\n try:\n  p=subprocess.run(c,capture_output=True,text=True,timeout=7)\n  lines=(p.stdout+\"\\n\"+p.stderr).splitlines()\n  take=lines[-85:] if k==\"journal\" else lines[-50:]\n  safe=[]\n  for v in take:\n   v=re.sub(r\"https?://[^ ]+\",\"[url]\",v)\n   v=re.sub(r\"(?i)(password|token|secret)[=:][^ ,;]+\",r\"\\1=[redacted]\",v)\n   safe.append(v[:440])\n  d[\"service\"][k]={\"rc\":p.returncode,\"lines\":safe}\n except Exception as e:d[\"service\"][k]={\"error\":type(e).__name__}\nfor f in sorted(glob.glob(R+\"/logs/*\"))[-8:]:\n try:\n  if not os.path.isfile(f):continue\n  lines=open(f,encoding=\"utf8\",errors=\"replace\").read().splitlines()\n  interesting=[x for x in lines if re.search(r\"error|critical|fatal|exception|failed|start\",x,re.I)][-35:]\n  d[\"log_files\"].append({\"name\":os.path.basename(f),\"bytes\":os.path.getsize(f),\"error_lines\":[re.sub(r\"https?://[^ ]+\",\"[url]\",x[:430]) for x in interesting]})\n except Exception as e:d[\"log_files\"].append({\"name\":os.path.basename(f),\"error\":type(e).__name__})\nprint(json.dumps(d,sort_keys=True))\n",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 45000,
+          "idle_timeout_ms": 45000,
+          "terminal": {
+            "columns": 140,
+            "rows": 34,
+            "scrollback": 250
+          },
+          "limits": {
+            "output_bytes": 25000
+          }
+        }
+      }
+    }
+  ]
+}
