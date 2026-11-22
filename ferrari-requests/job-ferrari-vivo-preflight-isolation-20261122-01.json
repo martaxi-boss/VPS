@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "ferrari-vivo-preflight-isolation-20261122-01",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "read-only.txt",
+    "content_base64": "YXVkaXQ="
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,subprocess\np=subprocess.run([\"sudo\",\"-n\",\"python3\",\"-c\",\"import json,subprocess,os,stat,shutil\\nfrom pathlib import Path\\nout={\\\"projects\\\":{},\\\"vault\\\":{},\\\"services\\\":{},\\\"jellyfin\\\":{},\\\"host\\\":{}}\\nfor name in (\\\"pink-iptv\\\",\\\"Vivoapk\\\",\\\"vivoapk\\\",\\\"jellyfin-server\\\",\\\"skill-universal\\\"):\\n p=Path(\\\"/srv/projects\\\")/name\\n out[\\\"projects\\\"][name]={\\\"exists\\\":p.is_dir(),\\\"is_symlink\\\":p.is_symlink()}\\n if p.is_dir():\\n  for key in (\\\"private\\\",\\\"releases\\\",\\\"current\\\",\\\"source\\\",\\\"backend\\\",\\\".venv\\\",\\\"run\\\"):\\n   if (p/key).exists():out[\\\"projects\\\"][name][key]=(\\\"symlink\\\" if (p/key).is_symlink() else \\\"exists\\\")\\nv=Path(\\\"/root/project-secrets/VIVOAPK\\\")\\nout[\\\"vault\\\"]={\\\"exists\\\":v.is_dir(),\\\"mode\\\":oct(stat.S_IMODE(v.stat().st_mode)) if v.is_dir() else None,\\n \\\"backend_auth_exists\\\":(v/\\\"backend-auth.env\\\").is_file(),\\\"mapping_exists\\\":(v/\\\"subscriber-mappings.csv\\\").is_file(),\\n \\\"observed_bases_exists\\\":(v/\\\"dns-bases-observed.json\\\").is_file()}\\nfor name in (\\\"pink-iptv-backend.service\\\",\\\"pink-vpn.service\\\",\\\"jellyfin-pink.service\\\",\\\"vivoapk-backend.service\\\",\\\"nginx.service\\\",\\\"postgresql.service\\\"):\\n p=subprocess.run([\\\"systemctl\\\",\\\"is-active\\\",name],capture_output=True,text=True,timeout=8)\\n out[\\\"services\\\"][name]=p.stdout.strip() if p.returncode==0 else \\\"inactive_or_absent\\\"\\nfor service in (\\\"jellyfin-pink.service\\\",\\\"pink-iptv-backend.service\\\"):\\n fields=\\\"MainPID,User,Group,ExecStart,PrivateNetwork,IPAddressDeny,ReadWritePaths,EnvironmentFiles\\\"\\n p=subprocess.run([\\\"systemctl\\\",\\\"show\\\",\\\"-p\\\",fields.replace(\\\",\\\",\\\",\\\").replace(\\\"ExecStart,\\\",\\\"\\\"),service,\\\"--no-pager\\\"],capture_output=True,text=True,timeout=8)\\n d={}\\n for line in p.stdout.splitlines():\\n  if \\\"=\\\" not in line:continue\\n  k,v=line.split(\\\"=\\\",1)\\n  if k in (\\\"EnvironmentFiles\\\",\\\"ExecStart\\\"):d[k]=\\\"configured\\\" if v else \\\"empty\\\"\\n  elif k in (\\\"ReadWritePaths\\\",):d[k]=\\\"set\\\" if v else \\\"unset\\\"\\n  else:d[k]=v[:160]\\n out[\\\"jellyfin\\\" if service.startswith(\\\"jellyfin\\\") else \\\"host\\\"][service]=d\\np=Path(\\\"/srv/projects/jellyfin-server\\\")\\nif p.is_dir():\\n for candidate in (\\\"run/jellyfin.sock\\\",\\\"data/plugins\\\",\\\"plugins\\\",\\\"web/index.html\\\",\\\"current/jellyfin\\\"):\\n  q=p/candidate\\n  out[\\\"jellyfin\\\"][candidate]={\\\"exists\\\":q.exists(),\\\"is_socket\\\":stat.S_ISSOCK(q.stat().st_mode) if q.exists() else False}\\n if (p/\\\"data/plugins\\\").is_dir():\\n  out[\\\"jellyfin\\\"][\\\"installed_plugins\\\"]=[q.name for q in (p/\\\"data/plugins\\\").iterdir() if q.is_dir()][:25]\\nout[\\\"host\\\"][\\\"free_gib\\\"]=round(shutil.disk_usage(\\\"/srv/projects\\\").free/2**30,1)\\nfor exe in (\\\"python3\\\",\\\"pip3\\\",\\\"psql\\\",\\\"dotnet\\\",\\\"nginx\\\",\\\"git\\\"):\\n p=subprocess.run([\\\"which\\\",exe],capture_output=True,text=True,timeout=5)\\n out[\\\"host\\\"][\\\"has_\\\"+exe]=p.returncode==0\\nprint(json.dumps(out,sort_keys=True))\\n\"],capture_output=True,text=True,timeout=65)\nif p.returncode: print(json.dumps({\"audit\":\"blocked\",\"exit_code\":p.returncode}))\nelse:\n try: print(json.dumps(json.loads(p.stdout),sort_keys=True))\n except Exception:print(json.dumps({\"audit\":\"invalid_output\",\"bytes\":len(p.stdout)}))\n",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 110000,
+          "idle_timeout_ms": 110000,
+          "terminal": {
+            "columns": 145,
+            "rows": 28,
+            "scrollback": 180
+          },
+          "limits": {
+            "output_bytes": 14000
+          }
+        }
+      }
+    }
+  ]
+}
