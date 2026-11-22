@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "ferrari-jellyfin-duckdns-preflight-20261122a",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "jellyfin-dns-check.txt",
+    "content_base64": "c2FuaXR5"
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,socket,ipaddress,urllib.request,urllib.error\nh=\"serveriptv.duckdns.org\"\nout={\"target\":h}\nfor name,label in [(\"duckdns.org\",\"dns_control\"),(h,\"dns_target\")]:\n    try:\n        addresses=sorted(set(x[4][0] for x in socket.getaddrinfo(name,None,proto=socket.IPPROTO_TCP)))\n        out[label]={\"resolved\":bool(addresses),\"addresses\":len(addresses),\"public_ipv4\":sum(1 for a in addresses if ipaddress.ip_address(a).version==4 and ipaddress.ip_address(a).is_global)}\n    except (socket.gaierror,OSError) as exc:\n        out[label]={\"resolved\":False,\"error_type\":type(exc).__name__,\"error_code\":getattr(exc,\"errno\",None)}\ntry:\n    with socket.create_connection((\"127.0.0.1\",8096),timeout=2): out[\"jellyfin_local_8096_tcp\"]=\"open\"\nexcept OSError as exc: out[\"jellyfin_local_8096_tcp\"]=\"closed_or_filtered:\"+type(exc).__name__\ntry:\n    req=urllib.request.Request(\"http://127.0.0.1:8096/System/Info/Public\",headers={\"User-Agent\":\"Ferrari-Jellyfin-Readonly-Audit\"})\n    with urllib.request.urlopen(req,timeout=3) as rsp:\n        data=json.load(rsp)\n        out[\"jellyfin_local_public_api\"]={\"http\":rsp.status,\"jellyfin_version_present\":isinstance(data,dict) and \"Version\" in data}\nexcept Exception as exc: out[\"jellyfin_local_public_api\"]={\"error_type\":type(exc).__name__}\nfor scheme in [\"https\",\"http\"]:\n    try:\n        req=urllib.request.Request(scheme+\"://\"+h+\"/System/Info/Public\",headers={\"User-Agent\":\"Ferrari-Jellyfin-Readonly-Audit\"})\n        with urllib.request.urlopen(req,timeout=6) as rsp:\n            body=rsp.read(3000)\n            try: parsed=json.loads(body)\n            except (ValueError,UnicodeDecodeError): parsed={}\n            out[scheme]={\"http\":rsp.status,\"jellyfin_public_info\":isinstance(parsed,dict) and \"Version\" in parsed,\"final_url_same_host\":urllib.parse.urlparse(rsp.url).hostname==h}\n    except urllib.error.HTTPError as exc: out[scheme]={\"http\":exc.code,\"jellyfin_public_info\":False}\n    except Exception as exc: out[scheme]={\"error_type\":type(exc).__name__,\"error_reason\":str(getattr(exc,\"reason\",\"\"))[:100]}\nprint(json.dumps(out,sort_keys=True))\n",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 50000,
+          "idle_timeout_ms": 50000,
+          "terminal": {
+            "columns": 120,
+            "rows": 20,
+            "scrollback": 200
+          },
+          "limits": {
+            "output_bytes": 10000
+          }
+        }
+      }
+    }
+  ]
+}
