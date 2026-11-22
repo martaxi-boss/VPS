@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "ferrari-pink-vivo-safe-audit-20261122-1",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "audit.txt",
+    "content_base64": "YXVkaXQ="
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import os,json,subprocess,stat\nfrom pathlib import Path\nroots=[Path(\"/srv/projects\"),Path(\"/etc/systemd/system\"),Path(\"/etc/nginx/sites-enabled\")]\nout={\"projects\":[],\"candidate_units\":[],\"secret_containers\":[],\"running_units\":[],\"disk\":{}}\ndef run(a,timeout=9):\n try:\n  p=subprocess.run(a,capture_output=True,text=True,timeout=timeout)\n  return {\"rc\":p.returncode,\"out\":p.stdout}\n except Exception as e: return {\"rc\":-1,\"error\":type(e).__name__}\nroot=Path(\"/srv/projects\")\nif root.is_dir():\n for x in sorted(root.iterdir(),key=lambda p:p.name):\n  if not x.is_dir() or x.is_symlink():continue\n  if len(out[\"projects\"])>=80: break\n  out[\"projects\"].append({\"name\":x.name,\"size_mib\":None})\n names=[p.name.lower() for p in root.iterdir() if p.is_dir() and not p.is_symlink()]\n for term in (\"pink\",\"vivo\",\"mega\",\"cofre\",\"vault\",\"secret\",\"iptv\",\"jelly\"):\n  matches=[n for n in names if term in n]\n  for n in matches[:9]:\n   p=root/n\n   z=run([\"du\",\"-sm\",str(p)],timeout=14)\n   if z[\"rc\"]==0:\n    val=int(z[\"out\"].split()[0])\n    out[\"disk\"][n]=val\n    for i in out[\"projects\"]:\n     if i[\"name\"]==n:i[\"size_mib\"]=val\nfor parent in (Path(\"/srv/projects\"),Path(\"/etc/systemd/system\"),Path(\"/etc/nginx/sites-enabled\")):\n if not parent.is_dir():continue\n for p in parent.iterdir():\n  if p.is_symlink() and parent==Path(\"/srv/projects\"): continue\n  nm=p.name.casefold()\n  if any(x in nm for x in (\"pink\",\"vivo\",\"mega\",\"cofre\",\"vault\",\"iptv\")):\n   if parent==Path(\"/etc/systemd/system\"):\n    out[\"candidate_units\"].append(p.name)\n   elif p.is_dir():\n    sub=[]\n    for k in (\"secrets\",\".env\",\".env.production\",\"config\",\"backend\",\"data\",\"vault\",\"cofre\"):\n     q=p/k\n     if q.exists():\n      st=q.stat()\n      sub.append({\"kind\":k,\"type\":\"dir\" if q.is_dir() else \"file\",\"oct_mode\":oct(st.st_mode&0o777),\"uid\":st.st_uid})\n    out[\"secret_containers\"].append({\"path\":str(p),\"items\":sub})\np=run([\"systemctl\",\"list-units\",\"--all\",\"--type=service\",\"--no-pager\",\"--no-legend\"])\nfor line in p.get(\"out\",\"\").splitlines():\n if any(x in line.lower() for x in (\"pink\",\"vivo\",\"mega\",\"iptv\",\"jellyfin\",\"nginx\")):\n  out[\"running_units\"].append(line.strip()[:170])\nfor name in (\"vivoapk\",\"pink-iptv\",\"pinkiptv\",\"vivo-apk\"):\n for suffix in (\"postgres\",\"backend\",\"api\",\"auth\",\"admin\"):\n  pass\nprint(json.dumps(out,sort_keys=True))\n",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 90000,
+          "idle_timeout_ms": 90000,
+          "terminal": {
+            "columns": 160,
+            "rows": 36,
+            "scrollback": 250
+          },
+          "limits": {
+            "output_bytes": 16000
+          }
+        }
+      }
+    }
+  ]
+}
