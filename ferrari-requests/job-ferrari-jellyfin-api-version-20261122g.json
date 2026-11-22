@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "ferrari-jellyfin-api-version-20261122g",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "audit.txt",
+    "content_base64": "YXVkaXQ="
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import os,json,glob,subprocess\nR=\"/srv/projects/jellyfin-server\"; p=R+\"/.install-tmp/info.json\"\nd={\"info_exists\":os.path.isfile(p),\"logs\":[]}\nif os.path.isfile(p):\n try:\n  x=json.load(open(p,encoding=\"utf8\"))\n  d[\"info\"]={\"keys\":list(x.keys()),\"Version\":x.get(\"Version\"),\"StartupWizardCompleted\":x.get(\"StartupWizardCompleted\"),\"server_name_present\":bool(x.get(\"ServerName\")),\"ProductName\":x.get(\"ProductName\")}\n except Exception as e:d[\"info_error\"]=type(e).__name__+\":\"+str(e)[:100]\nfor f in sorted(glob.glob(R+\"/logs/*\"))[-4:]:\n if os.path.isfile(f):d[\"logs\"].append({\"file\":os.path.basename(f),\"size\":os.path.getsize(f)})\nprint(json.dumps(d,sort_keys=True))\n",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 30000,
+          "idle_timeout_ms": 30000,
+          "terminal": {
+            "columns": 125,
+            "rows": 25,
+            "scrollback": 120
+          },
+          "limits": {
+            "output_bytes": 8000
+          }
+        }
+      }
+    }
+  ]
+}
