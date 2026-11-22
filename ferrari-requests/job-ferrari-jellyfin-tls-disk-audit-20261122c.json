@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "ferrari-jellyfin-tls-disk-audit-20261122c",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "diagnostics-nonsensitive.txt",
+    "content_base64": "YXVkaXQ="
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import os,json,socket,ssl,shutil,ipaddress,glob,urllib.request,urllib.error,datetime\nH=\"serveriptv.duckdns.org\"; IP=\"146.59.145.3\"\nd={\"host\":H,\"date_utc\":datetime.datetime.now(datetime.timezone.utc).isoformat(),\"local_user_euid\":os.geteuid()}\nfor p in [\"/\",\"/srv/projects\",\"/srv/projects/skill-universal\",\"/var/lib/docker\"]:\n    try:\n        u=shutil.disk_usage(p)\n        d[\"disk_\"+p.replace(\"/\",\"_\")]={\"total_gib\":round(u.total/2**30,2),\"used_gib\":round(u.used/2**30,2),\"free_gib\":round(u.free/2**30,2)}\n    except Exception as e:d[\"disk_\"+p.replace(\"/\",\"_\")]={\"error\":type(e).__name__}\ntry:\n    ip=set(x[4][0] for x in socket.getaddrinfo(H,443,proto=socket.IPPROTO_TCP))\n    d[\"dns\"]={\"addresses\":sorted(ip),\"matches_vps\":IP in ip,\"all_public\":all(ipaddress.ip_address(x).is_global for x in ip)}\nexcept Exception as e:d[\"dns\"]={\"error\":type(e).__name__}\nd[\"tools_present\"]={x:os.path.isfile(p) for x,p in [(\"nginx\",\"/usr/sbin/nginx\"),(\"certbot\",\"/usr/bin/certbot\"),(\"docker\",\"/usr/bin/docker\"),(\"podman\",\"/usr/bin/podman\"),(\"curl\",\"/usr/bin/curl\"),(\"jellyfin\",\"/usr/bin/jellyfin\")]}\nd[\"jellyfin_roots\"]={p:os.path.exists(p) for p in [\"/srv/projects/jellyfin\",\"/srv/projects/Jellyfin\",\"/etc/systemd/system/jellyfin.service\",\"/etc/letsencrypt/live/\"+H+\"/fullchain.pem\"]}\nd[\"permissions\"]={\"srv_projects_write\":os.access(\"/srv/projects\",os.W_OK),\"nginx_conf_write\":os.access(\"/etc/nginx/conf.d\",os.W_OK)}\nd[\"nginx_conf_files\"]={}\nfor root in [\"/etc/nginx/conf.d/*.conf\",\"/etc/nginx/sites-enabled/*\"]:\n    for p in glob.glob(root):\n        if not os.path.isfile(p):continue\n        try:\n            s=open(p,encoding=\"utf-8\",errors=\"ignore\").read()\n            d[\"nginx_conf_files\"][os.path.basename(p)]={\"contains_target\":H in s,\"proxy_pass\":(\"proxy_pass\" in s),\"listen_443\":(\"443\" in s)}\n        except Exception as e:d[\"nginx_conf_files\"][os.path.basename(p)]={\"error\":type(e).__name__}\ntry:\n    ctx=ssl.create_default_context()\n    with socket.create_connection((H,443),timeout=7) as sock:\n        with ctx.wrap_socket(sock,server_hostname=H) as tls:\n            c=tls.getpeercert()\n            d[\"https\"]={\"verified\":True,\"subject\":c.get(\"subject\"),\"issuer\":c.get(\"issuer\"),\"notAfter\":c.get(\"notAfter\"),\"sans\":c.get(\"subjectAltName\",[])[:15]}\nexcept ssl.SSLCertVerificationError as e:d[\"https\"]={\"verified\":False,\"verify_code\":getattr(e,\"verify_code\",None),\"verify_message\":str(getattr(e,\"verify_message\",e))[:170]}\nexcept Exception as e:d[\"https\"]={\"verified\":False,\"error\":type(e).__name__}\nfor proto in [\"http\",\"https\"]:\n    try:\n        req=urllib.request.Request(proto+\"://\"+H+\"/System/Info/Public\",headers={\"User-Agent\":\"Ferrari-readonly-TLS-check\"})\n        with urllib.request.urlopen(req,timeout=5) as res:\n            ctype=res.headers.get(\"Content-Type\",\"\")\n            body=res.read(1200)\n            d[proto+\"_probe\"]={\"code\":res.status,\"content_type\":ctype,\"Jellyfin_in_body\":b\"Jellyfin\" in body}\n    except urllib.error.HTTPError as e:d[proto+\"_probe\"]={\"code\":e.code}\n    except Exception as e:d[proto+\"_probe\"]={\"error\":type(e).__name__}\nprint(json.dumps(d,sort_keys=True,ensure_ascii=True))\n",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 48000,
+          "idle_timeout_ms": 48000,
+          "terminal": {
+            "columns": 140,
+            "rows": 28,
+            "scrollback": 160
+          },
+          "limits": {
+            "output_bytes": 17000
+          }
+        }
+      }
+    }
+  ]
+}
