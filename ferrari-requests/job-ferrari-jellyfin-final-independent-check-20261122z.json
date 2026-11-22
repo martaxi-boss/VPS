@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "ferrari-jellyfin-final-independent-check-20261122z",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "audit.txt",
+    "content_base64": "YXVkaXQ="
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,os,ssl,socket,subprocess,urllib.request,urllib.error,datetime,shutil\nH=\"serveriptv.duckdns.org\"; R=\"/srv/projects/jellyfin-server\"\nd={}\ndef cmd(k,argv):\n try:\n  p=subprocess.run(argv,text=True,capture_output=True,timeout=7)\n  d[k]={\"ok\":p.returncode==0,\"output\":p.stdout.strip()[:350]}\n except Exception as e:d[k]={\"ok\":False,\"error\":type(e).__name__}\ncmd(\"jellyfin_service\",[\"systemctl\",\"is-active\",\"jellyfin-pink.service\"])\ncmd(\"nginx_service\",[\"systemctl\",\"is-active\",\"nginx\"])\ncmd(\"nginx_config\",[\"sudo\",\"-n\",\"nginx\",\"-t\"])\ncmd(\"tcp_port_8096\",[\"ss\",\"-lntH\",\"sport = :8096\"])\ncmd(\"private_network\",[\"systemctl\",\"show\",\"-P\",\"PrivateNetwork\",\"jellyfin-pink.service\"])\nd[\"socket_exists\"]=os.path.exists(R+\"/run/jellyfin.sock\")\nd[\"socket_is_socket\"]=__import__(\"stat\").S_ISSOCK(os.stat(R+\"/run/jellyfin.sock\").st_mode) if d[\"socket_exists\"] else False\nd[\"admin_secret_exists\"]=os.path.isfile(R+\"/secrets/admin-initial.json\")\nd[\"admin_secret_permissions\"]=oct(os.stat(R+\"/secrets/admin-initial.json\").st_mode&0o777) if d[\"admin_secret_exists\"] else None\nd[\"media_dirs\"]={q:os.path.exists(R+\"/\"+q) for q in [\"media\",\"movies\",\"series\",\"tv\"]}\nd[\"disk_free_gib\"]=round(shutil.disk_usage(\"/srv/projects\").free/2**30,2)\nd[\"root_size_mib\"]=round(sum(os.path.getsize(os.path.join(p,f)) for p,_,fs in os.walk(R) for f in fs if not os.path.islink(os.path.join(p,f)))/2**20,1)\ntry:\n ctx=ssl.create_default_context()\n with socket.create_connection((H,443),timeout=6) as sock:\n  with ctx.wrap_socket(sock,server_hostname=H) as tls:\n   c=tls.getpeercert()\n   d[\"https_cert\"]={\"verified\":True,\"valid_until\":c.get(\"notAfter\"),\"san_has_domain\":(\"DNS\",H) in c.get(\"subjectAltName\",())}\n with urllib.request.urlopen(\"https://\"+H+\"/System/Info/Public\",timeout=9) as resp:\n  x=json.loads(resp.read(10000))\n  d[\"https_api\"]={\"status\":resp.status,\"version\":x.get(\"Version\",x.get(\"version\")),\"wizard_complete\":x.get(\"StartupWizardCompleted\",x.get(\"startupWizardCompleted\"))}\nexcept Exception as e:d[\"https_check_error\"]=type(e).__name__+\":\"+str(e)[:180]\nfor h in [\"https://www.lowcost-europa.eu/\",\"https://sevelora.eu/\"]:\n try:\n  with urllib.request.urlopen(urllib.request.Request(h,method=\"HEAD\"),timeout=8) as resp:\n   d[h]={\"status\":resp.status}\n except urllib.error.HTTPError as e:d[h]={\"status\":e.code}\n except Exception as e:d[h]={\"error\":type(e).__name__}\nprint(json.dumps(d,sort_keys=True))\n",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 60000,
+          "idle_timeout_ms": 60000,
+          "terminal": {
+            "columns": 150,
+            "rows": 32,
+            "scrollback": 200
+          },
+          "limits": {
+            "output_bytes": 21000
+          }
+        }
+      }
+    }
+  ]
+}
