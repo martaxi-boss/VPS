@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "id": "vivoplayer-web-rea-list-20261122",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/list"
+    }
+  ]
+}
