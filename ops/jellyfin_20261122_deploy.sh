@@ -32,7 +32,13 @@ restore() {
 trap restore EXIT
 [[ $(id -u) -eq 0 ]] || fail 'sudo/root permission required'
 [[ -d /srv/projects ]] || fail 'project root missing'
-[[ ! -e "$ROOT" && ! -e "$UNIT" && ! -e "$CONF" && ! -e "$CERT" ]] || fail 'existing Jellyfin assets; refuse overwrite'
+# Resume is permitted ONLY for the exact partial install left by the first guarded run.
+if [[ -e "$ROOT" ]]; then
+  [[ -d "$ROOT" && -L "$ROOT/current" && -x "$ROOT/current/jellyfin" ]] || fail 'unexpected existing Jellyfin root'
+  [[ "$(readlink -f "$ROOT/current")" == "$ROOT/releases/12.4/jellyfin" ]] || fail 'unexpected Jellyfin release path'
+  [[ ! -e "$ROOT/start.sh" && ! -e "$ROOT/secrets/admin-initial.json" ]] || fail 'installation progressed beyond safe resume point'
+fi
+[[ ! -e "$UNIT" && ! -e "$CONF" && ! -e "$CERT" ]] || fail 'existing Jellyfin service or certificate; refuse overwrite'
 systemctl is-active --quiet nginx || fail 'Nginx not active'
 nginx -t >/dev/null 2>&1 || fail 'existing Nginx config invalid'
 getent ahostsv4 "$DOMAIN" | awk '{print $1}' | grep -Fxq "$IP" || fail 'DuckDNS mismatch'
@@ -44,6 +50,9 @@ echo JELLYFIN_PREFLIGHT=PASS
 install -d -m 0755 "$ROOT" "$ROOT/releases" "$ROOT/acme" "$ROOT/web"
 install -d -m 0700 "$ROOT/secrets" "$ROOT/config" "$ROOT/cache" "$ROOT/data" "$ROOT/logs" "$ROOT/.install-tmp"
 install -d -m 0755 "$ROOT/acme/.well-known/acme-challenge"
+if [[ -x "$ROOT/current/jellyfin" && -s "$ROOT/web/index.html" ]]; then
+  echo JELLYFIN_RESUME_ALREADY_DOWNLOADED=PASS
+else
 curl -fSLsS --retry 2 --connect-timeout 15 --max-time 300 "$SERVER_URL" -o "$ROOT/.install-tmp/jellyfin.tar.gz"
 curl -fSLsS --retry 2 --connect-timeout 15 --max-time 300 "$WEB_URL" -o "$ROOT/.install-tmp/web.deb"
 [[ $(stat -c%s "$ROOT/.install-tmp/jellyfin.tar.gz") -gt 70000000 ]] || fail 'server archive too small'
@@ -57,7 +66,11 @@ install -d -m 0700 "$ROOT/.install-tmp/webextract"
 dpkg-deb -x "$ROOT/.install-tmp/web.deb" "$ROOT/.install-tmp/webextract"
 [[ -s "$ROOT/.install-tmp/webextract/usr/share/jellyfin/web/index.html" ]] || fail 'web missing from official package'
 cp -a "$ROOT/.install-tmp/webextract/usr/share/jellyfin/web/." "$ROOT/web/"
-"$ROOT/current/jellyfin" --version 2>&1 | grep -F '12.4' >/dev/null || fail 'Jellyfin version mismatch'
+fi
+# Jellyfin 12.4 prints its version on stderr and intentionally exits code 1.
+VERSION_OUTPUT="$("$ROOT/current/jellyfin" --version 2>&1 || true)"
+[[ "$VERSION_OUTPUT" == *"Jellyfin.Server 12.4."* ]] || fail 'Jellyfin version mismatch'
+echo JELLYFIN_VERIFIED_VERSION=12.4
 if ! id -u "$USER_NAME" >/dev/null 2>&1; then
   useradd --system --home-dir "$ROOT" --shell /usr/sbin/nologin --no-create-home "$USER_NAME"
 fi
@@ -95,6 +108,9 @@ Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true
 PrivateTmp=true
+# Never let Jellyfin fetch or relay external Mega OTT media; UI works through nginx loopback.
+IPAddressDeny=any
+IPAddressAllow=localhost
 ProtectHome=true
 ProtectSystem=strict
 ReadWritePaths=/srv/projects/jellyfin-server
