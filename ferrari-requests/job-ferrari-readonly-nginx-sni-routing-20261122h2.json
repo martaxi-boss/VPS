@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "ferrari-readonly-nginx-sni-routing-20261122h2",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "audit.txt",
+    "content_base64": "YXVkaXQ="
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\nd={}\np=subprocess.run([\"sudo\",\"-n\",\"nginx\",\"-T\"],capture_output=True,text=True,timeout=15)\nfile='';out=[]\nfor line in p.stdout.splitlines():\n x=line.strip()\n if x.startswith(\"# configuration file \"):file=x.split(\":\",1)[0].replace(\"# configuration file \",\"\")\n if x.startswith((\"include \",\"listen \",\"server_name \",\"server {\",\"stream {\",\"http {\")):\n  out.append({\"file\":file,\"entry\":x[:180]})\nd[\"nginx\"]={\"returncode\":p.returncode,\"directives\":out[-170:],\"stderr\":p.stderr[-500:],\"total\":len(out)}\nprint(json.dumps(d))\n",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 30000,
+          "idle_timeout_ms": 30000,
+          "terminal": {
+            "columns": 160,
+            "rows": 30,
+            "scrollback": 200
+          },
+          "limits": {
+            "output_bytes": 22000
+          }
+        }
+      }
+    }
+  ]
+}
