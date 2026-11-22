@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "ferrari-readonly-nginx-sni-routing-20261122h",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "audit.txt",
+    "content_base64": "YXVkaXQ="
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,re,json\nd={}\nfor key,cmd in [(\"nginx\",[\"sudo\",\"-n\",\"nginx\",\"-T\"]),(\"listen\",[\"ss\",\"-lntH\",\"sport = :443\"])]:\n try:\n  p=subprocess.run(cmd,capture_output=True,text=True,timeout=15)\n  if key==\"nginx\":\n   lines=p.stdout.splitlines()\n   items=[]; file=\"\"\n   for line in lines:\n    m=re.match(r\"^# configuration file ([^:]+):\",line)\n    if m:file=m.group(1)\n    x=line.strip()\n    if re.match(r\"^(include|listen|server_name)\\\\s\",x) and (\"443\" in x or \"http\" in x or \"duckdns\" in x or \"include\" in x):\n     items.append({\"file\":file,\"directive\":x[:180]})\n   d[key]={\"rc\":p.returncode,\"vhosts\":items[-140:],\"stderr\":p.stderr[-600:]}\n  else:d[key]={\"rc\":p.returncode,\"stdout\":p.stdout[:600]}\n except Exception as e:d[key]={\"error\":type(e).__name__+\":\"+str(e)[:100]}\nprint(json.dumps(d))\n",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 38000,
+          "idle_timeout_ms": 38000,
+          "terminal": {
+            "columns": 145,
+            "rows": 26,
+            "scrollback": 120
+          },
+          "limits": {
+            "output_bytes": 18000
+          }
+        }
+      }
+    }
+  ]
+}
