@@ -4,6 +4,7 @@ umask 077
 DOMAIN=serveriptv.duckdns.org
 IP=146.59.145.3
 ROOT=/srv/projects/jellyfin-server
+SOCKET=$ROOT/run/jellyfin.sock
 UNIT=/etc/systemd/system/jellyfin-pink.service
 CONF=/etc/nginx/conf.d/jellyfin-serveriptv.conf
 CERT=/etc/letsencrypt/live/$DOMAIN
@@ -49,9 +50,11 @@ getent ahostsv4 "$DOMAIN" | awk '{print $1}' | grep -Fxq "$IP" || fail 'DuckDNS 
 if ss -lntH 'sport = :8096' | grep -q .; then fail 'port 8096 already occupied'; fi
 for c in curl dpkg-deb certbot python3 tar nginx openssl; do command -v "$c" >/dev/null || fail "missing $c"; done
 if pgrep -x certbot >/dev/null; then fail 'certbot busy'; fi
+getent group www-data >/dev/null || fail 'nginx worker group www-data absent'
 echo JELLYFIN_PREFLIGHT=PASS
 install -d -m 0755 "$ROOT" "$ROOT/releases" "$ROOT/acme" "$ROOT/web"
 install -d -m 0700 "$ROOT/secrets" "$ROOT/config" "$ROOT/cache" "$ROOT/data" "$ROOT/logs" "$ROOT/.install-tmp"
+install -d -m 0770 "$ROOT/run"
 install -d -m 0755 "$ROOT/acme/.well-known/acme-challenge"
 if [[ -x "$ROOT/current/jellyfin" && -s "$ROOT/web/index.html" ]]; then
   echo JELLYFIN_RESUME_ALREADY_DOWNLOADED=PASS
@@ -91,10 +94,15 @@ cat > "$ROOT/start.sh" <<'START'
 #!/bin/sh
 set -eu
 ROOT=/srv/projects/jellyfin-server
+export JELLYFIN_Kestrel__Socket=true
+export JELLYFIN_Kestrel__SocketPath="$ROOT/run/jellyfin.sock"
+export JELLYFIN_Kestrel__SocketPermissions=0660
 exec "$ROOT/current/jellyfin" --datadir "$ROOT/data" --cachedir "$ROOT/cache" --configdir "$ROOT/config" --logdir "$ROOT/logs" --webdir "$ROOT/web" --service
 START
 chmod 0755 "$ROOT/start.sh"
 chown -R "$USER_NAME:$USER_NAME" "$ROOT"
+chown "$USER_NAME:www-data" "$ROOT/run"
+chmod 0770 "$ROOT/run"
 chmod 0700 "$ROOT/secrets" "$ROOT/config" "$ROOT/cache" "$ROOT/data" "$ROOT/logs"
 cat > "$UNIT" <<'UNITCONTENT'
 [Unit]
@@ -104,14 +112,15 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=jellyfinpink
-Group=jellyfinpink
+Group=www-data
 WorkingDirectory=/srv/projects/jellyfin-server
 ExecStart=/srv/projects/jellyfin-server/start.sh
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true
 PrivateTmp=true
-# Never let Jellyfin fetch or relay external Mega OTT media; UI works through nginx loopback.
+PrivateNetwork=true
+# Jellyfin is isolated from all network interfaces; nginx uses only the project Unix socket.
 IPAddressDeny=any
 IPAddressAllow=localhost
 ProtectHome=true
@@ -126,8 +135,8 @@ chmod 0644 "$UNIT"
 CREATED_UNIT=1
 systemctl daemon-reload
 systemctl enable --now jellyfin-pink.service >/dev/null
-for i in $(seq 1 18); do
-  if curl -fsS --connect-timeout 2 --max-time 3 http://127.0.0.1:8096/System/Info/Public -o "$ROOT/.install-tmp/info.json" 2>/dev/null; then break; fi
+for i in $(seq 1 25); do
+  if curl -fsS --unix-socket "$SOCKET" --connect-timeout 2 --max-time 3 http://localhost/System/Info/Public -o "$ROOT/.install-tmp/info.json" 2>/dev/null; then break; fi
   sleep 2
 done
 if [[ ! -s "$ROOT/.install-tmp/info.json" ]]; then
@@ -146,22 +155,26 @@ print('JELLYFIN_API_VERSION='+repr(v))
 assert isinstance(v,str) and re.fullmatch(r'[0-9]+(?:\.[0-9]+){1,3}(?:[-+][A-Za-z0-9.-]+)?',v), 'invalid API version'
 assert x.get('StartupWizardCompleted',x.get('startupWizardCompleted')) is False, 'unexpected wizard'
 CHECK
-ss -lntH 'sport = :8096' | grep -F '127.0.0.1:8096' >/dev/null || fail 'port not restricted to loopback'
-if ss -lntH 'sport = :8096' | grep -E '(0[.]0[.]0[.]0|\[::\])' >/dev/null; then fail 'port public'; fi
+[[ -S "$SOCKET" ]] || fail 'Jellyfin Unix socket missing'
+[[ "$(stat -c%a "$SOCKET")" == "660" ]] || fail 'Jellyfin Unix socket permissions not private'
+[[ "$(stat -c%G "$SOCKET")" == "www-data" ]] || fail 'Jellyfin Unix socket has wrong group'
+[[ "$(systemctl show -P PrivateNetwork jellyfin-pink.service)" == "yes" ]] || fail 'Jellyfin private network not enforced'
+if ss -lntH 'sport = :8096' | grep -q .; then fail 'Jellyfin TCP socket exposed in host network namespace'; fi
+echo JELLYFIN_PRIVATE_SOCKET_NETWORK=PASS
 python3 - "$ROOT/secrets/admin-initial.json" <<'SECRET'
 import json,secrets,os,sys
 p=sys.argv[1]
 with open(p,'x',encoding='utf-8') as f: json.dump({'username':'pink-admin','password':secrets.token_urlsafe(34)},f)
 os.chmod(p,0o600)
 SECRET
-curl -fsS --max-time 10 http://127.0.0.1:8096/Startup/User -o /dev/null
-python3 - "$ROOT/secrets/admin-initial.json" <<'BODY' | curl -fsS --max-time 15 -H 'Content-Type: application/json' --data-binary @- http://127.0.0.1:8096/Startup/User -o /dev/null
+curl -fsS --unix-socket "$SOCKET" --max-time 10 http://localhost/Startup/User -o /dev/null
+python3 - "$ROOT/secrets/admin-initial.json" <<'BODY' | curl -fsS --unix-socket "$SOCKET" --max-time 15 -H 'Content-Type: application/json' --data-binary @- http://localhost/Startup/User -o /dev/null
 import json,sys
 with open(sys.argv[1],encoding='utf-8') as f:p=json.load(f)
 print(json.dumps({'Name':p['username'],'Password':p['password']}))
 BODY
-curl -fsS --max-time 12 -X POST http://127.0.0.1:8096/Startup/Complete -o /dev/null
-curl -fsS --max-time 12 http://127.0.0.1:8096/System/Info/Public -o "$ROOT/.install-tmp/info.json"
+curl -fsS --unix-socket "$SOCKET" --max-time 12 -X POST http://localhost/Startup/Complete -o /dev/null
+curl -fsS --unix-socket "$SOCKET" --max-time 12 http://localhost/System/Info/Public -o "$ROOT/.install-tmp/info.json"
 python3 - "$ROOT/.install-tmp/info.json" <<'DONE'
 import json,sys
 x=json.load(open(sys.argv[1]))
@@ -191,6 +204,9 @@ certbot certonly --non-interactive --agree-tos --register-unsafely-without-email
 [[ -s "$CERT/fullchain.pem" && -s "$CERT/privkey.pem" ]] || fail 'certificate missing'
 openssl x509 -in "$CERT/fullchain.pem" -noout -ext subjectAltName | grep -Fq "$DOMAIN" || fail 'certificate SAN mismatch'
 cat > "$CONF" <<'HTTPS'
+upstream jellyfin_pink_backend {
+ server unix:/srv/projects/jellyfin-server/run/jellyfin.sock;
+}
 server {
  listen 80;
  server_name serveriptv.duckdns.org;
@@ -206,7 +222,7 @@ server {
  server_tokens off;
  client_max_body_size 10m;
  location /socket {
-  proxy_pass http://127.0.0.1:8096;
+  proxy_pass http://jellyfin_pink_backend;
   proxy_http_version 1.1;
   proxy_set_header Upgrade $http_upgrade;
   proxy_set_header Connection "upgrade";
@@ -218,7 +234,7 @@ server {
   proxy_buffering off;
  }
  location / {
-  proxy_pass http://127.0.0.1:8096;
+  proxy_pass http://jellyfin_pink_backend;
   proxy_http_version 1.1;
   proxy_set_header Host $host;
   proxy_set_header X-Real-IP $remote_addr;
