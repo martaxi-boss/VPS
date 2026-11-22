@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoteam-host-routing-ferrari-20261122",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import socket,urllib.request,urllib.error,json,hashlib\nknown_vps=\"146.59.145.3\"\nout=[]\nfor host in (\"vivoteam.dns.org\",\"vivo-team.duckdns.org\"):\n entry={\"host\":host}\n try:\n  addrs=set(x[4][0] for x in socket.getaddrinfo(host,None,type=socket.SOCK_STREAM))\n  entry[\"a_record_count\"]=len(addrs);entry[\"points_to_existing_ferrari_vps\"]=known_vps in addrs\n except Exception as e:entry[\"dns_error\"]=type(e).__name__\n for p in (\"/\",\"/player_api.php\"):\n  url=\"http://\"+host+p\n  try:\n   with urllib.request.urlopen(urllib.request.Request(url,headers={\"User-Agent\":\"Mozilla/5.0\"}),timeout=6) as res:\n    content=res.read(2000);entry[p]={\"status\":res.status,\"len_seen\":len(content),\"sha256_prefix\":hashlib.sha256(content).hexdigest()[:16],\"type\":res.headers.get(\"Content-Type\",\"\")[:80],\"auth_header\":bool(res.headers.get(\"WWW-Authenticate\"))}\n  except urllib.error.HTTPError as e:\n   c=e.read(2000);entry[p]={\"status\":e.code,\"len_seen\":len(c),\"sha256_prefix\":hashlib.sha256(c).hexdigest()[:16],\"type\":e.headers.get(\"Content-Type\",\"\")[:80],\"auth_header\":bool(e.headers.get(\"WWW-Authenticate\"))}\n  except Exception as e:entry[p]={\"error\":str(e)[:110]}\n out.append(entry)\nprint(json.dumps(out,ensure_ascii=False))\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "terminal": {
+            "columns": 170,
+            "rows": 30,
+            "scrollback": 100
+          },
+          "timeout_ms": 40000,
+          "idle_timeout_ms": 40000,
+          "limits": {
+            "output_bytes": 50000
+          }
+        }
+      }
+    }
+  ]
+}
