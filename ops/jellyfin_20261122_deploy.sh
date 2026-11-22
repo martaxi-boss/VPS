@@ -91,7 +91,7 @@ cat > "$ROOT/start.sh" <<'START'
 #!/bin/sh
 set -eu
 ROOT=/srv/projects/jellyfin-server
-exec "$ROOT/current/jellyfin" --datadir "$ROOT/data" --cachedir "$ROOT/cache" --configdir "$ROOT/config" --logdir "$ROOT/logs" --webdir "$ROOT/web" --noautorunwebapp
+exec "$ROOT/current/jellyfin" --datadir "$ROOT/data" --cachedir "$ROOT/cache" --configdir "$ROOT/config" --logdir "$ROOT/logs" --webdir "$ROOT/web" --service
 START
 chmod 0755 "$ROOT/start.sh"
 chown -R "$USER_NAME:$USER_NAME" "$ROOT"
