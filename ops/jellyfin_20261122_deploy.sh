@@ -36,7 +36,10 @@ trap restore EXIT
 if [[ -e "$ROOT" ]]; then
   [[ -d "$ROOT" && -L "$ROOT/current" && -x "$ROOT/current/jellyfin" ]] || fail 'unexpected existing Jellyfin root'
   [[ "$(readlink -f "$ROOT/current")" == "$ROOT/releases/12.4/jellyfin" ]] || fail 'unexpected Jellyfin release path'
-  [[ ! -e "$ROOT/start.sh" && ! -e "$ROOT/secrets/admin-initial.json" ]] || fail 'installation progressed beyond safe resume point'
+  [[ ! -e "$ROOT/secrets/admin-initial.json" ]] || fail 'admin secret exists; refuse unsafe resume'
+  if [[ -e "$ROOT/start.sh" ]]; then
+    grep -Fq 'exec "$ROOT/current/jellyfin"' "$ROOT/start.sh" || fail 'unexpected existing start script'
+  fi
 fi
 [[ ! -e "$UNIT" && ! -e "$CONF" && ! -e "$CERT" ]] || fail 'existing Jellyfin service or certificate; refuse overwrite'
 systemctl is-active --quiet nginx || fail 'Nginx not active'
@@ -123,11 +126,17 @@ chmod 0644 "$UNIT"
 CREATED_UNIT=1
 systemctl daemon-reload
 systemctl enable --now jellyfin-pink.service >/dev/null
-for i in $(seq 1 45); do
-  if curl -fsS --connect-timeout 2 --max-time 3 http://127.0.0.1:8096/System/Info/Public -o "$ROOT/.install-tmp/info.json"; then break; fi
+for i in $(seq 1 18); do
+  if curl -fsS --connect-timeout 2 --max-time 3 http://127.0.0.1:8096/System/Info/Public -o "$ROOT/.install-tmp/info.json" 2>/dev/null; then break; fi
   sleep 2
 done
-[[ -s "$ROOT/.install-tmp/info.json" ]] || fail 'Jellyfin did not start'
+if [[ ! -s "$ROOT/.install-tmp/info.json" ]]; then
+  echo JELLYFIN_STARTUP_DIAGNOSTIC=BEGIN >&2
+  systemctl status jellyfin-pink.service --no-pager --full 2>&1 | tail -n 28 >&2 || :
+  journalctl -u jellyfin-pink.service --since '-2 minutes' -n 65 --no-pager -o cat 2>&1 | tail -n 65 >&2 || :
+  echo JELLYFIN_STARTUP_DIAGNOSTIC=END >&2
+  fail 'Jellyfin did not start'
+fi
 python3 - "$ROOT/.install-tmp/info.json" <<'CHECK'
 import json,sys
 x=json.load(open(sys.argv[1]))
