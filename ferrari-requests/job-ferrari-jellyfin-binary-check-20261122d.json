@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "ferrari-jellyfin-binary-check-20261122d",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "jellyfin-binary-check.txt",
+    "content_base64": "YXVkaXQ="
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import os,sys,subprocess,json\nR=\"/srv/projects/jellyfin-server\"\nd={\"exists\":os.path.isdir(R),\"current_symlink\":os.path.islink(R+\"/current\")}\nif d[\"current_symlink\"]:\n d[\"target\"]=os.path.realpath(R+\"/current\")\n x=R+\"/current/jellyfin\"\n d[\"binary_exists\"]=os.path.exists(x)\n d[\"binary_executable\"]=os.access(x,os.X_OK)\n if d[\"binary_executable\"]:\n  try:\n   p=subprocess.run([x,\"--version\"],capture_output=True,text=True,timeout=16)\n   d[\"version\"]={\"returncode\":p.returncode,\"stdout\":p.stdout[-1300:],\"stderr\":p.stderr[-1300:]}\n  except Exception as e:d[\"version\"]={\"error_type\":type(e).__name__,\"message\":str(e)[:200]}\nd[\"top_entries\"]=sorted(os.listdir(R))[:30] if d[\"exists\"] else []\nprint(json.dumps(d,sort_keys=True))\n",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 35000,
+          "idle_timeout_ms": 35000,
+          "terminal": {
+            "columns": 120,
+            "rows": 25,
+            "scrollback": 100
+          },
+          "limits": {
+            "output_bytes": 11000
+          }
+        }
+      }
+    }
+  ]
+}
