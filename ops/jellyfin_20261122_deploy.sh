@@ -135,11 +135,15 @@ chmod 0644 "$UNIT"
 CREATED_UNIT=1
 systemctl daemon-reload
 systemctl enable --now jellyfin-pink.service >/dev/null
-for i in $(seq 1 25); do
-  if curl -fsS --unix-socket "$SOCKET" --connect-timeout 2 --max-time 3 http://localhost/System/Info/Public -o "$ROOT/.install-tmp/info.json" 2>/dev/null; then break; fi
+rm -f "$ROOT/.install-tmp/info.json"
+for i in $(seq 1 40); do
+  if [[ -S "$SOCKET" ]] && curl -fsS --unix-socket "$SOCKET" --connect-timeout 2 --max-time 3 http://localhost/System/Info/Public -o "$ROOT/.install-tmp/info.json" 2>/dev/null; then
+    sleep 2
+    if [[ -S "$SOCKET" ]] && curl -fsS --unix-socket "$SOCKET" --connect-timeout 2 --max-time 3 http://localhost/System/Info/Public -o "$ROOT/.install-tmp/info.json" 2>/dev/null; then break; fi
+  fi
   sleep 2
 done
-if [[ ! -s "$ROOT/.install-tmp/info.json" ]]; then
+if [[ ! -S "$SOCKET" || ! -s "$ROOT/.install-tmp/info.json" ]]; then
   echo JELLYFIN_STARTUP_DIAGNOSTIC=BEGIN >&2
   systemctl status jellyfin-pink.service --no-pager --full 2>&1 | tail -n 28 >&2 || :
   journalctl -u jellyfin-pink.service --since '-2 minutes' -n 65 --no-pager -o cat 2>&1 | tail -n 65 >&2 || :
@@ -155,7 +159,11 @@ print('JELLYFIN_API_VERSION='+repr(v))
 assert isinstance(v,str) and re.fullmatch(r'[0-9]+(?:\.[0-9]+){1,3}(?:[-+][A-Za-z0-9.-]+)?',v), 'invalid API version'
 assert x.get('StartupWizardCompleted',x.get('startupWizardCompleted')) is False, 'unexpected wizard'
 CHECK
-[[ -S "$SOCKET" ]] || fail 'Jellyfin Unix socket missing'
+if [[ ! -S "$SOCKET" ]]; then
+  systemctl status jellyfin-pink.service --no-pager --full 2>&1 | tail -n 25 >&2 || :
+  journalctl -u jellyfin-pink.service --since '-3 minutes' --no-pager -n 50 -o cat 2>&1 | tail -n 50 >&2 || :
+  fail 'Jellyfin Unix socket missing after readiness'
+fi
 [[ "$(stat -c%a "$SOCKET")" == "660" ]] || fail 'Jellyfin Unix socket permissions not private'
 [[ "$(stat -c%G "$SOCKET")" == "www-data" ]] || fail 'Jellyfin Unix socket has wrong group'
 [[ "$(systemctl show -P PrivateNetwork jellyfin-pink.service)" == "yes" ]] || fail 'Jellyfin private network not enforced'
