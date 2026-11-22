@@ -14,6 +14,7 @@ WEB_URL=https://repo.jellyfin.org/files/server/ubuntu/latest-stable/amd64/jellyf
 CREATED_UNIT=0
 CREATED_CONF=0
 CHANGED_SITE=0
+RESUME_ADMIN=0
 fail() { echo "JELLYFIN_DEPLOY_BLOCKED: $1" >&2; exit 1; }
 restore() {
   rc=$?
@@ -37,12 +38,25 @@ trap restore EXIT
 if [[ -e "$ROOT" ]]; then
   [[ -d "$ROOT" && -L "$ROOT/current" && -x "$ROOT/current/jellyfin" ]] || fail 'unexpected existing Jellyfin root'
   [[ "$(readlink -f "$ROOT/current")" == "$ROOT/releases/12.4/jellyfin" ]] || fail 'unexpected Jellyfin release path'
-  [[ ! -e "$ROOT/secrets/admin-initial.json" ]] || fail 'admin secret exists; refuse unsafe resume'
+  if [[ -e "$ROOT/secrets/admin-initial.json" ]]; then
+    [[ "$(stat -c%a "$ROOT/secrets/admin-initial.json")" == "600" ]] || fail 'existing admin secret permissions changed'
+    python3 - "$ROOT/secrets/admin-initial.json" <<'VALIDATE_ADMIN'
+import json,sys
+x=json.load(open(sys.argv[1]))
+assert x.get('username')=='pink-admin' and isinstance(x.get('password'),str) and len(x['password'])>=40,'unexpected existing admin state'
+VALIDATE_ADMIN
+    RESUME_ADMIN=1
+  fi
   if [[ -e "$ROOT/start.sh" ]]; then
     grep -Fq 'exec "$ROOT/current/jellyfin"' "$ROOT/start.sh" || fail 'unexpected existing start script'
   fi
 fi
-[[ ! -e "$UNIT" && ! -e "$CONF" && ! -e "$CERT" ]] || fail 'existing Jellyfin service or certificate; refuse overwrite'
+[[ ! -e "$UNIT" && ! -e "$CONF" ]] || fail 'existing Jellyfin service or vhost; refuse overwrite'
+if [[ -e "$CERT" ]]; then
+  [[ -s "$CERT/fullchain.pem" && -s "$CERT/privkey.pem" ]] || fail 'existing certificate incomplete'
+  openssl x509 -in "$CERT/fullchain.pem" -noout -ext subjectAltName | grep -Fq "$DOMAIN" || fail 'existing certificate SAN mismatch'
+  echo JELLYFIN_CERTIFICATE_RESUME=PASS
+fi
 systemctl is-active --quiet nginx || fail 'Nginx not active'
 nginx -t >/dev/null 2>&1 || fail 'existing Nginx config invalid'
 getent ahostsv4 "$DOMAIN" | awk '{print $1}' | grep -Fxq "$IP" || fail 'DuckDNS mismatch'
@@ -150,14 +164,14 @@ if [[ ! -S "$SOCKET" || ! -s "$ROOT/.install-tmp/info.json" ]]; then
   echo JELLYFIN_STARTUP_DIAGNOSTIC=END >&2
   fail 'Jellyfin did not start'
 fi
-python3 - "$ROOT/.install-tmp/info.json" <<'CHECK'
+python3 - "$ROOT/.install-tmp/info.json" "$RESUME_ADMIN" <<'CHECK'
 import json,sys,re
 x=json.load(open(sys.argv[1]))
 v=x.get('Version',x.get('version',''))
 print('JELLYFIN_API_FIELDS='+','.join(sorted(x.keys()))[:280])
 print('JELLYFIN_API_VERSION='+repr(v))
 assert isinstance(v,str) and re.fullmatch(r'[0-9]+(?:\.[0-9]+){1,3}(?:[-+][A-Za-z0-9.-]+)?',v), 'invalid API version'
-assert x.get('StartupWizardCompleted',x.get('startupWizardCompleted')) is False, 'unexpected wizard'
+assert x.get('StartupWizardCompleted',x.get('startupWizardCompleted')) is bool(int(sys.argv[2])), 'unexpected wizard state'
 CHECK
 if [[ ! -S "$SOCKET" ]]; then
   systemctl status jellyfin-pink.service --no-pager --full 2>&1 | tail -n 25 >&2 || :
@@ -169,6 +183,7 @@ fi
 [[ "$(systemctl show -P PrivateNetwork jellyfin-pink.service)" == "yes" ]] || fail 'Jellyfin private network not enforced'
 if ss -lntH 'sport = :8096' | grep -q .; then fail 'Jellyfin TCP socket exposed in host network namespace'; fi
 echo JELLYFIN_PRIVATE_SOCKET_NETWORK=PASS
+if [[ "$RESUME_ADMIN" == "0" ]]; then
 python3 - "$ROOT/secrets/admin-initial.json" <<'SECRET'
 import json,secrets,os,sys
 p=sys.argv[1]
@@ -182,6 +197,9 @@ with open(sys.argv[1],encoding='utf-8') as f:p=json.load(f)
 print(json.dumps({'Name':p['username'],'Password':p['password']}))
 BODY
 curl -fsS --unix-socket "$SOCKET" --max-time 12 -X POST http://localhost/Startup/Complete -o /dev/null
+else
+  echo JELLYFIN_ADMIN_RESUMED_WITHOUT_RESET=PASS
+fi
 curl -fsS --unix-socket "$SOCKET" --max-time 12 http://localhost/System/Info/Public -o "$ROOT/.install-tmp/info.json"
 python3 - "$ROOT/.install-tmp/info.json" <<'DONE'
 import json,sys
@@ -208,7 +226,11 @@ chmod 0644 "$ROOT/acme/.well-known/acme-challenge/pink-probe"
 actual="$(curl -fsS --connect-timeout 8 --max-time 15 --noproxy '*' "http://$DOMAIN/.well-known/acme-challenge/pink-probe")"
 [[ "$actual" == pink-acme-preflight-ok ]] || fail 'ACME external path failed'
 echo JELLYFIN_ACME_WEBROOT=PASS
-certbot certonly --non-interactive --agree-tos --register-unsafely-without-email --webroot --webroot-path "$ROOT/acme" --cert-name "$DOMAIN" -d "$DOMAIN" --keep-until-expiring >/dev/null
+if [[ ! -e "$CERT" ]]; then
+  certbot certonly --non-interactive --agree-tos --register-unsafely-without-email --webroot --webroot-path "$ROOT/acme" --cert-name "$DOMAIN" -d "$DOMAIN" --keep-until-expiring >/dev/null
+else
+  echo JELLYFIN_CERTIFICATE_REUSED=PASS
+fi
 [[ -s "$CERT/fullchain.pem" && -s "$CERT/privkey.pem" ]] || fail 'certificate missing'
 openssl x509 -in "$CERT/fullchain.pem" -noout -ext subjectAltName | grep -Fq "$DOMAIN" || fail 'certificate SAN mismatch'
 cat > "$CONF" <<'HTTPS'
@@ -257,7 +279,7 @@ server {
 HTTPS
 nginx -t >/dev/null
 systemctl reload nginx
-curl -fsS --connect-timeout 8 --max-time 15 --noproxy '*' --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/System/Info/Public" -o "$ROOT/.install-tmp/public.json"
+curl -fsS --connect-timeout 8 --max-time 15 --noproxy '*' --resolve "$DOMAIN:443:$IP" "https://$DOMAIN/System/Info/Public" -o "$ROOT/.install-tmp/public.json"
 python3 - "$ROOT/.install-tmp/public.json" <<'FINAL'
 import json,sys,re
 x=json.load(open(sys.argv[1]))
