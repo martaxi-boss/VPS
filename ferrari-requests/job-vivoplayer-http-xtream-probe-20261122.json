@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoplayer-http-xtream-probe-20261122",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import urllib.request,urllib.error,urllib.parse,json,re,html.parser\nclass Tags(html.parser.HTMLParser):\n def __init__(self):\n  super().__init__();self.title=False;self.t=[];self.scripts=[];self.forms=[];self.inputs=[]\n def handle_starttag(self,tag,attrs):\n  d=dict(attrs)\n  if tag==\"title\":self.title=True\n  if tag==\"script\" and d.get(\"src\"):self.scripts.append(d[\"src\"][:200])\n  if tag==\"form\":self.forms.append({\"method\":d.get(\"method\",\"GET\"),\"action\":d.get(\"action\",\"\")[:140]})\n  if tag==\"input\":self.inputs.append({\"type\":d.get(\"type\",\"text\"),\"name\":d.get(\"name\",\"\")[:50]})\n def handle_endtag(self,tag):\n  if tag==\"title\":self.title=False\n def handle_data(self,data):\n  if self.title:self.t.append(data.strip())\ndef probe(url):\n rec={\"url\":url}\n try:\n  req=urllib.request.Request(url,headers={\"User-Agent\":\"Mozilla/5.0\",\"Accept\":\"text/html,application/json\"})\n  with urllib.request.urlopen(req,timeout=7) as res:\n   rec[\"http_status\"]=res.status;rec[\"content_type\"]=res.headers.get(\"Content-Type\",\"\")[:90];rec[\"server\"]=res.headers.get(\"Server\",\"\")[:90];rec[\"final_host\"]=urllib.parse.urlsplit(res.url).hostname\n   data=res.read(100000)\n   if \"json\" in rec[\"content_type\"]:\n    try:\n     v=json.loads(data);rec[\"json_type\"]=type(v).__name__;rec[\"json_keys\"]=list(v.keys())[:25] if isinstance(v,dict) else []\n    except:rec[\"json_parse\"]=False\n   else:\n    p=Tags();p.feed(data.decode(\"utf-8\",\"replace\"));rec[\"page_title\"]=\" \".join(p.t)[:110];rec[\"form_count\"]=len(p.forms);rec[\"forms\"]=p.forms[:5];rec[\"input_types\"]=[i[\"type\"] for i in p.inputs[:8]];rec[\"script_count\"]=len(p.scripts);rec[\"script_paths\"]=[urllib.parse.urlsplit(x).path[:150] for x in p.scripts[:8]]\n except urllib.error.HTTPError as e:\n  rec[\"http_status\"]=e.code;rec[\"content_type\"]=e.headers.get(\"Content-Type\",\"\")[:90];rec[\"server\"]=e.headers.get(\"Server\",\"\")[:90]\n except Exception as e: rec[\"error\"]=str(e)[:170]\n return rec\nurls=[\"http://vivoteam.dns.org/\",\"http://vivoteam.dns.org/player_api.php\",\"http://vivo-team.duckdns.org/\",\"http://vivo-team.duckdns.org/player_api.php\",\"https://www.vivo-player.com/playlists\"]\nprint(json.dumps([probe(u) for u in urls],ensure_ascii=False))\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "terminal": {
+            "columns": 170,
+            "rows": 35,
+            "scrollback": 140
+          },
+          "timeout_ms": 70000,
+          "idle_timeout_ms": 70000,
+          "limits": {
+            "output_bytes": 75000
+          }
+        }
+      }
+    }
+  ]
+}
