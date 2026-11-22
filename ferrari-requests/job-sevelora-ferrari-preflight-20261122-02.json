@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "id": "sevelora-ferrari-preflight-20261122-02",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/node-22.23.4/bin/node",
+          "arguments": [
+            "-e",
+            "const fs=require('node:fs');\nconst paths=['/srv/projects/Sexshop','/srv/projects/Sexshop/current','/srv/projects/Sexshop/data/catalog.json'];\nconst out={scope:'READ_ONLY',paths:{}};\nfor(const p of paths){try{const s=fs.lstatSync(p);out.paths[p]={present:true,isSymlink:s.isSymbolicLink(),isDirectory:s.isDirectory(),owner:s.uid,bytes:s.size,target:s.isSymbolicLink()?fs.readlinkSync(p):null}}catch(e){out.paths[p]={present:false,error:e.code}}}\n(async()=>{out.public=[];\nfor(const u of ['https://sevelora.eu/','https://sevelora.eu/catalogo','https://www.sevelora.eu/']){\n try{const r=await fetch(u,{redirect:'manual',signal:AbortSignal.timeout(10000)});const html=await r.text();\n const links=[...html.matchAll(/href=\"(https?:[^\"]+)\"/g)].slice(0,200).map(m=>m[1].replace(/&amp;/g,'&')).filter(h=>h.includes('awin1.com'));\n out.public.push({url:u,status:r.status,location:r.headers.get('location'),htmlBytes:html.length,affiliateLinkCount:links.length,affiliateSample:links[0]?.replace(/p=[^&]+/,'p=REDACTED')??null,hasPageTitle:/Sevelora/i.test(html)});\n }catch(e){out.public.push({url:u,error:e.message})}}\nconsole.log(JSON.stringify(out));\n})().catch(e=>{console.error(e);process.exitCode=1});"
+          ],
+          "timeout_ms": 60000,
+          "idle_timeout_ms": 30000
+        }
+      }
+    }
+  ]
+}
