@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "ferrari-pink-vivo-current-readonly-20261122b",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "audit.txt",
+    "content_base64": "YXVkaXQ="
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,subprocess\np=subprocess.run([\"sudo\",\"-n\",\"python3\",\"-c\",\"import json,subprocess,socket\\nfrom pathlib import Path\\nout={\\\"services\\\":{},\\\"projects\\\":{},\\\"vivo\\\":{},\\\"jellyfin\\\":{}}\\ndef active(s):\\n try:\\n  p=subprocess.run([\\\"systemctl\\\",\\\"is-active\\\",s],capture_output=True,text=True,timeout=6)\\n  return p.stdout.strip() if p.returncode==0 else \\\"not_active\\\"\\n except Exception as exc:return \\\"error_\\\"+type(exc).__name__\\nfor s in (\\\"pink-iptv-backend.service\\\",\\\"pink-vpn.service\\\",\\\"vivoapk-backend.service\\\",\\\"jellyfin-pink.service\\\",\\\"nginx.service\\\",\\\"postgresql.service\\\"):\\n out[\\\"services\\\"][s]=active(s)\\nfor name,path in ((\\\"pink\\\",\\\"/srv/projects/pink-iptv\\\"),(\\\"vivo\\\",\\\"/srv/projects/Vivoapk\\\"),(\\\"jellyfin\\\",\\\"/srv/projects/jellyfin-server\\\")):\\n out[\\\"projects\\\"][name]=Path(path).is_dir()\\ntry:\\n p=subprocess.run([\\\"git\\\",\\\"-C\\\",\\\"/srv/projects/Vivoapk/source\\\",\\\"rev-parse\\\",\\\"HEAD\\\"],capture_output=True,text=True,timeout=6)\\n out[\\\"vivo\\\"][\\\"source_sha\\\"]=p.stdout.strip() if p.returncode==0 else None\\nexcept Exception as exc:out[\\\"vivo\\\"][\\\"source_error\\\"]=type(exc).__name__\\nsock=Path(\\\"/srv/projects/Vivoapk/run/backend.sock\\\")\\nout[\\\"vivo\\\"][\\\"socket_exists\\\"]=sock.is_socket()\\nif sock.is_socket():\\n try:\\n  with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as s:\\n   s.settimeout(5)\\n   s.connect(str(sock))\\n   s.sendall(b\\\"GET /openapi.json HTTP/1.1\\\\r\\\\nHost: localhost\\\\r\\\\nConnection: close\\\\r\\\\n\\\\r\\\\n\\\")\\n   out[\\\"vivo\\\"][\\\"api_200\\\"]=b\\\"200 OK\\\" in s.recv(256)\\n except Exception as exc:out[\\\"vivo\\\"][\\\"api_error\\\"]=type(exc).__name__\\ntry:\\n p=subprocess.run([\\\"sudo\\\",\\\"-n\\\",\\\"-u\\\",\\\"postgres\\\",\\\"psql\\\",\\\"-X\\\",\\\"-A\\\",\\\"-t\\\",\\\"-d\\\",\\\"vivoapk\\\",\\\"-c\\\",\\\"SELECT COUNT(*),COUNT(dns_link_samsung_lg) FROM subscription_mappings\\\"],capture_output=True,text=True,timeout=9)\\n out[\\\"vivo\\\"][\\\"db_query\\\"]=p.returncode==0\\n if p.returncode==0:\\n  parts=p.stdout.strip().split(\\\"|\\\")\\n  if len(parts)==2:out[\\\"vivo\\\"].update({\\\"subscription_count\\\":int(parts[0]),\\\"native_tv_count\\\":int(parts[1])})\\nexcept Exception as exc:out[\\\"vivo\\\"][\\\"db_error\\\"]=type(exc).__name__\\nroot=Path(\\\"/srv/projects/jellyfin-server\\\")\\nfor name in (\\\"data/plugins\\\",\\\"config/plugins\\\",\\\"plugins\\\"):\\n path=root/name\\n if path.is_dir():\\n  try:\\n   entries=list(path.iterdir())\\n   out[\\\"jellyfin\\\"][\\\"plugin_folder_\\\"+name]=len(entries)\\n   out[\\\"jellyfin\\\"][\\\"mega_plugin_file_name_match\\\"]=out[\\\"jellyfin\\\"].get(\\\"mega_plugin_file_name_match\\\",False) or any(\\\"mega\\\" in p.name.lower() or \\\"vivoapk\\\" in p.name.lower() for p in entries)\\n  except Exception as exc:out[\\\"jellyfin\\\"][\\\"plugin_scan_error\\\"]=type(exc).__name__\\ntry:\\n p=subprocess.run([\\\"systemctl\\\",\\\"show\\\",\\\"-p\\\",\\\"PrivateNetwork\\\",\\\"-p\\\",\\\"IPAddressDeny\\\",\\\"jellyfin-pink.service\\\"],capture_output=True,text=True,timeout=7)\\n if p.returncode==0:out[\\\"jellyfin\\\"][\\\"isolation\\\"]={k:v for k,v in (line.split(\\\"=\\\",1) for line in p.stdout.splitlines() if \\\"=\\\" in line)}\\nexcept Exception as exc:out[\\\"jellyfin\\\"][\\\"isolation_error\\\"]=type(exc).__name__\\nprint(json.dumps(out,sort_keys=True))\\n\"],capture_output=True,text=True,timeout=75)\nif p.returncode:\n lines=p.stderr.strip().splitlines()\n print(json.dumps({\"status\":\"audit_error\",\"code\":p.returncode,\"error_type\":lines[-1].split(\":\")[0][:65] if lines else \"unknown\"}))\nelse:\n try: print(json.dumps({\"status\":\"checked\",\"data\":json.loads(p.stdout)},sort_keys=True))\n except Exception: print(json.dumps({\"status\":\"non_json\",\"length\":len(p.stdout)}))",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 105000,
+          "idle_timeout_ms": 105000,
+          "terminal": {
+            "columns": 140,
+            "rows": 24,
+            "scrollback": 100
+          },
+          "limits": {
+            "output_bytes": 12000
+          }
+        }
+      }
+    }
+  ]
+}
