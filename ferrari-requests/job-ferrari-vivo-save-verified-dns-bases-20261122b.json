@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "ferrari-vivo-save-verified-dns-bases-20261122b",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "readme.txt",
+    "content_base64": "YXVkaXQ="
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\np=subprocess.run([\"sudo\",\"-n\",\"python3\",\"-c\",\"import os,json,csv,io,hashlib,stat\\nfrom pathlib import Path\\nfrom urllib.parse import urlsplit\\nroot=Path(\\\"/root/project-secrets/VIVOAPK\\\")\\nsource=root/\\\"subscriber-mappings.csv\\\"\\ntarget=root/\\\"dns-bases-observed.json\\\"\\nif os.geteuid()!=0:\\n print(json.dumps({\\\"status\\\":\\\"blocked\\\",\\\"reason\\\":\\\"root_required\\\"}));raise SystemExit(0)\\nif target.exists():\\n print(json.dumps({\\\"status\\\":\\\"no_overwrite\\\",\\\"reason\\\":\\\"file_already_exists\\\"}));raise SystemExit(0)\\nif not source.is_file() or not root.is_dir():\\n print(json.dumps({\\\"status\\\":\\\"blocked\\\",\\\"reason\\\":\\\"snapshot_missing\\\"}));raise SystemExit(0)\\nif (root.stat().st_mode&0o777)!=0o700 or (source.stat().st_mode&0o777)!=0o600:\\n print(json.dumps({\\\"status\\\":\\\"blocked\\\",\\\"reason\\\":\\\"unsafe_vault_permissions\\\"}));raise SystemExit(0)\\nraw=source.read_bytes()\\nrows=list(csv.DictReader(io.StringIO(raw.decode(\\\"utf8\\\"))))\\nif len(rows)!=4:\\n print(json.dumps({\\\"status\\\":\\\"blocked\\\",\\\"reason\\\":\\\"unexpected_subscription_count\\\"}));raise SystemExit(0)\\nbases={\\\"dns_link\\\":\\\"zvpnm.com\\\",\\\"dns_link_samsung_lg\\\":\\\"daizsmart.com\\\"}\\nfor field,base in bases.items():\\n hosts=[urlsplit(r[field]).hostname for r in rows]\\n if len(set(hosts))!=4 or not all(h and h.endswith(\\\".\\\"+base) and h.count(\\\".\\\")==base.count(\\\".\\\")+1 for h in hosts):\\n  print(json.dumps({\\\"status\\\":\\\"blocked\\\",\\\"reason\\\":\\\"observed_base_mismatch\\\"}));raise SystemExit(0)\\npayload={\\n\\\"scope\\\":\\\"observed_dns_patterns_only\\\",\\n\\\"source\\\":\\\"VIVOAPK/subscriber-mappings.csv copied from PINK private PostgreSQL\\\",\\n\\\"source_snapshot_sha256\\\":hashlib.sha256(raw).hexdigest(),\\n\\\"sample_subscriptions\\\":len(rows),\\n\\\"dns_generic_observed_suffix\\\":bases[\\\"dns_link\\\"],\\n\\\"dns_native_samsung_lg_observed_suffix\\\":bases[\\\"dns_link_samsung_lg\\\"],\\n\\\"subdomain_levels\\\":1,\\n\\\"subdomains_must_be_preserved\\\":True,\\n\\\"origins_remain_authoritative_per_subscription\\\":True,\\n\\\"no_automatic_dns_rewrite\\\":True,\\n\\\"refresh_only_from_authorized_mega_api\\\":True,\\n\\\"base_not_confirmed_as_permanent_provider_contract\\\":True\\n}\\nfd=os.open(target,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)\\nwith os.fdopen(fd,\\\"w\\\",encoding=\\\"utf8\\\") as f:\\n json.dump(payload,f,indent=2,sort_keys=True)\\n f.write(\\\"\\\\n\\\")\\nos.chmod(target,0o600)\\nprint(json.dumps({\\\"status\\\":\\\"saved\\\",\\\"vault_file\\\":\\\"VIVOAPK/dns-bases-observed.json\\\",\\\"mode\\\":oct(stat.S_IMODE(target.stat().st_mode)),\\\"verified_count\\\":len(rows),\\\"generic_suffix\\\":bases[\\\"dns_link\\\"],\\\"native_suffix\\\":bases[\\\"dns_link_samsung_lg\\\"],\\\"preserves_client_origins\\\":True,\\\"old_pink_untouched\\\":True},sort_keys=True))\\n\"],capture_output=True,text=True,timeout=25)\nif p.returncode!=0: print(json.dumps({\"status\":\"blocked\",\"reason\":\"private_execution_failure\"}))\nelse:\n try: print(json.dumps(json.loads(p.stdout),sort_keys=True))\n except Exception: print(json.dumps({\"status\":\"invalid_report\",\"bytes\":len(p.stdout)}))\n",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 65000,
+          "idle_timeout_ms": 65000,
+          "terminal": {
+            "columns": 145,
+            "rows": 29,
+            "scrollback": 90
+          },
+          "limits": {
+            "output_bytes": 11000
+          }
+        }
+      }
+    }
+  ]
+}
