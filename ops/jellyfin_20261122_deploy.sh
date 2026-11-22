@@ -279,7 +279,19 @@ server {
 HTTPS
 nginx -t >/dev/null
 systemctl reload nginx
-curl -fsS --connect-timeout 8 --max-time 15 --noproxy '*' --resolve "$DOMAIN:443:$IP" "https://$DOMAIN/System/Info/Public" -o "$ROOT/.install-tmp/public.json"
+rm -f "$ROOT/.install-tmp/public.json"
+sleep 2
+for i in $(seq 1 16); do
+  if curl -fsS --connect-timeout 5 --max-time 9 --noproxy '*' --resolve "$DOMAIN:443:$IP" "https://$DOMAIN/System/Info/Public" -o "$ROOT/.install-tmp/public.json" 2>/dev/null; then break; fi
+  sleep 2
+done
+if [[ ! -s "$ROOT/.install-tmp/public.json" ]]; then
+  echo JELLYFIN_HTTPS_DIAGNOSTIC=BEGIN >&2
+  nginx -T 2>/dev/null | grep -F 'server_name serveriptv.duckdns.org;' | head -n 8 >&2 || :
+  printf '' | timeout 8 openssl s_client -connect "$IP:443" -servername "$DOMAIN" -showcerts 2>/dev/null | openssl x509 -noout -subject -ext subjectAltName 2>/dev/null | head -n 12 >&2 || :
+  echo JELLYFIN_HTTPS_DIAGNOSTIC=END >&2
+  fail 'HTTPS certificate or vhost not available after nginx reload'
+fi
 python3 - "$ROOT/.install-tmp/public.json" <<'FINAL'
 import json,sys,re
 x=json.load(open(sys.argv[1]))
