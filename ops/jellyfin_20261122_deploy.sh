@@ -140,10 +140,11 @@ fi
 python3 - "$ROOT/.install-tmp/info.json" <<'CHECK'
 import json,sys,re
 x=json.load(open(sys.argv[1]))
-v=x.get('Version','')
+v=x.get('Version',x.get('version',''))
+print('JELLYFIN_API_FIELDS='+','.join(sorted(x.keys()))[:280])
 print('JELLYFIN_API_VERSION='+repr(v))
 assert isinstance(v,str) and re.fullmatch(r'[0-9]+(?:\.[0-9]+){1,3}(?:[-+][A-Za-z0-9.-]+)?',v), 'invalid API version'
-assert x.get('StartupWizardCompleted') is False, 'unexpected wizard'
+assert x.get('StartupWizardCompleted',x.get('startupWizardCompleted')) is False, 'unexpected wizard'
 CHECK
 ss -lntH 'sport = :8096' | grep -F '127.0.0.1:8096' >/dev/null || fail 'port not restricted to loopback'
 if ss -lntH 'sport = :8096' | grep -E '(0[.]0[.]0[.]0|\[::\])' >/dev/null; then fail 'port public'; fi
@@ -163,7 +164,8 @@ curl -fsS --max-time 12 -X POST http://127.0.0.1:8096/Startup/Complete -o /dev/n
 curl -fsS --max-time 12 http://127.0.0.1:8096/System/Info/Public -o "$ROOT/.install-tmp/info.json"
 python3 - "$ROOT/.install-tmp/info.json" <<'DONE'
 import json,sys
-assert json.load(open(sys.argv[1])).get('StartupWizardCompleted') is True, 'wizard still open'
+x=json.load(open(sys.argv[1]))
+assert x.get('StartupWizardCompleted',x.get('startupWizardCompleted')) is True, 'wizard still open'
 DONE
 echo JELLYFIN_ADMIN_SECURE=PASS
 cat > "$CONF" <<'HTTP'
@@ -235,10 +237,11 @@ curl -fsS --connect-timeout 8 --max-time 15 --noproxy '*' --resolve "$DOMAIN:443
 python3 - "$ROOT/.install-tmp/public.json" <<'FINAL'
 import json,sys,re
 x=json.load(open(sys.argv[1]))
-v=x.get('Version','')
+v=x.get('Version',x.get('version',''))
+print('JELLYFIN_PUBLIC_API_FIELDS='+','.join(sorted(x.keys()))[:280])
 print('JELLYFIN_PUBLIC_API_VERSION='+repr(v))
 assert isinstance(v,str) and re.fullmatch(r'[0-9]+(?:\.[0-9]+){1,3}(?:[-+][A-Za-z0-9.-]+)?',v), 'invalid public API version'
-assert x.get('StartupWizardCompleted') is True, 'public wizard open'
+assert x.get('StartupWizardCompleted',x.get('startupWizardCompleted')) is True, 'public wizard open'
 FINAL
 systemctl is-active --quiet jellyfin-pink.service || fail 'service stopped'
 nginx -t >/dev/null
