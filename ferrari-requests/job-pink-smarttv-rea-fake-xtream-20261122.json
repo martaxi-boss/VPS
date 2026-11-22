@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "pink-smarttv-rea-fake-xtream-20261122",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "synthetic-tv-check.txt",
+    "content_base64": "c2FuaXR5"
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json, threading\nfrom http.server import BaseHTTPRequestHandler, ThreadingHTTPServer\nfrom urllib.parse import urlparse, parse_qs, urlencode\nfrom urllib.request import urlopen\n\nstats = {\"requests\": 0, \"authorized\": 0}\nclass FakeXtream(BaseHTTPRequestHandler):\n    def log_message(self, *args): pass\n    def do_GET(self):\n        u = urlparse(self.path)\n        q = parse_qs(u.query)\n        stats[\"requests\"] += 1\n        ok = q.get(\"username\") == [\"synthetic-user\"] and q.get(\"password\") == [\"synthetic-pass\"]\n        if not ok:\n            payload = {\"user_info\":{\"auth\":0,\"status\":\"Disabled\"}}\n        else:\n            stats[\"authorized\"] += 1\n            action = q.get(\"action\",[\"\"])[0]\n            if action == \"get_live_categories\": payload = [{\"category_id\":\"1\",\"category_name\":\"Teste\"}]\n            elif action == \"get_live_streams\": payload = [{\"stream_id\":12,\"name\":\"Demo\",\"category_id\":\"1\"}]\n            elif action == \"get_vod_streams\": payload = [{\"stream_id\":13,\"name\":\"Demo movie\",\"container_extension\":\"mp4\"}]\n            elif action == \"get_series\": payload = [{\"series_id\":14,\"name\":\"Demo series\"}]\n            elif action == \"get_series_info\": payload = {\"episodes\":{\"1\":[{\"id\":15,\"title\":\"Episódio fictício\"}]}}\n            elif action == \"get_short_epg\": payload = {\"epg_listings\":[]}\n            else: payload = {\"user_info\":{\"auth\":1,\"status\":\"Active\"}}\n        data = json.dumps(payload).encode()\n        self.send_response(200)\n        self.send_header(\"Content-Type\",\"application/json\")\n        self.send_header(\"Content-Length\",str(len(data)))\n        self.end_headers()\n        self.wfile.write(data)\n\nsv = ThreadingHTTPServer((\"127.0.0.1\",0),FakeXtream)\nth=threading.Thread(target=sv.serve_forever,daemon=True)\nth.start()\ntry:\n    base = \"http://127.0.0.1:\"+str(sv.server_port)+\"/player_api.php\"\n    cases = [\"\",\"get_live_categories\",\"get_live_streams\",\"get_vod_streams\",\"get_series\",\"get_series_info\",\"get_short_epg\"]\n    for act in cases:\n        qs = {\"username\":\"synthetic-user\",\"password\":\"synthetic-pass\"}\n        if act: qs[\"action\"]=act\n        if act == \"get_series_info\": qs[\"series_id\"]=\"14\"\n        with urlopen(base+\"?\"+urlencode(qs),timeout=3) as response:\n            data=json.load(response)\n        if act==\"\": assert data[\"user_info\"][\"auth\"]==1\n        elif act==\"get_series_info\": assert data[\"episodes\"][\"1\"][0][\"id\"]==15\n        elif act==\"get_short_epg\": assert isinstance(data[\"epg_listings\"],list)\n        else: assert isinstance(data,list) and data\n    with urlopen(base+\"?\"+urlencode({\"username\":\"synthetic-user\",\"password\":\"bad\"}),timeout=3) as response:\n        invalid=json.load(response)\n    assert invalid[\"user_info\"][\"auth\"]==0\n    assert stats[\"requests\"]==8\n    print(json.dumps({\"ferrari_rea_synthetic_xtream\":\"PASS\",\"checks\":8,\"server_requests\":stats[\"requests\"],\"real_credentials_used\":False,\"real_tv_test\":False}))\nfinally:\n    sv.shutdown()\n    sv.server_close()\n",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 25000,
+          "idle_timeout_ms": 25000,
+          "terminal": {
+            "columns": 120,
+            "rows": 18,
+            "scrollback": 80
+          },
+          "limits": {
+            "output_bytes": 8000
+          }
+        }
+      }
+    }
+  ]
+}
