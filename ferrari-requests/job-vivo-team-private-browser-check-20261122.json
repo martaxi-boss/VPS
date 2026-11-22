@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "vivo-team-private-browser-check-20261122",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/node-22.23.4/bin/node",
+          "arguments": [
+            "/srv/projects/skill-universal/.runtime/npm/playwright/node_modules/playwright/cli.js",
+            "install",
+            "--dry-run"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 20000,
+          "terminal": {
+            "columns": 110,
+            "rows": 22,
+            "scrollback": 180
+          }
+        }
+      }
+    }
+  ]
+}
