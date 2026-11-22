@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "id": "sevelora-ferrari-tools-20261122-01",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/list",
+      "params": {}
+    }
+  ]
+}
