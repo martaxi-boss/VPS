@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "id": "sevelora-ferrari-live-20261122-03",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/node-22.23.4/bin/node",
+          "arguments": [
+            "-e",
+            "const fs=require('node:fs');\nconst expected='releases/2ae5c2de90997e3c07318664c0462e89dd25fbfb/app';\nconst actual=fs.readlinkSync('/srv/projects/Sexshop/current');\nconst results={scope:'production-readonly',expected,active:actual,checks:[]};\n(async()=>{\n const pages=['/','/catalogo'];\n for(let i=0;i<pages.length;i++){\n  const path=pages[i];\n  const r=await fetch('https://sevelora.eu'+path,{signal:AbortSignal.timeout(12000)});\n  const h=await r.text();\n  const tags=[...h.matchAll(/<a\\b[^>]*>/gi)].map(m=>m[0]);\n  const out=tags.filter(x=>x.includes('awin1.com/pclick.php'));\n  const bad=out.filter(x=>/target\\s*=\\s*[\"']_blank/i.test(x)||!/rel=\"[^\"]*sponsored[^\"]*\"/i.test(x));\n  const badUrls=out.filter(t=>{const m=t.match(/href=\"([^\"]+)\"/);if(!m)return true;try{const u=new URL(m[1].replace(/&amp;/g,'&'));return u.hostname!=='www.awin1.com'||u.pathname!=='/pclick.php'||u.searchParams.get('a')!=='3157353'||u.searchParams.get('m')!=='37722'}catch{return true}});\n  results.checks.push({path,status:r.status,affiliateLinks:out.length,popupTargets:bad.length,badAffiliateUrls:badUrls.length});\n  if(path==='/catalogo'){const m=h.match(/href=\"(\\/produto\\/\\d+)\"/);if(m)pages.push(m[1])}\n }\n console.log(JSON.stringify(results));\n if(actual!==expected||results.checks.length!==3||results.checks.some(x=>x.status!==200||x.affiliateLinks===0||x.popupTargets!==0||x.badAffiliateUrls!==0))process.exitCode=9;\n})().catch(e=>{console.error('PUBLIC_CHECK_FAILED:'+e.message);process.exitCode=9});"
+          ],
+          "timeout_ms": 75000,
+          "idle_timeout_ms": 25000
+        }
+      }
+    }
+  ]
+}
