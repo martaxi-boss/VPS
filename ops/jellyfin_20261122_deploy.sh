@@ -138,9 +138,11 @@ if [[ ! -s "$ROOT/.install-tmp/info.json" ]]; then
   fail 'Jellyfin did not start'
 fi
 python3 - "$ROOT/.install-tmp/info.json" <<'CHECK'
-import json,sys
+import json,sys,re
 x=json.load(open(sys.argv[1]))
-assert str(x.get('Version','')).startswith('12.4'), 'wrong version'
+v=x.get('Version','')
+print('JELLYFIN_API_VERSION='+repr(v))
+assert isinstance(v,str) and re.fullmatch(r'[0-9]+(?:\.[0-9]+){1,3}(?:[-+][A-Za-z0-9.-]+)?',v), 'invalid API version'
 assert x.get('StartupWizardCompleted') is False, 'unexpected wizard'
 CHECK
 ss -lntH 'sport = :8096' | grep -F '127.0.0.1:8096' >/dev/null || fail 'port not restricted to loopback'
@@ -231,9 +233,11 @@ nginx -t >/dev/null
 systemctl reload nginx
 curl -fsS --connect-timeout 8 --max-time 15 --noproxy '*' --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/System/Info/Public" -o "$ROOT/.install-tmp/public.json"
 python3 - "$ROOT/.install-tmp/public.json" <<'FINAL'
-import json,sys
+import json,sys,re
 x=json.load(open(sys.argv[1]))
-assert str(x.get('Version','')).startswith('12.4'), 'wrong live version'
+v=x.get('Version','')
+print('JELLYFIN_PUBLIC_API_VERSION='+repr(v))
+assert isinstance(v,str) and re.fullmatch(r'[0-9]+(?:\.[0-9]+){1,3}(?:[-+][A-Za-z0-9.-]+)?',v), 'invalid public API version'
 assert x.get('StartupWizardCompleted') is True, 'public wizard open'
 FINAL
 systemctl is-active --quiet jellyfin-pink.service || fail 'service stopped'

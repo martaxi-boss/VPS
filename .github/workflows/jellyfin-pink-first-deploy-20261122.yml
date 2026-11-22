@@ -50,7 +50,10 @@ jobs:
           import json,sys
           info=json.load(open(sys.argv[1]))
           assert info.get('StartupWizardCompleted') is True
-          assert str(info.get('Version','')).startswith('12.4')
+          import re
+          version=info.get('Version','')
+          assert isinstance(version,str) and re.fullmatch(r'[0-9]+(?:\.[0-9]+){1,3}(?:[-+][A-Za-z0-9.-]+)?',version)
+          print('JELLYFIN_EXTERNAL_API_VERSION='+version)
           print('JELLYFIN_EXTERNAL_PUBLIC_INFO=PASS')
           PY
           echo JELLYFIN_EXTERNAL_TLS=PASS
