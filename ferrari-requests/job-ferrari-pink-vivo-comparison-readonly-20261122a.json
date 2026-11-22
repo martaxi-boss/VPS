@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "ferrari-pink-vivo-comparison-readonly-20261122a",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "synthetic.txt",
+    "content_base64": "e30K"
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,subprocess\np=subprocess.run([\"sudo\",\"-n\",\"python3\",\"-c\",\"import json,subprocess,os,stat,socket\\nfrom pathlib import Path\\nout={\\\"status\\\":\\\"checked\\\",\\\"services\\\":{},\\\"source\\\":{},\\\"vivo_backend\\\":{},\\\"jellyfin\\\":{},\\\"vivo_database\\\":{}}\\nfor s in [\\\"pink-iptv-backend.service\\\",\\\"pink-vpn.service\\\",\\\"vivoapk-backend.service\\\",\\\"jellyfin-pink.service\\\",\\\"nginx.service\\\",\\\"postgresql.service\\\"]:\\n p=subprocess.run([\\\"systemctl\\\",\\\"is-active\\\",s],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True,timeout=5)\\n out[\\\"services\\\"][s]=p.stdout.strip() if p.returncode==0 else \\\"not_active\\\"\\nfor k,p in [(\\\"pink\\\",\\\"/srv/projects/pink-iptv\\\"),(\\\"vivo\\\",\\\"/srv/projects/Vivoapk\\\"),(\\\"jellyfin\\\",\\\"/srv/projects/jellyfin-server\\\")]:\\n out[\\\"source\\\"][k+\\\"_exists\\\"]=Path(p).is_dir()\\nif Path(\\\"/srv/projects/Vivoapk/source/.git\\\").exists():\\n p=subprocess.run([\\\"git\\\",\\\"-C\\\",\\\"/srv/projects/Vivoapk/source\\\",\\\"rev-parse\\\",\\\"HEAD\\\"],capture_output=True,text=True,timeout=5)\\n out[\\\"source\\\"][\\\"vivo_git_sha\\\"]=p.stdout.strip() if p.returncode==0 else \\\"unavailable\\\"\\npath=Path(\\\"/srv/projects/Vivoapk/run/backend.sock\\\")\\nout[\\\"vivo_backend\\\"][\\\"socket_exists\\\"]=path.is_socket()\\nif path.is_socket():\\n with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as sk:\\n  sk.settimeout(4)\\n  sk.connect(str(path))\\n  sk.sendall(b\\\"GET /openapi.json HTTP/1.1\\\\r\\\\nHost: localhost\\\\r\\\\nConnection: close\\\\r\\\\n\\\\r\\\\n\\\")\\n  out[\\\"vivo_backend\\\"][\\\"http_200\\\"]=b\\\"200 OK\\\" in sk.recv(256)\\np=subprocess.run([\\\"sudo\\\",\\\"-n\\\",\\\"-u\\\",\\\"postgres\\\",\\\"psql\\\",\\\"-X\\\",\\\"-A\\\",\\\"-t\\\",\\\"-d\\\",\\\"vivoapk\\\",\\\"-c\\\",\\\"SELECT COUNT(*),COUNT(dns_link_samsung_lg) FROM subscription_mappings\\\"],capture_output=True,text=True,timeout=8)\\nout[\\\"vivo_database\\\"][\\\"query_ok\\\"]=p.returncode==0\\nif p.returncode==0:\\n x=p.stdout.strip().split(\\\"|\\\")\\n if len(x)==2:out[\\\"vivo_database\\\"].update({\\\"mappings\\\":int(x[0]),\\\"tv_dns\\\":int(x[1])})\\nr=Path(\\\"/srv/projects/jellyfin-server\\\")\\nfor sub in [\\\"data/plugins\\\",\\\"config/plugins\\\",\\\"plugins\\\"]:\\n p=r/sub\\n if p.is_dir():\\n  out[\\\"jellyfin\\\"][sub+\\\"_folder_exists\\\"]=True\\n  out[\\\"jellyfin\\\"][sub+\\\"_folder_count\\\"]=len(list(p.iterdir()))\\np=subprocess.run([\\\"systemctl\\\",\\\"show\\\",\\\"-p\\\",\\\"PrivateNetwork\\\",\\\"-p\\\",\\\"IPAddressDeny\\\",\\\"jellyfin-pink.service\\\"],capture_output=True,text=True,timeout=7)\\nout[\\\"jellyfin\\\"][\\\"isolation_config\\\"]={k:v for k,v in (line.split(\\\"=\\\",1) for line in p.stdout.splitlines() if \\\"=\\\" in line)}\\nout[\\\"jellyfin\\\"][\\\"mega_auth_plugin_present_by_fs_name\\\"]=any(\\\"mega\\\" in x.name.lower() or \\\"vivoapk\\\" in x.name.lower() for sub in (\\\"data/plugins\\\",\\\"config/plugins\\\",\\\"plugins\\\") for x in (r/sub).iterdir()) if any((r/sub).is_dir() for sub in (\\\"data/plugins\\\",\\\"config/plugins\\\",\\\"plugins\\\")) else False\\nprint(json.dumps(out,sort_keys=True))\\n\"],capture_output=True,text=True,timeout=60)\nif p.returncode!=0:print(json.dumps({\"audit\":\"failed\",\"status_code\":p.returncode}))\nelse:\n try:print(json.dumps(json.loads(p.stdout),sort_keys=True))\n except Exception:print(json.dumps({\"audit\":\"invalid_json\",\"size\":len(p.stdout)}))",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 90000,
+          "idle_timeout_ms": 90000,
+          "terminal": {
+            "columns": 145,
+            "rows": 24,
+            "scrollback": 100
+          },
+          "limits": {
+            "output_bytes": 12000
+          }
+        }
+      }
+    }
+  ]
+}
