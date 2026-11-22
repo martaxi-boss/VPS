@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "ferrari-pink-dns-base-readonly-20261122a",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "readonly.txt",
+    "content_base64": "YXVkaXQ="
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,subprocess\np=subprocess.run([\"sudo\",\"-n\",\"python3\",\"-c\",\"import csv,io,json,os,stat,hashlib,subprocess\\nfrom pathlib import Path\\nfrom urllib.parse import urlsplit\\nroot=Path(\\\"/root/project-secrets/VIVOAPK\\\")\\nsnapshot=root/\\\"subscriber-mappings.csv\\\"\\nold=Path(\\\"/srv/projects/pink-iptv\\\")\\nout={\\\"snapshot_present\\\":snapshot.is_file(),\\\"pink_present\\\":old.is_dir(),\\\"bases\\\":{},\\\"code\\\":{},\\\"services\\\":{},\\\"vault\\\":{}}\\nif not snapshot.is_file():\\n print(json.dumps({\\\"error\\\":\\\"missing_private_snapshot\\\"}));raise SystemExit(0)\\nst=snapshot.stat()\\nout[\\\"vault\\\"]={\\\"directory_mode\\\":oct(stat.S_IMODE(root.stat().st_mode)),\\\"snapshot_mode\\\":oct(stat.S_IMODE(st.st_mode)),\\\"snapshot_bytes\\\":st.st_size}\\nrows=list(csv.DictReader(io.StringIO(snapshot.read_text(encoding=\\\"utf8\\\"))))\\nout[\\\"subscriber_count\\\"]=len(rows)\\ndef common_suffix(hosts):\\n if not hosts:return None\\n labels=[h.lower().rstrip(\\\".\\\").split(\\\".\\\") for h in hosts]\\n shared=[]\\n for parts in zip(*[list(reversed(x)) for x in labels]):\\n  if len(set(parts))!=1:break\\n  shared.append(parts[0])\\n if len(shared)<2:return None\\n return \\\".\\\".join(reversed(shared))\\nfor label,field in [(\\\"generic\\\",\\\"dns_link\\\"),(\\\"native_samsung_lg\\\",\\\"dns_link_samsung_lg\\\")]:\\n values=[r.get(field,\\\"\\\") for r in rows if r.get(field)]\\n parsed=[urlsplit(x) for x in values]\\n hosts=[x.hostname for x in parsed if x.hostname]\\n suffix=common_suffix(hosts)\\n extra=[len(h.split(\\\".\\\"))-len(suffix.split(\\\".\\\")) for h in hosts] if suffix else []\\n out[\\\"bases\\\"][label]={\\\"count\\\":len(values),\\\"distinct_hosts\\\":len(set(hosts)),\\\"candidate_common_suffix\\\":suffix,\\n \\\"candidate_is_authoritative_base\\\":False,\\n \\\"host_labels_before_suffix\\\":sorted(set(extra)),\\n \\\"schemes\\\":sorted(set(x.scheme for x in parsed)),\\n \\\"ports_present\\\":sum(x.port is not None for x in parsed)}\\n# Cross-check whether per-subscriber origin values were copied without modification, comparing only SHA digests.\\nout[\\\"snapshot_has_both_dns_fields\\\"]=all(x in (rows[0] if rows else {}) for x in (\\\"dns_link\\\",\\\"dns_link_samsung_lg\\\"))\\nout[\\\"snapshot_hash_sha256\\\"]=hashlib.sha256(snapshot.read_bytes()).hexdigest()\\nfor rel in [\\\"backend/app/clients/mega.py\\\",\\\"backend/app/services/mappings.py\\\",\\\"backend/app/services/session.py\\\",\\\"android/app/src/main/java/com/pinkiptv/app/network/BackendSessionClient.kt\\\",\\\"android/app/src/main/java/com/pinkiptv/app/model/ProviderSession.kt\\\",\\\"android/app/src/main/java/com/pinkiptv/app/network/XtreamCatalogClient.kt\\\"]:\\n p=old/rel\\n if p.is_file():\\n  b=p.read_bytes()\\n  out[\\\"code\\\"][rel]={\\\"present\\\":True,\\\"sha256\\\":hashlib.sha256(b).hexdigest(),\\\"bytes\\\":len(b)}\\n else:out[\\\"code\\\"][rel]={\\\"present\\\":False}\\nfor name in [\\\"pink-iptv-backend.service\\\",\\\"pink-vpn.service\\\"]:\\n p=subprocess.run([\\\"systemctl\\\",\\\"is-active\\\",name],capture_output=True,text=True,timeout=6)\\n out[\\\"services\\\"][name]=p.stdout.strip() if p.returncode==0 else \\\"not_active\\\"\\nprint(json.dumps(out,sort_keys=True))\\n\"],capture_output=True,text=True,timeout=35)\nif p.returncode!=0: print(json.dumps({\"status\":\"audit_blocked\",\"exit_code\":p.returncode}))\nelse:\n try: print(json.dumps(json.loads(p.stdout),sort_keys=True))\n except Exception: print(json.dumps({\"status\":\"invalid_audit_output\",\"bytes\":len(p.stdout)}))\n",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 85000,
+          "idle_timeout_ms": 85000,
+          "terminal": {
+            "columns": 155,
+            "rows": 35,
+            "scrollback": 250
+          },
+          "limits": {
+            "output_bytes": 19000
+          }
+        }
+      }
+    }
+  ]
+}
