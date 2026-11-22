@@ -223,8 +223,20 @@ systemctl reload nginx
 CHANGED_SITE=1
 printf 'pink-acme-preflight-ok' > "$ROOT/acme/.well-known/acme-challenge/pink-probe"
 chmod 0644 "$ROOT/acme/.well-known/acme-challenge/pink-probe"
-actual="$(curl -fsS --connect-timeout 8 --max-time 15 --noproxy '*' "http://$DOMAIN/.well-known/acme-challenge/pink-probe")"
-[[ "$actual" == pink-acme-preflight-ok ]] || fail 'ACME external path failed'
+actual=''
+sleep 2
+for i in $(seq 1 15); do
+  actual="$(curl -fsS --connect-timeout 5 --max-time 9 --noproxy '*' "http://$DOMAIN/.well-known/acme-challenge/pink-probe" 2>/dev/null || :)"
+  if [[ "$actual" == pink-acme-preflight-ok ]]; then break; fi
+  sleep 2
+done
+if [[ "$actual" != pink-acme-preflight-ok ]]; then
+  echo JELLYFIN_ACME_HTTP_DIAGNOSTIC=BEGIN >&2
+  curl -sS -o /dev/null -w 'HTTP_CODE=%{http_code}\n' --connect-timeout 5 --max-time 9 --noproxy '*' "http://$DOMAIN/.well-known/acme-challenge/pink-probe" >&2 || :
+  nginx -T 2>/dev/null | grep -F 'server_name serveriptv.duckdns.org;' | head -n 8 >&2 || :
+  echo JELLYFIN_ACME_HTTP_DIAGNOSTIC=END >&2
+  fail 'ACME external path failed'
+fi
 echo JELLYFIN_ACME_WEBROOT=PASS
 if [[ ! -e "$CERT" ]]; then
   certbot certonly --non-interactive --agree-tos --register-unsafely-without-email --webroot --webroot-path "$ROOT/acme" --cert-name "$DOMAIN" -d "$DOMAIN" --keep-until-expiring >/dev/null
