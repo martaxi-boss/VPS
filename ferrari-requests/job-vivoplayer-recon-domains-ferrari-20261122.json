@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoplayer-recon-domains-ferrari-20261122",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import socket,ssl,json,urllib.request,urllib.error,pathlib,time\nnames=[\"vivo-team.duckdns.org\",\"vivoteam.dns.org\",\"www.vivo-player.com\"]\nresult={\"tests\":[],\"browser\":[]}\nfor host in names:\n rec={\"host\":host}\n try:\n  addrs=socket.getaddrinfo(host,None,type=socket.SOCK_STREAM)\n  rec[\"dns\"]={\"ok\":True,\"unique_ip_count\":len(set(x[4][0] for x in addrs))}\n except Exception as e:\n  rec[\"dns\"]={\"ok\":False,\"error\":str(e)[:140]}\n if rec[\"dns\"][\"ok\"]:\n  for scheme in (\"https\",\"http\"):\n   req=urllib.request.Request(scheme+\"://\"+host+\"/\",method=\"HEAD\",headers={\"User-Agent\":\"Mozilla/5.0 FerrariAuthorizedInteropProbe/1.0\"})\n   try:\n    with urllib.request.urlopen(req,timeout=5) as r:\n     rec[scheme]={\"status\":r.status,\"final_host\":urllib.parse.urlsplit(r.url).hostname,\"content_type\":r.headers.get(\"Content-Type\",\"\")[:120]}\n   except urllib.error.HTTPError as e:\n    rec[scheme]={\"status\":e.code,\"content_type\":e.headers.get(\"Content-Type\",\"\")[:120]}\n   except Exception as e:\n    rec[scheme]={\"error\":str(e)[:180]}\n result[\"tests\"].append(rec)\nbase=pathlib.Path(\"/srv/projects/skill-universal/.runtime/browsers\")\nif base.is_dir():\n for f in sorted(base.glob(\"chromium_headless_shell-*/chrome-headless-shell-linux64/chrome-headless-shell\"))[:10]:\n  result[\"browser\"].append({\"path\":str(f),\"is_file\":f.is_file(),\"is_executable\":bool(f.stat().st_mode & 0o111) if f.is_file() else False})\nprint(json.dumps(result,ensure_ascii=False))\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "terminal": {
+            "columns": 160,
+            "rows": 40,
+            "scrollback": 200
+          },
+          "timeout_ms": 60000,
+          "idle_timeout_ms": 60000,
+          "limits": {
+            "output_bytes": 100000
+          }
+        }
+      }
+    }
+  ]
+}
