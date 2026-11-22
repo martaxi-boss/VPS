@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "ferrari-vivo-compare-mega-tokens-20261122c",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "read-only.txt",
+    "content_base64": "YXVkaXQ="
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,subprocess\np=subprocess.run([\"sudo\",\"-n\",\"python3\",\"-c\",\"import json,shlex,subprocess,urllib.request,urllib.error\\nfrom pathlib import Path\\npaths={\\\"pink_secret\\\":Path(\\\"/srv/projects/pink-iptv/private/systemd-env/secrets.env\\\"),\\\"pink_backend\\\":Path(\\\"/srv/projects/pink-iptv/private/systemd-env/backend.env\\\"),\\\"vivo_copied\\\":Path(\\\"/root/project-secrets/VIVOAPK/backend-auth.env\\\"),\\\"vivo_runtime\\\":Path(\\\"/root/project-secrets/VIVOAPK/backend-runtime.env\\\")}\\nout={\\\"audit\\\":\\\"private_token_alignment\\\",\\\"changed\\\":False,\\\"sources\\\":{},\\\"comparisons\\\":{},\\\"user_endpoint\\\":{}}\\ndef parse(path):\\n if not path.is_file() or path.is_symlink():return {}\\n env={}\\n for line in path.read_text().splitlines():\\n  line=line.strip()\\n  if not line or line.startswith(\\\"#\\\") or \\\"=\\\" not in line:continue\\n  k,v=line.split(\\\"=\\\",1)\\n  if k.startswith(\\\"export \\\"):k=k[7:].strip()\\n  try:\\n   a=shlex.split(v)\\n   if len(a)==1:env[k]=a[0]\\n  except ValueError:pass\\n return env\\nE={k:parse(p) for k,p in paths.items()}\\nfor k,e in E.items():\\n out[\\\"sources\\\"][k]={\\\"present\\\":paths[k].is_file(),\\\"token_present\\\":bool(e.get(\\\"MEGA_OTT_API_TOKEN\\\")),\\\"base_present\\\":bool(e.get(\\\"MEGA_OTT_API_BASE\\\"))}\\ntokenKeys=[k for k,v in E.items() if v.get(\\\"MEGA_OTT_API_TOKEN\\\")]\\nfor n,k in enumerate(tokenKeys):\\n for j in tokenKeys[n+1:]:\\n  out[\\\"comparisons\\\"][k+\\\"_vs_\\\"+j]=E[k][\\\"MEGA_OTT_API_TOKEN\\\"]==E[j][\\\"MEGA_OTT_API_TOKEN\\\"]\\nchecked=set()\\nfor k in (\\\"pink_secret\\\",\\\"pink_backend\\\",\\\"vivo_copied\\\",\\\"vivo_runtime\\\"):\\n e=E[k];tok=e.get(\\\"MEGA_OTT_API_TOKEN\\\")\\n if not tok or tok in checked:continue\\n checked.add(tok)\\n base=(e.get(\\\"MEGA_OTT_API_BASE\\\") or E.get(\\\"pink_backend\\\",{}).get(\\\"MEGA_OTT_API_BASE\\\") or \\\"https://megaott.net/api\\\").rstrip(\\\"/\\\")\\n if not base.startswith(\\\"https://\\\"):continue\\n req=urllib.request.Request(base+\\\"/v1/user\\\",headers={\\\"Authorization\\\":\\\"Bearer \\\"+tok,\\\"Accept\\\":\\\"application/json\\\",\\\"User-Agent\\\":\\\"VivoapkMegaOTT/0.1\\\"},method=\\\"GET\\\")\\n try:\\n  with urllib.request.urlopen(req,timeout=12) as r:out[\\\"user_endpoint\\\"][k]={\\\"code\\\":r.status,\\\"json\\\":r.headers.get(\\\"Content-Type\\\",\\\"\\\").startswith(\\\"application/json\\\")}\\n except urllib.error.HTTPError as ex:out[\\\"user_endpoint\\\"][k]={\\\"code\\\":ex.code,\\\"json\\\":ex.headers.get(\\\"Content-Type\\\",\\\"\\\").startswith(\\\"application/json\\\") if ex.headers else False}\\n except Exception as ex:out[\\\"user_endpoint\\\"][k]={\\\"error_type\\\":type(ex).__name__}\\nprint(json.dumps(out,sort_keys=True))\\n\"],capture_output=True,text=True,timeout=80)\nif p.returncode:print(json.dumps({\"audit\":\"blocked\",\"code\":p.returncode}))\nelse:\n try:print(json.dumps(json.loads(p.stdout),sort_keys=True))\n except Exception:print(json.dumps({\"audit\":\"invalid_output\",\"len\":len(p.stdout)}))",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 120000,
+          "idle_timeout_ms": 120000,
+          "terminal": {
+            "columns": 135,
+            "rows": 24,
+            "scrollback": 105
+          },
+          "limits": {
+            "output_bytes": 11800
+          }
+        }
+      }
+    }
+  ]
+}
