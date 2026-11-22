@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "ferrari-vivo-mega-meta-readonly-20261122a",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "audit.txt",
+    "content_base64": "YXVkaXQ="
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,subprocess\np=subprocess.run([\"sudo\",\"-n\",\"python3\",\"-c\",\"import os,sys,json,shlex,subprocess,urllib.request,urllib.error,datetime\\nfrom pathlib import Path\\nout={\\\"audit\\\":\\\"mega_subscription_metadata_only\\\",\\\"changed\\\":False,\\\"api_status\\\":\\\"unverified\\\"}\\ntry:\\n p=Path(\\\"/root/project-secrets/VIVOAPK/backend-runtime.env\\\")\\n if not p.is_file():raise RuntimeError(\\\"runtime_not_found\\\")\\n env={}\\n for line in p.read_text().splitlines():\\n  if not line.strip() or line.startswith(\\\"#\\\"):continue\\n  k,v=line.split(\\\"=\\\",1)\\n  parts=shlex.split(v)\\n  if len(parts)!=1:raise RuntimeError(\\\"environment_invalid\\\")\\n  env[k]=parts[0]\\n if not env.get(\\\"MEGA_OTT_API_TOKEN\\\") or not env.get(\\\"MEGA_OTT_API_BASE\\\"):raise RuntimeError(\\\"credentials_unavailable\\\")\\n sql=subprocess.run([\\\"sudo\\\",\\\"-n\\\",\\\"-u\\\",\\\"postgres\\\",\\\"psql\\\",\\\"-X\\\",\\\"-A\\\",\\\"-t\\\",\\\"-v\\\",\\\"ON_ERROR_STOP=1\\\",\\\"-d\\\",\\\"vivoapk\\\",\\\"-c\\\",\\\"SELECT mega_subscription_id FROM subscription_mappings ORDER BY id LIMIT 1\\\"],capture_output=True,text=True,timeout=8)\\n if sql.returncode!=0 or not sql.stdout.strip().isdigit():raise RuntimeError(\\\"no_subscription_id\\\")\\n url=env[\\\"MEGA_OTT_API_BASE\\\"].rstrip(\\\"/\\\")+\\\"/v1/subscriptions/\\\"+sql.stdout.strip()\\n if not url.startswith(\\\"https://\\\"):raise RuntimeError(\\\"invalid_https_api\\\")\\n req=urllib.request.Request(url,headers={\\\"Authorization\\\":\\\"Bearer \\\"+env[\\\"MEGA_OTT_API_TOKEN\\\"],\\\"Accept\\\":\\\"application/json\\\"},method=\\\"GET\\\")\\n with urllib.request.urlopen(req,timeout=15) as res:\\n  if res.status!=200:raise RuntimeError(\\\"api_unexpected_status\\\")\\n  raw=res.read(2*1024*1024+1)\\n  if len(raw)>2*1024*1024:raise RuntimeError(\\\"api_oversize\\\")\\n  payload=json.loads(raw)\\n  if not isinstance(payload,dict):raise RuntimeError(\\\"api_shape\\\")\\n  out.update({\\\"api_status\\\":\\\"ok\\\",\\\"has_password_field\\\":\\\"password\\\" in payload,\\\"password_is_nonempty\\\":isinstance(payload.get(\\\"password\\\"),str) and bool(payload.get(\\\"password\\\")),\\\"m3u_type\\\":str(payload.get(\\\"type\\\",\\\"\\\")).lower()==\\\"m3u\\\",\\\"generic_dns_provided\\\":bool(payload.get(\\\"dns_link\\\")),\\\"native_tv_dns_provided\\\":bool(payload.get(\\\"dns_link_for_samsung_lg\\\")),\\\"has_expiry_field\\\":\\\"expiring_at\\\" in payload})\\nexcept urllib.error.HTTPError as e:\\n out.update({\\\"api_status\\\":\\\"http_error\\\",\\\"http_code\\\":e.code})\\nexcept (OSError,ValueError,KeyError,RuntimeError) as e:\\n out.update({\\\"api_status\\\":\\\"blocked\\\",\\\"reason_type\\\":type(e).__name__})\\nprint(json.dumps(out,sort_keys=True))\\n\"],capture_output=True,text=True,timeout=85)\nif p.returncode!=0:print(json.dumps({\"audit\":\"erro_execucao_privada\",\"code\":p.returncode}))\nelse:\n try:print(json.dumps(json.loads(p.stdout),sort_keys=True))\n except Exception:print(json.dumps({\"audit\":\"erro_relatorio\",\"size\":len(p.stdout)}))",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 120000,
+          "idle_timeout_ms": 120000,
+          "terminal": {
+            "columns": 130,
+            "rows": 25,
+            "scrollback": 140
+          },
+          "limits": {
+            "output_bytes": 11000
+          }
+        }
+      }
+    }
+  ]
+}
