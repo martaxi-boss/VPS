@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "ferrari-jellyfin-duckdns-routing-20261122b",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "jellyfin-routing-check.txt",
+    "content_base64": "c2FuaXR5"
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,socket,ipaddress\nhost=\"serveriptv.duckdns.org\"\nvps=\"146.59.145.3\"\nout={\"host\":host}\ntry:\n    resolved=set(x[4][0] for x in socket.getaddrinfo(host,None,proto=socket.IPPROTO_TCP))\n    out[\"resolved_ipv4_count\"]=sum(1 for ip in resolved if ipaddress.ip_address(ip).version==4)\n    out[\"points_to_ferrari_vps\"]=vps in resolved\n    out[\"all_global\"]=bool(resolved) and all(ipaddress.ip_address(ip).is_global for ip in resolved)\nexcept OSError as exc:\n    out[\"dns_error_type\"]=type(exc).__name__\nfor port in [80,443,8096]:\n    try:\n        with socket.create_connection((host,port),timeout=2): out[\"target_tcp_\"+str(port)]=\"open\"\n    except OSError as exc: out[\"target_tcp_\"+str(port)]=\"unreachable:\"+type(exc).__name__\nprint(json.dumps(out,sort_keys=True))\n",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 25000,
+          "idle_timeout_ms": 25000,
+          "terminal": {
+            "columns": 120,
+            "rows": 20,
+            "scrollback": 80
+          },
+          "limits": {
+            "output_bytes": 7000
+          }
+        }
+      }
+    }
+  ]
+}
