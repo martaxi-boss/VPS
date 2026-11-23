@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivo-rtp1-final-review-20261123-1550",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivo-rtp1-black-20261123-1509",
+  "revision": 15,
+  "turn": {
+    "task": "playback",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "approved",
+    "message": "Verified actual evidence hash and JSON, not wrapper status: installed a2f00bb DLL matches build, backup exists, native Android profile now DirectPlay=true with no transcoding URL; exact provider URL matches. Real RTP1 decode exit0,398output frames/407analyzed,0-10%black pixels,mean audio -26dB; H264/AAC. HTTPS/services/socket0660/network isolation PASS.24infra tests pass on VPS;143backend tests passed locally (VPS has no pytest, no installation attempted). Corrected disposable CI45204432932 passed49video/94audio blocks. Deployment wrapper failed but independent45205770024 proves applied; no retry. Physical Android remains untested; pilot remains one account/30min.",
+    "evidence_sha256": [
+      "16464cd29db0af269ee85a2d4dc7c560b770120f07e4f4af1d61978fc8de2cb0"
+    ]
+  }
+}
