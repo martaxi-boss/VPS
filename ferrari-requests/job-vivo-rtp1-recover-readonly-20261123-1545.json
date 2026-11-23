@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "id": "vivo-rtp1-recover-readonly-20261123-1545",
+  "kind": "ruflo-team",
+  "phase": "recover",
+  "team_id": "vivo-rtp1-black-20261123-1509",
+  "revision": 13,
+  "task": "playback",
+  "reason": "Deployment tool errored after applying changes. Independent read-only run45205770024 confirms exact target SHA, fixed installed DLL equals build, backups present and all services active. Do not repeat writes; recover solely for final read-only playback/tests/HTTPS verification.",
+  "acknowledge_risk": true
+}
