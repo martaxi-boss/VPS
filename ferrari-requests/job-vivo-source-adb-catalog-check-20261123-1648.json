@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivo-source-adb-catalog-check-20261123-1648",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import os,json,subprocess,socket,sys\nfrom pathlib import Path\nsys.path.insert(0,'/srv/projects/skill-universal/current')\nfrom engine import tool_runtime\nadb=tool_runtime.executable('adb')\nout={'task':'original Ferrari private ADB availability','catalog_binary_available':bool(adb),'devices':[]}\nif adb:\n env=os.environ.copy();env['ANDROID_USER_HOME']='/srv/projects/skill-universal/.runtime/android-cli/home/.android'\n try:\n  with socket.create_connection(('127.0.0.1',5037),timeout=0.5):existed=True\n except OSError:existed=False\n try:\n  p=subprocess.run([adb,'devices','-l'],env=env,capture_output=True,text=True,timeout=15)\n  out['exit']=p.returncode\n  for line in p.stdout.splitlines()[1:]:\n   parts=line.split()\n   if len(parts)>=2:out['devices'].append({'state':parts[1],'kind':'emulator' if parts[0].startswith('emulator-') else 'physical_or_network'})\n  out['authorized_device_count']=sum(x['state']=='device' for x in out['devices'])\n  out['existing_adb_server_preserved']=existed\n finally:\n  if not existed:\n   subprocess.run([adb,'kill-server'],env=env,capture_output=True,text=True,timeout=8)\n   out['temporary_adb_server_stopped']=True\nprint(json.dumps(out,sort_keys=True),flush=True)\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 40000,
+          "idle_timeout_ms": 40000,
+          "terminal": {
+            "columns": 140,
+            "rows": 25,
+            "scrollback": 50
+          },
+          "limits": {
+            "output_bytes": 5000
+          }
+        }
+      }
+    }
+  ]
+}
