@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-rea-hls-preflight-20261123-m2",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,hashlib,subprocess,urllib.request\nresult={\"task\":\"jellyfin-hls-preflight\",\"target_sha\":\"62e8e0f260bdfdda49c13218d9e6e11ce9a69a44\"[:12],\"verified_source\":False,\"status\":\"blocked\"}\ntry:\n url=\"https://raw.githubusercontent.com/martaxi-boss/Vivoapk/\"+\"62e8e0f260bdfdda49c13218d9e6e11ce9a69a44\"+\"/infra/upgrade_live_preview.py\"\n source=urllib.request.urlopen(url,timeout=28).read(20000)\n actual=hashlib.sha1(b\"blob \"+str(len(source)).encode()+b\"\\0\"+source).hexdigest()\n if actual!=\"1e54e77788a0bdddfc8bdb2997ea18bc9b299e41\":raise RuntimeError(\"pinned_script_changed\")\n result[\"verified_source\"]=True\n p=subprocess.run([\"sudo\",\"-n\",\"/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12\",\"-\",\"preflight\",\"--sha\",\"62e8e0f260bdfdda49c13218d9e6e11ce9a69a44\"],input=source,capture_output=True,timeout=75)\n try:r=json.loads(p.stdout)\n except Exception:r={\"status\":\"blocked\",\"reason\":\"no_structured_preflight\"}\n result[\"status\"]=r.get(\"status\")\n result[\"old_revision\"]=r.get(\"original_revision\")\n result[\"reason\"]=r.get(\"reason\")\n result[\"exit\"]=p.returncode\nexcept Exception as ex:\n result[\"exception_type\"]=type(ex).__name__\nprint(json.dumps(result,sort_keys=True))\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 115000,
+          "idle_timeout_ms": 115000,
+          "terminal": {
+            "columns": 140,
+            "rows": 20,
+            "scrollback": 45
+          },
+          "limits": {
+            "output_bytes": 4000
+          }
+        }
+      }
+    }
+  ]
+}
