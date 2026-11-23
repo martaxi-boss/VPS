@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "vivo-jellyfin-git-status-readonly-20261123-6",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "audit.json",
+    "content_base64": "e30K"
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,subprocess\np=subprocess.run([\"sudo\",\"-n\",\"python3\",\"-c\",\"import json,subprocess\\nroot='/srv/projects/Vivoapk/source'\\nr=subprocess.run(['git','-C',root,'status','--porcelain','--untracked-files=all'],capture_output=True,text=True,timeout=12)\\nrows=[]\\nfor l in r.stdout.splitlines():\\n if len(l)>3:\\n  path=l[3:]\\n  rows.append({'status':l[:2],'relative_path':path[:160]})\\ntracked=[x for x in rows if not x['status'].startswith('??')]\\nuntracked=[x for x in rows if x['status'].startswith('??')]\\nprint(json.dumps({'audit':'vivo_git_hygiene_readonly','changed':False,'exit':r.returncode,\\n 'tracked_modified_count':len(tracked),'tracked_paths':tracked[:20],\\n 'untracked_count':len(untracked),'untracked_paths':untracked[:35]},sort_keys=True))\"],capture_output=True,text=True,timeout=40)\ntry:d=json.loads(p.stdout)\nexcept:d={\"audit\":\"vivo_git_hygiene_readonly\",\"error\":\"invalid_output\"}\nd[\"wrapper_exit\"]=p.returncode\nprint(json.dumps(d,sort_keys=True))",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 80000,
+          "idle_timeout_ms": 80000,
+          "terminal": {
+            "columns": 155,
+            "rows": 24,
+            "scrollback": 120
+          },
+          "limits": {
+            "output_bytes": 11000
+          }
+        }
+      }
+    }
+  ]
+}
