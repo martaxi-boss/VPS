@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivo-rtp1-review-catalog-20261123-1520",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivo-rtp1-black-20261123-1509",
+  "revision": 3,
+  "turn": {
+    "task": "playback",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Actual subscriber authorization passed but custom catalog request failed; actual Jellyfin logs show start then immediate stop at 0ms. Reuse existing preview_live client rather than custom request headers. Need DeviceProfile-specific PlaybackInfo and real decoding before correction/deploy.",
+    "evidence_sha256": [
+      "13e489c3203296b4db672a704886f19cbc691a49b6b9d7634f976c0199f3ddbe"
+    ]
+  }
+}
