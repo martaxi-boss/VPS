@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-final-backend-postcheck-review-20261123-r7",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-final-backend-20261123-r1",
+  "revision": 5,
+  "turn": {
+    "task": "postcheck",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "f443c9e5742e1c5d831f1fc4205ee126e60524d056129484eb8b196fa080ebea"
+    ],
+    "message": "Independently verified actual Ferrari/REA #45293169739 terminal: read-only postcheck exit 0 and passed=true. Installed source revision 74b6a02be199a29c305058d2875063eb46c1b61d; backend and Jellyfin public-info sockets HTTP200; categories/category-items/series/epg all reject unauthenticated HTTP401; Jellyfin/VivoAPK/Nginx/PG active; Pink IPTV/VPN inactive; no videos relayed. Approve backend task only, not physical client playback."
+  }
+}
