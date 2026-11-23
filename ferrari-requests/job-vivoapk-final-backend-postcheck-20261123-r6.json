@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "id": "vivoapk-final-backend-postcheck-20261123-r6",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-final-backend-20261123-r1",
+  "revision": 4,
+  "turn": {
+    "task": "postcheck",
+    "role": "tester",
+    "kind": "rea-mcp",
+    "message": "Read-only real installed backend SHA, new four private category/series/EPG endpoints reject missing JWT, Jellyfin/NGINX/PG service health, Pink backend absent. No creds/videos/changes. Pass only all services and privacy 401 match.",
+    "mcp_requests": [
+      {
+        "method": "tools/call",
+        "params": {
+          "name": "capture_process_scenario",
+          "arguments": {
+            "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+            "arguments": [
+              "-c",
+              "import subprocess\np=subprocess.run(['sudo','-n','/srv/projects/Vivoapk/.venv/bin/python','-c',\"import json,socket,subprocess\\nfrom pathlib import Path\\nwant='74b6a02be199a29c305058d2875063eb46c1b61d'\\nroot=Path('/srv/projects/Vivoapk')\\nr={'task':'VivoAPK guarded post-deploy real check','read_only':True,'changed':False,'secrets_read':False,'videos_relayed':False,'expected_revision':want,'services':{},'codes':{}}\\np=subprocess.run(['/usr/bin/git','-C',str(root/'source'),'rev-parse','HEAD'],capture_output=True,text=True,timeout=10)\\nr['actual_revision']=p.stdout.strip() if p.returncode==0 else 'unavailable'\\nfor service in ('vivoapk-backend.service','jellyfin-pink.service','nginx.service','postgresql.service','pink-iptv-backend.service','pink-vpn.service'):\\n q=subprocess.run(['/usr/bin/systemctl','is-active',service],capture_output=True,text=True,timeout=7)\\n r['services'][service]=q.returncode==0\\ndef code(sock,method,route,body=''):\\n try:\\n  s=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM);s.settimeout(8);s.connect(str(sock))\\n  raw=body.encode('ascii')\\n  req=(f'{method} {route} HTTP/1.1\\\\r\\\\nHost:localhost\\\\r\\\\nContent-Type:application/json\\\\r\\\\nContent-Length:{len(raw)}\\\\r\\\\nConnection:close\\\\r\\\\n\\\\r\\\\n').encode()+raw\\n  s.sendall(req);first=s.recv(200).split(b'\\\\r\\\\n')[0].split(b' ');s.close();return int(first[1])\\n except Exception:return 0\\nr['codes']['backend_info']=code(root/'run/backend.sock','GET','/openapi.json')\\nr['codes']['jellyfin_info']=code(Path('/srv/projects/jellyfin-server/run/jellyfin.sock'),'GET','/System/Info/Public')\\nfor name,body in (('categories','{\\\"kind\\\":\\\"live\\\"}'),('category-items','{\\\"kind\\\":\\\"live\\\",\\\"category_id\\\":\\\"1\\\"}'),('series','{\\\"category_id\\\":\\\"1\\\",\\\"series_id\\\":\\\"1\\\"}'),('epg','{\\\"category_id\\\":\\\"1\\\",\\\"stream_id\\\":\\\"1\\\"}')):\\n r['codes'][name]=code(root/'run/backend.sock','POST','/v1/catalog/'+name,body)\\nr['passed']=(r['actual_revision']==want and all(r['services'][x] for x in ('vivoapk-backend.service','jellyfin-pink.service','nginx.service','postgresql.service')) and not any(r['services'][x] for x in ('pink-iptv-backend.service','pink-vpn.service')) and r['codes']['backend_info']==r['codes']['jellyfin_info']==200 and all(r['codes'][x]==401 for x in ('categories','category-items','series','epg')))\\nprint(json.dumps(r,sort_keys=True),flush=True)\\nraise SystemExit(0 if r['passed'] else 4)\\n\"],capture_output=True,text=True,timeout=62)\nprint(p.stdout[:10000] if p.stdout else 'NO_DIAGNOSTIC_REPORT',flush=True)\nprint('POSTCHECK_PROCESS_EXIT='+str(p.returncode),flush=True)\n"
+            ],
+            "working_directory": "/srv/projects/skill-universal",
+            "timeout_ms": 85000,
+            "idle_timeout_ms": 85000,
+            "terminal": {
+              "columns": 136,
+              "rows": 28,
+              "scrollback": 80
+            },
+            "limits": {
+              "output_bytes": 14000
+            }
+          }
+        }
+      }
+    ]
+  }
+}
