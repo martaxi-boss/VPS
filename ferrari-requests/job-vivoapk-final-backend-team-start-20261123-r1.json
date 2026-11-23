@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "id": "vivoapk-final-backend-team-start-20261123-r1",
+  "kind": "ruflo-team",
+  "phase": "start",
+  "team_id": "vivoapk-final-backend-20261123-r1",
+  "host": "ChatGPT",
+  "mission": "Use original Ferrari/REA to safely upgrade VivoAPK backend code on VPS, test private category/series/EPG routes and keep Jellyfin production untouched; scripts from exact audited GitHub SHA only, no secrets",
+  "roles": [
+    {
+      "id": "tester",
+      "type": "tester",
+      "actions": [
+        "rea-mcp"
+      ]
+    },
+    {
+      "id": "reviewer",
+      "type": "reviewer",
+      "actions": []
+    },
+    {
+      "id": "coder",
+      "type": "coder",
+      "actions": [
+        "rea-mcp"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "preflight",
+      "role": "tester",
+      "reviewer": "reviewer",
+      "goal": "Run read-only preflight for pinned VivoAPK backend version; refuse dirty tree, missing private services, failure to preserve Jellyfin",
+      "depends_on": []
+    },
+    {
+      "id": "backend-activate",
+      "role": "coder",
+      "reviewer": "reviewer",
+      "goal": "On approved preflight run safe backend-only upgrade with backup and auto rollback; exact pinned SHA, no Jellyfin changes",
+      "depends_on": [
+        "preflight"
+      ]
+    },
+    {
+      "id": "postcheck",
+      "role": "tester",
+      "reviewer": "reviewer",
+      "goal": "Verify backend catalog routes and Jellyfin/Nginx/PostgreSQL health; no media relaying, no secrets in output",
+      "depends_on": [
+        "backend-activate"
+      ]
+    }
+  ]
+}
