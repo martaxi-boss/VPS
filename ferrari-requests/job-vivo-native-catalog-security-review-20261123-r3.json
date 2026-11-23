@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivo-native-catalog-security-review-20261123-r3",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivo-native-catalog-security-20261123-r1",
+  "revision": 1,
+  "turn": {
+    "task": "catalog-safety",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "f3f34479392a293fbf580715eed62ae90fdfc767bcb8429a0dd11c491ad7314f"
+    ],
+    "message": "Validated actual REA response.zip: process exited zero, read-only stdout confirms live Jellyfin and VivoAPK socket HTTP 200, source at a2f00bb, plugin Enabled and PilotLiveChannels true, private libraries and entitlement scan false, retired Pink backend/VPN absent. No credential values printed. This is service metadata evidence only, not proof of client playback or safe multiuser catalog."
+  }
+}
