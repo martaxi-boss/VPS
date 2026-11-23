@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-rea-managed-plugin-20261123-10b4",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "inspect_managed_artifact",
+        "arguments": {
+          "path": "/srv/projects/jellyfin-server/data/plugins/VivoAPK Mega OTT Auth_0.1.0.0/Jellyfin.Plugin.VivoapkMegaAuth.dll",
+          "detail": "summary"
+        }
+      }
+    },
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "inspect_managed_members",
+        "arguments": {
+          "path": "/srv/projects/jellyfin-server/data/plugins/VivoAPK Mega OTT Auth_0.1.0.0/Jellyfin.Plugin.VivoapkMegaAuth.dll",
+          "detail": "summary",
+          "type_names": [
+            "Jellyfin.Plugin.VivoapkMegaAuth.VivoapkLivePreviewChannel",
+            "Jellyfin.Plugin.VivoapkMegaAuth.MegaAuthenticationProvider"
+          ]
+        }
+      }
+    }
+  ]
+}
