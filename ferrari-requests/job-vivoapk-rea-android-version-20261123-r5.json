@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-rea-android-version-20261123-r5",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,subprocess\np=subprocess.run([\"sudo\",\"-n\",\"/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12\",\"-c\",\"import json,re\\nfrom pathlib import Path\\nreport={\\\"task\\\":\\\"jellyfin-android-client-version-1314\\\",\\\"read_only\\\":True,\\\"raw_requests_disclosed\\\":False,\\\"user_identifiers_disclosed\\\":False,\\\"versions\\\":[],\\\"requests_in_window\\\":0,\\\"endpoint_counts\\\":{},\\\"http_status_counts\\\":{}}\\npath=Path(\\\"/var/log/nginx/access.log\\\")\\nif path.is_file() and not path.is_symlink():\\n with path.open(\\\"rb\\\") as file:\\n  file.seek(max(0,path.stat().st_size-1500000))\\n  logs=file.read(1500000).decode(\\\"utf-8\\\",\\\"replace\\\")\\n lines=[line for line in logs.splitlines() if \\\"23/Nov/2026:13:1\\\" in line]\\n if not lines:\\n  lines=[line for line in logs.splitlines() if \\\"2026-11-23T13:1\\\" in line]\\n report[\\\"requests_in_window\\\"]=len(lines)\\n patterns={\\n \\\"playback_info\\\":r\\\"/PlaybackInfo\\\",\\n \\\"jellyfin_media\\\":r\\\"/Videos/|/Audio/|/LiveTv/LiveStreamFiles/\\\",\\n \\\"channel_items\\\":r\\\"/Channels/|/Items/\\\",\\n \\\"image_request\\\":r\\\"/Images/\\\",\\n }\\n for key,pattern in patterns.items():report[\\\"endpoint_counts\\\"][key]=sum(bool(re.search(pattern,l,re.I)) for l in lines)\\n for status in (\\\"200\\\",\\\"206\\\",\\\"301\\\",\\\"302\\\",\\\"400\\\",\\\"401\\\",\\\"403\\\",\\\"404\\\",\\\"416\\\",\\\"429\\\",\\\"500\\\",\\\"502\\\",\\\"503\\\"):\\n  hits=len([x for x in lines if re.search(r'\\\"\\\\s'+status+r'\\\\s',x)])\\n  if hits:report[\\\"http_status_counts\\\"][status]=hits\\n versions=set()\\n for line in lines:\\n  for match in re.findall(r\\\"(?i)(?:jellyfin[-_/ ]android|jellyfin[-_/ ]mobile|jellyfin-android)[^0-9]{0,10}(\\\\d{1,2}\\\\.\\\\d{1,2}(?:\\\\.\\\\d{1,2})?)\\\",line):versions.add(match)\\n report[\\\"versions\\\"]=sorted(versions)\\n report[\\\"log_available\\\"]=True\\nelse:report[\\\"log_available\\\"]=False\\nprint(json.dumps(report,sort_keys=True))\\n\"],capture_output=True,text=True,timeout=30)\ntry:d=json.loads(p.stdout)\nexcept Exception:d={\"task\":\"jellyfin-android-client-version-1314\",\"status\":\"blocked\",\"reason\":\"unreadable_output\",\"exit\":p.returncode}\nprint(json.dumps(d,sort_keys=True))"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 50000,
+          "idle_timeout_ms": 50000,
+          "terminal": {
+            "columns": 140,
+            "rows": 20,
+            "scrollback": 45
+          },
+          "limits": {
+            "output_bytes": 4200
+          }
+        }
+      }
+    }
+  ]
+}
