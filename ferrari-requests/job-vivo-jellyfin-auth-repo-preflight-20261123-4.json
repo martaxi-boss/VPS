@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "vivo-jellyfin-auth-repo-preflight-20261123-4",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "audit.json",
+    "content_base64": "e30K"
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,subprocess,urllib.request,hashlib\ntry:\n url=\"https://raw.githubusercontent.com/martaxi-boss/Vivoapk/169a85a47796df16ebd3aa43356563a7a7963f4d/infra/deploy_jellyfin_auth.py\"\n with urllib.request.urlopen(url,timeout=18) as f:code=f.read(30000)\n actual=hashlib.sha1(b\"blob \"+str(len(code)).encode()+bytes([0])+code).hexdigest()\n if actual!=\"1f26bf1249a5d4e53fdb7840526685a2981053e3\":raise RuntimeError(\"source_git_blob_mismatch\")\n p=subprocess.run([\"sudo\",\"-n\",\"python3\",\"-\",\"preflight\",\"--sha\",\"169a85a47796df16ebd3aa43356563a7a7963f4d\"],input=code,capture_output=True,timeout=100)\n try:d=json.loads(p.stdout)\n except:d={\"status\":\"invalid_script_report\"}\n allowed=(\"operation\",\"mode\",\"status\",\"reason\",\"source_sha\",\"changes\",\"plugin_preexisting\",\"admin_record_present\")\n out={k:d[k] for k in allowed if k in d}\n out[\"exit\"]=p.returncode;out[\"verified_git_blob\"]=True\n print(json.dumps(out,sort_keys=True))\nexcept Exception as e:print(json.dumps({\"status\":\"blocked\",\"error_type\":type(e).__name__}))",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 135000,
+          "idle_timeout_ms": 135000,
+          "terminal": {
+            "columns": 150,
+            "rows": 24,
+            "scrollback": 130
+          },
+          "limits": {
+            "output_bytes": 12000
+          }
+        }
+      }
+    }
+  ]
+}
