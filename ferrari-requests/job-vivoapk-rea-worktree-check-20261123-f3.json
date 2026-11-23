@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-rea-worktree-check-20261123-f3",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\np=subprocess.run([\"sudo\",\"-n\",\"/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12\",\"-c\",\"\\nimport json,subprocess,hashlib\\nfrom pathlib import Path\\nroot=\\\"/srv/projects/Vivoapk/source\\\"\\np=subprocess.run([\\\"git\\\",\\\"-C\\\",root,\\\"status\\\",\\\"--porcelain=v1\\\",\\\"--untracked-files=all\\\"],capture_output=True,text=True,timeout=20)\\nresult={\\\"task\\\":\\\"vivoapk-cleanliness-readonly\\\",\\\"git_status_exit\\\":p.returncode,\\\"dirty\\\":0,\\\"generated\\\":[],\\\"unknown\\\":0,\\\"tracked_modified\\\":0,\\\"no_changes\\\":True}\\nif p.returncode==0:\\n for line in p.stdout.splitlines():\\n  status=line[:2];rel=line[3:].strip()\\n  if len(rel)>4 and rel.startswith('\\\"') and rel.endswith('\\\"'):rel=rel[1:-1]\\n  rel=rel.replace(chr(92),\\\"/\\\")\\n  parts=rel.split(\\\"/\\\")\\n  generated=rel.startswith((\\\"jellyfin-auth/Vivoapk.Jellyfin.Auth/bin/\\\",\\\"jellyfin-auth/Vivoapk.Jellyfin.Auth/obj/\\\",\\\"backend/.pytest_cache/\\\",\\\"backend/.ruff_cache/\\\",\\\"infra/__pycache__/\\\",\\\"backend/app/__pycache__/\\\",\\\"backend/tests/__pycache__/\\\",\\\"jellyfin-auth/tests/__pycache__/\\\")) or rel.endswith((\\\".pyc\\\",\\\".pyo\\\",\\\".egg-info/\\\"))\\n  result[\\\"dirty\\\"]+=1\\n  if status.replace(\\\"?\\\",\\\"\\\").strip():result[\\\"tracked_modified\\\"]+=1\\n  if generated and status==\\\"??\\\":\\n   result[\\\"generated\\\"].append({\\\"category\\\":\\\"build_artifact\\\",\\\"directory\\\":parts[0],\\\"name_suffix\\\":parts[-1][-20:]})\\n  else:\\n   result[\\\"unknown\\\"]+=1\\n   result.setdefault(\\\"unknown_hashes\\\",[]).append(hashlib.sha256(rel.encode()).hexdigest()[:16])\\n result[\\\"no_changes\\\"]=(result[\\\"dirty\\\"]==0)\\nprint(json.dumps(result,sort_keys=True))\\n\"],capture_output=True,text=True,timeout=35)\ntry:result=json.loads(p.stdout)\nexcept Exception:result={\"status\":\"blocked\",\"reason\":\"cannot_read_repository_state\"}\nprint(json.dumps(result,sort_keys=True))\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 60000,
+          "idle_timeout_ms": 60000,
+          "terminal": {
+            "columns": 140,
+            "rows": 23,
+            "scrollback": 80
+          },
+          "limits": {
+            "output_bytes": 6000
+          }
+        }
+      }
+    }
+  ]
+}
