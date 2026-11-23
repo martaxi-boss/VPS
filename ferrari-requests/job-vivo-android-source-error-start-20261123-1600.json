@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "id": "vivo-android-source-error-start-20261123-1600",
+  "kind": "ruflo-team",
+  "phase": "start",
+  "team_id": "vivo-android-source-error-20261123-1600",
+  "host": "ChatGPT",
+  "mission": "Continue RTP1 physical Android Source error after media-profile fix. Correlate actual15:57 client requests, test live URL using Android HTTP behavior, distinguish stale/expired pilot identity from provider/client transport. No further claim of solved Android without evidence. Existing bridge/REA only, no other projects or video relay.",
+  "roles": [
+    {
+      "id": "tester",
+      "type": "tester",
+      "actions": [
+        "rea-mcp"
+      ]
+    },
+    {
+      "id": "reviewer",
+      "type": "reviewer",
+      "actions": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "source",
+      "role": "tester",
+      "reviewer": "reviewer",
+      "goal": "Find Source error cause from real client attempt and reproduce it. Correct only identified code defects, add regression and validate production with rollback; report physical limit honestly.",
+      "depends_on": []
+    }
+  ]
+}
