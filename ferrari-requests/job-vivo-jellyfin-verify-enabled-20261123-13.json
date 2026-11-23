@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "vivo-jellyfin-verify-enabled-20261123-13",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "audit.json",
+    "content_base64": "e30K"
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,subprocess,urllib.request,hashlib\ntry:\n with urllib.request.urlopen(\"https://raw.githubusercontent.com/martaxi-boss/Vivoapk/f1bb21928dd499b53a40fbfb105ce6018af9fb07/infra/deploy_jellyfin_auth.py\",timeout=20) as f:code=f.read(33000)\n if hashlib.sha1(b\"blob \"+str(len(code)).encode()+bytes([0])+code).hexdigest()!=\"14ec121cb69879f4267df1a7800ff2369952b23e\":raise RuntimeError(\"source_not_verified\")\n p=subprocess.run([\"sudo\",\"-n\",\"python3\",\"-\",\"verify\",\"--sha\",\"f1bb21928dd499b53a40fbfb105ce6018af9fb07\"],input=code,capture_output=True,timeout=95)\n try:d=json.loads(p.stdout)\n except:d={\"status\":\"unreadable_result\"}\n keys=(\"operation\",\"mode\",\"status\",\"reason\",\"plugin_enabled\",\"jellyfin_socket_http200\",\"vivo_socket_http200\",\"admin_identity_present\",\"plugin_loaded_recently\",\"protected_services_active\",\"live_customer_login_proved\",\"catalogue_not_implemented\")\n out={k:d[k] for k in keys if k in d};out[\"exit\"]=p.returncode;out[\"verified_script\"]=True\n print(json.dumps(out,sort_keys=True))\nexcept Exception as e:print(json.dumps({\"status\":\"blocked\",\"error_type\":type(e).__name__}))",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 130000,
+          "idle_timeout_ms": 130000,
+          "terminal": {
+            "columns": 145,
+            "rows": 24,
+            "scrollback": 120
+          },
+          "limits": {
+            "output_bytes": 12000
+          }
+        }
+      }
+    }
+  ]
+}
