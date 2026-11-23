@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivo-rtp1-review-incomplete-20261123-1518",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivo-rtp1-black-20261123-1509",
+  "revision": 1,
+  "turn": {
+    "task": "playback",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Probe stopped at an inaccessible subscription. No playback tested. Skip unavailable subscriptions, collect actual client failures, and pass authorized manifest via stdin to avoid exposing private URLs in process telemetry. Do not claim success.",
+    "evidence_sha256": [
+      "b8bc2f34e1cbf6d16f69c2e576a01d89981b0f4ecbec5ad92eda57fd9ad539c1"
+    ]
+  }
+}
