@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivo-rtp1-review-decoded-20261123-1533",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivo-rtp1-black-20261123-1509",
+  "revision": 9,
+  "turn": {
+    "task": "playback",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Actual provider decode now PASSED: exit0, 397 video frames and audio decoded for8s via private FFmpeg to null; no saved media/relay. Baseline disposable Android negotiation failure proved. Production login200 but subsequent diagnostic token headers failed JSON. Fix header and require corrected disposable CI PASS before guarded install and final production PlaybackInfo/decode/health/rollback validation. No physical Android available.",
+    "evidence_sha256": [
+      "317db8530e21b90562a88479b71538aa92b9176ecc2bb12ff705aefb324d7f93"
+    ]
+  }
+}
