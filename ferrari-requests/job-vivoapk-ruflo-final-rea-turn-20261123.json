@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "id": "vivoapk-ruflo-final-rea-turn-20261123",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-hygiene-final-20261123",
+  "revision": 0,
+  "turn": {
+    "task": "postflight",
+    "role": "tester",
+    "kind": "rea-mcp",
+    "message": "Read-only independent production test via original Ferrari REA process capture after persistent socket hardening and prior approved CI; verify binary, permission, direct service-user access, rollback, services and report missing client end-to-end proof.",
+    "mcp_requests": [
+      {
+        "method": "tools/call",
+        "params": {
+          "name": "capture_process_scenario",
+          "arguments": {
+            "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+            "arguments": [
+              "-c",
+              "import subprocess,json\ncode=\"\\nimport json,hashlib,stat,subprocess,socket,os,grp,pwd,urllib.request,ssl\\nfrom pathlib import Path\\nfrom xml.etree import ElementTree\\nR=Path('/srv/projects/Vivoapk')\\nJ=Path('/srv/projects/jellyfin-server')\\nP=R/'run/backend.sock'\\nU=Path('/etc/systemd/system/vivoapk-backend.service')\\nTARGET='578f0454f8a4ef2e6dbeefb11eb0089afe5dd5d0'\\nS=R/'source'\\nD=J/'data/plugins/VivoAPK Mega OTT Auth_0.1.0.0/Jellyfin.Plugin.VivoapkMegaAuth.dll'\\nB=S/'jellyfin-auth/Vivoapk.Jellyfin.Auth/bin/Release/net10.0/Jellyfin.Plugin.VivoapkMegaAuth.dll'\\nout={'scope':'independent production postflight','read_only':True,'target_sha':TARGET,'no_video_relay_in_this_test':True}\\ndef run(a):\\n  try:\\n    p=subprocess.run(a,capture_output=True,text=True,timeout=7)\\n    return p.stdout.strip() if p.returncode==0 else None\\n  except Exception:return None\\ndef http(p,uri):\\n  try:\\n    with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as s:\\n      s.settimeout(4);s.connect(str(p))\\n      s.sendall(('GET '+uri+' HTTP/1.1\\\\r\\\\nHost: localhost\\\\r\\\\nConnection: close\\\\r\\\\n\\\\r\\\\n').encode())\\n      return b'200 OK' in s.recv(140).split(b'\\\\r\\\\n',1)[0]\\n  except OSError:return False\\ndef jellyfin_identity_ok():\\n  pid=os.fork()\\n  if pid==0:\\n    try:\\n      user=pwd.getpwnam('jellyfinpink')\\n      os.setgroups([grp.getgrnam('www-data').gr_gid]);os.setgid(user.pw_gid);os.setuid(user.pw_uid)\\n      os._exit(0 if http(P,'/openapi.json') else 4)\\n    except BaseException:os._exit(5)\\n  _,s=os.waitpid(pid,0)\\n  return os.WIFEXITED(s) and os.WEXITSTATUS(s)==0\\nout['revision_correct']=(run(['git','-C',str(S),'rev-parse','HEAD'])==TARGET)\\nout['tracked_tree_clean']=(run(['git','-C',str(S),'status','--porcelain','--untracked-files=no'])=='')\\nout['plugin_dll_matches_build']=D.is_file() and B.is_file() and hashlib.sha256(D.read_bytes()).digest()==hashlib.sha256(B.read_bytes()).digest()\\nout['plugin_has_artwork']=D.is_file() and (b'pilot-hls-v2-artwork' in D.read_bytes() or 'pilot-hls-v2-artwork'.encode('utf-16-le') in D.read_bytes())\\nunit=U.read_text() if U.is_file() and not U.is_symlink() else ''\\nout['persistent_hardening_in_unit']='ExecStartPost=/srv/projects/Vivoapk/.venv/bin/python /srv/projects/Vivoapk/source/infra/secure_runtime_socket.py' in unit\\nout['source_hardening_script_present']=(S/'infra/secure_runtime_socket.py').is_file()\\nst=P.lstat()\\nout['socket_0660']=stat.S_ISSOCK(st.st_mode) and stat.S_IMODE(st.st_mode)==0o660\\nout['socket_owner_group']=pwd.getpwuid(st.st_uid).pw_name=='vivoapksvc' and grp.getgrgid(st.st_gid).gr_name=='www-data'\\nout['vivo_http200']=http(P,'/openapi.json')\\nout['jellyfin_http200']=http(J/'run/jellyfin.sock','/System/Info/Public')\\nout['jellyfin_access_200_as_service_user']=jellyfin_identity_ok()\\nout['services']={n:run(['systemctl','is-active',n]) for n in ['vivoapk-backend.service','jellyfin-pink.service','nginx.service','postgresql.service','pink-iptv-backend.service','pink-vpn.service']}\\nout['protected_services_active']=all(out['services'][n]=='active' for n in ['vivoapk-backend.service','jellyfin-pink.service','nginx.service','postgresql.service'])\\nout['retired_pink_absent']=all(out['services'][n] is None for n in ['pink-iptv-backend.service','pink-vpn.service'])\\nC=J/'data/plugins/configurations/Jellyfin.Plugin.VivoapkMegaAuth.xml'\\ntry:\\n  xml=ElementTree.parse(C).getroot()\\n  out['plugin_flags']={k:(xml.findtext(k) or '').lower()=='true' for k in ('Enabled','PilotLiveChannels','ProvisionPrivateLibraries','MonitorEntitlements')}\\nexcept Exception:out['plugin_flags']={}\\nout['backups_available']=(R/'backups/socket-hardening-578f045/vivoapk-backend.service.before').is_file() and (R/'backups/live-channel-pilot'/TARGET[:20]/'plugin.dll').is_file()\\ntry:\\n  with urllib.request.urlopen('https://serveriptv.duckdns.org/System/Info/Public',timeout=8,context=ssl.create_default_context()) as response:\\n    out['https_tls_valid_200']=(response.status==200)\\nexcept Exception:out['https_tls_valid_200']=False\\nout['real_android_playback_validated']=False\\nout['per_channel_real_logos_validated']=False\\nout['multiclient_catalogue_validated']=False\\ncritical=['revision_correct','tracked_tree_clean','plugin_dll_matches_build','plugin_has_artwork',\\n'persistent_hardening_in_unit','source_hardening_script_present','socket_0660','socket_owner_group',\\n'vivo_http200','jellyfin_http200','jellyfin_access_200_as_service_user',\\n'protected_services_active','retired_pink_absent','backups_available']\\nout['checks_passed']=sum(bool(out[k]) for k in critical)\\nout['checks_total']=len(critical)\\nout['result']='passed' if out['checks_passed']==len(critical) else 'failed'\\nprint(json.dumps(out,sort_keys=True))\\n\"\np=subprocess.run(['sudo','-n','/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12','-c',code],capture_output=True,text=True,timeout=50)\nprint(p.stdout.strip() if p.returncode==0 else json.dumps({'result':'probe_blocked','exit':p.returncode}))"
+            ],
+            "working_directory": "/srv/projects/skill-universal",
+            "timeout_ms": 100000,
+            "idle_timeout_ms": 100000,
+            "terminal": {
+              "columns": 140,
+              "rows": 22,
+              "scrollback": 60
+            },
+            "limits": {
+              "output_bytes": 7500
+            }
+          }
+        }
+      }
+    ]
+  }
+}
