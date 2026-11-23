@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-rea-hls-deploy-20261123-m3",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,hashlib,subprocess,urllib.request\nr={\"task\":\"vivoapk-jellyfin-verified-hls-deployment\",\"target_sha\":\"cbc926c64146\",\"status\":\"blocked\",\"source_verified\":False,\"production_write\":False}\ntry:\n url=\"https://raw.githubusercontent.com/martaxi-boss/Vivoapk/\"+\"cbc926c641463818f755df7a2e9c797ad7228201\"+\"/infra/upgrade_live_preview.py\"\n source=urllib.request.urlopen(url,timeout=30).read(22000)\n digest=hashlib.sha1(b\"blob \"+str(len(source)).encode()+b\"\\0\"+source).hexdigest()\n if digest!=\"1e54e77788a0bdddfc8bdb2997ea18bc9b299e41\":raise RuntimeError(\"pinned_source_verification_failed\")\n r[\"source_verified\"]=True\n preflight=subprocess.run([\"sudo\",\"-n\",\"/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12\",\"-\",\"preflight\",\"--sha\",\"cbc926c641463818f755df7a2e9c797ad7228201\"],input=source,capture_output=True,timeout=90)\n try:before=json.loads(preflight.stdout)\n except Exception:before={\"status\":\"blocked\",\"reason\":\"invalid_preflight_result\"}\n r[\"preflight_status\"]=before.get(\"status\")\n r[\"production_previous\"]=before.get(\"original_revision\")\n r[\"preflight_reason\"]=before.get(\"reason\")\n if preflight.returncode!=0 or before.get(\"status\")!=\"pass\" or before.get(\"original_revision\")!=\"4614f10740d0\":\n  r[\"status\"]=\"blocked_before_write\"\n else:\n  r[\"production_write\"]=True\n  run=subprocess.run([\"sudo\",\"-n\",\"/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12\",\"-\",\"activate\",\"--sha\",\"cbc926c641463818f755df7a2e9c797ad7228201\"],input=source,capture_output=True,timeout=600)\n  try:final=json.loads(run.stdout)\n  except Exception:final={\"status\":\"unverified_activation\",\"reason\":\"no_result\"}\n  r[\"status\"]=final.get(\"status\")\n  r[\"exit_code\"]=run.returncode\n  r[\"changed\"]=final.get(\"changed\")\n  r[\"pilot_user_cap\"]=final.get(\"pilot_user_cap\")\n  r[\"stream_proxy_installed\"]=final.get(\"stream_proxy_installed\")\n  r[\"pink_modified\"]=final.get(\"pink_modified\")\n  r[\"reason\"]=final.get(\"reason\")\nexcept Exception as ex:\n r[\"status\"]=\"blocked_or_interrupted\"\n r[\"error_type\"]=type(ex).__name__\nprint(json.dumps(r,sort_keys=True))\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 680000,
+          "idle_timeout_ms": 680000,
+          "terminal": {
+            "columns": 146,
+            "rows": 28,
+            "scrollback": 75
+          },
+          "limits": {
+            "output_bytes": 7800
+          }
+        }
+      }
+    }
+  ]
+}
