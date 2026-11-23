@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivo-rtp1-reject-incomplete-20261123-1513",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivo-rtp1-black-20261123-1509",
+  "revision": 1,
+  "turn": {
+    "task": "playback",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "rejected",
+    "message": "Evidence correctly reports blocked: first subscription lookup failed. No playback test executed, no conclusion about black screen. Retry skipping inaccessible subscriptions and keep private media addresses off process arguments by passing manifests via stdin.",
+    "evidence_sha256": [
+      "b8bc2f34e1cbf6d16f69c2e576a01d89981b0f4ecbec5ad92eda57fd9ad539c1"
+    ]
+  }
+}
