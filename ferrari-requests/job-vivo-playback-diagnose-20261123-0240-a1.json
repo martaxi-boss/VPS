@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "vivo-playback-diagnose-20261123-0240-a1",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "synthetic.json",
+    "content_base64": "e30K"
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\np=subprocess.run([\"sudo\",\"-n\",\"python3\",\"-c\",\"import json,subprocess,re,os,stat,time\\nfrom pathlib import Path\\nout={\\\"task\\\":\\\"vivo-playback-error-readonly\\\",\\\"changed\\\":False,\\\"services\\\":{},\\\"jellyfin_network\\\":{},\\\"playback_observations\\\":{},\\\"recent_logs\\\":{}}\\ndef call(argv,limit=12):\\n try:\\n  p=subprocess.run(argv,capture_output=True,text=True,timeout=limit)\\n  return p.stdout if p.returncode==0 else \\\"\\\"\\n except Exception:return \\\"\\\"\\nfor unit in (\\\"jellyfin-pink.service\\\",\\\"vivoapk-backend.service\\\",\\\"pink-iptv-backend.service\\\",\\\"pink-vpn.service\\\"):\\n out[\\\"services\\\"][unit]=call([\\\"systemctl\\\",\\\"is-active\\\",unit],5).strip()==\\\"active\\\"\\nfor key in (\\\"PrivateNetwork\\\",\\\"IPAddressDeny\\\",\\\"IPAddressAllow\\\",\\\"RestrictAddressFamilies\\\",\\\"ExecStart\\\"):\\n raw=call([\\\"systemctl\\\",\\\"show\\\",\\\"jellyfin-pink.service\\\",\\\"-p\\\",key,\\\"--value\\\"],5).strip()\\n if key==\\\"ExecStart\\\":out[\\\"jellyfin_network\\\"][\\\"managed_program_start_present\\\"]=bool(raw)\\n else:out[\\\"jellyfin_network\\\"][key]=(raw[:120] if raw else \\\"not_recorded\\\")\\npatterns={\\n \\\"player_fatal\\\":r\\\"(?i)fatal.*play|playback.*fatal|error.*playback\\\",\\n \\\"ffmpeg_failed\\\":r\\\"(?i)ffmpeg.*(fail|error|exit|unable|not found)|process.*exited.*code\\\",\\n \\\"network_denied\\\":r\\\"(?i)network is unreachable|permission denied.*connect|network.*denied|cannot assign requested address\\\",\\n \\\"source_unavailable\\\":r\\\"(?i)no.*media.*source|no.*playable|media source.*not found|media source.*empty\\\",\\n \\\"remote_origin_http_error\\\":r\\\"(?i)server returned (4\\\\d\\\\d|5\\\\d\\\\d)|http status (4\\\\d\\\\d|5\\\\d\\\\d)|response status code.*(4\\\\d\\\\d|5\\\\d\\\\d)|403 Forbidden|404 Not Found\\\",\\n \\\"stream_open_failed\\\":r\\\"(?i)failed to open|could not open|error opening input|unable to open|avformat_open_input\\\",\\n \\\"transcoding_started\\\":r\\\"(?i)transcoding|transcode|/videos/.*stream\\\",\\n \\\"pilot_callback\\\":r\\\"(?i)vivoapk.*(channel|pilot|auth)|getchannelitemmediainfo\\\",\\n \\\"direct_source\\\":r\\\"(?i)directplay|directstream|direct play\\\",\\n \\\"unsupported_codec\\\":r\\\"(?i)unsupported codec|no decoder|not supported|invalid data found\\\",\\n \\\"tls_error\\\":r\\\"(?i)certificate verify failed|ssl.*error|tls.*failed\\\",\\n}\\nlines=[]\\njournal=call([\\\"journalctl\\\",\\\"-u\\\",\\\"jellyfin-pink.service\\\",\\\"--since\\\",\\\"2026-11-23 02:15:00\\\",\\\"--no-pager\\\",\\\"-o\\\",\\\"cat\\\",\\\"-n\\\",\\\"1800\\\"],18)\\nlines.extend(journal.splitlines())\\nlogdir=Path(\\\"/srv/projects/jellyfin-server/data/log\\\")\\nif logdir.is_dir() and not logdir.is_symlink():\\n files=[]\\n for f in logdir.iterdir():\\n  if f.is_file() and not f.is_symlink() and f.stat().st_size<=6*1024*1024:\\n   files.append(f)\\n for f in sorted(files,key=lambda x:x.stat().st_mtime,reverse=True)[:2]:\\n  try:\\n   raw=f.read_text(errors=\\\"replace\\\")\\n   lines.extend(raw.splitlines()[-1800:])\\n  except Exception:pass\\nout[\\\"recent_logs\\\"][\\\"lines_examined\\\"]=len(lines)\\nout[\\\"recent_logs\\\"][\\\"since\\\"]=\\\"2026-11-23 02:15:00\\\"\\nout[\\\"playback_observations\\\"]={k:sum(bool(re.search(v,l)) for l in lines) for k,v in patterns.items()}\\nout[\\\"recent_logs\\\"][\\\"has_errors\\\"]=sum((\\\"ERR\\\" in l or \\\"Error\\\" in l or \\\"Exception\\\" in l) for l in lines)\\nout[\\\"recent_logs\\\"][\\\"log_files_seen\\\"]=len(files) if logdir.is_dir() else 0\\nout[\\\"safety\\\"]={\\\"credential_paths_exposed\\\":False,\\\"raw_logs_exposed\\\":False,\\\"media_fetched\\\":False,\\\"services_modified\\\":False}\\nprint(json.dumps(out,sort_keys=True))\\n\"],capture_output=True,text=True,timeout=67)\ntry:d=json.loads(p.stdout)\nexcept Exception:d={\"task\":\"vivo-playback-error-readonly\",\"status\":\"no_report\",\"exit\":p.returncode}\nprint(json.dumps(d,sort_keys=True))",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 107000,
+          "idle_timeout_ms": 107000,
+          "terminal": {
+            "columns": 145,
+            "rows": 26,
+            "scrollback": 110
+          },
+          "limits": {
+            "output_bytes": 8500
+          }
+        }
+      }
+    }
+  ]
+}
