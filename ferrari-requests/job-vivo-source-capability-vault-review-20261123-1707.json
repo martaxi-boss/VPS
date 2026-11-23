@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivo-source-capability-vault-review-20261123-1707",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivo-android-source-error-20261123-1600",
+  "revision": 9,
+  "turn": {
+    "task": "source",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Capability read stopped before authentication because the historical private admin path was unavailable or a symlink. No Android capabilities were obtained; do not claim them. Check only existing Jellyfin-specific vault locations and trusted vault symlinks, never reset credentials or read another project's secrets. If authorized admin access remains unavailable, record this limit and use a phone-only information screenshot as the next diagnostic step.",
+    "evidence_sha256": [
+      "9fcd0c9f5037778329c5e2113370b21daa3eb62e884cc1787c8eb0e7af2cdea0"
+    ]
+  }
+}
