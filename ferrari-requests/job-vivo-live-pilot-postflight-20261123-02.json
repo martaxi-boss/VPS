@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "vivo-live-pilot-postflight-20261123-02",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "synthetic.json",
+    "content_base64": "e30K"
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\np=subprocess.run([\"sudo\",\"-n\",\"python3\",\"-c\",\"import json,subprocess,socket,hashlib\\nfrom pathlib import Path\\nfrom xml.etree import ElementTree\\nout={\\\"check\\\":\\\"vivo-live-pilot-postflight\\\",\\\"changed\\\":False,\\\"services\\\":{},\\\"state\\\":{}}\\nfor name in (\\\"vivoapk-backend.service\\\",\\\"jellyfin-pink.service\\\",\\\"pink-iptv-backend.service\\\",\\\"pink-vpn.service\\\",\\\"nginx.service\\\",\\\"postgresql.service\\\"):\\n out[\\\"services\\\"][name]=subprocess.run([\\\"systemctl\\\",\\\"is-active\\\",\\\"--quiet\\\",name],timeout=6).returncode==0\\nroot=Path(\\\"/srv/projects/Vivoapk\\\")\\nsource=root/\\\"source\\\"\\ncode=subprocess.run([\\\"git\\\",\\\"-C\\\",str(source),\\\"rev-parse\\\",\\\"HEAD\\\"],capture_output=True,text=True,timeout=8)\\nout[\\\"state\\\"][\\\"commit\\\"]=code.stdout.strip()[:12] if code.returncode==0 else \\\"unavailable\\\"\\ncode=subprocess.run([\\\"git\\\",\\\"-C\\\",str(source),\\\"status\\\",\\\"--porcelain=v1\\\",\\\"--untracked-files=normal\\\"],capture_output=True,text=True,timeout=8)\\nsafe=[]\\nfor line in code.stdout.splitlines()[:20]:\\n p=line[3:].strip(); safe.append({\\\"state\\\":line[:2],\\\"generated\\\":any(x in p for x in (\\\"bin/\\\",\\\"obj/\\\",\\\".egg-info/\\\",\\\"__pycache__\\\",\\\"upgrade_live_preview.py\\\"))})\\nout[\\\"state\\\"][\\\"uncommitted_count\\\"]=len(safe)\\nout[\\\"state\\\"][\\\"pending_generated_or_expected\\\"]=bool(safe) and all(item[\\\"generated\\\"] for item in safe)\\nout[\\\"state\\\"][\\\"uncommitted_classification\\\"]=safe\\nbk=root/\\\"backups/live-channel-pilot/0b3217b42fd4c960a4b4\\\"\\nout[\\\"state\\\"][\\\"backup_exists\\\"]=bk.is_dir()\\nout[\\\"state\\\"][\\\"backup_files_present\\\"]=all((bk/p).is_file() for p in (\\\"plugin.dll\\\",\\\"plugin-config.xml\\\",\\\"VIVOAPK_LIVE_PILOT_V1\\\"))\\nif (bk/\\\"VIVOAPK_LIVE_PILOT_V1\\\").is_file():\\n out[\\\"state\\\"][\\\"rollback_marker_sha\\\"]=(bk/\\\"VIVOAPK_LIVE_PILOT_V1\\\").read_text().strip()[:12]\\nconfig=Path(\\\"/srv/projects/jellyfin-server/data/plugins/configurations/Jellyfin.Plugin.VivoapkMegaAuth.xml\\\")\\ntry:\\n xml=ElementTree.parse(config).getroot()\\n out[\\\"state\\\"][\\\"pilot_enabled\\\"]=xml.findtext(\\\"PilotLiveChannels\\\",\\\"absent\\\")\\n out[\\\"state\\\"][\\\"auth_enabled\\\"]=xml.findtext(\\\"Enabled\\\",\\\"absent\\\")\\nexcept Exception:out[\\\"state\\\"][\\\"plugin_config_readable\\\"]=False\\ndll=Path(\\\"/srv/projects/jellyfin-server/data/plugins/VivoAPK Mega OTT Auth_0.1.0.0/Jellyfin.Plugin.VivoapkMegaAuth.dll\\\")\\nout[\\\"state\\\"][\\\"plugin_file_present\\\"]=dll.is_file()\\nif dll.is_file() and (bk/\\\"plugin.dll\\\").is_file():\\n out[\\\"state\\\"][\\\"dll_is_different_from_backup\\\"]=hashlib.sha256(dll.read_bytes()).digest()!=hashlib.sha256((bk/\\\"plugin.dll\\\").read_bytes()).digest()\\njournal=subprocess.run([\\\"journalctl\\\",\\\"-u\\\",\\\"jellyfin-pink.service\\\",\\\"--since\\\",\\\"-15 minutes\\\",\\\"--no-pager\\\",\\\"-o\\\",\\\"cat\\\",\\\"-n\\\",\\\"700\\\"],capture_output=True,text=True,timeout=12)\\nlogs=journal.stdout\\nout[\\\"state\\\"][\\\"plugin_loaded_recently\\\"]=\\\"Loaded plugin: VivoAPK Mega OTT Auth\\\" in logs or \\\"Loaded assembly Jellyfin.Plugin.VivoapkMegaAuth\\\" in logs\\ndef status(path,route,method=\\\"GET\\\"):\\n s=socket.socket(socket.AF_UNIX);s.settimeout(4)\\n try:\\n  s.connect(str(path))\\n  req=method+\\\" \\\"+route+\\\" HTTP/1.1\\\\r\\\\nHost: localhost\\\\r\\\\nConnection: close\\\\r\\\\n\\\"\\n  if method==\\\"POST\\\":\\n   req+=\\\"Content-Type: application/json\\\\r\\\\nContent-Length: 15\\\\r\\\\n\\\\r\\\\n\\\"+'{\\\"kind\\\":\\\"live\\\"}'\\n  else:req+=\\\"\\\\r\\\\n\\\"\\n  s.sendall(req.encode())\\n  return s.recv(180).split(b\\\"\\\\r\\\\n\\\",1)[0].decode(errors=\\\"ignore\\\").split(\\\" \\\")[1]\\n except Exception:return \\\"UNAVAILABLE\\\"\\n finally:s.close()\\nout[\\\"state\\\"][\\\"jellyfin_http_status\\\"]=status(Path(\\\"/srv/projects/jellyfin-server/run/jellyfin.sock\\\"),\\\"/System/Info/Public\\\")\\nout[\\\"state\\\"][\\\"backend_http_status\\\"]=status(root/\\\"run/backend.sock\\\",\\\"/openapi.json\\\")\\nout[\\\"state\\\"][\\\"preview_without_auth_status\\\"]=status(root/\\\"run/backend.sock\\\",\\\"/v1/catalog/preview\\\",\\\"POST\\\")\\nprint(json.dumps(out,sort_keys=True))\\n\"],capture_output=True,text=True,timeout=60)\ntry:d=json.loads(p.stdout)\nexcept Exception:d={\"check\":\"vivo-live-pilot-postflight\",\"status\":\"unreadable\",\"exit\":p.returncode}\nprint(json.dumps(d,sort_keys=True))",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 90000,
+          "idle_timeout_ms": 90000,
+          "terminal": {
+            "columns": 140,
+            "rows": 25,
+            "scrollback": 100
+          },
+          "limits": {
+            "output_bytes": 8200
+          }
+        }
+      }
+    }
+  ]
+}
