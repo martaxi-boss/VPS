@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivo-source-review-java403-20261123-1613",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivo-android-source-error-20261123-1600",
+  "revision": 3,
+  "turn": {
+    "task": "source",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Confirmed subscription Active,0active/2max connections; physical15:57 login and correct item accepted. Exact Android2.7.3 UA in Python obtains302->200 and valid TS segments, but JDK HttpURLConnection gets403. This narrows transport compatibility but is NOT yet an Android reproduction. Locate whether403 is initial/final, header-dependent or proxy/runtime-specific; test authorized alternate origin and resolved HLS URI without publishing secrets. No speculative production change.",
+    "evidence_sha256": [
+      "0d495d0ba5a1db3811e23a534738e8fd1f3baf0b851a1f90649694f8b7273188"
+    ]
+  }
+}
