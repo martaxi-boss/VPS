@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "id": "vivo-native-catalog-security-start-20261123-r1",
+  "kind": "ruflo-team",
+  "phase": "start",
+  "team_id": "vivo-native-catalog-security-20261123-r1",
+  "host": "ChatGPT",
+  "mission": "Validate read-only Jellyfin native catalog isolation and installed runtime, with existing REA only, before deciding whether per-client full catalog can be deployed safely",
+  "roles": [
+    {
+      "id": "tester",
+      "type": "tester",
+      "actions": [
+        "rea-mcp"
+      ]
+    },
+    {
+      "id": "reviewer",
+      "type": "reviewer",
+      "actions": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "catalog-safety",
+      "role": "tester",
+      "reviewer": "reviewer",
+      "goal": "Inspect only live VivoAPK/Jellyfin service states and plugin flags and Git revision, zero secret reads, then report safe-vs-unsafe auto catalog activation conditions; no changes to production",
+      "depends_on": []
+    }
+  ]
+}
