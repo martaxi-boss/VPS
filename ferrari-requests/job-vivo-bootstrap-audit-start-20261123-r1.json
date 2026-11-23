@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "id": "vivo-bootstrap-audit-start-20261123-r1",
+  "kind": "ruflo-team",
+  "phase": "start",
+  "team_id": "vivo-bootstrap-audit-20261123-r1",
+  "host": "ChatGPT",
+  "mission": "Read-only hygiene audit of VivoAPK and Jellyfin runtime, verify legacy Pink absence and resource use; follow VivoAPK BOOTSTRAP and do not touch credentials or reinstall services",
+  "roles": [
+    {
+      "id": "tester",
+      "type": "tester",
+      "actions": [
+        "rea-mcp"
+      ]
+    },
+    {
+      "id": "reviewer",
+      "type": "reviewer",
+      "actions": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "runtime",
+      "role": "tester",
+      "reviewer": "reviewer",
+      "goal": "Capture read-only service lifecycle, project footprint, installed revision and endpoint status with private Ferrari REA; inspect for outdated Pink files before any deletion",
+      "depends_on": []
+    }
+  ]
+}
