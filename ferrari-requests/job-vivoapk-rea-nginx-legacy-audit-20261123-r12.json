@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-rea-nginx-legacy-audit-20261123-r12",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\ncode=\"\\nimport json,os,re,subprocess,stat,hashlib\\nfrom pathlib import Path\\nP=Path('/etc/nginx/sites-enabled/pink-iptv-https.conf')\\nout={'task':'VivoAPK residual PINK Nginx and unit hygiene audit','read_only':True,'changed':False}\\ndef cmd(args,timeout=9):\\n  try:\\n    r=subprocess.run(args,capture_output=True,text=True,timeout=timeout)\\n    return (r.returncode,r.stdout)\\n  except (OSError,subprocess.TimeoutExpired):return (-1,'')\\nout['nginx_syntax_ok']=cmd(['nginx','-t'])[0]==0\\nout['legacy_enabled_symlink']=P.is_symlink()\\nout['legacy_vhost_exists']=P.exists()\\nout['pink_project_absent']=not Path('/srv/projects/pink-iptv').exists()\\nif P.exists():\\n  t=P.read_text()\\n  out['legacy_mode']=oct(stat.S_IMODE(P.stat().st_mode))\\n  out['legacy_bytes']=len(t.encode())\\n  out['legacy_file_sha256']=hashlib.sha256(t.encode()).hexdigest()\\n  out['legacy_mentions_serveriptv_duckdns']=('serveriptv.duckdns.org' in t)\\n  out['legacy_mentions_vivoapk']=('Vivoapk' in t or 'vivoapk' in t)\\n  out['legacy_mentions_jellyfin']=('jellyfin' in t.lower())\\n  out['legacy_has_proxy_pass']='proxy_pass' in t\\n  out['legacy_serves_tls']='ssl_certificate' in t\\n  names=re.findall(r'\\\\bserver_name\\\\s+([^;]+);',t)\\n  out['server_name_count']=sum(len(s.split()) for s in names)\\n  out['legacy_server_names_anonymized']=[''.join('#' if c.isalnum() else c for c in s)[:80] for x in names for s in x.split()]\\n  try:\\n    resolved=P.resolve(strict=True)\\n    out['target_within_nginx_tree']=resolved.is_relative_to(Path('/etc/nginx').resolve())\\n    out['target_in_sites_available']=resolved.parent==Path('/etc/nginx/sites-available')\\n  except Exception:out['target_within_nginx_tree']=False\\nout['jellyfin_unit_active']=(cmd(['systemctl','is-active','jellyfin-pink.service'])[1].strip()=='active')\\nout['pink_backend_unit_active']=(cmd(['systemctl','is-active','pink-iptv-backend.service'])[1].strip()=='active')\\nout['pink_vpn_unit_active']=(cmd(['systemctl','is-active','pink-vpn.service'])[1].strip()=='active')\\nnames=['serveriptv.duckdns.org','vivo-team.duckdns.org']\\nfor name in names:\\n  out['legacy_serves_'+name.split('.')[0]]=P.exists() and name in P.read_text()\\nprint(json.dumps(out,sort_keys=True))\\n\"\np=subprocess.run(['sudo','-n','/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12','-c',code],capture_output=True,text=True,timeout=30)\nprint(p.stdout.strip() if p.returncode==0 else json.dumps({'status':'blocked','code':p.returncode}))"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 90000,
+          "idle_timeout_ms": 90000,
+          "terminal": {
+            "columns": 140,
+            "rows": 22,
+            "scrollback": 50
+          },
+          "limits": {
+            "output_bytes": 4800
+          }
+        }
+      }
+    }
+  ]
+}
