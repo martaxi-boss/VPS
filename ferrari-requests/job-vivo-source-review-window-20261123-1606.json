@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivo-source-review-window-20261123-1606",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivo-android-source-error-20261123-1600",
+  "revision": 1,
+  "turn": {
+    "task": "source",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Actual physical client is Jellyfin for Android2.7.3. At15:56:52 login200 created a new RTP1 indexed item at15:56:54; the15:57 attempt uses that same item with PlaybackInfo200. Stale-item hypothesis does not explain this attempt. Terminal JSON was cut after8190 bytes; reduce output and collect remaining error lines. Test actual Android2.7.3 HTTP/HLS behavior and User-Agent against provider without another Jellyfin login.",
+    "evidence_sha256": [
+      "37d376e17589c8061a7a8beb60799ffd9628fabeccde6122533c4624be0a8fc2"
+    ]
+  }
+}
