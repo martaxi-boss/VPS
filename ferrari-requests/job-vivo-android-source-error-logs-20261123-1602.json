@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "id": "vivo-android-source-error-logs-20261123-1602",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivo-android-source-error-20261123-1600",
+  "revision": 0,
+  "turn": {
+    "task": "source",
+    "role": "tester",
+    "kind": "rea-mcp",
+    "message": "Read-only correlation of physical Android15:57 Source error with actual nginx requests, redacted Jellyfin logs and hashed RTP1 indexed item identities. No new login or pilot restaging, preserve current failing state.",
+    "mcp_requests": [
+      {
+        "method": "tools/call",
+        "params": {
+          "name": "capture_process_scenario",
+          "arguments": {
+            "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+            "arguments": [
+              "-c",
+              "import subprocess,json\np=subprocess.run(['sudo','-n','/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12','-c',\"import json,re,subprocess,sqlite3,hashlib\\nfrom pathlib import Path\\nfrom urllib.parse import urlsplit,parse_qs\\nout={'task':'Android Source error15:57','mode':'read_only_no_login','events':[]}\\ndef digest(s):return hashlib.sha256(str(s).replace('-','').lower().encode()).hexdigest()[:12]\\ndef clean(s):\\n    s=re.sub(r'https?://[^\\\\s<>\\\"\\\\x27]+','[URL]',s)\\n    s=re.sub(r'(?i)(?:User policy for|Authentication request for|User) [^\\\\n]*?(?=\\\\. Enable| has | started | stopped )','[account]',s)\\n    s=re.sub(r'(?i)(token|password|username|api_key)[=: ]+[^\\\\s,;]+',r'\\\\1=[REDACTED]',s)\\n    s=re.sub(r'\\\\b[0-9a-fA-F]{32,64}\\\\b','[opaque-id]',s)\\n    return s\\nfor file in [Path('/var/log/nginx/access.log'),Path('/var/log/nginx/access.log.1')]:\\n    if not file.is_file() or file.is_symlink():continue\\n    with file.open('rb') as f:\\n        f.seek(max(0,file.stat().st_size-15000000));raw=f.read().decode('utf-8','replace')\\n    for line in raw.splitlines():\\n        tm=re.search(r'\\\\[23/Nov/2026:((?:15|16):\\\\d\\\\d:\\\\d\\\\d) ',line)\\n        if not tm:continue\\n        t=tm[1]\\n        if not '15:40:00'<=t<='16:10:59':continue\\n        rq=re.search(r'\\\"(GET|POST|PUT|DELETE) ([^\\\\s\\\"]+) HTTP/[0-9.]+\\\"\\\\s+(\\\\d{3})',line)\\n        if not rq:continue\\n        uri=rq[2];route=uri.split('?',1)[0];kind=None\\n        for name,pattern in [('auth',r'/Users/Authenticate'),('playback_info',r'/PlaybackInfo'),('playing',r'/Sessions/Playing'),('channel_items',r'/Channels'),('client_log',r'/ClientLog'),('video_server_endpoint',r'/Videos/'),('item',r'/Items/')]:\\n            if re.search(pattern,route,re.I):kind=name;break\\n        if kind is None:continue\\n        event={'time_utc':t,'kind':kind,'method':rq[1],'status':int(rq[3])}\\n        match=re.search(r'/Items/([0-9a-fA-F-]{32,36})',route)\\n        if match:event['item_hash']=digest(match[1])\\n        query=parse_qs(uri.split('?',1)[1] if '?' in uri else '')\\n        for k,v in query.items():\\n            if k.lower() in ['mediasourceid','itemid'] and v:event[k+'_hash']=digest(v[0])\\n        ua=re.findall(r'\\\"([^\\\"]*)\\\"',line)\\n        if ua:\\n            last=ua[-1]\\n            event['client']='android' if 'Android' in last else 'other'\\n            ver=re.search(r'(?:Jellyfin|jellyfin)[/ ]([0-9.]+)',last)\\n            if ver:event['jellyfin_version']=ver[1]\\n        out['events'].append(event)\\nout['events']=sorted(out['events'],key=lambda x:x['time_utc'])[-90:]\\nj=subprocess.run(['journalctl','-u','jellyfin-pink.service','--since','2026-11-23 15:30:00 UTC','--no-pager','-o','cat','-n','2500'],capture_output=True,text=True,timeout=15)\\nlines=[l for l in j.stdout.splitlines() if re.search(r'(?i)playback|player|source|exception|error|authenticat|Vivoapk',l)]\\nout['jellyfin_relevant_logs']=clean('\\\\n'.join(lines[-90:]))[-17000:]\\ndb=Path('/srv/projects/jellyfin-server/data/data/jellyfin.db')\\nif db.is_file():\\n    c=sqlite3.connect('file:'+str(db)+'?mode=ro',uri=True)\\n    out['media_tables']=[];out['indexed_rtp1_items']=[]\\n    for (table,) in c.execute(\\\"SELECT name FROM sqlite_master WHERE type='table'\\\"):\\n        if not ('item' in table.lower()):continue\\n        qt='\\\"'+table.replace('\\\"','\\\"\\\"')+'\\\"'\\n        cols=[row[1] for row in c.execute('PRAGMA table_info('+qt+')')]\\n        if 'Name' not in cols:continue\\n        chosen=[n for n in ['Id','Name','ExternalId','DateCreated','DateModified','ChannelId','Type'] if n in cols]\\n        out['media_tables'].append({'table':table,'metadata_columns':[n for n in cols if any(p in n.lower() for p in ['extern','provider','date','channel','source'])]})\\n        qc=','.join('\\\"'+n+'\\\"' for n in chosen)\\n        for row in c.execute('SELECT '+qc+' FROM '+qt+' WHERE Name LIKE ? LIMIT 15',('%RTP 1%',)):\\n            values=dict(zip(chosen,row))\\n            for n in list(values):\\n                if n.endswith('Id') or n=='Id':values[n+'_hash']=digest(values.pop(n))\\n                elif isinstance(values[n],bytes):values[n]='[binary]'\\n            out['indexed_rtp1_items'].append(values)\\n    c.close()\\nout['services']={s:subprocess.run(['systemctl','is-active',s],capture_output=True,text=True,timeout=5).stdout.strip() for s in ['jellyfin-pink.service','vivoapk-backend.service']}\\nprint(json.dumps(out,sort_keys=True))\\n\"],capture_output=True,text=True,timeout=50)\ntry:r=json.loads(p.stdout)\nexcept Exception:r={'status':'blocked','exit_code':p.returncode}\nprint(json.dumps(r,sort_keys=True))"
+            ],
+            "working_directory": "/srv/projects/skill-universal",
+            "timeout_ms": 65000,
+            "idle_timeout_ms": 65000,
+            "terminal": {
+              "columns": 160,
+              "rows": 50,
+              "scrollback": 150
+            },
+            "limits": {
+              "output_bytes": 30000
+            }
+          }
+        }
+      }
+    ]
+  }
+}
