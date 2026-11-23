@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "vivo-remove-pink-audit-20261123-a1",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "synthetic.json",
+    "content_base64": "e30K"
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\np=subprocess.run([\"sudo\",\"-n\",\"python3\",\"-c\",\"import json,os,subprocess,pathlib,shutil\\nR={\\\"job\\\":\\\"pink-retirement-inventory\\\",\\\"changes\\\":False,\\\"service\\\":{},\\\"paths\\\":{},\\\"dependencies\\\":{},\\\"disk\\\":{},\\\"checks\\\":{}}\\ndef run(cmd,timeout=15):\\n try:\\n  p=subprocess.run(cmd,text=True,capture_output=True,timeout=timeout)\\n  return (p.returncode,p.stdout.strip())\\n except Exception:return (255,\\\"\\\")\\ndef size(path):\\n code,txt=run([\\\"du\\\",\\\"-sk\\\",\\\"--\\\",str(path)],40)\\n try:return int(txt.split()[0])*1024 if code==0 else None\\n except: return None\\nnames=[\\\"pink-iptv-backend.service\\\",\\\"pink-vpn.service\\\",\\\"jellyfin-pink.service\\\",\\\"vivoapk-backend.service\\\",\\\"nginx.service\\\",\\\"postgresql.service\\\"]\\nfor name in names:\\n _,active=run([\\\"systemctl\\\",\\\"is-active\\\",name],6)\\n _,file=run([\\\"systemctl\\\",\\\"show\\\",name,\\\"--property=FragmentPath\\\",\\\"--value\\\"],6)\\n _,work=run([\\\"systemctl\\\",\\\"show\\\",name,\\\"--property=WorkingDirectory\\\",\\\"--value\\\"],6)\\n _,req=run([\\\"systemctl\\\",\\\"show\\\",name,\\\"--property=Requires,Wants\\\",\\\"--no-pager\\\"],6)\\n R[\\\"service\\\"][name]={\\\"active\\\":active==\\\"active\\\",\\\"fragment\\\":file if file.startswith(\\\"/etc/systemd/system/\\\") else \\\"other\\\",\\\"working_dir\\\":work if work.startswith(\\\"/srv/projects/\\\") else \\\"other\\\",\\\"depends_on_pink\\\":(\\\"pink-iptv-backend.service\\\" in req or \\\"pink-vpn.service\\\" in req)}\\nfor name in [\\\"pink-iptv\\\",\\\"PINK-IPTV\\\",\\\"pink\\\",\\\"PINK\\\",\\\"Pink-iptv\\\",\\\"Vivoapk\\\",\\\"jellyfin-server\\\"]:\\n p=pathlib.Path(\\\"/srv/projects\\\")/name\\n if p.is_symlink():\\n  R[\\\"paths\\\"][name]={\\\"type\\\":\\\"symlink_not_followed\\\"}\\n elif p.is_dir():\\n  R[\\\"paths\\\"][name]={\\\"type\\\":\\\"dir\\\",\\\"bytes\\\":size(p),\\\"top_count\\\":len(list(p.iterdir()))}\\n else:R[\\\"paths\\\"][name]={\\\"type\\\":\\\"not_present\\\"}\\nfor pref in (\\\"/etc/systemd/system/pink\\\", \\\"/etc/nginx/sites-enabled/pink\\\"):\\n directory=pathlib.Path(pref).parent\\n R[\\\"checks\\\"][pref+\\\"_unit_files\\\"]=[x.name for x in directory.glob(pathlib.Path(pref).name+\\\"*\\\") if x.is_file() and not x.is_symlink()][:25]\\nroot=pathlib.Path(\\\"/srv/projects\\\")\\nR[\\\"checks\\\"][\\\"candidate_project_dirnames\\\"]=[p.name for p in root.iterdir() if \\\"pink\\\" in p.name.lower() and p.is_dir() and not p.is_symlink()][:25]\\nR[\\\"checks\\\"][\\\"vivo_private_env_present\\\"]=pathlib.Path(\\\"/root/project-secrets/VIVOAPK/backend-auth.env\\\").is_file()\\nR[\\\"checks\\\"][\\\"vivo_source_git_present\\\"]=(root/\\\"Vivoapk/source/.git\\\").is_dir()\\nR[\\\"checks\\\"][\\\"jellyfin_program_present\\\"]=(root/\\\"jellyfin-server\\\").is_dir()\\nR[\\\"checks\\\"][\\\"vpn_peers_configured\\\"] = None\\n_,wgout=run([\\\"wg\\\",\\\"show\\\",\\\"interfaces\\\"],7)\\nR[\\\"checks\\\"][\\\"wireguard_interfaces_count\\\"]=len(wgout.split()) if wgout else 0\\nR[\\\"disk\\\"][\\\"free_before\\\"]=shutil.disk_usage(\\\"/srv/projects\\\").free\\n_,units=run([\\\"systemctl\\\",\\\"list-unit-files\\\",\\\"--type=service\\\",\\\"--no-legend\\\",\\\"--no-pager\\\"],10)\\nR[\\\"checks\\\"][\\\"additional_pink_units\\\"]=[line.split()[0] for line in units.splitlines() if line.lower().startswith(\\\"pink\\\")][:20]\\nprint(json.dumps(R,sort_keys=True))\\n\"],capture_output=True,text=True,timeout=85)\ntry:d=json.loads(p.stdout)\nexcept Exception:d={\"job\":\"pink-retirement-inventory\",\"status\":\"unreadable\",\"exit\":p.returncode}\nprint(json.dumps(d,sort_keys=True))",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 130000,
+          "idle_timeout_ms": 130000,
+          "terminal": {
+            "columns": 145,
+            "rows": 24,
+            "scrollback": 100
+          },
+          "limits": {
+            "output_bytes": 11000
+          }
+        }
+      }
+    }
+  ]
+}
