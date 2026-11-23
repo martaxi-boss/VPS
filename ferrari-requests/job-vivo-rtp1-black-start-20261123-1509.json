@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "id": "vivo-rtp1-black-start-20261123-1509",
+  "kind": "ruflo-team",
+  "phase": "start",
+  "team_id": "vivo-rtp1-black-20261123-1509",
+  "host": "ChatGPT",
+  "mission": "Diagnose exact RTP1 black-screen cause, validate real upstream video/audio decoding and real Jellyfin PlaybackInfo; fix existing Vivoapk code only after evidence. No production video relay, secrets output, extra services or other projects.",
+  "roles": [
+    {
+      "id": "tester",
+      "type": "tester",
+      "actions": [
+        "rea-mcp"
+      ]
+    },
+    {
+      "id": "reviewer",
+      "type": "reviewer",
+      "actions": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "playback",
+      "role": "tester",
+      "reviewer": "reviewer",
+      "goal": "Gather actual player errors and PlaybackInfo, decode authorized RTP1 briefly to null, test correction in disposable Jellyfin, review results and deploy only validated fix with rollback.",
+      "depends_on": []
+    }
+  ]
+}
