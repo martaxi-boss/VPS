@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivo-source-review-native-blocker-20261123-1715",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivo-android-source-error-20261123-1600",
+  "revision": 11,
+  "turn": {
+    "task": "source",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "REA metadata run 45223376285 is valid read-only evidence. It found no Jellyfin-specific admin vault candidate in the checked locations, so Android device capabilities were not accessed. Do not inspect unrelated project secrets, reset credentials, claim a physical Android fix or redeploy. Native Android log/error remains required. An independent Jellyfin Android 2.7.3 report about Automatic quality becoming 1.5Mbps (#2227) and official Settings > Video player > Web player option justify a phone-only diagnostic, but do not prove cause without user retest.",
+    "evidence_sha256": [
+      "b10c2f7be13c7e6d99da92059031892ca9b44aab23df28026657bf52178217ef"
+    ]
+  }
+}
