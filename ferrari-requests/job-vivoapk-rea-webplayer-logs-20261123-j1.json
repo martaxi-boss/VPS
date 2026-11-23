@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-rea-webplayer-logs-20261123-j1",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\np=subprocess.run([\"sudo\",\"-n\",\"/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12\",\"-c\",\"import collections,json,re,subprocess\\nsvc=\\\"jellyfin-pink.service\\\"\\np=subprocess.run([\\\"journalctl\\\",\\\"--no-pager\\\",\\\"-u\\\",svc,\\\"--since\\\",\\\"2026-11-23 10:53:00 UTC\\\",\\\"-n\\\",\\\"220\\\",\\\"--output=cat\\\"],capture_output=True,text=True,timeout=20)\\ns=p.stdout[:90000]\\ntags={\\\"http_failure\\\":r\\\"\\\\\\\\b(?:400|401|403|404|500|502|503)\\\\\\\\b|HttpRequestException\\\",\\\"player_failure\\\":r\\\"PlaybackError|PlaybackInfo|NoCompatibleStream|not supported|unsupported|playback failed|Fatal playback|stream failed\\\",\\\"stream_transcode\\\":r\\\"ffmpeg|transcod|remux|/Videos/.*stream|hls|\\\\.m3u8\\\",\\\"plugin_activity\\\":r\\\"Vivoapk|VivoAPK|Mega OTT\\\"}\\ncounts={key:len(re.findall(pattern,s,re.IGNORECASE)) for key,pattern in tags.items()}\\nstatuses={k:subprocess.run([\\\"systemctl\\\",\\\"is-active\\\",k],capture_output=True,text=True,timeout=8).stdout.strip() for k in (\\\"jellyfin-pink.service\\\",\\\"vivoapk-backend.service\\\",\\\"nginx.service\\\")}\\nnet=subprocess.run([\\\"systemctl\\\",\\\"show\\\",svc,\\\"-p\\\",\\\"PrivateNetwork\\\",\\\"--value\\\"],capture_output=True,text=True,timeout=8)\\nprint(json.dumps({\\\"task\\\":\\\"jellyfin-chrome-android-playback-log-review\\\",\\\"journal_status\\\":p.returncode,\\\"journal_lines\\\":len(s.splitlines()),\\\"after_screenshot_1055_counts\\\":counts,\\\"services\\\":statuses,\\\"private_network\\\":net.stdout.strip(),\\\"raw_logs_emitted\\\":False,\\\"secrets_emitted\\\":False},sort_keys=True))\\n\"],capture_output=True,text=True,timeout=35)\ntry:v=json.loads(p.stdout)\nexcept Exception:v={\"task\":\"jellyfin-chrome-android-playback-log-review\",\"status\":\"blocked\",\"exit_code\":p.returncode}\nprint(json.dumps(v,sort_keys=True))\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 64000,
+          "idle_timeout_ms": 64000,
+          "terminal": {
+            "columns": 140,
+            "rows": 20,
+            "scrollback": 50
+          },
+          "limits": {
+            "output_bytes": 3200
+          }
+        }
+      }
+    }
+  ]
+}
