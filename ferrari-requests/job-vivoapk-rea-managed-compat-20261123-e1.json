@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "id": "vivoapk-rea-managed-compat-20261123-e1",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import os,json,subprocess\nfrom pathlib import Path\np=Path(\"/srv/projects/skill-universal/.runtime/rea-vivoapk-jellyfin-20261123-e1\")\np.mkdir(mode=0o700,exist_ok=False)\nproc=subprocess.run([\"sudo\",\"-n\",\"/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12\",\"-c\",\"\\nimport os,sys,hashlib,stat,json\\nfrom pathlib import Path\\nsrc=Path(\\\"/srv/projects/jellyfin-server/data/plugins/VivoAPK Mega OTT Auth_0.1.0.0/Jellyfin.Plugin.VivoapkMegaAuth.dll\\\"); dst=Path(\\\"/srv/projects/skill-universal/.runtime/rea-vivoapk-jellyfin-20261123-e1/Jellyfin.Plugin.VivoapkMegaAuth.dll\\\")\\nst=src.lstat()\\nif not stat.S_ISREG(st.st_mode) or src.is_symlink():raise RuntimeError(\\\"plugin_source_invalid\\\")\\nif dst.exists() or dst.is_symlink():raise RuntimeError(\\\"scratch_exists\\\")\\nif dst.parent.is_symlink() or not dst.parent.is_dir():raise RuntimeError(\\\"scratch_parent_invalid\\\")\\nif st.st_size > 2*1024*1024:raise RuntimeError(\\\"plugin_too_large\\\")\\nfile=os.open(str(dst),os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)\\ntry:\\n with os.fdopen(file,\\\"wb\\\") as out:\\n  with src.open(\\\"rb\\\") as inp:out.write(inp.read(2*1024*1024+1))\\n os.chown(dst,int(sys.argv[1]),int(sys.argv[2]))\\n print(json.dumps({\\\"copied\\\":True,\\\"plugin_bytes\\\":st.st_size,\\\"sha256\\\":hashlib.sha256(dst.read_bytes()).hexdigest(),\\\"media_copied\\\":False,\\\"no_credentials_read\\\":True}))\\nexcept:\\n if dst.exists():dst.unlink()\\n raise\\n\",str(os.getuid()),str(os.getgid())],capture_output=True,text=True,timeout=20)\nprint(proc.stdout.strip() if proc.returncode==0 else json.dumps({\"copied\":False,\"root_exit\":proc.returncode,\"error\":\"privileged_copy_failed\"}))\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 38000,
+          "idle_timeout_ms": 38000,
+          "terminal": {
+            "columns": 130,
+            "rows": 20,
+            "scrollback": 70
+          },
+          "limits": {
+            "output_bytes": 4500
+          }
+        }
+      }
+    },
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "inspect_managed_artifact",
+        "arguments": {
+          "path": "/srv/projects/skill-universal/.runtime/rea-vivoapk-jellyfin-20261123-e1/Jellyfin.Plugin.VivoapkMegaAuth.dll",
+          "detail": "summary"
+        }
+      }
+    },
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "inspect_managed_members",
+        "arguments": {
+          "path": "/srv/projects/skill-universal/.runtime/rea-vivoapk-jellyfin-20261123-e1/Jellyfin.Plugin.VivoapkMegaAuth.dll",
+          "detail": "summary",
+          "type_names": [
+            "Jellyfin.Plugin.VivoapkMegaAuth.VivoapkLivePreviewChannel"
+          ]
+        }
+      }
+    },
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,os\nfrom pathlib import Path\nroot=Path(\"/srv/projects/skill-universal/.runtime/rea-vivoapk-jellyfin-20261123-e1\"); p=root/\"Jellyfin.Plugin.VivoapkMegaAuth.dll\"\nif root.is_symlink() or p.is_symlink():raise RuntimeError(\"symlink_rejected\")\nif p.is_file():p.unlink()\nif root.is_dir():root.rmdir()\nprint(json.dumps({\"scratch_cleaned\":not root.exists(),\"no_production_write\":True}))\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 38000,
+          "idle_timeout_ms": 38000,
+          "terminal": {
+            "columns": 130,
+            "rows": 20,
+            "scrollback": 70
+          },
+          "limits": {
+            "output_bytes": 4500
+          }
+        }
+      }
+    }
+  ]
+}
