@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "id": "vivo-rtp1-finish-20261123-1552",
+  "kind": "ruflo-team",
+  "phase": "finish",
+  "team_id": "vivo-rtp1-black-20261123-1509",
+  "revision": 16,
+  "approval": "Accept scoped software correction: production native Android profile now DirectPlay=true, actual RTP1 H264/AAC decoded with nonblack image and nonsilent audio, pinned installed DLL matches validated source, rollback/HTTPS/services PASS.143 backend tests passed locally,24 infra tests on VPS; pytest absent on VPS explicitly recorded. No physical Android playback claimed, no other-device or full-catalog certification. Existing one-account30min pilot remains. Main aligned with tested installed code; deployment not repeated after independent proof."
+}
