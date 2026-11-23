@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "id": "vivo-source-rea-adb-check-20261123-1645",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivo-android-source-error-20261123-1600",
+  "revision": 6,
+  "turn": {
+    "task": "source",
+    "role": "tester",
+    "kind": "rea-mcp",
+    "message": "Use original REA ADB discovery via existing GitHub Actions SSH Ferrari bridge. Do not start/emulate/install applications, do not access any other remote service, do not claim physical testing if no authorized device is attached.",
+    "mcp_requests": [
+      {
+        "method": "tools/call",
+        "params": {
+          "name": "list_adb_devices",
+          "arguments": {}
+        }
+      }
+    ]
+  }
+}
