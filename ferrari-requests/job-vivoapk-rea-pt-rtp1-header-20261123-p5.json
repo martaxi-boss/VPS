@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-rea-pt-rtp1-header-20261123-p5",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,subprocess\np=subprocess.run([\"sudo\",\"-n\",\"/srv/projects/Vivoapk/.venv/bin/python\",\"-c\",\"import json,shlex,subprocess,sys\\nfrom datetime import datetime,UTC\\nfrom pathlib import Path\\nfrom urllib.parse import urlsplit,quote\\nsys.path.insert(0,\\\"/srv/projects/Vivoapk/source/backend\\\")\\nfrom app.clients.mega import MegaOTTClient\\nfrom app.clients.xtream import XtreamClient\\nfrom app.clients.catalog import XtreamCatalogClient,_parse_categories,_parse_items\\nfrom app.outbound_transport import PinnedHTTPTransport\\nfrom app.url_safety import resolve_dns_link_target\\nfrom app.schemas import CatalogKind\\nimport httpx\\ndata={\\\"task\\\":\\\"portugal-rtp1-direct-origin-headers\\\",\\\"status\\\":\\\"blocked\\\",\\\"provider_authenticated\\\":False,\\\"payload_consumed\\\":False,\\\"streams_relayed\\\":False,\\\"credentials_logged\\\":False,\\\"results\\\":[]}\\ntry:\\n env=Path(\\\"/root/project-secrets/VIVOAPK/backend-auth.env\\\")\\n c={}\\n for line in env.read_text().splitlines():\\n  if \\\"=\\\" not in line or line.lstrip().startswith(\\\"#\\\"):continue\\n  k,v=line.split(\\\"=\\\",1);k=k.strip().removeprefix(\\\"export \\\").strip()\\n  if k in (\\\"MEGA_OTT_API_BASE\\\",\\\"MEGA_OTT_API_TOKEN\\\"):\\n   a=shlex.split(v.strip())\\n   if len(a)==1:c[k]=a[0]\\n if set(c)!={\\\"MEGA_OTT_API_BASE\\\",\\\"MEGA_OTT_API_TOKEN\\\"}:raise RuntimeError(\\\"missing_api_config\\\")\\n p=subprocess.run([\\\"sudo\\\",\\\"-n\\\",\\\"-u\\\",\\\"postgres\\\",\\\"psql\\\",\\\"-X\\\",\\\"-A\\\",\\\"-t\\\",\\\"-d\\\",\\\"vivoapk\\\",\\\"-c\\\",\\\"SELECT mega_subscription_id FROM subscription_mappings ORDER BY id LIMIT 4\\\"],capture_output=True,text=True,timeout=10)\\n if p.returncode:raise RuntimeError(\\\"mapping_lookup\\\")\\n ids=[int(line) for line in p.stdout.splitlines() if line.strip().isdigit()]\\n with MegaOTTClient(base_url=c[\\\"MEGA_OTT_API_BASE\\\"],token=c[\\\"MEGA_OTT_API_TOKEN\\\"],timeout_seconds=10) as mega:\\n  for sid in ids:\\n   try:sub=mega.get_subscription(sid)\\n   except Exception:continue\\n   pw=sub.password.get_secret_value() if sub.password else \\\"\\\"\\n   if not pw or (sub.expiring_at and sub.expiring_at<=datetime.now(UTC)):continue\\n   xt=XtreamClient(timeout_seconds=10)\\n   try:auth=xt.authenticate(dns_link=sub.dns_link,username=sub.username,password=pw)\\n   except Exception:continue\\n   finally:xt.close()\\n   if auth.code!=\\\"SUCCESS\\\":continue\\n   data[\\\"provider_authenticated\\\"]=True\\n   target=resolve_dns_link_target(sub.dns_link)\\n   data[\\\"provider_origin_https\\\"]=urlsplit(target.origin).scheme==\\\"https\\\"\\n   with httpx.Client(transport=PinnedHTTPTransport(target,max_response_bytes=8*1024*1024),headers={\\\"Accept\\\":\\\"application/json\\\",\\\"Accept-Encoding\\\":\\\"identity\\\",\\\"Connection\\\":\\\"close\\\",\\\"User-Agent\\\":\\\"Vivoapk/1.0\\\"},timeout=httpx.Timeout(12),follow_redirects=False,trust_env=False) as client:\\n    q={\\\"username\\\":sub.username,\\\"password\\\":pw}\\n    cats=_parse_categories(XtreamCatalogClient._read(client,target.origin,q,\\\"get_live_categories\\\"))\\n    cat=next((v for v in cats if \\\"PORTUGAL\\\" in v[\\\"name\\\"].upper() and \\\"GERAL\\\" in v[\\\"name\\\"].upper()),None)\\n    if cat is None:raise RuntimeError(\\\"portugal_geral_not_found\\\")\\n    rows=_parse_items(XtreamCatalogClient._read(client,target.origin,q,\\\"get_live_streams\\\",extra={\\\"category_id\\\":cat[\\\"id\\\"]}),CatalogKind.LIVE,\\\"stream_id\\\")\\n    sample=next((v for v in rows if \\\"RTP 1\\\" in v[\\\"title\\\"].upper()),None)\\n    if sample is None:raise RuntimeError(\\\"rtp1_not_found\\\")\\n    data[\\\"channel_label\\\"]=sample[\\\"title\\\"]\\n    for fmt,path in ((\\\"ts\\\",\\\"/live/{}/{}/{}.ts\\\"),(\\\"hls\\\",\\\"/live/{}/{}/{}.m3u8\\\")):\\n     source=target.origin.rstrip(\\\"/\\\")+path.format(quote(sub.username,safe=\\\"\\\"),quote(pw,safe=\\\"\\\"),quote(sample[\\\"id\\\"],safe=\\\"\\\"))\\n     item={\\\"format\\\":fmt,\\\"status\\\":None,\\\"content_type\\\":None,\\\"cors_allowed\\\":False}\\n     try:\\n      with httpx.Client(transport=PinnedHTTPTransport(target,max_response_bytes=1024),timeout=httpx.Timeout(7,connect=6),follow_redirects=False,trust_env=False) as media:\\n       with media.stream(\\\"GET\\\",source,headers={\\\"User-Agent\\\":\\\"Vivoapk/1.0\\\",\\\"Origin\\\":\\\"https://serveriptv.duckdns.org\\\",\\\"Range\\\":\\\"bytes=0-0\\\"}) as res:\\n        item[\\\"status\\\"]=res.status_code\\n        item[\\\"content_type\\\"]=res.headers.get(\\\"content-type\\\",\\\"\\\").split(\\\";\\\")[0][:45]\\n        item[\\\"cors_allowed\\\"]=res.headers.get(\\\"access-control-allow-origin\\\",\\\"\\\") in (\\\"*\\\",\\\"https://serveriptv.duckdns.org\\\")\\n        item[\\\"redirected\\\"]=res.status_code in (301,302,303,307,308)\\n        if item[\\\"redirected\\\"]:item[\\\"redirect_scheme\\\"]=urlsplit(res.headers.get(\\\"location\\\",\\\"\\\")).scheme\\n     except Exception as exc:item[\\\"error_type\\\"]=type(exc).__name__\\n     data[\\\"results\\\"].append(item)\\n   data[\\\"status\\\"]=\\\"header_probe_complete\\\"\\n   break\\nexcept Exception as exc:data[\\\"error_type\\\"]=type(exc).__name__\\nprint(json.dumps(data,sort_keys=True))\\n\"],capture_output=True,text=True,timeout=105)\ntry:result=json.loads(p.stdout)\nexcept Exception:result={\"status\":\"blocked\",\"reason\":\"unreadable_probe\",\"exit\":p.returncode}\nprint(json.dumps(result,sort_keys=True))"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 145000,
+          "idle_timeout_ms": 145000,
+          "terminal": {
+            "columns": 140,
+            "rows": 24,
+            "scrollback": 65
+          },
+          "limits": {
+            "output_bytes": 6200
+          }
+        }
+      }
+    }
+  ]
+}
