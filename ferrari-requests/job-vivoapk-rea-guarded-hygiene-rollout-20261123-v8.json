@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-rea-guarded-hygiene-rollout-20261123-v8",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "\nimport subprocess,json,sys\ncmd=['sudo','-n','/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12',\n '/srv/projects/Vivoapk/source/infra/upgrade_live_preview.py']\nsha='578f0454f8a4ef2e6dbeefb11eb0089afe5dd5d0'\nret={'task':'VivoAPK guarded HLS pilot hygiene rollout','target_sha':sha,'pipeline':'preflight_then_atomic_upgrade'}\ntry:\n    p=subprocess.run(cmd+['preflight','--sha',sha],capture_output=True,text=True,timeout=45)\n    try: pre=json.loads(p.stdout.strip().splitlines()[-1])\n    except Exception: pre={'status':'output_unparseable'}\n    ret['preflight_status']=pre.get('status')\n    if p.returncode or pre.get('status')!='pass':\n        ret['status']='blocked_preflight';ret['reason']=pre.get('reason','preflight_failed')\n    else:\n        run=subprocess.run(cmd+['activate','--sha',sha],capture_output=True,text=True,timeout=205)\n        try: act=json.loads(run.stdout.strip().splitlines()[-1])\n        except Exception: act={'status':'output_unparseable'}\n        ret['rollout_status']=act.get('status')\n        ret['changed']=bool(act.get('changed'))\n        ret['protected_pink_unchanged']=act.get('pink_modified') is False\n        ret['new_stream_proxy_installed']=act.get('stream_proxy_installed')\n        ret['rollback_reported']=act.get('status')=='rolled_back_after_failure'\n        if act.get('status')=='pilot_enabled' and run.returncode==0:\n            ret['status']='passed'\n        else:\n            ret['status']='blocked_or_rollback';ret['reason']=act.get('reason','rollout_not_verified')\nexcept subprocess.TimeoutExpired:\n    ret['status']='blocked_timeout'\nexcept Exception as e:\n    ret['status']='blocked_exception';ret['reason']=type(e).__name__\nprint(json.dumps(ret,sort_keys=True))\nsys.exit(0 if ret.get('status')=='passed' else 2)\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 265000,
+          "idle_timeout_ms": 265000,
+          "terminal": {
+            "columns": 140,
+            "rows": 22,
+            "scrollback": 50
+          },
+          "limits": {
+            "output_bytes": 6500
+          }
+        }
+      }
+    }
+  ]
+}
