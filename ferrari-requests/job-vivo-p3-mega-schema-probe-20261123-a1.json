@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "vivo-p3-mega-schema-probe-20261123-a1",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "synthetic.json",
+    "content_base64": "e30K"
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\np=subprocess.run([\"sudo\",\"-n\",\"python3\",\"-c\",\"import json, os, pathlib, shlex, stat, urllib.request, urllib.error\\nfrom urllib.parse import urlsplit\\nr={\\\"operation\\\":\\\"vivo_p3_mega_metadata_capability\\\",\\\"changed\\\":False,\\\"pink_modified\\\":False,\\\"jellyfin_modified\\\":False}\\ntry:\\n p=pathlib.Path(\\\"/root/project-secrets/VIVOAPK/backend-auth.env\\\")\\n if p.is_symlink() or not p.is_file() or p.stat().st_uid!=0 or stat.S_IMODE(p.stat().st_mode)!=0o600: raise RuntimeError(\\\"private_config_unavailable\\\")\\n entries={}\\n for line in p.read_text().splitlines():\\n  if \\\"=\\\" not in line or line.lstrip().startswith(\\\"#\\\"):continue\\n  k,v=line.split(\\\"=\\\",1);k=k.strip().removeprefix(\\\"export \\\").strip()\\n  if k in (\\\"MEGA_OTT_API_TOKEN\\\",\\\"MEGA_OTT_API_BASE\\\"):\\n   tokens=shlex.split(v)\\n   if len(tokens)!=1 or not tokens[0]:raise RuntimeError(\\\"ambiguous_private_env\\\")\\n   entries[k]=tokens[0]\\n base=entries[\\\"MEGA_OTT_API_BASE\\\"].rstrip(\\\"/\\\")\\n token=entries[\\\"MEGA_OTT_API_TOKEN\\\"]\\n parsed=urlsplit(base)\\n if parsed.scheme!=\\\"https\\\" or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:raise RuntimeError(\\\"unsafe_api_url\\\")\\n class NoRedirect(urllib.request.HTTPRedirectHandler):\\n  def redirect_request(self,*args,**kwargs):raise RuntimeError(\\\"api_redirect_disallowed\\\")\\n opener=urllib.request.build_opener(urllib.request.ProxyHandler({}),urllib.request.HTTPSHandler(),NoRedirect())\\n def fetch(url):\\n  req=urllib.request.Request(url,headers={\\\"Accept\\\":\\\"application/json\\\",\\\"Authorization\\\":\\\"Bearer \\\"+token})\\n  try:\\n   with opener.open(req,timeout=12) as x:\\n    if x.status!=200: return x.status,None\\n    raw=x.read(1024*1024+1)\\n    if len(raw)>1024*1024:raise RuntimeError(\\\"oversized_response\\\")\\n    return x.status,json.loads(raw)\\n  except urllib.error.HTTPError as e: return e.code,None\\n code,data=fetch(base+\\\"/v1/subscriptions?page=1&per_page=1\\\")\\n r[\\\"list_http_status\\\"]=code\\n if code!=200:raise RuntimeError(\\\"api_listing_unavailable\\\")\\n items=data if isinstance(data,list) else next((data[k] for k in (\\\"data\\\",\\\"items\\\",\\\"subscriptions\\\",\\\"results\\\") if isinstance(data,dict) and isinstance(data.get(k),list)),None)\\n if items is None:raise RuntimeError(\\\"unsupported_list_schema\\\")\\n r[\\\"sample_available\\\"]=bool(items)\\n if items:\\n  i=items[0]\\n  if not isinstance(i,dict) or not isinstance(i.get(\\\"id\\\"),int):raise RuntimeError(\\\"no_numeric_reference\\\")\\n  status,detail=fetch(base+\\\"/v1/subscriptions/\\\"+str(i[\\\"id\\\"]))\\n  r[\\\"detail_http_status\\\"]=status\\n  if status==200 and isinstance(detail,dict):\\n   r[\\\"password_available\\\"]=isinstance(detail.get(\\\"password\\\"),str) and bool(detail[\\\"password\\\"])\\n   r[\\\"dns_general_present\\\"]=isinstance(detail.get(\\\"dns_link\\\"),str) and bool(detail[\\\"dns_link\\\"])\\n   r[\\\"dns_samsung_lg_present\\\"]=isinstance(detail.get(\\\"dns_link_for_samsung_lg\\\"),str) and bool(detail[\\\"dns_link_for_samsung_lg\\\"])\\n   r[\\\"schema_m3u\\\"]=str(detail.get(\\\"type\\\",\\\"\\\")).lower()==\\\"m3u\\\"\\n else:r[\\\"detail_http_status\\\"]=\\\"not_applicable\\\"\\n r[\\\"status\\\"]=\\\"completed\\\"\\nexcept Exception as ex:\\n r[\\\"status\\\"]=\\\"blocked\\\";r[\\\"reason\\\"]=str(ex) if str(ex) in (\\\"private_config_unavailable\\\",\\\"ambiguous_private_env\\\",\\\"unsafe_api_url\\\",\\\"api_redirect_disallowed\\\",\\\"oversized_response\\\",\\\"api_listing_unavailable\\\",\\\"unsupported_list_schema\\\",\\\"no_numeric_reference\\\") else type(ex).__name__\\nprint(json.dumps(r,sort_keys=True))\"],capture_output=True,text=True,timeout=70)\ntry: d=json.loads(p.stdout)\nexcept: d={\"status\":\"invalid_private_report\"}\nd[\"ferrari_command_exit\"]=p.returncode\nprint(json.dumps(d,sort_keys=True))",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 90000,
+          "idle_timeout_ms": 90000,
+          "terminal": {
+            "columns": 145,
+            "rows": 24,
+            "scrollback": 100
+          },
+          "limits": {
+            "output_bytes": 10000
+          }
+        }
+      }
+    }
+  ]
+}
