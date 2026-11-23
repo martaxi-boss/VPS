@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "vivo-hygiene-inventory-20261123-03",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "synthetic.json",
+    "content_base64": "e30K"
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\np=subprocess.run([\"sudo\",\"-n\",\"python3\",\"-c\",\"import json,subprocess,os,shutil,stat\\nfrom pathlib import Path\\nfrom datetime import datetime,timezone\\nr={\\\"audit\\\":\\\"vivoapk-hygiene-safe-readonly\\\",\\\"changed\\\":False,\\\"projects\\\":{},\\\"cleanup_candidates\\\":{},\\\"services\\\":{}}\\nfor name in (\\\"vivoapk-backend.service\\\",\\\"jellyfin-pink.service\\\",\\\"pink-iptv-backend.service\\\",\\\"pink-vpn.service\\\",\\\"nginx.service\\\",\\\"postgresql.service\\\"):\\n try:r[\\\"services\\\"][name]=subprocess.run([\\\"systemctl\\\",\\\"is-active\\\",\\\"--quiet\\\",name],timeout=5).returncode==0\\n except Exception:r[\\\"services\\\"][name]=False\\nfor root in (\\\"/srv/projects/Vivoapk\\\",\\\"/srv/projects/jellyfin-server\\\",\\\"/srv/projects/pink-iptv\\\"):\\n p=Path(root);entry={\\\"exists\\\":p.is_dir()}\\n if p.is_dir():\\n  try:\\n   disk=shutil.disk_usage(p)\\n   entry[\\\"disk_free_gib\\\"]=round(disk.free/(1024**3),2)\\n   entry[\\\"top_level_items\\\"]=len(list(p.iterdir()))\\n  except Exception:entry[\\\"inspection_limited\\\"]=True\\n r[\\\"projects\\\"][p.name]=entry\\nsrc=Path(\\\"/srv/projects/Vivoapk/source\\\")\\ntry:\\n a=subprocess.run([\\\"git\\\",\\\"-C\\\",str(src),\\\"status\\\",\\\"--porcelain=v1\\\",\\\"--untracked-files=normal\\\"],capture_output=True,text=True,timeout=10)\\n r[\\\"projects\\\"][\\\"Vivoapk\\\"][\\\"working_tree_clean\\\"]=a.returncode==0 and not a.stdout.strip()\\n r[\\\"projects\\\"][\\\"Vivoapk\\\"][\\\"uncommitted_file_count\\\"]=len(a.stdout.splitlines()) if a.returncode==0 else None\\n b=subprocess.run([\\\"git\\\",\\\"-C\\\",str(src),\\\"rev-parse\\\",\\\"HEAD\\\"],capture_output=True,text=True,timeout=10)\\n r[\\\"projects\\\"][\\\"Vivoapk\\\"][\\\"deployed_sha_short\\\"]=b.stdout.strip()[:12] if b.returncode==0 else None\\nexcept Exception:r[\\\"projects\\\"][\\\"Vivoapk\\\"][\\\"git_unavailable\\\"]=True\\ncandidate_root=Path(\\\"/srv/projects/Vivoapk/source/backend\\\")\\ntmpcount=pycount=0\\nbytes_est=0\\nif candidate_root.is_dir():\\n for path in candidate_root.rglob(\\\"*\\\"):\\n  if path.is_symlink():continue\\n  if path.is_file() and path.suffix==\\\".pyc\\\":\\n   pycount+=1;bytes_est+=path.stat().st_size\\n  elif path.is_file() and path.suffix==\\\".tmp\\\" and path.stat().st_mtime<datetime.now(timezone.utc).timestamp()-86400:\\n   tmpcount+=1;bytes_est+=path.stat().st_size\\nr[\\\"cleanup_candidates\\\"]={\\\"pycache_compiled_files\\\":pycount,\\\"stale_tmp_files\\\":tmpcount,\\\"estimated_bytes\\\":bytes_est,\\\"deletion_performed\\\":False}\\nprint(json.dumps(r,sort_keys=True))\\n\"],capture_output=True,text=True,timeout=65)\ntry:d=json.loads(p.stdout)\nexcept Exception:d={\"audit\":\"vivoapk-hygiene-safe-readonly\",\"error\":\"no_report\",\"exit\":p.returncode}\nprint(json.dumps(d,sort_keys=True))",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 95000,
+          "idle_timeout_ms": 95000,
+          "terminal": {
+            "columns": 140,
+            "rows": 24,
+            "scrollback": 100
+          },
+          "limits": {
+            "output_bytes": 8000
+          }
+        }
+      }
+    }
+  ]
+}
