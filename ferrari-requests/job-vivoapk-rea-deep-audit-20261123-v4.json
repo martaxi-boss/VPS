@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-rea-deep-audit-20261123-v4",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\ncode=\"\\nimport json, os, stat, subprocess, socket, ssl, urllib.request, shutil, hashlib, re\\nfrom pathlib import Path\\nfrom xml.etree import ElementTree\\nr=Path('/srv/projects/Vivoapk'); j=Path('/srv/projects/jellyfin-server')\\nout={'task':'deep-audit-vivoapk-readonly-20261123','write_actions':0}\\ndef call(args, timeout=6):\\n    try:\\n        p=subprocess.run(args,text=True,capture_output=True,timeout=timeout)\\n        return p.stdout.strip() if p.returncode==0 else None\\n    except Exception: return None\\nout['revision']=call(['git','-C',str(r/'source'),'rev-parse','HEAD'])\\nout['checkout_clean']=call(['git','-C',str(r/'source'),'status','--porcelain','--untracked-files=no'])==''\\nout['services']={n:call(['systemctl','is-active',n]) for n in ['vivoapk-backend.service','jellyfin-pink.service','nginx.service','postgresql.service','pink-iptv-backend.service','pink-vpn.service']}\\nout['residue']={p:str(Path(p).exists()) for p in ['/srv/projects/pink-iptv','/root/pink-iptv','/etc/nginx/sites-enabled/pink-iptv-https.conf']}\\nout['source_paths']={p:(r/'source'/p).is_file() for p in ['backend/app/main.py','jellyfin-auth/Vivoapk.Jellyfin.Auth/VivoapkLivePreviewChannel.cs','infra/upgrade_live_preview.py']}\\nout['disk_free_gib']=round(shutil.disk_usage(r).free/1024**3,2) if r.is_dir() else None\\nfor label,path in [('vivo_sock',r/'run/backend.sock'),('jelly_sock',j/'run/jellyfin.sock')]:\\n    if path.exists():\\n        out[label]={'is_socket':stat.S_ISSOCK(path.stat().st_mode),'mode':oct(stat.S_IMODE(path.stat().st_mode))}\\n    else:out[label]={'exists':False}\\n    try:\\n        with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as s:\\n            s.settimeout(3);s.connect(str(path))\\n            ep='/openapi.json' if label=='vivo_sock' else '/System/Info/Public'\\n            s.sendall(('GET '+ep+' HTTP/1.1\\\\r\\\\nHost: localhost\\\\r\\\\nConnection: close\\\\r\\\\n\\\\r\\\\n').encode())\\n            out[label]['status']=s.recv(150).split(b'\\\\r\\\\n',1)[0].decode(errors='replace')\\n    except Exception as e:out[label]['error_type']=type(e).__name__\\ndll=j/'data/plugins/VivoAPK Mega OTT Auth_0.1.0.0/Jellyfin.Plugin.VivoapkMegaAuth.dll'\\ncfg=j/'data/plugins/configurations/Jellyfin.Plugin.VivoapkMegaAuth.xml'\\nout['plugin_dll_exists']=dll.is_file()\\nout['plugin_dll_sha256']=hashlib.sha256(dll.read_bytes()).hexdigest() if dll.is_file() else None\\ntry:\\n    root=ElementTree.parse(cfg).getroot()\\n    out['plugin_flags']={p:(root.findtext(p) or '').strip().lower()=='true' for p in ['Enabled','PilotLiveChannels','MonitorEntitlements','ProvisionPrivateLibraries']}\\nexcept Exception as e:out['plugin_flags_error']=type(e).__name__\\nsrc=r/'source/jellyfin-auth/Vivoapk.Jellyfin.Auth/VivoapkLivePreviewChannel.cs'\\nif src.is_file():\\n    code=src.read_text()\\n    out['pilot_code_flags']={'no_channel_image':('HasImage = false' in code),'global_pilot_snapshot':('static PilotSnapshot?' in code),'media_info_missing_user_param':('GetChannelItemMediaInfo(\\\\n        string id, CancellationToken' in code),'direct_hls_url':('.m3u8' in code),'image_types_none':('Array.Empty<ImageType>()' in code),'media_sources_from_memory':('Source(stream)' in code)}\\nlogs=call(['journalctl','-u','jellyfin-pink.service','--since','30 minutes ago','-n','300','--no-pager','-o','cat'],timeout=6) or ''\\nout['jellyfin_log_counts']={p:len(re.findall(p,logs,re.I)) for p in ['error','exception','ffmpeg','transcod','channel','playback','direct']}\\nout['backup_directories']=len([p for p in (r/'backups/live-channel-pilot').glob('*') if p.is_dir()]) if (r/'backups/live-channel-pilot').is_dir() else 0\\ntry:\\n    with urllib.request.urlopen('https://serveriptv.duckdns.org/System/Info/Public',timeout=5) as response:\\n        out['public_https']={'http':response.status,'tls_valid':True}\\nexcept Exception as e:out['public_https']={'error_type':type(e).__name__}\\nprint(json.dumps(out,sort_keys=True,separators=(',',':')))\\n\"\np=subprocess.run(['sudo','-n','/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12','-c',code],capture_output=True,text=True,timeout=38)\nprint(p.stdout.strip() if p.returncode==0 else json.dumps({'status':'blocked','reason':'privileged_read_failed','code':p.returncode}))"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 85000,
+          "idle_timeout_ms": 85000,
+          "terminal": {
+            "columns": 140,
+            "rows": 22,
+            "scrollback": 50
+          },
+          "limits": {
+            "output_bytes": 6500
+          }
+        }
+      }
+    }
+  ]
+}
