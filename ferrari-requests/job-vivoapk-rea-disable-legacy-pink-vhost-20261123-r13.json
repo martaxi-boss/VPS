@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-rea-disable-legacy-pink-vhost-20261123-r13",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\nc=\"\\nimport os,json,stat,hashlib,socket,ssl,urllib.request,subprocess,re\\nfrom pathlib import Path\\nP=Path('/etc/nginx/sites-enabled/pink-iptv-https.conf')\\nB=Path('/srv/projects/Vivoapk/backups/legacy-nginx-20261123')\\nS=Path('/srv/projects/Vivoapk/run/backend.sock')\\nJ=Path('/srv/projects/jellyfin-server/run/jellyfin.sock')\\nDIGEST='69f3cec271cc209045b12def1095a9e81a20b385b6a6e77db8926d7bfcdd39ca'\\nout={'task':'disable only orphaned PINK Nginx enabled symlink','changed':False,'deleted_certificates':False,'deleted_vhost_target':False,'new_services':False}\\ndef run(argv,timeout=20):\\n  p=subprocess.run(argv,capture_output=True,text=True,timeout=timeout)\\n  if p.returncode!=0:raise RuntimeError('command_failed_'+argv[0].split('/')[-1])\\ndef active(s):\\n  return subprocess.run(['systemctl','is-active','--quiet',s],timeout=6).returncode==0\\ndef http(path,uri):\\n  try:\\n    with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as sock:\\n      sock.settimeout(4);sock.connect(str(path))\\n      sock.sendall(('GET '+uri+' HTTP/1.1\\\\r\\\\nHost: localhost\\\\r\\\\nConnection: close\\\\r\\\\n\\\\r\\\\n').encode())\\n      return b'200 OK' in sock.recv(130).split(b'\\\\r\\\\n',1)[0]\\n  except OSError:return False\\ndef https():\\n  try:\\n    with urllib.request.urlopen('https://serveriptv.duckdns.org/System/Info/Public',timeout=9,context=ssl.create_default_context()) as r:\\n      return r.status==200\\n  except Exception:return False\\nrenamed=False\\ntry:\\n  if os.geteuid()!=0:raise RuntimeError('root_required')\\n  if not P.is_symlink() or not P.exists():raise RuntimeError('legacy_enabled_symlink_missing')\\n  target=P.resolve(strict=True)\\n  if target.parent!=Path('/etc/nginx/sites-available') or target.is_symlink() or not target.is_file():\\n    raise RuntimeError('legacy_symlink_target_unexpected')\\n  original=target.read_bytes()\\n  if hashlib.sha256(original).hexdigest()!=DIGEST:raise RuntimeError('vhost_hash_changed')\\n  conf=original.decode()\\n  if any(term in conf.lower() for term in ('serveriptv.duckdns.org','vivo-team.duckdns.org','vivoapk','jellyfin','default_server')):\\n    raise RuntimeError('legacy_vhost_has_protected_dependency')\\n  if len([name for line in re.findall(r'\\\\bserver_name\\\\s+([^;]+);',conf) for name in line.split()])!=2:\\n    raise RuntimeError('legacy_server_names_changed')\\n  for s in ('vivoapk-backend.service','jellyfin-pink.service','nginx.service','postgresql.service'):\\n    if not active(s):raise RuntimeError('protected_service_not_active_'+s)\\n  if active('pink-iptv-backend.service') or active('pink-vpn.service'):\\n    raise RuntimeError('legacy_pink_still_active')\\n  if not (http(S,'/openapi.json') and http(J,'/System/Info/Public') and https()):\\n    raise RuntimeError('baseline_health_failed')\\n  run(['nginx','-t'])\\n  if B.exists() or B.is_symlink():raise RuntimeError('backup_exists_review_before_retry')\\n  B.mkdir(mode=0o700);os.chmod(B,0o700)\\n  backup=B/'pink-iptv-https.conf.disabled'\\n  if backup.exists() or backup.is_symlink():raise RuntimeError('backup_symlink_exists')\\n  metadata={'original_symlink':str(P),'original_target':os.readlink(P),'original_sha256':DIGEST}\\n  marker=B/'manifest.json';marker.write_text(json.dumps(metadata,sort_keys=True)+'\\\\n');os.chmod(marker,0o600)\\n  try:\\n    P.rename(backup);renamed=True\\n    run(['nginx','-t'])\\n    run(['systemctl','reload','nginx.service'])\\n    if not https() or not http(S,'/openapi.json') or not http(J,'/System/Info/Public'):\\n      raise RuntimeError('protected_http_postflight_failure')\\n    if not all(active(s) for s in ('vivoapk-backend.service','jellyfin-pink.service','nginx.service','postgresql.service')):\\n      raise RuntimeError('protected_services_postflight_failure')\\n    if P.exists() or P.is_symlink():raise RuntimeError('old_link_not_disabled')\\n    out.update({'status':'passed','changed':True,'legacy_nginx_enabled':False,'target_preserved':target.is_file(),\\n      'https_tls_valid_200':True,'jellyfin_socket_http200':True,'vivoapk_socket_http200':True,\\n      'nginx_config_syntax':'PASS','rollback_symlink_available':backup.is_symlink()})\\n  except Exception as exc:\\n    out['failure_reason']=str(exc)\\n    try:\\n      if renamed and backup.is_symlink() and not (P.exists() or P.is_symlink()):\\n        backup.rename(P);renamed=False\\n      run(['nginx','-t']);run(['systemctl','reload','nginx.service'])\\n      out['rolled_back']=True\\n      out['https_after_rollback']=https()\\n    except Exception as restore:\\n      out['rolled_back']=False\\n      out['rollback_error']=type(restore).__name__\\n    out['status']='blocked_or_rolled_back'\\nexcept Exception as e:\\n  out['status']='blocked_preflight';out['reason']=str(e)\\nprint(json.dumps(out,sort_keys=True))\\n\"\np=subprocess.run(['sudo','-n','/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12','-c',c],capture_output=True,text=True,timeout=85)\nprint(p.stdout.strip() if p.stdout.strip() else json.dumps({'status':'missing','exit':p.returncode}))"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 160000,
+          "idle_timeout_ms": 160000,
+          "terminal": {
+            "columns": 140,
+            "rows": 22,
+            "scrollback": 50
+          },
+          "limits": {
+            "output_bytes": 5500
+          }
+        }
+      }
+    }
+  ]
+}
