@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-rea-direct-only-activate-20261123-g1",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,hashlib,subprocess,urllib.request\nSHA=\"c89d42096aae9068ea0c613774bfda0a03ff830e\"\nURL=\"https://raw.githubusercontent.com/martaxi-boss/Vivoapk/c89d42096aae9068ea0c613774bfda0a03ff830e/infra/upgrade_live_preview.py\"\nEXPECTED_BLOB=\"1e54e77788a0bdddfc8bdb2997ea18bc9b299e41\"\nBIN=\"/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12\"\nsummary={\"task\":\"vivoapk-direct-only-hotfix\",\"pinned_revision\":SHA[:12],\"production_test_only\":False,\"rea_invocation\":True,\"status\":\"blocked\"}\ntry:\n script=urllib.request.urlopen(URL,timeout=35).read(38000)\n digest=hashlib.sha1(b\"blob \"+str(len(script)).encode()+b\"\\0\"+script).hexdigest()\n if digest!=EXPECTED_BLOB:raise RuntimeError(\"script_integrity_failed\")\n summary[\"script_integrity\"]=\"PASS\"\n args=[\"sudo\",\"-n\",BIN,\"-\",\"preflight\",\"--sha\",SHA]\n check=subprocess.run(args,input=script,capture_output=True,timeout=80)\n try: first=json.loads(check.stdout)\n except Exception: first={\"status\":\"blocked\",\"reason\":\"invalid_preflight_output\"}\n summary[\"preflight\"]=first.get(\"status\")\n summary[\"prior_revision\"]=first.get(\"original_revision\")\n if check.returncode!=0 or first.get(\"status\")!=\"pass\":raise RuntimeError(\"preflight_rejected\")\n if first.get(\"original_revision\")!=\"0b3217b42fd4\":raise RuntimeError(\"production_revision_changed\")\n summary[\"original_revision_verified\"]=\"PASS\"\n result=subprocess.run([\"sudo\",\"-n\",BIN,\"-\",\"activate\",\"--sha\",SHA],input=script,capture_output=True,timeout=610)\n try: data=json.loads(result.stdout)\n except Exception: data={\"status\":\"blocked\",\"reason\":\"invalid_activation_output\"}\n summary[\"activation\"]=data.get(\"status\")\n summary[\"change_reported\"]=data.get(\"changed\")\n summary[\"single_user_pilot\"]=data.get(\"pilot_user_cap\")\n summary[\"no_stream_proxy\"]=data.get(\"stream_proxy_installed\") is False\n summary[\"pink_preserved\"]=data.get(\"pink_modified\") is False\n if result.returncode!=0 or data.get(\"status\")!=\"pilot_enabled\":\n  summary[\"status\"]=\"not_deployed\"\n  summary[\"safe_rollback_report\"]=data.get(\"status\")\n else:\n  summary[\"status\"]=\"deployed_backend_and_plugin_verified\"\nexcept Exception as exc:\n summary[\"status\"]=\"blocked_before_or_during_activation\"\n summary[\"error_kind\"]=str(exc)[:80] if isinstance(exc,RuntimeError) else type(exc).__name__\nprint(json.dumps(summary,sort_keys=True))\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 665000,
+          "idle_timeout_ms": 665000,
+          "terminal": {
+            "columns": 150,
+            "rows": 22,
+            "scrollback": 75
+          },
+          "limits": {
+            "output_bytes": 5500
+          }
+        }
+      }
+    }
+  ]
+}
