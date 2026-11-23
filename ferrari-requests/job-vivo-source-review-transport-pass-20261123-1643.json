@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivo-source-review-transport-pass-20261123-1643",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivo-android-source-error-20261123-1600",
+  "revision": 5,
+  "turn": {
+    "task": "source",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Controlled transport tests now pass: Java original302->200, resolved HLS and assigned alternate origin both200 with valid TS segment; Accept/Connection variants also pass, no Java proxy. Prior403 is transient and does not prove the physical Android cause. Actual physical Source error remains unlocalized; do not change production speculatively or claim solved. Check available original REA ADB device/log tools and collect native exception only if an authorized device exists.",
+    "evidence_sha256": [
+      "c9c1d32c1391534352c3ac20cebd9c3ed124bb477a859268f27181323a5b8102"
+    ]
+  }
+}
