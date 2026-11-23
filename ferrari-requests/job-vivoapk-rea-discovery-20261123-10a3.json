@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "id": "vivoapk-rea-discovery-20261123-10a3",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/list"
+    }
+  ]
+}
