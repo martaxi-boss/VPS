@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "vivo-jellyfin-admin-structure-readonly-20261123-3",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "audit.json",
+    "content_base64": "e30K"
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,subprocess\np=subprocess.run([\"sudo\",\"-n\",\"python3\",\"-c\",\"import json,sqlite3\\nfrom pathlib import Path\\np=Path('/srv/projects/jellyfin-server/data/data/jellyfin.db')\\nout={'audit':'jellyfin_admin_rows_schema_only','changed':False,'tables':{},'admin_row_present':False,'admin_is_admin_schema':False}\\nc=sqlite3.connect('file:'+str(p)+'?mode=ro',uri=True,timeout=8)\\nfor (table,) in c.execute('SELECT name FROM sqlite_master WHERE type=\\\"table\\\"'):\\n if 'user' not in table.lower():continue\\n cols=[r[1] for r in c.execute('PRAGMA table_info(\\\"'+table.replace('\\\"','\\\"\\\"')+'\\\")')]\\n out['tables'][table]=cols[:35]\\n for col in cols:\\n  if col.lower() in ('username','name'):\\n   quoted='\\\"'+table.replace('\\\"','\\\"\\\"')+'\\\"'; quotedcol='\\\"'+col.replace('\\\"','\\\"\\\"')+'\\\"'\\n   try:\\n    got=c.execute('SELECT COUNT(*) FROM '+quoted+' WHERE '+quotedcol+'=?',('pink-admin',)).fetchone()[0]\\n    if got:out['admin_row_present']=True\\n   except Exception:pass\\nout['admin_is_admin_schema']=any('IsAdministrator' in cols for cols in out['tables'].values())\\nprint(json.dumps(out,sort_keys=True))\"],capture_output=True,text=True,timeout=35)\ntry:o=json.loads(p.stdout)\nexcept:o={\"audit\":\"jellyfin_admin_rows_schema_only\",\"error\":\"unreadable\"}\no[\"exit\"]=p.returncode\nprint(json.dumps(o,sort_keys=True))",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 82000,
+          "idle_timeout_ms": 82000,
+          "terminal": {
+            "columns": 140,
+            "rows": 23,
+            "scrollback": 100
+          },
+          "limits": {
+            "output_bytes": 8500
+          }
+        }
+      }
+    }
+  ]
+}
