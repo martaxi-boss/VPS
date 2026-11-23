@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-rea-post-deploy-20261123-r10",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\ncode=\"\\nimport json,os,stat,grp,pwd,socket,subprocess,hashlib,sys\\nfrom pathlib import Path\\nfrom xml.etree import ElementTree\\nR=Path(\\\"/srv/projects/Vivoapk\\\"); SRC=R/\\\"source\\\"\\nJ=Path(\\\"/srv/projects/jellyfin-server\\\")\\nD=J/\\\"data/plugins/VivoAPK Mega OTT Auth_0.1.0.0/Jellyfin.Plugin.VivoapkMegaAuth.dll\\\"\\nC=J/\\\"data/plugins/configurations/Jellyfin.Plugin.VivoapkMegaAuth.xml\\\"\\nTARGET=\\\"578f0454f8a4ef2e6dbeefb11eb0089afe5dd5d0\\\"\\nout={\\\"task\\\":\\\"VivoAPK production revalidation after guarded rollout\\\",\\\"read_only\\\":True,\\\"target_sha\\\":TARGET,\\\"changed\\\":False}\\ndef cmd(a):\\n    try:\\n        p=subprocess.run(a,capture_output=True,text=True,timeout=8)\\n        return p.stdout.strip() if p.returncode==0 else None\\n    except (OSError,subprocess.TimeoutExpired):return None\\ndef sock_check(p,endpoint):\\n    try:\\n        with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as s:\\n            s.settimeout(3);s.connect(str(p))\\n            s.sendall((\\\"GET \\\"+endpoint+\\\" HTTP/1.1\\\\r\\\\nHost: localhost\\\\r\\\\nConnection: close\\\\r\\\\n\\\\r\\\\n\\\").encode())\\n            return s.recv(160).split(b\\\"\\\\r\\\\n\\\",1)[0].decode(\\\"ascii\\\",\\\"replace\\\")\\n    except Exception as e:return type(e).__name__\\nout[\\\"head\\\"]=cmd([\\\"git\\\",\\\"-C\\\",str(SRC),\\\"rev-parse\\\",\\\"HEAD\\\"])\\nout[\\\"source_matches_target\\\"]=out[\\\"head\\\"]==TARGET\\nout[\\\"production_checkout_clean\\\"]=(cmd([\\\"git\\\",\\\"-C\\\",str(SRC),\\\"status\\\",\\\"--porcelain\\\",\\\"--untracked-files=no\\\"])==\\\"\\\")\\nout[\\\"services\\\"]={n:cmd([\\\"systemctl\\\",\\\"is-active\\\",n]) for n in [\\\"vivoapk-backend.service\\\",\\\"jellyfin-pink.service\\\",\\\"nginx.service\\\",\\\"postgresql.service\\\",\\\"pink-iptv-backend.service\\\",\\\"pink-vpn.service\\\"]}\\ns=R/\\\"run/backend.sock\\\"\\ntry:\\n    f=s.lstat()\\n    out[\\\"vivo_socket\\\"]={\\\"mode\\\":oct(stat.S_IMODE(f.st_mode)),\\\"owner\\\":pwd.getpwuid(f.st_uid).pw_name,\\\"group\\\":grp.getgrgid(f.st_gid).gr_name,\\\"is_socket\\\":stat.S_ISSOCK(f.st_mode),\\\"health\\\":sock_check(s,\\\"/openapi.json\\\")}\\nexcept OSError as e:out[\\\"vivo_socket\\\"]={\\\"exists\\\":False,\\\"error\\\":type(e).__name__}\\nout[\\\"jellyfin_health\\\"]=sock_check(J/\\\"run/jellyfin.sock\\\",\\\"/System/Info/Public\\\")\\nunit=cmd([\\\"systemctl\\\",\\\"cat\\\",\\\"vivoapk-backend.service\\\"]) or \\\"\\\"\\nout[\\\"unit_flags\\\"]={\\\"has_execstartpost\\\":(\\\"ExecStartPost=\\\" in unit),\\\"has_umask\\\":(\\\"UMask=0007\\\" in unit),\\\"uses_uds\\\":(\\\"--uds /srv/projects/Vivoapk/run/backend.sock\\\" in unit)}\\nout[\\\"source_hardening_script_exists\\\"]=(SRC/\\\"infra/secure_runtime_socket.py\\\").is_file()\\nout[\\\"source_artwork\\\"]=(SRC/\\\"jellyfin-auth/Vivoapk.Jellyfin.Auth/VivoapkLivePreviewChannel.cs\\\").is_file() and \\\"pilot-hls-v2-artwork\\\" in (SRC/\\\"jellyfin-auth/Vivoapk.Jellyfin.Auth/VivoapkLivePreviewChannel.cs\\\").read_text()\\nout[\\\"dll_exists\\\"]=D.is_file()\\nif D.is_file():\\n    data=D.read_bytes()\\n    out[\\\"dll_sha256\\\"]=hashlib.sha256(data).hexdigest()\\n    out[\\\"dll_embedded_artwork_marker\\\"]=b\\\"pilot-hls-v2-artwork\\\" in data or \\\"pilot-hls-v2-artwork\\\".encode(\\\"utf-16-le\\\") in data\\n    built=SRC/\\\"jellyfin-auth/Vivoapk.Jellyfin.Auth/bin/Release/net10.0/Jellyfin.Plugin.VivoapkMegaAuth.dll\\\"\\n    out[\\\"built_equals_installed\\\"]=built.is_file() and hashlib.sha256(built.read_bytes()).hexdigest()==out[\\\"dll_sha256\\\"]\\ntry:\\n    xml=ElementTree.parse(C).getroot()\\n    out[\\\"plugin_flags\\\"]={k:(xml.findtext(k) or \\\"\\\").strip().lower()==\\\"true\\\" for k in (\\\"Enabled\\\",\\\"PilotLiveChannels\\\",\\\"ProvisionPrivateLibraries\\\",\\\"MonitorEntitlements\\\")}\\nexcept (OSError,ElementTree.ParseError) as e:out[\\\"plugin_flag_error\\\"]=type(e).__name__\\nbackup=R/\\\"backups/live-channel-pilot\\\"/TARGET[:20]\\nout[\\\"target_backup\\\"]={\\\"exists\\\":backup.is_dir(),\\\"marker_exists\\\":(backup/\\\"VIVOAPK_LIVE_PILOT_V1\\\").is_file(),\\\"dll_exists\\\":(backup/\\\"plugin.dll\\\").is_file(),\\\"config_exists\\\":(backup/\\\"plugin-config.xml\\\").is_file()}\\nprint(json.dumps(out,sort_keys=True))\\n\"\np=subprocess.run(['sudo','-n','/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12','-c',code],capture_output=True,text=True,timeout=45)\nprint(p.stdout.strip() if p.returncode==0 else json.dumps({'status':'blocked','reason':'privilege_or_probe_failure','exit_code':p.returncode}))"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 90000,
+          "idle_timeout_ms": 90000,
+          "terminal": {
+            "columns": 140,
+            "rows": 22,
+            "scrollback": 50
+          },
+          "limits": {
+            "output_bytes": 6500
+          }
+        }
+      }
+    }
+  ]
+}
