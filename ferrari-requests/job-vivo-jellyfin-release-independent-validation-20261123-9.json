@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "vivo-jellyfin-release-independent-validation-20261123-9",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "audit.json",
+    "content_base64": "e30K"
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,subprocess\np=subprocess.run([\"sudo\",\"-n\",\"python3\",\"-c\",\"import json,pathlib,hashlib,subprocess\\nroot=pathlib.Path('/srv/projects/Vivoapk')\\nsha='f1bb21928dd499b53a40fbfb105ce6018af9fb07'\\nrel=root/'jellyfin-auth/releases'/sha[:16]\\ncheckout=root/'jellyfin-auth/checkouts'/sha[:16]\\ndll='Jellyfin.Plugin.VivoapkMegaAuth.dll'\\nout={'audit':'independent_jellyfin_auth_release_validation','changed':False,'evidence':{},'services':{}}\\np=rel/dll;m=rel/'meta.json'\\nout['evidence']['dll_present']=p.is_file()\\nout['evidence']['manifest_present']=m.is_file()\\nif p.is_file():\\n out['evidence']['dll_bytes']=p.stat().st_size\\n out['evidence']['dll_sha256']=hashlib.sha256(p.read_bytes()).hexdigest()\\n src=checkout/'jellyfin-auth/Vivoapk.Jellyfin.Auth/bin/Release/net10.0'/dll\\n out['evidence']['same_as_build']=src.is_file() and hashlib.sha256(src.read_bytes()).hexdigest()==out['evidence']['dll_sha256']\\nif m.is_file():\\n d=json.loads(m.read_text())\\n out['evidence']['metadata_correct']=d.get('guid')=='e7a31bad-3643-4da2-834e-559c39cc90b1' and d.get('targetAbi')=='12.4.0.0' and d.get('version')=='0.1.0.0'\\npr=subprocess.run(['git','-C',str(checkout),'rev-parse','HEAD'],capture_output=True,text=True,timeout=8)\\nout['evidence']['source_sha_matches']=pr.returncode==0 and pr.stdout.strip()==sha\\npr=subprocess.run(['git','-C',str(root/'source'),'diff','--quiet'],capture_output=True,timeout=8)\\nout['evidence']['backend_tracked_clean']=pr.returncode==0\\nout['evidence']['plugin_still_absent']=not pathlib.Path('/srv/projects/jellyfin-server/data/plugins/VivoAPK Mega OTT Auth_0.1.0.0').exists()\\nfor service in ('jellyfin-pink.service','vivoapk-backend.service','pink-iptv-backend.service','nginx.service'):\\n q=subprocess.run(['systemctl','is-active','--quiet',service],capture_output=True,timeout=8)\\n out['services'][service]='active' if q.returncode==0 else 'not_active'\\nprint(json.dumps(out,sort_keys=True))\"],capture_output=True,text=True,timeout=55)\ntry:d=json.loads(p.stdout)\nexcept:d={\"audit\":\"independent_jellyfin_auth_release_validation\",\"error\":\"unreadable\"}\nd[\"exit\"]=p.returncode\nprint(json.dumps(d,sort_keys=True))",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 95000,
+          "idle_timeout_ms": 95000,
+          "terminal": {
+            "columns": 140,
+            "rows": 24,
+            "scrollback": 110
+          },
+          "limits": {
+            "output_bytes": 12000
+          }
+        }
+      }
+    }
+  ]
+}
