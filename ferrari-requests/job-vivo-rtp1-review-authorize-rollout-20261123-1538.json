@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivo-rtp1-review-authorize-rollout-20261123-1538",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivo-rtp1-black-20261123-1509",
+  "revision": 11,
+  "turn": {
+    "task": "playback",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Production evidence confirms exact defect: HTTP200 PlaybackInfo m3u8/no streams, native Android profile sets DirectPlay=false DirectStream=false Transcoding=false. Corrected commit a2f00bb passed build45204432970 and disposable45204432932 with DirectPlay=true, no TranscodingUrl,49video+94audio frames direct from synthetic provider. Actual RTP1 decode397frames/audio already passed45204563814. Proceed user-authorized existing guarded deployment with backup/rollback, then verify installed binary, actual source decoding, services and HTTPS. Physical Android remains unverified.",
+    "evidence_sha256": [
+      "36eb40a8a7006ad97f71d2b92a71897986915c29d3285fc0edfadc5e3c7f7cef"
+    ]
+  }
+}
