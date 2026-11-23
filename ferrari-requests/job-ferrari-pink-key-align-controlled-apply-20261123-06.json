@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "ferrari-pink-key-align-controlled-apply-20261123-06",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "synthetic.txt",
+    "content_base64": "e30K"
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,subprocess,urllib.request,hashlib\ntry:\n url=\"https://raw.githubusercontent.com/martaxi-boss/Vivoapk/e53513f06ef2dd2a387c1ad9a411663153848d7b/infra/sync_pink_api_token.py\"\n with urllib.request.urlopen(url,timeout=20) as f: data=f.read(45000)\n actual=hashlib.sha1(b\"blob \"+str(len(data)).encode()+bytes([0])+data).hexdigest()\n if actual!=\"32f006db72f1cf0eea34a84b3411532ce567089d\": raise RuntimeError(\"source_integrity_failed\")\n p=subprocess.run([\"sudo\",\"-n\",\"/srv/projects/Vivoapk/.venv/bin/python\",\"-\",\"apply\"],input=data,capture_output=True,timeout=140)\n try:d=json.loads(p.stdout)\n except Exception:d={\"status\":\"invalid_result\"}\n keys=(\"action\",\"mode\",\"status\",\"reason\",\"changed\",\"pink_modified\",\"pink_api_list_authorized\",\"was_already_equal\",\"vivo_effective_key_matches_pink\",\"vivo_api_listing_authorized\",\"private_backups_created\",\"jellyfin_modified\",\"pink_service_preserved\")\n out={k:d.get(k) for k in keys if k in d}\n out[\"code\"]=p.returncode\n out[\"integrity_verified\"]=True\n print(json.dumps(out,sort_keys=True))\nexcept Exception as e:print(json.dumps({\"status\":\"blocked\",\"error_type\":type(e).__name__}))",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 175000,
+          "idle_timeout_ms": 175000,
+          "terminal": {
+            "columns": 137,
+            "rows": 24,
+            "scrollback": 110
+          },
+          "limits": {
+            "output_bytes": 10000
+          }
+        }
+      }
+    }
+  ]
+}
