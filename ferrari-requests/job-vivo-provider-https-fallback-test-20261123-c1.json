@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "vivo-provider-https-fallback-test-20261123-c1",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "synthetic.json",
+    "content_base64": "e30K"
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\np=subprocess.run([\"sudo\",\"-n\",\"/srv/projects/Vivoapk/.venv/bin/python\",\"-c\",\"import json,shlex,subprocess,sys\\nfrom pathlib import Path\\nfrom datetime import datetime,UTC\\nfrom urllib.parse import urlsplit,urlencode\\nout={\\\"task\\\":\\\"vivo-https-origin-compatibility-readonly\\\",\\\"changed\\\":False,\\\"checks\\\":[],\\\"status\\\":\\\"no_active_subscription\\\"}\\ntry:\\n conf={}\\n for line in Path(\\\"/root/project-secrets/VIVOAPK/backend-auth.env\\\").read_text().splitlines():\\n  if \\\"=\\\" not in line or line.lstrip().startswith(\\\"#\\\"):continue\\n  k,v=line.split(\\\"=\\\",1);k=k.strip().removeprefix(\\\"export \\\").strip()\\n  if k in (\\\"MEGA_OTT_API_BASE\\\",\\\"MEGA_OTT_API_TOKEN\\\"):\\n   q=shlex.split(v)\\n   if len(q)==1:conf[k]=q[0]\\n sys.path.insert(0,\\\"/srv/projects/Vivoapk/source/backend\\\")\\n import httpcore\\n from app.clients.mega import MegaOTTClient\\n from app.clients.xtream import XtreamClient\\n from app.url_safety import resolve_dns_link_target\\n from app.outbound_transport import PinnedIPNetworkBackend\\n sql=subprocess.run([\\\"sudo\\\",\\\"-n\\\",\\\"-u\\\",\\\"postgres\\\",\\\"psql\\\",\\\"-X\\\",\\\"-A\\\",\\\"-t\\\",\\\"-d\\\",\\\"vivoapk\\\",\\\"-c\\\",\\\"SELECT mega_subscription_id FROM subscription_mappings ORDER BY id LIMIT 4\\\"],capture_output=True,text=True,timeout=12)\\n subs=[int(x) for x in sql.stdout.splitlines() if x.strip().isdigit()]\\n with MegaOTTClient(base_url=conf[\\\"MEGA_OTT_API_BASE\\\"],token=conf[\\\"MEGA_OTT_API_TOKEN\\\"]) as mega:\\n  for ident in subs:\\n   try:account=mega.get_subscription(ident)\\n   except Exception:continue\\n   pwd=account.password.get_secret_value() if account.password else \\\"\\\"\\n   if not pwd or (account.expiring_at and account.expiring_at<=datetime.now(UTC)):continue\\n   xt=XtreamClient()\\n   try:state=xt.authenticate(dns_link=account.dns_link,username=account.username,password=pwd)\\n   except Exception:continue\\n   finally:xt.close()\\n   if state.code!=\\\"SUCCESS\\\":continue\\n   urls=[account.dns_link,account.dns_link_for_samsung_lg]\\n   tried=set()\\n   for number,origin in enumerate(urls):\\n    if not origin:continue\\n    old=urlsplit(origin)\\n    if old.scheme not in (\\\"http\\\",\\\"https\\\") or not old.hostname:continue\\n    host=old.hostname\\n    if host in tried:continue\\n    tried.add(host)\\n    result={\\\"source\\\":\\\"primary\\\" if number==0 else \\\"smart_tv\\\",\\\"old_scheme\\\":old.scheme,\\\"https_tls_verified\\\":False}\\n    try:\\n     safe=resolve_dns_link_target(\\\"https://\\\"+(\\\"[\\\"+host+\\\"]\\\" if \\\":\\\" in host else host)+\\\"/\\\")\\n     net=PinnedIPNetworkBackend(hostname=safe.hostname,port=safe.port,addresses=safe.addresses)\\n     pool=httpcore.ConnectionPool(network_backend=net,retries=0,http1=True,http2=False)\\n     try:\\n      path=\\\"/player_api.php?\\\"+urlencode({\\\"username\\\":account.username,\\\"password\\\":pwd,\\\"action\\\":\\\"get_live_categories\\\"})\\n      url=httpcore.URL(scheme=b\\\"https\\\",host=safe.hostname.encode(),port=safe.port,target=path.encode())\\n      request=httpcore.Request(method=b\\\"GET\\\",url=url,headers=[(b\\\"host\\\",safe.hostname.encode()),(b\\\"user-agent\\\",b\\\"Vivoapk/1.0\\\"),(b\\\"accept\\\",b\\\"application/json\\\"),(b\\\"connection\\\",b\\\"close\\\")],extensions={\\\"timeout\\\":{\\\"connect\\\":6.0,\\\"read\\\":7.0,\\\"write\\\":6.0,\\\"pool\\\":6.0}})\\n      res=pool.handle_request(request)\\n      result[\\\"https_tls_verified\\\"]=True\\n      result[\\\"http_status\\\"]=res.status\\n      data=bytearray()\\n      try:\\n       for part in res.iter_stream():\\n        if len(data)+len(part)>100000:raise RuntimeError(\\\"metadata_max\\\")\\n        data.extend(part)\\n      finally:res.close()\\n      try:\\n       js=json.loads(data)\\n       result[\\\"categories_read\\\"]=len(js) if isinstance(js,list) else None\\n      except Exception:\\n       result[\\\"categories_read\\\"]=None\\n     finally:pool.close()\\n    except Exception as e:\\n     result[\\\"failure_type\\\"]=type(e).__name__\\n    out[\\\"checks\\\"].append(result)\\n   break\\n out[\\\"status\\\"]=\\\"tested\\\" if out[\\\"checks\\\"] else \\\"no_valid_origins\\\"\\nexcept Exception as e:\\n out[\\\"status\\\"]=\\\"blocked\\\";out[\\\"failure_type\\\"]=type(e).__name__\\nout[\\\"safety\\\"]={\\\"no_names\\\":True,\\\"no_hosts\\\":True,\\\"no_secrets\\\":True,\\\"no_media_bytes\\\":True}\\nprint(json.dumps(out,sort_keys=True))\\n\"],capture_output=True,text=True,timeout=120)\ntry:d=json.loads(p.stdout)\nexcept Exception:d={\"task\":\"vivo-https-origin-compatibility-readonly\",\"status\":\"report_failed\",\"exit\":p.returncode}\nprint(json.dumps(d,sort_keys=True))",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 175000,
+          "idle_timeout_ms": 175000,
+          "terminal": {
+            "columns": 142,
+            "rows": 24,
+            "scrollback": 120
+          },
+          "limits": {
+            "output_bytes": 8500
+          }
+        }
+      }
+    }
+  ]
+}
