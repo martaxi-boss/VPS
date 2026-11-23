@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "vivo-remove-pink-residuals-20261123-d1",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "synthetic.json",
+    "content_base64": "e30K"
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\np=subprocess.run([\"sudo\",\"-n\",\"python3\",\"-c\",\"import json,subprocess,os,pathlib,re\\nR={\\\"task\\\":\\\"retired-pink-residuals-private-audit\\\",\\\"changed\\\":False,\\\"alias\\\":{},\\\"nginx\\\":[],\\\"databases\\\":{},\\\"android_tooling\\\":{}}\\nalias=pathlib.Path(\\\"/root/pink-iptv\\\")\\nif alias.is_symlink():\\n target=os.path.realpath(alias)\\n R[\\\"alias\\\"]={\\\"is_symlink\\\":True,\\\"destination_is_retired_pink\\\":target in (\\\"/srv/pink-iptv\\\",\\\"/srv/projects/pink-iptv\\\"),\\\"destination_path_category\\\":\\\"retired-pink\\\" if \\\"pink-iptv\\\" in target.lower() else \\\"other\\\"}\\nelse:R[\\\"alias\\\"]={\\\"is_symlink\\\":False,\\\"exists\\\":alias.exists()}\\nfor folder in (pathlib.Path(\\\"/etc/nginx/sites-enabled\\\"),pathlib.Path(\\\"/etc/nginx/conf.d\\\")):\\n if not folder.is_dir():continue\\n for name in folder.iterdir():\\n  if not name.is_file():continue\\n  try:\\n   if name.stat().st_size>500000:continue\\n   txt=name.read_text(errors=\\\"replace\\\")\\n   counts={\\\"jellyfin_pink_service\\\":len(re.findall(r\\\"jellyfin-pink\\\",txt,re.I)),\\n           \\\"pink_backend_service\\\":len(re.findall(r\\\"pink-iptv|pink-vpn|pink_iptv|/pink(?:/|$)|upstream\\\\s+pink\\\",txt,re.I)),\\n           \\\"generic_pink_other\\\":0}\\n   counts[\\\"generic_pink_other\\\"]=max(0,len(re.findall(r\\\"pink\\\",txt,re.I))-counts[\\\"jellyfin_pink_service\\\"]-counts[\\\"pink_backend_service\\\"])\\n   if any(counts.values()):R[\\\"nginx\\\"].append({\\\"file_basename\\\":name.name[:75],\\\"matched\\\":counts,\\\"enabled_via_symlink\\\":name.is_symlink()})\\n  except Exception:pass\\ndef psql(db,query):\\n p=subprocess.run([\\\"sudo\\\",\\\"-n\\\",\\\"-u\\\",\\\"postgres\\\",\\\"psql\\\",\\\"-X\\\",\\\"-A\\\",\\\"-t\\\",\\\"-d\\\",db,\\\"-c\\\",query],capture_output=True,text=True,timeout=17)\\n return p.stdout.strip() if p.returncode==0 else None\\ndbs=psql(\\\"postgres\\\",\\\"SELECT datname FROM pg_database WHERE datname IN ('pink_iptv','vivoapk')\\\")\\nR[\\\"databases\\\"][\\\"pink_present\\\"]=dbs is not None and \\\"pink_iptv\\\" in dbs.splitlines()\\nR[\\\"databases\\\"][\\\"vivo_present\\\"]=dbs is not None and \\\"vivoapk\\\" in dbs.splitlines()\\nsets={}\\nfor db in (\\\"pink_iptv\\\",\\\"vivoapk\\\"):\\n if not R[\\\"databases\\\"][db.split(\\\"_\\\")[0]+\\\"_present\\\"]:continue\\n n=psql(db,\\\"SELECT pg_database_size(current_database())\\\")\\n try:R[\\\"databases\\\"][db+\\\"_bytes\\\"]=int(n)\\n except Exception:R[\\\"databases\\\"][db+\\\"_bytes\\\"]=None\\n tbl=psql(db,\\\"SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='subscription_mappings')\\\")\\n R[\\\"databases\\\"][db+\\\"_has_subscription_mappings\\\"]=(tbl==\\\"t\\\")\\n if tbl==\\\"t\\\":\\n  count=psql(db,\\\"SELECT COUNT(*) FROM subscription_mappings\\\")\\n  try:R[\\\"databases\\\"][db+\\\"_mapping_count\\\"]=int(count)\\n  except Exception:pass\\n  cols=psql(db,\\\"SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='subscription_mappings'\\\")\\n  if cols is not None and \\\"mega_subscription_id\\\" in cols.splitlines():\\n   ids=psql(db,\\\"SELECT mega_subscription_id FROM subscription_mappings\\\")\\n   if ids is not None:sets[db]=set(x.strip() for x in ids.splitlines() if x.strip().isdigit())\\nif \\\"pink_iptv\\\" in sets and \\\"vivoapk\\\" in sets:\\n R[\\\"databases\\\"][\\\"pink_mappings_all_in_vivo\\\"]=sets[\\\"pink_iptv\\\"].issubset(sets[\\\"vivoapk\\\"])\\n R[\\\"databases\\\"][\\\"not_in_vivo_count\\\"]=len(sets[\\\"pink_iptv\\\"]-sets[\\\"vivoapk\\\"])\\nfor path in (\\\"/srv/projects/android-sdk\\\",\\\"/opt/android-sdk\\\"):\\n p=pathlib.Path(path)\\n if p.is_dir() and not p.is_symlink():\\n  x=subprocess.run([\\\"du\\\",\\\"-sk\\\",\\\"--\\\",str(p)],capture_output=True,text=True,timeout=18)\\n  try:size=int(x.stdout.strip().split()[0])*1024\\n  except:size=None\\n  R[\\\"android_tooling\\\"][path]={\\\"exists\\\":True,\\\"size_bytes\\\":size}\\n else:R[\\\"android_tooling\\\"][path]={\\\"exists\\\":p.exists(),\\\"symlink\\\":p.is_symlink()}\\nprint(json.dumps(R,sort_keys=True))\\n\"],capture_output=True,text=True,timeout=110)\ntry:d=json.loads(p.stdout)\nexcept Exception:d={\"task\":\"retired-pink-residuals-private-audit\",\"status\":\"report_unavailable\",\"exit\":p.returncode}\nprint(json.dumps(d,sort_keys=True))",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 150000,
+          "idle_timeout_ms": 150000,
+          "terminal": {
+            "columns": 140,
+            "rows": 25,
+            "scrollback": 120
+          },
+          "limits": {
+            "output_bytes": 8500
+          }
+        }
+      }
+    }
+  ]
+}
