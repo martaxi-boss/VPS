@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-rea-android-black-20261123-r1",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,subprocess\np=subprocess.run([\"sudo\",\"-n\",\"/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12\",\"-c\",\"import json,re,subprocess\\nfrom pathlib import Path\\nfrom datetime import datetime, timezone\\nfrom collections import Counter\\nreport={\\\"task\\\":\\\"vivoapk-jellyfin-android-1314-logs\\\",\\\"mode\\\":\\\"read_only\\\",\\\"window_utc\\\":\\\"2026-11-23 13:11-13:18\\\",\\\"secrets_read\\\":False,\\\"raw_lines_emitted\\\":False,\\\"services\\\":{},\\\"sources\\\":[]}\\ndef act(name):\\n p=subprocess.run([\\\"systemctl\\\",\\\"is-active\\\",name],capture_output=True,text=True,timeout=8)\\n return p.stdout.strip() if p.returncode==0 else \\\"not_active\\\"\\nfor n in [\\\"jellyfin-pink.service\\\",\\\"vivoapk-backend.service\\\",\\\"nginx.service\\\",\\\"postgresql.service\\\",\\\"pink-iptv-backend.service\\\"]: report[\\\"services\\\"][n]=act(n)\\npatterns={\\n\\\"playback_media_source\\\":r\\\"(?i)playbackinfo|mediasource|directplay|directstream\\\",\\n\\\"playback_failed\\\":r\\\"(?i)failed to (?:play|start|open)|no compatible|not supported|unsupported.*(?:media|source|format)|playback.*(?:fail|error)\\\",\\n\\\"http_errors\\\":r\\\"(?i)\\\\\\\\b(?:4(?:00|01|03|04|15|22|29)|5(?:00|02|03|04))\\\\\\\\b|HttpRequestException|httpcore\\\",\\n\\\"ffmpeg\\\":r\\\"(?i)ffmpeg|transcod|remux\\\",\\n\\\"live_stream\\\":r\\\"(?i)is(?:infinite|live)stream|/live/|\\\\\\\\.ts\\\\\\\\b|\\\\\\\\.m3u8\\\\\\\\b\\\",\\n\\\"auth\\\":r\\\"(?i)authenticat|Mega OTT|VivoAPK\\\",\\n\\\"reverse_proxy\\\":r\\\"(?i)upstream.*(?:timed out|connect\\\\\\\\(\\\\\\\\) failed)|connect\\\\\\\\(\\\\\\\\) failed|prematurely closed\\\",\\n\\\"media_error_type\\\":r\\\"(?i)(?:HttpRequestException|SocketException|InvalidOperationException|NotSupportedException|DecoderInitializationException|MediaCodec)\\\",\\n}\\ndef summarize(name,text):\\n hits={key:len(re.findall(p,text)) for key,p in patterns.items()}\\n exceptions=Counter(re.findall(r\\\"(?:System\\\\\\\\.|Microsoft\\\\\\\\.)?[A-Za-z][A-Za-z0-9]*(?:Exception|Error)(?=[\\\\\\\\s:\\\\\\\\]\\\\\\\\)])\\\",text))\\n return {\\\"source\\\":name,\\\"lines_examined\\\":len(text.splitlines()),\\\"counts\\\":hits,\\\"error_type_counts\\\":dict(exceptions.most_common(9))}\\ndef journal(n):\\n p=subprocess.run([\\\"journalctl\\\",\\\"--no-pager\\\",\\\"-u\\\",n,\\\"--since\\\",\\\"2026-11-23 13:11:00 UTC\\\",\\\"--until\\\",\\\"2026-11-23 13:18:00 UTC\\\",\\\"-n\\\",\\\"500\\\",\\\"--output=cat\\\"],capture_output=True,text=True,timeout=25)\\n if p.returncode==0: report[\\\"sources\\\"].append(summarize(\\\"journal-\\\"+n,p.stdout[-120000:]))\\n else:report[\\\"sources\\\"].append({\\\"source\\\":\\\"journal-\\\"+n,\\\"status\\\":\\\"not_readable\\\"})\\nfor name in (\\\"jellyfin-pink.service\\\",\\\"vivoapk-backend.service\\\",\\\"nginx.service\\\"):journal(name)\\nfor folder in [Path(\\\"/srv/projects/jellyfin-server/data/log\\\"),Path(\\\"/srv/projects/jellyfin-server/data/logs\\\"),Path(\\\"/srv/projects/jellyfin-server/log\\\"),Path(\\\"/var/log/nginx\\\")]:\\n if not folder.is_dir():continue\\n files=sorted((p for p in folder.iterdir() if p.is_file() and p.suffix in (\\\".log\\\",\\\".txt\\\") and not p.is_symlink()),key=lambda p:p.stat().st_mtime,reverse=True)[:3]\\n for p in files:\\n  if p.stat().st_size>40000000:continue\\n  with p.open(\\\"rb\\\") as f:\\n   f.seek(max(0,p.stat().st_size-180000))\\n   tail=f.read(180000).decode(\\\"utf-8\\\",\\\"replace\\\")\\n  # Keep only entries around 13:14; no raw URLs/log records leave this VPS.\\n  selected=\\\"\\\\\\\\n\\\".join(line for line in tail.splitlines() if re.search(r\\\"2026[-/]11[-/]23.*13:(?:1[1-8])|\\\\\\\\[23/Nov/2026:13:1\\\",line))\\n  report[\\\"sources\\\"].append(summarize(\\\"file-\\\"+folder.name,selected))\\nprint(json.dumps(report,sort_keys=True))\\n\"],capture_output=True,text=True,timeout=62)\ntry:data=json.loads(p.stdout)\nexcept Exception:data={\"task\":\"vivoapk-jellyfin-android-1314-logs\",\"status\":\"blocked\",\"error_type\":\"unreadable_result\",\"code\":p.returncode}\nprint(json.dumps(data,sort_keys=True))"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 85000,
+          "idle_timeout_ms": 85000,
+          "terminal": {
+            "columns": 140,
+            "rows": 25,
+            "scrollback": 60
+          },
+          "limits": {
+            "output_bytes": 7500
+          }
+        }
+      }
+    }
+  ]
+}
