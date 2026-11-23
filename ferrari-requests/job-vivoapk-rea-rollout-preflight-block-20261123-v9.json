@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-rea-rollout-preflight-block-20261123-v9",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "\nimport json,subprocess,hashlib,stat,socket,os\nfrom pathlib import Path\nsha='578f0454f8a4ef2e6dbeefb11eb0089afe5dd5d0'\nroot=Path('/srv/projects/Vivoapk')\nscript=root/'source/infra/upgrade_live_preview.py'\nout={'task':'VivoAPK guarded deploy block diagnosis','read_only':True}\ntry:\n    c=subprocess.run(['sudo','-n','/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12',str(script),'preflight','--sha',sha],capture_output=True,text=True,timeout=32)\n    out['preflight_exit']=c.returncode\n    try:\n        payload=json.loads(c.stdout.strip().splitlines()[-1])\n        out['preflight_status']=payload.get('status')\n        out['preflight_reason']=payload.get('reason')\n        out['preflight_prior_revision']=payload.get('original_revision')\n    except Exception:\n        out['preflight_status']='unparsed';out['preflight_stdout_missing']=not bool(c.stdout.strip());out['stderr_nonempty']=bool(c.stderr.strip())\nexcept Exception as e:\n    out['preflight_exception']=type(e).__name__\ndef call(a):\n    try:\n        p=subprocess.run(a,capture_output=True,text=True,timeout=6)\n        return p.stdout.strip() if p.returncode==0 else None\n    except Exception:return None\nout['revision']=call(['git','-C',str(root/'source'),'rev-parse','HEAD'])\nout['tracked_edits']=call(['git','-C',str(root/'source'),'status','--porcelain','--untracked-files=no'])!=''\nout['services']={s:call(['systemctl','is-active',s]) for s in ['vivoapk-backend.service','jellyfin-pink.service','nginx.service','postgresql.service']}\nsock=root/'run/backend.sock'\ntry:out['socket_mode']=oct(stat.S_IMODE(sock.lstat().st_mode))\nexcept OSError:out['socket_mode']='missing'\nout['pilot_backups']=len(list((root/'backups/live-channel-pilot').glob('*'))) if (root/'backups/live-channel-pilot').is_dir() else 0\nprint(json.dumps(out,sort_keys=True))\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 85000,
+          "idle_timeout_ms": 85000,
+          "terminal": {
+            "columns": 140,
+            "rows": 22,
+            "scrollback": 50
+          },
+          "limits": {
+            "output_bytes": 6500
+          }
+        }
+      }
+    }
+  ]
+}
