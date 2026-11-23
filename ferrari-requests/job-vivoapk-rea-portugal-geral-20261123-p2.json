@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-rea-portugal-geral-20261123-p2",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,subprocess\np=subprocess.run([\"sudo\",\"-n\",\"/srv/projects/Vivoapk/.venv/bin/python\",\"-c\",\"import json,shlex,subprocess,sys,re\\nfrom datetime import datetime,UTC\\nfrom pathlib import Path\\nsys.path.insert(0,\\\"/srv/projects/Vivoapk/source/backend\\\")\\nfrom app.clients.mega import MegaOTTClient\\nfrom app.clients.xtream import XtreamClient\\nfrom app.clients.catalog import XtreamCatalogClient,_parse_categories,_parse_items\\nfrom app.outbound_transport import PinnedHTTPTransport\\nfrom app.url_safety import resolve_dns_link_target\\nfrom app.schemas import CatalogKind\\nimport httpx\\nreport={\\\"task\\\":\\\"portugal-geral-real-iptv\\\",\\\"status\\\":\\\"blocked\\\",\\\"authorized\\\":False,\\\"channels\\\":[],\\\"media_downloaded\\\":False,\\\"credentials_emitted\\\":False}\\ntry:\\n env=Path(\\\"/root/project-secrets/VIVOAPK/backend-auth.env\\\")\\n cfg={}\\n for line in env.read_text().splitlines():\\n  if \\\"=\\\" not in line or line.lstrip().startswith(\\\"#\\\"):continue\\n  k,v=line.split(\\\"=\\\",1);k=k.strip().removeprefix(\\\"export \\\").strip()\\n  if k in (\\\"MEGA_OTT_API_BASE\\\",\\\"MEGA_OTT_API_TOKEN\\\"):\\n   a=shlex.split(v.strip())\\n   if len(a)==1:cfg[k]=a[0]\\n if set(cfg)!={\\\"MEGA_OTT_API_BASE\\\",\\\"MEGA_OTT_API_TOKEN\\\"}:raise RuntimeError(\\\"missing_config\\\")\\n p=subprocess.run([\\\"sudo\\\",\\\"-n\\\",\\\"-u\\\",\\\"postgres\\\",\\\"psql\\\",\\\"-X\\\",\\\"-A\\\",\\\"-t\\\",\\\"-d\\\",\\\"vivoapk\\\",\\\"-c\\\",\\\"SELECT mega_subscription_id FROM subscription_mappings ORDER BY id LIMIT 4\\\"],capture_output=True,text=True,timeout=10)\\n if p.returncode:raise RuntimeError(\\\"mapping_lookup\\\")\\n ids=[int(line) for line in p.stdout.splitlines() if line.strip().isdigit()]\\n with MegaOTTClient(base_url=cfg[\\\"MEGA_OTT_API_BASE\\\"],token=cfg[\\\"MEGA_OTT_API_TOKEN\\\"],timeout_seconds=10) as mega:\\n  for sid in ids:\\n   try:sub=mega.get_subscription(sid)\\n   except Exception:continue\\n   pw=sub.password.get_secret_value() if sub.password else \\\"\\\"\\n   if not pw or (sub.expiring_at and sub.expiring_at<=datetime.now(UTC)):continue\\n   xt=XtreamClient(timeout_seconds=10)\\n   try:auth=xt.authenticate(dns_link=sub.dns_link,username=sub.username,password=pw)\\n   except Exception:continue\\n   finally:xt.close()\\n   if auth.code!=\\\"SUCCESS\\\":continue\\n   report[\\\"authorized\\\"]=True\\n   target=resolve_dns_link_target(sub.dns_link)\\n   tr=PinnedHTTPTransport(target,max_response_bytes=8*1024*1024)\\n   with httpx.Client(transport=tr,headers={\\\"Accept\\\":\\\"application/json\\\",\\\"Accept-Encoding\\\":\\\"identity\\\",\\\"Connection\\\":\\\"close\\\"},timeout=httpx.Timeout(12),follow_redirects=False,trust_env=False) as http:\\n    q={\\\"username\\\":sub.username,\\\"password\\\":pw}\\n    cats=_parse_categories(XtreamCatalogClient._read(http,target.origin,q,\\\"get_live_categories\\\"))\\n    selected=next((c for c in cats if \\\"PORTUGAL\\\" in c[\\\"name\\\"].upper() and \\\"GERAL\\\" in c[\\\"name\\\"].upper()),None)\\n    if selected is None:raise RuntimeError(\\\"portugal_geral_missing\\\")\\n    report[\\\"category\\\"]=selected[\\\"name\\\"]\\n    report[\\\"category_id\\\"]=selected[\\\"id\\\"]\\n    raw=XtreamCatalogClient._read(http,target.origin,q,\\\"get_live_streams\\\",extra={\\\"category_id\\\":selected[\\\"id\\\"]})\\n    streams=_parse_items(raw,CatalogKind.LIVE,\\\"stream_id\\\")\\n    report[\\\"count\\\"]=len(streams)\\n    report[\\\"channels\\\"]=[{\\\"id\\\":v[\\\"id\\\"],\\\"title\\\":v[\\\"title\\\"][:90]} for v in streams[:30]]\\n    report[\\\"logo_metadata_available\\\"]=any(isinstance(x,dict) and bool(x.get(\\\"stream_icon\\\")) for x in raw if isinstance(raw,list))\\n    report[\\\"status\\\"]=\\\"verified\\\"\\n   break\\nexcept Exception as exc:report[\\\"error_type\\\"]=type(exc).__name__\\nprint(json.dumps(report,ensure_ascii=False,sort_keys=True))\\n\"],capture_output=True,text=True,timeout=110)\ntry:r=json.loads(p.stdout)\nexcept Exception:r={\"status\":\"blocked\",\"reason\":\"bad_result\",\"exit\":p.returncode}\nprint(json.dumps(r,ensure_ascii=False,sort_keys=True))"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 150000,
+          "idle_timeout_ms": 150000,
+          "terminal": {
+            "columns": 145,
+            "rows": 25,
+            "scrollback": 70
+          },
+          "limits": {
+            "output_bytes": 7200
+          }
+        }
+      }
+    }
+  ]
+}
