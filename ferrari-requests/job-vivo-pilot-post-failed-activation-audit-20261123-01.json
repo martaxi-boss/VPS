@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "vivo-pilot-post-failed-activation-audit-20261123-01",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "synthetic.json",
+    "content_base64": "e30K"
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\np=subprocess.run([\"sudo\",\"-n\",\"python3\",\"-c\",\"import json,subprocess,socket,xml.etree.ElementTree as ET\\nfrom pathlib import Path\\nr={\\\"operation\\\":\\\"vivo-pilot-live-state-after-run-failure\\\",\\\"changed\\\":False,\\\"services\\\":{},\\\"checks\\\":{}}\\nfor unit in [\\\"vivoapk-backend.service\\\",\\\"jellyfin-pink.service\\\",\\\"pink-iptv-backend.service\\\",\\\"pink-vpn.service\\\",\\\"nginx.service\\\",\\\"postgresql.service\\\"]:\\n try:r[\\\"services\\\"][unit]=subprocess.run([\\\"systemctl\\\",\\\"is-active\\\",\\\"--quiet\\\",unit],timeout=5).returncode==0\\n except Exception:r[\\\"services\\\"][unit]=False\\nrepo=Path(\\\"/srv/projects/Vivoapk/source\\\")\\nq=subprocess.run([\\\"git\\\",\\\"-C\\\",str(repo),\\\"rev-parse\\\",\\\"HEAD\\\"],capture_output=True,text=True,timeout=8)\\nr[\\\"checks\\\"][\\\"deployed_git_sha_short\\\"]=q.stdout.strip()[:12] if q.returncode==0 else \\\"unavailable\\\"\\nq=subprocess.run([\\\"git\\\",\\\"-C\\\",str(repo),\\\"status\\\",\\\"--porcelain=v1\\\"],capture_output=True,text=True,timeout=8)\\nr[\\\"checks\\\"][\\\"source_worktree_clean\\\"]=q.returncode==0 and not q.stdout.strip()\\nconf=Path(\\\"/srv/projects/jellyfin-server/data/plugins/configurations/Jellyfin.Plugin.VivoapkMegaAuth.xml\\\")\\ntry:\\n root=ET.parse(conf).getroot()\\n r[\\\"checks\\\"][\\\"pilot_live_flag\\\"]=root.findtext(\\\"PilotLiveChannels\\\",\\\"absent\\\")\\n r[\\\"checks\\\"][\\\"plugin_enabled_flag\\\"]=root.findtext(\\\"Enabled\\\",\\\"absent\\\")\\nexcept Exception:r[\\\"checks\\\"][\\\"plugin_conf_read\\\"]=\\\"failed\\\"\\ndll=Path(\\\"/srv/projects/jellyfin-server/data/plugins/VivoAPK Mega OTT Auth_0.1.0.0/Jellyfin.Plugin.VivoapkMegaAuth.dll\\\")\\nr[\\\"checks\\\"][\\\"plugin_dll_present\\\"]=dll.is_file()\\nback=Path(\\\"/srv/projects/Vivoapk/backups/live-channel-pilot/0b3217b42fd4c960a4b\\\")\\nr[\\\"checks\\\"][\\\"backup_exists\\\"]=back.is_dir()\\nr[\\\"checks\\\"][\\\"backup_plugin_present\\\"]=(back/\\\"plugin.dll\\\").is_file()\\nr[\\\"checks\\\"][\\\"backup_config_present\\\"]=(back/\\\"plugin-config.xml\\\").is_file()\\nr[\\\"checks\\\"][\\\"backup_marker_present\\\"]=(back/\\\"VIVOAPK_LIVE_PILOT_V1\\\").is_file()\\nfor key,path in [(\\\"jellyfin\\\",\\\"/srv/projects/jellyfin-server/run/jellyfin.sock\\\"),(\\\"vivo\\\",\\\"/srv/projects/Vivoapk/run/backend.sock\\\")]:\\n try:\\n  so=socket.socket(socket.AF_UNIX);so.settimeout(3);so.connect(path)\\n  route=\\\"/System/Info/Public\\\" if key==\\\"jellyfin\\\" else \\\"/openapi.json\\\"\\n  so.sendall((\\\"GET \\\"+route+\\\" HTTP/1.1\\\\r\\\\nHost: localhost\\\\r\\\\nConnection: close\\\\r\\\\n\\\\r\\\\n\\\").encode())\\n  r[\\\"checks\\\"][key+\\\"_http200\\\"]=b\\\"200 OK\\\" in so.recv(180).split(b\\\"\\\\r\\\\n\\\",1)[0]\\n  so.close()\\n except Exception:r[\\\"checks\\\"][key+\\\"_http200\\\"]=False\\nprint(json.dumps(r,sort_keys=True))\\n\"],capture_output=True,text=True,timeout=45)\ntry:d=json.loads(p.stdout)\nexcept Exception:d={\"operation\":\"vivo-pilot-live-state-after-run-failure\",\"status\":\"report_failed\",\"exit\":p.returncode}\nprint(json.dumps(d,sort_keys=True))",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 80000,
+          "idle_timeout_ms": 80000,
+          "terminal": {
+            "columns": 140,
+            "rows": 25,
+            "scrollback": 90
+          },
+          "limits": {
+            "output_bytes": 6500
+          }
+        }
+      }
+    }
+  ]
+}
