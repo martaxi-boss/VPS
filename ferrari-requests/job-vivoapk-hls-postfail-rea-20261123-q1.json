@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-hls-postfail-rea-20261123-q1",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,subprocess\np=subprocess.run([\"sudo\",\"-n\",\"/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12\",\"-c\",\"import json,hashlib,subprocess\\nfrom pathlib import Path\\nsrc=Path(\\\"/srv/projects/Vivoapk/source\\\")\\ndll=Path(\\\"/srv/projects/jellyfin-server/data/plugins/VivoAPK Mega OTT Auth_0.1.0.0/Jellyfin.Plugin.VivoapkMegaAuth.dll\\\")\\ntarget=\\\"cbc926c641463818f755df7a2e9c797ad7228201\\\"\\nbackup=Path(\\\"/srv/projects/Vivoapk/backups/live-channel-pilot\\\")/target[:20]\\ndef cmd(args):\\n p=subprocess.run(args,capture_output=True,text=True,timeout=8)\\n return p.stdout.strip() if p.returncode==0 else \\\"unknown\\\"\\nres={\\\"task\\\":\\\"vivoapk-hls-after-rea-error\\\",\\\"current_sha\\\":cmd([\\\"git\\\",\\\"-C\\\",str(src),\\\"rev-parse\\\",\\\"HEAD\\\"]),\\\"target_sha\\\":target,\\\"plugin_exists\\\":dll.is_file(),\\\"backup_for_target\\\":backup.is_dir(),\\\"retired_services\\\":{},\\\"active_services\\\":{},\\\"secrets_examined\\\":False}\\nif dll.is_file() and not dll.is_symlink():res[\\\"plugin_sha256\\\"]=hashlib.sha256(dll.read_bytes()).hexdigest()\\nfor n in (\\\"vivoapk-backend.service\\\",\\\"jellyfin-pink.service\\\",\\\"nginx.service\\\",\\\"postgresql.service\\\"):res[\\\"active_services\\\"][n]=cmd([\\\"systemctl\\\",\\\"is-active\\\",n])\\nfor n in (\\\"pink-iptv-backend.service\\\",\\\"pink-vpn.service\\\"):res[\\\"retired_services\\\"][n]=cmd([\\\"systemctl\\\",\\\"is-active\\\",n])\\nprint(json.dumps(res,sort_keys=True))\"],capture_output=True,text=True,timeout=28)\ntry:v=json.loads(p.stdout)\nexcept Exception:v={\"task\":\"vivoapk-hls-after-rea-error\",\"status\":\"blocked\",\"code\":p.returncode}\nprint(json.dumps(v,sort_keys=True))"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 55000,
+          "idle_timeout_ms": 55000,
+          "terminal": {
+            "columns": 140,
+            "rows": 20,
+            "scrollback": 30
+          },
+          "limits": {
+            "output_bytes": 4200
+          }
+        }
+      }
+    }
+  ]
+}
