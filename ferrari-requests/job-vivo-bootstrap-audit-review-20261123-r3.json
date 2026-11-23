@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivo-bootstrap-audit-review-20261123-r3",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivo-bootstrap-audit-20261123-r1",
+  "revision": 1,
+  "turn": {
+    "task": "runtime",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "c907e46dfebaa480a43f7f7e43f9142efa338a297321135549b2d824f5dc3dbf"
+    ],
+    "message": "Reviewed real REA process exit 0 and normalized output. Legacy Pink service units and directory absent, Jellyfin active under inherited pink service name; VivoAPK, nginx and PostgreSQL active; approximately 32.5GiB free. No mutations. Limit: git SHA unavailable to unprivileged auditor and root-only secrets inaccessible; neither was guessed. Runtime/catalog/player correctness not certified."
+  }
+}
