@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "id": "vivoapk-ruflo-final-start-20261123",
+  "kind": "ruflo-team",
+  "phase": "start",
+  "team_id": "vivoapk-hygiene-final-20261123",
+  "host": "ChatGPT",
+  "mission": "VivoAPK deep hygiene final independent read-only verification: deployed revision, plugin binary, restricted persistent Unix socket, user-level Jellyfin access, retained HTTPS/Jellyfin and retired Pink service isolation; verify concrete evidence, no media relay or secrets.",
+  "roles": [
+    {
+      "id": "tester",
+      "type": "tester",
+      "actions": [
+        "rea-mcp"
+      ]
+    },
+    {
+      "id": "reviewer",
+      "type": "reviewer",
+      "actions": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "postflight",
+      "role": "tester",
+      "reviewer": "reviewer",
+      "goal": "Execute a real read-only REA check of the VivoAPK production release and recorded live health after socket restart; reject any missing proof or divergent revision; report remaining client media limitations.",
+      "depends_on": []
+    }
+  ]
+}
