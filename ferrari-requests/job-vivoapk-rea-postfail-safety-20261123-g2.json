@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-rea-postfail-safety-20261123-g2",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\np=subprocess.run([\"sudo\",\"-n\",\"/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12\",\"-c\",\"import json,subprocess,hashlib\\nfrom pathlib import Path\\nROOT=Path(\\\"/srv/projects/Vivoapk/source\\\")\\nPLUGIN=Path(\\\"/srv/projects/jellyfin-server/data/plugins/VivoAPK Mega OTT Auth_0.1.0.0/Jellyfin.Plugin.VivoapkMegaAuth.dll\\\")\\nSAVE=Path(\\\"/srv/projects/Vivoapk/backups/live-channel-pilot/c89d42096aae9068ea0c\\\")\\ndef run(args):\\n p=subprocess.run(args,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True,timeout=8)\\n return p.stdout.strip() if p.returncode==0 else None\\nr={\\\"task\\\":\\\"vivoapk-rea-failed-deploy-postmortem\\\",\\\"git_revision\\\":run([\\\"git\\\",\\\"-C\\\",str(ROOT),\\\"rev-parse\\\",\\\"HEAD\\\"]),\\\"services\\\":{},\\\"plugin_present\\\":PLUGIN.is_file(),\\\"backup_present\\\":SAVE.is_dir(),\\\"secret_data_read\\\":False}\\nfor k in (\\\"vivoapk-backend.service\\\",\\\"jellyfin-pink.service\\\",\\\"nginx.service\\\",\\\"postgresql.service\\\",\\\"pink-iptv-backend.service\\\",\\\"pink-vpn.service\\\"):\\n r[\\\"services\\\"][k]=run([\\\"systemctl\\\",\\\"is-active\\\",k])\\nsrc=ROOT/\\\"jellyfin-auth/Vivoapk.Jellyfin.Auth/MegaAuthenticationProvider.cs\\\"\\nr[\\\"policy_source_present\\\"]=src.is_file() and \\\"mediaPolicyChanged\\\" in src.read_text(errors=\\\"replace\\\")\\nif PLUGIN.is_file():r[\\\"plugin_sha256\\\"]=hashlib.sha256(PLUGIN.read_bytes()).hexdigest()\\nprint(json.dumps(r,sort_keys=True))\\n\"],capture_output=True,text=True,timeout=35)\ntry:report=json.loads(p.stdout)\nexcept Exception:report={\"task\":\"vivoapk-rea-failed-deploy-postmortem\",\"status\":\"cannot_read\",\"exit_code\":p.returncode}\nprint(json.dumps(report,sort_keys=True))\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 65000,
+          "idle_timeout_ms": 65000,
+          "terminal": {
+            "columns": 136,
+            "rows": 24,
+            "scrollback": 65
+          },
+          "limits": {
+            "output_bytes": 6000
+          }
+        }
+      }
+    }
+  ]
+}
