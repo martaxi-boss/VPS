@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "id": "vivo-native-catalog-security-rea-20261123-r2",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivo-native-catalog-security-20261123-r1",
+  "revision": 0,
+  "turn": {
+    "task": "catalog-safety",
+    "role": "tester",
+    "kind": "rea-mcp",
+    "message": "Run REA original private process capture on live Jellyfin/VivoAPK read-only: version, service states, plugin flags, health. Only known XML boolean fields, never secret contents or media URLs; do not modify services or restart anything.",
+    "mcp_requests": [
+      {
+        "method": "tools/call",
+        "params": {
+          "name": "capture_process_scenario",
+          "arguments": {
+            "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+            "arguments": [
+              "-c",
+              "import subprocess\np=subprocess.run(['sudo','-n','/srv/projects/Vivoapk/.venv/bin/python','-c',\"import json,os,socket,subprocess,hashlib\\nfrom pathlib import Path\\nfrom xml.etree import ElementTree as ET\\nroot=Path('/srv/projects/Vivoapk')\\njelly=Path('/srv/projects/jellyfin-server')\\nplugin=jelly/'data/plugins/VivoAPK Mega OTT Auth_0.1.0.0/Jellyfin.Plugin.VivoapkMegaAuth.dll'\\nxml=jelly/'data/plugins/configurations/Jellyfin.Plugin.VivoapkMegaAuth.xml'\\nout={'purpose':'VivoAPK safety gate for complete Jellyfin catalog','read_only':True,'credentials_read':False,'changed':False,'no_pink_reinstall':True,'services':{},'jellyfin_plugin':{},'source_git':{},'http_health':{}}\\nfor n in ['jellyfin-pink.service','vivoapk-backend.service','nginx.service','postgresql.service','pink-iptv-backend.service','pink-vpn.service']:\\n p=subprocess.run(['/usr/bin/systemctl','show',n,'-p','LoadState','-p','ActiveState','--no-pager'],capture_output=True,text=True,timeout=6)\\n d=dict(line.split('=',1) for line in p.stdout.splitlines() if '=' in line)\\n out['services'][n]={'load':d.get('LoadState','unavailable'),'active':d.get('ActiveState','unavailable')}\\ntry:\\n if plugin.is_file() and not plugin.is_symlink():\\n  out['jellyfin_plugin']={'present':True,'bytes':plugin.stat().st_size,'sha256':hashlib.sha256(plugin.read_bytes()).hexdigest()}\\n else:out['jellyfin_plugin']={'present':False}\\nexcept Exception as e:out['jellyfin_plugin']={'inspect_error':type(e).__name__}\\ntry:\\n if xml.is_file() and not xml.is_symlink():\\n  x=ET.parse(xml).getroot()\\n  out['jellyfin_plugin']['flags']={n:(x.findtext(n) or '').strip().lower()=='true' for n in ['Enabled','PilotLiveChannels','ProvisionPrivateLibraries','MonitorEntitlements']}\\nexcept Exception as e:out['jellyfin_plugin']['flags_error']=type(e).__name__\\ntry:\\n p=subprocess.run(['/usr/bin/git','-C',str(root/'source'),'rev-parse','HEAD'],capture_output=True,text=True,timeout=8)\\n if p.returncode==0 and len(p.stdout.strip())==40:out['source_git']['revision']=p.stdout.strip()\\n else:out['source_git']['revision']='unknown'\\nexcept Exception:out['source_git']['revision']='unknown'\\nfor name,path,uri in [('jellyfin',jelly/'run/jellyfin.sock','/System/Info/Public'),('vivoapk',root/'run/backend.sock','/openapi.json')]:\\n try:\\n  sk=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM);sk.settimeout(5);sk.connect(str(path))\\n  sk.sendall(('GET '+uri+' HTTP/1.1\\\\r\\\\nHost:localhost\\\\r\\\\nConnection:close\\\\r\\\\n\\\\r\\\\n').encode())\\n  first=sk.recv(256).split(b'\\\\r\\\\n',1)[0].decode('ascii','replace');sk.close()\\n  out['http_health'][name]={'status':'200' if ' 200 ' in first else 'non-200'}\\n except Exception as e:out['http_health'][name]={'status':'unavailable','error_class':type(e).__name__}\\nout['catalog_activation_certified']=False\\nout['blocker']='cross-account native channel item/PlaybackInfo isolation and physical client direct play unverified'\\nprint(json.dumps(out,sort_keys=True),flush=True)\\n\"],capture_output=True,text=True,timeout=38)\nprint(p.stdout[:13000] if p.stdout else 'NO_RUNTIME_OUTPUT',flush=True)\nprint('PROBE_EXIT='+str(p.returncode),flush=True)\n"
+            ],
+            "working_directory": "/srv/projects/skill-universal",
+            "timeout_ms": 55000,
+            "idle_timeout_ms": 55000,
+            "terminal": {
+              "columns": 140,
+              "rows": 28,
+              "scrollback": 65
+            },
+            "limits": {
+              "output_bytes": 16000
+            }
+          }
+        }
+      }
+    ]
+  }
+}
