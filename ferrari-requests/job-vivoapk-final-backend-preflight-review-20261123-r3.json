@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-final-backend-preflight-review-20261123-r3",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-final-backend-20261123-r1",
+  "revision": 1,
+  "turn": {
+    "task": "preflight",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "9208fa3c3b350b804a58f274f43a0e4262b22d5c122bffe72da6559569a131f4"
+    ],
+    "message": "Verified actual Ferrari/REA response.zip and independent audit: exit 0, preflight_pass, deployed backend SHA a2f00bb0eb0bd4ef2d695151238645cc73f110a8, no changes, both VivoAPK and Jellyfin health true; source/units clean. Approve exact pinned backend upgrade only."
+  }
+}
