@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-final-backend-activate-review-20261123-r5",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-final-backend-20261123-r1",
+  "revision": 3,
+  "turn": {
+    "task": "backend-activate",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "37032bb9167532bf035043fa0173140c0368c0d9792fdcdb915035dcf2600e7e"
+    ],
+    "message": "Independent review of actual Ferrari REA evidence from VPS Actions #45292318078: subprocess exit 0, status backend_upgraded; backend SHA 74b6a02be199a29c305058d2875063eb46c1b61d, prior a2f00bb0eb0bd4ef2d695151238645cc73f110a8; backend and Jellyfin sockets healthy, four category/series/EPG routes fail-closed HTTP401 without token, restarted only vivoapk-backend.service, pink untouched, no media relay installed. Approve task; physical app playback not certified."
+  }
+}
