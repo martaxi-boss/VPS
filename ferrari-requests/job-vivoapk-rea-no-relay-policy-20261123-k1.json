@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-rea-no-relay-policy-20261123-k1",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,subprocess\nfrom pathlib import Path\nr={\"task\":\"vivoapk-rea-no-video-relay-enforcement\",\"changed\":False}\np=subprocess.run([\"systemctl\",\"show\",\"jellyfin-pink.service\",\"--property=PrivateNetwork,NoNewPrivileges,MemoryMax,RestrictAddressFamilies,IPAddressDeny\"],capture_output=True,text=True,timeout=12)\nfor line in p.stdout.splitlines():\n if \"=\" not in line:continue\n key,v=line.split(\"=\",1)\n if key in (\"PrivateNetwork\",\"NoNewPrivileges\"):r[key]=v\n if key==\"IPAddressDeny\":r[\"IPAddressDenyConfigured\"]=bool(v)\nr[\"systemd_read_ok\"]=p.returncode==0\ncount=0\nfor comm in Path(\"/proc\").glob(\"[0-9]*/comm\"):\n try:\n  if comm.read_text().strip()!=\"ffmpeg\":continue\n  g=(comm.parent/\"cgroup\").read_text(errors=\"replace\")\n  if \"jellyfin-pink.service\" in g:count+=1\n except (OSError,PermissionError):pass\nr[\"jellyfin_ffmpeg_processes_now\"]=count\nr[\"no_transcode_process_now\"]=count==0\nr[\"jellyfin_private_network_policy_enabled\"]=r.get(\"PrivateNetwork\",\"\").lower() in (\"yes\",\"true\")\nprint(json.dumps(r,sort_keys=True))\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 26000,
+          "idle_timeout_ms": 26000,
+          "terminal": {
+            "columns": 130,
+            "rows": 18,
+            "scrollback": 30
+          },
+          "limits": {
+            "output_bytes": 3000
+          }
+        }
+      }
+    }
+  ]
+}
