@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-ruflo-final-review-20261123",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-hygiene-final-20261123",
+  "revision": 1,
+  "turn": {
+    "task": "postflight",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "approved",
+    "message": "Independent check of real Ferrari REA JSON, not only Actions success: 14/14 named production checks passed after restart: correct Git SHA 578f045, compiled DLL exact match, native PNG marker, Unix socket 0660 owned vivoapksvc:www-data with persistent ExecStartPost, successful socket HTTP 200 as jellyfinpink, both services plus HTTPS/NGINX/PostgreSQL healthy, PINK backend and VPN absent, rollback backups preserved. Scope excludes real Android media playback, per-channel official logos and multi-subscriber catalogue, all explicitly unverified.",
+    "evidence_sha256": [
+      "609b8b389f53a443bb9ed1066aeeffcb4b0ae807890d76096774431e16f3e087"
+    ]
+  }
+}
