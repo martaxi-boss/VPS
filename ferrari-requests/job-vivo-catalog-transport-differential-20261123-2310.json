@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivo-catalog-transport-differential-20261123-2310",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess\np=subprocess.run(['sudo','-n','/srv/projects/Vivoapk/.venv/bin/python','-c',\"import json,shlex,subprocess,sys,time\\nfrom datetime import datetime,timezone\\nfrom pathlib import Path\\nfrom urllib.parse import urlencode,urlsplit\\nr={'task':'diagnose real Xtream catalog transport without secrets','read_only':True,'modified':False,'secrets_logged':False,'steps':{},'authorized':False}\\ntry:\\n p=Path('/root/project-secrets/VIVOAPK/backend-auth.env')\\n cfg={}\\n for line in p.read_text().splitlines():\\n  if '=' not in line or line.lstrip().startswith('#'):continue\\n  k,v=line.split('=',1);k=k.strip().removeprefix('export ').strip()\\n  if k in ('MEGA_OTT_API_BASE','MEGA_OTT_API_TOKEN'):\\n   vals=shlex.split(v)\\n   if len(vals)==1:cfg[k]=vals[0]\\n sys.path.insert(0,'/srv/projects/Vivoapk/source/backend')\\n import httpx,httpcore\\n from app.clients.mega import MegaOTTClient\\n from app.clients.xtream import XtreamClient\\n from app.outbound_transport import PinnedIPNetworkBackend,PinnedHTTPTransport\\n from app.url_safety import resolve_dns_link_target,player_api_url\\n q=subprocess.run(['/usr/bin/sudo','-n','-u','postgres','/usr/bin/psql','-X','-A','-t','-d','vivoapk','-c','SELECT mega_subscription_id FROM subscription_mappings ORDER BY id LIMIT 4;'],capture_output=True,text=True,timeout=12)\\n ids=[int(x) for x in q.stdout.splitlines() if x.strip().isdigit()]\\n with MegaOTTClient(base_url=cfg['MEGA_OTT_API_BASE'],token=cfg['MEGA_OTT_API_TOKEN'],timeout_seconds=9) as mega:\\n  sub=None\\n  for sid in ids:\\n   try:t=mega.get_subscription(sid)\\n   except Exception:continue\\n   pw=t.password.get_secret_value() if t.password else ''\\n   if not pw or (t.expiring_at and t.expiring_at<datetime.now(timezone.utc)):continue\\n   xt=XtreamClient(timeout_seconds=9)\\n   try:status=xt.authenticate(dns_link=t.dns_link,username=t.username,password=pw)\\n   except Exception:continue\\n   finally:xt.close()\\n   if status.code=='SUCCESS':sub=t;break\\n if sub is None:raise RuntimeError('no_authorized_account')\\n r['authorized']=True\\n t=resolve_dns_link_target(sub.dns_link)\\n creds={'username':sub.username,'password':pw}\\n for action in ('get_live_categories','get_live_streams','get_vod_categories','get_vod_streams','get_series_categories','get_series'):\\n  out={}\\n  try:\\n   transport=PinnedHTTPTransport(t,max_response_bytes=8*1024*1024)\\n   with httpx.Client(transport=transport,headers={'Accept':'application/json','Accept-Encoding':'identity','Connection':'close','User-Agent':'Vivoapk/1.0'},timeout=httpx.Timeout(12),follow_redirects=False,trust_env=False) as client:\\n    try:\\n     response=client.get(player_api_url(t.origin),params={**creds,'action':action})\\n     out['httpx_status']=response.status_code\\n     out['httpx_bytes']=len(response.content)\\n     try:\\n      obj=response.json()\\n      out['httpx_json_type']=type(obj).__name__\\n      if isinstance(obj,list):out['httpx_count']=len(obj)\\n     except Exception as e:out['httpx_json_error']=type(e).__name__\\n    except Exception as e:\\n     out['httpx_error']=type(e).__name__\\n     if e.__cause__:out['httpx_cause']=type(e.__cause__).__name__\\n  except Exception as e:out['httpx_setup_error']=type(e).__name__\\n  try:\\n   net=PinnedIPNetworkBackend(hostname=t.hostname,port=t.port,addresses=t.addresses)\\n   pool=httpcore.ConnectionPool(network_backend=net,retries=0,http1=True,http2=False)\\n   try:\\n    query=urlencode({**creds,'action':action})\\n    url=httpcore.URL(scheme=urlsplit(t.origin).scheme.encode(),host=t.hostname.encode(),port=t.port,target=('/player_api.php?'+query).encode())\\n    core=httpcore.Request(method=b'GET',url=url,headers=[(b'host',t.hostname.encode()),(b'user-agent',b'Vivoapk/1.0'),(b'accept',b'application/json'),(b'accept-encoding',b'identity'),(b'connection',b'close')],extensions={'timeout':{'connect':8.0,'read':10.0,'write':8.0,'pool':8.0}})\\n    response=pool.handle_request(core)\\n    out['core_status']=response.status\\n    raw=bytearray()\\n    try:\\n     for part in response.iter_stream():\\n      if len(raw)+len(part)>8*1024*1024:out['core_over_8mib']=True;break\\n      raw.extend(part)\\n    finally:response.close()\\n    out['core_bytes']=len(raw)\\n    if not out.get('core_over_8mib'):\\n     try:\\n      obj=json.loads(raw)\\n      out['core_json_type']=type(obj).__name__\\n      if isinstance(obj,list):out['core_count']=len(obj)\\n     except Exception as e:out['core_json_error']=type(e).__name__\\n   finally:pool.close()\\n  except Exception as e:\\n   out['core_error']=type(e).__name__\\n   if e.__cause__:out['core_cause']=type(e.__cause__).__name__\\n  r['steps'][action]=out\\n r['status']='diagnosed'\\nexcept Exception as e:r['status']='blocked';r['error_class']=type(e).__name__\\nprint(json.dumps(r,sort_keys=True),flush=True)\\n\"],capture_output=True,text=True,timeout=180)\nprint(p.stdout[:15000] if p.stdout else 'NO_RESULT',flush=True)\nprint('PROBE_EXIT='+str(p.returncode),flush=True)\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 200000,
+          "idle_timeout_ms": 200000,
+          "terminal": {
+            "columns": 140,
+            "rows": 30,
+            "scrollback": 100
+          },
+          "limits": {
+            "output_bytes": 17500
+          }
+        }
+      }
+    }
+  ]
+}
