@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "id": "vivo-bootstrap-audit-rea-turn-20261123-r2",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivo-bootstrap-audit-20261123-r1",
+  "revision": 0,
+  "turn": {
+    "task": "runtime",
+    "role": "tester",
+    "kind": "rea-mcp",
+    "message": "Real read-only REA hygiene inventory. Inspect only service metadata and project footprint, never secret contents, never modify or restart services, protect Jellyfin. Evidence must distinguish absent old Pink from active Jellyfin named pink.",
+    "mcp_requests": [
+      {
+        "method": "tools/call",
+        "params": {
+          "name": "capture_process_scenario",
+          "arguments": {
+            "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+            "arguments": [
+              "-c",
+              "import json,os,subprocess,shutil,stat\nfrom pathlib import Path\nunits=['vivoapk-backend.service','jellyfin-pink.service','jellyfin.service','pink-iptv-backend.service','pink-vpn.service','nginx.service','postgresql.service']\npaths=['/srv/projects/Vivoapk','/srv/projects/Vivoapk/source','/srv/projects/Vivoapk/.venv','/srv/projects/Vivoapk/backups','/srv/projects/pink-iptv','/srv/projects/jellyfin-server','/srv/projects/jellyfin-server/run','/root/project-secrets/VIVOAPK']\nout={'purpose':'VivoAPK bootstrap strong hygiene audit','read_only':True,'secret_values_read':False,'services':{},'paths':{},'git':{},'disk':{},'actions_taken':[]}\nfor unit in units:\n try:\n  p=subprocess.run(['/usr/bin/systemctl','show',unit,'--property=LoadState,ActiveState,SubState,FragmentPath,MemoryCurrent','--no-pager'],capture_output=True,text=True,timeout=9)\n  d={}\n  for line in p.stdout.splitlines():\n   if '=' in line:\n    k,v=line.split('=',1)\n    d[k]=v if k in ('LoadState','ActiveState','SubState') else ('set' if v and v!='[not set]' else 'none')\n  out['services'][unit]=d if d else {'query':'unavailable'}\n except Exception as e:out['services'][unit]={'query':type(e).__name__}\nfor path in paths:\n p=Path(path)\n try:\n  s=os.lstat(path)\n  kind='link' if stat.S_ISLNK(s.st_mode) else 'directory' if stat.S_ISDIR(s.st_mode) else 'file' if stat.S_ISREG(s.st_mode) else 'other'\n  out['paths'][path]={'kind':kind}\n  if kind=='directory' and path in ('/srv/projects/Vivoapk','/srv/projects/pink-iptv','/srv/projects/jellyfin-server'):\n   m=subprocess.run(['/usr/bin/du','-sk','--',path],capture_output=True,text=True,timeout=14)\n   out['paths'][path]['kib']=int(m.stdout.split()[0]) if m.stdout.split() else None\n except FileNotFoundError:out['paths'][path]={'kind':'absent'}\n except PermissionError:out['paths'][path]={'kind':'access-denied'}\n except Exception as e:out['paths'][path]={'kind':'error','class':type(e).__name__}\nfor path in ['/srv/projects/Vivoapk/source','/srv/projects/jellyfin-server']:\n try:\n  if Path(path).exists():\n   r=subprocess.run(['/usr/bin/git','-C',path,'rev-parse','HEAD'],capture_output=True,text=True,timeout=6)\n   out['git'][path]={'sha':r.stdout.strip() if r.returncode==0 and len(r.stdout.strip())==40 else 'unavailable'}\n except Exception as e:out['git'][path]={'query':type(e).__name__}\ntry:\n d=shutil.disk_usage('/srv')\n out['disk']={'free_gib_rounded':round(d.free/1024**3,1),'used_gib_rounded':round(d.used/1024**3,1)}\nexcept Exception as e:out['disk']={'error':type(e).__name__}\nprint(json.dumps(out,sort_keys=True),flush=True)\n"
+            ],
+            "working_directory": "/srv/projects/skill-universal",
+            "timeout_ms": 70000,
+            "idle_timeout_ms": 70000,
+            "terminal": {
+              "columns": 160,
+              "rows": 32,
+              "scrollback": 90
+            },
+            "limits": {
+              "output_bytes": 15000
+            }
+          }
+        }
+      }
+    ]
+  }
+}
