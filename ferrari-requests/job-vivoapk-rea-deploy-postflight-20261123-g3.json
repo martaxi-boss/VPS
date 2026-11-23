@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-rea-deploy-postflight-20261123-g3",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,subprocess\np=subprocess.run([\"sudo\",\"-n\",\"/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12\",\"-c\",\"import hashlib,json,socket,ssl,urllib.request,subprocess\\nfrom pathlib import Path\\nimport xml.etree.ElementTree as ET\\nroot=Path(\\\"/srv/projects/Vivoapk\\\")\\nsource=root/\\\"source\\\"\\nplugin=Path(\\\"/srv/projects/jellyfin-server/data/plugins/VivoAPK Mega OTT Auth_0.1.0.0/Jellyfin.Plugin.VivoapkMegaAuth.dll\\\")\\nbackup=root/\\\"backups/live-channel-pilot/c89d42096aae9068ea0c\\\"\\ncfg=Path(\\\"/srv/projects/jellyfin-server/data/plugins/configurations/Jellyfin.Plugin.VivoapkMegaAuth.xml\\\")\\ndef sha(p):\\n return hashlib.sha256(p.read_bytes()).hexdigest() if p.is_file() and not p.is_symlink() else None\\ndef cmd(c):\\n p=subprocess.run(c,capture_output=True,text=True,timeout=7)\\n return p.stdout.strip() if p.returncode==0 else None\\ndef socket_http(path,uri):\\n try:\\n  with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as s:\\n   s.settimeout(6);s.connect(path)\\n   s.sendall((\\\"GET \\\"+uri+\\\" HTTP/1.1\\\\r\\\\nHost: localhost\\\\r\\\\nConnection: close\\\\r\\\\n\\\\r\\\\n\\\").encode())\\n   return s.recv(120).split(b\\\"\\\\r\\\\n\\\",1)[0].decode(errors=\\\"replace\\\")\\n except OSError as ex:return \\\"blocked_\\\"+type(ex).__name__\\nv={\\\"task\\\":\\\"vivoapk-rea-deploy-independent-postflight\\\",\\\"git_revision\\\":cmd([\\\"git\\\",\\\"-C\\\",str(source),\\\"rev-parse\\\",\\\"HEAD\\\"]),\\\"production_binary_sha256\\\":sha(plugin),\\\"backup_binary_sha256\\\":sha(backup/\\\"plugin.dll\\\"),\\\"backup_marker_matches_previous\\\":(backup/\\\"VIVOAPK_LIVE_PILOT_V1\\\").is_file() and (backup/\\\"VIVOAPK_LIVE_PILOT_V1\\\").read_text().strip()==\\\"0b3217b42fd4c960a4b4109fd603b874982aa417\\\",\\\"services\\\":{},\\\"secrets_opened\\\":False}\\nfor name in (\\\"vivoapk-backend.service\\\",\\\"jellyfin-pink.service\\\",\\\"nginx.service\\\",\\\"postgresql.service\\\",\\\"pink-iptv-backend.service\\\",\\\"pink-vpn.service\\\"):\\n v[\\\"services\\\"][name]=cmd([\\\"systemctl\\\",\\\"is-active\\\",name])\\nv[\\\"jellyfin_http\\\"]=socket_http(\\\"/srv/projects/jellyfin-server/run/jellyfin.sock\\\",\\\"/System/Info/Public\\\")\\nv[\\\"backend_http\\\"]=socket_http(\\\"/srv/projects/Vivoapk/run/backend.sock\\\",\\\"/openapi.json\\\")\\nif cfg.is_file() and not cfg.is_symlink():\\n x=ET.parse(cfg).getroot()\\n v[\\\"plugin_enabled\\\"]=x.findtext(\\\"Enabled\\\",\\\"\\\").lower()==\\\"true\\\"\\n v[\\\"pilot_enabled\\\"]=x.findtext(\\\"PilotLiveChannels\\\",\\\"\\\").lower()==\\\"true\\\"\\ntry:\\n with urllib.request.urlopen(\\\"https://serveriptv.duckdns.org/System/Info/Public\\\",timeout=9) as response:\\n  v[\\\"public_https_code\\\"]=response.status\\nexcept Exception as ex:v[\\\"public_https_error_type\\\"]=type(ex).__name__\\nv[\\\"production_sha_differs_from_backup\\\"]=v[\\\"production_binary_sha256\\\"] is not None and v[\\\"production_binary_sha256\\\"]!=v[\\\"backup_binary_sha256\\\"]\\nprint(json.dumps(v,sort_keys=True))\\n\"],capture_output=True,text=True,timeout=48)\ntry:result=json.loads(p.stdout)\nexcept Exception:result={\"task\":\"vivoapk-rea-deploy-independent-postflight\",\"status\":\"blocked\",\"exit_code\":p.returncode}\nprint(json.dumps(result,sort_keys=True))\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 85000,
+          "idle_timeout_ms": 85000,
+          "terminal": {
+            "columns": 146,
+            "rows": 25,
+            "scrollback": 60
+          },
+          "limits": {
+            "output_bytes": 7000
+          }
+        }
+      }
+    }
+  ]
+}
