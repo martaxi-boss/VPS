@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "vivo-git-drift-safe-20261123-04",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "synthetic.json",
+    "content_base64": "e30K"
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\np=subprocess.run([\"sudo\",\"-n\",\"python3\",\"-c\",\"import json,subprocess,re\\nfrom pathlib import Path\\nroot=\\\"/srv/projects/Vivoapk/source\\\"\\np=subprocess.run([\\\"git\\\",\\\"-C\\\",root,\\\"status\\\",\\\"--porcelain=v1\\\",\\\"--untracked-files=normal\\\"],capture_output=True,text=True,timeout=12)\\nrows=[]\\nfor line in p.stdout.splitlines()[:30]:\\n status=line[:2];path=line[3:].strip()\\n sensitive=bool(re.search(r\\\"secret|token|password|credential|\\\\\\\\.env|private|key|passwd|vault\\\",path,re.I))\\n rows.append({\\\"git_state\\\":status,\\\"path\\\":(\\\"REDACTED_PRIVATE_PATH\\\" if sensitive else path[:160]),\\\"private_path\\\":sensitive})\\nq=subprocess.run([\\\"git\\\",\\\"-C\\\",root,\\\"diff\\\",\\\"--check\\\"],capture_output=True,text=True,timeout=12)\\nprint(json.dumps({\\\"audit\\\":\\\"vivo-source-uncommitted-metadata\\\",\\\"changed\\\":False,\\\"git_exit\\\":p.returncode,\\\"pending\\\":rows,\\\"diff_whitespace_check_ok\\\":q.returncode==0},sort_keys=True))\\n\"],capture_output=True,text=True,timeout=35)\ntry:d=json.loads(p.stdout)\nexcept Exception:d={\"audit\":\"vivo-source-uncommitted-metadata\",\"error\":\"script_failed\"}\nprint(json.dumps(d,sort_keys=True))",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 65000,
+          "idle_timeout_ms": 65000,
+          "terminal": {
+            "columns": 140,
+            "rows": 25,
+            "scrollback": 80
+          },
+          "limits": {
+            "output_bytes": 6000
+          }
+        }
+      }
+    }
+  ]
+}
