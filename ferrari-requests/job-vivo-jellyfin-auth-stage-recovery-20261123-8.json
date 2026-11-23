@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "vivo-jellyfin-auth-stage-recovery-20261123-8",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "audit.json",
+    "content_base64": "e30K"
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,subprocess\np=subprocess.run([\"sudo\",\"-n\",\"python3\",\"-c\",\"import json,os,pathlib,subprocess\\nroot=pathlib.Path(\\\"/srv/projects/Vivoapk\\\")\\nsha=\\\"f1bb21928dd499b53a40fbfb105ce6018af9fb07\\\"\\nout={\\\"audit\\\":\\\"jellyfin_auth_stage_recovery\\\",\\\"changed\\\":False,\\\"files\\\":{},\\\"services\\\":{},\\\"processes\\\":{}}\\npaths={\\n \\\"checkout\\\":root/\\\"jellyfin-auth/checkouts\\\"/sha[:16],\\n \\\"release\\\":root/\\\"jellyfin-auth/releases\\\"/sha[:16],\\n \\\"nuget\\\":root/\\\"jellyfin-auth/build-cache/nuget\\\",\\n \\\"dotnet_home\\\":root/\\\"jellyfin-auth/build-cache/dotnet-home\\\",\\n \\\"plugin\\\":pathlib.Path(\\\"/srv/projects/jellyfin-server/data/plugins/VivoAPK Mega OTT Auth_0.1.0.0\\\"),\\n \\\"source_worktree\\\":root/\\\"source/.git\\\"\\n}\\nfor k,p in paths.items():\\n out[\\\"files\\\"][k]={\\\"exists\\\":p.exists(),\\\"dir\\\":p.is_dir()}\\n if p.is_dir():\\n  try:out[\\\"files\\\"][k][\\\"items\\\"]=len(list(p.iterdir()))\\n  except Exception:pass\\ncheckout=paths[\\\"checkout\\\"]\\nif checkout.is_dir():\\n try:\\n  q=subprocess.run([\\\"git\\\",\\\"-C\\\",str(checkout),\\\"rev-parse\\\",\\\"HEAD\\\"],capture_output=True,text=True,timeout=6)\\n  out[\\\"files\\\"][\\\"checkout\\\"][\\\"sha_matches\\\"]=q.returncode==0 and q.stdout.strip()==sha\\n except Exception:pass\\nfor s in (\\\"vivoapk-backend.service\\\",\\\"jellyfin-pink.service\\\",\\\"pink-iptv-backend.service\\\"):\\n q=subprocess.run([\\\"systemctl\\\",\\\"is-active\\\",\\\"--quiet\\\",s],capture_output=True,timeout=6)\\n out[\\\"services\\\"][s]=\\\"active\\\" if q.returncode==0 else \\\"not_active\\\"\\nq=subprocess.run([\\\"pgrep\\\",\\\"-c\\\",\\\"-f\\\",\\\"dotnet (restore|build|run)\\\"],capture_output=True,text=True,timeout=6)\\nout[\\\"processes\\\"][\\\"dotnet_build_processes_seen\\\"]=int(q.stdout.strip() or 0)\\nprint(json.dumps(out,sort_keys=True))\"],capture_output=True,text=True,timeout=42)\ntry:d=json.loads(p.stdout)\nexcept:d={\"audit\":\"jellyfin_auth_stage_recovery\",\"error\":\"unreadable\"}\nd[\"exit\"]=p.returncode\nprint(json.dumps(d,sort_keys=True))",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 90000,
+          "idle_timeout_ms": 90000,
+          "terminal": {
+            "columns": 142,
+            "rows": 23,
+            "scrollback": 110
+          },
+          "limits": {
+            "output_bytes": 12000
+          }
+        }
+      }
+    }
+  ]
+}
