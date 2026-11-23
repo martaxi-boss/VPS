@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivo-rtp1-review-codecs-20261123-1523",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivo-rtp1-black-20261123-1509",
+  "revision": 5,
+  "turn": {
+    "task": "playback",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Actual upstream RTP1 segments HTTP200 MPEG-TS and FFprobe confirmed H264 High 1280x720@50 AAC-LC stereo48k. Decode was blocked by accidental directory matched as executable, not provider failure. Select canonical private FFmpeg file and continue to actual Android-profile PlaybackInfo. No production deploy yet.",
+    "evidence_sha256": [
+      "1dad2ac3ed037b16bc58223cf5ce60e564d7a1e15ef709c0cd7f2c0b427fa854"
+    ]
+  }
+}
