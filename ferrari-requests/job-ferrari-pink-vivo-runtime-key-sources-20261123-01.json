@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "ferrari-pink-vivo-runtime-key-sources-20261123-01",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "synthetic.txt",
+    "content_base64": "e30K"
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,subprocess\np=subprocess.run([\"sudo\",\"-n\",\"python3\",\"-c\",\"import json,os,subprocess,shlex\\nfrom pathlib import Path\\nout={\\\"action\\\":\\\"pink_api_credentials_source_check\\\",\\\"changed\\\":False,\\\"service\\\":{},\\\"secrets\\\":{},\\\"matches\\\":{},\\\"pinks_db\\\":{}}\\nnames=(\\\"pink-iptv-backend.service\\\",\\\"vivoapk-backend.service\\\")\\ndef unit(name):\\n p=subprocess.run([\\\"systemctl\\\",\\\"show\\\",name,\\\"--property=MainPID,ExecStart,EnvironmentFiles,LoadState,ActiveState\\\",\\\"--no-pager\\\"],capture_output=True,text=True,timeout=8)\\n d={}\\n for line in p.stdout.splitlines():\\n  if \\\"=\\\" not in line:continue\\n  k,v=line.split(\\\"=\\\",1)\\n  if k==\\\"ExecStart\\\":d[k]=\\\"set\\\" if v else \\\"empty\\\"\\n  elif k==\\\"EnvironmentFiles\\\":\\n   d[k]=[s for s in v.split() if s.startswith(\\\"/\\\") and \\\"env\\\" in s.lower()][:8]\\n  else:d[k]=v\\n return d\\nfor name in names:\\n d=unit(name)\\n out[\\\"service\\\"][name]={k:v for k,v in d.items() if k!=\\\"MainPID\\\"}\\n try:\\n  pid=int(d.get(\\\"MainPID\\\") or \\\"0\\\")\\n  if pid>0:\\n   b=Path(\\\"/proc\\\")/str(pid)/\\\"environ\\\"\\n   env={}\\n   for part in b.read_bytes().split(bytes([0])):\\n    if b\\\"=\\\" in part:\\n     k,v=part.split(b\\\"=\\\",1)\\n     if k in (b\\\"MEGA_OTT_API_TOKEN\\\",b\\\"MEGA_OTT_API_BASE\\\"):\\n      env[k.decode()]=v.decode(errors=\\\"replace\\\")\\n   out[\\\"service\\\"][name][\\\"pid_has_token\\\"]=bool(env.get(\\\"MEGA_OTT_API_TOKEN\\\"))\\n   out[\\\"service\\\"][name][\\\"pid_has_base\\\"]=bool(env.get(\\\"MEGA_OTT_API_BASE\\\"))\\n   out[\\\"secrets\\\"][\\\"running_\\\"+name]=env\\n except (PermissionError,OSError,ValueError) as e:\\n  out[\\\"service\\\"][name][\\\"runtime_env_readable\\\"]=False\\ndef read_env(path):\\n p=Path(path)\\n if not p.is_file() or p.is_symlink():return {}\\n env={}\\n for line in p.read_text(errors=\\\"replace\\\").splitlines():\\n  s=line.strip()\\n  if not s or s.startswith(\\\"#\\\") or \\\"=\\\" not in s:continue\\n  k,v=s.split(\\\"=\\\",1)\\n  if k.startswith(\\\"export \\\"):k=k[7:].strip()\\n  if k not in (\\\"MEGA_OTT_API_TOKEN\\\",\\\"MEGA_OTT_API_BASE\\\"):continue\\n  try:\\n   args=shlex.split(v)\\n   if len(args)==1:env[k]=args[0]\\n  except ValueError:pass\\n return env\\nsources={\\n \\\"pink_secrets\\\":\\\"/srv/projects/pink-iptv/private/systemd-env/secrets.env\\\",\\n \\\"pink_backend\\\":\\\"/srv/projects/pink-iptv/private/systemd-env/backend.env\\\",\\n \\\"vivo_source\\\":\\\"/root/project-secrets/VIVOAPK/backend-auth.env\\\",\\n \\\"vivo_runtime\\\":\\\"/root/project-secrets/VIVOAPK/backend-runtime.env\\\"\\n}\\nfor key,path in sources.items():out[\\\"secrets\\\"][key]=read_env(path)\\nallenv=out[\\\"secrets\\\"].copy()\\nfor key,val in allenv.items():\\n out[\\\"secrets\\\"][key]={\\\"has_token\\\":bool(val.get(\\\"MEGA_OTT_API_TOKEN\\\")),\\\"has_api_base\\\":bool(val.get(\\\"MEGA_OTT_API_BASE\\\"))}\\n for other,env2 in allenv.items():\\n  if other<=key:continue\\n  if val.get(\\\"MEGA_OTT_API_TOKEN\\\") and env2.get(\\\"MEGA_OTT_API_TOKEN\\\"):\\n   out[\\\"matches\\\"][key+\\\"__\\\"+other+\\\"_token_equal\\\"]=val[\\\"MEGA_OTT_API_TOKEN\\\"]==env2[\\\"MEGA_OTT_API_TOKEN\\\"]\\n  if val.get(\\\"MEGA_OTT_API_BASE\\\") and env2.get(\\\"MEGA_OTT_API_BASE\\\"):\\n   out[\\\"matches\\\"][key+\\\"__\\\"+other+\\\"_base_equal\\\"]=val[\\\"MEGA_OTT_API_BASE\\\"].rstrip(\\\"/\\\")==env2[\\\"MEGA_OTT_API_BASE\\\"].rstrip(\\\"/\\\")\\nprint(json.dumps(out,sort_keys=True))\\n\"],capture_output=True,text=True,timeout=70)\nif p.returncode:print(json.dumps({\"audit\":\"blocked\",\"status_code\":p.returncode}))\nelse:\n try:print(json.dumps(json.loads(p.stdout),sort_keys=True))\n except Exception:print(json.dumps({\"audit\":\"invalid_report\",\"length\":len(p.stdout)}))",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 100000,
+          "idle_timeout_ms": 100000,
+          "terminal": {
+            "columns": 150,
+            "rows": 25,
+            "scrollback": 150
+          },
+          "limits": {
+            "output_bytes": 14000
+          }
+        }
+      }
+    }
+  ]
+}
