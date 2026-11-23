@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-rea-hls-postflight-20261123-q2",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,subprocess\np=subprocess.run([\"sudo\",\"-n\",\"/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12\",\"-c\",\"import json,hashlib,subprocess,socket,urllib.request\\nfrom pathlib import Path\\nfrom xml.etree import ElementTree\\nroot=Path(\\\"/srv/projects/Vivoapk/source\\\")\\ntarget=\\\"cbc926c641463818f755df7a2e9c797ad7228201\\\"\\ndll=Path(\\\"/srv/projects/jellyfin-server/data/plugins/VivoAPK Mega OTT Auth_0.1.0.0/Jellyfin.Plugin.VivoapkMegaAuth.dll\\\")\\nconf=Path(\\\"/srv/projects/jellyfin-server/data/plugins/configurations/Jellyfin.Plugin.VivoapkMegaAuth.xml\\\")\\ndef cmd(argv):\\n p=subprocess.run(argv,capture_output=True,text=True,timeout=8)\\n return p.stdout.strip() if p.returncode==0 else None\\ndef sock_http(p,uri):\\n try:\\n  with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as s:\\n   s.settimeout(4);s.connect(str(p))\\n   s.sendall((\\\"GET \\\"+uri+\\\" HTTP/1.1\\\\r\\\\nHost: localhost\\\\r\\\\nConnection: close\\\\r\\\\n\\\\r\\\\n\\\").encode())\\n   return s.recv(128).split(b\\\"\\\\r\\\\n\\\",1)[0].decode(\\\"ascii\\\",\\\"replace\\\")\\n except OSError as ex:return \\\"error_\\\"+type(ex).__name__\\nx={\\\"task\\\":\\\"independent-hls-postflight\\\",\\\"expected_target\\\":target[:12],\\\"revision\\\":cmd([\\\"git\\\",\\\"-C\\\",str(root),\\\"rev-parse\\\",\\\"HEAD\\\"]),\\\"active_services\\\":{},\\\"retired_services\\\":{},\\\"secrets_read\\\":False,\\\"proxy_added\\\":False}\\nfor service in (\\\"vivoapk-backend.service\\\",\\\"jellyfin-pink.service\\\",\\\"nginx.service\\\",\\\"postgresql.service\\\"):\\n x[\\\"active_services\\\"][service]=cmd([\\\"systemctl\\\",\\\"is-active\\\",service])\\nfor service in (\\\"pink-iptv-backend.service\\\",\\\"pink-vpn.service\\\"):\\n x[\\\"retired_services\\\"][service]=cmd([\\\"systemctl\\\",\\\"is-active\\\",service])\\nx[\\\"jellyfin_private_network\\\"]=cmd([\\\"systemctl\\\",\\\"show\\\",\\\"jellyfin-pink.service\\\",\\\"-p\\\",\\\"PrivateNetwork\\\",\\\"--value\\\"])\\nx[\\\"backend_http\\\"]=sock_http(\\\"/srv/projects/Vivoapk/run/backend.sock\\\",\\\"/openapi.json\\\")\\nx[\\\"jellyfin_http\\\"]=sock_http(\\\"/srv/projects/jellyfin-server/run/jellyfin.sock\\\",\\\"/System/Info/Public\\\")\\nsrc=root/\\\"jellyfin-auth/Vivoapk.Jellyfin.Auth/VivoapkLivePreviewChannel.cs\\\"\\nif src.is_file():\\n s=src.read_text()\\n x[\\\"source_hls_path\\\"]=('\\\".m3u8\\\"' in s and 'Container = \\\"m3u8\\\"' in s and 'DataVersion => \\\"pilot-hls-v1\\\"' in s)\\n x[\\\"source_uses_direct_http\\\"]=(\\\"Protocol = MediaProtocol.Http\\\" in s and \\\"SupportsDirectPlay = true\\\" in s)\\n x[\\\"source_no_relay_flags\\\"]=(\\\"SupportsDirectStream = false\\\" in s and \\\"SupportsTranscoding = false\\\" in s)\\nif dll.is_file() and not dll.is_symlink():\\n b=dll.read_bytes();x[\\\"plugin_sha256\\\"]=hashlib.sha256(b).hexdigest()\\n x[\\\"dll_contains_hls_string\\\"]=(\\\".m3u8\\\".encode(\\\"utf-16le\\\") in b or b\\\".m3u8\\\" in b)\\n x[\\\"dll_contains_hls_cachekey\\\"]=(\\\"pilot-hls-v1\\\".encode(\\\"utf-16le\\\") in b or b\\\"pilot-hls-v1\\\" in b)\\nif conf.is_file() and not conf.is_symlink():\\n c=ElementTree.parse(conf).getroot()\\n x[\\\"plugin_enabled\\\"]=(c.findtext(\\\"Enabled\\\",\\\"\\\").lower()==\\\"true\\\")\\n x[\\\"pilot_enabled\\\"]=(c.findtext(\\\"PilotLiveChannels\\\",\\\"\\\").lower()==\\\"true\\\")\\nx[\\\"backup_exists\\\"]=(Path(\\\"/srv/projects/Vivoapk/backups/live-channel-pilot\\\")/target[:20]).is_dir()\\nx[\\\"target_installed\\\"]=x[\\\"revision\\\"]==target\\ntry:\\n with urllib.request.urlopen(\\\"https://serveriptv.duckdns.org/System/Info/Public\\\",timeout=8) as r:x[\\\"public_https_http\\\"]=r.status\\nexcept Exception as e:x[\\\"public_https_error_type\\\"]=type(e).__name__\\nprint(json.dumps(x,sort_keys=True))\\n\"],capture_output=True,text=True,timeout=45)\ntry:r=json.loads(p.stdout)\nexcept Exception:r={\"task\":\"independent-hls-postflight\",\"status\":\"failed_to_collect\",\"exit_code\":p.returncode}\nprint(json.dumps(r,sort_keys=True))"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 85000,
+          "idle_timeout_ms": 85000,
+          "terminal": {
+            "columns": 140,
+            "rows": 22,
+            "scrollback": 50
+          },
+          "limits": {
+            "output_bytes": 5800
+          }
+        }
+      }
+    }
+  ]
+}
