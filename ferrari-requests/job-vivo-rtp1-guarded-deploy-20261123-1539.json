@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "id": "vivo-rtp1-guarded-deploy-20261123-1539",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivo-rtp1-black-20261123-1509",
+  "revision": 12,
+  "turn": {
+    "task": "playback",
+    "role": "tester",
+    "kind": "rea-mcp",
+    "message": "User-authorized production install only after build and actual disposable HLS video+audio tests PASS. Existing installer preflight, exact old revision guard, backup/rollback, pinned validated commit. No extra services or global packages.",
+    "mcp_requests": [
+      {
+        "method": "tools/call",
+        "params": {
+          "name": "capture_process_scenario",
+          "arguments": {
+            "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+            "arguments": [
+              "-c",
+              "import json,subprocess,sys,hashlib,os\nfrom pathlib import Path\nsha='a2f00bb0eb0bd4ef2d695151238645cc73f110a8'\nroot=Path('/srv/projects/Vivoapk')\ncommand=['sudo','-n','/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12',str(root/'source/infra/upgrade_live_preview.py')]\nout={'task':'RTP1 validated Android profile fix deployment','target_sha':sha,'ci_disposable_run':45204432932,'ci_plugin_run':45204432970,'status':'blocked','production_write':False}\ndef parsed(p):\n    try:return json.loads(p.stdout.strip().splitlines()[-1])\n    except Exception:return {'status':'invalid_result','exit':p.returncode}\ntry:\n    p=subprocess.run(command+['preflight','--sha',sha],capture_output=True,text=True,timeout=60)\n    pre=parsed(p);out['preflight']=pre\n    if p.returncode or pre.get('status')!='pass':raise RuntimeError('preflight_failed')\n    if pre.get('original_revision')!='578f0454f8a4':raise RuntimeError('unexpected_previous_revision')\n    out['production_write']=True\n    p=subprocess.run(command+['activate','--sha',sha],capture_output=True,text=True,timeout=550)\n    out['activation']=parsed(p)\n    if p.returncode or out['activation'].get('status')!='pilot_enabled':raise RuntimeError('activation_not_verified')\n    out['status']='deployed'\nexcept Exception as e:\n    out['error_type']=type(e).__name__\n    if isinstance(e,RuntimeError):out['error']=str(e)\nprint(json.dumps(out,sort_keys=True))\n"
+            ],
+            "working_directory": "/srv/projects/skill-universal",
+            "timeout_ms": 650000,
+            "idle_timeout_ms": 650000,
+            "terminal": {
+              "columns": 150,
+              "rows": 45,
+              "scrollback": 100
+            },
+            "limits": {
+              "output_bytes": 12000
+            }
+          }
+        }
+      }
+    ]
+  }
+}
