@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-rea-portugal-category-20261123-p1",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,subprocess\np=subprocess.run(['sudo','-n','/srv/projects/Vivoapk/.venv/bin/python','-c',\"import json,shlex,subprocess,sys,re,unicodedata\\nfrom pathlib import Path\\nfrom datetime import datetime,UTC\\nimport httpx\\nsys.path.insert(0,\\\"/srv/projects/Vivoapk/source/backend\\\")\\nfrom app.clients.mega import MegaOTTClient\\nfrom app.clients.xtream import XtreamClient\\nfrom app.url_safety import resolve_dns_link_target\\nfrom app.outbound_transport import PinnedHTTPTransport\\nfrom app.clients.catalog import XtreamCatalogClient, _parse_categories, _parse_items\\nfrom app.schemas import CatalogKind\\nreport={\\\"task\\\":\\\"portugal-live-category-real-provider\\\",\\\"account_authorized\\\":False,\\\"matched_categories\\\":[],\\\"sample_channels\\\":[],\\\"video_downloaded\\\":False,\\\"secrets_emitted\\\":False,\\\"status\\\":\\\"blocked\\\"}\\ntry:\\n env=Path(\\\"/root/project-secrets/VIVOAPK/backend-auth.env\\\")\\n cfg={}\\n for line in env.read_text().splitlines():\\n  if \\\"=\\\" in line and not line.lstrip().startswith(\\\"#\\\"):\\n   k,v=line.split(\\\"=\\\",1);k=k.removeprefix(\\\"export \\\").strip()\\n   if k in (\\\"MEGA_OTT_API_BASE\\\",\\\"MEGA_OTT_API_TOKEN\\\"):\\n    w=shlex.split(v.strip())\\n    if len(w)==1:cfg[k]=w[0]\\n if set(cfg)!={\\\"MEGA_OTT_API_BASE\\\",\\\"MEGA_OTT_API_TOKEN\\\"}:raise RuntimeError(\\\"missing_api_config\\\")\\n p=subprocess.run([\\\"sudo\\\",\\\"-n\\\",\\\"-u\\\",\\\"postgres\\\",\\\"psql\\\",\\\"-X\\\",\\\"-A\\\",\\\"-t\\\",\\\"-d\\\",\\\"vivoapk\\\",\\\"-c\\\",\\\"SELECT mega_subscription_id FROM subscription_mappings ORDER BY id LIMIT 4\\\"],capture_output=True,text=True,timeout=10)\\n if p.returncode:raise RuntimeError(\\\"mapping_query_failed\\\")\\n ids=[int(v.strip()) for v in p.stdout.splitlines() if v.strip().isdigit()]\\n with MegaOTTClient(base_url=cfg[\\\"MEGA_OTT_API_BASE\\\"],token=cfg[\\\"MEGA_OTT_API_TOKEN\\\"],timeout_seconds=10) as mega:\\n  for sid in ids:\\n   try: sub=mega.get_subscription(sid)\\n   except Exception:continue\\n   pw=sub.password.get_secret_value() if sub.password else \\\"\\\"\\n   if not pw or (sub.expiring_at and sub.expiring_at<=datetime.now(UTC)):continue\\n   client=XtreamClient(timeout_seconds=10)\\n   try:auth=client.authenticate(dns_link=sub.dns_link,username=sub.username,password=pw)\\n   except Exception:continue\\n   finally:client.close()\\n   if auth.code!=\\\"SUCCESS\\\":continue\\n   report[\\\"account_authorized\\\"]=True\\n   target=resolve_dns_link_target(sub.dns_link)\\n   transport=PinnedHTTPTransport(target,max_response_bytes=8*1024*1024)\\n   with httpx.Client(transport=transport,timeout=httpx.Timeout(12),follow_redirects=False,trust_env=False,headers={\\\"Accept\\\":\\\"application/json\\\",\\\"Accept-Encoding\\\":\\\"identity\\\",\\\"Connection\\\":\\\"close\\\",\\\"User-Agent\\\":\\\"Vivoapk/1.0\\\"}) as hc:\\n    credentials={\\\"username\\\":sub.username,\\\"password\\\":pw}\\n    raw=XtreamCatalogClient._read(hc,target.origin,credentials,\\\"get_live_categories\\\")\\n    categories=_parse_categories(raw)\\n    report[\\\"total_categories\\\"]=len(categories)\\n    def folded(x):\\n     return \\\"\\\".join(c for c in unicodedata.normalize(\\\"NFKD\\\",x.casefold()) if not unicodedata.combining(c))\\n    matched=[c for c in categories if re.search(r\\\"(?:^|[^a-z])(?:portugal|portugues|portuguese|pt)(?:$|[^a-z])\\\",folded(c[\\\"name\\\"])) and not re.search(r\\\"ppv|event|ufc|adult\\\",folded(c[\\\"name\\\"]))]\\n    matched.sort(key=lambda c:(0 if re.search(\\\"portugal\\\",folded(c[\\\"name\\\"])) else 1,0 if re.search(\\\"europ\\\",folded(c[\\\"name\\\"])) else 1,c[\\\"name\\\"]))\\n    report[\\\"matched_categories\\\"]=[{\\\"name\\\":c[\\\"name\\\"][:100],\\\"category_id\\\":c[\\\"id\\\"]} for c in matched[:12]]\\n    for c in matched[:3]:\\n     try:\\n      data=XtreamCatalogClient._read(hc,target.origin,credentials,\\\"get_live_streams\\\",extra={\\\"category_id\\\":c[\\\"id\\\"]})\\n      items=_parse_items(data,CatalogKind.LIVE,\\\"stream_id\\\")\\n      filtered=[x[\\\"title\\\"] for x in items if not re.search(r\\\"ppv|event only|ufc\\\",folded(x[\\\"title\\\"]))]\\n      report[\\\"sample_channels\\\"].append({\\\"category\\\":c[\\\"name\\\"][:80],\\\"total\\\":len(items),\\\"ordinary_examples\\\":filtered[:12]})\\n     except Exception as ex: report[\\\"sample_channels\\\"].append({\\\"category\\\":c[\\\"name\\\"][:80],\\\"error_type\\\":type(ex).__name__})\\n   report[\\\"status\\\"]=\\\"metadata_verified\\\"\\n   break\\nexcept Exception as ex:report[\\\"error_type\\\"]=type(ex).__name__\\nprint(json.dumps(report,ensure_ascii=False,sort_keys=True))\\n\"],capture_output=True,text=True,timeout=115)\ntry:d=json.loads(p.stdout)\nexcept Exception:d={'status':'blocked','reason':'invalid_readonly_result','code':p.returncode}\nprint(json.dumps(d,ensure_ascii=False,sort_keys=True))"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 160000,
+          "idle_timeout_ms": 160000,
+          "terminal": {
+            "columns": 145,
+            "rows": 24,
+            "scrollback": 60
+          },
+          "limits": {
+            "output_bytes": 9000
+          }
+        }
+      }
+    }
+  ]
+}
