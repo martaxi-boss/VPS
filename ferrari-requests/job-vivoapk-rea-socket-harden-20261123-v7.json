@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-rea-socket-harden-20261123-v7",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,sys\ncode=\"\\nimport os,stat,grp,pwd,socket,json,subprocess,sys,time\\nfrom pathlib import Path\\nsockpath=Path('/srv/projects/Vivoapk/run/backend.sock')\\ndirpath=sockpath.parent\\nret={'task':'VivoAPK secure existing socket permissions','write_scope':'one Unix socket mode','restarted_services':False,'changes':[]}\\ndef active(x):\\n    return subprocess.run(['systemctl','is-active','--quiet',x],timeout=5).returncode==0\\ndef probe(as_jellyfin=False):\\n    if not as_jellyfin:\\n        with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as s:\\n            s.settimeout(4);s.connect(str(sockpath))\\n            s.sendall(b'GET /openapi.json HTTP/1.1\\\\r\\\\nHost: localhost\\\\r\\\\nConnection: close\\\\r\\\\n\\\\r\\\\n')\\n            return b'200 OK' in s.recv(220).split(b'\\\\r\\\\n',1)[0]\\n    pid=os.fork()\\n    if pid==0:\\n        try:\\n            u=pwd.getpwnam('jellyfinpink');os.setgroups([grp.getgrnam('www-data').gr_gid]);os.setgid(u.pw_gid);os.setuid(u.pw_uid)\\n            os._exit(0 if probe(False) else 5)\\n        except BaseException:os._exit(6)\\n    _,status=os.waitpid(pid,0)\\n    return os.WIFEXITED(status) and os.WEXITSTATUS(status)==0\\ntry:\\n    if os.geteuid()!=0:raise RuntimeError('root_required')\\n    for svc in ['vivoapk-backend.service','jellyfin-pink.service','nginx.service','postgresql.service']:\\n        if not active(svc):raise RuntimeError('protected_service_down')\\n    d=dirpath.lstat();s=sockpath.lstat()\\n    if (dirpath.is_symlink() or sockpath.is_symlink() or not stat.S_ISDIR(d.st_mode)\\n            or not stat.S_ISSOCK(s.st_mode)\\n            or s.st_uid!=pwd.getpwnam('vivoapksvc').pw_uid\\n            or s.st_gid!=grp.getgrnam('www-data').gr_gid\\n            or d.st_gid!=s.st_gid or stat.S_IMODE(d.st_mode)!=0o2770\\n            or stat.S_IMODE(s.st_mode) not in (0o666,0o660)):\\n        raise RuntimeError('preflight_socket_identity_or_permissions_mismatch')\\n    old_mode=stat.S_IMODE(s.st_mode)\\n    ret['old_mode']=oct(old_mode)\\n    if not probe(True):raise RuntimeError('jellyfin_socket_before_unavailable')\\n    try:\\n        os.chmod(sockpath,0o660,follow_symlinks=False)\\n        now=sockpath.lstat()\\n        if now.st_ino!=s.st_ino or now.st_uid!=s.st_uid or now.st_gid!=s.st_gid or stat.S_IMODE(now.st_mode)!=0o660:\\n            raise RuntimeError('socket_changed_during_hardening')\\n        if not probe(True):raise RuntimeError('jellyfin_socket_after_unavailable')\\n        if not probe(False):raise RuntimeError('backend_socket_after_unavailable')\\n        for svc in ['vivoapk-backend.service','jellyfin-pink.service','nginx.service','postgresql.service']:\\n            if not active(svc):raise RuntimeError('protected_service_after_down')\\n        ret['status']='passed';ret['mode']=oct(stat.S_IMODE(now.st_mode));ret['jellyfin_probe']='HTTP_200';ret['backend_probe']='HTTP_200';ret['changes']=['chmod_socket_0660'] if old_mode != 0o660 else []\\n        ret['persist_on_restart']=False\\n    except Exception:\\n        current=sockpath.lstat()\\n        if current.st_ino==s.st_ino and current.st_uid==s.st_uid:\\n            os.chmod(sockpath,old_mode,follow_symlinks=False)\\n            ret['rolled_back']=True\\n        raise\\nexcept Exception as e:\\n    ret['status']='blocked';ret['reason']=str(e)\\nprint(json.dumps(ret,sort_keys=True))\\nsys.exit(0 if ret.get('status')=='passed' else 2)\\n\"\np=subprocess.run(['sudo','-n','/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12','-c',code],capture_output=True,text=True,timeout=45)\nprint(p.stdout.strip() if p.stdout.strip() else '{\"status\":\"missing_output\"}')\nsys.exit(p.returncode)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 85000,
+          "idle_timeout_ms": 85000,
+          "terminal": {
+            "columns": 140,
+            "rows": 22,
+            "scrollback": 50
+          },
+          "limits": {
+            "output_bytes": 6500
+          }
+        }
+      }
+    }
+  ]
+}
