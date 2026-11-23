@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "id": "vivo-source-task-pending-native-log-20261123-1650",
+  "kind": "ruflo-team",
+  "phase": "recover",
+  "team_id": "vivo-android-source-error-20261123-1600",
+  "revision": 7,
+  "task": "source",
+  "reason": "Original REA ADB discovery returned a tool error. No production correction was attempted. Recover task for read-only catalog-owned ADB verification and physical native-error evidence; do not replay deployment or certify Source error solved.",
+  "acknowledge_risk": true
+}
