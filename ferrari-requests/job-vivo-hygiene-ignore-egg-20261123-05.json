@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "vivo-hygiene-ignore-egg-20261123-05",
+  "kind": "rea-mcp",
+  "input": {
+    "name": "synthetic.json",
+    "content_base64": "e30K"
+  },
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\np=subprocess.run([\"sudo\",\"-n\",\"python3\",\"-c\",\"import json,os,subprocess,tempfile,stat\\nfrom pathlib import Path\\nroot=Path(\\\"/srv/projects/Vivoapk/source\\\")\\nout={\\\"task\\\":\\\"vivo-source-safe-local-ignore\\\",\\\"changed\\\":False,\\\"scope\\\":\\\"VivoAPK Git metadata only\\\",\\\"status\\\":\\\"blocked\\\"}\\ndef status():\\n r=subprocess.run([\\\"git\\\",\\\"-C\\\",str(root),\\\"status\\\",\\\"--porcelain=v1\\\",\\\"--untracked-files=normal\\\"],capture_output=True,text=True,timeout=10)\\n if r.returncode:raise RuntimeError(\\\"git_status_failed\\\")\\n return [s for s in r.stdout.splitlines() if s.strip()]\\ntry:\\n before=status()\\n out[\\\"before_count\\\"]=len(before)\\n if before==[]:\\n  out[\\\"status\\\"]=\\\"already_clean\\\"\\n else:\\n  if before!=[\\\"?? backend/vivoapk_mega_backend.egg-info/\\\"]:raise RuntimeError(\\\"unexpected_uncommitted_changes\\\")\\n  gitdir=root/\\\".git\\\"\\n  if not gitdir.is_dir() or gitdir.is_symlink():raise RuntimeError(\\\"git_directory_not_standard\\\")\\n  info=gitdir/\\\"info\\\"\\n  if not info.is_dir() or info.is_symlink():raise RuntimeError(\\\"git_info_not_standard\\\")\\n  exclude=info/\\\"exclude\\\"\\n  if exclude.is_symlink():raise RuntimeError(\\\"exclude_symlink\\\")\\n  previous=exclude.read_bytes() if exclude.is_file() else b\\\"\\\"\\n  pattern=b\\\"backend/*.egg-info/\\\"\\n  if pattern not in previous.splitlines():\\n   data=previous+(b\\\"\\\\n\\\" if previous and not previous.endswith(b\\\"\\\\n\\\") else b\\\"\\\")+pattern+b\\\"\\\\n\\\"\\n   fd,name=tempfile.mkstemp(prefix=\\\".vivo-ignore-\\\",dir=str(info))\\n   try:\\n    with os.fdopen(fd,\\\"wb\\\") as f:f.write(data);f.flush();os.fsync(f.fileno())\\n    if exclude.exists():os.chmod(name,stat.S_IMODE(exclude.stat().st_mode))\\n    else:os.chmod(name,0o600)\\n    os.replace(name,exclude)\\n   finally:\\n    if os.path.exists(name):os.unlink(name)\\n   out[\\\"changed\\\"]=True\\n  after=status()\\n  if after:\\n   if out[\\\"changed\\\"]:\\n    if previous:exclude.write_bytes(previous)\\n    else:exclude.unlink(missing_ok=True)\\n   raise RuntimeError(\\\"git_status_still_dirty_rolled_back\\\")\\n  out[\\\"status\\\"]=\\\"clean\\\"\\n out[\\\"after_count\\\"]=len(status())\\nexcept Exception as e:\\n out[\\\"status\\\"]=\\\"blocked\\\"\\n out[\\\"reason\\\"]=str(e) if str(e) in {\\\"unexpected_uncommitted_changes\\\",\\\"git_directory_not_standard\\\",\\\"git_info_not_standard\\\",\\\"exclude_symlink\\\",\\\"git_status_still_dirty_rolled_back\\\",\\\"git_status_failed\\\"} else type(e).__name__\\nprint(json.dumps(out,sort_keys=True))\\n\"],capture_output=True,text=True,timeout=45)\ntry:d=json.loads(p.stdout)\nexcept Exception:d={\"task\":\"vivo-source-safe-local-ignore\",\"status\":\"script_failed\",\"exit\":p.returncode}\nprint(json.dumps(d,sort_keys=True))",
+            "$input"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 85000,
+          "idle_timeout_ms": 85000,
+          "terminal": {
+            "columns": 135,
+            "rows": 24,
+            "scrollback": 100
+          },
+          "limits": {
+            "output_bytes": 6500
+          }
+        }
+      }
+    }
+  ]
+}
