@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "id": "vivo-source-server-capabilities-20261123-1701",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivo-android-source-error-20261123-1600",
+  "revision": 8,
+  "turn": {
+    "task": "source",
+    "role": "tester",
+    "kind": "rea-mcp",
+    "message": "User has only phone. Read actual Android capabilities/play state from existing Jellyfin API via Unix socket using existing private admin vault. No Mega reauthentication, pilot restaging, configuration changes or private data output.",
+    "mcp_requests": [
+      {
+        "method": "tools/call",
+        "params": {
+          "name": "capture_process_scenario",
+          "arguments": {
+            "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+            "arguments": [
+              "-c",
+              "import subprocess,json,time\np=subprocess.run(['sudo','-n','/srv/projects/Vivoapk/.venv/bin/python','-c',\"import json,subprocess,sys\\nfrom pathlib import Path\\nsys.path.insert(0,'/srv/projects/Vivoapk/source/backend')\\nimport httpx\\nout={'task':'Jellyfin Android server-side capabilities','pilot_reauthenticated':False,'configuration_changed':False}\\ntry:\\n p=Path('/srv/projects/jellyfin-server/secrets/admin-initial.json')\\n if p.is_symlink() or not p.is_file():raise RuntimeError('private_admin_vault_unavailable')\\n creds=json.loads(p.read_text())\\n with httpx.Client(transport=httpx.HTTPTransport(uds='/srv/projects/jellyfin-server/run/jellyfin.sock'),base_url='http://localhost',trust_env=False,timeout=12) as c:\\n  h={'Authorization':'MediaBrowser Client=\\\"VivoAPK source diagnosis\\\", Device=\\\"Ferrari\\\", DeviceId=\\\"vivo-source-admin-readonly\\\", Version=\\\"1\\\"'}\\n  r=c.post('/Users/AuthenticateByName',json={'Username':creds['username'],'Pw':creds['password']},headers=h)\\n  out['admin_auth_http']=r.status_code\\n  if r.status_code!=200:raise RuntimeError('admin_auth_failed')\\n  token=r.json()['AccessToken'];h['Authorization']+=', Token=\\\"'+token+'\\\"';h['X-Emby-Token']=token\\n  try:\\n   r=c.get('/Devices',headers=h);out['devices_http']=r.status_code\\n   data=r.json();items=data.get('Items',[]) if isinstance(data,dict) else data\\n   out['android_devices']=[]\\n   for d in items:\\n    app=str(d.get('AppName','') or d.get('ApplicationName',''))\\n    caps=d.get('Capabilities') or {}\\n    profile=caps.get('DeviceProfile') or {}\\n    if 'android' not in (app+' '+str(profile.get('Name',''))).lower():continue\\n    out['android_devices'].append({'app':app,'version':d.get('AppVersion'),'last_activity':d.get('DateLastActivity'),'capability_keys':list(caps),'profile':{k:profile.get(k) for k in ['Name','MaxStreamingBitrate','MaxStaticBitrate','DirectPlayProfiles','TranscodingProfiles','ContainerProfiles','CodecProfiles']}})\\n   r=c.get('/Sessions',headers=h);out['sessions_http']=r.status_code;out['android_sessions']=[]\\n   for d in r.json():\\n    if 'android' not in str(d.get('Client','')).lower():continue\\n    state=d.get('PlayState') or {};caps=d.get('Capabilities') or {};profile=caps.get('DeviceProfile') or {}\\n    out['android_sessions'].append({'client':d.get('Client'),'version':d.get('ApplicationVersion'),'last_activity':d.get('LastActivityDate'),'now_playing_title':(d.get('NowPlayingItem') or {}).get('Name'),'state':{k:state.get(k) for k in ['PositionTicks','IsPaused','IsMuted','PlayMethod','RepeatMode','CanSeek']},'capability_keys':list(caps),'profile':{k:profile.get(k) for k in ['Name','DirectPlayProfiles','TranscodingProfiles','ContainerProfiles','CodecProfiles']}})\\n  finally:c.post('/Sessions/Logout',headers=h)\\n out['status']='read_only_complete'\\nexcept Exception as e:\\n out['status']='blocked';out['error_type']=type(e).__name__\\n if isinstance(e,RuntimeError):out['reason']=str(e)\\nprint(json.dumps(out,sort_keys=True),flush=True)\\nimport time;time.sleep(0.3)\\n\"],capture_output=True,text=True,timeout=50)\ntry:r=json.loads(p.stdout)\nexcept Exception:r={'status':'blocked','exit_code':p.returncode}\nprint(json.dumps(r,sort_keys=True),flush=True)\ntime.sleep(0.3)"
+            ],
+            "working_directory": "/srv/projects/skill-universal",
+            "timeout_ms": 60000,
+            "idle_timeout_ms": 60000,
+            "terminal": {
+              "columns": 150,
+              "rows": 40,
+              "scrollback": 100
+            },
+            "limits": {
+              "output_bytes": 20000
+            }
+          }
+        }
+      }
+    ]
+  }
+}
