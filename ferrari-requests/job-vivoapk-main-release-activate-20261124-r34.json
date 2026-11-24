@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-main-release-activate-20261124-r34",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,time\np=subprocess.Popen(['sudo','-n','/srv/projects/Vivoapk/.venv/bin/python','-c',\"import subprocess,sys,json\\nfrom pathlib import Path\\nsha='b73bfb7e46761b7bdfa70765f3175c55360929a1';src='/srv/projects/Vivoapk/source'\\ntry:\\n stage=Path('/srv/projects/Vivoapk/jellyfin-auth/multimedia')/sha/'Jellyfin.Plugin.VivoapkMegaAuth.dll'\\n if not stage.is_file() or stage.is_symlink() or stage.stat().st_size<7000:raise RuntimeError('verified_staged_plugin_missing')\\n t=subprocess.run(['git','-C',src,'show',sha+':infra/upgrade_jellyfin_multimedia.py'],capture_output=True,timeout=18)\\n if t.returncode:raise RuntimeError('approved_installer_not_available')\\n sys.argv=['upgrade_jellyfin_multimedia.py','activate','--sha',sha]\\n exec(compile(t.stdout,'pinned:infra/upgrade_jellyfin_multimedia.py','exec'),{'__name__':'__main__','__file__':'pinned:infra/upgrade_jellyfin_multimedia.py'})\\nexcept Exception as e:\\n print(json.dumps({'status':'blocked','reason':str(e) if isinstance(e,RuntimeError) else type(e).__name__}),flush=True);sys.exit(2)\\n\"],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)\nstart=time.monotonic()\nwhile p.poll() is None and time.monotonic()-start<190:\n print('VIVOAPK_GUARDED_ACTIVATION_RUNNING=1',flush=True)\n time.sleep(5)\nif p.poll() is None:p.kill()\nout,err=p.communicate(timeout=9)\nprint(out[:7500] if out else 'NO_ACTIVATION_REPORT',flush=True)\nprint('GUARDED_ACTIVATION_EXIT='+str(p.returncode),flush=True)\nif p.returncode and not out:print('ACTIVATION_ERROR_CLASS='+('timeout' if time.monotonic()-start>=190 else 'runtime'),flush=True)\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 240000,
+          "idle_timeout_ms": 240000,
+          "terminal": {
+            "columns": 145,
+            "rows": 26,
+            "scrollback": 65
+          },
+          "limits": {
+            "output_bytes": 9500
+          }
+        }
+      }
+    }
+  ]
+}
