@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-origin-family-stage-20261124-r32",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,time\np=subprocess.Popen(['sudo','-n','/srv/projects/Vivoapk/.venv/bin/python','-c',\"import subprocess,sys,json\\nfrom pathlib import Path\\nsha='833ccd228a8c1311d34546f94b0bc5f76c152af1';src='/srv/projects/Vivoapk/source'\\ntry:\\n p=subprocess.run(['git','-C',src,'fetch','--no-tags','--depth','1','origin',sha],capture_output=True,text=True,timeout=110)\\n if p.returncode:raise RuntimeError('pinned_source_fetch_failed')\\n q=subprocess.run(['git','-C',src,'show',sha+':infra/upgrade_jellyfin_multimedia.py'],capture_output=True,timeout=18)\\n if q.returncode:raise RuntimeError('pinned_installer_missing')\\n if Path('/srv/projects/Vivoapk/jellyfin-auth/multimedia/'+sha+'/Jellyfin.Plugin.VivoapkMegaAuth.dll').exists():\\n  print(json.dumps({'status':'already_staged_verified_by_presence','target_sha':sha}),flush=True);sys.exit(0)\\n sys.argv=['upgrade_jellyfin_multimedia.py','stage','--sha',sha]\\n exec(compile(q.stdout,'pinned:infra/upgrade_jellyfin_multimedia.py','exec'),{'__name__':'__main__','__file__':'pinned:infra/upgrade_jellyfin_multimedia.py'})\\nexcept Exception as e:\\n print(json.dumps({'status':'blocked','reason':str(e) if isinstance(e,RuntimeError) else type(e).__name__}),flush=True);sys.exit(2)\\n\"],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)\nstart=time.monotonic()\nwhile p.poll() is None and time.monotonic()-start<230:\n print('GUARDED_STAGE_ACTIVE=1',flush=True)\n time.sleep(6)\nif p.poll() is None:p.kill()\nout,err=p.communicate(timeout=8)\nprint(out[:6500] if out else 'NO_STAGE_STDOUT',flush=True)\nprint('GUARDED_STAGE_EXIT='+str(p.returncode),flush=True)\nif p.returncode and not out:print('STAGE_ERROR_CLASS='+('timeout' if time.monotonic()-start>=230 else 'runtime'),flush=True)\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 265000,
+          "idle_timeout_ms": 265000,
+          "terminal": {
+            "columns": 150,
+            "rows": 28,
+            "scrollback": 65
+          },
+          "limits": {
+            "output_bytes": 8500
+          }
+        }
+      }
+    }
+  ]
+}
