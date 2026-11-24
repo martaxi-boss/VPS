@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-multimedia-stage-verify-20261124-r6",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess\np=subprocess.run(['sudo','-n','/srv/projects/Vivoapk/.venv/bin/python','-c',\"import json,hashlib,subprocess,os\\nfrom pathlib import Path\\nroot=Path('/srv/projects/Vivoapk')\\nsha='7989e4371f8b0e0f5daf152745361851b1d41e03'\\nstage=root/'jellyfin-auth/multimedia'/sha\\ncompiled=stage/'checkout/jellyfin-auth/Vivoapk.Jellyfin.Auth/bin/Release/net10.0/Jellyfin.Plugin.VivoapkMegaAuth.dll'\\ncandidate=stage/'Jellyfin.Plugin.VivoapkMegaAuth.dll'\\nlive=Path('/srv/projects/jellyfin-server/data/plugins/VivoAPK Mega OTT Auth_0.1.0.0/Jellyfin.Plugin.VivoapkMegaAuth.dll')\\ndef git(args):\\n r=subprocess.run(['git','-C',str(stage/'checkout')]+args,capture_output=True,text=True,timeout=8)\\n return r.stdout.strip() if r.returncode==0 else None\\ndef hashfile(p):return hashlib.sha256(p.read_bytes()).hexdigest() if p.is_file() and not p.is_symlink() else None\\nreport={'task':'verify isolated Ferrari staged Jellyfin plugin','read_only':True,'changed':False,'source_sha':git(['rev-parse','HEAD']),'stage_exists':stage.is_dir(),'staged_size':candidate.stat().st_size if candidate.is_file() else None,'staged_sha256':hashfile(candidate),'built_sha256':hashfile(compiled),'installed_old_sha256':hashfile(live),'backend_changes':git(['diff','--name-only','74b6a02be199a29c305058d2875063eb46c1b61d',sha,'--','backend/'])}\\nreport['ready_for_review']=(report['source_sha']==sha and report['staged_size'] is not None and report['staged_size']>7000 and report['staged_sha256']==report['built_sha256'] and report['backend_changes']=='')\\nprint(json.dumps(report,sort_keys=True),flush=True)\\n\"],capture_output=True,text=True,timeout=26)\nprint(p.stdout[:11000] if p.stdout else 'NO_STAGE_VERIFICATION',flush=True)\nprint('VERIFY_STAGE_EXIT='+str(p.returncode),flush=True)\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 60000,
+          "idle_timeout_ms": 60000,
+          "terminal": {
+            "columns": 135,
+            "rows": 26,
+            "scrollback": 70
+          },
+          "limits": {
+            "output_bytes": 12000
+          }
+        }
+      }
+    }
+  ]
+}
