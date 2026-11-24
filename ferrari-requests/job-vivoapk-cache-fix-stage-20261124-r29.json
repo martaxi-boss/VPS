@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-cache-fix-stage-20261124-r29",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess\np=subprocess.run(['sudo','-n','/srv/projects/Vivoapk/.venv/bin/python','-c',\"import subprocess,sys,json\\nsha='0974f3ed31995cdac3c51989dd1511c83ca3086b'\\nsrc='/srv/projects/Vivoapk/source'\\ntry:\\n p=subprocess.run(['git','-C',src,'show',sha+':infra/upgrade_jellyfin_multimedia.py'],capture_output=True,timeout=20)\\n if p.returncode:raise RuntimeError('pinned_installer_unavailable')\\n sys.argv=['upgrade_jellyfin_multimedia.py','stage','--sha',sha]\\n exec(compile(p.stdout,'pinned:upgrade_jellyfin_multimedia.py','exec'),{'__name__':'__main__','__file__':'pinned:upgrade_jellyfin_multimedia.py'})\\nexcept Exception as e:\\n print(json.dumps({'status':'blocked','reason':str(e) if isinstance(e,RuntimeError) else type(e).__name__}),flush=True)\\n sys.exit(1)\\n\"],capture_output=True,text=True,timeout=650)\nprint(p.stdout[:6000] if p.stdout else 'NO_STAGE_RESULT',flush=True)\nprint('GUARDED_STAGE_EXIT='+str(p.returncode),flush=True)\nif p.returncode and not p.stdout:print('STAGE_BLOCKER_CLASS=runtime',flush=True)\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 680000,
+          "idle_timeout_ms": 680000,
+          "terminal": {
+            "columns": 150,
+            "rows": 28,
+            "scrollback": 50
+          },
+          "limits": {
+            "output_bytes": 9200
+          }
+        }
+      }
+    }
+  ]
+}
