@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "id": "vivoapk-multimedia-release-start-20261124-r1",
+  "kind": "ruflo-team",
+  "phase": "start",
+  "team_id": "vivoapk-multimedia-release-20261124-r1",
+  "host": "ChatGPT",
+  "mission": "Safely install fully account-private native Jellyfin Live/Movies/Series/Episodes plugin; exact Git SHA only, use Ferrari REA, preserve admin, backend, secret vault, Pink removal, no video proxy; staged build, rollback and independent reviews.",
+  "roles": [
+    {
+      "id": "tester",
+      "type": "tester",
+      "actions": [
+        "rea-mcp"
+      ]
+    },
+    {
+      "id": "coder",
+      "type": "coder",
+      "actions": [
+        "rea-mcp"
+      ]
+    },
+    {
+      "id": "reviewer",
+      "type": "reviewer",
+      "actions": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "preflight",
+      "role": "tester",
+      "reviewer": "reviewer",
+      "goal": "Read-only Jellyfin auth plugin upgrade preflight and backend-version check, no mutation",
+      "depends_on": []
+    },
+    {
+      "id": "stage",
+      "role": "coder",
+      "reviewer": "reviewer",
+      "goal": "Pinned Git worktree build and isolated plugin release artifacts; no Jellyfin restart; only after CI acceptance",
+      "depends_on": [
+        "preflight"
+      ]
+    },
+    {
+      "id": "activate",
+      "role": "coder",
+      "reviewer": "reviewer",
+      "goal": "Backup existing plugin DLL/XML and enable native catalog with short guarded Jellyfin restart, auto rollback on failure",
+      "depends_on": [
+        "stage"
+      ]
+    },
+    {
+      "id": "postcheck",
+      "role": "tester",
+      "reviewer": "reviewer",
+      "goal": "Independently verify backend SHA unchanged, Jellyfin plugin DLL digest and config, no old Pink, secure sockets and no proxy",
+      "depends_on": [
+        "activate"
+      ]
+    }
+  ]
+}
