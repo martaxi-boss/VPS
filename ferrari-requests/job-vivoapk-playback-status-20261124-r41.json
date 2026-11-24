@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-playback-status-20261124-r41",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess\np=subprocess.run(['sudo','-n','/srv/projects/Vivoapk/.venv/bin/python','-c',\"import json,re,collections\\nfrom pathlib import Path\\nr={'task':'VivoAPK PlaybackInfo HTTP status diagnostics','read_only':True,'credentials_opened':False,'media_requested':False,'raw_log_lines_emitted':False,'result':{}}\\np=Path('/var/log/nginx/access.log')\\nif not p.is_file():r['status']='nginx_log_unavailable'\\nelse:\\n counts=collections.Counter();window=[]; method_counts=collections.Counter()\\n lines=p.read_text(encoding='utf8',errors='replace').splitlines()[-14000:]\\n for line in lines:\\n  t=re.search(r'24/Nov/2026:(\\\\d{2}):(\\\\d{2}):\\\\d{2}',line)\\n  if not t or int(t.group(1)) not in (8,9,10):continue\\n  h,m=int(t.group(1)),int(t.group(2))\\n  if h==10 and m>10:continue\\n  mth=re.search(r'\\\"(GET|POST|HEAD|OPTIONS) ([^ ]+) HTTP[^\\\\\\\"]*\\\" (\\\\d{3})',line)\\n  if not mth:continue\\n  method,uri,code=mth.groups()\\n  url=uri.split('?',1)[0].lower()\\n  if '/playbackinfo' in url:bucket='playbackinfo'\\n  elif '/users/authenticatebyname' in url:bucket='login'\\n  elif '/channels' in url:bucket='channels'\\n  elif '/videos/' in url:bucket='videos'\\n  elif '/items/' in url:bucket='items'\\n  elif '/sessions/' in url:bucket='sessions'\\n  else:bucket='other'\\n  counts[(bucket,method,code)]+=1\\n  if bucket in ('playbackinfo','videos','login') and h==8 and 13<=m<=21:window.append({'minute':f'{h:02d}:{m:02d}','method':method,'route':bucket,'status':code})\\n r['status']='summarized';r['result']={'count_per_route_method_status':{':'.join(k):v for k,v in sorted(counts.items())},'screenshot_window':window,'entries_in_window':len(window)}\\nprint(json.dumps(r,sort_keys=True),flush=True)\"],capture_output=True,text=True,timeout=35)\nprint(p.stdout[:7000] if p.stdout else 'NO_LOG_METADATA',flush=True)\nprint('DIAG_EXIT='+str(p.returncode),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 70000,
+          "idle_timeout_ms": 70000,
+          "terminal": {
+            "columns": 145,
+            "rows": 27,
+            "scrollback": 70
+          },
+          "limits": {
+            "output_bytes": 9000
+          }
+        }
+      }
+    }
+  ]
+}
