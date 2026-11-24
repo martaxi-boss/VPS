@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-test-line-account-state-20261124-r18",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess\np=subprocess.run(['sudo','-n','/srv/projects/Vivoapk/.venv/bin/python','-c',\"import json,hashlib,subprocess,sqlite3,uuid\\nfrom pathlib import Path\\nfrom datetime import datetime,timezone\\nfrom xml.etree import ElementTree as ET\\ntarget=\\\"27f3817eb2ec39d1e4967bd07f2dea3d37f114cb0dae3f22df09ec398a8ccb38\\\"\\nr={'task':'VivoAPK selected test line subscription and Jellyfin association','read_only':True,\\n   'secrets_read':False,'names_output':False,'passwords_output':False,'video_requested':False}\\ntry:\\n q=subprocess.run(['sudo','-n','-u','postgres','/usr/bin/psql','-X','-A','-t','-F','|','-d','vivoapk','-c',\\n    'SELECT username, expiring_at, last_synced_at FROM subscription_mappings LIMIT 500;'],\\n    capture_output=True,text=True,timeout=12)\\n if q.returncode!=0:raise RuntimeError('mapping_query_failed')\\n rows=[a.split('|') for a in q.stdout.splitlines()]\\n match=[a for a in rows if len(a)>=3 and hashlib.sha256(a[0].casefold().encode()).hexdigest()==target]\\n r['mapped']=len(match)==1\\n if len(match)!=1:raise RuntimeError('mapping_missing_or_ambiguous')\\n def when(x):\\n  if not x or x.strip() in ('','NULL'):return None\\n  try:return datetime.fromisoformat(x.replace(' ','T').replace('Z','+00:00'))\\n  except ValueError:return None\\n expiry=when(match[0][1]);synced=when(match[0][2])\\n r['expiry_known']=expiry is not None\\n r['subscription_not_expired_by_mapping']=(expiry.replace(tzinfo=timezone.utc) if expiry.tzinfo is None else expiry)>datetime.now(timezone.utc) if expiry else None\\n r['last_synced_known']=synced is not None\\n if synced:\\n  syncdt=synced.replace(tzinfo=timezone.utc) if synced.tzinfo is None else synced\\n  r['last_sync_within_48h']=(datetime.now(timezone.utc)-syncdt).total_seconds()<48*3600\\n jelly=Path('/srv/projects/jellyfin-server/data/data/jellyfin.db')\\n r['jellyfin_db_exists']=jelly.is_file() and not jelly.is_symlink()\\n found=[]\\n if r['jellyfin_db_exists']:\\n  with sqlite3.connect('file:'+str(jelly)+'?mode=ro',uri=True,timeout=8) as c:\\n   for (table,) in c.execute(\\\"SELECT name FROM sqlite_master WHERE type='table'\\\"):\\n    if 'user' not in table.lower():continue\\n    esc=table.replace('\\\"','\\\"\\\"')\\n    cols=[k[1] for k in c.execute('PRAGMA table_info(\\\"'+esc+'\\\")')]\\n    name=next((k for k in cols if k.lower() in ('username','name')),None)\\n    idcol=next((k for k in cols if k.lower() in ('id','userid')),None)\\n    if not name or not idcol:continue\\n    vals=c.execute('SELECT \\\"'+idcol.replace('\\\"','\\\"\\\"')+'\\\",\\\"'+name.replace('\\\"','\\\"\\\"')+'\\\" FROM \\\"'+esc+'\\\" LIMIT 1000').fetchall()\\n    for user_id,username in vals:\\n     if not isinstance(username,str):continue\\n     if hashlib.sha256(username.casefold().encode()).hexdigest()!=target:continue\\n     if isinstance(user_id,bytes):\\n      try:user_id=str(uuid.UUID(bytes_le=user_id))\\n      except ValueError:user_id=user_id.hex()\\n     found.append(str(user_id).lower().replace('-',''))\\n r['jellyfin_named_identity_found']=bool(found)\\n config=Path('/srv/projects/jellyfin-server/data/plugins/configurations/Jellyfin.Plugin.VivoapkMegaAuth.xml')\\n r['plugin_config_exists']=config.is_file() and not config.is_symlink()\\n if r['plugin_config_exists']:\\n  root=ET.parse(config).getroot()\\n  slots=root.find('ChannelSlotOwners')\\n  ids=[(x.text or '').lower().replace('-','') for x in slots] if slots is not None else []\\n  r['reserved_channel_slots']=sum(bool(x) for x in ids)\\n  r['specified_account_channel_reserved']=any(owner in ids for owner in found)\\n  r['category_navigation_enabled']=root.findtext('CategoryNavigation','').lower()=='true'\\n r['status']='checked'\\nexcept Exception as e:\\n r['status']='blocked';r['blocker']=str(e) if isinstance(e,RuntimeError) else type(e).__name__\\nprint(json.dumps(r,sort_keys=True),flush=True)\\n\"],capture_output=True,text=True,timeout=35)\nprint(p.stdout[:7500] if p.stdout else 'NO_ACCOUNT_ASSOCIATION_RESULT',flush=True)\nprint('ASSOCIATION_CHECK_EXIT='+str(p.returncode),flush=True)\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 65000,
+          "idle_timeout_ms": 65000,
+          "terminal": {
+            "columns": 132,
+            "rows": 24,
+            "scrollback": 70
+          },
+          "limits": {
+            "output_bytes": 8000
+          }
+        }
+      }
+    }
+  ]
+}
