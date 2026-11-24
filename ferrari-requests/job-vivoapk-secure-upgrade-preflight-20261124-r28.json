@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-secure-upgrade-preflight-20261124-r28",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess\nscript=\"import json,os,subprocess,sys\\nsha='0974f3ed31995cdac3c51989dd1511c83ca3086b'\\nsource='/srv/projects/Vivoapk/source'\\nreport={'task':'pinned installed VivoAPK guarded upgrade preflight','target_sha':sha,'root':os.geteuid()==0}\\ntry:\\n p=subprocess.run(['git','-C',source,'fetch','--no-tags','--depth','1','origin',sha],capture_output=True,text=True,timeout=125)\\n if p.returncode:raise RuntimeError('git_fetch_failed')\\n c=subprocess.run(['git','-C',source,'show',sha+':infra/upgrade_jellyfin_multimedia.py'],capture_output=True,timeout=12)\\n if c.returncode:raise RuntimeError('pinned_upgrade_source_missing')\\n sys.argv=['upgrade_jellyfin_multimedia.py','preflight','--sha',sha]\\n report['pinned_installer_source_loaded']=True\\n print(json.dumps(report,sort_keys=True),flush=True)\\n exec(compile(c.stdout,'pinned:infra/upgrade_jellyfin_multimedia.py','exec'),{'__name__':'__main__','__file__':'pinned:infra/upgrade_jellyfin_multimedia.py'})\\nexcept Exception as e:\\n report['blocked']=str(e) if isinstance(e,RuntimeError) else type(e).__name__\\n print(json.dumps(report,sort_keys=True),flush=True)\\n sys.exit(1)\\n\"\nr=subprocess.run(['sudo','-n','/srv/projects/Vivoapk/.venv/bin/python','-c',script],capture_output=True,text=True,timeout=170)\nprint(r.stdout[:4400] if r.stdout else 'NO_INSTALLER_PREFLIGHT',flush=True)\nprint('INSTALLER_PREFLIGHT_EXIT='+str(r.returncode),flush=True)\nif r.returncode and not r.stdout: print('ERROR_CLASS='+('permissions' if 'permission' in r.stderr.lower() else 'runtime'),flush=True)\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 205000,
+          "idle_timeout_ms": 205000,
+          "terminal": {
+            "columns": 130,
+            "rows": 24,
+            "scrollback": 55
+          },
+          "limits": {
+            "output_bytes": 8000
+          }
+        }
+      }
+    }
+  ]
+}
