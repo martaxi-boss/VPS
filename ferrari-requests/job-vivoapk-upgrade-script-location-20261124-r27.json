@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-upgrade-script-location-20261124-r27",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import os,json,subprocess\nfrom pathlib import Path\nroot=Path('/srv/projects/Vivoapk');src=root/'source'\nout={'task':'vivoapk upgrader location diagnostic','read_only':True,'paths':{}}\nfor name,p in [('source_upgrade_multimedia',src/'infra/upgrade_jellyfin_multimedia.py'),('source_upgrade_pilot',src/'infra/upgrade_live_preview.py'),('root_upgrade_multimedia',root/'infra/upgrade_jellyfin_multimedia.py'),('root_source_git',src/'.git'),('jellyfin_plugin',Path('/srv/projects/jellyfin-server/data/plugins/VivoAPK Mega OTT Auth_0.1.0.0/Jellyfin.Plugin.VivoapkMegaAuth.dll'))]:out['paths'][name]={'exists':p.exists(),'is_file':p.is_file()}\nfor flag,args in [('source_revision',['git','-C',str(src),'rev-parse','HEAD']),('root_uid',['id','-u'])]:\n p=subprocess.run(args,capture_output=True,text=True,timeout=10);out[flag]=p.stdout.strip() if p.returncode==0 else 'unavailable'\nprint(json.dumps(out,sort_keys=True),flush=True)\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 50000,
+          "idle_timeout_ms": 50000,
+          "terminal": {
+            "columns": 120,
+            "rows": 22,
+            "scrollback": 35
+          },
+          "limits": {
+            "output_bytes": 5500
+          }
+        }
+      }
+    }
+  ]
+}
