@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-hls-web-staged-binary-verify-20261124-r49",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess\np=subprocess.run(['sudo','-n','/srv/projects/Vivoapk/.venv/bin/python','-c',\"import hashlib,json,subprocess\\nfrom pathlib import Path\\nsha=\\\"dff3145ddb80b4644ce94f5485bb2ee2afe7b6cd\\\"\\nroot=Path('/srv/projects/Vivoapk')\\nstage=root/'jellyfin-auth/multimedia'/sha\\ncheckout=stage/'checkout'\\ndll=stage/'Jellyfin.Plugin.VivoapkMegaAuth.dll'\\ncompiled=checkout/'jellyfin-auth/Vivoapk.Jellyfin.Auth/bin/Release/net10.0/Jellyfin.Plugin.VivoapkMegaAuth.dll'\\nsource=checkout/'jellyfin-auth/Vivoapk.Jellyfin.Auth/VivoapkLivePreviewChannel.cs'\\nbackendsha=subprocess.run(['git','-C',str(root/'source'),'rev-parse','HEAD'],capture_output=True,text=True,timeout=6).stdout.strip()\\ngitsha=subprocess.run(['git','-C',str(checkout),'rev-parse','HEAD'],capture_output=True,text=True,timeout=6).stdout.strip()\\nhash1=hashlib.sha256(dll.read_bytes()).hexdigest() if dll.is_file() else None\\nhash2=hashlib.sha256(compiled.read_bytes()).hexdigest() if compiled.is_file() else None\\ncode=source.read_text(encoding='utf-8') if source.is_file() else ''\\nr={'task':'vivoapk-stage-independent-binary-check','read_only':True,'media_requested':False,'credentials_opened':False,'checkout_matches_release':gitsha==sha,'backend_revision_preserved':backendsha=='74b6a02be199a29c305058d2875063eb46c1b61d','staged_dll_exists':dll.is_file(),'built_dll_exists':compiled.is_file(),'staged_matches_built_binary':bool(hash1 and hash1==hash2),'release_has_live_profile_variants':'LiveSourceVariants' in code and 'Container = \\\"mp4\\\"' in code and 'TranscodingSubProtocol = MediaStreamProtocol.hls' in code,'staged_dll_sha256':hash1}\\nr['status']='staged_verified' if all(r[k] for k in ('checkout_matches_release','backend_revision_preserved','staged_dll_exists','built_dll_exists','staged_matches_built_binary','release_has_live_profile_variants')) else 'incomplete'\\nprint(json.dumps(r,sort_keys=True),flush=True)\"],capture_output=True,text=True,timeout=35)\nprint(p.stdout[:5500] if p.stdout else 'NO_STAGE_VERIFICATION',flush=True)\nprint('STAGE_VERIFY_EXIT='+str(p.returncode),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 70000,
+          "idle_timeout_ms": 70000,
+          "terminal": {
+            "columns": 130,
+            "rows": 25,
+            "scrollback": 60
+          },
+          "limits": {
+            "output_bytes": 6500
+          }
+        }
+      }
+    }
+  ]
+}
