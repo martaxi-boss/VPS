@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-cache-fix-preflight-20261124-r26",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess\np=subprocess.run(['sudo','-n','/srv/projects/Vivoapk/.venv/bin/python','/srv/projects/Vivoapk/source/infra/upgrade_jellyfin_multimedia.py','preflight','--sha','0974f3ed31995cdac3c51989dd1511c83ca3086b'],capture_output=True,text=True,timeout=30)\nprint(p.stdout[:3500] if p.stdout else 'NO_PREFLIGHT_RESPONSE',flush=True)\nprint('PREFLIGHT_PROCESS_EXIT='+str(p.returncode),flush=True)\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 46000,
+          "idle_timeout_ms": 46000,
+          "terminal": {
+            "columns": 120,
+            "rows": 22,
+            "scrollback": 40
+          },
+          "limits": {
+            "output_bytes": 5000
+          }
+        }
+      }
+    }
+  ]
+}
