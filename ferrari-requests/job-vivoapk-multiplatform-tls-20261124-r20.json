@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-multiplatform-tls-20261124-r20",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess\ncode=\"import json,subprocess,socket,ssl,hashlib\\nfrom urllib.parse import urlsplit\\nr={'task':'VivoAPK multiplatform TLS diagnostic','read_only':True,'media_requested':False,'credentials_opened':False}\\ntry:\\n p=subprocess.run(['sudo','-n','-u','postgres','/usr/bin/psql','-X','-A','-t','-F','|','-d','vivoapk','-c','SELECT username,dns_link,dns_link_samsung_lg FROM subscription_mappings LIMIT 500;'],capture_output=True,text=True,timeout=12)\\n if p.returncode!=0: raise RuntimeError('mapping_read_denied')\\n match=[v for line in p.stdout.splitlines() if (v:=line.split('|')) and len(v)>=3 and hashlib.sha256(v[0].casefold().encode()).hexdigest()=='27f3817eb2ec39d1e4967bd07f2dea3d37f114cb0dae3f22df09ec398a8ccb38']\\n if len(match)!=1: raise RuntimeError('test_account_not_unique')\\n for label,value in [('general',match[0][1]),('smart_tv',match[0][2])]:\\n  z={'configured':bool(value and value!='NULL')}\\n  if not z['configured']:r[label]=z;continue\\n  parsed=urlsplit(value.strip())\\n  if parsed.scheme not in ('http','https') or not parsed.hostname:raise RuntimeError('provider_origin_invalid')\\n  z['configured_scheme']=parsed.scheme\\n  z['dns_ends_with_root']=parsed.path in ('','/')\\n  try:\\n   with socket.create_connection((parsed.hostname,443),timeout=5) as raw:\\n    z['tcp_443']=True\\n    with ssl.create_default_context().wrap_socket(raw,server_hostname=parsed.hostname) as tls:\\n     z['tls_certificate_valid']=True\\n     z['tls_version']=tls.version()\\n  except Exception as e:\\n   z['tcp_443']=z.get('tcp_443',False)\\n   z['tls_certificate_valid']=False\\n   z['tls_failure_class']=type(e).__name__\\n  r[label]=z\\n with socket.create_connection(('serveriptv.duckdns.org',443),timeout=5) as raw:\\n  with ssl.create_default_context().wrap_socket(raw,server_hostname='serveriptv.duckdns.org') as conn:\\n   r['jellyfin_https_tls_valid']=True\\n r['status']='checked'\\nexcept Exception as e:r['status']='blocked';r['blocker']=str(e) if isinstance(e,RuntimeError) else type(e).__name__\\nprint(json.dumps(r,sort_keys=True),flush=True)\\n\"\np=subprocess.run(['sudo','-n','/srv/projects/Vivoapk/.venv/bin/python','-c',code],capture_output=True,text=True,timeout=34)\nprint(p.stdout[:4000] if p.stdout else 'NO_TLS_DIAGNOSTIC_RESULT',flush=True)\nprint('TLS_PROBE_EXIT='+str(p.returncode),flush=True)\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 75000,
+          "idle_timeout_ms": 75000,
+          "terminal": {
+            "columns": 130,
+            "rows": 25,
+            "scrollback": 40
+          },
+          "limits": {
+            "output_bytes": 6000
+          }
+        }
+      }
+    }
+  ]
+}
