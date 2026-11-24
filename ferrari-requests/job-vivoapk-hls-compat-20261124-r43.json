@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-hls-compat-20261124-r43",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess\np=subprocess.run(['sudo','-n','/srv/projects/Vivoapk/.venv/bin/python','-c',\"import json, pathlib, hashlib\\np=pathlib.Path('/srv/projects/Vivoapk/source/jellyfin-auth/Vivoapk.Jellyfin.Auth/VivoapkLivePreviewChannel.cs')\\nt=p.read_text(encoding='utf8') if p.is_file() else ''\\nd=pathlib.Path('/srv/projects/jellyfin-server/data/plugins/VivoAPK Mega OTT Auth_0.1.0.0/Jellyfin.Plugin.VivoapkMegaAuth.dll')\\nr={'task':'VivoAPK direct-source compatibility audit','read_only':True,'credentials_opened':False,'media_requested':False,'source_exists':bool(t),'dll_exists':d.is_file(),'source_ref':'local_vivoapk'}\\nr['direct_hls_path']=('kind == \\\"live\\\" ? \\\"m3u8\\\"' in t)\\nr['remote_http_protocol']=('Protocol = MediaProtocol.Http' in t)\\nr['container_mpegts']=('Container = isLive ? \\\"mpegts\\\"' in t)\\nr['no_transcoding']=('SupportsTranscoding = false' in t)\\nr['no_remuxing']=('SupportsDirectStream = false' in t)\\nr['requires_real_hls_manifest']=r['direct_hls_path'] and r['remote_http_protocol']\\nr['source_version_matches_installed']=bool(d.is_file() and hashlib.sha256(d.read_bytes()).hexdigest()=='9f5e0d1746d8ba77411a48860abbaaa3a3d670954215da7f40ec3ba432402272')\\nr['status']='checked' if r['source_exists'] and r['dll_exists'] else 'incomplete'\\nprint(json.dumps(r,sort_keys=True),flush=True)\"],capture_output=True,text=True,timeout=30)\nprint(p.stdout[:4500] if p.stdout else 'NO_LOCAL_CHECK',flush=True)\nprint('EXIT='+str(p.returncode),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 62000,
+          "idle_timeout_ms": 62000,
+          "terminal": {
+            "columns": 130,
+            "rows": 22,
+            "scrollback": 50
+          },
+          "limits": {
+            "output_bytes": 6000
+          }
+        }
+      }
+    }
+  ]
+}
