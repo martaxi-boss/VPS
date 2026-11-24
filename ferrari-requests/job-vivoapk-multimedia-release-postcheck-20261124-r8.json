@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-multimedia-release-postcheck-20261124-r8",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess\np=subprocess.run(['sudo','-n','/srv/projects/Vivoapk/.venv/bin/python','-c',\"import json,hashlib,subprocess,socket\\nfrom pathlib import Path\\nfrom xml.etree import ElementTree as ET\\nbase=Path('/srv/projects/Vivoapk')\\njelly=Path('/srv/projects/jellyfin-server')\\nsource=base/'source'\\nrelease='7989e4371f8b0e0f5daf152745361851b1d41e03'\\ndll=jelly/'data/plugins/VivoAPK Mega OTT Auth_0.1.0.0/Jellyfin.Plugin.VivoapkMegaAuth.dll'\\nstaged=base/'jellyfin-auth/multimedia'/release/dll.name\\ncfg=jelly/'data/plugins/configurations/Jellyfin.Plugin.VivoapkMegaAuth.xml'\\nbackup=base/'backups/jellyfin-multimedia'/release[:24]\\nr={'task':'Independent post-install Jellyfin Mega OTT multimedia check','read_only':True,'changed':False,'credentials_read':False,'videos_requested':False}\\ndef run(args):\\n p=subprocess.run(args,capture_output=True,text=True,timeout=8)\\n return p.stdout.strip() if p.returncode==0 else None\\nr['backend_revision']=run(['git','-C',str(source),'rev-parse','HEAD'])\\nr['services']={n:run(['systemctl','is-active',n])=='active' for n in ('jellyfin-pink.service','vivoapk-backend.service','nginx.service','postgresql.service','pink-iptv-backend.service','pink-vpn.service')}\\ndef code(sock,method,path,body=''):\\n try:\\n  s=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM);s.settimeout(5);s.connect(str(sock))\\n  b=body.encode('ascii');raw=(f'{method} {path} HTTP/1.1\\\\r\\\\nHost:localhost\\\\r\\\\nContent-Type:application/json\\\\r\\\\nContent-Length:{len(b)}\\\\r\\\\nConnection:close\\\\r\\\\n\\\\r\\\\n').encode()+b\\n  s.sendall(raw);first=s.recv(256).split(b'\\\\r\\\\n',1)[0].split(b' ');s.close()\\n  return int(first[1]) if len(first)>1 else 0\\n except Exception:return 0\\nr['jellyfin_http']=code(jelly/'run/jellyfin.sock','GET','/System/Info/Public')\\nr['backend_http']=code(base/'run/backend.sock','GET','/openapi.json')\\nr['denied_anonymous']={}\\nfor name,body in [('categories','{\\\"kind\\\":\\\"live\\\"}'),('category-items','{\\\"kind\\\":\\\"live\\\",\\\"category_id\\\":\\\"1\\\"}'),('series','{\\\"category_id\\\":\\\"1\\\",\\\"series_id\\\":\\\"1\\\"}'),('epg','{\\\"category_id\\\":\\\"1\\\",\\\"stream_id\\\":\\\"1\\\"}')]:\\n r['denied_anonymous'][name]=code(base/'run/backend.sock','POST','/v1/catalog/'+name,body)\\nr['binary_hash_matches']=dll.is_file() and staged.is_file() and hashlib.sha256(dll.read_bytes()).digest()==hashlib.sha256(staged.read_bytes()).digest()\\nr['installed_sha256']=hashlib.sha256(dll.read_bytes()).hexdigest() if dll.is_file() else None\\nr['backup_present']=all((backup/name).is_file() for name in ('old.dll','old.xml'))\\nr['plugin_flags']={}\\nr['no_credentials_in_config']=False\\nif cfg.is_file() and not cfg.is_symlink():\\n tree=ET.parse(cfg).getroot()\\n r['plugin_flags']={name:(tree.findtext(name,'').strip().lower()=='true') for name in ('Enabled','PilotLiveChannels','CategoryNavigation','FullLiveCatalog','ProvisionPrivateLibraries')}\\n r['no_credentials_in_config']=not any(tag.tag.lower() in {'username','password','sessiontoken','origin','url','sourceurl'} for tag in tree.iter())\\n r['channel_owner_slots']=len(tree.find('ChannelSlotOwners')) if tree.find('ChannelSlotOwners') is not None else 0\\nr['passed']=bool(r['backend_revision']=='74b6a02be199a29c305058d2875063eb46c1b61d' and all(r['services'][n] for n in ('jellyfin-pink.service','vivoapk-backend.service','nginx.service','postgresql.service')) and not any(r['services'][n] for n in ('pink-iptv-backend.service','pink-vpn.service')) and r['jellyfin_http']==200 and r['backend_http']==200 and all(x==401 for x in r['denied_anonymous'].values()) and r['binary_hash_matches'] and r['backup_present'] and r['plugin_flags']=={'Enabled':True,'PilotLiveChannels':True,'CategoryNavigation':True,'FullLiveCatalog':False,'ProvisionPrivateLibraries':False} and r['no_credentials_in_config'] and r['channel_owner_slots'] in (0,64))\\nprint(json.dumps(r,sort_keys=True),flush=True)\\n\"],capture_output=True,text=True,timeout=35)\nprint(p.stdout[:16000] if p.stdout else 'NO_POSTCHECK_REPORT',flush=True)\nprint('POSTCHECK_PROCESS_EXIT='+str(p.returncode),flush=True)\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 65000,
+          "idle_timeout_ms": 65000,
+          "terminal": {
+            "columns": 135,
+            "rows": 28,
+            "scrollback": 85
+          },
+          "limits": {
+            "output_bytes": 16000
+          }
+        }
+      }
+    }
+  ]
+}
