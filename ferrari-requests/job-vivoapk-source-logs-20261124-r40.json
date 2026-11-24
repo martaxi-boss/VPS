@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-source-logs-20261124-r40",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess\np=subprocess.run(['sudo','-n','/srv/projects/Vivoapk/.venv/bin/python','-c',\"import json,re,collections,subprocess\\nfrom pathlib import Path\\nr={'task':'VivoAPK private aggregate playback access audit','read_only':True,'credentials_opened':False,'raw_log_lines_emitted':False,'media_requested':False,'paths_disclosed':False,'sources':{}}\\npaths=[Path('/var/log/nginx/access.log'),Path('/srv/projects/jellyfin-server/data/log')]\\npatterns={'login':r'/Users/AuthenticateByName','playback_info':r'/PlaybackInfo','channel_items':r'/Channels/[^ ]+/Items','channel_list':r'/Channels(?:[? ])','items_metadata':r'/Items/','stream_from_jellyfin':r'/Videos/[^ ]+(?:stream|master|hls)','public_system':r'/System/Info/Public'}\\nfor base in paths:\\n try:\\n  files=[base] if base.is_file() else sorted(base.glob('*.log'))[-6:] if base.is_dir() else []\\n  for f in files:\\n   if not f.is_file() or f.is_symlink() or f.stat().st_size>20000000:continue\\n   raw=f.read_text(encoding='utf-8',errors='replace').splitlines()[-12000:]\\n   entry={'lines_scanned':len(raw),'routes':{},'status_codes':{},'time_marked_lines':0}\\n   for line in raw:\\n    if ('24/Nov/2026' not in line and '2026-11-24' not in line):continue\\n    if any(x in line for x in ('24/Nov/2026:08:','24/Nov/2026:09:','24/Nov/2026:10:','2026-11-24 08:','2026-11-24 09:','2026-11-24 10:')):\\n     entry['time_marked_lines']+=1\\n     for key,pat in patterns.items():\\n      if re.search(pat,line,re.I):entry['routes'][key]=entry['routes'].get(key,0)+1\\n     hit=re.search(r'\\\" (\\\\d{3}) \\\\d+',line)\\n     if hit:entry['status_codes'][hit.group(1)]=entry['status_codes'].get(hit.group(1),0)+1\\n   r['sources']['logfile_'+str(len(r['sources'])+1)]=entry\\n except Exception as e:r['sources']['error_'+str(len(r['sources'])+1)]=type(e).__name__\\nr['status']='audited'\\nprint(json.dumps(r,sort_keys=True),flush=True)\"],capture_output=True,text=True,timeout=42)\nprint(p.stdout[:7000] if p.stdout else 'AGGREGATE_UNAVAILABLE',flush=True)\nprint('AUDIT_EXIT='+str(p.returncode),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 80000,
+          "idle_timeout_ms": 80000,
+          "terminal": {
+            "columns": 135,
+            "rows": 25,
+            "scrollback": 60
+          },
+          "limits": {
+            "output_bytes": 8500
+          }
+        }
+      }
+    }
+  ]
+}
