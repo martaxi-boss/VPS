@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-postdeploy-source-error-20261124-r38",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\np=subprocess.run(['sudo','-n','/srv/projects/Vivoapk/.venv/bin/python','-c',\"import json,re,subprocess,collections\\nreport={'task':'vivoapk-postdeploy-playback-failure-audit','read_only':True,'media_requested':False,'credentials_opened':False,'log_lines_disclosed':False}\\ntry:\\n p=subprocess.run(['/usr/bin/journalctl','-u','jellyfin-pink.service','--since','2026-11-24 07:30:00 UTC','--no-pager','-o','cat','-n','10000'],capture_output=True,text=True,timeout=15)\\n lines=p.stdout.splitlines()[-10000:]\\n report['journal_available']=p.returncode==0\\n report['lines_examined']=len(lines)\\n tags=['PlaybackInfo','GetChannelItemMediaInfo','Vivoapk','VivoAPK','source error','no compatible','HttpRequestException','Forbidden','Unauthorized','Client disconnected','FFmpeg','transcod','DirectPlay','channel','Error','Exception','m3u8','mpegts','401','403','404','500','502','503']\\n report['event_counts']={k:sum(k.lower() in line.lower() for line in lines) for k in tags}\\n report['exception_types']={k:sum(k.lower() in line.lower() for line in lines) for k in ['HttpRequestException','SocketException','NullReferenceException','InvalidOperationException','TimeoutException','ArgumentException','IOException','NotSupportedException']}\\n report['service_active']=subprocess.run(['/usr/bin/systemctl','is-active','--quiet','jellyfin-pink.service'],timeout=5).returncode==0\\n report['status']='audited'\\nexcept Exception as e: report['status']='blocked';report['error_class']=type(e).__name__\\nprint(json.dumps(report,sort_keys=True),flush=True)\"],capture_output=True,text=True,timeout=32)\nprint(p.stdout[:5500] if p.stdout else json.dumps({'status':'no_output','exit_code':p.returncode}),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 70000,
+          "idle_timeout_ms": 70000,
+          "terminal": {
+            "columns": 140,
+            "rows": 26,
+            "scrollback": 60
+          },
+          "limits": {
+            "output_bytes": 8000
+          }
+        }
+      }
+    }
+  ]
+}
