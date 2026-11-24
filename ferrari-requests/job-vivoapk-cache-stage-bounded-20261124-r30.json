@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-cache-stage-bounded-20261124-r30",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess\nr=subprocess.run(['sudo','-n','/srv/projects/Vivoapk/.venv/bin/python','-c',\"import subprocess,sys,json,os\\nfrom pathlib import Path\\nsha='0974f3ed31995cdac3c51989dd1511c83ca3086b'\\nsrc='/srv/projects/Vivoapk/source'\\nif Path('/srv/projects/Vivoapk/jellyfin-auth/multimedia/'+sha).exists():\\n print(json.dumps({'status':'blocked','reason':'target_already_staged_requires_review'}),flush=True);sys.exit(3)\\ntry:\\n p=subprocess.run(['git','-C',src,'show',sha+':infra/upgrade_jellyfin_multimedia.py'],capture_output=True,timeout=15)\\n if p.returncode:raise RuntimeError('installer_blob_missing')\\n sys.argv=['upgrade_jellyfin_multimedia.py','stage','--sha',sha]\\n exec(compile(p.stdout,'pinned:upgrade_jellyfin_multimedia.py','exec'),{'__name__':'__main__','__file__':'pinned:upgrade_jellyfin_multimedia.py'})\\nexcept Exception as e:\\n print(json.dumps({'status':'blocked','reason':str(e) if isinstance(e,RuntimeError) else type(e).__name__}),flush=True);sys.exit(2)\\n\"],capture_output=True,text=True,timeout=320)\nprint(r.stdout[:6500] if r.stdout else 'NO_STAGE_STDOUT',flush=True)\nprint('STAGE_EXIT='+str(r.returncode),flush=True)\nif r.returncode and not r.stdout:print('STAGE_STDERR_CATEGORY='+('timeout' if 'timeout' in r.stderr.lower() else 'runtime'),flush=True)\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 360000,
+          "idle_timeout_ms": 360000,
+          "terminal": {
+            "columns": 130,
+            "rows": 28,
+            "scrollback": 50
+          },
+          "limits": {
+            "output_bytes": 9700
+          }
+        }
+      }
+    }
+  ]
+}
