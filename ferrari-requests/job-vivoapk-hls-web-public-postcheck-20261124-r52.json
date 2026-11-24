@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-hls-web-public-postcheck-20261124-r52",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess\np=subprocess.run(['sudo','-n','/srv/projects/Vivoapk/.venv/bin/python','-c',\"import json,hashlib,ssl,subprocess,urllib.request,urllib.error\\nfrom pathlib import Path\\nfrom xml.etree import ElementTree as ET\\nbase=Path('/srv/projects/Vivoapk');jelly=Path('/srv/projects/jellyfin-server');sha='dff3145ddb80b4644ce94f5485bb2ee2afe7b6cd'\\nr={'task':'VivoAPK public HTTPS and rollback post-deploy smoke','read_only':True,'credentials_opened':False,'media_requested':False,'media_bytes_received':0}\\ntry:\\n url='https://serveriptv.duckdns.org/System/Info/Public'\\n with urllib.request.urlopen(urllib.request.Request(url,headers={'Accept':'application/json'}),timeout=12,context=ssl.create_default_context()) as response:\\n  x=json.load(response);r['public_tls_ok']=response.status==200;r['jellyfin_version']=str(x.get('Version',''))\\n r['installed_sha_matches_release']=hashlib.sha256((jelly/'data/plugins/VivoAPK Mega OTT Auth_0.1.0.0/Jellyfin.Plugin.VivoapkMegaAuth.dll').read_bytes()).hexdigest()=='60630b0ab43d4414739f86b047ed4d62358de8c587b878f1aeb6320e0fa813c2'\\n backup=base/'backups/jellyfin-multimedia'/sha[:24]\\n r['backup_dll_exists']=(backup/'old.dll').is_file();r['backup_xml_exists']=(backup/'old.xml').is_file()\\n xml=ET.parse(jelly/'data/plugins/configurations/Jellyfin.Plugin.VivoapkMegaAuth.xml').getroot()\\n r['category_navigation_enabled']=xml.findtext('CategoryNavigation','').lower()=='true'\\n r['pilot_catalog_enabled']=xml.findtext('PilotLiveChannels','').lower()=='true'\\n r['full_catalog_preview_disabled']=xml.findtext('FullLiveCatalog','').lower()=='false'\\n p=subprocess.run(['git','-C',str(base/'source'),'rev-parse','HEAD'],capture_output=True,text=True,timeout=7)\\n r['backend_revision_preserved']=p.returncode==0 and p.stdout.strip()=='74b6a02be199a29c305058d2875063eb46c1b61d'\\n for service in ['jellyfin-pink.service','vivoapk-backend.service','nginx.service','postgresql.service']:\\n  res=subprocess.run(['systemctl','is-active','--quiet',service],timeout=8)\\n  r[service.removesuffix('.service')+'_active']=res.returncode==0\\n r['status']='passed' if all(v is True for k,v in r.items() if k.endswith(('_ok','_exists','_enabled','_disabled','_preserved','_release','_active'))) else 'failed'\\nexcept Exception as e:r['status']='blocked';r['blocker_class']=type(e).__name__\\nprint(json.dumps(r,sort_keys=True),flush=True)\\n\"],capture_output=True,text=True,timeout=55)\nprint(p.stdout[:5500] if p.stdout else 'NO_PUBLIC_PROBE',flush=True)\nprint('PUBLIC_PROBE_EXIT='+str(p.returncode),flush=True)\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 85000,
+          "idle_timeout_ms": 85000,
+          "terminal": {
+            "columns": 135,
+            "rows": 25,
+            "scrollback": 50
+          },
+          "limits": {
+            "output_bytes": 8000
+          }
+        }
+      }
+    }
+  ]
+}
