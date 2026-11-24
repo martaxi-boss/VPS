@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-playback-nginx-20261124-r40",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess\np=subprocess.run(['sudo','-n','/srv/projects/Vivoapk/.venv/bin/python','-c',\"import collections,json,re,subprocess\\nfrom pathlib import Path\\ndata={'task':'VivoAPK-repro-playback-http-aggregate','read_only':True,'credentials_opened':False,'media_requested':False,'raw_urls_emitted':False,'usernames_emitted':False}\\ncounts=collections.Counter();states=collections.Counter();examined=0\\nfor path in [Path('/var/log/nginx/access.log'),Path('/var/log/nginx/access.log.1')]:\\n if not path.is_file() or path.is_symlink() or path.stat().st_size>100000000: continue\\n try:\\n  with path.open(errors='replace') as f:\\n   for line in f:\\n    if '24/Nov/2026:08:' not in line and '24/Nov/2026:07:5' not in line:continue\\n    examined+=1\\n    m=re.search(r'\\\"(GET|POST|HEAD) ([^ ]+) HTTP/[0-9.]+\\\"\\\\s+(\\\\d{3})',line)\\n    if not m:continue\\n    method,url,status=m.groups()\\n    if re.search('/Items/[^/]+/PlaybackInfo',url,re.I):kind='playback_info'\\n    elif '/Channels' in url:kind='channels'\\n    elif re.search('/Videos/[^/]+/(?:stream|master)',url,re.I):kind='jellyfin_video_stream'\\n    elif 'LiveTv' in url:kind='live_tv'\\n    elif 'AuthenticateByName' in url:kind='login'\\n    else:continue\\n    counts[kind]+=1;states[kind+':'+status]+=1\\n except (OSError,UnicodeError):pass\\ndata['lines_examined']=examined;data['request_counts']=dict(counts);data['http_status_counts']=dict(states)\\ndata['status']='checked'\\nprint(json.dumps(data,sort_keys=True),flush=True)\"],capture_output=True,text=True,timeout=40)\nprint(p.stdout[:3600] if p.stdout else 'NO_AGGREGATE',flush=True)\nprint('EXIT='+str(p.returncode),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 75000,
+          "idle_timeout_ms": 75000,
+          "terminal": {
+            "columns": 130,
+            "rows": 25,
+            "scrollback": 50
+          },
+          "limits": {
+            "output_bytes": 4800
+          }
+        }
+      }
+    }
+  ]
+}
