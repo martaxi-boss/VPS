@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "id": "vivoapk-final-backend-finish-20261123-r8",
+  "kind": "ruflo-team",
+  "phase": "finish",
+  "team_id": "vivoapk-final-backend-20261123-r1",
+  "revision": 6,
+  "approval": "Host checked actual Ferrari/REA run 45291755132 preflight, 45292318078 pinned activate, and 45293169739 read-only postcheck with independent reviewer approvals. Backend revision is 74b6a02be199a29c305058d2875063eb46c1b61d, category/series/EPG endpoints reject unauthenticated HTTP401, Jellyfin/backend/NGINX/PostgreSQL healthy, old Pink services absent, no media relay installed. This closes backend upgrade only; native final Jellyfin plugin and physical Android player still need independent verification."
+}
