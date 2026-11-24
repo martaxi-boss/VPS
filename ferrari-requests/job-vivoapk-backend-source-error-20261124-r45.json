@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-backend-source-error-20261124-r45",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess\np=subprocess.run(['sudo','-n','/srv/projects/Vivoapk/.venv/bin/python','-c',\"import json,re,subprocess,collections\\nout={'task':'vivoapk-backend-source-error-0817','read_only':True,'media_requested':False,'credentials_opened':False,'raw_logs_emitted':False}\\npatterns={'session_resolve':r'v1/session/resolve','category_items':r'v1/catalog/category-items','category_categories':r'v1/catalog/categories','series_details':r'v1/catalog/series','backend_error':r'\\\\berror\\\\b|exception|traceback','unavailable':r'upstream|unavailable|timeout','unauthorized':r'\\\\b401\\\\b|\\\\b403\\\\b|unauthorized|forbidden','response_500':r'\\\\b50[0-9]\\\\b','response_200':r'\\\\b200\\\\b','invalid_session':r'invalid.session|expired.session|jwt|token.expir'}\\nfor service in ['vivoapk-backend.service','jellyfin-pink.service']:\\n try:\\n  p=subprocess.run(['/usr/bin/journalctl','-u',service,'--since','2026-11-24 08:10:00 UTC','--until','2026-11-24 08:23:00 UTC','-o','cat','--no-pager','-n','3000'],capture_output=True,text=True,timeout=12)\\n  lines=p.stdout.splitlines()[-3000:]\\n  out[service]={'journal_rc':p.returncode,'count':len(lines),'markers':{name:sum(bool(re.search(pat,line,re.I)) for line in lines) for name,pat in patterns.items()}}\\n except Exception as e:out[service]={'blocked_class':type(e).__name__}\\nout['status']='audited'\\nprint(json.dumps(out,sort_keys=True),flush=True)\"],capture_output=True,text=True,timeout=45)\nprint(p.stdout[:4500] if p.stdout else 'NO_AUDIT_OUTPUT',flush=True)\nprint('AUDIT_EXIT='+str(p.returncode),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 70000,
+          "idle_timeout_ms": 70000,
+          "terminal": {
+            "columns": 132,
+            "rows": 25,
+            "scrollback": 50
+          },
+          "limits": {
+            "output_bytes": 5500
+          }
+        }
+      }
+    }
+  ]
+}
