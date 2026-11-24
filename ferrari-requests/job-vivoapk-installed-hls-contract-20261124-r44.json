@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-installed-hls-contract-20261124-r44",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess\np=subprocess.run(['sudo','-n','/srv/projects/Vivoapk/.venv/bin/python','-c',\"import json,pathlib,hashlib\\nsha='b73bfb7e46761b7bdfa70765f3175c55360929a1'\\nbase=pathlib.Path('/srv/projects/Vivoapk/jellyfin-auth/multimedia')/sha/'checkout/jellyfin-auth/Vivoapk.Jellyfin.Auth/VivoapkLivePreviewChannel.cs'\\ndll=pathlib.Path('/srv/projects/jellyfin-server/data/plugins/VivoAPK Mega OTT Auth_0.1.0.0/Jellyfin.Plugin.VivoapkMegaAuth.dll')\\nt=base.read_text(encoding='utf-8') if base.is_file() and not base.is_symlink() else ''\\nr={'task':'VivoAPK installed release HLS source semantics','read_only':True,'credentials_opened':False,'media_requested':False,'release_source_present':bool(t),'installed_dll_present':dll.is_file(),'no_proxy_test':True}\\nr['emits_m3u8_for_live']='kind == \\\"live\\\" ? \\\"m3u8\\\"' in t\\nr['marks_media_http']='Protocol = MediaProtocol.Http' in t\\nr['advertises_mpegts']='Container = isLive ? \\\"mpegts\\\"' in t\\nr['transcode_disabled']='SupportsTranscoding = false' in t\\nr['remux_disabled']='SupportsDirectStream = false' in t\\nr['installed_hash_correct']=dll.is_file() and hashlib.sha256(dll.read_bytes()).hexdigest()=='9f5e0d1746d8ba77411a48860abbaaa3a3d670954215da7f40ec3ba432402272'\\nr['status']='verified' if all([r['release_source_present'],r['emits_m3u8_for_live'],r['advertises_mpegts'],r['transcode_disabled'],r['installed_hash_correct']]) else 'needs_review'\\nprint(json.dumps(r,sort_keys=True),flush=True)\"],capture_output=True,text=True,timeout=32)\nprint(p.stdout[:5000] if p.stdout else 'NO_CHECK_OUTPUT',flush=True)\nprint('EXIT='+str(p.returncode),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 65000,
+          "idle_timeout_ms": 65000,
+          "terminal": {
+            "columns": 130,
+            "rows": 22,
+            "scrollback": 50
+          },
+          "limits": {
+            "output_bytes": 6000
+          }
+        }
+      }
+    }
+  ]
+}
