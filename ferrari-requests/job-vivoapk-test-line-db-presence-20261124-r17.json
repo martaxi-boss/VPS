@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-test-line-db-presence-20261124-r17",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess\nq=subprocess.run(['sudo','-n','/srv/projects/Vivoapk/.venv/bin/python','-c',\"import json,hashlib,subprocess\\nr={'task':'VivoAPK test-line mapping existence','read_only':True,'credentials_accessed':False,'credentials_published':False}\\ntry:\\n p=subprocess.run(['sudo','-n','-u','postgres','/usr/bin/psql','-X','-A','-t','-d','vivoapk','-c','SELECT username FROM subscription_mappings LIMIT 500;'],capture_output=True,text=True,timeout=12)\\n if p.returncode!=0:raise RuntimeError('read_only_sql_unavailable')\\n names=p.stdout.splitlines()\\n r['mapped_subscriptions_scanned']=len(names)\\n r['specified_test_line_mapped']=any(hashlib.sha256(x.strip().casefold().encode()).hexdigest()==\\\"27f3817eb2ec39d1e4967bd07f2dea3d37f114cb0dae3f22df09ec398a8ccb38\\\" for x in names)\\n r['status']='checked'\\nexcept Exception as e:r['status']='blocked';r['error_class']=type(e).__name__\\nprint(json.dumps(r,sort_keys=True),flush=True)\\n\"],capture_output=True,text=True,timeout=22)\nprint(q.stdout[:4000] if q.stdout else 'NO_METADATA_RESULT',flush=True)\nprint('METADATA_CHECK_EXIT='+str(q.returncode),flush=True)\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 47000,
+          "idle_timeout_ms": 47000,
+          "terminal": {
+            "columns": 120,
+            "rows": 21,
+            "scrollback": 55
+          },
+          "limits": {
+            "output_bytes": 6500
+          }
+        }
+      }
+    }
+  ]
+}
