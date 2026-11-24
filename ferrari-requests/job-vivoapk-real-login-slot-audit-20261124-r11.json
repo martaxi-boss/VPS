@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-real-login-slot-audit-20261124-r11",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess\np=subprocess.run(['sudo','-n','/srv/projects/Vivoapk/.venv/bin/python','-c',\"import json\\nfrom pathlib import Path\\nfrom xml.etree import ElementTree as ET\\np=Path('/srv/projects/jellyfin-server/data/plugins/configurations/Jellyfin.Plugin.VivoapkMegaAuth.xml')\\nr={'task':'verify real Jellyfin login staged an isolated subscription channel','read_only':True,'credentials_read':False,'media_requested':False,'configuration_exists':p.is_file()}\\nif p.is_file() and not p.is_symlink():\\n x=ET.parse(p).getroot();slot=x.find('ChannelSlotOwners')\\n owners=[v.text for v in slot] if slot is not None else []\\n r['slots_defined']=len(owners)\\n r['reserved_slots']=sum(bool(v and v.strip()) for v in owners)\\n r['category_navigation_enabled']=x.findtext('CategoryNavigation','').strip().lower()=='true'\\n r['private_pilot_enabled']=x.findtext('PilotLiveChannels','').strip().lower()=='true'\\n r['multiuser_capacity_limited']=64\\n r['real_login_staged_native_channel']=(r['category_navigation_enabled'] and r['reserved_slots']>0)\\nelse:r['real_login_staged_native_channel']=False\\nprint(json.dumps(r,sort_keys=True),flush=True)\\n\"],capture_output=True,text=True,timeout=18)\nprint(p.stdout[:5000] if p.stdout else 'NO_SLOT_DATA',flush=True)\nprint('SLOT_CHECK_EXIT='+str(p.returncode),flush=True)\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 40000,
+          "idle_timeout_ms": 40000,
+          "terminal": {
+            "columns": 128,
+            "rows": 23,
+            "scrollback": 50
+          },
+          "limits": {
+            "output_bytes": 6000
+          }
+        }
+      }
+    }
+  ]
+}
