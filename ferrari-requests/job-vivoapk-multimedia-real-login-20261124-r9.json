@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-multimedia-real-login-20261124-r9",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess\np=subprocess.run(['sudo','-n','/srv/projects/Vivoapk/.venv/bin/python','-c',\"import json,shlex,subprocess,sys\\nfrom pathlib import Path\\nr={'task':'real authorized Mega subscriber via installed official Jellyfin protocol','test':'one subscription only','credentials_logged':False,'media_relay_used':False,'admin_operations':False,'login_mutates_account_identity':True,'source_urls_logged':False,'steps':{}}\\ntry:\\n cfg={}\\n path=Path('/root/project-secrets/VIVOAPK/backend-auth.env')\\n for line in path.read_text().splitlines():\\n  if '=' not in line or line.lstrip().startswith('#'):continue\\n  k,v=line.split('=',1);k=k.strip().removeprefix('export ').strip()\\n  if k in ('MEGA_OTT_API_BASE','MEGA_OTT_API_TOKEN'):\\n   values=shlex.split(v)\\n   if len(values)==1:cfg[k]=values[0]\\n if set(cfg)!={'MEGA_OTT_API_BASE','MEGA_OTT_API_TOKEN'}:raise RuntimeError('private_api_missing')\\n sys.path.insert(0,'/srv/projects/Vivoapk/source/backend')\\n import httpx\\n from app.clients.mega import MegaOTTClient\\n from app.clients.xtream import XtreamClient\\n q=subprocess.run(['sudo','-n','-u','postgres','/usr/bin/psql','-X','-A','-t','-d','vivoapk','-c','SELECT mega_subscription_id FROM subscription_mappings ORDER BY id LIMIT 6;'],capture_output=True,text=True,timeout=12)\\n ids=[int(v) for v in q.stdout.splitlines() if v.strip().isdigit()]\\n r['candidate_count']=len(ids)\\n sub=None\\n with MegaOTTClient(base_url=cfg['MEGA_OTT_API_BASE'],token=cfg['MEGA_OTT_API_TOKEN'],timeout_seconds=9) as mega:\\n  for sid in ids:\\n   try:account=mega.get_subscription(sid)\\n   except Exception:continue\\n   password=account.password.get_secret_value() if account.password else ''\\n   if not password:continue\\n   xt=XtreamClient(timeout_seconds=8)\\n   try:answer=xt.authenticate(dns_link=account.dns_link,username=account.username,password=password)\\n   except Exception:continue\\n   finally:xt.close()\\n   if answer.code=='SUCCESS':\\n    sub=account\\n    break\\n if sub is None:raise RuntimeError('no_valid_subscription_for_test')\\n r['steps']['upstream_mega_authorized']=True\\n with httpx.Client(transport=httpx.HTTPTransport(uds='/srv/projects/jellyfin-server/run/jellyfin.sock'),base_url='http://localhost',timeout=httpx.Timeout(20),trust_env=False) as client:\\n  base='MediaBrowser Client=\\\"Jellyfin Android\\\", Device=\\\"REA Android\\\", DeviceId=\\\"vivoapk-rea-smoke-final\\\", Version=\\\"2.7.3\\\"'\\n  login=client.post('/Users/AuthenticateByName',json={'Username':sub.username,'Pw':password},headers={'Authorization':base})\\n  r['steps']['jellyfin_login_http']=login.status_code\\n  if login.status_code!=200:raise RuntimeError('jellyfin_real_login_failed')\\n  session=login.json();token=session.get('AccessToken');owner=(session.get('User') or {}).get('Id')\\n  if not token or not owner:raise RuntimeError('jellyfin_session_invalid')\\n  headers={'Authorization':base[:-1]+', Token=\\\"'+token+'\\\"'}\\n  channels=client.get('/Channels',params={'UserId':owner},headers=headers)\\n  r['steps']['native_channels_http']=channels.status_code\\n  if channels.status_code!=200:raise RuntimeError('channels_query_failed')\\n  found=[c for c in channels.json().get('Items',[]) if str(c.get('Name','')).startswith('VivoAPK')]\\n  r['steps']['native_customer_channels']=len(found)\\n  if len(found)!=1:raise RuntimeError('native_private_channel_not_unique')\\n  channel_id=found[0].get('Id')\\n  root=client.get('/Channels/'+channel_id+'/Items',params={'UserId':owner},headers=headers)\\n  r['steps']['roots_http']=root.status_code\\n  if root.status_code!=200:raise RuntimeError('root_category_query_failed')\\n  roots=root.json().get('Items',[])\\n  kinds={'TV ao vivo':'live','Filmes':'vod','Séries':'series'}\\n  labels=[x.get('Name') for x in roots]\\n  r['steps']['three_multimedia_roots_visible']=set(kinds).issubset(set(labels))\\n  r['steps']['root_count']=len(roots)\\n  if not r['steps']['three_multimedia_roots_visible']:raise RuntimeError('multimedia_roots_missing')\\n  for label,kind in kinds.items():\\n   root_id=next(x.get('Id') for x in roots if x.get('Name')==label)\\n   resp=client.get('/Channels/'+channel_id+'/Items',params={'UserId':owner,'FolderId':root_id},headers=headers)\\n   r['steps'][kind+'_categories_http']=resp.status_code\\n   r['steps'][kind+'_categories']=len(resp.json().get('Items',[])) if resp.status_code==200 else None\\n  r['passed']=all(r['steps'][kind+'_categories_http']==200 and r['steps'][kind+'_categories']>0 for kind in kinds.values())\\n  r['status']='real_login_and_category_navigation_verified' if r['passed'] else 'category_metadata_partial'\\nexcept Exception as exc:\\n r['status']='blocked'\\n r['error_class']=type(exc).__name__\\n r['error_step']=str(exc) if isinstance(exc,RuntimeError) else 'provider_or_jellyfin_request'\\nprint(json.dumps(r,sort_keys=True),flush=True)\\n\"],capture_output=True,text=True,timeout=112)\nprint(p.stdout[:14000] if p.stdout else 'NO_REAL_SUBSCRIBER_TEST_RESULT',flush=True)\nprint('REAL_LOGIN_PROBE_EXIT='+str(p.returncode),flush=True)\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 155000,
+          "idle_timeout_ms": 155000,
+          "terminal": {
+            "columns": 140,
+            "rows": 28,
+            "scrollback": 95
+          },
+          "limits": {
+            "output_bytes": 14500
+          }
+        }
+      }
+    }
+  ]
+}
