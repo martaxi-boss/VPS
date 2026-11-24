@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-hls-web-stage-audit-20261124-r48",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess\np=subprocess.run(['sudo','-n','/srv/projects/Vivoapk/.venv/bin/python','-c',\"import json,subprocess,hashlib\\nfrom pathlib import Path\\nsha=\\\"dff3145ddb80b4644ce94f5485bb2ee2afe7b6cd\\\"\\nroot=Path('/srv/projects/Vivoapk')\\nstage=root/'jellyfin-auth/multimedia'/sha\\ndll=stage/'Jellyfin.Plugin.VivoapkMegaAuth.dll'\\nr={'task':'vivoapk-hls-stage-diagnostic','read_only':True,'credentials_opened':False,'stage_dir_exists':stage.is_dir(),'stage_dll_exists':dll.is_file(),'stage_dll_size_ok':dll.is_file() and dll.stat().st_size>7000,'install_unchanged':True}\\nr['staged_status']='complete' if r['stage_dll_size_ok'] else ('partial' if r['stage_dir_exists'] else 'absent')\\nr['jellyfin_active']=subprocess.run(['systemctl','is-active','--quiet','jellyfin-pink.service'],timeout=6).returncode==0\\nr['backend_active']=subprocess.run(['systemctl','is-active','--quiet','vivoapk-backend.service'],timeout=6).returncode==0\\nr['status']='audited'\\nprint(json.dumps(r,sort_keys=True),flush=True)\"],capture_output=True,text=True,timeout=30)\nprint(p.stdout[:3800] if p.stdout else 'NO_AUDIT_OUTPUT',flush=True)\nprint('AUDIT_EXIT='+str(p.returncode),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 65000,
+          "idle_timeout_ms": 65000,
+          "terminal": {
+            "columns": 120,
+            "rows": 22,
+            "scrollback": 45
+          },
+          "limits": {
+            "output_bytes": 5500
+          }
+        }
+      }
+    }
+  ]
+}
