@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "id": "vivoapk-multimedia-recover-stage-20261124-r15",
+  "kind": "ruflo-team",
+  "phase": "recover",
+  "team_id": "vivoapk-multimedia-release-20261124-r1",
+  "revision": 3,
+  "task": "stage",
+  "reason": "Original REA tool report failed after a side effect but separate Ferrari read-only evidence confirmed exact staged DLL hash. Do not repeat mutating staging; recover task solely for read-only release verification and independent review.",
+  "acknowledge_risk": true
+}
