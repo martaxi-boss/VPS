@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-synthetic-concurrency-capacity-20261125-r81",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,os,pathlib,subprocess,time,concurrent.futures,shutil\nsvc='jellyfin-pink.service'\nroot=pathlib.Path('/srv/projects/jellyfin-server')\ndef run(args,timeout=12):\n p=subprocess.run(args,capture_output=True,text=True,timeout=timeout)\n return p.returncode,p.stdout.strip()\ndef prop(s):\n c,v=run(['systemctl','show',svc,'-p',s,'--value'])\n return v if c==0 else None\ndef health():\n return {s:run(['systemctl','is-active',s])[1] for s in ('vivoapk-backend.service',svc,'nginx.service','postgresql.service')}\nbefore=health()\nassert all(v=='active' for v in before.values())\nassert prop('User')=='jellyfinpink'\nmem={k:int(v.strip().split()[0])*1024 for line in pathlib.Path('/proc/meminfo').read_text().splitlines() for k,_,v in [line.partition(':')] if k in ('MemTotal','MemAvailable')}\ncapacity={'logical_cpus':os.cpu_count(),'load_average':list(os.getloadavg()),'available_memory_bytes':mem['MemAvailable'],'service_memory_max':prop('MemoryMax'),'service_cpu_quota':prop('CPUQuotaPerSecUSec'),'disk_free_bytes':shutil.disk_usage(root).free}\ndef sample(width,height):\n cmd=['sudo','-n','-u','jellyfinpink','--','/usr/bin/ffmpeg','-hide_banner','-nostdin','-v','error','-nostats','-progress','pipe:1','-filter_threads','1','-filter_complex_threads','1','-f','lavfi','-i',f'testsrc2=size={width}x{height}:rate=25','-f','lavfi','-i','sine=frequency=550:sample_rate=48000','-t','6','-c:v','libx264','-threads:v','2','-preset','veryfast','-pix_fmt','yuv420p','-b:v','2500k' if height==720 else '4500k','-c:a','aac','-b:a','128k','-threads:a','1','-f','null','-']\n start=time.monotonic()\n try:\n  p=subprocess.run(cmd,capture_output=True,text=True,timeout=25)\n  elapsed=time.monotonic()-start\n  d=dict(line.split('=',1) for line in p.stdout.splitlines() if '=' in line)\n  frames=int(d.get('frame','0').strip() or '0')\n  return {'resolution':f'{width}x{height}','exit':p.returncode,'frames':frames,'finished':d.get('progress')=='end','elapsed_seconds':round(elapsed,3),'real_time_factor_including_startup':round(6/elapsed,2),'reported_speed':d.get('speed','').strip(),'encoder_threads':2}\n except subprocess.TimeoutExpired:\n  return {'resolution':f'{width}x{height}','exit':124,'finished':False,'frames':0}\nif capacity['logical_cpus']<4 or mem['MemAvailable']<2*1024**3 or capacity['load_average'][0]>1.5:\n print(json.dumps({'scope':'synthetic concurrent preflight only','status':'skipped_resource_gate','capacity':capacity,'services_before':before}),flush=True)\nelse:\n with concurrent.futures.ThreadPoolExecutor(max_workers=2) as ex:\n  fs=[ex.submit(sample,w,h) for w,h in ((1280,720),(1920,1080))]\n  results=[f.result() for f in fs]\n after=health()\n assert before==after\n completed=all(r['exit']==0 and r['finished'] and r['frames']>=150 for r in results)\n print(json.dumps({'scope':'two simultaneous six-second generated inputs, encoded to null; outside Jellyfin service cgroup; no production content, file output, client or long-run capacity certification','status':'completed' if completed else 'partial','capacity':capacity,'results':results,'both_above_real_time':completed and all(r['real_time_factor_including_startup']>=1 for r in results),'services_before':before,'services_after':after}),flush=True)\n assert completed\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 65000,
+          "idle_timeout_ms": 65000,
+          "terminal": {
+            "columns": 150,
+            "rows": 40,
+            "scrollback": 120
+          },
+          "limits": {
+            "output_bytes": 9000
+          }
+        }
+      }
+    }
+  ]
+}
