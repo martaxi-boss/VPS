@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-native-concurrency-capacity-20261125-r81",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,os,pathlib,subprocess,time,shutil,concurrent.futures,threading\nsvc='jellyfin-pink.service'\nroot=pathlib.Path('/srv/projects/jellyfin-server')\ndef run(args,timeout=12):\n try:\n  p=subprocess.run(args,capture_output=True,text=True,timeout=timeout)\n  return p.returncode,p.stdout,p.stderr\n except subprocess.TimeoutExpired:return 124,'','timeout'\ndef prop(name):\n c,v,_=run(['systemctl','show',svc,'-p',name,'--value'])\n return v.strip() if c==0 else None\ndef health():\n return {s:run(['systemctl','is-active',s])[1].strip() for s in ('vivoapk-backend.service',svc,'nginx.service','postgresql.service')}\ndef mem_available():\n for line in pathlib.Path('/proc/meminfo').read_text().splitlines():\n  if line.startswith('MemAvailable:'):\n   return int(line.split()[1])*1024\n return 0\nbefore=health()\nassert prop('User')=='jellyfinpink' and all(v=='active' for v in before.values())\ncpus=os.cpu_count() or 1\nload=os.getloadavg()[0]\nmem=mem_available()\nresult={'scope':'two simultaneous bounded synthetic HD encoders outside production service cgroup; no customer streams, credentials, media files, or production configuration changes','cpu_count':cpus,'load_before':round(load,2),'memory_available_before_bytes':mem,'services_before':before,'duration_seconds_each':6,'resolution':'1280x720','fps':25,'encoder_threads_each':1}\nif cpus<4 or mem<1024*1024*1024 or load>=cpus*0.5:\n result.update(status='skipped_resource_gate',services_after=health())\n print(json.dumps(result),flush=True)\nelse:\n barrier=threading.Barrier(2,timeout=5)\n def test(index):\n  cmd=['sudo','-n','-u','jellyfinpink','--','/usr/bin/ffmpeg','-hide_banner','-nostdin','-v','error','-nostats','-progress','pipe:1','-filter_threads','1','-filter_complex_threads','1','-f','lavfi','-i','testsrc2=size=1280x720:rate=25','-f','lavfi','-i',f'sine=frequency={440+index*110}:sample_rate=48000','-t','6','-c:v','libx264','-threads:v','1','-preset','veryfast','-pix_fmt','yuv420p','-b:v','2500k','-c:a','aac','-b:a','128k','-threads:a','1','-f','null','-']\n  barrier.wait()\n  start=time.monotonic()\n  c,o,e=run(cmd,25)\n  elapsed=time.monotonic()-start\n  fields={}\n  for line in o.splitlines():\n   k,sep,v=line.partition('=')\n   if sep:fields[k]=v\n  frames=int(fields.get('frame','0').strip() or '0')\n  return {'job':index,'exit':c,'frames':frames,'elapsed_seconds':round(elapsed,3),'speed':fields.get('speed','').strip(),'wall_time_factor':round(6/elapsed,2),'finished':fields.get('progress')=='end'}\n start=time.monotonic()\n with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:\n  jobs=list(pool.map(test,(1,2)))\n result.update(benchmarks=jobs,elapsed_seconds=round(time.monotonic()-start,3),services_after=health(),memory_available_after_bytes=mem_available())\n assert result['services_after']==before\n passed=all(r['exit']==0 and r['frames']>=150 and r['finished'] for r in jobs)\n result['status']='completed' if passed else 'partial'\n result['both_realtime_in_short_test']=passed and all(r['wall_time_factor']>=1 for r in jobs)\n print(json.dumps(result),flush=True)\n assert passed\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 65000,
+          "idle_timeout_ms": 65000,
+          "terminal": {
+            "columns": 150,
+            "rows": 40,
+            "scrollback": 120
+          },
+          "limits": {
+            "output_bytes": 8000
+          }
+        }
+      }
+    }
+  ]
+}
