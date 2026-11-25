@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-sync-verified-bootstrap-20261125-r79",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,os,pathlib,pwd,subprocess\nsrc=pathlib.Path('/srv/projects/Vivoapk/source')\nold='06a83e00672cf4b971345e79e6e77b2d5d78e584'\nnew='8abad1aaf02fce4737101b8cc6943a03f0def565'\npinned='74b6a02be199a29c305058d2875063eb46c1b61d'\nowner=pwd.getpwuid(src.stat().st_uid).pw_name\nprefix=[] if src.stat().st_uid==os.geteuid() else ['sudo','-n','-u',owner,'--']\nenv={**os.environ,'GIT_PAGER':'cat','PAGER':'cat','GIT_TERMINAL_PROMPT':'0'}\ndef git(args,t=15):\n p=subprocess.run(prefix+['git','--no-pager','-C',str(src)]+args,capture_output=True,text=True,timeout=t,env=env,check=True)\n return p.stdout.strip()\nassert git(['rev-parse','HEAD'])==pinned\nassert git(['rev-parse','refs/heads/main'])==git(['rev-parse','refs/remotes/origin/main'])==old\nassert not git(['status','--porcelain','--untracked-files=all'])\nassert git(['ls-remote','origin','refs/heads/main']).split()[0]==new\ngit(['fetch','--no-tags','--no-write-fetch-head','--refmap=','--no-recurse-submodules','origin',new],45)\nassert git(['rev-parse',new+'^'])==old\ngit(['merge-base','--is-ancestor',old,new])\nassert git(['diff','--name-only',old,new])=='BOOTSTRAP.md'\ngit(['diff','--check',old,new])\ndoc=git(['show',new+':BOOTSTRAP.md'])\nfor marker in ('45633297408','45634523234','45635581864','45636798377','exclusivamente','não instalável','Nenhum cliente físico está certificado'):\n assert marker in doc,marker\np=subprocess.run(prefix+['git','--no-pager','-C',str(src),'update-ref','--stdin'],input='start\\nupdate refs/heads/main '+new+' '+old+'\\nupdate refs/remotes/origin/main '+new+' '+old+'\\nprepare\\ncommit\\n',capture_output=True,text=True,env=env,check=True,timeout=15)\nassert git(['rev-parse','HEAD'])==pinned\nassert git(['rev-parse','refs/heads/main'])==git(['rev-parse','refs/remotes/origin/main'])==new\nassert not git(['status','--porcelain','--untracked-files=all'])\nservices={}\nfor s in ('vivoapk-backend.service','jellyfin-pink.service','nginx.service','postgresql.service'):\n r=subprocess.run(['systemctl','is-active',s],capture_output=True,text=True,timeout=10)\n services[s]=r.stdout.strip()\nprint(json.dumps({'scope':'documentation-only fast-forward of stable references; no checkout, plugin deployment, media access or service restart','main':new,'previous':old,'head_unchanged':pinned,'changed_files':['BOOTSTRAP.md'],'git_diff_pass':True,'source_clean':True,'services':services}),flush=True)\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 90000,
+          "idle_timeout_ms": 90000,
+          "terminal": {
+            "columns": 150,
+            "rows": 40,
+            "scrollback": 120
+          },
+          "limits": {
+            "output_bytes": 9000
+          }
+        }
+      }
+    }
+  ]
+}
