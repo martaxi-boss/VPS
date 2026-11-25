@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "id": "vivoapk-static-route-integration-20261125-r61",
+  "kind": "ruflo-host",
+  "host": "ChatGPT",
+  "max_parallel": 1,
+  "roles": [
+    {
+      "id": "tester",
+      "type": "tester"
+    },
+    {
+      "id": "reviewer",
+      "type": "reviewer"
+    }
+  ],
+  "steps": [
+    {
+      "id": "native-route-source-review",
+      "role": "reviewer",
+      "kind": "rea-mcp",
+      "mcp_requests": [
+        {
+          "method": "tools/call",
+          "params": {
+            "name": "capture_process_scenario",
+            "arguments": {
+              "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+              "arguments": [
+                "-c",
+                "import json,urllib.request,hashlib,ast\nbase=\"https://raw.githubusercontent.com/martaxi-boss/Vivoapk/650338a76d61b5b29486e0e32ad3e2f8edb9a1a6/\"\npaths=[\"jellyfin-auth/Vivoapk.Jellyfin.Auth/NativeStaticRedirectFilter.cs\",\"jellyfin-auth/Vivoapk.Jellyfin.Auth/ServiceRegistrator.cs\",\"jellyfin-auth/Vivoapk.Jellyfin.Auth/VivoapkLivePreviewChannel.cs\",\"jellyfin-auth/tests/jellyfin_12_4_smoke.py\"]\nfiles={}; hashes={}\nfor path in paths:\n with urllib.request.urlopen(base+path,timeout=15) as r: data=r.read(1000000)\n hashes[path]=hashlib.sha256(data).hexdigest(); files[path]=data.decode()\nf,s,c,p=(files[x] for x in paths)\nast.parse(p)\nchecks={\"native_routes_scoped\":\"GetVideoStreamByContainer\" in f and \"Jellyfin.Api.Controllers.VideosController\" in f,\"installed_channel_identity\":\"GetNewItemId\" in f and \"OfType<VivoapkLivePreviewChannel>()\" in f,\"native_authorization_and_item_access\":\"authorization.AuthorizeAsync\" in f and \"GetItemById<BaseItem>(itemId, user)\" in f and \"GetPlayAccess(user)\" in f and \"IsEnabledFor(owner.ToString\" in f,\"fresh_grant_no_legacy_fallback\":\"GetFreshAuthorizedMediaSourcesAsync\" in f and \"requireGrant: true\" in c,\"owner_verified_in_strict_callback\":\"AuthenticatedOwner(_httpContextAccessor?.HttpContext?.User)\" in c,\"redirect_response_only\":\"StatusCodes.Status302Found\" in f and \"http.Response.ContentLength = 0\" in f and \"http.Response.Headers.Location\" in f and \"HttpClient\" not in f,\"opt_in\":\"Configuration.RequireAuthorizedPlaybackGrant != true\" in f,\"mvc_registration\":\"options.Filters.AddService<NativeStaticRedirectFilter>()\" in s,\"fixture_no_provider_request_asserted\":\"provider.requests != 0\" in p and \"mock.grants_enabled = False\" in p,\"synthetic_test_parses\":True}\nprint(json.dumps({\"scope\":\"pinned source inspection and Python syntax validation; not a real stream test\",\"checks\":checks,\"commit\":\"650338a76d61b5b29486e0e32ad3e2f8edb9a1a6\",\"sha256\":hashes},sort_keys=True),flush=True)\nraise SystemExit(0 if all(checks.values()) else 1)"
+              ],
+              "working_directory": "/srv/projects/skill-universal",
+              "timeout_ms": 65000,
+              "idle_timeout_ms": 65000,
+              "terminal": {
+                "columns": 135,
+                "rows": 30,
+                "scrollback": 80
+              },
+              "limits": {
+                "output_bytes": 6500
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "public-production-check",
+      "role": "tester",
+      "kind": "rea-mcp",
+      "mcp_requests": [
+        {
+          "method": "tools/call",
+          "params": {
+            "name": "capture_process_scenario",
+            "arguments": {
+              "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+              "arguments": [
+                "-c",
+                "import json,ssl,urllib.request\nwith urllib.request.urlopen(\"https://serveriptv.duckdns.org/System/Info/Public\",context=ssl.create_default_context(),timeout=12) as response:\n data=json.loads(response.read(65536))\n result={\"scope\":\"production public metadata only; not changed or authenticated\",\"status\":response.status,\"version\":data.get(\"Version\")}\nprint(json.dumps(result),flush=True)\nassert result[\"status\"]==200"
+              ],
+              "working_directory": "/srv/projects/skill-universal",
+              "timeout_ms": 65000,
+              "idle_timeout_ms": 65000,
+              "terminal": {
+                "columns": 135,
+                "rows": 30,
+                "scrollback": 80
+              },
+              "limits": {
+                "output_bytes": 6500
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
