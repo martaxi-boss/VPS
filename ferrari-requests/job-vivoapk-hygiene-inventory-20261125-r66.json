@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-hygiene-inventory-20261125-r66",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import os,pathlib,subprocess,json,pwd,stat,hashlib,shutil\nbase=pathlib.Path('/srv/projects'); roots=[base/'Vivoapk',base/'jellyfin-server']\ndef run(args,t=10):\n try:\n  p=subprocess.run(args,capture_output=True,text=True,timeout=t,env={**os.environ,'GIT_PAGER':'cat','PAGER':'cat','GIT_OPTIONAL_LOCKS':'0','GIT_TERMINAL_PROMPT':'0'});return p.returncode,p.stdout.strip()\n except (OSError,subprocess.TimeoutExpired):return 125,''\ndef prop(s,k):return run(['systemctl','show',s,'-p',k,'--value'])[1]\ndef inventory(p):\n try:\n  a=p.stat()\n  result={'exists':True,'owner':pwd.getpwuid(a.st_uid).pw_name,'mode':oct(stat.S_IMODE(a.st_mode)),'dirs':[]}\n  for x in sorted(p.iterdir()):\n   if x.is_symlink():kind='symlink'\n   elif x.is_dir():kind='dir'\n   else:kind='file'\n   if kind=='dir' and x.name not in ('data','config','secrets','credentials','vault','run'):\n    try:\n     children=[y.name for y in x.iterdir() if y.is_dir() and not y.is_symlink()][:40]\n    except OSError:children=[]\n   else:children=[]\n   if kind=='dir':result['dirs'].append({'name':x.name,'children':children})\n  return result\n except OSError as e:return {'readable':False,'error':type(e).__name__}\nr={'scope':'Vivoapk and Jellyfin only; no secret contents, no changes','uid':os.geteuid(),'roots':{p.name:inventory(p) for p in roots},'services':{},'git':{},'disk_free_gib':round(shutil.disk_usage(base).free/2**30,2)}\nfor s in ('jellyfin-pink.service','vivoapk-backend.service','pink-iptv-backend.service','pink-vpn.service','nginx.service','postgresql.service'):\n r['services'][s]={'state':prop(s,'ActiveState'),'unit':prop(s,'LoadState'),'user':prop(s,'User'),'private_network':prop(s,'PrivateNetwork')}\np=roots[0]/'source'\ntry:\n owner=pwd.getpwuid(p.stat().st_uid).pw_name\n prefix=[] if p.stat().st_uid==os.geteuid() else ['sudo','-n','-u',owner,'--']\n for k,args in {'head':['rev-parse','HEAD'],'branch':['branch','--show-current'],'status':['status','--porcelain','--untracked-files=no'],'worktrees':['worktree','list','--porcelain'],'refs':['for-each-ref','--format=%(refname:short) %(objectname)','refs/heads'],'origin_main':['rev-parse','refs/remotes/origin/main'],'diff_check':['diff','--check']}.items():\n  c,v=run(prefix+['git','--no-pager','-C',str(p)]+args)\n  r['git'][k]={'exit':c,'output':v[:2500] if k not in ('status','diff_check') else ('clean' if c==0 and not v else 'changes_or_error')}\nexcept OSError as e:r['git']['error']=type(e).__name__\nfor key,p in [('backend_version',roots[0]/'current'),('plugin',roots[1]/'data/plugins/VivoAPK Mega OTT Auth_0.1.0.0/Jellyfin.Plugin.VivoapkMegaAuth.dll')]:\n try:\n  if p.is_symlink():r[key]={'symlink_target':str(p.resolve())}\n  elif p.is_file():r[key]={'size':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()}\n  else:r[key]={'exists':p.exists()}\n except OSError as e:r[key]={'error':type(e).__name__}\nprint(json.dumps(r),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 55000,
+          "idle_timeout_ms": 55000,
+          "terminal": {
+            "columns": 125,
+            "rows": 40,
+            "scrollback": 120
+          },
+          "limits": {
+            "output_bytes": 16000
+          }
+        }
+      }
+    }
+  ]
+}
