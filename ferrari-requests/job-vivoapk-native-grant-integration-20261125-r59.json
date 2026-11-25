@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "id": "vivoapk-native-grant-integration-20261125-r59",
+  "kind": "ruflo-host",
+  "host": "ChatGPT",
+  "max_parallel": 1,
+  "roles": [
+    {
+      "id": "tester",
+      "type": "tester"
+    },
+    {
+      "id": "reviewer",
+      "type": "reviewer"
+    }
+  ],
+  "steps": [
+    {
+      "id": "native-grant-wiring",
+      "role": "tester",
+      "kind": "rea-mcp",
+      "mcp_requests": [
+        {
+          "method": "tools/call",
+          "params": {
+            "name": "capture_process_scenario",
+            "arguments": {
+              "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+              "arguments": [
+                "-c",
+                "import json,hashlib,urllib.request\nbase=\"https://raw.githubusercontent.com/martaxi-boss/Vivoapk/e3c3a5440b0f067407345e2c9ab14d584238cebe/\"\nroot=\"jellyfin-auth/Vivoapk.Jellyfin.Auth/\"\nfiles={\"grant\":root+\"AuthorizedPlaybackGrant.cs\",\"resolver\":root+\"MegaResolverClient.cs\",\"channel\":root+\"VivoapkLivePreviewChannel.cs\",\"config\":root+\"PluginConfiguration.cs\",\"tests\":\"jellyfin-auth/Vivoapk.Jellyfin.Auth.Tests/Program.cs\"}\nsources={};digests={}\nfor k,p in files.items():\n with urllib.request.urlopen(base+p,timeout=15) as r:data=r.read(1000000)\n sources[k]=data.decode();digests[k]=hashlib.sha256(data).hexdigest()\ns=sources[\"channel\"]; a=sources[\"grant\"];r=sources[\"resolver\"]\nstrict=s.split(\"if (requireGrant)\",2)[-1].split(\"var direct = DirectSource\",1)[0]\nreport={\"scope\":\"review of pinned plugin source; not a production or physical player test\",\"commit\":\"e3c3a5440b0f067407345e2c9ab14d584238cebe\",\"checks\":{\"strict_mode_default_off\":\"RequireAuthorizedPlaybackGrant { get; set; } = false;\" in sources[\"config\"],\"grant_requested_in_playback_callback\":s.count(\"requestPlaybackGrant: requireGrant\")==2,\"grant_parsed_only_on_request\":r.count(\"requestPlaybackGrant ? AuthorizedPlaybackGrant.Read(row) : null\")>=1 and \"requestPlaybackGrant && categoryId is not null ? AuthorizedPlaybackGrant.Read(row)\" in r,\"missing_grant_denied\":\"if (authorizedPath is null)\" in strict and \"return Array.Empty<MediaSourceInfo>();\" in strict,\"approved_grant_passed_to_native_source\":\"var uri = authorizedPath ?? (origin.TrimEnd\" in s,\"credential_rejection\":\"decoded.Contains(password, StringComparison.Ordinal)\" in a,\"account_secret_not_in_grant_repr\":'ToString() => \"AuthorizedPlaybackGrant(redacted)\"' in a,\"asset_bound\":\"_assetId != expectedAssetId || _kind != expectedKind\" in a,\"https_origin_bound\":\"target.Scheme != Uri.UriSchemeHttps\" in a and \"target.Port != origin.Port\" in a and \"target.IdnHost, origin.IdnHost\" in a,\"expiry_checked\":\"_expiresAt <= now || _expiresAt > now.AddMinutes(2)\" in a,\"regression_cases_present\":\"Secure playback grant validation regression\" in sources[\"tests\"]},\"sha256\":digests}\nprint(json.dumps(report,sort_keys=True),flush=True)\nraise SystemExit(0 if all(report[\"checks\"].values()) else 1)"
+              ],
+              "working_directory": "/srv/projects/skill-universal",
+              "timeout_ms": 65000,
+              "idle_timeout_ms": 65000,
+              "terminal": {
+                "columns": 135,
+                "rows": 30,
+                "scrollback": 80
+              },
+              "limits": {
+                "output_bytes": 6500
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "backend-contract-review",
+      "role": "reviewer",
+      "kind": "rea-mcp",
+      "mcp_requests": [
+        {
+          "method": "tools/call",
+          "params": {
+            "name": "capture_process_scenario",
+            "arguments": {
+              "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+              "arguments": [
+                "-c",
+                "import json,urllib.request\nbase=\"https://raw.githubusercontent.com/martaxi-boss/Vivoapk/e3c3a5440b0f067407345e2c9ab14d584238cebe/\"\npaths=[\"backend/app/clients/mega.py\",\"backend/app/schemas.py\",\"backend/app/main.py\",\"docs/PLAYBACK_GRANT_CONTRACT_20261125.md\"]\ns={}\nfor p in paths:\n with urllib.request.urlopen(base+p,timeout=15) as r:s[p]=r.read(1000000).decode()\nreport={\"scope\":\"current public backend contract; no network access to provider, no private credentials\",\"provider_grant_not_implemented\":all(\"playback_grant\" not in s[p] for p in paths[:3]),\"current_login_has_origin_and_session\":\"xtream_base_url\" in s[paths[1]] and \"session_token\" in s[paths[1]],\"experimental_only_documented\":\"não uma API Mega documentada\" in s[paths[3]] and \"não ativar este modo em produção\" in s[paths[3]],\"production_changed\":False,\"device_playback_certified\":False}\nprint(json.dumps(report,sort_keys=True),flush=True)\nraise SystemExit(0 if report[\"provider_grant_not_implemented\"] and report[\"current_login_has_origin_and_session\"] and report[\"experimental_only_documented\"] else 1)"
+              ],
+              "working_directory": "/srv/projects/skill-universal",
+              "timeout_ms": 65000,
+              "idle_timeout_ms": 65000,
+              "terminal": {
+                "columns": 135,
+                "rows": 30,
+                "scrollback": 80
+              },
+              "limits": {
+                "output_bytes": 6500
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
