@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "id": "jellyfin-official-client-contract-audit-20261125-r55",
+  "kind": "ruflo-host",
+  "host": "ChatGPT",
+  "max_parallel": 1,
+  "roles": [
+    {
+      "id": "tester",
+      "type": "tester"
+    },
+    {
+      "id": "reviewer",
+      "type": "reviewer"
+    }
+  ],
+  "steps": [
+    {
+      "id": "android-upstream-contract",
+      "role": "tester",
+      "kind": "rea-mcp",
+      "mcp_requests": [
+        {
+          "method": "tools/call",
+          "params": {
+            "name": "capture_process_scenario",
+            "arguments": {
+              "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+              "arguments": [
+                "-c",
+                "import hashlib,json,re,urllib.request\nurl=\"https://raw.githubusercontent.com/jellyfin/jellyfin-android/v2.7.3/app/src/main/java/org/jellyfin/mobile/player/queue/QueueManager.kt\"\nwith urllib.request.urlopen(url,timeout=15) as response:\n data=response.read(400000);status=response.status\nsource=data.decode()\nhttp=re.search(r'MediaProtocol\\.HTTP\\s*->\\s*\\{([^}]+)\\}',source,re.S)\nfile=re.search(r'MediaProtocol\\.FILE\\s*->\\s*\\{([^}]+)\\}',source,re.S)\nresult={\"scope\":\"public upstream source only\",\"http_status\":status,\"git_blob_sha1\":hashlib.sha1((\"blob \"+str(len(data))+\"\\0\").encode()+data).hexdigest(),\"http_direct_uses_source_path\":bool(http and \"sourceInfo.path\" in http.group(1)),\"http_direct_forces_hls\":bool(http and \"MimeTypes.APPLICATION_M3U8\" in http.group(1)),\"file_direct_uses_jellyfin_stream_api\":bool(file and \"videosApi.getVideoStreamUrl\" in file.group(1)),\"forced_mime_applied\":\".setMimeType(forcedMimeType)\" in source,\"physical_playback_test\":False}\nprint(json.dumps(result,sort_keys=True),flush=True)\nraise SystemExit(0 if all(result[k] for k in (\"http_direct_uses_source_path\",\"http_direct_forces_hls\",\"file_direct_uses_jellyfin_stream_api\",\"forced_mime_applied\")) else 1)"
+              ],
+              "working_directory": "/srv/projects/skill-universal",
+              "timeout_ms": 45000,
+              "idle_timeout_ms": 45000,
+              "terminal": {
+                "columns": 135,
+                "rows": 25,
+                "scrollback": 50
+              },
+              "limits": {
+                "output_bytes": 5000
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "web-upstream-contract",
+      "role": "reviewer",
+      "kind": "rea-mcp",
+      "mcp_requests": [
+        {
+          "method": "tools/call",
+          "params": {
+            "name": "capture_process_scenario",
+            "arguments": {
+              "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+              "arguments": [
+                "-c",
+                "import hashlib,json,urllib.request\nurl=\"https://raw.githubusercontent.com/jellyfin/jellyfin-web/master/src/components/playback/playbackmanager.js\"\nwith urllib.request.urlopen(url,timeout=15) as response:\n data=response.read(1000000);status=response.status\nsource=data.decode()\nresult={\"scope\":\"public upstream source only\",\"http_status\":status,\"git_blob_sha1\":hashlib.sha1((\"blob \"+str(len(data))+\"\\0\").encode()+data).hexdigest(),\"remote_video_feature_gate\":\"mediaSource.IsRemote && !appHost.supports(AppFeature.RemoteVideo)\" in source,\"direct_path_assignment\":\"mediaUrl = mediaSource.Path;\" in source,\"supports_direct_play_gate\":\"mediaSource.SupportsDirectPlay\" in source,\"physical_playback_test\":False}\nprint(json.dumps(result,sort_keys=True),flush=True)\nraise SystemExit(0 if all(result[k] for k in (\"remote_video_feature_gate\",\"direct_path_assignment\",\"supports_direct_play_gate\")) else 1)"
+              ],
+              "working_directory": "/srv/projects/skill-universal",
+              "timeout_ms": 45000,
+              "idle_timeout_ms": 45000,
+              "terminal": {
+                "columns": 135,
+                "rows": 25,
+                "scrollback": 50
+              },
+              "limits": {
+                "output_bytes": 5000
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
