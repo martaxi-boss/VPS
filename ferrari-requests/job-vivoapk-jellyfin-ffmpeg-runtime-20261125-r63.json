@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-jellyfin-ffmpeg-runtime-20261125-r63",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import os,pathlib,json,subprocess,shutil,xml.etree.ElementTree as ET\nroot=pathlib.Path('/srv/projects/jellyfin-server')\nsvc='jellyfin-pink.service'\ndef run(a,t=8):\n return subprocess.run(a,capture_output=True,text=True,timeout=t)\ndef prop(k): return run(['systemctl','show',svc,'--property='+k,'--value']).stdout.strip()\npid=int(prop('MainPID') or '0')\nr={'scope':'Jellyfin native runtime and synthetic media only','service_active':prop('ActiveState'),'service_user':prop('User'),'main_pid_present':pid>0,'changed':False}\nselected=[]\nif pid>0:\n try:\n  a=pathlib.Path('/proc/'+str(pid)+'/cmdline').read_bytes().decode(errors='replace').split(chr(0))\n  for i,v in enumerate(a):\n   if v in ('--ffmpeg','--ffmpeg-path') and i+1<len(a): selected.append(a[i+1])\n   elif v.startswith(('--ffmpeg=','--ffmpeg-path=')): selected.append(v.split('=',1)[1])\n except OSError: pass\nr['service_ffmpeg_args']=[s for s in selected if s.startswith('/')]\nconfig=[]\ncandidates=set(pathlib.Path(s) for s in selected if s.startswith('/'))\nfor base in [root,pathlib.Path('/usr/lib/jellyfin-ffmpeg'),pathlib.Path('/usr/lib/jellyfin'),pathlib.Path('/usr/local/bin')]:\n if not base.is_dir(): continue\n for p,dirs,files in os.walk(base,followlinks=False):\n  dirs[:]=[d for d in dirs if d.lower() not in ('cache','metadata','logs','log','transcodes','library','media','.git','plugins','backups','backup')]\n  if len(pathlib.Path(p).relative_to(base).parts)>7: dirs[:]=[];continue\n  if 'ffmpeg' in files: candidates.add(pathlib.Path(p)/'ffmpeg')\n  if 'encoding.xml' in files:\n   try:\n    e=ET.parse(pathlib.Path(p)/'encoding.xml').getroot()\n    for x in e.iter():\n     if x.tag.split('}')[-1] in ('EncoderAppPath','EncoderAppPathDisplay','FFmpegPath') and x.text and x.text.startswith('/'):\n      config.append({'file':str(pathlib.Path(p)/'encoding.xml'),'key':x.tag,'path':x.text});candidates.add(pathlib.Path(x.text))\n   except (OSError,ET.ParseError): pass\np=shutil.which('ffmpeg')\nif p:candidates.add(pathlib.Path(p))\nr['encoding_config_paths']=config\nr['candidates']=[]\nfor p in sorted(candidates):\n if not p.is_file() or not os.access(p,os.X_OK):continue\n v=run([str(p),'-version'])\n item={'path':str(p),'version_exit':v.returncode,'version':v.stdout.splitlines()[0][:160] if v.stdout else ''}\n if v.returncode==0:\n  try:\n   t=run([str(p),'-hide_banner','-nostdin','-loglevel','error','-f','lavfi','-i','testsrc2=size=160x90:rate=25','-f','lavfi','-i','sine=frequency=650:sample_rate=48000','-t','1','-c:v','libx264','-threads','1','-c:a','aac','-f','null','-'],12)\n   item['synthetic_h264_aac_encode_exit']=t.returncode\n  except subprocess.TimeoutExpired:item['synthetic_test']='timeout'\n r['candidates'].append(item)\n if len(r['candidates'])>=5:break\nprint(json.dumps(r),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 55000,
+          "idle_timeout_ms": 55000,
+          "terminal": {
+            "columns": 125,
+            "rows": 30,
+            "scrollback": 80
+          },
+          "limits": {
+            "output_bytes": 6500
+          }
+        }
+      }
+    }
+  ]
+}
