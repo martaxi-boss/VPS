@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "id": "vivoapk-final-readonly-audit-20261125-r53",
+  "kind": "ruflo-host",
+  "host": "ChatGPT",
+  "max_parallel": 1,
+  "roles": [
+    {
+      "id": "tester",
+      "type": "tester"
+    },
+    {
+      "id": "reviewer",
+      "type": "reviewer"
+    }
+  ],
+  "steps": [
+    {
+      "id": "public-health",
+      "role": "tester",
+      "kind": "rea-mcp",
+      "mcp_requests": [
+        {
+          "method": "tools/call",
+          "params": {
+            "name": "capture_process_scenario",
+            "arguments": {
+              "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+              "arguments": [
+                "-c",
+                "import json,ssl,urllib.request,subprocess\nr={\"audit\":\"public-health\",\"credentials_opened\":False,\"media_requested\":False}\ntry:\n with urllib.request.urlopen(\"https://serveriptv.duckdns.org/System/Info/Public\",timeout=12,context=ssl.create_default_context()) as response:\n  r[\"http_status\"]=response.status\n  r[\"jellyfin_version\"]=json.load(response).get(\"Version\")\nexcept Exception as e:\n r[\"public_error_class\"]=type(e).__name__\nfor service in (\"jellyfin-pink.service\",\"vivoapk-backend.service\",\"nginx.service\",\"postgresql.service\"):\n r[service]=subprocess.run([\"systemctl\",\"is-active\",\"--quiet\",service],timeout=6).returncode==0\nprint(json.dumps(r,sort_keys=True),flush=True)\nraise SystemExit(0 if r.get(\"http_status\")==200 and all(r[s] for s in (\"jellyfin-pink.service\",\"vivoapk-backend.service\",\"nginx.service\",\"postgresql.service\")) else 1)"
+              ],
+              "working_directory": "/srv/projects/skill-universal",
+              "timeout_ms": 55000,
+              "idle_timeout_ms": 55000,
+              "terminal": {
+                "columns": 135,
+                "rows": 25,
+                "scrollback": 50
+              },
+              "limits": {
+                "output_bytes": 5000
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "hygiene-inventory",
+      "role": "reviewer",
+      "kind": "rea-mcp",
+      "mcp_requests": [
+        {
+          "method": "tools/call",
+          "params": {
+            "name": "capture_process_scenario",
+            "arguments": {
+              "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+              "arguments": [
+                "-c",
+                "import json,subprocess,os\nfrom pathlib import Path\nr={\"audit\":\"read-only-project-inventory\",\"credentials_opened\":False,\"media_requested\":False,\"removed\":0}\nfor path in (\"/srv/projects/Vivoapk\",\"/srv/projects/jellyfin-server\"):\n p=Path(path)\n try:\n  r[p.name]={\"exists\":p.is_dir(),\"top_level_directory_count\":sum(x.is_dir() for x in p.iterdir()),\"top_level_file_count\":sum(x.is_file() for x in p.iterdir())}\n except OSError as e:\n  r[p.name]={\"exists\":p.is_dir(),\"inventory_error_class\":type(e).__name__}\np=subprocess.run([\"systemctl\",\"list-unit-files\",\"--type=service\",\"--no-legend\",\"--no-pager\"],capture_output=True,text=True,timeout=10)\nr[\"legacy_named_service_units\"]=[line.split()[0] for line in p.stdout.splitlines() if line.split() and \"pink\" in line.split()[0].lower()]\nr[\"service_inventory_exit\"]=p.returncode\nprint(json.dumps(r,sort_keys=True),flush=True)\nraise SystemExit(0 if p.returncode==0 and all(\"inventory_error_class\" not in r.get(k,{}) for k in (\"Vivoapk\",\"jellyfin-server\")) else 1)"
+              ],
+              "working_directory": "/srv/projects/skill-universal",
+              "timeout_ms": 55000,
+              "idle_timeout_ms": 55000,
+              "terminal": {
+                "columns": 135,
+                "rows": 25,
+                "scrollback": 50
+              },
+              "limits": {
+                "output_bytes": 5000
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
