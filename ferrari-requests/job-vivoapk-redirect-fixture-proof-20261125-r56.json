@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "id": "vivoapk-redirect-fixture-proof-20261125-r56",
+  "kind": "ruflo-host",
+  "host": "ChatGPT",
+  "max_parallel": 1,
+  "roles": [
+    {
+      "id": "tester",
+      "type": "tester"
+    },
+    {
+      "id": "reviewer",
+      "type": "reviewer"
+    }
+  ],
+  "steps": [
+    {
+      "id": "synthetic-redirect-playback",
+      "role": "tester",
+      "kind": "rea-mcp",
+      "mcp_requests": [
+        {
+          "method": "tools/call",
+          "params": {
+            "name": "capture_process_scenario",
+            "arguments": {
+              "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+              "arguments": [
+                "-c",
+                "import json,os,subprocess,threading,collections\nfrom http.server import BaseHTTPRequestHandler,ThreadingHTTPServer\nfrom pathlib import Path\nbase=Path(\"/srv/projects/skill-universal/tools/ubuntu-cli\")\nexe=str(base/\"bin/ffmpeg\")\nenv=os.environ.copy();env[\"LD_LIBRARY_PATH\"]=str(base/\"lib\")\ndef ff(args,timeout=20):\n return subprocess.run([exe,\"-nostdin\",\"-hide_banner\",\"-loglevel\",\"error\",*args],env=env,capture_output=True,timeout=timeout,check=True).stdout\ninputs=[\"-f\",\"lavfi\",\"-i\",\"testsrc2=size=160x90:rate=25\",\"-f\",\"lavfi\",\"-i\",\"sine=frequency=440:sample_rate=48000\",\"-t\",\"2\",\"-c:v\",\"libx264\",\"-threads\",\"1\",\"-preset\",\"ultrafast\",\"-c:a\",\"aac\"]\nmp4=ff(inputs+[\"-movflags\",\"frag_keyframe+empty_moov\",\"-f\",\"mp4\",\"pipe:1\"])\nts=ff(inputs+[\"-f\",\"mpegts\",\"pipe:1\"])\nplaylist=b\"#EXTM3U\\n#EXT-X-VERSION:3\\n#EXT-X-TARGETDURATION:2\\n#EXT-X-MEDIA-SEQUENCE:0\\n#EXTINF:2.0,\\nsegment.ts\\n#EXT-X-ENDLIST\\n\"\nfiles={\"/sample.mp4\":(\"video/mp4\",mp4),\"/live.m3u8\":(\"application/vnd.apple.mpegurl\",playlist),\"/segment.ts\":(\"video/mp2t\",ts)}\nstats=collections.Counter()\nclass Quiet(BaseHTTPRequestHandler):\n def log_message(self,*args): pass\nclass Origin(Quiet):\n def do_GET(self):\n  if self.path not in files:\n   self.send_error(404);return\n  mime,data=files[self.path];stats[\"origin_requests\"]+=1\n  self.send_response(200);self.send_header(\"Content-Type\",mime);self.send_header(\"Content-Length\",str(len(data)));self.end_headers()\n  self.wfile.write(data);stats[\"origin_media_bytes\"]+=len(data)\norigin=ThreadingHTTPServer((\"127.0.0.1\",0),Origin)\nclass Redirect(Quiet):\n def do_GET(self):\n  if self.path not in (\"/sample.mp4\",\"/live.m3u8\"):\n   self.send_error(404);return\n  stats[\"gateway_redirects\"]+=1\n  self.send_response(302);self.send_header(\"Location\",\"http://127.0.0.1:\"+str(origin.server_port)+self.path);self.send_header(\"Content-Length\",\"0\");self.end_headers()\ngateway=ThreadingHTTPServer((\"127.0.0.1\",0),Redirect)\nfor server in (origin,gateway): threading.Thread(target=server.serve_forever,daemon=True).start()\nresults={}\ntry:\n for path in (\"/sample.mp4\",\"/live.m3u8\"):\n  out=ff([\"-i\",\"http://127.0.0.1:\"+str(gateway.server_port)+path,\"-t\",\"1\",\"-map\",\"0:v:0\",\"-map\",\"0:a:0\",\"-f\",\"framemd5\",\"pipe:1\"]).decode()\n  rows=[s for s in out.splitlines() if s and not s.startswith(\"#\")]\n  v=sum(s.startswith(\"0,\") for s in rows);a=sum(s.startswith(\"1,\") for s in rows)\n  results[path]={\"decoded_video_frames\":v,\"decoded_audio_frames\":a,\"pass\":v>0 and a>0}\nfinally:\n for server in (gateway,origin): server.shutdown();server.server_close()\nr={\"scope\":\"synthetic loopback only\",\"results\":results,\"gateway_redirects\":stats[\"gateway_redirects\"],\"gateway_media_bytes\":0,\"origin_media_bytes\":stats[\"origin_media_bytes\"],\"origin_requests\":stats[\"origin_requests\"],\"persistent_media_files\":0,\"real_devices\":False,\"real_provider\":False,\"https_mixed_content_test\":False}\nprint(json.dumps(r,sort_keys=True),flush=True)\nraise SystemExit(0 if all(x[\"pass\"] for x in results.values()) and stats[\"gateway_redirects\"]>=2 and stats[\"origin_media_bytes\"]>0 else 1)"
+              ],
+              "working_directory": "/srv/projects/skill-universal",
+              "timeout_ms": 85000,
+              "idle_timeout_ms": 85000,
+              "terminal": {
+                "columns": 135,
+                "rows": 25,
+                "scrollback": 50
+              },
+              "limits": {
+                "output_bytes": 6500
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "pinned-release-contract",
+      "role": "reviewer",
+      "kind": "rea-mcp",
+      "mcp_requests": [
+        {
+          "method": "tools/call",
+          "params": {
+            "name": "capture_process_scenario",
+            "arguments": {
+              "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+              "arguments": [
+                "-c",
+                "import json,urllib.request\ndef read(url):\n with urllib.request.urlopen(url,timeout=12) as r: return r.read(500000).decode()\nswift=read(\"https://raw.githubusercontent.com/jellyfin/Swiftfin/1.7.1/Shared/Objects/MediaPlayerManager/MediaPlayerItem/MediaPlayerItemResolver.swift\")\ncore=read(\"https://raw.githubusercontent.com/jellyfin/jellyfin/v12.4/Jellyfin.Api/Helpers/FileStreamResponseHelpers.cs\")\nweb=read(\"https://raw.githubusercontent.com/jellyfin/jellyfin-web/v12.4/src/components/apphost.js\")\nr={\"scope\":\"pinned public release code\",\"swiftfin_1_7_1_uses_server_video_stream\":\"Paths.getVideoStream(\" in swift and \"isStatic: true\" in swift,\"jellyfin_12_4_static_http_relays_media\":\"response.Content.ReadAsStreamAsync\" in core and \"httpClient.SendAsync\" in core,\"web_12_4_remote_video_gate_tizen_webos\":\"!browser.tizen && !browser.orsay && !browser.web0s\" in web and \"features.push(AppFeature.RemoteVideo)\" in web}\nprint(json.dumps(r,sort_keys=True),flush=True)\nraise SystemExit(0 if all(v for k,v in r.items() if k!=\"scope\") else 1)"
+              ],
+              "working_directory": "/srv/projects/skill-universal",
+              "timeout_ms": 85000,
+              "idle_timeout_ms": 85000,
+              "terminal": {
+                "columns": 135,
+                "rows": 25,
+                "scrollback": 50
+              },
+              "limits": {
+                "output_bytes": 6500
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
