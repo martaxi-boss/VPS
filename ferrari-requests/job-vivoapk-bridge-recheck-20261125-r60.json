@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "id": "vivoapk-bridge-recheck-20261125-r60",
+  "kind": "ruflo-host",
+  "host": "ChatGPT",
+  "max_parallel": 1,
+  "roles": [
+    {
+      "id": "tester",
+      "type": "tester"
+    },
+    {
+      "id": "reviewer",
+      "type": "reviewer"
+    }
+  ],
+  "steps": [
+    {
+      "id": "public-jellyfin-check",
+      "role": "tester",
+      "kind": "rea-mcp",
+      "mcp_requests": [
+        {
+          "method": "tools/call",
+          "params": {
+            "name": "capture_process_scenario",
+            "arguments": {
+              "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+              "arguments": [
+                "-c",
+                "import json,ssl,urllib.request,datetime\nurl=\"https://serveriptv.duckdns.org/System/Info/Public\"\nreq=urllib.request.Request(url,headers={\"Accept\":\"application/json\",\"User-Agent\":\"VivoAPK public service check\"})\nwith urllib.request.urlopen(req,context=ssl.create_default_context(),timeout=15) as response:\n data=json.loads(response.read(65536))\n result={\"check\":\"public Jellyfin endpoint\",\"timestamp_utc\":datetime.datetime.now(datetime.timezone.utc).isoformat(),\"status\":response.status,\"tls_certificate_validation\":True,\"version\":data.get(\"Version\"),\"scope\":\"public service metadata only\",\"authenticated_playback\":False}\nprint(json.dumps(result),flush=True)\nassert result[\"status\"]==200 and result[\"version\"]"
+              ],
+              "working_directory": "/srv/projects/skill-universal",
+              "timeout_ms": 45000,
+              "idle_timeout_ms": 45000,
+              "terminal": {
+                "columns": 135,
+                "rows": 30,
+                "scrollback": 80
+              },
+              "limits": {
+                "output_bytes": 5000
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "public-provider-docs",
+      "role": "reviewer",
+      "kind": "rea-mcp",
+      "mcp_requests": [
+        {
+          "method": "tools/call",
+          "params": {
+            "name": "capture_process_scenario",
+            "arguments": {
+              "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+              "arguments": [
+                "-c",
+                "import json,ssl,urllib.request,urllib.error,datetime\nurl=\"https://megaott.net/docs/subscriptions\"\nreq=urllib.request.Request(url,headers={\"User-Agent\":\"Mozilla/5.0\"})\ntry:\n with urllib.request.urlopen(req,context=ssl.create_default_context(),timeout=15) as response:\n  body=response.read(524288).decode(\"utf-8\",\"replace\")\n  result={\"check\":\"public provider documentation\",\"timestamp_utc\":datetime.datetime.now(datetime.timezone.utc).isoformat(),\"status\":response.status,\"tls_certificate_validation\":True,\"dns_fields_mentioned\":all(x in body for x in (\"dns_link\",\"dns_link_for_samsung_lg\")),\"scope\":\"documentation availability only\",\"authenticated_playback\":False}\nexcept urllib.error.HTTPError as exc:\n result={\"check\":\"public provider documentation\",\"status\":exc.code,\"scope\":\"documentation availability only\",\"authenticated_playback\":False}\nexcept (urllib.error.URLError,TimeoutError) as exc:\n result={\"check\":\"public provider documentation\",\"error_type\":type(exc).__name__,\"scope\":\"documentation availability only\",\"authenticated_playback\":False}\nprint(json.dumps(result),flush=True)"
+              ],
+              "working_directory": "/srv/projects/skill-universal",
+              "timeout_ms": 45000,
+              "idle_timeout_ms": 45000,
+              "terminal": {
+                "columns": 135,
+                "rows": 30,
+                "scrollback": 80
+              },
+              "limits": {
+                "output_bytes": 5000
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
