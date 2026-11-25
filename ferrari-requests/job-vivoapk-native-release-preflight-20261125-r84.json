@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-native-release-preflight-20261125-r84",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json, os, pathlib, subprocess, shutil, hashlib, stat\nsvc='jellyfin-pink.service'\nroot=pathlib.Path('/srv/projects/jellyfin-server')\nproject=pathlib.Path('/srv/projects/Vivoapk')\ndef run(args,timeout=15):\n try:\n  p=subprocess.run(args,capture_output=True,text=True,timeout=timeout)\n  return p.returncode,p.stdout.strip()\n except subprocess.TimeoutExpired: return 124,''\ndef prop(k):\n return run(['systemctl','show',svc,'-p',k,'--value'])[1]\nservices={s:run(['systemctl','is-active',s])[1] for s in (svc,'vivoapk-backend.service','nginx.service','postgresql.service')}\npid=int(prop('MainPID') or '0')\nassert pid>0 and prop('User')=='jellyfinpink' and all(v=='active' for v in services.values())\n# Read only the fixed component names, never command lines, environment, or secrets.\nscript=\"\"\"import sys,pathlib,hashlib,json,os,stat\nroot=pathlib.Path(sys.argv[1]).resolve()\npid=sys.argv[2]\nexe=pathlib.Path(os.readlink('/proc/'+pid+'/exe')).resolve()\npaths=[exe.parent,root/'app',root/'bin',root/'server',pathlib.Path('/usr/lib/jellyfin/bin'),pathlib.Path('/usr/lib/jellyfin')]\nnames=('Jellyfin.Api.dll','Jellyfin.LiveTv.dll')\nresult={}\nfor name in names:\n found=[]\n for directory in dict.fromkeys(paths):\n  p=directory/name\n  if p.is_file() and not p.is_symlink() and p.resolve().is_relative_to(directory.resolve()):\n   found.append({'path':str(p),'sha256':hashlib.sha256(p.read_bytes()).hexdigest(),'bytes':p.stat().st_size,'mode':oct(stat.S_IMODE(p.stat().st_mode))})\n result[name]=found\np=root/'data/plugins/VivoAPK Mega OTT Auth_0.1.0.0/Jellyfin.Plugin.VivoapkMegaAuth.dll'\nresult['plugin']={'exists':p.is_file() and not p.is_symlink(),'sha256':hashlib.sha256(p.read_bytes()).hexdigest() if p.is_file() and not p.is_symlink() else None}\nresult['private_network_namespace']=os.readlink('/proc/'+pid+'/ns/net')!=os.readlink('/proc/self/ns/net')\nprint(json.dumps(result))\n\"\"\"\nrc,out=run(['sudo','-n','-u','jellyfinpink','--','/usr/bin/python3','-c',script,str(root),str(pid)],20)\ncomponents=json.loads(out) if rc==0 else {'read_exit':rc}\nsource=project/'source'\nbackend_sha=run(['git','-C',str(source),'rev-parse','HEAD'])[1]\nfree=shutil.disk_usage(root).free\n# Size estimate only: do not copy/inspect database content or create a backup.\nrc,size=run(['sudo','-n','du','-s','-B1',str(root/'data'),str(root/'config')],25)\nbackup_bytes=sum(int(l.split()[0]) for l in size.splitlines()) if rc==0 else None\nresult={'scope':'read-only exact production release and rollback preflight; no provider requests, no service restarts or install','services_before':services,'backend_sha':backend_sha,'components':components,'disk_free_bytes':free,'estimated_data_config_backup_bytes':backup_bytes,'backup_space_check':backup_bytes is not None and free>backup_bytes*2+6*1024**3,'service_limits':{k:prop(k) for k in ('PrivateNetwork','MemoryMax','MemoryHigh','CPUQuotaPerSecUSec','TasksMax','NoNewPrivileges')},'current_ffmpeg':run(['/usr/bin/ffmpeg','-version'])[1].splitlines()[0],'lab_candidate':'d8e30ebe8cc8980a209188be448f2f118bfae2b2','production_activation_authorized_by_tests':False,'blockers':['production playback guard and authorized real source path not implemented','preserve network isolation until approved media path is proven','combined candidate regression result pending','upstream patched binaries and matching FFmpeg must be validated against installed runtime; rollback must include every changed component']}\nresult['services_after']={s:run(['systemctl','is-active',s])[1] for s in services}\nassert result['services_after']==services\nprint(json.dumps(result,sort_keys=True),flush=True)\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 90000,
+          "idle_timeout_ms": 90000,
+          "terminal": {
+            "columns": 150,
+            "rows": 40,
+            "scrollback": 120
+          },
+          "limits": {
+            "output_bytes": 12000
+          }
+        }
+      }
+    }
+  ]
+}
