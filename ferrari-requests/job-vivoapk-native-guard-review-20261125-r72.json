@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-native-guard-review-20261125-r72",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import os,pathlib,subprocess,pwd,json,ast,re,urllib.request\nsrc=pathlib.Path('/srv/projects/Vivoapk/source')\ncandidate='a10b607f56ff82d286fbdf7773f630898eaa0d31'\nparent='3b25ac993f9a5416e384265f6ac1ed458fff98ac'\nmain='06a83e00672cf4b971345e79e6e77b2d5d78e584'\npinned='74b6a02be199a29c305058d2875063eb46c1b61d'\nowner=pwd.getpwuid(src.stat().st_uid).pw_name\nprefix=[] if src.stat().st_uid==os.geteuid() else ['sudo','-n','-u',owner,'--']\nenv={**os.environ,'GIT_PAGER':'cat','PAGER':'cat','GIT_TERMINAL_PROMPT':'0'}\ndef run(a,t=12):\n try:\n  p=subprocess.run(a,capture_output=True,text=True,timeout=t,env=env)\n  return p.returncode,p.stdout.strip()\n except (OSError,subprocess.TimeoutExpired):return 125,''\ndef git(a,t=12):return run(prefix+['git','--no-pager','-C',str(src)]+a,t)\ndef get(a):\n c,v=git(a);return v if c==0 else None\ndef health():return {s:run(['systemctl','is-active',s])[1] for s in ('vivoapk-backend.service','jellyfin-pink.service','nginx.service','postgresql.service')}\nr={'scope':'synthetic laboratory source review only; no deployment, private media or configuration changes','head_before':get(['rev-parse','HEAD']),'main_before':get(['rev-parse','refs/heads/main']),'origin_main_before':get(['rev-parse','refs/remotes/origin/main']),'services_before':health()}\nr['source_clean']=get(['status','--porcelain','--untracked-files=all'])==''\nr['origin_expected']=get(['remote','get-url','origin']) in ('https://github.com/martaxi-boss/Vivoapk.git','https://github.com/martaxi-boss/Vivoapk')\nif r['head_before']==pinned and r['main_before']==r['origin_main_before']==main and r['origin_expected'] and r['source_clean']:\n c,v=git(['ls-remote','origin','refs/heads/vivoapk/native-ffmpeg-20261125'],15);r['branch_matches']=c==0 and v.split()[:1]==[candidate]\n if r['branch_matches']:\n  c,v=git(['fetch','--no-tags','--no-write-fetch-head','--refmap=','--no-recurse-submodules','origin',candidate],45)\n  r['fetch_exit']=c\n  if c==0:\n   r['parent_verified']=get(['rev-parse',candidate+'^'])==parent\n   r['diff_check_exit']=git(['diff','--check',parent,candidate])[0]\n   r['changed_files']=(get(['diff','--name-only',parent,candidate]) or '').splitlines()\n   root='jellyfin-auth/Vivoapk.Jellyfin.Auth/'\n   guard=get(['show',candidate+':'+root+'NativePlaybackLabFilter.cs']) or ''\n   reg=get(['show',candidate+':'+root+'ServiceRegistrator.cs']) or ''\n   tests=get(['show',candidate+':jellyfin-auth/tests/jellyfin_12_4_smoke.py']) or ''\n   try:ast.parse(tests);r['python_syntax_pass']=True\n   except SyntaxError:r['python_syntax_pass']=False\n   r['guard_review']={'lab_compile_guard':guard.startswith('#if VIVOAPK_NATIVE_PLAYBACK_LAB'),'startup_registered':'AddSingleton<IStartupFilter, NativePlaybackLabFilter>()' in reg,'server_authentication':'AuthenticateAsync(scheme.Name)' in guard,'default_policy':'AuthorizeAsync(http.User' in guard,'owner_and_channel':'OwnsActiveSnapshot(owner)' in guard,'fail_closed_marker':'Status404NotFound' in guard,'positive_marker':'\"allowed\"' in guard,'negative_marker':'\"denied\"' in guard,'playlist_segment_negative_checks':all(s in tests for s in ('master_before_owner','master_after_owner','playlist_before_owner','playlist_after_owner','segment_before_owner','segment_after_owner')),'actual_decode_gate':'framemd5' in tests}\n   r['source_review_only']=True\nr['head_after']=get(['rev-parse','HEAD']);r['main_after']=get(['rev-parse','refs/heads/main']);r['origin_main_after']=get(['rev-parse','refs/remotes/origin/main']);r['services_after']=health();r['runtime_unchanged']=r['head_after']==r['head_before']==pinned and r['main_after']==r['origin_main_after']==main and r['services_before']==r['services_after']\ntry:\n with urllib.request.urlopen('https://serveriptv.duckdns.org/System/Info/Public',timeout=6) as f:r['https']={'status':f.status,'version':json.loads(f.read(16384)).get('Version')}\nexcept Exception as e:r['https']={'error':type(e).__name__}\nprint(json.dumps(r),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 90000,
+          "idle_timeout_ms": 90000,
+          "terminal": {
+            "columns": 150,
+            "rows": 40,
+            "scrollback": 120
+          },
+          "limits": {
+            "output_bytes": 10000
+          }
+        }
+      }
+    }
+  ]
+}
