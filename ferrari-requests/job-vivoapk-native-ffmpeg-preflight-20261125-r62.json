@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-native-ffmpeg-preflight-20261125-r62",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,os,pathlib,shutil,subprocess\nroot=pathlib.Path(\"/srv/projects/jellyfin-server\")\ncandidates=[root/\"ffmpeg\"/\"ffmpeg\",root/\"bin\"/\"ffmpeg\",root/\"jellyfin-ffmpeg\"/\"ffmpeg\",pathlib.Path(\"/usr/lib/jellyfin-ffmpeg/ffmpeg\")]\nfor base in (root/\"runtime\",root/\"runtimes\",root/\"tools\"):\n if base.is_dir():\n  for p in list(base.glob(\"*/ffmpeg\"))+list(base.glob(\"*/bin/ffmpeg\")):\n   candidates.append(p)\navailable=[str(p) for p in candidates if p.is_file() and os.access(p,os.X_OK)]\nr={\"scope\":\"read-only installed Jellyfin FFmpeg capability; generated color and tone only\",\"jellyfin_active\":subprocess.run([\"systemctl\",\"is-active\",\"--quiet\",\"jellyfin-pink.service\"],timeout=5).returncode==0,\"cpu_threads\":os.cpu_count(),\"free_gib\":round(shutil.disk_usage(root).free/1024**3,2),\"ffmpeg_candidates\":available,\"media_from_provider\":False,\"changed\":False}\nif available:\n p=available[0]\n v=subprocess.run([p,\"-version\"],capture_output=True,text=True,timeout=8)\n r[\"ffmpeg_version\"]=v.stdout.splitlines()[0] if v.returncode==0 and v.stdout else \"unavailable\"\n x=subprocess.run([p,\"-hide_banner\",\"-nostdin\",\"-loglevel\",\"error\",\"-f\",\"lavfi\",\"-i\",\"testsrc2=size=160x90:rate=25\",\"-f\",\"lavfi\",\"-i\",\"sine=frequency=650:sample_rate=48000\",\"-t\",\"1\",\"-c:v\",\"libx264\",\"-threads\",\"1\",\"-c:a\",\"aac\",\"-f\",\"null\",\"-\"],capture_output=True,timeout=25)\n r[\"synthetic_h264_aac_encode_exit\"]=x.returncode\nr[\"selected_by_running_jellyfin_verified\"]=False\nprint(json.dumps(r),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 55000,
+          "idle_timeout_ms": 55000,
+          "terminal": {
+            "columns": 125,
+            "rows": 30,
+            "scrollback": 80
+          },
+          "limits": {
+            "output_bytes": 5000
+          }
+        }
+      }
+    }
+  ]
+}
