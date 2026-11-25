@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-jellyfin-ffmpeg-isolation-20261125-r65",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import os,pathlib,json,subprocess,re,xml.etree.ElementTree as ET,pwd\nroot=pathlib.Path('/srv/projects/jellyfin-server')\nsvc='jellyfin-pink.service'\ndef run(a,t=8):\n try:return subprocess.run(a,capture_output=True,text=True,timeout=t)\n except (OSError,subprocess.TimeoutExpired):return None\ndef prop(k):\n x=run(['systemctl','show',svc,'--property='+k,'--value'])\n return x.stdout.strip() if x and x.returncode==0 else None\nuser=prop('User')\nr={'scope':'Jellyfin native encoder and service restrictions; no provider media or secrets','active':prop('ActiveState'),'service_user':user,'private_network':prop('PrivateNetwork'),'restrict_address_families':prop('RestrictAddressFamilies'),'ip_address_deny':prop('IPAddressDeny'),'ip_address_allow':prop('IPAddressAllow'),'changed':False}\npaths={}\npid=int(prop('MainPID') or '0')\nallowed={'--datadir','--configdir','--cachedir','--logdir','--ffmpeg','--ffmpeg-path','--webdir'}\ntry:\n a=pathlib.Path('/proc/'+str(pid)+'/cmdline').read_bytes().decode(errors='replace').split(chr(0))\n for i,v in enumerate(a):\n  if v in allowed and i+1<len(a) and a[i+1].startswith('/'):paths[v]=a[i+1]\n  elif '=' in v and v.split('=',1)[0] in allowed and v.split('=',1)[1].startswith('/'):paths[v.split('=',1)[0]]=v.split('=',1)[1]\nexcept OSError:pass\nr['runtime_path_flags']=paths\nr['unit_working_directory']=prop('WorkingDirectory')\nprefix=[]\nif user and os.geteuid()!=pwd.getpwnam(user).pw_uid:prefix=['sudo','-n','-u',user,'--']\nr['encoding_xml']=[]\ncandidates=list(dict.fromkeys([root/'config'/'encoding.xml',root/'data'/'config'/'encoding.xml',root/'data'/'encoding.xml',pathlib.Path(paths.get('--configdir',str(root/'config')))/'encoding.xml']))\nfor p in candidates:\n item={'path':str(p)}\n try: raw=p.read_text()\n except FileNotFoundError:continue\n except PermissionError:\n  a=run(prefix+['cat',str(p)]) if prefix else None\n  if a and a.returncode==0:raw=a.stdout\n  else:\n   item['read']='not_authorized';r['encoding_xml'].append(item);continue\n except OSError:continue\n try:\n  e=ET.fromstring(raw)\n  item['fields']={x.tag.split('}')[-1]:x.text for x in e.iter() if x.tag.split('}')[-1] in ('EncoderAppPath','EncoderAppPathDisplay','FFmpegPath','TranscodingTempPath','EnableHardwareEncoding','HardwareAccelerationType','EncodingThreadCount')}\n  item['read']='ok';r['encoding_xml'].append(item)\n except ET.ParseError:item['read']='invalid_xml';r['encoding_xml'].append(item)\nj=run(['journalctl','-u',svc,'-n','2000','--no-pager','-o','cat'],12)\nif j:\n l=j.stdout.splitlines()\n r['journal_read_exit']=j.returncode\n r['ffmpeg_mentions']=sum('ffmpeg' in s.lower() for s in l)\n r['observed_ffmpeg_paths']=sorted(set(re.findall(r'/(?:usr|srv|opt)/[A-Za-z0-9_./-]+/ffmpeg(?=[\\s\"\\x27,:;]|$)',j.stdout)))[:8]\n r['observed_ffmpeg_versions']=sorted(set(re.findall(r'ffmpeg version [0-9][A-Za-z0-9.+~-]*',j.stdout,re.I)))[:8]\n r['encoder_error_count']=sum(bool(re.search(r'(ffmpeg|encoder).{0,100}(not found|failed|invalid|permission denied|does not exist)',s,re.I)) for s in l)\nif user:\n a=run(prefix+['/usr/bin/ffmpeg','-hide_banner','-nostdin','-loglevel','error','-f','lavfi','-i','testsrc2=size=320x180:rate=25','-f','lavfi','-i','sine=frequency=650:sample_rate=48000','-t','2','-c:v','libx264','-threads','1','-c:a','aac','-f','null','-'],15)\n r['service_identity_encode_exit']=a.returncode if a else None\n r['service_identity_test_pass']=bool(a and a.returncode==0)\n r['service_identity_permission_denied']=bool(a and ('password is required' in a.stderr.lower() or 'not allowed' in a.stderr.lower() or 'permission denied' in a.stderr.lower()))\nprint(json.dumps(r),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 55000,
+          "idle_timeout_ms": 55000,
+          "terminal": {
+            "columns": 125,
+            "rows": 30,
+            "scrollback": 80
+          },
+          "limits": {
+            "output_bytes": 6500
+          }
+        }
+      }
+    }
+  ]
+}
