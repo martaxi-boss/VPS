@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-lab-auth-regressions-20261125-r74",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import ast,json,os,pathlib,pwd,subprocess\nfrom urllib.parse import urlencode,urlsplit,urlunsplit,parse_qsl,unquote\nsrc=pathlib.Path('/srv/projects/Vivoapk/source')\ncandidate='2d718776ba0e35ca6ca11f2c17faa0645acc91f9'\nparent='a10b607f56ff82d286fbdf7773f630898eaa0d31'\npinned='74b6a02be199a29c305058d2875063eb46c1b61d'\nmain='06a83e00672cf4b971345e79e6e77b2d5d78e584'\nowner=pwd.getpwuid(src.stat().st_uid).pw_name\nprefix=[] if src.stat().st_uid==os.geteuid() else ['sudo','-n','-u',owner,'--']\nenv={**os.environ,'GIT_PAGER':'cat','PAGER':'cat','GIT_TERMINAL_PROMPT':'0'}\ndef git(args,t=15):\n p=subprocess.run(prefix+['git','--no-pager','-C',str(src)]+args,capture_output=True,text=True,timeout=t,env=env,check=True)\n return p.stdout.strip()\nassert git(['rev-parse','HEAD'])==pinned\nassert git(['rev-parse','refs/heads/main'])==git(['rev-parse','refs/remotes/origin/main'])==main\nassert not git(['status','--porcelain','--untracked-files=all'])\nassert git(['ls-remote','origin','refs/heads/vivoapk/native-ffmpeg-20261125']).split()[0]==candidate\ngit(['fetch','--no-tags','--no-write-fetch-head','--refmap=','--no-recurse-submodules','origin',candidate],45)\nassert git(['rev-parse',candidate+'^'])==parent\ngit(['diff','--check',parent,candidate])\nguard=git(['show',candidate+':jellyfin-auth/Vivoapk.Jellyfin.Auth/NativePlaybackLabFilter.cs'])\ntest=git(['show',candidate+':jellyfin-auth/tests/jellyfin_12_4_smoke.py'])\ntree=ast.parse(test)\ncalls=[]\nclass Response:\n status=404\n def read(self,_):return b''\n def getheader(self,_):return 'denied'\nclass Connection:\n def __init__(self,path):pass\n def request(self,method,uri,headers):calls.append((method,uri,headers))\n def getresponse(self):return Response()\n def close(self):pass\nns={'urlsplit':urlsplit,'urlunsplit':urlunsplit,'urlencode':urlencode,'parse_qsl':parse_qsl,'unquote':unquote,'json':json,'Connection':Connection,'DATAROOT':pathlib.Path('/tmp/synthetic-only'),'_SESSION_TEST_DEVICES':{'fake-other-token':'fake-device'},'print':lambda *a,**k:None}\nnames={'is_auth_query_key','strip_playback_credentials','safe_fixture_route','native_bytes','require_native_denial','require_native_owner'}\nnodes=[n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name in names]\nassert len(nodes)==len(names)\nexec(compile(ast.Module(body=nodes,type_ignores=[]),'<synthetic-regressions>','exec'),ns)\nkeys=('api_key','ApiKey','access_token','AccessToken','token','X-Emby-Token','X-MediaBrowser-Token')\nfor key in keys:\n uri='/Videos/fixture/master.m3u8?'+urlencode({key:'fake-owner-token','VideoCodec':'h264'})\n safe=ns['safe_fixture_route'](uri,'fake-owner-token')\n assert parse_qsl(urlsplit(safe).query)==[('VideoCodec','h264')]\ntry:\n ns['safe_fixture_route']('/Videos/fixture/master.m3u8?Unexpected=fake-owner-token','fake-owner-token')\n raise AssertionError('unexpected credential not rejected')\nexcept RuntimeError:pass\nns['require_native_denial']('/Videos/fixture/master.m3u8?ApiKey=fake-owner-token&VideoCodec=h264','fake-owner-token','fake-other-token','fixture')\nassert len(calls)==3\nassert 'X-Emby-Token' not in calls[0][2] and 'Authorization' not in calls[0][2]\nassert calls[1][2]['X-Emby-Token']=='fake-other-token'\nassert calls[2][2]['X-Emby-Token']=='synthetic-invalid-token'\nassert all('fake-owner-token' not in uri for _,uri,_ in calls)\ndef bad_response(uri,token):return 200,b'fixture','allowed'\nns['native_bytes']=bad_response\ntry:\n ns['require_native_denial']('/Videos/fixture/master.m3u8','fake-owner-token','fake-other-token','fixture')\n raise AssertionError('test did not detect unsafe acceptance')\nexcept RuntimeError:pass\nchecks={'all_seven_aliases_removed':True,'unknown_alias_owner_credential_rejected':True,'anonymous_request_has_no_auth_header':True,'foreign_and_invalid_token_headers_present':True,'negative_test_fails_on_unsafe_200':True,'fixture_guard_compilation_scope':guard.startswith('#if VIVOAPK_NATIVE_PLAYBACK_LAB'),'explicit_header_before_native_auth':guard.index('TryGetValue(\"X-Emby-Token\"')<guard.index('AuthenticateAsync(scheme.Name)'),'query_aliases_rejected':'http.Request.Query.Keys.Any(IsAuthenticationQueryKey)' in guard,'ownership_check_retained':'OwnsActiveSnapshot(owner)' in guard}\nassert all(checks.values())\nassert git(['rev-parse','HEAD'])==pinned and not git(['status','--porcelain','--untracked-files=all'])\nassert git(['rev-parse','refs/heads/main'])==git(['rev-parse','refs/remotes/origin/main'])==main\nprint(json.dumps({'scope':'REA executed actual test helpers with synthetic transport; not Jellyfin integration or production','candidate':candidate,'checks':checks,'diff_check_pass':True,'production_checkout_unchanged':True,'main_aligned':True}),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 90000,
+          "idle_timeout_ms": 90000,
+          "terminal": {
+            "columns": 150,
+            "rows": 40,
+            "scrollback": 120
+          },
+          "limits": {
+            "output_bytes": 9000
+          }
+        }
+      }
+    }
+  ]
+}
