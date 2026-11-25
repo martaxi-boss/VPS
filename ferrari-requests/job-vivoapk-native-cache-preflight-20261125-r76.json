@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-native-cache-preflight-20261125-r76",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,os,pathlib,pwd,subprocess,shutil,xml.etree.ElementTree as ET\nroot=pathlib.Path('/srv/projects/jellyfin-server')\nsvc='jellyfinpink'\ndef run(args,t=12):\n p=subprocess.run(args,capture_output=True,text=True,timeout=t)\n return p.returncode,p.stdout.strip()\ndef prop(name):\n c,s=run(['systemctl','show','jellyfin-pink.service','-p',name,'--value'])\n return s if c==0 else None\ndef check_dir(path):\n script='import pathlib,os,json,sys; p=pathlib.Path(sys.argv[1]); n=0; b=0; valid=p.is_dir() and not p.is_symlink(); files=list(p.iterdir()) if valid else []; print(json.dumps({\"exists\":valid,\"regular_file_count\":sum(x.is_file() and not x.is_symlink() for x in files),\"regular_file_bytes\":sum(x.stat().st_size for x in files if x.is_file() and not x.is_symlink()),\"writable\":os.access(p,os.W_OK) if valid else False}))'\n c,v=run(['sudo','-n','-u',svc,'--','/usr/bin/python3','-c',script,str(path)])\n return json.loads(v) if c==0 else {'read_exit':c}\nassert prop('User')==svc\nc,xml=run(['sudo','-n','-u',svc,'--','cat',str(root/'config/encoding.xml')])\nassert c==0\nx=ET.fromstring(xml)\nallowed=('TranscodingTempPath','EncoderAppPath','EncoderAppPathDisplay','EncodingThreadCount','HardwareAccelerationType','EnableHardwareEncoding','EnableThrottling','EnableSegmentDeletion','ThrottleDelaySeconds','SegmentKeepSeconds')\nfields={k:x.findtext(k) for k in allowed}\nconfigured=fields['TranscodingTempPath']\npath=pathlib.Path(configured) if configured else root/'cache/transcodes'\nassert path.is_absolute() and path.resolve().is_relative_to(root.resolve()),'cache path outside dedicated Jellyfin tree; stop'\nr={'scope':'read-only production cache and encoding preflight; no media reads, deletions, configuration changes or provider requests','service_user':svc,'config_read':True,'encoding_fields':fields,'transcode_path_candidate':str(path),'path_is_configured':bool(configured),'cache_inventory':check_dir(path),'disk_free_bytes':shutil.disk_usage(root).free,'private_network':prop('PrivateNetwork'),'service_status':{name:run(['systemctl','is-active',name])[1] for name in ('vivoapk-backend.service','jellyfin-pink.service','nginx.service','postgresql.service')}}\nprint(json.dumps(r),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 60000,
+          "idle_timeout_ms": 60000,
+          "terminal": {
+            "columns": 150,
+            "rows": 40,
+            "scrollback": 120
+          },
+          "limits": {
+            "output_bytes": 8000
+          }
+        }
+      }
+    }
+  ]
+}
