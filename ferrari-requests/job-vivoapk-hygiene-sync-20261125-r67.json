@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-hygiene-sync-20261125-r67",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import os,pathlib,subprocess,json,pwd,shutil\nroot=pathlib.Path('/srv/projects/Vivoapk')\nsrc=root/'source'\nexpected='06a83e00672cf4b971345e79e6e77b2d5d78e584'\npinned='74b6a02be199a29c305058d2875063eb46c1b61d'\nactive='dff3145ddb80b4644ce94f5485bb2ee2afe7b6cd'\nfallback='b73bfb7e46761b7bdfa70765f3175c55360929a1'\nenv={**os.environ,'GIT_PAGER':'cat','PAGER':'cat','GIT_TERMINAL_PROMPT':'0'}\nowner=pwd.getpwuid(src.stat().st_uid).pw_name\nprefix=[] if src.stat().st_uid==os.geteuid() else ['sudo','-n','-u',owner,'--']\ndef run(a,t=12):\n try:\n  p=subprocess.run(a,capture_output=True,text=True,timeout=t,env=env)\n  return p.returncode,p.stdout.strip()\n except (OSError,subprocess.TimeoutExpired):return 125,''\ndef git(a,t=12,where=src):return run(prefix+['git','--no-pager','-C',str(where)]+a,t)\ndef get(a):\n c,v=git(a);return v if c==0 else None\ndef services():\n return {s:run(['systemctl','is-active',s])[1] for s in ('vivoapk-backend.service','jellyfin-pink.service','nginx.service','postgresql.service')}\nr={'scope':'synchronize Git references only and remove proven redundant historical worktrees; no runtime deployment','head_before':get(['rev-parse','HEAD']),'main_before':get(['rev-parse','refs/heads/main']),'remote_main_before':get(['rev-parse','refs/remotes/origin/main']),'services_before':services(),'worktree_cleanup':[]}\nstatus=get(['status','--porcelain','--untracked-files=normal'])\nremote=get(['remote','get-url','origin'])\nr['source_clean_before']=status==''\nr['origin_expected']=remote in ('https://github.com/martaxi-boss/Vivoapk.git','https://github.com/martaxi-boss/Vivoapk','git@github.com:martaxi-boss/Vivoapk.git')\nif r['head_before']!=pinned or not r['source_clean_before'] or not r['origin_expected'] or r['main_before'] is None or any(v!='active' for v in r['services_before'].values()):\n r['result']='blocked_preconditions'\nelse:\n c,_=git(['fetch','--no-tags','--no-recurse-submodules','--no-auto-gc','origin','refs/heads/main:refs/remotes/origin/main'],30)\n r['fetch_exit']=c\n r['remote_main_after']=get(['rev-parse','refs/remotes/origin/main'])\n if c==0 and r['remote_main_after']==expected:\n  c,_=git(['merge-base','--is-ancestor',r['main_before'],expected])\n  r['local_main_ancestor_exit']=c\n  if c==0:\n   c,_=git(['update-ref','refs/heads/main',expected,r['main_before']])\n   r['main_update_exit']=c\n  r['main_after']=get(['rev-parse','refs/heads/main'])\n  r['bootstrap_verified']=git(['cat-file','-e',expected+':BOOTSTRAP.md'])[0]==0 and git(['cat-file','-e',expected+':docs/HISTORICO_BOOTSTRAP_20261125.md'])[0]==0\n  wt=get(['worktree','list','--porcelain']) or ''\n  current=set(line[9:] for line in wt.splitlines() if line.startswith('worktree '))\n  working={run(['systemctl','show',s,'-p','WorkingDirectory','--value'])[1] for s in ('vivoapk-backend.service','jellyfin-pink.service','nginx.service','postgresql.service')}\n  for sha in ('0974f3ed31995cdac3c51989dd1511c83ca3086b','7989e4371f8b0e0f5daf152745361851b1d41e03','833ccd228a8c1311d34546f94b0bc5f76c152af1'):\n   stage=root/'jellyfin-auth/multimedia'/sha\n   path=stage/'checkout'\n   e={'revision':sha,'present':str(path) in current,'removed':False}\n   if str(path) not in current:e['reason']='not_registered'\n   elif sha in (active,fallback,pinned) or any(w and (w==str(path) or w.startswith(str(path)+'/')) for w in working):e['reason']='protected'\n   else:\n    h,actual=git(['rev-parse','HEAD'],where=path)\n    q,clean=git(['status','--porcelain','--untracked-files=all'],where=path)\n    m,_=git(['merge-base','--is-ancestor',sha,expected])\n    test,_=run(prefix+['test','-s',str(stage/'Jellyfin.Plugin.VivoapkMegaAuth.dll')])\n    e.update({'head_matches':h==0 and actual==sha,'clean':q==0 and clean=='','in_main_history':m==0,'staged_dll_preserved':test==0})\n    if all(e[k] for k in ('head_matches','clean','in_main_history','staged_dll_preserved')) and r['main_after']==expected:\n     c,_=git(['worktree','remove',str(path)],12)\n     e['remove_exit']=c;e['removed']=c==0;e['reason']='removed_clean_redundant_checkout' if c==0 else 'git_refused_no_force'\n    else:e['reason']='preserved_unproven_redundancy'\n   r['worktree_cleanup'].append(e)\n else:r['result']='fetch_or_sha_mismatch'\nr['head_after']=get(['rev-parse','HEAD'])\nr['source_clean_after']=get(['status','--porcelain','--untracked-files=normal'])==''\nr['worktree_count_after']=sum(l.startswith('worktree ') for l in (get(['worktree','list','--porcelain']) or '').splitlines())\nr['services_after']=services()\nr['free_gib']=round(shutil.disk_usage(root).free/2**30,2)\nr['runtime_preserved']=r['head_after']==pinned and r['source_clean_after'] and r['services_before']==r['services_after']\nprint(json.dumps(r),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 90000,
+          "idle_timeout_ms": 90000,
+          "terminal": {
+            "columns": 125,
+            "rows": 40,
+            "scrollback": 120
+          },
+          "limits": {
+            "output_bytes": 10000
+          }
+        }
+      }
+    }
+  ]
+}
