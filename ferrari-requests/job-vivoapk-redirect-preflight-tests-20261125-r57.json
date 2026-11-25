@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "id": "vivoapk-redirect-preflight-tests-20261125-r57",
+  "kind": "ruflo-host",
+  "host": "ChatGPT",
+  "max_parallel": 1,
+  "roles": [
+    {
+      "id": "tester",
+      "type": "tester"
+    },
+    {
+      "id": "reviewer",
+      "type": "reviewer"
+    }
+  ],
+  "steps": [
+    {
+      "id": "synthetic-policy-tests",
+      "role": "tester",
+      "kind": "rea-mcp",
+      "mcp_requests": [
+        {
+          "method": "tools/call",
+          "params": {
+            "name": "capture_process_scenario",
+            "arguments": {
+              "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+              "arguments": [
+                "-c",
+                "import hashlib,json,pathlib,subprocess,sys,tempfile,urllib.request\nbase=\"https://raw.githubusercontent.com/martaxi-boss/Vivoapk/47f1a5cfc985fdab4cad0118c3d64676ccfd0d31/backend/\"\nnames=[\"app/url_safety.py\",\"app/services/redirect_preflight.py\",\"tests/test_redirect_preflight.py\"]\nwith tempfile.TemporaryDirectory(prefix=\"redirect-preflight-\",dir=\"/srv/projects/skill-universal/.runtime\") as tmp:\n root=pathlib.Path(tmp); digests={}\n for name in names:\n  with urllib.request.urlopen(base+name,timeout=15) as response: data=response.read(100000)\n  p=root/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(data);digests[name]=hashlib.sha256(data).hexdigest()\n result=subprocess.run([sys.executable,\"-m\",\"unittest\",\"discover\",\"-s\",\"tests\",\"-p\",\"test_redirect_preflight.py\",\"-v\"],cwd=root,capture_output=True,text=True,timeout=25)\n print(result.stderr,flush=True)\n print(json.dumps({\"scope\":\"isolated public synthetic tests\",\"commit\":\"47f1a5cfc985fdab4cad0118c3d64676ccfd0d31\",\"code\":result.returncode,\"digests\":digests,\"production_changed\":False,\"private_credentials_accessed\":False},sort_keys=True),flush=True)\n raise SystemExit(result.returncode)"
+              ],
+              "working_directory": "/srv/projects/skill-universal",
+              "timeout_ms": 65000,
+              "idle_timeout_ms": 65000,
+              "terminal": {
+                "columns": 135,
+                "rows": 30,
+                "scrollback": 80
+              },
+              "limits": {
+                "output_bytes": 8000
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "redirect-safety-review",
+      "role": "reviewer",
+      "kind": "rea-mcp",
+      "mcp_requests": [
+        {
+          "method": "tools/call",
+          "params": {
+            "name": "capture_process_scenario",
+            "arguments": {
+              "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+              "arguments": [
+                "-c",
+                "import ast,json,urllib.request\nbase=\"https://raw.githubusercontent.com/martaxi-boss/Vivoapk/47f1a5cfc985fdab4cad0118c3d64676ccfd0d31/backend/app/services/redirect_preflight.py\"\nwith urllib.request.urlopen(base,timeout=15) as r: source=r.read(100000).decode()\ntree=ast.parse(source)\nimports=sorted({x.module for x in ast.walk(tree) if isinstance(x,ast.ImportFrom)}|{a.name for x in ast.walk(tree) if isinstance(x,ast.Import) for a in x.names})\nr={\"scope\":\"source inspection; no production access\",\"imports\":imports,\"no_media_io_imports\":set(imports)<={\"dataclasses\",\"datetime\",\"re\",\"urllib.parse\",\"app.url_safety\"},\"requires_active_grant\":\"not grant.active\" in source,\"checks_account\":\"grant.account_id != authenticated_account\" in source,\"checks_asset\":\"grant.asset_id != requested_asset\" in source,\"checks_expiry\":\"grant.expires_at <= now\" in source,\"requires_https\":'parsed.scheme != \"https\"' in source,\"no_store\":'(\"Cache-Control\", \"no-store\")' in source,\"empty_body\":'body: bytes = b\"\"' in source,\"no_public_route\":'FastAPI' not in source and 'APIRouter' not in source}\nprint(json.dumps(r,sort_keys=True),flush=True)\nraise SystemExit(0 if all(v for k,v in r.items() if k not in (\"scope\",\"imports\")) else 1)"
+              ],
+              "working_directory": "/srv/projects/skill-universal",
+              "timeout_ms": 65000,
+              "idle_timeout_ms": 65000,
+              "terminal": {
+                "columns": 135,
+                "rows": 30,
+                "scrollback": 80
+              },
+              "limits": {
+                "output_bytes": 8000
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
