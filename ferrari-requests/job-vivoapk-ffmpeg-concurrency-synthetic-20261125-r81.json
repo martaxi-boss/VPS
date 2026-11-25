@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-ffmpeg-concurrency-synthetic-20261125-r81",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import concurrent.futures,json,os,pathlib,subprocess,time,shutil\nsvc='jellyfin-pink.service'\nroot=pathlib.Path('/srv/projects/jellyfin-server')\ndef run(args,timeout=12):\n try:\n  p=subprocess.run(args,capture_output=True,text=True,timeout=timeout)\n  return p.returncode,p.stdout,p.stderr\n except subprocess.TimeoutExpired:\n  return 124,'','timeout'\ndef prop(name):\n c,o,_=run(['systemctl','show',svc,'-p',name,'--value'])\n return o.strip() if c==0 else None\ndef health():\n return {s:run(['systemctl','is-active',s])[1].strip() for s in ('vivoapk-backend.service',svc,'nginx.service','postgresql.service')}\ndef available():\n for line in pathlib.Path('/proc/meminfo').read_text().splitlines():\n  if line.startswith('MemAvailable:'):return int(line.split()[1])*1024\n return 0\nbefore=health()\nassert prop('User')=='jellyfinpink' and all(s=='active' for s in before.values())\nreport={'scope':'bounded low priority concurrent generated FFmpeg encoding to null; no media reads, no private origin access, no service changes; not actual client capacity or Jellyfin cgroup test','logical_cpu_count':os.cpu_count(),'service_memory_limit_bytes':prop('MemoryMax'),'service_memory_current_bytes_before':prop('MemoryCurrent'),'memory_available_bytes_before':available(),'load_before':list(os.getloadavg()),'benchmarks':[]}\nif report['logical_cpu_count']<4 or available()<2*1024**3 or os.getloadavg()[0]>=2:\n report['status']='skipped_resource_guard'\nelse:\n os.nice(10)\n def encode(height,index):\n  width=1280 if height==720 else 1920\n  cmd=['sudo','-n','-u','jellyfinpink','--','/usr/bin/ffmpeg','-hide_banner','-nostdin','-v','error','-nostats','-progress','pipe:1','-filter_threads','1','-filter_complex_threads','1','-f','lavfi','-i',f'testsrc2=size={width}x{height}:rate=25','-f','lavfi','-i',f'sine=frequency={450+index*100}:sample_rate=48000','-t','6','-c:v','libx264','-threads:v','2','-preset','veryfast','-pix_fmt','yuv420p','-b:v','2500k' if height==720 else '4500k','-c:a','aac','-b:a','128k','-threads:a','1','-f','null','-']\n  start=time.monotonic()\n  c,o,e=run(cmd,25)\n  elapsed=time.monotonic()-start\n  fields={}\n  for line in o.splitlines():\n   k,sep,v=line.partition('=')\n   if sep:fields[k]=v\n  frames=int(fields.get('frame','0').strip() or '0')\n  return {'job':index,'resolution':height,'frames':frames,'elapsed_seconds':round(elapsed,3),'real_time_factor_including_startup':round(6/elapsed,2),'ffmpeg_reported_speed':fields.get('speed','').strip(),'exit':c,'finished':fields.get('progress')=='end','video_thread_limit':2}\n for h in (720,1080):\n  if available()<1024**3 or not all(s=='active' for s in health().values()):break\n  start=time.monotonic()\n  with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:\n   fs=[pool.submit(encode,h,i) for i in (1,2)]\n   results=[f.result() for f in fs]\n  elapsed=time.monotonic()-start\n  report['benchmarks'].append({'resolution':h,'concurrent_jobs':2,'wall_seconds':round(elapsed,3),'jobs':results,'both_encoded_all_frames':all(r['exit']==0 and r['finished'] and r['frames']>=150 for r in results),'both_realtime_including_startup':all(r['real_time_factor_including_startup']>=1 for r in results)})\n  time.sleep(1)\n  if not report['benchmarks'][-1]['both_encoded_all_frames']:break\n report['status']='completed' if len(report['benchmarks'])==2 and all(r['both_encoded_all_frames'] for r in report['benchmarks']) else 'partial'\nreport['services_before']=before;report['services_after']=health()\nreport['memory_available_bytes_after']=available()\nreport['service_memory_current_bytes_after']=prop('MemoryCurrent')\nreport['disk_free_bytes']=shutil.disk_usage(root).free\nprint(json.dumps(report),flush=True)\nassert before==report['services_after']\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 85000,
+          "idle_timeout_ms": 85000,
+          "terminal": {
+            "columns": 150,
+            "rows": 40,
+            "scrollback": 120
+          },
+          "limits": {
+            "output_bytes": 10000
+          }
+        }
+      }
+    }
+  ]
+}
