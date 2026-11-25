@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-hygiene-fetch-diagnostic-20261125-r69",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import os,pathlib,subprocess,pwd,json,re\nsrc=pathlib.Path('/srv/projects/Vivoapk/source')\nexpected='06a83e00672cf4b971345e79e6e77b2d5d78e584'\npinned='74b6a02be199a29c305058d2875063eb46c1b61d'\nowner=pwd.getpwuid(src.stat().st_uid).pw_name\nprefix=[] if src.stat().st_uid==os.geteuid() else ['sudo','-n','-u',owner,'--']\nenv={**os.environ,'GIT_PAGER':'cat','PAGER':'cat','GIT_TERMINAL_PROMPT':'0'}\ndef git(args,t=15):\n try:\n  p=subprocess.run(prefix+['git','--no-pager','-C',str(src)]+args,capture_output=True,text=True,timeout=t,env=env);return p.returncode,p.stdout.strip(),p.stderr.strip()\n except (OSError,subprocess.TimeoutExpired):return 125,'','timeout_or_os_error'\ndef classify(s):\n s=s.lower()\n for key,words in [('permission_denied',('permission denied','not allowed','not in the sudoers','password is required','not permitted')),('authentication',('authentication failed','could not read username','repository not found')),('network',('could not resolve','failed to connect','timed out','timeout_or_os_error')),('non_fast_forward',('non-fast-forward','fetch first')),('shallow',('shallow','unshallow')),('lock',('cannot lock ref','unable to create','index.lock')),('option',('unknown option','unrecognized option')),('remote_rejected',('rejected','remote error'))]:\n  if any(x in s for x in words):return key\n return 'other' if s else 'none'\ndef get(args):\n c,v,_=git(args);return v if c==0 else None\nr={'scope':'diagnose failed Git fetch, align refs only if fast-forward proven; no runtime checkout','head_before':get(['rev-parse','HEAD']),'local_before':get(['rev-parse','refs/heads/main']),'remote_before':get(['rev-parse','refs/remotes/origin/main']),'shallow':get(['rev-parse','--is-shallow-repository']),'origin_expected':get(['remote','get-url','origin']) in ('https://github.com/martaxi-boss/Vivoapk.git','https://github.com/martaxi-boss/Vivoapk','git@github.com:martaxi-boss/Vivoapk.git')}\nif r['head_before']==pinned and r['origin_expected'] and get(['status','--porcelain','--untracked-files=no'])=='':\n c,o,e=git(['ls-remote','origin','refs/heads/main'],15);r['remote_probe_exit']=c;r['remote_probe_error']=classify(e);r['remote_matches_expected']=c==0 and o.split()[:1]==[expected]\n if r['remote_matches_expected']:\n  args=['fetch','--dry-run','--no-tags','--no-recurse-submodules','origin','refs/heads/main:refs/remotes/origin/main']\n  c,o,e=git(args,20);r['dry_run_exit']=c;r['dry_run_error']=classify(o+' '+e)\n  if c==0:\n   c,o,e=git([x for x in args if x!='--dry-run'],25);r['fetch_exit']=c;r['fetch_error']=classify(o+' '+e)\n   if c==0 and get(['rev-parse','refs/remotes/origin/main'])==expected:\n    a,_,_=git(['merge-base','--is-ancestor',r['local_before'],expected]);r['ancestor_exit']=a\n    if a==0:\n     u,_,e=git(['update-ref','refs/heads/main',expected,r['local_before']]);r['update_ref_exit']=u;r['update_error']=classify(e)\nr['head_after']=get(['rev-parse','HEAD']);r['local_after']=get(['rev-parse','refs/heads/main']);r['remote_after']=get(['rev-parse','refs/remotes/origin/main']);r['aligned']=r['local_after']==r['remote_after']==expected;r['pinned_preserved']=r['head_after']==pinned\nprint(json.dumps(r),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 75000,
+          "idle_timeout_ms": 75000,
+          "terminal": {
+            "columns": 150,
+            "rows": 40,
+            "scrollback": 120
+          },
+          "limits": {
+            "output_bytes": 8000
+          }
+        }
+      }
+    }
+  ]
+}
