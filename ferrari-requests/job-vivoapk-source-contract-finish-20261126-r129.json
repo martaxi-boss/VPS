@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "id": "vivoapk-source-contract-finish-20261126-r129",
+  "kind": "ruflo-team",
+  "phase": "finish",
+  "team_id": "vivoapk-source-contract-20261126",
+  "revision": 6,
+  "approval": "Accept reviewed metadata comparison only: official same-effective-origin provider-issued extensionless locator differs from previously constructed /live/*.ts. Raw origin difference was explicit default port. Preserve initial metadata timeout and subsequent evidence. No media opened; playback and reason for historical 401 remain unproven. Candidate b2fdd911 adds constrained opt-in authoritative locator selection before admission; tests pending, no production activation."
+}
