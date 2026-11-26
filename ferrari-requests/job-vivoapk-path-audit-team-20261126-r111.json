@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "id": "vivoapk-path-audit-team-20261126-r111",
+  "kind": "ruflo-team",
+  "phase": "start",
+  "team_id": "vivoapk-path-audit-20261126",
+  "host": "Codex",
+  "mission": "Localizar o bloqueio de reproducao entre origem autorizada e motor Jellyfin; preservar producao e respeitar recusas upstream. Sem novos pedidos de media.",
+  "roles": [
+    {
+      "id": "investigator",
+      "type": "researcher",
+      "actions": [
+        "rea-mcp"
+      ]
+    },
+    {
+      "id": "reviewer",
+      "type": "reviewer",
+      "actions": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "path-audit",
+      "role": "investigator",
+      "reviewer": "reviewer",
+      "goal": "Recolher provas nao secretas de runtime, percurso de fonte HLS/TS e metadados oficiais da linha de teste; nenhum pedido de media ou mudanca produtiva.",
+      "depends_on": []
+    }
+  ]
+}
