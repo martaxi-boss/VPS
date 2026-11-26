@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "id": "vivoapk-advertised-source-start-20261126-r122",
+  "kind": "ruflo-team",
+  "phase": "start",
+  "team_id": "vivoapk-source-contract-20261126",
+  "host": "Codex",
+  "mission": "Comparar metadados de origem fornecidos pela propria subscricao com o endereco construido pelo adaptador, sem media, fallback, alteracoes de producao ou exposicao de segredos.",
+  "roles": [
+    {
+      "id": "investigator",
+      "type": "tester",
+      "actions": [
+        "rea-mcp"
+      ]
+    },
+    {
+      "id": "reviewer",
+      "type": "reviewer",
+      "actions": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "source-contract",
+      "role": "investigator",
+      "reviewer": "reviewer",
+      "goal": "Verificar identidade e origem da linha existente e comparar em memoria catalogo/playlist oficial com o contrato construido. Nenhum endereco de media deve ser aberto.",
+      "depends_on": []
+    }
+  ]
+}
