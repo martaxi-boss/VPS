@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "id": "vivoapk-ts-contract-finish-20261126-r120",
+  "kind": "ruflo-team",
+  "phase": "finish",
+  "team_id": "vivoapk-ts-input-20261126",
+  "revision": 4,
+  "approval": "Accept the reviewed staged TS reader contract only: 33 runtime assertions passed with no secrets, provider media or production changes. Preserve failed pytest-environment attempt as failure. CI native TS playback remains pending; no production deployment or real-provider/client certification is implied."
+}
