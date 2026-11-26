@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "id": "vivoapk-ts-runtime-contract-20261126-r118",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-ts-input-20261126",
+  "revision": 2,
+  "turn": {
+    "task": "ts-candidate-test",
+    "role": "tester",
+    "kind": "rea-mcp",
+    "message": "Reuse verified isolated checkout; execute dependency-free synthetic reader assertions with existing runtime modules only. Check sequential probe/stream, same connection across windows, reset cleanup, revocation, isolated second reader, terminal 401/403 without body/retry. No pytest install, secrets, provider media or production mutation.",
+    "mcp_requests": [
+      {
+        "method": "tools/call",
+        "params": {
+          "name": "capture_process_scenario",
+          "arguments": {
+            "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+            "arguments": [
+              "-c",
+              "import json,subprocess\np=subprocess.run(['sudo','-n','--','/usr/bin/python3','-c',\"import json,os,stat,subprocess,tempfile\\nfrom pathlib import Path\\nHEAD=\\\"48a4b00805854bf681c6d45c82af93f5a6c64f5f\\\"\\nROOT=Path(\\\"/srv/projects/Vivoapk\\\")\\nSRC=ROOT/\\\"native-release-stage\\\"/HEAD/\\\"backend/source\\\"\\nENV={\\\"PATH\\\":\\\"/usr/bin:/bin\\\",\\\"HOME\\\":\\\"/root\\\",\\\"LANG\\\":\\\"C.UTF-8\\\",\\\"GIT_CONFIG_GLOBAL\\\":\\\"/dev/null\\\",\\\"GIT_CONFIG_NOSYSTEM\\\":\\\"1\\\",\\\"GIT_TERMINAL_PROMPT\\\":\\\"0\\\",\\\"PYTHONDONTWRITEBYTECODE\\\":\\\"1\\\"}\\nUNITS=(\\\"vivoapk-backend.service\\\",\\\"jellyfin-pink.service\\\",\\\"nginx.service\\\",\\\"postgresql.service\\\")\\nR={\\\"phase\\\":\\\"r116-ts-synthetic-stage-test\\\",\\\"provider_media_requests\\\":0,\\\"secrets_read\\\":0,\\\"production_activation\\\":False}\\ndef run(args,t=15,**kw):\\n    return subprocess.run(args,capture_output=True,text=True,timeout=t,env=ENV,**kw)\\ndef state():\\n    return {u:run([\\\"systemctl\\\",\\\"show\\\",u,\\\"-p\\\",\\\"MainPID\\\",\\\"-p\\\",\\\"ActiveState\\\"]).stdout.strip() for u in UNITS}\\nbefore=state()\\ntry:\\n    assert all(\\\"ActiveState=active\\\" in x for x in before.values())\\n    stage=ROOT/\\\"native-release-stage\\\"\\n    for p in (*stage.parents,stage):\\n        assert stat.S_ISDIR(p.lstat().st_mode) and not p.is_symlink()\\n    assert SRC.is_dir() and not SRC.is_symlink()\\n    assert run([\\\"git\\\",\\\"-C\\\",str(SRC),\\\"rev-parse\\\",\\\"HEAD\\\"]).stdout.strip()==HEAD\\n    assert not run([\\\"git\\\",\\\"-C\\\",str(SRC),\\\"status\\\",\\\"--porcelain\\\"]).stdout.strip()\\n    R[\\\"isolated_revision_verified\\\"]=True\\n    p=run([str(ROOT/\\\".venv/bin/python\\\"),\\\"-I\\\",\\\"-B\\\",\\\"-c\\\",\\\"import sys,logging,json\\\\nfrom contextlib import contextmanager\\\\nsys.path.insert(0,\\\\\\\"/srv/projects/Vivoapk/native-release-stage/48a4b00805854bf681c6d45c82af93f5a6c64f5f/backend/source/backend\\\\\\\")\\\\nlogging.disable(logging.CRITICAL)\\\\nfrom pydantic import SecretStr\\\\nfrom app.schemas import CatalogKind,EntitlementState\\\\nfrom app.services.media_origin import AuthorizedMediaOrigin,MediaAsset\\\\nfrom app.services.private_ts import PrivateTsSession,WINDOW_BYTES\\\\nfrom app.services.media_body import MediaReadError\\\\nTS=(bytes([0x47,0,0,0])+bytes(184))*1000\\\\nchecks=0\\\\ndef need(value):\\\\n    global checks\\\\n    assert value\\\\n    checks+=1\\\\nclass Resp:\\\\n    def __init__(self,status=200):\\\\n        self.status=status;self.headers=[(b\\\\\\\"Content-Type\\\\\\\",b\\\\\\\"video/mp2t\\\\\\\")];self.reads=0;self.closed=False\\\\n    def iter_stream(self):\\\\n        while True:\\\\n            self.reads+=1\\\\n            yield TS\\\\nclass Pool:\\\\n    def __init__(self,response):self.response=response;self.closed=False\\\\n    @contextmanager\\\\n    def stream(self,*args,**kwargs):\\\\n        need(args[0]==\\\\\\\"GET\\\\\\\" and args[1].endswith(\\\\\\\".ts\\\\\\\"))\\\\n        try:yield self.response\\\\n        finally:self.response.closed=True\\\\n    def close(self):self.closed=True\\\\ndef scenario(status=200,state=None):\\\\n    pools=[]\\\\n    state=state or [EntitlementState.ACTIVE]\\\\n    def factory(target):\\\\n        need(target.hostname==\\\\\\\"media.example.com\\\\\\\" and target.addresses==(\\\\\\\"93.184.216.34\\\\\\\",))\\\\n        p=Pool(Resp(status));pools.append(p);return p\\\\n    source=AuthorizedMediaOrigin(MediaAsset(CatalogKind.LIVE,\\\\\\\"10\\\\\\\",\\\\\\\"101\\\\\\\"),\\\\\\\"https://media.example.com\\\\\\\",\\\\\\\"fixture\\\\\\\",SecretStr(\\\\\\\"fixture-not-real\\\\\\\"),\\\\\\\"ts\\\\\\\")\\\\n    reader=PrivateTsSession(source,entitlement=lambda:state[0],resolver=lambda *_:[\\\\\\\"93.184.216.34\\\\\\\"],pool_factory=factory)\\\\n    return reader,pools,state\\\\ndef denied(action):\\\\n    try:action()\\\\n    except MediaReadError:return\\\\n    raise AssertionError(\\\\\\\"rejection_not_observed\\\\\\\")\\\\na,pools,state=scenario()\\\\nsample=a.probe();need(len(sample)>564 and len(sample)%188==0);need(pools[0].closed)\\\\nwindow=a.read();need(0<len(window)<=WINDOW_BYTES and len(window)%188==0)\\\\na.read();need(len(pools)==2);need(not pools[1].closed)\\\\na.reset();need(pools[1].closed);a.read();need(len(pools)==3)\\\\nstate[0]=EntitlementState.EXPIRED;denied(a.read);need(pools[-1].closed);a.close()\\\\nfor status in (401,403):\\\\n    a,pools,_=scenario(status)\\\\n    denied(a.probe);need(len(pools)==1 and pools[0].response.reads==0 and pools[0].closed)\\\\n    for action in (a.probe,a.read,a.reset):denied(action)\\\\n    need(len(pools)==1)\\\\na,pa,_=scenario();b,pb,_=scenario()\\\\na.probe();b.probe();a.read();b.read();a.close()\\\\nneed(all(p.closed for p in pa));need(not pb[-1].closed);b.read();b.close()\\\\nneed(all(p.closed for p in pb))\\\\nprint(json.dumps({\\\\\\\"reader_contract_pass\\\\\\\":True,\\\\\\\"assertions\\\\\\\":checks,\\\\\\\"denied_statuses\\\\\\\":[401,403],\\\\\\\"provider_media_requests\\\\\\\":0,\\\\\\\"secrets_read\\\\\\\":0},sort_keys=True),flush=True)\\\\n\\\"],45)\\n    assert p.returncode==0\\n    R.update(json.loads(p.stdout.strip()))\\n    R[\\\"candidate_checkout_clean\\\"]=not run([\\\"git\\\",\\\"-C\\\",str(SRC),\\\"status\\\",\\\"--porcelain\\\"]).stdout.strip()\\nexcept Exception as e:\\n    R[\\\"failure_type\\\"]=type(e).__name__\\nfinally:\\n    R[\\\"production_unchanged\\\"]=before==state()\\nprint(json.dumps(R,sort_keys=True),flush=True)\\n\"],capture_output=True,text=True,timeout=80)\ntry:r=json.loads(p.stdout.strip())\nexcept ValueError:r={'reader_contract_pass':False,'failure_type':'no_safe_report','child_exit':p.returncode}\nprint(json.dumps(r,sort_keys=True),flush=True)\n"
+            ],
+            "working_directory": "/srv/projects/skill-universal",
+            "timeout_ms": 95000,
+            "idle_timeout_ms": 85000,
+            "terminal": {
+              "columns": 150,
+              "rows": 40,
+              "scrollback": 100
+            },
+            "limits": {
+              "output_bytes": 8000
+            }
+          }
+        }
+      }
+    ]
+  }
+}
