@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-source-origin-review-20261126-r126",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-source-contract-20261126",
+  "revision": 3,
+  "turn": {
+    "task": "source-contract",
+    "role": "reviewer",
+    "kind": "review",
+    "message": "New metadata proves provider-issued RTP1 legacy extensionless path, same credentials and asset, canonical URL differs. Raw origin tuple comparison treats implicit port and explicit default port differently: do NOT claim different host yet. Refine comparison with effective ports, scheme, host and official general/TV host membership; no media request. Preserve successful r125 and initial timeout evidence. No fallback implementation without validated authoritative locator.",
+    "verdict": "changes_requested",
+    "evidence_sha256": [
+      "c84551873d3da0140d71abb39749ca977f6f7cefd373e6886779f076aac0424c"
+    ]
+  }
+}
