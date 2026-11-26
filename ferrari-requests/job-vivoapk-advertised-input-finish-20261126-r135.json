@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "id": "vivoapk-advertised-input-finish-20261126-r135",
+  "kind": "ruflo-team",
+  "phase": "finish",
+  "team_id": "vivoapk-advertised-input-20261126",
+  "revision": 4,
+  "approval": "Accept the reviewed failure evidence and stop media attempts: independently provider-issued same-origin RTP1 locator returned401 before body; no decode, no physical clients and no production activation. Preserve r131 instrumentation failure separately. Code source selection corrected in b2fdd911 and CI backend/plugin/loopback passed; complete native CI remains separate. Functional migration remains blocked pending clarification of authorized playback conditions, not approved as complete."
+}
