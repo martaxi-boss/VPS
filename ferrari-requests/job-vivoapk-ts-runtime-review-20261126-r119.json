@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-ts-runtime-review-20261126-r119",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-ts-input-20261126",
+  "revision": 3,
+  "turn": {
+    "task": "ts-candidate-test",
+    "role": "reviewer",
+    "kind": "review",
+    "message": "Approve only observed staged reader contract: exact clean revision, 33 assertions, sequential probe plus persistent accepted stream, reset closes connection, revocation and 401/403 permanently deny without body/retry, second reader survives, services unchanged. r116 pytest attempt remains failed because unavailable dependency; no packages installed. CI backend/build/loopback success are separate; native TS integration and real provider/client certification remain pending.",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "abb210eae3b1f4b2acdad2ec9f4b5df13683506224264035358a233bf558d041"
+    ]
+  }
+}
