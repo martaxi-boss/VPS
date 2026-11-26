@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-path-review-20261126-r113",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-path-audit-20261126",
+  "revision": 1,
+  "turn": {
+    "task": "path-audit",
+    "role": "reviewer",
+    "kind": "review",
+    "message": "Reviewed actual ZIP CRCs and evidence SHA. Metadata only completed: both current account families active, TS/HLS advertised, zero of two active connections, services unchanged, no media requests. This does not authorize a denied media request or explain historical 401; no real playback certified. Compare with r108: initial upstream HLS GET received 401 before parser/FFprobe/FFmpeg. Preserve production and require provider clarification before alternative media attempts.",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "7051af7f1a023725e018ee8fb099e52e671a0080a822c11c6428fe89e12b0214"
+    ]
+  }
+}
