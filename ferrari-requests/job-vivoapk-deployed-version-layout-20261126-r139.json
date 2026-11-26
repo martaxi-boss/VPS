@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-deployed-version-layout-20261126-r139",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,subprocess\np=subprocess.run([\"sudo\",\"-n\",\"--\",\"/usr/bin/python3\",\"-c\",\"import json,os,re,subprocess\\nfrom pathlib import Path\\nROOT=Path(\\\"/srv/projects/Vivoapk\\\")\\nR={\\\"scope\\\":\\\"deployed_layout_readonly\\\",\\\"media_requests\\\":0,\\\"secrets_read\\\":0,\\\"production_activation\\\":False}\\ntry:\\n    entries=[]\\n    for p in sorted(ROOT.iterdir(),key=lambda x:x.name):\\n        if p.name.startswith(\\\".\\\"):continue\\n        d={\\\"name\\\":p.name,\\\"kind\\\":\\\"symlink\\\" if p.is_symlink() else \\\"directory\\\" if p.is_dir() else \\\"file\\\"}\\n        if p.is_symlink():\\n            target=os.readlink(p)\\n            d[\\\"target_under_project\\\"]=str(p.resolve()).startswith(str(ROOT)+\\\"/\\\")\\n            d[\\\"revision_shas\\\"]=re.findall(r\\\"(?<![a-f0-9])[a-f0-9]{40}(?![a-f0-9])\\\",target)\\n        entries.append(d)\\n    R[\\\"project_layout\\\"]=entries[:80]\\n    units={}\\n    for u in (\\\"vivoapk-backend.service\\\",\\\"jellyfin-pink.service\\\"):\\n        raw=subprocess.check_output([\\\"systemctl\\\",\\\"show\\\",u,\\\"-p\\\",\\\"WorkingDirectory\\\",\\\"-p\\\",\\\"ExecStart\\\"],text=True,timeout=8)\\n        units[u]={\\\"revision_shas\\\":re.findall(r\\\"(?<![a-f0-9])[a-f0-9]{40}(?![a-f0-9])\\\",raw),\\n                  \\\"vivoapk_project_paths\\\":sorted(set(re.findall(r\\\"/srv/projects/Vivoapk/[A-Za-z0-9_./-]+\\\",raw)))}\\n    R[\\\"unit_locations\\\"]=units\\nexcept Exception as e:R[\\\"failure_type\\\"]=type(e).__name__\\nprint(json.dumps(R,sort_keys=True),flush=True)\\n\"],capture_output=True,text=True,timeout=35)\ntry:r=json.loads(p.stdout.strip())\nexcept ValueError:r={\"failure_type\":\"no_safe_report\"}\nprint(json.dumps(r,sort_keys=True),flush=True)\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 50000,
+          "idle_timeout_ms": 45000,
+          "terminal": {
+            "columns": 150,
+            "rows": 40,
+            "scrollback": 100
+          },
+          "limits": {
+            "output_bytes": 10000
+          }
+        }
+      }
+    }
+  ]
+}
