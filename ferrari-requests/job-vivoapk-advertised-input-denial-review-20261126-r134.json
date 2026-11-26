@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-advertised-input-denial-review-20261126-r134",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-advertised-input-20261126",
+  "revision": 3,
+  "turn": {
+    "task": "advertised-ts-source",
+    "role": "reviewer",
+    "kind": "review",
+    "message": "Approve evidence of failure only: exact clean candidate, active account/TS metadata, selected authorized RTP1, provider-issued same-effective-origin locator selected BEFORE media, one upstream response401 then terminal close. No accepted bytes or native decode, no platform certification, no production activation, services unchanged, secrets/media not emitted. r131 remains instrumentation failure, not a provider test. Stop further media attempts; source-format/constructed-path explanations are insufficient for this current denial. Provider's internal condition remains unknown.",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "0fa7d8cdf34ce39cc14211309bbc8401f6629fbb4234ffa76943172d4bf28f7a"
+    ]
+  }
+}
