@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-account-conditions-metadata-20261126-r136",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,subprocess\np=subprocess.run([\"sudo\",\"-n\",\"--\",\"/usr/bin/python3\",\"-c\",\"import json,stat,subprocess\\nfrom pathlib import Path\\nSRC=Path(\\\"/srv/projects/Vivoapk/native-release-stage/b2fdd911bdf549d7cca89fb7fbbebe3f64b2ff27/backend/source\\\")\\nENV={\\\"PATH\\\":\\\"/usr/bin:/bin\\\",\\\"HOME\\\":\\\"/root\\\",\\\"LANG\\\":\\\"C.UTF-8\\\",\\\"GIT_CONFIG_GLOBAL\\\":\\\"/dev/null\\\",\\\"GIT_CONFIG_NOSYSTEM\\\":\\\"1\\\",\\\"GIT_TERMINAL_PROMPT\\\":\\\"0\\\",\\\"PYTHONDONTWRITEBYTECODE\\\":\\\"1\\\"}\\nUNITS=(\\\"vivoapk-backend.service\\\",\\\"jellyfin-pink.service\\\",\\\"nginx.service\\\",\\\"postgresql.service\\\")\\ndef state():return {u:subprocess.check_output([\\\"systemctl\\\",\\\"show\\\",u,\\\"-p\\\",\\\"MainPID\\\",\\\"-p\\\",\\\"ActiveState\\\"],text=True,timeout=8).strip() for u in UNITS}\\nR={\\\"media_requests\\\":0,\\\"production_activation\\\":False};before=state()\\ntry:\\n    for p in (*SRC.parents,SRC):assert stat.S_ISDIR(p.lstat().st_mode) and not p.is_symlink()\\n    assert subprocess.check_output([\\\"git\\\",\\\"-C\\\",str(SRC),\\\"rev-parse\\\",\\\"HEAD\\\"],text=True,env=ENV).strip()==\\\"b2fdd911bdf549d7cca89fb7fbbebe3f64b2ff27\\\"\\n    assert not subprocess.check_output([\\\"git\\\",\\\"-C\\\",str(SRC),\\\"status\\\",\\\"--porcelain\\\"],text=True,env=ENV).strip()\\n    p=subprocess.run([\\\"/srv/projects/Vivoapk/.venv/bin/python\\\",\\\"-I\\\",\\\"-B\\\",\\\"-c\\\",\\\"import hashlib,json,logging,sys\\\\nfrom datetime import datetime,timezone\\\\nlogging.disable(logging.CRITICAL)\\\\nsys.path.insert(0,\\\\\\\"/srv/projects/Vivoapk/native-release-stage/b2fdd911bdf549d7cca89fb7fbbebe3f64b2ff27/backend/source/backend\\\\\\\")\\\\nfrom app.config import Settings\\\\nfrom app.db import build_session_factory\\\\nfrom app.models import SubscriptionMapping\\\\nfrom app.clients.mega import MegaOTTClient,MegaSubscription\\\\nfrom app.clients.xtream import XtreamClient\\\\nR={\\\\\\\"scope\\\\\\\":\\\\\\\"account_conditions_metadata_only\\\\\\\",\\\\\\\"media_requests\\\\\\\":0,\\\\\\\"production_activation\\\\\\\":False,\\\\\\\"secrets_emitted\\\\\\\":False}\\\\nkeys=(\\\\\\\"allowed_ips\\\\\\\",\\\\\\\"allowed_ua\\\\\\\",\\\\\\\"allowed_user_agents\\\\\\\",\\\\\\\"ip_restriction\\\\\\\",\\\\\\\"geoip_lock\\\\\\\",\\\\\\\"is_restreamer\\\\\\\")\\\\ndef summarize(obj):\\\\n    return {k:{\\\\\\\"present\\\\\\\":True,\\\\\\\"nonempty\\\\\\\":obj[k] not in (None,\\\\\\\"\\\\\\\",[],{})} for k in keys if k in obj}\\\\ntry:\\\\n    settings=Settings(_env_file=\\\\\\\"/root/project-secrets/VIVOAPK/backend-runtime.env\\\\\\\")\\\\n    with build_session_factory(settings.database_url)() as db:\\\\n        matches=[m for m in db.query(SubscriptionMapping).limit(500).all() if hashlib.sha256(m.username.casefold().encode()).hexdigest()==\\\\\\\"27f3817eb2ec39d1e4967bd07f2dea3d37f114cb0dae3f22df09ec398a8ccb38\\\\\\\"]\\\\n        assert len(matches)==1\\\\n        m=matches[0]\\\\n        with MegaOTTClient(base_url=settings.mega_ott_api_base,token=settings.require_mega_token()) as mega:\\\\n            raw=mega._read_bounded_json(mega._base_url+\\\\\\\"/v1/subscriptions/\\\\\\\"+str(m.mega_subscription_id),operation=\\\\\\\"retrieval\\\\\\\")\\\\n        sub=MegaSubscription.model_validate(raw)\\\\n        assert sub.id==m.mega_subscription_id and sub.username==m.username and sub.password is not None and sub.expiring_at>datetime.now(timezone.utc)\\\\n        assert sub.dns_link==m.dns_link\\\\n        R[\\\\\\\"mega_condition_fields\\\\\\\"]=summarize(raw)\\\\n        class Observed(XtreamClient):\\\\n            def _request(self,**kwargs):\\\\n                response=super()._request(**kwargs)\\\\n                self.conditions={}\\\\n                if response.status_code==200:\\\\n                    payload=response.json()\\\\n                    ui=payload.get(\\\\\\\"user_info\\\\\\\",{}) if isinstance(payload,dict) else {}\\\\n                    if isinstance(ui,dict):\\\\n                        self.conditions=summarize(ui)\\\\n                        for key in (\\\\\\\"active_cons\\\\\\\",\\\\\\\"max_connections\\\\\\\"):\\\\n                            value=str(ui.get(key,\\\\\\\"\\\\\\\"))\\\\n                            if value.isdecimal() and len(value)<5:R[key]=int(value)\\\\n                return response\\\\n        x=Observed()\\\\n        try:auth=x.authenticate(dns_link=sub.dns_link,username=m.username,password=sub.password.get_secret_value())\\\\n        finally:x.close()\\\\n        R[\\\\\\\"xtream_condition_fields\\\\\\\"]=x.conditions\\\\n        R[\\\\\\\"account_active\\\\\\\"]=auth.code==\\\\\\\"SUCCESS\\\\\\\"\\\\n        R[\\\\\\\"metadata_check_completed\\\\\\\"]=True\\\\nexcept Exception as e:R[\\\\\\\"failure_type\\\\\\\"]=type(e).__name__\\\\nprint(json.dumps(R,sort_keys=True),flush=True)\\\\n\\\"],capture_output=True,text=True,timeout=45,env=ENV)\\n    try:R.update(json.loads(p.stdout.strip()))\\n    except ValueError:R[\\\"failure_type\\\"]=\\\"no_safe_report\\\"\\nexcept Exception as e:R[\\\"failure_type\\\"]=type(e).__name__\\nfinally:R[\\\"production_unchanged\\\"]=before==state()\\nprint(json.dumps(R,sort_keys=True),flush=True)\\n\"],capture_output=True,text=True,timeout=70)\ntry:r=json.loads(p.stdout.strip())\nexcept ValueError:r={\"failure_type\":\"no_safe_report\",\"media_requests\":0}\nprint(json.dumps(r,sort_keys=True),flush=True)\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 85000,
+          "idle_timeout_ms": 75000,
+          "terminal": {
+            "columns": 150,
+            "rows": 40,
+            "scrollback": 100
+          },
+          "limits": {
+            "output_bytes": 8000
+          }
+        }
+      }
+    }
+  ]
+}
