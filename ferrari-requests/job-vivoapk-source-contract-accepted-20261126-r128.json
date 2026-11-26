@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-source-contract-accepted-20261126-r128",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-source-contract-20261126",
+  "revision": 5,
+  "turn": {
+    "task": "source-contract",
+    "role": "reviewer",
+    "kind": "review",
+    "message": "Approve metadata finding only: official TS playlist HTTP200, exact selected RTP1 credentials/asset in extensionless provider-issued path; same scheme/hostname/effective port as assigned origin (raw difference only explicit default port). Catalogue direct_source empty. No media opened, services preserved. Implement selection of exact independently advertised locator before media admission, constrained to same effective origin/credentials/asset, not guessed fallback or origin switching. Actual access/decode remain unproven and any subsequent refusal must terminate.",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "a87d857e2b61b58e1f531a8be7a5f17b4cc6fc9b2b153f423e41dbd467ce5b4d"
+    ]
+  }
+}
