@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-final-reviewed-checkpoint-20261126-r138",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,subprocess\np=subprocess.run([\"sudo\",\"-n\",\"--\",\"/usr/bin/python3\",\"-c\",\"import hashlib,json,os,stat,subprocess\\nfrom pathlib import Path\\nROOT=Path(\\\"/srv/projects/Vivoapk\\\")\\nHEAD=\\\"b2fdd911bdf549d7cca89fb7fbbebe3f64b2ff27\\\"\\nDOC=\\\"784c080e8ac25fe1bd28602313c6e318e3b22154\\\"\\nSRC=ROOT/\\\"native-release-stage\\\"/HEAD/\\\"backend/source\\\"\\nENV={\\\"PATH\\\":\\\"/usr/bin:/bin\\\",\\\"HOME\\\":\\\"/root\\\",\\\"LANG\\\":\\\"C.UTF-8\\\",\\\"GIT_CONFIG_GLOBAL\\\":\\\"/dev/null\\\",\\\"GIT_CONFIG_NOSYSTEM\\\":\\\"1\\\",\\\"GIT_TERMINAL_PROMPT\\\":\\\"0\\\",\\\"PYTHONDONTWRITEBYTECODE\\\":\\\"1\\\"}\\nUNITS=(\\\"vivoapk-backend.service\\\",\\\"jellyfin-pink.service\\\",\\\"nginx.service\\\",\\\"postgresql.service\\\")\\ndef run(args,t=15):return subprocess.run(args,capture_output=True,text=True,timeout=t,env=ENV)\\ndef state():return {u:run([\\\"systemctl\\\",\\\"show\\\",u,\\\"-p\\\",\\\"MainPID\\\",\\\"-p\\\",\\\"ActiveState\\\"]).stdout.strip() for u in UNITS}\\nbefore=state()\\nR={\\\"scope\\\":\\\"final_review_checkpoint\\\",\\\"media_requests\\\":0,\\\"secrets_read\\\":0,\\\"production_activation\\\":False}\\ntry:\\n    for p in (*SRC.parents,SRC):assert stat.S_ISDIR(p.lstat().st_mode) and not p.is_symlink()\\n    assert run([\\\"git\\\",\\\"-C\\\",str(SRC),\\\"rev-parse\\\",\\\"HEAD\\\"]).stdout.strip()==HEAD\\n    assert not run([\\\"git\\\",\\\"-C\\\",str(SRC),\\\"status\\\",\\\"--porcelain\\\"]).stdout.strip()\\n    remote=run([\\\"git\\\",\\\"-C\\\",str(SRC),\\\"remote\\\",\\\"get-url\\\",\\\"origin\\\"]).stdout.strip()\\n    assert remote.rstrip(\\\"/\\\").removesuffix(\\\".git\\\")==\\\"https://github.com/martaxi-boss/Vivoapk\\\"\\n    assert run([\\\"git\\\",\\\"-C\\\",str(SRC),\\\"fetch\\\",\\\"--no-tags\\\",\\\"origin\\\",DOC],60).returncode==0\\n    assert run([\\\"git\\\",\\\"-C\\\",str(SRC),\\\"diff\\\",\\\"--quiet\\\",HEAD,DOC,\\\"--\\\",\\\"backend\\\",\\\"jellyfin-auth\\\",\\\"infra\\\"]).returncode==0\\n    p=run([\\\"git\\\",\\\"-C\\\",str(SRC),\\\"show\\\",DOC+\\\":BOOTSTRAP.md\\\"])\\n    assert p.returncode==0 and p.stdout.startswith(\\\"# BOOTSTRAP\\\")\\n    dest=SRC.parent/\\\"BOOTSTRAP.review.md\\\"\\n    assert not dest.is_symlink()\\n    fd=os.open(dest,os.O_WRONLY|os.O_CREAT|os.O_TRUNC|os.O_NOFOLLOW,0o600)\\n    with os.fdopen(fd,\\\"w\\\") as f:f.write(p.stdout)\\n    production_head=run([\\\"git\\\",\\\"-C\\\",str(ROOT),\\\"rev-parse\\\",\\\"HEAD\\\"]).stdout.strip()\\n    R.update(candidate_source=HEAD,review_documentation=DOC,source_code_unchanged=True,\\n             production_checkout=production_head,production_checkout_expected=production_head==\\\"0994990c024b159eebd44528041746f557596d27\\\",\\n             staged_checkout_clean=not run([\\\"git\\\",\\\"-C\\\",str(SRC),\\\"status\\\",\\\"--porcelain\\\"]).stdout.strip(),\\n             bootstrap_snapshot_sha256=hashlib.sha256(p.stdout.encode()).hexdigest(),\\n             native_ci_run=45907247240,real_playback_certified=False)\\nexcept Exception as e:R[\\\"failure_type\\\"]=type(e).__name__\\nfinally:R[\\\"production_services_unchanged\\\"]=before==state()\\nprint(json.dumps(R,sort_keys=True),flush=True)\\n\"],capture_output=True,text=True,timeout=105)\ntry:r=json.loads(p.stdout.strip())\nexcept ValueError:r={\"failure_type\":\"no_safe_report\",\"media_requests\":0}\nprint(json.dumps(r,sort_keys=True),flush=True)\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 120000,
+          "idle_timeout_ms": 110000,
+          "terminal": {
+            "columns": 150,
+            "rows": 40,
+            "scrollback": 100
+          },
+          "limits": {
+            "output_bytes": 8000
+          }
+        }
+      }
+    }
+  ]
+}
