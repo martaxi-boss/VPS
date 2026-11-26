@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "id": "vivoapk-path-finish-20261126-r114",
+  "kind": "ruflo-team",
+  "phase": "finish",
+  "team_id": "vivoapk-path-audit-20261126",
+  "revision": 2,
+  "approval": "Accept only the completed, independently reviewed metadata investigation and its verified evidence. TS/HLS advertised and 0/2 occupancy now; historical initial upstream 401 remains unexplained. No media retry or production changes. Real playback, TS transport integration and all physical clients remain uncertified; provider interface clarification required."
+}
