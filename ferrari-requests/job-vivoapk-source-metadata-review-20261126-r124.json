@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-source-metadata-review-20261126-r124",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-source-contract-20261126",
+  "revision": 1,
+  "turn": {
+    "task": "source-contract",
+    "role": "reviewer",
+    "kind": "review",
+    "message": "Observed active identity/TS and empty catalogue direct_source, but get.php metadata timed out before headers. Source URL comparison is NOT complete. Allow one bounded same-endpoint metadata retry with larger read timeout; never open playlist media, vary headers/origin/path, or call this playback acceptance. Production preserved.",
+    "verdict": "changes_requested",
+    "evidence_sha256": [
+      "e62aafca9070583f482aeb2db36eb1e157f927f6855ef58604b673dff8a4f607"
+    ]
+  }
+}
