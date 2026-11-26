@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-advertised-input-review-fixture-20261126-r132",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-advertised-input-20261126",
+  "revision": 1,
+  "turn": {
+    "task": "advertised-ts-source",
+    "role": "reviewer",
+    "kind": "review",
+    "message": "Reject playback certification: r131 returned no_safe_report before any reported metadata/media status. This is an instrumentation failure, not provider denial. Current settings enable private routes but must provision an independent ephemeral test key; never change production secrets. Add sanitized early failure classes to wrapper, then rerun the same admitted source flow only if setup succeeds. No success inferred from workflow transport.",
+    "verdict": "changes_requested",
+    "evidence_sha256": [
+      "3ce4aa02651f1fbcbdd1f89ba7cbc1835125838c9d00b41a99945f7990d0dd71"
+    ]
+  }
+}
