@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-ts-review-environment-20261126-r117",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-ts-input-20261126",
+  "revision": 1,
+  "turn": {
+    "task": "ts-candidate-test",
+    "role": "reviewer",
+    "kind": "review",
+    "message": "Reject test certification: checkout pinned and clean, production unchanged, but test process failed ModuleNotFoundError before any pytest cases. Do not install packages into production runtime. Reuse staged code for a dependency-free synthetic reader contract check using installed runtime dependencies; keep CI as separate evidence for complete pytest/API suite.",
+    "verdict": "changes_requested",
+    "evidence_sha256": [
+      "2b2cbd596926c2b1ccca95701f38200809d506c8c78007ebd65d9ef7832537c6"
+    ]
+  }
+}
