@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "id": "vivoapk-advertised-input-start-20261126-r130",
+  "kind": "ruflo-team",
+  "phase": "start",
+  "team_id": "vivoapk-advertised-input-20261126",
+  "host": "Codex",
+  "mission": "Validar em isolamento a selecao explicita da fonte anunciada pelo fornecedor, apos CI backend/build. Nao ativar producao. Uma admissao de media corretamente anunciada, sem fallback apos qualquer recusa.",
+  "roles": [
+    {
+      "id": "tester",
+      "type": "tester",
+      "actions": [
+        "rea-mcp"
+      ]
+    },
+    {
+      "id": "reviewer",
+      "type": "reviewer",
+      "actions": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "advertised-ts-source",
+      "role": "tester",
+      "reviewer": "reviewer",
+      "goal": "Checkout candidato exato, autorizacao atual/catalogo e playlist oficial, uma fonte emitida pelo fornecedor e mesmo origin/credenciais/asset; demonstrar status e descodificacao audiovisual se aceite. Recusa termina o ensaio; preservar servicos e segredos.",
+      "depends_on": []
+    }
+  ]
+}
