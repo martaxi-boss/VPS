@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "id": "vivoapk-path-metadata-20261126-r112",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-path-audit-20261126",
+  "revision": 0,
+  "turn": {
+    "task": "path-audit",
+    "role": "investigator",
+    "kind": "rea-mcp",
+    "message": "Read official subscription and existing Xtream authentication metadata only. Do not request media, change transport, follow redirects, retry denied streams, alter services, or emit credentials. Report recognized TS/HLS flags and connection occupancy to narrow r108 cause.",
+    "mcp_requests": [
+      {
+        "method": "tools/call",
+        "params": {
+          "name": "capture_process_scenario",
+          "arguments": {
+            "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+            "arguments": [
+              "-c",
+              "import json,subprocess\np=subprocess.run(['sudo','-n','--','/srv/projects/Vivoapk/.venv/bin/python','-I','-B','-c',\"import hashlib,json,logging,sys,subprocess\\nfrom pathlib import Path\\nfrom datetime import datetime,timezone\\nfrom types import SimpleNamespace\\nlogging.disable(logging.CRITICAL)\\nBASE=Path(\\\"/srv/projects/Vivoapk/native-release-stage/0994990c024b159eebd44528041746f557596d27/backend/source\\\")\\nsys.path.insert(0,str(BASE/\\\"backend\\\"))\\nfrom app.config import Settings\\nfrom app.db import build_session_factory\\nfrom app.models import SubscriptionMapping\\nfrom app.clients.mega import MegaOTTClient\\nfrom app.clients.xtream import XtreamClient\\nfrom app.services.provider_dns import select_provider_dns\\nfrom app.schemas import ClientPlatform\\nR={\\\"phase\\\":\\\"r112-metadata-only\\\",\\\"media_requests\\\":0,\\\"provider_mutations\\\":0,\\\"secrets_emitted\\\":False,\\\"physical_clients_certified\\\":0}\\ndef state():\\n    return {u:subprocess.check_output([\\\"systemctl\\\",\\\"show\\\",u,\\\"-p\\\",\\\"MainPID\\\",\\\"-p\\\",\\\"ActiveState\\\"],text=True,timeout=8).strip() for u in (\\\"vivoapk-backend.service\\\",\\\"jellyfin-pink.service\\\",\\\"nginx.service\\\",\\\"postgresql.service\\\")}\\ndef integer(v):\\n    try:\\n        n=int(v);return n if 0<=n<=100000 else None\\n    except (ValueError,TypeError):return None\\nbefore=state()\\ntry:\\n    settings=Settings(_env_file=\\\"/root/project-secrets/VIVOAPK/backend-runtime.env\\\")\\n    with build_session_factory(settings.database_url)() as db:\\n        rows=[m for m in db.query(SubscriptionMapping).limit(500).all() if hashlib.sha256(m.username.casefold().encode()).hexdigest()==\\\"27f3817eb2ec39d1e4967bd07f2dea3d37f114cb0dae3f22df09ec398a8ccb38\\\"]\\n        assert len(rows)==1\\n        sid=rows[0].mega_subscription_id;username=rows[0].username\\n        mapping=SimpleNamespace(dns_link=rows[0].dns_link,dns_link_samsung_lg=rows[0].dns_link_samsung_lg)\\n    with MegaOTTClient(base_url=settings.mega_ott_api_base,token=settings.require_mega_token()) as api:\\n        sub=api.get_subscription(sid)\\n    assert sub.id==sid and sub.username==username and sub.password is not None\\n    assert sub.expiring_at is not None and sub.expiring_at>datetime.now(timezone.utc)\\n    R[\\\"official_identity_active\\\"]=True\\n    R[\\\"families\\\"]={}\\n    class Observed(XtreamClient):\\n        def _request(self,**kw):\\n            response=super()._request(**kw)\\n            self.status=response.status_code\\n            self.safe={}\\n            if response.status_code==200:\\n                payload=response.json()\\n                ui=payload.get(\\\"user_info\\\",{}) if isinstance(payload,dict) else {}\\n                if isinstance(ui,dict):\\n                    raw=ui.get(\\\"allowed_output_formats\\\")\\n                    valid=isinstance(raw,list) and len(raw)<=32 and all(isinstance(x,str) and len(x)<=32 for x in raw)\\n                    self.safe={\\\"formats_metadata_present\\\":valid,\\\"ts_advertised\\\":valid and \\\"ts\\\" in raw,\\\"hls_advertised\\\":valid and \\\"m3u8\\\" in raw,\\\"active_connections\\\":integer(ui.get(\\\"active_cons\\\")),\\\"max_connections\\\":integer(ui.get(\\\"max_connections\\\"))}\\n            return response\\n    official=SimpleNamespace(dns_link=sub.dns_link,dns_link_samsung_lg=sub.dns_link_for_samsung_lg)\\n    for family,platform in ((\\\"general\\\",ClientPlatform.ANDROID),(\\\"tv\\\",ClientPlatform.TIZEN)):\\n        origin=select_provider_dns(official,platform)\\n        assert origin==select_provider_dns(mapping,platform)\\n        x=Observed()\\n        try:\\n            auth=x.authenticate(dns_link=origin,username=username,password=sub.password.get_secret_value())\\n            R[\\\"families\\\"][family]={\\\"metadata_http\\\":x.status,\\\"account_active\\\":auth.code==\\\"SUCCESS\\\",**x.safe}\\n        finally:x.close()\\n    R[\\\"completed\\\"]=True\\nexcept Exception as e:\\n    R[\\\"completed\\\"]=False;R[\\\"failure_type\\\"]=type(e).__name__\\nfinally:\\n    R[\\\"services_unchanged\\\"]=state()==before\\nprint(json.dumps(R,sort_keys=True),flush=True)\\n\"],capture_output=True,text=True,timeout=70)\ntry:r=json.loads(p.stdout.strip())\nexcept ValueError:r={'completed':False,'failure_type':'no_safe_report','child_exit':p.returncode}\nprint(json.dumps(r,sort_keys=True),flush=True)\n"
+            ],
+            "working_directory": "/srv/projects/skill-universal",
+            "timeout_ms": 85000,
+            "idle_timeout_ms": 75000,
+            "terminal": {
+              "columns": 150,
+              "rows": 40,
+              "scrollback": 80
+            },
+            "limits": {
+              "output_bytes": 8000
+            }
+          }
+        }
+      }
+    ]
+  }
+}
