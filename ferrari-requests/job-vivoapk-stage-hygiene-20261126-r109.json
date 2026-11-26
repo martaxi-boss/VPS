@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-stage-hygiene-20261126-r109",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,subprocess\np=subprocess.run([\"sudo\",\"-n\",\"--\",\"/usr/bin/python3\",\"-c\",\"import json,os,re,stat,subprocess,time\\nfrom pathlib import Path\\nROOT=Path(\\\"/srv/projects/Vivoapk\\\")\\nSTAGE=ROOT/\\\"native-release-stage\\\"\\nACTIVE=\\\"0994990c024b159eebd44528041746f557596d27\\\"\\nCANDIDATE=\\\"302db7cc10df4908bd957d17facfd2464b43cd4e\\\"\\nUNITS=(\\\"vivoapk-backend.service\\\",\\\"jellyfin-pink.service\\\",\\\"nginx.service\\\",\\\"postgresql.service\\\")\\nR={\\\"phase\\\":\\\"r109-stage-hygiene\\\",\\\"scope\\\":\\\"Vivoapk_stage_only\\\",\\\"production_changed\\\":False,\\\"backups_deleted\\\":0,\\\"files_deleted\\\":0,\\\"empty_failed_stage_removed\\\":False,\\\"stages\\\":[]}\\nclass Blocked(Exception):pass\\ndef need(ok,reason):\\n    if not ok:raise Blocked(reason)\\ndef cmd(args,timeout=10):\\n    p=subprocess.run(args,capture_output=True,text=True,timeout=timeout,env={\\\"PATH\\\":\\\"/usr/bin:/bin\\\",\\\"LANG\\\":\\\"C.UTF-8\\\",\\\"HOME\\\":\\\"/root\\\"})\\n    need(p.returncode==0,\\\"inventory_command_failed\\\")\\n    return p.stdout.strip()\\ndef state():\\n    return {u:cmd([\\\"systemctl\\\",\\\"show\\\",u,\\\"-p\\\",\\\"ActiveState\\\",\\\"-p\\\",\\\"MainPID\\\"]) for u in UNITS}\\ndef directory(p):\\n    for q in (*reversed(p.parents),p):need(stat.S_ISDIR(q.lstat().st_mode),\\\"unsafe_directory\\\")\\n    need(p.stat().st_uid==0 and not p.stat().st_mode&0o022,\\\"untrusted_stage\\\")\\ndef size(p):return int(cmd([\\\"du\\\",\\\"-s\\\",\\\"-x\\\",\\\"-B1\\\",\\\"--\\\",str(p)],timeout=12).split()[0])\\nbefore=None\\ntry:\\n    before=state()\\n    need(all(\\\"ActiveState=active\\\" in x for x in before.values()),\\\"production_not_healthy\\\")\\n    directory(STAGE)\\n    items=list(STAGE.iterdir())\\n    need(len(items)<=30,\\\"stage_inventory_bound\\\")\\n    for p in sorted(items):\\n        if p.is_symlink() or not p.is_dir() or not re.fullmatch(\\\"[a-f0-9]{40}\\\",p.name):\\n            R[\\\"unclassified_entries\\\"]=R.get(\\\"unclassified_entries\\\",0)+1\\n            continue\\n        directory(p)\\n        role=\\\"active_r100\\\" if p.name==ACTIVE else \\\"current_candidate\\\" if p.name==CANDIDATE else \\\"historical_review_required\\\"\\n        report={\\\"revision\\\":p.name,\\\"role\\\":role,\\\"allocated_bytes\\\":size(p),\\\"cache_directories\\\":0,\\\"cache_files\\\":0}\\n        deadline=time.monotonic()+8\\n        count=0\\n        for base,dirs,files in os.walk(p,followlinks=False):\\n            count+=len(dirs)+len(files)\\n            if count>100000 or time.monotonic()>deadline:\\n                report[\\\"cache_inventory_partial\\\"]=True\\n                break\\n            dirs[:]=[d for d in dirs if d!=\\\".git\\\" and not (Path(base)/d).is_symlink()]\\n            for d in dirs:\\n                if d in (\\\"__pycache__\\\",\\\".pytest_cache\\\",\\\".ruff_cache\\\"):\\n                    report[\\\"cache_directories\\\"]+=1\\n            report[\\\"cache_files\\\"]+=sum(name.endswith((\\\".pyc\\\",\\\".pyo\\\")) for name in files)\\n        R[\\\"stages\\\"].append(report)\\n    # The historical failed bundle phase was retained empty for review.\\n    # Only rmdir the exact empty folder, never recursively remove content,\\n    # and only while its verified replacement exists. No other stage is deleted.\\n    active=STAGE/ACTIVE\\n    directory(active)\\n    old=active/\\\"bundle\\\"\\n    good=active/\\\"bundle-verified\\\"\\n    if os.path.lexists(old):\\n        directory(old)\\n        directory(good)\\n        need((good/\\\"candidate-manifest.json\\\").is_file(),\\\"verified_bundle_missing\\\")\\n        if not any(old.iterdir()):\\n            old.rmdir()\\n            R[\\\"empty_failed_stage_removed\\\"]=True\\n        else:R[\\\"empty_failed_stage_retained_reason\\\"]=\\\"not_empty\\\"\\n    R[\\\"available_bytes\\\"]=os.statvfs(ROOT).f_bavail*os.statvfs(ROOT).f_frsize\\n    R[\\\"inventory_pass\\\"]=True\\nexcept Exception as e:R.update(inventory_pass=False,blocker=str(e) if isinstance(e,Blocked) else type(e).__name__)\\nfinally:\\n    try:R[\\\"production_unchanged\\\"]=before is not None and state()==before\\n    except Exception:R[\\\"production_unchanged\\\"]=False\\nprint(json.dumps(R,sort_keys=True),flush=True)\\nraise SystemExit(0 if R.get(\\\"inventory_pass\\\") and R.get(\\\"production_unchanged\\\") else 1)\\n\"],capture_output=True,text=True,timeout=100)\ntry:result=json.loads(p.stdout.strip())\nexcept ValueError:result={\"phase\":\"r109-stage-hygiene\",\"inventory_pass\":False,\"blocker\":\"no_safe_report\",\"exit\":p.returncode}\nprint(json.dumps(result,sort_keys=True),flush=True)\nraise SystemExit(p.returncode)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 115000,
+          "idle_timeout_ms": 105000,
+          "terminal": {
+            "columns": 150,
+            "rows": 40,
+            "scrollback": 120
+          },
+          "limits": {
+            "output_bytes": 12000
+          }
+        }
+      }
+    }
+  ]
+}
