@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "id": "vivoapk-ts-integration-start-20261126-r115",
+  "kind": "ruflo-team",
+  "phase": "start",
+  "team_id": "vivoapk-ts-input-20261126",
+  "host": "Codex",
+  "mission": "Validar nova entrada TS explicita no adaptador privado existente, com fontes sinteticas autorizadas, sem contacto media Mega ou alteracoes de producao.",
+  "roles": [
+    {
+      "id": "architect",
+      "type": "architect",
+      "actions": []
+    },
+    {
+      "id": "coder",
+      "type": "coder",
+      "actions": []
+    },
+    {
+      "id": "tester",
+      "type": "tester",
+      "actions": [
+        "rea-mcp"
+      ]
+    },
+    {
+      "id": "reviewer",
+      "type": "reviewer",
+      "actions": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "ts-candidate-test",
+      "role": "tester",
+      "reviewer": "reviewer",
+      "goal": "Preparar checkout isolado fixado e executar testes TS/autorizacao/isolation com fixtures; validar sem tocar runtime ativo, cofre ou fornecedor.",
+      "depends_on": []
+    }
+  ]
+}
