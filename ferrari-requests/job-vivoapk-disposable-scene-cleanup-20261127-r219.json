@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-disposable-scene-cleanup-20261127-r219",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\np=subprocess.run([\"sudo\",\"-n\",\"--\",\"/srv/projects/Vivoapk/.venv/bin/python\",\"-I\",\"-B\",\"-c\",\"import contextlib,json,os,pwd,signal,stat,subprocess,time,shutil\\nfrom pathlib import Path\\nBASE=Path('/srv/projects/Vivoapk/run/native-pvod');SOCK=BASE.parent/'native-vod-r182.sock';KEY=BASE.parent/'native-vod-r182.key'\\nR={'production_activation':False,'secrets_emitted':False}\\nunits=('vivoapk-backend.service','jellyfin-pink.service','nginx.service','postgresql.service')\\ndef state():return {u:subprocess.check_output(['systemctl','show',u,'-p','MainPID','-p','ActiveState'],text=True,timeout=5).strip() for u in units}\\nbefore=state();uid=pwd.getpwnam('vivoapksvc').pw_uid;juid=pwd.getpwnam('jellyfinpink').pw_uid\\np=Path('/proc/1768887')\\nif p.exists():\\n fields=(p/'stat').read_text().rsplit(')',1)[1].split();args=(p/'cmdline').read_bytes();owner=p.stat().st_uid\\n R['orphan_owner_is_backend_service']=owner==uid;R['orphan_process_group_matches']=int(fields[2])==1768887;R['orphan_parent_is_init']=int(fields[1])==1\\n assert owner==uid and int(fields[2])==1768887 and int(fields[1])==1 and str(BASE).encode() in args and b'uvicorn.run' in args\\n os.killpg(1768887,signal.SIGTERM)\\n for _ in range(30):\\n  if not p.exists():break\\n  time.sleep(.1)\\n if p.exists():\\n  fields=(p/'stat').read_text().rsplit(')',1)[1].split()\\n  if fields[0]!='Z':os.killpg(1768887,signal.SIGKILL)\\n R['orphan_backend_stopped']=not p.exists() or (p/'stat').read_text().rsplit(')',1)[1].split()[0]=='Z'\\nelse:R['orphan_backend_stopped']=True\\nmeta=BASE/'j/data/plugins/VivoAPK Mega OTT Auth_0.1.0.0/meta.json'\\nR['test_plugin_metadata_mode']=oct(stat.S_IMODE(meta.stat().st_mode)) if meta.exists() else None\\nlogs=''\\nif (BASE/'j/logs').is_dir():\\n for path in (BASE/'j/logs').iterdir():\\n  if path.is_file():logs+=path.read_text(errors='replace')[-200000:]\\nR['startup_error_counts']={s:logs.count(s) for s in ('UnauthorizedAccessException','Permission denied','Access to the path','Read-only file system','Error while starting server','Failed to start')}\\n# Refuse cleanup if any process still names this exact disposable directory.\\nothers=[]\\nfor proc in Path('/proc').iterdir():\\n if not proc.name.isdecimal() or int(proc.name) in (os.getpid(),os.getppid()):continue\\n with contextlib.suppress(OSError,IndexError,ValueError):\\n  args=(proc/'cmdline').read_bytes();owner=proc.stat().st_uid\\n  if owner in (uid,juid) and str(BASE).encode() in args and (proc/'stat').read_text().rsplit(')',1)[1].split()[0]!='Z':others.append(int(proc.name))\\nassert not others\\nif SOCK.exists():assert stat.S_ISSOCK(SOCK.lstat().st_mode) and SOCK.lstat().st_uid==uid;SOCK.unlink()\\nif KEY.exists():assert stat.S_ISREG(KEY.lstat().st_mode) and KEY.lstat().st_uid==juid and stat.S_IMODE(KEY.lstat().st_mode)==0o400;KEY.unlink()\\nif BASE.exists():assert BASE.parent==Path('/srv/projects/Vivoapk/run') and not BASE.is_symlink();shutil.rmtree(BASE)\\nR['temporary_paths_removed']=not any(os.path.lexists(p) for p in (BASE,SOCK,KEY));R['production_unchanged']=before==state()\\nprint(json.dumps(R,sort_keys=True))\\n\"],capture_output=True,text=True,timeout=40)\ntry:r=json.loads(p.stdout.strip())\nexcept Exception:r={\"valid_json\":False,\"exit\":p.returncode}\nprint(json.dumps(r,sort_keys=True))"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 50000,
+          "idle_timeout_ms": 45000,
+          "terminal": {
+            "columns": 150,
+            "rows": 40,
+            "scrollback": 100
+          },
+          "limits": {
+            "output_bytes": 12000
+          }
+        }
+      }
+    }
+  ]
+}
