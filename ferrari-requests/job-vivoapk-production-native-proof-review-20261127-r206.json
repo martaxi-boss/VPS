@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-production-native-proof-review-20261127-r206",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 51,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Production12b actual native RTP1 passed180.1sec,63segments,new segment177.8sec,2175distinct decoded video frames and4080distinct decoded audio frames, anonymous denied, servicePIDs/host unchanged. Own Stop succeeded; finally repeated stale stop/reset got404, which must not be mislabeled an active-session failure. Cache job was not identified: no claim of measured production progressive cache lifecycle; installed configuration and isolated real stop-cache0 remain separate facts. Do not repeat approved180sec TV. Finite candidate11a now fullCI46038515336/backend46038515252/private46038515174 successful, still uninstalled. Proceed necessary authorized real movie and episode validation with exact11a isolated backend/source-identical native plugin; no authorization bypass/alternate source on denial.",
+    "evidence_sha256": [
+      "cc84e3d764265cedda0b70e60ef055f8cc9e7b7cf5bbda3550f079cb2e631c3a"
+    ]
+  }
+}
