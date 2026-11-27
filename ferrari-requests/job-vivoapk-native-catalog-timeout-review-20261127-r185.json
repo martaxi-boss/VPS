@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-native-catalog-timeout-review-20261127-r185",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 35,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Pagination3 did not resolve45sec native category response timeout. Evidence precisely places timeout waiting HTTP status on controller UDS, after backend other route HTTP200 at33.58sec; no private media or entitlement reads, Mega4HTTP200 remaining>=54. All own temporary groups/credentials/media removed; production and host unchanged. Do not call this movie authorization denial or repair catalogue without proof. Next isolate exact browse stage, provider category row count/duration and bounded longer native cold-import wait with safe static log counters; preserve runtime/auth/catalog/DNS untouched.",
+    "evidence_sha256": [
+      "a39ea0015955324b239d72355beac20d501327315ba66e2ac635176086e1dcc5"
+    ]
+  }
+}
