@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-movie-decode-review-20261127-r223",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 61,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Verified r222 evidence SHA and actual output: admitted real MP4 through native Jellyfin/FFmpeg, PlaybackInfo200/HLS200, H264/AAC,72video139audio frames decoded; anonymous denied, quota remaining>=51, no read failures, all temporary processes/endpoints/data removed and production unchanged. Continuity gate correctly false: loop starts before first blocking segment request taking71.99s, so25s wall interval ends after one delivered segment. Correct test clock only: record startup latency separately, begin25sec continuity at first successful media delivery; require5 distinct segments and decoded audio/video, keep honest failure if late reads persist. No code change or production activation approved from single segment.",
+    "evidence_sha256": [
+      "a6179546bbe76afe1f4e07928dc1ec7031ac56757b79380341eb4ff953b01633"
+    ]
+  }
+}
