@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "id": "vivoapk-http-client-start-20261127-r140",
+  "kind": "ruflo-team",
+  "phase": "start",
+  "team_id": "vivoapk-http-client-20261127",
+  "host": "Codex",
+  "mission": "Validar identificacao HTTP verdadeira do leitor privado, igual a autenticacao/catalogo existentes, sem impersonar PINK/Chrome ou alterar a identidade da subscricao. Manter motor Jellyfin/FFmpeg e todos os controlos.",
+  "roles": [
+    {
+      "id": "tester",
+      "type": "tester",
+      "actions": [
+        "rea-mcp"
+      ]
+    },
+    {
+      "id": "reviewer",
+      "type": "reviewer",
+      "actions": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "truthful-media-client",
+      "role": "tester",
+      "reviewer": "reviewer",
+      "goal": "Depois de CI, preparar candidato exato isolado e testar uma fonte RTP1 anunciada/autorizada com identificacao fixa Vivoapk/1.0. Confirmar cabeçalho e status; se aceite contar frames reais de audio/video com FFmpeg nativo. Qualquer recusa e terminal, sem outra origem/identidade/UA/formato/fallback.",
+      "depends_on": []
+    }
+  ]
+}
