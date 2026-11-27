@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-movie-continuity-review-20261127-r226",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 63,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "r224 exact signed evidence contains real movie native pass true:9 distinct HLSsegments/28sec/new segment25.83sec/648video1265audio frames, deniedanonymous/cacheTS0/provider200only/quota>=54/production socket namespace service status unchanged. Startup83.03sec remains material performance limitation, not certified seamless UX. REA stdout truncated at8190B before final cleanup fields, so do not certify those missing fields from this artifact. Next episode controller must explicitly verify previous movie BASE/socket/key and orphan processes absent, compact final output below7000B, validate same exactcandidate episode/video+audio/continuity/cleanup. No production upgrade yet; final fullnativebundle staged in independent r225, not this task evidence.",
+    "evidence_sha256": [
+      "e31ef53abaca22200e56900e7c2b10c450aeaf03e211afc46874e14fa969f04d"
+    ]
+  }
+}
