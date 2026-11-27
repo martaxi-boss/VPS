@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-exact-upgrade-approval-review-20261127-r200",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 45,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Exact12b nine-payload rehearsal passed with injected postflight failure and automatic full rollback;9 VPS transaction tests passed, installed metadata/key preserved,6 components unchanged, real production unmodified. Together with exact full native CI46033689580/backend46033689558/private46033689602 and actual native authorized RTP1r180, host approves guarded r100->12b live upgrade within user's existing execution authorization. Keep monitor/cache/PINK/FFmpeg/backups and strict admin/units/key/assembly/API guards. Overall task remains pending actual upgraded-production playback and finite302 correction/movie/episode proof; no claim of six physical client certification.",
+    "evidence_sha256": [
+      "16bf584a58d375d4214a96254e9c5dad2ca3acf8f2f9d96245e2f4bfc6c442c3"
+    ]
+  }
+}
