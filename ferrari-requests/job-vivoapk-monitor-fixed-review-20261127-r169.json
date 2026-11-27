@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-monitor-fixed-review-20261127-r169",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 19,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Internal monitor repair passes: r168 committed backed-up private env/key, actual test-line entitlement200ACTIVE, missing/invalid403, Jellyfin readable/web denied, existing media key/provider credentials/source preserved. Only backend restarted, Jellyfin/nginx/postgres PIDs unchanged. Five helper transaction tests including rollback passed. This completes prerequisite but NOT task real-native-output; continue exact1e normal plugin pilot after corrected host paths and current monitor provision. Preserve new permanent monitor key/cofre/backups during all cleanup. Need actual native HLS delivered and decoded video/audio, not just successful auth metadata.",
+    "evidence_sha256": [
+      "bb04770dd508afd7a72795eafb955f5458ba501993e66215d3ad9676ae15d485"
+    ]
+  }
+}
