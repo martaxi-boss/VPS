@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "telecom-rea-fidelity-table-fix-20261127-r14",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import os,sys,pathlib,tempfile,subprocess,hashlib,urllib.request,concurrent.futures,json\nroot=pathlib.Path('/srv/projects/Telecom-Intelligence-Portugal')\ncommit='0da624854d44796e36bd02d9c236ea5a4fdd8fc5'\nfiles={'app.py':'5e39142cc21d0650cd827b32325e4e4bc87739b9','documents.py':'ff52ae3cfd2233decdc8e3bae068dda033201e7b','intake.py':'61f53eba46df47e81d057e6b19be8c24003554c5','operations.py':'876a738c3b5bf467d75ba0f6b4da52e89e98c4b8','test_app.py':'10cd4dbeb80d9b69c0a1c308fea35823c9820b71','test_documents.py':'905669b10352629064ab78c1fa7aeb529293e9d4','test_fidelity_tables.py':'e9a871a2df61bce6c764e860cdd20a7e23d4d71a','test_lifecycle.py':'535dee98937f8e3f752d8f9c720c9882d543fd5c','test_pilot.py':'9359d012e00e13e94c3a44f4baf6e54855db4111'}\ndef digest(b):return hashlib.sha1(b'blob '+str(len(b)).encode()+bytes([0])+b).hexdigest()\ndef get(item):\n n,h=item\n with urllib.request.urlopen('https://raw.githubusercontent.com/martaxi-boss/Telecom-Intelligence-Portugal/'+commit+'/'+n,timeout=10) as f:b=f.read(65537)\n assert len(b)<=65536 and digest(b)==h,n\n return n,b\ndef run(args,cwd,env,timeout):\n try:\n  p=subprocess.run(args,cwd=cwd,env=env,capture_output=True,text=True,timeout=timeout)\n  return p.returncode,p.stdout+p.stderr\n except subprocess.TimeoutExpired:return 124,'timeout'\nr={'scope':'synthetic invoice layout tests; no production DB access or writes; no permanent installation','commit':commit}\ntry:\n assert digest((root/'source'/'documents.py').read_bytes())=='4f517a01d6bfb200ff521edfd1e051bf98274882'\n py=str(root/'venv'/'bin'/'python')\n with tempfile.TemporaryDirectory(prefix='tip-table-tests-') as d:\n  p=pathlib.Path(d)\n  with concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex:downloaded=list(ex.map(get,files.items()))\n  for n,b in downloaded:(p/n).write_bytes(b)\n  r['verified_sources']=len(downloaded)\n  env={**os.environ,'PYTHONDONTWRITEBYTECODE':'1','TMPDIR':d,'OMP_THREAD_LIMIT':'1','TESSDATA_PREFIX':str(root/'tessdata'),'PIP_NO_CACHE_DIR':'1','PIP_DISABLE_PIP_VERSION_CHECK':'1'}\n  fixture=p/'layout.txt';fixture.write_text('DOCUMENTO FICTICIO\\nOperadora: NOS\\nPeriodo de fidelizacao\\nData fim Valor com IVA\\nLocal A 04-dez-2026 10,00 EUR\\nLocal B 09-fev-2027 20,00 EUR\\n')\n  probe=\"import sys,json;sys.path.insert(0,sys.argv[1]);import documents; r=documents.extract(sys.argv[2]);print(json.dumps({'scalar':r['rascunho']['fim_fidelizacao'],'service_candidates':len(r.get('fidelizacoes_por_servico',[])),'warnings':len(r['avisos'])}))\"\n  c,o=run([py,'-c',probe,str(root/'source'),str(fixture)],d,env,10)\n  assert c==0\n  r['baseline']=json.loads(o.strip())\n  c,o=run([py,'-c',probe,d,str(fixture)],d,env,10)\n  assert c==0\n  r['candidate']=json.loads(o.strip())\n  assert r['baseline']['service_candidates']==0 and r['candidate']['service_candidates']==2 and r['candidate']['scalar']==''\n  c,o=run([py,'-m','unittest','-v','test_app','test_pilot','test_lifecycle','test_fidelity_tables'],d,env,30)\n  r['core_exit']=c;r['core_tail']=o[-2000:]\n  if c==0:\n   # Test-only dependencies go into a disposable directory, not the installed venv.\n   c,o=run([py,'-m','pip','--isolated','--disable-pip-version-check','install','--no-input','--no-cache-dir','--progress-bar','off','--only-binary=:all:','--no-deps','--target',str(p/'testdeps'),'--index-url','https://pypi.org/simple','--timeout','6','--retries','0','reportlab==4.5.1','charset-normalizer==3.5.3'],d,env,40)\n   r['test_dependencies_exit']=c\n   if c==0:\n    env['PYTHONPATH']=str(p/'testdeps')\n    command=\"import unittest,test_app,test_documents,test_pilot,test_lifecycle,test_fidelity_tables; l=unittest.defaultTestLoader;s=unittest.TestSuite();[s.addTests(l.loadTestsFromModule(m)) for m in (test_app,test_pilot,test_lifecycle,test_fidelity_tables)];s.addTests(test_documents.Documents(n) for n in l.getTestCaseNames(test_documents.Documents) if not n.startswith('test_ai_'));r=unittest.TextTestRunner(verbosity=2).run(s);print('COUNTS',r.testsRun,len(r.failures),len(r.errors),len(r.skipped));raise SystemExit(not r.wasSuccessful())\"\n    c,o=run([py,'-c',command],d,env,45)\n    r['all_exit']=c;r['counts']=next((x for x in o.splitlines() if x.startswith('COUNTS ')),None);r['all_tail']=o[-2000:]\n   else:r['test_dependencies_error']=o[-700:]\n r['temp_removed']=not os.path.exists(d)\nexcept Exception as e:r['error']=type(e).__name__+': '+str(e)[:250]\nprint('TELECOM_TABLE_RESULT='+json.dumps(r,ensure_ascii=True),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 155000,
+          "idle_timeout_ms": 155000,
+          "terminal": {
+            "columns": 160,
+            "rows": 100,
+            "scrollback": 200
+          },
+          "limits": {
+            "output_bytes": 14000
+          }
+        }
+      }
+    }
+  ]
+}
