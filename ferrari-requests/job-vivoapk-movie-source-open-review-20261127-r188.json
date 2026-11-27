@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "id": "vivoapk-movie-source-open-review-20261127-r188",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 37,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Cold native movie catalogue completed59.77sec (6226 entries); provider read0.74sec, leaf3 Movie entries selected. Native guard allowed PlaybackInfo, private file/open503 before FFprobe. Observe same movie original file pool HTTP status and static read-error reason without modifying transport or media fallback. r187 independently shows production cleaner disabled false/720sec,0media processes,32.11GiB free; correct cache configuration reversibly only after current fixture stops. Real native RTP1 continuous67sec/1650video3095audio remains passed. No production code upgrade until exact final CI approved.",
+    "evidence_sha256": [
+      "429c7f10faf16c8831145080e0b11784acc5ba3b6eb61f19962f0c0a51593781",
+      "18f4404f752e1f1d673aa238aaaaa8439e1c54a4451d664c4a98a35da7198675"
+    ]
+  }
+}
