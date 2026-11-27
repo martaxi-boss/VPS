@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "lowcost-category-qa-code-review-20261127",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "lowcost-category-perf-20261127",
+  "revision": 3,
+  "turn": {
+    "task": "code",
+    "role": "arq",
+    "kind": "review",
+    "message": "Verified actual guarded rollout log 46036225032: all stated PT times match, 23 canonical/hreflang checks and exact price/product/link parity passed; main CI/browser/audit passed. Core-sites run 45870724040 attempt 3 completed successfully 16:49:18 UTC, issue 4 updated with 23 audited/0 skipped, 0 critical/important/opportunities, XML/TXT/robots HTTP 200 and parity 23. Temporary workflow deletion confirmed. Approve scope of production code and HTTP results; full mobile load and Search Console not proven. REA test remains a separate required task.",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "4bdb9c48423fb29f235f3a5fe32776f85a778be40fe4aeab6d0c4120ec3d0289"
+    ]
+  }
+}
