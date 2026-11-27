@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-native-hls-review-20261127-r171",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 21,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Real native PlaybackInfo now passes, guardallowed, same authorized provider302->200, private open200,385024probe bytes, native observed H264768x432/AAC stereo48k. Internal monitor fix effective. Native master404 before playback connection; likely request credential transport must be investigated, not provider/codec. Inspect native generated query auth + explicit headers against NativePlaybackAuthorization.TryGetExplicitToken: query credentials plus auth headers deliberately refused. Match proven official/native test owner route helper by one unambiguous credential transport; no auth weakening. Need actual delivered HLS/audio-video decode remains pending. Cleanup and production preservation pass.",
+    "evidence_sha256": [
+      "82b3d9bc480eae41f382462745085414d67f954514977e98feed58295957e51a"
+    ]
+  }
+}
