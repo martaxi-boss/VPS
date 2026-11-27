@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-native-playbackinfo-review-20261127-r159",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 9,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Actual native12.4.0 started, real Mega login succeeded, authorized RTP1 present in native catalogue, but PlaybackInfo404 before delivered HLS. Not certified. Add secret-safe observations of private open/probe/stream route statuses, actual upstream statuses and typed codecs from the SAME admitted probe sample in RAM. Preserve actual source/identity and stop on upstream denials; no format guessing. This distinguishes auth/transport admission from FFprobe metadata/codec handling. Production unchanged, cleanup passed.",
+    "evidence_sha256": [
+      "04ffc750be191256758b09158ba32fbb5285cb62581068d27a6ad510d3a55e3b"
+    ]
+  }
+}
