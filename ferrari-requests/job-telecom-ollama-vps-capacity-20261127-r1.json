@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "telecom-ollama-vps-capacity-20261127-r1",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import os,json,shutil,time\nm={}\nfor line in open('/proc/meminfo'):\n k,v=line.split(':',1)\n if k in ('MemTotal','MemAvailable','MemFree','SwapTotal','SwapFree','Cached'):\n  m[k]=round(int(v.split()[0])/1048576,3)\nvm={}\nfor line in open('/proc/vmstat'):\n k,v=line.split()\n if k in ('pswpin','pswpout'):vm[k]=int(v)\nlimits={}\nfor p in ('/sys/fs/cgroup/memory.max','/sys/fs/cgroup/memory.current','/sys/fs/cgroup/cpu.max'):\n try: limits[p.rsplit('/',1)[1]]=open(p).read().strip()\n except OSError: pass\nprint(json.dumps({'utc':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),'ram_gib':m,'logical_cpus':os.cpu_count(),'load_average':os.getloadavg(),'project_disk_free_gib':round(shutil.disk_usage('/srv/projects').free/2**30,2),'cgroup':limits,'swap_counters_since_boot':vm},sort_keys=True),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 15000,
+          "idle_timeout_ms": 15000,
+          "terminal": {
+            "columns": 125,
+            "rows": 30,
+            "scrollback": 60
+          },
+          "limits": {
+            "output_bytes": 6000
+          }
+        }
+      }
+    }
+  ]
+}
