@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-native-mega-review-20261127-r177",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 27,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Real native output decoded:122video235audio frames,16 delivered HLS segments; early_native_output_decoded=true, continuity fails~32s. Local budgets180/2400per60s not exhausted in evidence; actual exceptionCatalogUnavailable reasonmega_lookup causedUNAVAILABLE, after27ACTIVE checks and accepted TS302->200. Need actual Mega HTTPstatus or protocol/timeout classification from existing request and safe Retry-After/remaining headers, no raw URL/body/credential, no additional provider queries. Do not bypass refusals or change code based on presumed throttling; preserve successful output proof separately from continuous pass.",
+    "evidence_sha256": [
+      "033543dd0eed21d2d5829eaaa0d34cb985aafc8eb77f86819a09b97a68d1d895"
+    ]
+  }
+}
