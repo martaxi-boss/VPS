@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "telecom-rea-free-catalog-complete-20261127-r19",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,urllib.request,urllib.error,urllib.parse,concurrent.futures,re,unicodedata\nBASE='https://dados.gov.pt/api/1/datasets/'\ndef norm(s):return ''.join(c for c in unicodedata.normalize('NFKD',str(s).casefold()) if not unicodedata.combining(c))\ndef search(q):\n out={'query':q,'examined':0,'total':None,'complete':False,'matches':[],'pages':0}\n seen=set();titles=set();url=BASE+'?'+urllib.parse.urlencode({'q':q,'page_size':20})\n try:\n  for i in range(10):\n   u=urllib.parse.urlparse(url)\n   if (u.scheme,u.hostname,u.path)!=('https','dados.gov.pt','/api/1/datasets/'):raise ValueError('unexpected pagination URL')\n   req=urllib.request.Request(url,headers={'User-Agent':'Telecom-PT public catalogue metadata review','Accept':'application/json'})\n   with urllib.request.urlopen(req,timeout=10) as res:\n    raw=res.read(4194305)\n    if len(raw)>4194304:raise ValueError('page exceeds byte limit')\n    j=json.loads(raw);out['http']=res.status\n   out['pages']+=1\n   if out['total'] is None:out['total']=j.get('total')\n   for row in j['data']:\n    ident=str(row.get('id',''))\n    if ident in seen:continue\n    seen.add(ident);title=str(row.get('title',''));titles.add(title)\n    t=norm(title+' '+str(row.get('description','')))\n    signals=[]\n    for name,p in [('fidelity',r'\\bfideliza'),('contract_end',r'fim (?:do|de) contrato|termino (?:do|de) contrato|data de termino|data de fim do contrato'),('renewal',r'renovacao de contrato'),('private_company',r'empresa[s]? privada[s]?|sociedade[s]? privada[s]?'),('contract_in_general',r'\\bcontrat')]:\n     if re.search(p,t):signals.append(name)\n    if signals:\n     out['matches'].append({'title':title[:180],'signals':signals,'license':str(row.get('license',''))[:100]})\n   nxt=j.get('next_page')\n   if not nxt:out['complete']=True;break\n   url=urllib.parse.urljoin(BASE,nxt)\n  out['examined']=len(seen);out['unique_titles']=len(titles)\n  out['complete']=out['complete'] and out['total']==out['examined']\n except Exception as e:\n  out['error']=type(e).__name__+': '+str(e)[:150];out['examined']=len(seen)\n return out\nwith concurrent.futures.ThreadPoolExecutor(max_workers=2) as ex:results=list(ex.map(search,['telecomunicacoes','telecomunicações','fidelização','contratos telecomunicações']))\nprint('TELECOM_CATALOG_FULL='+json.dumps({'results':results,'scope':'complete pagination where marked; public catalog titles/descriptions only; no individual records inspected','private_contracts_obtained':0,'software_changed':False},ensure_ascii=True),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 155000,
+          "idle_timeout_ms": 155000,
+          "terminal": {
+            "columns": 160,
+            "rows": 100,
+            "scrollback": 200
+          },
+          "limits": {
+            "output_bytes": 20000
+          }
+        }
+      }
+    }
+  ]
+}
