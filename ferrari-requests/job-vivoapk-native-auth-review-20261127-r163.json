@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-native-auth-review-20261127-r163",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 13,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Host-path contract fixed but PlaybackInfo still404 and no private-route observation. Thus invalid paths were a necessary fixture fix, not sufficient explanation of all404. Inspect whole authorization chain before transport: actual native child host env matches expected booleans, saved plugin flags, fresh user's Mega AuthenticationProviderId/media policy, existing private monitor key readability and production entitlement status. Use read-only/private RAM metadata; no secrets/rows/credentials emitted, no guard bypass or source alternatives. Production/cleanup verified.",
+    "evidence_sha256": [
+      "9de419dc1faf07229e01e2afa594fd4caffde07d182cfa392505bc6b7f7ce0dc"
+    ]
+  }
+}
