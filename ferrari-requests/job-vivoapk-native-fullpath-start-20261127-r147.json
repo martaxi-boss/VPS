@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "id": "vivoapk-native-fullpath-start-20261127-r147",
+  "kind": "ruflo-team",
+  "phase": "start",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "host": "Codex",
+  "mission": "Validate real authorized RTP1 through actual Jellyfin12.4, native PlaybackInfo, FFprobe, native FFmpeg HLS output, decode delivered segments and preserve production; then candidate promotion only after all exact release gates.",
+  "roles": [
+    {
+      "id": "tester",
+      "type": "tester",
+      "actions": [
+        "rea-mcp"
+      ]
+    },
+    {
+      "id": "reviewer",
+      "type": "reviewer",
+      "actions": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "real-native-output",
+      "role": "tester",
+      "reviewer": "reviewer",
+      "goal": "Use a bounded disposable native Jellyfin in existing isolated network, actual authorized provider account, exact backend1e plus byte-identical source verified normal plugin b2fd for TEST ONLY. No production activation. Decode only output delivered by native authenticated HLS. Clean ephemeral processes/cache/keys; preserve production. Denials terminal, no workaround.",
+      "depends_on": []
+    }
+  ]
+}
