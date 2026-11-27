@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "id": "lowcost-category-qa-start-20261127",
+  "kind": "ruflo-team",
+  "phase": "start",
+  "team_id": "lowcost-category-perf-20261127",
+  "host": "ChatGPT",
+  "mission": "Verify Low Cost Europa category performance correction with public-site browser evidence, preservation of observed prices and affiliate paths, and no indexing regressions.",
+  "roles": [
+    {
+      "id": "arq",
+      "type": "architect",
+      "actions": []
+    },
+    {
+      "id": "coder",
+      "type": "coder",
+      "actions": []
+    },
+    {
+      "id": "tester",
+      "type": "tester",
+      "actions": [
+        "rea-mcp"
+      ]
+    },
+    {
+      "id": "reviewer",
+      "type": "reviewer",
+      "actions": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "design",
+      "role": "arq",
+      "reviewer": "reviewer",
+      "goal": "Record baseline, exact preservation and performance acceptance criteria; review scope of PR 293.",
+      "depends_on": []
+    },
+    {
+      "id": "code",
+      "role": "coder",
+      "reviewer": "arq",
+      "goal": "Record PR test results and verified production deployment evidence.",
+      "depends_on": [
+        "design"
+      ]
+    },
+    {
+      "id": "test",
+      "role": "tester",
+      "reviewer": "reviewer",
+      "goal": "Capture public category timings and navigation evidence via Ferrari REA after verified production rollout.",
+      "depends_on": [
+        "code"
+      ]
+    }
+  ]
+}
