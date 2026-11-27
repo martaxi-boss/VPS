@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-native-version-review-20261127-r155",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 5,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Pilot no longer reports process exit/listener conflict, but fails startup gate before login/media. Need record safe public HTTP status and version, and compare pilot against READ-ONLY installed production public version plus already-pinned3coreDLL hashes. Do not guess Version prefix from release directory label. No source media opened or provider refusal; production/PIDs preserved, cleanup verified. Correct fixture gate with evidence, do not weaken media acceptance.",
+    "evidence_sha256": [
+      "4987a847167778f7edc4d8cf5e0b1737b5db25d72e2b12af52bd28261dbc7231"
+    ]
+  }
+}
