@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "id": "vivoapk-recover-cleaned-fixture-20261127-r221",
+  "kind": "ruflo-team",
+  "phase": "recover",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 59,
+  "task": "real-native-output",
+  "reason": "Inspected failedr215: readonly0444 test metadata caused startup permission errors. r219 verified orphan svcUID/PGID/PPID/path, stopped only that backend, removed exact disposable paths; production unchanged. Fixture now0644 and bounded stderr files; syntax/Ruff pass. FullnativeCI d584 passed. Acknowledge duplicate risk; retry requires absent paths and idle authorized test line.",
+  "acknowledge_risk": true
+}
