@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "id": "lowcost-category-qa-code-20261127",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "lowcost-category-perf-20261127",
+  "revision": 2,
+  "turn": {
+    "task": "code",
+    "role": "coder",
+    "kind": "submit",
+    "message": "PR 293 merged at 68bc3c4a2921a0db31d29fad6446234a733d1229. CI 46035816683: 845 tests OK; main CI 46036190678, browser QA 46036190587 and final audit 46036190415 all success. Guarded rollout 46036225032 passed, canonical/hreflang 23/23, exact public content including ordered cards/prices and original affiliate paths plus sitemap parity PASS, unchanged timers, GitHub/VPS alignment PASS. PT median homepage 2.339 -> 0.150 s, Cavitacao 6.363 -> 0.171 s. PT remaining category HTTP timings Aqua 4.530 -> 0.154 s, Pressoterapia 4.167 -> 0.184 s, HIFU 3.256 -> 0.193 s, Laser 2.421 -> 0.156 s. All three Cavitacao locale variants and homepage guard passed. One-shot rollout removed from main via 5f5409ec134d5fd0e3d896745fc26f68a7b506da. Core-sites full audit re-run requested. Production HTTP results do not prove full mobile rendering or Google indexing; independent REA verification remains required."
+  }
+}
