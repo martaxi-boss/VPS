@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-episode-preflight-review-20261127-r229",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 65,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "r227 episode did not reach provider or native setup: preflight previous-worker checker scanned command payloads and matched root runner source containing both literal uvicorn and previous socket names. Resource absence predicate passed; previous_orphans predicate failed atline94. Fix checker to require vivoapksvc UID for embedded Python backend code, or exact prior Jellyfin datadir argv; verify old artifacts absent with independent r228 rehearsal. No duplicate side effects from failed preflight. For next real finite testing use latency candidate46a1a437d11618fc9183fcf658c2c1b7125dca48 only after source/plugin hashes and CI checks: reduces finite delivery to512KiB while preserving4MiB backend cap and all entitlement gates. Production12b unchanged; do not certify episode or startup latency yet.",
+    "evidence_sha256": [
+      "dd83be00d20d75cf9a4c1a8280be5a1b34116ed9fb673f9304a57654d57adfa0"
+    ]
+  }
+}
