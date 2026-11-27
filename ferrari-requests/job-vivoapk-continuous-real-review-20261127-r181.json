@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-continuous-real-review-20261127-r181",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 31,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Real RTP1 candidate full-path passed: 67.1sec, 27 native HLS segments, new media at65.07sec, decoded1650video3095audio frames, anonymous denied, stopped native TS cache0; no production activation. Complete candidate resolver bound in isolated private namespace. Evidence normalized stdout was truncated at8190bytes after explicit pass fields; preserve this limitation and use compact complete summaries for next tests. Require real movie/episode checks, final exact-source CI artifact, guarded production upgrade/recovery proof and real production validation before overall completion. Do not repeat passed RTP1 unnecessarily.",
+    "evidence_sha256": [
+      "a4d4349ee2b2c20f35ecb3b95c58a9925f6f191d9c56de97b0d33354d65f6348"
+    ]
+  }
+}
