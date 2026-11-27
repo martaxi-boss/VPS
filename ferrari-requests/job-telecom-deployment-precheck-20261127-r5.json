@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "telecom-deployment-precheck-20261127-r5",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import os,sys,json,shutil,stat,pathlib,subprocess\nroot=pathlib.Path('/srv/projects'); target=root/'Telecom-Intelligence-Portugal'\ndef info(p):\n try:\n  s=p.lstat()\n  return {'exists':True,'directory':stat.S_ISDIR(s.st_mode),'symlink':stat.S_ISLNK(s.st_mode),'uid':s.st_uid,'mode':oct(stat.S_IMODE(s.st_mode)),'writable':os.access(p,os.W_OK|os.X_OK)}\n except FileNotFoundError:return {'exists':False}\nprint('TELECOM_DEPLOY_PREFLIGHT='+json.dumps({'uid':os.geteuid(),'python':sys.version.split()[0],'parent':info(root),'target':info(target),'disk_free_gib':round(shutil.disk_usage(root).free/2**30,2),'gpg':bool(shutil.which('gpg')),'tesseract':bool(shutil.which('tesseract')),'systemd_run':bool(shutil.which('systemd-run')),'port_8765_unused':not any(l.split()[1].endswith(':223D') and l.split()[3]=='0A' for f in ('/proc/net/tcp','/proc/net/tcp6') for l in open(f).read().splitlines()[1:])}),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 15000,
+          "idle_timeout_ms": 15000,
+          "terminal": {
+            "columns": 160,
+            "rows": 30,
+            "scrollback": 60
+          },
+          "limits": {
+            "output_bytes": 6000
+          }
+        }
+      }
+    }
+  ]
+}
