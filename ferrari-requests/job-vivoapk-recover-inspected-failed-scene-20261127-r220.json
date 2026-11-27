@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "id": "vivoapk-recover-inspected-failed-scene-20261127-r220",
+  "kind": "ruflo-team",
+  "phase": "recover",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 59,
+  "task": "real-native-output",
+  "reason": "Inspected r215 tool failure and its effects via r217/r218/r219. Temporary metadata was0444; native startup logs have UnauthorizedAccessException/Permission denied/Error while starting server. Only verified orphan backend(pid1768887,uidvivoapksvc,pgrp=pid,ppid1,exactbase/uvicorn argv) was stopped; exact disposable paths removed, all productionPIDs unchanged. No cached media/audit requests were found. Fixed fixture metadata copy0644 and bounded regular-file stderr reads, verified outer/nested syntax and Ruff. FullnativeCI46065913775 now also passed for exactd584. Acknowledge duplicate-call risk; next fresh execution requires absent temp paths and idle authorized test line, preserves vendor refusals and production.",
+  "acknowledge_risk": true
+}
