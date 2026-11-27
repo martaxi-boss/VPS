@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-native-pilot-review-20261127-r150",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 1,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Pilot initialization failed before native server setup. Production preserved and own processes/key/media cleaned, but no integrated media proof. Use absolute nsenter/runuser executables (minimal PATH lacks /usr/sbin) and add sanitized startup exit/error classes; never expose raw logs or credential URLs. Re-run exact same admitted account/channel without media route/identity change.",
+    "evidence_sha256": [
+      "644ee5dceb796f84feaa0b79fff3cca17c654eb2cc7e885dcea4b5c571cda4de"
+    ]
+  }
+}
