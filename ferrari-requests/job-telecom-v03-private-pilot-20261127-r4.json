@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "telecom-v03-private-pilot-20261127-r4",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import os,sys,json,shutil,tempfile,hashlib,subprocess,urllib.request,concurrent.futures,pathlib\ncommit='d6a4173cb6aa3d1ce35c6b55fcc58a281743c58b'\nfiles={'app.py':'5e80f073634b625cd0e323c61494988444d69641','documents.py':'4f517a01d6bfb200ff521edfd1e051bf98274882','intake.py':'072de1a212b0c28b94f87f958f11a9ea32f87f18','test_app.py':'3d24cb12a974bc9c0923641dae41a8a454e7c3ec','test_documents.py':'905669b10352629064ab78c1fa7aeb529293e9d4','test_pilot.py':'67c0e641797c5dff005ca3e322920b9893f4b444','amostra_100_ficticios.csv':'b1ede672144ec261f15dd0542d3cef570bd25f42'}\nenv={**os.environ,'PYTHONDONTWRITEBYTECODE':'1','OMP_THREAD_LIMIT':'1','PIP_NO_CACHE_DIR':'1','PIP_DISABLE_PIP_VERSION_CHECK':'1'}\ndef fetch(url,cap):\n with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'Telecom-PT validation'}),timeout=10) as f:\n  b=f.read(cap+1)\n  if len(b)>cap:raise ValueError('size')\n  return b\ndef ghhash(b):return hashlib.sha1(b'blob '+str(len(b)).encode()+b'\\0'+b).hexdigest()\ndef get(item):\n n,h=item;b=fetch('https://raw.githubusercontent.com/martaxi-boss/Telecom-Intelligence-Portugal/'+commit+'/'+n,65536)\n if ghhash(b)!=h:raise ValueError('hash mismatch '+n)\n return n,b\ndef run(args,cwd,timeout):\n try:\n  p=subprocess.run(args,cwd=cwd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=timeout,env=env)\n  return p.returncode,p.stdout\n except subprocess.TimeoutExpired:return 124,'timeout'\nr={'scope':'synthetic pilot; no real records; no persistent service; no Ollama','commit':commit}\ntry:\n with tempfile.TemporaryDirectory(prefix='telecom-pilot-') as d:\n  env['TMPDIR']=d\n  with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:downloads=list(ex.map(get,files.items()))\n  for n,b in downloads:pathlib.Path(d,n).write_bytes(b)\n  r['verified_sources']=len(downloads)\n  c,o=run([sys.executable,'-m','unittest','-v','test_app','test_pilot'],d,25);r['core_and_security']={'exit':c,'tail':o[-2800:]}\n  if c==0:\n   td=pathlib.Path(d,'tessdata');td.mkdir()\n   b=fetch('https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/65727574dfcd264acbb0c3e07860e4e9e9b22185/por.traineddata',2100000)\n   assert len(b)==1982756 and ghhash(b)=='e9f373e95c66b4bf557c263721ef31f78e5bc301'\n   (td/'por.traineddata').write_bytes(b);env['TESSDATA_PREFIX']=str(td)\n   c,o=run([sys.executable,'-m','venv',d+'/venv'],d,18);r['venv_exit']=c\n   if c==0:\n    py=d+'/venv/bin/python';c,o=run([py,'-m','pip','--isolated','--disable-pip-version-check','install','--no-input','--no-cache-dir','--progress-bar','off','--only-binary=:all:','--index-url','https://pypi.org/simple','--timeout','6','--retries','0','pypdf==6.21.4','pypdfium2==5.15.2','Pillow==12.3.0','reportlab==4.5.1','charset-normalizer==3.5.3'],d,42);r['pip_exit']=c\n    if c==0:\n     c,o=run([py,'-c',\"import unittest,test_app,test_documents,test_pilot; s=unittest.TestSuite(); l=unittest.defaultTestLoader; s.addTests(l.loadTestsFromModule(test_app)); s.addTests(l.loadTestsFromModule(test_pilot)); s.addTests(test_documents.Documents(n) for n in l.getTestCaseNames(test_documents.Documents) if not n.startswith('test_ai_')); r=unittest.TextTestRunner(verbosity=2).run(s); print('COUNTS',r.testsRun,len(r.failures),len(r.errors),len(r.skipped)); raise SystemExit(not r.wasSuccessful())\"],d,35)\n     r['all_tests']={'exit':c,'counts':next((l for l in o.splitlines() if l.startswith('COUNTS ')),None),'tail':o[-1600:]}\n    else:r['pip_error']=o[-500:]\n r['temp_removed']=not os.path.exists(d)\nexcept Exception as e:r['error']=type(e).__name__+': '+str(e)[:250]\nprint('TELECOM_PILOT_RESULT='+json.dumps(r,ensure_ascii=True),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 145000,
+          "idle_timeout_ms": 145000,
+          "terminal": {
+            "columns": 160,
+            "rows": 100,
+            "scrollback": 200
+          },
+          "limits": {
+            "output_bytes": 13000
+          }
+        }
+      }
+    }
+  ]
+}
