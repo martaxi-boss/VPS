@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "id": "vivoapk-http-client-closed-20261127-r149",
+  "kind": "ruflo-team",
+  "phase": "finish",
+  "team_id": "vivoapk-http-client-20261127",
+  "revision": 4,
+  "approval": "Accept independently reviewed SOURCE DECODE only with exact evidence7acf2b58f03c29de61afb60c4b65fdb53002142d3ddc21636b73f30af70546d0: real authorized RTP1 responded302to200 using truthful client identification and bounded provider-issued continuation; native FFmpeg decoded635video1188audio frames. No production activation or physical-client certification. Remaining whole Jellyfin output is tracked in separate real-native-output task."
+}
