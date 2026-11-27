@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "id": "lowcost-category-qa-design-20261127",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "lowcost-category-perf-20261127",
+  "revision": 0,
+  "turn": {
+    "task": "design",
+    "role": "arq",
+    "kind": "submit",
+    "message": "Baseline confirmed in production rollout #46033856775: PT Cavitacao 6.369 s, PT Aqua 4.597 s, PT Pressoterapia 3.848 s, PT HIFU 3.415 s, PT Laser 2.541 s, PT home 2.444 s. PR 293 preserves existing fact-selection predicates and replaces observation-driven correlated scans with one bounded query per visible offer set plus one distinct-row fetch. Review 845 tests (reference parity in both price modes, ties, stale/future/ES/USD/null data, duplicate offers), browser QA and no migration drift. Only 3 source/test files. Guarded rollout requires all 23 URLs, canonical/hreflang, exact public headings, images, ordered offer cards/prices/currencies, affiliate destinations and sitemaps unchanged; require measured Cavitacao improvement, no material homepage regression, unchanged service/timers and pinned Git revision; rollback on failure. After rollout capture public REA timings and independently repeat Core-sites. Search Console remains unverified."
+  }
+}
