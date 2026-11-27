@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-failed-scene-forensic-readonly-20261127-r218",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\np=subprocess.run([\"sudo\",\"-n\",\"--\",\"/srv/projects/Vivoapk/.venv/bin/python\",\"-I\",\"-B\",\"-c\",\"import contextlib,json,os,subprocess,time,re\\nfrom pathlib import Path\\nbase=Path('/srv/projects/Vivoapk/run/native-pvod')\\nR={'read_only':True,'production_activation':False,'secrets_emitted':False,'base_exists':base.is_dir()}\\nancestors={os.getpid()};p=os.getpid()\\nfor _ in range(8):\\n try:p=int(Path('/proc',str(p),'stat').read_text().rsplit(')',1)[1].split()[1]);ancestors.add(p)\\n except Exception:break\\nprocesses=[]\\nfor proc in Path('/proc').iterdir():\\n if not proc.name.isdecimal() or int(proc.name) in ancestors:continue\\n with contextlib.suppress(OSError,ValueError,IndexError):\\n  args=(proc/'cmdline').read_bytes()\\n  if str(base).encode() not in args:continue\\n  fields=(proc/'stat').read_text().rsplit(')',1)[1].split()\\n  processes.append({'pid':int(proc.name),'ppid':int(fields[1]),'pgrp':int(fields[2]),'program':(proc/'exe').resolve().name,'state':fields[0]})\\nR['own_runtime_processes']=processes\\naudit=base/'b/audit.jsonl'\\nif audit.is_file():\\n events=[]\\n for line in audit.read_text()[-200000:].splitlines():\\n  with contextlib.suppress(ValueError):\\n   item=json.loads(line)\\n   if isinstance(item,dict):events.append(item)\\n R['audit_last_events']=events[-10:]\\n R['audit_bytes']=audit.stat().st_size\\n R['audit_age_seconds']=round(time.time()-audit.stat().st_mtime,1)\\nlogs=''\\nif (base/'j/logs').is_dir():\\n for path in (base/'j/logs').iterdir():\\n  if path.is_file():logs+=path.read_text(errors='replace')[-120000:]\\nR['native_io_timeouts_us']=sorted({int(v) for v in re.findall(r'-rw_timeout[ \\\\\\\\t]+([0-9]{1,12})',logs)})\\nR['native_error_counts']={phrase:logs.lower().count(phrase) for phrase in ('moov atom not found','invalid data found','connection timed out','i/o error','unsupported codec','protocol not found')}\\nR['cached_native_ts_files']=len(list((base/'j/cache').rglob('*.ts'))) if (base/'j/cache').is_dir() else 0\\nR['cached_native_playlist_files']=len(list((base/'j/cache').rglob('*.m3u8'))) if (base/'j/cache').is_dir() else 0\\nprint(json.dumps(R,sort_keys=True))\\n\"],capture_output=True,text=True,timeout=40)\ntry:r=json.loads(p.stdout.strip())\nexcept Exception:r={\"valid_json\":False,\"exit\":p.returncode}\nprint(json.dumps(r,sort_keys=True))"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 50000,
+          "idle_timeout_ms": 45000,
+          "terminal": {
+            "columns": 150,
+            "rows": 40,
+            "scrollback": 100
+          },
+          "limits": {
+            "output_bytes": 12000
+          }
+        }
+      }
+    }
+  ]
+}
