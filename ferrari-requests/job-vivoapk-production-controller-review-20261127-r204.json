@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-production-controller-review-20261127-r204",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 49,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Production r203 reached actual authorized native H264/AAC MPEGTS PlaybackInfo, master200 and3native segments; failed only controller NameError at decoder invocation because temporary-fixture env definition was removed. Added explicit child-only PATH/LANG env and ran Ruff F821/F823/syntax checks for both controllers. Move Started report to first media segment (actual player start), retain short-timeout own Stop/reset and report their statuses instead of silent exceptions. Cache job identification was false; do not claim production progressive cache observation. No production implementation/config change, protected service PIDs unchanged. Repeat needed180sec production proof, no requirement to repeat prior isolated67sec.",
+    "evidence_sha256": [
+      "7128ece5cc944edcac1117aa4c571feafc17754af99612d0ef440d2d0e4a4268"
+    ]
+  }
+}
