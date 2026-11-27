@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-finite-native-probe-review-20261127-r208",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 53,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Exact11a real movie progressed beyond302: original file transport returned206 and private finite read206, close204; no authorization refusal. PlaybackInfo still404 before native output. Native probe source code currently forces MOV-only finite format,8sec socket and20sec process budget; observed file operation took~11sec, but exact container/header and window byte count still unrecorded. Do not guess codec/format or deploy candidate as complete. Instrument original finite probe/read results (safe MIME/extension, exact window length/latency, typed file magic) without extra upstream requests; optionally analyze already-read bounded bytes with same installed FFprobe in RAM, no raw URLs/content/tags. Preserve passed production180sec TV, source/auth/catalog/DNS and all cleanup controls.",
+    "evidence_sha256": [
+      "e04f4e611b20d71d6ef54bd702aeafcda962f3aee7ff9ec2e89fbdf7c237fa23"
+    ]
+  }
+}
