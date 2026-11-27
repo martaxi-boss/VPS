@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-installed-live-release-review-20261127-r202",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 47,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Coordinated exact12b production activation committed successfully. Actual postflight verified selected clean source/cwd, loaded native/plugin hashes, current admin stable fingerprint, API/UDS/privacy/service protections, native FFmpeg pin, original key and installed20sec cache policy; backend/Jellyfin restart only, unrelated services preserved. Permanent private backup/journal retained; no automatic rollback needed. Next actual production native RTP1 test180sec spans150sec lease-renew threshold; require new output late in test, actual video/audio decode, anonymous denial, exact-own cache lifecycle and explicit stop. Finite11a candidate remains uninstalled and unproved real; no physical platform certification.",
+    "evidence_sha256": [
+      "b00021ed849dbaf4d8723be36fe92c0d4cfd83c75a17d9d8ccbc697cb229304b"
+    ]
+  }
+}
