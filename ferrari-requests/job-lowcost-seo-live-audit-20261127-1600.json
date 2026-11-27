@@ -1,0 +1,134 @@
+{
+  "version": 1,
+  "id": "lowcost-seo-live-audit-20261127-1600",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_browser_scenario",
+        "arguments": {
+          "browser": {
+            "mode": "launch",
+            "executable_path": "/srv/projects/skill-universal/.runtime/browsers/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell"
+          },
+          "start_url": {
+            "url": "https://www.lowcost-europa.eu/pt/"
+          },
+          "environment": {
+            "viewport": {
+              "width": 390,
+              "height": 844,
+              "device_scale_factor": 1
+            },
+            "locale": "pt-PT",
+            "timezone": "Europe/Lisbon"
+          },
+          "actions": [
+            {
+              "step_id": "xml",
+              "action": "request",
+              "method": "GET",
+              "path": "/sitemap.xml",
+              "expected_status": [
+                200
+              ],
+              "timeout_ms": 20000
+            },
+            {
+              "step_id": "txt",
+              "action": "request",
+              "method": "GET",
+              "path": "/sitemap.txt",
+              "expected_status": [
+                200
+              ],
+              "timeout_ms": 20000
+            },
+            {
+              "step_id": "robots",
+              "action": "request",
+              "method": "GET",
+              "path": "/robots.txt",
+              "expected_status": [
+                200
+              ],
+              "timeout_ms": 20000
+            },
+            {
+              "step_id": "cavitacao",
+              "action": "request",
+              "method": "GET",
+              "path": "/pt/products/cavitacao-rf-vacuum-corpo/",
+              "expected_status": [
+                200
+              ],
+              "timeout_ms": 20000
+            },
+            {
+              "step_id": "aqua",
+              "action": "request",
+              "method": "GET",
+              "path": "/pt/products/hydrodermoabrasao-aqua-facial-multifuncoes/",
+              "expected_status": [
+                200
+              ],
+              "timeout_ms": 20000
+            },
+            {
+              "step_id": "pressoterapia",
+              "action": "request",
+              "method": "GET",
+              "path": "/pt/products/pressoterapia-vacuum-drenagem/",
+              "expected_status": [
+                200
+              ],
+              "timeout_ms": 20000
+            },
+            {
+              "step_id": "hifu",
+              "action": "request",
+              "method": "GET",
+              "path": "/pt/products/hifu/",
+              "expected_status": [
+                200
+              ],
+              "timeout_ms": 20000
+            },
+            {
+              "step_id": "laser",
+              "action": "request",
+              "method": "GET",
+              "path": "/pt/products/diodo-laser-remocao-tatuagens-pigmentacao/",
+              "expected_status": [
+                200
+              ],
+              "timeout_ms": 20000
+            }
+          ],
+          "capture": {
+            "at_end": [
+              "url",
+              "dom",
+              "accessibility",
+              "screenshot"
+            ],
+            "events": [
+              "network",
+              "page-errors"
+            ],
+            "network": {
+              "response_body": true,
+              "header_values": true
+            },
+            "limits": {
+              "max_network_body_bytes": 150000,
+              "max_network_body_allocation_bytes": 2000000
+            }
+          },
+          "command_timeout_ms": 20000
+        }
+      }
+    }
+  ]
+}
