@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "telecom-v04-install-readback-20261127-r9",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import os,sys,pathlib,stat,hashlib,json,sqlite3,subprocess\nroot=pathlib.Path('/srv/projects/Telecom-Intelligence-Portugal')\nm=json.loads((root/'installation.json').read_text())\nassert m['commit']=='2265a73f121b12d291a506457befc47dcef9f64c'\ndef h(p):\n b=p.read_bytes();return hashlib.sha1(b'blob '+str(len(b)).encode()+b'\\0'+b).hexdigest()\nchecked={n:h(root/'source'/n)==v for n,v in m['source_hashes'].items()}\nassert all(checked.values()) and len(checked)==6\nprivate_paths=['private/auth','private/backup.key','data/real.sqlite3','backups/initial-empty.enc']\nassert all(stat.S_ISREG((root/p).lstat().st_mode) and not ((root/p).lstat().st_mode&0o077) and (root/p).lstat().st_uid==os.geteuid() for p in private_paths)\nassert stat.S_IMODE(root.lstat().st_mode)==0o700 and not root.is_symlink()\nassert h(root/'tessdata'/'por.traineddata')=='e9f373e95c66b4bf557c263721ef31f78e5bc301'\ncon=sqlite3.connect('file:'+str(root/'data'/'real.sqlite3')+'?mode=ro',uri=True)\ncounts={n:con.execute('SELECT COUNT(*) FROM '+n).fetchone()[0] for n in ('contratos','grants','oposicoes','revoked')}\nintegrity=con.execute('PRAGMA integrity_check').fetchone()[0];mode=con.execute(\"SELECT value FROM meta WHERE key='mode'\").fetchone()[0];con.close()\nassert mode=='real' and integrity=='ok' and counts['contratos']==0\np=subprocess.run([str(root/'venv'/'bin'/'python'),'-m','pip','check'],capture_output=True,timeout=10)\nassert p.returncode==0\nassert all(subprocess.run(['/bin/sh','-n',str(root/n)],capture_output=True,timeout=3).returncode==0 for n in ('telecom.sh','run-panel.sh'))\nport_used=any(l.split()[1].endswith(':223D') and l.split()[3]=='0A' for f in ('/proc/net/tcp','/proc/net/tcp6') for l in open(f).read().splitlines()[1:])\nassert not port_used\nsize=sum(p.stat().st_size for p in root.rglob('*') if p.is_file() and not p.is_symlink())\nprint('TELECOM_READBACK='+json.dumps({'installed':True,'commit':m['commit'],'verified_sources':len(checked),'directory_mode':'0700','private_files':True,'ocr_hash_ok':True,'dependency_check':True,'launchers_syntax':True,'real_records':counts['contratos'],'grant_records':counts['grants'],'db_integrity':integrity,'port_8765_unused':not port_used,'approx_disk_mib':round(size/2**20,1)},ensure_ascii=True),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 20000,
+          "idle_timeout_ms": 20000,
+          "terminal": {
+            "columns": 160,
+            "rows": 30,
+            "scrollback": 60
+          },
+          "limits": {
+            "output_bytes": 6000
+          }
+        }
+      }
+    }
+  ]
+}
