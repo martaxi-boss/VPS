@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-file-instrumentation-review-20261127-r193",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 39,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "r191 failed only in temporary backend instrumentation at startup before native/provider file access, all fixture processes/keys/media removed and production unchanged. Diagnostic tried patching __kwdefaults__ on contextmanager wrapper; corrected via inspect.unwrap(original) and verified mechanism locally with a dependency-free contextmanager test. Runtime implementation remains untouched. Repeat only needed file-status observation; do not repeat approved live playback. Independently cache configuration was committed by separate r192, so capture new baseline production process IDs after it, preserve permanent key/config/backups.",
+    "evidence_sha256": [
+      "65b34c084cda38ba57e99062de5bef215d21f1bd58c4564440f8d163d23aba63"
+    ]
+  }
+}
