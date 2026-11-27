@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-http-redirect-review-20261127-r142",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-http-client-20261127",
+  "revision": 1,
+  "turn": {
+    "task": "truthful-media-client",
+    "role": "reviewer",
+    "kind": "review",
+    "message": "r141 proves truthful header was sent and the current official source returned302, not401. No media was accepted because existing reader rejects all redirects; do not certify decode or assert sole cause of historical401. This is a provider-issued continuation, not an authorization denial. Add explicit server-only bounded public-IP-pinned redirect support, no TLS downgrade, no customer header/cookie forwarding, sequential close, loops/hop limits and terminal401/403. Validate synthetic security boundaries before a fresh normal redirect flow; retain existing engine and source ownership checks.",
+    "verdict": "changes_requested",
+    "evidence_sha256": [
+      "cf35a786b08c8d7910446229c81543562bd0c3eec154ed6c3a394ed71f89a1e0"
+    ]
+  }
+}
