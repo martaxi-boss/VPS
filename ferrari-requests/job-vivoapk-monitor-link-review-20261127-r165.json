@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-monitor-link-review-20261127-r165",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 15,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "r164 proves actual host env/4flags/media permissions/Mega auth provider correct, itemVideo notfolder, but monitor-key expected path is neither regular nor readable by Jellyfin. NativePlaybackAuthorization always requires Entitlements.CheckEntitlementAsync; missing key returnsUnavailable before transport. Inspect existing production backend's effective monitor configuration/cofre privately; if already configured, validate current allowed test account's entitlement with that exact key and restore only missing fixed file ownerjellyfinpink0400, never disable entitlement guard or emit secret. Stop if no configured canonical key or mismatch. Preserve protected services. Then same native pilot.",
+    "evidence_sha256": [
+      "6fc5fefe36a741a2a382cced75a051f67f99724332a3bd34f649b3891bda8215"
+    ]
+  }
+}
