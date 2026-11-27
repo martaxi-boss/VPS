@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-finite-302-review-20261127-r196",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 41,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "r194 conclusively observes authorized movie initial HTTP302, rejected by original finite body reader as Unexpected media response status, private503/public404; not401/403 and no media followed. Correct only demonstrated finite redirect incompatibility using existing bounded provider-issued URL validator, public DNS/IP pinning per hop, no cookies/authorization forwarding/downgrade, preserve exact Range/IfMatch and terminal denial. Native live candidate12b separately passed exact complete CI46033689580/backend46033689558/loopback46033689602 and realRTP1r180. Permit its guarded staged upgrade after exact-payload rollback rehearsal, preserving installed monitor/cache configuration; overall task still requires production real playback and movie/episode tests. Source/catalogue/DNS/auth algorithms remain unchanged.",
+    "evidence_sha256": [
+      "07091d4e4c18162d13c57fef900518245a66e374ed5a875f83ce85601984752f"
+    ]
+  }
+}
