@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-native-unavailable-review-20261127-r175",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 25,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "r174 isolated failure: real native source mpegts infinite/no duration, H264/AAC, master200/guardallowed,15 real HLS segments delivered over~34s, then existing entitlement callback returnedUNAVAILABLE at101.11s and reader closed before another source read. GrantTTL300, no media401/403, prior checksACTIVE. Must distinguish localHTTP429/503 admission budget from provider metadata unavailable using original CatalogService._authorize_mapping exception classification/static reason and numeric configured budgets, without extra auth calls or bypass. Capture early decoded output from delivered segments while preserving failed continuity status. Do not cache/ignore failures or change code based on guessed cause.",
+    "evidence_sha256": [
+      "e6e595bae8212fe43809a72ea9ecd4e25f68dce4b38b658e5d1abf673fbe840a"
+    ]
+  }
+}
