@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-native-pilot-net-review-20261127-r152",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 3,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Native pilot now reaches actual Jellyfin but startup fails134 address already in use in production network namespace. No media request made; no source refusal. Use its own bounded loopback-only network namespace to avoid discovery/listener conflict, native UDS to backend, with backend provider network/IP unchanged. This is local process isolation, no provider route/tunnel/identity workaround. Keep sanitized errors and cleanup. Exact current release fullCI45972964003 now passes10gates; artifact15186703397 is available for later same-source deployment, not yet activated.",
+    "evidence_sha256": [
+      "ae18810ed3e51d193b7885e1df08aa432ef235022d86f9c4e37d9b991561706c"
+    ]
+  }
+}
