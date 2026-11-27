@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "telecom-rea-supplier-schema-20261127-r11",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import concurrent.futures,urllib.request,urllib.error,html.parser,unicodedata,re,json,hashlib\nclass Visible(html.parser.HTMLParser):\n def __init__(self):super().__init__(convert_charrefs=True);self.hidden=0;self.parts=[]\n def handle_starttag(self,tag,attrs):\n  if tag in ('script','style','noscript','template'):self.hidden+=1\n def handle_endtag(self,tag):\n  if tag in ('script','style','noscript','template') and self.hidden:self.hidden-=1\n def handle_data(self,data):\n  if not self.hidden:self.parts.append(data)\ndef norm(text):\n return re.sub(r'\\s+',' ',''.join(c for c in unicodedata.normalize('NFKD',text.casefold()) if not unicodedata.combining(c))).strip()\ntargets=[\n ('hg_schema','https://phoenix.hginsights.com/docs/mcp-tools/company-contracts',['start_date','end_date','customer_name','signing_country','contract_term_months','deal_value']),\n ('hg_method','https://rgi-fabric.hginsights.com/data/contracts',['publicly available sources','government procurement','start and end dates','outsourced ict','service provider']),\n ('globaldata','https://www.globaldata.com/marketplace/dataset/it-telecom-contracts/',['3,068','1,938','public & private','api','ftp']),\n ('smartprofile','https://smartprofile.io/success-story/success-story-orange/',['contract end date','large business market','belgian market']),\n ('leadmarket','https://leadmarket.pt/servicos/base-de-dados-b2b/',['faturacao','numero de colaboradores','segmentacao','qualificadas','autorizacao']),\n ('benear','https://www.benear.com/',['aluguer de bases de dados','telecomunicacoes','enriquecer']),\n ('datae','https://www.datae.pt/en/business-telecommunications-barometer',['sole proprietorships','user authentication','cross tables']),\n ('staples','https://corporate.staples.pt/pt/pt/termos-e-condicoes-processo-criacao-de-leads-pacotes-tv-net-voz-movel',['operador atual','data em que termina o contrato','valor mensal que paga atualmente','numero de identificacao fiscal']),\n ('trinity','https://trinityleads.cloud/',['contract end date','average monthly spend','uk businesses','five free leads']),\n ('properleads','https://properleads.co.uk/business/',['contract end date','current supplier','uk suppliers','first party'])\n]\ndef probe(item):\n name,url,terms=item\n out={'source':name,'scope':'public provider documentation, no credentials or private records'}\n try:\n  req=urllib.request.Request(url,headers={'User-Agent':'Telecom-PT research public documentation'})\n  with urllib.request.urlopen(req,timeout=12) as res:\n   b=res.read(2097153);out.update(status=res.status,bytes_examined=min(len(b),2097152),truncated=len(b)>2097152)\n  p=Visible();p.feed(b[:2097152].decode('utf-8',errors='replace'));t=norm(' '.join(p.parts))\n  out['visible_terms']={term:norm(term) in t for term in terms}\n  out['matched']=sum(out['visible_terms'].values())\n  out['document_sha256']=hashlib.sha256(b[:2097152]).hexdigest()\n except urllib.error.HTTPError as e:out['status']=e.code\n except Exception as e:out['error']=type(e).__name__\n return out\nwith concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex: results=list(ex.map(probe,targets))\nprint('TELECOM_PROVIDER_SCHEMA='+json.dumps({'results':results,'authenticated_calls':0,'contract_records_downloaded':0,'real_data_imported':0},ensure_ascii=True),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 75000,
+          "idle_timeout_ms": 75000,
+          "terminal": {
+            "columns": 160,
+            "rows": 100,
+            "scrollback": 200
+          },
+          "limits": {
+            "output_bytes": 14000
+          }
+        }
+      }
+    }
+  ]
+}
