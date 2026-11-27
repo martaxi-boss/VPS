@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-native-ready-review-20261127-r157",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 7,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Observed installed version12.4.0 and temporary HTTP200 without Version. Fixture incorrectly broke readiness loop on first200, whereas proven CI requires parsed JSON with actual Version; Jellyfin startup splash can also respond200. Correct loop to wait for exact installed version, bounded70seconds, count not-ready responses; keep all native/media gates unchanged. No real media opened; no external blocker. Production preserved and temporary processes/secrets/media removed.",
+    "evidence_sha256": [
+      "36134c914b5ced2777b9e285a37f354f0018a5933366bb6fea4bf1bf10170a36"
+    ]
+  }
+}
