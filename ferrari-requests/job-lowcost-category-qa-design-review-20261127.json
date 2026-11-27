@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "lowcost-category-qa-design-review-20261127",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "lowcost-category-perf-20261127",
+  "revision": 1,
+  "turn": {
+    "task": "design",
+    "role": "reviewer",
+    "kind": "review",
+    "message": "Reviewed the actual PR 293 diff, PostgreSQL CI log (845 tests OK), browser QA run and previous production timing evidence. The fact selection predicates, eligibility, timestamps and market separation remain equivalent. Guarded rollout requires preservation of ordered cards, public price data, hashed original affiliate destinations, canonical/hreflang and all 23 sitemap URLs; Cavitacao must improve in all three locale routes and home must not materially regress. Rollback and post-deploy REA/Core-sites remain required; no certification of Google indexing or unmeasured production performance yet.",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "1e392c8a35ef4aead9c64661dc0222393f0129d30ef3a62699325347afb71cbd"
+    ]
+  }
+}
