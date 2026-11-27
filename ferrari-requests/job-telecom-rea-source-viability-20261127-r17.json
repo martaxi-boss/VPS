@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "telecom-rea-source-viability-20261127-r17",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,urllib.request,urllib.error,html.parser,unicodedata,re,hashlib,concurrent.futures\nclass PublicPage(html.parser.HTMLParser):\n def __init__(self):super().__init__(convert_charrefs=True);self.hidden=0;self.parts=[];self.labels=[];self.lab=None\n def handle_starttag(self,t,a):\n  if t in ('style','script','template','noscript'):self.hidden+=1\n  if t=='label' and not self.hidden:self.lab=[]\n def handle_endtag(self,t):\n  if t in ('style','script','template','noscript') and self.hidden:self.hidden-=1\n  if t=='label' and self.lab is not None:self.labels.append(' '.join(self.lab));self.lab=None\n def handle_data(self,d):\n  if not self.hidden:\n   self.parts.append(d)\n   if self.lab is not None:self.lab.append(d)\ndef norm(s):return re.sub(r'\\s+',' ',''.join(c for c in unicodedata.normalize('NFKD',s.casefold()) if not unicodedata.combining(c))).strip()\ntargets=[\n ('environe_public_offer','https://environe.pt/telecomunicacoes',{'business':'pedir proposta para a empresa','identifier':'nipc','operator':'operador atual','end_date':'fim do contrato atual','scope':'para responder ao meu pedido'}),\n ('pluricall_micro','https://www.pluricall.pt/solucoes-micro-empresas/',{'custom_collection':'recolhendo dados especificos','business':'empresas ou particulares','qualification':'qualificacao de base de dados'}),\n ('pluricall_large','https://www.pluricall.pt/solucoes-grandes-empresas/',{'custom_collection':'recolhendo dados especificos','business':'empresas ou particulares','qualification':'qualificacao de base de dados'}),\n ('altavista360_export','https://altavista360.com/pt/servicos/chamadas-emitidas/',{'telecom_sector':'telecomunicacoes','qualified_records':'qualificacao estruturada','automatic_delivery':'fluxo automatizado','structured_export':'exportacao estruturada','pilot':'fase de teste num volume reduzido'}),\n ('revaliq_standard_schema','https://www.revaliq.pt/base-de-dados/',{'business_id':'nipc','generic_export':'csv','company':'entidade','activity':'cae'}),\n ('callback_first_party','https://callback.pt/reduzir-custos-telecomunicacoes/',{'invoice':'analise gratuita da fatura','official_agent':'agentes oficiais meo empresas','renewal':'renegociacao do contrato','followup':'acompanhamento durante o contrato'})]\ndef probe(it):\n k,url,terms=it;r={'source':k,'url':url,'scope':'public published source only'}\n try:\n  req=urllib.request.Request(url,headers={'User-Agent':'Telecom-PT documented source viability review'})\n  with urllib.request.urlopen(req,timeout=12) as f:\n   b=f.read(2097153);r['status']=f.status\n  if len(b)>2097152:r['truncated']=True\n  p=PublicPage();p.feed(b[:2097152].decode('utf-8',errors='replace'));t=norm(' '.join(p.parts))\n  r['criteria']={k:norm(v) in t for k,v in terms.items()}\n  if k=='environe_public_offer':\n   labs=[norm(x) for x in p.labels]\n   r['public_label_evidence']={k:any(norm(v) in x for x in labs) for k,v in terms.items() if k in ('identifier','operator','end_date')}\n  r['fidelity_exact_word']=bool(re.search(r'\\bfideliza',t))\n  r['explicit_end_date_phrase']=any(x in t for x in ('fim do contrato atual','fim da fidelizacao','data de fim da fidelizacao','data de fim do contrato'))\n  r['sha256_examined_bytes']=hashlib.sha256(b[:2097152]).hexdigest()\n except urllib.error.HTTPError as e:r['status']=e.code\n except Exception as e:r['error']=type(e).__name__\n return r\nwith concurrent.futures.ThreadPoolExecutor(max_workers=2) as ex:out=list(ex.map(probe,targets))\nprint('TELECOM_VIABILITY_REA='+json.dumps({'results':out,'authenticated_calls':0,'forms_submitted':0,'contract_records_retrieved':0,'commercial_source_verified':False,'scope':'evidence of first-party acquisition, qualification and structured delivery; not access to a pre-existing customer database'},ensure_ascii=True),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 75000,
+          "idle_timeout_ms": 75000,
+          "terminal": {
+            "columns": 160,
+            "rows": 100,
+            "scrollback": 200
+          },
+          "limits": {
+            "output_bytes": 14000
+          }
+        }
+      }
+    }
+  ]
+}
