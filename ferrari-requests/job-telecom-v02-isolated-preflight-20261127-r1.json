@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "telecom-v02-isolated-preflight-20261127-r1",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import os,sys,json,shutil,tempfile,hashlib,subprocess,urllib.request,urllib.error,concurrent.futures,importlib.util,pathlib,time\ncommit='6f3fbbc87097c67bdfd42f2a72900cdc102f2f02'\nfiles={'app.py':'46e4140e1cdf4a9ce6b1aa248118c37c32557341','documents.py':'4f517a01d6bfb200ff521edfd1e051bf98274882','test_app.py':'3d24cb12a974bc9c0923641dae41a8a454e7c3ec','test_documents.py':'905669b10352629064ab78c1fa7aeb529293e9d4','amostra_100_ficticios.csv':'b1ede672144ec261f15dd0542d3cef570bd25f42','fatura_exemplo_ficticia.txt':'343f1df0242ffff062684b835085b37bc94d4902','modelo_importacao.csv':'a34db1fab2238b4aded01e9c5f7f34623a1fe99c'}\nurls={'meo_open_gateway':'https://www.meo.pt/empresas/solucoes/solucoes-digitais/meo-open-network-apis','streamroad':'https://streamroad.pt/servicos-comerciais/','datae':'https://www.datae.pt/pt/barometro-telecomunicacoes-empresas','smart_profile':'https://smartprofile.io/success-story/success-story-orange/'}\ndef fetch(url,cap):\n try:\n  with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'Telecom-Intelligence-PT connectivity test'}),timeout=7) as r:\n   return r.status,r.read(cap+1),None\n except urllib.error.HTTPError as e:return e.code,b'',None\n except Exception as e:return None,b'',type(e).__name__\ndef probe(kv):\n k,u=kv\n st,b,e=fetch(u,4096)\n return k,{'http_status':st,'error':e,'read_bytes':len(b),'scope':'public website connectivity only'}\ndef run(args,cwd,timeout=22):\n try:\n  p=subprocess.run([sys.executable]+args,cwd=cwd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=timeout,env={**os.environ,'PYTHONDONTWRITEBYTECODE':'1'})\n  return {'exit':p.returncode,'tail':p.stdout[-2200:]}\n except subprocess.TimeoutExpired:return {'exit':124,'tail':'timeout'}\nr={'scope':'synthetic tests only; no installation, credentials, real records, external listening or persistent services','commit':commit,'python':sys.version.split()[0],'deps':{x:importlib.util.find_spec(x) is not None for x in ('pypdf','pypdfium2','PIL','reportlab')},'tesseract_available':bool(shutil.which('tesseract'))}\nwith concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:r['public_https']=dict(ex.map(probe,urls.items()))\ndef download(item):\n n,h=item;st,b,e=fetch('https://raw.githubusercontent.com/martaxi-boss/Telecom-Intelligence-Portugal/'+commit+'/'+n,65536)\n digest=hashlib.sha1(b'blob '+str(len(b)).encode()+b'\\0'+b).hexdigest()\n return n,b,{'http':st,'verified':st==200 and len(b)<=65536 and digest==h,'error':e}\nwith tempfile.TemporaryDirectory(prefix='telecom-preflight-') as d:\n with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:downloads=list(ex.map(download,files.items()))\n r['source_verification']={n:v for n,b,v in downloads}\n if all(v['verified'] for n,b,v in downloads):\n  for n,b,v in downloads:pathlib.Path(d,n).write_bytes(b)\n  r['core_tests']=run(['-m','unittest','-v','test_app'],d)\n  r['real_empty_report']=run(['app.py','--mode','real','--db',str(pathlib.Path(d,'real.sqlite3')),'--as-of','2026-11-27','report'],d)\n  r['demo_csv_import']=run(['app.py','--mode','demo','--db',str(pathlib.Path(d,'demo.sqlite3')),'--as-of','2026-11-27','import','amostra_100_ficticios.csv','--commit'],d)\n  r['demo_report']=run(['app.py','--mode','demo','--db',str(pathlib.Path(d,'demo.sqlite3')),'--as-of','2026-11-27','report'],d)\n  if all(r['deps'].values()) and r['tesseract_available']:\n   langs=subprocess.run(['tesseract','--list-langs'],capture_output=True,text=True,timeout=3)\n   if 'por' in langs.stdout.splitlines():r['document_tests']=run(['-m','unittest','-v','test_documents'],d,24)\n   else:r['document_tests']={'skipped':'Portuguese OCR model unavailable; no installation'}\n  else:r['document_tests']={'skipped':'Optional dependencies unavailable; no installation'}\n else:r['core_tests']={'skipped':'Source verification failed'}\nr['temporary_directory_removed']=not os.path.exists(d)\nprint('TELECOM_PREFLIGHT_RESULT='+json.dumps(r,ensure_ascii=True),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 85000,
+          "idle_timeout_ms": 85000,
+          "terminal": {
+            "columns": 160,
+            "rows": 100,
+            "scrollback": 200
+          },
+          "limits": {
+            "output_bytes": 16000
+          }
+        }
+      }
+    }
+  ]
+}
