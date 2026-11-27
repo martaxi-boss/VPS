@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "lowcost-category-qa-live-review-20261127",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "lowcost-category-perf-20261127",
+  "revision": 5,
+  "turn": {
+    "task": "test",
+    "role": "reviewer",
+    "kind": "review",
+    "message": "Inspected actual response ZIP and verified evidence-1.json SHA-256. REA run 46037560640 succeeded, 11/11 scenario steps completed; all explicit public document/fetch requests HTTP 200. Mobile homepage navigation 1831 ms, Cavitacao HTTP 120 ms, Aqua 167 ms, Pressoterapia 181 ms, HIFU 109 ms, Laser 448 ms; XML/TXT/robots 99/55/32 ms. Desktop Cavitacao navigation 928 ms. Inspected hash-verified screenshots 390x844 and 1366x900; visible content renders appropriately; desktop category shows 19/19 offers. Approve bounded HTTP and visible rendering evidence only. Both scenario completeness records incomplete (unfinished network events, some selected network content unavailable); not full browser equality/certification, interaction or all-asset load test. Google Search Console not queried. Production rollout and independent Core-sites audit already passed. No additional site changes warranted by this evidence.",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "ad676161d06b39884b4d23f8522f055eceb610d2153d5198d6203494d786e0cb"
+    ]
+  }
+}
