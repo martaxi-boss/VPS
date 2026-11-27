@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-native-stream-review-20261127-r173",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 23,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Native master now200 after removing exactly one query credential when explicit owner headers supplied. Actual native FFmpeg opened same authorized TS302->200 and read repeated private200 windows, then private ts operation404 and native playlist guarddenied; no upstream media401/403. Need distinguish reader failure/transient entitlement/grant expiry from HLS guard, using safe timestamps, exact ts-operation names, configured TTL/source infinite metadata, read-error static classification and existing entitlement callback results, without adding provider calls/alternatives. Preserve collected delivered-segment counters even on failure; no full certification until decode/continuity. Do not change code based on guessed cause.",
+    "evidence_sha256": [
+      "c4d4f438d20363ed0c869800e6c79ebb8cd87651ac782acd284332a6ba4b16ee"
+    ]
+  }
+}
