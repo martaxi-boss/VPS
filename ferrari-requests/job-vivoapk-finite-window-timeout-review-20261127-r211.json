@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-finite-window-timeout-review-20261127-r211",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 55,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "r210 proves authorized movie is MP4 (video/mp4,iso_bmff,1,082,177,364bytes) and original first4MiB window took11.78sec. Private bridge writes headers only after validated full window, while NativePrivateMediaProbe uses8sec socket timeout, so current probe deadline is incompatible with demonstrated allowed read. Pipe-only512KiB diagnostic cannot discover end-of-file MOOV metadata, not codec refusal. Correct finite-only probe budgets to account for existing30sec backend window and bounded seek (suggest35sec socket/75sec total), preserve live8/20, protocol/URL/byte/allocation/output limits. Do not widen file formats/codecs based on guess. Diagnose requested real episode's admitted finite contract in parallel before one coherent finite fix; no production change, source/auth/catalog/DNS untouched.",
+    "evidence_sha256": [
+      "d809347f4c49bb27900fd66c2a55c93ed17f3adbf09012abf4f0b7c779db155c"
+    ]
+  }
+}
