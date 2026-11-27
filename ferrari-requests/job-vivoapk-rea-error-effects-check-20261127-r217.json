@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-rea-error-effects-check-20261127-r217",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\np=subprocess.run([\"sudo\",\"-n\",\"--\",\"/srv/projects/Vivoapk/.venv/bin/python\",\"-I\",\"-B\",\"-c\",\"import json,os,subprocess\\nfrom pathlib import Path\\nR={'read_only':True,'production_activation':False,'secrets_emitted':False}\\nbase=Path('/srv/projects/Vivoapk/run')\\nR['temporary_paths_present']=[n for n in ('native-pvod','native-pepisode','native-vod-r182.sock','native-vod-r182.key','native-episode-r212.sock','native-episode-r212.key') if os.path.lexists(base/n)]\\nR['units']={u:subprocess.check_output(['systemctl','show',u,'-p','ActiveState','--value'],text=True,timeout=5).strip() for u in ('vivoapk-backend.service','jellyfin-pink.service')}\\npid=subprocess.check_output(['systemctl','show','vivoapk-backend.service','-p','MainPID','--value'],text=True,timeout=5).strip()\\nR['backend_cwd_revision']=next((p.name for p in Path('/proc',pid,'cwd').resolve().parents if len(p.name)==40),'unknown')\\nprint(json.dumps(R))\\n\"],capture_output=True,text=True,timeout=35)\ntry:r=json.loads(p.stdout.strip())\nexcept Exception:r={\"valid_json\":False,\"exit\":p.returncode}\nprint(json.dumps(r))"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 45000,
+          "idle_timeout_ms": 40000,
+          "terminal": {
+            "columns": 150,
+            "rows": 40,
+            "scrollback": 100
+          },
+          "limits": {
+            "output_bytes": 12000
+          }
+        }
+      }
+    }
+  ]
+}
