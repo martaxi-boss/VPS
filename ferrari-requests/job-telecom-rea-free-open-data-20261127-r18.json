@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "telecom-rea-free-open-data-20261127-r18",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import json,urllib.request,urllib.error,urllib.parse,hashlib,concurrent.futures,re,unicodedata\ndef fetch(url,cap):\n req=urllib.request.Request(url,headers={'User-Agent':'Telecom-PT public data catalog review','Accept':'application/json, text/plain, */*'})\n with urllib.request.urlopen(req,timeout=12) as res:\n  b=res.read(cap+1)\n  if len(b)>cap:raise ValueError('response exceeds audit cap')\n  return b,res.status\ndef clean(s):return ''.join(c for c in unicodedata.normalize('NFKD',str(s).casefold()) if not unicodedata.combining(c))\ndef err(e):\n if isinstance(e,urllib.error.HTTPError):return {'status':e.code}\n return {'error':type(e).__name__,'detail':str(e)[:160]}\ndef catalog(q):\n r={'query':q}\n try:\n  b,status=fetch('https://dados.gov.pt/api/1/datasets/?'+urllib.parse.urlencode({'q':q,'page_size':20}),3*1024*1024)\n  j=json.loads(b);rows=j['data'];r.update(status=status,total=j.get('total'),examined=len(rows),more_pages=bool(j.get('next_page')))\n  r['titles']=[str(x.get('title',''))[:150] for x in rows]\n  r['potential_contract_metadata']=[str(x.get('title',''))[:150] for x in rows if re.search(r'fideliza|contrat',clean(x.get('title','')))]\n  r['scope']='catalog metadata only; no dataset record content inspected'\n except Exception as e:r.update(err(e))\n return r\ndef gleif():\n r={'source':'GLEIF public legal entity API'}\n try:\n  b,status=fetch('https://api.gleif.org/api/v1/lei-records?'+urllib.parse.urlencode({'filter[entity.legalAddress.country]':'PT','page[size]':1}),512*1024)\n  j=json.loads(b);rows=j['data'];fields=sorted(rows[0]['attributes']['entity'].keys()) if rows else []\n  r.update(status=status,total=j.get('meta',{}).get('pagination',{}).get('total'),entity_fields=fields,sample_count=len(rows),scope='schema only; no individual entity names or IDs retained')\n  r['telecom_contract_field']=any(re.search(r'telecom|fideliza|contract|operator|carrier',x,re.I) for x in fields)\n except Exception as e:r.update(err(e))\n return r\ndef repo(it):\n owner,rev,path,blob=it;r={'repository':owner,'revision':rev,'path':path}\n try:\n  b,status=fetch('https://raw.githubusercontent.com/'+owner+'/'+rev+'/'+path,65536)\n  assert hashlib.sha1(b'blob '+str(len(b)).encode()+bytes([0])+b).hexdigest()==blob\n  t=clean(b.decode('utf-8'));r.update(status=status,verified_git_blob=True)\n  r['mentions']={k:bool(re.search(p,t)) for k,p in {'fidelity':r'fideliza|lock.in','public_procurement':r'public contracts|contratos publicos|procurement','synthetic_or_fictional':r'synthetic|fictional','user_supplied_imports':r'import|bring mapped exports','renewal':r'renewal|renovacao','invoice_due':r'date_due','contract_end_date':r'contract.end.date|fim da fidelizacao|end of commitment'}.items()}\n except Exception as e:r.update(err(e))\n return r\nsources=[\n ('devpt-org/public-data-portugal','501fcb3d077ef9246e1790b17c65ebb172c258eb','README.md','db90a6487873c6842f6423431d4ff8c97b750f96'),\n ('invoice-x/invoice2data','1b90f345c3ad06481f83103416113348ae081df6','src/invoice2data/extract/templates/es/es.digimobile.yml','f402e37a3799fe6b0edf47eeda5849c7201d842b'),\n ('invoice-x/invoice2data','1b90f345c3ad06481f83103416113348ae081df6','src/invoice2data/extract/templates/nl/nl.vodafone.yml','4347fbb7df4a931758dda9d8e1244e0d5e8a9a34'),\n ('Enterprise-DNA-OS/telecom-expenses-for-claude-code','e200e099672e40641c1e00549d1a4ebccc73a8cb','README.md','97405beb71226cc4e1a9f8a2982581e0eda91de8'),\n ('GustavoSena/cusco','5e843edb6d82c9c9f20628e1cccd30b16f1fdc6d','README.md','12f4f292b1a6e3ccee19abe58299201c7a23ee54')]\nwith concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex:\n c=list(ex.map(catalog,['fidelizacao','telecomunicacoes','contratos telecomunicacoes','ANACOM']))\n g=ex.submit(gleif).result()\n a=list(ex.map(repo,sources))\nprint('TELECOM_FREE_DATA_REA='+json.dumps({'catalog_queries':c,'gleif':g,'repository_review':a,'private_contract_records_downloaded':0,'authenticated_calls':0,'software_installed':False,'scope':'free public catalog metadata and pinned open source review; not a comprehensive absence proof'},ensure_ascii=True),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 90000,
+          "idle_timeout_ms": 90000,
+          "terminal": {
+            "columns": 160,
+            "rows": 100,
+            "scrollback": 200
+          },
+          "limits": {
+            "output_bytes": 20000
+          }
+        }
+      }
+    }
+  ]
+}
