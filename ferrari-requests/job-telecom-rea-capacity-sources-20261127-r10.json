@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "telecom-rea-capacity-sources-20261127-r10",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import os,sys,json,time,hashlib,subprocess,tempfile,pathlib,urllib.request,urllib.error,concurrent.futures,unicodedata,re\nroot=pathlib.Path('/srv/projects/Telecom-Intelligence-Portugal')\nurls={'MEO_ajuda':'https://www.meo.pt/suporte/cancelamento-antecipado-contrato','NOS_ajuda_empresas':'https://www.nos.pt/empresas/profissionais-pequenas/ajuda','Vodafone_ajuda_empresas':'https://ajuda.vodafone.pt/business/perguntas-relacionadas/onde-posso-consultar-os-meus-contratos-de-permanencia','DIGI_oferta_publica':'https://www.digi.pt/perguntas-frequentes/produto/ha-periodo-de-fidelizacao-na-digi','PF_Consulting':'https://www.pfconsulting.pt/','Ecost':'https://ecost.ai/sobre-nos'}\ndef norm(s):return ''.join(c for c in unicodedata.normalize('NFKD',s.casefold()) if not unicodedata.combining(c))\ndef probe(item):\n k,url=item\n try:\n  with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'Telecom-PT public documentation check'}),timeout=10) as f:\n   b=f.read(524288);t=norm(b.decode('utf-8',errors='replace'))\n   return k,{'status':f.status,'bytes_examined':len(b),'mentions_fidelizacao':bool(re.search('fideliza',t)),'mentions_contrato':'contrato' in t,'scope':'public documentation only'}\n except urllib.error.HTTPError as e:return k,{'status':e.code,'scope':'public documentation only'}\n except Exception as e:return k,{'error':type(e).__name__,'scope':'public documentation only'}\nr={'scope':'synthetic scale test; public pages only; no private data; no real database access or mutation; no persistent listener'}\nwith concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex:r['public_sources']=dict(ex.map(probe,urls.items()))\ntry:\n manifest=json.loads((root/'installation.json').read_text())\n assert manifest['commit']=='2265a73f121b12d291a506457befc47dcef9f64c'\n for n,h in manifest['source_hashes'].items():\n  b=(root/'source'/n).read_bytes()\n  assert hashlib.sha1(b'blob '+str(len(b)).encode()+bytes([0])+b).hexdigest()==h\n r['source_integrity']=True\n py=str(root/'venv'/'bin'/'python')\n task=\"\"\"import sys,tempfile,pathlib,time,json,datetime as dt,resource,sqlite3\nsys.path.insert(0,sys.argv[1])\nimport app\nnow=dt.date(2026,11,27);N=10000\nwith tempfile.TemporaryDirectory(prefix='tip-capacity-') as d:\n p=pathlib.Path(d)/'demo.sqlite3';base=app.demo_rows(now)\n rows=[dict(base[i%100],nipc='DEMO'+str(i+1),empresa='Fixture '+str(i+1)) for i in range(N)]\n t=time.monotonic();result=app.import_rows(p,'demo',rows,now,True);ingest=time.monotonic()-t\n assert result['gravados']==N and not result['erros']\n t=time.monotonic();rows=app.list_rows(p,'demo',now);listing=time.monotonic()-t\n counts={k:sum(x['janela']==k for x in rows) for k in app.WINDOWS}\n assert len(rows)==N and sum(counts.values())==N\n assert sum(counts[k] for k in app.WINDOWS[:3])==6000\n t=time.monotonic();filtered=app.list_rows(p,'demo',now,{'operadora':'MEO','janela':'0-30'});filter_time=time.monotonic()-t\n assert all(x['operadora']=='MEO' and x['janela']=='0-30' for x in filtered)\n t=time.monotonic();csv=app.export(filtered);export_time=time.monotonic()-t\n assert csv.count(chr(10))==len(filtered)+1\n t=time.monotonic();page=app.page(rows,'demo',now,{});render=time.monotonic()-t\n assert '10000 registos' in page\n c=sqlite3.connect(p);integrity=c.execute('PRAGMA integrity_check').fetchone()[0];c.close()\n assert integrity=='ok'\n print(json.dumps({'synthetic_contracts':N,'eligible_90_days':6000,'counts':counts,'import_seconds':round(ingest,3),'list_seconds':round(listing,3),'filter_seconds':round(filter_time,3),'filtered_count':len(filtered),'export_seconds':round(export_time,3),'full_html_seconds':round(render,3),'full_html_bytes':len(page.encode()),'db_bytes':p.stat().st_size,'peak_rss_mib':round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024,1),'db_integrity':integrity}))\n\"\"\"\n with tempfile.TemporaryDirectory(prefix='telecom-rea-') as d:\n  env={**os.environ,'PYTHONDONTWRITEBYTECODE':'1','TMPDIR':d}\n  p=subprocess.run([py,'-c',task,str(root/'source')],cwd=d,env=env,capture_output=True,text=True,timeout=45)\n  r['capacity_exit']=p.returncode\n  if p.returncode==0:r['capacity']=json.loads(p.stdout.strip().splitlines()[-1])\n  else:r['capacity_error']=p.stderr[-1200:]\n r['temp_removed']=not os.path.exists(d)\nexcept Exception as e:r['error']=type(e).__name__+': '+str(e)[:200]\nprint('TELECOM_REA_RESULT='+json.dumps(r,ensure_ascii=True),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 90000,
+          "idle_timeout_ms": 90000,
+          "terminal": {
+            "columns": 160,
+            "rows": 100,
+            "scrollback": 200
+          },
+          "limits": {
+            "output_bytes": 10000
+          }
+        }
+      }
+    }
+  ]
+}
