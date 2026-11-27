@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-episode-window-timeout-review-20261127-r213",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 57,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Actual episode independently confirms same finite MP4 contract (video/mp4/iso_bmff,747,748,821bytes) and first4MiB window8.4sec, above native probe8sec; real movie11.78sec proved separately. No401/403, full cleanup and production unchanged. Apply only finite budgets35sec socket/75sec total; live8/20 and forced finiteMOV/codec/protocol/output/allocation/URL guards unchanged because both observed files are MP4 and codecs remain unproved. Add meaningful synthetic native FFprobe regression with first HTTP headers delayed9sec (old8fails), not mere constant assertions. Validate auth/loopback/fullnative CI and real movie/episode before release. Do not repeat approved180sec productionTV.",
+    "evidence_sha256": [
+      "5626a55206f92b6ea18b290dd41d475d4333a97b904a963bd59f8fe070bef48a"
+    ]
+  }
+}
