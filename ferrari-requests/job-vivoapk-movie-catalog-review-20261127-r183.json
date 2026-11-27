@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-movie-catalog-review-20261127-r183",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 33,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Movie pilot failed in native catalogue before selecting any movie or opening media: controller HTTP45sec TimeoutError, not a media authorization refusal. Real login/ACTIVE valid, Mega4HTTP200 remaining>=54, all candidate processes/socket/key/media removed; host namespace/socket and production unchanged. Harness requested entire category without normal client pagination. Narrow native category leaf request using documented Limit/StartIndex before investigating runtime changes. No need to repeat approved live67sec proof, no provider media fallback or code/catalog rewrite.",
+    "evidence_sha256": [
+      "296ddc9f7475a5df2c4212dc065a09767768d8c56e76af91c30806d71c203d0a"
+    ]
+  }
+}
