@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-mega-quota-review-20261127-r179",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 29,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Exact cause proven r178: Mega metadata200 headerslimit60remaining51..0, then429Retry-After28; source media remains accepted, native122video235audio/16segments. No local budget failure. Necessary correction: reuse ONLY successful private subscription metadata for a short bounded interval in same backend, shared by private entitlement endpoint and private media checks; retain fresh Xtream authorization and known-expiry checks, isolated subscription keys, no stale-on-error, clear-on-denial/shutdown, honorRetry-After without retry/fallback. Public login/catalogue/DNS algorithm unchanged. Add meaningful expiry/revocation/isolation/concurrency/error/backoff tests. For full isolated candidate test, use disposable private mount namespace to map candidate UDS at plugin's fixed auth socket, without changing host mount/production socket, so all private checks use same corrected backend. No deployment until exact gates and real continuity pass.",
+    "evidence_sha256": [
+      "ec10c580df72148a26b825c9c345a8c851e977d41747a83e6d8eb6b7d46a796e"
+    ]
+  }
+}
