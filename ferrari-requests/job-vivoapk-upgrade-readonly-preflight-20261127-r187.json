@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-upgrade-readonly-preflight-20261127-r187",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\np=subprocess.run([\"sudo\",\"-n\",\"--\",\"/srv/projects/Vivoapk/.venv/bin/python\",\"-I\",\"-B\",\"-c\",\"import contextlib,grp,hashlib,json,os,pwd,stat,subprocess,sys\\nfrom pathlib import Path\\nfrom xml.etree import ElementTree as ET\\nROOT=Path('/srv/projects/Vivoapk');JELLY=Path('/srv/projects/jellyfin-server')\\nR={'production_activation':False,'read_only':True,'secrets_emitted':False}\\ndef prop(unit,key):return subprocess.check_output(['systemctl','show',unit,'-p',key,'--value'],text=True,timeout=6).strip()\\ntry:\\n    import shutil\\n    R['free_gib']=round(shutil.disk_usage(ROOT).free/1024**3,2)\\n    R['units']={u:{k:prop(u,k) for k in ('ActiveState','ProtectSystem','NoNewPrivileges')} for u in ('vivoapk-backend.service','jellyfin-pink.service')}\\n    R['backend_cwd_revision']=next((p.name for p in Path('/proc',prop('vivoapk-backend.service','MainPID'),'cwd').resolve().parents if len(p.name)==40),'unknown')\\n    enc=ET.fromstring((JELLY/'config/encoding.xml').read_bytes())\\n    R['native_cache_options']={k:enc.findtext(k) for k in ('EnableSegmentDeletion','SegmentKeepSeconds','EnableThrottling')}\\n    R['active_media_tools']={'ffmpeg':0,'ffprobe':0}\\n    for p in Path('/proc').iterdir():\\n        if not p.name.isdigit():continue\\n        with contextlib.suppress(OSError):\\n            name=(p/'exe').resolve().name\\n            if name in R['active_media_tools']:R['active_media_tools'][name]+=1\\n    R['own_old_temporary_artifacts_absent']=all(not os.path.lexists(ROOT/'run'/n) for n in ('native-p147','native-pvod','native-pilot-r162.sock','native-pilot-r162.key','native-vod-r182.sock','native-vod-r182.key'))\\n    monitor=ROOT/'run/entitlement-monitor.key';mi=monitor.lstat()\\n    R['permanent_monitor_key_permissions_ok']=stat.S_ISREG(mi.st_mode) and stat.S_IMODE(mi.st_mode)==0o400 and mi.st_uid==pwd.getpwnam('jellyfinpink').pw_uid\\n    sys.path.insert(0,str(ROOT/'native-release-stage/12b8c5ba6f4c64462adbb79d2f27501ade42de3d/backend/source/backend'))\\n    from app.config import Settings\\n    cfg=Settings(_env_file=['/root/project-secrets/VIVOAPK/backend-runtime.env','/root/project-secrets/VIVOAPK/native-media.env'])\\n    R['permanent_monitor_key_matches_cofre']=cfg.entitlement_monitor_key is not None and cfg.entitlement_monitor_key.get_secret_value()==monitor.read_text().strip()\\n    R['current_private_input_format']=cfg.private_live_input_format\\n    R['current_provider_playlist_enabled']=cfg.private_live_use_provider_playlist\\n    R['current_issued_redirects_enabled']=cfg.private_media_follow_provider_redirects\\n    R['root_bootstrap_present']=(ROOT/'BOOTSTRAP.md').is_file()\\n    R['pass']=True\\nexcept Exception as exc:R.update({'pass':False,'failure_type':type(exc).__name__})\\nprint(json.dumps(R,sort_keys=True))\\n\"],capture_output=True,text=True,timeout=50)\ntry:r=json.loads(p.stdout.strip())\nexcept Exception:r={\"outer_exit\":p.returncode,\"valid_json\":False,\"secrets_emitted\":False}\nprint(json.dumps(r,sort_keys=True))"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 60000,
+          "idle_timeout_ms": 55000,
+          "terminal": {
+            "columns": 150,
+            "rows": 40,
+            "scrollback": 220
+          },
+          "limits": {
+            "output_bytes": 26000
+          }
+        }
+      }
+    }
+  ]
+}
