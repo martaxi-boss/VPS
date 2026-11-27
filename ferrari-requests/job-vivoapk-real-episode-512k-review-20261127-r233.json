@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-real-episode-512k-review-20261127-r233",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 67,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Verified complete compact r232 evidence: exact46a ordinary plugin/source, admitted real episode MP4 H264AAC, PlaybackInfo21.7sec, firstsegment35.93sec,8distinct native HLSsegments27.3sec/latest25.34;720video1034audio decoded. anonymous denied,provider200only/no failures/Mega remaining>=46. Stop/cacheTS0/all own processes/endpoints/credentials removed and production12b/socket/namespace unchanged. Previous movie cleanup explicitly confirmed. This approves episode server decode/continuity evidence, not six physical clients nor startup UX. Need same46a movie measurement compared to d58483.03sec and fullnativeCI exactbundle/rehearsal before deployment. Keep all auth/catalog/DNS untouched.",
+    "evidence_sha256": [
+      "3d41e7fd6eeb372761afb1075c9984ee5ae869e8ad2700f1e47e0a7231deb072"
+    ]
+  }
+}
