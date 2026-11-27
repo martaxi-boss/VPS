@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-monitor-config-review-20261127-r167",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 17,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "r166 proves monitor absent BOTH in canonical basecofre and effective backend env, not just file. Source guard denies every real private playback until internal entitlement key is configured. Necessary correction: provision one independent internal service key into existing private native-media.env and fixed owner0400 file; preserve existing private-media key and original cofre/units/source, back up exact env privately, restart only existing backend if no encoder active; verify API200ACTIVE for authorized test account, invalid/missing key403, runtime/persisted-key equality and unchanged Jellyfin/nginx/postgresql PIDs. Automatic rollback of env/new key/backend on failure. No customer/provider credential changes, no source-code deployment or authorization bypass.",
+    "evidence_sha256": [
+      "96eebc06d83b352306df412068aeae606a59bda31bed746b5d985573ddeaa917"
+    ]
+  }
+}
