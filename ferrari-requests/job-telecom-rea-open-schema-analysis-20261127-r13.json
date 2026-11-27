@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "telecom-rea-open-schema-analysis-20261127-r13",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import urllib.request,hashlib,json,re,concurrent.futures\nitems=[\n('TMF651','tmforum-apis/TMF651_AgreementManagement','008dae3a3f929c97a34f767d051981aadb285b6c','TMF651-Agreement-v4.0.0.swagger.json','a3ca6f1796c9ccaabb2c72e4fc1362ef1ec417f5',137445),\n('TMF637','tmforum-apis/TMF637_ProductInventory','f598b4a02186071f2794b8f9b4f6904ef0a8aa52','TMF637-ProductInventory-v4.0.0.swagger.json','74d37b15f31f5003a740bc0dc142f540ac6f9ca3',111692),\n('TMF678','tmforum-apis/TMF678_CustomerBill','6d1628e7ac15f077083216f9bccd469e9f1af74f','TMF678-CustomerBill-v4.0.0.swagger.json','ba9f33807ad9951332404cccdc85835c5dfa31a2',84644),\n('CAMARA','camaraproject/SubscriptionStatus','6e4f327ad30c152e298947158b428dd91c7374a7','code/API_definitions/subscription-status.yaml','34bb5728e4366d629c22c1c64cb0a2cd7f2bc3e4',11432)]\ndef inspect(it):\n name,repo,rev,path,blob,size=it\n r={'name':name,'revision':rev}\n try:\n  with urllib.request.urlopen('https://raw.githubusercontent.com/'+repo+'/'+rev+'/'+path,timeout=12) as f:b=f.read(400001)\n  assert len(b)==size and hashlib.sha1(b'blob '+str(len(b)).encode()+bytes([0])+b).hexdigest()==blob\n  r.update(verified=True,sha256=hashlib.sha256(b).hexdigest())\n  if name=='CAMARA':\n   s=b.decode('utf-8');block=s.split('    SubscriptionStatusResponse:',1)[1].split('    PhoneNumber:',1)[0].split('      properties:',1)[1]\n   props=re.findall(r'^        ([A-Za-z][A-Za-z0-9]*):\\s*$',block,re.M)\n   assert set(props)=={'voiceSmsIn','voiceSmsOut','dataService'}\n   r.update(response_fields=props,explicit_fidelity=False)\n  else:\n   s=json.loads(b);d=s['definitions'];models={'TMF651':['Agreement','AgreementItem','AgreementTermOrCondition','TimePeriod'],'TMF637':['Product','ProductTerm','ProductPrice','TimePeriod'],'TMF678':['CustomerBill','TimePeriod']}[name]\n   selected={k:list(d[k]['properties']) for k in models};r['fields']=selected\n   if name=='TMF651':\n    assert d['Agreement']['properties']['agreementPeriod']['$ref']=='#/definitions/TimePeriod'\n    assert d['AgreementTermOrCondition']['properties']['validFor']['$ref']=='#/definitions/TimePeriod'\n   elif name=='TMF637':\n    assert d['Product']['properties']['productTerm']['items']['$ref']=='#/definitions/ProductTerm'\n    assert d['ProductTerm']['properties']['validFor']['$ref']=='#/definitions/TimePeriod'\n   else:\n    assert 'amount due' in d['CustomerBill']['properties']['paymentDueDate']['description']\n   r['explicit_fidelity_field']=any(re.search(r'fideliza|commitment|lock.?in|minimum.?contract',k,re.I) for p in selected.values() for k in p)\n   r['version']=s['info']['version']\n  r['pass']=True\n except Exception as e:r.update(pass_=False,error=type(e).__name__+': '+str(e)[:150])\n return r\nwith concurrent.futures.ThreadPoolExecutor(max_workers=2) as ex:out=list(ex.map(inspect,items))\nprint('TELECOM_SCHEMA_REA='+json.dumps({'scope':'static analysis of public, version-pinned open specifications; no operator endpoint calls or credentials','results':out,'verified_count':sum(x.get('pass',False) for x in out),'private_contracts_downloaded':0},ensure_ascii=True),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 65000,
+          "idle_timeout_ms": 65000,
+          "terminal": {
+            "columns": 160,
+            "rows": 100,
+            "scrollback": 200
+          },
+          "limits": {
+            "output_bytes": 12000
+          }
+        }
+      }
+    }
+  ]
+}
