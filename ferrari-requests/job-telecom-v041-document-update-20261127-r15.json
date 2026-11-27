@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "telecom-v041-document-update-20261127-r15",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import os,sys,pathlib,tempfile,hashlib,urllib.request,json,subprocess,stat,datetime\nroot=pathlib.Path('/srv/projects/Telecom-Intelligence-Portugal')\nold_commit='2265a73f121b12d291a506457befc47dcef9f64c'\nnew_commit='0da624854d44796e36bd02d9c236ea5a4fdd8fc5'\nnew_hash='ff52ae3cfd2233decdc8e3bae068dda033201e7b'\nold_hash='4f517a01d6bfb200ff521edfd1e051bf98274882'\ndef digest(b):return hashlib.sha1(b'blob '+str(len(b)).encode()+bytes([0])+b).hexdigest()\ndef replace(path,data):\n fd,name=tempfile.mkstemp(prefix='.update-',dir=path.parent)\n try:\n  with os.fdopen(fd,'wb') as f:f.write(data);f.flush();os.fsync(f.fileno())\n  os.replace(name,path)\n finally:\n  if os.path.exists(name):os.unlink(name)\ndef probe():\n with tempfile.TemporaryDirectory(prefix='tip-v041-',dir=root/'tmp') as d:\n  p=pathlib.Path(d)/'fixture.txt';p.write_text('DOCUMENTO FICTICIO\\nOperadora: NOS\\nPeriodo de fidelizacao\\nData fim Valor com IVA\\nLocal A 04-dez-2026 10,00 EUR\\nLocal B 09-fev-2027 20,00 EUR\\n')\n  cmd=\"import sys;sys.path.insert(0,sys.argv[1]);import documents; r=documents.extract(sys.argv[2]); assert r['rascunho']['fim_fidelizacao']=='' and r['rascunho']['uso_comercial']=='nao'; assert [x['fim_fidelizacao'] for x in r['fidelizacoes_por_servico']]==['2026-12-04','2027-02-09']; assert all(x['revisao_obrigatoria'] for x in r['fidelizacoes_por_servico']); print('SMOKE PASS')\"\n  env={**os.environ,'PYTHONDONTWRITEBYTECODE':'1','TMPDIR':d,'TESSDATA_PREFIX':str(root/'tessdata'),'OMP_THREAD_LIMIT':'1'}\n  out=subprocess.run([str(root/'venv'/'bin'/'python'),'-c',cmd,str(root/'source'),str(p)],cwd=d,env=env,capture_output=True,text=True,timeout=15)\n  return out.returncode==0 and out.stdout.strip()=='SMOKE PASS'\nr={'scope':'replace only document reader and manifest; no database access or modification; no new dependencies or services','installed':False}\ntry:\n assert root.is_dir() and not root.is_symlink() and stat.S_IMODE(root.lstat().st_mode)==0o700 and root.stat().st_uid==os.geteuid()\n assert not any(l.split()[1].endswith(':223D') and l.split()[3]=='0A' for f in ('/proc/net/tcp','/proc/net/tcp6') for l in open(f).read().splitlines()[1:])\n target=root/'source'/'documents.py';manifest=root/'installation.json'\n assert target.is_file() and not target.is_symlink() and manifest.is_file() and not manifest.is_symlink()\n old_manifest=manifest.read_bytes();m=json.loads(old_manifest)\n assert m['commit']==old_commit and m['source_hashes']['documents.py']==old_hash\n for n,h in m['source_hashes'].items():\n  p=root/'source'/n;assert not p.is_symlink() and digest(p.read_bytes())==h\n r['previous_source_integrity']=True\n old=target.read_bytes()\n with urllib.request.urlopen('https://raw.githubusercontent.com/martaxi-boss/Telecom-Intelligence-Portugal/'+new_commit+'/documents.py',timeout=12) as f:new=f.read(65537)\n assert len(new)<=65536 and digest(new)==new_hash\n # Metadata-only snapshot; do not read production records or credentials.\n def private_state():\n  return {n:(p.stat().st_ino,p.stat().st_size,p.stat().st_mtime_ns) for n in ('data/real.sqlite3','private/auth','private/backup.key','backups/initial-empty.enc') for p in (root/n,)}\n before=private_state()\n try:\n  replace(target,new)\n  assert digest(target.read_bytes())==new_hash and probe()\n  m['previous_commit']=old_commit;m['commit']=new_commit;m['source_hashes']['documents.py']=new_hash\n  m['updated_at']=datetime.datetime.now(datetime.timezone.utc).isoformat();m['validation']='71 synthetic tests (REA 46080962423); installed table smoke passed'\n  replace(manifest,(json.dumps(m,indent=2)+'\\n').encode())\n  assert json.loads(manifest.read_bytes())['commit']==new_commit\n  assert all(digest((root/'source'/n).read_bytes())==h for n,h in m['source_hashes'].items())\n  assert before==private_state()\n  r.update(installed=True,commit=new_commit,verified_sources=len(m['source_hashes']),table_smoke=True,private_files_unchanged=True,listener_started=False,dependencies_added=False)\n except Exception:\n  replace(target,old);replace(manifest,old_manifest)\n  r['rollback_verified']=digest(target.read_bytes())==old_hash and manifest.read_bytes()==old_manifest\n  raise\nexcept Exception as e:r['error']=type(e).__name__+': '+str(e)[:180]\nprint('TELECOM_V041_UPDATE='+json.dumps(r,ensure_ascii=True),flush=True)"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 45000,
+          "idle_timeout_ms": 45000,
+          "terminal": {
+            "columns": 160,
+            "rows": 30,
+            "scrollback": 60
+          },
+          "limits": {
+            "output_bytes": 6000
+          }
+        }
+      }
+    }
+  ]
+}
