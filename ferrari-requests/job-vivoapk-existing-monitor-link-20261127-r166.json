@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "id": "vivoapk-existing-monitor-link-20261127-r166",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 16,
+  "turn": {
+    "task": "real-native-output",
+    "role": "tester",
+    "kind": "rea-mcp",
+    "message": "Inspect effective current backend monitor setting privately against canonical existing cofre. Only if same valid configured key, exact missing path, and production entitlement200ACTIVE for existing approved test account: restore only missing fixed private owner0400 key file, verify Jellyfin readable/web denied. No generated secret, key rotation, service restart, source change, media request or guard bypass. If not configured/mismatch, report booleans and stop repair.",
+    "mcp_requests": [
+      {
+        "method": "tools/call",
+        "params": {
+          "name": "capture_process_scenario",
+          "arguments": {
+            "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+            "arguments": [
+              "-c",
+              "import subprocess,json\np=subprocess.run([\"sudo\",\"-n\",\"--\",\"/srv/projects/Vivoapk/.venv/bin/python\",\"-I\",\"-B\",\"-c\",\"import json,subprocess,os,sys,socket,http.client,hashlib,pwd,grp,stat\\nfrom pathlib import Path\\nSRC=Path(\\\"/srv/projects/Vivoapk/native-release-stage/1e7424cdb257dbf0fe6d9d0f0dd8c26e4f77dbe5/backend/source/backend\\\")\\nsys.path.insert(0,str(SRC))\\nimport logging;logging.disable(logging.CRITICAL)\\nfrom app.config import Settings\\nfrom app.db import build_session_factory\\nfrom app.models import SubscriptionMapping\\nR={\\\"phase\\\":\\\"existing-monitor-link-check\\\",\\\"production_backend_restart\\\":False,\\\"secrets_emitted\\\":False,\\\"media_requests\\\":0}\\nunits=(\\\"vivoapk-backend.service\\\",\\\"jellyfin-pink.service\\\",\\\"nginx.service\\\",\\\"postgresql.service\\\")\\ndef state():return {u:subprocess.check_output([\\\"systemctl\\\",\\\"show\\\",u,\\\"-p\\\",\\\"MainPID\\\",\\\"-p\\\",\\\"ActiveState\\\"],text=True,timeout=5).strip() for u in units}\\nbefore=state()\\ntry:\\n pid=subprocess.check_output([\\\"systemctl\\\",\\\"show\\\",units[0],\\\"-p\\\",\\\"MainPID\\\",\\\"--value\\\"],text=True).strip()\\n env=dict(v.split(b\\\"=\\\",1) for v in Path(\\\"/proc\\\",pid,\\\"environ\\\").read_bytes().split(b\\\"\\\\0\\\") if b\\\"=\\\" in v)\\n runtime=env.get(b\\\"ENTITLEMENT_MONITOR_KEY\\\",b\\\"\\\").decode()\\n settings=Settings(_env_file=\\\"/root/project-secrets/VIVOAPK/backend-runtime.env\\\")\\n configured=settings.entitlement_monitor_key.get_secret_value() if settings.entitlement_monitor_key else \\\"\\\"\\n R[\\\"runtime_monitor_configured\\\"]=32<=len(runtime)<=1024\\n R[\\\"canonical_monitor_configured\\\"]=32<=len(configured)<=1024\\n R[\\\"runtime_canonical_equal\\\"]=bool(runtime and runtime==configured)\\n keypath=Path(\\\"/srv/projects/Vivoapk/run/entitlement-monitor.key\\\")\\n R[\\\"monitor_path_absent\\\"]=not os.path.lexists(keypath)\\n if R[\\\"runtime_monitor_configured\\\"] and R[\\\"runtime_canonical_equal\\\"] and R[\\\"monitor_path_absent\\\"]:\\n  with build_session_factory(settings.database_url)() as db:\\n   matches=[m for m in db.query(SubscriptionMapping).limit(500).all() if hashlib.sha256(m.username.casefold().encode()).hexdigest()==\\\"27f3817eb2ec39d1e4967bd07f2dea3d37f114cb0dae3f22df09ec398a8ccb38\\\"]\\n   assert len(matches)==1;username=matches[0].username\\n  c=http.client.HTTPConnection(\\\"localhost\\\",timeout=15);s=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM);s.settimeout(15);s.connect(\\\"/srv/projects/Vivoapk/run/backend.sock\\\");c.sock=s\\n  try:\\n   c.request(\\\"POST\\\",\\\"/_internal/entitlement/status\\\",json.dumps({\\\"username\\\":username}),{\\\"Content-Type\\\":\\\"application/json\\\",\\\"X-Vivoapk-Monitor-Key\\\":configured})\\n   r=c.getresponse();payload=r.read(32768);R[\\\"entitlement_http_status\\\"]=r.status\\n   data=json.loads(payload);v=data.get(\\\"state\\\");R[\\\"entitlement_state\\\"]=v if v in (\\\"ACTIVE\\\",\\\"EXPIRED\\\",\\\"DISABLED\\\",\\\"UNAVAILABLE\\\") else \\\"OTHER\\\"\\n  finally:c.close()\\n  assert R[\\\"entitlement_http_status\\\"]==200 and R[\\\"entitlement_state\\\"]==\\\"ACTIVE\\\"\\n  fd=os.open(keypath,os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW|os.O_WRONLY,0o400)\\n  with os.fdopen(fd,\\\"w\\\") as f:f.write(configured);f.flush();os.fsync(f.fileno())\\n  os.chown(keypath,pwd.getpwnam(\\\"jellyfinpink\\\").pw_uid,grp.getgrnam(\\\"www-data\\\").gr_gid)\\n  R[\\\"existing_monitor_link_restored\\\"]=True\\n  R[\\\"jellyfin_key_readable\\\"]=subprocess.run([\\\"/usr/sbin/runuser\\\",\\\"-u\\\",\\\"jellyfinpink\\\",\\\"-g\\\",\\\"www-data\\\",\\\"--\\\",\\\"/usr/bin/test\\\",\\\"-r\\\",str(keypath)],capture_output=True,timeout=8).returncode==0\\n  R[\\\"web_user_key_denied\\\"]=subprocess.run([\\\"/usr/sbin/runuser\\\",\\\"-u\\\",\\\"www-data\\\",\\\"-g\\\",\\\"www-data\\\",\\\"--\\\",\\\"/usr/bin/test\\\",\\\"-r\\\",str(keypath)],capture_output=True,timeout=8).returncode!=0\\n else:R[\\\"existing_monitor_link_restored\\\"]=False\\nexcept Exception as exc:R[\\\"failure_type\\\"]=type(exc).__name__\\nfinally:R[\\\"protected_services_unchanged\\\"]=before==state()\\nprint(json.dumps(R,sort_keys=True))\\n\"],capture_output=True,text=True,timeout=70)\ntry:r=json.loads(p.stdout.strip())\nexcept ValueError:r={\"failure_type\":\"no_safe_report\",\"exit\":p.returncode}\nprint(json.dumps(r,sort_keys=True))"
+            ],
+            "working_directory": "/srv/projects/skill-universal",
+            "timeout_ms": 90000,
+            "idle_timeout_ms": 80000,
+            "terminal": {
+              "columns": 150,
+              "rows": 40,
+              "scrollback": 100
+            },
+            "limits": {
+              "output_bytes": 12000
+            }
+          }
+        }
+      }
+    ]
+  }
+}
