@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-native-hostpaths-review-20261127-r161",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 11,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "No private backend route observations occurred: rejection before transport. Source inspection proves NativePrivatePlaybackMode.TryHostPaths requires socket directly inside /srv/projects/Vivoapk/run with.sock suffix and key directly there with.key suffix. Pilot supplied nested b/b.sock and j/key, so Active=false; this is fixture host configuration, not provider or codec failure. Correct only unique ephemeral direct-run endpoints, retain owner0400 secret key and0660 socket, exclusive-create and exact cleanup, without weakening path guard or changing production endpoints/code. Production unchanged; no provider media request in r160.",
+    "evidence_sha256": [
+      "85476be57aa7e8fc2aedbef2191e149ae4942f26c9dc80ad3c8fbfd1539a32b8"
+    ]
+  }
+}
