@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-upgrade-metadata-review-20261127-r198",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 43,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Exact-payload upgrade rehearsal blocked before any service/file change by installed meta.json hash unequal to candidate template. Existing runtime metadata must be preserved. Replace unwarranted byte-equality assumption only with strict GUID/name/version/targetABI identity comparison (case/snake normalization rejects ambiguous keys), keep exact candidate manifest/metadata digest and immutable component pins. Six local identity guard checks passed (description/status variance okay, changedGUID/version/ABI/duplicate alias denied). Repeat necessary rehearsal with existing metadata untouched; no activation yet.",
+    "evidence_sha256": [
+      "c7cc70b2da97cb733d653bb0475e42316a1d3b1746cb76e62b8e3864ece6939e"
+    ]
+  }
+}
