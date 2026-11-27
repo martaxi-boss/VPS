@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-http-client-source-approved-20261127-r144",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-http-client-20261127",
+  "revision": 3,
+  "turn": {
+    "task": "truthful-media-client",
+    "role": "reviewer",
+    "kind": "review",
+    "message": "Approve REAL SOURCE DECODE only: exact1e7424cd, active account and current authorized RTP1 locator, truthful product ID, sequential302->200 for probe and playback, 385024 probe bytes then3762444 playback bytes, native Jellyfin FFmpeg decoded635video/1188audio frames. No spoof, declined-source fallback, persisted media, secret emission, activation or service change. This proves source plus native FFmpeg input; not complete Jellyfin PlaybackInfo/output, continuous real session, VOD/series or six physical clients. Continue those remaining gates and preserve the exact evidence.",
+    "verdict": "approved",
+    "evidence_sha256": [
+      "7acf2b58f03c29de61afb60c4b65fdb53002142d3ddc21636b73f30af70546d0"
+    ]
+  }
+}
