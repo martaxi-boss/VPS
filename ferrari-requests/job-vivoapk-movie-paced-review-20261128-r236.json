@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-movie-paced-review-20261128-r236",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 69,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Verified complete r235 evidence: exact04657f candidate/plugin829384... loopd2093b..., actual admitted MP4 movie/native PlaybackInfo27.11sec and first segment33.78sec versus d58483.03sec. Seven distinct HLSsegments/27sec/new24.96sec;504video984audio H264AAC frames decoded. Deniedanonymous/cacheTS0/production services socket mount unchanged; all temporary media,credentials,endpoints and processgroups removed. Provider200only/no readfailures/Mega remaining>=49, existing admission180/2400 unchanged. Movie decode/continuity approved as server evidence; startup still material and no physicalclient certification. Need same candidate episode and successful completeCI/rehearsal before activation. Failed46a fullgate never accepted.",
+    "evidence_sha256": [
+      "ef9ea0a080b9ac0925449bc439bfd1e93f71b7a39f44a5acfd56074f6fadb832"
+    ]
+  }
+}
