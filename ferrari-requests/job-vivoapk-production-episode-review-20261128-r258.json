@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-production-episode-review-20261128-r258",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 83,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Verified installed8f production actual Episode:9segments27.5sec/latest25.53,810video1164audio decoded from nativeH264AAC HLS; anonymousdenied, guardallowed/ACTIVE200, owncacheFFmpeg identified,0cachefilesafterStop/logout204, PIDs/socket/ns preserved. Firstsegment32.26sec after PlaybackInfo remains startup limitation. Proceed55sec actualliveprogressivecache, do not infer progressive deletion from27.5sec finitewindow. Physicalclients0/distinct realcustomers untested; no providerdenial bypass.",
+    "evidence_sha256": [
+      "75400c02a28265a967a05bebf7d3cede6abdb92521a504bf39940997e3935901"
+    ]
+  }
+}
