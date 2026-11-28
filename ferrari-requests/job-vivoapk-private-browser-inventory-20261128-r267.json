@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-private-browser-inventory-20261128-r267",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\np=subprocess.run(['sudo','-n','--','/srv/projects/Vivoapk/.venv/bin/python','-I','-B','-c',\"import collections,json,os,subprocess\\nfrom pathlib import Path\\nroot=Path('/srv/projects/skill-universal');found=collections.defaultdict(list);seen=0\\nfor base,dirs,files in os.walk(root,followlinks=False):\\n seen+=1\\n dirs[:]=[d for d in dirs if d not in ('.git','backups','work','jobs','__pycache__')]\\n if seen>65000:break\\n p=Path(base)\\n if 'package.json' in files and p.name in ('playwright','playwright-core','@playwright'):\\n  try:v=json.loads((p/'package.json').read_text()).get('version')\\n  except Exception:v=None\\n  found['playwright'].append({'root':str(p),'version':v})\\n for name in ('node','chrome','chromium','firefox','chrome-headless-shell'):\\n  if name in files:\\n   f=p/name\\n   if f.is_file() and os.access(f,os.X_OK):found[name].append(str(f))\\nprint(json.dumps({'private_root':str(root),'visited_directories':seen,'bounded':seen<=65000,'programs':{k:v[:8] for k,v in found.items()},'read_only':True,'secrets_emitted':False},separators=(',',':')))\\n\"],capture_output=True,text=True,timeout=100)\ntry:r=json.loads(p.stdout.strip())\nexcept Exception:r={'inventory_pass':False,'exit':p.returncode,'details_suppressed':True}\nprint(json.dumps(r,separators=(',',':')))"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 120000,
+          "idle_timeout_ms": 115000,
+          "terminal": {
+            "columns": 150,
+            "rows": 40,
+            "scrollback": 220
+          },
+          "limits": {
+            "output_bytes": 26000
+          }
+        }
+      }
+    }
+  ]
+}
