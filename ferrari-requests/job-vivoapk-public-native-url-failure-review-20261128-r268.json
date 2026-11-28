@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-public-native-url-failure-review-20261128-r268",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 91,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "r266 real PUBLIC HTTPS8f found new concrete incompatibility: actualMega/Jfinlogin/catalog/PlaybackInfo allowed/ACTIVE200, master200 in0.41sec and liveplaylist200 after6.28sec with native query credentials, but first segment GET failed gate195 beforeanydecode. Media was requested with unchanged native URLs and NO extra authheaders. native_media_urls_with_auth_query=2 suggests segmentURL lacks querytoken; exact segmentstatus/guard stillmustbe measured beforecodechange. EarlierUDS tests injectedvalidheaders onallsegments so didnotcertifyURL-only clients. Anonymousdenied, ownStopped/logout204, revokedtoken UsersMe401 and services/socket/ns preserved. Diagnose exactsegmentstatus/querypresence and matchingheadercontrol onlyforauthorizedJellyfinownertoken; do notbypassproviderdenial or weakenauth.",
+    "evidence_sha256": [
+      "e1ae79ac99d576bae395f959cda0324315b091fb8b4f0b88ccfcc7b35cfc2393"
+    ]
+  }
+}
