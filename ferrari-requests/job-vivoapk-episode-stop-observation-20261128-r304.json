@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-episode-stop-observation-20261128-r304",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\np=subprocess.run(['sudo','-n','--','/srv/projects/Vivoapk/.venv/bin/python','-I','-B','-c',\"import json,os,pwd,re,contextlib,time,hashlib,subprocess\\nfrom pathlib import Path\\nr={'read_only':True,'production_activation':False,'processes_terminated':False,'files_deleted':False}\\nff=Path('/srv/projects/Vivoapk/native-release-stage/0994990c024b159eebd44528041746f557596d27/ffmpeg/runtime/ffmpeg').resolve()\\nparent=int(subprocess.check_output(['systemctl','show','jellyfin-pink.service','-p','MainPID','--value'],text=True).strip())\\ncache=Path('/srv/projects/jellyfin-server/cache');jobs=[]\\nfor p in Path('/proc').iterdir():\\n if not p.name.isdigit():continue\\n with contextlib.suppress(OSError,ValueError,IndexError):\\n  if (p/'exe').resolve()!=ff or p.stat().st_uid!=pwd.getpwnam('jellyfinpink').pw_uid:continue\\n  stat=(p/'stat').read_text().split(') ',1)[1].split()\\n  if int(stat[1])!=parent:continue\\n  args=[os.fsdecode(v) for v in (p/'cmdline').read_bytes().split(bytes([0])) if v]\\n  output=Path(args[-1].removeprefix('file:')).resolve()\\n  if not output.is_relative_to(cache.resolve()):continue\\n  stem=output.stem\\n  count=sum(1 for f in output.parent.iterdir() if f.is_file() and (f==output or f.name.startswith(stem)))\\n  jobs.append({'pid':int(p.name),'namespace_hash':hashlib.sha256(stem.encode()).hexdigest()[:12],'cache_files':count})\\nr['native_ffmpeg_jobs']=jobs;r['native_ffmpeg_count']=len(jobs)\\nr['total_cache_media_files']=sum(1 for p in cache.rglob('*') if p.is_file() and p.suffix in ('.ts','.m3u8','.mp4','.m4s'))\\nr['services']={u:subprocess.check_output(['systemctl','is-active',u],text=True).strip() for u in ('jellyfin-pink.service','vivoapk-backend.service','nginx.service','postgresql.service')}\\nprint(json.dumps(r,separators=(',',':')))\"],capture_output=True,text=True,timeout=20)\ntry:r=json.loads(p.stdout.strip())\nexcept Exception:r={'observation_pass':False,'details_suppressed':True}\nprint(json.dumps(r,separators=(',',':')))"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 60000,
+          "idle_timeout_ms": 59000,
+          "terminal": {
+            "columns": 150,
+            "rows": 40,
+            "scrollback": 100
+          },
+          "limits": {
+            "output_bytes": 12000
+          }
+        }
+      }
+    }
+  ]
+}
