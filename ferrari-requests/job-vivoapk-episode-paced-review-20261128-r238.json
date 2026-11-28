@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-episode-paced-review-20261128-r238",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 71,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Verified complete r237: same04657f plugin829384 and loopd2093b as r235movie. Real admitted episode H264AAC MP4,26.8sec/8HLSsegments/new24.8sec;720video1034audio decoded. PlaybackInfo20.99sec/firstsegment33.58sec remains material latency; numeric nativeFFprobe-options200M/1G observed only, no guessed change. anonymous denied/cache0/metadata authprovider correct/provider200 only/remaining>=46, all owned temp resources removed and production12b/mount/socket/service PIDs unchanged. Server finite two-content proof now passes. Still require complete nativeCI success and exactbundle guarded upgrade rehearsal/activation then production finite tests. No six-platform physical or real distinct-customer concurrency certification.",
+    "evidence_sha256": [
+      "6140e5398d70746343d047161296bbd2e4992c69eb753f243cad0d5744b72ccb"
+    ]
+  }
+}
