@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-production-movie-review-20261128-r256",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 81,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Verified installed8f actual production Movie: native catalog/PlaybackInfo/guardallowed/HLS200,7segments25.1sec,lastnew23.12,504video984audio decoded,anonymousdenied,own FFmpeg cachejob positively identified and cache0afterStop/logout204; fourprotectedservicePIDs/socket/ns preserved. Cold movieleaf71.47sec and postPlaybackInfo firstsegment30.49sec remain material startup cost. Finite25sec no progressivecache deletion observed; do not infer failure or success from short window. Continue productionepisode and55sec livecache measurement, physicalclients0/two realcustomers untested. No providerauthorization bypass.",
+    "evidence_sha256": [
+      "f471afea37bd74ddca724e2f59084a5f7c18be18a2ad2370a85a23806a77bf8b"
+    ]
+  }
+}
