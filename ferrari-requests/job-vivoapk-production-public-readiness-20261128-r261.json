@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-production-public-readiness-20261128-r261",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\np=subprocess.run(['sudo','-n','--','/srv/projects/Vivoapk/.venv/bin/python','-I','-B','-c',\"import contextlib,hashlib,http.client,ipaddress,json,os,socket,ssl,stat,subprocess,urllib.request\\nfrom pathlib import Path\\nfrom urllib.parse import urlsplit\\nR={'production_activation':False,'secrets_emitted':False}\\nROOT=Path('/srv/projects/Vivoapk');JELLY=Path('/srv/projects/jellyfin-server')\\nunits=('vivoapk-backend.service','jellyfin-pink.service','nginx.service','postgresql.service')\\ndef states():return {u:subprocess.check_output(['systemctl','show',u,'-p','MainPID','-p','ActiveState'],text=True,timeout=5).strip() for u in units}\\nbefore=states()\\ntry:\\n host='serveriptv.duckdns.org';ctx=ssl.create_default_context()\\n addresses={v[4][0] for v in socket.getaddrinfo(host,443,type=socket.SOCK_STREAM)}\\n R['public_dns_resolves']=bool(addresses) and all(ipaddress.ip_address(v).is_global for v in addresses)\\n with socket.create_connection((host,443),timeout=12) as raw:\\n  with ctx.wrap_socket(raw,server_hostname=host) as connection:\\n   cert=connection.getpeercert();R['tls_verified']=ctx.verify_mode==ssl.CERT_REQUIRED and ctx.check_hostname;R['tls_certificate_not_after']=cert.get('notAfter')\\n with urllib.request.urlopen('https://'+host+'/System/Info/Public',timeout=15,context=ctx) as response:\\n  data=json.loads(response.read(65536));R['public_status']=response.status;R['public_jellyfin_version']=data.get('Version')\\n denied=[]\\n for path in ('/_internal/media/file/open','/_internal/media/hls/open','/_internal/entitlement/status'):\\n  request=urllib.request.Request('https://'+host+path,data=b'{}',headers={'Content-Type':'application/json'})\\n  try:\\n   with urllib.request.urlopen(request,timeout=10,context=ctx) as response:code=response.status;response.read(4096)\\n  except urllib.error.HTTPError as exc:code=exc.code;exc.close()\\n  denied.append(code)\\n R['public_private_routes_statuses']=denied;R['public_private_routes_denied']=all(v in (401,403,404) for v in denied)\\n R['backend_production_source_8f']='8f7acfd0e3265e845a4413b6cbc5842106d439d0' in subprocess.check_output(['systemctl','show','vivoapk-backend.service','-p','WorkingDirectory','--value'],text=True,timeout=5)\\n plugin=JELLY/'data/plugins/VivoAPK Mega OTT Auth_0.1.0.0/Jellyfin.Plugin.VivoapkMegaAuth.dll'\\n R['production_plugin_sha256']=hashlib.sha256(plugin.read_bytes()).hexdigest()\\n from xml.etree import ElementTree as ET\\n encoding=ET.fromstring((JELLY/'config/encoding.xml').read_bytes())\\n R['cache_configuration']={k:encoding.findtext(k) for k in ('EnableSegmentDeletion','SegmentKeepSeconds','EnableThrottling')}\\n R['known_temporary_paths_absent']=all(not os.path.lexists(ROOT/'run'/name) for name in ('native-pvod','native-pepisode','native-vod-r233.sock','native-vod-r233.key','native-episode-r231.sock','native-episode-r231.key','native-vod-r182.sock','native-vod-r182.key'))\\n R['free_space_gib']=round(os.statvfs(ROOT).f_bavail*os.statvfs(ROOT).f_frsize/1024**3,2)\\n R['plugin_verified']=R['production_plugin_sha256']=='e9d9bf5a2260e466a691bc2f38b681c1a577b7595875310c8ed6afad40a9ae8e'\\n journal=ROOT/'backups/native-upgrade-20261128-teletext/8f7acfd0e3265e845a4413b6cbc5842106d439d0/journal.json'\\n R['upgrade_journal_committed']=json.loads(journal.read_bytes()).get('phase')=='committed'\\n R['readiness_pass']=R['plugin_verified'] and R['upgrade_journal_committed'] and R['tls_verified'] and R['public_dns_resolves'] and R['public_status']==200 and R['public_jellyfin_version']=='12.4.0' and R['public_private_routes_denied'] and R['known_temporary_paths_absent'] and R['backend_production_source_8f']\\nexcept Exception as exc:R.update(readiness_pass=False,failure_type=type(exc).__name__)\\nfinally:R['production_unchanged']=before==states()\\nprint(json.dumps(R,sort_keys=True,separators=(',',':')))\\n\"],capture_output=True,text=True,timeout=120)\ntry:r=json.loads(p.stdout.strip())\nexcept Exception:r={'readiness_pass':False,'exit':p.returncode,'details_suppressed':True}\nprint(json.dumps(r,separators=(',',':')))"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 140000,
+          "idle_timeout_ms": 135000,
+          "terminal": {
+            "columns": 150,
+            "rows": 40,
+            "scrollback": 100
+          },
+          "limits": {
+            "output_bytes": 12000
+          }
+        }
+      }
+    }
+  ]
+}
