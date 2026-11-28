@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-candidate-original-query-review-20261128-r277",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 99,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Verified r276 exact427a/ordinaryDLL12823 isolated native instance and REALauthorizedRTP1: legacyAuthFALSE,21originalquery-onlymediarequests/noaddedheaders,master/playlist/segments200,10segments25.4sec/latest23.39,750video1409audio decoded/nativeH264AAC,28ACTIVEchecks0readfailures,anonymousdenied/cacheTS0/completegroupskeys/endpoints/samplestemporarycleanup. Production8fPIDs/socket/ns preserved. Firstsegment2.83 AFTERPlaybackInfo25.05 separate; do notclaim2.83totalstartup. AuthCI46120371132+privateCI46120371222passed; fullCI46120371147stillrunning mandatory beforeordinarydeployment. Next exactfullmanifest/stage/rehearsal/guardedplugin-onlyupdate retainingbackend8f, thenpublicHTTPS originalURLs andofficialWeb browser. Physical6/real2customers/realexpiredaccount remainpending.",
+    "evidence_sha256": [
+      "1bb80c370ba2e15a83a186a9d1a5f78cd4baad45b7b48cffcad01a76a8825b2a"
+    ]
+  }
+}
