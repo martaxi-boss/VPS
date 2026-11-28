@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-android-identity-correlation-20261128-r306",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\np=subprocess.run(['sudo','-n','--','/srv/projects/Vivoapk/.venv/bin/python','-I','-B','-c',\"import json,re,subprocess,sqlite3,contextlib,hashlib,uuid\\nfrom pathlib import Path\\nfrom urllib.parse import urlsplit,parse_qs\\nR={'read_only':True,'production_activation':False,'secrets_emitted':False}\\nnginx=subprocess.run(['nginx','-T'],capture_output=True,text=True,timeout=10).stdout\\npaths=set(re.findall(r'access_log\\\\s+([^;\\\\s]+)',nginx));paths.add('/var/log/nginx/access.log')\\nevents=[]\\nfor value in paths:\\n p=Path(value)\\n if not p.is_absolute() or not p.is_file() or p.is_symlink():continue\\n with contextlib.suppress(OSError):\\n  with p.open('rb') as f:f.seek(max(0,p.stat().st_size-5*1024*1024));text=f.read().decode(errors='replace')\\n  for line in text.splitlines():\\n   m=re.search(r'\\\\[([^\\\\]]+)\\\\] \\\"(GET|POST|DELETE|HEAD) ([^ ]+) HTTP/[^\\\"]+\\\" ([0-9]{3})',line)\\n   if not m or not re.match(r'28/Nov/2026:11:5[7-8]:',m[1]):continue\\n   u=urlsplit(m[3]);path=u.path.lower()\\n   if not path.endswith('/master.m3u8'):continue\\n   q=parse_qs(u.query,keep_blank_values=True)\\n   def one(k):v=q.get(k,[]);return v[0] if len(v)==1 else None\\n   def gid(x):\\n    try:return uuid.UUID(x)\\n    except (ValueError,TypeError,AttributeError):return None\\n   item=path.split('/')[2] if path.startswith('/videos/') else None\\n   row={'time':m[1].split(' ')[0],'status':int(m[4]),'counts':{k:len(v) for k,v in q.items() if k.lower() in ('apikey','api_key','deviceid','playsessionid','mediasourceid','userid','livestreamid','params')},'item_source_match':gid(item)==gid(one('MediaSourceId')),'session_guid_valid':gid(one('PlaySessionId')) is not None,'item_hash':hashlib.sha256((item or '').encode()).hexdigest()[:12]}\\n   token=one('ApiKey') or one('api_key')\\n   events.append((row,token,one('DeviceId'),one('UserId')))\\nwith sqlite3.connect('file:/srv/projects/jellyfin-server/data/data/jellyfin.db?mode=ro',uri=True) as con:\\n tables=[v[0] for v in con.execute(\\\"SELECT name FROM sqlite_master WHERE type='table'\\\")]\\n schemas={}\\n for t in tables:\\n  if any(k in t.lower() for k in ('device','authentication','token','session','apikey')):\\n   qt='\\\"'+t.replace('\\\"','\\\"\\\"')+'\\\"';cols=[v[1] for v in con.execute('PRAGMA table_info('+qt+')')];schemas[t]=cols\\n R['auth_schema']=schemas\\n for row,token,device,user in events[:12]:\\n  matches=[]\\n  if token:\\n   for t,cols in schemas.items():\\n    tc=next((c for c in cols if c.lower() in ('accesstoken','token')),None)\\n    if not tc:continue\\n    qt='\\\"'+t.replace('\\\"','\\\"\\\"')+'\\\"';qc='\\\"'+tc.replace('\\\"','\\\"\\\"')+'\\\"'\\n    for values in con.execute('SELECT * FROM '+qt+' WHERE '+qc+'=? LIMIT 2',(token,)):\\n     d=dict(zip(cols,values));devicekey=next((c for c in cols if c.lower()=='deviceid'),None);userkey=next((c for c in cols if c.lower()=='userid'),None)\\n     dbdev=d.get(devicekey) if devicekey else None;dbuser=d.get(userkey) if userkey else None\\n     matches.append({'table':t,'device_query_matches_token':str(dbdev)==device if devicekey and device is not None else None,'user_query_matches_token':str(dbuser).replace('-','').lower()==user.replace('-','').lower() if userkey and user else None,'application':next((d[c] for c in cols if c.lower()=='applicationname' and d[c] in ('Jellyfin Android','Jellyfin Web','Jellyfin Android TV')),None)})\\n  row['token_records']=matches\\nR['master_requests']=[row for row,_,_,_ in events[:12]]\\nprint(json.dumps(R,separators=(',',':')))\"],capture_output=True,text=True,timeout=35)\ntry:r=json.loads(p.stdout.strip())\nexcept Exception:r={'diagnosis_pass':False,'details_suppressed':True}\nprint(json.dumps(r,separators=(',',':')))"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 60000,
+          "idle_timeout_ms": 59000,
+          "terminal": {
+            "columns": 150,
+            "rows": 40,
+            "scrollback": 100
+          },
+          "limits": {
+            "output_bytes": 16000
+          }
+        }
+      }
+    }
+  ]
+}
