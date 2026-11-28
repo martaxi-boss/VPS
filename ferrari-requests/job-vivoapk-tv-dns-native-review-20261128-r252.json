@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-tv-dns-native-review-20261128-r252",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 79,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Verified r250 exact8f TV-DNS server profile: truthfully named localTizen validation client/providerUA unchangedVivoapk1.0, actualRTP2,53 live origin authorizations all normalize to subscriptionTV origin, no DNS/credentials exposed. NativeH264AAC output/probed/1350video1269audio decoded,9segments26.4sec/latest24.41; firstsegment5.64sec separatePlaybackInfo24.78. anonymous denied/50ACTIVE validations/zero failures/cacheTS0/complete scopedcleanup and production12b preserved. PhysicalTV notcertified. Full8f CI46088866872 now success and exactordinarybundle e9d9bf/manifestc539 verified/stagedr251. Candidate is eligible for guarded9file rehearsal and authorized deployment; task still needs production finite and actualcache metric before overall completion. No permission to bypass any provider denial.",
+    "evidence_sha256": [
+      "13afcdcaaf14847f33d9488eda295bcd2119f23736bd785509f1ceda0cac2653"
+    ]
+  }
+}
