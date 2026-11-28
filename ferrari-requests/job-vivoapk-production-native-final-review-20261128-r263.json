@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-production-native-final-review-20261128-r263",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 87,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Server correction VERIFIED AND DEPLOYED exact8f ordinary bundle: guarded r254committed/admin/secrets/protectedservices preserved; fullnativeCI46088866872success; productionMovie504video984audio7segments25.1sec r255; Episode810video1164audio9segments27.5sec r257; r262 actualRTP1 HEVC/AACnativeHLS34segments85.9sec latest83.92,2400video2250audio with2383/2249distincthashes,ownFFmpegpositivelyidentified,10actual.tssegmentsremovedDURINGplayback,max25cachefiles,0afterStop/logout204/anonymousdenied/ACTIVE200/allservices/socket/ns preserved. Metric excludesplaylist. PublicTLS/DNS/Jfin200/private404/sourcepins/journalcommitted r261pass. No additional server fault demonstrated. Overallacceptance REMAINS PENDING external physicalofficialapps on6platforms,2distinctrealcustomers and realexpiredtestaccount; syntheticparallel/revocation regressions are not physicalcertification. Finite firstsegment30–32s afterPlaybackInfo/coldmovieleaf71s remains observedlatency. Keep PINK/backups/Jellyfinservice; do not claim fullprojectcomplete or bypassproviderdenials.",
+    "evidence_sha256": [
+      "8d54f1dd3661ac150f469422121c378add84514b73e9212ef56cb4a09576a957"
+    ]
+  }
+}
