@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-stage-test-isolated-source-20261128-r242",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json,re\np=subprocess.run([\"sudo\",\"-n\",\"--\",\"/usr/bin/python3\",\"-I\",\"-B\",\"-c\",\"import hashlib,json,os,subprocess\\nfrom pathlib import Path\\nSOURCE=\\\"96f6d91587789fcd5d2a896b3d4f4404e7d20f18\\\"\\nROOT=Path(\\\"/srv/projects/Vivoapk\\\");SRC=ROOT/\\\"native-release-stage\\\"/SOURCE/\\\"backend/source\\\"\\nenv={\\\"PATH\\\":\\\"/usr/bin:/bin\\\",\\\"LANG\\\":\\\"C.UTF-8\\\",\\\"GIT_CONFIG_GLOBAL\\\":\\\"/dev/null\\\",\\\"GIT_CONFIG_NOSYSTEM\\\":\\\"1\\\",\\\"GIT_TERMINAL_PROMPT\\\":\\\"0\\\"}\\ndef cmd(args):return subprocess.check_output(args,text=True,env=env,stderr=subprocess.DEVNULL,timeout=40).strip()\\ndef units():return {u:cmd([\\\"systemctl\\\",\\\"show\\\",u,\\\"-p\\\",\\\"MainPID\\\",\\\"-p\\\",\\\"ActiveState\\\"]) for u in (\\\"vivoapk-backend.service\\\",\\\"jellyfin-pink.service\\\",\\\"nginx.service\\\",\\\"postgresql.service\\\")}\\nbefore=units()\\nassert \\\"12b8c5ba6f4c64462adbb79d2f27501ade42de3d\\\" in cmd([\\\"systemctl\\\",\\\"show\\\",\\\"vivoapk-backend.service\\\",\\\"-p\\\",\\\"WorkingDirectory\\\",\\\"--value\\\"])\\nSRC.parent.mkdir(parents=True,exist_ok=True,mode=0o755)\\nif not SRC.exists():\\n subprocess.run([\\\"git\\\",\\\"clone\\\",\\\"--no-checkout\\\",\\\"https://github.com/martaxi-boss/Vivoapk\\\",str(SRC)],capture_output=True,check=True,timeout=40,env=env)\\n subprocess.run([\\\"git\\\",\\\"-C\\\",str(SRC),\\\"checkout\\\",\\\"--detach\\\",SOURCE],capture_output=True,check=True,timeout=20,env=env)\\nassert cmd([\\\"git\\\",\\\"-C\\\",str(SRC),\\\"rev-parse\\\",\\\"HEAD\\\"])==SOURCE and not cmd([\\\"git\\\",\\\"-C\\\",str(SRC),\\\"status\\\",\\\"--porcelain\\\"])\\nassert all(not p.is_symlink() for p in (SRC,*SRC.parents))\\nchanged=cmd([\\\"git\\\",\\\"-C\\\",str(SRC),\\\"diff\\\",\\\"--name-only\\\",\\\"04657f5f06029a2e0efe717ed17efd50f1243d02\\\",\\\"HEAD\\\"]).splitlines()\\nassert set(changed)=={\\\"BOOTSTRAP.md\\\",\\\"jellyfin-auth/tests/private_backend_fixture.py\\\",\\\"jellyfin-auth/tests/jellyfin_12_4_smoke.py\\\"}\\nassert hashlib.sha256((SRC/\\\"jellyfin-auth/Vivoapk.Jellyfin.Auth/PrivateHlsLoopback.cs\\\").read_bytes()).hexdigest()==\\\"d2093b56448fa9dcf7fd843dd22bae0b39394b91cb3c88b9b2df60099c82332e\\\"\\nassert hashlib.sha256((SRC/\\\"jellyfin-auth/Vivoapk.Jellyfin.Auth/PrivateMediaProbe.cs\\\").read_bytes()).hexdigest()==\\\"ea01ac27714552858c1d150abae07409f1948c3e42c176f8071d86e607632b0f\\\"\\nassert before==units()\\nprint(json.dumps({\\\"source_staged\\\":True,\\\"source\\\":SOURCE,\\\"application_identical_to_real_pilots\\\":True,\\\"only_test_and_bootstrap_changes\\\":True,\\\"production_activation\\\":False,\\\"production_unchanged\\\":True,\\\"secrets_emitted\\\":False},separators=(\\\",\\\",\\\":\\\")))\\n\"],capture_output=True,text=True,timeout=100)\ntry:r=json.loads(p.stdout.strip())\nexcept Exception:r={\"source_staged\":False,\"exit\":p.returncode,\"failure_classes\":[x for x in (\"AssertionError\",\"FileNotFoundError\",\"PermissionError\") if x in p.stderr],\"failure_lines\":re.findall(r'File \"<string>\", line ([0-9]+)',p.stderr)[-3:],\"secrets_emitted\":False}\nprint(json.dumps(r,separators=(',',':')))"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 120000,
+          "idle_timeout_ms": 115000,
+          "terminal": {
+            "columns": 150,
+            "rows": 40,
+            "scrollback": 100
+          },
+          "limits": {
+            "output_bytes": 12000
+          }
+        }
+      }
+    }
+  ]
+}
