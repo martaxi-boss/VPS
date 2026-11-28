@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-android-1157-path-diagnosis-20261128-r305",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\np=subprocess.run(['sudo','-n','--','/srv/projects/Vivoapk/.venv/bin/python','-I','-B','-c',\"import json,re,subprocess,contextlib,hashlib\\nfrom pathlib import Path\\nfrom urllib.parse import urlsplit,parse_qs\\nR={'read_only':True,'production_activation':False,'secrets_emitted':False}\\njournal=subprocess.run(['journalctl','-u','jellyfin-pink.service','--since','2026-11-28 11:54:00 UTC','--until','2026-11-28 12:03:00 UTC','-n','600','--no-pager','-o','cat'],capture_output=True,text=True,timeout=12).stdout\\nR['exception_types']=sorted(set(re.findall(r'\\\\b(?:[A-Z][A-Za-z0-9_]*\\\\.)*[A-Z][A-Za-z0-9_]*(?:Exception|Error)\\\\b',journal)))\\ndef safe(v):\\n v=re.sub(r'https?://[^\\\\s\\\\\\\"<>]+','[URL]',v)\\n v=re.sub(r'\\\\b[0-9a-fA-F-]{24,}\\\\b','[id]',v)\\n v=re.sub(r'(?i)(apikey|api_key|token|password|username|deviceid|playsessionid|mediasourceid)([=:][^\\\\s,&\\\\\\\"<>]*)',r'\\\\1=[redacted]',v)\\n return v[:800]\\nkeys=('error','exception','failed','exited','denied','not supported','unsupported')\\nR['native_diagnostics']=[safe(v) for v in journal.splitlines() if any(k in v.lower() for k in keys) and not any(k in v.lower() for k in (' -i ','authorization','x-emby','user policy for','cookie','token','password','username','apikey','api_key'))][-30:]\\nnginx=subprocess.run(['nginx','-T'],capture_output=True,text=True,timeout=10).stdout\\npaths=set(re.findall(r'access_log\\\\s+([^;\\\\s]+)',nginx));paths.add('/var/log/nginx/access.log')\\nrows=[]\\nfor value in paths:\\n p=Path(value)\\n if not p.is_absolute() or not p.is_file() or p.is_symlink():continue\\n with contextlib.suppress(OSError):\\n  with p.open('rb') as f:f.seek(max(0,p.stat().st_size-4*1024*1024));text=f.read().decode(errors='replace')\\n  for line in text.splitlines():\\n   m=re.search(r'\\\\[([^\\\\]]+)\\\\] \\\"(GET|POST|DELETE|HEAD) ([^ ]+) HTTP/[^\\\"]+\\\" ([0-9]{3})',line)\\n   if not m or not re.match(r'28/Nov/2026:11:(?:5[4-9]):',m[1]):continue\\n   u=urlsplit(m[3]);path=u.path.lower();label=None\\n   if path.endswith('/playbackinfo'):label='playback_info'\\n   elif path.endswith('/authenticatebyname'):label='login'\\n   elif path.startswith('/videos/'):\\n    if path.endswith('master.m3u8'):label='master_hls'\\n    elif path.endswith('live.m3u8'):label='live_hls'\\n    elif path.endswith('main.m3u8'):label='finite_hls'\\n    elif '/hls/' in path and path.endswith('.ts'):label='live_ts'\\n    elif '/hls1/' in path:label='dynamic_segment'\\n    elif '/stream' in path:label='progressive_stream'\\n    else:label='other_video'\\n   elif path.startswith('/sessions/playing'):label='playback_report'\\n   if label is None:continue\\n   q=parse_qs(u.query,keep_blank_values=True)\\n   selected={k:v[0] for k,v in q.items() if k.lower() in ('container','segmentcontainer','videocodec','audiocodec') and len(v)==1 and re.fullmatch(r'[a-zA-Z0-9_,.-]{1,50}',v[0])}\\n   present=[k for k in ('ApiKey','api_key','DeviceId','PlaySessionId','MediaSourceId','LiveStreamId','Params') if k in q]\\n   rows.append({'time':m[1].split(' ')[0],'route':label,'status':int(m[4]),'selectors_present':present,'formats':selected})\\nR['public_requests']=rows[-45:]\\nR['services']={u:subprocess.check_output(['systemctl','is-active',u],text=True).strip() for u in ('jellyfin-pink.service','vivoapk-backend.service','nginx.service','postgresql.service')}\\nprint(json.dumps(R,separators=(',',':')))\"],capture_output=True,text=True,timeout=40)\ntry:r=json.loads(p.stdout.strip())\nexcept Exception:r={'diagnosis_pass':False,'details_suppressed':True}\nprint(json.dumps(r,separators=(',',':')))"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 65000,
+          "idle_timeout_ms": 64000,
+          "terminal": {
+            "columns": 150,
+            "rows": 40,
+            "scrollback": 100
+          },
+          "limits": {
+            "output_bytes": 20000
+          }
+        }
+      }
+    }
+  ]
+}
