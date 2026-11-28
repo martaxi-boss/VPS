@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "id": "vivoapk-production-continuation-diagnostics-20261128-r264",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 88,
+  "turn": {
+    "task": "real-native-output",
+    "role": "tester",
+    "kind": "rea-mcp",
+    "message": "Read-only continuation baseline of actual deployed8f, bounded post-test error counts with no raw logs/secrets, service stability and own temporary residue. No provider playback/session/config changes. Establish remaining public HTTPS/client-path validation scope.",
+    "mcp_requests": [
+      {
+        "method": "tools/call",
+        "params": {
+          "name": "capture_process_scenario",
+          "arguments": {
+            "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+            "arguments": [
+              "-c",
+              "import subprocess,json\np=subprocess.run(['sudo','-n','--','/srv/projects/Vivoapk/.venv/bin/python','-I','-B','-c',\"import collections,contextlib,datetime,hashlib,json,os,re,stat,subprocess\\nfrom pathlib import Path\\nR={'read_only':True,'secrets_emitted':False,'physical_clients_certified':0}\\nROOT=Path('/srv/projects/Vivoapk');J=Path('/srv/projects/jellyfin-server');SRC=ROOT/'native-release-stage/8f7acfd0e3265e845a4413b6cbc5842106d439d0/backend/source'\\nunits=['vivoapk-backend.service','jellyfin-pink.service','nginx.service','postgresql.service']\\ndef command(args):return subprocess.check_output(args,text=True,stderr=subprocess.DEVNULL,timeout=20)\\ndef props(unit):\\n raw=command(['systemctl','show',unit,'-p','MainPID','-p','ActiveState','-p','NRestarts','-p','ActiveEnterTimestamp'])\\n return dict(line.split('=',1) for line in raw.splitlines() if '=' in line)\\nbefore={u:props(u) for u in units}\\ntry:\\n R['services']=before;R['source_pinned_clean']=command(['git','-C',str(SRC),'rev-parse','HEAD']).strip()=='8f7acfd0e3265e845a4413b6cbc5842106d439d0' and not command(['git','-C',str(SRC),'status','--porcelain']).strip()\\n R['backend_cwd_is_8f']=Path('/proc/'+before[units[0]]['MainPID']+'/cwd').resolve()==SRC/'backend'\\n p=J/'data/plugins/VivoAPK Mega OTT Auth_0.1.0.0/Jellyfin.Plugin.VivoapkMegaAuth.dll';R['plugin_verified']=hashlib.sha256(p.read_bytes()).hexdigest()=='e9d9bf5a2260e466a691bc2f38b681c1a577b7595875310c8ed6afad40a9ae8e'\\n fixed=('401','403','404','429','500','502','503','504');counts={}\\n signatures={'ffmpeg_failed':r'FFmpeg exited with code [1-9]','playback_error':r'(Error processing request|Error opening|Error probing)','authorization_denial':r'(UnauthorizedAccessException|Unauthorized|Forbidden)','rate_limit':r'(Too Many Requests|HTTP.429|status.?429)','private_guard_denial':r'(guard.*denied|entitlement.*EXPIRED)'}\\n for u in units[:2]:\\n  logs=command(['journalctl','-u',u,'--since','2026-11-28 01:30:00','--no-pager','-o','cat','-n','12000'])\\n  counts[u]={'lines_scanned':len(logs.splitlines()),'fixed_error_signatures':{k:len(re.findall(v,logs,re.I)) for k,v in signatures.items()}}\\n R['post_test_journal_counts']=counts\\n R['web_directories']=[str(p) for p in (J/'web',J/'current/jellyfin-web',J/'current/web',J/'releases/12.4/jellyfin/jellyfin-web') if p.is_dir()]\\n R['bootstrap_present']=[p.name for p in ROOT.iterdir() if p.is_file() and p.name.casefold().startswith('bootstrap')]\\n R['own_known_temporary_paths_absent']=all(not os.path.lexists(ROOT/'run'/x) for x in ('native-p147','native-pvod','native-pepisode','native-pilot-r162.sock','native-pilot-r162.key'))\\n R['free_gib']=round(os.statvfs(ROOT).f_bavail*os.statvfs(ROOT).f_frsize/1024**3,2)\\n R['continuation_baseline_pass']=R['source_pinned_clean'] and R['backend_cwd_is_8f'] and R['plugin_verified'] and all(v['ActiveState']=='active' for v in before.values()) and R['own_known_temporary_paths_absent']\\nexcept Exception as e:R.update(continuation_baseline_pass=False,failure_type=type(e).__name__)\\nfinally:R['services_unchanged']=before=={u:props(u) for u in units}\\nprint(json.dumps(R,sort_keys=True,separators=(',',':')))\\n\"],capture_output=True,text=True,timeout=180)\ntry:r=json.loads(p.stdout.strip())\nexcept Exception:r={'continuation_baseline_pass':False,'exit':p.returncode,'details_suppressed':True}\nprint(json.dumps(r,separators=(',',':')))"
+            ],
+            "working_directory": "/srv/projects/skill-universal",
+            "timeout_ms": 210000,
+            "idle_timeout_ms": 205000,
+            "terminal": {
+              "columns": 150,
+              "rows": 40,
+              "scrollback": 220
+            },
+            "limits": {
+              "output_bytes": 26000
+            }
+          }
+        }
+      }
+    ]
+  }
+}
