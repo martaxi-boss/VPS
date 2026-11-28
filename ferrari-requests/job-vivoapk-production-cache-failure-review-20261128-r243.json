@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-production-cache-failure-review-20261128-r243",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 73,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "r241 did not test cache or deliver media: current production12b PlaybackInfo404 while nativeguard allowed, Mega login/authSUCCESS/testlineidle and entitlementACTIVE200. TLS/private endpoint auditr240 passed independently, allPIDs/socket/mount remained unchanged and own testtoken logout204. Do not overwrite prior real180sec TV proof, but this new reopen failure blocks a fresh working-state certification. Investigate source/probe/private session outcome, not assume format or provider401. Stage current ordinary96f plugin only as isolated test fixture; compare fresh nativeTV path using instrumented candidate backend without changingproduction. Full96f CI separately pending, application code identical04657f verified r242.",
+    "evidence_sha256": [
+      "6d9fed1b992d7a0635ed178f64f7734f2f13b2d67b5969996f5d1725f328b097"
+    ]
+  }
+}
