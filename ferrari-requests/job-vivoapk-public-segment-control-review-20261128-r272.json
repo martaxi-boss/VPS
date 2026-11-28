@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-public-segment-control-review-20261128-r272",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 95,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "r271 confirmed originalpublicsegment404denied/noquery vs SAMEsegment200allowed/493688bytes with fullmatchingownJfinAuthorizationheader. Querycontrol using legacyapi_key remained404; do notclaimquerycontrolpassed. Pinned upstreamAuthorizationContext treats ApiKey asmodern and api_key/X-Emby-Token aslegacy-configdependent, so verify actualEnableLegacyAuthorization and modernApiKey using same authorizedsegment beforeimplementing. Native master/liveplaylist modernqueryworked. Preserveallguards, providerauthorization, ownStop/logout/token401 and services. Remaining publicHLS URLauth propagation islocal demonstratedfault, physicalclients still0.",
+    "evidence_sha256": [
+      "4a308c864fee0ca67c969b849c183e5de95970048b2a2b6da3497a226a80b84d"
+    ]
+  }
+}
