@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-public-segment-diagnosis-review-20261128-r270",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 93,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Confirmed r269 exactsegment404 emptybody/privateguarddenied, no authquery in native live segment URL; master+playlist200/ACTIVE200. Token-only headercontrol also404denied, so token alone is insufficient; do notclaimpositiveheadercontrol. PinnedLiveRecovery requires authenticatedJellyfinDeviceId as well asowner/item/session/nativecache namespace, while GetLivePlaylistText returnsrawFFmpegrelativeURLs withoutnativequery. Finiteplaylistgenerator alreadycopiesRequest.QueryString. Next diagnose same firstsegment with fullvalidownertoken+DeviceId header and separately with own valid query selectors to prove missing auth+device propagation, preservingproviderdeny. OrdinaryJfinWeb Hls.js xhrSetup setswithCredentials only, no tokenheaders; query-only transport is a realcontract. Scoped cleanup/logout/tokenrevocation and servicespreserved. Do notweakenauth orannouncephysicalcertification.",
+    "evidence_sha256": [
+      "e57edc592120d86242540143a4d112d1d4c387fa40807949d0f4cbc1faa66683"
+    ]
+  }
+}
