@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-hevc-teletext-native-review-20261128-r249",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 77,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Verified complete r248 exact8f7acfd ordinaryplugin e9d9bf.../Probe ae360... real native proof. Same admitted RTP1 sourceHEVC1080/AAC48kHz/dvb_teletext, provider302->200; nativeSourceAV onlyHEVC/AAC; actual publicHLS output FFprobe H264/AAC and1200video1125audio frames decoded,8segments27.6sec/latest25.56sec. Firstsegment7.32sec afterplayback request, PlaybackInfo21.79sec separately; anonymous denied,54ACTIVE private entitlements, no failures/remaining>=51. Stop/cacheTS0/allowned probe samples/data/keys/endpoints/processgroups removed, production12b unchanged. This demonstrates r245 local metadata incompatibility corrected, not supplierbypass. Require complete8f nativeCI/exactbundle/guarded9file rehearsal and activation, then production movies/episode and actualprogressivecache metric. Physicalsixplatforms0 and realdistinctcustomer concurrency stilluncertified.",
+    "evidence_sha256": [
+      "77ed38de8c63af6cdc3c73b5c1fc476359abed98c1060bc54a25c01413541b8e"
+    ]
+  }
+}
