@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-device-test-availability-20261128-r303",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\np=subprocess.run(['sudo','-n','--','/srv/projects/Vivoapk/.venv/bin/python','-I','-B','-c',\"import json,socket,os,contextlib,re,hashlib\\nfrom pathlib import Path\\nr={'read_only':True,'production_activation':False,'device_actions_performed':False,'private_adb_server_seen':False,'connected_devices':0}\\nprivate=[]\\nfor p in Path('/proc').iterdir():\\n if not p.name.isdigit():continue\\n with contextlib.suppress(OSError,ValueError):\\n  exe=(p/'exe').resolve()\\n  if exe.name=='adb' and exe.is_relative_to('/srv/projects/skill-universal'):\\n   private.append(int(p.name))\\nr['private_adb_server_seen']=bool(private)\\nif private:\\n try:\\n  with socket.create_connection(('127.0.0.1',5037),timeout=2) as s:\\n   request=b'host:devices-l';s.sendall(('%04x'%len(request)).encode()+request)\\n   def read(n):\\n    b=b''\\n    while len(b)<n:\\n     v=s.recv(n-len(b))\\n     if not v:raise EOFError()\\n     b+=v\\n    return b\\n   status=read(4)\\n   if status==b'OKAY':\\n    length=int(read(4),16)\\n    if length>32768:raise ValueError()\\n    rows=read(length).decode().splitlines()\\n    devices=[]\\n    for line in rows:\\n     fields=line.split()\\n     if len(fields)>=2:\\n      model=next((v[6:] for v in fields[2:] if v.startswith('model:')),'unknown')\\n      devices.append({'state':fields[1] if fields[1] in ('device','offline','unauthorized') else 'other','model':model if re.fullmatch(r'[A-Za-z0-9_-]{1,64}',model) else 'redacted'})\\n    r['connected_devices']=sum(v['state']=='device' for v in devices);r['devices']=devices\\n   else:r['adb_query_status']='not_okay'\\n except Exception as e:r['availability_failure_type']=type(e).__name__\\nprint(json.dumps(r,separators=(',',':')))\"],capture_output=True,text=True,timeout=15)\ntry:r=json.loads(p.stdout.strip())\nexcept Exception:r={'availability_pass':False,'details_suppressed':True}\nprint(json.dumps(r,separators=(',',':')))"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 60000,
+          "idle_timeout_ms": 59000,
+          "terminal": {
+            "columns": 150,
+            "rows": 40,
+            "scrollback": 100
+          },
+          "limits": {
+            "output_bytes": 12000
+          }
+        }
+      }
+    }
+  ]
+}
