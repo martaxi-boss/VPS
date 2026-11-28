@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-continuation-baseline-review-20261128-r265",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 89,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Verified r264 actual production remains exact8f/clean source/exactplugin, active since01:08UTC with0restarts, protectedservicesunchanged/ownedtemporarypathsabsent/31.93GiBfree. Boundedjournal since01:30 scans35Jfin0backend lines with0knownerror signatures; this is not proof of client playback. Officialweb distribution exists. Next missing test is real public HTTPS/native returned media URL/querytoken contract through existingNginx, whereas earlier native decode pilots usedUDS and normalized authselectors. Validate without modifying native URL or adding media tokenheaders; do not claim physicalplatform certification. Keep sixphysical/twoactualcustomers/realexpiredline acceptance pending.",
+    "evidence_sha256": [
+      "9589d6da917c6d6aad4097648c115a73e07aff65f9145cf4fee62cf0418ed52e"
+    ]
+  }
+}
