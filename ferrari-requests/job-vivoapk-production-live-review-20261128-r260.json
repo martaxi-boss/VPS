@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-production-live-review-20261128-r260",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 85,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Verified installed8f production authorized RTP1 HEVC/AAC input/nativeHLS:25segments55.5sec,lastnew53.5,2400video2250audioframes decoded with1904/2250distincthashes;ownnativeFFmpegidentified/Stop0cache/logout204/anonymousdenied/ACTIVE200/servicePIDs/socket/ns unchanged. Ownedcachedeletion1observed but observerincludedplaylist; require segment-only suffix.ts metric before certifyingprogressivevideo cleanup. Actual movie and episodeproduction passed. Physicalclients0/two realcustomers notcertified. Next85sec exactsegment-onlyobservation is justified by this measurementambiguity, no application/config changes.",
+    "evidence_sha256": [
+      "7ee272b587105325711a05fffb08d98aeafbe666278c627601b8b46900884fd9"
+    ]
+  }
+}
