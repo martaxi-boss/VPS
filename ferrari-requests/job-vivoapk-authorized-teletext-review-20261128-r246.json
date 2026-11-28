@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-authorized-teletext-review-20261128-r246",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 75,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "Exact r245 cause: fresh isolated ordinary96f alsoPlaybackInfo404, so not an old production-state explanation. Backend privateopen200/ts-probe200/close204, provider302->200, probe385024bytes0.89sec, MegaACTIVE and no authorization/read errors. OfficialFFprobe sample identifies HEVC1920x1080, AAC2ch48kHz, plusdvb_teletext subtitle. HEVC/AAC alreadyallowlisted; PrivateMediaProbe.Parse default rejects every subtitle. Correct only demonstrated known ancillary track: validate index/type/codec and retain typed ancillary identity separately while native source advertises/mapsAV only. Unknown tracks and all auth/format/protocol/bounds remainclosed. Add actual syntheticTS PMT teletext FFprobe and negative parser regressions, then realRTP1 HEVC+AACA/V decode before any deploy. No stale-lease or auth changes justified.",
+    "evidence_sha256": [
+      "c921be018fd4a1b08832c5eb64517b20e305b2e5de47dfd90a115bacbd5a0188"
+    ]
+  }
+}
