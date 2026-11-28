@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "vivoapk-modern-query-cause-review-20261128-r274",
+  "kind": "ruflo-team",
+  "phase": "turn",
+  "team_id": "vivoapk-native-fullpath-20261127",
+  "revision": 97,
+  "turn": {
+    "task": "real-native-output",
+    "role": "reviewer",
+    "kind": "review",
+    "verdict": "changes_requested",
+    "message": "r273 causally CONFIRMED: productionEnableLegacyAuthorization=false/native master usesmodernApiKey/loginDeviceIdmatchtrue. Originallegacy segmentURL404guarddenied; same actualsegment fullmatchingheader200281812bytes and modernApiKey+boundDeviceId/PlaySessionId/MediaSourceId query200samebytes/guardallowed. Decoded75video142audio. Legacyapi_keycontrolfailure explains priornegative withoutneedingauthrelaxation. OwnStop/logout204/tokenUsersMe401/services/socket/ns preserved. Scope fix to private native LIVE playlist references for exactowner/device/item/session/job; usemodernApiKey, retain strictguard/refuseexternalforeignor malformed references, no providercredential propagation or newengine. Addoriginal query-only native CI regression while retainingforeign/anonymous/forged namespace/queryless-header coverage. Require compilation/relevant/fullCI and realpublicretest beforedeployment orappsuccess claim.",
+    "evidence_sha256": [
+      "c8a30c97091f645c58258753f7d75a4e6154d6f1f11795bfa408f0aab53fde4b"
+    ]
+  }
+}
