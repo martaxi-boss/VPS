@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-official-web-muxer-detail-20261128-r288",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\np=subprocess.run(['sudo','-n','--','/srv/projects/Vivoapk/.venv/bin/python','-I','-B','-c',\"import json,re,time\\nfrom pathlib import Path\\nr={'production_activation':False,'secrets_emitted':False,'logs':[]}\\nfor root in [Path('/srv/projects/jellyfin-server/log'),Path('/srv/projects/jellyfin-server/logs'),Path('/srv/projects/jellyfin-server/data/log')]:\\n if not root.is_dir():continue\\n candidates=sorted([p for p in root.iterdir() if p.is_file() and not p.is_symlink() and 'ffmpeg' in p.name.lower()],key=lambda p:p.stat().st_mtime,reverse=True)\\n for p in candidates[:1]:\\n  text=p.read_text(errors='replace')[-35000:]\\n  lines=[]\\n  for line in text.splitlines()[-65:]:\\n   if any(k in line.lower() for k in (' -i ','authorization','x-emby','user-agent','user_agent','token','password','username','apikey','api_key','configuration:')) or line.startswith('/srv/'):continue\\n   line=re.sub(r'https?://[^\\\\s\\\\\\\"<>]+','[URL]',line)\\n   line=re.sub(r'\\\\b[0-9a-fA-F]{24,}\\\\b','[id]',line)\\n   lines.append(line[:1000])\\n  r['logs'].append({'lines':lines})\\nprint(json.dumps(r,separators=(',',':')))\"],capture_output=True,text=True,timeout=20)\ntry:r=json.loads(p.stdout.strip())\nexcept Exception:r={'diagnosis_pass':False,'details_suppressed':True}\nprint(json.dumps(r,separators=(',',':')))"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 60000,
+          "idle_timeout_ms": 299000,
+          "terminal": {
+            "columns": 150,
+            "rows": 40,
+            "scrollback": 100
+          },
+          "limits": {
+            "output_bytes": 12000
+          }
+        }
+      }
+    }
+  ]
+}
