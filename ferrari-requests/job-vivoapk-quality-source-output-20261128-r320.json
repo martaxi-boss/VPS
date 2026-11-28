@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-quality-source-output-20261128-r320",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\np=subprocess.run(['sudo','-n','--','/srv/projects/Vivoapk/.venv/bin/python','-I','-B','-c',\"import contextlib,json,os,pwd,re,subprocess,time\\nfrom pathlib import Path\\nfrom urllib.parse import urlsplit,parse_qsl\\nfrom xml.etree import ElementTree as ET\\nR={'read_only':True,'secrets_emitted':False,'production_changed':False}\\nJ=Path('/srv/projects/jellyfin-server')\\nR['services']={u:subprocess.check_output(['systemctl','is-active',u],text=True).strip() for u in ('jellyfin-pink.service','vivoapk-backend.service','nginx.service','postgresql.service')}\\nR['cpu_count']=os.cpu_count();R['loadavg']=list(os.getloadavg())\\nopts={'-codec:v:0','-codec:a:0','-c:v','-c:a','-b:v','-b:a','-maxrate','-bufsize','-vf','-filter:v:0','-preset','-crf','-r','-g','-keyint_min','-hls_time','-hls_list_size','-analyzeduration','-probesize','-threads','-s','-fps_mode','-tune','-profile:v:0','-level','-f'}\\nR['native_jobs']=[]\\nfor p in Path('/proc').iterdir():\\n if not p.name.isdecimal():continue\\n with contextlib.suppress(OSError,ValueError,IndexError):\\n  exe=(p/'exe').resolve()\\n  if exe.name not in ('ffmpeg','ffprobe') or p.stat().st_uid!=pwd.getpwnam('jellyfinpink').pw_uid:continue\\n  a=[os.fsdecode(v) for v in (p/'cmdline').read_bytes().split(bytes([0])) if v]\\n  values={}\\n  for k,v in zip(a,a[1:]):\\n   if k in opts and len(v)<=300 and re.fullmatch(r'[A-Za-z0-9_:/.,=+*()<>? -]+',v) and not any(w in v for w in ('http','vivoapk','token','ApiKey')):values[k]=v\\n  R['native_jobs'].append({'tool':exe.name,'options':values,'rss_kib':next((int(x.split()[1]) for x in (p/'status').read_text().splitlines() if x.startswith('VmRSS:')),None)})\\ne=ET.fromstring((J/'config/encoding.xml').read_bytes())\\nR['encoding']={k:e.findtext(k) for k in ('EncodingThreadCount','TranscodingTempPath','EnableThrottling','EnableSegmentDeletion','SegmentKeepSeconds','EncoderPreset','H264Crf','H265Crf','EnableHardwareEncoding','HardwareAccelerationType')}\\nR['recent_encoder_logs']=[]\\nfor p in sorted((J/'logs').glob('*'),key=lambda p:p.stat().st_mtime,reverse=True):\\n if 'ffmpeg' not in p.name.lower() or not p.is_file() or time.time()-p.stat().st_mtime>7200:continue\\n s=p.read_text(errors='replace')[-150000:]\\n R['recent_encoder_logs'].append({'age_seconds':round(time.time()-p.stat().st_mtime),'bytes':p.stat().st_size,'decode_error_markers':{k:len(re.findall(k,s,re.I)) for k in ('error while decoding','concealing','corrupt decoded','invalid NAL','missing picture','reference picture missing','Packet corrupt','non.monoton','error submitting','conversion failed')},'video_output':re.findall(r'Video: (h264|hevc|mpeg2video).*?(\\\\d{2,5}x\\\\d{2,5}).*?(\\\\d+) kb/s',s)[-2:],'video_tracks':re.findall(r'Video: ([A-Za-z0-9_]+)[^\\\\n]{0,180}? (\\\\d{2,5}x\\\\d{2,5})[^\\\\n]{0,80}',s)[-4:],'audio_tracks':re.findall(r'Audio: ([A-Za-z0-9_]+)[^\\\\n]{0,130}? (\\\\d+) kb/s',s)[-4:],'speeds':re.findall(r'speed=\\\\s*([0-9.]+)x',s)[-5:]})\\n if len(R['recent_encoder_logs'])>=8:break\\nR['recent_native_requests']=[]\\nfor p in (Path('/var/log/nginx/access.log'),):\\n with contextlib.suppress(OSError):\\n  lines=p.read_text(errors='replace').splitlines()[-12000:]\\n  for line in lines:\\n   m=re.search(r'\\\"(?:GET|POST) ([^ ]+) HTTP/[^\\\"]+\\\" (\\\\d{3})',line)\\n   if not m:continue\\n   path=urlsplit(m[1]);q=dict(parse_qsl(path.query))\\n   if not re.fullmatch(r'/Videos/[a-fA-F0-9-]+/(?:master|live|main)\\\\.m3u8',path.path):continue\\n   allowed={}\\n   for k in ('VideoBitrate','AudioBitrate','MaxWidth','MaxHeight','TranscodingMaxAudioChannels','SegmentLength','MinSegments','AllowVideoStreamCopy','AllowAudioStreamCopy','BreakOnNonKeyFrames','RequireAvc','VideoCodec','AudioCodec'):\\n    v=q.get(k)\\n    if v is not None and re.fullmatch(r'[A-Za-z0-9,.-]{1,80}',v):allowed[k]=v\\n   R['recent_native_requests'].append({'status':int(m[2]),'route':path.path.rsplit('/',1)[-1],'selectors':allowed})\\nR['recent_native_requests']=R['recent_native_requests'][-18:]\\nR['cache_media_count']=sum(1 for p in (J/'cache').rglob('*') if p.is_file() and p.suffix in ('.ts','.m3u8','.mp4','.m4s'))\\n\\nraw=subprocess.check_output(['journalctl','-u','jellyfin-pink.service','--since','2026-11-28 12:50:00','-n','2500','--no-pager','-o','cat'],text=True,timeout=15)\\nimport shlex\\ncommands=[]\\nfor line in raw.splitlines():\\n if 'ffmpeg' not in line.lower():continue\\n with contextlib.suppress(ValueError):\\n  a=shlex.split(line);values={}\\n  for k,v in zip(a,a[1:]):\\n   if k in opts and len(v)<300 and re.fullmatch(r'[A-Za-z0-9_:/.,=+*()<>? -]+',v) and not any(w in v for w in ('http','vivoapk','token','ApiKey')):values[k]=v\\n  if values:commands.append(values)\\nR['journal_encoder_options']=commands[-10:]\\nR['journal_error_counts']={k:len(re.findall(k,raw,re.I)) for k in ('error while decoding','concealing','Packet corrupt','conversion failed','timed out','access refused')}\\nR['log_roots']={str(p.relative_to(J)):len(list(p.iterdir())) for p in J.rglob('log*') if p.is_dir() and len(p.relative_to(J).parts)<4}\\nn=subprocess.run(['nginx','-T'],capture_output=True,text=True,timeout=10)\\nR['nginx_log_paths']=re.findall(r'access_log +(/[^; ]+)',n.stdout+n.stderr)\\nprint(json.dumps(R,separators=(',',':')))\\n\\n\"],capture_output=True,text=True,timeout=45)\ntry:r=json.loads(p.stdout.strip())\nexcept Exception:r={'observation_pass':False,'details_suppressed':True}\nprint(json.dumps(r,separators=(',',':')))\n"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 60000,
+          "idle_timeout_ms": 59000,
+          "terminal": {
+            "columns": 150,
+            "rows": 40,
+            "scrollback": 100
+          },
+          "limits": {
+            "output_bytes": 26000
+          }
+        }
+      }
+    }
+  ]
+}
