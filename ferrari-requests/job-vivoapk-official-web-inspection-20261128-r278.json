@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "vivoapk-official-web-inspection-20261128-r278",
+  "kind": "rea-mcp",
+  "mcp_requests": [
+    {
+      "method": "tools/call",
+      "params": {
+        "name": "capture_process_scenario",
+        "arguments": {
+          "executable": "/srv/projects/skill-universal/runtimes/python3.12/bin/python3.12",
+          "arguments": [
+            "-c",
+            "import subprocess,json\np=subprocess.run(['sudo','-n','--','/srv/projects/Vivoapk/.venv/bin/python','-I','-B','-c',\"import contextlib,json,os,pwd,grp,signal,subprocess,tempfile\\nfrom pathlib import Path\\nNODE='/srv/projects/skill-universal/runtimes/node-22.23.4/bin/node'\\nJS=r'''const {chromium}=require('/srv/projects/skill-universal/.runtime/npm/playwright/node_modules/playwright');\\n(async()=>{let browser;let result={official_web_inspection:true,physical_clients_certified:0,secrets_emitted:false};let phase='launch';try{\\n browser=await chromium.launch({executablePath:'/srv/projects/skill-universal/.runtime/browsers/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell',headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--autoplay-policy=no-user-gesture-required'],timeout:20000});\\n const context=await browser.newContext({viewport:{width:1280,height:800}});const page=await context.newPage();\\n phase='public_web';const response=await page.goto('https://serveriptv.duckdns.org/web/index.html',{waitUntil:'domcontentloaded',timeout:40000});result.public_web_status=response.status();\\n await page.waitForTimeout(7000);\\n phase='inspect_login';result.controls=await page.locator('input,button,a').evaluateAll(nodes=>nodes.filter(n=>n.offsetParent!==null).map(n=>({tag:n.tagName.toLowerCase(),type:n.getAttribute('type'),id:n.id||null,name:n.getAttribute('name'),label:(n.getAttribute('aria-label')||n.textContent||'').trim().replace(/\\\\s+/g,' ').slice(0,70)})).filter(n=>n.tag==='input'||/sign|log|connect|manual|entrar|iniciar|servidor/i.test(n.label||'')).slice(0,18));\\n result.media_codec_support=await page.evaluate(()=>{const v=document.createElement('video');return{h264_aac_mp4:v.canPlayType('video/mp4; codecs=\\\"avc1.42E01E, mp4a.40.2\\\"'),hls_mse:!!window.MediaSource};});\\n result.inspect_pass=result.public_web_status===200;}\\n catch(e){result.inspect_pass=false;result.failure_type=e.name;result.failure_phase=phase;}\\n finally{if(browser)await browser.close().catch(()=>{});console.log(JSON.stringify(result));}})();'''\\nR={};child=None\\nwith tempfile.TemporaryDirectory(prefix='official-web-inspect-',dir='/srv/projects/Vivoapk/run') as tmp:\\n user=pwd.getpwnam('vivoapksvc');gid=grp.getgrnam('www-data').gr_gid;os.chown(tmp,user.pw_uid,gid);os.chmod(tmp,0o750)\\n def demote():os.setgroups([gid]);os.setgid(gid);os.setuid(user.pw_uid)\\n try:\\n  child=subprocess.Popen([NODE,'-e',JS],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,env={'PATH':'/usr/bin:/bin','LANG':'C.UTF-8','HOME':tmp,'TMPDIR':tmp,'XDG_CACHE_HOME':tmp},preexec_fn=demote,start_new_session=True)\\n  out,err=child.communicate(timeout=100)\\n  try:R=json.loads(out.strip())\\n  except Exception:R={'inspect_pass':False,'failure_type':'NoSafeJSON','exit':child.returncode}\\n except Exception as e:R={'inspect_pass':False,'failure_type':type(e).__name__}\\n finally:\\n  if child is not None:\\n   with contextlib.suppress(ProcessLookupError):os.killpg(child.pid,signal.SIGTERM)\\n   with contextlib.suppress(subprocess.TimeoutExpired):child.wait(timeout=5)\\n   with contextlib.suppress(ProcessLookupError):os.killpg(child.pid,signal.SIGKILL)\\nR['temporary_browser_home_removed']=not Path(tmp).exists();print(json.dumps(R,separators=(',',':')))\\n\"],capture_output=True,text=True,timeout=125)\ntry:r=json.loads(p.stdout.strip())\nexcept Exception:r={'inspect_pass':False,'exit':p.returncode,'details_suppressed':True}\nprint(json.dumps(r,separators=(',',':')))"
+          ],
+          "working_directory": "/srv/projects/skill-universal",
+          "timeout_ms": 145000,
+          "idle_timeout_ms": 140000,
+          "terminal": {
+            "columns": 150,
+            "rows": 40,
+            "scrollback": 100
+          },
+          "limits": {
+            "output_bytes": 12000
+          }
+        }
+      }
+    }
+  ]
+}
